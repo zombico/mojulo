@@ -18,8 +18,7 @@
     "scripts/mcp-stdio-loader.mjs",
     "scripts/mcp-config.mjs",
     "scripts/mojulo-paths.mjs",
-    "messages/**",
-    "lite-template/**"
+    "messages/**"
   ],
   "scripts": {
     "dev": "next dev -p 3001",
@@ -28,7 +27,7 @@
     "build:bot": "docker build -t mojulo/bot:latest ../lite-template",
     "mcp-stdio": "node scripts/mcp-stdio.mjs",
     "mcp-config": "node scripts/mcp-config.mjs",
-    "prepack": "node scripts/stage-lite-template.mjs",
+    "stage-lite-template": "node scripts/stage-lite-template.mjs",
     "test": "vitest run"
   },
   "dependencies": {

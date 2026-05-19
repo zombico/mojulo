@@ -30,14 +30,11 @@ register('./mcp-stdio-loader.mjs', import.meta.url);
 resolveMojuloPaths();
 
 // chdir to control/ for packaged-asset paths the lib still reads from cwd
-// (lib/composer/composer.js PROTOCOLS_DIR). lite-template is bundled inside
-// the package at publish time by scripts/stage-lite-template.mjs, so point
-// LITE_TEMPLATE_PATH at the bundled copy before docker.js / preview routes
-// resolve their default. In clone-and-run mode the env is unset, the bin
-// isn't used, and the existing ../lite-template fallback fires.
+// (lib/composer/composer.js PROTOCOLS_DIR default). M3 v0.2.0 will swap
+// these for __dirname-relative resolution when the UI bin lands and we
+// re-ship lite-template/ for the wizard preview path.
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(CONTROL_DIR);
-process.env.LITE_TEMPLATE_PATH ??= path.join(CONTROL_DIR, 'lite-template');
 
 // Stdout is the MCP protocol channel — any stray log corrupts the frame
 // stream. Several tool executors and the composer emit progress via
