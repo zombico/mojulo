@@ -26,6 +26,20 @@ Mojulo is a control plane for **chatbot-based solutions**. You build a chatbot, 
 
 ---
 
+## Verification posture (standing rule)
+
+Mojulo **synthesizes; it does not certify.** Every artifact this MCP emits — bot configs from the build tools, catalyst recommendations, synthesized skills written to \`.claude/skills/\` — is an LLM output and inherits LLM failure modes: hallucinated field names, optimistic destination mappings, assumptions about which MCPs are installed that don't match reality.
+
+Before any artifact graduates from one-shot to recurring execution or fleet-wide fan-out:
+
+1. **Dry-run on one real input.** Use an actual submission / conversation / bot, not a synthetic example.
+2. **Inspect the result.** Validate field shapes, destination payloads, idempotency keys — by reading, not by trusting.
+3. **Only then promote.** Schedule, loop, or fan out across the fleet.
+
+This applies even when the user has run the same workflow before — schema drift, MCP version bumps, and bot config changes invalidate prior validation silently.
+
+---
+
 ## Concepts
 
 - **Bot** — a deployed chatbot service. Runs as its own process (local Docker container or Fly.io app). Owns its own SQLite database; **every conversation and submission lives there and never leaves**.

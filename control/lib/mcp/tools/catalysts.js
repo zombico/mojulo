@@ -46,6 +46,7 @@ This catalyst is a **starting point, not a contract.** The library is non-exhaus
 - **No catalyst fits the user's intent? Write from scratch.** Don't force a mismatched pattern onto the user's request. Synthesize directly from their goal and the bot's shape, drawing on judgment absorbed from any catalysts you've read.
 - **Pitfalls in the body still apply when you adapt.** The PII-through-the-LLM warnings, rate-limit notes, irreversible-write cautions, and calibration advice generalize across patterns — they're not catalyst-specific gotchas. Carry them forward even when you deviate from the catalyst's prescribed flow.
 - **Safety defaults are standing posture, not negotiable.** Regardless of path: (1) default \`dryRun: true\` for any external write, requiring explicit per-run opt-in for live mode; (2) include mojulo trace (deployment id, conversation id, submission id, captured-at) in every destination payload so reviewers can walk back to the source.
+- **Encode the dry-run as a skill step, not a conversational promise.** Mojulo synthesizes; it does not certify (see the verification posture in \`forward_context\`). The dry-run / inspect / promote sequence belongs *inside the SKILL.md*: write a concrete first-invocation pattern ("first run with \`dryRun: true\` on one real record; surface the destination payload; wait for explicit go-live") rather than relying on the user to remember they're supposed to dry-run. A skill that defaults \`dryRun: true\` but doesn't *demonstrate* dry-run as its first step gets skipped under deadline pressure.
 
 ---
 
