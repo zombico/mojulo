@@ -1,9 +1,26 @@
 {
-  "name": "mojulo-control",
+  "name": "mojulo",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
-  "description": "Mojulo control plane — portable bot compiler (wizard + chat builder inverted flow)",
+  "description": "Mojulo — MCP server for building self-hosted chatbots from inside Claude.",
+  "homepage": "https://github.com/zombico/mojulo",
+  "repository": { "type": "git", "url": "git+https://github.com/zombico/mojulo.git" },
+  "engines": { "node": ">=20" },
+  "bin": {
+    "mojulo": "./scripts/mcp-stdio.mjs",
+    "mojulo-config": "./scripts/mcp-config.mjs"
+  },
+  "files": [
+    "lib/**",
+    "!lib/embedder/models/**",
+    "!lib/**/*.test.js",
+    "scripts/mcp-stdio.mjs",
+    "scripts/mcp-stdio-loader.mjs",
+    "scripts/mcp-config.mjs",
+    "scripts/mojulo-paths.mjs",
+    "messages/**",
+    "lite-template/**"
+  ],
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
@@ -11,7 +28,7 @@
     "build:bot": "docker build -t mojulo/bot:latest ../lite-template",
     "mcp-stdio": "node scripts/mcp-stdio.mjs",
     "mcp-config": "node scripts/mcp-config.mjs",
-    "postinstall": "node scripts/fetch-embed-model.js",
+    "prepack": "node scripts/stage-lite-template.mjs",
     "test": "vitest run"
   },
   "dependencies": {

@@ -6,3 +6,5 @@ data/
 *.log
 .DS_Store
 lib/embedder/models/
+# Staged at publish time by scripts/stage-lite-template.mjs.
+lite-template/

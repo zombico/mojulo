@@ -44,6 +44,17 @@ export const LOCAL_EMBEDDING_DIM = 384;
 
 let extractorPromise = null;
 
+/**
+ * Begin loading the embedding model in the background. Idempotent — shares
+ * promise state with the lazy path in generateEmbeddings(), so calling this
+ * at server cold-start lets the 113MB fetch overlap with the user's first
+ * exchanges instead of blocking their first RAG action. Callers that don't
+ * await should still .catch() to avoid an unhandled rejection.
+ */
+export async function preloadModel() {
+  await getExtractor();
+}
+
 function getExtractor() {
   if (!extractorPromise) {
     extractorPromise = pipeline('feature-extraction', MODEL_ID, { dtype: DTYPE }).catch(

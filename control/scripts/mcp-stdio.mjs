@@ -30,11 +30,14 @@ register('./mcp-stdio-loader.mjs', import.meta.url);
 resolveMojuloPaths();
 
 // chdir to control/ for packaged-asset paths the lib still reads from cwd
-// (lib/composer/composer.js PROTOCOLS_DIR, lib/deployers/docker.js
-// LITE_TEMPLATE_PATH default). M3 replaces these with __dirname-relative
-// resolution so the npm package can drop the chdir.
+// (lib/composer/composer.js PROTOCOLS_DIR). lite-template is bundled inside
+// the package at publish time by scripts/stage-lite-template.mjs, so point
+// LITE_TEMPLATE_PATH at the bundled copy before docker.js / preview routes
+// resolve their default. In clone-and-run mode the env is unset, the bin
+// isn't used, and the existing ../lite-template fallback fires.
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(CONTROL_DIR);
+process.env.LITE_TEMPLATE_PATH ??= path.join(CONTROL_DIR, 'lite-template');
 
 // Stdout is the MCP protocol channel — any stray log corrupts the frame
 // stream. Several tool executors and the composer emit progress via
@@ -45,6 +48,19 @@ console.info = console.error;
 
 const { dispatchMcpRequest, ensureToolsRegistered } = await import('@/lib/mcp/server');
 await ensureToolsRegistered();
+
+// Kick off the embedder model fetch in background. The first RAG bot build
+// is the iconic genesis flow, and the model load (~113MB on a cold cache)
+// is the longest single step. Starting it now lets the download/load overlap
+// with Claude's initial exchanges instead of blocking process_documents at
+// T6. The lazy path in lib/embedder/local.js shares promise state, so a
+// tool call arriving mid-load simply awaits whatever's left. Failures here
+// surface at first use — don't crash the MCP server.
+import('@/lib/embedder/local').then(({ preloadModel }) =>
+  preloadModel().catch((err) =>
+    console.error('[mcp-stdio] embedder preload failed:', err.message)
+  )
+);
 
 const CONTEXT = { mcpSessionId: 'stdio', userId: 'local' };
 

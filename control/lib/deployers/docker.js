@@ -24,6 +24,9 @@ const BOT_IMAGE =
 // emitted artifact bundles the full source + Dockerfile and builds locally.
 const OFFLINE_BUILD = process.env.MOJULO_OFFLINE_BUILD === '1';
 
+// Used only in offline-build mode (the npm package's deploy path never
+// reads lite-template). Drops local-state dirs and the `config` dir that
+// the deploy flow writes inline a few lines below.
 const TEMPLATE_EXCLUDES = new Set([
   'node_modules',
   '.next',
@@ -32,24 +35,7 @@ const TEMPLATE_EXCLUDES = new Set([
   'data',
   'documents',
   'config',
-]);
-
-// In prebuilt-image mode the source code, Dockerfile, and node-side assets
-// are baked into ghcr.io/zombico/mojulo-bot. Including them in the ZIP
-// would just be dead weight — the artifact only needs the per-bot config,
-// docs, and compose file.
-const PREBUILT_EXCLUDES = new Set([
-  ...TEMPLATE_EXCLUDES,
-  'Dockerfile',
-  '.dockerignore',
-  'server.js',
-  'package.json',
-  'package-lock.json',
-  'helper',
-  'middleware',
-  'client',
-  'models',
-  'scripts',
+  'test',
   'integration',
 ]);
 
@@ -283,23 +269,26 @@ export class DockerDeployer {
       documents = [],
     } = params;
 
-    if (!fs.existsSync(LITE_TEMPLATE_PATH)) {
-      throw new Error(
-        `Lite template not found at ${LITE_TEMPLATE_PATH}. Set LITE_TEMPLATE_PATH or place it next to control/.`
-      );
-    }
-
     await ensureDir(ARTIFACTS_DIR);
     const stagingDir = path.join(ARTIFACTS_DIR, `${botName}-${deploymentId}`);
     if (fs.existsSync(stagingDir)) await fsp.rm(stagingDir, { recursive: true, force: true });
     await ensureDir(stagingDir);
 
-    // 1. Copy lite-template source into the staging root.
-    //    Prebuilt-image mode (default) drops everything baked into the
-    //    published GHCR image; offline mode keeps the full template so
-    //    `docker compose up` can build from source on the user's machine.
-    const excludes = OFFLINE_BUILD ? TEMPLATE_EXCLUDES : PREBUILT_EXCLUDES;
-    await copyTemplateFiles(LITE_TEMPLATE_PATH, stagingDir, excludes);
+    // 1. Stage the bot source.
+    //    Prebuilt-image mode (default) writes nothing here — the GHCR image
+    //    holds the source and `docker-compose.yml` (written in step 7) pulls
+    //    it at `docker compose up`. Offline mode copies the full template so
+    //    `docker compose up --build` works air-gapped, which only makes sense
+    //    in clone-and-run installs (the npm package doesn't ship lite-template).
+    if (OFFLINE_BUILD) {
+      if (!fs.existsSync(LITE_TEMPLATE_PATH)) {
+        throw new Error(
+          `MOJULO_OFFLINE_BUILD=1 but lite-template not found at ${LITE_TEMPLATE_PATH}. ` +
+            `Offline mode requires a repo clone; set LITE_TEMPLATE_PATH or unset MOJULO_OFFLINE_BUILD.`
+        );
+      }
+      await copyTemplateFiles(LITE_TEMPLATE_PATH, stagingDir, TEMPLATE_EXCLUDES);
+    }
 
     // 2. Create config, data dirs
     const configDir = path.join(stagingDir, 'config');

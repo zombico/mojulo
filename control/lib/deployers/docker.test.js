@@ -59,10 +59,6 @@ async function createFakeTemplate(root) {
   await fsp.writeFile(path.join(root, 'config', 'old.json'), '{"stale": true}');
   await fsp.writeFile(path.join(root, '.env'), 'STALE=1');
 
-  // A file outside every exclude set — survives the copy. Lets us assert
-  // "the filter isn't accidentally dropping everything", complementing the
-  // negative assertions.
-  await fsp.writeFile(path.join(root, 'NOTICE.txt'), 'survives prebuilt copy');
 }
 
 function baseConfig() {
@@ -147,7 +143,6 @@ describe('PREBUILT artifact file tree', () => {
       '.env.example',
       '.env',
       'README.md',
-      'NOTICE.txt',
     ];
     for (const name of required) {
       expect(entries).toContain(name);
