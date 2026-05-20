@@ -9,13 +9,14 @@
 claude mcp add mojulo --command "npx -y mojulo"
 
 # 2. Configure at least one LLM provider key
-npx -y mojulo-config set anthropic sk-ant-...
+#    (mojulo-config ships inside the mojulo package, so -p mojulo is required)
+npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 
 # 3. In a Claude session, ask:
 #    "build me a triage bot for my dental practice"
 ```
 
-Compiled bots land in `~/.mojulo/data/artifacts/`. Run them with `docker compose up`, or set a Fly token (`mojulo-config set fly fo1_...`) and ask Claude to deploy to the cloud.
+Compiled bots land in `~/.mojulo/data/artifacts/`. Run them with `docker compose up`, or set a Fly token (`npx -y -p mojulo mojulo-config set fly fo1_...`) and ask Claude to deploy to the cloud.
 
 On first connect, Claude calls `forward_context` to read mojulo's glossary, lifecycle, and tool index — so the session orients itself before doing anything.
 
