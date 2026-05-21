@@ -1,6 +1,6 @@
 {
   "name": "mojulo",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "license": "Apache-2.0",
   "description": "Mojulo — MCP server for building self-hosted chatbots from inside Claude.",
   "author": "Franz Ombico",
@@ -49,9 +49,7 @@
     "!.next/standalone/lib/embedder/models/**",
     "!.next/standalone/lite-template/**",
     "!.next/standalone/mojulo-*.tgz",
-    "!.next/standalone/**/*.test.js",
-    ".next/static/**",
-    "public/**"
+    "!.next/standalone/**/*.test.js"
   ],
   "scripts": {
     "dev": "next dev -p 3001",
@@ -62,7 +60,8 @@
     "mcp-config": "node scripts/mcp-config.mjs",
     "mcp-ui": "node scripts/mcp-ui.mjs",
     "stage-lite-template": "node scripts/stage-lite-template.mjs",
-    "prepack": "node scripts/stage-lite-template.mjs && next build --webpack",
+    "stage-standalone": "node scripts/stage-standalone.mjs",
+    "prepack": "node scripts/stage-lite-template.mjs && next build --webpack && node scripts/stage-standalone.mjs",
     "test": "vitest run"
   },
   "dependencies": {

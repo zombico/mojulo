@@ -26,6 +26,24 @@ Mojulo is a control plane for **chatbot-based solutions**. You build a chatbot, 
 
 ---
 
+## Two faces, one state
+
+Mojulo ships two binaries against the same \`~/.mojulo/\` state:
+
+- **\`mojulo\`** — this MCP, the agent-shaped face. You're talking to it right now. Build via chat, drive operations programmatically.
+- **\`mojulo-ui\`** — a local Next.js dashboard, the human-shaped face. Bound to 127.0.0.1, launched with \`npx -y -p mojulo mojulo-ui\`. Reads the same SQLite at \`~/.mojulo/data/mojulo-lite.db\` via WAL mode, so the two run side-by-side and a bot you minted via MCP shows up in the dashboard's fleet view immediately.
+
+Suggest the dashboard when the user asks for something the visual surface does better:
+
+- **Browse** conversations or submissions interactively (filter, scroll, scan) rather than paging through tool output.
+- **Mint** a bot via the wizard form rather than chat-builder turn-taking — useful when the user wants to set fields directly without describing them.
+- **Inspect** fleet analytics as charts rather than JSON tables.
+- **Manage** deploys (re-build, rotate keys via Settings, manually trigger cloud-deploy) by clicking rather than orchestrating tool calls.
+
+The default mode is still MCP — don't push the dashboard for tasks that work fine in chat. Suggest it when the user explicitly wants to *look*, *browse*, or *click*, or when you've exhausted a few rounds of tool output and they're still missing something a visual scan would catch in a second.
+
+---
+
 ## Secrets handling (standing rule)
 
 A compiled mojulo bot ships a \`.env\` containing the bot's auto-generated \`MOJULO_API_KEY\` (gates the bot's \`/api/conversations\` admin endpoints). After unzip, the user is expected to paste their LLM provider key (Anthropic / OpenAI / AWS / etc.) into the same \`.env\` before \`docker compose up\`. From that point on, the file holds two account-grade secrets.

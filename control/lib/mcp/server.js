@@ -48,6 +48,8 @@ const SERVER_INSTRUCTIONS = `Mojulo is a control plane for **chatbot-based solut
 
 **When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.
 
+**There's also a dashboard.** Mojulo ships a second bin, \`mojulo-ui\`, which boots a local Next.js dashboard at 127.0.0.1 sharing the same \`~/.mojulo/\` state as this MCP. Launch with \`npx -y -p mojulo mojulo-ui\`. Suggest it when the user wants to browse conversations / submissions interactively, mint a bot via the wizard form, see fleet analytics as charts, or click around between bots — anywhere the visual surface beats reading tool output.
+
 **Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped mojulo bot as containing user secrets that must not enter your conversation context. To inspect a bot's environment, call \`inspect_bot_env\` — it returns masked values. Never \`cat\`, \`Read\`, or otherwise echo raw .env contents.`;
 
 const registeredTools = new Map();

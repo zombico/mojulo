@@ -9,6 +9,61 @@ control-plane version — a minor bump may move the pinned bot image tag.
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-05-21
+
+Discoverability patch on top of 0.2.1. The `mojulo-ui` bin shipped in 0.2.0,
+got fixed in 0.2.1, but no surface was telling users (or connecting agents)
+it existed — the npm-page README actively said the dashboard wasn't shipped
+yet, the MCP `initialize` preamble didn't mention it, and `forward_context`
+had no framing for when to suggest it.
+
+### Changed
+- [README.md](README.md) — Quickstart adds step 4 for `npx -y -p mojulo
+  mojulo-ui`; the top-of-fold lists the three bins (`mojulo`, `mojulo-ui`,
+  `mojulo-config`); the "Dashboard" section flips from "clone the repo to
+  run it" (the stale 0.1.x instruction) to actual `npx` commands with the
+  bin's flags and concrete reasons to reach for it.
+- `SERVER_INSTRUCTIONS` (MCP `initialize` preamble) — adds a short
+  "There's also a dashboard" paragraph next to the existing orientation
+  pointer and the secrets standing rule. Every connecting agent now sees
+  the affordance on handshake without having to call `forward_context`
+  first.
+- `forward_context` — adds a "Two faces, one state" subsection near the
+  top of orientation. Frames `mojulo` (MCP) and `mojulo-ui` (dashboard) as
+  two faces of the same `~/.mojulo/` state, with concrete decision
+  triggers (browse interactively, mint via wizard, fleet analytics as
+  charts, click-through deploy management) and an explicit "default is
+  still MCP" boundary so the agent doesn't push the dashboard for tasks
+  that work fine in chat.
+
+## [0.2.1] — 2026-05-21
+
+Patch on top of 0.2.0. `0.2.0` shipped the Next.js standalone bundle without
+its client static assets — the dashboard HTML served fine but every browser
+request for `/_next/static/*` (CSS, font, JS chunks) hit 404, leaving the
+page unstyled and non-interactive. `0.2.0` is deprecated on the registry
+with a pointer to this version.
+
+### Fixed
+- `mojulo-ui` now serves the dashboard's client static assets. Root cause:
+  Next.js's `output: 'standalone'` deliberately emits `.next/static/` and
+  `public/` *outside* the standalone bundle, leaving each deployer
+  responsible for copying them in. v0.2.0 packed both trees at the package
+  root, which never made them reachable from the standalone server's cwd.
+  v0.2.1 fixes this in `prepack` with [stage-standalone.mjs](scripts/stage-standalone.mjs),
+  which copies `.next/static → .next/standalone/.next/static` and
+  `public → .next/standalone/public` before the pack runs. The top-level
+  `.next/static/**` and `public/**` entries are dropped from the `files`
+  allowlist (now redundant — the standalone copy is what the server actually
+  reads).
+
+### Lesson logged for future Next.js standalone changes
+- A `mojulo-ui` smoke that only checks the dashboard HTML returns `200` is
+  not sufficient — the browser also has to be able to fetch at least one
+  `/_next/static/*` URL successfully. Future smoke tests should `curl` a
+  CSS chunk and a woff2 from the running server before declaring a UI
+  change validated.
+
 ## [0.2.0] — 2026-05-20
 
 Adds the Next.js dashboard as a second binary in the same npm package. The
