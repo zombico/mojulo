@@ -1,79 +1,78 @@
-# Mojulo-Lite · Control Plane
+# Mojulo
 
-A standalone Next.js app that compiles bots into portable Docker artifacts.
+**MCP server for building self-hosted chatbots from inside Claude.** Describe the bot you want — Mojulo compiles it into a portable Docker artifact you own. Conversations live in the bot's own SQLite, hash-chained turn by turn. The MCP surface composes alongside your other MCPs (Drive, Gmail, your CRM), so the build/deploy/operate loop runs entirely inside a Claude session.
 
-Two ways in:
+Two binaries, one install:
 
-- **Chat builder** (`/chat-builder`) — "Claude proposes, you dispose." The hero feature.
-- **Wizard** (`/bot-factory/modular`) — step-by-step for when you know what you want.
+- `mojulo` — stdio MCP server (`npx -y mojulo`, wired into Claude).
+- `mojulo-ui` — local dashboard for visual operation (`npx -y -p mojulo mojulo-ui`).
+- `mojulo-config` — provider key CLI (`npx -y -p mojulo mojulo-config set anthropic sk-...`).
 
-Both produce the same output: a `<bot>.zip` containing `docker-compose.yml`, composed `instructions.txt`, and all protocol config. One image (`mojulo/bot:latest`), one config zip, one `docker compose up`.
+Both `mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint through Claude shows up in the dashboard's fleet view immediately, and vice versa.
 
-## Quick start
+## Quickstart
 
 ```bash
-cd control
-cp .env.example .env
-npm install         # first install fetches a 113MB ONNX model for offline RAG (~30–60s)
-npm run dev
+# 1. Wire mojulo into Claude (Claude Code or Claude Desktop)
+claude mcp add mojulo --command "npx -y mojulo"
+
+# 2. Configure at least one LLM provider key
+#    (mojulo-config ships inside the mojulo package, so -p mojulo is required)
+npx -y -p mojulo mojulo-config set anthropic sk-ant-...
+
+# 3. In a Claude session, ask:
+#    "build me a triage bot for my dental practice"
+
+# 4. Operate the fleet visually (optional, anytime):
+npx -y -p mojulo mojulo-ui
+#    Opens a local dashboard at 127.0.0.1 and pops your browser. Shares
+#    ~/.mojulo/ with the MCP, so any bot you mint via Claude appears in
+#    the fleet view immediately. Flags: --port <n>, --no-open, --help.
 ```
 
-Then open http://localhost:3001:
+Compiled bots land in `~/.mojulo/data/artifacts/`. Run them with `docker compose up`, or set a Fly token (`npx -y -p mojulo mojulo-config set fly fo1_...`) and ask Claude to deploy to the cloud.
 
-1. Visit **Settings** and add your LLM provider API key (Anthropic or OpenAI), or point it at a local Ollama host. This key powers the conversational builder AND gets baked into every bot you compile.
-2. Open **Chat builder** or **Wizard** and describe the bot you want.
-3. When it's done, grab the `.zip` from **My bots**.
-4. Unzip, edit `.env` (paste your LLM key), run `docker compose up`. Bot lives on `http://localhost:3000`.
+On first connect, Claude calls `forward_context` to read mojulo's glossary, lifecycle, and tool index — so the session orients itself before doing anything.
 
-## Layout
+## Tools at a glance
 
-```
-control/
-├── app/                           # Next.js app router
-│   ├── api/
-│   │   ├── builder/stream/        # SSE endpoint powering the chat builder (Claude tool-use)
-│   │   ├── deploy/                # Wizard POSTs here to compile a bot
-│   │   ├── deployments/           # List / detail / download zip
-│   │   ├── documents/             # Upload + parsed-text storage
-│   │   └── settings/api-keys/     # CRUD over the single-user key vault
-│   ├── chat-builder/              # Conversational builder UI (Claude tool-use inverted flow)
-│   ├── bot-factory/modular/       # Classic wizard
-│   ├── dashboard/                 # Bot list with download links
-│   └── settings/                  # API key management
-├── components/
-│   ├── ModularChat/               # Chat panel + Modulo avatar (copied)
-│   └── wizard/modular/            # Step-based wizard (copied)
-├── lib/
-│   ├── composer/                  # Protocol cartridges → instructions.txt
-│   ├── config-builder.js          # Form → deployment config object
-│   ├── deployers/docker.js        # The Lite deployer. Outputs the zip.
-│   ├── builder/                   # Builder tools + executors (Claude tool-use; shared by chat builder and wizard)
-│   ├── db/                        # SQLite schema + repositories
-│   └── storage/                   # Local filesystem (replaces S3)
-└── data/                          # Runtime state: sqlite db, storage, artifacts
+- **Build** — `infer_intent`, `generate_*`, `save_modular_bot`. Describe a bot in free text; the tools sequence themselves into a compiled zip.
+- **Operate** — `get_deployment`, `query_conversations`, `get_conversation`, `query_submissions`, `verify_chain`. Read what each connected bot has captured. Transcript content never leaves the bot's SQLite — these tools proxy through.
+- **Fleet** — `fleet_query_conversations`, `fleet_analytics_summary`, `verify_fleet_chains`. Cross-bot rollups; same posture, just batched.
+- **Catalysts** — `list_catalysts`, `recommend_catalysts`, `get_catalyst`. Curated workflow recipes Claude turns into local skills in your `.claude/skills/`.
+
+## Catalysts shipped
+
+`qualify-lead-to-crm` · `appointment-to-calendar` · `submission-to-ticket` · `submissions-to-warehouse` · `document-extract-to-store` · `scan-conversations-for-signal` · `knowledge-gap-miner` · `weekly-submissions-digest` · `conversations-to-channel-digest`
+
+Claude reads one, binds it to a destination MCP you already have installed, and writes a local skill. The catalyst is the nucleation point; the resulting skill is yours.
+
+## Dashboard
+
+The `mojulo-ui` bin boots a local Next.js dashboard on 127.0.0.1, no clone required:
+
+```bash
+npx -y -p mojulo mojulo-ui                # auto-port, opens browser
+npx -y -p mojulo mojulo-ui --port 3999    # pin the port
+npx -y -p mojulo mojulo-ui --no-open      # skip browser launch
 ```
 
-## How compilation works
+Same primitives as the MCP, different face — useful when you want to:
 
-1. Wizard or conversational builder produces a deployment config (same shape the Full product uses).
-2. `lib/composer/composer.js` composes `instructions.txt` from the enabled protocol files in `lib/composer/protocols/`.
-3. `lib/deployers/docker.js` copies `../lite-template/` (the bot container source tree), writes `config/` + `documents/` + `docker-compose.yml` + `.env.example` + `README.md` into a staging dir, and zips it.
-4. The zip is saved to `data/artifacts/` and linked to the deployment record in SQLite.
-5. `/api/deployments/[id]/download` streams it back to the user.
+- Browse conversations and submissions interactively (filter, scroll, scan).
+- Mint a bot via the wizard form rather than chat-builder turn-taking.
+- See fleet analytics as charts rather than JSON tables.
+- Click around between bots without leaving the browser.
 
-## Env vars
+Shares `~/.mojulo/data/mojulo-lite.db` with the MCP via WAL mode, so the two can run side-by-side.
 
-See `.env.example`. The main knobs:
+## More
 
-- `LITE_TEMPLATE_PATH` — path to the bot container source tree (defaults to `../lite-template`).
-- `ARTIFACTS_DIR` — where `.zip` outputs get written.
-- `BOT_IMAGE` — the Docker image the generated `docker-compose.yml` references.
-- `API_KEY_ENCRYPTION_KEY` — used to encrypt stored LLM keys at rest. Leave unset for local dev; set it in production.
+- Full repo and docs: <https://github.com/zombico/mojulo>
+- Architecture: [ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/ARCHITECTURE.md)
+- MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md)
+- Catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)
 
-## Testing locally
+## License
 
-1. Ensure `../lite-template/` exists (bot container source tree).
-2. Build the bot image once: `npm run build:bot` (tags `mojulo/bot:latest`).
-3. Start the control plane: `npm run dev`.
-4. Add an API key, compile a bot, download the zip.
-5. In the unzipped bot dir: paste your LLM key into `.env`, then `docker compose up`.
+[Apache License 2.0](https://github.com/zombico/mojulo/blob/main/LICENSE)

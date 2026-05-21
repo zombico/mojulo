@@ -1,15 +1,67 @@
 {
-  "name": "mojulo-lite-control",
-  "version": "0.1.0",
-  "private": true,
+  "name": "mojulo",
+  "version": "0.2.2",
   "license": "Apache-2.0",
-  "description": "Mojulo-Lite control plane — portable bot compiler (wizard + chat builder inverted flow)",
+  "description": "Mojulo — MCP server for building self-hosted chatbots from inside Claude.",
+  "author": "Franz Ombico",
+  "homepage": "https://github.com/zombico/mojulo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zombico/mojulo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zombico/mojulo/issues"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "anthropic",
+    "claude-code",
+    "chatbot",
+    "bot-builder",
+    "rag",
+    "self-hosted",
+    "mojulo"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "mojulo": "./scripts/mcp-stdio.mjs",
+    "mojulo-config": "./scripts/mcp-config.mjs",
+    "mojulo-ui": "./scripts/mcp-ui.mjs"
+  },
+  "files": [
+    "lib/**",
+    "!lib/embedder/models/**",
+    "!lib/**/*.test.js",
+    "scripts/mcp-stdio.mjs",
+    "scripts/mcp-stdio-loader.mjs",
+    "scripts/mcp-config.mjs",
+    "scripts/mcp-ui.mjs",
+    "scripts/mojulo-paths.mjs",
+    "messages/**",
+    "lite-template/**",
+    ".next/standalone/**",
+    "!.next/standalone/.env",
+    "!.next/standalone/.env.*",
+    "!.next/standalone/data/**",
+    "!.next/standalone/lib/embedder/models/**",
+    "!.next/standalone/lite-template/**",
+    "!.next/standalone/mojulo-*.tgz",
+    "!.next/standalone/**/*.test.js"
+  ],
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
     "build:bot": "docker build -t mojulo/bot:latest ../lite-template",
-    "postinstall": "node scripts/fetch-embed-model.js",
+    "mcp-stdio": "node scripts/mcp-stdio.mjs",
+    "mcp-config": "node scripts/mcp-config.mjs",
+    "mcp-ui": "node scripts/mcp-ui.mjs",
+    "stage-lite-template": "node scripts/stage-lite-template.mjs",
+    "stage-standalone": "node scripts/stage-standalone.mjs",
+    "prepack": "node scripts/stage-lite-template.mjs && next build --webpack && node scripts/stage-standalone.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -21,6 +73,7 @@
     "next": "^16.0.7",
     "next-intl": "^4.8.3",
     "officeparser": "^5.2.2",
+    "open": "^11.0.0",
     "pdf2json": "^4.0.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",

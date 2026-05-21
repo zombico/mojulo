@@ -218,6 +218,105 @@ Example:
 }
 
 /**
+ * Extract user-stated bot settings from the prompt via LLM.
+ *
+ * Replaces the English-locked regex in extractPrepopulatedSettings — the LLM
+ * handles "llámalo Maverick" / "把它叫做小助手" / possessives / multi-turn
+ * mentions that the regex misses. Returns the same shape so compose_identity
+ * consumes it unchanged. The botName is slug-normalized here (same rules as
+ * the regex path) so downstream code doesn't have to know which extractor ran.
+ *
+ * Returns null when no API key is available (signal to caller to fall back to
+ * regex). Returns {} on parse/validation failure.
+ */
+async function extractPrepopulatedSettingsLLM(userMessage, session, userId) {
+  let llmConfig;
+  try {
+    llmConfig = await getLLMConfigFromSession(session, userId, 'summary');
+  } catch (err) {
+    console.log('[Builder] No API key for prepopulated extraction:', err.message);
+    return null;
+  }
+
+  const { provider, apiKey, model } = llmConfig;
+  const { generateSummary } = await import('@/lib/llm-providers.js');
+
+  const prompt = `Extract user-specified settings from this bot-building request. The user may write in any language (English, Spanish, Chinese, Polish, Arabic, etc.).
+
+USER REQUEST:
+${userMessage.substring(0, 1000)}
+
+Extract these fields IF — and only if — the user explicitly states them. Do not invent or infer.
+
+- displayName: The proper-noun name the user gave the bot (e.g. "Maverick", "小助手", "Pelusa"). Preserve original script and capitalization. Omit if not stated.
+- resourceName: The organization/company/brand the bot is for (e.g. "Acme Dental", "Valley Coffee"). Omit if not stated.
+- firstMessage: An exact greeting/welcome message the user dictated in quotes. Omit if not stated.
+- objective: An exact purpose/goal the user dictated in quotes. Omit if not stated.
+
+Return ONLY a JSON object with whichever fields are present, no other text. Empty object {} if nothing was stated.
+
+Examples:
+- "build me a bot called Maverick for Acme Dental" → {"displayName": "Maverick", "resourceName": "Acme Dental"}
+- "llámalo Sparky" → {"displayName": "Sparky"}
+- "把这个机器人叫做小助手,给阳光咖啡馆用的" → {"displayName": "小助手", "resourceName": "阳光咖啡馆"}
+- "I need a support bot" → {}`;
+
+  try {
+    const response = await generateSummary(
+      provider,
+      prompt,
+      apiKey,
+      'Extract bot settings from user request',
+      model
+    );
+
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return {};
+
+    const extracted = JSON.parse(jsonMatch[0]);
+    const settings = {};
+
+    if (typeof extracted.displayName === 'string' && extracted.displayName.trim()) {
+      const displayName = extracted.displayName.trim().substring(0, 40);
+      settings.displayName = displayName;
+      // Slug for botName: collapse to a-z0-9-, max 30. For non-ASCII names
+      // the slug ends up empty — fall back to a transliteration-free hash so
+      // the bot still has a stable id while displayName carries the original.
+      const slug = displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 30);
+      if (slug) {
+        settings.botName = slug;
+      }
+      // No slug fallback: leaving botName unset lets compose_identity generate
+      // an org-derived slug, which is more useful than a hash to the operator.
+    }
+
+    if (typeof extracted.resourceName === 'string' && extracted.resourceName.trim()) {
+      settings.resourceName = extracted.resourceName.trim().substring(0, 60);
+    }
+
+    if (typeof extracted.firstMessage === 'string' && extracted.firstMessage.trim()) {
+      settings.firstMessage = extracted.firstMessage.trim().substring(0, 200);
+    }
+
+    if (typeof extracted.objective === 'string' && extracted.objective.trim()) {
+      settings.objective = extracted.objective.trim().substring(0, 250);
+    }
+
+    console.log('[Builder] LLM-extracted prepopulated settings:', settings);
+    return settings;
+  } catch (err) {
+    console.warn('[Builder] Failed to LLM-extract prepopulated settings:', err.message);
+    return {};
+  }
+}
+
+/**
  * Execute a modular tool call
  * @param {string} toolName - Name of the tool
  * @param {Object} input - Tool input
@@ -614,8 +713,13 @@ const builderToolHandlers = {
       }
     }
 
-    // Extract prepopulated settings from user message
-    const prepopulatedSettings = extractPrepopulatedSettings(userMessage);
+    // Extract prepopulated settings from user message.
+    // LLM extractor handles any language; regex is the fallback when no API
+    // key is configured (returns null) or when the LLM yields nothing useful.
+    const llmSettings = await extractPrepopulatedSettingsLLM(userMessage, session, userId);
+    const prepopulatedSettings = (llmSettings && Object.keys(llmSettings).length > 0)
+      ? llmSettings
+      : extractPrepopulatedSettings(userMessage);
 
     // Update session with inference and prepopulated settings
     await BuilderSessionRepository.updateInference(session.id, userId, {
@@ -1395,15 +1499,20 @@ Return ONLY the summary text, nothing else.`;
 
       let buildStatus = result.status;
       let buildError = null;
+      // artifactPath is the absolute on-disk zip — surfaced so MCP/stdio
+      // callers (which have no HTTP server to hit downloadUrl against) can
+      // hand the user a real path. Web flow keeps using downloadUrl.
+      let artifactPath = null;
       try {
-        const { deployment } = await buildArtifact(result.deploymentId);
-        buildStatus = deployment.status;
+        const built = await buildArtifact(result.deploymentId);
+        buildStatus = built.deployment.status;
+        artifactPath = built.artifactPath;
       } catch (err) {
         console.error('[save_modular_bot] build after save failed:', err);
         buildError = err.message || 'Build failed';
       }
 
-      return { ...result, isUpdate, status: buildStatus, buildError };
+      return { ...result, isUpdate, status: buildStatus, buildError, artifactPath };
     }
 
     await BuilderSessionRepository.updateStatus(sessionId, userId, SESSION_STATUS.AWAITING_CONFIRM);

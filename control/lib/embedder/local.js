@@ -12,6 +12,10 @@
  *   - 'passage: <text>' for corpus chunks
  *   - 'query: <text>' for retrieval queries
  * This module owns that convention so callers stay model-agnostic.
+ *
+ * The cache dir resolves to MOJULO_MODELS_DIR if set (npx flow lands this at
+ * ~/.mojulo/models), else the bundled lib/embedder/models/ next to this file
+ * (clone-and-run flow).
  */
 
 import path from 'node:path';
@@ -20,8 +24,16 @@ import { pipeline, env } from '@huggingface/transformers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-env.cacheDir = path.resolve(__dirname, 'models');
-env.allowRemoteModels = false;
+// Two modes:
+//   - MOJULO_MODELS_DIR set (npx flow): cache lives under the user's home,
+//     gets populated lazily on first call. Remote downloads enabled so the
+//     fresh-dir case self-heals without a separate postinstall step.
+//   - MOJULO_MODELS_DIR unset (clone-and-run flow): cache lives next to this
+//     file, postinstall fills it. Remote downloads stay off — preserves the
+//     current offline-after-install posture.
+const USER_CACHE = !!process.env.MOJULO_MODELS_DIR;
+env.cacheDir = process.env.MOJULO_MODELS_DIR || path.resolve(__dirname, 'models');
+env.allowRemoteModels = USER_CACHE;
 env.allowLocalModels = true;
 
 const MODEL_ID = 'Xenova/multilingual-e5-small';
@@ -32,14 +44,27 @@ export const LOCAL_EMBEDDING_DIM = 384;
 
 let extractorPromise = null;
 
+/**
+ * Begin loading the embedding model in the background. Idempotent — shares
+ * promise state with the lazy path in generateEmbeddings(), so calling this
+ * at server cold-start lets the 113MB fetch overlap with the user's first
+ * exchanges instead of blocking their first RAG action. Callers that don't
+ * await should still .catch() to avoid an unhandled rejection.
+ */
+export async function preloadModel() {
+  await getExtractor();
+}
+
 function getExtractor() {
   if (!extractorPromise) {
     extractorPromise = pipeline('feature-extraction', MODEL_ID, { dtype: DTYPE }).catch(
       (err) => {
         extractorPromise = null;
+        const hint = USER_CACHE
+          ? `Lazy download from ${env.cacheDir} failed — check network / disk and retry.`
+          : `Run "node scripts/fetch-embed-model.js" first.`;
         throw new Error(
-          `Failed to load embedding model from ${env.cacheDir}. ` +
-            `Run "node scripts/fetch-embed-model.js" first. Cause: ${err.message}`
+          `Failed to load embedding model from ${env.cacheDir}. ${hint} Cause: ${err.message}`
         );
       }
     );
