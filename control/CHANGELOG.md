@@ -9,15 +9,65 @@ control-plane version — a minor bump may move the pinned bot image tag.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-20
+
+Adds the Next.js dashboard as a second binary in the same npm package. The
+launch story becomes: build the bot via Claude → operate the fleet via
+dashboard → both shipped via one `npx -y mojulo` install. See
+[lite-template/integration/UI_PACKAGE_PLAN.md](../lite-template/integration/UI_PACKAGE_PLAN.md).
+
 ### Added
+- `mojulo-ui` bin — boots the bundled dashboard on a free local port and opens
+  the browser ([scripts/mcp-ui.mjs](scripts/mcp-ui.mjs)). Flags: `--port <n>`,
+  `--no-open`, `--help`. Binds 127.0.0.1 only. Shares `~/.mojulo/` state with
+  the `mojulo` stdio bin, so a bot minted via MCP shows up immediately in the
+  UI's fleet view.
+- `version` MCP tool (Ring 0) — reports server version, MCP protocol version,
+  Node version, platform os/arch, the pinned bot container image tag, the
+  `MOJULO_OFFLINE_BUILD` flag, and the active `MOJULO_HOME`. Use to diagnose
+  version mismatches between a user-reported issue and what their control
+  plane is actually running.
 - `save_modular_bot` response now includes `artifactPath`, the absolute on-disk
   path to the compiled zip. Stdio MCP callers (which have no HTTP server to hit
   `downloadUrl` against) can surface this directly to the user.
+- `open` runtime dep (~120 KB) — used only by the `mojulo-ui` shim for browser
+  launch.
 
 ### Changed
-- `forward_context` tool index updated to document the `artifactPath` field on
-  `save_modular_bot` and to steer stdio clients away from the legacy
-  `downloadUrl` (which is a Next.js-route path, unreachable over stdio).
+- Next.js builds emit `output: 'standalone'`. The `mojulo-ui` bin imports the
+  resulting `.next/standalone/server.js` directly; the pack ships the pruned
+  standalone tree instead of the source app.
+- `prepack` runs `stage-lite-template && next build --webpack`. The webpack
+  build path is load-bearing — Turbopack's standalone output hashes external
+  module names (e.g. `@huggingface/transformers-31f28a0eb9b916d1`), which
+  Node's resolver can't find when standalone runs from inside `node_modules/`.
+- `lite-template/` is bundled into the package again so the wizard preview
+  routes (`/api/preview/bot/*`, `/api/preview/chat`, `/api/preview/extract`)
+  resolve under bundled-`lite-template/` conditions. The `mojulo-ui` shim sets
+  `LITE_TEMPLATE_PATH` to the bundled copy before booting the standalone
+  server.
+- `SERVER_VERSION` in the MCP `initialize` handshake reads from `package.json`
+  via `getServerVersion()` instead of being a hardcoded constant. Both the
+  `initialize` response and the new `version` tool will track future bumps
+  automatically.
+- `forward_context` tool index updated for the new `version` tool, the
+  `artifactPath` field on `save_modular_bot`, and to steer stdio clients away
+  from the legacy `downloadUrl` (which is a Next.js-route path, unreachable
+  over stdio).
+- `files` allowlist expanded with negations to exclude developer state from the
+  pack: `.next/standalone/.env*`, `.next/standalone/data/**`,
+  `.next/standalone/lib/embedder/models/**`, the duplicate
+  `.next/standalone/lite-template/**`, stale `.tgz` artifacts, and test files
+  inside the standalone bundle.
+
+### Implementation notes
+- Pack size moved from ~600 KB (0.1.0, stdio-only) to ~52 MB (0.2.0, includes
+  Next.js standalone + lite-template + bundled deps). Webpack adds ~30 MB over
+  the broken Turbopack pack but is the only build path that actually works
+  from an `npm install` location.
+- The bundled `lite-template/models/tokenizer.json` is 17 MB. Tokenizer cache
+  sharing between the control-plane embedder and the bot-runtime embedder is
+  deferred to v0.3.0 — currently each pulls from a different cache dir.
 
 ## [0.1.0] — 2026-05-19
 

@@ -15,7 +15,10 @@ const ARTIFACTS_DIR =
 const BOT_DEFAULT_PORT = process.env.BOT_DEFAULT_PORT || '3000';
 
 // Prebuilt bot image published by .github/workflows/publish-bot-image.yml.
-// Pin an exact version per release — never ship :latest to users.
+// Pin tracks lite-template releases: bump to the new tag when a bot-vX.Y.Z
+// tag ships (and update control/.env.example to match). Control-plane
+// releases with no lite-template runtime changes don't need a pin bump.
+// Never ship :latest to users — see CLAUDE.md "Status reminders".
 const BOT_IMAGE =
   process.env.BOT_IMAGE || 'ghcr.io/zombico/mojulo-bot:0.5.1';
 

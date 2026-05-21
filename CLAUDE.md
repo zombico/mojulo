@@ -144,7 +144,7 @@ Vision input is supported on Anthropic and OpenAI; the runtime adapter check liv
 ## Status reminders baked into the project
 
 - The control plane is **single-user, self-hosted**, with an **opt-in HTTP login** (see [control/middleware.js](control/middleware.js), [control/lib/auth/session.js](control/lib/auth/session.js)). Set `CONTROL_PLANE_USER` + `CONTROL_PLANE_PASSWORD` in env to enable; sessions are HMAC-signed with the password itself. The login is a last-line-of-defense affordance — don't expose the control plane to the public internet, and don't add features that assume multi-tenancy.
-- Versioning is `0.x`. Artifact format and bot image are pinned per-control-plane-version. When the artifact shape changes, the pinned [BOT_IMAGE](control/.env.example) tag in `.env.example` and the `docker.js` constant must move together.
+- Versioning is `0.x`. The bot image pin tracks **lite-template releases**, not control-plane releases — bump the [BOT_IMAGE](control/.env.example) tag in `.env.example` and the matching constant in [docker.js](control/lib/deployers/docker.js) when a new `bot-vX.Y.Z` tag ships out of `lite-template/`. The two must move together. A control-plane release with no `lite-template/` runtime changes since the last `bot-vX.Y.Z` does not need a pin bump.
 
 ## Coding Standards
 - When outputting new UI, ensure strings are i18n in EN

@@ -15,9 +15,27 @@
  *   - userId — always 'local' (single-user posture, see auth/service.js)
  */
 
-const PROTOCOL_VERSION = '2024-11-05';
-const SERVER_NAME = 'mojulo-control-plane';
-const SERVER_VERSION = '0.1.0';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
+export const PROTOCOL_VERSION = '2024-11-05';
+export const SERVER_NAME = 'mojulo-control-plane';
+
+// Resolve from package.json so a version bump propagates without a second
+// edit. cwd is reliable in all three entry points: stdio bin chdirs to the
+// installed package root, the standalone server chdirs to .next/standalone/
+// (where Next copies package.json), and `next dev` runs from control/.
+let _serverVersion = null;
+export function getServerVersion() {
+  if (_serverVersion !== null) return _serverVersion;
+  try {
+    const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+    _serverVersion = pkg.version || '0.0.0';
+  } catch {
+    _serverVersion = '0.0.0';
+  }
+  return _serverVersion;
+}
 
 // Surfaced to the connecting model on `initialize`. Most MCP clients hand this
 // to the agent as a system-prompt-style preamble — it has to fit and stick
@@ -83,7 +101,7 @@ export async function dispatchMcpRequest(message, context) {
               capabilities: {
                 tools: { listChanged: false },
               },
-              serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
+              serverInfo: { name: SERVER_NAME, version: getServerVersion() },
               instructions: SERVER_INSTRUCTIONS,
             });
 

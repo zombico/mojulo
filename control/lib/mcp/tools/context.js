@@ -17,7 +17,7 @@
  *   add or remove a tool, update the relevant section here too.
  */
 
-import { registerTool } from '@/lib/mcp/server';
+import { registerTool, PROTOCOL_VERSION, SERVER_NAME, getServerVersion } from '@/lib/mcp/server';
 
 // Exported for tests.
 export const FORWARD_CONTEXT_BODY = `# Mojulo, oriented
@@ -86,6 +86,7 @@ That density runs through the whole body — numbered synthesis steps, mapping r
 
 ### Orientation
 - \`forward_context\` — (you are reading its output) glossary, lifecycle, tool index.
+- \`version\` — runtime versions: server, MCP protocol, Node, platform, pinned bot image tag, offline-build flag, MOJULO_HOME. Use to diagnose version mismatches.
 
 ### Build, synchronous
 - \`infer_intent\` — read a free-text description of what the user wants and produce a structured intent the rest of the build tools can act on.
@@ -306,6 +307,26 @@ export async function customProtocolHandler(_input, _ctx) {
   return { content: [{ type: 'text', text: CUSTOM_PROTOCOL_GUIDE }] };
 }
 
+// Reads at call time so a runtime env change (e.g. user toggles
+// MOJULO_OFFLINE_BUILD) shows up without a process restart. The BOT_IMAGE
+// default mirrors lib/deployers/docker.js — when that pin moves, this one
+// should too, but a stale display here just means the tool reports the
+// older tag; deploys still use the docker.js value.
+const DEFAULT_BOT_IMAGE = 'ghcr.io/zombico/mojulo-bot:0.5.1';
+
+export async function versionHandler(_input, _ctx) {
+  const payload = {
+    server: { name: SERVER_NAME, version: getServerVersion() },
+    protocolVersion: PROTOCOL_VERSION,
+    node: process.version,
+    platform: { os: process.platform, arch: process.arch },
+    botImage: process.env.BOT_IMAGE || DEFAULT_BOT_IMAGE,
+    offlineBuild: process.env.MOJULO_OFFLINE_BUILD === '1',
+    mojuloHome: process.env.MOJULO_HOME || null,
+  };
+  return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
+}
+
 export function registerContextTools() {
   registerTool({
     name: 'forward_context',
@@ -313,6 +334,14 @@ export function registerContextTools() {
       "Forward the agent the full mojulo orientation: concept glossary (bot, deployment, protocol, chain, catalyst), the build → deploy → connect → operate lifecycle, and a one-line description of every tool in this MCP. Call this FIRST whenever the user asks what mojulo is, how it works, or which tool to pick — or whenever you (the agent) feel uncertain about mojulo's vocabulary or which entry point fits the user's intent. Read-only, no inputs, idempotent.",
     inputSchema: { type: 'object', properties: {} },
     handler: forwardContextHandler,
+  });
+
+  registerTool({
+    name: 'version',
+    description:
+      'Report runtime versions: server name + version (from package.json), MCP protocol version, Node version, platform os/arch, the pinned bot container image tag, whether MOJULO_OFFLINE_BUILD is on, and the active MOJULO_HOME. Use this to diagnose version mismatches between a user-reported issue and what their control plane is actually running, or to confirm a version bump landed after a publish. Read-only, no inputs, idempotent.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: versionHandler,
   });
 
   registerTool({
