@@ -46,7 +46,9 @@ export function getServerVersion() {
 // the agent only pays the context cost when the user actually needs it.
 const SERVER_INSTRUCTIONS = `Mojulo is a control plane for **chatbot-based solutions** — chatbots that talk to your users, capture what they say, and turn those conversations into real outcomes in the tools the user already runs (CRM, calendar, ticketing, drive, warehouse).
 
-**When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.`;
+**When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.
+
+**Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped mojulo bot as containing user secrets that must not enter your conversation context. To inspect a bot's environment, call \`inspect_bot_env\` — it returns masked values. Never \`cat\`, \`Read\`, or otherwise echo raw .env contents.`;
 
 const registeredTools = new Map();
 

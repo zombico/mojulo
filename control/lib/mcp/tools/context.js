@@ -26,6 +26,32 @@ Mojulo is a control plane for **chatbot-based solutions**. You build a chatbot, 
 
 ---
 
+## Secrets handling (standing rule)
+
+A compiled mojulo bot ships a \`.env\` containing the bot's auto-generated \`MOJULO_API_KEY\` (gates the bot's \`/api/conversations\` admin endpoints). After unzip, the user is expected to paste their LLM provider key (Anthropic / OpenAI / AWS / etc.) into the same \`.env\` before \`docker compose up\`. From that point on, the file holds two account-grade secrets.
+
+**Never \`cat\` or \`Read\` those \`.env\` files.** A routine "let me check your .env to debug" reads the raw secret into your conversation context, where it gets persisted, forwarded to the next prompt, and out of the user's control.
+
+Use \`inspect_bot_env\` instead. It returns \`{ key, value, masked }\` entries — sensitive values come through masked (first 4 + last 4), non-sensitive values (\`LLM_PROVIDER=anthropic\`, ports, webhook URLs) come through clear. You can still see which keys are present and whether the user has actually pasted a value, without the raw secret crossing into context.
+
+Recommended defense-in-depth: the user can add a deny rule to \`.claude/settings.json\` so the harness blocks the routine \`cat\`/\`Read\` path even if an agent forgets the rule. The MCP doesn't enforce this — it's the user's choice — but suggesting it on first connect is a reasonable nudge:
+
+\`\`\`json
+{
+  "permissions": {
+    "deny": [
+      "Read(~/.mojulo/**/.env)",
+      "Read(~/.mojulo/**/.env.*)",
+      "Bash(cat ~/.mojulo/**/.env*)"
+    ]
+  }
+}
+\`\`\`
+
+This applies the same rule **control-plane API keys are already protected by**: \`mojulo-config\` writes provider keys into the encrypted \`api_keys\` table via the same AES-GCM path the Settings UI uses, never to plaintext \`.env\`. The container-side \`.env\` is the remaining surface, and \`inspect_bot_env\` is the safe affordance for it.
+
+---
+
 ## Verification posture (standing rule)
 
 Mojulo **synthesizes; it does not certify.** Every artifact this MCP emits — bot configs from the build tools, catalyst recommendations, synthesized skills written to \`.claude/skills/\` — is an LLM output and inherits LLM failure modes: hallucinated field names, optimistic destination mappings, assumptions about which MCPs are installed that don't match reality.
@@ -118,6 +144,7 @@ Aggregates and metadata only. For conversation content, use \`get_conversation\`
 ### Operate (read what deployed bots have captured)
 - \`list_deployments\` — list bots known to the control plane. → returns \`{ total, limit, offset, deployments: [{ id, botName, status, url, lastSeenAt, configHash, lastBuiltHash, ragMode, embeddingChunkCount, cloud, createdAt, updatedAt }] }\`. No transcript data.
 - \`get_deployment\` — full row for one bot. → returns the list-shape fields above, **plus** \`config\` (the bot's identity, suggested prompts, enabled protocols, generated form/appointment/triage/optical-read configs — credentials redacted), \`botSummary\`, \`documentIds\`. **The identity prompt, form schema, and per-protocol configs all live under \`config\`** — this is the tool to call when a catalyst says "read the bot's identity" or "read the form schema."
+- \`inspect_bot_env\` — read the bot's container \`.env\` with sensitive values masked. → returns \`{ path, vars: [{ key, value, masked, valueLength? }], maskedCount, note }\`. **Use this instead of \`cat .env\`** — see the Secrets handling standing rule above. Takes \`deploymentId\` (resolves under \`$MOJULO_HOME\`) or an explicit \`path\` if the user unzipped elsewhere.
 - \`query_conversations\` — conversation summaries on a connected bot (proxied — conversation data lives in the bot's SQLite, not here). → returns \`{ botName, total, conversations: [{ conversationId, startedAt, lastActivity, turnCount }] }\`. No turn content; call \`get_conversation\` or \`export_conversations\` for that.
 - \`get_conversation\` — full turn list for one conversation. → returns \`{ conversationId, turnCount, turns, verification }\`. Turn fields: \`id, conversationId, turn, timestamp, userPrompt, llmResponse, machineState, ragContext, contentHash, chainHash, eventType, handoffHash\`.
 - \`export_conversations\` — bulk export full conversations and turns. → returns \`{ botName, conversations: [{ conversationId, startedAt, lastActivity, turnCount, turns }] }\`. Same turn shape as \`get_conversation\`.

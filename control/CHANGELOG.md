@@ -27,6 +27,20 @@ dashboard → both shipped via one `npx -y mojulo` install. See
   `MOJULO_OFFLINE_BUILD` flag, and the active `MOJULO_HOME`. Use to diagnose
   version mismatches between a user-reported issue and what their control
   plane is actually running.
+- `inspect_bot_env` MCP tool (Ring 3) — read a bot's container `.env` safely.
+  Returns `{ key, value, masked, valueLength? }` entries with sensitive values
+  (Anthropic / OpenAI / AWS / Fly / GitHub / Slack tokens, and the
+  auto-generated `MOJULO_API_KEY`) masked to first-4 + last-4. Non-sensitive
+  entries (`LLM_PROVIDER`, ports, plain webhook URLs) come through clear.
+  Takes either `deploymentId` (resolves under `MOJULO_HOME`) or an explicit
+  `path` (basename must start with `.env`). The standing rule lives in the
+  `initialize` preamble and the new "Secrets handling" section of
+  `forward_context`: do not `cat`/`Read` `.env` files of mojulo bots — use this
+  tool. Defense-in-depth: a recommended `.claude/settings.json` deny snippet
+  is documented in `forward_context` so the harness can block the routine
+  `cat .env` path even if an agent forgets the rule. Control-plane provider
+  keys are unaffected — those already live encrypted in the `api_keys` table,
+  managed via the `mojulo-config` CLI.
 - `save_modular_bot` response now includes `artifactPath`, the absolute on-disk
   path to the compiled zip. Stdio MCP callers (which have no HTTP server to hit
   `downloadUrl` against) can surface this directly to the user.

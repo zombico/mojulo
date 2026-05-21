@@ -8,6 +8,9 @@
  * "conversation data never leaves the bot's SQLite" invariant.
  */
 
+import { promises as fsp } from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { fetchFromBot } from '@/lib/deployers/bot-proxy';
 import { registerTool } from '@/lib/mcp/server';
@@ -197,6 +200,126 @@ async function verifyChainHandler(input, _ctx) {
   return proxyJson(dep, `/verify/${encodeURIComponent(conversationId)}`);
 }
 
+// Value-prefix patterns that mark a string as a secret to mask. Container
+// .env values only — control-plane LLM keys live encrypted in api_keys and
+// never get written to disk in plaintext by build flows (the mojulo-config
+// bin manages them). The list intentionally errs toward common providers
+// the user might paste into a bot .env after unzip.
+const SECRET_VALUE_PREFIXES = [
+  'sk-ant-',         // Anthropic
+  'sk-proj-',        // OpenAI project
+  'sk-',             // OpenAI / generic OAI-style
+  'AKIA',            // AWS access key
+  'ASIA',            // AWS temp access key
+  'bot_',            // mojulo MOJULO_API_KEY (auto-generated per deploy)
+  'fo1_',            // Fly.io
+  'ghp_',            // GitHub personal access token
+  'gho_',            // GitHub OAuth
+  'github_pat_',     // GitHub PAT (newer)
+  'xoxb-',           // Slack bot token
+  'xoxp-',           // Slack user token
+  'ya29.',           // Google OAuth access token
+];
+
+function looksLikeSecret(value) {
+  if (!value || typeof value !== 'string') return false;
+  return SECRET_VALUE_PREFIXES.some((p) => value.startsWith(p));
+}
+
+function maskSecret(value) {
+  if (value.length <= 8) return '*'.repeat(value.length);
+  return `${value.slice(0, 4)}…${value.slice(-4)}`;
+}
+
+function parseEnvText(text) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    const stripped = line.trim();
+    if (!stripped || stripped.startsWith('#')) continue;
+    const eq = stripped.indexOf('=');
+    if (eq === -1) continue;
+    const key = stripped.slice(0, eq).trim();
+    let value = stripped.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    out.push({ key, value });
+  }
+  return out;
+}
+
+function expandHome(p) {
+  if (!p) return p;
+  if (p === '~') return os.homedir();
+  if (p.startsWith('~/')) return path.join(os.homedir(), p.slice(2));
+  return p;
+}
+
+async function resolveBotEnvPath({ deploymentId, envPath }) {
+  if (envPath) {
+    const resolved = path.resolve(expandHome(envPath));
+    const base = path.basename(resolved);
+    if (!base.startsWith('.env')) {
+      throw new Error(
+        `inspect_bot_env refuses to read non-.env files. Got basename "${base}".`
+      );
+    }
+    return resolved;
+  }
+  if (!deploymentId) {
+    throw new Error('inspect_bot_env requires either deploymentId or envPath');
+  }
+  const dep = await DeploymentRepository.findById(deploymentId);
+  if (!dep) throw new Error(`Deployment not found: ${deploymentId}`);
+  const artifactsDir =
+    process.env.ARTIFACTS_DIR || path.join(process.cwd(), 'data', 'artifacts');
+  // Staging dir convention from lib/deployers/docker.js — preserved
+  // alongside the .zip after a successful build.
+  return path.join(artifactsDir, `${dep.botName}-${deploymentId}`, '.env');
+}
+
+async function inspectBotEnvHandler(input, _ctx) {
+  const target = await resolveBotEnvPath({
+    deploymentId: input?.deploymentId,
+    envPath: input?.path,
+  });
+  let text;
+  try {
+    text = await fsp.readFile(target, 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      throw new Error(
+        `No .env file at ${target}. If the user unzipped the artifact elsewhere, pass the .env path explicitly.`
+      );
+    }
+    throw err;
+  }
+  const raw = parseEnvText(text);
+  const vars = raw.map(({ key, value }) => {
+    if (looksLikeSecret(value)) {
+      return {
+        key,
+        value: maskSecret(value),
+        masked: true,
+        valueLength: value.length,
+      };
+    }
+    return { key, value, masked: false };
+  });
+  const maskedCount = vars.filter((v) => v.masked).length;
+  return {
+    path: target,
+    vars,
+    maskedCount,
+    note: maskedCount
+      ? 'Sensitive values are masked. Do not ask the user to paste the unmasked secret back into this conversation — read the user-visible config from disk via the user, not via the agent context.'
+      : 'No sensitive values detected. If the user expected a secret to be present (e.g. an LLM provider key), they may still need to paste one into this .env before `docker compose up`.',
+  };
+}
+
 export function registerOperateTools() {
   // Deployment metadata — always available. No transcript data, just rows
   // from the control plane's deployments table.
@@ -228,6 +351,32 @@ export function registerOperateTools() {
       required: ['id'],
     },
     handler: getDeploymentHandler,
+  });
+
+  // Read the artifact .env safely. Sensitive values (Anthropic / OpenAI /
+  // AWS / Fly / GitHub / Slack tokens + the auto-generated MOJULO_API_KEY)
+  // come back masked. Use this instead of `cat .env` whenever you need to
+  // know what's in a bot's environment — see SERVER_INSTRUCTIONS and the
+  // "Secrets handling" section of forward_context.
+  registerTool({
+    name: 'inspect_bot_env',
+    description:
+      "Read a bot's container .env safely. Returns parsed { key, value, masked } entries with sensitive values (Anthropic / OpenAI / AWS / Fly / GitHub / Slack tokens, and the bot's auto-generated MOJULO_API_KEY) masked to first-4…last-4. Non-sensitive values (LLM_PROVIDER, ports, webhook URLs without secret-prefix patterns) come through clear. Use this — NOT `cat .env` via Bash/Read — to inspect a bot's environment for debugging: the unmasked raw values must not enter the agent's conversation context. Pass either `deploymentId` (resolves to the artifact staging dir under MOJULO_HOME) or an explicit `path` if the user unzipped the artifact elsewhere. Path must end in `.env*`.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        deploymentId: {
+          type: 'string',
+          description: 'Deployment id. Resolves to the artifact staging .env under MOJULO_HOME.',
+        },
+        path: {
+          type: 'string',
+          description:
+            'Explicit .env path (basename must start with .env). Use when the user unzipped the artifact outside the staging dir.',
+        },
+      },
+    },
+    handler: inspectBotEnvHandler,
   });
 
   // Transcript-touching tools. The proxy reads keep conversation data inside
