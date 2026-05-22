@@ -9,6 +9,15 @@ control-plane version — a minor bump may move the pinned bot image tag.
 
 ## [Unreleased]
 
+### Added
+- Language packs for new locales: Arabic (ar), Danish (da), Estonian (et),
+  Farsi (fa), Filipino (fil), Hindi (hi), Indonesian (id),  Kiswahili (sw), Malay (ms), Swedish
+  (sv), Thai (th), Turkish (tr), Urdu (ur), and Vietnamese (vi). UI strings are now
+  internationalized across 27 languages total.
+
+### Changed
+- `forward_context` tool now surfaces the embed URL of the widget.
+
 ## [0.2.2] — 2026-05-21
 
 Discoverability patch on top of 0.2.1. The `mojulo-ui` bin shipped in 0.2.0,

@@ -83,8 +83,8 @@ Each subagent receives this verbatim, with `<LOCALE_CODE>`, `<LOCALE_NAME>`, and
 > You are syncing a translated i18n message catalog to match an updated English source. Apply only the listed changes — do not re-translate anything else.
 >
 > Target language: **<LOCALE_NAME>** (locale code: `<LOCALE_CODE>`).
-> Target file: `/Users/fombico/Documents/mojulo-lite/control/messages/<LOCALE_CODE>.json` — edit in place with the Edit or Write tool.
-> Source for context: `/Users/fombico/Documents/mojulo-lite/control/messages/en.json` — read it if you need surrounding strings to gauge tone or terminology.
+> Target file: `/Users/fombico/Documents/mojulo/control/messages/<LOCALE_CODE>.json` — edit in place with the Edit or Write tool.
+> Source for context: `/Users/fombico/Documents/mojulo/control/messages/en.json` — read it if you need surrounding strings to gauge tone or terminology.
 >
 > ### Changeset
 >
@@ -102,7 +102,7 @@ Each subagent receives this verbatim, with `<LOCALE_CODE>`, `<LOCALE_NAME>`, and
 > 2. **Preserve ICU plural/select skeletons.** Strings like `{count, plural, one {file} other {files}}` keep their structural skeleton (`{count, plural, ...}`, `one`, `other`, `=0`, `=1`, `#`, commas, and spaces). Translate **only** the words inside the innermost `{ ... }` clauses.
 >    - If the target language has additional plural forms (Russian: `one`/`few`/`many`/`other`; Polish: `one`/`few`/`many`/`other`), add them in standard ICU order. Always keep `other`.
 >    - Don't translate the keyword names (`plural`, `select`, `selectordinal`, `one`, `few`, `many`, `zero`, `two`).
-> 3. **Don't translate brand or technical tokens:** `Mojulo`, `Mojulo-Lite`, `Mojulo Control Panel`, `Anthropic`, `OpenAI`, `Gemini`, `Cohere`, `Bedrock`, `Docker`, `GHCR`, `Fly.io`, `SQLite`, `Next.js`, file extensions (`.zip`, `.json`, `.env`), env-var names (e.g. `MOJULO_API_KEY`, `NEXT_LOCALE`), CLI flag names, URL paths, model IDs.
+> 3. **Don't translate brand or technical tokens:** `Mojulo`, `Mojulo Control Panel`, `Anthropic`, `OpenAI`, `Gemini`, `Cohere`, `Bedrock`, `Docker`, `GHCR`, `Fly.io`, `SQLite`, `Next.js`, file extensions (`.zip`, `.json`, `.env`), env-var names (e.g. `MOJULO_API_KEY`, `NEXT_LOCALE`), CLI flag names, URL paths, model IDs.
 > 4. **Match the existing file's register and terminology.** Read a handful of nearby strings in your locale file before writing — if it already uses a specific word for "deployment", "bot", "wizard", "provider", reuse it. Consistency with the existing translation matters more than picking the dictionary-perfect word.
 > 5. **Form of address:** match what the existing translations already use (informal `tú`/`du`/`tu` vs formal). Don't switch mid-file.
 > 6. **Output is valid JSON**, 2-space indent, UTF-8, no trailing commas, no comments. Don't reorder existing keys.
@@ -114,7 +114,7 @@ Each subagent receives this verbatim, with `<LOCALE_CODE>`, `<LOCALE_NAME>`, and
 > 3. For each `added` path, translate the value and insert at the same path (creating parent objects as needed).
 > 4. For each `modified` path, translate `after` and overwrite the existing translation at that path.
 > 5. Write the file back.
-> 6. Validate: `cd /Users/fombico/Documents/mojulo-lite/control && node scripts/validate-locale.mjs en <LOCALE_CODE>`. If it prints `<LOCALE_CODE>.json: ok`, return success. If it prints validation errors, fix and re-write the file, then re-validate. Up to 2 retries; on the third failure return failure with the validator errors.
+> 6. Validate: `cd /Users/fombico/Documents/mojulo/control && node scripts/validate-locale.mjs en <LOCALE_CODE>`. If it prints `<LOCALE_CODE>.json: ok`, return success. If it prints validation errors, fix and re-write the file, then re-validate. Up to 2 retries; on the third failure return failure with the validator errors.
 >
 > ### Return format
 >

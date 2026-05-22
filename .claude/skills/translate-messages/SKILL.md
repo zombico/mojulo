@@ -84,8 +84,8 @@ Each subagent receives this verbatim, with `<LOCALE_CODE>` and `<LOCALE_NAME>` f
 > You are translating a Next.js i18n message catalog from English into **<LOCALE_NAME>** (locale code: `<LOCALE_CODE>`).
 >
 > ### Inputs
-> - Source file: `/Users/fombico/Documents/mojulo-lite/control/messages/en.json` — read it with the Read tool.
-> - Output path: `/Users/fombico/Documents/mojulo-lite/control/messages/<LOCALE_CODE>.json` — write it with the Write tool.
+> - Source file: `/Users/fombico/Documents/mojulo/control/messages/en.json` — read it with the Read tool.
+> - Output path: `/Users/fombico/Documents/mojulo/control/messages/<LOCALE_CODE>.json` — write it with the Write tool.
 >
 > ### Hard rules — violating any of these fails validation
 >
@@ -98,7 +98,7 @@ Each subagent receives this verbatim, with `<LOCALE_CODE>` and `<LOCALE_NAME>` f
 >    - Don't translate the keyword names (`plural`, `select`, `selectordinal`, `one`, `few`, `many`, `zero`, `two`).
 >
 > 4. **Don't translate brand/proper nouns or technical tokens:**
->    - Brands: `Mojulo`, `Mojulo-Lite`, `Mojulo Control Panel`, `Anthropic`, `OpenAI`, `Gemini`, `Cohere`, `Bedrock`, `Docker`, `GHCR`, `Fly.io`, `SQLite`, `Next.js`.
+>    - Brands: `Mojulo`, `Mojulo Control Panel`, `Anthropic`, `OpenAI`, `Gemini`, `Cohere`, `Bedrock`, `Docker`, `GHCR`, `Fly.io`, `SQLite`, `Next.js`.
 >    - Code-like tokens: file extensions (`.zip`, `.json`, `.env`), env var names (e.g. `MOJULO_API_KEY`, `NEXT_LOCALE`), CLI flag names, URL paths, model IDs.
 >
 > 5. **Translate UI copy, button labels, error messages, helper text, placeholder text.** This is a developer-facing tool, not a marketing site — match the source's terse, slightly technical register. No fluff.
@@ -114,7 +114,7 @@ Each subagent receives this verbatim, with `<LOCALE_CODE>` and `<LOCALE_NAME>` f
 > 1. Read the full source file.
 > 2. Translate the entire object in one pass — keep terminology consistent across keys (e.g. once you choose a translation for "deployment", use it everywhere).
 > 3. Write the output file.
-> 4. Validate: run `cd /Users/fombico/Documents/mojulo-lite/control && node scripts/validate-locale.mjs en <LOCALE_CODE>`. If it prints `<LOCALE_CODE>.json: ok`, return success. If it prints validation errors, fix them and re-write the file, then re-validate. You get up to 2 retries; on the third failure return failure with the error list.
+> 4. Validate: run `cd /Users/fombico/Documents/mojulo/control && node scripts/validate-locale.mjs en <LOCALE_CODE>`. If it prints `<LOCALE_CODE>.json: ok`, return success. If it prints validation errors, fix them and re-write the file, then re-validate. You get up to 2 retries; on the third failure return failure with the error list.
 >
 > ### Return format
 >
