@@ -8,7 +8,7 @@
 // realistically expect to translate to, so adding a locale only requires
 // pushing the code into `locales`. Names are written in the language itself
 // (autonym) so a user who doesn't read English can still find their language.
-export const locales = ['en', 'de', 'es', 'fr', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'ru', 'uk', 'zh'];
+export const locales = ['en', 'ar', 'da', 'de', 'es', 'fa', 'fil', 'fr', 'id', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'ru', 'sv', 'sw', 'th', 'tr', 'uk', 'ur', 'vi', 'zh'];
 export const defaultLocale = 'en';
 
 export const localeNames = {
@@ -24,6 +24,7 @@ export const localeNames = {
   da: 'Dansk',
   no: 'Norsk',
   fi: 'Suomi',
+  et: 'Eesti',
   pl: 'Polski',
   cs: 'Čeština',
   hu: 'Magyar',
@@ -41,11 +42,14 @@ export const localeNames = {
   th: 'ไทย',
   id: 'Bahasa Indonesia',
   ms: 'Bahasa Melayu',
+  fil: 'Filipino',
   hi: 'हिन्दी',
   ar: 'العربية',
   he: 'עברית',
   fa: 'فارسی',
   ur: 'اردو',
+  bo: 'བོད་སྐད་',
+  sw: 'Kiswahili',
 };
 
 // Right-to-left scripts. Used by app/layout.js to set <html dir="rtl">.
