@@ -1,6 +1,6 @@
 # MCP integration
 
-Expose the control plane as a remote MCP server so the user's own Claude (Claude Desktop, Claude Code, or any other MCP HTTP client) can build, operate, and audit mojulo bots through tool calls.
+Expose the control plane as a remote MCP server so the user's own agent (Claude Code, Claude Desktop, Codex CLI, or any other MCP HTTP client) can build, operate, and audit mojulo bots through tool calls.
 
 The MCP route is **opt-in**. With `CONTROL_PLANE_MCP_KEY` unset (the default), `/api/mcp` returns 404 and the surface is invisible. Set the key and the route comes online with bearer auth.
 
@@ -10,10 +10,10 @@ See [lite-template/integration/claude_mcp_plan.md](../lite-template/integration/
 
 ## What you get
 
-When `/api/mcp` is enabled, the user's Claude becomes the agent loop and the control plane becomes a tool host. The same `builderToolHandlers` that power the in-app chat builder are exposed as MCP tools, plus a few read tools for inspecting deployed bots.
+When `/api/mcp` is enabled, the user's MCP-capable agent becomes the agent loop and the control plane becomes a tool host. The same `builderToolHandlers` that power the in-app chat builder are exposed as MCP tools, plus a few read tools for inspecting deployed bots.
 
-- Build a bot from a fresh Claude Desktop conversation: *"build me a triage bot for my dental practice"*.
-- Reasoning bill moves to the user's Claude subscription. The control plane does not need an Anthropic key for builder-time work.
+- Build a bot from a fresh agent session: *"build me a triage bot for my dental practice"*.
+- Reasoning bill moves to the user's agent subscription (Claude Pro/Max, ChatGPT, etc.). The control plane does not need a provider key for builder-time work.
 - Mix mojulo tools with other MCP servers in one agent loop (Linear, GitHub, Notion, etc.).
 - Read deployed bot state (deployments, conversations, submissions, chain verification) — without copying transcript data into the control-plane DB.
 
@@ -34,7 +34,7 @@ The route is now live at `POST /api/mcp`. The middleware ([control/middleware.js
 
 ---
 
-## Connecting from Claude
+## Connecting an agent
 
 ### Claude Desktop
 
@@ -61,6 +61,18 @@ Restart Claude Desktop. The tools appear in the picker.
 claude mcp add --transport http mojulo http://localhost:3001/api/mcp \
   --header "Authorization: Bearer <CONTROL_PLANE_MCP_KEY>"
 ```
+
+### Codex CLI
+
+Edit `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.mojulo]
+url = "http://localhost:3001/api/mcp"
+headers = { Authorization = "Bearer <CONTROL_PLANE_MCP_KEY>" }
+```
+
+Restart the Codex session. See [AGENTS.md](../AGENTS.md) for the Codex-specific orientation (host adapter, catalyst materialization target, secrets posture).
 
 ### mcp-inspector (debugging)
 
@@ -112,11 +124,12 @@ Conversation- and submission-reading tools proxy through to the bot — they nev
 | Tool              | Returns                                                                                            |
 | ----------------- | -------------------------------------------------------------------------------------------------- |
 | `list_catalysts`  | The curated library: `id`, `name`, `summary`, `category`, `requires` per catalyst. Optional `category` filter. |
-| `get_catalyst`    | Full catalyst body for one `id` — the prose recipe Claude reads at synthesis time.                 |
+| `get_catalyst`    | Full catalyst body for one `id` — the host-neutral prose recipe the agent reads at synthesis time. |
+| `get_adapter`     | Host adapter rules for the current client (`claude-code`, `codex`, or `generic`) — tells the agent where to write the materialized artifact and how to bake in the dry-run pattern. |
 
-Catalysts are curated workflow patterns (qualify-lead-to-crm, submission-to-ticket, appointment-to-calendar, weekly-submissions-digest, scan-conversations-for-signal, knowledge-gap-miner). The user's Claude pulls a catalyst, reads the target bot's shape via `get_deployment`, picks a destination MCP from what's installed locally, and synthesizes a concrete skill into `.claude/skills/`. The "catalyst" name is literal — each file enables one phase transition from intent + bot shape + destination MCP into a structured skill, without itself appearing in the result. The bare name (not "skill catalyst") is deliberate: catalysts **produce** skills, they are not themselves skills. See [docs/catalysts.md](catalysts.md) for the author spec.
+Catalysts are curated workflow patterns (qualify-lead-to-crm, submission-to-ticket, appointment-to-calendar, weekly-submissions-digest, scan-conversations-for-signal, knowledge-gap-miner). The user's agent pulls a catalyst, reads the target bot's shape via `get_deployment`, picks a destination MCP from what's installed locally, and materializes a runnable artifact through the host adapter for its client — a Claude Code skill under `.claude/skills/`, a Codex automation, or a generic `workflow.md` + runner script. The "catalyst" name is literal — each file enables one phase transition from intent + bot shape + destination MCP into a structured artifact, without itself appearing in the result. The bare name (not "skill catalyst") is deliberate: catalysts **produce** runnable artifacts, they are not themselves artifacts. See [docs/catalysts.md](catalysts.md) for the author spec.
 
-The catalyst library is repo-only — there is no user-writable catalyst directory. Custom patterns are Claude Code's responsibility (synthesize from scratch, or maintain catalyst-shaped markdown locally). New patterns worth promoting to the canonical library are added by PR to [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/).
+The catalyst library is repo-only — there is no user-writable catalyst directory. Custom patterns are the agent's responsibility (synthesize from scratch, or maintain catalyst-shaped markdown locally). New patterns worth promoting to the canonical library are added by PR to [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/).
 
 ---
 
@@ -138,7 +151,7 @@ The point of MCP exposure isn't a second way to drive the in-app chat-builder. I
 
 **Prompt:** *"Pull the top 10 escalation labels from Linear project SUPPORT for the last quarter and turn them into triage routes for a customer-service bot."*
 
-**Flow:** Linear queries issues by label/priority → Claude aggregates them into route descriptions → `generate_triage_config` embeds each route description into the bot's vector store → `save_modular_bot`.
+**Flow:** Linear queries issues by label/priority → your agent aggregates them into route descriptions → `generate_triage_config` embeds each route description into the bot's vector store → `save_modular_bot`.
 
 ### 3. Qualify submission → branch CRM workflow
 
@@ -152,9 +165,9 @@ The point of MCP exposure isn't a second way to drive the in-app chat-builder. I
 
 **Prompt:** *"For new submissions since `2026-05-15` on deployment `<id>`, run the new-patient routing workflow."*
 
-**Flow:** `query_submissions` with a `since` cursor → Claude classifies on the form fields → routes each submission to the right downstream MCP tool. Conversation rows never leave the bot — `query_submissions` proxies through [bot-proxy.js](../control/lib/deployers/bot-proxy.js).
+**Flow:** `query_submissions` with a `since` cursor → your agent classifies on the form fields → routes each submission to the right downstream MCP tool. Conversation rows never leave the bot — `query_submissions` proxies through [bot-proxy.js](../control/lib/deployers/bot-proxy.js).
 
-**Package it as a skill** (`.claude/skills/route-intake.md`) once the classification rules stabilize. Take `deploymentId` and `since` as args; the cursor is what makes the skill idempotent across invocations — re-running it won't double-register a patient because already-seen submissions are below the cursor.
+**Package it as an artifact** (a Claude Code skill at `.claude/skills/route-intake/SKILL.md`, a Codex automation, or whatever your host adapter writes) once the classification rules stabilize. Take `deploymentId` and `since` as args; the cursor is what makes the artifact idempotent across invocations — re-running it won't double-register a patient because already-seen submissions are below the cursor.
 
 **Two things to be deliberate about:**
 
@@ -171,36 +184,37 @@ The point of MCP exposure isn't a second way to drive the in-app chat-builder. I
 
 **Prompt:** *"Sample the 30 most recent conversations from deployment `<id>` and flag any churn-intent signals as Linear tickets."*
 
-**Flow:** `query_conversations` with a small limit → `get_conversation` per id → Claude scans the turn text → matches go to the downstream MCP.
+**Flow:** `query_conversations` with a small limit → `get_conversation` per id → your agent scans the turn text → matches go to the downstream MCP.
 
-**Sampling is the point.** This recipe is a pattern proof, not a fleet sweep. A bounded sample keeps token cost predictable and lets you tune the signal prompt against real conversations before scaling up. Once the signal looks reliable, the same skill takes a larger window — or runs on a cadence via `/schedule` for ongoing tuning, without keeping an interactive session open.
+**Sampling is the point.** This recipe is a pattern proof, not a fleet sweep. A bounded sample keeps token cost predictable and lets you tune the signal prompt against real conversations before scaling up. Once the signal looks reliable, the same artifact takes a larger window — or runs on a cadence via your host's scheduler (Claude Code's `/schedule`, Codex automations, cron) for ongoing tuning, without keeping an interactive session open.
 
-**Package it as a skill** (`.claude/skills/scan-conversations.md`) taking `deploymentId`, `sampleSize`, and the signal definition. Different signals (competitor mentions, churn intent, accessibility complaints) become different invocations of the same skill rather than separate skills.
-
----
-
-Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the artifact producer. Recipes 3 and 4 invert that: mojulo's read tools are the data source, and the downstream MCP servers are the actuators. In both directions, the user's Claude is the glue — and 3 and 4 in particular are the ones worth promoting from ad-hoc prompts to versioned skills, since the orchestration is reusable, the inputs are parameterizable, and the output feeds further automation.
+**Package it as an artifact** (a Claude Code skill at `.claude/skills/scan-conversations/SKILL.md`, a Codex automation, or whatever your host adapter writes) taking `deploymentId`, `sampleSize`, and the signal definition. Different signals (competitor mentions, churn intent, accessibility complaints) become different invocations of the same artifact rather than separate ones.
 
 ---
 
-## Catalysts — synthesizing a skill from a curated pattern
+Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the artifact producer. Recipes 3 and 4 invert that: mojulo's read tools are the data source, and the downstream MCP servers are the actuators. In both directions, the user's agent is the glue — and 3 and 4 in particular are the ones worth promoting from ad-hoc prompts to versioned artifacts (skills, automations, workflow files), since the orchestration is reusable, the inputs are parameterizable, and the output feeds further automation.
 
-Recipes 3 and 4 above are the **prototype**. Catalysts are the **productized** version. A catalyst is a reusable pattern shipped with mojulo (`qualify-lead-to-crm`, `submission-to-ticket`, `appointment-to-calendar`, `weekly-submissions-digest`, `scan-conversations-for-signal`, `knowledge-gap-miner`) that Claude reads and uses to synthesize a concrete skill specific to one of your bots. The name is literal — each catalyst enables one phase transition from your intent + the bot's shape + a destination MCP into a structured skill, without itself appearing in the result. (The bare term is deliberate; catalysts produce skills, they are not skills.)
+---
+
+## Catalysts — synthesizing a runnable artifact from a curated pattern
+
+Recipes 3 and 4 above are the **prototype**. Catalysts are the **productized** version. A catalyst is a reusable pattern shipped with mojulo (`qualify-lead-to-crm`, `submission-to-ticket`, `appointment-to-calendar`, `weekly-submissions-digest`, `scan-conversations-for-signal`, `knowledge-gap-miner`) that your agent reads and uses to synthesize a concrete runnable artifact specific to one of your bots. The catalyst body is host-neutral; the **host adapter** for your client (`claude-code`, `codex`, or `generic`) tells the agent what shape that artifact takes — a `.claude/skills/<name>/SKILL.md`, a Codex automation, or a generic `workflow.md`. The name is literal — each catalyst enables one phase transition from your intent + the bot's shape + a destination MCP into a structured artifact, without itself appearing in the result.
 
 The synthesis sequence:
 
-1. **Discover.** *"What catalysts are available?"* — Claude calls `list_catalysts`. You can ask for a specific one (*"use the qualify-lead-to-crm catalyst for my dental intake bot"*) or have Claude pick by description.
-2. **Read the catalyst.** Claude calls `get_catalyst(id)` to pull the full body — the workflow logic, mapping intent, pitfalls, and skill contract. The body opens with a synthesizer briefing that licenses Claude to adapt, combine catalysts, or write from scratch if the catalog doesn't fit.
-3. **Read the bot shape.** Claude calls `get_deployment(deploymentId)` to read your bot's form schema, enabled protocols, triage routes, and identity. The catalyst's mapping is derived from this — never guessed.
-4. **Bind a destination MCP.** Claude scans the MCPs you have installed in Claude Code (HubSpot, Linear, Notion, Slack, whatever), finds the candidates that match the catalyst's destination category, and asks you to confirm: *"You have `hubspot-mcp` and `pipedrive-mcp` — which one is this for?"* The chosen MCP gets hard-coded into the synthesized skill.
-5. **Answer parameter prompts.** Claude asks the questions the catalyst declares (qualifying rubric, score threshold, dedupe key, etc.) in one round.
-6. **Write the skill.** Claude writes `.claude/skills/<bot-slug>-<purpose>/SKILL.md` referencing the mojulo MCP and your bound destination MCP. The skill defaults to `--dry-run` for any catalyst that writes externally; you opt into live writes explicitly.
+1. **Discover.** *"What catalysts are available?"* — your agent calls `list_catalysts`. You can ask for a specific one (*"use the qualify-lead-to-crm catalyst for my dental intake bot"*) or have your agent pick by description.
+2. **Read the catalyst.** Your agent calls `get_catalyst(id)` to pull the full body — the workflow logic, mapping intent, pitfalls, and artifact contract. The body opens with a synthesizer briefing that licenses the agent to adapt, combine catalysts, or write from scratch if the catalog doesn't fit.
+3. **Read the host adapter.** Your agent calls `get_adapter` to pull the rules for materializing into its client's artifact shape (auto-resolved from `clientInfo.name` on first connect; pass `host` explicitly to override).
+4. **Read the bot shape.** Your agent calls `get_deployment(deploymentId)` to read your bot's form schema, enabled protocols, triage routes, and identity. The catalyst's mapping is derived from this — never guessed.
+5. **Bind a destination MCP.** Your agent scans the MCPs you have installed in its host (HubSpot, Linear, Notion, Slack, whatever), finds the candidates that match the catalyst's destination category, and asks you to confirm: *"You have `hubspot-mcp` and `pipedrive-mcp` — which one is this for?"* The chosen MCP gets hard-coded into the synthesized artifact.
+6. **Answer parameter prompts.** Your agent asks the questions the catalyst declares (qualifying rubric, score threshold, dedupe key, etc.) in one round.
+7. **Write the artifact.** Your agent writes the host-specific output — `.claude/skills/<bot-slug>-<purpose>/SKILL.md` for Claude Code, a Codex automation (or workspace workflow file) for Codex, or a generic `workflow.md` + runner script for any other agent. The artifact defaults to `--dry-run` for any catalyst that writes externally; you opt into live writes explicitly.
 
-From this point you own the skill. Edit, version-control, share. The catalyst is not a live link — if the canonical catalyst later improves, your existing skill doesn't auto-update. Re-run the flow if you want to regenerate.
+From this point you own the artifact. Edit, version-control, share. The catalyst is not a live link — if the canonical catalyst later improves, your existing artifact doesn't auto-update. Re-run the flow if you want to regenerate.
 
-**Credentials never touch mojulo.** Destination-system auth lives entirely in Claude Code (the destination MCP's own config). Mojulo only knows that *some* CRM-shaped MCP exists; it never sees your HubSpot key.
+**Credentials never touch mojulo.** Destination-system auth lives entirely in your agent's host (the destination MCP's own config). Mojulo only knows that *some* CRM-shaped MCP exists; it never sees your HubSpot key.
 
-**No user-writable catalyst library.** Custom or one-off workflows that don't merit a canonical catalyst are Claude Code's responsibility — either let Claude synthesize without a catalyst, or maintain catalyst-shaped markdown locally and feed it inline. New patterns worth promoting to the canonical library are added by PR to [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/); see [docs/catalysts.md](catalysts.md) for the author spec.
+**No user-writable catalyst library.** Custom or one-off workflows that don't merit a canonical catalyst are the agent host's responsibility — either let your agent synthesize without a catalyst, or maintain catalyst-shaped markdown locally and feed it inline. New patterns worth promoting to the canonical library are added by PR to [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/); see [docs/catalysts.md](catalysts.md) for the author spec.
 
 ---
 
@@ -208,7 +222,7 @@ From this point you own the skill. Edit, version-control, share. The catalyst is
 
 A single MCP connection lazily binds one `modular_sessions` row on its first build-ring tool call. Subsequent build calls reuse it. To build a second bot in the same connection, call `start_new_bot` — the next build tool will create a fresh session.
 
-On control-plane restart, the in-memory binding map is lost. The bot row stays in SQLite; the user's Claude effectively starts a new session.
+On control-plane restart, the in-memory binding map is lost. The bot row stays in SQLite; the user's agent effectively starts a new session.
 
 Jobs are reaped on startup: anything left in `pending` / `running` is marked `error` so polls on stale jobIds return a clear failure.
 
@@ -227,6 +241,6 @@ Jobs are reaped on startup: anything left in `pending` / `running` is marked `er
 
 - **`/api/mcp` returns 404.** `CONTROL_PLANE_MCP_KEY` is unset. Set it and restart.
 - **`/api/mcp` returns 401.** The bearer token doesn't match. Check for trailing whitespace / a leading `Bearer ` doubled in the header.
-- **`No LLM provider key configured` from a build tool.** The control plane needs at least one provider key on `/settings` — the bot under construction inherits the default provider/model for in-loop LLM calls (form generation, identity composition, summary). The user's Claude is the *agent loop*, but the *builder pipeline* still calls an LLM for these structured generations.
+- **`No LLM provider key configured` from a build tool.** The control plane needs at least one provider key on `/settings` — the bot under construction inherits the default provider/model for in-loop LLM calls (form generation, identity composition, summary). The user's agent is the *agent loop*, but the *builder pipeline* still calls an LLM for these structured generations.
 - **`Bot is not connected` from a read tool.** The deployment row has no URL. Connect the bot via the dashboard or `gh` the bot's URL first.
 - **A job stays at `pending` forever.** Control plane probably restarted mid-flight. Start the operation again — the stale job is marked errored automatically on next launch.

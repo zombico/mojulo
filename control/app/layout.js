@@ -16,7 +16,7 @@ const outfit = Outfit({
 
 export const metadata = {
   title: 'Mojulo',
-  description: 'MCP-native bot fleet — compile, deploy, and pilot AI bots from Claude and other MCP clients',
+  description: 'MCP-native bot fleet — compile, deploy, and pilot AI bots from Claude Code, Codex, or any other MCP-capable agent',
 };
 
 export default async function RootLayout({ children }) {

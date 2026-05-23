@@ -39,12 +39,14 @@
 
 This catalyst wires a mojulo bot's submissions (and, when the `triage` protocol is enabled, the routing decision) into a ticketing system. Each submission becomes one ticket with derived priority, project/queue assignment, and a description rich enough that the assignee doesn't need to come back and read the original conversation.
 
-## How to synthesize the skill
+## Materialization
+
+Per the bound host adapter:
 
 1. `get_deployment(deploymentId)` — read the form schema. If the bot has `triage` enabled, note the routes; they're hints for `routingRules`.
-2. Ask the user the three `parameters` questions.
+2. Ask the user the three `parameters` questions in one batched round.
 3. Inspect the destination MCP to learn its ticket-create surface — particularly the **project/queue identifier shape** (Linear team id, Jira project key, ServiceNow assignment group sys_id) and the **priority enum** (Linear: 1-4, Jira: P0-P5, ServiceNow: 1-5).
-4. Write `.claude/skills/<bot-slug>-ticket-sync/SKILL.md`.
+4. Hand the resolved workflow (routing logic, priority logic, body composition, idempotency strategy) to the host adapter to materialize the runnable artifact.
 
 ## Routing logic
 
@@ -58,7 +60,7 @@ Same shape: one LLM judgement per submission, returns a priority + one-sentence 
 
 ## Ticket body composition
 
-The synthesized skill should build the body from:
+Build the body from:
 
 1. **Submission fields** rendered as a clean key/value list (use the form schema field labels, not raw keys).
 2. **Conversation excerpt** — pull the conversation via `get_conversation(deploymentId, conversationId)` and include the last 4-6 turns. Don't dump the whole thing; reviewers will skim.
@@ -71,12 +73,12 @@ The synthesized skill should build the body from:
 
 ## Pitfalls
 
-- **Triage-vs-rules conflict.** If both the bot's triage and the skill's `routingRules` apply, the user needs to know which wins. Default to triage. Make the synthesized skill comment this clearly.
+- **Triage-vs-rules conflict.** If both the bot's triage and the workflow's `routingRules` apply, the user needs to know which wins. Default to triage. The materialized artifact should comment this clearly.
 - **PII in ticket bodies.** Tickets are often visible to wider teams than the form submission was intended for. If the bot collects SSN/DOB/financial info, ask the user during synthesis whether to redact those fields from the ticket body (store identifiers only) and link to the bot's submission view for the full record.
 - **Alert fatigue.** A new bot may have a backlog of historical submissions. The first run with a wide `since` window can flood a queue. Recommend the user start with a narrow window or pipe the first batch into a triage project for review.
-- **Closing the loop.** This skill creates tickets; it doesn't close them. Ticket lifecycle stays in the ITSM. If the user later wants the bot to know "this issue was resolved," that's a separate skill in the other direction (and not currently exposed).
+- **Closing the loop.** This catalyst creates tickets; it doesn't close them. Ticket lifecycle stays in the ITSM. If the user later wants the bot to know "this issue was resolved," that's a separate workflow in the other direction (and not currently exposed).
 
-## Skill behavior contract
+## Behavior contract
 
 - **Inputs:** `deploymentId` (required), `since` (optional ISO), `dryRun` (default true), `fallbackQueue` (required for live mode — the queue used when routing fails)
 - **Outputs:** per-submission decision log `{ submissionId, priority, queue, ticketId? }`

@@ -44,12 +44,14 @@
 
 The `appointments` protocol captures a user's preferred time and contact info into a submission. This catalyst lifts that submission into a real calendar event so the user (or the booked party) sees it on their schedule.
 
-## How to synthesize the skill
+## Materialization
+
+Per the bound host adapter:
 
 1. `get_deployment(deploymentId)` — read the appointments config and form schema. The appointments protocol stores the captured slot in a known field shape; map it before guessing.
-2. Ask the user the four `parameters` questions.
+2. Ask the user the four `parameters` questions in one batched round.
 3. Inspect the destination MCP's event-create surface — timezone handling is the part that varies most. Google Calendar wants `start.dateTime` + `start.timeZone`; Cal.com handles it implicitly via booking type.
-4. Write `.claude/skills/<bot-slug>-calendar-sync/SKILL.md`.
+4. Hand the resolved workflow (mapping, event composition, idempotency strategy) to the host adapter to materialize the runnable artifact.
 
 ## Mapping intent
 
@@ -72,12 +74,12 @@ Each event create should attach the `mojulo_submission_id` as a custom property 
 
 ## Pitfalls
 
-- **Timezone bugs.** Already called out above — surface this prominently in the synthesized skill. If the bot serves users across timezones, the appointment slot's timezone has to be carried, not assumed.
+- **Timezone bugs.** Already called out above — surface this prominently in the materialized artifact. If the bot serves users across timezones, the appointment slot's timezone has to be carried, not assumed.
 - **`sendInvites` is irreversible.** Once an invite email is sent, it can't be unsent. Default to `false`. Make the user explicitly opt in per run, not just at synthesis time.
-- **Cancellations.** This skill creates events; cancellations through the bot (if any) aren't propagated. If the user needs that flow, it's a separate skill — note this as a limitation.
+- **Cancellations.** This catalyst creates events; cancellations through the bot (if any) aren't propagated. If the user needs that flow, it's a separate artifact — note this as a limitation.
 - **No-shows / reschedules.** Mojulo doesn't currently observe these. The calendar is the source of truth post-booking.
 
-## Skill behavior contract
+## Behavior contract
 
 - **Inputs:** `deploymentId` (required), `since` (optional ISO), `dryRun` (default true), `sendInvites` (default false, requires explicit per-run flag for true)
 - **Outputs:** per-submission decision log `{ submissionId, calendarEventId?, action: 'created' | 'duplicate-skipped' | 'invalid-slot' }`

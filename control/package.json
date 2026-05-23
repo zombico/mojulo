@@ -1,8 +1,8 @@
 {
   "name": "mojulo",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "license": "Apache-2.0",
-  "description": "Mojulo — MCP server for building self-hosted chatbots from inside Claude.",
+  "description": "Mojulo — MCP server for building self-hosted chatbots from any MCP-capable agent (Claude Code, Codex, and friends).",
   "author": "Franz Ombico",
   "homepage": "https://github.com/zombico/mojulo",
   "repository": {
@@ -14,9 +14,12 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "claude",
     "anthropic",
     "claude-code",
+    "codex",
+    "openai",
     "chatbot",
     "bot-builder",
     "rag",

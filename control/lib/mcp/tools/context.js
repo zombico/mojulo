@@ -37,6 +37,7 @@ Suggest the dashboard when the user asks for something the visual surface does b
 
 - **Browse** conversations or submissions interactively (filter, scroll, scan) rather than paging through tool output.
 - **Mint** a bot via the wizard form rather than chat-builder turn-taking — useful when the user wants to set fields directly without describing them.
+- **Try** a bot they just built — \`mojulo-ui\` runs a live chat preview in the wizard before deploy, and once deployed, opening the bot's URL in a browser drops the user into the same widget their customers see. Suggest this right after \`save_modular_bot\` finishes — the natural next thing is "let me kick the tires."
 - **Inspect** fleet analytics as charts rather than JSON tables.
 - **Manage** deploys (re-build, rotate keys via Settings, manually trigger cloud-deploy) by clicking rather than orchestrating tool calls.
 
@@ -72,7 +73,7 @@ This applies the same rule **control-plane API keys are already protected by**: 
 
 ## Verification posture (standing rule)
 
-Mojulo **synthesizes; it does not certify.** Every artifact this MCP emits — bot configs from the build tools, catalyst recommendations, synthesized skills written to \`.claude/skills/\` — is an LLM output and inherits LLM failure modes: hallucinated field names, optimistic destination mappings, assumptions about which MCPs are installed that don't match reality.
+Mojulo **synthesizes; it does not certify.** Every artifact this MCP emits — bot configs from the build tools, catalyst recommendations, runnable workflow artifacts materialized via host adapters (Claude Code skills, Codex automations, generic workflow files) — is an LLM output and inherits LLM failure modes: hallucinated field names, optimistic destination mappings, assumptions about which MCPs are installed that don't match reality.
 
 Before any artifact graduates from one-shot to recurring execution or fleet-wide fan-out:
 
@@ -95,7 +96,8 @@ This applies even when the user has run the same workflow before — schema drif
   - \`triage\` — routes a conversation to a specialist bot via a federated handoff (the audit chain extends across bots).
   - \`opticalRead\` — extracts data from photos / screenshots (vision-capable models only).
 - **Chain** — every bot turn is hash-linked to the previous one, so the transcript is tamper-evident. \`verify_chain\` walks the chain for any conversation.
-- **Catalyst** — a workflow recipe shipped with mojulo. You read one with \`get_catalyst\`, then combine it with what a bot has captured + an MCP the user already has installed to write a local Claude Code skill (\`.claude/skills/<name>/SKILL.md\`) that turns the captured signal into action. The catalyst itself is a starting point — adapt freely, or skip it and synthesize from scratch. *See the texture preview below.*
+- **Catalyst** — a host-neutral workflow recipe shipped with mojulo. You read one with \`get_catalyst\`, then combine it with what a bot has captured + a destination MCP the user has installed + a **host adapter** (see below) to materialize a concrete runnable artifact that turns the captured signal into action. The catalyst itself is a starting point — adapt freely, or skip it and synthesize from scratch. *See the texture preview below.*
+- **Host adapter** — bridge between a host-neutral catalyst recipe and the host-specific runnable artifact. Three ship today: \`claude-code\` (materializes as a skill under \`.claude/skills/\`, scheduled via \`/schedule\`), \`codex\` (materializes as a Codex automation via \`automation_update\`, or a workspace workflow file), and \`generic\` (materializes as \`workflow.md\` + runner script for any other agent). The adapter is auto-resolved from your client's \`clientInfo.name\` on first connect — pass an explicit \`host\` parameter to \`get_catalyst\` to override. Read your adapter once via \`get_adapter\` before synthesizing.
 
 ---
 
@@ -103,14 +105,14 @@ This applies even when the user has run the same workflow before — schema drif
 
 To set expectations, here is the opening of the canonical \`qualify-lead-to-crm\` catalyst body — every catalyst is shaped like this:
 
-> **How to synthesize the skill**
+> **Materialization**
 >
-> 1. Call \`get_deployment(deploymentId)\` to read the bot's form schema. The synthesized skill's mapping is derived from this schema — never guess field names.
+> 1. Call \`get_deployment(deploymentId)\` to read the bot's form schema. The mapping is derived from this schema — never guess field names.
 > 2. Ask the user the three \`parameters\` questions in one round.
 > 3. Inspect the bound destination MCP to learn its contact-create surface (field names, required props, search-by-property tool). Field mapping is the catalyst's value-add — don't assume it's \`name\`/\`email\`/\`phone\` everywhere; HubSpot uses \`firstname\`/\`lastname\`, Salesforce uses \`FirstName\`/\`LastName\`, Attio uses object/attribute pairs.
-> 4. Write \`.claude/skills/<bot-slug>-crm-sync/SKILL.md\` with the synthesized workflow.
+> 4. Hand the resolved workflow (inputs, mapping table, idempotency strategy) to your host adapter to materialize the runnable artifact.
 
-That density runs through the whole body — numbered synthesis steps, mapping rules per field type, pitfalls (PII through the LLM, idempotency, irreversible writes), and calibration tips. Plan to read the entire catalyst before writing the skill; don't skim.
+That density runs through the whole body — mapping rules per field type, pitfalls (PII through the LLM, idempotency, irreversible writes), and calibration tips. The host adapter contributes the artifact target, scheduling, and dry-run encoding. Plan to read the entire catalyst plus the adapter section before materializing; don't skim.
 
 ---
 
@@ -119,7 +121,7 @@ That density runs through the whole body — numbered synthesis steps, mapping r
 1. **Build.** Pick which protocols (capabilities) the bot needs, generate their configs, upload any documents the bot should know, compose the bot's identity. Either drive this step-by-step through the build tools, or just describe the user's goal and let the build tools sequence themselves starting from \`infer_intent\`.
 
    *Builder-session scope.* Build tools share state via a **builder session** keyed on the \`mcp-session-id\` header your client sends. The session row persists in the control plane's SQLite, but the header→session binding is held in process memory. So: the same client reconnecting during a single control-plane process lifetime resumes its in-progress config, while a **control-plane restart drops the binding** and the user's next build tool call starts a fresh bot (the orphaned row stays in SQLite). Inside the same connection, \`start_new_bot\` deliberately discards in-progress config and starts over.
-2. **Deploy.** \`save_modular_bot\` compiles the configured bot into a zip artifact on disk and returns its absolute path in \`artifactPath\`. The user runs it locally (\`unzip\` + \`docker compose up\`) or in the cloud (Fly.io). Over stdio MCP the zip lives under \`$MOJULO_HOME/data/artifacts/\` (default \`~/.mojulo/data/artifacts/\`) — hand the user the \`artifactPath\` value verbatim. The legacy \`downloadUrl\` field in the response is a Next.js-route path; ignore it over stdio. The container image is bot-agnostic — per-bot config is injected at start time, so the same image runs every bot the user has. Once the bot is reachable at \`${botUrl}\`, it exposes \`/widget\` — dropping \`<script src="${botUrl}/widget"></script>\` onto any page mounts a floating chat launcher (bottom-right by default). That's the customer-facing install path; hand the user that snippet when they ask "how do I put this on my site?".
+2. **Deploy.** \`save_modular_bot\` compiles the configured bot into a zip artifact on disk and returns its absolute path in \`artifactPath\`. The user runs it locally (\`unzip\` + \`docker compose up\`) or in the cloud (Fly.io). Over stdio MCP the zip lives under \`$MOJULO_HOME/data/artifacts/\` (default \`~/.mojulo/data/artifacts/\`) — hand the user the \`artifactPath\` value verbatim. The legacy \`downloadUrl\` field in the response is a Next.js-route path; ignore it over stdio. The container image is bot-agnostic — per-bot config is injected at start time, so the same image runs every bot the user has. Once the bot is reachable at \`${botUrl}\`, it exposes \`/widget\` — dropping \`<script src="${botUrl}/widget"></script>\` onto any page mounts a floating chat launcher (bottom-right by default). That's the customer-facing install path; hand the user that snippet when they ask "how do I put this on my site?". The same \`${botUrl}\` opened directly in a browser is the quickest way for the user to test the bot themselves before installing the widget anywhere — same UI an end customer gets.
 3. **Connect.** Once the bot starts, it phones home to the control plane with its URL. From then on the control plane can reach it through a bearer-authenticated proxy. **Conversation data stays in the bot's SQLite forever** — the control plane only stores \`url\` and \`last_seen_at\`. Any tool that needs transcript data proxies through to the bot in real time.
 4. **Operate.** Use the operate tools to read what bots have captured. Use the catalyst tools to turn that captured signal into action via the user's other installed MCPs.
 5. **Operate the fleet.** Once multiple bots are connected, fleet-level questions ("how is the whole fleet doing?", "which bots saw the most activity?", "find any conversation across every bot that mentioned X") have their own surface — the \`fleet_*\` tools. They fan out across every connected bot and aggregate in process memory; conversation content still stays on each bot. The natural two-step pattern is **fleet-locate** with \`fleet_query_conversations\` → **per-bot-read** with \`get_conversation\`. Same posture as single-bot operate, just batched. Cross-bot catalysts (the new category fleet aggregation enables) come from \`recommend_catalysts\` with \`scope: 'fleet'\`.
@@ -131,6 +133,8 @@ That density runs through the whole body — numbered synthesis steps, mapping r
 ### Orientation
 - \`forward_context\` — (you are reading its output) glossary, lifecycle, tool index.
 - \`version\` — runtime versions: server, MCP protocol, Node, platform, pinned bot image tag, offline-build flag, MOJULO_HOME. Use to diagnose version mismatches.
+- \`list_adapters\` — list host adapters mojulo ships (\`claude-code\`, \`codex\`, \`generic\`). An adapter tells you how to materialize a catalyst on your specific substrate. Read once per session before synthesizing from any catalyst.
+- \`get_adapter\` — full body of one adapter: artifact target, parameter collection, tool discovery, dry-run as a concrete first step, scheduling, state, output reporting, secrets posture. Pass \`id\` explicitly or let the server resolve from clientInfo.
 
 ### Build, synchronous
 - \`infer_intent\` — read a free-text description of what the user wants and produce a structured intent the rest of the build tools can act on.
@@ -179,7 +183,7 @@ Mojulo is a **consultation surface**, not a strict executor. When the user asks 
 
 - \`recommend_catalysts\` — given a \`deploymentId\` (single-bot mode) OR \`scope: 'fleet'\` / \`deploymentIds: [...]\` (fleet mode), return catalysts whose shape matches the bot(s), each annotated with a \`valueHook\` (one-sentence user-outcome), \`destinationCategory\` (kind of MCP needed), and \`destinationExamples\` (named MCPs that satisfy it). Single-bot mode adds \`missingProtocols\`; fleet mode adds \`applicableDeployments: [{ id, botName }]\` plus \`crossBot: true\` when a catalyst spans ≥2 bots — those are the cross-bot patterns fleet aggregation unlocks (e.g., "weekly digest of qualified leads across every intake bot into one CRM"). Response includes a \`consultationPosture\` block with framing rules — read it. **This is the entry point for "what can I do with this bot?" or "what can I do across all my bots?"** Cross-reference \`destinationExamples\` against MCPs available in this session: examples installed → "you can do this now"; examples not installed → soft suggestion.
 - \`list_catalysts\` — flat catalog of every shipped recipe, filterable by category. Use when the user wants to browse what mojulo offers in general, or when no specific bot is in scope.
-- \`get_catalyst\` — read one recipe's full body (the response also includes a synthesizer briefing) so you can write a local skill into the user's \`.claude/skills/\`.
+- \`get_catalyst\` — read one recipe's full body. The response composes three parts: a host-neutral catalyst-core preamble (posture, vocabulary, safety defaults), the bound **host adapter** body (artifact target, scheduling, dry-run encoding, secrets), and the catalyst's host-neutral recipe (mapping intent, idempotency, pitfalls). Pass \`host\` to override the auto-resolved adapter.
 - \`custom_catalyst\` — author's guide for **contributing a new catalyst back to the mojulo library**. Use when the user wants to propose / write / contribute a catalyst (not when they want to automate something just for themselves — that's a local skill, synthesized from \`get_catalyst\` or from intent directly).
 
 ---
@@ -187,9 +191,11 @@ Mojulo is a **consultation surface**, not a strict executor. When the user asks 
 ## Quick orientation rules
 
 - User wants to **build a new bot**: start with \`infer_intent\`, or jump straight to the specific \`generate_*\` tool if the user already knows what they need.
+- User wants to **preview a bot mid-design** ("can I see what this looks like?", "show me a preview", "what would it feel like?", "let me try it before I deploy"): point them at the \`mojulo-ui\` wizard's live preview pane. Same \`~/.mojulo/\` state, so an in-progress config built via these MCP tools shows up in the wizard preview immediately. This is the answer while the user is still *designing* — no real container is running yet, the preview is a stand-in.
+- User wants to **test the deployed artifact** (kick the tires on the running bot, sanity-check the live thing, verify the build behaves as designed): open \`${botUrl}\` in a browser — that's the same widget end customers see. No MCP tool covers this on purpose; the right surface is the bot URL itself. Distinct from preview — preview is pre-deploy on a draft; this is post-deploy on the real artifact.
 - User wants to **see what bots exist**: \`list_deployments\`.
 - User wants to **understand state across multiple bots** ("how is the fleet doing?", "which bots are busiest this week?"): \`fleet_analytics_summary\`. For finding specific conversations across the fleet: \`fleet_query_conversations\` to locate, then \`get_conversation\` against the named bot to read content. For auditing chain integrity across every bot at once: \`verify_fleet_chains\`. The fleet tools never expose conversation content — they're the "where to look" surface; per-bot \`get_conversation\` is the "read it" surface.
-- User wants to **do something with what a bot has collected** OR is asking "what can this bot unlock for me?": \`recommend_catalysts\` with the bot's deployment id. Surface suggestions in consultation form — including catalysts whose destination MCP isn't installed yet, framed as opt-in upgrades. Then \`get_catalyst\` to read the recipe before writing a skill.
+- User wants to **do something with what a bot has collected** OR is asking "what can this bot unlock for me?": \`recommend_catalysts\` with the bot's deployment id. Surface suggestions in consultation form — including catalysts whose destination MCP isn't installed yet, framed as opt-in upgrades. Then \`get_catalyst\` to read the recipe (the response includes the host adapter section that tells you how to materialize the runnable artifact on your substrate).
 - User wants to **automate something that spans multiple bots** ("digest leads from every bot", "audit all my appointment bookings together"): \`recommend_catalysts\` with \`scope: 'fleet'\`. Fleet-applicable catalysts come back with \`applicableDeployments\` so the synthesized skill knows which bots to iterate over; \`crossBot: true\` flags the patterns that only make sense across multiple bots.
 - User wants to **browse the catalyst library** without a specific bot in mind: \`list_catalysts\`.
 - User wants to **contribute a new catalyst** (write / propose / add one to mojulo's shipped library): \`custom_catalyst\`. This returns an author's guide. If the user only wants to automate something for themselves and isn't trying to contribute, do *not* call \`custom_catalyst\` — synthesize a local skill from \`get_catalyst\` or from intent instead.

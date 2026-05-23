@@ -60,21 +60,23 @@ async function listDeploymentsHandler(input, _ctx) {
 
 function redactConfigCredentials(config) {
   if (!config || typeof config !== 'object') return config;
-  const llmConfig = config.llmConfig;
-  if (!llmConfig || typeof llmConfig !== 'object') return config;
+  const llm = config.llm;
+  if (!llm || typeof llm !== 'object') return config;
   const redactedLlm = {};
-  for (const [provider, providerConfig] of Object.entries(llmConfig)) {
+  for (const [key, providerConfig] of Object.entries(llm)) {
+    // `provider` is a scalar discriminator ("anthropic" | "openai" | ...).
+    // The per-provider entries are the objects that carry credentials.
     if (!providerConfig || typeof providerConfig !== 'object') {
-      redactedLlm[provider] = providerConfig;
+      redactedLlm[key] = providerConfig;
       continue;
     }
     const next = { ...providerConfig };
     if ('apiKey' in next) next.apiKey = next.apiKey ? '[redacted]' : '';
     if ('accessKeyId' in next && next.accessKeyId) next.accessKeyId = '[redacted]';
     if ('secretAccessKey' in next && next.secretAccessKey) next.secretAccessKey = '[redacted]';
-    redactedLlm[provider] = next;
+    redactedLlm[key] = next;
   }
-  return { ...config, llmConfig: redactedLlm };
+  return { ...config, llm: redactedLlm };
 }
 
 async function getDeploymentHandler(input, _ctx) {

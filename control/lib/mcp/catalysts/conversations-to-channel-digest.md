@@ -49,12 +49,14 @@ This catalyst is distinct from `weekly-submissions-digest`: that one summarizes 
 
 The output is a narrative report posted to a channel where the audience reads it without clicking through to the dashboard. The value is keeping the operating team aware of how the bot is being *used* without anyone manually scrubbing conversations.
 
-## How to synthesize the skill
+## Materialization
+
+Per the bound host adapter:
 
 1. `get_deployment(deploymentId)` — read the bot's identity and protocols. The identity (industry, role, customer base) shapes how you interpret what users are saying; "frustration" means different things on a dental-intake bot vs. a SaaS-support bot.
-2. Ask the user the five `parameters` questions, batched.
+2. Ask the user the five `parameters` questions in one batched round.
 3. Inspect the destination MCP's post surface — markdown support, message length limits, threading capability. Slack's `post_message` has length limits and benefits from a `blocks` payload; email allows long-form HTML; Notion allows arbitrarily long structured pages. The digest's render form adapts to the destination.
-4. Write `.claude/skills/<bot-slug>-conv-digest/SKILL.md`. The skill takes `deploymentId`, `windowStart`, `windowEnd` as inputs.
+4. Hand the resolved workflow (inputs `deploymentId` + `windowStart` + `windowEnd`, digest composition, sampling discipline) to the host adapter to materialize the runnable artifact.
 
 ## Digest composition
 
@@ -86,19 +88,19 @@ Conversation reading is expensive (every conversation requires a `get_conversati
 Less critical than for write-side catalysts — re-running just re-posts. But:
 
 - **Notion/Doc destinations:** search-before-create on the page title to update rather than spawn duplicates.
-- **Slack/email destinations:** no idempotency surface. Default the synthesized skill to `--dry-run` mode that prints the digest to stdout; `--send` required for live posting.
+- **Slack/email destinations:** no idempotency surface. Default the materialized artifact to a dry-run mode that prints/renders the digest without posting; live posting is per-run opt-in (host adapter names the exact flag shape).
 - **Empty windows:** a bot with no conversations in the window shouldn't produce a noisy "0 conversations" digest. Default to skip-when-empty unless the user explicitly wants the heartbeat.
 
 ## Pitfalls
 
-- **PII in quotes.** Sample utterances may contain names, emails, account numbers, location. The digest's value is the *pattern*, not the asker. Redact aggressively before including any direct quote — substitute placeholders for identity. The redaction step is non-negotiable in the synthesized skill; don't make it optional.
+- **PII in quotes.** Sample utterances may contain names, emails, account numbers, location. The digest's value is the *pattern*, not the asker. Redact aggressively before including any direct quote — substitute placeholders for identity. The redaction step is non-negotiable in the materialized artifact; don't make it optional.
 - **Over-summarization hides the signal.** Resist the urge to compress every quote to a generic "users asked about pricing." A specific quote — properly redacted — communicates the texture of what users actually said, which is the point. Aim for 1-2 lightly-edited verbatim quotes per cluster.
 - **Calibration drift.** "Frustration" or "novel topic" are model judgements. If the bot's domain shifts (new product launches, new customer segment), the model's calibration drifts. Recommend the user re-run the catalyst flow when the bot's identity or domain changes substantially.
 - **Don't surface conversations that ended in handoff.** If `triage` is enabled, conversations that handed off to another bot already got attention from that downstream — including them as "friction" double-counts. Filter handoffs out of the friction signal section unless the user wants them.
 - **Volume bias.** A loud, repeating user can dominate a recurring-question cluster. When sampling, deduplicate by conversation id (one observation per user) before counting frequency.
 
-## Skill behavior contract
+## Behavior contract
 
 - **Inputs:** `deploymentId` (required), `windowStart` and `windowEnd` (optional ISO — defaults derived from cadence), `sampleCeiling` (default from parameter), `dryRun` (default true)
-- **Outputs:** the rendered digest (printed in dry-run mode; posted otherwise)
+- **Outputs:** the rendered digest (surfaced in dry-run mode per the host adapter's reporting rules; posted otherwise)
 - **Side effects (live mode):** one document/message create or update via destination MCP. No mojulo-side writes.
