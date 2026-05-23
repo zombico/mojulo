@@ -252,11 +252,19 @@ MCP is one-way; mojulo cannot introspect the client. The honest mitigations:
 1. **Replacement semantic.** Latest declaration is authoritative — no partial-merge ambiguity.
 2. **`declaredAt` in every read.** Surfaced on fleet briefs (`inventory.declaredAt`, `inventory.ageSeconds`) so callers decide freshness.
 3. **Re-declare-at-session-start guidance.** The tool description and the `forward_context` glossary instruct the agent to call again when its environment may have changed.
-4. **Downstream freshness checks (future).** `recommend_catalysts` / `get_catalyst` can warn when `ageSeconds` exceeds a threshold, soft-prompting re-declaration where it matters.
+4. **Downstream freshness checks.** Partially landed: `recommend_mcp_orbit_compositions` emits `inventory_empty` and `inventory_stale` warnings when `toolCount === 0` or `ageSeconds > 7 days` so the agent re-declares before composing. `recommend_catalysts` / `get_catalyst` don't yet enforce a freshness threshold — that's a follow-up.
 
 ### Reading inventory off the brief
 
 `meta_context_brief({ kind: 'fleet' })` returns `inventory: { servers, declaredAt, ageSeconds, toolCount }` alongside the contextmap subgraph. When never declared: `{ servers: [], declaredAt: null, ageSeconds: null, toolCount: 0 }`. Per-scope briefs (`{ kind: 'bot', ref: ... }` etc.) do not include `inventory` — it's a fleet-level fact, not a neighborhood property.
+
+---
+
+## What sits on top: the mcp-orbit composer
+
+Contextmap (append-only) and inventory (replace-semantic) are the two Ring 6 primitives this doc covers. The third Ring 6 surface — the **mcp-orbit composer** — sits on top of both: it reads inventory to pre-filter what compositions are possible, reads the contextmap to pull operator KYC and prior materializations into ranking, and writes back into the contextmap via `meta_context_commit({type:'artifact_materialization', ...})` when a composition materializes. The composition itself is logged in a separate table (`mcp_orbit_compositions`, also replace-friendly for in-flight state transitions); the link between the composition and the artifact is an artifact-scope principle that records the composition ref. See [docs/mcp-orbit.md](mcp-orbit.md) for the composer's own spec.
+
+The reading order across the three is: contextmap → inventory → composer. Reading anything on top of meta_context starts with knowing what's been sealed (contextmap) and what materials the operator has right now (inventory); the composer is just one consumer of that pair.
 
 ---
 

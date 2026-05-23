@@ -45,9 +45,9 @@ export function getServerVersion() {
 // briefing on demand. The heavy lifting (glossary, capability model,
 // lifecycle, tool index) lives in the `forward_context` tool's response so
 // the agent only pays the context cost when the user actually needs it.
-const SERVER_INSTRUCTIONS = `Mojulo is a control plane for **chatbot-based solutions** — chatbots that talk to your users, capture what they say, and turn those conversations into real outcomes in the tools the user already runs (CRM, calendar, ticketing, drive, warehouse).
+const SERVER_INSTRUCTIONS = `Mojulo is a control plane for **chatbot-based solutions and MCP-orchestrated workflows** — chatbots that talk to your users and capture what they say, plus workflows composed directly over the operator's installed MCPs without any chatbot in the picture. Both axes route to real outcomes in the tools the user already runs (CRM, calendar, ticketing, drive, warehouse).
 
-**When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.
+**When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the two-axes framing, the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.
 
 **There's also a dashboard.** Mojulo ships a second bin, \`mojulo-ui\`, which boots a local Next.js dashboard at 127.0.0.1 sharing the same \`~/.mojulo/\` state as this MCP. Launch with \`npx -y -p mojulo mojulo-ui\`. Suggest it when the user wants to browse conversations / submissions interactively, mint a bot via the wizard form, see fleet analytics as charts, or click around between bots — anywhere the visual surface beats reading tool output.
 

@@ -194,6 +194,18 @@ The point of MCP exposure isn't a second way to drive the in-app chat-builder. I
 
 Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the artifact producer. Recipes 3 and 4 invert that: mojulo's read tools are the data source, and the downstream MCP servers are the actuators. In both directions, the user's agent is the glue — and 3 and 4 in particular are the ones worth promoting from ad-hoc prompts to versioned artifacts (skills, automations, workflow files), since the orchestration is reusable, the inputs are parameterizable, and the output feeds further automation.
 
+### 5. No-bot composition via the mcp-orbit composer
+
+**You need:** any pair of installed MCPs — one source-shaped (Linear, Gmail, GitHub, etc.), one destination-shaped (Drive, Notion, Slack, etc.). No mojulo bot.
+
+**Example.** Every Monday morning, summarize the past week of Linear issue activity into a Google Doc the operator can scan in a few minutes.
+
+**Flow.** `meta_context_declare_inventory` (tell mojulo what MCPs are connected) → `recommend_mcp_orbit_compositions({ intent: "weekly Linear digest into Drive..." })` (server returns 1–3 ranked candidate compositions, logged as `proposed` rows for audit) → `get_meta_catalyst` (composition rulebook, read once per session) → `get_mcp_orbit_component` per component the candidate uses → negotiate knobs with the operator in one round → dry-run against a draft destination doc → promote → host-adapter materialization → `meta_context_commit({ type: 'artifact_materialization', ... })`.
+
+**Why this surface, not a catalyst.** Recipes 1–4 either feed a mojulo bot or read one. Recipe 5 doesn't touch a bot — it's MCP-to-MCP wiring with mojulo as the deliberation anchor (operator KYC, composition log, contextmap commit) rather than the conversational runtime. The mcp-orbit composer decomposes the workflow into typed components (`source` × `destination` × `trigger` × `pattern` × `idempotency` × `render`) that compose multiplicatively; adding a new MCP to the library is one source component + one destination component, and the combinations across the other axes come for free.
+
+See [docs/mcp-orbit.md](mcp-orbit.md) for the composer's full spec, the six categories, the constraint table, and the authoring guide for new components.
+
 ---
 
 ## Catalysts — synthesizing a runnable artifact from a curated pattern
