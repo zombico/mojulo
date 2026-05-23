@@ -135,6 +135,45 @@ function init(db) {
       UNIQUE(server, tool_name)
     );
     CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_tool_ref ON meta_mcp_inventory(tool_ref);
+
+    -- mcp-orbit component store. Decomposes the monolithic mcp-orbit catalyst
+    -- pattern into a small set of typed components that combine
+    -- multiplicatively (sources × destinations × triggers × patterns ×
+    -- idempotency × render). The agent composes; the server provides
+    -- components + constraint validation. Server-stored, agent-composed.
+    -- See lite-template/integration/MCP_ORBIT_COMPONENT_STORE_PLAN.md.
+    CREATE TABLE IF NOT EXISTS mcp_orbit_components (
+      id INTEGER PRIMARY KEY,
+      kind TEXT NOT NULL CHECK(kind IN ('source','destination','trigger','pattern','idempotency','render')),
+      ref TEXT NOT NULL,
+      version TEXT NOT NULL,
+      body_md TEXT NOT NULL,
+      payload_json TEXT,
+      source TEXT NOT NULL CHECK(source IN ('builtin','custom')) DEFAULT 'builtin',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(kind, ref, version)
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_components_kind ON mcp_orbit_components(kind);
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_components_ref ON mcp_orbit_components(ref);
+
+    -- Compositions as first-class rows. Same reasoning as meta-context's
+    -- typed graph: structure earned upfront is cheaper than retrofitting.
+    -- The v1+ trajectory (templates, analytics, sharing) all needs
+    -- compositions queryable.
+    CREATE TABLE IF NOT EXISTS mcp_orbit_compositions (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL UNIQUE,
+      intent_md TEXT NOT NULL,
+      component_refs TEXT NOT NULL,
+      knobs_json TEXT NOT NULL,
+      ranking_score REAL,
+      status TEXT NOT NULL CHECK(status IN ('proposed','dry_run','materialized','retired')) DEFAULT 'proposed',
+      artifact_ref TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_compositions_status ON mcp_orbit_compositions(status);
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_compositions_artifact ON mcp_orbit_compositions(artifact_ref);
   `);
 
   migrateDeploymentColumns(db);
