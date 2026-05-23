@@ -1,81 +1,133 @@
 import { describe, it, expect } from 'vitest';
 import {
+  CATALYST_CORE_PREAMBLE,
   CONSULTATION_POSTURE,
   CUSTOM_CATALYST_GUIDE,
-  SYNTHESIZER_BRIEFING,
+  buildMaterializationBlock,
   customCatalystHandler,
   getCatalystHandler,
   listCatalystsHandler,
   recommendCatalystsHandler,
 } from './catalysts.js';
+import { rememberClientInfo, _resetClientBindingsForTests } from '@/lib/mcp/client-bindings';
 
-describe('SYNTHESIZER_BRIEFING — vocabulary disambiguation', () => {
+describe('CATALYST_CORE_PREAMBLE — vocabulary disambiguation', () => {
   it('names all three overlapping concepts so the model can keep them distinct', () => {
-    expect(SYNTHESIZER_BRIEFING).toMatch(/Mojulo protocols/);
-    expect(SYNTHESIZER_BRIEFING).toMatch(/Claude Code skill/);
-    expect(SYNTHESIZER_BRIEFING).toMatch(/mojulo catalyst/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/Mojulo protocols/);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/runnable artifact/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/mojulo catalyst/i);
   });
 
   it('uses the bare term "catalyst" rather than "skill catalyst" to keep concepts distinct', () => {
-    // The bare term is load-bearing — catalysts produce skills, they are not skills.
-    expect(SYNTHESIZER_BRIEFING).not.toMatch(/skill catalyst/i);
+    // The bare term is load-bearing — catalysts produce artifacts, they are not artifacts.
+    expect(CATALYST_CORE_PREAMBLE).not.toMatch(/skill catalyst/i);
   });
 
   it('names the canonical protocols so requires.protocols values resolve', () => {
     for (const p of ['knowledge', 'formGathering', 'triage', 'appointments', 'opticalRead']) {
-      expect(SYNTHESIZER_BRIEFING).toContain(p);
+      expect(CATALYST_CORE_PREAMBLE).toContain(p);
     }
   });
 
-  it('points the synthesizer at the .claude/skills/ write target', () => {
-    expect(SYNTHESIZER_BRIEFING).toMatch(/\.claude\/skills\//);
+  it('points the synthesizer at the host adapter for the artifact target — not directly at .claude/skills/', () => {
+    // The core preamble stays host-neutral. Specific artifact paths
+    // (.claude/skills/, automation_update, workflow.md) live in the bound
+    // adapter body, composed in between this preamble and the catalyst body.
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/host adapter/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/runnable artifact/i);
   });
 
   it('makes the catalyst metaphor literal — crystallize / nucleation', () => {
-    expect(SYNTHESIZER_BRIEFING).toMatch(/crystallize/i);
-    expect(SYNTHESIZER_BRIEFING).toMatch(/nucleation/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/crystallize/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/nucleation/i);
   });
 });
 
-describe('SYNTHESIZER_BRIEFING — posture preamble', () => {
+describe('CATALYST_CORE_PREAMBLE — posture preamble', () => {
   it('frames the catalyst as a starting point, not a contract', () => {
-    expect(SYNTHESIZER_BRIEFING).toMatch(/starting point, not a contract/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/starting point, not a contract/i);
   });
 
   it('flags the library as non-exhaustive', () => {
-    expect(SYNTHESIZER_BRIEFING).toMatch(/non-exhaustive/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/non-exhaustive/i);
   });
 
   it('explicitly authorizes adaptation and writing from scratch', () => {
-    expect(SYNTHESIZER_BRIEFING).toMatch(/Adapt freely/i);
-    expect(SYNTHESIZER_BRIEFING).toMatch(/Write from scratch/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/Adapt freely/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/Write from scratch/i);
   });
 
   it('preserves non-negotiable safety defaults — dryRun and mojulo trace', () => {
-    expect(SYNTHESIZER_BRIEFING).toMatch(/dryRun/);
-    expect(SYNTHESIZER_BRIEFING).toMatch(/mojulo trace/i);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/dryRun/);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/mojulo trace/i);
   });
 
   it('places posture before vocabulary so the model reads it first', () => {
-    const postureIdx = SYNTHESIZER_BRIEFING.indexOf('How to read this catalyst');
-    const vocabIdx = SYNTHESIZER_BRIEFING.indexOf('Vocabulary');
+    const postureIdx = CATALYST_CORE_PREAMBLE.indexOf('How to read this catalyst');
+    const vocabIdx = CATALYST_CORE_PREAMBLE.indexOf('Vocabulary');
     expect(postureIdx).toBeGreaterThanOrEqual(0);
     expect(vocabIdx).toBeGreaterThan(postureIdx);
   });
 });
 
-describe('getCatalystHandler', () => {
-  it('prepends the briefing to the body', async () => {
+describe('getCatalystHandler — adapter composition', () => {
+  it('prepends the core preamble to the body', async () => {
     const out = await getCatalystHandler({ id: 'qualify-lead-to-crm' });
-    expect(out.body.startsWith(SYNTHESIZER_BRIEFING)).toBe(true);
+    expect(out.body.startsWith(CATALYST_CORE_PREAMBLE)).toBe(true);
   });
 
-  it('still returns metadata fields alongside the briefed body', async () => {
+  it('still returns metadata fields alongside the composed body', async () => {
     const out = await getCatalystHandler({ id: 'qualify-lead-to-crm' });
     expect(out.id).toBe('qualify-lead-to-crm');
     expect(out.name).toBeTypeOf('string');
     expect(out.summary).toBeTypeOf('string');
     expect(Array.isArray(out.parameters)).toBe(true);
+  });
+
+  it('includes a host adapter section in the composed body', async () => {
+    const out = await getCatalystHandler({ id: 'qualify-lead-to-crm' });
+    expect(out.body).toMatch(/# Host adapter/);
+    expect(out.adapter).toBeTruthy();
+    expect(out.adapter.id).toBeTruthy();
+  });
+
+  it('honors an explicit host parameter and composes that adapter', async () => {
+    const claude = await getCatalystHandler({ id: 'qualify-lead-to-crm', host: 'claude-code' });
+    expect(claude.adapter.id).toBe('claude-code');
+    expect(claude.body).toMatch(/\.claude\/skills\//);
+
+    const codex = await getCatalystHandler({ id: 'qualify-lead-to-crm', host: 'codex' });
+    expect(codex.adapter.id).toBe('codex');
+    expect(codex.body).toMatch(/Codex automation/);
+  });
+
+  it('falls back to the generic adapter when host is unknown and no clientInfo', async () => {
+    _resetClientBindingsForTests();
+    const out = await getCatalystHandler(
+      { id: 'qualify-lead-to-crm', host: 'no-such-host' },
+      { mcpSessionId: 'test-session-unknown-host' }
+    );
+    expect(out.adapter.id).toBe('generic');
+  });
+
+  it('auto-binds an adapter from this session\'s clientInfo when no host is passed', async () => {
+    _resetClientBindingsForTests();
+    rememberClientInfo('test-session-codex-1', { name: 'codex', version: '1.0' });
+    const out = await getCatalystHandler(
+      { id: 'qualify-lead-to-crm' },
+      { mcpSessionId: 'test-session-codex-1' }
+    );
+    expect(out.adapter.id).toBe('codex');
+  });
+
+  it('explicit host always wins over clientInfo auto-binding', async () => {
+    _resetClientBindingsForTests();
+    rememberClientInfo('test-session-claude-1', { name: 'claude-code', version: '1.0' });
+    const out = await getCatalystHandler(
+      { id: 'qualify-lead-to-crm', host: 'codex' },
+      { mcpSessionId: 'test-session-claude-1' }
+    );
+    expect(out.adapter.id).toBe('codex');
   });
 
   it('throws on missing id', async () => {
@@ -104,7 +156,7 @@ describe('listCatalystsHandler', () => {
 
 describe('CONSULTATION_POSTURE — recommend_catalysts framing', () => {
   // recommend_catalysts returns this in every response so the agent re-reads
-  // the posture at the moment of acting on it (mirror of SYNTHESIZER_BRIEFING
+  // the posture at the moment of acting on it (mirror of CATALYST_CORE_PREAMBLE
   // for get_catalyst). If any of these guarantees drift, the consultation
   // mode collapses back into role-executor.
   it('explicitly names valueHook as the lead-with field', () => {
@@ -125,10 +177,56 @@ describe('CONSULTATION_POSTURE — recommend_catalysts framing', () => {
   it('reminds the agent that mojulo cannot see what MCPs are installed', () => {
     expect(CONSULTATION_POSTURE).toMatch(/only you/i);
   });
+
+  it('directs the agent at the materialization block and get_adapter before synthesizing', () => {
+    // The posture now carries the adapter-binding handshake: the
+    // recommend_catalysts response includes a materialization block, and
+    // the agent must bind an adapter before materializing any artifact.
+    // Without this section, agents drift back to whichever host shape they
+    // think they know best.
+    expect(CONSULTATION_POSTURE).toMatch(/materialization/i);
+    expect(CONSULTATION_POSTURE).toMatch(/get_adapter/);
+    expect(CONSULTATION_POSTURE).toMatch(/clientInfoHint/);
+  });
+});
+
+describe('buildMaterializationBlock', () => {
+  it('lists every shipped adapter with artifactTarget', () => {
+    _resetClientBindingsForTests();
+    const block = buildMaterializationBlock({});
+    expect(Array.isArray(block.availableAdapters)).toBe(true);
+    const ids = block.availableAdapters.map((a) => a.id);
+    expect(ids).toContain('claude-code');
+    expect(ids).toContain('codex');
+    expect(ids).toContain('generic');
+    for (const a of block.availableAdapters) {
+      expect(typeof a.artifactTarget).toBe('string');
+      expect(a.artifactTarget.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('points the agent at get_adapter as the next tool', () => {
+    const block = buildMaterializationBlock({});
+    expect(block.nextTool).toBe('get_adapter');
+  });
+
+  it('resolves recommendedForThisClient from captured clientInfo', () => {
+    _resetClientBindingsForTests();
+    rememberClientInfo('test-mat-block-codex', { name: 'codex' });
+    const block = buildMaterializationBlock({ mcpSessionId: 'test-mat-block-codex' });
+    expect(block.recommendedForThisClient).toBe('codex');
+  });
+
+  it('falls back to generic with a self-id nudge when no clientInfo matches', () => {
+    _resetClientBindingsForTests();
+    const block = buildMaterializationBlock({ mcpSessionId: 'test-mat-block-unknown' });
+    expect(block.recommendedForThisClient).toBe('generic');
+    expect(block.note).toMatch(/clientInfoHint/);
+  });
 });
 
 describe('CUSTOM_CATALYST_GUIDE — author posture for remote contributors', () => {
-  it('frames catalysts you author here as proposals to the library, not local skills', () => {
+  it('frames catalysts you author here as proposals to the library, not local artifacts', () => {
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/proposal/i);
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/library/i);
   });
@@ -163,12 +261,13 @@ describe('CUSTOM_CATALYST_GUIDE — author posture for remote contributors', () 
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/destinationMcpCategory/);
   });
 
-  it('names the six-section body template', () => {
+  it('names the six-section body template using host-neutral section names', () => {
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/six-section/i);
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/Materialization/);
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/Mapping intent/);
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/Idempotency/);
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/Pitfalls/);
-    expect(CUSTOM_CATALYST_GUIDE).toMatch(/Skill behavior contract/);
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/Behavior contract/);
   });
 
   it('preserves the non-negotiable body principles', () => {

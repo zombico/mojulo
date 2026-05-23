@@ -41,12 +41,14 @@ This is the analytical counterpart to the write-side catalysts. Rather than acti
 
 This catalyst formalizes a recipe already documented in [docs/mcp-integration.md](docs/mcp-integration.md#recipes) §4 — the formal version adds parameterization and a behavior contract.
 
-## How to synthesize the skill
+## Materialization
+
+Per the bound host adapter:
 
 1. `get_deployment(deploymentId)` — read the bot's protocols and identity. The signal prompt benefits from knowing what the bot is *for*; "churn intent" means different things on a support bot vs. a sales bot.
-2. Ask the user the three `parameters` questions.
+2. Ask the user the three `parameters` questions in one batched round.
 3. Inspect the destination MCP for the actuator surface implied by `matchAction`. The mapping from signal-match to action payload is the catalyst's value-add.
-4. Write `.claude/skills/<bot-slug>-scan-<signal-slug>/SKILL.md`. Naming includes the signal so multiple signal scans on the same bot don't collide.
+4. Hand the resolved workflow (inputs, scan logic, action payload composition, idempotency strategy) to the host adapter. When the adapter picks the artifact slug, include the signal so multiple signal scans on the same bot don't collide — e.g. `<bot-slug>-scan-<signal-slug>`.
 
 ## Scan logic
 
@@ -57,7 +59,7 @@ This catalyst formalizes a recipe already documented in [docs/mcp-integration.md
 
 ## Action payload composition
 
-The synthesized skill should produce one action per match (not one batched action per run). The payload structure:
+Produce one action per match (not one batched action per run). The payload structure:
 
 - A title or summary derived from `signalDefinition` and the matched conversation
 - The evidence snippet **with surrounding context** (1 turn before, 1 turn after) — quoting in isolation loses meaning
@@ -66,26 +68,26 @@ The synthesized skill should produce one action per match (not one batched actio
 
 ## Sampling discipline
 
-`sampleSize` defaults to 30 for a reason — it keeps each run's LLM cost predictable and bounded. The user can scale up once they've validated the signal definition holds up. Recommend the synthesized skill default to a small sample for the first few runs, then graduate.
+`sampleSize` defaults to 30 for a reason — it keeps each run's LLM cost predictable and bounded. The user can scale up once they've validated the signal definition holds up. Default the artifact to a small sample for the first few runs, then graduate.
 
-For continuous monitoring, the right pattern is to combine this skill with `/schedule` so it runs on a cadence. Avoid trying to do "watch all conversations always" — there's no event surface for that, and the polling cost would be silly.
+For continuous monitoring, recurring execution is the right pattern — the host adapter names the scheduling mechanism for your substrate. Avoid trying to do "watch all conversations always" — there's no event surface for that, and the polling cost would be silly.
 
 ## Multiple signals on one bot
 
-Don't synthesize a multi-signal skill. Each signal gets its own skill instance. Reasons:
+Don't synthesize a multi-signal artifact. Each signal gets its own instance. Reasons:
 
 - The signal prompt is the brittle part — tuning one signal shouldn't risk regressing another.
-- Sampling overlap is fine: two skills both scanning the recent 30 cost roughly twice as much, which is fine.
+- Sampling overlap is fine: two artifacts both scanning the recent 30 cost roughly twice as much, which is fine.
 - Action targets often differ per signal (churn → CS Slack; competitor → product Notion; feature request → product backlog).
 
 ## Pitfalls
 
-- **False positives flood the actuator.** A loose signal definition fires on too many conversations and floods the destination. The first run with a new signal should default to `--dry-run` so the user sees what would have fired before they wire it live.
+- **False positives flood the actuator.** A loose signal definition fires on too many conversations and floods the destination. The first run with a new signal should default to dry-run so the user sees what would have fired before they wire it live.
 - **Confidence calibration.** "High confidence" from the model doesn't mean the signal is real — it means the model is sure of its own judgement. Recommend the user spot-check 10-20 matches early on to calibrate.
 - **PII through the LLM.** Conversation turns can contain sensitive content. Scanning by definition reads them. Same caveat as the other catalysts — confirm against the bot's data-handling posture.
 - **Stale conversations.** `query_conversations` is unbounded by default. With no `since`, the sample drifts toward the oldest conversations. Always pass `since` (default: 7d).
 
-## Skill behavior contract
+## Behavior contract
 
 - **Inputs:** `deploymentId` (required), `sampleSize` (default 30), `since` (default 7d ago, ISO), `dryRun` (default true)
 - **Outputs:** per-conversation scan log `{ conversationId, matched, confidence, evidence?, actionResult? }`

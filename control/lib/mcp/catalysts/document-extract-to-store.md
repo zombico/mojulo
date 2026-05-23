@@ -27,14 +27,14 @@
     },
     {
       "name": "imageRetention",
-      "prompt": "Should the synthesized skill include a URL/path back to the original image in each record? (true/false — depends on whether the bot serves the image bytes long-term)",
+      "prompt": "Should the materialized artifact include a URL/path back to the original image in each record? (true/false — depends on whether the bot serves the image bytes long-term)",
       "default": false
     }
   ],
   "mcpTools": {
     "mojulo": ["query_submissions", "get_conversation", "get_deployment"],
     "destination": {
-      "description": "A data-store-like MCP. Two shapes are supported: (a) structured table MCPs (Notion, Airtable, Google Sheets, Coda) exposing row create/upsert with named columns; (b) vector store MCPs (Pinecone, Qdrant, Chroma, Weaviate) exposing embed + upsert with metadata. The synthesized skill commits to one shape per skill instance — write two skills if the user wants both."
+      "description": "A data-store-like MCP. Two shapes are supported: (a) structured table MCPs (Notion, Airtable, Google Sheets, Coda) exposing row create/upsert with named columns; (b) vector store MCPs (Pinecone, Qdrant, Chroma, Weaviate) exposing embed + upsert with metadata. The materialized artifact commits to one shape per instance — synthesize two artifacts if the user wants both."
     }
   }
 }
@@ -44,12 +44,14 @@
 
 The `opticalRead` protocol turns uploaded images (claim forms, IDs, lab results, receipts, contracts) into a structured `extractedFields` payload that gets attached to the submission. This catalyst takes that structured output and persists it to a long-term store where downstream systems — analytics, lookup tools, RAG corpora — can use it.
 
-## How to synthesize the skill
+## Materialization
+
+Per the bound host adapter:
 
 1. `get_deployment(deploymentId)` — read the optical-read configuration. The `extractedFields` schema (`idName`, `label`, `hint`) tells you exactly what fields each scan produces. **This is your source-of-truth for `fieldMapping`** — never invent fields the bot doesn't extract.
-2. Ask the user the four `parameters` questions, batched. The `destinationMode` answer is the load-bearing branch — table mode and vector mode synthesize different skills.
+2. Ask the user the four `parameters` questions in one batched round. The `destinationMode` answer is the load-bearing branch — table mode and vector mode materialize different artifacts.
 3. Inspect the bound destination MCP. Confirm it matches `destinationMode` (a row-creation surface for table mode, an embed+upsert surface for vector mode). If the user has a vector store MCP but answered "table," ask — don't force-fit.
-4. Write `.claude/skills/<bot-slug>-extract-to-<destination-slug>/SKILL.md`. The skill takes `deploymentId` and `since` as inputs.
+4. Hand the resolved workflow (inputs `deploymentId` + `since`, mapping rules per mode, idempotency strategy) to the host adapter to materialize the runnable artifact.
 
 ## Mapping intent — table mode (Notion, Airtable, Sheets, Coda)
 
@@ -68,24 +70,24 @@ Each submission with an `extractedFields` payload becomes one **or more** vector
 
 - **Chunking choice.** Two reasonable defaults: (a) one chunk per submission, concatenating `label: value` pairs into a single text string for embedding; (b) one chunk per extracted field, embedded as `<field label>: <value>` so semantic search can find documents matching a specific field pattern. Default to (a) unless the user's intent (per `fieldMapping`) names specific fields as standalone search targets.
 - **Metadata.** Every chunk carries: `submission_id`, `deployment_id`, `captured_at`, `record_key` (the value of the `recordKey` field). Also any extracted field the user named as a metadata filter — these become the structured-filter dimensions for hybrid retrieval (e.g., `claim_year: 2026`).
-- **Embedding choice.** The destination MCP usually exposes embedding internally (Pinecone has its own; Qdrant integrates with several). Use the destination's own embedding pipeline rather than re-embedding from Claude. If the destination requires pre-embedded vectors, the user has to provide an embedding tool (separate MCP or local helper) — this is the one case to ask before assuming.
+- **Embedding choice.** The destination MCP usually exposes embedding internally (Pinecone has its own; Qdrant integrates with several). Use the destination's own embedding pipeline rather than re-embedding from the agent. If the destination requires pre-embedded vectors, the user has to provide an embedding tool (separate MCP or local helper) — this is the one case to ask before assuming.
 - **Namespace / collection.** Default to per-deployment namespace (`mojulo_<deploymentId>`), so multiple bots writing to the same vector store don't pollute each other.
 
 ## Idempotency
 
 **Both modes** use `since` as the primary high-water cursor on submission timestamp. Search-before-upsert on `recordKey` is the safety net for re-runs and duplicate submissions.
 
-**Vector mode adds a wrinkle:** if `chunkStrategy` is "per-field" and the same submission is reprocessed, you get N chunks per submission and need to delete the prior N before re-upserting. Most vector MCPs expose a `delete-by-metadata` (filter on `submission_id`) — use it before upsert. The synthesized skill should make this explicit; silent N+N+N growth on re-runs is the most common bug here.
+**Vector mode adds a wrinkle:** if `chunkStrategy` is "per-field" and the same submission is reprocessed, you get N chunks per submission and need to delete the prior N before re-upserting. Most vector MCPs expose a `delete-by-metadata` (filter on `submission_id`) — use it before upsert. The materialized artifact should make this explicit; silent N+N+N growth on re-runs is the most common bug here.
 
 ## Pitfalls
 
-- **Extraction confidence is variable.** Optical-read is not perfect. Documents with low confidence shouldn't be auto-promoted to a system-of-record store. Recommend the synthesized skill default to a confidence threshold (e.g., skip-and-log when any required field is below `medium`), with the user opting into "include all" if they're staging for review.
+- **Extraction confidence is variable.** Optical-read is not perfect. Documents with low confidence shouldn't be auto-promoted to a system-of-record store. Default to a confidence threshold (e.g., skip-and-log when any required field is below `medium`), with the user opting into "include all" if they're staging for review.
 - **PII in the destination.** Optical-read often captures sensitive fields (DOB, SSN, insurance ids, addresses). Tables and vector stores typically have broader access than the bot's own SQLite. Confirm with the user during synthesis which fields should be redacted, hashed, or excluded entirely before landing. Default to including everything the user says to include — but the question is non-skippable.
 - **Vector store costs scale with rerun.** Vector upserts cost per-vector and per-embedding-call. A wide `since` window on first run can be expensive. Recommend starting with a 1-day window, validating the chunk shape, then widening.
-- **Schema drift.** If the bot's `opticalRead` extraction fields change later (new field added, label renamed), the table schema or vector metadata schema will silently misalign. The synthesized skill should fail-loud on schema mismatch rather than silently dropping fields — and recommend the user re-run the catalyst flow when the bot's extraction config changes.
+- **Schema drift.** If the bot's `opticalRead` extraction fields change later (new field added, label renamed), the table schema or vector metadata schema will silently misalign. The artifact should fail-loud on schema mismatch rather than silently dropping fields — and recommend the user re-run the catalyst flow when the bot's extraction config changes.
 - **Image retention is a side concern.** If `imageRetention=true`, the URL/path included in each record only stays valid as long as the bot serves the image. If the bot rotates or deletes old uploads, the link breaks. Don't promise long-term access the bot doesn't deliver.
 
-## Skill behavior contract
+## Behavior contract
 
 - **Inputs:** `deploymentId` (required), `since` (optional ISO, default 24h ago or last-cursor), `confidenceThreshold` (string, default `medium`), `dryRun` (default true)
 - **Outputs:** per-submission decision log: `{ submissionId, recordKey, action: 'inserted' | 'updated' | 'skipped-low-confidence' | 'skipped-duplicate' | 'failed', destinationRecordId?, chunkCount? }`. Vector mode adds `chunkCount` per record.

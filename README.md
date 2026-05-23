@@ -1,8 +1,8 @@
 # Mojulo
 
-You want a triage bot for your dental practice — one that answers basic questions from your intake docs, collects new-patient fields without piping PII through the LLM, and routes anything urgent to the on-call coordinator. You describe that to Claude in one sentence. Mojulo compiles `dental-triage-{id}.zip`. You `docker compose up`. Conversations start accumulating in a SQLite file on the bot, hash-chained turn by turn.
+You want a triage bot for your dental practice — one that answers basic questions from your intake docs, collects new-patient fields without piping PII through the LLM, and routes anything urgent to the on-call coordinator. You describe that to your coding agent in one sentence. Mojulo compiles `dental-triage-{id}.zip`. You `docker compose up`. Conversations start accumulating in a SQLite file on the bot, hash-chained turn by turn.
 
-The whole loop — describe, compile, deploy, read back what was captured, automate the followup — runs in a Claude session. Mojulo's MCP server composes alongside the other MCP servers you already have installed (Drive, Gmail, your CRM), so the bot you just built can route new submissions into the rest of your toolchain without leaving the agent loop. That's the part most other chatbot builders don't do.
+The whole loop — describe, compile, deploy, read back what was captured, automate the followup — runs inside your MCP-capable agent (Claude Code, Codex, or any other MCP host). Mojulo's MCP server composes alongside the other MCP servers you already have installed (Drive, Gmail, your CRM), so the bot you just built can route new submissions into the rest of your toolchain without leaving the agent loop. That's the part most other chatbot builders don't do.
 
 The bot's config — what mojulo writes into the zip and the bot reads at start — is plain JSON:
 
@@ -20,11 +20,11 @@ You can edit it, you can `cat` it, you can move the bot to another host by copyi
 
 <!--
   HERO IMAGE — put it here.
-  Recommended shot: Claude Code or Claude Desktop mid-tool-call against
-  mojulo. Ideally `forward_context` → `infer_intent` → `save_modular_bot`
-  in the transcript, with a fragment of the resulting deployment row
-  visible in the dashboard. The pitch is "Claude drives the loop"; the
-  image has to read that way at a glance.
+  Recommended shot: an MCP-capable agent (Claude Code, Claude Desktop,
+  or Codex) mid-tool-call against mojulo. Ideally `forward_context` →
+  `infer_intent` → `save_modular_bot` in the transcript, with a fragment
+  of the resulting deployment row visible in the dashboard. The pitch is
+  "your agent drives the loop"; the image has to read that way at a glance.
   Suggested filename: docs/images/hero-mcp-loop.png
   Width: 100% / aspect ~16:9
 -->
@@ -32,8 +32,8 @@ You can edit it, you can `cat` it, you can move the bot to another host by copyi
 
 The control plane is usable via **app** and via **MCP** — two surfaces over the same encrypted config:
 
-- **MCP.** Point Claude Desktop or Claude Code at mojulo and your Claude drives the build/deploy/operate loop, composing mojulo's tools with the rest of your MCP servers. See [docs/mcp-integration.md](docs/mcp-integration.md).
-- **App.** Browser dashboard at `localhost:3001`. Paste your LLM and Fly.io API keys here — they get AES-encrypted at rest, and your Claude never sees them; the MCP tools just consume them out of the store. The app also hosts a step-by-step wizard (and a conversational in-app builder) if you'd rather click through a build than describe it.
+- **MCP.** Point your MCP-capable agent (Claude Code, Claude Desktop, Codex, or any other MCP host) at mojulo and your agent drives the build/deploy/operate loop, composing mojulo's tools with the rest of your MCP servers. See [docs/mcp-integration.md](docs/mcp-integration.md).
+- **App.** Browser dashboard at `localhost:3001`. Paste your LLM and Fly.io API keys here — they get AES-encrypted at rest, and your agent never sees them; the MCP tools just consume them out of the store. The app also hosts a step-by-step wizard (and a conversational in-app builder) if you'd rather click through a build than describe it.
 
 Both produce the same `<bot>.zip`.
 
@@ -44,8 +44,14 @@ Both produce the same `<bot>.zip`.
 ### MCP
 
 ```bash
-# 1. Wire mojulo into Claude (Claude Code or Claude Desktop)
+# 1. Wire mojulo into your MCP-capable agent.
+#    Claude Code / Claude Desktop:
 claude mcp add mojulo --command "npx -y mojulo"
+#    Codex CLI: add to ~/.codex/config.toml
+#      [mcp_servers.mojulo]
+#      command = "npx"
+#      args = ["-y", "mojulo"]
+#    Any other MCP host: register the same `npx -y mojulo` stdio command.
 
 # 2. Configure at least one LLM provider key.
 #    Safer: paste it in the app's Settings → Provider Keys page (below).
@@ -53,13 +59,13 @@ claude mcp add mojulo --command "npx -y mojulo"
 #    (mojulo-config ships inside the mojulo package, so -p mojulo is required)
 npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 
-# 3. In a Claude session, ask:
+# 3. In an agent session, ask:
 #    "build me a triage bot for my dental practice"
 ```
 
-Compiled bots land in `~/.mojulo/data/artifacts/`. Run them with `docker compose up`, or set a Fly token (`npx -y -p mojulo mojulo-config set fly fo1_...`) and ask Claude to deploy to the cloud.
+Compiled bots land in `~/.mojulo/data/artifacts/`. Run them with `docker compose up`, or set a Fly token (`npx -y -p mojulo mojulo-config set fly fo1_...`) and ask your agent to deploy to the cloud.
 
-When Claude first connects, it calls `forward_context` to read mojulo's concept glossary, lifecycle, and tool index — so the first session orients itself before doing anything destructive.
+When your agent first connects, it calls `forward_context` to read mojulo's concept glossary, lifecycle, and tool index — so the first session orients itself before doing anything destructive. Host adapters (`claude-code`, `codex`, `generic`) are auto-resolved from the connecting client; non-Claude agents should also read [AGENTS.md](AGENTS.md) for host-specific procedure.
 
 ### App
 
@@ -73,13 +79,13 @@ npm install         # postinstall fetches a 113MB ONNX model for offline RAG (~3
 npm run dev         # http://localhost:3001
 ```
 
-Paste an LLM provider key under **Settings → Provider Keys**. To enable HTTP MCP for a remote Claude, also set `CONTROL_PLANE_MCP_KEY` in `control/.env` — see [docs/mcp-integration.md](docs/mcp-integration.md).
+Paste an LLM provider key under **Settings → Provider Keys**. To enable HTTP MCP for a remote agent (Claude Code, Codex, etc.), also set `CONTROL_PLANE_MCP_KEY` in `control/.env` — see [docs/mcp-integration.md](docs/mcp-integration.md).
 
 ---
 
 ## The loop: build → deploy → connect → operate
 
-**Build.** A bot's capabilities are called **protocols** — five of them ship: `knowledge` (in-process RAG), `formGathering` (structured field capture, PII bypasses the LLM), `appointments`, `triage` (cross-bot routing), `opticalRead` (vision-based extraction). To build a bot, pick which protocols it needs, upload any documents it should know from, and compose its identity. From Claude, describe the bot in free text and the build tools sequence themselves starting at `infer_intent`; in the app, the wizard or in-app builder walks the same steps.
+**Build.** A bot's capabilities are called **protocols** — five of them ship: `knowledge` (in-process RAG), `formGathering` (structured field capture, PII bypasses the LLM), `appointments`, `triage` (cross-bot routing), `opticalRead` (vision-based extraction). To build a bot, pick which protocols it needs, upload any documents it should know from, and compose its identity. From your agent, describe the bot in free text and the build tools sequence themselves starting at `infer_intent`; in the app, the wizard or in-app builder walks the same steps.
 
 **Deploy.** `save_modular_bot` compiles the configured bot into a zip artifact. Run it locally (`docker compose up`), in the cloud (Fly.io from the dashboard or via MCP), or air-gapped with the source bundled in. The container image is bot-agnostic — per-bot config is injected at start time, so the same image runs every bot you have.
 
@@ -91,13 +97,13 @@ Paste an LLM provider key under **Settings → Provider Keys**. To enable HTTP M
 
 ## What you get
 
-Two terms recur below: **protocols** are the bot capabilities defined in *The loop* above (knowledge, form-gathering, appointments, triage, optical-read); **catalysts** are curated workflow recipes that Claude reads and turns into local skills in your `.claude/skills/`. Full glossary in [docs/mojulo-bots.md](docs/mojulo-bots.md).
+Two terms recur below: **protocols** are the bot capabilities defined in *The loop* above (knowledge, form-gathering, appointments, triage, optical-read); **catalysts** are curated workflow recipes that your agent reads and turns into a runnable artifact for its host — a Claude Code skill under `.claude/skills/`, a Codex automation, or a generic `workflow.md`, depending on which agent is connected. Full glossary in [docs/mojulo-bots.md](docs/mojulo-bots.md).
 
 ### As an MCP server
 
 - **Composable with the rest of your toolchain.** Drive folder → bot knowledge base. Linear escalations → triage routes. Intake submissions → CRM contact + welcome email + ticket. None of this is reachable from the in-app builders, because they can't see your other MCPs. See the recipes in [docs/mcp-integration.md](docs/mcp-integration.md).
-- **Catalysts.** `list_catalysts` exposes curated patterns — `qualify-lead-to-crm`, `appointment-to-calendar`, `submission-to-ticket`, `scan-conversations-for-signal`, `weekly-submissions-digest`, `knowledge-gap-miner`. Claude reads one, binds it to a destination MCP you already have installed, and writes a local skill into `.claude/skills/`. The catalyst stays in mojulo; the resulting skill is yours. See [docs/catalysts.md](docs/catalysts.md).
-- **The reasoning bill moves to your Claude.** When you drive it from MCP, the control plane doesn't need an Anthropic key for builder-time work — your Claude is the agent loop. The in-loop LLM calls that *do* stay server-side (form generation, identity composition, bot summary) use whichever provider you configured.
+- **Catalysts.** `list_catalysts` exposes curated patterns — `qualify-lead-to-crm`, `appointment-to-calendar`, `submission-to-ticket`, `scan-conversations-for-signal`, `weekly-submissions-digest`, `knowledge-gap-miner`. Your agent reads one, binds it to a destination MCP you already have installed, and materializes a runnable artifact through the host adapter for its client (`claude-code`, `codex`, or `generic`). The catalyst stays in mojulo; the resulting artifact lives on your machine. See [docs/catalysts.md](docs/catalysts.md).
+- **The reasoning bill moves to your agent.** When you drive it from MCP, the control plane doesn't need a provider key for builder-time work — your agent is the agent loop. The in-loop LLM calls that *do* stay server-side (form generation, identity composition, bot summary) use whichever provider you configured.
 
 ### As an artifact
 
@@ -115,11 +121,11 @@ Two terms recur below: **protocols** are the bot capabilities defined in *The lo
 
 Most chatbot builders are hosted SaaS — a managed widget, a recurring bill, no ownership of the artifact itself. The bot is something they run for you.
 
-Mojulo produces an artifact instead. The bot you compile is yours: the source is a single open-source image, the config is plain JSON, conversations live in a SQLite file on the bot. The control plane builds it; the bot doesn't phone home for inference; the dashboard reads conversations live without copying them. And because mojulo is MCP-native, the build/deploy/operate loop is something **your** Claude drives — not a UI you log into to click around.
+Mojulo produces an artifact instead. The bot you compile is yours: the source is a single open-source image, the config is plain JSON, conversations live in a SQLite file on the bot. The control plane builds it; the bot doesn't phone home for inference; the dashboard reads conversations live without copying them. And because mojulo is MCP-native, the build/deploy/operate loop is something **your** agent drives — Claude Code, Codex, or any other MCP host — not a UI you log into to click around.
 
 ## Who builds with this
 
-A spectrum, all driving the same open-source, self-hosted stack from their own Claude:
+A spectrum, all driving the same open-source, self-hosted stack from their own MCP-capable agent:
 
 - **Indie makers** shipping a side-project bot without a SaaS bill — describe it once, point the resulting artifact at a small VPS.
 - **Agencies** building a per-client bot per deployment, swapping LLM provider and locale per project, then wiring each client's bot into that client's CRM in the same agent session.
@@ -142,7 +148,7 @@ docker compose up
 
 ### Fly.io
 
-Configure a Fly API token (`mojulo config set fly fo1_...`, or paste it in **Settings → Provider Keys**), then deploy from the dashboard or ask Claude to deploy via MCP. Persistent volume, autostart on request, autostop when idle. No `flyctl` install required. Your Fly account, your bill.
+Configure a Fly API token (`mojulo config set fly fo1_...`, or paste it in **Settings → Provider Keys**), then deploy from the dashboard or ask your agent to deploy via MCP. Persistent volume, autostart on request, autostop when idle. No `flyctl` install required. Your Fly account, your bill.
 
 ### Air-gapped / your own registry
 
@@ -189,7 +195,7 @@ If your threat model demands non-repudiation against the bot operator themselves
 
 The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients).
 
-Builder tools — driven from your Claude over MCP or from the in-app chat builder / wizard — produce a deployment config (same shape regardless of entry point). From there, [DockerDeployer](control/lib/deployers/docker.js) composes a per-bot `instructions.txt` from protocol cartridges, bakes documents + triage routes into an `embeddings.json` vector index, and packages config + `docker-compose.yml` + `.env.example` into a zip.
+Builder tools — driven from your agent over MCP or from the in-app chat builder / wizard — produce a deployment config (same shape regardless of entry point). From there, [DockerDeployer](control/lib/deployers/docker.js) composes a per-bot `instructions.txt` from protocol cartridges, bakes documents + triage routes into an `embeddings.json` vector index, and packages config + `docker-compose.yml` + `.env.example` into a zip.
 
 The runtime is a separate Express container ([lite-template/](lite-template/)) published to GHCR — pull it, mount the per-bot config, you have a bot. Cloud deploys go to Fly Machines, injecting the same config files via the Machines API instead of a zip.
 

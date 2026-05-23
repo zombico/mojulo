@@ -9,14 +9,97 @@ control-plane version — a minor bump may move the pinned bot image tag.
 
 ## [Unreleased]
 
+Catalysts go host-neutral. Until now, every catalyst body assumed the
+synthesizing agent was Claude Code and would write a `.claude/skills/<...>/SKILL.md`
+file. That assumption is unbundled into a separate **host adapter** layer, so
+the same catalyst recipe can materialize as a Claude Code skill, a Codex
+automation, or a generic `workflow.md` + runner depending on which agent is
+connected. See [docs/catalysts.md](../docs/catalysts.md) and the per-host
+prose in [control/lib/mcp/adapters/](lib/mcp/adapters/).
+
 ### Added
+- **Host adapters** — three ship in [lib/mcp/adapters/](lib/mcp/adapters/),
+  symmetric to the catalysts loader: `claude-code` (skill under
+  `.claude/skills/`, scheduled via `/schedule`, secrets-guarded via
+  `.claude/settings.json` deny rules), `codex` (Codex automation via
+  `automation_update` for recurrence, or a workspace `./mojulo-workflows/<slug>/`
+  workflow file Codex follows interactively), and `generic` (`workflow.md` +
+  runner script for any other agent, scheduling out-of-band). Each adapter
+  declares its artifact target, scheduling mechanism, state location, secrets
+  posture, and `supportsClientInfoHint` list. The MCP server captures
+  `clientInfo` at `initialize` ([client-bindings.js](lib/mcp/client-bindings.js))
+  and auto-resolves the adapter for that session; pass `host` explicitly to
+  `get_catalyst` / `get_adapter` to override.
+- `list_adapters` / `get_adapter` MCP tools (Ring 0, registered next to
+  `forward_context` so they show up at the top of `tools/list`). The
+  connecting agent reads its bound adapter once per session before
+  synthesizing from any catalyst.
+- [AGENTS.md](../AGENTS.md) at repo root — orientation for non-Claude agents
+  (Codex, future hosts) before mojulo's MCP is connected. Covers the dev MCP
+  endpoint, the Codex `~/.codex/config.toml` snippet, and cross-host
+  pointers. Claude Code's [CLAUDE.md](../CLAUDE.md) is host-neutral and
+  remains the primary architecture doc; AGENTS.md only covers what other
+  hosts need *before* the MCP handshake.
+- Optional `outputContract` field on catalyst frontmatter — a structured
+  description of the per-run output shape, so adapters can render reporting
+  without parsing prose. All three shipped adapters read it (see the "Output
+  reporting" section in each adapter body). Optional during migration;
+  required for new catalysts after the Phase 2 cutover.
 - Language packs for new locales: Arabic (ar), Danish (da), Estonian (et),
-  Farsi (fa), Filipino (fil), Hindi (hi), Indonesian (id),  Kiswahili (sw), Malay (ms), Swedish
-  (sv), Thai (th), Turkish (tr), Urdu (ur), and Vietnamese (vi). UI strings are now
-  internationalized across 27 languages total.
+  Farsi (fa), Filipino (fil), Hindi (hi), Indonesian (id), Kiswahili (sw),
+  Malay (ms), Swedish (sv), Thai (th), Turkish (tr), Urdu (ur), and
+  Vietnamese (vi). UI strings are now internationalized across 27 languages
+  total.
 
 ### Changed
+- **Every shipped catalyst body rewritten to be host-neutral.** Claude-specific
+  phrasing ("synthesize the skill", literal `.claude/skills/<...>/SKILL.md`
+  paths, "the skill prints…") is replaced with "materialize the runnable
+  artifact" delegated to the bound host adapter. Mapping intent, qualifying
+  logic, idempotency strategy, and pitfalls — the *portable* contract — stay
+  in the catalyst body. Artifact path, scheduling, dry-run encoding, state
+  location, and output reporting move to the adapter. Touched:
+  `appointment-to-calendar`, `conversations-to-channel-digest`,
+  `document-extract-to-store`, `knowledge-gap-miner`, `qualify-lead-to-crm`,
+  `scan-conversations-for-signal`, `submission-to-ticket`,
+  `submissions-to-warehouse`, `weekly-submissions-digest`.
+- `get_catalyst` response now composes three sections in order: the
+  host-neutral **`CATALYST_CORE_PREAMBLE`** (renamed from
+  `SYNTHESIZER_BRIEFING` — posture, vocabulary, safety defaults), the bound
+  **host adapter body** (artifact target, scheduling, dry-run as a concrete
+  step, state, secrets, output reporting), then the **catalyst body**
+  itself. Response payload also includes a resolved
+  `adapter: { id, name, artifactTarget }` block so callers can surface the
+  materialization target in confirmation dialogs.
+- `forward_context` rewritten around the host-neutral model: new **Host
+  adapter** glossary entry next to the existing **Catalyst** entry,
+  `list_adapters` / `get_adapter` added to the Orientation ring of the tool
+  index, updated catalyst lifecycle text ("read your adapter once before
+  synthesizing"), and the verification posture generalized from "synthesized
+  skills" to "runnable workflow artifacts materialized via host adapters
+  (Claude Code skills, Codex automations, generic workflow files)."
 - `forward_context` tool now surfaces the embed URL of the widget.
+- npm package description and keywords broadened from "MCP server for
+  building self-hosted chatbots from inside Claude" to "from any MCP-capable
+  agent (Claude Code, Codex, and friends)." Keywords add `mcp-server`,
+  `codex`, `openai`.
+- [docs/catalysts.md](../docs/catalysts.md) and
+  [docs/mcp-integration.md](../docs/mcp-integration.md) rewritten around the
+  catalyst/adapter split. The concepts table grows a fourth row (host
+  adapter) and the "runnable artifact" row replaces the
+  Claude-specific "Claude Code skill" row.
+- Top-level [README.md](../README.md) and [control/README.md](README.md)
+  updated for the multi-host story — host adapters are mentioned next to the
+  `forward_context` orientation pointer.
+
+### Fixed
+- `get_deployment` credential redaction now actually redacts. The deployment
+  config serializes its per-provider entries under `config.llm.*`, but
+  `redactConfigCredentials` in [operate.js](lib/mcp/tools/operate.js) was
+  walking `config.llmConfig.*` — a key that doesn't exist — and silently
+  returning the config untouched. Anthropic / OpenAI / AWS / Fly API-key
+  fields are now redacted before the tool returns. No control-plane DB
+  change; the encrypted-at-rest copy in `api_keys` was never affected.
 
 ## [0.2.2] — 2026-05-21
 

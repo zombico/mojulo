@@ -85,6 +85,11 @@ function parseCatalystFile(filePath, raw) {
     requires: meta.requires || {},
     parameters: Array.isArray(meta.parameters) ? meta.parameters : [],
     mcpTools: meta.mcpTools || {},
+    // Optional structured shape of the per-run output the materialized
+    // artifact must produce. When present, host adapters can read this to
+    // shape their own output reporting without parsing prose. Required for
+    // new catalysts after the Phase 2 cutover; optional during migration.
+    outputContract: meta.outputContract || null,
     body,
   };
 }
@@ -124,6 +129,7 @@ export function listCatalysts({ category } = {}) {
       valueHook: catalyst.valueHook,
       category: catalyst.category,
       requires: catalyst.requires,
+      outputContract: catalyst.outputContract,
     });
   }
   return out;

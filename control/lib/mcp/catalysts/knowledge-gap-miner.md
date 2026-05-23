@@ -42,12 +42,14 @@ A `knowledge`-protocol bot answers from its RAG corpus. When it doesn't have a g
 
 Unlike the other catalysts, the destination is **optional**. The most useful output is often just the printed list — a focused weekly review by whoever owns the corpus. A backlog MCP is a nice-to-have.
 
-## How to synthesize the skill
+## Materialization
+
+Per the bound host adapter:
 
 1. `get_deployment(deploymentId)` — confirm the `knowledge` protocol is active. Read the bot's domain identity; it shapes how you interpret "gap."
-2. Ask the user the three `parameters` questions.
+2. Ask the user the three `parameters` questions in one batched round.
 3. If `backlogDestination` was given, inspect that MCP's create surface.
-4. Write `.claude/skills/<bot-slug>-gap-miner/SKILL.md`.
+4. Hand the resolved workflow (detection logic, clustering rules, proposal composition) to the host adapter to materialize the runnable artifact.
 
 ## Detection logic
 
@@ -75,11 +77,11 @@ For each surfaced gap, generate:
 - **Sample utterances** — 2-3 actual phrasings from real conversations (with conversation ids for traceability)
 - **Proposed addition** — a short paragraph the user could paste into their docs as a starting point. Mark this clearly as **proposed, not authoritative** — the user must review before adding to the corpus.
 
-The user re-uploads accepted additions through the normal mojulo document-upload flow ([upload_document_from_url](docs/mcp-integration.md) tool) — this skill does **not** modify the bot's corpus directly.
+The user re-uploads accepted additions through the normal mojulo document-upload flow ([upload_document_from_url](docs/mcp-integration.md) tool) — this catalyst does **not** modify the bot's corpus directly.
 
 ## Output
 
-- **Always:** a markdown report printed to stdout (or, in Claude Code, returned as the skill's result text). The user reads it.
+- **Always:** a markdown report surfaced per the host adapter's reporting rules. The user reads it.
 - **If `backlogDestination` is configured:** one entry per surfaced gap in the destination. For Linear: one issue per gap. For Notion: one page (or one row in a database). Each entry includes the conversation ids so the reviewer can drill back.
 
 ## Pitfalls
@@ -89,7 +91,7 @@ The user re-uploads accepted additions through the normal mojulo document-upload
 - **Don't auto-add to corpus.** The corpus is the bot's behavior. Silent additions are surprise behavior changes. Always go through the user — propose, never inject.
 - **Cadence.** Once-a-week or once-a-month is plenty. Running this daily produces noise and the corpus doesn't change that fast.
 
-## Skill behavior contract
+## Behavior contract
 
 - **Inputs:** `deploymentId` (required), `lookbackWindow` (default 14d), `minOccurrences` (default 2), `dryRun` (default true)
 - **Outputs:** the gap report (always), per-gap destination action results (when configured)

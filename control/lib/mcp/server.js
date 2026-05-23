@@ -17,6 +17,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { rememberClientInfo } from '@/lib/mcp/client-bindings';
 
 export const PROTOCOL_VERSION = '2024-11-05';
 export const SERVER_NAME = 'mojulo-control-plane';
@@ -97,7 +98,14 @@ export async function dispatchMcpRequest(message, context) {
 
   try {
     switch (message.method) {
-      case 'initialize':
+      case 'initialize': {
+        // Capture clientInfo so the host adapter resolver (see
+        // lib/mcp/adapters/loader.js) can auto-bind an adapter when later
+        // get_catalyst / get_adapter calls don't pass an explicit `host`.
+        const clientInfo = message.params?.clientInfo;
+        if (clientInfo && context?.mcpSessionId) {
+          rememberClientInfo(context.mcpSessionId, clientInfo);
+        }
         return isNotification
           ? null
           : jsonRpcResult(message.id, {
@@ -108,6 +116,7 @@ export async function dispatchMcpRequest(message, context) {
               serverInfo: { name: SERVER_NAME, version: getServerVersion() },
               instructions: SERVER_INSTRUCTIONS,
             });
+      }
 
       case 'notifications/initialized':
       case 'initialized':
@@ -187,6 +196,7 @@ export async function ensureToolsRegistered() {
   if (_registered) return;
   _registered = true;
   const { registerContextTools } = await import('@/lib/mcp/tools/context');
+  const { registerAdapterTools } = await import('@/lib/mcp/tools/adapters');
   const { registerBuildTools } = await import('@/lib/mcp/tools/build');
   const { registerJobsTools } = await import('@/lib/mcp/tools/jobs-tools');
   const { registerOperateTools } = await import('@/lib/mcp/tools/operate');
@@ -194,10 +204,12 @@ export async function ensureToolsRegistered() {
   const { registerCatalystTools } = await import('@/lib/mcp/tools/catalysts');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
-  // model see the orientation tool at the top. Fleet tools sit between
-  // per-bot operate and catalysts so the natural reading order is
+  // model see the orientation tool at the top. Adapter tools sit next to
+  // orientation (they're the binding-orientation surface). Fleet tools sit
+  // between per-bot operate and catalysts so the natural reading order is
   // per-bot → fleet → outcome.
   registerContextTools();
+  registerAdapterTools();
   registerBuildTools();
   registerJobsTools();
   registerOperateTools();

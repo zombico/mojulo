@@ -37,14 +37,16 @@
 
 # Qualify lead and sync to CRM
 
-This catalyst turns a `formGathering` mojulo bot into a CRM intake pipeline. You score each new submission against the user's rubric, dedupe against existing CRM records, and create a contact (and optionally a deal) for the qualified ones.
+This catalyst turns a `formGathering` mojulo bot into a CRM intake pipeline. Score each new submission against the user's rubric, dedupe against existing CRM records, and create a contact (and optionally a deal) for the qualified ones.
 
-## How to synthesize the skill
+## Materialization
 
-1. Call `get_deployment(deploymentId)` to read the bot's form schema. The synthesized skill's mapping is **derived from this schema** — never guess field names.
-2. Ask the user the three `parameters` questions in one round.
+Per the bound host adapter (artifact target, scheduling, and dry-run encoding live there):
+
+1. Call `get_deployment(deploymentId)` to read the bot's form schema. The mapping is **derived from this schema** — never guess field names.
+2. Ask the user the three `parameters` questions in one batched round.
 3. Inspect the bound destination MCP to learn its contact-create surface (field names, required props, search-by-property tool). Field mapping is the catalyst's value-add — don't assume it's `name`/`email`/`phone` everywhere; HubSpot uses `firstname`/`lastname`/`email`, Salesforce uses `FirstName`/`LastName`/`Email`, Attio uses object/attribute pairs.
-4. Write `.claude/skills/<bot-slug>-crm-sync/SKILL.md` with the synthesized workflow. The skill takes `deploymentId` and `since` as inputs.
+4. Hand the resolved workflow (inputs `deploymentId` + `since` + `dryRun`, mapping table, qualifying judgement, idempotency strategy) to the host adapter to materialize the runnable artifact.
 
 ## Mapping intent
 
@@ -59,24 +61,24 @@ When the bot's form schema has a field that doesn't fit any CRM property, **ask 
 
 ## Qualifying logic
 
-Run each submission through a single LLM judgement against `qualifyingCriteria`. Return a score 0-100 and a one-sentence reason. The skill stores the score + reason on the CRM contact (a `mojulo_qualifying_score` property) so the user can audit why something was kept or skipped without re-running the classifier.
+Run each submission through a single LLM judgement against `qualifyingCriteria`. Return a score 0-100 and a one-sentence reason. Store the score + reason on the CRM contact (a `mojulo_qualifying_score` property) so the user can audit why something was kept or skipped without re-running the classifier.
 
-Submissions below `scoreThreshold` are logged but not pushed. The skill emits a decision log per run.
+Submissions below `scoreThreshold` are logged but not pushed. Emit a decision log per run.
 
 ## Idempotency
 
-Use `since` as a high-water cursor on the submission timestamp. Each run pulls only submissions newer than `since`. The synthesized skill should print the new cursor at end of run so the user can pass it back next time — or wire it through a scheduler.
+Use `since` as a high-water cursor on the submission timestamp. Each run pulls only submissions newer than `since`. The materialized artifact emits the new cursor at end of run so the user (or a scheduler) can pass it back next time — the host adapter names exactly where that emission goes.
 
 Independent of the cursor, **always search-before-create** on the `dedupeKey`. Two failure modes the cursor doesn't cover: a user re-runs an old window, or the same person submits twice. Search-before-create is the durable defense.
 
 ## Pitfalls — surface these to the user
 
 - **PII back through the LLM.** Form-gathering's design point is that PII bypasses the LLM at capture time. This skill deliberately reintroduces PII at routing time, since qualifying needs to read fields like email or chief complaint. Worth confirming the user is OK with this against the data-handling posture they advertised to end users.
-- **Irreversible writes.** CRM contact creates are visible to sales reps and trigger downstream automations (welcome sequences, lead-rotation rules). Default the synthesized skill to a `--dry-run` mode that prints decisions without writing. The user explicitly opts into live writes per run.
+- **Irreversible writes.** CRM contact creates are visible to sales reps and trigger downstream automations (welcome sequences, lead-rotation rules). The materialized artifact defaults to dry-run; the user explicitly opts into live writes per run. The host adapter names how that opt-in is structured on your substrate.
 - **Rate limits.** CRMs throttle aggressively. Process submissions serially with a small inter-call delay rather than parallelizing.
-- **Field-mapping drift.** If the user later edits the bot's form schema, the skill's mapping goes stale silently. Recommend the user re-run the catalyst flow to regenerate the skill when they change the form.
+- **Field-mapping drift.** If the user later edits the bot's form schema, the mapping goes stale silently. Recommend the user re-run the catalyst flow to regenerate the artifact when they change the form.
 
-## Skill behavior contract
+## Behavior contract
 
 - **Inputs:** `deploymentId` (string, required), `since` (ISO timestamp, optional — defaults to last-cursor or 24h ago), `dryRun` (bool, default true)
 - **Outputs:** a per-submission decision log: `{ submissionId, score, reason, action: 'created' | 'updated' | 'skipped-low-score' | 'skipped-duplicate', crmRecordId? }`
