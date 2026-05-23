@@ -9,6 +9,10 @@ control-plane version — a minor bump may move the pinned bot image tag.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-23
+
+Ring 6 — the deliberation substrate — comes online. Three structurally-distinct surfaces (contextmap, inventory, mcp-orbit composer) decenter mojulo from the bot: the bot factory becomes one capability bay, Ring 6 becomes the hull. The release also activates the non-bot axis — operators can now use mojulo to compose MCP-orchestrated workflows over their installed MCPs (Gmail/Drive/Calendar/Linear/etc.) without deploying a chatbot at all, with the contextmap as the durable audit trail and the mcp-orbit composer as the synthesis surface.
+
 `meta_context` ships as **Ring 6** — a writeable, durable deliberation surface that records *why* structural decisions were made, not just *what* happened. Two MVP write triggers (operator KYC and artifact materialization) with adapter-delegated verification, a graph schema of bots / catalysts / adapters / artifacts / mcp_tools / operator nodes plus seeded / materialized_by / runs_for / binds edges, and principles (markdown rationale) attached to either nodes or edges. The bright line is operational: writes happen at **structural** events (operator pivots, artifact materializations) — never at **outcome** events (conversations, automation runs). That asymmetry is what makes the layer auditable; outcomes happen at run-rate, structural decisions at deliberation-rate. The graph is **append-only by design** — no deprecation events, no tombstones, no auto-pruning. Operator owns manual cleanup via SQL. See [docs/meta-context.md](../docs/meta-context.md).
 
 This release also closes a synthesis ↔ deliberation loop the design called out: `recommend_catalysts` now consults the contextmap automatically and surfaces both the operator anchor (`operatorAnchor` / `suggest_kyc`) and per-catalyst `priorMaterializations`, so the agent can triage overlap / synergy / orthogonality at the recommendation surface without remembering to call `meta_context_brief` first.

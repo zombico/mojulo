@@ -2,6 +2,8 @@
 
 Mojulo is an MCP control plane for designing, deploying, and operating a fleet of self-hosted chat bots from your MCP-capable agent (Claude Code, Codex, Claude Desktop, or any other MCP host). You describe a bot in one sentence; mojulo compiles a runnable `<bot>.zip`; from then on your agent drives the build → deploy → connect → operate loop. Mojulo composes alongside the other MCP servers you already have installed (Drive, Gmail, your CRM), so signal from any deployed bot can route into the rest of your toolchain without leaving the agent loop.
 
+As of `0.4`, mojulo also works without a bot. Declare your installed MCPs once and the same control plane composes MCP-orchestrated workflows over them — scheduled digests, signal-triggered automations, cross-tool wiring — with the **contextmap** recording *why* each artifact was materialized and the **mcp-orbit composer** assembling them from typed components. See [docs/meta-context.md](docs/meta-context.md) and [docs/mcp-orbit.md](docs/mcp-orbit.md).
+
 Each bot runs in its own Docker container and accumulates conversations in a local SQLite file, hash-chained turn by turn. The control plane stores only `url` + `last_seen_at` per bot — transcript content stays on the bot forever, read live through a bearer-authenticated proxy. The bot's config is plain JSON:
 
 ```json
