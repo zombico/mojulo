@@ -73,6 +73,13 @@ echo "[smoke] installing control plane…"
 (cd control && [ -f .env ] || cp .env.example .env)
 (cd control && npm install)
 
+# Control plane has no postinstall (the published `mojulo` bin uses lazy
+# preloadModel() — adding a postinstall would force every `npx mojulo` user
+# to pay the 113MB download). The clone-and-dev path runs the fetch
+# explicitly, which the README documents alongside `npm install`.
+echo "[smoke] fetching control plane embed model…"
+(cd control && npm run fetch-models)
+
 CONTROL_MODEL_PATH="control/lib/embedder/models/Xenova/multilingual-e5-small/onnx/model_quantized.onnx"
 if [ ! -f "$CONTROL_MODEL_PATH" ]; then
   echo "[smoke] FAIL: expected ONNX model at $CONTROL_MODEL_PATH"
