@@ -2,6 +2,13 @@
 node_modules/
 npm-debug.log*
 
+# Lockfile — sharp ships a per-platform @img/sharp-* optional dep, and npm 10
+# only records the host's variant in package-lock.json. A committed lockfile
+# breaks `npm install` on any other platform (CI on Linux, contributors on
+# x64, etc.). The Dockerfile already excludes the lockfile via .dockerignore;
+# this keeps dev installs consistent with that.
+package-lock.json
+
 # Environment variables
 .env
 .env.local
