@@ -203,6 +203,7 @@ export async function ensureToolsRegistered() {
   const { registerFleetTools } = await import('@/lib/mcp/tools/fleet');
   const { registerCatalystTools } = await import('@/lib/mcp/tools/catalysts');
   const { registerMetaContextTools } = await import('@/lib/mcp/tools/meta-context');
+  const { registerInventoryTools } = await import('@/lib/mcp/tools/mcp-inventory');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -210,7 +211,9 @@ export async function ensureToolsRegistered() {
   // between per-bot operate and catalysts so the natural reading order is
   // per-bot → fleet → outcome. meta_context registers LAST as Ring 6 — it's
   // a deliberation surface, not an orientation or action surface, and reading
-  // order should put it after the action rings.
+  // order should put it after the action rings. Inventory registers
+  // immediately after the contextmap tools — it's the third Ring 6 surface
+  // (current-environment cache alongside the append-only contextmap).
   registerContextTools();
   registerAdapterTools();
   registerBuildTools();
@@ -219,4 +222,5 @@ export async function ensureToolsRegistered() {
   registerFleetTools();
   registerCatalystTools();
   registerMetaContextTools();
+  registerInventoryTools();
 }

@@ -119,6 +119,22 @@ function init(db) {
     CREATE INDEX IF NOT EXISTS idx_meta_edges_src ON meta_edges(src_id);
     CREATE INDEX IF NOT EXISTS idx_meta_edges_dst ON meta_edges(dst_id);
     CREATE INDEX IF NOT EXISTS idx_meta_principles_scope ON meta_principles(scope_kind, scope_id);
+
+    -- Current-state cache of the connecting agent's MCP inventory. Sits
+    -- alongside the append-only contextmap (meta_nodes/edges/principles) on
+    -- purpose: inventory is the operator's present environment, not a sealed
+    -- decision, so it gets replace semantics (DELETE + INSERT in one txn)
+    -- instead of append. See lite-template/integration/MCP_INVENTORY_PLAN.md.
+    CREATE TABLE IF NOT EXISTS meta_mcp_inventory (
+      id INTEGER PRIMARY KEY,
+      server TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      tool_ref TEXT NOT NULL,
+      description TEXT,
+      declared_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(server, tool_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_tool_ref ON meta_mcp_inventory(tool_ref);
   `);
 
   migrateDeploymentColumns(db);

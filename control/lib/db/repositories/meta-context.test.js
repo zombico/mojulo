@@ -13,6 +13,7 @@ import {
   MetaContextRepository,
   _BRIEF_NODE_CAP_FOR_TESTS as BRIEF_NODE_CAP,
 } from './meta-context.js';
+import { InventoryRepository } from './mcp-inventory.js';
 
 beforeEach(() => {
   // Each test gets a fresh in-memory DB with the full schema applied via init().
@@ -20,14 +21,19 @@ beforeEach(() => {
 });
 
 describe('schema bootstraps', () => {
-  it('creates meta_nodes, meta_edges, meta_principles on first getDb()', () => {
+  it('creates contextmap tables (and the current-state inventory cache) on first getDb()', () => {
     const db = getDb();
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'meta_%'")
       .all()
       .map((r) => r.name)
       .sort();
-    expect(tables).toEqual(['meta_edges', 'meta_nodes', 'meta_principles']);
+    expect(tables).toEqual([
+      'meta_edges',
+      'meta_mcp_inventory',
+      'meta_nodes',
+      'meta_principles',
+    ]);
   });
 
   it('creates the documented indexes', () => {
@@ -40,6 +46,7 @@ describe('schema bootstraps', () => {
     expect(indexes).toEqual([
       'idx_meta_edges_dst',
       'idx_meta_edges_src',
+      'idx_meta_mcp_inventory_tool_ref',
       'idx_meta_nodes_kind_ref',
       'idx_meta_principles_scope',
     ]);
@@ -323,6 +330,34 @@ describe('MetaContextRepository.brief — fleet scope', () => {
     const edgeIds = brief.edges.map((e) => e.id).sort();
     expect(edgeIds).toEqual([seeded.id, runsFor.id].sort());
     expect(brief.principles).toHaveLength(2);
+  });
+
+  it('includes current MCP inventory on fleet briefs (null fields when never declared)', () => {
+    const empty = MetaContextRepository.brief({ kind: 'fleet' });
+    expect(empty.inventory).toEqual({
+      servers: [],
+      declaredAt: null,
+      ageSeconds: null,
+      toolCount: 0,
+    });
+
+    InventoryRepository.replaceInventory([
+      { name: 'gmail', tools: [{ name: 'send_message' }, { name: 'search_messages' }] },
+      { name: 'gdrive', tools: [{ name: 'list_recent_files' }] },
+    ]);
+    const populated = MetaContextRepository.brief({ kind: 'fleet' });
+    expect(populated.inventory.toolCount).toBe(3);
+    expect(populated.inventory.declaredAt).toBeGreaterThan(0);
+    expect(populated.inventory.servers.map((s) => s.name).sort()).toEqual(['gdrive', 'gmail']);
+  });
+
+  it('does NOT include inventory on per-scope briefs (fleet-level fact only)', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'gmail', tools: [{ name: 'send_message' }] },
+    ]);
+    MetaNodeRepository.upsert({ kind: 'bot', ref: 'dep-1', label: 'B' });
+    const brief = MetaContextRepository.brief({ kind: 'bot', ref: 'dep-1' });
+    expect(brief.inventory).toBeUndefined();
   });
 
   it('honors BRIEF_NODE_CAP and marks the response as capped', () => {

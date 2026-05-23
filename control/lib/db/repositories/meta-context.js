@@ -21,6 +21,7 @@
  */
 
 import { getDb } from '../index.js';
+import { InventoryRepository } from './mcp-inventory.js';
 
 const NODE_KINDS = ['bot', 'mcp_tool', 'catalyst', 'adapter', 'artifact', 'operator'];
 const EDGE_KINDS = ['binds', 'seeded', 'materialized_by', 'runs_for'];
@@ -286,7 +287,12 @@ function briefFleet() {
     meta.nodeCap = BRIEF_NODE_CAP;
   }
 
-  return { nodes, edges, principles, meta };
+  // Inventory rides on fleet briefs only — it's a fleet-level fact, not a
+  // per-node neighborhood property. Always include the field so callers can
+  // distinguish "never declared" (declaredAt: null) from a stale snapshot.
+  const inventory = InventoryRepository.currentInventory();
+
+  return { nodes, edges, principles, meta, inventory };
 }
 
 function briefNeighborhood(kind, ref) {

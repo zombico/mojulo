@@ -21,9 +21,11 @@ For the design rationale see [lite-template/integration/META_CONTEXT_PLAN_v3.md]
 | ------------------------------------------------ | --------------------------------- |
 | Operator KYC sealed                              | Artifact fired                    |
 | Artifact materialized via adapter                | Conversation occurred             |
-| (Post-MVP) New MCP installed in connecting agent | Transcript ingested               |
-| (Post-MVP) New catalyst shipped                  | Submission created                |
-| (Post-MVP) New host adapter shipped              | Automation run completed          |
+| (Post-MVP) New catalyst shipped                  | Transcript ingested               |
+| (Post-MVP) New host adapter shipped              | Submission created                |
+|                                                  | Automation run completed          |
+
+The connecting agent's **current MCP inventory** is a separate category — present-state, not a sealed decision — so it lives in its own table with replace semantics (see [Inventory (current-state cache, alongside the contextmap)](#inventory-current-state-cache-alongside-the-contextmap) below), not in the append-only contextmap.
 
 This asymmetry is what makes the layer auditable. Outcomes happen at run-rate (every conversation, every automation execution); structural decisions happen at deliberation-rate (a user pivoting their fleet, an artifact being materialized). MVP ships only the two write triggers in the table above — passive triggers stay off until we know what they'd write.
 
@@ -193,6 +195,71 @@ Behavior:
 
 ---
 
+## Inventory (current-state cache, alongside the contextmap)
+
+The contextmap above is append-only by design. The connecting agent's **current MCP inventory** — which servers are connected to its Claude Code (or other MCP client) session and which tools each exposes — is a different kind of fact: present-state, not a sealed decision. Forcing it into the append-only graph would let it slowly diverge from the operator's actual environment.
+
+So inventory lives in its own table with **replace semantics**:
+
+```sql
+CREATE TABLE meta_mcp_inventory (
+  id INTEGER PRIMARY KEY,
+  server TEXT NOT NULL,
+  tool_name TEXT NOT NULL,
+  tool_ref TEXT NOT NULL,           -- canonical "${server}.${tool_name}"
+  description TEXT,
+  declared_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  UNIQUE(server, tool_name)
+);
+```
+
+The contextmap's `mcp_tool` node kind is unchanged — those nodes are still created **only at binding time** (`artifact_materialization`), recording "this artifact was sealed against this tool ref" as a frozen decision. The inventory table is independent: it records "as of the latest declaration, the operator has these tools available." Cross-referencing the two is what surfaces stale bindings.
+
+### `meta_context_declare_inventory`
+
+Replace-semantic write, sibling to `meta_context_commit`. In one transaction: `DELETE FROM meta_mcp_inventory; INSERT` the declared snapshot.
+
+```jsonc
+{
+  "servers": [
+    {
+      "name": "gmail",
+      "tools": [
+        { "name": "send_message", "description": "Send a Gmail message" },
+        { "name": "search_messages" }
+      ]
+    },
+    { "name": "gdrive", "tools": [{ "name": "list_recent_files" }] }
+  ]
+}
+```
+
+Returns `{ ok: true, serversSeen, toolsSeen, replaced, declaredAt, warnings? }`. `warnings: ['no_operator_anchor']` is appended when no operator KYC has been committed yet — inventory still saves; the warning is a cue to surface KYC inline.
+
+Pass `servers: []` to explicitly wipe the inventory.
+
+**When to call:**
+- At session start if the environment may have changed since the last declaration (new MCP installed, one removed, server reconnected).
+- Before materializing a catalyst-derived artifact that depends on a specific tool being available — re-declare so consumers know the inventory reflects the current moment.
+
+**When NOT to call:**
+- As a routine lifecycle event ("about to plan, better re-declare"). MCP is one-way; the connecting agent's environment doesn't change between turns within a single session.
+
+### Freshness — what mojulo can and can't enforce
+
+MCP is one-way; mojulo cannot introspect the client. The honest mitigations:
+
+1. **Replacement semantic.** Latest declaration is authoritative — no partial-merge ambiguity.
+2. **`declaredAt` in every read.** Surfaced on fleet briefs (`inventory.declaredAt`, `inventory.ageSeconds`) so callers decide freshness.
+3. **Re-declare-at-session-start guidance.** The tool description and the `forward_context` glossary instruct the agent to call again when its environment may have changed.
+4. **Downstream freshness checks (future).** `recommend_catalysts` / `get_catalyst` can warn when `ageSeconds` exceeds a threshold, soft-prompting re-declaration where it matters.
+
+### Reading inventory off the brief
+
+`meta_context_brief({ kind: 'fleet' })` returns `inventory: { servers, declaredAt, ageSeconds, toolCount }` alongside the contextmap subgraph. When never declared: `{ servers: [], declaredAt: null, ageSeconds: null, toolCount: 0 }`. Per-scope briefs (`{ kind: 'bot', ref: ... }` etc.) do not include `inventory` — it's a fleet-level fact, not a neighborhood property.
+
+---
+
 ## Append-only, by design
 
 The contextmap is **append-only**. Nothing the MVP ships ever deletes nodes, retires edges, or tombstones principles. New principles stack on the same scope (most-recent-first on read); revising operator KYC inserts a new principle alongside the old one; re-materializing an artifact reuses the same node ids and stacks new principles on the same edges.
@@ -293,6 +360,7 @@ The MVP ships the smallest useful slice. The following extensions are designed-a
 
 - **Arbiter layer** — `meta_context_analyze(scope, lens)` that returns findings (tensions, gaps, opportunities). Wait for fleet inconsistencies to actually surface before building.
 - **Curation** — `meta_context_propose_curation(patch)` + user-confirmation flow with adapter-delegated diffing (filesystem diff for skill/workflow; remote fetch for Codex). Wait for hand-edited-artifact problems.
-- **Passive writes** — detection layer for new MCPs in the connecting agent, auto-writes when new catalysts or adapters load. Every passive write is a new way for the graph to lie about what the operator actually decided; don't ship until we know what we'd write.
+- **Passive writes** — auto-writes when new catalysts or adapters load. Every passive write is a new way for the graph to lie about what the operator actually decided; don't ship until we know what we'd write. (Inventory turned out to belong in its own current-state cache, not the contextmap — see the Inventory section. So the remaining "passive write" candidates are catalyst/adapter ship events.)
+- **Stale-binding audit lens** — `LEFT JOIN meta_nodes mcp_tool` (with incoming `binds` edges) against `meta_mcp_inventory` to surface "this sealed artifact binds to a tool no longer in your environment." Designed-around but not yet built; follow-up to the inventory primitive.
 - **Re-materialization tracking UX** — graph already supports the same catalyst materialized into multiple hosts via multiple `materialized_by` edges; a surfacing layer is a follow-up.
 - **Dashboard** — `/data` pane tab rendering contextmap as a graph, adapter colour-coded for multi-host fleets.
