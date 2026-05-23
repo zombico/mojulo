@@ -2,7 +2,13 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
-const DB_PATH = process.env.SQLITE_PATH || path.join(process.cwd(), 'data', 'mojulo-lite.db');
+// Resolved lazily at first getDb() call (not at module load) so test files can
+// set SQLITE_PATH after their `import` block has hoisted — ESM evaluates imports
+// before the test file's body, so a top-level `process.env.SQLITE_PATH = …`
+// would otherwise lose the race.
+function resolveDbPath() {
+  return process.env.SQLITE_PATH || path.join(process.cwd(), 'data', 'mojulo-lite.db');
+}
 
 let _db = null;
 
@@ -79,6 +85,40 @@ function init(db) {
       updated_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_jobs_created_at ON mcp_jobs(created_at);
+
+    CREATE TABLE IF NOT EXISTS meta_nodes (
+      id INTEGER PRIMARY KEY,
+      kind TEXT NOT NULL CHECK(kind IN ('bot', 'mcp_tool', 'catalyst', 'adapter', 'artifact', 'operator')),
+      ref TEXT,
+      label TEXT NOT NULL,
+      payload_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(kind, ref)
+    );
+
+    CREATE TABLE IF NOT EXISTS meta_edges (
+      id INTEGER PRIMARY KEY,
+      src_id INTEGER NOT NULL REFERENCES meta_nodes(id) ON DELETE CASCADE,
+      dst_id INTEGER NOT NULL REFERENCES meta_nodes(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK(kind IN ('binds', 'seeded', 'materialized_by', 'runs_for')),
+      payload_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(src_id, dst_id, kind)
+    );
+
+    CREATE TABLE IF NOT EXISTS meta_principles (
+      id INTEGER PRIMARY KEY,
+      scope_kind TEXT NOT NULL CHECK(scope_kind IN ('node', 'edge')),
+      scope_id INTEGER NOT NULL,
+      body_md TEXT NOT NULL,
+      source_event TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_meta_nodes_kind_ref ON meta_nodes(kind, ref);
+    CREATE INDEX IF NOT EXISTS idx_meta_edges_src ON meta_edges(src_id);
+    CREATE INDEX IF NOT EXISTS idx_meta_edges_dst ON meta_edges(dst_id);
+    CREATE INDEX IF NOT EXISTS idx_meta_principles_scope ON meta_principles(scope_kind, scope_id);
   `);
 
   migrateDeploymentColumns(db);
@@ -164,9 +204,12 @@ function migrateDeploymentColumns(db) {
 
 export function getDb() {
   if (_db) return _db;
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  _db = new Database(DB_PATH);
+  const dbPath = resolveDbPath();
+  if (dbPath !== ':memory:') {
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  }
+  _db = new Database(dbPath);
   init(_db);
   return _db;
 }

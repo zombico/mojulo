@@ -1,15 +1,28 @@
-import { describe, it, expect } from 'vitest';
+// Isolate to in-memory SQLite so the operator-anchor tests below don't touch
+// the real control-plane DB. The pre-existing tests in this file either don't
+// hit the DB or only exercise the "unknown deploymentId → null → throw" path,
+// so this change doesn't affect their behavior.
+process.env.SQLITE_PATH = ':memory:';
+
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   CATALYST_CORE_PREAMBLE,
   CONSULTATION_POSTURE,
   CUSTOM_CATALYST_GUIDE,
   buildMaterializationBlock,
+  buildOperatorAnchorBlock,
   customCatalystHandler,
   getCatalystHandler,
   listCatalystsHandler,
   recommendCatalystsHandler,
 } from './catalysts.js';
 import { rememberClientInfo, _resetClientBindingsForTests } from '@/lib/mcp/client-bindings';
+import { closeDb, getDb } from '@/lib/db/index';
+import {
+  MetaEdgeRepository,
+  MetaNodeRepository,
+  MetaPrincipleRepository,
+} from '@/lib/db/repositories/meta-context';
 
 describe('CATALYST_CORE_PREAMBLE — vocabulary disambiguation', () => {
   it('names all three overlapping concepts so the model can keep them distinct', () => {
@@ -317,5 +330,290 @@ describe('recommendCatalystsHandler — input validation', () => {
     await expect(
       recommendCatalystsHandler({ deploymentId: 'no-such-deployment-id-xyz' })
     ).rejects.toThrow(/not found/);
+  });
+});
+
+// Phase 2 — operator anchor / suggest_kyc surfacing in recommend_catalysts.
+describe('buildOperatorAnchorBlock', () => {
+  beforeEach(() => {
+    closeDb();
+  });
+
+  it('returns suggest_kyc when the operator node is missing', () => {
+    expect(buildOperatorAnchorBlock()).toEqual({ suggest_kyc: true });
+  });
+
+  it('returns operatorAnchor with role and the latest principle when present', () => {
+    const node = MetaNodeRepository.upsert({
+      kind: 'operator',
+      ref: 'self',
+      label: 'Agency owner',
+    });
+    MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: node.id,
+      body_md: '**Role:** Agency owner\n\n**Locked-in constraints:**\n- CRM is HubSpot',
+      source_event: 'operator_kyc',
+    });
+    const out = buildOperatorAnchorBlock();
+    expect(out.suggest_kyc).toBeUndefined();
+    expect(out.operatorAnchor.role).toBe('Agency owner');
+    expect(out.operatorAnchor.latestPrinciple.bodyMd).toMatch(/HubSpot/);
+  });
+
+  it('returns the MOST RECENT principle when multiple are stacked', () => {
+    const node = MetaNodeRepository.upsert({
+      kind: 'operator',
+      ref: 'self',
+      label: 'Op',
+    });
+    MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: node.id,
+      body_md: 'first',
+      source_event: 'operator_kyc',
+    });
+    MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: node.id,
+      body_md: 'second',
+      source_event: 'operator_kyc',
+    });
+    expect(buildOperatorAnchorBlock().operatorAnchor.latestPrinciple.bodyMd).toBe('second');
+  });
+});
+
+// Test helper used by multiple describe blocks below. Pinned id (vs
+// DeploymentRepository.create) so meta_context references can reference a
+// stable bot_ref.
+function seedDeployment({
+  id = 'dep-rec-test',
+  botName = 'Rec Bot',
+  enabledProtocols = { knowledge: true, formGathering: true },
+} = {}) {
+  const db = getDb();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO deployments (id, bot_name, flow_type, status, config, api_key, document_ids, created_at, updated_at)
+     VALUES (?, ?, 'modular', 'saved', ?, 'k', '[]', ?, ?)`,
+  ).run(id, botName, JSON.stringify({ enabledProtocols }), now, now);
+}
+
+function seedMaterialization({
+  catalystRef,
+  botRef,
+  botName,
+  artifactRef,
+  artifactLabel,
+  adapterRef = 'claude-code',
+  artifactPrincipleBody,
+}) {
+  const cat = MetaNodeRepository.upsert({
+    kind: 'catalyst',
+    ref: catalystRef,
+    label: catalystRef,
+  });
+  const art = MetaNodeRepository.upsert({
+    kind: 'artifact',
+    ref: artifactRef,
+    label: artifactLabel,
+  });
+  const bot = MetaNodeRepository.upsert({ kind: 'bot', ref: botRef, label: botName });
+  const adp = MetaNodeRepository.upsert({
+    kind: 'adapter',
+    ref: adapterRef,
+    label: adapterRef,
+  });
+  MetaEdgeRepository.upsert({ src_id: cat.id, dst_id: art.id, kind: 'seeded' });
+  MetaEdgeRepository.upsert({ src_id: art.id, dst_id: bot.id, kind: 'runs_for' });
+  MetaEdgeRepository.upsert({ src_id: art.id, dst_id: adp.id, kind: 'materialized_by' });
+  if (artifactPrincipleBody) {
+    MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: art.id,
+      body_md: artifactPrincipleBody,
+      source_event: 'artifact_materialization',
+    });
+  }
+}
+
+describe('recommendCatalystsHandler — operator anchor surfacing', () => {
+  beforeEach(() => {
+    closeDb();
+  });
+
+  it('single-bot mode → suggest_kyc when operator node is missing', async () => {
+    seedDeployment();
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    expect(out.suggest_kyc).toBe(true);
+    expect(out.operatorAnchor).toBeUndefined();
+  });
+
+  it('single-bot mode → operatorAnchor when the anchor exists', async () => {
+    seedDeployment();
+    const node = MetaNodeRepository.upsert({
+      kind: 'operator',
+      ref: 'self',
+      label: 'Dental agency owner',
+    });
+    MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: node.id,
+      body_md: '**Locked-in constraints:**\n- CRM is HubSpot',
+      source_event: 'operator_kyc',
+    });
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    expect(out.suggest_kyc).toBeUndefined();
+    expect(out.operatorAnchor.role).toBe('Dental agency owner');
+  });
+
+  it('fleet mode → suggest_kyc when operator node is missing', async () => {
+    seedDeployment();
+    const out = await recommendCatalystsHandler({ scope: 'fleet' });
+    expect(out.suggest_kyc).toBe(true);
+  });
+
+  it('fleet mode → operatorAnchor when the anchor exists', async () => {
+    seedDeployment();
+    MetaNodeRepository.upsert({ kind: 'operator', ref: 'self', label: 'Op' });
+    const out = await recommendCatalystsHandler({ scope: 'fleet' });
+    expect(out.suggest_kyc).toBeUndefined();
+    expect(out.operatorAnchor.role).toBe('Op');
+  });
+});
+
+// Ring 6 enrichment — recommend_catalysts surfaces priorMaterializations per
+// recommendation so the agent can triage overlap (same bot), synergy (other
+// bot, fleet pattern), or orthogonality (no priors) before materializing.
+describe('recommendCatalystsHandler — priorMaterializations surfacing', () => {
+  beforeEach(() => {
+    closeDb();
+  });
+
+  it('every recommendation carries priorMaterializations — empty array when no priors exist', async () => {
+    seedDeployment();
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    for (const rec of out.applicable) {
+      expect(Array.isArray(rec.priorMaterializations)).toBe(true);
+      expect(rec.priorMaterializations).toEqual([]);
+    }
+    for (const rec of out.requiresProtocolChange) {
+      expect(Array.isArray(rec.priorMaterializations)).toBe(true);
+      expect(rec.priorMaterializations).toEqual([]);
+    }
+  });
+
+  it('single-bot mode — prior on the SAME bot surfaces as a duplicate signal', async () => {
+    seedDeployment({ id: 'dep-rec-test', botName: 'Front Desk' });
+    seedMaterialization({
+      catalystRef: 'qualify-lead-to-crm',
+      botRef: 'dep-rec-test',
+      botName: 'Front Desk',
+      artifactRef: 'claude-code:/skills/qlc-front/SKILL.md',
+      artifactLabel: 'Qualify Lead — Front Desk',
+      artifactPrincipleBody: 'Route qualified leads to HubSpot.',
+    });
+
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
+      (r) => r.id === 'qualify-lead-to-crm',
+    );
+    expect(qlc).toBeTruthy();
+    expect(qlc.priorMaterializations).toHaveLength(1);
+    expect(qlc.priorMaterializations[0]).toMatchObject({
+      botRef: 'dep-rec-test',
+      botName: 'Front Desk',
+      artifactLabel: 'Qualify Lead — Front Desk',
+      adapterId: 'claude-code',
+    });
+    expect(qlc.priorMaterializations[0].latestArtifactPrinciple.bodyMd).toMatch(/HubSpot/);
+  });
+
+  it('single-bot mode — prior on a DIFFERENT bot surfaces (fleet pattern signal)', async () => {
+    seedDeployment({ id: 'dep-rec-test', botName: 'Bot A' });
+    seedMaterialization({
+      catalystRef: 'qualify-lead-to-crm',
+      botRef: 'dep-other',
+      botName: 'Bot B (other)',
+      artifactRef: 'claude-code:/skills/qlc-b/SKILL.md',
+      artifactLabel: 'QLC — Bot B',
+      artifactPrincipleBody: 'Route to HubSpot (fleet convention).',
+    });
+
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
+      (r) => r.id === 'qualify-lead-to-crm',
+    );
+    expect(qlc.priorMaterializations).toHaveLength(1);
+    expect(qlc.priorMaterializations[0].botRef).toBe('dep-other');
+    // The recommendation is for dep-rec-test, but the prior is on dep-other.
+    // The agent reads this as "fleet pattern, align unless intentionally diverging."
+    expect(qlc.priorMaterializations[0].botRef).not.toBe('dep-rec-test');
+  });
+
+  it('multiple priors across the fleet are all surfaced, most-recent-first', async () => {
+    seedDeployment({ id: 'dep-rec-test', botName: 'Target' });
+    seedMaterialization({
+      catalystRef: 'qualify-lead-to-crm',
+      botRef: 'dep-1',
+      botName: 'Bot 1',
+      artifactRef: 'claude-code:/a.md',
+      artifactLabel: 'A',
+    });
+    seedMaterialization({
+      catalystRef: 'qualify-lead-to-crm',
+      botRef: 'dep-2',
+      botName: 'Bot 2',
+      artifactRef: 'codex:auto-2',
+      artifactLabel: 'B',
+      adapterRef: 'codex',
+    });
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
+      (r) => r.id === 'qualify-lead-to-crm',
+    );
+    expect(qlc.priorMaterializations).toHaveLength(2);
+    // Most recent (Bot 2 / codex) first.
+    expect(qlc.priorMaterializations[0].botRef).toBe('dep-2');
+    expect(qlc.priorMaterializations[0].adapterId).toBe('codex');
+  });
+
+  it('fleet mode — priorMaterializations attached per recommendation', async () => {
+    seedDeployment({ id: 'dep-rec-test', botName: 'Bot' });
+    seedMaterialization({
+      catalystRef: 'qualify-lead-to-crm',
+      botRef: 'dep-prev',
+      botName: 'Prev Bot',
+      artifactRef: 'claude-code:/skills/prev/SKILL.md',
+      artifactLabel: 'Prev',
+    });
+
+    const out = await recommendCatalystsHandler({ scope: 'fleet' });
+    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
+      (r) => r.id === 'qualify-lead-to-crm',
+    );
+    expect(qlc.priorMaterializations).toHaveLength(1);
+    expect(qlc.priorMaterializations[0].botRef).toBe('dep-prev');
+  });
+
+  it('priorMaterializations only surface the SAME catalyst (no cross-catalyst leakage)', async () => {
+    seedDeployment({ id: 'dep-rec-test', botName: 'Bot' });
+    seedMaterialization({
+      catalystRef: 'appointment-to-calendar',
+      botRef: 'dep-other',
+      botName: 'Other',
+      artifactRef: 'claude-code:/skills/cal/SKILL.md',
+      artifactLabel: 'Cal',
+    });
+
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
+      (r) => r.id === 'qualify-lead-to-crm',
+    );
+    const atc = [...out.applicable, ...out.requiresProtocolChange].find(
+      (r) => r.id === 'appointment-to-calendar',
+    );
+    expect(qlc.priorMaterializations).toEqual([]);
+    expect(atc.priorMaterializations).toHaveLength(1);
   });
 });

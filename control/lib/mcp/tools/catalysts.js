@@ -30,7 +30,29 @@ import { getCatalyst, getCatalystCatalog, listCatalysts } from '@/lib/mcp/cataly
 import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { DeploymentRepository } from '@/lib/db/repositories/deployments';
+import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
 import { registerTool } from '@/lib/mcp/server';
+
+// Builds the operator-anchor block for recommend_catalysts responses. When the
+// operator node exists, expose the locked-in constraints to the agent so it
+// can self-clamp recommendations; when missing, append suggest_kyc so the
+// agent surfaces the optional bootstrap before showing the picks. Centralized
+// so the single-bot and fleet branches emit the same shape.
+//
+// Exported for tests.
+export function buildOperatorAnchorBlock() {
+  const anchor = MetaContextRepository.getOperatorAnchor();
+  if (!anchor) return { suggest_kyc: true };
+  const principle = anchor.latestPrinciple;
+  return {
+    operatorAnchor: {
+      role: anchor.node.label,
+      latestPrinciple: principle
+        ? { id: principle.id, bodyMd: principle.bodyMd, createdAt: principle.createdAt }
+        : null,
+    },
+  };
+}
 
 // Host-neutral preamble — the portable part of the synthesizer briefing.
 // Prepended to every catalyst body returned by get_catalyst, regardless of
@@ -353,6 +375,13 @@ function enabledProtocolsOf(dep) {
 }
 
 function buildRecommendation(catalyst, applicableDeployments = []) {
+  // Ring 6 enrichment — surface prior materializations of this same catalyst
+  // anywhere in the fleet so the agent can triage overlap (same bot →
+  // duplicate, confirm intent), synergy (different bot → fleet pattern, align
+  // with prior binding choices unless intentionally diverging), or
+  // orthogonality (empty → net-new pattern in the fleet). Reading rules are
+  // documented in the recommend_catalysts tool description.
+  const priorMaterializations = MetaContextRepository.getMaterializationsForCatalyst(catalyst.id);
   return {
     id: catalyst.id,
     name: catalyst.name,
@@ -363,6 +392,7 @@ function buildRecommendation(catalyst, applicableDeployments = []) {
     destinationExamples: Array.isArray(catalyst.requires?.destinationExamples)
       ? catalyst.requires.destinationExamples
       : [],
+    priorMaterializations,
     ...(applicableDeployments.length > 0 ? { applicableDeployments } : {}),
   };
 }
@@ -388,6 +418,7 @@ async function recommendForOneBot(deploymentId, ctx) {
   return {
     consultationPosture: CONSULTATION_POSTURE,
     materialization: buildMaterializationBlock(ctx),
+    ...buildOperatorAnchorBlock(),
     deployment: { id: dep.id, botName: dep.botName, enabledProtocols },
     applicable,
     requiresProtocolChange,
@@ -462,6 +493,7 @@ async function recommendForFleet(deploymentIds, ctx) {
   return {
     consultationPosture: CONSULTATION_POSTURE,
     materialization: buildMaterializationBlock(ctx),
+    ...buildOperatorAnchorBlock(),
     fleet: {
       totalBots: deployments.length,
       bots: botEnabled,
@@ -534,7 +566,7 @@ export function registerCatalystTools() {
   registerTool({
     name: 'recommend_catalysts',
     description:
-      "Recommend catalysts that fit either ONE deployment (single-bot mode) or every connected bot (fleet mode). Single-bot: pass `deploymentId`; returns catalysts annotated with `missingProtocols` per the bot's enabled capabilities. Fleet mode: pass `scope: 'fleet'` (every connected bot) or `deploymentIds: [...]` (an explicit subset). Each fleet recommendation is annotated with `applicableDeployments: [{ id, botName }]` so a synthesized artifact can iterate across the matching bots, and `crossBot: true` whenever a catalyst applies to ≥2 bots — the new category fleet aggregation unlocks (e.g., 'weekly digest across every intake bot into one CRM'). Use this — not `list_catalysts` — whenever the user asks 'what can I do with this bot?' / 'what can I do across all my bots?' / 'what should I automate?'. CONSULTATION surface: catalysts whose `destinationExamples` aren't installed in the user's runtime should be surfaced as soft suggestions, never as blockers. The response includes a `consultationPosture` block with the exact framing rules — read it before composing your answer.",
+      "Recommend catalysts that fit either ONE deployment (single-bot mode) or every connected bot (fleet mode). Single-bot: pass `deploymentId`; returns catalysts annotated with `missingProtocols` per the bot's enabled capabilities. Fleet mode: pass `scope: 'fleet'` (every connected bot) or `deploymentIds: [...]` (an explicit subset). Each fleet recommendation is annotated with `applicableDeployments: [{ id, botName }]` so a synthesized artifact can iterate across the matching bots, and `crossBot: true` whenever a catalyst applies to ≥2 bots — the new category fleet aggregation unlocks (e.g., 'weekly digest across every intake bot into one CRM'). Use this — not `list_catalysts` — whenever the user asks 'what can I do with this bot?' / 'what can I do across all my bots?' / 'what should I automate?'. CONSULTATION surface: catalysts whose `destinationExamples` aren't installed in the user's runtime should be surfaced as soft suggestions, never as blockers. The response includes a `consultationPosture` block with the exact framing rules — read it before composing your answer. The response also surfaces the operator anchor (from `meta_context_brief`): if `operatorAnchor` is present, use its locked-in constraints (e.g. 'CRM is HubSpot') to self-clamp suggestions; if `suggest_kyc: true` is present instead, the operator anchor is missing — consider offering the user the one-time `meta_context_commit({ type: 'operator_kyc', … })` flow before showing picks, so future recommendations stabilize. **Each recommendation also carries `priorMaterializations: [{ botRef, botName, artifactRef, artifactLabel, adapterId, latestArtifactPrinciple }]`** — every prior materialization of THIS catalyst anywhere in the fleet (append-only by design, so a row may describe an artifact the operator has since removed off disk — verify before treating it as live). Reading rule: (a) **empty** = orthogonal; net-new pattern in the fleet. (b) **prior on a DIFFERENT bot** = fleet pattern; align with the prior binding choices (especially `latestArtifactPrinciple`'s mapping decisions) unless you intentionally diverge — say so explicitly. (c) **prior on the SAME bot** (single-bot mode) = likely duplicate; surface the existing artifact to the user and confirm intent before re-materializing.",
     inputSchema: {
       type: 'object',
       properties: {
