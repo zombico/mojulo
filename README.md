@@ -1,10 +1,8 @@
 # Mojulo
 
-You want a triage bot for your dental practice — one that answers basic questions from your intake docs, collects new-patient fields without piping PII through the LLM, and routes anything urgent to the on-call coordinator. You describe that to your coding agent in one sentence. Mojulo compiles `dental-triage-{id}.zip`. You `docker compose up`. Conversations start accumulating in a SQLite file on the bot, hash-chained turn by turn.
+Mojulo is an MCP control plane for designing, deploying, and operating a fleet of self-hosted chat bots from your MCP-capable agent (Claude Code, Codex, Claude Desktop, or any other MCP host). You describe a bot in one sentence; mojulo compiles a runnable `<bot>.zip`; from then on your agent drives the build → deploy → connect → operate loop. Mojulo composes alongside the other MCP servers you already have installed (Drive, Gmail, your CRM), so signal from any deployed bot can route into the rest of your toolchain without leaving the agent loop.
 
-The whole loop — describe, compile, deploy, read back what was captured, automate the followup — runs inside your MCP-capable agent (Claude Code, Codex, or any other MCP host). Mojulo's MCP server composes alongside the other MCP servers you already have installed (Drive, Gmail, your CRM), so the bot you just built can route new submissions into the rest of your toolchain without leaving the agent loop. That's the part most other chatbot builders don't do.
-
-The bot's config — what mojulo writes into the zip and the bot reads at start — is plain JSON:
+Each bot runs in its own Docker container and accumulates conversations in a local SQLite file, hash-chained turn by turn. The control plane stores only `url` + `last_seen_at` per bot — transcript content stays on the bot forever, read live through a bearer-authenticated proxy. The bot's config is plain JSON:
 
 ```json
 {

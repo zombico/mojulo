@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While in `0.x`, the artifact format and bundled bot image are pinned per
 control-plane version — a minor bump may move the pinned bot image tag.
 
-## [Unreleased]
+## [0.3.0] — 2026-05-22
 
 Catalysts go host-neutral. Until now, every catalyst body assumed the
 synthesizing agent was Claude Code and would write a `.claude/skills/<...>/SKILL.md`
@@ -92,7 +92,7 @@ prose in [control/lib/mcp/adapters/](lib/mcp/adapters/).
   updated for the multi-host story — host adapters are mentioned next to the
   `forward_context` orientation pointer.
 
-### Fixed
+### Security
 - `get_deployment` credential redaction now actually redacts. The deployment
   config serializes its per-provider entries under `config.llm.*`, but
   `redactConfigCredentials` in [operate.js](lib/mcp/tools/operate.js) was
@@ -100,6 +100,9 @@ prose in [control/lib/mcp/adapters/](lib/mcp/adapters/).
   returning the config untouched. Anthropic / OpenAI / AWS / Fly API-key
   fields are now redacted before the tool returns. No control-plane DB
   change; the encrypted-at-rest copy in `api_keys` was never affected.
+  Users on 0.2.x who routinely call `get_deployment` over MCP should
+  assume any provider keys present in those responses were transmitted in
+  the clear to the connected agent's session.
 
 ## [0.2.2] — 2026-05-21
 

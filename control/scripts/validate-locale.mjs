@@ -29,17 +29,45 @@ try {
 }
 
 const errors = [];
-const PLACEHOLDER = /\{[^{}]+\}/g;
-const ICU_HEAD = /^\{(\w+),\s*(plural|select|selectordinal)\s*,/;
+const ICU_INNER = /^(\w+)\s*,\s*(plural|select|selectordinal)\s*,/;
 
 function placeholderSet(str) {
-  // For ICU plural/select strings the comma-form `{name, plural, ...}` makes
-  // the regex above match too greedily on inner clauses. We collapse those
-  // to a single head token so the comparison stays meaningful.
-  const head = str.match(ICU_HEAD);
-  if (head) return new Set([`{${head[1]}, ${head[2]}}`]);
-  const matches = str.match(PLACEHOLDER) || [];
-  return new Set(matches);
+  // Walk top-level `{...}` blocks. An ICU plural/select block contributes a
+  // single `{name, type}` token; its branch text is *not* a placeholder set
+  // and may be freely translated (e.g. `{count, plural, one {capability}
+  // other {capabilities}}` legitimately becomes `... one {võimekus} other
+  // {võimekust}` in Estonian). A plain `{name}` block contributes `{name}`.
+  // Anything else is surfaced verbatim so it still shows up as a mismatch.
+  const result = new Set();
+  let i = 0;
+  while (i < str.length) {
+    if (str[i] !== '{') {
+      i++;
+      continue;
+    }
+    let depth = 0;
+    let j = i;
+    for (; j < str.length; j++) {
+      if (str[j] === '{') depth++;
+      else if (str[j] === '}' && --depth === 0) break;
+    }
+    if (depth !== 0) {
+      // Unbalanced brace — give up on this block, keep scanning.
+      i++;
+      continue;
+    }
+    const body = str.slice(i + 1, j);
+    const icu = body.match(ICU_INNER);
+    if (icu) {
+      result.add(`{${icu[1]}, ${icu[2]}}`);
+    } else if (/^\w+$/.test(body.trim())) {
+      result.add(`{${body.trim()}}`);
+    } else {
+      result.add(`{${body}}`);
+    }
+    i = j + 1;
+  }
+  return result;
 }
 
 function setsEqual(a, b) {
