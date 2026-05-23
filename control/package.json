@@ -64,6 +64,7 @@
     "mcp-ui": "node scripts/mcp-ui.mjs",
     "stage-lite-template": "node scripts/stage-lite-template.mjs",
     "stage-standalone": "node scripts/stage-standalone.mjs",
+    "fetch-models": "node scripts/fetch-embed-model.js",
     "prepack": "node scripts/stage-lite-template.mjs && next build --webpack && node scripts/stage-standalone.mjs",
     "test": "vitest run"
   },

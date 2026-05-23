@@ -73,8 +73,9 @@ To run the app (Settings UI for key paste, wizard, in-app builder, and the optio
 git clone https://github.com/zombico/mojulo.git
 cd mojulo/control
 cp .env.example .env
-npm install         # postinstall fetches a 113MB ONNX model for offline RAG (~30–60s)
-npm run dev         # http://localhost:3001
+npm install
+npm run fetch-models   # downloads the 113MB ONNX model for offline RAG (~30–60s)
+npm run dev            # http://localhost:3001
 ```
 
 Paste an LLM provider key under **Settings → Provider Keys**. To enable HTTP MCP for a remote agent (Claude Code, Codex, etc.), also set `CONTROL_PLANE_MCP_KEY` in `control/.env` — see [docs/mcp-integration.md](docs/mcp-integration.md).

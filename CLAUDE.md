@@ -131,7 +131,7 @@ Vision input is supported on Anthropic and OpenAI; the runtime adapter check liv
 
 - **`onnxruntime-node` is glibc-only.** The Dockerfile uses `node:20-bookworm-slim`, not Alpine. Don't switch to Alpine — the prebuilt binaries crash on musl.
 - **`better-sqlite3` compiles per arch.** That's why the GHCR build is multi-arch; on the host, `npm install` rebuilds against the local arch.
-- **The 113MB ONNX file** is fetched by `postinstall` and is gitignored. Both [control/scripts/fetch-embed-model.js](control/scripts/fetch-embed-model.js) (control plane wizard preview path) and [lite-template/scripts/fetch-embed-model.mjs](lite-template/scripts/fetch-embed-model.mjs) (bot path) exist independently — don't try to share them across packages.
+- **The 113MB ONNX file** is gitignored and fetched independently per package — don't try to share the scripts. [lite-template/scripts/fetch-embed-model.mjs](lite-template/scripts/fetch-embed-model.mjs) runs as the bot's `postinstall` (also during the Docker build). [control/scripts/fetch-embed-model.js](control/scripts/fetch-embed-model.js) is invoked **explicitly** — `npm run fetch-models` in the clone-and-dev path, or lazy `preloadModel()` on bin cold-start when `MOJULO_MODELS_DIR` is set (the `npx mojulo` path). The control plane intentionally has no `postinstall` so an `npx mojulo` install isn't forced to download 113MB.
 - **Next.js externals.** The control plane's [next.config.mjs](control/next.config.mjs) marks `better-sqlite3`, `archiver`, `pdf2json`, `officeparser`, `@huggingface/transformers`, `onnxruntime-node`, `sharp` as `serverExternalPackages` — adding another native dep usually means adding it here too.
 
 ## Data layout
