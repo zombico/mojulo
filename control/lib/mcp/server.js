@@ -45,9 +45,9 @@ export function getServerVersion() {
 // briefing on demand. The heavy lifting (glossary, capability model,
 // lifecycle, tool index) lives in the `forward_context` tool's response so
 // the agent only pays the context cost when the user actually needs it.
-const SERVER_INSTRUCTIONS = `Mojulo is a control plane for **chatbot-based solutions** — chatbots that talk to your users, capture what they say, and turn those conversations into real outcomes in the tools the user already runs (CRM, calendar, ticketing, drive, warehouse).
+const SERVER_INSTRUCTIONS = `Mojulo is a control plane for **chatbot-based solutions and MCP-orchestrated workflows** — chatbots that talk to your users and capture what they say, plus workflows composed directly over the operator's installed MCPs without any chatbot in the picture. Both axes route to real outcomes in the tools the user already runs (CRM, calendar, ticketing, drive, warehouse).
 
-**When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.
+**When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the two-axes framing, the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.
 
 **There's also a dashboard.** Mojulo ships a second bin, \`mojulo-ui\`, which boots a local Next.js dashboard at 127.0.0.1 sharing the same \`~/.mojulo/\` state as this MCP. Launch with \`npx -y -p mojulo mojulo-ui\`. Suggest it when the user wants to browse conversations / submissions interactively, mint a bot via the wizard form, see fleet analytics as charts, or click around between bots — anywhere the visual surface beats reading tool output.
 
@@ -202,12 +202,22 @@ export async function ensureToolsRegistered() {
   const { registerOperateTools } = await import('@/lib/mcp/tools/operate');
   const { registerFleetTools } = await import('@/lib/mcp/tools/fleet');
   const { registerCatalystTools } = await import('@/lib/mcp/tools/catalysts');
+  const { registerMetaContextTools } = await import('@/lib/mcp/tools/meta-context');
+  const { registerInventoryTools } = await import('@/lib/mcp/tools/mcp-inventory');
+  const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
   // orientation (they're the binding-orientation surface). Fleet tools sit
   // between per-bot operate and catalysts so the natural reading order is
-  // per-bot → fleet → outcome.
+  // per-bot → fleet → outcome. meta_context registers LAST as Ring 6 — it's
+  // a deliberation surface, not an orientation or action surface, and reading
+  // order should put it after the action rings. Inventory registers
+  // immediately after the contextmap tools — it's the third Ring 6 surface
+  // (current-environment cache alongside the append-only contextmap).
+  // mcp-orbit tools register LAST within Ring 6 — they sit ON TOP of the
+  // contextmap (commit/brief) and inventory primitives. The natural reading
+  // order is: append-only contextmap → current-state inventory → composer.
   registerContextTools();
   registerAdapterTools();
   registerBuildTools();
@@ -215,4 +225,7 @@ export async function ensureToolsRegistered() {
   registerOperateTools();
   registerFleetTools();
   registerCatalystTools();
+  registerMetaContextTools();
+  registerInventoryTools();
+  registerMCPOrbitTools();
 }

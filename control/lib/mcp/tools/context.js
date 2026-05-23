@@ -13,16 +13,32 @@
  *   appears. The reviewer feedback that prompted this layout: the agent
  *   shouldn't have to read tool descriptions to disambiguate vocabulary.
  * - Tool index has to stay in sync with the actual tool registrations across
- *   build.js, jobs-tools.js, operate.js, catalysts.js, and this file. If you
- *   add or remove a tool, update the relevant section here too.
+ *   build.js, jobs-tools.js, operate.js, fleet.js, catalysts.js, adapters.js,
+ *   meta-context.js, and this file. If you add or remove a tool, update the
+ *   relevant section here too.
  */
 
 import { registerTool, PROTOCOL_VERSION, SERVER_NAME, getServerVersion } from '@/lib/mcp/server';
+import {
+  getControlPlaneVersion,
+  getControlPlanePackageName,
+  getBotImagePin,
+  parseImageRef,
+  isSourceClone,
+} from '@/lib/version/local';
+import { fetchLatestNpmVersion, fetchLatestGhcrTag, compareSemver } from '@/lib/version/remote';
 
 // Exported for tests.
 export const FORWARD_CONTEXT_BODY = `# Mojulo, oriented
 
-Mojulo is a control plane for **chatbot-based solutions**. You build a chatbot, deploy it where users can reach it, let it collect conversations and form submissions, then turn what it captured into action in the tools the user already runs — typically via the other MCP servers they already have installed (Gmail, Google Drive, Google Calendar, plus whichever CRM / ticketing / warehouse MCPs they use).
+Mojulo is a control plane for solutions composed over the tools the user already runs (CRM, calendar, ticketing, drive, warehouse). It serves **two axes**, and the right path depends on whether the user wants a conversational surface in the picture:
+
+- **Chatbot-based.** Build a chatbot, deploy it where users can reach it, let it collect conversations and form submissions, then turn what it captured into action via the user's installed destination MCPs (Gmail, Drive, the user's CRM, etc.). The mainline framing below — the Concepts, the Lifecycle (build → deploy → connect → operate), the Build / Operate / Catalysts tool sections — is shaped around this axis. **Most mojulo work lives here.**
+- **MCP-orchestrated workflows (no chatbot in the picture).** When the user wants outcomes without a conversational surface — weekly Linear digests, signal-driven Gmail-to-Linear routing, scheduled report generation, MCP-to-MCP wiring of any kind — the **mcp-orbit composer** decomposes the workflow into typed components (\`source\` × \`destination\` × \`trigger\` × \`pattern\` × \`idempotency\` × \`render\`) the agent assembles directly over the operator's installed MCPs. Mojulo's role on this axis is the deliberation anchor and audit trail (operator KYC + composition log + contextmap commit), not the runtime. The flow starts at \`meta_context_declare_inventory\` (tell mojulo what MCPs are connected) → \`recommend_mcp_orbit_compositions\` (get ranked candidate compositions) → \`get_meta_catalyst\` + per-component bodies → assemble + dry-run + \`meta_context_commit\`. See the Deliberation (Ring 6) section below for the surface.
+
+The two axes share downstream: both end in a host-adapter materialization (a Claude Code skill, a Codex automation, a generic workflow file) sealed via \`meta_context_commit\`. The difference is what flows in — a deployed bot's captured signal on the first axis, the operator's installed MCPs on the second.
+
+**Recognize the axis from the user's framing.** Phrases like "build a bot," "deploy this for my customers," "what should this bot do," "what can I do with this bot" → chatbot axis. Phrases like "use mojulo without a bot," "MCP to MCP," "every Monday morning summarize X into Y," "when X happens in MCP-A, do Y in MCP-B" → mcp-orbit axis. When in doubt, ask the user whether the workflow needs a conversational surface; the answer routes the rest of the session.
 
 ---
 
@@ -121,7 +137,7 @@ That density runs through the whole body — mapping rules per field type, pitfa
 1. **Build.** Pick which protocols (capabilities) the bot needs, generate their configs, upload any documents the bot should know, compose the bot's identity. Either drive this step-by-step through the build tools, or just describe the user's goal and let the build tools sequence themselves starting from \`infer_intent\`.
 
    *Builder-session scope.* Build tools share state via a **builder session** keyed on the \`mcp-session-id\` header your client sends. The session row persists in the control plane's SQLite, but the header→session binding is held in process memory. So: the same client reconnecting during a single control-plane process lifetime resumes its in-progress config, while a **control-plane restart drops the binding** and the user's next build tool call starts a fresh bot (the orphaned row stays in SQLite). Inside the same connection, \`start_new_bot\` deliberately discards in-progress config and starts over.
-2. **Deploy.** \`save_modular_bot\` compiles the configured bot into a zip artifact on disk and returns its absolute path in \`artifactPath\`. The user runs it locally (\`unzip\` + \`docker compose up\`) or in the cloud (Fly.io). Over stdio MCP the zip lives under \`$MOJULO_HOME/data/artifacts/\` (default \`~/.mojulo/data/artifacts/\`) — hand the user the \`artifactPath\` value verbatim. The legacy \`downloadUrl\` field in the response is a Next.js-route path; ignore it over stdio. The container image is bot-agnostic — per-bot config is injected at start time, so the same image runs every bot the user has. Once the bot is reachable at \`${botUrl}\`, it exposes \`/widget\` — dropping \`<script src="${botUrl}/widget"></script>\` onto any page mounts a floating chat launcher (bottom-right by default). That's the customer-facing install path; hand the user that snippet when they ask "how do I put this on my site?". The same \`${botUrl}\` opened directly in a browser is the quickest way for the user to test the bot themselves before installing the widget anywhere — same UI an end customer gets.
+2. **Deploy.** \`save_modular_bot\` compiles the configured bot into a zip artifact on disk and returns its absolute path in \`artifactPath\`. The user runs it locally (\`unzip\` + \`docker compose up\`) or in the cloud (Fly.io). Over stdio MCP the zip lives under \`$MOJULO_HOME/data/artifacts/\` (default \`~/.mojulo/data/artifacts/\`) — hand the user the \`artifactPath\` value verbatim. The legacy \`downloadUrl\` field in the response is a Next.js-route path; ignore it over stdio. The container image is bot-agnostic — per-bot config is injected at start time, so the same image runs every bot the user has. Once the bot is reachable at \`\${botUrl}\`, it exposes \`/widget\` — dropping \`<script src="\${botUrl}/widget"></script>\` onto any page mounts a floating chat launcher (bottom-right by default). That's the customer-facing install path; hand the user that snippet when they ask "how do I put this on my site?". The same \`\${botUrl}\` opened directly in a browser is the quickest way for the user to test the bot themselves before installing the widget anywhere — same UI an end customer gets.
 3. **Connect.** Once the bot starts, it phones home to the control plane with its URL. From then on the control plane can reach it through a bearer-authenticated proxy. **Conversation data stays in the bot's SQLite forever** — the control plane only stores \`url\` and \`last_seen_at\`. Any tool that needs transcript data proxies through to the bot in real time.
 4. **Operate.** Use the operate tools to read what bots have captured. Use the catalyst tools to turn that captured signal into action via the user's other installed MCPs.
 5. **Operate the fleet.** Once multiple bots are connected, fleet-level questions ("how is the whole fleet doing?", "which bots saw the most activity?", "find any conversation across every bot that mentioned X") have their own surface — the \`fleet_*\` tools. They fan out across every connected bot and aggregate in process memory; conversation content still stays on each bot. The natural two-step pattern is **fleet-locate** with \`fleet_query_conversations\` → **per-bot-read** with \`get_conversation\`. Same posture as single-bot operate, just batched. Cross-bot catalysts (the new category fleet aggregation enables) come from \`recommend_catalysts\` with \`scope: 'fleet'\`.
@@ -133,6 +149,7 @@ That density runs through the whole body — mapping rules per field type, pitfa
 ### Orientation
 - \`forward_context\` — (you are reading its output) glossary, lifecycle, tool index.
 - \`version\` — runtime versions: server, MCP protocol, Node, platform, pinned bot image tag, offline-build flag, MOJULO_HOME. Use to diagnose version mismatches.
+- \`check_for_updates\` — compare the running control-plane package (\`mojulo\` on npm) and the pinned bot image (\`ghcr.io/zombico/mojulo-bot\`) against their latest published versions. Returns \`{ controlPlane, botImage, warnings }\` with current, latest, \`updateAvailable\`, and a one-line install hint per surface. Read-only; never performs the upgrade. Call when the user asks "am I up to date?" or after a long gap between sessions.
 - \`list_adapters\` — list host adapters mojulo ships (\`claude-code\`, \`codex\`, \`generic\`). An adapter tells you how to materialize a catalyst on your specific substrate. Read once per session before synthesizing from any catalyst.
 - \`get_adapter\` — full body of one adapter: artifact target, parameter collection, tool discovery, dry-run as a concrete first step, scheduling, state, output reporting, secrets posture. Pass \`id\` explicitly or let the server resolve from clientInfo.
 
@@ -186,21 +203,32 @@ Mojulo is a **consultation surface**, not a strict executor. When the user asks 
 - \`get_catalyst\` — read one recipe's full body. The response composes three parts: a host-neutral catalyst-core preamble (posture, vocabulary, safety defaults), the bound **host adapter** body (artifact target, scheduling, dry-run encoding, secrets), and the catalyst's host-neutral recipe (mapping intent, idempotency, pitfalls). Pass \`host\` to override the auto-resolved adapter.
 - \`custom_catalyst\` — author's guide for **contributing a new catalyst back to the mojulo library**. Use when the user wants to propose / write / contribute a catalyst (not when they want to automate something just for themselves — that's a local skill, synthesized from \`get_catalyst\` or from intent directly).
 
+### Deliberation (Ring 6 — the substrate for structural reasoning: contextmap, inventory, composer)
+
+Mojulo separates *what fired* (a conversation, an automation run — outcome-rate, never written here) from *why it was bound this way* (a catalyst materialized through a host adapter into an artifact — deliberation-rate, append-only). It also separates both of those from *what materials the operator has available right now* (their installed MCPs — present-state, replaceable). And it separates *what gets composed from those materials* (mcp-orbit workflows — recommendation + composition log, replaceable in-flight, sealed at materialization). \`meta_context\` is the writeable, durable layer for the why; \`meta_context_declare_inventory\` is the present-state cache for the available; the mcp-orbit composer sits on top of both for the no-bot composition axis. Rare-call by design — expect 0–3 contextmap calls per session; declare inventory once at session start (and again only if the environment changes); the mcp-orbit composer fires whenever the user wants a non-bot workflow, not on a lifecycle cadence.
+
+- \`meta_context_brief\` — read the contextmap subgraph + principles for a scope (\`{ kind: 'fleet' }\` for the whole graph, or \`{ kind: 'bot' | 'catalyst' | 'adapter' | 'artifact', ref: '<id>' }\` for a 1-hop neighborhood). Call when wondering *"has the fleet already committed to something related to what I'm about to do?"* or when the user asks "why does bot-3 route field X to tool Y?" / "why is this a Codex automation and not a skill?" — the \`materialized_by\` and \`binds\` edges carry principles that record the reasoning. The fleet brief response also includes \`inventory\` (the operator's currently declared MCP environment, see \`meta_context_declare_inventory\` below) plus \`meta: { empty, suggest_kyc, capped }\` hints. An empty fleet brief with no operator anchor → surface the KYC. Do NOT call for routine orientation (that's \`forward_context\`), operational metrics (\`fleet_*\`), or content questions (\`operate.*\`).
+- \`meta_context_commit\` — seal a structural decision. Two event types in MVP: (1) \`operator_kyc\` — optional one-time bootstrap (role + primary_goal + locked-in constraints) that anchors future suggestions; subsequent commits need \`revise: true\` to attach a new principle. (2) \`artifact_materialization\` — atomic per-materialization seal recording which catalyst was materialized into which artifact via which host adapter for which bot, plus the bindings and any principles capturing the reasoning. Adapter-delegated verification runs BEFORE the write (claude-code/generic → existsSync; codex accepts opaque locators on assertion). Call ONLY AFTER materializing the artifact — never to declare an intention. If commit fails, roll back the artifact by the host adapter's own affordance (delete file / cancel automation).
+- \`meta_context_declare_inventory\` — **the entry point for using mojulo without deploying a chatbot.** Mojulo's mainline tooling is heavily bot-shaped (build → deploy → operate → catalyst-against-a-bot). This primitive activates the other axis: MCP-orchestrated workflows synthesized over the user's installed MCPs (Gmail/Drive/Calendar/Linear/HubSpot/etc.) directly, with mojulo as the deliberation anchor and audit trail rather than the conversational runtime. **Call this first** when the user wants outcomes that don't need a conversational layer — operator-side workflows, MCP-to-MCP wiring, scheduled digests, signal-triggered automations — or asks to use mojulo without bots. Also call at session start if your environment has changed since the last declaration. REPLACE semantics — mojulo can't introspect your client, so the latest declaration is authoritative and previously declared tools not in the new call are wiped. The snapshot rides on \`meta_context_brief({kind:'fleet'})\` (\`inventory.declaredAt\`, \`inventory.ageSeconds\`) so freshness is always visible.
+- \`recommend_mcp_orbit_compositions\` / \`get_meta_catalyst\` / \`list_mcp_orbit_components\` / \`get_mcp_orbit_component\` — **the mcp-orbit composer** sits on top of \`meta_context_declare_inventory\`. Once inventory is declared, mcp-orbit decomposes the no-bot workflow space into typed components (\`source\` × \`destination\` × \`trigger\` × \`pattern\` × \`idempotency\` × \`render\`) that the agent combines under the meta-catalyst's discipline. The flow is fixed: \`recommend_mcp_orbit_compositions\` (logs the candidates as audit-able \`proposed\` rows) → \`get_meta_catalyst\` (composition rulebook, read once per session) → \`get_mcp_orbit_component\` per chosen ref → assemble + dry-run + \`meta_context_commit\`. Use when the user wants a workflow that reads from one MCP and writes to another ("weekly Linear digest into Drive", "route Gmail support threads into Linear", "summarize closed issues into a channel"). Distinct from the bot-shaped \`recommend_catalysts\` flow — that recommends against a deployment; this recommends against the operator's declared MCP inventory with no bot in the picture.
+
 ---
 
 ## Quick orientation rules
 
 - User wants to **build a new bot**: start with \`infer_intent\`, or jump straight to the specific \`generate_*\` tool if the user already knows what they need.
 - User wants to **preview a bot mid-design** ("can I see what this looks like?", "show me a preview", "what would it feel like?", "let me try it before I deploy"): point them at the \`mojulo-ui\` wizard's live preview pane. Same \`~/.mojulo/\` state, so an in-progress config built via these MCP tools shows up in the wizard preview immediately. This is the answer while the user is still *designing* — no real container is running yet, the preview is a stand-in.
-- User wants to **test the deployed artifact** (kick the tires on the running bot, sanity-check the live thing, verify the build behaves as designed): open \`${botUrl}\` in a browser — that's the same widget end customers see. No MCP tool covers this on purpose; the right surface is the bot URL itself. Distinct from preview — preview is pre-deploy on a draft; this is post-deploy on the real artifact.
+- User wants to **test the deployed artifact** (kick the tires on the running bot, sanity-check the live thing, verify the build behaves as designed): open \`\${botUrl}\` in a browser — that's the same widget end customers see. No MCP tool covers this on purpose; the right surface is the bot URL itself. Distinct from preview — preview is pre-deploy on a draft; this is post-deploy on the real artifact.
 - User wants to **see what bots exist**: \`list_deployments\`.
 - User wants to **understand state across multiple bots** ("how is the fleet doing?", "which bots are busiest this week?"): \`fleet_analytics_summary\`. For finding specific conversations across the fleet: \`fleet_query_conversations\` to locate, then \`get_conversation\` against the named bot to read content. For auditing chain integrity across every bot at once: \`verify_fleet_chains\`. The fleet tools never expose conversation content — they're the "where to look" surface; per-bot \`get_conversation\` is the "read it" surface.
 - User wants to **do something with what a bot has collected** OR is asking "what can this bot unlock for me?": \`recommend_catalysts\` with the bot's deployment id. Surface suggestions in consultation form — including catalysts whose destination MCP isn't installed yet, framed as opt-in upgrades. Then \`get_catalyst\` to read the recipe (the response includes the host adapter section that tells you how to materialize the runnable artifact on your substrate).
 - User wants to **automate something that spans multiple bots** ("digest leads from every bot", "audit all my appointment bookings together"): \`recommend_catalysts\` with \`scope: 'fleet'\`. Fleet-applicable catalysts come back with \`applicableDeployments\` so the synthesized skill knows which bots to iterate over; \`crossBot: true\` flags the patterns that only make sense across multiple bots.
+- User wants to **automate something that doesn't involve a deployed chatbot** ("every morning, summarize yesterday's Linear issues into a Drive doc", "when a Gmail thread matches X, file a Notion ticket", "use mojulo without the bot") — i.e. wiring MCP to MCP rather than capturing through a bot first: \`meta_context_declare_inventory\` is the entry point (declare what MCPs are connected), then \`recommend_mcp_orbit_compositions\` with the operator's intent. The mcp-orbit composer returns ranked candidate compositions assembled from typed components (source/destination/trigger/pattern/idempotency/render); read the meta-catalyst once per session, then pull each component body in full before assembling. Mojulo's role here is the deliberation anchor (operator KYC + composition log + audit trail), not the runtime. Distinct from the bot-shaped flow above — when there's no conversational surface in the picture, the bot/catalyst path doesn't fit; reach for inventory + mcp-orbit instead.
 - User wants to **browse the catalyst library** without a specific bot in mind: \`list_catalysts\`.
 - User wants to **contribute a new catalyst** (write / propose / add one to mojulo's shipped library): \`custom_catalyst\`. This returns an author's guide. If the user only wants to automate something for themselves and isn't trying to contribute, do *not* call \`custom_catalyst\` — synthesize a local skill from \`get_catalyst\` or from intent instead.
 - User wants to **extend what the bot does inside a conversation** ("I want my bot to recognize a new intent and track new state", "can my bot read X from the user?", "I want to add a new capability to mojulo"): \`custom_protocol\`. Returns the protocol design guide. Critical disambiguation up front: if the work happens *after* the conversation (sync to CRM, weekly digest, ticket on signal), that's a catalyst, not a protocol — route to \`recommend_catalysts\` instead. Protocols fire during the agent loop, on every reply, in the LLM's envelope. The guide walks the posture-check first.
 - User wants to **audit** a conversation's integrity: \`verify_chain\`.
+- User asks **"why was X bound this way?"** ("why does bot-3 route field X to tool Y?", "why is this a Codex automation instead of a Claude Code skill?", "what catalysts have I materialized across the fleet?"): \`meta_context_brief\` with the relevant scope — the \`materialized_by\` and \`binds\` edges carry principles that record the reasoning. Distinct from \`fleet_*\` (operational rollups) and \`operate.*\` (content) — this is the deliberation surface.
 - Conversation and submission data are never copied into the control plane. If you need transcript content, fetch it through the operate tools — don't try to cache it server-side.
 `;
 
@@ -378,6 +406,63 @@ export async function versionHandler(_input, _ctx) {
   return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
 }
 
+function controlPlaneInstallHint(latest, sourceClone) {
+  if (sourceClone) {
+    return `Running from a source clone — \`git pull\` (and \`npm install\` in control/) to pick up ${latest}.`;
+  }
+  return `Run \`npm i -g mojulo@${latest}\` (or restart with \`npx -y mojulo@${latest}\`) to upgrade.`;
+}
+
+function botImageUpdateHint(repo, latestTag) {
+  return `Bump \`BOT_IMAGE\` in control/.env to \`${repo}:${latestTag}\` (and the matching constant in control/lib/deployers/docker.js), then rebuild affected bots.`;
+}
+
+export async function checkForUpdatesHandler(_input, _ctx) {
+  const pkgName = getControlPlanePackageName();
+  const localVersion = getControlPlaneVersion();
+  const { image, source } = getBotImagePin();
+  const { repo, tag: localTag } = parseImageRef(image);
+  // Strip the leading registry host so the GHCR API receives just `owner/name`.
+  // E.g. `ghcr.io/zombico/mojulo-bot` → `zombico/mojulo-bot`.
+  const ghcrRepo = repo.startsWith('ghcr.io/') ? repo.slice('ghcr.io/'.length) : repo;
+
+  const [npmResult, ghcrResult] = await Promise.all([
+    fetchLatestNpmVersion(pkgName),
+    fetchLatestGhcrTag(ghcrRepo),
+  ]);
+
+  const warnings = [];
+  if (npmResult.error) warnings.push(npmResult.error);
+  if (ghcrResult.error) warnings.push(ghcrResult.error);
+
+  const cpUpdate =
+    npmResult.version !== null && compareSemver(localVersion, npmResult.version) < 0;
+  const botUpdate =
+    ghcrResult.tag !== null && localTag !== null && compareSemver(localTag, ghcrResult.tag) < 0;
+
+  const payload = {
+    controlPlane: {
+      package: pkgName,
+      current: localVersion,
+      latest: npmResult.version,
+      updateAvailable: cpUpdate,
+      sourceClone: isSourceClone(),
+      installHint: cpUpdate ? controlPlaneInstallHint(npmResult.version, isSourceClone()) : null,
+    },
+    botImage: {
+      currentPin: image,
+      pinSource: source,
+      repo,
+      currentTag: localTag,
+      latestTag: ghcrResult.tag,
+      updateAvailable: botUpdate,
+      updateHint: botUpdate ? botImageUpdateHint(repo, ghcrResult.tag) : null,
+    },
+    warnings,
+  };
+  return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
+}
+
 export function registerContextTools() {
   registerTool({
     name: 'forward_context',
@@ -393,6 +478,14 @@ export function registerContextTools() {
       'Report runtime versions: server name + version (from package.json), MCP protocol version, Node version, platform os/arch, the pinned bot container image tag, whether MOJULO_OFFLINE_BUILD is on, and the active MOJULO_HOME. Use this to diagnose version mismatches between a user-reported issue and what their control plane is actually running, or to confirm a version bump landed after a publish. Read-only, no inputs, idempotent.',
     inputSchema: { type: 'object', properties: {} },
     handler: versionHandler,
+  });
+
+  registerTool({
+    name: 'check_for_updates',
+    description:
+      "Compare the running control-plane package (`mojulo` on npm) and the pinned bot image (`ghcr.io/zombico/mojulo-bot`) against their latest published versions. Returns `{ controlPlane, botImage, warnings }` — each surface reports `current`, `latest`, `updateAvailable`, and a one-line install/update hint when an upgrade exists. Read-only: never installs or restarts anything; surface the hint and let the user run it. Best-effort upstream calls — a registry timeout produces `latest: null` plus a warning, not a tool failure. Call this when the user asks 'am I up to date?', after a long gap between sessions, or before recommending a feature that depends on a recent version.",
+    inputSchema: { type: 'object', properties: {} },
+    handler: checkForUpdatesHandler,
   });
 
   registerTool({
