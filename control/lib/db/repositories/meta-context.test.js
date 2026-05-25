@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 
 describe('schema bootstraps', () => {
-  it('creates contextmap tables (and the current-state inventory cache) on first getDb()', () => {
+  it('creates contextmap tables (and the current-state inventory cache + providers identity layer + capabilities facet) on first getDb()', () => {
     const db = getDb();
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'meta_%'")
@@ -30,7 +30,9 @@ describe('schema bootstraps', () => {
       .sort();
     expect(tables).toEqual([
       'meta_edges',
+      'meta_mcp_capabilities',
       'meta_mcp_inventory',
+      'meta_mcp_providers',
       'meta_nodes',
       'meta_principles',
     ]);
@@ -46,6 +48,9 @@ describe('schema bootstraps', () => {
     expect(indexes).toEqual([
       'idx_meta_edges_dst',
       'idx_meta_edges_src',
+      'idx_meta_mcp_capabilities_by_provider',
+      'idx_meta_mcp_capabilities_current',
+      'idx_meta_mcp_inventory_provider',
       'idx_meta_mcp_inventory_tool_ref',
       'idx_meta_nodes_kind_ref',
       'idx_meta_principles_scope',

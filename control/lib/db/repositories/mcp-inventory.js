@@ -18,6 +18,8 @@
  */
 
 import { getDb } from '../index.js';
+import { ProvidersRepository } from './mcp-providers.js';
+import { canonicalizeServerName } from '../../mcp/providers/canonicalize.js';
 
 const VALID_CONFIDENCE = new Set([
   'tools_list_full',
@@ -36,6 +38,7 @@ function rowToTool(row) {
     declaredAt: row.declared_at,
     inputSchema: row.input_schema_json ? JSON.parse(row.input_schema_json) : null,
     introspectionConfidence: row.introspection_confidence || null,
+    providerId: row.provider_id ?? null,
   };
 }
 
@@ -126,12 +129,25 @@ export const InventoryRepository = {
       db.prepare('DELETE FROM meta_mcp_inventory').run();
       const insert = db.prepare(
         `INSERT INTO meta_mcp_inventory
-           (server, tool_name, tool_ref, description, declared_at, input_schema_json, introspection_confidence)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (server, tool_name, tool_ref, description, declared_at, input_schema_json, introspection_confidence, provider_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       );
       let inserted = 0;
+      // Per-server provider resolution. Canonicalize each server name once and
+      // upsert the providers row, then stamp the resulting id on every tool
+      // row for that server. Two install aliases that canonicalize to the
+      // same provider_ref (e.g. "claude_ai_Notion" and "notion-mcp-server")
+      // share the same provider_id, which is how the identity layer collapses
+      // them into one logical "notion" provider.
+      const providerIdByServer = new Map();
       for (const s of servers) {
         const serverName = s.name.trim();
+        if (!providerIdByServer.has(serverName)) {
+          const providerRef = canonicalizeServerName(serverName);
+          const provider = ProvidersRepository.upsertByRef(providerRef);
+          providerIdByServer.set(serverName, provider.id);
+        }
+        const providerId = providerIdByServer.get(serverName);
         for (const t of s.tools) {
           const toolName = t.name.trim();
           insert.run(
@@ -142,6 +158,7 @@ export const InventoryRepository = {
             declaredAt,
             t.inputSchema ? JSON.stringify(t.inputSchema) : null,
             t.introspectionConfidence ?? null,
+            providerId,
           );
           inserted += 1;
         }

@@ -425,3 +425,89 @@ describe('deriveServerConfidence', () => {
     expect(deriveServerConfidence(['tools_list_full', 'tools_list_full'])).toBe('tools_list_full');
   });
 });
+
+describe('replaceInventory: provider_id stamping', () => {
+  it('creates a provider row for each canonicalized server name', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }] },
+      { name: 'claude_ai_Notion', tools: [{ name: 'search' }] },
+    ]);
+    const providers = db
+      .prepare('SELECT provider_ref FROM meta_mcp_providers ORDER BY provider_ref')
+      .all();
+    expect(providers.map((p) => p.provider_ref)).toEqual(['gmail', 'notion']);
+  });
+
+  it('stamps provider_id on every inventory row', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }, { name: 'search' }] },
+    ]);
+    const rows = db.prepare('SELECT provider_id FROM meta_mcp_inventory').all();
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(r.provider_id).not.toBeNull();
+      expect(typeof r.provider_id).toBe('number');
+    }
+    // Both tools for the same server share the same provider_id.
+    expect(rows[0].provider_id).toBe(rows[1].provider_id);
+  });
+
+  it('two install aliases that canonicalize to the same provider share provider_id', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Notion', tools: [{ name: 'search' }] },
+      { name: 'notion-mcp-server', tools: [{ name: 'fetch' }] },
+    ]);
+    const rows = db
+      .prepare('SELECT server, provider_id FROM meta_mcp_inventory ORDER BY server')
+      .all();
+    expect(rows).toHaveLength(2);
+    expect(rows[0].provider_id).toBe(rows[1].provider_id);
+    // Only one provider row exists despite two install aliases.
+    const providerCount = db.prepare('SELECT COUNT(*) AS n FROM meta_mcp_providers').get().n;
+    expect(providerCount).toBe(1);
+  });
+
+  it('rowToTool exposes providerId on returned rows', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }] },
+    ]);
+    const row = InventoryRepository.findByRef('claude_ai_Gmail.send');
+    expect(row).not.toBe(null);
+    expect(typeof row.providerId).toBe('number');
+  });
+
+  it('a fresh replace leaves only the providers it just declared in inventory; orphan provider rows persist', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }] },
+    ]);
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Notion', tools: [{ name: 'search' }] },
+    ]);
+    const db = getDb();
+    // Inventory rows are replaced cleanly.
+    const rows = db.prepare('SELECT server FROM meta_mcp_inventory').all();
+    expect(rows.map((r) => r.server)).toEqual(['claude_ai_Notion']);
+    // Providers from the first declaration stay (no cleanup of orphan
+    // providers in v0 — they're harmless and the next declaration will reuse
+    // them if the same alias comes back; their capabilities rows remain
+    // queryable for historical lookups via getAsOf).
+    const providers = db
+      .prepare('SELECT provider_ref FROM meta_mcp_providers ORDER BY provider_ref')
+      .all();
+    expect(providers.map((p) => p.provider_ref)).toEqual(['gmail', 'notion']);
+  });
+
+  it('handles linear (no prefix, no suffix) correctly', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'linear', tools: [{ name: 'list_issues' }] },
+    ]);
+    const provider = db
+      .prepare('SELECT provider_ref FROM meta_mcp_providers')
+      .get();
+    expect(provider.provider_ref).toBe('linear');
+  });
+});
