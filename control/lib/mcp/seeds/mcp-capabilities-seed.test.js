@@ -27,7 +27,7 @@ describe('seedMcpCapabilities: shipped seeds (the real directory)', () => {
     const result = seedMcpCapabilities();
     expect(result.skipped).toBe(false);
     expect(result.inserted).toBe(4);
-    expect(result.providers.sort()).toEqual(['gdrive', 'gmail', 'linear', 'notion']);
+    expect(result.providers.sort()).toEqual(['gmail', 'google_drive', 'linear', 'notion']);
   });
 
   it('creates the providers row for each seed with the hardcoded display_name', () => {
@@ -36,14 +36,14 @@ describe('seedMcpCapabilities: shipped seeds (the real directory)', () => {
     expect(ProvidersRepository.getByRef('gmail').displayName).toBe('Gmail');
     expect(ProvidersRepository.getByRef('notion').displayName).toBe('Notion');
     expect(ProvidersRepository.getByRef('linear').displayName).toBe('Linear');
-    expect(ProvidersRepository.getByRef('gdrive').displayName).toBe('Google Drive');
+    expect(ProvidersRepository.getByRef('google_drive').displayName).toBe('Google Drive');
   });
 
   it('stamps the v0.5.0 release sentinel on every seed row', () => {
     getDb();
     seedMcpCapabilities();
     const sentinel = _internals.V0_5_0_RELEASE_UNIX;
-    for (const ref of ['gmail', 'notion', 'linear', 'gdrive']) {
+    for (const ref of ['gmail', 'notion', 'linear', 'google_drive']) {
       const row = CapabilitiesRepository.getCurrent(ref);
       expect(row).not.toBeNull();
       expect(row.discoveredAt).toBe(sentinel);
@@ -122,7 +122,7 @@ describe('seedMcpCapabilities: shipped seeds (the real directory)', () => {
     const result = seedMcpCapabilities();
     // Notion was skipped; other three seeded.
     expect(result.inserted).toBe(3);
-    expect(result.providers.sort()).toEqual(['gdrive', 'gmail', 'linear']);
+    expect(result.providers.sort()).toEqual(['gmail', 'google_drive', 'linear']);
     // Notion row is unchanged.
     const notion = CapabilitiesRepository.getCurrent('notion');
     expect(notion.bodyMd).toBe('agent body');

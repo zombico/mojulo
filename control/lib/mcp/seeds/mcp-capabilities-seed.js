@@ -46,7 +46,7 @@ const DISPLAY_NAMES = {
   gmail: 'Gmail',
   notion: 'Notion',
   linear: 'Linear',
-  gdrive: 'Google Drive',
+  google_drive: 'Google Drive',
 };
 
 function parseSeedFile(filePath, raw) {

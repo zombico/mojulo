@@ -8,6 +8,10 @@ import { InventoryRepository } from '../../db/repositories/mcp-inventory.js';
 import { MCPOrbitCompositionRepository } from '../../db/repositories/mcp-orbit.js';
 import { MetaContextRepository } from '../../db/repositories/meta-context.js';
 import { _resetSeededForTests, seedComponents } from '../mcp-orbit-components/loader.js';
+import {
+  seedMcpCapabilities,
+  _resetSeededForTests as _resetCapabilitiesSeedForTests,
+} from '../seeds/mcp-capabilities-seed.js';
 import { dispatchMcpRequest, ensureToolsRegistered } from '../server.js';
 import { _resetMetaCatalystCacheForTests } from './mcp-orbit.js';
 
@@ -35,32 +39,30 @@ async function call(name, args = {}, ctx = { mcpSessionId: 'test', userId: 'loca
 beforeEach(async () => {
   closeDb();
   _resetSeededForTests();
+  _resetCapabilitiesSeedForTests();
   _resetMetaCatalystCacheForTests();
   // ensureToolsRegistered() has its own once-flag in server.js, so the
-  // registerMCPOrbitTools() → seedComponents() chain only fires on the very
-  // first test. Subsequent tests get a fresh in-memory DB but no seeded
-  // components. Explicitly re-seed here so each test sees the shipped
-  // five-component library.
+  // seedComponents / seedMcpCapabilities chains only fire on the very first
+  // test. Subsequent tests get a fresh in-memory DB but no seeded rows.
+  // Explicitly re-seed both here so each test sees the shipped component
+  // library AND the four vendor seed bodies (providers + capabilities).
   await ensureToolsRegistered();
   seedComponents({ force: true });
+  seedMcpCapabilities({ force: true });
 });
 
 describe('list_mcp_orbit_components', () => {
-  it('lists every shipped component with summaries', async () => {
+  it('lists every shipped component with summaries (non-mcp kinds from the loader, mcp kind from the providers identity layer)', async () => {
     const out = await call('list_mcp_orbit_components', {});
-    expect(out.total).toBeGreaterThanOrEqual(9);
+    expect(out.total).toBeGreaterThanOrEqual(6);
     const refs = out.components.map((c) => c.kind + '/' + c.ref).sort();
+    // Non-mcp kinds ship through the component loader.
     expect(refs).toEqual(
       expect.arrayContaining([
-        // Weekly-digest shape
         'idempotency/window-key',
-        'mcp/gdrive',
-        'mcp/linear',
         'pattern/aggregation',
         'trigger/scheduled',
-        // Signal-routing shape
         'idempotency/source-side-label',
-        'mcp/gmail',
         'pattern/routing',
         'trigger/signal-polled',
       ]),
@@ -70,10 +72,15 @@ describe('list_mcp_orbit_components', () => {
     expect(out.components[0].summary).toBeTruthy();
   });
 
-  it('filters by kind', async () => {
+  it("kind: 'mcp' lists providers from the identity layer (seeded vendor bodies)", async () => {
     const out = await call('list_mcp_orbit_components', { kind: 'mcp' });
-    expect(out.components.length).toBeGreaterThanOrEqual(3);
+    expect(out.components.length).toBeGreaterThanOrEqual(4);
     expect(out.components.every((c) => c.kind === 'mcp')).toBe(true);
+    const refs = out.components.map((c) => c.ref).sort();
+    expect(refs).toEqual(expect.arrayContaining(['gmail', 'google_drive', 'linear', 'notion']));
+    // Each provider surfaces its state — all four seeds report 'capabilities_only'
+    // when no inventory has been declared yet.
+    expect(out.components.every((c) => typeof c.state === 'string')).toBe(true);
   });
 });
 
@@ -116,7 +123,7 @@ describe('recommend_mcp_orbit_compositions — end-to-end weekly-digest assembly
         tools: [{ name: 'list_issues', description: 'List Linear issues' }],
       },
       {
-        name: 'gdrive',
+        name: 'google_drive',
         tools: [{ name: 'create_file', description: 'Create a Google Doc' }],
       },
     ]);
@@ -139,12 +146,12 @@ describe('recommend_mcp_orbit_compositions — end-to-end weekly-digest assembly
     const mcpEntries = cand.components.filter((c) => c.kind === 'mcp');
     const rolesByRef = Object.fromEntries(mcpEntries.map((c) => [c.ref, c.role]));
     expect(rolesByRef.linear).toBe('source');
-    expect(rolesByRef.gdrive).toBe('destination');
+    expect(rolesByRef.google_drive).toBe('destination');
 
     // And the specific refs match the five shipped components.
     const refs = new Set(cand.components.map((c) => c.kind + '/' + c.ref));
     expect(refs.has('mcp/linear')).toBe(true);
-    expect(refs.has('mcp/gdrive')).toBe(true);
+    expect(refs.has('mcp/google_drive')).toBe(true);
     expect(refs.has('trigger/scheduled')).toBe(true);
     expect(refs.has('pattern/aggregation')).toBe(true);
     expect(refs.has('idempotency/window-key')).toBe(true);
@@ -169,19 +176,22 @@ describe('recommend_mcp_orbit_compositions — end-to-end weekly-digest assembly
     expect(out.nextSteps.join(' ')).toMatch(/meta_context_commit/);
   });
 
-  it('with no inventory declared, still returns a candidate but warns', async () => {
+  it('with no inventory declared, still returns a candidate but warns (not_installed per provider)', async () => {
     const out = await call('recommend_mcp_orbit_compositions', {
       intent: 'weekly Linear digest into Drive',
     });
     expect(out.ok).toBe(true);
     expect(out.warnings).toContain('inventory_empty');
     const cand = out.candidates[0];
+    // Post-decuration warning vocabulary: providers with capabilities but no
+    // inventory surface as `not_installed:<ref>`. The seeded vendor bodies
+    // make this state easy to hit when no `meta_context_declare_inventory`
+    // has been called yet.
     expect(cand.constraintWarnings).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/^source_not_in_inventory:/),
-        expect.stringMatching(/^destination_not_in_inventory:/),
-      ]),
+      expect.arrayContaining([expect.stringMatching(/^not_installed:/)]),
     );
+    // Catalyst hint surfaces the remediation path explicitly.
+    expect(cand.rationale.catalystHint).toMatch(/research-mcp-vendor/);
   });
 
   it('rejects empty intent', async () => {
@@ -193,7 +203,7 @@ describe('recommend_mcp_orbit_compositions — end-to-end weekly-digest assembly
   it('surfaces no_operator_anchor when KYC has not been committed', async () => {
     InventoryRepository.replaceInventory([
       { name: 'linear', tools: [{ name: 'list_issues' }] },
-      { name: 'gdrive', tools: [{ name: 'create_file' }] },
+      { name: 'google_drive', tools: [{ name: 'create_file' }] },
     ]);
     const out = await call('recommend_mcp_orbit_compositions', {
       intent: 'weekly digest',
@@ -205,7 +215,7 @@ describe('recommend_mcp_orbit_compositions — end-to-end weekly-digest assembly
   it('does not warn no_operator_anchor when operator KYC has been committed', async () => {
     InventoryRepository.replaceInventory([
       { name: 'linear', tools: [{ name: 'list_issues' }] },
-      { name: 'gdrive', tools: [{ name: 'create_file' }] },
+      { name: 'google_drive', tools: [{ name: 'create_file' }] },
     ]);
     // Commit operator KYC the same way meta_context_commit would.
     await call('meta_context_commit', {
@@ -227,7 +237,7 @@ describe('e2e: full mcp-orbit flow — recommend → get_meta_catalyst → get_c
   it('walks the seven-step flow end-to-end and seals the composition', async () => {
     InventoryRepository.replaceInventory([
       { name: 'linear', tools: [{ name: 'list_issues' }] },
-      { name: 'gdrive', tools: [{ name: 'create_file' }] },
+      { name: 'google_drive', tools: [{ name: 'create_file' }] },
     ]);
 
     // 1. Recommend.
@@ -270,12 +280,12 @@ describe('e2e: full mcp-orbit flow — recommend → get_meta_catalyst → get_c
       catalyst_ref: 'mcp-orbit-composition',
       bindings: [
         { mcp_tool: 'linear.list_issues', fields_bound: ['updated_at', 'team', 'state'] },
-        { mcp_tool: 'gdrive.create_file', fields_bound: ['title', 'body'] },
+        { mcp_tool: 'google_drive.create_file', fields_bound: ['title', 'body'] },
       ],
       principles: [
         {
           scope: 'artifact',
-          body_md: `Composed from components: mcp/linear@0.1.0 (role=source), mcp/gdrive@0.1.0 (role=destination), trigger/scheduled@0.1.0, idempotency/window-key@0.1.0, pattern/aggregation@0.1.0. Composition ref: ${compRef}.`,
+          body_md: `Composed from components: mcp/linear@0.1.0 (role=source), mcp/google_drive@0.1.0 (role=destination), trigger/scheduled@0.1.0, idempotency/window-key@0.1.0, pattern/aggregation@0.1.0. Composition ref: ${compRef}.`,
         },
       ],
     }).catch((err) => {

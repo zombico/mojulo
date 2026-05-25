@@ -236,13 +236,6 @@ export async function ensureToolsRegistered() {
   // meta_mcp_providers identity layer; the agent reads them through the
   // composer's consolidated provider view.
   registerCapabilitiesTools();
-  // CAUTERIZE: when MOJULO_MCP_ORBIT_VENDOR_DISABLED=1, skip the vendor-shaped
-  // mcp-orbit composer (recommend_mcp_orbit_compositions / list_mcp_orbit_components /
-  // get_mcp_orbit_component / get_meta_catalyst) so the agent is forced through
-  // the primitive-binding flow. Tests do not set the flag and continue to register
-  // the full surface. See lite-template/integration/MCP_PRIMITIVE_BINDING_PLAN.md.
-  if (process.env.MOJULO_MCP_ORBIT_VENDOR_DISABLED !== '1') {
-    registerMCPOrbitTools();
-  }
+  registerMCPOrbitTools();
   registerPrimitiveBindingTools();
 }

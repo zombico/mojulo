@@ -4,7 +4,15 @@ process.env.SQLITE_PATH = ':memory:';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb, getDb } from '@/lib/db/index';
 import { CapabilitiesRepository } from '@/lib/db/repositories/mcp-capabilities';
+import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
+import {
+  seedMcpCapabilities,
+  _resetSeededForTests as _resetCapabilitiesSeedForTests,
+  _internals as seedInternals,
+} from '@/lib/mcp/seeds/mcp-capabilities-seed';
+import { _resetSeededForTests as _resetComponentsSeedForTests, seedComponents } from '@/lib/mcp/mcp-orbit-components/loader';
 import { commitOperatorKyc } from './meta-context.js';
+import { recommendCompositionsHandler } from './mcp-orbit.js';
 import {
   recordCapabilitiesHandler,
   getCapabilitiesHandler,
@@ -263,5 +271,167 @@ describe('_internals.parseIsoToUnixSeconds', () => {
 
   it('throws on unparseable string', () => {
     expect(() => _internals.parseIsoToUnixSeconds('garbage')).toThrow(/not a valid/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Decuration smoke: research catalyst supersedes seed end-to-end
+//
+// Exercises the full vertical from seed migration → tool surface → composer
+// re-read. This is the integration check the plan calls for — verifies that
+// the research-mcp-vendor catalyst's tool calls round-trip correctly, that
+// supersession honestly flips a seed row to a research row, and that the
+// composer immediately sees the updated provenance.
+// ---------------------------------------------------------------------------
+
+describe('decuration smoke: catalyst supersedes seed end-to-end', () => {
+  beforeEach(() => {
+    closeDb();
+    _resetCapabilitiesSeedForTests();
+    _resetComponentsSeedForTests();
+    getDb();
+    seedComponents({ force: true });
+    seedMcpCapabilities({ force: true });
+  });
+
+  it('notion starts as a seed row with capabilities-only state', async () => {
+    const res = await getCapabilitiesHandler({ provider_ref: 'notion' });
+    expect(res.found).toBe(true);
+    expect(res.versionTag).toBe('2025-09-03'); // from notion frontmatter
+    expect(res.sourceUrls[0]).toBe(seedInternals.SOURCE_MOJULO_PREFIX);
+    expect(res.discoveredAt).toBe(seedInternals.V0_5_0_RELEASE_UNIX);
+    expect(res.supersededBy).toBe(null);
+
+    // Consolidated view confirms the seed provenance.
+    const view = CapabilitiesRepository.consolidatedView('notion');
+    expect(view.capabilities.provenance).toBe('seed');
+    expect(view.inventory).toBe(null);
+  });
+
+  it('record_mcp_capabilities supersedes the seed row and flips provenance to research', async () => {
+    // Capture the seed row's id before superseding.
+    const seedRow = CapabilitiesRepository.getCurrent('notion');
+    expect(seedRow.supersededBy).toBe(null);
+
+    // Simulate the research-mcp-vendor catalyst's effect: agent writes a
+    // freshly-researched body with vendor URLs as the first source_urls
+    // entry (no mojulo:// prefix).
+    const recordRes = await recordCapabilitiesHandler({
+      provider_ref: 'notion',
+      display_name: 'Notion',
+      version_tag: '2026-04-01',
+      body_md: '# mcp: Notion\n\nFresh agent-researched body.\n\n<!-- sources\n- https://developers.notion.com/changelog\n-->',
+      source_urls: ['https://developers.notion.com/changelog'],
+    });
+
+    expect(recordRes.ok).toBe(true);
+    expect(recordRes.supersededId).toBe(seedRow.id);
+    expect(recordRes.provenance).toBe('research');
+    expect(recordRes.versionTag).toBe('2026-04-01');
+
+    // get_mcp_capabilities now returns the fresh body.
+    const current = await getCapabilitiesHandler({ provider_ref: 'notion' });
+    expect(current.id).toBe(recordRes.id);
+    expect(current.bodyMd).toMatch(/Fresh agent-researched body/);
+    expect(current.versionTag).toBe('2026-04-01');
+    expect(current.supersededBy).toBe(null);
+
+    // Supersession invariant: the prior current row is no longer current —
+    // its superseded_by points at the fresh row.
+    const chain = CapabilitiesRepository.listForProvider('notion');
+    expect(chain).toHaveLength(2);
+    const oldRow = chain.find((r) => r.id === seedRow.id);
+    expect(oldRow.supersededBy).toBe(recordRes.id);
+
+    // Consolidated view confirms provenance flipped from seed → research.
+    const view = CapabilitiesRepository.consolidatedView('notion');
+    expect(view.capabilities.provenance).toBe('research');
+  });
+
+  it('asOf walks back to the seed row from before the supersession', async () => {
+    const sentinel = seedInternals.V0_5_0_RELEASE_UNIX;
+
+    await recordCapabilitiesHandler({
+      provider_ref: 'notion',
+      body_md: '# fresh',
+      source_urls: ['https://example.com'],
+    });
+
+    // asOf=sentinel returns the seed (it was current then).
+    const past = await getCapabilitiesHandler({
+      provider_ref: 'notion',
+      asOf: new Date(sentinel * 1000).toISOString(),
+    });
+    expect(past.found).toBe(true);
+    expect(past.versionTag).toBe('2025-09-03');
+    // The seed's superseded_by points forward to the research row.
+    expect(past.supersededBy).not.toBe(null);
+
+    // asOf=now returns the fresh row.
+    const now = await getCapabilitiesHandler({
+      provider_ref: 'notion',
+      asOf: new Date().toISOString(),
+    });
+    expect(now.found).toBe(true);
+    expect(now.bodyMd).toBe('# fresh');
+  });
+
+  it('the composer treats a research-superseded provider as research-grade (no seed warning)', async () => {
+    // Declare inventory so notion is also installed; this puts the provider
+    // in the 'seed' state initially (has both facets, capabilities is seed).
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Notion', tools: [{ name: 'notion-search' }] },
+      { name: 'gmail', tools: [{ name: 'search_messages' }] },
+    ]);
+    await commitOperatorKyc({
+      role: 'test operator',
+      constraints: ['weekly digest cadence'],
+    });
+
+    // Before the catalyst runs: composer surfaces seed_capabilities:notion.
+    const before = await recommendCompositionsHandler({
+      intent: 'When a Gmail support thread arrives, file a Notion page with the thread context',
+    });
+    const beforeWarnings = before.candidates[0].constraintWarnings;
+    expect(beforeWarnings.some((w) => w.startsWith('seed_capabilities:'))).toBe(true);
+    expect(before.candidates[0].rationale.catalystHint).toMatch(/research-mcp-vendor/);
+
+    // Run the catalyst's effect.
+    await recordCapabilitiesHandler({
+      provider_ref: 'notion',
+      version_tag: 'research-2026',
+      body_md: '# fresh notion body',
+      source_urls: ['https://developers.notion.com'],
+    });
+
+    // After: composer no longer surfaces seed warning for notion.
+    const after = await recommendCompositionsHandler({
+      intent: 'When a Gmail support thread arrives, file a Notion page with the thread context',
+    });
+    const afterWarnings = after.candidates[0].constraintWarnings;
+    expect(afterWarnings.some((w) => w === 'seed_capabilities:notion')).toBe(false);
+  });
+
+  it('seed migration is no-op on a second boot — never re-overwrites the research row', () => {
+    // Research notion.
+    CapabilitiesRepository.insert({
+      providerRef: 'notion',
+      bodyMd: '# research',
+      sourceUrls: ['https://example.com'],
+    });
+    const researchRow = CapabilitiesRepository.getCurrent('notion');
+
+    // Simulate a second-boot seed pass (force=true to bypass the in-process
+    // _seeded flag).
+    _resetCapabilitiesSeedForTests();
+    const result = seedMcpCapabilities({ force: true });
+
+    // Notion was skipped; the other three are also already in the table
+    // from the first seedMcpCapabilities call in beforeEach. So inserted=0.
+    expect(result.inserted).toBe(0);
+
+    const current = CapabilitiesRepository.getCurrent('notion');
+    expect(current.id).toBe(researchRow.id);
+    expect(current.bodyMd).toBe('# research');
   });
 });
