@@ -5,7 +5,7 @@ process.env.SQLITE_PATH = ':memory:';
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb, getDb } from '../index.js';
-import { InventoryRepository } from './mcp-inventory.js';
+import { InventoryRepository, _internals as inventoryInternals } from './mcp-inventory.js';
 
 beforeEach(() => {
   closeDb();
@@ -236,5 +236,278 @@ describe('InventoryRepository.hasInventory', () => {
     ]);
     InventoryRepository.replaceInventory([]);
     expect(InventoryRepository.hasInventory()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase A.1 — capability-snapshot extension
+//
+// Verifies the inventory can carry per-tool inputSchema + introspectionConfidence
+// alongside the existing thin-declaration path, and that snapshotForServer
+// returns the exact shape the primitive-binding generator expects.
+// ---------------------------------------------------------------------------
+
+describe('schema bootstraps — capability snapshot columns', () => {
+  it('adds input_schema_json and introspection_confidence columns', () => {
+    const db = getDb();
+    const cols = db.prepare('PRAGMA table_info(meta_mcp_inventory)').all();
+    const names = new Set(cols.map((c) => c.name));
+    expect(names.has('input_schema_json')).toBe(true);
+    expect(names.has('introspection_confidence')).toBe(true);
+  });
+});
+
+describe('InventoryRepository.replaceInventory — richer per-tool fields', () => {
+  it('persists inputSchema as JSON blob and round-trips through currentInventory', () => {
+    const schema = {
+      type: 'object',
+      properties: { query: { type: 'string' } },
+      required: ['query'],
+    };
+    InventoryRepository.replaceInventory([
+      {
+        name: 'gdrive',
+        tools: [
+          {
+            name: 'search_files',
+            description: 'Search by name',
+            inputSchema: schema,
+            introspectionConfidence: 'tools_list_full',
+          },
+        ],
+      },
+    ]);
+    const inv = InventoryRepository.currentInventory();
+    expect(inv.servers).toHaveLength(1);
+    const t = inv.servers[0].tools[0];
+    expect(t.inputSchema).toEqual(schema);
+    expect(t.introspectionConfidence).toBe('tools_list_full');
+  });
+
+  it('omits the richer fields from currentInventory entries when they were not declared', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'gmail', tools: [{ name: 'send_message' }] },
+    ]);
+    const inv = InventoryRepository.currentInventory();
+    const t = inv.servers[0].tools[0];
+    expect(t.inputSchema).toBeUndefined();
+    expect(t.introspectionConfidence).toBeUndefined();
+  });
+
+  it('rejects an inputSchema that is not an object', () => {
+    expect(() =>
+      InventoryRepository.replaceInventory([
+        { name: 'x', tools: [{ name: 't', inputSchema: 'not-an-object' }] },
+      ]),
+    ).toThrow(/inputSchema must be an object/);
+  });
+
+  it('rejects an invalid introspectionConfidence value', () => {
+    expect(() =>
+      InventoryRepository.replaceInventory([
+        { name: 'x', tools: [{ name: 't', introspectionConfidence: 'bogus' }] },
+      ]),
+    ).toThrow(/introspectionConfidence must be one of/);
+  });
+});
+
+describe('InventoryRepository.snapshotForServer', () => {
+  it('returns null when the server is not in inventory', () => {
+    expect(InventoryRepository.snapshotForServer('nope')).toBeNull();
+    expect(InventoryRepository.snapshotForServer('')).toBeNull();
+    expect(InventoryRepository.snapshotForServer(null)).toBeNull();
+  });
+
+  it('returns generator-shaped snapshot with ISO timestamp', () => {
+    InventoryRepository.replaceInventory([
+      {
+        name: 'gdrive',
+        tools: [
+          {
+            name: 'search_files',
+            description: 'Search',
+            inputSchema: { type: 'object', properties: { q: { type: 'string' } } },
+            introspectionConfidence: 'tools_list_full',
+          },
+          {
+            name: 'create_file',
+            inputSchema: { type: 'object' },
+            introspectionConfidence: 'tools_list_full',
+          },
+        ],
+      },
+    ]);
+    const snap = InventoryRepository.snapshotForServer('gdrive');
+    expect(snap).not.toBeNull();
+    expect(snap.server).toBe('gdrive');
+    expect(typeof snap.introspected_at).toBe('string');
+    // ISO-8601 form check; Date.parse round-trips it without NaN.
+    expect(Number.isFinite(Date.parse(snap.introspected_at))).toBe(true);
+    expect(snap.introspection_confidence).toBe('tools_list_full');
+    expect(snap.tools).toHaveLength(2);
+    expect(snap.tools[0].name).toBe('create_file');
+    expect(snap.tools[1].name).toBe('search_files');
+    expect(snap.tools[1].description).toBe('Search');
+    expect(snap.tools[1].inputSchema).toEqual({
+      type: 'object',
+      properties: { q: { type: 'string' } },
+    });
+  });
+
+  it('drops the server-level confidence to names_only when any tool lacks introspection', () => {
+    InventoryRepository.replaceInventory([
+      {
+        name: 'mixed',
+        tools: [
+          {
+            name: 'with_schema',
+            inputSchema: { type: 'object' },
+            introspectionConfidence: 'tools_list_full',
+          },
+          {
+            name: 'naked', // no inputSchema, no confidence
+          },
+        ],
+      },
+    ]);
+    const snap = InventoryRepository.snapshotForServer('mixed');
+    expect(snap.introspection_confidence).toBe('names_only');
+  });
+
+  it('reports agent_inferred when at least one tool is agent_inferred and none are names_only', () => {
+    InventoryRepository.replaceInventory([
+      {
+        name: 'partial',
+        tools: [
+          {
+            name: 'a',
+            inputSchema: { type: 'object' },
+            introspectionConfidence: 'tools_list_full',
+          },
+          {
+            name: 'b',
+            inputSchema: { type: 'object' },
+            introspectionConfidence: 'agent_inferred',
+          },
+        ],
+      },
+    ]);
+    const snap = InventoryRepository.snapshotForServer('partial');
+    expect(snap.introspection_confidence).toBe('agent_inferred');
+  });
+
+  it('omits the optional fields per-tool when the underlying row has no value', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'thin', tools: [{ name: 'x' }] },
+    ]);
+    const snap = InventoryRepository.snapshotForServer('thin');
+    expect(snap.tools[0]).toEqual({ name: 'x' });
+  });
+});
+
+describe('deriveServerConfidence', () => {
+  const { deriveServerConfidence } = inventoryInternals;
+
+  it('returns null for empty arrays', () => {
+    expect(deriveServerConfidence([])).toBeNull();
+  });
+
+  it('returns names_only when any entry is null or names_only', () => {
+    expect(deriveServerConfidence(['tools_list_full', null])).toBe('names_only');
+    expect(deriveServerConfidence(['tools_list_full', 'names_only'])).toBe('names_only');
+  });
+
+  it('returns agent_inferred when at least one entry is agent_inferred and none are names_only', () => {
+    expect(deriveServerConfidence(['tools_list_full', 'agent_inferred'])).toBe('agent_inferred');
+  });
+
+  it('returns tools_list_full when every entry is tools_list_full', () => {
+    expect(deriveServerConfidence(['tools_list_full', 'tools_list_full'])).toBe('tools_list_full');
+  });
+});
+
+describe('replaceInventory: provider_id stamping', () => {
+  it('creates a provider row for each canonicalized server name', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }] },
+      { name: 'claude_ai_Notion', tools: [{ name: 'search' }] },
+    ]);
+    const providers = db
+      .prepare('SELECT provider_ref FROM meta_mcp_providers ORDER BY provider_ref')
+      .all();
+    expect(providers.map((p) => p.provider_ref)).toEqual(['gmail', 'notion']);
+  });
+
+  it('stamps provider_id on every inventory row', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }, { name: 'search' }] },
+    ]);
+    const rows = db.prepare('SELECT provider_id FROM meta_mcp_inventory').all();
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(r.provider_id).not.toBeNull();
+      expect(typeof r.provider_id).toBe('number');
+    }
+    // Both tools for the same server share the same provider_id.
+    expect(rows[0].provider_id).toBe(rows[1].provider_id);
+  });
+
+  it('two install aliases that canonicalize to the same provider share provider_id', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Notion', tools: [{ name: 'search' }] },
+      { name: 'notion-mcp-server', tools: [{ name: 'fetch' }] },
+    ]);
+    const rows = db
+      .prepare('SELECT server, provider_id FROM meta_mcp_inventory ORDER BY server')
+      .all();
+    expect(rows).toHaveLength(2);
+    expect(rows[0].provider_id).toBe(rows[1].provider_id);
+    // Only one provider row exists despite two install aliases.
+    const providerCount = db.prepare('SELECT COUNT(*) AS n FROM meta_mcp_providers').get().n;
+    expect(providerCount).toBe(1);
+  });
+
+  it('rowToTool exposes providerId on returned rows', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }] },
+    ]);
+    const row = InventoryRepository.findByRef('claude_ai_Gmail.send');
+    expect(row).not.toBe(null);
+    expect(typeof row.providerId).toBe('number');
+  });
+
+  it('a fresh replace leaves only the providers it just declared in inventory; orphan provider rows persist', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Gmail', tools: [{ name: 'send' }] },
+    ]);
+    InventoryRepository.replaceInventory([
+      { name: 'claude_ai_Notion', tools: [{ name: 'search' }] },
+    ]);
+    const db = getDb();
+    // Inventory rows are replaced cleanly.
+    const rows = db.prepare('SELECT server FROM meta_mcp_inventory').all();
+    expect(rows.map((r) => r.server)).toEqual(['claude_ai_Notion']);
+    // Providers from the first declaration stay (no cleanup of orphan
+    // providers in v0 — they're harmless and the next declaration will reuse
+    // them if the same alias comes back; their capabilities rows remain
+    // queryable for historical lookups via getAsOf).
+    const providers = db
+      .prepare('SELECT provider_ref FROM meta_mcp_providers ORDER BY provider_ref')
+      .all();
+    expect(providers.map((p) => p.provider_ref)).toEqual(['gmail', 'notion']);
+  });
+
+  it('handles linear (no prefix, no suffix) correctly', () => {
+    const db = getDb();
+    InventoryRepository.replaceInventory([
+      { name: 'linear', tools: [{ name: 'list_issues' }] },
+    ]);
+    const provider = db
+      .prepare('SELECT provider_ref FROM meta_mcp_providers')
+      .get();
+    expect(provider.provider_ref).toBe('linear');
   });
 });

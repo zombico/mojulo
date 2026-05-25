@@ -22,11 +22,14 @@
 
 import { getDb } from '../index.js';
 import { InventoryRepository } from './mcp-inventory.js';
+import { ProvidersRepository } from './mcp-providers.js';
+import { CapabilitiesRepository } from './mcp-capabilities.js';
 
 const NODE_KINDS = ['bot', 'mcp_tool', 'catalyst', 'adapter', 'artifact', 'operator'];
 const EDGE_KINDS = ['binds', 'seeded', 'materialized_by', 'runs_for'];
 const PRINCIPLE_SOURCE_EVENTS = [
   'artifact_materialization',
+  'primitive_artifact_materialization',
   'operator_kyc',
   'adapter_shipped',
   'catalyst_shipped',
@@ -292,7 +295,36 @@ function briefFleet() {
   // distinguish "never declared" (declaredAt: null) from a stale snapshot.
   const inventory = InventoryRepository.currentInventory();
 
-  return { nodes, edges, principles, meta, inventory };
+  // Vendor knowledge keyed by provider — one row per logical MCP across both
+  // facets (inventory introspection + capabilities research). `provenance`
+  // distinguishes build-time seeds (`mojulo://CHANGELOG#...` URL) from
+  // agent-research; the agent uses this to decide whether to invoke the
+  // research-mcp-vendor catalyst for a refresh.
+  const vendorKnowledge = buildVendorKnowledgeSummary();
+
+  return { nodes, edges, principles, meta, inventory, vendorKnowledge };
+}
+
+function buildVendorKnowledgeSummary() {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const providers = ProvidersRepository.listAll().map((p) => {
+    const view = CapabilitiesRepository.consolidatedView(p.providerRef);
+    const hasInventory = !!view?.inventory;
+    const hasCapabilities = !!view?.capabilities;
+    return {
+      provider_ref: p.providerRef,
+      display_name: p.displayName,
+      hasInventory,
+      hasCapabilities,
+      capabilitiesVersionTag: view?.capabilities?.versionTag ?? null,
+      capabilitiesDiscoveredAt: view?.capabilities?.discoveredAt ?? null,
+      ageSeconds: view?.capabilities?.discoveredAt
+        ? Math.max(0, nowSeconds - view.capabilities.discoveredAt)
+        : null,
+      capabilitiesProvenance: view?.capabilities?.provenance ?? null,
+    };
+  });
+  return { providers };
 }
 
 function briefNeighborhood(kind, ref) {

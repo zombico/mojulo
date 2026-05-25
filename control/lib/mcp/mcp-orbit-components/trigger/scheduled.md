@@ -13,6 +13,7 @@
       "message": "trigger: scheduled requires an idempotency component OR a knobs.accept_double_write: true override."
     }
   ],
+  "intentKeywords": ["weekly", "daily", "monthly", "every", "schedule", "cadence", "recurring", "morning", "digest", "summary", "report", "periodic"],
   "exposesKnobs": [
     { "name": "cadence", "prompt": "How often does this run? (daily, weekly, monthly, custom cron)", "default": "weekly" },
     { "name": "day_of_week", "prompt": "When cadence=weekly, which day fires it? (Mon | Tue | ... | Sun)", "default": "Mon" },

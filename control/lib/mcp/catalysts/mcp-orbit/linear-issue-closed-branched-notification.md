@@ -8,7 +8,7 @@
   "valueHook": "Stop sorting closed tickets into 'tell the customer' and 'just log it' by hand.",
   "requires": {
     "sources": [
-      { "category": "issue_tracker", "examples": ["linear", "github_issues", "jira"] }
+      { "category": "structured_record_store", "examples": ["linear", "github_issues", "jira"] }
     ],
     "destinations": [
       { "category": "email", "examples": ["gmail", "outlook"] },
@@ -34,7 +34,7 @@ The operator's team closes Linear issues that fall into two categories: ones the
 
 **Reject this catalyst when:**
 
-- No issue-tracker MCP, OR no email MCP, OR no document-store MCP is in declared inventory. **Branching catalysts need ALL required destinations present**; partial inventory means refuse with a clear "install X to unlock this" message rather than degrade silently to a single branch.
+- No structured-record-store MCP, OR no email MCP, OR no document-store MCP is in declared inventory. **Branching catalysts need ALL required destinations present**; partial inventory means refuse with a clear "install X to unlock this" message rather than degrade silently to a single branch.
 - The operator's team doesn't actually have a customer-facing / internal distinction (e.g., pure internal product). Redirect to a single-destination catalyst.
 - The classification criteria are too fuzzy ("just kind of know"). Without a deterministic rule, the classifier becomes a per-event LLM call — expensive, hard to audit, and breaks on edge cases. Push back to make the rule explicit (label, project, customer field). If the operator genuinely can't articulate one, escalate to a higher-touch flow (manual triage of every close) instead of synthesizing brittle automation.
 

@@ -324,7 +324,7 @@ export function registerFleetTools() {
   registerTool({
     name: 'fleet_analytics_summary',
     description:
-      "Fleet-wide activity rollup: totals, daily turn/conversation counts, top bots by activity, protocol usage mix, plus a per-bot breakdown keyed by botId. Aggregates and metadata only — for conversation content, use get_conversation against a specific bot (use fleet_query_conversations first to locate which bot a conversation lives on). Hits a 60s in-process cache shared with the dashboard's Analytics tab; cold (cache miss) takes ~1–3s warm, up to ~30s when every bot has to fan-out fresh. Response includes `cache: { fromCache, cachedAt, ttlMs }` so you can tell whether the data is current and `unreachable: [{ botId, botName, reason }]` so you can detect partial fleets. Optional `startDate`/`endDate` ISO bounds; optional `deploymentIds` to scope to a subset (default: every connected bot).",
+      "Fleet-wide activity rollup: totals, daily turn/conversation counts, top bots by activity, protocol usage mix, plus a per-bot breakdown keyed by botId. Aggregates and metadata only — for conversation content use `get_conversation` against a specific bot (locate with `fleet_query_conversations` first). Hits a 60s in-process cache shared with the dashboard's Analytics tab — ~1–3s warm, up to ~30s cold across a large fleet. Response includes `cache: { fromCache, cachedAt, ttlMs }` and `unreachable: [{ botId, botName, reason }]` for partial-fleet detection.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -343,7 +343,7 @@ export function registerFleetTools() {
   registerTool({
     name: 'fleet_query_conversations',
     description:
-      "Locate conversations across every connected bot. Returns conversation summaries only — `{ botId, botName, conversationId, startedAt, lastActivity, turnCount }` — never turn content. To read a conversation's actual content, call `get_conversation` against the bot named by `botId`; the two-step pattern (fleet-locate, then per-bot-read) preserves the 'conversation data never crosses to the control plane' posture. Requires at least one of `startDate` / `endDate` / `conversationId` — same contract as the per-bot /api/conversations endpoint, which refuses unfiltered scans. Operational realism: typically 1–3s, up to ~30s cold across a large fleet. Response includes `unreachable: [{ botId, botName, reason }]` to flag bots that didn't answer.",
+      "Locate conversations across every connected bot. Returns summaries only — `{ botId, botName, conversationId, startedAt, lastActivity, turnCount }`, never turn content. To read content, call `get_conversation` against the bot named by `botId`; the two-step pattern preserves the 'conversation data never crosses to the control plane' posture. Requires at least one of `startDate` / `endDate` / `conversationId` (same contract as the per-bot endpoint — no unfiltered scans). 1–3s typical, ~30s cold across a large fleet. Response includes `unreachable: [...]`.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -365,7 +365,7 @@ export function registerFleetTools() {
   registerTool({
     name: 'verify_fleet_chains',
     description:
-      "Walk the tamper-evident hash chain across every connected bot in one call. This is the audit story scaled to fleet level — each bot still owns its own chain, but the aggregate roll-up is something only the control plane can produce. Returns `{ valid, totalTurns, invalidTurns, conversationsVerified, failed: [{ botId, botName, conversationId, turn, reason }], perBot: [...], unreachable: [...] }`. `valid: true` requires zero invalid turns AND zero unreachable bots — a fleet with dark bots can't be conclusively audited. Optional `startDate` / `endDate` ISO bounds narrow which conversations are walked. Operational realism: walks every turn on each reachable bot, so heavy fleets at full history take longer than other fleet tools — typically 2–10s, more on bots with very large databases.",
+      "Walk the tamper-evident hash chain across every connected bot. Each bot still owns its own chain; this is the aggregate roll-up the control plane can produce. Returns `{ valid, totalTurns, invalidTurns, conversationsVerified, failed: [{ botId, botName, conversationId, turn, reason }], perBot, unreachable }`. `valid: true` requires zero invalid turns AND zero unreachable bots — a fleet with dark bots can't be conclusively audited. Walks every turn on each reachable bot — typically 2–10s, more on heavy databases. Optional `startDate` / `endDate` narrow the walk.",
     inputSchema: {
       type: 'object',
       properties: {

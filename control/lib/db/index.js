@@ -136,15 +136,57 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_tool_ref ON meta_mcp_inventory(tool_ref);
 
+    -- Identity layer for MCP providers. One row per logical MCP (e.g. "gmail",
+    -- "notion", "linear"), keyed on a canonical lowercase provider_ref derived
+    -- by the canonicalizer at write time. Inventory rows (introspection facet)
+    -- and capability rows (research facet) both FK here, so both paths to
+    -- knowing an MCP converge on the same provider entity. Mojulo never
+    -- asserts a provider directly; rows are upserted as a side-effect of
+    -- facet writes. display_name is first-writer-wins (no repair tool in v0).
+    -- See lite-template/integration/MCP_DECURATION_PLAN.md.
+    CREATE TABLE IF NOT EXISTS meta_mcp_providers (
+      id INTEGER PRIMARY KEY,
+      provider_ref TEXT NOT NULL UNIQUE,
+      display_name TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    -- Vendor knowledge facet of a provider. Agent-authored body (via the
+    -- research-mcp-vendor catalyst); ships with a small seed set on first
+    -- install. Append-with-supersession semantics: a new write for an
+    -- existing provider inserts a new row and sets the prior current row's
+    -- superseded_by, all in one transaction. The unique partial index
+    -- enforces at most one current row (superseded_by IS NULL) per provider —
+    -- supersession is mandatory, not optional.
+    CREATE TABLE IF NOT EXISTS meta_mcp_capabilities (
+      id INTEGER PRIMARY KEY,
+      provider_id INTEGER NOT NULL REFERENCES meta_mcp_providers(id) ON DELETE CASCADE,
+      version_tag TEXT,
+      body_md TEXT NOT NULL,
+      source_urls TEXT,
+      discovered_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      superseded_by INTEGER REFERENCES meta_mcp_capabilities(id)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_meta_mcp_capabilities_current
+      ON meta_mcp_capabilities(provider_id)
+      WHERE superseded_by IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_meta_mcp_capabilities_by_provider
+      ON meta_mcp_capabilities(provider_id, discovered_at DESC);
+
     -- mcp-orbit component store. Decomposes the monolithic mcp-orbit catalyst
     -- pattern into a small set of typed components that combine
-    -- multiplicatively (sources × destinations × triggers × patterns ×
-    -- idempotency × render). The agent composes; the server provides
-    -- components + constraint validation. Server-stored, agent-composed.
-    -- See lite-template/integration/MCP_ORBIT_COMPONENT_STORE_PLAN.md.
+    -- multiplicatively. Five kinds: mcp (per-MCP affordance: read, write,
+    -- watch), trigger, pattern, idempotency, render. source and destination
+    -- are composition ROLES carried on each mcp entry in component_refs,
+    -- not component kinds — the same Gmail MCP can play source role in one
+    -- composition and destination role in another. The agent composes; the
+    -- server provides components + constraint validation. Server-stored,
+    -- agent-composed. See lite-template/integration/MCP_ORBIT_V1_PLAN.md for
+    -- the role refinement and MCP_ORBIT_COMPONENT_STORE_PLAN.md for the v0
+    -- substrate.
     CREATE TABLE IF NOT EXISTS mcp_orbit_components (
       id INTEGER PRIMARY KEY,
-      kind TEXT NOT NULL CHECK(kind IN ('source','destination','trigger','pattern','idempotency','render')),
+      kind TEXT NOT NULL CHECK(kind IN ('mcp','trigger','pattern','idempotency','render')),
       ref TEXT NOT NULL,
       version TEXT NOT NULL,
       body_md TEXT NOT NULL,
@@ -174,10 +216,60 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_compositions_status ON mcp_orbit_compositions(status);
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_compositions_artifact ON mcp_orbit_compositions(artifact_ref);
+
+    -- Generated provider artifacts from the primitive-binding generator. Each
+    -- row is a session-scoped markdown body produced by filling a primitive's
+    -- role-specific template against a capability snapshot for one MCP. Stored
+    -- so the agent can reference a stable ref between bind_primitives and the
+    -- subsequent commit; also makes the artifact auditable as the durable
+    -- link between primitive + snapshot + bound tool names + confidence.
+    -- See lite-template/integration/MCP_PRIMITIVE_BINDING_PLAN.md.
+    CREATE TABLE IF NOT EXISTS mcp_orbit_provider_artifacts (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL UNIQUE,
+      primitive_ref TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('source','destination')),
+      server TEXT NOT NULL,
+      introspected_at INTEGER,
+      snapshot_confidence TEXT,
+      body_md TEXT NOT NULL,
+      manifest_json TEXT NOT NULL,
+      bindings_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_server ON mcp_orbit_provider_artifacts(server);
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_primitive ON mcp_orbit_provider_artifacts(primitive_ref, role);
   `);
 
   migrateDeploymentColumns(db);
+  migrateInventoryColumns(db);
   reapStaleMcpJobs(db);
+}
+
+// Extend meta_mcp_inventory with the columns needed for richer capability
+// snapshots (per-tool input schema + per-tool introspection confidence) and
+// the provider identity FK (provider_id, populated by the canonicalizer at
+// inventory-write time so introspection rows can be joined back to the
+// providers identity layer). Backward-compatible — existing rows have NULL
+// for the new columns; provider_id is back-filled lazily on next inventory
+// declare for that server.
+function migrateInventoryColumns(db) {
+  const cols = db.prepare('PRAGMA table_info(meta_mcp_inventory)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('input_schema_json')) {
+    db.exec('ALTER TABLE meta_mcp_inventory ADD COLUMN input_schema_json TEXT');
+  }
+  if (!have.has('introspection_confidence')) {
+    db.exec('ALTER TABLE meta_mcp_inventory ADD COLUMN introspection_confidence TEXT');
+  }
+  if (!have.has('provider_id')) {
+    db.exec(
+      'ALTER TABLE meta_mcp_inventory ADD COLUMN provider_id INTEGER REFERENCES meta_mcp_providers(id)'
+    );
+  }
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_provider ON meta_mcp_inventory(provider_id)'
+  );
 }
 
 function reapStaleMcpJobs(db) {

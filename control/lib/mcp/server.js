@@ -204,7 +204,9 @@ export async function ensureToolsRegistered() {
   const { registerCatalystTools } = await import('@/lib/mcp/tools/catalysts');
   const { registerMetaContextTools } = await import('@/lib/mcp/tools/meta-context');
   const { registerInventoryTools } = await import('@/lib/mcp/tools/mcp-inventory');
+  const { registerCapabilitiesTools } = await import('@/lib/mcp/tools/mcp-capabilities');
   const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
+  const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -215,9 +217,10 @@ export async function ensureToolsRegistered() {
   // order should put it after the action rings. Inventory registers
   // immediately after the contextmap tools — it's the third Ring 6 surface
   // (current-environment cache alongside the append-only contextmap).
-  // mcp-orbit tools register LAST within Ring 6 — they sit ON TOP of the
-  // contextmap (commit/brief) and inventory primitives. The natural reading
-  // order is: append-only contextmap → current-state inventory → composer.
+  // mcp-orbit tools register after inventory (composer ON TOP of inventory).
+  // bind_primitives registers LAST within Ring 6 — it's the primitive-binding
+  // architecture's only tool surface in Phase A.1, parallel to the existing
+  // mcp-orbit composer, NOT replacing it. See MCP_PRIMITIVE_BINDING_PLAN.md.
   registerContextTools();
   registerAdapterTools();
   registerBuildTools();
@@ -227,5 +230,12 @@ export async function ensureToolsRegistered() {
   registerCatalystTools();
   registerMetaContextTools();
   registerInventoryTools();
+  // Capabilities tools (record_mcp_capabilities / get_mcp_capabilities) slot
+  // immediately after inventory — they're the research-facet sibling to
+  // inventory's introspection-facet. Both write into provider rows on the
+  // meta_mcp_providers identity layer; the agent reads them through the
+  // composer's consolidated provider view.
+  registerCapabilitiesTools();
   registerMCPOrbitTools();
+  registerPrimitiveBindingTools();
 }

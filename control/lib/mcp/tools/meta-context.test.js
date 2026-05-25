@@ -20,7 +20,9 @@ import {
   commitHandler,
   commitOperatorKyc,
   commitArtifactMaterialization,
+  commitPrimitiveArtifactMaterialization,
 } from './meta-context.js';
+import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -486,5 +488,253 @@ describe('commitHandler — routes artifact_materialization', () => {
     const out = await commitHandler(buildBaseMaterializationInput());
     expect(out.ok).toBe(true);
     expect(out.artifactNodeId).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// commit: primitive_artifact_materialization
+//
+// Sibling to artifact_materialization, no bot / no catalyst. The audit chain
+// in the contextmap is built from persisted provider artifacts (the rows
+// bind_primitives produces). See MCP_PRIMITIVE_BINDING_PLAN.md.
+// ---------------------------------------------------------------------------
+
+function seedProviderArtifact(overrides = {}) {
+  return ProviderArtifactRepository.insert({
+    primitiveRef: 'document-store@0.1.0',
+    role: 'source',
+    server: 'claude_ai_Google_Drive',
+    introspectedAt: '2026-05-24T18:00:00Z',
+    snapshotConfidence: 'tools_list_full',
+    bodyMd: '# stub provider body',
+    manifest: {
+      bound: [
+        { affordance: 'list-recent', tool: 'list_recent_files', confidence: 'operator-confirmed' },
+        { affordance: 'read-content', tool: 'read_file_content', confidence: 'agent-inferred' },
+      ],
+      unbound: [{ affordance: 'subscribe-to-changes', support: 'rare' }],
+      declaredCount: 5,
+    },
+    bindings: {
+      'list-recent': { tool: 'list_recent_files', confidence: 'operator-confirmed' },
+      'read-content': { tool: 'read_file_content', confidence: 'agent-inferred' },
+    },
+    ...overrides,
+  });
+}
+
+function buildBasePrimitiveMaterializationInput(overrides = {}) {
+  return {
+    type: 'primitive_artifact_materialization',
+    adapter_id: 'claude-code',
+    artifact: {
+      locator: existingArtifactPath,
+      label: 'Weekly Drive digest',
+    },
+    composition_intent:
+      'Weekly digest of open Linear issues into a Google Drive folder, Monday 9am.',
+    provider_artifact_refs: [],
+    ...overrides,
+  };
+}
+
+describe('commitPrimitiveArtifactMaterialization', () => {
+  it('happy path — writes adapter + artifact nodes, binds edges, materialized_by edge, auto-summary principle', async () => {
+    const pa = seedProviderArtifact();
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+    );
+    expect(out.ok).toBe(true);
+    expect(out.artifactNodeId).toBeGreaterThan(0);
+    expect(out.nodes.adapter).toBeGreaterThan(0);
+    expect(out.nodes.artifact).toBeGreaterThan(0);
+    expect(out.edges.materialized_by).toBeGreaterThan(0);
+    expect(out.edges.binds).toHaveLength(2);
+    expect(out.edges.binds.map((b) => b.mcp_tool).sort()).toEqual([
+      'claude_ai_Google_Drive.list_recent_files',
+      'claude_ai_Google_Drive.read_file_content',
+    ]);
+    expect(out.autoSummaryPrincipleId).toBeGreaterThan(0);
+    expect(out.principlesCreated).toBe(1); // auto-summary only, no user principles
+    expect(out.warnings).toContain('no_operator_anchor');
+  });
+
+  it('auto-summary principle records composition_intent + bindings', async () => {
+    const pa = seedProviderArtifact();
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+    );
+    const principle = MetaPrincipleRepository.listForScope('node', out.nodes.artifact)[0];
+    expect(principle).toBeTruthy();
+    expect(principle.bodyMd).toContain('Composition intent');
+    expect(principle.bodyMd).toContain('Weekly digest of open Linear issues');
+    expect(principle.bodyMd).toContain('document-store@0.1.0');
+    expect(principle.bodyMd).toContain('claude_ai_Google_Drive');
+    expect(principle.bodyMd).toContain('list-recent');
+    expect(principle.bodyMd).toContain('list_recent_files');
+    expect(principle.bodyMd).toContain('subscribe-to-changes'); // unbound surfaced
+    expect(principle.sourceEvent).toBe('primitive_artifact_materialization');
+  });
+
+  it('stores artifact payload with composition.intent_md + provider_artifact_refs', async () => {
+    const pa = seedProviderArtifact();
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+    );
+    const artifactNode = MetaNodeRepository.findByRef(
+      'artifact',
+      `claude-code:${existingArtifactPath}`,
+    );
+    expect(artifactNode.payload.composition).toBeDefined();
+    expect(artifactNode.payload.composition.intent_md).toContain('Weekly digest');
+    expect(artifactNode.payload.composition.provider_artifact_refs).toEqual([pa.ref]);
+    expect(artifactNode.payload.adapter_id).toBe('claude-code');
+    expect(artifactNode.id).toBe(out.nodes.artifact);
+  });
+
+  it('binds edge payload includes primitive, role, affordance, confidence, server, provider_artifact_ref', async () => {
+    const pa = seedProviderArtifact();
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+    );
+    const edgeId = out.edges.binds.find(
+      (b) => b.mcp_tool === 'claude_ai_Google_Drive.list_recent_files',
+    ).edgeId;
+    const edge = MetaEdgeRepository.findById(edgeId);
+    expect(edge.payload.primitive).toBe('document-store@0.1.0');
+    expect(edge.payload.role).toBe('source');
+    expect(edge.payload.affordance).toBe('list-recent');
+    expect(edge.payload.confidence).toBe('operator-confirmed');
+    expect(edge.payload.server).toBe('claude_ai_Google_Drive');
+    expect(edge.payload.provider_artifact_ref).toBe(pa.ref);
+  });
+
+  it('accepts multiple provider_artifact_refs and creates binds edges for each', async () => {
+    const source = seedProviderArtifact(); // document-store/source on Drive
+    const dest = seedProviderArtifact({
+      primitiveRef: 'structured-record-store@0.1.0',
+      role: 'destination',
+      server: 'claude_ai_Linear',
+      manifest: {
+        bound: [
+          { affordance: 'create-record', tool: 'create_issue', confidence: 'operator-confirmed' },
+        ],
+        unbound: [],
+        declaredCount: 6,
+      },
+      bindings: { 'create-record': { tool: 'create_issue', confidence: 'operator-confirmed' } },
+    });
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [source.ref, dest.ref] }),
+    );
+    expect(out.edges.binds.map((b) => b.mcp_tool).sort()).toEqual([
+      'claude_ai_Google_Drive.list_recent_files',
+      'claude_ai_Google_Drive.read_file_content',
+      'claude_ai_Linear.create_issue',
+    ]);
+  });
+
+  it('accepts user-provided principles on artifact / materialized_by / binds scopes', async () => {
+    const pa = seedProviderArtifact();
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({
+        provider_artifact_refs: [pa.ref],
+        principles: [
+          { scope: 'artifact', body_md: 'Operator approved Monday 9am cadence.' },
+          { scope: 'materialized_by', body_md: 'Materialized as a Claude Code skill.' },
+          { scope: 'binds', body_md: 'Cursor field is modified_after on Drive.' },
+        ],
+      }),
+    );
+    expect(out.principlesCreated).toBe(1 + 4); // auto-summary + 1 artifact + 1 materialized_by + 2 binds-fanned
+  });
+
+  it('rejects principle scopes that do not exist in primitive flow (catalyst, bot, seeded, runs_for)', async () => {
+    const pa = seedProviderArtifact();
+    await expect(
+      commitPrimitiveArtifactMaterialization(
+        buildBasePrimitiveMaterializationInput({
+          provider_artifact_refs: [pa.ref],
+          principles: [{ scope: 'catalyst', body_md: 'no catalyst here' }],
+        }),
+      ),
+    ).rejects.toThrow(/no matching/);
+    await expect(
+      commitPrimitiveArtifactMaterialization(
+        buildBasePrimitiveMaterializationInput({
+          provider_artifact_refs: [pa.ref],
+          principles: [{ scope: 'runs_for', body_md: 'no bot here' }],
+        }),
+      ),
+    ).rejects.toThrow(/no matching/);
+  });
+
+  it('rejects unknown provider_artifact_refs', async () => {
+    await expect(
+      commitPrimitiveArtifactMaterialization(
+        buildBasePrimitiveMaterializationInput({ provider_artifact_refs: ['prov_nope'] }),
+      ),
+    ).rejects.toThrow(/not found/);
+  });
+
+  it('rejects missing composition_intent', async () => {
+    const pa = seedProviderArtifact();
+    await expect(
+      commitPrimitiveArtifactMaterialization({
+        ...buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+        composition_intent: '',
+      }),
+    ).rejects.toThrow(/composition_intent is required/);
+  });
+
+  it('rejects empty provider_artifact_refs array', async () => {
+    await expect(
+      commitPrimitiveArtifactMaterialization(buildBasePrimitiveMaterializationInput()),
+    ).rejects.toThrow(/non-empty array/);
+  });
+
+  it('rejects unknown adapter_id', async () => {
+    const pa = seedProviderArtifact();
+    await expect(
+      commitPrimitiveArtifactMaterialization(
+        buildBasePrimitiveMaterializationInput({
+          adapter_id: 'no-such-adapter',
+          provider_artifact_refs: [pa.ref],
+        }),
+      ),
+    ).rejects.toThrow(/Unknown adapter/);
+  });
+
+  it('rejects when adapter-delegated verification fails (artifact locator does not exist)', async () => {
+    const pa = seedProviderArtifact();
+    await expect(
+      commitPrimitiveArtifactMaterialization(
+        buildBasePrimitiveMaterializationInput({
+          provider_artifact_refs: [pa.ref],
+          artifact: { locator: missingArtifactPath, label: 'missing' },
+        }),
+      ),
+    ).rejects.toThrow(/verification failed/);
+  });
+
+  it('omits no_operator_anchor warning when operator KYC exists', async () => {
+    const pa = seedProviderArtifact();
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'r', constraints: ['c'] });
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+    );
+    expect(out.warnings).toBeUndefined();
+  });
+});
+
+describe('commitHandler — routes primitive_artifact_materialization', () => {
+  it('end-to-end through the dispatcher', async () => {
+    const pa = seedProviderArtifact();
+    const out = await commitHandler(
+      buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+    );
+    expect(out.ok).toBe(true);
+    expect(out.artifactNodeId).toBeGreaterThan(0);
+    expect(out.autoSummaryPrincipleId).toBeGreaterThan(0);
   });
 });

@@ -11,6 +11,7 @@ import {
   MCPOrbitCompositionRepository,
   _COMPONENT_KINDS_FOR_TESTS as COMPONENT_KINDS,
   _COMPOSITION_STATUSES_FOR_TESTS as COMPOSITION_STATUSES,
+  _MCP_ROLES_FOR_TESTS as MCP_ROLES,
 } from './mcp-orbit.js';
 
 beforeEach(() => {
@@ -25,7 +26,11 @@ describe('schema bootstraps', () => {
       .all()
       .map((r) => r.name)
       .sort();
-    expect(tables).toEqual(['mcp_orbit_components', 'mcp_orbit_compositions']);
+    expect(tables).toEqual([
+      'mcp_orbit_components',
+      'mcp_orbit_compositions',
+      'mcp_orbit_provider_artifacts',
+    ]);
   });
 
   it('creates the documented indexes', () => {
@@ -40,6 +45,8 @@ describe('schema bootstraps', () => {
       'idx_mcp_orbit_components_ref',
       'idx_mcp_orbit_compositions_artifact',
       'idx_mcp_orbit_compositions_status',
+      'idx_mcp_orbit_provider_artifacts_primitive',
+      'idx_mcp_orbit_provider_artifacts_server',
     ]);
   });
 
@@ -71,32 +78,32 @@ describe('schema bootstraps', () => {
 describe('MCPOrbitComponentRepository.upsert', () => {
   it('inserts a new component', () => {
     const c = MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.1.0',
-      body_md: '# linear body',
-      payload: { summary: 'Linear source' },
+      body_md: '# aggregation body',
+      payload: { summary: 'Aggregation pattern', intentKeywords: ['digest'] },
     });
     expect(c.id).toBeGreaterThan(0);
-    expect(c.kind).toBe('source');
-    expect(c.ref).toBe('linear');
+    expect(c.kind).toBe('pattern');
+    expect(c.ref).toBe('aggregation');
     expect(c.version).toBe('0.1.0');
-    expect(c.bodyMd).toBe('# linear body');
-    expect(c.payload).toEqual({ summary: 'Linear source' });
+    expect(c.bodyMd).toBe('# aggregation body');
+    expect(c.payload).toEqual({ summary: 'Aggregation pattern', intentKeywords: ['digest'] });
     expect(c.source).toBe('builtin');
   });
 
   it('upsert(same kind, ref, version) overwrites body and payload', () => {
     MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.1.0',
       body_md: 'v1',
       payload: { summary: 'first' },
     });
     const updated = MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.1.0',
       body_md: 'v2',
       payload: { summary: 'second' },
@@ -107,20 +114,20 @@ describe('MCPOrbitComponentRepository.upsert', () => {
 
   it('different versions of the same ref coexist', () => {
     MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.1.0',
       body_md: 'old',
     });
     MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.2.0',
       body_md: 'new',
     });
-    const latest = MCPOrbitComponentRepository.findByRef('source', 'linear');
+    const latest = MCPOrbitComponentRepository.findByRef('pattern', 'aggregation');
     expect(latest.version).toBe('0.2.0');
-    const explicitV1 = MCPOrbitComponentRepository.findByRef('source', 'linear', '0.1.0');
+    const explicitV1 = MCPOrbitComponentRepository.findByRef('pattern', 'aggregation', '0.1.0');
     expect(explicitV1.bodyMd).toBe('old');
   });
 
@@ -135,15 +142,27 @@ describe('MCPOrbitComponentRepository.upsert', () => {
     ).toThrow(/Invalid component kind/);
   });
 
+  it("rejects the legacy 'mcp' / 'source' / 'destination' kinds (no longer valid in the components loader; vendor knowledge moved to capabilities)", () => {
+    expect(() =>
+      MCPOrbitComponentRepository.upsert({ kind: 'mcp', ref: 'x', version: '0.1.0', body_md: 'b' }),
+    ).toThrow(/Invalid component kind/);
+    expect(() =>
+      MCPOrbitComponentRepository.upsert({ kind: 'source', ref: 'x', version: '0.1.0', body_md: 'b' }),
+    ).toThrow(/Invalid component kind/);
+    expect(() =>
+      MCPOrbitComponentRepository.upsert({ kind: 'destination', ref: 'x', version: '0.1.0', body_md: 'b' }),
+    ).toThrow(/Invalid component kind/);
+  });
+
   it('rejects empty ref / version / body_md', () => {
     expect(() =>
-      MCPOrbitComponentRepository.upsert({ kind: 'source', ref: '', version: '0.1.0', body_md: 'b' }),
+      MCPOrbitComponentRepository.upsert({ kind: 'pattern', ref: '', version: '0.1.0', body_md: 'b' }),
     ).toThrow(/component.ref/);
     expect(() =>
-      MCPOrbitComponentRepository.upsert({ kind: 'source', ref: 'x', version: '', body_md: 'b' }),
+      MCPOrbitComponentRepository.upsert({ kind: 'pattern', ref: 'x', version: '', body_md: 'b' }),
     ).toThrow(/component.version/);
     expect(() =>
-      MCPOrbitComponentRepository.upsert({ kind: 'source', ref: 'x', version: '0.1.0', body_md: '' }),
+      MCPOrbitComponentRepository.upsert({ kind: 'pattern', ref: 'x', version: '0.1.0', body_md: '' }),
     ).toThrow(/component.body_md/);
   });
 });
@@ -152,56 +171,56 @@ describe('MCPOrbitComponentRepository.list', () => {
   beforeEach(() => {
     getDb(); // ensure schema
     MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.1.0',
-      body_md: 'lin',
+      body_md: 'agg',
     });
     MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.2.0',
-      body_md: 'lin2',
+      body_md: 'agg2',
     });
     MCPOrbitComponentRepository.upsert({
-      kind: 'destination',
-      ref: 'gdrive',
+      kind: 'pattern',
+      ref: 'routing',
       version: '0.1.0',
-      body_md: 'gd',
+      body_md: 'rou',
     });
   });
 
   it('lists max version per (kind, ref)', () => {
     const all = MCPOrbitComponentRepository.list();
     expect(all).toHaveLength(2);
-    const linear = all.find((c) => c.ref === 'linear');
-    expect(linear.version).toBe('0.2.0');
+    const agg = all.find((c) => c.ref === 'aggregation');
+    expect(agg.version).toBe('0.2.0');
   });
 
   it('filters by kind', () => {
-    const sources = MCPOrbitComponentRepository.list({ kind: 'source' });
-    expect(sources).toHaveLength(1);
-    expect(sources[0].ref).toBe('linear');
+    const patterns = MCPOrbitComponentRepository.list({ kind: 'pattern' });
+    expect(patterns).toHaveLength(2);
+    expect(patterns.map((c) => c.ref).sort()).toEqual(['aggregation', 'routing']);
   });
 
   it('filters by ref pattern (LIKE)', () => {
-    const lin = MCPOrbitComponentRepository.list({ refPattern: 'lin%' });
-    expect(lin).toHaveLength(1);
-    expect(lin[0].ref).toBe('linear');
+    const agg = MCPOrbitComponentRepository.list({ refPattern: 'agg%' });
+    expect(agg).toHaveLength(1);
+    expect(agg[0].ref).toBe('aggregation');
   });
 });
 
 describe('MCPOrbitComponentRepository.deleteAllBuiltins', () => {
   it('drops builtin rows but preserves custom rows', () => {
     MCPOrbitComponentRepository.upsert({
-      kind: 'source',
-      ref: 'linear',
+      kind: 'pattern',
+      ref: 'aggregation',
       version: '0.1.0',
       body_md: 'b',
       source: 'builtin',
     });
     MCPOrbitComponentRepository.upsert({
-      kind: 'source',
+      kind: 'pattern',
       ref: 'my-custom',
       version: '0.1.0',
       body_md: 'c',
@@ -221,8 +240,8 @@ describe('MCPOrbitCompositionRepository.insert', () => {
     const c = MCPOrbitCompositionRepository.insert({
       intent_md: 'weekly linear digest to drive',
       component_refs: [
-        { kind: 'source', ref: 'linear', version: '0.1.0' },
-        { kind: 'destination', ref: 'gdrive', version: '0.1.0' },
+        { kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'source' },
+        { kind: 'mcp', ref: 'gdrive', version: '0.1.0', role: 'destination' },
       ],
       knobs: { cadence: 'weekly' },
       ranking_score: 0.85,
@@ -230,6 +249,8 @@ describe('MCPOrbitCompositionRepository.insert', () => {
     expect(c.ref).toMatch(/^comp_[a-f0-9]{12}$/);
     expect(c.status).toBe('proposed');
     expect(c.componentRefs).toHaveLength(2);
+    expect(c.componentRefs[0].role).toBe('source');
+    expect(c.componentRefs[1].role).toBe('destination');
     expect(c.knobs).toEqual({ cadence: 'weekly' });
     expect(c.rankingScore).toBe(0.85);
   });
@@ -243,14 +264,61 @@ describe('MCPOrbitCompositionRepository.insert', () => {
     ).toThrow(/component_refs/);
   });
 
-  it('rejects malformed component_refs entries', () => {
+  it('rejects malformed component_refs entries (missing version)', () => {
     expect(() =>
       MCPOrbitCompositionRepository.insert({
         intent_md: 'x',
-        component_refs: [{ kind: 'source', ref: 'linear' }],
+        component_refs: [{ kind: 'mcp', ref: 'linear', role: 'source' }],
         knobs: {},
       }),
     ).toThrow(/version/);
+  });
+
+  it("rejects an mcp-kind entry without a role", () => {
+    expect(() =>
+      MCPOrbitCompositionRepository.insert({
+        intent_md: 'x',
+        component_refs: [{ kind: 'mcp', ref: 'linear', version: '0.1.0' }],
+        knobs: {},
+      }),
+    ).toThrow(/role must be one of/);
+  });
+
+  it("rejects an mcp-kind entry with an unknown role", () => {
+    expect(() =>
+      MCPOrbitCompositionRepository.insert({
+        intent_md: 'x',
+        component_refs: [
+          { kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'sidecar' },
+        ],
+        knobs: {},
+      }),
+    ).toThrow(/role must be one of/);
+  });
+
+  it("rejects a role on a non-mcp kind", () => {
+    expect(() =>
+      MCPOrbitCompositionRepository.insert({
+        intent_md: 'x',
+        component_refs: [
+          { kind: 'trigger', ref: 'scheduled', version: '0.1.0', role: 'source' },
+        ],
+        knobs: {},
+      }),
+    ).toThrow(/only valid for kind='mcp'/);
+  });
+
+  it("accepts the same mcp ref twice in distinct roles (read-then-write loop)", () => {
+    const c = MCPOrbitCompositionRepository.insert({
+      intent_md: 'linear closed → enrichment → linear',
+      component_refs: [
+        { kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'source' },
+        { kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'destination' },
+      ],
+      knobs: {},
+    });
+    expect(c.componentRefs).toHaveLength(2);
+    expect(c.componentRefs.map((r) => r.role).sort()).toEqual(['destination', 'source']);
   });
 });
 
@@ -258,7 +326,7 @@ describe('MCPOrbitCompositionRepository.update', () => {
   it('transitions status and persists artifact_ref', () => {
     const c = MCPOrbitCompositionRepository.insert({
       intent_md: 'x',
-      component_refs: [{ kind: 'source', ref: 'linear', version: '0.1.0' }],
+      component_refs: [{ kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'source' }],
       knobs: {},
     });
     const updated = MCPOrbitCompositionRepository.update(c.ref, {
@@ -279,7 +347,7 @@ describe('MCPOrbitCompositionRepository.update', () => {
   it('requires at least one field', () => {
     const c = MCPOrbitCompositionRepository.insert({
       intent_md: 'x',
-      component_refs: [{ kind: 'source', ref: 'linear', version: '0.1.0' }],
+      component_refs: [{ kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'source' }],
       knobs: {},
     });
     expect(() => MCPOrbitCompositionRepository.update(c.ref, {})).toThrow(/at least one/);
@@ -290,12 +358,12 @@ describe('MCPOrbitCompositionRepository.list', () => {
   it('filters by status and orders newest first', () => {
     const a = MCPOrbitCompositionRepository.insert({
       intent_md: 'a',
-      component_refs: [{ kind: 'source', ref: 'linear', version: '0.1.0' }],
+      component_refs: [{ kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'source' }],
       knobs: {},
     });
     const b = MCPOrbitCompositionRepository.insert({
       intent_md: 'b',
-      component_refs: [{ kind: 'source', ref: 'linear', version: '0.1.0' }],
+      component_refs: [{ kind: 'mcp', ref: 'linear', version: '0.1.0', role: 'source' }],
       knobs: {},
     });
     MCPOrbitCompositionRepository.update(b.ref, { status: 'materialized' });
@@ -308,16 +376,15 @@ describe('MCPOrbitCompositionRepository.list', () => {
   });
 });
 
-describe('exported kinds and statuses', () => {
+describe('exported kinds, roles, and statuses', () => {
   it('exports expected COMPONENT_KINDS', () => {
-    expect(COMPONENT_KINDS).toEqual([
-      'source',
-      'destination',
-      'trigger',
-      'pattern',
-      'idempotency',
-      'render',
-    ]);
+    // 'mcp' kind intentionally absent — vendor knowledge moved out of the
+    // component loader into the providers + capabilities Ring 6 surfaces.
+    // The SQL CHECK constraint still permits 'mcp' for v0.4.x DB compat.
+    expect(COMPONENT_KINDS).toEqual(['trigger', 'pattern', 'idempotency', 'render']);
+  });
+  it('exports expected MCP_ROLES', () => {
+    expect(MCP_ROLES).toEqual(['source', 'destination']);
   });
   it('exports expected COMPOSITION_STATUSES', () => {
     expect(COMPOSITION_STATUSES).toEqual(['proposed', 'dry_run', 'materialized', 'retired']);

@@ -29,6 +29,7 @@ import {
   MetaPrincipleRepository,
 } from '@/lib/db/repositories/meta-context';
 import { DeploymentRepository } from '@/lib/db/repositories/deployments';
+import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
 import { getCatalyst } from '@/lib/mcp/catalysts/loader';
 import { verifyArtifact } from '@/lib/mcp/meta-context/verification';
@@ -65,9 +66,11 @@ export async function commitHandler(input, ctx) {
       return commitOperatorKyc(input);
     case 'artifact_materialization':
       return commitArtifactMaterialization(input, ctx);
+    case 'primitive_artifact_materialization':
+      return commitPrimitiveArtifactMaterialization(input, ctx);
     default:
       throw new Error(
-        `Unknown commit event type '${input.type}'. MVP supports: 'operator_kyc', 'artifact_materialization'.`,
+        `Unknown commit event type '${input.type}'. Supported: 'operator_kyc', 'artifact_materialization', 'primitive_artifact_materialization'.`,
       );
   }
 }
@@ -159,7 +162,12 @@ function resolveCatalystLabel(catalystRef) {
   return catalyst?.name || catalystRef;
 }
 
-function attachPrinciples({ principles, scopeMap, bindsEdgesByToolRef }) {
+function attachPrinciples({
+  principles,
+  scopeMap,
+  bindsEdgesByToolRef,
+  sourceEvent = 'artifact_materialization',
+}) {
   if (!Array.isArray(principles) || principles.length === 0) return [];
   const created = [];
   for (const p of principles) {
@@ -189,7 +197,7 @@ function attachPrinciples({ principles, scopeMap, bindsEdgesByToolRef }) {
           scope_kind: 'edge',
           scope_id: edge.id,
           body_md: p.body_md,
-          source_event: 'artifact_materialization',
+          source_event: sourceEvent,
         }),
       );
       continue;
@@ -203,7 +211,7 @@ function attachPrinciples({ principles, scopeMap, bindsEdgesByToolRef }) {
           scope_kind: 'node',
           scope_id: node.id,
           body_md: p.body_md,
-          source_event: 'artifact_materialization',
+          source_event: sourceEvent,
         }),
       );
       continue;
@@ -220,7 +228,7 @@ function attachPrinciples({ principles, scopeMap, bindsEdgesByToolRef }) {
               scope_kind: 'edge',
               scope_id: edge.id,
               body_md: p.body_md,
-              source_event: 'artifact_materialization',
+              source_event: sourceEvent,
             }),
           );
         }
@@ -233,7 +241,7 @@ function attachPrinciples({ principles, scopeMap, bindsEdgesByToolRef }) {
           scope_kind: 'edge',
           scope_id: edge.id,
           body_md: p.body_md,
-          source_event: 'artifact_materialization',
+          source_event: sourceEvent,
         }),
       );
       continue;
@@ -423,6 +431,242 @@ export async function commitArtifactMaterialization(input, _ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// commit: primitive_artifact_materialization
+//
+// Parallel to artifact_materialization but for compositions built via the
+// primitive-binding architecture (no bot, no catalyst, runtime-introspected
+// MCP tool names). The shape of the contextmap write differs:
+//   - No bot node (operator-side composition, not bot-scoped)
+//   - No catalyst node (composition is primitive-driven, not recipe-driven)
+//   - No `seeded` edge (no catalyst → artifact predecessor)
+//   - No `runs_for` edge (no bot to run for; v1 may link artifact → operator)
+//   - `binds` edges name MCP tools resolved from the persisted provider
+//     artifacts the agent produced via bind_primitives — same edge kind as
+//     the bot-shaped path, payload carries primitive / role / affordance /
+//     confidence / server for audit traceability.
+//
+// See lite-template/integration/MCP_PRIMITIVE_BINDING_PLAN.md.
+// ---------------------------------------------------------------------------
+
+function composeAutoSummaryPrinciple({ composition_intent, providerArtifacts }) {
+  const lines = [
+    '**Composition intent:** ' + composition_intent,
+    '',
+    '**Primitive bindings:**',
+  ];
+  for (const pa of providerArtifacts) {
+    lines.push(
+      `- \`${pa.primitiveRef}\` (${pa.role}) on \`${pa.server}\` — provider artifact \`${pa.ref}\` (snapshot ${pa.introspectedAt || 'unknown'}, confidence ${pa.snapshotConfidence || 'unknown'})`,
+    );
+    for (const b of pa.manifest?.bound || []) {
+      lines.push(`    - \`${b.affordance}\` → \`${b.tool}\` (${b.confidence})`);
+    }
+    const unboundRefs = (pa.manifest?.unbound || []).map((u) => `\`${u.affordance}\``);
+    if (unboundRefs.length > 0) {
+      lines.push(`    - **unbound:** ${unboundRefs.join(', ')}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+export async function commitPrimitiveArtifactMaterialization(input, _ctx) {
+  const {
+    adapter_id,
+    artifact,
+    composition_intent,
+    provider_artifact_refs,
+    principles,
+  } = input;
+
+  // ---- pre-transaction validation ----
+
+  if (!adapter_id || typeof adapter_id !== 'string') {
+    throw new Error('adapter_id is required');
+  }
+  const adapter = getAdapter(adapter_id);
+  if (!adapter) {
+    throw new Error(`Unknown adapter '${adapter_id}'. Call list_adapters to see what's available.`);
+  }
+
+  if (!artifact || typeof artifact !== 'object') {
+    throw new Error('artifact is required, e.g. { locator: "...", label: "..." }');
+  }
+  if (!artifact.locator || typeof artifact.locator !== 'string') {
+    throw new Error('artifact.locator is required');
+  }
+  if (!artifact.label || typeof artifact.label !== 'string') {
+    throw new Error('artifact.label is required');
+  }
+
+  if (!composition_intent || typeof composition_intent !== 'string' || !composition_intent.trim()) {
+    throw new Error(
+      'composition_intent is required — a one-paragraph operator-stated intent for audit',
+    );
+  }
+
+  if (!Array.isArray(provider_artifact_refs) || provider_artifact_refs.length === 0) {
+    throw new Error(
+      'provider_artifact_refs must be a non-empty array of refs returned by bind_primitives',
+    );
+  }
+
+  // Resolve every provider artifact up-front so we fail before touching the
+  // contextmap if any ref is invalid.
+  const providerArtifacts = provider_artifact_refs.map((ref) => {
+    if (typeof ref !== 'string' || !ref) {
+      throw new Error('every provider_artifact_ref must be a non-empty string');
+    }
+    const pa = ProviderArtifactRepository.findByRef(ref);
+    if (!pa) {
+      throw new Error(
+        `Provider artifact '${ref}' not found. Refs come from bind_primitives's response.`,
+      );
+    }
+    return pa;
+  });
+
+  // Adapter-delegated verification BEFORE we touch the DB.
+  const verification = verifyArtifact(adapter_id, artifact.locator);
+  if (!verification.ok) {
+    throw new Error(`Artifact verification failed: ${verification.reason}`);
+  }
+
+  const artifactRef = buildArtifactRef(adapter_id, artifact.locator);
+
+  // ---- atomic write ----
+
+  const result = MetaContextRepository.commit(() => {
+    const adapterNode = MetaNodeRepository.upsert({
+      kind: 'adapter',
+      ref: adapter_id,
+      label: adapter.name,
+    });
+    const artifactNode = MetaNodeRepository.upsert({
+      kind: 'artifact',
+      ref: artifactRef,
+      label: artifact.label,
+      payload: {
+        adapter_id,
+        locator: artifact.locator,
+        host: adapter.name,
+        composition: {
+          intent_md: composition_intent.trim(),
+          provider_artifact_refs: providerArtifacts.map((pa) => pa.ref),
+        },
+      },
+    });
+
+    // For every bound affordance across every provider artifact, upsert the
+    // tool node and a binds edge. The binds payload carries the per-binding
+    // context so a future reader can answer "which primitive role bound this
+    // tool, with what confidence, from which provider artifact?" without
+    // joining back to the provider_artifacts table.
+    const bindsEdgesByToolRef = new Map();
+    for (const pa of providerArtifacts) {
+      for (const b of pa.manifest?.bound || []) {
+        const toolRef = `${pa.server}.${b.tool}`;
+        const toolNode = MetaNodeRepository.upsert({
+          kind: 'mcp_tool',
+          ref: toolRef,
+          label: toolRef,
+        });
+        // If multiple provider artifacts bind the same tool, the existing
+        // edge upsert handles it (idempotent). The payload from the FIRST
+        // binding wins, which is fine for v0 — Phase B can de-overlap.
+        if (!bindsEdgesByToolRef.has(toolRef)) {
+          const edge = MetaEdgeRepository.upsert({
+            src_id: artifactNode.id,
+            dst_id: toolNode.id,
+            kind: 'binds',
+            payload: {
+              primitive: pa.primitiveRef,
+              role: pa.role,
+              affordance: b.affordance,
+              confidence: b.confidence,
+              server: pa.server,
+              provider_artifact_ref: pa.ref,
+            },
+          });
+          bindsEdgesByToolRef.set(toolRef, edge);
+        }
+      }
+    }
+
+    const materializedByEdge = MetaEdgeRepository.upsert({
+      src_id: artifactNode.id,
+      dst_id: adapterNode.id,
+      kind: 'materialized_by',
+    });
+
+    // Auto-summary principle: the row's own reason for existing. Future
+    // sessions reading the artifact node should be able to recover the
+    // composition's intent + binding shape from this single principle without
+    // chasing refs.
+    const autoSummaryPrinciple = MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: artifactNode.id,
+      body_md: composeAutoSummaryPrinciple({
+        composition_intent: composition_intent.trim(),
+        providerArtifacts,
+      }),
+      source_event: 'primitive_artifact_materialization',
+    });
+
+    // Optional user-provided principles. Same scope vocabulary as the bot-
+    // shaped path EXCEPT 'catalyst', 'bot', 'seeded', 'runs_for' don't exist
+    // here — attachPrinciples will throw on those because the scopeMap omits
+    // them, which is the correct behavior.
+    const scopeMap = {
+      nodes: {
+        artifact: artifactNode,
+        adapter: adapterNode,
+      },
+      edges: {
+        materialized_by: materializedByEdge,
+      },
+    };
+    const userPrinciples = attachPrinciples({
+      principles,
+      scopeMap,
+      bindsEdgesByToolRef,
+      sourceEvent: 'primitive_artifact_materialization',
+    });
+
+    return {
+      adapterNode,
+      artifactNode,
+      materializedByEdge,
+      bindsEdges: Array.from(bindsEdgesByToolRef.entries()).map(([mcp_tool, edge]) => ({
+        mcp_tool,
+        edge,
+      })),
+      autoSummaryPrinciple,
+      userPrinciples,
+    };
+  });
+
+  const warnings = [];
+  if (!MetaContextRepository.hasOperator()) warnings.push('no_operator_anchor');
+
+  return {
+    ok: true,
+    artifactNodeId: result.artifactNode.id,
+    nodes: {
+      adapter: result.adapterNode.id,
+      artifact: result.artifactNode.id,
+    },
+    edges: {
+      materialized_by: result.materializedByEdge.id,
+      binds: result.bindsEdges.map(({ mcp_tool, edge }) => ({ mcp_tool, edgeId: edge.id })),
+    },
+    autoSummaryPrincipleId: result.autoSummaryPrinciple.id,
+    principlesCreated: 1 + result.userPrinciples.length,
+    verification,
+    ...(warnings.length > 0 ? { warnings } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // registration
 // ---------------------------------------------------------------------------
 
@@ -430,7 +674,7 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_brief',
     description:
-      "Ring 6 — DELIBERATION surface. Read the contextmap subgraph (nodes + edges + principles) for a scope: `{ kind: 'fleet' }` for the whole graph, or `{ kind: 'bot' | 'catalyst' | 'adapter' | 'artifact', ref: '<id>' }` for a 1-hop neighborhood. Call when wondering 'has the fleet already committed to something related to what I'm about to do?' or when the user asks 'why does bot-3 route field X to tool Y?' / 'why is this a Codex automation and not a skill?' (the `materialized_by` and `binds` edges carry principles that record the reasoning). An empty fleet brief returns `meta: { empty: true, suggest_kyc: true }` — surface the operator KYC at that point. **Brief returns the contextmap as *recorded*, not as *currently active*.** The graph is append-only by design — stale rows from deleted artifacts are not auto-pruned, so a `runs_for` / `binds` edge can outlive the artifact it describes. Cross-reference with `list_deployments` / filesystem checks before acting on a binding as if it's live. Do NOT call for routine orientation (`forward_context`), operational metrics (`fleet_*`), or content questions (`operate.*`). Read-only.",
+      "Read the contextmap subgraph for a scope: `{ kind: 'fleet' }` for the whole graph, or `{ kind: 'bot' | 'catalyst' | 'adapter' | 'artifact', ref }` for a 1-hop neighborhood. Use when checking \"has the fleet already committed to something related to what I'm about to do?\", or when the user asks why a binding looks the way it does — the `materialized_by` / `binds` edges carry the reasoning principles. Empty fleet brief returns `meta.suggest_kyc: true` — surface the operator KYC at that point. **Brief returns the graph as recorded, not as currently active.** Append-only by design — stale rows from deleted artifacts are not auto-pruned; cross-reference with `list_deployments` or filesystem checks before treating a binding as live. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -459,20 +703,20 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_commit',
     description:
-      "Ring 6 — DELIBERATION surface. Seal a structural decision. Two event types in MVP: (1) `operator_kyc` — optional one-time bootstrap that anchors the fleet on role + primary_goal + locked-in constraints; subsequent commits with `revise: true` attach a new principle to the same operator node. (2) `artifact_materialization` — atomic per-materialization seal recording which catalyst was materialized into which artifact via which host adapter for which bot, plus the bindings (which MCP tools and which fields_bound) and any principles capturing the reasoning. Adapter-delegated verification runs BEFORE the write: claude-code/generic require existsSync; codex accepts opaque locators on assertion. Call ONLY AFTER materializing the artifact — never to declare an intention. If commit fails, roll back the artifact by the host adapter's own affordance (delete file / cancel automation).",
+      "Seal a structural decision. Three event types: (1) `operator_kyc` — optional one-time bootstrap anchoring the fleet on role + primary_goal + locked-in constraints (use `revise: true` to attach a new principle to the same operator node). (2) `artifact_materialization` — atomic per-materialization seal for bot-shaped catalysts: which catalyst was materialized into which artifact via which host adapter for which bot, plus bindings (mcp_tool + fields_bound) and principles. (3) `primitive_artifact_materialization` — atomic per-materialization seal for primitive-binding compositions (no bot, no catalyst): adapter_id + artifact + composition_intent + `provider_artifact_refs` from prior `bind_primitives` calls. The contextmap auto-writes a summary principle on the artifact node listing every binding (primitive / role / affordance / bound tool / confidence) so future readers recover the composition's intent + shape from one row. Adapter-delegated verification runs before write (claude-code/generic require existsSync; codex accepts opaque locators on assertion). Call ONLY AFTER materializing the artifact — never to declare intent. On commit failure, roll back via the host adapter's own affordance (delete file / cancel automation).",
     inputSchema: {
       type: 'object',
       properties: {
         type: {
           type: 'string',
-          enum: ['operator_kyc', 'artifact_materialization'],
+          enum: ['operator_kyc', 'artifact_materialization', 'primitive_artifact_materialization'],
         },
         // operator_kyc fields
         role: { type: 'string' },
         primary_goal: { type: 'string' },
         constraints: { type: 'array', items: { type: 'string' } },
         revise: { type: 'boolean' },
-        // artifact_materialization fields
+        // artifact_materialization + primitive_artifact_materialization shared fields
         adapter_id: { type: 'string' },
         artifact: {
           type: 'object',
@@ -481,6 +725,7 @@ export function registerMetaContextTools() {
             label: { type: 'string' },
           },
         },
+        // artifact_materialization (bot-shaped) only
         bot_ref: { type: 'string' },
         catalyst_ref: { type: 'string' },
         bindings: {
@@ -494,6 +739,19 @@ export function registerMetaContextTools() {
             required: ['mcp_tool'],
           },
         },
+        // primitive_artifact_materialization only
+        composition_intent: {
+          type: 'string',
+          description:
+            'For primitive_artifact_materialization: a one-paragraph operator-stated intent for the composition (e.g. "weekly digest of open Linear issues into a Google Drive folder"). Used in the auto-generated audit principle.',
+        },
+        provider_artifact_refs: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'For primitive_artifact_materialization: the `prov_xxx` refs returned by prior `bind_primitives` calls — one per primitive slot in the composition. The commit walks these to build the binds edges in the contextmap.',
+        },
+        // shared
         principles: {
           type: 'array',
           items: {
@@ -502,7 +760,7 @@ export function registerMetaContextTools() {
               scope: {
                 type: 'string',
                 description:
-                  "One of: 'artifact', 'catalyst', 'adapter', 'bot' (node scopes); 'seeded', 'materialized_by', 'runs_for', 'binds' (edge scopes); or 'binds:<mcp_tool_ref>' to target one specific binding edge.",
+                  "For artifact_materialization: 'artifact' | 'catalyst' | 'adapter' | 'bot' (node scopes); 'seeded' | 'materialized_by' | 'runs_for' | 'binds' (edge scopes); or 'binds:<mcp_tool_ref>' for one specific binding. For primitive_artifact_materialization: only 'artifact' | 'adapter' | 'materialized_by' | 'binds' | 'binds:<mcp_tool_ref>' are valid (no catalyst, bot, seeded, or runs_for in primitive compositions).",
               },
               body_md: { type: 'string' },
             },

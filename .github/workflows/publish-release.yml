@@ -1,0 +1,43 @@
+name: Publish control-plane release
+
+# Fires when a v* tag is pushed (e.g. v0.4.0). Slices the matching
+# section out of control/CHANGELOG.md and creates a GitHub Release
+# with that body. bot-v* tags are unaffected — those start with "b"
+# and are handled by publish-bot-image.yml.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Slice changelog section
+        id: slice
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { flag=1; next }
+            /^## \[/ { flag=0 }
+            flag
+          ' control/CHANGELOG.md > /tmp/notes.md
+          if [ ! -s /tmp/notes.md ]; then
+            echo "::error::No changelog section found for [$version] in control/CHANGELOG.md"
+            exit 1
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file /tmp/notes.md \
+            --latest
