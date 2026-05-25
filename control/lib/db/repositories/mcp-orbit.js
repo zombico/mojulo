@@ -30,7 +30,13 @@ import { randomUUID } from 'node:crypto';
 
 import { getDb } from '../index.js';
 
-const COMPONENT_KINDS = ['mcp', 'trigger', 'pattern', 'idempotency', 'render'];
+// 'mcp' kind is intentionally absent — vendor knowledge moved out of the
+// component loader into the providers + capabilities Ring 6 surfaces (see
+// MCP_DECURATION_PLAN.md). The SQL CHECK constraint still permits 'mcp' for
+// backward compatibility with v0.4.x DBs (the seeded loader's
+// deleteAllBuiltins() clears any leftover rows on next boot); new code may
+// not write 'mcp'-kind components.
+const COMPONENT_KINDS = ['trigger', 'pattern', 'idempotency', 'render'];
 const COMPONENT_SOURCES = ['builtin', 'custom'];
 const COMPOSITION_STATUSES = ['proposed', 'dry_run', 'materialized', 'retired'];
 // Roles that an mcp-kind entry can play inside a composition. Non-mcp

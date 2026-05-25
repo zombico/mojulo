@@ -204,6 +204,7 @@ export async function ensureToolsRegistered() {
   const { registerCatalystTools } = await import('@/lib/mcp/tools/catalysts');
   const { registerMetaContextTools } = await import('@/lib/mcp/tools/meta-context');
   const { registerInventoryTools } = await import('@/lib/mcp/tools/mcp-inventory');
+  const { registerCapabilitiesTools } = await import('@/lib/mcp/tools/mcp-capabilities');
   const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
   const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
   // Order matters only for tools/list output (insertion order). Putting
@@ -229,6 +230,12 @@ export async function ensureToolsRegistered() {
   registerCatalystTools();
   registerMetaContextTools();
   registerInventoryTools();
+  // Capabilities tools (record_mcp_capabilities / get_mcp_capabilities) slot
+  // immediately after inventory — they're the research-facet sibling to
+  // inventory's introspection-facet. Both write into provider rows on the
+  // meta_mcp_providers identity layer; the agent reads them through the
+  // composer's consolidated provider view.
+  registerCapabilitiesTools();
   // CAUTERIZE: when MOJULO_MCP_ORBIT_VENDOR_DISABLED=1, skip the vendor-shaped
   // mcp-orbit composer (recommend_mcp_orbit_compositions / list_mcp_orbit_components /
   // get_mcp_orbit_component / get_meta_catalyst) so the agent is forced through
