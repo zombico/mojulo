@@ -34,6 +34,7 @@
 
 import { getDb } from '../index.js';
 import { ProvidersRepository } from './mcp-providers.js';
+import { EmbeddingsRepository } from './embeddings.js';
 
 function rowToCapability(row) {
   if (!row) return null;
@@ -192,6 +193,52 @@ export const CapabilitiesRepository = {
       supersededId,
       provenance: capabilitiesProvenance(cap.sourceUrls),
     };
+  },
+
+  /**
+   * Embedding-aware variant. Pre-embeds the body BEFORE the supersession
+   * dance so the sidecar row commits / rolls back atomically with the
+   * capability row. The sidecar's source_ref keys on provider_ref (one
+   * row per logical provider); the upsert on the next write supersedes
+   * itself naturally and the search-time filter drops any sidecar row
+   * whose backing capability is no longer current.
+   *
+   * Falls back to the bare sync write when
+   * MOJULO_SEMANTIC_INDEX_DISABLED=1.
+   */
+  async insertWithEmbedding(params) {
+    if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') {
+      return this.insert(params);
+    }
+    if (typeof params?.providerRef !== 'string' || params.providerRef.length === 0) {
+      throw new Error('insertWithEmbedding: providerRef must be a non-empty string');
+    }
+    if (typeof params?.bodyMd !== 'string' || params.bodyMd.length === 0) {
+      throw new Error('insertWithEmbedding: bodyMd must be a non-empty string');
+    }
+
+    // Pre-embed. skipUnchanged: true so a re-seed of an identical body
+    // (e.g. running the same install twice) avoids a redundant model call.
+    const embedded = await EmbeddingsRepository.embed(
+      'mcp_capability',
+      params.providerRef,
+      params.bodyMd,
+    );
+
+    const db = getDb();
+    let result;
+    const txn = db.transaction(() => {
+      result = this.insert(params);
+      EmbeddingsRepository.upsertSync({
+        sourceKind: 'mcp_capability',
+        sourceRef: params.providerRef,
+        bodyText: params.bodyMd,
+        hash: embedded.hash,
+        vector: embedded.vector,
+      });
+    });
+    txn();
+    return result;
   },
 
   /** Return the current capability row for a provider, or null. */

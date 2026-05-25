@@ -1,5 +1,9 @@
 // Isolate to in-memory SQLite — must set env before any db import.
 process.env.SQLITE_PATH = ':memory:';
+// Short-circuit the semantic-index sidecar — this suite covers composer
+// behavior, not embedding indexing. Without the flag every recommend
+// handler call would await the ONNX model.
+process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect, beforeEach } from 'vitest';
 

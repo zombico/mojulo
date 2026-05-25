@@ -20,6 +20,11 @@
 import { getDb } from '../index.js';
 import { ProvidersRepository } from './mcp-providers.js';
 import { canonicalizeServerName } from '../../mcp/providers/canonicalize.js';
+import {
+  EmbeddingsRepository,
+  composeMcpToolRef,
+  composeMcpToolBody,
+} from './embeddings.js';
 
 const VALID_CONFIDENCE = new Set([
   'tools_list_full',
@@ -59,6 +64,127 @@ function deriveServerConfidence(toolConfidences) {
   return 'tools_list_full';
 }
 
+function validateServers(servers) {
+  if (!Array.isArray(servers)) {
+    throw new Error('replaceInventory(servers) requires an array');
+  }
+  for (const s of servers) {
+    if (!s || typeof s !== 'object') {
+      throw new Error('every server entry must be an object');
+    }
+    if (!s.name || typeof s.name !== 'string' || !s.name.trim()) {
+      throw new Error('server.name must be a non-empty string');
+    }
+    if (!Array.isArray(s.tools)) {
+      throw new Error(`server '${s.name}' requires a tools array (use [] for empty)`);
+    }
+    for (const t of s.tools) {
+      if (!t || typeof t !== 'object') {
+        throw new Error(`every tool entry under server '${s.name}' must be an object`);
+      }
+      if (!t.name || typeof t.name !== 'string' || !t.name.trim()) {
+        throw new Error(`every tool under server '${s.name}' requires a non-empty name`);
+      }
+      if (
+        t.description !== undefined &&
+        t.description !== null &&
+        typeof t.description !== 'string'
+      ) {
+        throw new Error(
+          `tool '${s.name}.${t.name}' description must be a string when provided`,
+        );
+      }
+      if (
+        t.inputSchema !== undefined &&
+        t.inputSchema !== null &&
+        typeof t.inputSchema !== 'object'
+      ) {
+        throw new Error(
+          `tool '${s.name}.${t.name}' inputSchema must be an object when provided`,
+        );
+      }
+      if (
+        t.introspectionConfidence !== undefined &&
+        t.introspectionConfidence !== null &&
+        !VALID_CONFIDENCE.has(t.introspectionConfidence)
+      ) {
+        throw new Error(
+          `tool '${s.name}.${t.name}' introspectionConfidence must be one of: ${[...VALID_CONFIDENCE].join(', ')}`,
+        );
+      }
+    }
+  }
+}
+
+// Synchronous write — the actual delete-and-reinsert dance, optionally
+// paired with the embedding sidecar (the async `replaceInventoryWithEmbeddings`
+// wrapper pre-embeds and passes the prepared vectors in).
+function replaceInventoryInternal(servers, toolEmbeddings) {
+  validateServers(servers);
+  const db = getDb();
+  const declaredAt = Math.floor(Date.now() / 1000);
+
+  const hasEmbeddings = Array.isArray(toolEmbeddings) && toolEmbeddings.length > 0;
+
+  const run = db.transaction(() => {
+    const before = db.prepare('SELECT COUNT(*) AS n FROM meta_mcp_inventory').get().n;
+    db.prepare('DELETE FROM meta_mcp_inventory').run();
+    if (hasEmbeddings) {
+      // Inventory replace is whole-environment; mirror that on the sidecar
+      // so we don't carry orphan rows for servers the operator removed.
+      db.prepare("DELETE FROM meta_embeddings WHERE source_kind = 'mcp_tool'").run();
+    }
+    const insert = db.prepare(
+      `INSERT INTO meta_mcp_inventory
+         (server, tool_name, tool_ref, description, declared_at, input_schema_json, introspection_confidence, provider_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    let inserted = 0;
+    const providerIdByServer = new Map();
+    for (const s of servers) {
+      const serverName = s.name.trim();
+      if (!providerIdByServer.has(serverName)) {
+        const providerRef = canonicalizeServerName(serverName);
+        const provider = ProvidersRepository.upsertByRef(providerRef);
+        providerIdByServer.set(serverName, provider.id);
+      }
+      const providerId = providerIdByServer.get(serverName);
+      for (const t of s.tools) {
+        const toolName = t.name.trim();
+        insert.run(
+          serverName,
+          toolName,
+          toolRef(serverName, toolName),
+          t.description ?? null,
+          declaredAt,
+          t.inputSchema ? JSON.stringify(t.inputSchema) : null,
+          t.introspectionConfidence ?? null,
+          providerId,
+        );
+        inserted += 1;
+      }
+    }
+    // Sidecar upsert for every (server, tool) we just inserted. Soft on
+    // missing vector (embed failure) — the inventory row still commits,
+    // recall degrades for that one tool until the next reindex.
+    if (hasEmbeddings) {
+      for (const e of toolEmbeddings) {
+        EmbeddingsRepository.upsertSync({
+          sourceKind: e.sourceKind,
+          sourceRef: e.sourceRef,
+          bodyText: e.bodyText,
+          hash: e.hash,
+          vector: e.vector,
+        });
+      }
+    }
+    return { replaced: before, inserted };
+  });
+
+  const { replaced, inserted } = run();
+  return { replaced, inserted, declaredAt };
+}
+
 export const InventoryRepository = {
   /**
    * Atomic replace. DELETE everything, INSERT the declared snapshot, in one
@@ -68,106 +194,56 @@ export const InventoryRepository = {
    *
    * Pass `servers: [{ name, tools: [{ name, description? }, ...] }, ...]`.
    * Returns `{ replaced, inserted, declaredAt }`.
+   *
+   * SYNC. The semantic-index sidecar's write happens via
+   * `replaceInventoryWithEmbeddings` below, which pre-embeds asynchronously
+   * before calling into this sync writer with the prepared vectors. Tests
+   * that don't exercise the embedding path keep using this entry point
+   * unchanged.
    */
   replaceInventory(servers) {
-    if (!Array.isArray(servers)) {
-      throw new Error('replaceInventory(servers) requires an array');
-    }
-    for (const s of servers) {
-      if (!s || typeof s !== 'object') {
-        throw new Error('every server entry must be an object');
-      }
-      if (!s.name || typeof s.name !== 'string' || !s.name.trim()) {
-        throw new Error('server.name must be a non-empty string');
-      }
-      if (!Array.isArray(s.tools)) {
-        throw new Error(`server '${s.name}' requires a tools array (use [] for empty)`);
-      }
-      for (const t of s.tools) {
-        if (!t || typeof t !== 'object') {
-          throw new Error(`every tool entry under server '${s.name}' must be an object`);
-        }
-        if (!t.name || typeof t.name !== 'string' || !t.name.trim()) {
-          throw new Error(`every tool under server '${s.name}' requires a non-empty name`);
-        }
-        if (
-          t.description !== undefined &&
-          t.description !== null &&
-          typeof t.description !== 'string'
-        ) {
-          throw new Error(
-            `tool '${s.name}.${t.name}' description must be a string when provided`,
-          );
-        }
-        // Optional richer fields for capability snapshots — backward-compatible.
-        if (
-          t.inputSchema !== undefined &&
-          t.inputSchema !== null &&
-          typeof t.inputSchema !== 'object'
-        ) {
-          throw new Error(
-            `tool '${s.name}.${t.name}' inputSchema must be an object when provided`,
-          );
-        }
-        if (
-          t.introspectionConfidence !== undefined &&
-          t.introspectionConfidence !== null &&
-          !VALID_CONFIDENCE.has(t.introspectionConfidence)
-        ) {
-          throw new Error(
-            `tool '${s.name}.${t.name}' introspectionConfidence must be one of: ${[...VALID_CONFIDENCE].join(', ')}`,
-          );
-        }
-      }
-    }
+    return replaceInventoryInternal(servers, []);
+  },
 
-    const db = getDb();
-    const declaredAt = Math.floor(Date.now() / 1000);
-
-    const run = db.transaction(() => {
-      const before = db.prepare('SELECT COUNT(*) AS n FROM meta_mcp_inventory').get().n;
-      db.prepare('DELETE FROM meta_mcp_inventory').run();
-      const insert = db.prepare(
-        `INSERT INTO meta_mcp_inventory
-           (server, tool_name, tool_ref, description, declared_at, input_schema_json, introspection_confidence, provider_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      );
-      let inserted = 0;
-      // Per-server provider resolution. Canonicalize each server name once and
-      // upsert the providers row, then stamp the resulting id on every tool
-      // row for that server. Two install aliases that canonicalize to the
-      // same provider_ref (e.g. "claude_ai_Notion" and "notion-mcp-server")
-      // share the same provider_id, which is how the identity layer collapses
-      // them into one logical "notion" provider.
-      const providerIdByServer = new Map();
+  /**
+   * Embedding-aware variant. Pre-embeds every tool's body BEFORE opening
+   * the sync txn so the sidecar rows commit / roll back atomically with
+   * the inventory rows. Falls back to the bare write when
+   * MOJULO_SEMANTIC_INDEX_DISABLED=1.
+   *
+   * better-sqlite3's db.transaction(fn) requires fn to be synchronous; the
+   * embedding model is async. The split lets the async work happen up
+   * front, then the txn body is pure sync writes (inventory + sidecar).
+   * The inventory side wipes every prior `mcp_tool` embedding row inside
+   * the txn (orphans for servers removed since last declare get cleared
+   * along with the inventory rows), so the embed runs in
+   * `skipUnchanged: false` mode — a hash-skip would lose the vector.
+   */
+  async replaceInventoryWithEmbeddings(servers) {
+    validateServers(servers);
+    let toolEmbeddings = [];
+    if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED !== '1') {
+      const items = [];
       for (const s of servers) {
         const serverName = s.name.trim();
-        if (!providerIdByServer.has(serverName)) {
-          const providerRef = canonicalizeServerName(serverName);
-          const provider = ProvidersRepository.upsertByRef(providerRef);
-          providerIdByServer.set(serverName, provider.id);
-        }
-        const providerId = providerIdByServer.get(serverName);
         for (const t of s.tools) {
           const toolName = t.name.trim();
-          insert.run(
-            serverName,
-            toolName,
-            toolRef(serverName, toolName),
-            t.description ?? null,
-            declaredAt,
-            t.inputSchema ? JSON.stringify(t.inputSchema) : null,
-            t.introspectionConfidence ?? null,
-            providerId,
-          );
-          inserted += 1;
+          items.push({
+            sourceKind: 'mcp_tool',
+            sourceRef: composeMcpToolRef(serverName, toolName),
+            bodyText: composeMcpToolBody({
+              server: serverName,
+              toolName,
+              description: t.description,
+            }),
+          });
         }
       }
-      return { replaced: before, inserted };
-    });
-
-    const { replaced, inserted } = run();
-    return { replaced, inserted, declaredAt };
+      toolEmbeddings = await EmbeddingsRepository.embedMany(items, {
+        skipUnchanged: false,
+      });
+    }
+    return replaceInventoryInternal(servers, toolEmbeddings);
   },
 
   /**

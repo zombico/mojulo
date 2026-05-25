@@ -28,7 +28,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { CapabilitiesRepository } from '@/lib/db/repositories/mcp-capabilities';
 import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
-import { seedMcpCapabilities } from '@/lib/mcp/seeds/mcp-capabilities-seed';
+import { seedMcpCapabilities, indexSeededCapabilities } from '@/lib/mcp/seeds/mcp-capabilities-seed';
 
 function parseIsoToUnixSeconds(iso) {
   if (typeof iso !== 'string' || iso.length === 0) {
@@ -54,7 +54,7 @@ export async function recordCapabilitiesHandler(input, _ctx) {
     throw new Error('record_mcp_capabilities: `body_md` is required (non-empty string)');
   }
 
-  const result = CapabilitiesRepository.insert({
+  const result = await CapabilitiesRepository.insertWithEmbedding({
     providerRef: provider_ref.trim(),
     displayName: display_name ?? null,
     versionTag: version_tag ?? null,
@@ -119,16 +119,28 @@ export async function getCapabilitiesHandler(input, _ctx) {
 }
 
 export function registerCapabilitiesTools() {
-  // Seed the four shipped vendor bodies if not already present. Idempotent
+  // Seed the shipped vendor bodies if not already present. Idempotent
   // per-provider — only inserts where no capability row exists yet, so
   // agent-authored research rows are never overwritten.
+  let seededProviders = [];
   try {
-    seedMcpCapabilities();
+    const result = seedMcpCapabilities();
+    seededProviders = result.providers || [];
   } catch (err) {
     // Match the mcp-orbit loader's failure posture: log + continue, so a
     // bad seed file doesn't take down the tool registration.
     // eslint-disable-next-line no-console
     console.error('[mcp-capabilities] seedMcpCapabilities failed:', err.message);
+  }
+  // Index the freshly-seeded vendor bodies into meta_embeddings so the
+  // sidecar is populated on first install. Fire-and-forget — embedding
+  // failure is soft (recall degrades, host writes still committed) and tool
+  // registration must not block on the ONNX model load.
+  if (seededProviders.length > 0) {
+    indexSeededCapabilities(seededProviders).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn('[mcp-capabilities] indexSeededCapabilities failed:', err.message);
+    });
   }
 
   registerTool({

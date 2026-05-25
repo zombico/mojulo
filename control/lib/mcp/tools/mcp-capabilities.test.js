@@ -1,5 +1,9 @@
 // Isolate this test file to an in-memory SQLite.
 process.env.SQLITE_PATH = ':memory:';
+// Short-circuit the semantic-index sidecar — this suite covers
+// capabilities tool behavior, not embedding indexing. Without the flag
+// every recordCapabilitiesHandler call would await the ONNX model.
+process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb, getDb } from '@/lib/db/index';

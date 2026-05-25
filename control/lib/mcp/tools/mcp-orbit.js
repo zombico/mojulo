@@ -34,7 +34,7 @@ import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
 import { ProvidersRepository } from '@/lib/db/repositories/mcp-providers';
 import { CapabilitiesRepository } from '@/lib/db/repositories/mcp-capabilities';
 import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
-import { seedComponents } from '@/lib/mcp/mcp-orbit-components/loader';
+import { seedComponents, indexSeededComponents } from '@/lib/mcp/mcp-orbit-components/loader';
 import { registerTool } from '@/lib/mcp/server';
 
 const META_CATALYST_PATH = join(
@@ -533,7 +533,7 @@ export async function recommendCompositionsHandler(input, _ctx) {
 
   // Persist the recommendation as a proposed row — the recommendation itself
   // is auditable, per the plan's option (b).
-  const composition = MCPOrbitCompositionRepository.insert({
+  const composition = await MCPOrbitCompositionRepository.insertWithEmbedding({
     intent_md: intent.trim(),
     component_refs: candidate.components,
     knobs: {},
@@ -592,13 +592,24 @@ export function registerMCPOrbitTools() {
   // Seed shipped components into the store on first registration. Safe to
   // call repeatedly — the loader's once-flag short-circuits and the repo's
   // upsert is idempotent on (kind, ref, version).
+  let seededComponents = [];
   try {
-    seedComponents();
+    const result = seedComponents();
+    seededComponents = result.components || [];
   } catch (err) {
     // A bad component file should fail loudly, but we don't want to take the
     // whole MCP server down if one .md file is malformed during dev. Log and
     // continue; the relevant tools will throw a clear error on use.
     console.error('[mcp-orbit] seedComponents failed:', err.message);
+  }
+  // Index the freshly-seeded components into meta_embeddings so the
+  // sidecar is populated on first install. Fire-and-forget — embedding
+  // failure is soft and tool registration must not block on the model.
+  if (seededComponents.length > 0) {
+    indexSeededComponents(seededComponents).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn('[mcp-orbit] indexSeededComponents failed:', err.message);
+    });
   }
 
   registerTool({

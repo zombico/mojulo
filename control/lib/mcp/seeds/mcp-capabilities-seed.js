@@ -132,6 +132,51 @@ export function seedMcpCapabilities({ rootDir = SEEDS_DIR, force = false } = {})
   return { skipped: false, inserted: inserted.length, providers: inserted };
 }
 
+/**
+ * Index the freshly-seeded vendor bodies into the meta_embeddings sidecar.
+ * Called by the production tool registration after seedMcpCapabilities()
+ * returns; the seed function itself stays sync so the existing repository
+ * tests keep working unchanged. No-op (returns silently) when there's
+ * nothing to index or MOJULO_SEMANTIC_INDEX_DISABLED=1.
+ */
+export async function indexSeededCapabilities(providerRefs) {
+  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return { indexed: 0 };
+  if (!Array.isArray(providerRefs) || providerRefs.length === 0) {
+    return { indexed: 0 };
+  }
+  const { EmbeddingsRepository } = await import(
+    '../../db/repositories/embeddings.js'
+  );
+  const items = [];
+  for (const providerRef of providerRefs) {
+    const row = CapabilitiesRepository.getCurrent(providerRef);
+    if (!row) continue;
+    items.push({
+      sourceKind: 'mcp_capability',
+      sourceRef: providerRef,
+      bodyText: row.bodyMd,
+    });
+  }
+  if (items.length === 0) return { indexed: 0 };
+  const embedded = await EmbeddingsRepository.embedMany(items);
+  const { getDb: gd } = await import('../../db/index.js');
+  const db = gd();
+  let indexed = 0;
+  db.transaction(() => {
+    for (const e of embedded) {
+      const res = EmbeddingsRepository.upsertSync({
+        sourceKind: e.sourceKind,
+        sourceRef: e.sourceRef,
+        bodyText: e.bodyText,
+        hash: e.hash,
+        vector: e.vector,
+      });
+      if (res.written) indexed += 1;
+    }
+  })();
+  return { indexed };
+}
+
 // Test seams.
 export function _resetSeededForTests() {
   _seeded = false;

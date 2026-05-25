@@ -1,5 +1,9 @@
 // Isolate this test file to an in-memory SQLite.
 process.env.SQLITE_PATH = ':memory:';
+// Short-circuit the semantic-index sidecar — this suite covers primitive
+// binding behavior, not embedding indexing. Without the flag every
+// bind_primitives call would await the ONNX model.
+process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';

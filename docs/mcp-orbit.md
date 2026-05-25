@@ -202,16 +202,20 @@ Sections that pay rent:
 
 ## MCP surface
 
-Vendor-shaped composer — four Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context, inventory, and capabilities so the natural reading order is contextmap → inventory → capabilities → composer → primitive-binding:
+Vendor-shaped composer — four Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context, inventory, and capabilities so the natural reading order is contextmap → inventory → capabilities → composer → primitive-binding → semantic-search:
 
 - `list_mcp_orbit_components({ kind?, ref_pattern? })` — discovery. Returns kind / ref / version / summary; bodies omitted (fetched separately).
 - `get_mcp_orbit_component({ kind, ref, version? })` — fetch one row with full body and structured payload.
 - `get_meta_catalyst()` — the composer rulebook. Singleton.
 - `recommend_mcp_orbit_compositions({ intent, inventory? })` — pre-filter + rank + log as `proposed`. The agent does the composition; this tool just gets it started. Reads the consolidated provider view (identity layer + inventory + capabilities); each chosen provider is tagged with one of five states (`research` / `seed` / `inventory_only` / `capabilities_only` / `none`) and warning tags route the agent to the right remediation tool (`record_mcp_capabilities`, `meta_context_declare_inventory`, etc.).
 
-Primitive-binding composer — one Ring 6 tool in [control/lib/mcp/tools/mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js), registered last:
+Primitive-binding composer — one Ring 6 tool in [control/lib/mcp/tools/mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js):
 
 - `bind_primitives({ primitive, role, server, bindings })` — given one of the four primitives, a composition role, a server from declared inventory, and an affordance→tool bindings map, runs the deterministic generator and persists the result as a session-scoped provider artifact (`prov_<id>`). Returns `{ ok, artifact: { ref, primitiveRef, role, server, snapshotConfidence, body, manifest }, warnings? }`. The `body` is the primitive's role template filled with the **actual bound tool names + schemas from the operator's installed MCP**, not a curated guess. See [The primitive-binding layer](#the-primitive-binding-layer) below.
+
+Semantic recall — one Ring 6 tool in [control/lib/mcp/tools/semantic-search.js](../control/lib/mcp/tools/semantic-search.js), registered last so the reading order ends with the fuzzy-recall layer that sits across every prior reader:
+
+- `semantic_search({ query, kinds?, limit? })` — cosine retrieval over the `meta_embeddings` sidecar across the seven indexed source kinds (including `orbit_component`, `orbit_composition`, and `orbit_artifact`). Returns ranked `{ source_kind, source_ref, score, snippet }` rows — *retrieve, don't resolve*. The composer flow uses it for the recall direction the structured readers above don't cover: "is there a prior composition near this intent?" → `semantic_search({ query: intent, kinds: ['orbit_composition'] })` → resolve hits via the typed composition readers before re-proposing. See [docs/meta-context.md](meta-context.md#what-sits-on-top-composers--capabilities) for the cross-surface picture and [lite-template/integration/SEMANTIC_INDEX_PLAN.md](../lite-template/integration/SEMANTIC_INDEX_PLAN.md) for the full design.
 
 ## The primitive-binding layer
 

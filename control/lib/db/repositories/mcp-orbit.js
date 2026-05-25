@@ -29,6 +29,10 @@
 import { randomUUID } from 'node:crypto';
 
 import { getDb } from '../index.js';
+import {
+  EmbeddingsRepository,
+  composeOrbitComponentRef,
+} from './embeddings.js';
 
 // 'mcp' kind is intentionally absent — vendor knowledge moved out of the
 // component loader into the providers + capabilities Ring 6 surfaces (see
@@ -208,6 +212,50 @@ export const MCPOrbitComponentRepository = {
     const result = db.prepare("DELETE FROM mcp_orbit_components WHERE source = 'builtin'").run();
     return result.changes;
   },
+
+  /**
+   * Embedding-aware variant of upsert. Pre-embeds body_md before opening
+   * the sync txn so the sidecar row commits / rolls back atomically with
+   * the component row. Falls back to the bare sync upsert when
+   * MOJULO_SEMANTIC_INDEX_DISABLED=1.
+   *
+   * The sidecar's source_ref keys on `${kind}/${ref}@${version}` so each
+   * version gets its own embedding row. The semantic_search tool returns
+   * matches across versions; callers disambiguate by version in the result
+   * (or pin the search via list() at recompose time).
+   */
+  async upsertWithEmbedding(params) {
+    if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') {
+      return this.upsert(params);
+    }
+    if (!params?.kind || !params?.ref || !params?.version || !params?.body_md) {
+      // Defer to upsert's validation for shapely error messages.
+      return this.upsert(params);
+    }
+    const sourceRef = composeOrbitComponentRef({
+      kind: params.kind,
+      ref: params.ref,
+      version: params.version,
+    });
+    const embedded = await EmbeddingsRepository.embed(
+      'orbit_component',
+      sourceRef,
+      params.body_md,
+    );
+    const db = getDb();
+    let result;
+    db.transaction(() => {
+      result = this.upsert(params);
+      EmbeddingsRepository.upsertSync({
+        sourceKind: 'orbit_component',
+        sourceRef,
+        bodyText: params.body_md,
+        hash: embedded.hash,
+        vector: embedded.vector,
+      });
+    })();
+    return result;
+  },
 };
 
 export const MCPOrbitCompositionRepository = {
@@ -308,6 +356,44 @@ export const MCPOrbitCompositionRepository = {
       .prepare(`SELECT * FROM mcp_orbit_compositions ${whereClause} ORDER BY created_at DESC, id DESC`)
       .all(...params);
     return rows.map(rowToComposition);
+  },
+
+  /**
+   * Embedding-aware variant of insert. Pre-embeds intent_md before
+   * opening the sync txn so the sidecar row commits / rolls back
+   * atomically with the composition row. Falls back to the bare sync
+   * insert when MOJULO_SEMANTIC_INDEX_DISABLED=1.
+   */
+  async insertWithEmbedding(params) {
+    if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') {
+      return this.insert(params);
+    }
+    if (typeof params?.intent_md !== 'string' || params.intent_md.length === 0) {
+      // Defer to insert's validation.
+      return this.insert(params);
+    }
+    // Compositions are append (no fixed ref pre-insert); we don't know the
+    // generated ref until insert returns. Compute the embedding once,
+    // upsert with the post-insert ref inside the txn.
+    const embedded = await EmbeddingsRepository.embed(
+      'orbit_composition',
+      '__pending__',
+      params.intent_md,
+      { skipUnchanged: false },
+    );
+    const db = getDb();
+    let result;
+    db.transaction(() => {
+      result = this.insert(params);
+      EmbeddingsRepository.upsertSync({
+        sourceKind: 'orbit_composition',
+        sourceRef: result.ref,
+        bodyText: params.intent_md,
+        hash: embedded.hash,
+        vector: embedded.vector,
+      });
+    })();
+    return result;
   },
 
   /**
