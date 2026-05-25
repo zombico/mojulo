@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While in `0.x`, the artifact format and bundled bot image are pinned per
 control-plane version — a minor bump may move the pinned bot image tag.
 
-## [Unreleased]
+## [0.6.0] — 2026-05-25
 
 Ring 6 gains a **semantic recall surface** over the durable app state it already accumulates. The structured readers (`meta_context_brief`, `get_mcp_orbit_component`, `get_catalyst`, `get_mcp_capabilities`, …) answer "give me the full row at this ref"; the new `semantic_search` answers the other direction — "which refs are relevant to this intent at all?" One unified sidecar (`meta_embeddings`) covers seven source kinds — principles, declared MCP inventory tools, current capability bodies, mcp-orbit components / compositions / provider artifacts, and the shipped catalyst markdown — keyed on `(source_kind, source_ref)` with `content_hash`-based skip on re-embed. Embeddings are computed by the already-in-process multilingual-e5-small ONNX model that powers bot-side RAG; no new native dependency, no external API. The plan that motivates the shape lives in [lite-template/integration/SEMANTIC_INDEX_PLAN.md](../lite-template/integration/SEMANTIC_INDEX_PLAN.md).
 
