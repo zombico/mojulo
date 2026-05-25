@@ -137,7 +137,7 @@ let _seeded = false;
  * directly against an in-memory DB.
  */
 export function seedComponents({ rootDir = COMPONENT_DIR, force = false } = {}) {
-  if (_seeded && !force) return { skipped: true, inserted: 0 };
+  if (_seeded && !force) return { skipped: true, inserted: 0, components: [] };
   const components = discoverComponents(rootDir);
   MCPOrbitComponentRepository.deleteAllBuiltins();
   for (const c of components) {
@@ -151,7 +151,61 @@ export function seedComponents({ rootDir = COMPONENT_DIR, force = false } = {}) 
     });
   }
   _seeded = true;
-  return { skipped: false, inserted: components.length };
+  return {
+    skipped: false,
+    inserted: components.length,
+    // Surface the kind/ref/version triples so a caller (production tool
+    // registration) can hand them to indexSeededComponents below for the
+    // semantic-index sidecar. Tests don't read this field.
+    components: components.map((c) => ({ kind: c.kind, ref: c.ref, version: c.version })),
+  };
+}
+
+/**
+ * Index the freshly-seeded components into meta_embeddings. Called by the
+ * production tool registration after seedComponents() returns; the seed
+ * function itself stays sync so the existing repository / loader tests
+ * keep working unchanged. No-op when there's nothing to index or
+ * MOJULO_SEMANTIC_INDEX_DISABLED=1.
+ */
+export async function indexSeededComponents(triples) {
+  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return { indexed: 0 };
+  if (!Array.isArray(triples) || triples.length === 0) return { indexed: 0 };
+  const [{ EmbeddingsRepository, composeOrbitComponentRef }, { getDb }] = await Promise.all([
+    import('../../db/repositories/embeddings.js'),
+    import('../../db/index.js'),
+  ]);
+  const items = [];
+  for (const t of triples) {
+    const row = MCPOrbitComponentRepository.findByRef(t.kind, t.ref, t.version);
+    if (!row) continue;
+    items.push({
+      sourceKind: 'orbit_component',
+      sourceRef: composeOrbitComponentRef({
+        kind: t.kind,
+        ref: t.ref,
+        version: t.version,
+      }),
+      bodyText: row.bodyMd,
+    });
+  }
+  if (items.length === 0) return { indexed: 0 };
+  const embedded = await EmbeddingsRepository.embedMany(items);
+  const db = getDb();
+  let indexed = 0;
+  db.transaction(() => {
+    for (const e of embedded) {
+      const res = EmbeddingsRepository.upsertSync({
+        sourceKind: e.sourceKind,
+        sourceRef: e.sourceRef,
+        bodyText: e.bodyText,
+        hash: e.hash,
+        vector: e.vector,
+      });
+      if (res.written) indexed += 1;
+    }
+  })();
+  return { indexed };
 }
 
 // Test seam — let the test suite reset the once-flag without resetting the

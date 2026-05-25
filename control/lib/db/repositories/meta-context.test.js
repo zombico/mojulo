@@ -30,6 +30,7 @@ describe('schema bootstraps', () => {
       .sort();
     expect(tables).toEqual([
       'meta_edges',
+      'meta_embeddings',
       'meta_mcp_capabilities',
       'meta_mcp_inventory',
       'meta_mcp_providers',
@@ -48,6 +49,7 @@ describe('schema bootstraps', () => {
     expect(indexes).toEqual([
       'idx_meta_edges_dst',
       'idx_meta_edges_src',
+      'idx_meta_embeddings_kind',
       'idx_meta_mcp_capabilities_by_provider',
       'idx_meta_mcp_capabilities_current',
       'idx_meta_mcp_inventory_provider',

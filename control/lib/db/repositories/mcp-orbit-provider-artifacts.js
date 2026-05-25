@@ -23,6 +23,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { getDb } from '../index.js';
+import { EmbeddingsRepository } from './embeddings.js';
 
 const VALID_ROLES = new Set(['source', 'destination']);
 
@@ -107,6 +108,45 @@ export const ProviderArtifactRepository = {
       .prepare('SELECT * FROM mcp_orbit_provider_artifacts WHERE id = ?')
       .get(result.lastInsertRowid);
     return rowToArtifact(row);
+  },
+
+  /**
+   * Embedding-aware variant of insert. Pre-embeds body_md before opening
+   * the sync txn so the sidecar row commits / rolls back atomically with
+   * the artifact row. Falls back to the bare sync insert when
+   * MOJULO_SEMANTIC_INDEX_DISABLED=1.
+   *
+   * Like compositions, the artifact's ref is generated at insert time
+   * (`prov_<uuid12>`), so the embed is computed without a hash-skip
+   * lookup and the upsert happens inside the sync txn against the
+   * post-insert ref.
+   */
+  async insertWithEmbedding(params) {
+    if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') {
+      return this.insert(params);
+    }
+    if (typeof params?.bodyMd !== 'string' || params.bodyMd.length === 0) {
+      return this.insert(params); // defer to validation
+    }
+    const embedded = await EmbeddingsRepository.embed(
+      'orbit_artifact',
+      '__pending__',
+      params.bodyMd,
+      { skipUnchanged: false },
+    );
+    const db = getDb();
+    let result;
+    db.transaction(() => {
+      result = this.insert(params);
+      EmbeddingsRepository.upsertSync({
+        sourceKind: 'orbit_artifact',
+        sourceRef: result.ref,
+        bodyText: params.bodyMd,
+        hash: embedded.hash,
+        vector: embedded.vector,
+      });
+    })();
+    return result;
   },
 
   findByRef(ref) {

@@ -2,6 +2,10 @@
 // that pulls in db/index.js (getDb is lazy and reads SQLITE_PATH on first
 // call). Vitest workers isolate sibling files so this doesn't leak.
 process.env.SQLITE_PATH = ':memory:';
+// Short-circuit semantic-index write hooks across this file — the test
+// suite covers contextmap structural behavior, not the embedding sidecar.
+// Without this flag, every commit handler would await the ONNX model load.
+process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';

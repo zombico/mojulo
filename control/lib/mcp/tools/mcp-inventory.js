@@ -33,7 +33,8 @@ export async function declareInventoryHandler(input, _ctx) {
     throw new Error('`servers` must be an array (use [] to wipe the inventory)');
   }
 
-  const { replaced, inserted, declaredAt } = InventoryRepository.replaceInventory(servers);
+  const { replaced, inserted, declaredAt } =
+    await InventoryRepository.replaceInventoryWithEmbeddings(servers);
 
   const warnings = [];
   if (!MetaContextRepository.hasOperator()) warnings.push('no_operator_anchor');

@@ -102,7 +102,7 @@ export async function bindPrimitivesHandler(input, _ctx) {
 
   // Persist the artifact so its ref is stable across the agent's subsequent
   // composition / dry-run / commit calls.
-  const artifact = ProviderArtifactRepository.insert({
+  const artifact = await ProviderArtifactRepository.insertWithEmbedding({
     primitiveRef: generated.primitive,
     role: generated.role,
     server: generated.server,

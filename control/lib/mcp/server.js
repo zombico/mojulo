@@ -207,6 +207,7 @@ export async function ensureToolsRegistered() {
   const { registerCapabilitiesTools } = await import('@/lib/mcp/tools/mcp-capabilities');
   const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
   const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
+  const { registerSemanticSearchTools } = await import('@/lib/mcp/tools/semantic-search');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -238,4 +239,11 @@ export async function ensureToolsRegistered() {
   registerCapabilitiesTools();
   registerMCPOrbitTools();
   registerPrimitiveBindingTools();
+  // semantic_search registers LAST within Ring 6 — it's a recall-over-state
+  // tool that complements every prior Ring 6 reader (brief, inventory,
+  // capabilities, composer, primitive-binding). Slotting it at the end of
+  // the ring keeps the reading order: orientation → action → deliberation
+  // (structured walks) → deliberation (fuzzy recall). See
+  // lite-template/integration/SEMANTIC_INDEX_PLAN.md.
+  registerSemanticSearchTools();
 }

@@ -30,9 +30,60 @@ import {
 } from '@/lib/db/repositories/meta-context';
 import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
+import { EmbeddingsRepository } from '@/lib/db/repositories/embeddings';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
 import { getCatalyst } from '@/lib/mcp/catalysts/loader';
 import { verifyArtifact } from '@/lib/mcp/meta-context/verification';
+
+// Pre-embed every distinct principle body that'll be written by a commit.
+// Principles are append-only, so the source_ref (the inserted row's id) is
+// unknown until we're inside the sync txn — we batch on body_text instead
+// and resolve to (hash, vector) inside the txn after each insert. Returns a
+// Map keyed on body_text. Distinct-only to avoid redundant model work in
+// the 'binds' fan-out case (one user-supplied principle body, N inserted
+// rows sharing it). Soft on failure: callers walk the map and skip upsert
+// when `vector` is null.
+async function embedPrincipleBodies(bodies) {
+  // Operator-facing kill switch — also doubles as the test escape hatch so
+  // suites that don't care about the embedding sidecar can skip the ONNX
+  // model load with one line at the top of the file.
+  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return new Map();
+  const cleaned = (Array.isArray(bodies) ? bodies : [])
+    .filter((b) => typeof b === 'string' && b.length > 0);
+  if (cleaned.length === 0) return new Map();
+  const distinct = Array.from(new Set(cleaned));
+  const items = distinct.map((body) => ({
+    sourceKind: 'principle',
+    // Placeholder ref: principles are append-only so there's nothing to
+    // hash-skip against. skipUnchanged: false below also short-circuits the
+    // SELECT — we just want the model to run once per distinct body.
+    sourceRef: '__pending__',
+    bodyText: body,
+  }));
+  const embedded = await EmbeddingsRepository.embedMany(items, {
+    skipUnchanged: false,
+  });
+  const map = new Map();
+  for (const e of embedded) {
+    map.set(e.bodyText, { hash: e.hash, vector: e.vector });
+  }
+  return map;
+}
+
+// Sync. Pair a freshly-inserted principle row with its pre-computed
+// embedding and upsert the sidecar row. Soft on missing entries.
+function upsertPrincipleEmbedding(principle, bodyEmbeddings) {
+  if (!principle || !bodyEmbeddings) return;
+  const e = bodyEmbeddings.get(principle.bodyMd);
+  if (!e) return;
+  EmbeddingsRepository.upsertSync({
+    sourceKind: 'principle',
+    sourceRef: String(principle.id),
+    bodyText: principle.bodyMd,
+    hash: e.hash,
+    vector: e.vector,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // brief
@@ -119,6 +170,11 @@ export async function commitOperatorKyc(input) {
 
   const bodyMd = composeOperatorKycBody({ role: role.trim(), primary_goal, constraints });
 
+  // Pre-embed the principle body before opening the sync txn — better-sqlite3
+  // requires the txn fn to be sync, and the model call is async. The hash +
+  // vector get applied inside the txn after the principle's id is known.
+  const bodyEmbeddings = await embedPrincipleBodies([bodyMd]);
+
   const result = MetaContextRepository.commit(() => {
     const node = MetaNodeRepository.upsert({
       kind: 'operator',
@@ -132,6 +188,7 @@ export async function commitOperatorKyc(input) {
       body_md: bodyMd,
       source_event: 'operator_kyc',
     });
+    upsertPrincipleEmbedding(principle, bodyEmbeddings);
     return { node, principle };
   });
 
@@ -167,9 +224,23 @@ function attachPrinciples({
   scopeMap,
   bindsEdgesByToolRef,
   sourceEvent = 'artifact_materialization',
+  bodyEmbeddings = null,
 }) {
   if (!Array.isArray(principles) || principles.length === 0) return [];
   const created = [];
+  // Insert + upsert the principle's embedding in one step. Each call site
+  // already runs inside MetaContextRepository.commit(fn), so both writes
+  // commit or roll back together.
+  const insertAndEmbed = ({ scope_kind, scope_id, body_md }) => {
+    const principle = MetaPrincipleRepository.insert({
+      scope_kind,
+      scope_id,
+      body_md,
+      source_event: sourceEvent,
+    });
+    upsertPrincipleEmbedding(principle, bodyEmbeddings);
+    return principle;
+  };
   for (const p of principles) {
     if (!p || typeof p !== 'object') {
       throw new Error('principles[] entries must be objects with { scope, body_md }');
@@ -192,28 +263,14 @@ function attachPrinciples({
           `principle scope 'binds:${toolRef}' has no matching binding in this commit`,
         );
       }
-      created.push(
-        MetaPrincipleRepository.insert({
-          scope_kind: 'edge',
-          scope_id: edge.id,
-          body_md: p.body_md,
-          source_event: sourceEvent,
-        }),
-      );
+      created.push(insertAndEmbed({ scope_kind: 'edge', scope_id: edge.id, body_md: p.body_md }));
       continue;
     }
 
     if (PRINCIPLE_NODE_SCOPES.has(scope)) {
       const node = scopeMap.nodes[scope];
       if (!node) throw new Error(`principle scope '${scope}' has no matching node in this commit`);
-      created.push(
-        MetaPrincipleRepository.insert({
-          scope_kind: 'node',
-          scope_id: node.id,
-          body_md: p.body_md,
-          source_event: sourceEvent,
-        }),
-      );
+      created.push(insertAndEmbed({ scope_kind: 'node', scope_id: node.id, body_md: p.body_md }));
       continue;
     }
 
@@ -224,26 +281,14 @@ function attachPrinciples({
         }
         for (const edge of bindsEdgesByToolRef.values()) {
           created.push(
-            MetaPrincipleRepository.insert({
-              scope_kind: 'edge',
-              scope_id: edge.id,
-              body_md: p.body_md,
-              source_event: sourceEvent,
-            }),
+            insertAndEmbed({ scope_kind: 'edge', scope_id: edge.id, body_md: p.body_md }),
           );
         }
         continue;
       }
       const edge = scopeMap.edges[scope];
       if (!edge) throw new Error(`principle scope '${scope}' has no matching edge in this commit`);
-      created.push(
-        MetaPrincipleRepository.insert({
-          scope_kind: 'edge',
-          scope_id: edge.id,
-          body_md: p.body_md,
-          source_event: sourceEvent,
-        }),
-      );
+      created.push(insertAndEmbed({ scope_kind: 'edge', scope_id: edge.id, body_md: p.body_md }));
       continue;
     }
 
@@ -308,6 +353,13 @@ export async function commitArtifactMaterialization(input, _ctx) {
 
   const catalystLabel = resolveCatalystLabel(catalyst_ref);
   const artifactRef = buildArtifactRef(adapter_id, artifact.locator);
+
+  // Pre-embed every distinct user-supplied principle body before opening
+  // the sync txn. Each insert inside attachPrinciples upserts using the map.
+  const principleBodies = Array.isArray(principles)
+    ? principles.map((p) => (p && typeof p.body_md === 'string' ? p.body_md : null))
+    : [];
+  const bodyEmbeddings = await embedPrincipleBodies(principleBodies);
 
   // ---- atomic write ----
 
@@ -388,6 +440,7 @@ export async function commitArtifactMaterialization(input, _ctx) {
       principles,
       scopeMap,
       bindsEdgesByToolRef,
+      bodyEmbeddings,
     });
 
     return {
@@ -533,6 +586,18 @@ export async function commitPrimitiveArtifactMaterialization(input, _ctx) {
 
   const artifactRef = buildArtifactRef(adapter_id, artifact.locator);
 
+  // Pre-embed every principle body: the auto-summary plus every distinct
+  // user-supplied body. Both flavors land in meta_principles inside the txn
+  // below — the embedding rows commit / roll back atomically with them.
+  const autoSummaryBody = composeAutoSummaryPrinciple({
+    composition_intent: composition_intent.trim(),
+    providerArtifacts,
+  });
+  const userBodies = Array.isArray(principles)
+    ? principles.map((p) => (p && typeof p.body_md === 'string' ? p.body_md : null))
+    : [];
+  const bodyEmbeddings = await embedPrincipleBodies([autoSummaryBody, ...userBodies]);
+
   // ---- atomic write ----
 
   const result = MetaContextRepository.commit(() => {
@@ -605,12 +670,10 @@ export async function commitPrimitiveArtifactMaterialization(input, _ctx) {
     const autoSummaryPrinciple = MetaPrincipleRepository.insert({
       scope_kind: 'node',
       scope_id: artifactNode.id,
-      body_md: composeAutoSummaryPrinciple({
-        composition_intent: composition_intent.trim(),
-        providerArtifacts,
-      }),
+      body_md: autoSummaryBody,
       source_event: 'primitive_artifact_materialization',
     });
+    upsertPrincipleEmbedding(autoSummaryPrinciple, bodyEmbeddings);
 
     // Optional user-provided principles. Same scope vocabulary as the bot-
     // shaped path EXCEPT 'catalyst', 'bot', 'seeded', 'runs_for' don't exist
@@ -630,6 +693,7 @@ export async function commitPrimitiveArtifactMaterialization(input, _ctx) {
       scopeMap,
       bindsEdgesByToolRef,
       sourceEvent: 'primitive_artifact_materialization',
+      bodyEmbeddings,
     });
 
     return {

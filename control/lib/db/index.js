@@ -239,11 +239,87 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_server ON mcp_orbit_provider_artifacts(server);
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_primitive ON mcp_orbit_provider_artifacts(primitive_ref, role);
+
+    -- Unified semantic-search sidecar across durable app state. One row per
+    -- (source_kind, source_ref) — principles, mcp tools, capabilities,
+    -- orbit components/compositions/provider artifacts, catalysts. Read
+    -- shape (the agent wants relevant text, regardless of which table holds
+    -- it) is uniform; each source table keeps its own write discipline, and
+    -- this sidecar mirrors via the embeddings repository helpers. The
+    -- model column is in v0 specifically to enable future model swaps
+    -- without a destructive rebuild. See lite-template/integration/
+    -- SEMANTIC_INDEX_PLAN.md.
+    CREATE TABLE IF NOT EXISTS meta_embeddings (
+      id INTEGER PRIMARY KEY,
+      source_kind TEXT NOT NULL CHECK(source_kind IN (
+        'principle',
+        'mcp_tool',
+        'mcp_capability',
+        'orbit_component',
+        'orbit_composition',
+        'orbit_artifact',
+        'catalyst'
+      )),
+      source_ref TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      body_text TEXT NOT NULL,
+      embedding BLOB NOT NULL,
+      model TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(source_kind, source_ref)
+    );
+    CREATE INDEX IF NOT EXISTS idx_meta_embeddings_kind ON meta_embeddings(source_kind);
   `);
 
   migrateDeploymentColumns(db);
   migrateInventoryColumns(db);
   reapStaleMcpJobs(db);
+  maybeBackfillEmbeddings(db);
+}
+
+// First-boot backfill of the semantic index. The plan is: on a fresh install
+// (or an upgrade that just added meta_embeddings), populate the sidecar across
+// every source kind from the current state of the source tables + the shipped
+// catalyst markdown. Subsequent boots find the table populated and short-
+// circuit. Set MOJULO_SEMANTIC_INDEX_DISABLED=1 to skip entirely.
+//
+// Pulled in via dynamic import so this file stays free of @huggingface/
+// transformers at module load — the embedder lazy-loads its native model on
+// first call, and an unconfigured environment shouldn't pay for it just by
+// touching getDb().
+function maybeBackfillEmbeddings(db) {
+  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return;
+  const { n } = db.prepare('SELECT COUNT(*) AS n FROM meta_embeddings').get();
+  if (n > 0) return;
+  // Detect whether at least one source row exists across the corpus — saves
+  // the model-load cost on a truly empty DB (e.g. first run before any
+  // contextmap commit / inventory declare).
+  const have = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM meta_principles)               AS principles,
+      (SELECT COUNT(*) FROM meta_mcp_inventory)            AS inventory,
+      (SELECT COUNT(*) FROM meta_mcp_capabilities WHERE superseded_by IS NULL) AS capabilities,
+      (SELECT COUNT(*) FROM mcp_orbit_components)          AS components,
+      (SELECT COUNT(*) FROM mcp_orbit_compositions)        AS compositions,
+      (SELECT COUNT(*) FROM mcp_orbit_provider_artifacts)  AS artifacts
+  `).get();
+  const anyRows =
+    have.principles + have.inventory + have.capabilities +
+    have.components + have.compositions + have.artifacts > 0;
+  if (!anyRows) return; // catalysts are filesystem-only and small; reindexing
+                       // them on every fresh boot pre-source-write is wasteful.
+                       // First write through any source path triggers the
+                       // backfill on the next getDb() init — or the operator
+                       // can run `scripts/reindex-embeddings.js` directly.
+  // Fire-and-forget — failure is soft. The backfill logs internally; getDb()
+  // returns immediately so the host call isn't blocked on model load.
+  import('./repositories/embeddings.js')
+    .then(({ reindexAll }) => reindexAll().catch((err) => {
+      console.warn('[meta_embeddings] first-boot backfill failed:', err.message);
+    }))
+    .catch((err) => {
+      console.warn('[meta_embeddings] backfill module load failed:', err.message);
+    });
 }
 
 // Extend meta_mcp_inventory with the columns needed for richer capability
