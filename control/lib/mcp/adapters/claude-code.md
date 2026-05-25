@@ -84,9 +84,9 @@ When you finish synthesizing, tell the user:
 
 ---
 
-## Primitive binding flow (parallel path, runtime-introspected)
+## Primitive binding flow (no-bot composition)
 
-Everything above describes the **catalyst** flow — bot-shaped, vendor-shaped, curated body. There's a second flow mojulo supports for **no-bot, primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, and `meta_context_commit` seals the materialization. Use this flow when the user wants outcomes without a chatbot in the picture AND you want the generated provider artifact to reflect the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow is the supported default; primitive binding is the runtime-introspected alternative we're validating in parallel.
+Everything above describes the **catalyst** flow — bot-shaped, vendor-shaped, curated body. There's a parallel flow mojulo supports for **no-bot, primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, and `meta_context_commit` seals the materialization. This is the supported path when the user wants outcomes without a chatbot in the picture — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
 
 ### Why Claude Code is well-suited as the introspection host
 

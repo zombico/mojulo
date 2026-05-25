@@ -127,7 +127,7 @@ Returns `{ nodes, edges, principles, meta }`. The `meta` block carries hints:
 
 ### `meta_context_commit`
 
-Seal a structural decision. One verb, dispatches by `type`. MVP supports two types.
+Seal a structural decision. One verb, dispatches by `type`. MVP supports three types: `operator_kyc` (bootstrap), `artifact_materialization` (bot-shaped catalyst flow), and `primitive_artifact_materialization` (no-bot primitive-binding flow).
 
 #### `operator_kyc`
 
@@ -192,6 +192,40 @@ Behavior:
 `warnings: ['no_operator_anchor']` is appended when the commit succeeds but no operator node exists yet — cue for the agent to offer the KYC inline.
 
 **Principle scopes:** `'artifact' | 'catalyst' | 'adapter' | 'bot'` map to node ids; `'seeded' | 'materialized_by' | 'runs_for'` map to the specific edge ids the commit just inserted; `'binds'` fans out to every binding edge; `'binds:<mcp_tool_ref>'` targets one specific binding edge.
+
+#### `primitive_artifact_materialization`
+
+Sibling commit path for the **no-bot primitive-binding flow** (see [docs/mcp-orbit.md#the-primitive-binding-layer](mcp-orbit.md#the-primitive-binding-layer)). Where `artifact_materialization` records "this catalyst was materialized into this artifact for this bot," `primitive_artifact_materialization` records "this composition intent was materialized into this artifact from these bound primitive artifacts" — bot-independent, with the audit chain pointing at the `prov_<id>` refs returned from `bind_primitives` calls rather than at a catalyst id.
+
+```json
+{
+  "type": "primitive_artifact_materialization",
+  "adapter_id": "claude-code",
+  "artifact": {
+    "locator": "/abs/path/to/.claude/skills/weekly-linear-digest/SKILL.md",
+    "label": "Weekly Linear digest to Drive"
+  },
+  "composition_intent": "Weekly digest of open Linear issues into a Google Drive folder, Monday 9am.",
+  "provider_artifact_refs": ["prov_abc12345", "prov_def67890"],
+  "principles": [
+    {
+      "scope": "artifact",
+      "body_md": "Operator confirmed Monday 9am cadence and the gdrive-projects folder scope.\n\n**Context:** KYC names Drive as the primary documentation surface.\n\n**Applies to:** This composition only."
+    }
+  ]
+}
+```
+
+Behavior:
+1. Resolve adapter — `adapter_id` must exist in the adapter catalog.
+2. Adapter-delegated verification on the artifact locator (same rules as `artifact_materialization`).
+3. Resolve provider artifacts — every ref in `provider_artifact_refs` must exist in [mcp_orbit_provider_artifacts](mcp-orbit.md#schema); resolution fails the commit if any are missing.
+4. In one transaction: upsert the artifact / adapter nodes; insert one `materialized_by` edge from artifact → adapter; insert one `binds` edge per **bound affordance** across all referenced provider artifacts (each carrying `fields_bound = [<primitive>, <role>, <affordance>, <tool>, <confidence>]` in its payload); insert principles attached to scope; **auto-write a summary principle on the artifact node** that records `composition_intent` + the full binding list inline so future readers don't need to dereference the `prov_*` rows to understand what the artifact was built from.
+5. Returns `{ ok: true, artifactNodeId, nodes, edges, principlesCreated, verification, warnings? }`.
+
+There is **no** `runs_for` edge — no bot in the picture. There is **no** `seeded` edge — no catalyst nucleated the artifact; primitives + bound tools are the substrate. The audit chain reads as: composition_intent (in the auto-principle) → primitive artifacts (named in the principle, persisted in `mcp_orbit_provider_artifacts`) → bound MCP tools (one `binds` edge per affordance).
+
+If commit fails (adapter-rejection, missing provider artifact, scope error), roll back the materialization via the host adapter's affordance — same rule as `artifact_materialization`.
 
 ---
 
@@ -260,11 +294,15 @@ MCP is one-way; mojulo cannot introspect the client. The honest mitigations:
 
 ---
 
-## What sits on top: the mcp-orbit composer
+## What sits on top: composers + capabilities
 
-Contextmap (append-only) and inventory (replace-semantic) are the two Ring 6 primitives this doc covers. The third Ring 6 surface — the **mcp-orbit composer** — sits on top of both: it reads inventory to pre-filter what compositions are possible, reads the contextmap to pull operator KYC and prior materializations into ranking, and writes back into the contextmap via `meta_context_commit({type:'artifact_materialization', ...})` when a composition materializes. The composition itself is logged in a separate table (`mcp_orbit_compositions`, also replace-friendly for in-flight state transitions); the link between the composition and the artifact is an artifact-scope principle that records the composition ref. See [docs/mcp-orbit.md](mcp-orbit.md) for the composer's own spec.
+Contextmap (append-only) and inventory (replace-semantic) are the two Ring 6 primitives this doc covers. Three more Ring 6 surfaces sit on top:
 
-The reading order across the three is: contextmap → inventory → composer. Reading anything on top of meta_context starts with knowing what's been sealed (contextmap) and what materials the operator has right now (inventory); the composer is just one consumer of that pair.
+- **Capabilities** — `record_mcp_capabilities` / `get_mcp_capabilities` ([control/lib/mcp/tools/mcp-capabilities.js](../control/lib/mcp/tools/mcp-capabilities.js)). The research facet of a provider, sibling to inventory's introspection facet. Writes vendor knowledge bodies (frontmatter + prose + cited URLs) to `meta_mcp_capabilities` with transactional supersession preserving full history; reads the current row or walks the chain via `asOf`. Both write into the providers identity layer (`meta_mcp_providers`) so the same logical "Gmail" surfaces under one row regardless of which path arrived at it.
+- **mcp-orbit composer** — the vendor-shaped composer (`recommend_mcp_orbit_compositions` etc.) reads inventory to pre-filter what compositions are possible, reads capabilities + contextmap to pull operator KYC and prior materializations into ranking, and writes back into the contextmap via `meta_context_commit({type:'artifact_materialization', ...})` when a composition materializes. Composition itself is logged in `mcp_orbit_compositions`.
+- **Primitive binding** — `bind_primitives` ([control/lib/mcp/tools/mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js)). The runtime-introspected composer that composes MCP-to-MCP workflows from four vendor-agnostic primitives (`document-store`, `structured-record-store`, `messaging-channel`, `message-thread`) bound to runtime-introspected MCPs. Persists session-scoped provider artifacts in `mcp_orbit_provider_artifacts`; graduates via `meta_context_commit({type:'primitive_artifact_materialization', ...})`. The supported path for composing from typed primitives; the vendor-shaped composer above remains as the seed-reasoning surface for first-encounter scaffolding.
+
+The reading order across all five is: contextmap → inventory → capabilities → composer → primitive-binding. Reading anything on top of `meta_context` starts with knowing what's been sealed (contextmap), what materials the operator has right now (inventory), and what vendor knowledge has been recorded (capabilities); the two composers consume that triple. See [docs/mcp-orbit.md](mcp-orbit.md) for both composers' full specs.
 
 ---
 

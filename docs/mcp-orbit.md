@@ -4,6 +4,8 @@ mcp-orbit is mojulo's surface for **workflows that don't need a deployed chatbot
 
 If a catalyst is "one curated recipe per problem," mcp-orbit is "one curated component per part-of-a-problem, agent composes the recipe." Server-stored, agent-composed.
 
+Two companion composers live under mcp-orbit: the **vendor-shaped composer** (`recommend_mcp_orbit_compositions` + the five typed component kinds below) and the **primitive-binding composer** (`bind_primitives` against four vendor-agnostic primitives — `document-store`, `structured-record-store`, `messaging-channel`, `message-thread`). The vendor-shaped surface is the seed-reasoning layer for first-encounter scaffolding; primitive binding is the supported path for composing MCP-to-MCP workflows from typed primitives bound to the operator's actual installed MCPs. See [The primitive-binding layer](#the-primitive-binding-layer) below for the second composer's full spec.
+
 ## When mcp-orbit, when catalysts
 
 Both surfaces synthesize runnable artifacts. The split is about whose data the workflow reads:
@@ -105,6 +107,27 @@ CREATE TABLE mcp_orbit_compositions (
 
 Compositions are first-class rows from the start — every recommendation logs a row even if the agent never promotes it. The v1+ trajectory (templates, analytics, sharing) all needs compositions queryable, and structure earned upfront is cheaper than retrofitting later (same reasoning as the meta-context graph).
 
+```sql
+CREATE TABLE mcp_orbit_provider_artifacts (
+  id INTEGER PRIMARY KEY,
+  ref TEXT NOT NULL UNIQUE,                       -- generated 'prov_<uuid12>'
+  primitive_ref TEXT NOT NULL,                    -- e.g. 'structured-record-store@0.1.0'
+  role TEXT NOT NULL CHECK(role IN ('source','destination')),
+  server TEXT NOT NULL,                           -- the inventory server this artifact was generated against
+  introspected_at INTEGER NOT NULL,               -- when the snapshot was captured (from inventory)
+  snapshot_confidence TEXT NOT NULL,              -- 'tools_list_full' | 'names_only' | 'agent_inferred'
+  body_md TEXT NOT NULL,                          -- the runtime-filled role template
+  manifest_json TEXT NOT NULL,                    -- {bound: [{affordance, tool, confidence}], unbound: [...], declaredCount}
+  bindings_json TEXT NOT NULL,                    -- the bindings map the agent passed to bind_primitives
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX idx_mcp_orbit_provider_artifacts_server ON mcp_orbit_provider_artifacts(server);
+CREATE INDEX idx_mcp_orbit_provider_artifacts_primitive ON mcp_orbit_provider_artifacts(primitive_ref, role);
+```
+
+Session-scoped — each `bind_primitives` call writes a row; the artifact's `ref` is the stable handle the agent threads through to `meta_context_commit({type:'primitive_artifact_materialization', ...})`. Repository in [control/lib/db/repositories/mcp-orbit-provider-artifacts.js](../control/lib/db/repositories/mcp-orbit-provider-artifacts.js).
+
 ## File format — authoring a new component
 
 Components ship as markdown files with JSON frontmatter:
@@ -179,12 +202,58 @@ Sections that pay rent:
 
 ## MCP surface
 
-Four Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context and inventory so the natural reading order is contextmap → inventory → composer:
+Vendor-shaped composer — four Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context, inventory, and capabilities so the natural reading order is contextmap → inventory → capabilities → composer → primitive-binding:
 
 - `list_mcp_orbit_components({ kind?, ref_pattern? })` — discovery. Returns kind / ref / version / summary; bodies omitted (fetched separately).
 - `get_mcp_orbit_component({ kind, ref, version? })` — fetch one row with full body and structured payload.
 - `get_meta_catalyst()` — the composer rulebook. Singleton.
-- `recommend_mcp_orbit_compositions({ intent, inventory? })` — pre-filter + rank + log as `proposed`. The agent does the composition; this tool just gets it started.
+- `recommend_mcp_orbit_compositions({ intent, inventory? })` — pre-filter + rank + log as `proposed`. The agent does the composition; this tool just gets it started. Reads the consolidated provider view (identity layer + inventory + capabilities); each chosen provider is tagged with one of five states (`research` / `seed` / `inventory_only` / `capabilities_only` / `none`) and warning tags route the agent to the right remediation tool (`record_mcp_capabilities`, `meta_context_declare_inventory`, etc.).
+
+Primitive-binding composer — one Ring 6 tool in [control/lib/mcp/tools/mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js), registered last:
+
+- `bind_primitives({ primitive, role, server, bindings })` — given one of the four primitives, a composition role, a server from declared inventory, and an affordance→tool bindings map, runs the deterministic generator and persists the result as a session-scoped provider artifact (`prov_<id>`). Returns `{ ok, artifact: { ref, primitiveRef, role, server, snapshotConfidence, body, manifest }, warnings? }`. The `body` is the primitive's role template filled with the **actual bound tool names + schemas from the operator's installed MCP**, not a curated guess. See [The primitive-binding layer](#the-primitive-binding-layer) below.
+
+## The primitive-binding layer
+
+Parallel to the vendor-shaped composer, the primitive-binding layer composes MCP-to-MCP workflows from **vendor-agnostic primitives** rather than vendor-specific components. The agent ships a richer-snapshot inventory (tool names + input schemas + introspection confidence), calls `bind_primitives` per primitive slot in a composition, and seals the result via `meta_context_commit({type:'primitive_artifact_materialization', ...})`. This is the supported path when the agent has runtime-introspected tool-schema knowledge; the vendor-shaped composer above remains as the seed-reasoning surface for first-encounter scaffolding when that knowledge is missing.
+
+### The four primitives
+
+Each primitive ships as a body + source-role template + destination-role template under [control/lib/mcp/mcp-orbit-components/primitive/](../control/lib/mcp/mcp-orbit-components/primitive/):
+
+| Primitive | Shape | Typical backends |
+|---|---|---|
+| `document-store` | Scope-addressable namespace of unstructured documents with folder/scope organization. | Drive, Notion docs, OneDrive, Dropbox |
+| `structured-record-store` | Typed records with stable ids, structured-field queries, and optional status / comment / upsert affordances. | Issue trackers (Linear, GitHub Issues, Jira); CRMs (HubSpot, Salesforce, Pipedrive); spreadsheet-databases (Airtable, Notion DB) |
+| `messaging-channel` | Scope-addressable chat with thread sub-grouping, audience is scope members. | Slack, Discord, Teams |
+| `message-thread` | Directed mail semantics with reply identity, audience is named recipients, threads grow by reply. | Gmail, Outlook |
+
+The bodies teach the **vendor-agnostic shape** — the affordance vocabulary, the cross-vendor pitfalls (soft-delete retention, status workflow asymmetry, schema drift, etc.), the role pairings. Affordance names rhyme across primitives only where the shape genuinely transfers (`find-by-filter`, `read-content`, `list-recent`); otherwise the names diverge to make the difference visible in compositions (`create-with-mime` for document-store, `create-record` for structured-record-store, `post-to-scope` for messaging-channel, `send-thread-message` for message-thread).
+
+### The deterministic generator
+
+[control/lib/mcp/mcp-orbit-components/generator.js](../control/lib/mcp/mcp-orbit-components/generator.js) is the runtime fill engine — no LLM in the path. Given a primitive ref, a role, a capability snapshot (the per-tool subset of declared inventory), and an affordance→tool bindings map, it loads the role template, fills the slot markers with the bound tool names and JSON schemas, computes a three-tier snapshot confidence (`tools_list_full` > `names_only` > `agent_inferred`), and returns a structured artifact with a body the agent can read in full + a manifest naming each affordance / bound tool / confidence. The generator is deterministic so two agents calling `bind_primitives` against the same primitive + snapshot + bindings produce byte-identical bodies.
+
+### Artifact persistence
+
+Each generated artifact persists in [mcp_orbit_provider_artifacts](#schema) so the agent can reference a stable `prov_<id>` ref between the `bind_primitives` call and the subsequent `meta_context_commit`. The artifact's auditable as the durable link between primitive + snapshot + bound tool names + confidence; future sessions reading the contextmap can recover the composition's shape from the artifact's body and bindings.
+
+### Commit flow
+
+After the artifact is materialized via the host adapter (a Claude Code skill, a Codex automation, a generic workflow file), the agent seals via:
+
+```jsonc
+{
+  "type": "primitive_artifact_materialization",
+  "adapter_id": "claude-code",
+  "artifact": { "locator": "<absolute path>", "label": "..." },
+  "composition_intent": "<operator-stated intent>",
+  "provider_artifact_refs": ["prov_<id>", ...],
+  "principles": [{ "scope": "artifact", "body_md": "..." }]
+}
+```
+
+The commit auto-writes a summary principle on the artifact node recording the composition intent + every binding (primitive / role / affordance / bound tool / confidence). See [docs/meta-context.md](meta-context.md#primitive_artifact_materialization) for the commit-type spec.
 
 ## What does NOT belong in mcp-orbit
 
