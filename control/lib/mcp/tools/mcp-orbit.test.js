@@ -46,17 +46,23 @@ beforeEach(async () => {
 });
 
 describe('list_mcp_orbit_components', () => {
-  it('lists all five shipped components with summaries', async () => {
+  it('lists every shipped component with summaries', async () => {
     const out = await call('list_mcp_orbit_components', {});
-    expect(out.total).toBeGreaterThanOrEqual(5);
+    expect(out.total).toBeGreaterThanOrEqual(9);
     const refs = out.components.map((c) => c.kind + '/' + c.ref).sort();
     expect(refs).toEqual(
       expect.arrayContaining([
-        'destination/gdrive',
+        // Weekly-digest shape
         'idempotency/window-key',
+        'mcp/gdrive',
+        'mcp/linear',
         'pattern/aggregation',
-        'source/linear',
         'trigger/scheduled',
+        // Signal-routing shape
+        'idempotency/source-side-label',
+        'mcp/gmail',
+        'pattern/routing',
+        'trigger/signal-polled',
       ]),
     );
     // Body intentionally not surfaced in list responses.
@@ -65,25 +71,27 @@ describe('list_mcp_orbit_components', () => {
   });
 
   it('filters by kind', async () => {
-    const out = await call('list_mcp_orbit_components', { kind: 'source' });
-    expect(out.components.every((c) => c.kind === 'source')).toBe(true);
+    const out = await call('list_mcp_orbit_components', { kind: 'mcp' });
+    expect(out.components.length).toBeGreaterThanOrEqual(3);
+    expect(out.components.every((c) => c.kind === 'mcp')).toBe(true);
   });
 });
 
 describe('get_mcp_orbit_component', () => {
   it('returns the full body and structured payload', async () => {
-    const out = await call('get_mcp_orbit_component', { kind: 'source', ref: 'linear' });
-    expect(out.kind).toBe('source');
+    const out = await call('get_mcp_orbit_component', { kind: 'mcp', ref: 'linear' });
+    expect(out.kind).toBe('mcp');
     expect(out.ref).toBe('linear');
     expect(out.version).toBe('0.1.0');
-    expect(out.bodyMd).toMatch(/# source: Linear/);
+    expect(out.bodyMd).toMatch(/# mcp: Linear/);
     expect(out.payload.requires.mcpInventoryCategory).toBe('issue_tracker');
+    expect(out.payload.affordances).toEqual({ read: true, write: true, watch: false });
     expect(Array.isArray(out.payload.exposesKnobs)).toBe(true);
   });
 
   it('throws on unknown ref', async () => {
     await expect(
-      call('get_mcp_orbit_component', { kind: 'source', ref: 'no-such-thing' }),
+      call('get_mcp_orbit_component', { kind: 'mcp', ref: 'no-such-thing' }),
     ).rejects.toThrow(/Component not found/);
   });
 });
@@ -94,7 +102,7 @@ describe('get_meta_catalyst', () => {
     // Returned as content array → call() falls into rawText.
     const text = out.rawText || out.content?.[0]?.text;
     expect(text).toMatch(/The mcp-orbit meta-catalyst/);
-    expect(text).toMatch(/six categories/);
+    expect(text).toMatch(/five categories/);
     expect(text).toMatch(/constraint table/);
   });
 });
@@ -122,19 +130,27 @@ describe('recommend_mcp_orbit_compositions — end-to-end weekly-digest assembly
     const cand = out.candidates[0];
     expect(cand.compositionRef).toMatch(/^comp_[a-f0-9]{12}$/);
 
-    // The candidate must include all five component kinds the recipe carries.
+    // The candidate must include two mcp entries (source + destination roles)
+    // plus the three other singleton kinds.
     const kinds = cand.components.map((c) => c.kind).sort();
-    expect(kinds).toEqual(['destination', 'idempotency', 'pattern', 'source', 'trigger']);
+    expect(kinds).toEqual(['idempotency', 'mcp', 'mcp', 'pattern', 'trigger']);
 
-    // And the specific refs must match the five components we shipped.
+    // The two mcp entries carry distinct roles.
+    const mcpEntries = cand.components.filter((c) => c.kind === 'mcp');
+    const rolesByRef = Object.fromEntries(mcpEntries.map((c) => [c.ref, c.role]));
+    expect(rolesByRef.linear).toBe('source');
+    expect(rolesByRef.gdrive).toBe('destination');
+
+    // And the specific refs match the five shipped components.
     const refs = new Set(cand.components.map((c) => c.kind + '/' + c.ref));
-    expect(refs.has('source/linear')).toBe(true);
-    expect(refs.has('destination/gdrive')).toBe(true);
+    expect(refs.has('mcp/linear')).toBe(true);
+    expect(refs.has('mcp/gdrive')).toBe(true);
     expect(refs.has('trigger/scheduled')).toBe(true);
     expect(refs.has('pattern/aggregation')).toBe(true);
     expect(refs.has('idempotency/window-key')).toBe(true);
 
-    // Inventory matched on both source and destination → score should top out.
+    // Inventory matched on both source-role and destination-role mcps → score
+    // should top out.
     expect(cand.rationale.inventoryFit).toBe(1);
     expect(cand.score).toBeGreaterThan(0);
     expect(cand.constraintWarnings).not.toContain(
@@ -259,7 +275,7 @@ describe('e2e: full mcp-orbit flow — recommend → get_meta_catalyst → get_c
       principles: [
         {
           scope: 'artifact',
-          body_md: `Composed from components: source/linear@0.1.0, destination/gdrive@0.1.0, trigger/scheduled@0.1.0, idempotency/window-key@0.1.0, pattern/aggregation@0.1.0. Composition ref: ${compRef}.`,
+          body_md: `Composed from components: mcp/linear@0.1.0 (role=source), mcp/gdrive@0.1.0 (role=destination), trigger/scheduled@0.1.0, idempotency/window-key@0.1.0, pattern/aggregation@0.1.0. Composition ref: ${compRef}.`,
         },
       ],
     }).catch((err) => {
@@ -279,6 +295,137 @@ describe('e2e: full mcp-orbit flow — recommend → get_meta_catalyst → get_c
     expect(finalized.artifactRef).toBe('generic:package.json');
 
     // 7. The composition log captures the full deliberation, queryable.
+    const allMaterialized = MCPOrbitCompositionRepository.list({ status: 'materialized' });
+    expect(allMaterialized.some((c) => c.ref === compRef)).toBe(true);
+  });
+});
+
+describe('recommend_mcp_orbit_compositions — gmail-support-thread-to-linear-issue (second worked example)', () => {
+  // Validation gate per MCP_ORBIT_V1_PLAN.md sequence #3: a signal-shaped
+  // composition must be assemblable end-to-end from the same component
+  // store that produced the weekly-digest shape. If the recommender can't
+  // generalize past the single canonical shape, the role refactor hasn't
+  // bought us anything beyond schema cleanliness.
+  it('with gmail + linear in inventory, returns a candidate matching the hand-written gmail-support catalyst', async () => {
+    InventoryRepository.replaceInventory([
+      {
+        name: 'gmail',
+        tools: [
+          { name: 'search_messages', description: 'Search Gmail by query' },
+          { name: 'get_thread', description: 'Fetch a Gmail thread by id' },
+          { name: 'modify_labels', description: 'Apply or remove labels on a thread' },
+        ],
+      },
+      {
+        name: 'linear',
+        tools: [
+          { name: 'list_issues', description: 'List Linear issues' },
+          { name: 'create_issue', description: 'Create a Linear issue' },
+        ],
+      },
+    ]);
+
+    const out = await call('recommend_mcp_orbit_compositions', {
+      intent:
+        'When a Gmail support thread arrives in the inbox, file a Linear issue with the conversation context so support requests stop sitting in inboxes',
+    });
+
+    expect(out.ok).toBe(true);
+    expect(out.candidates).toHaveLength(1);
+    const cand = out.candidates[0];
+
+    // Composition shape: two mcps (one per role), plus singleton
+    // trigger/pattern/idempotency.
+    const kinds = cand.components.map((c) => c.kind).sort();
+    expect(kinds).toEqual(['idempotency', 'mcp', 'mcp', 'pattern', 'trigger']);
+
+    // The two mcp entries play distinct roles — gmail-as-source,
+    // linear-as-destination — exactly as the hand-written catalyst directs.
+    const mcpEntries = cand.components.filter((c) => c.kind === 'mcp');
+    const rolesByRef = Object.fromEntries(mcpEntries.map((c) => [c.ref, c.role]));
+    expect(rolesByRef.gmail).toBe('source');
+    expect(rolesByRef.linear).toBe('destination');
+
+    // The non-mcp picks must match the signal-driven shape, not the
+    // scheduled-aggregation shape the weekly-digest test exercises.
+    const refsByKind = Object.fromEntries(
+      cand.components
+        .filter((c) => c.kind !== 'mcp')
+        .map((c) => [c.kind, c.ref]),
+    );
+    expect(refsByKind.trigger).toBe('signal-polled');
+    expect(refsByKind.pattern).toBe('routing');
+    expect(refsByKind.idempotency).toBe('source-side-label');
+
+    // Inventory matched on both mcps → fit tops out.
+    expect(cand.rationale.inventoryFit).toBe(1);
+
+    // The persisted proposed row is queryable for the audit trail.
+    const persisted = MCPOrbitCompositionRepository.findByRef(cand.compositionRef);
+    expect(persisted).not.toBeNull();
+    expect(persisted.status).toBe('proposed');
+    expect(persisted.intentMd).toMatch(/Gmail support thread/);
+  });
+
+  it('walks the full seven-step composition flow against the gmail-support shape', async () => {
+    InventoryRepository.replaceInventory([
+      { name: 'gmail', tools: [{ name: 'search_messages' }, { name: 'modify_labels' }] },
+      { name: 'linear', tools: [{ name: 'create_issue' }] },
+    ]);
+
+    // 1. Recommend.
+    const rec = await call('recommend_mcp_orbit_compositions', {
+      intent: 'When a Gmail support thread arrives, file a Linear issue and label the thread as filed',
+    });
+    const compRef = rec.candidates[0].compositionRef;
+    expect(rec.candidates[0].components.filter((c) => c.kind === 'mcp').map((c) => c.role).sort()).toEqual(
+      ['destination', 'source'],
+    );
+
+    // 2. Pull the meta-catalyst — must teach the constraints relevant to the
+    // chosen shape (signal-polled requires source cursor + idempotency).
+    const meta = await call('get_meta_catalyst', {});
+    const metaText = meta.rawText || meta.content?.[0]?.text;
+    expect(metaText).toMatch(/signal-polled/);
+
+    // 3. Every component body must be retrievable. For mcp components we
+    // must be able to fetch both source-role and destination-role bodies
+    // (same component body covers both roles).
+    const bodies = await Promise.all(
+      rec.candidates[0].components.map((c) =>
+        call('get_mcp_orbit_component', { kind: c.kind, ref: c.ref }),
+      ),
+    );
+    expect(bodies).toHaveLength(5);
+    expect(bodies.every((b) => typeof b.bodyMd === 'string' && b.bodyMd.length > 100)).toBe(true);
+    // The gmail body must carry per-role sections (the role refinement only
+    // pays off if mcp bodies teach both sides).
+    const gmailBody = bodies.find((b) => b.kind === 'mcp' && b.ref === 'gmail');
+    expect(gmailBody.bodyMd).toMatch(/Source-role surface/);
+    expect(gmailBody.bodyMd).toMatch(/Destination-role surface/);
+
+    // 4. Knob negotiation simulated by writing knobs into the composition.
+    const dryRun = MCPOrbitCompositionRepository.update(compRef, {
+      status: 'dry_run',
+      knobs: {
+        match_query: 'label:support -label:linear-filed',
+        poll_interval: '5m',
+        routing_target: 'fixed',
+        marker_name: 'linear-filed',
+      },
+    });
+    expect(dryRun.status).toBe('dry_run');
+
+    // 5. The signal-driven artifact-scope principle pattern matches what
+    // the hand-written catalyst's commit example does.
+    const finalized = MCPOrbitCompositionRepository.update(compRef, {
+      status: 'materialized',
+      artifact_ref: 'generic:./mojulo-workflows/gmail-support-to-linear/workflow.md',
+    });
+    expect(finalized.status).toBe('materialized');
+    expect(finalized.artifactRef).toMatch(/gmail-support-to-linear/);
+
+    // 6. The composition log carries the deliberation forward, queryable.
     const allMaterialized = MCPOrbitCompositionRepository.list({ status: 'materialized' });
     expect(allMaterialized.some((c) => c.ref === compRef)).toBe(true);
   });

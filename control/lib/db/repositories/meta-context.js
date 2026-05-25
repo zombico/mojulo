@@ -27,6 +27,7 @@ const NODE_KINDS = ['bot', 'mcp_tool', 'catalyst', 'adapter', 'artifact', 'opera
 const EDGE_KINDS = ['binds', 'seeded', 'materialized_by', 'runs_for'];
 const PRINCIPLE_SOURCE_EVENTS = [
   'artifact_materialization',
+  'primitive_artifact_materialization',
   'operator_kyc',
   'adapter_shipped',
   'catalyst_shipped',

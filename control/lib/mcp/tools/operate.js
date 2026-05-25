@@ -363,7 +363,7 @@ export function registerOperateTools() {
   registerTool({
     name: 'inspect_bot_env',
     description:
-      "Read a bot's container .env safely. Returns parsed { key, value, masked } entries with sensitive values (Anthropic / OpenAI / AWS / Fly / GitHub / Slack tokens, and the bot's auto-generated MOJULO_API_KEY) masked to first-4…last-4. Non-sensitive values (LLM_PROVIDER, ports, webhook URLs without secret-prefix patterns) come through clear. Use this — NOT `cat .env` via Bash/Read — to inspect a bot's environment for debugging: the unmasked raw values must not enter the agent's conversation context. Pass either `deploymentId` (resolves to the artifact staging dir under MOJULO_HOME) or an explicit `path` if the user unzipped the artifact elsewhere. Path must end in `.env*`.",
+      "Read a bot's container .env safely. Returns parsed `{ key, value, masked }` entries — sensitive values (Anthropic / OpenAI / AWS / Fly / GitHub / Slack tokens + the auto-generated MOJULO_API_KEY) come through masked first-4…last-4; non-sensitive values (LLM_PROVIDER, ports, non-secret webhook URLs) come through clear. Use this — NOT `cat .env` via Bash/Read — so raw values never enter agent context. Pass `deploymentId` (resolves under MOJULO_HOME) or an explicit `path` (basename must start with `.env`).",
     inputSchema: {
       type: 'object',
       properties: {

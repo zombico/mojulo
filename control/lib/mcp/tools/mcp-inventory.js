@@ -52,7 +52,7 @@ export function registerInventoryTools() {
   registerTool({
     name: 'meta_context_declare_inventory',
     description:
-      "**Register the operator's broader MCP environment so mojulo can compose solutions that don't require deploying a chatbot.** Mojulo's mainline tooling is heavily bot-shaped (build → deploy → operate → catalyst-against-a-bot); this primitive is the entry point of the other axis — MCP-orchestrated workflows that synthesize over the user's installed MCPs (Gmail/Drive/Calendar/Linear/HubSpot/etc.) directly, with mojulo as the deliberation anchor and audit trail rather than the conversational runtime. Once inventory is declared, the operator's environment is part of mojulo's worldmodel and downstream composition can reason about what materials are actually available. **Call this first** when the user wants outcomes that don't need a conversational layer — operator-side workflows, MCP-to-MCP wiring, scheduled digests, signal-triggered automations — or when they ask to use mojulo without bots. Also call at session start if your environment has changed since the last declaration (new MCP installed, one removed, server reconnected). REPLACE semantics, not append — latest declaration wins; previously declared tools not in this call are wiped (mojulo can't introspect your environment over MCP, so you are the trust anchor and the freshest declaration is the authoritative one). The stored snapshot rides on `meta_context_brief({kind:'fleet'})` (`inventory.declaredAt`, `inventory.ageSeconds`). Distinct from `meta_context_commit` — that seals append-only structural decisions (a sealed catalyst materialization); this declares replaceable current environment state. Returns `{ ok, serversSeen, toolsSeen, replaced, declaredAt, warnings? }`. `warnings: ['no_operator_anchor']` is appended when no operator KYC has been committed yet — inventory still saves; consider offering the KYC if a sustained non-bot workflow is on the table.",
+      "Register the operator's installed MCPs (Gmail/Drive/Calendar/Linear/HubSpot/etc.) so the mcp-orbit composer has materials to compose against. **Call first** when the user wants outcomes without a chatbot — operator-side workflows, MCP-to-MCP wiring, scheduled digests, signal-triggered automations — or at session start if your MCP environment has changed (new MCP installed, one removed). REPLACE semantics — latest declaration wins; tools not in this call are wiped (mojulo can't introspect your environment, so you are the trust anchor). Distinct from `meta_context_commit`, which seals append-only structural decisions. Snapshot rides on `meta_context_brief({kind:'fleet'})` as `inventory.{declaredAt, ageSeconds, toolCount}`. **Richer-snapshot mode (recommended when binding primitives):** include each tool's `inputSchema` and `introspectionConfidence` to upgrade the declaration into a capability snapshot the primitive-binding generator can consume directly. `introspectionConfidence` values: `tools_list_full` (you read the full schema from the MCP's tools/list), `agent_inferred` (you guessed the schema from tool name + description), `names_only` (you only know the tool exists). Returns `{ ok, serversSeen, toolsSeen, replaced, declaredAt, warnings? }` — `warnings: ['no_operator_anchor']` means inventory saved but no KYC; consider offering it if a sustained non-bot workflow is on the table.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -84,6 +84,17 @@ export function registerInventoryTools() {
                       type: 'string',
                       description:
                         "One-line description from the server's tool list. Optional but helps future readers and downstream consultation tools.",
+                    },
+                    inputSchema: {
+                      type: 'object',
+                      description:
+                        "The tool's JSON Schema for its input parameters (typically from the MCP's tools/list response). When provided, downstream primitive binding can render the actual schema into generated provider artifacts instead of guessing. Optional.",
+                    },
+                    introspectionConfidence: {
+                      type: 'string',
+                      enum: ['tools_list_full', 'agent_inferred', 'names_only'],
+                      description:
+                        "How this tool entry was sourced. `tools_list_full` = inputSchema is from the MCP's actual tools/list; `agent_inferred` = inputSchema reflects an educated guess; `names_only` = no inputSchema available. Optional but recommended when you intend to bind primitives against this MCP.",
                     },
                   },
                   required: ['name'],

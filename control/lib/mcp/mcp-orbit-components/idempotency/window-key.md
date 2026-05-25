@@ -8,6 +8,7 @@
     "triggers": ["scheduled"],
     "patterns": ["aggregation"]
   },
+  "intentKeywords": ["weekly", "daily", "monthly", "period", "digest", "summary", "report"],
   "exposesKnobs": [
     { "name": "period_format", "prompt": "How does the period get encoded in titles? (YYYY-W##, YYYY-MM, YYYY-MM-DD)", "default": "YYYY-W##" }
   ]
@@ -44,7 +45,7 @@ The destination identifier should be **stable across runs** — title prefix is 
 ## Pitfalls
 
 - **Title-prefix collisions across compositions.** If two different mcp-orbit compositions both write to the same folder with title prefixes `Linear digest` and `Linear digest summary`, a prefix-match search will conflate them. Make the prefix opinionated enough to be unambiguous (`Linear digest — ` with the em-dash trailing space).
-- **Trashed-but-not-deleted destinations.** See `destination/gdrive` — searches return trashed items by default in many MCPs. Filter them out before treating a hit as a duplicate; otherwise the workflow silently skips a real new write.
+- **Trashed-but-not-deleted destinations.** See `mcp/gdrive` (destination-role pitfalls) — searches return trashed items by default in many MCPs. Filter them out before treating a hit as a duplicate; otherwise the workflow silently skips a real new write.
 - **Clock skew between scheduler and destination.** A run that fires at 23:58 may compute period token `2026-W20` while the destination, queried at 00:01, has all its time-stamped artifacts under `2026-W21`. Compute the period from the run's *scheduled* time, not the destination's clock.
 - **Cursor cohabitation.** This strategy is the right choice when "one period → one artifact" is the model. For "every new record → one destination row" use a different idempotency component (state-ledger or destination-search). Don't combine without a clear reason.
 - **Operator-initiated re-run.** When the operator manually re-runs the workflow for a past period, the search-before-create silently skips. Surface "an artifact for this period already exists — overwrite, append, or skip?" rather than failing silently.

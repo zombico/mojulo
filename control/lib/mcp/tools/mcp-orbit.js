@@ -121,18 +121,21 @@ function inventoryMatchesHints(servers, hints) {
   return { matched: false, server: null };
 }
 
+function componentKey(c) {
+  // Role-aware key so an mcp playing the source role isn't conflated with the
+  // same mcp playing destination. Non-mcp kinds have no role and key cleanly.
+  return c.role ? `${c.kind}/${c.ref}#${c.role}` : `${c.kind}/${c.ref}`;
+}
+
 function priorMaterializationSignal(components) {
-  // Light v0 signal: a composition shape "matches a prior" if every component
-  // ref (regardless of version) appears as a binding ref on at least one
-  // prior materialized artifact, OR if a prior composition row with the same
-  // component shape exists in `materialized` status. Cheaper version: query
-  // the composition log for prior `materialized` rows with overlapping
-  // component_refs. v0 keeps it loose; calibrate after watching real data.
+  // Light v0 signal: a composition shape "matches a prior" if any role-aware
+  // component key in the candidate appears in a prior materialized
+  // composition row. v0 keeps it loose; calibrate after watching real data.
   const priors = MCPOrbitCompositionRepository.list({ status: 'materialized' });
   if (priors.length === 0) return { count: 0, refs: [] };
-  const wantedKeys = new Set(components.map((c) => `${c.kind}/${c.ref}`));
+  const wantedKeys = new Set(components.map(componentKey));
   const overlapping = priors.filter((p) => {
-    const priorKeys = new Set(p.componentRefs.map((c) => `${c.kind}/${c.ref}`));
+    const priorKeys = new Set(p.componentRefs.map(componentKey));
     for (const k of wantedKeys) if (priorKeys.has(k)) return true;
     return false;
   });
@@ -147,43 +150,128 @@ function scoreCandidate({ inventoryFit, kycHint, priorBonus }) {
 
 /**
  * Build a v0 candidate composition. For now we wire a single canonical
- * shape — source × destination × trigger × pattern × idempotency — using
- * whatever five components match each kind first. Future versions will
- * enumerate combinations.
+ * shape — mcp(source) × mcp(destination) × trigger × pattern × idempotency —
+ * picking the first mcp component whose affordances support each role, with
+ * inventory matching as the tiebreaker. Future versions will enumerate
+ * combinations.
  *
- * Returns null if any required kind has no component available.
+ * Returns null if no mcp component affords read (no source candidate) or
+ * write (no destination candidate), or if any other required kind is empty.
  */
+// Earliest index in `intent` at which any of this mcp component's identifying
+// strings (ref + inventory server hints) appears. Used to pick which mcp plays
+// the source role vs destination — natural-language ordering ("LINEAR digest
+// into DRIVE") almost always names the source first and the destination
+// second. Returns Infinity when no hint matches.
+function intentMentionIndex(intent, mcp) {
+  const hints = [mcp.ref, ...(mcp.payload?.requires?.inventoryServerHints || [])];
+  const lower = String(intent || '').toLowerCase();
+  let min = Infinity;
+  for (const h of hints) {
+    const idx = lower.indexOf(String(h).toLowerCase());
+    if (idx >= 0 && idx < min) min = idx;
+  }
+  return min;
+}
+
+// Count of `intentKeywords` hits in the intent. Used to pick the
+// trigger / pattern / idempotency / render that best fits the operator's
+// natural-language ask. Components without an `intentKeywords` array score 0
+// and only get picked when no other candidate matches.
+function intentKeywordScore(intent, component) {
+  const keywords = component.payload?.intentKeywords || [];
+  if (keywords.length === 0) return 0;
+  const lower = String(intent || '').toLowerCase();
+  let count = 0;
+  for (const k of keywords) {
+    if (lower.includes(String(k).toLowerCase())) count++;
+  }
+  return count;
+}
+
+// Pick the component whose intentKeywords best match the intent. Ties broken
+// by alphabetical order on ref for determinism. Returns the first component
+// (alphabetical) when nothing matches — better to surface a candidate the
+// agent can audit than to refuse to recommend.
+function pickByIntent(components, intent) {
+  if (components.length === 0) return null;
+  const scored = components
+    .slice()
+    .map((c) => ({ c, score: intentKeywordScore(intent, c) }))
+    .sort((a, b) => b.score - a.score || a.c.ref.localeCompare(b.c.ref));
+  return scored[0].c;
+}
+
+// Does the candidate component pair with the chosen trigger? Components
+// declare `fits.triggers` as an array of trigger refs they pair with; an
+// empty / missing array means "no opinion" (fits anything).
+function fitsTrigger(component, triggerRef) {
+  const fits = component.payload?.fits?.triggers;
+  if (!Array.isArray(fits) || fits.length === 0) return true;
+  return fits.includes(triggerRef);
+}
+
 function buildCandidateComposition({ intent, inventory, kycPrinciple }) {
-  const sources = MCPOrbitComponentRepository.list({ kind: 'source' });
-  const destinations = MCPOrbitComponentRepository.list({ kind: 'destination' });
+  const mcps = MCPOrbitComponentRepository.list({ kind: 'mcp' });
   const triggers = MCPOrbitComponentRepository.list({ kind: 'trigger' });
   const patterns = MCPOrbitComponentRepository.list({ kind: 'pattern' });
   const idempotencies = MCPOrbitComponentRepository.list({ kind: 'idempotency' });
 
-  if (!sources.length || !destinations.length || !triggers.length || !patterns.length || !idempotencies.length) {
+  const readMcps = mcps.filter((m) => m.payload?.affordances?.read === true);
+  const writeMcps = mcps.filter((m) => m.payload?.affordances?.write === true);
+
+  if (!readMcps.length || !writeMcps.length || !triggers.length || !patterns.length || !idempotencies.length) {
     return null;
   }
 
-  // Pick the inventory-matched source / destination if any; otherwise fall
-  // back to the first available so the agent still has a candidate to read.
   const declaredServers = inventory?.servers || [];
-  const source =
-    sources.find((s) => inventoryMatchesHints(declaredServers, s.payload?.requires?.inventoryServerHints || []).matched) ||
-    sources[0];
-  const destination =
-    destinations.find(
-      (d) => inventoryMatchesHints(declaredServers, d.payload?.requires?.inventoryServerHints || []).matched,
-    ) || destinations[0];
+  const isInventoryMatched = (m) =>
+    inventoryMatchesHints(declaredServers, m.payload?.requires?.inventoryServerHints || []).matched;
 
-  const trigger = triggers[0];
-  const pattern = patterns[0];
-  const idempotency = idempotencies[0];
+  // Source selection: prefer inventory-matched mcps, then rank by earliest
+  // mention in the intent text (LINEAR mentioned first → likely the source).
+  const inventoryMatchedReads = readMcps.filter(isInventoryMatched);
+  const sourcePool = inventoryMatchedReads.length > 0 ? inventoryMatchedReads : readMcps;
+  const source = sourcePool
+    .slice()
+    .sort((a, b) => intentMentionIndex(intent, a) - intentMentionIndex(intent, b))[0];
 
-  const components = [source, destination, trigger, pattern, idempotency].map((c) => ({
-    kind: c.kind,
-    ref: c.ref,
-    version: c.version,
-  }));
+  // Destination selection: prefer inventory-matched mcps that are a DIFFERENT
+  // ref from the chosen source (most workflows pair distinct MCPs), then any
+  // inventory match, then fall back. Rank by latest mention in intent text
+  // (DRIVE mentioned second → likely the destination).
+  const inventoryMatchedWrites = writeMcps.filter(isInventoryMatched);
+  const distinctMatchedWrites = inventoryMatchedWrites.filter((m) => m.ref !== source.ref);
+  const destPool =
+    distinctMatchedWrites.length > 0
+      ? distinctMatchedWrites
+      : inventoryMatchedWrites.length > 0
+        ? inventoryMatchedWrites
+        : writeMcps;
+  const destination = destPool
+    .slice()
+    .sort((a, b) => intentMentionIndex(intent, b) - intentMentionIndex(intent, a))[0];
+
+  // Trigger picked by intent-keyword match ("when X" → signal-polled,
+  // "weekly Y" → scheduled). Pattern + idempotency are then constrained by
+  // the chosen trigger via fits.triggers — the pairing rules in each
+  // component's frontmatter ARE the constraint table from the meta-catalyst.
+  const trigger = pickByIntent(triggers, intent) || triggers[0];
+  const fittingPatterns = patterns.filter((p) => fitsTrigger(p, trigger.ref));
+  const pattern = pickByIntent(fittingPatterns.length > 0 ? fittingPatterns : patterns, intent);
+  const fittingIdempotencies = idempotencies.filter((i) => fitsTrigger(i, trigger.ref));
+  const idempotency = pickByIntent(
+    fittingIdempotencies.length > 0 ? fittingIdempotencies : idempotencies,
+    intent,
+  );
+
+  const components = [
+    { kind: 'mcp', ref: source.ref, version: source.version, role: 'source' },
+    { kind: 'mcp', ref: destination.ref, version: destination.version, role: 'destination' },
+    { kind: trigger.kind, ref: trigger.ref, version: trigger.version },
+    { kind: pattern.kind, ref: pattern.ref, version: pattern.version },
+    { kind: idempotency.kind, ref: idempotency.ref, version: idempotency.version },
+  ];
 
   const sourceMatch = inventoryMatchesHints(declaredServers, source.payload?.requires?.inventoryServerHints || []);
   const destMatch = inventoryMatchesHints(declaredServers, destination.payload?.requires?.inventoryServerHints || []);
@@ -247,7 +335,7 @@ export async function recommendCompositionsHandler(input, _ctx) {
       ok: false,
       reason: 'no_components_available',
       hint:
-        'The component store is empty or is missing at least one required kind (source, destination, trigger, pattern, idempotency). The mcp-orbit component library may not have been seeded yet.',
+        'The component store is empty or is missing at least one required kind (mcp with read affordance, mcp with write affordance, trigger, pattern, idempotency). The mcp-orbit component library may not have been seeded yet.',
       candidates: [],
     };
   }
@@ -325,13 +413,13 @@ export function registerMCPOrbitTools() {
   registerTool({
     name: 'list_mcp_orbit_components',
     description:
-      "Ring 6 — DELIBERATION surface. List components in the mcp-orbit store. Components are typed building blocks (`source`, `destination`, `trigger`, `pattern`, `idempotency`, `render`) that combine multiplicatively into mcp-orbit workflow compositions — N sources × M destinations × T triggers × K patterns × idempotency × render. Use this when the user wants a workflow that reads from one MCP and writes to another (e.g. 'weekly Linear digest into Drive'), NOT when they want a bot or a bot-shaped catalyst. **For mcp-orbit intent, the right call order is: `recommend_mcp_orbit_compositions` (gets you 2-3 ranked candidates as proposed rows) → `get_meta_catalyst` (composition rulebook, read once per session) → `get_mcp_orbit_component` per chosen ref → assemble + dry-run + `meta_context_commit`.** This tool is the discovery surface for browsing what components are available; the per-component body lives behind `get_mcp_orbit_component`. Bodies are intentionally omitted from the list response (they're large).",
+      "List components in the mcp-orbit store. Components are typed building blocks (`mcp`, `trigger`, `pattern`, `idempotency`, `render`) that compose into MCP-to-MCP workflows. Each `mcp` component declares an `affordances` map (`read`/`write`/`watch`); `source`/`destination` are composition roles per-entry in `component_refs`, not separate kinds — the same Gmail MCP can play source in one composition and destination in another. Use this when the user wants a workflow that reads from one MCP and writes to another (e.g. 'weekly Linear digest into Drive'), NOT for bot or bot-shaped catalyst work. Bodies are omitted from list responses — fetch with `get_mcp_orbit_component`.",
     inputSchema: {
       type: 'object',
       properties: {
         kind: {
           type: 'string',
-          enum: ['source', 'destination', 'trigger', 'pattern', 'idempotency', 'render'],
+          enum: ['mcp', 'trigger', 'pattern', 'idempotency', 'render'],
           description: 'Optional filter to one component category.',
         },
         ref_pattern: {
@@ -346,13 +434,13 @@ export function registerMCPOrbitTools() {
   registerTool({
     name: 'get_mcp_orbit_component',
     description:
-      "Ring 6 — DELIBERATION surface. Fetch one mcp-orbit component by (kind, ref, version?). Returns the full markdown body plus structured payload (constraints, capabilities, exposed knobs, etc. that this component declares for the composer to honor). When `version` is omitted, returns the highest-version row for that ref — components follow semver, so highest string = latest release when shipped components follow the convention. **Always read this in full before incorporating a component into a composition** — the body's mapping intent and pitfalls sections are load-bearing; the composer that skims gets the integration wrong. The `exposesKnobs` array is what you negotiate with the operator at composition time.",
+      "Fetch one mcp-orbit component by (kind, ref, version?). Returns the full markdown body plus structured payload (affordances, constraints, capabilities, exposed knobs). Omit `version` for the highest-version row. **Read in full before incorporating into a composition** — mapping intent and pitfalls are load-bearing; composers that skim get the integration wrong. For `mcp` components, BOTH source-role and destination-role sections inform affordances posture even if the composition only uses one. `exposesKnobs` is what you negotiate with the operator at composition time.",
     inputSchema: {
       type: 'object',
       properties: {
         kind: {
           type: 'string',
-          enum: ['source', 'destination', 'trigger', 'pattern', 'idempotency', 'render'],
+          enum: ['mcp', 'trigger', 'pattern', 'idempotency', 'render'],
         },
         ref: { type: 'string', description: 'Component ref from list_mcp_orbit_components.' },
         version: {
@@ -369,7 +457,7 @@ export function registerMCPOrbitTools() {
   registerTool({
     name: 'get_meta_catalyst',
     description:
-      "Ring 6 — DELIBERATION surface. Return the **mcp-orbit composition rulebook** — pattern catalog, constraint table, composition discipline, ranking heuristic, dry-run + commit discipline. This is the singleton briefing every mcp-orbit composition reads ONCE per session before assembling. **Read this before composing any mcp-orbit workflow, then re-read the constraint and dry-run sections at the moment you're assembling components.** Distinct from `get_catalyst` (which fetches a single bot-shaped recipe by id); this is the composer's posture and rulebook for the component-store path, not a recipe.",
+      "The mcp-orbit composition rulebook — pattern catalog, constraint table, composition discipline, ranking heuristic, dry-run + commit discipline. Read once per session before composing any mcp-orbit workflow, then re-read the constraint and dry-run sections at assembly time. Distinct from `get_catalyst` (which fetches a single bot-shaped recipe by id); this is the composer's posture for the component-store path, not a recipe.",
     inputSchema: { type: 'object', properties: {} },
     handler: getMetaCatalystHandler,
   });
@@ -377,7 +465,7 @@ export function registerMCPOrbitTools() {
   registerTool({
     name: 'recommend_mcp_orbit_compositions',
     description:
-      "Ring 6 — DELIBERATION surface. Recommend mcp-orbit compositions for the operator's stated intent. Server-side does only the deterministic part — pre-filters available components against the declared MCP inventory and the operator's KYC anchor, scores candidates, and writes each candidate to the composition log as a `proposed` row so the recommendation itself is auditable. Returns 1-3 ranked candidates, each with `compositionRef` (handle for later state transitions via `register_mcp_orbit_component`'s future write surface), the typed component refs that comprise it, the scoring rationale, and any constraint warnings (e.g. `scheduled_without_idempotency`, `source_not_in_inventory:linear`). **The agent does the composition** — pulls component bodies via `get_mcp_orbit_component`, negotiates knobs with the operator, runs the dry-run, materializes via host adapter, and seals via `meta_context_commit`. **Call this FIRST on any mcp-orbit intent** ('weekly digest from X to Y', 'route signal from A to B', 'enrich C with D'); it returns `nextSteps` that walk through the rest of the flow. If `inventory.toolCount` is 0 or `inventory.ageSeconds > 604800`, surface to the operator that the recommendation will be weaker without fresh inventory and offer to refresh via `meta_context_declare_inventory`.",
+      "Recommend mcp-orbit compositions for the operator's stated intent. Server pre-filters available components against the declared inventory + operator KYC, scores candidates, and writes each as a `proposed` row in the composition log (audit). Returns 1-3 ranked candidates with `compositionRef`, the typed component refs that comprise it, scoring rationale, and any constraint warnings (e.g. `scheduled_without_idempotency`, `source_not_in_inventory:linear`). **Call FIRST on any mcp-orbit intent** ('weekly digest from X to Y', 'route signal from A to B', 'enrich C with D'); returned `nextSteps` walk through the rest of the flow. If `inventory.toolCount` is 0 or `ageSeconds > 604800`, prompt the operator to refresh via `meta_context_declare_inventory`.",
     inputSchema: {
       type: 'object',
       properties: {

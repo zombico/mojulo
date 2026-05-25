@@ -76,3 +76,62 @@ When you finish materializing, tell the user:
 - The first-invocation dry-run pattern is baked in; explain how to flip to live mode.
 - The scheduling decision is theirs — point at the recommended cadence in `workflow.md` but don't try to wire the scheduler from inside the workflow.
 - Re-run the catalyst flow if the bot's form schema or protocols change later.
+
+---
+
+## Primitive binding flow (parallel path, runtime-introspected)
+
+Everything above describes the **catalyst** flow. There's a second flow mojulo supports for **no-bot, primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, materializes the workflow as a `workflow.md` + runner script, and seals via `meta_context_commit({type: 'primitive_artifact_materialization', ...})`. The vendor-shaped `recommend_mcp_orbit_compositions` flow is the supported default; primitive binding is the runtime-introspected alternative we're validating in parallel.
+
+Since this is the baseline generic adapter — your host doesn't have a specific introspection affordance the way Claude Code or Codex do — the introspection step is the part where you'll have to improvise based on what your runtime exposes.
+
+### Step 1 — Enumerate MCPs (use whatever client-native affordance you have)
+
+In order of preference:
+
+1. **If your runtime exposes a `tools/list` call** against connected MCPs — use it. Walk each server, collect tool names + descriptions + input schemas.
+2. **If your runtime surfaces installed MCPs in a discoverable way** (config file, environment variable, agent context block) — read that surface and group tools by server.
+3. **If neither** — ask the operator. "Which MCPs do you have connected? For each, what tools does it expose?" Capture what they tell you; mark each tool's `introspectionConfidence` honestly (`names_only` if you have just names; `agent_inferred` if you're filling in schema details from prior API knowledge they're not directly providing).
+
+Don't fabricate tool surfaces you can't verify. A `names_only` snapshot still lets `bind_primitives` produce a working generated body — it just downgrades schema slots to "(no schema available)" and forces downstream consumers to treat bindings as approximate. That's honest and usable. A fabricated `tools_list_full` snapshot lies to the contextmap and makes the audit trail unreliable.
+
+### Step 2 — Load schemas where you can
+
+Same intent as Step 1. For each tool you'll cite in `bind_primitives`, load its input schema if your runtime supports schema discovery. If not, the binding's confidence drops to `agent_inferred` (you knew the name, you guessed the schema) or `names_only`.
+
+### Step 3 — Ship the snapshot via `meta_context_declare_inventory` in richer-snapshot mode
+
+Same call shape as the other adapters document. REPLACE semantics; include every MCP + tool that could play a primitive role this session.
+
+### Step 4 — Bind primitives per composition slot
+
+Call `bind_primitives` once per primitive slot. Read each returned `body` in full before incorporating it into the runner script.
+
+### Step 5 — Materialize as `workflow.md` + runner script (same two-file pattern as the catalyst flow)
+
+Same artifact target as catalyst materialization on this adapter: `<dir>/workflow.md` + `<dir>/run.<ext>`. Differences for primitive composition artifacts:
+
+- The runner calls the **bound tool names from the snapshot directly** (e.g. `search_files`, `create_file`) — not affordance names. Affordance names are mojulo-side abstractions.
+- Copy the relevant mapping intent + pitfalls from each `bind_primitives` body into `workflow.md`. The provider body is session-scoped; the file has to be self-contained at run time.
+- The runner's first step is a tool-discovery preflight: for each bound tool name, verify it's accessible via the runtime's MCP client; exit non-zero with a clear message if any are missing.
+- The dry-run pattern (first invocation prints destination payload + exits; `--live` flag flips to writes) still applies unchanged.
+
+### Step 6 — Seal with `meta_context_commit` (primitive_artifact_materialization)
+
+After the two files exist on disk:
+
+```json
+{
+  "type": "primitive_artifact_materialization",
+  "adapter_id": "generic",
+  "artifact": { "locator": "<absolute path to workflow.md>", "label": "..." },
+  "composition_intent": "...",
+  "provider_artifact_refs": ["<every prov_xxx>"]
+}
+```
+
+The generic adapter's verification runs `existsSync` on the locator — verify the file is actually on disk before committing. If commit fails, delete the workflow files before retrying.
+
+### Inventory freshness
+
+The `snapshot_stale` warning from `bind_primitives` (snapshot > 24h old) is your cue to re-run steps 1–3. Document in the materialized `workflow.md`'s frontmatter when the snapshot was captured — operators reading the file later need to know how fresh the bound tool list was at materialization time.

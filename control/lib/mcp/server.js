@@ -205,6 +205,7 @@ export async function ensureToolsRegistered() {
   const { registerMetaContextTools } = await import('@/lib/mcp/tools/meta-context');
   const { registerInventoryTools } = await import('@/lib/mcp/tools/mcp-inventory');
   const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
+  const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -215,9 +216,10 @@ export async function ensureToolsRegistered() {
   // order should put it after the action rings. Inventory registers
   // immediately after the contextmap tools — it's the third Ring 6 surface
   // (current-environment cache alongside the append-only contextmap).
-  // mcp-orbit tools register LAST within Ring 6 — they sit ON TOP of the
-  // contextmap (commit/brief) and inventory primitives. The natural reading
-  // order is: append-only contextmap → current-state inventory → composer.
+  // mcp-orbit tools register after inventory (composer ON TOP of inventory).
+  // bind_primitives registers LAST within Ring 6 — it's the primitive-binding
+  // architecture's only tool surface in Phase A.1, parallel to the existing
+  // mcp-orbit composer, NOT replacing it. See MCP_PRIMITIVE_BINDING_PLAN.md.
   registerContextTools();
   registerAdapterTools();
   registerBuildTools();
@@ -227,5 +229,13 @@ export async function ensureToolsRegistered() {
   registerCatalystTools();
   registerMetaContextTools();
   registerInventoryTools();
-  registerMCPOrbitTools();
+  // CAUTERIZE: when MOJULO_MCP_ORBIT_VENDOR_DISABLED=1, skip the vendor-shaped
+  // mcp-orbit composer (recommend_mcp_orbit_compositions / list_mcp_orbit_components /
+  // get_mcp_orbit_component / get_meta_catalyst) so the agent is forced through
+  // the primitive-binding flow. Tests do not set the flag and continue to register
+  // the full surface. See lite-template/integration/MCP_PRIMITIVE_BINDING_PLAN.md.
+  if (process.env.MOJULO_MCP_ORBIT_VENDOR_DISABLED !== '1') {
+    registerMCPOrbitTools();
+  }
+  registerPrimitiveBindingTools();
 }

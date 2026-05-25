@@ -30,9 +30,12 @@ import { randomUUID } from 'node:crypto';
 
 import { getDb } from '../index.js';
 
-const COMPONENT_KINDS = ['source', 'destination', 'trigger', 'pattern', 'idempotency', 'render'];
+const COMPONENT_KINDS = ['mcp', 'trigger', 'pattern', 'idempotency', 'render'];
 const COMPONENT_SOURCES = ['builtin', 'custom'];
 const COMPOSITION_STATUSES = ['proposed', 'dry_run', 'materialized', 'retired'];
+// Roles that an mcp-kind entry can play inside a composition. Non-mcp
+// kinds don't carry a role — they're singletons in the composition.
+const MCP_ROLES = ['source', 'destination'];
 
 function rowToComponent(row) {
   if (!row) return null;
@@ -216,7 +219,9 @@ export const MCPOrbitCompositionRepository = {
     }
     for (const r of component_refs) {
       if (!r || typeof r !== 'object') {
-        throw new Error('every component_refs[] entry must be an object with { kind, ref, version }');
+        throw new Error(
+          'every component_refs[] entry must be an object with { kind, ref, version, role? }',
+        );
       }
       if (!r.kind || typeof r.kind !== 'string') {
         throw new Error('component_refs[].kind must be a string');
@@ -226,6 +231,20 @@ export const MCPOrbitCompositionRepository = {
       }
       if (!r.version || typeof r.version !== 'string') {
         throw new Error('component_refs[].version must be a string');
+      }
+      // role is required for mcp-kind entries (which workflow role this MCP
+      // plays in the composition) and disallowed elsewhere — the other kinds
+      // are singletons in a composition (one trigger, one pattern, etc.).
+      if (r.kind === 'mcp') {
+        if (!r.role || !MCP_ROLES.includes(r.role)) {
+          throw new Error(
+            `component_refs[].role must be one of: ${MCP_ROLES.join(', ')} for kind='mcp' entries (got '${r.role ?? ''}')`,
+          );
+        }
+      } else if (r.role !== undefined) {
+        throw new Error(
+          `component_refs[].role is only valid for kind='mcp' entries (got role='${r.role}' on kind='${r.kind}')`,
+        );
       }
     }
     if (!knobs || typeof knobs !== 'object') {
@@ -338,3 +357,4 @@ export const MCPOrbitCompositionRepository = {
 export const _COMPONENT_KINDS_FOR_TESTS = COMPONENT_KINDS;
 export const _COMPONENT_SOURCES_FOR_TESTS = COMPONENT_SOURCES;
 export const _COMPOSITION_STATUSES_FOR_TESTS = COMPOSITION_STATUSES;
+export const _MCP_ROLES_FOR_TESTS = MCP_ROLES;

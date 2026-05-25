@@ -5,14 +5,14 @@
   "summary": "Cognitive shape: many small events over a window → one summary artifact at the window boundary.",
   "fits": {
     "triggers": ["scheduled"],
-    "sources": ["*"],
-    "destinations": ["*"]
+    "sourceMcpAffordances": ["read"],
+    "destinationMcpAffordances": ["write"]
   },
   "requires": {
-    "minSources": 1,
-    "minDestinations": 1,
+    "minMcpRoles": { "source": 1, "destination": 1 },
     "needsIdempotency": true
   },
+  "intentKeywords": ["digest", "summary", "report", "aggregate", "weekly", "daily", "monthly", "rollup", "consolidate", "summarize", "overview"],
   "exposesKnobs": [
     { "name": "window", "prompt": "How is the aggregation window defined? (past N days from run | calendar week Mon-Sun | sprint-aligned)", "default": "calendar-week" },
     { "name": "grouping", "prompt": "How should events be grouped in the output? (by team | by status | by assignee | flat)", "default": "by status" },

@@ -138,13 +138,18 @@ function init(db) {
 
     -- mcp-orbit component store. Decomposes the monolithic mcp-orbit catalyst
     -- pattern into a small set of typed components that combine
-    -- multiplicatively (sources × destinations × triggers × patterns ×
-    -- idempotency × render). The agent composes; the server provides
-    -- components + constraint validation. Server-stored, agent-composed.
-    -- See lite-template/integration/MCP_ORBIT_COMPONENT_STORE_PLAN.md.
+    -- multiplicatively. Five kinds: mcp (per-MCP affordance: read, write,
+    -- watch), trigger, pattern, idempotency, render. source and destination
+    -- are composition ROLES carried on each mcp entry in component_refs,
+    -- not component kinds — the same Gmail MCP can play source role in one
+    -- composition and destination role in another. The agent composes; the
+    -- server provides components + constraint validation. Server-stored,
+    -- agent-composed. See lite-template/integration/MCP_ORBIT_V1_PLAN.md for
+    -- the role refinement and MCP_ORBIT_COMPONENT_STORE_PLAN.md for the v0
+    -- substrate.
     CREATE TABLE IF NOT EXISTS mcp_orbit_components (
       id INTEGER PRIMARY KEY,
-      kind TEXT NOT NULL CHECK(kind IN ('source','destination','trigger','pattern','idempotency','render')),
+      kind TEXT NOT NULL CHECK(kind IN ('mcp','trigger','pattern','idempotency','render')),
       ref TEXT NOT NULL,
       version TEXT NOT NULL,
       body_md TEXT NOT NULL,
@@ -174,10 +179,49 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_compositions_status ON mcp_orbit_compositions(status);
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_compositions_artifact ON mcp_orbit_compositions(artifact_ref);
+
+    -- Generated provider artifacts from the primitive-binding generator. Each
+    -- row is a session-scoped markdown body produced by filling a primitive's
+    -- role-specific template against a capability snapshot for one MCP. Stored
+    -- so the agent can reference a stable ref between bind_primitives and the
+    -- subsequent commit; also makes the artifact auditable as the durable
+    -- link between primitive + snapshot + bound tool names + confidence.
+    -- See lite-template/integration/MCP_PRIMITIVE_BINDING_PLAN.md.
+    CREATE TABLE IF NOT EXISTS mcp_orbit_provider_artifacts (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL UNIQUE,
+      primitive_ref TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('source','destination')),
+      server TEXT NOT NULL,
+      introspected_at INTEGER,
+      snapshot_confidence TEXT,
+      body_md TEXT NOT NULL,
+      manifest_json TEXT NOT NULL,
+      bindings_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_server ON mcp_orbit_provider_artifacts(server);
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_primitive ON mcp_orbit_provider_artifacts(primitive_ref, role);
   `);
 
   migrateDeploymentColumns(db);
+  migrateInventoryColumns(db);
   reapStaleMcpJobs(db);
+}
+
+// Extend meta_mcp_inventory with the columns needed for richer capability
+// snapshots (per-tool input schema + per-tool introspection confidence).
+// Backward-compatible — existing rows have NULL for the new columns, which
+// the generator treats as 'names-only' confidence with no schema available.
+function migrateInventoryColumns(db) {
+  const cols = db.prepare('PRAGMA table_info(meta_mcp_inventory)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('input_schema_json')) {
+    db.exec('ALTER TABLE meta_mcp_inventory ADD COLUMN input_schema_json TEXT');
+  }
+  if (!have.has('introspection_confidence')) {
+    db.exec('ALTER TABLE meta_mcp_inventory ADD COLUMN introspection_confidence TEXT');
+  }
 }
 
 function reapStaleMcpJobs(db) {
