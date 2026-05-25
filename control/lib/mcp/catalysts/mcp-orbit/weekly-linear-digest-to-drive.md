@@ -8,7 +8,7 @@
   "valueHook": "Stop opening Linear every Monday morning to remember what shipped last week.",
   "requires": {
     "sources": [
-      { "category": "issue_tracker", "examples": ["linear", "github_issues", "jira"] }
+      { "category": "structured_record_store", "examples": ["linear", "github_issues", "jira"] }
     ],
     "destinations": [
       { "category": "document_store", "examples": ["gdrive", "notion", "confluence"] }
@@ -27,7 +27,7 @@ The operator wants a recurring, lightweight read-out of issue-tracker activity i
 
 **Reject this catalyst when:**
 
-- No issue-tracker MCP is in the declared inventory. Call `meta_context_brief({ scope: { kind: 'fleet' } })` first — `inventory.servers` is the truth.
+- No structured-record-store MCP is in the declared inventory. Call `meta_context_brief({ scope: { kind: 'fleet' } })` first — `inventory.servers` is the truth.
 - No document-store MCP is in the declared inventory.
 - The user wants signal-driven response ("when issue X happens, do Y immediately") — that's a different pattern; redirect them to a signal-shaped meta-catalyst.
 - The user wants the digest delivered to chat (Slack, Discord) — redirect them to a chat-destination variant.
@@ -47,7 +47,7 @@ The substantial side of this catalyst is mojulo's own state, not the bot anatomy
 
 ### Step 2 — Probe the source MCP at synthesis time
 
-Don't assume Linear. Read inventory and pick whichever issue-tracker MCP the operator declared. Then probe it — the same way `qualify-lead-to-crm` probes the CRM destination instead of assuming HubSpot.
+Don't assume Linear. Read inventory and pick whichever structured-record-store MCP the operator declared. Then probe it — the same way `qualify-lead-to-crm` probes the CRM destination instead of assuming HubSpot.
 
 Per common MCP, look for:
 

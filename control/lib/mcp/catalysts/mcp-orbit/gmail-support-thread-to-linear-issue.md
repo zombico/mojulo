@@ -11,7 +11,7 @@
       { "category": "email", "examples": ["gmail", "outlook", "fastmail"] }
     ],
     "destinations": [
-      { "category": "issue_tracker", "examples": ["linear", "github_issues", "jira"] }
+      { "category": "structured_record_store", "examples": ["linear", "github_issues", "jira"] }
     ]
   }
 }
@@ -28,7 +28,7 @@ The operator receives support requests via email that today get triaged by hand 
 **Reject this catalyst when:**
 
 - No email MCP is in the declared inventory. Call `meta_context_brief({ scope: { kind: 'fleet' } })` first — `inventory.servers` is the truth.
-- No issue-tracker MCP is in the declared inventory.
+- No structured-record-store MCP is in the declared inventory.
 - The user wants conversational triage (back-and-forth with the sender) — that's bot-shaped, not signal-shaped; redirect to a bot catalyst.
 - The user wants aggregation ("weekly digest of support volume") rather than per-message routing — redirect to `weekly-linear-digest-to-drive` or a similar scheduled-aggregation catalyst.
 
@@ -56,7 +56,7 @@ In each case identify:
 - Per-thread fetch contract (one call returns the whole thread, or paginate messages within it?).
 - The "what's new" cursor: history token (Gmail) / delta link (Outlook) / last-processed message id (IMAP-style).
 
-### Step 3 — Probe the issue-tracker MCP at synthesis time
+### Step 3 — Probe the structured-record-store MCP at synthesis time
 
 Don't assume Linear.
 

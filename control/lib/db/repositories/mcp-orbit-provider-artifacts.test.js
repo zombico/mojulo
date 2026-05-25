@@ -171,7 +171,7 @@ describe('ProviderArtifactRepository.listForPrimitiveAndRole', () => {
   it('filters by both primitive ref and role', () => {
     baseInsert({ primitiveRef: 'document-store@0.1.0', role: 'source', server: 's1' });
     baseInsert({ primitiveRef: 'document-store@0.1.0', role: 'destination', server: 's1' });
-    baseInsert({ primitiveRef: 'issue-tracker@0.1.0', role: 'source', server: 's2' });
+    baseInsert({ primitiveRef: 'structured-record-store@0.1.0', role: 'source', server: 's2' });
     const list = ProviderArtifactRepository.listForPrimitiveAndRole(
       'document-store@0.1.0',
       'source',

@@ -2,7 +2,7 @@
  * mcp-orbit provider-artifact generator.
  *
  * Server-side, deterministic, no LLM in the path. Takes:
- *   - a primitive ref (`document-store`, `issue-tracker`, ...)
+ *   - a primitive ref (`document-store`, `structured-record-store`, `messaging-channel`, ...)
  *   - a composition role (`source` | `destination`)
  *   - a capability snapshot for one MCP (server name, introspection time,
  *     tools list with names and input schemas, snapshot confidence)

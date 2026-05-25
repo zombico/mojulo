@@ -228,7 +228,7 @@ Same call shape as the Claude Code adapter documents. REPLACE semantics; include
 
 ### Step 4 — Bind primitives per composition slot
 
-Call `bind_primitives` once per primitive slot (e.g. one for `document-store/destination` on `claude_ai_Google_Drive`, another for `issue-tracker/source` on `claude_ai_Linear`). Each call returns a `prov_<id>` ref + inline `body`. Read each body in full — its mapping intent and pitfalls sections drive how you write the artifact in step 5.
+Call `bind_primitives` once per primitive slot (e.g. one for `document-store/destination` on `claude_ai_Google_Drive`, another for `structured-record-store/source` on `claude_ai_Linear`). Each call returns a `prov_<id>` ref + inline `body`. Read each body in full — its mapping intent and pitfalls sections drive how you write the artifact in step 5.
 
 The `confidence` per binding is `agent-inferred` by default. Bump to `operator-confirmed` after asking the user to confirm a binding (when two tools could plausibly satisfy one affordance and you want their explicit pick).
 

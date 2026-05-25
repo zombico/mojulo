@@ -99,7 +99,7 @@ The `body_md` you pass to `record_mcp_capabilities` is markdown with JSON frontm
 ---
 {
   "requires": {
-    "mcpInventoryCategory": "<email | knowledge_base | issue_tracker | document_store | calendar | crm | etc>",
+    "mcpInventoryCategory": "<email | knowledge_base | structured_record_store | document_store | calendar | crm | etc>",
     "inventoryServerHints": ["<alias-1>", "<alias-2>", "<host-namespaced-form>"]
   },
   "affordances": { "read": true, "write": true, "watch": false },

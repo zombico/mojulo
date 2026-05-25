@@ -612,17 +612,17 @@ describe('commitPrimitiveArtifactMaterialization', () => {
   it('accepts multiple provider_artifact_refs and creates binds edges for each', async () => {
     const source = seedProviderArtifact(); // document-store/source on Drive
     const dest = seedProviderArtifact({
-      primitiveRef: 'issue-tracker@0.1.0',
+      primitiveRef: 'structured-record-store@0.1.0',
       role: 'destination',
       server: 'claude_ai_Linear',
       manifest: {
         bound: [
-          { affordance: 'create-issue', tool: 'create_issue', confidence: 'operator-confirmed' },
+          { affordance: 'create-record', tool: 'create_issue', confidence: 'operator-confirmed' },
         ],
         unbound: [],
-        declaredCount: 5,
+        declaredCount: 6,
       },
-      bindings: { 'create-issue': { tool: 'create_issue', confidence: 'operator-confirmed' } },
+      bindings: { 'create-record': { tool: 'create_issue', confidence: 'operator-confirmed' } },
     });
     const out = await commitPrimitiveArtifactMaterialization(
       buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [source.ref, dest.ref] }),

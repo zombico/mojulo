@@ -250,7 +250,7 @@ describe('bind_primitives — input validation', () => {
   });
 });
 
-describe('bind_primitives — issue-tracker primitive', () => {
+describe('bind_primitives — structured-record-store primitive', () => {
   it('handles a different primitive with deliberately divergent vocabulary', async () => {
     InventoryRepository.replaceInventory([
       {
@@ -275,7 +275,7 @@ describe('bind_primitives — issue-tracker primitive', () => {
       },
     ]);
     const out = await bindPrimitivesHandler({
-      primitive: 'issue-tracker',
+      primitive: 'structured-record-store',
       role: 'source',
       server: 'claude_ai_Linear',
       bindings: {
@@ -284,9 +284,9 @@ describe('bind_primitives — issue-tracker primitive', () => {
         'list-recent': { tool: 'list_issues' },
       },
     });
-    expect(out.artifact.primitiveRef).toBe('issue-tracker@0.1.0');
+    expect(out.artifact.primitiveRef).toBe('structured-record-store@0.1.0');
     expect(out.artifact.body).toContain('search_issues');
-    // Issue-tracker vocabulary, not document-store vocabulary
+    // structured-record-store vocabulary, not document-store vocabulary
     expect(out.artifact.body).toContain('`find-by-filter`');
     expect(out.artifact.body).not.toContain('find-by-key-in-scope');
   });

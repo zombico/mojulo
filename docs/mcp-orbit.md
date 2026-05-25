@@ -116,7 +116,7 @@ Components ship as markdown files with JSON frontmatter:
   "version": "0.1.0",
   "summary": "Linear issue-tracker MCP: read (cursor on updated_at) and write (create / update / comment) affordances.",
   "requires": {
-    "mcpInventoryCategory": "issue_tracker",
+    "mcpInventoryCategory": "structured_record_store",
     "inventoryServerHints": ["linear"]
   },
   "affordances": {

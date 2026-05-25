@@ -55,7 +55,7 @@ This primitive is the curated, vendor-agnostic shape. The integration specifics 
 ## When it doesn't fit
 
 - The workflow needs structured records with typed fields and queries (`structured-record-store` is the right primitive — Airtable, HubSpot, Notion DBs).
-- The workflow needs directed mail semantics with reply identity, where audience is named recipients (`message-thread` — Gmail).
+- The workflow needs directed mail semantics with reply identity, where audience is named recipients (`message-thread` — Gmail, Outlook).
 - The workflow needs scope-addressable chat with thread sub-grouping, where audience is scope members (`messaging-channel` — Slack, Discord, Teams).
 - The workflow needs append-only timeline semantics with cursor-based catch-up (`event-stream`).
 

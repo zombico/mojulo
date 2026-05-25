@@ -12,4 +12,13 @@ export default defineConfig({
       '@': resolve(here, '.'),
     },
   },
+  test: {
+    include: ['{lib,app,middleware}/**/*.test.js', 'middleware.test.js'],
+    exclude: [
+      '**/node_modules/**',
+      '.next/**',
+      'data/**',
+      'lite-template/**',
+    ],
+  },
 });

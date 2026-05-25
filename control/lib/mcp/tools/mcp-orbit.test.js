@@ -91,7 +91,7 @@ describe('get_mcp_orbit_component', () => {
     expect(out.ref).toBe('linear');
     expect(out.version).toBe('0.1.0');
     expect(out.bodyMd).toMatch(/# mcp: Linear/);
-    expect(out.payload.requires.mcpInventoryCategory).toBe('issue_tracker');
+    expect(out.payload.requires.mcpInventoryCategory).toBe('structured_record_store');
     expect(out.payload.affordances).toEqual({ read: true, write: true, watch: false });
     expect(Array.isArray(out.payload.exposesKnobs)).toBe(true);
   });

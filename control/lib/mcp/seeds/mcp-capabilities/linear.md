@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "summary": "Linear issue-tracker MCP: read (cursor on updated_at, cost-based rate limit, GraphQL query) and write (create / update / comment on issues) affordances. Bidirectional with team/project scoping.",
   "requires": {
-    "mcpInventoryCategory": "issue_tracker",
+    "mcpInventoryCategory": "structured_record_store",
     "inventoryServerHints": ["linear"]
   },
   "affordances": {

@@ -479,22 +479,26 @@ describe('generateProviderArtifact — end to end against shipped primitive', ()
 });
 
 // ---------------------------------------------------------------------------
-// issue-tracker primitive — second-primitive validation
+// structured-record-store primitive — second-primitive validation
 //
 // The point of this block is NOT to repeat the unit tests above with a
 // different fixture — it's to validate that the slot vocabulary + generator
 // hold up against a primitive whose affordance contract is genuinely
 // different from document-store's. The vocabulary deliberately diverges:
 //
-//   - document-store: find-by-key-in-scope, create-with-mime, append-to-existing, move-to-folder
-//   - issue-tracker:  find-by-filter,       create-issue,     comment-on-issue,   transition-status, update-issue-fields
+//   - document-store:           find-by-key-in-scope, create-with-mime, append-to-existing, move-to-folder
+//   - structured-record-store:  find-by-filter,       create-record,    comment-on-record,  transition-status, update-fields, upsert-by-key
 //
 // Shared across both primitives (where the shape genuinely transfers):
 //   read-content, list-recent, get-metadata, subscribe-to-changes.
 //
-// If these tests pass, the generator + slot vocabulary survive a second
-// primitive without changes. That's the validation gate before plumbing a
-// tool surface around the architecture.
+// Linear (issue-tracker-flavored backend) and GitHub Issues are the fixtures
+// because they exercise the typed-record shape against backends with status
+// workflows and comments — the affordance space that distinguishes
+// structured-record-store from a flat document-store. CRM / spreadsheet-DB
+// backends (HubSpot, Airtable, Notion DB) exercise the same primitive against
+// a different binding profile (upsert-by-key bound, transition-status often
+// unbound) and would make natural future fixtures.
 // ---------------------------------------------------------------------------
 
 const LINEAR_SNAPSHOT = {
@@ -655,7 +659,7 @@ const GITHUB_SNAPSHOT = {
       name: 'update_issue',
       // GitHub's update_issue takes state + labels + assignees together —
       // this is the surface that has to satisfy BOTH transition-status and
-      // update-issue-fields, OR one of those stays unbound.
+      // update-fields, OR one of those stays unbound.
       inputSchema: {
         type: 'object',
         properties: {
@@ -680,41 +684,43 @@ const LINEAR_SOURCE_BINDINGS = {
 };
 
 const LINEAR_DESTINATION_BINDINGS = {
-  'create-issue': { tool: 'create_issue', confidence: 'operator-confirmed' },
+  'create-record': { tool: 'create_issue', confidence: 'operator-confirmed' },
   'find-by-filter': { tool: 'search_issues', confidence: 'agent-inferred' },
-  'comment-on-issue': { tool: 'add_comment', confidence: 'agent-inferred' },
+  'comment-on-record': { tool: 'add_comment', confidence: 'agent-inferred' },
   'transition-status': { tool: 'transition_issue', confidence: 'agent-inferred' },
-  'update-issue-fields': { tool: 'update_issue', confidence: 'agent-inferred' },
+  'update-fields': { tool: 'update_issue', confidence: 'agent-inferred' },
+  // upsert-by-key intentionally unbound — Linear's MCP doesn't expose a
+  // native find-or-create surface; sync workflows simulate via find-then-create.
 };
 
-// On GitHub, transition-status and update-issue-fields both map to the same
+// On GitHub, transition-status and update-fields both map to the same
 // update_issue tool. That's a legitimate v0 binding — the agent picks the
 // best available tool for each affordance, and overlap is OK. (Whether the
 // agent SHOULD double-bind a single tool to two affordances is a composition
 // posture decision; the generator just renders what the bindings say.)
 const GITHUB_DESTINATION_BINDINGS = {
-  'create-issue': { tool: 'create_issue', confidence: 'operator-confirmed' },
+  'create-record': { tool: 'create_issue', confidence: 'operator-confirmed' },
   'find-by-filter': { tool: 'list_repo_issues', confidence: 'agent-inferred' },
-  'comment-on-issue': { tool: 'create_issue_comment', confidence: 'agent-inferred' },
+  'comment-on-record': { tool: 'create_issue_comment', confidence: 'agent-inferred' },
   'transition-status': { tool: 'update_issue', confidence: 'agent-inferred' },
-  // update-issue-fields intentionally unbound — left to the agent to decide
-  // whether GitHub's update_issue should double as the field-update path or
-  // whether composing fields into transition-status calls is enough.
+  // update-fields and upsert-by-key intentionally unbound — left to the agent
+  // to decide whether GitHub's update_issue should double as the field-update
+  // path or whether composing fields into transition-status calls is enough.
 };
 
-describe('generateProviderArtifact — issue-tracker primitive validation', () => {
+describe('generateProviderArtifact — structured-record-store primitive validation', () => {
   it('generates a Linear source-role artifact', () => {
     const result = generateProviderArtifact({
-      primitive: 'issue-tracker',
+      primitive: 'structured-record-store',
       role: 'source',
       snapshot: LINEAR_SNAPSHOT,
       bindings: LINEAR_SOURCE_BINDINGS,
     });
-    expect(result.primitive).toBe('issue-tracker@0.1.0');
+    expect(result.primitive).toBe('structured-record-store@0.1.0');
     expect(result.role).toBe('source');
     expect(result.server).toBe('claude_ai_Linear');
 
-    // Issue-tracker-specific affordance names render (NOT document-store names)
+    // structured-record-store-specific affordance names render (NOT document-store names)
     expect(result.body).toContain('`find-by-filter`');
     expect(result.body).not.toContain('find-by-key-in-scope');
 
@@ -741,74 +747,83 @@ describe('generateProviderArtifact — issue-tracker primitive validation', () =
     expect(result.manifest.unbound[0].affordance).toBe('subscribe-to-changes');
   });
 
-  it('generates a Linear destination-role artifact with full transition-status coverage', () => {
+  it('generates a Linear destination-role artifact with upsert-by-key unbound', () => {
     const result = generateProviderArtifact({
-      primitive: 'issue-tracker',
+      primitive: 'structured-record-store',
       role: 'destination',
       snapshot: LINEAR_SNAPSHOT,
       bindings: LINEAR_DESTINATION_BINDINGS,
     });
     expect(result.role).toBe('destination');
 
-    // All 5 declared affordances bound on Linear in this fixture
+    // 5 of 6 declared affordances bound on Linear in this fixture
     expect(result.body).toContain('create_issue');
     expect(result.body).toContain('search_issues');
     expect(result.body).toContain('add_comment');
     expect(result.body).toContain('transition_issue');
     expect(result.body).toContain('update_issue');
 
-    // Issue-tracker-specific guidance renders
-    expect(result.body).toContain('issue lifecycle transitions are available');
-    expect(result.body).toContain('separately from `transition-status`');
+    // structured-record-store guidance renders for the bound transition-status
+    expect(result.body).toContain('record lifecycle transitions are available');
+    // upsert-by-key is unbound — Linear (issue-tracker-flavored) has no native
+    // upsert, and the unbound-block guidance about simulated upsert fires.
+    expect(result.body).toContain('does **not** expose `upsert-by-key` natively');
 
-    // No unfilled slots; no unbound affordances
+    // No unfilled slots; one unbound affordance (upsert-by-key)
     expect(result.body).not.toMatch(/\{\{[^}]+\}\}/);
-    expect(result.manifest.unbound).toHaveLength(0);
+    expect(result.manifest.declaredCount).toBe(6);
     expect(result.manifest.bound).toHaveLength(5);
+    expect(result.manifest.unbound).toHaveLength(1);
+    expect(result.manifest.unbound[0].affordance).toBe('upsert-by-key');
   });
 
-  it('generates a GitHub destination-role artifact with update-issue-fields unbound', () => {
+  it('generates a GitHub destination-role artifact with update-fields and upsert-by-key unbound', () => {
     const result = generateProviderArtifact({
-      primitive: 'issue-tracker',
+      primitive: 'structured-record-store',
       role: 'destination',
       snapshot: GITHUB_SNAPSHOT,
       bindings: GITHUB_DESTINATION_BINDINGS,
     });
     expect(result.server).toBe('claude_ai_GitHub');
 
-    // Same primitive, different tracker, different tool names
+    // Same primitive, different backend, different tool names
     expect(result.body).toContain('create_issue');
     expect(result.body).toContain('create_issue_comment');
     expect(result.body).toContain('list_repo_issues');
     expect(result.body).toContain('update_issue');
 
     // transition-status IS bound (to update_issue) — bound block fires
-    expect(result.body).toContain('issue lifecycle transitions are available');
+    expect(result.body).toContain('record lifecycle transitions are available');
 
-    // update-issue-fields is unbound — unbound block fires with the fallback guidance
-    expect(result.body).toContain('`update-issue-fields`');
-    expect(result.body).toContain('does **not** expose `update-issue-fields`');
+    // update-fields is unbound — unbound block fires with the fallback guidance
+    expect(result.body).toContain('`update-fields`');
+    expect(result.body).toContain('does **not** expose `update-fields` separately');
     // The bound-only block about discovering updatable fields should NOT render
     expect(result.body).not.toContain('Discover the updatable field set from the schema below.');
+
+    // upsert-by-key is also unbound — GitHub MCP has no native upsert
+    expect(result.body).toContain('does **not** expose `upsert-by-key` natively');
 
     // GitHub-specific tool schema rendered correctly
     expect(result.body).toContain('"issue_number"');
     expect(result.body).toContain('"labels"');
 
     expect(result.body).not.toMatch(/\{\{[^}]+\}\}/);
+    expect(result.manifest.declaredCount).toBe(6);
     expect(result.manifest.bound).toHaveLength(4);
-    expect(result.manifest.unbound).toHaveLength(1);
-    expect(result.manifest.unbound[0].affordance).toBe('update-issue-fields');
+    expect(result.manifest.unbound).toHaveLength(2);
+    const unboundNames = result.manifest.unbound.map((u) => u.affordance).sort();
+    expect(unboundNames).toEqual(['update-fields', 'upsert-by-key']);
   });
 
   it('renders primitive-shaped affordance names, not document-store names', () => {
     // Belt-and-suspenders: a generator bug that fell back to document-store's
     // affordance vocabulary would silently produce bodies referencing
     // 'find-by-key-in-scope' / 'create-with-mime' / 'append-to-existing' /
-    // 'move-to-folder' instead. Assert none of those leak into an
-    // issue-tracker artifact.
+    // 'move-to-folder' instead. Assert none of those leak into a
+    // structured-record-store artifact.
     const result = generateProviderArtifact({
-      primitive: 'issue-tracker',
+      primitive: 'structured-record-store',
       role: 'destination',
       snapshot: LINEAR_SNAPSHOT,
       bindings: LINEAR_DESTINATION_BINDINGS,

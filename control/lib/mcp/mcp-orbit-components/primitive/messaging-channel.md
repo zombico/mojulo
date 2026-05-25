@@ -65,8 +65,8 @@ This is the curated, vendor-agnostic shape. The integration specifics — which 
 ## When it doesn't fit
 
 - The workflow needs durable named artifacts with folder organization (`document-store` — Drive, Notion docs).
-- The workflow needs typed records with status lifecycle (`issue-tracker` — Linear, GitHub Issues).
-- The workflow needs directed mail semantics where audience is *named recipients* and threads grow by reply (`message-thread` — Gmail). The audience model differs: messaging-channel is scope-broadcast with self-selecting audience; message-thread is recipient-directed with reply-tree audience.
+- The workflow needs typed records with structured queries — issue trackers, CRMs, or spreadsheet-databases (`structured-record-store` — Linear, GitHub Issues, HubSpot, Airtable).
+- The workflow needs directed mail semantics where audience is *named recipients* and threads grow by reply (`message-thread` — Gmail, Outlook). The audience model differs: messaging-channel is scope-broadcast with self-selecting audience; message-thread is recipient-directed with reply-tree audience.
 
 ## Affordance map summary
 
@@ -78,14 +78,14 @@ Destination role uses `post-to-scope` for top-level posts and `post-to-thread` f
 
 Several affordance names rhyme across primitives because the underlying shape is genuinely similar:
 
-- `find-by-filter` (messaging-channel) ↔ `find-by-filter` (issue-tracker) — both are structured-field queries with scope + predicates. The shape transfers; the field vocabulary varies per backing platform.
-- `get-metadata` (messaging-channel) ↔ `get-metadata` (document-store, issue-tracker) — same meaning across primitives: fetch non-body facts about a resource.
+- `find-by-filter` (messaging-channel) ↔ `find-by-filter` (structured-record-store) — both are structured-field queries with scope + predicates. The shape transfers; the field vocabulary varies per backing platform.
+- `get-metadata` (messaging-channel) ↔ `get-metadata` (document-store, structured-record-store) — same meaning across primitives: fetch non-body facts about a resource.
 
 Others are deliberately primitive-shaped:
 
-- **`list-recent-in-scope` (messaging-channel)** vs **`list-recent` (document-store, issue-tracker)** — the `-in-scope` suffix is load-bearing: messaging-channel reads require a scope id, unlike document-store's "list recent across this folder" or issue-tracker's "list recent across this project." Listing across the operator's entire messaging surface is a different category of operation (most platforms require it via a search method, not a list method) and is intentionally not part of this primitive's affordance map.
-- **`post-to-scope`** vs `create-with-mime` (document-store) vs `create-issue` (issue-tracker) — chat messages are not mime-typed documents and not stateful work items. They're ordered, addressed-by-scope, optionally-threaded posts. The affordance name reflects that.
-- **`react-to-message`**, **`subscribe-to-reactions`** — no analog in document-store or issue-tracker. Reactions are messaging-channel-native; the primitive names them explicitly because they're a real source-side signal surface, not a vestigial UI affordance.
+- **`list-recent-in-scope` (messaging-channel)** vs **`list-recent` (document-store, structured-record-store)** — the `-in-scope` suffix is load-bearing: messaging-channel reads require a scope id, unlike document-store's "list recent across this folder" or structured-record-store's "list recent across this project / table / pipeline." Listing across the operator's entire messaging surface is a different category of operation (most platforms require it via a search method, not a list method) and is intentionally not part of this primitive's affordance map.
+- **`post-to-scope`** vs `create-with-mime` (document-store) vs `create-record` (structured-record-store) — chat messages are not mime-typed documents and not typed records with workflows. They're ordered, addressed-by-scope, optionally-threaded posts. The affordance name reflects that.
+- **`react-to-message`**, **`subscribe-to-reactions`** — no analog in document-store or structured-record-store. Reactions are messaging-channel-native; the primitive names them explicitly because they're a real source-side signal surface, not a vestigial UI affordance.
 - **`post-ephemeral`** — no analog elsewhere. Ephemerals are a chat-specific affordance with non-trivial pitfalls (no audit trail, no dedupe surface) that the primitive must teach.
 
 The lesson encoded here: affordance vocabulary is per-primitive. Names rhyme across primitives only when the shape genuinely transfers; otherwise the names diverge to make the difference visible in compositions and audit trails.
