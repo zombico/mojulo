@@ -58,7 +58,8 @@ This is the curated, vendor-agnostic shape. The integration specifics — which 
 ## When it doesn't fit
 
 - The workflow needs unstructured document storage with folder hierarchies (`document-store` — Drive, Notion docs).
-- The workflow needs message-thread semantics with reply identity (`message-thread` — Gmail, Slack).
+- The workflow needs directed mail semantics with reply identity, where audience is named recipients (`message-thread` — Gmail).
+- The workflow needs scope-addressable chat with thread sub-grouping, where audience is scope members (`messaging-channel` — Slack, Discord, Teams).
 - The workflow needs typed records with arbitrary fields beyond the status/assignee/label vocabulary (`structured-record-store` — Airtable, HubSpot, Notion DBs).
 
 ## Affordance map summary

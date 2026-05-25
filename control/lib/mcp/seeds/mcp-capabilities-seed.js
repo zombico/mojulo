@@ -47,6 +47,7 @@ const DISPLAY_NAMES = {
   notion: 'Notion',
   linear: 'Linear',
   google_drive: 'Google Drive',
+  slack: 'Slack',
 };
 
 function parseSeedFile(filePath, raw) {
