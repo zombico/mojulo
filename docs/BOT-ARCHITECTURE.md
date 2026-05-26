@@ -1,12 +1,14 @@
-# Mojulo: Compiled Artifact Architecture
+# Mojulo Bot Architecture
 
-Mojulo produces a **portable, self-contained Docker bot** packaged as a downloadable ZIP. Unlike the main Mojulo control plane (which deploys bots to a managed Kubernetes cluster), Mojulo hands the user a ready-to-run artifact they can launch anywhere Docker runs.
+The bot-shaped face of mojulo: how the control plane compiles a **portable, self-contained Docker bot** packaged as a downloadable ZIP, what the artifact contains, and how it runs. For the headless / MCP-driven face of the same control plane — the deliberation rings, catalysts, mcp-orbit, and primitive binding — see [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md).
+
+Mojulo hands the user a ready-to-run artifact they can launch anywhere Docker runs; the control plane is the factory that compiles it.
 
 ---
 
 ## 1. Build-Time: Control Plane → Artifact
 
-The control plane's [DockerDeployer](control/lib/deployers/docker.js) assembles the artifact from the [lite-template/](lite-template/) source plus user-supplied config.
+The control plane's [DockerDeployer](../control/lib/deployers/docker.js) assembles the artifact from the [lite-template/](../lite-template/) source plus user-supplied config.
 
 ```
                      ┌──────────────────────────────────────┐
@@ -68,14 +70,14 @@ The control plane's [DockerDeployer](control/lib/deployers/docker.js) assembles 
                      └──────────────────────────────────────┘
 ```
 
-Key build steps live in [control/lib/deployers/docker.js:259-393](control/lib/deployers/docker.js#L259-L393).
+Key build steps live in [control/lib/deployers/docker.js:259-393](../control/lib/deployers/docker.js#L259-L393).
 
 **Two build modes:**
 
-- **Prebuilt-image mode (default).** The artifact ships only config + docker-compose; the bot image (`ghcr.io/zombico/mojulo-bot:X`) is pulled at `docker compose up`. Source, Dockerfile, `helper/`, `models/`, and `node_modules` are stripped from the ZIP — see `PREBUILT_EXCLUDES` in [docker.js:41-54](control/lib/deployers/docker.js#L41-L54).
+- **Prebuilt-image mode (default).** The artifact ships only config + docker-compose; the bot image (`ghcr.io/zombico/mojulo-bot:X`) is pulled at `docker compose up`. Source, Dockerfile, `helper/`, `models/`, and `node_modules` are stripped from the ZIP — see `PREBUILT_EXCLUDES` in [docker.js:41-54](../control/lib/deployers/docker.js#L41-L54).
 - **Offline-build mode** (`MOJULO_OFFLINE_BUILD=1`). The artifact bundles full source + Dockerfile so `docker compose up --build` works without ghcr.io reachability. Slower first run, no registry dependency.
 
-**Vector index baking.** Knowledge documents and triage routes are chunked together by [chunker.js](control/lib/embedder/chunker.js) and embedded via the local multilingual-e5-small ONNX model in [/api/vectorize-rag](control/app/api/vectorize-rag/route.js). The resulting `embeddings.json` blob is stored once in the control plane's storage layer, then copied bit-for-bit into the artifact at build time. Triage route descriptions live in the same cosine index as document chunks, distinguished by `metadata.source === 'triage-route'`.
+**Vector index baking.** Knowledge documents and triage routes are chunked together by [chunker.js](../control/lib/embedder/chunker.js) and embedded via the local multilingual-e5-small ONNX model in [/api/vectorize-rag](../control/app/api/vectorize-rag/route.js). The resulting `embeddings.json` blob is stored once in the control plane's storage layer, then copied bit-for-bit into the artifact at build time. Triage route descriptions live in the same cosine index as document chunks, distinguished by `metadata.source === 'triage-route'`.
 
 ---
 
@@ -251,12 +253,12 @@ mirrored to: control/lib/envelope-schema.js  (kept in sync by hand —
 
 What this means in practice:
 
-- **Only Anthropic gets a wire-level guarantee.** Forced tool use makes prose-not-JSON structurally impossible on that provider. OpenAI and Ollama rely on the composed cartridge guidance plus `extractJSON` + fallback synthesis in [server.js](lite-template/server.js) to recover when the model leans prose.
-- **Adding an envelope field is a two-file change.** Update [lite-template/helper/envelope-schema.js](lite-template/helper/envelope-schema.js) (canonical) and [control/lib/envelope-schema.js](control/lib/envelope-schema.js) (mirror), then update the protocol cartridge in [control/lib/composer/protocols/](control/lib/composer/protocols/) that emits the new key.
-- **Each protocol owns one top-level key.** No cross-cutting fields. `form` is form-gathering's namespace, `extraction` is optical-read's, etc. The composer's [response-builder.js](control/lib/composer/response-builder.js) only adds a protocol's nested object to the response template when that protocol is enabled.
-- **Control-plane form generation is a separate concern.** [generateStructured()](control/lib/llm-providers.js) routes form-schema generation through OpenAI strict json_schema / Anthropic forced tool use against [form-structure-schema.js](control/lib/form-structure-schema.js). That call site is one-shot, schema-stable, and unrelated to the runtime envelope path described above.
+- **Only Anthropic gets a wire-level guarantee.** Forced tool use makes prose-not-JSON structurally impossible on that provider. OpenAI and Ollama rely on the composed cartridge guidance plus `extractJSON` + fallback synthesis in [server.js](../lite-template/server.js) to recover when the model leans prose.
+- **Adding an envelope field is a two-file change.** Update [lite-template/helper/envelope-schema.js](../lite-template/helper/envelope-schema.js) (canonical) and [control/lib/envelope-schema.js](../control/lib/envelope-schema.js) (mirror), then update the protocol cartridge in [control/lib/composer/protocols/](../control/lib/composer/protocols/) that emits the new key.
+- **Each protocol owns one top-level key.** No cross-cutting fields. `form` is form-gathering's namespace, `extraction` is optical-read's, etc. The composer's [response-builder.js](../control/lib/composer/response-builder.js) only adds a protocol's nested object to the response template when that protocol is enabled.
+- **Control-plane form generation is a separate concern.** [generateStructured()](../control/lib/llm-providers.js) routes form-schema generation through OpenAI strict json_schema / Anthropic forced tool use against [form-structure-schema.js](../control/lib/form-structure-schema.js). That call site is one-shot, schema-stable, and unrelated to the runtime envelope path described above.
 
-The "RESPOND ONLY IN VALID JSON" prose in [response-builder.js](control/lib/composer/response-builder.js) is load-bearing on OpenAI and Ollama; on Anthropic it is redundant with the forced tool-use schema.
+The "RESPOND ONLY IN VALID JSON" prose in [response-builder.js](../control/lib/composer/response-builder.js) is load-bearing on OpenAI and Ollama; on Anthropic it is redundant with the forced tool-use schema.
 
 ---
 
@@ -267,11 +269,11 @@ Triage routes — "if the user asks X, hand them to deployment Y" — were previ
 **Build-time** (when the operator selects triage destinations in the wizard or chat builder):
 
 1. Each route is `{ deploymentId, name, description }`.
-2. [chunker.js → chunkTriageRoutes](control/lib/embedder/chunker.js#L77-L93) emits one chunk per route (descriptions are short — no sub-chunking) with `metadata: { source: 'triage-route', deploymentId, originalName }`.
+2. [chunker.js → chunkTriageRoutes](../control/lib/embedder/chunker.js#L77-L93) emits one chunk per route (descriptions are short — no sub-chunking) with `metadata: { source: 'triage-route', deploymentId, originalName }`.
 3. Those chunks go through the same e5-small embedding pass as document chunks and land in the same `embeddings.json` blob.
 4. The full `triageRoutes.json` is also written to the artifact — it remains the authoritative list of valid `deploymentId`s the LLM can pick from.
 
-**Runtime:** [vector-rag.js](lite-template/helper/vector-rag.js) inspects each retrieved chunk's `metadata.source`. Triage-route chunks render with the `deploymentId` inline so the LLM sees a direct routing signal alongside the description text:
+**Runtime:** [vector-rag.js](../lite-template/helper/vector-rag.js) inspects each retrieved chunk's `metadata.source`. Triage-route chunks render with the `deploymentId` inline so the LLM sees a direct routing signal alongside the description text:
 
 ```
 [Triage route — deploymentId: dep_abc123 | name: billing-bot]:
@@ -282,7 +284,7 @@ Knowledge chunks render normally (`[From {filename}]: …`). The instructions ca
 
 **Why the merge.** A single retrieval path serves both triage routing and knowledge lookup. The multilingual embedding model handles cross-lingual semantics directly, so there's no need for stopword tables, locale detection, or a "no hits → query expansion" fallback — cosine similarity over multilingual vectors covers all of it.
 
-**Federated routing.** A triage handoff also carries the sender's tip-of-chain through the URL so the receiver's first turn descends from it, and records a chained `handoff` event row on the sender via `navigator.sendBeacon`. The result is end-to-end tamper-evidence across bot boundaries — each bot keeps its own SQLite, neither reads from the other, but the chain math is continuous. See [docs/federated-routing.md](docs/federated-routing.md).
+**Federated routing.** A triage handoff also carries the sender's tip-of-chain through the URL so the receiver's first turn descends from it, and records a chained `handoff` event row on the sender via `navigator.sendBeacon`. The result is end-to-end tamper-evidence across bot boundaries — each bot keeps its own SQLite, neither reads from the other, but the chain math is continuous. See [docs/federated-routing.md](federated-routing.md).
 
 ---
 
@@ -340,7 +342,7 @@ The same artifact that runs locally can be pushed to Fly.io's Machines API witho
       │◀─────────────────────────────┤                                    │                    │
 ```
 
-**Patterns enforced** by [FlyDeployer](control/lib/deployers/fly.js) (codified inline at the top of the file):
+**Patterns enforced** by [FlyDeployer](../control/lib/deployers/fly.js) (codified inline at the top of the file):
 
 1. **One image, config injected per machine.** The bot image is bot-agnostic; per-bot `config/*.json` and `embeddings.json` come in via the Machines `files[]` field as base64 blobs. No image rebuild per bot.
 2. **Volume named `data`, find-or-create.** Fly's API doesn't enforce volume-name uniqueness, so blind POST orphans the previous volume. List-first is the only correct approach.
@@ -348,7 +350,7 @@ The same artifact that runs locally can be pushed to Fly.io's Machines API witho
 4. **Lifecycle ops are thin platform mappings.** `pause` stops machines, `resume` starts them, `destroy` deletes machines + app (cascades to volume + IPs). All idempotent against current state.
 5. **Progress events stream** through an `onProgress` callback into `deployments.cloud_progress`, surfaced in the UI as a live deploy log.
 
-**GHCR publish flow** (the image side): `.github/workflows/publish-bot-image.yml` builds [lite-template/Dockerfile](lite-template/Dockerfile), runs `scripts/fetch-embed-model.mjs` to pull the e5-small ONNX into the image, and pushes both `:X.Y.Z` and `:latest`. The control plane pins an exact tag in [docker.js:20](control/lib/deployers/docker.js#L20) — never `:latest`.
+**GHCR publish flow** (the image side): `.github/workflows/publish-bot-image.yml` builds [lite-template/Dockerfile](../lite-template/Dockerfile), runs `scripts/fetch-embed-model.mjs` to pull the e5-small ONNX into the image, and pushes both `:X.Y.Z` and `:latest`. The control plane pins an exact tag in [docker.js:20](../control/lib/deployers/docker.js#L20) — never `:latest`.
 
 **Connect Bot is automatic for cloud deploys.** Once `cloudDeploy()` returns the `*.fly.dev` URL, it's written to `deployments.url` via `finishCloudDeploy`, so the conversations browser works without a manual paste — the artifact's `MOJULO_API_KEY` was already injected as a Fly env var in the same call.
 
@@ -360,7 +362,7 @@ The artifact persists conversations in its own SQLite (`data/conversation.db`) a
 
 ### How the trust works
 
-- At build time, [DockerDeployer](control/lib/deployers/docker.js) writes the deployment row's `api_key` into the artifact's `.env` as `MOJULO_API_KEY`.
+- At build time, [DockerDeployer](../control/lib/deployers/docker.js) writes the deployment row's `api_key` into the artifact's `.env` as `MOJULO_API_KEY`.
 - The same `api_key` lives on the deployment row in the control plane DB.
 - "Connect" is just **pasting the bot's URL onto the row** — both sides already share the key, so the proxy can authenticate by attaching `x-mojulo-api-key: <row.apiKey>` to every forwarded request.
 
@@ -398,7 +400,7 @@ A `DELETE /api/deployments/:id/connection` clears `url` + `last_seen_at` (the ro
 
 ### Browsing conversations (proxied reads)
 
-Once connected, the dashboard's [conversations page](control/app/dashboard/deployments/[id]/conversations/page.jsx) calls control-plane routes that all forward to the bot through [bot-proxy.js](control/lib/deployers/bot-proxy.js):
+Once connected, the dashboard's [conversations page](../control/app/dashboard/deployments/[id]/conversations/page.jsx) calls control-plane routes that all forward to the bot through [bot-proxy.js](../control/lib/deployers/bot-proxy.js):
 
 | Control-plane route | Forwards to bot |
 |---|---|
@@ -445,18 +447,18 @@ Key files:
 
 | File | Role |
 |------|------|
-| [control/app/api/deployments/[id]/connection/route.js](control/app/api/deployments/[id]/connection/route.js) | `POST` (probe + save URL), `DELETE` (forget URL) |
-| [control/lib/deployers/bot-proxy.js](control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` |
-| [control/app/api/deployments/[id]/conversations/route.js](control/app/api/deployments/[id]/conversations/route.js) | List/search proxy |
-| [control/app/api/deployments/[id]/conversations/[conversationId]/route.js](control/app/api/deployments/[id]/conversations/[conversationId]/route.js) | Single-conversation proxy |
-| [control/app/api/deployments/[id]/conversations/export/route.js](control/app/api/deployments/[id]/conversations/export/route.js) | Bulk export passthrough (streams body) |
-| [control/app/dashboard/page.jsx](control/app/dashboard/page.jsx) | `ConnectModal` UI + connection-state pill |
-| [control/app/dashboard/deployments/[id]/conversations/page.jsx](control/app/dashboard/deployments/[id]/conversations/page.jsx) | Proxied conversations browser |
-| [control/lib/db/repositories/deployments.js](control/lib/db/repositories/deployments.js) | `setUrl`, `clearUrl`, `touchLastSeen` |
-| [lite-template/server.js:817](lite-template/server.js#L817) | Bot-side `GET /api/conversations` |
-| [lite-template/server.js:579](lite-template/server.js#L579) | Bot-side `GET /api/conversations/:conversationId` |
-| [lite-template/server.js:512](lite-template/server.js#L512) | Bot-side `GET /api/conversations/export` |
-| [lite-template/middleware/auth.js](lite-template/middleware/auth.js) | `MOJULO_API_KEY` guard the proxy passes through |
+| [control/app/api/deployments/[id]/connection/route.js](../control/app/api/deployments/[id]/connection/route.js) | `POST` (probe + save URL), `DELETE` (forget URL) |
+| [control/lib/deployers/bot-proxy.js](../control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` |
+| [control/app/api/deployments/[id]/conversations/route.js](../control/app/api/deployments/[id]/conversations/route.js) | List/search proxy |
+| [control/app/api/deployments/[id]/conversations/[conversationId]/route.js](../control/app/api/deployments/[id]/conversations/[conversationId]/route.js) | Single-conversation proxy |
+| [control/app/api/deployments/[id]/conversations/export/route.js](../control/app/api/deployments/[id]/conversations/export/route.js) | Bulk export passthrough (streams body) |
+| [control/app/dashboard/page.jsx](../control/app/dashboard/page.jsx) | `ConnectModal` UI + connection-state pill |
+| [control/app/dashboard/deployments/[id]/conversations/page.jsx](../control/app/dashboard/deployments/[id]/conversations/page.jsx) | Proxied conversations browser |
+| [control/lib/db/repositories/deployments.js](../control/lib/db/repositories/deployments.js) | `setUrl`, `clearUrl`, `touchLastSeen` |
+| [lite-template/server.js:817](../lite-template/server.js#L817) | Bot-side `GET /api/conversations` |
+| [lite-template/server.js:579](../lite-template/server.js#L579) | Bot-side `GET /api/conversations/:conversationId` |
+| [lite-template/server.js:512](../lite-template/server.js#L512) | Bot-side `GET /api/conversations/export` |
+| [lite-template/middleware/auth.js](../lite-template/middleware/auth.js) | `MOJULO_API_KEY` guard the proxy passes through |
 
 ---
 
@@ -464,34 +466,34 @@ Key files:
 
 | File | Role |
 |------|------|
-| [control/lib/deployers/docker.js](control/lib/deployers/docker.js) | Builds the local artifact |
-| [control/lib/deployers/docker.js:259-393](control/lib/deployers/docker.js#L259-L393) | `deploy()` orchestration |
-| [control/lib/deployers/docker.js:75-103](control/lib/deployers/docker.js#L75-L103) | `buildDockerCompose()` (pulls pinned GHCR image, or builds local in offline mode) |
-| [control/lib/deployers/fly.js](control/lib/deployers/fly.js) | Fly.io Machines API deployer — provision/update/pause/resume/destroy |
-| [control/lib/deployers/cloud-deploy.js](control/lib/deployers/cloud-deploy.js) | Cloud-deploy orchestration: builds artifact, harvests config files, decrypts LLM key, drives provider deployer |
-| [control/lib/deployers/index.js](control/lib/deployers/index.js) | Provider registry (`getCloudDeployer('fly')`) |
-| [control/lib/deployers/bot-proxy.js](control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` (Connect Bot proxy) |
-| [control/lib/embedder/chunker.js](control/lib/embedder/chunker.js) | `chunkDocuments` + `chunkTriageRoutes` — 512-char window, 50-char overlap |
-| [control/app/api/vectorize-rag/route.js](control/app/api/vectorize-rag/route.js) | Wizard-side embedding endpoint (also called by chat builder via tool) |
-| [.github/workflows/publish-bot-image.yml](.github/workflows/publish-bot-image.yml) | Builds + publishes `ghcr.io/zombico/mojulo-bot:X` |
-| [lite-template/server.js:~1340-1420](lite-template/server.js) | Runtime bootstrap (LLM init, instructions cache, VectorRAG init + warmup) |
-| [lite-template/helper/llm-client.js](lite-template/helper/llm-client.js) | Provider abstraction (Anthropic, OpenAI, Ollama + adapters) |
-| [lite-template/helper/llm-client.js](lite-template/helper/llm-client.js) | OpenAI adapter (Responses API, prompt caching automatic ≥1024 tok, prompt-side envelope guidance + runtime extractJSON/fallback) |
-| [lite-template/helper/llm-client.js](lite-template/helper/llm-client.js) | Anthropic adapter (forced tool use against `ENVELOPE_SCHEMA`, ephemeral prompt cache breakpoints) |
-| [lite-template/helper/envelope-schema.js](lite-template/helper/envelope-schema.js) | Canonical envelope JSON schema (consumed verbatim by Anthropic tool use); mirrored at [control/lib/envelope-schema.js](control/lib/envelope-schema.js) |
-| [control/lib/form-structure-schema.js](control/lib/form-structure-schema.js) | Canonical form-structure schema + strict-mode derivative; consumed by `generateStructured()` on the control-plane providers |
-| [control/lib/llm-providers.js](control/lib/llm-providers.js) | Control-plane provider table, `MODEL_TIERS`, `getDefaultModelForTask()`, `generateSummary()`, `generateStructured()` (OpenAI json_schema / Anthropic forced tool use / Ollama grammar-constrained sampling), plus `getAllowedProtocolsForModel()` / `isProtocolAllowedForModel()` — the per-model protocol allowlist that restricts qwen3 / mistral-nemo to `knowledge` (llama3.3 and the cloud providers are unrestricted) |
-| [control/lib/composer/response-builder.js](control/lib/composer/response-builder.js) | Composes the in-prompt response-format hint per enabled protocol; redundant on Anthropic (forced tool use enforces shape at the API boundary), load-bearing on OpenAI and Ollama |
-| [lite-template/helper/vector-rag.js](lite-template/helper/vector-rag.js) | Cosine retrieval over baked `config/embeddings.json`; renders triage-route chunks with `deploymentId` inline |
-| [lite-template/helper/prompt-assembler.js](lite-template/helper/prompt-assembler.js) | Pure: vector retrieval + LLM generate (no rewrite ladder, no locale detection) |
-| [lite-template/helper/embedder-local.js](lite-template/helper/embedder-local.js) | In-process query embedding via `@huggingface/transformers` + multilingual-e5-small q8 ONNX. `env.allowRemoteModels = false` — fully offline at runtime |
-| [lite-template/scripts/fetch-embed-model.mjs](lite-template/scripts/fetch-embed-model.mjs) | npm `postinstall` hook that downloads the q8 ONNX into `models/`. ONNX file is gitignored (113MB > GitHub's 100MB limit) |
-| [lite-template/middleware/auth.js](lite-template/middleware/auth.js) | `MOJULO_API_KEY` guard for `/api/*` |
-| [lite-template/Dockerfile](lite-template/Dockerfile) | Debian slim Node 20 image (Alpine's musl is incompatible with onnxruntime-node's prebuilt glibc binaries) |
+| [control/lib/deployers/docker.js](../control/lib/deployers/docker.js) | Builds the local artifact |
+| [control/lib/deployers/docker.js:259-393](../control/lib/deployers/docker.js#L259-L393) | `deploy()` orchestration |
+| [control/lib/deployers/docker.js:75-103](../control/lib/deployers/docker.js#L75-L103) | `buildDockerCompose()` (pulls pinned GHCR image, or builds local in offline mode) |
+| [control/lib/deployers/fly.js](../control/lib/deployers/fly.js) | Fly.io Machines API deployer — provision/update/pause/resume/destroy |
+| [control/lib/deployers/cloud-deploy.js](../control/lib/deployers/cloud-deploy.js) | Cloud-deploy orchestration: builds artifact, harvests config files, decrypts LLM key, drives provider deployer |
+| [control/lib/deployers/index.js](../control/lib/deployers/index.js) | Provider registry (`getCloudDeployer('fly')`) |
+| [control/lib/deployers/bot-proxy.js](../control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` (Connect Bot proxy) |
+| [control/lib/embedder/chunker.js](../control/lib/embedder/chunker.js) | `chunkDocuments` + `chunkTriageRoutes` — 512-char window, 50-char overlap |
+| [control/app/api/vectorize-rag/route.js](../control/app/api/vectorize-rag/route.js) | Wizard-side embedding endpoint (also called by chat builder via tool) |
+| [.github/workflows/publish-bot-image.yml](../.github/workflows/publish-bot-image.yml) | Builds + publishes `ghcr.io/zombico/mojulo-bot:X` |
+| [lite-template/server.js:~1340-1420](../lite-template/server.js) | Runtime bootstrap (LLM init, instructions cache, VectorRAG init + warmup) |
+| [lite-template/helper/llm-client.js](../lite-template/helper/llm-client.js) | Provider abstraction (Anthropic, OpenAI, Ollama + adapters) |
+| [lite-template/helper/llm-client.js](../lite-template/helper/llm-client.js) | OpenAI adapter (Responses API, prompt caching automatic ≥1024 tok, prompt-side envelope guidance + runtime extractJSON/fallback) |
+| [lite-template/helper/llm-client.js](../lite-template/helper/llm-client.js) | Anthropic adapter (forced tool use against `ENVELOPE_SCHEMA`, ephemeral prompt cache breakpoints) |
+| [lite-template/helper/envelope-schema.js](../lite-template/helper/envelope-schema.js) | Canonical envelope JSON schema (consumed verbatim by Anthropic tool use); mirrored at [control/lib/envelope-schema.js](../control/lib/envelope-schema.js) |
+| [control/lib/form-structure-schema.js](../control/lib/form-structure-schema.js) | Canonical form-structure schema + strict-mode derivative; consumed by `generateStructured()` on the control-plane providers |
+| [control/lib/llm-providers.js](../control/lib/llm-providers.js) | Control-plane provider table, `MODEL_TIERS`, `getDefaultModelForTask()`, `generateSummary()`, `generateStructured()` (OpenAI json_schema / Anthropic forced tool use / Ollama grammar-constrained sampling), plus `getAllowedProtocolsForModel()` / `isProtocolAllowedForModel()` — the per-model protocol allowlist that restricts qwen3 / mistral-nemo to `knowledge` (llama3.3 and the cloud providers are unrestricted) |
+| [control/lib/composer/response-builder.js](../control/lib/composer/response-builder.js) | Composes the in-prompt response-format hint per enabled protocol; redundant on Anthropic (forced tool use enforces shape at the API boundary), load-bearing on OpenAI and Ollama |
+| [lite-template/helper/vector-rag.js](../lite-template/helper/vector-rag.js) | Cosine retrieval over baked `config/embeddings.json`; renders triage-route chunks with `deploymentId` inline |
+| [lite-template/helper/prompt-assembler.js](../lite-template/helper/prompt-assembler.js) | Pure: vector retrieval + LLM generate (no rewrite ladder, no locale detection) |
+| [lite-template/helper/embedder-local.js](../lite-template/helper/embedder-local.js) | In-process query embedding via `@huggingface/transformers` + multilingual-e5-small q8 ONNX. `env.allowRemoteModels = false` — fully offline at runtime |
+| [lite-template/scripts/fetch-embed-model.mjs](../lite-template/scripts/fetch-embed-model.mjs) | npm `postinstall` hook that downloads the q8 ONNX into `models/`. ONNX file is gitignored (113MB > GitHub's 100MB limit) |
+| [lite-template/middleware/auth.js](../lite-template/middleware/auth.js) | `MOJULO_API_KEY` guard for `/api/*` |
+| [lite-template/Dockerfile](../lite-template/Dockerfile) | Debian slim Node 20 image (Alpine's musl is incompatible with onnxruntime-node's prebuilt glibc binaries) |
 
 ---
 
 ## 9. Prior art
 
-The protocol cartridge pattern — composing a bot's behavior from layered, opt-in instruction blocks — was first published in Oct 2025 in [zombico/sati](https://github.com/zombico/sati) with an example artifact. Mojulo is the production-grade version: the cartridges in [control/lib/composer/protocols/](control/lib/composer/protocols/) trace their shape to that earlier work.
+The protocol cartridge pattern — composing a bot's behavior from layered, opt-in instruction blocks — was first published in Oct 2025 in [zombico/sati](https://github.com/zombico/sati) with an example artifact. Mojulo is the production-grade version: the cartridges in [control/lib/composer/protocols/](../control/lib/composer/protocols/) trace their shape to that earlier work.
 

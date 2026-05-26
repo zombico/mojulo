@@ -142,15 +142,43 @@ Optional one-time bootstrap that anchors the fleet on role + primary goal + lock
     "CRM is HubSpot — do not propose alternatives without explicit override.",
     "Connecting agent is Claude Code.",
     "All bots must capture HIPAA-relevant fields with consent prompts."
-  ]
+  ],
+  "vocabulary_register": "plain",
+  "procedural_disclosure": "reflective"
 }
 ```
 
 Rejection conditions:
 - Missing `role` or empty `constraints` → throws.
+- `vocabulary_register` outside `'plain' | 'mixed' | 'mojulo'` or `procedural_disclosure` outside `'terse' | 'reflective' | 'pedagogical'` → throws with the allowed-values list.
 - Operator node already exists and the commit lacks `revise: true` → returns `{ ok: false, existing_operator: true, reason: 'operator_anchor_already_exists', hint: '…' }`. Soft rejection so the agent can confirm the pivot with the user and retry.
 
 With `revise: true`, the commit stacks a new principle on the same operator node (old one stays for audit) and updates the operator label to the new role.
+
+##### Communication preferences (optional, added in v0.7.0)
+
+`vocabulary_register` and `procedural_disclosure` are optional fields that declare *how* the agent should talk to the operator, on two orthogonal axes. Default to `'mixed'` and `'reflective'` when absent — today's posture.
+
+- **`vocabulary_register`** — which *nouns* the agent uses with the user.
+  - `'plain'` — talks about the user's installed tools (Gmail, Drive, the user's CRM) and what gets done. Never surfaces mojulo's internal vocabulary (`primitive`, `composer`, `contextmap`, `bind`, `materialize`, `inventory`, `capabilities`) to the user — that vocabulary still lives in tool descriptions and agent-facing surfaces because the agent uses it to call tools, but it's marked "for your reasoning only" in the agent's reading.
+  - `'mixed'` — today's default. Technical users get met in their own idiom; novices get ramped one degree above where they entered.
+  - `'mojulo'` — full idiom. The user has internalized the model; the agent stops re-explaining `proposed vs materialized` every time.
+- **`procedural_disclosure`** — how much of the deliberation the agent narrates.
+  - `'terse'` — act and report; one-line summary at the end; do not narrate intermediate state unless asked.
+  - `'reflective'` — default. Name the gate before each commit step ("still a suggestion" / "now wired up" / "sealed in the audit trail") so the user can always point at the current state without asking.
+  - `'pedagogical'` — explain what each gate means and why it matters before crossing it. Teach the model as you go.
+
+Persistence + consumer:
+
+- **Persisted on the operator node's `payload`** as `{ vocabulary_register, procedural_disclosure }`, JSON-serialized. Also surfaced in the principle body under a `**Communication preferences:**` block so an agent reading `meta_context_brief({kind:'fleet'})` sees them alongside the rest of the operator anchor.
+- **Read by `forward_context`** at handler time via `MetaNodeRepository.findByRef('operator', 'self')`. The body's opening paragraph, concept glossary, and disclosure directive branch on these values; concept names and tool descriptions never branch.
+- **Per-call override on `forward_context`** — pass `{register, disclosure}` to temporarily override for one call without committing a new kyc revision. Resolution is per-axis: override > anchor > defaults, so overriding one axis inherits the other from the anchor.
+
+**Revise semantics for register fields are per-axis.** When a `revise: true` commit omits one or both register fields, the prior values on the operator node's payload are preserved for the omitted axes. A revise call that only updates `role` does not silently reset register prefs set in an earlier commit. To explicitly clear a setting, revise with an explicit value (e.g. set `vocabulary_register: 'mixed'` to return to the default).
+
+The floor rule is structurally enforced across every register × disclosure cell: the four commitment gates (*proposed* vs *materialized*, *dry-run* vs *promoted*, *watched* vs *read-once*, *recorded in the audit trail* vs *not*) stay legible regardless of register. A unit test fails if any cell drops any gate phrase — `plain` is "gate language in plain English," not "no gate language."
+
+See [lite-template/integration/REGISTER_TUNING_PLAN.md](../lite-template/integration/REGISTER_TUNING_PLAN.md) for the design rationale and the validation steps.
 
 #### `artifact_materialization`
 

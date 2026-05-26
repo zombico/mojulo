@@ -202,7 +202,7 @@ The runtime is a separate Express container ([lite-template/](lite-template/)) p
 
 The dashboard reads conversations from connected bots live, through a bearer-authenticated proxy — transcript rows never get replicated into the control-plane DB.
 
-Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
+Full diagrams: [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle) and [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (headless control surface).
 
 ---
 
@@ -212,7 +212,7 @@ Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
 mojulo/
 ├── control/        Next.js control plane: MCP server, dashboard, builders, deploy pipeline
 ├── lite-template/  The bot itself: Express server, RAG, LLM client, Dockerfile
-└── ARCHITECTURE.md How it all fits together
+└── docs/           Concept docs + BOT-ARCHITECTURE.md / MCP-ARCHITECTURE.md (how it all fits together)
 ```
 
 Per-package docs: [control/README.md](control/README.md) — running the control plane in dev. [lite-template/](lite-template/) — bot runtime internals.
@@ -255,7 +255,7 @@ The codebase is functionally modular but tightly integrated — a change to the 
 
 These belong in forks — the upstream repo stays abstract so the artifact format and audit guarantees stay stable. See [docs/protocol-composition.md#adding-a-new-protocol](docs/protocol-composition.md#adding-a-new-protocol) for the protocol recipe and [docs/catalysts.md](docs/catalysts.md) for the catalyst author spec.
 
-Before opening a PR, read [ARCHITECTURE.md](ARCHITECTURE.md) so we're working from the same picture, and see [CONTRIBUTING.md](CONTRIBUTING.md) for the test surface, file layout, and pre-submit checklist.
+Before opening a PR, read [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) and [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) so we're working from the same picture, and see [CONTRIBUTING.md](CONTRIBUTING.md) for the test surface, file layout, and pre-submit checklist.
 
 ## License
 

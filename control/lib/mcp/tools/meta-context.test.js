@@ -231,6 +231,101 @@ describe('commitOperatorKyc', () => {
     expect(out.ok).toBe(true);
     expect(out.operatorNodeId).toBeGreaterThan(0);
   });
+
+  // --- register tuning ---
+  // See lite-template/integration/REGISTER_TUNING_PLAN.md.
+
+  it('round-trips vocabulary_register + procedural_disclosure onto node payload and into principle body', async () => {
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'r',
+      constraints: ['c1'],
+      vocabulary_register: 'plain',
+      procedural_disclosure: 'terse',
+    });
+    const node = MetaNodeRepository.findByRef('operator', 'self');
+    expect(node.payload).toEqual({
+      vocabulary_register: 'plain',
+      procedural_disclosure: 'terse',
+    });
+    const [p] = MetaPrincipleRepository.listForScope('node', node.id);
+    expect(p.bodyMd).toMatch(/Communication preferences/);
+    expect(p.bodyMd).toMatch(/vocabulary_register: plain/);
+    expect(p.bodyMd).toMatch(/procedural_disclosure: terse/);
+  });
+
+  it('omits payload + Communication-preferences block when neither register field is set', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'r', constraints: ['c1'] });
+    const node = MetaNodeRepository.findByRef('operator', 'self');
+    expect(node.payload).toBeNull();
+    const [p] = MetaPrincipleRepository.listForScope('node', node.id);
+    expect(p.bodyMd).not.toMatch(/Communication preferences/);
+  });
+
+  it('rejects invalid vocabulary_register', async () => {
+    await expect(
+      commitOperatorKyc({
+        type: 'operator_kyc',
+        role: 'r',
+        constraints: ['c1'],
+        vocabulary_register: 'casual',
+      }),
+    ).rejects.toThrow(/vocabulary_register/);
+  });
+
+  it('rejects invalid procedural_disclosure', async () => {
+    await expect(
+      commitOperatorKyc({
+        type: 'operator_kyc',
+        role: 'r',
+        constraints: ['c1'],
+        procedural_disclosure: 'verbose',
+      }),
+    ).rejects.toThrow(/procedural_disclosure/);
+  });
+
+  it('revise without re-specifying register preserves existing payload values', async () => {
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'r1',
+      constraints: ['c1'],
+      vocabulary_register: 'mojulo',
+      procedural_disclosure: 'pedagogical',
+    });
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'r2',
+      constraints: ['c2'],
+      revise: true,
+    });
+    const node = MetaNodeRepository.findByRef('operator', 'self');
+    expect(node.payload).toEqual({
+      vocabulary_register: 'mojulo',
+      procedural_disclosure: 'pedagogical',
+    });
+  });
+
+  it('revise can update one register axis without resetting the other', async () => {
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'r1',
+      constraints: ['c1'],
+      vocabulary_register: 'plain',
+      procedural_disclosure: 'reflective',
+    });
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'r2',
+      constraints: ['c2'],
+      revise: true,
+      procedural_disclosure: 'terse',
+    });
+    const node = MetaNodeRepository.findByRef('operator', 'self');
+    expect(node.payload).toEqual({
+      vocabulary_register: 'plain',
+      procedural_disclosure: 'terse',
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
