@@ -2,7 +2,7 @@
 
 Thanks for considering a contribution.
 
-This document covers the test surface and how to run the suite. For architecture, see [ARCHITECTURE.md](ARCHITECTURE.md) and [CLAUDE.md](CLAUDE.md). For the full test roadmap, see [lite-template/integration/UNIT_TEST_PLAN.md](lite-template/integration/UNIT_TEST_PLAN.md).
+This document covers the test surface and how to run the suite. For architecture, see [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (MCP control surface), and [CLAUDE.md](CLAUDE.md). For the full test roadmap, see [lite-template/integration/UNIT_TEST_PLAN.md](lite-template/integration/UNIT_TEST_PLAN.md).
 
 ## Running tests
 

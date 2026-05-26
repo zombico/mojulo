@@ -130,16 +130,40 @@ export async function commitHandler(input, ctx) {
 // commit: operator_kyc
 // ---------------------------------------------------------------------------
 
-function composeOperatorKycBody({ role, primary_goal, constraints }) {
+// Register-tuning enums — kept here so the kyc validator and the
+// forward_context handler share one source of truth for the allowed values.
+// See lite-template/integration/REGISTER_TUNING_PLAN.md.
+export const VOCABULARY_REGISTERS = ['plain', 'mixed', 'mojulo'];
+export const PROCEDURAL_DISCLOSURES = ['terse', 'reflective', 'pedagogical'];
+export const DEFAULT_VOCABULARY_REGISTER = 'mixed';
+export const DEFAULT_PROCEDURAL_DISCLOSURE = 'reflective';
+
+function composeOperatorKycBody({
+  role,
+  primary_goal,
+  constraints,
+  vocabulary_register,
+  procedural_disclosure,
+}) {
   const lines = [`**Role:** ${role}`];
   if (primary_goal) lines.push('', `**Primary goal:** ${primary_goal}`);
   lines.push('', '**Locked-in constraints:**');
   for (const c of constraints) lines.push(`- ${c}`);
+  // Surface register prefs in the prose too so an agent reading
+  // meta_context_brief sees them alongside the rest of the anchor.
+  // forward_context still does the authoritative lookup against the
+  // operator node's payload.
+  if (vocabulary_register || procedural_disclosure) {
+    lines.push('', '**Communication preferences:**');
+    if (vocabulary_register) lines.push(`- vocabulary_register: ${vocabulary_register}`);
+    if (procedural_disclosure) lines.push(`- procedural_disclosure: ${procedural_disclosure}`);
+  }
   return lines.join('\n');
 }
 
 export async function commitOperatorKyc(input) {
-  const { role, primary_goal, constraints, revise } = input;
+  const { role, primary_goal, constraints, revise, vocabulary_register, procedural_disclosure } =
+    input;
 
   if (!role || typeof role !== 'string' || !role.trim()) {
     throw new Error('operator_kyc requires a non-empty `role` string');
@@ -155,6 +179,19 @@ export async function commitOperatorKyc(input) {
   if (primary_goal !== undefined && primary_goal !== null && typeof primary_goal !== 'string') {
     throw new Error('`primary_goal` must be a string when provided');
   }
+  if (vocabulary_register !== undefined && !VOCABULARY_REGISTERS.includes(vocabulary_register)) {
+    throw new Error(
+      `\`vocabulary_register\` must be one of: ${VOCABULARY_REGISTERS.join(', ')} (got '${vocabulary_register}')`,
+    );
+  }
+  if (
+    procedural_disclosure !== undefined &&
+    !PROCEDURAL_DISCLOSURES.includes(procedural_disclosure)
+  ) {
+    throw new Error(
+      `\`procedural_disclosure\` must be one of: ${PROCEDURAL_DISCLOSURES.join(', ')} (got '${procedural_disclosure}')`,
+    );
+  }
 
   const existing = MetaNodeRepository.findByRef('operator', 'self');
   if (existing && !revise) {
@@ -168,7 +205,27 @@ export async function commitOperatorKyc(input) {
     };
   }
 
-  const bodyMd = composeOperatorKycBody({ role: role.trim(), primary_goal, constraints });
+  // Preserve existing register prefs across revisions when the user doesn't
+  // re-specify them. Otherwise a revise call that only updates role would
+  // silently reset register preferences set in an earlier commit.
+  const existingPayload = (existing && existing.payload) || {};
+  const mergedRegister = vocabulary_register ?? existingPayload.vocabulary_register;
+  const mergedDisclosure = procedural_disclosure ?? existingPayload.procedural_disclosure;
+  const nodePayload =
+    mergedRegister || mergedDisclosure
+      ? {
+          ...(mergedRegister ? { vocabulary_register: mergedRegister } : {}),
+          ...(mergedDisclosure ? { procedural_disclosure: mergedDisclosure } : {}),
+        }
+      : null;
+
+  const bodyMd = composeOperatorKycBody({
+    role: role.trim(),
+    primary_goal,
+    constraints,
+    vocabulary_register: mergedRegister,
+    procedural_disclosure: mergedDisclosure,
+  });
 
   // Pre-embed the principle body before opening the sync txn — better-sqlite3
   // requires the txn fn to be sync, and the model call is async. The hash +
@@ -180,7 +237,7 @@ export async function commitOperatorKyc(input) {
       kind: 'operator',
       ref: 'self',
       label: role.trim(),
-      payload: null,
+      payload: nodePayload,
     });
     const principle = MetaPrincipleRepository.insert({
       scope_kind: 'node',
@@ -780,6 +837,18 @@ export function registerMetaContextTools() {
         primary_goal: { type: 'string' },
         constraints: { type: 'array', items: { type: 'string' } },
         revise: { type: 'boolean' },
+        vocabulary_register: {
+          type: 'string',
+          enum: VOCABULARY_REGISTERS,
+          description:
+            "For operator_kyc: how technical the agent's user-facing nouns should be. 'plain' (everyday tool names: Gmail, Drive — never mojulo jargon like primitive/composer/contextmap), 'mixed' (default — meet the user where they are, ramp one degree), or 'mojulo' (full idiom, user has internalized the model). Persisted on the operator node and read by forward_context to branch its prose. Optional; absence preserves any prior setting on revise.",
+        },
+        procedural_disclosure: {
+          type: 'string',
+          enum: PROCEDURAL_DISCLOSURES,
+          description:
+            "For operator_kyc: how much of the agent's deliberation gets narrated. 'terse' (act and report), 'reflective' (default — name the gate before each commit step), 'pedagogical' (explain what each gate means as you cross it). Persisted on the operator node and read by forward_context. Optional; absence preserves any prior setting on revise.",
+        },
         // artifact_materialization + primitive_artifact_materialization shared fields
         adapter_id: { type: 'string' },
         artifact: {

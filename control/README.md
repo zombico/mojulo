@@ -75,7 +75,7 @@ Shares `~/.mojulo/data/mojulo-lite.db` with the MCP via WAL mode, so the two can
 ## More
 
 - Full repo and docs: <https://github.com/zombico/mojulo>
-- Architecture: [ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/ARCHITECTURE.md)
+- Architecture: [docs/BOT-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (MCP control surface)
 - MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md)
 - Catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)
 

@@ -13,7 +13,7 @@ The control plane stages files from [lite-template/](lite-template/) into a per-
 
 The control plane is increasingly used **headlessly** — a user runs Claude Code against the control plane's MCP server ([control/lib/mcp/](control/lib/mcp/)) to design, deploy, observe, and act on the bot fleet. The Next.js UI (chat builder + wizard + `/data` pane) and the MCP tools are two faces of the same primitives. Changes that touch builder, deployer, or fleet code should be reviewed against both faces.
 
-[ARCHITECTURE.md](ARCHITECTURE.md) is the source of truth for build-time → runtime data flow, including diagrams. Always read it before non-trivial changes that cross the control/lite-template boundary.
+[docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) is the source of truth for the bot factory's build-time → runtime data flow (cartridge composition, vector baking, artifact layout, Fly cloud deploy, Connect Bot proxy). [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) is the source of truth for the headless control surface (transport, ring model, session binding, deliberation surfaces, catalysts, mcp-orbit, primitive binding). Always read the relevant one before non-trivial changes that cross the control/lite-template boundary or touch the MCP tool registry.
 
 ## Commands
 
