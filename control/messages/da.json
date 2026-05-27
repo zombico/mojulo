@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Graf",
+    "title": "App-oprettelseskort",
+    "subtitle": "Sådan samles en app. Hver boks er et stykke; hver pil viser hvad der forårsager hvad.",
+    "subtitleTechnical": "Sådan komponeres en app i mojulo-paradigmet. Stationer er stykkerne; linjer er de MCP-værktøjer, der fastgør dem sammen. Valideret mod live MCP-registret og contextmap-skema ved hver opfryskning.",
+    "technicalToggle": "Teknisk",
+    "loading": "Indlæser…",
+    "refresh": "Opdater",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Ingen apps lavet endnu} =1 {1 app lavet} other {# apps lavet}}",
+      "lastMaterialized": "Sidste lavet",
+      "viewApps": "Se kørende apps"
+    },
+    "validation": {
+      "ok": "Alt er stadig i orden.",
+      "okTechnical": "Manifest gyldigt: {tools} værktøjer, {nodeKinds} nodetyper, {edgeKinds} kanttyper, {sourceEvents} kildehændelser løser alle.",
+      "failed": "{count, plural, =1 {1 ting på kortet matcher ikke længere virkelighed} other {# ting på kortet matcher ikke længere virkelighed}}"
+    },
+    "legend": {
+      "input": "Det du beslutter",
+      "inputTechnical": "Input",
+      "mcpTool": "Et værktøj som agenten kalder",
+      "mcpToolTechnical": "MCP-værktøj",
+      "filesystem": "Filer på disk",
+      "filesystemTechnical": "Filsystem",
+      "dbRow": "Indgang i hukommelsen",
+      "dbRowTechnical": "DB-række"
+    }
+  },
   "documentUploader": {
     "title": "Upload dokumenter",
     "description": "Upload dokumenter, som din chatbot skal bruge til RAG (Retrieval-Augmented Generation)",

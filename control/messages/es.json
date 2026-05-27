@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Gráfico",
+    "title": "Mapa de Creación de Apps",
+    "subtitle": "Cómo se forma una app. Cada caja es una pieza; cada flecha muestra qué causa qué.",
+    "subtitleTechnical": "Cómo se compone una app en el paradigma mojulo. Las estaciones son las piezas; las líneas son las herramientas MCP que las unen. Se valida contra el registro MCP en vivo y el esquema contextmap en cada actualización.",
+    "technicalToggle": "Técnico",
+    "loading": "Cargando…",
+    "refresh": "Actualizar",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Ninguna app creada aún} =1 {1 app creada} other {# apps creadas}}",
+      "lastMaterialized": "La última creada",
+      "viewApps": "Ver apps en ejecución"
+    },
+    "validation": {
+      "ok": "Todo sigue siendo correcto.",
+      "okTechnical": "Manifiesto válido: {tools} herramientas, {nodeKinds} tipos de nodos, {edgeKinds} tipos de aristas, {sourceEvents} eventos de origen, todos resuelven.",
+      "failed": "{count, plural, =1 {1 cosa en el mapa ya no coincide con la realidad} other {# cosas en el mapa ya no coinciden con la realidad}}"
+    },
+    "legend": {
+      "input": "Lo que decides",
+      "inputTechnical": "Entrada",
+      "mcpTool": "Una herramienta que el agente llama",
+      "mcpToolTechnical": "Herramienta MCP",
+      "filesystem": "Archivos en disco",
+      "filesystemTechnical": "Sistema de archivos",
+      "dbRow": "Entrada en memoria",
+      "dbRowTechnical": "Fila de base de datos"
+    }
+  },
   "documentUploader": {
     "title": "Subir documentos",
     "description": "Sube documentos que tu chatbot usará para RAG (Generación Aumentada por Recuperación)",

@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "График",
+    "title": "Карта создания app",
+    "subtitle": "Как создаётся app. Каждый блок — это часть; каждая стрелка показывает, что вызывает что.",
+    "subtitleTechnical": "Как app создаётся в парадигме mojulo. Станции — это части; линии — это инструменты MCP, которые их связывают. Валидируется против живого реестра MCP и схемы contextmap при каждом обновлении.",
+    "technicalToggle": "Технический",
+    "loading": "Загрузка…",
+    "refresh": "Обновить",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Ещё нет созданных apps} =1 {1 app создан} other {# apps создано}}",
+      "lastMaterialized": "Последний созданный",
+      "viewApps": "Просмотреть работающие apps"
+    },
+    "validation": {
+      "ok": "Всё по-прежнему в порядке.",
+      "okTechnical": "Манифест валиден: {tools} инструментов, {nodeKinds} видов узлов, {edgeKinds} видов рёбер, {sourceEvents} источников событий разрешены.",
+      "failed": "{count, plural, =1 {1 элемент в карте больше не соответствует действительности} other {# элементов в карте больше не соответствуют действительности}}"
+    },
+    "legend": {
+      "input": "То, что вы решаете",
+      "inputTechnical": "Ввод",
+      "mcpTool": "Инструмент, который вызывает агент",
+      "mcpToolTechnical": "инструмент MCP",
+      "filesystem": "Файлы на диске",
+      "filesystemTechnical": "Файловая система",
+      "dbRow": "Запись в памяти",
+      "dbRowTechnical": "строка БД"
+    }
+  },
   "documentUploader": {
     "title": "Загрузить документы",
     "description": "Загружайте документы, которые ваш чат-бот будет использовать для RAG (Retrieval-Augmented Generation)",

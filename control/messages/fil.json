@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Graph",
+    "title": "Mapa ng Paglikha ng App",
+    "subtitle": "Paano nag-uugnay ang isang app. Bawat kahon ay isang piraso; bawat arrow ay nagpapakita kung ano ang nagsisimula sa ano.",
+    "subtitleTechnical": "Paano isinigsay ang isang app sa mojulo paradigm. Ang mga istasyon ay ang mga piraso; ang mga linyang ito ang MCP tools na nag-snap sa kanila. Validation laban sa live MCP registry at contextmap schema sa bawat refresh.",
+    "technicalToggle": "Teknikal",
+    "loading": "Naglo-load…",
+    "refresh": "I-refresh",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Walang apps na ginawa pa} =1 {1 app na ginawa} other {# apps na ginawa}}",
+      "lastMaterialized": "Ang huli nang na-materialize",
+      "viewApps": "Tingnan ang mga app na tumatakbo"
+    },
+    "validation": {
+      "ok": "Lahat ay ok pa rin.",
+      "okTechnical": "Manifest valid: {tools} tools, {nodeKinds} node kinds, {edgeKinds} edge kinds, {sourceEvents} source events lahat ay resolve.",
+      "failed": "{count, plural, =1 {1 bagay sa mapa na hindi na tumutugma sa realidad} other {# mga bagay sa mapa na hindi na tumutugma sa realidad}}"
+    },
+    "legend": {
+      "input": "Kung ano ang iyong desisyon",
+      "inputTechnical": "Input",
+      "mcpTool": "Isang tool na tinawagan ng agent",
+      "mcpToolTechnical": "MCP tool",
+      "filesystem": "Mga file sa disk",
+      "filesystemTechnical": "Filesystem",
+      "dbRow": "Entrada sa memorya",
+      "dbRowTechnical": "DB row"
+    }
+  },
   "documentUploader": {
     "title": "Mag-upload ng Mga Dokumento",
     "description": "Mag-upload ng mga dokumento na gagamitin ng iyong chatbot para sa RAG (Retrieval-Augmented Generation)",

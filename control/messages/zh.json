@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "图表",
+    "title": "应用创建地图",
+    "subtitle": "应用如何汇聚而成。每个方框是一个部分；每条箭头显示因果关系。",
+    "subtitleTechnical": "Mojulo 范式中应用如何组合的方式。站点是各个部分；连线是将它们连接在一起的 MCP 工具。每次刷新都会根据实时 MCP 注册表和 contextmap schema 进行验证。",
+    "technicalToggle": "技术",
+    "loading": "加载中…",
+    "refresh": "刷新",
+    "overlay": {
+      "appCount": "{count, plural, =0 {暂无已创建的 App} =1 {已创建 1 个 App} other {已创建 # 个 App}}",
+      "lastMaterialized": "最后创建的",
+      "viewApps": "查看运行中的 App"
+    },
+    "validation": {
+      "ok": "一切都仍然检查无误。",
+      "okTechnical": "清单有效：{tools} 个工具、{nodeKinds} 种节点类型、{edgeKinds} 种边类型、{sourceEvents} 个源事件都已解决。",
+      "failed": "{count, plural, =1 {地图中有 1 个东西不再符合现实} other {地图中有 # 个东西不再符合现实}}"
+    },
+    "legend": {
+      "input": "你决定的内容",
+      "inputTechnical": "输入",
+      "mcpTool": "代理调用的工具",
+      "mcpToolTechnical": "MCP 工具",
+      "filesystem": "磁盘上的文件",
+      "filesystemTechnical": "文件系统",
+      "dbRow": "内存中的条目",
+      "dbRowTechnical": "数据库行"
+    }
+  },
   "documentUploader": {
     "title": "上传文档",
     "description": "上传你的聊天机器人将用于 RAG（检索增强生成）的文档",

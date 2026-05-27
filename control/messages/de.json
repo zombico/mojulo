@@ -2213,5 +2213,34 @@
         "none": "Keine Prinzipien aufgezeichnet."
       }
     }
+  },
+  "graph": {
+    "navLabel": "Graph",
+    "title": "App-Erstellungskarte",
+    "subtitle": "Wie eine App zusammengestellt wird. Jedes Kästchen ist ein Teil; jeder Pfeil zeigt, was was verursacht.",
+    "subtitleTechnical": "Wie eine App im mojulo-Paradigma zusammengesetzt wird. Stationen sind die Teile; Linien sind die MCP-Tools, die sie zusammenhängen. Validiert gegen die Live-MCP-Registry und das contextmap-Schema bei jedem Refresh.",
+    "technicalToggle": "Technisch",
+    "loading": "Laden…",
+    "refresh": "Aktualisieren",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Noch keine Apps erstellt} =1 {1 App erstellt} other {# Apps erstellt}}",
+      "lastMaterialized": "Letzte erstellt",
+      "viewApps": "Laufende Apps anzeigen"
+    },
+    "validation": {
+      "ok": "Alles prüft immer noch.",
+      "okTechnical": "Manifest gültig: {tools} Tools, {nodeKinds} Node-Arten, {edgeKinds} Kanten-Arten, {sourceEvents} Source-Events alle lösen sich auf.",
+      "failed": "{count, plural, =1 {1 Ding in der Karte stimmt nicht mehr mit der Realität überein} other {# Dinge in der Karte stimmen nicht mehr mit der Realität überein}}"
+    },
+    "legend": {
+      "input": "Was du entscheidest",
+      "inputTechnical": "Eingabe",
+      "mcpTool": "Ein Tool, das der Agent aufruft",
+      "mcpToolTechnical": "MCP-Tool",
+      "filesystem": "Dateien auf der Festplatte",
+      "filesystemTechnical": "Dateisystem",
+      "dbRow": "Eintrag im Speicher",
+      "dbRowTechnical": "Datenbank-Zeile"
+    }
   }
 }

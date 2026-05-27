@@ -2213,5 +2213,34 @@
     "signingIn": "Giriş yapılıyor…",
     "signOut": "Çıkış yap",
     "invalid": "Geçersiz kullanıcı adı veya parola"
+  },
+  "graph": {
+    "navLabel": "Graph",
+    "title": "App Oluşturma Haritası",
+    "subtitle": "Bir app nasıl bir araya geliyor. Her kutu bir parça; her ok neyin neyi tetiklediğini gösterir.",
+    "subtitleTechnical": "Bir app mojulo paradigmasında nasıl birleştirilir. İstasyonlar parçalardır; çizgiler bunları birbirine bağlayan MCP araçlarıdır. Her yenilenmede canlı MCP kayıt defteri ve contextmap şemasına karşı doğrulanır.",
+    "technicalToggle": "Teknik",
+    "loading": "Yükleniyor…",
+    "refresh": "Yenile",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Henüz app oluşturulmadı} =1 {1 app oluşturuldu} other {# app oluşturuldu}}",
+      "lastMaterialized": "Son oluşturulan",
+      "viewApps": "Çalışan app'leri görüntüle"
+    },
+    "validation": {
+      "ok": "Her şey hâlâ uyumlu.",
+      "okTechnical": "Manifest geçerli: {tools} araç, {nodeKinds} düğüm türü, {edgeKinds} kenar türü, {sourceEvents} kaynak olayı tümü çözümlenir.",
+      "failed": "{count, plural, =1 {Harita'da bir şey artık gerçeklikle eşleşmiyor} other {Harita'da # şey artık gerçeklikle eşleşmiyor}}"
+    },
+    "legend": {
+      "input": "Siz karar verdiğiniz şey",
+      "inputTechnical": "Giriş",
+      "mcpTool": "Ajanın çağırdığı bir araç",
+      "mcpToolTechnical": "MCP araç",
+      "filesystem": "Diskteki dosyalar",
+      "filesystemTechnical": "Dosya sistemi",
+      "dbRow": "Belleğe giriş",
+      "dbRowTechnical": "DB satırı"
+    }
   }
 }

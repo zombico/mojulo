@@ -2213,5 +2213,34 @@
     "signingIn": "در حال ورود…",
     "signOut": "خروج",
     "invalid": "نام کاربری یا رمز عبور نامعتبر است"
+  },
+  "graph": {
+    "navLabel": "نمودار",
+    "title": "نقشه ایجاد App",
+    "subtitle": "نحوه ایجاد یک App. هر جعبه یک بخش است؛ هر فلش نشان‌می‌دهد که چه چیزی سبب چه چیزی است.",
+    "subtitleTechnical": "نحوه ترکیب یک App در پارادایم mojulo. ایستگاه‌ها بخش‌ها هستند؛ خطوط ابزارهای MCP هستند که آن‌ها را کنار هم قرار می‌دهند. در برابر رجیستری MCP زنده و طرح contextmap تأیید شده است.",
+    "technicalToggle": "فنی",
+    "loading": "در حال بارگذاری…",
+    "refresh": "تازه‌کردن",
+    "overlay": {
+      "appCount": "{count, plural, =0 {هیچ App تاکنون ساخته نشده است} =1 {1 App ساخته شده} other {# App ساخته شده}}",
+      "lastMaterialized": "آخرین مورد ساخته شده",
+      "viewApps": "نمایش Apps در حال اجرا"
+    },
+    "validation": {
+      "ok": "همه چیز هنوز درست است.",
+      "okTechnical": "Manifest معتبر: {tools} ابزار، {nodeKinds} نوع گره، {edgeKinds} نوع یال، {sourceEvents} رویدادهای منبع همه را حل می‌کنند.",
+      "failed": "{count, plural, =1 {1 چیز در نقشه دیگر با واقعیت مطابقت ندارد} other {# چیز در نقشه دیگر با واقعیت مطابقت ندارد}}"
+    },
+    "legend": {
+      "input": "چیزی که شما تصمیم می‌گیرید",
+      "inputTechnical": "ورودی",
+      "mcpTool": "ابزاری که نماینده آن را فراخوانی می‌کند",
+      "mcpToolTechnical": "ابزار MCP",
+      "filesystem": "فایل‌ها روی دیسک",
+      "filesystemTechnical": "سیستم فایل",
+      "dbRow": "ورودی در حافظه",
+      "dbRowTechnical": "سطر DB"
+    }
   }
 }

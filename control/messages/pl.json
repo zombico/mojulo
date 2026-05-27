@@ -2213,5 +2213,34 @@
     "signingIn": "Logowanie…",
     "signOut": "Wyloguj się",
     "invalid": "Nieprawidłowa nazwa użytkownika lub hasło"
+  },
+  "graph": {
+    "navLabel": "Graf",
+    "title": "Mapa tworzenia Apps",
+    "subtitle": "Jak App jest tworzony. Każde pole to element; każda strzałka pokazuje, co powoduje co.",
+    "subtitleTechnical": "Jak App jest komponowany w paradygmacie mojulo. Stacje to elementy; linie to narzędzia MCP, które je łączą. Sprawdzane względem aktualnego rejestru MCP i schematu contextmap przy każdym odświeżeniu.",
+    "technicalToggle": "Techniczne",
+    "loading": "Ładowanie…",
+    "refresh": "Odśwież",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Brak wykonanych Apps} =1 {1 App wykonany} other {# Apps wykonanych}}",
+      "lastMaterialized": "Ostatni wykonany",
+      "viewApps": "Pokaż uruchomione Apps"
+    },
+    "validation": {
+      "ok": "Wszystko nadal się zgadza.",
+      "okTechnical": "Manifest prawidłowy: {tools} narzędzi, {nodeKinds} typów węzłów, {edgeKinds} typów krawędzi, {sourceEvents} zdarzeń źródłowych — wszystko się zgadza.",
+      "failed": "{count, plural, =1 {1 rzecz na mapie nie odpowiada rzeczywistości} other {# rzeczy na mapie nie odpowiadają rzeczywistości}}"
+    },
+    "legend": {
+      "input": "To, co ty decydujesz",
+      "inputTechnical": "Wejście",
+      "mcpTool": "Narzędzie, które agent wywołuje",
+      "mcpToolTechnical": "Narzędzie MCP",
+      "filesystem": "Pliki na dysku",
+      "filesystemTechnical": "System plików",
+      "dbRow": "Wpis w pamięci",
+      "dbRowTechnical": "Wiersz DB"
+    }
   }
 }

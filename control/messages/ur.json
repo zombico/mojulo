@@ -2213,5 +2213,34 @@
     "signingIn": "Signing in…",
     "signOut": "Sign out",
     "invalid": "Invalid username or password"
+  },
+  "graph": {
+    "navLabel": "گراف",
+    "title": "ایپ کی تخلیق کا نقشہ",
+    "subtitle": "ایک ایپ کیسے بنتی ہے۔ ہر خانہ ایک حصہ ہے؛ ہر تیر بتاتا ہے کہ کیا کیا سبب بنتا ہے۔",
+    "subtitleTechnical": "ایک ایپ mojulo نمونے میں کیسے بنائی جاتی ہے۔ اسٹیشنز حصے ہیں؛ لائنیں MCP ٹولز ہیں جو انہیں اکٹھا کرتی ہیں۔ ہر تازہ کاری پر براہ راست MCP رجسٹری اور contextmap schema کے خلاف تصدیق کی جاتی ہے۔",
+    "technicalToggle": "تکنیکی",
+    "loading": "لوڈ ہو رہا ہے…",
+    "refresh": "تازہ کریں",
+    "overlay": {
+      "appCount": "{count, plural, =0 {ابھی کوئی ایپ نہیں بنائی گئی} =1 {1 ایپ بنائی گئی} other {# ایپس بنائی گئیں}}",
+      "lastMaterialized": "آخری ایک بنایا گیا",
+      "viewApps": "چلتی ہوئی ایپس دیکھیں"
+    },
+    "validation": {
+      "ok": "سب کچھ ابھی بھی ٹھیک ہے۔",
+      "okTechnical": "مینی فیسٹ درست ہے: {tools} ٹولز، {nodeKinds} نوڈ کی اقسام، {edgeKinds} کنارے کی اقسام، {sourceEvents} ذرائع سب حل ہو گئے۔",
+      "failed": "{count, plural, =1 {نقشہ میں 1 چیز اب حقیقت سے مطابقت نہیں رکھتی} other {نقشہ میں # چیزیں اب حقیقت سے مطابقت نہیں رکھتیں}}"
+    },
+    "legend": {
+      "input": "جو آپ فیصلہ کریں",
+      "inputTechnical": "ان پٹ",
+      "mcpTool": "ایک ٹول جو ایجنٹ کہتا ہے",
+      "mcpToolTechnical": "MCP ٹول",
+      "filesystem": "ڈسک پر فائلیں",
+      "filesystemTechnical": "فائل سسٹم",
+      "dbRow": "میموری میں اندراج",
+      "dbRowTechnical": "DB صف"
+    }
   }
 }

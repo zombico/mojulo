@@ -2213,5 +2213,34 @@
     "signingIn": "Accesso in corso…",
     "signOut": "Esci",
     "invalid": "Nome utente o password non validi"
+  },
+  "graph": {
+    "navLabel": "Grafico",
+    "title": "Mappa di creazione dell'App",
+    "subtitle": "Come un'app si assembla. Ogni riquadro è un pezzo; ogni freccia mostra cosa causa cosa.",
+    "subtitleTechnical": "Come un'app si compone nel paradigma mojulo. Le stazioni sono i pezzi; le linee sono gli strumenti MCP che li collegano insieme. Validato rispetto al registro MCP live e allo schema del contextmap ad ogni aggiornamento.",
+    "technicalToggle": "Tecnico",
+    "loading": "Caricamento…",
+    "refresh": "Aggiorna",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Nessun'app creata ancora} =1 {1 app creata} other {# app create}}",
+      "lastMaterialized": "L'ultima creata",
+      "viewApps": "Visualizza app in esecuzione"
+    },
+    "validation": {
+      "ok": "Tutto è ancora valido.",
+      "okTechnical": "Manifest valido: {tools} strumenti, {nodeKinds} tipi di nodo, {edgeKinds} tipi di bordo, {sourceEvents} eventi di origine si risolvono tutti.",
+      "failed": "{count, plural, =1 {1 cosa nella mappa non corrisponde più alla realtà} other {# cose nella mappa non corrispondono più alla realtà}}"
+    },
+    "legend": {
+      "input": "Ciò che decidi",
+      "inputTechnical": "Input",
+      "mcpTool": "Uno strumento che l'agente chiama",
+      "mcpToolTechnical": "Strumento MCP",
+      "filesystem": "File su disco",
+      "filesystemTechnical": "Filesystem",
+      "dbRow": "Voce in memoria",
+      "dbRowTechnical": "Riga DB"
+    }
   }
 }

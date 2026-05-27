@@ -2213,5 +2213,34 @@
     "signingIn": "サインイン中...",
     "signOut": "サインアウト",
     "invalid": "ユーザー名またはパスワードが正しくありません"
+  },
+  "graph": {
+    "navLabel": "グラフ",
+    "title": "App作成マップ",
+    "subtitle": "アプリがどのように作られるかを示します。各ボックスはひとつの要素で、各矢印は因果関係を表します。",
+    "subtitleTechnical": "mojuloパラダイムでアプリがどのように合成されるかを示します。ステーションはそれぞれの要素で、ラインはそれらを組み立てるMCPツールです。リフレッシュの度にライブMCPレジストリとcontextmapスキーマに対して検証されます。",
+    "technicalToggle": "テクニカル",
+    "loading": "読み込み中…",
+    "refresh": "リフレッシュ",
+    "overlay": {
+      "appCount": "{count, plural, =0 {アプリはまだ作成されていません} =1 {1つのアプリが作成されました} other {#個のアプリが作成されました}}",
+      "lastMaterialized": "最後に作成されたもの",
+      "viewApps": "実行中のアプリを表示"
+    },
+    "validation": {
+      "ok": "すべてまだ正常に機能しています。",
+      "okTechnical": "マニフェストは有効です: {tools}個のツール、{nodeKinds}種類のノード、{edgeKinds}種類のエッジ、{sourceEvents}個のソースイベントはすべて解決します。",
+      "failed": "{count, plural, =1 {マップ内の1つの要素が実際と一致しなくなりました} other {マップ内の#個の要素が実際と一致しなくなりました}}"
+    },
+    "legend": {
+      "input": "あなたが決定したもの",
+      "inputTechnical": "入力",
+      "mcpTool": "エージェントが呼び出すツール",
+      "mcpToolTechnical": "MCPツール",
+      "filesystem": "ディスク上のファイル",
+      "filesystemTechnical": "ファイルシステム",
+      "dbRow": "メモリ内のエントリ",
+      "dbRowTechnical": "DBの行"
+    }
   }
 }

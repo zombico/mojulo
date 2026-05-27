@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Biểu đồ",
+    "title": "Bản đồ tạo ứng dụng",
+    "subtitle": "Cách một ứng dụng được tạo ra. Mỗi hộp là một phần; mỗi mũi tên cho thấy nguyên nhân và kết quả.",
+    "subtitleTechnical": "Cách một ứng dụng được soạn thảo trong mô hình mojulo. Các trạm là các phần; các dòng là các công cụ MCP kết nối chúng lại với nhau. Được xác thực dựa trên sổ đăng ký MCP trực tiếp và lược đồ contextmap trên mỗi lần làm mới.",
+    "technicalToggle": "Kỹ thuật",
+    "loading": "Đang tải…",
+    "refresh": "Làm mới",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Chưa có ứng dụng nào được tạo} =1 {1 ứng dụng đã tạo} other {# ứng dụng đã tạo}}",
+      "lastMaterialized": "Cái cuối cùng được tạo",
+      "viewApps": "Xem các ứng dụng đang chạy"
+    },
+    "validation": {
+      "ok": "Mọi thứ vẫn đúng.",
+      "okTechnical": "Bản kê khai hợp lệ: {tools} công cụ, {nodeKinds} loại nút, {edgeKinds} loại cạnh, {sourceEvents} sự kiện nguồn tất cả đều được giải quyết.",
+      "failed": "{count, plural, =1 {1 thứ trong sơ đồ không còn phù hợp với thực tế} other {# thứ trong sơ đồ không còn phù hợp với thực tế}}"
+    },
+    "legend": {
+      "input": "Những gì bạn quyết định",
+      "inputTechnical": "Đầu vào",
+      "mcpTool": "Một công cụ mà tác nhân gọi",
+      "mcpToolTechnical": "Công cụ MCP",
+      "filesystem": "Các tệp trên đĩa",
+      "filesystemTechnical": "Hệ thống tệp",
+      "dbRow": "Mục nhập trong bộ nhớ",
+      "dbRowTechnical": "Hàng cơ sở dữ liệu"
+    }
+  },
   "documentUploader": {
     "title": "Tải lên tài liệu",
     "description": "Tải lên các tài liệu mà chatbot của bạn sẽ sử dụng cho RAG (Retrieval-Augmented Generation)",

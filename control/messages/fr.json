@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Graphique",
+    "title": "Carte de création d'App",
+    "subtitle": "Comment une App se forme. Chaque boîte est une pièce ; chaque flèche montre ce qui cause quoi.",
+    "subtitleTechnical": "Comment une App est composée dans le paradigme mojulo. Les stations sont les pièces ; les lignes sont les outils MCP qui les assemblent ensemble. Validé contre le registre MCP en direct et le schéma contextmap à chaque actualisation.",
+    "technicalToggle": "Technique",
+    "loading": "Chargement…",
+    "refresh": "Actualiser",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Aucune App créée pour l'instant} =1 {1 App créée} other {# Apps créées}}",
+      "lastMaterialized": "Dernière créée",
+      "viewApps": "Voir les Apps en cours d'exécution"
+    },
+    "validation": {
+      "ok": "Tout est toujours bon.",
+      "okTechnical": "Manifeste valide : {tools} outils, {nodeKinds} types de nœuds, {edgeKinds} types d'arêtes, {sourceEvents} événements sources, tout se résout.",
+      "failed": "{count, plural, =1 {1 élément dans la carte ne correspond plus à la réalité} other {# éléments dans la carte ne correspondent plus à la réalité}}"
+    },
+    "legend": {
+      "input": "Ce que tu décides",
+      "inputTechnical": "Entrée",
+      "mcpTool": "Un outil que l'agent appelle",
+      "mcpToolTechnical": "Outil MCP",
+      "filesystem": "Fichiers sur le disque",
+      "filesystemTechnical": "Système de fichiers",
+      "dbRow": "Entrée en mémoire",
+      "dbRowTechnical": "Ligne de base de données"
+    }
+  },
   "documentUploader": {
     "title": "Téléverser des documents",
     "description": "Téléverse les documents que ton chatbot utilisera pour le RAG (Retrieval-Augmented Generation)",

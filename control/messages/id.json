@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Grafik",
+    "title": "Peta Pembuatan App",
+    "subtitle": "Bagaimana sebuah app berkumpul. Setiap kotak adalah sepotong; setiap panah menunjukkan apa yang menyebabkan apa.",
+    "subtitleTechnical": "Bagaimana sebuah app dikomposisi dalam paradigma mojulo. Stasiun adalah potongan; garis adalah alat MCP yang menyatukannya. Divalidasi terhadap registri MCP langsung dan skema contextmap pada setiap penyegaran.",
+    "technicalToggle": "Teknis",
+    "loading": "Memuat…",
+    "refresh": "Segarkan",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Belum ada app yang dibuat} =1 {1 app dibuat} other {# app dibuat}}",
+      "lastMaterialized": "Yang terakhir dibuat",
+      "viewApps": "Lihat app yang berjalan"
+    },
+    "validation": {
+      "ok": "Semuanya masih terpriksa.",
+      "okTechnical": "Manifest valid: {tools} tools, {nodeKinds} jenis node, {edgeKinds} jenis edge, {sourceEvents} sumber event semua terselesaikan.",
+      "failed": "{count, plural, =1 {1 hal dalam peta tidak lagi cocok dengan kenyataan} other {# hal dalam peta tidak lagi cocok dengan kenyataan}}"
+    },
+    "legend": {
+      "input": "Yang Anda putuskan",
+      "inputTechnical": "Input",
+      "mcpTool": "Alat yang disebut agen",
+      "mcpToolTechnical": "MCP tool",
+      "filesystem": "File di disk",
+      "filesystemTechnical": "Filesystem",
+      "dbRow": "Entri dalam memori",
+      "dbRowTechnical": "Baris DB"
+    }
+  },
   "documentUploader": {
     "title": "Unggah Dokumen",
     "description": "Unggah dokumen yang akan digunakan chatbot Anda untuk RAG (Retrieval-Augmented Generation)",

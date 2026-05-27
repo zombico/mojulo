@@ -2213,5 +2213,34 @@
     "signingIn": "inaingia…",
     "signOut": "toka",
     "invalid": "Invalid username or nenosiri"
+  },
+  "graph": {
+    "navLabel": "Grafu",
+    "title": "Ramani ya Uundaji wa App",
+    "subtitle": "Jinsi app inaunganiana. Kila sanduku ni kipande; kila mshale inaonyesha nini inasababisha nini.",
+    "subtitleTechnical": "Jinsi app inaunganiana katika dhana ya mojulo. Vituo ni vipande; mistari ni zana za MCP inayoziunganisha. Inathibitishwa dhidi ya rejisita ya MCP na schema ya contextmap kwa kila onyeshaji upya.",
+    "technicalToggle": "Tekniani",
+    "loading": "Inapakia…",
+    "refresh": "Onyesha upya",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Hakuna apps iliyozalishwa hadi sasa} =1 {1 app iliyozalishwa} other {# apps iliyozalishwa}}",
+      "lastMaterialized": "Mwisho ulizalishwa",
+      "viewApps": "Angalia apps inayoendesha"
+    },
+    "validation": {
+      "ok": "Kila kitu bado kinakubali.",
+      "okTechnical": "Manifest halali: zana za {tools}, aina za nodi {nodeKinds}, aina za upande {edgeKinds}, matukio ya {sourceEvents} yote yanakamatia.",
+      "failed": "{count, plural, =1 {1 kitu katika ramani hakina tena inafanana na ukweli} other {# vitu katika ramani havina tena inafanana na ukweli}}"
+    },
+    "legend": {
+      "input": "Kile unachoamua",
+      "inputTechnical": "Input",
+      "mcpTool": "Zana ambayo wakala humwita",
+      "mcpToolTechnical": "MCP tool",
+      "filesystem": "Faili kwenye diski",
+      "filesystemTechnical": "Filesystem",
+      "dbRow": "Ingizo katika kumbukumbu",
+      "dbRowTechnical": "DB row"
+    }
   }
 }

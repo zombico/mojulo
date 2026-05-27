@@ -1,4 +1,466 @@
 {
+  "accessLevels": {
+    "owner": "pemilik",
+    "admin": "pentadbir",
+    "write": "tulis",
+    "read": "baca"
+  },
+  "actions": {
+    "modify": "Ubah suai",
+    "clone": "Klon",
+    "reassign": "Tugaskan semula",
+    "goToLiveBot": "Pergi ke Bot Langsung",
+    "modifyTitle": "Ubah suai pelaksanaan - kekalkan URL dan nama yang sama",
+    "cloneTitle": "Klon pelaksanaan ini dengan nama baharu",
+    "reassignTitle": "Tugaskan semula ke ruang bot lain",
+    "deleteTitle": "Padam pelaksanaan",
+    "editInChat": "Sembang",
+    "editInChatTitle": "Ubah suai menggunakan pembantu sembang",
+    "pause": "Jeda",
+    "start": "Mula",
+    "pauseBot": "Jeda bot",
+    "startBot": "Mulakan bot",
+    "redeploy": "Laksanakan semula",
+    "redeployBot": "Laksanakan semula bot",
+    "live": "Langsung",
+    "embed": "Embed",
+    "copied": "Disalin",
+    "replicas": "Replika",
+    "scaleReplicas": "Skalakan Replika",
+    "replicasDescription": "Laraskan bilangan replika bot. Lebih banyak replika mengendalikan lebih ramai pengguna serentak. Sesi melekat memastikan pengguna kekal disambungkan ke replika yang sama.",
+    "replicaCount": "Bilangan Replika",
+    "replicasRange": "Min: 1, Maks: 10",
+    "currentReplicas": "Replika semasa (tersedia/diingini)",
+    "scale": "Skala",
+    "scaling": "Menskalakan...",
+    "cancel": "Batal"
+  },
+  "analytics": {
+    "title": "Analitis",
+    "loading": "Memuatkan analitis...",
+    "loadingConversations": "Memuatkan analitis perbualan...",
+    "analyzingQuestions": "Menganalisis soalan pengguna...",
+    "failedToLoad": "Gagal memuatkan pelaksanaan",
+    "failedToLoadAnalytics": "Gagal memuatkan data analitis",
+    "chatbotMetrics": "Metrik Chatbot",
+    "conversationAnalytics": "Analitis Perbualan",
+    "topQuestions": "Soalan & Topik Pengguna Teratas",
+    "metrics": {
+      "age": "Usia",
+      "uptime": "Masa beroperasi",
+      "documents": "Dokumen",
+      "lastUpdated": "Terakhir Dikemas Kini",
+      "totalConversations": "Jumlah Perbualan",
+      "totalMessages": "Jumlah Mesej",
+      "formStarts": "Permulaan Borang",
+      "formCompletes": "Borang Selesai",
+      "completionRate": "{rate}% kadar siap",
+      "avgMessagesPerConv": "Purata Mesej/Perbualan"
+    },
+    "badges": {
+      "formCollection": "Pengumpulan Borang",
+      "live": "Langsung"
+    },
+    "searchTerms": {
+      "longPhrases": "Frasa Panjang",
+      "phrases": "Frasa",
+      "words": "Perkataan",
+      "analyzed": "Menganalisis {count} mesej pengguna",
+      "noData": "Belum ada data perbualan tersedia",
+      "noDataHint": "Data akan muncul di sini selepas pengguna berinteraksi dengan chatbot anda"
+    },
+    "uptime": {
+      "inProgress": "Sedang berjalan...",
+      "failed": "Gagal",
+      "notAvailable": "T/A"
+    }
+  },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps yang telah dimaterialkan oleh ejen melalui paradigma App. Kitaran hayat, pemboleh ubah env, dan introspeksi MCP langsung — dibaca daripada contextmap dan pelari tempatan.",
+    "loading": "Memuatkan…",
+    "refresh": "Muat semula",
+    "empty": "Belum ada apps — minta ejen Claude Code anda untuk membina satu.",
+    "backToList": "Kembali ke Apps",
+    "notFound": "App tidak dijumpai.",
+    "openPreview": "Buka pratonton",
+    "openMcp": "Buka MCP",
+    "actions": {
+      "start": "Mula",
+      "stop": "Berhenti",
+      "starting": "Memulakan…",
+      "stopping": "Memberhentikan…"
+    },
+    "status": {
+      "running": "Sedang berjalan",
+      "stopped": "Dihentikan",
+      "crashed": "Terhempas",
+      "unknown": "Tidak diketahui"
+    },
+    "table": {
+      "headers": {
+        "name": "Nama",
+        "materialized": "Dimaterialkan",
+        "runner": "Pelari",
+        "status": "Status",
+        "actions": "Tindakan"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Laluan artifak",
+      "materializationRef": "Materialization ref",
+      "adapter": "Penyesuai",
+      "appName": "Nama app",
+      "host": "Hos",
+      "materializedAt": "Dimaterialkan pada",
+      "bindings": "Pengikatan",
+      "binding": {
+        "runner": "Pelari",
+        "durability": "Ketahanan",
+        "inference": "Inferens",
+        "mcpSelf": "MCP diri"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "URL MCP",
+        "offline": "MCP di luar talian — mulakan app untuk melihat senarai alatnya.",
+        "loading": "Memuatkan alat…",
+        "error": "Tidak dapat mencapai MCP app: {error}",
+        "registeredTools": "Alat yang didaftarkan",
+        "noTools": "Tiada alat didaftarkan.",
+        "declaredPurpose": "Tujuan yang diisytiharkan"
+      },
+      "envPanel": {
+        "title": "Pemboleh ubah persekitaran",
+        "explainer": "Nilai ditulis terus ke fail .env artifak. Ia tidak dilog, tidak disimpan dalam pangkalan data control-plane, dan tidak dipulangkan ke paparan ini.",
+        "keyHeader": "Kunci",
+        "addKey": "Kunci",
+        "addValue": "Nilai",
+        "add": "Tambah",
+        "delete": "Padam",
+        "deleteConfirm": "Padam pemboleh ubah env \"{key}\"?",
+        "noKeys": "Belum ada pemboleh ubah env ditetapkan.",
+        "valueHidden": "•••••",
+        "edit": "Sunting",
+        "save": "Simpan",
+        "cancel": "Batal",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "nilai"
+      },
+      "provenance": {
+        "title": "Asal-usul",
+        "subtitle": "Prinsip yang dilampirkan pada komit materialization app ini.",
+        "none": "Tiada prinsip direkodkan."
+      }
+    }
+  },
+  "auditLogFilters": {
+    "eventTypes": {
+      "allEvents": "Semua Acara",
+      "authentication": "Pengesahan",
+      "deployments": "Pelaksanaan",
+      "botSpaces": "Ruang Bot",
+      "documents": "Dokumen",
+      "apiKeys": "Kunci API",
+      "usersInvites": "Pengguna & Jemputan",
+      "conversations": "Perbualan",
+      "settings": "Tetapan",
+      "auditSystem": "Sistem Audit"
+    },
+    "outcomes": {
+      "all": "Semua",
+      "success": "Berjaya",
+      "failure": "Gagal",
+      "denied": "Ditolak"
+    },
+    "dateRange": "Julat Tarikh",
+    "from": "Dari",
+    "to": "Ke",
+    "clear": "Kosongkan"
+  },
+  "auditLogTable": {
+    "loading": "Memuatkan log audit...",
+    "noLogs": "Tiada log audit dijumpai",
+    "noLogsHint": "Log akan muncul di sini apabila tindakan dilakukan",
+    "headers": {
+      "time": "Masa",
+      "event": "Acara",
+      "actor": "Pelaku",
+      "resource": "Sumber",
+      "outcome": "Hasil"
+    },
+    "events": {
+      "authLoginSuccess": "Log Masuk",
+      "authLoginFailure": "Log Masuk Gagal",
+      "authLogout": "Log Keluar",
+      "authSignup": "Daftar",
+      "deploymentCreate": "Pelaksanaan Dicipta",
+      "deploymentRedeploy": "Dilaksanakan Semula",
+      "deploymentDelete": "Pelaksanaan Dipadam",
+      "botSpaceCreate": "Ruang Dicipta",
+      "botSpaceDelete": "Ruang Dipadam",
+      "botSpaceMemberAdd": "Ahli Ditambah",
+      "botSpaceMemberRemove": "Ahli Dibuang",
+      "documentUpload": "Dokumen Dimuat Naik",
+      "documentDelete": "Dokumen Dipadam",
+      "apiKeyCreate": "Kunci API Dicipta",
+      "apiKeyDelete": "Kunci API Dipadam",
+      "userInvite": "Pengguna Dijemput",
+      "userInviteAccept": "Jemputan Diterima",
+      "auditWebhookUpdate": "Webhook Dikemas Kini",
+      "auditLogsExport": "Log Dieksport"
+    },
+    "outcomes": {
+      "success": "berjaya",
+      "failure": "gagal",
+      "denied": "ditolak"
+    },
+    "details": {
+      "timestamp": "Cap Masa Penuh",
+      "requestId": "ID Permintaan",
+      "ipAddress": "Alamat IP",
+      "userAgent": "Agen Pengguna",
+      "resource": "Sumber",
+      "metadata": "Metadata"
+    },
+    "showing": "Menunjukkan {shown} daripada {total} log",
+    "loadMore": "Muat Lebih Banyak"
+  },
+  "auth": {
+    "signIn": "Log Masuk",
+    "signOut": "Log Keluar",
+    "signingIn": "Sedang log masuk...",
+    "email": "E-mel",
+    "password": "Kata laluan",
+    "signInToContinue": "Log masuk untuk meneruskan",
+    "invalidCredentials": "E-mel atau kata laluan tidak sah",
+    "needAccess": "Perlukan akses? Hubungi pentadbir organisasi anda.",
+    "controlPanel": "Mojulo Control Panel",
+    "setupComplete": "Akaun pentadbir berjaya dicipta. Sila log masuk.",
+    "emailPlaceholder": "anda@syarikat.com",
+    "passwordPlaceholder": "Kata laluan anda"
+  },
+  "botSpaceInvite": {
+    "title": "Jemput ke {spaceName}",
+    "description": "Hantar jemputan untuk berkolaborasi pada ruang bot ini. Mereka akan menerima e-mel dengan pautan untuk menyertai.",
+    "emailLabel": "Alamat E-mel",
+    "emailPlaceholder": "rakan@syarikat.com",
+    "accessLabel": "Tahap Akses",
+    "accessRead": "Baca - Boleh melihat bot dalam ruang ini",
+    "accessWrite": "Tulis - Boleh mencipta dan menyunting bot",
+    "accessAdmin": "Pentadbir - Akses penuh termasuk menjemput orang lain",
+    "accessNote": "Pengguna yang dijemput akan menyertai sebagai penyumbang kepada organisasi anda.",
+    "sending": "Menghantar...",
+    "sendInvitation": "Hantar Jemputan",
+    "errors": {
+      "sendFailed": "Gagal menghantar jemputan"
+    }
+  },
+  "bots": {
+    "types": {
+      "chat": "Sembang",
+      "knowledge": "Pengetahuan",
+      "form": "Borang",
+      "triage": "Triaj",
+      "appointment": "Temujanji",
+      "bot": "Bot"
+    },
+    "descriptions": {
+      "chat": "Pembantu sembang berkuasa AI",
+      "form": "Pengumpulan data berstruktur",
+      "triage": "Hala pengguna ke tempat yang betul",
+      "appointment": "Jadualkan mesyuarat & tempahan"
+    },
+    "status": {
+      "deployed": "dilaksanakan",
+      "deploying": "sedang dilaksanakan",
+      "failed": "gagal"
+    }
+  },
+  "chatBuilder": {
+    "title": "Pembina Bot AI",
+    "subtitle": "Terangkan bot yang anda mahu bina dan saya akan menciptanya untuk anda",
+    "loading": "Memuatkan Pembina AI...",
+    "newChat": "Sembang Baharu",
+    "recentChats": "Sembang Terkini",
+    "noPreviousChats": "Tiada sembang sebelumnya",
+    "botPreview": "Pratonton Bot",
+    "viewDeployedBot": "Lihat bot yang dilaksanakan",
+    "selectWorkspace": "Pilih ruang kerja",
+    "selectWorkspacePrompt": "Pilih ruang kerja untuk mula membina",
+    "noWorkspaces": "Tiada ruang kerja tersedia",
+    "createWorkspaceFirst": "Cipta satu terlebih dahulu",
+    "backToDashboard": "Kembali ke Papan Pemuka",
+    "welcome": {
+      "title": "Bina Bot dengan AI",
+      "description": "Terangkan bot yang anda mahu cipta, muat naik dokumen yang berkaitan, dan saya akan membantu anda mengkonfigurasi dan melaksanakannya. Tiada pengaturcaraan diperlukan.",
+      "quickPrompts": {
+        "customerSupport": {
+          "title": "Bot Sokongan Pelanggan",
+          "description": "Jawab soalan produk",
+          "prompt": "Saya memerlukan bot sokongan pelanggan yang boleh menjawab soalan tentang produk kami"
+        },
+        "leadCapture": {
+          "title": "Bot Penangkapan Lead",
+          "description": "Kumpul maklumat pelawat",
+          "prompt": "Cipta bot penangkapan lead yang mengumpul nama, e-mel, dan maklumat syarikat"
+        },
+        "faqAssistant": {
+          "title": "Pembantu FAQ",
+          "description": "Jawab soalan biasa",
+          "prompt": "Bantu saya membina bot FAQ menggunakan dokumentasi kami"
+        },
+        "onboarding": {
+          "title": "Bot Onboarding",
+          "description": "Pandu pengguna baharu",
+          "prompt": "Saya mahu mencipta bot yang membantu mengonboard pelanggan baharu"
+        }
+      }
+    },
+    "input": {
+      "placeholder": "Terangkan bot yang anda mahu bina...",
+      "defaultPlaceholder": "Taip mesej...",
+      "dropFilesHere": "Lepaskan fail di sini...",
+      "dropToAttach": "Lepaskan fail untuk melampirkannya ke mesej anda",
+      "hint": "Tekan Enter untuk menghantar, Shift+Enter untuk baris baharu. Seret fail atau klik klip untuk melampirkan.",
+      "hintShort": "Tekan Enter untuk menghantar, Shift+Enter untuk baris baharu",
+      "hintWithAttach": "Seret & lepaskan fail atau klik lampirkan. Tekan Enter untuk menghantar.",
+      "attachFiles": "Lampirkan fail",
+      "attachDocuments": "Lampirkan dokumen"
+    },
+    "tools": {
+      "toolsExecuted": "{count} alat dilaksanakan",
+      "toolsExecutedPlural": "{count} alat dilaksanakan",
+      "uploadDocument": "Muat Naik Dokumen",
+      "generateForm": "Jana Borang",
+      "deployBot": "Laksanakan Bot",
+      "listDeployments": "Senarai Pelaksanaan",
+      "checkDeploymentStatus": "Semak Status Pelaksanaan",
+      "destroyDeployment": "Musnahkan Pelaksanaan",
+      "getAnalytics": "Dapatkan Analitis",
+      "getFormSubmissions": "Dapatkan Penyerahan Borang",
+      "listWorkspaces": "Senarai Ruang Kerja",
+      "listDocuments": "Senarai Dokumen",
+      "listApiKeys": "Senarai Kunci API"
+    },
+    "documentPicker": {
+      "title": "Pilih Dokumen",
+      "noDocuments": "Tiada dokumen dalam ruang kerja ini",
+      "uploadFirst": "Muat naik dokumen terlebih dahulu untuk digunakan untuk bot anda",
+      "selected": "{count} dokumen dipilih",
+      "selectedPlural": "{count} dokumen dipilih",
+      "useSelected": "Gunakan yang Dipilih"
+    },
+    "errors": {
+      "failedToSend": "Gagal menghantar mesej",
+      "failedToLoadSession": "Gagal memuatkan sesi",
+      "failedToLoadDocuments": "Gagal memuatkan dokumen"
+    },
+    "invertedPanel": {
+      "createABot": "Cipta Bot",
+      "editBot": "Sunting {name}",
+      "fallbackBotName": "Bot",
+      "private": "Peribadi",
+      "createTitle": "Apakah jenis bot yang boleh saya bantu anda bina?",
+      "createDescription": "Anda juga boleh melampirkan dokumen untuk memberinya pengetahuan. Muat naik fail, atau minta untuk merujuk kepada dokumen dalam ruang bot.",
+      "buildWithWizard": "Bina dengan Wizard (Konfigurasi langkah demi langkah)",
+      "editTitle": "Ubah suai {name}",
+      "editFallbackName": "bot anda",
+      "editDescription": "Beritahu saya apa yang anda mahu ubah. Saya akan memuatkan konfigurasi semasa anda dan membantu anda mengemas kininya.",
+      "editExamples": "Contoh: \"Tukar ucapan selamat\", \"Tambah medan borang baharu\", \"Kemas kini nama bot\"",
+      "errorPrefix": "Ralat:",
+      "inputPlaceholder": "Terangkan apa yang bot anda patut lakukan...",
+      "adjustMessage": "Saya ingin melaraskan konfigurasi"
+    },
+    "status": {
+      "ready": "Sedia",
+      "processing": "Memproses",
+      "awaitingConfirmation": "Menunggu pengesahan",
+      "deploying": "Sedang melaksanakan",
+      "deployed": "Dilaksanakan",
+      "editing": "Menyunting"
+    },
+    "success": {
+      "botBuilt": "Bot dibina!",
+      "botSaved": "Bot disimpan",
+      "botBuiltMessage": "Bot anda <strong>{name}</strong> telah dibina dan sedia untuk dimuat turun.",
+      "botSavedMessage": "Bot anda <strong>{name}</strong> disimpan. Bina ia dari Ruang Bot anda apabila anda bersedia.",
+      "liveUrl": "URL Langsung",
+      "embedCode": "Kod Embed",
+      "downloadArtifact": "Muat Turun Artifak",
+      "downloadWithDocs": "Muat Turun dengan Dokumen",
+      "openBot": "Buka Bot",
+      "viewInBotSpace": "Lihat dalam Ruang Bot"
+    }
+  },
+  "cloudDeploy": {
+    "title": "Laksanakan ke Cloud",
+    "backToDashboard": "← Kembali ke papan pemuka",
+    "loading": "Memuatkan…",
+    "botLabel": "Bot:",
+    "protocolsLabel": "protokol: {protocols}",
+    "statusPills": {
+      "pending": "Menunggu",
+      "deploying": "Sedang melaksanakan",
+      "running": "Sedang berjalan",
+      "paused": "Dijeda",
+      "failed": "Gagal",
+      "destroyed": "Dimusnahkan"
+    },
+    "artifact": {
+      "title": "Artifak terkini",
+      "status": "Status",
+      "configHash": "Hash konfigurasi",
+      "lastBuiltHash": "Hash terakhir dibina",
+      "artifactPath": "Laluan artifak",
+      "notBuiltYet": "— (belum dibina)",
+      "staleWarning": "Konfigurasi telah disunting sejak pembinaan terakhir. Pelaksanaan cloud akan membina semula secara automatik, atau anda boleh bina semula sekarang.",
+      "missingWarning": "Belum ada artifak. Pelaksanaan cloud akan membinanya secara automatik, atau anda boleh bina sekarang untuk pratonton.",
+      "buildZip": "Bina ZIP",
+      "rebuildZip": "Bina semula ZIP",
+      "downloadZip": "Muat turun .zip"
+    },
+    "provider": {
+      "title": "Penyedia",
+      "fly": {
+        "name": "Fly.io",
+        "description": "Mesin wilayah tunggal + volum berterusan"
+      }
+    },
+    "fly": {
+      "title": "Pilihan Fly.io",
+      "region": "Wilayah",
+      "regionHint": "Kod wilayah Fly 3-huruf (iad, sjc, lhr, nrt, dll.)",
+      "volumeSize": "Saiz volum (GB)",
+      "volumeHint": "Storan berterusan untuk SQLite (1GB cukup untuk kebanyakan bot)",
+      "cpuCount": "Bilangan CPU",
+      "cpuHint": "CPU dikongsi",
+      "memory": "Memori (MB)",
+      "memoryHint": "1024 MB disyorkan",
+      "tokenNote": "Menggunakan <mono>FLY_API_TOKEN</mono> anda dari env control plane. Akaun anda, bil anda.",
+      "deploy": "Laksanakan",
+      "redeploy": "Laksanakan semula",
+      "deploying": "Sedang melaksanakan…"
+    },
+    "status": {
+      "title": "Status",
+      "provider": "Penyedia",
+      "appName": "Nama aplikasi",
+      "url": "URL",
+      "region": "Wilayah",
+      "lastDeployed": "Terakhir dilaksanakan",
+      "errorPrefix": "ralat: {error}",
+      "destroy": "Musnahkan"
+    },
+    "errors": {
+      "deployFailed": "Pelaksanaan gagal ({status})",
+      "destroyFailed": "Pemusnahan gagal ({status})",
+      "buildFailed": "Pembinaan gagal ({status})"
+    },
+    "confirmDestroy": "Musnahkan aplikasi cloud, mesin, dan volum? Data perbualan pada volum akan dipadamkan secara kekal."
+  },
   "common": {
     "loading": "Memuatkan...",
     "save": "Simpan",
@@ -29,19 +491,101 @@
     "addItemLabel": "Tambah {itemLabel}",
     "itemNumber": "{itemLabel} #{number}"
   },
-  "auth": {
-    "signIn": "Log Masuk",
-    "signOut": "Log Keluar",
-    "signingIn": "Sedang log masuk...",
-    "email": "E-mel",
-    "password": "Kata laluan",
-    "signInToContinue": "Log masuk untuk meneruskan",
-    "invalidCredentials": "E-mel atau kata laluan tidak sah",
-    "needAccess": "Perlukan akses? Hubungi pentadbir organisasi anda.",
-    "controlPanel": "Mojulo Control Panel",
-    "setupComplete": "Akaun pentadbir berjaya dicipta. Sila log masuk.",
-    "emailPlaceholder": "anda@syarikat.com",
-    "passwordPlaceholder": "Kata laluan anda"
+  "conversations": {
+    "title": "Perbualan",
+    "totalConversations": "{count} jumlah perbualan",
+    "total": "{count} jumlah",
+    "dashboardLink": "← Papan Pemuka",
+    "backToDashboard": "← Kembali ke papan pemuka",
+    "tabs": {
+      "conversations": "Perbualan",
+      "storage": "Storan"
+    },
+    "unreachable": {
+      "title": "Bot tidak boleh dicapai",
+      "message": "Control plane tidak dapat mencapai bot ini. Ia mungkin dihentikan, atau URL atau kunci API mungkin telah berubah. Sambung semula dari papan pemuka untuk melihat perbualan.",
+      "reconnect": "Sambung semula"
+    },
+    "search": {
+      "dataSource": "Sumber Data",
+      "conversationId": "ID Perbualan",
+      "partialId": "ID separa...",
+      "partialIdShort": "id separa",
+      "from": "Dari",
+      "to": "Ke",
+      "search": "Cari",
+      "searching": "Mencari...",
+      "last24h": "24j Terakhir",
+      "last7days": "7 hari Terakhir",
+      "clear": "Kosongkan",
+      "resultsFound": "{count} keputusan dijumpai",
+      "resultsFoundPlural": "{count} keputusan dijumpai",
+      "result": "{count} keputusan",
+      "results": "{count} keputusan",
+      "noMatch": "Tiada perbualan sepadan dengan carian anda",
+      "noMatchShort": "Tiada perbualan sepadan.",
+      "searchToFind": "Cari untuk mencari perbualan",
+      "searchByIdOrDate": "Cari mengikut ID atau tarikh untuk mencari perbualan.",
+      "useIdOrDate": "Gunakan ID perbualan, julat tarikh, atau kedua-duanya"
+    },
+    "timeAgo": {
+      "days": "{count}h lalu",
+      "hours": "{count}j lalu",
+      "minutes": "{count}m lalu"
+    },
+    "detail": {
+      "started": "Bermula:",
+      "startedAt": "Bermula {timestamp}",
+      "turns": "{count} pusingan",
+      "last": "Terakhir:",
+      "lastAt": "Terakhir {timestamp}",
+      "turn": "Pusingan {number}",
+      "user": "Pengguna",
+      "assistant": "Pembantu",
+      "ragContext": "Konteks RAG",
+      "ragContextShort": "Konteks RAG",
+      "verifyChain": "Sahkan Rantai",
+      "showMetadata": "Tunjuk sumber & metadata",
+      "showMetadataShort": "Tunjuk metadata",
+      "selectConversation": "Pilih perbualan untuk melihat mesej",
+      "selectConversationShort": "Pilih perbualan untuk melihat pusingannya.",
+      "loadingMessages": "Memuatkan mesej...",
+      "loading": "Memuatkan…"
+    },
+    "storage": {
+      "loading": "Memuatkan maklumat storan...",
+      "loadingShort": "Memuatkan…",
+      "volumeCapacity": "Kapasiti Volum",
+      "volumeCapacityShort": "Kapasiti volum",
+      "used": "{used} digunakan daripada {total}",
+      "usedOfTotal": "{used} daripada {total}",
+      "available": "{amount} tersedia",
+      "statsConversations": "Perbualan",
+      "statsTurns": "Jumlah Pusingan",
+      "statsTurnsShort": "Pusingan",
+      "statsDbSize": "Saiz Pangkalan Data",
+      "statsDbSizeShort": "Saiz DB",
+      "autoExtendPolicy": "Polisi Lanjutan Auto",
+      "autoExtendDescription": "Volum melanjutkan secara automatik pada kapasiti {threshold}%, menambah {increment}GB setiap pengembangan, sehingga maksimum {limit}GB.",
+      "exportTitle": "Eksport Perbualan",
+      "exportTitleShort": "Eksport",
+      "exportDescription": "Muat turun semua perbualan sebagai fail JSON.",
+      "exportDescriptionShort": "Muat turun semua perbualan dari bot ini sebagai JSON.",
+      "exportButton": "Eksport Semua Perbualan (JSON)",
+      "exportButtonShort": "Eksport JSON",
+      "exporting": "Mengeksport...",
+      "refresh": "Muat semula maklumat storan",
+      "retry": "Cuba semula"
+    },
+    "loadMore": "Muat lebih banyak",
+    "loadingMore": "Memuatkan…",
+    "errors": {
+      "fetchConversations": "Gagal mengambil perbualan",
+      "fetchDetails": "Gagal mengambil butiran perbualan",
+      "fetchStorage": "Gagal mengambil maklumat storan",
+      "exportFailed": "Gagal mengeksport perbualan",
+      "close": "Tutup"
+    }
   },
   "dashboard": {
     "title": "Papan Pemuka",
@@ -204,56 +748,249 @@
       "deleteConfirm": "Padam bot ini dan artifaknya?"
     }
   },
-  "bots": {
-    "types": {
-      "chat": "Sembang",
-      "knowledge": "Pengetahuan",
-      "form": "Borang",
-      "triage": "Triaj",
-      "appointment": "Temujanji",
-      "bot": "Bot"
+  "data": {
+    "navLabel": "Data",
+    "title": "Data Armada",
+    "subtitle": "Layari dan agregat aktiviti perbualan merentasi setiap bot yang disambungkan. Kandungan perbualan kekal pada bot — hanya kiraan digabungkan dalam proses.",
+    "loading": "Memuatkan…",
+    "tabs": {
+      "explorer": "Penjelajah",
+      "sql": "SQL",
+      "analytics": "Analitis"
     },
-    "descriptions": {
-      "chat": "Pembantu sembang berkuasa AI",
-      "form": "Pengumpulan data berstruktur",
-      "triage": "Hala pengguna ke tempat yang betul",
-      "appointment": "Jadualkan mesyuarat & tempahan"
+    "fleet": {
+      "unreachableBanner": "{unreachable} daripada {total} bot tidak boleh dicapai — keputusan mungkin sebahagian."
     },
-    "status": {
-      "deployed": "dilaksanakan",
-      "deploying": "sedang dilaksanakan",
-      "failed": "gagal"
+    "explorer": {
+      "filters": {
+        "conversationId": "ID Perbualan mengandungi",
+        "startDate": "Bermula selepas",
+        "endDate": "Bermula sebelum"
+      },
+      "search": "Cari",
+      "searching": "Mencari…",
+      "clear": "Kosongkan",
+      "hint": "Masukkan serpihan ID perbualan atau julat tarikh untuk menyebarkan carian merentasi setiap bot yang disambungkan.",
+      "pagination": {
+        "showing": "Menunjukkan {start} – {end} daripada {total}",
+        "previous": "Sebelumnya",
+        "next": "Seterusnya",
+        "truncatedNotice": "Set keputusan dihadkan pada 500 perbualan pertama merentasi armada. Sempitkan julat tarikh anda untuk keputusan lebih lama."
+      },
+      "noConversations": "Tiada perbualan sepadan dengan penapis anda."
+    },
+    "sql": {
+      "placeholder": "SELECT bot_name, conversations_7d FROM bot_health ORDER BY conversations_7d DESC",
+      "runQuery": "Jalankan pertanyaan",
+      "running": "Sedang berjalan…",
+      "exportCsv": "Eksport CSV",
+      "exportJson": "Eksport JSON",
+      "keyboardHint": "Tekan Cmd/Ctrl + Enter untuk menjalankan",
+      "rowCount": "{count} baris",
+      "truncated": "(dipotong kepada 10,000)",
+      "noResults": "Tiada baris",
+      "help": "Pertanyaan permulaan",
+      "starterQueries": {
+        "title": "Pertanyaan permulaan",
+        "hint": "Setiap pertanyaan membaca dari jadual rollup dalam memori yang dipasang setiap permintaan dari titik akhir analitis setiap bot. Klik untuk memuatkan.",
+        "dailyStats": "Statistik perbualan harian merentasi armada",
+        "botHealth": "Kesihatan bot (7 hari terakhir)",
+        "protocolDistribution": "Pengedaran penggunaan protokol",
+        "mostActiveBots": "Bot paling aktif minggu ini",
+        "staleBots": "Bot tidak dilihat dalam 24j terakhir",
+        "dailyByBot": "Aktiviti harian disertai dengan nama bot"
+      }
+    },
+    "schema": {
+      "availableTables": "Rujukan skema",
+      "clickToShow": "(klik untuk menunjuk)",
+      "clickToHide": "(klik untuk menyembunyikan)",
+      "note": "Nota:",
+      "scopeNote": "Jadual ini dibina dalam memori proses bagi setiap pertanyaan — satu baris setiap bot untuk jadual rollup, diisi dengan memanggil titik akhir analitis setiap bot yang disambungkan. Kandungan pusingan mentah tidak didedahkan; untuk itu, gunakan tab Penjelajah untuk meneroka perbualan tunggal."
+    },
+    "analytics": {
+      "loading": "Memuatkan rollup armada…",
+      "dateRange": {
+        "last7days": "7 hari Terakhir",
+        "last14days": "14 hari Terakhir",
+        "last30days": "30 hari Terakhir",
+        "last90days": "90 hari Terakhir"
+      },
+      "summary": {
+        "totalConversations": "Perbualan",
+        "totalTurns": "Pusingan",
+        "avgTurnsPerConversation": "Purata pusingan/perbualan",
+        "activeBots": "Bot boleh dicapai"
+      },
+      "charts": {
+        "dailyConversations": "Volum pusingan harian",
+        "topBotsByActivity": "Bot teratas mengikut volum pusingan",
+        "activityHeatmap": "Peta haba aktiviti (7 hari terakhir)"
+      },
+      "noData": "Tiada aktiviti dalam tempoh ini.",
+      "noActivityData": "Tiada aktiviti dalam 7 hari terakhir.",
+      "convs": "perbualan",
+      "days": {
+        "sun": "Aha",
+        "mon": "Isn",
+        "tue": "Sel",
+        "wed": "Rab",
+        "thu": "Kha",
+        "fri": "Jum",
+        "sat": "Sab"
+      }
+    },
+    "table": {
+      "headers": {
+        "bot": "Bot",
+        "started": "Bermula",
+        "duration": "Tempoh",
+        "turns": "Pusingan",
+        "conversationId": "ID Perbualan"
+      }
     }
   },
-  "actions": {
-    "modify": "Ubah suai",
-    "clone": "Klon",
-    "reassign": "Tugaskan semula",
-    "goToLiveBot": "Pergi ke Bot Langsung",
-    "modifyTitle": "Ubah suai pelaksanaan - kekalkan URL dan nama yang sama",
-    "cloneTitle": "Klon pelaksanaan ini dengan nama baharu",
-    "reassignTitle": "Tugaskan semula ke ruang bot lain",
-    "deleteTitle": "Padam pelaksanaan",
-    "editInChat": "Sembang",
-    "editInChatTitle": "Ubah suai menggunakan pembantu sembang",
-    "pause": "Jeda",
-    "start": "Mula",
-    "pauseBot": "Jeda bot",
-    "startBot": "Mulakan bot",
-    "redeploy": "Laksanakan semula",
-    "redeployBot": "Laksanakan semula bot",
-    "live": "Langsung",
-    "embed": "Embed",
-    "copied": "Disalin",
-    "replicas": "Replika",
-    "scaleReplicas": "Skalakan Replika",
-    "replicasDescription": "Laraskan bilangan replika bot. Lebih banyak replika mengendalikan lebih ramai pengguna serentak. Sesi melekat memastikan pengguna kekal disambungkan ke replika yang sama.",
-    "replicaCount": "Bilangan Replika",
-    "replicasRange": "Min: 1, Maks: 10",
-    "currentReplicas": "Replika semasa (tersedia/diingini)",
-    "scale": "Skala",
-    "scaling": "Menskalakan...",
-    "cancel": "Batal"
+  "deleteAccount": {
+    "title": "Padam Akaun",
+    "loadingInfo": "Memuatkan maklumat akaun...",
+    "permanentWarning": "Tindakan ini kekal dan tidak boleh dibatalkan.",
+    "willBeDeleted": "Berikut akan dipadamkan secara kekal:",
+    "deployments": "Pelaksanaan (Bot)",
+    "documents": "Dokumen",
+    "apiKeys": "Kunci API",
+    "botSpaces": "Ruang Bot",
+    "contributorsToDelete": "Akaun penyumbang yang akan dipadam",
+    "contributorsNote": "Penyumbang ini hanya ahli ruang bot organisasi anda.",
+    "organization": "Organisasi",
+    "adminDeleteNote": "Sebagai pentadbir, memadam akaun anda juga akan memadam semua data organisasi dan akaun penyumbang yang hanya berkaitan dengan organisasi anda.",
+    "userDeleteNote": "Keahlian ruang bot anda akan dibuang, tetapi ruang bot dan pengguna lain tidak akan terjejas.",
+    "continue": "Teruskan",
+    "confirmPrompt": "Untuk mengesahkan pemadaman, sila taip alamat e-mel anda:",
+    "confirmEmail": "Sahkan e-mel anda",
+    "emailPlaceholder": "Taip e-mel anda untuk mengesahkan",
+    "deleting": "Memadam...",
+    "deleteMyAccount": "Padam Akaun Saya",
+    "errors": {
+      "loadFailed": "Gagal memuatkan maklumat akaun",
+      "loadError": "Ralat memuatkan maklumat akaun",
+      "emailMismatch": "Sila taip alamat e-mel anda dengan tepat untuk mengesahkan",
+      "deleteFailed": "Gagal memadam akaun",
+      "deleteError": "Ralat memadam akaun"
+    }
+  },
+  "deployments": {
+    "title": "Pelaksanaan",
+    "loading": "Memuatkan pelaksanaan...",
+    "empty": "Tiada pelaksanaan dalam ruang bot ini",
+    "columns": {
+      "botName": "Nama Bot",
+      "status": "Status",
+      "deployed": "Dilaksanakan",
+      "by": "Oleh"
+    },
+    "history": {
+      "title": "Sejarah Pelaksanaan",
+      "noHistory": "Belum ada sejarah pelaksanaan",
+      "historyWillAppear": "Sejarah akan muncul selepas pelaksanaan seterusnya",
+      "event": "Acara",
+      "status": "Status",
+      "date": "Tarikh",
+      "by": "Oleh",
+      "config": "Konfigurasi"
+    },
+    "embed": {
+      "title": "Skrip Embed",
+      "description": "Salin skrip ini untuk membenamkan chatbot pada laman web anda:"
+    },
+    "confirmDelete": "Adakah anda pasti mahu memadam \"{name}\"? Ini akan memusnahkan pelaksanaan dan tidak boleh dibatalkan."
+  },
+  "documentUploader": {
+    "title": "Muat Naik Dokumen",
+    "description": "Muat naik dokumen yang akan digunakan oleh chatbot anda untuk RAG (Retrieval-Augmented Generation)",
+    "uploading": "Memuat naik...",
+    "chooseFiles": "Pilih Fail",
+    "dropFilesHere": "Lepaskan fail di sini",
+    "dragAndDropHint": "atau seret dan lepaskan fail di sini",
+    "fileTypes": "PDF, TXT, MD, DOC, DOCX",
+    "uploadedDocuments": "Dokumen Dimuat Naik ({count})",
+    "noDocumentsYet": "Belum ada dokumen dimuat naik",
+    "noDocumentsHint": "Klik \"Pilih Fail\" untuk bermula",
+    "skippedFiles": "Sesetengah fail dilangkau. Hanya fail PDF, TXT, MD, DOC, DOCX disokong.",
+    "deleteConfirm": "Adakah anda pasti mahu memadam fail ini?",
+    "uploadFailed": "Muat naik gagal",
+    "uploadFailedFallback": "Gagal memuat naik fail",
+    "deleteFailed": "Pemadaman gagal",
+    "deleteFailedFallback": "Gagal memadam fail"
+  },
+  "errors": {
+    "generic": "Ralat berlaku. Sila cuba lagi.",
+    "failedToFetch": "Gagal mengambil data",
+    "failedToLoad": "Gagal memuatkan",
+    "failedToSave": "Gagal menyimpan",
+    "failedToDelete": "Gagal memadam pelaksanaan",
+    "failedToAssign": "Gagal menetapkan ruang bot",
+    "notFound": "Tidak dijumpai",
+    "error": "Ralat"
+  },
+  "graph": {
+    "navLabel": "Graf",
+    "title": "Peta Penciptaan Aplikasi",
+    "subtitle": "Bagaimana aplikasi berkumpul. Setiap kotak adalah satu bahagian; setiap anak panah menunjukkan apa yang menyebabkan apa.",
+    "subtitleTechnical": "Bagaimana aplikasi disusun dalam paradigma mojulo. Stesen adalah bahagian-bahagiannya; garis adalah alat MCP yang menghubungkannya bersama. Disahkan terhadap daftar MCP langsung dan skema peta konteks pada setiap penyegaran.",
+    "technicalToggle": "Teknikal",
+    "loading": "Memuatkan…",
+    "refresh": "Segarkan",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Tiada aplikasi dibuat lagi} =1 {1 aplikasi dibuat} other {# aplikasi dibuat}}",
+      "lastMaterialized": "Yang terakhir dibuat",
+      "viewApps": "Lihat aplikasi yang berjalan"
+    },
+    "validation": {
+      "ok": "Semuanya masih baik.",
+      "okTechnical": "Manifest sah: {tools} alat, {nodeKinds} jenis nod, {edgeKinds} jenis tepi, {sourceEvents} peristiwa sumber semuanya diselesaikan.",
+      "failed": "{count, plural, =1 {1 perkara dalam peta tidak lagi sepadan dengan realiti} other {# perkara dalam peta tidak lagi sepadan dengan realiti}}"
+    },
+    "legend": {
+      "input": "Apa yang anda putuskan",
+      "inputTechnical": "Input",
+      "mcpTool": "Satu alat yang dipanggil oleh ejen",
+      "mcpToolTechnical": "Alat MCP",
+      "filesystem": "Fail di cakera",
+      "filesystemTechnical": "Sistem Fail",
+      "dbRow": "Entri dalam ingatan",
+      "dbRowTechnical": "Baris DB"
+    }
+  },
+  "login": {
+    "subtitle": "Log masuk untuk meneruskan",
+    "username": "Nama pengguna",
+    "password": "Kata laluan",
+    "signIn": "Log masuk",
+    "signingIn": "Sedang log masuk…",
+    "signOut": "Log keluar",
+    "invalid": "Nama pengguna atau kata laluan tidak sah"
+  },
+  "logs": {
+    "title": "Log Langsung",
+    "refresh": "Muat Semula Log",
+    "refreshing": "Memuat semula...",
+    "loading": "Memuatkan log...",
+    "search": {
+      "label": "Cari Log",
+      "placeholder": "Cari mesej, tahap, instans..."
+    },
+    "lineCount": {
+      "label": "Baris untuk Ditunjukkan",
+      "lines": "{count} baris"
+    },
+    "autoRefresh": {
+      "label": "Auto-muat semula",
+      "every10s": "Muat semula setiap 10 saat"
+    },
+    "noLogs": "Tiada log tersedia",
+    "noMatch": "Tiada log sepadan dengan carian anda",
+    "showing": "Menunjukkan {filtered} daripada {total} entri log",
+    "filteredBy": "(ditapis mengikut \"{query}\")"
   },
   "nav": {
     "dashboard": "Papan Pemuka",
@@ -261,6 +998,344 @@
     "conversations": "Perbualan",
     "submissions": "Penyerahan",
     "liveLogs": "Log Langsung"
+  },
+  "settings": {
+    "title": "Tetapan",
+    "subtitle": "Uruskan tetapan akaun dan keutamaan anda",
+    "tabs": {
+      "apiKeys": "Kunci API",
+      "account": "Akaun",
+      "servicePlan": "Pelan Perkhidmatan",
+      "languages": "Bahasa",
+      "botSpaces": "Ruang Bot",
+      "builderConfig": "Konfigurasi Pembina",
+      "region": "Wilayah",
+      "auditLogs": "Log Audit",
+      "admin": "Pentadbir"
+    },
+    "languages": {
+      "title": "Keutamaan Bahasa",
+      "description": "Pilih bahasa pilihan anda untuk antara muka",
+      "preferredLanguage": "Bahasa Pilihan",
+      "languageHelper": "Tetapan ini akan digunakan merentasi semua sesi anda",
+      "saveLanguage": "Simpan Bahasa",
+      "saveSuccess": "Keutamaan bahasa berjaya disimpan",
+      "saveError": "Gagal menyimpan keutamaan bahasa",
+      "aboutTitle": "Tentang Tetapan Bahasa",
+      "aboutItem1": "Keutamaan bahasa anda disimpan dalam akaun anda",
+      "aboutItem2": "Perubahan akan berkuat kuasa selepas penyimpanan",
+      "aboutItem3": "Sesetengah kandungan mungkin belum diterjemahkan",
+      "locales": {
+        "en": "English",
+        "es": "Spanish (Español)",
+        "fr": "French (Français)",
+        "de": "German (Deutsch)",
+        "pt": "Portuguese (Português)",
+        "ja": "Japanese (日本語)",
+        "zh": "Chinese (中文)",
+        "ko": "Korean (한국어)",
+        "uk": "Ukrainian (Українська)",
+        "ar": "Arabic (العربية)",
+        "nl": "Dutch (Nederlands)",
+        "sw": "Swahili (Kiswahili)"
+      }
+    },
+    "region": {
+      "title": "Wilayah Pelaksanaan",
+      "description": "Konfigurasikan wilayah AWS lalai untuk pelaksanaan bot",
+      "currentRegion": "Wilayah Lalai Semasa",
+      "selectRegion": "Pilih Wilayah Lalai",
+      "regionHelp": "Pelaksanaan baharu akan menggunakan wilayah ini secara lalai. Pengguna boleh menimpa tetapan ini bagi setiap pelaksanaan.",
+      "saveSuccess": "Wilayah lalai berjaya dikemas kini",
+      "unsavedChanges": "Anda mempunyai perubahan yang belum disimpan",
+      "infoTitle": "Tentang Tetapan Wilayah",
+      "infoDescription": "Wilayah pelaksanaan menentukan tempat infrastruktur bot anda berjalan. Memilih wilayah yang lebih dekat dengan pengguna anda boleh meningkatkan masa tindak balas. Pelaksanaan individu boleh menimpa tetapan lalai ini."
+    },
+    "account": {
+      "title": "Maklumat Akaun",
+      "emailAddress": "Alamat E-mel",
+      "userId": "ID Pengguna",
+      "logout": "Log Keluar",
+      "loggingOut": "Sedang log keluar...",
+      "logoutConfirm": "Adakah anda pasti mahu log keluar?",
+      "logoutNote": "Anda akan dilog keluar daripada akaun anda",
+      "dangerZone": "Zon Bahaya",
+      "deleteAccount": "Padam Akaun",
+      "deleteAdminWarning": "Padam akaun anda secara kekal dan semua data berkaitan termasuk bot, ruang bot, dan akaun penyumbang yang hanya berkaitan dengan organisasi anda. Tindakan ini tidak boleh dibatalkan.",
+      "deleteUserWarning": "Padam akaun anda secara kekal dan semua data peribadi anda termasuk bot, dokumen, dan kunci API. Keahlian ruang bot anda akan dibuang. Tindakan ini tidak boleh dibatalkan."
+    },
+    "servicePlan": {
+      "title": "Pelan Perkhidmatan",
+      "description": "Lihat pelan semasa, penggunaan, dan ciri-ciri yang tersedia",
+      "currentPlan": "Pelan langganan semasa anda",
+      "usage": "Penggunaan Semasa",
+      "deployedBots": "Bot Dilaksanakan",
+      "botSpaces": "Ruang Bot",
+      "users": "Pengguna",
+      "includedFeatures": "Ciri-ciri Disertakan",
+      "allPlans": "Pelan Tersedia",
+      "current": "Semasa",
+      "bots": "bot",
+      "spaces": "ruang",
+      "usersLabel": "pengguna",
+      "organization": "Organisasi",
+      "needMore": "Perlukan Lebih?",
+      "contactUs": "Hubungi kami untuk membincangkan peningkatan pelan anda atau penyelesaian enterprise tersuai."
+    },
+    "apiKeys": {
+      "title": "Kunci API",
+      "description": "Simpan kunci API penyedia LLM anda untuk penggunaan semula yang mudah merentasi pelaksanaan",
+      "addKey": "+ Tambah Kunci API",
+      "addNewKey": "Tambah Kunci API Baharu",
+      "name": "Nama",
+      "namePlaceholder": "cth., Kunci OpenAI Saya",
+      "provider": "Penyedia",
+      "apiKey": "Kunci API",
+      "apiKeyPlaceholder": "Masukkan kunci API anda",
+      "saving": "Menyimpan...",
+      "saveKey": "Simpan Kunci API",
+      "loading": "Memuatkan kunci API...",
+      "noKeys": "Belum ada kunci API disimpan",
+      "noKeysHint": "Tambah kunci API pertama anda untuk bermula",
+      "added": "Ditambah {date}",
+      "deleteConfirm": "Adakah anda pasti mahu memadam kunci API ini?",
+      "saveSuccess": "Kunci API berjaya disimpan",
+      "deleteSuccess": "Kunci API berjaya dipadamkan",
+      "loadError": "Gagal memuatkan kunci API",
+      "saveError": "Gagal menyimpan kunci API",
+      "deleteError": "Gagal memadam kunci API",
+      "nameAndKeyRequired": "Nama dan kunci API diperlukan",
+      "awsRegion": "Wilayah AWS",
+      "authentication": "Pengesahan",
+      "useIamRole": "Gunakan Peranan IAM",
+      "useIamRoleHint": "Menggunakan peranan IAM yang dilampirkan pada pod Kubernetes (disyorkan untuk produksi)",
+      "useExplicitCredentials": "Gunakan Kelayakan Eksplisit",
+      "useExplicitCredentialsHint": "Sediakan AWS access key dan secret key secara langsung",
+      "awsAccessKeyId": "AWS Access Key ID",
+      "awsSecretAccessKey": "AWS Secret Access Key",
+      "defaultBotConfig": {
+        "title": "Konfigurasi Bot Lalai",
+        "description": "Pilih kunci API dan model untuk digunakan sebagai lalai semasa mencipta bot baharu dengan pembina.",
+        "selectKey": "Kunci API Lalai",
+        "selectModel": "Model Lalai",
+        "noDefault": "Tiada lalai (gunakan auto-pilih)",
+        "selectModelPlaceholder": "Pilih model",
+        "selectKeyFirst": "Pilih kunci API untuk melihat model yang tersedia",
+        "currentSelection": "Lalai semasa",
+        "noModel": "Tiada model dipilih",
+        "save": "Simpan Lalai"
+      }
+    },
+    "botSpaces": {
+      "title": "Ruang Bot",
+      "description": "Susun chatbot ke dalam ruang dan kawal akses penyumbang",
+      "createSpace": "+ Cipta Ruang Bot",
+      "createNewSpace": "Cipta Ruang Bot Baharu",
+      "name": "Nama",
+      "namePlaceholder": "cth., customer-support",
+      "nameHint": "Hanya huruf, nombor, garis bawah, dan tanda sempang dibenarkan",
+      "descriptionLabel": "Penerangan",
+      "descriptionPlaceholder": "Penerangan pilihan untuk ruang bot ini",
+      "creating": "Mencipta...",
+      "create": "Cipta Ruang Bot",
+      "loading": "Memuatkan ruang bot...",
+      "noSpaces": "Belum ada ruang bot dicipta",
+      "noSpacesHint": "Cipta ruang bot pertama anda untuk menyusun chatbot anda",
+      "botCount": "{count} bot",
+      "created": "Dicipta {date}",
+      "invite": "Jemput",
+      "manage": "Urus",
+      "deleteConfirm": "Adakah anda pasti mahu memadam ruang bot ini? Semua bot di dalamnya akan dipadamkan secara kekal.",
+      "createSuccess": "Ruang bot berjaya dicipta",
+      "deleteSuccess": "Ruang bot berjaya dipadamkan",
+      "loadError": "Gagal memuatkan ruang bot",
+      "createError": "Gagal mencipta ruang bot",
+      "deleteError": "Gagal memadam ruang bot",
+      "nameRequired": "Nama diperlukan",
+      "nameInvalid": "Nama hanya boleh mengandungi huruf, nombor, garis bawah, dan tanda sempang",
+      "aboutTitle": "Tentang Ruang Bot",
+      "aboutItem1": "Ruang bot membolehkan anda mengumpulkan chatbot berkaitan bersama-sama",
+      "aboutItem2": "Berikan penyumbang akses baca atau tulis ke ruang tertentu",
+      "aboutItem3": "Pentadbir mempunyai akses penuh ke semua ruang bot dalam organisasi",
+      "invitationSent": "Jemputan berjaya dihantar"
+    },
+    "auditLogs": {
+      "title": "Log Audit",
+      "description": "Lihat semua tindakan yang dilakukan dalam organisasi anda",
+      "exportCsv": "Eksport CSV",
+      "exportJson": "Eksport JSON",
+      "loadError": "Gagal memuatkan log audit",
+      "externalIntegration": "Integrasi Luaran",
+      "webhookDescription": "Hantar log audit ke perkhidmatan SIEM atau log luaran melalui webhook.",
+      "webhookUrl": "URL Webhook",
+      "webhookUrlPlaceholder": "https://your-siem.example.com/webhook",
+      "enableWebhook": "Aktifkan webhook",
+      "hmacEnabled": "Penandatanganan HMAC diaktifkan",
+      "webhookSecretWarning": "Rahsia Webhook (salin sekarang - tidak akan ditunjukkan lagi)",
+      "saveSettings": "Simpan Tetapan",
+      "testWebhook": "Uji Webhook",
+      "regenerateSecret": "Jana Semula Rahsia",
+      "regenerateConfirm": "Jana semula rahsia webhook? Anda perlu mengemas kini titik akhir penerima anda.",
+      "webhookSaved": "Tetapan webhook disimpan",
+      "secretRegenerated": "Rahsia baharu dijana",
+      "testSuccess": "Webhook ujian berjaya dihantar",
+      "saveError": "Gagal menyimpan tetapan webhook",
+      "testError": "Ujian webhook gagal",
+      "regenerateError": "Gagal menjana semula rahsia",
+      "payloadFormat": "Format Muatan Webhook",
+      "payloadDescription": "Setiap acara audit dihantar sebagai permintaan POST dengan header:",
+      "headerEvent": "X-Audit-Event: event_type",
+      "headerTimestamp": "X-Audit-Timestamp: ISO timestamp",
+      "headerSignature": "X-Audit-Signature: sha256=hmac (jika rahsia dikonfigurasi)"
+    },
+    "admin": {
+      "title": "Papan Pemuka Pentadbir",
+      "description": "Uruskan pengguna dan lihat maklumat seluruh sistem",
+      "allUsers": "Semua Pengguna",
+      "loadingUsers": "Memuatkan pengguna...",
+      "noUsers": "Tiada pengguna dijumpai",
+      "loadError": "Gagal memuatkan pengguna",
+      "tableHeaders": {
+        "name": "Nama",
+        "email": "E-mel",
+        "organization": "Organisasi",
+        "role": "Peranan",
+        "created": "Dicipta"
+      },
+      "you": "Anda",
+      "stats": {
+        "totalUsers": "Jumlah Pengguna",
+        "admins": "Pentadbir",
+        "contributors": "Penyumbang"
+      }
+    },
+    "builderConfig": {
+      "title": "Konfigurasi Pembina",
+      "description": "Konfigurasikan model AI yang menggerakkan pembina bot dan tetapkan lalai untuk penciptaan bot",
+      "builderTitle": "Pemacu Model Pembina",
+      "builderDescription": "Pilih model AI yang menggerakkan antara muka pembina bot. Model ini mengendalikan perbualan dan pelaksanaan alat.",
+      "defaultBotTitle": "Model Lalai untuk Penciptaan Bot",
+      "defaultBotDescription": "Pra-pilih tetapan ini semasa mencipta bot baharu melalui pembina. Pengguna boleh menimpa semasa pelaksanaan.",
+      "provider": "Penyedia",
+      "apiKey": "Kunci API",
+      "model": "Model",
+      "selectProvider": "Pilih penyedia...",
+      "selectKey": "Pilih kunci API...",
+      "selectModel": "Pilih model...",
+      "noKeysForProvider": "Tiada kunci API disimpan untuk penyedia ini. Tambah satu dalam tab Kunci API.",
+      "useSameAsBuilder": "Gunakan tetapan yang sama seperti pembina",
+      "saveConfig": "Simpan Konfigurasi",
+      "saveSuccess": "Konfigurasi pembina berjaya disimpan",
+      "saveError": "Gagal menyimpan konfigurasi pembina",
+      "aboutTitle": "Tentang Konfigurasi Pembina",
+      "aboutItem1": "Model pembina mengendalikan antara muka penciptaan bot perbualan",
+      "aboutItem2": "Tetapan bot lalai dipra-pilih apabila melaksanakan melalui pembina",
+      "aboutItem3": "Penggunaan alat disokong oleh Claude, GPT, Gemini, dan lain-lain",
+      "displaySettings": {
+        "title": "Tetapan Paparan",
+        "description": "Konfigurasikan bagaimana pembantu Modulo dipaparkan dalam antara muka",
+        "disableAnimation": "Lumpuhkan animasi pembantu",
+        "disableAnimationHint": "Memaparkan Modulo sebagai ikon statik dan bukan pembantu beranimasi"
+      }
+    },
+    "mojulo": {
+      "title": "Tetapan",
+      "subtitle": "Konfigurasikan kunci API yang menggerakkan bot anda dan kelayakan cloud yang digunakan untuk melaksanakannya.",
+      "noKeyGate": "Pembina memerlukan kunci penyedia LLM untuk berjalan. Tambah satu dalam tab Kunci LLM dan kembali.",
+      "tabs": {
+        "llm": "Kunci LLM",
+        "provider": "Kunci Penyedia",
+        "language": "Tetapan Bahasa"
+      },
+      "form": {
+        "addKey": "Tambah kunci",
+        "name": "Nama paparan",
+        "provider": "Penyedia",
+        "apiKey": "Kunci API",
+        "ollamaHost": "URL Hos",
+        "makeDefault": "Jadikan ini kunci lalai",
+        "ollamaNoDefault": "Ollama tidak boleh menjadi lalai — pembina sembang memerlukan penyedia cloud.",
+        "saving": "Menyimpan…",
+        "save": "Simpan kunci",
+        "saveError": "Penyimpanan gagal"
+      },
+      "list": {
+        "title": "Kunci tersimpan",
+        "loading": "Memuatkan…",
+        "empty": "Belum ada kunci.",
+        "defaultBadge": "lalai",
+        "makeDefault": "Jadikan lalai",
+        "delete": "Padam"
+      },
+      "llm": {
+        "title": "Kunci LLM",
+        "description": "Menggerakkan pembina bot dan dibenamkan ke dalam setiap bot yang anda kompilasi.",
+        "defaultName": "Lalai",
+        "placeholder": "sk-…",
+        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
+        "ollamaPlaceholder": "http://localhost:11434",
+        "providers": {
+          "anthropic": "Anthropic",
+          "openai": "OpenAI",
+          "bedrock": "AWS Bedrock (tampal kelayakan JSON)",
+          "ollama": "Ollama (tempatan — tampal URL hos)"
+        }
+      },
+      "provider": {
+        "title": "Kunci Penyedia",
+        "description": "Kelayakan cloud-host. Digunakan apabila anda melaksanakan bot ke penyedia cloud dari control plane.",
+        "defaultName": "Fly.io",
+        "placeholder": "fo1_…",
+        "providers": {
+          "fly": "Fly.io"
+        }
+      },
+      "language": {
+        "title": "Tetapan Bahasa",
+        "description": "Pilih bahasa yang digunakan dalam antara muka control plane.",
+        "label": "Bahasa antara muka"
+      }
+    }
+  },
+  "submissions": {
+    "title": "Penyerahan Borang",
+    "description": "Lihat penyerahan borang yang dikumpulkan dari {botName}",
+    "total": "({count} jumlah)",
+    "dashboardLink": "← Papan Pemuka",
+    "backToDashboard": "← Kembali ke papan pemuka",
+    "unreachable": {
+      "title": "Bot tidak boleh dicapai",
+      "message": "Control plane tidak dapat mencapai bot ini. Ia mungkin dihentikan, atau URL atau kunci API mungkin telah berubah. Sambung semula dari papan pemuka untuk melihat penyerahan.",
+      "reconnect": "Sambung semula"
+    },
+    "search": {
+      "last24h": "24j Terakhir",
+      "last7days": "7 hari Terakhir",
+      "last30days": "30 hari Terakhir",
+      "from": "Dari",
+      "to": "Ke",
+      "search": "Cari",
+      "searching": "Mencari...",
+      "export": "Eksport CSV"
+    },
+    "list": {
+      "title": "Penyerahan",
+      "shown": "({count} ditunjukkan)",
+      "loading": "Memuatkan...",
+      "noSubmissions": "Tiada penyerahan dijumpai untuk tempoh ini.",
+      "searchToView": "Cari untuk melihat penyerahan.",
+      "fields": "{count} medan"
+    },
+    "detail": {
+      "title": "Butiran Penyerahan",
+      "conversationId": "ID Perbualan:",
+      "submitted": "Diserahkan:",
+      "formData": "Data Borang",
+      "field": "Medan",
+      "value": "Nilai",
+      "metadata": "Metadata",
+      "selectSubmission": "Pilih penyerahan untuk melihat butiran"
+    }
   },
   "wizard": {
     "loading": "Memuatkan wizard...",
@@ -1167,1051 +2242,5 @@
       "characters": "aksara",
       "optionalBadge": "Pilihan - Laksanakan untuk menyimpan dan menggunakan ringkasan ini dalam rangkaian anda."
     }
-  },
-  "settings": {
-    "title": "Tetapan",
-    "subtitle": "Uruskan tetapan akaun dan keutamaan anda",
-    "tabs": {
-      "apiKeys": "Kunci API",
-      "account": "Akaun",
-      "servicePlan": "Pelan Perkhidmatan",
-      "languages": "Bahasa",
-      "botSpaces": "Ruang Bot",
-      "builderConfig": "Konfigurasi Pembina",
-      "region": "Wilayah",
-      "auditLogs": "Log Audit",
-      "admin": "Pentadbir"
-    },
-    "languages": {
-      "title": "Keutamaan Bahasa",
-      "description": "Pilih bahasa pilihan anda untuk antara muka",
-      "preferredLanguage": "Bahasa Pilihan",
-      "languageHelper": "Tetapan ini akan digunakan merentasi semua sesi anda",
-      "saveLanguage": "Simpan Bahasa",
-      "saveSuccess": "Keutamaan bahasa berjaya disimpan",
-      "saveError": "Gagal menyimpan keutamaan bahasa",
-      "aboutTitle": "Tentang Tetapan Bahasa",
-      "aboutItem1": "Keutamaan bahasa anda disimpan dalam akaun anda",
-      "aboutItem2": "Perubahan akan berkuat kuasa selepas penyimpanan",
-      "aboutItem3": "Sesetengah kandungan mungkin belum diterjemahkan",
-      "locales": {
-        "en": "English",
-        "es": "Spanish (Español)",
-        "fr": "French (Français)",
-        "de": "German (Deutsch)",
-        "pt": "Portuguese (Português)",
-        "ja": "Japanese (日本語)",
-        "zh": "Chinese (中文)",
-        "ko": "Korean (한국어)",
-        "uk": "Ukrainian (Українська)",
-        "ar": "Arabic (العربية)",
-        "nl": "Dutch (Nederlands)",
-        "sw": "Swahili (Kiswahili)"
-      }
-    },
-    "region": {
-      "title": "Wilayah Pelaksanaan",
-      "description": "Konfigurasikan wilayah AWS lalai untuk pelaksanaan bot",
-      "currentRegion": "Wilayah Lalai Semasa",
-      "selectRegion": "Pilih Wilayah Lalai",
-      "regionHelp": "Pelaksanaan baharu akan menggunakan wilayah ini secara lalai. Pengguna boleh menimpa tetapan ini bagi setiap pelaksanaan.",
-      "saveSuccess": "Wilayah lalai berjaya dikemas kini",
-      "unsavedChanges": "Anda mempunyai perubahan yang belum disimpan",
-      "infoTitle": "Tentang Tetapan Wilayah",
-      "infoDescription": "Wilayah pelaksanaan menentukan tempat infrastruktur bot anda berjalan. Memilih wilayah yang lebih dekat dengan pengguna anda boleh meningkatkan masa tindak balas. Pelaksanaan individu boleh menimpa tetapan lalai ini."
-    },
-    "account": {
-      "title": "Maklumat Akaun",
-      "emailAddress": "Alamat E-mel",
-      "userId": "ID Pengguna",
-      "logout": "Log Keluar",
-      "loggingOut": "Sedang log keluar...",
-      "logoutConfirm": "Adakah anda pasti mahu log keluar?",
-      "logoutNote": "Anda akan dilog keluar daripada akaun anda",
-      "dangerZone": "Zon Bahaya",
-      "deleteAccount": "Padam Akaun",
-      "deleteAdminWarning": "Padam akaun anda secara kekal dan semua data berkaitan termasuk bot, ruang bot, dan akaun penyumbang yang hanya berkaitan dengan organisasi anda. Tindakan ini tidak boleh dibatalkan.",
-      "deleteUserWarning": "Padam akaun anda secara kekal dan semua data peribadi anda termasuk bot, dokumen, dan kunci API. Keahlian ruang bot anda akan dibuang. Tindakan ini tidak boleh dibatalkan."
-    },
-    "servicePlan": {
-      "title": "Pelan Perkhidmatan",
-      "description": "Lihat pelan semasa, penggunaan, dan ciri-ciri yang tersedia",
-      "currentPlan": "Pelan langganan semasa anda",
-      "usage": "Penggunaan Semasa",
-      "deployedBots": "Bot Dilaksanakan",
-      "botSpaces": "Ruang Bot",
-      "users": "Pengguna",
-      "includedFeatures": "Ciri-ciri Disertakan",
-      "allPlans": "Pelan Tersedia",
-      "current": "Semasa",
-      "bots": "bot",
-      "spaces": "ruang",
-      "usersLabel": "pengguna",
-      "organization": "Organisasi",
-      "needMore": "Perlukan Lebih?",
-      "contactUs": "Hubungi kami untuk membincangkan peningkatan pelan anda atau penyelesaian enterprise tersuai."
-    },
-    "apiKeys": {
-      "title": "Kunci API",
-      "description": "Simpan kunci API penyedia LLM anda untuk penggunaan semula yang mudah merentasi pelaksanaan",
-      "addKey": "+ Tambah Kunci API",
-      "addNewKey": "Tambah Kunci API Baharu",
-      "name": "Nama",
-      "namePlaceholder": "cth., Kunci OpenAI Saya",
-      "provider": "Penyedia",
-      "apiKey": "Kunci API",
-      "apiKeyPlaceholder": "Masukkan kunci API anda",
-      "saving": "Menyimpan...",
-      "saveKey": "Simpan Kunci API",
-      "loading": "Memuatkan kunci API...",
-      "noKeys": "Belum ada kunci API disimpan",
-      "noKeysHint": "Tambah kunci API pertama anda untuk bermula",
-      "added": "Ditambah {date}",
-      "deleteConfirm": "Adakah anda pasti mahu memadam kunci API ini?",
-      "saveSuccess": "Kunci API berjaya disimpan",
-      "deleteSuccess": "Kunci API berjaya dipadamkan",
-      "loadError": "Gagal memuatkan kunci API",
-      "saveError": "Gagal menyimpan kunci API",
-      "deleteError": "Gagal memadam kunci API",
-      "nameAndKeyRequired": "Nama dan kunci API diperlukan",
-      "awsRegion": "Wilayah AWS",
-      "authentication": "Pengesahan",
-      "useIamRole": "Gunakan Peranan IAM",
-      "useIamRoleHint": "Menggunakan peranan IAM yang dilampirkan pada pod Kubernetes (disyorkan untuk produksi)",
-      "useExplicitCredentials": "Gunakan Kelayakan Eksplisit",
-      "useExplicitCredentialsHint": "Sediakan AWS access key dan secret key secara langsung",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "defaultBotConfig": {
-        "title": "Konfigurasi Bot Lalai",
-        "description": "Pilih kunci API dan model untuk digunakan sebagai lalai semasa mencipta bot baharu dengan pembina.",
-        "selectKey": "Kunci API Lalai",
-        "selectModel": "Model Lalai",
-        "noDefault": "Tiada lalai (gunakan auto-pilih)",
-        "selectModelPlaceholder": "Pilih model",
-        "selectKeyFirst": "Pilih kunci API untuk melihat model yang tersedia",
-        "currentSelection": "Lalai semasa",
-        "noModel": "Tiada model dipilih",
-        "save": "Simpan Lalai"
-      }
-    },
-    "botSpaces": {
-      "title": "Ruang Bot",
-      "description": "Susun chatbot ke dalam ruang dan kawal akses penyumbang",
-      "createSpace": "+ Cipta Ruang Bot",
-      "createNewSpace": "Cipta Ruang Bot Baharu",
-      "name": "Nama",
-      "namePlaceholder": "cth., customer-support",
-      "nameHint": "Hanya huruf, nombor, garis bawah, dan tanda sempang dibenarkan",
-      "descriptionLabel": "Penerangan",
-      "descriptionPlaceholder": "Penerangan pilihan untuk ruang bot ini",
-      "creating": "Mencipta...",
-      "create": "Cipta Ruang Bot",
-      "loading": "Memuatkan ruang bot...",
-      "noSpaces": "Belum ada ruang bot dicipta",
-      "noSpacesHint": "Cipta ruang bot pertama anda untuk menyusun chatbot anda",
-      "botCount": "{count} bot",
-      "created": "Dicipta {date}",
-      "invite": "Jemput",
-      "manage": "Urus",
-      "deleteConfirm": "Adakah anda pasti mahu memadam ruang bot ini? Semua bot di dalamnya akan dipadamkan secara kekal.",
-      "createSuccess": "Ruang bot berjaya dicipta",
-      "deleteSuccess": "Ruang bot berjaya dipadamkan",
-      "loadError": "Gagal memuatkan ruang bot",
-      "createError": "Gagal mencipta ruang bot",
-      "deleteError": "Gagal memadam ruang bot",
-      "nameRequired": "Nama diperlukan",
-      "nameInvalid": "Nama hanya boleh mengandungi huruf, nombor, garis bawah, dan tanda sempang",
-      "aboutTitle": "Tentang Ruang Bot",
-      "aboutItem1": "Ruang bot membolehkan anda mengumpulkan chatbot berkaitan bersama-sama",
-      "aboutItem2": "Berikan penyumbang akses baca atau tulis ke ruang tertentu",
-      "aboutItem3": "Pentadbir mempunyai akses penuh ke semua ruang bot dalam organisasi",
-      "invitationSent": "Jemputan berjaya dihantar"
-    },
-    "auditLogs": {
-      "title": "Log Audit",
-      "description": "Lihat semua tindakan yang dilakukan dalam organisasi anda",
-      "exportCsv": "Eksport CSV",
-      "exportJson": "Eksport JSON",
-      "loadError": "Gagal memuatkan log audit",
-      "externalIntegration": "Integrasi Luaran",
-      "webhookDescription": "Hantar log audit ke perkhidmatan SIEM atau log luaran melalui webhook.",
-      "webhookUrl": "URL Webhook",
-      "webhookUrlPlaceholder": "https://your-siem.example.com/webhook",
-      "enableWebhook": "Aktifkan webhook",
-      "hmacEnabled": "Penandatanganan HMAC diaktifkan",
-      "webhookSecretWarning": "Rahsia Webhook (salin sekarang - tidak akan ditunjukkan lagi)",
-      "saveSettings": "Simpan Tetapan",
-      "testWebhook": "Uji Webhook",
-      "regenerateSecret": "Jana Semula Rahsia",
-      "regenerateConfirm": "Jana semula rahsia webhook? Anda perlu mengemas kini titik akhir penerima anda.",
-      "webhookSaved": "Tetapan webhook disimpan",
-      "secretRegenerated": "Rahsia baharu dijana",
-      "testSuccess": "Webhook ujian berjaya dihantar",
-      "saveError": "Gagal menyimpan tetapan webhook",
-      "testError": "Ujian webhook gagal",
-      "regenerateError": "Gagal menjana semula rahsia",
-      "payloadFormat": "Format Muatan Webhook",
-      "payloadDescription": "Setiap acara audit dihantar sebagai permintaan POST dengan header:",
-      "headerEvent": "X-Audit-Event: event_type",
-      "headerTimestamp": "X-Audit-Timestamp: ISO timestamp",
-      "headerSignature": "X-Audit-Signature: sha256=hmac (jika rahsia dikonfigurasi)"
-    },
-    "admin": {
-      "title": "Papan Pemuka Pentadbir",
-      "description": "Uruskan pengguna dan lihat maklumat seluruh sistem",
-      "allUsers": "Semua Pengguna",
-      "loadingUsers": "Memuatkan pengguna...",
-      "noUsers": "Tiada pengguna dijumpai",
-      "loadError": "Gagal memuatkan pengguna",
-      "tableHeaders": {
-        "name": "Nama",
-        "email": "E-mel",
-        "organization": "Organisasi",
-        "role": "Peranan",
-        "created": "Dicipta"
-      },
-      "you": "Anda",
-      "stats": {
-        "totalUsers": "Jumlah Pengguna",
-        "admins": "Pentadbir",
-        "contributors": "Penyumbang"
-      }
-    },
-    "builderConfig": {
-      "title": "Konfigurasi Pembina",
-      "description": "Konfigurasikan model AI yang menggerakkan pembina bot dan tetapkan lalai untuk penciptaan bot",
-      "builderTitle": "Pemacu Model Pembina",
-      "builderDescription": "Pilih model AI yang menggerakkan antara muka pembina bot. Model ini mengendalikan perbualan dan pelaksanaan alat.",
-      "defaultBotTitle": "Model Lalai untuk Penciptaan Bot",
-      "defaultBotDescription": "Pra-pilih tetapan ini semasa mencipta bot baharu melalui pembina. Pengguna boleh menimpa semasa pelaksanaan.",
-      "provider": "Penyedia",
-      "apiKey": "Kunci API",
-      "model": "Model",
-      "selectProvider": "Pilih penyedia...",
-      "selectKey": "Pilih kunci API...",
-      "selectModel": "Pilih model...",
-      "noKeysForProvider": "Tiada kunci API disimpan untuk penyedia ini. Tambah satu dalam tab Kunci API.",
-      "useSameAsBuilder": "Gunakan tetapan yang sama seperti pembina",
-      "saveConfig": "Simpan Konfigurasi",
-      "saveSuccess": "Konfigurasi pembina berjaya disimpan",
-      "saveError": "Gagal menyimpan konfigurasi pembina",
-      "aboutTitle": "Tentang Konfigurasi Pembina",
-      "aboutItem1": "Model pembina mengendalikan antara muka penciptaan bot perbualan",
-      "aboutItem2": "Tetapan bot lalai dipra-pilih apabila melaksanakan melalui pembina",
-      "aboutItem3": "Penggunaan alat disokong oleh Claude, GPT, Gemini, dan lain-lain",
-      "displaySettings": {
-        "title": "Tetapan Paparan",
-        "description": "Konfigurasikan bagaimana pembantu Modulo dipaparkan dalam antara muka",
-        "disableAnimation": "Lumpuhkan animasi pembantu",
-        "disableAnimationHint": "Memaparkan Modulo sebagai ikon statik dan bukan pembantu beranimasi"
-      }
-    },
-    "mojulo": {
-      "title": "Tetapan",
-      "subtitle": "Konfigurasikan kunci API yang menggerakkan bot anda dan kelayakan cloud yang digunakan untuk melaksanakannya.",
-      "noKeyGate": "Pembina memerlukan kunci penyedia LLM untuk berjalan. Tambah satu dalam tab Kunci LLM dan kembali.",
-      "tabs": {
-        "llm": "Kunci LLM",
-        "provider": "Kunci Penyedia",
-        "language": "Tetapan Bahasa"
-      },
-      "form": {
-        "addKey": "Tambah kunci",
-        "name": "Nama paparan",
-        "provider": "Penyedia",
-        "apiKey": "Kunci API",
-        "ollamaHost": "URL Hos",
-        "makeDefault": "Jadikan ini kunci lalai",
-        "ollamaNoDefault": "Ollama tidak boleh menjadi lalai — pembina sembang memerlukan penyedia cloud.",
-        "saving": "Menyimpan…",
-        "save": "Simpan kunci",
-        "saveError": "Penyimpanan gagal"
-      },
-      "list": {
-        "title": "Kunci tersimpan",
-        "loading": "Memuatkan…",
-        "empty": "Belum ada kunci.",
-        "defaultBadge": "lalai",
-        "makeDefault": "Jadikan lalai",
-        "delete": "Padam"
-      },
-      "llm": {
-        "title": "Kunci LLM",
-        "description": "Menggerakkan pembina bot dan dibenamkan ke dalam setiap bot yang anda kompilasi.",
-        "defaultName": "Lalai",
-        "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
-        "ollamaPlaceholder": "http://localhost:11434",
-        "providers": {
-          "anthropic": "Anthropic",
-          "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (tampal kelayakan JSON)",
-          "ollama": "Ollama (tempatan — tampal URL hos)"
-        }
-      },
-      "provider": {
-        "title": "Kunci Penyedia",
-        "description": "Kelayakan cloud-host. Digunakan apabila anda melaksanakan bot ke penyedia cloud dari control plane.",
-        "defaultName": "Fly.io",
-        "placeholder": "fo1_…",
-        "providers": {
-          "fly": "Fly.io"
-        }
-      },
-      "language": {
-        "title": "Tetapan Bahasa",
-        "description": "Pilih bahasa yang digunakan dalam antara muka control plane.",
-        "label": "Bahasa antara muka"
-      }
-    }
-  },
-  "deployments": {
-    "title": "Pelaksanaan",
-    "loading": "Memuatkan pelaksanaan...",
-    "empty": "Tiada pelaksanaan dalam ruang bot ini",
-    "columns": {
-      "botName": "Nama Bot",
-      "status": "Status",
-      "deployed": "Dilaksanakan",
-      "by": "Oleh"
-    },
-    "history": {
-      "title": "Sejarah Pelaksanaan",
-      "noHistory": "Belum ada sejarah pelaksanaan",
-      "historyWillAppear": "Sejarah akan muncul selepas pelaksanaan seterusnya",
-      "event": "Acara",
-      "status": "Status",
-      "date": "Tarikh",
-      "by": "Oleh",
-      "config": "Konfigurasi"
-    },
-    "embed": {
-      "title": "Skrip Embed",
-      "description": "Salin skrip ini untuk membenamkan chatbot pada laman web anda:"
-    },
-    "confirmDelete": "Adakah anda pasti mahu memadam \"{name}\"? Ini akan memusnahkan pelaksanaan dan tidak boleh dibatalkan."
-  },
-  "cloudDeploy": {
-    "title": "Laksanakan ke Cloud",
-    "backToDashboard": "← Kembali ke papan pemuka",
-    "loading": "Memuatkan…",
-    "botLabel": "Bot:",
-    "protocolsLabel": "protokol: {protocols}",
-    "statusPills": {
-      "pending": "Menunggu",
-      "deploying": "Sedang melaksanakan",
-      "running": "Sedang berjalan",
-      "paused": "Dijeda",
-      "failed": "Gagal",
-      "destroyed": "Dimusnahkan"
-    },
-    "artifact": {
-      "title": "Artifak terkini",
-      "status": "Status",
-      "configHash": "Hash konfigurasi",
-      "lastBuiltHash": "Hash terakhir dibina",
-      "artifactPath": "Laluan artifak",
-      "notBuiltYet": "— (belum dibina)",
-      "staleWarning": "Konfigurasi telah disunting sejak pembinaan terakhir. Pelaksanaan cloud akan membina semula secara automatik, atau anda boleh bina semula sekarang.",
-      "missingWarning": "Belum ada artifak. Pelaksanaan cloud akan membinanya secara automatik, atau anda boleh bina sekarang untuk pratonton.",
-      "buildZip": "Bina ZIP",
-      "rebuildZip": "Bina semula ZIP",
-      "downloadZip": "Muat turun .zip"
-    },
-    "provider": {
-      "title": "Penyedia",
-      "fly": {
-        "name": "Fly.io",
-        "description": "Mesin wilayah tunggal + volum berterusan"
-      }
-    },
-    "fly": {
-      "title": "Pilihan Fly.io",
-      "region": "Wilayah",
-      "regionHint": "Kod wilayah Fly 3-huruf (iad, sjc, lhr, nrt, dll.)",
-      "volumeSize": "Saiz volum (GB)",
-      "volumeHint": "Storan berterusan untuk SQLite (1GB cukup untuk kebanyakan bot)",
-      "cpuCount": "Bilangan CPU",
-      "cpuHint": "CPU dikongsi",
-      "memory": "Memori (MB)",
-      "memoryHint": "1024 MB disyorkan",
-      "tokenNote": "Menggunakan <mono>FLY_API_TOKEN</mono> anda dari env control plane. Akaun anda, bil anda.",
-      "deploy": "Laksanakan",
-      "redeploy": "Laksanakan semula",
-      "deploying": "Sedang melaksanakan…"
-    },
-    "status": {
-      "title": "Status",
-      "provider": "Penyedia",
-      "appName": "Nama aplikasi",
-      "url": "URL",
-      "region": "Wilayah",
-      "lastDeployed": "Terakhir dilaksanakan",
-      "errorPrefix": "ralat: {error}",
-      "destroy": "Musnahkan"
-    },
-    "errors": {
-      "deployFailed": "Pelaksanaan gagal ({status})",
-      "destroyFailed": "Pemusnahan gagal ({status})",
-      "buildFailed": "Pembinaan gagal ({status})"
-    },
-    "confirmDestroy": "Musnahkan aplikasi cloud, mesin, dan volum? Data perbualan pada volum akan dipadamkan secara kekal."
-  },
-  "analytics": {
-    "title": "Analitis",
-    "loading": "Memuatkan analitis...",
-    "loadingConversations": "Memuatkan analitis perbualan...",
-    "analyzingQuestions": "Menganalisis soalan pengguna...",
-    "failedToLoad": "Gagal memuatkan pelaksanaan",
-    "failedToLoadAnalytics": "Gagal memuatkan data analitis",
-    "chatbotMetrics": "Metrik Chatbot",
-    "conversationAnalytics": "Analitis Perbualan",
-    "topQuestions": "Soalan & Topik Pengguna Teratas",
-    "metrics": {
-      "age": "Usia",
-      "uptime": "Masa beroperasi",
-      "documents": "Dokumen",
-      "lastUpdated": "Terakhir Dikemas Kini",
-      "totalConversations": "Jumlah Perbualan",
-      "totalMessages": "Jumlah Mesej",
-      "formStarts": "Permulaan Borang",
-      "formCompletes": "Borang Selesai",
-      "completionRate": "{rate}% kadar siap",
-      "avgMessagesPerConv": "Purata Mesej/Perbualan"
-    },
-    "badges": {
-      "formCollection": "Pengumpulan Borang",
-      "live": "Langsung"
-    },
-    "searchTerms": {
-      "longPhrases": "Frasa Panjang",
-      "phrases": "Frasa",
-      "words": "Perkataan",
-      "analyzed": "Menganalisis {count} mesej pengguna",
-      "noData": "Belum ada data perbualan tersedia",
-      "noDataHint": "Data akan muncul di sini selepas pengguna berinteraksi dengan chatbot anda"
-    },
-    "uptime": {
-      "inProgress": "Sedang berjalan...",
-      "failed": "Gagal",
-      "notAvailable": "T/A"
-    }
-  },
-  "conversations": {
-    "title": "Perbualan",
-    "totalConversations": "{count} jumlah perbualan",
-    "total": "{count} jumlah",
-    "dashboardLink": "← Papan Pemuka",
-    "backToDashboard": "← Kembali ke papan pemuka",
-    "tabs": {
-      "conversations": "Perbualan",
-      "storage": "Storan"
-    },
-    "unreachable": {
-      "title": "Bot tidak boleh dicapai",
-      "message": "Control plane tidak dapat mencapai bot ini. Ia mungkin dihentikan, atau URL atau kunci API mungkin telah berubah. Sambung semula dari papan pemuka untuk melihat perbualan.",
-      "reconnect": "Sambung semula"
-    },
-    "search": {
-      "dataSource": "Sumber Data",
-      "conversationId": "ID Perbualan",
-      "partialId": "ID separa...",
-      "partialIdShort": "id separa",
-      "from": "Dari",
-      "to": "Ke",
-      "search": "Cari",
-      "searching": "Mencari...",
-      "last24h": "24j Terakhir",
-      "last7days": "7 hari Terakhir",
-      "clear": "Kosongkan",
-      "resultsFound": "{count} keputusan dijumpai",
-      "resultsFoundPlural": "{count} keputusan dijumpai",
-      "result": "{count} keputusan",
-      "results": "{count} keputusan",
-      "noMatch": "Tiada perbualan sepadan dengan carian anda",
-      "noMatchShort": "Tiada perbualan sepadan.",
-      "searchToFind": "Cari untuk mencari perbualan",
-      "searchByIdOrDate": "Cari mengikut ID atau tarikh untuk mencari perbualan.",
-      "useIdOrDate": "Gunakan ID perbualan, julat tarikh, atau kedua-duanya"
-    },
-    "timeAgo": {
-      "days": "{count}h lalu",
-      "hours": "{count}j lalu",
-      "minutes": "{count}m lalu"
-    },
-    "detail": {
-      "started": "Bermula:",
-      "startedAt": "Bermula {timestamp}",
-      "turns": "{count} pusingan",
-      "last": "Terakhir:",
-      "lastAt": "Terakhir {timestamp}",
-      "turn": "Pusingan {number}",
-      "user": "Pengguna",
-      "assistant": "Pembantu",
-      "ragContext": "Konteks RAG",
-      "ragContextShort": "Konteks RAG",
-      "verifyChain": "Sahkan Rantai",
-      "showMetadata": "Tunjuk sumber & metadata",
-      "showMetadataShort": "Tunjuk metadata",
-      "selectConversation": "Pilih perbualan untuk melihat mesej",
-      "selectConversationShort": "Pilih perbualan untuk melihat pusingannya.",
-      "loadingMessages": "Memuatkan mesej...",
-      "loading": "Memuatkan…"
-    },
-    "storage": {
-      "loading": "Memuatkan maklumat storan...",
-      "loadingShort": "Memuatkan…",
-      "volumeCapacity": "Kapasiti Volum",
-      "volumeCapacityShort": "Kapasiti volum",
-      "used": "{used} digunakan daripada {total}",
-      "usedOfTotal": "{used} daripada {total}",
-      "available": "{amount} tersedia",
-      "statsConversations": "Perbualan",
-      "statsTurns": "Jumlah Pusingan",
-      "statsTurnsShort": "Pusingan",
-      "statsDbSize": "Saiz Pangkalan Data",
-      "statsDbSizeShort": "Saiz DB",
-      "autoExtendPolicy": "Polisi Lanjutan Auto",
-      "autoExtendDescription": "Volum melanjutkan secara automatik pada kapasiti {threshold}%, menambah {increment}GB setiap pengembangan, sehingga maksimum {limit}GB.",
-      "exportTitle": "Eksport Perbualan",
-      "exportTitleShort": "Eksport",
-      "exportDescription": "Muat turun semua perbualan sebagai fail JSON.",
-      "exportDescriptionShort": "Muat turun semua perbualan dari bot ini sebagai JSON.",
-      "exportButton": "Eksport Semua Perbualan (JSON)",
-      "exportButtonShort": "Eksport JSON",
-      "exporting": "Mengeksport...",
-      "refresh": "Muat semula maklumat storan",
-      "retry": "Cuba semula"
-    },
-    "loadMore": "Muat lebih banyak",
-    "loadingMore": "Memuatkan…",
-    "errors": {
-      "fetchConversations": "Gagal mengambil perbualan",
-      "fetchDetails": "Gagal mengambil butiran perbualan",
-      "fetchStorage": "Gagal mengambil maklumat storan",
-      "exportFailed": "Gagal mengeksport perbualan",
-      "close": "Tutup"
-    }
-  },
-  "submissions": {
-    "title": "Penyerahan Borang",
-    "description": "Lihat penyerahan borang yang dikumpulkan dari {botName}",
-    "total": "({count} jumlah)",
-    "dashboardLink": "← Papan Pemuka",
-    "backToDashboard": "← Kembali ke papan pemuka",
-    "unreachable": {
-      "title": "Bot tidak boleh dicapai",
-      "message": "Control plane tidak dapat mencapai bot ini. Ia mungkin dihentikan, atau URL atau kunci API mungkin telah berubah. Sambung semula dari papan pemuka untuk melihat penyerahan.",
-      "reconnect": "Sambung semula"
-    },
-    "search": {
-      "last24h": "24j Terakhir",
-      "last7days": "7 hari Terakhir",
-      "last30days": "30 hari Terakhir",
-      "from": "Dari",
-      "to": "Ke",
-      "search": "Cari",
-      "searching": "Mencari...",
-      "export": "Eksport CSV"
-    },
-    "list": {
-      "title": "Penyerahan",
-      "shown": "({count} ditunjukkan)",
-      "loading": "Memuatkan...",
-      "noSubmissions": "Tiada penyerahan dijumpai untuk tempoh ini.",
-      "searchToView": "Cari untuk melihat penyerahan.",
-      "fields": "{count} medan"
-    },
-    "detail": {
-      "title": "Butiran Penyerahan",
-      "conversationId": "ID Perbualan:",
-      "submitted": "Diserahkan:",
-      "formData": "Data Borang",
-      "field": "Medan",
-      "value": "Nilai",
-      "metadata": "Metadata",
-      "selectSubmission": "Pilih penyerahan untuk melihat butiran"
-    }
-  },
-  "logs": {
-    "title": "Log Langsung",
-    "refresh": "Muat Semula Log",
-    "refreshing": "Memuat semula...",
-    "loading": "Memuatkan log...",
-    "search": {
-      "label": "Cari Log",
-      "placeholder": "Cari mesej, tahap, instans..."
-    },
-    "lineCount": {
-      "label": "Baris untuk Ditunjukkan",
-      "lines": "{count} baris"
-    },
-    "autoRefresh": {
-      "label": "Auto-muat semula",
-      "every10s": "Muat semula setiap 10 saat"
-    },
-    "noLogs": "Tiada log tersedia",
-    "noMatch": "Tiada log sepadan dengan carian anda",
-    "showing": "Menunjukkan {filtered} daripada {total} entri log",
-    "filteredBy": "(ditapis mengikut \"{query}\")"
-  },
-  "accessLevels": {
-    "owner": "pemilik",
-    "admin": "pentadbir",
-    "write": "tulis",
-    "read": "baca"
-  },
-  "errors": {
-    "generic": "Ralat berlaku. Sila cuba lagi.",
-    "failedToFetch": "Gagal mengambil data",
-    "failedToLoad": "Gagal memuatkan",
-    "failedToSave": "Gagal menyimpan",
-    "failedToDelete": "Gagal memadam pelaksanaan",
-    "failedToAssign": "Gagal menetapkan ruang bot",
-    "notFound": "Tidak dijumpai",
-    "error": "Ralat"
-  },
-  "deleteAccount": {
-    "title": "Padam Akaun",
-    "loadingInfo": "Memuatkan maklumat akaun...",
-    "permanentWarning": "Tindakan ini kekal dan tidak boleh dibatalkan.",
-    "willBeDeleted": "Berikut akan dipadamkan secara kekal:",
-    "deployments": "Pelaksanaan (Bot)",
-    "documents": "Dokumen",
-    "apiKeys": "Kunci API",
-    "botSpaces": "Ruang Bot",
-    "contributorsToDelete": "Akaun penyumbang yang akan dipadam",
-    "contributorsNote": "Penyumbang ini hanya ahli ruang bot organisasi anda.",
-    "organization": "Organisasi",
-    "adminDeleteNote": "Sebagai pentadbir, memadam akaun anda juga akan memadam semua data organisasi dan akaun penyumbang yang hanya berkaitan dengan organisasi anda.",
-    "userDeleteNote": "Keahlian ruang bot anda akan dibuang, tetapi ruang bot dan pengguna lain tidak akan terjejas.",
-    "continue": "Teruskan",
-    "confirmPrompt": "Untuk mengesahkan pemadaman, sila taip alamat e-mel anda:",
-    "confirmEmail": "Sahkan e-mel anda",
-    "emailPlaceholder": "Taip e-mel anda untuk mengesahkan",
-    "deleting": "Memadam...",
-    "deleteMyAccount": "Padam Akaun Saya",
-    "errors": {
-      "loadFailed": "Gagal memuatkan maklumat akaun",
-      "loadError": "Ralat memuatkan maklumat akaun",
-      "emailMismatch": "Sila taip alamat e-mel anda dengan tepat untuk mengesahkan",
-      "deleteFailed": "Gagal memadam akaun",
-      "deleteError": "Ralat memadam akaun"
-    }
-  },
-  "botSpaceInvite": {
-    "title": "Jemput ke {spaceName}",
-    "description": "Hantar jemputan untuk berkolaborasi pada ruang bot ini. Mereka akan menerima e-mel dengan pautan untuk menyertai.",
-    "emailLabel": "Alamat E-mel",
-    "emailPlaceholder": "rakan@syarikat.com",
-    "accessLabel": "Tahap Akses",
-    "accessRead": "Baca - Boleh melihat bot dalam ruang ini",
-    "accessWrite": "Tulis - Boleh mencipta dan menyunting bot",
-    "accessAdmin": "Pentadbir - Akses penuh termasuk menjemput orang lain",
-    "accessNote": "Pengguna yang dijemput akan menyertai sebagai penyumbang kepada organisasi anda.",
-    "sending": "Menghantar...",
-    "sendInvitation": "Hantar Jemputan",
-    "errors": {
-      "sendFailed": "Gagal menghantar jemputan"
-    }
-  },
-  "auditLogTable": {
-    "loading": "Memuatkan log audit...",
-    "noLogs": "Tiada log audit dijumpai",
-    "noLogsHint": "Log akan muncul di sini apabila tindakan dilakukan",
-    "headers": {
-      "time": "Masa",
-      "event": "Acara",
-      "actor": "Pelaku",
-      "resource": "Sumber",
-      "outcome": "Hasil"
-    },
-    "events": {
-      "authLoginSuccess": "Log Masuk",
-      "authLoginFailure": "Log Masuk Gagal",
-      "authLogout": "Log Keluar",
-      "authSignup": "Daftar",
-      "deploymentCreate": "Pelaksanaan Dicipta",
-      "deploymentRedeploy": "Dilaksanakan Semula",
-      "deploymentDelete": "Pelaksanaan Dipadam",
-      "botSpaceCreate": "Ruang Dicipta",
-      "botSpaceDelete": "Ruang Dipadam",
-      "botSpaceMemberAdd": "Ahli Ditambah",
-      "botSpaceMemberRemove": "Ahli Dibuang",
-      "documentUpload": "Dokumen Dimuat Naik",
-      "documentDelete": "Dokumen Dipadam",
-      "apiKeyCreate": "Kunci API Dicipta",
-      "apiKeyDelete": "Kunci API Dipadam",
-      "userInvite": "Pengguna Dijemput",
-      "userInviteAccept": "Jemputan Diterima",
-      "auditWebhookUpdate": "Webhook Dikemas Kini",
-      "auditLogsExport": "Log Dieksport"
-    },
-    "outcomes": {
-      "success": "berjaya",
-      "failure": "gagal",
-      "denied": "ditolak"
-    },
-    "details": {
-      "timestamp": "Cap Masa Penuh",
-      "requestId": "ID Permintaan",
-      "ipAddress": "Alamat IP",
-      "userAgent": "Agen Pengguna",
-      "resource": "Sumber",
-      "metadata": "Metadata"
-    },
-    "showing": "Menunjukkan {shown} daripada {total} log",
-    "loadMore": "Muat Lebih Banyak"
-  },
-  "auditLogFilters": {
-    "eventTypes": {
-      "allEvents": "Semua Acara",
-      "authentication": "Pengesahan",
-      "deployments": "Pelaksanaan",
-      "botSpaces": "Ruang Bot",
-      "documents": "Dokumen",
-      "apiKeys": "Kunci API",
-      "usersInvites": "Pengguna & Jemputan",
-      "conversations": "Perbualan",
-      "settings": "Tetapan",
-      "auditSystem": "Sistem Audit"
-    },
-    "outcomes": {
-      "all": "Semua",
-      "success": "Berjaya",
-      "failure": "Gagal",
-      "denied": "Ditolak"
-    },
-    "dateRange": "Julat Tarikh",
-    "from": "Dari",
-    "to": "Ke",
-    "clear": "Kosongkan"
-  },
-  "data": {
-    "navLabel": "Data",
-    "title": "Data Armada",
-    "subtitle": "Layari dan agregat aktiviti perbualan merentasi setiap bot yang disambungkan. Kandungan perbualan kekal pada bot — hanya kiraan digabungkan dalam proses.",
-    "loading": "Memuatkan…",
-    "tabs": {
-      "explorer": "Penjelajah",
-      "sql": "SQL",
-      "analytics": "Analitis"
-    },
-    "fleet": {
-      "unreachableBanner": "{unreachable} daripada {total} bot tidak boleh dicapai — keputusan mungkin sebahagian."
-    },
-    "explorer": {
-      "filters": {
-        "conversationId": "ID Perbualan mengandungi",
-        "startDate": "Bermula selepas",
-        "endDate": "Bermula sebelum"
-      },
-      "search": "Cari",
-      "searching": "Mencari…",
-      "clear": "Kosongkan",
-      "hint": "Masukkan serpihan ID perbualan atau julat tarikh untuk menyebarkan carian merentasi setiap bot yang disambungkan.",
-      "pagination": {
-        "showing": "Menunjukkan {start} – {end} daripada {total}",
-        "previous": "Sebelumnya",
-        "next": "Seterusnya",
-        "truncatedNotice": "Set keputusan dihadkan pada 500 perbualan pertama merentasi armada. Sempitkan julat tarikh anda untuk keputusan lebih lama."
-      },
-      "noConversations": "Tiada perbualan sepadan dengan penapis anda."
-    },
-    "sql": {
-      "placeholder": "SELECT bot_name, conversations_7d FROM bot_health ORDER BY conversations_7d DESC",
-      "runQuery": "Jalankan pertanyaan",
-      "running": "Sedang berjalan…",
-      "exportCsv": "Eksport CSV",
-      "exportJson": "Eksport JSON",
-      "keyboardHint": "Tekan Cmd/Ctrl + Enter untuk menjalankan",
-      "rowCount": "{count} baris",
-      "truncated": "(dipotong kepada 10,000)",
-      "noResults": "Tiada baris",
-      "help": "Pertanyaan permulaan",
-      "starterQueries": {
-        "title": "Pertanyaan permulaan",
-        "hint": "Setiap pertanyaan membaca dari jadual rollup dalam memori yang dipasang setiap permintaan dari titik akhir analitis setiap bot. Klik untuk memuatkan.",
-        "dailyStats": "Statistik perbualan harian merentasi armada",
-        "botHealth": "Kesihatan bot (7 hari terakhir)",
-        "protocolDistribution": "Pengedaran penggunaan protokol",
-        "mostActiveBots": "Bot paling aktif minggu ini",
-        "staleBots": "Bot tidak dilihat dalam 24j terakhir",
-        "dailyByBot": "Aktiviti harian disertai dengan nama bot"
-      }
-    },
-    "schema": {
-      "availableTables": "Rujukan skema",
-      "clickToShow": "(klik untuk menunjuk)",
-      "clickToHide": "(klik untuk menyembunyikan)",
-      "note": "Nota:",
-      "scopeNote": "Jadual ini dibina dalam memori proses bagi setiap pertanyaan — satu baris setiap bot untuk jadual rollup, diisi dengan memanggil titik akhir analitis setiap bot yang disambungkan. Kandungan pusingan mentah tidak didedahkan; untuk itu, gunakan tab Penjelajah untuk meneroka perbualan tunggal."
-    },
-    "analytics": {
-      "loading": "Memuatkan rollup armada…",
-      "dateRange": {
-        "last7days": "7 hari Terakhir",
-        "last14days": "14 hari Terakhir",
-        "last30days": "30 hari Terakhir",
-        "last90days": "90 hari Terakhir"
-      },
-      "summary": {
-        "totalConversations": "Perbualan",
-        "totalTurns": "Pusingan",
-        "avgTurnsPerConversation": "Purata pusingan/perbualan",
-        "activeBots": "Bot boleh dicapai"
-      },
-      "charts": {
-        "dailyConversations": "Volum pusingan harian",
-        "topBotsByActivity": "Bot teratas mengikut volum pusingan",
-        "activityHeatmap": "Peta haba aktiviti (7 hari terakhir)"
-      },
-      "noData": "Tiada aktiviti dalam tempoh ini.",
-      "noActivityData": "Tiada aktiviti dalam 7 hari terakhir.",
-      "convs": "perbualan",
-      "days": {
-        "sun": "Aha",
-        "mon": "Isn",
-        "tue": "Sel",
-        "wed": "Rab",
-        "thu": "Kha",
-        "fri": "Jum",
-        "sat": "Sab"
-      }
-    },
-    "table": {
-      "headers": {
-        "bot": "Bot",
-        "started": "Bermula",
-        "duration": "Tempoh",
-        "turns": "Pusingan",
-        "conversationId": "ID Perbualan"
-      }
-    }
-  },
-  "apps": {
-    "navLabel": "Apps",
-    "title": "Apps",
-    "subtitle": "Apps yang telah dimaterialkan oleh ejen melalui paradigma App. Kitaran hayat, pemboleh ubah env, dan introspeksi MCP langsung — dibaca daripada contextmap dan pelari tempatan.",
-    "loading": "Memuatkan…",
-    "refresh": "Muat semula",
-    "empty": "Belum ada apps — minta ejen Claude Code anda untuk membina satu.",
-    "backToList": "Kembali ke Apps",
-    "notFound": "App tidak dijumpai.",
-    "openPreview": "Buka pratonton",
-    "openMcp": "Buka MCP",
-    "actions": {
-      "start": "Mula",
-      "stop": "Berhenti",
-      "starting": "Memulakan…",
-      "stopping": "Memberhentikan…"
-    },
-    "status": {
-      "running": "Sedang berjalan",
-      "stopped": "Dihentikan",
-      "crashed": "Terhempas",
-      "unknown": "Tidak diketahui"
-    },
-    "table": {
-      "headers": {
-        "name": "Nama",
-        "materialized": "Dimaterialkan",
-        "runner": "Pelari",
-        "status": "Status",
-        "actions": "Tindakan"
-      }
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "artifactPath": "Laluan artifak",
-      "materializationRef": "Materialization ref",
-      "adapter": "Penyesuai",
-      "appName": "Nama app",
-      "host": "Hos",
-      "materializedAt": "Dimaterialkan pada",
-      "bindings": "Pengikatan",
-      "binding": {
-        "runner": "Pelari",
-        "durability": "Ketahanan",
-        "inference": "Inferens",
-        "mcpSelf": "MCP diri"
-      },
-      "mcpPanel": {
-        "title": "App MCP",
-        "url": "URL MCP",
-        "offline": "MCP di luar talian — mulakan app untuk melihat senarai alatnya.",
-        "loading": "Memuatkan alat…",
-        "error": "Tidak dapat mencapai MCP app: {error}",
-        "registeredTools": "Alat yang didaftarkan",
-        "noTools": "Tiada alat didaftarkan.",
-        "declaredPurpose": "Tujuan yang diisytiharkan"
-      },
-      "envPanel": {
-        "title": "Pemboleh ubah persekitaran",
-        "explainer": "Nilai ditulis terus ke fail .env artifak. Ia tidak dilog, tidak disimpan dalam pangkalan data control-plane, dan tidak dipulangkan ke paparan ini.",
-        "keyHeader": "Kunci",
-        "addKey": "Kunci",
-        "addValue": "Nilai",
-        "add": "Tambah",
-        "delete": "Padam",
-        "deleteConfirm": "Padam pemboleh ubah env \"{key}\"?",
-        "noKeys": "Belum ada pemboleh ubah env ditetapkan.",
-        "valueHidden": "•••••",
-        "edit": "Sunting",
-        "save": "Simpan",
-        "cancel": "Batal",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "nilai"
-      },
-      "provenance": {
-        "title": "Asal-usul",
-        "subtitle": "Prinsip yang dilampirkan pada komit materialization app ini.",
-        "none": "Tiada prinsip direkodkan."
-      }
-    }
-  },
-  "documentUploader": {
-    "title": "Muat Naik Dokumen",
-    "description": "Muat naik dokumen yang akan digunakan oleh chatbot anda untuk RAG (Retrieval-Augmented Generation)",
-    "uploading": "Memuat naik...",
-    "chooseFiles": "Pilih Fail",
-    "dropFilesHere": "Lepaskan fail di sini",
-    "dragAndDropHint": "atau seret dan lepaskan fail di sini",
-    "fileTypes": "PDF, TXT, MD, DOC, DOCX",
-    "uploadedDocuments": "Dokumen Dimuat Naik ({count})",
-    "noDocumentsYet": "Belum ada dokumen dimuat naik",
-    "noDocumentsHint": "Klik \"Pilih Fail\" untuk bermula",
-    "skippedFiles": "Sesetengah fail dilangkau. Hanya fail PDF, TXT, MD, DOC, DOCX disokong.",
-    "deleteConfirm": "Adakah anda pasti mahu memadam fail ini?",
-    "uploadFailed": "Muat naik gagal",
-    "uploadFailedFallback": "Gagal memuat naik fail",
-    "deleteFailed": "Pemadaman gagal",
-    "deleteFailedFallback": "Gagal memadam fail"
-  },
-  "chatBuilder": {
-    "title": "Pembina Bot AI",
-    "subtitle": "Terangkan bot yang anda mahu bina dan saya akan menciptanya untuk anda",
-    "loading": "Memuatkan Pembina AI...",
-    "newChat": "Sembang Baharu",
-    "recentChats": "Sembang Terkini",
-    "noPreviousChats": "Tiada sembang sebelumnya",
-    "botPreview": "Pratonton Bot",
-    "viewDeployedBot": "Lihat bot yang dilaksanakan",
-    "selectWorkspace": "Pilih ruang kerja",
-    "selectWorkspacePrompt": "Pilih ruang kerja untuk mula membina",
-    "noWorkspaces": "Tiada ruang kerja tersedia",
-    "createWorkspaceFirst": "Cipta satu terlebih dahulu",
-    "backToDashboard": "Kembali ke Papan Pemuka",
-    "welcome": {
-      "title": "Bina Bot dengan AI",
-      "description": "Terangkan bot yang anda mahu cipta, muat naik dokumen yang berkaitan, dan saya akan membantu anda mengkonfigurasi dan melaksanakannya. Tiada pengaturcaraan diperlukan.",
-      "quickPrompts": {
-        "customerSupport": {
-          "title": "Bot Sokongan Pelanggan",
-          "description": "Jawab soalan produk",
-          "prompt": "Saya memerlukan bot sokongan pelanggan yang boleh menjawab soalan tentang produk kami"
-        },
-        "leadCapture": {
-          "title": "Bot Penangkapan Lead",
-          "description": "Kumpul maklumat pelawat",
-          "prompt": "Cipta bot penangkapan lead yang mengumpul nama, e-mel, dan maklumat syarikat"
-        },
-        "faqAssistant": {
-          "title": "Pembantu FAQ",
-          "description": "Jawab soalan biasa",
-          "prompt": "Bantu saya membina bot FAQ menggunakan dokumentasi kami"
-        },
-        "onboarding": {
-          "title": "Bot Onboarding",
-          "description": "Pandu pengguna baharu",
-          "prompt": "Saya mahu mencipta bot yang membantu mengonboard pelanggan baharu"
-        }
-      }
-    },
-    "input": {
-      "placeholder": "Terangkan bot yang anda mahu bina...",
-      "defaultPlaceholder": "Taip mesej...",
-      "dropFilesHere": "Lepaskan fail di sini...",
-      "dropToAttach": "Lepaskan fail untuk melampirkannya ke mesej anda",
-      "hint": "Tekan Enter untuk menghantar, Shift+Enter untuk baris baharu. Seret fail atau klik klip untuk melampirkan.",
-      "hintShort": "Tekan Enter untuk menghantar, Shift+Enter untuk baris baharu",
-      "hintWithAttach": "Seret & lepaskan fail atau klik lampirkan. Tekan Enter untuk menghantar.",
-      "attachFiles": "Lampirkan fail",
-      "attachDocuments": "Lampirkan dokumen"
-    },
-    "tools": {
-      "toolsExecuted": "{count} alat dilaksanakan",
-      "toolsExecutedPlural": "{count} alat dilaksanakan",
-      "uploadDocument": "Muat Naik Dokumen",
-      "generateForm": "Jana Borang",
-      "deployBot": "Laksanakan Bot",
-      "listDeployments": "Senarai Pelaksanaan",
-      "checkDeploymentStatus": "Semak Status Pelaksanaan",
-      "destroyDeployment": "Musnahkan Pelaksanaan",
-      "getAnalytics": "Dapatkan Analitis",
-      "getFormSubmissions": "Dapatkan Penyerahan Borang",
-      "listWorkspaces": "Senarai Ruang Kerja",
-      "listDocuments": "Senarai Dokumen",
-      "listApiKeys": "Senarai Kunci API"
-    },
-    "documentPicker": {
-      "title": "Pilih Dokumen",
-      "noDocuments": "Tiada dokumen dalam ruang kerja ini",
-      "uploadFirst": "Muat naik dokumen terlebih dahulu untuk digunakan untuk bot anda",
-      "selected": "{count} dokumen dipilih",
-      "selectedPlural": "{count} dokumen dipilih",
-      "useSelected": "Gunakan yang Dipilih"
-    },
-    "errors": {
-      "failedToSend": "Gagal menghantar mesej",
-      "failedToLoadSession": "Gagal memuatkan sesi",
-      "failedToLoadDocuments": "Gagal memuatkan dokumen"
-    },
-    "invertedPanel": {
-      "createABot": "Cipta Bot",
-      "editBot": "Sunting {name}",
-      "fallbackBotName": "Bot",
-      "private": "Peribadi",
-      "createTitle": "Apakah jenis bot yang boleh saya bantu anda bina?",
-      "createDescription": "Anda juga boleh melampirkan dokumen untuk memberinya pengetahuan. Muat naik fail, atau minta untuk merujuk kepada dokumen dalam ruang bot.",
-      "buildWithWizard": "Bina dengan Wizard (Konfigurasi langkah demi langkah)",
-      "editTitle": "Ubah suai {name}",
-      "editFallbackName": "bot anda",
-      "editDescription": "Beritahu saya apa yang anda mahu ubah. Saya akan memuatkan konfigurasi semasa anda dan membantu anda mengemas kininya.",
-      "editExamples": "Contoh: \"Tukar ucapan selamat\", \"Tambah medan borang baharu\", \"Kemas kini nama bot\"",
-      "errorPrefix": "Ralat:",
-      "inputPlaceholder": "Terangkan apa yang bot anda patut lakukan...",
-      "adjustMessage": "Saya ingin melaraskan konfigurasi"
-    },
-    "status": {
-      "ready": "Sedia",
-      "processing": "Memproses",
-      "awaitingConfirmation": "Menunggu pengesahan",
-      "deploying": "Sedang melaksanakan",
-      "deployed": "Dilaksanakan",
-      "editing": "Menyunting"
-    },
-    "success": {
-      "botBuilt": "Bot dibina!",
-      "botSaved": "Bot disimpan",
-      "botBuiltMessage": "Bot anda <strong>{name}</strong> telah dibina dan sedia untuk dimuat turun.",
-      "botSavedMessage": "Bot anda <strong>{name}</strong> disimpan. Bina ia dari Ruang Bot anda apabila anda bersedia.",
-      "liveUrl": "URL Langsung",
-      "embedCode": "Kod Embed",
-      "downloadArtifact": "Muat Turun Artifak",
-      "downloadWithDocs": "Muat Turun dengan Dokumen",
-      "openBot": "Buka Bot",
-      "viewInBotSpace": "Lihat dalam Ruang Bot"
-    }
-  },
-  "login": {
-    "subtitle": "Log masuk untuk meneruskan",
-    "username": "Nama pengguna",
-    "password": "Kata laluan",
-    "signIn": "Log masuk",
-    "signingIn": "Sedang log masuk…",
-    "signOut": "Log keluar",
-    "invalid": "Nama pengguna atau kata laluan tidak sah"
   }
 }

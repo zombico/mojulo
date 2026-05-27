@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Grafiek",
+    "title": "App-creatiekaart",
+    "subtitle": "Hoe een app tot stand komt. Elk vak is een onderdeel; elke pijl laat zien wat wat veroorzaakt.",
+    "subtitleTechnical": "Hoe een app wordt samengesteld in het mojulo-paradigma. Stations zijn de onderdelen; lijnen zijn de MCP-tools die ze samenbinden. Op elke vernieuwing gevalideerd tegen het live MCP-register en contextmap-schema.",
+    "technicalToggle": "Technisch",
+    "loading": "Laden…",
+    "refresh": "Vernieuwen",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Nog geen apps aangemaakt} =1 {1 app aangemaakt} other {# apps aangemaakt}}",
+      "lastMaterialized": "Laatst aangemaakt",
+      "viewApps": "Actieve apps bekijken"
+    },
+    "validation": {
+      "ok": "Alles klopt nog steeds.",
+      "okTechnical": "Manifest geldig: {tools} tools, {nodeKinds} soorten knopen, {edgeKinds} soorten verbindingen, {sourceEvents} bron-events allemaal opgelost.",
+      "failed": "{count, plural, =1 {1 ding in de kaart klopt niet meer met de werkelijkheid} other {# dingen in de kaart kloppen niet meer met de werkelijkheid}}"
+    },
+    "legend": {
+      "input": "Wat je beslist",
+      "inputTechnical": "Input",
+      "mcpTool": "Een tool die de agent aanroept",
+      "mcpToolTechnical": "MCP-tool",
+      "filesystem": "Bestanden op schijf",
+      "filesystemTechnical": "Filesystem",
+      "dbRow": "Vermelding in geheugen",
+      "dbRowTechnical": "DB-rij"
+    }
+  },
   "documentUploader": {
     "title": "Documenten uploaden",
     "description": "Upload documenten die je chatbot zal gebruiken voor RAG (Retrieval-Augmented Generation)",

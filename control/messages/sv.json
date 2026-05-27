@@ -2213,5 +2213,34 @@
     "signingIn": "Loggar in…",
     "signOut": "Logga ut",
     "invalid": "Ogiltigt användarnamn eller lösenord"
+  },
+  "graph": {
+    "navLabel": "Diagram",
+    "title": "Kartöversikt över appskapande",
+    "subtitle": "Hur en app kommer samman. Varje ruta är en del; varje pil visar vad som orsakar vad.",
+    "subtitleTechnical": "Hur en app är sammansatt i mojulo-paradigmet. Stationer är delarna; linjer är de MCP-verktyg som kopplar ihop dem. Valideras mot live MCP-registret och contextmap-schemat vid varje uppdatering.",
+    "technicalToggle": "Teknisk",
+    "loading": "Läser in…",
+    "refresh": "Uppdatera",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Inga appar skapade än} =1 {1 app skapad} other {# appar skapade}}",
+      "lastMaterialized": "Den senaste skapade",
+      "viewApps": "Visa körande appar"
+    },
+    "validation": {
+      "ok": "Allt kontrollerar fortfarande.",
+      "okTechnical": "Manifest giltigt: {tools} verktyg, {nodeKinds} nodtyper, {edgeKinds} kanttyper, {sourceEvents} källhändelser alla löses.",
+      "failed": "{count, plural, =1 {1 sak i kartan motsvarar inte längre verkligheten} other {# saker i kartan motsvarar inte längre verkligheten}}"
+    },
+    "legend": {
+      "input": "Vad du bestämmer",
+      "inputTechnical": "Inmatning",
+      "mcpTool": "Ett verktyg som agenten anropar",
+      "mcpToolTechnical": "MCP-verktyg",
+      "filesystem": "Filer på disk",
+      "filesystemTechnical": "Filsystem",
+      "dbRow": "Post i minnet",
+      "dbRowTechnical": "DB-rad"
+    }
   }
 }

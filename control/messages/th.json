@@ -2213,5 +2213,34 @@
     "signingIn": "กำลังลงชื่อเข้าใช้…",
     "signOut": "ออกจากระบบ",
     "invalid": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"
+  },
+  "graph": {
+    "navLabel": "กราฟ",
+    "title": "แผนที่การสร้างแอป",
+    "subtitle": "วิธีที่แอปมาเข้าด้วยกัน แต่ละกล่องเป็นส่วนหนึ่ง แต่ละลูกศรแสดงว่าสิ่งใดทำให้เกิดสิ่งอื่น",
+    "subtitleTechnical": "วิธีที่แอปมีส่วนประกอบในแพริดิจม์ mojulo Stations คือส่วนต่างๆ บรรทัดคือ MCP tools ที่เชื่อมพวกมันเข้าด้วยกัน ตรวจสอบกับ MCP registry ที่ใช้งานอยู่และ contextmap schema ในการรีเฟรชครั้งแต่ละครั้ง",
+    "technicalToggle": "ทางเทคนิค",
+    "loading": "กำลังโหลด…",
+    "refresh": "รีเฟรช",
+    "overlay": {
+      "appCount": "{count, plural, =0 {ยังไม่มีแอปที่สร้าง} =1 {สร้างแอป 1 ตัว} other {สร้างแอป # ตัว}}",
+      "lastMaterialized": "ตัวล่าสุดที่สร้าง",
+      "viewApps": "ดูแอปที่กำลังทำงาน"
+    },
+    "validation": {
+      "ok": "ทุกอย่างยังตรวจสอบได้",
+      "okTechnical": "Manifest valid: {tools} tools, {nodeKinds} node kinds, {edgeKinds} edge kinds, {sourceEvents} source events ทั้งหมด resolve",
+      "failed": "{count, plural, =1 {1 สิ่งในแผนที่ไม่ตรงกับความเป็นจริงอีกต่อไป} other {# สิ่งในแผนที่ไม่ตรงกับความเป็นจริงอีกต่อไป}}"
+    },
+    "legend": {
+      "input": "สิ่งที่คุณตัดสินใจ",
+      "inputTechnical": "Input",
+      "mcpTool": "เครื่องมือที่ agent เรียก",
+      "mcpToolTechnical": "MCP tool",
+      "filesystem": "ไฟล์บนดิสก์",
+      "filesystemTechnical": "Filesystem",
+      "dbRow": "Entry ในหน่วยความจำ",
+      "dbRowTechnical": "DB row"
+    }
   }
 }

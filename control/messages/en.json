@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Graph",
+    "title": "App Creation Map",
+    "subtitle": "How an app comes together. Each box is a piece; each arrow shows what causes what.",
+    "subtitleTechnical": "How an app is composed in the mojulo paradigm. Stations are the pieces; lines are the MCP tools that snap them together. Validated against the live MCP registry and contextmap schema on every refresh.",
+    "technicalToggle": "Technical",
+    "loading": "Loading…",
+    "refresh": "Refresh",
+    "overlay": {
+      "appCount": "{count, plural, =0 {No apps made yet} =1 {1 app made} other {# apps made}}",
+      "lastMaterialized": "Last one made",
+      "viewApps": "View running apps"
+    },
+    "validation": {
+      "ok": "Everything still checks out.",
+      "okTechnical": "Manifest valid: {tools} tools, {nodeKinds} node kinds, {edgeKinds} edge kinds, {sourceEvents} source events all resolve.",
+      "failed": "{count, plural, =1 {1 thing in the map no longer matches reality} other {# things in the map no longer match reality}}"
+    },
+    "legend": {
+      "input": "What you decide",
+      "inputTechnical": "Input",
+      "mcpTool": "A tool the agent calls",
+      "mcpToolTechnical": "MCP tool",
+      "filesystem": "Files on disk",
+      "filesystemTechnical": "Filesystem",
+      "dbRow": "Entry in memory",
+      "dbRowTechnical": "DB row"
+    }
+  },
   "documentUploader": {
     "title": "Upload Documents",
     "description": "Upload documents that your chatbot will use for RAG (Retrieval-Augmented Generation)",

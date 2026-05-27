@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "그래프",
+    "title": "앱 생성 지도",
+    "subtitle": "앱이 어떻게 만들어지는지 보여줍니다. 각 상자는 한 부분이고, 각 화살표는 무엇이 무엇을 만드는지 보여줍니다.",
+    "subtitleTechnical": "mojulo 패러다임에서 앱이 어떻게 구성되는지 보여줍니다. 스테이션은 부분이고, 라인은 그들을 함께 연결하는 MCP 도구입니다. 매번 새로고침할 때 실시간 MCP 레지스트리 및 contextmap 스키마에 대해 검증됩니다.",
+    "technicalToggle": "기술적",
+    "loading": "로딩 중…",
+    "refresh": "새로고침",
+    "overlay": {
+      "appCount": "{count, plural, =0 {아직 만든 앱이 없습니다} =1 {1개의 앱을 만들었습니다} other {# 개의 앱을 만들었습니다}}",
+      "lastMaterialized": "마지막으로 만든 항목",
+      "viewApps": "실행 중인 앱 보기"
+    },
+    "validation": {
+      "ok": "모든 것이 여전히 유효합니다.",
+      "okTechnical": "매니페스트 유효함: {tools}개의 도구, {nodeKinds}개의 노드 유형, {edgeKinds}개의 엣지 유형, {sourceEvents}개의 소스 이벤트가 모두 해결됨.",
+      "failed": "{count, plural, =1 {지도의 1개 항목이 더 이상 현실과 맞지 않습니다} other {지도의 # 개 항목이 더 이상 현실과 맞지 않습니다}}"
+    },
+    "legend": {
+      "input": "당신의 결정",
+      "inputTechnical": "입력",
+      "mcpTool": "에이전트가 호출하는 도구",
+      "mcpToolTechnical": "MCP 도구",
+      "filesystem": "디스크의 파일",
+      "filesystemTechnical": "파일 시스템",
+      "dbRow": "메모리의 항목",
+      "dbRowTechnical": "DB 행"
+    }
+  },
   "documentUploader": {
     "title": "문서 업로드",
     "description": "챗봇이 RAG (검색 증강 생성)에 사용할 문서 업로드",

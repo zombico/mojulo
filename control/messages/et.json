@@ -2071,6 +2071,35 @@
       }
     }
   },
+  "graph": {
+    "navLabel": "Graafik",
+    "title": "Rakenduse loomise kaart",
+    "subtitle": "Kuidas rakendus kokku pannakse. Iga kast on tükk; iga nool näitab, mis põhjustab mida.",
+    "subtitleTechnical": "Kuidas rakendust koostatakse mojulo paradigmas. Jaamad on tükid; jooned on MCP-tööriistud, mis need kokku lukustavad. Valideeritud elusliku MCP registri ja kontekstikaarti skeemi vastu iga värskendamisel.",
+    "technicalToggle": "Tehniline",
+    "loading": "Laadimine…",
+    "refresh": "Värskenda",
+    "overlay": {
+      "appCount": "{count, plural, =0 {Rakendusi pole veel tehtud} =1 {1 rakendus on tehtud} other {# rakendust on tehtud}}",
+      "lastMaterialized": "Viimati tehtud",
+      "viewApps": "Vaata käitavaid rakendusi"
+    },
+    "validation": {
+      "ok": "Kõik kontrollib veel.",
+      "okTechnical": "Manifest kehtib: {tools} tööriista, {nodeKinds} sõlme tüüpi, {edgeKinds} serva tüüpi, {sourceEvents} allikasündmust on kõik lahendatud.",
+      "failed": "{count, plural, =1 {Kaardil on 1 asi, mis enam ei vasta tegelikkusele} other {Kaardil on # asja, mis enam ei vasta tegelikkusele}}"
+    },
+    "legend": {
+      "input": "Mida sina otsustad",
+      "inputTechnical": "Sisend",
+      "mcpTool": "Tööriist, mida agent kutsub",
+      "mcpToolTechnical": "MCP-tööriist",
+      "filesystem": "Failid kettadraiivil",
+      "filesystemTechnical": "Failisüsteem",
+      "dbRow": "Kirje mälus",
+      "dbRowTechnical": "Andmebaasi rida"
+    }
+  },
   "documentUploader": {
     "title": "Lae dokumente üles",
     "description": "Lae üles dokumente, mida sinu vestlusbot kasutab RAG-i (Retrieval-Augmented Generation) jaoks",
