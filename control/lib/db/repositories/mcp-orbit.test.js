@@ -30,6 +30,7 @@ describe('schema bootstraps', () => {
       'mcp_orbit_components',
       'mcp_orbit_compositions',
       'mcp_orbit_provider_artifacts',
+      'mcp_orbit_trigger_artifacts',
     ]);
   });
 
@@ -47,6 +48,8 @@ describe('schema bootstraps', () => {
       'idx_mcp_orbit_compositions_status',
       'idx_mcp_orbit_provider_artifacts_primitive',
       'idx_mcp_orbit_provider_artifacts_server',
+      'idx_mcp_orbit_trigger_artifacts_component',
+      'idx_mcp_orbit_trigger_artifacts_current',
     ]);
   });
 

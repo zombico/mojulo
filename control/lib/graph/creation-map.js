@@ -24,7 +24,7 @@ export const CREATION_MAP = {
   // meta_context_commit pipeline on the right). Naturally expandable by
   // extending a lane downward — new stations slot in without reflowing
   // anything else.
-  viewBox: { width: 960, height: 620 },
+  viewBox: { width: 960, height: 700 },
 
   // Stations carry both registers. `label` / `sublabel` / `items` are the
   // technical view (codebase names, exact payload shapes). `friendly` is the
@@ -86,7 +86,7 @@ export const CREATION_MAP = {
         sublabel: 'A tool the agent calls',
       },
       x: 74,
-      y: 184,
+      y: 204,
       w: 300,
       h: 70,
     },
@@ -101,7 +101,7 @@ export const CREATION_MAP = {
         sublabel: 'Marks it as officially made',
       },
       x: 506,
-      y: 184,
+      y: 204,
       w: 300,
       h: 80,
     },
@@ -118,7 +118,7 @@ export const CREATION_MAP = {
         ],
       },
       x: 24,
-      y: 300,
+      y: 334,
       w: 400,
       h: 80,
     },
@@ -137,7 +137,7 @@ export const CREATION_MAP = {
         ],
       },
       x: 456,
-      y: 300,
+      y: 334,
       w: 400,
       h: 80,
     },
@@ -155,7 +155,7 @@ export const CREATION_MAP = {
         ],
       },
       x: 456,
-      y: 410,
+      y: 474,
       w: 400,
       h: 70,
     },
@@ -174,7 +174,7 @@ export const CREATION_MAP = {
         ],
       },
       x: 456,
-      y: 510,
+      y: 604,
       w: 400,
       h: 80,
     },

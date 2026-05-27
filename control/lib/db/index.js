@@ -240,6 +240,44 @@ function init(db) {
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_server ON mcp_orbit_provider_artifacts(server);
     CREATE INDEX IF NOT EXISTS idx_mcp_orbit_provider_artifacts_primitive ON mcp_orbit_provider_artifacts(primitive_ref, role);
 
+    -- Trigger artifacts — persisted declarations of bound activation triggers.
+    -- Sibling shape to mcp_orbit_provider_artifacts: every binding references
+    -- a typed composer component by versioned ref (component_ref), so the
+    -- contextmap's audit chain records which component each materialization
+    -- resolved against. Composer-anchored runtime is load-bearing here —
+    -- adding a new trigger kind means shipping a typed component first, then
+    -- this row's component_ref points at it. No parallel enum inside the
+    -- bind tool. See lite-template/integration/app-system/0526/
+    -- TRIGGER_BINDING_PLAN.md.
+    CREATE TABLE IF NOT EXISTS mcp_orbit_trigger_artifacts (
+      id INTEGER PRIMARY KEY,
+      trigger_ref TEXT NOT NULL UNIQUE,
+      component_ref TEXT NOT NULL,
+      binding_params_json TEXT NOT NULL,
+      payload_template_json TEXT NOT NULL,
+      composition_ref TEXT,
+      artifact_ref TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      superseded_by TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_orbit_trigger_artifacts_component
+      ON mcp_orbit_trigger_artifacts(component_ref);
+    -- Reject two active bindings against the same (composition_ref,
+    -- artifact_ref, component_ref) tuple. COALESCE on the nullable refs is
+    -- load-bearing: SQLite's default UNIQUE treats NULL as distinct from
+    -- NULL, which would let two triggers with the same artifact_ref but
+    -- both null composition_ref coexist — exactly the duplicate we want to
+    -- block. Mapping NULL → '' makes the tuple comparison work as intended.
+    -- The agent must explicitly unbind before rebinding the same target.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_orbit_trigger_artifacts_current
+      ON mcp_orbit_trigger_artifacts(
+        COALESCE(composition_ref, ''),
+        COALESCE(artifact_ref, ''),
+        component_ref
+      )
+      WHERE superseded_by IS NULL AND enabled = 1;
+
     -- Unified semantic-search sidecar across durable app state. One row per
     -- (source_kind, source_ref) — principles, mcp tools, capabilities,
     -- orbit components/compositions/provider artifacts, catalysts. Read
@@ -276,6 +314,7 @@ function init(db) {
   reapStaleMcpJobs(db);
   maybeBackfillEmbeddings(db);
   maybeStartNodeFulfiller();
+  maybeStartTriggerDaemons();
 }
 
 // Opt-in Node fulfiller boot. When MOJULO_AGENT_RUNTIME resolves to a
@@ -300,6 +339,52 @@ function maybeStartNodeFulfiller() {
     })
     .catch((err) => {
       console.warn('[node-fulfiller] module load failed:', err?.message || err);
+    });
+}
+
+// Opt-in trigger-daemon boot. When MOJULO_TRIGGER_RUNTIME=enabled, start
+// the scheduler daemon (and future webhook / watch daemons in their own
+// phases). When unset or 'disabled', this is a no-op — bind_trigger calls
+// still succeed (the binding row is durable), but nothing fires until a
+// later boot enables the runtime. Symmetric with MOJULO_AGENT_RUNTIME's
+// opt-in posture so an operator who hasn't configured automation doesn't
+// get background daemons running by default.
+//
+// SIGTERM wiring lives here too — installed once, defers to the daemon's
+// own drain. Process.on('SIGTERM', ...) is idempotent against re-entrant
+// init() because we check a module-local sentinel.
+let _sigtermInstalled = false;
+function maybeStartTriggerDaemons() {
+  const v = process.env.MOJULO_TRIGGER_RUNTIME;
+  if (!v || v === 'disabled') return;
+  if (v !== 'enabled') {
+    console.warn(
+      `[trigger-daemons] MOJULO_TRIGGER_RUNTIME='${v}' not recognized; expected 'enabled' or 'disabled'. Skipping daemon start.`,
+    );
+    return;
+  }
+  import('@/lib/triggers/scheduler.js')
+    .then(({ startScheduler, stopScheduler }) => {
+      try {
+        startScheduler();
+      } catch (err) {
+        console.warn('[scheduler] start failed:', err?.message || err);
+      }
+      if (!_sigtermInstalled) {
+        _sigtermInstalled = true;
+        const handler = async () => {
+          try {
+            await stopScheduler();
+          } catch (err) {
+            console.warn('[scheduler] drain failed on SIGTERM:', err?.message || err);
+          }
+        };
+        process.once('SIGTERM', handler);
+        process.once('SIGINT', handler);
+      }
+    })
+    .catch((err) => {
+      console.warn('[scheduler] module load failed:', err?.message || err);
     });
 }
 

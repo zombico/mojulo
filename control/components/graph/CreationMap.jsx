@@ -197,18 +197,18 @@ export default function CreationMap({ manifest, technical = false }) {
               <g transform={`translate(${midX} ${midY})`}>
                 <rect
                   x={-labelWidth / 2}
-                  y="-9"
+                  y="-10"
                   width={labelWidth}
-                  height="18"
-                  rx="4"
+                  height="20"
+                  rx="5"
                   fill="var(--surface-primary)"
                   stroke="var(--border-color)"
-                  strokeOpacity="0.4"
+                  strokeOpacity="0.65"
                 />
                 <text
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="var(--text-muted)"
+                  fill="var(--text-secondary)"
                   fontSize="10"
                   fontFamily={
                     technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'

@@ -1251,3 +1251,136 @@ describe('commitHandler — routes app_materialization', () => {
     expect(out.autoSummaryPrincipleId).toBeGreaterThan(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// commit: trigger_artifact_materialization
+//
+// Seals a binding between a typed composer trigger component and a target
+// artifact node. Requires the trigger artifact to already exist (via
+// TriggerArtifactRepository.insert from bind_trigger) and to carry an
+// artifact_ref pointing at a materialized contextmap node.
+// ---------------------------------------------------------------------------
+
+import { commitTriggerArtifactMaterialization } from './meta-context.js';
+import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
+
+function seedArtifactNode({
+  ref = 'app:trigger-test-app',
+  label = 'Trigger Test App',
+} = {}) {
+  return MetaNodeRepository.upsert({ kind: 'artifact', ref, label });
+}
+
+function seedTrigger({
+  componentRef = 'trigger/scheduled@0.1.0',
+  bindingParams = { cron: '0 9 * * *', timezone: 'UTC' },
+  payloadTemplate = { task_kind: 'envelope_inference', envelope: { inputs: {} } },
+  artifactRef = 'app:trigger-test-app',
+  compositionRef = null,
+} = {}) {
+  return TriggerArtifactRepository.insert({
+    componentRef,
+    bindingParams,
+    payloadTemplate,
+    artifactRef,
+    compositionRef,
+  });
+}
+
+describe('commitTriggerArtifactMaterialization', () => {
+  beforeEach(() => {
+    closeDb();
+  });
+
+  it('rejects missing trigger_ref', async () => {
+    await expect(
+      commitTriggerArtifactMaterialization({ type: 'trigger_artifact_materialization' }),
+    ).rejects.toThrow(/trigger_ref is required/);
+  });
+
+  it('rejects unknown trigger_ref', async () => {
+    await expect(
+      commitTriggerArtifactMaterialization({
+        type: 'trigger_artifact_materialization',
+        trigger_ref: 'trig_nonexistent',
+      }),
+    ).rejects.toThrow(/not found/);
+  });
+
+  it('rejects composition-only triggers (no artifact_ref)', async () => {
+    const trigger = seedTrigger({ artifactRef: null, compositionRef: 'comp_xyz' });
+    await expect(
+      commitTriggerArtifactMaterialization({
+        type: 'trigger_artifact_materialization',
+        trigger_ref: trigger.triggerRef,
+      }),
+    ).rejects.toThrow(/artifact_ref/);
+  });
+
+  it('rejects when the target artifact node does not exist', async () => {
+    const trigger = seedTrigger({ artifactRef: 'artifact:not-materialized' });
+    await expect(
+      commitTriggerArtifactMaterialization({
+        type: 'trigger_artifact_materialization',
+        trigger_ref: trigger.triggerRef,
+      }),
+    ).rejects.toThrow(/no contextmap node/);
+  });
+
+  it('happy path — writes a trigger_artifact_materialization principle on the target artifact node', async () => {
+    const artifactNode = seedArtifactNode({ ref: 'app:happy-target' });
+    const trigger = seedTrigger({ artifactRef: 'app:happy-target' });
+
+    const out = await commitTriggerArtifactMaterialization({
+      type: 'trigger_artifact_materialization',
+      trigger_ref: trigger.triggerRef,
+    });
+
+    expect(out.ok).toBe(true);
+    expect(out.triggerRef).toBe(trigger.triggerRef);
+    expect(out.componentRef).toBe('trigger/scheduled@0.1.0');
+    expect(out.artifactNodeId).toBe(artifactNode.id);
+    expect(out.principleId).toBeGreaterThan(0);
+
+    const principles = MetaPrincipleRepository.listForScope('node', artifactNode.id);
+    const tamPrinciples = principles.filter(
+      (p) => p.sourceEvent === 'trigger_artifact_materialization',
+    );
+    expect(tamPrinciples).toHaveLength(1);
+    const body = tamPrinciples[0].bodyMd;
+    expect(body).toContain('Trigger bound');
+    expect(body).toContain(trigger.triggerRef);
+    expect(body).toContain('trigger/scheduled@0.1.0');
+    expect(body).toContain('app:happy-target');
+    expect(body).toContain('cron');
+    expect(body).toContain('Payload template');
+  });
+
+  it('surfaces the principle through briefHandler against the artifact node', async () => {
+    seedArtifactNode({ ref: 'app:brief-target' });
+    const trigger = seedTrigger({ artifactRef: 'app:brief-target' });
+    await commitTriggerArtifactMaterialization({
+      type: 'trigger_artifact_materialization',
+      trigger_ref: trigger.triggerRef,
+    });
+
+    const brief = await briefHandler({
+      scope: { kind: 'artifact', ref: 'app:brief-target' },
+    });
+    const tamPrinciples = brief.principles.filter(
+      (p) => p.sourceEvent === 'trigger_artifact_materialization',
+    );
+    expect(tamPrinciples).toHaveLength(1);
+  });
+
+  it('routes via the commitHandler dispatcher', async () => {
+    seedArtifactNode({ ref: 'app:dispatch-target' });
+    const trigger = seedTrigger({ artifactRef: 'app:dispatch-target' });
+    const out = await commitHandler({
+      type: 'trigger_artifact_materialization',
+      trigger_ref: trigger.triggerRef,
+    });
+    expect(out.ok).toBe(true);
+    expect(out.principleId).toBeGreaterThan(0);
+  });
+});

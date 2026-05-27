@@ -282,6 +282,24 @@ Coexistence with `/loop` is intentional. The agent-tasks queue is FIFO single-cl
 
 **Vision support.** Today the `claude-code-headless` adapter inlines images as base64 data URLs in the user prompt; native MCP image content blocks via stdin aren't wired up yet. Works for the spike; revisit if `claude --print` exposes a cleaner channel.
 
+### How work enters the queue (the parkTask seam)
+
+The agent-tasks queue is the **unification seam** for every autonomous run in mojulo. Whatever fulfiller pulls a task — the operator's `/loop` worker or the headless Node fulfiller — works the same way against the same queue. The seam is the `parkTask` family of entry points in [queue.js](../control/lib/mcp/agent-tasks/queue.js). Phase 1 has two entry points:
+
+| Entry point | Function | Caller | Awaits result? |
+|---|---|---|---|
+| HTTP POST `/api/app-inference/envelope` | `parkRequest(payload, opts)` | A running app's MCP sidecar (the app's process awaits the response to resume its own work). | Yes — HTTP request blocks on the envelope. |
+| Scheduler daemon fire | `parkRequestForTrigger(payload, opts)` | The scheduler daemon at a cron tick (no HTTP request waiting; the fire is audited via `trigger_firing` and the operator reads results out-of-band). | No — fire-and-forget; eventual rejection is consumed internally. |
+
+Both end up as the same entry shape on the queue. The fulfiller doesn't know — and shouldn't need to know — which path put a task there; only the audit principles distinguish (the `trigger_firing` principle is written when the scheduler fires; the `app_inference` principle is written when the fulfiller delivers, regardless of how the task was parked).
+
+Future entry points slot into the same shape:
+
+- **Webhook receiver** (Phase 2). Same `parkRequestForTrigger` call from a new Next.js route handler at `/api/triggers/<trigger_ref>`. Requires a deployment-posture decision (tunnels for localhost operators) before shipping.
+- **Watch daemon** (Phase 3). Same `parkRequestForTrigger` call from a polling daemon that detects deltas on a source MCP and fires per-delta.
+
+When you add a new entry point, the test is: can the existing fulfiller stack pick up the parked task without changes? If yes, the entry point belongs. If no, you've introduced a parallel queue.
+
 ### Status surface
 
 Ephemeral fulfillment is invisible by default — that's the operational win, but the operator still wants a live signal. Mojulo serves a single tiny endpoint:

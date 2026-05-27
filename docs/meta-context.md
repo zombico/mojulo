@@ -255,6 +255,41 @@ There is **no** `runs_for` edge — no bot in the picture. There is **no** `seed
 
 If commit fails (adapter-rejection, missing provider artifact, scope error), roll back the materialization via the host adapter's affordance — same rule as `artifact_materialization`.
 
+#### `trigger_artifact_materialization`
+
+Atomic per-binding seal for activation triggers materialized via `bind_trigger` (see [docs/mcp-orbit.md#the-trigger-binding-layer](mcp-orbit.md#the-trigger-binding-layer)). Where `primitive_artifact_materialization` records what data shape an artifact reads / writes against, `trigger_artifact_materialization` records what activation kind fires it.
+
+```json
+{
+  "type": "trigger_artifact_materialization",
+  "trigger_ref": "trig_abc123def456"
+}
+```
+
+The handler is intentionally minimal — it takes the `trigger_ref` returned by `bind_trigger` and resolves the rest from the persisted trigger artifact row. The shape (component_ref, binding_params, payload_template, target artifact ref) was already validated during the bind call; the commit just attaches the audit principle.
+
+Behavior:
+1. Resolve the trigger via `TriggerArtifactRepository.getByRef(trigger_ref)`. Missing → throws (operator must call `bind_trigger` first).
+2. Phase 1 requires the trigger to carry an `artifact_ref` — composition-only triggers without a specific artifact target are deferred.
+3. Resolve the target artifact node via `MetaNodeRepository.findByRef('artifact', trigger.artifactRef)`. Missing → throws (the operator must materialize the artifact via `app_materialization` or `primitive_artifact_materialization` before binding triggers to it). The `bind_trigger` handler catches this and auto-disables the orphan trigger row so the operator can retry cleanly.
+4. Write a `trigger_artifact_materialization` principle on the artifact node summarizing the binding (component_ref, binding_params, payload_template).
+5. Returns `{ ok: true, triggerRef, componentRef, artifactNodeId, principleId }`.
+
+There is no new node kind, no new edge kind. The trigger artifact persistence layer ([mcp_orbit_trigger_artifacts](mcp-orbit.md#the-trigger-binding-layer)) is the source of truth for the binding's shape; the contextmap principle is the audit record on the artifact node. Walking the artifact node's principles surfaces the binding alongside the artifact's other audit (`primitive_artifact_materialization` / `app_materialization` / subsequent `trigger_firing` and `app_inference` chains).
+
+### The `trigger_firing` principle convention
+
+Audit principles in mojulo come in two flavors. Most are written at **structural-decision rate** (deliberation rate) — `artifact_materialization`, `primitive_artifact_materialization`, `app_materialization`, `trigger_artifact_materialization`. They land when an operator + agent seal a binding. Two are written at **outcome rate** (run rate) — `app_inference` and `trigger_firing`. They land per fire / per call.
+
+Outcome-rate principles inherit the same convention:
+
+- **Scope.** Always attached to an artifact node (`scope_kind = 'node'`, the artifact's node id). Walking the artifact's principles in `created_at` order yields the full lifetime of automatic activity on that artifact.
+- **source_event field.** Distinct value per outcome kind (`app_inference`, `trigger_firing`); listed in `PRINCIPLE_SOURCE_EVENTS` in [meta-context.js repo](../control/lib/db/repositories/meta-context.js).
+- **Body shape.** Markdown. Lead with a one-line summary; follow with structured fields (`fired_at`, `parked_task_ref`, etc.) and a JSON `Evidence` block carrying kind-specific data (the schedule kind carries `scheduled_at` / `fired_at` / `drift_ms`; webhook kind in Phase 2 will carry source IP + header signature summary; watch kind in Phase 3 will carry delta-summary + items-seen count).
+- **Pairing.** A `trigger_firing` principle should have a sibling `app_inference` principle on the same artifact node once the parked task is fulfilled. The chain reads `trigger_firing → app_inference → trigger_firing → app_inference …` over the artifact's lifetime. A `trigger_firing` without a sibling `app_inference` is observable in the contextmap and tells the operator: a fire happened but the fulfiller never claimed it (queue depth, no worker available, fulfillment error, etc.).
+
+When future outcome principle kinds ship (anything that fires at run-rate per a structural binding), they follow this convention: artifact-node-scoped, distinct source_event, markdown body with a JSON evidence block, paired with a downstream outcome principle when applicable.
+
 ---
 
 ## Inventory (current-state cache, alongside the contextmap)

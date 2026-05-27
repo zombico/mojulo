@@ -259,6 +259,53 @@ After the artifact is materialized via the host adapter (a Claude Code skill, a 
 
 The commit auto-writes a summary principle on the artifact node recording the composition intent + every binding (primitive / role / affordance / bound tool / confidence). See [docs/meta-context.md](meta-context.md#primitive_artifact_materialization) for the commit-type spec.
 
+## The trigger-binding layer
+
+Parallel to the primitive-binding layer above, the trigger-binding layer operationalizes the `trigger` axis of mcp-orbit. Where `bind_primitives` makes the `mcp` axis operational by resolving a typed primitive ref against an operator's runtime-introspected tools, `bind_trigger` does the same for activation: a typed trigger component (e.g. `trigger/scheduled@0.1.0`) becomes the materialization target for a runtime daemon that fires at the operator's declared cadence.
+
+The same posture applies to both binding layers — **composer-anchored runtime**. The bind tool resolves `component_ref` against the composer's component store, not against an internal enum. Adding a new trigger kind = ship a typed component in [control/lib/mcp/mcp-orbit-components/trigger/](../control/lib/mcp/mcp-orbit-components/trigger/) plus its runtime daemon; the bind tool needs no per-kind code branch beyond the schema validator the component declares.
+
+### What ships in Phase 1
+
+| Component | Runtime daemon | Status |
+|---|---|---|
+| `trigger/scheduled@0.1.0` | Scheduler daemon ([control/lib/triggers/scheduler.js](../control/lib/triggers/scheduler.js)), croner-backed, UTC scheduling math | Shipped |
+| `trigger/signal-polled@0.1.0` | Watch daemon | Component shipped (since 0.5.0); runtime deferred |
+| `trigger/webhook@0.1.0` | Webhook receiver | Deferred — needs deployment-posture decision (mojulo on localhost can't receive an internet POST without a tunnel) |
+
+`bind_trigger` surfaces a clear error when an agent attempts to bind a component whose runtime isn't shipped, so the composer's typed inventory can grow ahead of the daemons without misleading operators.
+
+### The bind flow
+
+1. Agent calls `bind_trigger({ component_ref: 'trigger/scheduled@0.1.0', binding_params: { cron, timezone? }, payload_template, artifact_ref, composition_ref? })`. The handler resolves `component_ref` against the composer, validates `binding_params` against the component's schema (the schedule kind validates `cron` via croner at bind time so invalid expressions reject upfront, not at first fire), validates `payload_template` shape.
+2. Insert into `mcp_orbit_trigger_artifacts` — a session-scoped row carrying `component_ref`, `binding_params_json`, `payload_template_json`, and the target refs. A unique partial index on `(composition_ref, artifact_ref, component_ref) WHERE enabled = 1 AND superseded_by IS NULL` rejects duplicate active bindings against the same target.
+3. Seal via `meta_context_commit({ type: 'trigger_artifact_materialization', trigger_ref })`. The commit writes a `trigger_artifact_materialization` principle on the target artifact node summarizing the binding (component_ref, binding_params, payload_template). If the artifact node doesn't exist, the commit rejects and the trigger row is auto-disabled by the rollback path.
+4. The handler emits an in-process `reload` event the scheduler daemon listens for. If `MOJULO_TRIGGER_RUNTIME=enabled` is set, the daemon picks up the new trigger on the next tick.
+
+### The fire flow
+
+When the cron tick lands (or when the watch daemon detects a change in Phase 3 / the webhook receiver gets a request in Phase 2):
+
+1. The daemon's callback renders the payload template with runtime substitutions (`{{fired_at}}`, `{{scheduled_at}}`, `{{fired_at_date}}`, `{{fired_at_unix}}`) — flat key substitution only, no loops or conditionals.
+2. The payload is parked into the agent-tasks queue via `parkRequestForTrigger` (the fire-and-forget sibling to `parkRequest`). The daemon doesn't await fulfillment.
+3. A `trigger_firing` principle is written on the same artifact node as the eventual `app_inference` principle, with `scheduled_at` / `fired_at` / `drift_ms` evidence and the `parked_task_ref` linking the audit to the queued task.
+4. The fulfiller (`/loop` worker or Node fulfiller) eventually claims the task, runs inference, and writes the `app_inference` principle. Walking the artifact's principles in order yields `trigger_firing → app_inference → trigger_firing → app_inference …` — the full story of each autonomous run.
+
+### Opt-in runtime
+
+The scheduler daemon only starts when `MOJULO_TRIGGER_RUNTIME=enabled` is set — symmetric with `MOJULO_AGENT_RUNTIME`'s opt-in posture. Without the flag, `bind_trigger` calls still succeed and the binding rows are durable; on a later boot with the flag set, the daemon's `listActive()` picks them up.
+
+SIGTERM (and SIGINT) drain in-flight fires before exit — the daemon tracks fires in an in-flight `Set` and awaits them via `Promise.allSettled` so no `trigger_firing` principle is orphaned mid-write.
+
+### Observability surfaces
+
+- `meta_context_brief({kind:'fleet'})` returns a `triggers.{count, byComponent}` summary alongside `inventory` and `vendorKnowledge`.
+- `list_triggers({component_ref?, composition_ref?, artifact_ref?})` returns all active triggers with their bindings.
+- `get_trigger({trigger_ref})` returns a single trigger's full state (including disabled).
+- Per-artifact `meta_context_brief({scope:{kind:'artifact', ref:...}})` surfaces `trigger_firing` principles in the principles list — the audit chain.
+
+See [docs/meta-context.md](meta-context.md#trigger_artifact_materialization) for the commit-type spec and the `trigger_firing` principle convention.
+
 ## What does NOT belong in mcp-orbit
 
 - **Bot-shaped workflows** that read submissions or conversations from a deployed mojulo bot — those are catalysts, not mcp-orbit. The bot is the source of truth there; mcp-orbit assumes no bot.

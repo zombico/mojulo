@@ -79,8 +79,8 @@ export default function GraphPage() {
               {technical ? t('subtitleTechnical') : t('subtitle')}
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <label className="inline-flex items-center gap-2 text-sm text-[color:var(--text-muted)] cursor-pointer select-none">
+          <div className="flex items-center gap-2 shrink-0">
+            <label className="inline-flex items-center gap-2 text-sm text-[color:var(--text-secondary)] cursor-pointer select-none rounded-lg px-3 py-2 border border-[color:var(--border-color)] hover:bg-white/[0.03] transition-colors">
               <input
                 type="checkbox"
                 checked={technical}
@@ -93,14 +93,19 @@ export default function GraphPage() {
               type="button"
               onClick={load}
               disabled={loading}
-              className="rounded-lg px-3 py-2 border border-[color:var(--border-color)] text-sm disabled:opacity-50"
+              className="rounded-lg px-3 py-2 border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] text-sm text-[color:var(--text-secondary)] hover:bg-white/[0.03] hover:text-[color:var(--text-primary)] disabled:opacity-50 disabled:hover:bg-[color:var(--surface-primary)] transition-colors"
             >
               {loading ? t('loading') : t('refresh')}
             </button>
           </div>
         </header>
 
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {error ? (
+          <section className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-red-300 flex items-center gap-2">
+            <span aria-hidden>✗</span>
+            <span className="font-mono text-xs">{error}</span>
+          </section>
+        ) : null}
 
         {overlay ? (
           <section className="rounded-xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] px-4 py-3 text-sm flex items-center justify-between gap-4">
@@ -163,12 +168,14 @@ export default function GraphPage() {
         ) : null}
 
         {manifest ? (
-          <section className="rounded-xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-4">
-            <div className="text-xs uppercase tracking-wide text-[color:var(--text-muted)] mb-3">
-              {manifest.title}
+          <section className="rounded-xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-5">
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[color:var(--border-color)]/60">
+              <span className="text-xs uppercase tracking-[0.12em] text-[color:var(--text-muted)] font-medium">
+                {manifest.title}
+              </span>
             </div>
             <CreationMap manifest={manifest} technical={technical} />
-            <div className="mt-4 flex flex-wrap gap-4 text-xs text-[color:var(--text-muted)]">
+            <div className="mt-5 pt-4 border-t border-[color:var(--border-color)]/60 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[color:var(--text-secondary)]">
               <Legend swatch="rgba(255,255,255,0.02)" border="var(--border-color)" dashed>
                 {technical ? t('legend.inputTechnical') : t('legend.input')}
               </Legend>
@@ -193,7 +200,7 @@ function Legend({ swatch, border, dashed, children }) {
   return (
     <span className="inline-flex items-center gap-2">
       <span
-        className="inline-block w-4 h-3 rounded-sm"
+        className="inline-block w-5 h-4 rounded shrink-0"
         style={{
           background: swatch,
           border: `1.4px ${dashed ? 'dashed' : 'solid'} ${border}`,

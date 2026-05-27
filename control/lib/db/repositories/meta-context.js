@@ -32,6 +32,8 @@ const PRINCIPLE_SOURCE_EVENTS = [
   'primitive_artifact_materialization',
   'app_materialization',
   'app_inference',
+  'trigger_artifact_materialization',
+  'trigger_firing',
   'operator_kyc',
   'operator_workspace_setup',
   'adapter_shipped',
@@ -305,7 +307,37 @@ function briefFleet() {
   // research-mcp-vendor catalyst for a refresh.
   const vendorKnowledge = buildVendorKnowledgeSummary();
 
-  return { nodes, edges, principles, meta, inventory, vendorKnowledge };
+  // Trigger summary — fleet-level fact, sibling to inventory. Counts active
+  // (enabled=1, superseded_by IS NULL) bindings grouped by component_ref so
+  // the agent can see "what's wired to fire automatically" at a glance.
+  // Per-trigger detail lives in list_triggers / get_trigger.
+  const triggers = buildTriggerSummary();
+
+  return { nodes, edges, principles, meta, inventory, vendorKnowledge, triggers };
+}
+
+function buildTriggerSummary() {
+  // Read active trigger rows directly so this stays decoupled from the
+  // runtime daemon (which may not be running when the brief is read).
+  // Group by component_ref so consumers can tell "5 schedule triggers"
+  // apart from "5 webhook triggers" when Phase 2 ships.
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT component_ref, COUNT(*) AS count
+       FROM mcp_orbit_trigger_artifacts
+       WHERE enabled = 1 AND superseded_by IS NULL
+       GROUP BY component_ref
+       ORDER BY component_ref ASC`,
+    )
+    .all();
+  let total = 0;
+  const byComponent = {};
+  for (const row of rows) {
+    byComponent[row.component_ref] = row.count;
+    total += row.count;
+  }
+  return { count: total, byComponent };
 }
 
 function buildVendorKnowledgeSummary() {

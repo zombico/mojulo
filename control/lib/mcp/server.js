@@ -207,6 +207,7 @@ export async function ensureToolsRegistered() {
   const { registerCapabilitiesTools } = await import('@/lib/mcp/tools/mcp-capabilities');
   const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
   const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
+  const { registerTriggerBindingTools } = await import('@/lib/mcp/tools/mcp-trigger-binding');
   const { registerSemanticSearchTools } = await import('@/lib/mcp/tools/semantic-search');
   const { registerRunnerTools } = await import('@/lib/mcp/tools/runner');
   const { registerAgentTaskTools } = await import('@/lib/mcp/tools/agent-tasks');
@@ -221,9 +222,13 @@ export async function ensureToolsRegistered() {
   // immediately after the contextmap tools — it's the third Ring 6 surface
   // (current-environment cache alongside the append-only contextmap).
   // mcp-orbit tools register after inventory (composer ON TOP of inventory).
-  // bind_primitives registers LAST within Ring 6 — it's the primitive-binding
-  // architecture's only tool surface in Phase A.1, parallel to the existing
-  // mcp-orbit composer, NOT replacing it. See MCP_PRIMITIVE_BINDING_PLAN.md.
+  // bind_primitives + bind_trigger are the composer-anchored binding surfaces
+  // — bind_primitives operationalizes the `mcp` axis of mcp-orbit, bind_trigger
+  // operationalizes the `trigger` axis. Both resolve a typed component_ref
+  // against the composer's component store and materialize a session-scoped
+  // artifact. They register adjacent so the natural reading order is
+  // composer → primitive binding → trigger binding → semantic recall.
+  // See MCP_PRIMITIVE_BINDING_PLAN.md and TRIGGER_BINDING_PLAN.md.
   registerContextTools();
   registerAdapterTools();
   registerBuildTools();
@@ -241,6 +246,7 @@ export async function ensureToolsRegistered() {
   registerCapabilitiesTools();
   registerMCPOrbitTools();
   registerPrimitiveBindingTools();
+  registerTriggerBindingTools();
   // semantic_search registers LAST within Ring 6 — it's a recall-over-state
   // tool that complements every prior Ring 6 reader (brief, inventory,
   // capabilities, composer, primitive-binding). Slotting it at the end of
