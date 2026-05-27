@@ -38,3 +38,40 @@ describe('middleware matcher — public-path exemption list', () => {
     expect(SOURCE).toMatch(/\/\(\(\?!/);
   });
 });
+
+describe('middleware bearer-first auth (CONTROL_PLANE_MCP_KEY short-circuit)', () => {
+  // Bearer-first: if Authorization: Bearer matches CONTROL_PLANE_MCP_KEY,
+  // the session-cookie check is skipped. Unifies the two auth schemes so
+  // every bearer-protected route (/api/mcp, /api/app-inference, future
+  // agent-callable routes) is reachable without per-route matcher edits.
+  it('reads CONTROL_PLANE_MCP_KEY before the session check runs', () => {
+    expect(SOURCE).toMatch(/CONTROL_PLANE_MCP_KEY/);
+    expect(SOURCE).toMatch(/presentedBearerMatchesMcpKey/);
+    // The short-circuit must run before verifySessionToken — otherwise the
+    // 401 still fires for bearer-only callers.
+    const bearerIdx = SOURCE.indexOf('presentedBearerMatchesMcpKey(req)');
+    const verifyIdx = SOURCE.indexOf('verifySessionToken(token');
+    expect(bearerIdx).toBeGreaterThan(0);
+    expect(verifyIdx).toBeGreaterThan(0);
+    expect(bearerIdx).toBeLessThan(verifyIdx);
+  });
+
+  it('uses constant-time comparison for the bearer token', () => {
+    expect(SOURCE).toMatch(/constantTimeEquals/);
+  });
+
+  it('matches Bearer scheme case-insensitively', () => {
+    expect(SOURCE).toMatch(/\^Bearer\\s\+\(\.\+\)\$\/i/);
+  });
+});
+
+describe('middleware 401 body shape (diagnostic friction fix)', () => {
+  it('returns JSON with SESSION_REQUIRED code, not plain text', () => {
+    // Before this change the body was just "Authentication required" which
+    // was indistinguishable from a wrong-bearer 401 returned by the route
+    // itself. SESSION_REQUIRED tells the app: you hit the outer gate, not
+    // the route handler.
+    expect(SOURCE).toMatch(/SESSION_REQUIRED/);
+    expect(SOURCE).toMatch(/Content-Type.*application\/json/);
+  });
+});

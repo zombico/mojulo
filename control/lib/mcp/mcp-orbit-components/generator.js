@@ -26,10 +26,14 @@
  *   - {{schema:<affordance>}}            → JSON.stringify of input schema, or
  *                                          "(no schema available)"
  *   - {{unbound_affordances}}            → comma-separated list with support hints
+ *   - {{path_prefix}}                    → the binding's path scope, or "" when unset
  *   - {{if-bound:<affordance>}}...{{/if-bound:<affordance>}}     → conditional
  *   - {{if-unbound:<affordance>}}...{{/if-unbound:<affordance>}} → conditional
+ *   - {{if-path-prefix}}...{{/if-path-prefix}}                   → conditional
+ *   - {{if-no-path-prefix}}...{{/if-no-path-prefix}}             → conditional
  *
- * Conditionals are flat (no nesting) and matched by exact affordance name.
+ * Conditionals are flat (no nesting) and matched by exact affordance name (or
+ * exact slot name for the path-prefix variants).
  */
 
 import { readFileSync } from 'node:fs';
@@ -123,16 +127,21 @@ function buildManifest({ role, primitiveMeta, bindings, toolsByName }) {
   return { bound, unbound, declaredCount: declared.length };
 }
 
-function fillConditionals(template, manifest) {
+function fillConditionals(template, manifest, { pathPrefix } = {}) {
   const boundSet = new Set(manifest.bound.map((b) => b.affordance));
   const ifBound = /\{\{if-bound:([a-z0-9-]+)\}\}([\s\S]*?)\{\{\/if-bound:\1\}\}/g;
   const ifUnbound = /\{\{if-unbound:([a-z0-9-]+)\}\}([\s\S]*?)\{\{\/if-unbound:\1\}\}/g;
+  const ifPathPrefix = /\{\{if-path-prefix\}\}([\s\S]*?)\{\{\/if-path-prefix\}\}/g;
+  const ifNoPathPrefix = /\{\{if-no-path-prefix\}\}([\s\S]*?)\{\{\/if-no-path-prefix\}\}/g;
   let out = template.replace(ifBound, (_, aff, content) =>
     boundSet.has(aff) ? content : '',
   );
   out = out.replace(ifUnbound, (_, aff, content) =>
     boundSet.has(aff) ? '' : content,
   );
+  const hasPathPrefix = typeof pathPrefix === 'string' && pathPrefix.length > 0;
+  out = out.replace(ifPathPrefix, (_, content) => (hasPathPrefix ? content : ''));
+  out = out.replace(ifNoPathPrefix, (_, content) => (hasPathPrefix ? '' : content));
   return out;
 }
 
@@ -146,7 +155,7 @@ function formatUnboundList(unbound) {
     .join(', ');
 }
 
-function fillSubstitutions(template, { snapshot, manifest }) {
+function fillSubstitutions(template, { snapshot, manifest, pathPrefix }) {
   const boundByAff = new Map(manifest.bound.map((b) => [b.affordance, b]));
   let out = template;
   out = out.replaceAll('{{server}}', String(snapshot.server || ''));
@@ -169,7 +178,29 @@ function fillSubstitutions(template, { snapshot, manifest }) {
     return JSON.stringify(b.schema, null, 2);
   });
   out = out.replaceAll('{{unbound_affordances}}', formatUnboundList(manifest.unbound));
+  out = out.replaceAll('{{path_prefix}}', typeof pathPrefix === 'string' ? pathPrefix : '');
   return out;
+}
+
+// Path-prefix validation lives in the generator so every caller gets the same
+// rejection rules. Allow nothing surprising — explicit `..` segments would let
+// a bound artifact escape the operator's workspace root; empty strings would
+// produce confusing "scoped to ''" prose; absolute paths are accepted because
+// some primitives (filesystem) want them, but the catalyst body is where the
+// "is this path under workspace_root?" check lives — the generator can't see
+// the operator's principle.
+function validatePathPrefix(pathPrefix) {
+  if (pathPrefix === undefined || pathPrefix === null) return;
+  if (typeof pathPrefix !== 'string') {
+    throw new Error('pathPrefix must be a string when provided');
+  }
+  if (pathPrefix.length === 0) {
+    throw new Error('pathPrefix must be non-empty when provided (omit the field to leave it unset)');
+  }
+  const segments = pathPrefix.split(/[\\/]/);
+  if (segments.includes('..')) {
+    throw new Error("pathPrefix must not contain '..' segments");
+  }
 }
 
 /**
@@ -184,6 +215,7 @@ function fillSubstitutions(template, { snapshot, manifest }) {
  * @param {Array<{name:string, description?:string, inputSchema?:object}>} input.snapshot.tools
  * @param {string} [input.snapshot.introspection_confidence] - 'tools_list_full' | 'names_only' | 'agent_inferred'
  * @param {Record<string, {tool:string, confidence?:string}>} [input.bindings] - Affordance → tool map.
+ * @param {string} [input.pathPrefix] - Optional path-scope for the binding (e.g. a workspace subdirectory the binding is constrained to). Renders into the `{{path_prefix}}` slot and surfaces on the manifest as `pathPrefix` so programmatic consumers (Runner MCP, catalyst guidance) can read it without parsing prose.
  * @param {string} [input.rootDir] - Override primitive directory (for tests).
  * @returns {{
  *   primitive: string,
@@ -192,11 +224,11 @@ function fillSubstitutions(template, { snapshot, manifest }) {
  *   introspectedAt: string,
  *   snapshotConfidence: string|null,
  *   body: string,
- *   manifest: { bound: Array, unbound: Array, declaredCount: number }
+ *   manifest: { bound: Array, unbound: Array, declaredCount: number, pathPrefix?: string }
  * }}
  */
 export function generateProviderArtifact(input) {
-  const { primitive, role, snapshot, bindings = {}, rootDir = PRIMITIVE_DIR } = input || {};
+  const { primitive, role, snapshot, bindings = {}, pathPrefix, rootDir = PRIMITIVE_DIR } = input || {};
   if (!primitive || typeof primitive !== 'string') {
     throw new Error('primitive (string) is required');
   }
@@ -208,6 +240,7 @@ export function generateProviderArtifact(input) {
       'snapshot { server, introspected_at, tools, introspection_confidence } is required',
     );
   }
+  validatePathPrefix(pathPrefix);
   const primitiveMeta = loadPrimitive(primitive, rootDir);
   if (!primitiveMeta.affordances[role]) {
     throw new Error(
@@ -217,9 +250,12 @@ export function generateProviderArtifact(input) {
   const template = loadTemplate(primitive, role, rootDir);
   const toolsByName = indexToolsByName(snapshot);
   const manifest = buildManifest({ role, primitiveMeta, bindings, toolsByName });
+  if (typeof pathPrefix === 'string' && pathPrefix.length > 0) {
+    manifest.pathPrefix = pathPrefix;
+  }
 
-  let body = fillConditionals(template, manifest);
-  body = fillSubstitutions(body, { snapshot, manifest });
+  let body = fillConditionals(template, manifest, { pathPrefix });
+  body = fillSubstitutions(body, { snapshot, manifest, pathPrefix });
 
   return {
     primitive: `${primitiveMeta.ref}@${primitiveMeta.version}`,
@@ -243,5 +279,6 @@ export const _internals = {
   fillConditionals,
   fillSubstitutions,
   formatUnboundList,
+  validatePathPrefix,
   PRIMITIVE_DIR,
 };

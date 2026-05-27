@@ -208,6 +208,8 @@ export async function ensureToolsRegistered() {
   const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
   const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
   const { registerSemanticSearchTools } = await import('@/lib/mcp/tools/semantic-search');
+  const { registerRunnerTools } = await import('@/lib/mcp/tools/runner');
+  const { registerAgentTaskTools } = await import('@/lib/mcp/tools/agent-tasks');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -246,4 +248,14 @@ export async function ensureToolsRegistered() {
   // (structured walks) → deliberation (fuzzy recall). See
   // lite-template/integration/SEMANTIC_INDEX_PLAN.md.
   registerSemanticSearchTools();
+  // Ring 7 (runtime) — app runner tools + agent-tasks (mojulo's
+  // opinionated runtime primitive for agent-mediated, schema-validated
+  // work: pull_agent_task → submit_envelope_inference (or other per-kind
+  // submit tools) → cancel_agent_task). Runner tools register first so
+  // the natural reading order in tools/list is lifecycle (install_scaffold
+  // → start_app → status_app → stop_app) → agent-tasks (pull → submit →
+  // cancel). See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md and
+  // APP_SPIKE_A_REFRAME_PLAN.md.
+  registerRunnerTools();
+  registerAgentTaskTools();
 }

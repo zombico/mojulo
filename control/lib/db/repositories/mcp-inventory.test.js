@@ -511,3 +511,153 @@ describe('replaceInventory: provider_id stamping', () => {
     expect(provider.provider_ref).toBe('linear');
   });
 });
+
+// ── App-MCP partition (server_kind = 'app') ───────────────────────────────
+//
+// The app paradigm spike adds runner-managed inventory entries that ride
+// alongside agent-declared vendor entries on the same table. The two
+// partitions must not interfere: vendor declarations preserve app rows;
+// app add/remove never touches vendor rows; both surface in
+// currentInventory(). See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
+
+describe('schema bootstraps — server_kind partition', () => {
+  it('adds server_kind and running_ref columns with vendor default', () => {
+    const db = getDb();
+    const cols = db.prepare('PRAGMA table_info(meta_mcp_inventory)').all();
+    const have = Object.fromEntries(cols.map((c) => [c.name, c]));
+    expect(have.server_kind).toBeTruthy();
+    expect(have.server_kind.dflt_value).toBe("'vendor'");
+    expect(have.running_ref).toBeTruthy();
+  });
+});
+
+describe('InventoryRepository.addAppInventory', () => {
+  it('inserts app rows tagged server_kind=app with the running_ref populated', () => {
+    InventoryRepository.addAppInventory({
+      server: 'image-extractor',
+      tools: [
+        { name: 'list_extractions', description: 'List recent extractions' },
+        { name: 'describe_app' },
+      ],
+      runningRef: 'run-abc123',
+    });
+    const db = getDb();
+    const rows = db
+      .prepare(
+        `SELECT server, tool_name, server_kind, running_ref FROM meta_mcp_inventory
+         ORDER BY tool_name`,
+      )
+      .all();
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.server).toBe('image-extractor');
+      expect(row.server_kind).toBe('app');
+      expect(row.running_ref).toBe('run-abc123');
+    }
+  });
+
+  it('replace-by-running-ref drops a prior app push under the same runningRef', () => {
+    InventoryRepository.addAppInventory({
+      server: 'image-extractor',
+      tools: [{ name: 'old_tool' }],
+      runningRef: 'run-abc123',
+    });
+    InventoryRepository.addAppInventory({
+      server: 'image-extractor',
+      tools: [{ name: 'new_tool' }],
+      runningRef: 'run-abc123',
+    });
+    const db = getDb();
+    const rows = db
+      .prepare("SELECT tool_name FROM meta_mcp_inventory WHERE server_kind = 'app'")
+      .all();
+    expect(rows.map((r) => r.tool_name)).toEqual(['new_tool']);
+  });
+
+  it('rejects empty server / tools-not-array / empty runningRef', () => {
+    expect(() =>
+      InventoryRepository.addAppInventory({ server: '', tools: [], runningRef: 'r' }),
+    ).toThrow(/non-empty server name/);
+    expect(() =>
+      InventoryRepository.addAppInventory({ server: 'x', tools: null, runningRef: 'r' }),
+    ).toThrow(/tools array/);
+    expect(() =>
+      InventoryRepository.addAppInventory({ server: 'x', tools: [], runningRef: '' }),
+    ).toThrow(/non-empty runningRef/);
+  });
+});
+
+describe('InventoryRepository.removeAppInventory', () => {
+  it('drops every app row under the given runningRef and returns the count', () => {
+    InventoryRepository.addAppInventory({
+      server: 'image-extractor',
+      tools: [{ name: 'a' }, { name: 'b' }],
+      runningRef: 'run-1',
+    });
+    InventoryRepository.addAppInventory({
+      server: 'other-app',
+      tools: [{ name: 'c' }],
+      runningRef: 'run-2',
+    });
+    const { removed } = InventoryRepository.removeAppInventory('run-1');
+    expect(removed).toBe(2);
+    const db = getDb();
+    const remaining = db
+      .prepare("SELECT tool_name FROM meta_mcp_inventory WHERE server_kind = 'app'")
+      .all();
+    expect(remaining.map((r) => r.tool_name)).toEqual(['c']);
+  });
+
+  it('is a no-op for an unknown runningRef', () => {
+    InventoryRepository.addAppInventory({
+      server: 'image-extractor',
+      tools: [{ name: 'a' }],
+      runningRef: 'run-1',
+    });
+    const { removed } = InventoryRepository.removeAppInventory('does-not-exist');
+    expect(removed).toBe(0);
+    const db = getDb();
+    const remaining = db
+      .prepare("SELECT COUNT(*) AS n FROM meta_mcp_inventory WHERE server_kind = 'app'")
+      .get().n;
+    expect(remaining).toBe(1);
+  });
+});
+
+describe('vendor replace preserves app rows (server_kind partition)', () => {
+  it('replaceInventory only deletes vendor rows; app rows survive', () => {
+    InventoryRepository.addAppInventory({
+      server: 'image-extractor',
+      tools: [{ name: 'list_extractions' }],
+      runningRef: 'run-1',
+    });
+    InventoryRepository.replaceInventory([
+      { name: 'gmail', tools: [{ name: 'send' }] },
+    ]);
+    const db = getDb();
+    const all = db
+      .prepare('SELECT server, server_kind FROM meta_mcp_inventory ORDER BY server')
+      .all();
+    expect(all).toEqual([
+      { server: 'gmail', server_kind: 'vendor' },
+      { server: 'image-extractor', server_kind: 'app' },
+    ]);
+  });
+
+  it('currentInventory surfaces serverKind and runningRef per server', () => {
+    InventoryRepository.replaceInventory([
+      { name: 'gmail', tools: [{ name: 'send' }] },
+    ]);
+    InventoryRepository.addAppInventory({
+      server: 'image-extractor',
+      tools: [{ name: 'list_extractions' }],
+      runningRef: 'run-1',
+    });
+    const inv = InventoryRepository.currentInventory();
+    const byName = Object.fromEntries(inv.servers.map((s) => [s.name, s]));
+    expect(byName.gmail.serverKind).toBe('vendor');
+    expect(byName.gmail.runningRef).toBeUndefined();
+    expect(byName['image-extractor'].serverKind).toBe('app');
+    expect(byName['image-extractor'].runningRef).toBe('run-1');
+  });
+});

@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "에이전트가 App 패러다임을 통해 구체화한 Apps. 라이프사이클, 환경 변수, 그리고 라이브 MCP 인트로스펙션 — contextmap과 로컬 러너에서 읽어옵니다.",
+    "loading": "로딩 중…",
+    "refresh": "새로 고침",
+    "empty": "아직 apps가 없습니다 — Claude Code 에이전트에게 스캐폴딩을 요청하세요.",
+    "backToList": "Apps로 돌아가기",
+    "notFound": "App을 찾을 수 없습니다.",
+    "openPreview": "미리 보기 열기",
+    "openMcp": "MCP 열기",
+    "actions": {
+      "start": "시작",
+      "stop": "중지",
+      "starting": "시작 중…",
+      "stopping": "중지 중…"
+    },
+    "status": {
+      "running": "실행 중",
+      "stopped": "중지됨",
+      "crashed": "충돌",
+      "unknown": "알 수 없음"
+    },
+    "table": {
+      "headers": {
+        "name": "이름",
+        "materialized": "구체화됨",
+        "runner": "러너",
+        "status": "상태",
+        "actions": "작업"
+      }
+    },
+    "detail": {
+      "metadata": "메타데이터",
+      "artifactPath": "아티팩트 경로",
+      "materializationRef": "Materialization ref",
+      "adapter": "어댑터",
+      "appName": "App 이름",
+      "host": "호스트",
+      "materializedAt": "구체화 일시",
+      "bindings": "바인딩",
+      "binding": {
+        "runner": "러너",
+        "durability": "내구성",
+        "inference": "추론",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL",
+        "offline": "MCP 오프라인 — app을 시작하면 도구 목록을 볼 수 있습니다.",
+        "loading": "도구 로딩 중…",
+        "error": "App MCP에 연결할 수 없습니다: {error}",
+        "registeredTools": "등록된 도구",
+        "noTools": "등록된 도구가 없습니다.",
+        "declaredPurpose": "선언된 목적"
+      },
+      "envPanel": {
+        "title": "환경 변수",
+        "explainer": "값은 아티팩트의 .env 파일에 직접 기록됩니다. 로깅되지 않으며, 컨트롤 플레인 데이터베이스에 저장되지 않고, 이 화면에 다시 표시되지도 않습니다.",
+        "keyHeader": "키",
+        "addKey": "키",
+        "addValue": "값",
+        "add": "추가",
+        "delete": "삭제",
+        "deleteConfirm": "환경 변수 \"{key}\"를 삭제하시겠습니까?",
+        "noKeys": "아직 설정된 환경 변수가 없습니다.",
+        "valueHidden": "•••••",
+        "edit": "편집",
+        "save": "저장",
+        "cancel": "취소",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "값"
+      },
+      "provenance": {
+        "title": "출처",
+        "subtitle": "이 app의 구체화 커밋에 첨부된 원칙입니다.",
+        "none": "기록된 원칙이 없습니다."
+      }
+    }
+  },
   "documentUploader": {
     "title": "문서 업로드",
     "description": "챗봇이 RAG (검색 증강 생성)에 사용할 문서 업로드",

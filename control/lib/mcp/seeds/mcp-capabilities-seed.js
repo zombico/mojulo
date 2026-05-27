@@ -48,6 +48,7 @@ const DISPLAY_NAMES = {
   linear: 'Linear',
   google_drive: 'Google Drive',
   slack: 'Slack',
+  filesystem: 'Filesystem',
 };
 
 function parseSeedFile(filePath, raw) {

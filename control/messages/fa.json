@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "اپ‌هایی که عامل از طریق پارادایم App مادی‌سازی کرده است. چرخه عمر، متغیرهای محیطی و درون‌بینی زنده MCP — خوانده‌شده از contextmap و اجراکننده محلی.",
+    "loading": "در حال بارگذاری…",
+    "refresh": "تازه‌سازی",
+    "empty": "هنوز هیچ اپی نیست — از عامل Claude Code خود بخواهید یکی را داربست‌بندی کند.",
+    "backToList": "بازگشت به Apps",
+    "notFound": "App یافت نشد.",
+    "openPreview": "باز کردن پیش‌نمایش",
+    "openMcp": "باز کردن MCP",
+    "actions": {
+      "start": "شروع",
+      "stop": "توقف",
+      "starting": "در حال شروع…",
+      "stopping": "در حال توقف…"
+    },
+    "status": {
+      "running": "در حال اجرا",
+      "stopped": "متوقف",
+      "crashed": "خراب شده",
+      "unknown": "ناشناخته"
+    },
+    "table": {
+      "headers": {
+        "name": "نام",
+        "materialized": "مادی‌سازی‌شده",
+        "runner": "اجراکننده",
+        "status": "وضعیت",
+        "actions": "اقدامات"
+      }
+    },
+    "detail": {
+      "metadata": "متادیتا",
+      "artifactPath": "مسیر آرتیفکت",
+      "materializationRef": "Materialization ref",
+      "adapter": "آداپتور",
+      "appName": "نام App",
+      "host": "میزبان",
+      "materializedAt": "زمان مادی‌سازی",
+      "bindings": "اتصال‌ها",
+      "binding": {
+        "runner": "اجراکننده",
+        "durability": "دوام",
+        "inference": "استنتاج",
+        "mcpSelf": "MCP خود"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "آدرس MCP",
+        "offline": "MCP آفلاین است — App را شروع کنید تا فهرست ابزارهای آن را ببینید.",
+        "loading": "در حال بارگذاری ابزارها…",
+        "error": "دسترسی به MCP اپ ممکن نشد: {error}",
+        "registeredTools": "ابزارهای ثبت‌شده",
+        "noTools": "هیچ ابزاری ثبت نشده است.",
+        "declaredPurpose": "هدف اعلام‌شده"
+      },
+      "envPanel": {
+        "title": "متغیرهای محیطی",
+        "explainer": "مقادیر مستقیماً در فایل .env آرتیفکت نوشته می‌شوند. آن‌ها ثبت نمی‌شوند، در پایگاه‌داده کنترل‌پنل ذخیره نمی‌شوند و به این نما بازتاب داده نمی‌شوند.",
+        "keyHeader": "کلید",
+        "addKey": "کلید",
+        "addValue": "مقدار",
+        "add": "افزودن",
+        "delete": "حذف",
+        "deleteConfirm": "متغیر محیطی \"{key}\" حذف شود؟",
+        "noKeys": "هنوز هیچ متغیر محیطی تنظیم نشده است.",
+        "valueHidden": "•••••",
+        "edit": "ویرایش",
+        "save": "ذخیره",
+        "cancel": "انصراف",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "مقدار"
+      },
+      "provenance": {
+        "title": "منشأ",
+        "subtitle": "اصول پیوست‌شده به commit مادی‌سازی این App.",
+        "none": "هیچ اصلی ثبت نشده است."
+      }
+    }
+  },
   "documentUploader": {
     "title": "آپلود اسناد",
     "description": "اسنادی را آپلود کنید که چت‌بات شما برای RAG (تولید تقویت‌شده با بازیابی) استفاده خواهد کرد",

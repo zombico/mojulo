@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Các App mà agent đã hiện thực hóa thông qua paradigm App. Vòng đời, biến môi trường và việc introspect MCP trực tiếp — đọc từ contextmap và trình chạy cục bộ.",
+    "loading": "Đang tải…",
+    "refresh": "Làm mới",
+    "empty": "Chưa có App nào — hãy yêu cầu agent Claude Code của bạn dựng một cái.",
+    "backToList": "Quay lại Apps",
+    "notFound": "Không tìm thấy App.",
+    "openPreview": "Mở bản xem trước",
+    "openMcp": "Mở MCP",
+    "actions": {
+      "start": "Khởi động",
+      "stop": "Dừng",
+      "starting": "Đang khởi động…",
+      "stopping": "Đang dừng…"
+    },
+    "status": {
+      "running": "Đang chạy",
+      "stopped": "Đã dừng",
+      "crashed": "Đã sập",
+      "unknown": "Không xác định"
+    },
+    "table": {
+      "headers": {
+        "name": "Tên",
+        "materialized": "Đã hiện thực hóa",
+        "runner": "Trình chạy",
+        "status": "Trạng thái",
+        "actions": "Hành động"
+      }
+    },
+    "detail": {
+      "metadata": "Siêu dữ liệu",
+      "artifactPath": "Đường dẫn artifact",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "Tên App",
+      "host": "Host",
+      "materializedAt": "Hiện thực hóa lúc",
+      "bindings": "Ràng buộc",
+      "binding": {
+        "runner": "Trình chạy",
+        "durability": "Độ bền",
+        "inference": "Suy luận",
+        "mcpSelf": "MCP tự thân"
+      },
+      "mcpPanel": {
+        "title": "MCP của App",
+        "url": "URL MCP",
+        "offline": "MCP đang ngoại tuyến — hãy khởi động App để xem danh sách công cụ.",
+        "loading": "Đang tải công cụ…",
+        "error": "Không thể kết nối với MCP của App: {error}",
+        "registeredTools": "Công cụ đã đăng ký",
+        "noTools": "Chưa đăng ký công cụ nào.",
+        "declaredPurpose": "Mục đích đã khai báo"
+      },
+      "envPanel": {
+        "title": "Biến môi trường",
+        "explainer": "Giá trị được ghi trực tiếp vào tệp .env của artifact. Chúng không được ghi log, không được lưu trong cơ sở dữ liệu control plane, và không hiển thị lại trong khung này.",
+        "keyHeader": "Khóa",
+        "addKey": "Khóa",
+        "addValue": "Giá trị",
+        "add": "Thêm",
+        "delete": "Xóa",
+        "deleteConfirm": "Xóa biến môi trường \"{key}\"?",
+        "noKeys": "Chưa đặt biến môi trường nào.",
+        "valueHidden": "•••••",
+        "edit": "Chỉnh sửa",
+        "save": "Lưu",
+        "cancel": "Hủy",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "giá trị"
+      },
+      "provenance": {
+        "title": "Nguồn gốc",
+        "subtitle": "Các nguyên tắc được gắn vào commit hiện thực hóa của App này.",
+        "none": "Chưa ghi nhận nguyên tắc nào."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Tải lên tài liệu",
     "description": "Tải lên các tài liệu mà chatbot của bạn sẽ sử dụng cho RAG (Retrieval-Augmented Generation)",

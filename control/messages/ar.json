@@ -2132,5 +2132,86 @@
     "signingIn": "جارٍ تسجيل الدخول…",
     "signOut": "تسجيل الخروج",
     "invalid": "اسم المستخدم أو كلمة المرور غير صحيحة"
+  },
+  "apps": {
+    "navLabel": "التطبيقات",
+    "title": "التطبيقات",
+    "subtitle": "التطبيقات التي قام الوكيل بتجسيدها عبر نموذج App. دورة الحياة ومتغيرات البيئة والاستكشاف المباشر لـ MCP — تُقرأ من خريطة السياق ومن المُشغّل المحلي.",
+    "loading": "جارٍ التحميل…",
+    "refresh": "تحديث",
+    "empty": "لا توجد تطبيقات بعد — اطلب من وكيل Claude Code إنشاء واحد.",
+    "backToList": "العودة إلى التطبيقات",
+    "notFound": "التطبيق غير موجود.",
+    "openPreview": "فتح المعاينة",
+    "openMcp": "فتح MCP",
+    "actions": {
+      "start": "تشغيل",
+      "stop": "إيقاف",
+      "starting": "جارٍ التشغيل…",
+      "stopping": "جارٍ الإيقاف…"
+    },
+    "status": {
+      "running": "قيد التشغيل",
+      "stopped": "متوقف",
+      "crashed": "تعطّل",
+      "unknown": "غير معروف"
+    },
+    "table": {
+      "headers": {
+        "name": "الاسم",
+        "materialized": "تاريخ التجسيد",
+        "runner": "المُشغّل",
+        "status": "الحالة",
+        "actions": "الإجراءات"
+      }
+    },
+    "detail": {
+      "metadata": "البيانات الوصفية",
+      "artifactPath": "مسار العنصر",
+      "materializationRef": "Materialization ref",
+      "adapter": "المُكيِّف",
+      "appName": "اسم التطبيق",
+      "host": "المضيف",
+      "materializedAt": "تاريخ التجسيد",
+      "bindings": "الارتباطات",
+      "binding": {
+        "runner": "المُشغّل",
+        "durability": "الديمومة",
+        "inference": "الاستدلال",
+        "mcpSelf": "MCP الذاتي"
+      },
+      "mcpPanel": {
+        "title": "MCP التطبيق",
+        "url": "رابط MCP",
+        "offline": "MCP غير متصل — شغّل التطبيق لعرض قائمة أدواته.",
+        "loading": "جارٍ تحميل الأدوات…",
+        "error": "تعذّر الوصول إلى MCP التطبيق: {error}",
+        "registeredTools": "الأدوات المسجّلة",
+        "noTools": "لا توجد أدوات مسجّلة.",
+        "declaredPurpose": "الغرض المُعلَن"
+      },
+      "envPanel": {
+        "title": "متغيرات البيئة",
+        "explainer": "تُكتب القيم مباشرةً في ملف .env الخاص بالعنصر. لا تُسجَّل، ولا تُخزَّن في قاعدة بيانات لوحة التحكم، ولا تُعاد إلى هذا العرض.",
+        "keyHeader": "المفتاح",
+        "addKey": "المفتاح",
+        "addValue": "القيمة",
+        "add": "إضافة",
+        "delete": "حذف",
+        "deleteConfirm": "حذف متغير البيئة \"{key}\"؟",
+        "noKeys": "لم يتم تعيين أي متغيرات بيئة بعد.",
+        "valueHidden": "•••••",
+        "edit": "تعديل",
+        "save": "حفظ",
+        "cancel": "إلغاء",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "قيمة"
+      },
+      "provenance": {
+        "title": "المصدر",
+        "subtitle": "المبادئ المرتبطة بعملية تجسيد هذا التطبيق.",
+        "none": "لم يتم تسجيل أي مبادئ."
+      }
+    }
   }
 }

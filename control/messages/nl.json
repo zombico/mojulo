@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps die de agent heeft gematerialiseerd via het App-paradigma. Levenscyclus, omgevingsvariabelen en live MCP-introspectie — gelezen uit de contextmap en de lokale runner.",
+    "loading": "Laden…",
+    "refresh": "Vernieuwen",
+    "empty": "Nog geen Apps — vraag je Claude Code-agent om er een te steigeren.",
+    "backToList": "Terug naar Apps",
+    "notFound": "App niet gevonden.",
+    "openPreview": "Voorbeeld openen",
+    "openMcp": "MCP openen",
+    "actions": {
+      "start": "Starten",
+      "stop": "Stoppen",
+      "starting": "Starten…",
+      "stopping": "Stoppen…"
+    },
+    "status": {
+      "running": "Actief",
+      "stopped": "Gestopt",
+      "crashed": "Gecrasht",
+      "unknown": "Onbekend"
+    },
+    "table": {
+      "headers": {
+        "name": "Naam",
+        "materialized": "Gematerialiseerd",
+        "runner": "Runner",
+        "status": "Status",
+        "actions": "Acties"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Artefactpad",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "App-naam",
+      "host": "Host",
+      "materializedAt": "Gematerialiseerd op",
+      "bindings": "Bindings",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Duurzaamheid",
+        "inference": "Inferentie",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP-URL",
+        "offline": "MCP offline — start de App om de tool-lijst te zien.",
+        "loading": "Tools laden…",
+        "error": "Kon de App MCP niet bereiken: {error}",
+        "registeredTools": "Geregistreerde tools",
+        "noTools": "Geen tools geregistreerd.",
+        "declaredPurpose": "Gedeclareerd doel"
+      },
+      "envPanel": {
+        "title": "Omgevingsvariabelen",
+        "explainer": "Waarden worden rechtstreeks naar het .env-bestand van het artefact geschreven. Ze worden niet gelogd, niet opgeslagen in de control-plane-database en niet teruggekoppeld naar deze weergave.",
+        "keyHeader": "Sleutel",
+        "addKey": "Sleutel",
+        "addValue": "Waarde",
+        "add": "Toevoegen",
+        "delete": "Verwijderen",
+        "deleteConfirm": "Omgevingsvariabele \"{key}\" verwijderen?",
+        "noKeys": "Nog geen omgevingsvariabelen ingesteld.",
+        "valueHidden": "•••••",
+        "edit": "Bewerken",
+        "save": "Opslaan",
+        "cancel": "Annuleren",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "waarde"
+      },
+      "provenance": {
+        "title": "Herkomst",
+        "subtitle": "Principes gekoppeld aan de materialisatie-commit van deze App.",
+        "none": "Geen principes vastgelegd."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Documenten uploaden",
     "description": "Upload documenten die je chatbot zal gebruiken voor RAG (Retrieval-Augmented Generation)",

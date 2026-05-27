@@ -1990,6 +1990,87 @@
       "unreachableBanner": "{total} 个机器人中有 {unreachable} 个不可达——结果可能不完整。"
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "代理通过 App 范式所物化的 Apps。生命周期、环境变量与实时 MCP 内省——读取自 contextmap 与本地运行器。",
+    "loading": "加载中…",
+    "refresh": "刷新",
+    "empty": "暂无 App——请让你的 Claude Code 代理脚手架生成一个。",
+    "backToList": "返回 Apps",
+    "notFound": "未找到该 App。",
+    "openPreview": "打开预览",
+    "openMcp": "打开 MCP",
+    "actions": {
+      "start": "启动",
+      "stop": "停止",
+      "starting": "启动中…",
+      "stopping": "停止中…"
+    },
+    "status": {
+      "running": "运行中",
+      "stopped": "已停止",
+      "crashed": "已崩溃",
+      "unknown": "未知"
+    },
+    "table": {
+      "headers": {
+        "name": "名称",
+        "materialized": "物化时间",
+        "runner": "运行器",
+        "status": "状态",
+        "actions": "操作"
+      }
+    },
+    "detail": {
+      "metadata": "元数据",
+      "artifactPath": "工件路径",
+      "materializationRef": "Materialization ref",
+      "adapter": "适配器",
+      "appName": "App 名称",
+      "host": "宿主",
+      "materializedAt": "物化于",
+      "bindings": "绑定",
+      "binding": {
+        "runner": "运行器",
+        "durability": "持久化",
+        "inference": "推理",
+        "mcpSelf": "MCP 自身"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL",
+        "offline": "MCP 离线——请启动该 App 以查看其工具列表。",
+        "loading": "正在加载工具…",
+        "error": "无法访问该 App MCP：{error}",
+        "registeredTools": "已注册工具",
+        "noTools": "未注册任何工具。",
+        "declaredPurpose": "声明用途"
+      },
+      "envPanel": {
+        "title": "环境变量",
+        "explainer": "值会直接写入工件的 .env 文件。它们不会被记录到日志，不会存储于控制面数据库，也不会回显到此视图。",
+        "keyHeader": "键",
+        "addKey": "键",
+        "addValue": "值",
+        "add": "添加",
+        "delete": "删除",
+        "deleteConfirm": "删除环境变量 \"{key}\"？",
+        "noKeys": "尚未设置任何环境变量。",
+        "valueHidden": "•••••",
+        "edit": "编辑",
+        "save": "保存",
+        "cancel": "取消",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "值"
+      },
+      "provenance": {
+        "title": "来源",
+        "subtitle": "附加到该 App 物化提交的原则。",
+        "none": "未记录任何原则。"
+      }
+    }
+  },
   "documentUploader": {
     "title": "上传文档",
     "description": "上传你的聊天机器人将用于 RAG（检索增强生成）的文档",

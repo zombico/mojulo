@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Rakendused, mille agent on App-paradigma kaudu materialiseerinud. Elutsükkel, keskkonnamuutujad ja MCP otseintrospektsioon — loetud contextmap'ist ja lokaalsest käivitajast.",
+    "loading": "Laadimine…",
+    "refresh": "Värskenda",
+    "empty": "Ühtegi rakendust pole veel — palu oma Claude Code agendil üks koostada.",
+    "backToList": "Tagasi Apps juurde",
+    "notFound": "Rakendust ei leitud.",
+    "openPreview": "Ava eelvaade",
+    "openMcp": "Ava MCP",
+    "actions": {
+      "start": "Käivita",
+      "stop": "Peata",
+      "starting": "Käivitamine…",
+      "stopping": "Peatamine…"
+    },
+    "status": {
+      "running": "Töötab",
+      "stopped": "Peatatud",
+      "crashed": "Krahhinud",
+      "unknown": "Tundmatu"
+    },
+    "table": {
+      "headers": {
+        "name": "Nimi",
+        "materialized": "Materialiseeritud",
+        "runner": "Käivitaja",
+        "status": "Olek",
+        "actions": "Toimingud"
+      }
+    },
+    "detail": {
+      "metadata": "Metaandmed",
+      "artifactPath": "Artefakti tee",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "Rakenduse nimi",
+      "host": "Host",
+      "materializedAt": "Materialiseeritud",
+      "bindings": "Sidumised",
+      "binding": {
+        "runner": "Käivitaja",
+        "durability": "Püsivus",
+        "inference": "Järeldus",
+        "mcpSelf": "MCP ise"
+      },
+      "mcpPanel": {
+        "title": "Rakenduse MCP",
+        "url": "MCP URL",
+        "offline": "MCP võrgust väljas — käivita rakendus, et näha selle tööriistade nimekirja.",
+        "loading": "Tööriistade laadimine…",
+        "error": "Rakenduse MCP-ga ei õnnestunud ühendust saada: {error}",
+        "registeredTools": "Registreeritud tööriistad",
+        "noTools": "Ühtegi tööriista pole registreeritud.",
+        "declaredPurpose": "Deklareeritud eesmärk"
+      },
+      "envPanel": {
+        "title": "Keskkonnamuutujad",
+        "explainer": "Väärtused kirjutatakse otse artefakti .env faili. Neid ei logita, ei salvestata kontrolltasandi andmebaasi ega kuvata sellele vaatele tagasi.",
+        "keyHeader": "Võti",
+        "addKey": "Võti",
+        "addValue": "Väärtus",
+        "add": "Lisa",
+        "delete": "Kustuta",
+        "deleteConfirm": "Kustuta keskkonnamuutuja „{key}\"?",
+        "noKeys": "Ühtegi keskkonnamuutujat pole veel määratud.",
+        "valueHidden": "•••••",
+        "edit": "Muuda",
+        "save": "Salvesta",
+        "cancel": "Tühista",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "väärtus"
+      },
+      "provenance": {
+        "title": "Päritolu",
+        "subtitle": "Selle rakenduse materialiseerimise commit'ile lisatud põhimõtted.",
+        "none": "Põhimõtteid pole salvestatud."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Lae dokumente üles",
     "description": "Lae üles dokumente, mida sinu vestlusbot kasutab RAG-i (Retrieval-Augmented Generation) jaoks",

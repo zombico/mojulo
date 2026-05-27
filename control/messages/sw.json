@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps ambazo wakala amezalisha kupitia dhana ya App. Mzunguko wa maisha, vigezo vya mazingira, na uchunguzi wa MCP wa moja kwa moja — husomwa kutoka kwa contextmap na kiendeshi cha ndani.",
+    "loading": "Inapakia…",
+    "refresh": "Onyesha upya",
+    "empty": "Bado hakuna Apps — muulize wakala wako wa Claude Code aiunde.",
+    "backToList": "Rudi kwenye Apps",
+    "notFound": "App haijapatikana.",
+    "openPreview": "Fungua hakikisho",
+    "openMcp": "Fungua MCP",
+    "actions": {
+      "start": "Anza",
+      "stop": "Simamisha",
+      "starting": "Inaanza…",
+      "stopping": "Inasimamisha…"
+    },
+    "status": {
+      "running": "Inaendesha",
+      "stopped": "Imesimamishwa",
+      "crashed": "Imeanguka",
+      "unknown": "Haijulikani"
+    },
+    "table": {
+      "headers": {
+        "name": "Jina",
+        "materialized": "Imezalishwa",
+        "runner": "Kiendeshi",
+        "status": "Hali",
+        "actions": "Vitendo"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Njia ya artifact",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapta",
+      "appName": "Jina la App",
+      "host": "Mwenyeji",
+      "materializedAt": "Imezalishwa saa",
+      "bindings": "Vifungo",
+      "binding": {
+        "runner": "Kiendeshi",
+        "durability": "Udumu",
+        "inference": "Utabiri",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "URL ya MCP",
+        "offline": "MCP haipo mtandaoni — anzisha App ili kuona orodha yake ya zana.",
+        "loading": "Inapakia zana…",
+        "error": "Imeshindwa kufikia App MCP: {error}",
+        "registeredTools": "Zana zilizosajiliwa",
+        "noTools": "Hakuna zana zilizosajiliwa.",
+        "declaredPurpose": "Madhumuni yaliyotangazwa"
+      },
+      "envPanel": {
+        "title": "Vigezo vya mazingira",
+        "explainer": "Thamani huandikwa moja kwa moja kwenye faili ya .env ya artifact. Haziandikwi kwenye kumbukumbu, hazihifadhiwi kwenye hifadhidata ya control-plane, na hazirudishwi kwenye mwonekano huu.",
+        "keyHeader": "Ufunguo",
+        "addKey": "Ufunguo",
+        "addValue": "Thamani",
+        "add": "Ongeza",
+        "delete": "Futa",
+        "deleteConfirm": "Futa kigezo cha mazingira \"{key}\"?",
+        "noKeys": "Hakuna vigezo vya mazingira vilivyowekwa bado.",
+        "valueHidden": "•••••",
+        "edit": "Hariri",
+        "save": "Hifadhi",
+        "cancel": "Ghairi",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "thamani"
+      },
+      "provenance": {
+        "title": "Asili",
+        "subtitle": "Kanuni zilizoambatishwa na commit ya umuhimu wa App hii.",
+        "none": "Hakuna kanuni zilizorekodiwa."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Upload hatis",
     "description": "Upload hatis that your mazungumzobot will use for RAG (Retrieval-Augmented Generation)",

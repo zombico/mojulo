@@ -1,0 +1,11 @@
+{
+  "name": "app-mcp-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP sidecar for a mojulo-materialized app. Scaffolded from control/lib/app-mcp-scaffold/template/.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

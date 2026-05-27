@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps, які агент матеріалізував через парадигму App. Життєвий цикл, змінні середовища та жива інтроспекція MCP — читаються з contextmap і локального раннера.",
+    "loading": "Завантаження…",
+    "refresh": "Оновити",
+    "empty": "Поки що немає apps — попросіть свого агента Claude Code створити перший.",
+    "backToList": "Назад до Apps",
+    "notFound": "App не знайдено.",
+    "openPreview": "Відкрити попередній перегляд",
+    "openMcp": "Відкрити MCP",
+    "actions": {
+      "start": "Запустити",
+      "stop": "Зупинити",
+      "starting": "Запуск…",
+      "stopping": "Зупинення…"
+    },
+    "status": {
+      "running": "Працює",
+      "stopped": "Зупинено",
+      "crashed": "Аварійно завершено",
+      "unknown": "Невідомо"
+    },
+    "table": {
+      "headers": {
+        "name": "Назва",
+        "materialized": "Матеріалізовано",
+        "runner": "Раннер",
+        "status": "Статус",
+        "actions": "Дії"
+      }
+    },
+    "detail": {
+      "metadata": "Метадані",
+      "artifactPath": "Шлях до артефакту",
+      "materializationRef": "Materialization ref",
+      "adapter": "Адаптер",
+      "appName": "Назва app",
+      "host": "Хост",
+      "materializedAt": "Матеріалізовано",
+      "bindings": "Прив’язки",
+      "binding": {
+        "runner": "Раннер",
+        "durability": "Довговічність",
+        "inference": "Інференс",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "URL MCP",
+        "offline": "MCP офлайн — запустіть app, щоб побачити перелік його інструментів.",
+        "loading": "Завантаження інструментів…",
+        "error": "Не вдалося підключитися до app MCP: {error}",
+        "registeredTools": "Зареєстровані інструменти",
+        "noTools": "Інструменти не зареєстровані.",
+        "declaredPurpose": "Декларована мета"
+      },
+      "envPanel": {
+        "title": "Змінні середовища",
+        "explainer": "Значення записуються безпосередньо у файл .env артефакту. Вони не логуються, не зберігаються в базі даних control-plane і не повертаються назад у цей вигляд.",
+        "keyHeader": "Ключ",
+        "addKey": "Ключ",
+        "addValue": "Значення",
+        "add": "Додати",
+        "delete": "Видалити",
+        "deleteConfirm": "Видалити змінну середовища \"{key}\"?",
+        "noKeys": "Змінні середовища ще не задані.",
+        "valueHidden": "•••••",
+        "edit": "Редагувати",
+        "save": "Зберегти",
+        "cancel": "Скасувати",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "значення"
+      },
+      "provenance": {
+        "title": "Походження",
+        "subtitle": "Принципи, прикріплені до коміту матеріалізації цього app.",
+        "none": "Принципи не зафіксовано."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Завантажити документи",
     "description": "Завантажте документи, які ваш чат-бот використовуватиме для RAG (генерація з доповненим пошуком)",

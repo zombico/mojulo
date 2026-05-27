@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps جو ایجنٹ نے App پیراڈائم کے ذریعے میٹیریلائز کیے ہیں۔ لائف سائیکل، env متغیرات، اور لائیو MCP انٹراسپیکشن — contextmap اور لوکل رنر سے پڑھے جاتے ہیں۔",
+    "loading": "لوڈ ہو رہا ہے…",
+    "refresh": "ریفریش کریں",
+    "empty": "ابھی کوئی Apps نہیں — اپنے Claude Code ایجنٹ سے کہیں کہ ایک اسکیفولڈ کرے۔",
+    "backToList": "Apps پر واپس جائیں",
+    "notFound": "App نہیں ملا۔",
+    "openPreview": "پیش منظر کھولیں",
+    "openMcp": "MCP کھولیں",
+    "actions": {
+      "start": "شروع کریں",
+      "stop": "روکیں",
+      "starting": "شروع ہو رہا ہے…",
+      "stopping": "رک رہا ہے…"
+    },
+    "status": {
+      "running": "چل رہا ہے",
+      "stopped": "رکا ہوا",
+      "crashed": "کریش ہو گیا",
+      "unknown": "نامعلوم"
+    },
+    "table": {
+      "headers": {
+        "name": "نام",
+        "materialized": "میٹیریلائزڈ",
+        "runner": "رنر",
+        "status": "اسٹیٹس",
+        "actions": "ایکشنز"
+      }
+    },
+    "detail": {
+      "metadata": "میٹا ڈیٹا",
+      "artifactPath": "آرٹیفیکٹ پاتھ",
+      "materializationRef": "Materialization ref",
+      "adapter": "اڈاپٹر",
+      "appName": "App کا نام",
+      "host": "ہوسٹ",
+      "materializedAt": "میٹیریلائز ہوا",
+      "bindings": "بائنڈنگز",
+      "binding": {
+        "runner": "رنر",
+        "durability": "پائیداری",
+        "inference": "انفرنس",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL",
+        "offline": "MCP آف لائن ہے — اس کے ٹولز دیکھنے کے لیے App شروع کریں۔",
+        "loading": "ٹولز لوڈ ہو رہے ہیں…",
+        "error": "App MCP تک نہیں پہنچا جا سکا: {error}",
+        "registeredTools": "رجسٹرڈ ٹولز",
+        "noTools": "کوئی ٹول رجسٹر نہیں ہے۔",
+        "declaredPurpose": "اعلان کردہ مقصد"
+      },
+      "envPanel": {
+        "title": "ماحولیاتی متغیرات",
+        "explainer": "اقدار براہ راست آرٹیفیکٹ کی .env فائل میں لکھی جاتی ہیں۔ یہ لاگ نہیں کی جاتیں، کنٹرول پلین ڈیٹابیس میں محفوظ نہیں ہوتیں، اور اس ویو میں واپس نہیں دکھائی جاتیں۔",
+        "keyHeader": "کلید",
+        "addKey": "کلید",
+        "addValue": "قدر",
+        "add": "شامل کریں",
+        "delete": "حذف کریں",
+        "deleteConfirm": "env متغیر \"{key}\" حذف کریں؟",
+        "noKeys": "ابھی کوئی env متغیر سیٹ نہیں ہے۔",
+        "valueHidden": "•••••",
+        "edit": "ترمیم کریں",
+        "save": "محفوظ کریں",
+        "cancel": "منسوخ کریں",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "value"
+      },
+      "provenance": {
+        "title": "پراوننس",
+        "subtitle": "اس App کے میٹیریلائزیشن کمٹ سے منسلک اصول۔",
+        "none": "کوئی اصول ریکارڈ نہیں ہوا۔"
+      }
+    }
+  },
   "documentUploader": {
     "title": "Upload Documents",
     "description": "Upload documents that your chatbot will use for RAG (Retrieval-Augmented Generation)",

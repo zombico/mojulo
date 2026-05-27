@@ -8,7 +8,7 @@ process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
@@ -23,8 +23,10 @@ import {
   briefHandler,
   commitHandler,
   commitOperatorKyc,
+  commitOperatorWorkspaceSetup,
   commitArtifactMaterialization,
   commitPrimitiveArtifactMaterialization,
+  commitAppMaterialization,
 } from './meta-context.js';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
 
@@ -325,6 +327,147 @@ describe('commitOperatorKyc', () => {
       vocabulary_register: 'plain',
       procedural_disclosure: 'terse',
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// commit: operator_workspace_setup
+// ---------------------------------------------------------------------------
+
+describe('commitOperatorWorkspaceSetup', () => {
+  it('returns operator_anchor_missing when no operator node exists yet', async () => {
+    const out = await commitOperatorWorkspaceSetup({
+      type: 'operator_workspace_setup',
+      workspace_root: '/Users/op/workspace',
+    });
+    expect(out.ok).toBe(false);
+    expect(out.reason).toBe('operator_anchor_missing');
+  });
+
+  it('happy path — writes a workspace_root principle on the operator node', async () => {
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'Op',
+      constraints: ['c'],
+    });
+    const out = await commitOperatorWorkspaceSetup({
+      type: 'operator_workspace_setup',
+      workspace_root: '/Users/op/workspace',
+    });
+    expect(out.ok).toBe(true);
+    expect(out.operatorNodeId).toBeGreaterThan(0);
+    expect(out.workspaceRootPrincipleId).toBeGreaterThan(0);
+    expect(out.workspaceConventionsPrincipleId).toBeNull();
+
+    const node = MetaNodeRepository.findByRef('operator', 'self');
+    const principles = MetaPrincipleRepository.listForScope('node', node.id);
+    const setupPrinciples = principles.filter(
+      (p) => p.sourceEvent === 'operator_workspace_setup',
+    );
+    expect(setupPrinciples).toHaveLength(1);
+    expect(setupPrinciples[0].bodyMd).toMatch(/Workspace root/);
+    expect(setupPrinciples[0].bodyMd).toContain('/Users/op/workspace');
+  });
+
+  it('writes a second principle when workspace_conventions is provided', async () => {
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'Op',
+      constraints: ['c'],
+    });
+    const out = await commitOperatorWorkspaceSetup({
+      type: 'operator_workspace_setup',
+      workspace_root: '/Users/op/workspace',
+      workspace_conventions: 'JSON not binary; dated subdirs.',
+    });
+    expect(out.workspaceConventionsPrincipleId).toBeGreaterThan(0);
+
+    const node = MetaNodeRepository.findByRef('operator', 'self');
+    const principles = MetaPrincipleRepository.listForScope('node', node.id);
+    const setupPrinciples = principles.filter(
+      (p) => p.sourceEvent === 'operator_workspace_setup',
+    );
+    expect(setupPrinciples).toHaveLength(2);
+    const conventionsPrinciple = setupPrinciples.find((p) =>
+      p.bodyMd.includes('Workspace conventions'),
+    );
+    expect(conventionsPrinciple.bodyMd).toContain('JSON not binary');
+  });
+
+  it('is append-only — re-running stacks fresh principles, latest wins for readers', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'Op', constraints: ['c'] });
+    await commitOperatorWorkspaceSetup({
+      type: 'operator_workspace_setup',
+      workspace_root: '/Users/op/workspace-old',
+    });
+    await commitOperatorWorkspaceSetup({
+      type: 'operator_workspace_setup',
+      workspace_root: '/Users/op/workspace-new',
+    });
+    const node = MetaNodeRepository.findByRef('operator', 'self');
+    const setupPrinciples = MetaPrincipleRepository.listForScope('node', node.id).filter(
+      (p) => p.sourceEvent === 'operator_workspace_setup',
+    );
+    expect(setupPrinciples).toHaveLength(2);
+    // listForScope returns most-recent-first (ORDER BY created_at DESC, id DESC),
+    // so [0] is the latest write. Readers that want "the current workspace_root"
+    // can take the first principle with source_event='operator_workspace_setup'.
+    expect(setupPrinciples[0].bodyMd).toContain('/Users/op/workspace-new');
+  });
+
+  it('surfaces the workspace principles through briefHandler against the operator node', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'Op', constraints: ['c'] });
+    await commitOperatorWorkspaceSetup({
+      type: 'operator_workspace_setup',
+      workspace_root: '/Users/op/workspace',
+      workspace_conventions: 'dated subdirs',
+    });
+    const brief = await briefHandler({ scope: { kind: 'fleet' } });
+    const setupPrinciples = brief.principles.filter(
+      (p) => p.sourceEvent === 'operator_workspace_setup',
+    );
+    expect(setupPrinciples).toHaveLength(2);
+  });
+
+  it('rejects relative workspace_root paths', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'Op', constraints: ['c'] });
+    await expect(
+      commitOperatorWorkspaceSetup({
+        type: 'operator_workspace_setup',
+        workspace_root: 'workspace',
+      }),
+    ).rejects.toThrow(/absolute/);
+  });
+
+  it('rejects workspace_root containing .. segments', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'Op', constraints: ['c'] });
+    await expect(
+      commitOperatorWorkspaceSetup({
+        type: 'operator_workspace_setup',
+        workspace_root: '/Users/op/../etc',
+      }),
+    ).rejects.toThrow(/absolute/);
+  });
+
+  it('rejects an empty workspace_conventions when the field is present', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'Op', constraints: ['c'] });
+    await expect(
+      commitOperatorWorkspaceSetup({
+        type: 'operator_workspace_setup',
+        workspace_root: '/Users/op/workspace',
+        workspace_conventions: '   ',
+      }),
+    ).rejects.toThrow(/workspace_conventions/);
+  });
+
+  it('routes via the commitHandler dispatcher', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'Op', constraints: ['c'] });
+    const out = await commitHandler({
+      type: 'operator_workspace_setup',
+      workspace_root: '/Users/op/workspace',
+    });
+    expect(out.ok).toBe(true);
+    expect(out.workspaceRootPrincipleId).toBeGreaterThan(0);
   });
 });
 
@@ -831,6 +974,277 @@ describe('commitHandler — routes primitive_artifact_materialization', () => {
     const pa = seedProviderArtifact();
     const out = await commitHandler(
       buildBasePrimitiveMaterializationInput({ provider_artifact_refs: [pa.ref] }),
+    );
+    expect(out.ok).toBe(true);
+    expect(out.artifactNodeId).toBeGreaterThan(0);
+    expect(out.autoSummaryPrincipleId).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// commit: app_materialization
+//
+// App-paradigm spike: generated SPA codebases with their own MCP sidecar.
+// No bot, no catalyst. The four bindings live on the artifact node's payload
+// (runner / durability / inference / mcp_self) and an auto-summary principle
+// captures them for audit + recall. Verification additionally checks for
+// <locator>/app-mcp/server.js — apps without a sidecar can't be lifecycled.
+// See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
+// ---------------------------------------------------------------------------
+
+function buildAppArtifactDir(rootDir, name) {
+  const appDir = join(rootDir, name);
+  mkdirSync(join(appDir, 'app-mcp'), { recursive: true });
+  writeFileSync(join(appDir, 'app-mcp', 'server.js'), '// stub sidecar\n');
+  return appDir;
+}
+
+function buildBaseAppMaterializationInput(overrides = {}) {
+  return {
+    type: 'app_materialization',
+    adapter_id: 'claude-code',
+    app_name: 'image-extractor',
+    artifact: {
+      locator: overrides.locator || 'overridden-by-test',
+      label: 'Image extractor (R1-Inference)',
+    },
+    bindings: {
+      runner: { implementation: 'local' },
+      durability: { kind: 'local-fs' },
+      inference: { mode: 'agent-routed' },
+      mcp_self: { server_kind: 'app', entrypoint: 'app-mcp/server.js' },
+    },
+    ...overrides,
+    // Re-apply overrides that nest deeper than the top level.
+    ...(overrides.artifact ? { artifact: overrides.artifact } : {}),
+  };
+}
+
+describe('commitAppMaterialization', () => {
+  let appDir;
+  beforeEach(() => {
+    closeDb();
+    appDir = buildAppArtifactDir(tmpRoot, `app-${Date.now()}-${Math.random()}`);
+  });
+
+  it('happy path — writes adapter + artifact nodes, materialized_by edge, auto-summary principle', async () => {
+    const out = await commitAppMaterialization(
+      buildBaseAppMaterializationInput({
+        artifact: { locator: appDir, label: 'Image extractor (R1-Inference)' },
+      }),
+    );
+    expect(out.ok).toBe(true);
+    expect(out.artifactNodeId).toBeGreaterThan(0);
+    expect(out.nodes.adapter).toBeGreaterThan(0);
+    expect(out.nodes.artifact).toBeGreaterThan(0);
+    expect(out.edges.materialized_by).toBeGreaterThan(0);
+    expect(out.autoSummaryPrincipleId).toBeGreaterThan(0);
+    expect(out.principlesCreated).toBe(1); // auto-summary only
+    expect(out.warnings).toContain('no_operator_anchor');
+  });
+
+  it('artifact node payload carries app_name + all four bindings as structured data', async () => {
+    const out = await commitAppMaterialization(
+      buildBaseAppMaterializationInput({
+        artifact: { locator: appDir, label: 'Image extractor' },
+      }),
+    );
+    const node = MetaNodeRepository.findById(out.nodes.artifact);
+    expect(node.payload.app.name).toBe('image-extractor');
+    expect(node.payload.app.bindings.runner.implementation).toBe('local');
+    expect(node.payload.app.bindings.durability.kind).toBe('local-fs');
+    expect(node.payload.app.bindings.inference.mode).toBe('agent-routed');
+    expect(node.payload.app.bindings.mcp_self.server_kind).toBe('app');
+    expect(node.payload.app.bindings.mcp_self.entrypoint).toBe('app-mcp/server.js');
+  });
+
+  it('auto-summary principle renders the four bindings in prose', async () => {
+    const out = await commitAppMaterialization(
+      buildBaseAppMaterializationInput({
+        artifact: { locator: appDir, label: 'Image extractor' },
+      }),
+    );
+    const principle = MetaPrincipleRepository.listForScope('node', out.nodes.artifact)[0];
+    expect(principle).toBeTruthy();
+    expect(principle.sourceEvent).toBe('app_materialization');
+    expect(principle.bodyMd).toContain('**App:** image-extractor');
+    expect(principle.bodyMd).toContain('runner');
+    expect(principle.bodyMd).toContain('local');
+    expect(principle.bodyMd).toContain('durability');
+    expect(principle.bodyMd).toContain('local-fs');
+    expect(principle.bodyMd).toContain('inference');
+    expect(principle.bodyMd).toContain('agent-routed');
+    expect(principle.bodyMd).toContain('mcp_self');
+  });
+
+  it('attaches user-supplied principles scoped to artifact + adapter + materialized_by', async () => {
+    const out = await commitAppMaterialization(
+      buildBaseAppMaterializationInput({
+        artifact: { locator: appDir, label: 'Image extractor' },
+        principles: [
+          { scope: 'artifact', body_md: '## Why this app — extract receipt totals' },
+          { scope: 'adapter', body_md: '## Hosted on claude-code, no other surface' },
+          { scope: 'materialized_by', body_md: '## Materialized via inline scaffold prompt' },
+        ],
+      }),
+    );
+    expect(out.principlesCreated).toBe(4); // 1 auto + 3 user
+    const artifactPrinciples = MetaPrincipleRepository.listForScope('node', out.nodes.artifact);
+    expect(artifactPrinciples).toHaveLength(2); // auto + 1 user
+    const adapterPrinciples = MetaPrincipleRepository.listForScope('node', out.nodes.adapter);
+    expect(adapterPrinciples).toHaveLength(1);
+    const edgePrinciples = MetaPrincipleRepository.listForScope('edge', out.edges.materialized_by);
+    expect(edgePrinciples).toHaveLength(1);
+  });
+
+  it('rejects principle scope outside the app_materialization allowed set', async () => {
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          artifact: { locator: appDir, label: 'Image extractor' },
+          principles: [{ scope: 'catalyst', body_md: 'should fail — no catalyst scope for apps' }],
+        }),
+      ),
+    ).rejects.toThrow(/scope 'catalyst' has no matching node/);
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          artifact: { locator: appDir, label: 'Image extractor' },
+          principles: [{ scope: 'binds', body_md: 'should fail — no binds edges for apps' }],
+        }),
+      ),
+    ).rejects.toThrow(/requires at least one binding/);
+  });
+
+  it('rejects when artifact locator does not exist (verifyAppArtifact base check fails)', async () => {
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          artifact: { locator: missingArtifactPath, label: 'missing' },
+        }),
+      ),
+    ).rejects.toThrow(/verification failed/);
+  });
+
+  it('rejects when artifact dir exists but app-mcp/server.js is missing (the extended scaffold check)', async () => {
+    // Create a directory but no scaffold inside.
+    const naked = join(tmpRoot, `naked-app-${Date.now()}`);
+    mkdirSync(naked, { recursive: true });
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          artifact: { locator: naked, label: 'no sidecar' },
+        }),
+      ),
+    ).rejects.toThrow(/app-mcp scaffold missing/);
+  });
+
+  it('rejects unknown adapter_id', async () => {
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          adapter_id: 'no-such-adapter',
+          artifact: { locator: appDir, label: 'x' },
+        }),
+      ),
+    ).rejects.toThrow(/Unknown adapter/);
+  });
+
+  it('rejects missing app_name', async () => {
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          app_name: '',
+          artifact: { locator: appDir, label: 'x' },
+        }),
+      ),
+    ).rejects.toThrow(/app_name is required/);
+  });
+
+  it('validates each binding shape — bad runner.implementation', async () => {
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          artifact: { locator: appDir, label: 'x' },
+          bindings: {
+            runner: { implementation: 'nopey' },
+            durability: { kind: 'local-fs' },
+            inference: { mode: 'agent-routed' },
+            mcp_self: { server_kind: 'app', entrypoint: 'app-mcp/server.js' },
+          },
+        }),
+      ),
+    ).rejects.toThrow(/runner\.implementation/);
+  });
+
+  it('validates each binding shape — durability=github requires git_url', async () => {
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          artifact: { locator: appDir, label: 'x' },
+          bindings: {
+            runner: { implementation: 'local' },
+            durability: { kind: 'github' },
+            inference: { mode: 'agent-routed' },
+            mcp_self: { server_kind: 'app', entrypoint: 'app-mcp/server.js' },
+          },
+        }),
+      ),
+    ).rejects.toThrow(/git_url/);
+  });
+
+  it('validates each binding shape — inference=keyed requires provider', async () => {
+    await expect(
+      commitAppMaterialization(
+        buildBaseAppMaterializationInput({
+          artifact: { locator: appDir, label: 'x' },
+          bindings: {
+            runner: { implementation: 'local' },
+            durability: { kind: 'local-fs' },
+            inference: { mode: 'keyed' },
+            mcp_self: { server_kind: 'app', entrypoint: 'app-mcp/server.js' },
+          },
+        }),
+      ),
+    ).rejects.toThrow(/provider/);
+  });
+
+  it('omits no_operator_anchor warning when operator KYC exists', async () => {
+    await commitOperatorKyc({ type: 'operator_kyc', role: 'r', constraints: ['c'] });
+    const out = await commitAppMaterialization(
+      buildBaseAppMaterializationInput({
+        artifact: { locator: appDir, label: 'Image extractor' },
+      }),
+    );
+    expect(out.warnings).toBeUndefined();
+  });
+
+  it('brief({kind:"artifact", ref}) returns the app artifact + materialized_by + principles', async () => {
+    const out = await commitAppMaterialization(
+      buildBaseAppMaterializationInput({
+        artifact: { locator: appDir, label: 'Image extractor' },
+      }),
+    );
+    const node = MetaNodeRepository.findById(out.nodes.artifact);
+    const result = await briefHandler({ scope: { kind: 'artifact', ref: node.ref } });
+    expect(result.nodes.length).toBeGreaterThanOrEqual(2); // artifact + adapter neighbor
+    expect(result.edges.some((e) => e.kind === 'materialized_by')).toBe(true);
+    expect(result.principles.some((p) => p.sourceEvent === 'app_materialization')).toBe(true);
+  });
+});
+
+describe('commitHandler — routes app_materialization', () => {
+  let appDir;
+  beforeEach(() => {
+    closeDb();
+    appDir = buildAppArtifactDir(tmpRoot, `app-dispatch-${Date.now()}-${Math.random()}`);
+  });
+
+  it('end-to-end through the dispatcher', async () => {
+    const out = await commitHandler(
+      buildBaseAppMaterializationInput({
+        artifact: { locator: appDir, label: 'Image extractor' },
+      }),
     );
     expect(out.ok).toBe(true);
     expect(out.artifactNodeId).toBeGreaterThan(0);

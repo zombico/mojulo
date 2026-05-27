@@ -53,6 +53,8 @@ describe('schema bootstraps', () => {
       'idx_meta_mcp_capabilities_by_provider',
       'idx_meta_mcp_capabilities_current',
       'idx_meta_mcp_inventory_provider',
+      'idx_meta_mcp_inventory_running_ref',
+      'idx_meta_mcp_inventory_server_kind',
       'idx_meta_mcp_inventory_tool_ref',
       'idx_meta_nodes_kind_ref',
       'idx_meta_principles_scope',

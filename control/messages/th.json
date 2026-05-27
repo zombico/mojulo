@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps ที่เอเจนต์ได้สร้างขึ้นจริงผ่านพาราไดม์ App รวมถึงวงจรชีวิต ตัวแปร env และการสำรวจ MCP แบบสด — อ่านจาก contextmap และตัวรันเนอร์ภายในเครื่อง",
+    "loading": "กำลังโหลด…",
+    "refresh": "รีเฟรช",
+    "empty": "ยังไม่มี App — ขอให้เอเจนต์ Claude Code ของคุณสร้างสแคฟโฟลด์ขึ้นมา",
+    "backToList": "กลับไปยัง Apps",
+    "notFound": "ไม่พบ App",
+    "openPreview": "เปิดตัวอย่าง",
+    "openMcp": "เปิด MCP",
+    "actions": {
+      "start": "เริ่ม",
+      "stop": "หยุด",
+      "starting": "กำลังเริ่ม…",
+      "stopping": "กำลังหยุด…"
+    },
+    "status": {
+      "running": "กำลังทำงาน",
+      "stopped": "หยุดแล้ว",
+      "crashed": "ขัดข้อง",
+      "unknown": "ไม่ทราบ"
+    },
+    "table": {
+      "headers": {
+        "name": "ชื่อ",
+        "materialized": "สร้างขึ้นจริงเมื่อ",
+        "runner": "รันเนอร์",
+        "status": "สถานะ",
+        "actions": "การดำเนินการ"
+      }
+    },
+    "detail": {
+      "metadata": "ข้อมูลเมตา",
+      "artifactPath": "เส้นทาง artifact",
+      "materializationRef": "Materialization ref",
+      "adapter": "อะแดปเตอร์",
+      "appName": "ชื่อ App",
+      "host": "โฮสต์",
+      "materializedAt": "สร้างขึ้นจริงเมื่อ",
+      "bindings": "การผูก",
+      "binding": {
+        "runner": "รันเนอร์",
+        "durability": "ความคงทน",
+        "inference": "การอนุมาน",
+        "mcpSelf": "MCP ตนเอง"
+      },
+      "mcpPanel": {
+        "title": "MCP ของ App",
+        "url": "MCP URL",
+        "offline": "MCP ออฟไลน์ — เริ่ม App เพื่อดูรายการเครื่องมือ",
+        "loading": "กำลังโหลดเครื่องมือ…",
+        "error": "ไม่สามารถเชื่อมต่อ MCP ของ App ได้: {error}",
+        "registeredTools": "เครื่องมือที่ลงทะเบียน",
+        "noTools": "ไม่มีเครื่องมือที่ลงทะเบียน",
+        "declaredPurpose": "วัตถุประสงค์ที่ประกาศไว้"
+      },
+      "envPanel": {
+        "title": "ตัวแปรสภาพแวดล้อม",
+        "explainer": "ค่าจะถูกเขียนลงในไฟล์ .env ของ artifact โดยตรง โดยจะไม่มีการบันทึก ไม่จัดเก็บในฐานข้อมูล control-plane และไม่แสดงกลับมาในมุมมองนี้",
+        "keyHeader": "คีย์",
+        "addKey": "คีย์",
+        "addValue": "ค่า",
+        "add": "เพิ่ม",
+        "delete": "ลบ",
+        "deleteConfirm": "ลบตัวแปร env \"{key}\" หรือไม่?",
+        "noKeys": "ยังไม่มีการตั้งค่าตัวแปร env",
+        "valueHidden": "•••••",
+        "edit": "แก้ไข",
+        "save": "บันทึก",
+        "cancel": "ยกเลิก",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "ค่า"
+      },
+      "provenance": {
+        "title": "ที่มา",
+        "subtitle": "หลักการที่แนบมากับคอมมิตการสร้างขึ้นจริงของ App นี้",
+        "none": "ไม่มีหลักการที่บันทึกไว้"
+      }
+    }
+  },
   "documentUploader": {
     "title": "อัปโหลดเอกสาร",
     "description": "อัปโหลดเอกสารที่แชทบอทจะใช้สำหรับ RAG (Retrieval-Augmented Generation)",
