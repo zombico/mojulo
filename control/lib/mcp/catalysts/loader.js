@@ -37,11 +37,12 @@
  * — we throw with a clear file + field reference so a bad PR fails loudly.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CATALYST_DIR = dirname(fileURLToPath(import.meta.url));
+const TECHNIQUES_SUBDIR = 'techniques';
 
 // `valueHook` is required: it's the consultation-mode sentence we read aloud
 // to position the catalyst when surfacing it via `recommend_catalysts` — one
@@ -51,9 +52,18 @@ const CATALYST_DIR = dirname(fileURLToPath(import.meta.url));
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'valueHook'];
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
+// Catalyst kinds. `workflow` is the historical default — recipes that produce a
+// runnable artifact through a host adapter against a bot's data + a destination
+// MCP. `technique` is the runtime-primitive-binding shape — recipes that bind a
+// Node-native substrate (filesystem, http, sqlite) to an artifact, with the
+// binding recorded as a contextmap principle. Shelf placement infers kind:
+// catalysts/*.md → workflow, catalysts/techniques/*.md → technique. Frontmatter
+// `kind` is optional but must match the shelf when present.
+const VALID_KINDS = new Set(['workflow', 'technique']);
+
 let _catalog = null;
 
-function parseCatalystFile(filePath, raw) {
+function parseCatalystFile(filePath, raw, { defaultKind = 'workflow' } = {}) {
   const match = raw.match(FRONTMATTER_FENCE);
   if (!match) {
     throw new Error(
@@ -71,6 +81,20 @@ function parseCatalystFile(filePath, raw) {
       throw new Error(`Catalyst ${filePath} is missing required string field '${field}'.`);
     }
   }
+  let kind = defaultKind;
+  if (meta.kind !== undefined) {
+    if (typeof meta.kind !== 'string' || !VALID_KINDS.has(meta.kind)) {
+      throw new Error(
+        `Catalyst ${filePath} has invalid 'kind' value '${meta.kind}' (must be one of: ${[...VALID_KINDS].join(', ')}).`
+      );
+    }
+    if (meta.kind !== defaultKind) {
+      throw new Error(
+        `Catalyst ${filePath} declares kind '${meta.kind}' but its shelf implies kind '${defaultKind}'. Move the file or remove the explicit kind.`
+      );
+    }
+    kind = meta.kind;
+  }
   const body = raw.slice(match[0].length).trim();
   if (!body) {
     throw new Error(`Catalyst ${filePath} has an empty body — the prose is the catalyst's value.`);
@@ -80,6 +104,7 @@ function parseCatalystFile(filePath, raw) {
     name: meta.name,
     summary: meta.summary,
     valueHook: meta.valueHook,
+    kind,
     version: meta.version ?? 1,
     category: meta.category || null,
     requires: meta.requires || {},
@@ -94,21 +119,27 @@ function parseCatalystFile(filePath, raw) {
   };
 }
 
-function loadCatalog() {
-  const files = readdirSync(CATALYST_DIR).filter((f) => f.endsWith('.md'));
-  const catalysts = new Map();
+function loadShelf(dirPath, defaultKind, catalysts) {
+  if (!existsSync(dirPath)) return;
+  const files = readdirSync(dirPath).filter((f) => f.endsWith('.md'));
   for (const file of files) {
-    const filePath = join(CATALYST_DIR, file);
+    const filePath = join(dirPath, file);
     const raw = readFileSync(filePath, 'utf8');
-    const catalyst = parseCatalystFile(filePath, raw);
+    const catalyst = parseCatalystFile(filePath, raw, { defaultKind });
     if (catalysts.has(catalyst.id)) {
       throw new Error(
-        `Catalyst id collision: '${catalyst.id}' is declared in both ${catalysts.get(catalyst.id)._file} and ${file}.`
+        `Catalyst id collision: '${catalyst.id}' is declared in both ${catalysts.get(catalyst.id)._file} and ${defaultKind === 'technique' ? TECHNIQUES_SUBDIR + '/' : ''}${file}.`
       );
     }
-    catalyst._file = file;
+    catalyst._file = `${defaultKind === 'technique' ? TECHNIQUES_SUBDIR + '/' : ''}${file}`;
     catalysts.set(catalyst.id, catalyst);
   }
+}
+
+function loadCatalog() {
+  const catalysts = new Map();
+  loadShelf(CATALYST_DIR, 'workflow', catalysts);
+  loadShelf(join(CATALYST_DIR, TECHNIQUES_SUBDIR), 'technique', catalysts);
   return catalysts;
 }
 
@@ -117,16 +148,18 @@ export function getCatalystCatalog() {
   return _catalog;
 }
 
-export function listCatalysts({ category } = {}) {
+export function listCatalysts({ category, kind } = {}) {
   const catalog = getCatalystCatalog();
   const out = [];
   for (const catalyst of catalog.values()) {
     if (category && catalyst.category !== category) continue;
+    if (kind && catalyst.kind !== kind) continue;
     out.push({
       id: catalyst.id,
       name: catalyst.name,
       summary: catalyst.summary,
       valueHook: catalyst.valueHook,
+      kind: catalyst.kind,
       category: catalyst.category,
       requires: catalyst.requires,
       outputContract: catalyst.outputContract,

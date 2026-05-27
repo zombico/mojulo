@@ -27,6 +27,45 @@ describe('parseCatalystFile', () => {
     expect(catalyst.body).toBe('# Body\n\nProse.');
     expect(catalyst.version).toBe(1);
     expect(catalyst.parameters).toEqual([]);
+    expect(catalyst.kind).toBe('workflow');
+  });
+
+  it('infers kind from the shelf when frontmatter omits it', () => {
+    const raw =
+      '---\n' +
+      JSON.stringify({ id: 'x', name: 'X', summary: 's', valueHook: 'v' }) +
+      '\n---\n\nbody';
+    const workflow = parseCatalystFile('test.md', raw);
+    expect(workflow.kind).toBe('workflow');
+    const technique = parseCatalystFile('techniques/test.md', raw, { defaultKind: 'technique' });
+    expect(technique.kind).toBe('technique');
+  });
+
+  it('accepts explicit kind when it matches the shelf default', () => {
+    const raw =
+      '---\n' +
+      JSON.stringify({ id: 'x', name: 'X', summary: 's', valueHook: 'v', kind: 'technique' }) +
+      '\n---\n\nbody';
+    const catalyst = parseCatalystFile('techniques/test.md', raw, { defaultKind: 'technique' });
+    expect(catalyst.kind).toBe('technique');
+  });
+
+  it('throws when explicit kind conflicts with the shelf default', () => {
+    const raw =
+      '---\n' +
+      JSON.stringify({ id: 'x', name: 'X', summary: 's', valueHook: 'v', kind: 'technique' }) +
+      '\n---\n\nbody';
+    expect(() => parseCatalystFile('test.md', raw)).toThrow(
+      /declares kind 'technique' but its shelf implies kind 'workflow'/
+    );
+  });
+
+  it('throws on an unknown kind value', () => {
+    const raw =
+      '---\n' +
+      JSON.stringify({ id: 'x', name: 'X', summary: 's', valueHook: 'v', kind: 'banana' }) +
+      '\n---\n\nbody';
+    expect(() => parseCatalystFile('test.md', raw)).toThrow(/invalid 'kind' value 'banana'/);
   });
 
   it('throws when valueHook is missing', () => {
@@ -111,13 +150,14 @@ describe('built-in catalyst catalog', () => {
 });
 
 describe('listCatalysts', () => {
-  it('returns id/name/summary/valueHook/category/requires (not body)', () => {
+  it('returns id/name/summary/valueHook/kind/category/requires (not body)', () => {
     const catalysts = listCatalysts();
     for (const c of catalysts) {
       expect(c).toHaveProperty('id');
       expect(c).toHaveProperty('name');
       expect(c).toHaveProperty('summary');
       expect(c).toHaveProperty('valueHook');
+      expect(c).toHaveProperty('kind');
       expect(c).toHaveProperty('category');
       expect(c).toHaveProperty('requires');
       expect(c).not.toHaveProperty('body');
@@ -132,6 +172,20 @@ describe('listCatalysts', () => {
 
   it('returns empty array for unknown category', () => {
     expect(listCatalysts({ category: 'nonexistent' })).toEqual([]);
+  });
+
+  it('filters by kind', () => {
+    const workflows = listCatalysts({ kind: 'workflow' });
+    expect(workflows.length).toBeGreaterThan(0);
+    expect(workflows.every((c) => c.kind === 'workflow')).toBe(true);
+  });
+
+  it('loads the shipped local-storage technique from the techniques shelf', () => {
+    const techniques = listCatalysts({ kind: 'technique' });
+    const local = techniques.find((c) => c.id === 'technique-local-storage');
+    expect(local).toBeDefined();
+    expect(local.kind).toBe('technique');
+    expect(local.category).toBe('runtime-primitive');
   });
 });
 

@@ -24,7 +24,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { isAbsolute } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
 
 function looksLikeFilesystemLocator(locator) {
@@ -92,6 +92,45 @@ export function verifyArtifact(adapterId, locator) {
         reason: `no verification rule registered for adapter '${adapterId}'`,
       };
   }
+}
+
+/**
+ * App-paradigm spike verification — verifies the artifact locator the same
+ * way `verifyArtifact` does, then additionally requires the scaffolded
+ * `app-mcp/server.js` to exist inside the artifact directory.
+ *
+ * App materialization commits without a sidecar would leave the runner
+ * unable to do its job (no MCP to lifecycle), and the Apps-pane App-MCP
+ * panel would render an unloadable artifact. Refusing to commit is the
+ * correct posture — the agent gets a clear diagnostic at deliberation
+ * time rather than a runtime mystery later.
+ *
+ * The codex `accept-on-assertion` path stays open here too: opaque
+ * automation handles don't have a filesystem to check, so the relaxation
+ * carries through. claude-code/generic require both files to exist.
+ *
+ * See lite-template/integration/app-system/APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
+ */
+export function verifyAppArtifact(adapterId, locator) {
+  // Base verification handles adapter id validity, missing-locator,
+  // codex-handle relaxation, and unknown-adapter rejection.
+  const base = verifyArtifact(adapterId, locator);
+  if (!base.ok) return base;
+
+  // Codex with an opaque handle: already accepted on assertion; the sidecar
+  // check would require a filesystem path we don't have. Carry the note
+  // through so consumers can see the relaxation was applied.
+  if (base.note === 'codex_accept_on_assertion') return base;
+
+  // claude-code / generic / codex-with-filesystem-locator: require the
+  // scaffolded sidecar at the conventional path. The runner's start_app
+  // expects this entrypoint; if it's missing, materialization is incoherent.
+  const sidecarPath = join(locator, 'app-mcp', 'server.js');
+  if (existsSync(sidecarPath)) return { ok: true };
+  return {
+    ok: false,
+    reason: `app-mcp scaffold missing — expected '${sidecarPath}' to exist. Run the scaffold copy helper before committing.`,
+  };
 }
 
 // Test seam — exposed so tests can assert the locator heuristic in isolation

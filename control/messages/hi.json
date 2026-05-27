@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "वे Apps जिन्हें एजेंट ने App पैराडाइम के माध्यम से मटीरियलाइज़ किया है। लाइफ़साइकल, env वेरिएबल्स, और लाइव MCP इंट्रोस्पेक्शन — contextmap और लोकल रनर से पढ़ा जाता है।",
+    "loading": "लोड हो रहा है…",
+    "refresh": "रीफ़्रेश करें",
+    "empty": "अभी तक कोई Apps नहीं — अपने Claude Code एजेंट से एक स्कैफ़ोल्ड करने को कहें।",
+    "backToList": "Apps पर वापस जाएँ",
+    "notFound": "App नहीं मिला।",
+    "openPreview": "पूर्वावलोकन खोलें",
+    "openMcp": "MCP खोलें",
+    "actions": {
+      "start": "शुरू करें",
+      "stop": "रोकें",
+      "starting": "शुरू हो रहा है…",
+      "stopping": "रुक रहा है…"
+    },
+    "status": {
+      "running": "चल रहा है",
+      "stopped": "रुका हुआ",
+      "crashed": "क्रैश हो गया",
+      "unknown": "अज्ञात"
+    },
+    "table": {
+      "headers": {
+        "name": "नाम",
+        "materialized": "मटीरियलाइज़ किया गया",
+        "runner": "रनर",
+        "status": "स्थिति",
+        "actions": "क्रियाएँ"
+      }
+    },
+    "detail": {
+      "metadata": "मेटाडेटा",
+      "artifactPath": "आर्टिफ़ैक्ट पथ",
+      "materializationRef": "Materialization ref",
+      "adapter": "अडैप्टर",
+      "appName": "App नाम",
+      "host": "होस्ट",
+      "materializedAt": "मटीरियलाइज़ किया गया समय",
+      "bindings": "बाइंडिंग्स",
+      "binding": {
+        "runner": "रनर",
+        "durability": "टिकाऊपन",
+        "inference": "इन्फ़रेंस",
+        "mcpSelf": "MCP सेल्फ़"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL",
+        "offline": "MCP ऑफ़लाइन — इसकी टूल सूची देखने के लिए App शुरू करें।",
+        "loading": "टूल्स लोड हो रहे हैं…",
+        "error": "App MCP तक नहीं पहुँच सका: {error}",
+        "registeredTools": "पंजीकृत टूल्स",
+        "noTools": "कोई टूल पंजीकृत नहीं।",
+        "declaredPurpose": "घोषित उद्देश्य"
+      },
+      "envPanel": {
+        "title": "एनवायरनमेंट वेरिएबल्स",
+        "explainer": "मान सीधे आर्टिफ़ैक्ट की .env फ़ाइल में लिखे जाते हैं। उन्हें लॉग नहीं किया जाता, कंट्रोल-प्लेन डेटाबेस में संग्रहीत नहीं किया जाता, और इस व्यू में वापस नहीं दिखाया जाता।",
+        "keyHeader": "की",
+        "addKey": "की",
+        "addValue": "मान",
+        "add": "जोड़ें",
+        "delete": "हटाएँ",
+        "deleteConfirm": "env वेरिएबल \"{key}\" हटाएँ?",
+        "noKeys": "अभी तक कोई env वेरिएबल सेट नहीं।",
+        "valueHidden": "•••••",
+        "edit": "संपादित करें",
+        "save": "सहेजें",
+        "cancel": "रद्द करें",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "मान"
+      },
+      "provenance": {
+        "title": "उत्पत्ति",
+        "subtitle": "इस App के मटीरियलाइज़ेशन कमिट से जुड़े सिद्धांत।",
+        "none": "कोई सिद्धांत दर्ज नहीं।"
+      }
+    }
+  },
   "documentUploader": {
     "title": "दस्तावेज़ अपलोड करें",
     "description": "उन दस्तावेज़ों को अपलोड करें जिनका आपका चैटबॉट RAG (Retrieval-Augmented Generation) के लिए उपयोग करेगा",

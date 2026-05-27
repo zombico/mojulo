@@ -275,6 +275,32 @@ function init(db) {
   migrateInventoryColumns(db);
   reapStaleMcpJobs(db);
   maybeBackfillEmbeddings(db);
+  maybeStartNodeFulfiller();
+}
+
+// Opt-in Node fulfiller boot. When MOJULO_AGENT_RUNTIME resolves to a
+// registered runtime adapter, the in-process fulfiller starts a long-lived
+// poll loop against the agent-tasks queue — fulfilling app inference
+// requests via headless subprocess invocations without an external
+// Claude Code worker session. When the env var is unset (default), this
+// is a no-op and the /loop + run-inference-worker catalyst remains the
+// only fulfillment path. See AGENT_TASKS_NODE_DRIVEN_PLAN.md.
+//
+// Pulled in via dynamic import to keep db/index.js free of the runtime-
+// adapter dependency chain at module load. startNodeFulfiller is itself
+// idempotent, so re-entrant init() calls are safe.
+function maybeStartNodeFulfiller() {
+  if (!process.env.MOJULO_AGENT_RUNTIME) return;
+  if (process.env.MOJULO_AGENT_RUNTIME === 'disabled') return;
+  import('@/lib/agent-tasks/node-fulfiller.js')
+    .then(({ startNodeFulfiller }) => {
+      try { startNodeFulfiller(); } catch (err) {
+        console.warn('[node-fulfiller] start failed:', err?.message || err);
+      }
+    })
+    .catch((err) => {
+      console.warn('[node-fulfiller] module load failed:', err?.message || err);
+    });
 }
 
 // First-boot backfill of the semantic index. The plan is: on a fresh install
@@ -343,8 +369,28 @@ function migrateInventoryColumns(db) {
       'ALTER TABLE meta_mcp_inventory ADD COLUMN provider_id INTEGER REFERENCES meta_mcp_providers(id)'
     );
   }
+  // App paradigm spike: partition the inventory between agent-declared vendor
+  // MCPs and runner-managed app MCPs. server_kind distinguishes the two;
+  // running_ref links app rows back to the runner's in-memory lifecycle state
+  // so stop_app can remove the inventory entries by ref. Existing rows
+  // default to 'vendor' — the inventory before this migration was vendor-only.
+  // See lite-template/integration/app-system/APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
+  if (!have.has('server_kind')) {
+    db.exec(
+      "ALTER TABLE meta_mcp_inventory ADD COLUMN server_kind TEXT NOT NULL DEFAULT 'vendor'"
+    );
+  }
+  if (!have.has('running_ref')) {
+    db.exec('ALTER TABLE meta_mcp_inventory ADD COLUMN running_ref TEXT');
+  }
   db.exec(
     'CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_provider ON meta_mcp_inventory(provider_id)'
+  );
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_server_kind ON meta_mcp_inventory(server_kind)'
+  );
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_running_ref ON meta_mcp_inventory(running_ref)'
   );
 }
 

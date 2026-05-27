@@ -1990,6 +1990,87 @@
       "unreachableBanner": "{unreachable} bots sur {total} injoignables — les résultats peuvent être partiels."
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps que l'agent a matérialisées via le paradigme App. Cycle de vie, variables d'environnement et introspection MCP en direct — lus depuis le contextmap et le runner local.",
+    "loading": "Chargement…",
+    "refresh": "Actualiser",
+    "empty": "Aucune App pour l'instant — demande à ton agent Claude Code d'en générer une.",
+    "backToList": "Retour aux Apps",
+    "notFound": "App introuvable.",
+    "openPreview": "Ouvrir l'aperçu",
+    "openMcp": "Ouvrir MCP",
+    "actions": {
+      "start": "Démarrer",
+      "stop": "Arrêter",
+      "starting": "Démarrage…",
+      "stopping": "Arrêt…"
+    },
+    "status": {
+      "running": "En cours d'exécution",
+      "stopped": "Arrêtée",
+      "crashed": "Plantée",
+      "unknown": "Inconnu"
+    },
+    "table": {
+      "headers": {
+        "name": "Nom",
+        "materialized": "Matérialisée",
+        "runner": "Runner",
+        "status": "Statut",
+        "actions": "Actions"
+      }
+    },
+    "detail": {
+      "metadata": "Métadonnées",
+      "artifactPath": "Chemin de l'artefact",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adaptateur",
+      "appName": "Nom de l'App",
+      "host": "Hôte",
+      "materializedAt": "Matérialisée le",
+      "bindings": "Liaisons",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Durabilité",
+        "inference": "Inférence",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "MCP de l'App",
+        "url": "URL MCP",
+        "offline": "MCP hors ligne — démarre l'App pour voir la liste de ses outils.",
+        "loading": "Chargement des outils…",
+        "error": "Impossible de joindre le MCP de l'App : {error}",
+        "registeredTools": "Outils enregistrés",
+        "noTools": "Aucun outil enregistré.",
+        "declaredPurpose": "Objectif déclaré"
+      },
+      "envPanel": {
+        "title": "Variables d'environnement",
+        "explainer": "Les valeurs sont écrites directement dans le fichier .env de l'artefact. Elles ne sont pas journalisées, ni stockées dans la base du plan de contrôle, ni renvoyées dans cette vue.",
+        "keyHeader": "Clé",
+        "addKey": "Clé",
+        "addValue": "Valeur",
+        "add": "Ajouter",
+        "delete": "Supprimer",
+        "deleteConfirm": "Supprimer la variable d'environnement « {key} » ?",
+        "noKeys": "Aucune variable d'environnement définie pour l'instant.",
+        "valueHidden": "•••••",
+        "edit": "Modifier",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "valeur"
+      },
+      "provenance": {
+        "title": "Provenance",
+        "subtitle": "Principes attachés au commit de matérialisation de cette App.",
+        "none": "Aucun principe enregistré."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Téléverser des documents",
     "description": "Téléverse les documents que ton chatbot utilisera pour le RAG (Retrieval-Augmented Generation)",

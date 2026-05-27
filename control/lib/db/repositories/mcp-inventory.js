@@ -24,6 +24,7 @@ import {
   EmbeddingsRepository,
   composeMcpToolRef,
   composeMcpToolBody,
+  ToolRefSeparator,
 } from './embeddings.js';
 
 const VALID_CONFIDENCE = new Set([
@@ -44,6 +45,8 @@ function rowToTool(row) {
     inputSchema: row.input_schema_json ? JSON.parse(row.input_schema_json) : null,
     introspectionConfidence: row.introspection_confidence || null,
     providerId: row.provider_id ?? null,
+    serverKind: row.server_kind || 'vendor',
+    runningRef: row.running_ref || null,
   };
 }
 
@@ -119,6 +122,12 @@ function validateServers(servers) {
 // Synchronous write — the actual delete-and-reinsert dance, optionally
 // paired with the embedding sidecar (the async `replaceInventoryWithEmbeddings`
 // wrapper pre-embeds and passes the prepared vectors in).
+//
+// Replace semantics are scoped to `server_kind = 'vendor'`. Runner-managed app
+// MCP rows (server_kind = 'app') survive every vendor declaration so the
+// runner's lifecycle hooks remain the single source of truth for app entries.
+// Same scoping applies to the embedding-sidecar sweep — only vendor tool_refs
+// are deleted/re-upserted; app embeddings (if ever indexed) are untouched.
 function replaceInventoryInternal(servers, toolEmbeddings) {
   validateServers(servers);
   const db = getDb();
@@ -127,17 +136,36 @@ function replaceInventoryInternal(servers, toolEmbeddings) {
   const hasEmbeddings = Array.isArray(toolEmbeddings) && toolEmbeddings.length > 0;
 
   const run = db.transaction(() => {
-    const before = db.prepare('SELECT COUNT(*) AS n FROM meta_mcp_inventory').get().n;
-    db.prepare('DELETE FROM meta_mcp_inventory').run();
+    const before = db
+      .prepare("SELECT COUNT(*) AS n FROM meta_mcp_inventory WHERE server_kind = 'vendor'")
+      .get().n;
+    // Capture distinct vendor server names before delete so the embedding
+    // sweep can drop their orphans by prefix. Inventory's tool_ref uses `.`
+    // separator (gmail.send) but the embedding sidecar uses `::`
+    // (gmail::send) — same server, different ref format. The composeMcpToolRef
+    // helper owns the embedding's format; we go through the prefix-delete
+    // affordance rather than reconstructing refs by hand.
+    const vendorServersBefore = hasEmbeddings
+      ? db
+          .prepare(
+            "SELECT DISTINCT server FROM meta_mcp_inventory WHERE server_kind = 'vendor'",
+          )
+          .pluck()
+          .all()
+      : [];
+    db.prepare("DELETE FROM meta_mcp_inventory WHERE server_kind = 'vendor'").run();
     if (hasEmbeddings) {
-      // Inventory replace is whole-environment; mirror that on the sidecar
-      // so we don't carry orphan rows for servers the operator removed.
-      db.prepare("DELETE FROM meta_embeddings WHERE source_kind = 'mcp_tool'").run();
+      for (const serverName of vendorServersBefore) {
+        EmbeddingsRepository.deleteByRefPrefixSync(
+          'mcp_tool',
+          `${serverName}${ToolRefSeparator}`,
+        );
+      }
     }
     const insert = db.prepare(
       `INSERT INTO meta_mcp_inventory
-         (server, tool_name, tool_ref, description, declared_at, input_schema_json, introspection_confidence, provider_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (server, tool_name, tool_ref, description, declared_at, input_schema_json, introspection_confidence, provider_id, server_kind, running_ref)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'vendor', NULL)`,
     );
     let inserted = 0;
     const providerIdByServer = new Map();
@@ -269,11 +297,21 @@ export const InventoryRepository = {
     }
 
     const byServer = new Map();
+    const serverMeta = new Map();
     let latestDeclaredAt = 0;
     for (const row of rows) {
       const tool = rowToTool(row);
       if (tool.declaredAt > latestDeclaredAt) latestDeclaredAt = tool.declaredAt;
       if (!byServer.has(tool.server)) byServer.set(tool.server, []);
+      // All tools on one server share server_kind / running_ref by design
+      // (vendor declarations write a single server at a time; app additions
+      // write a single server at a time). First row wins.
+      if (!serverMeta.has(tool.server)) {
+        serverMeta.set(tool.server, {
+          serverKind: tool.serverKind,
+          runningRef: tool.runningRef,
+        });
+      }
       const entry = {
         name: tool.toolName,
         ref: tool.toolRef,
@@ -288,7 +326,12 @@ export const InventoryRepository = {
 
     const nowSeconds = Math.floor(Date.now() / 1000);
     return {
-      servers: Array.from(byServer.entries()).map(([name, tools]) => ({ name, tools })),
+      servers: Array.from(byServer.entries()).map(([name, tools]) => {
+        const meta = serverMeta.get(name) || { serverKind: 'vendor', runningRef: null };
+        const out = { name, tools, serverKind: meta.serverKind };
+        if (meta.runningRef) out.runningRef = meta.runningRef;
+        return out;
+      }),
       declaredAt: latestDeclaredAt,
       ageSeconds: Math.max(0, nowSeconds - latestDeclaredAt),
       toolCount: rows.length,
@@ -360,6 +403,98 @@ export const InventoryRepository = {
       introspection_confidence: serverConfidence,
       tools,
     };
+  },
+
+  /**
+   * App-MCP write path — runner-managed, additive (NOT replace semantics).
+   * Called by the local runner on `start_app` after spawning the sidecar.
+   * Pushes one server entry into `meta_mcp_inventory` with
+   * `server_kind = 'app'` and `running_ref` populated, so the app's MCP tools
+   * appear alongside vendor MCPs in `meta_context_brief({kind:'fleet'}).inventory`.
+   *
+   * Replace-by-running-ref: if a row already exists for this running_ref (e.g.
+   * a re-push after a sidecar reconnect), the existing app rows for that ref
+   * are dropped before the new ones are inserted, atomically. This avoids
+   * accidental tool-name duplication when the runner re-syncs.
+   *
+   * App inventory rows are NOT mirrored to the embedding sidecar in v0 — the
+   * spike's semantic-recall surface targets vendor tools only. Widening can
+   * extend if cross-app composition (orbit-composing app tools) needs recall.
+   * See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
+   *
+   * Pass: `{ server, tools: [{ name, description?, inputSchema?, introspectionConfidence? }, ...], runningRef }`.
+   * Returns: `{ inserted, declaredAt }`.
+   */
+  addAppInventory({ server, tools, runningRef }) {
+    if (!server || typeof server !== 'string' || !server.trim()) {
+      throw new Error('addAppInventory requires a non-empty server name');
+    }
+    if (!Array.isArray(tools)) {
+      throw new Error(`addAppInventory: server '${server}' requires a tools array (use [] for empty)`);
+    }
+    if (!runningRef || typeof runningRef !== 'string' || !runningRef.trim()) {
+      throw new Error('addAppInventory requires a non-empty runningRef');
+    }
+    // Reuse the vendor validator's per-tool checks by wrapping into the same
+    // shape — same constraints apply to app tools (non-empty name, optional
+    // description string, optional object inputSchema, optional confidence
+    // from the same enum).
+    validateServers([{ name: server, tools }]);
+
+    const db = getDb();
+    const declaredAt = Math.floor(Date.now() / 1000);
+    const serverName = server.trim();
+    const runRef = runningRef.trim();
+
+    const run = db.transaction(() => {
+      // Replace-by-running-ref: drop any prior app rows under this runningRef
+      // before insert, so re-pushes are atomic. Scoped to running_ref only —
+      // never touches vendor rows.
+      db.prepare(
+        "DELETE FROM meta_mcp_inventory WHERE server_kind = 'app' AND running_ref = ?",
+      ).run(runRef);
+
+      const insert = db.prepare(
+        `INSERT INTO meta_mcp_inventory
+           (server, tool_name, tool_ref, description, declared_at, input_schema_json, introspection_confidence, provider_id, server_kind, running_ref)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'app', ?)`,
+      );
+      let inserted = 0;
+      for (const t of tools) {
+        const toolName = t.name.trim();
+        insert.run(
+          serverName,
+          toolName,
+          toolRef(serverName, toolName),
+          t.description ?? null,
+          declaredAt,
+          t.inputSchema ? JSON.stringify(t.inputSchema) : null,
+          t.introspectionConfidence ?? null,
+          runRef,
+        );
+        inserted += 1;
+      }
+      return { inserted };
+    });
+
+    const { inserted } = run();
+    return { inserted, declaredAt };
+  },
+
+  /**
+   * Drop every inventory row associated with a runner's running_ref. Called
+   * on `stop_app`. Scoped to `server_kind = 'app'` and the given running_ref —
+   * never touches vendor rows. Returns `{ removed }` count.
+   */
+  removeAppInventory(runningRef) {
+    if (!runningRef || typeof runningRef !== 'string') {
+      throw new Error('removeAppInventory requires a runningRef string');
+    }
+    const db = getDb();
+    const result = db
+      .prepare("DELETE FROM meta_mcp_inventory WHERE server_kind = 'app' AND running_ref = ?")
+      .run(runningRef.trim());
+    return { removed: result.changes };
   },
 };
 

@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   verifyArtifact,
+  verifyAppArtifact,
   _looksLikeFilesystemLocatorForTests as looksLikeFilesystemLocator,
 } from './verification.js';
 
@@ -101,5 +102,53 @@ describe('verifyArtifact — rejection cases', () => {
   it('rejects missing locator', () => {
     expect(verifyArtifact('claude-code', '').ok).toBe(false);
     expect(verifyArtifact('claude-code', null).ok).toBe(false);
+  });
+});
+
+// ── verifyAppArtifact ────────────────────────────────────────────────────
+//
+// App-paradigm spike: the artifact's directory must contain the scaffolded
+// app-mcp/server.js. Materialization without a sidecar would leave the
+// runner unable to lifecycle the app, so verification refuses the commit
+// at the gate. See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
+
+describe('verifyAppArtifact — claude-code / generic', () => {
+  it('accepts a directory whose app-mcp/server.js exists', () => {
+    const appDir = join(tmpRoot, 'app-with-sidecar');
+    mkdirSync(join(appDir, 'app-mcp'), { recursive: true });
+    writeFileSync(join(appDir, 'app-mcp', 'server.js'), '// stub\n');
+    expect(verifyAppArtifact('claude-code', appDir).ok).toBe(true);
+    expect(verifyAppArtifact('generic', appDir).ok).toBe(true);
+  });
+
+  it('rejects a directory without the app-mcp scaffold', () => {
+    const appDir = join(tmpRoot, 'app-no-sidecar');
+    mkdirSync(appDir, { recursive: true });
+    const r = verifyAppArtifact('claude-code', appDir);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/app-mcp scaffold missing/);
+  });
+
+  it('rejects when the artifact directory itself does not exist (base check fails first)', () => {
+    const r = verifyAppArtifact('claude-code', missingFile);
+    expect(r.ok).toBe(false);
+    // The base claude-code message wins because the directory itself is gone.
+    expect(r.reason).toMatch(/nothing exists/);
+  });
+});
+
+describe('verifyAppArtifact — codex', () => {
+  it('accepts opaque automation handles on assertion (carries the note through)', () => {
+    const r = verifyAppArtifact('codex', 'opaque-codex-app-handle');
+    expect(r.ok).toBe(true);
+    expect(r.note).toBe('codex_accept_on_assertion');
+  });
+
+  it('still requires the scaffold when locator is a filesystem path', () => {
+    const appDir = join(tmpRoot, 'codex-fs-app-no-sidecar');
+    mkdirSync(appDir, { recursive: true });
+    const r = verifyAppArtifact('codex', appDir);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/app-mcp scaffold missing/);
   });
 });

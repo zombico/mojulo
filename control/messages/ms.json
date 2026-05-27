@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps yang telah dimaterialkan oleh ejen melalui paradigma App. Kitaran hayat, pemboleh ubah env, dan introspeksi MCP langsung — dibaca daripada contextmap dan pelari tempatan.",
+    "loading": "Memuatkan…",
+    "refresh": "Muat semula",
+    "empty": "Belum ada apps — minta ejen Claude Code anda untuk membina satu.",
+    "backToList": "Kembali ke Apps",
+    "notFound": "App tidak dijumpai.",
+    "openPreview": "Buka pratonton",
+    "openMcp": "Buka MCP",
+    "actions": {
+      "start": "Mula",
+      "stop": "Berhenti",
+      "starting": "Memulakan…",
+      "stopping": "Memberhentikan…"
+    },
+    "status": {
+      "running": "Sedang berjalan",
+      "stopped": "Dihentikan",
+      "crashed": "Terhempas",
+      "unknown": "Tidak diketahui"
+    },
+    "table": {
+      "headers": {
+        "name": "Nama",
+        "materialized": "Dimaterialkan",
+        "runner": "Pelari",
+        "status": "Status",
+        "actions": "Tindakan"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Laluan artifak",
+      "materializationRef": "Materialization ref",
+      "adapter": "Penyesuai",
+      "appName": "Nama app",
+      "host": "Hos",
+      "materializedAt": "Dimaterialkan pada",
+      "bindings": "Pengikatan",
+      "binding": {
+        "runner": "Pelari",
+        "durability": "Ketahanan",
+        "inference": "Inferens",
+        "mcpSelf": "MCP diri"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "URL MCP",
+        "offline": "MCP di luar talian — mulakan app untuk melihat senarai alatnya.",
+        "loading": "Memuatkan alat…",
+        "error": "Tidak dapat mencapai MCP app: {error}",
+        "registeredTools": "Alat yang didaftarkan",
+        "noTools": "Tiada alat didaftarkan.",
+        "declaredPurpose": "Tujuan yang diisytiharkan"
+      },
+      "envPanel": {
+        "title": "Pemboleh ubah persekitaran",
+        "explainer": "Nilai ditulis terus ke fail .env artifak. Ia tidak dilog, tidak disimpan dalam pangkalan data control-plane, dan tidak dipulangkan ke paparan ini.",
+        "keyHeader": "Kunci",
+        "addKey": "Kunci",
+        "addValue": "Nilai",
+        "add": "Tambah",
+        "delete": "Padam",
+        "deleteConfirm": "Padam pemboleh ubah env \"{key}\"?",
+        "noKeys": "Belum ada pemboleh ubah env ditetapkan.",
+        "valueHidden": "•••••",
+        "edit": "Sunting",
+        "save": "Simpan",
+        "cancel": "Batal",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "nilai"
+      },
+      "provenance": {
+        "title": "Asal-usul",
+        "subtitle": "Prinsip yang dilampirkan pada komit materialization app ini.",
+        "none": "Tiada prinsip direkodkan."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Muat Naik Dokumen",
     "description": "Muat naik dokumen yang akan digunakan oleh chatbot anda untuk RAG (Retrieval-Augmented Generation)",

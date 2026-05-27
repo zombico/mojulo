@@ -33,7 +33,7 @@ export async function bindPrimitivesHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
     throw new Error('bind_primitives requires an object with primitive / role / server / bindings');
   }
-  const { primitive, role, server, bindings } = input;
+  const { primitive, role, server, bindings, pathPrefix } = input;
 
   if (!primitive || typeof primitive !== 'string') {
     throw new Error('`primitive` is required (e.g. "document-store")');
@@ -98,6 +98,7 @@ export async function bindPrimitivesHandler(input, _ctx) {
     role,
     snapshot,
     bindings,
+    pathPrefix,
   });
 
   // Persist the artifact so its ref is stable across the agent's subsequent
@@ -133,7 +134,7 @@ export function registerPrimitiveBindingTools() {
   registerTool({
     name: 'bind_primitives',
     description:
-      "Ring 6 — DELIBERATION surface (primitive-binding architecture). Given a primitive (`document-store`, `structured-record-store`, ...), a role (`source` | `destination`), a server name from the declared inventory, and an affordance→tool bindings map, runs the deterministic primitive-binding generator and persists the result as a session-scoped provider artifact. Returns `{ ok, artifact: { ref, primitiveRef, role, server, introspectedAt, snapshotConfidence, body, manifest }, warnings? }`. The `body` is the runtime-generated markdown the agent should read in full before composing — it carries the actual bound tool names and schemas from the operator's installed MCP, not a curated guess. The `manifest.bound` array names each affordance → bound tool + confidence; `manifest.unbound` flags affordances the agent left unbound (often acceptable — e.g. `subscribe-to-changes` is `rare` on most document stores). `warnings` may include `snapshot_stale` (introspection > 24h old, suggest re-declaring inventory) or `snapshot_names_only` (no schemas captured — agent should treat all bindings as `agent-inferred` and seek operator confirmation). **Call order:** ensure inventory is declared with rich snapshots (tools/list schemas + `introspectionConfidence`) → call this tool once per primitive slot in your composition → reference returned `artifact.ref` in the subsequent `meta_context_commit`. Distinct from the existing mcp-orbit composer flow (`recommend_mcp_orbit_compositions` etc.) — that one composes from vendor-shaped components; this one composes from vendor-agnostic primitives bound to runtime-introspected MCPs.",
+      "Ring 6 — DELIBERATION surface (primitive-binding architecture). Given a primitive (`document-store`, `structured-record-store`, ...), a role (`source` | `destination`), a server name from the declared inventory, an affordance→tool bindings map, and an optional `pathPrefix` scoping the binding to a sub-path on the bound MCP, runs the deterministic primitive-binding generator and persists the result as a session-scoped provider artifact. Returns `{ ok, artifact: { ref, primitiveRef, role, server, introspectedAt, snapshotConfidence, body, manifest }, warnings? }`. The `body` is the runtime-generated markdown the agent should read in full before composing — it carries the actual bound tool names and schemas from the operator's installed MCP, not a curated guess. The `manifest.bound` array names each affordance → bound tool + confidence; `manifest.unbound` flags affordances the agent left unbound (often acceptable — e.g. `subscribe-to-changes` is `rare` on most document stores); `manifest.pathPrefix`, when present, names the scope the binding is constrained to (read this when materializing addressing — e.g. baking the path into a skill body or injecting it as a Runner env var). `warnings` may include `snapshot_stale` (introspection > 24h old, suggest re-declaring inventory) or `snapshot_names_only` (no schemas captured — agent should treat all bindings as `agent-inferred` and seek operator confirmation). **Call order:** ensure inventory is declared with rich snapshots (tools/list schemas + `introspectionConfidence`) → call this tool once per primitive slot in your composition → reference returned `artifact.ref` in the subsequent `meta_context_commit`. Distinct from the existing mcp-orbit composer flow (`recommend_mcp_orbit_compositions` etc.) — that one composes from vendor-shaped components; this one composes from vendor-agnostic primitives bound to runtime-introspected MCPs.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -172,6 +173,11 @@ export function registerPrimitiveBindingTools() {
             },
             required: ['tool'],
           },
+        },
+        pathPrefix: {
+          type: 'string',
+          description:
+            "Optional sub-scope the binding is constrained to (e.g. a workspace subdirectory, a folder id, a namespace prefix). When set, the generated artifact body renders a `Write scope` section pinning writes to this prefix and the manifest carries `pathPrefix` so downstream addressing (skill-body baking, Runner env vars) can read the scope without parsing prose. Must be a non-empty string with no `..` segments — escape semantics relative to the operator's workspace are checked by the catalyst body, not the generator.",
         },
       },
       required: ['primitive', 'role', 'server', 'bindings'],

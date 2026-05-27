@@ -19,6 +19,14 @@ The write pattern is: (1) compute the dedupe key from the operator's window/peri
 
 Scope every call — both the search and the create — to the operator-confirmed folder/label/prefix. Searching the operator's whole namespace will surface false-positive duplicates from unrelated documents; creating into root will silently scatter artifacts outside the intended scope.
 
+{{if-path-prefix}}
+## Write scope (path prefix)
+
+This binding is **constrained to `{{path_prefix}}`**. Every write — both the dedupe search and the create — must operate within that prefix. Writes outside the prefix are out of contract; the contextmap recorded the prefix as part of this binding's audit chain, so a downstream review can compare the actual writes to the declared scope.
+
+When the underlying MCP can't enforce the constraint (e.g. the filesystem MCP only enforces its launch-time allowed root, not arbitrary sub-paths), the constraint is a *guidance* boundary — the agent honors it; the MCP doesn't. Operators relying on the audit trail to certify "nothing was written outside `{{path_prefix}}`" should pair this binding with regular contextmap reviews, not assume the runtime blocks escape.
+{{/if-path-prefix}}
+
 {{if-bound:append-to-existing}}
 This MCP exposes `append-to-existing` — both "one document per period" and "rolling document" strategies are available. Surface the `doc_strategy` knob to the operator at composition time.
 {{/if-bound:append-to-existing}}

@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps zmaterializowane przez agenta w ramach paradygmatu App. Cykl życia, zmienne środowiskowe i bieżąca introspekcja MCP — odczytywane z contextmap oraz lokalnego runnera.",
+    "loading": "Ładowanie…",
+    "refresh": "Odśwież",
+    "empty": "Brak Apps — poproś swojego agenta Claude Code o przygotowanie szkieletu.",
+    "backToList": "Powrót do Apps",
+    "notFound": "Nie znaleziono App.",
+    "openPreview": "Otwórz podgląd",
+    "openMcp": "Otwórz MCP",
+    "actions": {
+      "start": "Uruchom",
+      "stop": "Zatrzymaj",
+      "starting": "Uruchamianie…",
+      "stopping": "Zatrzymywanie…"
+    },
+    "status": {
+      "running": "Uruchomione",
+      "stopped": "Zatrzymane",
+      "crashed": "Awaria",
+      "unknown": "Nieznane"
+    },
+    "table": {
+      "headers": {
+        "name": "Nazwa",
+        "materialized": "Zmaterializowano",
+        "runner": "Runner",
+        "status": "Status",
+        "actions": "Akcje"
+      }
+    },
+    "detail": {
+      "metadata": "Metadane",
+      "artifactPath": "Ścieżka artefaktu",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "Nazwa App",
+      "host": "Host",
+      "materializedAt": "Zmaterializowano o",
+      "bindings": "Powiązania",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Trwałość",
+        "inference": "Inferencja",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "MCP App",
+        "url": "URL MCP",
+        "offline": "MCP offline — uruchom App, aby zobaczyć listę narzędzi.",
+        "loading": "Ładowanie narzędzi…",
+        "error": "Nie udało się połączyć z MCP App: {error}",
+        "registeredTools": "Zarejestrowane narzędzia",
+        "noTools": "Brak zarejestrowanych narzędzi.",
+        "declaredPurpose": "Zadeklarowany cel"
+      },
+      "envPanel": {
+        "title": "Zmienne środowiskowe",
+        "explainer": "Wartości są zapisywane bezpośrednio do pliku .env artefaktu. Nie są logowane, nie są przechowywane w bazie danych warstwy sterującej ani nie są zwracane do tego widoku.",
+        "keyHeader": "Klucz",
+        "addKey": "Klucz",
+        "addValue": "Wartość",
+        "add": "Dodaj",
+        "delete": "Usuń",
+        "deleteConfirm": "Usunąć zmienną środowiskową „{key}\"?",
+        "noKeys": "Nie ustawiono jeszcze żadnych zmiennych środowiskowych.",
+        "valueHidden": "•••••",
+        "edit": "Edytuj",
+        "save": "Zapisz",
+        "cancel": "Anuluj",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "wartość"
+      },
+      "provenance": {
+        "title": "Proweniencja",
+        "subtitle": "Zasady przypisane do commitu materializacji tej App.",
+        "none": "Brak zarejestrowanych zasad."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Prześlij dokumenty",
     "description": "Prześlij dokumenty, których Twój chatbot użyje do RAG (Retrieval-Augmented Generation)",

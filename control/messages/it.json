@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "App che l'agente ha materializzato attraverso il paradigma App. Ciclo di vita, variabili d'ambiente e introspezione MCP live — letti dal contextmap e dal runner locale.",
+    "loading": "Caricamento…",
+    "refresh": "Aggiorna",
+    "empty": "Nessuna app ancora — chiedi al tuo agente Claude Code di crearne una.",
+    "backToList": "Torna ad Apps",
+    "notFound": "App non trovata.",
+    "openPreview": "Apri anteprima",
+    "openMcp": "Apri MCP",
+    "actions": {
+      "start": "Avvia",
+      "stop": "Ferma",
+      "starting": "Avvio…",
+      "stopping": "Arresto…"
+    },
+    "status": {
+      "running": "In esecuzione",
+      "stopped": "Fermata",
+      "crashed": "In crash",
+      "unknown": "Sconosciuto"
+    },
+    "table": {
+      "headers": {
+        "name": "Nome",
+        "materialized": "Materializzata",
+        "runner": "Runner",
+        "status": "Stato",
+        "actions": "Azioni"
+      }
+    },
+    "detail": {
+      "metadata": "Metadati",
+      "artifactPath": "Percorso artefatto",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "Nome app",
+      "host": "Host",
+      "materializedAt": "Materializzata il",
+      "bindings": "Binding",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Durabilità",
+        "inference": "Inferenza",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "MCP dell'app",
+        "url": "URL MCP",
+        "offline": "MCP offline — avvia l'app per vedere l'elenco dei suoi strumenti.",
+        "loading": "Caricamento strumenti…",
+        "error": "Impossibile raggiungere l'MCP dell'app: {error}",
+        "registeredTools": "Strumenti registrati",
+        "noTools": "Nessuno strumento registrato.",
+        "declaredPurpose": "Scopo dichiarato"
+      },
+      "envPanel": {
+        "title": "Variabili d'ambiente",
+        "explainer": "I valori vengono scritti direttamente nel file .env dell'artefatto. Non vengono loggati, non vengono memorizzati nel database del control plane e non vengono restituiti in questa vista.",
+        "keyHeader": "Chiave",
+        "addKey": "Chiave",
+        "addValue": "Valore",
+        "add": "Aggiungi",
+        "delete": "Elimina",
+        "deleteConfirm": "Eliminare la variabile d'ambiente \"{key}\"?",
+        "noKeys": "Nessuna variabile d'ambiente impostata.",
+        "valueHidden": "•••••",
+        "edit": "Modifica",
+        "save": "Salva",
+        "cancel": "Annulla",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "valore"
+      },
+      "provenance": {
+        "title": "Provenienza",
+        "subtitle": "Principi associati al commit di materializzazione di questa app.",
+        "none": "Nessun principio registrato."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Carica documenti",
     "description": "Carica documenti che il tuo chatbot userà per RAG (Retrieval-Augmented Generation)",

@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Ajanın App paradigması üzerinden materyalize ettiği Apps. Yaşam döngüsü, ortam değişkenleri ve canlı MCP iç gözlemi — contextmap'ten ve yerel çalıştırıcıdan okunur.",
+    "loading": "Yükleniyor…",
+    "refresh": "Yenile",
+    "empty": "Henüz App yok — Claude Code ajanından bir tane oluşturmasını iste.",
+    "backToList": "Apps'e geri dön",
+    "notFound": "App bulunamadı.",
+    "openPreview": "Önizlemeyi aç",
+    "openMcp": "MCP'yi aç",
+    "actions": {
+      "start": "Başlat",
+      "stop": "Durdur",
+      "starting": "Başlatılıyor…",
+      "stopping": "Durduruluyor…"
+    },
+    "status": {
+      "running": "Çalışıyor",
+      "stopped": "Durduruldu",
+      "crashed": "Çöktü",
+      "unknown": "Bilinmiyor"
+    },
+    "table": {
+      "headers": {
+        "name": "Ad",
+        "materialized": "Materyalize edildi",
+        "runner": "Çalıştırıcı",
+        "status": "Durum",
+        "actions": "Eylemler"
+      }
+    },
+    "detail": {
+      "metadata": "Meta veri",
+      "artifactPath": "Eser yolu",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adaptör",
+      "appName": "App adı",
+      "host": "Host",
+      "materializedAt": "Materyalize edilme zamanı",
+      "bindings": "Bağlamalar",
+      "binding": {
+        "runner": "Çalıştırıcı",
+        "durability": "Kalıcılık",
+        "inference": "Çıkarım",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL'si",
+        "offline": "MCP çevrimdışı — araç listesini görmek için App'i başlat.",
+        "loading": "Araçlar yükleniyor…",
+        "error": "App MCP'sine ulaşılamadı: {error}",
+        "registeredTools": "Kayıtlı araçlar",
+        "noTools": "Kayıtlı araç yok.",
+        "declaredPurpose": "Bildirilen amaç"
+      },
+      "envPanel": {
+        "title": "Ortam değişkenleri",
+        "explainer": "Değerler doğrudan eserin .env dosyasına yazılır. Loglanmaz, kontrol düzlemi veritabanında saklanmaz ve bu görünüme geri yansıtılmaz.",
+        "keyHeader": "Anahtar",
+        "addKey": "Anahtar",
+        "addValue": "Değer",
+        "add": "Ekle",
+        "delete": "Sil",
+        "deleteConfirm": "\"{key}\" ortam değişkeni silinsin mi?",
+        "noKeys": "Henüz ortam değişkeni ayarlanmadı.",
+        "valueHidden": "•••••",
+        "edit": "Düzenle",
+        "save": "Kaydet",
+        "cancel": "İptal",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "değer"
+      },
+      "provenance": {
+        "title": "Köken",
+        "subtitle": "Bu App'in materyalize etme commit'ine eklenmiş ilkeler.",
+        "none": "Kayıtlı ilke yok."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Belgeleri Yükle",
     "description": "Sohbet botunun RAG (Retrieval-Augmented Generation) için kullanacağı belgeleri yükle",

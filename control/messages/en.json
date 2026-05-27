@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps the agent has materialized through the App paradigm. Lifecycle, env vars, and live MCP introspection — read from the contextmap and the local runner.",
+    "loading": "Loading…",
+    "refresh": "Refresh",
+    "empty": "No apps yet — ask your Claude Code agent to scaffold one.",
+    "backToList": "Back to Apps",
+    "notFound": "App not found.",
+    "openPreview": "Open preview",
+    "openMcp": "Open MCP",
+    "actions": {
+      "start": "Start",
+      "stop": "Stop",
+      "starting": "Starting…",
+      "stopping": "Stopping…"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "crashed": "Crashed",
+      "unknown": "Unknown"
+    },
+    "table": {
+      "headers": {
+        "name": "Name",
+        "materialized": "Materialized",
+        "runner": "Runner",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Artifact path",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "App name",
+      "host": "Host",
+      "materializedAt": "Materialized at",
+      "bindings": "Bindings",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Durability",
+        "inference": "Inference",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL",
+        "offline": "MCP offline — start the app to see its tool list.",
+        "loading": "Loading tools…",
+        "error": "Could not reach the app MCP: {error}",
+        "registeredTools": "Registered tools",
+        "noTools": "No tools registered.",
+        "declaredPurpose": "Declared purpose"
+      },
+      "envPanel": {
+        "title": "Environment variables",
+        "explainer": "Values are written directly to the artifact's .env file. They are not logged, not stored in the control-plane database, and not echoed back to this view.",
+        "keyHeader": "Key",
+        "addKey": "Key",
+        "addValue": "Value",
+        "add": "Add",
+        "delete": "Delete",
+        "deleteConfirm": "Delete env var \"{key}\"?",
+        "noKeys": "No env vars set yet.",
+        "valueHidden": "•••••",
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "value"
+      },
+      "provenance": {
+        "title": "Provenance",
+        "subtitle": "Principles attached to this app's materialization commit.",
+        "none": "No principles recorded."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Upload Documents",
     "description": "Upload documents that your chatbot will use for RAG (Retrieval-Augmented Generation)",

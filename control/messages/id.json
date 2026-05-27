@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "App yang telah dimaterialisasi oleh agen melalui paradigma App. Siklus hidup, variabel env, dan introspeksi MCP langsung — dibaca dari contextmap dan runner lokal.",
+    "loading": "Memuat…",
+    "refresh": "Muat ulang",
+    "empty": "Belum ada app — minta agen Claude Code Anda untuk membuat scaffold-nya.",
+    "backToList": "Kembali ke Apps",
+    "notFound": "App tidak ditemukan.",
+    "openPreview": "Buka pratinjau",
+    "openMcp": "Buka MCP",
+    "actions": {
+      "start": "Mulai",
+      "stop": "Hentikan",
+      "starting": "Memulai…",
+      "stopping": "Menghentikan…"
+    },
+    "status": {
+      "running": "Berjalan",
+      "stopped": "Berhenti",
+      "crashed": "Mogok",
+      "unknown": "Tidak diketahui"
+    },
+    "table": {
+      "headers": {
+        "name": "Nama",
+        "materialized": "Dimaterialisasi",
+        "runner": "Runner",
+        "status": "Status",
+        "actions": "Aksi"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Path artefak",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "Nama app",
+      "host": "Host",
+      "materializedAt": "Dimaterialisasi pada",
+      "bindings": "Binding",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Durabilitas",
+        "inference": "Inferensi",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "MCP App",
+        "url": "URL MCP",
+        "offline": "MCP offline — jalankan app untuk melihat daftar tool-nya.",
+        "loading": "Memuat tool…",
+        "error": "Tidak dapat menjangkau MCP app: {error}",
+        "registeredTools": "Tool terdaftar",
+        "noTools": "Tidak ada tool yang terdaftar.",
+        "declaredPurpose": "Tujuan yang dideklarasikan"
+      },
+      "envPanel": {
+        "title": "Variabel lingkungan",
+        "explainer": "Nilai ditulis langsung ke file .env artefak. Nilai-nilai ini tidak dicatat dalam log, tidak disimpan di basis data control-plane, dan tidak ditampilkan kembali di tampilan ini.",
+        "keyHeader": "Key",
+        "addKey": "Key",
+        "addValue": "Value",
+        "add": "Tambah",
+        "delete": "Hapus",
+        "deleteConfirm": "Hapus variabel env \"{key}\"?",
+        "noKeys": "Belum ada variabel env yang diatur.",
+        "valueHidden": "•••••",
+        "edit": "Ubah",
+        "save": "Simpan",
+        "cancel": "Batal",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "value"
+      },
+      "provenance": {
+        "title": "Provenans",
+        "subtitle": "Prinsip yang terlampir pada commit materialisasi app ini.",
+        "none": "Tidak ada prinsip yang tercatat."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Unggah Dokumen",
     "description": "Unggah dokumen yang akan digunakan chatbot Anda untuk RAG (Retrieval-Augmented Generation)",

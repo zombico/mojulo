@@ -30,7 +30,10 @@ const EDGE_KINDS = ['binds', 'seeded', 'materialized_by', 'runs_for'];
 const PRINCIPLE_SOURCE_EVENTS = [
   'artifact_materialization',
   'primitive_artifact_materialization',
+  'app_materialization',
+  'app_inference',
   'operator_kyc',
+  'operator_workspace_setup',
   'adapter_shipped',
   'catalyst_shipped',
   'tool_added',

@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps som agenten har materialiserat genom App-paradigmet. Livscykel, miljövariabler och live-introspektion av MCP — läses från contextmap och den lokala körningen.",
+    "loading": "Läser in…",
+    "refresh": "Uppdatera",
+    "empty": "Inga apps än — be din Claude Code-agent att skapa en.",
+    "backToList": "Tillbaka till Apps",
+    "notFound": "App hittades inte.",
+    "openPreview": "Öppna förhandsvisning",
+    "openMcp": "Öppna MCP",
+    "actions": {
+      "start": "Starta",
+      "stop": "Stoppa",
+      "starting": "Startar…",
+      "stopping": "Stoppar…"
+    },
+    "status": {
+      "running": "Körs",
+      "stopped": "Stoppad",
+      "crashed": "Kraschad",
+      "unknown": "Okänd"
+    },
+    "table": {
+      "headers": {
+        "name": "Namn",
+        "materialized": "Materialiserad",
+        "runner": "Körning",
+        "status": "Status",
+        "actions": "Åtgärder"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Artefaktsökväg",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "App-namn",
+      "host": "Värd",
+      "materializedAt": "Materialiserad den",
+      "bindings": "Bindningar",
+      "binding": {
+        "runner": "Körning",
+        "durability": "Beständighet",
+        "inference": "Inferens",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP-URL",
+        "offline": "MCP offline — starta appen för att se dess verktygslista.",
+        "loading": "Läser in verktyg…",
+        "error": "Kunde inte nå app-MCP: {error}",
+        "registeredTools": "Registrerade verktyg",
+        "noTools": "Inga verktyg registrerade.",
+        "declaredPurpose": "Deklarerat syfte"
+      },
+      "envPanel": {
+        "title": "Miljövariabler",
+        "explainer": "Värden skrivs direkt till artefaktens .env-fil. De loggas inte, lagras inte i kontrollplanets databas och returneras inte till denna vy.",
+        "keyHeader": "Nyckel",
+        "addKey": "Nyckel",
+        "addValue": "Värde",
+        "add": "Lägg till",
+        "delete": "Ta bort",
+        "deleteConfirm": "Ta bort miljövariabeln \"{key}\"?",
+        "noKeys": "Inga miljövariabler har angetts än.",
+        "valueHidden": "•••••",
+        "edit": "Redigera",
+        "save": "Spara",
+        "cancel": "Avbryt",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "värde"
+      },
+      "provenance": {
+        "title": "Härkomst",
+        "subtitle": "Principer kopplade till denna apps materialiseringscommit.",
+        "none": "Inga principer registrerade."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Ladda upp dokument",
     "description": "Ladda upp dokument som din chattbot ska använda för RAG (Retrieval-Augmented Generation)",

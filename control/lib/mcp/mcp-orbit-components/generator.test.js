@@ -13,6 +13,7 @@ const {
   fillSubstitutions,
   indexToolsByName,
   formatUnboundList,
+  validatePathPrefix,
 } = _internals;
 
 // Capability snapshots that approximate two real document-store MCPs the agent
@@ -475,6 +476,118 @@ describe('generateProviderArtifact — end to end against shipped primitive', ()
         snapshot: DRIVE_SNAPSHOT,
       }),
     ).toThrow();
+  });
+});
+
+describe('generateProviderArtifact — pathPrefix scoping', () => {
+  it('renders the Write scope section and sets manifest.pathPrefix when pathPrefix is provided', () => {
+    const result = generateProviderArtifact({
+      primitive: 'document-store',
+      role: 'destination',
+      snapshot: DRIVE_SNAPSHOT,
+      bindings: DRIVE_DESTINATION_BINDINGS,
+      pathPrefix: '/Users/op/workspace/digest-skill',
+    });
+    expect(result.body).toMatch(/## Write scope \(path prefix\)/);
+    expect(result.body).toContain('/Users/op/workspace/digest-skill');
+    expect(result.manifest.pathPrefix).toBe('/Users/op/workspace/digest-skill');
+    expect(result.body).not.toMatch(/\{\{[^}]+\}\}/);
+  });
+
+  it('omits the Write scope section and leaves manifest.pathPrefix unset when pathPrefix is absent', () => {
+    const result = generateProviderArtifact({
+      primitive: 'document-store',
+      role: 'destination',
+      snapshot: DRIVE_SNAPSHOT,
+      bindings: DRIVE_DESTINATION_BINDINGS,
+    });
+    expect(result.body).not.toMatch(/## Write scope \(path prefix\)/);
+    expect(result.manifest.pathPrefix).toBeUndefined();
+    expect(result.body).not.toMatch(/\{\{[^}]+\}\}/);
+  });
+
+  it('rejects an empty pathPrefix', () => {
+    expect(() =>
+      generateProviderArtifact({
+        primitive: 'document-store',
+        role: 'destination',
+        snapshot: DRIVE_SNAPSHOT,
+        bindings: DRIVE_DESTINATION_BINDINGS,
+        pathPrefix: '',
+      }),
+    ).toThrow(/non-empty/);
+  });
+
+  it('rejects a pathPrefix containing .. segments', () => {
+    expect(() =>
+      generateProviderArtifact({
+        primitive: 'document-store',
+        role: 'destination',
+        snapshot: DRIVE_SNAPSHOT,
+        bindings: DRIVE_DESTINATION_BINDINGS,
+        pathPrefix: '/Users/op/workspace/../secrets',
+      }),
+    ).toThrow(/'\.\.' segments/);
+  });
+
+  it('rejects a non-string pathPrefix', () => {
+    expect(() =>
+      generateProviderArtifact({
+        primitive: 'document-store',
+        role: 'destination',
+        snapshot: DRIVE_SNAPSHOT,
+        bindings: DRIVE_DESTINATION_BINDINGS,
+        pathPrefix: 42,
+      }),
+    ).toThrow(/string/);
+  });
+});
+
+describe('validatePathPrefix (unit)', () => {
+  it('accepts undefined and null without throwing', () => {
+    expect(() => validatePathPrefix(undefined)).not.toThrow();
+    expect(() => validatePathPrefix(null)).not.toThrow();
+  });
+
+  it('accepts a simple absolute path', () => {
+    expect(() => validatePathPrefix('/Users/op/workspace/artifact-1')).not.toThrow();
+  });
+
+  it('rejects backslash-separated .. segments too', () => {
+    expect(() => validatePathPrefix('C:\\Users\\op\\..\\secrets')).toThrow(/'\.\.' segments/);
+  });
+});
+
+describe('fillConditionals — path-prefix variants', () => {
+  it('keeps if-path-prefix content when pathPrefix is set, drops if-no-path-prefix', () => {
+    const tpl = '{{if-path-prefix}}scoped{{/if-path-prefix}}|{{if-no-path-prefix}}global{{/if-no-path-prefix}}';
+    const out = fillConditionals(tpl, { bound: [], unbound: [] }, { pathPrefix: '/x' });
+    expect(out).toBe('scoped|');
+  });
+
+  it('drops if-path-prefix content when pathPrefix is absent, keeps if-no-path-prefix', () => {
+    const tpl = '{{if-path-prefix}}scoped{{/if-path-prefix}}|{{if-no-path-prefix}}global{{/if-no-path-prefix}}';
+    const out = fillConditionals(tpl, { bound: [], unbound: [] });
+    expect(out).toBe('|global');
+  });
+});
+
+describe('fillSubstitutions — path-prefix slot', () => {
+  it('fills the {{path_prefix}} slot when set', () => {
+    const out = fillSubstitutions('scope={{path_prefix}}', {
+      snapshot: { server: 's', introspected_at: 't' },
+      manifest: { bound: [], unbound: [] },
+      pathPrefix: '/Users/op/x',
+    });
+    expect(out).toBe('scope=/Users/op/x');
+  });
+
+  it('renders an empty string when pathPrefix is absent', () => {
+    const out = fillSubstitutions('scope={{path_prefix}}', {
+      snapshot: { server: 's', introspected_at: 't' },
+      manifest: { bound: [], unbound: [] },
+    });
+    expect(out).toBe('scope=');
   });
 });
 

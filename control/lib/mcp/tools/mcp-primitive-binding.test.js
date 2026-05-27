@@ -173,6 +173,60 @@ describe('bind_primitives — destination role', () => {
   });
 });
 
+describe('bind_primitives — pathPrefix scoping', () => {
+  beforeEach(() => {
+    declareDriveInventory();
+  });
+
+  it('persists pathPrefix through to the artifact body and manifest', async () => {
+    const out = await bindPrimitivesHandler({
+      primitive: 'document-store',
+      role: 'destination',
+      server: 'claude_ai_Google_Drive',
+      bindings: {
+        'create-with-mime': { tool: 'create_file', confidence: 'operator-confirmed' },
+        'find-by-key-in-scope': { tool: 'search_files', confidence: 'agent-inferred' },
+      },
+      pathPrefix: '/Users/op/workspace/digest-skill',
+    });
+    expect(out.artifact.manifest.pathPrefix).toBe('/Users/op/workspace/digest-skill');
+    expect(out.artifact.body).toMatch(/## Write scope \(path prefix\)/);
+    expect(out.artifact.body).toContain('/Users/op/workspace/digest-skill');
+
+    // Persisted row carries the same manifest payload.
+    const persisted = ProviderArtifactRepository.findByRef(out.artifact.ref);
+    expect(persisted.manifest.pathPrefix).toBe('/Users/op/workspace/digest-skill');
+  });
+
+  it('omits the Write scope section when pathPrefix is unset', async () => {
+    const out = await bindPrimitivesHandler({
+      primitive: 'document-store',
+      role: 'destination',
+      server: 'claude_ai_Google_Drive',
+      bindings: {
+        'create-with-mime': { tool: 'create_file', confidence: 'operator-confirmed' },
+        'find-by-key-in-scope': { tool: 'search_files', confidence: 'agent-inferred' },
+      },
+    });
+    expect(out.artifact.manifest.pathPrefix).toBeUndefined();
+    expect(out.artifact.body).not.toMatch(/## Write scope \(path prefix\)/);
+  });
+
+  it('rejects a pathPrefix containing .. segments', async () => {
+    await expect(
+      bindPrimitivesHandler({
+        primitive: 'document-store',
+        role: 'destination',
+        server: 'claude_ai_Google_Drive',
+        bindings: {
+          'create-with-mime': { tool: 'create_file', confidence: 'operator-confirmed' },
+        },
+        pathPrefix: '/Users/op/workspace/../secrets',
+      }),
+    ).rejects.toThrow(/'\.\.' segments/);
+  });
+});
+
 describe('bind_primitives — input validation', () => {
   beforeEach(() => {
     declareDriveInventory();

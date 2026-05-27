@@ -33,7 +33,7 @@ import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-prov
 import { EmbeddingsRepository } from '@/lib/db/repositories/embeddings';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
 import { getCatalyst } from '@/lib/mcp/catalysts/loader';
-import { verifyArtifact } from '@/lib/mcp/meta-context/verification';
+import { verifyArtifact, verifyAppArtifact } from '@/lib/mcp/meta-context/verification';
 
 // Pre-embed every distinct principle body that'll be written by a commit.
 // Principles are append-only, so the source_ref (the inserted row's id) is
@@ -115,13 +115,17 @@ export async function commitHandler(input, ctx) {
   switch (input.type) {
     case 'operator_kyc':
       return commitOperatorKyc(input);
+    case 'operator_workspace_setup':
+      return commitOperatorWorkspaceSetup(input);
     case 'artifact_materialization':
       return commitArtifactMaterialization(input, ctx);
     case 'primitive_artifact_materialization':
       return commitPrimitiveArtifactMaterialization(input, ctx);
+    case 'app_materialization':
+      return commitAppMaterialization(input, ctx);
     default:
       throw new Error(
-        `Unknown commit event type '${input.type}'. Supported: 'operator_kyc', 'artifact_materialization', 'primitive_artifact_materialization'.`,
+        `Unknown commit event type '${input.type}'. Supported: 'operator_kyc', 'operator_workspace_setup', 'artifact_materialization', 'primitive_artifact_materialization', 'app_materialization'.`,
       );
   }
 }
@@ -254,6 +258,109 @@ export async function commitOperatorKyc(input) {
     operatorNodeId: result.node.id,
     principleId: result.principle.id,
     revised: Boolean(existing),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// commit: operator_workspace_setup
+//
+// Records operator-level filesystem-workspace decisions on the operator node.
+// Distinct from `operator_kyc` so the catalyst (most commonly the `local-storage`
+// technique) doesn't have to preserve role/constraints across revises just to
+// set workspace_root, and so the resulting principle isn't rendered under
+// "Locked-in constraints:" — which is a KYC-shaped header, not a setup one.
+//
+// Append-only: every call writes a fresh principle (or pair). Readers that
+// want "the current workspace_root" read the latest principle with
+// source_event = 'operator_workspace_setup' on the operator node.
+// ---------------------------------------------------------------------------
+
+function isValidWorkspaceRoot(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return false;
+  // Reject ../ escape segments — same discipline as the generator's
+  // pathPrefix validation. Allow drive-letter roots and POSIX absolute paths;
+  // relative paths are rejected because the filesystem MCP only accepts
+  // absolute paths at runtime.
+  if (trimmed.split(/[\\/]/).includes('..')) return false;
+  const isPosixAbs = trimmed.startsWith('/');
+  const isWindowsAbs = /^[A-Za-z]:[\\/]/.test(trimmed);
+  return isPosixAbs || isWindowsAbs;
+}
+
+function composeWorkspaceRootBody(workspaceRoot) {
+  return `**Workspace root:** \`${workspaceRoot}\`\n\nMojulo materializes \`local-storage\` bindings under this path. The filesystem MCP must be launched with this path (or an ancestor) in its allow-list for the bindings to be reachable at runtime.`;
+}
+
+function composeWorkspaceConventionsBody(conventions) {
+  return `**Workspace conventions:**\n\n${conventions}`;
+}
+
+export async function commitOperatorWorkspaceSetup(input) {
+  const { workspace_root, workspace_conventions } = input || {};
+
+  if (!isValidWorkspaceRoot(workspace_root)) {
+    throw new Error(
+      'operator_workspace_setup requires a non-empty absolute `workspace_root` string (POSIX `/...` or Windows `C:\\...`; no `..` segments).',
+    );
+  }
+  if (
+    workspace_conventions !== undefined &&
+    workspace_conventions !== null &&
+    (typeof workspace_conventions !== 'string' || !workspace_conventions.trim())
+  ) {
+    throw new Error(
+      '`workspace_conventions` must be a non-empty string when provided (omit the field to leave conventions unset).',
+    );
+  }
+
+  const operator = MetaNodeRepository.findByRef('operator', 'self');
+  if (!operator) {
+    return {
+      ok: false,
+      reason: 'operator_anchor_missing',
+      hint: "Commit `operator_kyc` first to establish the operator anchor before recording workspace setup.",
+    };
+  }
+
+  const trimmedRoot = workspace_root.trim();
+  const trimmedConventions = workspace_conventions?.trim() || null;
+  const rootBody = composeWorkspaceRootBody(trimmedRoot);
+  const conventionsBody = trimmedConventions
+    ? composeWorkspaceConventionsBody(trimmedConventions)
+    : null;
+
+  // Pre-embed bodies before opening the sync txn — same discipline as KYC.
+  const bodies = conventionsBody ? [rootBody, conventionsBody] : [rootBody];
+  const bodyEmbeddings = await embedPrincipleBodies(bodies);
+
+  const result = MetaContextRepository.commit(() => {
+    const rootPrinciple = MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: operator.id,
+      body_md: rootBody,
+      source_event: 'operator_workspace_setup',
+    });
+    upsertPrincipleEmbedding(rootPrinciple, bodyEmbeddings);
+    let conventionsPrinciple = null;
+    if (conventionsBody) {
+      conventionsPrinciple = MetaPrincipleRepository.insert({
+        scope_kind: 'node',
+        scope_id: operator.id,
+        body_md: conventionsBody,
+        source_event: 'operator_workspace_setup',
+      });
+      upsertPrincipleEmbedding(conventionsPrinciple, bodyEmbeddings);
+    }
+    return { rootPrinciple, conventionsPrinciple };
+  });
+
+  return {
+    ok: true,
+    operatorNodeId: operator.id,
+    workspaceRootPrincipleId: result.rootPrinciple.id,
+    workspaceConventionsPrincipleId: result.conventionsPrinciple?.id ?? null,
   };
 }
 
@@ -788,6 +895,247 @@ export async function commitPrimitiveArtifactMaterialization(input, _ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// commit: app_materialization
+//
+// App-paradigm spike: parallel to artifact_materialization, but for generated
+// SPA codebases (apps) rather than bot-scoped catalyst artifacts. The
+// contextmap write differs:
+//   - No bot node, no catalyst node (apps are not bot-scoped; spike uses an
+//     inline scaffold prompt, no catalyst kind yet — see parent plan
+//     anti-scope "App catalyst formalization")
+//   - No `seeded` / `runs_for` edges
+//   - No `binds` edges (the four app bindings live on the artifact node's
+//     payload as structured data, summarized by an auto-summary principle —
+//     payload-not-bindings precedent established by
+//     primitive_artifact_materialization)
+//
+// The four bindings recorded in `payload.app.bindings`:
+//   - runner       — which runner implementation lifecycle this app
+//   - durability   — local-fs (spike) or github (post-spike)
+//   - inference    — agent-routed (R1) or keyed:<provider> (R2); the R1↔R2
+//                    boundary is recorded here
+//   - mcp_self     — the structural fact that this app ships its own MCP
+//                    sidecar; the live mcp_url is owned by the runner (not
+//                    committed — lifecycle events stay run-rate, not
+//                    deliberation-rate)
+//
+// Verification path goes through verifyAppArtifact, which additionally
+// checks `<locator>/app-mcp/server.js` exists — the runner can't lifecycle
+// an app whose scaffold is incomplete, so we refuse the commit at the gate.
+//
+// See lite-template/integration/app-system/APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
+// ---------------------------------------------------------------------------
+
+const APP_RUNNER_IMPLEMENTATIONS = ['local'];
+const APP_DURABILITY_KINDS = ['local-fs', 'github'];
+const APP_INFERENCE_MODES = ['agent-routed', 'keyed'];
+
+function validateAppBindings(bindings) {
+  if (!bindings || typeof bindings !== 'object') {
+    throw new Error('app_materialization requires a `bindings` object with runner / durability / inference / mcp_self entries');
+  }
+  const { runner, durability, inference, mcp_self } = bindings;
+
+  if (!runner || typeof runner !== 'object') {
+    throw new Error('bindings.runner is required, e.g. { implementation: "local" }');
+  }
+  if (!APP_RUNNER_IMPLEMENTATIONS.includes(runner.implementation)) {
+    throw new Error(
+      `bindings.runner.implementation must be one of: ${APP_RUNNER_IMPLEMENTATIONS.join(', ')} (got '${runner.implementation}')`,
+    );
+  }
+
+  if (!durability || typeof durability !== 'object') {
+    throw new Error('bindings.durability is required, e.g. { kind: "local-fs" }');
+  }
+  if (!APP_DURABILITY_KINDS.includes(durability.kind)) {
+    throw new Error(
+      `bindings.durability.kind must be one of: ${APP_DURABILITY_KINDS.join(', ')} (got '${durability.kind}')`,
+    );
+  }
+  if (durability.kind === 'github' && (typeof durability.git_url !== 'string' || !durability.git_url)) {
+    throw new Error("bindings.durability.kind = 'github' requires a non-empty git_url");
+  }
+
+  if (!inference || typeof inference !== 'object') {
+    throw new Error('bindings.inference is required, e.g. { mode: "agent-routed" }');
+  }
+  if (!APP_INFERENCE_MODES.includes(inference.mode)) {
+    throw new Error(
+      `bindings.inference.mode must be one of: ${APP_INFERENCE_MODES.join(', ')} (got '${inference.mode}')`,
+    );
+  }
+  if (inference.mode === 'keyed' && (typeof inference.provider !== 'string' || !inference.provider)) {
+    throw new Error("bindings.inference.mode = 'keyed' requires a non-empty provider");
+  }
+
+  if (!mcp_self || typeof mcp_self !== 'object') {
+    throw new Error('bindings.mcp_self is required, e.g. { server_kind: "app", entrypoint: "app-mcp/server.js" }');
+  }
+  if (mcp_self.server_kind !== 'app') {
+    throw new Error("bindings.mcp_self.server_kind must be 'app'");
+  }
+  if (typeof mcp_self.entrypoint !== 'string' || !mcp_self.entrypoint) {
+    throw new Error('bindings.mcp_self.entrypoint must be a non-empty string (e.g. "app-mcp/server.js")');
+  }
+}
+
+function composeAppAutoSummaryPrinciple({ app_name, bindings, locator }) {
+  const lines = [
+    `**App:** ${app_name}`,
+    '',
+    `**Materialized at:** \`${locator}\``,
+    '',
+    '**Bindings:**',
+    `- **runner:** \`${bindings.runner.implementation}\``,
+    `- **durability:** \`${bindings.durability.kind}\`` +
+      (bindings.durability.git_url ? ` (\`${bindings.durability.git_url}\`)` : ''),
+    `- **inference:** \`${bindings.inference.mode}\`` +
+      (bindings.inference.provider ? `:\`${bindings.inference.provider}\`` : ''),
+    `- **mcp_self:** \`${bindings.mcp_self.server_kind}\` sidecar at \`${bindings.mcp_self.entrypoint}\``,
+  ];
+  return lines.join('\n');
+}
+
+export async function commitAppMaterialization(input, _ctx) {
+  const { adapter_id, artifact, app_name, bindings, principles } = input;
+
+  // ---- pre-transaction validation ----
+
+  if (!adapter_id || typeof adapter_id !== 'string') {
+    throw new Error('adapter_id is required');
+  }
+  const adapter = getAdapter(adapter_id);
+  if (!adapter) {
+    throw new Error(`Unknown adapter '${adapter_id}'. Call list_adapters to see what's available.`);
+  }
+
+  if (!artifact || typeof artifact !== 'object') {
+    throw new Error('artifact is required, e.g. { locator: "...", label: "..." }');
+  }
+  if (!artifact.locator || typeof artifact.locator !== 'string') {
+    throw new Error('artifact.locator is required');
+  }
+  if (!artifact.label || typeof artifact.label !== 'string') {
+    throw new Error('artifact.label is required');
+  }
+
+  if (!app_name || typeof app_name !== 'string' || !app_name.trim()) {
+    throw new Error('app_name is required — a stable identifier for the materialized app');
+  }
+
+  validateAppBindings(bindings);
+
+  // Adapter-delegated verification PLUS the app-MCP scaffold existence check.
+  const verification = verifyAppArtifact(adapter_id, artifact.locator);
+  if (!verification.ok) {
+    throw new Error(`Artifact verification failed: ${verification.reason}`);
+  }
+
+  const artifactRef = buildArtifactRef(adapter_id, artifact.locator);
+
+  // Pre-embed: auto-summary + every distinct user-supplied principle body.
+  const autoSummaryBody = composeAppAutoSummaryPrinciple({
+    app_name: app_name.trim(),
+    bindings,
+    locator: artifact.locator,
+  });
+  const userBodies = Array.isArray(principles)
+    ? principles.map((p) => (p && typeof p.body_md === 'string' ? p.body_md : null))
+    : [];
+  const bodyEmbeddings = await embedPrincipleBodies([autoSummaryBody, ...userBodies]);
+
+  // ---- atomic write ----
+
+  const result = MetaContextRepository.commit(() => {
+    const adapterNode = MetaNodeRepository.upsert({
+      kind: 'adapter',
+      ref: adapter_id,
+      label: adapter.name,
+    });
+    const artifactNode = MetaNodeRepository.upsert({
+      kind: 'artifact',
+      ref: artifactRef,
+      label: artifact.label,
+      payload: {
+        adapter_id,
+        locator: artifact.locator,
+        host: adapter.name,
+        app: {
+          name: app_name.trim(),
+          bindings,
+        },
+      },
+    });
+    const materializedByEdge = MetaEdgeRepository.upsert({
+      src_id: artifactNode.id,
+      dst_id: adapterNode.id,
+      kind: 'materialized_by',
+    });
+
+    // Auto-summary principle scoped to the artifact node — the row's own
+    // reason for existing. Future readers recover the app's bindings shape
+    // from this one row without joining anywhere else.
+    const autoSummaryPrinciple = MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: artifactNode.id,
+      body_md: autoSummaryBody,
+      source_event: 'app_materialization',
+    });
+    upsertPrincipleEmbedding(autoSummaryPrinciple, bodyEmbeddings);
+
+    // Optional user principles. Valid scopes for app_materialization:
+    // 'artifact' | 'adapter' (node) and 'materialized_by' (edge). The
+    // attachPrinciples scopeMap omits everything else — catalyst/bot/seeded/
+    // runs_for/binds will throw, which is the correct posture (apps have no
+    // catalyst or bot scope in the spike).
+    const scopeMap = {
+      nodes: {
+        artifact: artifactNode,
+        adapter: adapterNode,
+      },
+      edges: {
+        materialized_by: materializedByEdge,
+      },
+    };
+    const userPrinciples = attachPrinciples({
+      principles,
+      scopeMap,
+      bindsEdgesByToolRef: new Map(),
+      sourceEvent: 'app_materialization',
+      bodyEmbeddings,
+    });
+
+    return {
+      adapterNode,
+      artifactNode,
+      materializedByEdge,
+      autoSummaryPrinciple,
+      userPrinciples,
+    };
+  });
+
+  const warnings = [];
+  if (!MetaContextRepository.hasOperator()) warnings.push('no_operator_anchor');
+
+  return {
+    ok: true,
+    artifactNodeId: result.artifactNode.id,
+    nodes: {
+      adapter: result.adapterNode.id,
+      artifact: result.artifactNode.id,
+    },
+    edges: {
+      materialized_by: result.materializedByEdge.id,
+    },
+    autoSummaryPrincipleId: result.autoSummaryPrinciple.id,
+    principlesCreated: 1 + result.userPrinciples.length,
+    verification,
+    ...(warnings.length > 0 ? { warnings } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // registration
 // ---------------------------------------------------------------------------
 
@@ -824,19 +1172,36 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_commit',
     description:
-      "Seal a structural decision. Three event types: (1) `operator_kyc` — optional one-time bootstrap anchoring the fleet on role + primary_goal + locked-in constraints (use `revise: true` to attach a new principle to the same operator node). (2) `artifact_materialization` — atomic per-materialization seal for bot-shaped catalysts: which catalyst was materialized into which artifact via which host adapter for which bot, plus bindings (mcp_tool + fields_bound) and principles. (3) `primitive_artifact_materialization` — atomic per-materialization seal for primitive-binding compositions (no bot, no catalyst): adapter_id + artifact + composition_intent + `provider_artifact_refs` from prior `bind_primitives` calls. The contextmap auto-writes a summary principle on the artifact node listing every binding (primitive / role / affordance / bound tool / confidence) so future readers recover the composition's intent + shape from one row. Adapter-delegated verification runs before write (claude-code/generic require existsSync; codex accepts opaque locators on assertion). Call ONLY AFTER materializing the artifact — never to declare intent. On commit failure, roll back via the host adapter's own affordance (delete file / cancel automation).",
+      "Seal a structural decision. Five event types: (1) `operator_kyc` — optional one-time bootstrap anchoring the fleet on role + primary_goal + locked-in constraints (use `revise: true` to attach a new principle to the same operator node). (2) `operator_workspace_setup` — record an absolute `workspace_root` (and optional `workspace_conventions`) the `local-storage` technique materializes folder bindings under. Append-only — every call writes a fresh principle stack; readers pick the latest `source_event = 'operator_workspace_setup'` principle on the operator node. Requires `operator_kyc` to have run first. (3) `artifact_materialization` — atomic per-materialization seal for bot-shaped catalysts: which catalyst was materialized into which artifact via which host adapter for which bot, plus bindings (mcp_tool + fields_bound) and principles. (4) `primitive_artifact_materialization` — atomic per-materialization seal for primitive-binding compositions (no bot, no catalyst): adapter_id + artifact + composition_intent + `provider_artifact_refs` from prior `bind_primitives` calls. The contextmap auto-writes a summary principle on the artifact node listing every binding (primitive / role / affordance / bound tool / confidence) so future readers recover the composition's intent + shape from one row. (5) `app_materialization` — atomic per-materialization seal for generated SPA apps (App paradigm, spike): adapter_id + artifact + app_name + four bindings (runner / durability / inference / mcp_self). Bindings live on the artifact node's payload; an auto-summary principle on the artifact node renders them for audit + semantic recall. Verification additionally requires the scaffolded `<locator>/app-mcp/server.js` to exist — the runner can't lifecycle an app whose sidecar is incomplete, so the commit refuses at the gate. Adapter-delegated verification runs before write (claude-code/generic require existsSync; codex accepts opaque locators on assertion). Call ONLY AFTER materializing the artifact — never to declare intent. On commit failure, roll back via the host adapter's own affordance (delete file / cancel automation).",
     inputSchema: {
       type: 'object',
       properties: {
         type: {
           type: 'string',
-          enum: ['operator_kyc', 'artifact_materialization', 'primitive_artifact_materialization'],
+          enum: [
+            'operator_kyc',
+            'operator_workspace_setup',
+            'artifact_materialization',
+            'primitive_artifact_materialization',
+            'app_materialization',
+          ],
         },
         // operator_kyc fields
         role: { type: 'string' },
         primary_goal: { type: 'string' },
         constraints: { type: 'array', items: { type: 'string' } },
         revise: { type: 'boolean' },
+        // operator_workspace_setup fields
+        workspace_root: {
+          type: 'string',
+          description:
+            "For operator_workspace_setup: absolute path (POSIX `/...` or Windows `C:\\...`) the operator's mojulo-bound local-storage bindings materialize under. No `..` segments. The filesystem MCP must be launched with this path (or an ancestor) in its allow-list at runtime.",
+        },
+        workspace_conventions: {
+          type: 'string',
+          description:
+            "For operator_workspace_setup: optional free-form conventions the operator wants applied across local-storage bindings (e.g. 'JSON not binary; dated subdirs; 30-day retention'). Stored as a separate principle so it can be revised independently of workspace_root.",
+        },
         vocabulary_register: {
           type: 'string',
           enum: VOCABULARY_REGISTERS,
@@ -861,17 +1226,6 @@ export function registerMetaContextTools() {
         // artifact_materialization (bot-shaped) only
         bot_ref: { type: 'string' },
         catalyst_ref: { type: 'string' },
-        bindings: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              mcp_tool: { type: 'string' },
-              fields_bound: { type: 'array', items: { type: 'string' } },
-            },
-            required: ['mcp_tool'],
-          },
-        },
         // primitive_artifact_materialization only
         composition_intent: {
           type: 'string',
@@ -883,6 +1237,77 @@ export function registerMetaContextTools() {
           items: { type: 'string' },
           description:
             'For primitive_artifact_materialization: the `prov_xxx` refs returned by prior `bind_primitives` calls — one per primitive slot in the composition. The commit walks these to build the binds edges in the contextmap.',
+        },
+        // app_materialization only
+        app_name: {
+          type: 'string',
+          description:
+            "For app_materialization: stable human-readable identifier for the materialized app (e.g. 'image-extractor'). Recorded on the artifact node's payload and used by the auto-summary principle.",
+        },
+        bindings: {
+          // NOTE: this property is shared with artifact_materialization's
+          // bindings array shape — JSON Schema doesn't union easily on a
+          // single property name. The handler dispatches on `type` and
+          // validates the right shape there; the schema below loosens the
+          // type to accept both shapes. For app_materialization, expect:
+          //   {
+          //     runner:     { implementation: 'local' },
+          //     durability: { kind: 'local-fs' | 'github', git_url?: string },
+          //     inference:  { mode: 'agent-routed' | 'keyed', provider?: string },
+          //     mcp_self:   { server_kind: 'app', entrypoint: 'app-mcp/server.js' }
+          //   }
+          oneOf: [
+            {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  mcp_tool: { type: 'string' },
+                  fields_bound: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['mcp_tool'],
+              },
+              description: 'For artifact_materialization: array of { mcp_tool, fields_bound? } binding entries.',
+            },
+            {
+              type: 'object',
+              properties: {
+                runner: {
+                  type: 'object',
+                  properties: {
+                    implementation: { type: 'string', enum: APP_RUNNER_IMPLEMENTATIONS },
+                  },
+                  required: ['implementation'],
+                },
+                durability: {
+                  type: 'object',
+                  properties: {
+                    kind: { type: 'string', enum: APP_DURABILITY_KINDS },
+                    git_url: { type: 'string' },
+                  },
+                  required: ['kind'],
+                },
+                inference: {
+                  type: 'object',
+                  properties: {
+                    mode: { type: 'string', enum: APP_INFERENCE_MODES },
+                    provider: { type: 'string' },
+                  },
+                  required: ['mode'],
+                },
+                mcp_self: {
+                  type: 'object',
+                  properties: {
+                    server_kind: { type: 'string', enum: ['app'] },
+                    entrypoint: { type: 'string' },
+                  },
+                  required: ['server_kind', 'entrypoint'],
+                },
+              },
+              required: ['runner', 'durability', 'inference', 'mcp_self'],
+              description: 'For app_materialization: the four structural bindings (runner / durability / inference / mcp_self).',
+            },
+          ],
         },
         // shared
         principles: {

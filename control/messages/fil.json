@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Mga App na na-materialize ng agent sa pamamagitan ng App paradigm. Lifecycle, env vars, at live MCP introspection — binabasa mula sa contextmap at sa local runner.",
+    "loading": "Naglo-load…",
+    "refresh": "I-refresh",
+    "empty": "Wala pang apps — hilingin sa iyong Claude Code agent na mag-scaffold ng isa.",
+    "backToList": "Bumalik sa Apps",
+    "notFound": "Hindi nahanap ang App.",
+    "openPreview": "Buksan ang preview",
+    "openMcp": "Buksan ang MCP",
+    "actions": {
+      "start": "Simulan",
+      "stop": "Itigil",
+      "starting": "Sinisimulan…",
+      "stopping": "Inihihinto…"
+    },
+    "status": {
+      "running": "Tumatakbo",
+      "stopped": "Naka-stop",
+      "crashed": "Nag-crash",
+      "unknown": "Hindi alam"
+    },
+    "table": {
+      "headers": {
+        "name": "Pangalan",
+        "materialized": "Na-materialize",
+        "runner": "Runner",
+        "status": "Status",
+        "actions": "Mga Aksyon"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Artifact path",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "Pangalan ng App",
+      "host": "Host",
+      "materializedAt": "Na-materialize noong",
+      "bindings": "Mga Binding",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Durability",
+        "inference": "Inference",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL",
+        "offline": "Offline ang MCP — simulan ang App para makita ang listahan ng mga tool.",
+        "loading": "Naglo-load ng mga tool…",
+        "error": "Hindi maabot ang App MCP: {error}",
+        "registeredTools": "Mga naka-rehistrong tool",
+        "noTools": "Walang naka-rehistrong tool.",
+        "declaredPurpose": "Idineklarang layunin"
+      },
+      "envPanel": {
+        "title": "Mga environment variable",
+        "explainer": "Ang mga value ay direktang isinusulat sa .env file ng artifact. Hindi ito nilo-log, hindi nakaimbak sa control-plane database, at hindi ipinapakita pabalik sa view na ito.",
+        "keyHeader": "Key",
+        "addKey": "Key",
+        "addValue": "Value",
+        "add": "Idagdag",
+        "delete": "Tanggalin",
+        "deleteConfirm": "Tanggalin ang env var na \"{key}\"?",
+        "noKeys": "Wala pang naka-set na env vars.",
+        "valueHidden": "•••••",
+        "edit": "I-edit",
+        "save": "I-save",
+        "cancel": "Kanselahin",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "value"
+      },
+      "provenance": {
+        "title": "Provenance",
+        "subtitle": "Mga prinsipyong nakakabit sa materialization commit ng App na ito.",
+        "none": "Walang naitalang prinsipyo."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Mag-upload ng Mga Dokumento",
     "description": "Mag-upload ng mga dokumento na gagamitin ng iyong chatbot para sa RAG (Retrieval-Augmented Generation)",

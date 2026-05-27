@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps som agenten har materialiseret gennem App-paradigmet. Livscyklus, env-variabler og live MCP-introspektion — læst fra contextmap og den lokale runner.",
+    "loading": "Indlæser…",
+    "refresh": "Opdater",
+    "empty": "Ingen apps endnu — bed din Claude Code-agent om at scaffolde en.",
+    "backToList": "Tilbage til Apps",
+    "notFound": "App ikke fundet.",
+    "openPreview": "Åbn forhåndsvisning",
+    "openMcp": "Åbn MCP",
+    "actions": {
+      "start": "Start",
+      "stop": "Stop",
+      "starting": "Starter…",
+      "stopping": "Stopper…"
+    },
+    "status": {
+      "running": "Kører",
+      "stopped": "Stoppet",
+      "crashed": "Nedbrudt",
+      "unknown": "Ukendt"
+    },
+    "table": {
+      "headers": {
+        "name": "Navn",
+        "materialized": "Materialiseret",
+        "runner": "Runner",
+        "status": "Status",
+        "actions": "Handlinger"
+      }
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "artifactPath": "Artefakt-sti",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "App-navn",
+      "host": "Host",
+      "materializedAt": "Materialiseret den",
+      "bindings": "Bindinger",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Holdbarhed",
+        "inference": "Inferens",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP-URL",
+        "offline": "MCP offline — start appen for at se dens værktøjsliste.",
+        "loading": "Indlæser værktøjer…",
+        "error": "Kunne ikke nå app-MCP'en: {error}",
+        "registeredTools": "Registrerede værktøjer",
+        "noTools": "Ingen værktøjer registreret.",
+        "declaredPurpose": "Erklæret formål"
+      },
+      "envPanel": {
+        "title": "Miljøvariabler",
+        "explainer": "Værdier skrives direkte til artefaktets .env-fil. De logges ikke, gemmes ikke i control-plane-databasen og vises ikke tilbage i denne visning.",
+        "keyHeader": "Nøgle",
+        "addKey": "Nøgle",
+        "addValue": "Værdi",
+        "add": "Tilføj",
+        "delete": "Slet",
+        "deleteConfirm": "Slet env-variabel \"{key}\"?",
+        "noKeys": "Ingen env-variabler sat endnu.",
+        "valueHidden": "•••••",
+        "edit": "Rediger",
+        "save": "Gem",
+        "cancel": "Annuller",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "værdi"
+      },
+      "provenance": {
+        "title": "Proveniens",
+        "subtitle": "Principper knyttet til denne apps materialiserings-commit.",
+        "none": "Ingen principper registreret."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Upload dokumenter",
     "description": "Upload dokumenter, som din chatbot skal bruge til RAG (Retrieval-Augmented Generation)",

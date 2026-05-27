@@ -111,8 +111,8 @@ function composeBody(catalystBody, adapter) {
 }
 
 export async function listCatalystsHandler(input, _ctx) {
-  const { category } = input || {};
-  const catalysts = listCatalysts({ category });
+  const { category, kind } = input || {};
+  const catalysts = listCatalysts({ category, kind });
   return { total: catalysts.length, catalysts };
 }
 
@@ -121,6 +121,18 @@ export async function getCatalystHandler(input, ctx) {
   if (!id) throw new Error('id is required');
   const catalyst = getCatalyst(id);
   if (!catalyst) throw new Error(`Catalyst not found: ${id}`);
+
+  // Technique catalysts bind a runtime primitive directly via `bind_primitives`
+  // + `meta_context_commit`; they don't produce a host-adapter-materialized
+  // artifact, so the workflow-shaped preamble and adapter section would
+  // mis-orient the agent. Return the technique body as-is.
+  if (catalyst.kind === 'technique') {
+    return {
+      ...catalyst,
+      adapter: null,
+      body: catalyst.body,
+    };
+  }
 
   const clientInfo = ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null;
   const adapterId = resolveAdapterId({ host, clientName: clientInfo?.name });
@@ -406,6 +418,10 @@ async function recommendForOneBot(deploymentId, ctx) {
   const requiresProtocolChange = [];
 
   for (const catalyst of getCatalystCatalog().values()) {
+    // Technique catalysts bind runtime primitives — they have nothing to
+    // recommend against a bot's enabled-protocol set. The technique surface is
+    // discovered via `list_catalysts({ kind: 'technique' })`.
+    if (catalyst.kind === 'technique') continue;
     const required = Array.isArray(catalyst.requires?.protocols)
       ? catalyst.requires.protocols
       : [];
@@ -446,6 +462,7 @@ async function recommendForFleet(deploymentIds, ctx) {
   const requiresProtocolChange = [];
 
   for (const catalyst of getCatalystCatalog().values()) {
+    if (catalyst.kind === 'technique') continue;
     const required = Array.isArray(catalyst.requires?.protocols)
       ? catalyst.requires.protocols
       : [];
@@ -523,13 +540,18 @@ export function registerCatalystTools() {
   registerTool({
     name: 'list_catalysts',
     description:
-      "List curated workflow recipes (\"catalysts\") shipped with mojulo. A catalyst is a host-neutral recipe you read to catalyze synthesis of a runnable workflow artifact (a Claude Code skill, a Codex automation, a generic workflow file + runner) that operates on a bot's data via this MCP + a destination MCP. Catalysts produce artifacts, they are not artifacts. Returns id, name, summary, category, and requirements (notably `requires.protocols`). Read the full body with `get_catalyst`; see `list_adapters` for how host-specific materialization is bound.",
+      "List curated recipes (\"catalysts\") shipped with mojulo. Two kinds: `workflow` (the default — recipes that materialize a runnable artifact through a host adapter against a bot's data + a destination MCP) and `technique` (recipes that bind a runtime substrate like the filesystem or a local SQL store to an artifact, recorded as a contextmap principle). Returns id, name, summary, kind, category, and requirements (notably `requires.protocols` for workflow catalysts). Read the full body with `get_catalyst`; see `list_adapters` for how host-specific materialization is bound (workflow only — techniques bind via `bind_primitives`).",
     inputSchema: {
       type: 'object',
       properties: {
         category: {
           type: 'string',
-          description: 'Optional filter (e.g., crm-sync, itsm, calendar, digest, analysis, rag-curation).',
+          description: 'Optional filter (e.g., crm-sync, itsm, calendar, digest, analysis, rag-curation, runtime-primitive).',
+        },
+        kind: {
+          type: 'string',
+          enum: ['workflow', 'technique'],
+          description: "Optional filter by catalyst kind. Omit to list both.",
         },
       },
     },

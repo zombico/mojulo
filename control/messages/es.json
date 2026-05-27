@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps que el agente ha materializado mediante el paradigma App. Ciclo de vida, variables de entorno e introspección MCP en vivo — leídas desde el contextmap y el runner local.",
+    "loading": "Cargando…",
+    "refresh": "Actualizar",
+    "empty": "Aún no hay Apps — pídele a tu agente de Claude Code que cree una.",
+    "backToList": "Volver a Apps",
+    "notFound": "App no encontrada.",
+    "openPreview": "Abrir vista previa",
+    "openMcp": "Abrir MCP",
+    "actions": {
+      "start": "Iniciar",
+      "stop": "Detener",
+      "starting": "Iniciando…",
+      "stopping": "Deteniendo…"
+    },
+    "status": {
+      "running": "En ejecución",
+      "stopped": "Detenida",
+      "crashed": "Caída",
+      "unknown": "Desconocido"
+    },
+    "table": {
+      "headers": {
+        "name": "Nombre",
+        "materialized": "Materializada",
+        "runner": "Runner",
+        "status": "Estado",
+        "actions": "Acciones"
+      }
+    },
+    "detail": {
+      "metadata": "Metadatos",
+      "artifactPath": "Ruta del artefacto",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adaptador",
+      "appName": "Nombre de la App",
+      "host": "Host",
+      "materializedAt": "Materializada el",
+      "bindings": "Bindings",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Durabilidad",
+        "inference": "Inferencia",
+        "mcpSelf": "MCP propio"
+      },
+      "mcpPanel": {
+        "title": "MCP de la App",
+        "url": "URL del MCP",
+        "offline": "MCP fuera de línea — inicia la App para ver su lista de herramientas.",
+        "loading": "Cargando herramientas…",
+        "error": "No se pudo acceder al MCP de la App: {error}",
+        "registeredTools": "Herramientas registradas",
+        "noTools": "No hay herramientas registradas.",
+        "declaredPurpose": "Propósito declarado"
+      },
+      "envPanel": {
+        "title": "Variables de entorno",
+        "explainer": "Los valores se escriben directamente en el archivo .env del artefacto. No se registran, no se almacenan en la base de datos del plano de control y no se devuelven a esta vista.",
+        "keyHeader": "Clave",
+        "addKey": "Clave",
+        "addValue": "Valor",
+        "add": "Añadir",
+        "delete": "Eliminar",
+        "deleteConfirm": "¿Eliminar la variable de entorno «{key}»?",
+        "noKeys": "Aún no hay variables de entorno definidas.",
+        "valueHidden": "•••••",
+        "edit": "Editar",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "valor"
+      },
+      "provenance": {
+        "title": "Procedencia",
+        "subtitle": "Principios vinculados al commit de materialización de esta App.",
+        "none": "No hay principios registrados."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Subir documentos",
     "description": "Sube documentos que tu chatbot usará para RAG (Generación Aumentada por Recuperación)",

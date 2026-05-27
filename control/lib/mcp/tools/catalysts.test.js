@@ -4,7 +4,7 @@
 // so this change doesn't affect their behavior.
 process.env.SQLITE_PATH = ':memory:';
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   CATALYST_CORE_PREAMBLE,
   CONSULTATION_POSTURE,
@@ -23,6 +23,7 @@ import {
   MetaNodeRepository,
   MetaPrincipleRepository,
 } from '@/lib/db/repositories/meta-context';
+import { _resetCatalogForTests } from '@/lib/mcp/catalysts/loader';
 
 describe('CATALYST_CORE_PREAMBLE — vocabulary disambiguation', () => {
   it('names all three overlapping concepts so the model can keep them distinct', () => {
@@ -165,7 +166,108 @@ describe('listCatalystsHandler', () => {
     expect(out.total).toBeGreaterThan(0);
     expect(out.catalysts.every((c) => c.category === 'crm-sync')).toBe(true);
   });
+
+  it('forwards the kind filter', async () => {
+    const out = await listCatalystsHandler({ kind: 'workflow' });
+    expect(out.total).toBeGreaterThan(0);
+    expect(out.catalysts.every((c) => c.kind === 'workflow')).toBe(true);
+  });
 });
+
+// Kind discriminator handling — exercised against an injected fixture catalog
+// so the assertions don't depend on a real technique catalyst being shipped
+// yet. The injected catalog combines one workflow + one technique so all three
+// handlers (list/get/recommend) can be observed side by side.
+describe('catalyst kind discriminator — workflow vs technique', () => {
+  function makeFixtureCatalog() {
+    return new Map([
+      [
+        'fixture-workflow',
+        {
+          id: 'fixture-workflow',
+          name: 'Fixture Workflow',
+          summary: 'Fixture for kind-discriminator tests.',
+          valueHook: 'a stand-in workflow for testing.',
+          kind: 'workflow',
+          version: 1,
+          category: 'misc',
+          requires: {},
+          parameters: [],
+          mcpTools: {},
+          outputContract: null,
+          body: 'Workflow body — should be wrapped with preamble + adapter.',
+        },
+      ],
+      [
+        'fixture-technique',
+        {
+          id: 'fixture-technique',
+          name: 'Fixture Technique',
+          summary: 'Fixture technique for kind-discriminator tests.',
+          valueHook: 'a stand-in technique for testing.',
+          kind: 'technique',
+          version: 1,
+          category: 'runtime-primitive',
+          requires: {},
+          parameters: [],
+          mcpTools: {},
+          outputContract: null,
+          body: 'Technique body — should be returned as-is, no preamble, no adapter.',
+        },
+      ],
+    ]);
+  }
+
+  beforeEach(() => {
+    closeDb();
+    _resetCatalogForTests(makeFixtureCatalog());
+  });
+
+  // Reset back to the real catalog after these tests so the rest of the file
+  // keeps seeing the shipped catalysts.
+  afterEach(() => {
+    _resetCatalogForTests(null);
+  });
+
+  it('get_catalyst returns a technique body without preamble or adapter', async () => {
+    const out = await getCatalystHandler({ id: 'fixture-technique' });
+    expect(out.kind).toBe('technique');
+    expect(out.adapter).toBeNull();
+    expect(out.body).toBe('Technique body — should be returned as-is, no preamble, no adapter.');
+    expect(out.body.startsWith(CATALYST_CORE_PREAMBLE)).toBe(false);
+  });
+
+  it('get_catalyst still wraps workflow catalysts with preamble + adapter', async () => {
+    const out = await getCatalystHandler({ id: 'fixture-workflow' });
+    expect(out.kind).toBe('workflow');
+    expect(out.adapter).not.toBeNull();
+    expect(out.body.startsWith(CATALYST_CORE_PREAMBLE)).toBe(true);
+    expect(out.body).toMatch(/# Host adapter/);
+  });
+
+  it('list_catalysts with kind=technique only returns technique catalysts', async () => {
+    const out = await listCatalystsHandler({ kind: 'technique' });
+    expect(out.total).toBe(1);
+    expect(out.catalysts[0].id).toBe('fixture-technique');
+  });
+
+  it('recommend_catalysts skips technique catalysts in single-bot mode', async () => {
+    seedDeployment();
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const all = [...out.applicable, ...out.requiresProtocolChange];
+    expect(all.some((r) => r.id === 'fixture-workflow')).toBe(true);
+    expect(all.some((r) => r.id === 'fixture-technique')).toBe(false);
+  });
+
+  it('recommend_catalysts skips technique catalysts in fleet mode', async () => {
+    seedDeployment();
+    const out = await recommendCatalystsHandler({ scope: 'fleet' });
+    const all = [...out.applicable, ...out.requiresProtocolChange];
+    expect(all.some((r) => r.id === 'fixture-workflow')).toBe(true);
+    expect(all.some((r) => r.id === 'fixture-technique')).toBe(false);
+  });
+});
+
 
 describe('CONSULTATION_POSTURE — recommend_catalysts framing', () => {
   // recommend_catalysts returns this in every response so the agent re-reads

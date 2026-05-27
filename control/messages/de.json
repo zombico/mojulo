@@ -2132,5 +2132,86 @@
     "signingIn": "Anmelden…",
     "signOut": "Abmelden",
     "invalid": "Ungültiger Benutzername oder Passwort"
+  },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps, die der Agent über das App-Paradigma materialisiert hat. Lifecycle, Umgebungsvariablen und Live-MCP-Introspektion — gelesen aus dem contextmap und dem lokalen Runner.",
+    "loading": "Laden…",
+    "refresh": "Aktualisieren",
+    "empty": "Noch keine Apps — bitte deinen Claude Code-Agenten, eine zu gerüsten.",
+    "backToList": "Zurück zu Apps",
+    "notFound": "App nicht gefunden.",
+    "openPreview": "Vorschau öffnen",
+    "openMcp": "MCP öffnen",
+    "actions": {
+      "start": "Starten",
+      "stop": "Stoppen",
+      "starting": "Wird gestartet…",
+      "stopping": "Wird gestoppt…"
+    },
+    "status": {
+      "running": "Läuft",
+      "stopped": "Gestoppt",
+      "crashed": "Abgestürzt",
+      "unknown": "Unbekannt"
+    },
+    "table": {
+      "headers": {
+        "name": "Name",
+        "materialized": "Materialisiert",
+        "runner": "Runner",
+        "status": "Status",
+        "actions": "Aktionen"
+      }
+    },
+    "detail": {
+      "metadata": "Metadaten",
+      "artifactPath": "Artefaktpfad",
+      "materializationRef": "Materialization ref",
+      "adapter": "Adapter",
+      "appName": "App-Name",
+      "host": "Host",
+      "materializedAt": "Materialisiert am",
+      "bindings": "Bindungen",
+      "binding": {
+        "runner": "Runner",
+        "durability": "Durability",
+        "inference": "Inference",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "App-MCP",
+        "url": "MCP-URL",
+        "offline": "MCP offline — starte die App, um ihre Tool-Liste zu sehen.",
+        "loading": "Tools werden geladen…",
+        "error": "App-MCP konnte nicht erreicht werden: {error}",
+        "registeredTools": "Registrierte Tools",
+        "noTools": "Keine Tools registriert.",
+        "declaredPurpose": "Deklarierter Zweck"
+      },
+      "envPanel": {
+        "title": "Umgebungsvariablen",
+        "explainer": "Werte werden direkt in die .env-Datei des Artefakts geschrieben. Sie werden nicht protokolliert, nicht in der Control-Plane-Datenbank gespeichert und nicht in diese Ansicht zurückgegeben.",
+        "keyHeader": "Schlüssel",
+        "addKey": "Schlüssel",
+        "addValue": "Wert",
+        "add": "Hinzufügen",
+        "delete": "Löschen",
+        "deleteConfirm": "Umgebungsvariable \"{key}\" löschen?",
+        "noKeys": "Noch keine Umgebungsvariablen gesetzt.",
+        "valueHidden": "•••••",
+        "edit": "Bearbeiten",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "Wert"
+      },
+      "provenance": {
+        "title": "Herkunft",
+        "subtitle": "Prinzipien, die an den Materialisierungs-Commit dieser App geknüpft sind.",
+        "none": "Keine Prinzipien aufgezeichnet."
+      }
+    }
   }
 }

@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "Apps, материализованные агентом через парадигму App. Жизненный цикл, переменные окружения и интроспекция MCP в реальном времени — читаются из contextmap и локального раннера.",
+    "loading": "Загрузка…",
+    "refresh": "Обновить",
+    "empty": "Пока нет apps — попросите вашего агента Claude Code создать первое.",
+    "backToList": "Назад к Apps",
+    "notFound": "App не найдено.",
+    "openPreview": "Открыть предпросмотр",
+    "openMcp": "Открыть MCP",
+    "actions": {
+      "start": "Запустить",
+      "stop": "Остановить",
+      "starting": "Запуск…",
+      "stopping": "Остановка…"
+    },
+    "status": {
+      "running": "Работает",
+      "stopped": "Остановлено",
+      "crashed": "Аварийно завершено",
+      "unknown": "Неизвестно"
+    },
+    "table": {
+      "headers": {
+        "name": "Имя",
+        "materialized": "Материализовано",
+        "runner": "Раннер",
+        "status": "Статус",
+        "actions": "Действия"
+      }
+    },
+    "detail": {
+      "metadata": "Метаданные",
+      "artifactPath": "Путь к артефакту",
+      "materializationRef": "Materialization ref",
+      "adapter": "Адаптер",
+      "appName": "Имя app",
+      "host": "Хост",
+      "materializedAt": "Материализовано в",
+      "bindings": "Привязки",
+      "binding": {
+        "runner": "Раннер",
+        "durability": "Долговечность",
+        "inference": "Инференс",
+        "mcpSelf": "MCP self"
+      },
+      "mcpPanel": {
+        "title": "MCP приложения",
+        "url": "URL MCP",
+        "offline": "MCP офлайн — запустите app, чтобы увидеть список его инструментов.",
+        "loading": "Загрузка инструментов…",
+        "error": "Не удалось связаться с MCP приложения: {error}",
+        "registeredTools": "Зарегистрированные инструменты",
+        "noTools": "Нет зарегистрированных инструментов.",
+        "declaredPurpose": "Заявленное назначение"
+      },
+      "envPanel": {
+        "title": "Переменные окружения",
+        "explainer": "Значения записываются непосредственно в файл .env артефакта. Они не логируются, не сохраняются в базе данных панели управления и не отображаются обратно в этом представлении.",
+        "keyHeader": "Ключ",
+        "addKey": "Ключ",
+        "addValue": "Значение",
+        "add": "Добавить",
+        "delete": "Удалить",
+        "deleteConfirm": "Удалить переменную окружения «{key}»?",
+        "noKeys": "Переменные окружения ещё не заданы.",
+        "valueHidden": "•••••",
+        "edit": "Изменить",
+        "save": "Сохранить",
+        "cancel": "Отмена",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "значение"
+      },
+      "provenance": {
+        "title": "Происхождение",
+        "subtitle": "Принципы, привязанные к коммиту материализации этого app.",
+        "none": "Принципы не записаны."
+      }
+    }
+  },
   "documentUploader": {
     "title": "Загрузить документы",
     "description": "Загружайте документы, которые ваш чат-бот будет использовать для RAG (Retrieval-Augmented Generation)",

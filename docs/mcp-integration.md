@@ -131,6 +131,30 @@ Catalysts are curated workflow patterns (qualify-lead-to-crm, submission-to-tick
 
 The catalyst library is repo-only — there is no user-writable catalyst directory. Custom patterns are the agent's responsibility (synthesize from scratch, or maintain catalyst-shaped markdown locally). New patterns worth promoting to the canonical library are added by PR to [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/).
 
+### Technique catalysts
+
+Technique catalysts (`kind: technique`) live under [control/lib/mcp/catalysts/techniques/](../control/lib/mcp/catalysts/techniques/) and are pulled with the same `get_catalyst` call as workflow catalysts. They differ in what they produce: a workflow catalyst materializes a runnable artifact through a host adapter; a technique catalyst binds a runtime substrate (filesystem, a future http-api, a future local-sql) to an artifact, with the binding recorded as a contextmap principle. `list_catalysts({ kind: 'technique' })` filters to just the technique shelf; `recommend_catalysts` returns only workflow catalysts (techniques don't recommend against a bot's protocol set).
+
+The first technique is **`local-storage`** — bind a folder on the operator's machine to an artifact as a `document-store` primitive against the filesystem MCP. It requires the filesystem MCP to be installed in the operator's agent.
+
+#### Setting up the filesystem MCP
+
+The `local-storage` technique binds against the official `@modelcontextprotocol/server-filesystem` MCP. Install it once per agent before applying the technique:
+
+**Claude Code.** Pick a workspace path (a dedicated subdirectory under your home, not your home root) and:
+
+```
+claude mcp add filesystem npx -y @modelcontextprotocol/server-filesystem <workspace_root>
+```
+
+For example: `claude mcp add filesystem npx -y @modelcontextprotocol/server-filesystem /Users/you/mojulo-workspace`. The `<workspace_root>` you pass becomes the MCP's launch-time allowed root — every sub-folder mojulo's `local-storage` bindings materialize underneath it is reachable without relaunching.
+
+**Other agents.** Codex CLI, Claude Desktop, and other MCP-aware agents have their own `add` syntax for `npx`-based MCP servers — consult their docs for the exact command. The server binary (`@modelcontextprotocol/server-filesystem`) and the workspace-root-as-launch-arg model are the same regardless.
+
+After install, run a session against mojulo and the technique catalyst (`get_catalyst("technique-local-storage")`) will walk your agent through the rest: setting `operator.workspace_root` if not already set, picking a sub-path for the artifact, binding the primitive, sealing the audit chain.
+
+**Changing the workspace root.** The allow-list is fixed for the MCP server's lifetime. Moving to a new workspace root requires relaunching the filesystem MCP with new CLI args (run `claude mcp remove filesystem` then re-add with the new path). In-flight artifacts whose addressing was baked at the old path require manual re-materialization in v0; surface stale bindings to the operator when you observe them.
+
 ---
 
 ## Recipes — composing mojulo tools with your other MCP servers
@@ -229,6 +253,79 @@ From this point you own the artifact. Edit, version-control, share. The catalyst
 **Credentials never touch mojulo.** Destination-system auth lives entirely in your agent's host (the destination MCP's own config). Mojulo only knows that *some* CRM-shaped MCP exists; it never sees your HubSpot key.
 
 **No user-writable catalyst library.** Custom or one-off workflows that don't merit a canonical catalyst are the agent host's responsibility — either let your agent synthesize without a catalyst, or maintain catalyst-shaped markdown locally and feed it inline. New patterns worth promoting to the canonical library are added by PR to [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/); see [docs/catalysts.md](catalysts.md) for the author spec.
+
+---
+
+## Node-driven fulfillment
+
+The App paradigm's inference path (apps POSTing to `/api/app-inference/envelope`) is fulfilled by an agent in worker mode — by default, the operator's Claude Code session running `/loop /get_catalyst run-inference-worker`. That works, but it ties up the operator's session and surfaces every task as visible turns in their transcript.
+
+The control plane can also fulfill these tasks **itself**, spawning a one-shot headless Claude Code subprocess per task. The operator's main session stays free; mojulo handles fulfillment in the background.
+
+This is opt-in. Set the env var, restart the control plane, done:
+
+```bash
+# control/.env
+MOJULO_AGENT_RUNTIME=claude-code-headless
+```
+
+What happens with it set:
+
+- On boot, the control plane starts a long-lived in-process poller (see [control/lib/agent-tasks/node-fulfiller.js](../control/lib/agent-tasks/node-fulfiller.js)).
+- For each parked `envelope_inference` task, the poller invokes the configured runtime adapter (today: `claude-code-headless` — spawns `claude --print --output-format json`).
+- The adapter's envelope output is validated against the canonical envelope schema **inside the queue itself** (see `validateEnvelopeOrThrow` in [control/lib/mcp/agent-tasks/queue.js](../control/lib/mcp/agent-tasks/queue.js)) — the same gate that protects the /loop path.
+- The audit principle on the calling app's artifact node records a `fulfiller` block: `{ kind: 'node-driven-runtime', runtime: 'claude-code-headless', model: <model> }`. The contextmap stays honest about who did the work.
+
+Coexistence with `/loop` is intentional. The agent-tasks queue is FIFO single-claim — whichever puller pulls first wins. You can run both at once (the Node fulfiller in the control plane, and `/loop /get_catalyst run-inference-worker` in a Claude Code session) and each task lands on exactly one of them. The audit principle's `fulfiller.kind` is the source of truth for which.
+
+**Cost picture stays equivalent.** Each Node-fulfilled task still spends Claude Code minutes — the subprocess invokes the operator's installed `claude` CLI under their default auth. The trade is operational: subprocesses are headless and short-lived; the operator's session is free. Phase 1 has no rate-cap knob — set `MOJULO_AGENT_RUNTIME=disabled` (or unset the var) to stop accepting Node-fulfilled tasks immediately.
+
+**Vision support.** Today the `claude-code-headless` adapter inlines images as base64 data URLs in the user prompt; native MCP image content blocks via stdin aren't wired up yet. Works for the spike; revisit if `claude --print` exposes a cleaner channel.
+
+### Status surface
+
+Ephemeral fulfillment is invisible by default — that's the operational win, but the operator still wants a live signal. Mojulo serves a single tiny endpoint:
+
+```
+GET /api/agent-tasks/status
+Authorization: Bearer <CONTROL_PLANE_MCP_KEY>
+```
+
+Plain-text response suitable for a terminal status bar:
+
+```
+mojulo[claude-code-headless]: ✓ delivered (node, 1.4s, 3s ago)
+mojulo[claude-code-headless]: 1 in-flight · 2 queued
+mojulo: idle
+```
+
+Pass `?format=json` for structured data (pending/in-flight counts, last event, recent-event ring buffer).
+
+### Claude Code status line
+
+Drop into your Claude Code `settings.json` so the line refreshes every two seconds in your status bar:
+
+```jsonc
+{
+  "statusLine": {
+    "type": "command",
+    "command": "curl -sS http://localhost:3001/api/agent-tasks/status -H \"Authorization: Bearer $MOJULO_KEY\"",
+    "refreshInterval": 2000
+  }
+}
+```
+
+Set `MOJULO_KEY` in your shell env to your `CONTROL_PLANE_MCP_KEY` so the command resolves it at run time.
+
+### Cross-client guidance
+
+Mojulo serves one uniform endpoint; each MCP client wires it into its native status surface:
+
+- **Claude Code** — status line via the snippet above.
+- **Codex CLI** — Codex's own status conventions (consult its current docs); the endpoint shape is the contract.
+- **VS Code MCP clients (Continue, Cline, Cursor, etc.)** — each has its own surface. The endpoint is BYO-integration, but the response format stays stable.
+
+The framing: your Claude Code session is for you, your status line is for mojulo, both update independently.
 
 ---
 

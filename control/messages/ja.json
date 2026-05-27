@@ -1990,6 +1990,87 @@
       }
     }
   },
+  "apps": {
+    "navLabel": "Apps",
+    "title": "Apps",
+    "subtitle": "エージェントがAppパラダイムを通じてマテリアライズしたApps。ライフサイクル、環境変数、ライブMCPイントロスペクション — contextmapとローカルランナーから読み込まれます。",
+    "loading": "読み込み中…",
+    "refresh": "更新",
+    "empty": "Appsはまだありません — Claude Codeエージェントにスキャフォールドを依頼してください。",
+    "backToList": "Appsに戻る",
+    "notFound": "Appが見つかりません。",
+    "openPreview": "プレビューを開く",
+    "openMcp": "MCPを開く",
+    "actions": {
+      "start": "開始",
+      "stop": "停止",
+      "starting": "開始中…",
+      "stopping": "停止中…"
+    },
+    "status": {
+      "running": "実行中",
+      "stopped": "停止済み",
+      "crashed": "クラッシュ",
+      "unknown": "不明"
+    },
+    "table": {
+      "headers": {
+        "name": "名前",
+        "materialized": "マテリアライズ日時",
+        "runner": "ランナー",
+        "status": "ステータス",
+        "actions": "アクション"
+      }
+    },
+    "detail": {
+      "metadata": "メタデータ",
+      "artifactPath": "アーティファクトパス",
+      "materializationRef": "Materialization ref",
+      "adapter": "アダプター",
+      "appName": "App名",
+      "host": "ホスト",
+      "materializedAt": "マテリアライズ日時",
+      "bindings": "バインディング",
+      "binding": {
+        "runner": "ランナー",
+        "durability": "永続性",
+        "inference": "推論",
+        "mcpSelf": "MCPセルフ"
+      },
+      "mcpPanel": {
+        "title": "App MCP",
+        "url": "MCP URL",
+        "offline": "MCPはオフラインです — Appを開始してツール一覧を表示してください。",
+        "loading": "ツールを読み込み中…",
+        "error": "App MCPに接続できませんでした: {error}",
+        "registeredTools": "登録済みツール",
+        "noTools": "登録されているツールはありません。",
+        "declaredPurpose": "宣言された目的"
+      },
+      "envPanel": {
+        "title": "環境変数",
+        "explainer": "値はアーティファクトの.envファイルに直接書き込まれます。ログには記録されず、コントロールプレーンのデータベースにも保存されず、このビューにもエコーバックされません。",
+        "keyHeader": "キー",
+        "addKey": "キー",
+        "addValue": "値",
+        "add": "追加",
+        "delete": "削除",
+        "deleteConfirm": "環境変数「{key}」を削除しますか?",
+        "noKeys": "環境変数はまだ設定されていません。",
+        "valueHidden": "•••••",
+        "edit": "編集",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "newKeyPlaceholder": "MY_KEY",
+        "newValuePlaceholder": "値"
+      },
+      "provenance": {
+        "title": "プロベナンス",
+        "subtitle": "このAppのマテリアライゼーションコミットに紐付けられた原則。",
+        "none": "記録された原則はありません。"
+      }
+    }
+  },
   "documentUploader": {
     "title": "ドキュメントをアップロード",
     "description": "チャットボットがRAG(検索拡張生成)に使用するドキュメントをアップロード",
