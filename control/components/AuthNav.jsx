@@ -69,6 +69,29 @@ function AppsIcon({ className = 'h-4 w-4' }) {
   );
 }
 
+function GraphIcon({ className = 'h-4 w-4' }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="5" cy="6" r="2" />
+      <circle cx="19" cy="6" r="2" />
+      <circle cx="12" cy="18" r="2" />
+      <path d="M6.7 7.4l4.6 9.2" />
+      <path d="M17.3 7.4l-4.6 9.2" />
+      <path d="M7 6h10" />
+    </svg>
+  );
+}
+
 function GearIcon({ className = 'h-4 w-4' }) {
   return (
     <svg
@@ -113,6 +136,7 @@ export default function AuthNav({ authEnabled = false }) {
   const tLogin = useTranslations('login');
   const tData = useTranslations('data');
   const tApps = useTranslations('apps');
+  const tGraph = useTranslations('graph');
   const router = useRouter();
 
   async function onLogout() {
@@ -132,6 +156,10 @@ export default function AuthNav({ authEnabled = false }) {
         <Link href="/apps" className="inline-flex items-center gap-1.5 hover:text-white">
           <AppsIcon />
           {tApps('navLabel')}
+        </Link>
+        <Link href="/graph" className="inline-flex items-center gap-1.5 hover:text-white">
+          <GraphIcon />
+          {tGraph('navLabel')}
         </Link>
         <Link href="/data" className="inline-flex items-center gap-1.5 hover:text-white">
           <DataIcon />

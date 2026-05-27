@@ -122,6 +122,29 @@ Suggest the dashboard when the user asks for something the visual surface does b
 
 The default mode is still MCP — don't push the dashboard for tasks that work fine in chat. Suggest it when the user explicitly wants to *look*, *browse*, or *click*, or when you've exhausted a few rounds of tool output and they're still missing something a visual scan would catch in a second.`;
 
+// --- Paradigms (shared) ---
+//
+// Pattern-recognition aid for the agent: three artifact kinds ship today,
+// each with a distinct shape, runtime, and surface. The two-axes opening
+// above describes mojulo's architectural axes (chatbot-based vs
+// mcp-orbit); this section names the user-recognizable *things you can
+// materialize* and the trigger phrases that map a user request onto each.
+// Apps in particular don't fit cleanly into either axis — they're a third
+// paradigm that arrived in 0.8.0, and agents miss them silently if they
+// only know to recognize "bot" or "automation."
+
+const PARADIGMS = `## Paradigms — three things mojulo materializes
+
+Recognize the shape of the user's ask before reaching for any tool. Three
+artifact kinds ship; they have different lifecycles, different runtimes, and
+different surfaces.
+
+- **Bot** — chatbot deployed as its own process (local Docker, or Fly.io). Owns its SQLite; conversation and submission data never leaves it. *Triggers:* "build a bot," "deploy this for my customers," "lead capture / triage / knowledge agent." Lifecycle: build → deploy → connect → operate (see *Lifecycle* below). Surfaces: Build, Operate, Catalysts.
+- **Skill** — workflow synthesized into the user's host adapter as a runnable artifact (a \`SKILL.md\` under \`.claude/skills/\`, a Codex automation, a generic \`workflow.md\` + runner). Composed from a catalyst + the user's installed MCPs + (optionally) a deployed bot's captured signal. *Triggers:* "every Monday do X," "when a Gmail thread matches Y, file a ticket," "weekly digest of Z," "use mojulo without a bot." Surfaces: Catalysts, Deliberation (mcp-orbit, primitive-binding).
+- **App** — local process the control plane spawns and lifecycle-manages, paired with its own MCP sidecar. Does work on the user's machine and parks inference back on the operator's agent via the agent-tasks queue — no per-app LLM credentials, no inference on the deployed runtime. *Triggers:* "build me a thing that watches X," "a tool on my machine that does Y in the background," "I want something that processes Z and asks me when it needs to think," "image extraction / batch processing / a local watcher / a long-running background job." Surfaces: Ring 7 runner (\`install_scaffold\`, \`start_app\`, \`stop_app\`), agent-tasks queue (\`pull_agent_task\`, \`submit_envelope_inference\`), and \`meta_context_commit({type:'app_materialization'})\`.
+
+**Composition surface (for orientation).** The dashboard's \`/graph\` page renders the App creation map — every piece an app is composed of, every MCP tool that snaps the pieces together, in a friendly or technical register. Useful when the user asks "how does mojulo make apps?" or you want a structural picture of where the bindings (runner / durability / inference / mcp_self) live in the flow. The composition surface for bots and skills isn't dashboard-rendered yet; their shape lives in *Lifecycle* + the tool index below.`;
+
 // --- Secrets handling (shared) ---
 
 const SECRETS_HANDLING = `## Secrets handling (standing rule)
@@ -359,6 +382,7 @@ const QUICK_ORIENTATION_RULES = `## Quick orientation rules
 - User wants to **understand state across multiple bots** ("how is the fleet doing?", "which bots are busiest this week?"): \`fleet_analytics_summary\`. For finding specific conversations across the fleet: \`fleet_query_conversations\` to locate, then \`get_conversation\` against the named bot to read content. For auditing chain integrity across every bot at once: \`verify_fleet_chains\`. The fleet tools never expose conversation content — they're the "where to look" surface; per-bot \`get_conversation\` is the "read it" surface.
 - User wants to **do something with what a bot has collected** OR is asking "what can this bot unlock for me?": \`recommend_catalysts\` with the bot's deployment id. Surface suggestions in consultation form — including catalysts whose destination MCP isn't installed yet, framed as opt-in upgrades. Then \`get_catalyst\` to read the recipe (the response includes the host adapter section that tells you how to materialize the runnable artifact on your substrate).
 - User wants to **automate something that spans multiple bots** ("digest leads from every bot", "audit all my appointment bookings together"): \`recommend_catalysts\` with \`scope: 'fleet'\`. Fleet-applicable catalysts come back with \`applicableDeployments\` so the synthesized skill knows which bots to iterate over; \`crossBot: true\` flags the patterns that only make sense across multiple bots.
+- User wants a **long-running local tool on their machine that calls back to the agent for inference** ("watch this folder and extract data from anything new", "a thing on my laptop that does X in the background and asks me when it needs to think", "batch process Y and have the agent handle the LLM work", "image extraction app"): this is **app-shaped**, not bot- or skill-shaped. The path is Ring 7: \`install_scaffold\` lays the starter files, \`meta_context_commit({type:'app_materialization'})\` records the app in the contextmap with its four bindings (runner / durability / inference / mcp_self), then \`start_app\` spawns the process. Inference round-trips park on the agent-tasks queue (\`pull_agent_task\` / \`submit_envelope_inference\`) so the operator's session does the LLM work without per-app API keys. Distinct from a skill (one-shot synthesized into the host adapter) and a bot (chat-shaped, deployed runtime). See the *Paradigms* section above for trigger phrases; the dashboard's \`/graph\` page renders the App composition map.
 - User wants to **automate something that doesn't involve a deployed chatbot** ("every morning, summarize yesterday's Linear issues into a Drive doc", "when a Gmail thread matches X, file a Notion ticket", "use mojulo without the bot") — i.e. wiring MCP to MCP rather than capturing through a bot first: \`meta_context_declare_inventory\` is the entry point (declare what MCPs are connected), then \`recommend_mcp_orbit_compositions\` with the operator's intent. The mcp-orbit composer returns ranked candidate compositions assembled from five typed component kinds (mcp / trigger / pattern / idempotency / render); each \`mcp\` entry in a composition carries a \`role: 'source' | 'destination'\` tag, with the role chosen per the mcp's declared affordances. Read the meta-catalyst once per session, then pull each component body in full before assembling. Mojulo's role here is the deliberation anchor (operator KYC + composition log + audit trail), not the runtime. Distinct from the bot-shaped flow above — when there's no conversational surface in the picture, the bot/catalyst path doesn't fit; reach for inventory + mcp-orbit instead.
 - User wants to **browse the catalyst library** without a specific bot in mind: \`list_catalysts\`.
 - User wants to **contribute a new catalyst** (write / propose / add one to mojulo's shipped library): \`custom_catalyst\`. This returns an author's guide. If the user only wants to automate something for themselves and isn't trying to contribute, do *not* call \`custom_catalyst\` — synthesize a local skill from \`get_catalyst\` or from intent instead.
@@ -387,6 +411,8 @@ export function buildForwardContextBody({ register, disclosure, source } = {}) {
     OPENING_PARAGRAPH_VARIANTS[r],
     SECTION_DIVIDER.trim(),
     TWO_FACES_ONE_STATE,
+    SECTION_DIVIDER.trim(),
+    PARADIGMS,
     SECTION_DIVIDER.trim(),
     SECRETS_HANDLING,
     SECTION_DIVIDER.trim(),

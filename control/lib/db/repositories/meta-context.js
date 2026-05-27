@@ -483,3 +483,11 @@ export const _BRIEF_NODE_CAP_FOR_TESTS = BRIEF_NODE_CAP;
 export const _NODE_KINDS_FOR_TESTS = NODE_KINDS;
 export const _EDGE_KINDS_FOR_TESTS = EDGE_KINDS;
 export const _PRINCIPLE_SOURCE_EVENTS_FOR_TESTS = PRINCIPLE_SOURCE_EVENTS;
+
+// Public schema enums for consumers that need to validate against the
+// contextmap's allowed values (e.g. the creation-map manifest validator at
+// control/lib/graph/validate.js). These are the same lists asserted at
+// write time inside this module.
+export const META_NODE_KINDS = NODE_KINDS;
+export const META_EDGE_KINDS = EDGE_KINDS;
+export const META_PRINCIPLE_SOURCE_EVENTS = PRINCIPLE_SOURCE_EVENTS;
