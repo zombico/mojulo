@@ -227,11 +227,20 @@ const TYPE_SCALES = {
   },
 };
 
-export default function CreationMap({ manifest, technical = false, compact = false }) {
+function layerRank(station) {
+  // Ground (and unlayered) paint first; air paints last so it sits on top.
+  return station.layer === 'air' ? 1 : 0;
+}
+
+export default function CreationMap({ manifest, technical = false, compact = false, onNodeClick }) {
   if (!manifest) return null;
   const { viewBox, stations, edges } = manifest;
   const stationById = new Map(stations.map((s) => [s.id, s]));
   const scale = compact ? TYPE_SCALES.compact : TYPE_SCALES.default;
+  // Stable sort by layer so air stations paint over ground. When no station
+  // carries `layer`, every rank is 0 and the original order is preserved —
+  // keeps /graph and /sketches pixel-identical.
+  const orderedStations = [...stations].sort((a, b) => layerRank(a) - layerRank(b));
 
   return (
     <svg
@@ -258,6 +267,13 @@ export default function CreationMap({ manifest, technical = false, compact = fal
             borders. */}
         <filter id="creation-map-label-shadow" x="-25%" y="-50%" width="150%" height="200%">
           <feDropShadow dx="0" dy="1.5" stdDeviation="1.4" floodColor="#000" floodOpacity="0.35" />
+        </filter>
+        {/* Elevation for `layer:'air'` stations in the two-plane fleet scene —
+            a larger, softer shadow than the pill shadow so air tokens read as
+            hovering above the flat ground band. Inert unless a station opts in
+            via `layer:'air'`. */}
+        <filter id="creation-map-elevation" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4.5" floodColor="#000" floodOpacity="0.45" />
         </filter>
       </defs>
 
@@ -312,13 +328,28 @@ export default function CreationMap({ manifest, technical = false, compact = fal
         );
       })}
 
-      {stations.map((s) => {
+      {orderedStations.map((s) => {
         const style = STATION_STYLES[s.kind] || STATION_STYLES.input;
         const label = pickLabel(s, technical);
         const sublabel = pickSublabel(s, technical);
         const items = pickItems(s, technical);
+        const clickable = Boolean(s.href && onNodeClick);
+        const groupProps = clickable
+          ? {
+              role: 'link',
+              tabIndex: 0,
+              style: { cursor: 'pointer' },
+              onClick: () => onNodeClick(s),
+              onKeyDown: (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onNodeClick(s);
+                }
+              },
+            }
+          : {};
         return (
-          <g key={s.id}>
+          <g key={s.id} {...groupProps}>
             <rect
               x={s.x}
               y={s.y}
@@ -330,6 +361,7 @@ export default function CreationMap({ manifest, technical = false, compact = fal
               stroke={style.stroke}
               strokeWidth="1.4"
               strokeDasharray={style.strokeDasharray || undefined}
+              filter={s.layer === 'air' ? 'url(#creation-map-elevation)' : undefined}
             />
             <text
               x={s.x + scale.labelOffsetX}

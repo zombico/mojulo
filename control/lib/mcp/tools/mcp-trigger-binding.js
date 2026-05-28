@@ -28,6 +28,7 @@ import { Cron } from 'croner';
 import { registerTool } from '@/lib/mcp/server';
 import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
 import { MCPOrbitComponentRepository } from '@/lib/db/repositories/mcp-orbit';
+import { bestEffortDaemonReload } from '@/lib/daemons/client';
 import { requestReload as requestSchedulerReload } from '@/lib/triggers/scheduler';
 import { commitTriggerArtifactMaterialization } from './meta-context';
 
@@ -92,6 +93,11 @@ function validatePayloadTemplate(payloadTemplate) {
       "payload_template.task_kind is required (e.g. 'envelope_inference') — names the agent-tasks queue kind that will receive the parked payload",
     );
   }
+}
+
+async function signalSchedulerReload() {
+  requestSchedulerReload();
+  await bestEffortDaemonReload('scheduler');
 }
 
 export async function bindTriggerHandler(input, _ctx) {
@@ -213,7 +219,7 @@ export async function bindTriggerHandler(input, _ctx) {
   // tick. No-op when the daemon isn't started — the bind is still durable
   // and a later boot with MOJULO_TRIGGER_RUNTIME=enabled picks it up via
   // listActive() at start.
-  requestSchedulerReload();
+  await signalSchedulerReload();
 
   return {
     ok: true,
@@ -244,7 +250,7 @@ export async function unbindTriggerHandler(input, _ctx) {
     return { ok: true, trigger_ref, already_disabled: true };
   }
   TriggerArtifactRepository.disable(trigger_ref);
-  requestSchedulerReload();
+  await signalSchedulerReload();
   return { ok: true, trigger_ref, already_disabled: false };
 }
 

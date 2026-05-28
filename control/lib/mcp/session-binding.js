@@ -59,7 +59,7 @@ async function buildPreloadedContext(userId) {
 
   return {
     organizationName: 'Local',
-    workspaceName: 'Mojulo-Lite',
+    workspaceName: 'Mojulo Control',
     workspaceDocuments: documents.map((d) => ({
       id: d.id,
       name: d.originalName,

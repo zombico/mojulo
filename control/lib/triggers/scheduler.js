@@ -11,11 +11,12 @@
  * in-flight async fires in a Set and drains them on `stop()` so SIGTERM
  * never orphans a task or its audit principle.
  *
- * Boot wiring lives in `lib/db/index.js` gated by
- * `MOJULO_TRIGGER_RUNTIME=enabled` (opt-in, symmetric with
- * `MOJULO_AGENT_RUNTIME`). Reload signaling rides on a process-internal
- * EventEmitter — `bind_trigger` / `unbind_trigger` call `requestReload()`,
- * which the daemon picks up the next tick.
+ * Boot wiring lives in the runtime daemon host (`mojulo-daemons`), gated by
+ * `MOJULO_DAEMONS=enabled` and `MOJULO_TRIGGER_RUNTIME` (opt-in, symmetric with
+ * `MOJULO_AGENT_RUNTIME`). The control plane retains an in-process fallback
+ * boot (see `lib/db/index.js`) when the host is not used. Reload signaling
+ * rides on a process-internal EventEmitter — `bind_trigger` / `unbind_trigger`
+ * call `requestReload()`, and the daemon picks it up the next tick.
  *
  * Phase 1: schedule kind only. Webhook (Phase 2) and watch (Phase 3) ship
  * as sibling daemons in this directory.
@@ -242,6 +243,10 @@ export async function stopScheduler() {
  */
 export function requestReload() {
   triggerEvents.emit('reload');
+}
+
+export function isSchedulerRunning() {
+  return started;
 }
 
 // Test seams. Not part of the public daemon API.

@@ -19,11 +19,14 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
 import { LocalRunner } from '@/lib/runners/local';
+import { startDaemonServer } from '@/lib/runners/daemon/server';
 import { dispatchMcpRequest, ensureToolsRegistered } from '@/lib/mcp/server';
 import { briefHandler, commitAppMaterialization } from '@/lib/mcp/tools/meta-context';
 
 let tmpRoot;
+let homeRoot;
 let artifactDir;
+let daemon;
 
 function buildStubApp(rootDir) {
   const dir = join(rootDir, 'app-1');
@@ -77,7 +80,12 @@ async function callTool(name, args, id = 1) {
 
 beforeEach(async () => {
   closeDb();
-  LocalRunner._reset();
+  // Isolate daemon state (port/bearer/pidfiles) per test, then boot an
+  // in-process daemon on an ephemeral port. The MCP handlers proxy to it over
+  // loopback HTTP — same path a real start_app takes, minus a separate process.
+  homeRoot = mkdtempSync(join(tmpdir(), 'mojulo-home-'));
+  process.env.MOJULO_HOME = homeRoot;
+  daemon = await startDaemonServer({ port: 0, runReconcile: false, allowReset: true });
   tmpRoot = mkdtempSync(join(tmpdir(), 'mojulo-runner-mcp-smoke-'));
   artifactDir = buildStubApp(tmpRoot);
   await ensureToolsRegistered();
@@ -85,11 +93,14 @@ beforeEach(async () => {
 
 afterEach(async () => {
   // Stop anything still running so we don't leak processes between tests.
-  for (const r of LocalRunner.list()) {
+  const running = await LocalRunner.list();
+  for (const r of running) {
     await LocalRunner.stop(r.runningRef);
   }
-  LocalRunner._reset();
+  if (daemon) await daemon.close();
   rmSync(tmpRoot, { recursive: true, force: true });
+  rmSync(homeRoot, { recursive: true, force: true });
+  delete process.env.MOJULO_HOME;
 });
 
 describe('runner MCP — registered with the dispatcher', () => {

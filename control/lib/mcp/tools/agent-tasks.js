@@ -42,15 +42,27 @@ import {
 import { recordInferenceOutcome } from '@/lib/mcp/agent-tasks/audit';
 
 const TASK_KIND_ENVELOPE_INFERENCE = 'envelope_inference';
+const TASK_KIND_CHAT_TURN = 'chat_turn';
+
+// Envelope-shaped kinds share one submit tool + the canonical envelope schema.
+// `chat_turn` is the builder web-chat relay (see agent-routed-chat.md): it
+// answers a conversational turn with the same { answer, suggestions, ... }
+// envelope an app inference uses, so it rides submit_envelope_inference rather
+// than shipping a redundant per-kind submit tool.
+const ENVELOPE_SHAPED_KINDS = new Set([TASK_KIND_ENVELOPE_INFERENCE, TASK_KIND_CHAT_TURN]);
 
 function submitToolNameForKind(taskKind) {
-  if (taskKind === TASK_KIND_ENVELOPE_INFERENCE) return 'submit_envelope_inference';
+  if (ENVELOPE_SHAPED_KINDS.has(taskKind)) return 'submit_envelope_inference';
   return 'submit_agent_task'; // generic fallback; future kinds ship their own.
 }
 
 export async function pullAgentTaskHandler(input = {}) {
   const waitMs = typeof input.wait_ms === 'number' ? input.wait_ms : undefined;
-  const entry = await pullNext({ waitMs });
+  // Optional kind filter so a specialized worker (e.g. the chat-builder worker)
+  // claims only its kind and never cancels tasks meant for another worker.
+  const kindsFilter =
+    Array.isArray(input.kinds) && input.kinds.length > 0 ? input.kinds : undefined;
+  const entry = await pullNext({ waitMs, kindsFilter });
   if (!entry) return { request: null };
 
   const payload = entry.payload || {};
@@ -107,13 +119,11 @@ export async function submitEnvelopeInferenceHandler(input = {}) {
   }
   const { payload, parkedAt } = lookup;
 
-  // Kind guard: this submit only services envelope_inference tasks.
-  // Wrong-kind submits should cancel with reason 'wrong worker kind' so
-  // a kind-specific worker can pick the task up. Today only one kind
-  // exists so this branch is structurally dead — kept for the second
-  // kind to land cleanly.
+  // Kind guard: this submit services envelope-shaped tasks (envelope_inference,
+  // chat_turn). Wrong-kind submits should cancel with reason 'wrong worker kind'
+  // so a kind-specific worker can pick the task up.
   const taskKind = payload.task_kind || TASK_KIND_ENVELOPE_INFERENCE;
-  if (taskKind !== TASK_KIND_ENVELOPE_INFERENCE) {
+  if (!ENVELOPE_SHAPED_KINDS.has(taskKind)) {
     throw new Error(
       `submit_envelope_inference cannot service task_kind '${taskKind}'. ` +
         `Call cancel_agent_task with reason 'wrong worker kind' instead.`,
@@ -128,19 +138,25 @@ export async function submitEnvelopeInferenceHandler(input = {}) {
   // and lose audit than fail the inference.
   const fulfillerStamp = { kind: 'agent-mcp', model: model || undefined };
 
+  // chat_turn relays the builder's web chat (caller_ref.kind === 'builder_chat').
+  // These are run-rate conversational turns, not structural outcomes, so they do
+  // NOT write a contextmap principle — recording one per turn would flood the
+  // deliberation log. Only true app inferences are audited.
   let principleId = null;
-  try {
-    const { principle } = recordInferenceOutcome({
-      caller_ref: payload.caller_ref,
-      inputs: payload.inputs,
-      envelope,
-      durationMs,
-      model,
-      fulfiller: fulfillerStamp,
-    });
-    principleId = principle?.id ?? null;
-  } catch (err) {
-    console.error('[agent-tasks] principle recording failed:', err);
+  if (taskKind !== TASK_KIND_CHAT_TURN) {
+    try {
+      const { principle } = recordInferenceOutcome({
+        caller_ref: payload.caller_ref,
+        inputs: payload.inputs,
+        envelope,
+        durationMs,
+        model,
+        fulfiller: fulfillerStamp,
+      });
+      principleId = principle?.id ?? null;
+    } catch (err) {
+      console.error('[agent-tasks] principle recording failed:', err);
+    }
   }
 
   try {
@@ -155,7 +171,7 @@ export async function submitEnvelopeInferenceHandler(input = {}) {
   return {
     accepted: true,
     request_id: requestId,
-    task_kind: TASK_KIND_ENVELOPE_INFERENCE,
+    task_kind: taskKind,
     duration_ms: durationMs,
     principle_id: principleId,
   };
@@ -182,7 +198,7 @@ export function registerAgentTaskTools() {
   registerTool({
     name: 'pull_agent_task',
     description:
-      "Worker-mode long-poll for mojulo's agent-tasks runtime primitive. Returns the next parked task (or `{ request: null }` if no work arrives within `wait_ms`). The manifest in the first content block carries `task_kind` (today: `envelope_inference`) and the name of the per-kind submit tool the worker should call. If the task has an image input, it follows as a native MCP `image` content block. Pair every successful pull with either the per-kind submit tool (e.g. `submit_envelope_inference`) or `cancel_agent_task` — un-submitted requests time out and the app sees an `INFERENCE_TIMEOUT` error.",
+      "Worker-mode long-poll for mojulo's agent-tasks runtime primitive. Returns the next parked task (or `{ request: null }` if no work arrives within `wait_ms`). The manifest in the first content block carries `task_kind` (`envelope_inference` for app inference, `chat_turn` for the builder web-chat relay) and the name of the per-kind submit tool the worker should call. If the task has an image input, it follows as a native MCP `image` content block. Pass `kinds` to claim only specific task_kinds so a specialized worker never cancels another worker's tasks. Pair every successful pull with either the per-kind submit tool (e.g. `submit_envelope_inference`) or `cancel_agent_task` — un-submitted requests time out and the caller sees an `INFERENCE_TIMEOUT` error.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -193,6 +209,12 @@ export function registerAgentTaskTools() {
           description:
             'How long to block waiting for work. Default 25000ms; hard ceiling 50000ms (kept under reverse-proxy idle cutoffs). Pass 0 for a non-blocking poll.',
         },
+        kinds: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Optional: restrict to these task_kinds (e.g. ["chat_turn"] or ["envelope_inference"]). Omit to pull any kind. Use this so a specialized worker only claims tasks it can fulfill, leaving others for the right worker instead of cancelling them.',
+        },
       },
     },
     handler: pullAgentTaskHandler,
@@ -201,7 +223,7 @@ export function registerAgentTaskTools() {
   registerTool({
     name: 'submit_envelope_inference',
     description:
-      "Deliver an envelope-shaped response to a previously-pulled `envelope_inference` task. The `envelope` field is validated against the canonical mojulo envelope schema by MCP's inputSchema layer — structurally-invalid envelopes are rejected at the protocol boundary before this handler runs. On success, an `app_inference` principle is recorded on the calling app's artifact node (when `caller_ref` resolved) before the parked HTTP response unblocks. For other task kinds, use the matching per-kind submit tool (none other exists yet).",
+      "Deliver an envelope-shaped response to a previously-pulled envelope-shaped task (`envelope_inference` or `chat_turn`). The `envelope` field is validated against the canonical mojulo envelope schema by MCP's inputSchema layer — structurally-invalid envelopes are rejected at the protocol boundary before this handler runs. On success, an `app_inference` principle is recorded on the calling app's artifact node (when `caller_ref` resolved) before the parked HTTP response unblocks; `chat_turn` (the builder web-chat relay) is run-rate and deliberately records no principle. For other task kinds, use the matching per-kind submit tool (none other exists yet).",
     inputSchema: {
       type: 'object',
       required: ['request_id', 'envelope'],

@@ -70,6 +70,28 @@ export function listTools() {
   }));
 }
 
+export function hasRegisteredTool(name) {
+  return registeredTools.has(name);
+}
+
+export function listRegisteredToolNames() {
+  return Array.from(registeredTools.keys());
+}
+
+/**
+ * Invoke a registered tool's handler directly, bypassing JSON-RPC framing.
+ * Used by the plan-mode executor to run a compiled manifest of tool calls
+ * through the exact same handler path a remote `tools/call` would hit, so
+ * executed plans behave identically to operator-typed calls. Throws if the
+ * tool is unknown or its handler throws — the executor maps both to the
+ * per-call result it records.
+ */
+export async function invokeRegisteredTool(name, input, context) {
+  const tool = registeredTools.get(name);
+  if (!tool) throw new Error(`Unknown tool: ${name}`);
+  return await tool.handler(input || {}, context || {});
+}
+
 function jsonRpcResult(id, result) {
   return { jsonrpc: '2.0', id, result };
 }
@@ -204,13 +226,18 @@ export async function ensureToolsRegistered() {
   const { registerCatalystTools } = await import('@/lib/mcp/tools/catalysts');
   const { registerMetaContextTools } = await import('@/lib/mcp/tools/meta-context');
   const { registerInventoryTools } = await import('@/lib/mcp/tools/mcp-inventory');
+  const { registerSkillsTools } = await import('@/lib/mcp/tools/skills');
   const { registerCapabilitiesTools } = await import('@/lib/mcp/tools/mcp-capabilities');
   const { registerMCPOrbitTools } = await import('@/lib/mcp/tools/mcp-orbit');
   const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
   const { registerTriggerBindingTools } = await import('@/lib/mcp/tools/mcp-trigger-binding');
   const { registerSemanticSearchTools } = await import('@/lib/mcp/tools/semantic-search');
   const { registerRunnerTools } = await import('@/lib/mcp/tools/runner');
+  const { registerRuntimeDaemonTools } = await import('@/lib/mcp/tools/runtime-daemons');
   const { registerAgentTaskTools } = await import('@/lib/mcp/tools/agent-tasks');
+  const { registerAgentUiTools } = await import('@/lib/mcp/tools/agent-ui');
+  const { registerPlanModeTools } = await import('@/lib/mcp/tools/plan-mode');
+  const { registerResearchModeTools } = await import('@/lib/mcp/tools/research-mode');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
@@ -239,6 +266,12 @@ export async function ensureToolsRegistered() {
   registerCatalystTools();
   registerMetaContextTools();
   registerInventoryTools();
+  // declare_skills registers immediately after inventory — both are
+  // present-environment, replace-semantic declarations the agent makes about
+  // the host (inventory = MCP servers/tools; skills = host-adapter skills).
+  // Together they feed the Connected Services view. See
+  // app-system/0527/CONNECTED_SERVICES_CANONIZATION_PLAN.md.
+  registerSkillsTools();
   // Capabilities tools (record_mcp_capabilities / get_mcp_capabilities) slot
   // immediately after inventory — they're the research-facet sibling to
   // inventory's introspection-facet. Both write into provider rows on the
@@ -255,16 +288,42 @@ export async function ensureToolsRegistered() {
   // (structured walks) → deliberation (fuzzy recall). See
   // lite-template/integration/SEMANTIC_INDEX_PLAN.md.
   registerSemanticSearchTools();
-  // Ring 7 (runtime) — app runner tools + agent-tasks (mojulo's
-  // opinionated runtime primitive for agent-mediated, schema-validated
-  // work: pull_agent_task → submit_envelope_inference (or other per-kind
-  // submit tools) → cancel_agent_task). Runner tools register first so
-  // the natural reading order in tools/list is lifecycle (install_scaffold
-  // → start_app → status_app → stop_app) → agent-tasks (pull → submit →
-  // cancel). See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md and
+  // Ring 7 (runtime) — daemon host lifecycle + app runner + agent-tasks
+  // (mojulo's opinionated runtime primitive for agent-mediated,
+  // schema-validated work: pull_agent_task → submit_envelope_inference (or
+  // other per-kind submit tools) → cancel_agent_task). Runner tools register
+  // first so the natural reading order in tools/list is lifecycle
+  // (install_scaffold → start_app → status_app → stop_app) → daemon host
+  // lifecycle (list/status/start/stop/restart) → agent-tasks (pull → submit
+  // → cancel). See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md and
   // APP_SPIKE_A_REFRAME_PLAN.md.
   registerRunnerTools();
+  registerRuntimeDaemonTools();
   registerAgentTaskTools();
+  // agent-ui registers right after agent-tasks — it's the chat-builder worker's
+  // narration + decision surface, used while fulfilling a `chat_turn` task. The
+  // reading order in tools/list stays pull → submit → cancel → emit → decide.
+  registerAgentUiTools();
+  // Ring 8 (plan mode) — the PROPOSED layer of the deliberation model: the
+  // speculative counterpart to contextmap's committed reality. Sessions that
+  // accumulate enough signal forge into Plans (sealed spike schematics) that
+  // compile to a manifest of tool calls and execute under per-execution
+  // operator approval. Registers after the action + runtime rings: a plan's
+  // manifest composes the lower rings, so the executor needs them registered
+  // first. See lite-template/integration/app-system/0527/plan-feature/
+  // PLAN_MODE.md.
+  registerPlanModeTools();
+  // Ring 9 (research mode) — the ACCRETIVE / exploratory layer upstream of
+  // plans. A low-prominence OPTIONAL DRAWER (posture-sibling to sketches):
+  // deliberately NOT woven into forward_context, entered only when the user
+  // asks to research/gather. synthesize_abstract hands a distilled thesis to
+  // plan mojulo via the research→plan bridge (lib/research/evaluate.js,
+  // surfaced over HTTP at POST /api/plans/from-abstract). One-way coupling:
+  // research depends on plans; plans never import research. Registers after
+  // plan mode (it forges Draft plans, so plan tools exist first) and near the
+  // other drawers in tools/list. See lite-template/integration/app-system/
+  // 0528/research-mode.md.
+  registerResearchModeTools();
   // Sketchbook — agent-minted dynamic diagrams, viewable at /sketches/<ref>.
   // Deliberately not woven into forward_context / Ring 6; agents discover it
   // via tools/list. See lite-template/integration/app-system/0527/

@@ -32,12 +32,16 @@
   "bin": {
     "mojulo": "./scripts/mcp-stdio.mjs",
     "mojulo-config": "./scripts/mcp-config.mjs",
-    "mojulo-ui": "./scripts/mcp-ui.mjs"
+    "mojulo-ui": "./scripts/mcp-ui.mjs",
+    "mojulo-app-runtime": "./bin/app-runtime.mjs",
+    "mojulo-daemons": "./bin/daemons.mjs"
   },
   "files": [
     "lib/**",
     "!lib/embedder/models/**",
     "!lib/**/*.test.js",
+    "bin/app-runtime.mjs",
+    "bin/daemons.mjs",
     "scripts/mcp-stdio.mjs",
     "scripts/mcp-stdio-loader.mjs",
     "scripts/mcp-config.mjs",
@@ -65,6 +69,7 @@
     "stage-lite-template": "node scripts/stage-lite-template.mjs",
     "stage-standalone": "node scripts/stage-standalone.mjs",
     "fetch-models": "node scripts/fetch-embed-model.js",
+    "gen-app": "node scripts/gen-app.js",
     "prepack": "node scripts/stage-lite-template.mjs && next build --webpack && node scripts/stage-standalone.mjs",
     "test": "vitest run"
   },

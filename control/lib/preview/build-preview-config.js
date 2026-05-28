@@ -4,7 +4,7 @@
  * `/context` endpoint. This is what the preview iframe reads via
  * `window.__INITIAL_CONFIG__`.
  *
- * Production source of truth: mojulo-lite/lite-template/server.js — the
+ * Production source of truth: mojulo/lite-template/server.js — the
  * `/` route (line ~186) and `/context` route (line ~963) build the same
  * object from on-disk config files. We mirror that shape here, but pulled
  * from React state instead.

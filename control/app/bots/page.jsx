@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import useSWR, { mutate } from 'swr';
 import EmbedScript from '@/components/shared/EmbedScript';
@@ -376,18 +377,26 @@ function DetailPanel({ deployment, busy, onBuild, onConnect, onDelete, onBack })
   );
 }
 
-export default function BotsPage() {
+function BotsPageInner() {
   const t = useTranslations('dashboard');
   const tDetail = useTranslations('dashboard.detail');
+  const searchParams = useSearchParams();
   const { data, isLoading } = useSWR('/api/deployments', fetcher);
   const { data: keysData } = useSWR('/api/settings/api-keys', fetcher);
+  const { data: appSettings } = useSWR('/api/settings/app', fetcher);
   const hasLLMKey = Array.isArray(keysData?.keys) && keysData.keys.some(
     (k) => ['anthropic', 'openai', 'ollama'].includes(k.provider),
   );
+  // In agent mode the chat builder is fulfilled by the local agent, so no
+  // control-plane LLM key is required — the "add a key" banner would mislead.
+  const driverMode = appSettings?.builderDriverMode || 'agent';
+  const needsLLMKey = !hasLLMKey && driverMode !== 'agent';
   const deployments = data?.deployments || [];
   const [busyId, setBusyId] = useState(null);
   const [connectFor, setConnectFor] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
+  // Seed from ?id= so a /map bot node deep-links straight to that bot's detail
+  // pane; `selected` resolves as soon as /api/deployments returns.
+  const [selectedId, setSelectedId] = useState(() => searchParams.get('id'));
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -423,7 +432,7 @@ export default function BotsPage() {
   return (
     <main className="min-h-[calc(100vh-66px)] p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {!hasLLMKey && (
+        {needsLLMKey && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm flex items-center justify-between gap-3">
             <span className="text-[color:var(--text-secondary)]">
               {t('noKeyBanner.text')}
@@ -544,5 +553,14 @@ export default function BotsPage() {
         />
       )}
     </main>
+  );
+}
+
+// useSearchParams forces a CSR bailout in Next 16 unless wrapped in Suspense.
+export default function BotsPage() {
+  return (
+    <Suspense fallback={null}>
+      <BotsPageInner />
+    </Suspense>
   );
 }

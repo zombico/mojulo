@@ -1,6 +1,6 @@
 # Optical Read
 
-A mojulo-lite protocol that pulls structured data out of an uploaded image using a vision-capable LLM. The user uploads, the model reads, the chain locks. The user reviews — and optionally edits — then submits.
+A Mojulo protocol that pulls structured data out of an uploaded image using a vision-capable LLM. The user uploads, the model reads, the chain locks. The user reviews — and optionally edits — then submits.
 
 This is a deliberately different stance from ghost forms (which never let PII near the model). Optical Read is built on the user *intentionally* sharing a visual artifact for read-out.
 

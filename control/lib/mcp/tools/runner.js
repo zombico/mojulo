@@ -94,7 +94,7 @@ export async function statusAppHandler(input) {
   if (!input?.running_ref || typeof input.running_ref !== 'string') {
     throw new Error('status_app requires { running_ref }');
   }
-  const s = LocalRunner.status(input.running_ref);
+  const s = await LocalRunner.status(input.running_ref);
   return {
     running_ref: s.runningRef ?? input.running_ref,
     status: s.status,
@@ -106,8 +106,9 @@ export async function statusAppHandler(input) {
 }
 
 export async function listRunningHandler() {
+  const running = await LocalRunner.list();
   return {
-    running: LocalRunner.list().map((r) => ({
+    running: running.map((r) => ({
       running_ref: r.runningRef,
       artifact_ref: r.artifactRef,
       url: r.url,
@@ -222,7 +223,7 @@ export function registerRunnerTools() {
   registerTool({
     name: 'status_app',
     description:
-      "Read the runner's current view of one app's state. Returns `{ running_ref, status: 'running' | 'crashed' | 'unknown', url, mcp_url, artifact_ref, started_at }`. `unknown` means the runner has no record of this ref (either never started in this control-plane process, or stopped).",
+      "Read the runner's current view of one app's state. Returns `{ running_ref, status: 'running' | 'crashed' | 'unknown', url, mcp_url, artifact_ref, started_at }`. `unknown` means the runner has no record of this ref (either never started or the runtime daemon is down).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -236,7 +237,7 @@ export function registerRunnerTools() {
   registerTool({
     name: 'list_running',
     description:
-      "List every app the runner currently tracks. Returns `{ running: [{ running_ref, artifact_ref, url, mcp_url, started_at, status }] }`. Note: control-plane restart resets the in-memory map; OS processes may still be alive but invisible until restarted via `start_app` again (spike posture — persistent runner state is a hardening task).",
+      "List every app the runner currently tracks. Returns `{ running: [{ running_ref, artifact_ref, url, mcp_url, started_at, status }] }`. When the runtime daemon is down, this degrades to an empty list.",
     inputSchema: { type: 'object', properties: {} },
     handler: listRunningHandler,
   });

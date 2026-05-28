@@ -1,6 +1,6 @@
 # Form Collection (Ghost Forms)
 
-Mojulo-Lite bots can collect structured data from users alongside ordinary chat. The mechanism is called **ghost forms**: the form schema is generated once in the control panel for a chosen locale, baked into the bot deployment, rendered and filled entirely on the client, and submitted to the server in a single dedicated request that bypasses the LLM entirely.
+Mojulo bots can collect structured data from users alongside ordinary chat. The mechanism is called **ghost forms**: the form schema is generated once in the control panel for a chosen locale, baked into the bot deployment, rendered and filled entirely on the client, and submitted to the server in a single dedicated request that bypasses the LLM entirely.
 
 Three properties hold by construction:
 

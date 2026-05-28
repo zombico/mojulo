@@ -34,6 +34,7 @@ const PRINCIPLE_SOURCE_EVENTS = [
   'app_inference',
   'trigger_artifact_materialization',
   'trigger_firing',
+  'plan_release',
   'operator_kyc',
   'operator_workspace_setup',
   'adapter_shipped',

@@ -1,6 +1,6 @@
 # Vector RAG
 
-Mojulo-Lite bots retrieve relevant context for each user turn using a **single in-process vector index**, embedded with `multilingual-e5-small` (q8 ONNX). No external embedding API, no network calls at retrieval time, no separate keyword fallback path. Both knowledge documents and triage routes live in the same cosine index.
+Mojulo bots retrieve relevant context for each user turn using a **single in-process vector index**, embedded with `multilingual-e5-small` (q8 ONNX). No external embedding API, no network calls at retrieval time, no separate keyword fallback path. Both knowledge documents and triage routes live in the same cosine index.
 
 This doc describes how the index is built, how it ships, and how it gets queried.
 

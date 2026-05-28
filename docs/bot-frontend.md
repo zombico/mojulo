@@ -1,6 +1,6 @@
 # Bot Frontend (Client + Widget + Embed)
 
-The Mojulo-Lite bot serves its own UI from the same Express container that runs the chat backend. The same HTML+JS file runs in three different surfaces — a full-page browser tab, an embedded iframe on someone else's site, and a control-plane preview iframe — without any conditional rendering or build step.
+The Mojulo bot serves its own UI from the same Express container that runs the chat backend. The same HTML+JS file runs in three different surfaces — a full-page browser tab, an embedded iframe on someone else's site, and a control-plane preview iframe — without any conditional rendering or build step.
 
 This doc describes how those three surfaces work and what holds them together.
 

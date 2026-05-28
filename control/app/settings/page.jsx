@@ -14,7 +14,7 @@ const INFRA_PROVIDER_IDS_LIST = ['fly'];
 const LLM_PROVIDER_IDS = new Set(LLM_PROVIDER_IDS_LIST);
 const INFRA_PROVIDER_IDS = new Set(INFRA_PROVIDER_IDS_LIST);
 
-const TAB_IDS = ['llm', 'provider', 'language'];
+const TAB_IDS = ['llm', 'builder', 'provider', 'language'];
 
 function KeySection({ title, description, providers, keys, isLoading, defaultName, placeholderFor, labelFor }) {
   const t = useTranslations('settings.mojulo');
@@ -174,6 +174,122 @@ function KeySection({ title, description, providers, keys, isLoading, defaultNam
   );
 }
 
+function BuilderModeSection() {
+  const t = useTranslations('settings.mojulo.builder');
+  const { data, isLoading } = useSWR('/api/settings/app', fetcher);
+  // Poll worker liveness while this tab is open so the indicator reflects a
+  // freshly-attached /loop worker or Node fulfiller without a manual refresh.
+  const { data: workerData } = useSWR('/api/agent-tasks/status?format=json', fetcher, {
+    refreshInterval: 5000,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const mode = data?.builderDriverMode || 'agent';
+
+  async function setMode(next) {
+    if (next === mode) return;
+    setSaving(true);
+    setError(null);
+    const res = await fetch('/api/settings/app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ builderDriverMode: next }),
+    });
+    if (!res.ok) {
+      setError(t('saveError'));
+    } else {
+      await mutate('/api/settings/app');
+    }
+    setSaving(false);
+  }
+
+  // Worker is "live" if the in-process Node fulfiller is running, or an
+  // interactive /loop worker is currently long-polling (waitingPullers) or
+  // pulled recently (lastPullAt within the long-poll window + margin).
+  const fulfillerRunning = !!workerData?.fulfiller?.running;
+  const recentlyPulled =
+    typeof workerData?.lastPullAt === 'number' &&
+    workerData.lastPullAt > 0 &&
+    Date.now() - workerData.lastPullAt < 35000;
+  const workerLive = fulfillerRunning || (workerData?.waitingPullers || 0) > 0 || recentlyPulled;
+
+  const options = [
+    { id: 'agent', label: t('agentLabel'), description: t('agentDescription') },
+    { id: 'self-hosted', label: t('selfHostedLabel'), description: t('selfHostedDescription') },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <header>
+        <h2 className="text-2xl font-semibold">{t('title')}</h2>
+        <p className="text-[color:var(--text-secondary)] mt-1 text-sm">{t('description')}</p>
+      </header>
+
+      <section className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-6 space-y-3">
+        <h3 className="text-lg font-semibold">{t('modeLabel')}</h3>
+        <div className="space-y-2">
+          {options.map((opt) => {
+            const isActive = mode === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={saving || isLoading}
+                onClick={() => setMode(opt.id)}
+                className={`w-full text-left rounded-xl border p-4 transition-colors disabled:opacity-50 ${
+                  isActive
+                    ? 'border-[color:var(--brand-teal)] bg-[color:var(--surface-elevated)]'
+                    : 'border-[color:var(--border-color)] hover:bg-[color:var(--surface-elevated)]'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{opt.label}</span>
+                  {isActive && (
+                    <span className="text-xs text-[color:var(--brand-teal)]">●</span>
+                  )}
+                </div>
+                <p className="text-sm text-[color:var(--text-muted)] mt-1">{opt.description}</p>
+              </button>
+            );
+          })}
+        </div>
+        {error && <p className="text-sm text-red-400">{error}</p>}
+      </section>
+
+      {mode === 'agent' && (
+        <section className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-6 space-y-3">
+          <h3 className="text-lg font-semibold">{t('worker.title')}</h3>
+          {!workerData && (
+            <p className="text-sm text-[color:var(--text-muted)]">{t('worker.checking')}</p>
+          )}
+          {workerData && workerLive && (
+            <p className="text-sm text-green-400">
+              ● {fulfillerRunning
+                ? t('worker.liveNode', { runtime: workerData.fulfiller.runtime })
+                : t('worker.live')}
+            </p>
+          )}
+          {workerData && !workerLive && (
+            <div className="space-y-2">
+              <p className="text-sm text-amber-300">○ {t('worker.none')}</p>
+              <p className="text-sm text-[color:var(--text-secondary)]">{t('worker.howto')}</p>
+              <ul className="space-y-1 text-sm text-[color:var(--text-muted)]">
+                <li>
+                  <code className="rounded bg-[color:var(--surface-elevated)] px-1.5 py-0.5">
+                    {t('worker.howtoLoop')}
+                  </code>
+                </li>
+                <li>{t('worker.howtoEnv')}</li>
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
 function LanguageSection() {
   const t = useTranslations('settings.mojulo.language');
   const current = useLocale();
@@ -311,6 +427,7 @@ function SettingsPageInner() {
                 placeholderFor={infraPlaceholder}
               />
             )}
+            {activeTab === 'builder' && <BuilderModeSection />}
             {activeTab === 'language' && <LanguageSection />}
           </div>
         </div>

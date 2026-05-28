@@ -496,6 +496,28 @@ export const InventoryRepository = {
       .run(runningRef.trim());
     return { removed: result.changes };
   },
+
+  /**
+   * Reconcile read path — the distinct `running_ref`s that currently have
+   * app inventory rows, each with the row's server name and tool count.
+   * Consumed by the app-runtime daemon's reconcile-on-boot to decide which
+   * refs to adopt (sidecar still alive) versus sweep (orphaned by a prior
+   * control-plane / daemon restart). Scoped to `server_kind = 'app'`.
+   */
+  listAppRunningRefs() {
+    const db = getDb();
+    const rows = db
+      .prepare(
+        `SELECT running_ref AS runningRef,
+                MAX(server) AS server,
+                COUNT(*) AS toolCount
+           FROM meta_mcp_inventory
+          WHERE server_kind = 'app' AND running_ref IS NOT NULL
+          GROUP BY running_ref`,
+      )
+      .all();
+    return rows;
+  },
 };
 
 // Test seam — surface internals for unit testing.

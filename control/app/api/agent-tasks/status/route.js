@@ -78,6 +78,11 @@ export async function GET(request) {
       pendingCount: stats.pendingCount,
       inFlightCount: stats.inFlightCount,
       idle: stats.pendingCount === 0 && stats.inFlightCount === 0,
+      // Puller-liveness signals so a UI can detect an interactive /loop worker
+      // (long-polling pull_agent_task) — not just the in-process Node fulfiller.
+      waitingPullers: stats.waitingPullers,
+      recentPullCount: stats.recentPullCount,
+      lastPullAt: stats.lastPullAt,
       fulfiller: fulfillerStatus,
       lastEvent,
       recentEvents: events,

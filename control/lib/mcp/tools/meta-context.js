@@ -31,60 +31,13 @@ import {
 import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
 import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
-import { EmbeddingsRepository } from '@/lib/db/repositories/embeddings';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
 import { getCatalyst } from '@/lib/mcp/catalysts/loader';
 import { verifyArtifact, verifyAppArtifact } from '@/lib/mcp/meta-context/verification';
-
-// Pre-embed every distinct principle body that'll be written by a commit.
-// Principles are append-only, so the source_ref (the inserted row's id) is
-// unknown until we're inside the sync txn — we batch on body_text instead
-// and resolve to (hash, vector) inside the txn after each insert. Returns a
-// Map keyed on body_text. Distinct-only to avoid redundant model work in
-// the 'binds' fan-out case (one user-supplied principle body, N inserted
-// rows sharing it). Soft on failure: callers walk the map and skip upsert
-// when `vector` is null.
-async function embedPrincipleBodies(bodies) {
-  // Operator-facing kill switch — also doubles as the test escape hatch so
-  // suites that don't care about the embedding sidecar can skip the ONNX
-  // model load with one line at the top of the file.
-  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return new Map();
-  const cleaned = (Array.isArray(bodies) ? bodies : [])
-    .filter((b) => typeof b === 'string' && b.length > 0);
-  if (cleaned.length === 0) return new Map();
-  const distinct = Array.from(new Set(cleaned));
-  const items = distinct.map((body) => ({
-    sourceKind: 'principle',
-    // Placeholder ref: principles are append-only so there's nothing to
-    // hash-skip against. skipUnchanged: false below also short-circuits the
-    // SELECT — we just want the model to run once per distinct body.
-    sourceRef: '__pending__',
-    bodyText: body,
-  }));
-  const embedded = await EmbeddingsRepository.embedMany(items, {
-    skipUnchanged: false,
-  });
-  const map = new Map();
-  for (const e of embedded) {
-    map.set(e.bodyText, { hash: e.hash, vector: e.vector });
-  }
-  return map;
-}
-
-// Sync. Pair a freshly-inserted principle row with its pre-computed
-// embedding and upsert the sidecar row. Soft on missing entries.
-function upsertPrincipleEmbedding(principle, bodyEmbeddings) {
-  if (!principle || !bodyEmbeddings) return;
-  const e = bodyEmbeddings.get(principle.bodyMd);
-  if (!e) return;
-  EmbeddingsRepository.upsertSync({
-    sourceKind: 'principle',
-    sourceRef: String(principle.id),
-    bodyText: principle.bodyMd,
-    hash: e.hash,
-    vector: e.vector,
-  });
-}
+import {
+  embedPrincipleBodies,
+  upsertPrincipleEmbedding,
+} from '@/lib/mcp/meta-context/principle-embeddings';
 
 // ---------------------------------------------------------------------------
 // brief

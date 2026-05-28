@@ -1,6 +1,6 @@
 # Wizard Builder
 
-Mojulo-Lite ships two builders that produce the same artifact: the **chat builder** (a Claude conversation that mutates config via tool calls) and the **wizard** — a structured, multi-step form. This doc describes the wizard: how its steps are generated from protocol toggles, how state moves between them, how the live preview works, and how its output converges with the chat builder's at the same `buildDeploymentConfig()` call.
+Mojulo ships two builders that produce the same artifact: the **chat builder** (a Claude conversation that mutates config via tool calls) and the **wizard** — a structured, multi-step form. This doc describes the wizard: how its steps are generated from protocol toggles, how state moves between them, how the live preview works, and how its output converges with the chat builder's at the same `buildDeploymentConfig()` call.
 
 The chat builder's internals are out of scope here. What matters for this doc: both builders write to the same deployment config shape, save through the same `/api/deployments` endpoint, and produce the same downstream zip via the same [DockerDeployer](../control/lib/deployers/docker.js).
 

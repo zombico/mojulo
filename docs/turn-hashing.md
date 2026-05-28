@@ -1,6 +1,6 @@
 # Turn Hashing
 
-Every conversation turn Mojulo-Lite persists is **content-hashed** and **chain-linked** to the previous turn. The result is a per-bot tamper-evident transcript: any after-the-fact edit to a stored row breaks the chain at that row and every row after it, and `GET /verify/:conversationId` walks the chain and reports the break.
+Every conversation turn Mojulo persists is **content-hashed** and **chain-linked** to the previous turn. The result is a per-bot tamper-evident transcript: any after-the-fact edit to a stored row breaks the chain at that row and every row after it, and `GET /verify/:conversationId` walks the chain and reports the break.
 
 This doc describes the single-bot chain — how each row's hashes are computed, what gets stored, and what verify proves. The cross-bot extension (chains that survive triage handoffs) is in [federated-routing.md](federated-routing.md).
 

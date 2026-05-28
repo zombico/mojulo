@@ -1,6 +1,6 @@
 # Conversations API (Connect Bot)
 
-Once a Mojulo-Lite bot is running anywhere reachable — `localhost:3000`, an ngrok tunnel, a LAN host, a Fly app, a VPS — the operator can **connect** it to the control plane by pasting its URL on the deployment row. The dashboard then proxies through to the bot's read-only endpoints to browse conversations and form submissions, **without ever copying conversation data into the control-plane DB**.
+Once a Mojulo bot is running anywhere reachable — `localhost:3000`, an ngrok tunnel, a LAN host, a Fly app, a VPS — the operator can **connect** it to the control plane by pasting its URL on the deployment row. The dashboard then proxies through to the bot's read-only endpoints to browse conversations and form submissions, **without ever copying conversation data into the control-plane DB**.
 
 This doc describes how that connection is established, how the proxy works, and what each proxied route does.
 

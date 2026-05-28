@@ -6,14 +6,15 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
-import { LocalRunner } from '@/lib/runners/local';
 import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
 import { MetaNodeRepository } from '@/lib/db/repositories/meta-context';
 import { commitAppMaterialization } from '@/lib/mcp/tools/meta-context';
 import { installScaffold } from '@/lib/app-mcp-scaffold/install';
+import { writePidfile } from '@/lib/runners/daemon/pidfile';
 import { listApps, getApp } from './loader';
 
 let tmpRoot;
+let homeRoot;
 let artifactDir;
 
 function buildAppDir(root, name) {
@@ -32,13 +33,17 @@ function buildAppDir(root, name) {
 
 beforeEach(() => {
   closeDb();
-  LocalRunner._reset();
+  // Isolate MOJULO_HOME so the loader reads pidfiles from a temp dir, never
+  // the real ~/.mojulo (which may have live apps on the dev machine).
+  homeRoot = mkdtempSync(join(tmpdir(), 'mojulo-home-'));
+  process.env.MOJULO_HOME = homeRoot;
   tmpRoot = mkdtempSync(join(tmpdir(), 'mojulo-apps-loader-'));
 });
 
 afterEach(() => {
-  LocalRunner._reset();
   rmSync(tmpRoot, { recursive: true, force: true });
+  rmSync(homeRoot, { recursive: true, force: true });
+  delete process.env.MOJULO_HOME;
 });
 
 describe('apps loader — listApps', () => {
@@ -101,12 +106,9 @@ describe('apps loader — listApps', () => {
       },
     });
 
-    // Synthetic runtime entry — bypass actually spawning processes by
-    // poking the in-memory map via LocalRunner.list's underlying state.
-    // Use the same shape the runner sets in its `state` object.
-    // We hook through the public surface by adding an inventory row and
-    // a list() entry by spawning the real start IS heavy, so we shim
-    // by directly inserting an inventory entry + monkey-patching list.
+    // Synthetic runtime entry — bypass actually spawning processes. Runtime
+    // state is read from pidfiles, so seed a pidfile + the matching inventory
+    // row (the same pair the engine writes on a real start_app).
     const runningRef = 'run-deadbeef00000000';
     InventoryRepository.addAppInventory({
       server: 'app-two',
@@ -116,17 +118,19 @@ describe('apps loader — listApps', () => {
       ],
       runningRef,
     });
-    const origList = LocalRunner.list;
-    LocalRunner.list = () => [
-      {
-        runningRef,
-        artifactRef: artifactDir,
-        url: 'http://127.0.0.1:5173',
-        mcpUrl: 'http://127.0.0.1:5174',
-        startedAt: 1700000000000,
-        status: 'running',
-      },
-    ];
+    writePidfile({
+      runningRef,
+      appPid: 999999,
+      sidecarPid: 999998,
+      url: 'http://127.0.0.1:5173',
+      sidecarUrl: 'http://127.0.0.1:5174',
+      bearer: 'should-not-leak-into-view-model',
+      artifactRef: artifactDir,
+      appName: 'app-two',
+      serverName: 'app-two',
+      materializationRef: `claude-code:${artifactDir}`,
+      startedAt: 1700000000000,
+    });
     try {
       const { apps } = listApps();
       expect(apps).toHaveLength(1);
@@ -136,11 +140,12 @@ describe('apps loader — listApps', () => {
         mcpUrl: 'http://127.0.0.1:5174',
         status: 'running',
       });
+      // The bearer must never cross into the projected view model.
+      expect(JSON.stringify(apps[0])).not.toContain('should-not-leak');
       expect(apps[0].inventory).toBeTruthy();
       expect(apps[0].inventory.serverName).toBe('app-two');
       expect(apps[0].inventory.tools.map((t) => t.name).sort()).toEqual(['describe_app', 'health']);
     } finally {
-      LocalRunner.list = origList;
       InventoryRepository.removeAppInventory(runningRef);
     }
   });

@@ -11,7 +11,7 @@ export default function ChatBuilderPage() {
       <div className="flex-1 overflow-hidden">
         <InvertedModularChatPanel
           workspaceId={null}
-          workspaceName="Mojulo-Lite"
+          workspaceName="Mojulo-Control"
           onDeployComplete={(deploymentId) => {
             router.push(`/dashboard?built=${deploymentId}`);
           }}

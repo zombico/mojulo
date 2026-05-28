@@ -89,11 +89,13 @@ function SketchIcon({ className = 'h-10 w-10' }) {
       className={className}
       aria-hidden="true"
     >
-      <path d="M 12 2.5 L 16.5 6.5 L 12 10.5 L 7.5 6.5 Z" />
-      <rect x="2" y="16" width="7" height="5" rx="1" />
-      <rect x="15" y="16" width="7" height="5" rx="1" />
-      <path d="M 9.5 9 L 5.5 16" />
-      <path d="M 14.5 9 L 18.5 16" />
+      {/* Decision diamond — the recognizable flowchart element. Thinner
+          stroke than the pencil so the two read as distinct layers. */}
+      <path d="M 12 11 L 21 16.5 L 12 22 L 3 16.5 Z" strokeWidth="1.25" />
+      {/* Pencil hovering above, tip pointing down at the diamond. */}
+      <path d="M 20 3 L 14 9 L 11.5 9.5 L 12 7 L 18 1 Z" />
+      <path d="M 14 9 L 12 7" />
+      <path d="M 18.9 4 L 16.9 2" />
     </svg>
   );
 }
@@ -120,7 +122,8 @@ function PlanIcon({ className = 'h-10 w-10' }) {
   );
 }
 
-function GearIcon({ className = 'h-10 w-10' }) {
+function NotebookIcon({ className = 'h-10 w-10' }) {
+  // Open notebook — two facing pages with a center spine and ruled lines.
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -133,8 +136,33 @@ function GearIcon({ className = 'h-10 w-10' }) {
       className={className}
       aria-hidden="true"
     >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      <path d="M12 6c-1.8-1.2-4-1.8-6.5-1.8-.8 0-1.5.6-1.5 1.4v11c0 .8.7 1.3 1.5 1.3 2.5 0 4.7.6 6.5 1.8" />
+      <path d="M12 6c1.8-1.2 4-1.8 6.5-1.8.8 0 1.5.6 1.5 1.4v11c0 .8-.7 1.3-1.5 1.3-2.5 0-4.7.6-6.5 1.8" />
+      <path d="M12 6v13.7" />
+      <path d="M6.5 9h3" />
+      <path d="M6.5 12h3" />
+      <path d="M14.5 9h3" />
+      <path d="M14.5 12h3" />
+    </svg>
+  );
+}
+
+function MapIcon({ className = 'h-10 w-10' }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+      <path d="M9 4v14" />
+      <path d="M15 6v14" />
     </svg>
   );
 }
@@ -223,7 +251,9 @@ const TILES = [
   { key: 'apps',      href: '/apps',       Icon: AppsGridIcon },
   { key: 'sketch',    href: '/sketches',   Icon: SketchIcon },
   { key: 'plan',      href: '/plan',       Icon: PlanIcon },
-  { key: 'settings',  href: '/settings',   Icon: GearIcon },
+  { key: 'map',       href: '/map',        Icon: MapIcon },
+  // New row — Research leads it (the accretive book that feeds plan mode).
+  { key: 'research',  href: '/research',   Icon: NotebookIcon },
 ];
 
 export default function HomePage() {

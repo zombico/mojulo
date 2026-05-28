@@ -36,6 +36,7 @@ describe('schema bootstraps', () => {
       'meta_mcp_providers',
       'meta_nodes',
       'meta_principles',
+      'meta_skills',
     ]);
   });
 
@@ -58,6 +59,7 @@ describe('schema bootstraps', () => {
       'idx_meta_mcp_inventory_tool_ref',
       'idx_meta_nodes_kind_ref',
       'idx_meta_principles_scope',
+      'idx_meta_skills_mirrored_at',
     ]);
   });
 

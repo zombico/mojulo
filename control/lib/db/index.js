@@ -26,6 +26,16 @@ function init(db) {
       created_at INTEGER NOT NULL
     );
 
+    -- Single-user app preferences. First user-selectable persisted "mode" in
+    -- the control plane. Key/value so new settings are additive without a
+    -- migration. Absence of a key IS its fresh-install default (resolved in
+    -- the repository), so no seed row. See app-system/0528/agent-routed-chat.md.
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
       original_name TEXT NOT NULL,
@@ -323,10 +333,125 @@ function init(db) {
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_sketches_created_at ON sketches(created_at DESC);
+
+    -- Plan mode (Ring 8). The PROPOSED layer of the deliberation model — the
+    -- speculative counterpart to contextmap's committed reality. A plan is a
+    -- sealed cognitive unit drawing the schematic of one vertical slice (a
+    -- "spike"); when its manifest is tractable (every call resolves to a live
+    -- MCP tool) it compiles to status='actionable' and the operator can run
+    -- it under per-execution approval. Deliberately NOT a contextmap commit
+    -- type: contextmap is sealed reality, a plan is pre-reality, so it lives
+    -- in its own table. The seen column is the light read/unread inbox gate
+    -- (not a formal review workflow). The lens column records which of the
+    -- four latent shapes the frame settled into; null while still undecided.
+    -- manifest_json / frame_json / analysis_json carry the projected shadow
+    -- scratchpad. No cross-plan context in v0 — subplans live inside the
+    -- prime plan's manifest, not as sibling rows. See
+    -- lite-template/integration/app-system/0527/plan-feature/PLAN_MODE.md.
+    CREATE TABLE IF NOT EXISTS plans (
+      id INTEGER PRIMARY KEY,
+      plan_ref TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      goal_md TEXT NOT NULL,
+      lens TEXT CHECK(lens IN ('spike','segment_expansion','vertical_reinforcement','collider')),
+      status TEXT NOT NULL CHECK(status IN ('draft','actionable','executing','executed','failed')) DEFAULT 'draft',
+      seen INTEGER NOT NULL DEFAULT 0,
+      frame_json TEXT,
+      manifest_json TEXT,
+      analysis_json TEXT,
+      revision_log_json TEXT NOT NULL DEFAULT '[]',
+      execution_log_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status);
+    CREATE INDEX IF NOT EXISTS idx_plans_created_at ON plans(created_at DESC);
+
+    -- Research mode (Ring 9). The ACCRETIVE / exploratory layer that sits
+    -- upstream of the proposed layer (plans). A research session is a durable,
+    -- book-like context with no goal but to assist; starting one auto-saves it.
+    -- Broad items bind to it (links, articles, summaries, screencaps, notes),
+    -- and synthesize_abstract distills the book into a thesis sent (via
+    -- POST /api/plans/from-abstract) to plan mojulo for evaluation — optionally
+    -- forging a Draft plan. An optional drawer, deliberately not woven into
+    -- forward_context (posture-sibling to sketches). One-way coupling:
+    -- research depends on plans, plans never import research. See
+    -- lite-template/integration/app-system/0528/research-mode.md.
+    CREATE TABLE IF NOT EXISTS research_sessions (
+      id INTEGER PRIMARY KEY,
+      research_ref TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('open','archived')) DEFAULT 'open',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_research_sessions_status ON research_sessions(status);
+    CREATE INDEX IF NOT EXISTS idx_research_sessions_created_at ON research_sessions(created_at DESC);
+
+    -- Broad items bound to a research session. kind is intentionally a
+    -- freeform string (a book holds anything); the bind tool validates against
+    -- a known-but-broad set so adding a kind is a one-line tool change, not a
+    -- schema migration. media_ref points into stored media (documents) for
+    -- screencaps. Append-semantic — a book accretes; deletion is a later
+    -- affordance, not v0.
+    CREATE TABLE IF NOT EXISTS research_items (
+      id INTEGER PRIMARY KEY,
+      research_ref TEXT NOT NULL REFERENCES research_sessions(research_ref) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      title TEXT,
+      body_md TEXT,
+      source_url TEXT,
+      media_ref TEXT,
+      metadata_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_research_items_session ON research_items(research_ref, created_at);
+
+    -- Synthesized abstracts. Append-only history: each synthesis is a snapshot
+    -- of the book at that moment, so the thesis's evolution is auditable.
+    -- plan_ref / assessment_json are backfilled when the abstract is evaluated
+    -- by plan mojulo and (optionally) forges a Draft plan.
+    CREATE TABLE IF NOT EXISTS research_abstracts (
+      id INTEGER PRIMARY KEY,
+      research_ref TEXT NOT NULL REFERENCES research_sessions(research_ref) ON DELETE CASCADE,
+      body_md TEXT NOT NULL,
+      item_count INTEGER NOT NULL DEFAULT 0,
+      plan_ref TEXT,
+      assessment_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_research_abstracts_session ON research_abstracts(research_ref, created_at);
+
+    -- Connected Services: skills mirrored from the host adapter. A Skill is
+    -- a "workflow synthesized into the host adapter" (.claude/skills/<name>/
+    -- SKILL.md) — the host owns its lifecycle; mojulo keeps a read-only
+    -- reflection so it can be observed/visualized alongside the orbit
+    -- (mcp_orbit_compositions) form of a Connected Service. REPLACE-semantic,
+    -- declared by the agent via declare_skills — same posture as
+    -- meta_mcp_inventory (present environment, not a sealed contextmap
+    -- decision), which is why it sits here and not as a meta_context commit.
+    -- ref is deterministic from host_path so re-mirroring is idempotent.
+    -- calls_json = [{ server, tools? }] (concrete MCP servers it calls);
+    -- needs_json = [{ capability, label }] (unbound abstract slots). See
+    -- lite-template/integration/app-system/0527/CONNECTED_SERVICES_CANONIZATION_PLAN.md.
+    CREATE TABLE IF NOT EXISTS meta_skills (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT,
+      host_path TEXT NOT NULL,
+      host_adapter TEXT,
+      catalyst_id TEXT,
+      calls_json TEXT NOT NULL DEFAULT '[]',
+      needs_json TEXT NOT NULL DEFAULT '[]',
+      mirrored_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_meta_skills_mirrored_at ON meta_skills(mirrored_at DESC);
   `);
 
   migrateDeploymentColumns(db);
   migrateInventoryColumns(db);
+  migratePlanColumns(db);
   reapStaleMcpJobs(db);
   maybeBackfillEmbeddings(db);
   maybeStartNodeFulfiller();
@@ -364,13 +489,16 @@ function maybeStartNodeFulfiller() {
 // still succeed (the binding row is durable), but nothing fires until a
 // later boot enables the runtime. Symmetric with MOJULO_AGENT_RUNTIME's
 // opt-in posture so an operator who hasn't configured automation doesn't
-// get background daemons running by default.
+// get background daemons running by default. If MOJULO_DAEMONS=enabled, the
+// runtime daemon host owns the scheduler and this in-process boot is skipped
+// to avoid duplicate fires.
 //
 // SIGTERM wiring lives here too — installed once, defers to the daemon's
 // own drain. Process.on('SIGTERM', ...) is idempotent against re-entrant
 // init() because we check a module-local sentinel.
 let _sigtermInstalled = false;
 function maybeStartTriggerDaemons() {
+  if (process.env.MOJULO_DAEMONS === 'enabled') return;
   const v = process.env.MOJULO_TRIGGER_RUNTIME;
   if (!v || v === 'disabled') return;
   if (v !== 'enabled') {
@@ -493,6 +621,28 @@ function migrateInventoryColumns(db) {
   db.exec(
     'CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_running_ref ON meta_mcp_inventory(running_ref)'
   );
+}
+
+function migratePlanColumns(db) {
+  // Close-the-loop columns: when a plan's executed manifest materializes an
+  // artifact into the contextmap, the plan is graduated — a `plan_release`
+  // principle lands on the artifact node and the plan is archived. `archived`
+  // is orthogonal to `status` (an archived plan stays status='executed'); the
+  // /plan inbox semi-hides archived plans. `release_json` carries the
+  // bidirectional link back to the artifact(s) the plan released.
+  // See lite-template/integration/app-system/0527/plan-feature/PLAN_MODE.md.
+  const cols = db.prepare('PRAGMA table_info(plans)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('archived')) {
+    db.exec('ALTER TABLE plans ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!have.has('archived_at')) {
+    db.exec('ALTER TABLE plans ADD COLUMN archived_at INTEGER');
+  }
+  if (!have.has('release_json')) {
+    db.exec('ALTER TABLE plans ADD COLUMN release_json TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_plans_archived ON plans(archived)');
 }
 
 function reapStaleMcpJobs(db) {

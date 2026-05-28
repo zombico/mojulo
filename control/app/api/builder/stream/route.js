@@ -1,5 +1,5 @@
 /**
- * Mojulo-Lite — Builder Streaming Endpoint (Inverted Flow)
+ * Mojulo — Builder Streaming Endpoint (Inverted Flow)
  *
  * Adapted from dragbot-control:
  * - Single-user auth stub
@@ -30,6 +30,9 @@ import { parseDocument } from '@/lib/document-parser';
 import { buildBedrockModelId, getDefaultModelForTask, resolveOllamaHost } from '@/lib/llm-providers';
 import { uploadFile } from '@/lib/storage';
 import { decryptApiKey } from '@/lib/deployment-auth';
+import { parkRequest, AgentTaskError } from '@/lib/mcp/agent-tasks/queue';
+import { subscribe as subscribeChatSignals } from '@/lib/agent-ui/signal-bus';
+import { AppSettingsRepository, BUILDER_DRIVER_MODES } from '@/lib/db/repositories/appSettings';
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
@@ -127,7 +130,7 @@ async function buildPreloadedContext(userId) {
 
   return {
     organizationName: 'Local',
-    workspaceName: 'Mojulo-Lite',
+    workspaceName: 'Mojulo Control',
     workspaceDocuments: documents.map((d) => ({
       id: d.id,
       name: d.originalName,
@@ -166,11 +169,20 @@ export async function POST(request) {
   try {
     const user = await getCurrentUser();
 
-    // Gate: Lite's chat builder (and the per-bot artifact it compiles) cannot
-    // function without an LLM provider key. Fail fast with 409 so the UI can
-    // surface the /settings deep-link.
+    // The builder's brain. In 'agent' mode the local Claude Code agent fulfills
+    // each turn via the agent-tasks queue, so the control plane needs no LLM
+    // key. In 'self-hosted' mode the control plane runs its own Claude loop.
+    const driverMode = AppSettingsRepository.getBuilderDriverMode();
+
+    // Gate: the self-hosted chat builder (and the per-bot artifact it compiles)
+    // cannot function without an LLM provider key. Fail fast with 409 so the UI
+    // can surface the /settings deep-link. Skipped in agent mode — conversation
+    // is fulfilled by the operator's agent, not a control-plane key.
     const availableKeys = await ApiKeyRepository.findByUserId(user.id);
-    if (!availableKeys || availableKeys.length === 0) {
+    if (
+      driverMode !== BUILDER_DRIVER_MODES.AGENT &&
+      (!availableKeys || availableKeys.length === 0)
+    ) {
       return new Response(
         JSON.stringify({
           error: 'No LLM provider key configured. Add one on /settings.',
@@ -275,6 +287,22 @@ export async function POST(request) {
             userMessageContent = `${message}\n\n[Attached documents - process ONLY these, not other workspace documents]\n${attachedDocs}`;
           }
           messages.push({ role: 'user', content: userMessageContent });
+
+          // Agent mode: park the turn for the local agent to fulfill, then
+          // resolve back over the same SSE vocabulary. No control-plane Claude
+          // loop runs. (Phase 1: conversational relay — answer text only.)
+          if (driverMode === BUILDER_DRIVER_MODES.AGENT) {
+            await runAgentChatTurn({
+              session,
+              userId: user.id,
+              userMessageContent,
+              messages,
+              controller,
+              encoder,
+            });
+            controller.close();
+            return;
+          }
 
           const isFirstMessage = (session.messages || []).length === 0;
           const isEditMode = session.status === SESSION_STATUS.EDITING;
@@ -383,6 +411,105 @@ export async function POST(request) {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+}
+
+/**
+ * Agent-routed turn (Phase 1: conversational relay). Parks the user's turn on
+ * the agent-tasks queue and awaits the local agent's envelope, resolving it
+ * back over the same SSE event vocabulary the self-hosted loop uses — so the
+ * chat UI is unchanged. Builder-card parity (driving build_* tools against a
+ * shared session) is a later phase; here we relay answer text only.
+ */
+async function runAgentChatTurn({ session, userId, userMessageContent, messages, controller, encoder }) {
+  sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'thinking' });
+
+  // Subscribe this open SSE stream to the agent-ui signal bus for the turn, so
+  // the fulfilling worker's narration (`emit_chat_signal`) and decision prompts
+  // (`request_chat_decision`) reach the browser over the same event vocabulary.
+  // Bus events are already shaped as { type, data } matching EventTypes; forward
+  // verbatim. Unsubscribed in the finally below before the controller closes.
+  const unsubscribeSignals = subscribeChatSignals(session.id, (evt) => {
+    try {
+      sendEvent(controller, encoder, evt.type, evt.data || {});
+    } catch {
+      // controller already closed — ignore
+    }
+  });
+
+  // Prior turns become the worker's conversation history; the just-pushed user
+  // message is the current input, carried separately as inputs.text.
+  const history = messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
+
+  try {
+    const { envelope } = await parkRequest(
+      {
+        task_kind: 'chat_turn',
+        inputs: { text: userMessageContent },
+        protocol_context: {
+          sessionId: session.id,
+          history,
+          locale: session.preloadedContext?.locale || null,
+        },
+        caller_ref: { kind: 'builder_chat', sessionId: session.id },
+      },
+      // A turn that drives build_* tools — or blocks on a `request_chat_decision`
+      // while the operator decides — can run long. Widen well past the 60s
+      // default and keep it above the decision TTL (10min) so the parked HTTP
+      // outlives any in-flight decision rather than expiring under the operator.
+      { submitTimeoutMs: 900_000 }
+    );
+
+    const answer = typeof envelope?.answer === 'string' ? envelope.answer : '';
+    sendEvent(controller, encoder, EventTypes.TEXT, { text: answer });
+
+    await BuilderSessionRepository.appendMessage(session.id, userId, {
+      role: 'assistant',
+      content: answer,
+    });
+
+    sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'idle' });
+
+    const finalSession = await BuilderSessionRepository.findById(session.id);
+    sendEvent(controller, encoder, EventTypes.DONE, {
+      sessionId: session.id,
+      status: finalSession?.status || session.status,
+    });
+
+    await auditLog({
+      eventType: 'builder.stream',
+      actor: { id: userId },
+      resource: { type: 'modular_session', id: session.id },
+      action: 'process',
+      outcome: 'success',
+      metadata: { mode: 'agent' },
+    }).catch(() => {});
+  } catch (error) {
+    // AgentTaskError carries operator-friendly messages (e.g. NO_AGENT_WORKER
+    // tells them how to attach a worker). Surface it as a clean ERROR event and
+    // end the turn; only unexpected errors bubble to the outer catch.
+    if (error instanceof AgentTaskError) {
+      sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'concerned' });
+      sendEvent(controller, encoder, EventTypes.ERROR, {
+        error: error.message,
+        code: error.code,
+      });
+      await auditLog({
+        eventType: 'builder.stream',
+        actor: { id: userId },
+        resource: { type: 'modular_session', id: session.id },
+        action: 'process',
+        outcome: 'failure',
+        metadata: { mode: 'agent', code: error.code },
+      }).catch(() => {});
+      return;
+    }
+    throw error;
+  } finally {
+    // Stop forwarding bus events before the caller closes the controller.
+    // Signals emitted after this (a late worker narration) find no subscriber
+    // and report delivered:false.
+    unsubscribeSignals();
   }
 }
 

@@ -3,11 +3,20 @@
  *
  * Stitches together three sources into one view model the pane consumes:
  *   - contextmap (artifact nodes with payload.app) — the materialization record
- *   - LocalRunner.list() — in-memory runtime state (running_ref, urls, status)
+ *   - app-runtime pidfiles — durable runtime state (running_ref, urls, startedAt)
  *   - inventory (server_kind='app') — the auto-declared MCP entry per running app
  *
- * The contextmap is the source of truth for "what apps exist". The runner +
+ * The contextmap is the source of truth for "what apps exist". The runtime +
  * inventory layer over the top to mark which ones are currently running.
+ *
+ * Runtime state is read from the daemon's pidfiles (a synchronous on-disk
+ * read), NOT by querying the daemon over HTTP. This deliberately decouples the
+ * Apps pane from daemon availability — the pane renders correctly whether or
+ * not the daemon process is up, and (unlike the pre-daemon in-memory map) it
+ * survives a control-plane restart. A pidfile present ⇒ status 'running'; the
+ * daemon sweeps dead pidfiles on its next reconcile, so transient staleness is
+ * the cost of the decoupling. The bearer in the pidfile is never projected
+ * into the view model.
  *
  * Reads node + inventory state directly from the repositories rather than via
  * `MetaContextRepository.brief({kind:'fleet'})` — the brief is capped by design
@@ -16,12 +25,19 @@
 
 import { MetaContextRepository, MetaNodeRepository } from '@/lib/db/repositories/meta-context';
 import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
-import { LocalRunner } from '@/lib/runners/local';
+import { listPidfiles } from '@/lib/runners/daemon/pidfile';
 
 function indexRunningByLocator() {
   const map = new Map();
-  for (const r of LocalRunner.list()) {
-    map.set(r.artifactRef, r);
+  for (const rec of listPidfiles()) {
+    // Project only the safe runtime fields — never the bearer.
+    map.set(rec.artifactRef, {
+      runningRef: rec.runningRef,
+      url: rec.url,
+      mcpUrl: rec.sidecarUrl,
+      startedAt: rec.startedAt,
+      status: 'running',
+    });
   }
   return map;
 }

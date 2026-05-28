@@ -10,7 +10,7 @@ import { buildBedrockModelId } from '@/lib/llm-providers';
 import PreviewBot from '../stepsPreview/PreviewBot';
 
 /**
- * Mojulo-Lite is a config saver, not a deployer.
+ * Mojulo is a config saver, not a deployer.
  *
  * The user-facing action is one click that chains:
  *   1. POST/PATCH /api/deployments    → write config row (status=saved)
