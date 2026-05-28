@@ -211,6 +211,7 @@ export async function ensureToolsRegistered() {
   const { registerSemanticSearchTools } = await import('@/lib/mcp/tools/semantic-search');
   const { registerRunnerTools } = await import('@/lib/mcp/tools/runner');
   const { registerAgentTaskTools } = await import('@/lib/mcp/tools/agent-tasks');
+  const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -264,4 +265,9 @@ export async function ensureToolsRegistered() {
   // APP_SPIKE_A_REFRAME_PLAN.md.
   registerRunnerTools();
   registerAgentTaskTools();
+  // Sketchbook — agent-minted dynamic diagrams, viewable at /sketches/<ref>.
+  // Deliberately not woven into forward_context / Ring 6; agents discover it
+  // via tools/list. See lite-template/integration/app-system/0527/
+  // SKETCHBOOK_PLAN.md.
+  registerSketchTools();
 }

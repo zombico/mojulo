@@ -5,89 +5,39 @@
 // authEnabled=true and a logout link is rendered next to settings.
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-function HomeIcon({ className = 'h-4 w-4' }) {
+function HomeIcon({ className = 'h-5 w-5' }) {
+  // Mojulo favicon (3-card stack with teal gradient) — keeps the brand
+  // visual identical to the tab favicon.
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      viewBox="160 115 70 70"
       className={className}
       aria-hidden="true"
     >
-      <path d="M3 10.5 12 3l9 7.5" />
-      <path d="M5 9.5V21h14V9.5" />
-      <path d="M10 21v-6h4v6" />
-    </svg>
-  );
-}
-
-function DataIcon({ className = 'h-4 w-4' }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
-      <path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6" />
-    </svg>
-  );
-}
-
-function AppsIcon({ className = 'h-4 w-4' }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-
-function GraphIcon({ className = 'h-4 w-4' }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="5" cy="6" r="2" />
-      <circle cx="19" cy="6" r="2" />
-      <circle cx="12" cy="18" r="2" />
-      <path d="M6.7 7.4l4.6 9.2" />
-      <path d="M17.3 7.4l-4.6 9.2" />
-      <path d="M7 6h10" />
+      <defs>
+        <linearGradient id="authNavCardBack" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#1d6f68" />
+          <stop offset="0.55" stopColor="#134e4a" />
+          <stop offset="1" stopColor="#0a2a28" />
+        </linearGradient>
+        <linearGradient id="authNavCardMid" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#7af0dc" />
+          <stop offset="0.5" stopColor="#2dd4bf" />
+          <stop offset="1" stopColor="#138a78" />
+        </linearGradient>
+        <linearGradient id="authNavCardFront" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#b9f5e8" />
+          <stop offset="0.5" stopColor="#5eead4" />
+          <stop offset="1" stopColor="#26b8a0" />
+        </linearGradient>
+      </defs>
+      <rect x="-9.25" y="-19.55" width="11" height="40" rx="7.75" fill="url(#authNavCardBack)" transform="translate(183.8, 150) rotate(17)" />
+      <rect x="-6.45" y="-21.55" width="11" height="40" rx="7.75" fill="url(#authNavCardMid)" transform="translate(191, 150) rotate(340)" />
+      <rect x="-6.00" y="-21.55" width="11" height="40" rx="7.75" fill="url(#authNavCardFront)" transform="translate(206.3, 150) rotate(340)" />
     </svg>
   );
 }
@@ -134,10 +84,13 @@ function SignOutIcon({ className = 'h-4 w-4' }) {
 export default function AuthNav({ authEnabled = false }) {
   const tSettings = useTranslations('settings');
   const tLogin = useTranslations('login');
-  const tData = useTranslations('data');
-  const tApps = useTranslations('apps');
-  const tGraph = useTranslations('graph');
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Bare-view routes: the agent launches the user directly into a single
+  // artifact (e.g. a minted sketch) and the surrounding nav would distract
+  // from the thing they came to see. Skip rendering chrome on these paths.
+  if (pathname && pathname.startsWith('/sketches/')) return null;
 
   async function onLogout() {
     try {
@@ -153,18 +106,6 @@ export default function AuthNav({ authEnabled = false }) {
         Mojulo
       </Link>
       <div className="flex items-center gap-4 text-[color:var(--text-muted)]">
-        <Link href="/apps" className="inline-flex items-center gap-1.5 hover:text-white">
-          <AppsIcon />
-          {tApps('navLabel')}
-        </Link>
-        <Link href="/graph" className="inline-flex items-center gap-1.5 hover:text-white">
-          <GraphIcon />
-          {tGraph('navLabel')}
-        </Link>
-        <Link href="/data" className="inline-flex items-center gap-1.5 hover:text-white">
-          <DataIcon />
-          {tData('navLabel')}
-        </Link>
         <Link href="/settings" className="inline-flex items-center gap-1.5 hover:text-white">
           <GearIcon />
           {tSettings('title')}

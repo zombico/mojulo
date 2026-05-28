@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
 import { LocalRunner } from '@/lib/runners/local';
 import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
+import { MetaNodeRepository } from '@/lib/db/repositories/meta-context';
 import { commitAppMaterialization } from '@/lib/mcp/tools/meta-context';
 import { installScaffold } from '@/lib/app-mcp-scaffold/install';
 import { listApps, getApp } from './loader';
@@ -142,6 +143,27 @@ describe('apps loader — listApps', () => {
       LocalRunner.list = origList;
       InventoryRepository.removeAppInventory(runningRef);
     }
+  });
+
+  it('returns every app node past the brief cap (no truncation at 500)', () => {
+    // Seed nodes directly via the repository — bypass commitAppMaterialization
+    // so the test runs in well under a second. The loader doesn't care how
+    // the nodes got there; it cares that an uncapped read returns all of them.
+    const N = 600;
+    for (let i = 0; i < N; i += 1) {
+      MetaNodeRepository.upsert({
+        kind: 'artifact',
+        ref: `claude-code:/tmp/bulk-${i}`,
+        label: `bulk-${i}`,
+        payload: {
+          adapter_id: 'claude-code',
+          locator: `/tmp/bulk-${i}`,
+          app: { name: `bulk-${i}`, bindings: {} },
+        },
+      });
+    }
+    const { apps } = listApps();
+    expect(apps.length).toBe(N);
   });
 });
 

@@ -146,6 +146,92 @@ describe('installScaffold — rejection paths', () => {
   });
 });
 
+describe('installScaffold — wireControlPlaneKey (0.8.1)', () => {
+  let savedKey;
+  let savedUrl;
+  beforeEach(() => {
+    savedKey = process.env.CONTROL_PLANE_MCP_KEY;
+    savedUrl = process.env.CONTROL_PLANE_URL;
+  });
+  afterEach(() => {
+    if (savedKey === undefined) delete process.env.CONTROL_PLANE_MCP_KEY;
+    else process.env.CONTROL_PLANE_MCP_KEY = savedKey;
+    if (savedUrl === undefined) delete process.env.CONTROL_PLANE_URL;
+    else process.env.CONTROL_PLANE_URL = savedUrl;
+  });
+
+  it('default false: byte-identical .env (only APP_MCP_BEARER line, no MOJULO_* lines)', () => {
+    process.env.CONTROL_PLANE_MCP_KEY = 'test-bearer-aaaa';
+    const out = installScaffold({
+      targetDir: tmpRoot,
+      appName: 'x',
+      materializationRef: 'claude-code:/tmp/x',
+    });
+    expect(out.controlPlaneKeyWired).toBe(false);
+    expect(out.urlWired).toBe(false);
+    expect(out.appRefWired).toBe(false);
+    const env = readFileSync(out.envPath, 'utf8');
+    expect(env).not.toMatch(/^MOJULO_/m);
+  });
+
+  it('true + CONTROL_PLANE_MCP_KEY set: writes three vars; bearer not in return value', () => {
+    process.env.CONTROL_PLANE_MCP_KEY = 'test-bearer-bbbb';
+    process.env.CONTROL_PLANE_URL = 'http://control.example:9999';
+    const out = installScaffold({
+      targetDir: tmpRoot,
+      appName: 'x',
+      materializationRef: 'claude-code:/tmp/x',
+      wireControlPlaneKey: true,
+    });
+    expect(out.controlPlaneKeyWired).toBe(true);
+    expect(out.urlWired).toBe(true);
+    expect(out.appRefWired).toBe(true);
+    expect(JSON.stringify(out)).not.toContain('test-bearer-bbbb');
+    const env = readFileSync(out.envPath, 'utf8');
+    expect(env).toMatch(/^MOJULO_CONTROL_PLANE_URL=http:\/\/control\.example:9999$/m);
+    expect(env).toMatch(/^MOJULO_CONTROL_PLANE_KEY=test-bearer-bbbb$/m);
+    expect(env).toMatch(/^MOJULO_APP_REF=claude-code:\/tmp\/x$/m);
+  });
+
+  it('true + CONTROL_PLANE_MCP_KEY unset: no throw, returns wired:false with reason', () => {
+    delete process.env.CONTROL_PLANE_MCP_KEY;
+    const out = installScaffold({
+      targetDir: tmpRoot,
+      appName: 'x',
+      materializationRef: 'claude-code:/tmp/x',
+      wireControlPlaneKey: true,
+    });
+    expect(out.controlPlaneKeyWired).toBe(false);
+    expect(out.urlWired).toBe(false);
+    expect(out.appRefWired).toBe(false);
+    expect(out.controlPlaneKeyWireReason).toMatch(/CONTROL_PLANE_MCP_KEY/);
+    const env = readFileSync(out.envPath, 'utf8');
+    expect(env).not.toMatch(/^MOJULO_/m);
+  });
+
+  it('idempotent: second call with same flag does not duplicate lines', () => {
+    process.env.CONTROL_PLANE_MCP_KEY = 'test-bearer-cccc';
+    installScaffold({
+      targetDir: tmpRoot,
+      appName: 'x',
+      materializationRef: 'claude-code:/tmp/x',
+      wireControlPlaneKey: true,
+    });
+    const out2 = installScaffold({
+      targetDir: tmpRoot,
+      appName: 'x',
+      materializationRef: 'claude-code:/tmp/x',
+      wireControlPlaneKey: true,
+    });
+    expect(out2.reused).toBe(true);
+    expect(out2.controlPlaneKeyWired).toBe(true);
+    const env = readFileSync(out2.envPath, 'utf8');
+    expect(env.match(/^MOJULO_CONTROL_PLANE_KEY=/gm)).toHaveLength(1);
+    expect(env.match(/^MOJULO_CONTROL_PLANE_URL=/gm)).toHaveLength(1);
+    expect(env.match(/^MOJULO_APP_REF=/gm)).toHaveLength(1);
+  });
+});
+
 describe('_internals.substitute', () => {
   it('replaces every occurrence of every placeholder', () => {
     const out = _internals.substitute(

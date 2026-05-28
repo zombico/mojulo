@@ -307,6 +307,22 @@ function init(db) {
       UNIQUE(source_kind, source_ref)
     );
     CREATE INDEX IF NOT EXISTS idx_meta_embeddings_kind ON meta_embeddings(source_kind);
+
+    -- Agent-minted dynamic sketches. The operator agent (Claude Code / Codex
+    -- driving the MCP) POSTs a manifest via the create_sketch tool; the row
+    -- is rendered on demand at /sketches/<ref> by the same SVG renderer that
+    -- powers /graph. Sibling, not integration: sketches are scratch
+    -- visualizations, not structural commits — kept off the contextmap so
+    -- they don't compete with append-only deliberation surfaces. See
+    -- lite-template/integration/app-system/0527/SKETCHBOOK_PLAN.md.
+    CREATE TABLE IF NOT EXISTS sketches (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      manifest_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_sketches_created_at ON sketches(created_at DESC);
   `);
 
   migrateDeploymentColumns(db);

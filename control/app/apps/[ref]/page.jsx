@@ -468,7 +468,7 @@ export default function AppDetailPage({ params }) {
   }
 
   return (
-    <main className="min-h-[calc(100vh-33px)] p-8">
+    <main className="min-h-[calc(100vh-66px)] p-8">
       <div className="max-w-5xl mx-auto space-y-6">
         <Link
           href="/apps"
@@ -500,6 +500,12 @@ export default function AppDetailPage({ params }) {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <Link
+                  href={`/apps/${refEncoded}/graph`}
+                  className="rounded-lg px-3 py-2 border border-[color:var(--border-color)] text-sm hover:bg-[color:var(--surface-elevated)]/40"
+                >
+                  {t('detail.viewGraph')}
+                </Link>
                 {app.runtime?.url && (
                   <a
                     href={app.runtime.url}

@@ -234,14 +234,14 @@ export default function ConversationsPage() {
     return (
       <main className="min-h-screen p-8">
         <div className="max-w-2xl mx-auto space-y-4">
-          <Link href="/dashboard" className="text-sm text-[color:var(--text-muted)]">
+          <Link href="/bots" className="text-sm text-[color:var(--text-muted)]">
             {t('backToDashboard')}
           </Link>
           <div className="rounded-xl border border-orange-700 bg-orange-900/20 p-6">
             <h2 className="text-lg font-semibold text-orange-300">{t('unreachable.title')}</h2>
             <p className="text-sm text-orange-200/80 mt-2">{t('unreachable.message')}</p>
             <Link
-              href="/dashboard"
+              href="/bots"
               className="inline-block mt-4 rounded-lg px-3 py-1.5 text-sm bg-orange-600 text-white font-semibold"
             >
               {t('unreachable.reconnect')}
@@ -261,7 +261,7 @@ export default function ConversationsPage() {
     <div className="h-screen flex flex-col bg-gray-900">
       <div className="flex justify-between items-center px-8 pt-6 pb-2">
         <div>
-          <Link href="/dashboard" className="text-xs text-gray-400 hover:text-gray-200">
+          <Link href="/bots" className="text-xs text-gray-400 hover:text-gray-200">
             {t('dashboardLink')}
           </Link>
           <h1 className="text-2xl font-bold text-gray-100 mt-1">

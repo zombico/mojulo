@@ -35,12 +35,17 @@ export async function installScaffoldHandler(input) {
     materializationRef: input.materialization_ref,
     declaredPurpose: input.declared_purpose,
     overwrite: input.overwrite === true,
+    wireControlPlaneKey: input.wire_control_plane_key === true,
   });
   return {
     scaffold_dir: out.scaffoldDir,
     env_path: out.envPath,
     bearer_generated: out.bearerGenerated,
     reused: out.reused === true,
+    control_plane_key_wired: out.controlPlaneKeyWired === true,
+    url_wired: out.urlWired === true,
+    app_ref_wired: out.appRefWired === true,
+    ...(out.controlPlaneKeyWireReason ? { control_plane_key_wire_reason: out.controlPlaneKeyWireReason } : {}),
     // Bearer NOT returned (same posture as start_app); read from .env if needed.
   };
 }
@@ -143,7 +148,7 @@ export function registerRunnerTools() {
   registerTool({
     name: 'install_scaffold',
     description:
-      "Materialize the shared app-MCP scaffold into `<artifact_ref>/app-mcp/`. Substitutes `app_name`, `materialization_ref`, and `declared_purpose` into the templated describe.js; generates and writes `APP_MCP_BEARER` to the artifact's `.env` if not already present (static-per-app bearer policy). Idempotent — running on an existing scaffold returns `reused: true` and does not regenerate the bearer. Pass `overwrite: true` to repave (e.g., post-evolution). Call BEFORE `meta_context_commit({type:'app_materialization'})` — the commit's verification check requires `<locator>/app-mcp/server.js` to exist.",
+      "Materialize the shared app-MCP scaffold into `<artifact_ref>/app-mcp/`. Substitutes `app_name`, `materialization_ref`, and `declared_purpose` into the templated describe.js; generates and writes `APP_MCP_BEARER` to the artifact's `.env` if not already present (static-per-app bearer policy). Idempotent — running on an existing scaffold returns `reused: true` and does not regenerate the bearer. Pass `overwrite: true` to repave (e.g., post-evolution). When `wire_control_plane_key: true`, the control plane writes its own MCP bearer + URL + the materialization_ref into the app's `.env` as `MOJULO_CONTROL_PLANE_KEY`/`MOJULO_CONTROL_PLANE_URL`/`MOJULO_APP_REF`; the bearer never crosses the response (only booleans confirming what was written). Call BEFORE `meta_context_commit({type:'app_materialization'})` — the commit's verification check requires `<locator>/app-mcp/server.js` to exist.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -152,6 +157,7 @@ export function registerRunnerTools() {
         materialization_ref: { type: 'string', description: "Opaque ref pointing back to the materialization commit. Typically the composite artifact ref `<adapter_id>:<locator>`." },
         declared_purpose: { type: 'string', description: "Optional one-line purpose. Baked into describe.js." },
         overwrite: { type: 'boolean', description: "When true, repaves the scaffold directory even if it already exists. Bearer is still reused from .env." },
+        wire_control_plane_key: { type: 'boolean', description: "When true, writes MOJULO_CONTROL_PLANE_URL / MOJULO_CONTROL_PLANE_KEY / MOJULO_APP_REF to the app's .env from the control plane's process env (CONTROL_PLANE_MCP_KEY). The bearer is never returned in the response. Idempotent — existing values are left intact. Default false." },
       },
       required: ['artifact_ref', 'app_name', 'materialization_ref'],
     },

@@ -3,6 +3,7 @@ import './globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getLocale } from 'next-intl/server';
 import AuthNav from '@/components/AuthNav';
+import Breadcrumbs from '@/components/Breadcrumbs';
 import { rtlLocales } from '@/i18n/config';
 import { isAuthEnabled } from '@/lib/auth/session';
 
@@ -33,6 +34,7 @@ export default async function RootLayout({ children }) {
       >
         <NextIntlClientProvider messages={messages}>
           <AuthNav authEnabled={authEnabled} />
+          <Breadcrumbs />
           {children}
         </NextIntlClientProvider>
       </body>

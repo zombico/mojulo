@@ -8,9 +8,14 @@
  *
  * The contextmap is the source of truth for "what apps exist". The runner +
  * inventory layer over the top to mark which ones are currently running.
+ *
+ * Reads node + inventory state directly from the repositories rather than via
+ * `MetaContextRepository.brief({kind:'fleet'})` — the brief is capped by design
+ * (it's the agent's reading window) and UI surfaces need uncapped ground truth.
  */
 
-import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
+import { MetaContextRepository, MetaNodeRepository } from '@/lib/db/repositories/meta-context';
+import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
 import { LocalRunner } from '@/lib/runners/local';
 
 function indexRunningByLocator() {
@@ -21,9 +26,9 @@ function indexRunningByLocator() {
   return map;
 }
 
-function indexInventoryByRunningRef(brief) {
+function indexInventoryByRunningRef(inventory) {
   const map = new Map();
-  const servers = brief?.inventory?.servers || [];
+  const servers = inventory?.servers || [];
   for (const s of servers) {
     if (s.serverKind === 'app' && s.runningRef) {
       map.set(s.runningRef, s);
@@ -75,13 +80,13 @@ function projectAppFromNode(node, runningByLocator, inventoryByRunningRef) {
 }
 
 export function listApps() {
-  const brief = MetaContextRepository.brief({ kind: 'fleet' });
+  const nodes = MetaNodeRepository.listByKind('artifact');
+  const inventory = InventoryRepository.currentInventory();
   const runningByLocator = indexRunningByLocator();
-  const inventoryByRunningRef = indexInventoryByRunningRef(brief);
+  const inventoryByRunningRef = indexInventoryByRunningRef(inventory);
 
   const apps = [];
-  for (const node of brief.nodes) {
-    if (node.kind !== 'artifact') continue;
+  for (const node of nodes) {
     if (!node.payload?.app) continue;
     apps.push(projectAppFromNode(node, runningByLocator, inventoryByRunningRef));
   }
@@ -98,10 +103,12 @@ export function getApp(ref) {
   if (!node || !node.payload?.app) return null;
 
   const runningByLocator = indexRunningByLocator();
-  // The brief for an artifact node only includes 1-hop neighbors, not the
-  // fleet's inventory — fetch inventory via the fleet brief specifically.
-  const fleetBrief = MetaContextRepository.brief({ kind: 'fleet' });
-  const inventoryByRunningRef = indexInventoryByRunningRef(fleetBrief);
+  // The artifact brief only includes 1-hop neighbors, not the fleet's
+  // inventory — read inventory directly from the repository (the brief's
+  // cap doesn't apply to inventory anyway, but consistency with listApps()
+  // matters more than a second round-trip).
+  const inventory = InventoryRepository.currentInventory();
+  const inventoryByRunningRef = indexInventoryByRunningRef(inventory);
 
   const projected = projectAppFromNode(node, runningByLocator, inventoryByRunningRef);
 

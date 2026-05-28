@@ -94,7 +94,7 @@ export default function AppsListPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-33px)] p-8">
+    <main className="min-h-[calc(100vh-66px)] p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div>
