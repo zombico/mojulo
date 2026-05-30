@@ -1,117 +1,23 @@
 {
   "common": {
-    "loading": "Läser in...",
     "save": "Spara",
-    "saving": "Sparar...",
     "cancel": "Avbryt",
     "delete": "Ta bort",
-    "edit": "Redigera",
     "close": "Stäng",
-    "search": "Sök",
     "back": "Tillbaka",
     "next": "Nästa",
-    "submit": "Skicka",
-    "create": "Skapa",
     "copy": "Kopiera",
     "copied": "Kopierat!",
-    "view": "Visa",
-    "hide": "Dölj",
-    "yes": "Ja",
-    "no": "Nej",
-    "confirm": "Bekräfta",
-    "done": "Klar",
-    "updating": "Uppdaterar...",
-    "moveTo": "Flytta till:",
     "unknown": "Okänd",
-    "error": "Fel",
     "remove": "Ta bort",
     "selectAnOption": "Välj ett alternativ",
     "addItemLabel": "Lägg till {itemLabel}",
-    "itemNumber": "{itemLabel} #{number}"
-  },
-  "auth": {
-    "signIn": "Logga in",
-    "signOut": "Logga ut",
-    "signingIn": "Loggar in...",
-    "email": "E-post",
-    "password": "Lösenord",
-    "signInToContinue": "Logga in för att fortsätta",
-    "invalidCredentials": "Ogiltig e-post eller lösenord",
-    "needAccess": "Behöver du åtkomst? Kontakta din organisations administratör.",
-    "controlPanel": "Mojulo Control Panel",
-    "setupComplete": "Administratörskonto har skapats. Logga in.",
-    "emailPlaceholder": "du@foretag.com",
-    "passwordPlaceholder": "Ditt lösenord"
+    "itemNumber": "{itemLabel} #{number}",
+    "download": "Download",
+    "downloading": "Downloading…"
   },
   "dashboard": {
     "title": "Översikt",
-    "loading": "Läser in översikt...",
-    "loadingChatbots": "Läser in chattbottar...",
-    "loadingHistory": "Läser in historik...",
-    "createNewBot": "Skapa ny bot",
-    "noBots": "Inga bottar än",
-    "selectBotOrSpace": "Välj en bot eller ett botutrymme för att visa detaljer",
-    "createBot": "Skapa bot",
-    "workspace": "{name}s arbetsyta",
-    "unassignedWorkspace": "Otilldelad arbetsyta",
-    "searchChatbots": "Sök chattbottar",
-    "noChatbotsFound": "Inga chattbottar hittades",
-    "privateNotShared": "Privat (inte delad)",
-    "inSpace": "i {spaceName}",
-    "chooseBotType": "Välj en bottyp för att komma igång:",
-    "addNewBot": "Lägg till ny bot",
-    "addNewPrivateBot": "Lägg till ny privat bot",
-    "expandBotSpaces": "Expandera botutrymmen",
-    "allSpaces": "Alla utrymmen",
-    "adminSummary": {
-      "title": "Översikt",
-      "totalBots": "Totalt antal bottar",
-      "running": "Körs",
-      "stopped": "Stoppade",
-      "failed": "Misslyckade",
-      "recentDeployments": "Senaste distributioner",
-      "activeBots": "Aktiva bottar (24h)",
-      "noRecentActivity": "Ingen senaste aktivitet",
-      "conversations": "konversationer",
-      "totalActive": "{bots} bottar med {conversations} konversationer under de senaste 24 timmarna",
-      "private": "Privat",
-      "unknown": "Okänd",
-      "justNow": "just nu",
-      "minutesAgo": "{count}m sedan",
-      "hoursAgo": "{count}h sedan",
-      "yesterday": "igår",
-      "daysAgo": "{count}d sedan"
-    },
-    "private": "Privat",
-    "showBotList": "Visa botlista",
-    "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"? Detta förstör distributionen och kan inte ångras.",
-    "deleteError": "Kunde inte ta bort distribution: {error}",
-    "actionError": "Kunde inte {action} distribution: {error}",
-    "assignError": "Kunde inte tilldela botutrymme: {error}",
-    "sections": {
-      "control": "Styrning",
-      "data": "Data",
-      "resources": "Resurser"
-    },
-    "launcher": {
-      "modularChat": {
-        "title": "Modulär bot (chatt)",
-        "badge": "Ny",
-        "description": "Bygg med en AI-assistent"
-      },
-      "modularWizard": {
-        "title": "Modulär bot (guide)",
-        "description": "Steg-för-steg-konfiguration"
-      }
-    },
-    "redeploy": {
-      "confirm": "Distribuera om \"{name}\" med aktuell konfiguration? Detta startar om botten utan några ändringar.",
-      "initiating": "Initierar omdistribution...",
-      "sending": "Skickar distributionsbegäran...",
-      "deploying": "Distribuerar...",
-      "redeploying": "Distribuerar om...",
-      "failed": "Omdistribution misslyckades"
-    },
     "myBots": "Mina bottar",
     "subtitle": "Varje bot är en sparad konfiguration. Bygg den när du vill ha en körbar ZIP.",
     "noKeyBanner": {
@@ -135,12 +41,6 @@
       "runningStale": "Körs · inaktuell",
       "ready": "Redo",
       "draft": "Utkast"
-    },
-    "builds": {
-      "building": "Bygger…",
-      "retry": "Försök bygga igen",
-      "rebuild": "Bygg om",
-      "build": "Bygg"
     },
     "connect": {
       "title": "Anslut en körande bot",
@@ -202,72 +102,56 @@
       "embedScript": "Inbäddningsskript",
       "deleteBot": "Ta bort bot",
       "deleteConfirm": "Ta bort denna bot och dess artefakt?"
-    }
+    },
+    "dataLink": "Data"
   },
-  "bots": {
-    "types": {
-      "chat": "Chatt",
-      "knowledge": "Kunskap",
-      "form": "Formulär",
-      "triage": "Triage",
-      "appointment": "Bokning",
-      "bot": "Bot"
+  "home": {
+    "agentChat": {
+      "launcher": "Ask the agent…",
+      "title": "Agent",
+      "collapse": "Collapse chat",
+      "placeholder": "Message the agent…",
+      "emptyTitle": "Talk to your agent",
+      "emptyHint": "A direct line to your local agent — ask anything, or tell it to build, inspect, or wire something up. It answers with its full toolset.",
+      "errorPrefix": "Error:"
     },
-    "descriptions": {
-      "chat": "AI-driven chattassistent",
-      "form": "Strukturerad datainsamling",
-      "triage": "Dirigera användare till rätt plats",
-      "appointment": "Schemalägg möten och bokningar"
+    "title": "Mojulo",
+    "tiles": {
+      "bots": "Bots",
+      "mcpSkills": "Connected Services",
+      "apps": "Apps",
+      "sketch": "Sketch",
+      "plan": "Plan",
+      "settings": "Settings",
+      "map": "Map",
+      "research": "Research"
     },
-    "status": {
-      "deployed": "distribuerad",
-      "deploying": "distribuerar",
-      "failed": "misslyckades"
+    "agentStatus": {
+      "title": "Connected agent",
+      "liveLabel": "Connected",
+      "staleLabel": "Last declared",
+      "harnessOne": "{name} {version}",
+      "harnessOneNoVersion": "{name}",
+      "harnessMany": "{count} sessions",
+      "serversLabel": "{count, plural, one {# server} other {# servers}}",
+      "toolsLabel": "{count, plural, one {# tool} other {# tools}}",
+      "declaredNow": "just now",
+      "declaredSeconds": "{seconds}s ago",
+      "declaredMinutes": "{minutes}m ago",
+      "declaredHours": "{hours}h ago",
+      "declaredDays": "{days}d ago"
     }
   },
   "actions": {
-    "modify": "Ändra",
-    "clone": "Klona",
-    "reassign": "Tilldela om",
-    "goToLiveBot": "Gå till live-bot",
-    "modifyTitle": "Ändra distribution - behåller samma URL och namn",
-    "cloneTitle": "Klona denna distribution med ett nytt namn",
-    "reassignTitle": "Tilldela om till ett annat botutrymme",
-    "deleteTitle": "Ta bort distribution",
-    "editInChat": "Chatt",
-    "editInChatTitle": "Ändra med chattassistent",
-    "pause": "Pausa",
-    "start": "Starta",
-    "pauseBot": "Pausa bot",
-    "startBot": "Starta bot",
-    "redeploy": "Distribuera om",
-    "redeployBot": "Distribuera om bot",
-    "live": "Live",
-    "embed": "Bädda in",
-    "copied": "Kopierat",
-    "replicas": "Repliker",
-    "scaleReplicas": "Skala repliker",
-    "replicasDescription": "Justera antalet botrepliker. Fler repliker hanterar fler samtidiga användare. Klibbiga sessioner säkerställer att användare förblir anslutna till samma replika.",
-    "replicaCount": "Antal repliker",
-    "replicasRange": "Min: 1, Max: 10",
-    "currentReplicas": "Aktuella repliker (tillgängliga/önskade)",
-    "scale": "Skala",
-    "scaling": "Skalar...",
-    "cancel": "Avbryt"
+    "start": "Starta"
   },
   "nav": {
     "dashboard": "Översikt",
-    "analytics": "Analys",
-    "conversations": "Konversationer",
-    "submissions": "Inskick",
-    "liveLogs": "Live-loggar"
+    "conversations": "Konversationer"
   },
   "wizard": {
-    "loading": "Läser in guide...",
     "loadingDeployment": "Läser in distributionskonfiguration...",
     "previewAfterDeployment": "Förhandsgranskning tillgänglig efter distribution",
-    "clickToBegin": "Klicka på en distributionsknapp för att börja",
-    "clickToUpdate": "Klicka på en distributionsknapp för att uppdatera",
     "steps": {
       "identity": "Identitet",
       "knowledge": "Kunskapsbas",
@@ -310,11 +194,7 @@
       "modifying": "Ändrar",
       "clone": "Klon",
       "new": "Ny",
-      "conversational": "Konversation",
-      "triage": "Triage",
       "appointments": "Bokningar",
-      "form": "Formulär",
-      "modular": "Modulär",
       "knowledge": "Kunskap",
       "forms": "Formulär",
       "routing": "Dirigering",
@@ -324,12 +204,7 @@
       "modelConfiguration": "Modellkonfiguration",
       "botPreview": "Botförhandsgranskning",
       "knowledgeBase": "Kunskapsbas",
-      "deployment": "Distribution",
       "preview": "Förhandsgranskning",
-      "infoGathering": "Informationsinsamling",
-      "triageDestinations": "Triagedestinationer",
-      "appointmentTypes": "Bokningstyper",
-      "calendarProviders": "Kalenderleverantörer",
       "protocolPreview": "Protokollförhandsgranskning",
       "formPreview": "Formulärförhandsgranskning",
       "appointmentPreview": "Bokningsförhandsgranskning",
@@ -351,29 +226,9 @@
       "opticalReadDescription": "Extrahera strukturerad data från en uppladdad bild med en synkapabel LLM",
       "opticalReadProviderGate": "Optisk läsning kräver en synkapabel leverantör. Anthropic och OpenAI stöds.",
       "modelGate": "Denna modell stöder endast kunskapsprotokollet. Byt till llama3.3 (Ollama) eller en molnleverantör för att aktivera flerstegsflöden.",
-      "exampleFaq": "FAQ-chattbottar",
-      "exampleDocumentation": "Dokumentationsassistenter",
-      "exampleProductSupport": "Produktsupport",
-      "exampleLeadCapture": "Leadinsamling",
-      "exampleOnboarding": "Användarintroduktion",
-      "exampleSurvey": "Enkätinsamling",
-      "exampleConsultation": "Konsultationsbokning",
-      "exampleScheduling": "Tjänstebokning",
-      "exampleMeeting": "Mötesplanering",
-      "exampleMultiBot": "Multibotdirigering",
-      "exampleDelegation": "Intelligent delegering",
-      "exampleCustomerRouting": "Kunddirigering",
       "selectAtLeastOne": "Välj minst en funktion",
-      "capabilitiesSelected": "{count} {count, plural, one {capability} other {capabilities}} valda",
-      "yourCombination": "Din kombination:",
-      "combinationFullService": "Fullservicebot: Svarar på frågor, samlar in användarinformation och bokar möten.",
-      "combinationQaData": "Frågor och svar + datainsamling: Svarar på frågor från din kunskapsbas medan du samlar in användarinformation.",
-      "combinationQaBooking": "Frågor och svar + bokning: Svarar på frågor och hjälper användare att boka möten.",
-      "combinationIntakeBooking": "Insamling + bokning: Samlar in användarinformation och schemalägger möten.",
       "preview": {
         "selectProtocolPrompt": "Välj funktioner till vänster för att se vad din bot kan göra",
-        "selectedCapabilities": "Valda funktioner",
-        "combinedPossibilities": "Kombinerade möjligheter",
         "exampleUseCases": "Exempel på användningsfall",
         "showExamples": "Visa exempel",
         "contexts": {
@@ -646,34 +501,6 @@
             "wealthAdvisorAssistant": "Förmögenhetsrådgivarassistent"
           }
         },
-        "knowledge": {
-          "title": "Kunskapsbas",
-          "description": "Svara på frågor med hjälp av dina uppladdade dokument med RAG-driven hämtning",
-          "example1": "Produkt-FAQ-chattbot",
-          "example2": "Dokumentationsassistent",
-          "example3": "Intern kunskapsportal"
-        },
-        "formGathering": {
-          "title": "Formulärinsamling",
-          "description": "Samla progressivt in användarinformation genom naturlig konversation",
-          "example1": "Leadinsamlingsformulär",
-          "example2": "Kundintroduktion",
-          "example3": "Enkät- och feedbackinsamling"
-        },
-        "appointments": {
-          "title": "Bokning av möten",
-          "description": "Låt användare boka möten via kalenderintegrationer",
-          "example1": "Försäljningskonsultationsbokning",
-          "example2": "Tjänstebokning",
-          "example3": "Demo- och mötesförfrågningar"
-        },
-        "triage": {
-          "title": "Triagedirigering",
-          "description": "Dirigera användare till specialiserade bottar eller mänsklig support baserat på deras behov",
-          "example1": "Avdelningsdirigering",
-          "example2": "Eskalering till mänskliga handläggare",
-          "example3": "Multibotorkestrering"
-        },
         "singles": {
           "singleKnowledge": "Kunskapsassistent",
           "singleKnowledgeDesc": "Svara på frågor med hjälp av dina uppladdade dokument med intelligent RAG-driven hämtning",
@@ -800,22 +627,17 @@
       "addUrlDestination": "Lägg till URL-destination",
       "redirectToBot": "Omdirigera till bot",
       "addRoutingDestination": "Lägg till dirigeringsdestination",
-      "selectedBot": "Vald bot",
       "displayName": "Visningsnamn",
       "displayNamePlaceholder": "t.ex. Försäljningssupport, Teknisk hjälp",
       "description": "Beskrivning",
       "descriptionPlaceholder": "Beskriv när användare ska dirigeras hit...",
       "url": "URL",
       "urlPlaceholder": "https://example.com/support",
-      "paradigm": "Paradigm",
       "protocols": "Protokoll",
-      "set": "Inställd",
-      "notGenerated": "Inte genererad",
       "calendars": "Kalendrar",
       "configured": "{count} konfigurerade",
       "triageRoutes": "Triagerutter",
       "opticalReadFields": "Optisk läsning-fält",
-      "required": "Obligatorisk",
       "displayNameRequired": "Visningsnamn krävs",
       "descriptionRequired": "Beskrivning krävs",
       "urlRequired": "URL krävs",
@@ -906,9 +728,7 @@
       "noDocumentsInSpace": "Inga dokument i detta botutrymme än.",
       "selectFromBotSpace": "Välj från botutrymmesfiler",
       "selected": "Vald",
-      "select": "Välj",
-      "skipRag": "Hoppa över RAG",
-      "skipRagHelper": "Målprompten kommer att vara den enda kunskapskällan"
+      "select": "Välj"
     },
     "infoGathering": {
       "formRegion": "Formulärregion",
@@ -938,8 +758,6 @@
       "jsonViewTip": "Tips: Byt till fliken \"JSON-vy\" till höger för att redigera den genererade formulärstrukturen."
     },
     "triage": {
-      "addRoute": "Lägg till chattbotsrutt",
-      "deleteRoute": "Ta bort rutt",
       "deleteDestination": "Ta bort destination",
       "selectedBotUrl": "Vald bot-URL",
       "editBotDestination": "Redigera botdestination",
@@ -951,14 +769,12 @@
       "updateDestination": "Uppdatera destination"
     },
     "opticalRead": {
-      "addField": "Lägg till extraheringsfält",
       "deleteField": "Ta bort fält",
       "label": "Etikett",
       "labelPlaceholder": "Födelsedatum",
       "labelRequired": "Etikett krävs",
       "idName": "ID-namn",
       "idNamePlaceholder": "dob",
-      "idNameHelper": "snake_case-nyckel som används i extractedFields",
       "idNameRequired": "ID-namn krävs",
       "idNameInvalid": "Använd endast små bokstäver, siffror och understreck",
       "idNameDuplicate": "ID-namn måste vara unikt",
@@ -975,7 +791,6 @@
       "afterSubmitMessageHelper": "Botsvar som renderas i chatten efter att användaren skickat in de extraherade fälten. Lämna tom för att hoppa över."
     },
     "appointments": {
-      "addAppointment": "Lägg till bokningstyp",
       "deleteAppointment": "Ta bort bokning",
       "editCalendarProvider": "Redigera kalenderleverantör",
       "updateCalendarProvider": "Uppdatera kalenderleverantör",
@@ -997,22 +812,7 @@
       "descriptionHelper": "Används för RAG-matchning för att avgöra vilken kalender som ska visas"
     },
     "deployment": {
-      "inProgress": "Distribution pågår...",
-      "testDeployment": "Testdistribution",
-      "currentDeployment": "Aktuell distribution",
-      "testBotLive": "Din testbot är live på denna URL:",
-      "botLive": "Din bot är live på denna URL:",
-      "testSuccess": "Testdistribution lyckades!",
-      "testSuccessMessage": "Din testbot är live och körs. Du kan testa den i förhandsgranskningspanelen till höger.",
-      "productionSuccess": "Produktionsdistribution lyckades!",
-      "productionSuccessMessage": "Din bot är nu live och redo för produktionsanvändning.",
-      "deployToProduction": "Distribuera till produktion",
       "viewDeployments": "Visa bottar",
-      "previewChanges": "Förhandsgranska ändringar (test)",
-      "deployToTest": "Distribuera till test",
-      "updateProduction": "Uppdatera produktionsbot",
-      "editMode": "Redigeringsläge",
-      "editModeMessage": "Distribution kommer att uppdatera den befintliga botten med dina ändringar. Bot-URL:en förblir densamma.",
       "configSummary": "Konfigurationssammanfattning",
       "botName": "Botnamn:",
       "provider": "Leverantör:",
@@ -1024,12 +824,6 @@
       "embeddings": "Inbäddningar",
       "embeddingsChunks": "{count} bitar",
       "editConfiguration": "Redigera konfiguration",
-      "aboutDeployments": "Om distributioner",
-      "testDeploymentInfo": "Testdistribution: Skapar en bestående URL för testning.",
-      "productionDeploymentInfo": "Produktionsdistribution: Skapar din live-bot som blir publikt tillgänglig.",
-      "deploymentRegion": "Distributionsregion",
-      "useOrgDefault": "Använd organisationens standard ({region})",
-      "regionHelp": "Välj den AWS-region där din bot ska distribueras. Detta påverkar latens och dataresidens.",
       "none": "Ingen",
       "saving": "Sparar…",
       "saveChanges": "Spara ändringar",
@@ -1040,7 +834,6 @@
       "buildErrorFallback": "Kunde inte bygga artefakt",
       "building": "Bygger…",
       "buildArtifact": "Bygg artefakt",
-      "configurationSaved": "Konfiguration sparad",
       "configurationSavedDesc": "Sparad som <mono>{name}</mono>. Bygg den körbara ZIP-filen när du är redo.",
       "artifactReadyCached": "Artefakt redo (cachelagrad)",
       "artifactBuilt": "Artefakt byggd",
@@ -1170,243 +963,6 @@
   },
   "settings": {
     "title": "Inställningar",
-    "subtitle": "Hantera dina kontoinställningar och preferenser",
-    "tabs": {
-      "apiKeys": "API-nycklar",
-      "account": "Konto",
-      "servicePlan": "Tjänsteplan",
-      "languages": "Språk",
-      "botSpaces": "Botutrymmen",
-      "builderConfig": "Byggarkonfiguration",
-      "region": "Region",
-      "auditLogs": "Granskningsloggar",
-      "admin": "Administratör"
-    },
-    "languages": {
-      "title": "Språkinställningar",
-      "description": "Välj ditt föredragna språk för gränssnittet",
-      "preferredLanguage": "Föredraget språk",
-      "languageHelper": "Denna inställning kommer att tillämpas på alla dina sessioner",
-      "saveLanguage": "Spara språk",
-      "saveSuccess": "Språkinställning sparad",
-      "saveError": "Kunde inte spara språkinställning",
-      "aboutTitle": "Om språkinställningar",
-      "aboutItem1": "Din språkinställning lagras i ditt konto",
-      "aboutItem2": "Ändringar träder i kraft efter sparande",
-      "aboutItem3": "En del innehåll kanske inte är översatt än",
-      "locales": {
-        "en": "Engelska (English)",
-        "es": "Spanska (Español)",
-        "fr": "Franska (Français)",
-        "de": "Tyska (Deutsch)",
-        "pt": "Portugisiska (Português)",
-        "ja": "Japanska (日本語)",
-        "zh": "Kinesiska (中文)",
-        "ko": "Koreanska (한국어)",
-        "uk": "Ukrainska (Українська)",
-        "ar": "Arabiska (العربية)",
-        "nl": "Nederländska (Nederlands)",
-        "sw": "Swahili (Kiswahili)"
-      }
-    },
-    "region": {
-      "title": "Distributionsregion",
-      "description": "Konfigurera standard-AWS-region för botdistributioner",
-      "currentRegion": "Aktuell standardregion",
-      "selectRegion": "Välj standardregion",
-      "regionHelp": "Nya distributioner kommer att använda denna region som standard. Användare kan åsidosätta denna inställning per distribution.",
-      "saveSuccess": "Standardregion uppdaterad",
-      "unsavedChanges": "Du har osparade ändringar",
-      "infoTitle": "Om regioninställningar",
-      "infoDescription": "Distributionsregionen avgör var din bots infrastruktur körs. Att välja en region närmare dina användare kan förbättra svarstiderna. Enskilda distributioner kan åsidosätta denna standardinställning."
-    },
-    "account": {
-      "title": "Kontoinformation",
-      "emailAddress": "E-postadress",
-      "userId": "Användar-ID",
-      "logout": "Logga ut",
-      "loggingOut": "Loggar ut...",
-      "logoutConfirm": "Är du säker på att du vill logga ut?",
-      "logoutNote": "Du kommer att loggas ut från ditt konto",
-      "dangerZone": "Farozon",
-      "deleteAccount": "Ta bort konto",
-      "deleteAdminWarning": "Ta permanent bort ditt konto och all tillhörande data inklusive bottar, botutrymmen och bidragsgivarkonton som endast är anslutna till din organisation. Denna åtgärd kan inte ångras.",
-      "deleteUserWarning": "Ta permanent bort ditt konto och alla dina personliga data inklusive bottar, dokument och API-nycklar. Dina medlemskap i botutrymmen tas bort. Denna åtgärd kan inte ångras."
-    },
-    "servicePlan": {
-      "title": "Tjänsteplan",
-      "description": "Visa din aktuella plan, användning och tillgängliga funktioner",
-      "currentPlan": "Din aktuella prenumerationsplan",
-      "usage": "Aktuell användning",
-      "deployedBots": "Distribuerade bottar",
-      "botSpaces": "Botutrymmen",
-      "users": "Användare",
-      "includedFeatures": "Inkluderade funktioner",
-      "allPlans": "Tillgängliga planer",
-      "current": "Aktuell",
-      "bots": "bottar",
-      "spaces": "utrymmen",
-      "usersLabel": "användare",
-      "organization": "Organisation",
-      "needMore": "Behöver du mer?",
-      "contactUs": "Kontakta oss för att diskutera uppgradering av din plan eller anpassade företagslösningar."
-    },
-    "apiKeys": {
-      "title": "API-nycklar",
-      "description": "Spara dina LLM-leverantörs API-nycklar för enkel återanvändning över distributioner",
-      "addKey": "+ Lägg till API-nyckel",
-      "addNewKey": "Lägg till ny API-nyckel",
-      "name": "Namn",
-      "namePlaceholder": "t.ex. Min OpenAI-nyckel",
-      "provider": "Leverantör",
-      "apiKey": "API-nyckel",
-      "apiKeyPlaceholder": "Ange din API-nyckel",
-      "saving": "Sparar...",
-      "saveKey": "Spara API-nyckel",
-      "loading": "Läser in API-nycklar...",
-      "noKeys": "Inga API-nycklar sparade än",
-      "noKeysHint": "Lägg till din första API-nyckel för att komma igång",
-      "added": "Tillagd {date}",
-      "deleteConfirm": "Är du säker på att du vill ta bort denna API-nyckel?",
-      "saveSuccess": "API-nyckel sparad",
-      "deleteSuccess": "API-nyckel borttagen",
-      "loadError": "Kunde inte läsa in API-nycklar",
-      "saveError": "Kunde inte spara API-nyckel",
-      "deleteError": "Kunde inte ta bort API-nyckel",
-      "nameAndKeyRequired": "Namn och API-nyckel krävs",
-      "awsRegion": "AWS-region",
-      "authentication": "Autentisering",
-      "useIamRole": "Använd IAM-roll",
-      "useIamRoleHint": "Använder IAM-rollen kopplad till Kubernetes-podden (rekommenderas för produktion)",
-      "useExplicitCredentials": "Använd explicita uppgifter",
-      "useExplicitCredentialsHint": "Tillhandahåll AWS access key och secret key direkt",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "defaultBotConfig": {
-        "title": "Standardbotkonfiguration",
-        "description": "Välj en API-nyckel och modell att använda som standard när du skapar nya bottar med byggaren.",
-        "selectKey": "Standard-API-nyckel",
-        "selectModel": "Standardmodell",
-        "noDefault": "Ingen standard (använd autoval)",
-        "selectModelPlaceholder": "Välj en modell",
-        "selectKeyFirst": "Välj en API-nyckel för att se tillgängliga modeller",
-        "currentSelection": "Aktuell standard",
-        "noModel": "Ingen modell vald",
-        "save": "Spara standard"
-      }
-    },
-    "botSpaces": {
-      "title": "Botutrymmen",
-      "description": "Organisera chattbottar i utrymmen och kontrollera bidragsgivaråtkomst",
-      "createSpace": "+ Skapa botutrymme",
-      "createNewSpace": "Skapa nytt botutrymme",
-      "name": "Namn",
-      "namePlaceholder": "t.ex. kundsupport",
-      "nameHint": "Endast bokstäver, siffror, understreck och bindestreck är tillåtna",
-      "descriptionLabel": "Beskrivning",
-      "descriptionPlaceholder": "Valfri beskrivning för detta botutrymme",
-      "creating": "Skapar...",
-      "create": "Skapa botutrymme",
-      "loading": "Läser in botutrymmen...",
-      "noSpaces": "Inga botutrymmen skapade än",
-      "noSpacesHint": "Skapa ditt första botutrymme för att organisera dina chattbottar",
-      "botCount": "{count} bottar",
-      "created": "Skapad {date}",
-      "invite": "Bjud in",
-      "manage": "Hantera",
-      "deleteConfirm": "Är du säker på att du vill ta bort detta botutrymme? Alla bottar inuti det kommer att tas bort permanent.",
-      "createSuccess": "Botutrymme skapat",
-      "deleteSuccess": "Botutrymme borttaget",
-      "loadError": "Kunde inte läsa in botutrymmen",
-      "createError": "Kunde inte skapa botutrymme",
-      "deleteError": "Kunde inte ta bort botutrymme",
-      "nameRequired": "Namn krävs",
-      "nameInvalid": "Namnet kan endast innehålla bokstäver, siffror, understreck och bindestreck",
-      "aboutTitle": "Om botutrymmen",
-      "aboutItem1": "Botutrymmen låter dig gruppera relaterade chattbottar tillsammans",
-      "aboutItem2": "Bevilja bidragsgivare läs- eller skrivåtkomst till specifika utrymmen",
-      "aboutItem3": "Administratörer har full åtkomst till alla botutrymmen i organisationen",
-      "invitationSent": "Inbjudan skickad"
-    },
-    "auditLogs": {
-      "title": "Granskningsloggar",
-      "description": "Visa alla åtgärder utförda i din organisation",
-      "exportCsv": "Exportera CSV",
-      "exportJson": "Exportera JSON",
-      "loadError": "Kunde inte läsa in granskningsloggar",
-      "externalIntegration": "Extern integration",
-      "webhookDescription": "Skicka granskningsloggar till en extern SIEM- eller loggningstjänst via webhook.",
-      "webhookUrl": "Webhook-URL",
-      "webhookUrlPlaceholder": "https://din-siem.example.com/webhook",
-      "enableWebhook": "Aktivera webhook",
-      "hmacEnabled": "HMAC-signering aktiverad",
-      "webhookSecretWarning": "Webhook-hemlighet (kopiera nu - kommer inte att visas igen)",
-      "saveSettings": "Spara inställningar",
-      "testWebhook": "Testa webhook",
-      "regenerateSecret": "Regenerera hemlighet",
-      "regenerateConfirm": "Regenerera webhook-hemligheten? Du behöver uppdatera din mottagande slutpunkt.",
-      "webhookSaved": "Webhook-inställningar sparade",
-      "secretRegenerated": "Ny hemlighet genererad",
-      "testSuccess": "Test-webhook skickad",
-      "saveError": "Kunde inte spara webhook-inställningar",
-      "testError": "Webhook-test misslyckades",
-      "regenerateError": "Kunde inte regenerera hemlighet",
-      "payloadFormat": "Webhook-payloadformat",
-      "payloadDescription": "Varje granskningshändelse skickas som en POST-begäran med rubriker:",
-      "headerEvent": "X-Audit-Event: event_type",
-      "headerTimestamp": "X-Audit-Timestamp: ISO-tidsstämpel",
-      "headerSignature": "X-Audit-Signature: sha256=hmac (om hemlighet konfigurerad)"
-    },
-    "admin": {
-      "title": "Administratörsöversikt",
-      "description": "Hantera användare och visa systemövergripande information",
-      "allUsers": "Alla användare",
-      "loadingUsers": "Läser in användare...",
-      "noUsers": "Inga användare hittades",
-      "loadError": "Kunde inte läsa in användare",
-      "tableHeaders": {
-        "name": "Namn",
-        "email": "E-post",
-        "organization": "Organisation",
-        "role": "Roll",
-        "created": "Skapad"
-      },
-      "you": "Du",
-      "stats": {
-        "totalUsers": "Totalt antal användare",
-        "admins": "Administratörer",
-        "contributors": "Bidragsgivare"
-      }
-    },
-    "builderConfig": {
-      "title": "Byggarkonfiguration",
-      "description": "Konfigurera vilken AI-modell som driver botbyggaren och ställ in standardvärden för botskapande",
-      "builderTitle": "Drivmodell för byggaren",
-      "builderDescription": "Välj vilken AI-modell som driver botbyggargränssnittet. Denna modell hanterar konversationer och verktygsexekvering.",
-      "defaultBotTitle": "Standardmodell för botskapande",
-      "defaultBotDescription": "Förmarkera dessa inställningar när nya bottar skapas via byggaren. Användare kan åsidosätta under distribution.",
-      "provider": "Leverantör",
-      "apiKey": "API-nyckel",
-      "model": "Modell",
-      "selectProvider": "Välj leverantör...",
-      "selectKey": "Välj API-nyckel...",
-      "selectModel": "Välj modell...",
-      "noKeysForProvider": "Inga API-nycklar sparade för denna leverantör. Lägg till en på fliken API-nycklar.",
-      "useSameAsBuilder": "Använd samma inställningar som byggaren",
-      "saveConfig": "Spara konfiguration",
-      "saveSuccess": "Byggarkonfiguration sparad",
-      "saveError": "Kunde inte spara byggarkonfiguration",
-      "aboutTitle": "Om byggarkonfiguration",
-      "aboutItem1": "Byggarmodellen hanterar det konversationella botskapandet",
-      "aboutItem2": "Standardbotinställningar förvaljs när du distribuerar via byggaren",
-      "aboutItem3": "Verktygsanvändning stöds av Claude, GPT, Gemini och mer",
-      "displaySettings": {
-        "title": "Visningsinställningar",
-        "description": "Konfigurera hur Modulo-assistenten visas i gränssnittet",
-        "disableAnimation": "Inaktivera hjälparanimering",
-        "disableAnimationHint": "Visar Modulo som en statisk ikon istället för en animerad hjälpare"
-      }
-    },
     "mojulo": {
       "title": "Inställningar",
       "subtitle": "Konfigurera API-nycklarna som driver dina bottar och molnuppgifterna som används för att distribuera dem.",
@@ -1414,7 +970,8 @@
       "tabs": {
         "llm": "LLM-nycklar",
         "provider": "Leverantörsnycklar",
-        "language": "Språkinställning"
+        "language": "Språkinställning",
+        "builder": "Chat Brain"
       },
       "form": {
         "addKey": "Lägg till en nyckel",
@@ -1463,34 +1020,28 @@
         "title": "Språkinställning",
         "description": "Välj språket som används i kontrollpanelens gränssnitt.",
         "label": "Gränssnittsspråk"
+      },
+      "builder": {
+        "title": "Chat builder brain",
+        "description": "Choose what powers the chat builder. In agent mode your local Claude Code agent answers each turn over MCP — chat becomes an extension of the agent and no control-plane LLM key is needed. In self-hosted mode the control plane runs its own Claude loop using a stored LLM key.",
+        "modeLabel": "Builder driver",
+        "agentLabel": "Agent-routed (default)",
+        "agentDescription": "Your connected Claude Code agent is the brain. No LLM key required — but a worker must be attached to answer turns.",
+        "selfHostedLabel": "Self-hosted",
+        "selfHostedDescription": "The control plane runs its own Claude loop with a stored LLM key. Requires a key in the LLM Keys tab.",
+        "saveError": "Could not save the builder mode.",
+        "worker": {
+          "title": "Worker status",
+          "checking": "Checking for a worker…",
+          "live": "Worker attached — agent-routed chat is live.",
+          "liveNode": "Node fulfiller running ({runtime}).",
+          "none": "No worker attached. Agent-routed chat will time out until one is running.",
+          "howto": "Attach a worker one of two ways:",
+          "howtoLoop": "In your Claude Code session: /loop /run-chat-builder-worker",
+          "howtoEnv": "Or set MOJULO_AGENT_RUNTIME=claude-code-headless before starting the control plane (spawns a headless worker per turn)."
+        }
       }
     }
-  },
-  "deployments": {
-    "title": "Distributioner",
-    "loading": "Läser in distributioner...",
-    "empty": "Inga distributioner i detta botutrymme",
-    "columns": {
-      "botName": "Botnamn",
-      "status": "Status",
-      "deployed": "Distribuerad",
-      "by": "Av"
-    },
-    "history": {
-      "title": "Distributionshistorik",
-      "noHistory": "Ingen distributionshistorik än",
-      "historyWillAppear": "Historik visas efter nästa distribution",
-      "event": "Händelse",
-      "status": "Status",
-      "date": "Datum",
-      "by": "Av",
-      "config": "Konfig"
-    },
-    "embed": {
-      "title": "Inbäddningsskript",
-      "description": "Kopiera detta skript för att bädda in chattbotten på din webbplats:"
-    },
-    "confirmDelete": "Är du säker på att du vill ta bort \"{name}\"? Detta förstör distributionen och kan inte ångras."
   },
   "cloudDeploy": {
     "title": "Distribuera till molnet",
@@ -1558,49 +1109,8 @@
     },
     "confirmDestroy": "Förstör molnappen, maskinen och volymen? Konversationsdata på volymen kommer att tas bort permanent."
   },
-  "analytics": {
-    "title": "Analys",
-    "loading": "Läser in analys...",
-    "loadingConversations": "Läser in konversationsanalys...",
-    "analyzingQuestions": "Analyserar användarfrågor...",
-    "failedToLoad": "Kunde inte läsa in distribution",
-    "failedToLoadAnalytics": "Kunde inte läsa in analysdata",
-    "chatbotMetrics": "Chattbotmetrik",
-    "conversationAnalytics": "Konversationsanalys",
-    "topQuestions": "Vanligaste användarfrågor och ämnen",
-    "metrics": {
-      "age": "Ålder",
-      "uptime": "Drifttid",
-      "documents": "Dokument",
-      "lastUpdated": "Senast uppdaterad",
-      "totalConversations": "Totalt antal konversationer",
-      "totalMessages": "Totalt antal meddelanden",
-      "formStarts": "Formulärstarter",
-      "formCompletes": "Formuläravslut",
-      "completionRate": "{rate}% slutförandegrad",
-      "avgMessagesPerConv": "Snitt meddelanden/konv"
-    },
-    "badges": {
-      "formCollection": "Formulärinsamling",
-      "live": "Live"
-    },
-    "searchTerms": {
-      "longPhrases": "Långa fraser",
-      "phrases": "Fraser",
-      "words": "Ord",
-      "analyzed": "Analyserade {count} användarmeddelanden",
-      "noData": "Ingen konversationsdata tillgänglig än",
-      "noDataHint": "Data visas här efter att användare interagerat med din chattbot"
-    },
-    "uptime": {
-      "inProgress": "Pågår...",
-      "failed": "Misslyckades",
-      "notAvailable": "Ej tillgängligt"
-    }
-  },
   "conversations": {
     "title": "Konversationer",
-    "totalConversations": "{count} totalt antal konversationer",
     "total": "{count} totalt",
     "dashboardLink": "← Översikt",
     "backToDashboard": "← Tillbaka till översikten",
@@ -1614,9 +1124,7 @@
       "reconnect": "Återanslut"
     },
     "search": {
-      "dataSource": "Datakälla",
       "conversationId": "Konversations-ID",
-      "partialId": "Partiellt ID...",
       "partialIdShort": "partiellt id",
       "from": "Från",
       "to": "Till",
@@ -1625,15 +1133,10 @@
       "last24h": "Senaste 24h",
       "last7days": "Senaste 7 dagarna",
       "clear": "Rensa",
-      "resultsFound": "{count} resultat hittades",
-      "resultsFoundPlural": "{count} resultat hittades",
       "result": "{count} resultat",
       "results": "{count} resultat",
-      "noMatch": "Inga konversationer matchar din sökning",
       "noMatchShort": "Inga konversationer matchar.",
-      "searchToFind": "Sök för att hitta konversationer",
-      "searchByIdOrDate": "Sök efter ID eller datum för att hitta konversationer.",
-      "useIdOrDate": "Använd konversations-ID, datumintervall eller båda"
+      "searchByIdOrDate": "Sök efter ID eller datum för att hitta konversationer."
     },
     "timeAgo": {
       "days": "{count}d sedan",
@@ -1641,48 +1144,28 @@
       "minutes": "{count}m sedan"
     },
     "detail": {
-      "started": "Startad:",
       "startedAt": "Startad {timestamp}",
       "turns": "{count} turer",
-      "last": "Senaste:",
       "lastAt": "Senaste {timestamp}",
       "turn": "Tur {number}",
       "user": "Användare",
       "assistant": "Assistent",
-      "ragContext": "RAG-kontext",
       "ragContextShort": "RAG-kontext",
-      "verifyChain": "Verifiera kedja",
-      "showMetadata": "Visa källor och metadata",
       "showMetadataShort": "Visa metadata",
-      "selectConversation": "Välj en konversation för att visa meddelanden",
       "selectConversationShort": "Välj en konversation för att visa dess turer.",
-      "loadingMessages": "Läser in meddelanden...",
       "loading": "Läser in…"
     },
     "storage": {
-      "loading": "Läser in lagringsinformation...",
       "loadingShort": "Läser in…",
-      "volumeCapacity": "Volymkapacitet",
       "volumeCapacityShort": "Volymkapacitet",
-      "used": "{used} använt av {total}",
       "usedOfTotal": "{used} av {total}",
-      "available": "{amount} tillgängligt",
       "statsConversations": "Konversationer",
-      "statsTurns": "Totalt antal turer",
       "statsTurnsShort": "Turer",
-      "statsDbSize": "Databasstorlek",
       "statsDbSizeShort": "DB-storlek",
-      "autoExtendPolicy": "Policy för automatisk utökning",
-      "autoExtendDescription": "Volymen utökas automatiskt vid {threshold}% kapacitet, lägger till {increment}GB per utökning, upp till maximalt {limit}GB.",
-      "exportTitle": "Exportera konversationer",
       "exportTitleShort": "Exportera",
-      "exportDescription": "Ladda ner alla konversationer som en JSON-fil.",
       "exportDescriptionShort": "Ladda ner alla konversationer från denna bot som JSON.",
-      "exportButton": "Exportera alla konversationer (JSON)",
       "exportButtonShort": "Exportera JSON",
-      "exporting": "Exporterar...",
-      "refresh": "Uppdatera lagringsinformation",
-      "retry": "Försök igen"
+      "exporting": "Exporterar..."
     },
     "loadMore": "Läs in mer",
     "loadingMore": "Läser in…",
@@ -1734,264 +1217,10 @@
       "selectSubmission": "Välj ett inskick för att visa detaljer"
     }
   },
-  "logs": {
-    "title": "Live-loggar",
-    "refresh": "Uppdatera loggar",
-    "refreshing": "Uppdaterar...",
-    "loading": "Läser in loggar...",
-    "search": {
-      "label": "Sök loggar",
-      "placeholder": "Sök meddelanden, nivåer, instanser..."
-    },
-    "lineCount": {
-      "label": "Antal rader att visa",
-      "lines": "{count} rader"
-    },
-    "autoRefresh": {
-      "label": "Auto-uppdatering",
-      "every10s": "Uppdatera var 10:e sekund"
-    },
-    "noLogs": "Inga loggar tillgängliga",
-    "noMatch": "Inga loggar matchar din sökning",
-    "showing": "Visar {filtered} av {total} loggposter",
-    "filteredBy": "(filtrerad efter \"{query}\")"
-  },
-  "accessLevels": {
-    "owner": "ägare",
-    "admin": "administratör",
-    "write": "skriv",
-    "read": "läs"
-  },
-  "errors": {
-    "generic": "Ett fel inträffade. Försök igen.",
-    "failedToFetch": "Kunde inte hämta data",
-    "failedToLoad": "Kunde inte läsa in",
-    "failedToSave": "Kunde inte spara",
-    "failedToDelete": "Kunde inte ta bort distribution",
-    "failedToAssign": "Kunde inte tilldela botutrymme",
-    "notFound": "Hittades inte",
-    "error": "Fel"
-  },
-  "deleteAccount": {
-    "title": "Ta bort konto",
-    "loadingInfo": "Läser in kontoinformation...",
-    "permanentWarning": "Denna åtgärd är permanent och kan inte ångras.",
-    "willBeDeleted": "Följande kommer att tas bort permanent:",
-    "deployments": "Distributioner (bottar)",
-    "documents": "Dokument",
-    "apiKeys": "API-nycklar",
-    "botSpaces": "Botutrymmen",
-    "contributorsToDelete": "Bidragsgivarkonton som ska tas bort",
-    "contributorsNote": "Dessa bidragsgivare är endast medlemmar i din organisations botutrymmen.",
-    "organization": "Organisation",
-    "adminDeleteNote": "Som administratör kommer borttagning av ditt konto också att ta bort all organisationsdata och bidragsgivarkonton som endast är anslutna till din organisation.",
-    "userDeleteNote": "Dina medlemskap i botutrymmen tas bort, men botutrymmen och andra användare påverkas inte.",
-    "continue": "Fortsätt",
-    "confirmPrompt": "För att bekräfta borttagning, skriv din e-postadress:",
-    "confirmEmail": "Bekräfta din e-post",
-    "emailPlaceholder": "Skriv din e-post för att bekräfta",
-    "deleting": "Tar bort...",
-    "deleteMyAccount": "Ta bort mitt konto",
-    "errors": {
-      "loadFailed": "Kunde inte läsa in kontoinformation",
-      "loadError": "Fel vid inläsning av kontoinformation",
-      "emailMismatch": "Skriv din e-postadress exakt för att bekräfta",
-      "deleteFailed": "Kunde inte ta bort konto",
-      "deleteError": "Fel vid borttagning av konto"
-    }
-  },
-  "botSpaceInvite": {
-    "title": "Bjud in till {spaceName}",
-    "description": "Skicka en inbjudan att samarbeta i detta botutrymme. De får ett e-postmeddelande med en länk för att gå med.",
-    "emailLabel": "E-postadress",
-    "emailPlaceholder": "kollega@foretag.com",
-    "accessLabel": "Åtkomstnivå",
-    "accessRead": "Läs - Kan visa bottar i detta utrymme",
-    "accessWrite": "Skriv - Kan skapa och redigera bottar",
-    "accessAdmin": "Administratör - Full åtkomst inklusive att bjuda in andra",
-    "accessNote": "Inbjudna användare kommer att gå med som bidragsgivare till din organisation.",
-    "sending": "Skickar...",
-    "sendInvitation": "Skicka inbjudan",
-    "errors": {
-      "sendFailed": "Kunde inte skicka inbjudan"
-    }
-  },
-  "auditLogTable": {
-    "loading": "Läser in granskningsloggar...",
-    "noLogs": "Inga granskningsloggar hittades",
-    "noLogsHint": "Loggar visas här när åtgärder utförs",
-    "headers": {
-      "time": "Tid",
-      "event": "Händelse",
-      "actor": "Aktör",
-      "resource": "Resurs",
-      "outcome": "Resultat"
-    },
-    "events": {
-      "authLoginSuccess": "Inloggning",
-      "authLoginFailure": "Inloggning misslyckades",
-      "authLogout": "Utloggning",
-      "authSignup": "Registrering",
-      "deploymentCreate": "Distribution skapad",
-      "deploymentRedeploy": "Omdistribuerad",
-      "deploymentDelete": "Distribution borttagen",
-      "botSpaceCreate": "Utrymme skapat",
-      "botSpaceDelete": "Utrymme borttaget",
-      "botSpaceMemberAdd": "Medlem tillagd",
-      "botSpaceMemberRemove": "Medlem borttagen",
-      "documentUpload": "Dokument uppladdat",
-      "documentDelete": "Dokument borttaget",
-      "apiKeyCreate": "API-nyckel skapad",
-      "apiKeyDelete": "API-nyckel borttagen",
-      "userInvite": "Användare inbjuden",
-      "userInviteAccept": "Inbjudan accepterad",
-      "auditWebhookUpdate": "Webhook uppdaterad",
-      "auditLogsExport": "Loggar exporterade"
-    },
-    "outcomes": {
-      "success": "lyckades",
-      "failure": "misslyckades",
-      "denied": "nekad"
-    },
-    "details": {
-      "timestamp": "Fullständig tidsstämpel",
-      "requestId": "Begäran-ID",
-      "ipAddress": "IP-adress",
-      "userAgent": "Användaragent",
-      "resource": "Resurs",
-      "metadata": "Metadata"
-    },
-    "showing": "Visar {shown} av {total} loggar",
-    "loadMore": "Läs in mer"
-  },
-  "auditLogFilters": {
-    "eventTypes": {
-      "allEvents": "Alla händelser",
-      "authentication": "Autentisering",
-      "deployments": "Distributioner",
-      "botSpaces": "Botutrymmen",
-      "documents": "Dokument",
-      "apiKeys": "API-nycklar",
-      "usersInvites": "Användare och inbjudningar",
-      "conversations": "Konversationer",
-      "settings": "Inställningar",
-      "auditSystem": "Granskningssystem"
-    },
-    "outcomes": {
-      "all": "Alla",
-      "success": "Lyckades",
-      "failure": "Misslyckades",
-      "denied": "Nekad"
-    },
-    "dateRange": "Datumintervall",
-    "from": "Från",
-    "to": "Till",
-    "clear": "Rensa"
-  },
   "data": {
-    "navLabel": "Data",
-    "title": "Flottdata",
-    "subtitle": "Bläddra och aggregera konversationsaktivitet över varje ansluten bot. Konversationsinnehåll stannar på botten — endast antal slås samman i processen.",
-    "loading": "Läser in…",
-    "tabs": {
-      "explorer": "Utforskare",
-      "sql": "SQL",
-      "analytics": "Analys"
-    },
-    "fleet": {
-      "unreachableBanner": "{unreachable} av {total} bottar kan inte nås — resultaten kan vara ofullständiga."
-    },
-    "explorer": {
-      "filters": {
-        "conversationId": "Konversations-ID innehåller",
-        "startDate": "Startad efter",
-        "endDate": "Startad före"
-      },
-      "search": "Sök",
-      "searching": "Söker…",
-      "clear": "Rensa",
-      "hint": "Ange ett fragment av ett konversations-ID eller ett datumintervall för att sprida en sökning över varje ansluten bot.",
-      "pagination": {
-        "showing": "Visar {start} – {end} av {total}",
-        "previous": "Föregående",
-        "next": "Nästa",
-        "truncatedNotice": "Resultatuppsättningen är begränsad till de första 500 konversationerna i flottan. Smalna av ditt datumintervall för äldre resultat."
-      },
-      "noConversations": "Inga konversationer matchade ditt filter."
-    },
-    "sql": {
-      "placeholder": "SELECT bot_name, conversations_7d FROM bot_health ORDER BY conversations_7d DESC",
-      "runQuery": "Kör fråga",
-      "running": "Kör…",
-      "exportCsv": "Exportera CSV",
-      "exportJson": "Exportera JSON",
-      "keyboardHint": "Tryck på Cmd/Ctrl + Enter för att köra",
-      "rowCount": "{count} rader",
-      "truncated": "(trunkerad till 10 000)",
-      "noResults": "Inga rader",
-      "help": "Startfrågor",
-      "starterQueries": {
-        "title": "Startfrågor",
-        "hint": "Varje fråga läser från sammanställningstabellerna i minnet som monteras per begäran från varje bots analyseslutpunkter. Klicka för att läsa in.",
-        "dailyStats": "Daglig konversationsstatistik över flottan",
-        "botHealth": "Bothälsa (senaste 7 dagarna)",
-        "protocolDistribution": "Fördelning av protokollanvändning",
-        "mostActiveBots": "Mest aktiva bottar denna vecka",
-        "staleBots": "Bottar som inte synts senaste 24h",
-        "dailyByBot": "Daglig aktivitet sammanfogad med botnamn"
-      }
-    },
-    "schema": {
-      "availableTables": "Schemareferens",
-      "clickToShow": "(klicka för att visa)",
-      "clickToHide": "(klicka för att dölja)",
-      "note": "Obs:",
-      "scopeNote": "Dessa tabeller byggs i processminnet för varje fråga — en rad per bot för sammanställningstabellerna, fyllda genom att anropa varje ansluten bots analyseslutpunkter. Rått turinnehåll exponeras inte; för det, använd fliken Utforskare för att gå in i en enskild konversation."
-    },
-    "analytics": {
-      "loading": "Läser in flottsammanställningar…",
-      "dateRange": {
-        "last7days": "Senaste 7 dagarna",
-        "last14days": "Senaste 14 dagarna",
-        "last30days": "Senaste 30 dagarna",
-        "last90days": "Senaste 90 dagarna"
-      },
-      "summary": {
-        "totalConversations": "Konversationer",
-        "totalTurns": "Turer",
-        "avgTurnsPerConversation": "Snitt turer/konv",
-        "activeBots": "Nåbara bottar"
-      },
-      "charts": {
-        "dailyConversations": "Daglig turvolym",
-        "topBotsByActivity": "Toppbottar efter turvolym",
-        "activityHeatmap": "Aktivitetsvärmekarta (senaste 7 dagarna)"
-      },
-      "noData": "Ingen aktivitet under denna period.",
-      "noActivityData": "Ingen aktivitet under de senaste 7 dagarna.",
-      "convs": "konv",
-      "days": {
-        "sun": "Sön",
-        "mon": "Mån",
-        "tue": "Tis",
-        "wed": "Ons",
-        "thu": "Tor",
-        "fri": "Fre",
-        "sat": "Lör"
-      }
-    },
-    "table": {
-      "headers": {
-        "bot": "Bot",
-        "started": "Startad",
-        "duration": "Varaktighet",
-        "turns": "Turer",
-        "conversationId": "Konversations-ID"
-      }
-    }
+    "title": "Flottdata"
   },
   "apps": {
-    "navLabel": "Apps",
     "title": "Apps",
     "subtitle": "Apps som agenten har materialiserat genom App-paradigmet. Livscykel, miljövariabler och live-introspektion av MCP — läses från contextmap och den lokala körningen.",
     "loading": "Läser in…",
@@ -2050,7 +1279,6 @@
       "envPanel": {
         "title": "Miljövariabler",
         "explainer": "Värden skrivs direkt till artefaktens .env-fil. De loggas inte, lagras inte i kontrollplanets databas och returneras inte till denna vy.",
-        "keyHeader": "Nyckel",
         "addKey": "Nyckel",
         "addValue": "Värde",
         "add": "Lägg till",
@@ -2068,6 +1296,11 @@
         "title": "Härkomst",
         "subtitle": "Principer kopplade till denna apps materialiseringscommit.",
         "none": "Inga principer registrerade."
+      },
+      "viewGraph": "View graph",
+      "backToApp": "Back to app",
+      "graph": {
+        "subtitle": "Derived from the contextmap, runner state, and active triggers — read on every refresh, never persisted."
       }
     }
   },
@@ -2090,83 +1323,12 @@
     "deleteFailedFallback": "Kunde inte ta bort fil"
   },
   "chatBuilder": {
-    "title": "AI-botbyggare",
-    "subtitle": "Beskriv botten du vill bygga så skapar jag den åt dig",
-    "loading": "Läser in AI-byggaren...",
-    "newChat": "Ny chatt",
-    "recentChats": "Senaste chattar",
-    "noPreviousChats": "Inga tidigare chattar",
-    "botPreview": "Botförhandsgranskning",
-    "viewDeployedBot": "Visa distribuerad bot",
-    "selectWorkspace": "Välj arbetsyta",
-    "selectWorkspacePrompt": "Välj en arbetsyta för att börja bygga",
-    "noWorkspaces": "Inga arbetsytor tillgängliga",
-    "createWorkspaceFirst": "Skapa en först",
-    "backToDashboard": "Tillbaka till översikten",
-    "welcome": {
-      "title": "Bygg en bot med AI",
-      "description": "Beskriv botten du vill skapa, ladda upp relevanta dokument så hjälper jag dig konfigurera och distribuera den. Ingen kodning krävs.",
-      "quickPrompts": {
-        "customerSupport": {
-          "title": "Kundsupportbot",
-          "description": "Svara på produktfrågor",
-          "prompt": "Jag behöver en kundsupportbot som kan svara på frågor om vår produkt"
-        },
-        "leadCapture": {
-          "title": "Leadinsamlingsbot",
-          "description": "Samla besökarinformation",
-          "prompt": "Skapa en leadinsamlingsbot som samlar in namn, e-post och företagsinformation"
-        },
-        "faqAssistant": {
-          "title": "FAQ-assistent",
-          "description": "Svara på vanliga frågor",
-          "prompt": "Hjälp mig att bygga en FAQ-bot med hjälp av vår dokumentation"
-        },
-        "onboarding": {
-          "title": "Introduktionsbot",
-          "description": "Vägleda nya användare",
-          "prompt": "Jag vill skapa en bot som hjälper till att introducera nya kunder"
-        }
-      }
-    },
     "input": {
-      "placeholder": "Beskriv botten du vill bygga...",
       "defaultPlaceholder": "Skriv ett meddelande...",
       "dropFilesHere": "Släpp filer här...",
-      "dropToAttach": "Släpp filer för att bifoga dem till ditt meddelande",
-      "hint": "Tryck på Enter för att skicka, Shift+Enter för ny rad. Dra filer eller klicka på gemet för att bifoga.",
       "hintShort": "Tryck på Enter för att skicka, Shift+Enter för ny rad",
       "hintWithAttach": "Dra och släpp filer eller klicka på bifoga. Tryck på Enter för att skicka.",
-      "attachFiles": "Bifoga filer",
       "attachDocuments": "Bifoga dokument"
-    },
-    "tools": {
-      "toolsExecuted": "{count} verktyg kört",
-      "toolsExecutedPlural": "{count} verktyg körda",
-      "uploadDocument": "Ladda upp dokument",
-      "generateForm": "Generera formulär",
-      "deployBot": "Distribuera bot",
-      "listDeployments": "Lista distributioner",
-      "checkDeploymentStatus": "Kontrollera distributionsstatus",
-      "destroyDeployment": "Förstör distribution",
-      "getAnalytics": "Hämta analys",
-      "getFormSubmissions": "Hämta formulärinskick",
-      "listWorkspaces": "Lista arbetsytor",
-      "listDocuments": "Lista dokument",
-      "listApiKeys": "Lista API-nycklar"
-    },
-    "documentPicker": {
-      "title": "Välj dokument",
-      "noDocuments": "Inga dokument i denna arbetsyta",
-      "uploadFirst": "Ladda upp dokument först för att använda dem till din bot",
-      "selected": "{count} dokument valt",
-      "selectedPlural": "{count} dokument valda",
-      "useSelected": "Använd valda"
-    },
-    "errors": {
-      "failedToSend": "Kunde inte skicka meddelande",
-      "failedToLoadSession": "Kunde inte läsa in session",
-      "failedToLoadDocuments": "Kunde inte läsa in dokument"
     },
     "invertedPanel": {
       "createABot": "Skapa en bot",
@@ -2203,6 +1365,13 @@
       "downloadWithDocs": "Ladda ner med dokument",
       "openBot": "Öppna bot",
       "viewInBotSpace": "Visa i botutrymme"
+    },
+    "decision": {
+      "label": "Needs your input",
+      "textPlaceholder": "Type your answer…",
+      "submit": "Send",
+      "answeredPrefix": "You chose:",
+      "answeredText": "You answered"
     }
   },
   "login": {
@@ -2215,7 +1384,6 @@
     "invalid": "Ogiltigt användarnamn eller lösenord"
   },
   "graph": {
-    "navLabel": "Diagram",
     "title": "Kartöversikt över appskapande",
     "subtitle": "Hur en app kommer samman. Varje ruta är en del; varje pil visar vad som orsakar vad.",
     "subtitleTechnical": "Hur en app är sammansatt i mojulo-paradigmet. Stationer är delarna; linjer är de MCP-verktyg som kopplar ihop dem. Valideras mot live MCP-registret och contextmap-schemat vid varje uppdatering.",
@@ -2242,5 +1410,219 @@
       "dbRow": "Post i minnet",
       "dbRowTechnical": "DB-rad"
     }
+  },
+  "mcpSkills": {
+    "title": "Connected Services",
+    "subtitle": "Connected services: host skills and materialized MCP-orbit workflows, shown against the MCP servers they call.",
+    "loading": "Loading...",
+    "refresh": "Refresh",
+    "error": "Failed to load connected services",
+    "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
+    "graphTitle": "MCP structure",
+    "graphHint": "Click graph nodes to open available detail views.",
+    "backToList": "Back to Connected Services",
+    "backToService": "Back to connected service",
+    "notFound": "Connected service not found.",
+    "viewGraph": "View graph",
+    "present": "Present",
+    "missing": "Missing",
+    "counts": {
+      "servers": "MCP servers",
+      "services": "Connected services"
+    },
+    "table": {
+      "name": "Name",
+      "form": "Form",
+      "calls": "Calls",
+      "updated": "Updated"
+    },
+    "forms": {
+      "catalyst": "Catalyst skill",
+      "manual": "Manual skill",
+      "orbit": "MCP-orbit"
+    },
+    "detail": {
+      "metadata": "Metadata",
+      "name": "Name",
+      "ref": "Ref",
+      "kind": "Kind",
+      "form": "Form",
+      "updated": "Updated",
+      "hostPath": "Host path",
+      "catalyst": "Catalyst",
+      "composition": "Composition",
+      "calls": "Calls",
+      "noCalls": "No MCP calls declared.",
+      "needs": "Needs",
+      "components": "Components",
+      "knobs": "Knobs",
+      "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
+    }
+  },
+  "map": {
+    "title": "Map",
+    "subtitle": "The whole fleet on two planes — apps and bots on the ground, MCP servers and connected services on air, with service-to-MCP wiring.",
+    "loading": "Loading…",
+    "refresh": "Refresh",
+    "error": "Failed to load the fleet map",
+    "empty": "Nothing on the map yet — deploy a bot, scaffold an app, or declare your MCP inventory.",
+    "counts": {
+      "bots": "Bots",
+      "apps": "Apps",
+      "servers": "MCP servers",
+      "services": "Connected services"
+    },
+    "legend": {
+      "air": "Air",
+      "ground": "Ground",
+      "servers": "MCP servers",
+      "services": "Connected services",
+      "apps": "Apps",
+      "bots": "Bots"
+    }
+  },
+  "plan": {
+    "title": "Plan",
+    "subtitle": "Proposed work — sessions that became spikes. Forged and run from your host agent.",
+    "navLabel": "Plan",
+    "newPlan": "New Plan",
+    "total": "{count} plans",
+    "count": "{count} plans",
+    "filteredCount": "{count} of {total}",
+    "searchPlaceholder": "Search plans…",
+    "loading": "Loading…",
+    "emptyState": "No plans yet. Click New Plan to start one in your host agent.",
+    "noMatch": "No plans match.",
+    "selectPrompt": "Select a plan to view it.",
+    "unread": "Unread",
+    "stepsCount": "{count} steps",
+    "revisionsCount": "{count} revisions",
+    "createdAt": "Forged {timestamp}",
+    "updatedAt": "Updated {timestamp}",
+    "archivedAt": "Archived {timestamp}",
+    "archivedBadge": "Archived",
+    "showArchived": "Show archived ({count})",
+    "hideArchived": "Hide archived ({count})",
+    "allArchived": "All matching plans are archived.",
+    "releaseHeading": "Release",
+    "viewSketch": "View diagram",
+    "sketchPinned": "Pinned",
+    "statusDraft": "Draft",
+    "statusActionable": "Actionable",
+    "statusExecuting": "Executing",
+    "statusExecuted": "Executed",
+    "statusFailed": "Failed",
+    "lensSpike": "Spike",
+    "lensSegmentExpansion": "Segment expansion",
+    "lensVerticalReinforcement": "Vertical reinforcement",
+    "lensCollider": "Collider",
+    "lensUndecided": "Undecided",
+    "goalHeading": "Goal",
+    "frameHeading": "Frame",
+    "discardedLenses": "Discarded lenses",
+    "manifestHeading": "Manifest",
+    "manifestEmpty": "No manifest yet — still in deliberation.",
+    "revisionLogHeading": "Revisions",
+    "revisionEmpty": "No revisions.",
+    "executionLogHeading": "Execution log",
+    "executionEmpty": "Not executed yet.",
+    "stepOk": "ok",
+    "stepFailed": "failed",
+    "newPlanTitle": "New Plan",
+    "newPlanIntro": "Plans are forged in your host agent (Claude Code / Codex). Describe the intent, copy the starter prompt, and paste it into a new agent session — the agent enters plan mode and drives the work. This page updates as the plan is forged and revised.",
+    "intentLabel": "What do you want to plan? (optional)",
+    "intentPlaceholder": "e.g. a webhook trigger runtime for the composer",
+    "promptLabel": "Starter prompt",
+    "copyPrompt": "Copy prompt",
+    "copied": "Copied",
+    "close": "Close"
+  },
+  "research": {
+    "title": "Research",
+    "subtitle": "Books — broad material gathered to assist you. Started and accreted from your host agent.",
+    "navLabel": "Research",
+    "total": "{count} books",
+    "count": "{count} books",
+    "filteredCount": "{count} of {total}",
+    "searchPlaceholder": "Search books…",
+    "loading": "Loading…",
+    "emptyState": "No research books yet. Start one from your host agent (ask it to research a topic).",
+    "noMatch": "No books match.",
+    "selectPrompt": "Select a book to open it.",
+    "statusOpen": "Open",
+    "statusArchived": "Archived",
+    "createdAt": "Started {timestamp}",
+    "updatedAt": "Updated {timestamp}",
+    "itemsCount": "{count} items",
+    "notebookHeading": "Notebook",
+    "itemsHeading": "Items",
+    "itemsEmpty": "No items bound yet.",
+    "abstractsHeading": "Abstracts",
+    "abstractsEmpty": "No abstracts synthesized yet.",
+    "openSource": "Open source",
+    "viewStorage": "View in storage",
+    "synthesizedAt": "Synthesized {timestamp}",
+    "snapshotItems": "{count} items in book at synthesis",
+    "forgedPlan": "Forged plan",
+    "openPlan": "Open in Plan",
+    "keepResearching": "Keep researching",
+    "missingLabel": "Still needed",
+    "kindLink": "Link",
+    "kindArticle": "Article",
+    "kindSummary": "Summary",
+    "kindScreencap": "Screencap",
+    "kindNote": "Note",
+    "kindQuote": "Quote",
+    "kindSnippet": "Snippet",
+    "kindSketch": "Sketch",
+    "viewSketch": "View diagram",
+    "composerHeading": "Add to notebook",
+    "composerStub": "Preview only — binding happens through your host agent for now.",
+    "composerPlaceholder": "Paste a link, drop a file, or jot a note…"
+  },
+  "breadcrumbs": {
+    "home": "Home",
+    "deployment": "Deployment",
+    "appGraph": "Graph"
+  },
+  "sketches": {
+    "notFoundTitle": "Sketch not found",
+    "notFoundBody": "No sketch exists at this ref. The agent may not have minted it yet, or the ref is misspelled."
+  },
+  "sketchesIndex": {
+    "title": "Sketches",
+    "subtitle": "Diagrams the operator agent has minted via create_sketch. Click one to preview, expand for fullscreen.",
+    "total": "{count, plural, =0 {No sketches} =1 {1 sketch} other {# sketches}}",
+    "count": "{count, plural, =0 {No matches} =1 {1 sketch} other {# sketches}}",
+    "filteredCount": "{count} of {total} shown",
+    "searchPlaceholder": "Search by title or ref…",
+    "loading": "Loading…",
+    "emptyState": "No sketches yet. Ask the agent to mint one with the create_sketch MCP tool.",
+    "noMatch": "No sketches match this search.",
+    "selectPrompt": "Select a sketch on the left to preview.",
+    "mintedAt": "Minted {timestamp}",
+    "expand": "Expand",
+    "close": "Close",
+    "openInNewTab": "Open bare",
+    "downloadPdf": "Download PDF",
+    "invalidManifest": "Manifest could not be parsed.",
+    "newButton": "New",
+    "associationTags": {
+      "plan": "Plan",
+      "research": "Research"
+    },
+    "chat": {
+      "title": "Sketch chat",
+      "mode": "sketch iteration mode",
+      "emptyTitle": "Start with the agent",
+      "emptyHint": "Ask for a new sketch, compare two sketch refs, or iterate on an existing diagram. The agent can call create_sketch, diff_sketches, and the sketch vocabulary tools from here.",
+      "placeholder": "Describe what to sketch, compare, or revise..."
+    },
+    "renameLabel": "Rename sketch",
+    "renamePlaceholder": "Sketch title",
+    "renameSave": "Save",
+    "renameSaveNew": "Save as new sketch",
+    "renameCancel": "Cancel",
+    "renameEmpty": "Title cannot be empty."
   }
 }
