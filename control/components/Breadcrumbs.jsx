@@ -81,6 +81,18 @@ const ROUTES = [
   { tpl: '/data', trail: [{ labelKey: 'data.title' }] },
   { tpl: '/graph', trail: [{ labelKey: 'graph.title' }] },
   { tpl: '/mcp-skills', trail: [{ labelKey: 'mcpSkills.title' }] },
+  {
+    tpl: '/mcp-skills/[ref]',
+    trail: [{ labelKey: 'mcpSkills.title', href: '/mcp-skills' }, { dynamic: 'ref' }],
+  },
+  {
+    tpl: '/mcp-skills/[ref]/graph',
+    trail: [
+      { labelKey: 'mcpSkills.title', href: '/mcp-skills' },
+      { dynamic: 'ref', href: '/mcp-skills/[ref]' },
+      { labelKey: 'mcpSkills.viewGraph' },
+    ],
+  },
   { tpl: '/plan', trail: [{ labelKey: 'plan.title' }] },
   { tpl: '/settings', trail: [{ labelKey: 'settings.title' }] },
   { tpl: '/sketches', trail: [{ labelKey: 'sketchesIndex.title' }] },

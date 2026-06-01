@@ -2,7 +2,23 @@
 
 Thanks for considering a contribution.
 
-This document covers the test surface and how to run the suite. For architecture, see [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (MCP control surface), and [CLAUDE.md](CLAUDE.md). For the full test roadmap, see [lite-template/integration/UNIT_TEST_PLAN.md](lite-template/integration/UNIT_TEST_PLAN.md).
+This document covers the PR posture, the test surface, and how to run the suite. For architecture, see [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (MCP control surface), and [CLAUDE.md](CLAUDE.md). For the full test roadmap, see [lite-template/integration/UNIT_TEST_PLAN.md](lite-template/integration/UNIT_TEST_PLAN.md).
+
+## PR posture
+
+Straight up: Claude reviews PRs here. The maintainer is one person, and most read passes are AI-assisted. That shapes what's likely to merge.
+
+**Welcome:**
+
+- **Recipe-shaped additions** — catalysts in [control/lib/mcp/catalysts/](control/lib/mcp/catalysts/), skills, MCP tool descriptions, prompt tweaks, small fixes, docs, dead-code GC. Anything that's a row in an index rather than a change to the substrate.
+- **Localization** — new locales, translation fixes, key additions that ride alongside a recipe. Run `/sync-locales` if you can; if you can't, that's fine.
+- **Quality** — bug fixes, test coverage on the surfaces named below, doc clarifications.
+
+**Probably won't merge — and I'll be straight about why:**
+
+Concept PRs — new rings, new paradigms, new core abstractions, changes to deliberation surfaces, anything that shifts *how* mojulo works rather than *what* it offers — will likely sit. The reason isn't that the work is insufficient, and often I won't even disagree with it. It's a maintenance-burden veto: if I can't carry the implications going forward and can't explain *why* the change is shaped the way it is, the PR stays unmerged. AI-assisted review can call a PR safe; that's not the same as the maintainer being able to live with it.
+
+If you have a concept PR you believe in, **fork it**. Mojulo is Apache 2.0 for exactly this reason — apply the idea deeply on your own line, extract value, ship something. The license is the open door; the merge bar is the maintainer's. Those are two different doors and both are real.
 
 ## Running tests
 

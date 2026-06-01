@@ -9,6 +9,7 @@
 //   - mcp_orbit_compositions via MCPOrbitCompositionRepository.insertWithEmbedding
 //   - mcp_orbit_provider_artifacts via ProviderArtifactRepository.insertWithEmbedding
 //   - catalysts via reindexAll() (filesystem markdown — no write event)
+//   - sketch_vocab via reindexAll() (filesystem markdown — no write event)
 //
 // Then runs semantic_search and confirms cross-kind recall returns the
 // expected refs with the expected source_kind tags.
@@ -66,6 +67,7 @@ import {
   commitPrimitiveArtifactMaterialization,
 } from '@/lib/mcp/tools/meta-context';
 import { semanticSearchHandler } from '@/lib/mcp/tools/semantic-search';
+import { getSketchVocabCard } from '@/lib/graph/sketch-vocab/loader';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -221,6 +223,7 @@ describe('semantic_search — cross-kind recall integration', () => {
     expect(kinds.has('orbit_composition')).toBe(true);
     expect(kinds.has('orbit_artifact')).toBe(true);
     expect(kinds.has('catalyst')).toBe(true);
+    expect(kinds.has('sketch_vocab')).toBe(true);
   });
 
   it('per-kind scoping returns rows only of the requested kind', async () => {
@@ -301,6 +304,11 @@ describe('semantic_search — cross-kind recall integration', () => {
           // Catalysts come from the filesystem via the loader; we only
           // assert the source_ref looks like an id.
           expect(r.source_ref).toMatch(/^[a-z0-9-]+$/);
+          break;
+        }
+        case 'sketch_vocab': {
+          const card = getSketchVocabCard(r.source_ref);
+          expect(card, `sketch_vocab ${r.source_ref} should exist`).toBeTruthy();
           break;
         }
         default:

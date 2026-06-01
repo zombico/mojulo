@@ -66,6 +66,8 @@ function rowToAbstract(row) {
     itemCount: row.item_count,
     planRef: row.plan_ref,
     assessment: parseJSON(row.assessment_json, null),
+    // Posterity diagram auto-minted at synthesis time (hub-spoke of the book).
+    sketchRef: row.sketch_ref ?? null,
     createdAt: row.created_at,
   };
 }
@@ -176,7 +178,7 @@ export const ResearchRepository = {
    * synthesis time. plan_ref / assessment are backfilled separately via
    * attachAbstractEvaluation once plan mojulo has evaluated it.
    */
-  insertAbstract({ researchRef, body, itemCount }) {
+  insertAbstract({ researchRef, body, itemCount, sketchRef }) {
     const db = getDb();
     const session = db
       .prepare('SELECT id FROM research_sessions WHERE research_ref = ?')
@@ -184,9 +186,9 @@ export const ResearchRepository = {
     if (!session) throw new Error(`Research session '${researchRef}' not found`);
     const result = db
       .prepare(
-        'INSERT INTO research_abstracts (research_ref, body_md, item_count) VALUES (?, ?, ?)',
+        'INSERT INTO research_abstracts (research_ref, body_md, item_count, sketch_ref) VALUES (?, ?, ?, ?)',
       )
-      .run(researchRef, body, itemCount ?? 0);
+      .run(researchRef, body, itemCount ?? 0, sketchRef ?? null);
     db.prepare('UPDATE research_sessions SET updated_at = unixepoch() WHERE research_ref = ?').run(
       researchRef,
     );

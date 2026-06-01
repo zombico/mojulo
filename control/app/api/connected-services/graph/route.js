@@ -8,12 +8,27 @@ const FRAMINGS = new Set(['map', 'mcp-skills']);
 
 // Shared fleet-scene route — both /map and (later) /mcp-skills fetch this.
 // `framing` selects which edge kinds render; the scene itself is one projection.
+function sceneForFraming(vm, framing) {
+  if (framing !== 'mcp-skills') return vm;
+  const servers = (vm.air?.servers || []).filter((server) => server.kind !== 'app');
+  const serverIds = new Set(servers.map((server) => `server-${server.name}`));
+  const crossLinks = (vm.crossLinks || []).filter((link) => serverIds.has(link.to?.id));
+  return {
+    ...vm,
+    air: {
+      ...(vm.air || {}),
+      servers,
+    },
+    crossLinks,
+  };
+}
+
 export async function GET(req) {
   try {
     const framingParam = new URL(req.url).searchParams.get('framing') || 'map';
     const framing = FRAMINGS.has(framingParam) ? framingParam : 'map';
 
-    const vm = await loadFleetScene();
+    const vm = sceneForFraming(await loadFleetScene(), framing);
     const counts = {
       bots: vm.ground.bots.length,
       apps: vm.ground.apps.length,

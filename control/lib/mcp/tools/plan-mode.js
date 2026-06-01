@@ -16,6 +16,8 @@
  *     frame/manifest/analysis shadow scratchpad).
  *   - revise_plan     — append a revision note + patch the schematic; resets
  *     status to draft (touching the schematic un-commits the compile).
+ *   - sketch_plan     — preview the current manifest as a pipeline diagram
+ *     without compiling. Same derivation compile uses, no status change.
  *   - compile_plan    — Draft → Actionable. Validates the manifest against the
  *     LIVE tool registry. If any call doesn't resolve to a shipped tool,
  *     compile FAILS with a structured missing-capability reason and the plan
@@ -37,6 +39,8 @@
 import { registerTool, invokeRegisteredTool, hasRegisteredTool } from '@/lib/mcp/server';
 import { PlanRepository } from '@/lib/db/repositories/plans';
 import { recordPlanReleases, isReleaseCommitType } from '@/lib/mcp/meta-context/plan-release';
+import { mintSketch } from '@/lib/mcp/tools/sketches';
+import { planToSketchManifest } from '@/lib/graph/sketch-derive';
 
 // Plan-mode meta-tools may never appear inside a plan's manifest — that would
 // let a plan forge/compile/execute other plans, defeating the per-execution
@@ -46,6 +50,7 @@ const PLAN_MODE_TOOL_NAMES = new Set([
   'enter_plan_mode',
   'forge_plan',
   'revise_plan',
+  'sketch_plan',
   'compile_plan',
   'execute_plan',
   'list_plans',
@@ -57,6 +62,10 @@ const PLAN_MODE_TOOL_NAMES = new Set([
 // the calling agent in the execute_plan response; only the persisted log is
 // truncated.
 const MAX_RESULT_SNIPPET = 2000;
+
+function sketchUrl(ref) {
+  return `/sketches/${encodeURIComponent(ref)}`;
+}
 
 // ---------------------------------------------------------------------------
 // enter_plan_mode — the deliberation discipline
@@ -109,7 +118,7 @@ export async function forgePlanHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
     throw new Error('forge_plan requires an object with title + goal');
   }
-  const { title, goal, lens, frame, manifest, analysis } = input;
+  const { title, goal, lens, frame, manifest, analysis, sketch_ref } = input;
   const plan = PlanRepository.forge({
     title,
     goalMd: goal,
@@ -117,6 +126,7 @@ export async function forgePlanHandler(input, _ctx) {
     frame,
     manifest,
     analysis,
+    sketchRef: sketch_ref,
   });
   return {
     ok: true,
@@ -124,6 +134,7 @@ export async function forgePlanHandler(input, _ctx) {
     status: plan.status,
     lens: plan.lens,
     has_manifest: Array.isArray(plan.manifest) && plan.manifest.length > 0,
+    ...(plan.sketchRef ? { sketch_ref: plan.sketchRef, sketch_url: sketchUrl(plan.sketchRef) } : {}),
   };
 }
 
@@ -135,7 +146,7 @@ export async function revisePlanHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
     throw new Error('revise_plan requires an object with plan_ref + note');
   }
-  const { plan_ref, note, goal, lens, frame, manifest, analysis } = input;
+  const { plan_ref, note, goal, lens, frame, manifest, analysis, sketch_ref } = input;
   if (!plan_ref || typeof plan_ref !== 'string') {
     throw new Error('plan_ref is required');
   }
@@ -145,6 +156,7 @@ export async function revisePlanHandler(input, _ctx) {
   if (frame !== undefined) patch.frame = frame;
   if (manifest !== undefined) patch.manifest = manifest;
   if (analysis !== undefined) patch.analysis = analysis;
+  if (sketch_ref !== undefined) patch.sketchRef = sketch_ref;
   const plan = PlanRepository.revise(plan_ref, patch);
   if (!plan) {
     throw new Error(`Plan '${plan_ref}' not found. Call list_plans to see existing plans.`);
@@ -155,6 +167,48 @@ export async function revisePlanHandler(input, _ctx) {
     status: plan.status,
     lens: plan.lens,
     revisions: plan.revisionLog.length,
+    ...(plan.sketchRef ? { sketch_ref: plan.sketchRef, sketch_url: sketchUrl(plan.sketchRef) } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// sketch_plan — preview the draft manifest as a diagram (no compile)
+// ---------------------------------------------------------------------------
+
+export async function sketchPlanHandler(input, _ctx) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('sketch_plan requires an object with plan_ref');
+  }
+  const { plan_ref } = input;
+  if (!plan_ref || typeof plan_ref !== 'string') {
+    throw new Error('plan_ref is required');
+  }
+  const plan = PlanRepository.getByRef(plan_ref);
+  if (!plan) {
+    throw new Error(`Plan '${plan_ref}' not found.`);
+  }
+  if (plan.sketchPinned) {
+    throw new Error(
+      `Plan '${plan_ref}' has a pinned hand-authored sketch (${plan.sketchRef}). Refusing to overwrite. To re-derive from the manifest, clear the pin first with revise_plan({ plan_ref, note, sketch_ref: '' }).`,
+    );
+  }
+  if (!Array.isArray(plan.manifest) || plan.manifest.length === 0) {
+    throw new Error(
+      `Plan '${plan_ref}' has no manifest — nothing to sketch. Add candidate { tool, args } calls via revise_plan first.`,
+    );
+  }
+  const { ref } = mintSketch({
+    title: `Plan: ${plan.title}`,
+    manifest: planToSketchManifest(plan),
+  });
+  PlanRepository.setSketchRef(plan_ref, ref, { pinned: false });
+  return {
+    ok: true,
+    plan_ref,
+    sketch_ref: ref,
+    sketch_url: sketchUrl(ref),
+    steps: plan.manifest.length,
+    message: `Sketched draft manifest (${plan.manifest.length} step(s)) at ${sketchUrl(ref)}. Linked to the plan as the current diagram (unpinned — compile will redraw it).`,
   };
 }
 
@@ -244,13 +298,34 @@ export async function compilePlanHandler(input, _ctx) {
   }
 
   const updated = PlanRepository.setStatus(plan_ref, 'actionable');
+
+  // Posterity: auto-mint a pipeline diagram of the compiled manifest unless the
+  // operator pinned a hand-authored sketch. Soft-fail — a sketch hiccup must
+  // never fail a successful compile (sketches are scratch siblings).
+  let sketchRef = updated.sketchRef;
+  let sketchWarning = null;
+  if (!updated.sketchPinned) {
+    try {
+      const { ref } = mintSketch({
+        title: `Plan: ${updated.title}`,
+        manifest: planToSketchManifest(updated),
+      });
+      PlanRepository.setSketchRef(plan_ref, ref, { pinned: false });
+      sketchRef = ref;
+    } catch (err) {
+      sketchWarning = err?.message || String(err);
+    }
+  }
+
   return {
     ok: true,
     compiled: true,
     plan_ref,
     status: updated.status,
     steps: calls.length,
-    message: `Plan is Actionable: ${calls.length} step(s) resolve to live tools. Awaiting operator approval — execute_plan with confirm:true to run.`,
+    ...(sketchRef ? { sketch_ref: sketchRef, sketch_url: sketchUrl(sketchRef) } : {}),
+    ...(sketchWarning ? { sketch_warning: sketchWarning } : {}),
+    message: `Plan is Actionable: ${calls.length} step(s) resolve to live tools.${sketchRef ? ` Diagram at ${sketchUrl(sketchRef)}.` : ''} Awaiting operator approval — execute_plan with confirm:true to run.`,
   };
 }
 
@@ -447,6 +522,9 @@ export async function getPlanHandler(input, _ctx) {
     archived: plan.archived,
     archived_at: plan.archivedAt,
     release: plan.release,
+    sketch_ref: plan.sketchRef,
+    sketch_pinned: plan.sketchPinned,
+    ...(plan.sketchRef ? { sketch_url: sketchUrl(plan.sketchRef) } : {}),
     created_at: plan.createdAt,
     updated_at: plan.updatedAt,
   };
@@ -498,6 +576,11 @@ export function registerPlanModeTools() {
           description:
             'Un-shared deliberation provenance: { lens_weights, discarded_lenses, introspection_refs, … }. Free-form object.',
         },
+        sketch_ref: {
+          type: 'string',
+          description:
+            'Optional: pin a hand-authored sketch (a `sk_<…>` ref from create_sketch) as this plan\'s diagram. A pinned sketch is left alone by compile (which otherwise auto-mints a pipeline diagram from the manifest). Omit to let compile draw it.',
+        },
       },
       required: ['title', 'goal'],
     },
@@ -529,6 +612,11 @@ export function registerPlanModeTools() {
           items: { type: 'object' },
         },
         analysis: { type: 'object', description: 'Replace the analysis (optional patch).' },
+        sketch_ref: {
+          type: 'string',
+          description:
+            'Pin (or re-pin) a hand-authored sketch as the plan\'s diagram (a `sk_<…>` ref). Pass an empty string to clear the pin and let the next compile auto-draw the diagram again.',
+        },
       },
       required: ['plan_ref', 'note'],
     },
@@ -536,9 +624,23 @@ export function registerPlanModeTools() {
   });
 
   registerTool({
+    name: 'sketch_plan',
+    description:
+      "Ring 8 — preview a Draft plan's current manifest as a diagram WITHOUT compiling. Derives the same left→right pipeline diagram that `compile_plan` auto-mints (goal → mcp_tool stations chained by manifest order) and links it to the plan as the current `sketchRef` (unpinned — a subsequent compile will redraw it). Useful while iterating: see what the spike looks like before paying the validation cost of compile, or after a revision that you don't want to compile yet. NO status change — the plan stays in whatever state it was. Refuses if a hand-authored sketch is pinned (would overwrite operator's work — clear the pin first via revise_plan with sketch_ref:''). Refuses on empty manifest (nothing to draw). Returns { ok, plan_ref, sketch_ref, sketch_url, steps, message }.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        plan_ref: { type: 'string', description: 'Plan ref to sketch.' },
+      },
+      required: ['plan_ref'],
+    },
+    handler: sketchPlanHandler,
+  });
+
+  registerTool({
     name: 'compile_plan',
     description:
-      "Ring 8 — attempt Draft → Actionable. This is a COMPILE STEP, not a status flip: it validates the plan's manifest against the LIVE tool registry. Tractable iff every call resolves to a shipped MCP tool (and none are plan-mode meta-tools or malformed). On success: status becomes 'actionable' and the plan is ready for operator-approved execution. On failure: the plan stays Draft and the response carries a structured reason — `unknown_tools` (mojulo can't do this deterministically yet → roadmap signal), `illegal_tools`, or malformed `errors`. Returns { ok, compiled, status, steps?, unknown_tools?, illegal_tools?, errors?, message }.",
+      "Ring 8 — attempt Draft → Actionable. This is a COMPILE STEP, not a status flip: it validates the plan's manifest against the LIVE tool registry. Tractable iff every call resolves to a shipped MCP tool (and none are plan-mode meta-tools or malformed). On success: status becomes 'actionable', the plan is ready for operator-approved execution, AND (unless a sketch was pinned) a pipeline DIAGRAM of the compiled manifest is auto-minted and linked on the plan — `sketch_url` in the response, viewable in the /plan detail pane. On failure: the plan stays Draft and the response carries a structured reason — `unknown_tools` (mojulo can't do this deterministically yet → roadmap signal), `illegal_tools`, or malformed `errors`. Returns { ok, compiled, status, steps?, sketch_ref?, sketch_url?, unknown_tools?, illegal_tools?, errors?, message }.",
     inputSchema: {
       type: 'object',
       properties: {

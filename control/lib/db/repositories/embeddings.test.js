@@ -523,6 +523,7 @@ describe('SOURCE_KINDS', () => {
       'orbit_composition',
       'orbit_artifact',
       'catalyst',
+      'sketch_vocab',
     ]);
   });
 });

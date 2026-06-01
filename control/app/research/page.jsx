@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import ModularChatInput from '@/components/ModularChat/ModularChatInput';
 
 function formatTimestamp(value) {
   if (!value) return '—';
@@ -49,7 +48,7 @@ export default function ResearchPage() {
   const [selectedRef, setSelectedRef] = useState(null);
   const [book, setBook] = useState(null);
   const [bookLoading, setBookLoading] = useState(false);
-  const [composerValue, setComposerValue] = useState('');
+  const [showNew, setShowNew] = useState(false);
 
   const kindLabel = useCallback((k) => (k && KIND_KEY[k] ? t(KIND_KEY[k]) : k), [t]);
   const statusLabel = useCallback((s) => (s === 'archived' ? t('statusArchived') : t('statusOpen')), [t]);
@@ -76,28 +75,30 @@ export default function ResearchPage() {
     load();
   }, [load]);
 
+  const loadBook = useCallback(async (ref) => {
+    if (!ref) {
+      setBook(null);
+      return;
+    }
+    setBookLoading(true);
+    try {
+      const res = await fetch(`/api/research/${encodeURIComponent(ref)}`);
+      const data = await res.json();
+      setBook(data && !data.error ? data : null);
+    } catch {
+      setBook(null);
+    } finally {
+      setBookLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!selectedRef) {
       setBook(null);
       return;
     }
-    let cancelled = false;
-    setBookLoading(true);
-    fetch(`/api/research/${encodeURIComponent(selectedRef)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setBook(data && !data.error ? data : null);
-      })
-      .catch(() => {
-        if (!cancelled) setBook(null);
-      })
-      .finally(() => {
-        if (!cancelled) setBookLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedRef]);
+    loadBook(selectedRef);
+  }, [selectedRef, loadBook]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -107,12 +108,6 @@ export default function ResearchPage() {
     );
   }, [sessions, query]);
 
-  // Stub composer: the UI is a view for now — binding happens through the host
-  // agent. Sending just clears the input.
-  const onComposerSend = useCallback(() => {
-    setComposerValue('');
-  }, []);
-
   return (
     <div className="h-[calc(100vh-66px)] flex flex-col bg-gray-900">
       <div className="flex justify-between items-center px-8 pt-6 pb-2">
@@ -120,7 +115,16 @@ export default function ResearchPage() {
           <h1 className="text-2xl font-bold text-gray-100">{t('title')}</h1>
           <p className="text-xs text-gray-400 mt-1">{t('subtitle')}</p>
         </div>
-        <span className="text-sm text-gray-400">{t('total', { count: sessions.length })}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400">{t('total', { count: sessions.length })}</span>
+          <button
+            type="button"
+            onClick={() => setShowNew(true)}
+            className="px-3 py-1.5 text-sm border border-teal-500 rounded-md bg-teal-700 text-white hover:bg-teal-600"
+          >
+            {t('newBook')}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -129,7 +133,7 @@ export default function ResearchPage() {
         </div>
       )}
 
-      <div className="flex-1 grid grid-cols-4 gap-6 px-8 py-4 overflow-hidden">
+      <div className="flex-1 grid gap-6 px-8 py-4 overflow-hidden grid-cols-4">
         {/* Left: inbox of books */}
         <div className="col-span-1 border-r border-gray-700 pr-4 flex flex-col overflow-hidden">
           <input
@@ -194,32 +198,105 @@ export default function ResearchPage() {
               <p className="text-sm">{t('loading')}</p>
             </div>
           ) : book ? (
-            <>
-              <div className="flex-1 overflow-y-auto pr-1">
-                <Notebook book={book} t={t} kindLabel={kindLabel} statusLabel={statusLabel} />
-              </div>
-              {/* Stubbed composer — like the chat builder bottom bar. */}
-              <div className="shrink-0">
-                <div className="px-4 pt-2 flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wide text-gray-500">
-                    {t('composerHeading')}
-                  </span>
-                  <span className="text-[11px] text-gray-600">{t('composerStub')}</span>
-                </div>
-                <ModularChatInput
-                  value={composerValue}
-                  onChange={setComposerValue}
-                  onSend={onComposerSend}
-                  showAttachButton
-                  placeholder={t('composerPlaceholder')}
-                />
-              </div>
-            </>
+            <div className="flex-1 overflow-y-auto pr-1">
+              <Notebook book={book} t={t} kindLabel={kindLabel} statusLabel={statusLabel} />
+            </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
               <p className="text-sm">{t('selectPrompt')}</p>
             </div>
           )}
+        </div>
+
+      </div>
+
+      {showNew && <NewBookModal t={t} onClose={() => setShowNew(false)} />}
+    </div>
+  );
+}
+
+function NewBookModal({ t, onClose }) {
+  const [intent, setIntent] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const prompt = useMemo(() => {
+    const trimmed = intent.trim();
+    const intentLine = trimmed ? `Topic: ${trimmed}` : 'Topic: (describe what you want to research)';
+    return `Call \`enter_research_mode\` to load the research-mode discipline, then start a book and begin gathering material. Bind sources as you find them, and synthesize an abstract when the picture is sharp enough to forge a plan. ${intentLine}`;
+  }, [intent]);
+
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable — the textarea is selectable as a fallback */
+    }
+  }, [prompt]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('newBookTitle')}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-xl bg-gray-800 border border-gray-700 rounded-lg p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <h2 className="text-lg font-semibold text-gray-100">{t('newBookTitle')}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-200 text-sm"
+            aria-label={t('close')}
+          >
+            ✕
+          </button>
+        </div>
+        <p className="text-sm text-gray-400 mb-4">{t('newBookIntro')}</p>
+
+        <label className="block text-xs uppercase tracking-wide text-gray-500 mb-1">
+          {t('intentLabel')}
+        </label>
+        <input
+          type="text"
+          value={intent}
+          onChange={(e) => setIntent(e.target.value)}
+          placeholder={t('intentPlaceholder')}
+          className="w-full px-3 py-2 mb-4 border border-gray-600 rounded-md text-sm bg-gray-900 text-gray-100 placeholder-gray-600 focus:outline-none focus:border-teal-500"
+        />
+
+        <label className="block text-xs uppercase tracking-wide text-gray-500 mb-1">
+          {t('promptLabel')}
+        </label>
+        <textarea
+          readOnly
+          value={prompt}
+          rows={5}
+          className="w-full px-3 py-2 mb-4 border border-gray-700 rounded-md text-xs font-mono bg-gray-900 text-gray-300 resize-none focus:outline-none"
+          onFocus={(e) => e.target.select()}
+        />
+
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600"
+          >
+            {t('close')}
+          </button>
+          <button
+            type="button"
+            onClick={copy}
+            className="px-3 py-1.5 text-sm border border-teal-500 rounded-md bg-teal-700 text-white hover:bg-teal-600"
+          >
+            {copied ? t('copied') : t('copyPrompt')}
+          </button>
         </div>
       </div>
     </div>
@@ -288,12 +365,21 @@ function Notebook({ book, t, kindLabel, statusLabel }) {
                       {t('openSource')} ↗
                     </a>
                   )}
-                  {it.mediaRef && (
+                  {it.mediaRef && it.kind === 'sketch' ? (
+                    <a
+                      href={`/sketches/${encodeURIComponent(it.mediaRef)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-teal-400 hover:text-teal-300 inline-flex items-center gap-1"
+                    >
+                      {t('viewSketch')} ↗
+                    </a>
+                  ) : it.mediaRef ? (
                     <span className="text-xs text-gray-500 inline-flex items-center gap-1">
                       <span className="font-mono">{it.mediaRef}</span>
                       <span className="text-gray-600">· {t('viewStorage')}</span>
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </li>
             ))}
@@ -330,6 +416,16 @@ function Notebook({ book, t, kindLabel, statusLabel }) {
                     ) : rec === 'keep_researching' ? (
                       <span className="text-amber-400">{t('keepResearching')}</span>
                     ) : null}
+                    {a.sketchRef && (
+                      <a
+                        href={`/sketches/${encodeURIComponent(a.sketchRef)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-teal-400 hover:text-teal-300 inline-flex items-center gap-1"
+                      >
+                        {t('viewSketch')} ↗
+                      </a>
+                    )}
                   </div>
                   {!a.planRef && missing.length > 0 && (
                     <p className="text-xs text-gray-500 mt-1">

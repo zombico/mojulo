@@ -43,13 +43,25 @@ import { recordInferenceOutcome } from '@/lib/mcp/agent-tasks/audit';
 
 const TASK_KIND_ENVELOPE_INFERENCE = 'envelope_inference';
 const TASK_KIND_CHAT_TURN = 'chat_turn';
+const TASK_KIND_HOST_CHAT = 'host_chat';
 
 // Envelope-shaped kinds share one submit tool + the canonical envelope schema.
-// `chat_turn` is the builder web-chat relay (see agent-routed-chat.md): it
-// answers a conversational turn with the same { answer, suggestions, ... }
-// envelope an app inference uses, so it rides submit_envelope_inference rather
+// `chat_turn` is the builder web-chat relay (see agent-routed-chat.md) and
+// `host_chat` is the home-page unfiltered relay (see home-agent-chat.md): both
+// answer a conversational turn with the same { answer, suggestions, ... }
+// envelope an app inference uses, so they ride submit_envelope_inference rather
 // than shipping a redundant per-kind submit tool.
-const ENVELOPE_SHAPED_KINDS = new Set([TASK_KIND_ENVELOPE_INFERENCE, TASK_KIND_CHAT_TURN]);
+const ENVELOPE_SHAPED_KINDS = new Set([
+  TASK_KIND_ENVELOPE_INFERENCE,
+  TASK_KIND_CHAT_TURN,
+  TASK_KIND_HOST_CHAT,
+]);
+
+// Run-rate conversational kinds record NO contextmap principle — a principle
+// per chat turn would flood the deliberation log. Only true app inferences are
+// audited. (Structural actions the agent takes WITH its tools still commit
+// their own principles through those tools.)
+const RUN_RATE_CHAT_KINDS = new Set([TASK_KIND_CHAT_TURN, TASK_KIND_HOST_CHAT]);
 
 function submitToolNameForKind(taskKind) {
   if (ENVELOPE_SHAPED_KINDS.has(taskKind)) return 'submit_envelope_inference';
@@ -138,12 +150,12 @@ export async function submitEnvelopeInferenceHandler(input = {}) {
   // and lose audit than fail the inference.
   const fulfillerStamp = { kind: 'agent-mcp', model: model || undefined };
 
-  // chat_turn relays the builder's web chat (caller_ref.kind === 'builder_chat').
-  // These are run-rate conversational turns, not structural outcomes, so they do
-  // NOT write a contextmap principle — recording one per turn would flood the
+  // chat_turn / host_chat relay the web chats (builder + home page). These are
+  // run-rate conversational turns, not structural outcomes, so they do NOT
+  // write a contextmap principle — recording one per turn would flood the
   // deliberation log. Only true app inferences are audited.
   let principleId = null;
-  if (taskKind !== TASK_KIND_CHAT_TURN) {
+  if (!RUN_RATE_CHAT_KINDS.has(taskKind)) {
     try {
       const { principle } = recordInferenceOutcome({
         caller_ref: payload.caller_ref,
@@ -198,7 +210,7 @@ export function registerAgentTaskTools() {
   registerTool({
     name: 'pull_agent_task',
     description:
-      "Worker-mode long-poll for mojulo's agent-tasks runtime primitive. Returns the next parked task (or `{ request: null }` if no work arrives within `wait_ms`). The manifest in the first content block carries `task_kind` (`envelope_inference` for app inference, `chat_turn` for the builder web-chat relay) and the name of the per-kind submit tool the worker should call. If the task has an image input, it follows as a native MCP `image` content block. Pass `kinds` to claim only specific task_kinds so a specialized worker never cancels another worker's tasks. Pair every successful pull with either the per-kind submit tool (e.g. `submit_envelope_inference`) or `cancel_agent_task` — un-submitted requests time out and the caller sees an `INFERENCE_TIMEOUT` error.",
+      "Worker-mode long-poll for mojulo's agent-tasks runtime primitive. Returns the next parked task (or `{ request: null }` if no work arrives within `wait_ms`). The manifest in the first content block carries `task_kind` (`envelope_inference` for app inference, `chat_turn` for the builder web-chat relay, `host_chat` for the home-page unfiltered relay) and the name of the per-kind submit tool the worker should call. If the task has an image input, it follows as a native MCP `image` content block. Pass `kinds` to claim only specific task_kinds so a specialized worker never cancels another worker's tasks. Pair every successful pull with either the per-kind submit tool (e.g. `submit_envelope_inference`) or `cancel_agent_task` — un-submitted requests time out and the caller sees an `INFERENCE_TIMEOUT` error.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -223,7 +235,7 @@ export function registerAgentTaskTools() {
   registerTool({
     name: 'submit_envelope_inference',
     description:
-      "Deliver an envelope-shaped response to a previously-pulled envelope-shaped task (`envelope_inference` or `chat_turn`). The `envelope` field is validated against the canonical mojulo envelope schema by MCP's inputSchema layer — structurally-invalid envelopes are rejected at the protocol boundary before this handler runs. On success, an `app_inference` principle is recorded on the calling app's artifact node (when `caller_ref` resolved) before the parked HTTP response unblocks; `chat_turn` (the builder web-chat relay) is run-rate and deliberately records no principle. For other task kinds, use the matching per-kind submit tool (none other exists yet).",
+      "Deliver an envelope-shaped response to a previously-pulled envelope-shaped task (`envelope_inference`, `chat_turn`, or `host_chat`). The `envelope` field is validated against the canonical mojulo envelope schema by MCP's inputSchema layer — structurally-invalid envelopes are rejected at the protocol boundary before this handler runs. On success, an `app_inference` principle is recorded on the calling app's artifact node (when `caller_ref` resolved) before the parked HTTP response unblocks; the web-chat relays (`chat_turn`, `host_chat`) are run-rate and deliberately record no principle. For other task kinds, use the matching per-kind submit tool (none other exists yet).",
     inputSchema: {
       type: 'object',
       required: ['request_id', 'envelope'],

@@ -8,12 +8,74 @@
 
 import { NextResponse } from 'next/server';
 import { createSketchHandler } from '@/lib/mcp/tools/sketches';
+import { getDb } from '@/lib/db/index.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
+
+function sketchAssociationMap() {
+  const db = getDb();
+  const byRef = new Map();
+
+  const add = (ref, kind, count) => {
+    if (!ref || !count) return;
+    const entry = byRef.get(ref) || new Map();
+    entry.set(kind, (entry.get(kind) || 0) + count);
+    byRef.set(ref, entry);
+  };
+
+  for (const row of db
+    .prepare(
+      `SELECT sketch_ref AS ref, COUNT(*) AS count
+         FROM plans
+        WHERE sketch_ref IS NOT NULL AND sketch_ref != ''
+        GROUP BY sketch_ref`,
+    )
+    .all()) {
+    add(row.ref, 'plan', row.count);
+  }
+
+  for (const row of db
+    .prepare(
+      `SELECT sketch_ref AS ref, COUNT(*) AS count
+         FROM research_abstracts
+        WHERE sketch_ref IS NOT NULL AND sketch_ref != ''
+        GROUP BY sketch_ref`,
+    )
+    .all()) {
+    add(row.ref, 'research', row.count);
+  }
+
+  for (const row of db
+    .prepare(
+      `SELECT media_ref AS ref, COUNT(*) AS count
+         FROM research_items
+        WHERE kind = 'sketch' AND media_ref IS NOT NULL AND media_ref != ''
+        GROUP BY media_ref`,
+    )
+    .all()) {
+    add(row.ref, 'research', row.count);
+  }
+
+  return byRef;
+}
+
+function withAssociations(sketches) {
+  const byRef = sketchAssociationMap();
+  return sketches.map((sketch) => {
+    const kinds = byRef.get(sketch.ref);
+    if (!kinds) return sketch;
+    return {
+      ...sketch,
+      associations: Array.from(kinds.entries()).map(([kind, count]) => ({ kind, count })),
+    };
+  });
+}
 
 export async function GET() {
   try {
-    const sketches = SketchRepository.list();
-    return NextResponse.json({ sketches });
+    const sketches = withAssociations(SketchRepository.list());
+    const folders = SketchFolderRepository.list();
+    return NextResponse.json({ sketches, folders });
   } catch (err) {
     return NextResponse.json(
       { error: err.message || 'Failed to list sketches' },

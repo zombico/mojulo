@@ -30,8 +30,7 @@ import { parseDocument } from '@/lib/document-parser';
 import { buildBedrockModelId, getDefaultModelForTask, resolveOllamaHost } from '@/lib/llm-providers';
 import { uploadFile } from '@/lib/storage';
 import { decryptApiKey } from '@/lib/deployment-auth';
-import { parkRequest, AgentTaskError } from '@/lib/mcp/agent-tasks/queue';
-import { subscribe as subscribeChatSignals } from '@/lib/agent-ui/signal-bus';
+import { relayAgentTurn } from '@/lib/agent-chat/relay';
 import { AppSettingsRepository, BUILDER_DRIVER_MODES } from '@/lib/db/repositories/appSettings';
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -422,95 +421,42 @@ export async function POST(request) {
  * shared session) is a later phase; here we relay answer text only.
  */
 async function runAgentChatTurn({ session, userId, userMessageContent, messages, controller, encoder }) {
-  sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'thinking' });
-
-  // Subscribe this open SSE stream to the agent-ui signal bus for the turn, so
-  // the fulfilling worker's narration (`emit_chat_signal`) and decision prompts
-  // (`request_chat_decision`) reach the browser over the same event vocabulary.
-  // Bus events are already shaped as { type, data } matching EventTypes; forward
-  // verbatim. Unsubscribed in the finally below before the controller closes.
-  const unsubscribeSignals = subscribeChatSignals(session.id, (evt) => {
-    try {
-      sendEvent(controller, encoder, evt.type, evt.data || {});
-    } catch {
-      // controller already closed — ignore
-    }
-  });
-
   // Prior turns become the worker's conversation history; the just-pushed user
   // message is the current input, carried separately as inputs.text.
   const history = messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
 
-  try {
-    const { envelope } = await parkRequest(
-      {
-        task_kind: 'chat_turn',
-        inputs: { text: userMessageContent },
-        protocol_context: {
-          sessionId: session.id,
-          history,
-          locale: session.preloadedContext?.locale || null,
-        },
-        caller_ref: { kind: 'builder_chat', sessionId: session.id },
-      },
-      // A turn that drives build_* tools — or blocks on a `request_chat_decision`
-      // while the operator decides — can run long. Widen well past the 60s
-      // default and keep it above the decision TTL (10min) so the parked HTTP
-      // outlives any in-flight decision rather than expiring under the operator.
-      { submitTimeoutMs: 900_000 }
-    );
-
-    const answer = typeof envelope?.answer === 'string' ? envelope.answer : '';
-    sendEvent(controller, encoder, EventTypes.TEXT, { text: answer });
-
-    await BuilderSessionRepository.appendMessage(session.id, userId, {
-      role: 'assistant',
-      content: answer,
-    });
-
-    sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'idle' });
-
-    const finalSession = await BuilderSessionRepository.findById(session.id);
-    sendEvent(controller, encoder, EventTypes.DONE, {
-      sessionId: session.id,
-      status: finalSession?.status || session.status,
-    });
-
-    await auditLog({
-      eventType: 'builder.stream',
-      actor: { id: userId },
-      resource: { type: 'modular_session', id: session.id },
-      action: 'process',
-      outcome: 'success',
-      metadata: { mode: 'agent' },
-    }).catch(() => {});
-  } catch (error) {
-    // AgentTaskError carries operator-friendly messages (e.g. NO_AGENT_WORKER
-    // tells them how to attach a worker). Surface it as a clean ERROR event and
-    // end the turn; only unexpected errors bubble to the outer catch.
-    if (error instanceof AgentTaskError) {
-      sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'concerned' });
-      sendEvent(controller, encoder, EventTypes.ERROR, {
-        error: error.message,
-        code: error.code,
+  const result = await relayAgentTurn({
+    taskKind: 'chat_turn',
+    sessionId: session.id,
+    text: userMessageContent,
+    history,
+    locale: session.preloadedContext?.locale || null,
+    callerRef: { kind: 'builder_chat', sessionId: session.id },
+    controller,
+    encoder,
+    onAnswer: async (answer) => {
+      await BuilderSessionRepository.appendMessage(session.id, userId, {
+        role: 'assistant',
+        content: answer,
       });
-      await auditLog({
-        eventType: 'builder.stream',
-        actor: { id: userId },
-        resource: { type: 'modular_session', id: session.id },
-        action: 'process',
-        outcome: 'failure',
-        metadata: { mode: 'agent', code: error.code },
-      }).catch(() => {});
-      return;
-    }
-    throw error;
-  } finally {
-    // Stop forwarding bus events before the caller closes the controller.
-    // Signals emitted after this (a late worker narration) find no subscriber
-    // and report delivered:false.
-    unsubscribeSignals();
-  }
+    },
+    doneFields: async () => {
+      const finalSession = await BuilderSessionRepository.findById(session.id);
+      return {
+        sessionId: session.id,
+        status: finalSession?.status || session.status,
+      };
+    },
+  });
+
+  await auditLog({
+    eventType: 'builder.stream',
+    actor: { id: userId },
+    resource: { type: 'modular_session', id: session.id },
+    action: 'process',
+    outcome: result.ok ? 'success' : 'failure',
+    metadata: result.ok ? { mode: 'agent' } : { mode: 'agent', code: result.code },
+  }).catch(() => {});
 }
 
 async function handleConfirmAndDeploy(body, user) {

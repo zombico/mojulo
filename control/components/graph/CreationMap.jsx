@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * SVG renderer for the creation-map manifest. Hand-positioned stations —
  * positions live on each station object in lib/graph/creation-map.js, no
@@ -227,25 +225,293 @@ const TYPE_SCALES = {
   },
 };
 
-function layerRank(station) {
-  // Ground (and unlayered) paint first; air paints last so it sits on top.
-  return station.layer === 'air' ? 1 : 0;
+function markIsFiniteNumber(v) {
+  return typeof v === 'number' && Number.isFinite(v);
 }
 
-export default function CreationMap({ manifest, technical = false, compact = false, onNodeClick }) {
+// z paint-order key. Explicit numeric `z` wins; otherwise the legacy
+// layer:'air' rank (air = 1, ground = 0) so existing /graph + sketch manifests
+// keep their exact paint order.
+function zOf(node) {
+  if (node && markIsFiniteNumber(node.z)) return node.z;
+  return node && node.layer === 'air' ? 1 : 0;
+}
+
+function r2(v) {
+  return Math.round(v * 100) / 100;
+}
+
+// (cx,cy)+r, fraction of the circle clockwise from 12 o'clock → [x,y].
+function pointOnCircle(cx, cy, r, frac) {
+  const a = frac * 2 * Math.PI;
+  return [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+}
+
+// Pie slice (no rInner) or annular segment (rInner) between two fractions
+// (0–1, clockwise). fill-rule evenodd lets the full-circle ring case punch
+// its hole. start/end are pre-validated; this only builds the path string.
+function wedgePath({ cx, cy, r, rInner, start, end }) {
+  if (!(end > start)) return '';
+  const span = end - start;
+  const hasHole = markIsFiniteNumber(rInner) && rInner > 0;
+  if (span >= 0.99999) {
+    const [ox0, oy0] = pointOnCircle(cx, cy, r, 0);
+    const [ox1, oy1] = pointOnCircle(cx, cy, r, 0.5);
+    let d = `M ${r2(ox0)} ${r2(oy0)} A ${r} ${r} 0 1 1 ${r2(ox1)} ${r2(oy1)} A ${r} ${r} 0 1 1 ${r2(ox0)} ${r2(oy0)} Z`;
+    if (hasHole) {
+      const [ix0, iy0] = pointOnCircle(cx, cy, rInner, 0);
+      const [ix1, iy1] = pointOnCircle(cx, cy, rInner, 0.5);
+      d += ` M ${r2(ix0)} ${r2(iy0)} A ${rInner} ${rInner} 0 1 1 ${r2(ix1)} ${r2(iy1)} A ${rInner} ${rInner} 0 1 1 ${r2(ix0)} ${r2(iy0)} Z`;
+    }
+    return d;
+  }
+  const largeArc = span > 0.5 ? 1 : 0;
+  const [px0, py0] = pointOnCircle(cx, cy, r, start);
+  const [px1, py1] = pointOnCircle(cx, cy, r, end);
+  if (hasHole) {
+    const [qx1, qy1] = pointOnCircle(cx, cy, rInner, end);
+    const [qx0, qy0] = pointOnCircle(cx, cy, rInner, start);
+    return `M ${r2(px0)} ${r2(py0)} A ${r} ${r} 0 ${largeArc} 1 ${r2(px1)} ${r2(py1)} L ${r2(qx1)} ${r2(qy1)} A ${rInner} ${rInner} 0 ${largeArc} 0 ${r2(qx0)} ${r2(qy0)} Z`;
+  }
+  return `M ${r2(cx)} ${r2(cy)} L ${r2(px0)} ${r2(py0)} A ${r} ${r} 0 ${largeArc} 1 ${r2(px1)} ${r2(py1)} Z`;
+}
+
+function markStyle(mark) {
+  const p = {};
+  if (mark.strokeWidth !== undefined) p.strokeWidth = mark.strokeWidth;
+  if (mark.opacity !== undefined) p.opacity = mark.opacity;
+  if (mark.dash) p.strokeDasharray = mark.dash;
+  const style = {};
+  if (mark.blend) style.mixBlendMode = mark.blend;
+  if (mark.blur !== undefined) style.filter = `blur(${Math.max(0, mark.blur)}px)`;
+  if (Object.keys(style).length) p.style = style;
+  if (mark.elevate) p.filter = 'url(#creation-map-elevation)';
+  return p;
+}
+
+function wireframeMark(mark) {
+  if (mark.kind === 'text') return mark;
+  return {
+    ...mark,
+    fill: 'none',
+    stroke: '#111111',
+    strokeWidth: 1,
+    opacity: 1,
+    dash: mark.algorithmic ? '4 4' : mark.dash,
+    blend: undefined,
+    elevate: false,
+  };
+}
+
+const MARK_MONO = 'var(--font-geist-mono), monospace';
+const MARK_SANS = 'var(--font-geist-sans), sans-serif';
+
+// Renders one low-level chart mark. Pure; each mark carries its own absolute
+// geometry + styling, independent of the station type-scale. The chart
+// "kinds" (stacked bar, donut, KPI tile) are recipes over these — see the
+// sketch_vocab cards in lib/graph/sketch-vocab/.
+function MarkNode({ mark, mode = 'color' }) {
+  const displayMark = mode === 'wireframe' ? wireframeMark(mark) : mark;
+  const common = markStyle(displayMark);
+  switch (displayMark.kind) {
+    case 'rect':
+      return (
+        <rect
+          x={displayMark.x}
+          y={displayMark.y}
+          width={displayMark.w}
+          height={displayMark.h}
+          rx={displayMark.rx !== undefined ? displayMark.rx : 0}
+          fill={displayMark.fill || 'none'}
+          stroke={displayMark.stroke || 'none'}
+          {...common}
+        />
+      );
+    case 'circle':
+      return (
+        <circle
+          cx={displayMark.cx}
+          cy={displayMark.cy}
+          r={displayMark.r}
+          fill={displayMark.fill || 'none'}
+          stroke={displayMark.stroke || 'none'}
+          {...common}
+        />
+      );
+    case 'wedge':
+      return (
+        <path
+          d={wedgePath(displayMark)}
+          fillRule="evenodd"
+          fill={displayMark.fill || 'none'}
+          stroke={displayMark.stroke || 'none'}
+          {...common}
+        />
+      );
+    case 'line':
+      return (
+        <line
+          x1={displayMark.x1}
+          y1={displayMark.y1}
+          x2={displayMark.x2}
+          y2={displayMark.y2}
+          stroke={displayMark.stroke || '#5f6b7a'}
+          strokeWidth={displayMark.strokeWidth !== undefined ? displayMark.strokeWidth : 1}
+          strokeLinecap="round"
+          {...(displayMark.dash ? { strokeDasharray: displayMark.dash } : {})}
+          {...(displayMark.opacity !== undefined ? { opacity: displayMark.opacity } : {})}
+          {...common}
+        />
+      );
+    case 'polyline':
+      return (
+        <polyline
+          points={displayMark.points.map((p) => `${p[0]},${p[1]}`).join(' ')}
+          fill={displayMark.closed ? displayMark.fill || 'none' : 'none'}
+          stroke={displayMark.stroke || '#5f6b7a'}
+          strokeWidth={displayMark.strokeWidth !== undefined ? displayMark.strokeWidth : 2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          {...(displayMark.dash ? { strokeDasharray: displayMark.dash } : {})}
+          {...(displayMark.opacity !== undefined ? { opacity: displayMark.opacity } : {})}
+          {...common}
+        />
+      );
+    case 'polygon':
+      return (
+        <polygon
+          points={displayMark.points.map((p) => `${p[0]},${p[1]}`).join(' ')}
+          fill={displayMark.fill || 'none'}
+          stroke={displayMark.stroke || 'none'}
+          strokeWidth={displayMark.strokeWidth !== undefined ? displayMark.strokeWidth : 0}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          {...(displayMark.dash ? { strokeDasharray: displayMark.dash } : {})}
+          {...(displayMark.opacity !== undefined ? { opacity: displayMark.opacity } : {})}
+          {...common}
+        />
+      );
+    case 'text':
+      return (
+        <text
+          x={displayMark.x}
+          y={displayMark.y}
+          fill={displayMark.color || displayMark.fill || 'var(--text-primary)'}
+          fontSize={displayMark.size !== undefined ? displayMark.size : 13}
+          fontWeight={displayMark.weight !== undefined ? displayMark.weight : 400}
+          textAnchor={displayMark.anchor || 'start'}
+          fontFamily={displayMark.family === 'mono' ? MARK_MONO : MARK_SANS}
+          {...(displayMark.opacity !== undefined ? { opacity: displayMark.opacity } : {})}
+        >
+          {displayMark.value}
+        </text>
+      );
+    default:
+      return null;
+  }
+}
+
+export default function CreationMap({ manifest, technical = false, compact = false, onNodeClick, mode = 'color', fit = false }) {
   if (!manifest) return null;
-  const { viewBox, stations, edges } = manifest;
+  const { viewBox } = manifest;
+  const stations = Array.isArray(manifest.stations) ? manifest.stations : [];
+  const edges = Array.isArray(manifest.edges) ? manifest.edges : [];
+  const marks = Array.isArray(manifest.marks) ? manifest.marks : [];
   const stationById = new Map(stations.map((s) => [s.id, s]));
   const scale = compact ? TYPE_SCALES.compact : TYPE_SCALES.default;
-  // Stable sort by layer so air stations paint over ground. When no station
-  // carries `layer`, every rank is 0 and the original order is preserved —
-  // keeps /graph and /sketches pixel-identical.
-  const orderedStations = [...stations].sort((a, b) => layerRank(a) - layerRank(b));
+
+  // Unified paint order across stations + marks, ascending z. The `seq`
+  // tiebreak makes the sort stable regardless of engine, so when no node
+  // carries z (and no marks), the original station order is preserved —
+  // keeps /graph and existing /sketches pixel-identical. Edges always paint
+  // first (below), so stations cover their entry points as before.
+  const drawables = [
+    ...stations.map((s, i) => ({ kind: 'station', z: zOf(s), seq: i, node: s })),
+    ...marks.map((m, i) => ({ kind: 'mark', z: zOf(m), seq: stations.length + i, node: m })),
+  ];
+  drawables.sort((a, b) => a.z - b.z || a.seq - b.seq);
+
+  const renderStationNode = (s) => {
+    const style = STATION_STYLES[s.kind] || STATION_STYLES.input;
+    const label = pickLabel(s, technical);
+    const sublabel = pickSublabel(s, technical);
+    const items = pickItems(s, technical);
+    const clickable = Boolean(s.href && onNodeClick);
+    const groupProps = clickable
+      ? {
+          role: 'link',
+          tabIndex: 0,
+          style: { cursor: 'pointer' },
+          onClick: () => onNodeClick(s),
+          onKeyDown: (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onNodeClick(s);
+            }
+          },
+        }
+      : {};
+    return (
+      <g key={s.id} {...groupProps}>
+        <rect
+          x={s.x}
+          y={s.y}
+          width={s.w}
+          height={s.h}
+          rx="10"
+          ry="10"
+          fill={style.fill}
+          stroke={style.stroke}
+          strokeWidth="1.4"
+          strokeDasharray={style.strokeDasharray || undefined}
+          filter={s.layer === 'air' ? 'url(#creation-map-elevation)' : undefined}
+        />
+        <text
+          x={s.x + scale.labelOffsetX}
+          y={s.y + scale.labelOffsetY}
+          fill={style.labelFill}
+          fontSize={scale.labelSize}
+          fontWeight="600"
+          fontFamily="var(--font-geist-sans), sans-serif"
+        >
+          {label}
+        </text>
+        {sublabel ? (
+          <text
+            x={s.x + scale.labelOffsetX}
+            y={s.y + scale.sublabelOffsetY}
+            fill="var(--text-muted)"
+            fontSize={scale.sublabelSize}
+            fontFamily={
+              technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'
+            }
+          >
+            {sublabel}
+          </text>
+        ) : null}
+        {items.map((item, idx) => (
+          <text
+            key={`${s.id}-item-${idx}`}
+            x={s.x + scale.labelOffsetX}
+            y={s.y + (sublabel ? scale.itemFirstOffsetWithSublabel : scale.itemFirstOffset) + idx * scale.itemLineHeight}
+            fill="var(--text-secondary)"
+            fontSize={scale.itemSize}
+            fontFamily={
+              technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'
+            }
+          >
+            • {item}
+          </text>
+        ))}
+      </g>
+    );
+  };
 
   return (
     <svg
       viewBox={`0 0 ${viewBox.width} ${viewBox.height}`}
-      className="w-full h-auto"
+      className={fit ? 'w-full h-full block' : 'w-full h-auto'}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="App creation map"
     >
@@ -328,81 +594,13 @@ export default function CreationMap({ manifest, technical = false, compact = fal
         );
       })}
 
-      {orderedStations.map((s) => {
-        const style = STATION_STYLES[s.kind] || STATION_STYLES.input;
-        const label = pickLabel(s, technical);
-        const sublabel = pickSublabel(s, technical);
-        const items = pickItems(s, technical);
-        const clickable = Boolean(s.href && onNodeClick);
-        const groupProps = clickable
-          ? {
-              role: 'link',
-              tabIndex: 0,
-              style: { cursor: 'pointer' },
-              onClick: () => onNodeClick(s),
-              onKeyDown: (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onNodeClick(s);
-                }
-              },
-            }
-          : {};
-        return (
-          <g key={s.id} {...groupProps}>
-            <rect
-              x={s.x}
-              y={s.y}
-              width={s.w}
-              height={s.h}
-              rx="10"
-              ry="10"
-              fill={style.fill}
-              stroke={style.stroke}
-              strokeWidth="1.4"
-              strokeDasharray={style.strokeDasharray || undefined}
-              filter={s.layer === 'air' ? 'url(#creation-map-elevation)' : undefined}
-            />
-            <text
-              x={s.x + scale.labelOffsetX}
-              y={s.y + scale.labelOffsetY}
-              fill={style.labelFill}
-              fontSize={scale.labelSize}
-              fontWeight="600"
-              fontFamily="var(--font-geist-sans), sans-serif"
-            >
-              {label}
-            </text>
-            {sublabel ? (
-              <text
-                x={s.x + scale.labelOffsetX}
-                y={s.y + scale.sublabelOffsetY}
-                fill="var(--text-muted)"
-                fontSize={scale.sublabelSize}
-                fontFamily={
-                  technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'
-                }
-              >
-                {sublabel}
-              </text>
-            ) : null}
-            {items.map((item, idx) => (
-              <text
-                key={`${s.id}-item-${idx}`}
-                x={s.x + scale.labelOffsetX}
-                y={s.y + (sublabel ? scale.itemFirstOffsetWithSublabel : scale.itemFirstOffset) + idx * scale.itemLineHeight}
-                fill="var(--text-secondary)"
-                fontSize={scale.itemSize}
-                fontFamily={
-                  technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'
-                }
-              >
-                • {item}
-              </text>
-            ))}
-          </g>
-        );
-      })}
+      {drawables.map((d) =>
+        d.kind === 'station' ? (
+          renderStationNode(d.node)
+        ) : (
+          <MarkNode key={`mark-${d.seq}`} mark={d.node} mode={mode} />
+        ),
+      )}
     </svg>
   );
 }

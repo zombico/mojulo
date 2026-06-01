@@ -42,6 +42,7 @@ function buildPresentServerSet() {
 function resolveCall(call, presentSet) {
   const out = { server: call.server, present: presentSet.has(String(call.server).toLowerCase()) };
   if (call.role) out.role = call.role;
+  if (Array.isArray(call.tools)) out.tools = call.tools;
   return out;
 }
 
@@ -84,6 +85,10 @@ function projectComposition(comp, presentSet) {
     summary: comp.intentMd || null,
     calls: mcpRefs.map((r) => resolveCall({ server: r.ref, role: r.role }, presentSet)),
     needs: [],
+    components: comp.componentRefs || [],
+    knobs: comp.knobs || {},
+    artifactRef: comp.artifactRef || null,
+    status: comp.status,
     provenance: { source: 'orbit', compositionRef: comp.ref },
     materializedAt: comp.updatedAt || comp.createdAt,
   };

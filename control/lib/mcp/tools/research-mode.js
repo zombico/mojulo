@@ -20,6 +20,8 @@
  *   - bind_research_item    — accrete a broad item.
  *   - synthesize_abstract   — distill the book; optionally evaluate via the
  *     research→plan bridge.
+ *   - sketch_research       — preview the book as a hub-spoke diagram without
+ *     synthesizing. Standalone sketch (not bound to the book).
  *   - get_research          — read a full book (session + items + abstracts).
  *   - list_research         — list sessions.
  *
@@ -31,10 +33,19 @@
 import { registerTool } from '@/lib/mcp/server';
 import { ResearchRepository } from '@/lib/db/repositories/research';
 import { evaluateAbstract } from '@/lib/research/evaluate';
+import { mintSketch } from '@/lib/mcp/tools/sketches';
+import { researchToSketchManifest } from '@/lib/graph/sketch-derive';
+
+function sketchUrl(ref) {
+  return `/sketches/${encodeURIComponent(ref)}`;
+}
 
 // Broad but known item kinds. A book holds anything, but the bind tool gates
 // on this set so a typo doesn't silently create a junk kind. Adding a kind is
-// a one-line change here — the table column stays freeform on purpose.
+// a one-line change here — the table column stays freeform on purpose. The
+// `sketch` kind is the ad hoc diagram-reference path: bind an existing
+// `sk_<…>` sketch via media_ref (counterpart to the auto-minted diagram that
+// synthesize_abstract attaches to each thesis).
 const KNOWN_KINDS = new Set([
   'link',
   'article',
@@ -43,6 +54,7 @@ const KNOWN_KINDS = new Set([
   'note',
   'quote',
   'snippet',
+  'sketch',
 ]);
 
 const RESEARCH_BRIEF = `# Research mode
@@ -61,7 +73,44 @@ If, while gathering, a concept emerges that *could become work*, call \`synthesi
 
 ## Lifecycle
 
-start_research (auto-saves) → bind_research_item (loop, broadly) → synthesize_abstract (distill → optionally evaluate). No compile, no execute. You decide if and when to synthesize.`;
+start_research (auto-saves) → bind_research_item (loop, broadly) → synthesize_abstract (distill → optionally evaluate). No compile, no execute. You decide if and when to synthesize.
+
+## Gather / Stash — the sharper path
+
+There is now a second, sharper-edged path with a typed intake contract: **Gather** (the verb) binds items into a **Stash** (a renameable user-facing bucket with optional Drawers). Use this path when you want the UI to render items meaningfully (each item has a type — text / markdown / image / svg / script / pointer / link — and the gate validates required-per-type metadata).
+
+- \`mint_stash({ title })\` — create a stash (returns \`stash_ref\`).
+- \`gather({ stash_ref, type, …per-type fields, drawer? })\` — bind a typed item. Malformed items are *rejected at the gate*, not stored as junk.
+- \`mint_drawer({ stash_ref, name })\` — optional sub-grouping.
+- \`rename_stash\`, \`list_stashes\`, \`get_stash\` for the rest.
+
+Stashes coexist with the legacy research book — both surfaces work, but a Stash is a richer artifact (and the only one Cook will collide). Prefer Gather/Stash for new gatherings; \`synthesize_abstract\` for now still operates on the legacy research session path.
+
+## Cook — the nucleation collider (low-frequency, high-signal)
+
+Gathering is the routine. **Cook is the irruption** — you only fire it when enough material has accreted that nucleation is possible AND a real *dismantling question* presents itself. Most sessions never cook; that's correct.
+
+### The binding vow
+
+A Cook aims its nucleation arrow at **ONE target** — the singular \`aim\`. If you find yourself wanting to nucleate two outcomes from the same superposition, that is *two cooks*. Refuse to compound them. The body of a report can enumerate, structure, and detail; the **outcome** is the singular framing the aim names.
+
+> "What open questions remain?" is ONE aim. The body lists six questions — that is *inferred sub-structure within the single answer*, not six separate outcomes.
+
+### The three requirements
+
+1. **Cleave slices of context from Stash(es).** A slice is a *deliberate cut* — \`{ stash_ref, item_ids? }\`. Choose the items. Omitting \`item_ids\` for a whole-stash slice is allowed but should be the exception; if you haven't chosen, you haven't cleaved. Multiple slices, including across stashes, are the superposition you nucleate from.
+
+2. **A dismantling question, not an exploratory one.** A dismantling question seeks *pattern in the situation*: "what unifies these?", "where do these disagree?", "what is the hidden structure?". Exploratory questions ("tell me about X") are *gathering* — they belong upstream.
+
+3. **Nucleate one new artifact.** You author \`report_md\` — a tight, focused composition aimed at the singular target. The slices are **recombinator material, not citation material**: they flavor the prose's reasoning and language without appearing in it as quotes or "we read X then Y." If the report cites slices like sources, you are writing a Wiki page, not a Cook outcome.
+
+### Tool surface
+
+- \`cook({ slices: [{ stash_ref, item_ids? }, …], aim, report_md, suggested_lens?, visuals?, additional_context? })\` — materializes the Outcome Artifact folder (\`control/data/outcomes/<cook_ref>/\` with report.md, static index.html, manifest.json, optional svg/png). Returns \`{ cook_ref, outcome_url, … }\`.
+- \`get_cook({ cook_ref })\` — read a cook row (the index pointing at its folder).
+- \`list_cooks({ limit? })\` — the outcomes inbox.
+
+The cook tool is the only tool that fires the furnace. Mojulo materializes the artifact; you do the nucleating.`;
 
 // ---------------------------------------------------------------------------
 // handlers
@@ -132,10 +181,40 @@ export async function synthesizeAbstractHandler(input, _ctx) {
   }
 
   const itemCount = ResearchRepository.countItems(research_ref);
-  const row = ResearchRepository.insertAbstract({ researchRef: research_ref, body: abstract, itemCount });
+
+  // Posterity: auto-mint a hub-spoke diagram of the book (items → thesis) so
+  // each append-only abstract snapshot carries its own diagram. Soft-fail — a
+  // sketch hiccup must never block recording the thesis (sketches are scratch
+  // siblings).
+  let sketchRef = null;
+  let sketchWarning = null;
+  try {
+    const book = ResearchRepository.getFullBook(research_ref);
+    const { ref } = mintSketch({
+      title: `Research: ${session.title}`,
+      manifest: researchToSketchManifest(book, abstract),
+    });
+    sketchRef = ref;
+  } catch (err) {
+    sketchWarning = err?.message || String(err);
+  }
+
+  const row = ResearchRepository.insertAbstract({
+    researchRef: research_ref,
+    body: abstract,
+    itemCount,
+    sketchRef,
+  });
 
   if (!evaluate) {
-    return { ok: true, abstract_id: row.id, item_count: itemCount, evaluated: false };
+    return {
+      ok: true,
+      abstract_id: row.id,
+      item_count: itemCount,
+      evaluated: false,
+      ...(sketchRef ? { sketch_ref: sketchRef, sketch_url: sketchUrl(sketchRef) } : {}),
+      ...(sketchWarning ? { sketch_warning: sketchWarning } : {}),
+    };
   }
 
   // In-process short-circuit to the same evaluator the HTTP bridge wraps.
@@ -155,9 +234,43 @@ export async function synthesizeAbstractHandler(input, _ctx) {
     item_count: itemCount,
     evaluated: true,
     assessment,
+    ...(sketchRef ? { sketch_ref: sketchRef, sketch_url: sketchUrl(sketchRef) } : {}),
+    ...(sketchWarning ? { sketch_warning: sketchWarning } : {}),
     ...(planRef
       ? { plan_ref: planRef, message: `Abstract evaluated as tractable — forged Draft plan ${planRef}. Open plan mode to develop it.` }
       : { message: `Abstract recorded; plan mojulo recommends continued research${assessment.missing.length ? `: ${assessment.missing.join('; ')}` : '.'}` }),
+  };
+}
+
+export async function sketchResearchHandler(input, _ctx) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('sketch_research requires an object with research_ref');
+  }
+  const { research_ref, thesis } = input;
+  if (!research_ref || typeof research_ref !== 'string') {
+    throw new Error('research_ref is required');
+  }
+  const book = ResearchRepository.getFullBook(research_ref);
+  if (!book) {
+    throw new Error(`Research session '${research_ref}' not found.`);
+  }
+  const itemCount = book.items.length;
+  if (itemCount === 0) {
+    throw new Error(
+      `Research session '${research_ref}' has no bound items — nothing to sketch. Bind items via bind_research_item first.`,
+    );
+  }
+  const { ref } = mintSketch({
+    title: `Research: ${book.session.title}`,
+    manifest: researchToSketchManifest(book, thesis || ''),
+  });
+  return {
+    ok: true,
+    research_ref,
+    sketch_ref: ref,
+    sketch_url: sketchUrl(ref),
+    item_count: itemCount,
+    message: `Sketched book (${itemCount} item(s) → thesis hub) at ${sketchUrl(ref)}. Standalone preview — not bound to the book; pass it to bind_research_item with kind:'sketch' to keep it.`,
   };
 }
 
@@ -195,6 +308,8 @@ export async function getResearchHandler(input, _ctx) {
       item_count: a.itemCount,
       plan_ref: a.planRef,
       assessment: a.assessment,
+      sketch_ref: a.sketchRef,
+      ...(a.sketchRef ? { sketch_url: sketchUrl(a.sketchRef) } : {}),
       created_at: a.createdAt,
     })),
   };
@@ -245,20 +360,20 @@ export function registerResearchModeTools() {
   registerTool({
     name: 'bind_research_item',
     description:
-      "Ring 9 — bind a broad item to a research book. The core accretion verb; call it as many times as useful. `kind` is one of: link, article, summary, screencap, note, quote, snippet. Bind summaries you generate as their own items so the book remembers what it concluded. screencap items reference stored media via media_ref. Returns { item_id, research_ref, kind }.",
+      "Ring 9 — bind a broad item to a research book. The core accretion verb; call it as many times as useful. `kind` is one of: link, article, summary, screencap, note, quote, snippet, sketch. Bind summaries you generate as their own items so the book remembers what it concluded. screencap items reference stored media via media_ref; `sketch` items reference an existing `sk_<…>` diagram (from create_sketch) via media_ref — the ad hoc way to pin a diagram into a book. Returns { item_id, research_ref, kind }.",
     inputSchema: {
       type: 'object',
       properties: {
         research_ref: { type: 'string', description: 'The research session to bind into.' },
         kind: {
           type: 'string',
-          enum: ['link', 'article', 'summary', 'screencap', 'note', 'quote', 'snippet'],
+          enum: ['link', 'article', 'summary', 'screencap', 'note', 'quote', 'snippet', 'sketch'],
           description: 'The kind of item.',
         },
         title: { type: 'string', description: 'Optional short title/label.' },
         body: { type: 'string', description: 'Markdown body — article text, the summary, the note, the quote, the snippet.' },
         source_url: { type: 'string', description: 'Optional source URL (for link / article / quote).' },
-        media_ref: { type: 'string', description: 'Optional reference to stored media (for screencap).' },
+        media_ref: { type: 'string', description: 'Reference to stored media (for screencap) or a `sk_<…>` sketch ref (for kind=sketch).' },
         metadata: { type: 'object', description: 'Optional free-form metadata.' },
       },
       required: ['research_ref', 'kind'],
@@ -269,7 +384,7 @@ export function registerResearchModeTools() {
   registerTool({
     name: 'synthesize_abstract',
     description:
-      "Ring 9 — distill the research book into a tight thesis (what concept emerged, why it matters, what it implies). Records the abstract (append-only history). With `evaluate: true`, sends the abstract to plan mojulo for evaluation against the plans paradigm: supply your own judgment via `suggested_lens` + `recommendation` (`forge` if there's a tractable spike — plan mojulo forges a Draft plan seeded from the abstract; `keep_researching` with a `missing` list otherwise). Returns { abstract_id, item_count, evaluated, assessment?, plan_ref? }. Forging a plan does nothing on its own — it hands the baton to plan mode.",
+      "Ring 9 — distill the research book into a tight thesis (what concept emerged, why it matters, what it implies). Records the abstract (append-only history) AND auto-mints a hub-spoke DIAGRAM of the book (items → thesis) attached to this snapshot — `sketch_url` in the response, viewable in the /research pane. With `evaluate: true`, sends the abstract to plan mojulo for evaluation against the plans paradigm: supply your own judgment via `suggested_lens` + `recommendation` (`forge` if there's a tractable spike — plan mojulo forges a Draft plan seeded from the abstract; `keep_researching` with a `missing` list otherwise). Returns { abstract_id, item_count, evaluated, sketch_ref?, sketch_url?, assessment?, plan_ref? }. Forging a plan does nothing on its own — it hands the baton to plan mode.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -299,6 +414,24 @@ export function registerResearchModeTools() {
       required: ['research_ref', 'abstract'],
     },
     handler: synthesizeAbstractHandler,
+  });
+
+  registerTool({
+    name: 'sketch_research',
+    description:
+      "Ring 9 — preview the research book as a hub-spoke diagram WITHOUT synthesizing an abstract. Derives the same diagram `synthesize_abstract` auto-mints (items → central thesis hub). Standalone — NOT bound to the book or any abstract (research sketches are normally tied to abstracts; this is a free-standing preview). Useful while gathering: visualize the shape of the book at any moment, or preview what a candidate thesis would look like as the hub label before committing to synthesize. To keep the sketch in the book, bind it with bind_research_item({ kind:'sketch', media_ref: <sketch_ref> }). Refuses on empty book (nothing to draw). Returns { ok, research_ref, sketch_ref, sketch_url, item_count, message }.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        research_ref: { type: 'string', description: 'The research session to sketch.' },
+        thesis: {
+          type: 'string',
+          description: 'Optional candidate thesis text — populates the hub station\'s sublabel so you can preview what a thesis would look like before synthesizing.',
+        },
+      },
+      required: ['research_ref'],
+    },
+    handler: sketchResearchHandler,
   });
 
   registerTool({

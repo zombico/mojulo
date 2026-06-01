@@ -1,20 +1,26 @@
 ---
 name: sketch
-description: Mint a flow-charty diagram via the control plane's `create_sketch` MCP tool, returning a `/sketches/<ref>` URL the user can open. Use when the user asks for a quick visual ("draw me X", "show how Y works", "diagram of Z") and the topology fits a small set of boxes and arrows. Push back if the request needs a real diagram editor (sequence/UML, swimlanes, tables) or if the answer is words. Invoke as `/sketch <one-line intent>`.
+description: Mint a diagram via the control plane's `create_sketch` MCP tool, returning a `/sketches/<ref>` URL the user can open. Use for quick visuals ("draw me X", "show how Y works", "diagram of Z") — flow charts (boxes + arrows) AND data charts (stacked bar, donut/ring, KPI tiles, etc.). The chart vocabulary is retrieved on demand from `semantic_search` (kinds: ['sketch_vocab']), not memorized. Push back if the request needs a real diagram editor (sequence/UML, swimlanes) or an interactive/spreadsheet artifact, or if the answer is words. Invoke as `/sketch <one-line intent>`.
 ---
 
 # /sketch
 
-Turn a user's "show me this visually" request into a `create_sketch` MCP call against the mojulo control plane and hand back the URL. The renderer is hand-positioned SVG with a tight vocab — your job is to map intent onto that vocab cleanly, position stations so the diagram reads at a glance, and pick edge verbs that earn their place.
+Turn a user's "show me this visually" request into a `create_sketch` MCP call against the mojulo control plane and hand back the URL. The renderer is hand-positioned SVG. Two vocabularies share one manifest:
+
+- **Flow** — `stations[]` (typed boxes) + `edges[]` (labeled arrows). For workflows, data flows, decision chains, architectures.
+- **Charts** — `marks[]` (low-level primitives: rect, circle, wedge, line, polyline, text) that compose into stacked bars, donuts/rings, KPI tiles, etc. The chart layout vocabulary is **retrieved on demand** from `semantic_search` (kinds: `['sketch_vocab']`), then read in full via `get_sketch_vocab` — it is *not* memorized here, so you read intent first and pull only the paradigm that fits. See Step 1.5.
+
+Both can coexist in one manifest (a flow on one side of a `grid`, a chart on the other). Your job is to map intent onto the right vocabulary, position things so the result reads at a glance, and — for charts — follow the retrieved card's layout math so it looks composed, not freehanded.
 
 The control plane must be running at `http://localhost:3001` (or wherever the user has it) and the mojulo MCP must be connected. If `create_sketch` isn't in `tools/list`, stop and tell the user to start the control plane.
 
 ## Read these first
 
-- [control/lib/mcp/tools/sketches.js](control/lib/mcp/tools/sketches.js) — the tool's schema. The description block names what each station kind is for; don't drift from it.
-- [control/lib/graph/sketch-manifest.js](control/lib/graph/sketch-manifest.js) — the validator. Your manifest must pass this; if you violate it the call errors with line-specific feedback.
-- [control/components/graph/CreationMap.jsx](control/components/graph/CreationMap.jsx) — the renderer. Read `STATION_STYLES` to see what each kind actually looks like; read `edgePath` to understand how `via: 'right'` routes around lane interiors.
-- [control/lib/graph/creation-map.js](control/lib/graph/creation-map.js) — the curated reference sketch. Study its positioning, lane structure, label voice. Your output should feel of-a-piece with this one.
+- [control/lib/mcp/tools/sketches.js](control/lib/mcp/tools/sketches.js) — the tool's schema (`create_sketch` + `get_sketch_vocab`). The description block names what each station kind is for and how `marks`/`grid`/`z` work; don't drift from it.
+- [control/lib/graph/sketch-manifest.js](control/lib/graph/sketch-manifest.js) — the validator + `expandGridLayout`. Your manifest must pass validation; if you violate it the call errors with field-specific feedback.
+- [control/components/graph/CreationMap.jsx](control/components/graph/CreationMap.jsx) — the renderer. Read `STATION_STYLES` for station looks; `edgePath` for `via` routing; `MarkNode` + `wedgePath` for how the chart primitives render.
+- [control/lib/graph/sketch-vocab/](control/lib/graph/sketch-vocab/) — the chart vocabulary cards (the source of truth for chart layout). You normally reach these via `semantic_search` + `get_sketch_vocab`, not by reading the dir — but the files are here if you want the full catalog.
+- [control/lib/graph/creation-map.js](control/lib/graph/creation-map.js) — the curated reference sketch. Study its positioning, lane structure, label voice. Flow output should feel of-a-piece with this one.
 
 The plan that established this surface: [lite-template/integration/app-system/0527/SKETCHBOOK_PLAN.md](lite-template/integration/app-system/0527/SKETCHBOOK_PLAN.md).
 
@@ -25,13 +31,28 @@ A sketch is the **wrong tool** in these cases:
 1. **The user wants a table.** Tables aren't diagrams — they're tables. Render them as markdown.
 2. **The user wants a sequence diagram with timing/swimlanes.** The 4-kind palette has no actor lane, no temporal ordering primitive. Suggest Mermaid in a markdown response instead.
 3. **The user wants something interactive** (clickable nodes, expandable groups, live data overlays). Sketches are static SVG.
-4. **The topology has > ~12 stations or > ~20 edges.** The renderer doesn't auto-layout; hand-positioning at that density gets brittle and the result is unreadable on a single screen.
+4. **The topology is too dense to hand-position.** Flow: > ~12 stations or > ~20 edges. Chart: more series/segments than read clearly (a donut past ~6 slices, a stacked bar past ~6 series). The renderer doesn't auto-layout; past those densities the result is unreadable on a single screen.
 5. **The answer is a paragraph.** If the structure isn't visual ("how does auth work" can be 4 boxes; "why did this design win" cannot), write the paragraph.
 6. **The user wants a permanent reference doc.** Sketches are scratch. If they need the diagram to live somewhere durable, point them at writing a curated manifest under `control/lib/graph/sketches/` (future, see plan §10 Phase 3).
 
+Charts (bar / donut / KPI tile / etc.) are now **in scope** — they were not in v1. A table is still not a chart; a request for tabular data is still §1.
+
 When pushing back, name the specific failure and suggest the right alternative (Mermaid, markdown table, prose). Don't try to bend a sketch into shapes it doesn't fit.
 
-## Step 2 — Decompose the intent
+## Step 1.5 — Chart or flow? (retrieve the chart vocabulary first)
+
+Decide what the user is really asking to see:
+
+- **A quantity, comparison, proportion, KPI, trend, or overlap** → it's a **data chart**. Build it from `marks[]`, and you MUST retrieve the layout first:
+  1. `semantic_search({ query: "<the user's intent, phrased naturally>", kinds: ["sketch_vocab"], limit: 4 })` — returns ranked card refs.
+  2. Read the top 1–3 with `get_sketch_vocab({ id })` (call it with no `id` to list the catalog).
+  3. Compose your marks from the card's **layout math** — don't freehand a paradigm you didn't retrieve. Pull `grid-layout` and `z-layering` too when you're laying out a multi-panel board.
+- **A flow / structure** (steps, components, who-calls-what) → it's the station/edge vocabulary. Skip to Step 2.
+- **A board** (KPI row + a chart + maybe a flow) → retrieve `grid-layout` + the relevant chart cards, lay the `grid`, then place stations and chart marks into cells / absolute coords per the cards.
+
+The point of retrieval: the cards carry the discipline that makes a chart look composed. Reading intent and pulling the matching card beats guessing pixel math. For a pure flow, there's nothing to retrieve — continue below.
+
+## Step 2 — Decompose the intent (flow vocabulary)
 
 Before drafting any coordinates, on a scratch list:
 
@@ -160,6 +181,8 @@ Build the manifest object in your head (or on a scratch line), then call the too
 }
 ```
 
+For **charts**, add `marks: [ ... ]` (and optionally a top-level `grid` + per-node `z`) using the exact shapes from the `sketch_vocab` card you retrieved in Step 1.5 — the card's example fragments ARE the shapes. `stations`/`edges` are optional when the manifest is marks-only; `marks` is optional when it's a pure flow. At least one of the two must be non-empty. Don't hand-write chart marks from memory — copy the card's layout math.
+
 Label voice:
 - **Station `label`**: noun phrase, sentence case ("User", "Create sketch", "sketches table", "Operator inputs"). Avoid all-caps. Avoid trailing punctuation.
 - **Station `sublabel`**: one short clarifying line ("MCP tool", "DB row", "Claude Code"). Don't repeat the kind.
@@ -175,11 +198,12 @@ Size heuristics:
 
 Before you call `create_sketch`, walk through:
 
-1. **Validator parity.** Every `from`/`to` resolves to a station id. Station ids are unique. Every station's `kind` is in `{input, mcp_tool, filesystem, db_row}`. Every `x/y/w/h` is a finite number. ViewBox width/height positive. (See [sketch-manifest.js](control/lib/graph/sketch-manifest.js) — these are the rules the server enforces.)
-2. **Layout sanity.** No two stations overlap. Every station is inside the viewBox (`x + w ≤ viewBox.width`, `y + h ≤ viewBox.height`).
+1. **Validator parity.** Every `from`/`to` resolves to a station id. Station ids are unique. Every station's `kind` is in `{input, mcp_tool, filesystem, db_row}`; every mark's `kind` is in `{rect, circle, wedge, line, polyline, text}`. Every required coord is a finite number (or the box uses a `cell` with a top-level `grid`). `wedge` `start`/`end` are fractions in `[0,1]` with `end ≥ start`. ViewBox width/height positive. (See [sketch-manifest.js](control/lib/graph/sketch-manifest.js) — these are the rules the server enforces.)
+2. **Layout sanity.** No two stations overlap. Everything is inside the viewBox (`x + w ≤ viewBox.width`, etc.). For charts, the marks sit inside their intended panel/zone.
 3. **Edge clarity.** No edge crosses through a station that isn't its endpoint without a `via` route around it. If the path is close-but-not-piercing, a `curvature > 1` is the lighter fix.
-4. **Label voice consistency.** All edge labels are lowercase verbs. All station labels are sentence-case noun phrases.
-5. **Density.** 3-12 stations. 1-20 edges. If you're outside this band, revisit Step 1 §4.
+4. **Fidelity to the card.** For charts: the marks match the retrieved `sketch_vocab` card's layout math (cumulative wedge fractions sum to 1, stacked-segment heights computed from a consistent scale, etc.). You didn't freehand a paradigm.
+5. **Label voice consistency.** All edge labels are lowercase verbs. All station labels are sentence-case noun phrases.
+6. **Density.** Flow: 3–12 stations, 1–20 edges. Chart: segments/series within the readable band (Step 1 §4).
 
 ## Step 7 — Call `create_sketch`
 

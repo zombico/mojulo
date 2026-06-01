@@ -25,17 +25,18 @@ function rowToSketch(row) {
     title: row.title,
     manifest,
     createdAt: row.created_at,
+    folderRef: row.folder_ref || null,
   };
 }
 
 export const SketchRepository = {
-  create({ title, manifest, ref }) {
+  create({ title, manifest, ref, folderRef }) {
     const db = getDb();
     const finalRef = ref || shortRef();
     db.prepare(
-      `INSERT INTO sketches (ref, title, manifest_json, created_at)
-       VALUES (?, ?, ?, unixepoch())`,
-    ).run(finalRef, title, JSON.stringify(manifest));
+      `INSERT INTO sketches (ref, title, manifest_json, folder_ref, created_at)
+       VALUES (?, ?, ?, ?, unixepoch())`,
+    ).run(finalRef, title, JSON.stringify(manifest), folderRef || null);
     return this.getByRef(finalRef);
   },
 
@@ -43,6 +44,44 @@ export const SketchRepository = {
     const db = getDb();
     const row = db.prepare('SELECT * FROM sketches WHERE ref = ?').get(ref);
     return rowToSketch(row);
+  },
+
+  // In-place update of an existing sketch. Any of title/manifest/folderRef
+  // may be passed; missing fields are left untouched. Pass folderRef=null
+  // explicitly to move the sketch to root. Returns the refreshed sketch row,
+  // or null if no row matches `ref`. Used by the rename UI, the move-to-
+  // folder affordance, and the update_sketch MCP tool.
+  update({ ref, title, manifest, folderRef }) {
+    if (!ref) return null;
+    const existing = this.getByRef(ref);
+    if (!existing) return null;
+    const db = getDb();
+    const nextTitle = title === undefined ? existing.title : title;
+    const nextManifest =
+      manifest === undefined ? existing.manifest : manifest;
+    const nextFolderRef =
+      folderRef === undefined ? existing.folderRef : folderRef || null;
+    db.prepare(
+      `UPDATE sketches
+          SET title = ?, manifest_json = ?, folder_ref = ?
+        WHERE ref = ?`,
+    ).run(nextTitle, JSON.stringify(nextManifest), nextFolderRef, ref);
+    return this.getByRef(ref);
+  },
+
+  // Bulk move: set folder_ref on every row whose ref is in `refs`. Pass
+  // folderRef=null to move to root. Returns the number of rows updated.
+  // Used by the multi-select "move to folder" affordance.
+  moveMany({ refs, folderRef }) {
+    if (!Array.isArray(refs) || refs.length === 0) return 0;
+    const db = getDb();
+    const placeholders = refs.map(() => '?').join(',');
+    const result = db
+      .prepare(
+        `UPDATE sketches SET folder_ref = ? WHERE ref IN (${placeholders})`,
+      )
+      .run(folderRef || null, ...refs);
+    return result.changes;
   },
 
   // Returns recent sketches first, capped at `limit`. Used by the index

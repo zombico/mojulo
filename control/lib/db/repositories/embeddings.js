@@ -2,10 +2,11 @@
  * meta_embeddings repository — single semantic-search sidecar over durable
  * app state.
  *
- * One table covers seven source kinds (principles, mcp tools, capability
+ * One table covers eight source kinds (principles, mcp tools, capability
  * bodies, orbit components/compositions/provider artifacts, catalyst
- * markdown). Each row is `(source_kind, source_ref) -> (content_hash,
- * body_text, embedding, model)`. The agent reads through the
+ * markdown, sketch vocabulary cards). Each row is
+ * `(source_kind, source_ref) -> (content_hash, body_text, embedding, model)`.
+ * The agent reads through the
  * `semantic_search` MCP tool; writes are driven from the source-row write
  * paths via the split sync/async API documented below.
  *
@@ -52,6 +53,7 @@ export const SOURCE_KINDS = [
   'orbit_composition',
   'orbit_artifact',
   'catalyst',
+  'sketch_vocab',
 ];
 
 const SNIPPET_MAX_CHARS = 280;
@@ -476,6 +478,17 @@ export const BodyComposition = {
     }
     return lines.join('\n');
   },
+  sketchVocab(card) {
+    // The retrieval signal is the "when" line + summary + body (layout math).
+    // Lead with name/summary/when so a query phrased as an intent ("show
+    // proportions of a whole") matches the card before the geometry prose.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
 };
 
 // ── reindexAll ────────────────────────────────────────────────────────────
@@ -595,6 +608,20 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`catalysts: ${catalog.size}`);
+
+  // 8. Sketch vocabulary — filesystem markdown via the loader. The cards are
+  // the retrieval-primed chart vocabulary the /sketch skill queries before
+  // composing (kinds: ['sketch_vocab']). Repo-curated, like catalysts.
+  const { getSketchVocabCatalog } = await import('../../graph/sketch-vocab/loader.js');
+  const vocab = getSketchVocabCatalog();
+  for (const card of vocab.values()) {
+    items.push({
+      sourceKind: 'sketch_vocab',
+      sourceRef: card.id,
+      bodyText: BodyComposition.sketchVocab(card),
+    });
+  }
+  log(`sketch_vocab: ${vocab.size}`);
 
   if (items.length === 0) {
     log('nothing to index');

@@ -59,7 +59,7 @@ function deriveServiceNodes(services, nodes) {
       kind: 'input',
       label: svc.name || svc.ref,
       sublabel: truncate(svc.summary) || svc.form || svc.kind,
-      // services carry no href in v1 (no detail page yet)
+      href: `/mcp-skills/${encodeURIComponent(svc.ref)}`,
     });
   }
 }

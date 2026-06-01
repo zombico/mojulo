@@ -25,6 +25,11 @@ import { listApps } from '@/lib/apps/loader';
 import { listConnectedServices } from '@/lib/connected-services/loader';
 
 const TOP_TOOLS = 3;
+const SYSTEM_SERVER_NAMES = new Set(['mojulo']);
+
+function isSystemServerName(name) {
+  return SYSTEM_SERVER_NAMES.has(String(name || '').toLowerCase());
+}
 
 // mojulo is its own MCP server; classify it as `self` so the air plane can read
 // the "everything calls mojulo" hub distinctly from vendor/app servers.
@@ -41,6 +46,13 @@ function projectServer(server) {
     toolCount: tools.length,
     topTools: tools.slice(0, TOP_TOOLS).map((t) => t.name || String(t)),
     runningRef: server.runningRef || null,
+  };
+}
+
+function projectServiceForScene(service) {
+  return {
+    ...service,
+    calls: (service.calls || []).filter((call) => !isSystemServerName(call.server)),
   };
 }
 
@@ -105,9 +117,13 @@ function buildExposesLinks(apps, servers) {
  */
 export async function loadFleetScene() {
   const inventory = InventoryRepository.currentInventory();
-  const servers = (inventory.servers || []).map(projectServer);
+  const servers = (inventory.servers || [])
+    .filter((server) => !isSystemServerName(server.name))
+    .map(projectServer)
+    .filter((server) => server.kind !== 'self');
 
-  const { services } = listConnectedServices();
+  const { services: rawServices } = listConnectedServices();
+  const services = rawServices.map(projectServiceForScene);
 
   const apps = (listApps().apps || []).map(projectApp);
 

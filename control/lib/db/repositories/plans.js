@@ -64,6 +64,10 @@ function rowToPlan(row) {
     archived: row.archived === 1,
     archivedAt: row.archived_at ?? null,
     release: parseJSON(row.release_json, null),
+    // Optional diagram pointer. Pinned = operator hand-linked a sketch (compile
+    // won't overwrite it); unpinned = auto-minted from the manifest at compile.
+    sketchRef: row.sketch_ref ?? null,
+    sketchPinned: row.sketch_pinned === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -80,7 +84,7 @@ export const PlanRepository = {
    * optional — a plan can start as goal-only and accrete its shadow scratchpad
    * through revisions. Returns the inserted plan.
    */
-  forge({ title, goalMd, lens, frame, manifest, analysis }) {
+  forge({ title, goalMd, lens, frame, manifest, analysis, sketchRef }) {
     if (!title || typeof title !== 'string') {
       throw new Error('title is required');
     }
@@ -94,11 +98,15 @@ export const PlanRepository = {
     }
     const db = getDb();
     const planRef = generateRef();
+    // An explicit sketchRef at forge time is an operator pin — flag it so
+    // compile's auto-mint leaves it alone.
+    const pinned = sketchRef ? 1 : 0;
     const result = db
       .prepare(
         `INSERT INTO plans
-           (plan_ref, title, goal_md, lens, frame_json, manifest_json, analysis_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (plan_ref, title, goal_md, lens, frame_json, manifest_json, analysis_json,
+            sketch_ref, sketch_pinned)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         planRef,
@@ -108,6 +116,8 @@ export const PlanRepository = {
         frame ? JSON.stringify(frame) : null,
         manifest ? JSON.stringify(manifest) : null,
         analysis ? JSON.stringify(analysis) : null,
+        sketchRef ?? null,
+        pinned,
       );
     const row = db.prepare('SELECT * FROM plans WHERE id = ?').get(result.lastInsertRowid);
     return rowToPlan(row);
@@ -149,7 +159,7 @@ export const PlanRepository = {
    * compile, so the operator must re-compile before re-executing. Returns the
    * updated plan, or null if the ref is unknown.
    */
-  revise(planRef, { note, goalMd, lens, frame, manifest, analysis } = {}) {
+  revise(planRef, { note, goalMd, lens, frame, manifest, analysis, sketchRef } = {}) {
     if (!planRef || typeof planRef !== 'string') return null;
     if (!note || typeof note !== 'string') {
       throw new Error('note is required on a revision (what changed and why)');
@@ -183,6 +193,12 @@ export const PlanRepository = {
             ? JSON.stringify(analysis)
             : null
           : existing.analysis_json,
+      // A revision can re-pin a hand-authored sketch. Otherwise the sketch is
+      // left untouched here; an unpinned one gets regenerated on the next
+      // compile, so a stale auto-diagram only persists in the draft window.
+      sketch_ref: sketchRef !== undefined ? sketchRef || null : existing.sketch_ref,
+      sketch_pinned:
+        sketchRef !== undefined ? (sketchRef ? 1 : 0) : existing.sketch_pinned,
     };
 
     // Re-open an archived plan on revise: touching the schematic un-graduates
@@ -192,7 +208,8 @@ export const PlanRepository = {
     db.prepare(
       `UPDATE plans
          SET goal_md = ?, lens = ?, frame_json = ?, manifest_json = ?, analysis_json = ?,
-             revision_log_json = ?, status = 'draft', archived = 0, archived_at = NULL,
+             revision_log_json = ?, sketch_ref = ?, sketch_pinned = ?,
+             status = 'draft', archived = 0, archived_at = NULL,
              updated_at = unixepoch()
        WHERE plan_ref = ?`,
     ).run(
@@ -202,6 +219,8 @@ export const PlanRepository = {
       next.manifest_json,
       next.analysis_json,
       JSON.stringify(revisionLog),
+      next.sketch_ref,
+      next.sketch_pinned,
       planRef,
     );
     return rowToPlan(db.prepare('SELECT * FROM plans WHERE plan_ref = ?').get(planRef));
@@ -219,6 +238,22 @@ export const PlanRepository = {
       status,
       planRef,
     );
+    return rowToPlan(db.prepare('SELECT * FROM plans WHERE plan_ref = ?').get(planRef));
+  },
+
+  /**
+   * Set the plan's diagram pointer. `pinned` marks it as an operator pin
+   * (compile's auto-mint won't overwrite a pinned ref). The auto-mint path
+   * calls this with pinned=false. Returns the updated plan, or null if unknown.
+   */
+  setSketchRef(planRef, sketchRef, { pinned = false } = {}) {
+    if (!planRef || typeof planRef !== 'string') return null;
+    const db = getDb();
+    const existing = db.prepare('SELECT id FROM plans WHERE plan_ref = ?').get(planRef);
+    if (!existing) return null;
+    db.prepare(
+      'UPDATE plans SET sketch_ref = ?, sketch_pinned = ?, updated_at = unixepoch() WHERE plan_ref = ?',
+    ).run(sketchRef ?? null, pinned ? 1 : 0, planRef);
     return rowToPlan(db.prepare('SELECT * FROM plans WHERE plan_ref = ?').get(planRef));
   },
 

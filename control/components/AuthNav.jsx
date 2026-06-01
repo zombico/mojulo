@@ -91,6 +91,9 @@ export default function AuthNav({ authEnabled = false }) {
   // artifact (e.g. a minted sketch) and the surrounding nav would distract
   // from the thing they came to see. Skip rendering chrome on these paths.
   if (pathname && pathname.startsWith('/sketches/')) return null;
+  // Home is its own launcher — the logo, wordmark, and services grid carry
+  // the brand and surface settings as a tile, so the nav row is redundant.
+  if (pathname === '/') return null;
 
   async function onLogout() {
     try {

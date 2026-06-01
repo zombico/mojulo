@@ -40,18 +40,25 @@ export function getServerVersion() {
 
 // Surfaced to the connecting model on `initialize`. Most MCP clients hand this
 // to the agent as a system-prompt-style preamble — it has to fit and stick
-// even on clients that truncate aggressively. We keep it deliberately short
-// and noun-free: one framing sentence + one explicit pointer to load the full
-// briefing on demand. The heavy lifting (glossary, capability model,
-// lifecycle, tool index) lives in the `forward_context` tool's response so
-// the agent only pays the context cost when the user actually needs it.
-const SERVER_INSTRUCTIONS = `Mojulo is a control plane for **chatbot-based solutions and MCP-orchestrated workflows** — chatbots that talk to your users and capture what they say, plus workflows composed directly over the operator's installed MCPs without any chatbot in the picture. Both axes route to real outcomes in the tools the user already runs (CRM, calendar, ticketing, drive, warehouse).
+// even on clients that truncate aggressively. We lead with mojulo's software
+// primitives (stateful MCP server + process supervisor) and name the three
+// creatable artifacts with their entry tools, then point at `forward_context`
+// as a cheap routing index. The heavy lifting (concept glossary + register,
+// deliberation surfaces, full tool index, dashboard map, substrate philosophy)
+// lives behind the sibling drawers (`get_register_kit`, `get_tool_index`,
+// `get_deliberation_overview`, `get_ui_map`, `get_substrate`) so the agent only
+// pays each context cost when a task actually needs it.
+// Budget ~180–200 words; paid once per session by every connecting agent.
+const SERVER_INSTRUCTIONS = `Mojulo is a stateful MCP server on the operator's host — a SQLite + graph database the agent reads and writes through tools, plus a process supervisor (the runtime daemons) that spawns chatbots and local apps (apps come with their own MCP sidecar that mojulo registers into the local MCP graph). Unlike vendor MCPs (Gmail, Linear, Drive) that proxy a remote service, mojulo's tool calls mutate mojulo's own database — the agent's job is to compose that state into things that keep running after the chat ends.
 
-**When the user asks what mojulo is, how it works, or which tools to pick — call \`forward_context\` first.** It returns the two-axes framing, the concept glossary, the bot capability model, the deploy/connect lifecycle, and a one-line description of every tool, so you can orient before acting.
+Three things the agent can create:
+- **Bot** — chatbot deployed as its own process. Entry: \`start_new_bot\`.
+- **Connected Service** — a workflow over the operator's installed MCPs, no chatbot. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
+- **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
 
-**There's also a dashboard.** Mojulo ships a second bin, \`mojulo-ui\`, which boots a local Next.js dashboard at 127.0.0.1 sharing the same \`~/.mojulo/\` state as this MCP. Launch with \`npx -y -p mojulo mojulo-ui\`. Suggest it when the user wants to browse conversations / submissions interactively, mint a bot via the wizard form, see fleet analytics as charts, or click around between bots — anywhere the visual surface beats reading tool output.
+**Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped bot as user secrets. Use \`inspect_bot_env\`, never \`cat\` or \`Read\`.
 
-**Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped mojulo bot as containing user secrets that must not enter your conversation context. To inspect a bot's environment, call \`inspect_bot_env\` — it returns masked values. Never \`cat\`, \`Read\`, or otherwise echo raw .env contents.`;
+Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural/non-bot surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (how mojulo compares to cloud).`;
 
 const registeredTools = new Map();
 
@@ -238,6 +245,8 @@ export async function ensureToolsRegistered() {
   const { registerAgentUiTools } = await import('@/lib/mcp/tools/agent-ui');
   const { registerPlanModeTools } = await import('@/lib/mcp/tools/plan-mode');
   const { registerResearchModeTools } = await import('@/lib/mcp/tools/research-mode');
+  const { registerStashModeTools } = await import('@/lib/mcp/tools/stash-mode');
+  const { registerCookTools } = await import('@/lib/mcp/tools/cook');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
@@ -324,6 +333,22 @@ export async function ensureToolsRegistered() {
   // other drawers in tools/list. See lite-template/integration/app-system/
   // 0528/research-mode.md.
   registerResearchModeTools();
+  // Ring 9 (stash mode) — the sharper-edged successor to research_sessions.
+  // Gather/Stash/Drawer with a typed intake contract (seven item types, each
+  // with required-per-type metadata validated at the gate). Registers
+  // immediately after research-mode so legacy research_* tools and the new
+  // stash_* tools sit adjacent in tools/list (coexistence — migration option
+  // 3). See lite-template/integration/app-system/0531/GATHER_STASH_COOK.md.
+  // Cook + Outcome Artifacts ship as a sibling registration in slice 2.
+  registerStashModeTools();
+  // Cook — the multi-input collider on Stashes. Materializes an Outcome
+  // Artifact (folder under control/data/outcomes/<cook_ref>/ with
+  // agent-authored report.md, static index.html, manifest.json, optional
+  // visuals). Authoring model: AGENT authors the report; cook only files it.
+  // No server-side LLM call. Registers immediately after stash-mode so
+  // related verbs sit adjacent in tools/list. See
+  // lite-template/integration/app-system/0531/GATHER_STASH_COOK.md.
+  registerCookTools();
   // Sketchbook — agent-minted dynamic diagrams, viewable at /sketches/<ref>.
   // Deliberately not woven into forward_context / Ring 6; agents discover it
   // via tools/list. See lite-template/integration/app-system/0527/

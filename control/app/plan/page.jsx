@@ -84,29 +84,30 @@ export default function PlanPage() {
     load();
   }, [load]);
 
-  // Load full detail whenever a plan is selected.
+  const loadDetail = useCallback(async (ref) => {
+    if (!ref) {
+      setDetail(null);
+      return;
+    }
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/plans/${encodeURIComponent(ref)}`);
+      const data = await res.json();
+      setDetail(data && !data.error ? data : null);
+    } catch {
+      setDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!selectedRef) {
       setDetail(null);
       return;
     }
-    let cancelled = false;
-    setDetailLoading(true);
-    fetch(`/api/plans/${encodeURIComponent(selectedRef)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setDetail(data && !data.error ? data : null);
-      })
-      .catch(() => {
-        if (!cancelled) setDetail(null);
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedRef]);
+    loadDetail(selectedRef);
+  }, [selectedRef, loadDetail]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -149,7 +150,7 @@ export default function PlanPage() {
         </div>
       )}
 
-      <div className="flex-1 grid grid-cols-4 gap-6 px-8 py-4 overflow-hidden">
+      <div className="flex-1 grid gap-6 px-8 py-4 overflow-hidden grid-cols-4">
         {/* Left: searchable inbox */}
         <div className="col-span-1 border-r border-gray-700 pr-4 flex flex-col overflow-hidden">
           <input
@@ -244,6 +245,7 @@ export default function PlanPage() {
             </div>
           )}
         </div>
+
       </div>
 
       {showNew && <NewPlanModal t={t} onClose={() => setShowNew(false)} />}
@@ -332,6 +334,21 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
           <span>{lensLabel(plan.lens)}</span>
           <span>{t('createdAt', { timestamp: formatTimestamp(plan.createdAt) })}</span>
           <span>{t('updatedAt', { timestamp: formatTimestamp(plan.updatedAt) })}</span>
+          {plan.sketchRef && (
+            <a
+              href={`/sketches/${encodeURIComponent(plan.sketchRef)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-teal-400 hover:text-teal-300 inline-flex items-center gap-1"
+            >
+              {t('viewSketch')} ↗
+              {plan.sketchPinned && (
+                <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                  ({t('sketchPinned')})
+                </span>
+              )}
+            </a>
+          )}
         </div>
       </div>
 

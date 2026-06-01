@@ -1605,7 +1605,7 @@
     "close": "Close",
     "openInNewTab": "Open bare",
     "downloadPdf": "Download PDF",
-    "invalidManifest": "Manifest could not be parsed.",
+    "invalidManifest": "Rendrant could not parse this sketch.",
     "newButton": "New",
     "associationTags": {
       "plan": "Plan",

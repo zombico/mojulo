@@ -306,7 +306,8 @@ function init(db) {
         'orbit_component',
         'orbit_composition',
         'orbit_artifact',
-        'catalyst'
+        'catalyst',
+        'sketch_vocab'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
@@ -333,6 +334,19 @@ function init(db) {
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_sketches_created_at ON sketches(created_at DESC);
+
+    -- Optional folder grouping for sketches. NULL folder_ref on a sketch row =
+    -- root; a non-null folder_ref points at a sketch_folders.ref. Folders are
+    -- a flat list (no nesting) — the surface is a scratch space, not a
+    -- filesystem. Deleting a folder moves its sketches back to root rather
+    -- than cascading the delete (sketches outlive folders).
+    CREATE TABLE IF NOT EXISTS sketch_folders (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_sketch_folders_created_at ON sketch_folders(created_at DESC);
 
     -- Plan mode (Ring 8). The PROPOSED layer of the deliberation model — the
     -- speculative counterpart to contextmap's committed reality. A plan is a
@@ -422,6 +436,77 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_research_abstracts_session ON research_abstracts(research_ref, created_at);
 
+    -- Stash / Gather / Cook (Ring 9 — research mode v2). Sharper edges than the
+    -- original research_* schema: a Stash is a renameable user-facing bucket
+    -- with optional drawers; items declare a typed contract on intake (rejected
+    -- at the gate if malformed) so the UI can dispatch by type and Cook can
+    -- treat items as ingredients. Coexists with research_* (migration option 3
+    -- in lite-template/integration/app-system/0531/GATHER_STASH_COOK.md): new
+    -- gathers land here; legacy research_sessions remain read-only until they
+    -- go quiet. Drawer ids scope by stash (uniqueness on (stash_id, name)).
+    CREATE TABLE IF NOT EXISTS stashes (
+      id INTEGER PRIMARY KEY,
+      stash_ref TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('open','archived')) DEFAULT 'open',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_stashes_status ON stashes(status);
+    CREATE INDEX IF NOT EXISTS idx_stashes_updated_at ON stashes(updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS stash_drawers (
+      id INTEGER PRIMARY KEY,
+      stash_id INTEGER NOT NULL REFERENCES stashes(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(stash_id, name)
+    );
+
+    -- Typed leaves bound to a stash (and optionally a drawer). The seven types
+    -- are the entire intake contract: validated by the gather tool, never
+    -- mutated to a freeform kind. body / body_md / media_ref are sparse columns
+    -- chosen by type; per-type required fields beyond those live in
+    -- metadata_json (mime/width/height/language/node_ref/etc.).
+    CREATE TABLE IF NOT EXISTS stash_items (
+      id INTEGER PRIMARY KEY,
+      stash_id INTEGER NOT NULL REFERENCES stashes(id) ON DELETE CASCADE,
+      drawer_id INTEGER REFERENCES stash_drawers(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK(type IN ('text','markdown','image','svg','script','pointer','link')),
+      title TEXT,
+      source_url TEXT,
+      body TEXT,
+      body_md TEXT,
+      media_ref TEXT,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_stash_items_stash ON stash_items(stash_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_stash_items_drawer ON stash_items(drawer_id);
+
+    -- Cook output rows. The row is the index; the actual artifact is a folder
+    -- under control/data/outcomes/<cook_ref>/ (report.md + index.html +
+    -- manifest.json + optional visuals). slices_json is the CLEAVED SLICE
+    -- MANIFEST — an ordered array of { stash_ref, item_ids? } objects. Each
+    -- slice is a deliberate cut from a stash; omitting item_ids means
+    -- "whole stash" (lazy default). The slices are what the agent held in
+    -- superposition while nucleating the singular outcome. The aim column
+    -- is the dismantling question the agent aimed the nucleation arrow at —
+    -- ONE target per cook (the binding vow). See
+    -- lite-template/integration/app-system/0531/GATHER_STASH_COOK.md.
+    CREATE TABLE IF NOT EXISTS stash_cooks (
+      id INTEGER PRIMARY KEY,
+      cook_ref TEXT NOT NULL UNIQUE,
+      slices_json TEXT NOT NULL,
+      aim TEXT NOT NULL,
+      additional_context_json TEXT NOT NULL DEFAULT '[]',
+      outcome_dir TEXT NOT NULL,
+      suggested_lens TEXT,
+      template_version TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_stash_cooks_created_at ON stash_cooks(created_at DESC);
+
     -- Connected Services: skills mirrored from the host adapter. A Skill is
     -- a "workflow synthesized into the host adapter" (.claude/skills/<name>/
     -- SKILL.md) — the host owns its lifecycle; mojulo keeps a read-only
@@ -452,6 +537,10 @@ function init(db) {
   migrateDeploymentColumns(db);
   migrateInventoryColumns(db);
   migratePlanColumns(db);
+  migrateResearchColumns(db);
+  migrateSketchColumns(db);
+  migrateStashCookColumns(db);
+  migrateEmbeddingsSourceKinds(db);
   reapStaleMcpJobs(db);
   maybeBackfillEmbeddings(db);
   maybeStartNodeFulfiller();
@@ -542,10 +631,37 @@ function maybeStartTriggerDaemons() {
 // transformers at module load — the embedder lazy-loads its native model on
 // first call, and an unconfigured environment shouldn't pay for it just by
 // touching getDb().
+// Fire-and-forget reindex. Failure is soft (reindexAll logs internally); getDb()
+// returns immediately so the host call isn't blocked on the model load.
+function triggerReindex(reason) {
+  import('./repositories/embeddings.js')
+    .then(({ reindexAll }) =>
+      reindexAll().catch((err) => {
+        console.warn(`[meta_embeddings] ${reason} failed:`, err.message);
+      }),
+    )
+    .catch((err) => {
+      console.warn('[meta_embeddings] backfill module load failed:', err.message);
+    });
+}
+
 function maybeBackfillEmbeddings(db) {
   if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return;
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM meta_embeddings').get();
-  if (n > 0) return;
+  if (n > 0) {
+    // Table already populated — but an upgrade may have shipped a NEW source
+    // kind whose rows the schema migration didn't add (migrations preserve
+    // existing rows only). sketch_vocab is the first such kind: the cards live
+    // on disk and are reindexed lazily here. reindexAll is idempotent
+    // (content-hash skip leaves every existing row untouched; only the missing
+    // sketch_vocab cards get embedded), so this fires at most once after the
+    // upgrade and then no-ops on subsequent boots.
+    const { sv } = db
+      .prepare("SELECT COUNT(*) AS sv FROM meta_embeddings WHERE source_kind = 'sketch_vocab'")
+      .get();
+    if (sv === 0) triggerReindex('sketch_vocab backfill');
+    return;
+  }
   // Detect whether at least one source row exists across the corpus — saves
   // the model-load cost on a truly empty DB (e.g. first run before any
   // contextmap commit / inventory declare).
@@ -561,20 +677,12 @@ function maybeBackfillEmbeddings(db) {
   const anyRows =
     have.principles + have.inventory + have.capabilities +
     have.components + have.compositions + have.artifacts > 0;
-  if (!anyRows) return; // catalysts are filesystem-only and small; reindexing
-                       // them on every fresh boot pre-source-write is wasteful.
-                       // First write through any source path triggers the
-                       // backfill on the next getDb() init — or the operator
+  if (!anyRows) return; // catalysts + sketch_vocab are filesystem-only and small;
+                       // reindexing them on every fresh boot pre-source-write is
+                       // wasteful. First write through any source path triggers
+                       // the backfill on the next getDb() init — or the operator
                        // can run `scripts/reindex-embeddings.js` directly.
-  // Fire-and-forget — failure is soft. The backfill logs internally; getDb()
-  // returns immediately so the host call isn't blocked on model load.
-  import('./repositories/embeddings.js')
-    .then(({ reindexAll }) => reindexAll().catch((err) => {
-      console.warn('[meta_embeddings] first-boot backfill failed:', err.message);
-    }))
-    .catch((err) => {
-      console.warn('[meta_embeddings] backfill module load failed:', err.message);
-    });
+  triggerReindex('first-boot backfill');
 }
 
 // Extend meta_mcp_inventory with the columns needed for richer capability
@@ -642,7 +750,165 @@ function migratePlanColumns(db) {
   if (!have.has('release_json')) {
     db.exec('ALTER TABLE plans ADD COLUMN release_json TEXT');
   }
+  // sketch_ref links a plan to a diagram (a sk_<…> sketch row). Two ways it's
+  // set: ad hoc (operator pins a hand-authored sketch via forge/revise →
+  // sketch_pinned=1) or posterity (compile_plan auto-mints a pipeline diagram
+  // from the compiled manifest when not pinned). The pin flag is why both
+  // mechanisms coexist on one column: auto-mint regenerates freely but never
+  // clobbers an operator pin. Sketches stay scratch siblings — this is a
+  // pointer, not contextmap integration.
+  if (!have.has('sketch_ref')) {
+    db.exec('ALTER TABLE plans ADD COLUMN sketch_ref TEXT');
+  }
+  if (!have.has('sketch_pinned')) {
+    db.exec('ALTER TABLE plans ADD COLUMN sketch_pinned INTEGER NOT NULL DEFAULT 0');
+  }
   db.exec('CREATE INDEX IF NOT EXISTS idx_plans_archived ON plans(archived)');
+}
+
+// Add folder_ref to existing sketches tables on upgrade. NULL = root; a
+// non-null value points at sketch_folders.ref. No FK constraint — we want
+// folder deletion to soft-detach (move-to-root) rather than cascade-delete,
+// and SQLite FKs would force a CASCADE / RESTRICT choice we don't want.
+function migrateSketchColumns(db) {
+  const cols = db.prepare('PRAGMA table_info(sketches)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('folder_ref')) {
+    db.exec('ALTER TABLE sketches ADD COLUMN folder_ref TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_folder_ref ON sketches(folder_ref)');
+}
+
+// stash_cooks shipped first with (stash_refs_json NOT NULL, query NOT NULL).
+// The v0 reshape moves to (slices_json, aim) — a richer manifest plus the
+// singularity-vow rename. SQLite cannot drop a NOT NULL constraint on an
+// existing column, so when legacy columns are detected we rebuild the table:
+// copy rows over with the slice/aim shape, drop the old, rename. Standard
+// SQLite drop-column-via-rebuild pattern. Inside a transaction so a partial
+// migration can never leave the row layer half-renamed.
+function migrateStashCookColumns(db) {
+  const cols = db.prepare('PRAGMA table_info(stash_cooks)').all();
+  const have = new Set(cols.map((c) => c.name));
+  const hasLegacy = have.has('stash_refs_json') || have.has('query');
+  if (!hasLegacy) return; // fresh schema, nothing to do
+
+  db.exec('BEGIN');
+  try {
+    db.exec(`
+      CREATE TABLE stash_cooks_new (
+        id INTEGER PRIMARY KEY,
+        cook_ref TEXT NOT NULL UNIQUE,
+        slices_json TEXT NOT NULL,
+        aim TEXT NOT NULL,
+        additional_context_json TEXT NOT NULL DEFAULT '[]',
+        outcome_dir TEXT NOT NULL,
+        suggested_lens TEXT,
+        template_version TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+
+    // Copy + transform. Each legacy stash_ref becomes a whole-stash slice;
+    // query (the catalyst) becomes aim (the singular target). Same row count.
+    const rows = db.prepare('SELECT * FROM stash_cooks').all();
+    const insert = db.prepare(
+      `INSERT INTO stash_cooks_new
+         (id, cook_ref, slices_json, aim, additional_context_json, outcome_dir, suggested_lens, template_version, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const row of rows) {
+      let slices = [];
+      if (have.has('slices_json') && row.slices_json) {
+        try { slices = JSON.parse(row.slices_json); } catch { slices = []; }
+      }
+      if ((!slices || slices.length === 0) && row.stash_refs_json) {
+        try {
+          const legacy = JSON.parse(row.stash_refs_json);
+          slices = Array.isArray(legacy) ? legacy.map((ref) => ({ stash_ref: ref })) : [];
+        } catch { slices = []; }
+      }
+      const aim = (have.has('aim') && row.aim) ? row.aim : (row.query || '');
+      insert.run(
+        row.id,
+        row.cook_ref,
+        JSON.stringify(slices),
+        aim,
+        row.additional_context_json || '[]',
+        row.outcome_dir,
+        row.suggested_lens,
+        row.template_version,
+        row.created_at,
+      );
+    }
+
+    db.exec('DROP TABLE stash_cooks');
+    db.exec('ALTER TABLE stash_cooks_new RENAME TO stash_cooks');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_stash_cooks_created_at ON stash_cooks(created_at DESC)');
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+function migrateResearchColumns(db) {
+  // sketch_ref on a synthesized abstract: synthesize_abstract auto-mints a
+  // hub-spoke diagram of the book at synthesis time (the "posterity" form for
+  // research). Abstracts are append-only, so each thesis snapshot carries its
+  // own diagram — no pin flag needed (no single column to contend over, unlike
+  // plans). Ad hoc research diagrams ride the existing freeform item path
+  // (bind_research_item kind='sketch', sk_ ref in media_ref), so no column for
+  // those.
+  const cols = db.prepare('PRAGMA table_info(research_abstracts)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('sketch_ref')) {
+    db.exec('ALTER TABLE research_abstracts ADD COLUMN sketch_ref TEXT');
+  }
+}
+
+// meta_embeddings carries a CHECK(source_kind IN (...)) that can't be ALTERed.
+// When a new indexed source kind ships (here: sketch_vocab), an existing DB's
+// table still has the old constraint and would reject the new rows. The table
+// is a pure derived sidecar, so we rebuild it preserving every existing row
+// (no re-embed) and let the widened CHECK take effect. Detection is on the
+// stored DDL — idempotent once the constraint already names the kind.
+function migrateEmbeddingsSourceKinds(db) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
+    .get();
+  if (!row || !row.sql) return;
+  if (row.sql.includes('sketch_vocab')) return;
+  db.exec(`
+    BEGIN;
+    CREATE TABLE meta_embeddings_new (
+      id INTEGER PRIMARY KEY,
+      source_kind TEXT NOT NULL CHECK(source_kind IN (
+        'principle',
+        'mcp_tool',
+        'mcp_capability',
+        'orbit_component',
+        'orbit_composition',
+        'orbit_artifact',
+        'catalyst',
+        'sketch_vocab'
+      )),
+      source_ref TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      body_text TEXT NOT NULL,
+      embedding BLOB NOT NULL,
+      model TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(source_kind, source_ref)
+    );
+    INSERT INTO meta_embeddings_new
+      (id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at)
+      SELECT id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at
+      FROM meta_embeddings;
+    DROP TABLE meta_embeddings;
+    ALTER TABLE meta_embeddings_new RENAME TO meta_embeddings;
+    CREATE INDEX IF NOT EXISTS idx_meta_embeddings_kind ON meta_embeddings(source_kind);
+    COMMIT;
+  `);
 }
 
 function reapStaleMcpJobs(db) {

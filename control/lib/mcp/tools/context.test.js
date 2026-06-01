@@ -6,7 +6,16 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
-import { buildForwardContextBody, forwardContextHandler } from './context.js';
+import {
+  buildForwardContextBody,
+  forwardContextHandler,
+  buildRegisterKitBody,
+  registerKitHandler,
+  toolIndexHandler,
+  deliberationOverviewHandler,
+  uiMapHandler,
+  substrateHandler,
+} from './context.js';
 import {
   VOCABULARY_REGISTERS,
   PROCEDURAL_DISCLOSURES,
@@ -30,7 +39,6 @@ const FLOOR_PHRASES = [
   'read-once',
   'audit trail',
 ];
-const PREAMBLE_MARKER = 'This document plays two roles';
 
 describe('buildForwardContextBody — variant composition', () => {
   it('renders every register × disclosure cell without throwing', () => {
@@ -54,32 +62,51 @@ describe('buildForwardContextBody — variant composition', () => {
     }
   });
 
-  it('dual-purpose preamble appears in every cell', () => {
+  it('is a thin routing index, not a manual: routing rows + drawer directory, heavy prose drawerized', () => {
     for (const register of VOCABULARY_REGISTERS) {
       for (const disclosure of PROCEDURAL_DISCLOSURES) {
         const body = buildForwardContextBody({ register, disclosure });
-        expect(body).toContain(PREAMBLE_MARKER);
+        // The routing index and drawer directory are the spine.
+        expect(body).toContain('Routing index');
+        expect(body).toContain('Drawers');
+        // Drawer pointers, including the new substrate drawer.
+        expect(body).toContain('`get_tool_index`');
+        expect(body).toContain('`get_register_kit`');
+        expect(body).toContain('`get_substrate`');
+        // The full one-line-per-tool index no longer lives inline.
+        expect(body).not.toContain('the primitive-binding composer for MCP-to-MCP workflows');
+        // The concept glossary moved to get_register_kit — its section header
+        // and the "don't surface" plain-register marker are both gone.
+        expect(body).not.toContain('## Concepts');
+        // The substrate philosophy moved to get_substrate.
+        expect(body).not.toContain('PLAYful Cloud — what mojulo is at the substrate');
       }
     }
   });
 
-  it('opening paragraph branches: plain says "Gmail, your calendar, Drive"; mojulo strips ramp prose', () => {
+  it('opener is register-invariant: same lean opener in every register', () => {
     const plain = buildForwardContextBody({ register: 'plain', disclosure: 'reflective' });
-    expect(plain).toMatch(/Gmail.*Drive/);
-    expect(plain).toMatch(/Don't surface to the user/i);
-
     const mojulo = buildForwardContextBody({ register: 'mojulo', disclosure: 'reflective' });
-    expect(mojulo).toMatch(/control plane for solutions composed over installed MCPs/);
-    expect(mojulo).not.toMatch(/Gmail, your calendar, Drive/);
+    // One register-invariant opener — no per-register ramp prose, no "don't
+    // surface" plain marker (that machinery lives in get_register_kit now).
+    for (const body of [plain, mojulo]) {
+      expect(body).toMatch(/control plane for solutions composed over the operator's installed MCPs/);
+      expect(body).toContain('routing index');
+      expect(body).not.toMatch(/Don't surface to the user/i);
+    }
   });
 
-  it('concept glossary branches: plain marks "Don\'t surface" on concept terms; mojulo strips prose', () => {
-    const plain = buildForwardContextBody({ register: 'plain', disclosure: 'reflective' });
-    expect(plain).toMatch(/Don't surface the bold terms to the user/);
-
-    const mojulo = buildForwardContextBody({ register: 'mojulo', disclosure: 'reflective' });
-    expect(mojulo).toMatch(/stackable bot capability/);
-    expect(mojulo).not.toMatch(/Don't surface/);
+  it('concept glossary is NOT in the forward_context body — it lives in get_register_kit', () => {
+    for (const register of VOCABULARY_REGISTERS) {
+      const body = buildForwardContextBody({ register, disclosure: 'reflective' });
+      expect(body).not.toContain('## Concepts');
+      expect(body).not.toMatch(/Don't surface the bold terms to the user/);
+      // The body points the agent at where the vocabulary actually lives.
+      expect(body).toContain('`get_register_kit`');
+      // get_register_kit still carries the glossary for the same register.
+      const kit = buildRegisterKitBody({ register, disclosure: 'reflective' });
+      expect(kit).toContain('## Concepts');
+    }
   });
 
   it('disclosure directive branches: terse / reflective / pedagogical each insert their own paragraph', () => {
@@ -105,24 +132,28 @@ describe('buildForwardContextBody — variant composition', () => {
     expect(body).toMatch(/read from the operator anchor/);
   });
 
-  it('concept names are invariant — same identifiers in every register variant', () => {
+  it('concept names are invariant — same identifiers in every register variant of the register kit', () => {
+    // The glossary moved out of forward_context into get_register_kit; concept
+    // names stay invariant across registers (the agent uses them to call tools).
     const names = ['Bot', 'Deployment', 'Protocol', 'Chain', 'Catalyst', 'Host adapter'];
     for (const register of VOCABULARY_REGISTERS) {
-      const body = buildForwardContextBody({ register, disclosure: 'reflective' });
+      const kit = buildRegisterKitBody({ register, disclosure: 'reflective' });
       for (const n of names) {
-        expect(body, `cell ${register} missing concept name "${n}"`).toContain(`**${n}**`);
+        expect(kit, `cell ${register} missing concept name "${n}"`).toContain(`**${n}**`);
       }
     }
   });
 
-  it('tool index stays single-source — same tool descriptions in every register', () => {
-    // Pick a representative tool one-liner that should appear verbatim
-    // regardless of register.
+  it('full tool index is promoted to get_tool_index and is register-invariant', async () => {
+    // The full one-line-per-tool index moved out of forward_context into its
+    // own tool. Pick a representative tool one-liner that should appear there.
     const marker = '`bind_primitives` — **the primitive-binding composer';
-    for (const register of VOCABULARY_REGISTERS) {
-      const body = buildForwardContextBody({ register, disclosure: 'reflective' });
-      expect(body, `cell ${register} missing tool index line`).toContain(marker);
-    }
+    const { content } = await toolIndexHandler({});
+    const indexText = content[0].text;
+    expect(indexText).toContain(marker);
+    // It's a single-source body — no register branching on the index tool.
+    const { content: again } = await toolIndexHandler({ register: 'plain' });
+    expect(again[0].text).toBe(indexText);
   });
 
   it('falls back to defaults when register / disclosure are invalid', () => {
@@ -154,9 +185,9 @@ describe('forwardContextHandler — register resolution', () => {
     expect(text).toMatch(/vocabulary_register: plain/);
     expect(text).toMatch(/procedural_disclosure: pedagogical/);
     expect(text).toMatch(/read from the operator anchor/);
-    // plain opening should appear.
-    expect(text).toMatch(/Don't surface to the user/i);
-    // pedagogical disclosure should appear.
+    // The notice points the agent at get_register_kit for the register glossary.
+    expect(text).toContain('`get_register_kit`');
+    // pedagogical disclosure should appear (disclosure still branches inline).
     expect(text).toMatch(/Procedural disclosure: pedagogical/);
   });
 
@@ -215,5 +246,86 @@ describe('forwardContextHandler — register resolution', () => {
     for (const phrase of FLOOR_PHRASES) {
       expect(text, `handler output missing "${phrase}"`).toContain(phrase);
     }
+  });
+});
+
+describe('get_register_kit — isolated register surface', () => {
+  it('carries the active-cell glossary, disclosure directive, and the floor in every cell', () => {
+    for (const register of VOCABULARY_REGISTERS) {
+      for (const disclosure of PROCEDURAL_DISCLOSURES) {
+        const body = buildRegisterKitBody({ register, disclosure });
+        for (const phrase of FLOOR_PHRASES) {
+          expect(body, `register-kit ${register}+${disclosure} missing "${phrase}"`).toContain(phrase);
+        }
+        expect(body).toMatch(/## Concepts/);
+        expect(body).toMatch(new RegExp(`Procedural disclosure: ${disclosure}`));
+        expect(body).toMatch(new RegExp(`vocabulary_register: ${register}`));
+      }
+    }
+  });
+
+  it('resolves register/disclosure from the operator anchor when no override is passed', async () => {
+    await commitOperatorKyc({
+      type: 'operator_kyc',
+      role: 'r',
+      constraints: ['c1'],
+      vocabulary_register: 'plain',
+      procedural_disclosure: 'pedagogical',
+    });
+    const { content } = await registerKitHandler({});
+    const text = content[0].text;
+    expect(text).toMatch(/vocabulary_register: plain/);
+    expect(text).toMatch(/procedural_disclosure: pedagogical/);
+    expect(text).toMatch(/read from the operator anchor/);
+  });
+
+  it('per-call override beats the anchor and rejects invalid values', async () => {
+    const { content } = await registerKitHandler({ register: 'mojulo', disclosure: 'terse' });
+    expect(content[0].text).toMatch(/vocabulary_register: mojulo/);
+    expect(content[0].text).toMatch(/procedural_disclosure: terse/);
+    await expect(registerKitHandler({ register: 'casual' })).rejects.toThrow(/register/);
+  });
+});
+
+describe('get_deliberation_overview — Ring 6 deep block', () => {
+  it('explains the deliberation surfaces and the daemon runtime gating', async () => {
+    const { content } = await deliberationOverviewHandler({});
+    const text = content[0].text;
+    expect(text).toMatch(/Deliberation surfaces \(Ring 6\)/);
+    expect(text).toContain('meta_context_declare_inventory');
+    expect(text).toContain('MOJULO_TRIGGER_RUNTIME');
+    expect(text).toContain('MOJULO_APP_RUNTIME');
+  });
+});
+
+describe('get_ui_map — dashboard page map', () => {
+  it('maps the current dashboard pages and stays out of the always-paid body', async () => {
+    const { content } = await uiMapHandler({});
+    const text = content[0].text;
+    for (const page of ['/bots', '/apps', '/data', '/map', '/graph', '/plan', '/research', '/sketches', '/settings']) {
+      expect(text, `ui map missing page ${page}`).toContain(`\`${page}\``);
+    }
+    // Hints at the breadth of UI localization without enumerating every locale.
+    expect(text).toMatch(/internationaliz|languages|locales|right-to-left/i);
+    // The full page map is reached on demand, not folded into forward_context.
+    const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
+    expect(body).not.toContain('App Creation Map: how an app comes together');
+    expect(body).toContain('`get_ui_map`');
+  });
+});
+
+describe('get_substrate — PLAYful Cloud positioning', () => {
+  it('returns the substrate framing and stays out of the always-paid body', async () => {
+    const { content } = await substrateHandler({});
+    const text = content[0].text;
+    expect(text).toMatch(/PLAYful Cloud/);
+    expect(text).toMatch(/Persistent/);
+    expect(text).toMatch(/Agent-Yoked/);
+    // The cloud shape-mapping survived the move out of quick-orientation rules.
+    expect(text).toMatch(/Temporal/);
+    // The substrate philosophy is reached on demand, not in forward_context.
+    const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
+    expect(body).not.toContain('PLAYful Cloud — what mojulo is at the substrate');
+    expect(body).toContain('`get_substrate`');
   });
 });

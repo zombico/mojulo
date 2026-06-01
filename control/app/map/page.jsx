@@ -37,7 +37,7 @@ export default function MapPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/connected-services/graph?framing=map');
+      const res = await fetch('/api/connected-services/graph?framing=mcp-skills');
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${res.status}`);
