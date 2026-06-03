@@ -38,6 +38,7 @@
 
 import { registerTool, invokeRegisteredTool, hasRegisteredTool } from '@/lib/mcp/server';
 import { PlanRepository } from '@/lib/db/repositories/plans';
+import { CookRepository } from '@/lib/db/repositories/cooks';
 import { recordPlanReleases, isReleaseCommitType } from '@/lib/mcp/meta-context/plan-release';
 import { mintSketch } from '@/lib/mcp/tools/sketches';
 import { planToSketchManifest } from '@/lib/graph/sketch-derive';
@@ -114,18 +115,89 @@ export async function enterPlanModeHandler(_input, _ctx) {
 // forge_plan
 // ---------------------------------------------------------------------------
 
+// Recognized source kinds for a plan seeded from another deliberation node.
+// Cook is the first concrete kind; the discriminator is forward-compatible.
+// Each kind owns the shape of `source.<kind>_ref` and what the source seeds.
+const PLAN_SOURCE_KINDS = new Set(['cook']);
+
+/**
+ * Resolve a `source` parameter into a `{ seededGoal, sourceRecord }` pair.
+ * `seededGoal` is goal_md text the agent gets to use (or override); `sourceRecord`
+ * is what we stash into `analysis.source` for the triangle backlink.
+ *
+ * Returns null if no source was supplied. Throws on malformed input.
+ */
+function resolvePlanSource(source) {
+  if (source === undefined || source === null) return null;
+  if (typeof source !== 'object' || Array.isArray(source)) {
+    throw new Error('source must be an object: { kind, <kind>_ref }');
+  }
+  const { kind } = source;
+  if (!kind || typeof kind !== 'string' || !PLAN_SOURCE_KINDS.has(kind)) {
+    throw new Error(
+      `source.kind must be one of: ${[...PLAN_SOURCE_KINDS].join(', ')} (got '${kind}')`,
+    );
+  }
+  switch (kind) {
+    case 'cook': {
+      const cookRef = source.cook_ref;
+      if (!cookRef || typeof cookRef !== 'string') {
+        throw new Error("source.cook_ref is required when source.kind is 'cook'");
+      }
+      const cook = CookRepository.getByRef(cookRef);
+      if (!cook) {
+        throw new Error(`Cook '${cookRef}' not found (source.kind='cook').`);
+      }
+      // The cook's aim is the dismantling question; surface it as the seeded
+      // goal so the agent can either accept it as-is or override via the
+      // top-level `goal` arg. Suggested_lens passes through as a hint.
+      return {
+        seededGoal: cook.aim,
+        seededLens: cook.suggestedLens ?? null,
+        sourceRecord: {
+          kind: 'cook',
+          cook_ref: cook.cookRef,
+          aim: cook.aim,
+          outcome_dir: cook.outcomeDir,
+          suggested_lens: cook.suggestedLens ?? null,
+          recorded_at: Math.floor(Date.now() / 1000),
+        },
+      };
+    }
+    default:
+      // Unreachable — guarded by PLAN_SOURCE_KINDS above.
+      throw new Error(`unhandled source.kind '${kind}'`);
+  }
+}
+
 export async function forgePlanHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
     throw new Error('forge_plan requires an object with title + goal');
   }
-  const { title, goal, lens, frame, manifest, analysis, sketch_ref } = input;
+  const { title, goal, lens, frame, manifest, analysis, sketch_ref, source } = input;
+
+  // Optional `source` seeds the plan from another deliberation node (today: a
+  // cook). The source ref lands in analysis.source for the triangle backlink;
+  // the agent can override the seeded goal/lens via the top-level args.
+  const resolved = resolvePlanSource(source);
+  const effectiveGoal = goal ?? resolved?.seededGoal;
+  const effectiveLens = lens ?? resolved?.seededLens ?? undefined;
+  if (!effectiveGoal || typeof effectiveGoal !== 'string') {
+    throw new Error(
+      'goal is required (either as `goal` directly, or seeded from a `source`).',
+    );
+  }
+  const effectiveAnalysis = resolved
+    ? { ...(analysis && typeof analysis === 'object' ? analysis : {}), source: resolved.sourceRecord }
+    : analysis;
+
   const plan = PlanRepository.forge({
     title,
-    goalMd: goal,
-    lens,
+    goalMd: effectiveGoal,
+    lens: effectiveLens,
     frame,
     manifest,
-    analysis,
+    analysis: effectiveAnalysis,
     sketchRef: sketch_ref,
   });
   return {
@@ -134,6 +206,7 @@ export async function forgePlanHandler(input, _ctx) {
     status: plan.status,
     lens: plan.lens,
     has_manifest: Array.isArray(plan.manifest) && plan.manifest.length > 0,
+    ...(resolved ? { source: resolved.sourceRecord } : {}),
     ...(plan.sketchRef ? { sketch_ref: plan.sketchRef, sketch_url: sketchUrl(plan.sketchRef) } : {}),
   };
 }
@@ -546,14 +619,15 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'forge_plan',
     description:
-      "Ring 8 — seal a Draft plan from a session that's accumulated enough signal to warrant a solution. Persists the goal plus (optionally) the lens the frame settled into, the frame itself, the candidate manifest (ordered { tool, args } calls), and the un-shared analysis (lens weights, discarded lenses, introspection refs) — i.e. the projected shadow scratchpad. A plan can start goal-only and accrete its manifest through revise_plan. Returns { plan_ref, status:'draft', lens, has_manifest }. Forging does NOT execute anything — plans are speculative until compiled and run.",
+      "Ring 8 — seal a Draft plan from a session that's accumulated enough signal to warrant a solution. Persists the goal plus (optionally) the lens the frame settled into, the frame itself, the candidate manifest (ordered { tool, args } calls), and the un-shared analysis (lens weights, discarded lenses, introspection refs) — i.e. the projected shadow scratchpad. A plan can start goal-only and accrete its manifest through revise_plan.\n\n**Seeding from a cook (the cook→plan bridge).** Pass `source: { kind: 'cook', cook_ref }` to seed a plan from a previously-materialized Cook outcome — the cook's `aim` becomes the seeded goal (overridable via the top-level `goal` arg) and its `suggested_lens` becomes the seeded lens. The source ref is recorded in the plan's analysis for the triangle backlink (stash → cook → plan). This is the substitute for the legacy `synthesize_abstract({ from_cook })` path: cook stops at cook, and plan mode pulls the cook itself when (and only when) an outcome later reads as tractable work.\n\nReturns { plan_ref, status:'draft', lens, has_manifest, source? }. Forging does NOT execute anything — plans are speculative until compiled and run.",
     inputSchema: {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Short human title for the plan inbox.' },
         goal: {
           type: 'string',
-          description: 'The named goal (markdown ok) — what spike this plan hammers.',
+          description:
+            "The named goal (markdown ok) — what spike this plan hammers. Required unless seeded via `source` (in which case the source's natural goal text is used; supply `goal` to override).",
         },
         lens: {
           type: 'string',
@@ -574,15 +648,25 @@ export function registerPlanModeTools() {
         analysis: {
           type: 'object',
           description:
-            'Un-shared deliberation provenance: { lens_weights, discarded_lenses, introspection_refs, … }. Free-form object.',
+            'Un-shared deliberation provenance: { lens_weights, discarded_lenses, introspection_refs, … }. Free-form object. If `source` is provided, the resolved source record is merged in as `analysis.source`.',
         },
         sketch_ref: {
           type: 'string',
           description:
             'Optional: pin a hand-authored sketch (a `sk_<…>` ref from create_sketch) as this plan\'s diagram. A pinned sketch is left alone by compile (which otherwise auto-mints a pipeline diagram from the manifest). Omit to let compile draw it.',
         },
+        source: {
+          type: 'object',
+          description:
+            "Optional: seed this plan from another deliberation node. Discriminator: `kind`. Today supports `kind:'cook'` with `cook_ref` — the cook's aim seeds the goal and its suggested_lens seeds the lens; the source ref lands in analysis.source for the triangle backlink. Forward-compatible: future kinds (e.g. 'stash', 'sketch') will follow the same shape.",
+          properties: {
+            kind: { type: 'string', enum: ['cook'], description: "Source kind. 'cook' = seed from a materialized Cook outcome." },
+            cook_ref: { type: 'string', description: "Required when kind is 'cook'. A `cook_<…>` ref from list_cooks / a prior cook call." },
+          },
+          required: ['kind'],
+        },
       },
-      required: ['title', 'goal'],
+      required: ['title'],
     },
     handler: forgePlanHandler,
   });
@@ -702,4 +786,10 @@ export function registerPlanModeTools() {
 }
 
 // Test seam.
-export const _internals = { validateManifest, PLAN_MODE_TOOL_NAMES, PLAN_MODE_BRIEF };
+export const _internals = {
+  validateManifest,
+  PLAN_MODE_TOOL_NAMES,
+  PLAN_MODE_BRIEF,
+  PLAN_SOURCE_KINDS,
+  resolvePlanSource,
+};

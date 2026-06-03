@@ -20,6 +20,11 @@
  *   - rename_stash    — stashes are user-facing surfaces
  *   - list_stashes    — the inbox
  *   - get_stash       — full stash (drawers + items)
+ *   - update_item     — mutate an item in place (gate re-runs on merged state)
+ *   - archive_item    — soft-delete an item; downstream citations still resolve
+ *   - bind_stash      — link a stash to a bot/app/plan/cook/contextmap_node
+ *   - unbind_stash    — remove that link (binding row only; stash + target survive)
+ *   - list_stash_bindings — query the adjacency layer in either direction
  *
  * Cook + Outcome Artifacts are slice 2 and ship in a sibling file.
  */
@@ -182,6 +187,152 @@ export async function getStashHandler(input, _ctx) {
   };
 }
 
+export async function updateItemHandler(input, _ctx) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('update_item requires an object with item_id');
+  }
+  const { item_id, title, source_url, body, body_md, body_svg, media_ref, metadata } = input;
+  if (!Number.isInteger(item_id)) {
+    throw new Error('item_id is required (integer)');
+  }
+  const item = StashRepository.updateItem({
+    itemId: item_id,
+    title,
+    sourceUrl: source_url,
+    body,
+    bodyMd: body_md,
+    bodySvg: body_svg,
+    mediaRef: media_ref,
+    metadata,
+  });
+  return {
+    ok: true,
+    item_id: item.id,
+    type: item.type,
+    title: item.title,
+    source_url: item.sourceUrl,
+    body: item.body,
+    body_md: item.bodyMd,
+    media_ref: item.mediaRef,
+    metadata: item.metadata,
+  };
+}
+
+export async function archiveItemHandler(input, _ctx) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('archive_item requires an object with item_id');
+  }
+  const { item_id, confirm } = input;
+  if (!Number.isInteger(item_id)) {
+    throw new Error('item_id is required (integer)');
+  }
+  const existing = StashRepository.getItemById(item_id);
+  if (!existing) {
+    throw new Error(`Stash item '${item_id}' not found`);
+  }
+  const refs = StashRepository.scanItemReferences(item_id);
+  const refCount = refs.cooks.length;
+  // Two-step gate: if references exist and confirm !== true, return a dry-run
+  // shape so the agent can show the warning and re-call with confirm: true.
+  // Mirrors execute_plan's per-execution gate. No references → archive
+  // straight through (nothing to warn about).
+  if (refCount > 0 && confirm !== true) {
+    return {
+      ok: true,
+      archived: false,
+      pending_confirm: true,
+      item_id,
+      references: {
+        cook_count: refs.cooks.length,
+        cook_refs: refs.cooks,
+      },
+      warning: `This item appears in ${refs.cooks.length} cook(s). Archive anyway? Re-call with confirm: true — downstream citations will still resolve to the archived content.`,
+    };
+  }
+  const result = StashRepository.archiveItem({ itemId: item_id });
+  return {
+    ok: true,
+    archived: result.archived,
+    already_archived: result.alreadyArchived,
+    item_id,
+    references: {
+      cook_count: refs.cooks.length,
+      cook_refs: refs.cooks,
+    },
+  };
+}
+
+export async function bindStashHandler(input, _ctx) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('bind_stash requires an object with stash_ref + bound_kind + bound_ref');
+  }
+  const { stash_ref, bound_kind, bound_ref, role } = input;
+  if (!stash_ref || typeof stash_ref !== 'string') {
+    throw new Error('stash_ref is required');
+  }
+  if (!bound_kind || typeof bound_kind !== 'string') {
+    throw new Error('bound_kind is required (one of: bot, app, plan, cook, contextmap_node)');
+  }
+  if (!bound_ref || typeof bound_ref !== 'string') {
+    throw new Error('bound_ref is required (the target resource ref)');
+  }
+  const binding = StashRepository.bind({
+    stashRef: stash_ref,
+    boundKind: bound_kind,
+    boundRef: bound_ref,
+    role,
+  });
+  return {
+    ok: true,
+    stash_ref: binding.stashRef,
+    bound_kind: binding.boundKind,
+    bound_ref: binding.boundRef,
+    role: binding.role,
+    created_at: binding.createdAt,
+  };
+}
+
+export async function unbindStashHandler(input, _ctx) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('unbind_stash requires an object with stash_ref + bound_kind + bound_ref');
+  }
+  const { stash_ref, bound_kind, bound_ref } = input;
+  if (!stash_ref || typeof stash_ref !== 'string') {
+    throw new Error('stash_ref is required');
+  }
+  if (!bound_kind || typeof bound_kind !== 'string') {
+    throw new Error('bound_kind is required');
+  }
+  if (!bound_ref || typeof bound_ref !== 'string') {
+    throw new Error('bound_ref is required');
+  }
+  const removed = StashRepository.unbind({
+    stashRef: stash_ref,
+    boundKind: bound_kind,
+    boundRef: bound_ref,
+  });
+  return { ok: true, removed };
+}
+
+export async function listStashBindingsHandler(input, _ctx) {
+  const { stash_ref, bound_kind, bound_ref } = input || {};
+  const bindings = StashRepository.listBindings({
+    stashRef: stash_ref,
+    boundKind: bound_kind,
+    boundRef: bound_ref,
+  });
+  return {
+    total: bindings.length,
+    bindings: bindings.map((b) => ({
+      stash_ref: b.stashRef,
+      bound_kind: b.boundKind,
+      bound_ref: b.boundRef,
+      role: b.role,
+      created_at: b.createdAt,
+    })),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // registration
 // ---------------------------------------------------------------------------
@@ -286,5 +437,111 @@ export function registerStashModeTools() {
       required: ['stash_ref'],
     },
     handler: getStashHandler,
+  });
+
+  registerTool({
+    name: 'update_item',
+    description:
+      "Ring 9 — mutate a stash item in place. Items are citable atoms (the substrate's relational tissue), so edits propagate live wherever the id is cited (cook slices, future plan refs). The intake gate RE-RUNS on the merged state, so a partial update can never corrupt the type contract — e.g. you can't empty out an image's content_hash. Touches the parent stash's updated_at. Type is NOT mutable; archive + re-gather if you need a different type. Pass only the fields you want to change; omitted fields are left as-is. Returns the updated item.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        item_id: { type: 'integer', description: 'The item id (stable integer PK).' },
+        title: { type: 'string', description: 'Optional new title.' },
+        source_url: { type: 'string', description: 'Optional new source URL.' },
+        body: { type: 'string', description: 'New body for text / script items.' },
+        body_md: { type: 'string', description: 'New markdown body for markdown items.' },
+        body_svg: { type: 'string', description: 'New SVG body for svg items.' },
+        media_ref: { type: 'string', description: 'New media_ref for image items.' },
+        metadata: {
+          type: 'object',
+          description: 'Replaces the item metadata; per-type required fields must still be present (image needs mime/width/height/content_hash, script needs language, pointer needs node_ref + label).',
+        },
+      },
+      required: ['item_id'],
+    },
+    handler: updateItemHandler,
+  });
+
+  registerTool({
+    name: 'archive_item',
+    description:
+      "Ring 9 — soft-delete a stash item. The row stays so downstream citations (cook slices, future plan refs) continue to resolve to the archived content; the item disappears from list/detail views by default. Two-step gate: if the item is referenced by any cook, the first call returns { pending_confirm: true, references } as a dry-run so the agent can warn the operator. Re-call with confirm: true to proceed. No references → archive straight through. Idempotent: already-archived items return { archived: false, already_archived: true }.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        item_id: { type: 'integer', description: 'The item id to archive.' },
+        confirm: {
+          type: 'boolean',
+          description: 'Set to true to confirm archive when references exist. Without it, a referenced item returns a dry-run shape and is NOT archived.',
+        },
+      },
+      required: ['item_id'],
+    },
+    handler: archiveItemHandler,
+  });
+
+  registerTool({
+    name: 'bind_stash',
+    description:
+      "Ring 9 — link a stash to another substrate resource. The adjacency layer that turns a generic bucket into 'this bot's corpus' / 'this plan's working memory' / 'this cook's declared ingredients'. Many-to-many: a stash can bind to many resources, a resource can have many stashes. Idempotent on (stash_ref, bound_kind, bound_ref); re-binding updates the role. v0 is purely navigational — agents do NOT auto-read linked stashes mid-conversation. bound_ref is NOT validated against the target repo (dangling refs are tolerated; the UI shows 'linked resource removed').\n\nbound_kind: bot | app | plan | cook | contextmap_node\nrole (optional): corpus | working_memory | ingredient | reference",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        stash_ref: { type: 'string', description: 'The stash to link.' },
+        bound_kind: {
+          type: 'string',
+          enum: ['bot', 'app', 'plan', 'cook', 'contextmap_node'],
+          description: 'The target resource kind.',
+        },
+        bound_ref: { type: 'string', description: 'The target resource ref (dep_…, app_…, plan_…, cook_…, or a contextmap node ref).' },
+        role: {
+          type: 'string',
+          enum: ['corpus', 'working_memory', 'ingredient', 'reference'],
+          description: 'Optional semantic role this stash plays for the bound resource.',
+        },
+      },
+      required: ['stash_ref', 'bound_kind', 'bound_ref'],
+    },
+    handler: bindStashHandler,
+  });
+
+  registerTool({
+    name: 'unbind_stash',
+    description:
+      'Ring 9 — remove a single (stash, kind, ref) binding row. The stash and the target resource both survive; only the navigational edge between them is dropped. Returns { removed: true|false }.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        stash_ref: { type: 'string', description: 'The stash side of the binding.' },
+        bound_kind: {
+          type: 'string',
+          enum: ['bot', 'app', 'plan', 'cook', 'contextmap_node'],
+          description: 'The resource kind the binding targets.',
+        },
+        bound_ref: { type: 'string', description: 'The resource ref the binding targets.' },
+      },
+      required: ['stash_ref', 'bound_kind', 'bound_ref'],
+    },
+    handler: unbindStashHandler,
+  });
+
+  registerTool({
+    name: 'list_stash_bindings',
+    description:
+      "Ring 9 — query the stash adjacency layer. Filters in either direction: pass `stash_ref` for 'what is this stash linked to'; pass `bound_kind` + `bound_ref` for 'what stashes link to this resource'; pass `bound_kind` alone for 'every binding of this kind'. No filter returns every binding (operator audit view). Read-only.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        stash_ref: { type: 'string', description: 'Filter to bindings on this stash.' },
+        bound_kind: {
+          type: 'string',
+          enum: ['bot', 'app', 'plan', 'cook', 'contextmap_node'],
+          description: 'Filter to bindings targeting this kind.',
+        },
+        bound_ref: { type: 'string', description: 'Filter to bindings targeting this resource ref (reverse lookup).' },
+      },
+    },
+    handler: listStashBindingsHandler,
   });
 }

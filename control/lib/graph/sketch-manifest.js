@@ -9,7 +9,7 @@
  *       Edge `via`:     'right' | 'left' | 'top' | 'bottom'
  *   - marks[]              — the low-level chart vocabulary added for the
  *       chart-concept expansion. Mark kinds include rect | circle | wedge |
- *       line | polyline | polygon | blob | solid | volume | partition | array | mandalaField | cubieLattice | text.
+ *       line | polyline | polygon | blob | solid | volume | partition | array | mandalaArrangement | horizontalStack | mandalaField | fluidField | swirlField | rBrush | blobPla | visionPane | cubieLattice | text.
  *       Charts (stacked bar, donut, KPI tile, ...) are
  *       *recipes* composed from these marks — see the sketch_vocab cards in
  *       lib/graph/sketch-vocab/, retrieved via semantic_search by /sketch.
@@ -48,7 +48,14 @@ export const MARK_KINDS = [
   'solid',
   'partition',
   'array',
+  'mandalaArrangement',
+  'horizontalStack',
   'mandalaField',
+  'fluidField',
+  'swirlField',
+  'rBrush',
+  'blobPla',
+  'visionPane',
   'stickerField',
   'cubieLattice',
   'planePreset',
@@ -272,6 +279,37 @@ function validateMark(mark, idx, errors) {
           !isFiniteNumber(mark.anchor[1]))
       ) {
         errors.push(`${path}.anchor must be an [x, y] number pair if provided`);
+      }
+      break;
+    case 'fluidField':
+    case 'swirlField':
+      ['count', 'unitScale', 'depthScale', 'z', 'strokeWidth', 'points'].forEach((key) =>
+        validateOptionalNumber(mark, key, path, errors),
+      );
+      validateOptionalString(mark, 'medium', path, errors);
+      validateOptionalString(mark, 'style', path, errors);
+      if (mark.basis !== undefined && (!mark.basis || typeof mark.basis !== 'object' || Array.isArray(mark.basis))) {
+        errors.push(`${path}.basis must be an object if provided`);
+      }
+      if (mark.population !== undefined && (!mark.population || typeof mark.population !== 'object' || Array.isArray(mark.population))) {
+        errors.push(`${path}.population must be an object if provided`);
+      }
+      if (mark.glyph !== undefined && (!mark.glyph || typeof mark.glyph !== 'object' || Array.isArray(mark.glyph))) {
+        errors.push(`${path}.glyph must be an object if provided`);
+      }
+      break;
+    case 'rBrush':
+      if (mark.matter !== undefined && (!mark.matter || typeof mark.matter !== 'object' || Array.isArray(mark.matter))) {
+        errors.push(`${path}.matter must be an object if provided`);
+      }
+      if (mark.load !== undefined && !Array.isArray(mark.load)) {
+        errors.push(`${path}.load must be an array if provided`);
+      }
+      if (mark.color !== undefined && (!mark.color || typeof mark.color !== 'object' || Array.isArray(mark.color))) {
+        errors.push(`${path}.color must be an object if provided`);
+      }
+      if (mark.edge !== undefined && (!mark.edge || typeof mark.edge !== 'object' || Array.isArray(mark.edge))) {
+        errors.push(`${path}.edge must be an object if provided`);
       }
       break;
     case 'stickerField':

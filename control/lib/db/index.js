@@ -484,6 +484,24 @@ function init(db) {
     CREATE INDEX IF NOT EXISTS idx_stash_items_stash ON stash_items(stash_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_stash_items_drawer ON stash_items(drawer_id);
 
+    -- The adjacency layer: many-to-many edges from a stash to other substrate
+    -- resources (bot / app / plan / cook / contextmap_node). What turns "stash
+    -- inbox" into "this bot's knowledge corpus, this plan's working memory".
+    -- bound_ref is NOT a foreign key — deletion of a bound resource leaves
+    -- the binding as a "linked resource removed" chip (stashes survive the
+    -- resources they're linked to). Purely navigational in v0 — no automatic
+    -- context injection mid-conversation. See
+    -- lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
+    CREATE TABLE IF NOT EXISTS stash_bindings (
+      stash_id INTEGER NOT NULL REFERENCES stashes(id) ON DELETE CASCADE,
+      bound_kind TEXT NOT NULL CHECK(bound_kind IN ('bot','app','plan','cook','contextmap_node')),
+      bound_ref TEXT NOT NULL,
+      role TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (stash_id, bound_kind, bound_ref)
+    );
+    CREATE INDEX IF NOT EXISTS idx_stash_bindings_reverse ON stash_bindings(bound_kind, bound_ref);
+
     -- Cook output rows. The row is the index; the actual artifact is a folder
     -- under control/data/outcomes/<cook_ref>/ (report.md + index.html +
     -- manifest.json + optional visuals). slices_json is the CLEAVED SLICE
@@ -539,6 +557,7 @@ function init(db) {
   migratePlanColumns(db);
   migrateResearchColumns(db);
   migrateSketchColumns(db);
+  migrateStashItemColumns(db);
   migrateStashCookColumns(db);
   migrateEmbeddingsSourceKinds(db);
   reapStaleMcpJobs(db);
@@ -777,6 +796,20 @@ function migrateSketchColumns(db) {
     db.exec('ALTER TABLE sketches ADD COLUMN folder_ref TEXT');
   }
   db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_folder_ref ON sketches(folder_ref)');
+}
+
+// stash_items gains archived_at to support soft-delete (the operator-facing
+// archive verb; hard delete is sweep-only). Archived rows stay in the table so
+// downstream citations (cook slices, future plan refs) can still resolve to
+// last-known content — the citable-atoms posture in
+// lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
+function migrateStashItemColumns(db) {
+  const cols = db.prepare('PRAGMA table_info(stash_items)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('archived_at')) {
+    db.exec('ALTER TABLE stash_items ADD COLUMN archived_at INTEGER');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_stash_items_archived_at ON stash_items(archived_at)');
 }
 
 // stash_cooks shipped first with (stash_refs_json NOT NULL, query NOT NULL).

@@ -75,20 +75,26 @@ If, while gathering, a concept emerges that *could become work*, call \`synthesi
 
 start_research (auto-saves) → bind_research_item (loop, broadly) → synthesize_abstract (distill → optionally evaluate). No compile, no execute. You decide if and when to synthesize.
 
-## Gather / Stash — the sharper path
+## Gather / Stash — the sharper path (prefer this for new gatherings)
 
-There is now a second, sharper-edged path with a typed intake contract: **Gather** (the verb) binds items into a **Stash** (a renameable user-facing bucket with optional Drawers). Use this path when you want the UI to render items meaningfully (each item has a type — text / markdown / image / svg / script / pointer / link — and the gate validates required-per-type metadata).
+There is a second, sharper-edged path with a typed intake contract: **Gather** (the verb) binds items into a **Stash** (a renameable user-facing bucket with optional Drawers). Use this path when you want the UI to render items meaningfully (each item has a type — text / markdown / image / svg / script / pointer / link — and the gate validates required-per-type metadata).
 
 - \`mint_stash({ title })\` — create a stash (returns \`stash_ref\`).
 - \`gather({ stash_ref, type, …per-type fields, drawer? })\` — bind a typed item. Malformed items are *rejected at the gate*, not stored as junk.
 - \`mint_drawer({ stash_ref, name })\` — optional sub-grouping.
 - \`rename_stash\`, \`list_stashes\`, \`get_stash\` for the rest.
 
-Stashes coexist with the legacy research book — both surfaces work, but a Stash is a richer artifact (and the only one Cook will collide). Prefer Gather/Stash for new gatherings; \`synthesize_abstract\` for now still operates on the legacy research session path.
+The legacy research book (\`start_research\` / \`bind_research_item\` / \`synthesize_abstract\`) still works for existing books, but **prefer Gather/Stash for new gatherings** — it's the only path Cook collides, and the only one that lands as a first-class deliberation node other rings can read.
 
 ## Cook — the nucleation collider (low-frequency, high-signal)
 
 Gathering is the routine. **Cook is the irruption** — you only fire it when enough material has accreted that nucleation is possible AND a real *dismantling question* presents itself. Most sessions never cook; that's correct.
+
+### Cook stops at cook
+
+Cook materializes ONE outcome artifact aimed at ONE target. **It does not fan out to plan mode.** If a cook outcome later reads as tractable work, plan mode pulls it via \`forge_plan({ source: { kind: 'cook', cook_ref } })\` — that's a plan-side decision made later, not a cook outlet. Any future ring (audit, compose, brief, …) that wants to deliberate on a cook output reads it the same way: cook is a first-class node, rings read nodes.
+
+Don't look for a \`cook({ outlet: 'plan' })\` shape. It doesn't exist on purpose.
 
 ### The binding vow
 
@@ -107,10 +113,10 @@ A Cook aims its nucleation arrow at **ONE target** — the singular \`aim\`. If 
 ### Tool surface
 
 - \`cook({ slices: [{ stash_ref, item_ids? }, …], aim, report_md, suggested_lens?, visuals?, additional_context? })\` — materializes the Outcome Artifact folder (\`control/data/outcomes/<cook_ref>/\` with report.md, static index.html, manifest.json, optional svg/png). Returns \`{ cook_ref, outcome_url, … }\`.
-- \`get_cook({ cook_ref })\` — read a cook row (the index pointing at its folder).
+- \`get_cook({ cook_ref })\` — read a cook row (the index pointing at its folder). The way any ring reads a cook node.
 - \`list_cooks({ limit? })\` — the outcomes inbox.
 
-The cook tool is the only tool that fires the furnace. Mojulo materializes the artifact; you do the nucleating.`;
+The cook tool is the only tool that fires the furnace. Mojulo materializes the artifact; you do the nucleating. To later promote a cook to plan-mode work: \`forge_plan({ source: { kind: 'cook', cook_ref } })\` (plan-side, not cook-side).`;
 
 // ---------------------------------------------------------------------------
 // handlers

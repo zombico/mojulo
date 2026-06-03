@@ -12,7 +12,9 @@ const { ITEM_TYPES } = _internals;
 
 function reset() {
   const db = getDb();
-  db.exec('DELETE FROM stash_items; DELETE FROM stash_drawers; DELETE FROM stashes;');
+  db.exec(
+    'DELETE FROM stash_bindings; DELETE FROM stash_items; DELETE FROM stash_drawers; DELETE FROM stashes; DELETE FROM stash_cooks;',
+  );
 }
 
 describe('StashRepository', () => {
@@ -201,5 +203,335 @@ describe('StashRepository', () => {
     expect(StashRepository.getByRef('st_nope')).toBe(null);
     expect(StashRepository.getFull('st_nope')).toBe(null);
     expect(StashRepository.rename('st_nope', 'x')).toBe(null);
+  });
+
+  // ---------------------------------------------------------------------------
+  // citable-atom verbs — update_item / archive_item
+  // (lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md step 1)
+  // ---------------------------------------------------------------------------
+
+  it('updateItem mutates body and metadata in place, gate re-runs', () => {
+    const s = StashRepository.mint({ title: 'mutable' });
+    const original = StashRepository.gather({
+      stashRef: s.stashRef,
+      type: 'markdown',
+      title: 'note',
+      bodyMd: '# first draft',
+    });
+
+    const updated = StashRepository.updateItem({
+      itemId: original.id,
+      bodyMd: '# second draft',
+      title: 'note (revised)',
+    });
+    expect(updated.id).toBe(original.id);
+    expect(updated.bodyMd).toBe('# second draft');
+    expect(updated.title).toBe('note (revised)');
+
+    // gate must reject an update that violates the type contract
+    expect(() =>
+      StashRepository.updateItem({ itemId: original.id, bodyMd: '' }),
+    ).toThrow(/non-empty `body_md`/);
+  });
+
+  it('updateItem on svg revalidates the XML-shape rule', () => {
+    const s = StashRepository.mint({ title: 'svg-mut' });
+    const item = StashRepository.gather({
+      stashRef: s.stashRef,
+      type: 'svg',
+      bodySvg: '<svg><rect/></svg>',
+    });
+    expect(() =>
+      StashRepository.updateItem({ itemId: item.id, bodySvg: 'not actually svg' }),
+    ).toThrow(/<\?xml or <svg/);
+    const ok = StashRepository.updateItem({
+      itemId: item.id,
+      bodySvg: '<?xml version="1.0"?><svg><circle/></svg>',
+    });
+    expect(ok.body).toMatch(/circle/);
+  });
+
+  it('updateItem on image re-validates required metadata', () => {
+    const s = StashRepository.mint({ title: 'img-mut' });
+    const item = StashRepository.gather({
+      stashRef: s.stashRef,
+      type: 'image',
+      mediaRef: 'doc_a',
+      metadata: { mime: 'image/png', width: 10, height: 10, content_hash: 'h1' },
+    });
+    // Sending metadata: {} drops required keys → gate rejects
+    expect(() =>
+      StashRepository.updateItem({ itemId: item.id, metadata: {} }),
+    ).toThrow(/content_hash|width|height|mime/);
+  });
+
+  it('archiveItem soft-deletes and hides from default list', () => {
+    const s = StashRepository.mint({ title: 'archive' });
+    const it1 = StashRepository.gather({ stashRef: s.stashRef, type: 'text', body: 'keep' });
+    const it2 = StashRepository.gather({ stashRef: s.stashRef, type: 'text', body: 'archive' });
+
+    const result = StashRepository.archiveItem({ itemId: it2.id });
+    expect(result.archived).toBe(true);
+    expect(result.alreadyArchived).toBe(false);
+
+    // Default list hides archived
+    const visible = StashRepository.listItems(s.stashRef);
+    expect(visible.map((i) => i.id)).toEqual([it1.id]);
+    expect(StashRepository.countItems(s.stashRef)).toBe(1);
+
+    // includeArchived surfaces them
+    const all = StashRepository.listItems(s.stashRef, { includeArchived: true });
+    expect(all).toHaveLength(2);
+    expect(StashRepository.countItems(s.stashRef, { includeArchived: true })).toBe(2);
+
+    // getItemById always resolves (citable-atoms posture)
+    const resolved = StashRepository.getItemById(it2.id);
+    expect(resolved.id).toBe(it2.id);
+    expect(resolved.archivedAt).toBeGreaterThan(0);
+  });
+
+  it('archiveItem is idempotent on already-archived items', () => {
+    const s = StashRepository.mint({ title: 'idem' });
+    const item = StashRepository.gather({ stashRef: s.stashRef, type: 'text', body: 'x' });
+    StashRepository.archiveItem({ itemId: item.id });
+    const second = StashRepository.archiveItem({ itemId: item.id });
+    expect(second.archived).toBe(false);
+    expect(second.alreadyArchived).toBe(true);
+  });
+
+  it('scanItemReferences finds cooks that cite the item id in slice manifest', () => {
+    const s = StashRepository.mint({ title: 'cited' });
+    const cited = StashRepository.gather({ stashRef: s.stashRef, type: 'text', body: 'a' });
+    const uncited = StashRepository.gather({ stashRef: s.stashRef, type: 'text', body: 'b' });
+
+    // Fake a cook row directly — we don't need the cook repo for this test.
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO stash_cooks (cook_ref, slices_json, aim, outcome_dir)
+       VALUES (?, ?, ?, ?)`,
+    ).run(
+      'cook_abc',
+      JSON.stringify([{ stash_ref: s.stashRef, item_ids: [cited.id] }]),
+      'test',
+      '/tmp/test',
+    );
+    // Whole-stash slice (no item_ids) does NOT count — it's not a per-item cite.
+    db.prepare(
+      `INSERT INTO stash_cooks (cook_ref, slices_json, aim, outcome_dir)
+       VALUES (?, ?, ?, ?)`,
+    ).run('cook_whole', JSON.stringify([{ stash_ref: s.stashRef }]), 'test', '/tmp/test');
+
+    expect(StashRepository.scanItemReferences(cited.id).cooks).toEqual(['cook_abc']);
+    expect(StashRepository.scanItemReferences(uncited.id).cooks).toEqual([]);
+  });
+
+  it('getFull excludes archived items by default but surfaces them with includeArchived', () => {
+    const s = StashRepository.mint({ title: 'full-archive' });
+    const a = StashRepository.gather({ stashRef: s.stashRef, type: 'text', body: 'live' });
+    const b = StashRepository.gather({ stashRef: s.stashRef, type: 'text', body: 'gone' });
+    StashRepository.archiveItem({ itemId: b.id });
+
+    const defaultView = StashRepository.getFull(s.stashRef);
+    expect(defaultView.items.map((i) => i.id)).toEqual([a.id]);
+
+    const fullView = StashRepository.getFull(s.stashRef, { includeArchived: true });
+    expect(fullView.items.map((i) => i.id).sort()).toEqual([a.id, b.id].sort());
+  });
+
+  it('updateItem throws on unknown item id', () => {
+    expect(() =>
+      StashRepository.updateItem({ itemId: 99999, bodyMd: 'x' }),
+    ).toThrow(/not found/);
+  });
+
+  it('archiveItem throws on unknown item id', () => {
+    expect(() => StashRepository.archiveItem({ itemId: 99999 })).toThrow(/not found/);
+  });
+
+  // ---------------------------------------------------------------------------
+  // adjacency layer — stash_bindings
+  // (lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md step 2)
+  // ---------------------------------------------------------------------------
+
+  it('binds a stash to a bot and lists in both directions', () => {
+    const a = StashRepository.mint({ title: 'corpus' });
+    const b = StashRepository.mint({ title: 'sidekick' });
+    const binding = StashRepository.bind({
+      stashRef: a.stashRef,
+      boundKind: 'bot',
+      boundRef: 'dep_xyz',
+      role: 'corpus',
+    });
+    StashRepository.bind({ stashRef: b.stashRef, boundKind: 'bot', boundRef: 'dep_xyz' });
+    expect(binding.boundKind).toBe('bot');
+    expect(binding.boundRef).toBe('dep_xyz');
+    expect(binding.role).toBe('corpus');
+
+    // forward: bindings for stash a
+    const forward = StashRepository.listBindings({ stashRef: a.stashRef });
+    expect(forward).toHaveLength(1);
+    expect(forward[0].boundRef).toBe('dep_xyz');
+
+    // reverse: stashes linked to dep_xyz — both stashes show up
+    const reverse = StashRepository.listBindings({ boundKind: 'bot', boundRef: 'dep_xyz' });
+    expect(reverse.map((r) => r.stashRef).sort()).toEqual([a.stashRef, b.stashRef].sort());
+  });
+
+  it('bind is idempotent on PK; rebind updates the role', () => {
+    const s = StashRepository.mint({ title: 'rebind' });
+    StashRepository.bind({ stashRef: s.stashRef, boundKind: 'plan', boundRef: 'plan_1', role: 'working_memory' });
+    StashRepository.bind({ stashRef: s.stashRef, boundKind: 'plan', boundRef: 'plan_1', role: 'reference' });
+    const bindings = StashRepository.listBindings({ stashRef: s.stashRef });
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0].role).toBe('reference');
+  });
+
+  it('rejects unknown bound_kind and role', () => {
+    const s = StashRepository.mint({ title: 'gated' });
+    expect(() =>
+      StashRepository.bind({ stashRef: s.stashRef, boundKind: 'sketch', boundRef: 'sk_x' }),
+    ).toThrow(/bound_kind 'sketch' is not valid/);
+    expect(() =>
+      StashRepository.bind({
+        stashRef: s.stashRef,
+        boundKind: 'plan',
+        boundRef: 'plan_1',
+        role: 'pantry',
+      }),
+    ).toThrow(/role 'pantry' is not valid/);
+  });
+
+  it('unbind drops the row and is graceful on missing rows', () => {
+    const s = StashRepository.mint({ title: 'unbinder' });
+    StashRepository.bind({ stashRef: s.stashRef, boundKind: 'app', boundRef: 'app_a' });
+    expect(
+      StashRepository.unbind({ stashRef: s.stashRef, boundKind: 'app', boundRef: 'app_a' }),
+    ).toBe(true);
+    expect(
+      StashRepository.unbind({ stashRef: s.stashRef, boundKind: 'app', boundRef: 'app_a' }),
+    ).toBe(false);
+    expect(StashRepository.listBindings({ stashRef: s.stashRef })).toHaveLength(0);
+  });
+
+  it('cascade-deletes bindings when the stash is hard-deleted', () => {
+    // stash archive is soft, but if we ever hard-delete a stash row the FK
+    // cascade should clean up its bindings.
+    const s = StashRepository.mint({ title: 'cascading' });
+    StashRepository.bind({ stashRef: s.stashRef, boundKind: 'bot', boundRef: 'dep_z' });
+    const db = getDb();
+    db.prepare('DELETE FROM stashes WHERE stash_ref = ?').run(s.stashRef);
+    expect(
+      StashRepository.listBindings({ boundKind: 'bot', boundRef: 'dep_z' }),
+    ).toHaveLength(0);
+  });
+
+  it('tolerates dangling bound_ref (no FK validation)', () => {
+    // Deliberate substrate posture: bindings are navigational, not enforced.
+    const s = StashRepository.mint({ title: 'dangling' });
+    const binding = StashRepository.bind({
+      stashRef: s.stashRef,
+      boundKind: 'bot',
+      boundRef: 'dep_definitely_not_a_real_bot',
+    });
+    expect(binding.boundRef).toBe('dep_definitely_not_a_real_bot');
+  });
+
+  it('listBindings with no filter returns everything', () => {
+    const a = StashRepository.mint({ title: 'a' });
+    const b = StashRepository.mint({ title: 'b' });
+    StashRepository.bind({ stashRef: a.stashRef, boundKind: 'plan', boundRef: 'plan_1' });
+    StashRepository.bind({ stashRef: b.stashRef, boundKind: 'bot', boundRef: 'dep_1' });
+    const all = StashRepository.listBindings();
+    expect(all).toHaveLength(2);
+  });
+
+  it('listBindings rejects an invalid boundKind filter', () => {
+    expect(() => StashRepository.listBindings({ boundKind: 'something' })).toThrow(
+      /bound_kind 'something' is not valid/,
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // view-layer verbs — unarchive / renameDrawer / moveItem
+  // (lite-template/integration/app-system/0601/STASH_VIEW_LAYER.md step 1)
+  // ---------------------------------------------------------------------------
+
+  it('unarchive flips an archived stash back to open', () => {
+    const s = StashRepository.mint({ title: 'flip' });
+    StashRepository.archive(s.stashRef);
+    expect(StashRepository.unarchive(s.stashRef)).toBe(true);
+    expect(StashRepository.getByRef(s.stashRef).status).toBe('open');
+    // idempotent on already-open
+    expect(StashRepository.unarchive(s.stashRef)).toBe(false);
+  });
+
+  it('renameDrawer scoped to (stashRef, oldName); throws on collision', () => {
+    const s = StashRepository.mint({ title: 'rename-drawer' });
+    StashRepository.mintDrawer({ stashRef: s.stashRef, name: 'foo' });
+    StashRepository.mintDrawer({ stashRef: s.stashRef, name: 'bar' });
+    const renamed = StashRepository.renameDrawer({
+      stashRef: s.stashRef,
+      oldName: 'foo',
+      newName: 'baz',
+    });
+    expect(renamed.name).toBe('baz');
+    const names = StashRepository.listDrawers(s.stashRef).map((d) => d.name).sort();
+    expect(names).toEqual(['bar', 'baz']);
+
+    expect(() =>
+      StashRepository.renameDrawer({ stashRef: s.stashRef, oldName: 'bar', newName: 'baz' }),
+    ).toThrow(/already exists/);
+
+    // no-op on identical names
+    const sameAgain = StashRepository.renameDrawer({
+      stashRef: s.stashRef,
+      oldName: 'baz',
+      newName: 'baz',
+    });
+    expect(sameAgain.name).toBe('baz');
+
+    // null on unknown source
+    expect(
+      StashRepository.renameDrawer({ stashRef: s.stashRef, oldName: 'never', newName: 'whatever' }),
+    ).toBe(null);
+  });
+
+  it('moveItem moves between drawers, to root, and rejects cross-stash moves', () => {
+    const s = StashRepository.mint({ title: 'movable' });
+    StashRepository.mintDrawer({ stashRef: s.stashRef, name: 'A' });
+    StashRepository.mintDrawer({ stashRef: s.stashRef, name: 'B' });
+    const item = StashRepository.gather({
+      stashRef: s.stashRef,
+      drawer: 'A',
+      type: 'text',
+      body: 'travel',
+    });
+
+    const moved = StashRepository.moveItem({
+      stashRef: s.stashRef,
+      itemId: item.id,
+      drawer: 'B',
+    });
+    expect(moved.drawerId).not.toBeNull();
+    expect(StashRepository.listItems(s.stashRef, { drawer: 'B' })).toHaveLength(1);
+
+    // back to root
+    const movedRoot = StashRepository.moveItem({
+      stashRef: s.stashRef,
+      itemId: item.id,
+      drawer: null,
+    });
+    expect(movedRoot.drawerId).toBeNull();
+
+    // unknown target drawer
+    expect(() =>
+      StashRepository.moveItem({ stashRef: s.stashRef, itemId: item.id, drawer: 'nope' }),
+    ).toThrow(/does not exist/);
+
+    // cross-stash rejection
+    const other = StashRepository.mint({ title: 'other' });
+    expect(() =>
+      StashRepository.moveItem({ stashRef: other.stashRef, itemId: item.id, drawer: null }),
+    ).toThrow(/does not belong to stash/);
   });
 });

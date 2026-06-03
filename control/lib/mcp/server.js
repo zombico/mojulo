@@ -325,13 +325,18 @@ export async function ensureToolsRegistered() {
   // Ring 9 (research mode) — the ACCRETIVE / exploratory layer upstream of
   // plans. A low-prominence OPTIONAL DRAWER (posture-sibling to sketches):
   // deliberately NOT woven into forward_context, entered only when the user
-  // asks to research/gather. synthesize_abstract hands a distilled thesis to
-  // plan mojulo via the research→plan bridge (lib/research/evaluate.js,
-  // surfaced over HTTP at POST /api/plans/from-abstract). One-way coupling:
-  // research depends on plans; plans never import research. Registers after
-  // plan mode (it forges Draft plans, so plan tools exist first) and near the
-  // other drawers in tools/list. See lite-template/integration/app-system/
-  // 0528/research-mode.md.
+  // asks to research/gather. The legacy research-book path still ships
+  // (start_research / bind_research_item / synthesize_abstract) for existing
+  // books; new gatherings should prefer the typed-intake stash path below.
+  // synthesize_abstract hands a distilled thesis from a legacy book to plan
+  // mojulo via the research→plan bridge (lib/research/evaluate.js, surfaced
+  // over HTTP at POST /api/plans/from-abstract); cook outcomes hand to plan
+  // mode via the cook→plan bridge on forge_plan's `source` parameter. One-way
+  // coupling either way: research/cook depend on plans; plans never import
+  // research/cook. Registers after plan mode (it forges Draft plans, so plan
+  // tools exist first) and near the other drawers in tools/list. See
+  // lite-template/integration/app-system/0528/research-mode.md and
+  // 0601/RESEARCH_PATH_CONVERGENCE.md for the cook-stays-at-cook framing.
   registerResearchModeTools();
   // Ring 9 (stash mode) — the sharper-edged successor to research_sessions.
   // Gather/Stash/Drawer with a typed intake contract (seven item types, each

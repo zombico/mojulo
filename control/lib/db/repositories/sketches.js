@@ -84,6 +84,23 @@ export const SketchRepository = {
     return result.changes;
   },
 
+  deleteByRef(ref) {
+    if (!ref) return 0;
+    const db = getDb();
+    const result = db.prepare('DELETE FROM sketches WHERE ref = ?').run(ref);
+    return result.changes;
+  },
+
+  deleteMany({ refs }) {
+    if (!Array.isArray(refs) || refs.length === 0) return 0;
+    const db = getDb();
+    const placeholders = refs.map(() => '?').join(',');
+    const result = db
+      .prepare(`DELETE FROM sketches WHERE ref IN (${placeholders})`)
+      .run(...refs);
+    return result.changes;
+  },
+
   // Returns recent sketches first, capped at `limit`. Used by the index
   // page; client-side filters the result by title/ref substring so we
   // don't fight pagination at this density. Bump the cap (or add q/server

@@ -13,8 +13,12 @@
  * No LLM call from server-side; no per-cook compute.
  *
  * Cook does NOT compile, NOT execute, and NOT flip a status flag. It writes
- * a row + a folder, returns the URL, and is done. To escalate the outcome to
- * plan mojulo, call synthesize_abstract({ from_cook: cook_ref }) (slice 3).
+ * a row + a folder, returns the URL, and is done. **Cook stops at cook.** If
+ * a cook outcome later reads as tractable work, plan mode itself can be
+ * seeded from it via `forge_plan({ source: { kind: 'cook', cook_ref } })` —
+ * that's a plan-side decision made later, not a cook outlet. Any other ring
+ * that wants to deliberate on a cook output reads it the same way:
+ * `get_cook` / `list_cooks` make cook a first-class node, not a fan-out verb.
  *
  * See lite-template/integration/app-system/0531/GATHER_STASH_COOK.md.
  */
@@ -158,7 +162,7 @@ export async function cookHandler(input, _ctx) {
     template_version: templateVersion,
     file_count: fileCount,
     ...(suggested_lens ? { suggested_lens } : {}),
-    message: `Cook nucleated at ${outcomeUrlFor(cookRef)} (${fileCount} files, template v${templateVersion}). Aim: "${aim}". To escalate: synthesize_abstract({ from_cook: '${cookRef}' }) (slice 3).`,
+    message: `Cook nucleated at ${outcomeUrlFor(cookRef)} (${fileCount} files, template v${templateVersion}). Aim: "${aim}". Cook stops at cook — if this outcome later reads as tractable work, plan mode pulls it via forge_plan({ source: { kind: 'cook', cook_ref: '${cookRef}' } }).`,
   };
 }
 
@@ -215,7 +219,8 @@ export function registerCookTools() {
       "  2. AIM with a dismantling question — interrogative, pattern-seeking ('what unifies these?', 'where do these disagree?', 'what hidden structure?'). Not exploratory ('tell me about X' — that's gathering, the Stash's job).\n" +
       "  3. NUCLEATE one new artifact — the agent authors report_md, focusing all attention on the singular aim. The slices are RECOMBINATOR material, not citation material: they flavor the prose without appearing in it as quotes.\n\n" +
       "AUTHORING MODEL: the AGENT authors report_md (and visuals); cook only materializes the folder. No server-side LLM call.\n\n" +
-      "Returns { cook_ref, outcome_url, outcome_dir, template_version, file_count, suggested_lens?, message }. The static index.html is self-contained. To escalate: synthesize_abstract({ from_cook }) — slice 3.",
+      "COOK STOPS AT COOK. There is no cook outlet to plan mode — a cook is a first-class deliberation node, and other rings read it. If a cook outcome later reads as tractable work, plan mode itself can be seeded from it via `forge_plan({ source: { kind: 'cook', cook_ref } })`; the cook's aim becomes the seeded plan goal. That handoff is a plan-side decision made later, not a cook outlet — most cooks never become plans, which is correct.\n\n" +
+      "Returns { cook_ref, outcome_url, outcome_dir, template_version, file_count, suggested_lens?, message }. The static index.html is self-contained.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -247,7 +252,7 @@ export function registerCookTools() {
         suggested_lens: {
           type: 'string',
           enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'],
-          description: 'Optional: which plan-mode lens the agent thinks fits if this becomes work. Surfaced in the outcome header; passed through to synthesize_abstract if escalated.',
+          description: 'Optional: which plan-mode lens the agent thinks fits if this becomes work. Surfaced in the outcome header; carried through to plan mode if the cook is later seeded into forge_plan via source.',
         },
         visuals: {
           type: 'array',
@@ -263,7 +268,7 @@ export function registerCookTools() {
   registerTool({
     name: 'get_cook',
     description:
-      'Ring 9 — fetch a cook row (the index pointing at its Outcome Artifact folder). Returns { cook_ref, query, stash_refs, additional_context, suggested_lens, outcome_dir, outcome_url, template_version, created_at }. The actual ideation lives in report.md inside outcome_dir.',
+      "Ring 9 — fetch a cook row (the index pointing at its Outcome Artifact folder). Returns { cook_ref, aim, slices, stash_refs, additional_context, suggested_lens, outcome_dir, outcome_url, template_version, created_at }. The actual ideation lives in report.md inside outcome_dir. Cook is a first-class node: any ring (plan mode via forge_plan source, audit/compose/brief surfaces, etc.) can read this row and act on it.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -277,7 +282,7 @@ export function registerCookTools() {
   registerTool({
     name: 'list_cooks',
     description:
-      'Ring 9 — list cooks (the outcomes inbox), most-recent first. Optional `limit`. Returns { total, cooks: [{ cook_ref, query, stash_refs, suggested_lens, outcome_url, template_version, created_at }] }.',
+      "Ring 9 — list cooks (the outcomes inbox), most-recent first. Optional `limit`. Returns { total, cooks: [{ cook_ref, aim, stash_refs, suggested_lens, outcome_url, template_version, created_at }] }. Each row is a deliberation node any ring can read — pull a `cook_ref` into forge_plan's `source` to seed a plan from it.",
     inputSchema: {
       type: 'object',
       properties: {

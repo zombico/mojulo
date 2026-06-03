@@ -32,6 +32,13 @@ const SIZE_CAPS = {
 
 const SCRIPT_LANGUAGES = new Set(['js', 'ts', 'py', 'sh', 'sql']);
 
+// Adjacency-layer kinds (the fixed set). New kinds are a one-line code change,
+// not a schema migration — but resist `kind: 'anything'` here; freeform kinds
+// is how the substrate accretes drift. See
+// lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
+const BINDING_KINDS = new Set(['bot', 'app', 'plan', 'cook', 'contextmap_node']);
+const BINDING_ROLES = new Set(['corpus', 'working_memory', 'ingredient', 'reference']);
+
 function parseJSON(value, fallback) {
   if (value === null || value === undefined) return fallback;
   try {
@@ -63,6 +70,18 @@ function rowToDrawer(row) {
   };
 }
 
+function rowToBinding(row, stashRef) {
+  if (!row) return null;
+  return {
+    stashRef: stashRef ?? row.stash_ref ?? null,
+    stashId: row.stash_id,
+    boundKind: row.bound_kind,
+    boundRef: row.bound_ref,
+    role: row.role ?? null,
+    createdAt: row.created_at,
+  };
+}
+
 function rowToItem(row) {
   if (!row) return null;
   return {
@@ -77,6 +96,7 @@ function rowToItem(row) {
     mediaRef: row.media_ref,
     metadata: parseJSON(row.metadata_json, {}),
     createdAt: row.created_at,
+    archivedAt: row.archived_at ?? null,
   };
 }
 
@@ -257,6 +277,17 @@ export const StashRepository = {
     return result.changes > 0;
   },
 
+  /** Flip an archived stash back to open. Idempotent on open stashes. */
+  unarchive(stashRef) {
+    const db = getDb();
+    const result = db
+      .prepare(
+        "UPDATE stashes SET status = 'open', updated_at = unixepoch() WHERE stash_ref = ? AND status = 'archived'",
+      )
+      .run(stashRef);
+    return result.changes > 0;
+  },
+
   // -------------------------------------------------------------------------
   // drawers
   // -------------------------------------------------------------------------
@@ -290,6 +321,72 @@ export const StashRepository = {
       .prepare('SELECT * FROM stash_drawers WHERE stash_id = ? ORDER BY name ASC')
       .all(stash.id);
     return rows.map(rowToDrawer);
+  },
+
+  /**
+   * Rename a drawer scoped to (stashRef, oldName). Collides on UNIQUE(stash_id, name)
+   * if newName already exists — surfaced as a clean error rather than a raw
+   * SQL exception. No-op if no drawer matches.
+   */
+  renameDrawer({ stashRef, oldName, newName }) {
+    if (!newName || typeof newName !== 'string') {
+      throw new Error('newName is required');
+    }
+    const db = getDb();
+    const stash = db.prepare('SELECT id FROM stashes WHERE stash_ref = ?').get(stashRef);
+    if (!stash) throw new Error(`Stash '${stashRef}' not found`);
+    const existing = db
+      .prepare('SELECT * FROM stash_drawers WHERE stash_id = ? AND name = ?')
+      .get(stash.id, oldName);
+    if (!existing) return null;
+    if (oldName === newName) return rowToDrawer(existing);
+    const collision = db
+      .prepare('SELECT id FROM stash_drawers WHERE stash_id = ? AND name = ?')
+      .get(stash.id, newName);
+    if (collision) {
+      throw new Error(
+        `A drawer named '${newName}' already exists in this stash.`,
+      );
+    }
+    db.prepare('UPDATE stash_drawers SET name = ? WHERE id = ?').run(newName, existing.id);
+    db.prepare('UPDATE stashes SET updated_at = unixepoch() WHERE id = ?').run(stash.id);
+    return rowToDrawer(
+      db.prepare('SELECT * FROM stash_drawers WHERE id = ?').get(existing.id),
+    );
+  },
+
+  /**
+   * Move an item between drawers in the same stash (or to root with drawer
+   * = null). The target drawer must belong to the same stash as the item —
+   * enforced in JS to avoid relying on FK edge cases.
+   */
+  moveItem({ stashRef, itemId, drawer }) {
+    const db = getDb();
+    const stash = db.prepare('SELECT id FROM stashes WHERE stash_ref = ?').get(stashRef);
+    if (!stash) throw new Error(`Stash '${stashRef}' not found`);
+    const item = db.prepare('SELECT * FROM stash_items WHERE id = ?').get(itemId);
+    if (!item) throw new Error(`Stash item '${itemId}' not found`);
+    if (item.stash_id !== stash.id) {
+      throw new Error(`Item '${itemId}' does not belong to stash '${stashRef}'`);
+    }
+    let drawerId = null;
+    if (drawer !== null && drawer !== undefined) {
+      if (typeof drawer !== 'string') {
+        throw new Error('drawer must be a string (the drawer name) or null');
+      }
+      const d = db
+        .prepare('SELECT id FROM stash_drawers WHERE stash_id = ? AND name = ?')
+        .get(stash.id, drawer);
+      if (!d) {
+        throw new Error(
+          `Drawer '${drawer}' does not exist in stash '${stashRef}'. Mint it with mint_drawer first, or pass drawer: null to move to the root.`,
+        );
+      }
+      drawerId = d.id;
+    }
+    db.prepare('UPDATE stash_items SET drawer_id = ? WHERE id = ?').run(drawerId, itemId);
+    db.prepare('UPDATE stashes SET updated_at = unixepoch() WHERE id = ?').run(stash.id);
+    return rowToItem(db.prepare('SELECT * FROM stash_items WHERE id = ?').get(itemId));
   },
 
   // -------------------------------------------------------------------------
@@ -345,20 +442,23 @@ export const StashRepository = {
     return rowToItem(db.prepare('SELECT * FROM stash_items WHERE id = ?').get(result.lastInsertRowid));
   },
 
-  listItems(stashRef, { drawer } = {}) {
+  listItems(stashRef, { drawer, includeArchived = false } = {}) {
     const db = getDb();
     const stash = db.prepare('SELECT id FROM stashes WHERE stash_ref = ?').get(stashRef);
     if (!stash) return [];
+    const archivedClause = includeArchived ? '' : ' AND archived_at IS NULL';
     if (drawer === undefined) {
       const rows = db
-        .prepare('SELECT * FROM stash_items WHERE stash_id = ? ORDER BY created_at ASC, id ASC')
+        .prepare(
+          `SELECT * FROM stash_items WHERE stash_id = ?${archivedClause} ORDER BY created_at ASC, id ASC`,
+        )
         .all(stash.id);
       return rows.map(rowToItem);
     }
     if (drawer === null) {
       const rows = db
         .prepare(
-          'SELECT * FROM stash_items WHERE stash_id = ? AND drawer_id IS NULL ORDER BY created_at ASC, id ASC',
+          `SELECT * FROM stash_items WHERE stash_id = ? AND drawer_id IS NULL${archivedClause} ORDER BY created_at ASC, id ASC`,
         )
         .all(stash.id);
       return rows.map(rowToItem);
@@ -369,28 +469,251 @@ export const StashRepository = {
     if (!d) return [];
     const rows = db
       .prepare(
-        'SELECT * FROM stash_items WHERE stash_id = ? AND drawer_id = ? ORDER BY created_at ASC, id ASC',
+        `SELECT * FROM stash_items WHERE stash_id = ? AND drawer_id = ?${archivedClause} ORDER BY created_at ASC, id ASC`,
       )
       .all(stash.id, d.id);
     return rows.map(rowToItem);
   },
 
-  countItems(stashRef) {
+  countItems(stashRef, { includeArchived = false } = {}) {
     const db = getDb();
     const stash = db.prepare('SELECT id FROM stashes WHERE stash_ref = ?').get(stashRef);
     if (!stash) return 0;
+    const archivedClause = includeArchived ? '' : ' AND archived_at IS NULL';
     const row = db
-      .prepare('SELECT COUNT(*) AS n FROM stash_items WHERE stash_id = ?')
+      .prepare(`SELECT COUNT(*) AS n FROM stash_items WHERE stash_id = ?${archivedClause}`)
       .get(stash.id);
     return row ? row.n : 0;
   },
 
+  /**
+   * Fetch a single item by its integer id. Always returns the row regardless
+   * of archived state — the citable-atoms posture means callers (cook slices,
+   * live cite resolution) MUST be able to resolve an item by id even after it
+   * was archived. Hiding archived rows is a list-view concern, not a lookup
+   * concern.
+   */
+  getItemById(itemId) {
+    if (!Number.isInteger(itemId)) return null;
+    const db = getDb();
+    return rowToItem(db.prepare('SELECT * FROM stash_items WHERE id = ?').get(itemId));
+  },
+
+  /**
+   * Mutate a stash item in place. Re-runs the per-type contract gate against
+   * the MERGED state (existing row + patch fields), so a partial update can
+   * never corrupt the contract for the item's declared type — e.g. you can't
+   * empty out an image's content_hash by sending `metadata: {}` without the
+   * required keys. Touches `updated_at` on the parent stash.
+   *
+   * Type is intentionally NOT mutable: items are citable atoms, and changing
+   * the type would break the rendering and slicing contract for any place the
+   * id is already cited. Archive + re-gather instead.
+   */
+  updateItem({ itemId, title, sourceUrl, body, bodyMd, bodySvg, mediaRef, metadata }) {
+    const db = getDb();
+    const existing = db.prepare('SELECT * FROM stash_items WHERE id = ?').get(itemId);
+    if (!existing) throw new Error(`Stash item '${itemId}' not found`);
+
+    // Merge: undefined means "leave as-is"; explicit null means "clear".
+    const mergedTitle = title === undefined ? existing.title : title;
+    const mergedSourceUrl = sourceUrl === undefined ? existing.source_url : sourceUrl;
+    const mergedBody = body === undefined ? existing.body : body;
+    const mergedBodyMd = bodyMd === undefined ? existing.body_md : bodyMd;
+    const mergedMediaRef = mediaRef === undefined ? existing.media_ref : mediaRef;
+    const existingMetadata = parseJSON(existing.metadata_json, {});
+    const mergedMetadata = metadata === undefined ? existingMetadata : metadata;
+
+    // Per-type re-validation. The gate's input shape distinguishes svg's body
+    // (bodySvg) from text/script's body (body); on the table both live in
+    // `body`, so we route the merged body to whichever the type expects.
+    const gateInput = {
+      type: existing.type,
+      title: mergedTitle,
+      sourceUrl: mergedSourceUrl,
+      body: existing.type === 'svg' ? undefined : mergedBody,
+      bodyMd: mergedBodyMd,
+      bodySvg: existing.type === 'svg' ? (bodySvg === undefined ? existing.body : bodySvg) : undefined,
+      mediaRef: mergedMediaRef,
+      metadata: mergedMetadata,
+    };
+    const cols = validateItemContract(gateInput);
+
+    // Write the gate-canonicalized columns, not the merged inputs — the gate
+    // is the single source of truth for which content column a type uses
+    // (body for text/script/svg, body_md for markdown, media_ref for image,
+    // none for pointer/link). Stray inputs for the wrong type are dropped.
+    db.prepare(
+      `UPDATE stash_items
+         SET title = ?, source_url = ?, body = ?, body_md = ?, media_ref = ?, metadata_json = ?
+       WHERE id = ?`,
+    ).run(
+      mergedTitle ?? null,
+      mergedSourceUrl ?? null,
+      cols.body,
+      cols.body_md,
+      cols.media_ref,
+      JSON.stringify(cols.metadata),
+      itemId,
+    );
+
+    db.prepare('UPDATE stashes SET updated_at = unixepoch() WHERE id = ?').run(existing.stash_id);
+
+    return rowToItem(db.prepare('SELECT * FROM stash_items WHERE id = ?').get(itemId));
+  },
+
+  /**
+   * Soft-delete an item. Sets archived_at; the row stays so cook slices and
+   * other downstream citations continue to resolve to its last content. Idempotent —
+   * archiving an already-archived item is a no-op and reports archived=false.
+   * Hard delete is sweep-only, never user-triggered (see STASH_RELATIONAL_ATOMS.md).
+   */
+  archiveItem({ itemId }) {
+    const db = getDb();
+    const existing = db.prepare('SELECT * FROM stash_items WHERE id = ?').get(itemId);
+    if (!existing) throw new Error(`Stash item '${itemId}' not found`);
+    if (existing.archived_at !== null) return { archived: false, alreadyArchived: true };
+    const result = db
+      .prepare('UPDATE stash_items SET archived_at = unixepoch() WHERE id = ? AND archived_at IS NULL')
+      .run(itemId);
+    db.prepare('UPDATE stashes SET updated_at = unixepoch() WHERE id = ?').run(existing.stash_id);
+    return { archived: result.changes > 0, alreadyArchived: false };
+  },
+
+  /**
+   * Count downstream references to a stash item. Used to inform the
+   * warn-and-proceed UX in archive_item. The substrate is single-operator and
+   * scan target is small, so we just walk stash_cooks rows in-process instead
+   * of maintaining a reference index. See
+   * lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
+   */
+  scanItemReferences(itemId) {
+    if (!Number.isInteger(itemId)) return { cooks: [] };
+    const db = getDb();
+    const cookRows = db.prepare('SELECT cook_ref, slices_json FROM stash_cooks').all();
+    const cookHits = [];
+    for (const row of cookRows) {
+      const slices = parseJSON(row.slices_json, []);
+      if (!Array.isArray(slices)) continue;
+      const cited = slices.some(
+        (s) => s && Array.isArray(s.item_ids) && s.item_ids.includes(itemId),
+      );
+      if (cited) cookHits.push(row.cook_ref);
+    }
+    return { cooks: cookHits };
+  },
+
+  // -------------------------------------------------------------------------
+  // bindings — the adjacency layer
+  // -------------------------------------------------------------------------
+
+  /**
+   * Link a stash to another substrate resource (bot / app / plan / cook /
+   * contextmap_node). bound_ref is NOT validated against the target repo —
+   * dangling refs are tolerated by design (the navigational chip will surface
+   * "linked resource removed"). Idempotent on the PK; calling bind twice with
+   * the same (stash, kind, ref) updates the role only.
+   */
+  bind({ stashRef, boundKind, boundRef, role }) {
+    if (!BINDING_KINDS.has(boundKind)) {
+      throw new Error(
+        `bound_kind '${boundKind}' is not valid. Allowed: ${[...BINDING_KINDS].join(', ')}.`,
+      );
+    }
+    if (!boundRef || typeof boundRef !== 'string') {
+      throw new Error('bound_ref is required (the target resource ref)');
+    }
+    if (role !== undefined && role !== null && !BINDING_ROLES.has(role)) {
+      throw new Error(
+        `role '${role}' is not valid. Allowed: ${[...BINDING_ROLES].join(', ')} (or omit).`,
+      );
+    }
+    const db = getDb();
+    const stash = db.prepare('SELECT id FROM stashes WHERE stash_ref = ?').get(stashRef);
+    if (!stash) throw new Error(`Stash '${stashRef}' not found`);
+
+    db.prepare(
+      `INSERT INTO stash_bindings (stash_id, bound_kind, bound_ref, role)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(stash_id, bound_kind, bound_ref) DO UPDATE SET role = excluded.role`,
+    ).run(stash.id, boundKind, boundRef, role ?? null);
+
+    const row = db
+      .prepare(
+        'SELECT * FROM stash_bindings WHERE stash_id = ? AND bound_kind = ? AND bound_ref = ?',
+      )
+      .get(stash.id, boundKind, boundRef);
+    return rowToBinding(row, stashRef);
+  },
+
+  /** Remove a stash binding. Returns true if a row was deleted, false otherwise. */
+  unbind({ stashRef, boundKind, boundRef }) {
+    if (!BINDING_KINDS.has(boundKind)) {
+      throw new Error(
+        `bound_kind '${boundKind}' is not valid. Allowed: ${[...BINDING_KINDS].join(', ')}.`,
+      );
+    }
+    const db = getDb();
+    const stash = db.prepare('SELECT id FROM stashes WHERE stash_ref = ?').get(stashRef);
+    if (!stash) return false;
+    const result = db
+      .prepare(
+        'DELETE FROM stash_bindings WHERE stash_id = ? AND bound_kind = ? AND bound_ref = ?',
+      )
+      .run(stash.id, boundKind, boundRef);
+    return result.changes > 0;
+  },
+
+  /**
+   * Query bindings in either direction. Pass `stashRef` for "what is this
+   * stash linked to"; pass `boundKind` + `boundRef` for "what stashes link to
+   * this resource"; pass `boundKind` alone for "all bindings of this kind".
+   * No filter at all returns every binding (operator audit view).
+   */
+  listBindings({ stashRef, boundKind, boundRef } = {}) {
+    if (boundKind && !BINDING_KINDS.has(boundKind)) {
+      throw new Error(
+        `bound_kind '${boundKind}' is not valid. Allowed: ${[...BINDING_KINDS].join(', ')}.`,
+      );
+    }
+    const db = getDb();
+    const where = [];
+    const params = [];
+    let stashRefById = null;
+
+    if (stashRef) {
+      const stash = db.prepare('SELECT id, stash_ref FROM stashes WHERE stash_ref = ?').get(stashRef);
+      if (!stash) return [];
+      where.push('b.stash_id = ?');
+      params.push(stash.id);
+      stashRefById = new Map([[stash.id, stash.stash_ref]]);
+    }
+    if (boundKind) {
+      where.push('b.bound_kind = ?');
+      params.push(boundKind);
+    }
+    if (boundRef) {
+      where.push('b.bound_ref = ?');
+      params.push(boundRef);
+    }
+
+    const sql = `
+      SELECT b.*, s.stash_ref AS stash_ref
+        FROM stash_bindings b
+        JOIN stashes s ON s.id = b.stash_id
+        ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+       ORDER BY b.created_at ASC, b.bound_kind ASC, b.bound_ref ASC
+    `;
+    const rows = db.prepare(sql).all(...params);
+    return rows.map((row) => rowToBinding(row, row.stash_ref));
+  },
+
   /** Full stash: stash row + drawers + items grouped by drawer name. */
-  getFull(stashRef) {
+  getFull(stashRef, { includeArchived = false } = {}) {
     const stash = this.getByRef(stashRef);
     if (!stash) return null;
     const drawers = this.listDrawers(stashRef);
-    const items = this.listItems(stashRef);
+    const items = this.listItems(stashRef, { includeArchived });
     const drawerNameById = new Map(drawers.map((d) => [d.id, d.name]));
     const itemsWithDrawer = items.map((it) => ({
       ...it,
@@ -401,4 +724,11 @@ export const StashRepository = {
 };
 
 // Test seam.
-export const _internals = { generateRef, ITEM_TYPES, SIZE_CAPS, SCRIPT_LANGUAGES };
+export const _internals = {
+  generateRef,
+  ITEM_TYPES,
+  SIZE_CAPS,
+  SCRIPT_LANGUAGES,
+  BINDING_KINDS,
+  BINDING_ROLES,
+};

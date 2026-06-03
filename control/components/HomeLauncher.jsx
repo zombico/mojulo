@@ -148,6 +148,28 @@ function NotebookIcon({ className = 'h-10 w-10' }) {
   );
 }
 
+function StashIcon({ className = 'h-10 w-10' }) {
+  // Tray of layered cards — the bucket metaphor: stashes hold stacks of typed
+  // items. Reads as adjacent to the notebook icon without colliding with it.
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 14h4l1.5 2h5L16 14h4v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />
+      <path d="M7 10h10" strokeWidth="1.25" />
+      <path d="M6 6h12" strokeWidth="1.25" />
+    </svg>
+  );
+}
+
 function MapIcon({ className = 'h-10 w-10' }) {
   return (
     <svg
@@ -356,6 +378,7 @@ const TILES = [
   { key: 'plan',      href: '/plan',       Icon: PlanIcon },
   { key: 'map',       href: '/map',        Icon: MapIcon },
   { key: 'research',  href: '/research',   Icon: NotebookIcon },
+  { key: 'stash',     href: '/stashes',    Icon: StashIcon },
   // Settings lives in the grid because the home launcher hides the global
   // nav row — this is the operator's way back to host config.
   { key: 'settings',  href: '/settings',   Icon: SettingsIcon },

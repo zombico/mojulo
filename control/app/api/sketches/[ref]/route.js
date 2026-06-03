@@ -6,6 +6,9 @@
  * title and/or manifest. Used by the rename affordance in the sketches
  * UI and by the update_sketch MCP tool so the agent can iterate on the
  * same ref instead of minting a new one on every revision.
+ *
+ * DELETE /api/sketches/[ref] — remove a single sketch. Bulk deletes go
+ * through POST /api/sketches/delete instead.
  */
 
 import { NextResponse } from 'next/server';
@@ -28,6 +31,25 @@ export async function GET(_request, { params }) {
   } catch (err) {
     return NextResponse.json(
       { error: err.message || 'Failed to load sketch' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(_request, { params }) {
+  try {
+    const { ref } = await params;
+    const removed = SketchRepository.deleteByRef(ref);
+    if (!removed) {
+      return NextResponse.json(
+        { error: `Sketch '${ref}' not found` },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ removed });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err.message || 'Failed to delete sketch' },
       { status: 500 },
     );
   }

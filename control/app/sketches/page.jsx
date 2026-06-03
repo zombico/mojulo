@@ -45,6 +45,20 @@ export default function SketchesIndexPage() {
   const [showMovePicker, setShowMovePicker] = useState(false);
   const [moveBusy, setMoveBusy] = useState(false);
   const [moveError, setMoveError] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  // Full folder view is a dedicated management surface: hides the preview
+  // pane, shows sketches as a selectable grid, surfaces bulk move/delete
+  // in a sticky action bar, and pops a modal for preview-on-demand. Split
+  // view (default) is the original two-pane UI.
+  const [viewMode, setViewMode] = useState('split');
+  const fullView = viewMode === 'full';
+  const [previewRef, setPreviewRef] = useState(null);
+  const previewSketch = useMemo(
+    () => (previewRef ? sketches.find((s) => s.ref === previewRef) || null : null),
+    [previewRef, sketches],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,22 +131,35 @@ export default function SketchesIndexPage() {
   // clutter at the top of the list.
   const visibleFolders = searching || currentFolderRef ? [] : folders;
 
+  // In full folder view, selection is always available — checkboxes show
+  // unconditionally and the bulk action bar is always present.
+  const selecting = fullView || selectMode;
+
   // Selection state. Reset whenever we leave select mode or the folder
   // context changes — picking a fresh batch from a fresh view is the
   // expected affordance.
   useEffect(() => {
-    if (!selectMode) {
+    if (!selecting) {
       setSelectedSet(new Set());
       setShowMovePicker(false);
       setMoveError('');
+      setDeleteError('');
     }
-  }, [selectMode]);
+  }, [selecting]);
   useEffect(() => {
-    if (selectMode) {
+    if (selecting) {
       setSelectedSet(new Set());
       setShowMovePicker(false);
     }
-  }, [currentFolderRef, selectMode]);
+  }, [currentFolderRef, selecting]);
+  // Switching view modes is a fresh start: clear pending selection so the
+  // user doesn't act on rows they last saw in the other layout.
+  useEffect(() => {
+    setSelectedSet(new Set());
+    setShowMovePicker(false);
+    setMoveError('');
+    setDeleteError('');
+  }, [viewMode]);
 
   const toggleSelected = useCallback((ref) => {
     setSelectedSet((prev) => {
@@ -261,7 +288,7 @@ export default function SketchesIndexPage() {
         }
         setShowMovePicker(false);
         setSelectedSet(new Set());
-        setSelectMode(false);
+        if (!fullView) setSelectMode(false);
         await load();
       } catch (e) {
         setMoveError(tSelect('moveError', { error: e.message }));
@@ -269,8 +296,37 @@ export default function SketchesIndexPage() {
         setMoveBusy(false);
       }
     },
-    [load, selectedSet, tSelect],
+    [fullView, load, selectedSet, tSelect],
   );
+
+  const bulkDelete = useCallback(async () => {
+    if (selectedSet.size === 0) return;
+    const count = selectedSet.size;
+    if (!window.confirm(tSelect('deleteConfirm', { count }))) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      const res = await fetch('/api/sketches/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refs: Array.from(selectedSet) }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      // If the previewed sketch (in either view) was just deleted, clear it.
+      if (selectedRef && selectedSet.has(selectedRef)) setSelectedRef(null);
+      if (previewRef && selectedSet.has(previewRef)) setPreviewRef(null);
+      setSelectedSet(new Set());
+      if (!fullView) setSelectMode(false);
+      await load();
+    } catch (e) {
+      setDeleteError(tSelect('deleteError', { error: e.message }));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [fullView, load, previewRef, selectedRef, selectedSet, tSelect]);
 
   const createFolder = useCallback(
     async (name) => {
@@ -364,6 +420,34 @@ export default function SketchesIndexPage() {
           <span className="text-sm text-gray-400">
             {t('total', { count: sketches.length })}
           </span>
+          <div
+            role="group"
+            aria-label={t('viewToggle.full')}
+            className="inline-flex rounded-md border border-gray-600 overflow-hidden"
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode('split')}
+              className={`px-3 py-1.5 text-xs ${
+                !fullView
+                  ? 'bg-gray-700 text-gray-100'
+                  : 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+              }`}
+            >
+              {t('viewToggle.split')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('full')}
+              className={`px-3 py-1.5 text-xs border-l border-gray-600 ${
+                fullView
+                  ? 'bg-gray-700 text-gray-100'
+                  : 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+              }`}
+            >
+              {t('viewToggle.full')}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setShowNewFolder(true)}
@@ -386,6 +470,37 @@ export default function SketchesIndexPage() {
         </div>
       )}
 
+      {fullView ? (
+        <FullFolderView
+          t={t}
+          tFolder={tFolder}
+          tSelect={tSelect}
+          query={query}
+          setQuery={setQuery}
+          loading={loading}
+          sketches={sketches}
+          visibleSketches={visibleSketches}
+          visibleFolders={visibleFolders}
+          searching={searching}
+          currentFolder={currentFolder}
+          setCurrentFolderRef={setCurrentFolderRef}
+          folderByRef={folderByRef}
+          selectedSet={selectedSet}
+          toggleSelected={toggleSelected}
+          selectAllVisible={selectAllVisible}
+          clearSelection={clearSelection}
+          setShowMovePicker={setShowMovePicker}
+          bulkDelete={bulkDelete}
+          moveBusy={moveBusy}
+          deleteBusy={deleteBusy}
+          moveError={moveError}
+          deleteError={deleteError}
+          folderBusy={folderBusy}
+          renameFolder={renameFolder}
+          deleteFolder={deleteFolder}
+          openPreview={(ref) => setPreviewRef(ref)}
+        />
+      ) : (
       <div className="flex-1 grid grid-cols-4 gap-6 px-8 py-4 overflow-hidden">
         {/* Left: searchable list */}
         <div className="col-span-1 border-r border-gray-700 pr-4 flex flex-col overflow-hidden">
@@ -716,7 +831,7 @@ export default function SketchesIndexPage() {
                     {t('mintedAt', { timestamp: formatTimestamp(selected.createdAt) })}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-col items-end gap-2">
                   <button
                     type="button"
                     onClick={() => setSelectedRef(null)}
@@ -726,17 +841,25 @@ export default function SketchesIndexPage() {
                   >
                     <CloseIcon />
                   </button>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`/sketches/${encodeURIComponent(selected.ref)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
+                    >
+                      <ExternalLinkIcon />
+                      {t('openNewTab')}
+                    </a>
+                    <a
+                      href={`/api/sketches/${encodeURIComponent(selected.ref)}/svg`}
+                      className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
+                    >
+                      <DownloadIcon />
+                      {t('downloadSvg')}
+                    </a>
+                  </div>
                 </div>
-              </div>
-
-              <div className="shrink-0 flex justify-end">
-                <a
-                  href={`/api/sketches/${encodeURIComponent(selected.ref)}/svg`}
-                  className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
-                >
-                  <DownloadIcon />
-                  {t('downloadSvg')}
-                </a>
               </div>
 
               <div className="flex-1 min-h-0 border border-gray-700 rounded-lg p-4 bg-gray-800 flex items-center justify-center overflow-hidden">
@@ -754,6 +877,7 @@ export default function SketchesIndexPage() {
           )}
         </div>
       </div>
+      )}
 
       {showNewFolder && (
         <NewFolderModal
@@ -777,6 +901,376 @@ export default function SketchesIndexPage() {
         />
       )}
 
+      {previewSketch && (
+        <SketchPreviewModal
+          t={t}
+          sketch={previewSketch}
+          onClose={() => setPreviewRef(null)}
+        />
+      )}
+
+    </div>
+  );
+}
+
+function FullFolderView({
+  t,
+  tFolder,
+  tSelect,
+  query,
+  setQuery,
+  loading,
+  sketches,
+  visibleSketches,
+  visibleFolders,
+  searching,
+  currentFolder,
+  setCurrentFolderRef,
+  folderByRef,
+  selectedSet,
+  toggleSelected,
+  selectAllVisible,
+  clearSelection,
+  setShowMovePicker,
+  bulkDelete,
+  moveBusy,
+  deleteBusy,
+  moveError,
+  deleteError,
+  folderBusy,
+  renameFolder,
+  deleteFolder,
+  openPreview,
+}) {
+  const busy = moveBusy || deleteBusy || folderBusy;
+  const noneSelected = selectedSet.size === 0;
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden px-8 py-4 gap-4">
+      <div className="flex items-center gap-3">
+        <input
+          type="text"
+          placeholder={t('searchPlaceholder')}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="flex-1 max-w-md px-3 py-2 border border-gray-600 rounded-md text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-teal-500"
+        />
+        {searching ? (
+          <p className="text-xs text-gray-400">
+            {t('filteredCount', {
+              count: visibleSketches.length,
+              total: sketches.length,
+            })}
+          </p>
+        ) : currentFolder ? (
+          <button
+            type="button"
+            onClick={() => setCurrentFolderRef(null)}
+            className="inline-flex items-center gap-1.5 text-xs text-teal-300 hover:text-teal-200"
+          >
+            <ChevronLeftIcon />
+            {tFolder('rootCrumb')}
+          </button>
+        ) : (
+          <p className="text-xs text-gray-400">
+            {t('count', { count: visibleSketches.length })}
+          </p>
+        )}
+      </div>
+
+      {currentFolder && !searching && (
+        <div className="shrink-0 border border-gray-700 bg-gray-800 rounded-lg px-5 py-3 flex items-start justify-between gap-4">
+          <div className="min-w-0 flex items-center gap-3">
+            <FolderIcon className="h-5 w-5 text-amber-400/80" />
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-gray-100 truncate">
+                {currentFolder.name}
+              </h2>
+              <p className="text-xs text-gray-500">
+                {tFolder('sketchCount', { count: currentFolder.sketchCount })}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const next = window.prompt(tFolder('rename'), currentFolder.name);
+                if (next && next.trim() && next.trim() !== currentFolder.name) {
+                  renameFolder(currentFolder.ref, next.trim());
+                }
+              }}
+              disabled={folderBusy}
+              className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50 inline-flex items-center gap-1.5"
+            >
+              <PencilIcon className="h-3 w-3" />
+              {tFolder('rename')}
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteFolder(currentFolder.ref)}
+              disabled={folderBusy}
+              className="px-3 py-1.5 text-xs border border-red-700 rounded-md bg-red-900/30 text-red-300 hover:bg-red-900/60 disabled:opacity-50 inline-flex items-center gap-1.5"
+            >
+              <TrashIcon className="h-3 w-3" />
+              {tFolder('delete')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto border border-gray-800 rounded-lg bg-gray-900/40">
+        {loading && sketches.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 text-sm">
+            {t('loading')}
+          </div>
+        ) : visibleSketches.length === 0 && visibleFolders.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 text-sm">
+            {sketches.length === 0
+              ? t('emptyState')
+              : searching
+              ? t('noMatch')
+              : currentFolder
+              ? tFolder('emptyFolder')
+              : t('noMatch')}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4">
+            {visibleFolders.map((f) => (
+              <button
+                key={f.ref}
+                type="button"
+                onClick={() => setCurrentFolderRef(f.ref)}
+                className="group relative border border-gray-700 rounded-lg bg-gray-800/40 hover:border-amber-500/50 hover:bg-gray-800/80 transition text-left flex items-center gap-3 px-3 py-3"
+              >
+                <div className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <FolderIcon className="h-5 w-5 shrink-0 text-amber-400/80 group-hover:text-amber-300" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-medium text-gray-100">
+                    {f.name}
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    {tFolder('sketchCount', { count: f.sketchCount })}
+                  </p>
+                </div>
+              </button>
+            ))}
+
+            {visibleSketches.map((s) => {
+              const isChecked = selectedSet.has(s.ref);
+              const sourceFolder = s.folderRef
+                ? folderByRef.get(s.folderRef)
+                : null;
+              const showSourceTag = searching;
+              return (
+                <SketchTile
+                  key={s.ref}
+                  sketch={s}
+                  isChecked={isChecked}
+                  onToggle={() => toggleSelected(s.ref)}
+                  onPreview={() => openPreview(s.ref)}
+                  sourceFolder={sourceFolder}
+                  showSourceTag={showSourceTag}
+                  t={t}
+                  tFolder={tFolder}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 border border-gray-700 bg-gray-800/80 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="text-sm text-gray-200">
+          {tSelect('count', { count: selectedSet.size })}
+        </span>
+        <button
+          type="button"
+          onClick={selectAllVisible}
+          disabled={visibleSketches.length === 0}
+          className="text-xs text-teal-300 hover:text-teal-200 disabled:opacity-40"
+        >
+          {tSelect('selectAll')}
+        </button>
+        <span className="text-gray-600 text-xs">·</span>
+        <button
+          type="button"
+          onClick={clearSelection}
+          disabled={noneSelected}
+          className="text-xs text-gray-400 hover:text-gray-200 disabled:opacity-40"
+        >
+          {tSelect('clear')}
+        </button>
+        <div className="flex-1" />
+        {(moveError || deleteError) && (
+          <span className="text-xs text-red-400">
+            {moveError || deleteError}
+          </span>
+        )}
+        <button
+          type="button"
+          disabled={noneSelected || busy}
+          onClick={() => setShowMovePicker(true)}
+          className="px-3 py-1.5 text-xs border border-teal-500 rounded-md bg-teal-700 text-white hover:bg-teal-600 disabled:opacity-50 disabled:hover:bg-teal-700"
+        >
+          {tSelect('moveTo')}
+        </button>
+        <button
+          type="button"
+          disabled={noneSelected || busy}
+          onClick={bulkDelete}
+          className="px-3 py-1.5 text-xs border border-red-700 rounded-md bg-red-900/40 text-red-200 hover:bg-red-900/70 disabled:opacity-50 disabled:hover:bg-red-900/40 inline-flex items-center gap-1.5"
+        >
+          <TrashIcon className="h-3 w-3" />
+          {tSelect('delete')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SketchTile({
+  sketch,
+  isChecked,
+  onToggle,
+  onPreview,
+  sourceFolder,
+  showSourceTag,
+  t,
+  tFolder,
+}) {
+  return (
+    <div
+      onClick={onToggle}
+      className={`group relative border rounded-lg cursor-pointer transition flex items-center gap-3 px-3 py-3 ${
+        isChecked
+          ? 'border-teal-500 ring-1 ring-teal-500/40 bg-teal-950/30'
+          : 'border-gray-700 hover:border-gray-500 bg-gray-800/40 hover:bg-gray-800/70'
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={isChecked}
+        onChange={onToggle}
+        onClick={(e) => e.stopPropagation()}
+        className="h-4 w-4 shrink-0 accent-teal-500 cursor-pointer"
+        aria-label={sketch.title}
+      />
+      <FileIcon
+        className={`h-5 w-5 shrink-0 ${
+          isChecked ? 'text-teal-300' : 'text-gray-500 group-hover:text-gray-400'
+        }`}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium text-gray-100">
+          {sketch.title}
+        </div>
+        {(showSourceTag || (sketch.associations && sketch.associations.length > 0)) && (
+          <div className="mt-1 flex flex-wrap gap-1 items-center">
+            {showSourceTag && (
+              <span className="rounded border border-amber-500/25 bg-amber-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-200">
+                {sourceFolder
+                  ? tFolder('moveSourceFolder', { name: sourceFolder.name })
+                  : tFolder('moveSourceRoot')}
+              </span>
+            )}
+            {sketch.associations?.map((tag) => (
+              <span
+                key={`${sketch.ref}-${tag.kind}`}
+                className="rounded border border-teal-500/25 bg-teal-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-teal-200"
+              >
+                {associationTagLabel(tag, t)}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPreview();
+        }}
+        aria-label={t('viewToggle.openPreview')}
+        title={t('viewToggle.openPreview')}
+        className="shrink-0 h-7 w-7 inline-flex items-center justify-center bg-gray-900/60 hover:bg-gray-700 border border-gray-700 rounded-md text-gray-400 hover:text-teal-200"
+      >
+        <ZoomInIcon className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function SketchPreviewModal({ sketch, t, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label={sketch.title}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-5xl max-h-[90vh] flex flex-col bg-gray-800 border border-gray-700 rounded-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-700 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-gray-100 truncate">
+              {sketch.title}
+            </h2>
+            <p className="font-mono text-[11px] text-gray-500 mt-1 truncate">
+              {sketch.ref}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {t('mintedAt', { timestamp: formatTimestamp(sketch.createdAt) })}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('close')}
+              title={t('close')}
+              className="h-8 w-8 inline-flex items-center justify-center border border-gray-600 rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+            >
+              <CloseIcon />
+            </button>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/sketches/${encodeURIComponent(sketch.ref)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
+              >
+                <ExternalLinkIcon />
+                {t('openNewTab')}
+              </a>
+              <a
+                href={`/api/sketches/${encodeURIComponent(sketch.ref)}/svg`}
+                className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
+              >
+                <DownloadIcon />
+                {t('downloadSvg')}
+              </a>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 p-6 bg-gray-900 flex items-center justify-center overflow-hidden">
+          {sketch.manifest ? (
+            <CreationMap manifest={sketch.manifest} technical={false} fit />
+          ) : (
+            <p className="text-sm text-red-400">{t('invalidManifest')}</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1035,6 +1529,26 @@ function DownloadIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
+function ExternalLinkIcon({ className = 'h-3.5 w-3.5' }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6" />
+      <path d="M10 14L21 3" />
+    </svg>
+  );
+}
+
 function PencilIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
@@ -1090,6 +1604,27 @@ function DiskIcon({ className = 'h-3.5 w-3.5' }) {
       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
       <path d="M17 21v-8H7v8" />
       <path d="M7 3v5h8" />
+    </svg>
+  );
+}
+
+function ZoomInIcon({ className = 'h-3.5 w-3.5' }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+      <path d="M11 8v6" />
+      <path d="M8 11h6" />
     </svg>
   );
 }

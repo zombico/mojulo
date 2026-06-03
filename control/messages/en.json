@@ -1461,6 +1461,7 @@
       "plan": "Plan",
       "map": "Map",
       "research": "Research",
+      "stash": "Stash",
       "settings": "Settings"
     },
     "agentStatus": {
@@ -1486,6 +1487,80 @@
     "notFoundTitle": "Sketch not found",
     "notFoundBody": "This sketch ref does not exist or has not been minted yet."
   },
+  "stashes": {
+    "title": "Stashes",
+    "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
+    "total": "{count, plural, =0 {No stashes} =1 {1 stash} other {# stashes}}",
+    "count": "{count, plural, =0 {No matches} =1 {1 stash} other {# stashes}}",
+    "filteredCount": "{count} of {total} shown",
+    "searchPlaceholder": "Search by title or ref…",
+    "loading": "Loading…",
+    "empty": "No stashes yet.",
+    "emptyHint": "Ask your agent to mint one with the mint_stash MCP tool, or to enter research mode and gather material.",
+    "noMatch": "No stashes match this search.",
+    "statusOpen": "Open",
+    "statusArchived": "Archived",
+    "statusAll": "All",
+    "filterStatusLabel": "Status",
+    "itemCount": "{count, plural, =0 {no items} =1 {1 item} other {# items}}",
+    "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
+    "createdAt": "Created {timestamp}",
+    "updatedAt": "Updated {timestamp}",
+    "startFromAgent": "Start a stash from your agent",
+    "actions": {
+      "rename": "Rename",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "save": "Save",
+      "cancel": "Cancel",
+      "titleEmpty": "Title cannot be empty",
+      "renameFailed": "Rename failed",
+      "statusChangeFailed": "Could not change status"
+    },
+    "detail": {
+      "loading": "Loading stash…",
+      "notFoundTitle": "Stash not found",
+      "notFoundBody": "This stash ref does not exist or has not been minted yet.",
+      "back": "Back to stashes",
+      "openInbox": "Open inbox",
+      "rootDrawer": "Root",
+      "drawerItemCount": "{count, plural, =0 {empty} =1 {1 item} other {# items}}",
+      "noItemsInDrawer": "No items in this drawer yet.",
+      "noItemsInStash": "This stash is empty.",
+      "openSource": "Open source",
+      "deferredRenderer": "Full renderer ships in a later step. Use get_stash via your agent to read content for now.",
+      "stubScriptTitle": "Script item",
+      "stubScriptHint": "Language: {language}. {bytes, plural, =1 {1 byte} other {# bytes}}.",
+      "stubPointerTitle": "Pointer item",
+      "stubPointerHint": "Resolves to contextmap node {nodeRef} via your agent.",
+      "imageAlt": "Image item",
+      "imageMetaLine": "{width}×{height} · {mime}",
+      "imageFailed": "Image failed to load.",
+      "svgPreview": "SVG preview",
+      "linkOpen": "Open link",
+      "itemTypes": {
+        "text": "Text",
+        "markdown": "Markdown",
+        "image": "Image",
+        "svg": "SVG",
+        "script": "Script",
+        "pointer": "Pointer",
+        "link": "Link"
+      },
+      "newDrawer": "New drawer",
+      "newDrawerPlaceholder": "Drawer name",
+      "drawerSaveError": "Could not save drawer",
+      "drawerRenameError": "Could not rename drawer",
+      "renameDrawerLabel": "Rename drawer",
+      "moveTo": "Move to…",
+      "moveError": "Could not move item",
+      "archive": "Archive",
+      "archiveError": "Could not archive item",
+      "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
+      "archiveProceed": "Archive anyway",
+      "archiveCancel": "Cancel"
+    }
+  },
   "sketchesIndex": {
     "title": "Sketches",
     "subtitle": "Diagrams the operator agent has minted via create_sketch. Click one to preview, expand for fullscreen.",
@@ -1499,6 +1574,7 @@
     "selectPrompt": "Select a sketch on the left to preview.",
     "mintedAt": "Minted {timestamp}",
     "close": "Close",
+    "openNewTab": "Open in New Tab",
     "downloadSvg": "Download SVG",
     "invalidManifest": "Rendrant could not parse this sketch.",
     "renameLabel": "Rename sketch",
@@ -1540,7 +1616,20 @@
       "moveSuccess": "{count, plural, =1 {1 sketch moved} other {# sketches moved}}",
       "moveError": "Move failed: {error}",
       "selectAll": "Select all",
-      "clear": "Clear"
+      "clear": "Clear",
+      "delete": "Delete",
+      "deleteConfirm": "{count, plural, =1 {Delete 1 sketch?} other {Delete # sketches?}} This cannot be undone.",
+      "deleteError": "Delete failed: {error}"
+    },
+    "viewToggle": {
+      "split": "Split view",
+      "full": "Full folder view",
+      "openPreview": "Open preview"
+    },
+    "rowAction": {
+      "move": "Move",
+      "delete": "Delete",
+      "deleteOneConfirm": "Delete \"{title}\"? This cannot be undone."
     }
   },
   "map": {
