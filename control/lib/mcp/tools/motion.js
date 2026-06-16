@@ -1,0 +1,613 @@
+/**
+ * forge_motion — the model's means to make a mojulo subject MOVE.
+ *
+ * A subject that exists in mojulo (a manji-tree sketch, the figure rig, or a
+ * terrain world) is put in motion by a camera and rendered to an animated
+ * artifact: a self-contained CSS flipbook SVG (durable, plays as <img>) and an
+ * animated GIF (zero-dep, via control's bundled sharp/cgif). Motion is an OUTPUT
+ * concern — sibling to illustration (create_sketch) and cook, not part of the
+ * Bot/Service/App triad. "draw me X" → illustration; "make X move" → motion.
+ *
+ * The artifact is a RECIPE (subject + shot), so it regenerates deterministically.
+ * It is filed as a "Motion Project" resource group, reusing existing primitives
+ * rather than a bespoke layer:
+ *   - an OPS TAG names the project (the shared tag / the bound),
+ *   - a STASH holds the subject pointer + the shot recipe (the durable recipe),
+ *   - a MOTION OUTCOME FOLDER holds the rendered motion.svg / motion.gif.
+ * The tag binds the stash + the motion so get_ops_tag surfaces the whole group.
+ *
+ * Two subject families behind the one door:
+ *   - CAMERA motions over a single manji-tree (turntable, orbit, push_in,
+ *     dolly_zoom, flythrough) — figure / terrain / scene.
+ *   - DECK motion over an ordered set of sketches/charts — the slideshow, for
+ *     info transfer that needs no figure/scene animation (chart decks, KPI
+ *     walkthroughs, explainers, a report in motion). Spike-validated in
+ *     lite-template/integration/0609/spike-output/deck-motion/; design in
+ *     motion-charts-and-decks.plan.md. The compositor (flipbook + GIF) is shared;
+ *     only the frame source differs (camera-path vs. deck.js).
+ * Performance motions (walk / grow / bounce) land later behind the same schema.
+ * See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
+ */
+
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+
+import { registerTool } from '@/lib/mcp/server';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { StashRepository } from '@/lib/db/repositories/stashes';
+import { OpsTagRepository } from '@/lib/db/repositories/ops-tags';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+import {
+  renderMotion,
+  renderDeckMotion,
+  encodeGif,
+  encodeStitchMp4,
+  CAMERA_MOTIONS,
+  DECK_MOTIONS,
+  MOTION_NAMES,
+  DECK_MOTION_NAMES,
+  isDeckMotion,
+  DECK_BG,
+} from '@/lib/motion';
+import { viewerHtml, stitchViewerHtml } from '@/lib/motion/viewer';
+import { composeFlipbook } from '@/lib/motion/flipbook';
+import {
+  resolvePresentationTheme,
+  PRESENTATION_THEME_NAMES,
+} from '@/lib/visual-language/themes';
+import { renderMaterializeFrames, renderTransfigureFrames } from '@/lib/graph/carved-motion';
+
+// EFFECT motions — the third subject family: phase-driven transitions over carved
+// solids (carve's temporal peers). Distinct from CAMERA (manji-tree) and DECK.
+const EFFECT_MOTIONS = {
+  materialize: 'a carved subject comes into being from nothing (∅→form): hologram draws a wireframe then skin; doom prints through a scan plane; transporter converges particles into the solid. Reverse it (dematerialize) by reading it backwards. Subject: a single carved_solid.',
+  transfigure: 'one carved subject BECOMES another (form A→B): Galvatron de-skins to wireframe and re-skins; liquid-metal leaves the beveled carve renderer and morphs through a smooth liquid carrier, T1000-style. Subject: a from→to pair.',
+};
+const EFFECT_MOTION_NAMES = Object.keys(EFFECT_MOTIONS);
+const EFFECT_BG = '#070a11';
+
+function motionRef() {
+  return `mo_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}
+
+function motionCatalogue() {
+  return [...Object.entries(CAMERA_MOTIONS), ...Object.entries(DECK_MOTIONS), ...Object.entries(EFFECT_MOTIONS)]
+    .map(([id, desc]) => `  • ${id} — ${desc}`)
+    .join('\n');
+}
+
+// Resolve a carved-solid effect subject — a stored carved-solid sketch ref (sk_…)
+// or an inline { shape, style?, material? } — to the render spec + a recipe pointer.
+function resolveCarvedSpec(x, label) {
+  if (typeof x === 'string') {
+    const sketch = SketchRepository.getByRef(x);
+    if (!sketch) throw new Error(`${label} carved sketch '${x}' not found`);
+    const m = sketch.manifest;
+    if (!m || m.kind !== 'carved-solid') {
+      throw new Error(`${label} sketch '${x}' is kind '${m?.kind}'; materialize/transfigure animate carved-solid subjects — mint one with create_carved_solid.`);
+    }
+    return { spec: { shape: m.shape, style: m.style, material: m.material ?? m.metal }, ref: x };
+  }
+  if (x && typeof x === 'object' && x.shape) {
+    return { spec: { shape: x.shape, style: x.style, material: x.material ?? x.metal }, ref: null };
+  }
+  throw new Error(`${label} must be a carved-solid ref (sk_…) or an inline { shape, style?, material? }`);
+}
+
+function resolveSketchManifest(ref) {
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`sketch '${ref}' not found`);
+  if (!sketch.manifest) throw new Error(`sketch '${ref}' has no manifest`);
+  return sketch.manifest;
+}
+
+/**
+ * Resolve the subject into one of two frame-source shapes:
+ *   - kind:'camera' — a single manji-tree (figure / terrain / stored sketch),
+ *     animated by a camera path. { manifest, subjectRef, recipeSubject }
+ *   - kind:'deck'   — an ordered set of sketches/charts played as a slideshow.
+ *     { deckSlides, deckRefs, sourceStashRef?, recipeSubject }
+ */
+function resolveSubject(subject) {
+  if (!subject || typeof subject !== 'object') {
+    throw new Error('forge_motion requires subject: { sketch_ref } | { manji_tree } | { deck } | { stash_ref }');
+  }
+
+  // ── deck subjects (charts / infographics / slides as a slideshow) ──
+  if (Array.isArray(subject.deck)) {
+    const deckSlides = [];
+    const deckRefs = [];
+    for (const entry of subject.deck) {
+      if (typeof entry === 'string') {
+        deckSlides.push(resolveSketchManifest(entry));
+        deckRefs.push(entry);
+      } else if (entry && typeof entry === 'object') {
+        deckSlides.push(entry);
+        deckRefs.push(null);
+      } else {
+        throw new Error('subject.deck entries must be a sketch ref (sk_…) or an inline sketch manifest');
+      }
+    }
+    return { kind: 'deck', deckSlides, deckRefs, recipeSubject: { deck: deckRefs.map((r, i) => r || deckSlides[i]) } };
+  }
+  if (subject.stash_ref) {
+    const stash = StashRepository.getByRef(subject.stash_ref);
+    if (!stash) throw new Error(`subject stash '${subject.stash_ref}' not found`);
+    const items = StashRepository.listItems(subject.stash_ref).filter((it) => it.type === 'sketch');
+    const deckRefs = items.map((it) => it.metadata?.sketch_ref).filter(Boolean);
+    if (deckRefs.length < 2) {
+      throw new Error(
+        `stash '${subject.stash_ref}' has ${deckRefs.length} sketch item(s); a deck needs at least 2. Gather sketch-typed items in the order they should play.`,
+      );
+    }
+    const deckSlides = deckRefs.map(resolveSketchManifest);
+    return { kind: 'deck', deckSlides, deckRefs, sourceStashRef: subject.stash_ref, recipeSubject: { stash_ref: subject.stash_ref } };
+  }
+
+  // ── camera subjects (manji-tree: figure / terrain / stored manji sketch) ──
+  if (subject.sketch_ref) {
+    const sketch = SketchRepository.getByRef(subject.sketch_ref);
+    if (!sketch) throw new Error(`subject sketch '${subject.sketch_ref}' not found`);
+    if (!sketch.manifest || sketch.manifest.kind !== 'manji-tree') {
+      throw new Error(
+        `subject sketch '${subject.sketch_ref}' is kind '${sketch.manifest?.kind}'. Camera motions only animate manji-tree subjects; for charts/slides pass subject.deck (ordered sketch refs) or subject.stash_ref with motion 'deck'.`,
+      );
+    }
+    return { kind: 'camera', manifest: sketch.manifest, subjectRef: sketch.ref, recipeSubject: { sketch_ref: sketch.ref } };
+  }
+  if (subject.manji_tree) {
+    const manifest = { kind: 'manji-tree', ...subject.manji_tree };
+    return { kind: 'camera', manifest, subjectRef: null, recipeSubject: { manji_tree: manifest } };
+  }
+
+  // ── effect subjects (carved solids — materialize / transfigure) ──
+  if (subject.from || subject.to) {
+    if (!subject.from || !subject.to) {
+      throw new Error('transfigure needs BOTH subject.from and subject.to (carved-solid refs or inline { shape } manifests).');
+    }
+    const from = resolveCarvedSpec(subject.from, 'subject.from');
+    const to = resolveCarvedSpec(subject.to, 'subject.to');
+    return {
+      kind: 'carved-pair', from: from.spec, to: to.spec,
+      subjectRef: from.ref || to.ref || null,
+      recipeSubject: { from: from.ref ?? from.spec, to: to.ref ?? to.spec },
+    };
+  }
+  if (subject.carved_solid) {
+    const c = resolveCarvedSpec(subject.carved_solid, 'subject.carved_solid');
+    return { kind: 'carved', carved: c.spec, subjectRef: c.ref, recipeSubject: { carved_solid: c.ref ?? c.spec } };
+  }
+  throw new Error('forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, or from+to');
+}
+
+/**
+ * Resolve a subject + shot into rendered frames (pure: no fs, no outcome
+ * folder). Shared by forge_motion and the stitcher's clip recovery, so a stitch
+ * regenerates a source clip's frames the exact same way forge_motion first did.
+ *
+ * @param {object} args
+ * @param {object} args.subject  a forge_motion subject (sketch_ref | manji_tree | deck | stash_ref)
+ * @param {object} args.shot     a forge_motion shot (motion, params, frames, fps, loop)
+ * @returns {Promise<{ resolved:object, isDeck:boolean, motion:string, result:object }>}
+ */
+export async function renderShot({ subject, shot }) {
+  if (!shot || typeof shot !== 'object') throw new Error('renderShot requires a shot');
+  const resolved = resolveSubject(subject);
+  const isDeck = resolved.kind === 'deck';
+  const isEffect = resolved.kind === 'carved' || resolved.kind === 'carved-pair';
+
+  // A named presentation theme unifies the surface + backdrop + (downstream)
+  // player chrome behind one token, so they can't drift. Explicit surface/bg
+  // params still win (fine-grained back-compat); no token keeps today's defaults.
+  const theme = resolvePresentationTheme(shot.params?.theme);
+
+  // Deck subjects imply the slideshow motion; camera subjects require a named
+  // camera motion. Validate the pairing so the model gets a clear error.
+  const motion = shot.motion || (isDeck ? 'deck' : undefined);
+  if (!motion) {
+    throw new Error('shot.motion is required, one of: ' + [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES].join(', '));
+  }
+
+  let result;
+  if (isEffect) {
+    result = renderEffectShot(resolved, motion, shot);
+  } else if (isDeck) {
+    if (!isDeckMotion(motion)) {
+      throw new Error(`deck/stash subjects play as a slideshow — set shot.motion to 'deck' (got '${motion}').`);
+    }
+    result = await renderDeckMotion({
+      slides: resolved.deckSlides,
+      secondsPerSlide: shot.params?.seconds_per_slide,
+      fps: shot.fps,
+      loop: shot.loop ?? true,
+      width: shot.params?.width,
+      surface: shot.params?.surface ?? theme?.surface,
+      vars: theme?.vars,
+      bg: shot.params?.bg ?? theme?.bg,
+    });
+  } else {
+    if (isDeckMotion(motion)) {
+      throw new Error("'deck' needs a deck subject — pass subject.deck (ordered sketch refs) or subject.stash_ref.");
+    }
+    if (!MOTION_NAMES.includes(motion)) {
+      throw new Error(`unknown camera motion '${motion}'. One of: ${MOTION_NAMES.join(', ')}.`);
+    }
+    result = renderMotion({
+      manifest: resolved.manifest,
+      motion,
+      params: shot.params || {},
+      frames: shot.frames,
+      fps: shot.fps ?? 12,
+      loop: shot.loop ?? true,
+    });
+  }
+
+  return { resolved, isDeck, isEffect, motion, result, theme };
+}
+
+/**
+ * Render an EFFECT shot (materialize / transfigure) over a carved subject into the
+ * same { flipbookSvg, frameSvgs, viewBox, meta } shape the camera/deck paths emit.
+ * The carved-motion renderer is pure (frames + viewBox); we compose the flipbook
+ * here with the shared compositor, matching how the deck/camera paths build theirs.
+ */
+function renderEffectShot(resolved, motion, shot) {
+  if (!EFFECT_MOTION_NAMES.includes(motion)) {
+    throw new Error(`carved subjects animate as an effect — set shot.motion to one of: ${EFFECT_MOTION_NAMES.join(', ')} (got '${motion}').`);
+  }
+  let frameSvgs, viewBox;
+  if (motion === 'materialize') {
+    if (resolved.kind !== 'carved') {
+      throw new Error('materialize takes a single carved subject — pass subject.carved_solid (a carved-solid ref or inline { shape }).');
+    }
+    ({ frameSvgs, viewBox } = renderMaterializeFrames(
+      { shape: resolved.carved.shape, style: resolved.carved.style, material: resolved.carved.material, klass: shot.params?.class },
+      shot.frames ?? 30,
+    ));
+  } else {
+    // transfigure — the destination identity (`to`) lends the morph its material.
+    if (resolved.kind !== 'carved-pair') {
+      throw new Error('transfigure takes a pair — pass subject.from and subject.to (carved-solid refs or inline { shape }).');
+    }
+    ({ frameSvgs, viewBox } = renderTransfigureFrames(
+      {
+        from: resolved.from.shape,
+        to: resolved.to.shape,
+        style: resolved.to.style ?? resolved.from.style,
+        material: resolved.to.material,        // the FINAL form's own material (liquid-metal resolves into this)
+        fromMaterial: resolved.from.material,  // the start form's material (loop resolves back into this)
+        klass: shot.params?.class,
+        liquid: shot.params?.liquid,
+      },
+      shot.frames ?? 36,
+    ));
+  }
+  const fps = shot.fps ?? 18;
+  const loop = shot.loop ?? true;
+  const flipbookSvg = composeFlipbook({ frames: frameSvgs, viewBox, fps, loop });
+  return { flipbookSvg, frameSvgs, viewBox, meta: { motion, frames: frameSvgs.length, fps, loop } };
+}
+
+export async function forgeMotionHandler(input) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('forge_motion requires { title, subject, shot }');
+  }
+  const { title, subject, shot, export: exportFormat = 'both', tag_ref: existingTag } = input;
+  if (!title || typeof title !== 'string') throw new Error('title is required');
+  if (!shot || typeof shot !== 'object') throw new Error('forge_motion requires a shot');
+
+  const { resolved, isDeck, isEffect, motion, result, theme } = await renderShot({ subject, shot });
+
+  // ── materialize the outcome folder ──
+  const ref = motionRef();
+  const dir = outcomeDirFor(ref);
+  await fs.mkdir(dir, { recursive: true });
+
+  const wantGif = exportFormat === 'gif' || exportFormat === 'both';
+
+  // The flipbook SVG is the durable, portable form — always write it.
+  await fs.writeFile(path.join(dir, 'motion.svg'), result.flipbookSvg, 'utf8');
+
+  // A named theme sets the backdrop for every motion family (its bg also became
+  // the deck's slide backdrop above); without one, keep the per-family default.
+  const bgDefault = theme?.bg || (isEffect ? EFFECT_BG : isDeck ? DECK_BG : '#fafaf6');
+  let gifInfo = null;
+  if (wantGif) {
+    gifInfo = await encodeGif(result.frameSvgs, path.join(dir, 'motion.gif'), {
+      width: shot.params?.gif_width || (isDeck ? 720 : 640),
+      fps: result.meta.fps,
+      bg: shot.params?.bg || bgDefault,
+      loop: 0,
+    });
+  }
+
+  const recipe = {
+    motion_ref: ref,
+    title,
+    subject: resolved.recipeSubject,
+    shot: { motion, params: shot.params || {}, frames: result.meta.frames, fps: result.meta.fps, loop: result.meta.loop },
+    viewBox: result.viewBox,
+    meta: result.meta,
+  };
+  await fs.writeFile(path.join(dir, 'recipe.json'), JSON.stringify(recipe, null, 2), 'utf8');
+  await fs.writeFile(
+    path.join(dir, 'index.html'),
+    viewerHtml({ title, motion, hasGif: wantGif, recipe, baseUrl: outcomeUrlFor(ref), chrome: theme?.chrome }),
+    'utf8',
+  );
+
+  // ── file it as a Motion Project resource group (stash + tag) ──
+  const subjectDesc = isDeck
+    ? `a ${resolved.deckSlides.length}-slide deck${resolved.sourceStashRef ? ` from stash \`${resolved.sourceStashRef}\`` : ''}`
+    : resolved.subjectRef
+      ? `${isEffect ? 'carved subject' : 'sketch'} \`${resolved.subjectRef}\``
+      : isEffect ? 'an inline carved subject' : 'inline manji-tree';
+  const tag = existingTag
+    ? OpsTagRepository.getByRef(existingTag)
+    : OpsTagRepository.forge({
+        title: `Motion: ${title}`,
+        descriptorMd: `A motion project. Subject ${subjectDesc} put in motion as \`${motion}\` and rendered to ${ref}. Members: the subject/recipe stash and each rendered shot.`,
+      });
+  if (!tag) throw new Error(`tag_ref '${existingTag}' not found`);
+
+  const stash = StashRepository.mint({ title: `Motion: ${title}` });
+  if (isDeck) {
+    resolved.deckRefs.forEach((r, i) => {
+      if (!r) return; // inline slides have no sketch ref to point at
+      StashRepository.gather({
+        stashRef: stash.stashRef,
+        type: 'sketch',
+        title: `slide ${i + 1} — ${title}`,
+        metadata: { sketch_ref: r, label: `${title} · slide ${i + 1}` },
+      });
+    });
+  } else if (resolved.subjectRef) {
+    StashRepository.gather({
+      stashRef: stash.stashRef,
+      type: 'sketch',
+      title: `subject — ${title}`,
+      metadata: { sketch_ref: resolved.subjectRef, label: title },
+    });
+  }
+  StashRepository.gather({
+    stashRef: stash.stashRef,
+    type: 'script',
+    title: `shot recipe — ${motion}`,
+    body: JSON.stringify(recipe, null, 2),
+    metadata: { language: 'js' },
+  });
+
+  OpsTagRepository.bind({ tagRef: tag.tagRef, memberKind: 'stash', memberRef: stash.stashRef });
+  OpsTagRepository.bind({ tagRef: tag.tagRef, memberKind: 'motion', memberRef: ref });
+
+  const url = outcomeUrlFor(ref);
+  return {
+    ok: true,
+    motion_ref: ref,
+    tag_ref: tag.tagRef,
+    stash_ref: stash.stashRef,
+    url,
+    svg_path: `${url}motion.svg`,
+    gif_path: wantGif ? `${url}motion.gif` : null,
+    frames: result.meta.frames,
+    bytes: gifInfo?.bytes ?? null,
+    message: `Motion '${motion}' rendered (${result.meta.frames} frames) at ${url}. Filed under ops tag ${tag.tagRef} with subject/recipe stash ${stash.stashRef}.`,
+  };
+}
+
+/**
+ * Recover one already-forged clip to its frames, by re-rendering from its stored
+ * recipe the SAME way forge_motion first did (frame source = recipe, faithful).
+ * Snapshot-at-build means these frames get baked into the stitch MP4, so the
+ * stitch then survives this source clip being deleted/re-forged.
+ */
+async function recoverClip(clipRef) {
+  if (typeof clipRef !== 'string' || !clipRef.startsWith('mo_')) {
+    throw new Error(`clip '${clipRef}' is not a motion ref (mo_…)`);
+  }
+  const dir = outcomeDirFor(clipRef);
+  let recipe;
+  try {
+    recipe = JSON.parse(await fs.readFile(path.join(dir, 'recipe.json'), 'utf8'));
+  } catch {
+    throw new Error(`clip '${clipRef}' not found (no recipe.json in its outcome folder)`);
+  }
+  if (recipe.kind === 'stitch') {
+    throw new Error(
+      `clip '${clipRef}' is itself a stitch; stitching a stitch is not supported yet — pass its source clips directly.`,
+    );
+  }
+  const { result } = await renderShot({ subject: recipe.subject, shot: recipe.shot });
+  return {
+    ref: clipRef,
+    title: recipe.title || clipRef,
+    frameSvgs: result.frameSvgs,
+    fps: result.meta.fps,
+    frames: result.meta.frames,
+  };
+}
+
+/**
+ * stitch_motion — concatenate N already-forged motion clips end-to-end into one
+ * long-form MP4/H.264 (the broadly-playable, downloadable container the GIF path
+ * can't be). A stitch is ITSELF a motion outcome: same mo_<…> folder, filed under
+ * the same "Motion Project" ops tag, surfaced by the same gallery — it just plays
+ * as a <video> instead of a flipbook. Cut-only in P1 (pure concatenation).
+ */
+export async function stitchMotionHandler(input) {
+  if (!input || typeof input !== 'object') throw new Error('stitch_motion requires { title, clips }');
+  const { title, clips: clipInput, fps = 24, loop = true, width = 720, bg = '#000000', tag_ref: existingTag } = input;
+  if (!title || typeof title !== 'string') throw new Error('title is required');
+  if (!Array.isArray(clipInput) || clipInput.length < 2) {
+    throw new Error('stitch_motion needs clips: an ordered list of ≥2 motion refs (mo_…) to play end-to-end.');
+  }
+
+  // normalize entries: 'mo_x' | { motion_ref, transition? } — P1 is cut-only.
+  const order = clipInput.map((c) => {
+    const ref = typeof c === 'string' ? c : c?.motion_ref;
+    const transition = (typeof c === 'object' && c?.transition) || 'cut';
+    if (transition !== 'cut') {
+      throw new Error(`transition '${transition}' not supported yet — P1 stitches are cut-only. Omit transition or use 'cut'.`);
+    }
+    return ref;
+  });
+
+  // recover every clip's frames (the snapshot source), in order
+  const clips = [];
+  for (const ref of order) {
+    clips.push(await recoverClip(ref)); // eslint-disable-line no-await-in-loop -- order matters
+  }
+
+  // ── encode the long-form MP4 into a fresh motion outcome folder ──
+  const ref = motionRef();
+  const dir = outcomeDirFor(ref);
+  await fs.mkdir(dir, { recursive: true });
+  const enc = await encodeStitchMp4(clips, path.join(dir, 'motion.mp4'), { fps, width, bg });
+
+  const recipe = {
+    motion_ref: ref,
+    kind: 'stitch',
+    title,
+    subject: { clips: clips.map((c) => ({ motion_ref: c.ref, transition: 'cut' })) },
+    shot: { motion: 'stitch', fps: enc.fps, loop, width: enc.width, bg },
+    meta: {
+      motion: 'stitch',
+      clipCount: clips.length,
+      frames: enc.totalFrames,
+      fps: enc.fps,
+      loop,
+      durationSec: Math.round(enc.durationSec * 100) / 100,
+      width: enc.width,
+      height: enc.height,
+      bytes: enc.bytes,
+      viewBoxStrategy: 'stitch',
+      encoder: 'ffmpeg/h264',
+    },
+  };
+  await fs.writeFile(path.join(dir, 'recipe.json'), JSON.stringify(recipe, null, 2), 'utf8');
+  await fs.writeFile(
+    path.join(dir, 'index.html'),
+    stitchViewerHtml({ title, recipe, baseUrl: outcomeUrlFor(ref), loop }),
+    'utf8',
+  );
+
+  // ── file it as a Motion Project resource group (stash + tag), same as forge ──
+  const tag = existingTag
+    ? OpsTagRepository.getByRef(existingTag)
+    : OpsTagRepository.forge({
+        title: `Motion: ${title}`,
+        descriptorMd: `A stitched motion project. ${clips.length} clips (${clips
+          .map((c) => `\`${c.ref}\``)
+          .join(' → ')}) concatenated into a long-form MP4 at ${ref}.`,
+      });
+  if (!tag) throw new Error(`tag_ref '${existingTag}' not found`);
+
+  const stash = StashRepository.mint({ title: `Motion: ${title}` });
+  StashRepository.gather({
+    stashRef: stash.stashRef,
+    type: 'script',
+    title: `stitch recipe — ${clips.length} clips`,
+    body: JSON.stringify(recipe, null, 2),
+    metadata: { language: 'js' },
+  });
+  OpsTagRepository.bind({ tagRef: tag.tagRef, memberKind: 'stash', memberRef: stash.stashRef });
+  OpsTagRepository.bind({ tagRef: tag.tagRef, memberKind: 'motion', memberRef: ref });
+
+  const url = outcomeUrlFor(ref);
+  return {
+    ok: true,
+    motion_ref: ref,
+    tag_ref: tag.tagRef,
+    stash_ref: stash.stashRef,
+    url,
+    mp4_path: `${url}motion.mp4`,
+    clips: clips.length,
+    frames: enc.totalFrames,
+    duration_seconds: recipe.meta.durationSec,
+    bytes: enc.bytes,
+    warning: enc.warning,
+    message:
+      `Stitched ${clips.length} clips into a ${recipe.meta.durationSec}s MP4 ` +
+      `(${enc.totalFrames} frames, ${(enc.bytes / 1e6).toFixed(1)} MB) at ${url}. Filed under ops tag ${tag.tagRef}.` +
+      (enc.warning ? ` ⚠ ${enc.warning}` : ''),
+  };
+}
+
+export function registerMotionTools() {
+  registerTool({
+    name: 'forge_motion',
+    description:
+      `Put a mojulo subject in MOTION and render it to an animated artifact — a self-contained CSS flipbook SVG (plays anywhere an <img> goes) plus an animated GIF (zero-dependency, via the bundled sharp/cgif encoder). Motion is an OUTPUT concern, the sibling of illustration and cook: it CONSUMES a static subject and adds TIME. Reach for this on framing like "animate / make it move / turn it into a gif / spin it / a turntable / fly through / fly between / zoom in on / orbit it", AND on info-transfer framing like "play these charts / make a slideshow / a deck / an explainer / a walkthrough / a report in motion". (Contrast: "draw me X" → create_sketch / create_manji_tree; "write up / publish X" → cook.)\n\nThe artifact is a RECIPE (subject + shot), so it regenerates deterministically. It is filed as a "Motion Project" resource group reusing existing primitives — an ops tag names the project, a stash holds the subject pointer(s) + the shot recipe, and the outcome folder holds the rendered motion.svg / motion.gif. The returned tag groups them; pass \`tag_ref\` to add more shots of the same subject to one project.\n\nTHREE SUBJECT FAMILIES:\n\n1. CAMERA motions over a single manji-tree subject (a stored manji-tree sketch, the figure rig, or a terrain world). worldUp is the Zenith–Nadir axis, so the same orbit/dolly code that framed a figure also frames a canyon. The subject's own \`camera.worldFraming\` is the BASE shot; the motion perturbs it. turntable/orbit lock the centred subject under a shared (union) viewBox while the camera circles; push_in/dolly_zoom/flythrough re-frame into a fixed film frame. \`shot.params\`: orbit {from,to} deg; push_in/dolly_zoom {end_scale} (<1 = closer); flythrough REQUIRES {keyframes:[{pos,lookAt,fov},…]} (≥2); optional {camera_position,look_at,fov,width,height,gif_width,bg}. (Manji-tree performance motions — walk/grow/bounce — land later behind this same schema; the carve EFFECT motions in family 3 below have already landed.)\n\n2. DECK motion (\`deck\`) over an ORDERED set of sketches/charts — the SLIDESHOW. This is INFO TRANSFER that needs no figure or scene animation: a chart deck, a KPI dashboard walkthrough, an explainer, a report in motion. No camera; each sketch plays one-per-beat as a self-contained flipbook + GIF. Pass the slides as \`subject.deck\` (an ordered list of sketch refs sk_… and/or inline sketch manifests, ≥2) OR \`subject.stash_ref\` (a stash whose \`sketch\`-typed items, in gather order, ARE the slides). \`shot.params\`: {seconds_per_slide} (default 2.5), {theme}, {width,gif_width}. Use a deck — not a camera motion — whenever the content is charts/text/diagrams rather than a 3D figure or scene.\n\nTHEME — the deck need not be dark. Pass \`shot.params.theme\` to set ONE coherent look across the slide ink, the backdrop, and the player chrome (so a light deck is never a dark chart on a cream page). The vocabulary is broad and indicative — pick the one that fits the content: ${PRESENTATION_THEME_NAMES.join(', ')}. \`dark\` is the default if omitted. (\`paper\`/\`sepia\` for editorial or reflective info; \`blueprint\` for technical/schematic; \`light\`/\`high-contrast\` for maximum legibility; \`midnight\` for a warmer dark.) Low-level escape hatches {surface:'dark'|'light'} and {bg} still exist and override the theme, but prefer the named theme.\n\nA deck slide can also REVEAL its content in sequence (make its points one at a time) — annotate any of its marks with \`reveal: { step, enter, from?, dwell? }\`:\n  • step — integer order; marks sharing a step enter together; marks WITHOUT \`reveal\` are the slide's base (shown from the start).\n  • enter — 'fly-in' (slides in; \`from\`:'left'|'right'), 'fade-up' (rises + fades in), 'type-on' (text types out character by character), 'fade'/'pop'.\n  • dwell — seconds to hold after this step lands (default 0.7).\nA slide with reveals expands into a paced build; still slides hold for seconds_per_slide. This is the same slideshow with motion WITHIN a slide — words flying in, bullets appearing, a callout dropping in — so a single annotated slide is itself a valid animated deck. (Smooth WITHIN-element motion like a bar continuously filling is not available yet; reveals appear/animate element-by-element.)\n\nEXPLAINING A CONCEPT VISUALLY — the deck+reveal IS a concept explainer: graduated, paced disclosure. Common shapes (compose freely, not a fixed menu): a CONCEPT LADDER (one idea at rising depth L1→L2→L3, each level a reveal slide); a PROCESS / MECHANISM (boxes + arrows built from MARKS — rect/line/polygon/text, NOT stations/edges, since reveal only stages marks — each stage fly-in in causal order); a LABELED STRUCTURE (draw it as base marks, then disclose callout labels one at a time); a STRATIFIED / LAYERED model; a QUANTITATIVE build (a chart whose marks appear a category per step); a FORMAL / DEFINITIONAL (type-on the equation, fade-up the gloss). Scaffold each with a kicker (label + rule), a type-on title, and a closing framed callout (rounded rect + accent + text). FORK: if the concept is a 3D OBJECT that must ROTATE to be understood (a molecule, a lattice, a mechanism), leave the deck — build a manji-tree and use a CAMERA turntable/orbit. BALL-AND-STICK is lathes: a ball = a lathe with a dome profile \`[{t:0,radius:0},{t:0.5,radius:R},{t:1,radius:0}]\` about a short axis through the atom centre; a rod = a constant-radius lathe between two atom centres. Give each lathe \`style:{ fill:'vexar', fillColor:'#hex' }\` for LIT shaded solids (the default is wireframe); optional manifest \`light:{ direction:[x,y,z], ambient, diffuse }\`. Then \`forge_motion({ subject:{ sketch_ref|manji_tree }, shot:{ motion:'turntable' } })\` spins the lit model. The atomic BOND has its own primitive — a \`vajra\` (the o-o-o bond: two outer spheres + a thin hub); CHIRALITY / handedness (a chiral centre, a double helix, DNA) is the \`taiji\` primitive (a SIGNED \`twist\` — sign = which way it spins). Multi-atom molecules and chiral helices INTERPENETRATE / self-fold, so they belong on this BAKED turntable (it depth-sorts every frame). But a SINGLE convex solid that never self-occludes — a lit ball, a crystal / coordination polyhedron, a gem, a single atom or orbital lobe — can instead spin LIVE in the browser via \`create_solid_turntable\` (dependency-free CSS-3D, highlight fixed in the viewport; no bake). LIMITS to respect: no sound (timing is the narration — pace with dwell).\n\nSMOOTH 2D MOTION (\`animate\`) — a SINGLE-slide deck whose marks carry \`animate: { channel, … }\` renders REGIME A: the slide is rendered ONCE and animated by CSS transform (smooth, tiny, loops; the .svg plays live, the .gif is the bake). Channels: 'spin' (rotate about the mark's centre), 'orbit' ({center:[x,y]}), 'grow' (scaleY from the baseline — yes, bars grow), 'slide' ({from:'left'|'right'|'top'|'bottom'}), 'fade', 'pulse'; with {duration, delay, loop}. Reach for it for a rotating / growing / orbiting / building diagram. (Still staged, not smooth: motion across a MULTI-slide deck, draw-on, and continuous 3D — for those, stage it as revealed states or use a 3D turntable.)\n\n3. EFFECT motions (\`materialize\` / \`transfigure\`) over CARVED SOLIDS — the temporal peers of carve (create_carved_solid). They ADD TIME to a carved subject: a phase 0→1 that brings it into being or turns it into something else. Reach for them on framing like "make it appear / boot it up / materialize / dissolve / 3D-print the logo / beam it in / transporter effect" → \`materialize\`; "morph A into B / turn the old logo into the new one / shapeshift / a rebrand reveal / before→after / liquid chrome / T1000" → \`transfigure\`. SUBJECT: materialize takes \`subject.carved_solid\` (a carved-solid ref sk_… or inline { shape, style?, material? }); transfigure takes \`subject.from\` + \`subject.to\` (the start + end carved solids; liquid-metal uses a smooth carrier and does not require metal endpoint materials). \`shot.params.class\` is the STYLE: materialize → \`hologram\` (wireframe boot-up, then skin), \`doom\` (a glowing platform/scan plane prints the solid upward), or \`transporter\` (particles converge into the solid); transfigure → \`galvatron\` (de-skin to wireframe → morph the outline → re-skin, after Mahito's Idle Transfiguration) or \`liquid-metal\` (a smooth liquid carrier morphs outside the beveled carved renderer, T1000-style). Optional liquid-metal tuning lives at \`shot.params.liquid\`: {carrier} (material name, #hex, or material object; default chrome), {blobRandomness} 0..1, and {highlightBias} -1..1. Galvatron/materialize reuse the carved-solid extrude + vexar-shade stack; liquid-metal plans with a golden-ratio radial mesh in vector space, then draws only the vexar-lit waveform mass in worldspace. It loops smoothly (ping-pong). LIMITS: transfigure currently morphs a single outer contour, so shapes with different hole counts can swim; effect shots use the fixed carved-solid hero framing (no camera override yet).\n\nMotions:\n${motionCatalogue()}\n\nReturns { motion_ref, tag_ref, stash_ref, url, svg_path, gif_path, frames, message }. Open \`url\` to view; the .svg is the durable form, the .gif is a cache of the recipe.`,
+    inputSchema: {
+      type: 'object',
+      required: ['title', 'subject', 'shot'],
+      properties: {
+        title: { type: 'string', description: 'Title for the motion project + artifact.' },
+        subject: {
+          type: 'object',
+          description: 'What moves. CAMERA family: a single manji-tree (sketch_ref or inline manji_tree). DECK family: an ordered set of charts/sketches (deck or stash_ref) played as a slideshow. EFFECT family: a carved solid (carved_solid) for materialize, or a from→to pair for transfigure.',
+          properties: {
+            sketch_ref: { type: 'string', description: 'CAMERA: a stored sketch ref (sk_…) whose manifest.kind is manji-tree.' },
+            manji_tree: { type: 'object', description: 'CAMERA: an inline manji-tree manifest (tree/waveFields/camera/…). The kind field is added if missing.' },
+            carved_solid: { type: ['string', 'object'], description: 'EFFECT (materialize): a carved-solid ref (sk_…) or an inline { shape, style?, material? } — the subject that comes into being.' },
+            from: { type: ['string', 'object'], description: 'EFFECT (transfigure): the START carved solid (ref or inline { shape, … }). Requires `to`.' },
+            to: { type: ['string', 'object'], description: 'EFFECT (transfigure): the END carved solid the subject becomes (ref or inline { shape, … }). Lends the morph its material. Requires `from`.' },
+            deck: {
+              type: 'array',
+              description: "DECK: an ordered list of slides. Each entry is a sketch ref (sk_…) or an inline sketch manifest. Plays one-per-beat as a slideshow. A slide's marks may carry reveal:{step,enter,from,dwell} to build in sequence (see the description); ≥2 still slides, or ≥1 reveal slide.",
+              items: { type: ['string', 'object'] },
+            },
+            stash_ref: { type: 'string', description: 'DECK: a stash (st_…) whose sketch-typed items, in gather order, are the slides (≥2).' },
+          },
+        },
+        shot: {
+          type: 'object',
+          description: 'The shot. CAMERA: a named camera motion + params. DECK: motion \'deck\' (or omit — implied for deck subjects).',
+          properties: {
+            motion: { type: 'string', enum: [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES], description: "Which motion. Camera: turntable/orbit/push_in/dolly_zoom/flythrough. Deck: 'deck'. Effect: materialize/transfigure. See the catalogue in the description." },
+            params: { type: 'object', description: `CAMERA: orbit {from,to}; push_in/dolly_zoom {end_scale}; flythrough {keyframes}; +{camera_position,look_at,fov,width,height,gif_width,bg,theme}. DECK: {seconds_per_slide,theme,width,gif_width} — theme is one of ${PRESENTATION_THEME_NAMES.join('|')} (default dark) and unifies slide ink + backdrop + player chrome; {surface,bg} remain as low-level overrides. EFFECT: {class} (materialize: hologram|doom|transporter; transfigure: galvatron|liquid-metal). Liquid-metal also accepts {liquid:{carrier,blobRandomness,highlightBias}}.` },
+            frames: { type: 'integer', minimum: 2, description: 'CAMERA frame count (defaults per motion). Ignored for decks (one frame per slide).' },
+            fps: { type: 'integer', minimum: 1, description: 'Frames per second (camera default 12). For decks prefer shot.params.seconds_per_slide.' },
+            loop: { type: 'boolean', description: 'Seamless loop (default true).' },
+          },
+        },
+        export: { type: 'string', enum: ['gif', 'svg', 'both'], description: "Artifact form (default 'both'). 'svg' is the durable flipbook; 'gif' is the cache." },
+        tag_ref: { type: 'string', description: 'Optional existing Motion Project ops tag (ops_…) to file this shot under, instead of forging a new one.' },
+      },
+    },
+    handler: forgeMotionHandler,
+  });
+
+  registerTool({
+    name: 'stitch_motion',
+    description:
+      `STITCH multiple already-forged motions into ONE long-form, downloadable, broadly-playable MP4 (H.264). Reach for this on framing like "stitch these together / combine the gifs / join the clips / make one long video / a movie out of these motions / concatenate the motions / play them back-to-back". It is the multi-clip sibling of forge_motion: forge_motion makes ONE clip; stitch_motion plays N of them end-to-end as a single film.\n\nEach clip is an existing motion ref (mo_…) — forge the pieces with forge_motion first, then pass them here in play order. A stitch is ITSELF a motion outcome (its own mo_… folder, filed under a Motion Project ops tag, listed in the same /motion gallery) — it just plays as a <video> and offers a download, where a single motion plays as a flipbook.\n\nSNAPSHOT-AT-BUILD: clip frames are baked into the MP4 now, so the stitch survives a source clip being deleted or re-forged afterward. Clips of different sizes are LETTERBOXED into one canvas (never cropped/distorted); each clip keeps its real-time duration (frames are resampled to the output fps). Transitions are CUT-ONLY in this version (pure concatenation). MP4 is the only playable artifact (no GIF). For very long stitches the tool WARNS about build size/time but still proceeds — the operator owns the call.\n\nReturns { motion_ref, tag_ref, stash_ref, url, mp4_path, clips, frames, duration_seconds, bytes, warning }. Open url to watch/download.`,
+    inputSchema: {
+      type: 'object',
+      required: ['title', 'clips'],
+      properties: {
+        title: { type: 'string', description: 'Title for the stitched motion + its project.' },
+        clips: {
+          type: 'array',
+          minItems: 2,
+          description:
+            'Ordered list of ≥2 clips to play end-to-end. Each entry is a motion ref (mo_…) or { motion_ref, transition }. Transition is cut-only for now (omit it).',
+          items: {
+            type: ['string', 'object'],
+            properties: {
+              motion_ref: { type: 'string', description: 'An existing motion ref (mo_…) to include.' },
+              transition: { type: 'string', enum: ['cut'], description: "Cut-only in this version (the default)." },
+            },
+          },
+        },
+        fps: { type: 'integer', minimum: 1, description: 'Output (constant) frame rate (default 24). Each clip is resampled to it, preserving its real-time duration.' },
+        width: { type: 'integer', minimum: 16, description: 'Output width in px (default 720). Height is derived; clips letterbox into the canvas.' },
+        bg: { type: 'string', description: "Letterbox background color (default '#000000')." },
+        loop: { type: 'boolean', description: 'Whether the player loops playback (default true). MP4 itself does not loop; the <video> player honors this.' },
+        tag_ref: { type: 'string', description: 'Optional existing Motion Project ops tag (ops_…) to file this stitch under, instead of forging a new one.' },
+      },
+    },
+    handler: stitchMotionHandler,
+  });
+}

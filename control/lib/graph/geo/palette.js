@@ -6,15 +6,28 @@
  * page bg IS the sea. Pick palettes that read against THAT bg, not against
  * white.
  *
- * Two themes ship:
+ * Token names ALIGN with the presentation theme vocabulary
+ * (lib/visual-language/themes.js) so one name means the same thing across
+ * domains — a map can sit beside a `paper` deck or a `blueprint` study and
+ * match. Maps keep their OWN rich per-element palette (land/sea/holes/legend);
+ * they don't derive from presentation chrome, because cartography needs more
+ * structure than a page does. The set is a subset of the presentation names
+ * (the cartographically meaningful ones); see the guard in palette.test.js.
+ *
+ * Shipped themes:
  *
  *   - `dark` (DEFAULT) — slate land on slightly-darker sea. Matches the rest
  *     of the sketch_vocab palette family (stacked-bar, donut-ring, stat-tile)
  *     so a map can sit next to a chart in one manifest without clashing.
- *   - `light` — warm cream land on charcoal stroke. Use when the operator
- *     wants a print-style cartographic look (export-to-PDF, embed in a
- *     light-mode doc). Still legible on the dark page; the cream lifts off the
- *     bg, so the map sits "above" the canvas rather than "in" it.
+ *   - `light` — cool neutral land, slate stroke. The clean print look.
+ *   - `paper` — warm cream land on charcoal stroke (the editorial/print-style
+ *     cartographic look that used to be misnamed `light`). The cream lifts off
+ *     the page so the map sits "above" the canvas rather than "in" it.
+ *   - `blueprint` — blue land + cyan strokes/labels: a technical/schematic map.
+ *   - `sepia` — parchment land, brown ink: the classic aged-cartography look.
+ *
+ * (midnight / high-contrast aren't authored for maps yet — add them here if a
+ * map needs to pair with one of those decks.)
  *
  * Choropleth (data-driven fill) colors are SEPARATE from the base palette —
  * the operator picks per-region fills that override `outerFill`. The base
@@ -38,19 +51,64 @@ export const MAP_THEMES = {
     footer: '#64748b',            // slate-500
   },
   light: {
-    outerFill: '#f3efe6',         // warm cream — print-style cartographic
-    outerStroke: '#2a2a2a',
+    outerFill: '#e8edf2',         // cool neutral land (matches presentation `light`)
+    outerStroke: '#475569',
     outerStrokeWidth: 1,
     holeFill: '#0b0f16',          // matches dark theme's sea — holes punch through
-    holeStroke: '#2a2a2a',
+    holeStroke: '#475569',
     holeStrokeWidth: 0.5,
-    label: '#1f2937',             // dark text on cream land
+    label: '#1f2937',             // dark text on cool land
     legendBg: '#f8fafc',
     legendStroke: '#cbd5e1',
     legendLabel: '#1e293b',
     title: '#0f172a',
     subtitle: '#475569',
     footer: '#64748b',
+  },
+  paper: {
+    outerFill: '#f3efe6',         // warm cream — print-style cartographic
+    outerStroke: '#2a2a2a',
+    outerStrokeWidth: 1,
+    holeFill: '#0b0f16',
+    holeStroke: '#2a2a2a',
+    holeStrokeWidth: 0.5,
+    label: '#2b2218',             // warm dark ink on cream land
+    legendBg: '#faf7f0',
+    legendStroke: '#d8cdb8',
+    legendLabel: '#3a2f20',
+    title: '#2b2218',
+    subtitle: '#6f6149',
+    footer: '#8a7d64',
+  },
+  blueprint: {
+    outerFill: '#0e3a5c',         // blue land
+    outerStroke: '#7fdbff',       // cyan coastline
+    outerStrokeWidth: 0.8,
+    holeFill: '#071f33',          // darker blue cutout
+    holeStroke: '#3d7ea6',
+    holeStrokeWidth: 0.5,
+    label: '#dceffb',
+    legendBg: '#0e3253',
+    legendStroke: '#1d5a86',
+    legendLabel: '#dceffb',
+    title: '#eaf6ff',
+    subtitle: '#9fd0ee',
+    footer: '#6fa8cf',
+  },
+  sepia: {
+    outerFill: '#e6d2a8',         // parchment land
+    outerStroke: '#6b4f2c',       // brown coastline
+    outerStrokeWidth: 1,
+    holeFill: '#0b0f16',
+    holeStroke: '#6b4f2c',
+    holeStrokeWidth: 0.5,
+    label: '#43321f',
+    legendBg: '#efe3c8',
+    legendStroke: '#cdb88f',
+    legendLabel: '#43321f',
+    title: '#3a2a1a',
+    subtitle: '#806a4f',
+    footer: '#9c8a63',
   },
 };
 

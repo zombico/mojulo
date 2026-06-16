@@ -78,9 +78,14 @@ describe('StashRepository', () => {
       title: 'Edison archive',
       sourceUrl: 'https://example.org/edison',
     });
+    StashRepository.gather({
+      stashRef: s.stashRef,
+      type: 'sketch',
+      metadata: { sketch_ref: 'sk_abc123def0', label: 'Volumizer flow diagram' },
+    });
 
     const items = StashRepository.listItems(s.stashRef);
-    expect(items).toHaveLength(7);
+    expect(items).toHaveLength(8);
     expect(new Set(items.map((i) => i.type))).toEqual(ITEM_TYPES);
   });
 
@@ -145,6 +150,64 @@ describe('StashRepository', () => {
     expect(() =>
       StashRepository.gather({ stashRef: s.stashRef, type: 'link', title: 'no url' }),
     ).toThrow(/source_url/);
+
+    // sketch without sketch_ref
+    expect(() =>
+      StashRepository.gather({
+        stashRef: s.stashRef,
+        type: 'sketch',
+        metadata: { label: 'no ref' },
+      }),
+    ).toThrow(/sketch_ref/);
+
+    // sketch with badly-shaped ref
+    expect(() =>
+      StashRepository.gather({
+        stashRef: s.stashRef,
+        type: 'sketch',
+        metadata: { sketch_ref: 'definitely-not-a-sketch', label: 'x' },
+      }),
+    ).toThrow(/sk_/);
+
+    // sketch missing label
+    expect(() =>
+      StashRepository.gather({
+        stashRef: s.stashRef,
+        type: 'sketch',
+        metadata: { sketch_ref: 'sk_abc123def0' },
+      }),
+    ).toThrow(/label/);
+  });
+
+  it('accepts an optional body_md caption on a sketch item (picture-book pages)', () => {
+    const s = StashRepository.mint({ title: 'picture book' });
+    const caption = 'Once upon a time, a fox who would not share met a hungry crow.';
+    const item = StashRepository.gather({
+      stashRef: s.stashRef,
+      type: 'sketch',
+      metadata: { sketch_ref: 'sk_abc123def0', label: 'page 1' },
+      bodyMd: caption,
+    });
+    expect(item.type).toBe('sketch');
+    expect(item.bodyMd).toBe(caption);
+    expect(item.metadata.sketch_ref).toBe('sk_abc123def0');
+
+    // round-trip via list
+    const fetched = StashRepository.listItems(s.stashRef);
+    expect(fetched).toHaveLength(1);
+    expect(fetched[0].bodyMd).toBe(caption);
+  });
+
+  it('rejects a non-string body_md on a sketch item', () => {
+    const s = StashRepository.mint({ title: 'bad caption' });
+    expect(() =>
+      StashRepository.gather({
+        stashRef: s.stashRef,
+        type: 'sketch',
+        metadata: { sketch_ref: 'sk_abc123def0', label: 'p' },
+        bodyMd: { not: 'a string' },
+      }),
+    ).toThrow(/body_md must be a string/);
   });
 
   it('mints drawers idempotently and gathers into them', () => {
@@ -389,8 +452,8 @@ describe('StashRepository', () => {
   it('rejects unknown bound_kind and role', () => {
     const s = StashRepository.mint({ title: 'gated' });
     expect(() =>
-      StashRepository.bind({ stashRef: s.stashRef, boundKind: 'sketch', boundRef: 'sk_x' }),
-    ).toThrow(/bound_kind 'sketch' is not valid/);
+      StashRepository.bind({ stashRef: s.stashRef, boundKind: 'unicorn', boundRef: 'x' }),
+    ).toThrow(/bound_kind 'unicorn' is not valid/);
     expect(() =>
       StashRepository.bind({
         stashRef: s.stashRef,
@@ -443,6 +506,24 @@ describe('StashRepository', () => {
     StashRepository.bind({ stashRef: b.stashRef, boundKind: 'bot', boundRef: 'dep_1' });
     const all = StashRepository.listBindings();
     expect(all).toHaveLength(2);
+  });
+
+  it('accepts sketch as a binding kind (the adjacency-layer extension)', () => {
+    const s = StashRepository.mint({ title: 'adjacent' });
+    const binding = StashRepository.bind({
+      stashRef: s.stashRef,
+      boundKind: 'sketch',
+      boundRef: 'sk_abc123def0',
+      role: 'reference',
+    });
+    expect(binding.boundKind).toBe('sketch');
+    expect(binding.boundRef).toBe('sk_abc123def0');
+    const reverse = StashRepository.listBindings({
+      boundKind: 'sketch',
+      boundRef: 'sk_abc123def0',
+    });
+    expect(reverse).toHaveLength(1);
+    expect(reverse[0].stashRef).toBe(s.stashRef);
   });
 
   it('listBindings rejects an invalid boundKind filter', () => {

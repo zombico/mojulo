@@ -8,7 +8,13 @@ import {
   normalize,
 } from './geometry.js';
 import { annotateMarksWithConstellation, constellationDebugMarks } from '../polygonizer/constellation.js';
-import { findMandalaBlock, projectMandalaBlock, projectMandalaPoint, projectTwoPoint, withGeneratedElementMandala } from '../polygonizer/pure-mandala.js';
+import { runAuthorshipPreview } from '../rendrant/authorship-preview.js';
+import { deriveMaterialContracts, summarizeMaterialContracts } from '../rendrant/material-contracts.js';
+import { findMandalaBlock, projectMandalaBlock, projectMandalaPoint, projectTwoPoint, withGeneratedElementMandala, withResolvedWorldCamera } from '../polygonizer/pure-mandala.js';
+import { resolveShotGlyph } from '../polygonizer/mandala-patterns.js';
+import { resolveRoomSceneElementPlan, projectRoomHeightManjis } from '../polygonizer/room-scene-elements.js';
+import { buildFurnitureNet, normalizeFurnitureStyle } from '../polygonizer/furniture-net.js';
+import { cardinalManji3D, evaluateManji3D, inscribedCuboid } from '../polygonizer/manji.js';
 
 const PALETTES = {
   'warm-low-key': {
@@ -23,17 +29,28 @@ const PALETTES = {
 
 export function expandNeoRembrandt(manifest, { includeHighlights = true } = {}) {
   if (!manifest || typeof manifest !== 'object') return manifest;
-  const cameraResolvedManifest = withGeneratedElementMandala(ensureFormConstellation(resolveTwoPointCameraPrimitive(manifest)));
-  const sourceMarks = Array.isArray(cameraResolvedManifest.marks) ? cameraResolvedManifest.marks : null;
-  if (!sourceMarks) return cameraResolvedManifest;
+  const meruResolvedManifest = resolveMeruAlias(manifest);
+  const shotGlyphResolvedManifest = resolveShotGlyphs(meruResolvedManifest);
+  const cameraResolvedManifest = withGeneratedElementMandala(ensureFormConstellation(resolveTwoPointCameraPrimitive(withResolvedWorldCamera(shotGlyphResolvedManifest))));
+  const lightResolvedManifest = resolveMetamandalaLightScene(cameraResolvedManifest);
+  const sourceMarks = Array.isArray(lightResolvedManifest.marks) ? lightResolvedManifest.marks : null;
+  if (!sourceMarks) return lightResolvedManifest;
 
-  const scene = cameraResolvedManifest.scene || {};
+  // PR-C: refuse expansion early when authorship preview blocks under
+  // materializationGate === 'planning-valid'. All 7 gating checks are
+  // manifest-only, so this short-circuits before any expensive mark work.
+  const authorshipPreview = runAuthorshipPreview(lightResolvedManifest);
+  if (authorshipPreview.verdict === 'blocked' && authorshipPreview.gateActive) {
+    return refuseExpansionWithDiagnostics(lightResolvedManifest, authorshipPreview, includeHighlights);
+  }
+
+  const scene = lightResolvedManifest.scene || {};
   const palette = PALETTES[scene.palette] || PALETTES['warm-low-key'];
-  const skeletonResolvedSourceMarks = synthesizeDynamicSkeletonMarks(sourceMarks, cameraResolvedManifest.gesture, scene);
-  const constructionResolvedMarks = resolveConstructionMarks(skeletonResolvedSourceMarks, scene, cameraResolvedManifest);
-  const gestureResolvedMarks = resolveGestureMarks(constructionResolvedMarks, cameraResolvedManifest.gesture);
+  const skeletonResolvedSourceMarks = synthesizeDynamicSkeletonMarks(sourceMarks, lightResolvedManifest.gesture, scene);
+  const constructionResolvedMarks = resolveConstructionMarks(skeletonResolvedSourceMarks, scene, lightResolvedManifest);
+  const gestureResolvedMarks = resolveGestureMarks(constructionResolvedMarks, lightResolvedManifest.gesture);
   const preFacePatternSourceMarks = assignViewDepthZ(
-    gestureResolvedMarks.flatMap((mark, index) => expandCompactSourceMarks(mark, index, scene, cameraResolvedManifest)),
+    gestureResolvedMarks.flatMap((mark, index) => expandCompactSourceMarks(mark, index, scene, lightResolvedManifest)),
     scene,
   );
   const expandedSourceMarks = resolveFacePatternMarks(preFacePatternSourceMarks, scene);
@@ -55,31 +72,71 @@ export function expandNeoRembrandt(manifest, { includeHighlights = true } = {}) 
       }
     }
   }
-  const annotatedMarks = annotateMarksWithConstellation(marks, cameraResolvedManifest.polygonizer?.constellation);
-  const debugMarks = constellationDebugMarks(cameraResolvedManifest.polygonizer?.constellation);
+  const annotatedMarks = annotateMarksWithConstellation(marks, lightResolvedManifest.polygonizer?.constellation);
+  const debugMarks = constellationDebugMarks(lightResolvedManifest.polygonizer?.constellation);
+  const mandalaCameraWindow = resolveMandalaCameraWindow(lightResolvedManifest);
+  const metamandalaLighting = resolveMetamandalaLighting(lightResolvedManifest);
   const depthOrderedMarks = applyConstellationBackToFrontPaintOrder(
-    annotatedMarks.concat(debugMarks),
-    cameraResolvedManifest,
+    annotatedMarks.concat(debugMarks, mandalaCameraWindow.debugMarks, metamandalaLighting.debugMarks),
+    lightResolvedManifest,
   );
   const finalMarks = applyGridRenderStyleContract(
     depthOrderedMarks,
-    cameraResolvedManifest,
+    lightResolvedManifest,
   );
-  const contactAnnotatedMarks = annotateContactRegions(finalMarks);
-  const metamandala = resolveMetamandalaSurfaces(contactAnnotatedMarks, cameraResolvedManifest);
-  const relaxation = applyMetamandalaRelaxation(contactAnnotatedMarks, metamandala.surfaces, cameraResolvedManifest);
+  const preDiffusionContactMarks = annotateContactRegions(finalMarks);
+  const diffusion = applyMetamandalaLightDiffusion(preDiffusionContactMarks, lightResolvedManifest);
+  const contactAnnotatedMarks = diffusion.applied
+    ? annotateContactRegions(diffusion.marks)
+    : preDiffusionContactMarks;
+  const metamandala = resolveMetamandalaSurfaces(contactAnnotatedMarks, lightResolvedManifest);
+  const relaxation = applyMetamandalaRelaxation(contactAnnotatedMarks, metamandala.surfaces, lightResolvedManifest);
   const relaxedContactMarks = relaxation.applied
     ? annotateContactRegions(relaxation.marks)
     : contactAnnotatedMarks;
   const relaxedMetamandala = relaxation.applied
-    ? resolveMetamandalaSurfaces(relaxedContactMarks, cameraResolvedManifest)
+    ? resolveMetamandalaSurfaces(relaxedContactMarks, lightResolvedManifest)
     : metamandala;
   const marksWithMetamandala = relaxedContactMarks.concat(relaxedMetamandala.debugMarks);
-  const contactReport = validateContactChecks(marksWithMetamandala, cameraResolvedManifest, relaxedMetamandala.surfaces);
+  const contactReport = validateContactChecks(marksWithMetamandala, lightResolvedManifest, relaxedMetamandala.surfaces);
+  const shotContract = freezeShotContract(lightResolvedManifest);
+  const spatialPlan = deriveSpatialPlan(lightResolvedManifest, {
+    cameraWindow: mandalaCameraWindow.window,
+    lighting: metamandalaLighting.lighting,
+    diffusion,
+    surfaces: relaxedMetamandala.surfaces,
+    relaxation,
+    contactReport,
+    marks: relaxedContactMarks,
+    shotContract,
+  });
+  const plannedMarks = applySpatialPlanMaterialization(marksWithMetamandala, spatialPlan);
+  const abstractConstellation = deriveAbstractConstellation(lightResolvedManifest);
+  const physicalHitboxes = derivePhysicalHitboxes({
+    spatialPlan,
+    contactReport,
+    manifest: lightResolvedManifest,
+  });
+  const materialContracts = deriveMaterialContracts({ marks: plannedMarks });
+  const materialContractsSummary = summarizeMaterialContracts(materialContracts);
+  const consensusChain = deriveConsensusChainMetadata({
+    manifest: lightResolvedManifest,
+    spatialPlan,
+    relaxation,
+    expandedSourceMarks,
+    constructionResolvedMarks,
+    abstractConstellation,
+    physicalHitboxes,
+    shotContract,
+    shotContractFit: spatialPlan?.shotContractFit || null,
+    authorshipPreview,
+    materialContracts,
+    materialContractsSummary,
+  });
 
   return {
-    ...cameraResolvedManifest,
-    marks: marksWithMetamandala.sort((a, b) => (a.z ?? 0) - (b.z ?? 0)),
+    ...lightResolvedManifest,
+    marks: plannedMarks.sort((a, b) => (a.z ?? 0) - (b.z ?? 0)),
     neoRembrandt: {
       expanded: true,
       includeHighlights,
@@ -88,12 +145,34 @@ export function expandNeoRembrandt(manifest, { includeHighlights = true } = {}) 
       dynamicSkeletonMarkCount: skeletonResolvedSourceMarks.filter((mark) => mark?.dynamicSkeleton).length,
       constructionMarkCount: sourceMarks.filter((mark) => isConstructionMark(mark)).length,
       constructionResolvedMarkCount: constructionResolvedMarks.length,
-      polygonizerSubject: cameraResolvedManifest.polygonizer?.subject,
+      polygonizerSubject: lightResolvedManifest.polygonizer?.subject,
       gestureResolved: gestureResolvedMarks.some((mark) => mark?.gestureResolved),
       expandedSourceMarkCount: expandedSourceMarks.length,
-      expandedMarkCount: marksWithMetamandala.length,
+      expandedMarkCount: plannedMarks.length,
       constellationAnnotatedMarkCount: annotatedMarks.filter((mark) => mark?.constellationRole).length,
       constellationDebugMarkCount: debugMarks.length,
+      spatialPlan,
+      spatialPlanValid: spatialPlan.validation.ok,
+      spatialPlanStageCount: spatialPlan.stages.length,
+      spatialPlanMaterializationGate: spatialPlan.materializationGate,
+      chain: consensusChain.chain,
+      authorshipPreview: consensusChain.authorshipPreview,
+      preflight: consensusChain.preflight,
+      reconciliation: consensusChain.reconciliation,
+      materialContracts,
+      materialContractsSummary,
+      abstractConstellation,
+      physicalHitboxes,
+      shotContract,
+      shotContractFit: spatialPlan?.shotContractFit || null,
+      mandalaCameraWindow: mandalaCameraWindow.window,
+      mandalaCameraWindowDebugMarkCount: mandalaCameraWindow.debugMarks.length,
+      metamandalaLighting: metamandalaLighting.lighting,
+      metamandalaLightDebugMarkCount: metamandalaLighting.debugMarks.length,
+      metamandalaLightDiffusion: diffusion.report,
+      metamandalaLightDiffusionApplied: diffusion.applied,
+      metamandalaLightDiffusionHitCount: diffusion.report?.hitCount || 0,
+      metamandalaLightDiffusionRayCount: diffusion.report?.rayCount || 0,
       metamandalaSurfaceCount: relaxedMetamandala.surfaces.length,
       metamandalaSurfaces: relaxedMetamandala.surfaces,
       metamandalaDebugMarkCount: relaxedMetamandala.debugMarks.length,
@@ -102,11 +181,326 @@ export function expandNeoRembrandt(manifest, { includeHighlights = true } = {}) 
       contactCheckCount: contactReport.checks.length,
       contactCheckPassedCount: contactReport.checks.filter((check) => check.ok).length,
       contactChecks: contactReport.checks,
-      formConstellationAuthored: Boolean(cameraResolvedManifest.polygonizer?.formConstellationAuthored),
-      formConstellationNodeCount: cameraResolvedManifest.polygonizer?.formConstellationNodeCount || 0,
-      elementMandalaGenerated: Boolean(cameraResolvedManifest.polygonizer?.elementMandala?.generated),
-      elementMandalaCount: cameraResolvedManifest.polygonizer?.elementMandala?.elements?.length || 0,
+      formConstellationAuthored: Boolean(lightResolvedManifest.polygonizer?.formConstellationAuthored),
+      formConstellationNodeCount: lightResolvedManifest.polygonizer?.formConstellationNodeCount || 0,
+      elementMandalaGenerated: Boolean(lightResolvedManifest.polygonizer?.elementMandala?.generated),
+      elementMandalaCount: lightResolvedManifest.polygonizer?.elementMandala?.elements?.length || 0,
     },
+  };
+}
+
+function deriveConsensusChainMetadata({
+  manifest,
+  spatialPlan,
+  relaxation,
+  expandedSourceMarks,
+  constructionResolvedMarks,
+  abstractConstellation,
+  physicalHitboxes,
+  shotContract,
+  shotContractFit,
+  authorshipPreview,
+  materialContracts,
+  materialContractsSummary,
+}) {
+  const polygonizer = manifest?.polygonizer || {};
+  const hasMeru = Boolean(polygonizer?.meru);
+  const constructionResolvedCount = Array.isArray(constructionResolvedMarks) ? constructionResolvedMarks.length : 0;
+  const visibleMarkCount = Array.isArray(expandedSourceMarks) ? expandedSourceMarks.length : 0;
+  const verdictPassed = spatialPlan?.validation?.ok === true;
+  const verdictBlocked = spatialPlan?.materializationGate?.status === 'blocked';
+  const preflightVerdict = verdictBlocked ? 'blocked' : verdictPassed ? 'passed' : 'not-evaluated';
+  const reconciliationApplied = Boolean(relaxation?.applied);
+
+  const abstractNodeCount = abstractConstellation?.nodeCount || 0;
+  const hasAbstract = Boolean(abstractConstellation && (abstractNodeCount > 0 || abstractConstellation.formConstellationAuthored));
+  const hitboxPresence = (physicalHitboxes?.declaredHitboxCount || 0)
+    + (physicalHitboxes?.supportCount || 0)
+    + (physicalHitboxes?.collisionBodyCount || 0)
+    + (physicalHitboxes?.contactRegionCount || 0);
+  const hasPhysical = hitboxPresence > 0;
+
+  const shotContractStatus = shotContract?.frozen ? 'frozen' : 'not-declared';
+  const overflow = shotContractFit?.overflow || null;
+
+  const authorshipPreviewStatus = authorshipPreview
+    ? (authorshipPreview.verdict === 'blocked' ? 'blocked' : 'passed')
+    : 'not-yet-implemented';
+
+  const stages = [
+    { id: 'intent', status: 'input' },
+    {
+      id: 'authorship-preview',
+      status: authorshipPreviewStatus,
+      gateActive: authorshipPreview?.gateActive ?? false,
+      blockingCount: authorshipPreview?.blockingCount ?? 0,
+      advisoryCount: authorshipPreview?.advisoryCount ?? 0,
+    },
+    { id: 'abstract-constellation', status: hasAbstract ? 'resolved' : 'not-declared', count: abstractNodeCount },
+    {
+      id: 'shot-contract',
+      status: shotContractStatus,
+      viewBox: shotContract?.viewBox || null,
+      glyphCount: polygonizer?.shotGlyphs?.length || 0,
+    },
+    { id: 'meru-basis', status: hasMeru ? 'resolved' : 'not-declared' },
+    {
+      id: 'physical-hitboxes',
+      status: hasPhysical ? 'resolved' : 'not-declared',
+      declaredHitboxCount: physicalHitboxes?.declaredHitboxCount || 0,
+      supportCount: physicalHitboxes?.supportCount || 0,
+      collisionBodyCount: physicalHitboxes?.collisionBodyCount || 0,
+      contactRegionCount: physicalHitboxes?.contactRegionCount || 0,
+    },
+    {
+      id: 'material-contracts',
+      status: (materialContractsSummary?.count || 0) > 0 ? 'resolved' : 'not-declared',
+      count: materialContractsSummary?.count || 0,
+      families: materialContractsSummary?.families || [],
+      phases: materialContractsSummary?.phases || [],
+    },
+    { id: 'construction-adapters', status: constructionResolvedCount > 0 ? 'resolved' : 'not-declared', count: constructionResolvedCount },
+    { id: 'visible-skin', status: visibleMarkCount > 0 ? 'materialized' : 'not-materialized', count: visibleMarkCount },
+    { id: 'preflight-verdict', status: preflightVerdict },
+    { id: 'budget', status: 'not-yet-implemented' },
+    { id: 'reconciliation', status: reconciliationApplied ? 'verified' : 'not-declared' },
+  ];
+
+  const authorshipPreviewSummary = authorshipPreview
+    ? {
+        immutable: true,
+        verdict: authorshipPreview.verdict,
+        phase: 'pre-expansion',
+        gateActive: authorshipPreview.gateActive,
+        materializationGate: authorshipPreview.materializationGate,
+      }
+    : { immutable: true, verdict: 'not-yet-implemented', phase: 'pre-expansion' };
+  const preflightSummary = { immutable: true, verdict: preflightVerdict, phase: 'post-expansion' };
+  const reconciliationSummary = { invalidatesPreflight: false, invalidatesAuthorshipPreview: false };
+
+  return {
+    chain: {
+      stages,
+      authorshipPreview: authorshipPreviewSummary,
+      preflight: preflightSummary,
+      reconciliation: reconciliationSummary,
+    },
+    authorshipPreview: authorshipPreview
+      ? {
+          ...authorshipPreviewSummary,
+          checks: authorshipPreview.checks || [],
+          blockingCount: authorshipPreview.blockingCount,
+          advisoryCount: authorshipPreview.advisoryCount,
+        }
+      : {
+          ...authorshipPreviewSummary,
+          checks: [],
+        },
+    preflight: {
+      ...preflightSummary,
+      validation: spatialPlan?.validation || null,
+      materializationGate: spatialPlan?.materializationGate || null,
+      shotContract: shotContract || null,
+      shotContractFit: shotContractFit || null,
+    },
+    reconciliation: {
+      ...reconciliationSummary,
+      applied: reconciliationApplied,
+      shotContractMutated: false,
+      shotContractOverflow: overflow,
+    },
+  };
+}
+
+function deriveAbstractConstellation(manifest) {
+  const polygonizer = manifest?.polygonizer || {};
+  const raw = polygonizer.constellation;
+  const formAuthored = Boolean(polygonizer.formConstellationAuthored);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    if (!formAuthored) return null;
+    return {
+      kind: 'cca-constellation-grid',
+      source: 'form-authored',
+      formConstellationAuthored: true,
+      nodes: [],
+      nodeCount: 0,
+      elementMandalaCount: polygonizer?.elementMandala?.elements?.length || 0,
+    };
+  }
+  const nodes = Array.isArray(raw.nodes) ? raw.nodes : [];
+  const elements = Array.isArray(polygonizer?.elementMandala?.elements)
+    ? polygonizer.elementMandala.elements
+    : [];
+  return {
+    kind: raw.kind || 'cca-constellation-grid',
+    source: raw.source || (formAuthored ? 'form-authored' : 'declared'),
+    flatEyeLevel: Boolean(raw.flatEyeLevel),
+    axisMundi: raw.axisMundi || null,
+    horizonY: Number.isFinite(Number(raw.horizonY)) ? Number(raw.horizonY) : null,
+    vanishingPoint: Array.isArray(raw.vanishingPoint) ? raw.vanishingPoint.slice() : null,
+    baselineY: Number.isFinite(Number(raw.baselineY)) ? Number(raw.baselineY) : null,
+    depthBands: raw.depthBands || null,
+    formConstellationAuthored: formAuthored,
+    nodeCount: nodes.length,
+    elementMandalaCount: elements.length,
+    nodes: nodes.map((node) => ({
+      role: node?.role,
+      renderOrder: node?.renderOrder,
+      parent: node?.parent ?? null,
+      depthBand: node?.depthBand,
+      anchor: node?.anchor,
+      bounds: node?.bounds,
+      cca: node?.cca,
+      scale: node?.scale,
+      childRegion: node?.childRegion,
+      elementMandala: node?.elementMandala,
+      formConstellation: Boolean(node?.formConstellation),
+      formConstellationMode: node?.formConstellationMode,
+      hitboxCount: Array.isArray(node?.hitboxes) ? node.hitboxes.length : 0,
+    })),
+  };
+}
+
+function derivePhysicalHitboxes({ spatialPlan, contactReport, manifest }) {
+  const declaredHitboxes = Array.isArray(spatialPlan?.hitboxes) ? spatialPlan.hitboxes : [];
+  const supports = Array.isArray(spatialPlan?.supports) ? spatialPlan.supports : [];
+  const gravity = manifest?.polygonizer?.metamandala?.gravity;
+  const declaredBodies = Array.isArray(gravity?.bodies) ? gravity.bodies : [];
+  const collisionBodies = declaredBodies.map((body) => ({
+    role: body.targetRole || body.role || body.bodyRole,
+    supportRole: body.surfaceRole || body.supportRole || body.on || body.onRole,
+    targetRegion: body.targetRegion || body.region || 'baseContact',
+    includeRoles: Array.isArray(body.includeRoles) ? body.includeRoles.slice() : [],
+    shadowRoles: Array.isArray(body.shadowRoles) ? body.shadowRoles.slice() : [],
+  }));
+  const checks = Array.isArray(contactReport?.checks) ? contactReport.checks : [];
+  const contactRegions = checks.map((check) => ({
+    role: check.role,
+    fromRole: check.fromRole,
+    fromRegion: check.fromRegion,
+    toSurfaceRole: check.toSurfaceRole,
+    mode: check.mode,
+    ok: check.ok === true,
+  }));
+  return {
+    declaredHitboxes,
+    supports,
+    collisionBodies,
+    contactRegions,
+    declaredHitboxCount: declaredHitboxes.length,
+    supportCount: supports.length,
+    collisionBodyCount: collisionBodies.length,
+    contactRegionCount: contactRegions.length,
+  };
+}
+
+function freezeShotContract(manifest) {
+  const viewBox = manifest?.viewBox || {};
+  const width = finiteOr(viewBox.width, 0);
+  const height = finiteOr(viewBox.height, 0);
+  const cameraPrimitive = manifest?.cameraPrimitive || manifest?.scene?.cameraPrimitive || {};
+  const layer = manifest?.polygonizer?.mandalaPatternLayer || {};
+  const shotGlyph = layer.shotGlyph || manifest?.polygonizer?.shotGlyph || null;
+  const twoPointCamera = manifest?.polygonizer?.twoPointCamera || {};
+  const cropApplied = Boolean(twoPointCamera.cropApplied && twoPointCamera.cropBox);
+  const cropBox = cropApplied ? twoPointCamera.cropBox : null;
+
+  const normalizedViewBox = {
+    x: Number.isFinite(Number(viewBox.x)) ? Number(viewBox.x) : 0,
+    y: Number.isFinite(Number(viewBox.y)) ? Number(viewBox.y) : 0,
+    width,
+    height,
+  };
+
+  const padding = readShotMetric(
+    cameraPrimitive.padding,
+    shotGlyph?.padding,
+    manifest?.scene?.shotPadding,
+    0,
+  );
+  const bleed = readShotMetric(
+    cameraPrimitive.bleed,
+    shotGlyph?.bleed,
+    manifest?.scene?.shotBleed,
+    0,
+  );
+  const cropPolicy = cameraPrimitive.cropPolicy
+    || shotGlyph?.cropPolicy
+    || (cropApplied ? 'crop-to-camera-window' : 'no-crop');
+  const focusAnchor = cameraPrimitive.focusAnchor
+    || shotGlyph?.focusAnchor
+    || (Array.isArray(cameraPrimitive.cameraPoint?.point) ? cameraPrimitive.cameraPoint.point.slice() : null)
+    || cameraPrimitive.anchor
+    || null;
+  const scaleToFit = Boolean(cameraPrimitive.scaleToFit ?? shotGlyph?.scaleToFit ?? false);
+  const preserveAspectRatio = cameraPrimitive.preserveAspectRatio
+    || shotGlyph?.preserveAspectRatio
+    || manifest?.preserveAspectRatio
+    || 'xMidYMid meet';
+
+  const source = cropApplied
+    ? 'two-point-camera-crop'
+    : (shotGlyph ? 'shot-glyph' : 'manifest');
+
+  const viewport = Object.freeze({ width, height });
+  const frozenViewBox = Object.freeze(normalizedViewBox);
+  if (cropBox) {
+    Object.freeze({ x: cropBox.x, y: cropBox.y, width: cropBox.width, height: cropBox.height });
+  }
+  return Object.freeze({
+    viewport,
+    viewBox: frozenViewBox,
+    padding,
+    bleed,
+    cropPolicy,
+    focusAnchor,
+    scaleToFit,
+    preserveAspectRatio,
+    frozen: true,
+    source,
+    cropApplied,
+    cropBox: cropApplied
+      ? Object.freeze({ x: cropBox.x, y: cropBox.y, width: cropBox.width, height: cropBox.height })
+      : null,
+  });
+}
+
+function readShotMetric(...values) {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return 0;
+}
+
+function evaluateShotContractFit(shotContract, marks) {
+  if (!shotContract) return null;
+  const vb = shotContract.viewBox;
+  if (!vb || !Number.isFinite(vb.width) || vb.width <= 0 || !Number.isFinite(vb.height) || vb.height <= 0) {
+    return { ok: true, marksWithinFrame: true, envelope: null, overflow: null };
+  }
+  const envelope = combinedMarkBounds(marks);
+  if (!envelope) {
+    return { ok: true, marksWithinFrame: true, envelope: null, overflow: null };
+  }
+  const right = vb.x + vb.width;
+  const bottom = vb.y + vb.height;
+  const overflowLeft = Math.max(0, vb.x - envelope.minX);
+  const overflowTop = Math.max(0, vb.y - envelope.minY);
+  const overflowRight = Math.max(0, envelope.maxX - right);
+  const overflowBottom = Math.max(0, envelope.maxY - bottom);
+  const overflows = overflowLeft > 0 || overflowTop > 0 || overflowRight > 0 || overflowBottom > 0;
+  return {
+    ok: !overflows,
+    marksWithinFrame: !overflows,
+    envelope: roundBox(envelope),
+    overflow: overflows ? {
+      left: round(overflowLeft),
+      top: round(overflowTop),
+      right: round(overflowRight),
+      bottom: round(overflowBottom),
+    } : null,
   };
 }
 
@@ -167,6 +561,116 @@ function ensureFormConstellation(manifest) {
       formConstellationNodeCount: nodes.filter((node) => node?.formConstellation).length,
     },
   };
+}
+
+function resolveShotGlyphs(manifest) {
+  const layer = manifest?.polygonizer?.mandalaPatternLayer || {};
+  const rawGlyphs = [
+    ...normalizeArray(layer.shotGlyphs),
+    ...normalizeArray(layer.shotGlyph),
+    ...normalizeArray(layer.standardShot),
+    ...normalizeArray(manifest?.polygonizer?.shotGlyph),
+  ];
+  const resolved = rawGlyphs
+    .map((glyph) => normalizeResolvedShotGlyph(glyph))
+    .filter(Boolean);
+  if (!resolved.length) return manifest;
+
+  const primary = resolved[0];
+  const polygonizer = manifest.polygonizer || {};
+  const nextLayer = {
+    ...layer,
+    shotGlyph: primary,
+    shotGlyphs: resolved,
+    cameraWindow: deepMergeNeo(primary.cameraWindow, layer.cameraWindow),
+    hallMandala: deepMergeNeo(primary.hallMandala, layer.hallMandala),
+  };
+  const glyphMeru = deepMergeNeo(primary.meru, primary.metamandala);
+  const nextMetamandala = {
+    ...(glyphMeru || {}),
+    ...(polygonizer.metamandala || {}),
+    lightSources: [
+      ...normalizeArray(glyphMeru?.lightSources),
+      ...normalizeArray(primary.lightSources),
+      ...normalizeArray(polygonizer.metamandala?.lightSources),
+    ],
+  };
+
+  return {
+    ...manifest,
+    cameraPrimitive: deepMergeNeo(primary.cameraPrimitive, manifest.cameraPrimitive || manifest.scene?.cameraPrimitive),
+    scene: deepMergeNeo(deepMergeNeo(primary.scene, manifest.scene), {
+      cameraPrimitive: manifest.scene?.cameraPrimitive,
+    }),
+    polygonizer: {
+      ...polygonizer,
+      mandalaPatternLayer: nextLayer,
+      roomConcept: deepMergeNeo(primary.roomConcept, polygonizer.roomConcept),
+      meru: deepMergeNeo(glyphMeru, polygonizer.meru),
+      metamandala: nextMetamandala,
+      shotGlyphs: resolved.map((glyph) => ({
+        id: glyph.id,
+        label: glyph.label,
+        family: glyph.family,
+        source: glyph.source,
+        topology: glyph.topology,
+        hallMandala: glyph.hallMandala,
+        boundaryContract: glyph.boundaryContract,
+      })),
+    },
+  };
+}
+
+function resolveMeruAlias(manifest) {
+  const polygonizer = manifest?.polygonizer;
+  if (!polygonizer?.meru) return manifest;
+  const meru = polygonizer.meru;
+  return {
+    ...manifest,
+    polygonizer: {
+      ...polygonizer,
+      metamandala: deepMergeNeo(meru, polygonizer.metamandala),
+    },
+  };
+}
+
+function normalizeResolvedShotGlyph(glyph) {
+  if (!glyph) return null;
+  const raw = typeof glyph === 'string' ? { id: glyph } : glyph;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const base = resolveShotGlyph(raw.extends || raw.seed || raw.id || raw.kind || raw.ref);
+  const resolved = base ? deepMergeNeo(base, raw) : raw;
+  if (!resolved?.id && !resolved?.cameraWindow && !resolved?.cameraPrimitive && !resolved?.lightSources) return null;
+  return {
+    ...resolved,
+    id: base ? (raw.id && raw.extends ? raw.id : base.id) : resolved.id || 'derived-shot-glyph',
+    label: resolved.label || resolved.id || 'Derived shot glyph',
+    family: resolved.family || 'derived-shot-glyph',
+    source: base ? 'shot-glyph-library' : 'declared-shot-glyph',
+  };
+}
+
+function normalizeArray(value) {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function deepMergeNeo(base, override) {
+  if (override === undefined || override === null) return clonePlain(base);
+  if (base === undefined || base === null) return clonePlain(override);
+  if (Array.isArray(base) || Array.isArray(override) || typeof base !== 'object' || typeof override !== 'object') {
+    return clonePlain(override);
+  }
+  const out = clonePlain(base);
+  for (const [key, value] of Object.entries(override)) {
+    out[key] = deepMergeNeo(out[key], value);
+  }
+  return out;
+}
+
+function clonePlain(value) {
+  if (value === undefined) return undefined;
+  return structuredClone(value);
 }
 
 function flatEyeLevelConstellation(width, height) {
@@ -355,9 +859,13 @@ function resolveTwoPointCameraPrimitive(manifest) {
   const crop = cameraPrimitive.showFullMandala === false && cameraPrimitive.cropBox
     ? cameraPrimitive.cropBox
     : null;
+  // Furnish the room: declared roomConcept.elements become boxNet marks bound to
+  // the room frame's own roomBasis, expanded downstream by expandBoxNetMark.
+  const furnitureMarks = synthesizeRoomFurnitureMarks(manifest.polygonizer?.roomConcept, generated.roomBasis);
   const marks = [
     ...generated.marks,
     ...(Array.isArray(manifest.marks) ? manifest.marks : []),
+    ...furnitureMarks,
   ];
 
   return {
@@ -365,7 +873,13 @@ function resolveTwoPointCameraPrimitive(manifest) {
     viewBox: crop
       ? { width: crop.width, height: crop.height }
       : manifest.viewBox || generated.viewBox,
-    marks: crop ? marks.map((mark) => offsetMark(mark, -crop.x, -crop.y)) : marks,
+    // boxNet marks project to screen later (in expandBoxNetMark), so offsetMark
+    // can't shift them here — stamp the crop offset and apply it post-projection.
+    marks: crop
+      ? marks.map((mark) => (mark?.kind === 'boxNet'
+        ? { ...mark, cropOffset: [-crop.x, -crop.y] }
+        : offsetMark(mark, -crop.x, -crop.y)))
+      : marks,
     scene: {
       ...(manifest.scene || {}),
       perspective: {
@@ -436,6 +950,1843 @@ function applyConstellationBackToFrontPaintOrder(marks, manifest) {
       constellationPaintRank: rank,
     };
   });
+}
+
+function resolveMandalaCameraWindow(manifest) {
+  const cameraWindow = manifest?.polygonizer?.mandalaPatternLayer?.cameraWindow;
+  if (!cameraWindow || typeof cameraWindow !== 'object' || Array.isArray(cameraWindow)) {
+    return { window: null, debugMarks: [] };
+  }
+  const terminators = cameraWindow.terminatorVectors || {};
+  const left = validVector2(terminators.left) || [-1, -1];
+  const right = validVector2(terminators.right) || [1, -1];
+  const origin = validVector2(cameraWindow.origin) || [0, 0];
+  const viewBox = manifest?.viewBox || {};
+  const screenOrigin = validPoint(cameraWindow.screenOrigin) || [
+    finiteOr(viewBox.width, 800) / 2,
+    finiteOr(manifest?.polygonizer?.draftingTable?.baselineY, finiteOr(viewBox.height, 520) * 0.78),
+  ];
+  const scale = Math.max(finiteOr(cameraWindow.unitScale, 170), 1);
+  const depthSteps = Math.max(2, Math.min(12, Math.round(finiteOr(cameraWindow.depthSteps, 5))));
+  const laneSteps = Math.max(2, Math.min(12, Math.round(finiteOr(cameraWindow.laneSteps, 5))));
+  const length = Math.max(finiteOr(cameraWindow.length, 1), 0.01);
+  const window = {
+    kind: cameraWindow.kind || 'shot-terminator-wedge',
+    origin,
+    terminatorVectors: { left, right },
+    screenOrigin: roundPointTuple(screenOrigin),
+    unitScale: scale,
+    depthSteps,
+    laneSteps,
+    fitRule: cameraWindow.fitRule || 'visible mandala content must fit between the two terminator vectors for the shot',
+    grid: buildMandalaCameraWindowGrid({ origin, left, right, length, depthSteps, laneSteps }),
+  };
+  const debug = cameraWindow.debug === true || cameraWindow.showDebug === true || cameraWindow.renderDebug === true;
+  return {
+    window,
+    debugMarks: debug ? mandalaCameraWindowDebugMarks(window, cameraWindow) : [],
+  };
+}
+
+function deriveSpatialPlan(manifest, context = {}) {
+  const contract = resolveSpatialPlanningContract(manifest);
+  const shotGlyphs = spatialPlanShotGlyphs(manifest);
+  const hallMandala = spatialPlanHallMandala(manifest);
+  const meru = spatialPlanMeru(manifest);
+  const roomConcept = resolveRoomConcept(manifest, context);
+  const hitboxes = collectConstellationHitboxes(manifest);
+  const supports = Array.isArray(context.surfaces)
+    ? context.surfaces.map((surface) => spatialPlanSupport(surface)).filter(Boolean)
+    : [];
+  const gravityEdges = spatialPlanGravityEdges(manifest, context.relaxation);
+  const zAdjacency = spatialPlanZAdjacency(context.relaxation);
+  const shadowReceivers = spatialPlanShadowReceivers(manifest, gravityEdges, context.marks);
+  const horizontalStacks = spatialPlanHorizontalStacks(context.marks);
+  const mandalaArrangements = spatialPlanMandalaArrangements(context.marks);
+  const shotContract = context.shotContract || null;
+  const shotContractFit = evaluateShotContractFit(shotContract, context.marks);
+  const validation = validateSpatialPlan({
+    contract,
+    hitboxes,
+    supports,
+    shotGlyphs,
+    hallMandala,
+    meru,
+    roomConcept,
+    gravityEdges,
+    zAdjacency,
+    horizontalStacks,
+    mandalaArrangements,
+    contactReport: context.contactReport,
+    marks: context.marks,
+    shotContract,
+  });
+  const stages = [
+    { id: 'shot-glyphs', status: shotGlyphs.length ? 'resolved' : 'not-declared', count: shotGlyphs.length },
+    { id: 'hall-mandala', status: hallMandala ? 'resolved' : 'not-declared' },
+    { id: 'meru', status: meru ? 'resolved' : 'not-declared' },
+    { id: 'room-concept', status: roomConcept ? 'resolved' : 'not-declared' },
+    { id: 'camera-window', status: context.cameraWindow ? 'resolved' : 'not-declared' },
+    { id: 'metamandala-light', status: context.lighting ? 'resolved' : 'not-declared' },
+    { id: 'metamandala-light-diffusion', status: context.diffusion?.applied ? 'resolved' : 'not-declared', count: context.diffusion?.report?.hitCount || 0 },
+    { id: 'constellation-hitboxes', status: hitboxes.length ? 'resolved' : 'not-declared', count: hitboxes.length },
+    { id: 'support-surfaces', status: supports.length ? 'resolved' : 'not-declared', count: supports.length },
+    { id: 'gravity', status: gravityEdges.length ? 'resolved' : 'not-declared', count: gravityEdges.length },
+    { id: 'mandala-arrangements', status: mandalaArrangements.length ? 'resolved' : 'not-declared', count: mandalaArrangements.length },
+    { id: 'horizontal-stacks', status: horizontalStacks.length ? 'resolved' : 'not-declared', count: horizontalStacks.length },
+    { id: 'shadow-receivers', status: shadowReceivers.length ? 'resolved' : 'not-declared', count: shadowReceivers.length },
+    { id: 'z-adjacency', status: zAdjacency.length ? 'resolved' : 'not-declared', count: zAdjacency.length },
+    { id: 'validation', status: validation.ok ? 'passed' : 'failed', count: validation.checks.length },
+  ];
+  return {
+    kind: 'rendrant-spatial-plan',
+    contract,
+    materializationGate: {
+      mode: contract.materializationGate,
+      status: validation.ok ? 'open' : 'blocked',
+      rule: 'visible assets are final skins over resolved spatial facts',
+    },
+    stages,
+    cameraWindow: context.cameraWindow || null,
+    lighting: context.lighting || null,
+    lightDiffusion: context.diffusion?.report || null,
+    shotGlyphs,
+    hallMandala,
+    meru,
+    roomConcept,
+    hitboxes,
+    supports,
+    gravityEdges,
+    mandalaArrangements,
+    horizontalStacks,
+    shadowReceivers,
+    zAdjacency,
+    shotContract,
+    shotContractFit,
+    validation,
+  };
+}
+
+function resolveRoomConcept(manifest, context = {}) {
+  const raw = manifest?.polygonizer?.roomConcept || manifest?.polygonizer?.roomPlanning || null;
+  const cameraPrimitive = manifest?.cameraPrimitive || manifest?.scene?.cameraPrimitive || {};
+  const pureMandala = manifest?.polygonizer?.pureMandala || manifest?.pureMandala || {};
+  const twoPointCamera = manifest?.polygonizer?.twoPointCamera || null;
+  const hasRoomCamera = cameraPrimitive?.kind === 'two-point' && Boolean(pureMandala?.room);
+  if (!raw && !hasRoomCamera) return null;
+
+  const marks = Array.isArray(context.marks) ? context.marks : [];
+  const planeRoles = {
+    floor: 'room:floor-plane',
+    ceiling: 'room:ceiling-plane',
+    leftWall: 'room:left-wall-plane',
+    rightWall: 'room:right-wall-plane',
+    backWall: 'room:back-wall-plane',
+  };
+  const planeMarks = Object.values(planeRoles)
+    .map((role) => marks.find((mark) => mark?.role === role))
+    .filter(Boolean);
+  const envelope = combinedMarkBounds(planeMarks);
+  const viewBox = manifest?.viewBox || {};
+  const viewBounds = {
+    minX: 0,
+    minY: 0,
+    maxX: finiteOr(viewBox.width, 0),
+    maxY: finiteOr(viewBox.height, 0),
+    w: finiteOr(viewBox.width, 0),
+    h: finiteOr(viewBox.height, 0),
+  };
+  const projectedPins = Array.isArray(twoPointCamera?.projectedPins) ? twoPointCamera.projectedPins : [];
+  const requiredRoles = Array.isArray(raw?.requiredRoles)
+    ? raw.requiredRoles
+    : Array.isArray(raw?.fullFrameRoles)
+      ? raw.fullFrameRoles
+      : [];
+  const subjectFraming = raw?.camera?.subjectFraming || raw?.subjectFraming || cameraPrimitive.subjectFraming || 'room-envelope';
+  const fullFrame = subjectFraming === 'full-frame-room' || raw?.fullFrame === true;
+
+  return {
+    kind: raw?.kind || 'interior-room',
+    source: raw ? 'declared' : 'two-point-camera-primitive',
+    localSpace: raw?.localSpace || 'cca-local-space',
+    normalization: raw?.normalization || 'project-after-planning',
+    camera: {
+      mode: raw?.camera?.mode || (hasRoomCamera ? 'two-point-camera-primitive' : 'declared-room-camera'),
+      primitive: raw?.camera?.primitive || cameraPrimitive.canonicalAngle || cameraPrimitive.constraint || cameraPrimitive.kind,
+      predeterminedVector: raw?.camera?.predeterminedVector || cameraPrimitive.cameraPoint?.kind || cameraPrimitive.anchor,
+      subjectFraming,
+    },
+    frame: {
+      floorPlane: Boolean(marks.find((mark) => mark?.role === planeRoles.floor)),
+      ceilingPlane: Boolean(marks.find((mark) => mark?.role === planeRoles.ceiling)),
+      leftWall: Boolean(marks.find((mark) => mark?.role === planeRoles.leftWall)),
+      rightWall: Boolean(marks.find((mark) => mark?.role === planeRoles.rightWall)),
+      backWall: Boolean(marks.find((mark) => mark?.role === planeRoles.backWall)),
+      envelope: envelope ? roundBox(envelope) : null,
+      viewBounds: roundBox(viewBounds),
+      coverage: envelope ? {
+        width: viewBounds.w > 0 ? round(envelope.w / viewBounds.w) : 0,
+        height: viewBounds.h > 0 ? round(envelope.h / viewBounds.h) : 0,
+        leftInset: round(Math.max(0, envelope.minX)),
+        rightInset: round(Math.max(0, viewBounds.maxX - envelope.maxX)),
+        topInset: round(Math.max(0, envelope.minY)),
+        bottomInset: round(Math.max(0, viewBounds.maxY - envelope.maxY)),
+      } : null,
+    },
+    placementSpace: {
+      gravityAxis: raw?.placementSpace?.gravityAxis || 'camera-floor-depth',
+      supportPlane: raw?.placementSpace?.supportPlane || 'room:floor-plane',
+      fullFrameBounds: raw?.placementSpace?.fullFrameBounds || 'room-envelope',
+    },
+    pinnedElements: projectedPins.map((pin) => ({
+      role: pin.role,
+      screen: Array.isArray(pin.screen) ? pin.screen.map(roundPoint) : undefined,
+      worldXYZ: Array.isArray(pin.worldXYZ) ? pin.worldXYZ.map(round) : undefined,
+      spawnDirection: pin.spawnDirection,
+    })),
+    requiredRoles,
+    fullFrame,
+    twoPointCameraGenerated: Boolean(twoPointCamera?.generated),
+  };
+}
+
+function resolveSpatialPlanningContract(manifest) {
+  const raw = manifest?.polygonizer?.spatialPlanning || manifest?.polygonizer?.rendrantPipeline || {};
+  const gravityEnabled = manifest?.polygonizer?.metamandala?.gravity?.enabled === true;
+  const mode = raw.mode || raw.spatialMode || (gravityEnabled ? 'plan-before-skin' : 'legacy-inline');
+  const enabled = raw.enabled ?? raw.planBeforeSkin ?? mode === 'plan-before-skin';
+  return {
+    mode,
+    enabled: Boolean(enabled),
+    materializationGate: raw.materializationGate || (enabled ? 'planning-valid' : 'legacy-open'),
+    stages: Array.isArray(raw.planningStages)
+      ? raw.planningStages
+      : [
+          'shot-glyphs',
+          'camera-window',
+          'cca-local-spaces',
+          'hitboxes',
+          'gravity',
+          'shadow-receivers',
+          'z-adjacency',
+        ],
+    principle: raw.principle || 'planning resolves space; rendering skins resolved space',
+  };
+}
+
+function collectConstellationHitboxes(manifest) {
+  const nodes = Array.isArray(manifest?.polygonizer?.constellation?.nodes)
+    ? manifest.polygonizer.constellation.nodes
+    : [];
+  const out = [];
+  for (const node of nodes) {
+    const hitboxes = Array.isArray(node?.hitboxes) ? node.hitboxes : [];
+    for (const hitbox of hitboxes) {
+      const bounds = normalizeHitboxBounds(hitbox, node);
+      if (!bounds) continue;
+      out.push({
+        role: hitbox.role || `hitbox-${out.length + 1}`,
+        kind: hitbox.kind || 'bounds',
+        nodeRole: node.role,
+        bounds: roundMandalaBounds(bounds),
+        supportRail: hitbox.supportRail || hitbox.rail,
+        space: hitbox.space || (hitbox.relative || hitbox.units === 'node' ? 'node' : 'screen-projected'),
+        source: 'constellation',
+      });
+    }
+  }
+  return out;
+}
+
+function spatialPlanSupport(surface) {
+  if (!surface?.role) return null;
+  return {
+    role: surface.role,
+    kind: surface.kind,
+    source: surface.source,
+    nodeRole: surface.nodeRole,
+    hitboxRole: surface.hitboxRole,
+    fromRole: surface.fromRole,
+    fromRegion: surface.fromRegion,
+    supportRail: surface.supportRail,
+    supportBounds: surface.supportBounds,
+    z: surface.z,
+  };
+}
+
+function spatialPlanShotGlyphs(manifest) {
+  const glyphs = Array.isArray(manifest?.polygonizer?.shotGlyphs)
+    ? manifest.polygonizer.shotGlyphs
+    : [];
+  return glyphs.map((glyph) => ({
+    id: glyph.id,
+    label: glyph.label,
+    family: glyph.family,
+    source: glyph.source,
+    cameraVector: glyph.topology?.cameraVector,
+    lightEntry: glyph.topology?.lightEntry,
+    support: glyph.topology?.support,
+    vanishingHub: glyph.topology?.vanishingHub,
+    staging: glyph.topology?.staging,
+    hallMandala: glyph.hallMandala ? {
+      kind: glyph.hallMandala.kind,
+      vanishingHub: glyph.hallMandala.vanishingHub,
+      slots: glyph.hallMandala.slots,
+      depthBands: glyph.hallMandala.depthBands,
+    } : undefined,
+    boundaryContract: glyph.boundaryContract,
+  }));
+}
+
+function spatialPlanHallMandala(manifest) {
+  const hall = manifest?.polygonizer?.mandalaPatternLayer?.hallMandala || manifest?.polygonizer?.hallMandala;
+  if (!hall || typeof hall !== 'object' || Array.isArray(hall)) return null;
+  return {
+    kind: hall.kind || 'central-hall-mandala',
+    vanishingHub: Array.isArray(hall.vanishingHub) ? hall.vanishingHub.map(roundPoint) : undefined,
+    horizonY: Number.isFinite(Number(hall.horizonY)) ? round(Number(hall.horizonY)) : undefined,
+    axisMundi: hall.axisMundi,
+    slots: Array.isArray(hall.slots) ? hall.slots : [],
+    depthBands: Array.isArray(hall.depthBands) ? hall.depthBands : [],
+    symmetry: hall.symmetry,
+    architecture: Array.isArray(hall.architecture) ? hall.architecture : [],
+  };
+}
+
+function spatialPlanMeru(manifest) {
+  const meru = manifest?.polygonizer?.meru;
+  if (!meru || typeof meru !== 'object' || Array.isArray(meru)) return null;
+  return {
+    basis: meru.basis || 'meru',
+    aliasFor: meru.aliasFor || 'metamandala',
+    surfaceCount: Array.isArray(meru.surfaces) ? meru.surfaces.length : 0,
+    lightSourceCount: Array.isArray(meru.lightSources) ? meru.lightSources.length : 0,
+    rule: 'Meru is the local support/light/depth basis normalized into metamandala machinery',
+  };
+}
+
+function spatialPlanGravityEdges(manifest, relaxation = {}) {
+  const gravity = manifest?.polygonizer?.metamandala?.gravity;
+  const bodies = [
+    ...(Array.isArray(gravity?.bodies) ? gravity.bodies : []),
+    ...horizontalStackGravityBodies(manifest),
+  ];
+  if (!gravity?.enabled && !bodies.length) return [];
+  return bodies
+    .map((body) => {
+      const targetRole = body.targetRole || body.role || body.bodyRole;
+      const supportRole = body.surfaceRole || body.supportRole || body.on || body.onRole;
+      if (!targetRole || !supportRole) return null;
+      const ruleRole = body.ruleRole || body.gravityRole || `${targetRole}-gravity-on-${supportRole}`;
+      const adjustment = relaxation?.adjustments?.find((item) => item.role === ruleRole);
+      const shadowRoles = Array.isArray(body.shadowRoles)
+        ? body.shadowRoles
+        : Array.isArray(body.includeRoles)
+          ? body.includeRoles.filter((role) => isShadowRole(role, body))
+          : [];
+      return {
+        role: ruleRole,
+        bodyRole: targetRole,
+        supportRole,
+        targetRegion: body.targetRegion || body.region || 'baseContact',
+        includeRoles: Array.isArray(body.includeRoles)
+          ? body.includeRoles.filter((role) => !isShadowRole(role, body))
+          : [],
+        shadowRoles,
+        resolved: Boolean(adjustment),
+        delta: adjustment?.delta,
+        paintZ: adjustment?.paintZ,
+      };
+    })
+    .filter(Boolean);
+}
+
+function spatialPlanZAdjacency(relaxation = {}) {
+  const adjustments = Array.isArray(relaxation?.adjustments) ? relaxation.adjustments : [];
+  return adjustments
+    .filter((adjustment) => adjustment.paintZ !== null && adjustment.paintZ !== undefined)
+    .map((adjustment) => ({
+      role: adjustment.role,
+      topRole: adjustment.targetRole,
+      bottomRole: adjustment.surfaceRole,
+      paintZ: adjustment.paintZ,
+      reason: adjustment.reason,
+      rule: 'there is only one bottom',
+    }));
+}
+
+function spatialPlanShadowReceivers(manifest, gravityEdges, marks = []) {
+  const declared = manifest?.polygonizer?.metamandala?.shadowReceivers;
+  const fromDeclared = Array.isArray(declared)
+    ? declared.map((receiver) => ({
+        role: receiver.role,
+        receiverRole: receiver.receiverRole || receiver.surfaceRole || receiver.supportRole,
+        shadowRole: receiver.shadowRole,
+        source: 'declared',
+      }))
+    : [];
+  const fromGravity = gravityEdges.flatMap((edge) => edge.shadowRoles.map((shadowRole) => ({
+    role: `${shadowRole}-receiver`,
+    shadowRole,
+    receiverRole: edge.supportRole,
+    source: 'gravity-shadow-exclusion',
+  })));
+  const markRoles = new Set((Array.isArray(marks) ? marks : []).map((mark) => mark?.role).filter(Boolean));
+  return [...fromDeclared, ...fromGravity]
+    .filter((item) => item.shadowRole || item.receiverRole)
+    .map((item) => ({
+      ...item,
+      shadowPresent: item.shadowRole ? markRoles.has(item.shadowRole) : undefined,
+      receiverPresent: item.receiverRole ? markRoles.has(item.receiverRole) : undefined,
+    }));
+}
+
+function spatialPlanHorizontalStacks(marks = []) {
+  const stacks = new Map();
+  for (const mark of Array.isArray(marks) ? marks : []) {
+    const role = mark?.horizontalStackRole;
+    if (!role) continue;
+    const stack = stacks.get(role) || {
+      role,
+      mode: mark.horizontalStackMode || 'gravity',
+      axis: mark.horizontalStackAxis || 'x',
+      activeRay: mark.horizontalStackActiveRay || mark.mandalaArrangementActiveRay || 'east-west',
+      basisKind: mark.mandalaArrangementBasisKind,
+      localSpace: mark.mandalaArrangementLocalSpace,
+      memberCollision: mark.horizontalStackMemberCollision || 'avoid',
+      supportRole: mark.horizontalStackSupportRole,
+      skinPolicy: mark.horizontalStackSkinPolicy || 'separate',
+      members: new Set(),
+      memberCount: 0,
+      hasJoinedSkin: false,
+    };
+    if (mark.horizontalStackJoinedSkin) {
+      stack.hasJoinedSkin = true;
+      stack.joinedSkinRole = mark.role;
+    } else if (mark.horizontalStackMemberRole) {
+      stack.members.add(mark.horizontalStackMemberRole);
+      stack.memberCount = stack.members.size;
+    }
+    stacks.set(role, stack);
+  }
+  return [...stacks.values()].map((stack) => ({
+    ...stack,
+    members: [...stack.members],
+  }));
+}
+
+function spatialPlanMandalaArrangements(marks = []) {
+  const arrangements = new Map();
+  for (const mark of Array.isArray(marks) ? marks : []) {
+    const role = mark?.mandalaArrangementRole;
+    if (!role) continue;
+    const arrangement = arrangements.get(role) || {
+      role,
+      profile: mark.mandalaArrangementProfile || 'horizontal-stack',
+      activeRay: mark.mandalaArrangementActiveRay || mark.horizontalStackActiveRay || 'east-west',
+      basisKind: mark.mandalaArrangementBasisKind || 'local-lateral-support',
+      localSpace: mark.mandalaArrangementLocalSpace || 'cca-local',
+      basis: mark.mandalaArrangementBasis,
+      rayVector: mark.mandalaArrangementRayVector,
+      members: new Set(),
+      memberDetails: [],
+      memberCount: 0,
+      hasJoinedSkin: false,
+    };
+    if (mark.horizontalStackJoinedSkin) {
+      arrangement.hasJoinedSkin = true;
+      arrangement.joinedSkinRole = mark.role;
+    } else if (mark.horizontalStackMemberRole) {
+      arrangement.members.add(mark.horizontalStackMemberRole);
+      arrangement.memberCount = arrangement.members.size;
+      if (!arrangement.memberDetails.some((item) => item.role === mark.horizontalStackMemberRole)) {
+        arrangement.memberDetails.push({
+          role: mark.horizontalStackMemberRole,
+          index: mark.horizontalStackMemberIndex,
+          interval: Array.isArray(mark.mandalaRayInterval) ? mark.mandalaRayInterval : null,
+          intervalBefore: Array.isArray(mark.mandalaRayIntervalBefore) ? mark.mandalaRayIntervalBefore : null,
+          displacement: mark.mandalaRayDisplacement,
+          resolved: Boolean(mark.mandalaRayResolved),
+          contactPolicy: mark.mandalaRayContactPolicy,
+          collisionPolicy: mark.mandalaRayCollisionPolicy,
+          floater: Boolean(mark.mandalaFloater),
+          floaterPolicy: mark.mandalaFloaterPolicy,
+        });
+      }
+    }
+    arrangements.set(role, arrangement);
+  }
+  return [...arrangements.values()].map((arrangement) => ({
+    ...arrangement,
+    members: [...arrangement.members],
+    memberDetails: arrangement.memberDetails.sort((a, b) => finiteOr(a.index, 0) - finiteOr(b.index, 0)),
+    rayOverlaps: mandalaArrangementRayOverlaps(arrangement.memberDetails),
+  }));
+}
+
+function mandalaArrangementRayOverlaps(memberDetails = []) {
+  const details = Array.isArray(memberDetails) ? memberDetails : [];
+  const out = [];
+  for (let i = 0; i < details.length; i++) {
+    for (let j = i + 1; j < details.length; j++) {
+      const a = details[i];
+      const b = details[j];
+      const aBefore = Array.isArray(a.intervalBefore) ? a.intervalBefore : a.interval;
+      const bBefore = Array.isArray(b.intervalBefore) ? b.intervalBefore : b.interval;
+      if (!Array.isArray(a.interval) || !Array.isArray(b.interval) || !Array.isArray(aBefore) || !Array.isArray(bBefore)) continue;
+      const overlapBefore = intervalOverlap(aBefore, bBefore);
+      if (overlapBefore <= 0) continue;
+      const rawOverlap = intervalOverlap(a.interval, b.interval);
+      const overlap = Math.max(0, rawOverlap);
+      const floater = Boolean(a.floater || b.floater);
+      const gravityContact = !floater &&
+        [a.contactPolicy, b.contactPolicy, a.collisionPolicy, b.collisionPolicy]
+          .some((policy) => String(policy || '').includes('repel'));
+      out.push({
+        roles: [a.role, b.role],
+        overlapBefore: round(overlapBefore),
+        overlap: round(overlap),
+        policy: floater ? 'floater-policy' : gravityContact ? 'repel-until-contact' : 'allow-superposition',
+        floater,
+        resolved: gravityContact ? rawOverlap <= 0 : false,
+        displacements: [finiteOr(a.displacement, 0), finiteOr(b.displacement, 0)].map(round),
+      });
+    }
+  }
+  return out;
+}
+
+function intervalOverlap(a, b) {
+  return Math.min(finiteOr(a?.[1], 0), finiteOr(b?.[1], 0)) -
+    Math.max(finiteOr(a?.[0], 0), finiteOr(b?.[0], 0));
+}
+
+function validateSpatialPlan({ contract, hitboxes, supports, shotGlyphs, hallMandala, meru, roomConcept, gravityEdges, zAdjacency, horizontalStacks = [], mandalaArrangements = [], contactReport, marks, shotContract }) {
+  const checks = [];
+  if (contract.enabled && shotContract) {
+    checks.push({
+      role: 'shot-contract-frozen',
+      ok: shotContract.frozen === true,
+      viewBox: shotContract.viewBox,
+      source: shotContract.source,
+    });
+  }
+  const contactChecks = Array.isArray(contactReport?.checks) ? contactReport.checks : [];
+  if (contactChecks.length) {
+    checks.push({
+      role: 'declared-contact-checks-pass',
+      ok: contactChecks.every((check) => check.ok),
+      count: contactChecks.length,
+    });
+  }
+  for (const edge of gravityEdges) {
+    checks.push({
+      role: `${edge.role}:gravity-resolved`,
+      ok: edge.resolved,
+      bodyRole: edge.bodyRole,
+      supportRole: edge.supportRole,
+    });
+    checks.push({
+      role: `${edge.role}:z-adjacency`,
+      ok: zAdjacency.some((item) => item.role === edge.role),
+      bodyRole: edge.bodyRole,
+      supportRole: edge.supportRole,
+    });
+  }
+  const relaxedShadowRoles = new Set((Array.isArray(marks) ? marks : [])
+    .filter((mark) => mark?.metamandalaRelaxed && isShadowRole(mark.role))
+    .map((mark) => mark.role));
+  for (const edge of gravityEdges) {
+    for (const shadowRole of edge.shadowRoles) {
+      checks.push({
+        role: `${shadowRole}:shadow-stays-receiver-owned`,
+        ok: !relaxedShadowRoles.has(shadowRole),
+        shadowRole,
+        receiverRole: edge.supportRole,
+      });
+    }
+  }
+  for (const stack of horizontalStacks) {
+    checks.push({
+      role: `${stack.role}:horizontal-stack-members-resolved`,
+      ok: stack.memberCount > 0,
+      mode: stack.mode,
+      memberCollision: stack.memberCollision,
+      reason: stack.memberCount > 0
+        ? 'horizontal stack lowered into member marks'
+        : 'horizontal stack has no lowered member marks',
+    });
+    if (stack.mode === 'gravity') {
+      const hasGravityEdge = gravityEdges.some((edge) => edge.bodyRole === stack.role || edge.bodyRole === stack.role.replace(/:$/, ''));
+      checks.push({
+        role: `${stack.role}:gravity-stack-has-support-role`,
+        ok: Boolean(stack.supportRole || hasGravityEdge),
+        reason: stack.supportRole || hasGravityEdge
+          ? 'gravity horizontal stack is tied to a support role'
+          : 'gravity horizontal stack needs supportRole or an explicit gravity body',
+      });
+    }
+    if (stack.mode === 'superposition') {
+      checks.push({
+        role: `${stack.role}:superposition-stack-allows-overlap`,
+        ok: stack.memberCollision === 'allow',
+        reason: stack.memberCollision === 'allow'
+          ? 'superposition stack treats overlap as authorship'
+          : 'superposition stack should allow member/member overlap',
+      });
+      if (stack.skinPolicy === 'join') {
+        checks.push({
+          role: `${stack.role}:superposition-stack-has-joined-skin`,
+          ok: stack.hasJoinedSkin,
+          reason: stack.hasJoinedSkin
+            ? 'superposition stack emitted a compound skin'
+            : 'superposition stack requested joined skin but none was emitted',
+        });
+      }
+    }
+  }
+  for (const arrangement of mandalaArrangements) {
+    checks.push({
+      role: `${arrangement.role}:mandala-arrangement-has-basis`,
+      ok: Boolean(arrangement.basisKind && arrangement.localSpace),
+      profile: arrangement.profile,
+      basisKind: arrangement.basisKind,
+      localSpace: arrangement.localSpace,
+      reason: arrangement.basisKind && arrangement.localSpace
+        ? 'arrangement lowered through a local mandala basis'
+        : 'arrangement is missing local mandala basis metadata',
+    });
+    checks.push({
+      role: `${arrangement.role}:mandala-arrangement-has-active-ray`,
+      ok: ['east-west', 'north-south', 'zenith-nadir'].includes(arrangement.activeRay),
+      profile: arrangement.profile,
+      activeRay: arrangement.activeRay,
+      reason: ['east-west', 'north-south', 'zenith-nadir'].includes(arrangement.activeRay)
+        ? 'arrangement declares a mandala contact ray'
+        : 'arrangement is missing a normalized active ray',
+    });
+    for (const overlap of arrangement.rayOverlaps || []) {
+      checks.push({
+        role: `${arrangement.role}:${overlap.roles.join('+')}:ray-overlap-policy`,
+        ok: overlap.floater || overlap.policy === 'repel-until-contact' || overlap.policy === 'allow-superposition',
+        activeRay: arrangement.activeRay,
+        overlap: overlap.overlap,
+        policy: overlap.policy,
+        floater: overlap.floater,
+      });
+    }
+  }
+  for (const glyph of shotGlyphs || []) {
+    checks.push({
+      role: `${glyph.id}:shot-glyph-has-camera-vector`,
+      ok: Boolean(glyph.cameraVector),
+      glyphId: glyph.id,
+    });
+    checks.push({
+      role: `${glyph.id}:shot-glyph-has-light-entry`,
+      ok: Boolean(glyph.lightEntry),
+      glyphId: glyph.id,
+    });
+    checks.push({
+      role: `${glyph.id}:shot-glyph-has-support`,
+      ok: Boolean(glyph.support),
+      glyphId: glyph.id,
+    });
+    if (glyph.vanishingHub) {
+      checks.push({
+        role: `${glyph.id}:shot-glyph-has-vanishing-hub`,
+        ok: Boolean(hallMandala?.vanishingHub),
+        glyphId: glyph.id,
+      });
+    }
+  }
+  if (hallMandala) {
+    checks.push({
+      role: 'hall-mandala-has-axis-mundi',
+      ok: Boolean(hallMandala.vanishingHub && hallMandala.axisMundi),
+      vanishingHub: hallMandala.vanishingHub,
+    });
+    checks.push({
+      role: 'hall-mandala-has-staging-slots',
+      ok: hallMandala.slots.length >= 3 && hallMandala.depthBands.length >= 2,
+      slots: hallMandala.slots,
+      depthBands: hallMandala.depthBands,
+    });
+  }
+  if (meru) {
+    checks.push({
+      role: 'meru-normalized-to-metamandala',
+      ok: meru.surfaceCount > 0 || meru.lightSourceCount > 0,
+      surfaceCount: meru.surfaceCount,
+      lightSourceCount: meru.lightSourceCount,
+    });
+  }
+  if (roomConcept) {
+    checks.push({
+      role: 'room-concept-camera-generated',
+      ok: roomConcept.twoPointCameraGenerated,
+      cameraMode: roomConcept.camera?.mode,
+      primitive: roomConcept.camera?.primitive,
+    });
+    checks.push({
+      role: 'room-concept-has-floor-and-walls',
+      ok: Boolean(roomConcept.frame?.floorPlane && roomConcept.frame?.leftWall && roomConcept.frame?.rightWall && roomConcept.frame?.backWall),
+    });
+    for (const role of roomConcept.requiredRoles || []) {
+      checks.push({
+        role: `${role}:room-pin-projected`,
+        ok: roomConcept.pinnedElements.some((pin) => pin.role === role),
+        requiredRole: role,
+      });
+    }
+    if (roomConcept.fullFrame) {
+      const coverage = roomConcept.frame?.coverage;
+      const ok = Boolean(coverage && coverage.width >= 0.92 && coverage.height >= 0.9);
+      checks.push({
+        role: 'room-full-frame-envelope',
+        ok,
+        coverage,
+        rule: 'full-frame room shots validate the projected room envelope, not individual skins',
+      });
+    }
+  }
+  if (contract.enabled && gravityEdges.length && !supports.length) {
+    checks.push({
+      role: 'gravity-has-support-surface',
+      ok: false,
+      reason: 'gravity declared bodies but no support surfaces resolved',
+    });
+  }
+  if (contract.enabled && supports.some((support) => support.source === 'constellation-hitbox') && !hitboxes.length) {
+    checks.push({
+      role: 'hitbox-supports-have-hitboxes',
+      ok: false,
+      reason: 'support surface resolved from hitbox but hitbox registry is empty',
+    });
+  }
+  return {
+    ok: checks.every((check) => check.ok !== false),
+    checks,
+  };
+}
+
+function combinedMarkBounds(marks) {
+  const boxes = (Array.isArray(marks) ? marks : [])
+    .map((mark) => markScreenBounds(mark))
+    .filter(Boolean);
+  if (!boxes.length) return null;
+  const minX = Math.min(...boxes.map((box) => box.minX));
+  const minY = Math.min(...boxes.map((box) => box.minY));
+  const maxX = Math.max(...boxes.map((box) => box.maxX));
+  const maxY = Math.max(...boxes.map((box) => box.maxY));
+  return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
+}
+
+function markScreenBounds(mark) {
+  const points = markScreenPoints(mark);
+  if (!points.length) return null;
+  return bbox(points);
+}
+
+function markScreenPoints(mark) {
+  if (!mark || typeof mark !== 'object') return [];
+  if (Array.isArray(mark.points)) {
+    return mark.points.filter((point) => validPoint(point)).map((point) => [Number(point[0]), Number(point[1])]);
+  }
+  if (Number.isFinite(Number(mark.x1)) && Number.isFinite(Number(mark.y1)) &&
+    Number.isFinite(Number(mark.x2)) && Number.isFinite(Number(mark.y2))) {
+    return [[Number(mark.x1), Number(mark.y1)], [Number(mark.x2), Number(mark.y2)]];
+  }
+  if (Number.isFinite(Number(mark.x)) && Number.isFinite(Number(mark.y)) &&
+    Number.isFinite(Number(mark.w ?? mark.width)) && Number.isFinite(Number(mark.h ?? mark.height))) {
+    const w = Number(mark.w ?? mark.width);
+    const h = Number(mark.h ?? mark.height);
+    return [[Number(mark.x), Number(mark.y)], [Number(mark.x) + w, Number(mark.y)], [Number(mark.x) + w, Number(mark.y) + h], [Number(mark.x), Number(mark.y) + h]];
+  }
+  if (Number.isFinite(Number(mark.cx)) && Number.isFinite(Number(mark.cy)) && Number.isFinite(Number(mark.r))) {
+    return [[mark.cx - mark.r, mark.cy - mark.r], [mark.cx + mark.r, mark.cy + mark.r]];
+  }
+  if (Number.isFinite(Number(mark.anchor?.[0])) && Number.isFinite(Number(mark.anchor?.[1]))) {
+    const rx = finiteOr(mark.rx, finiteOr(mark.r, 0));
+    const ry = finiteOr(mark.ry, finiteOr(mark.r, 0));
+    return [[mark.anchor[0] - rx, mark.anchor[1] - ry], [mark.anchor[0] + rx, mark.anchor[1] + ry]];
+  }
+  return [];
+}
+
+function roundBox(box) {
+  if (!box) return null;
+  return {
+    minX: round(box.minX),
+    minY: round(box.minY),
+    maxX: round(box.maxX),
+    maxY: round(box.maxY),
+    w: round(box.w),
+    h: round(box.h),
+  };
+}
+
+function applySpatialPlanMaterialization(marks, spatialPlan) {
+  if (!spatialPlan?.contract?.enabled) return marks;
+  if (spatialPlan.materializationGate.status === 'blocked' &&
+    spatialPlan.materializationGate.mode === 'planning-valid') {
+    return spatialPlanDiagnosticMarks(spatialPlan);
+  }
+  return marks.map((mark) => {
+    if (!isSpatialPlanMaterializedMark(mark)) return mark;
+    return {
+      ...mark,
+      spatialPlanMaterialized: true,
+      spatialPlanMode: spatialPlan.contract.mode,
+      materializationGate: spatialPlan.materializationGate.status,
+    };
+  });
+}
+
+function isSpatialPlanMaterializedMark(mark) {
+  if (!mark || typeof mark !== 'object') return false;
+  if (mark.constellationDebug || mark.metamandalaDebug || mark.metamandalaLightDebug || mark.mandalaCameraWindowDebug) {
+    return false;
+  }
+  return ['polygon', 'polyline', 'line', 'rect', 'circle', 'ellipse', 'text'].includes(mark.kind);
+}
+
+function refuseExpansionWithDiagnostics(manifest, authorshipPreview, includeHighlights) {
+  const blocking = (authorshipPreview.checks || []).filter((check) => check.ok === false && check.gating === true);
+  const advisory = (authorshipPreview.checks || []).filter((check) => check.ok === false && check.gating !== true);
+  const refusalMarks = authorshipPreviewDiagnosticMarks(authorshipPreview, blocking);
+
+  const stages = [
+    { id: 'intent', status: 'input' },
+    {
+      id: 'authorship-preview',
+      status: 'blocked',
+      gateActive: true,
+      blockingCount: authorshipPreview.blockingCount ?? blocking.length,
+      advisoryCount: authorshipPreview.advisoryCount ?? advisory.length,
+    },
+    { id: 'abstract-constellation', status: 'not-evaluated' },
+    { id: 'shot-contract', status: 'not-evaluated' },
+    { id: 'meru-basis', status: 'not-evaluated' },
+    { id: 'physical-hitboxes', status: 'not-evaluated' },
+    { id: 'material-contracts', status: 'not-evaluated' },
+    { id: 'construction-adapters', status: 'not-evaluated' },
+    { id: 'visible-skin', status: 'not-evaluated' },
+    { id: 'preflight-verdict', status: 'not-evaluated' },
+    { id: 'budget', status: 'not-evaluated' },
+    { id: 'reconciliation', status: 'not-evaluated' },
+  ];
+
+  const authorshipPreviewSummary = {
+    immutable: true,
+    verdict: 'blocked',
+    phase: 'pre-expansion',
+    gateActive: true,
+    materializationGate: authorshipPreview.materializationGate,
+  };
+  const preflightSummary = { immutable: true, verdict: 'not-evaluated', phase: 'post-expansion' };
+  const reconciliationSummary = { invalidatesPreflight: false, invalidatesAuthorshipPreview: false };
+
+  return {
+    ...manifest,
+    marks: refusalMarks,
+    neoRembrandt: {
+      expanded: false,
+      expansionRefused: true,
+      refusalReason: 'authorship-preview-blocked',
+      includeHighlights,
+      authorshipPreview: {
+        ...authorshipPreviewSummary,
+        checks: authorshipPreview.checks || [],
+        blockingCount: authorshipPreview.blockingCount ?? blocking.length,
+        advisoryCount: authorshipPreview.advisoryCount ?? advisory.length,
+      },
+      preflight: {
+        ...preflightSummary,
+        validation: null,
+        materializationGate: null,
+        shotContract: null,
+        shotContractFit: null,
+      },
+      reconciliation: {
+        ...reconciliationSummary,
+        applied: false,
+        shotContractMutated: false,
+        shotContractOverflow: null,
+      },
+      chain: {
+        stages,
+        authorshipPreview: authorshipPreviewSummary,
+        preflight: preflightSummary,
+        reconciliation: reconciliationSummary,
+      },
+    },
+  };
+}
+
+function authorshipPreviewDiagnosticMarks(authorshipPreview, blocking) {
+  const rows = blocking.length ? blocking : [{
+    role: 'authorship-preview-blocked',
+    reason: 'authorship preview blocked materialization',
+  }];
+  const rowHeight = 24;
+  const width = 580;
+  const height = 58 + rows.length * rowHeight;
+  const marks = [
+    {
+      kind: 'rect',
+      role: 'authorship-preview:blocked-panel',
+      x: 24,
+      y: 24,
+      w: width,
+      h: height,
+      fill: '#2a1a17',
+      stroke: '#d4885d',
+      strokeWidth: 1.4,
+      z: 980,
+      authorshipPreviewDiagnostic: true,
+      materializationGate: authorshipPreview.materializationGate,
+    },
+    {
+      kind: 'text',
+      role: 'authorship-preview:blocked-title',
+      x: 42,
+      y: 52,
+      value: 'Authorship preview blocked expansion',
+      size: 16,
+      weight: 700,
+      color: '#ffe0b6',
+      z: 981,
+      authorshipPreviewDiagnostic: true,
+      materializationGate: authorshipPreview.materializationGate,
+    },
+  ];
+  rows.forEach((check, index) => {
+    marks.push({
+      kind: 'text',
+      role: `authorship-preview:blocked-check-${index + 1}`,
+      x: 42,
+      y: 84 + index * rowHeight,
+      value: `${check.role || 'check'}${check.reason ? `: ${check.reason}` : ''}`,
+      size: 12,
+      color: '#ffc7a8',
+      z: 981 + index * 0.01,
+      authorshipPreviewDiagnostic: true,
+      materializationGate: authorshipPreview.materializationGate,
+      authorshipPreviewCheckRole: check.role,
+    });
+  });
+  return marks;
+}
+
+function spatialPlanDiagnosticMarks(spatialPlan) {
+  const failed = spatialPlan.validation.checks.filter((check) => check.ok === false);
+  const rows = failed.length ? failed : [{
+    role: 'spatial-plan-blocked',
+    reason: 'spatial plan blocked materialization',
+  }];
+  const rowHeight = 24;
+  const width = 560;
+  const height = 58 + rows.length * rowHeight;
+  const marks = [
+    {
+      kind: 'rect',
+      role: 'spatial-plan:blocked-panel',
+      x: 24,
+      y: 24,
+      w: width,
+      h: height,
+      fill: '#2a1717',
+      stroke: '#d45d5d',
+      strokeWidth: 1.4,
+      z: 980,
+      spatialPlanDiagnostic: true,
+      materializationGate: 'blocked',
+    },
+    {
+      kind: 'text',
+      role: 'spatial-plan:blocked-title',
+      x: 42,
+      y: 52,
+      value: 'Spatial plan blocked materialization',
+      size: 16,
+      weight: 700,
+      color: '#ffd2d2',
+      z: 981,
+      spatialPlanDiagnostic: true,
+      materializationGate: 'blocked',
+    },
+  ];
+  rows.forEach((check, index) => {
+    marks.push({
+      kind: 'text',
+      role: `spatial-plan:blocked-check-${index + 1}`,
+      x: 42,
+      y: 84 + index * rowHeight,
+      value: `${check.role || 'check'}${check.reason ? `: ${check.reason}` : ''}`,
+      size: 12,
+      color: '#ffb4a8',
+      z: 981 + index * 0.01,
+      spatialPlanDiagnostic: true,
+      materializationGate: 'blocked',
+      spatialPlanCheckRole: check.role,
+    });
+  });
+  return marks;
+}
+
+function resolveMetamandalaLightScene(manifest) {
+  const sources = normalizedMetamandalaLightSources(manifest);
+  if (!sources.length) return manifest;
+  const primary = sources.find((source) => source.primary !== false) || sources[0];
+  const direction = primary.direction || directionFromDegrees(primary.angleDegrees);
+  return {
+    ...manifest,
+    scene: {
+      ...(manifest.scene || {}),
+      light: {
+        ...(manifest.scene?.light || {}),
+        direction,
+        z: finiteOr(primary.z, finiteOr(manifest.scene?.light?.z, 0.72)),
+        kind: primary.kind,
+        role: primary.role,
+        source: 'metamandala-light',
+      },
+    },
+    polygonizer: {
+      ...(manifest.polygonizer || {}),
+      metamandala: {
+        ...(manifest.polygonizer?.metamandala || {}),
+        resolvedLightSource: {
+          role: primary.role,
+          kind: primary.kind,
+          angleDegrees: primary.angleDegrees,
+          direction,
+        },
+      },
+    },
+  };
+}
+
+function resolveMetamandalaLighting(manifest) {
+  const sources = normalizedMetamandalaLightSources(manifest);
+  if (!sources.length) return { lighting: null, debugMarks: [] };
+  const lighting = {
+    kind: 'metamandala-lighting',
+    coordinateSpace: 'shot-mandala-vector-space',
+    sources: sources.map((source) => ({
+      role: source.role,
+      kind: source.kind,
+      origin: source.origin,
+      angleDegrees: source.angleDegrees,
+      spreadDegrees: source.spreadDegrees,
+      direction: source.direction || directionFromDegrees(source.angleDegrees),
+      intensity: source.intensity,
+      color: source.color,
+      z: source.z,
+    })),
+    rule: 'light rays are deterministic vectors in metamandala space before shading/highlight passes',
+  };
+  return {
+    lighting,
+    debugMarks: sources.flatMap((source, index) => source.debug ? metamandalaLightDebugMarks(source, manifest, index) : []),
+  };
+}
+
+function normalizedMetamandalaLightSources(manifest) {
+  const meta = manifest?.polygonizer?.metamandala || {};
+  const layer = manifest?.polygonizer?.mandalaPatternLayer || {};
+  const raw = Array.isArray(meta.lightSources)
+    ? meta.lightSources
+    : Array.isArray(meta.lights)
+      ? meta.lights
+      : Array.isArray(layer.lightSources)
+        ? layer.lightSources
+        : [];
+  return raw
+    .map((source, index) => normalizeMetamandalaLightSource(source, manifest, index))
+    .filter(Boolean);
+}
+
+function normalizeMetamandalaLightSource(source, manifest, index) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return null;
+  const direction = validVector2(source.direction) || null;
+  const angleDegrees = Number.isFinite(source.angleDegrees)
+    ? source.angleDegrees
+    : direction ? degreesFromDirection(direction) : -126;
+  return {
+    role: source.role || `metamandala-light-${index + 1}`,
+    kind: source.kind || source.type || 'directional',
+    origin: validVector2(source.origin) || validVector2(source.point) || [0, 0],
+    screenOrigin: validPoint(source.screenOrigin) || lightDefaultScreenOrigin(manifest),
+    angleDegrees: round(angleDegrees),
+    spreadDegrees: clamp(finiteOr(source.spreadDegrees, finiteOr(source.coneDegrees, 0)), 0, 180),
+    direction: direction ? normalize(direction) : null,
+    intensity: clamp(finiteOr(source.intensity, 1), 0, 4),
+    color: source.color || '#fff3ce',
+    z: finiteOr(source.z, finiteOr(manifest?.scene?.light?.z, 0.72)),
+    length: Math.max(finiteOr(source.length, 1), 0.01),
+    unitScale: Math.max(finiteOr(source.unitScale, 170), 1),
+    diffusion: normalizeMetamandalaLightDiffusion(source.diffusion),
+    debug: source.debug === true || source.showDebug === true || source.renderDebug === true,
+    primary: source.primary,
+    stroke: source.stroke,
+    opacity: source.opacity,
+    label: source.label,
+  };
+}
+
+function normalizeMetamandalaLightDiffusion(diffusion) {
+  if (!diffusion || typeof diffusion !== 'object' || Array.isArray(diffusion)) return null;
+  return {
+    ...diffusion,
+    enabled: diffusion.enabled === true || diffusion.mode === 'pure-vector' || Boolean(diffusion.beam || diffusion.preset),
+  };
+}
+
+const LIGHT_DIFFUSION_BEAM_PRESETS = {
+  slice: {
+    rays: 16,
+    bounces: 0,
+    falloff: 0.55,
+    minPower: 0.04,
+    effects: ['tone'],
+  },
+  'soft-window': {
+    rays: 24,
+    bounces: 1,
+    falloff: 0.45,
+    minPower: 0.035,
+    spreadDegrees: 18,
+    originSpread: 160,
+    effects: ['tone', 'rim', 'aura'],
+  },
+  'wide-ambient': {
+    rays: 36,
+    bounces: 1,
+    falloff: 0.35,
+    minPower: 0.03,
+    spreadDegrees: 70,
+    originSpread: 240,
+    intensityScale: 0.68,
+    effects: ['tone', 'aura'],
+  },
+  'grazing-rake': {
+    rays: 18,
+    bounces: 2,
+    falloff: 0.58,
+    minPower: 0.035,
+    spreadDegrees: 8,
+    originSpread: 220,
+    effects: ['tone', 'rim'],
+  },
+};
+
+function resolveLightDiffusionConfig(source) {
+  const raw = source?.diffusion || {};
+  const beamSpec = raw.beam && typeof raw.beam === 'object' && !Array.isArray(raw.beam) ? raw.beam : {};
+  const beam = typeof raw.beam === 'string' ? raw.beam : (raw.preset || beamSpec.mode || 'slice');
+  const preset = LIGHT_DIFFUSION_BEAM_PRESETS[beam] || LIGHT_DIFFUSION_BEAM_PRESETS.slice;
+  const effects = normalizeLightDiffusionEffects(raw.effects ?? raw.activationEffects ?? preset.effects);
+  const beamWidthPx = Math.max(
+    finiteOr(raw.beamWidthPx ?? raw.widthPx ?? beamSpec.widthPx ?? beamSpec.width, preset.beamWidthPx ?? 1),
+    0.001,
+  );
+  return {
+    ...preset,
+    ...raw,
+    beam,
+    beamMode: beamSpec.mode || raw.mode || beam,
+    beamProfile: raw.profile || beamSpec.profile || preset.beamProfile || 'laser',
+    beamWidthPx,
+    sampleBudget: Math.max(1, Math.round(finiteOr(raw.sampleBudget ?? beamSpec.sampleBudget, raw.rays ?? preset.rays ?? 1))),
+    enabled: raw.enabled === true || raw.mode === 'pure-vector' || Boolean(raw.beam || raw.preset),
+    effects,
+    toneStrength: clamp(finiteOr(raw.toneStrength, preset.toneStrength ?? 0.18), 0, 1),
+    rimOpacity: clamp(finiteOr(raw.rimOpacity, raw.rim?.opacity ?? preset.rimOpacity ?? 0.42), 0, 1),
+    auraOpacity: clamp(finiteOr(raw.auraOpacity, raw.aura?.opacity ?? preset.auraOpacity ?? 0.16), 0, 1),
+    auraScale: Math.max(finiteOr(raw.auraScale, raw.aura?.scale ?? preset.auraScale ?? 1), 0.1),
+  };
+}
+
+function sceneAmbientLightIntensity(manifest) {
+  const raw = manifest?.scene?.ambientLight
+    ?? manifest?.scene?.ambient
+    ?? manifest?.polygonizer?.metamandala?.ambientLight;
+  if (typeof raw === 'number') return clamp(finiteOr(raw, 0), 0, 4);
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return clamp(finiteOr(raw.intensity ?? raw.brightness ?? raw.value, 0), 0, 4);
+  }
+  return 0;
+}
+
+function normalizeLightDiffusionEffects(effects) {
+  const list = Array.isArray(effects)
+    ? effects
+    : typeof effects === 'string'
+      ? effects.split(/[,\s]+/)
+      : ['tone'];
+  const allowed = new Set(['tone', 'rim', 'edge', 'aura']);
+  const normalized = list
+    .map((effect) => String(effect || '').trim().toLowerCase())
+    .map((effect) => (effect === 'edge' ? 'rim' : effect))
+    .filter((effect) => allowed.has(effect));
+  return [...new Set(normalized.length ? normalized : ['tone'])];
+}
+
+function lightDefaultScreenOrigin(manifest) {
+  const window = manifest?.polygonizer?.mandalaPatternLayer?.cameraWindow;
+  if (window && typeof window === 'object' && !Array.isArray(window)) {
+    const origin = validPoint(window.screenOrigin);
+    if (origin) return origin;
+  }
+  const viewBox = manifest?.viewBox || {};
+  return [
+    finiteOr(viewBox.width, 800) / 2,
+    finiteOr(manifest?.polygonizer?.draftingTable?.baselineY, finiteOr(viewBox.height, 520) * 0.78),
+  ];
+}
+
+function directionFromDegrees(degrees) {
+  const radians = (finiteOr(degrees, -126) * Math.PI) / 180;
+  return roundPointTuple(normalize([Math.cos(radians), Math.sin(radians)]));
+}
+
+function degreesFromDirection(direction) {
+  const normalized = normalize(direction);
+  return (Math.atan2(normalized[1], normalized[0]) * 180) / Math.PI;
+}
+
+function metamandalaLightDebugMarks(source, manifest, index) {
+  const direction = source.direction || directionFromDegrees(source.angleDegrees);
+  const origin = source.screenOrigin;
+  const length = source.length * source.unitScale;
+  const end = [
+    roundPoint(origin[0] + direction[0] * length),
+    roundPoint(origin[1] + direction[1] * length),
+  ];
+  const stroke = source.stroke || source.color || '#fff3ce';
+  const opacity = clamp(finiteOr(source.opacity, 0.68), 0, 1);
+  const z = 935 + index * 0.1;
+  const marks = [
+    {
+      kind: 'line',
+      role: `metamandala-light:${source.role}:ray`,
+      x1: roundPoint(origin[0]),
+      y1: roundPoint(origin[1]),
+      x2: end[0],
+      y2: end[1],
+      stroke,
+      strokeWidth: 2,
+      opacity,
+      z,
+      metamandalaLightDebug: true,
+      metamandalaLightRole: source.role,
+      metamandalaLightKind: source.kind,
+      metamandalaLightAngleDegrees: source.angleDegrees,
+    },
+    {
+      kind: 'circle',
+      role: `metamandala-light:${source.role}:origin`,
+      cx: roundPoint(origin[0]),
+      cy: roundPoint(origin[1]),
+      r: 4,
+      fill: stroke,
+      stroke: '#2f241f',
+      strokeWidth: 1,
+      opacity: Math.min(opacity + 0.18, 1),
+      z: z + 0.01,
+      metamandalaLightDebug: true,
+      metamandalaLightRole: source.role,
+    },
+  ];
+  if (source.spreadDegrees > 0) {
+    const left = directionFromDegrees(source.angleDegrees - source.spreadDegrees / 2);
+    const right = directionFromDegrees(source.angleDegrees + source.spreadDegrees / 2);
+    for (const [side, vector] of [['left', left], ['right', right]]) {
+      marks.push({
+        kind: 'line',
+        role: `metamandala-light:${source.role}:cone-${side}`,
+        x1: roundPoint(origin[0]),
+        y1: roundPoint(origin[1]),
+        x2: roundPoint(origin[0] + vector[0] * length * 0.9),
+        y2: roundPoint(origin[1] + vector[1] * length * 0.9),
+        stroke,
+        strokeWidth: 1,
+        opacity: opacity * 0.58,
+        dash: '4 6',
+        z: z + 0.02,
+        metamandalaLightDebug: true,
+        metamandalaLightRole: source.role,
+        metamandalaLightCone: side,
+      });
+    }
+  }
+  marks.push({
+    kind: 'text',
+    role: `metamandala-light:${source.role}:label`,
+    x: roundPoint(origin[0] + 8),
+    y: roundPoint(origin[1] - 8),
+    value: source.label || `${source.kind} ${source.angleDegrees}deg`,
+    size: 11,
+    color: stroke,
+    opacity,
+    z: z + 0.04,
+    metamandalaLightDebug: true,
+    metamandalaLightRole: source.role,
+  });
+  return marks;
+}
+
+function applyMetamandalaLightDiffusion(marks, manifest) {
+  const sources = normalizedMetamandalaLightSources(manifest).filter((source) => source.diffusion?.enabled);
+  if (!sources.length || !Array.isArray(marks)) {
+    return { marks, applied: false, report: null, debugMarks: [] };
+  }
+  const faceCandidates = lightDiffusionFaceCandidates(marks);
+  if (!faceCandidates.length) {
+    return {
+      marks,
+      applied: false,
+      report: { kind: 'metamandala-light-diffusion', sourceCount: sources.length, rayCount: 0, hitCount: 0, faceCount: 0 },
+      debugMarks: [],
+    };
+  }
+
+  const activations = new Map();
+  const debugMarks = [];
+  let rayCount = 0;
+  let hitCount = 0;
+  const beams = new Set();
+  const beamWidths = new Set();
+  const effects = new Set();
+  const ambientIntensity = sceneAmbientLightIntensity(manifest);
+  sources.forEach((source, sourceIndex) => {
+    const diffusion = resolveLightDiffusionConfig(source);
+    beams.add(diffusion.beam);
+    beamWidths.add(round(diffusion.beamWidthPx));
+    diffusion.effects.forEach((effect) => effects.add(effect));
+    const rays = Math.max(1, Math.min(240, Math.round(finiteOr(diffusion.rays, diffusion.rayCount ?? 16))));
+    const bounces = Math.max(0, Math.min(8, Math.round(finiteOr(diffusion.bounces, diffusion.bounceCount ?? 0))));
+    const falloff = clamp(finiteOr(diffusion.falloff, 0.55), 0, 1);
+    const minPower = clamp(finiteOr(diffusion.minPower, 0.04), 0, 1);
+    const length = Math.max(finiteOr(diffusion.length, source.length * source.unitScale), 1);
+    const baseDirection = source.direction || directionFromDegrees(source.angleDegrees);
+    const spread = finiteOr(diffusion.spreadDegrees, source.spreadDegrees);
+    const origins = lightDiffusionRayOrigins(source, manifest, rays);
+    for (let i = 0; i < rays; i++) {
+      rayCount += 1;
+      const t = rays === 1 ? 0.5 : i / (rays - 1);
+      const angle = source.angleDegrees + (spread ? lerp(-spread / 2, spread / 2, t) : 0);
+      const direction = spread ? directionFromDegrees(angle) : baseDirection;
+      const origin = origins[i] || source.screenOrigin;
+      const trace = traceLightDiffusionRay({
+        source,
+        sourceIndex,
+        rayIndex: i,
+        origin,
+        direction,
+        power: clamp(finiteOr(source.intensity, 1) * finiteOr(diffusion.intensityScale, 1), 0, 4),
+        length,
+        bounces,
+        falloff,
+        minPower,
+        diffusion,
+        faceCandidates,
+        activations,
+        ambientIntensity,
+        debug: diffusion.debug === true || source.debugDiffusion === true,
+      });
+      hitCount += trace.hitCount;
+      debugMarks.push(...trace.debugMarks);
+    }
+  });
+
+  if (!activations.size && !debugMarks.length) {
+    return {
+      marks,
+      applied: false,
+      report: { kind: 'metamandala-light-diffusion', sourceCount: sources.length, rayCount, hitCount: 0, faceCount: 0 },
+      debugMarks: [],
+    };
+  }
+
+  const activatedMarks = marks.map((mark, index) => {
+    const activation = activations.get(index);
+    if (!activation) return mark;
+    const factor = 1 + clamp(activation.energy, 0, 1.25) * activation.toneStrength;
+    return {
+      ...mark,
+      fill: activation.applyTone && mark.fill ? shadeHex(mark.fill, factor) : mark.fill,
+      lightActivation: round(activation.energy),
+      lightHits: activation.hits,
+      lightBounceDepth: activation.maxBounce,
+      lightSourceRoles: [...activation.sources],
+      lightActivationEffects: [...activation.effects],
+      lightActivationBeam: [...activation.beams][0],
+      lightRayBrightness: round(activation.rayBrightness),
+      lightImpactBrightness: round(activation.impactBrightness),
+      lightFluence: round(activation.fluence),
+      lightAmbientIntensity: round(activation.ambientIntensity),
+      lightBeamWidthPx: round(activation.beamWidthPx),
+      lightBeamProfile: activation.beamProfile,
+      lightSkinTransparency: activation.skinTransparency,
+      lightTransmissionMode: activation.transmissionMode || 'opaque',
+      lightDiffusionActivated: true,
+      lightDiffusionMode: 'pure-vector',
+    };
+  });
+  const effectMarks = lightDiffusionActivationEffectMarks(faceCandidates, activations);
+  const report = {
+    kind: 'metamandala-light-diffusion',
+    mode: 'pure-vector',
+    beams: [...beams],
+    beamWidths: [...beamWidths],
+    ambientIntensity: round(ambientIntensity),
+    effects: [...effects],
+    sourceCount: sources.length,
+    rayCount,
+    hitCount,
+    faceCount: activations.size,
+    effectMarkCount: effectMarks.length,
+    debugRayCount: debugMarks.length,
+  };
+  return {
+    marks: activatedMarks.concat(effectMarks, debugMarks),
+    applied: activations.size > 0,
+    report,
+    debugMarks,
+  };
+}
+
+function lightDiffusionFaceCandidates(marks) {
+  return marks
+    .map((mark, index) => ({ mark, index }))
+    .filter(({ mark }) => (
+      mark?.kind === 'polygon' &&
+      Array.isArray(mark.points) &&
+      mark.points.length >= 3 &&
+      !mark.metamandalaLightDebug &&
+      !mark.constellationDebug &&
+      !mark.mandalaCameraWindowDebug &&
+      !mark.spatialPlanDiagnostic
+    ))
+    .map(({ mark, index }) => ({
+      mark,
+      index,
+      polygon: mark.points.filter(validPoint),
+      bounds: bbox(mark.points.filter(validPoint)),
+      center: centroid(mark.points.filter(validPoint)),
+      normal2: lightDiffusionFaceNormal2(mark),
+      reflectivity: clamp(finiteOr(mark.reflectivity, finiteOr(mark.lightReflectivity, 0.35)), 0, 1),
+      skinTransparency: lightDiffusionSkinTransparency(mark),
+      applyTone: mark.lightDiffusionTone !== false,
+    }))
+    .filter((item) => item.polygon.length >= 3);
+}
+
+function lightDiffusionSkinTransparency(mark = {}) {
+  return clamp(finiteOr(
+    mark.skinTransparency,
+    finiteOr(
+      mark.mandalaSkinTransparency,
+      finiteOr(mark.lightTransparency, finiteOr(mark.lightTransmission, 0)),
+    ),
+  ), -1, 1);
+}
+
+function lightDiffusionFaceNormal2(mark) {
+  if (Array.isArray(mark.faceNormal) && mark.faceNormal.length >= 2) {
+    const n = normalize([finiteOr(mark.faceNormal[0], 0), finiteOr(mark.faceNormal[1], 0)]);
+    if (Math.hypot(n[0], n[1]) > 0.0001) return n;
+  }
+  const points = Array.isArray(mark.points) ? mark.points.filter(validPoint) : [];
+  if (points.length >= 2) {
+    const top = polygonEdgeAtY(points, Math.min, bbox(points).minY);
+    const edge = normalize([top[1][0] - top[0][0], top[1][1] - top[0][1]]);
+    const normal = normalize([-edge[1], edge[0]]);
+    return normal[1] > 0 ? [-normal[0], -normal[1]] : normal;
+  }
+  return [0, -1];
+}
+
+function lightDiffusionRayOrigins(source, manifest, rays) {
+  if (Array.isArray(source.diffusion?.origins)) {
+    return source.diffusion.origins.filter(validPoint);
+  }
+  const origin = validPoint(source.diffusion?.screenOrigin) || source.screenOrigin;
+  const spreadWidth = finiteOr(source.diffusion?.originSpread, 0);
+  if (!spreadWidth || rays === 1) return Array.from({ length: rays }, () => origin);
+  const dir = source.direction || directionFromDegrees(source.angleDegrees);
+  const perp = normalize([-dir[1], dir[0]]);
+  return Array.from({ length: rays }, (_, index) => {
+    const t = rays === 1 ? 0 : index / (rays - 1) - 0.5;
+    return [
+      roundPoint(origin[0] + perp[0] * spreadWidth * t),
+      roundPoint(origin[1] + perp[1] * spreadWidth * t),
+    ];
+  });
+}
+
+function lightDiffusionActivationEffectMarks(faceCandidates, activations) {
+  const marks = [];
+  const byIndex = new Map(faceCandidates.map((face) => [face.index, face]));
+  for (const [index, activation] of activations.entries()) {
+    const face = byIndex.get(index);
+    if (!face) continue;
+    const color = [...activation.colors][0] || '#fff3ce';
+    const effects = activation.effects || new Set();
+    const energy = clamp(activation.energy, 0, 1.8);
+    const sourceRoles = [...activation.sources];
+    const beam = [...activation.beams][0] || 'slice';
+    const baseZ = finiteOr(face.mark.z, 0) + 0.065;
+    if (effects.has('aura')) {
+      const rx = Math.max(face.bounds.w * 0.52 * activation.auraScale, 8);
+      const ry = Math.max(face.bounds.h * 0.52 * activation.auraScale, 6);
+      marks.push({
+        kind: 'polygon',
+        role: `${face.mark.role || `face-${index}`}:light-aura`,
+        points: ellipsePoints(face.center[0], face.center[1], rx, ry, 18),
+        fill: color,
+        stroke: 'none',
+        opacity: round(clamp(activation.auraOpacity * Math.min(energy, 1), 0.025, 0.28)),
+        z: baseZ,
+        lightActivationEffect: 'aura',
+        lightActivation: round(activation.energy),
+        lightSourceRoles: sourceRoles,
+        lightActivationBeam: beam,
+        lightDiffusionMode: 'pure-vector',
+      });
+    }
+    if (effects.has('rim')) {
+      const edge = lightDiffusionBrightEdge(face);
+      marks.push({
+        kind: 'line',
+        role: `${face.mark.role || `face-${index}`}:light-rim`,
+        x1: edge[0][0],
+        y1: edge[0][1],
+        x2: edge[1][0],
+        y2: edge[1][1],
+        stroke: color,
+        strokeWidth: round(clamp(1.1 + energy * 1.4, 1.1, 3.4)),
+        opacity: round(clamp(activation.rimOpacity * Math.min(energy, 1.15), 0.1, 0.72)),
+        z: baseZ + 0.01,
+        lightActivationEffect: 'rim',
+        lightActivation: round(activation.energy),
+        lightSourceRoles: sourceRoles,
+        lightActivationBeam: beam,
+        lightDiffusionMode: 'pure-vector',
+      });
+    }
+  }
+  return marks;
+}
+
+function lightDiffusionBrightEdge(face) {
+  const points = face.polygon;
+  const normal = face.normal2 || [0, -1];
+  if (Math.abs(normal[0]) > Math.abs(normal[1])) {
+    return polygonEdgeAtX(points, normal[0] < 0 ? Math.min : Math.max, normal[0] < 0 ? face.bounds.minX : face.bounds.maxX);
+  }
+  return polygonEdgeAtY(points, normal[1] < 0 ? Math.min : Math.max, normal[1] < 0 ? face.bounds.minY : face.bounds.maxY);
+}
+
+function traceLightDiffusionRay({ source, sourceIndex, rayIndex, origin, direction, power, length, bounces, falloff, minPower, diffusion, faceCandidates, activations, ambientIntensity = 0, debug }) {
+  let currentOrigin = origin;
+  let currentDirection = normalize(direction);
+  let currentPower = power;
+  let hitCount = 0;
+  const debugMarks = [];
+  const visited = new Set();
+  const beamWidthPx = Math.max(finiteOr(diffusion.beamWidthPx, diffusion.widthPx ?? 1), 0.001);
+  const beamProfile = diffusion.beamProfile || diffusion.profile || 'laser';
+  for (let bounce = 0; bounce <= bounces && currentPower >= minPower; bounce++) {
+    const hit = firstRayFaceHit(currentOrigin, currentDirection, length, faceCandidates, visited);
+    const end = hit
+      ? hit.point
+      : [currentOrigin[0] + currentDirection[0] * length, currentOrigin[1] + currentDirection[1] * length];
+    if (debug) {
+      debugMarks.push(lightDiffusionDebugRayMark({
+        source,
+        sourceIndex,
+        rayIndex,
+        bounce,
+        from: currentOrigin,
+        to: end,
+        power: currentPower,
+        beamWidthPx,
+        beamProfile,
+        ambientIntensity,
+        hitRole: hit?.face.mark.role,
+        hitTransmissionMode: hit?.face.skinTransparency < 0 ? 'reflect' : hit?.face.skinTransparency >= 1 ? 'transmit' : hit ? 'opaque' : undefined,
+      }));
+    }
+    if (!hit) break;
+    hitCount += 1;
+    visited.add(hit.face.index);
+    const angleFactor = clamp(dot([-currentDirection[0], -currentDirection[1]], hit.face.normal2), 0, 1);
+    const rayBrightness = currentPower;
+    const energy = currentPower * Math.max(angleFactor, 0.08) * finiteOr(source.intensity, 1);
+    const fluence = energy * beamWidthPx;
+    const activation = activations.get(hit.face.index) || {
+      energy: 0,
+      hits: 0,
+      maxBounce: 0,
+      rayBrightness: 0,
+      impactBrightness: ambientIntensity,
+      fluence: 0,
+      ambientIntensity,
+      beamWidthPx,
+      beamProfile,
+      sources: new Set(),
+      colors: new Set(),
+      beams: new Set(),
+      effects: new Set(),
+      hitPoints: [],
+      applyTone: hit.face.applyTone,
+      skinTransparency: hit.face.skinTransparency,
+      transmissionMode: hit.face.skinTransparency < 0 ? 'reflect' : hit.face.skinTransparency >= 1 ? 'transmit' : 'opaque',
+      toneStrength: diffusion.effects.includes('tone') ? diffusion.toneStrength : 0,
+      rimOpacity: diffusion.rimOpacity,
+      auraOpacity: diffusion.auraOpacity,
+      auraScale: diffusion.auraScale,
+    };
+    activation.energy += energy;
+    activation.hits += 1;
+    activation.maxBounce = Math.max(activation.maxBounce, bounce);
+    activation.rayBrightness = Math.max(activation.rayBrightness, rayBrightness);
+    activation.impactBrightness = Math.max(activation.impactBrightness, ambientIntensity + activation.energy);
+    activation.fluence += fluence;
+    activation.ambientIntensity = Math.max(activation.ambientIntensity, ambientIntensity);
+    activation.beamWidthPx = Math.max(activation.beamWidthPx, beamWidthPx);
+    activation.beamProfile = activation.beamProfile || beamProfile;
+    activation.sources.add(source.role);
+    activation.colors.add(source.color || source.stroke || '#fff3ce');
+    activation.beams.add(diffusion.beam);
+    diffusion.effects.forEach((effect) => activation.effects.add(effect));
+    if (activation.hitPoints.length < 12) activation.hitPoints.push(hit.point);
+    activation.applyTone = activation.applyTone && hit.face.applyTone && diffusion.effects.includes('tone');
+    activation.skinTransparency = Math.min(finiteOr(activation.skinTransparency, 0), hit.face.skinTransparency);
+    if (hit.face.skinTransparency < 0) activation.transmissionMode = 'reflect';
+    activation.toneStrength = Math.max(activation.toneStrength, diffusion.effects.includes('tone') ? diffusion.toneStrength : 0);
+    activation.rimOpacity = Math.max(activation.rimOpacity, diffusion.rimOpacity);
+    activation.auraOpacity = Math.max(activation.auraOpacity, diffusion.auraOpacity);
+    activation.auraScale = Math.max(activation.auraScale, diffusion.auraScale);
+    activations.set(hit.face.index, activation);
+    currentDirection = reflectVector(currentDirection, hit.face.normal2);
+    currentOrigin = [
+      roundPoint(hit.point[0] + currentDirection[0] * 0.5),
+      roundPoint(hit.point[1] + currentDirection[1] * 0.5),
+    ];
+    const reflectivity = hit.face.skinTransparency < 0 ? Math.abs(hit.face.skinTransparency) : hit.face.reflectivity;
+    currentPower *= falloff * reflectivity;
+  }
+  return { hitCount, debugMarks };
+}
+
+function firstRayFaceHit(origin, direction, length, faceCandidates, visited) {
+  const end = [origin[0] + direction[0] * length, origin[1] + direction[1] * length];
+  let best = null;
+  for (const face of faceCandidates) {
+    if (visited?.has(face.index)) continue;
+    if (face.skinTransparency >= 1) continue;
+    if (!rayMayHitBounds(origin, end, face.bounds)) continue;
+    const hit = rayPolygonIntersection(origin, direction, face.polygon, length);
+    if (!hit) continue;
+    if (!best || hit.t < best.t) best = { ...hit, face };
+  }
+  return best;
+}
+
+function rayMayHitBounds(a, b, bounds) {
+  if (!bounds) return true;
+  const minX = Math.min(a[0], b[0]);
+  const maxX = Math.max(a[0], b[0]);
+  const minY = Math.min(a[1], b[1]);
+  const maxY = Math.max(a[1], b[1]);
+  return maxX >= bounds.minX && minX <= bounds.maxX && maxY >= bounds.minY && minY <= bounds.maxY;
+}
+
+function rayPolygonIntersection(origin, direction, polygon, maxLength) {
+  let best = null;
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i];
+    const b = polygon[(i + 1) % polygon.length];
+    const hit = raySegmentIntersection(origin, direction, a, b);
+    if (!hit || hit.t < 0.001 || hit.t > maxLength) continue;
+    if (!best || hit.t < best.t) best = hit;
+  }
+  return best;
+}
+
+function raySegmentIntersection(origin, direction, a, b) {
+  const v1 = [origin[0] - a[0], origin[1] - a[1]];
+  const v2 = [b[0] - a[0], b[1] - a[1]];
+  const cross = direction[0] * v2[1] - direction[1] * v2[0];
+  if (Math.abs(cross) < 1e-9) return null;
+  const t = (v2[0] * v1[1] - v2[1] * v1[0]) / cross;
+  const u = (direction[0] * v1[1] - direction[1] * v1[0]) / cross;
+  if (t < 0 || u < 0 || u > 1) return null;
+  return {
+    t,
+    u,
+    point: [roundPoint(origin[0] + direction[0] * t), roundPoint(origin[1] + direction[1] * t)],
+  };
+}
+
+function reflectVector(vector, normal) {
+  const n = normalize(normal);
+  const d = dot(vector, n);
+  return normalize([vector[0] - 2 * d * n[0], vector[1] - 2 * d * n[1]]);
+}
+
+function lightDiffusionDebugRayMark({ source, sourceIndex, rayIndex, bounce, from, to, power, beamWidthPx, beamProfile, ambientIntensity, hitRole, hitTransmissionMode }) {
+  return {
+    kind: 'line',
+    role: `metamandala-light:${source.role}:diffusion-${rayIndex + 1}-bounce-${bounce}`,
+    x1: roundPoint(from[0]),
+    y1: roundPoint(from[1]),
+    x2: roundPoint(to[0]),
+    y2: roundPoint(to[1]),
+    stroke: source.diffusion?.stroke || source.stroke || source.color || '#fff3ce',
+    strokeWidth: Math.max(0.5, 1.2 - bounce * 0.18),
+    opacity: clamp(finiteOr(source.diffusion?.opacity, 0.48) * Math.min(power, 1), 0.08, 0.72),
+    z: 940 + sourceIndex * 0.2 + rayIndex * 0.001 + bounce * 0.0001,
+    metamandalaLightDebug: true,
+    metamandalaLightDiffusionDebug: true,
+    metamandalaLightRole: source.role,
+    metamandalaLightRayIndex: rayIndex,
+    metamandalaLightBounce: bounce,
+    metamandalaLightPower: round(power),
+    metamandalaLightBeamWidthPx: round(beamWidthPx),
+    metamandalaLightBeamProfile: beamProfile,
+    metamandalaLightAmbientIntensity: round(ambientIntensity),
+    metamandalaLightHitRole: hitRole,
+    metamandalaLightHitTransmissionMode: hitTransmissionMode,
+  };
+}
+
+function buildMandalaCameraWindowGrid({ origin, left, right, length, depthSteps, laneSteps }) {
+  const rows = [];
+  for (let i = 1; i <= depthSteps; i++) {
+    const t = i / depthSteps;
+    rows.push({
+      t: round(t),
+      left: roundPointTuple([origin[0] + left[0] * length * t, origin[1] + left[1] * length * t]),
+      right: roundPointTuple([origin[0] + right[0] * length * t, origin[1] + right[1] * length * t]),
+    });
+  }
+  const lanes = [];
+  for (let i = 0; i <= laneSteps; i++) {
+    const t = i / laneSteps;
+    lanes.push({
+      t: round(t),
+      vector: roundPointTuple([lerp(left[0], right[0], t), lerp(left[1], right[1], t)]),
+    });
+  }
+  return { rows, lanes };
+}
+
+function mandalaCameraWindowDebugMarks(window, cameraWindow) {
+  const stroke = cameraWindow.stroke || '#e8d49a';
+  const laneStroke = cameraWindow.laneStroke || stroke;
+  const opacity = clamp(finiteOr(cameraWindow.opacity, 0.52), 0, 1);
+  const z = finiteOr(cameraWindow.z, 930);
+  const project = ([x, y]) => [
+    roundPoint(window.screenOrigin[0] + x * window.unitScale),
+    roundPoint(window.screenOrigin[1] + y * window.unitScale),
+  ];
+  const origin = project(window.origin);
+  const endLeft = project(window.grid.rows[window.grid.rows.length - 1]?.left || window.origin);
+  const endRight = project(window.grid.rows[window.grid.rows.length - 1]?.right || window.origin);
+  const marks = [
+    {
+      kind: 'line',
+      role: 'mandala-camera-window:left-terminator',
+      x1: origin[0],
+      y1: origin[1],
+      x2: endLeft[0],
+      y2: endLeft[1],
+      stroke,
+      strokeWidth: finiteOr(cameraWindow.strokeWidth, 2),
+      opacity,
+      z,
+      mandalaCameraWindowDebug: true,
+    },
+    {
+      kind: 'line',
+      role: 'mandala-camera-window:right-terminator',
+      x1: origin[0],
+      y1: origin[1],
+      x2: endRight[0],
+      y2: endRight[1],
+      stroke,
+      strokeWidth: finiteOr(cameraWindow.strokeWidth, 2),
+      opacity,
+      z,
+      mandalaCameraWindowDebug: true,
+    },
+  ];
+  window.grid.rows.forEach((row, index) => {
+    const left = project(row.left);
+    const right = project(row.right);
+    marks.push({
+      kind: 'line',
+      role: `mandala-camera-window:depth-row-${index + 1}`,
+      x1: left[0],
+      y1: left[1],
+      x2: right[0],
+      y2: right[1],
+      stroke: laneStroke,
+      strokeWidth: finiteOr(cameraWindow.gridStrokeWidth, 1),
+      opacity: opacity * 0.72,
+      z: z + 0.01 + index * 0.001,
+      dash: cameraWindow.dash || '5 5',
+      mandalaCameraWindowDebug: true,
+      mandalaCameraWindowT: row.t,
+    });
+  });
+  window.grid.lanes.slice(1, -1).forEach((lane, index) => {
+    const end = project([
+      window.origin[0] + lane.vector[0],
+      window.origin[1] + lane.vector[1],
+    ]);
+    marks.push({
+      kind: 'line',
+      role: `mandala-camera-window:lane-${index + 1}`,
+      x1: origin[0],
+      y1: origin[1],
+      x2: end[0],
+      y2: end[1],
+      stroke: laneStroke,
+      strokeWidth: finiteOr(cameraWindow.gridStrokeWidth, 1),
+      opacity: opacity * 0.5,
+      z: z + 0.03 + index * 0.001,
+      dash: cameraWindow.dash || '5 5',
+      mandalaCameraWindowDebug: true,
+      mandalaCameraWindowT: lane.t,
+    });
+  });
+  marks.push({
+    kind: 'text',
+    role: 'mandala-camera-window:label',
+    x: origin[0],
+    y: origin[1] + 18,
+    value: cameraWindow.label || 'shot terminator wedge',
+    size: finiteOr(cameraWindow.labelSize, 11),
+    color: cameraWindow.labelColor || stroke,
+    opacity: Math.min(opacity + 0.18, 1),
+    z: z + 0.06,
+    mandalaCameraWindowDebug: true,
+  });
+  return marks;
+}
+
+function validVector2(vector) {
+  if (!Array.isArray(vector) || vector.length < 2) return null;
+  const x = vector[0];
+  const y = vector[1];
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
 }
 
 function depthBandRank(value) {
@@ -659,11 +3010,46 @@ function generateTwoPointRoomMarks(pureMandala, cameraPrimitive) {
   return {
     viewBox: { width: 980, height: 620 },
     marks,
+    roomBasis,
     floorGridCount: xSteps.length + ySteps.length,
     ceilingGridCount: xSteps.length + ySteps.length,
     projectedPins: pins,
     cameraGrammar,
   };
+}
+
+// Synthesize a boxNet mark per declared room furniture element. Each carries
+// the room frame's own roomBasis so expandBoxNetMark places it in the same
+// world the walls/floor were built from. Depth-biased z paints near furniture
+// over far furniture (floor v=1 is nearest the camera).
+function synthesizeRoomFurnitureMarks(roomConcept, roomBasis) {
+  const elements = Array.isArray(roomConcept?.elements) ? roomConcept.elements : [];
+  return elements
+    .filter((el) => el && typeof el === 'object' && el.type)
+    .map((el, i) => {
+      const anchor = Array.isArray(el.anchor) ? el.anchor : [0.5, 0.5];
+      const depthV = (el.surface || 'floor') === 'floor' ? finiteOr(anchor[1], 0.5) : 0.5;
+      return {
+        kind: 'boxNet',
+        role: el.role || `${el.type}-${i + 1}`,
+        type: el.type,
+        surface: el.surface || 'floor',
+        anchor,
+        ...(Number.isFinite(el.w) ? { w: el.w } : {}),
+        ...(Number.isFinite(el.h) ? { h: el.h } : {}),
+        ...(Number.isFinite(el.heightWorld) ? { heightWorld: el.heightWorld } : {}),
+        ...(el.supportPattern ? { supportPattern: el.supportPattern } : {}),
+        ...(Number.isFinite(el.supportRadius) ? { supportRadius: el.supportRadius } : {}),
+        ...(el.style ? { style: el.style } : {}),
+        // Producer-intent default: a two-point room is a depictive scene, so its
+        // furniture defaults to vexar matte. Sits BELOW explicit scene/element
+        // overrides in the cascade (an architectural producer would stamp
+        // 'wireframe' instead). See expandBoxNetMark.
+        defaultStyle: 'shaded',
+        roomBasis,
+        z: 30 + depthV * 12,
+      };
+    });
 }
 
 function buildTwoPointCameraGrammar({ cameraPrimitive, pureMandala, roomBasis, ceilingZ, project }) {
@@ -986,6 +3372,8 @@ function defaultRoomObjectSize(role) {
   if (role === 'shelf' || role === 'shelves' || role === 'bookcase') return [3.2, 9, 7.2];
   if (role === 'bar' || role === 'counter') return [9, 3.4, 3.3];
   if (role === 'sofa') return [8.5, 3.2, 2.6];
+  if (role === 'bed') return [7.2, 6.2, 2.2];
+  if (role === 'closet' || role === 'wardrobe') return [5.8, 1.6, 7.6];
   if (role === 'coffee-table') return [4.8, 2.6, 1.35];
   if (role === 'media-console' || role === 'tv-console') return [7.2, 1.6, 2.1];
   if (role === 'side-table' || role === 'ottoman') return [2.2, 2.2, 1.8];
@@ -1002,6 +3390,9 @@ function isRoomCuboidRole(role) {
     'bar',
     'counter',
     'cabinet',
+    'closet',
+    'wardrobe',
+    'bed',
     'sofa',
     'coffee-table',
     'media-console',
@@ -1015,13 +3406,15 @@ function roomObjectDefaultFill(role) {
   if (role === 'shelf' || role === 'shelves' || role === 'bookcase' || role === 'media-console' || role === 'tv-console') {
     return '#8b6642';
   }
+  if (role === 'closet' || role === 'wardrobe') return '#7c654f';
+  if (role === 'bed') return '#7b7183';
   if (role === 'sofa' || role === 'ottoman') return '#6d6f59';
   if (role === 'coffee-table' || role === 'side-table') return '#7a5538';
   return '#6f4d32';
 }
 
 function roomObjectDefaultZ(role) {
-  if (role === 'sofa' || role === 'coffee-table' || role === 'side-table' || role === 'ottoman') return 4.8;
+  if (role === 'sofa' || role === 'bed' || role === 'coffee-table' || role === 'side-table' || role === 'ottoman') return 4.8;
   if (role === 'table' || role === 'bar' || role === 'counter') return 4.4;
   return 3.6;
 }
@@ -1098,6 +3491,16 @@ function isConstructionMark(mark) {
   return mark?.kind === 'partition' ||
     mark?.kind === 'array' ||
     mark?.kind === 'mandalaField' ||
+    mark?.kind === 'fluidField' ||
+    mark?.kind === 'swirlField' ||
+    mark?.kind === 'rBrush' ||
+    mark?.kind === 'blobPla' ||
+    mark?.kind === 'sparkField' ||
+    mark?.kind === 'showerField' ||
+    mark?.kind === 'wispField' ||
+    mark?.kind === 'visionPane' ||
+    mark?.kind === 'horizontalStack' ||
+    mark?.kind === 'mandalaArrangement' ||
     mark?.kind === 'stickerField' ||
     mark?.kind === 'cubieLattice' ||
     mark?.kind === 'form';
@@ -1107,45 +3510,111 @@ function resolveConstructionMarks(marks, scene = {}, manifest = {}) {
   if (!Array.isArray(marks) || !marks.some(isConstructionMark)) return marks;
   const resolved = [];
   const byRole = new Map();
-  for (const mark of marks) {
-    if (mark?.kind === 'partition') {
-      const next = expandPartitionMark(mark, byRole);
-      resolved.push(...next);
-      next.forEach((item) => rememberRole(item, byRole));
-      continue;
+  for (let sourceIndex = 0; sourceIndex < marks.length; sourceIndex++) {
+    const mark = marks[sourceIndex];
+    try {
+      if (mark?.kind === 'partition') {
+        const next = expandPartitionMark(mark, byRole);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'array') {
+        const next = expandArrayMark(mark);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'mandalaField') {
+        const next = expandMandalaFieldMark(mark, manifest);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'fluidField' || mark?.kind === 'swirlField') {
+        const next = expandSwirlFieldMark(mark, manifest);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'rBrush') {
+        const next = expandRBrushMark(mark, manifest);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'blobPla') {
+        const next = expandBlobPlaMark(mark, byRole);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'sparkField' || mark?.kind === 'showerField') {
+        const next = expandSparkFieldMark(mark, manifest);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'wispField') {
+        const next = expandWispFieldMark(mark, manifest);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'visionPane') {
+        const next = expandVisionPaneMark(mark, manifest);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'horizontalStack') {
+        const next = expandHorizontalStackMark(mark);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'mandalaArrangement') {
+        const next = expandMandalaArrangementMark(mark);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'stickerField') {
+        const next = expandStickerFieldMark(mark, byRole, scene);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'cubieLattice') {
+        const next = expandCubieLatticeMark(mark, scene, manifest);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'form') {
+        const next = expandFormMark(mark);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      resolved.push(mark);
+      rememberRole(mark, byRole);
+    } catch (err) {
+      // Surface "expanded up to mark N, failed at mark N+1 because …" so the
+      // polygonizer's repair prompt can show what survived and where the model
+      // went off-script. See lite-template/integration/0603/polygonizer_optimization.md
+      // (Phase 3 — Richer repair feedback).
+      if (!err.expansionContext) {
+        err.expansionContext = {
+          sourceIndex,
+          kind: mark?.kind,
+          role: mark?.role,
+          expandedSoFar: resolved.length,
+          availableRoles: Array.from(byRole.keys()),
+        };
+      }
+      throw err;
     }
-    if (mark?.kind === 'array') {
-      const next = expandArrayMark(mark);
-      resolved.push(...next);
-      next.forEach((item) => rememberRole(item, byRole));
-      continue;
-    }
-    if (mark?.kind === 'mandalaField') {
-      const next = expandMandalaFieldMark(mark, manifest);
-      resolved.push(...next);
-      next.forEach((item) => rememberRole(item, byRole));
-      continue;
-    }
-    if (mark?.kind === 'stickerField') {
-      const next = expandStickerFieldMark(mark, byRole);
-      resolved.push(...next);
-      next.forEach((item) => rememberRole(item, byRole));
-      continue;
-    }
-    if (mark?.kind === 'cubieLattice') {
-      const next = expandCubieLatticeMark(mark, scene, manifest);
-      resolved.push(...next);
-      next.forEach((item) => rememberRole(item, byRole));
-      continue;
-    }
-    if (mark?.kind === 'form') {
-      const next = expandFormMark(mark);
-      resolved.push(...next);
-      next.forEach((item) => rememberRole(item, byRole));
-      continue;
-    }
-    resolved.push(mark);
-    rememberRole(mark, byRole);
   }
   return resolved;
 }
@@ -1158,6 +3627,122 @@ function expandFormMark(mark) {
   if (isFullBodyDummyStock(stock)) return expandFullBodyDummyForm(mark);
   if (stock === 'plane-object') return expandPlaneObjectForm(mark);
   throw new Error(`form '${mark.role || '(anonymous)'}' unsupported mode/stock '${mode}/${stock}'`);
+}
+
+function expandBlobPlaMark(mark, byRole = new Map()) {
+  const source = resolveBlobPlaEndpoint(mark.source || mark.sourceRole, byRole) ||
+    validPoint(mark.sourcePoint) ||
+    validPoint(mark.from);
+  const receiver = resolveBlobPlaEndpoint(mark.receiver || mark.receiverRole, byRole) ||
+    validPoint(mark.receiverPoint) ||
+    validPoint(mark.to);
+  const anchor = validPoint(mark.anchor) || [
+    finiteOr(mark.cx, 240),
+    finiteOr(mark.cy, 220),
+  ];
+  const sourcePoint = source || [anchor[0], anchor[1] - finiteOr(mark.length, 48) / 2];
+  const receiverPoint = receiver || [anchor[0], anchor[1] + finiteOr(mark.length, 48) / 2];
+  const joint = mark.joint && typeof mark.joint === 'object' ? mark.joint : {};
+  const socket = mark.socket && typeof mark.socket === 'object' ? mark.socket : mark.pelvisSocket && typeof mark.pelvisSocket === 'object' ? mark.pelvisSocket : {};
+  const stem = mark.stem && typeof mark.stem === 'object' ? mark.stem : mark.cylinder && typeof mark.cylinder === 'object' ? mark.cylinder : {};
+  const t = clamp(finiteOr(joint.t ?? mark.jointT, 0.5), 0, 1);
+  const jointCenter = validPoint(joint.center) || validPoint(mark.jointCenter) || [
+    lerp(sourcePoint[0], receiverPoint[0], t),
+    lerp(sourcePoint[1], receiverPoint[1], t),
+  ];
+  const socketCenter = validPoint(socket.center) || validPoint(mark.socketCenter) || receiverPoint;
+  const jointRadius = Math.max(0.5, finiteOr(joint.radius ?? mark.jointRadius, 14));
+  const socketRadius = Math.max(0.5, finiteOr(socket.radius ?? mark.socketRadius, jointRadius * 1.18));
+  const stemEnabled = stem.enabled !== false && mark.stem !== false && mark.cylinder !== false;
+  const baseZ = finiteOr(mark.z, 30);
+  const role = mark.role || 'blobpla';
+  const common = {
+    algorithmic: true,
+    algorithm: 'blobPla',
+    blobPlaAdapter: true,
+    blobPlaRole: role,
+    sourceRole: typeof mark.sourceRole === 'string' ? mark.sourceRole : undefined,
+    receiverRole: typeof mark.receiverRole === 'string' ? mark.receiverRole : undefined,
+    supportBehavior: mark.gravity?.lowerUnit ? 'lower-unit' : mark.supportBehavior || 'adapter-preserves-masses',
+  };
+  const out = [];
+
+  if (stemEnabled) {
+    out.push({
+      kind: 'line',
+      role: stem.role || mark.cylinderRole || `${role}:stem`,
+      x1: roundPoint(jointCenter[0]),
+      y1: roundPoint(jointCenter[1]),
+      x2: roundPoint(socketCenter[0]),
+      y2: roundPoint(socketCenter[1]),
+      stroke: stem.stroke || mark.stroke || '#46515a',
+      strokeWidth: Math.max(0.2, finiteOr(stem.radius ?? stem.strokeWidth ?? mark.stemRadius, jointRadius * 0.56) * 2),
+      strokeLinecap: 'round',
+      opacity: finiteOr(stem.opacity, finiteOr(mark.opacity, 0.92)),
+      z: baseZ,
+      blobPlaPart: 'stem',
+      blobPlaConnector: true,
+      ...common,
+    });
+  }
+
+  out.push({
+    kind: 'circle',
+    role: socket.role || mark.socketRole || `${role}:socket`,
+    cx: roundPoint(socketCenter[0]),
+    cy: roundPoint(socketCenter[1]),
+    r: roundPoint(socketRadius),
+    fill: socket.fill || mark.socketFill || 'none',
+    stroke: socket.stroke || mark.socketStroke || mark.stroke || '#20282d',
+    strokeWidth: finiteOr(socket.strokeWidth, finiteOr(mark.strokeWidth, 1.2)),
+    opacity: finiteOr(socket.opacity, finiteOr(mark.opacity, 0.86)),
+    z: baseZ + 0.01,
+    blobPlaPart: 'socket',
+    blobPlaSocket: true,
+    ...common,
+  });
+  out.push({
+    kind: 'sphere',
+    role: joint.role || mark.jointRole || `${role}:joint`,
+    anchor: [roundPoint(jointCenter[0]), roundPoint(jointCenter[1])],
+    r: roundPoint(jointRadius),
+    fill: joint.fill || mark.fill || '#d7c7a4',
+    stroke: joint.stroke || mark.stroke || '#2c241c',
+    strokeWidth: finiteOr(joint.strokeWidth, finiteOr(mark.strokeWidth, 0.8)),
+    opacity: finiteOr(joint.opacity, finiteOr(mark.opacity, 0.96)),
+    z: baseZ + 0.02,
+    blobPlaPart: 'joint',
+    blobPlaJoint: true,
+    ...common,
+  });
+
+  return out;
+}
+
+function resolveBlobPlaEndpoint(input, byRole) {
+  if (validPoint(input)) return input;
+  const role = typeof input === 'string' ? input : typeof input?.role === 'string' ? input.role : null;
+  if (!role) return null;
+  return centerOfMark(byRole.get(role));
+}
+
+function centerOfMark(mark) {
+  if (!mark || typeof mark !== 'object') return null;
+  if (validPoint(mark.anchor)) return mark.anchor;
+  if (Number.isFinite(mark.cx) && Number.isFinite(mark.cy)) return [mark.cx, mark.cy];
+  if (Number.isFinite(mark.x) && Number.isFinite(mark.y) && Number.isFinite(mark.w) && Number.isFinite(mark.h)) {
+    return [mark.x + mark.w / 2, mark.y + mark.h / 2];
+  }
+  if (Number.isFinite(mark.x) && Number.isFinite(mark.y) && Number.isFinite(mark.width) && Number.isFinite(mark.height)) {
+    return [mark.x + mark.width / 2, mark.y + mark.height / 2];
+  }
+  if (Array.isArray(mark.points) && mark.points.length) {
+    const points = mark.points.filter(validPoint);
+    if (!points.length) return null;
+    const box = bbox(points);
+    return [(box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2];
+  }
+  return null;
 }
 
 function expandAnimatedBipedForm(mark) {
@@ -1844,6 +4429,3055 @@ function expandArrayMark(mark) {
   return out;
 }
 
+function expandHorizontalStackMark(mark) {
+  return expandMandalaArrangementMark(horizontalStackToMandalaArrangement(mark));
+}
+
+function horizontalStackToMandalaArrangement(mark) {
+  const role = mark.role || 'horizontal-stack';
+  const mode = normalizeHorizontalStackMode(mark.mode || mark.stackMode);
+  const activeRay = normalizeMandalaArrangementActiveRay(mark.activeRay || mark.ray || mark.axis);
+  const start = validPoint(mark.from) ||
+    validPoint(mark.anchor) ||
+    [finiteOr(mark.x, 0), finiteOr(mark.y, 0)];
+  const baselineY = finiteOr(mark.baselineY, finiteOr(mark.y, start[1]));
+  return {
+    ...mark,
+    kind: 'mandalaArrangement',
+    role,
+    profile: 'horizontal-stack',
+    mode,
+    activeRay,
+    basis: {
+      kind: 'local-lateral-support',
+      ...(mark.basis && typeof mark.basis === 'object' && !Array.isArray(mark.basis) ? mark.basis : {}),
+      origin: validPoint(mark.basis?.origin) || [start[0], baselineY],
+      xAxis: validPoint(mark.basis?.xAxis) || validPoint(mark.xAxis) || [1, 0],
+      supportAxis: validPoint(mark.basis?.supportAxis) || validPoint(mark.supportAxis) || [0, -1],
+      localSpace: mark.basis?.localSpace || mark.localSpace || 'cca-local',
+    },
+    policy: {
+      collision: mark.policy?.collision || mark.memberCollision || (mode === 'superposition' ? 'allow-superposition' : 'avoid'),
+      support: mark.policy?.support || (mode === 'gravity' ? 'gravity' : 'none'),
+      skin: mark.policy?.skin || mark.skinPolicy || (mark.skinJoin === true || mode === 'superposition' ? 'join' : 'separate'),
+    },
+  };
+}
+
+function expandMandalaArrangementMark(mark) {
+  const role = mark.role || 'mandala-arrangement';
+  const profile = mark.profile || mark.arrangementProfile || 'horizontal-stack';
+  if (!['horizontal-stack', 'ray-contact-stack'].includes(profile)) {
+    throw new Error(`mandalaArrangement '${role}' unsupported profile '${profile}'`);
+  }
+  const mode = normalizeHorizontalStackMode(mark.mode || mark.stackMode || mark.policy?.support || mark.policy?.collision);
+  const axis = mark.axis || 'x';
+  const activeRay = normalizeMandalaArrangementActiveRay(mark.activeRay || mark.ray || axis);
+  const members = Array.isArray(mark.members) ? mark.members : [];
+  if (!members.length) {
+    throw new Error(`mandalaArrangement '${role}' requires members[]`);
+  }
+  const basis = resolveMandalaArrangementBasis(mark);
+  const spacing = finiteOr(mark.spacing, mode === 'superposition' ? 0 : 8);
+  const overlap = clamp(finiteOr(mark.overlap, mode === 'superposition' ? 0.32 : 0), 0, 0.95);
+  const memberCollision = normalizeMandalaArrangementCollision(mark.policy?.collision || mark.memberCollision, mode);
+  const skinPolicy = normalizeMandalaArrangementSkin(mark.policy?.skin || mark.skinPolicy, mode, mark.skinJoin);
+  const out = [];
+  const footprints = [];
+  let cursor = finiteOr(mark.start, finiteOr(mark.localStart, 0));
+  let contactCursorEnd = null;
+
+  members.forEach((member, index) => {
+    const item = member && typeof member === 'object' && !Array.isArray(member) ? member : {};
+    const size = horizontalStackMemberSize(item);
+    const memberRole = item.role || `${role}-${index + 1}`;
+    const extent = mandalaArrangementMemberRayExtent(size, activeRay);
+    const floater = mandalaArrangementMemberFloater(item);
+    const rayContactPolicy = mandalaArrangementCollisionPolicy({
+      mode,
+      memberCollision,
+      collisionPolicy: mark.collisionPolicy || mark.policy?.collision,
+      floater,
+    });
+    const authoredCursor = Array.isArray(item.local) && item.local.length >= 1
+      ? finiteOr(item.local[0], cursor)
+      : cursor;
+    let resolvedCursor = authoredCursor;
+    if (!floater && rayContactPolicy === 'repel-until-contact' && contactCursorEnd !== null && resolvedCursor < contactCursorEnd) {
+      resolvedCursor = contactCursorEnd;
+    }
+    const slot = mandalaArrangementSlot({
+      basis,
+      cursor: resolvedCursor,
+      authoredCursor,
+      size,
+      item,
+      activeRay,
+      extent,
+      resolved: resolvedCursor !== authoredCursor,
+    });
+    const placed = placeHorizontalStackMember({
+      item,
+      role: memberRole,
+      x: slot.x,
+      baselineY: slot.baselineY,
+      z: finiteOr(item.z, finiteOr(mark.z, 18) + index * 0.01),
+      stackRole: role,
+      mode,
+      axis,
+      activeRay,
+      memberCollision,
+      skinPolicy,
+      supportRole: mark.supportRole,
+      collisionPolicy: mark.collisionPolicy || mark.policy?.collision,
+      floaterPolicy: mark.floaterPolicy || mark.policy?.floater,
+      floater,
+      rayContactPolicy,
+      arrangementProfile: profile,
+      basis,
+      slot,
+      index,
+      count: members.length,
+    });
+    out.push(placed);
+    footprints.push(horizontalStackMemberBounds(placed, size));
+    if (!floater && rayContactPolicy === 'repel-until-contact') {
+      contactCursorEnd = Math.max(finiteOr(contactCursorEnd, resolvedCursor), resolvedCursor + extent);
+    }
+    cursor += Math.max(extent * (1 - overlap) + spacing, 1);
+  });
+
+  if (mode === 'superposition' && skinPolicy === 'join' && footprints.length) {
+    out.push(horizontalStackJoinedSkinMark({
+      role,
+      footprints,
+      mark,
+      mode,
+      axis,
+      activeRay,
+      memberCollision,
+      skinPolicy,
+      basis,
+      profile,
+    }));
+  }
+
+  return out;
+}
+
+function resolveMandalaArrangementBasis(mark = {}) {
+  const raw = mark.basis && typeof mark.basis === 'object' && !Array.isArray(mark.basis) ? mark.basis : {};
+  const origin = validPoint(raw.origin) ||
+    validPoint(mark.anchor) ||
+    [finiteOr(mark.x, 0), finiteOr(mark.baselineY, finiteOr(mark.y, 0))];
+  const xAxis = normalize(validPoint(raw.xAxis) || validPoint(mark.xAxis) || validPoint(raw.rays?.east) || [1, 0]);
+  const supportAxis = normalize(validPoint(raw.supportAxis) || validPoint(mark.supportAxis) || validPoint(raw.rays?.zenith) || [0, -1]);
+  const depthAxis = normalize(validPoint(raw.depthAxis) || validPoint(mark.depthAxis) || validPoint(raw.rays?.north) || [0.55, -0.72]);
+  return {
+    kind: raw.kind || mark.basisKind || 'local-lateral-support',
+    localSpace: raw.localSpace || mark.localSpace || 'cca-local',
+    origin: roundPointTuple(origin),
+    xAxis,
+    supportAxis,
+    depthAxis,
+    rays: {
+      east: xAxis,
+      west: [-xAxis[0], -xAxis[1]],
+      north: depthAxis,
+      south: [-depthAxis[0], -depthAxis[1]],
+      zenith: supportAxis,
+      nadir: [-supportAxis[0], -supportAxis[1]],
+      ...(raw.rays && typeof raw.rays === 'object' && !Array.isArray(raw.rays) ? raw.rays : {}),
+    },
+  };
+}
+
+function mandalaArrangementSlot({ basis, cursor, authoredCursor, item, activeRay, extent, resolved = false }) {
+  const localY = Array.isArray(item.local) && item.local.length >= 2
+    ? finiteOr(item.local[1], 0)
+    : finiteOr(item.localY, 0);
+  const local = [cursor, localY];
+  const authoredLocalX = finiteOr(authoredCursor, local[0]);
+  const rayVector = mandalaArrangementRayVector(basis, activeRay);
+  const baseline = [
+    basis.origin[0] + rayVector[0] * local[0] + basis.supportAxis[0] * local[1],
+    basis.origin[1] + rayVector[1] * local[0] + basis.supportAxis[1] * local[1],
+  ];
+  const interval = [roundPoint(local[0]), roundPoint(local[0] + finiteOr(extent, 0))];
+  const intervalBefore = [roundPoint(authoredLocalX), roundPoint(authoredLocalX + finiteOr(extent, 0))];
+  return {
+    local: local.map(roundPoint),
+    localBefore: [roundPoint(authoredLocalX), roundPoint(local[1])],
+    x: roundPoint(baseline[0]),
+    baselineY: roundPoint(baseline[1]),
+    interval,
+    intervalBefore,
+    resolved,
+    displacement: roundPoint(local[0] - authoredLocalX),
+    rayVector: rayVector.map(round),
+    basisKind: basis.kind,
+  };
+}
+
+function normalizeMandalaArrangementActiveRay(value) {
+  const text = String(value || '').toLowerCase().replace(/_/g, '-');
+  if (text.includes('north') || text.includes('south') || text.includes('depth') || text.includes('floor') || text === 'z') return 'north-south';
+  if (text.includes('zenith') || text.includes('nadir') || text.includes('vertical') || text.includes('altitude') || text === 'y') return 'zenith-nadir';
+  return 'east-west';
+}
+
+function mandalaArrangementRayVector(basis = {}, activeRay = 'east-west') {
+  if (activeRay === 'north-south') return normalize(validPoint(basis.rays?.north) || validPoint(basis.depthAxis) || [0.55, -0.72]);
+  if (activeRay === 'zenith-nadir') return normalize(validPoint(basis.rays?.zenith) || validPoint(basis.supportAxis) || [0, -1]);
+  return normalize(validPoint(basis.rays?.east) || validPoint(basis.xAxis) || [1, 0]);
+}
+
+function mandalaArrangementMemberRayExtent(size = {}, activeRay = 'east-west') {
+  if (activeRay === 'north-south') return Math.max(finiteOr(size.depth, finiteOr(size.width, 1)), 1);
+  if (activeRay === 'zenith-nadir') return Math.max(finiteOr(size.height, 1), 1);
+  return Math.max(finiteOr(size.width, 1), 1);
+}
+
+function normalizeMandalaFloaterPolicy(value) {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('drift')) return 'decorative-drift';
+  if (text.includes('z')) return 'z-adjacency-bias';
+  return 'allow-superposition';
+}
+
+function mandalaArrangementMemberFloater(item = {}) {
+  return item.gravity === false || item.nonGravity === true || item.floater === true || item.float === true;
+}
+
+function mandalaArrangementCollisionPolicy({ mode, memberCollision, collisionPolicy, floater }) {
+  if (floater) return 'floater';
+  const text = String(collisionPolicy || memberCollision || '').toLowerCase();
+  if (text.includes('repel') || text.includes('contact')) return 'repel-until-contact';
+  if (text.includes('allow') || text.includes('super')) return 'allow-superposition';
+  return mode === 'gravity' ? 'repel-until-contact' : 'allow-superposition';
+}
+
+function normalizeMandalaArrangementCollision(value, mode) {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('allow') || text.includes('super')) return 'allow';
+  if (text.includes('avoid') || text.includes('clear')) return 'avoid';
+  return mode === 'superposition' ? 'allow' : 'avoid';
+}
+
+function normalizeMandalaArrangementSkin(value, mode, skinJoin) {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('join') || skinJoin === true) return 'join';
+  if (text.includes('separate')) return 'separate';
+  return mode === 'superposition' ? 'join' : 'separate';
+}
+
+function normalizeHorizontalStackMode(mode) {
+  const text = String(mode || 'gravity').toLowerCase();
+  if (text.includes('super') || text.includes('compound') || text.includes('merge')) return 'superposition';
+  return 'gravity';
+}
+
+function horizontalStackMemberSize(item = {}) {
+  const kind = item.kind || 'solid';
+  if (kind === 'sphere') {
+    const r = Math.max(finiteOr(item.r, finiteOr(item.radius, 20)), 1);
+    return { width: r * 2, height: r * 2, depth: r * 2 };
+  }
+  if (kind === 'oval' || kind === 'egg' || kind === 'blob') {
+    return {
+      width: Math.max(finiteOr(item.rx, finiteOr(item.width, 24)) * 2, 1),
+      height: Math.max(finiteOr(item.ry, finiteOr(item.height, 24)) * 2, 1),
+      depth: Math.max(finiteOr(item.depth, finiteOr(item.d, finiteOr(item.rx, finiteOr(item.width, 24)) * 2)), 1),
+    };
+  }
+  if (kind === 'polygon' && Array.isArray(item.points) && item.points.length) {
+    const bounds = bbox(item.points.filter(validPoint));
+    return { width: Math.max(bounds?.w || 1, 1), height: Math.max(bounds?.h || 1, 1), depth: Math.max(finiteOr(item.depth, finiteOr(item.d, bounds?.w || 1)), 1) };
+  }
+  return {
+    width: Math.max(finiteOr(item.width, finiteOr(item.w, Array.isArray(item.size) ? item.size[0] : 40)), 1),
+    height: Math.max(finiteOr(item.height, finiteOr(item.h, Array.isArray(item.size) ? item.size[1] : 40)), 1),
+    depth: Math.max(finiteOr(item.depth, finiteOr(item.d, Array.isArray(item.size) ? item.size[2] : 24)), 1),
+  };
+}
+
+function placeHorizontalStackMember({ item, role, x, baselineY, z, stackRole, mode, axis, activeRay, memberCollision, skinPolicy, supportRole, collisionPolicy, floaterPolicy, floater, rayContactPolicy, arrangementProfile, basis, slot, index, count }) {
+  const kind = item.kind || 'solid';
+  const size = horizontalStackMemberSize(item);
+  const normalizedFloater = floater ?? mandalaArrangementMemberFloater(item);
+  const normalizedRayContactPolicy = rayContactPolicy || mandalaArrangementCollisionPolicy({ mode, memberCollision, collisionPolicy, floater: normalizedFloater });
+  const normalizedFloaterPolicy = normalizeMandalaFloaterPolicy(item.floaterPolicy || floaterPolicy);
+  const serializedBasis = basis ? {
+    kind: basis.kind,
+    localSpace: basis.localSpace,
+    origin: basis.origin,
+    xAxis: basis.xAxis.map(round),
+    supportAxis: basis.supportAxis.map(round),
+    depthAxis: basis.depthAxis?.map(round),
+    rays: basis.rays ? Object.fromEntries(Object.entries(basis.rays)
+      .filter(([, value]) => validPoint(value))
+      .map(([key, value]) => [key, value.map(round)])) : undefined,
+  } : undefined;
+  const common = {
+    constructionKind: 'horizontalStack',
+    constructionRole: stackRole,
+    horizontalStackRole: stackRole,
+    horizontalStackMode: mode,
+    horizontalStackAxis: axis,
+    horizontalStackActiveRay: activeRay,
+    horizontalStackMemberRole: role,
+    horizontalStackMemberIndex: index,
+    horizontalStackMemberCount: count,
+    horizontalStackMemberCollision: memberCollision,
+    horizontalStackSkinPolicy: skinPolicy,
+    horizontalStackSupportRole: supportRole,
+    mandalaArrangementRole: stackRole,
+    mandalaArrangementProfile: arrangementProfile || 'horizontal-stack',
+    mandalaArrangementBasisKind: basis?.kind,
+    mandalaArrangementLocalSpace: basis?.localSpace,
+    mandalaArrangementBasis: serializedBasis,
+    mandalaArrangementSlot: slot,
+    mandalaArrangementActiveRay: activeRay,
+    mandalaArrangementRayVector: slot.rayVector,
+    mandalaRayInterval: slot.interval,
+    mandalaRayIntervalBefore: slot.intervalBefore,
+    mandalaRayDisplacement: slot.displacement,
+    mandalaRayResolved: Boolean(slot.resolved),
+    mandalaRayContactPolicy: normalizedRayContactPolicy,
+    mandalaRayCollisionPolicy: normalizedRayContactPolicy,
+    mandalaFloater: normalizedFloater,
+    mandalaFloaterPolicy: normalizedFloaterPolicy,
+  };
+  if (kind === 'sphere') {
+    const r = Math.max(finiteOr(item.r, finiteOr(item.radius, size.width / 2)), 1);
+    return {
+      ...item,
+      ...common,
+      kind,
+      role,
+      anchor: [roundPoint(x + size.width / 2), roundPoint(baselineY - r)],
+      r,
+      z,
+    };
+  }
+  if (kind === 'oval' || kind === 'egg' || kind === 'blob') {
+    const rx = Math.max(finiteOr(item.rx, size.width / 2), 1);
+    const ry = Math.max(finiteOr(item.ry, size.height / 2), 1);
+    return {
+      ...item,
+      ...common,
+      kind,
+      role,
+      anchor: [roundPoint(x + rx), roundPoint(baselineY - ry)],
+      rx,
+      ry,
+      z,
+    };
+  }
+  if (kind === 'polygon' && Array.isArray(item.points)) {
+    const points = item.points.filter(validPoint);
+    const bounds = bbox(points);
+    const dx = x - finiteOr(bounds?.minX, 0);
+    const dy = baselineY - finiteOr(bounds?.maxY, 0);
+    return {
+      ...item,
+      ...common,
+      kind,
+      role,
+      points: points.map((point) => [roundPoint(point[0] + dx), roundPoint(point[1] + dy)]),
+      z,
+    };
+  }
+  return {
+    ...item,
+    ...common,
+    kind: 'solid',
+    role,
+    x: roundPoint(x),
+    y: roundPoint(baselineY - size.height),
+    width: size.width,
+    height: size.height,
+    depth: Math.max(finiteOr(item.depth, finiteOr(item.d, 24)), 1),
+    faceCull: item.faceCull || item.cullFace || item.solidFaceCull || (mode === 'gravity' ? 'hide-back-bottom' : undefined),
+    z,
+  };
+}
+
+function horizontalStackMemberBounds(mark, fallbackSize) {
+  if (mark.kind === 'solid') {
+    return {
+      minX: finiteOr(mark.x, 0),
+      minY: finiteOr(mark.y, 0),
+      maxX: finiteOr(mark.x, 0) + finiteOr(mark.width, fallbackSize.width),
+      maxY: finiteOr(mark.y, 0) + finiteOr(mark.height, fallbackSize.height),
+    };
+  }
+  const anchor = validPoint(mark.anchor) || [finiteOr(mark.cx, 0), finiteOr(mark.cy, 0)];
+  if (['sphere', 'oval', 'egg', 'blob'].includes(mark.kind)) {
+    const rx = finiteOr(mark.r, finiteOr(mark.rx, fallbackSize.width / 2));
+    const ry = finiteOr(mark.r, finiteOr(mark.ry, fallbackSize.height / 2));
+    return { minX: anchor[0] - rx, minY: anchor[1] - ry, maxX: anchor[0] + rx, maxY: anchor[1] + ry };
+  }
+  if (Array.isArray(mark.points)) {
+    const bounds = bbox(mark.points.filter(validPoint));
+    return {
+      minX: finiteOr(bounds?.minX, 0),
+      minY: finiteOr(bounds?.minY, 0),
+      maxX: finiteOr(bounds?.maxX, 0),
+      maxY: finiteOr(bounds?.maxY, 0),
+    };
+  }
+  return {
+    minX: 0,
+    minY: 0,
+    maxX: fallbackSize.width,
+    maxY: fallbackSize.height,
+  };
+}
+
+function horizontalStackJoinedSkinMark({ role, footprints, mark, mode, axis, activeRay, memberCollision, skinPolicy, basis, profile }) {
+  const minX = Math.min(...footprints.map((box) => box.minX));
+  const minY = Math.min(...footprints.map((box) => box.minY));
+  const maxX = Math.max(...footprints.map((box) => box.maxX));
+  const maxY = Math.max(...footprints.map((box) => box.maxY));
+  const waistY = lerp(minY, maxY, 0.52);
+  return {
+    kind: 'polygon',
+    role: `${role}:joined-skin`,
+    points: [
+      [roundPoint(minX), roundPoint(waistY)],
+      [roundPoint(lerp(minX, maxX, 0.18)), roundPoint(minY)],
+      [roundPoint(lerp(minX, maxX, 0.82)), roundPoint(minY)],
+      [roundPoint(maxX), roundPoint(waistY)],
+      [roundPoint(lerp(minX, maxX, 0.82)), roundPoint(maxY)],
+      [roundPoint(lerp(minX, maxX, 0.18)), roundPoint(maxY)],
+    ],
+    fill: mark.joinedFill || mark.fill || '#8d7a5b',
+    stroke: mark.joinedStroke || mark.stroke || '#3f3326',
+    strokeWidth: finiteOr(mark.joinedStrokeWidth, finiteOr(mark.strokeWidth, 1)),
+    opacity: mark.joinedOpacity ?? 0.42,
+    z: finiteOr(mark.joinedZ, finiteOr(mark.z, 18) + 0.5),
+    constructionKind: 'horizontalStack',
+    constructionRole: role,
+    horizontalStackRole: role,
+    horizontalStackMode: mode,
+    horizontalStackAxis: axis,
+    horizontalStackActiveRay: activeRay,
+    horizontalStackMemberCollision: memberCollision,
+    horizontalStackSkinPolicy: skinPolicy,
+    horizontalStackJoinedSkin: true,
+    mandalaArrangementRole: role,
+    mandalaArrangementProfile: profile || 'horizontal-stack',
+    mandalaArrangementBasisKind: basis?.kind,
+    mandalaArrangementLocalSpace: basis?.localSpace,
+    mandalaArrangementBasis: basis ? {
+      kind: basis.kind,
+      localSpace: basis.localSpace,
+      origin: basis.origin,
+      xAxis: basis.xAxis.map(round),
+      supportAxis: basis.supportAxis.map(round),
+      depthAxis: basis.depthAxis?.map(round),
+      rays: basis.rays ? Object.fromEntries(Object.entries(basis.rays)
+        .filter(([, value]) => validPoint(value))
+        .map(([key, value]) => [key, value.map(round)])) : undefined,
+    } : undefined,
+    mandalaArrangementActiveRay: activeRay,
+    mandalaArrangementRayVector: mandalaArrangementRayVector(basis, activeRay).map(round),
+    skinMapJoin: true,
+    compoundSkin: true,
+    sourceShape: 'horizontal-stack-joined-skin',
+  };
+}
+
+function expandVisionPaneMark(mark, manifest = {}) {
+  const role = mark.role || 'vision-pane';
+  const nearLeft = validPoint(mark.nearEdge?.left || mark.nearLeft || mark.fromLeft);
+  const nearRight = validPoint(mark.nearEdge?.right || mark.nearRight || mark.fromRight);
+  if (!nearLeft || !nearRight) {
+    throw new Error(`visionPane '${role}' requires nearEdge.left and nearEdge.right points`);
+  }
+  const vanishingPoint = validPoint(mark.vanishingPoint) ||
+    validPoint(manifest?.scene?.perspective?.vanishingPoint) ||
+    validPoint(manifest?.polygonizer?.draftingTable?.vanishingPoint);
+  const hasFarBoundary = hasVisionPaneFarBoundary(mark);
+  if (!vanishingPoint && !hasFarBoundary) {
+    throw new Error(`visionPane '${role}' requires vanishingPoint, farEdge, or horizonBoundary`);
+  }
+
+  const farT = clamp(finiteOr(mark.farT, hasFarBoundary ? 1 : 0.94), 0.05, hasFarBoundary ? 1 : 0.995);
+  const features = mark.features && typeof mark.features === 'object' && !Array.isArray(mark.features) ? mark.features : {};
+  const z = finiteOr(mark.z, 4);
+  const boundary = resolveVisionPaneFarBoundary(mark, manifest, nearLeft, nearRight, vanishingPoint, farT);
+  const leftFar = boundary.left;
+  const rightFar = boundary.right;
+  const nearMid = midpoint(nearLeft, nearRight);
+  const farMid = midpoint(leftFar, rightFar);
+  const mode = mark.mode || 'road';
+  const profile = visionPaneModeProfile(mode);
+  const basePane = {
+      kind: 'polygon',
+      role,
+      points: [
+        roundPointTuple(nearLeft),
+        roundPointTuple(nearRight),
+        roundPointTuple(rightFar),
+        roundPointTuple(leftFar),
+      ],
+      fill: mark.fill || '#4c5151',
+      stroke: mark.stroke || '#232a2a',
+      strokeWidth: finiteOr(mark.strokeWidth, 1),
+      opacity: mark.opacity,
+      z,
+      constructionKind: 'visionPane',
+      constructionRole: role,
+      visionPaneMode: mode,
+      visionPaneVisualFamily: profile.visualFamily,
+      visionPaneProjectionMode: boundary.mode,
+      visionPaneVanishingPoint: vanishingPoint ? roundPointTuple(vanishingPoint) : undefined,
+      visionPaneFarEdge: { left: roundPointTuple(leftFar), right: roundPointTuple(rightFar) },
+      visionPaneFarT: round(farT),
+  };
+  const surfaceVisible = mark.surfaceVisible ?? mark.baseVisible ?? features.surfaceVisible ?? features.baseVisible ?? profile.surfaceVisible;
+  const out = surfaceVisible ? [basePane] : [];
+
+  if ((features.curbs ?? profile.curbs) === true) {
+    const curbStroke = features.curbStroke || mark.curbStroke || '#ded3bd';
+    out.push(
+      visionPaneLine({
+        role: `${role}:left-curb`,
+        from: nearLeft,
+        to: leftFar,
+        stroke: curbStroke,
+        strokeWidth: finiteOr(features.curbWidth, 3),
+        z: z + 0.1,
+        mark,
+        t: farT,
+      }),
+      visionPaneLine({
+        role: `${role}:right-curb`,
+        from: nearRight,
+        to: rightFar,
+        stroke: curbStroke,
+        strokeWidth: finiteOr(features.curbWidth, 3),
+        z: z + 0.11,
+        mark,
+        t: farT,
+      }),
+    );
+  }
+
+  if ((features.centerline ?? profile.centerline) === true) {
+    out.push(visionPaneLine({
+      role: `${role}:centerline`,
+      from: nearMid,
+      to: farMid,
+      stroke: features.centerlineStroke || mark.centerlineStroke || '#e9dec2',
+      strokeWidth: finiteOr(features.centerlineWidth, 2),
+      z: z + 0.12,
+      dash: features.centerlineDash || '14 14',
+      mark,
+      t: farT,
+    }));
+  }
+
+  const depthRows = Math.max(0, Math.min(24, Math.round(finiteOr(features.depthRows, finiteOr(mark.depthRows, 0)))));
+  for (let i = 1; i <= depthRows; i++) {
+    const t = (i / (depthRows + 1)) * farT;
+    out.push(visionPaneRow({
+      role: `${role}:depth-row-${i}`,
+      nearLeft,
+      nearRight,
+      farLeft: leftFar,
+      farRight: rightFar,
+      t,
+      interpolationT: boundary.mode === 'vanishing-point' ? t / farT : t,
+      stroke: features.depthRowStroke || mark.depthRowStroke || '#e8d49a',
+      strokeWidth: finiteOr(features.depthRowWidth, 1),
+      opacity: features.depthRowOpacity ?? 0.3,
+      z: z + 0.2 + i * 0.001,
+      dash: features.depthRowDash || '5 5',
+      mark,
+    }));
+  }
+
+  const crosswalk = features.crosswalk && typeof features.crosswalk === 'object' && !Array.isArray(features.crosswalk)
+    ? features.crosswalk
+    : features.crosswalk ? {} : null;
+  if (crosswalk && profile.crosswalks !== false) {
+    const rows = Math.max(1, Math.min(20, Math.round(finiteOr(crosswalk.rows, 5))));
+    const at = clamp(finiteOr(crosswalk.at, 0.28), 0.02, farT);
+    const span = Math.max(finiteOr(crosswalk.span, 0.16), 0.001);
+    const start = clamp(at - span / 2, 0.02, farT);
+    const end = clamp(at + span / 2, start, farT);
+    for (let i = 0; i < rows; i++) {
+      const t = rows === 1 ? (start + end) / 2 : lerp(start, end, i / (rows - 1));
+      out.push(visionPaneRow({
+        role: `${role}:crosswalk-${i + 1}`,
+        nearLeft,
+        nearRight,
+        farLeft: leftFar,
+        farRight: rightFar,
+        t,
+        interpolationT: boundary.mode === 'vanishing-point' ? t / farT : t,
+        stroke: crosswalk.stroke || '#f2efe3',
+        strokeWidth: finiteOr(crosswalk.strokeWidth, Math.max(2, 9 * (1 - t * 0.45))),
+        opacity: crosswalk.opacity ?? 0.9,
+        z: z + 0.35 + i * 0.001,
+        mark,
+        crosswalk: true,
+      }));
+    }
+  }
+
+  if (mark.debug) {
+    out.push({
+      kind: 'text',
+      role: `${role}:debug-label`,
+      x: nearMid[0],
+      y: nearMid[1] + 18,
+      value: mark.label || `${role} visionPane`,
+      size: 11,
+      color: mark.debugColor || '#e8d49a',
+      z: z + 0.5,
+      constructionKind: 'visionPane',
+      constructionRole: role,
+      visionPaneDebug: true,
+    });
+  }
+
+  return out;
+}
+
+function visionPaneModeProfile(mode) {
+  const normalized = String(mode || 'road').toLowerCase();
+  if (normalized.includes('road') || normalized.includes('street') || normalized.includes('lane') || normalized.includes('vehicle')) {
+    return { visualFamily: 'road-pane', surfaceVisible: true, curbs: true, centerline: false, crosswalks: true };
+  }
+  if (normalized.includes('terrain') || normalized.includes('landscape')) {
+    return { visualFamily: 'terrain-pane', surfaceVisible: false, curbs: false, centerline: false, crosswalks: false };
+  }
+  if (normalized.includes('hall') || normalized.includes('room') || normalized.includes('floor') || normalized.includes('plaza')) {
+    return { visualFamily: 'floor-pane', surfaceVisible: true, curbs: false, centerline: false, crosswalks: false };
+  }
+  return { visualFamily: 'generic-depth-pane', surfaceVisible: false, curbs: false, centerline: false, crosswalks: false };
+}
+
+function hasVisionPaneFarBoundary(mark) {
+  return Boolean(
+    validPoint(mark.farEdge?.left || mark.farLeft) &&
+      validPoint(mark.farEdge?.right || mark.farRight),
+  ) || Boolean(mark.horizonBoundary && typeof mark.horizonBoundary === 'object' && !Array.isArray(mark.horizonBoundary));
+}
+
+function resolveVisionPaneFarBoundary(mark, manifest, nearLeft, nearRight, vanishingPoint, farT) {
+  const explicitLeft = validPoint(mark.farEdge?.left || mark.farLeft);
+  const explicitRight = validPoint(mark.farEdge?.right || mark.farRight);
+  if (explicitLeft && explicitRight) {
+    return { mode: 'far-edge', left: explicitLeft, right: explicitRight };
+  }
+
+  const horizon = mark.horizonBoundary && typeof mark.horizonBoundary === 'object' && !Array.isArray(mark.horizonBoundary)
+    ? mark.horizonBoundary
+    : null;
+  if (horizon) {
+    const y = finiteOr(horizon.y, finiteOr(mark.horizonY, finiteOr(manifest?.scene?.perspective?.horizonY, vanishingPoint?.[1])));
+    if (Number.isFinite(y)) {
+      const centerX = finiteOr(horizon.centerX, finiteOr(vanishingPoint?.[0], midpoint(nearLeft, nearRight)[0]));
+      const nearWidth = Math.abs(nearRight[0] - nearLeft[0]);
+      const width = Math.max(finiteOr(horizon.width, nearWidth * 0.18), 1);
+      const leftX = finiteOr(horizon.leftX, centerX - width / 2);
+      const rightX = finiteOr(horizon.rightX, centerX + width / 2);
+      return {
+        mode: 'horizon-boundary',
+        left: [leftX, y],
+        right: [rightX, y],
+      };
+    }
+  }
+
+  return {
+    mode: 'vanishing-point',
+    left: visionPanePointAt(nearLeft, vanishingPoint, farT),
+    right: visionPanePointAt(nearRight, vanishingPoint, farT),
+  };
+}
+
+function visionPanePointAt(near, far, t) {
+  return lerpPoint(near, far, clamp(t, 0, 1));
+}
+
+function visionPaneRow({ role, nearLeft, nearRight, farLeft, farRight, t, interpolationT = t, stroke, strokeWidth, opacity, z, dash, mark, crosswalk = false }) {
+  return visionPaneLine({
+    role,
+    from: visionPanePointAt(nearLeft, farLeft, interpolationT),
+    to: visionPanePointAt(nearRight, farRight, interpolationT),
+    stroke,
+    strokeWidth,
+    opacity,
+    z,
+    dash,
+    mark,
+    t,
+    crosswalk,
+  });
+}
+
+function visionPaneLine({ role, from, to, stroke, strokeWidth, opacity, z, dash, mark, t, crosswalk = false }) {
+  const mode = mark.mode || 'road';
+  const profile = visionPaneModeProfile(mode);
+  return {
+    kind: 'line',
+    role,
+    x1: roundPoint(from[0]),
+    y1: roundPoint(from[1]),
+    x2: roundPoint(to[0]),
+    y2: roundPoint(to[1]),
+    stroke,
+    strokeWidth,
+    opacity,
+    z,
+    dash,
+    constructionKind: 'visionPane',
+    constructionRole: mark.role || 'vision-pane',
+    visionPaneMode: mode,
+    visionPaneVisualFamily: profile.visualFamily,
+    visionPaneT: round(t),
+    visionPaneFeature: crosswalk ? 'crosswalk' : role.split(':').pop(),
+  };
+}
+
+function expandSwirlFieldMark(mark, manifest = {}) {
+  const constructionKind = mark.kind === 'fluidField' ? 'fluidField' : 'swirlField';
+  const medium = mark.medium || mark.style || mark.fluid || (constructionKind === 'swirlField' ? 'smoke' : 'free-space-swirl');
+  const role = mark.role || `${medium}-field`;
+  const viewBox = mark.viewBox && typeof mark.viewBox === 'object'
+    ? mark.viewBox
+    : manifest.viewBox && typeof manifest.viewBox === 'object' ? manifest.viewBox : {};
+  const basis = mark.basis && typeof mark.basis === 'object' && !Array.isArray(mark.basis) ? mark.basis : {};
+  const population = mark.population && typeof mark.population === 'object' && !Array.isArray(mark.population)
+    ? mark.population
+    : {};
+  const glyph = mark.glyph && typeof mark.glyph === 'object' && !Array.isArray(mark.glyph) ? mark.glyph : {};
+  const count = Math.max(1, Math.min(160, Math.round(finiteOr(population.count ?? mark.count, 18))));
+  const seedText = String(population.seed || mark.seed || role);
+  const flow = normalize3(validVector3(basis.flow) || [0.18, -1, 0.32]);
+  const lift = normalize3(validVector3(basis.lift) || [0, 0, 1]);
+  const fallbackCross = normalize3([
+    flow[1] * lift[2] - flow[2] * lift[1],
+    flow[2] * lift[0] - flow[0] * lift[2],
+    flow[0] * lift[1] - flow[1] * lift[0],
+  ]);
+  const cross = normalize3(validVector3(basis.cross) || fallbackCross);
+  const origin = validVector3(basis.origin || mark.origin) || [0, 0, 0];
+  const fieldLength = finiteOr(basis.length ?? population.length ?? mark.length, 8);
+  const fieldSpread = finiteOr(basis.spread ?? population.spread ?? mark.spread, 2.6);
+  const liftAmount = finiteOr(basis.liftAmount ?? population.liftAmount ?? mark.liftAmount, 3.4);
+  const camera = {
+    screenOrigin: validPoint(basis.screenOrigin || mark.screenOrigin) || [
+      finiteOr(viewBox.width, 800) / 2,
+      finiteOr(viewBox.height, 520) * 0.72,
+    ],
+    east: validPoint(basis.east || mark.east) || [1, 0],
+    north: validPoint(basis.north || mark.north) || [0.5, -0.72],
+    zenith: validPoint(basis.zenith || mark.zenith) || [0, -1],
+    unitScale: finiteOr(basis.unitScale ?? mark.unitScale, 28),
+    depthScale: clamp(finiteOr(basis.depthScale ?? mark.depthScale, 0.9), 0.2, 1),
+  };
+  const perspectiveSizing = resolveFluidPerspectiveSizing(mark, basis, population);
+  const out = [];
+  const flameSources = isFireFluidGlyph(medium, glyph) ? normalizeFlameSources(mark, origin) : [];
+  const instances = flameSources.length
+    ? flameSources.flatMap((source, sourceIndex) => {
+      const lickCount = flameSourceLickCount(source, seedText, sourceIndex);
+      return Array.from({ length: lickCount }, (_, lickIndex) => ({
+        index: 0,
+        count: 0,
+        source,
+        sourceIndex,
+        lickIndex,
+        lickCount,
+      }));
+    }).map((instance, index, all) => ({ ...instance, index, count: all.length }))
+    : Array.from({ length: count }, (_, index) => ({ index, count, source: null, sourceIndex: null, lickIndex: null, lickCount: null }));
+  for (const instance of instances) {
+    const { index, source, sourceIndex, lickIndex, lickCount } = instance;
+    const t = instance.count === 1 ? 0.5 : index / (instance.count - 1);
+    const localSeed = hashString(source ? `${seedText}:source:${sourceIndex}:lick:${lickIndex}` : `${seedText}:${index}`);
+    const sourceSpread = finiteOr(source?.spread, fieldSpread);
+    const lateral = (seededUnit(localSeed, 1) - 0.5) * sourceSpread * (1 - t * 0.22);
+    const along = source
+      ? (seededUnit(localSeed, 2) - 0.5) * finiteOr(source.alongJitter, 0.22)
+      : (t - 0.08 + (seededUnit(localSeed, 2) - 0.5) * 0.16) * fieldLength;
+    const liftOffset = source
+      ? (seededUnit(localSeed, 3) - 0.5) * finiteOr(source.liftJitter, 0.18)
+      : (t * liftAmount) + (seededUnit(localSeed, 3) - 0.5) * liftAmount * 0.28;
+    const sourceOrigin = source?.origin || origin;
+    const sourceRadius = finiteOr(source?.radius, 0);
+    const opposedRadius = source?.radiusMode !== 'random' && sourceRadius > 0 && lickCount > 1;
+    const sourceAngle = opposedRadius
+      ? seededUnit(hashString(`${seedText}:source:${sourceIndex}:radius-phase`), 41) * Math.PI * 2 +
+        (lickIndex / lickCount) * Math.PI * 2 +
+        (seededUnit(localSeed, 41) - 0.5) * Math.PI * 0.28 * finiteOr(source?.radiusJitter, 0.16)
+      : seededUnit(localSeed, 41) * Math.PI * 2;
+    const sourceR = sourceRadius * (opposedRadius
+      ? lerp(0.72, 1, seededUnit(localSeed, 42))
+      : Math.sqrt(seededUnit(localSeed, 42)));
+    const sourceOffset = add3(scale3(cross, Math.cos(sourceAngle) * sourceR), scale3(flow, Math.sin(sourceAngle) * sourceR * 0.32));
+    const center = add3(sourceOrigin, add3(sourceOffset, add3(scale3(flow, along), add3(scale3(cross, lateral), scale3(lift, liftOffset)))));
+    const scaleRange = numericRange(population.scale || mark.scale, 0.55, 1.25);
+    const opacityRange = numericRange(population.opacity || mark.opacityRange, 0.14, 0.48);
+    const perspectiveScale = fluidPerspectiveScaleAt(camera, center, perspectiveSizing);
+    const baseScale = lerp(scaleRange[0], scaleRange[1], seededUnit(localSeed, 4));
+    const scaleT = baseScale * perspectiveScale;
+    const opacityDepth = lerp(1, perspectiveScale, perspectiveSizing.opacityCoupling);
+    const opacity = round(clamp(lerp(opacityRange[0], opacityRange[1], seededUnit(localSeed, 5)) * opacityDepth, 0.02, 1));
+    out.push(...swirlGlyphMarks({
+      mark,
+      role,
+      constructionKind,
+      medium,
+      index,
+      count,
+      seedText,
+      localSeed,
+      center,
+      flow,
+      cross,
+      lift,
+      camera,
+      scale: scaleT,
+      baseScale,
+      perspectiveScale,
+      opacity,
+      handedness: resolveSwirlHandedness(population.handedness || glyph.handedness || mark.handedness, index, localSeed),
+      glyph,
+      t,
+      flameSource: source,
+      flameSourceIndex: sourceIndex,
+      flameLickIndex: lickIndex,
+      flameLickCount: lickCount,
+    }));
+  }
+  return out;
+}
+
+function normalizeFlameSources(mark, fallbackOrigin) {
+  const raw = [
+    ...normalizeArray(mark.flameSources),
+    ...normalizeArray(mark.flameSource),
+    ...normalizeArray(mark.sources),
+  ];
+  return raw
+    .map((source, index) => normalizeFlameSource(source, index, fallbackOrigin))
+    .filter(Boolean);
+}
+
+function normalizeFlameSource(source, index, fallbackOrigin) {
+  if (!source) return null;
+  const raw = typeof source === 'string' ? { role: source } : source;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  return {
+    ...raw,
+    role: raw.role || raw.sourceRole || `flame-source-${index + 1}`,
+    origin: validVector3(raw.origin || raw.center || raw.point) || fallbackOrigin,
+    lickCount: raw.lickCount ?? raw.count ?? [2, 4],
+    spread: finiteOr(raw.spread, 0.42),
+    radius: Math.max(finiteOr(raw.radius ?? raw.sourceRadius ?? raw.r, 0), 0),
+    radiusMode: raw.radiusMode || raw.radialMode || raw.sourceRadiusMode || 'seeded-opposed',
+    radiusJitter: clamp(finiteOr(raw.radiusJitter ?? raw.radialJitter, 0.16), 0, 1),
+    coverageScale: Math.max(finiteOr(raw.coverageScale ?? raw.combustionCoverageScale, 2.15), 0),
+  };
+}
+
+function flameSourceLickCount(source, seedText, sourceIndex) {
+  const range = numericRange(source.lickCount, 2, 4);
+  const min = Math.max(1, Math.min(24, Math.round(Math.min(range[0], range[1]))));
+  const max = Math.max(min, Math.min(24, Math.round(Math.max(range[0], range[1]))));
+  if (min === max) return min;
+  return min + Math.floor(seededUnit(hashString(`${seedText}:flame-source:${sourceIndex}`), 1) * (max - min + 1));
+}
+
+function resolveFluidPerspectiveSizing(mark, basis = {}, population = {}) {
+  const raw = mark.perspectiveSizing || basis.perspectiveSizing || population.perspectiveSizing;
+  const config = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const enabled = raw === false || mark.perspectiveSizing === false || basis.perspectiveSizing === false
+    ? false
+    : config.enabled !== false;
+  return {
+    enabled,
+    mode: config.mode || 'camera-depth',
+    minScale: clamp(finiteOr(config.minScale, 0.42), 0.05, 2),
+    maxScale: clamp(finiteOr(config.maxScale, 1.08), 0.05, 3),
+    opacityCoupling: clamp(finiteOr(config.opacityCoupling, 0.45), 0, 1),
+  };
+}
+
+function fluidPerspectiveScaleAt(camera, center, perspectiveSizing) {
+  if (!perspectiveSizing?.enabled) return 1;
+  const scale = mandalaPerspectiveScale(camera, center);
+  return clamp(scale, perspectiveSizing.minScale, perspectiveSizing.maxScale);
+}
+
+function isRBrush2DInkMode(mark, matter, envelope, phase) {
+  const mode = matter.mode || mark.mode;
+  const profile = envelope.profile || matter.profile || mark.profile;
+  return mode === '2d' ||
+    phase === 'ink' ||
+    phase === 'ink-pen' ||
+    profile === 'ink-pen' ||
+    profile === 'lateral-stroke' ||
+    profile === 'brush-pen' ||
+    profile === 'dry-brush' ||
+    profile === 'marker' ||
+    profile === 'calligraphy';
+}
+
+function expandRBrush2DInkMark(mark, matter = {}, envelope = {}, manifest = {}) {
+  const role = mark.role || 'rbrush-ink-stroke';
+  const viewBox = manifest.viewBox && typeof manifest.viewBox === 'object' ? manifest.viewBox : {};
+  const seedText = String(mark.seed || matter.seed || role);
+  const seed = hashString(`${seedText}:rbrush:ink-2d`);
+  const points = rBrush2DStrokePoints(mark, matter, viewBox);
+  if (points.length < 2) return [];
+  const print = mark.print && typeof mark.print === 'object' && !Array.isArray(mark.print)
+    ? mark.print
+    : matter.print && typeof matter.print === 'object' && !Array.isArray(matter.print) ? matter.print : {};
+  const profile = envelope.profile || matter.profile || mark.profile || 'ink-pen';
+  const profileConfig = rBrush2DProfileConfig(profile);
+  const width = Math.max(finiteOr(envelope.width ?? matter.width ?? mark.width ?? mark.strokeWidth, profileConfig.width), 0.4);
+  const samples = Math.max(6, Math.min(96, Math.round(finiteOr(envelope.points, profileConfig.points))));
+  const noise = clamp(finiteOr(envelope.noise ?? matter.noise ?? mark.noise, profileConfig.noise), 0, 1.5);
+  const taper = clamp(finiteOr(envelope.taper ?? matter.taper ?? mark.taper, profileConfig.taper), 0, 1);
+  const pressure = normalizeRange(envelope.pressure ?? matter.pressure ?? mark.pressure, profileConfig.pressure[0], profileConfig.pressure[1]);
+  const color = mark.color && typeof mark.color === 'object' && !Array.isArray(mark.color) ? mark.color : {};
+  const ink = color.ink || color.body || mark.fill || mark.stroke || profileConfig.ink;
+  const common = {
+    constructionKind: 'rBrush',
+    constructionRole: role,
+    sourceShape: 'rBrush',
+    rBrushMatter: true,
+    rBrushRole: role,
+    rBrushPhase: 'ink',
+    rBrushMode: '2d',
+    rBrushSeed: seedText,
+    rBrushEnvelopeProfile: profile,
+    rBrushStrokeWidth: round(width),
+    rBrushBrushProfile: profile,
+    vectorMatter: true,
+  };
+  if (print.mode === 'stamp' || print.mergeMode === 'stamp' || print.stamp === true) {
+    return rBrush2DStampMarks({ mark, matter, print, common, points, ink, width, seed, z: finiteOr(mark.z, 12) });
+  }
+  const outline = rBrush2DStrokeEnvelope({
+    points,
+    width,
+    samples,
+    noise,
+    taper,
+    pressure,
+    seed,
+    chiselAngle: finiteOr(envelope.chiselAngle ?? matter.chiselAngle, profileConfig.chiselAngle),
+    chiselStrength: finiteOr(envelope.chiselStrength ?? matter.chiselStrength, profileConfig.chiselStrength),
+  });
+  const mergedTrace = rBrush2DPrintTrace({ print, outline, points, width, seed });
+  const z = finiteOr(mark.z, 12);
+  return [
+    {
+      ...common,
+      kind: 'polygon',
+      role: `${role}:${mergedTrace ? 'merged-trace' : 'ink-body'}`,
+      points: mergedTrace?.points || outline.points,
+      fill: ink,
+      stroke: 'none',
+      opacity: round(clamp(finiteOr(mark.opacity ?? matter.opacity, profileConfig.opacity), 0.02, 1)),
+      blur: finiteOr(envelope.blur, profileConfig.blur),
+      z,
+      rBrushInkBody: true,
+      rBrushPrintTrace: Boolean(mergedTrace),
+      rBrushMergeMode: mergedTrace?.mergeMode,
+      rBrushTemporaryDabCount: mergedTrace?.temporaryDabCount,
+      rBrushTracePolicy: mergedTrace?.tracePolicy,
+    },
+    ...rBrush2DInkLoadMarks({ mark, matter, common, points, ink, width, z, seed, profileConfig }),
+  ];
+}
+
+function rBrush2DStrokePoints(mark, matter = {}, viewBox = {}) {
+  const raw = mark.points || matter.points || mark.path || matter.path;
+  const points = Array.isArray(raw) ? raw.filter(validPoint) : [];
+  if (points.length >= 2) return points.map((point) => point.map(Number));
+  const from = validPoint(mark.from || matter.from) || [
+    finiteOr(viewBox.width, 520) * 0.22,
+    finiteOr(viewBox.height, 320) * 0.58,
+  ];
+  const to = validPoint(mark.to || matter.to) || [
+    finiteOr(viewBox.width, 520) * 0.78,
+    finiteOr(viewBox.height, 320) * 0.42,
+  ];
+  return [from, to];
+}
+
+function rBrush2DProfileConfig(profile) {
+  const configs = {
+    'ink-pen': {
+      width: 9,
+      points: 28,
+      noise: 0.16,
+      taper: 0.35,
+      pressure: [0.86, 1.08],
+      opacity: 0.92,
+      blur: 0.18,
+      ink: '#19140f',
+      loadCount: 5,
+      loadJitter: 0.18,
+      loadAlignment: 0.9,
+      loadOpacity: 0.22,
+      loadStrokeScale: 0.11,
+      chiselAngle: 0,
+      chiselStrength: 0,
+    },
+    'brush-pen': {
+      width: 16,
+      points: 38,
+      noise: 0.28,
+      taper: 0.55,
+      pressure: [0.72, 1.28],
+      opacity: 0.88,
+      blur: 0.28,
+      ink: '#1c130f',
+      loadCount: 10,
+      loadJitter: 0.28,
+      loadAlignment: 0.84,
+      loadOpacity: 0.26,
+      loadStrokeScale: 0.09,
+      chiselAngle: 0,
+      chiselStrength: 0,
+    },
+    'dry-brush': {
+      width: 18,
+      points: 44,
+      noise: 0.72,
+      taper: 0.48,
+      pressure: [0.46, 1.18],
+      opacity: 0.62,
+      blur: 0.08,
+      ink: '#2a1d15',
+      loadCount: 18,
+      loadJitter: 0.42,
+      loadAlignment: 0.76,
+      loadOpacity: 0.36,
+      loadStrokeScale: 0.08,
+      chiselAngle: 0,
+      chiselStrength: 0,
+    },
+    marker: {
+      width: 20,
+      points: 30,
+      noise: 0.06,
+      taper: 0.12,
+      pressure: [0.94, 1.04],
+      opacity: 0.52,
+      blur: 0.22,
+      ink: '#314f7a',
+      loadCount: 3,
+      loadJitter: 0.1,
+      loadAlignment: 0.96,
+      loadOpacity: 0.12,
+      loadStrokeScale: 0.08,
+      chiselAngle: 0,
+      chiselStrength: 0,
+    },
+    calligraphy: {
+      width: 18,
+      points: 36,
+      noise: 0.1,
+      taper: 0.32,
+      pressure: [0.78, 1.12],
+      opacity: 0.9,
+      blur: 0.1,
+      ink: '#211711',
+      loadCount: 4,
+      loadJitter: 0.12,
+      loadAlignment: 0.95,
+      loadOpacity: 0.16,
+      loadStrokeScale: 0.08,
+      chiselAngle: -0.72,
+      chiselStrength: 0.55,
+    },
+  };
+  return configs[profile] || configs['ink-pen'];
+}
+
+function rBrush2DStrokeEnvelope({ points, width, samples, noise, taper, pressure, seed, chiselAngle = 0, chiselStrength = 0 }) {
+  const left = [];
+  const right = [];
+  const nib = [Math.cos(chiselAngle), Math.sin(chiselAngle)];
+  for (let i = 0; i < samples; i++) {
+    const u = samples === 1 ? 0.5 : i / (samples - 1);
+    const sample = sampleGesture(points, u);
+    if (!sample) continue;
+    const normal = normalize([-sample.tangent[1], sample.tangent[0]]);
+    const endTaper = lerp(1 - taper, 1, Math.sin(u * Math.PI));
+    const pressureT = lerp(pressure[0], pressure[1], 0.5 + 0.5 * deterministicWave(seed, 15, u * Math.PI * 2));
+    const chiselT = chiselStrength
+      ? lerp(1 - chiselStrength * 0.45, 1 + chiselStrength * 0.5, Math.abs(dot(sample.tangent, nib)))
+      : 1;
+    const edgeNoise = deterministicWave(seed, i + 31, u * Math.PI * 4) * width * noise * 0.18;
+    const half = Math.max((width * 0.5 * endTaper * pressureT * chiselT) + edgeNoise, 0.2);
+    left.push([roundPoint(sample.point[0] + normal[0] * half), roundPoint(sample.point[1] + normal[1] * half)]);
+    right.push([roundPoint(sample.point[0] - normal[0] * half), roundPoint(sample.point[1] - normal[1] * half)]);
+  }
+  return { points: [...left, ...right.reverse()], left, right };
+}
+
+function rBrush2DPrintTrace({ print = {}, outline, points, width, seed }) {
+  if (print.mergeMode !== 'trace' && print.mode !== 'trace' && print.trace !== true) return null;
+  const budget = print.renderBudget && typeof print.renderBudget === 'object' && !Array.isArray(print.renderBudget)
+    ? print.renderBudget
+    : {};
+  const maxDabs = Math.max(3, Math.min(240, Math.round(finiteOr(print.maxDabs ?? budget.maxDabs, 80))));
+  const spacing = Math.max(finiteOr(print.spacing, 0.42), 0.05);
+  const dabCount = Math.max(3, Math.min(maxDabs, Math.round(maxDabs * clamp(1 / (spacing * 3), 0.18, 1))));
+  const scatter = Math.max(finiteOr(print.scatter, width * 0.18), 0);
+  const scaleRange = normalizeRange(print.scale, 0.75, 1.25);
+  const coverage = [...(outline?.points || [])];
+  for (let i = 0; i < dabCount; i++) {
+    const t = dabCount === 1 ? 0.5 : i / (dabCount - 1);
+    const sample = sampleGesture(points, t);
+    if (!sample) continue;
+    const dabSeed = hashString(`${seed}:print-dab:${i}`);
+    const normal = normalize([-sample.tangent[1], sample.tangent[0]]);
+    const tangent = sample.tangent;
+    const lateral = (seededUnit(dabSeed, 1) - 0.5) * scatter * 2;
+    const along = (seededUnit(dabSeed, 2) - 0.5) * scatter * 0.65;
+    const center = [
+      sample.point[0] + normal[0] * lateral + tangent[0] * along,
+      sample.point[1] + normal[1] * lateral + tangent[1] * along,
+    ];
+    const scale = lerp(scaleRange[0], scaleRange[1], seededUnit(dabSeed, 3));
+    const radius = Math.max(width * 0.42 * scale, 0.8);
+    coverage.push(
+      [roundPoint(center[0] + normal[0] * radius), roundPoint(center[1] + normal[1] * radius)],
+      [roundPoint(center[0] - normal[0] * radius), roundPoint(center[1] - normal[1] * radius)],
+      [roundPoint(center[0] + tangent[0] * radius * 0.72), roundPoint(center[1] + tangent[1] * radius * 0.72)],
+      [roundPoint(center[0] - tangent[0] * radius * 0.72), roundPoint(center[1] - tangent[1] * radius * 0.72)],
+    );
+  }
+  const maxTracePoints = Math.max(8, Math.min(240, Math.round(finiteOr(print.maxTracePoints ?? budget.maxTracePoints, 96))));
+  const trace = stringClusterEnvelope(coverage, {
+    envelope: print.tracePolicy || print.envelope || 'stripHull',
+    padding: finiteOr(print.padding, width * 0.35),
+    smoothing: finiteOr(print.smoothing, 0.38),
+    maxPoints: maxTracePoints,
+    bins: finiteOr(print.bins, 18),
+  });
+  if (trace.length < 3) return null;
+  return {
+    points: trace,
+    mergeMode: 'trace',
+    tracePolicy: print.tracePolicy || print.envelope || 'stripHull',
+    temporaryDabCount: dabCount,
+  };
+}
+
+function rBrush2DStampMarks({ mark, matter, print = {}, common, points, ink, width, seed, z }) {
+  const die = print.die && typeof print.die === 'object' && !Array.isArray(print.die) ? print.die : {};
+  const family = die.family || die.kind || 'doubleDot';
+  if (family !== 'doubleDot' && family !== 'double-dot') return [];
+  const budget = print.renderBudget && typeof print.renderBudget === 'object' && !Array.isArray(print.renderBudget)
+    ? print.renderBudget
+    : {};
+  const radius = Math.max(finiteOr(die.radius ?? print.radius, Math.max(width * 0.42, 3)), 0.4);
+  const gap = Math.max(finiteOr(die.gap ?? print.gap ?? print.gapPx, 2), 0);
+  const spacingPx = Math.max(
+    finiteOr(print.spacingPx ?? print.spacing, radius * finiteOr(print.frequencyFactor, 0.72)),
+    0.75,
+  );
+  const pathLength = rBrushPathLength(points);
+  const maxStamps = Math.max(2, Math.min(640, Math.round(finiteOr(print.maxStamps ?? budget.maxStamps, 180))));
+  const stampCount = Math.max(2, Math.min(maxStamps, Math.ceil(pathLength / spacingPx) + 1));
+  const strokeId = String(print.strokeId || print.linkId || common.rBrushRole);
+  const opacityRange = normalizeRange(print.opacity ?? die.opacity ?? mark.opacity ?? matter.opacity, 0.78, 0.9);
+  const jitter = Math.max(finiteOr(print.jitter, 0.24), 0);
+  const separation = radius * 2 + gap;
+  const laneCoverage = { a: [], b: [] };
+  const stampRecords = [];
+  for (let i = 0; i < stampCount; i++) {
+    const t = stampCount === 1 ? 0.5 : i / (stampCount - 1);
+    const sample = sampleGesture(points, t);
+    if (!sample) continue;
+    const stampSeed = hashString(`${seed}:stamp:${i}`);
+    const normal = normalize([-sample.tangent[1], sample.tangent[0]]);
+    const alongJitter = (seededUnit(stampSeed, 1) - 0.5) * jitter * radius;
+    const normalJitter = (seededUnit(stampSeed, 2) - 0.5) * jitter * radius * 0.42;
+    const scale = lerpRange(print.scale ?? die.scale, 0.96, 1.04, seededUnit(stampSeed, 3));
+    const r = Math.max(radius * scale, 0.3);
+    const opacity = round(clamp(lerp(opacityRange[0], opacityRange[1], seededUnit(stampSeed, 4)), 0.02, 1));
+    for (const lane of [-1, 1]) {
+      const cx = sample.point[0] +
+        normal[0] * lane * separation * 0.5 +
+        sample.tangent[0] * alongJitter +
+        normal[0] * normalJitter;
+      const cy = sample.point[1] +
+        normal[1] * lane * separation * 0.5 +
+        sample.tangent[1] * alongJitter +
+        normal[1] * normalJitter;
+      const stamp = {
+        ...common,
+        kind: 'circle',
+        role: `${common.rBrushRole}:stamp-${String(i + 1).padStart(3, '0')}:${lane < 0 ? 'lane-a' : 'lane-b'}`,
+        cx: roundPoint(cx),
+        cy: roundPoint(cy),
+        r: roundPoint(r),
+        fill: ink,
+        stroke: 'none',
+        opacity,
+        blur: finiteOr(print.blur ?? die.blur, 0.06),
+        z: z + i * 0.0001 + (lane > 0 ? 0.00001 : 0),
+        rBrushStampBrush: true,
+        rBrushStampDie: 'doubleDot',
+        rBrushStampIndex: i,
+        rBrushStampCount: stampCount,
+        rBrushStampLane: lane < 0 ? 'a' : 'b',
+        rBrushStampDotRadius: round(radius),
+        rBrushStampGapPx: round(gap),
+        rBrushStampSpacingPx: round(spacingPx),
+        rBrushStrokeId: strokeId,
+        rBrushLinkedStroke: true,
+        rBrushLinkage: print.linkage || 'stroke-object',
+      };
+      stampRecords.push(stamp);
+      const coverage = lane < 0 ? laneCoverage.a : laneCoverage.b;
+      coverage.push(
+        [roundPoint(cx + normal[0] * r), roundPoint(cy + normal[1] * r)],
+        [roundPoint(cx - normal[0] * r), roundPoint(cy - normal[1] * r)],
+        [roundPoint(cx + sample.tangent[0] * r), roundPoint(cy + sample.tangent[1] * r)],
+        [roundPoint(cx - sample.tangent[0] * r), roundPoint(cy - sample.tangent[1] * r)],
+      );
+    }
+  }
+  if (
+    print.mergeMode === 'component-trace' ||
+    print.mergeMode === 'lane-trace' ||
+    print.componentTrace === true ||
+    print.laneTrace === true
+  ) {
+    return rBrush2DStampComponentTraceMarks({
+      common,
+      print,
+      laneCoverage,
+      ink,
+      z,
+      stampCount,
+      radius,
+      gap,
+      spacingPx,
+      strokeId,
+    });
+  }
+  return stampRecords;
+}
+
+function rBrush2DStampComponentTraceMarks({ common, print, laneCoverage, ink, z, stampCount, radius, gap, spacingPx, strokeId }) {
+  const budget = print.renderBudget && typeof print.renderBudget === 'object' && !Array.isArray(print.renderBudget)
+    ? print.renderBudget
+    : {};
+  const maxTracePoints = Math.max(8, Math.min(240, Math.round(finiteOr(print.maxTracePoints ?? budget.maxTracePoints, 96))));
+  return [
+    ['a', laneCoverage.a],
+    ['b', laneCoverage.b],
+  ].map(([lane, coverage], index) => {
+    const trace = stringClusterEnvelope(coverage, {
+      envelope: print.tracePolicy || print.envelope || 'stripHull',
+      padding: finiteOr(print.padding, radius * 0.28),
+      smoothing: finiteOr(print.smoothing, 0.36),
+      maxPoints: maxTracePoints,
+      bins: finiteOr(print.bins, 24),
+    });
+    if (trace.length < 3) return null;
+    return {
+      ...common,
+      kind: 'polygon',
+      role: `${common.rBrushRole}:component-trace:${lane === 'a' ? 'lane-a' : 'lane-b'}`,
+      points: trace,
+      fill: ink,
+      stroke: 'none',
+      opacity: round(clamp(finiteOr(print.opacity, 0.86), 0.02, 1)),
+      blur: finiteOr(print.blur, 0.05),
+      z: z + index * 0.0001,
+      rBrushStampBrush: true,
+      rBrushStampDie: 'doubleDot',
+      rBrushStampLane: lane,
+      rBrushStampCount: stampCount,
+      rBrushStampDotRadius: round(radius),
+      rBrushStampGapPx: round(gap),
+      rBrushStampSpacingPx: round(spacingPx),
+      rBrushStrokeId: strokeId,
+      rBrushLinkedStroke: true,
+      rBrushLinkage: print.linkage || 'stroke-object',
+      rBrushComponentTrace: true,
+      rBrushMergeMode: 'component-trace',
+      rBrushTemporaryStampCount: stampCount,
+      rBrushTracePolicy: print.tracePolicy || print.envelope || 'stripHull',
+    };
+  }).filter(Boolean);
+}
+
+function rBrushPathLength(points) {
+  let length = 0;
+  const clean = Array.isArray(points) ? points.filter(validPoint) : [];
+  for (let i = 1; i < clean.length; i++) {
+    length += Math.hypot(clean[i][0] - clean[i - 1][0], clean[i][1] - clean[i - 1][1]);
+  }
+  return length;
+}
+
+function rBrush2DInkLoadMarks({ mark, matter, common, points, ink, width, z, seed, profileConfig }) {
+  const loads = normalizeArray(mark.load || matter.load).filter((load) => load && typeof load === 'object');
+  const sourceLoads = loads.length ? loads : [
+    {
+      role: 'ink-fiber-lines',
+      die: { family: 'noisySpaghetti', stroke: ink, strokeWidth: Math.max(width * profileConfig.loadStrokeScale, 0.45) },
+      field: {
+        kind: 'insideStroke',
+        count: profileConfig.loadCount,
+        length: 0.96,
+        lateralJitter: width * profileConfig.loadJitter,
+        alignment: profileConfig.loadAlignment,
+        samples: 18,
+        fractalOctaves: 1,
+        fractalSplit: 0,
+      },
+      valueBudget: { targetOpacity: profileConfig.loadOpacity, expectedOverlapCount: Math.max(3, profileConfig.loadCount), mode: 'inverse-count' },
+    },
+  ];
+  const out = [];
+  sourceLoads.forEach((load, loadIndex) => {
+    const die = load.die && typeof load.die === 'object' && !Array.isArray(load.die) ? load.die : {};
+    if ((die.family || load.family || load.kind) !== 'noisySpaghetti') return;
+    const field = load.field && typeof load.field === 'object' && !Array.isArray(load.field) ? load.field : {};
+    const jitter = Math.min(Math.abs(finiteOr(field.lateralJitter, width * 0.18)), width * 0.45);
+    const density = Math.max(1, Math.min(36, Math.round(finiteOr(field.count ?? field.density ?? load.count, 5))));
+    const effect = {
+      ...load,
+      role: load.role || `ink-load-${loadIndex + 1}`,
+      die: { ...die, stroke: die.stroke || load.stroke || ink, strokeWidth: die.strokeWidth || load.strokeWidth || Math.max(width * 0.1, 0.5) },
+      field: {
+        ...field,
+        count: density,
+        density,
+        lateralJitter: [-jitter, jitter],
+        alignment: clamp(finiteOr(field.alignment, 0.9), 0.72, 1),
+        samples: Math.max(4, Math.min(64, Math.round(finiteOr(field.samples, 18)))),
+        fractalSplit: Math.max(0, Math.min(3, Math.round(finiteOr(field.fractalSplit, 0)))),
+      },
+      valueBudget: load.valueBudget || { targetOpacity: 0.22, expectedOverlapCount: Math.max(2, density), mode: 'inverse-count' },
+    };
+    const loadCommon = {
+      ...common,
+      fluidGlyphRole: `${common.rBrushRole}:load-${loadIndex + 1}`,
+      swirlGlyphSeed: `${common.rBrushSeed}:rbrush-ink-load:${loadIndex}:${seed}`,
+      swirlGlyphScale: 1,
+      swirlGlyphOpacity: 1,
+    };
+    fluidPastamakerNoisySpaghettiMarks({
+      effect,
+      effectIndex: loadIndex,
+      common: loadCommon,
+      linePoints: points,
+      zBase: z,
+      t: 0,
+      index: loadIndex,
+      vectorFlag: { vectorMatter: true },
+      constructionKind: 'rBrush',
+    }).forEach((item) => {
+      out.push({
+        ...item,
+        ...common,
+        role: `${common.rBrushRole}:${effect.role}:${item.stickerFieldIndex + 1}`,
+        rBrushLoadRole: effect.role,
+        rBrushLoadIndex: loadIndex,
+        rBrushInkString: true,
+        vectorMatter: true,
+        pastamaker: item.pastamaker,
+      });
+    });
+  });
+  return out;
+}
+
+function expandRBrushMark(mark, manifest = {}) {
+  const role = mark.role || 'rbrush-matter';
+  const matter = mark.matter && typeof mark.matter === 'object' && !Array.isArray(mark.matter) ? mark.matter : {};
+  const phase = matter.phase || mark.phase || 'fire';
+  const envelope = matter.envelope && typeof matter.envelope === 'object' && !Array.isArray(matter.envelope) ? matter.envelope : {};
+  if (isRBrush2DInkMode(mark, matter, envelope, phase)) return expandRBrush2DInkMark(mark, matter, envelope, manifest);
+  if (phase !== 'fire') return [];
+  const basis = matter.basis && typeof matter.basis === 'object' && !Array.isArray(matter.basis) ? matter.basis : {};
+  const viewBox = manifest.viewBox && typeof manifest.viewBox === 'object' ? manifest.viewBox : {};
+  const seedText = String(mark.seed || matter.seed || role);
+  const seed = hashString(`${seedText}:rbrush:${phase}`);
+  const origin = validVector3(basis.origin || mark.origin) || [0, 0, 0];
+  const flow = normalize3(validVector3(basis.flow) || [0.05, -0.18, 0.04]);
+  const lift = normalize3(validVector3(basis.lift) || [0, 0, 1]);
+  const fallbackCross = normalize3([
+    flow[1] * lift[2] - flow[2] * lift[1],
+    flow[2] * lift[0] - flow[0] * lift[2],
+    flow[0] * lift[1] - flow[1] * lift[0],
+  ]);
+  const cross = normalize3(validVector3(basis.cross) || fallbackCross);
+  const camera = {
+    screenOrigin: validPoint(basis.screenOrigin || mark.screenOrigin) || [
+      finiteOr(viewBox.width, 800) / 2,
+      finiteOr(viewBox.height, 520) * 0.68,
+    ],
+    east: validPoint(basis.east || mark.east) || [1, 0],
+    north: validPoint(basis.north || mark.north) || [0.42, -0.62],
+    zenith: validPoint(basis.zenith || mark.zenith) || [0, -1],
+    unitScale: finiteOr(basis.unitScale ?? mark.unitScale, 43),
+    depthScale: clamp(finiteOr(basis.depthScale ?? mark.depthScale, 0.82), 0.2, 1),
+  };
+  const sourceRadius = Math.max(finiteOr(envelope.sourceRadius ?? matter.sourceRadius ?? mark.sourceRadius, 0), 0);
+  let height = Math.max(lerpRange(envelope.height, 1.85, 2.15, seededUnit(seed, 1)), 0.1);
+  let width = Math.max(lerpRange(envelope.width ?? envelope.radius, 0.55, 0.72, seededUnit(seed, 2)), 0.05);
+  const coverageWidth = sourceRadius * finiteOr(envelope.coverageScale ?? matter.coverageScale, 2.15);
+  if (coverageWidth > width) {
+    const boost = coverageWidth / width;
+    width = coverageWidth;
+    height *= boost;
+  }
+  const pointiness = clamp(finiteOr(envelope.pointiness, 0.82), 0, 1.8);
+  const wobble = clamp(finiteOr(envelope.wobble, 0.12), 0, 1);
+  const points = Math.max(10, Math.min(96, Math.round(finiteOr(envelope.points, 28))));
+  const curve = finiteOr(envelope.curve, 0.12) * (seededUnit(seed, 3) > 0.5 ? 1 : -1);
+  const swirlAmount = finiteOr(envelope.swirlAmount ?? matter.swirlAmount, 0.28);
+  const swirlTurns = finiteOr(envelope.swirlTurns ?? matter.swirlTurns, 1.42);
+  const spineWorld = [];
+  const linePoints = [];
+  for (let i = 0; i < points; i++) {
+    const u = points === 1 ? 0.5 : i / (points - 1);
+    const taperedU = Math.pow(u, lerp(1, 0.82, pointiness));
+    const world = flameGlyphWorldPoint({
+      center: origin,
+      flow,
+      cross,
+      lift,
+      u: taperedU,
+      height,
+      curve,
+      wobble,
+      swirlAmount,
+      swirlTurns,
+      seed,
+    });
+    spineWorld.push(world);
+    linePoints.push(projectMandalaScreen(camera, [world[0], world[1]], world[2]));
+  }
+  const widthPx = width * camera.unitScale;
+  const outerEnvelope = flameEnvelopeParts(linePoints, widthPx, seed, false);
+  const innerEnvelope = flameEnvelopeParts(linePoints, widthPx * 0.58, seed, true);
+  const sourcePoint = linePoints[0];
+  const head = linePoints[linePoints.length - 1];
+  const coreCenter = linePoints[Math.max(0, Math.min(linePoints.length - 1, Math.round((linePoints.length - 1) * 0.28)))];
+  const z = finiteOr(mark.z, 12);
+  const color = mark.color && typeof mark.color === 'object' && !Array.isArray(mark.color) ? mark.color : {};
+  const edge = mark.edge && typeof mark.edge === 'object' && !Array.isArray(mark.edge) ? mark.edge : {};
+  const palette = rBrushFirePalette(color);
+  const common = {
+    constructionKind: 'rBrush',
+    constructionRole: role,
+    sourceShape: 'rBrush',
+    rBrushMatter: true,
+    rBrushRole: role,
+    rBrushPhase: phase,
+    rBrushSeed: seedText,
+    rBrushEnvelopeProfile: envelope.profile || 'fat-lick',
+    rBrushSourceRadius: round(sourceRadius),
+    rBrushEnvelopeWidth: round(width),
+    rBrushEnvelopeHeight: round(height),
+    rBrushBasisOrigin: origin.map(round),
+    vectorMatter: true,
+  };
+  const marks = [];
+  if (edge.atmosphere !== false && edge.atmosphere !== 'none') {
+    const glowRadius = Math.max(widthPx * 2.2, 36);
+    marks.push({
+      ...common,
+      kind: 'circle',
+      role: `${role}:same-color-outer-glow`,
+      cx: roundPoint(coreCenter[0]),
+      cy: roundPoint(coreCenter[1]),
+      r: roundPoint(glowRadius),
+      fill: palette.body,
+      stroke: 'none',
+      opacity: round(clamp(finiteOr(edge.opacity, 0.12), 0, 0.6)),
+      blur: finiteOr(edge.blur, 22),
+      z: z - 1,
+      fillGradient: rBrushGradient({
+        role: 'same-color-outer-glow',
+        center: coreCenter,
+        from: sourcePoint,
+        to: head,
+        stops: [
+          { offset: 0, color: palette.body, opacity: 0.22 },
+          { offset: 0.62, color: palette.body, opacity: 0.08 },
+          { offset: 1, color: palette.dark, opacity: 0 },
+        ],
+        independentLighting: color.independentLighting !== false,
+      }),
+    });
+  }
+  marks.push({
+    ...common,
+    kind: 'polygon',
+    role: `${role}:soft-fat-lick-body`,
+    points: outerEnvelope.points,
+    fill: palette.body,
+    stroke: edge.outline === true ? palette.edge : 'none',
+    strokeWidth: edge.outline === true ? finiteOr(edge.strokeWidth, 0.8) : 0,
+    opacity: round(clamp(finiteOr(mark.opacity ?? matter.opacity, 0.46), 0.02, 1)),
+    blur: finiteOr(envelope.blur, 2.4),
+    z,
+    fillGradient: rBrushGradient({
+      role: 'fire-body-gradient',
+      center: coreCenter,
+      from: sourcePoint,
+      to: head,
+      stops: [
+        { offset: 0, color: palette.white, opacity: 0.72 },
+        { offset: 0.32, color: palette.yellow, opacity: 0.52 },
+        { offset: 0.68, color: palette.body, opacity: 0.34 },
+        { offset: 1, color: palette.red, opacity: 0.1 },
+      ],
+      independentLighting: color.independentLighting !== false,
+    }),
+  });
+  marks.push({
+    ...common,
+    kind: 'polygon',
+    role: `${role}:yellow-inner-breath`,
+    points: innerEnvelope.points,
+    fill: palette.yellow,
+    stroke: 'none',
+    opacity: round(clamp(finiteOr(color.innerOpacity, 0.48), 0.02, 1)),
+    blur: finiteOr(color.innerBlur, 2.6),
+    z: z + 0.1,
+    fillGradient: rBrushGradient({
+      role: 'fire-inner-gradient',
+      center: coreCenter,
+      from: sourcePoint,
+      to: head,
+      stops: [
+        { offset: 0, color: palette.white, opacity: 0.84 },
+        { offset: 0.52, color: palette.yellow, opacity: 0.48 },
+        { offset: 1, color: palette.body, opacity: 0.08 },
+      ],
+      independentLighting: color.independentLighting !== false,
+    }),
+  });
+  marks.push(...rBrushHeatRisenMarks({ common, linePoints, widthPx, palette, seed, z }));
+  marks.push(...rBrushLoadMarks({ mark, matter, common, linePoints, palette, z, seed }));
+  return marks;
+}
+
+function rBrushFirePalette(color = {}) {
+  const stops = Array.isArray(color.stops) ? color.stops : [];
+  const byRole = new Map(stops.map((stop) => [stop?.role, stop?.color]).filter((item) => item[0] && item[1]));
+  return {
+    white: color.white || byRole.get('source-white') || '#fff8cc',
+    yellow: color.yellow || byRole.get('hot-yellow') || '#ffd36a',
+    body: color.body || color.orange || byRole.get('body-orange') || '#ff8a1f',
+    red: color.red || byRole.get('cool-red') || '#d71920',
+    edge: color.edge || '#ff9a24',
+    dark: color.dark || '#050508',
+  };
+}
+
+function rBrushGradient({ role, center, from, to, stops, independentLighting = true }) {
+  return {
+    kind: 'radial',
+    role,
+    center,
+    from,
+    to,
+    independentLighting,
+    stops: stops.map((stop) => ({
+      offset: round(clamp(finiteOr(stop.offset, 0), 0, 1)),
+      color: stop.color,
+      opacity: round(clamp(finiteOr(stop.opacity, 1), 0, 1)),
+    })),
+  };
+}
+
+function rBrushHeatRisenMarks({ common, linePoints, widthPx, palette, seed, z }) {
+  const specs = [
+    { role: 'source-pocket', centerT: 0.13, height: 0.26, width: 0.28, opacity: 0.5, blur: 2.2 },
+    { role: 'left-thread', centerT: 0.34, height: 0.38, width: 0.18, side: -0.34, opacity: 0.28, blur: 2.4 },
+    { role: 'right-thread', centerT: 0.42, height: 0.36, width: 0.2, side: 0.36, opacity: 0.22, blur: 2.8 },
+    { role: 'upper-thread', centerT: 0.62, height: 0.42, width: 0.16, side: 0.08, opacity: 0.18, blur: 3.1 },
+  ];
+  return specs.map((spec, index) => {
+    const polygon = rBrushThreadPolygon(linePoints, widthPx, spec, hashString(`${seed}:heat:${index}`));
+    return {
+      ...common,
+      kind: 'polygon',
+      role: `${common.rBrushRole}:white-heat-risen-${spec.role}`,
+      points: polygon,
+      fill: index === 0 ? palette.white : palette.yellow,
+      stroke: 'none',
+      opacity: spec.opacity,
+      blur: spec.blur,
+      z: z + 0.2 + index * 0.01,
+      rBrushHeatRisen: true,
+    };
+  }).filter((mark) => mark.points.length >= 3);
+}
+
+function rBrushThreadPolygon(linePoints, widthPx, spec, seed) {
+  const centerT = clamp(spec.centerT + (seededUnit(seed, 1) - 0.5) * 0.04, 0.05, 0.9);
+  const span = clamp(spec.height, 0.08, 0.8);
+  const startT = clamp(centerT - span * 0.42, 0, 1);
+  const endT = clamp(centerT + span * 0.58, 0, 1);
+  const samples = 7;
+  const left = [];
+  const right = [];
+  for (let i = 0; i < samples; i++) {
+    const t = lerp(startT, endT, i / (samples - 1));
+    const sample = sampleGesture(linePoints, t);
+    if (!sample) continue;
+    const normal = normalize([-sample.tangent[1], sample.tangent[0]]);
+    const bulb = Math.sin((i / (samples - 1)) * Math.PI);
+    const taper = 1 - i / (samples - 1);
+    const side = finiteOr(spec.side, 0) * widthPx * bulb;
+    const w = Math.max(widthPx * spec.width * (0.18 + bulb * 0.82) * taper, 0.6);
+    const center = [
+      sample.point[0] + normal[0] * side,
+      sample.point[1] + normal[1] * side,
+    ];
+    left.push([roundPoint(center[0] + normal[0] * w), roundPoint(center[1] + normal[1] * w)]);
+    right.push([roundPoint(center[0] - normal[0] * w), roundPoint(center[1] - normal[1] * w)]);
+  }
+  return [...left, ...right.reverse()];
+}
+
+function rBrushLoadMarks({ mark, matter, common, linePoints, palette, z, seed }) {
+  const loads = normalizeArray(mark.load || matter.load).filter((load) => load && typeof load === 'object');
+  const sourceLoads = loads.length ? loads : [
+    {
+      role: 'body-strings',
+      die: { family: 'noisySpaghetti', stroke: palette.yellow, strokeWidth: [0.35, 0.9], opacity: [0.1, 0.22] },
+      field: { kind: 'insideEnvelope', count: 28, lanes: 4, length: 0.9, lateralJitter: 11, alignment: 0.78, fractalOctaves: 2 },
+    },
+  ];
+  const vectorFlag = { vectorMatter: true };
+  const out = [];
+  sourceLoads.forEach((load, loadIndex) => {
+    const die = load.die && typeof load.die === 'object' && !Array.isArray(load.die) ? load.die : {};
+    if ((die.family || load.family || load.kind) !== 'noisySpaghetti') return;
+    const field = load.field && typeof load.field === 'object' && !Array.isArray(load.field) ? load.field : {};
+    const widthBox = bbox(linePoints);
+    const jitter = Math.min(Math.abs(finiteOr(field.lateralJitter, 11)), Math.max(widthBox.w * 0.24, 4));
+    const effect = {
+      ...load,
+      role: load.role || `load-${loadIndex + 1}`,
+      die: {
+        ...die,
+        stroke: die.stroke || load.stroke || palette.yellow,
+        strokeWidth: die.strokeWidth || load.strokeWidth || 0.7,
+      },
+      field: {
+        ...field,
+        count: Math.max(1, Math.min(64, Math.round(finiteOr(field.count ?? field.density ?? load.count, 28)))),
+        density: Math.max(1, Math.min(64, Math.round(finiteOr(field.density ?? field.count ?? load.count, 28)))),
+        lateralJitter: [-jitter, jitter],
+        alignment: clamp(finiteOr(field.alignment, 0.72), 0.58, 1),
+        samples: Math.max(4, Math.min(80, Math.round(finiteOr(field.samples, 18)))),
+      },
+      valueBudget: load.valueBudget || { targetOpacity: 0.36, expectedOverlapCount: 10, mode: 'inverse-count' },
+    };
+    const loadCommon = {
+      ...common,
+      fluidGlyphRole: `${common.rBrushRole}:load-${loadIndex + 1}`,
+      swirlGlyphSeed: `${common.rBrushSeed}:rbrush-load:${loadIndex}`,
+      swirlGlyphScale: 1,
+      swirlGlyphOpacity: 1,
+    };
+    const marks = fluidPastamakerNoisySpaghettiMarks({
+      effect,
+      effectIndex: loadIndex,
+      common: loadCommon,
+      linePoints,
+      zBase: z,
+      t: 0,
+      index: loadIndex,
+      vectorFlag,
+      constructionKind: 'rBrush',
+    });
+    marks.forEach((item) => {
+      out.push({
+        ...item,
+        ...common,
+        role: `${common.rBrushRole}:${effect.role}:${item.stickerFieldIndex + 1}`,
+        rBrushLoadRole: effect.role,
+        rBrushLoadIndex: loadIndex,
+        vectorMatter: true,
+        vectorFluid: item.vectorFluid,
+        fluidEffectRole: item.fluidEffectRole,
+        pastamaker: item.pastamaker,
+      });
+    });
+  });
+  return out;
+}
+
+function swirlGlyphMarks({ mark, role, constructionKind, medium, index, count, seedText, localSeed, center, flow, cross, lift, camera, scale, baseScale, perspectiveScale, opacity, handedness, glyph, t, flameSource, flameSourceIndex, flameLickIndex, flameLickCount }) {
+  if (isFireFluidGlyph(medium, glyph)) {
+    return flameGlyphMarks({
+      mark,
+      role,
+      constructionKind,
+      medium,
+      index,
+      count,
+      seedText,
+      localSeed,
+      center,
+      flow,
+      cross,
+      lift,
+      camera,
+      scale,
+      opacity,
+      handedness,
+      glyph,
+      t,
+      flameSource,
+      flameSourceIndex,
+      flameLickIndex,
+      flameLickCount,
+    });
+  }
+  const stroke = mark.stroke || glyph.stroke || '#d8d2c3';
+  const fill = mark.fill || glyph.fill || '#d8d2c3';
+  const lowering = mark.lowering && typeof mark.lowering === 'object' && !Array.isArray(mark.lowering) ? mark.lowering : {};
+  const softMass = lowering.softMass ?? glyph.softMass ?? (medium === 'wallpaper-swirl' || medium === 'ribbon' ? false : 'blob');
+  const vectorFlag = medium === 'smoke' || medium === 'vapor' ? { vectorSmoke: true } : {};
+  const zBase = finiteOr(mark.z, 28);
+  const turns = lerpRange(glyph.turns, 0.68, 1.28, seededUnit(localSeed, 6));
+  const radius = Math.max(lerpRange(glyph.radius || mark.radius, 0.34, 0.92, seededUnit(localSeed, 7)) * scale, 0.03);
+  const tailLength = Math.max(lerpRange(glyph.tailLength, 0.75, 1.75, seededUnit(localSeed, 8)) * scale, 0.03);
+  const points = Math.max(10, Math.min(80, Math.round(finiteOr(glyph.points ?? mark.points, 28))));
+  const startAngle = finiteOr(glyph.startAngle, -Math.PI * 0.35) + seededUnit(localSeed, 9) * Math.PI * 0.7;
+  const strokeWidth = Math.max(finiteOr(mark.strokeWidth ?? glyph.strokeWidth, 4.2) * scale, 0.6);
+  const swirlRole = `${role}:swirl-${index + 1}`;
+  const linePoints = [];
+  for (let i = 0; i < points; i++) {
+    const u = i / (points - 1);
+    const world = swirlGlyphWorldPoint({ center, flow, cross, lift, u, radius, tailLength, turns, startAngle, handedness, seed: localSeed });
+    linePoints.push(projectMandalaScreen(camera, [world[0], world[1]], world[2]));
+  }
+  const headWorld = swirlGlyphWorldPoint({ center, flow, cross, lift, u: 0.72, radius: radius * 0.92, tailLength, turns, startAngle, handedness, seed: localSeed });
+  const head = projectMandalaScreen(camera, [headWorld[0], headWorld[1]], headWorld[2]);
+  const common = {
+    constructionKind,
+    constructionRole: role,
+    fluidFieldRole: role,
+    fluidMedium: medium,
+    fluidGlyphRole: swirlRole,
+    swirlFieldRole: role,
+    swirlGlyphRole: swirlRole,
+    swirlGlyphIndex: index,
+    swirlGlyphCount: count,
+    swirlGlyphSeed: `${seedText}:${index}`,
+    swirlGlyphHandedness: handedness > 0 ? 'counterclockwise' : 'clockwise',
+    swirlGlyphCenterXYZ: center.map(round),
+    swirlGlyphScale: round(scale),
+    swirlGlyphBaseScale: round(baseScale),
+    swirlGlyphPerspectiveScale: round(perspectiveScale),
+    swirlGlyphOpacity: opacity,
+    swirlGlyphT: round(t),
+  };
+  const line = {
+    ...common,
+    kind: 'polyline',
+    role: `${swirlRole}:motion-line`,
+    points: linePoints,
+    fill: 'none',
+    stroke,
+    strokeWidth: roundPoint(strokeWidth),
+    opacity,
+    dash: mark.dash || glyph.dash,
+    z: zBase + t * 12 + 0.01,
+    vectorFluid: true,
+    ...vectorFlag,
+    sourceShape: constructionKind,
+  };
+  const extras = fluidPastamakerEffectMarks({
+    mark,
+    glyph,
+    common,
+    linePoints,
+    head,
+    base: linePoints[0],
+    radius,
+    camera,
+    zBase,
+    t,
+    index,
+    vectorFlag,
+    constructionKind,
+  });
+  if (softMass === false || softMass === 'none') return [line, ...extras];
+  return [
+    line,
+    {
+      ...common,
+      kind: 'blob',
+      role: `${swirlRole}:soft-mass`,
+      anchor: head,
+      rx: Math.max(roundPoint(radius * camera.unitScale * 0.72), 2),
+      ry: Math.max(roundPoint(radius * camera.unitScale * 0.42), 2),
+      rotation: finiteOr(glyph.rotation, handedness * 0.35),
+      wobble: finiteOr(glyph.wobble, 0.08),
+      fill,
+      stroke: 'none',
+      opacity: round(opacity * 0.46),
+      z: zBase + t * 12,
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+    },
+    ...extras,
+  ];
+}
+
+function isFireFluidGlyph(medium, glyph = {}) {
+  return medium === 'fire' || glyph.id === 'bulb-seaweed-flame' || glyph.id === 'flare-waist-flame-glyph';
+}
+
+function flameGlyphMarks({ mark, role, constructionKind, medium, index, count, seedText, localSeed, center, flow, cross, lift, camera, scale, opacity, handedness, glyph, t, flameSource, flameSourceIndex, flameLickIndex, flameLickCount }) {
+  const lowering = mark.lowering && typeof mark.lowering === 'object' && !Array.isArray(mark.lowering) ? mark.lowering : {};
+  const zBase = finiteOr(mark.z, 28);
+  const points = Math.max(8, Math.min(80, Math.round(finiteOr(glyph.points ?? mark.points, 22))));
+  let height = Math.max(lerpRange(glyph.height || glyph.tailLength, 1.45, 2.85, seededUnit(localSeed, 6)) * scale, 0.08);
+  let width = Math.max(lerpRange(glyph.radius || glyph.width, 0.34, 0.72, seededUnit(localSeed, 7)) * scale, 0.03);
+  const sourceCoverageWidth = flameSource
+    ? finiteOr(flameSource.radius, 0) * finiteOr(glyph.sourceCoverageScale ?? flameSource.coverageScale, 2.15)
+    : 0;
+  if (sourceCoverageWidth > width) {
+    const aspectBoost = sourceCoverageWidth / width;
+    width = sourceCoverageWidth;
+    height *= aspectBoost;
+  }
+  const curve = lerpRange(glyph.curveAmount ?? glyph.curve, -0.34, 0.34, seededUnit(localSeed, 8)) * handedness * scale;
+  const wobble = clamp(finiteOr(glyph.wobble, 0.16), 0, 1.5);
+  const swirlAmount = clamp(finiteOr(glyph.swirlAmount ?? glyph.upwardSwirl, 0), 0, 2);
+  const swirlTurns = finiteOr(glyph.swirlTurns, 1.35);
+  const flameRole = `${role}:flame-${index + 1}`;
+  const spineWorld = [];
+  const linePoints = [];
+  for (let i = 0; i < points; i++) {
+    const u = points === 1 ? 0.5 : i / (points - 1);
+    const world = flameGlyphWorldPoint({ center, flow, cross, lift, u, height, curve, wobble, swirlAmount, swirlTurns, seed: localSeed });
+    spineWorld.push(world);
+    linePoints.push(projectMandalaScreen(camera, [world[0], world[1]], world[2]));
+  }
+  const outerEnvelope = flameEnvelopeParts(linePoints, width * camera.unitScale, localSeed, false);
+  const coreEnvelope = flameEnvelopeParts(linePoints, width * camera.unitScale * 0.46, localSeed, true);
+  const outerPoints = outerEnvelope.points;
+  const corePoints = coreEnvelope.points;
+  const base = linePoints[0];
+  const head = linePoints[Math.max(0, linePoints.length - 1)];
+  const coreCenter = linePoints[Math.max(0, Math.min(linePoints.length - 1, Math.round((linePoints.length - 1) * 0.42)))];
+  const radius = Math.max(width, height * 0.22);
+  const vectorFlag = { vectorFire: true };
+  const common = {
+    constructionKind,
+    constructionRole: role,
+    fluidFieldRole: role,
+    fluidMedium: medium,
+    fluidGlyphRole: flameRole,
+    swirlFieldRole: role,
+    swirlGlyphRole: flameRole,
+    swirlGlyphIndex: index,
+    swirlGlyphCount: count,
+    swirlGlyphSeed: `${seedText}:${index}`,
+    swirlGlyphHandedness: handedness > 0 ? 'counterclockwise' : 'clockwise',
+    swirlGlyphCenterXYZ: center.map(round),
+    swirlGlyphScale: round(scale),
+    swirlGlyphOpacity: opacity,
+    swirlGlyphT: round(t),
+    flameGlyph: true,
+    flameGlyphProfile: glyph.profile || 'flare-source-waist-point-bulb',
+    flameGlyphCoreCenter: coreCenter,
+    flameSourceRole: flameSource?.role,
+    flameSourceIndex,
+    flameSourceLickIndex: flameLickIndex,
+    flameSourceLickCount: flameLickCount,
+    flameSourceSeed: flameSource ? `${seedText}:source:${flameSourceIndex}` : undefined,
+    flameSourceRadius: flameSource ? round(finiteOr(flameSource.radius, 0)) : undefined,
+    flameSourceCoverageScale: flameSource ? round(finiteOr(glyph.sourceCoverageScale ?? flameSource.coverageScale, 2.15)) : undefined,
+  };
+  const outerFill = mark.fill || glyph.fill || '#ff8a1f';
+  const outerGradient = flameFillGradient({ glyph, fallbackFill: outerFill, fallbackKind: 'radial', base, head, coreCenter, role: 'outer-body' });
+  const outlineOff = glyph.outline === false || lowering.outline === false || glyph.edgeSkin?.outline === false;
+  const outerStroke = outlineOff ? 'none' : (mark.stroke || glyph.stroke || '#9c1f10');
+  const coreFill = glyph.coreFill || lowering.coreFill || '#d71920';
+  const coreGradient = flameFillGradient({ glyph, fallbackFill: coreFill, fallbackKind: 'linear', base, head, coreCenter, role: 'red-core', path: 'coreFillGradient' });
+  const z = zBase + t * 12;
+  const extras = fluidPastamakerEffectMarks({
+    mark,
+    glyph,
+    common,
+    linePoints,
+    head,
+    base,
+    radius,
+    camera,
+    zBase,
+    t,
+    index,
+    vectorFlag,
+    constructionKind,
+  });
+  const edgeSkin = flameLickEdgeSkinMarks({
+    common,
+    glyph,
+    outerEnvelope,
+    coreEnvelope,
+    handedness,
+    opacity,
+    z,
+    localSeed,
+    constructionKind,
+    vectorFlag,
+  });
+  const volumeFill = flameLickVolumeFillMarks({
+    common,
+    glyph,
+    outerEnvelope,
+    coreEnvelope,
+    opacity,
+    z,
+    constructionKind,
+    vectorFlag,
+  });
+  return [
+    {
+      ...common,
+      kind: 'polygon',
+      role: `${flameRole}:outer-body`,
+      points: outerPoints,
+      fill: outerFill,
+      fillGradient: outerGradient,
+      stroke: outerStroke,
+      strokeWidth: finiteOr(mark.strokeWidth ?? glyph.strokeWidth, 1),
+      opacity,
+      z,
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+    },
+    ...volumeFill,
+    {
+      ...common,
+      kind: 'polygon',
+      role: `${flameRole}:red-core`,
+      points: corePoints,
+      fill: coreFill,
+      fillGradient: coreGradient,
+      stroke: 'none',
+      opacity: round(clamp(opacity * 0.82, 0.02, 1)),
+      z: z + 0.08,
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+    },
+    ...edgeSkin,
+    ...extras,
+  ];
+}
+
+function flameGlyphWorldPoint({ center, flow, cross, lift, u, height, curve, wobble, swirlAmount, swirlTurns, seed }) {
+  const liftStep = height * u;
+  const heatPull = height * 0.16 * u;
+  const swirlPhase = seededUnit(seed, 51) * Math.PI * 2;
+  const side = Math.sin(u * Math.PI) * curve +
+    deterministicWave(seed, 11, u * Math.PI * 2) * wobble * height * 0.045 * (1 - u * 0.35) +
+    Math.sin(u * Math.PI * 2 * swirlTurns + swirlPhase) * swirlAmount * height * Math.sin(u * Math.PI) * 0.18;
+  return add3(center, add3(scale3(lift, liftStep), add3(scale3(flow, heatPull), scale3(cross, side))));
+}
+
+function flameFillGradient({ glyph, fallbackFill, fallbackKind, base, head, coreCenter, role, path = 'fillGradient' }) {
+  const raw = glyph[path] || glyph.gradientFill || glyph.gradient;
+  const gradient = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  if (gradient.enabled === false) return undefined;
+  if (!gradient.enabled && !glyph.gradientFill && !glyph.gradient && !glyph[path]) return undefined;
+  const kind = gradient.kind || gradient.type || fallbackKind || 'radial';
+  const stops = Array.isArray(gradient.stops) && gradient.stops.length
+    ? gradient.stops
+    : [
+      { offset: 0, color: gradient.hot || gradient.center || '#fff6c7', opacity: finiteOr(gradient.hotOpacity, 0.94) },
+      { offset: 0.34, color: gradient.warm || fallbackFill || '#ff8a1f', opacity: finiteOr(gradient.warmOpacity, 0.72) },
+      { offset: 1, color: gradient.cool || gradient.edge || '#d71920', opacity: finiteOr(gradient.edgeOpacity, 0.22) },
+    ];
+  return {
+    kind,
+    role,
+    from: validPoint(gradient.from) || base,
+    to: validPoint(gradient.to) || head,
+    center: validPoint(gradient.centerPoint) || coreCenter,
+    radius: finiteOr(gradient.radius, 1),
+    independentLighting: gradient.independentLighting !== false,
+    stops: stops
+      .map((stop, index) => {
+        const rawStop = stop && typeof stop === 'object' && !Array.isArray(stop)
+          ? stop
+          : { offset: index / Math.max(stops.length - 1, 1), color: stop };
+        return {
+          offset: round(clamp(finiteOr(rawStop.offset, index / Math.max(stops.length - 1, 1)), 0, 1)),
+          color: rawStop.color || fallbackFill,
+          opacity: round(clamp(finiteOr(rawStop.opacity, 1), 0, 1)),
+        };
+      })
+      .sort((a, b) => a.offset - b.offset),
+  };
+}
+
+function flameEnvelopeParts(spine, widthPx, seed, core = false) {
+  const start = core ? 0.08 : 0;
+  const end = core ? 0.86 : 1;
+  const samples = spine
+    .map((point, index) => ({ point, u: spine.length === 1 ? 0.5 : index / (spine.length - 1), index }))
+    .filter((sample) => sample.u >= start && sample.u <= end);
+  if (samples.length < 2) return { points: spine, left: spine, right: spine };
+  const left = [];
+  const right = [];
+  for (const sample of samples) {
+    const prev = spine[Math.max(0, sample.index - 1)];
+    const next = spine[Math.min(spine.length - 1, sample.index + 1)];
+    const tangent = normalize([next[0] - prev[0], next[1] - prev[1]]);
+    const normal = [-tangent[1], tangent[0]];
+    const jitter = deterministicWave(seed, core ? 21 : 19, sample.u * Math.PI * 2) * widthPx * (core ? 0.025 : 0.055);
+    const w = Math.max(flameWidthProfile(sample.u) * widthPx + jitter, core ? 0.8 : 0);
+    left.push([roundPoint(sample.point[0] + normal[0] * w), roundPoint(sample.point[1] + normal[1] * w)]);
+    right.push([roundPoint(sample.point[0] - normal[0] * w), roundPoint(sample.point[1] - normal[1] * w)]);
+  }
+  return { points: [...left, ...right.slice().reverse()], left, right };
+}
+
+function flameLickEdgeSkinMarks({ common, glyph, outerEnvelope, coreEnvelope, handedness, opacity, z, localSeed, constructionKind, vectorFlag }) {
+  const edge = glyph.edgeSkin && typeof glyph.edgeSkin === 'object' && !Array.isArray(glyph.edgeSkin)
+    ? glyph.edgeSkin
+    : {};
+  if (edge.enabled === false) return [];
+  const outside = handedness > 0 ? outerEnvelope.right : outerEnvelope.left;
+  const inside = handedness > 0 ? coreEnvelope.left : coreEnvelope.right;
+  const outsidePath = flameEdgeSegment(outside, edge.edgeT || edge.outsideT || [0.08, 0.94]);
+  const insidePath = flameEdgeSegment(inside, edge.insideT || [0.12, 0.82]);
+  const budget = resolveValueBudget(edge.valueBudget, {
+    targetOpacity: finiteOr(edge.targetOpacity, 0.72),
+    expectedOverlapCount: finiteOr(edge.expectedOverlapCount, 3),
+    mode: 'inverse-count',
+  });
+  const hardOpacity = round(clamp(opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode) * lerp(0.82, 1.18, seededUnit(localSeed, 31)), 0.04, 1));
+  const fuzzyOpacity = round(clamp(finiteOr(edge.insideOpacity, 0.28) * opacity, 0.02, 0.8));
+  return [
+    {
+      ...common,
+      kind: 'polyline',
+      role: `${common.fluidGlyphRole}:hard-lit-outer-edge`,
+      points: outsidePath,
+      fill: 'none',
+      stroke: edge.stroke || edge.outsideStroke || '#ffe7a3',
+      strokeWidth: roundPoint(finiteOr(edge.strokeWidth, 1.35) * Math.max(common.swirlGlyphScale || 1, 0.35)),
+      opacity: hardOpacity,
+      z: z + 0.16,
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+      flameEdgeSkin: true,
+      flameEdgeSide: 'outside-lit',
+      flameValueBudget: budget,
+    },
+    {
+      ...common,
+      kind: 'polyline',
+      role: `${common.fluidGlyphRole}:inner-fuzzy-heat-edge`,
+      points: insidePath,
+      fill: 'none',
+      stroke: edge.insideStroke || '#ff5b24',
+      strokeWidth: roundPoint(finiteOr(edge.insideStrokeWidth, 3.2) * Math.max(common.swirlGlyphScale || 1, 0.35)),
+      opacity: fuzzyOpacity,
+      blur: finiteOr(edge.insideBlur, 1.2),
+      z: z + 0.11,
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+      flameEdgeSkin: true,
+      flameEdgeSide: 'inside-fuzzy',
+      flameValueBudget: budget,
+    },
+  ].filter((mark) => mark.points.length >= 2);
+}
+
+function flameLickVolumeFillMarks({ common, glyph, outerEnvelope, coreEnvelope, opacity, z, constructionKind, vectorFlag }) {
+  const volume = glyph.volumetricFill && typeof glyph.volumetricFill === 'object' && !Array.isArray(glyph.volumetricFill)
+    ? glyph.volumetricFill
+    : {};
+  if (volume.enabled === false) return [];
+  if (!volume.enabled && !glyph.sourceScopedVolume) return [];
+  const left = flameVolumeSidePolygon(outerEnvelope.left, coreEnvelope.left);
+  const right = flameVolumeSidePolygon(outerEnvelope.right, coreEnvelope.right);
+  const sideOpacity = round(clamp(finiteOr(volume.opacity, 0.18) * opacity, 0.02, 0.7));
+  return [
+    {
+      ...common,
+      kind: 'polygon',
+      role: `${common.fluidGlyphRole}:volume-left-fill`,
+      points: left,
+      fill: volume.leftFill || volume.fill || '#ffd36a',
+      stroke: 'none',
+      opacity: sideOpacity,
+      blur: finiteOr(volume.blur, 0.6),
+      z: z + 0.05,
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+      flameVolumeFill: true,
+      flameVolumeSide: 'left',
+    },
+    {
+      ...common,
+      kind: 'polygon',
+      role: `${common.fluidGlyphRole}:volume-right-fill`,
+      points: right,
+      fill: volume.rightFill || volume.fill || '#ff6b24',
+      stroke: 'none',
+      opacity: sideOpacity,
+      blur: finiteOr(volume.blur, 0.6),
+      z: z + 0.055,
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+      flameVolumeFill: true,
+      flameVolumeSide: 'right',
+    },
+  ].filter((mark) => mark.points.length >= 3);
+}
+
+function flameVolumeSidePolygon(outer, inner) {
+  const outerClean = Array.isArray(outer) ? outer.filter(validPoint) : [];
+  const innerClean = Array.isArray(inner) ? inner.filter(validPoint) : [];
+  if (outerClean.length < 2 || innerClean.length < 2) return [];
+  const count = Math.min(outerClean.length, innerClean.length);
+  const outerSide = [];
+  const innerSide = [];
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0.5 : i / (count - 1);
+    const outerSample = sampleGesture(outerClean, t)?.point;
+    const innerSample = sampleGesture(innerClean, t)?.point;
+    if (outerSample) outerSide.push(outerSample.map(roundPoint));
+    if (innerSample) innerSide.push(innerSample.map(roundPoint));
+  }
+  return [...outerSide, ...innerSide.reverse()];
+}
+
+function flameEdgeSegment(points, rangeValue) {
+  const clean = Array.isArray(points) ? points.filter(validPoint) : [];
+  if (clean.length < 2) return clean;
+  const range = normalizeRange(rangeValue, 0, 1);
+  const startT = clamp(Math.min(range[0], range[1]), 0, 1);
+  const endT = clamp(Math.max(range[0], range[1]), 0, 1);
+  const sampleCount = Math.max(3, Math.min(clean.length, Math.ceil(clean.length * Math.max(endT - startT, 0.08))));
+  const out = [];
+  for (let i = 0; i < sampleCount; i++) {
+    const t = sampleCount === 1 ? (startT + endT) / 2 : lerp(startT, endT, i / (sampleCount - 1));
+    const sample = sampleGesture(clean, t);
+    if (sample?.point) out.push(sample.point.map(roundPoint));
+  }
+  return out;
+}
+
+function flameWidthProfile(u) {
+  const stops = [
+    [0, 0.52],
+    [0.16, 0.9],
+    [0.42, 0.26],
+    [0.68, 0.58],
+    [0.9, 0.2],
+    [1, 0],
+  ];
+  for (let i = 1; i < stops.length; i++) {
+    if (u <= stops[i][0]) {
+      const prev = stops[i - 1];
+      const next = stops[i];
+      const t = clamp((u - prev[0]) / Math.max(next[0] - prev[0], 0.001), 0, 1);
+      const eased = t * t * (3 - 2 * t);
+      return lerp(prev[1], next[1], eased);
+    }
+  }
+  return 0;
+}
+
+const SPARK_GLYPH_LIBRARY = {
+  'rain-streak': { kind: 'line', stroke: '#b9d8ee', strokeWidth: 1.3, length: [18, 42], opacity: [0.32, 0.72], direction: [0.18, 1, 0] },
+  'spark-streak': { kind: 'line', stroke: '#ffd36a', strokeWidth: 1.8, length: [10, 36], opacity: [0.55, 0.95], direction: [1, -0.35, 0] },
+  'leaf-dash': { kind: 'leaf', stroke: '#4f5b2f', fill: '#7c8f3b', strokeWidth: 0.8, length: [7, 18], opacity: [0.45, 0.9], direction: [0.12, 1, 0] },
+  'comic-impact': { kind: 'line', stroke: '#fff2aa', strokeWidth: 2.4, length: [22, 58], opacity: [0.62, 1], direction: [1, -0.12, 0] },
+  'ember-dot': { kind: 'leaf', stroke: '#f9f3b5', fill: '#f9f3b5', strokeWidth: 0.4, length: [3, 8], opacity: [0.42, 0.86], direction: [0.2, -0.3, 0] },
+};
+
+function expandSparkFieldMark(mark, manifest = {}) {
+  const constructionKind = mark.kind === 'showerField' ? 'showerField' : 'sparkField';
+  const mode = mark.mode || mark.emission || mark.profile || 'falling';
+  const medium = mark.medium || sparkMediumFromMode(mode);
+  const glyph = sparkGlyphConfig(mark, medium);
+  const role = mark.role || `${medium}-${mode}-field`;
+  const viewBox = mark.viewBox && typeof mark.viewBox === 'object'
+    ? mark.viewBox
+    : manifest.viewBox && typeof manifest.viewBox === 'object' ? manifest.viewBox : {};
+  const basis = mark.basis && typeof mark.basis === 'object' && !Array.isArray(mark.basis) ? mark.basis : {};
+  const population = mark.population && typeof mark.population === 'object' && !Array.isArray(mark.population) ? mark.population : {};
+  const emitter = mark.emitter && typeof mark.emitter === 'object' && !Array.isArray(mark.emitter) ? mark.emitter : {};
+  const count = Math.max(1, Math.min(500, Math.round(finiteOr(population.count ?? mark.count, 36))));
+  const seedText = String(population.seed || mark.seed || role);
+  const camera = {
+    screenOrigin: validPoint(basis.screenOrigin || mark.screenOrigin) || [finiteOr(viewBox.width, 800) / 2, finiteOr(viewBox.height, 520) * 0.5],
+    east: validPoint(basis.east || mark.east) || [1, 0],
+    north: validPoint(basis.north || mark.north) || [0, -1],
+    zenith: validPoint(basis.zenith || mark.zenith) || [0, -1],
+    unitScale: finiteOr(basis.unitScale ?? mark.unitScale, 28),
+    depthScale: clamp(finiteOr(basis.depthScale ?? mark.depthScale, 0.94), 0.2, 1),
+  };
+  const origin = validVector3(basis.origin || emitter.origin || mark.origin) || [0, 0, 0];
+  const flow = normalize3(validVector3(basis.flow || glyph.direction || mark.flow) || [0, 1, 0]);
+  const cross = normalize3(validVector3(basis.cross || mark.cross) || [1, 0, 0]);
+  const lift = normalize3(validVector3(basis.lift || mark.lift) || [0, 0, 1]);
+  const width = finiteOr(emitter.width ?? basis.width ?? mark.width, 8);
+  const height = finiteOr(emitter.height ?? basis.height ?? mark.height, 8);
+  const spreadDegrees = finiteOr(emitter.spreadDegrees ?? mark.spreadDegrees, mode === 'from-center' ? 70 : 18);
+  const lengthRange = numericRange(population.length || mark.length || glyph.length, 10, 28);
+  const opacityRange = numericRange(population.opacity || mark.opacityRange || glyph.opacity, 0.35, 0.85);
+  const scaleRange = numericRange(population.scale || mark.scale, 0.75, 1.25);
+  const gravity = validVector3(mark.gravity || emitter.gravity) || [0, 1, 0];
+  const surface = sparkEmitterSurface(emitter, origin, cross, width);
+  const out = [];
+  if (String(mode || '').toLowerCase() === 'radial-fractal' || String(mode || '').toLowerCase() === 'firework-burst') {
+    const fractal = mark.fractal && typeof mark.fractal === 'object' && !Array.isArray(mark.fractal) ? mark.fractal : {};
+    for (let index = 0; index < count; index++) {
+      const localSeed = hashString(`${seedText}:${index}`);
+      const t = count === 1 ? 0.5 : index / (count - 1);
+      const branches = sparkFractalParticles({
+        origin,
+        flow,
+        cross,
+        lift,
+        spreadDegrees,
+        lengthRange,
+        scaleRange,
+        localSeed,
+        fractal,
+      });
+      branches.forEach((particle, branchIndex) => {
+        const perspectiveScale = mandalaPerspectiveScale(camera, particle.start);
+        const scale = particle.scale * perspectiveScale;
+        const opacity = round(clamp(lerp(opacityRange[0], opacityRange[1], seededUnit(localSeed, 6 + branchIndex)) * particle.opacityScale * lerp(1, perspectiveScale, 0.35), 0.02, 1));
+        out.push(sparkGlyphMark({
+          mark,
+          glyph,
+          common: {
+            constructionKind,
+            constructionRole: role,
+            sparkFieldRole: role,
+            showerFieldRole: role,
+            sparkMode: mode,
+            sparkMedium: medium,
+            sparkGlyphId: glyph.id,
+            sparkIndex: index,
+            sparkBranchIndex: branchIndex,
+            sparkGeneration: particle.generation,
+            sparkCount: count,
+            sparkSeed: `${seedText}:${index}:${branchIndex}`,
+            sparkWorldStart: particle.start.map(round),
+            sparkPerspectiveScale: round(perspectiveScale),
+            sparkScale: round(scale),
+            opacity,
+            z: finiteOr(mark.z, 30) + particle.generation * 0.2 + t * finiteOr(mark.zSpread, 8) + index * 0.0001 + branchIndex * 0.00001,
+          },
+          particle,
+          camera,
+          scale,
+          localSeed: hashString(`${localSeed}:${branchIndex}`),
+        }));
+      });
+    }
+    return out;
+  }
+  for (let index = 0; index < count; index++) {
+    const localSeed = hashString(`${seedText}:${index}`);
+    const t = count === 1 ? 0.5 : index / (count - 1);
+    const particle = sparkParticleGeometry({ mode, origin, flow, cross, lift, surface, width, height, spreadDegrees, gravity, lengthRange, scaleRange, localSeed });
+    const perspectiveScale = mandalaPerspectiveScale(camera, particle.start);
+    const scale = particle.scale * perspectiveScale;
+    const opacity = round(clamp(lerp(opacityRange[0], opacityRange[1], seededUnit(localSeed, 6)) * lerp(1, perspectiveScale, 0.35), 0.02, 1));
+    out.push(sparkGlyphMark({
+      mark,
+      glyph,
+      common: {
+        constructionKind,
+        constructionRole: role,
+        sparkFieldRole: role,
+        showerFieldRole: role,
+        sparkMode: mode,
+        sparkMedium: medium,
+        sparkGlyphId: glyph.id,
+        sparkIndex: index,
+        sparkCount: count,
+        sparkSeed: `${seedText}:${index}`,
+        sparkWorldStart: particle.start.map(round),
+        sparkPerspectiveScale: round(perspectiveScale),
+        sparkScale: round(scale),
+        opacity,
+        z: finiteOr(mark.z, 30) + t * finiteOr(mark.zSpread, 8) + index * 0.0001,
+      },
+      particle,
+      camera,
+      scale,
+      localSeed,
+    }));
+  }
+  return out;
+}
+
+function sparkFractalParticles({ origin, flow, cross, lift, spreadDegrees, lengthRange, scaleRange, localSeed, fractal }) {
+  const generations = Math.max(1, Math.min(5, Math.round(finiteOr(fractal.generations, 3))));
+  const branchingRange = numericRange(fractal.branching, 2, 3);
+  const lengthFalloff = clamp(finiteOr(fractal.lengthFalloff, 0.52), 0.1, 0.95);
+  const opacityFalloff = clamp(finiteOr(fractal.opacityFalloff, 0.68), 0.1, 0.98);
+  const angleJitter = finiteOr(fractal.angleJitter, 18);
+  const splitRange = numericRange(fractal.splitAt, 0.55, 0.9);
+  const baseAngle = ((seededUnit(localSeed, 1) - 0.5) * spreadDegrees * Math.PI) / 180;
+  const baseScale = lerp(scaleRange[0], scaleRange[1], seededUnit(localSeed, 5));
+  const baseLength = lerp(lengthRange[0], lengthRange[1], seededUnit(localSeed, 4)) * baseScale;
+  const out = [];
+  const queue = [{
+    start: origin,
+    angle: baseAngle,
+    length: baseLength,
+    scale: baseScale,
+    generation: 0,
+    opacityScale: 1,
+    seed: localSeed,
+  }];
+  while (queue.length) {
+    const item = queue.shift();
+    const dir = sparkRadialDirection(flow, cross, item.angle);
+    const liftOffset = scale3(lift, finiteOr(fractal.liftPerGeneration, 0.08) * item.generation * item.length);
+    const end = add3(add3(item.start, scale3(dir, item.length)), liftOffset);
+    out.push({ start: item.start, end, scale: item.scale, generation: item.generation, opacityScale: item.opacityScale });
+    if (item.generation >= generations - 1) continue;
+    const branches = Math.max(1, Math.min(8, Math.round(lerp(branchingRange[0], branchingRange[1], seededUnit(item.seed, 17 + item.generation)))));
+    for (let i = 0; i < branches; i++) {
+      const childSeed = hashString(`${item.seed}:${item.generation}:${i}`);
+      const splitT = lerp(splitRange[0], splitRange[1], seededUnit(childSeed, 2));
+      const splitStart = lerpPoint3(item.start, end, splitT);
+      const jitter = ((seededUnit(childSeed, 3) - 0.5) * angleJitter * Math.PI) / 180;
+      const fan = branches === 1 ? 0 : ((i / (branches - 1)) - 0.5) * angleJitter * Math.PI / 180;
+      queue.push({
+        start: splitStart,
+        angle: item.angle + jitter + fan,
+        length: item.length * lengthFalloff * lerp(0.82, 1.18, seededUnit(childSeed, 4)),
+        scale: item.scale * lengthFalloff,
+        generation: item.generation + 1,
+        opacityScale: item.opacityScale * opacityFalloff,
+        seed: childSeed,
+      });
+    }
+  }
+  return out;
+}
+
+function sparkRadialDirection(flow, cross, angle) {
+  return normalize3(add3(scale3(flow, Math.cos(angle)), scale3(cross, Math.sin(angle))));
+}
+
+function sparkMediumFromMode(mode) {
+  const lower = String(mode || '').toLowerCase();
+  if (lower.includes('fall')) return 'rain';
+  if (lower.includes('center') || lower.includes('collision') || lower.includes('bounce')) return 'spark';
+  return 'shower';
+}
+
+function sparkGlyphConfig(mark, medium) {
+  const raw = mark.glyph && typeof mark.glyph === 'object' && !Array.isArray(mark.glyph) ? mark.glyph : {};
+  const id = raw.id || mark.glyphId || (
+    medium === 'rain' ? 'rain-streak' :
+      medium === 'leaf' || medium === 'leaves' ? 'leaf-dash' :
+        medium === 'comic' || medium === 'action' ? 'comic-impact' :
+          'spark-streak'
+  );
+  return { ...(SPARK_GLYPH_LIBRARY[id] || SPARK_GLYPH_LIBRARY['spark-streak']), ...raw, id };
+}
+
+function sparkEmitterSurface(emitter, origin, cross, width) {
+  return {
+    from: validVector3(emitter.from) || add3(origin, scale3(cross, -width / 2)),
+    to: validVector3(emitter.to) || add3(origin, scale3(cross, width / 2)),
+  };
+}
+
+function sparkParticleGeometry({ mode, origin, flow, cross, lift, surface, width, height, spreadDegrees, gravity, lengthRange, scaleRange, localSeed }) {
+  const scale = lerp(scaleRange[0], scaleRange[1], seededUnit(localSeed, 5));
+  const length = lerp(lengthRange[0], lengthRange[1], seededUnit(localSeed, 4)) * scale;
+  const lower = String(mode || '').toLowerCase();
+  if (lower === 'from-center' || lower === 'center' || lower === 'radial') {
+    const angle = ((seededUnit(localSeed, 1) - 0.5) * spreadDegrees * Math.PI) / 180;
+    const dir = normalize3(add3(flow, scale3(cross, Math.sin(angle))));
+    const start = add3(origin, add3(scale3(cross, (seededUnit(localSeed, 2) - 0.5) * width * 0.18), scale3(lift, (seededUnit(localSeed, 3) - 0.5) * height * 0.12)));
+    return { start, end: add3(start, scale3(dir, length)), scale };
+  }
+  if (lower === 'surface-collision' || lower === 'collision') {
+    const start = lerpPoint3(surface.from, surface.to, seededUnit(localSeed, 1));
+    const dir = normalize3(add3(flow, add3(scale3(cross, (seededUnit(localSeed, 3) - 0.5) * Math.tan((spreadDegrees * Math.PI) / 360)), scale3(lift, (seededUnit(localSeed, 2) - 0.5) * 0.32))));
+    return { start, end: add3(start, scale3(dir, length)), scale };
+  }
+  if (lower === 'bounce-then-drop' || lower === 'bounce') {
+    const start = lerpPoint3(surface.from, surface.to, seededUnit(localSeed, 1));
+    const bounceDir = normalize3(add3(flow, add3(scale3(cross, (seededUnit(localSeed, 2) - 0.5) * 0.9), scale3(lift, 0.45))));
+    const bounce = add3(start, scale3(bounceDir, length * 0.58));
+    const drop = add3(bounce, scale3(normalize3(gravity), length * 0.74));
+    return { start, points: [start, bounce, drop], scale };
+  }
+  const lateral = (seededUnit(localSeed, 1) - 0.5) * width;
+  const along = (seededUnit(localSeed, 2) - 0.5) * height;
+  const start = add3(origin, add3(scale3(cross, lateral), scale3(flow, along)));
+  const slant = normalize3(add3(flow, scale3(cross, (seededUnit(localSeed, 3) - 0.5) * Math.tan((spreadDegrees * Math.PI) / 360))));
+  return { start, end: add3(start, scale3(slant, length)), scale };
+}
+
+function sparkGlyphMark({ mark, glyph, common, particle, camera, scale, localSeed }) {
+  const stroke = mark.stroke || glyph.stroke || '#ffd36a';
+  const fill = mark.fill || glyph.fill || stroke;
+  if (glyph.kind === 'leaf') {
+    const center = projectMandalaScreen(camera, [particle.start[0], particle.start[1]], particle.start[2]);
+    const start = seededUnit(localSeed, 7) * Math.PI;
+    return {
+      ...common,
+      kind: 'polygon',
+      role: `${common.sparkFieldRole}:spark-${common.sparkIndex + 1}`,
+      points: ellipsePoints(center[0], center[1], Math.max(finiteOr(glyph.rx, finiteOr(glyph.width, 5)) * scale, 1), Math.max(finiteOr(glyph.ry, finiteOr(glyph.height, 9)) * scale, 1), 8, start, start + Math.PI * 2),
+      fill,
+      stroke,
+      strokeWidth: finiteOr(glyph.strokeWidth, 0.8),
+      sourceShape: common.constructionKind,
+    };
+  }
+  if (Array.isArray(particle.points)) {
+    return {
+      ...common,
+      kind: 'polyline',
+      role: `${common.sparkFieldRole}:spark-${common.sparkIndex + 1}`,
+      points: particle.points.map((point) => projectMandalaScreen(camera, [point[0], point[1]], point[2])),
+      fill: 'none',
+      stroke,
+      strokeWidth: roundPoint(Math.max(finiteOr(mark.strokeWidth ?? glyph.strokeWidth, 1.4) * scale, 0.35)),
+      sourceShape: common.constructionKind,
+    };
+  }
+  const a = projectMandalaScreen(camera, [particle.start[0], particle.start[1]], particle.start[2]);
+  const b = projectMandalaScreen(camera, [particle.end[0], particle.end[1]], particle.end[2]);
+  return {
+    ...common,
+    kind: 'line',
+    role: `${common.sparkFieldRole}:spark-${common.sparkIndex + 1}`,
+    x1: a[0],
+    y1: a[1],
+    x2: b[0],
+    y2: b[1],
+    stroke,
+    strokeWidth: roundPoint(Math.max(finiteOr(mark.strokeWidth ?? glyph.strokeWidth, 1.4) * scale, 0.35)),
+    sourceShape: common.constructionKind,
+  };
+}
+
+function lerpPoint3(a, b, t) {
+  return [
+    lerp(finiteOr(a?.[0], 0), finiteOr(b?.[0], 0), t),
+    lerp(finiteOr(a?.[1], 0), finiteOr(b?.[1], 0), t),
+    lerp(finiteOr(a?.[2], 0), finiteOr(b?.[2], 0), t),
+  ];
+}
+
+function expandWispFieldMark(mark, manifest = {}) {
+  const role = mark.role || 'will-o-wisp';
+  const body = mark.body && typeof mark.body === 'object' && !Array.isArray(mark.body) ? mark.body : {};
+  const motes = mark.motes && typeof mark.motes === 'object' && !Array.isArray(mark.motes) ? mark.motes : {};
+  const drift = mark.drift && typeof mark.drift === 'object' && !Array.isArray(mark.drift) ? mark.drift : {};
+  const basis = mark.basis && typeof mark.basis === 'object' && !Array.isArray(mark.basis) ? mark.basis : {};
+  const color = mark.color || body.color || '#78e6ff';
+  const glow = mark.glow || body.glow || '#d9fbff';
+  const seed = mark.seed || role;
+  const bodyField = {
+    kind: 'fluidField',
+    role: `${role}:aura-body`,
+    medium: body.medium || 'aura',
+    stroke: body.stroke || color,
+    fill: body.fill || color,
+    z: finiteOr(mark.z, 32),
+    basis: {
+      ...basis,
+      flow: validVector3(drift.flow) || validVector3(basis.flow) || [0.2, -0.4, 0.12],
+      lift: validVector3(basis.lift) || [0, 0, 1],
+      cross: validVector3(basis.cross) || [1, 0.2, 0],
+      length: finiteOr(basis.length, finiteOr(body.length, 2.4)),
+      spread: finiteOr(basis.spread, finiteOr(body.spread, 1.2)),
+      liftAmount: finiteOr(basis.liftAmount, finiteOr(body.liftAmount, 0.9)),
+    },
+    population: {
+      count: Math.max(1, Math.min(40, Math.round(finiteOr(body.count, 5)))),
+      seed: `${seed}:body`,
+      scale: body.scale || [0.55, 1.35],
+      opacity: body.opacity || [0.14, 0.4],
+      handedness: body.handedness || 'alternate-biased',
+    },
+    glyph: {
+      id: body.glyphId || 'hook-cloud-swirl',
+      turns: body.turns || [0.35, 0.9],
+      radius: body.radius || [0.45, 1.1],
+      tailLength: body.tailLength || [0.35, 1.05],
+      points: finiteOr(body.points, 26),
+      strokeWidth: finiteOr(body.strokeWidth, 2.2),
+      softMass: body.softMass ?? 'blob',
+      wobble: finiteOr(body.wobble, 0.14),
+    },
+  };
+  const moteField = {
+    kind: 'sparkField',
+    role: `${role}:motes`,
+    mode: motes.mode || 'from-center',
+    medium: motes.medium || 'spark',
+    stroke: motes.stroke || glow,
+    fill: motes.fill || glow,
+    z: finiteOr(mark.z, 32) + 4,
+    basis: {
+      ...basis,
+      flow: validVector3(motes.flow) || validVector3(drift.flow) || validVector3(basis.flow) || [0.2, -0.1, 0],
+      cross: validVector3(basis.cross) || [1, 0, 0],
+      lift: validVector3(basis.lift) || [0, 0, 1],
+    },
+    emitter: {
+      spreadDegrees: finiteOr(motes.spreadDegrees, 360),
+      width: finiteOr(motes.width, 2.2),
+      height: finiteOr(motes.height, 1.2),
+    },
+    population: {
+      count: Math.max(0, Math.min(160, Math.round(finiteOr(motes.count, 18)))),
+      seed: `${seed}:motes`,
+      length: motes.length || [0.12, 0.55],
+      scale: motes.scale || [0.35, 0.85],
+      opacity: motes.opacity || [0.25, 0.78],
+    },
+    glyph: {
+      id: motes.glyphId || 'ember-dot',
+      stroke: motes.stroke || glow,
+      fill: motes.fill || glow,
+      strokeWidth: finiteOr(motes.strokeWidth, 0.8),
+    },
+  };
+  return [
+    ...expandSwirlFieldMark(bodyField, manifest).map((item) => ({
+      ...item,
+      wispFieldRole: role,
+      wispComponent: 'body',
+      sourceShape: 'wispField',
+    })),
+    ...expandSparkFieldMark(moteField, manifest).map((item) => ({
+      ...item,
+      wispFieldRole: role,
+      wispComponent: 'motes',
+      sourceShape: 'wispField',
+    })),
+  ];
+}
+
+function fluidPastamakerEffectMarks({ mark, glyph, common, linePoints, head, base, radius, camera, zBase, t, index, vectorFlag, constructionKind }) {
+  const effects = fluidPastamakerEffects(mark, glyph);
+  if (!effects.length) return [];
+  const out = [];
+  effects.forEach((effect, effectIndex) => {
+    if (isNoisySpaghettiEffect(effect)) {
+      out.push(...fluidPastamakerNoisySpaghettiMarks({
+        effect,
+        effectIndex,
+        common,
+        linePoints,
+        zBase,
+        t,
+        index,
+        vectorFlag,
+        constructionKind,
+      }));
+      return;
+    }
+    const sticker = fluidPastamakerStickerField({
+      effect,
+      effectIndex,
+      common,
+      linePoints,
+      head,
+      base,
+      radius,
+      camera,
+      zBase,
+      t,
+      index,
+    });
+    if (!sticker) return;
+    const expanded = expandStickerFieldMark(sticker, new Map());
+    expanded.forEach((item) => {
+      out.push({
+        ...item,
+        ...common,
+        role: `${common.fluidGlyphRole}:${effect.role || `pastamaker-${effectIndex + 1}`}:${item.stickerFieldIndex + 1}`,
+        vectorFluid: true,
+        ...vectorFlag,
+        sourceShape: constructionKind,
+        fluidEffectRole: effect.role || `pastamaker-${effectIndex + 1}`,
+        fluidEffectKind: 'pastamaker',
+        stickerFieldRole: sticker.role,
+      });
+    });
+  });
+  return out;
+}
+
+function isNoisySpaghettiEffect(effect) {
+  const family = effect?.die?.family || effect?.family || effect?.kind || effect?.preset;
+  return family === 'noisySpaghetti' || family === 'spaghetti' || family === 'strandCluster';
+}
+
+function fluidPastamakerNoisySpaghettiMarks({ effect, effectIndex, common, linePoints, zBase, t, index, vectorFlag, constructionKind }) {
+  const clean = linePoints.filter(validPoint);
+  if (clean.length < 2) return [];
+  const field = effect.field && typeof effect.field === 'object' && !Array.isArray(effect.field)
+    ? effect.field
+    : {};
+  const die = effect.die && typeof effect.die === 'object' && !Array.isArray(effect.die)
+    ? effect.die
+    : {};
+  const density = Math.max(1, Math.min(80, Math.round(finiteOr(field.density ?? effect.density ?? field.count ?? effect.count, 8))));
+  const lengthRange = normalizeRange(field.length ?? effect.length ?? die.length, 0.72, 1);
+  const lateralRange = normalizeRange(field.lateralJitter ?? effect.lateralJitter ?? die.lateralJitter, -8, 8);
+  const alignment = clamp(finiteOr(field.alignment ?? effect.alignment ?? die.alignment, 0.78), 0, 1);
+  const octaves = Math.max(1, Math.min(6, Math.round(finiteOr(field.fractalOctaves ?? effect.fractalOctaves ?? die.fractalOctaves, 3))));
+  const samples = Math.max(4, Math.min(80, Math.round(finiteOr(field.samples ?? effect.samples ?? die.samples, 18))));
+  const wobble = clamp(finiteOr(field.wobble ?? effect.wobble ?? die.wobble, 0.55), 0, 2);
+  const split = Math.max(0, Math.min(4, Math.round(finiteOr(field.fractalSplit ?? effect.fractalSplit ?? die.fractalSplit, 1))));
+  const avoid = normalizeNoisySpaghettiAvoidance(field.avoid ?? effect.avoid ?? die.avoid);
+  const seed = hashString(`${common.swirlGlyphSeed}:${effect.role || effectIndex}:noisySpaghetti:${density}`);
+  const budget = resolveValueBudget(effect.valueBudget, {
+    targetOpacity: finiteOr(effect.opacity, 0.46),
+    expectedOverlapCount: Math.max(1, Math.min(density, Math.round(density / 2))),
+    mode: 'inverse-count',
+  });
+  const opacity = opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode);
+  const roleBase = `${common.fluidGlyphRole}:${effect.role || `noisy-spaghetti-${effectIndex + 1}`}`;
+  const out = [];
+
+  for (let strandIndex = 0; strandIndex < density; strandIndex++) {
+    const strandSeed = hashString(`${seed}:${strandIndex}`);
+    const lengthT = clamp(lerp(lengthRange[0], lengthRange[1], seededUnit(strandSeed, 1)), 0.04, 1);
+    const maxStart = Math.max(0, 1 - lengthT);
+    const baseStart = maxStart <= 0 ? 0 : seededUnit(strandSeed, 2) * maxStart;
+    const baseEnd = Math.min(1, baseStart + lengthT);
+    const lateral = lerp(lateralRange[0], lateralRange[1], seededUnit(strandSeed, 3));
+    const phase = seededUnit(strandSeed, 4) * Math.PI * 2;
+    const strandPoints = noisySpaghettiPolyline({
+      points: clean,
+      startT: baseStart,
+      endT: baseEnd,
+      samples,
+      lateral,
+      alignment,
+      octaves,
+      wobble,
+      phase,
+      seed: strandSeed,
+      avoid,
+    });
+    out.push({
+      ...common,
+      kind: 'polyline',
+      role: `${roleBase}:strand-${String(strandIndex + 1).padStart(2, '0')}`,
+      points: strandPoints,
+      fill: 'none',
+      stroke: choosePaletteValue(effect.style?.palette || field.palette || die.palette, strandIndex) ||
+        effect.stroke ||
+        die.stroke ||
+        '#91d0c0',
+      strokeWidth: finiteOr(effect.strokeWidth, finiteOr(die.strokeWidth, 1.5)),
+      opacity,
+      dash: effect.dash || die.dash,
+      z: zBase + t * 12 + finiteOr(effect.zOffset, 0.28 + effectIndex * 0.04) + strandIndex * 0.001,
+      algorithmic: true,
+      algorithm: 'pastamaker',
+      pass: effect.pass || 'fluid-noisy-spaghetti',
+      vectorFluid: true,
+      ...vectorFlag,
+      sourceShape: constructionKind,
+      fluidEffectRole: effect.role || `noisy-spaghetti-${effectIndex + 1}`,
+      fluidEffectKind: 'pastamaker',
+      stickerFieldRole: roleBase,
+      stickerFieldIndex: strandIndex,
+      stickerFieldCount: density,
+      stickerFieldT: round(density === 1 ? 0.5 : strandIndex / (density - 1)),
+      pastamaker: {
+        dieFamily: 'noisySpaghetti',
+        fieldKind: field.kind || 'alongFluidGlyph',
+        budgetMode: budget.mode,
+        targetOpacity: budget.targetOpacity,
+        expectedOverlapCount: budget.expectedOverlapCount,
+        density,
+        length: round(lengthT),
+        alignment: round(alignment),
+        fractalOctaves: octaves,
+        fractalSplit: split,
+        collisionPolicy: avoid.length ? 'deterministic-avoidance' : undefined,
+        obstacleCount: avoid.length || undefined,
+      },
+    });
+
+    for (let child = 0; child < split; child++) {
+      const childSeed = hashString(`${strandSeed}:child:${child}`);
+      const childStart = clamp(lerp(baseStart, baseEnd, seededUnit(childSeed, 1) * 0.72), baseStart, baseEnd);
+      const childLength = (baseEnd - childStart) * lerp(0.28, 0.58, seededUnit(childSeed, 2));
+      const childEnd = Math.min(baseEnd, childStart + childLength);
+      if (childEnd - childStart < 0.035) continue;
+      const childLateral = lateral + lerp(-6, 6, seededUnit(childSeed, 3));
+      out.push({
+        ...common,
+        kind: 'polyline',
+        role: `${roleBase}:strand-${String(strandIndex + 1).padStart(2, '0')}:split-${child + 1}`,
+        points: noisySpaghettiPolyline({
+          points: clean,
+          startT: childStart,
+          endT: childEnd,
+          samples: Math.max(4, Math.round(samples * 0.58)),
+          lateral: childLateral,
+          alignment: clamp(alignment * 0.86, 0, 1),
+          octaves,
+          wobble: wobble * 0.82,
+          phase: phase + child * 1.7,
+          seed: childSeed,
+          avoid,
+        }),
+        fill: 'none',
+        stroke: choosePaletteValue(effect.style?.splitPalette || effect.style?.palette || field.palette || die.palette, strandIndex + child + 1) ||
+          effect.splitStroke ||
+          effect.stroke ||
+          die.stroke ||
+          '#91d0c0',
+        strokeWidth: Math.max(finiteOr(effect.strokeWidth, finiteOr(die.strokeWidth, 1.5)) * 0.72, 0.4),
+        opacity: round(opacity * 0.72),
+        dash: effect.splitDash || effect.dash || die.dash,
+        z: zBase + t * 12 + finiteOr(effect.zOffset, 0.28 + effectIndex * 0.04) + strandIndex * 0.001 + (child + 1) * 0.0001,
+        algorithmic: true,
+        algorithm: 'pastamaker',
+        pass: effect.pass || 'fluid-noisy-spaghetti',
+        vectorFluid: true,
+        ...vectorFlag,
+        sourceShape: constructionKind,
+        fluidEffectRole: effect.role || `noisy-spaghetti-${effectIndex + 1}`,
+        fluidEffectKind: 'pastamaker',
+        stickerFieldRole: roleBase,
+        stickerFieldIndex: strandIndex,
+        stickerFieldCount: density,
+        stickerFieldT: round(density === 1 ? 0.5 : strandIndex / (density - 1)),
+        pastamaker: {
+          dieFamily: 'noisySpaghetti',
+          fieldKind: field.kind || 'alongFluidGlyph',
+          budgetMode: budget.mode,
+          targetOpacity: budget.targetOpacity,
+          expectedOverlapCount: budget.expectedOverlapCount,
+          density,
+          length: round(childEnd - childStart),
+          alignment: round(alignment),
+          fractalOctaves: octaves,
+          fractalSplit: split,
+          splitOf: strandIndex,
+          collisionPolicy: avoid.length ? 'deterministic-avoidance' : undefined,
+          obstacleCount: avoid.length || undefined,
+        },
+      });
+    }
+  }
+
+  return out;
+}
+
+function noisySpaghettiPolyline({ points, startT, endT, samples, lateral, alignment, octaves, wobble, phase, seed, avoid = [] }) {
+  const out = [];
+  const span = Math.max(endT - startT, 0.001);
+  for (let i = 0; i < samples; i++) {
+    const u = samples === 1 ? 0.5 : i / (samples - 1);
+    const sample = sampleGesture(points, startT + span * u);
+    if (!sample) continue;
+    const tangent = sample.tangent;
+    const normal = normalize([-tangent[1], tangent[0]]);
+    let noise = 0;
+    let amp = 1;
+    let ampTotal = 0;
+    for (let octave = 0; octave < octaves; octave++) {
+      const freq = 1 + octave * 1.85;
+      noise += Math.sin((u * Math.PI * 2 * freq) + phase + deterministicWave(seed, octave, u) * Math.PI) * amp;
+      ampTotal += amp;
+      amp *= 0.52;
+    }
+    const normalizedNoise = ampTotal > 0 ? noise / ampTotal : 0;
+    const drift = Math.sin((u + phase) * Math.PI * 2) * (1 - alignment) * 4;
+    const offset = lateral + normalizedNoise * wobble * 9 + drift;
+    const basePoint = [
+      sample.point[0] + normal[0] * offset,
+      sample.point[1] + normal[1] * offset,
+    ];
+    const resolvedPoint = avoid.length ? applyNoisySpaghettiAvoidance(basePoint, avoid) : basePoint;
+    out.push([roundPoint(resolvedPoint[0]), roundPoint(resolvedPoint[1])]);
+  }
+  return out;
+}
+
+function normalizeNoisySpaghettiAvoidance(input) {
+  if (!input) return [];
+  const raw = Array.isArray(input) ? input : [input];
+  return raw.map((obstacle, index) => {
+    if (!obstacle || typeof obstacle !== 'object') return null;
+    const kind = obstacle.kind || obstacle.shape || (validPoint(obstacle.center || obstacle.anchor) ? 'circle' : 'rect');
+    const padding = Math.max(finiteOr(obstacle.padding, 0), 0);
+    const strength = clamp(finiteOr(obstacle.strength, 1), 0, 4);
+    const falloff = Math.max(finiteOr(obstacle.falloff, 18), 0);
+    if (kind === 'circle' || kind === 'sphere') {
+      const center = validPoint(obstacle.center || obstacle.anchor);
+      if (!center) return null;
+      return {
+        kind: 'circle',
+        role: obstacle.role || `avoid-${index + 1}`,
+        center,
+        radius: Math.max(finiteOr(obstacle.radius ?? obstacle.r, 24), 0) + padding,
+        strength,
+        falloff,
+      };
+    }
+    const x = finiteOr(obstacle.x, finiteOr(obstacle.bounds?.x, NaN));
+    const y = finiteOr(obstacle.y, finiteOr(obstacle.bounds?.y, NaN));
+    const width = finiteOr(obstacle.width ?? obstacle.w, finiteOr(obstacle.bounds?.width ?? obstacle.bounds?.w, NaN));
+    const height = finiteOr(obstacle.height ?? obstacle.h, finiteOr(obstacle.bounds?.height ?? obstacle.bounds?.h, NaN));
+    if (![x, y, width, height].every(Number.isFinite)) return null;
+    return {
+      kind: 'rect',
+      role: obstacle.role || `avoid-${index + 1}`,
+      x: x - padding,
+      y: y - padding,
+      width: Math.max(width + padding * 2, 0),
+      height: Math.max(height + padding * 2, 0),
+      strength,
+      falloff,
+    };
+  }).filter(Boolean);
+}
+
+function applyNoisySpaghettiAvoidance(point, obstacles) {
+  let x = point[0];
+  let y = point[1];
+  for (const obstacle of obstacles) {
+    const push = obstacle.kind === 'circle'
+      ? circleAvoidanceVector([x, y], obstacle)
+      : rectAvoidanceVector([x, y], obstacle);
+    x += push[0];
+    y += push[1];
+  }
+  return [x, y];
+}
+
+function circleAvoidanceVector(point, obstacle) {
+  const dx = point[0] - obstacle.center[0];
+  const dy = point[1] - obstacle.center[1];
+  const dist = Math.hypot(dx, dy);
+  const influence = obstacle.radius + obstacle.falloff;
+  if (influence <= 0 || dist >= influence) return [0, 0];
+  const dir = dist > 1e-6 ? [dx / dist, dy / dist] : [1, 0];
+  const target = dist < obstacle.radius
+    ? obstacle.radius - dist
+    : (influence - dist) * 0.28;
+  const amount = target * obstacle.strength;
+  return [dir[0] * amount, dir[1] * amount];
+}
+
+function rectAvoidanceVector(point, obstacle) {
+  const minX = obstacle.x;
+  const minY = obstacle.y;
+  const maxX = obstacle.x + obstacle.width;
+  const maxY = obstacle.y + obstacle.height;
+  const cx = clamp(point[0], minX, maxX);
+  const cy = clamp(point[1], minY, maxY);
+  const dx = point[0] - cx;
+  const dy = point[1] - cy;
+  const dist = Math.hypot(dx, dy);
+  const inside = point[0] >= minX && point[0] <= maxX && point[1] >= minY && point[1] <= maxY;
+  if (!inside && dist >= obstacle.falloff) return [0, 0];
+  if (inside) {
+    const nearest = [
+      { vector: [-1, 0], amount: point[0] - minX },
+      { vector: [1, 0], amount: maxX - point[0] },
+      { vector: [0, -1], amount: point[1] - minY },
+      { vector: [0, 1], amount: maxY - point[1] },
+    ].sort((a, b) => a.amount - b.amount)[0];
+    const amount = (nearest.amount + Math.max(obstacle.falloff * 0.18, 1)) * obstacle.strength;
+    return [nearest.vector[0] * amount, nearest.vector[1] * amount];
+  }
+  if (dist <= 1e-6) return [0, 0];
+  const amount = (obstacle.falloff - dist) * 0.28 * obstacle.strength;
+  return [(dx / dist) * amount, (dy / dist) * amount];
+}
+
+function fluidPastamakerEffects(mark, glyph) {
+  const direct = mark.effects?.pastamaker ?? mark.pastamakerEffects ?? glyph.effects?.pastamaker;
+  if (!direct) return [];
+  return Array.isArray(direct) ? direct.filter((effect) => effect && typeof effect === 'object') : [direct];
+}
+
+function fluidPastamakerStickerField({ effect, effectIndex, common, linePoints, head, base, radius, camera, zBase, t, index }) {
+  const die = effect.die && typeof effect.die === 'object' && !Array.isArray(effect.die)
+    ? effect.die
+    : { family: effect.family || 'line' };
+  const field = effect.field && typeof effect.field === 'object' && !Array.isArray(effect.field)
+    ? effect.field
+    : {};
+  const family = die.family || die.kind || 'line';
+  const role = `${common.fluidGlyphRole}:${effect.role || `pastamaker-${effectIndex + 1}`}`;
+  const stickerBase = {
+    kind: 'stickerField',
+    role,
+    z: zBase + t * 12 + finiteOr(effect.zOffset, 0.18 + effectIndex * 0.04),
+    die,
+    valueBudget: effect.valueBudget,
+    opacity: effect.opacity,
+    fill: effect.fill,
+    stroke: effect.stroke,
+    strokeWidth: effect.strokeWidth,
+    blur: effect.blur,
+    pass: effect.pass || `fluid-${family}`,
+    style: effect.style,
+  };
+  if (
+    field.kind === 'aroundGlyphHead' ||
+    field.kind === 'aroundGlyphBase' ||
+    field.kind === 'insideFluidEnvelope' ||
+    field.kind === 'aroundRing' ||
+    (field.kind !== 'alongPath' && field.kind !== 'alongFluidGlyph' && family !== 'line')
+  ) {
+    const envelopeT = clamp(finiteOr(field.t ?? field.envelopeT, common.flameGlyph ? 0.42 : 0.62), 0, 1);
+    const envelopeSample = sampleGesture(linePoints, envelopeT)?.point;
+    const center =
+      validPoint(field.center) ||
+      (field.kind === 'aroundGlyphBase' ? base : null) ||
+      (field.kind === 'insideFluidEnvelope' ? envelopeSample : null) ||
+      head;
+    const ringRadius = field.radius || [
+      Math.max(roundPoint(radius * camera.unitScale * 0.2), 2),
+      Math.max(roundPoint(radius * camera.unitScale * 1.15), 4),
+    ];
+    return {
+      ...stickerBase,
+      field: {
+        ...field,
+        kind: 'aroundRing',
+        center,
+        radius: ringRadius,
+        count: Math.max(1, Math.min(120, Math.round(finiteOr(field.count ?? effect.count, family === 'line' ? 4 : 6)))),
+      },
+    };
+  }
+  return {
+    ...stickerBase,
+    die: {
+      ...die,
+      family: family === 'line' ? 'line' : family,
+    },
+    field: {
+      ...field,
+      kind: 'alongPath',
+      points: linePoints,
+      count: Math.max(1, Math.min(120, Math.round(finiteOr(field.count ?? effect.count, 4)))),
+      lateralJitter: field.lateralJitter || effect.lateralJitter || [-4, 4],
+      alongJitter: field.alongJitter ?? effect.alongJitter ?? 0.08,
+    },
+  };
+}
+
+function swirlGlyphWorldPoint({ center, flow, cross, lift, u, radius, tailLength, turns, startAngle, handedness, seed }) {
+  const wave = deterministicWave(seed, 0, u * Math.PI * 2) * radius * 0.08;
+  if (u < 0.28) {
+    const q = u / 0.28;
+    const tail = -tailLength * (1 - q);
+    const side = Math.sin(q * Math.PI) * radius * 0.18 * handedness + wave;
+    return add3(center, add3(scale3(flow, tail), scale3(cross, side)));
+  }
+  const q = (u - 0.28) / 0.72;
+  const angle = startAngle + handedness * turns * Math.PI * 2 * q;
+  const r = radius * (1 - q * 0.66);
+  const x = Math.cos(angle) * r + wave;
+  const y = Math.sin(angle) * r * 0.78;
+  const curlLift = Math.sin(q * Math.PI) * radius * 0.16;
+  return add3(center, add3(scale3(cross, x), add3(scale3(flow, y), scale3(lift, curlLift))));
+}
+
+function resolveSwirlHandedness(mode, index, seed) {
+  if (mode === 'clockwise') return -1;
+  if (mode === 'counterclockwise') return 1;
+  if (mode === 'random' || mode === 'seeded') return seededUnit(seed, 10) > 0.5 ? 1 : -1;
+  return index % 2 === 0 ? 1 : -1;
+}
+
+function numericRange(value, fallbackA, fallbackB) {
+  if (Array.isArray(value) && value.length >= 2) {
+    return [finiteOr(value[0], fallbackA), finiteOr(value[1], fallbackB)];
+  }
+  if (Number.isFinite(Number(value))) return [Number(value), Number(value)];
+  return [fallbackA, fallbackB];
+}
+
+function lerpRange(value, fallbackA, fallbackB, t) {
+  const range = numericRange(value, fallbackA, fallbackB);
+  return lerp(range[0], range[1], t);
+}
+
+function seededUnit(seed, salt = 0) {
+  const next = hashString(`${seed}:${salt}`);
+  return (next % 1000003) / 1000003;
+}
+
+function validVector3(point) {
+  return Array.isArray(point) && point.length >= 3 &&
+    Number.isFinite(Number(point[0])) &&
+    Number.isFinite(Number(point[1])) &&
+    Number.isFinite(Number(point[2]))
+    ? [Number(point[0]), Number(point[1]), Number(point[2])]
+    : null;
+}
+
+function add3(a, b) {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function scale3(v, scalar) {
+  return [v[0] * scalar, v[1] * scalar, v[2] * scalar];
+}
+
+function midpoint(a, b) {
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+}
+
 function expandMandalaFieldMark(mark, manifest = {}) {
   const field = mark.field && typeof mark.field === 'object' && !Array.isArray(mark.field)
     ? mark.field
@@ -2229,27 +7863,45 @@ function projectMandalaScreen(camera, point, altitude = 0) {
   const north = normalize(validPoint(camera.north) || [0, -1]);
   const zenith = normalize(validPoint(camera.zenith) || [0, -1]);
   const unitScale = finiteOr(camera.unitScale, 24);
-  const depthScale = clamp(finiteOr(camera.depthScale, 0.94), 0.2, 1);
   const x = finiteOr(point?.[0], 0);
   const y = finiteOr(point?.[1], 0);
-  const compression = Math.pow(depthScale, Math.max(0, -y));
+  const compression = mandalaPerspectiveScale(camera, point);
   return [
     roundPoint(camera.screenOrigin[0] + east[0] * x * unitScale + north[0] * y * unitScale * compression + zenith[0] * altitude * unitScale),
     roundPoint(camera.screenOrigin[1] + east[1] * x * unitScale + north[1] * y * unitScale * compression + zenith[1] * altitude * unitScale),
   ];
 }
 
-function expandStickerFieldMark(mark, byRole) {
+function mandalaPerspectiveScale(camera, point) {
+  const depthScale = clamp(finiteOr(camera.depthScale, 0.94), 0.2, 1);
+  const y = finiteOr(point?.[1], 0);
+  return Math.pow(depthScale, Math.max(0, -y));
+}
+
+function expandStickerFieldMark(mark, byRole, scene = {}) {
   const field = mark.field && typeof mark.field === 'object' ? mark.field : {};
   const die = mark.die && typeof mark.die === 'object' ? mark.die : {};
   const family = die.family || die.kind;
+  const bubbling = isBubblingFamily(family);
+  const iguana = isIguanaFamily(family);
+  const stringSpawn = isStringSpawnFamily(family);
   if (
     (field.kind !== 'aroundRing' || (family !== 'arcPatch' && family !== 'line' && family !== 'spikeBanana' && family !== 'fuzzyPeach')) &&
-    (field.kind !== 'alongPath' || family !== 'line')
+    (field.kind !== 'alongPath' || (family !== 'line' && !bubbling && !stringSpawn)) &&
+    ((field.kind !== 'fillBox' && field.kind !== 'insideRect' && field.kind !== 'box' && field.kind !== 'outwardFill' && field.kind !== 'constellationFill') || (!bubbling && !iguana))
   ) {
     throw new Error(
-      `stickerField '${mark.role || '(anonymous)'}' only supports aroundRing/arcPatch, aroundRing/line, aroundRing/spikeBanana, aroundRing/fuzzyPeach, or alongPath/line in this spike`,
+      `stickerField '${mark.role || '(anonymous)'}' only supports aroundRing/arcPatch, aroundRing/line, aroundRing/spikeBanana, aroundRing/fuzzyPeach, alongPath/line, alongPath/bubbling, alongPath/stringSpawn, or fillBox/bubbling in this spike`,
     );
+  }
+  if (stringSpawn) return expandAlongPathStringSpawnField(mark, field, die, scene);
+  if (bubbling) {
+    if (field.kind === 'alongPath') return expandAlongPathBubblingField(mark, field, die);
+    if (field.kind === 'outwardFill' || field.kind === 'constellationFill') return expandOutwardBubblingField(mark, field, die);
+    return expandFillBoxBubblingField(mark, field, die);
+  }
+  if (iguana) {
+    return expandIguanaField(mark, field, die);
   }
   if (field.kind === 'alongPath') {
     return expandAlongPathLineField(mark, field, die);
@@ -2263,6 +7915,22 @@ function expandStickerFieldMark(mark, byRole) {
   return family === 'line'
     ? expandAroundRingLineField(mark, field, die, byRole)
     : expandAroundRingArcPatchField(mark, field, die, byRole);
+}
+
+function isBubblingFamily(family) {
+  return family === 'bubbling' || family === 'bubble' || family === 'kingKrispies' || family === 'king-krispies';
+}
+
+function isKingKrispiesFamily(family) {
+  return family === 'kingKrispies' || family === 'king-krispies';
+}
+
+function isIguanaFamily(family) {
+  return family === 'iguana' || family === 'iguanaBubbles' || family === 'iguana-bubbles';
+}
+
+function isStringSpawnFamily(family) {
+  return family === 'stringSpawn' || family === 'string-spawn' || family === 'stringsWithGlyphs';
 }
 
 function expandAroundRingArcPatchField(mark, field, die, byRole) {
@@ -2682,6 +8350,2279 @@ function expandAlongPathLineField(mark, field, die) {
   return out;
 }
 
+function expandAlongPathStringSpawnField(mark, field, die, scene = {}) {
+  const points = pathPointsFor(field);
+  if (points.length < 2) {
+    throw new Error(`stickerField '${mark.role || '(anonymous)'}' field.points must contain at least two [x,y] points`);
+  }
+  const preset = resolveStringSpawnPreset(die);
+  const stringCount = Math.max(1, Math.min(120, Math.round(finiteOr(field.stringCount ?? field.count, 7))));
+  const glyph = preset.glyph;
+  const glyphCount = Math.max(0, Math.min(80, Math.round(finiteOr(glyph.count ?? field.glyphCount, 4))));
+  const lateralRange = normalizeRange(field.lateralJitter ?? die.lateralJitter, -10, 10);
+  const lengthRange = normalizeRange(field.length ?? die.length, 0.64, 1);
+  const samples = Math.max(4, Math.min(96, Math.round(finiteOr(field.samples ?? die.samples, 24))));
+  const wobble = clamp(finiteOr(field.wobble ?? die.wobble, preset.wobble), 0, 2);
+  const octaves = Math.max(1, Math.min(6, Math.round(finiteOr(field.fractalOctaves ?? die.fractalOctaves, preset.fractalOctaves))));
+  const budget = resolveValueBudget(mark.valueBudget, {
+    targetOpacity: finiteOr(mark.opacity, 0.5),
+    expectedOverlapCount: Math.max(1, Math.min(stringCount, Math.round(stringCount / 2))),
+    mode: 'inverse-count',
+  });
+  const opacity = opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode);
+  const seed = hashString(`${mark.role || 'stickerField'}:stringSpawn:${stringCount}:${points.map((p) => p.join(',')).join('|')}`);
+  const out = [];
+  const clusterPoints = [];
+
+  for (let stringIndex = 0; stringIndex < stringCount; stringIndex++) {
+    const stringSeed = hashString(`${seed}:${stringIndex}`);
+    const t = stringCount === 1 ? 0.5 : stringIndex / (stringCount - 1);
+    const lengthT = clamp(lerp(lengthRange[0], lengthRange[1], seededUnit(stringSeed, 1)), 0.04, 1);
+    const maxStart = Math.max(0, 1 - lengthT);
+    const startT = maxStart <= 0 ? 0 : seededUnit(stringSeed, 2) * maxStart;
+    const endT = Math.min(1, startT + lengthT);
+    const lateral = lerp(lateralRange[0], lateralRange[1], seededUnit(stringSeed, 3));
+    const phase = seededUnit(stringSeed, 4) * Math.PI * 2;
+    const baseStringPoints = noisySpaghettiPolyline({
+      points,
+      startT,
+      endT,
+      samples,
+      lateral,
+      alignment: clamp(finiteOr(field.alignment ?? die.alignment, preset.alignment), 0, 1),
+      octaves,
+      wobble,
+      phase,
+      seed: stringSeed,
+      avoid: normalizeNoisySpaghettiAvoidance(field.avoid ?? die.avoid),
+    });
+    const stringPoints = applyStringSpawnSpiralPreset(baseStringPoints, {
+      preset,
+      seed: stringSeed,
+      index: stringIndex,
+      pathLength: Math.max(Math.abs(lateralRange[1] - lateralRange[0]), 1),
+    });
+    clusterPoints.push(...stringPoints);
+    const roleBase = `${mark.role || 'sticker-field'}:string-${String(stringIndex + 1).padStart(2, '0')}`;
+    out.push({
+      kind: 'polyline',
+      role: `${roleBase}:path`,
+      points: stringPoints,
+      fill: 'none',
+      stroke: choosePaletteValue(mark.style?.palette || field.palette || die.palette, stringIndex) ||
+        mark.stroke ||
+        die.stroke ||
+        '#d7caa7',
+      strokeWidth: finiteOr(mark.strokeWidth, finiteOr(die.strokeWidth, 1.2)),
+      opacity,
+      z: finiteOr(mark.z, 30) + stringIndex * 0.002,
+      algorithmic: true,
+      algorithm: 'pastamaker',
+      pass: mark.pass || 'string-spawn',
+      pastamaker: {
+        dieFamily: 'stringSpawn',
+        fieldKind: 'alongPath',
+        stringSpawnPreset: preset.name,
+        spiralEnabled: Boolean(preset.spiral?.enabled),
+        budgetMode: budget.mode,
+        targetOpacity: budget.targetOpacity,
+        expectedOverlapCount: budget.expectedOverlapCount,
+        stringIndex,
+        glyphCount,
+      },
+      stickerFieldRole: mark.role,
+      stickerFieldIndex: stringIndex,
+      stickerFieldCount: stringCount,
+      stickerFieldT: round(t),
+      stringSpawnRole: mark.role,
+      stringSpawnIndex: stringIndex,
+      stringSpawnKind: 'string',
+    });
+
+    for (let glyphIndex = 0; glyphIndex < glyphCount; glyphIndex++) {
+      const glyphSeed = hashString(`${stringSeed}:glyph:${glyphIndex}`);
+      const glyphT = glyphCount === 1 ? 0.5 : (glyphIndex + 0.5) / glyphCount;
+      const sample = sampleGesture(stringPoints, clamp(glyphT + (seededUnit(glyphSeed, 1) - 0.5) * finiteOr(glyph.alongJitter, 0.08), 0, 1));
+      if (!sample) continue;
+      const glyphMark = stringSpawnGlyphMark({
+        mark,
+        die,
+        glyph,
+        point: sample.point,
+        tangent: sample.tangent,
+        seed: glyphSeed,
+        stringIndex,
+        glyphIndex,
+        glyphCount,
+        roleBase,
+        budget,
+      });
+      clusterPoints.push(...markGeometryPoints(glyphMark));
+      out.push(glyphMark);
+    }
+  }
+
+  if (preset.cohere.enabled) {
+    const skinMarks = stringSpawnSkinMarks({ mark, die, cohere: preset.cohere, points: clusterPoints, budget, scene });
+    if (skinMarks.length) out.unshift(...skinMarks);
+  }
+
+  return out;
+}
+
+function resolveStringSpawnPreset(die) {
+  const presetName = die.preset || die.naturalPreset || die.spiralPreset;
+  const baseGlyph = die.glyph && typeof die.glyph === 'object' && !Array.isArray(die.glyph) ? die.glyph : {};
+  const spiral = die.spiral && typeof die.spiral === 'object' && !Array.isArray(die.spiral) ? die.spiral : {};
+  const cohere = die.cohere && typeof die.cohere === 'object' && !Array.isArray(die.cohere)
+    ? { ...die.cohere, enabled: die.cohere.enabled !== false }
+    : { enabled: die.cohere === true };
+  if (presetName === 'fernCurl') {
+    return {
+      name: 'fernCurl',
+      alignment: 0.7,
+      wobble: 0.72,
+      fractalOctaves: 4,
+      spiral: {
+        enabled: true,
+        handedness: spiral.handedness || 'alternate',
+        turns: spiral.turns ?? [0.35, 1.25],
+        decay: finiteOr(spiral.decay, 0.74),
+        amplitude: spiral.amplitude,
+      },
+      glyph: {
+        id: 'leaf',
+        count: 3,
+        size: [3, 9],
+        ...baseGlyph,
+      },
+      cohere,
+    };
+  }
+  return {
+    name: presetName || null,
+    alignment: 0.82,
+    wobble: 0.55,
+    fractalOctaves: 3,
+    spiral: {
+      enabled: Boolean(spiral.enabled || spiral.turns || spiral.handedness),
+      handedness: spiral.handedness || 'alternate',
+      turns: spiral.turns ?? [0.2, 0.7],
+      decay: finiteOr(spiral.decay, 0.82),
+      amplitude: spiral.amplitude,
+    },
+    glyph: baseGlyph,
+    cohere,
+  };
+}
+
+function applyStringSpawnSpiralPreset(points, { preset, seed, index, pathLength }) {
+  if (!preset?.spiral?.enabled || !Array.isArray(points) || points.length < 3) return points;
+  const turns = lerpRange(preset.spiral.turns, 0.2, 0.7, seededUnit(seed, 7));
+  const handedness = stringSpawnPresetHandedness(preset.spiral.handedness, seed, index);
+  const decay = clamp(finiteOr(preset.spiral.decay, 0.78), 0.05, 1.2);
+  const amplitude = finiteOr(preset.spiral.amplitude, Math.max(3.5, pathLength * 0.42));
+  return points.map((point, pointIndex) => {
+    const t = points.length === 1 ? 0.5 : pointIndex / (points.length - 1);
+    const prev = points[Math.max(0, pointIndex - 1)];
+    const next = points[Math.min(points.length - 1, pointIndex + 1)];
+    const tangent = normalize([next[0] - prev[0], next[1] - prev[1]]);
+    const normal = normalize([-tangent[1], tangent[0]]);
+    const envelope = Math.sin(Math.PI * t) * Math.pow(Math.max(0, 1 - t * 0.58), decay);
+    const curl = Math.sin((t * turns * Math.PI * 2) + seededUnit(seed, 8) * Math.PI * 2);
+    const offset = curl * amplitude * envelope * handedness;
+    return [
+      roundPoint(point[0] + normal[0] * offset),
+      roundPoint(point[1] + normal[1] * offset),
+    ];
+  });
+}
+
+function stringSpawnPresetHandedness(value, seed, index) {
+  if (value === 'clockwise' || value === 'right') return 1;
+  if (value === 'counterclockwise' || value === 'left') return -1;
+  if (value === 'random') return seededUnit(seed, 9) > 0.5 ? 1 : -1;
+  return index % 2 === 0 ? 1 : -1;
+}
+
+function stringSpawnSkinMarks({ mark, die, cohere, points, budget, scene = {} }) {
+  const envelope = stringClusterEnvelope(points, cohere);
+  if (envelope.length < 3) return [];
+  const skin = cohere.skin && typeof cohere.skin === 'object' && !Array.isArray(cohere.skin) ? cohere.skin : {};
+  const mode = cohere.mode || 'skin';
+  const opacity = round(clamp(finiteOr(skin.opacity, finiteOr(cohere.opacity, 0.34)), 0.02, 1));
+  const role = `${mark.role || 'sticker-field'}:cohered-skin`;
+  const skinMark = {
+    kind: 'polygon',
+    role,
+    points: envelope,
+    closed: true,
+    fill: skin.fill || cohere.fill || mark.skinFill || die.skinFill || '#7b5842',
+    stroke: skin.stroke || cohere.stroke || mark.skinStroke || die.skinStroke || 'none',
+    strokeWidth: finiteOr(skin.strokeWidth, finiteOr(cohere.strokeWidth, 0.8)),
+    opacity,
+    z: finiteOr(mark.z, 30) - 0.04,
+    algorithmic: true,
+    algorithm: 'pastamaker',
+    pass: mark.pass || 'string-spawn-skin',
+    pastamaker: {
+      dieFamily: 'stringSpawn',
+      fieldKind: 'alongPath',
+      skin: true,
+      stringSpawnPreset: mark.die?.preset || mark.die?.naturalPreset || mark.die?.spiralPreset || null,
+      budgetMode: budget.mode,
+      targetOpacity: budget.targetOpacity,
+      expectedOverlapCount: budget.expectedOverlapCount,
+    },
+    stringSpawnRole: mark.role,
+    stringSpawnKind: 'skin',
+    stringSpawnSkin: true,
+    stringSpawnSkinRole: mark.role,
+    stringSpawnSkinMode: mode,
+    stringSpawnSkinEnvelope: cohere.envelope || 'convexHull',
+    volumeRole: `${mark.role || 'sticker-field'}:skin`,
+    volumeSurface: 'cohered-string-skin',
+  };
+  const fabricMarks = fabricCreaseMarks({ mark, die, cohere, envelope, scene, skinMark });
+  const patternMarks = fabricPatternMarks({ mark, die, cohere, envelope, skinMark, fabricMarks });
+  const armorMarks = fabricArmorMarks({ mark, die, cohere, envelope, skinMark, scene });
+  return [skinMark, ...fabricMarks, ...patternMarks, ...armorMarks];
+}
+
+function fabricCreaseMarks({ mark, die, cohere, envelope, scene = {}, skinMark }) {
+  const fabric = cohere.fabric && typeof cohere.fabric === 'object' && !Array.isArray(cohere.fabric)
+    ? cohere.fabric
+    : { enabled: cohere.fabric === true };
+  if (!fabric.enabled) return [];
+  const center = centroid(envelope);
+  const basis = principalPointBasis(envelope, center);
+  const projected = envelope.map((point) => {
+    const rel = [point[0] - center[0], point[1] - center[1]];
+    return { s: dot(rel, basis.axis), n: dot(rel, basis.normal) };
+  });
+  const minS = Math.min(...projected.map((p) => p.s));
+  const maxS = Math.max(...projected.map((p) => p.s));
+  const minN = Math.min(...projected.map((p) => p.n));
+  const maxN = Math.max(...projected.map((p) => p.n));
+  const spanS = Math.max(maxS - minS, 1);
+  const spanN = Math.max(maxN - minN, 1);
+  const pleats = fabric.pleats && typeof fabric.pleats === 'object' && !Array.isArray(fabric.pleats) ? fabric.pleats : {};
+  const pressure = normalizePressureProfile(pleats.pressure ?? fabric.pressure);
+  const count = Math.max(1, Math.min(48, Math.round(finiteOr(pleats.count ?? fabric.count, 7))));
+  const stiffness = clamp(finiteOr(fabric.stiffness, 0.42), 0, 1);
+  const gravity = normalize(validPoint(fabric.gravity) || [0, 1]);
+  const light = normalize(validPoint(scene?.light?.direction) || validPoint(fabric.lightDirection) || [-0.6, -0.8]);
+  const amplitude = Math.max(0, finiteOr(pleats.amplitude, 0.32)) * spanS * 0.12 * (1 - stiffness);
+  const strokeBase = finiteOr(fabric.strokeWidth, finiteOr(die.strokeWidth, finiteOr(mark.strokeWidth, 1.1)));
+  const opacityBase = clamp(finiteOr(fabric.opacity, 0.46), 0.02, 1);
+  const zBase = finiteOr(mark.z, 30);
+  const avoid = normalizeNoisySpaghettiAvoidance(fabric.avoid ?? cohere.avoid);
+  const seed = hashString(`${mark.role || 'stickerField'}:fabric:${count}:${envelope.map((p) => p.join(',')).join('|')}`);
+  const marks = [];
+
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0.5 : (i + 0.5) / count;
+    const localSeed = hashString(`${seed}:${i}`);
+    const s = lerp(minS + spanS * 0.08, maxS - spanS * 0.08, t);
+    const ridgeSign = i % 2 === 0 ? 1 : -1;
+    const roleKind = ridgeSign > 0 ? 'ridge' : 'valley';
+    const crease = [];
+    const samples = Math.max(4, Math.min(18, Math.round(finiteOr(fabric.samples, 7))));
+    for (let j = 0; j < samples; j++) {
+      const u = samples === 1 ? 0.5 : j / (samples - 1);
+      const centeredU = u - 0.5;
+      const n = lerp(minN + spanN * 0.12, maxN - spanN * 0.12, u);
+      const sag = Math.sin(Math.PI * u) * amplitude * (0.45 + Math.abs(t - 0.5));
+      const ripple = deterministicWave(localSeed, j, u) * amplitude * 0.28;
+      const principalPoint = pointFromPrincipal(
+        center,
+        basis,
+        s + gravity[0] * sag + basis.axis[0] * ripple * 0.12,
+        n + gravity[1] * sag + centeredU * amplitude * 0.12 * ridgeSign,
+      );
+      const avoided = avoid.length ? applyNoisySpaghettiAvoidance(principalPoint, avoid) : principalPoint;
+      crease.push(nudgePointInsidePolygon(avoided, envelope, center));
+    }
+    const mid = crease[Math.floor(crease.length / 2)] || center;
+    const depthT = clamp((dot([mid[0] - center[0], mid[1] - center[1]], basis.axis) - minS) / spanS, 0, 1);
+    const perspectiveScale = fabricPerspectiveScale(fabric, mark, depthT);
+    const lightDot = dot(normalize([basis.normal[0] * ridgeSign, basis.normal[1] * ridgeSign]), normalize([-light[0], -light[1]]));
+    const isLitRidge = ridgeSign > 0 && lightDot >= -0.15;
+    const stroke = roleKind === 'ridge'
+      ? (isLitRidge
+        ? fabric.highlightStroke || fabric.ridgeStroke || '#f4dcc0'
+        : fabric.ridgeStroke || '#c7a785')
+      : fabric.valleyStroke || fabric.shadowStroke || '#3e2b22';
+    const opacity = round(clamp(opacityBase * (roleKind === 'ridge' ? 0.78 : 0.9) * lerp(0.72, 1, perspectiveScale), 0.02, 1));
+    const common = {
+      kind: 'polyline',
+      role: `${mark.role || 'sticker-field'}:fabric-${roleKind}-${String(i + 1).padStart(2, '0')}`,
+      points: crease,
+      fill: 'none',
+      stroke,
+      strokeWidth: roundPoint(Math.max(0.35, strokeBase * perspectiveScale * (roleKind === 'ridge' ? 0.9 : 1.08))),
+      opacity,
+      z: roundPoint(zBase + (roleKind === 'ridge' ? 0.028 : 0.018) + i * 0.0004),
+      algorithmic: true,
+      algorithm: 'fabric-physics',
+      pass: fabric.pass || 'fabric-crease',
+      fabricPhysics: true,
+      fabricMode: fabric.mode || 'drape',
+      fabricEnvelope: skinMark.stringSpawnSkinEnvelope,
+      fabricRole: roleKind,
+      fabricStress: round(clamp((1 - stiffness) * 0.55 + Math.abs(t - 0.5) * 0.5 + avoid.length * 0.08, 0, 1)),
+      fabricDepthT: round(depthT),
+      fabricPerspectiveScale: round(perspectiveScale),
+      fabricNormalHint: [round(basis.normal[0] * ridgeSign), round(basis.normal[1] * ridgeSign), round(0.72)],
+      fabricRidgeSign: ridgeSign,
+      fabricLightDot: round(lightDot),
+      lightResponse: roleKind === 'ridge' ? 'highlight' : 'shadow',
+      stringSpawnRole: mark.role,
+      stringSpawnKind: 'fabric-crease',
+      stringSpawnSkinRole: skinMark.stringSpawnSkinRole,
+      volumeSurface: 'cohered-string-skin',
+      volumeRole: `${mark.role || 'sticker-field'}:fabric-${roleKind}`,
+      pastamaker: {
+        dieFamily: 'stringSpawn',
+        fieldKind: 'alongPath',
+        fabricPhysics: true,
+        fabricMode: fabric.mode || 'drape',
+        fabricEnvelope: skinMark.stringSpawnSkinEnvelope,
+        stiffness: round(stiffness),
+        obstacleCount: avoid.length || undefined,
+      },
+    };
+    if (pressure.enabled) {
+      marks.push(...pressureSegmentMarks({
+        common,
+        points: crease,
+        baseStrokeWidth: strokeBase * perspectiveScale * (roleKind === 'ridge' ? 0.9 : 1.08),
+        baseOpacity: opacity,
+        pressure,
+        seed: localSeed,
+        rolePrefix: common.role,
+        extra: {
+          fabricPressure: true,
+          fabricPressureProfile: pressure.profile,
+        },
+      }));
+    } else {
+      marks.push({
+        ...common,
+        strokeWidth: roundPoint(Math.max(0.35, strokeBase * perspectiveScale * (roleKind === 'ridge' ? 0.9 : 1.08))),
+      });
+    }
+  }
+
+  return marks;
+}
+
+function normalizePressureProfile(input) {
+  if (!input) return { enabled: false, profile: 'constant', min: 1, max: 1, noise: 0 };
+  const raw = typeof input === 'object' && !Array.isArray(input)
+    ? input
+    : Array.isArray(input)
+      ? { enabled: true, min: input[0], max: input[1] }
+      : { enabled: input === true };
+  const enabled = raw.enabled !== false;
+  const profile = normalizePressureProfileName(raw.profile || raw.kind || raw.mode || 'bell');
+  return {
+    enabled,
+    profile,
+    min: clamp(finiteOr(raw.min, 0.42), 0.02, 4),
+    max: clamp(finiteOr(raw.max, 1.18), 0.02, 4),
+    noise: clamp(finiteOr(raw.noise, 0), 0, 1),
+    opacityCoupling: clamp(finiteOr(raw.opacityCoupling, 0.24), 0, 1),
+  };
+}
+
+function normalizePressureProfileName(value) {
+  const text = String(value || 'bell').toLowerCase().replace(/[_\s-]+/g, '');
+  if (text === 'linear' || text === 'ramp') return 'linear';
+  if (text === 'frontheavy' || text === 'headheavy') return 'front-heavy';
+  if (text === 'backheavy' || text === 'tailheavy') return 'back-heavy';
+  if (text === 'calligraphic' || text === 'chisel') return 'calligraphic';
+  if (text === 'constant' || text === 'flat') return 'constant';
+  return 'bell';
+}
+
+function pressureAt(t, pressure, seed = 0, index = 0) {
+  if (!pressure?.enabled) return 1;
+  const u = clamp(t, 0, 1);
+  let shaped = 1;
+  if (pressure.profile === 'linear') shaped = u;
+  else if (pressure.profile === 'front-heavy') shaped = 1 - Math.pow(u, 1.55);
+  else if (pressure.profile === 'back-heavy') shaped = Math.pow(u, 1.55);
+  else if (pressure.profile === 'calligraphic') shaped = 0.5 + 0.5 * Math.sin(u * Math.PI * 2);
+  else if (pressure.profile === 'constant') shaped = 1;
+  else shaped = Math.sin(u * Math.PI);
+  const noisy = clamp(shaped + deterministicWave(seed, index, u) * pressure.noise, 0, 1);
+  return lerp(pressure.min, pressure.max, noisy);
+}
+
+function pressureSegmentMarks({ common, points, baseStrokeWidth, baseOpacity, pressure, seed, rolePrefix, extra = {} }) {
+  if (!Array.isArray(points) || points.length < 2) return [];
+  const out = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const t = (i + 0.5) / Math.max(points.length - 1, 1);
+    const p = pressureAt(t, pressure, seed, i);
+    out.push({
+      ...common,
+      ...extra,
+      kind: 'polyline',
+      role: `${rolePrefix}:pressure-${String(i + 1).padStart(2, '0')}`,
+      points: [points[i], points[i + 1]],
+      strokeWidth: roundPoint(Math.max(0.25, baseStrokeWidth * p)),
+      opacity: round(clamp(baseOpacity * lerp(1, p, pressure.opacityCoupling), 0.02, 1)),
+      fabricPressureT: round(t),
+      fabricPressureValue: round(p),
+      z: roundPoint(finiteOr(common.z, 0) + i * 0.00003),
+    });
+  }
+  return out;
+}
+
+function fabricPatternMarks({ mark, die, cohere, envelope, skinMark, fabricMarks = [] }) {
+  const fabric = cohere.fabric && typeof cohere.fabric === 'object' && !Array.isArray(cohere.fabric)
+    ? cohere.fabric
+    : { enabled: cohere.fabric === true };
+  const pattern = fabric.pattern && typeof fabric.pattern === 'object' && !Array.isArray(fabric.pattern)
+    ? fabric.pattern
+    : { enabled: fabric.pattern === true };
+  if (!fabric.enabled || !pattern.enabled) return [];
+  const center = centroid(envelope);
+  const basis = principalPointBasis(envelope, center);
+  const projected = envelope.map((point) => {
+    const rel = [point[0] - center[0], point[1] - center[1]];
+    return { s: dot(rel, basis.axis), n: dot(rel, basis.normal) };
+  });
+  const minS = Math.min(...projected.map((p) => p.s));
+  const maxS = Math.max(...projected.map((p) => p.s));
+  const minN = Math.min(...projected.map((p) => p.n));
+  const maxN = Math.max(...projected.map((p) => p.n));
+  const spanS = Math.max(maxS - minS, 1);
+  const spanN = Math.max(maxN - minN, 1);
+  const kind = normalizeFabricPatternKind(pattern.kind || pattern.type);
+  const density = clamp(finiteOr(pattern.density, 0.62), 0.05, 2);
+  const count = Math.max(1, Math.min(80, Math.round(finiteOr(pattern.count, kind === 'dot' ? 18 : 8) * density)));
+  const color = pattern.stroke || pattern.color || pattern.fill || '#f0d9b5';
+  const fill = pattern.fill || pattern.color || color;
+  const opacity = round(clamp(finiteOr(pattern.opacity, 0.62), 0.02, 1));
+  const zBase = finiteOr(mark.z, 30) + finiteOr(pattern.zOffset, 0.034);
+  const seed = hashString(`${mark.role || 'stickerField'}:fabric-pattern:${kind}:${count}:${envelope.map((p) => p.join(',')).join('|')}`);
+  if (kind === 'dot') {
+    return fabricDotPatternMarks({
+      mark,
+      pattern,
+      skinMark,
+      fabricMarks,
+      center,
+      basis,
+      minS,
+      maxS,
+      minN,
+      maxN,
+      spanS,
+      spanN,
+      count,
+      fill,
+      color,
+      opacity,
+      zBase,
+      seed,
+      envelope,
+    });
+  }
+  return fabricStripePatternMarks({
+    mark,
+    pattern,
+    skinMark,
+    fabricMarks,
+    center,
+    basis,
+    minS,
+    maxS,
+    minN,
+    maxN,
+    spanS,
+    spanN,
+    count,
+    color,
+    opacity,
+    zBase,
+    seed,
+    envelope,
+    kind,
+  });
+}
+
+function normalizeFabricPatternKind(value) {
+  const text = String(value || 'stripe').toLowerCase().replace(/[_\s-]+/g, '');
+  if (text === 'dot' || text === 'dots' || text === 'polkadot' || text === 'polkadots') return 'dot';
+  if (text === 'tartan' || text === 'plaid' || text === 'tartanlite') return 'tartan-lite';
+  return 'stripe';
+}
+
+function fabricStripePatternMarks({
+  mark,
+  pattern,
+  skinMark,
+  fabricMarks,
+  center,
+  basis,
+  minS,
+  maxS,
+  minN,
+  maxN,
+  spanS,
+  spanN,
+  count,
+  color,
+  opacity,
+  zBase,
+  seed,
+  envelope,
+  kind,
+}) {
+  const marks = [];
+  const cross = pattern.flow === 'crossGrain' || pattern.flow === 'cross-grain';
+  const stripeCount = kind === 'tartan-lite' ? Math.max(2, Math.round(count * 0.7)) : count;
+  const pressure = normalizePressureProfile(pattern.pressure);
+  const stripeMarks = (orientation, localCount, zShift) => {
+    for (let i = 0; i < localCount; i++) {
+      const t = localCount === 1 ? 0.5 : (i + 0.5) / localCount;
+      const localSeed = hashString(`${seed}:${orientation}:${i}`);
+      const points = [];
+      const samples = Math.max(4, Math.min(20, Math.round(finiteOr(pattern.samples, 9))));
+      for (let j = 0; j < samples; j++) {
+        const u = samples === 1 ? 0.5 : j / (samples - 1);
+        const s = orientation === 'cross'
+          ? lerp(minS + spanS * 0.08, maxS - spanS * 0.08, u)
+          : lerp(minS + spanS * 0.08, maxS - spanS * 0.08, t);
+        const n = orientation === 'cross'
+          ? lerp(minN + spanN * 0.1, maxN - spanN * 0.1, t)
+          : lerp(minN + spanN * 0.1, maxN - spanN * 0.1, u);
+        const stressPoint = pointFromPrincipal(center, basis, s, n);
+        const stress = nearestFabricCreaseStress(stressPoint, fabricMarks);
+        const distortion = finiteOr(pattern.distortion, 0.34);
+        const wave = deterministicWave(localSeed, j, u) * distortion * 5;
+        const shifted = pointFromPrincipal(
+          center,
+          basis,
+          s + (orientation === 'cross' ? stress * distortion * 7 : wave),
+          n + (orientation === 'cross' ? wave : stress * distortion * 7),
+        );
+        points.push(nudgePointInsidePolygon(shifted, envelope, center));
+      }
+      const mid = points[Math.floor(points.length / 2)] || center;
+      const stress = nearestFabricCreaseStress(mid, fabricMarks);
+      const common = {
+        kind: 'polyline',
+        role: `${mark.role || 'sticker-field'}:fabric-pattern-${orientation}-${String(i + 1).padStart(2, '0')}`,
+        points,
+        fill: 'none',
+        stroke: color,
+        strokeWidth: Math.max(finiteOr(pattern.strokeWidth, 0.85), 0.25),
+        opacity: round(clamp(opacity * lerp(0.76, 1.08, stress), 0.02, 1)),
+        z: roundPoint(zBase + zShift + i * 0.0003),
+        algorithmic: true,
+        algorithm: 'fabric-pattern',
+        pass: pattern.pass || 'fabric-pattern',
+        fabricPattern: true,
+        fabricPatternKind: kind,
+        fabricPatternFlow: orientation === 'cross' ? 'crossGrain' : 'grain',
+        fabricPatternStress: round(stress),
+        fabricFlowT: round(i / Math.max(localCount - 1, 1)),
+        fabricPhysics: true,
+        fabricEnvelope: skinMark.stringSpawnSkinEnvelope,
+        fabricRole: 'pattern',
+        stringSpawnRole: mark.role,
+        stringSpawnKind: 'fabric-pattern',
+        stringSpawnSkinRole: skinMark.stringSpawnSkinRole,
+        volumeSurface: 'cohered-string-skin',
+      };
+      if (pressure.enabled) {
+        marks.push(...pressureSegmentMarks({
+          common,
+          points,
+          baseStrokeWidth: Math.max(finiteOr(pattern.strokeWidth, 0.85), 0.25),
+          baseOpacity: common.opacity,
+          pressure,
+          seed: localSeed,
+          rolePrefix: common.role,
+          extra: {
+            fabricPatternPressure: true,
+            fabricPressureProfile: pressure.profile,
+          },
+        }));
+      } else {
+        marks.push(common);
+      }
+    }
+  };
+  stripeMarks(cross ? 'cross' : 'grain', stripeCount, 0);
+  if (kind === 'tartan-lite') stripeMarks(cross ? 'grain' : 'cross', stripeCount, 0.006);
+  return marks;
+}
+
+function fabricDotPatternMarks({
+  mark,
+  pattern,
+  skinMark,
+  fabricMarks,
+  center,
+  basis,
+  minS,
+  maxS,
+  minN,
+  maxN,
+  spanS,
+  spanN,
+  count,
+  fill,
+  color,
+  opacity,
+  zBase,
+  seed,
+  envelope,
+}) {
+  const marks = [];
+  const columns = Math.max(2, Math.min(16, Math.round(Math.sqrt(count * Math.max(spanS / Math.max(spanN, 1), 0.35)))));
+  const rows = Math.max(2, Math.ceil(count / columns));
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) {
+      const index = row * columns + col;
+      if (index >= count) break;
+      const localSeed = hashString(`${seed}:${row}:${col}`);
+      const sT = (col + 0.5) / columns;
+      const nT = (row + 0.5) / rows;
+      const s = lerp(minS + spanS * 0.1, maxS - spanS * 0.1, sT);
+      const n = lerp(minN + spanN * 0.12, maxN - spanN * 0.12, nT);
+      const base = pointFromPrincipal(center, basis, s, n);
+      const stress = nearestFabricCreaseStress(base, fabricMarks);
+      const distortion = finiteOr(pattern.distortion, 0.34);
+      const jitterS = (seededUnit(localSeed, 1) - 0.5) * spanS * 0.035 * distortion;
+      const jitterN = (seededUnit(localSeed, 2) - 0.5) * spanN * 0.045 * distortion + stress * distortion * 4;
+      const point = nudgePointInsidePolygon(pointFromPrincipal(center, basis, s + jitterS, n + jitterN), envelope, center);
+      const radius = Math.max(0.8, finiteOr(pattern.radius ?? pattern.r, 2.4) * lerp(0.8, 1.28, stress));
+      marks.push({
+        kind: 'circle',
+        role: `${mark.role || 'sticker-field'}:fabric-pattern-dot-${String(index + 1).padStart(2, '0')}`,
+        cx: point[0],
+        cy: point[1],
+        r: roundPoint(radius),
+        fill,
+        stroke: pattern.stroke || color,
+        strokeWidth: finiteOr(pattern.strokeWidth, 0),
+        opacity: round(clamp(opacity * lerp(0.72, 1.06, stress), 0.02, 1)),
+        z: roundPoint(zBase + index * 0.0002),
+        algorithmic: true,
+        algorithm: 'fabric-pattern',
+        pass: pattern.pass || 'fabric-pattern',
+        fabricPattern: true,
+        fabricPatternKind: 'dot',
+        fabricPatternFlow: 'uv-grid',
+        fabricPatternStress: round(stress),
+        fabricFlowT: round(sT),
+        fabricFlowN: round(nT),
+        fabricPhysics: true,
+        fabricEnvelope: skinMark.stringSpawnSkinEnvelope,
+        fabricRole: 'pattern',
+        stringSpawnRole: mark.role,
+        stringSpawnKind: 'fabric-pattern',
+        stringSpawnSkinRole: skinMark.stringSpawnSkinRole,
+        volumeSurface: 'cohered-string-skin',
+      });
+    }
+  }
+  return marks;
+}
+
+function nearestFabricCreaseStress(point, creases = []) {
+  let best = Infinity;
+  let baseStress = 0;
+  for (const crease of creases) {
+    if (!Array.isArray(crease.points)) continue;
+    for (const p of crease.points) {
+      const d = Math.hypot(point[0] - p[0], point[1] - p[1]);
+      if (d < best) {
+        best = d;
+        baseStress = finiteOr(crease.fabricStress, 0.35);
+      }
+    }
+  }
+  if (!Number.isFinite(best)) return 0;
+  return round(clamp((1 - best / 42) * 0.72 + baseStress * 0.28, 0, 1));
+}
+
+function fabricArmorMarks({ mark, die, cohere, envelope, skinMark, scene = {} }) {
+  const fabric = cohere.fabric && typeof cohere.fabric === 'object' && !Array.isArray(cohere.fabric)
+    ? cohere.fabric
+    : { enabled: cohere.fabric === true };
+  const armor = fabric.armor && typeof fabric.armor === 'object' && !Array.isArray(fabric.armor)
+    ? fabric.armor
+    : { enabled: fabric.armor === true };
+  if (!fabric.enabled || !armor.enabled) return [];
+
+  const center = centroid(envelope);
+  const basis = principalPointBasis(envelope, center);
+  const projected = envelope.map((point) => {
+    const rel = [point[0] - center[0], point[1] - center[1]];
+    return { s: dot(rel, basis.axis), n: dot(rel, basis.normal) };
+  });
+  const minS = Math.min(...projected.map((p) => p.s));
+  const maxS = Math.max(...projected.map((p) => p.s));
+  const minN = Math.min(...projected.map((p) => p.n));
+  const maxN = Math.max(...projected.map((p) => p.n));
+  const spanS = Math.max(maxS - minS, 1);
+  const spanN = Math.max(maxN - minN, 1);
+  const fit = normalizeFabricArmorFit(armor.fit);
+  const type = normalizeFabricArmorType(armor.type || armor.kind);
+  const common = {
+    algorithmic: true,
+    algorithm: 'fabric-armor',
+    pass: armor.pass || 'fabric-armor',
+    fabricArmor: true,
+    fabricArmorFit: fit,
+    fabricArmorType: type,
+    fabricArmorMaterial: armor.material || (fit === 'blobpla' ? 'hero-shell' : 'plate'),
+    fabricPhysics: true,
+    fabricEnvelope: skinMark.stringSpawnSkinEnvelope,
+    fabricRole: 'armor',
+    stringSpawnRole: mark.role,
+    stringSpawnKind: 'fabric-armor',
+    stringSpawnSkinRole: skinMark.stringSpawnSkinRole,
+    volumeSurface: 'cohered-string-skin',
+    volumeRole: `${mark.role || 'sticker-field'}:fabric-armor`,
+    pastamaker: {
+      dieFamily: 'stringSpawn',
+      fieldKind: 'alongPath',
+      fabricArmor: true,
+      fabricArmorFit: fit,
+      fabricArmorType: type,
+      fabricEnvelope: skinMark.stringSpawnSkinEnvelope,
+    },
+  };
+
+  if (fit === 'blobpla') {
+    return fabricBlobPlaArmorMarks({
+      mark,
+      armor,
+      envelope,
+      center,
+      basis,
+      minS,
+      maxS,
+      minN,
+      maxN,
+      spanS,
+      spanN,
+      common,
+      scene,
+    });
+  }
+
+  return fabricCastArmorMarks({
+    mark,
+    armor,
+    envelope,
+    center,
+    basis,
+    minS,
+    maxS,
+    minN,
+    maxN,
+    spanS,
+    spanN,
+    common,
+    scene,
+  });
+}
+
+function normalizeFabricArmorFit(value) {
+  const text = String(value || 'volumizer-cast').toLowerCase().replace(/[_\s]+/g, '-');
+  if (text === 'blobpla' || text === 'blob-pla' || text === 'blob') return 'blobpla';
+  if (text === 'cast' || text === 'exact-fit' || text === 'volumizer' || text === 'volumizercast') return 'volumizer-cast';
+  return 'volumizer-cast';
+}
+
+function normalizeFabricArmorType(value) {
+  const text = String(value || 'breastplate').toLowerCase().replace(/[_\s]+/g, '-');
+  if (text === 'shoulder' || text === 'shoulders' || text === 'shoulderpads') return 'shoulder-pads';
+  if (text === 'boot' || text === 'boots') return 'boots';
+  if (text === 'helm' || text === 'helmet') return 'helmet';
+  if (text === 'hero' || text === 'hero-shell' || text === 'irion-man' || text === 'iron-man') return 'hero-shell';
+  if (text === 'medieval' || text === 'plate' || text === 'breastplate') return 'breastplate';
+  return text;
+}
+
+function fabricCastArmorMarks({
+  mark,
+  armor,
+  envelope,
+  center,
+  basis,
+  minS,
+  maxS,
+  minN,
+  maxN,
+  spanS,
+  spanN,
+  common,
+  scene = {},
+}) {
+  const panels = Math.max(1, Math.min(18, Math.round(finiteOr(armor.panels ?? armor.count, 5))));
+  const insetN = clamp(finiteOr(armor.inset, 0.16), 0, 0.42);
+  const gap = clamp(finiteOr(armor.gap, 0.06), 0, 0.28);
+  const bevel = clamp(finiteOr(armor.bevel, 0.22), 0, 0.46);
+  const zBase = finiteOr(mark.z, 30) + finiteOr(armor.zOffset, 0.072);
+  const fill = armor.fill || '#6f7887';
+  const stroke = armor.stroke || '#d8e1ef';
+  const strokeWidth = Math.max(0.25, finiteOr(armor.strokeWidth, 1));
+  const opacity = round(clamp(finiteOr(armor.opacity, 0.72), 0.02, 1));
+  const marks = [];
+
+  for (let i = 0; i < panels; i++) {
+    const startT = i / panels;
+    const endT = (i + 1) / panels;
+    const midT = (startT + endT) / 2;
+    const s0 = lerp(minS + spanS * 0.08, maxS - spanS * 0.08, startT + gap / panels);
+    const s1 = lerp(minS + spanS * 0.08, maxS - spanS * 0.08, endT - gap / panels);
+    const n0 = lerp(minN, maxN, insetN + Math.abs(midT - 0.5) * 0.08);
+    const n1 = lerp(minN, maxN, 1 - insetN - Math.abs(midT - 0.5) * 0.08);
+    const midS = (s0 + s1) / 2;
+    const midN = (n0 + n1) / 2;
+    const points = fabricArmorLocalPlate({
+      center,
+      basis,
+      envelope,
+      envelopeCenter: center,
+      localS: midS,
+      localN: midN,
+      halfS: Math.max((s1 - s0) / 2, spanS * 0.025),
+      halfN: Math.max((n1 - n0) / 2, spanN * 0.12),
+      bevel,
+    });
+    const plateMark = {
+      kind: 'polygon',
+      role: `${mark.role || 'sticker-field'}:armor-cast-panel-${String(i + 1).padStart(2, '0')}`,
+      points,
+      closed: true,
+      fill,
+      stroke,
+      strokeWidth,
+      opacity,
+      z: roundPoint(zBase + i * 0.001),
+      ...common,
+      fabricArmorPanelIndex: i,
+      fabricArmorPanelCount: panels,
+      fabricArmorCastT: round(midT),
+      armorCastSource: 'cohered-string-skin',
+      volumizerReattribution: 'cohered-envelope-fit',
+    };
+    applyFabricArmorMetalBase({ plateMark, armor, scene });
+    marks.push(plateMark);
+    marks.push(...fabricArmorMetalSurfaceMarks({ armor, plateMark, panelIndex: i, panelCount: panels, scene, common }));
+    marks.push(...fabricArmorTextureMarks({ armor, plateMark, panelIndex: i, panelCount: panels, common }));
+  }
+
+  return marks;
+}
+
+function fabricBlobPlaArmorMarks({
+  mark,
+  armor,
+  envelope,
+  center,
+  basis,
+  minS,
+  maxS,
+  minN,
+  maxN,
+  spanS,
+  spanN,
+  common,
+  scene = {},
+}) {
+  const type = common.fabricArmorType;
+  const zBase = finiteOr(mark.z, 30) + finiteOr(armor.zOffset, 0.088);
+  const fill = armor.fill || (type === 'boots' ? '#3a3230' : '#8a96aa');
+  const stroke = armor.stroke || '#edf2ff';
+  const strokeWidth = Math.max(0.25, finiteOr(armor.strokeWidth, 1.1));
+  const opacity = round(clamp(finiteOr(armor.opacity, 0.78), 0.02, 1));
+  const bevel = clamp(finiteOr(armor.bevel, 0.38), 0, 0.48);
+  const count = Math.max(1, Math.min(8, Math.round(finiteOr(armor.count, type === 'hero-shell' ? 3 : 2))));
+  const marks = [];
+  const padDefs = [];
+
+  if (type === 'boots') {
+    padDefs.push(
+      { part: 'boot-left', s: minS + spanS * 0.24, n: maxN - spanN * 0.16, halfS: spanS * 0.12, halfN: spanN * 0.16 },
+      { part: 'boot-right', s: maxS - spanS * 0.24, n: maxN - spanN * 0.16, halfS: spanS * 0.12, halfN: spanN * 0.16 },
+    );
+  } else if (type === 'helmet') {
+    padDefs.push({ part: 'helmet-dome', s: (minS + maxS) / 2, n: minN + spanN * 0.2, halfS: spanS * 0.18, halfN: spanN * 0.2 });
+  } else {
+    padDefs.push(
+      { part: 'shoulder-left', s: minS + spanS * 0.12, n: minN + spanN * 0.22, halfS: spanS * 0.14, halfN: spanN * 0.18 },
+      { part: 'shoulder-right', s: maxS - spanS * 0.12, n: minN + spanN * 0.22, halfS: spanS * 0.14, halfN: spanN * 0.18 },
+    );
+    if (type === 'hero-shell' || count > 2) {
+      padDefs.push({ part: 'chest-core', s: (minS + maxS) / 2, n: (minN + maxN) / 2, halfS: spanS * 0.16, halfN: spanN * 0.22 });
+    }
+  }
+
+  for (let i = 0; i < Math.min(count, padDefs.length); i++) {
+    const pad = padDefs[i];
+    const points = fabricArmorLocalPlate({
+      center,
+      basis,
+      envelope,
+      envelopeCenter: center,
+      localS: pad.s,
+      localN: pad.n,
+      halfS: Math.max(pad.halfS, 2),
+      halfN: Math.max(pad.halfN, 2),
+      bevel,
+    });
+    const plateMark = {
+      kind: 'polygon',
+      role: `${mark.role || 'sticker-field'}:blobpla-armor-${pad.part}`,
+      points,
+      closed: true,
+      fill,
+      stroke,
+      strokeWidth,
+      opacity,
+      z: roundPoint(zBase + i * 0.001),
+      ...common,
+      blobPlaAdapter: true,
+      blobPlaPart: `armor-${pad.part}`,
+      fabricArmorPanelIndex: i,
+      fabricArmorPanelCount: Math.min(count, padDefs.length),
+      fabricArmorCastT: round(i / Math.max(Math.min(count, padDefs.length) - 1, 1)),
+      armorCastSource: 'blobpla-layer-interface',
+      volumizerReattribution: 'blobpla-pad-seat',
+    };
+    applyFabricArmorMetalBase({ plateMark, armor, scene });
+    marks.push(plateMark);
+    marks.push(...fabricArmorMetalSurfaceMarks({
+      armor,
+      plateMark,
+      panelIndex: i,
+      panelCount: Math.min(count, padDefs.length),
+      scene,
+      common,
+    }));
+    marks.push(...fabricArmorTextureMarks({
+      armor,
+      plateMark,
+      panelIndex: i,
+      panelCount: Math.min(count, padDefs.length),
+      common,
+    }));
+  }
+
+  return marks;
+}
+
+function fabricArmorLocalPlate({
+  center,
+  basis,
+  envelope,
+  envelopeCenter,
+  localS,
+  localN,
+  halfS,
+  halfN,
+  bevel,
+}) {
+  const bS = halfS * bevel;
+  const bN = halfN * bevel;
+  const coords = [
+    [-halfS + bS, -halfN],
+    [halfS - bS, -halfN],
+    [halfS, -halfN + bN],
+    [halfS, halfN - bN],
+    [halfS - bS, halfN],
+    [-halfS + bS, halfN],
+    [-halfS, halfN - bN],
+    [-halfS, -halfN + bN],
+  ];
+  return coords.map(([ds, dn]) => nudgePointInsidePolygon(
+    pointFromPrincipal(center, basis, localS + ds, localN + dn),
+    envelope,
+    envelopeCenter,
+  ));
+}
+
+function applyFabricArmorMetalBase({ plateMark, armor, scene = {} }) {
+  const surface = normalizeFabricArmorSurface(armor);
+  if (!surface.enabled) return;
+  const center = centroid(plateMark.points);
+  const basis = principalPointBasis(plateMark.points, center);
+  const box = bbox(plateMark.points);
+  const light = normalize(scene.light?.direction || [-0.6, -0.8]);
+  const from = [
+    roundPoint(center[0] + light[0] * Math.max(box.w, box.h) * 0.42),
+    roundPoint(center[1] + light[1] * Math.max(box.w, box.h) * 0.42),
+  ];
+  const to = [
+    roundPoint(center[0] - light[0] * Math.max(box.w, box.h) * 0.42),
+    roundPoint(center[1] - light[1] * Math.max(box.w, box.h) * 0.42),
+  ];
+  plateMark.metalSurface = true;
+  plateMark.metalMaterial = surface.material;
+  plateMark.metalCurvature = surface.curvature;
+  plateMark.metalReflectivity = round(surface.reflectivity);
+  plateMark.metalRoughness = round(surface.roughness);
+  plateMark.metalSurfaceBasis = {
+    axis: basis.axis.map(round),
+    normal: basis.normal.map(round),
+  };
+  plateMark.fillGradient = {
+    kind: surface.curvature === 'radial' ? 'radial' : 'linear',
+    role: 'armor-metal-base-gradient',
+    center: center.map(roundPoint),
+    from,
+    to,
+    independentLighting: false,
+    stops: [
+      { offset: 0, color: surface.shadowColor, opacity: round(0.56 + surface.roughness * 0.24) },
+      { offset: 0.42, color: plateMark.fill, opacity: 0.88 },
+      { offset: 0.62, color: surface.midColor, opacity: 0.92 },
+      { offset: 1, color: surface.highlightColor, opacity: round(0.36 + surface.reflectivity * 0.28) },
+    ],
+  };
+}
+
+function fabricArmorMetalSurfaceMarks({ armor, plateMark, panelIndex, panelCount, scene = {}, common }) {
+  const surface = normalizeFabricArmorSurface(armor);
+  if (!surface.enabled || !Array.isArray(plateMark.points) || plateMark.points.length < 3) return [];
+  const center = centroid(plateMark.points);
+  const basis = principalPointBasis(plateMark.points, center);
+  const projected = plateMark.points.map((point) => {
+    const rel = [point[0] - center[0], point[1] - center[1]];
+    return { s: dot(rel, basis.axis), n: dot(rel, basis.normal) };
+  });
+  const minS = Math.min(...projected.map((p) => p.s));
+  const maxS = Math.max(...projected.map((p) => p.s));
+  const minN = Math.min(...projected.map((p) => p.n));
+  const maxN = Math.max(...projected.map((p) => p.n));
+  const spanS = Math.max(maxS - minS, 1);
+  const spanN = Math.max(maxN - minN, 1);
+  const light = normalize(scene.light?.direction || [-0.6, -0.8]);
+  const lightFacing = normalize([-light[0], -light[1]]);
+  const normalLightDot = dot(basis.normal, lightFacing);
+  const axisLightDot = dot(basis.axis, lightFacing);
+  const lightN = clamp(normalLightDot, -1, 1) * spanN * 0.22;
+  const curveAmount = surface.curvature === 'flat'
+    ? 0
+    : surface.curvature === 'radial'
+      ? 0.42
+      : 0.28;
+  const bandHalfN = spanN * lerp(0.055, 0.16, surface.roughness);
+  const bandHalfS = spanS * (surface.curvature === 'radial' ? 0.28 : 0.43);
+  const highlight = armorMetalBandPolygon({
+    center,
+    basis,
+    polygon: plateMark.points,
+    localN: lightN,
+    halfS: bandHalfS,
+    halfN: bandHalfN,
+    curveAmount,
+    curveSign: normalLightDot >= 0 ? 1 : -1,
+  });
+  const shadow = armorMetalBandPolygon({
+    center,
+    basis,
+    polygon: plateMark.points,
+    localN: -lightN - Math.sign(normalLightDot || 1) * spanN * 0.26,
+    halfS: spanS * 0.46,
+    halfN: spanN * 0.12,
+    curveAmount: curveAmount * 0.55,
+    curveSign: normalLightDot >= 0 ? -1 : 1,
+  });
+  const glintCenter = nudgePointInsidePolygon(pointFromPrincipal(
+    center,
+    basis,
+    axisLightDot * spanS * 0.18,
+    lightN + Math.sign(normalLightDot || 1) * spanN * 0.11,
+  ), plateMark.points, center);
+  const zBase = finiteOr(plateMark.z, 30);
+  const commonSurface = {
+    ...common,
+    fabricArmorSurface: true,
+    metalSurface: true,
+    metalMaterial: surface.material,
+    metalCurvature: surface.curvature,
+    metalReflectivity: round(surface.reflectivity),
+    metalRoughness: round(surface.roughness),
+    metalLightDot: round(normalLightDot),
+    metalAxisLightDot: round(axisLightDot),
+    fabricArmorPanelIndex: panelIndex,
+    fabricArmorPanelCount: panelCount,
+    fabricRole: 'armor-metal-surface',
+    stringSpawnKind: 'fabric-armor-metal',
+    volumeSurface: 'cohered-string-skin',
+  };
+  const marks = [
+    {
+      ...commonSurface,
+      kind: 'polygon',
+      role: `${plateMark.role}:metal-specular-band`,
+      points: highlight,
+      closed: true,
+      fill: surface.highlightColor,
+      stroke: 'none',
+      opacity: round(clamp(surface.reflectivity * (1 - surface.roughness * 0.62), 0.08, 0.72)),
+      blur: roundPoint(lerp(0.4, 2.6, surface.roughness)),
+      z: roundPoint(zBase + 0.018),
+      metalHighlightRole: 'specular-band',
+      fillGradient: {
+        kind: 'linear',
+        role: 'armor-metal-specular-gradient',
+        center: center.map(roundPoint),
+        from: highlight[0],
+        to: highlight[Math.floor(highlight.length / 2)] || highlight[0],
+        independentLighting: false,
+        stops: [
+          { offset: 0, color: surface.highlightColor, opacity: 0 },
+          { offset: 0.48, color: surface.glintColor, opacity: 0.92 },
+          { offset: 1, color: surface.highlightColor, opacity: 0 },
+        ],
+      },
+    },
+    {
+      ...commonSurface,
+      kind: 'polygon',
+      role: `${plateMark.role}:metal-shadow-rim`,
+      points: shadow,
+      closed: true,
+      fill: surface.shadowColor,
+      stroke: 'none',
+      opacity: round(clamp(0.18 + surface.reflectivity * 0.18, 0.06, 0.46)),
+      blur: roundPoint(lerp(0.2, 1.5, surface.roughness)),
+      z: roundPoint(zBase + 0.012),
+      metalHighlightRole: 'shadow-rim',
+    },
+  ];
+  if (surface.glints > 0) {
+    marks.push({
+      ...commonSurface,
+      kind: 'circle',
+      role: `${plateMark.role}:metal-glint`,
+      cx: glintCenter[0],
+      cy: glintCenter[1],
+      r: roundPoint(Math.max(1.2, Math.min(spanS, spanN) * 0.055 * surface.reflectivity)),
+      fill: surface.glintColor,
+      stroke: surface.highlightColor,
+      strokeWidth: 0.35,
+      opacity: round(clamp(surface.reflectivity * 0.72, 0.08, 0.86)),
+      blur: roundPoint(0.15 + surface.roughness * 0.6),
+      z: roundPoint(zBase + 0.026),
+      metalHighlightRole: 'glint',
+    });
+  }
+  return marks;
+}
+
+function normalizeFabricArmorSurface(armor = {}) {
+  const surface = armor.surface && typeof armor.surface === 'object' && !Array.isArray(armor.surface)
+    ? armor.surface
+    : { enabled: armor.surface === true };
+  const material = String(surface.material || armor.material || '').toLowerCase().replace(/[_\s-]+/g, '-');
+  const enabled = surface.enabled === true || ['metal', 'shiny-metal', 'chrome', 'silver', 'steel', 'gold'].includes(material);
+  if (!enabled) return { enabled: false };
+  const normalizedMaterial = material || 'shiny-metal';
+  const curvature = normalizeArmorCurvature(surface.curvature || surface.profile || (armor.fabricArmorFit === 'blobpla' ? 'radial' : 'convex'));
+  const reflectivity = clamp(finiteOr(surface.reflectivity, normalizedMaterial === 'chrome' ? 0.92 : 0.72), 0, 1);
+  const roughness = clamp(finiteOr(surface.roughness, normalizedMaterial === 'chrome' ? 0.12 : 0.26), 0, 1);
+  return {
+    enabled: true,
+    material: normalizedMaterial,
+    curvature,
+    reflectivity,
+    roughness,
+    glints: Math.max(0, Math.min(4, Math.round(finiteOr(surface.glints, reflectivity > 0.55 ? 1 : 0)))),
+    highlightColor: surface.highlightColor || (normalizedMaterial === 'gold' ? '#fff0a6' : '#f8fbff'),
+    glintColor: surface.glintColor || '#ffffff',
+    midColor: surface.midColor || (normalizedMaterial === 'gold' ? '#caa14a' : '#aeb8c6'),
+    shadowColor: surface.shadowColor || (normalizedMaterial === 'gold' ? '#5b431b' : '#26313d'),
+  };
+}
+
+function normalizeArmorCurvature(value) {
+  const text = String(value || 'convex').toLowerCase().replace(/[_\s-]+/g, '');
+  if (text === 'flat' || text === 'plane') return 'flat';
+  if (text === 'radial' || text === 'dome' || text === 'spherical') return 'radial';
+  return 'convex';
+}
+
+function armorMetalBandPolygon({ center, basis, polygon, localN, halfS, halfN, curveAmount, curveSign }) {
+  const samples = 5;
+  const upper = [];
+  const lower = [];
+  for (let i = 0; i < samples; i++) {
+    const u = samples === 1 ? 0.5 : i / (samples - 1);
+    const s = lerp(-halfS, halfS, u);
+    const bow = Math.sin(u * Math.PI) * halfN * curveAmount * curveSign;
+    upper.push(nudgePointInsidePolygon(
+      pointFromPrincipal(center, basis, s, localN + halfN + bow),
+      polygon,
+      center,
+    ));
+    lower.push(nudgePointInsidePolygon(
+      pointFromPrincipal(center, basis, s, localN - halfN + bow),
+      polygon,
+      center,
+    ));
+  }
+  return [...upper, ...lower.reverse()];
+}
+
+function fabricArmorTextureMarks({ armor, plateMark, panelIndex, panelCount, common }) {
+  const texture = armor.texture && typeof armor.texture === 'object' && !Array.isArray(armor.texture)
+    ? armor.texture
+    : { enabled: armor.texture === true };
+  if (!texture.enabled || !Array.isArray(plateMark.points) || plateMark.points.length < 3) return [];
+  const kind = normalizeArmorTextureKind(texture.kind || texture.type);
+  const plateCenter = centroid(plateMark.points);
+  const box = bbox(plateMark.points);
+  const bounds = {
+    x: box.minX,
+    y: box.minY,
+    width: box.w,
+    height: box.h,
+  };
+  const baseR = Math.max(finiteOr(texture.r ?? texture.radius, kind === 'basketball' || kind === 'iguana' ? 2.8 : 3.4), 0.5);
+  const rNoise = clamp(finiteOr(texture.rNoise ?? texture.radiusNoise, 0.18), 0, 0.9);
+  const spacing = Math.max(finiteOr(texture.spacing, kind === 'basketball' || kind === 'iguana' ? 0.1 : 0.42), 0);
+  const countInput = texture.count;
+  const defaultCount = kind === 'crosshatch' || kind === 'hatch' ? 7 : kind === 'grass' ? 16 : 10;
+  const countLimit = Math.max(1, Math.min(120, Math.round(finiteOr(countInput, defaultCount))));
+  const seed = hashString(`${plateMark.role}:armor-texture:${kind}:${panelIndex}:${countLimit}:${baseR}`);
+  const cells = armorTexturePackCells({
+    polygon: plateMark.points,
+    bounds,
+    baseR,
+    rNoise,
+    spacing,
+    corner: texture.corner || 'top-left',
+    seed,
+    countLimit,
+  });
+  const out = [];
+  const stroke = texture.stroke || armor.textureStroke || plateMark.stroke || '#f2f6ff';
+  const fill = texture.fill || armor.textureFill || plateMark.fill || '#dfe7f3';
+  const opacity = round(clamp(finiteOr(texture.opacity, kind === 'basketball' || kind === 'iguana' ? 0.54 : 0.7), 0.02, 1));
+  const strokeWidth = Math.max(0.2, finiteOr(texture.strokeWidth, kind === 'basketball' || kind === 'iguana' ? 0.55 : 0.75));
+  const height = Math.max(1, finiteOr(texture.height ?? texture.length, kind === 'grass' ? 10 : kind === 'thorn' ? 7 : 8));
+  const lowering = normalizeArmorTextureLowering(texture.lowering || texture.mode);
+  const surfaceCellHeight = round(clamp(finiteOr(texture.surfaceCellHeight ?? texture.height, 0.35), 0, 4));
+  const angle = finiteOr(texture.angle, kind === 'hatch' ? -0.58 : 0.58);
+  const secondAngle = finiteOr(texture.crossAngle, angle + Math.PI / 2);
+  cells.forEach((cell, textureIndex) => {
+    const groupIndex = Math.floor(textureIndex / 3);
+    const base = {
+      ...common,
+      fabricArmorTexture: true,
+      fabricArmorTextureKind: kind,
+      fabricArmorTextureRole: plateMark.role,
+      fabricArmorTextureIndex: textureIndex,
+      fabricArmorTextureCount: cells.length,
+      fabricArmorTextureGroupIndex: groupIndex,
+      fabricArmorTextureGroupMember: textureIndex % 3,
+      fabricArmorTextureLowering: lowering,
+      fabricArmorPanelIndex: panelIndex,
+      fabricArmorPanelCount: panelCount,
+      fabricRole: 'armor-texture',
+      stringSpawnKind: 'fabric-armor-texture',
+      role: `${plateMark.role}:texture-${kind}-${String(textureIndex + 1).padStart(3, '0')}`,
+      opacity,
+      z: armorTextureCellZ({ plateMark, texture, cell, textureIndex, baseZ: finiteOr(plateMark.z, 30), bounds }),
+      pastamaker: {
+        ...common.pastamaker,
+        fabricArmorTexture: true,
+        textureKind: kind,
+        packingMode: 'iguana-surface-grouping',
+        glyphRule: kind === 'basketball' || kind === 'iguana' ? 'three-circle-tangent' : 'packed-surface-emitter',
+        textureLowering: lowering,
+        glyphIndex: groupIndex,
+        glyphCircleIndex: textureIndex % 3,
+        r: roundPoint(cell.r),
+        rNoise,
+        spacing,
+      },
+    };
+    if (kind === 'basketball' || kind === 'iguana') {
+      if (lowering === 'sphere') {
+        out.push({
+          ...base,
+          kind: 'sphere',
+          cx: roundPoint(cell.center[0]),
+          cy: roundPoint(cell.center[1]),
+          anchor: [roundPoint(cell.center[0]), roundPoint(cell.center[1])],
+          r: roundPoint(cell.r),
+          fill: texture.surfaceLighting === false ? fill : shadeHex(fill, armorTextureLightFactor(cell, plateCenter)),
+          stroke: texture.border === true || texture.outline === true ? stroke : 'none',
+          strokeWidth: texture.border === true || texture.outline === true ? strokeWidth : 0,
+          surfaceCell: true,
+          surfaceCellHeight,
+          surfaceCellZPolicy: 'lower-paints-over-upper',
+          surfaceCellLowering: 'sphere',
+          raisedSurfaceTexture: true,
+          shade: texture.surfaceLighting === false ? undefined : { algorithm: 'form-light-stack', intensity: 0.22 + surfaceCellHeight * 0.12 },
+          highlights: texture.surfaceLighting === false ? undefined : { algorithm: 'form-light-stack', intensity: 0.18 + surfaceCellHeight * 0.08 },
+          fillGradient: texture.surfaceLighting === false ? undefined : {
+            kind: 'radial',
+            role: 'armor-texture-sphere-gradient',
+            center: [roundPoint(cell.center[0] - cell.r * 0.28), roundPoint(cell.center[1] - cell.r * 0.32)],
+            stops: [
+              { offset: 0, color: texture.highlightColor || '#ffffff', opacity: round(clamp(0.42 + surfaceCellHeight * 0.12, 0.08, 0.92)) },
+              { offset: 0.58, color: fill, opacity: 0.86 },
+              { offset: 1, color: texture.shadowColor || '#1c2430', opacity: round(clamp(0.18 + surfaceCellHeight * 0.08, 0.04, 0.5)) },
+            ],
+          },
+        });
+        return;
+      }
+      out.push({
+        ...base,
+        kind: 'circle',
+        cx: roundPoint(cell.center[0]),
+        cy: roundPoint(cell.center[1]),
+        r: roundPoint(cell.r),
+        fill,
+        stroke,
+        strokeWidth,
+      });
+      return;
+    }
+    if (kind === 'thorn' || kind === 'grass') {
+      const away = normalize([cell.center[0] - plateCenter[0], cell.center[1] - plateCenter[1]]);
+      const wobble = deterministicWave(seed, textureIndex, textureIndex / Math.max(cells.length - 1, 1));
+      const side = normalize([-away[1], away[0]]);
+      const tip = [
+        cell.center[0] + away[0] * height + side[0] * wobble * height * 0.28,
+        cell.center[1] + away[1] * height + side[1] * wobble * height * 0.28,
+      ];
+      const mid = [
+        cell.center[0] + away[0] * height * 0.46 + side[0] * wobble * height * 0.18,
+        cell.center[1] + away[1] * height * 0.46 + side[1] * wobble * height * 0.18,
+      ];
+      out.push({
+        ...base,
+        kind: 'polyline',
+        points: [
+          [roundPoint(cell.center[0]), roundPoint(cell.center[1])],
+          [roundPoint(mid[0]), roundPoint(mid[1])],
+          [roundPoint(tip[0]), roundPoint(tip[1])],
+        ],
+        fill: 'none',
+        stroke,
+        strokeWidth: roundPoint(strokeWidth * (kind === 'grass' ? 0.72 : 1)),
+        armorTextureEmanatesOut: true,
+      });
+      return;
+    }
+    const lineMarks = kind === 'crosshatch'
+      ? [
+        armorTextureLineMark({ base, cell, plateMark, angle, length: height, stroke, strokeWidth, indexSuffix: 'a' }),
+        armorTextureLineMark({ base, cell, plateMark, angle: secondAngle, length: height, stroke, strokeWidth, indexSuffix: 'b' }),
+      ]
+      : [armorTextureLineMark({ base, cell, plateMark, angle, length: height, stroke, strokeWidth, indexSuffix: 'a' })];
+    out.push(...lineMarks);
+  });
+  return out;
+}
+
+function normalizeArmorTextureKind(value) {
+  const text = String(value || 'basketball').toLowerCase().replace(/[_\s-]+/g, '');
+  if (text === 'iguana' || text === 'scale' || text === 'scales' || text === 'basketball') return text === 'basketball' ? 'basketball' : 'iguana';
+  if (text === 'thorn' || text === 'thorns' || text === 'spike' || text === 'spikes') return 'thorn';
+  if (text === 'crosshatch' || text === 'crosshatching') return 'crosshatch';
+  if (text === 'hatch' || text === 'hatching') return 'hatch';
+  if (text === 'grass' || text === 'fur' || text === 'bristle' || text === 'bristles') return 'grass';
+  return 'basketball';
+}
+
+function normalizeArmorTextureLowering(value) {
+  const text = String(value || 'circle').toLowerCase().replace(/[_\s-]+/g, '');
+  if (text === 'sphere' || text === 'raised' || text === 'raisedsphere' || text === 'bump') return 'sphere';
+  return 'circle';
+}
+
+function armorTextureCellZ({ plateMark, texture, cell, textureIndex, baseZ, bounds }) {
+  if (texture.zPolicy === 'emission-order') return roundPoint(baseZ + 0.014 + textureIndex * 0.00005);
+  const tY = bounds.height <= 1e-9 ? 0.5 : clamp((cell.center[1] - bounds.y) / bounds.height, 0, 1);
+  const zRange = Math.max(0.001, finiteOr(texture.zRange, 1));
+  return roundPoint(baseZ + 0.014 + tY * zRange + textureIndex * 0.00001);
+}
+
+function armorTextureLightFactor(cell, plateCenter) {
+  const dir = normalize([cell.center[0] - plateCenter[0], cell.center[1] - plateCenter[1]]);
+  const upLight = normalize([-0.55, -0.72]);
+  return lerp(0.88, 1.16, clamp((dot(dir, upLight) + 1) / 2, 0, 1));
+}
+
+function armorTexturePackCells({ polygon, bounds, baseR, rNoise, spacing, corner, seed, countLimit }) {
+  const centers = iguanaPackCenters({ bounds, baseR, rNoise, spacing, corner, seed, countLimit: countLimit * 4 });
+  const accepted = [];
+  for (const candidate of centers) {
+    if (accepted.length >= countLimit) break;
+    if (!pointInPolygon(candidate.center, polygon)) continue;
+    accepted.push(candidate);
+  }
+  return accepted;
+}
+
+function armorTextureLineMark({ base, cell, plateMark, angle, length, stroke, strokeWidth, indexSuffix }) {
+  const axis = [Math.cos(angle), Math.sin(angle)];
+  const half = Math.max(length * 0.5, cell.r);
+  const center = centroid(plateMark.points);
+  const a = nudgePointInsidePolygon([
+    cell.center[0] - axis[0] * half,
+    cell.center[1] - axis[1] * half,
+  ], plateMark.points, center);
+  const b = nudgePointInsidePolygon([
+    cell.center[0] + axis[0] * half,
+    cell.center[1] + axis[1] * half,
+  ], plateMark.points, center);
+  return {
+    ...base,
+    kind: 'polyline',
+    role: `${base.role}-${indexSuffix}`,
+    points: [a, b],
+    fill: 'none',
+    stroke,
+    strokeWidth,
+  };
+}
+
+function fabricPerspectiveScale(fabric, mark, depthT) {
+  const depthScale = clamp(finiteOr(fabric.depthScale ?? mark.depthScale, 0.94), 0.2, 1);
+  if (fabric.perspectiveSizing === false) return 1;
+  return clamp(Math.pow(depthScale, depthT * 6), 0.35, 1.2);
+}
+
+function nudgePointInsidePolygon(point, polygon, center) {
+  if (pointInPolygon(point, polygon)) return [roundPoint(point[0]), roundPoint(point[1])];
+  const steps = 10;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const next = [
+      lerp(point[0], center[0], t),
+      lerp(point[1], center[1], t),
+    ];
+    if (pointInPolygon(next, polygon)) return [roundPoint(next[0]), roundPoint(next[1])];
+  }
+  return [roundPoint(center[0]), roundPoint(center[1])];
+}
+
+function stringClusterEnvelope(points, cohere = {}) {
+  const clean = uniquePointSet(points)
+    .filter((point) => Array.isArray(point) && point.length >= 2 && Number.isFinite(point[0]) && Number.isFinite(point[1]));
+  if (clean.length < 3) return [];
+  const kind = normalizeStringEnvelopeKind(cohere.envelope);
+  const hull = kind === 'stripHull'
+    ? stripHullPoints(clean, cohere)
+    : kind === 'alphaHull'
+      ? alphaHullPoints(clean, cohere)
+      : convexHullPoints(clean);
+  if (hull.length < 3) return [];
+  const padded = kind === 'stripHull'
+    ? hull
+    : padPolygonFromCentroid(hull, finiteOr(cohere.padding, 8));
+  const smoothing = clamp(finiteOr(cohere.smoothing, 0), 0, 0.75);
+  const smoothed = smoothing > 0 ? smoothClosedPolygon(padded, Math.max(1, Math.min(3, Math.round(smoothing * 4)))) : padded;
+  const maxPoints = Math.max(3, Math.min(80, Math.round(finiteOr(cohere.maxPoints, 48))));
+  return decimateClosedPolygon(smoothed, maxPoints);
+}
+
+function normalizeStringEnvelopeKind(value) {
+  const text = String(value || 'convexHull');
+  if (text === 'strip' || text === 'stripHull' || text === 'ribbon') return 'stripHull';
+  if (text === 'alpha' || text === 'alphaHull' || text === 'concave') return 'alphaHull';
+  return 'convexHull';
+}
+
+function uniquePointSet(points) {
+  const seen = new Set();
+  const out = [];
+  for (const point of points || []) {
+    if (!Array.isArray(point) || point.length < 2) continue;
+    const x = roundPoint(point[0]);
+    const y = roundPoint(point[1]);
+    const key = `${x},${y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push([x, y]);
+  }
+  return out;
+}
+
+function convexHullPoints(points) {
+  const sorted = points.slice().sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
+  if (sorted.length <= 3) return sorted;
+  const lower = [];
+  for (const point of sorted) {
+    while (lower.length >= 2 && cross2(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+    lower.push(point);
+  }
+  const upper = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const point = sorted[i];
+    while (upper.length >= 2 && cross2(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+    upper.push(point);
+  }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
+}
+
+function stripHullPoints(points, cohere = {}) {
+  const center = averagePoint2(points);
+  const basis = principalPointBasis(points, center);
+  const padding = finiteOr(cohere.padding, 8);
+  const binCount = Math.max(4, Math.min(32, Math.round(finiteOr(cohere.bins, 14))));
+  const projections = points.map((point) => {
+    const rel = [point[0] - center[0], point[1] - center[1]];
+    return {
+      s: dot(rel, basis.axis),
+      n: dot(rel, basis.normal),
+    };
+  });
+  const minS = Math.min(...projections.map((p) => p.s));
+  const maxS = Math.max(...projections.map((p) => p.s));
+  const span = Math.max(maxS - minS, 1e-6);
+  const bins = Array.from({ length: binCount }, (_, index) => ({
+    index,
+    minN: Infinity,
+    maxN: -Infinity,
+    sumS: 0,
+    count: 0,
+  }));
+  for (const projected of projections) {
+    const binIndex = clamp(Math.floor(((projected.s - minS) / span) * binCount), 0, binCount - 1);
+    const bin = bins[binIndex];
+    bin.minN = Math.min(bin.minN, projected.n);
+    bin.maxN = Math.max(bin.maxN, projected.n);
+    bin.sumS += projected.s;
+    bin.count += 1;
+  }
+  const occupied = bins
+    .filter((bin) => bin.count > 0)
+    .map((bin) => ({
+      s: bin.sumS / bin.count,
+      minN: bin.minN - padding,
+      maxN: bin.maxN + padding,
+    }));
+  if (occupied.length < 2) return convexHullPoints(points);
+  const endPad = padding * 0.65;
+  occupied[0].s -= endPad;
+  occupied[occupied.length - 1].s += endPad;
+  const upper = occupied.map((bin) => pointFromPrincipal(center, basis, bin.s, bin.maxN));
+  const lower = occupied.slice().reverse().map((bin) => pointFromPrincipal(center, basis, bin.s, bin.minN));
+  return upper.concat(lower);
+}
+
+function alphaHullPoints(points, cohere = {}) {
+  const center = averagePoint2(points);
+  const sectors = Math.max(8, Math.min(48, Math.round(finiteOr(cohere.sectors, finiteOr(cohere.bins, 20)))));
+  const padding = finiteOr(cohere.padding, 8);
+  const alpha = clamp(finiteOr(cohere.alpha, 0.72), 0.05, 1);
+  const bins = Array.from({ length: sectors }, (_, index) => ({ index, radius: -Infinity, point: null }));
+  for (const point of points) {
+    const dx = point[0] - center[0];
+    const dy = point[1] - center[1];
+    const angle = Math.atan2(dy, dx);
+    const wrapped = angle < 0 ? angle + Math.PI * 2 : angle;
+    const binIndex = clamp(Math.floor((wrapped / (Math.PI * 2)) * sectors), 0, sectors - 1);
+    const radius = Math.hypot(dx, dy);
+    const current = bins[binIndex];
+    if (radius > current.radius) {
+      current.radius = radius;
+      current.point = point;
+    }
+  }
+  const occupied = bins.filter((bin) => bin.point);
+  if (occupied.length < 3) return convexHullPoints(points);
+  const meanRadius = occupied.reduce((sum, bin) => sum + bin.radius, 0) / occupied.length;
+  return occupied.map((bin) => {
+    const angle = ((bin.index + 0.5) / sectors) * Math.PI * 2;
+    const radius = lerp(meanRadius, bin.radius, alpha) + padding;
+    return [
+      roundPoint(center[0] + Math.cos(angle) * radius),
+      roundPoint(center[1] + Math.sin(angle) * radius),
+    ];
+  });
+}
+
+function principalPointBasis(points, center) {
+  let xx = 0;
+  let yy = 0;
+  let xy = 0;
+  for (const point of points) {
+    const dx = point[0] - center[0];
+    const dy = point[1] - center[1];
+    xx += dx * dx;
+    yy += dy * dy;
+    xy += dx * dy;
+  }
+  const angle = Math.abs(xy) < 1e-9 && Math.abs(xx - yy) < 1e-9
+    ? 0
+    : 0.5 * Math.atan2(2 * xy, xx - yy);
+  const axis = normalize([Math.cos(angle), Math.sin(angle)]);
+  return {
+    axis,
+    normal: normalize([-axis[1], axis[0]]),
+  };
+}
+
+function pointFromPrincipal(center, basis, s, n) {
+  return [
+    roundPoint(center[0] + basis.axis[0] * s + basis.normal[0] * n),
+    roundPoint(center[1] + basis.axis[1] * s + basis.normal[1] * n),
+  ];
+}
+
+function cross2(origin, a, b) {
+  return (a[0] - origin[0]) * (b[1] - origin[1]) - (a[1] - origin[1]) * (b[0] - origin[0]);
+}
+
+function padPolygonFromCentroid(points, padding) {
+  const center = averagePoint2(points);
+  return points.map((point) => {
+    const dir = normalize([point[0] - center[0], point[1] - center[1]]);
+    return [
+      roundPoint(point[0] + dir[0] * padding),
+      roundPoint(point[1] + dir[1] * padding),
+    ];
+  });
+}
+
+function averagePoint2(points) {
+  const sum = points.reduce((acc, point) => [acc[0] + point[0], acc[1] + point[1]], [0, 0]);
+  return [sum[0] / points.length, sum[1] / points.length];
+}
+
+function smoothClosedPolygon(points, iterations) {
+  let current = points;
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    const next = [];
+    for (let i = 0; i < current.length; i++) {
+      const a = current[i];
+      const b = current[(i + 1) % current.length];
+      next.push([roundPoint(lerp(a[0], b[0], 0.25)), roundPoint(lerp(a[1], b[1], 0.25))]);
+      next.push([roundPoint(lerp(a[0], b[0], 0.75)), roundPoint(lerp(a[1], b[1], 0.75))]);
+    }
+    current = next;
+  }
+  return current;
+}
+
+function decimateClosedPolygon(points, maxPoints) {
+  if (points.length <= maxPoints) return points;
+  const out = [];
+  for (let i = 0; i < maxPoints; i++) {
+    out.push(points[Math.floor((i * points.length) / maxPoints)]);
+  }
+  return out;
+}
+
+function markGeometryPoints(mark) {
+  if (!mark || typeof mark !== 'object') return [];
+  if (Array.isArray(mark.points)) return mark.points;
+  if (mark.kind === 'circle' && Number.isFinite(mark.cx) && Number.isFinite(mark.cy)) {
+    const r = finiteOr(mark.r, 0);
+    return [
+      [mark.cx - r, mark.cy],
+      [mark.cx, mark.cy - r],
+      [mark.cx + r, mark.cy],
+      [mark.cx, mark.cy + r],
+    ];
+  }
+  if (mark.kind === 'line') {
+    return [
+      [mark.x1, mark.y1],
+      [mark.x2, mark.y2],
+    ].filter((point) => point.every(Number.isFinite));
+  }
+  return [];
+}
+
+function stringSpawnGlyphMark({ mark, die, glyph, point, tangent, seed, stringIndex, glyphIndex, glyphCount, roleBase, budget }) {
+  const id = glyph.id || glyph.family || glyph.kind || 'bead';
+  const normal = normalize([-tangent[1], tangent[0]]);
+  const sizeRange = normalizeRange(glyph.size ?? glyph.radius ?? glyph.r, 3, 8);
+  const size = lerp(sizeRange[0], sizeRange[1], seededUnit(seed, 2));
+  const offset = finiteOr(glyph.offset, 0) + (seededUnit(seed, 3) - 0.5) * finiteOr(glyph.offsetJitter, 0);
+  const center = [roundPoint(point[0] + normal[0] * offset), roundPoint(point[1] + normal[1] * offset)];
+  const opacity = round(clamp(finiteOr(glyph.opacity, finiteOr(mark.glyphOpacity, 0.78)), 0.02, 1));
+  const common = {
+    role: `${roleBase}:glyph-${String(glyphIndex + 1).padStart(2, '0')}`,
+    opacity,
+    z: finiteOr(mark.z, 30) + stringIndex * 0.002 + 0.01 + glyphIndex * 0.0001,
+    algorithmic: true,
+    algorithm: 'pastamaker',
+    pass: mark.pass || 'string-spawn-glyph',
+    pastamaker: {
+      dieFamily: 'stringSpawn',
+      fieldKind: 'alongPath',
+      glyphId: id,
+      budgetMode: budget.mode,
+      targetOpacity: budget.targetOpacity,
+      expectedOverlapCount: budget.expectedOverlapCount,
+      stringIndex,
+      glyphIndex,
+    },
+    stickerFieldRole: mark.role,
+    stickerFieldIndex: stringIndex,
+    stickerFieldCount: glyphCount,
+    stickerFieldT: round(glyphCount === 1 ? 0.5 : glyphIndex / (glyphCount - 1)),
+    stringSpawnRole: mark.role,
+    stringSpawnIndex: stringIndex,
+    stringSpawnGlyphIndex: glyphIndex,
+    stringSpawnKind: 'glyph',
+  };
+  const stroke = glyph.stroke || mark.glyphStroke || die.glyphStroke || mark.stroke || die.stroke || '#f5e6b8';
+  const fill = glyph.fill || mark.glyphFill || die.glyphFill || mark.fill || die.fill || stroke;
+  if (id === 'spark' || id === 'dash' || id === 'thorn') {
+    const length = finiteOr(glyph.length, size * 2.4);
+    const dir = id === 'thorn' ? normal : tangent;
+    return {
+      ...common,
+      kind: 'line',
+      x1: roundPoint(center[0] - dir[0] * length / 2),
+      y1: roundPoint(center[1] - dir[1] * length / 2),
+      x2: roundPoint(center[0] + dir[0] * length / 2),
+      y2: roundPoint(center[1] + dir[1] * length / 2),
+      stroke,
+      strokeWidth: finiteOr(glyph.strokeWidth, 1),
+    };
+  }
+  if (id === 'leaf') {
+    const angle = Math.atan2(tangent[1], tangent[0]) + (seededUnit(seed, 4) - 0.5) * 0.8;
+    return {
+      ...common,
+      kind: 'polygon',
+      points: rotatedEllipsePoints(center[0], center[1], size * 0.62, size, 8, angle),
+      fill,
+      stroke,
+      strokeWidth: finiteOr(glyph.strokeWidth, 0.7),
+    };
+  }
+  return {
+    ...common,
+    kind: 'circle',
+    cx: center[0],
+    cy: center[1],
+    r: roundPoint(size),
+    fill,
+    stroke,
+    strokeWidth: finiteOr(glyph.strokeWidth, 0.7),
+  };
+}
+
+function expandAlongPathBubblingField(mark, field, die) {
+  const points = pathPointsFor(field);
+  if (points.length < 2) {
+    throw new Error(`stickerField '${mark.role || '(anonymous)'}' field.points must contain at least two [x,y] points`);
+  }
+  if (isKingKrispiesFamily(die.family || die.kind) && (Array.isArray(field.anchors) || Number.isFinite(Number(field.anchorCount)))) {
+    return expandKingKrispiesAnchorField(mark, field, die, points);
+  }
+  const generations = Math.max(1, Math.min(9, Math.round(finiteOr(field.generations ?? die.generations, 5))));
+  const targetCount = Math.max(2, Math.min(420, Math.round(finiteOr(field.count, (2 ** generations) + 1))));
+  const lateralRange = normalizeRange(field.lateralJitter ?? die.lateralJitter, 0, 0);
+  const tValues = bubblingTValues(generations).slice(0, targetCount);
+  const seed = hashString(`${mark.role || 'stickerField'}:bubbling:path:${targetCount}:${points.map((p) => p.join(',')).join('|')}`);
+  const budget = resolveValueBudget(mark.valueBudget, {
+    targetOpacity: finiteOr(mark.opacity, 0.5),
+    expectedOverlapCount: Math.max(1, Math.min(targetCount, Math.round(targetCount / 8))),
+    mode: 'inverse-count',
+  });
+  const opacity = opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode);
+
+  return tValues.map(({ t, generation }, i) => {
+    const sample = sampleGesture(points, t);
+    const tangent = sample?.tangent || [1, 0];
+    const normal = normalize([-tangent[1], tangent[0]]);
+    const noise = deterministicWave(seed, i, t);
+    const lateral = lerp(lateralRange[0], lateralRange[1], wrap01(t * 1.91 + noise * 0.09));
+    const center = sample
+      ? [sample.point[0] + normal[0] * lateral, sample.point[1] + normal[1] * lateral]
+      : [0, 0];
+    return bubblingCircleMark({
+      mark,
+      die,
+      field,
+      index: i,
+      count: tValues.length,
+      generation,
+      center,
+      opacity,
+      budget,
+      seed,
+      family: 'kingKrispies',
+    });
+  });
+}
+
+function expandKingKrispiesAnchorField(mark, field, die, points) {
+  const generations = Math.max(1, Math.min(9, Math.round(finiteOr(field.generations ?? die.generations, 5))));
+  const targetCount = Math.max(2, Math.min(420, Math.round(finiteOr(field.count, (2 ** generations) + 1))));
+  const anchorCount = Math.max(2, Math.min(12, Math.round(finiteOr(field.anchorCount ?? die.anchorCount, 4))));
+  const anchorScale = normalizeRange(field.anchorScale ?? die.anchorScale, 1.65, 3.2);
+  const separation = normalizeRange(field.anchorSeparation ?? die.anchorSeparation, 0.12, 0.34);
+  const lateralRange = normalizeRange(field.lateralJitter ?? die.lateralJitter, -18, 18);
+  const seed = hashString(`${mark.role || 'stickerField'}:kingKrispies:anchors:${targetCount}:${points.map((p) => p.join(',')).join('|')}`);
+  const budget = resolveValueBudget(mark.valueBudget, {
+    targetOpacity: finiteOr(mark.opacity, 0.62),
+    expectedOverlapCount: Math.max(1, Math.min(targetCount, Math.round(targetCount / 8))),
+    mode: 'inverse-count',
+  });
+  const opacity = opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode);
+  const anchors = kingKrispiesAnchors(field, points, anchorCount, lateralRange, separation, seed);
+  const out = [];
+
+  anchors.forEach((anchor, i) => {
+    out.push(bubblingCircleMark({
+      mark,
+      die,
+      field,
+      index: out.length,
+      count: targetCount,
+      generation: generations,
+      center: anchor.center,
+      opacity,
+      budget,
+      seed,
+      family: 'kingKrispies',
+      radiusMultiplier: lerp(anchorScale[0], anchorScale[1], seededUnit(seed, i + 71)),
+      anchorRole: 'large-anchor',
+    }));
+  });
+
+  const tValues = bubblingTValues(generations);
+  let cursor = 0;
+  while (out.length < targetCount) {
+    const item = tValues[cursor % tValues.length];
+    const anchorA = anchors[cursor % anchors.length];
+    const anchorB = anchors[(cursor + 1 + Math.floor(cursor / Math.max(anchors.length, 1))) % anchors.length];
+    const mix = item.t;
+    const wave = deterministicWave(seed, cursor, mix);
+    const cx = lerp(anchorA.center[0], anchorB.center[0], mix) + wave * finiteOr(field.noise, 20);
+    const cy = lerp(anchorA.center[1], anchorB.center[1], mix) + deterministicWave(seed, cursor + 11, mix) * finiteOr(field.noise, 20);
+    out.push(bubblingCircleMark({
+      mark,
+      die,
+      field,
+      index: out.length,
+      count: targetCount,
+      generation: Math.max(item.generation, 1),
+      center: [cx, cy],
+      opacity,
+      budget,
+      seed,
+      family: 'kingKrispies',
+      radiusMultiplier: lerp(0.72, 1.28, seededUnit(seed, cursor + 101)),
+      anchorRole: 'satellite',
+    }));
+    cursor += 1;
+  }
+  return out;
+}
+
+function kingKrispiesAnchors(field, points, anchorCount, lateralRange, separation, seed) {
+  if (Array.isArray(field.anchors)) {
+    const anchors = field.anchors.map((anchor, index) => {
+      const center = validPoint(anchor.center || anchor.anchor || anchor);
+      return center ? { center, index } : null;
+    }).filter(Boolean);
+    if (anchors.length >= 2) return anchors.slice(0, anchorCount);
+  }
+  const anchors = [];
+  for (let i = 0; i < anchorCount; i++) {
+    const baseT = anchorCount === 1 ? 0.5 : i / (anchorCount - 1);
+    const sep = lerp(separation[0], separation[1], seededUnit(seed, i + 17));
+    const t = clamp(baseT + (seededUnit(seed, i + 23) - 0.5) * sep, 0, 1);
+    const sample = sampleGesture(points, t);
+    const tangent = sample?.tangent || [1, 0];
+    const normal = normalize([-tangent[1], tangent[0]]);
+    const lateral = lerp(lateralRange[0], lateralRange[1], seededUnit(seed, i + 31));
+    const center = sample
+      ? [sample.point[0] + normal[0] * lateral, sample.point[1] + normal[1] * lateral]
+      : [0, 0];
+    anchors.push({ center, index: i });
+  }
+  return anchors;
+}
+
+function expandFillBoxBubblingField(mark, field, die) {
+  const bounds = bubblingBounds(field);
+  if (!bounds) {
+    throw new Error(`stickerField '${mark.role || '(anonymous)'}' fillBox field requires bounds or x/y/width/height`);
+  }
+  const generations = Math.max(1, Math.min(8, Math.round(finiteOr(field.generations ?? die.generations, 5))));
+  const lanes = Math.max(1, Math.min(18, Math.round(finiteOr(field.lanes ?? die.lanes, 5))));
+  const targetCount = Math.max(2, Math.min(520, Math.round(finiteOr(field.count, lanes * ((2 ** generations) + 1)))));
+  const seed = hashString(`${mark.role || 'stickerField'}:bubbling:box:${targetCount}:${bounds.x},${bounds.y},${bounds.width},${bounds.height}`);
+  const budget = resolveValueBudget(mark.valueBudget, {
+    targetOpacity: finiteOr(mark.opacity, 0.5),
+    expectedOverlapCount: Math.max(1, Math.min(targetCount, Math.round(targetCount / 10))),
+    mode: 'inverse-count',
+  });
+  const opacity = opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode);
+  const out = [];
+  const perLane = bubblingTValues(generations);
+
+  for (let lane = 0; lane < lanes && out.length < targetCount; lane++) {
+    const laneT = lanes === 1 ? 0.5 : lane / (lanes - 1);
+    const laneWave = deterministicWave(seed, lane, laneT);
+    for (const item of perLane) {
+      if (out.length >= targetCount) break;
+      const index = out.length;
+      const wobble = deterministicWave(seed, index, item.t);
+      const x = bounds.x + bounds.width * item.t + wobble * finiteOr(field.noise, 10);
+      const yBase = bounds.y + bounds.height * laneT;
+      const y = yBase + laneWave * finiteOr(field.laneNoise, 12) + deterministicWave(seed, index + 7, laneT) * finiteOr(field.noise, 10);
+      out.push(bubblingCircleMark({
+        mark,
+        die,
+        field,
+        index,
+        count: targetCount,
+        generation: item.generation,
+        center: [
+          clamp(x, bounds.x, bounds.x + bounds.width),
+          clamp(y, bounds.y, bounds.y + bounds.height),
+        ],
+        opacity,
+        budget,
+        seed,
+        family: 'bubbling',
+      }));
+    }
+  }
+  return out;
+}
+
+function expandOutwardBubblingField(mark, field, die) {
+  const bounds = bubblingBounds(field);
+  if (!bounds) {
+    throw new Error(`stickerField '${mark.role || '(anonymous)'}' outwardFill field requires bounds or x/y/width/height`);
+  }
+  const generations = Math.max(1, Math.min(9, Math.round(finiteOr(field.generations ?? die.generations, 6))));
+  const targetCount = Math.max(2, Math.min(620, Math.round(finiteOr(field.count, (2 ** generations) + 1))));
+  const seed = hashString(`${mark.role || 'stickerField'}:bubbling:outward:${targetCount}:${bounds.x},${bounds.y},${bounds.width},${bounds.height}`);
+  const budget = resolveValueBudget(mark.valueBudget, {
+    targetOpacity: finiteOr(mark.opacity, 0.54),
+    expectedOverlapCount: Math.max(1, Math.min(targetCount, Math.round(targetCount / 10))),
+    mode: 'inverse-count',
+  });
+  const opacity = opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode);
+  const seeds = outwardBubblingSeeds(field, bounds);
+  const centers = seeds.map((center, index) => ({ center, generation: 0, parentPair: index }));
+  let intervals = [{ a: 0, b: 1, generation: 1, side: 1 }];
+  const outward = clamp(finiteOr(field.outwardness ?? die.outwardness, 0.72), 0, 2);
+  const noise = finiteOr(field.noise, 14);
+
+  while (centers.length < targetCount && intervals.length) {
+    const next = [];
+    for (const interval of intervals) {
+      if (centers.length >= targetCount) break;
+      const a = centers[interval.a].center;
+      const b = centers[interval.b].center;
+      const mid = midpoint(a, b);
+      const dir = normalize([b[0] - a[0], b[1] - a[1]]);
+      const normal = [-dir[1], dir[0]];
+      const generationT = clamp(interval.generation / Math.max(generations, 1), 0, 1);
+      const amplitudeBase = Math.min(bounds.width, bounds.height) * 0.58 * outward * Math.pow(0.82, interval.generation - 1);
+      const wave = deterministicWave(seed, centers.length, generationT);
+      const side = interval.side * (seededUnit(seed, centers.length + 7) > 0.5 ? 1 : -1);
+      const spread = amplitudeBase * side + wave * noise;
+      const center = [
+        clamp(mid[0] + normal[0] * spread + deterministicWave(seed, centers.length + 11, generationT) * noise, bounds.x, bounds.x + bounds.width),
+        clamp(mid[1] + normal[1] * spread + deterministicWave(seed, centers.length + 17, generationT) * noise, bounds.y, bounds.y + bounds.height),
+      ];
+      const newIndex = centers.length;
+      centers.push({ center, generation: interval.generation, parentPair: interval.a });
+      next.push(
+        { a: interval.a, b: newIndex, generation: interval.generation + 1, side: -side },
+        { a: newIndex, b: interval.b, generation: interval.generation + 1, side },
+      );
+    }
+    intervals = next;
+  }
+
+  return centers.slice(0, targetCount).map((item, index) =>
+    bubblingCircleMark({
+      mark,
+      die,
+      field,
+      index,
+      count: targetCount,
+      generation: item.generation,
+      center: item.center,
+      opacity,
+      budget,
+      seed,
+      family: 'bubbling',
+      anchorRole: index < seeds.length ? 'seed' : 'outward-midpoint',
+    }),
+  );
+}
+
+function outwardBubblingSeeds(field, bounds) {
+  if (Array.isArray(field.seeds)) {
+    const seeds = field.seeds.map((seed) => validPoint(seed.center || seed.anchor || seed)).filter(Boolean);
+    if (seeds.length >= 2) return seeds.slice(0, 2);
+  }
+  const y = bounds.y + bounds.height * 0.5;
+  return [
+    [bounds.x + bounds.width * 0.18, y],
+    [bounds.x + bounds.width * 0.82, y],
+  ];
+}
+
+function expandIguanaField(mark, field, die) {
+  const bounds = bubblingBounds(field);
+  if (!bounds) {
+    throw new Error(`stickerField '${mark.role || '(anonymous)'}' iguana field requires bounds or x/y/width/height`);
+  }
+  const countInput = field.count ?? die.count;
+  const countLimit = Number.isFinite(Number(countInput))
+    ? Math.max(1, Math.round(Number(countInput)))
+    : Number.POSITIVE_INFINITY;
+  const baseR = Math.max(finiteOr(field.r ?? field.radius ?? die.r ?? die.radius, 8), 0.5);
+  const rNoise = clamp(finiteOr(field.rNoise ?? field.radiusNoise ?? die.rNoise ?? die.radiusNoise, 0), 0, 0.9);
+  const spacing = Math.max(finiteOr(field.spacing ?? die.spacing, 0.08), 0);
+  const corner = String(field.corner || die.corner || 'top-left');
+  const seed = hashString(`${mark.role || 'stickerField'}:iguana:${Number.isFinite(countLimit) ? countLimit : 'fill'}:${bounds.x},${bounds.y},${bounds.width},${bounds.height}:${baseR}`);
+  const budget = resolveValueBudget(mark.valueBudget, {
+    targetOpacity: finiteOr(mark.opacity, 0.72),
+    expectedOverlapCount: 1,
+    mode: 'inverse-count',
+  });
+  const opacity = opacityForBudget(budget.targetOpacity, budget.expectedOverlapCount, budget.mode);
+  const centers = iguanaPackCenters({ bounds, baseR, rNoise, spacing, corner, seed, countLimit });
+  const out = [];
+  centers.forEach((cell, circleIndex) => {
+    const glyphIndex = Math.floor(circleIndex / 3);
+    out.push({
+      kind: 'circle',
+      role: `${mark.role || 'iguana'}:circle-${String(circleIndex + 1).padStart(3, '0')}`,
+      cx: roundPoint(cell.center[0]),
+      cy: roundPoint(cell.center[1]),
+      r: roundPoint(cell.r),
+      fill: choosePaletteValue(mark.style?.palette || field.palette || die.palette, circleIndex) ||
+        mark.fill ||
+        die.fill ||
+        '#d6f2c2',
+      stroke: mark.stroke || die.stroke || '#0f1a12',
+      strokeWidth: finiteOr(mark.strokeWidth, finiteOr(die.strokeWidth, 0.8)),
+      opacity,
+      z: finiteOr(mark.z, 30) + circleIndex * 0.001,
+      algorithmic: true,
+      algorithm: 'pastamaker',
+      pass: mark.pass || 'iguana',
+      pastamaker: {
+        dieFamily: 'iguana',
+        fieldKind: field.kind || 'fillBox',
+        packingMode: 'continuous-tangent-field',
+        glyphRule: 'three-circle-tangent',
+        glyphIndex,
+        glyphCircleIndex: circleIndex % 3,
+        glyphCircleCount: 3,
+        collisionIndex: cell.collisionIndex || 'spatial-grid',
+        budgetMode: budget.mode,
+        targetOpacity: budget.targetOpacity,
+        expectedOverlapCount: budget.expectedOverlapCount,
+        r: roundPoint(cell.r),
+        rNoise,
+        spacing,
+        corner,
+      },
+      stickerFieldRole: mark.role,
+      stickerFieldIndex: circleIndex,
+      stickerFieldCount: centers.length,
+      stickerFieldT: round(centers.length <= 1 ? 0.5 : circleIndex / (centers.length - 1)),
+    });
+  });
+  return out;
+}
+
+function iguanaPackCenters({ bounds, baseR, rNoise, spacing, corner, seed, countLimit }) {
+  const stepX = baseR * 2 * (1 + spacing);
+  const stepY = baseR * Math.sqrt(3) * (1 + spacing);
+  const cols = Math.max(1, Math.ceil(bounds.width / Math.max(stepX, 1)) + 2);
+  const rows = Math.max(1, Math.ceil(bounds.height / Math.max(stepY, 1)) + 2);
+  const maxR = baseR * (1 + rNoise);
+  const padding = Math.max(baseR * spacing * 0.5, 0);
+  const cellSize = Math.max(1, (maxR * 2) + padding);
+  const candidates = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const t = candidates.length;
+      const r = Math.max(0.5, baseR * (1 + (seededUnit(seed, t + 5) - 0.5) * 2 * rNoise));
+      const x = bounds.x + r + col * stepX + (row % 2) * stepX * 0.5;
+      const y = bounds.y + r + row * stepY;
+      const point = orientIguanaPoint({ x, y, bounds, corner });
+      candidates.push({
+        center: [point.x, point.y],
+        r,
+      });
+    }
+  }
+  candidates.sort((a, b) => iguanaCornerDistance(a.center, bounds, corner) - iguanaCornerDistance(b.center, bounds, corner));
+  const accepted = [];
+  const spatial = new Map();
+  for (const candidate of candidates) {
+    if (accepted.length >= countLimit) break;
+    if (!iguanaCircleFits(candidate, bounds)) continue;
+    if (!iguanaSpatialOverlaps(candidate, spatial, cellSize, maxR, padding)) {
+      const cell = { ...candidate, collisionIndex: 'spatial-grid' };
+      accepted.push(cell);
+      iguanaSpatialInsert(cell, spatial, cellSize);
+    }
+  }
+  return accepted;
+}
+
+function iguanaSpatialKey(ix, iy) {
+  return `${ix},${iy}`;
+}
+
+function iguanaSpatialCell(point, cellSize) {
+  return [
+    Math.floor(point[0] / cellSize),
+    Math.floor(point[1] / cellSize),
+  ];
+}
+
+function iguanaSpatialInsert(item, spatial, cellSize) {
+  const [ix, iy] = iguanaSpatialCell(item.center, cellSize);
+  const key = iguanaSpatialKey(ix, iy);
+  const bucket = spatial.get(key);
+  if (bucket) bucket.push(item);
+  else spatial.set(key, [item]);
+}
+
+function iguanaSpatialOverlaps(candidate, spatial, cellSize, maxR, padding) {
+  const [ix, iy] = iguanaSpatialCell(candidate.center, cellSize);
+  const range = Math.max(1, Math.ceil((candidate.r + maxR + padding) / cellSize));
+  for (let y = iy - range; y <= iy + range; y++) {
+    for (let x = ix - range; x <= ix + range; x++) {
+      const bucket = spatial.get(iguanaSpatialKey(x, y));
+      if (!bucket) continue;
+      for (const item of bucket) {
+        if (
+          Math.hypot(item.center[0] - candidate.center[0], item.center[1] - candidate.center[1]) <
+            item.r + candidate.r + padding
+        ) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function orientIguanaPoint({ x, y, bounds, corner }) {
+  const right = corner.includes('right');
+  const bottom = corner.includes('bottom');
+  return {
+    x: right ? bounds.x + bounds.width - (x - bounds.x) : x,
+    y: bottom ? bounds.y + bounds.height - (y - bounds.y) : y,
+  };
+}
+
+function iguanaCornerDistance(point, bounds, corner) {
+  const x = corner.includes('right') ? bounds.x + bounds.width : bounds.x;
+  const y = corner.includes('bottom') ? bounds.y + bounds.height : bounds.y;
+  return Math.hypot(point[0] - x, point[1] - y);
+}
+
+function iguanaCircleFits(candidate, bounds) {
+  return candidate.center[0] - candidate.r >= bounds.x &&
+    candidate.center[0] + candidate.r <= bounds.x + bounds.width &&
+    candidate.center[1] - candidate.r >= bounds.y &&
+    candidate.center[1] + candidate.r <= bounds.y + bounds.height;
+}
+
+function bubblingTValues(generations) {
+  const out = [
+    { t: 0, generation: 0 },
+    { t: 1, generation: 0 },
+  ];
+  let intervals = [[0, 1]];
+  for (let generation = 1; generation <= generations; generation++) {
+    const next = [];
+    for (const [a, b] of intervals) {
+      const mid = (a + b) / 2;
+      out.push({ t: mid, generation });
+      next.push([a, mid], [mid, b]);
+    }
+    intervals = next;
+  }
+  return out.sort((a, b) => a.t - b.t || a.generation - b.generation);
+}
+
+function bubblingCircleMark({ mark, die, field, index, count, generation, center, opacity, budget, seed, family, radiusMultiplier = 1, anchorRole }) {
+  const radiusRange = normalizeRange(die.radius ?? field.radius, 2, 14);
+  const rampRange = normalizeRange(field.sizingScaleRamp ?? die.sizingScaleRamp ?? field.scaleRamp ?? die.scaleRamp, 0.78, 1.35);
+  const consistency = clamp(finiteOr(field.consistencySize ?? die.consistencySize ?? field.consistency ?? die.consistency, 0.62), 0, 1);
+  const generationT = generation <= 0 ? 0 : clamp(generation / Math.max(finiteOr(field.generations ?? die.generations, generation), 1), 0, 1);
+  const baseRadius = lerp(radiusRange[0], radiusRange[1], generationT);
+  const ramp = lerp(rampRange[0], rampRange[1], generationT);
+  const noisy = 0.55 + seededUnit(seed, index + 13) * 0.9;
+  const noiseScale = lerp(noisy, 1, consistency);
+  const radius = Math.max(0.5, baseRadius * ramp * noiseScale * radiusMultiplier);
+  return {
+    kind: 'circle',
+    role: `${mark.role || 'sticker-field'}:${String(index + 1).padStart(3, '0')}`,
+    cx: roundPoint(center[0]),
+    cy: roundPoint(center[1]),
+    r: roundPoint(radius),
+    fill: mark.fill || die.fill || field.fill || '#f4f0d8',
+    stroke: mark.stroke || die.stroke || field.stroke || '#1c1c24',
+    strokeWidth: finiteOr(mark.strokeWidth, finiteOr(die.strokeWidth, 1)),
+    opacity,
+    z: finiteOr(mark.z, 30) + index * 0.002,
+    algorithmic: true,
+    algorithm: 'pastamaker',
+    pass: mark.pass || family,
+    pastamaker: {
+      dieFamily: family,
+      fieldKind: field.kind || 'fillBox',
+      budgetMode: budget.mode,
+      targetOpacity: budget.targetOpacity,
+      expectedOverlapCount: budget.expectedOverlapCount,
+      generation,
+      anchorRole,
+      sizingScaleRamp: rampRange,
+      consistencySize: consistency,
+    },
+    stickerFieldRole: mark.role,
+    stickerFieldIndex: index,
+    stickerFieldCount: count,
+    stickerFieldT: round(count === 1 ? 0.5 : index / (count - 1)),
+  };
+}
+
+function bubblingBounds(field) {
+  const raw = field.bounds && typeof field.bounds === 'object' && !Array.isArray(field.bounds)
+    ? field.bounds
+    : field;
+  const x = finiteOr(raw.x, NaN);
+  const y = finiteOr(raw.y, NaN);
+  const width = finiteOr(raw.width ?? raw.w, NaN);
+  const height = finiteOr(raw.height ?? raw.h, NaN);
+  return [x, y, width, height].every(Number.isFinite)
+    ? { x, y, width: Math.max(width, 1), height: Math.max(height, 1) }
+    : null;
+}
+
 function pathPointsFor(field) {
   if (Array.isArray(field.points)) {
     return field.points.filter(validPoint);
@@ -3074,6 +11015,9 @@ function expandCompactSourceMarks(mark, index, scene, manifest = {}) {
   if (mark.kind === 'object') {
     return expandLibraryObjectMark(mark, index, scene);
   }
+  if (mark.kind === 'boxNet') {
+    return expandBoxNetMark(mark, index, scene, manifest);
+  }
   if (mark.kind === 'sphere' || mark.kind === 'oval') {
     return [expandRoundPrimitiveMark(mark, index)];
   }
@@ -3084,6 +11028,105 @@ function expandCompactSourceMarks(mark, index, scene, manifest = {}) {
     return [expandBlobMark(mark, index)];
   }
   return [{ ...mark, sourceIndex: mark.sourceIndex ?? index }];
+}
+
+// Expand an authored `boxNet` mark into a furniture box-net's polygon/line
+// marks: place the element through the room planner (footprint, support pins,
+// meru height), then embed its data face-cards onto the box faces via the
+// shared surface-quad embed. The result is ordinary screen-space polygon/line
+// marks that flow through the rest of the pipeline like any base mark.
+function expandBoxNetMark(mark, index, scene, manifest = {}) {
+  const cameraPrimitive =
+    manifest.cameraPrimitive ||
+    scene.cameraPrimitive ||
+    manifest.polygonizer?.cameraPrimitive ||
+    manifest.scene?.cameraPrimitive;
+  const roomBasis =
+    mark.roomBasis ||
+    cameraPrimitive?.roomBasis ||
+    manifest.polygonizer?.roomBasis ||
+    (manifest.polygonizer?.metamandala?.roomExtent
+      ? { worldExtent: manifest.polygonizer.metamandala.roomExtent }
+      : null);
+  // Without a two-point camera + room basis there is nothing to place the
+  // box-net into; pass the mark through unchanged rather than drop it silently.
+  if (!cameraPrimitive || !roomBasis) {
+    return [{ ...mark, sourceIndex: mark.sourceIndex ?? index }];
+  }
+
+  const element = {
+    type: mark.type,
+    surface: mark.surface || 'floor',
+    anchor: Array.isArray(mark.anchor) ? mark.anchor : [0.5, 0.5],
+    ...(Number.isFinite(mark.w) ? { w: mark.w } : {}),
+    ...(Number.isFinite(mark.h) ? { h: mark.h } : {}),
+    ...(Number.isFinite(mark.heightWorld) ? { heightWorld: mark.heightWorld } : {}),
+    ...(mark.supportPattern ? { supportPattern: mark.supportPattern } : {}),
+    ...(Number.isFinite(mark.supportRadius) ? { supportRadius: mark.supportRadius } : {}),
+  };
+  const plan = resolveRoomSceneElementPlan({ elements: [element], roomBasis }, roomBasis);
+  const manji = projectRoomHeightManjis(plan, cameraPrimitive, roomBasis)[0];
+  if (!manji) return [{ ...mark, sourceIndex: mark.sourceIndex ?? index }];
+
+  const project = (world) => {
+    const p = projectTwoPoint(world, cameraPrimitive, roomBasis);
+    return { x: p[0], y: p[1] };
+  };
+  // Cylinder back-face culling needs a world camera position. A pinhole camera
+  // declares one; a lerp-blend two-point camera doesn't, so estimate it from the
+  // room basis (out in front of the near edge, at eye height) — good enough to
+  // pick the camera-facing semicircle so legs don't render their back halves.
+  const cameraPosition = cameraPrimitive.worldFraming?.cameraPosition || estimateCameraPosition(roomBasis);
+  // Cascade: explicit per-element (mark.style) > per-scene (scene.renderStyle) >
+  // per-manifest (polygonizer.renderStyle) > producer intent (mark.defaultStyle)
+  // > hard fallback. Normalized so a value in either the furniture vocabulary
+  // ('shaded'/'flat'/'wireframe') or the shared renderStyle vocabulary
+  // ('painterly'/'topographic'/'wireframe') resolves to a builder mode.
+  const style = normalizeFurnitureStyle(
+    mark.style || scene.renderStyle || manifest.polygonizer?.renderStyle || mark.defaultStyle || 'shaded',
+  );
+  const built = buildFurnitureNet({ type: mark.type, manji, project, cameraPosition, style });
+  if (!built.length) return [{ ...mark, sourceIndex: mark.sourceIndex ?? index }];
+
+  // Far → near becomes ascending z, so the downstream paint-order sort draws
+  // near faces last. Strip the internal `dist`, prefix roles, carry provenance.
+  // When the camera is pinned (cropBox), shift the projected geometry by the
+  // crop offset so furniture lands in the same window as the room frame.
+  const [ox, oy] = Array.isArray(mark.cropOffset) ? mark.cropOffset : [0, 0];
+  const sorted = [...built].sort((a, b) => b.dist - a.dist);
+  const baseZ = finiteOr(mark.z, 40);
+  return sorted.map((built_mark, i) => {
+    const { dist, role, ...rest } = built_mark;
+    const shifted = (ox || oy) ? shiftMarkXY(rest, ox, oy) : rest;
+    return {
+      ...shifted,
+      z: baseZ + i * 0.001,
+      role: role ? `${mark.role || 'boxNet'}:${role}` : (mark.role || 'boxNet'),
+      boxNetType: mark.type,
+      sourceIndex: index,
+    };
+  });
+}
+
+// Shift a screen-space polygon/line mark by (ox, oy).
+function shiftMarkXY(m, ox, oy) {
+  if (m.kind === 'line') return { ...m, x1: m.x1 + ox, y1: m.y1 + oy, x2: m.x2 + ox, y2: m.y2 + oy };
+  if (Array.isArray(m.points)) return { ...m, points: m.points.map(([x, y]) => [x + ox, y + oy]) };
+  return m;
+}
+
+// Estimate a world camera position for a lerp-blend room (which carries no
+// explicit camera point): out beyond the near edge, centered, at eye height.
+// Used only to orient cylinder back-face culling.
+function estimateCameraPosition(roomBasis = {}) {
+  const xr = Array.isArray(roomBasis.xRange) ? roomBasis.xRange : [-18, 18];
+  const yr = Array.isArray(roomBasis.yRange) ? roomBasis.yRange : [8, -28];
+  const cx = (finiteOr(xr[0], -18) + finiteOr(xr[1], 18)) / 2;
+  const frontY = finiteOr(roomBasis.frontY, Math.max(yr[0], yr[1]));
+  const backY = finiteOr(roomBasis.backY, Math.min(yr[0], yr[1]));
+  const depth = Math.abs(frontY - backY) || 30;
+  const z = finiteOr(roomBasis.worldExtent?.height, 11) * 0.45;
+  return [cx, frontY + depth * 1.5, z];
 }
 
 function resolveFacePatternMarks(marks, scene = {}) {
@@ -3123,6 +11166,11 @@ function expandFacePatternMark(mark, sourceFaces, scene = {}) {
     vectorKind: 'face-detail',
     facePatternRole: mark.role,
     facePatternBasis: mark.pattern?.basis || mark.pattern?.kind || 'facade-bays',
+    manjiPatternRef: boxes.meta?.ref,
+    manjiPatternKind: boxes.meta?.kind,
+    manjiXRepeat: boxes.meta?.xRepeat,
+    manjiYStacks: boxes.meta?.yStacks,
+    manjiFrame: boxes.meta?.frame,
     architecturalMiniature: mark.language || 'architectural-miniature',
   };
   const out = [];
@@ -3191,6 +11239,9 @@ function expandFacePatternMark(mark, sourceFaces, scene = {}) {
 }
 
 function facadeBayPatternBoxes(pattern = {}) {
+  if (pattern?.kind === 'manjiLevelRepeater') return manjiLevelRepeaterPatternBoxes(pattern);
+  if (pattern?.kind === 'manjiFill') return manjiFillPatternBoxes(pattern);
+
   const subdivide = pattern.subdivide && typeof pattern.subdivide === 'object' && !Array.isArray(pattern.subdivide)
     ? pattern.subdivide
     : {};
@@ -3233,6 +11284,10 @@ function facadeBayPatternBoxes(pattern = {}) {
   const accentCol = verticalAccent ? clamp(Math.floor(finiteOr(verticalAccent.col, cols - 1)), 0, cols - 1) : cols - 1;
   return {
     cells,
+    meta: {
+      kind: pattern.kind || 'facade-bays',
+      ref: pattern.ref,
+    },
     topBand: {
       role: 'topBand',
       u: margin,
@@ -3258,9 +11313,139 @@ function facadeBayPatternBoxes(pattern = {}) {
   };
 }
 
+function manjiFillPatternBoxes(pattern = {}) {
+  const boxes = facadeBayPatternBoxes({
+    ...pattern,
+    kind: 'mandalaFractal',
+    basis: pattern.basis || 'manji-fill',
+  });
+  const cols = boxes.cells[0]?.cols || 1;
+  const rows = boxes.cells[0]?.rows || 1;
+  const frame = facadeManjiFrame({ cols, rows, ref: pattern.ref || 'manji-fill', kind: 'manjiFill' });
+  return {
+    ...boxes,
+    cells: boxes.cells.map((cell) => ({
+      ...cell,
+      manjiPatternRef: pattern.ref || 'manji-fill',
+      manjiPatternKind: 'manjiFill',
+    })),
+    meta: {
+      ...(boxes.meta || {}),
+      kind: 'manjiFill',
+      ref: pattern.ref || boxes.meta?.ref,
+      xRepeat: cols,
+      yStacks: rows,
+      frame,
+    },
+  };
+}
+
+function manjiLevelRepeaterPatternBoxes(pattern = {}) {
+  const sequence = normalizeMotifSequence(pattern.sequence || pattern.level || pattern.motifs);
+  const xRepeat = clamp(Math.round(finiteOr(pattern.xRepeat, pattern.repeatX ?? 1)), 1, 16);
+  const yStacks = resolveManjiYStacks(pattern.yStacks ?? pattern.stacks ?? pattern.rows, 1);
+  const cols = clamp(sequence.length * xRepeat, 1, 48);
+  const rows = clamp(yStacks, 1, 40);
+  const margin = clamp(finiteOr(pattern.margin, 0.08), 0, 0.28);
+  const gap = clamp(finiteOr(pattern.gap, 0.025), 0, 0.14);
+  const usableU = 1 - margin * 2;
+  const usableV = 1 - margin * 2;
+  const cellW = (usableU - gap * (cols - 1)) / cols;
+  const cellH = (usableV - gap * (rows - 1)) / rows;
+  const skip = new Set((Array.isArray(pattern.skip) ? pattern.skip : [])
+    .map((item) => `${Math.floor(finiteOr(item.col, -1))}:${Math.floor(finiteOr(item.row, -1))}`));
+  const cells = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (skip.has(`${col}:${row}`)) continue;
+      const motif = sequence[col % sequence.length];
+      cells.push({
+        role: 'levelCell',
+        col,
+        row,
+        cols,
+        rows,
+        motif,
+        sequenceIndex: col % sequence.length,
+        repeatIndex: Math.floor(col / sequence.length),
+        manjiLevel: rows - row,
+        manjiPatternRef: pattern.ref || 'level-repeater',
+        manjiPatternKind: 'manjiLevelRepeater',
+        u: margin + col * (cellW + gap),
+        v: margin + row * (cellH + gap),
+        w: Math.max(cellW, 0.001),
+        h: Math.max(cellH, 0.001),
+      });
+    }
+  }
+  return {
+    cells,
+    meta: {
+      kind: 'manjiLevelRepeater',
+      ref: pattern.ref || 'level-repeater',
+      sequence,
+      xRepeat,
+      yStacks: rows,
+      frame: facadeManjiFrame({
+        cols,
+        rows,
+        ref: pattern.ref || 'level-repeater',
+        kind: 'manjiLevelRepeater',
+      }),
+    },
+  };
+}
+
+function normalizeMotifSequence(sequence) {
+  const raw = Array.isArray(sequence) ? sequence : ['french-window'];
+  const normalized = raw
+    .map((item) => (typeof item === 'string' ? item : item?.kind || item?.motif || null))
+    .filter(Boolean);
+  return normalized.length ? normalized : ['french-window'];
+}
+
+function resolveManjiYStacks(value, fallback = 1) {
+  if (Number.isFinite(value)) return clamp(Math.round(value), 1, 40);
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const key of ['count', 'value', 'stacks', 'levels', 'fallback']) {
+      if (Number.isFinite(value[key])) return clamp(Math.round(value[key]), 1, 40);
+    }
+  }
+  return clamp(Math.round(finiteOr(fallback, 1)), 1, 40);
+}
+
+function facadeManjiFrame({ cols, rows, ref, kind }) {
+  const program = cardinalManji3D({
+    bar1: { axis: 'N-S', lengthScale: Math.max(cols / 4, 0.25) },
+    bar2: { axis: 'E-W', lengthScale: 0.25 },
+    bar3: { axis: 'Zenith-Nadir', lengthScale: Math.max(rows / 4, 0.25) },
+  });
+  const manji = evaluateManji3D(program);
+  const cuboid = inscribedCuboid(manji);
+  return {
+    kind,
+    ref,
+    axes: program.bars.map((bar) => bar.axis),
+    cuboid: {
+      min: {
+        x: round(cuboid.min.x),
+        y: round(cuboid.min.y),
+        z: round(cuboid.min.z),
+      },
+      max: {
+        x: round(cuboid.max.x),
+        y: round(cuboid.max.y),
+        z: round(cuboid.max.z),
+      },
+    },
+  };
+}
+
 function motifForCell(motif, box, index) {
+  if (box?.motif) return box.motif;
   if (Array.isArray(motif)) return motif[index % motif.length];
   if (motif && typeof motif === 'object') {
+    if (motif.fromPattern) return box?.motif || 'none';
     if (Array.isArray(motif.alternate)) return motif.alternate[index % motif.alternate.length];
     if (motif.kind) return motif.kind;
   }
@@ -3535,6 +11720,7 @@ function expandSolidMark(mark, index, scene, manifest = {}) {
     }).map((plane) => ({
       ...plane,
       ...facePolicyMetadata(facePolicy),
+      ...solidOrientationMetadata(mark),
       constructionKind: mark.constructionKind,
       constructionRole: mark.constructionRole,
       formPrimitiveRole: mark.formPrimitiveRole,
@@ -3550,6 +11736,32 @@ function expandSolidMark(mark, index, scene, manifest = {}) {
       partitionBoundary: mark.partitionBoundary,
       arrayIndex: mark.arrayIndex,
       arrayCount: mark.arrayCount,
+      horizontalStackRole: mark.horizontalStackRole,
+      horizontalStackMode: mark.horizontalStackMode,
+      horizontalStackAxis: mark.horizontalStackAxis,
+      horizontalStackActiveRay: mark.horizontalStackActiveRay,
+      horizontalStackMemberRole: mark.horizontalStackMemberRole,
+      horizontalStackMemberIndex: mark.horizontalStackMemberIndex,
+      horizontalStackMemberCount: mark.horizontalStackMemberCount,
+      horizontalStackMemberCollision: mark.horizontalStackMemberCollision,
+      horizontalStackSkinPolicy: mark.horizontalStackSkinPolicy,
+      horizontalStackSupportRole: mark.horizontalStackSupportRole,
+      mandalaArrangementRole: mark.mandalaArrangementRole,
+      mandalaArrangementProfile: mark.mandalaArrangementProfile,
+      mandalaArrangementBasisKind: mark.mandalaArrangementBasisKind,
+      mandalaArrangementLocalSpace: mark.mandalaArrangementLocalSpace,
+      mandalaArrangementBasis: mark.mandalaArrangementBasis,
+      mandalaArrangementSlot: mark.mandalaArrangementSlot,
+      mandalaArrangementActiveRay: mark.mandalaArrangementActiveRay,
+      mandalaArrangementRayVector: mark.mandalaArrangementRayVector,
+      mandalaRayInterval: mark.mandalaRayInterval,
+      mandalaRayIntervalBefore: mark.mandalaRayIntervalBefore,
+      mandalaRayDisplacement: mark.mandalaRayDisplacement,
+      mandalaRayResolved: mark.mandalaRayResolved,
+      mandalaRayContactPolicy: mark.mandalaRayContactPolicy,
+      mandalaRayCollisionPolicy: mark.mandalaRayCollisionPolicy,
+      mandalaFloater: mark.mandalaFloater,
+      mandalaFloaterPolicy: mark.mandalaFloaterPolicy,
       cubieLatticeRole: mark.cubieLatticeRole,
       cubieIndex: mark.cubieIndex,
       cubieCol: mark.cubieCol,
@@ -3621,6 +11833,7 @@ function expandSolidMark(mark, index, scene, manifest = {}) {
   return planes.map((plane) => ({
     ...plane,
     ...facePolicyMetadata(facePolicy),
+    ...solidOrientationMetadata(mark),
     constructionKind: mark.constructionKind,
     constructionRole: mark.constructionRole,
     formPrimitiveRole: mark.formPrimitiveRole,
@@ -3636,6 +11849,32 @@ function expandSolidMark(mark, index, scene, manifest = {}) {
     partitionBoundary: mark.partitionBoundary,
     arrayIndex: mark.arrayIndex,
     arrayCount: mark.arrayCount,
+    horizontalStackRole: mark.horizontalStackRole,
+    horizontalStackMode: mark.horizontalStackMode,
+    horizontalStackAxis: mark.horizontalStackAxis,
+    horizontalStackActiveRay: mark.horizontalStackActiveRay,
+    horizontalStackMemberRole: mark.horizontalStackMemberRole,
+    horizontalStackMemberIndex: mark.horizontalStackMemberIndex,
+    horizontalStackMemberCount: mark.horizontalStackMemberCount,
+    horizontalStackMemberCollision: mark.horizontalStackMemberCollision,
+    horizontalStackSkinPolicy: mark.horizontalStackSkinPolicy,
+    horizontalStackSupportRole: mark.horizontalStackSupportRole,
+    mandalaArrangementRole: mark.mandalaArrangementRole,
+    mandalaArrangementProfile: mark.mandalaArrangementProfile,
+    mandalaArrangementBasisKind: mark.mandalaArrangementBasisKind,
+    mandalaArrangementLocalSpace: mark.mandalaArrangementLocalSpace,
+    mandalaArrangementBasis: mark.mandalaArrangementBasis,
+    mandalaArrangementSlot: mark.mandalaArrangementSlot,
+    mandalaArrangementActiveRay: mark.mandalaArrangementActiveRay,
+    mandalaArrangementRayVector: mark.mandalaArrangementRayVector,
+    mandalaRayInterval: mark.mandalaRayInterval,
+    mandalaRayIntervalBefore: mark.mandalaRayIntervalBefore,
+    mandalaRayDisplacement: mark.mandalaRayDisplacement,
+    mandalaRayResolved: mark.mandalaRayResolved,
+    mandalaRayContactPolicy: mark.mandalaRayContactPolicy,
+    mandalaRayCollisionPolicy: mark.mandalaRayCollisionPolicy,
+    mandalaFloater: mark.mandalaFloater,
+    mandalaFloaterPolicy: mark.mandalaFloaterPolicy,
     cubieLatticeRole: mark.cubieLatticeRole,
     cubieIndex: mark.cubieIndex,
     cubieCol: mark.cubieCol,
@@ -3686,12 +11925,39 @@ function resolveSolidFacePolicy(mark, explicitFilter) {
   if (explicitFilter) {
     return { filter: explicitFilter, mode: 'explicit-faces', hiddenFaces: hiddenCuboidFaces(explicitFilter) };
   }
-  const cullMode = mark.faceCull || mark.cullFace || mark.hiddenFaceMode || mark.solidFaceCull;
+  const cullMode = resolveSolidFaceCull(mark);
   if (cullMode === 'vanishing-facing' || cullMode === 'hide-vanishing-face' || cullMode === 'hide-back') {
     const filter = new Set(['front', 'left', 'right', 'top', 'bottom']);
     return { filter, mode: 'hide-back', hiddenFaces: ['back'] };
   }
+  if (cullMode === 'hide-back-bottom' || cullMode === 'surface-object' || cullMode === 'hide-construction-bottom') {
+    const filter = new Set(['front', 'left', 'right', 'top']);
+    return { filter, mode: 'hide-back-bottom', hiddenFaces: ['back', 'bottom'] };
+  }
   return { filter: undefined, mode: null, hiddenFaces: [] };
+}
+
+function resolveSolidFaceCull(mark) {
+  const explicit = mark.faceCull || mark.cullFace || mark.hiddenFaceMode || mark.solidFaceCull;
+  if (explicit) return explicit;
+  return isNadirAnchoredSolid(mark) ? 'hide-back-bottom' : undefined;
+}
+
+function isNadirAnchoredSolid(mark) {
+  if (mark?.standing === true || mark?.grounded === true || mark?.nadirAnchored === true) return true;
+  const bottom = String(mark?.orientation?.bottom || mark?.orientation?.bottomFace || '').toLowerCase();
+  if (bottom === 'nadir') return true;
+  const role = `${mark?.role || ''} ${mark?.vectorRole || ''} ${mark?.solidRole || ''}`.toLowerCase();
+  return /(^|[-_\s:])(tower|building|facade|house-body|apartment-block)([-_\s:]|$)/.test(role);
+}
+
+function solidOrientationMetadata(mark) {
+  if (!isNadirAnchoredSolid(mark)) return {};
+  return {
+    solidOrientationFrame: 'nadir-zenith',
+    solidBottomFaceOrientation: 'nadir',
+    solidTopFaceOrientation: 'zenith',
+  };
 }
 
 function facePolicyMetadata(policy) {
@@ -3773,7 +12039,10 @@ function resolveMetamandalaSurfaces(marks, manifest) {
   const meta = manifest?.polygonizer?.metamandala
     ? { ...manifest.polygonizer.metamandala, constellation: manifest.polygonizer?.constellation }
     : null;
-  const raw = Array.isArray(meta?.surfaces) ? meta.surfaces : [];
+  const raw = [
+    ...(Array.isArray(meta?.surfaces) ? meta.surfaces : []),
+    ...metamandalaGravitySurfaces(meta),
+  ];
   if (!raw.length) return { surfaces: [], debugMarks: [] };
   const surfaces = raw
     .map((surface, index) => resolveMetamandalaSurface(surface, index, marks, meta))
@@ -3921,10 +12190,129 @@ function normalizeHitboxBounds(hitbox, node) {
   return { x, y, width, height };
 }
 
+function metamandalaGravitySurfaces(meta = {}) {
+  if (!meta?.gravity?.enabled) return [];
+  const supports = Array.isArray(meta.gravity.supports) ? meta.gravity.supports : [];
+  return supports
+    .map((support, index) => {
+      if (!support || typeof support !== 'object' || Array.isArray(support)) return null;
+      const role = support.role || support.surfaceRole || `gravity-support-${index + 1}`;
+      return {
+        ...support,
+        role,
+        gravitySupport: true,
+        reason: support.reason || 'gravity-support-plane',
+      };
+    })
+    .filter(Boolean);
+}
+
+function metamandalaGravityRules(gravity = {}) {
+  if (!gravity?.enabled) return [];
+  const bodies = Array.isArray(gravity.bodies) ? gravity.bodies : [];
+  return gravityBodiesToRules(bodies, gravity);
+}
+
+function horizontalStackGravityBodies(manifest = {}) {
+  const marks = Array.isArray(manifest?.marks) ? manifest.marks : [];
+  return marks
+    .filter((mark) => (
+      (mark?.kind === 'horizontalStack' || mark?.kind === 'mandalaArrangement') &&
+      (mark.profile || mark.arrangementProfile || 'horizontal-stack') === 'horizontal-stack' &&
+      normalizeHorizontalStackMode(mark.mode || mark.stackMode || mark.policy?.support || mark.policy?.collision) === 'gravity'
+    ))
+    .filter((mark) => mark.supportRole || mark.surfaceRole)
+    .map((mark) => ({
+      role: mark.role || 'horizontal-stack',
+      supportRole: mark.supportRole || mark.surfaceRole,
+      targetRegion: mark.targetRegion || 'baseContact',
+      clearance: mark.clearance,
+      maxDelta: mark.maxDelta,
+      maxDeltaX: mark.maxDeltaX,
+      align: mark.align,
+      alignX: mark.alignX,
+      dx: mark.dx,
+      requireMandalaOverlap: mark.requireMandalaOverlap,
+      allowPullForward: mark.allowPullForward,
+      paintByAdjacency: mark.paintByAdjacency,
+      paintOffset: mark.paintOffset,
+      reason: mark.reason || 'horizontal-stack-gravity-push-lock',
+      generatedBy: 'horizontalStack',
+    }));
+}
+
+function horizontalStackGravityRules(manifest = {}, gravity = {}) {
+  return gravityBodiesToRules(horizontalStackGravityBodies(manifest), gravity);
+}
+
+function gravityBodiesToRules(bodies, gravity = {}) {
+  return (Array.isArray(bodies) ? bodies : [])
+    .map((body, index) => {
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+      const targetRole = body.targetRole || body.role || body.bodyRole;
+      const surfaceRole = body.surfaceRole || body.supportRole || body.on || body.onRole;
+      if (!targetRole || !surfaceRole) return null;
+      const includeRoles = Array.isArray(body.includeRoles)
+        ? body.includeRoles.filter((role) => !isShadowRole(role, body))
+        : [];
+      const excludeRoles = gravityExcludedRoles(body);
+      return {
+        role: body.ruleRole || body.gravityRole || `${targetRole}-gravity-on-${surfaceRole}`,
+        targetRole,
+        surfaceRole,
+        targetRegion: body.targetRegion || body.region || 'baseContact',
+        includeRoles,
+        excludeRoles,
+        clearance: body.clearance ?? gravity.clearance,
+        maxDelta: body.maxDelta ?? gravity.maxDelta,
+        maxDeltaX: body.maxDeltaX ?? gravity.maxDeltaX,
+        align: body.align,
+        alignX: body.alignX,
+        dx: body.dx,
+        requireMandalaOverlap: body.requireMandalaOverlap ?? gravity.requireMandalaOverlap ?? true,
+        allowPullForward: body.allowPullForward ?? gravity.allowPullForward ?? true,
+        paintByAdjacency: body.paintByAdjacency ?? gravity.paintByAdjacency ?? true,
+        paintOffset: body.paintOffset ?? gravity.paintOffset ?? 1,
+        reason: body.reason || 'gravity-support-adjacency',
+        gravityRule: true,
+      };
+    })
+    .filter(Boolean);
+}
+
+function gravityExcludedRoles(body = {}) {
+  const roles = new Set();
+  if (Array.isArray(body.shadowRoles)) {
+    body.shadowRoles.forEach((role) => roles.add(String(role)));
+  }
+  if (Array.isArray(body.includeRoles)) {
+    body.includeRoles.filter((role) => isShadowRole(role, body)).forEach((role) => roles.add(String(role)));
+  }
+  if (Array.isArray(body.excludeRoles)) {
+    body.excludeRoles.forEach((role) => roles.add(String(role)));
+  }
+  return [...roles];
+}
+
+function isShadowRole(role, owner = {}) {
+  if (!role) return false;
+  const text = String(role).toLowerCase();
+  if (text.includes('shadow')) return true;
+  const shadowRoles = Array.isArray(owner.shadowRoles) ? owner.shadowRoles : [];
+  return shadowRoles.some((shadowRole) => String(shadowRole) === String(role));
+}
+
 function applyMetamandalaRelaxation(marks, surfaces, manifest) {
-  const config = manifest?.polygonizer?.metamandala?.relaxation;
-  const rules = Array.isArray(config?.rules) ? config.rules : [];
-  if (!config?.enabled || !rules.length || !Array.isArray(marks)) {
+  const config = manifest?.polygonizer?.metamandala?.relaxation || {};
+  const gravity = manifest?.polygonizer?.metamandala?.gravity;
+  const explicitRules = Array.isArray(config?.rules) ? config.rules : [];
+  const rules = [
+    ...explicitRules,
+    ...metamandalaGravityRules(gravity),
+    ...horizontalStackGravityRules(manifest, gravity),
+  ];
+  const enabled = config?.enabled || gravity?.enabled || horizontalStackGravityBodies(manifest).length > 0;
+  if (!enabled || !rules.length || !Array.isArray(marks)) {
     return { marks, applied: false, adjustments: [] };
   }
   let current = marks;
@@ -3935,7 +12323,9 @@ function applyMetamandalaRelaxation(marks, surfaces, manifest) {
     const targetRole = rule.targetRole || rule.fromRole || rule.role;
     if (!targetRole) continue;
     const targetRegion = rule.region || rule.targetRegion || 'baseContact';
-    const candidates = contactCandidates(current, targetRole, targetRegion);
+    const excludedRoles = Array.isArray(rule.excludeRoles) ? rule.excludeRoles : [];
+    const candidates = contactCandidates(current, targetRole, targetRegion)
+      .filter((item) => !excludedRoles.some((role) => markMatchesContactRole(item.mark, role)));
     const candidatePoints = candidates.flatMap((item) => regionPoints(item.region));
     if (!candidatePoints.length) continue;
     const candidateBounds = bbox(candidatePoints);
@@ -3958,6 +12348,7 @@ function applyMetamandalaRelaxation(marks, surfaces, manifest) {
     const paintZ = resolveRelaxedPaintZ(current, rule, surface);
     if (Math.abs(dy) < 0.01 && Math.abs(dx) < 0.01 && paintZ === null) continue;
     current = current.map((mark) => {
+      if (excludedRoles.some((role) => markMatchesContactRole(mark, role))) return mark;
       if (!roles.some((role) => markMatchesContactRole(mark, role))) return mark;
       const nextZ = paintZ === null ? mark.z : paintZ;
       return {
@@ -3986,7 +12377,7 @@ function applyMetamandalaRelaxation(marks, surfaces, manifest) {
   return { marks: current, applied: adjustments.length > 0, adjustments };
 }
 
-function shouldApplyMetamandalaRelaxation(rule, config, candidateBounds, currentY, surface, surfaceY) {
+function shouldApplyMetamandalaRelaxation(rule, config = {}, candidateBounds, currentY, surface, surfaceY) {
   if (rule.force === true || rule.forceRelaxation === true) return true;
   const requireOverlap = rule.requireMandalaOverlap ?? config.requireMandalaOverlap ?? true;
   if (requireOverlap && !boundsOverlapMetamandalaSupport(candidateBounds, surface)) return false;
@@ -4152,7 +12543,7 @@ function contactCandidates(marks, role, regionName) {
 
 function markMatchesContactRole(mark, role) {
   const target = String(role);
-  return [mark.role, mark.solidRole, mark.vectorRole]
+  return [mark.role, mark.solidRole, mark.vectorRole, mark.horizontalStackRole, mark.horizontalStackMemberRole]
     .filter(Boolean)
     .some((value) => {
       const text = String(value);
@@ -4887,20 +13278,30 @@ function solidCamera(scene, maxDepth = 1, origin = [0, 0], mark = {}) {
     eyeScale: finiteOr(scene.view?.solidEyeScale, 0.006),
     perspectiveMode: vanishingPoint ? 'one-point' : 'parallel',
     vanishingPoint,
+    horizonY: Number.isFinite(Number(perspective.horizonY))
+      ? Number(perspective.horizonY) - finiteOr(origin[1], 0)
+      : null,
+    solidOrientationFrame: isNadirAnchoredSolid(mark) ? 'nadir-zenith' : null,
+    solidCapVisibility: mark.solidCapVisibility || scene.view?.solidCapVisibility || (vanishingPoint ? 'eye-relative' : 'zenith-visible'),
     maxDepth: Math.max(finiteOr(maxDepth, 1), 1),
     perspectiveDepth: Math.max(finiteOr(perspective.depthScale, 240), 1),
   };
 }
 
 function expandCuboidPlanes({ role, box, fill, stroke, strokeWidth, sourceIndex, baseZ, camera, solidPresetRef, solidPresetRole, vectorRole, faceFilter }) {
-  return cuboidFaces(box)
+  return orientedCuboidFaces(box, camera)
     .filter((face) => !faceFilter || faceFilter.has(face.name))
     .map((face) => {
       const projected = face.points.map((point) => projectSolidPoint(point, camera));
+      return { face, projected };
+    })
+    .filter(({ face, projected }) => !hiddenStandingCapFace(face, projected, camera))
+    .map(({ face, projected }) => {
       const c2 = centroid(projected);
       const c3 = averagePoint3(face.points);
       const lightAmount = clamp(dot3(face.normal, camera.light3d), -1, 1);
       const faceTone = 0.72 + Math.max(lightAmount, 0) * 0.24 + Math.min(lightAmount, 0) * 0.22;
+      const capPaintBias = standingFacePaintBias(face, camera);
       return expandPlanePolygon({
         role: `${role}:${face.name}`,
         points: projected,
@@ -4924,9 +13325,43 @@ function expandCuboidPlanes({ role, box, fill, stroke, strokeWidth, sourceIndex,
           : undefined,
         planeDepth: round(c3[2]),
         depthAnchor: [roundPoint(c2[0]), roundPoint(c2[1])],
-        z: round(baseZ + c3[2] * camera.zScale - dot(camera.view2d, c2) * camera.eyeScale + face.zBias),
+        solidCapVisibility: camera.solidOrientationFrame ? camera.solidCapVisibility : undefined,
+        solidHorizonY: Number.isFinite(camera.horizonY) ? roundPoint(camera.horizonY) : undefined,
+        z: round(baseZ + c3[2] * camera.zScale - dot(camera.view2d, c2) * camera.eyeScale + face.zBias + capPaintBias),
       });
     });
+}
+
+function orientedCuboidFaces(box, camera) {
+  const faces = cuboidFaces(box);
+  if (camera.solidOrientationFrame !== 'nadir-zenith') return faces;
+  return faces.map((face) => {
+    if (face.name === 'back') {
+      return { ...face, name: 'front', normal: [0, 0, 1], zBias: 0.22, sourceCuboidFace: 'near-depth' };
+    }
+    if (face.name === 'front') {
+      return { ...face, name: 'back', normal: [0, 0, -1], zBias: -0.04, sourceCuboidFace: 'far-depth' };
+    }
+    return face;
+  });
+}
+
+function hiddenStandingCapFace(face, projected, camera) {
+  if (camera.solidOrientationFrame !== 'nadir-zenith') return false;
+  if (!['top', 'bottom'].includes(face.name)) return false;
+  if (camera.solidCapVisibility !== 'eye-relative') return false;
+  if (!Number.isFinite(camera.horizonY)) return false;
+  const centerY = centroid(projected)[1];
+  if (face.name === 'top') return centerY < camera.horizonY;
+  return centerY > camera.horizonY;
+}
+
+function standingFacePaintBias(face, camera) {
+  if (camera.solidOrientationFrame !== 'nadir-zenith') return 0;
+  if (face.name === 'front') return 3;
+  if (face.name === 'top') return 2.2;
+  if (face.name === 'bottom' || face.name === 'back') return -0.18;
+  return 0;
 }
 
 function expandCcaCornerCuboidPlanes({ role, projection, fill, stroke, strokeWidth, sourceIndex, baseZ, vectorRole, faceFilter }) {
@@ -5161,6 +13596,22 @@ function ellipsePoints(cx, cy, rx, ry, pointCount, start = 0, end = Math.PI * 2)
   for (let i = 0; i < pointCount; i++) {
     const t = start + ((end - start) * i) / pointCount;
     points.push([roundPoint(cx + Math.cos(t) * rx), roundPoint(cy + Math.sin(t) * ry)]);
+  }
+  return points;
+}
+
+function rotatedEllipsePoints(cx, cy, rx, ry, pointCount, rotation = 0) {
+  const points = [];
+  const cosR = Math.cos(rotation);
+  const sinR = Math.sin(rotation);
+  for (let i = 0; i < pointCount; i++) {
+    const t = (Math.PI * 2 * i) / pointCount;
+    const x = Math.cos(t) * rx;
+    const y = Math.sin(t) * ry;
+    points.push([
+      roundPoint(cx + x * cosR - y * sinR),
+      roundPoint(cy + x * sinR + y * cosR),
+    ]);
   }
   return points;
 }

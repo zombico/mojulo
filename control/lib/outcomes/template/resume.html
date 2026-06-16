@@ -1,0 +1,137 @@
+{{>doc-head}}
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #475569;
+    --faint: #94a3b8;
+    --line: #e2e8f0;
+    --paper: #ffffff;
+    --tint: #f8fafc;
+    --accent: #0f766e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--tint); color: var(--ink); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .resume {
+    max-width: 900px;
+    margin: 32px auto;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 48px 56px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  }
+  header.identity {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+  header.identity h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--ink);
+  }
+  header.identity .tagline {
+    font-size: 14px;
+    color: var(--muted);
+    text-align: right;
+    font-weight: 500;
+  }
+  .summary {
+    color: var(--muted);
+    font-size: 14.5px;
+    margin: 0 0 28px;
+    line-height: 1.55;
+  }
+  .summary p { margin: 0 0 0.6em; }
+  .summary p:last-child { margin-bottom: 0; }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 2.2fr;
+    gap: 36px;
+  }
+  .sidebar {
+    border-right: 1px solid var(--line);
+    padding-right: 28px;
+  }
+  .main {
+    /* room for sections */
+  }
+  section.section {
+    margin: 0 0 24px;
+  }
+  section.section h2 {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  section.section .body { font-size: 14px; color: var(--muted); }
+  section.section .body p { margin: 0 0 8px; }
+  section.section .body ul, section.section .body ol { padding-left: 1.3em; margin: 4px 0 10px; }
+  section.section .body li { margin: 2px 0; }
+  section.section .body h3 {
+    font-size: 14.5px;
+    color: var(--ink);
+    margin: 12px 0 4px;
+    font-weight: 600;
+  }
+  section.section .body h4 {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 8px 0 2px;
+    font-weight: 500;
+    font-style: italic;
+  }
+  section.section .body strong { color: var(--ink); }
+  footer.colophon {
+    margin-top: 36px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    font-size: 10px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  @media print {
+    body { background: white; }
+    .resume { box-shadow: none; border: none; margin: 0; padding: 36px 48px; }
+    @page { size: letter; margin: 0; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="resume">
+  <header class="identity">
+    <h1>{{resume_name}}</h1>
+    <div class="tagline">{{resume_tagline_html}}</div>
+  </header>
+  <div class="summary">{{resume_summary_html}}</div>
+  <div class="two-col">
+    <aside class="sidebar">{{sidebar_sections_html}}</aside>
+    <div class="main">{{main_sections_html}}</div>
+  </div>
+  <footer class="colophon">
+    resume template v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_human}}
+  </footer>
+</article>
+</body>
+</html>

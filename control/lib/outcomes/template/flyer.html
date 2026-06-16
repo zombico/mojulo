@@ -1,0 +1,152 @@
+{{>doc-head}}
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #475569;
+    --faint: #94a3b8;
+    --line: #e2e8f0;
+    --paper: #fafaf7;
+    --accent: #b91c1c;
+    --accent-soft: #fef2f2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .flyer {
+    max-width: 920px;
+    margin: 32px auto;
+    padding: 0;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    aspect-ratio: 8.5 / 11;
+    display: grid;
+    grid-template-rows: minmax(280px, 0.42fr) minmax(0, 1fr) auto;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+  }
+  .hero {
+    background: var(--accent);
+    color: white;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .hero .hero-visual {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.85;
+  }
+  .hero .hero-visual svg,
+  .hero .hero-visual img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hero .hero-overlay {
+    position: relative;
+    z-index: 2;
+    padding: 40px 56px;
+    text-align: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.0), rgba(0,0,0,0.35));
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .hero h1 {
+    font-size: 52px;
+    line-height: 1.05;
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+  .hero.no-visual {
+    background: linear-gradient(135deg, var(--accent) 0%, #7f1d1d 100%);
+  }
+  .body {
+    padding: 36px 56px;
+    overflow: hidden;
+  }
+  .body .tagline {
+    font-size: 22px;
+    color: var(--muted);
+    margin: 0 0 18px;
+    line-height: 1.35;
+  }
+  .body p { margin: 0 0 10px; font-size: 16px; }
+  .body ul, .body ol { padding-left: 1.4em; margin: 0 0 12px; font-size: 16px; }
+  .body li { margin: 4px 0; }
+  .body h2 { font-size: 22px; margin: 14px 0 8px; }
+  .body h3 { font-size: 18px; margin: 12px 0 6px; }
+  .body strong { color: var(--ink); }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .cta {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    padding: 12px 22px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .cta:hover { background: #7f1d1d; }
+  footer.colophon {
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+    padding: 14px 56px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+  }
+  footer.colophon a { color: var(--faint); text-decoration: none; }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  @media print {
+    body { background: white; }
+    .flyer { box-shadow: none; border: none; margin: 0; aspect-ratio: auto; height: 100vh; }
+    @page { size: letter; margin: 0; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="flyer">
+  <div class="hero {{hero_class}}">
+    <div class="hero-visual">{{hero_visual_html}}</div>
+    <div class="hero-overlay">
+      <h1>{{flyer_headline}}</h1>
+    </div>
+  </div>
+  <div class="body">
+    {{flyer_body_html}}
+    {{flyer_ctas_html}}
+  </div>
+  <footer class="colophon">
+    <span>{{generated_at_human}}</span>
+    <span>flyer template v{{template_version}} &middot; <code>{{cook_ref}}</code></span>
+  </footer>
+</article>
+</body>
+</html>

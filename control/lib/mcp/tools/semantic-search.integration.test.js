@@ -10,6 +10,8 @@
 //   - mcp_orbit_provider_artifacts via ProviderArtifactRepository.insertWithEmbedding
 //   - catalysts via reindexAll() (filesystem markdown — no write event)
 //   - sketch_vocab via reindexAll() (filesystem markdown — no write event)
+//   - sketch_method via reindexAll() (filesystem capability catalog)
+//   - manji_program via reindexAll() (filesystem + in-code illustration cards)
 //
 // Then runs semantic_search and confirms cross-kind recall returns the
 // expected refs with the expected source_kind tags.
@@ -68,6 +70,8 @@ import {
 } from '@/lib/mcp/tools/meta-context';
 import { semanticSearchHandler } from '@/lib/mcp/tools/semantic-search';
 import { getSketchVocabCard } from '@/lib/graph/sketch-vocab/loader';
+import { getSketchMethodCatalog } from '@/lib/graph/polygonizer/capabilities/loader';
+import { resolveManjiProgramCard } from '@/lib/graph/polygonizer/mandala-patterns';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -210,20 +214,31 @@ async function seedFullCorpus() {
 describe('semantic_search — cross-kind recall integration', () => {
   it('returns rows tagged with every source_kind we wrote', async () => {
     await seedFullCorpus();
-    const { results } = await semanticSearchHandler({ query: 'lead routing into HubSpot', limit: 50 });
-    expect(results.length).toBeGreaterThan(0);
-    const kinds = new Set(results.map((r) => r.source_kind));
     // We expect at least one row per kind we seeded — the integration is
     // only "working" if the index actually has material from every host
-    // write path the plan touches.
-    expect(kinds.has('principle')).toBe(true);
-    expect(kinds.has('mcp_tool')).toBe(true);
-    expect(kinds.has('mcp_capability')).toBe(true);
-    expect(kinds.has('orbit_component')).toBe(true);
-    expect(kinds.has('orbit_composition')).toBe(true);
-    expect(kinds.has('orbit_artifact')).toBe(true);
-    expect(kinds.has('catalyst')).toBe(true);
-    expect(kinds.has('sketch_vocab')).toBe(true);
+    // write path the plan touches. Scope per kind so a broad query's
+    // ranking does not accidentally crowd out a source kind at limit=50.
+    const expectedKinds = [
+      'principle',
+      'mcp_tool',
+      'mcp_capability',
+      'orbit_component',
+      'orbit_composition',
+      'orbit_artifact',
+      'catalyst',
+      'sketch_vocab',
+      'sketch_method',
+      'manji_program',
+    ];
+    for (const kind of expectedKinds) {
+      const { results } = await semanticSearchHandler({
+        query: 'lead routing into HubSpot illustration card architecture',
+        kinds: [kind],
+        limit: 5,
+      });
+      expect(results.length, `${kind} should return at least one result`).toBeGreaterThan(0);
+      for (const r of results) expect(r.source_kind).toBe(kind);
+    }
   });
 
   it('per-kind scoping returns rows only of the requested kind', async () => {
@@ -309,6 +324,16 @@ describe('semantic_search — cross-kind recall integration', () => {
         case 'sketch_vocab': {
           const card = getSketchVocabCard(r.source_ref);
           expect(card, `sketch_vocab ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'sketch_method': {
+          const method = getSketchMethodCatalog().get(r.source_ref);
+          expect(method, `sketch_method ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'manji_program': {
+          const card = resolveManjiProgramCard(r.source_ref);
+          expect(card, `manji_program ${r.source_ref} should exist`).toBeTruthy();
           break;
         }
         default:

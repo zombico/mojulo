@@ -1,15 +1,52 @@
-import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+
+// Mock the embedder so the classifier's new embedding default doesn't
+// require loading the 113MB ONNX model under unit tests. Each test that
+// exercises the embedding path resets per-test embedder behavior via the
+// `mockImplementation` re-assignment below.
+vi.mock('@/lib/embedder/local', () => {
+  return {
+    LOCAL_EMBEDDING_MODEL: 'multilingual-e5-small',
+    LOCAL_EMBEDDING_DIM: 3,
+    preloadModel: vi.fn(async () => {}),
+    generateEmbeddings: vi.fn(async (texts, { inputType }) => {
+      // Default: tag the query with axis 0, and every passage with axis 1 —
+      // sim is uniformly low so the embedding path returns just the top
+      // (first-catalog-order) match. Tests that need different behavior
+      // re-mock per-test.
+      if (inputType === 'search_query') return [[1, 0, 0]];
+      return texts.map(() => [0, 1, 0]);
+    }),
+  };
+});
+
+import { generateEmbeddings as mockedGenerateEmbeddings } from '@/lib/embedder/local';
+
 import {
   applyDepictionOverlay,
   buildConstellationGrid,
+  buildBlockLayoutPlan,
+  buildMandalaPatternLayer,
   buildPolygonizerRepairPrompt,
+  buildPolygonizerSystemPrompt,
+  buildPolygonizerUserPrompt,
+  blockLayoutIds,
+  classifyPromptForCards,
   compileSketchRecipe,
   lowerDepictionLayout,
+  mandalaPatternIds,
   normalizeModelResponse,
   PANEL_DEPICTION_RECIPES,
+  POLYGONIZER_CORE_PROMPT,
+  POLYGONIZER_SYSTEM_PROMPT,
   polygonizePrompt,
+  recipeFamilyAllowlist,
+  resolveBlockLayout,
+  resolveMandalaPattern,
+  resolveShotGlyph,
+  shotGlyphIds,
   validatePolygonizerManifest,
+  _resetClassifierCacheForTests,
 } from './index.js';
 
 function bookshelfManifest() {
@@ -404,6 +441,11 @@ describe('polygonizer prompt orchestration', () => {
     expect(result.errors.join('\n')).toContain("target 'missing-cabinet'");
     expect(result.repairPrompt).toContain('Return corrected JSON only');
     expect(result.repairPrompt).toContain('missing-cabinet');
+    // Phase 3: the repair prompt should enumerate the prior-mark roles the
+    // model can legally bind a partition.target to, so it doesn't have to
+    // reconstruct them from the JSON dump alone.
+    expect(result.repairPrompt).toContain('Available prior-mark roles');
+    expect(result.repairPrompt).toContain('cabinet-body (solid)');
   });
 
   it('can spend a second trip only when local validation fails', async () => {
@@ -420,6 +462,30 @@ describe('polygonizer prompt orchestration', () => {
     expect(result.ok).toBe(true);
     expect(result.attempts).toBe(2);
     expect(result.expandedManifest.marks.some((m) => m.kind === 'partition')).toBe(false);
+  });
+
+  it('skips the LLM repair turn when a partition.target typo is rule-fixable', async () => {
+    const typo = bookshelfManifest();
+    // A single-character typo on the partition target — close enough to
+    // 'cabinet-body' (the only valid prior role) that the deterministic
+    // patcher should rewrite it without spending an LLM round trip.
+    typo.marks[1] = { ...typo.marks[1], target: 'cabinet-bod' };
+
+    let modelCalls = 0;
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      maxRepairs: 1,
+      modelClient: async () => {
+        modelCalls += 1;
+        return typo;
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(modelCalls).toBe(1);
+    expect(result.attempts).toBe(1);
+    expect(result.patchesApplied).toEqual(['partition-target-rename']);
+    expect(result.manifest.marks[1].target).toBe('cabinet-body');
   });
 
   it('normalizes fenced JSON responses', () => {
@@ -508,24 +574,75 @@ describe('polygonizer prompt orchestration', () => {
     expect(prompt).toContain('Previous manifest');
   });
 
-  it('validates the corner-property streetlight artifact through the polygonizer path', () => {
-    const artifactPath = new URL(
-      '../../../../lite-template/integration/app-system/0530/polygonizer_corner_property_streetlight_artifact.json',
-      import.meta.url,
-    );
-    const manifest = JSON.parse(readFileSync(artifactPath, 'utf8'));
-    const result = validatePolygonizerManifest(
-      manifest,
-      'streetlight view of a single corner property with a fence on each side, two variations, a higher post per 5 mid posts',
-    );
+  it('surfaces partial expansion context when a downstream mark expansion throws', async () => {
+    // A visionPane mark missing its nearEdge fails inside resolveConstructionMarks
+    // *after* a few earlier marks already expanded successfully — Phase 3 wants
+    // the repair prompt to tell the model "we got this far, then we broke".
+    const manifest = bookshelfManifest();
+    manifest.marks.push({
+      kind: 'visionPane',
+      role: 'mystery-pane',
+      mode: 'floor',
+    });
 
-    expect(result.ok).toBe(true);
-    expect(manifest.polygonizer.subject).toContain('corner property');
-    expect(manifest.polygonizer.blockingReality.some((block) => block.basis === 'array-item')).toBe(true);
-    expect(manifest.marks.filter((m) => m.kind === 'array' && /mid-posts/.test(m.role || ''))).toHaveLength(8);
-    expect(result.expandedManifest.marks.some((m) => m.kind === 'array')).toBe(false);
-    expect(result.expandedManifest.marks.filter((m) => m.source && /high-post-(?:0|5|10):front$/.test(m.role || '')).length).toBeGreaterThanOrEqual(12);
-    expect(result.expandedManifest.marks.filter((m) => m.source && /mid-posts/.test(m.constructionRole || '')).length).toBeGreaterThan(40);
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      modelClient: async () => manifest,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toContain("visionPane 'mystery-pane'");
+    expect(result.repairPrompt).toContain('Partial expansion result');
+    expect(result.repairPrompt).toContain('failed at marks[');
+    expect(result.repairPrompt).toContain('kind=visionPane');
+    expect(result.repairPrompt).toContain('role=mystery-pane');
+    // The "see also" card for visionPane should be the vision-pane render-primitive
+    // card, injected so the model can fix the mark against authored grammar.
+    expect(result.repairPrompt).toContain('See also');
+    expect(result.repairPrompt).toMatch(/##\s+.*[Vv]ision/);
+  });
+
+  it('attaches the resolved constellation grid when a constellation error fires', async () => {
+    // Plant a constellation that references a parent node that does not exist.
+    // The validator emits a `polygonizer.constellation node '...' parent '...'`
+    // error; the repair prompt should include the resolved grid so the model
+    // sees where its node references went off-script.
+    const manifest = bookshelfManifest();
+    manifest.polygonizer.constellation = {
+      kind: 'cca-constellation-grid',
+      vanishingPoint: [460, 190],
+      nodes: [
+        {
+          role: 'cabinet-body',
+          anchor: [280, 235],
+          bounds: { x: 150, y: 82, width: 260, height: 300 },
+          cca: {
+            lengthAxis: [[150, 235], [410, 235]],
+            heightAxis: [[280, 82], [280, 382]],
+          },
+        },
+        {
+          role: 'orphan-shelf',
+          parent: 'ghost-cabinet',
+          anchor: [280, 200],
+          bounds: { x: 160, y: 100, width: 240, height: 60 },
+          cca: {
+            lengthAxis: [[160, 200], [400, 200]],
+            heightAxis: [[280, 100], [280, 160]],
+          },
+        },
+      ],
+    };
+
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      modelClient: async () => manifest,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toContain("parent 'ghost-cabinet' was not found");
+    expect(result.repairPrompt).toContain('Resolved constellation grid');
+    expect(result.repairPrompt).toContain('ghost-cabinet');
   });
 
   it('derives a CCA constellation grid that bounds house subelements', () => {
@@ -755,6 +872,220 @@ describe('polygonizer prompt orchestration', () => {
     expect(manifest.marks.some((mark) => mark.kind === 'facePattern' && mark.role === 'window-band')).toBe(true);
     expect(result.expandedManifest.marks.some((mark) => mark.kind === 'facePattern')).toBe(false);
     expect(result.expandedManifest.marks.some((mark) => mark.faceAttachment?.patternRole === 'window-band')).toBe(true);
+  });
+
+  it('exposes named mandala imprint patterns as a zero-pixel metaconcept layer', () => {
+    expect(mandalaPatternIds()).toEqual(expect.arrayContaining([
+      'snowflake-sixfold',
+      'l-tetrad',
+      'pinwheel-tetrad',
+      'seal-grid',
+      'radial-eye-gates',
+      'four-square-grid',
+    ]));
+    expect(resolveMandalaPattern('mangekyou')?.id).toBe('radial-eye-gates');
+    expect(resolveMandalaPattern('four box app')?.id).toBe('four-square-grid');
+    expect(resolveMandalaPattern('japanese seal')?.id).toBe('seal-grid');
+
+    const layer = buildMandalaPatternLayer({
+      patterns: ['snowflake', 'L-shaped tetrad', 'mangekyou', 'four box app'],
+    });
+
+    expect(layer.kind).toBe('metaconcept-mandala-pattern-layer');
+    expect(layer.coordinateSpace).toBe('zero-pixel-3d-mandala-space');
+    expect(layer.commitment).toBe('structured-boundary-before-visible-pixels');
+    expect(layer.patterns.map((pattern) => pattern.id)).toEqual([
+      'snowflake-sixfold',
+      'l-tetrad',
+      'radial-eye-gates',
+      'four-square-grid',
+    ]);
+    expect(layer.patterns[0].boundaryContract.slots).toContain('center');
+    expect(layer.resolutionOrder.join('\n')).toContain('bind visible marks only after');
+  });
+
+  it('allows shot-specific mandala patterns to derive from seeds and fit a terminator wedge', () => {
+    const layer = buildMandalaPatternLayer({
+      cameraWindow: {
+        origin: [0, 0, 0],
+        terminatorVectors: {
+          left: [-0.65, -1, 0],
+          right: [0.65, -1, 0],
+        },
+      },
+      patterns: [
+        {
+          id: 'market-street-spine',
+          extends: 'constellation-chain',
+          combineWith: ['four-square-grid', 'seal-grid'],
+          modifications: [
+            'clip nodes to street-camera terminator wedge',
+            'attach seal-grid subpatterns to visible shop faces',
+          ],
+          boundaryContract: {
+            slots: ['street-spine', 'left-parcels', 'right-parcels', 'visible-facades'],
+            collisionGroups: ['street-reserve', 'parcel-box', 'facade-face'],
+            depthBands: ['foreground', 'midground', 'terminator-background'],
+          },
+        },
+      ],
+    });
+
+    expect(layer.extensibility.mode).toBe('open-generative-library');
+    expect(layer.cameraWindow.kind).toBe('shot-terminator-wedge');
+    expect(layer.cameraWindow.terminatorVectors.left).toEqual([-0.65, -1, 0]);
+    expect(layer.contentPolicy.fitSpace).toBe('between-left-and-right-terminator-vectors');
+    expect(layer.patterns[0].id).toBe('market-street-spine');
+    expect(layer.patterns[0].derivation.kind).toBe('combined-seed');
+    expect(layer.patterns[0].derivation.seed).toBe('constellation-chain');
+    expect(layer.patterns[0].boundaryContract.slots).toContain('visible-facades');
+    expect(layer.resolutionOrder.join('\n')).toContain('terminator vectors');
+    expect(layer.resolutionOrder.join('\n')).toContain('camera-required content');
+  });
+
+  it('exposes standard shot glyphs as reusable mandala-space seeing conditions', () => {
+    expect(shotGlyphIds()).toEqual(expect.arrayContaining([
+      'person-eye-room-window-light',
+      'corner-eye-room-diagonal-window-light',
+      'person-eye-street-block-light',
+      'tabletop-three-quarter-key',
+      'overhead-plan-soft-light',
+      'school-of-athens-central-hall',
+      'wide-landscape-horizon-sweep',
+      'driver-eye-road-cockpit',
+    ]));
+    expect(resolveShotGlyph('bedroom window shot')?.id).toBe('person-eye-room-window-light');
+    expect(resolveShotGlyph('diagonal room shot')?.id).toBe('corner-eye-room-diagonal-window-light');
+    expect(resolveShotGlyph('city street shot')?.id).toBe('person-eye-street-block-light');
+    expect(resolveShotGlyph('flat lay')?.id).toBe('overhead-plan-soft-light');
+    expect(resolveShotGlyph('one point civic hall')?.id).toBe('school-of-athens-central-hall');
+    expect(resolveShotGlyph('wide landscape')?.id).toBe('wide-landscape-horizon-sweep');
+    expect(resolveShotGlyph('driver pov')?.id).toBe('driver-eye-road-cockpit');
+
+    const layer = buildMandalaPatternLayer({
+      shotGlyph: {
+        id: 'person-eye-room-window-light',
+        roomConcept: {
+          requiredRoles: ['bed', 'window'],
+        },
+      },
+    });
+
+    expect(layer.shotGlyph.id).toBe('person-eye-room-window-light');
+    expect(layer.shotGlyph.family).toBe('interior-shot-glyph');
+    expect(layer.shotGlyph.topology.cameraVector).toBe('doorway-straight-eye');
+    expect(layer.shotGlyph.cameraPrimitive.cameraPoint.kind).toBe('doorway-straight-eye');
+    expect(layer.shotGlyph.roomConcept.requiredRoles).toEqual(['bed', 'window']);
+    expect(layer.cameraWindow.terminatorVectors.left).toEqual([-0.62, -1, 0]);
+    expect(layer.resolutionOrder.join('\n')).toContain('lower shot glyph into camera vector');
+  });
+
+  it('models School of Athens as a central one-point civic hall glyph', () => {
+    const layer = buildMandalaPatternLayer({
+      shotGlyph: {
+        id: 'school of athens',
+        hallMandala: {
+          slots: ['central-thesis', 'left-cluster', 'right-cluster', 'robot-chorus'],
+        },
+      },
+    });
+
+    expect(layer.shotGlyph.id).toBe('school-of-athens-central-hall');
+    expect(layer.shotGlyph.family).toBe('civic-interior-shot-glyph');
+    expect(layer.shotGlyph.topology.cameraVector).toBe('central-one-point');
+    expect(layer.shotGlyph.topology.vanishingHub).toBe('axis-mundi-center');
+    expect(layer.shotGlyph.scene.perspective).toMatchObject({
+      mode: 'one-point',
+      horizonY: 220,
+      vanishingPoint: [490, 220],
+    });
+    expect(layer.shotGlyph.hallMandala.axisMundi.role).toBe('central-asterisk');
+    expect(layer.shotGlyph.hallMandala.slots).toEqual(['central-thesis', 'left-cluster', 'right-cluster', 'robot-chorus']);
+    expect(layer.shotGlyph.meru.aliasFor).toBe('metamandala');
+    expect(layer.cameraWindow.terminatorVectors.left).toEqual([-0.9, -1, 0]);
+  });
+
+  it('models landscape and first-person vehicle shots as reusable horizon glyphs', () => {
+    const landscape = buildMandalaPatternLayer({ shotGlyph: 'wide landscape' });
+    const vehicle = buildMandalaPatternLayer({ shotGlyph: 'first person vehicle' });
+
+    expect(landscape.shotGlyph.id).toBe('wide-landscape-horizon-sweep');
+    expect(landscape.shotGlyph.topology.cameraVector).toBe('wide-horizon-sweep');
+    expect(landscape.shotGlyph.hallMandala.kind).toBe('wide-landscape-mandala');
+    expect(landscape.shotGlyph.meru.basis).toBe('landscape-meru');
+    expect(landscape.cameraWindow.terminatorVectors.left).toEqual([-1.15, -1, 0]);
+
+    expect(vehicle.shotGlyph.id).toBe('driver-eye-road-cockpit');
+    expect(vehicle.shotGlyph.topology.cameraVector).toBe('driver-eye-forward');
+    expect(vehicle.shotGlyph.hallMandala.kind).toBe('driver-eye-road-mandala');
+    expect(vehicle.shotGlyph.hallMandala.slots).toContain('dashboard-foreground');
+    expect(vehicle.shotGlyph.meru.basis).toBe('driver-road-meru');
+    expect(vehicle.cameraWindow.terminatorVectors.right).toEqual([0.78, -1, 0]);
+  });
+
+  it('links street shot glyphs to visionPane support and curb-back parcel gravity', () => {
+    const layer = buildMandalaPatternLayer({
+      shotGlyph: {
+        id: 'street eye city block',
+        placementSpace: {
+          buildingBaseRails: ['left-storefront-rail', 'right-storefront-rail'],
+        },
+      },
+      blockLayout: 'big city',
+    });
+
+    expect(layer.shotGlyph.id).toBe('person-eye-street-block-light');
+    expect(layer.shotGlyph.family).toBe('exterior-shot-glyph');
+    expect(layer.shotGlyph.topology.support).toBe('vision-pane-street-floor');
+    expect(layer.shotGlyph.cameraPrimitive.cameraPoint.kind).toBe('person-eye-street');
+    expect(layer.shotGlyph.visionPane.horizonBoundary).toEqual({ y: 150, leftX: 360, rightX: 600 });
+    expect(layer.shotGlyph.placementSpace.gravityAxis).toBe('camera-street-depth');
+    expect(layer.shotGlyph.placementSpace.supportPlane).toBe('visionPane:street-floor');
+    expect(layer.shotGlyph.placementSpace.buildingBaseRails).toEqual(['left-storefront-rail', 'right-storefront-rail']);
+    expect(layer.shotGlyph.boundaryContract.collisionGroups).toContain('parcel-block');
+    expect(layer.blockLayout.id).toBe('metropolis-grid');
+    expect(layer.cameraWindow.fitRule).toContain('visible street slice');
+  });
+
+  it('binds conceptual block layouts before visionPane lowering for street variation', () => {
+    expect(blockLayoutIds()).toEqual(expect.arrayContaining([
+      'metropolis-grid',
+      'small-town-main-street',
+      'old-town-meander',
+      'suburban-culdesac',
+      'industrial-spine',
+    ]));
+    expect(resolveBlockLayout('big city')?.id).toBe('metropolis-grid');
+    expect(resolveBlockLayout('small town')?.id).toBe('small-town-main-street');
+    expect(resolveBlockLayout('curved lane')?.id).toBe('old-town-meander');
+
+    const plan = buildBlockLayoutPlan({
+      id: 'market-main-street',
+      extends: 'small town',
+      scale: 'small-town',
+      variationSeed: 'porches-and-civic-terminator',
+      layoutContract: {
+        anchors: ['foreground-porch', 'shopfront-run', 'courthouse-terminator'],
+      },
+    });
+
+    expect(plan.id).toBe('market-main-street');
+    expect(plan.extends).toBe('small-town-main-street');
+    expect(plan.seeds).toEqual(expect.arrayContaining(['axis-spine', 'seal-grid', 'nested-frames']));
+    expect(plan.variation.streetRhythm).toBe('single-spine-shopfront-repeat');
+    expect(plan.variation.landmarkBias).toBe('civic-terminator');
+    expect(plan.layoutContract.parcelBands).toEqual(['left-shopfronts', 'right-shopfronts']);
+    expect(plan.layoutContract.anchors).toEqual(['foreground-porch', 'shopfront-run', 'courthouse-terminator']);
+    expect(plan.loweringHint.target).toBe('visionPane');
+
+    const layer = buildMandalaPatternLayer({
+      blockLayout: { id: 'industrial district', density: 'wide-service' },
+      patterns: ['axis-spine'],
+    });
+
+    expect(layer.blockLayout.id).toBe('industrial-spine');
+    expect(layer.blockLayout.variation.parcelRhythm).toBe('deep-warehouse-bays');
+    expect(layer.resolutionOrder.join('\n')).toContain('choose block layout primitive');
   });
 
   it.each([
@@ -1360,8 +1691,650 @@ describe('polygonizer prompt orchestration', () => {
     expect(result.ok).toBe(false);
     expect(result.errors.join('\n')).toContain("Unknown sketch recipe family 'productSpecCatalog'");
   });
+
+  // ── Phase 4 — recipe-first emission ─────────────────────────────────────
+
+  it('compiles a portrait-bust recipe into head + neck + shoulders + face features', () => {
+    const manifest = compileSketchRecipe({
+      kind: 'portraitBust',
+      subject: 'portrait of a violinist, warm tones',
+      pose: { headTurn: 'three-quarter-left', headTilt: -0.2 },
+    });
+    const result = validatePolygonizerManifest(manifest, manifest.polygonizer.subject);
+    const rolesEmitted = new Set(manifest.marks.map((m) => m.role));
+
+    expect(result.ok).toBe(true);
+    expect(manifest.polygonizer.outputStyle).toBe('portrait-bust');
+    expect(rolesEmitted.has('background')).toBe(true);
+    expect(rolesEmitted.has('shoulders-mass')).toBe(true);
+    expect(rolesEmitted.has('neck-mass')).toBe(true);
+    expect(rolesEmitted.has('hair-mass')).toBe(true);
+    expect(rolesEmitted.has('head-mass')).toBe(true);
+    expect(rolesEmitted.has('eye-left')).toBe(true);
+    expect(rolesEmitted.has('eye-right')).toBe(true);
+    expect(rolesEmitted.has('mouth')).toBe(true);
+    // Every named mass carries a generatedMass + materialContractFamily tag for
+    // future Phase 6 normalization to classify against.
+    const masses = manifest.marks.filter((m) => m.generatedMass);
+    expect(masses.length).toBeGreaterThan(5);
+    expect(masses.every((m) => typeof m.materialContractFamily === 'string')).toBe(true);
+    const families = new Set(masses.map((m) => m.materialContractFamily));
+    expect(families.has('peach-profile')).toBe(true);
+    expect(families.has('face-feature')).toBe(true);
+    expect(families.has('hair')).toBe(true);
+  });
+
+  it('accepts portrait-bust under "bust" alias and emits valid sketch', () => {
+    const manifest = compileSketchRecipe({ kind: 'bust', subject: 'self-portrait' });
+    const result = validatePolygonizerManifest(manifest, manifest.polygonizer.subject);
+
+    expect(result.ok).toBe(true);
+    expect(manifest.polygonizer.recipeAudit.kind).toBe('portraitBust');
+  });
+
+  it('compiles a room-interior-two-point recipe into floor + ceiling + 2 walls', () => {
+    const manifest = compileSketchRecipe({
+      kind: 'roomInteriorTwoPoint',
+      subject: 'corner of a warm-toned reading room',
+    });
+    const result = validatePolygonizerManifest(manifest, manifest.polygonizer.subject);
+    const planeRoles = manifest.marks.map((m) => m.role);
+
+    expect(result.ok).toBe(true);
+    expect(manifest.polygonizer.outputStyle).toBe('two-point-interior');
+    expect(planeRoles).toContain('room:floor-plane');
+    expect(planeRoles).toContain('room:ceiling-plane');
+    expect(planeRoles).toContain('room:left-wall-plane');
+    expect(planeRoles).toContain('room:right-wall-plane');
+    expect(manifest.polygonizer.twoPointCamera.kind).toBe('two-point');
+    expect(Array.isArray(manifest.polygonizer.twoPointCamera.vanishingPoints)).toBe(true);
+    expect(manifest.polygonizer.twoPointCamera.vanishingPoints).toHaveLength(2);
+    expect(manifest.polygonizer.roomConcept.kind).toBe('interior-room');
+    expect(manifest.polygonizer.roomConcept.requiredRoles).toContain('room:floor-plane');
+    // Each plane carries material-contract metadata for Phase 6.
+    const planes = manifest.marks.filter((m) => m.materialContractFamily === 'room-plane');
+    expect(planes).toHaveLength(4);
+    expect(planes.every((p) => p.kind === 'polygon')).toBe(true);
+  });
+
+  it('room-interior-two-point places vanishing points on the horizon', () => {
+    const manifest = compileSketchRecipe({ kind: 'roomInteriorTwoPoint' });
+    const [leftVP, rightVP] = manifest.polygonizer.twoPointCamera.vanishingPoints;
+    const horizonY = manifest.polygonizer.twoPointCamera.horizonY;
+
+    expect(leftVP[1]).toBe(horizonY);
+    expect(rightVP[1]).toBe(horizonY);
+    expect(leftVP[0]).toBeLessThan(0); // outside left edge
+    expect(rightVP[0]).toBeGreaterThan(manifest.viewBox.width); // outside right edge
+  });
+
+  it('room-interior-two-point back corner sits between floor and ceiling on the back-corner column', () => {
+    const manifest = compileSketchRecipe({ kind: 'roomInteriorTwoPoint' });
+    const tpc = manifest.polygonizer.twoPointCamera;
+    const floor = manifest.marks.find((m) => m.role === 'room:floor-plane');
+    const ceiling = manifest.marks.find((m) => m.role === 'room:ceiling-plane');
+    const backCornerX = tpc.backCorner[0];
+    const floorBack = floor.points.find((p) => p[0] === backCornerX);
+    const ceilingBack = ceiling.points.find((p) => p[0] === backCornerX);
+
+    expect(floorBack).toBeDefined();
+    expect(ceilingBack).toBeDefined();
+    expect(floorBack[1]).toBeGreaterThan(tpc.horizonY);
+    expect(ceilingBack[1]).toBeLessThan(tpc.horizonY);
+  });
+
+  it('vehicle-glyph-language lowers to drawable marks with allocation diagnostics', () => {
+    const manifest = compileSketchRecipe({
+      kind: 'vehicleGlyphLanguage',
+      subject: 'city bus and train at a station edge',
+      concepts: ['vehicle.bus.side-slab', 'vehicle.rectangular-wheeled.payload'],
+      seed: 'vehicle-hardening',
+    });
+
+    expect(manifest.polygonizer.vehicleMandalaPlan).toBeDefined();
+    expect(manifest.polygonizer.vehicleMandalaPlan.allocations.length).toBeGreaterThan(0);
+    expect(manifest.marks.length).toBeGreaterThan(10);
+    expect(manifest.marks.some((mark) => mark.role === 'vehicle-scene:diagnostics')).toBe(true);
+  });
+
+  it('vehicle-glyph-language renders truck-specific cab and trailer bodies', () => {
+    const manifest = compileSketchRecipe({
+      kind: 'vehicleGlyphLanguage',
+      subject: 'long haul cargo truck at a depot lane',
+      concepts: ['vehicle.truck.long-haul'],
+      seed: 'vehicle-truck-production',
+    });
+
+    const roles = manifest.marks.map((mark) => mark.role);
+    expect(manifest.polygonizer.vehicleMandalaPlan.allocations[0].conceptId).toBe('vehicle.truck.long-haul');
+    expect(roles).toContain('vehicle-scene:alloc:0:truck:cab-body-side');
+    expect(roles).toContain('vehicle-scene:alloc:0:truck:trailer-body-side');
+    expect(roles).toContain('vehicle-scene:alloc:0:truck:fifth-wheel-gap');
+    expect(roles.some((role) => role.includes(':truck:bus-body-side'))).toBe(false);
+  });
+
+  it('phase recipe families appear in recipeFamilyAllowlist', () => {
+    const families = recipeFamilyAllowlist();
+    expect(families).toContain('portraitBust');
+    expect(families).toContain('roomInteriorTwoPoint');
+    expect(families).toContain('vehicleGlyphLanguage');
+  });
 });
 
 function distance(a, b) {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
 }
+
+describe('polygonizer plan-then-skin two-turn protocol', () => {
+  function planningOnlyManifest() {
+    const m = bookshelfManifest();
+    delete m.marks;
+    return m;
+  }
+
+  it('happy path: planning passes -> scaffold built -> skin emits marks -> ok', async () => {
+    const calls = [];
+    const responses = [planningOnlyManifest(), bookshelfManifest()];
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      mode: 'plan-then-skin',
+      modelClient: async (input) => {
+        calls.push(input);
+        return responses.shift();
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.attempts).toBe(2);
+    expect(result.turns.map((t) => t.phase)).toEqual(['planning-turn', 'skin-turn']);
+    expect(result.turns.every((t) => t.ok)).toBe(true);
+    expect(calls).toHaveLength(2);
+
+    expect(calls[0].systemInstruction).toContain('PLANNING-ONLY TURN');
+    expect(calls[0].schema.required).not.toContain('marks');
+    expect(calls[1].systemInstruction).toContain('SKIN-ONLY TURN');
+    expect(calls[1].schema.required).toContain('marks');
+    expect(calls[1].prompt).toContain('Solved scaffold');
+
+    expect(result.scaffold).toBeDefined();
+    expect(result.scaffold.draftingTable).toBeTruthy();
+    expect(result.authorshipPreview).toBeDefined();
+    expect(result.authorshipPreview.verdict).toBe('passed');
+    expect(result.expandedManifest.marks.some((m) => m.kind === 'partition')).toBe(false);
+  });
+
+  it('planning repairs in-place when first planning turn omits viewBox', async () => {
+    const broken = planningOnlyManifest();
+    delete broken.viewBox;
+    const responses = [broken, planningOnlyManifest(), bookshelfManifest()];
+
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      mode: 'plan-then-skin',
+      maxRepairs: 1,
+      modelClient: async () => responses.shift(),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.attempts).toBe(3);
+    expect(result.turns.map((t) => t.phase)).toEqual(['planning-turn', 'planning-repair', 'skin-turn']);
+    expect(result.turns[0].ok).toBe(false);
+    expect(result.turns[1].ok).toBe(true);
+    expect(result.turns[2].ok).toBe(true);
+  });
+
+  it('bails on planning failure when repair budget runs out (skin turn never starts)', async () => {
+    const broken = planningOnlyManifest();
+    delete broken.viewBox;
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      mode: 'plan-then-skin',
+      maxRepairs: 0,
+      modelClient: async () => broken,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.phase).toBe('planning');
+    expect(result.turns).toHaveLength(1);
+    expect(result.turns[0].phase).toBe('planning-turn');
+    expect(result.turns[0].ok).toBe(false);
+    expect(result.errors.some((e) => /viewBox/.test(e))).toBe(true);
+  });
+
+  it('lifts shot-glyph implications so a minimal canonical reference passes planning without LLM-authored consequences', async () => {
+    const minimalPlan = planningOnlyManifest();
+    // Activate the authorship-preview gate.
+    minimalPlan.polygonizer.spatialPlanning = { mode: 'plan-before-skin', materializationGate: 'planning-valid' };
+    // The LLM only references the glyph by id — no topology fields, no
+    // hallMandala / axisMundi / cameraVector / lightEntry / support. The
+    // substrate should fill them deterministically before authorship-preview
+    // runs, so the planning turn passes on the first try.
+    minimalPlan.polygonizer.shotGlyph = { id: 'school-of-athens-central-hall' };
+
+    const responses = [minimalPlan, bookshelfManifest()];
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      mode: 'plan-then-skin',
+      modelClient: async () => responses.shift(),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.turns.map((t) => t.phase)).toEqual(['planning-turn', 'skin-turn']);
+    expect(result.turns.every((t) => t.ok)).toBe(true);
+    expect(result.authorshipPreview.verdict).toBe('passed');
+    expect(result.scaffold.shotGlyphs).toHaveLength(1);
+    expect(result.scaffold.shotGlyphs[0].topology.cameraVector).toBe('central-one-point');
+    expect(result.scaffold.shotGlyphs[0].topology.lightEntry).toBe('high-side-ambient');
+    expect(result.scaffold.shotGlyphs[0].topology.support).toBe('floor-depth-grid');
+    expect(result.scaffold.mandalaPatternLayer.hallMandala.axisMundi.role).toBe('central-asterisk');
+  });
+
+  it('authorship-preview blocks planning when gravity body lacks declared support', async () => {
+    const plan = planningOnlyManifest();
+    plan.polygonizer.spatialPlanning = { mode: 'plan-before-skin', materializationGate: 'planning-valid' };
+    plan.polygonizer.metamandala = { gravity: { enabled: true, bodies: [{ targetRole: 'cabinet-body' }] } };
+
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      mode: 'plan-then-skin',
+      maxRepairs: 0,
+      modelClient: async () => plan,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.phase).toBe('planning');
+    expect(result.authorshipPreview.verdict).toBe('blocked');
+    expect(result.errors.some((e) => /declared-gravity-has-support/.test(e))).toBe(true);
+  });
+
+  it('blocks planning when vehicleMandalaPlan diagnostics are not skin-safe', async () => {
+    const plan = planningOnlyManifest();
+    plan.polygonizer.vehicleMandalaPlan = {
+      surfaces: [{ id: 'road.main', kind: 'roadPlane' }],
+      allocations: [{ id: 'a', conceptId: 'vehicle.bus.side-slab' }],
+      diagnostics: {
+        collisionCount: 1,
+        unplacedCount: 1,
+        readable: false,
+      },
+    };
+
+    const result = await polygonizePrompt({
+      prompt: 'bus and train at a station',
+      mode: 'plan-then-skin',
+      maxRepairs: 0,
+      modelClient: async () => plan,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.phase).toBe('planning');
+    expect(result.errors.some((e) => /vehicleMandalaPlan/.test(e))).toBe(true);
+  });
+
+  it('passes planning when vehicleMandalaPlan diagnostics are skin-safe and carries plan into scaffold', async () => {
+    const planning = planningOnlyManifest();
+    planning.polygonizer.vehicleMandalaPlan = {
+      surfaces: [{ id: 'road.main', kind: 'roadPlane' }],
+      allocations: [{ id: 'alloc-0', conceptId: 'vehicle.bus.side-slab', surfaceId: 'road.main' }],
+      diagnostics: {
+        collisionCount: 0,
+        unplacedCount: 0,
+        readable: true,
+      },
+    };
+    const responses = [planning, bookshelfManifest()];
+
+    const result = await polygonizePrompt({
+      prompt: 'bus and train at a station edge',
+      mode: 'plan-then-skin',
+      modelClient: async () => responses.shift(),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.turns.map((t) => t.phase)).toEqual(['planning-turn', 'skin-turn']);
+    expect(result.scaffold.vehicleMandalaPlan).toBeDefined();
+    expect(result.scaffold.vehicleMandalaPlan.diagnostics.readable).toBe(true);
+  });
+
+  it('skin repair uses the SAME scaffold (does not redo planning)', async () => {
+    const goodPlan = planningOnlyManifest();
+    const brokenSkin = bookshelfManifest();
+    brokenSkin.marks[1] = { ...brokenSkin.marks[1], target: 'missing-cabinet' };
+    const goodSkin = bookshelfManifest();
+    const responses = [goodPlan, brokenSkin, goodSkin];
+    const calls = [];
+
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      mode: 'plan-then-skin',
+      maxRepairs: 1,
+      modelClient: async (input) => {
+        calls.push(input);
+        return responses.shift();
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.attempts).toBe(3);
+    expect(result.turns.map((t) => t.phase)).toEqual(['planning-turn', 'skin-turn', 'skin-repair']);
+    // turn 1 (planning) — no scaffold yet
+    expect(calls[0].prompt).not.toContain('Solved scaffold');
+    // turn 2 (skin) — scaffold injected
+    expect(calls[1].prompt).toContain('Solved scaffold');
+    // turn 3 (skin-repair) — same scaffold injected
+    expect(calls[2].prompt).toContain('Solved scaffold');
+    expect(calls[2].prompt).toContain('missing-cabinet');
+  });
+
+  it('exposes turns metadata on success so callers can see whether plan-then-skin was used', async () => {
+    const responses = [planningOnlyManifest(), bookshelfManifest()];
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      mode: 'plan-then-skin',
+      modelClient: async () => responses.shift(),
+    });
+
+    expect(result.turns).toEqual([
+      expect.objectContaining({ phase: 'planning-turn', ok: true }),
+      expect.objectContaining({ phase: 'skin-turn', ok: true }),
+    ]);
+  });
+});
+
+describe('polygonizer system-prompt composition', () => {
+  it('CORE prompt contains the always-on tokens and omits card-specific grammar', () => {
+    expect(POLYGONIZER_CORE_PROMPT).toContain('Mojulo');
+    expect(POLYGONIZER_CORE_PROMPT).toContain('blockingReality');
+    expect(POLYGONIZER_CORE_PROMPT).toContain('Every partition.target must exactly match');
+    // The verbose fluidField paragraph from the old monolithic prompt lives
+    // in the fluid-field card now, not in CORE.
+    expect(POLYGONIZER_CORE_PROMPT).not.toContain('bulb-seaweed-flame');
+    expect(POLYGONIZER_CORE_PROMPT).not.toContain('rBrush{');
+    expect(POLYGONIZER_CORE_PROMPT).not.toContain('sparkField{');
+  });
+
+  it('buildPolygonizerSystemPrompt returns CORE only when no cards are passed', () => {
+    expect(buildPolygonizerSystemPrompt({ cards: [] })).toBe(POLYGONIZER_CORE_PROMPT);
+    expect(buildPolygonizerSystemPrompt()).toBe(POLYGONIZER_CORE_PROMPT);
+  });
+
+  it('buildPolygonizerSystemPrompt injects matched card bodies under their names', () => {
+    const result = buildPolygonizerSystemPrompt({
+      cards: [{ id: 'demo', name: 'Demo Card', body: 'demo grammar body' }],
+    });
+    expect(result.startsWith(POLYGONIZER_CORE_PROMPT)).toBe(true);
+    expect(result).toContain('## Demo Card');
+    expect(result).toContain('demo grammar body');
+  });
+
+  it('classified card subset is meaningfully smaller than the all-cards prompt', () => {
+    // Picking only fluid-field + spark-field for "fireworks over a city"
+    // should be much smaller than shipping every render-primitive card.
+    const allCards = POLYGONIZER_SYSTEM_PROMPT;
+    const narrow = buildPolygonizerSystemPrompt({
+      cards: [
+        { id: 'fluid-field', name: 'fluidField', body: 'fluid body' },
+        { id: 'spark-field', name: 'sparkField', body: 'spark body' },
+      ],
+    });
+    expect(narrow.length).toBeLessThan(allCards.length * 0.6);
+  });
+});
+
+describe('polygonizer card classifier', () => {
+  beforeEach(() => {
+    _resetClassifierCacheForTests();
+  });
+
+  it('returns the card ids the model picked, filtered against the known catalog', async () => {
+    const result = await classifyPromptForCards({
+      prompt: 'fireworks over a city skyline',
+      classifierClient: async () => ({
+        tiers: ['render-primitive'],
+        cards: ['fluid-field', 'spark-field', 'not-a-real-card'],
+      }),
+    });
+    // 'not-a-real-card' is filtered out because it isn't in the loader catalog.
+    expect(result.cards).toEqual(['fluid-field', 'spark-field']);
+    expect(result.tiers).toEqual(['render-primitive']);
+    expect(result.cached).toBe(false);
+  });
+
+  it('caches by prompt hash — identical prompts skip the model trip', async () => {
+    let calls = 0;
+    const client = async () => {
+      calls += 1;
+      return { cards: ['fluid-field'] };
+    };
+    const first = await classifyPromptForCards({ prompt: 'smoke rising from a chimney', classifierClient: client });
+    const second = await classifyPromptForCards({ prompt: 'smoke rising from a chimney', classifierClient: client });
+    expect(calls).toBe(1);
+    expect(first.cached).toBe(false);
+    expect(second.cached).toBe(true);
+    expect(second.cards).toEqual(['fluid-field']);
+  });
+
+  it('falls back to all-cards when the classifier throws', async () => {
+    const result = await classifyPromptForCards({
+      prompt: 'a portrait of a person',
+      classifierClient: async () => {
+        throw new Error('classifier offline');
+      },
+    });
+    expect(result.cards).toBe('all');
+    expect(result.classifierError).toBe('classifier offline');
+  });
+
+  it('routes via embedding by default (no classifierClient → no LLM call)', async () => {
+    // Default mock returns sims ≈ 0 for every card, so the router falls back
+    // to "just the top-catalog-order match" — but importantly, no
+    // classifierClient was called, so this exercises the embedding path.
+    const result = await classifyPromptForCards({ prompt: 'a quiet hill at dawn' });
+    expect(result.router).toBe('embedding');
+    expect(Array.isArray(result.cards)).toBe(true);
+    expect(result.cards.length).toBeGreaterThan(0);
+    expect(result.cached).toBe(false);
+    // Cache hit on second call.
+    const second = await classifyPromptForCards({ prompt: 'a quiet hill at dawn' });
+    expect(second.cached).toBe(true);
+    expect(second.cards).toEqual(result.cards);
+  });
+
+  it('falls back to all-cards when the embedder throws', async () => {
+    mockedGenerateEmbeddings.mockImplementationOnce(async () => {
+      throw new Error('embedder offline');
+    });
+    const result = await classifyPromptForCards({ prompt: 'embedder-failure scenario' });
+    expect(result.cards).toBe('all');
+    expect(result.router).toBe('embedding');
+    expect(result.classifierError).toBe('embedder offline');
+  });
+
+  it('uses the LLM path when classifierClient is explicitly injected', async () => {
+    // classifierClient overrides the embedding default, even though both are
+    // reachable. This is the path the existing LLM tests above rely on.
+    let llmCalls = 0;
+    const result = await classifyPromptForCards({
+      prompt: 'forced-llm-path scenario',
+      classifierClient: async () => {
+        llmCalls += 1;
+        return { cards: ['fluid-field'], tiers: ['render-primitive'] };
+      },
+    });
+    expect(llmCalls).toBe(1);
+    expect(result.router).toBe('llm');
+    expect(result.cards).toEqual(['fluid-field']);
+  });
+
+  it('passes only the picked card ids through to the manifest call', async () => {
+    const calls = [];
+    const result = await polygonizePrompt({
+      prompt: 'bookshelf with 4 rows at a slight angle',
+      cards: [
+        // Empty card list — manifest call sees CORE only.
+      ],
+      modelClient: async (input) => {
+        calls.push(input);
+        return bookshelfManifest();
+      },
+    });
+    expect(result.ok).toBe(true);
+    // The first-trip systemInstruction must match CORE exactly because we
+    // passed an empty cards array (no injections).
+    expect(calls[0].systemInstruction).toBe(POLYGONIZER_CORE_PROMPT);
+  });
+});
+
+describe('polygonizer user-prompt preload prefix', () => {
+  it('omits the preload section when no preloadManifest is provided', () => {
+    const out = buildPolygonizerUserPrompt('a fox in a forest');
+    expect(out.startsWith('Visual prompt:')).toBe(true);
+    expect(out).not.toContain('Prior scene');
+  });
+
+  it('prefixes a JSON-serialized prior manifest under an advisory header', () => {
+    const prior = {
+      title: 'Prior',
+      viewBox: { width: 320, height: 200 },
+      polygonizer: { subject: 'fox' },
+    };
+    const out = buildPolygonizerUserPrompt('the fox finds a rabbit', { preloadManifest: prior });
+    expect(out).toMatch(/^Prior scene \(advisory context/);
+    expect(out).toContain('"subject": "fox"');
+    expect(out).toContain('Visual prompt:\nthe fox finds a rabbit');
+    // The advisory framing matters — the model is told this is not a binding
+    // contract, so a drifted next turn isn't violating anything.
+    expect(out).toContain('not a binding contract');
+  });
+
+  it('threads preloadManifest into polygonizePrompt\'s user-side instruction', async () => {
+    // We only care that the preload reached the first model call. The mocked
+    // manifest deliberately fails validation downstream (no marks); that's
+    // irrelevant — `calls[0].prompt` records what the model actually saw.
+    const calls = [];
+    const modelClient = async ({ prompt, systemInstruction }) => {
+      calls.push({ prompt, systemInstruction });
+      return {
+        manifest: {
+          title: 'p2',
+          viewBox: { width: 100, height: 100 },
+          polygonizer: {
+            subject: 'p2',
+            impactPoint: [50, 50],
+            realityFacts: ['a'],
+            minimalAbstractions: ['x'],
+          },
+          marks: [{ kind: 'circle', cx: 50, cy: 50, r: 10, fill: '#fff' }],
+        },
+      };
+    };
+    const prior = {
+      title: 'p1',
+      viewBox: { width: 100, height: 100 },
+      polygonizer: { subject: 'p1' },
+    };
+    await polygonizePrompt({
+      prompt: 'second scene',
+      modelClient,
+      cards: [],
+      preloadManifest: prior,
+    });
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[0].prompt).toMatch(/^Prior scene \(advisory context/);
+    expect(calls[0].prompt).toContain('"subject": "p1"');
+    expect(calls[0].prompt).toContain('Visual prompt:\nsecond scene');
+  });
+
+  it('renders labeled "Prior {as}" sections when preloadManifests carries multiple entries', () => {
+    const character = {
+      title: 'Fox',
+      viewBox: { width: 100, height: 100 },
+      polygonizer: { subject: 'fox' },
+    };
+    const setting = {
+      title: 'Garden',
+      viewBox: { width: 100, height: 100 },
+      polygonizer: { subject: 'garden' },
+    };
+    const out = buildPolygonizerUserPrompt('the fox in the garden at dawn', {
+      preloadManifests: [
+        { ref: 'sk_fox', title: 'Fox study', as: 'character', note: "the fox's pose", manifest: character },
+        { ref: 'sk_garden', title: 'Garden at dawn', as: 'setting', manifest: setting },
+      ],
+    });
+    // Multi-prior header replaces the back-compat single-prior header.
+    expect(out).toMatch(/^Prior context \(advisory/);
+    expect(out).not.toMatch(/^Prior scene \(advisory context/);
+    // Each prior is labeled with its `as` role and references its ref + title.
+    expect(out).toContain('Prior character — sk_fox (from "Fox study")');
+    expect(out).toContain('Prior setting — sk_garden (from "Garden at dawn")');
+    // Per-item note surfaces verbatim near its prior.
+    expect(out).toContain("Agent note: the fox's pose");
+    // Both manifests are JSON-serialized into their respective blocks.
+    expect(out).toContain('"subject": "fox"');
+    expect(out).toContain('"subject": "garden"');
+    // The visual prompt still trails after the prior-context block.
+    expect(out).toContain('Visual prompt:\nthe fox in the garden at dawn');
+  });
+
+  it('keeps single-unlabeled array entries on the back-compat "Prior scene" wording', () => {
+    const prior = {
+      title: 'P1',
+      viewBox: { width: 100, height: 100 },
+      polygonizer: { subject: 'p1' },
+    };
+    // A single array entry with no `as` should produce the same prefix the
+    // single-string back-compat path produces — so existing single-preload
+    // captures don't regress.
+    const out = buildPolygonizerUserPrompt('next', {
+      preloadManifests: [{ manifest: prior }],
+    });
+    expect(out).toMatch(/^Prior scene \(advisory context/);
+    expect(out).not.toMatch(/^Prior context \(advisory/);
+    expect(out).toContain('"subject": "p1"');
+  });
+
+  it('threads preloadManifests into polygonizePrompt\'s user-side instruction with labels intact', async () => {
+    const calls = [];
+    const modelClient = async ({ prompt, systemInstruction }) => {
+      calls.push({ prompt, systemInstruction });
+      return {
+        manifest: {
+          title: 'p2',
+          viewBox: { width: 100, height: 100 },
+          polygonizer: {
+            subject: 'p2',
+            impactPoint: [50, 50],
+            realityFacts: ['a'],
+            minimalAbstractions: ['x'],
+          },
+          marks: [{ kind: 'circle', cx: 50, cy: 50, r: 10, fill: '#fff' }],
+        },
+      };
+    };
+    await polygonizePrompt({
+      prompt: 'second scene',
+      modelClient,
+      cards: [],
+      preloadManifests: [
+        {
+          ref: 'sk_char',
+          title: 'Char',
+          as: 'character',
+          manifest: { title: 'char', viewBox: { width: 100, height: 100 }, polygonizer: { subject: 'fox' } },
+        },
+        {
+          ref: 'sk_set',
+          title: 'Set',
+          as: 'setting',
+          manifest: { title: 'set', viewBox: { width: 100, height: 100 }, polygonizer: { subject: 'garden' } },
+        },
+      ],
+    });
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[0].prompt).toMatch(/^Prior context \(advisory/);
+    expect(calls[0].prompt).toContain('Prior character — sk_char');
+    expect(calls[0].prompt).toContain('Prior setting — sk_set');
+    expect(calls[0].prompt).toContain('Visual prompt:\nsecond scene');
+  });
+});

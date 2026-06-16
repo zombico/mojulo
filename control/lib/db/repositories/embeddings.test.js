@@ -524,6 +524,8 @@ describe('SOURCE_KINDS', () => {
       'orbit_artifact',
       'catalyst',
       'sketch_vocab',
+      'sketch_method',
+      'manji_program',
     ]);
   });
 });

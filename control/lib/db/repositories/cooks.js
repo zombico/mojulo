@@ -41,6 +41,7 @@ function rowToCook(row) {
     suggestedLens: row.suggested_lens,
     templateVersion: row.template_version,
     createdAt: row.created_at,
+    archivedAt: row.archived_at ?? null,
   };
 }
 
@@ -107,14 +108,58 @@ export const CookRepository = {
     return rowToCook(db.prepare('SELECT * FROM stash_cooks WHERE cook_ref = ?').get(cookRef));
   },
 
-  list({ limit } = {}) {
+  /**
+   * List cooks, most-recent first.
+   *
+   * @param {object} [opts]
+   * @param {number} [opts.limit]
+   * @param {'open'|'archived'|'all'} [opts.status='open'] — soft-delete filter
+   */
+  list({ limit, status = 'open' } = {}) {
     const db = getDb();
-    const rows = db
-      .prepare(
-        `SELECT * FROM stash_cooks ORDER BY created_at DESC, id DESC ${limit ? 'LIMIT ?' : ''}`,
-      )
-      .all(...(limit ? [limit] : []));
+    let where = '';
+    if (status === 'open') where = 'WHERE archived_at IS NULL';
+    else if (status === 'archived') where = 'WHERE archived_at IS NOT NULL';
+    // 'all' → no filter
+    const sql = `SELECT * FROM stash_cooks ${where} ORDER BY created_at DESC, id DESC ${limit ? 'LIMIT ?' : ''}`;
+    const rows = db.prepare(sql).all(...(limit ? [limit] : []));
     return rows.map(rowToCook);
+  },
+
+  /**
+   * Soft-delete a cook by setting `archived_at`. Idempotent — calling on an
+   * already-archived cook returns { archived: false, alreadyArchived: true }.
+   * The outcome folder on disk is NOT touched; archiving is a row-state
+   * change so the artifact stays addressable at /outcomes/<cook_ref>/ for
+   * downstream linkage (the citable-atoms posture matches archive_item).
+   */
+  archive(cookRef) {
+    if (!cookRef || typeof cookRef !== 'string') {
+      throw new Error('cookRef is required');
+    }
+    const db = getDb();
+    const existing = db.prepare('SELECT archived_at FROM stash_cooks WHERE cook_ref = ?').get(cookRef);
+    if (!existing) return { archived: false, notFound: true };
+    if (existing.archived_at !== null && existing.archived_at !== undefined) {
+      return { archived: false, alreadyArchived: true };
+    }
+    db.prepare('UPDATE stash_cooks SET archived_at = unixepoch() WHERE cook_ref = ?').run(cookRef);
+    return { archived: true };
+  },
+
+  /** Reverse of archive(). Idempotent on already-open rows. */
+  unarchive(cookRef) {
+    if (!cookRef || typeof cookRef !== 'string') {
+      throw new Error('cookRef is required');
+    }
+    const db = getDb();
+    const existing = db.prepare('SELECT archived_at FROM stash_cooks WHERE cook_ref = ?').get(cookRef);
+    if (!existing) return { unarchived: false, notFound: true };
+    if (existing.archived_at === null || existing.archived_at === undefined) {
+      return { unarchived: false, alreadyOpen: true };
+    }
+    db.prepare('UPDATE stash_cooks SET archived_at = NULL WHERE cook_ref = ?').run(cookRef);
+    return { unarchived: true };
   },
 };
 

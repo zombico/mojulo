@@ -15,6 +15,11 @@ const nextConfig = {
   // See lite-template/integration/UI_PACKAGE_PLAN.md.
   output: 'standalone',
   outputFileTracingRoot: __dirname,
+  // Motion folded into the Mojulo Maker concern. Sketches stays its own concern
+  // at /sketches. See app/maker/ and control/app/maker/maker.plan.md.
+  async redirects() {
+    return [{ source: '/motion', destination: '/maker/motion', permanent: false }];
+  },
   serverExternalPackages: [
     'better-sqlite3',
     'archiver',
@@ -23,6 +28,9 @@ const nextConfig = {
     '@huggingface/transformers',
     'onnxruntime-node',
     'sharp',
+    'opentype.js',
+    'puppeteer-core',
+    '@puppeteer/browsers',
   ],
   turbopack: { root: __dirname },
   webpack: (config, { isServer }) => {

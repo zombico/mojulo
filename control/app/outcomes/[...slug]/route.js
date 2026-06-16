@@ -17,7 +17,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 
-import { outcomeDirFor } from '@/lib/outcomes/write';
+import { outcomeDirFor } from '@/lib/outcomes/paths';
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 
@@ -25,6 +25,8 @@ const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.mp4': 'video/mp4',
   '.json': 'application/json; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
 };
@@ -34,7 +36,7 @@ function contentTypeFor(filename) {
   return CONTENT_TYPES[ext] || 'application/octet-stream';
 }
 
-export async function GET(_request, { params }) {
+export async function GET(request, { params }) {
   const { slug } = await params;
   const segments = Array.isArray(slug) ? slug : [slug];
 
@@ -65,9 +67,15 @@ export async function GET(_request, { params }) {
     }
   }
 
-  let data;
+  const contentType = contentTypeFor(filename);
+
+  // Video needs HTTP Range support: Safari (and seeking everywhere) requires a
+  // 206 partial response, so a stitch's motion.mp4 must be range-served, not
+  // streamed whole. Other artifacts (svg/html/json/…) keep the simple 200 path.
+  const isVideo = contentType.startsWith('video/');
+  let stat;
   try {
-    data = await fs.readFile(resolved);
+    stat = await fs.stat(resolved);
   } catch (err) {
     if (err.code === 'ENOENT') {
       return NextResponse.json(
@@ -78,11 +86,49 @@ export async function GET(_request, { params }) {
     throw err;
   }
 
+  const range = isVideo ? request.headers.get('range') : null;
+  if (range) {
+    const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    if (m) {
+      const size = stat.size;
+      let start = m[1] ? parseInt(m[1], 10) : 0;
+      let end = m[2] ? parseInt(m[2], 10) : size - 1;
+      if (Number.isNaN(start)) start = 0;
+      if (Number.isNaN(end) || end >= size) end = size - 1;
+      if (start > end || start >= size) {
+        return new NextResponse(null, {
+          status: 416,
+          headers: { 'content-range': `bytes */${size}`, 'accept-ranges': 'bytes' },
+        });
+      }
+      const fh = await fs.open(resolved, 'r');
+      try {
+        const len = end - start + 1;
+        const buf = Buffer.alloc(len);
+        await fh.read(buf, 0, len, start);
+        return new NextResponse(buf, {
+          status: 206,
+          headers: {
+            'content-type': contentType,
+            'content-range': `bytes ${start}-${end}/${size}`,
+            'accept-ranges': 'bytes',
+            'content-length': String(len),
+            'cache-control': 'private, max-age=0, must-revalidate',
+          },
+        });
+      } finally {
+        await fh.close();
+      }
+    }
+  }
+
+  const data = await fs.readFile(resolved);
   return new NextResponse(data, {
     status: 200,
     headers: {
-      'content-type': contentTypeFor(filename),
+      'content-type': contentType,
       'cache-control': 'private, max-age=0, must-revalidate',
+      ...(isVideo ? { 'accept-ranges': 'bytes', 'content-length': String(stat.size) } : {}),
     },
   });
 }

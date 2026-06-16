@@ -31,10 +31,127 @@ import {
 } from '@/lib/graph/sketch-vocab/loader';
 import { deriveSketchDiffManifest } from '@/lib/graph/sketch-diff';
 import {
+  classifyPromptForCards,
   polygonizePrompt,
   resolvePolygonizerModelConfig,
   withConstellationGrid,
+  lowerRecipeManifest,
+  recipeFamilyAllowlist,
 } from '@/lib/graph/polygonizer/index.js';
+
+// Cap on the number of priors a single create_* call may carry forward.
+// Eight covers picture-book usage (character + setting + palette + composition,
+// with headroom for a fourth recurring element or two) while keeping the
+// prior-context prefix from crowding out the new prompt.
+export const PRELOAD_MAX_ITEMS = 8;
+
+/**
+ * Resolve a preload input → an array of prior sketches the new turn should
+ * compose against, or `null` if nothing was passed. Used by `create_sketch`
+ * and `create_polygonized_sketch` to let an agent seed a new scene with one
+ * or more priors as advisory context (carrying something — character,
+ * setting, palette, composition — across pages of a picture book, across
+ * turns of an iterative exploration).
+ *
+ * Two input shapes are accepted; both resolve to the same internal array:
+ *   - `string` → single ref, unlabeled (the original picture-book spike
+ *     shape; left intact for backwards compat).
+ *   - `Array<string | { ref, as?, note? }>` → multiple priors, optionally
+ *     labeled with a free-form role tag (`as`) that becomes the heading text
+ *     in the prior-context prefix the model sees, plus an optional
+ *     per-item `note` round-tripped in the response. Capped at
+ *     PRELOAD_MAX_ITEMS items.
+ *
+ * Portability uses the existing `sk_<ref>` handle — no hashing, no new
+ * identity layer; the substrate's content-hash discipline is for bot turn
+ * rows, not artifacts. Preload is advisory only: the new turn may extend,
+ * modify, or ignore each prior as the new prompt requires.
+ *
+ * Returns `null` if no preload was provided, else an array of
+ * `{ ref, title, manifest, as: string|null, note: string|null }` entries
+ * (preserving caller order). Throws on bad input, unresolved refs, duplicate
+ * refs, or over-cap arrays.
+ */
+export function resolvePreloads(preloadInput) {
+  if (preloadInput === undefined || preloadInput === null) return null;
+
+  const rawItems = Array.isArray(preloadInput) ? preloadInput : [preloadInput];
+  if (rawItems.length === 0) return null;
+  if (rawItems.length > PRELOAD_MAX_ITEMS) {
+    throw new Error(
+      `\`preload\` accepts at most ${PRELOAD_MAX_ITEMS} priors (got ${rawItems.length}). Consolidate roles or split the sequence into multiple calls.`,
+    );
+  }
+
+  const normalized = rawItems.map((item, idx) => {
+    if (typeof item === 'string') {
+      if (!item.trim()) {
+        throw new Error(
+          `\`preload[${idx}]\` must be a non-empty string sketch ref (e.g. "sk_abc123def0")`,
+        );
+      }
+      return { ref: item, as: null, note: null };
+    }
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new Error(
+        `\`preload[${idx}]\` must be a string ref or an object { ref, as?, note? } (got ${typeof item})`,
+      );
+    }
+    const { ref, as, note } = item;
+    if (typeof ref !== 'string' || !ref.trim()) {
+      throw new Error(
+        `\`preload[${idx}].ref\` must be a non-empty string sketch ref (e.g. "sk_abc123def0")`,
+      );
+    }
+    if (as !== undefined && as !== null && (typeof as !== 'string' || !as.trim())) {
+      throw new Error(
+        `\`preload[${idx}].as\` must be a non-empty string if provided (free-form role label, e.g. "character", "setting")`,
+      );
+    }
+    if (note !== undefined && note !== null && typeof note !== 'string') {
+      throw new Error(`\`preload[${idx}].note\` must be a string if provided`);
+    }
+    return {
+      ref,
+      as: as && as.trim() ? as.trim() : null,
+      note: note ?? null,
+    };
+  });
+
+  const seen = new Set();
+  for (const { ref } of normalized) {
+    if (seen.has(ref)) {
+      throw new Error(
+        `\`preload\` contains duplicate ref '${ref}' — each prior may appear at most once`,
+      );
+    }
+    seen.add(ref);
+  }
+
+  return normalized.map(({ ref, as, note }) => {
+    const prior = SketchRepository.getByRef(ref);
+    if (!prior) {
+      throw new Error(
+        `preload sketch '${ref}' not found — mint it via create_sketch / create_polygonized_sketch first, or pass a known sk_ ref`,
+      );
+    }
+    return { ref: prior.ref, title: prior.title, manifest: prior.manifest, as, note };
+  });
+}
+
+/**
+ * Back-compat alias: single-ref resolver returning the prior sketch object
+ * or `null`. Internal callers should prefer `resolvePreloads` directly.
+ */
+export function resolvePreloadSketch(preloadRef) {
+  const list = resolvePreloads(preloadRef);
+  if (!list) return null;
+  if (list.length !== 1) {
+    throw new Error('resolvePreloadSketch only accepts a single ref; use resolvePreloads for arrays');
+  }
+  const [only] = list;
+  return { ref: only.ref, title: only.title, manifest: only.manifest };
+}
 
 /**
  * Validate + persist a sketch, returning { ok, ref, url }. Shared by the
@@ -43,9 +160,16 @@ import {
  * the "how a sketch is stored" logic in one place means the derived-sketch
  * callers get the same validation + ref + URL shape as a hand-authored one.
  */
-export function mintSketch({ title, manifest, ref, folderRef } = {}) {
+export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   if (!title || typeof title !== 'string') {
     throw new Error('`title` is required (string)');
+  }
+  // Concern bucket override. Omit it and the bucket is derived from
+  // `manifest.kind` (diagrams/flows → diagram → Sketches; perspective/css3d/
+  // painterly → illustration → Maker). Pin it only to override an edge case —
+  // it's the same sketch primitive either way.
+  if (bucket !== undefined && bucket !== null && bucket !== 'diagram' && bucket !== 'illustration') {
+    throw new Error("`bucket` must be 'diagram', 'illustration', or null if provided");
   }
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -61,11 +185,22 @@ export function mintSketch({ title, manifest, ref, folderRef } = {}) {
       throw new Error(`Folder '${folderRef}' not found`);
     }
   }
+  // Lower a recipe-shaped manifest into a drawable one. Recipe shape means
+  // `manifest.recipe = { kind: 'architecturalConstruction', style: 'victorian',
+  // … }` — typically the terminal call from a `sketch_what_possible` knob-
+  // resolution loop. `lowerRecipeManifest` is a no-op for manifests with no
+  // `recipe` field, so chart/flow callers are unaffected.
+  let working;
+  try {
+    working = lowerRecipeManifest(manifest);
+  } catch (err) {
+    throw new Error(`Recipe lowering error: ${err.message}`);
+  }
   // Resolve any grid `cell` placements to concrete x/y/w/h before validating
   // and storing, so the renderer only ever sees absolute coords.
   let expanded;
   try {
-    expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(manifest)));
+    expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(working)));
   } catch (err) {
     throw new Error(`Rendrant expansion error: ${err.message}`);
   }
@@ -76,7 +211,7 @@ export function mintSketch({ title, manifest, ref, folderRef } = {}) {
 
   let sketch;
   try {
-    sketch = SketchRepository.create({ title, manifest: expanded, ref, folderRef: folderRef ?? null });
+    sketch = SketchRepository.create({ title, manifest: expanded, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
   } catch (err) {
     if (err && /UNIQUE constraint failed/.test(err.message || '')) {
       throw new Error(`A sketch with ref '${ref}' already exists`);
@@ -95,20 +230,63 @@ export async function createSketchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_sketch requires { title, manifest }');
   }
-  const { title, manifest, ref, folder_ref: folderRef } = input;
-  return mintSketch({ title, manifest, ref, folderRef });
+  const {
+    title,
+    manifest,
+    ref,
+    folder_ref: folderRef,
+    bucket,
+    preload,
+    preloadMetadata,
+  } = input;
+  // create_sketch takes a fully-authored manifest, so preload is purely an
+  // echo back so the agent can confirm the prior context it composed
+  // against. No prepending — the manifest IS the answer. preloadMetadata is
+  // a free-form note slot the agent uses to record what it carried forward
+  // and why; we round-trip it without interpreting. When `preload` is the
+  // labeled-array form, the response mirrors the array shape under the same
+  // key and `preloadMetadata` is folded into the first entry's note slot
+  // (only for the unlabeled single-string form does the top-level metadata
+  // make sense).
+  const priors = resolvePreloads(preload);
+  const result = mintSketch({ title, manifest, ref, folderRef, bucket });
+  if (priors) {
+    if (!Array.isArray(preload)) {
+      const [only] = priors;
+      result.preload = {
+        ref: only.ref,
+        title: only.title,
+        manifest: only.manifest,
+        metadata: preloadMetadata ?? null,
+      };
+    } else {
+      result.preload = priors.map((p) => ({
+        ref: p.ref,
+        title: p.title,
+        manifest: p.manifest,
+        as: p.as,
+        note: p.note,
+      }));
+    }
+  }
+  return result;
 }
 
 export async function updateSketchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('update_sketch requires { ref, title?, manifest?, folder_ref? }');
   }
-  const { ref, title, manifest, folder_ref: folderRef } = input;
+  const { ref, title, manifest, folder_ref: folderRef, bucket } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
-  if (title === undefined && manifest === undefined && folderRef === undefined) {
-    throw new Error('At least one of `title`, `manifest`, or `folder_ref` must be provided');
+  if (title === undefined && manifest === undefined && folderRef === undefined && bucket === undefined) {
+    throw new Error('At least one of `title`, `manifest`, `folder_ref`, or `bucket` must be provided');
+  }
+  // Concern bucket override: pin the owning concern, or pass null to drop back
+  // to the kind-derived bucket. The sketch is the same primitive either way.
+  if (bucket !== undefined && bucket !== null && bucket !== 'diagram' && bucket !== 'illustration') {
+    throw new Error("`bucket` must be 'diagram', 'illustration', or null if provided");
   }
   if (title !== undefined && (typeof title !== 'string' || !title.trim())) {
     throw new Error('`title` must be a non-empty string if provided');
@@ -143,6 +321,7 @@ export async function updateSketchHandler(input) {
     title: title !== undefined ? title.trim() : undefined,
     manifest: nextManifest,
     folderRef,
+    bucket,
   });
   if (!updated) {
     throw new Error(`No sketch exists at ref '${ref}'`);
@@ -265,6 +444,9 @@ export async function createPolygonizedSketchHandler(input) {
     ref,
     title,
     mint = true,
+    mode = 'one-trip',
+    preload,
+    preloadMetadata,
   } = input;
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
     throw new Error('`prompt` is required');
@@ -272,35 +454,81 @@ export async function createPolygonizedSketchHandler(input) {
   if (repair !== 'off' && repair !== 'auto') {
     throw new Error('`repair` must be "off" or "auto"');
   }
+  if (mode !== 'one-trip' && mode !== 'plan-then-skin') {
+    throw new Error('`mode` must be "one-trip" or "plan-then-skin"');
+  }
+  const priors = resolvePreloads(preload);
   const config = await resolvePolygonizerModelConfig({ provider, apiKey, apiKeyId, model });
+
+  // Pre-pass: pick the render-primitive / recipe cards the prompt is likely
+  // to need so the manifest system prompt only ships the relevant grammar.
+  // Defaults to a local-embedding similarity lookup (one CPU call, no
+  // network — see polygonizer/card-router.js); the previous Haiku-class
+  // LLM round-trip is now reachable only by explicit override. Cached by
+  // prompt hash. On router failure the helper falls back to 'all' cards —
+  // the same safety net repair uses — so the manifest call still has full
+  // grammar.
+  const classification = await classifyPromptForCards({ prompt });
+
   const result = await polygonizePrompt({
     prompt,
     provider: config.provider,
     apiKey: config.apiKey,
     model: config.model,
     maxRepairs: repair === 'auto' ? 1 : 0,
+    cards: classification.cards,
+    mode,
+    preloadManifests: priors,
   });
 
+  // Mirror create_sketch's echo policy: single-string input → object echo
+  // with top-level metadata; array input → array echo with per-item `as` +
+  // `note`. The polygonizer already received the manifest, so we don't
+  // re-include it in the echo (just the handles the agent passed in).
+  let preloadEcho = null;
+  if (priors) {
+    if (!Array.isArray(preload)) {
+      const [only] = priors;
+      preloadEcho = { ref: only.ref, title: only.title, metadata: preloadMetadata ?? null };
+    } else {
+      preloadEcho = priors.map((p) => ({ ref: p.ref, title: p.title, as: p.as, note: p.note }));
+    }
+  }
+
   if (!result.ok) {
-    return {
+    const errorResponse = {
       ok: false,
       attempts: result.attempts,
+      mode,
       provider: config.provider,
       model: config.model,
+      classification,
       errors: result.errors,
       repairPrompt: result.repairPrompt,
       manifest: result.manifest,
     };
+    if (result.phase !== undefined) errorResponse.phase = result.phase;
+    if (Array.isArray(result.turns)) errorResponse.turns = result.turns;
+    if (result.authorshipPreview) errorResponse.authorshipPreview = result.authorshipPreview;
+    if (result.scaffold) errorResponse.scaffold = result.scaffold;
+    if (preloadEcho) errorResponse.preload = preloadEcho;
+    return errorResponse;
   }
 
   const response = {
     ok: true,
     attempts: result.attempts,
+    mode,
     provider: config.provider,
     model: config.model,
+    classification,
     manifest: result.manifest,
     expandedManifest: result.expandedManifest,
   };
+  if (Array.isArray(result.turns)) response.turns = result.turns;
+  if (result.authorshipPreview) response.authorshipPreview = result.authorshipPreview;
+  if (result.scaffold) response.scaffold = result.scaffold;
+  if (preloadEcho) response.preload = preloadEcho;
   if (mint) {
     response.sketch = mintSketch({
       title: title || result.manifest?.title || prompt,
@@ -320,7 +548,11 @@ export function registerSketchTools() {
       " — pick the closest fit (e.g. `mcp_tool` for any callable/process, `filesystem` for files/payloads/messages-in-motion, `db_row` for durable records, `input` for parameters/preconditions). Edges are `{ from, to, label?, via?, curvature? }`; `label` is the verb (e.g. \"writes\", \"reads\", \"triggers\"). The default path is an S-curve that goes between the two stations — fine when the straight line is clear, but it will slice through any station that happens to sit between the endpoints. Use `via` to route around when that happens: `via: 'right' | 'left' | 'top' | 'bottom'` exits the source on that side, runs along a channel just outside both stations' extents on that side, and re-enters the target from the same side. Pick the side opposite to whatever's in the way (right/left for vertical lanes, top/bottom for horizontal lanes). Use `curvature` (0.2 – 3, default 1) to swoop the default S-curve harder (> 1) or flatten it toward straight (< 1) — useful when two stations are close and the default curve looks awkward. " +
       "Beyond flow charts, the manifest also accepts `marks[]` — low-level chart primitives (" +
       MARK_KINDS.map((k) => `\`${k}\``).join(' | ') +
-      ") that compose into stacked bars, donuts/rings, KPI tiles, radar, etc.; charts and stations can coexist in one manifest. The chart layout vocabulary is deliberately NOT inlined here — before building a chart, query `semantic_search({ query: \"<the user's intent>\", kinds: [\"sketch_vocab\"] })` and read the matched cards in full via `get_sketch_vocab` for the exact marks + layout math. Optional top-level `depiction` records the visual metacontext: display/panel count, related vs unrelated panels, panel blocking paradigm, per-panel constellation applicability, and eye-line layout intent. It is audit/layout metadata only; visible panels still lower to existing `grid`, `rect`, `line`, and `text` marks. Optional top-level `grid` { cols, rows, gap?, pad? } plus a per-node `cell` { col, row, colSpan?, rowSpan? } places panels/tiles into a grid instead of raw pixels (resolved to x/y/w/h before Rendrant expands the drawing); every node also takes an optional numeric `z` for paint order (ascending). Returns `{ ok, ref, url }` — hand the `url` to the user so they can open the sketch. The sketch persists across restarts at `/sketches/<ref>`.",
+      ") that compose into stacked bars, donuts/rings, KPI tiles, radar, etc.; charts and stations can coexist in one manifest. The chart layout vocabulary is deliberately NOT inlined here — before building a chart, query `semantic_search({ query: \"<the user's intent>\", kinds: [\"sketch_vocab\"] })` and read the matched cards in full via `get_sketch_vocab` for the exact marks + layout math. Optional top-level `depiction` records the visual metacontext: display/panel count, related vs unrelated panels, panel blocking paradigm, per-panel constellation applicability, and eye-line layout intent. It is audit/layout metadata only; visible panels still lower to existing `grid`, `rect`, `line`, and `text` marks. Optional top-level `grid` { cols, rows, gap?, pad? } plus a per-node `cell` { col, row, colSpan?, rowSpan? } places panels/tiles into a grid instead of raw pixels (resolved to x/y/w/h before Rendrant expands the drawing); every node also takes an optional numeric `z` for paint order (ascending). " +
+      "As an alternative to `marks[]`, scene/figure illustration uses a recipe-shaped manifest: top-level `recipe: { kind, ...knobs }` where `kind` is one of " +
+      recipeFamilyAllowlist().map((k) => `\`${k}\``).join(' | ') +
+      " and the knob set is family-specific (architecturalConstruction takes style/roof/door/porch/steps/chimney; portraitBust takes its own; etc). The recipe is compiled deterministically into marks before persistence — no LLM in the lowering. This is the terminal step of the `sketch_what_possible` inverse-stable-diffusion loop: query → narrate underdetermined knobs to user → accumulate decisions → `create_sketch({ recipe: { kind, ...accumulated } })`. Don't hand-author marks for an illustration family unless you know the recipe doesn't cover what you need. " +
+      "Returns `{ ok, ref, url }` — hand the `url` to the user so they can open the sketch. The sketch persists across restarts at `/sketches/<ref>`.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -337,6 +569,12 @@ export function registerSketchTools() {
           type: 'string',
           description:
             'Optional folder ref (a `fld_<…>` id from the operator) to drop this sketch into. When the operator opens the New-sketch modal while viewing a folder, the modal embeds the folder ref in the starter prompt so the agent can pass it here. Omit to leave the sketch at root.',
+        },
+        bucket: {
+          type: 'string',
+          enum: ['diagram', 'illustration'],
+          description:
+            "Optional concern override. Omit it (the default) and the bucket is derived from `manifest.kind`: diagrams and flows → 'diagram' (the Sketches concern, /sketches), a landscape or complicated figure in a perspective/css3d/painterly context → 'illustration' (the Mojulo Maker concern, /maker). Only set this to override an edge case. A diagram and an illustration are the same sketch primitive — stash, reference, and diff all work identically; the bucket only decides which sibling concern owns it.",
         },
         manifest: {
           type: 'object',
@@ -446,6 +684,47 @@ export function registerSketchTools() {
           },
           required: ['title', 'viewBox'],
         },
+        preload: {
+          oneOf: [
+            { type: 'string' },
+            {
+              type: 'array',
+              maxItems: PRELOAD_MAX_ITEMS,
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  {
+                    type: 'object',
+                    properties: {
+                      ref: { type: 'string', description: 'Prior sketch ref (`sk_…`).' },
+                      as: {
+                        type: 'string',
+                        description:
+                          "Free-form role label for this prior — e.g. 'character', 'setting', 'palette', 'composition'. Becomes the heading the polygonizer model sees in the prior-context prefix; here on create_sketch it's echoed back in the response.",
+                      },
+                      note: {
+                        type: 'string',
+                        description:
+                          'Optional per-prior note (e.g. "the fox\'s pose"). Round-tripped in the response; not interpreted by the substrate.',
+                      },
+                    },
+                    required: ['ref'],
+                  },
+                ],
+              },
+            },
+          ],
+          description:
+            "Optional prior sketch ref (`sk_…`) — or an array of refs / labeled-ref objects — the agent composed the new manifest against. Advisory only: `create_sketch` takes a fully-authored manifest, so preload is round-tripped in the response (so the agent can confirm what it carried forward), not blended into the saved sketch. The single-string form marks a sketch's provenance when it derives from an earlier one (a picture-book page continuing a prior scene). The array-of-labeled-objects form lets a sketch carry MULTIPLE priors with distinct roles (e.g. one ref `as: 'character'` + a different ref `as: 'setting'`), useful for composing pages that recombine a recurring cast against a recurring environment. Capped at " +
+            PRELOAD_MAX_ITEMS +
+            ' priors per call.',
+        },
+        preloadMetadata: {
+          type: 'object',
+          additionalProperties: true,
+          description:
+            "Optional free-form note slot for the agent's own use describing what was carried forward from `preload` (which roles, what intent). Round-tripped verbatim in the response when `preload` is a single string. Ignored when `preload` is an array (use the per-item `note` field instead) or absent.",
+        },
       },
       required: ['title', 'manifest'],
     },
@@ -476,6 +755,12 @@ export function registerSketchTools() {
           type: 'string',
           description:
             'Optional folder ref to move the sketch into. Pass an empty string or null to move it back to root. Omit to leave the folder unchanged.',
+        },
+        bucket: {
+          type: 'string',
+          enum: ['diagram', 'illustration'],
+          description:
+            "Optional concern override — pin this sketch into 'diagram' (Sketches) or 'illustration' (Maker). Pass null to drop back to the kind-derived bucket. Omit to leave it unchanged. Reclassifying is purely a concern move; the sketch is the same primitive either way.",
         },
       },
       required: ['ref'],
@@ -547,7 +832,7 @@ export function registerSketchTools() {
   registerTool({
     name: 'create_polygonized_sketch',
     description:
-      'Generate a sketch from a natural-language visual prompt using the polygonizer one-trip orchestration path. The model returns polygonizer concept/picture/elements/draftingTable metadata plus compact construction marks; mojulo validates locally, expands through Rendrant into the existing sketch renderer path, optionally spends one repair trip on validation failure, and mints a sketch by default. Use this for pictorial/object/property/scene prompts where drafting-table composition and inside/outside reasoning matter. Returns provider/model metadata but never returns plaintext credentials.',
+      'Generate a sketch from a natural-language visual prompt. Default `mode: "one-trip"` runs the classic single-pass polygonizer orchestration; `mode: "plan-then-skin"` runs the two-turn protocol — turn 1 emits a planning manifest (no marks), mojulo validates it through the authorship-preview gate and computes a solved scaffold, then turn 2 emits marks against that scaffold. The two-turn path partitions failures: planning errors don\'t waste mark-generation tokens, and skin errors don\'t invalidate planning. Use one-trip for flat scenes (portraits, charts, single figures); use plan-then-skin for scenes with perspective/support/collision concerns (room interiors, vision panes, architectural construction, multi-figure scenes). Response surfaces `attempts`, `mode`, and (for plan-then-skin) `turns[]`, `phase` on failure, `authorshipPreview`, and `scaffold`. Returns provider/model metadata but never returns plaintext credentials.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -555,11 +840,17 @@ export function registerSketchTools() {
           type: 'string',
           description: 'Natural-language visual prompt to polygonize.',
         },
+        mode: {
+          type: 'string',
+          enum: ['one-trip', 'plan-then-skin'],
+          default: 'one-trip',
+          description: 'Orchestration mode. "one-trip" emits the full manifest in one model call. "plan-then-skin" runs a planning turn (no marks) gated by the consensus 5a authorship-preview, builds a solved scaffold, then a skin turn that emits marks against the scaffold.',
+        },
         repair: {
           type: 'string',
           enum: ['auto', 'off'],
           default: 'auto',
-          description: 'auto spends one repair trip only if local validation fails; off returns repairPrompt instead.',
+          description: 'auto spends one repair trip only if local validation fails; off returns repairPrompt instead. In plan-then-skin mode, the repair budget applies independently to planning and skin turns.',
         },
         mint: {
           type: 'boolean',
@@ -590,6 +881,47 @@ export function registerSketchTools() {
         apiKey: {
           type: 'string',
           description: 'Optional one-off API key/credential string. Prefer apiKeyId when possible.',
+        },
+        preload: {
+          oneOf: [
+            { type: 'string' },
+            {
+              type: 'array',
+              maxItems: PRELOAD_MAX_ITEMS,
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  {
+                    type: 'object',
+                    properties: {
+                      ref: { type: 'string', description: 'Prior sketch ref (`sk_…`).' },
+                      as: {
+                        type: 'string',
+                        description:
+                          "Free-form role label for this prior — e.g. 'character', 'setting', 'palette', 'composition'. Becomes the section heading in the prior-context prefix the polygonizer model sees, so it knows which prior plays which role in the new scene.",
+                      },
+                      note: {
+                        type: 'string',
+                        description:
+                          'Optional per-prior note (e.g. "the fox\'s pose"). Surfaced to the model alongside the prior manifest and round-tripped in the response.',
+                      },
+                    },
+                    required: ['ref'],
+                  },
+                ],
+              },
+            },
+          ],
+          description:
+            "Optional prior sketch ref (`sk_…`) — or an array of refs / labeled-ref objects — to seed the polygonizer turn with as advisory context. The single-string form prefixes the resolved prior manifest under a 'Prior scene' header. The array-of-labeled-objects form prefixes each prior under its own 'Prior {as}' header (one labeled section per item), so the model can compose a new page from, e.g., a recurring character + a recurring setting carried from earlier sketches. Advisory only — no enforcement, no role-pinning, no validation that prior elements survive the new turn; the model may extend, modify, or ignore any prior. In plan-then-skin mode the preload is fed to the planning turn only; the skin turn sees the solved scaffold instead. Errors if any ref doesn't resolve. Capped at " +
+            PRELOAD_MAX_ITEMS +
+            ' priors per call.',
+        },
+        preloadMetadata: {
+          type: 'object',
+          additionalProperties: true,
+          description:
+            "Optional free-form note slot for the agent's own use describing what was carried forward from `preload` (which roles, what intent). Round-tripped verbatim in the `preload` field of the response when `preload` is a single string. Ignored when `preload` is an array (use the per-item `note` field instead) or absent.",
         },
       },
       required: ['prompt'],

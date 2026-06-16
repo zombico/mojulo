@@ -355,14 +355,14 @@ export function registerStashModeTools() {
   registerTool({
     name: 'gather',
     description:
-      "Ring 9 — the GATHER verb: bind a typed item into a Stash. The intake gate validates a strict per-type contract — malformed items are REJECTED, not silently stored as junk.\n\nTypes and required fields:\n  - text       — body (string, ≤64KB)\n  - markdown   — body_md (string, ≤256KB)\n  - image      — media_ref + metadata.{mime (image/*), width, height, content_hash}\n  - svg        — body_svg (string, ≤128KB, starts with <?xml or <svg)\n  - script     — body (string, ≤128KB) + metadata.language ∈ js|ts|py|sh|sql\n  - pointer    — metadata.{node_ref, label}. node_ref MUST be a contextmap node-ref (from meta_context_brief). Sketches/plans/bots/sqlite-ids are NOT valid pointer targets — this is the metacontext-only rule.\n  - link       — source_url + title\n\nOptional `drawer` parameter routes the item into a named drawer within the stash (mint it first via mint_drawer); omit for the stash root. Returns { item_id, stash_ref, type, drawer }.",
+      "Ring 9 — the GATHER verb: bind a typed item into a Stash. The intake gate validates a strict per-type contract — malformed items are REJECTED, not silently stored as junk.\n\nTypes and required fields:\n  - text       — body (string, ≤64KB)\n  - markdown   — body_md (string, ≤256KB)\n  - image      — media_ref + metadata.{mime (image/*), width, height, content_hash}. Optional body_md is the caption (photojournal renders it under the photo).\n  - svg        — body_svg (string, ≤128KB, starts with <?xml or <svg)\n  - script     — body (string, ≤128KB) + metadata.language ∈ js|ts|py|sh|sql\n  - pointer    — metadata.{node_ref, label}. node_ref MUST be a contextmap node-ref (from meta_context_brief). Sketches/plans/bots/sqlite-ids are NOT valid pointer targets — this is the metacontext-only rule.\n  - link       — source_url + title\n  - sketch     — metadata.{sketch_ref, label}. sketch_ref is a sk_… ref minted by create_sketch; renderer resolves it live so edits to the source sketch propagate.\n\nOptional `drawer` parameter routes the item into a named drawer within the stash (mint it first via mint_drawer); omit for the stash root. Returns { item_id, stash_ref, type, drawer }.",
     inputSchema: {
       type: 'object',
       properties: {
         stash_ref: { type: 'string', description: 'The stash to gather into.' },
         type: {
           type: 'string',
-          enum: ['text', 'markdown', 'image', 'svg', 'script', 'pointer', 'link'],
+          enum: ['text', 'markdown', 'image', 'svg', 'script', 'pointer', 'link', 'sketch'],
           description: 'The typed contract for this item.',
         },
         drawer: { type: 'string', description: 'Optional drawer name (must exist in this stash). Omit for stash root.' },
@@ -374,7 +374,7 @@ export function registerStashModeTools() {
         media_ref: { type: 'string', description: 'Stored-media reference (required for image items).' },
         metadata: {
           type: 'object',
-          description: 'Per-type required fields: image needs mime/width/height/content_hash; script needs language; pointer needs node_ref + label.',
+          description: 'Per-type required fields: image needs mime/width/height/content_hash; script needs language; pointer needs node_ref + label; sketch needs sketch_ref + label.',
         },
       },
       required: ['stash_ref', 'type'],

@@ -54,6 +54,11 @@ export const SOURCE_KINDS = [
   'orbit_artifact',
   'catalyst',
   'sketch_vocab',
+  'sketch_method',
+  // manji-program-bearing cards (mandala-patterns + shot-glyphs whose card
+  // declares a `manjiProgram` field). Discovered by intent and passed
+  // straight to `create_manji_tree` as a `programRef`.
+  'manji_program',
 ];
 
 const SNIPPET_MAX_CHARS = 280;
@@ -482,11 +487,216 @@ export const BodyComposition = {
     // The retrieval signal is the "when" line + summary + body (layout math).
     // Lead with name/summary/when so a query phrased as an intent ("show
     // proportions of a whole") matches the card before the geometry prose.
+    // Tier is surfaced so tier-shaped intents ("render primitive for fire")
+    // also pull the right tier slice.
     const lines = [];
     lines.push(`# ${card.name}`);
+    if (card.tier) lines.push('', `Tier: ${card.tier}`);
     if (card.summary) lines.push('', card.summary);
     if (card.when) lines.push('', `When: ${card.when}`);
     if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  sketchMethod(method) {
+    // Lead with the categorical name (family . knob . value) so a query
+    // phrased structurally ("style: victorian") also matches the slot, then
+    // the descriptive prose so visual cues ("steep mansard roof, ornate
+    // trim") match. Family-root records have no knob/value — they anchor
+    // the family's existence in retrieval so a vague intent ("a house")
+    // pulls the family along with whatever knob values score above it.
+    const lines = [];
+    if (method.knob && method.value) {
+      const tag = method.isDefault ? ' (default)' : '';
+      lines.push(`# ${method.family} → ${method.knob} → ${method.value}${tag}`);
+    } else {
+      lines.push(`# ${method.family} (family)`);
+    }
+    if (method.describe) lines.push('', method.describe);
+    return lines.join('\n');
+  },
+  manjiProgram(card) {
+    // Recursive helper: walks a manjiProgram.children list (and any
+    // nested children of bindings) collecting leaf-mark specs of the
+    // requested kind. Used to bridge the recipe-template → callable-
+    // preset migration so the indexed body looks the same either way.
+    function collectLeafMarks(children, kind) {
+      const found = [];
+      if (!Array.isArray(children)) return found;
+      for (const child of children) {
+        if (!child || typeof child !== 'object') continue;
+        if (child.kind === kind) found.push(child);
+        if (Array.isArray(child.children)) {
+          found.push(...collectLeafMarks(child.children, kind));
+        }
+        if (child.node) {
+          if (child.node.kind === kind) found.push(child.node);
+          if (Array.isArray(child.node.children)) {
+            found.push(...collectLeafMarks(child.node.children, kind));
+          }
+        }
+      }
+      return found;
+    }
+    // Cards that carry a `manjiProgram` field — discovered by intent and
+    // passed straight to `create_manji_tree` as a `programRef`. Front-load
+    // the strongest retrieval signals (label, aliases, family, intents,
+    // reasoningUse) and tail with the slot vocabulary so structural-intent
+    // queries ("hall with floor and ceiling corners", "axis-mundi center")
+    // also hit. Works for both mandala-pattern cards and shot-glyph cards.
+    const lines = [];
+    lines.push(`# ${card.label || card.id}`);
+    lines.push('', `Ref: ${card.id}`);
+    if (Array.isArray(card.aliases) && card.aliases.length) {
+      lines.push('', `Aliases: ${card.aliases.join(', ')}`);
+    }
+    if (card.family) lines.push('', `Family: ${card.family}`);
+    if (Array.isArray(card.intents) && card.intents.length) {
+      lines.push('', `Intents: ${card.intents.join(', ')}`);
+    }
+    if (Array.isArray(card.reasoningUse) && card.reasoningUse.length) {
+      lines.push('', 'Use when:', ...card.reasoningUse.map((line) => `- ${line}`));
+    }
+    if (card.topology && typeof card.topology === 'object') {
+      const topologyLines = Object.entries(card.topology)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `- ${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`);
+      if (topologyLines.length) lines.push('', 'Topology:', ...topologyLines);
+    }
+    if (card.boundaryContract?.slots?.length) {
+      lines.push('', `Slots: ${card.boundaryContract.slots.join(', ')}`);
+    }
+    if (card.boundaryContract?.depthBands?.length) {
+      lines.push('', `Depth bands: ${card.boundaryContract.depthBands.join(', ')}`);
+    }
+    // Slot ids from the manjiProgram itself — these are what `create_manji_tree`
+    // children actually bind to. Include both 2D-shape (slotLabels) and 3D-shape
+    // (slots[].id) so either authoring direction matches.
+    const programSlotIds = [];
+    if (Array.isArray(card.manjiProgram?.slotLabels)) {
+      programSlotIds.push(...card.manjiProgram.slotLabels);
+    }
+    if (card.manjiProgram?.centerSlotId) {
+      programSlotIds.push(card.manjiProgram.centerSlotId);
+    }
+    if (Array.isArray(card.manjiProgram?.slots)) {
+      for (const slot of card.manjiProgram.slots) {
+        if (slot?.id) programSlotIds.push(slot.id);
+      }
+    }
+    if (programSlotIds.length) {
+      lines.push('', `Bind slots: ${programSlotIds.join(', ')}`);
+    }
+    // Wave-field / connection summary — same prose surface whether the
+    // card carries the recipe as a top-level `waveField` / `connections`
+    // field (recipe-template shape) OR inside `manjiProgram.children` as
+    // in-tree `kind: 'wave-field' | 'connection'` leaf marks (callable-
+    // preset shape, the migration target). Both shapes are walked here
+    // so the indexed body text stays intent-aligned across the
+    // transition. See lite-template/integration/0605/wave-and-line-in-tree.plan.md.
+    const inTreeWaveFields = collectLeafMarks(card.manjiProgram?.children, 'wave-field');
+    const inTreeConnections = collectLeafMarks(card.manjiProgram?.children, 'connection');
+    const inTreeWaveManji = collectLeafMarks(card.manjiProgram?.children, 'wave-manji');
+    const inTreeLathes = collectLeafMarks(card.manjiProgram?.children, 'lathe');
+    const recipeWaveField = card.waveField && typeof card.waveField === 'object'
+      ? [card.waveField]
+      : [];
+    const recipeConnections = Array.isArray(card.connections) ? card.connections : [];
+    const recipeWaveManji = Array.isArray(card.waveManji) ? card.waveManji : [];
+    const allWaveFields = [...recipeWaveField, ...inTreeWaveFields];
+    const allConnections = [...recipeConnections, ...inTreeConnections];
+    const allWaveManji = [...recipeWaveManji, ...inTreeWaveManji];
+
+    for (const field of allWaveFields) {
+      lines.push('', 'Primitive: wave-field (areal surface)');
+      const waves = Array.isArray(field.waves) ? field.waves : [];
+      if (waves.length === 0) {
+        lines.push('Waves: flat (no displacement) — sampled as a grid');
+      } else {
+        lines.push(`Waves: ${waves.length} component${waves.length === 1 ? '' : 's'}`);
+        const amps = waves
+          .map((w) => Number(w?.amplitude))
+          .filter((a) => Number.isFinite(a));
+        if (amps.length) {
+          const maxAmp = Math.max(...amps);
+          lines.push(`Peak amplitude: ${maxAmp.toFixed(2)}`);
+        }
+      }
+      if (field.style?.stroke) {
+        lines.push(`Stroke: ${field.style.stroke}`);
+      }
+    }
+    for (const conn of allConnections) {
+      lines.push('', 'Primitive: connection (sine/cosine line between two points)');
+      if (Number.isFinite(conn.sag)) {
+        lines.push(`Sag: ${conn.sag.toFixed(2)} world units (${conn.sag < 0 ? 'against' : 'with'} gravity)`);
+      } else if (Number.isFinite(conn.relativeSag)) {
+        const pct = (conn.relativeSag * 100).toFixed(0);
+        lines.push(`Relative sag: ${pct}% of span (${conn.relativeSag < 0 ? 'against' : 'with'} gravity)`);
+      } else {
+        lines.push('Sag: gravity-default (auto from physics)');
+      }
+      const wl = Number.isFinite(conn.wavelengths) ? conn.wavelengths : 0.5;
+      if (wl === 0.5) {
+        lines.push('Wave: single half-cycle (arc / catenary)');
+      } else {
+        lines.push(`Wave: ${wl} full cycles (oscillation)`);
+      }
+      if (conn.style?.stroke) lines.push(`Stroke: ${conn.style.stroke}`);
+    }
+    for (const la of inTreeLathes) {
+      lines.push('', 'Primitive: lathe (surface of revolution along an axis)');
+      const profile = Array.isArray(la.profile) ? la.profile : [];
+      if (profile.length === 1) {
+        lines.push('Profile: single point (cylinder)');
+      } else if (profile.length > 1) {
+        const radii = profile.map((p) => p?.radius).filter(Number.isFinite);
+        if (radii.length) {
+          lines.push(`Profile: ${profile.length} control points, radius range ${Math.min(...radii).toFixed(2)} to ${Math.max(...radii).toFixed(2)}`);
+        }
+      }
+      const harmonics = Array.isArray(la.harmonics) ? la.harmonics : [];
+      if (harmonics.length) {
+        const orders = harmonics.map((h) => h?.n).filter(Number.isFinite);
+        if (orders.length) {
+          lines.push(`Chisel: ${orders.length} harmonic${orders.length === 1 ? '' : 's'} (n = ${orders.join(', ')})`);
+        }
+      } else {
+        lines.push('Chisel: none (smooth surface)');
+      }
+      if (la.style?.stroke) lines.push(`Stroke: ${la.style.stroke}`);
+    }
+    for (const wm of allWaveManji) {
+      lines.push('', 'Primitive: wave-manji (closed-loop printer around a singularity)');
+      if (typeof wm.script === 'string') {
+        lines.push(`Script: ${wm.script}`);
+      }
+      if (Number.isFinite(wm.bending)) {
+        const where = wm.bending < 1 ? 'looser / disperses' : wm.bending > 1 ? 'tighter / contained' : 'neutral basin';
+        lines.push(`Bending: ${wm.bending.toFixed(2)} (${where})`);
+      }
+      if (Number.isFinite(wm.density)) {
+        lines.push(`Density target: ${wm.density} passes`);
+      }
+      const phaseStep = wm.params?.phaseStep;
+      if (phaseStep === 'golden') {
+        lines.push('Rotation: Golden Spin (Golden Angle phase step, maximally non-repeating)');
+      }
+      if (wm.params?.precess === false) {
+        lines.push('Plane: fixed (flat, one rotation axis)');
+      } else if (wm.script === 'tusk' || wm.script === 'rasengan-sphere') {
+        lines.push('Plane: precessing (volumetric, two rotation axes)');
+      }
+      if (wm.style?.stroke) lines.push(`Stroke: ${wm.style.stroke}`);
+    }
+    // Shelf cards (markdown-authored) carry their prose body alongside the
+    // structural fields. That body is the highest-signal retrieval surface —
+    // appending it here lets semantic_search rank against the per-card
+    // "Use when" / "Slot semantics" / "Composition examples" prose instead
+    // of just the metadata. In-code cards have no body; they contribute
+    // only the structured fields above.
+    if (typeof card.body === 'string' && card.body.length > 0) {
+      lines.push('', '---', '', card.body);
+    }
     return lines.join('\n');
   },
 };
@@ -609,9 +819,12 @@ export async function reindexAll({ verbose = false } = {}) {
   }
   log(`catalysts: ${catalog.size}`);
 
-  // 8. Sketch vocabulary — filesystem markdown via the loader. The cards are
-  // the retrieval-primed chart vocabulary the /sketch skill queries before
-  // composing (kinds: ['sketch_vocab']). Repo-curated, like catalysts.
+  // 8. Sketch vocabulary — filesystem markdown via the loader. The cards
+  // span three tiers: chart paradigms (the /sketch skill's vocabulary),
+  // render primitives (composed by the polygonizer's system prompt), and
+  // recipes (authoring shorthand). All three are indexed under
+  // `source_kind:'sketch_vocab'`; callers filter by tier client-side.
+  // Repo-curated, like catalysts.
   const { getSketchVocabCatalog } = await import('../../graph/sketch-vocab/loader.js');
   const vocab = getSketchVocabCatalog();
   for (const card of vocab.values()) {
@@ -622,6 +835,61 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`sketch_vocab: ${vocab.size}`);
+
+  // 9. Sketch methods — per-knob-value records for the inverse-stable-diffusion
+  // `sketch_what_possible` loop. Loader flattens per-family capability
+  // catalogs (architecturalConstruction, …) into retrievable records the
+  // agent assembles into a `create_sketch` call by asking the user for
+  // unfilled knobs. Scope: scene/figure illustration only. Charts/info-
+  // graphics retrieve from sketch_vocab instead.
+  const { getSketchMethodCatalog } = await import('../../graph/polygonizer/capabilities/loader.js');
+  const methods = getSketchMethodCatalog();
+  for (const method of methods.values()) {
+    items.push({
+      sourceKind: 'sketch_method',
+      sourceRef: method.id,
+      bodyText: BodyComposition.sketchMethod(method),
+    });
+  }
+  log(`sketch_method: ${methods.size}`);
+
+  // 10. Manji-program-bearing cards. Two sources:
+  //   (a) In-code mandala-patterns + shot-glyphs whose card declares a
+  //       `manjiProgram` field.
+  //   (b) Markdown shelf at `lib/graph/manji-programs/` — frontmatter +
+  //       prose body. The body is the strongest retrieval signal and is
+  //       appended to the indexed text by BodyComposition.manjiProgram.
+  // See lite-template/integration/0605/manji-program-library-expansion.plan.md.
+  const { mandalaPatternLibrary, shotGlyphLibrary } = await import(
+    '../../graph/polygonizer/mandala-patterns.js'
+  );
+  let manjiProgramCount = 0;
+  const seenManjiProgramRefs = new Set();
+  // A card is indexable under `manji_program` if it declares ANY of the
+  // three scenic primitives: manjiProgram (anchor scaffolding), waveField
+  // (areal surface), or connections (organic curves). The kind name is
+  // historical; the kind itself now carries scenic-primitive cards more
+  // broadly. See lite-template/integration/0605/wave-field-plan-revision.plan.md.
+  const hasIndexablePrimitive = (card) =>
+    Boolean(card?.manjiProgram || card?.waveField || card?.connections || card?.waveManji);
+  const addManjiProgramCard = (card) => {
+    if (!hasIndexablePrimitive(card)) return;
+    if (seenManjiProgramRefs.has(card.id)) return;
+    seenManjiProgramRefs.add(card.id);
+    items.push({
+      sourceKind: 'manji_program',
+      sourceRef: card.id,
+      bodyText: BodyComposition.manjiProgram(card),
+    });
+    manjiProgramCount += 1;
+  };
+  for (const card of mandalaPatternLibrary()) addManjiProgramCard(card);
+  for (const card of shotGlyphLibrary()) addManjiProgramCard(card);
+  const { getManjiProgramCatalog } = await import(
+    '../../graph/manji-programs/loader.js'
+  );
+  for (const card of getManjiProgramCatalog().values()) addManjiProgramCard(card);
+  log(`manji_program: ${manjiProgramCount}`);
 
   if (items.length === 0) {
     log('nothing to index');

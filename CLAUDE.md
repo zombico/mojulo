@@ -6,6 +6,7 @@ Guidance for Claude Code (claude.ai/code) and other agent runtimes working in th
 
 - [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) is the source of truth for bot factory flow: cartridge composition, vector baking, artifact layout, Fly deploy, and Connect Bot proxy.
 - [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) is the source of truth for the headless control surface: transport, ring model, session binding, deliberation surfaces, catalysts, mcp-orbit, and primitive binding.
+- [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) is the source of truth for the polygonizer/manji-tree substrate as it stands today: the four wave primitives, structure-manji, the seven field kinds, shelf cards, and how they all couple. Supersedes the dozen integration plan files in `lite-template/integration/0605/`.
 - [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) is the deeper agent-facing map for MCP rings, data layout, runtime daemons, and release notes that are too dense for this file.
 - [AGENTS.md](AGENTS.md) adds Codex-specific setup for connecting to the local MCP control plane.
 
@@ -34,6 +35,7 @@ The control plane is increasingly headless: the dashboard, chat builder, wizard,
 - The dashboard is not a conversational surface. The operator drives mojulo from their host MCP agent (Claude Code / Codex / etc.); dashboard pages render state and offer "copy starter prompt" affordances that direct the operator to drive work from that agent. The bot builder chat is the deliberate exception (it is the bot's own chat, not a chat with the substrate). Do not add `HomeAgentChat`/`useAgentChatStream` consumers to deliberation surfaces.
 - Do not read or echo `.env` secrets from generated bot/app directories. Use masking helpers or MCP tools designed for env inspection.
 - UI strings should be i18n-ready in the English source messages.
+- Capability, intent, and suitability assessments belong to the operator, not to mojulo or the maintainer. When drafting user-facing copy, marketing material, dashboard affordances, or refusal/gating logic, default to the posture in [TERMS.md](TERMS.md) and [docs/responsibility-model.md](docs/responsibility-model.md): the substrate composes primitives, the operator owns the consequences. Do not introduce intent-classification, use-case gating, or content-policy enforcement layers on top of what the operator's LLM provider already enforces.
 
 ## Commands
 
@@ -85,6 +87,7 @@ Add a `## [X.Y.Z] - YYYY-MM-DD` section to [control/CHANGELOG.md](control/CHANGE
 - App runtime: [control/lib/runners/](control/lib/runners/), [docs/app-runtime.md](docs/app-runtime.md).
 - Vector RAG: [docs/vector-rag.md](docs/vector-rag.md), [lite-template/helper/embedder-local.js](lite-template/helper/embedder-local.js).
 - Protocol and LLM behavior: [lite-template/helper/llm-client.js](lite-template/helper/llm-client.js), [control/lib/llm-providers.js](control/lib/llm-providers.js), [docs/protocol-composition.md](docs/protocol-composition.md).
+- CSS-3D scene backend (a live, dependency-free `preserve-3d` second renderer beside the SVG path — rooms, suites, cities from the same world geometry): [control/lib/graph/scene-css3d.js](control/lib/graph/scene-css3d.js), suites [control/lib/graph/suite-layout.js](control/lib/graph/suite-layout.js), cities [control/lib/graph/fractal-city.js](control/lib/graph/fractal-city.js). The baked, camera-independent lighting/atmosphere model (vexar + traced diffusion + soft pools + cast/contact shadows + moonlight + sky) is in [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md).
 - Plan mode (Ring 8): [control/lib/mcp/tools/plan-mode.js](control/lib/mcp/tools/plan-mode.js), dashboard at [control/app/plan/](control/app/plan/). Plans are the proposed speculative layer; contextmap is sealed reality. See [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#plan-and-research-modes).
 - Research mode (Ring 9): [control/lib/mcp/tools/research-mode.js](control/lib/mcp/tools/research-mode.js). Accretive optional drawer upstream of plans; deliberately not woven into `forward_context`. See [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#plan-and-research-modes).
 

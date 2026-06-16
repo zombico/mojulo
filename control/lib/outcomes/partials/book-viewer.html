@@ -1,0 +1,297 @@
+<style>
+  /* ── book viewer mode (default on paginated kinds) ────────────────── */
+  body.viewer-mode {
+    background: #0a0a0a;
+    overflow: hidden;
+    height: 100vh;
+  }
+  body.viewer-mode .book,
+  body.viewer-mode .deck {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body.viewer-mode [data-viewer-page] {
+    display: none;
+    margin: 0;
+  }
+  body.viewer-mode [data-viewer-page].viewer-active {
+    display: flex;
+    flex-direction: column;
+    /* Parentheses around var() are LOAD-BEARING. The var substitutes its
+       raw token stream — for `--viewer-aspect: 16 / 9` that's `16 / 9`,
+       a sub-expression, not a single number. Without grouping parens,
+       `calc(width / 16 / 9)` evaluates left-to-right at equal precedence
+       as `(width / 16) / 9 = width / 144`, producing a near-zero height
+       and a "narrow center slit" instead of a 16:9 page. */
+    width:  min(100vw - 32px, calc((100vh - 32px) * (var(--viewer-aspect, 16 / 9))));
+    height: min(100vh - 32px, calc((100vw - 32px) / (var(--viewer-aspect, 16 / 9))));
+    margin: 0 auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+  }
+  /* Chapter dividers don't have their own background — give them one in
+     viewer mode so they read as a real page on the dark backdrop. */
+  body.viewer-mode .chapter-divider.viewer-active {
+    background: var(--page, #ffffff);
+    border-radius: 4px;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 80px 40px;
+    color: var(--ink, #1a1a1a);
+  }
+  /* Relax inner aspect-ratio constraints so the active page fits the frame
+     fully. The .illustration (picture_book) has its own aspect-ratio in
+     scroll mode; in viewer mode let it take all remaining flex space so the
+     SVG inside (width:100% height:100%) scales to fill the page. Without
+     this the page overflows the frame and `overflow: hidden` clips it —
+     the user only sees a slice. */
+  body.viewer-mode .page.viewer-active .illustration {
+    aspect-ratio: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  /* Same idea for slide_deck visual slides — the .canvas already has
+     flex:1, but force aspect-ratio:auto in case future content carries
+     its own. */
+  body.viewer-mode .slide.viewer-active .canvas {
+    aspect-ratio: auto;
+    min-height: 0;
+  }
+  /* Non-paged chrome hides in viewer mode. */
+  body.viewer-mode footer.colophon,
+  body.viewer-mode footer.actions { display: none; }
+
+  /* ── steppers (left/right edge zones) ─────────────────────────────── */
+  .viewer-stepper {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.1);
+    transition: color 180ms ease, background 180ms ease;
+    z-index: 10;
+    -webkit-appearance: none;
+    appearance: none;
+    font: inherit;
+  }
+  .viewer-stepper.prev { left: 0; }
+  .viewer-stepper.next { right: 0; }
+  .viewer-stepper:hover,
+  .viewer-stepper:focus-visible {
+    color: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.03);
+    outline: none;
+  }
+  .viewer-stepper:disabled {
+    cursor: default;
+    color: rgba(255, 255, 255, 0.04);
+    background: transparent;
+  }
+  .viewer-stepper svg {
+    width: 38px;
+    height: 38px;
+    /* Halo so the chevron reads on white slide backgrounds too — the slide
+       can fill the viewport edge-to-edge depending on aspect, putting the
+       stepper hit zone right on top of paper. */
+    filter:
+      drop-shadow(0 0 6px rgba(0, 0, 0, 0.65))
+      drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+  }
+  body:not(.viewer-mode) .viewer-stepper { display: none; }
+
+  /* ── top-right chrome (counter + Show all toggle) ─────────────────── */
+  .viewer-chrome {
+    position: fixed;
+    top: 14px;
+    right: 18px;
+    z-index: 11;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: rgba(255, 255, 255, 0.25);
+    transition: color 180ms ease;
+  }
+  .viewer-chrome:hover,
+  .viewer-chrome:focus-within { color: rgba(255, 255, 255, 0.85); }
+  .viewer-counter {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    /* Same halo posture as the chevrons — readable on top of a white page. */
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  }
+  .viewer-toggle {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: inherit;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .viewer-toggle:hover,
+  .viewer-toggle:focus-visible {
+    border-color: rgba(255, 255, 255, 0.4);
+    outline: none;
+  }
+  body:not(.viewer-mode) .viewer-chrome { display: none; }
+
+  /* ── print: force scroll layout so Cmd-P always works ─────────────── */
+  @media print {
+    body.viewer-mode {
+      background: white;
+      overflow: visible;
+      height: auto;
+    }
+    body.viewer-mode .book,
+    body.viewer-mode .deck {
+      height: auto;
+      display: block;
+      padding: 56px 24px 96px;
+    }
+    body.viewer-mode [data-viewer-page] {
+      display: flex;
+      width: auto;
+      height: auto;
+      margin: 0 0 28px;
+      box-shadow: none;
+    }
+    body.viewer-mode footer.colophon,
+    body.viewer-mode footer.actions { display: block; }
+    body.viewer-mode .viewer-stepper,
+    body.viewer-mode .viewer-chrome { display: none; }
+  }
+</style>
+
+<button class="viewer-stepper prev" type="button" aria-label="Previous page">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+</button>
+<button class="viewer-stepper next" type="button" aria-label="Next page">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="9 6 15 12 9 18" />
+  </svg>
+</button>
+<div class="viewer-chrome">
+  <span class="viewer-counter" aria-live="polite"></span>
+  <button class="viewer-toggle" type="button">Show all</button>
+</div>
+
+<script>
+(function () {
+  // Generic book-viewer controller. Pages opt into the viewer by carrying
+  // [data-viewer-page]. Aspect ratio comes from --viewer-aspect on <body>.
+  // No frameworks, no build step — the outcome folder stays static.
+
+  var KEY_FORWARD = ['ArrowRight', ' ', 'PageDown'];
+  var KEY_BACK = ['ArrowLeft', 'PageUp'];
+
+  var body = document.body;
+  var pages = [];
+  var idx = 0;
+  var counter = null;
+  var toggle = null;
+  var prevBtn = null;
+  var nextBtn = null;
+
+  function isViewer() { return body.classList.contains('viewer-mode'); }
+
+  function clamp(i) { return Math.max(0, Math.min(pages.length - 1, i)); }
+
+  function show(i) {
+    if (!isViewer()) return;
+    var next = clamp(i);
+    pages.forEach(function (p, j) { p.classList.toggle('viewer-active', j === next); });
+    idx = next;
+    if (counter) counter.textContent = (idx + 1) + ' / ' + pages.length;
+    if (prevBtn) prevBtn.disabled = idx === 0;
+    if (nextBtn) nextBtn.disabled = idx === pages.length - 1;
+    try { history.replaceState(null, '', '#' + (idx + 1)); } catch (e) { /* ignore */ }
+  }
+
+  function setMode(mode) {
+    body.classList.toggle('viewer-mode', mode === 'viewer');
+    if (toggle) toggle.textContent = mode === 'viewer' ? 'Show all' : 'Open viewer';
+    if (mode === 'viewer') {
+      show(idx);
+    } else {
+      // Clean the hash so scroll-mode share-links don't carry a viewer state.
+      try { history.replaceState(null, '', window.location.pathname); } catch (e) { /* ignore */ }
+      // Scroll the previously-shown page into view.
+      var p = pages[idx];
+      if (p && p.scrollIntoView) p.scrollIntoView({ block: 'start' });
+    }
+  }
+
+  function init() {
+    pages = Array.prototype.slice.call(document.querySelectorAll('[data-viewer-page]'));
+    counter = document.querySelector('.viewer-counter');
+    toggle = document.querySelector('.viewer-toggle');
+    prevBtn = document.querySelector('.viewer-stepper.prev');
+    nextBtn = document.querySelector('.viewer-stepper.next');
+
+    // No pages → leave the chrome hidden by not entering viewer mode.
+    if (pages.length === 0) {
+      if (toggle) toggle.style.display = 'none';
+      return;
+    }
+
+    if (prevBtn) prevBtn.addEventListener('click', function () { show(idx - 1); });
+    if (nextBtn) nextBtn.addEventListener('click', function () { show(idx + 1); });
+    if (toggle) toggle.addEventListener('click', function () {
+      setMode(isViewer() ? 'scroll' : 'viewer');
+    });
+
+    document.addEventListener('keydown', function (e) {
+      var tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'Escape' && isViewer()) {
+        setMode('scroll');
+        e.preventDefault();
+        return;
+      }
+      if (!isViewer()) return;
+      if (KEY_FORWARD.indexOf(e.key) !== -1) {
+        e.preventDefault();
+        show(idx + (e.shiftKey ? -1 : 1));
+      } else if (KEY_BACK.indexOf(e.key) !== -1) {
+        e.preventDefault();
+        show(idx - 1);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        show(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        show(pages.length - 1);
+      }
+    });
+
+    // Honor a #N hash on entry.
+    var m = /^#(\d+)$/.exec(window.location.hash);
+    if (m) idx = clamp(parseInt(m[1], 10) - 1);
+
+    setMode('viewer');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

@@ -1,0 +1,168 @@
+{{>doc-head}}
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #475569;
+    --faint: #94a3b8;
+    --line: #e2e8f0;
+    --paper: #ffffff;
+    --tint: #f8fafc;
+    --accent: #1d4ed8;
+    --summary-bg: #eef2ff;
+    --summary-ink: #312e81;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--tint); color: var(--ink); }
+  body {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .brief {
+    max-width: 920px;
+    margin: 32px auto;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 56px 64px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  }
+  header.frontmatter {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+  }
+  header.frontmatter .eyebrow {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 8px;
+  }
+  header.frontmatter h1 {
+    font-size: 30px;
+    line-height: 1.2;
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .exec-summary {
+    background: var(--summary-bg);
+    color: var(--summary-ink);
+    border-left: 4px solid var(--accent);
+    padding: 20px 28px;
+    margin: 0 0 32px;
+    border-radius: 0 6px 6px 0;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .exec-summary .label {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+  .exec-summary p { margin: 0 0 0.8em; }
+  .exec-summary p:last-child { margin-bottom: 0; }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 36px;
+  }
+  .points {
+    font-size: 15.5px;
+    line-height: 1.6;
+  }
+  .points .point {
+    margin: 0 0 22px;
+  }
+  .points h2 {
+    font-size: 18px;
+    margin: 0 0 8px;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .points p { margin: 0 0 8px; color: var(--muted); }
+  .points ul, .points ol { padding-left: 1.4em; margin: 6px 0 12px; color: var(--muted); }
+  .points li { margin: 4px 0; }
+  .points strong { color: var(--ink); }
+  .sidebar {
+    border-left: 1px solid var(--line);
+    padding-left: 28px;
+  }
+  .sidebar .sidebar-item {
+    margin: 0 0 24px;
+  }
+  .sidebar .sidebar-item:last-child { margin-bottom: 0; }
+  .sidebar figure {
+    margin: 0;
+  }
+  .sidebar figure svg,
+  .sidebar figure img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+    background: var(--tint);
+  }
+  .sidebar figcaption {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 8px;
+    text-align: center;
+    font-style: italic;
+  }
+  .sidebar .callout {
+    background: var(--tint);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  footer.colophon {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  footer.colophon code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media print {
+    body { background: white; }
+    .brief { box-shadow: none; border: none; margin: 0; padding: 40px 56px; }
+    @page { size: letter; margin: 0; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="brief">
+  <header class="frontmatter">
+    <p class="eyebrow">Executive brief</p>
+    <h1>{{title}}</h1>
+  </header>
+  {{exec_summary_html}}
+  <div class="two-col">
+    <section class="points">{{points_html}}</section>
+    <aside class="sidebar">{{sidebar_html}}</aside>
+  </div>
+  <footer class="colophon">
+    brief template v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_human}}
+  </footer>
+</article>
+</body>
+</html>

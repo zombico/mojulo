@@ -239,6 +239,7 @@ export async function ensureToolsRegistered() {
   const { registerPrimitiveBindingTools } = await import('@/lib/mcp/tools/mcp-primitive-binding');
   const { registerTriggerBindingTools } = await import('@/lib/mcp/tools/mcp-trigger-binding');
   const { registerSemanticSearchTools } = await import('@/lib/mcp/tools/semantic-search');
+  const { registerWhatPossibleTools } = await import('@/lib/mcp/tools/what-possible');
   const { registerRunnerTools } = await import('@/lib/mcp/tools/runner');
   const { registerRuntimeDaemonTools } = await import('@/lib/mcp/tools/runtime-daemons');
   const { registerAgentTaskTools } = await import('@/lib/mcp/tools/agent-tasks');
@@ -247,7 +248,17 @@ export async function ensureToolsRegistered() {
   const { registerResearchModeTools } = await import('@/lib/mcp/tools/research-mode');
   const { registerStashModeTools } = await import('@/lib/mcp/tools/stash-mode');
   const { registerCookTools } = await import('@/lib/mcp/tools/cook');
+  const { registerVisualReferenceTools } = await import('@/lib/mcp/tools/visual-reference');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
+  const { registerManjiTreeTools } = await import('@/lib/mcp/tools/manji-trees');
+  const { registerPaintedLandscapeTools } = await import('@/lib/mcp/tools/painted-landscape');
+  const { registerCarvedSolidTools } = await import('@/lib/mcp/tools/carved-solid');
+  const { registerFigureTools } = await import('@/lib/mcp/tools/figure');
+  const { registerSceneCityTools } = await import('@/lib/mcp/tools/scene-city');
+  const { registerSceneTransportHubTools } = await import('@/lib/mcp/tools/scene-transport-hub');
+  const { registerSolidTurntableTools } = await import('@/lib/mcp/tools/solid-turntable-tool');
+  const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
+  const { registerOperationsModeTools } = await import('@/lib/mcp/tools/operations-mode');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -297,6 +308,12 @@ export async function ensureToolsRegistered() {
   // (structured walks) → deliberation (fuzzy recall). See
   // lite-template/integration/SEMANTIC_INDEX_PLAN.md.
   registerSemanticSearchTools();
+  // sketch_what_possible — domain-specific retrieval over sketch_method
+  // records (inverse-stable-diffusion knob loop for scene/figure
+  // illustration). Slots immediately after semantic_search since it's a
+  // thin specialization of the same retrieval surface, scoped to the
+  // create_sketch front-end.
+  registerWhatPossibleTools();
   // Ring 7 (runtime) — daemon host lifecycle + app runner + agent-tasks
   // (mojulo's opinionated runtime primitive for agent-mediated,
   // schema-validated work: pull_agent_task → submit_envelope_inference (or
@@ -354,9 +371,86 @@ export async function ensureToolsRegistered() {
   // related verbs sit adjacent in tools/list. See
   // lite-template/integration/app-system/0531/GATHER_STASH_COOK.md.
   registerCookTools();
+  // Visual Reference — the harness-as-vision-adapter scaffold. `reference_protocol`
+  // hands the model HOW to read a photo it already sees (scene perspective / human
+  // pose) into mojulo's own dials; `capture_reference` SINKS that read into a stash
+  // as a reusable cage + insights. Registers immediately before the illustration
+  // tools because a reference is the UPSTREAM scaffold they build inside (scene →
+  // a perspective-frame sketch to preload; pose → a figure dummy to re-pose), and
+  // the cage it mints rides the same SketchRepository the illustration tools serve.
+  // No vision key, no pixels-for-understanding over the wire — only the model's
+  // structured read. See lite-template/integration/0612/visual-reference.plan.md.
+  registerVisualReferenceTools();
   // Sketchbook — agent-minted dynamic diagrams, viewable at /sketches/<ref>.
   // Deliberately not woven into forward_context / Ring 6; agents discover it
   // via tools/list. See lite-template/integration/app-system/0527/
   // SKETCHBOOK_PLAN.md.
   registerSketchTools();
+  // create_manji_tree — the manji-program tree IR as a first-class authoring
+  // surface. Mints into SketchRepository with manifest.kind === 'manji-tree';
+  // the /api/sketches/<ref>/svg route dispatches on that kind to walk + project
+  // + render the tree. Adjacent to registerSketchTools so the agent sees both
+  // sketch-authoring paths next to each other in tools/list. See
+  // lite-template/integration/0604/polygonizer-manji-tree.plan.md.
+  registerManjiTreeTools();
+  // create_painted_landscape — closed-vocabulary landscape minter. The model
+  // picks one heartbeat + one splatch + an optional structure-glyph; the
+  // substrate resolves recipes, samples within ranges using a seed, derives a
+  // 4-stop palette from the splatch's three seeds, and renders a flat-Lambert
+  // borderless SVG. Persists with manifest.kind === 'painted-landscape'; the
+  // /api/sketches/<ref>/svg route dispatches on that kind. Sibling to
+  // create_manji_tree — both are sketch-authoring entry points; adjacent
+  // ordering keeps illustration tools together in tools/list. See
+  // lib/graph/polygonizer/painted-landscape.js for the renderer.
+  registerPaintedLandscapeTools();
+  // create_carved_solid — a CARVED, metalified 3D solid (wordmark / logo / icon)
+  // from any vector outline. Sits next to the other illustration mints; persists
+  // with kind `carved-solid`, rendered by the /api/sketches svg route.
+  registerCarvedSolidTools();
+  // create_figure — a POSED protoform human figure (armature + flesh + spine bend
+  // + garments). Sits next to the other illustration mints; persists with kind
+  // `figure`, rendered by the /api/sketches svg route. The figure is a pure
+  // function of (pose, proto, garment) — posing = choosing dials, clamped by the
+  // armature LIMITS + spine caps. See lite-template/integration/0610/
+  // figure-spine-articulation.plan.md and figure-proto-params.plan.md.
+  registerFigureTools();
+  // create_fractal_city — an autogenerative cityscape from a tiny RECIPE (seed + a
+  // few params). Stores ONLY the recipe (kind `fractal-city`); the full city is
+  // regenerated deterministically on render by /api/sketches/<ref>/scene as a
+  // dependency-free CSS preserve-3d HTML scene. Fractal generation: thousands of
+  // boxes from ~6 numbers, near-zero tokens.
+  registerSceneCityTools();
+  // create_transportation_hub — a transit-tuned sibling of create_fractal_city. Stores
+  // ONLY the recipe (kind `transportation-hub`); the full hub (terminal + concourse
+  // fingers + gates/platforms/bays + apron + runways/rails/lanes + parked aircraft/
+  // trains/buses) is regenerated deterministically on render as a dependency-free CSS
+  // preserve-3d HTML scene. mode picks airport | train-station | bus-terminal.
+  registerSceneTransportHubTools();
+  // create_solid_turntable — a single convex solid (lit ball / crystal polyhedron / gem)
+  // spinning LIVE in CSS-3D from a tiny recipe (kind `css3d-turntable`). Highlight fixed in
+  // the viewport via per-frame vexar re-shade. The live counterpart to the baked forge_motion
+  // turntable — single convex solids only; interpenetrating molecules/helices stay baked.
+  registerSolidTurntableTools();
+  // forge_motion — put a manji-tree subject IN MOTION and render it to an
+  // animated artifact (CSS flipbook SVG + GIF). An OUTPUT concern, sibling to
+  // illustration and cook: it consumes a static subject and adds time. Registers
+  // immediately after the illustration tools because it CONSUMES their output —
+  // "make a picture → make it move" sit adjacent in tools/list. Filed as a
+  // Motion Project resource group (ops tag + subject/recipe stash + outcome
+  // folder), reusing existing primitives rather than a bespoke layer. Phase 1
+  // ships subject-agnostic camera motions; performance motions land in Phase 2.
+  // See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
+  registerMotionTools();
+  // Ring 11 (operations mode) — domain-scoped orchestration. An ops tag binds
+  // a hand-curated set of committed-reality resources (bots, apps, mcp-orbit
+  // compositions, cooks, catalysts, triggers, stashes) under one descriptor.
+  // The descriptor is the THESIS members are measured against; the tag is the
+  // bound. Consulted, not driving — no execute verb. Distinct from plan
+  // (effort-shaped, pre-reality) and from stash (intake-oriented): operations
+  // is the far-range domain view ("marketing", "finance"). Registers LAST so
+  // every prior ring's resources are discoverable as bindable members. v0
+  // ships the primitive only; multi-scope, audit, contextmap-node integration,
+  // and the architecture-mode graph extension land in v0.5. See
+  // lite-template/integration/app-system/0605/operations-view.md.
+  registerOperationsModeTools();
 }

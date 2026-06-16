@@ -59,11 +59,29 @@ export async function PATCH(request, { params }) {
   try {
     const { ref } = await params;
     const body = await request.json().catch(() => ({}));
-    const { title, manifest, folderRef } = body || {};
+    const { title, manifest, folderRef, bucket } = body || {};
 
-    if (title === undefined && manifest === undefined && folderRef === undefined) {
+    if (
+      title === undefined &&
+      manifest === undefined &&
+      folderRef === undefined &&
+      bucket === undefined
+    ) {
       return NextResponse.json(
-        { error: 'PATCH requires at least one of `title`, `manifest`, or `folderRef`' },
+        { error: 'PATCH requires at least one of `title`, `manifest`, `folderRef`, or `bucket`' },
+        { status: 400 },
+      );
+    }
+    // bucket override: 'diagram' (Sketches) | 'illustration' (Maker) pins the
+    // owning concern; null clears the override (back to the kind-derived bucket).
+    if (
+      bucket !== undefined &&
+      bucket !== null &&
+      bucket !== 'diagram' &&
+      bucket !== 'illustration'
+    ) {
+      return NextResponse.json(
+        { error: "`bucket` must be 'diagram', 'illustration', or null" },
         { status: 400 },
       );
     }
@@ -115,6 +133,7 @@ export async function PATCH(request, { params }) {
       title: title !== undefined ? title.trim() : undefined,
       manifest: nextManifest,
       folderRef,
+      bucket,
     });
     if (!updated) {
       return NextResponse.json(

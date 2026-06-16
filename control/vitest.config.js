@@ -19,6 +19,13 @@ export default defineConfig({
       '.next/**',
       'data/**',
       'lite-template/**',
+      // Generative illustration spikes: render SVGs to
+      // lite-template/integration/**/spike-output for visual review, not
+      // load-bearing assertions, and dump ~hundreds of MB per full run. Run
+      // one on demand: npx vitest run --config '' path/to/foo.spike.gen.test.js
+      // Covers both spike families: *.spike.gen.test.js and *.spike.test.js.
+      '**/*.gen.test.js',
+      '**/*.spike.test.js',
     ],
   },
 });

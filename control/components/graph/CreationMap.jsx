@@ -414,6 +414,10 @@ function MarkNode({ mark, mode = 'color' }) {
 export default function CreationMap({ manifest, technical = false, compact = false, onNodeClick, mode = 'color', fit = false }) {
   if (!manifest) return null;
   const { viewBox } = manifest;
+  // CreationMap only draws diagram-shaped manifests (a viewBox + nodes/edges).
+  // Scene / illustration kinds are dispatched elsewhere (see sketchRenderMode);
+  // guard anyway so a viewBox-less manifest can never hard-crash the page.
+  if (!viewBox || !Number.isFinite(viewBox.width) || !Number.isFinite(viewBox.height)) return null;
   const stations = Array.isArray(manifest.stations) ? manifest.stations : [];
   const edges = Array.isArray(manifest.edges) ? manifest.edges : [];
   const marks = Array.isArray(manifest.marks) ? manifest.marks : [];
@@ -427,7 +431,7 @@ export default function CreationMap({ manifest, technical = false, compact = fal
   // first (below), so stations cover their entry points as before.
   const drawables = [
     ...stations.map((s, i) => ({ kind: 'station', z: zOf(s), seq: i, node: s })),
-    ...marks.map((m, i) => ({ kind: 'mark', z: zOf(m), seq: stations.length + i, node: m })),
+    ...marks.map((m, i) => ({ kind: 'mark', z: zOf(m), seq: stations.length + i, node: m, idx: i })),
   ];
   drawables.sort((a, b) => a.z - b.z || a.seq - b.seq);
 
@@ -551,6 +555,22 @@ export default function CreationMap({ manifest, technical = false, compact = fal
         const { d, midX, midY } = edgePath(from, to, e.via, viewBox, e.curvature);
         const label = pickLabel(e, technical);
         const labelWidth = estimateLabelWidth(label, technical, scale.edgeSize);
+        // Keep the whole label pill (plus its drop shadow) inside the viewBox.
+        // `via`-routed edges clamp their midpoint to within VIEWBOX_CLAMP of the
+        // canvas edge, so a label centered on that midpoint would spill half its
+        // pill off the side and get sliced by the SVG boundary. Nudge the label
+        // center inward; the channel line still reads as the nearest arrow.
+        const LABEL_MARGIN = 4;
+        const halfW = labelWidth / 2;
+        const halfH = scale.pillHeight / 2;
+        const labelX = Math.min(
+          Math.max(midX, halfW + LABEL_MARGIN),
+          viewBox.width - halfW - LABEL_MARGIN,
+        );
+        const labelY = Math.min(
+          Math.max(midY, halfH + LABEL_MARGIN),
+          viewBox.height - halfH - LABEL_MARGIN,
+        );
         return (
           <g key={`edge-${i}`}>
             <path
@@ -562,7 +582,7 @@ export default function CreationMap({ manifest, technical = false, compact = fal
               markerEnd="url(#creation-map-arrow)"
             />
             {label ? (
-              <g transform={`translate(${midX} ${midY})`}>
+              <g transform={`translate(${labelX} ${labelY})`}>
                 {/* Pill background — surface-elevated sits one step above
                     the diagram surface; drop shadow gives it lift; no
                     border so the chip reads as a single solid token. */}
@@ -598,7 +618,12 @@ export default function CreationMap({ manifest, technical = false, compact = fal
         d.kind === 'station' ? (
           renderStationNode(d.node)
         ) : (
-          <MarkNode key={`mark-${d.seq}`} mark={d.node} mode={mode} />
+          // Addressable group per mark (additive — a transformless <g> is visually
+          // inert). Lets CSS / the Regime-A bake target a mark by data-idx. See
+          // lite-template/integration/0609/motion-regime-a.plan.md.
+          <g key={`mark-${d.seq}`} className="moj-mark" data-mark-kind={d.node.kind} data-idx={d.idx}>
+            <MarkNode mark={d.node} mode={mode} />
+          </g>
         ),
       )}
     </svg>

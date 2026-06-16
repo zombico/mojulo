@@ -1,3 +1,5 @@
+import { resolveMeruUnitScale } from './pure-mandala.js';
+
 const DEPTH_ORDER = {
   background: 10,
   midground: 30,
@@ -13,14 +15,86 @@ const CHILD_ROLE_RULES = [
 
 export function withConstellationGrid(manifest) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return manifest;
-  if (manifest.polygonizer?.constellation) return withNormalizedConstellationGrid(manifest);
+  if (manifest.polygonizer?.constellation) {
+    return withResolvedChildRegionsWorld(withNormalizedConstellationGrid(manifest));
+  }
   const constellation = buildConstellationGrid(manifest);
   if (!constellation) return manifest;
-  return {
+  return withResolvedChildRegionsWorld({
     ...manifest,
     polygonizer: {
       ...(manifest.polygonizer || {}),
       constellation,
+    },
+  });
+}
+
+/**
+ * Resolve any constellation node carrying `childRegionWorld` into a pixel
+ * `childRegion` via the meru-owned unitScale. This closes the loop for
+ * parents that want to carve out child sub-mandala space in shared world
+ * units instead of pixel arithmetic.
+ *
+ * The world declaration shape:
+ *
+ *   childRegionWorld: {
+ *     width:   number,     // world-unit width
+ *     length:  number,     // world-unit length
+ *     offsetX: number?,    // optional center offset from the node's bounds center, in world units
+ *     offsetY: number?,    // optional center offset, in world units
+ *   }
+ *
+ * The world declaration wins when both `childRegionWorld` and a legacy
+ * pixel `childRegion` are present on the same node — that's the
+ * substrate's "shared ruler wins over hand-tuned pixel" rule. The
+ * pre-existing pixel childRegion is preserved on the node as
+ * `childRegionPixelDeclared` for audit.
+ */
+export function withResolvedChildRegionsWorld(manifest) {
+  const constellation = manifest?.polygonizer?.constellation;
+  const nodes = Array.isArray(constellation?.nodes) ? constellation.nodes : [];
+  if (!nodes.length) return manifest;
+  const unitScale = resolveMeruUnitScale(manifest);
+  let changed = false;
+  const resolved = nodes.map((node) => {
+    const world = node?.childRegionWorld;
+    if (!world || typeof world !== 'object' || Array.isArray(world)) return node;
+    const width = Number(world.width);
+    const length = Number(world.length);
+    if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(length) || length <= 0) return node;
+    if (!validBounds(node.bounds)) return node;
+    const offsetX = Number.isFinite(Number(world.offsetX)) ? Number(world.offsetX) : 0;
+    const offsetY = Number.isFinite(Number(world.offsetY)) ? Number(world.offsetY) : 0;
+    const pixelWidth = width * unitScale;
+    const pixelHeight = length * unitScale;
+    const centerX = node.bounds.x + node.bounds.width / 2 + offsetX * unitScale;
+    const centerY = node.bounds.y + node.bounds.height / 2 + offsetY * unitScale;
+    const childRegion = roundBounds({
+      x: centerX - pixelWidth / 2,
+      y: centerY - pixelHeight / 2,
+      width: pixelWidth,
+      height: pixelHeight,
+    });
+    changed = true;
+    const next = {
+      ...node,
+      childRegion,
+      childRegionSource: 'meru-world',
+    };
+    if (node.childRegion && !node.childRegionPixelDeclared) {
+      next.childRegionPixelDeclared = node.childRegion;
+    }
+    return next;
+  });
+  if (!changed) return manifest;
+  return {
+    ...manifest,
+    polygonizer: {
+      ...manifest.polygonizer,
+      constellation: {
+        ...constellation,
+        nodes: resolved,
+      },
     },
   };
 }
@@ -153,13 +227,35 @@ export function validateConstellationGrid(manifest) {
   }
   for (const node of nodes) {
     if (!node || typeof node !== 'object') continue;
-    if (!validPoint(node.anchor)) errors.push(`polygonizer.constellation node '${node.role || '(anonymous)'}' requires finite anchor`);
-    if (!validBounds(node.bounds)) errors.push(`polygonizer.constellation node '${node.role || '(anonymous)'}' requires finite bounds`);
+    const label = node.role || '(anonymous)';
+    if (!validPoint(node.anchor)) errors.push(`polygonizer.constellation node '${label}' requires finite anchor`);
+    if (!validBounds(node.bounds)) errors.push(`polygonizer.constellation node '${label}' requires finite bounds`);
     if (!validAxis(node.cca?.lengthAxis) || !validAxis(node.cca?.heightAxis)) {
-      errors.push(`polygonizer.constellation node '${node.role || '(anonymous)'}' requires CCA axes`);
+      errors.push(`polygonizer.constellation node '${label}' requires CCA axes`);
     }
     if (node.parent && !roles.has(node.parent)) {
-      errors.push(`polygonizer.constellation node '${node.role || '(anonymous)'}' parent '${node.parent}' was not found`);
+      errors.push(`polygonizer.constellation node '${label}' parent '${node.parent}' was not found`);
+    }
+    if (node.childRegionWorld !== undefined && node.childRegionWorld !== null) {
+      const world = node.childRegionWorld;
+      if (typeof world !== 'object' || Array.isArray(world)) {
+        errors.push(`polygonizer.constellation node '${label}' childRegionWorld must be an object`);
+      } else {
+        const width = Number(world.width);
+        const length = Number(world.length);
+        if (!Number.isFinite(width) || width <= 0) {
+          errors.push(`polygonizer.constellation node '${label}' childRegionWorld.width must be a positive number (world units)`);
+        }
+        if (!Number.isFinite(length) || length <= 0) {
+          errors.push(`polygonizer.constellation node '${label}' childRegionWorld.length must be a positive number (world units)`);
+        }
+        if (world.offsetX !== undefined && world.offsetX !== null && !Number.isFinite(Number(world.offsetX))) {
+          errors.push(`polygonizer.constellation node '${label}' childRegionWorld.offsetX must be a finite number`);
+        }
+        if (world.offsetY !== undefined && world.offsetY !== null && !Number.isFinite(Number(world.offsetY))) {
+          errors.push(`polygonizer.constellation node '${label}' childRegionWorld.offsetY must be a finite number`);
+        }
+      }
     }
   }
   const sceneVp = validPoint(manifest?.scene?.perspective?.vanishingPoint);

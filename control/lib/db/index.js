@@ -307,7 +307,9 @@ function init(db) {
         'orbit_composition',
         'orbit_artifact',
         'catalyst',
-        'sketch_vocab'
+        'sketch_vocab',
+        'sketch_method',
+        'manji_program'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
@@ -494,7 +496,7 @@ function init(db) {
     -- lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
     CREATE TABLE IF NOT EXISTS stash_bindings (
       stash_id INTEGER NOT NULL REFERENCES stashes(id) ON DELETE CASCADE,
-      bound_kind TEXT NOT NULL CHECK(bound_kind IN ('bot','app','plan','cook','contextmap_node')),
+      bound_kind TEXT NOT NULL CHECK(bound_kind IN ('bot','app','plan','cook','contextmap_node','sketch')),
       bound_ref TEXT NOT NULL,
       role TEXT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
@@ -550,6 +552,46 @@ function init(db) {
       mirrored_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_meta_skills_mirrored_at ON meta_skills(mirrored_at DESC);
+
+    -- Operations view (Ring 11). A tag with a descriptor and a set of members
+    -- drawn from committed reality (bots, apps, mcp-orbit compositions, cooks,
+    -- catalysts, triggers, stashes). The tag is the bound; the descriptor is
+    -- the thesis members are measured against. Consulted, not driving — no
+    -- execute verb, no cascade-retire. Pre-reality nodes (plans, research
+    -- books) are deliberately NOT taggable — they're reachable as provenance
+    -- through tagged members instead. v0 stores the descriptor on the row;
+    -- meta_principles + a meta_nodes(kind='ops_tag') consult node ship in
+    -- v0.5. See lite-template/integration/app-system/0605/operations-view.md.
+    CREATE TABLE IF NOT EXISTS ops_tags (
+      id INTEGER PRIMARY KEY,
+      tag_ref TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      descriptor_md TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('active','archived')) DEFAULT 'active',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_ops_tags_status ON ops_tags(status);
+    CREATE INDEX IF NOT EXISTS idx_ops_tags_updated_at ON ops_tags(updated_at DESC);
+
+    -- Polymorphic member binding. member_kind is validated at the repo gate
+    -- (committed-reality only: bot / app / mcp_orbit / cook / catalyst /
+    -- trigger / stash) so adding a kind is a one-line repo change, not a
+    -- schema migration. UNIQUE on (tag_ref, member_kind, member_ref) prevents
+    -- duplicate bindings; the reverse index supports "which tags own this
+    -- resource" lookups. member_ref is opaque to this table — refs into the
+    -- per-kind primary table (deployments.id for bot, etc.) and is only
+    -- resolved when get_ops_tag assembles the bounded read.
+    CREATE TABLE IF NOT EXISTS ops_tag_members (
+      id INTEGER PRIMARY KEY,
+      tag_ref TEXT NOT NULL REFERENCES ops_tags(tag_ref) ON DELETE CASCADE,
+      member_kind TEXT NOT NULL,
+      member_ref TEXT NOT NULL,
+      bound_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(tag_ref, member_kind, member_ref)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ops_tag_members_by_tag ON ops_tag_members(tag_ref);
+    CREATE INDEX IF NOT EXISTS idx_ops_tag_members_reverse ON ops_tag_members(member_kind, member_ref);
   `);
 
   migrateDeploymentColumns(db);
@@ -558,7 +600,10 @@ function init(db) {
   migrateResearchColumns(db);
   migrateSketchColumns(db);
   migrateStashItemColumns(db);
+  migrateStashItemTypeCheck(db);
+  migrateStashBindingKindCheck(db);
   migrateStashCookColumns(db);
+  migrateStashCookArchivedAt(db);
   migrateEmbeddingsSourceKinds(db);
   reapStaleMcpJobs(db);
   maybeBackfillEmbeddings(db);
@@ -795,6 +840,14 @@ function migrateSketchColumns(db) {
   if (!have.has('folder_ref')) {
     db.exec('ALTER TABLE sketches ADD COLUMN folder_ref TEXT');
   }
+  // Mojulo Maker bucket override. NULL = derive the bucket (draft vs
+  // illustration) from manifest.kind at read time; a non-null value pins the
+  // sketch into a specific Maker gallery. See classifyBucket() in
+  // lib/graph/sketch-manifest.js. An illustration is still a sketch — this is a
+  // lens, not a new primitive.
+  if (!have.has('bucket')) {
+    db.exec('ALTER TABLE sketches ADD COLUMN bucket TEXT');
+  }
   db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_folder_ref ON sketches(folder_ref)');
 }
 
@@ -810,6 +863,98 @@ function migrateStashItemColumns(db) {
     db.exec('ALTER TABLE stash_items ADD COLUMN archived_at INTEGER');
   }
   db.exec('CREATE INDEX IF NOT EXISTS idx_stash_items_archived_at ON stash_items(archived_at)');
+}
+
+// stash_items.type and stash_bindings.bound_kind both ship with CHECK
+// constraints — adding a value (here: 'sketch') requires rebuilding the table
+// because SQLite cannot ALTER a CHECK in place. Both migrations are guarded
+// by a sql-text probe so re-runs are no-ops, and the COPY is identity (no
+// transform) so the table contents are preserved.
+function migrateStashItemTypeCheck(db) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='stash_items'")
+    .get();
+  if (!row || !row.sql) return; // bootstrap will create the new shape
+  if (row.sql.includes("'sketch'")) return; // already migrated
+  db.exec('BEGIN');
+  try {
+    db.exec(`
+      CREATE TABLE stash_items_new (
+        id INTEGER PRIMARY KEY,
+        stash_id INTEGER NOT NULL REFERENCES stashes(id) ON DELETE CASCADE,
+        drawer_id INTEGER REFERENCES stash_drawers(id) ON DELETE SET NULL,
+        type TEXT NOT NULL CHECK(type IN ('text','markdown','image','svg','script','pointer','link','sketch')),
+        title TEXT,
+        source_url TEXT,
+        body TEXT,
+        body_md TEXT,
+        media_ref TEXT,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        archived_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    db.exec(
+      `INSERT INTO stash_items_new
+         (id, stash_id, drawer_id, type, title, source_url, body, body_md, media_ref, metadata_json, archived_at, created_at)
+       SELECT id, stash_id, drawer_id, type, title, source_url, body, body_md, media_ref, metadata_json, archived_at, created_at
+         FROM stash_items`,
+    );
+    db.exec('DROP TABLE stash_items');
+    db.exec('ALTER TABLE stash_items_new RENAME TO stash_items');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_stash_items_stash ON stash_items(stash_id, created_at)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_stash_items_drawer ON stash_items(drawer_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_stash_items_archived_at ON stash_items(archived_at)');
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+function migrateStashBindingKindCheck(db) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='stash_bindings'")
+    .get();
+  if (!row || !row.sql) return;
+  if (row.sql.includes("'sketch'")) return;
+  db.exec('BEGIN');
+  try {
+    db.exec(`
+      CREATE TABLE stash_bindings_new (
+        stash_id INTEGER NOT NULL REFERENCES stashes(id) ON DELETE CASCADE,
+        bound_kind TEXT NOT NULL CHECK(bound_kind IN ('bot','app','plan','cook','contextmap_node','sketch')),
+        bound_ref TEXT NOT NULL,
+        role TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        PRIMARY KEY (stash_id, bound_kind, bound_ref)
+      );
+    `);
+    db.exec(
+      `INSERT INTO stash_bindings_new (stash_id, bound_kind, bound_ref, role, created_at)
+       SELECT stash_id, bound_kind, bound_ref, role, created_at FROM stash_bindings`,
+    );
+    db.exec('DROP TABLE stash_bindings');
+    db.exec('ALTER TABLE stash_bindings_new RENAME TO stash_bindings');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_stash_bindings_reverse ON stash_bindings(bound_kind, bound_ref)');
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+// stash_cooks gains archived_at to support soft-delete (the operator-facing
+// archive verb mirrors archive_item for stash items). Additive ALTER, safe to
+// re-run; no row-level migration needed since archived_at is nullable and
+// every existing row stays "open" (NULL).
+function migrateStashCookArchivedAt(db) {
+  const cols = db.prepare('PRAGMA table_info(stash_cooks)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('archived_at')) {
+    db.exec('ALTER TABLE stash_cooks ADD COLUMN archived_at INTEGER');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_stash_cooks_archived_at ON stash_cooks(archived_at)');
 }
 
 // stash_cooks shipped first with (stash_refs_json NOT NULL, query NOT NULL).
@@ -900,17 +1045,18 @@ function migrateResearchColumns(db) {
 }
 
 // meta_embeddings carries a CHECK(source_kind IN (...)) that can't be ALTERed.
-// When a new indexed source kind ships (here: sketch_vocab), an existing DB's
-// table still has the old constraint and would reject the new rows. The table
-// is a pure derived sidecar, so we rebuild it preserving every existing row
-// (no re-embed) and let the widened CHECK take effect. Detection is on the
-// stored DDL — idempotent once the constraint already names the kind.
+// When a new indexed source kind ships (sketch_vocab, then sketch_method,
+// …), an existing DB's table still has the old constraint and would reject
+// the new rows. The table is a pure derived sidecar, so we rebuild it
+// preserving every existing row (no re-embed) and let the widened CHECK
+// take effect. Detection is on the stored DDL — idempotent once the
+// constraint already names the newest kind.
 function migrateEmbeddingsSourceKinds(db) {
   const row = db
     .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
     .get();
   if (!row || !row.sql) return;
-  if (row.sql.includes('sketch_vocab')) return;
+  if (row.sql.includes('manji_program')) return;
   db.exec(`
     BEGIN;
     CREATE TABLE meta_embeddings_new (
@@ -923,7 +1069,9 @@ function migrateEmbeddingsSourceKinds(db) {
         'orbit_composition',
         'orbit_artifact',
         'catalyst',
-        'sketch_vocab'
+        'sketch_vocab',
+        'sketch_method',
+        'manji_program'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,

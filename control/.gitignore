@@ -8,3 +8,9 @@ data/
 lib/embedder/models/
 # Staged at publish time by scripts/stage-lite-template.mjs.
 lite-template/
+# Generative illustration spikes — visual experiments, not load-bearing.
+# They import polygonizer primitives and dump SVGs to lite-template/integration
+# (already ignored). Kept on disk for local iteration; never committed.
+# Both spike families: *.spike.gen.test.js and the un-.gen'd *.spike.test.js.
+*.gen.test.js
+*.spike.test.js

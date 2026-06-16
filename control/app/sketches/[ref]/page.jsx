@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
+import { sketchRenderMode } from '@/lib/graph/sketch-manifest';
 
 function printFilename(data, fallbackRef) {
   if (typeof window === 'undefined') return 'sketch.pdf';
@@ -96,10 +97,29 @@ export default function SketchPage({ params }) {
     return <main className="min-h-screen" aria-hidden />;
   }
 
+  // svg (rasterized <img>) | scene (live preserve-3d <iframe>) | diagram (CreationMap)
+  // — centralized so scene/illustration kinds never fall through to <CreationMap>.
+  const renderMode = sketchRenderMode(manifest);
+
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-7xl">
-        <CreationMap manifest={manifest} technical={false} mode={mode} />
+        {renderMode === 'svg' ? (
+          <img
+            src={`/api/sketches/${encodeURIComponent(ref)}/svg?inline=1`}
+            alt={data?.title || ref}
+            className="w-full h-auto block"
+          />
+        ) : renderMode === 'world' || renderMode === 'scene' ? (
+          <iframe
+            src={`/api/sketches/${encodeURIComponent(ref)}/${renderMode}`}
+            title={data?.title || ref}
+            className="w-full block border-0"
+            style={{ aspectRatio: '1120 / 780' }}
+          />
+        ) : (
+          <CreationMap manifest={manifest} technical={false} mode={mode} />
+        )}
       </div>
     </main>
   );

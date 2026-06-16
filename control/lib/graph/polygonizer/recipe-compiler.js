@@ -1,4 +1,11 @@
 import { lowerDepictionLayout } from './depiction-layout.js';
+import { planVehicleMandala } from './vehicle-mandala-planner.js';
+import {
+  buildBusFacadeDecorators,
+  buildLongHaulTruckOnWheels,
+  buildRailHeadCarMandalaPlan,
+  buildRectangularVehicleOnWheels,
+} from './vehicle-manji.js';
 
 const RECIPE_FAMILIES = new Set([
   'objectPortrait',
@@ -8,7 +15,10 @@ const RECIPE_FAMILIES = new Set([
   'blueprintSpec',
   'garmentPattern',
   'architecturalConstruction',
+  'vehicleGlyphLanguage',
   'propStudy',
+  'portraitBust',
+  'roomInteriorTwoPoint',
 ]);
 
 export function compileSketchRecipe(input = {}) {
@@ -22,6 +32,9 @@ export function compileSketchRecipe(input = {}) {
   }
   if (family === 'garmentPattern') return compileGarmentPatternRecipe(recipe);
   if (family === 'architecturalConstruction') return compileArchitecturalConstructionRecipe(recipe);
+  if (family === 'vehicleGlyphLanguage') return compileVehicleGlyphLanguageRecipe(recipe);
+  if (family === 'portraitBust') return compilePortraitBustRecipe(recipe);
+  if (family === 'roomInteriorTwoPoint') return compileRoomInteriorTwoPointRecipe(recipe);
   return compileGenericRecipe(recipe, family);
 }
 
@@ -67,6 +80,22 @@ function normalizeRecipeKind(kind) {
     buildingHouse: 'architecturalConstruction',
     architecture: 'architecturalConstruction',
     architecturalConstruction: 'architecturalConstruction',
+    vehicle: 'vehicleGlyphLanguage',
+    vehicles: 'vehicleGlyphLanguage',
+    bus: 'vehicleGlyphLanguage',
+    train: 'vehicleGlyphLanguage',
+    rail: 'vehicleGlyphLanguage',
+    vehicleGlyphLanguage: 'vehicleGlyphLanguage',
+    'vehicle-glyph-language': 'vehicleGlyphLanguage',
+    portraitBust: 'portraitBust',
+    'portrait-bust': 'portraitBust',
+    bust: 'portraitBust',
+    portrait: 'portraitBust',
+    roomInteriorTwoPoint: 'roomInteriorTwoPoint',
+    'room-interior-two-point': 'roomInteriorTwoPoint',
+    roomInterior: 'roomInteriorTwoPoint',
+    twoPointRoom: 'roomInteriorTwoPoint',
+    interior: 'roomInteriorTwoPoint',
   };
   return aliases[value] || value;
 }
@@ -454,6 +483,848 @@ function compileArchitecturalConstructionRecipe(recipe) {
     },
     marks,
   };
+}
+
+function compileVehicleGlyphLanguageRecipe(recipe) {
+  const subject = recipe.subject || 'vehicle glyph language scene';
+  const title = recipe.title || titleFromSubject(subject);
+  const viewBox = recipeViewBox({ ...recipe, viewBox: recipe.viewBox || { width: 900, height: 540 } });
+  const prompt = recipe.prompt || subject;
+  const conceptIds = Array.isArray(recipe.concepts) ? recipe.concepts : undefined;
+  const plan = planVehicleMandala({
+    prompt,
+    conceptIds,
+    seed: recipe.seed || prompt,
+    maxConcepts: 6,
+  });
+  const marks = vehicleSceneMarksFromPlan(plan, subject, recipe);
+  const impactPoint = [Math.round(viewBox.width * 0.5), Math.round(viewBox.height * 0.68)];
+
+  return {
+    title,
+    viewBox,
+    depiction: {
+      paradigm: 'depiction',
+      mode: 'related-physical-visual',
+      display: { kind: 'single-vehicle-glyph-scene', panelCount: 1 },
+      panelBlocking: {
+        paradigm: 'vehicle-surface-allocation',
+        eyeLine: 'allocate vehicle slots first, then mount grounded chassis and payload skins',
+      },
+      panels: [
+        {
+          id: 'vehicle-scene',
+          concern: 'vehicle-glyph-language',
+          constellation: 'applies',
+          bounds: { x: 0, y: 0, w: viewBox.width, h: viewBox.height },
+        },
+      ],
+    },
+    polygonizer: {
+      subject,
+      outputStyle: 'vehicle-glyph-language',
+      impactPoint,
+      concept: { movementConcept: 'grounded vehicle glyph allocation map', depictionClass: 'vehicleGlyphLanguage' },
+      picture: {
+        framing: recipe.camera || 'street/rail side three-quarter',
+        shotAngle: 'road and rail support planes in one frame',
+        cameraDistance: 'medium-wide',
+        compositionIntent: 'express bus/train grounding as reusable structural grammar with deterministic slot allocation',
+      },
+      elements: [
+        { role: 'surface-plan', importance: 'primary', footprint: 'road/rail/platform support surfaces', depthBand: 'midground', blockingNeeded: 'allocation-plan' },
+        { role: 'vehicle-instances', importance: 'primary', footprint: 'grounded chassis plus payload', depthBand: 'foreground', blockingNeeded: 'vehicle-glyph-grammar' },
+      ],
+      blockingReality: [
+        { role: 'surface-plan-block', basis: 'mandala-slot-plan', footprint: 'road/rail/platform/yard rectangles', depthBand: 'midground', purpose: 'allocate finite support budget before visible drawing' },
+        { role: 'vehicle-chassis-block', basis: 'grounded-manji', footprint: 'axles + center bar + wheel slots', depthBand: 'foreground', purpose: 'shared grounding grammar for bus/train/truck variants' },
+      ],
+      vehicleMandalaPlan: plan,
+      realityFacts: [
+        'vehicle concepts are allocated to explicit support surfaces',
+        'grounded chassis remains visible as structural basis',
+        'bus/train/truck variants change payload skin without changing support grammar',
+      ],
+      minimalAbstractions: [
+        'vehicleGlyphLanguage recipe = support-surface plan plus grounded chassis primitives',
+        'surface slots prevent collisions and over-budget vehicle placement',
+        'bus, train, and truck emerge from one rectangular vehicle grammar with different facade policies',
+      ],
+      recipeAudit: auditRecipe({ ...recipe, kind: 'vehicleGlyphLanguage' }),
+    },
+    scene: {
+      perspective: {
+        mode: 'one-point',
+        horizonY: Math.round(viewBox.height * 0.30),
+        vanishingPoint: [Math.round(viewBox.width * 0.78), Math.round(viewBox.height * 0.30)],
+        depthScale: 220,
+      },
+      view: { direction: [-0.42, -0.32], baseZ: 10 },
+      light: { direction: [-0.55, -0.78], z: 0.68 },
+      palette: 'vehicle-glyph-workbench',
+    },
+    marks,
+  };
+}
+
+function vehicleSceneMarksFromPlan(plan, subject, recipe) {
+  const project = ([x, y, z]) => [x * 24 + 60 + y * 4, 470 - y * 13 - z * 34 - x * 1.2];
+  const marks = [
+    {
+      kind: 'rect',
+      x: 0,
+      y: 0,
+      w: 900,
+      h: 540,
+      fill: '#f5f1e8',
+      role: 'vehicle-scene:background',
+      z: 0,
+    },
+    {
+      kind: 'text',
+      x: 36,
+      y: 42,
+      value: `Vehicle glyph language: ${subject}`,
+      size: 22,
+      weight: 700,
+      color: '#1f2937',
+      role: 'vehicle-scene:title',
+      z: 10,
+    },
+  ];
+
+  const roadY = 11.8;
+  marks.push({
+    kind: 'polygon',
+    points: [
+      project([1.0, roadY - 1.4, 0]),
+      project([32.0, roadY - 1.4, 0]),
+      project([32.0, roadY + 2.4, 0]),
+      project([1.0, roadY + 2.4, 0]),
+    ],
+    fill: '#374151',
+    stroke: '#111827',
+    strokeWidth: 0.8,
+    role: 'vehicle-scene:road-plane',
+    z: 20,
+  });
+  marks.push({
+    kind: 'polygon',
+    points: [
+      project([1.0, roadY - 5.4, 0]),
+      project([32.0, roadY - 5.4, 0]),
+      project([32.0, roadY - 3.1, 0]),
+      project([1.0, roadY - 3.1, 0]),
+    ],
+    fill: '#d8d2c5',
+    stroke: '#9b9488',
+    strokeWidth: 0.7,
+    role: 'vehicle-scene:rail-plane',
+    z: 21,
+  });
+
+  const allocations = plan.allocations.slice(0, 3);
+  for (const [index, allocation] of allocations.entries()) {
+    const originX = 6.5 + index * 8.4;
+    const isTruck = allocation.conceptId.includes('truck.long-haul');
+    const isRail = allocation.surfaceKind === 'railPlane' || allocation.conceptId.includes('rectangular-wheeled');
+    if (isTruck) {
+      const truckVehicle = buildLongHaulTruckOnWheels({
+        project,
+        origin: [originX - 1.2, roadY + 0.15],
+        axis: 'x',
+        length: 9.4,
+        width: 1.25,
+        wheelRadius: 0.25,
+        bodyLength: 10.1,
+        bodyWidth: 1.65,
+        bodyHeight: 1.32,
+        trailerProfile: allocation.parameters?.trailerProfile || 'box-trailer',
+        cargoHybrid: allocation.parameters?.cargoHybrid || 'train-cart-compatible',
+        role: `vehicle-scene:alloc:${index}:truck`,
+      });
+      marks.push(...vehicleShapesToMarks(truckVehicle.paintGroups.underBodyChassisShapes, 40));
+      marks.push(...truckBodyMarks(project, truckVehicle, `vehicle-scene:alloc:${index}:truck`, 42));
+      marks.push(...vehicleShapesToMarks(truckVehicle.shapes, 46));
+      marks.push(...vehicleShapesToMarks(truckVehicle.paintGroups.overlayWheelShapes, 48));
+    } else if (isRail) {
+      const headPlan = buildRailHeadCarMandalaPlan({
+        origin: [originX, roadY - 3.9],
+        axis: 'x',
+        role: `vehicle-scene:alloc:${index}:rail-head-plan`,
+      });
+      const trainVehicle = buildRectangularVehicleOnWheels({
+        project,
+        origin: [originX, roadY - 3.9],
+        axis: 'x',
+        length: 6.4,
+        width: 1.2,
+        wheelRadius: 0.22,
+        bodyLength: Math.max(6.8, headPlan.totalFootprint.length * 0.88),
+        bodyWidth: 1.45,
+        bodyHeight: 1.05,
+        role: `vehicle-scene:alloc:${index}:train`,
+      });
+      marks.push(...vehicleShapesToMarks(trainVehicle.paintGroups.underBodyChassisShapes, 32));
+      marks.push({
+        kind: 'polygon',
+        points: worldBoxFace(project, trainVehicle.bodyBox, 'front'),
+        fill: '#d9e4ef',
+        stroke: '#56606b',
+        strokeWidth: 0.7,
+        role: `vehicle-scene:alloc:${index}:train-body-front`,
+        z: 34,
+      });
+      marks.push({
+        kind: 'polygon',
+        points: worldBoxFace(project, trainVehicle.bodyBox, 'right'),
+        fill: '#b8c7d6',
+        stroke: '#56606b',
+        strokeWidth: 0.7,
+        role: `vehicle-scene:alloc:${index}:train-body-side`,
+        z: 35,
+      });
+      marks.push(...vehicleShapesToMarks(trainVehicle.paintGroups.overlayWheelShapes, 36));
+    } else {
+      const busVehicle = buildRectangularVehicleOnWheels({
+        project,
+        origin: [originX, roadY + 0.35],
+        axis: 'x',
+        length: 6.8,
+        width: 1.2,
+        wheelRadius: 0.28,
+        bodyLength: 7.4,
+        bodyWidth: 1.75,
+        bodyHeight: 1.30,
+        role: `vehicle-scene:alloc:${index}:bus`,
+      });
+      const facade = buildBusFacadeDecorators({
+        project,
+        block: busVehicle,
+        role: `vehicle-scene:alloc:${index}:bus-facade`,
+        windowCount: 5,
+        doorPlacement: 'front-and-middle',
+      });
+      marks.push(...vehicleShapesToMarks(busVehicle.paintGroups.underBodyChassisShapes, 40));
+      marks.push({
+        kind: 'polygon',
+        points: worldBoxFace(project, busVehicle.bodyBox, 'front'),
+        fill: '#f0c98b',
+        stroke: '#6f5430',
+        strokeWidth: 0.75,
+        role: `vehicle-scene:alloc:${index}:bus-body-front`,
+        z: 42,
+      });
+      marks.push({
+        kind: 'polygon',
+        points: worldBoxFace(project, busVehicle.bodyBox, 'right'),
+        fill: '#e6b66f',
+        stroke: '#6f5430',
+        strokeWidth: 0.75,
+        role: `vehicle-scene:alloc:${index}:bus-body-side`,
+        z: 43,
+      });
+      marks.push(...vehicleShapesToMarks(facade.shapes, 44));
+      marks.push(...vehicleShapesToMarks(busVehicle.paintGroups.overlayWheelShapes, 45));
+    }
+  }
+
+  marks.push({
+    kind: 'text',
+    x: 36,
+    y: 512,
+    value: `allocations=${plan.diagnostics.allocationCount} collisions=${plan.diagnostics.collisionCount} unplaced=${plan.diagnostics.unplacedCount}`,
+    size: 12,
+    color: '#475569',
+    role: 'vehicle-scene:diagnostics',
+    z: 90,
+  });
+  return marks;
+}
+
+function truckBodyMarks(project, truckVehicle, role, zBase) {
+  return [
+    {
+      kind: 'polygon',
+      points: worldBoxFace(project, truckVehicle.trailerBox, 'front'),
+      fill: '#e2e8f0',
+      stroke: '#64748b',
+      strokeWidth: 0.75,
+      role: `${role}:trailer-body-front`,
+      z: zBase,
+    },
+    {
+      kind: 'polygon',
+      points: worldBoxFace(project, truckVehicle.trailerBox, 'right'),
+      fill: '#cbd5e1',
+      stroke: '#64748b',
+      strokeWidth: 0.75,
+      role: `${role}:trailer-body-side`,
+      z: zBase + 0.1,
+    },
+    {
+      kind: 'polygon',
+      points: worldBoxFace(project, truckVehicle.cabBox, 'front'),
+      fill: '#d7b06a',
+      stroke: '#6f5430',
+      strokeWidth: 0.75,
+      role: `${role}:cab-body-front`,
+      z: zBase + 0.2,
+    },
+    {
+      kind: 'polygon',
+      points: worldBoxFace(project, truckVehicle.cabBox, 'right'),
+      fill: '#c99348',
+      stroke: '#6f5430',
+      strokeWidth: 0.75,
+      role: `${role}:cab-body-side`,
+      z: zBase + 0.3,
+    },
+  ];
+}
+
+function vehicleShapesToMarks(shapes, zBase) {
+  return shapes.map((shape, index) => {
+    if (shape.kind === 'line') {
+      return {
+        kind: 'line',
+        x1: shape.from.x,
+        y1: shape.from.y,
+        x2: shape.to.x,
+        y2: shape.to.y,
+        stroke: shape.stroke || '#111827',
+        strokeWidth: shape.strokeWidth || 1,
+        role: shape.role,
+        z: zBase + index * 0.01,
+      };
+    }
+    return {
+      kind: 'polygon',
+      points: shape.points.map((point) => [point.x, point.y]),
+      fill: shape.fill || '#94a3b8',
+      stroke: shape.stroke || 'none',
+      strokeWidth: shape.strokeWidth || 0,
+      role: shape.role,
+      z: zBase + index * 0.01,
+    };
+  });
+}
+
+function worldBoxFace(project, box, face) {
+  const p0 = project([box.x, box.y, box.z]);
+  const p1 = project([box.x + box.width, box.y, box.z]);
+  const p2 = project([box.x + box.width, box.y + box.length, box.z]);
+  const p3 = project([box.x, box.y + box.length, box.z]);
+  const t0 = project([box.x, box.y, box.z + box.height]);
+  const t1 = project([box.x + box.width, box.y, box.z + box.height]);
+  const t2 = project([box.x + box.width, box.y + box.length, box.z + box.height]);
+  const t3 = project([box.x, box.y + box.length, box.z + box.height]);
+  if (face === 'front') return [p3, p2, t2, t3];
+  if (face === 'right') return [p2, p1, t1, t2];
+  return [t3, t2, t1, t0];
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 4 — portrait-bust recipe
+//
+// Bust-shot portrait composed of named generated masses sitting on a shared
+// rig: hair silhouette, shoulder slab, neck flared column, head egg, eyes,
+// mouth. Material-contract metadata is emitted on each mass so Phase 6
+// (material-contracts.js) can normalize the family later. Visible-skin
+// vocabulary stays inside existing renderer primitives (rect / polygon /
+// blob).
+// ─────────────────────────────────────────────────────────────────────────
+
+function compilePortraitBustRecipe(recipe) {
+  const subject = recipe.subject || 'portrait bust';
+  const title = recipe.title || titleFromSubject(subject);
+  const viewBox = recipeViewBox({ ...recipe, viewBox: recipe.viewBox || { width: 480, height: 600 } });
+  const palette = portraitBustPalette(recipe);
+  const rig = portraitBustRig(viewBox, recipe);
+  const marks = portraitBustMarks(rig, palette);
+  const impactPoint = [rig.headCenter[0], rig.headCenter[1]];
+  const { depiction, marks: panelMarks } = lowerDepictionLayout(buildRecipeDepiction(recipe, {
+    mode: 'related-physical-visual',
+    display: { kind: 'single-panel-portrait', panelCount: 1 },
+    panelBlocking: { paradigm: 'single-bust-block', eyeLine: 'head over shoulders, eyes at upper third' },
+    panels: [{ id: 'portrait', concern: 'bust-portrait', constellation: 'applies' }],
+  }), viewBox);
+
+  return {
+    title,
+    viewBox,
+    depiction,
+    polygonizer: {
+      subject,
+      outputStyle: 'portrait-bust',
+      impactPoint,
+      concept: { movementConcept: 'iconic bust portrait', depictionClass: 'portraitBust' },
+      picture: {
+        framing: recipe.camera || 'close bust',
+        shotAngle: recipe.pose?.headTurn || 'front three-quarter',
+        cameraDistance: 'close',
+        compositionIntent: 'head + shoulders + upper chest framed in a single panel',
+      },
+      elements: [
+        { role: 'background', importance: 'secondary', footprint: 'full panel', depthBand: 'background', blockingNeeded: 'cca' },
+        { role: 'shoulders-mass', importance: 'primary', footprint: 'lower bust slab', depthBand: 'midground', blockingNeeded: 'cca' },
+        { role: 'neck-mass', importance: 'primary', footprint: 'flared neck column', depthBand: 'midground', blockingNeeded: 'cca' },
+        { role: 'hair-mass', importance: 'primary', footprint: 'hair silhouette behind head', depthBand: 'midground', blockingNeeded: 'cca' },
+        { role: 'head-mass', importance: 'primary', footprint: 'inverted egg head', depthBand: 'foreground', blockingNeeded: 'cca' },
+      ],
+      blockingReality: [
+        { role: 'background-block', basis: 'cca', footprint: 'flat panel backdrop', depthBand: 'background', purpose: 'iconic frame for the bust' },
+        { role: 'shoulders-block', basis: 'cca', footprint: 'wide trapezoid below neck', depthBand: 'midground', purpose: 'primary bust mass anchoring the figure' },
+        { role: 'neck-block', basis: 'cca', footprint: 'flared column between head and shoulders', depthBand: 'midground', purpose: 'connect head to shoulders' },
+        { role: 'hair-block', basis: 'cca', footprint: 'curved silhouette behind head', depthBand: 'midground', purpose: 'hair frames the head' },
+        { role: 'head-block', basis: 'cca', footprint: 'inverted-egg head mass', depthBand: 'foreground', purpose: 'face anchor for eye and mouth marks' },
+      ],
+      realityFacts: [
+        'single bust portrait',
+        `${recipe.pose?.headTurn || 'front three-quarter'} pose`,
+        'visible head, neck, shoulders',
+        'eyes on the upper third of the face',
+      ],
+      minimalAbstractions: [
+        'portraitBust recipe = rig anchors + named mass polygons',
+        'head sits on neck, neck sits on shoulders, hair sits behind head',
+        'visible-skin marks are ordinary blob/polygon/rect kinds',
+      ],
+      recipeAudit: auditRecipe({ ...recipe, kind: 'portraitBust' }),
+    },
+    scene: {
+      view: { direction: [0, -0.3], baseZ: 10 },
+      light: { direction: [-0.52, -0.78], z: 0.7 },
+      palette: palette.name,
+    },
+    marks: [...panelMarks, ...marks],
+  };
+}
+
+function portraitBustPalette(recipe) {
+  const tone = String(recipe.palette || recipe.style || 'warm-low-key').toLowerCase();
+  const presets = {
+    'warm-low-key': {
+      name: 'warm-low-key',
+      background: '#1c1612',
+      skin: recipe.skinTone || '#c69b78',
+      skinShadow: '#7a5a44',
+      hair: recipe.hairColor || '#3a2418',
+      garment: recipe.garmentColor || '#3f2620',
+      garmentEdge: '#1f120e',
+      eye: '#1a120c',
+      mouth: '#7a3422',
+    },
+    'cool-high-key': {
+      name: 'warm-low-key',
+      background: '#e9e3d8',
+      skin: recipe.skinTone || '#e2c2a7',
+      skinShadow: '#a98570',
+      hair: recipe.hairColor || '#4b3a36',
+      garment: recipe.garmentColor || '#37445a',
+      garmentEdge: '#1a2230',
+      eye: '#1c1c20',
+      mouth: '#b15f4f',
+    },
+  };
+  return presets[tone] || presets['warm-low-key'];
+}
+
+function portraitBustRig(viewBox, recipe) {
+  const cx = viewBox.width / 2;
+  const headRy = Math.round(viewBox.height * 0.14);
+  const headRx = Math.round(headRy * 0.82);
+  const headCy = Math.round(viewBox.height * 0.34);
+  const neckTopY = headCy + headRy - 4;
+  const neckBottomY = neckTopY + Math.round(viewBox.height * 0.08);
+  const shouldersTopY = neckBottomY - 4;
+  const shouldersBottomY = viewBox.height;
+  const headTilt = Number(recipe.pose?.headTilt) || 0;
+  const headCenter = [Math.round(cx + headTilt * 8), headCy];
+  return {
+    cx,
+    viewBox,
+    headCenter,
+    headRx,
+    headRy,
+    neckTopY,
+    neckBottomY,
+    neckHalfTop: Math.round(headRx * 0.32),
+    neckHalfBottom: Math.round(headRx * 0.5),
+    shouldersTopY,
+    shouldersBottomY,
+    shouldersHalfTop: Math.round(headRx * 1.2),
+    shouldersHalfBottom: Math.round(viewBox.width * 0.46),
+    hairRy: Math.round(headRy * 1.18),
+    hairRx: Math.round(headRx * 1.18),
+    eyeOffsetX: Math.round(headRx * 0.42),
+    eyeOffsetY: Math.round(headRy * 0.05),
+    eyeRx: Math.max(3, Math.round(headRx * 0.1)),
+    eyeRy: Math.max(2, Math.round(headRy * 0.06)),
+    mouthOffsetY: Math.round(headRy * 0.5),
+    mouthHalfW: Math.round(headRx * 0.32),
+  };
+}
+
+function portraitBustMarks(rig, palette) {
+  const { viewBox, headCenter, headRx, headRy } = rig;
+  const marks = [];
+  marks.push({
+    kind: 'rect',
+    role: 'background',
+    x: 0, y: 0, w: viewBox.width, h: viewBox.height,
+    fill: palette.background,
+    z: 1,
+    generatedMass: 'flat-backdrop',
+    materialContractFamily: 'backdrop',
+  });
+  marks.push({
+    kind: 'polygon',
+    role: 'shoulders-mass',
+    points: [
+      [rig.cx - rig.shouldersHalfTop, rig.shouldersTopY],
+      [rig.cx + rig.shouldersHalfTop, rig.shouldersTopY],
+      [rig.cx + rig.shouldersHalfBottom, rig.shouldersBottomY],
+      [rig.cx - rig.shouldersHalfBottom, rig.shouldersBottomY],
+    ],
+    fill: palette.garment,
+    stroke: palette.garmentEdge,
+    strokeWidth: 1,
+    z: 10,
+    generatedMass: 'peach-profile-shoulders',
+    materialContractFamily: 'peach-profile',
+  });
+  marks.push({
+    kind: 'polygon',
+    role: 'neck-mass',
+    points: [
+      [rig.cx - rig.neckHalfTop, rig.neckTopY],
+      [rig.cx + rig.neckHalfTop, rig.neckTopY],
+      [rig.cx + rig.neckHalfBottom, rig.neckBottomY],
+      [rig.cx - rig.neckHalfBottom, rig.neckBottomY],
+    ],
+    fill: palette.skinShadow,
+    stroke: palette.garmentEdge,
+    strokeWidth: 0.8,
+    z: 11,
+    generatedMass: 'peach-profile-neck',
+    materialContractFamily: 'peach-profile',
+  });
+  marks.push({
+    kind: 'blob',
+    role: 'hair-mass',
+    anchor: [headCenter[0], headCenter[1] - 6],
+    rx: rig.hairRx,
+    ry: rig.hairRy,
+    fill: palette.hair,
+    stroke: '#1a120c',
+    strokeWidth: 0.8,
+    z: 12,
+    generatedMass: 'hair-silhouette',
+    materialContractFamily: 'hair',
+  });
+  marks.push({
+    kind: 'blob',
+    role: 'head-mass',
+    anchor: headCenter,
+    rx: headRx,
+    ry: headRy,
+    fill: palette.skin,
+    stroke: palette.skinShadow,
+    strokeWidth: 0.9,
+    z: 15,
+    generatedMass: 'inverted-egg-head',
+    materialContractFamily: 'peach-profile',
+  });
+  // Eyes (two small ovals positioned at the upper third of the head).
+  for (const side of [-1, 1]) {
+    marks.push({
+      kind: 'oval',
+      role: `eye-${side === -1 ? 'left' : 'right'}`,
+      cx: headCenter[0] + side * rig.eyeOffsetX,
+      cy: headCenter[1] + rig.eyeOffsetY,
+      rx: rig.eyeRx,
+      ry: rig.eyeRy,
+      fill: palette.eye,
+      z: 18,
+      generatedMass: 'eye-oval',
+      materialContractFamily: 'face-feature',
+    });
+  }
+  // Mouth.
+  marks.push({
+    kind: 'polygon',
+    role: 'mouth',
+    points: [
+      [headCenter[0] - rig.mouthHalfW, headCenter[1] + rig.mouthOffsetY],
+      [headCenter[0], headCenter[1] + rig.mouthOffsetY + 4],
+      [headCenter[0] + rig.mouthHalfW, headCenter[1] + rig.mouthOffsetY],
+      [headCenter[0], headCenter[1] + rig.mouthOffsetY - 1],
+    ],
+    fill: palette.mouth,
+    stroke: palette.skinShadow,
+    strokeWidth: 0.6,
+    z: 19,
+    generatedMass: 'mouth-lozenge',
+    materialContractFamily: 'face-feature',
+  });
+  return marks;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 4 — room-interior-two-point recipe
+//
+// Corner view of an empty interior in two-point perspective: floor and
+// ceiling triangles converge to the back corner; left/right walls converge
+// to opposite vanishing points. Marks use the existing renderer plane-role
+// names ('room:floor-plane' etc.) so roomConcept resolution downstream picks
+// them up. Two-point camera primitive declared via polygonizer.twoPointCamera
+// so the resolver downstream can lock anchors.
+// ─────────────────────────────────────────────────────────────────────────
+
+function compileRoomInteriorTwoPointRecipe(recipe) {
+  const subject = recipe.subject || 'two-point interior corner';
+  const title = recipe.title || titleFromSubject(subject);
+  const viewBox = recipeViewBox({ ...recipe, viewBox: recipe.viewBox || { width: 800, height: 520 } });
+  const palette = roomInteriorPalette(recipe);
+  const room = roomInteriorRig(viewBox, recipe);
+  const marks = roomInteriorMarks(room, palette);
+  const impactPoint = [room.backCornerX, room.backCornerFloorY];
+  const { depiction, marks: panelMarks } = lowerDepictionLayout(buildRecipeDepiction(recipe, {
+    mode: 'related-physical-visual',
+    display: { kind: 'single-panel-interior', panelCount: 1 },
+    panelBlocking: { paradigm: 'two-point-corner-block', eyeLine: 'back corner on the horizon line; floor + ceiling converge to it' },
+    panels: [{ id: 'interior', concern: 'two-point-interior', constellation: 'applies' }],
+  }), viewBox);
+
+  return {
+    title,
+    viewBox,
+    depiction,
+    polygonizer: {
+      subject,
+      outputStyle: 'two-point-interior',
+      impactPoint,
+      concept: { movementConcept: 'corner-on interior', depictionClass: 'roomInteriorTwoPoint' },
+      picture: {
+        framing: recipe.camera || 'two-point interior corner',
+        shotAngle: 'eye-level',
+        cameraDistance: 'inside the room',
+        compositionIntent: 'floor + left wall + right wall + ceiling meeting at a back corner',
+      },
+      elements: [
+        { role: 'room:floor-plane', importance: 'primary', footprint: 'floor triangle converging to back corner', depthBand: 'midground', blockingNeeded: 'cca' },
+        { role: 'room:ceiling-plane', importance: 'primary', footprint: 'ceiling triangle converging to back corner', depthBand: 'midground', blockingNeeded: 'cca' },
+        { role: 'room:left-wall-plane', importance: 'primary', footprint: 'left wall converging to right vanishing point', depthBand: 'midground', blockingNeeded: 'cca' },
+        { role: 'room:right-wall-plane', importance: 'primary', footprint: 'right wall converging to left vanishing point', depthBand: 'midground', blockingNeeded: 'cca' },
+      ],
+      blockingReality: [
+        { role: 'floor-block', basis: 'cca', footprint: 'floor plane meeting walls at the bottom edge', depthBand: 'midground', purpose: 'ground plane' },
+        { role: 'ceiling-block', basis: 'cca', footprint: 'ceiling plane meeting walls at the top edge', depthBand: 'midground', purpose: 'upper plane' },
+        { role: 'left-wall-block', basis: 'cca', footprint: 'left wall converging into the back corner', depthBand: 'midground', purpose: 'side plane left' },
+        { role: 'right-wall-block', basis: 'cca', footprint: 'right wall converging into the back corner', depthBand: 'midground', purpose: 'side plane right' },
+      ],
+      draftingTable: {
+        horizonY: room.horizonY,
+        vanishingPoint: room.rightVP,
+        baselineY: room.bottomY,
+        rulerAxes: { x: 'horizontal screen extent', y: 'vertical screen extent', z: 'depth toward back corner' },
+        depthBands: {
+          foreground: [Math.round(viewBox.height * 0.7), viewBox.height],
+          midground: [room.horizonY - 60, Math.round(viewBox.height * 0.7)],
+          background: [0, room.horizonY - 60],
+        },
+        eyeLine: { direction: [0, 0], stackingRule: 'all wall edges converge to one of the two vanishing points on the horizon' },
+      },
+      twoPointCamera: {
+        kind: 'two-point',
+        vanishingPoints: [room.leftVP, room.rightVP],
+        horizonY: room.horizonY,
+        backCorner: [room.backCornerX, room.backCornerFloorY],
+        projectedPins: [
+          { role: 'room:floor-plane', screen: [room.backCornerX, room.backCornerFloorY], spawnDirection: 'down' },
+          { role: 'room:ceiling-plane', screen: [room.backCornerX, room.backCornerCeilingY], spawnDirection: 'up' },
+        ],
+      },
+      cameraPrimitive: {
+        kind: 'two-point',
+        canonicalAngle: 'corner-on',
+        cameraPoint: { kind: 'eye-level' },
+        vanishingPoints: [room.leftVP, room.rightVP],
+      },
+      roomConcept: {
+        kind: 'interior-room',
+        camera: { mode: 'two-point-camera-primitive', subjectFraming: 'full-frame-room' },
+        placementSpace: { gravityAxis: 'camera-floor-depth', supportPlane: 'room:floor-plane', fullFrameBounds: 'room-envelope' },
+        requiredRoles: ['room:floor-plane', 'room:ceiling-plane', 'room:left-wall-plane', 'room:right-wall-plane'],
+        fullFrame: true,
+      },
+      pureMandala: { kind: 'room-corner', room: true, backCorner: [room.backCornerX, room.backCornerFloorY] },
+      realityFacts: [
+        'two-point corner view',
+        'floor + ceiling + 2 walls visible',
+        'back corner on the horizon',
+        'no back wall in view (corner-on)',
+      ],
+      minimalAbstractions: [
+        'roomInteriorTwoPoint recipe = 2 vanishing points on a horizon + back corner anchor',
+        'each room plane is one polygon converging to its associated vanishing point',
+      ],
+      recipeAudit: auditRecipe({ ...recipe, kind: 'roomInteriorTwoPoint' }),
+    },
+    scene: {
+      view: { direction: [0, 0], baseZ: 10 },
+      light: { direction: [-0.45, -0.7], z: 0.65 },
+      palette: palette.name,
+      cameraPrimitive: { kind: 'two-point', vanishingPoints: [room.leftVP, room.rightVP], horizonY: room.horizonY },
+    },
+    marks: [...panelMarks, ...marks],
+  };
+}
+
+function roomInteriorPalette(recipe) {
+  const tone = String(recipe.palette || recipe.style || 'warm-low-key').toLowerCase();
+  const presets = {
+    'warm-low-key': {
+      name: 'warm-low-key',
+      floor: recipe.floorColor || '#5a4030',
+      floorEdge: '#2a1c14',
+      ceiling: recipe.ceilingColor || '#a89070',
+      ceilingEdge: '#665040',
+      leftWall: recipe.leftWallColor || '#806350',
+      rightWall: recipe.rightWallColor || '#6e5240',
+      wallEdge: '#2a1c14',
+    },
+    'cool-high-key': {
+      name: 'warm-low-key',
+      floor: recipe.floorColor || '#aebfc7',
+      floorEdge: '#5a6a72',
+      ceiling: recipe.ceilingColor || '#e7eff2',
+      ceilingEdge: '#8a9aa2',
+      leftWall: recipe.leftWallColor || '#c9d4d8',
+      rightWall: recipe.rightWallColor || '#b6c2c8',
+      wallEdge: '#5a6a72',
+    },
+  };
+  return presets[tone] || presets['warm-low-key'];
+}
+
+function roomInteriorRig(viewBox, recipe) {
+  const margin = 40;
+  const horizonY = Math.round(viewBox.height * 0.5);
+  // Vanishing points sit on the horizon, outside the frame on both sides.
+  const leftVP = [-Math.round(viewBox.width * 0.25), horizonY];
+  const rightVP = [viewBox.width + Math.round(viewBox.width * 0.25), horizonY];
+  // Back-corner horizontal position; 0.5 → centered, override via recipe.cornerX.
+  const cornerT = Number.isFinite(Number(recipe.cornerX)) ? clamp01(Number(recipe.cornerX)) : 0.5;
+  const backCornerX = Math.round(viewBox.width * cornerT);
+  const topY = margin;
+  const bottomY = viewBox.height - margin;
+  // Where the floor lines converge at backCornerX, find the y on each line.
+  const backCornerFloorY = intersectLineAtX(
+    [margin, bottomY], rightVP, backCornerX,
+  );
+  const backCornerCeilingY = intersectLineAtX(
+    [margin, topY], rightVP, backCornerX,
+  );
+  return {
+    viewBox,
+    margin,
+    horizonY,
+    leftVP,
+    rightVP,
+    topY,
+    bottomY,
+    backCornerX,
+    backCornerFloorY: Math.round(backCornerFloorY),
+    backCornerCeilingY: Math.round(backCornerCeilingY),
+  };
+}
+
+function roomInteriorMarks(room, palette) {
+  const { viewBox, margin, topY, bottomY, backCornerX, backCornerFloorY, backCornerCeilingY } = room;
+  const marks = [];
+  // Floor: front edge (full width) -> back corner.
+  marks.push({
+    kind: 'polygon',
+    role: 'room:floor-plane',
+    points: [
+      [margin, bottomY],
+      [viewBox.width - margin, bottomY],
+      [backCornerX, backCornerFloorY],
+    ],
+    fill: palette.floor,
+    stroke: palette.floorEdge,
+    strokeWidth: 1,
+    z: 4,
+    generatedMass: 'two-point-floor-triangle',
+    materialContractFamily: 'room-plane',
+  });
+  // Ceiling: front edge (full width) -> back corner.
+  marks.push({
+    kind: 'polygon',
+    role: 'room:ceiling-plane',
+    points: [
+      [margin, topY],
+      [viewBox.width - margin, topY],
+      [backCornerX, backCornerCeilingY],
+    ],
+    fill: palette.ceiling,
+    stroke: palette.ceilingEdge,
+    strokeWidth: 1,
+    z: 5,
+    generatedMass: 'two-point-ceiling-triangle',
+    materialContractFamily: 'room-plane',
+  });
+  // Left wall: front vertical edge at x=margin, back vertical edge at backCornerX.
+  marks.push({
+    kind: 'polygon',
+    role: 'room:left-wall-plane',
+    points: [
+      [margin, topY],
+      [backCornerX, backCornerCeilingY],
+      [backCornerX, backCornerFloorY],
+      [margin, bottomY],
+    ],
+    fill: palette.leftWall,
+    stroke: palette.wallEdge,
+    strokeWidth: 1,
+    z: 6,
+    generatedMass: 'two-point-wall-quad',
+    materialContractFamily: 'room-plane',
+  });
+  // Right wall mirrors left.
+  marks.push({
+    kind: 'polygon',
+    role: 'room:right-wall-plane',
+    points: [
+      [viewBox.width - margin, topY],
+      [backCornerX, backCornerCeilingY],
+      [backCornerX, backCornerFloorY],
+      [viewBox.width - margin, bottomY],
+    ],
+    fill: palette.rightWall,
+    stroke: palette.wallEdge,
+    strokeWidth: 1,
+    z: 7,
+    generatedMass: 'two-point-wall-quad',
+    materialContractFamily: 'room-plane',
+  });
+  return marks;
+}
+
+function clamp01(v) {
+  if (!Number.isFinite(v)) return 0.5;
+  if (v < 0.1) return 0.1;
+  if (v > 0.9) return 0.9;
+  return v;
+}
+
+function intersectLineAtX(p0, p1, x) {
+  const dx = p1[0] - p0[0];
+  if (Math.abs(dx) < 1e-6) return p0[1];
+  const t = (x - p0[0]) / dx;
+  return p0[1] + t * (p1[1] - p0[1]);
 }
 
 function normalizeGarmentPatternStyle(recipe) {

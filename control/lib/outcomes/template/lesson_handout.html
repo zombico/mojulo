@@ -1,0 +1,130 @@
+{{>doc-head}}
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #475569;
+    --faint: #94a3b8;
+    --line: #e2e8f0;
+    --paper: #f8fafc;
+    --page: #ffffff;
+    --accent: #0f766e;
+    --accent-soft: #ecfdf5;
+    /* Scaffolding profile — overridden per learner band below. */
+    --base-size: 16px;
+    --lead: 1.6;
+    --step-title: 19px;
+    --step-gap: 22px;
+  }
+  /* Band-keyed scaffolding: presentation only (type scale + spacing). The
+     renderer never rewrites prose — see lesson-plan.js. */
+  body[data-band="lower_primary"] { --base-size: 20px; --lead: 1.8; --step-title: 24px; --step-gap: 30px; }
+  body[data-band="upper_primary"] { --base-size: 18px; --lead: 1.7; --step-title: 22px; --step-gap: 26px; }
+  body[data-band="middle"]        { --base-size: 17px; --lead: 1.65; --step-title: 20px; --step-gap: 24px; }
+  body[data-band="secondary"]     { --base-size: 16px; --lead: 1.6; --step-title: 19px; --step-gap: 22px; }
+  body[data-band="undergrad"]     { --base-size: 15.5px; --lead: 1.55; --step-title: 18px; --step-gap: 20px; }
+  body[data-band="professional"]  { --base-size: 15px; --lead: 1.5; --step-title: 17px; --step-gap: 18px; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: var(--lead);
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 760px; margin: 0 auto; padding: 40px 24px 96px; }
+
+  .face-bar {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    background: var(--page); border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 16px; margin-bottom: 20px; font-size: 13px;
+  }
+  .face-bar .here { color: var(--accent); font-weight: 700; }
+  .face-bar a { color: var(--muted); text-decoration: none; font-weight: 600; }
+  .face-bar a:hover { color: var(--accent); }
+
+  .cover {
+    background: var(--page); border: 1px solid var(--line); border-radius: 6px;
+    padding: 36px 36px 28px; margin-bottom: 24px;
+  }
+  .cover .eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin: 0 0 12px; font-weight: 700; }
+  .cover h1 { font-size: 28px; line-height: 1.2; margin: 0; font-weight: 800; letter-spacing: -0.01em; }
+  .overview { margin: 16px 0 0; color: var(--muted); font-size: var(--base-size); border-left: 3px solid var(--accent-soft); padding-left: 16px; }
+  .overview p { margin: 0 0 0.7em; }
+  .overview p:last-child { margin-bottom: 0; }
+
+  .lesson-section { background: var(--page); border: 1px solid var(--line); border-radius: 6px; padding: 28px 36px; margin: 18px 0; }
+  .sec-head { margin: 0 0 18px; padding-bottom: 10px; border-bottom: 2px solid var(--accent); }
+  .sec-head h2 { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 0; font-weight: 800; }
+
+  .step { margin: 0 0 var(--step-gap); }
+  .step:last-child { margin-bottom: 0; }
+  .step-title { font-size: var(--step-title); margin: 0 0 8px; font-weight: 700; }
+  .step-body { font-size: var(--base-size); color: var(--ink); }
+  .step-body p { margin: 0 0 0.7em; }
+  .step-body ul, .step-body ol { margin: 0 0 0.7em 1.4em; padding: 0; }
+  .step-body li { margin: 0 0 0.4em; }
+  .step-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; background: var(--accent-soft); color: var(--accent); padding: 1px 5px; border-radius: 3px; }
+  .step-body table { width: 100%; border-collapse: collapse; margin: 0 0 0.8em; font-size: 0.95em; }
+  .step-body th, .step-body td { padding: 7px 11px; border-bottom: 1px solid var(--line); text-align: left; }
+  .step-body th { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+  .check { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); font-size: var(--base-size); }
+  .check:last-child { margin-bottom: 0; }
+  .check-q p { margin: 0 0 0.5em; font-weight: 600; }
+
+  .ref { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px dotted var(--line); }
+  .ref:last-child { border-bottom: 0; }
+  .ref a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: var(--base-size); }
+  .ref a:hover { text-decoration: underline; }
+  .ref-domain { font-size: 11px; color: var(--faint); white-space: nowrap; }
+
+  .figure { margin: 0 0 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 16px 18px 12px; }
+  .figure:last-child { margin-bottom: 0; }
+  .figure .fig-img { aspect-ratio: 16 / 10; background: var(--page); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .figure .fig-img svg { width: 100%; height: 100%; display: block; }
+  .figure .fig-img.missing { color: var(--faint); font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 20px; text-align: center; }
+  .figure figcaption { margin-top: 10px; font-size: 0.85em; color: var(--muted); }
+  .figure .fig-label { color: var(--ink); font-weight: 600; }
+  .figure .fig-caption { margin-top: 6px; }
+  .figure .fig-caption p { margin: 0 0 0.4em; }
+
+  .callout { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 4px 4px 0; padding: 12px 16px; margin: 0 0 16px; font-size: var(--base-size); }
+  .callout:last-child { margin-bottom: 0; }
+  .callout .callout-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 800; margin: 0 0 5px; }
+  .callout .callout-body { margin: 0; }
+
+  footer.colophon { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 11px; color: var(--faint); text-align: center; letter-spacing: 0.04em; }
+  footer.colophon code { font-family: ui-monospace, Menlo, monospace; }
+
+  @media print {
+    body { background: white; }
+    .sheet { padding: 0; max-width: none; }
+    .face-bar { display: none; }
+    .cover, .lesson-section { box-shadow: none; page-break-inside: avoid; break-inside: avoid; }
+    .figure { page-break-inside: avoid; break-inside: avoid; }
+    footer.colophon { display: none; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body data-band="{{band}}">
+<main class="sheet">
+  <nav class="face-bar">
+    <span class="here">Student handout</span>
+    <a href="index.html">← Back to teacher plan</a>
+  </nav>
+
+  <section class="cover">
+    <p class="eyebrow">Lesson</p>
+    <h1>{{cover_title}}</h1>
+    {{overview_html}}
+  </section>
+
+  {{sections_html}}
+
+  <footer class="colophon">
+    lesson_plan handout v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_human}}
+  </footer>
+</main>
+</body>
+</html>

@@ -61,6 +61,7 @@ export const MARK_KINDS = [
   'planePreset',
   'solidPreset',
   'object',
+  'boxNet',
   'text',
 ];
 const MARK_KIND_SET = new Set(MARK_KINDS);
@@ -347,6 +348,17 @@ function validateMark(mark, idx, errors) {
         errors.push(`${path}.anchor must be one of: start, middle, end (got '${mark.anchor}')`);
       }
       break;
+    case 'boxNet':
+      // A furniture/object box-net placed by the room planner: requires a net
+      // `type` (table/cabinet/chair/…); geometry (footprint, height, support
+      // pins) is resolved from the planner + the scene's two-point camera.
+      if (!mark.type || typeof mark.type !== 'string') {
+        errors.push(`${path}.type is required (a furniture net type, e.g. 'table')`);
+      }
+      if (mark.anchor !== undefined && (!Array.isArray(mark.anchor) || mark.anchor.length !== 2)) {
+        errors.push(`${path}.anchor must be a [u, v] pair if provided`);
+      }
+      break;
     default:
       break;
   }
@@ -563,4 +575,91 @@ export function expandGridLayout(manifest) {
     : manifest.marks;
 
   return { ...manifest, stations: nextStations, marks: nextMarks };
+}
+
+// --- Concern bucket: which tuned renderer owns this sketch -------------------
+//
+// A sketch is one primitive (one row) regardless of which concern claims it —
+// bind_stash, plan/research references, diff_sketches, folders, and today's
+// renderer dispatch on `manifest.kind` all behave identically. The bucket
+// decides which of two SIBLING concerns the sketch belongs to, each its own
+// tuned, opinionated surface:
+//
+//   diagram      — Sketches: diagrams, flows, charts, scientific explanation
+//                  (the /sketches concern)
+//   illustration — Mojulo Maker: a landscape or complicated figure in a
+//                  perspective / css3d / painterly context — something you LOOK AT
+//                  (the /maker/illustrations concern)
+//   world        — Mojulo Maker: a traversable three.js cityscape / hub — something
+//                  you MOVE THROUGH (the /maker/worlds concern)
+//
+// The bucket is derived purely from `manifest.kind`; the optional
+// `sketches.bucket` column overrides the derived value for the rare edge case
+// (e.g. a structural manji-tree the operator wants kept in Sketches). The two
+// concerns share the renderer today and are expected to diverge into separately
+// tuned renderers over time — the bucket is the seam they split along.
+
+export const BUCKETS = ['diagram', 'illustration', 'world'];
+const BUCKET_SET = new Set(BUCKETS);
+
+// Kinds that render in a perspective / css3d / painterly context — the
+// illustration set (Maker). Everything else (no kind, charts, flows) is a
+// diagram (Sketches). The traversable box-world kinds (fractal-city,
+// transportation-hub) are NOT here — they classify into the `world` bucket below,
+// keyed off WORLD_RENDER_KINDS so renderer mode and concern bucket stay aligned.
+export const ILLUSTRATION_KINDS = [
+  'manji-tree',
+  'painted-landscape',
+  'carved-solid',
+  'figure',
+  'css3d-turntable',
+  'room',
+  'subway-station',
+];
+const ILLUSTRATION_KIND_SET = new Set(ILLUSTRATION_KINDS);
+
+export function isBucket(value) {
+  return typeof value === 'string' && BUCKET_SET.has(value);
+}
+
+// Concern bucket, in priority order: a traversable world is its own concern
+// (moved-through), then the still illustration set (looked-at), else a diagram.
+// WORLD_RENDER_SET is declared just below in this module; classifyBucket is only
+// ever called at query time (well after module init), so the forward reference is
+// safe and keeps WORLD_RENDER_KINDS the single source of truth for membership.
+export function classifyBucket(manifest) {
+  const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
+  if (WORLD_RENDER_SET.has(kind)) return 'world';
+  return ILLUSTRATION_KIND_SET.has(kind) ? 'illustration' : 'diagram';
+}
+
+// --- Renderer dispatch: which UI renderer draws a sketch ---------------------
+//
+// Distinct from the concern bucket (which list owns it). Some illustration kinds
+// are NOT CreationMap diagrams and must never fall through to <CreationMap> (it
+// assumes a `viewBox` + nodes/edges and throws on a scene manifest). Every UI
+// surface that previews a sketch dispatches on this so the split stays in one
+// place instead of drifting per call site:
+//   svg     — server-rasterized; show via the /svg endpoint as an <img>
+//   world   — traversable three.js (WebGL) canvas; show via /world in an <iframe>
+//   scene   — live preserve-3d HTML, preset shots; show via /scene in an <iframe>
+//   diagram — the CreationMap vector renderer (flows / charts / maps)
+//
+// world vs scene is the "moved through" vs "looked at" split: box-world kinds
+// (cities, hubs) are navigable in three.js (depth-buffered, frustum-culled — the
+// DOM compositor stalls on the same geometry under a moving camera), while the
+// turntable stays a preset-shot CSS-3D scene.
+export const SVG_RENDER_KINDS = ['manji-tree', 'painted-landscape', 'carved-solid'];
+export const WORLD_RENDER_KINDS = ['fractal-city', 'transportation-hub'];
+export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
+const SVG_RENDER_SET = new Set(SVG_RENDER_KINDS);
+const WORLD_RENDER_SET = new Set(WORLD_RENDER_KINDS);
+const SCENE_RENDER_SET = new Set(SCENE_RENDER_KINDS);
+
+export function sketchRenderMode(manifest) {
+  const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
+  if (WORLD_RENDER_SET.has(kind)) return 'world';
+  if (SCENE_RENDER_SET.has(kind)) return 'scene';
+  if (SVG_RENDER_SET.has(kind)) return 'svg';
+  return 'diagram';
 }

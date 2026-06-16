@@ -11,6 +11,7 @@ import { createSketchHandler } from '@/lib/mcp/tools/sketches';
 import { getDb } from '@/lib/db/index.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
+import { isBucket } from '@/lib/graph/sketch-manifest';
 
 function sketchAssociationMap() {
   const db = getDb();
@@ -71,9 +72,16 @@ function withAssociations(sketches) {
   });
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const sketches = withAssociations(SketchRepository.list());
+    // ?bucket=diagram|illustration|world narrows the list to one concern
+    // (Sketches / Maker-Illustrations / Maker-Worlds); absent, every sketch is
+    // returned. The bucket is the effective (override-or-derived) value computed
+    // in the repository. Validated against BUCKETS via isBucket so the allow-list
+    // isn't hand-maintained here.
+    const bucketParam = new URL(request.url).searchParams.get('bucket');
+    const bucket = isBucket(bucketParam) ? bucketParam : null;
+    const sketches = withAssociations(SketchRepository.list({ bucket }));
     const folders = SketchFolderRepository.list();
     return NextResponse.json({ sketches, folders });
   } catch (err) {

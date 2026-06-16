@@ -380,6 +380,7 @@ function DetailPanel({ deployment, busy, onBuild, onConnect, onDelete, onBack })
 function BotsPageInner() {
   const t = useTranslations('dashboard');
   const tDetail = useTranslations('dashboard.detail');
+  const tCommon = useTranslations('common');
   const searchParams = useSearchParams();
   const { data, isLoading } = useSWR('/api/deployments', fetcher);
   const { data: keysData } = useSWR('/api/settings/api-keys', fetcher);
@@ -459,6 +460,12 @@ function BotsPageInner() {
             </Link>
           </div>
           <div className="flex gap-2 flex-shrink-0">
+            <Link
+              href="/map"
+              className="rounded-lg px-4 py-2 border border-[color:var(--border-color)] hover:border-[color:var(--text-muted)] transition"
+            >
+              {tCommon('servicesMap')}
+            </Link>
             <Link
               href="/data"
               className="rounded-lg px-4 py-2 border border-[color:var(--border-color)] hover:border-[color:var(--text-muted)] transition"

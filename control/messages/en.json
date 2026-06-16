@@ -3,6 +3,7 @@
     "save": "Save",
     "saving": "Saving…",
     "cancel": "Cancel",
+    "servicesMap": "Services Map",
     "delete": "Delete",
     "deleting": "Deleting…",
     "download": "Download",
@@ -27,6 +28,7 @@
       "cta": "Open Settings →"
     },
     "documentLibrary": "Document library →",
+    "dataLink": "Fleet data",
     "newBotChat": "New bot (chat)",
     "newBotWizard": "New bot (wizard)",
     "loadingShort": "Loading…",
@@ -933,6 +935,7 @@
       "noKeyGate": "The builders need an LLM provider key to run. Add one in the LLM Keys tab and head back.",
       "tabs": {
         "llm": "LLM Keys",
+        "builder": "Builder Mode",
         "provider": "Provider Keys",
         "language": "Language Setting"
       },
@@ -983,6 +986,26 @@
         "title": "Language Setting",
         "description": "Choose the language used in the control plane interface.",
         "label": "Interface language"
+      },
+      "builder": {
+        "title": "Builder Mode",
+        "description": "Choose how the bot builder executes agent work — parked on an external worker, or run in-process by the control plane.",
+        "modeLabel": "Execution mode",
+        "agentLabel": "Agent worker",
+        "agentDescription": "Builder tasks are parked for an external agent to pull. Attach a worker via /loop in your host agent, or run the in-process Node fulfiller.",
+        "selfHostedLabel": "Self-hosted",
+        "selfHostedDescription": "The control plane runs builder calls itself using your default LLM key. No external worker required.",
+        "saveError": "Save failed",
+        "worker": {
+          "title": "Worker status",
+          "checking": "Checking for an attached worker…",
+          "live": "Worker attached — builder tasks will be picked up.",
+          "liveNode": "In-process Node fulfiller running ({runtime}).",
+          "none": "No worker attached. Builder tasks will queue until one connects.",
+          "howto": "Attach a worker by either:",
+          "howtoLoop": "/loop in your host agent (Claude Code, Codex, etc.)",
+          "howtoEnv": "Or set MOJULO_AGENT_RUNTIME=claude-code-headless in the control plane env to spawn an in-process Node fulfiller."
+        }
       }
     }
   },
@@ -1161,7 +1184,76 @@
     }
   },
   "data": {
-    "title": "Fleet Data"
+    "title": "Fleet Data",
+    "subtitle": "Browse rows, run SQL, and roll up analytics across the local fleet.",
+    "tabs": {
+      "explorer": "Explorer",
+      "sql": "SQL",
+      "analytics": "Analytics"
+    },
+    "fleet": {
+      "unreachableBanner": "{unreachable} of {total} bots unreachable — totals are partial."
+    },
+    "schema": {
+      "availableTables": "Available tables",
+      "clickToShow": "Click to show",
+      "clickToHide": "Click to hide",
+      "note": "Note:",
+      "scopeNote": "Queries run against the local fleet of bots — each bot's SQLite is read live. Table and column descriptions reflect the per-bot conversation database, not the control-plane DB."
+    },
+    "sql": {
+      "placeholder": "SELECT * FROM conversations LIMIT 50",
+      "runQuery": "Run query",
+      "running": "Running…",
+      "help": "Help",
+      "exportCsv": "Export CSV",
+      "exportJson": "Export JSON",
+      "keyboardHint": "⌘/Ctrl + Enter to run",
+      "rowCount": "{count, plural, =0 {No rows} =1 {1 row} other {# rows}}",
+      "truncated": "(truncated)",
+      "starterQueries": {
+        "title": "Starter queries",
+        "hint": "Click any query to load it. Edit before running.",
+        "dailyStats": "Daily conversation counts",
+        "botHealth": "Bot health snapshot",
+        "protocolDistribution": "Protocol distribution",
+        "mostActiveBots": "Most active bots (last 7 days)",
+        "staleBots": "Bots with no recent activity",
+        "dailyByBot": "Daily conversations, per bot"
+      }
+    },
+    "analytics": {
+      "loading": "Loading…",
+      "noData": "No data in this range.",
+      "noActivityData": "No activity yet.",
+      "convs": "conversations",
+      "summary": {
+        "totalConversations": "Total conversations",
+        "totalTurns": "Total turns",
+        "avgTurnsPerConversation": "Avg turns / conversation",
+        "activeBots": "Active bots"
+      },
+      "charts": {
+        "dailyConversations": "Daily conversations",
+        "topBotsByActivity": "Top bots by activity",
+        "activityHeatmap": "Activity by day of week × hour"
+      },
+      "days": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      },
+      "dateRange": {
+        "last7days": "Last 7 days",
+        "last14days": "Last 14 days",
+        "last30days": "Last 30 days",
+        "last90days": "Last 90 days"
+      }
+    }
   },
   "apps": {
     "title": "Apps",
@@ -1451,17 +1543,73 @@
     "copied": "Copied",
     "close": "Close"
   },
+  "operations": {
+    "title": "Operations",
+    "subtitle": "Domain-scoped tags. Each tag's descriptor is the thesis its members are measured against. Consulted, not driving.",
+    "navLabel": "Operations",
+    "total": "{count} tags",
+    "count": "{count} tags",
+    "filteredCount": "{count} of {total}",
+    "searchPlaceholder": "Search tags…",
+    "loading": "Loading…",
+    "emptyState": "No ops tags yet. Click New Tag to forge one (e.g. \"Marketing\", \"Finance\").",
+    "noMatch": "No tags match.",
+    "selectPrompt": "Select a tag to view it.",
+    "statusActive": "Active",
+    "statusArchived": "Archived",
+    "showArchived": "Show archived ({count})",
+    "hideArchived": "Hide archived ({count})",
+    "allArchived": "All matching tags are archived.",
+    "memberCount": "{count} members",
+    "createdAt": "Forged {timestamp}",
+    "updatedAt": "Updated {timestamp}",
+    "newTag": "New Tag",
+    "edit": "Edit",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "descriptorHeading": "Descriptor",
+    "descriptorNote": "The rubric each member is measured against. Sharpen this to disable drift.",
+    "membersHeading": "Members ({count})",
+    "membersNote": "Members are bound through your host agent (Ring 11: bind_to_ops_tag). The dashboard owns the tag frame; the agent owns the bindings.",
+    "membersEmpty": "No members bound yet. Have your host agent bind a bot, app, mcp_orbit, cook, catalyst, trigger, or stash.",
+    "howToHeading": "How this works",
+    "howToBody": "Operations tags bind committed-reality resources (bots, apps, mcp-orbit compositions, cooks, catalysts, triggers, stashes) under one descriptor. Create + edit tags here in the dashboard; bind / unbind members from your host agent (Ring 11 MCP tools). Plans and research aren't members — they remain reachable as provenance through bound members.",
+    "memberBot": "Bots",
+    "memberApp": "Apps",
+    "memberMcpOrbit": "MCP-orbit compositions",
+    "memberCook": "Cooks",
+    "memberCatalyst": "Catalysts",
+    "memberTrigger": "Triggers",
+    "memberStash": "Stashes",
+    "memberMotion": "Motion",
+    "newTagTitle": "New ops tag",
+    "editTagTitle": "Edit ops tag",
+    "modalIntro": "The descriptor is the thesis members will be measured against. Be precise — vague descriptors disable downstream moves like audit and drift detection.",
+    "titleLabel": "Title",
+    "titlePlaceholder": "e.g. Marketing",
+    "descriptorLabel": "Descriptor (markdown)",
+    "descriptorPlaceholder": "Marketing — lead nurture, brand voice X, no transactional outreach.",
+    "descriptorHint": "One to three sentences naming what's in scope, brand/voice constraints, owner if any.",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "saveChanges": "Save changes",
+    "forgeTag": "Forge tag",
+    "errorTitleRequired": "Title is required.",
+    "errorDescriptorRequired": "Descriptor is required — this is what members are measured against."
+  },
   "home": {
-    "title": "Mojulo",
+    "title": "Workshop",
     "tiles": {
       "bots": "Bots",
       "mcpSkills": "Connected Services",
       "apps": "Apps",
-      "sketch": "Sketch",
-      "plan": "Plan",
-      "map": "Map",
+      "sketch": "Sketches",
+      "maker": "Maker",
+      "plan": "Plans",
+      "outputs": "Outputs",
       "research": "Research",
-      "stash": "Stash",
+      "stash": "Stashes",
+      "operations": "Operations",
       "settings": "Settings"
     },
     "agentStatus": {
@@ -1487,6 +1635,88 @@
     "notFoundTitle": "Sketch not found",
     "notFoundBody": "This sketch ref does not exist or has not been minted yet."
   },
+  "maker": {
+    "hub": {
+      "title": "Mojulo Maker",
+      "subtitle": "The illustration studio: mint landscapes, figures, and 3D scenes, and set them in motion. A tuned creative surface, sibling to Sketches (tuned for diagrams). An illustration is the same sketch primitive — stash, reference, and diff it either way."
+    },
+    "open": "Open",
+    "empty": "Nothing here yet",
+    "itemCount": "{count, plural, =0 {empty} one {# item} other {# items}}",
+    "illustrations": {
+      "title": "Illustrations",
+      "subtitle": "Landscapes, figures, and complicated perspective, CSS-3D, and painterly renders.",
+      "blurb": "Painted landscapes, posed figures, carved solids — the rich visual set you look at."
+    },
+    "worlds": {
+      "title": "Worlds",
+      "subtitle": "Traversable three.js cityscapes and transportation hubs — drag to orbit, scroll to zoom, move through them.",
+      "blurb": "Fractal cities and transportation hubs rendered as navigable 3D worlds, not flat pictures."
+    },
+    "motion": {
+      "title": "Motion",
+      "blurb": "Movies and GIFs — camera paths and slideshows rendered to animated artifacts."
+    }
+  },
+  "motion": {
+    "title": "Motion",
+    "subtitle": "Animated artifacts from forge_motion, grouped by Motion Project. Each tile opens a frame-accurate player.",
+    "total": "{count} motions",
+    "searchPlaceholder": "Search by title, motion, ref, or project…",
+    "loading": "Loading…",
+    "empty": "No motion artifacts yet.",
+    "emptyHint": "Create one from your host agent with forge_motion — put a manji-tree subject in motion (turntable, orbit, push_in, dolly_zoom, flythrough).",
+    "noMatch": "No motions match your search.",
+    "untitledProject": "Untitled project",
+    "untagged": "Untagged",
+    "shots": "{count} shots",
+    "openPlayer": "Open player",
+    "noPreview": "No preview",
+    "framesLabel": "{count} frames",
+    "fpsLabel": "{fps} fps"
+  },
+  "cooks": {
+    "title": "Output Artifacts",
+    "subtitle": "Materialized publications from cook(). Each row links to its outcome page.",
+    "total": "{count, plural, =0 {No cooks} =1 {1 cook} other {# cooks}}",
+    "count": "{count, plural, =0 {No matches} =1 {1 cook} other {# cooks}}",
+    "filteredCount": "{count} of {total} shown",
+    "searchPlaceholder": "Search by aim or ref…",
+    "loading": "Loading…",
+    "empty": "No cooks yet.",
+    "emptyHint": "Ask your agent to run the cook MCP tool against a stash.",
+    "noMatch": "No cooks match this search.",
+    "filterKindLabel": "Kind",
+    "filterStatusLabel": "Status",
+    "statusOpen": "Open",
+    "statusArchived": "Archived",
+    "statusAll": "All",
+    "kindAll": "All",
+    "kindEssay": "Essay",
+    "kindPictureBook": "Picture book",
+    "kindSlideDeck": "Slide deck",
+    "kindFlyer": "Flyer",
+    "kindBrief": "Brief",
+    "kindResume": "Resume",
+    "kindNewsletter": "Newsletter",
+    "kindFieldGuide": "Field guide",
+    "kindPamphlet": "Pamphlet",
+    "kindTextbook": "Textbook",
+    "kindNovel": "Novella",
+    "kindVisualGuide": "Visual guide",
+    "kindUnknown": "Unknown",
+    "actions": {
+      "archive": "Archive",
+      "unarchive": "Unarchive"
+    },
+    "sourceLabel": "From",
+    "sourceUnknown": "(stash removed)",
+    "lensLabel": "Lens",
+    "createdAt": "Created {timestamp}",
+    "viewOutcome": "View outcome",
+    "sliceCount": "{count, plural, =0 {no slices} =1 {1 slice} other {# slices}}",
+    "untitledAim": "(no aim recorded)"
+  },
   "stashes": {
     "title": "Stashes",
     "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
@@ -1509,6 +1739,7 @@
     "startFromAgent": "Start a stash from your agent",
     "actions": {
       "rename": "Rename",
+      "edit": "Edit",
       "archive": "Archive",
       "unarchive": "Unarchive",
       "save": "Save",
@@ -1545,8 +1776,11 @@
         "svg": "SVG",
         "script": "Script",
         "pointer": "Pointer",
-        "link": "Link"
+        "link": "Link",
+        "sketch": "Sketch"
       },
+      "sketchFailed": "Sketch failed to load.",
+      "openSketch": "Open sketch",
       "newDrawer": "New drawer",
       "newDrawerPlaceholder": "Drawer name",
       "drawerSaveError": "Could not save drawer",
@@ -1558,7 +1792,56 @@
       "archiveError": "Could not archive item",
       "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
       "archiveProceed": "Archive anyway",
-      "archiveCancel": "Cancel"
+      "archiveCancel": "Cancel",
+      "addItem": "+ Add",
+      "addItemHeading": "Add to {drawer}",
+      "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
+      "picker": {
+        "text": "New text block",
+        "image": "Upload image",
+        "svg": "Add SVG",
+        "link": "Paste link",
+        "sketch": "Pick sketch"
+      },
+      "panel": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "saveError": "Could not save",
+        "titleLabel": "Title (optional)",
+        "titlePlaceholder": "Short label",
+        "sourceUrlLabel": "Source URL (optional)",
+        "sourceUrlPlaceholder": "https://…",
+        "format": "Format",
+        "formatMarkdown": "Markdown",
+        "formatHtml": "HTML",
+        "formatPlain": "Plain text",
+        "bodyLabel": "Body",
+        "bodyPlaceholder": "Type or paste…",
+        "preview": "Preview",
+        "previewEmpty": "Type to preview.",
+        "tooLong": "Content exceeds the {limit, number} character cap.",
+        "imagePick": "Choose an image",
+        "imageDrop": "or drop a file here",
+        "imageTooLarge": "Image exceeds the {limit, number} MB cap.",
+        "imageBadMime": "Not an image file ({mime}).",
+        "imageBadDimensions": "Could not read image dimensions.",
+        "altLabel": "Alt text (optional)",
+        "altPlaceholder": "What's in the image?",
+        "svgPaste": "Paste SVG",
+        "svgUpload": "or upload .svg",
+        "svgBadShape": "SVG body must start with <?xml or <svg.",
+        "urlLabel": "URL",
+        "urlPlaceholder": "https://…",
+        "urlInvalid": "URL doesn't parse.",
+        "urlTitleRequired": "Title is required for link items.",
+        "descriptionLabel": "Description (optional)",
+        "descriptionPlaceholder": "Why this matters…",
+        "sketchSearchPlaceholder": "Search sketches…",
+        "sketchEmpty": "No sketches yet. Ask your agent to mint one with create_sketch.",
+        "sketchNoMatch": "No sketches match this search.",
+        "sketchPicked": "Picked"
+      }
     }
   },
   "sketchesIndex": {
@@ -1576,6 +1859,7 @@
     "close": "Close",
     "openNewTab": "Open in New Tab",
     "downloadSvg": "Download SVG",
+    "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
     "renameLabel": "Rename sketch",
     "renamePlaceholder": "Sketch title",

@@ -1,4 +1,5 @@
 import { getDb } from '../index.js';
+import { classifyBucket } from '../../graph/sketch-manifest.js';
 
 function shortRef() {
   // Short collision-resistant slug: 10 chars of base36 from crypto entropy.
@@ -20,23 +21,30 @@ function rowToSketch(row) {
   } catch {
     manifest = null;
   }
+  // Bucket override pins the sketch into a specific Maker gallery; absent it,
+  // the bucket is derived from manifest.kind. The effective `bucket` is what
+  // callers filter on; `bucketOverride` is surfaced so the UI can tell a pinned
+  // bucket from a derived one (and offer "reset to derived").
+  const bucketOverride = row.bucket || null;
   return {
     ref: row.ref,
     title: row.title,
     manifest,
     createdAt: row.created_at,
     folderRef: row.folder_ref || null,
+    bucket: bucketOverride || classifyBucket(manifest),
+    bucketOverride,
   };
 }
 
 export const SketchRepository = {
-  create({ title, manifest, ref, folderRef }) {
+  create({ title, manifest, ref, folderRef, bucket }) {
     const db = getDb();
     const finalRef = ref || shortRef();
     db.prepare(
-      `INSERT INTO sketches (ref, title, manifest_json, folder_ref, created_at)
-       VALUES (?, ?, ?, ?, unixepoch())`,
-    ).run(finalRef, title, JSON.stringify(manifest), folderRef || null);
+      `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, created_at)
+       VALUES (?, ?, ?, ?, ?, unixepoch())`,
+    ).run(finalRef, title, JSON.stringify(manifest), folderRef || null, bucket || null);
     return this.getByRef(finalRef);
   },
 
@@ -51,7 +59,7 @@ export const SketchRepository = {
   // explicitly to move the sketch to root. Returns the refreshed sketch row,
   // or null if no row matches `ref`. Used by the rename UI, the move-to-
   // folder affordance, and the update_sketch MCP tool.
-  update({ ref, title, manifest, folderRef }) {
+  update({ ref, title, manifest, folderRef, bucket }) {
     if (!ref) return null;
     const existing = this.getByRef(ref);
     if (!existing) return null;
@@ -61,11 +69,16 @@ export const SketchRepository = {
       manifest === undefined ? existing.manifest : manifest;
     const nextFolderRef =
       folderRef === undefined ? existing.folderRef : folderRef || null;
+    // bucket override: undefined leaves it as-is; null clears it (back to
+    // derived); a string pins the Maker gallery. existing.bucketOverride is the
+    // pinned value (null when derived).
+    const nextBucket =
+      bucket === undefined ? existing.bucketOverride : bucket || null;
     db.prepare(
       `UPDATE sketches
-          SET title = ?, manifest_json = ?, folder_ref = ?
+          SET title = ?, manifest_json = ?, folder_ref = ?, bucket = ?
         WHERE ref = ?`,
-    ).run(nextTitle, JSON.stringify(nextManifest), nextFolderRef, ref);
+    ).run(nextTitle, JSON.stringify(nextManifest), nextFolderRef, nextBucket, ref);
     return this.getByRef(ref);
   },
 
@@ -101,15 +114,37 @@ export const SketchRepository = {
     return result.changes;
   },
 
-  // Returns recent sketches first, capped at `limit`. Used by the index
-  // page; client-side filters the result by title/ref substring so we
-  // don't fight pagination at this density. Bump the cap (or add q/server
-  // pagination) when the agent's actually minting hundreds.
-  list({ limit = 200 } = {}) {
+  // Returns every folder-tagged sketch plus the most recent `rootLimit`
+  // root sketches, newest first overall. Used by the index page; the
+  // client filters by title/ref substring and by folder context. Folder
+  // sketches are always included so navigating into a folder never shows
+  // an empty list just because root has crowded them past the cap.
+  list({ rootLimit = 200, bucket = null } = {}) {
     const db = getDb();
     const rows = db
-      .prepare('SELECT * FROM sketches ORDER BY created_at DESC LIMIT ?')
-      .all(limit);
-    return rows.map(rowToSketch);
+      .prepare(
+        `SELECT * FROM sketches WHERE folder_ref IS NOT NULL
+         UNION ALL
+         SELECT * FROM (
+           SELECT * FROM sketches WHERE folder_ref IS NULL
+            ORDER BY created_at DESC LIMIT ?
+         )
+         ORDER BY created_at DESC`,
+      )
+      .all(rootLimit);
+    const sketches = rows.map(rowToSketch);
+    // Effective-bucket filter is JS-side because `kind` lives in manifest_json.
+    // Acceptable for a single-user scratch surface; if the table grows large,
+    // persist a derived bucket column and filter in SQL (see maker.plan.md).
+    if (bucket) return sketches.filter((s) => s.bucket === bucket);
+    return sketches;
+  },
+
+  // Pin (or clear) a sketch's Maker gallery without touching its content. Pass
+  // bucket=null to drop back to the derived bucket. Returns the refreshed row,
+  // or null if no row matches `ref`.
+  setBucket({ ref, bucket }) {
+    if (!ref) return null;
+    return this.update({ ref, bucket: bucket || null });
   },
 };

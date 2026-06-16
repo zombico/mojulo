@@ -315,11 +315,132 @@ function validateScene(meta) {
   return errors;
 }
 
+function validateClouds(clouds, label, errors) {
+  if (typeof clouds === 'number') {
+    if (!Number.isFinite(clouds) || clouds < 0) errors.push(`${label}: coverage number must be >= 0`);
+    return;
+  }
+  if (typeof clouds !== 'object' || Array.isArray(clouds)) {
+    errors.push(`${label}: must be a coverage number or a { coverage, altitude, ... } object`);
+    return;
+  }
+  const numCheck = (k, lo, hi) => {
+    if (clouds[k] === undefined) return;
+    const v = clouds[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || (hi !== undefined && v > hi)) {
+      errors.push(`${label}.${k}: must be a number${hi !== undefined ? ` in [${lo}, ${hi}]` : ` >= ${lo}`}`);
+    }
+  };
+  numCheck('coverage', 0);
+  numCheck('altitude', 0, 1);
+  numCheck('volume', 0);
+  numCheck('fade', 0, 1);
+  numCheck('softness', 0);
+  if (clouds.style !== undefined && clouds.style !== 'wisp' && clouds.style !== 'grid') {
+    errors.push(`${label}.style: must be 'wisp' or 'grid'`);
+  }
+  if (clouds.breaks !== undefined) {
+    if (!Array.isArray(clouds.breaks)) {
+      errors.push(`${label}.breaks: must be an array of { x, y, radius } clearings`);
+    } else {
+      clouds.breaks.forEach((b, i) => {
+        if (!b || !Number.isFinite(b.x) || !Number.isFinite(b.y) || !Number.isFinite(b.radius) || b.radius <= 0) {
+          errors.push(`${label}.breaks[${i}]: must be { x, y, radius > 0 } (normalized 0–1)`);
+        }
+      });
+    }
+  }
+}
+
+function validateSky(meta) {
+  const errors = [];
+  if (meta.hazeStrength !== undefined
+      && (typeof meta.hazeStrength !== 'number' || !Number.isFinite(meta.hazeStrength) || meta.hazeStrength < 0)) {
+    errors.push(`'hazeStrength' must be a non-negative number when provided`);
+  }
+  if (meta.clouds !== undefined && meta.clouds !== null) {
+    validateClouds(meta.clouds, 'clouds', errors);
+  }
+  validateAdornments(meta, errors);
+  return errors;
+}
+
+// Sun / stars / moon adornments on a sky card. Mirrors the renderer's
+// validatePaintedLandscape checks so a bad card fails at load, not at render.
+function validateAdornments(meta, errors) {
+  const num = (obj, k, label, lo, hi) => {
+    if (obj[k] === undefined) return;
+    const v = obj[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || (hi !== undefined && v > hi)) {
+      errors.push(`${label}.${k}: must be a number${hi !== undefined ? ` in [${lo}, ${hi}]` : ` >= ${lo}`}`);
+    }
+  };
+  const pos = (obj, label) => {
+    if (obj.position === undefined) return;
+    const p = obj.position;
+    if (typeof p !== 'object' || p === null || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      errors.push(`${label}.position: must be { x, y } (normalized 0–1)`);
+    }
+  };
+  if (meta.sun !== undefined && meta.sun !== null && typeof meta.sun !== 'boolean') {
+    if (typeof meta.sun !== 'object' || Array.isArray(meta.sun)) errors.push(`'sun' must be a boolean or { glow?, size?, position? } object`);
+    else { num(meta.sun, 'glow', 'sun', 0); num(meta.sun, 'size', 'sun', 0); pos(meta.sun, 'sun'); }
+  }
+  if (meta.stars !== undefined && meta.stars !== null && typeof meta.stars !== 'boolean' && typeof meta.stars !== 'number') {
+    if (typeof meta.stars !== 'object' || Array.isArray(meta.stars)) errors.push(`'stars' must be a boolean, a density number, or { density?, seed? } object`);
+    else num(meta.stars, 'density', 'stars', 0);
+  } else if (typeof meta.stars === 'number' && (!Number.isFinite(meta.stars) || meta.stars < 0)) {
+    errors.push(`'stars' density number must be >= 0`);
+  }
+  if (meta.moon !== undefined && meta.moon !== null && typeof meta.moon !== 'boolean') {
+    if (typeof meta.moon !== 'object' || Array.isArray(meta.moon)) errors.push(`'moon' must be a boolean or { phase?, size?, position? } object`);
+    else {
+      num(meta.moon, 'phase', 'moon', 0, 1); num(meta.moon, 'size', 'moon', 0); pos(meta.moon, 'moon');
+      if (meta.moon.paraselene !== undefined && typeof meta.moon.paraselene !== 'boolean') errors.push(`moon.paraselene: must be a boolean`);
+    }
+  }
+  if (meta.aurora !== undefined && meta.aurora !== null && typeof meta.aurora !== 'boolean') {
+    if (typeof meta.aurora !== 'object' || Array.isArray(meta.aurora)) errors.push(`'aurora' must be a boolean or { intensity?, hue?, seed? } object`);
+    else { num(meta.aurora, 'intensity', 'aurora', 0); num(meta.aurora, 'hue', 'aurora', 0, 1); }
+  }
+  if (meta.comet !== undefined && meta.comet !== null && typeof meta.comet !== 'boolean') {
+    if (typeof meta.comet !== 'object' || Array.isArray(meta.comet)) errors.push(`'comet' must be a boolean or { length?, size?, direction?, position? } object`);
+    else { num(meta.comet, 'length', 'comet', 0); num(meta.comet, 'size', 'comet', 0); pos(meta.comet, 'comet'); }
+  }
+  if (meta.meteors !== undefined && meta.meteors !== null && typeof meta.meteors !== 'boolean' && typeof meta.meteors !== 'number') {
+    if (typeof meta.meteors !== 'object' || Array.isArray(meta.meteors)) errors.push(`'meteors' must be a boolean, a count number, or { count?, radiant?, seed? } object`);
+    else {
+      num(meta.meteors, 'count', 'meteors', 0);
+      if (meta.meteors.radiant !== undefined && (typeof meta.meteors.radiant !== 'object' || meta.meteors.radiant === null || !Number.isFinite(meta.meteors.radiant.x) || !Number.isFinite(meta.meteors.radiant.y))) errors.push(`meteors.radiant: must be { x, y } (normalized 0–1)`);
+    }
+  } else if (typeof meta.meteors === 'number' && (!Number.isFinite(meta.meteors) || meta.meteors < 0)) {
+    errors.push(`'meteors' count number must be >= 0`);
+  }
+}
+
+function freezeClouds(c) {
+  if (typeof c === 'number') return c;
+  const out = { ...c };
+  if (Array.isArray(out.breaks)) out.breaks = Object.freeze(out.breaks.map((b) => Object.freeze({ ...b })));
+  return Object.freeze(out);
+}
+
+// Sun / stars / moon: a boolean, a number (stars density), or a small object
+// (possibly carrying a nested `position`).
+function freezeAdornment(a) {
+  if (typeof a !== 'object' || a === null) return a;
+  const out = { ...a };
+  if (out.position && typeof out.position === 'object') out.position = Object.freeze({ ...out.position });
+  if (out.radiant && typeof out.radiant === 'object') out.radiant = Object.freeze({ ...out.radiant });
+  return Object.freeze(out);
+}
+
 function loadCards() {
   const HEARTBEATS = {};
   const SPLATCHES = {};
   const CAMERAS = {};
   const SCENES = {};
+  const SKIES = {};
   let files;
   try {
     files = readdirSync(CARDS_DIR).filter((f) => f.endsWith('.md')).sort();
@@ -441,8 +562,28 @@ function loadCards() {
           return acc;
         }, {})),
       });
+    } else if (meta.family === 'sky') {
+      const familyErrors = validateSky(meta);
+      if (familyErrors.length) {
+        throw new Error(`painted-landscape card ${file} (sky):\n - ${familyErrors.join('\n - ')}`);
+      }
+      if (SKIES[meta.id]) {
+        throw new Error(`painted-landscape card ${file}: duplicate sky id '${meta.id}'`);
+      }
+      SKIES[meta.id] = Object.freeze({
+        intent: meta.intent,
+        aliases: Object.freeze([...(meta.aliases || [])]),
+        ...(meta.hazeStrength !== undefined ? { hazeStrength: meta.hazeStrength } : {}),
+        ...(meta.clouds !== undefined && meta.clouds !== null ? { clouds: freezeClouds(meta.clouds) } : {}),
+        ...(meta.sun !== undefined && meta.sun !== null ? { sun: freezeAdornment(meta.sun) } : {}),
+        ...(meta.stars !== undefined && meta.stars !== null ? { stars: freezeAdornment(meta.stars) } : {}),
+        ...(meta.moon !== undefined && meta.moon !== null ? { moon: freezeAdornment(meta.moon) } : {}),
+        ...(meta.aurora !== undefined && meta.aurora !== null ? { aurora: freezeAdornment(meta.aurora) } : {}),
+        ...(meta.comet !== undefined && meta.comet !== null ? { comet: freezeAdornment(meta.comet) } : {}),
+        ...(meta.meteors !== undefined && meta.meteors !== null ? { meteors: freezeAdornment(meta.meteors) } : {}),
+      });
     } else {
-      throw new Error(`painted-landscape card ${file}: unknown family '${meta.family}' (expected 'heartbeat', 'splatch', 'camera', or 'scene')`);
+      throw new Error(`painted-landscape card ${file}: unknown family '${meta.family}' (expected 'heartbeat', 'splatch', 'camera', 'scene', or 'sky')`);
     }
   }
   return {
@@ -450,6 +591,7 @@ function loadCards() {
     SPLATCHES: Object.freeze(SPLATCHES),
     CAMERAS: Object.freeze(CAMERAS),
     SCENES: Object.freeze(SCENES),
+    SKIES: Object.freeze(SKIES),
   };
 }
 
@@ -458,3 +600,4 @@ export const HEARTBEATS = registries.HEARTBEATS;
 export const SPLATCHES = registries.SPLATCHES;
 export const CAMERAS = registries.CAMERAS;
 export const SCENES = registries.SCENES;
+export const SKIES = registries.SKIES;

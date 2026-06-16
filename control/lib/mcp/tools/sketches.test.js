@@ -251,3 +251,203 @@ describe('diff_sketches', () => {
     ).rejects.toThrow(/min_similarity/);
   });
 });
+
+describe('create_sketch preload affordance', () => {
+  it('echoes a resolved preload sketch into the response (advisory, no merge)', async () => {
+    const prior = await createSketchHandler({
+      title: 'Prior scene',
+      ref: 'preload_source_1',
+      manifest: pipelineManifest({ title: 'Prior' }),
+    });
+    expect(prior).toMatchObject({ ok: true, ref: 'preload_source_1' });
+
+    const next = await createSketchHandler({
+      title: 'Next scene',
+      ref: 'preload_dest_1',
+      manifest: pipelineManifest({ title: 'Next', middleLabel: 'Refined' }),
+      preload: 'preload_source_1',
+      preloadMetadata: { carry: 'same input + store, swap middle' },
+    });
+    expect(next.ok).toBe(true);
+    expect(next.ref).toBe('preload_dest_1');
+    expect(next.preload).toBeTruthy();
+    expect(next.preload.ref).toBe('preload_source_1');
+    expect(next.preload.title).toBe('Prior scene');
+    expect(next.preload.metadata).toEqual({ carry: 'same input + store, swap middle' });
+    // Stored manifest is the new one — preload is advisory, never blended.
+    const stored = SketchRepository.getByRef('preload_dest_1');
+    expect(stored.manifest.title).toBe('Next');
+  });
+
+  it('omits preload from the response when no preload is provided', async () => {
+    const result = await createSketchHandler({
+      title: 'Standalone',
+      ref: 'preload_dest_2',
+      manifest: pipelineManifest({ title: 'Standalone' }),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.preload).toBeUndefined();
+  });
+
+  it('rejects an unknown preload ref before persisting the new sketch', async () => {
+    await expect(
+      createSketchHandler({
+        title: 'Would-be next',
+        ref: 'preload_dest_3',
+        manifest: pipelineManifest({ title: 'Would-be next' }),
+        preload: 'sk_does_not_exist',
+      }),
+    ).rejects.toThrow(/preload sketch 'sk_does_not_exist' not found/);
+    expect(SketchRepository.getByRef('preload_dest_3')).toBeNull();
+  });
+
+  it('rejects a non-string preload value with a clear message', async () => {
+    await expect(
+      createSketchHandler({
+        title: 'Bad preload',
+        ref: 'preload_dest_4',
+        manifest: pipelineManifest({ title: 'Bad preload' }),
+        preload: 42,
+      }),
+    ).rejects.toThrow(/preload.*string/);
+  });
+});
+
+describe('create_sketch labeled-array preload affordance', () => {
+  it('accepts an array of labeled refs and echoes them back as an array', async () => {
+    await createSketchHandler({
+      title: 'Character',
+      ref: 'preload_char',
+      manifest: pipelineManifest({ title: 'Character' }),
+    });
+    await createSketchHandler({
+      title: 'Setting',
+      ref: 'preload_set',
+      manifest: pipelineManifest({ title: 'Setting', middleLabel: 'Garden' }),
+    });
+
+    const next = await createSketchHandler({
+      title: 'Page 1',
+      ref: 'preload_combo_1',
+      manifest: pipelineManifest({ title: 'Page 1' }),
+      preload: [
+        { ref: 'preload_char', as: 'character', note: 'the fox' },
+        { ref: 'preload_set', as: 'setting' },
+      ],
+    });
+    expect(next.ok).toBe(true);
+    expect(Array.isArray(next.preload)).toBe(true);
+    expect(next.preload).toHaveLength(2);
+    expect(next.preload[0]).toMatchObject({
+      ref: 'preload_char',
+      title: 'Character',
+      as: 'character',
+      note: 'the fox',
+    });
+    expect(next.preload[0].manifest).toBeTruthy();
+    expect(next.preload[1]).toMatchObject({
+      ref: 'preload_set',
+      title: 'Setting',
+      as: 'setting',
+      note: null,
+    });
+  });
+
+  it('accepts a mix of bare-string and labeled-object items in the array', async () => {
+    await createSketchHandler({
+      title: 'A',
+      ref: 'preload_mix_a',
+      manifest: pipelineManifest({ title: 'A' }),
+    });
+    await createSketchHandler({
+      title: 'B',
+      ref: 'preload_mix_b',
+      manifest: pipelineManifest({ title: 'B' }),
+    });
+
+    const next = await createSketchHandler({
+      title: 'Mix',
+      ref: 'preload_mix_dest',
+      manifest: pipelineManifest({ title: 'Mix' }),
+      preload: ['preload_mix_a', { ref: 'preload_mix_b', as: 'palette' }],
+    });
+    expect(next.preload).toHaveLength(2);
+    expect(next.preload[0]).toMatchObject({ ref: 'preload_mix_a', as: null, note: null });
+    expect(next.preload[1]).toMatchObject({ ref: 'preload_mix_b', as: 'palette' });
+  });
+
+  it('rejects an over-cap preload array before persisting', async () => {
+    for (let i = 0; i < 9; i++) {
+      await createSketchHandler({
+        title: `Src ${i}`,
+        ref: `preload_cap_${i}`,
+        manifest: pipelineManifest({ title: `Src ${i}` }),
+      });
+    }
+    const refs = Array.from({ length: 9 }, (_, i) => `preload_cap_${i}`);
+    await expect(
+      createSketchHandler({
+        title: 'Over cap',
+        ref: 'preload_cap_dest',
+        manifest: pipelineManifest({ title: 'Over cap' }),
+        preload: refs,
+      }),
+    ).rejects.toThrow(/at most 8 priors/);
+    expect(SketchRepository.getByRef('preload_cap_dest')).toBeNull();
+  });
+
+  it('rejects duplicate refs inside the array with a clear message', async () => {
+    await createSketchHandler({
+      title: 'Dupe src',
+      ref: 'preload_dupe_src',
+      manifest: pipelineManifest({ title: 'Dupe src' }),
+    });
+    await expect(
+      createSketchHandler({
+        title: 'Dupe',
+        ref: 'preload_dupe_dest',
+        manifest: pipelineManifest({ title: 'Dupe' }),
+        preload: [
+          { ref: 'preload_dupe_src', as: 'character' },
+          { ref: 'preload_dupe_src', as: 'setting' },
+        ],
+      }),
+    ).rejects.toThrow(/duplicate ref 'preload_dupe_src'/);
+  });
+
+  it('rejects an empty `as` label with a clear message', async () => {
+    await createSketchHandler({
+      title: 'Bad as src',
+      ref: 'preload_bad_as_src',
+      manifest: pipelineManifest({ title: 'Bad as src' }),
+    });
+    await expect(
+      createSketchHandler({
+        title: 'Bad as',
+        ref: 'preload_bad_as_dest',
+        manifest: pipelineManifest({ title: 'Bad as' }),
+        preload: [{ ref: 'preload_bad_as_src', as: '   ' }],
+      }),
+    ).rejects.toThrow(/non-empty string/);
+  });
+
+  it('rejects an unknown ref inside the array before persisting the new sketch', async () => {
+    await createSketchHandler({
+      title: 'Known',
+      ref: 'preload_known',
+      manifest: pipelineManifest({ title: 'Known' }),
+    });
+    await expect(
+      createSketchHandler({
+        title: 'Unknown member',
+        ref: 'preload_arr_unknown_dest',
+        manifest: pipelineManifest({ title: 'Unknown member' }),
+        preload: [
+          { ref: 'preload_known', as: 'character' },
+          { ref: 'sk_does_not_exist', as: 'setting' },
+        ],
+      }),
+    ).rejects.toThrow(/preload sketch 'sk_does_not_exist' not found/);
+    expect(SketchRepository.getByRef('preload_arr_unknown_dest')).toBeNull();
+  });
+});

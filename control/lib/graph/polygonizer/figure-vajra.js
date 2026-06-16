@@ -1,0 +1,342 @@
+/**
+ * figure-vajra — the fundamental figure shape.
+ *
+ * The empty figure skeleton as a harmonized vajra graph: a fixed set of
+ * landmark NODES (each a manji point with ONE radius, so spheres that
+ * coincide at a shared hub merge) joined by EDGES (a vajra over a node
+ * triple). It is a single coherent primitive with three manifestations
+ * of the SAME data:
+ *
+ *   manji  — the joint graph: one sphere per node, connected by lines
+ *            (`figureJointGraph`). The mandala-space read of the character.
+ *   wave   — the vajra ring-form: each edge a vajra, with anatomical
+ *            ball-in-socket at the limb roots (`figureVajraSpecs`).
+ *   world  — the rendered manifestation a renderer paints from the wave
+ *            specs (faces / mesh). Owned by the renderer, not this module.
+ *
+ * Articulation is a kinematic model: every joint is a constrained
+ * rotation (swivel cones for ball joints, one-way hinges for elbow/knee,
+ * twist+bend for the core) clamped to anatomical LIMITS, so a pose can
+ * never exceed its range or hinge the wrong way (`articulate`). Hand
+ * authoring (rotate-about / set ops) is also available via `applyPose`.
+ *
+ * Units are figure-frame STAND units; the renderer owns scale, the view
+ * rotation, projection, shading, and layout.
+ *
+ * History: distilled from the figure-mandala-vajra-shoulder spike, which
+ * is now just one renderer of this primitive.
+ */
+
+// ─── Vector helpers (exported; the renderer shares them) ───────────────
+export function normalize3(v) { const len = Math.hypot(v.x, v.y, v.z); if (len < 1e-12) return { x: 0, y: 0, z: 0 }; return { x: v.x / len, y: v.y / len, z: v.z / len }; }
+export function sub3(a, b) { return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }; }
+export function cross3(a, b) { return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }; }
+export function dot3(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+
+// ─── Landmark coordinates (figure frame, STAND units) ──────────────────
+const STAND = {
+  torsoTop:  { x: 0,      y: 0, z: 0.78 },
+  shoulderL: { x: -0.13,  y: 0, z: 0.78 },
+  shoulderR: { x:  0.13,  y: 0, z: 0.78 },
+  hipL:      { x: -0.10,  y: 0, z: 0.47 },
+  hipR:      { x:  0.10,  y: 0, z: 0.47 },
+  elbowL:    { x: -0.155, y: 0, z: 0.60 },   // flared out so the arms
+  elbowR:    { x:  0.155, y: 0, z: 0.60 },   // clear the hips frontally
+  wristL:    { x: -0.195, y: 0, z: 0.45 },
+  wristR:    { x:  0.195, y: 0, z: 0.45 },
+  kneeL:     { x: -0.10,  y: 0, z: 0.25 },
+  kneeR:     { x:  0.10,  y: 0, z: 0.25 },
+  ankleL:    { x: -0.10,  y: 0, z: 0.02 },
+  ankleR:    { x:  0.10,  y: 0, z: 0.02 },
+};
+
+const NAVEL_Z    = 0.625;   // torso midline
+const HEAD_BASE_Z = 0.855;  // atlas / base of skull — the neck↔head pivot
+const HEAD_TOP_Z = 0.93;    // head ball (balances the head-vajra prongs)
+const DELTOID_R  = 0.040;   // shoulder cap
+const HIP_R      = 0.036;   // hip cap (narrowed so L/R hips don't superimpose)
+export const BLEND = 0.022; // one blend across the whole armature
+
+// Ball-in-socket — anatomical, per joint (shoulder and hip are opposites):
+//   shoulder = large head on a shallow socket ("golf ball on a tee"),
+//   hip      = head sunk into a deep socket.
+// The head is also offset forward + inward from the shaft (the femoral /
+// humeral neck angle). This is a wave (form) refinement only; the manji
+// joint graph keeps the clean joint-center mapping.
+const BALL_RATIO_SHOULDER = 0.76;
+const BALL_RATIO_HIP      = 0.50;
+const SOCKET_FORWARD = 0.30;   // anterior (+y) bias, × socket radius
+const SOCKET_MEDIAL  = 0.22;   // medial bias (toward the midline)
+
+// One radius per landmark. Joints (elbow/knee/neck/navel/pelvis) are thin
+// screws; caps and extremities are beads. Shared hubs carry a single
+// value so every edge that touches them agrees (harmonization).
+export const FIGURE_NODES = {
+  headTop:   { pos: { x: 0, y: 0, z: HEAD_TOP_Z },       r: 0.046 },
+  headBase:  { pos: { x: 0, y: 0, z: HEAD_BASE_Z },      r: 0.034 },   // atlas — skull pivots on the neck here
+  neckHub:   { pos: { x: 0, y: 0, z: STAND.torsoTop.z }, r: 0.038 },   // head + torso + shoulders meet
+  navel:     { pos: { x: 0, y: 0, z: NAVEL_Z },          r: 0.040 },   // head + torso meet
+  pelvisHub: { pos: { x: 0, y: 0, z: STAND.hipL.z },     r: 0.043 },   // torso + hips meet
+  shoulderL: { pos: STAND.shoulderL, r: DELTOID_R },
+  shoulderR: { pos: STAND.shoulderR, r: DELTOID_R },
+  hipL:      { pos: STAND.hipL,      r: HIP_R },
+  hipR:      { pos: STAND.hipR,      r: HIP_R },
+  elbowL:    { pos: STAND.elbowL,    r: 0.024 },
+  elbowR:    { pos: STAND.elbowR,    r: 0.024 },
+  wristL:    { pos: STAND.wristL,    r: 0.024 },
+  wristR:    { pos: STAND.wristR,    r: 0.024 },
+  kneeL:     { pos: STAND.kneeL,     r: 0.024 },
+  kneeR:     { pos: STAND.kneeR,     r: 0.024 },
+  ankleL:    { pos: STAND.ankleL,    r: 0.028 },
+  ankleR:    { pos: STAND.ankleR,    r: 0.028 },
+};
+
+// Each body part is one vajra over [proximal, center, distal] nodes.
+// `ball: true` marks a limb whose proximal sphere is a ball-in-socket.
+export const FIGURE_EDGES = [
+  { tri: ['headTop', 'headBase', 'neckHub'],    stroke: '#a06868' },  // head / neck
+  { tri: ['neckHub', 'navel', 'pelvisHub'],     stroke: '#8e4747' },  // torso
+  { tri: ['shoulderL', 'neckHub', 'shoulderR'], stroke: '#8e4f4f' },  // shoulder girdle
+  { tri: ['hipL', 'pelvisHub', 'hipR'],         stroke: '#7e4646' },  // hip girdle
+  { tri: ['shoulderL', 'elbowL', 'wristL'],     stroke: '#a06868', ball: true },  // left arm
+  { tri: ['shoulderR', 'elbowR', 'wristR'],     stroke: '#a06868', ball: true },  // right arm
+  { tri: ['hipL', 'kneeL', 'ankleL'],           stroke: '#8a5050', ball: true },  // left leg
+  { tri: ['hipR', 'kneeR', 'ankleR'],           stroke: '#8a5050', ball: true },  // right leg
+];
+
+// ─── Articulation limits ───────────────────────────────────────────────
+//   head/neck : swivel cone about the neck base — head 45° + neck 45° = 90°.
+//   shoulder  : swivel cone about the SHOULDER socket (ball joint; the upper arm
+//               rotates, the shoulder stays put — mirrors the hip).
+//   elbow     : one-way hinge, forward only (never behind).
+//   core      : twist (upper vs lower against the midline) + a little
+//               fwd/back bend that pulls the whole top/bottom with it.
+//   hip       : outer sphere swivels the thigh in all directions (cone).
+//   knee      : one-way hinge, back only (never forward).
+// Shoulder out-ranges the hip — the shoulder is the most mobile joint,
+// the hip is deliberately limited for stability.
+// head/neck split into two joints: the NECK flexes/tilts the whole column at its
+// base; the HEAD nods/tilts the skull on top of the neck (atlas). Their cones sum
+// to roughly the old headNeck (90).
+export const LIMITS = { neck: 45, head: 45, headNeck: 90, shoulder: 80, armRoll: 110, elbow: 150, coreTwist: 35, coreBend: 25, hip: 62, knee: 150 };
+
+// Kinematic subtrees — the nodes a joint carries when it rotates.
+export const ARMS_L = ['elbowL', 'wristL'], ARMS_R = ['elbowR', 'wristR'];
+export const LEG_L = ['kneeL', 'ankleL'], LEG_R = ['kneeR', 'ankleR'];
+export const UPPER_BODY = ['headTop', 'headBase', 'neckHub', 'shoulderL', 'shoulderR', ...ARMS_L, ...ARMS_R];
+const LOWER_BODY = ['hipL', 'hipR', ...LEG_L, ...LEG_R];
+
+// ─── Spinal articulation — the form's natural capabilities ─────────────
+// The spine is NOT a rigid rod hinged at one point. Bend is distributed across
+// three trunk pivots (the locked manji nodes), each with its own mobility, so the
+// trunk CURVES. Drives are the yin/yang antagonist balance (figure-spine-
+// articulation.plan.md): sagittal +flex/−extend, lateral side-bend, axial twist,
+// each ∈ [−1,+1]. Per-joint caps (degrees) are the segment's real range — lumbar
+// flexes, thoracic rotates — so a pose bends where the form actually can.
+// Per-joint caps are tuned so the CUMULATIVE trunk range matches a real
+// thoracolumbar spine, not a contortionist's: flex ≈50° (forward fold),
+// ext ≈26° (lumbar-dominant arch), lateral ≈30° side-bend, axial ≈35° twist.
+export const SPINE_CAP = {
+  pelvisHub: { flex: 16, ext: 10, lateral: 10, axial: 5 },    // lumbosacral
+  navel:     { flex: 22, ext: 8,  lateral: 12, axial: 9 },    // lumbar / thoracolumbar
+  neckHub:   { flex: 12, ext: 8,  lateral: 8,  axial: 21 },   // thoracic (rotates most)
+};
+const SPINE_ORDER = ['pelvisHub', 'navel', 'neckHub'];   // proximal → distal
+// The distal subtree each spine pivot carries when it rotates.
+const SPINE_SUB = {
+  pelvisHub: ['navel', ...UPPER_BODY],                                   // whole trunk + up
+  navel:     [...UPPER_BODY],                                            // above the navel
+  neckHub:   ['headTop', 'headBase', 'shoulderL', 'shoulderR', ...ARMS_L, ...ARMS_R], // above the neck root
+};
+
+// ─── Rotations ─────────────────────────────────────────────────────────
+// Axes: 'EW' = about world-x (sagittal, fwd/back); 'NS' = about world-y
+// (frontal plane, arm raise); 'ZN' = about world-z (axial twist).
+export function rotateAbout(pos, pivot, axis, deg) {
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const d = { x: pos.x - pivot.x, y: pos.y - pivot.y, z: pos.z - pivot.z };
+  let r;
+  if (axis === 'EW')      r = { x: d.x,                 y: d.y * c - d.z * s, z: d.y * s + d.z * c };
+  else if (axis === 'NS') r = { x: d.x * c + d.z * s,   y: d.y,               z: -d.x * s + d.z * c };
+  else                    r = { x: d.x * c - d.y * s,   y: d.x * s + d.y * c, z: d.z };
+  return { x: pivot.x + r.x, y: pivot.y + r.y, z: pivot.z + r.z };
+}
+
+// Rodrigues rotation of point `p` about `pivot` around unit `axis`.
+function rotAxis(p, pivot, axis, deg) {
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const d = sub3(p, pivot);
+  const kxd = cross3(axis, d);
+  const kd = dot3(axis, d);
+  return {
+    x: pivot.x + d.x * c + kxd.x * s + axis.x * kd * (1 - c),
+    y: pivot.y + d.y * c + kxd.y * s + axis.y * kd * (1 - c),
+    z: pivot.z + d.z * c + kxd.z * s + axis.z * kd * (1 - c),
+  };
+}
+
+// Hinge: fold the distal node about the joint TOWARD `refDir` by `deg`,
+// around the axis perpendicular to the segment and refDir. The fold
+// direction is fixed (knee → back, elbow → forward), so a joint can only
+// flex the natural way no matter how the limb is posed — never hyperextend.
+export const REF_BACK = { x: 0, y: -1, z: 0 };
+export const REF_FWD  = { x: 0, y:  1, z: 0 };
+function hingeFold(m, joint, distal, refDir, deg) {
+  if (deg === 0) return;                   // zero flex is an exact no-op
+  const seg = normalize3(sub3(m[distal], m[joint]));
+  const axis = cross3(seg, refDir);
+  const al = Math.hypot(axis.x, axis.y, axis.z);
+  if (al < 1e-6) return;
+  m[distal] = rotAxis(m[distal], m[joint], { x: axis.x / al, y: axis.y / al, z: axis.z / al }, deg);
+}
+
+export function basePositions() {
+  const m = {};
+  for (const [k, n] of Object.entries(FIGURE_NODES)) m[k] = { ...n.pos };
+  return m;
+}
+
+// ─── Hand-authored poses (rotate-about / hinge / set ops) ──────────────
+// Baseline natural flex appended to every pose — knees and elbows always
+// carry a hinge bend in the anatomical direction.
+export function naturalJoints(knee, elbow) {
+  return [
+    { hinge: ['kneeL', 'ankleL'], refDir: REF_BACK, angle: knee },
+    { hinge: ['kneeR', 'ankleR'], refDir: REF_BACK, angle: knee },
+    { hinge: ['elbowL', 'wristL'], refDir: REF_FWD, angle: elbow },
+    { hinge: ['elbowR', 'wristR'], refDir: REF_FWD, angle: elbow },
+  ];
+}
+
+// Each op rotates `nodes` about `pivot` by `angle` around `axis`, folds a
+// distal node toward `refDir` (`hinge`), or places nodes directly (`set`).
+// Ops apply in order, so a flex after a swing rides on the moved joint.
+export function applyPose(ops) {
+  const m = basePositions();
+  for (const op of ops) {
+    if (op.set) { for (const [k, v] of Object.entries(op.set)) m[k] = { x: v.x, y: v.y, z: v.z }; continue; }
+    if (op.hinge) { hingeFold(m, op.hinge[0], op.hinge[1], op.refDir, op.angle); continue; }
+    const pivot = typeof op.pivot === 'string' ? m[op.pivot] : op.pivot;
+    for (const key of op.nodes) m[key] = rotateAbout(m[key], pivot, op.axis, op.angle);
+  }
+  return m;
+}
+
+// ─── Articulation from degrees-of-freedom (clamped to LIMITS) ──────────
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function rotateSub(m, keys, pivotKey, axis, deg) {
+  const pivot = m[pivotKey];
+  for (const k of keys) m[k] = rotateAbout(m[k], pivot, axis, deg);
+}
+// Two-axis swivel within a cone: yaw (about NS) + pitch (about EW),
+// magnitude clamped to `limit`.
+function swivelSub(m, keys, pivotKey, yaw, pitch, limit) {
+  const mag = Math.hypot(yaw, pitch);
+  if (mag > limit) { yaw *= limit / mag; pitch *= limit / mag; }
+  rotateSub(m, keys, pivotKey, 'NS', yaw);
+  rotateSub(m, keys, pivotKey, 'EW', pitch);
+}
+
+// Build a posed armature from a degrees-of-freedom object. Order is
+// proximal → distal so each joint rides on its parent.
+export function articulate(dof = {}) {
+  const m = basePositions();
+  const L = LIMITS;
+  // Spine: distribute the sagittal/lateral/axial drive across the three trunk
+  // pivots (proximal→distal, so each rides its parent → the trunk curves).
+  if (dof.spine) {
+    const { sagittal = 0, lateral = 0, axial = 0 } = dof.spine;
+    let sg = clamp(sagittal, -1, 1), la = clamp(lateral, -1, 1);
+    const ax = clamp(axial, -1, 1);
+    // Unify the curl: forward-fold and side-bend draw from ONE flexibility
+    // budget, so a diagonal bend (down AND to the side) rides a single natural
+    // cone instead of summing to a superhuman fold. Twist is its own axis.
+    const r = Math.hypot(sg, la);
+    if (r > 1) { sg /= r; la /= r; }
+    for (const j of SPINE_ORDER) {
+      const cap = SPINE_CAP[j], sub = SPINE_SUB[j];
+      const bend = sg >= 0 ? sg * cap.flex : sg * cap.ext;   // +flex (forward), −extend (arch)
+      if (bend) rotateSub(m, sub, j, 'EW', -bend);           // flex = forward (+y) → negative EW
+      if (la)   rotateSub(m, sub, j, 'NS', la * cap.lateral);
+      if (ax)   rotateSub(m, sub, j, 'ZN', ax * cap.axial);
+    }
+  }
+  if (dof.bend) rotateSub(m, UPPER_BODY, 'navel', 'EW', clamp(dof.bend, -L.coreBend, L.coreBend));
+  if (dof.twist) {
+    const t = clamp(dof.twist, -L.coreTwist, L.coreTwist);
+    rotateSub(m, UPPER_BODY, 'navel', 'ZN', t);
+    rotateSub(m, LOWER_BODY, 'pelvisHub', 'ZN', -t);
+  }
+  // glenohumeral: the upper arm (bicep, shoulder→elbow) swivels about the SHOULDER
+  // socket — the shoulder node stays put. Mirrors the hip (thigh about the hip).
+  if (dof.shL) swivelSub(m, ARMS_L, 'shoulderL', dof.shL.yaw || 0, dof.shL.pitch || 0, L.shoulder);
+  if (dof.shR) swivelSub(m, ARMS_R, 'shoulderR', dof.shR.yaw || 0, dof.shR.pitch || 0, L.shoulder);
+  if (dof.hipL) swivelSub(m, LEG_L, 'hipL', dof.hipL.yaw || 0, dof.hipL.pitch || 0, L.hip);
+  if (dof.hipR) swivelSub(m, LEG_R, 'hipR', dof.hipR.yaw || 0, dof.hipR.pitch || 0, L.hip);
+  hingeFold(m, 'elbowL', 'wristL', REF_FWD, clamp(dof.elbowL || 0, 0, L.elbow));
+  hingeFold(m, 'elbowR', 'wristR', REF_FWD, clamp(dof.elbowR || 0, 0, L.elbow));
+  hingeFold(m, 'kneeL', 'ankleL', REF_BACK, clamp(dof.kneeL || 0, 0, L.knee));
+  hingeFold(m, 'kneeR', 'ankleR', REF_BACK, clamp(dof.kneeR || 0, 0, L.knee));
+  // shoulder AXIAL rotation (external/internal) — the 3rd ball-joint DOF. Applied
+  // AFTER the elbow bend so it swings the now-bent forearm out of the sagittal
+  // plane (e.g. forearm-up for a wave). Rotates the wrist about the upper-arm axis.
+  for (const s of ['L', 'R']) {
+    const roll = dof['sh' + s] && dof['sh' + s].roll;
+    if (!roll) continue;
+    const axis = normalize3(sub3(m['elbow' + s], m['shoulder' + s]));
+    m['wrist' + s] = rotAxis(m['wrist' + s], m['elbow' + s], axis, clamp(roll, -L.armRoll, L.armRoll));
+  }
+  // NECK: flex/tilt the whole column (carries the skull) about the neck root.
+  // HEAD: nod/tilt the skull on top of the neck (about the atlas). Applied
+  // proximal→distal so the head rides the neck.
+  if (dof.neck) swivelSub(m, ['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
+  if (dof.head) swivelSub(m, ['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+  return m;
+}
+
+// ─── Manji manifestation — the joint graph ─────────────────────────────
+// One sphere per node (the joint-center mapping), plus the center-to-
+// center links of every edge. No ball-in-socket here — the manji read
+// stays the clean character skeleton. Positions in STAND units; the
+// renderer projects.
+export function figureJointGraph(positions) {
+  const spheres = Object.keys(FIGURE_NODES).map((key) => ({ pos: positions[key], r: FIGURE_NODES[key].r }));
+  const links = [];
+  for (const { tri: [a, b, c] } of FIGURE_EDGES) {
+    links.push([positions[a], positions[b]]);
+    links.push([positions[b], positions[c]]);
+  }
+  return { spheres, links };
+}
+
+// ─── Wave manifestation — the vajra specs ──────────────────────────────
+// One vajra spec per edge, with anatomical ball-in-socket applied to the
+// limb roots. Points + radii + blend in STAND units; the renderer scales,
+// rotates to the view, samples the vajra, and projects.
+export function figureVajraSpecs(positions) {
+  return FIGURE_EDGES.map(({ tri: [p, c, d], stroke, ball }) => {
+    let proximal = positions[p];
+    let rProximal = FIGURE_NODES[p].r;
+    if (ball) {
+      // Smaller ball seated at the socket's limb-side edge, offset toward
+      // the limb's aim — pushed forward as it articulates — plus a forward
+      // + medial bias for the femoral/humeral neck angle.
+      const ratio = (p === 'hipL' || p === 'hipR') ? BALL_RATIO_HIP : BALL_RATIO_SHOULDER;
+      rProximal = FIGURE_NODES[p].r * ratio;
+      const dir = normalize3(sub3(positions[c], positions[p]));
+      const off = FIGURE_NODES[p].r - rProximal;
+      const fwd = FIGURE_NODES[p].r * SOCKET_FORWARD;
+      const med = FIGURE_NODES[p].r * SOCKET_MEDIAL * -Math.sign(positions[p].x || 1);
+      proximal = {
+        x: positions[p].x + dir.x * off + med,
+        y: positions[p].y + dir.y * off + fwd,
+        z: positions[p].z + dir.z * off,
+      };
+    }
+    return {
+      proximal, center: positions[c], distal: positions[d],
+      rProximal, rCenter: FIGURE_NODES[c].r, rDistal: FIGURE_NODES[d].r,
+      blend: BLEND, stroke,
+    };
+  });
+}

@@ -1,0 +1,236 @@
+{{>doc-head}}
+<style>
+  /* Book-viewer aspect — see partials/book-viewer.html. Default 16/9 (the
+     classic slide ratio). Writer can pass an override for 4/3, 1/1, etc. */
+  body { --viewer-aspect: {{viewer_aspect}}; }
+</style>
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #475569;
+    --faint: #94a3b8;
+    --line: #e2e8f0;
+    --paper: #f8fafc;
+    --slide: #ffffff;
+    --accent: #1d4ed8;
+    --visual-bg: #0b1220;
+    --visual-ink: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  /* Each .slide is a 16:9 rectangle, sized to its container. */
+  .slide {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--slide);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin: 0 0 32px;
+    padding: 56px 64px 40px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .slide.cover {
+    background: var(--slide);
+    justify-content: center;
+    text-align: center;
+    padding: 72px 96px;
+  }
+  .slide.cover .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 24px;
+  }
+  .slide.cover h1 {
+    font-size: 44px;
+    line-height: 1.15;
+    margin: 0 0 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .slide.cover .blurb {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 60ch;
+    margin: 0 auto;
+  }
+  .slide.cover .blurb p { margin: 0 0 0.8em; text-align: left; }
+  .slide.cover .blurb p:last-child { margin-bottom: 0; }
+  .slide.cover .imprint {
+    margin-top: 40px;
+    font-size: 11px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+  }
+
+  /* Section-divider slide (one per drawer). */
+  .slide.section {
+    background: var(--paper);
+    justify-content: center;
+    align-items: center;
+  }
+  .slide.section h2 {
+    font-size: 36px;
+    margin: 0;
+    color: var(--ink);
+    text-align: center;
+    font-weight: 600;
+  }
+  .slide.section .label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 12px;
+  }
+
+  /* Visual slide — sketch/svg full-bleed inside the slide rectangle. */
+  .slide.visual {
+    background: var(--visual-bg);
+    color: var(--visual-ink);
+    padding: 0;
+    overflow: hidden;
+  }
+  .slide.visual .canvas {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .slide.visual .canvas svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .slide.visual.missing .canvas {
+    color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  /* Title + body slide (from markdown items). */
+  .slide.title-body { padding: 56px 64px 40px; }
+  .slide.title-body .body { flex: 1; overflow: hidden; }
+  .slide.title-body h1, .slide.title-body h2 {
+    margin: 0 0 24px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .slide.title-body h1 { font-size: 32px; line-height: 1.2; }
+  .slide.title-body h2 { font-size: 26px; line-height: 1.25; }
+  .slide.title-body p { font-size: 17px; color: var(--muted); margin: 0 0 12px; }
+  .slide.title-body ul, .slide.title-body ol { padding-left: 1.4em; margin: 0 0 12px; }
+  .slide.title-body li { font-size: 17px; color: var(--muted); margin: 6px 0; }
+  .slide.title-body code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+    background: var(--paper);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .slide.title-body pre {
+    background: var(--paper);
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    overflow-x: auto;
+  }
+
+  /* Plain text slide. */
+  .slide.text { justify-content: center; }
+  .slide.text .body {
+    font-size: 22px;
+    color: var(--ink);
+    line-height: 1.4;
+    text-align: center;
+    max-width: 56ch;
+    margin: 0 auto;
+    white-space: pre-wrap;
+  }
+
+  .slide-meta {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px dashed var(--line);
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+  }
+  .slide.visual .slide-meta {
+    border-top: 1px dashed rgba(255,255,255,0.15);
+    color: var(--faint);
+    padding: 12px 24px 16px;
+    margin: 0;
+  }
+
+  footer.colophon {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  footer.colophon a { color: var(--faint); text-decoration: none; }
+  footer.colophon a:hover { color: var(--accent); text-decoration: underline; }
+  footer.colophon code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+  }
+
+  /* Print: one slide per page. */
+  @media print {
+    body { background: white; }
+    .deck { padding: 0; max-width: none; }
+    .slide { box-shadow: none; border-color: #ddd; margin: 0; page-break-after: always; break-after: page; }
+    footer.colophon { page-break-before: always; break-before: page; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="deck">
+
+  <section class="slide cover" data-viewer-page>
+    <p class="eyebrow">A slide deck</p>
+    <h1>{{cover_title}}</h1>
+    <div class="blurb">{{cover_blurb_html}}</div>
+    <p class="imprint">Mojulo &middot; {{generated_at_human}}</p>
+  </section>
+
+  {{slides_html}}
+
+  <footer class="colophon">
+    Materialized by <a href="https://mojulo.local">mojulo cook</a> &middot;
+    slide_deck template v{{template_version}} &middot;
+    <code>{{cook_ref}}</code> &middot;
+    {{generated_at_iso}}
+  </footer>
+
+</article>
+
+{{>book-viewer}}
+</body>
+</html>

@@ -18,7 +18,23 @@ import { randomUUID } from 'node:crypto';
 
 import { getDb } from '../index.js';
 
-const ITEM_TYPES = new Set(['text', 'markdown', 'image', 'svg', 'script', 'pointer', 'link']);
+const ITEM_TYPES = new Set([
+  'text',
+  'markdown',
+  'image',
+  'svg',
+  'script',
+  'pointer',
+  'link',
+  'sketch',
+]);
+
+// Sketch refs are minted by SketchRepository as `sk_<10 base36 chars>`. The
+// gate checks the shape, not existence — dangling refs are tolerated by the
+// same "navigational, not enforced" posture that stash_bindings uses (a
+// sketch deleted out from under a stash item resolves to a clearly-labeled
+// fallback in the renderer instead of vanishing the item).
+const SKETCH_REF_RE = /^sk_[a-z0-9]+$/i;
 
 // Size caps enforced at intake. SQLite happily stores megabytes, but the UI
 // (and Cook's static template renderer) get unhappy past these; 5MB markdown
@@ -36,7 +52,7 @@ const SCRIPT_LANGUAGES = new Set(['js', 'ts', 'py', 'sh', 'sql']);
 // not a schema migration — but resist `kind: 'anything'` here; freeform kinds
 // is how the substrate accretes drift. See
 // lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
-const BINDING_KINDS = new Set(['bot', 'app', 'plan', 'cook', 'contextmap_node']);
+const BINDING_KINDS = new Set(['bot', 'app', 'plan', 'cook', 'contextmap_node', 'sketch']);
 const BINDING_ROLES = new Set(['corpus', 'working_memory', 'ingredient', 'reference']);
 
 function parseJSON(value, fallback) {
@@ -167,6 +183,18 @@ export function validateItemContract({ type, title, sourceUrl, body, bodyMd, bod
         throw new Error("image items require metadata.content_hash (sha256 or similar)");
       }
       out.media_ref = mediaRef;
+      // Optional caption — used by the photojournal outcome template as the
+      // text below the photograph. Absent on plain pinned images. Mirrors the
+      // sketch case's caption channel.
+      if (bodyMd !== undefined && bodyMd !== null) {
+        if (typeof bodyMd !== 'string') {
+          throw new Error("image items: body_md must be a string when provided");
+        }
+        if (bodyMd.length > SIZE_CAPS.markdown_body) {
+          throw new Error(`image caption body_md exceeds ${SIZE_CAPS.markdown_body} bytes`);
+        }
+        out.body_md = bodyMd;
+      }
       break;
     }
     case 'svg': {
@@ -212,6 +240,35 @@ export function validateItemContract({ type, title, sourceUrl, body, bodyMd, bod
       }
       if (!title || typeof title !== 'string') {
         throw new Error("link items require a `title`");
+      }
+      break;
+    }
+    case 'sketch': {
+      if (!meta.sketch_ref || typeof meta.sketch_ref !== 'string') {
+        throw new Error(
+          "sketch items require metadata.sketch_ref (a sk_… ref from create_sketch).",
+        );
+      }
+      if (!SKETCH_REF_RE.test(meta.sketch_ref)) {
+        throw new Error(
+          `metadata.sketch_ref '${meta.sketch_ref}' is not shaped like 'sk_<…>'`,
+        );
+      }
+      if (!meta.label || typeof meta.label !== 'string') {
+        throw new Error(
+          "sketch items require metadata.label (the human display name at intake time)",
+        );
+      }
+      // Optional caption — used by the picture-book outcome template as the
+      // per-page text below the illustration. Absent on plain pinned sketches.
+      if (bodyMd !== undefined && bodyMd !== null) {
+        if (typeof bodyMd !== 'string') {
+          throw new Error("sketch items: body_md must be a string when provided");
+        }
+        if (bodyMd.length > SIZE_CAPS.markdown_body) {
+          throw new Error(`sketch caption body_md exceeds ${SIZE_CAPS.markdown_body} bytes`);
+        }
+        out.body_md = bodyMd;
       }
       break;
     }

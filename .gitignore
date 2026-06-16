@@ -1,3 +1,4 @@
 # Stray runtime state from running the control plane at the repo root.
 # The legitimate control-plane DB lives at control/data/.
 /data/
+node_modules/

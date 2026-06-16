@@ -37,6 +37,7 @@ function CallPill({ call }) {
 
 export default function ConnectedServicesPage() {
   const t = useTranslations('mcpSkills');
+  const tCommon = useTranslations('common');
   const router = useRouter();
 
   const [services, setServices] = useState([]);
@@ -85,14 +86,22 @@ export default function ConnectedServicesPage() {
             <h1 className="text-3xl font-semibold">{t('title')}</h1>
             <p className="text-[color:var(--text-secondary)] mt-2">{t('subtitle')}</p>
           </div>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="rounded-lg px-3 py-2 border border-[color:var(--border-color)] text-sm disabled:opacity-50"
-          >
-            {loading ? t('loading') : t('refresh')}
-          </button>
+          <div className="flex gap-2 flex-shrink-0">
+            <Link
+              href="/map"
+              className="rounded-lg px-3 py-2 border border-[color:var(--border-color)] text-sm hover:border-[color:var(--text-muted)] transition"
+            >
+              {tCommon('servicesMap')}
+            </Link>
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="rounded-lg px-3 py-2 border border-[color:var(--border-color)] text-sm disabled:opacity-50"
+            >
+              {loading ? t('loading') : t('refresh')}
+            </button>
+          </div>
         </header>
 
         {counts && (

@@ -14,7 +14,7 @@ function BotIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -37,7 +37,7 @@ function ConnectedServicesIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -63,7 +63,7 @@ function AppsGridIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -84,7 +84,7 @@ function SketchIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -92,11 +92,36 @@ function SketchIcon({ className = 'h-10 w-10' }) {
     >
       {/* Decision diamond — the recognizable flowchart element. Thinner
           stroke than the pencil so the two read as distinct layers. */}
-      <path d="M 12 11 L 21 16.5 L 12 22 L 3 16.5 Z" strokeWidth="1.25" />
+      <path d="M 12 11 L 21 16.5 L 12 22 L 3 16.5 Z" strokeWidth="0.9" />
       {/* Pencil hovering above, tip pointing down at the diamond. */}
       <path d="M 20 3 L 14 9 L 11.5 9.5 L 12 7 L 18 1 Z" />
       <path d="M 14 9 L 12 7" />
       <path d="M 18.9 4 L 16.9 2" />
+    </svg>
+  );
+}
+
+function MakerIcon({ className = 'h-10 w-10' }) {
+  // The Maker studio = the illustration concern: a framed picture holding a
+  // landscape (low sun + a range of hills). A framed scene, not a flowchart —
+  // sibling to the Sketch tile's pencil + diamond.
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* Picture frame. */}
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      {/* Landscape inside: a low sun and a range of hills. */}
+      <circle cx="8.5" cy="9" r="1.6" strokeWidth="0.9" />
+      <path d="M3.5 16.5 L8 11.5 L11.5 14.5 L15.5 9.5 L20.5 16.5" strokeWidth="0.9" />
     </svg>
   );
 }
@@ -108,7 +133,7 @@ function PlanIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -131,7 +156,7 @@ function NotebookIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -157,15 +182,40 @@ function StashIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
       <path d="M4 14h4l1.5 2h5L16 14h4v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />
-      <path d="M7 10h10" strokeWidth="1.25" />
-      <path d="M6 6h12" strokeWidth="1.25" />
+      <path d="M7 10h10" strokeWidth="0.9" />
+      <path d="M6 6h12" strokeWidth="0.9" />
+    </svg>
+  );
+}
+
+function CookIcon({ className = 'h-10 w-10' }) {
+  // Materialized publication: a page with a folded corner and content lines.
+  // Reads as "the document the agent published" — the stash's downstream
+  // counterpart (stash holds typed input; cook materializes typed output).
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+      <path d="M15 3v4h4" strokeWidth="0.9" />
+      <path d="M8 12h8" strokeWidth="0.9" />
+      <path d="M8 15h8" strokeWidth="0.9" />
+      <path d="M8 18h5" strokeWidth="0.9" />
     </svg>
   );
 }
@@ -177,7 +227,7 @@ function MapIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -197,7 +247,7 @@ function SettingsIcon({ className = 'h-10 w-10' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -374,11 +424,16 @@ const TILES = [
   { key: 'bots',      href: '/bots',       Icon: BotIcon },
   { key: 'mcpSkills', href: '/mcp-skills', Icon: ConnectedServicesIcon },
   { key: 'apps',      href: '/apps',       Icon: AppsGridIcon },
+  // Two sibling creative concerns, each its own tuned renderer:
+  // Sketches (diagrams & scientific explanation) and Mojulo Maker
+  // (illustrations + motion — the former standalone Motion tile folds in here).
   { key: 'sketch',    href: '/sketches',   Icon: SketchIcon },
+  { key: 'maker',     href: '/maker',      Icon: MakerIcon },
   { key: 'plan',      href: '/plan',       Icon: PlanIcon },
-  { key: 'map',       href: '/map',        Icon: MapIcon },
+  { key: 'outputs',   href: '/outputs',    Icon: CookIcon },
   { key: 'research',  href: '/research',   Icon: NotebookIcon },
   { key: 'stash',     href: '/stashes',    Icon: StashIcon },
+  { key: 'operations', href: '/operations', Icon: MapIcon },
   // Settings lives in the grid because the home launcher hides the global
   // nav row — this is the operator's way back to host config.
   { key: 'settings',  href: '/settings',   Icon: SettingsIcon },
@@ -389,16 +444,15 @@ export default function HomeLauncher({ authEnabled = false }) {
 
   return (
     <main className="relative min-h-screen">
-      <h1 className="sr-only">{t('title')}</h1>
       {authEnabled ? <SignOutButton /> : null}
 
       <div className="px-8 py-12">
         <div className="max-w-3xl mx-auto">
           <div className="flex flex-col items-center select-none">
-            <BrandLogo className="w-28 h-28" />
-            <p className="mt-3 text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">
+            <BrandLogo className="w-16 h-16" />
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[color:var(--text-primary)]">
               {t('title')}
-            </p>
+            </h1>
           </div>
           <div className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-8">
             {TILES.map((tile) => (
@@ -408,7 +462,7 @@ export default function HomeLauncher({ authEnabled = false }) {
                 className="group flex flex-col items-center gap-3"
               >
                 <div className="flex items-center justify-center aspect-square w-full max-w-[140px] rounded-xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] hover:border-[color:var(--brand-teal)] hover:bg-[color:var(--surface-elevated)]/30 transition">
-                  <tile.Icon className="h-16 w-16 text-[color:var(--text-secondary)] group-hover:text-[color:var(--brand-teal)] transition" />
+                  <tile.Icon className="h-16 w-16 text-[color:var(--text-muted)] group-hover:text-[color:var(--brand-teal)] transition" />
                 </div>
                 <span className="text-sm font-medium text-[color:var(--text-secondary)] group-hover:text-[color:var(--text-primary)] transition">
                   {t(`tiles.${tile.key}`)}
