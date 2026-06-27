@@ -309,7 +309,8 @@ function init(db) {
         'catalyst',
         'sketch_vocab',
         'sketch_method',
-        'manji_program'
+        'manji_program',
+        'painted_landscape'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
@@ -1046,17 +1047,18 @@ function migrateResearchColumns(db) {
 
 // meta_embeddings carries a CHECK(source_kind IN (...)) that can't be ALTERed.
 // When a new indexed source kind ships (sketch_vocab, then sketch_method,
-// …), an existing DB's table still has the old constraint and would reject
-// the new rows. The table is a pure derived sidecar, so we rebuild it
-// preserving every existing row (no re-embed) and let the widened CHECK
-// take effect. Detection is on the stored DDL — idempotent once the
-// constraint already names the newest kind.
+// manji_program, then painted_landscape, …), an existing DB's table still has
+// the old constraint and would reject the new rows. The table is a pure derived
+// sidecar, so we rebuild it preserving every existing row (no re-embed) and let
+// the widened CHECK take effect. Detection is on the stored DDL — idempotent
+// once the constraint already names the newest kind (bump the guard token below
+// to the newest kind whenever you widen the CHECK).
 function migrateEmbeddingsSourceKinds(db) {
   const row = db
     .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
     .get();
   if (!row || !row.sql) return;
-  if (row.sql.includes('manji_program')) return;
+  if (row.sql.includes('painted_landscape')) return;
   db.exec(`
     BEGIN;
     CREATE TABLE meta_embeddings_new (
@@ -1071,7 +1073,8 @@ function migrateEmbeddingsSourceKinds(db) {
         'catalyst',
         'sketch_vocab',
         'sketch_method',
-        'manji_program'
+        'manji_program',
+        'painted_landscape'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,

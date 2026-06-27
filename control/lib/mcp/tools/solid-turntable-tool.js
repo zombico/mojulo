@@ -15,6 +15,7 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
 import { planSolidTurntable, SOLID_SHAPES, SOLID_SURFACES } from '@/lib/graph/solid-turntable';
+import { warmScenePng } from '@/lib/graph/scene-png-warm';
 
 export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSeconds, lod, viewBox, ref, folderRef } = {}) {
   const manifest = {
@@ -45,6 +46,8 @@ export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSec
     }
     throw err;
   }
+
+  warmScenePng(sketch);   // background pre-bake of the gallery preview PNG
 
   return {
     ok: true,

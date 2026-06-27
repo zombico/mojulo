@@ -26,6 +26,15 @@
  */
 
 import { validateSketchManifest } from '@/lib/graph/sketch-manifest';
+import {
+  HEARTBEATS,
+  SPLATCHES,
+  SCENES,
+  SKIES,
+  CAMERAS,
+  STRUCTURE_GLYPHS,
+  validatePaintedLandscape,
+} from '@/lib/graph/polygonizer/painted-landscape.js';
 import { solvePoseFromXManji } from './pose-solve.js';
 
 // Named figure views → azimuth degrees (matches figure-render's view convention).
@@ -58,11 +67,11 @@ export function resolvePoseDials(insights = {}) {
   return { dials, view: insights.view, solve: { source: 'dials' } };
 }
 
-export const REFERENCE_TARGETS = ['scene', 'pose'];
+export const REFERENCE_TARGETS = ['scene', 'pose', 'landscape'];
 
-// Per-target default fidelity. Scene/pose lean THEMATIC/GESTURE — recover the
+// Per-target default fidelity. Every target leans THEMATIC/GESTURE — recover the
 // scaffold's attitude, let the substrate fill the rest; `faithful` is the opt-in.
-export const DEFAULT_FIDELITY = { scene: 'thematic', pose: 'gesture' };
+export const DEFAULT_FIDELITY = { scene: 'thematic', pose: 'gesture', landscape: 'thematic' };
 
 // ---------------------------------------------------------------------------
 // The extraction protocols (the heart — content, not plumbing). Each is the
@@ -136,7 +145,7 @@ const POSE_PROTOCOL = {
   ceiling: [
     'SINGLE-VIEW DEPTH is under-determined: at a frontal trace the forward/back bend (spine.sagittal), head nod, and any limb folding TOWARD the camera (a forearm/knee bending forward) live in the invisible axis — the solver FREEZES them at neutral rather than inventing them. A second (side) view unlocks them.',
     'Limb ROLL (axial twist) is not solved from one view; it defaults.',
-    'NO hands/fingers/feet/ankle/scapula articulation — captures LIMB gesture, never hand expression.',
+    'The X-manji trace captures LIMB GESTURE only — there are no hand/finger/foot/ankle landmarks in a stick skeleton, so this solve never recovers hand expression, wrist flex, finger curl, ankle/toe, axial roll, or the pelvis/shoulder-girdle transverse rotation (degenerate with the spine twist at one view). Those DOFs DO exist on the figure primitive (create_figure pose: wristL/R {flex,deviation}, fingersL/R, ankleL/R, toeL/R, hipL/R.roll, pelvis, shoulders) — set them directly on the solved dials when the pose needs them; the trace just won’t infer them for you.',
   ],
   multipass_hint:
     'A FRONT X-manji nails the in-plane gesture; a SIDE X-manji disambiguates the depth/fold it could not see. Trace a second view and call capture_reference again with the same stash_ref to ground the pose. capture_reference returns the solve error + which DOFs it froze — if the froze list holds the articulation you care about, that is your cue to add the side view.',
@@ -144,7 +153,91 @@ const POSE_PROTOCOL = {
     "capture_reference({ target:'pose', fidelity, insights:{ xmanji:{ landmarks:{ shoulderR:{x,y}, ... }, view }, proto?, gesture?, caveats? }, stash_ref? })",
 };
 
-const PROTOCOLS = { scene: SCENE_PROTOCOL, pose: POSE_PROTOCOL };
+// --- landscape vocabulary catalogues (built live from the glyph registries) ---
+// The painted-landscape cards are the single source of truth; mirroring them into
+// the protocol means a new heartbeat/splatch/scene card shows up here for free.
+function heartbeatLines() {
+  return Object.entries(HEARTBEATS).map(
+    ([id, r]) => `    • ${id} [${r.engine || 'sine-stack'}] — ${r.intent}`,
+  );
+}
+function splatchLines() {
+  return Object.entries(SPLATCHES).map(([id, s]) => `    • ${id} — ${s.intent} (seeds: ${s.seeds.join(', ')})`);
+}
+function sceneLines() {
+  return Object.entries(SCENES).map(([id, s]) => `    • ${id} — ${s.intent}`);
+}
+function structureLines() {
+  return Object.entries(STRUCTURE_GLYPHS).map(([id, g]) => `    • ${id} — ${g.intent}`);
+}
+function cameraLines() {
+  return Object.entries(CAMERAS).map(([id, c]) => `    • ${id} — ${c.intent}`);
+}
+function skyLines() {
+  return Object.entries(SKIES).map(([id, s]) => `    • ${id} — ${s.intent}`);
+}
+
+const LANDSCAPE_PROTOCOL = {
+  target: 'landscape',
+  summary:
+    "Read a landscape photo's GESTURE — its dominant landform motion, depth, and palette — and estimate the closed-vocabulary RECIPE (the \"mandala map\") that recreates it: a painted-landscape glyph pick. Use SCALE and POSITIONING to infer the main gesture (the terrain rhythm + camera), inventory the elements (biome fill, structures, sky), and quantize the colour to a named palette. The substrate then RENDERS your map — the cage you get back is a candidate recreation, not just a diagram. Throw away the pixels; keep the recipe.",
+  key_lines: [
+    'GESTURE (the main move): read the dominant landform RHYTHM. Are the ridges/swells PERIODIC — regular repeating crests, terraced steps, ocean swell (→ a [sine-stack] heartbeat) — or IRREGULAR/fractal — bumpy, natural, scales-with-distance terrain (→ an [fbm] heartbeat)? Then read its AMPLITUDE (gentle rolling vs steep). Pick the ONE heartbeat whose engine + intent matches. This is the gesture.',
+    'POSITIONING / CAMERA: find the HORIZON band (eye-level). A HIGH horizon means you look DOWN on the land (survey / top-down camera); a LOW horizon means you look UP (hero / low-angle). Read how fast elements shrink with distance (foreshortening). Pick the `camera` glyph that frames it; omit to use the default survey projection.',
+    'PALETTE: sample the THREE dominant colours — deepest shadow, mid-ground body, brightest highlight. Pick the `splatch` whose seed colours / intent sit nearest. The palette is DERIVED (a 4-stop ramp from 3 seeds), so match the MOOD, not the exact hex; use `paletteOverrides` only to pin a stubborn hue.',
+    'ELEMENTS (the inventory): what populates the land? Foliage / trees → a `scene` biome (cones, canopies, boulders, tufts in near/mid/far) or the `forest` layer for a treed slope. Built things — ruins, monuments, a village → a `structures` glyph. Bare water / dunes / fields read straight from heartbeat + splatch, so leave elements off.',
+    'SKY & LIGHT: time of day from sky colour + shadow direction sets `light: { x, y, z }` (a NEGATIVE z is night). Cloud cover, a visible sun, stars/moon → a named `sky` preset (or `sky: { clouds, sun, ... }`). The sky derivation rides the same light vector, so one `light.z` spans midday → dusk → night.',
+    'BUILT STRUCTURES (optional, beyond nature): the land may carry built form, read as MASSING + SPANS, not facades. (a) A BRIDGE / causeway / viaduct → `bridges: [{ from:[x,y], to:[x,y], archHeight?, pierEvery?, clearance? }]`; endpoints are WORLD coords (x −12→12 left→right, y −24→6 far→near), the deck arches between them on regularly-spaced piers, palette-harmonized. (b) A BUILT-UP shore / town / city → `city: true` + `cityDensity` 0–1 (how much buildable ground fills with massed buildings that inherit the terrain slope). (c) A BAY / lake / water INLET → switch from `heartbeat` to an `elevation` block `{ fields, field, waterLevel }`: compose a height field that DIPS below `waterLevel` in the inlet, and the substrate floods it with a depth-tinted water sheet.',
+  ],
+  dial_schema: {
+    heartbeat: 'REQUIRED — named geometry recipe (the gesture). One id from the heartbeats catalogue.',
+    splatch: 'REQUIRED — named palette (3 seeds → 4-stop ramp). One id from the splatches catalogue.',
+    scene: 'OPTIONAL — biome fill id (forest/coast/alpine/meadow…). The way nature reads as a place.',
+    structures: 'OPTIONAL — architectural scatter id (ruins / monuments / village). Omit for pure nature.',
+    forest: 'OPTIONAL — generative tree layer: true, a density 0–1, or { density, treeline, size }.',
+    sky: 'OPTIONAL — a sky-card id, false (flat), or { hazeStrength, clouds, sun, stars, moon }.',
+    camera: 'OPTIONAL — camera-glyph id locking the projection (wide / hero / overhead). Omit for default survey.',
+    light: 'OPTIONAL — { x, y, z } light direction; z drives the day→night arc (negative = night).',
+    bridges: 'OPTIONAL — span structures: [{ from:[x,y], to:[x,y], archHeight?, deckWidth?, clearance?, pierEvery? }]. Arched deck on piers. Renders in the WORLD/3D view, NOT the flat SVG cage.',
+    city: 'OPTIONAL — true to mass buildings on buildable ground (they ride the terrain slope). WORLD/3D view only.',
+    cityDensity: 'OPTIONAL — 0–1, how densely city massing fills buildable ground (default 0.6).',
+    farmland: 'OPTIONAL — true to texture dry land as cultivated fields. WORLD/3D view only.',
+    elevation: 'OPTIONAL (advanced) — replace `heartbeat` with a composed height field { fields, field, waterLevel } for BAYS / lakes / inlets; water floods below waterLevel. Renders in SVG + World. Field decls are { kind: constant|radial|gradient, … } over {x,y,z} points; `field` names the one that drives terrain.',
+    renderStyle: "OPTIONAL — 'painterly' (default) | 'topographic' | 'wireframe'.",
+    seed: 'OPTIONAL — any non-empty string for within-recipe variation (element + wave placement).',
+    gesture: 'OPTIONAL — a short prose note on the main gesture you read (stored in the caption).',
+    caveats: 'OPTIONAL — string[] of what the recipe cannot capture from this photo.',
+  },
+  vocabulary: {
+    heartbeats: heartbeatLines(),
+    splatches: splatchLines(),
+    scenes: sceneLines(),
+    structures: structureLines(),
+    cameras: cameraLines(),
+    skies: skyLines(),
+  },
+  fidelity_contract: {
+    thematic:
+      'DEFAULT. Match the GESTURE + mood + biome; let the seed place exact ridges and elements. Name a heartbeat + splatch (+ a scene if it should read as a place) and stop.',
+    faithful:
+      'Tune element counts via the scene affinity / forest density, pin the camera + light, add paletteOverrides for a stubborn hue — then render the cage, Read it back, and nudge the picks until the gesture + palette land.',
+  },
+  ceiling: [
+    'CLOSED VOCABULARY: this recreates the GESTURE + biome + palette + light, NOT the pixels. It cannot reproduce a specific real place, a particular building, photographic texture, or any object outside the glyph cards. If the photo\'s subject is a named landmark, you get its FAMILY, not its identity.',
+    'Palette is a DERIVED 4-stop ramp from 3 seed colours — exact hues approximate; reach for paletteOverrides only when a hue must be pinned.',
+    'Element POSITIONS are SEEDED, not traced — you choose the biome + counts + bands, the substrate places them. Re-seed for a different arrangement; you cannot place an individual tree.',
+    'Affine two-point camera (same ceiling as `scene`): no lens curvature, VPs on the horizon, no true bird\'s-eye in the recipe path.',
+    'BUILT FORM IS COARSE: bridges are arched-deck-on-piers only (no truss / cable-stayed / suspension); `city` is MASSING that rides the terrain, not facades / setbacks / a named skyline. For a faithful skyline or a landmark span, mint create_fractal_city / create_transportation_hub as a SEPARATE sketch — but those carry NO terrain underneath; the substrate has no path compositing a real city onto painted terrain in one image.',
+    'WHERE BUILT FORM RENDERS: bridges, `city` massing, and `farmland` appear in the WORLD / 3D view of the cage (open it from cage_url), NOT in the flat SVG. Bays (`elevation` + `waterLevel`) render in BOTH. The flat SVG cage shows terrain + palette + scene biome + the box/obelisk `structures` glyphs.',
+    'REPLAY CAVEAT: create_painted_landscape CANNOT author bridges / city / elevation (its tool schema stops at the glyph families). Those live only in the stored insights — re-mint from the stash insights, not by re-typing a create_painted_landscape call.',
+  ],
+  multipass_hint:
+    'One wide photo nails the gesture + palette + camera. A DETAIL CROP (or a second framing) refines what the wide shot quantized coarsely — element density, structure type, a stubborn hue. Call capture_reference again with the same stash_ref to layer the refinement. After each pass, Read the cage_url and compare it to the photo: the gesture is right when the silhouette + depth + mood match, even though no pixel does.',
+  capture_call:
+    "capture_reference({ target:'landscape', fidelity, insights:{ heartbeat, splatch, scene?, structures?, forest?, sky?, camera?, light?, bridges?, city?, cityDensity?, elevation?, renderStyle?, seed?, gesture?, caveats? }, stash_ref? })",
+};
+
+const PROTOCOLS = { scene: SCENE_PROTOCOL, pose: POSE_PROTOCOL, landscape: LANDSCAPE_PROTOCOL };
 
 export function getReferenceProtocol(target) {
   const proto = PROTOCOLS[target];
@@ -259,6 +352,64 @@ export function lowerPoseCage(insights = {}, title = 'Pose reference') {
 }
 
 /**
+ * LANDSCAPE cage → a painted-landscape manifest (kind: 'painted-landscape'). The
+ * extracted glyph map IS the manifest: heartbeat + splatch (required) plus any of
+ * the optional layers (scene / structures / forest / sky / camera / light / seed /
+ * renderStyle / *Overrides) pass straight through. The substrate RENDERS it, so the
+ * cage is a candidate recreation, not a diagram. Validates against the same closed
+ * vocabulary as create_painted_landscape — a bad glyph fails at mint, not at view.
+ */
+export function lowerLandscapeCage(insights = {}, title = 'Landscape reference') {
+  // `elevation` is validated by validatePaintedLandscape; the built-form fields
+  // (bridges / city / cityDensity / farmland) are consumed by the World mesh and
+  // NOT covered by that validator, so we shape-check them here — a bad span fails
+  // at capture time, not lazily at World-view time.
+  const PASSTHROUGH = [
+    'heartbeat', 'splatch', 'structures', 'scene', 'forest', 'sky', 'camera',
+    'light', 'seed', 'renderStyle', 'paletteOverrides', 'heartbeatOverrides',
+    'bridges', 'city', 'cityDensity', 'farmland', 'elevation',
+  ];
+  const manifest = { kind: 'painted-landscape', title };
+  for (const key of PASSTHROUGH) {
+    if (insights[key] !== undefined && insights[key] !== null) manifest[key] = insights[key];
+  }
+  const errors = validatePaintedLandscape(manifest);
+  errors.push(...validateLandscapeBuiltForm(manifest));
+  if (errors.length) {
+    throw new Error(`landscape cage manifest invalid (check your glyph picks):\n - ${errors.join('\n - ')}`);
+  }
+  return manifest;
+}
+
+// Shape-check the built-form fields the painted-landscape validator leaves alone.
+function validateLandscapeBuiltForm(manifest) {
+  const errors = [];
+  const isPt = (p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]);
+  if (manifest.bridges !== undefined) {
+    if (!Array.isArray(manifest.bridges)) {
+      errors.push('bridges must be an array of { from:[x,y], to:[x,y], … } spans');
+    } else {
+      manifest.bridges.forEach((br, i) => {
+        if (!br || typeof br !== 'object' || !isPt(br.from) || !isPt(br.to)) {
+          errors.push(`bridges[${i}]: requires { from:[x,y], to:[x,y] } world endpoints`);
+        }
+      });
+    }
+  }
+  if (manifest.city !== undefined && typeof manifest.city !== 'boolean') {
+    errors.push('city must be a boolean (true to mass buildings on buildable ground)');
+  }
+  if (manifest.cityDensity !== undefined
+    && (typeof manifest.cityDensity !== 'number' || !Number.isFinite(manifest.cityDensity) || manifest.cityDensity < 0)) {
+    errors.push('cityDensity must be a number >= 0 (0–1) when provided');
+  }
+  if (manifest.farmland !== undefined && typeof manifest.farmland !== 'boolean') {
+    errors.push('farmland must be a boolean when provided');
+  }
+  return errors;
+}
+
+/**
  * A short human-readable caption for the cage stash item's body_md.
  */
 export function summarizeReference(target, insights = {}, fidelity, passes) {
@@ -272,6 +423,17 @@ export function summarizeReference(target, insights = {}, fidelity, passes) {
   } else if (target === 'scene') {
     if (insights.scale?.relative) lines.push(`Scale: ${insights.scale.relative}${insights.scale.grounded ? ' (grounded)' : ' (relative)'}`);
     if (insights.thematic?.mood) lines.push(`Mood: ${insights.thematic.mood}`);
+  } else if (target === 'landscape') {
+    const map = [
+      insights.heartbeat ? `heartbeat \`${insights.heartbeat}\`` : null,
+      insights.splatch ? `splatch \`${insights.splatch}\`` : null,
+      insights.scene ? `scene \`${insights.scene}\`` : null,
+      insights.structures ? `structures \`${insights.structures}\`` : null,
+      insights.camera ? `camera \`${insights.camera}\`` : null,
+      insights.sky && typeof insights.sky === 'string' ? `sky \`${insights.sky}\`` : null,
+    ].filter(Boolean);
+    if (map.length) lines.push(`Map: ${map.join(' · ')}`);
+    if (insights.gesture) lines.push(`Gesture: ${insights.gesture}`);
   }
   const caveats = Array.isArray(insights.caveats) ? insights.caveats : [];
   if (caveats.length) lines.push(`Caveats: ${caveats.join('; ')}`);

@@ -10,7 +10,7 @@ const projectPoint = (w) => [w[1] * 40, 400 - w[2] * 40];
 
 describe('vehicle-swept-net — car family', () => {
   it('registers sedan / suv / limo / taxi and resolves their cards', () => {
-    expect(Object.keys(CAR_NETS)).toEqual(['sedan', 'suv', 'limo', 'taxi']);
+    expect(Object.keys(CAR_NETS)).toEqual(['sedan', 'suv', 'limo', 'taxi', 'station-wagon']);
     const sedan = resolveCarNet('sedan');
     expect(sedan.body.id).toBe('sedan-body');
     expect(sedan.front.id).toBe('sedan-front');

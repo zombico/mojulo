@@ -43,7 +43,9 @@ function rayTri(o, d, a, b, c) {
   const t = dot(e2, q) * inv;
   return t > 1e-4 ? t : Infinity;
 }
-const rayQuad = (o, d, c) => Math.min(rayTri(o, d, c[0], c[1], c[2]), rayTri(o, d, c[0], c[2], c[3]));
+// Quad = two tris; a TRIANGLE occluder (3 corners — e.g. a hip/gable roof slope) is just the
+// first tri (no c[3]). Without this guard a tri face crashes the bake on c[3].
+const rayQuad = (o, d, c) => c.length < 4 ? rayTri(o, d, c[0], c[1], c[2]) : Math.min(rayTri(o, d, c[0], c[1], c[2]), rayTri(o, d, c[0], c[2], c[3]));
 
 // N ray directions in a cone of half-angle `coneDeg` about `axis` (fibonacci, deterministic).
 function coneDirs(axis, coneDeg, n) {
@@ -220,8 +222,13 @@ export function applyDiffusionSoft(faces, field, { gain = 2.5, softness = 1, max
     // shadow pool ON TOP — a cast shadow must darken even a lit area (the shadow falls
     // where the light WOULD have gone), so it sits above the light pool, over the base.
     const sh = fd.shadow;
+    let shadowDecal;
     if (sh && sh.uv && sh.s >= 1e-3) {
-      layers.push(pool(sh.uv, sh.spread, shadowColor, Math.min(shadowMaxAlpha, sh.s * gain * shadowStrength)));
+      const sa = Math.min(shadowMaxAlpha, sh.s * gain * shadowStrength);
+      layers.push(pool(sh.uv, sh.spread, shadowColor, sa));
+      // structured twin of the dark `bg` pool, so the World can lay it as a ground decal
+      // (collectShadowDecals → flat dark quad). CSS-3D keeps using the `bg` gradient.
+      shadowDecal = { uv: sh.uv, spread: sh.spread, alpha: sa, color: shadowColor };
     }
     // light pool (below the shadow, above the base fill)
     const m = Math.max(fd.e[0], fd.e[1], fd.e[2]);
@@ -230,7 +237,7 @@ export function applyDiffusionSoft(faces, field, { gain = 2.5, softness = 1, max
       layers.push(pool(fd.uv, fd.spread, lc, Math.min(maxAlpha, m * gain)));
     }
     if (!layers.length) return f;
-    return { ...f, bg: `${layers.join(', ')}, ${f.bg || f.fill}` };
+    return { ...f, bg: `${layers.join(', ')}, ${f.bg || f.fill}`, ...(shadowDecal ? { shadowDecal } : {}) };
   });
 }
 

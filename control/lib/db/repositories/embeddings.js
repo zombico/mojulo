@@ -59,6 +59,10 @@ export const SOURCE_KINDS = [
   // declares a `manjiProgram` field). Discovered by intent and passed
   // straight to `create_manji_tree` as a `programRef`.
   'manji_program',
+  // painted-landscape glyph cards (heartbeat / splatch / camera / scene / sky
+  // markdown under painted-landscape-cards/). Discovered by intent and passed
+  // as a named glyph to `create_painted_landscape`.
+  'painted_landscape',
 ];
 
 const SNIPPET_MAX_CHARS = 280;
@@ -699,6 +703,25 @@ export const BodyComposition = {
     }
     return lines.join('\n');
   },
+  paintedLandscape(card) {
+    // Painted-landscape glyph cards — one *.md per glyph under
+    // painted-landscape-cards/, across five families (heartbeat geometry /
+    // splatch palette / camera / scene / sky). Retrieved by intent and passed
+    // as a named glyph to `create_painted_landscape`. Lead with id + family so
+    // a slot-shaped query ("a stormy sky", "autumn palette") hits the right
+    // family, then intent + aliases, then the prose body (strongest signal —
+    // the per-card "when to reach for it" documentation).
+    const lines = [];
+    lines.push(`# ${card.id} (${card.family})`);
+    if (card.intent) lines.push('', card.intent);
+    if (Array.isArray(card.aliases) && card.aliases.length) {
+      lines.push('', `Aliases: ${card.aliases.join(', ')}`);
+    }
+    if (typeof card.body === 'string' && card.body.length > 0) {
+      lines.push('', '---', '', card.body);
+    }
+    return lines.join('\n');
+  },
 };
 
 // ── reindexAll ────────────────────────────────────────────────────────────
@@ -890,6 +913,24 @@ export async function reindexAll({ verbose = false } = {}) {
   );
   for (const card of getManjiProgramCatalog().values()) addManjiProgramCard(card);
   log(`manji_program: ${manjiProgramCount}`);
+
+  // 11. Painted-landscape glyph cards — heartbeat / splatch / camera / scene /
+  // sky cards under painted-landscape-cards/, each a named glyph the agent
+  // passes to `create_painted_landscape`. Indexed by intent so "a stormy sky"
+  // / "autumn palette" / "a top-down survey camera" surfaces the right glyph
+  // before composing the recipe. Repo-curated markdown, like sketch_vocab.
+  const { getPaintedLandscapeCardCatalog } = await import(
+    '../../graph/painted-landscape-cards/loader.js'
+  );
+  const paintedCards = getPaintedLandscapeCardCatalog();
+  for (const card of paintedCards.values()) {
+    items.push({
+      sourceKind: 'painted_landscape',
+      sourceRef: card.ref,
+      bodyText: BodyComposition.paintedLandscape(card),
+    });
+  }
+  log(`painted_landscape: ${paintedCards.size}`);
 
   if (items.length === 0) {
     log('nothing to index');

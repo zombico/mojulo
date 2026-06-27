@@ -33,6 +33,7 @@ import {
   getReferenceProtocol,
   lowerSceneCage,
   lowerPoseCage,
+  lowerLandscapeCage,
   resolvePoseDials,
   summarizeReference,
 } from '@/lib/reference';
@@ -106,6 +107,8 @@ export async function captureReferenceHandler(input, _ctx) {
     } catch (err) {
       throw new Error(`pose cage render failed (check the X-manji / dials): ${err.message}`);
     }
+  } else if (target === 'landscape') {
+    manifest = lowerLandscapeCage(insights, cageTitle); // validates against the closed vocab
   } else {
     manifest = lowerSceneCage(insights, cageTitle); // validates internally
   }
@@ -133,6 +136,11 @@ export async function captureReferenceHandler(input, _ctx) {
   });
 
   const frozen = solveInfo?.frozen || [];
+  // Built form (bridges / city massing / farmland) renders in the WORLD/3D view,
+  // not the flat SVG; surface a world_url and steer the next-step toward it.
+  const hasBuiltForm =
+    target === 'landscape' &&
+    !!(effInsights.bridges || effInsights.city || effInsights.farmland || effInsights.elevation);
   return {
     ok: true,
     stash_ref: stash.stashRef,
@@ -140,6 +148,7 @@ export async function captureReferenceHandler(input, _ctx) {
     cage_ref: cage.ref,
     cage_url: `/sketches/${encodeURIComponent(cage.ref)}`,
     svg_url: `/api/sketches/${encodeURIComponent(cage.ref)}/svg?inline=1`,
+    ...(target === 'landscape' ? { world_url: `/api/sketches/${encodeURIComponent(cage.ref)}/world` } : {}),
     target,
     fidelity: fid,
     passes,
@@ -147,9 +156,11 @@ export async function captureReferenceHandler(input, _ctx) {
     next:
       target === 'pose'
         ? `Solved the dials from your X-manji (fit error ${solveInfo?.error != null ? solveInfo.error.toFixed(3) : 'n/a'}${frozen.length ? `; depth-frozen: ${frozen.join(', ')}` : ''}). Open cage_url to SEE the figure. ${frozen.length ? `Those frozen DOFs are unobservable at this view — if the pose needs them, trace a SIDE X-manji and call again with stash_ref:'${stash.stashRef}'. ` : ''}Build from it: create_figure({ pose: insights.dials }) (the solved dials are stored), or forge_motion a pose keyframe over the figure cage.`
-        : passes === 1
-          ? `Open cage_url to SEE the extracted scene frame. To GROUND it, capture_reference again with stash_ref:'${stash.stashRef}' and a second view. Build from it: preload the cage_ref for visual context and read insights.camera + insights.roomBasis to author a create_manji_tree scene in that frame. Bind to a build: bind_stash({ stash_ref, role:'reference' }).`
-          : `Pass ${passes} refined the reference (now triangulated across views). Latest cage: ${cage.ref}.`,
+        : target === 'landscape'
+          ? `Built your landscape map into a real render — open cage_url to SEE it and compare against the photo (the gesture is right when the silhouette + depth + mood match, even though no pixel does). ${hasBuiltForm ? `Your map has BUILT FORM (bridges / city / bay) — those render in the WORLD/3D view: open world_url (${`/api/sketches/${encodeURIComponent(cage.ref)}/world`}), the flat SVG cage won't show them. Note: create_painted_landscape can't author bridges/city/elevation, so re-mint from these stored insights, not the tool. ` : `The recipe is stored in insights; replay or tune it with create_painted_landscape({ heartbeat:'${effInsights.heartbeat}', splatch:'${effInsights.splatch}'${effInsights.scene ? `, scene:'${effInsights.scene}'` : ''}, ... }). `}Refine with a DETAIL CROP via capture_reference again with stash_ref:'${stash.stashRef}' to adjust element density / palette / built form. Bind to a build: bind_stash({ stash_ref, role:'reference' }).`
+          : passes === 1
+            ? `Open cage_url to SEE the extracted scene frame. To GROUND it, capture_reference again with stash_ref:'${stash.stashRef}' and a second view. Build from it: preload the cage_ref for visual context and read insights.camera + insights.roomBasis to author a create_manji_tree scene in that frame. Bind to a build: bind_stash({ stash_ref, role:'reference' }).`
+            : `Pass ${passes} refined the reference (now triangulated across views). Latest cage: ${cage.ref}.`,
   };
 }
 
@@ -161,7 +172,7 @@ export function registerVisualReferenceTools() {
   registerTool({
     name: 'reference_protocol',
     description:
-      "Visual Reference (step 1) — get the EXTRACTION PROTOCOL for turning a photo YOU can see into a mojulo scaffold. You (the harness) are the vision adapter: there is no vision key and no image is sent to mojulo for understanding — you read the image, then map what you see onto the target's dials. Returns the key lines to read, the dial schema to write into, the fidelity contract (thematic/gesture default vs faithful), the expressive ceiling (what this target CANNOT represent), the multi-pass hint (which second view resolves which single-photo ambiguity), and the exact capture_reference call to make next.\n\nTargets:\n  • scene — a room/building/scene photo → recover PERSPECTIVE (horizon, vanishing points, floor convergence, relative scale) into a two-point camera the substrate builds inside.\n  • pose  — a human photo → TRACE the figure's X-manji (its stick-skeleton key lines) as 2D points; the substrate SOLVES the pose dials from your trace against the locked armature (you place a skeleton, you don't guess joint angles).\n\nReach for this on framing like \"use this photo/image as a reference, match this pose/gesture, rebuild this room's perspective, copy the composition/camera, base it on this picture\". Then call capture_reference. (Contrast: \"draw me X\" → create_sketch; \"make X move\" → forge_motion.)",
+      "Visual Reference (step 1) — get the EXTRACTION PROTOCOL for turning a photo YOU can see into a mojulo scaffold. You (the harness) are the vision adapter: there is no vision key and no image is sent to mojulo for understanding — you read the image, then map what you see onto the target's dials. Returns the key lines to read, the dial schema to write into (landscape also ships the glyph CATALOGUES to pick from), the fidelity contract (thematic/gesture default vs faithful), the expressive ceiling (what this target CANNOT represent), the multi-pass hint (which second view resolves which single-photo ambiguity), and the exact capture_reference call to make next.\n\nTargets:\n  • scene — a room/building/scene photo → recover PERSPECTIVE (horizon, vanishing points, floor convergence, relative scale) into a two-point camera the substrate builds inside.\n  • pose  — a human photo → TRACE the figure's X-manji (its stick-skeleton key lines) as 2D points; the substrate SOLVES the pose dials from your trace against the locked armature (you place a skeleton, you don't guess joint angles).\n  • landscape — a landscape/terrain photo → read its GESTURE (dominant landform rhythm), depth, palette, and elements, and pick the closed-vocabulary painted-landscape RECIPE (the \"mandala map\") that recreates it; the substrate RENDERS your map, so the cage is a candidate recreation, not just a diagram.\n\nReach for this on framing like \"use this photo/image as a reference, match this pose/gesture, rebuild this room's perspective, recreate this landscape/scenery, copy the composition/camera, base it on this picture\". Then call capture_reference. (Contrast: \"draw me X\" → create_sketch; \"make X move\" → forge_motion.)",
     inputSchema: {
       type: 'object',
       required: ['target'],
@@ -169,7 +180,7 @@ export function registerVisualReferenceTools() {
         target: {
           type: 'string',
           enum: REFERENCE_TARGETS,
-          description: "'scene' (perspective from a room/building photo) | 'pose' (gesture from a human photo).",
+          description: "'scene' (perspective from a room/building photo) | 'pose' (gesture from a human photo) | 'landscape' (painted-landscape recipe from a terrain/scenery photo).",
         },
       },
     },
@@ -179,16 +190,16 @@ export function registerVisualReferenceTools() {
   registerTool({
     name: 'capture_reference',
     description:
-      "Visual Reference (step 2) — FILE a reference you extracted from a photo into a stash. Call reference_protocol(target) first; then, having read the image, pass the structured `insights` you decomposed it into. For pose, pass a traced X-manji (insights.xmanji.landmarks) and the substrate SOLVES the dials. Mints a CAGE sketch you can see/preload/re-camera (scene → a perspective-frame diagram; pose → the solved figure dummy) and gathers it as a `sketch` stash item carrying metadata.insights (with the solved dials). Returns { stash_ref, cage_ref, cage_url, svg_url, item_id, passes }.\n\nMulti-pass: a single photo is degenerate (scene depth/scale relative; pose depth/roll ambiguous). Pass `stash_ref` to REFINE the same reference with a second viewpoint — the pass triangulates what one view couldn't. We never expect one photo to drive creation; one-shot is the normalized anchor, multi-pass grounds it.\n\nConsume it: scene → preload cage_ref in create_sketch/create_manji_tree or forge_motion a turntable over it; pose → create_figure({ pose: insights.dials }) or a forge_motion pose keyframe; either → cook the stash into a reference sheet. Anchor a build with bind_stash({ stash_ref, role:'reference' }).",
+      "Visual Reference (step 2) — FILE a reference you extracted from a photo into a stash. Call reference_protocol(target) first; then, having read the image, pass the structured `insights` you decomposed it into. For pose, pass a traced X-manji (insights.xmanji.landmarks) and the substrate SOLVES the dials. For landscape, pass the glyph map (heartbeat + splatch + optional scene/structures/sky/camera/…) and the substrate RENDERS it. Mints a CAGE sketch you can see/preload/re-camera (scene → a perspective-frame diagram; pose → the solved figure dummy; landscape → the recreated painted landscape) and gathers it as a `sketch` stash item carrying metadata.insights. Returns { stash_ref, cage_ref, cage_url, svg_url, item_id, passes }.\n\nMulti-pass: a single photo is degenerate (scene depth/scale relative; pose depth/roll ambiguous; landscape elements quantized coarsely). Pass `stash_ref` to REFINE the same reference with a second viewpoint or detail crop — the pass grounds what one view couldn't. We never expect one photo to drive creation; one-shot is the normalized anchor, multi-pass grounds it.\n\nConsume it: scene → preload cage_ref in create_sketch/create_manji_tree or forge_motion a turntable over it; pose → create_figure({ pose: insights.dials }) or a forge_motion pose keyframe; landscape → create_painted_landscape({ ...insights }) to replay/tune the recipe, or forge_motion a fly-over the terrain; any → cook the stash into a reference sheet. Anchor a build with bind_stash({ stash_ref, role:'reference' }).",
     inputSchema: {
       type: 'object',
       required: ['target', 'insights'],
       properties: {
-        target: { type: 'string', enum: REFERENCE_TARGETS, description: "'scene' | 'pose' — must match the protocol you read." },
+        target: { type: 'string', enum: REFERENCE_TARGETS, description: "'scene' | 'pose' | 'landscape' — must match the protocol you read." },
         insights: {
           type: 'object',
           description:
-            "The structured read you extracted from the image (the shape comes from reference_protocol). scene → { camera, roomBasis, viewBox?, scale, thematic, caveats }. pose → TRACE an X-manji: { xmanji: { landmarks: { shoulderR:{x,y}, elbowR:{x,y}, hipL:{x,y}, … }, view }, proto?, gesture?, caveats } — the substrate SOLVES the joint dials from your landmarks (you don't supply angles); the solved dials are stored back into metadata.insights.dials. (Escape hatch: pose also accepts insights.dials directly.)",
+            "The structured read you extracted from the image (the shape comes from reference_protocol). scene → { camera, roomBasis, viewBox?, scale, thematic, caveats }. pose → TRACE an X-manji: { xmanji: { landmarks: { shoulderR:{x,y}, elbowR:{x,y}, hipL:{x,y}, … }, view }, proto?, gesture?, caveats } — the substrate SOLVES the joint dials from your landmarks (you don't supply angles); the solved dials are stored back into metadata.insights.dials. (Escape hatch: pose also accepts insights.dials directly.) landscape → a painted-landscape glyph map: { heartbeat, splatch, scene?, structures?, forest?, sky?, camera?, light?, bridges?, city?, cityDensity?, elevation?, renderStyle?, seed?, gesture?, caveats } — heartbeat + splatch required, picked from the catalogues in the protocol; the substrate renders the recipe into the cage. Built form is optional: `bridges:[{from:[x,y],to:[x,y]}]` (arched spans) + `city:true`/`cityDensity` (massed buildings) render in the WORLD/3D view; `elevation:{fields,field,waterLevel}` carves a BAY/inlet and renders in SVG too.",
         },
         fidelity: { type: 'string', description: "How tightly you quantized: scene 'thematic'|'faithful' (default thematic); pose 'gesture'|'faithful' (default gesture)." },
         label: { type: 'string', description: 'Short label for the reference (the stash item title).' },

@@ -1633,7 +1633,11 @@
   },
   "sketches": {
     "notFoundTitle": "Sketch not found",
-    "notFoundBody": "This sketch ref does not exist or has not been minted yet."
+    "notFoundBody": "This sketch ref does not exist or has not been minted yet.",
+    "downloadGlb": "Download .glb",
+    "downloadGlbPreparing": "Preparing…",
+    "downloadGlbUnavailable": "No 3D mesh to export for this sketch.",
+    "downloadGlbError": "Export failed."
   },
   "maker": {
     "hub": {

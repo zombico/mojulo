@@ -6,7 +6,10 @@
  * wrap-card texture sampled per facet; they only flatten to 2D at the final
  * `.map(project)`. We pass an IDENTITY projector that preserves z, so the returned
  * shapes are real 3D quads we drop into the CSS3D `faces` list. Wheels (30-gon
- * rings) become "coins" — a tread rim extruded along the axle + a circular face.
+ * rings) become "coins" — a tread rim extruded along the axle + a circular face
+ * (a square quad with `radius:'50%'`, so the cap reads round in BOTH the CSS3D
+ * border-radius path and the Three.js realizer's rounded-rect tessellation; a
+ * `circle()` clip would only round in CSS3D and stay square in the World).
  *
  * `cull:false` (default) emits the whole closed shell so the model reads from ANY
  * camera (multi-camera scenes), at ~2× the face count of the single-camera path.
@@ -75,7 +78,7 @@ function wheelCoin(s, W) {
     faces.push({ corners: [a, b, [inX, b[1], b[2]], [inX, a[1], a[2]]].map(W), fill: tread, doubleSided: true });
   }
   const x = c[0] + outSign * 0.004;
-  faces.push({ corners: [[x, c[1] - r, c[2] + r], [x, c[1] + r, c[2] + r], [x, c[1] + r, c[2] - r], [x, c[1] - r, c[2] - r]].map(W), fill: s.fill, clip: 'circle(50%)', doubleSided: true });
+  faces.push({ corners: [[x, c[1] - r, c[2] + r], [x, c[1] + r, c[2] + r], [x, c[1] + r, c[2] - r], [x, c[1] - r, c[2] - r]].map(W), fill: s.fill, radius: '50%', doubleSided: true });
   return faces;
 }
 
@@ -85,7 +88,7 @@ function disc(s, W) {
   const c = cen(pts);
   const r = Math.max(...pts.map((p) => Math.hypot(p[1] - c[1], p[2] - c[2])));
   const x = c[0] + 0.03 * Math.sign(c[0] || 1);
-  return { corners: [[x, c[1] - r, c[2] + r], [x, c[1] + r, c[2] + r], [x, c[1] + r, c[2] - r], [x, c[1] - r, c[2] - r]].map(W), fill: s.fill, clip: 'circle(50%)', doubleSided: true };
+  return { corners: [[x, c[1] - r, c[2] + r], [x, c[1] + r, c[2] + r], [x, c[1] + r, c[2] - r], [x, c[1] - r, c[2] - r]].map(W), fill: s.fill, radius: '50%', doubleSided: true };
 }
 
 /**
@@ -96,8 +99,12 @@ function disc(s, W) {
  * (`cull:false`) so the aircraft reads solid from ANY camera in an orbitable scene —
  * `camHint` only orders the painter sort. Belly sits at z=0 (axisZ = radius). Feed the
  * result to renderBoxCityToHtml({faces}).
+ *
+ * `fillInterior` paints the inner skin the livery's dominant colour (true → livery.base,
+ * or a hex override) so the open-ended fuselage reads as a filled solid through the
+ * nose/tail rings instead of a dark hollow cavity.
  */
-export function fuselageFaces({ net = 'jet', cx = 0, cy = 0, axis = 'y', dir = 1, heading, scale = 1, quality = 0.3, stations, angles, camHint, livery } = {}) {
+export function fuselageFaces({ net = 'jet', cx = 0, cy = 0, axis = 'y', dir = 1, heading, scale = 1, quality = 0.3, stations, angles, camHint, livery, fillInterior = false } = {}) {
   const descriptor = getFuselageNet(net);
   // Build at the model's NATURAL proportions — the appendage spans/drops in the net
   // are authored in this space (a span-4.6 wing on a length-6 body) and are NOT scaled
@@ -114,7 +121,7 @@ export function fuselageFaces({ net = 'jet', cx = 0, cy = 0, axis = 'y', dir = 1
   const rx = ch[0] - cx, ry = ch[1] - cy;
   const localCam = [(rx * cos + ry * sin) / k, (-rx * sin + ry * cos) / k, ch[2] / k];
 
-  const { shapes } = buildFuselageNetSceneShapes(net, { body, projectPoint: P3, cameraPosition: localCam, quality, stations, angles, scheme: livery, cull: false });
+  const { shapes } = buildFuselageNetSceneShapes(net, { body, projectPoint: P3, cameraPosition: localCam, quality, stations, angles, scheme: livery, cull: false, fillInterior });
   const out = [];
   for (const s of shapes) if (s.points.length === 4) out.push({ corners: s.points.map((p) => W([p.x, p.y, p.z])), fill: s.fill, doubleSided: true });
   return out;

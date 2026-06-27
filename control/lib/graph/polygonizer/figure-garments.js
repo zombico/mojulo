@@ -418,6 +418,87 @@ export function drapeFrontSheet(bodyPieces, opts = {}) {
   return { id, rings: rows, hex };
 }
 
+// ── sash / himation: a DIAGONAL one-shoulder drape with VISIBLE FOLDS ──────────
+// The stock drape (drapeFrontSheet / hullStacks) is symmetric and SMOOTHS folds
+// away (its tension+gravity are "concavity-removers"). A himation is the opposite:
+// it runs diagonally from ONE shoulder down across to the OPPOSITE hip, hugs close
+// (LOW mugen), and reads by its FOLDS. Folds only catch light if they are GEOMETRY,
+// so this lays cloth on a SMOOTHED body-front surface and adds analytic fold RIDGES
+// (parallel to the drape's fall) as real displacement — the mesher then shades them
+// by normal. Emitted as cross-section rings (one per step shoulder→hip), so the
+// folds run cleanly along the diagonal. `clearance`/`foldAmp`/`folds` are fractions
+// of torso width; `side` is the bearing SHOULDER ('L'|'R').
+function sashStacks(body, { side = 'L', width = 0.72, clearance = 0.02, folds = 5, foldAmp = 0.06, nu = 46, nv = 26 } = {}) {
+  const TORSO = ['trunk', 'breastL', 'breastR', 'pecL', 'pecR', 'coreSideL', 'coreSideR', 'dantien', 'clavicleL', 'clavicleR', 'gluteL', 'gluteR', 'hipCapL', 'hipCapR', 'shoulderYoke'];
+  const V = [];
+  for (const id of TORSO) { const st = body.find((p) => p.id === id); if (st) for (const rg of st.rings) for (const q of rg.polyline) V.push(q); }
+  if (V.length < 12) return [];
+  let xmin = Infinity, xmax = -Infinity, zmin = Infinity, zmax = -Infinity;
+  for (const q of V) { if (q.x < xmin) xmin = q.x; if (q.x > xmax) xmax = q.x; if (q.z < zmin) zmin = q.z; if (q.z > zmax) zmax = q.z; }
+  const BW = (xmax - xmin) || 1, EMPTY = -Infinity, NX = 56, NZ = 72;
+  const xi = (x) => Math.max(0, Math.min(NX - 1, Math.round((x - xmin) / BW * (NX - 1))));
+  const zj = (z) => Math.max(0, Math.min(NZ - 1, Math.round((z - zmin) / ((zmax - zmin) || 1) * (NZ - 1))));
+  let FY = Array.from({ length: NZ }, () => new Array(NX).fill(EMPTY));
+  for (const q of V) { const j = zj(q.z), i = xi(q.x); if (q.y > FY[j][i]) FY[j][i] = q.y; }   // outermost forward flesh per cell
+  for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) if (FY[j][i] === EMPTY) {          // fill x-gaps
+    let l = -1, r = -1;
+    for (let k = i - 1; k >= 0; k--) if (FY[j][k] > EMPTY) { l = k; break; }
+    for (let k = i + 1; k < NX; k++) if (FY[j][k] > EMPTY) { r = k; break; }
+    if (l >= 0 && r >= 0) FY[j][i] = FY[j][l] + (FY[j][r] - FY[j][l]) * ((i - l) / (r - l));
+    else if (l >= 0) FY[j][i] = FY[j][l]; else if (r >= 0) FY[j][i] = FY[j][r];
+  }
+  for (let j = 0; j < NZ; j++) if (FY[j].every((v) => v === EMPTY)) { const src = FY.find((rw, k) => k !== j && !rw.every((v) => v === EMPTY)); if (src) FY[j] = src.slice(); }
+  const smoothPass = (G, passes) => {
+    let cur = G.map((r) => r.slice());
+    for (let p = 0; p < passes; p++) {
+      const N = cur.map((r) => r.slice());
+      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
+        if (cur[j][i] === EMPTY) continue;
+        let s = 0, c = 0;
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const jj = j + dj, ii = i + di; if (jj >= 0 && jj < NZ && ii >= 0 && ii < NX && cur[jj][ii] > EMPTY) { s += cur[jj][ii]; c++; } }
+        if (c) N[j][i] = s / c;
+      }
+      cur = N;
+    }
+    return cur;
+  };
+  // Toga behaviour: drape over a SMOOTH idealised torso (SMO bridges the bust/hollows),
+  // then stand the whole sheet off by enough to CLEAR the real body's protrusions — so the
+  // cloth never clips through and the folds sit on a clean surface. `protr` = how far the
+  // real surface (RAW) pokes past the smooth one (the bust); the standoff covers it.
+  const RAW = smoothPass(FY, 1), BASE = smoothPass(FY, 6);
+  let protr = 0;
+  for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) if (RAW[j][i] > EMPTY && BASE[j][i] > EMPTY) protr = Math.max(protr, RAW[j][i] - BASE[j][i]);
+  const sampleY = (x, z) => {   // bilinear sample of the base front field
+    const fx = Math.max(0, Math.min(NX - 1, (x - xmin) / BW * (NX - 1)));
+    const fz = Math.max(0, Math.min(NZ - 1, (z - zmin) / ((zmax - zmin) || 1) * (NZ - 1)));
+    const i0 = Math.floor(fx), j0 = Math.floor(fz), i1 = Math.min(NX - 1, i0 + 1), j1 = Math.min(NZ - 1, j0 + 1), tx = fx - i0, tz = fz - j0;
+    return (BASE[j0][i0] * (1 - tx) + BASE[j0][i1] * tx) * (1 - tz) + (BASE[j1][i0] * (1 - tx) + BASE[j1][i1] * tx) * tz;
+  };
+  const ctr = (id) => { const st = body.find((p) => p.id === id); if (!st) return null; let x = 0, z = 0, n = 0; for (const rg of st.rings) { x += rg.center.x; z += rg.center.z; n++; } return n ? { x: x / n, z: z / n } : null; };
+  const sgn = side === 'L' ? -1 : 1, other = side === 'L' ? 'R' : 'L';
+  const shoulder = ctr('clavicle' + side) || { x: sgn * BW * 0.32 + (xmin + xmax) / 2, z: zmax - (zmax - zmin) * 0.04 };
+  const hipA = ctr('hipCap' + other) || ctr('glute' + other) || { x: -sgn * BW * 0.28 + (xmin + xmax) / 2, z: zmin + (zmax - zmin) * 0.12 };
+  // diagonal centerline: bearing shoulder (high) → opposite hip (low)
+  const S = { x: shoulder.x, z: Math.min(zmax - (zmax - zmin) * 0.02, shoulder.z + (zmax - zmin) * 0.06) }, Hh = { x: hipA.x, z: hipA.z };
+  const ddx = Hh.x - S.x, ddz = Hh.z - S.z, Ld = Math.hypot(ddx, ddz) || 1, ax = { x: ddx / Ld, z: ddz / Ld }, pp = { x: -ddz / Ld, z: ddx / Ld };
+  const Wd = width * BW, ampB = foldAmp * BW, standoff = Math.max(clearance * BW, protr * 0.95 + 0.012 * BW);
+  const rings = [];
+  for (let k = 0; k <= nu; k++) {
+    const u = k / nu, Cx = S.x + ax.x * Ld * u, Cz = S.z + ax.z * Ld * u;
+    const env = 0.55 + 0.45 * Math.sin(Math.PI * u);   // folds gather at the ends, deepen mid-fall
+    const poly = [];
+    for (let m = 0; m <= nv; m++) {
+      const v = m / nv, off = (v - 0.5) * Wd, x = Cx + pp.x * off, z = Cz + pp.z * off;
+      const edge = Math.sin(Math.PI * v);              // 0 at the sash seams → folds vanish into the body there
+      const ridge = ampB * env * edge * 0.5 * (1 - Math.cos(2 * Math.PI * folds * v));  // analytic parallel fold ridges
+      poly.push({ x, y: sampleY(x, z) + standoff + ridge, z });   // bridge standoff clears the body → no clip-through; folds sit on the clean drape
+    }
+    rings.push({ center: { x: Cx, y: -1e3, z: Cz }, polyline: poly });   // far behind → normals face forward
+  }
+  return rings;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DECLARATIVE GARMENTS — clothing as a pure function of the body.
 //
@@ -497,26 +578,53 @@ export function buildGarment(body, spec) {
       // the whole pelvis basin (diaper + hip vajras + groin + glutes), top-down
       // concentric rings filled. With basin.includeLegs it bells over both legs (skirt).
       const basin = piece.basin ?? {};
+      // "Body map" mode: a dense, continuous lower-segment map that runs UP over the
+      // whole belly (dantien top), so the hip girdle is fully INTERIOR — no fragile
+      // waist terminator to fray. The waistband is then a redline `band` cut at the
+      // anatomical waist (dantien bottom), not a basin edge. (uniform sampling so the
+      // raised top isn't a lone sparse golden-ratio ring.)
+      if (basin.uniform && basin.topZ == null) {
+        const dan = find('dantien');
+        if (dan) basin.topZ = Math.max(...dan.rings.flatMap((rg) => rg.polyline.map((p) => p.z))) + 0.04;
+      }
       const plan = pelvisPlan(body, basin); if (!plan) continue;
-      const underIds = ['groin', 'diaper', 'coreSideL', 'coreSideR', 'trunk', 'gluteL', 'gluteR'];
+      const pelvisPanel = piece.panel ?? 'pelvis';   // so a waistband cut/seam scopes to the pelvis, never the leg tubes
+      const underIds = ['groin', 'diaper', 'coreSideL', 'coreSideR', 'trunk', 'gluteL', 'gluteR', 'hipCapL', 'hipCapR'];   // under-colour the hip ball joint too (now covered by the basin)
       if (basin.includeLegs) underIds.push('legL', 'legR');
       for (const id of underIds) {
         const st = find(id); if (!st) continue;
         const rr = st.rings.filter((rg) => rg.center.z <= plan.top && rg.center.z >= plan.bottom);
-        if (rr.length > 1) out.push({ id: `${spec.id}:under:${id}`, rings: inflateRings(rr, 0.012), hex: under });
+        if (rr.length > 1) out.push({ id: `${spec.id}:under:${id}`, rings: inflateRings(rr, 0.012), hex: under, panel: pelvisPanel });
       }
-      out.push({ id: `${spec.id}:pelvis`, rings: fillPelvisBasin(plan, piece.clearance ?? 0.08), hex: pieceCloth });
+      out.push({ id: `${spec.id}:pelvis`, rings: fillPelvisBasin(plan, piece.clearance ?? 0.08), hex: pieceCloth, panel: pelvisPanel });
       continue;
     }
     if (fit === 'torso') {
       // the torso basin filled to a top — `openTop` (neck/armhole scoops) makes it
       // a vest; small `clearance` makes it fitted-but-not-skintight; `openFront`
       // opens it down the middle (the chest shows in the gap → no under-color).
-      const plan = torsoPlan(body, piece.basin ?? {}); if (!plan) continue;
-      if (!piece.openFront) for (const id of ['trunk', 'coreSideL', 'coreSideR', 'breastL', 'breastR', 'pecL', 'pecR', 'scapulaL', 'scapulaR', 'scapBunL', 'scapBunR', 'clavicleL', 'clavicleR', 'shoulderYoke', 'dantien']) {
+      // `piece.panel` (default 'torso') lets a layered look (vest + coat) scope its
+      // redline cuts to one layer — e.g. open the COAT front but not the vest under it.
+      const torsoPanel = piece.panel ?? 'torso';
+      const basin = { ...(piece.basin ?? {}) };
+      // LONG HEM (`includeHips`): extend the torso mass DOWN over the hips/glutes/groin so
+      // a long shirt bells past the navel and over the seat — the angular-max field per
+      // band takes the hip/buttock curvature. The hem is anchored body-relative: a
+      // fraction `hemBelowWaist` of the way from the anatomical waist (dantien bottom)
+      // toward the crotch (groin bottom), so it lands just past the trouser waistband.
+      const hipIds = ['coreSideL', 'coreSideR', 'groin', 'diaper', 'gluteL', 'gluteR', 'hipCapL', 'hipCapR'];   // include the hip ball joint so a long hem bells over it too
+      if (basin.includeHips) {
+        basin.extraIds = [...(basin.extraIds ?? []), ...hipIds];
+        const zBot = (id) => { const st = find(id); return st ? Math.min(...st.rings.flatMap((rg) => rg.polyline.map((p) => p.z))) : null; };
+        const waistZ = zBot('dantien'), crotchZ = zBot('groin');
+        if (waistZ != null && crotchZ != null) basin.hemZ = waistZ - (basin.hemBelowWaist ?? 0.45) * (waistZ - crotchZ);
+      }
+      const plan = torsoPlan(body, basin); if (!plan) continue;
+      const underIds = ['trunk', 'coreSideL', 'coreSideR', 'breastL', 'breastR', 'pecL', 'pecR', 'scapulaL', 'scapulaR', 'scapBunL', 'scapBunR', 'clavicleL', 'clavicleR', 'shoulderYoke', 'dantien', ...(basin.includeHips ? ['groin', 'diaper', 'gluteL', 'gluteR', 'hipCapL', 'hipCapR'] : [])];
+      if (!piece.openFront) for (const id of underIds) {
         const st = find(id); if (!st) continue;
         const rr = st.rings.filter((rg) => rg.center.z <= plan.top && rg.center.z >= plan.bottom);
-        if (rr.length > 1) out.push({ id: `${spec.id}:under:${id}`, rings: inflateRings(rr, 0.012), hex: under, panel: 'torso' });
+        if (rr.length > 1) out.push({ id: `${spec.id}:under:${id}`, rings: inflateRings(rr, 0.012), hex: under, panel: torsoPanel });
       }
       // Standing rule: declared COVERAGE of body positions must stay covered; the
       // CUTS (openings) only sit where a part POKES THROUGH. So: the armhole derives
@@ -537,7 +645,7 @@ export function buildGarment(body, spec) {
       // openParts/superposition are SKIPPED when the spec drives openings via cuts
       // (svgile-row): a fully closed basin the cutter then carves (neck/armhole/front).
       const op = piece.cutOpenings ? [] : openParts;
-      out.push({ id: `${spec.id}:torso`, rings: fillBasin(plan, { clearance: piece.clearance ?? 0.1, openParts: op, openMargin: piece.openMargin ?? 0.16, coverComps, frontComps, coverNear: piece.coverNear ?? 0.55, coverRamp: piece.coverRamp ?? 0.2, openFront: piece.openFront ?? 0, lapelFrac: piece.lapelFrac ?? 1 }), hex: pieceCloth, panel: 'torso' });
+      out.push({ id: `${spec.id}:torso`, rings: fillBasin(plan, { clearance: piece.clearance ?? 0.1, openParts: op, openMargin: piece.openMargin ?? 0.16, coverComps, frontComps, coverNear: piece.coverNear ?? 0.55, coverRamp: piece.coverRamp ?? 0.2, openFront: piece.openFront ?? 0, lapelFrac: piece.lapelFrac ?? 1 }), hex: pieceCloth, panel: torsoPanel });
       continue;
     }
     if (fit === 'shoulders') {
@@ -546,7 +654,7 @@ export function buildGarment(body, spec) {
       // this piece is exactly how a shoulderless garment falls out (P4).
       for (const side of ['L', 'R']) {
         for (const id of ['upperArm' + side, 'shoulderYoke', 'clavicle' + side, 'scapula' + side]) {   // under-colour the shoulder mass (P5)
-          const st = find(id); if (st && st.rings.length > 1) out.push({ id: `${spec.id}:under:${id}:${side}`, rings: inflateRings(st.rings, 0.012), hex: under, panel: 'shoulder' });
+          const st = find(id); if (st && st.rings.length > 1) out.push({ id: `${spec.id}:under:${id}:${side}`, rings: inflateRings(st.rings, 0.012), hex: under, panel: 'shoulder' });   // thin under-shell (under-colour the shoulder mass); the crown-fan cap covers the crown, so it must sit OUTSIDE this — keep it thin or the dark under-dome wins the depth-sort over a snug cap
         }
         const cap = buildShoulderCap(body, side, { crownGap: piece.crownGap ?? 0.05, seamGap: piece.seamGap ?? 0.18, lateralGap: piece.lateralGap ?? null, term: piece.term ?? 1.5 });
         if (cap) out.push({ id: `${spec.id}:${cap.id}`, rings: cap.rings, hex: pieceCloth, panel: 'shoulder' });
@@ -562,6 +670,12 @@ export function buildGarment(body, spec) {
         const sl = buildSleeve(body, side, { thickness: piece.thickness ?? 0.06, headSlice: piece.headSlice ?? 0.15, coverForearm });
         if (sl) out.push({ id: `${spec.id}:${sl.id}`, rings: sl.rings, hex: pieceCloth, panel: 'sleeve' });
       }
+      continue;
+    }
+    if (fit === 'sash') {
+      // diagonal one-shoulder himation drape with real fold-ridge geometry (low mugen).
+      const rings = sashStacks(body, { side: piece.side ?? 'L', width: piece.width ?? 0.72, clearance: piece.clearance ?? 0.02, folds: piece.folds ?? 5, foldAmp: piece.foldAmp ?? 0.06 });
+      if (rings.length) out.push({ id: `${spec.id}:sash`, rings, hex: pieceCloth, panel: 'sash' });
       continue;
     }
     const ids = resolveCoverage(body, piece.coverage);
@@ -612,6 +726,9 @@ export const GARMENTS = {
   tee: { id: 'tee', color: { cloth: '#3f6f93' }, pieces: [{ coverage: ['torso'], fit: 'hull', clearance: 0.18 }, { coverage: ['upperArms'], fit: 'hug', thickness: 0.05 }] },
   tank: { id: 'tank', color: { cloth: '#6a8f5a' }, pieces: [{ coverage: ['torso'], fit: 'drape', anchor: 'shoulders', clearance: 0.12 }] },
   dress: { id: 'dress', color: { cloth: '#7a4a6a' }, pieces: [{ coverage: ['torso', 'seat'], fit: 'drape', anchor: 'shoulders', clearance: 0.14, sag: 0.1 }] },
+  // GOWN — a floor-length shoulder drape (torso → seat → legs unioned into one bell, ankle to
+  // shoulder). Static here like any garment; it FLOWS when run through cloth-flow.js `flowDrape`.
+  gown: { id: 'gown', color: { cloth: '#6a3d78' }, pieces: [{ coverage: ['torso', 'seat', 'legs'], fit: 'drape', anchor: 'shoulders', clearance: 0.34, sag: 0.18 }] },
   // waistband BELOW the dantien, covering hips + groin; each pant leg wraps its OWN leg
   trousers: { id: 'trousers', color: { cloth: '#3a4250' }, pieces: [
     { coverage: ['hips'], fit: 'drape', anchor: 'waist', waist: 'belowDantien', clearance: 0.09 },
@@ -642,11 +759,22 @@ export const GARMENTS = {
   vest: { id: 'vest', color: { cloth: '#5a6b4a' }, pieces: [
     { fit: 'torso', clearance: 0.10, basin: { hemFrac: 0.66 }, openMargin: 0.22, openFront: 0.34 },
   ] },
-  // fitted shirt = close-following (small clearance) but NOT skintight, hem to the
-  // hip + a short sleeve over half the bicep. Smaller armholes (the sleeve attaches).
+  // fitted shirt = close-following but NOT skintight: a slightly raised mugen
+  // (clearance) so the cloth stands off the flesh and reads as fabric, not paint.
+  // hem to the hip + a short sleeve over half the bicep. Smaller armholes (the
+  // sleeve attaches). The crown-fan shoulder cap (the shoulder vajra) closes the
+  // torso→sleeve seam over the deltoid girdle. FLUSH RECIPE (the jacket's, at a
+  // fitted altitude): the three standoffs MATCH — torso clearance == cap seamGap ==
+  // sleeve thickness (all 0.10) — and term:1.5 drapes the cap PAST the equator so it
+  // overlaps the sleeve top smoothly. (The earlier term:1.25 stopped the cap near the
+  // equator as a proud dome → a raised lip = the shoulder-pad lump; more past-equator
+  // drape reads SMOOTHER, not more ragged. crownGap snug at the crown.)
   fittedShirt: { id: 'fitted', color: { cloth: '#7a4a5a' }, pieces: [
-    { fit: 'torso', clearance: 0.05, basin: { hemFrac: 0.82 }, openMargin: 0.18 },
-    { coverage: ['upperArms'], fit: 'hug', thickness: 0.05, slice: [0, 0.5] },
+    // long hem: bells DOWN over the hips/buttock, past the navel and slightly past the
+    // trouser waistband (includeHips → the hip/glute curvature; hemBelowWaist sets how far).
+    { fit: 'torso', clearance: 0.10, basin: { hemFrac: 0.82, uniform: true, includeHips: true, hemBelowWaist: 0.5 }, openMargin: 0.18 },   // uniform → dense to the shoulder, MEETS the cap (no sparse-top flesh band)
+    { fit: 'shoulders', crownGap: 0.04, seamGap: 0.10, term: 1.5, lateralGap: 0.16 },   // shoulder vajra — crownGap snug HUGS the deltoid crown (flat on top); HIGH lateralGap pushes the cap WIDE to the side so it covers the side deltoid (the ragged-edge fix) without lifting the top
+    { coverage: ['upperArms'], fit: 'hug', thickness: 0.10, slice: [0.22, 0.6] },   // short sleeve starts BELOW the deltoid crown — the cap owns the deltoid alone (no double-stacked dome); the cap's past-equator drape overlaps the sleeve top
   ] },
   // OPEN JACKET — the vest's open-front torso (looser, hip-length) + full sleeves.
   // Openings still derive from the part-roles: arms→armholes, neck→neckline,
@@ -715,16 +843,20 @@ export const GARMENTS = {
   // sampler, waist→crotch) + a leg TUBE per side (anchored at the hip, hangs down).
   // Slim vs baggy is ONLY the mugen (clearance) — same components, different numbers,
   // exactly like shirt-vs-jacket on the torso.
+  // BODY-MAP + WAISTBAND CUT (2026-06-17): the pelvis is a dense map that runs up over
+  // the whole belly (basin.uniform → topZ at the dantien top) so the HIP GIRDLE is fully
+  // covered (interior, not a frayed terminator); the waistband is then a redline `band`
+  // cut at the anatomical waist (dantien bottom). Slim vs baggy is still ONLY the mugen.
   trousersSlim: { id: 'trousersSlim', color: { cloth: '#37414f' }, pieces: [
-    { fit: 'pelvis', clearance: 0.06 },                                  // waist→crotch basin, snug
+    { fit: 'pelvis', clearance: 0.06, basin: { uniform: true } },        // body-map up over the belly, snug
     { coverage: ['legL'], fit: 'drape', anchor: 'hip', clearance: 0.06 },
     { coverage: ['legR'], fit: 'drape', anchor: 'hip', clearance: 0.06 },
-  ] },
+  ], cuts: [{ kind: 'band', lo: 'waist', hi: 'top', on: 'pelvis' }] },   // ← redline-cut everything above the waist
   trousersBaggy: { id: 'trousersBaggy', color: { cloth: '#5b5236' }, pieces: [
-    { fit: 'pelvis', clearance: 0.18 },                                  // looser seat
+    { fit: 'pelvis', clearance: 0.18, basin: { uniform: true } },        // looser seat
     { coverage: ['legL'], fit: 'drape', anchor: 'hip', clearance: 0.26 },   // ≈ the shirt's mugen
     { coverage: ['legR'], fit: 'drape', anchor: 'hip', clearance: 0.26 },
-  ] },
+  ], cuts: [{ kind: 'band', lo: 'waist', hi: 'top', on: 'pelvis' }] },
   // SHOULDERLESS (P4) — the SAME torso basin, just no shoulder cap and no sleeves:
   // a strapless top falls out as the ABSENCE of the shoulder component, not a special
   // case. (drape anchor still holds it up; here a fitted basin hem at the waist.)
@@ -828,13 +960,17 @@ export function planSuperposition(planA, planB) {
  * angular max radius) so it's robust, then samples it at the golden-ratio heights.
  * @returns {{ rings, apex, center, axis, reach, verts } | null}
  */
-export function pelvisPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRings = 9, smooth = 2, topZ = null, margin = 0.18, includeLegs = false, hemFrac = 0.5 } = {}) {
+export function pelvisPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRings = 9, smooth = 2, topZ = null, margin = 0.18, includeLegs = false, hemFrac = 0.5, uniform = false, uniformRings = 18 } = {}) {
   // top of the basin = ABOVE the hip spheres (glute + diaper tops), so the waist
   // terminator sits over them rather than cutting through the hips.
   const zsOf = (id) => { const st = body.find((p) => p.id === id); return st ? st.rings.flatMap((r) => r.polyline.map((p) => p.z)) : [-Infinity]; };
   const hipTopZ = Math.max(...['gluteL', 'gluteR', 'diaper', 'groin'].flatMap(zsOf));
   const waistZ = topZ != null ? topZ : hipTopZ + margin;
-  const ids = ['groin', 'diaper', 'coreSideL', 'coreSideR', 'trunk', 'gluteL', 'gluteR'];   // the whole pelvis as ONE structure
+  // the whole pelvis as ONE structure — INCLUDING the hip ball joint (hipCapL/R, the
+  // rounded mass at the thigh↔pelvis junction). Without it the basin's angular-max field
+  // doesn't reach the ball joint and the bare hip cap pokes through between basin and leg
+  // (the lower-body mirror of the deltoid poking out of a capless shoulder).
+  const ids = ['groin', 'diaper', 'coreSideL', 'coreSideR', 'trunk', 'gluteL', 'gluteR', 'hipCapL', 'hipCapR'];
   // SKIRT: include the legs so the cross-sections below the hips bridge BOTH legs
   // into a bell (instead of converging to the crotch); hem at `hemFrac` down the leg.
   let hemZ = -Infinity;
@@ -862,12 +998,16 @@ export function pelvisPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRi
   for (let b = 0; b < nbands; b++) { const row = R[b]; if (row.every((v) => v === 0)) continue; for (let j = 0; j < sectors; j++) { if (row[j] > 0) continue; for (let d = 1; d <= sectors; d++) { const lo = row[((j - d) % sectors + sectors) % sectors], hi = row[(j + d) % sectors]; if (lo > 0 || hi > 0) { row[j] = Math.max(lo, hi); break; } } } }
   for (let b = 1; b < nbands; b++) if (R[b].every((v) => v === 0)) R[b] = R[b - 1].slice();
   const sm = R.map((row) => smoothLoop(row, smooth));
-  // golden-ratio heights, top (waist, rr=1) → crotch apex (rr→0); concentric rings
+  // Two samplers over the same field: GOLDEN-RATIO (top→crotch apex, concentric — the
+  // isolated trouser basin) or UNIFORM (even bands top→bottom — a dense, continuous
+  // "body map" of the whole lower segment, so a raised top has no sparse fraying ring
+  // and a redline `band` cut at the waist leaves a clean, gap-free waistband).
+  const ringAt = (b) => { const zc = zMin + (b + 0.5) / nbands * span, ring = []; for (let s = 0; s <= sectors; s++) { const jj = s % sectors, a = (jj / sectors) * 2 * Math.PI, r = sm[b][jj]; ring.push({ x: cx[b] + Math.cos(a) * r, y: cy[b] + Math.sin(a) * r, z: zc }); } return ring; };
   const rings = [];
-  for (let rr = 1, k = 0; k < maxRings && rr > 0.03; rr /= phi, k++) {
-    const b = Math.min(nbands - 1, Math.max(0, Math.round(rr * (nbands - 1)))), zc = zMin + (b + 0.5) / nbands * span, ring = [];
-    for (let s = 0; s <= sectors; s++) { const jj = s % sectors, a = (jj / sectors) * 2 * Math.PI, r = sm[b][jj]; ring.push({ x: cx[b] + Math.cos(a) * r, y: cy[b] + Math.sin(a) * r, z: zc }); }
-    rings.push(ring);
+  if (uniform) {
+    for (let k = 0; k < uniformRings; k++) rings.push(ringAt(Math.min(nbands - 1, Math.round((k / (uniformRings - 1)) * (nbands - 1)))));
+  } else {
+    for (let rr = 1, k = 0; k < maxRings && rr > 0.03; rr /= phi, k++) rings.push(ringAt(Math.min(nbands - 1, Math.max(0, Math.round(rr * (nbands - 1))))));
   }
   const mid = Math.floor(nbands / 2);
   return { rings, apex: { x: cx[0], y: cy[0], z: zMin }, center: { x: cx[mid], y: cy[mid], z: zMin + span / 2 }, axis: { x: 0, y: 0, z: -1 }, reach: Math.max(...sm.flat()), top: waistZ, bottom: zMin, verts: V };
@@ -893,13 +1033,17 @@ export function fillPelvisBasin(plan, clearance = 0.08) {
  * the pelvis basin — only the gather + z-range differ.
  * @returns {{ rings, center, top, bottom, verts } | null}
  */
-export function torsoPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRings = 9, smooth = 2, hemFrac = 0.7, uniform = false } = {}) {
-  const ids = ['trunk', 'coreSideL', 'coreSideR', 'breastL', 'breastR', 'pecL', 'pecR', 'scapulaL', 'scapulaR', 'scapBunL', 'scapBunR', 'clavicleL', 'clavicleR', 'shoulderYoke', 'dantien'];
+export function torsoPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRings = 9, smooth = 2, hemFrac = 0.7, uniform = false, extraIds = [], hemZ: hemZArg = null } = {}) {
+  // `extraIds` extends the sampled mass DOWN past the trunk (e.g. the hips/glutes/groin)
+  // so a long shirt bells over them — the angular-max field per band takes their actual
+  // curvature. `hemZArg` is a body-relative hem (an absolute z), used instead of hemFrac
+  // when the hem is anchored to a landmark (e.g. just below the waistband).
+  const ids = ['trunk', 'coreSideL', 'coreSideR', 'breastL', 'breastR', 'pecL', 'pecR', 'scapulaL', 'scapulaR', 'scapBunL', 'scapBunR', 'clavicleL', 'clavicleR', 'shoulderYoke', 'dantien', ...extraIds];
   const all = [];
   for (const id of ids) { const st = body.find((p) => p.id === id); if (st) for (const rg of st.rings) for (const q of rg.polyline) all.push(q); }
   if (all.length < 16) return null;
   let zMax = -Infinity, zMin = Infinity; for (const q of all) { if (q.z > zMax) zMax = q.z; if (q.z < zMin) zMin = q.z; }
-  const hemZ = zMax - (zMax - zMin) * hemFrac;
+  const hemZ = hemZArg != null ? Math.max(zMin, Math.min(zMax - 1e-3, hemZArg)) : zMax - (zMax - zMin) * hemFrac;
   const V = all.filter((q) => q.z >= hemZ);
   if (V.length < 16) return null;
   const top = zMax, span = top - hemZ; if (span < 1e-6) return null;
@@ -1078,15 +1222,56 @@ function shoulderMassVerts(body, side) {
 // P2 — crown-fan over a ball: concentric latitude rings from the terminator (term·90°
 // off the up-axis, outermost) up to the apex on the crown. UNIFORM latitude + dense
 // azimuth → maps the ball evenly. Returns rings of points + the ball centre/R.
-export function crownFanCap(verts, { samples = 96, maxRings = 16, term = 1.5 } = {}) {
+//
+// CONFORM (default): the fan rides the mass's ACTUAL extent per direction — a
+// max-radius field over (latitude × azimuth), the same angular-max field the pelvis/
+// torso basins use — NOT a single mean-R sphere. A lone mean R balloons the round
+// deltoid while the offset inboard trapezius shelf falls outside the ball and stays
+// bare ("rounded on the right, the mass on the left ignored"). Riding the real radius
+// per cell covers the whole girdle (deltoid AND trapezius) without over-inflating.
+export function crownFanCap(verts, { samples = 96, maxRings = 16, term = 1.5, conform = true, smooth = 3, fieldSectors = 24 } = {}) {
   if (verts.length < 8) return { rings: [], center: null, R: 0 };
   const center = verts.reduce((a, v) => ({ x: a.x + v.x, y: a.y + v.y, z: a.z + v.z }), { x: 0, y: 0, z: 0 });
   center.x /= verts.length; center.y /= verts.length; center.z /= verts.length;
   let R = 0; for (const v of verts) R += Math.hypot(v.x - center.x, v.y - center.y, v.z - center.z); R = (R / verts.length) || 0.05;
-  const HALF = (Math.PI / 2) * term, rings = [];
+  const HALF = (Math.PI / 2) * term;
+  // angular max-radius field at a COARSE azimuth (fieldSectors ≪ render samples), keeping
+  // the OUTERMOST flesh radius per (latitude k × sector) cell, then smoothed and sampled
+  // back with cosine interpolation. Binning coarse is the denoise: the field rides the
+  // gross mass envelope (so the inboard trapezius shelf is covered) without the per-vertex
+  // high-frequency frizz a full-resolution max produces. Empty cells fall back to mean R.
+  let field = null;
+  if (conform) {
+    const RAD = Array.from({ length: maxRings + 1 }, () => new Array(fieldSectors).fill(0));
+    for (const v of verts) {
+      const dx = v.x - center.x, dy = v.y - center.y, dz = v.z - center.z, L = Math.hypot(dx, dy, dz); if (L < 1e-6) continue;
+      const theta = Math.acos(Math.max(-1, Math.min(1, dz / L)));      // 0 = crown (up) → HALF = terminator
+      const k = Math.round((1 - Math.min(1, theta / HALF)) * maxRings); if (k < 0 || k > maxRings) continue;
+      let a = Math.atan2(dy, dx); if (a < 0) a += 2 * Math.PI;
+      const s = Math.min(fieldSectors - 1, Math.floor(a / (2 * Math.PI) * fieldSectors));
+      if (L > RAD[k][s]) RAD[k][s] = L;
+    }
+    for (let k = 0; k <= maxRings; k++) {                              // azimuthal gap-fill + smooth per band
+      const row = RAD[k];
+      if (row.every((v) => v === 0)) { row.fill(R); continue; }
+      for (let s = 0; s < fieldSectors; s++) { if (row[s] > 0) continue; for (let d = 1; d <= fieldSectors; d++) { const lo = row[((s - d) % fieldSectors + fieldSectors) % fieldSectors], hi = row[(s + d) % fieldSectors]; if (lo > 0 || hi > 0) { row[s] = Math.max(lo, hi); break; } } }
+      RAD[k] = smoothLoop(row, smooth);
+    }
+    // cross-band (latitude) smoothing — removes the terracing/frizz the per-band max leaves
+    // at the terminator (the same cross-band pass the pelvis/torso basins run). Azimuthal
+    // smoothing alone won't.
+    for (let pass = 0; pass < smooth; pass++) {
+      const prev = RAD.map((row) => row.slice());
+      for (let k = 1; k < maxRings; k++) for (let s = 0; s < fieldSectors; s++) RAD[k][s] = (prev[k - 1][s] + prev[k][s] + prev[k + 1][s]) / 3;
+    }
+    field = RAD;
+  }
+  // sample the coarse field at full azimuth with linear interpolation between sectors
+  const radAt = (k, a) => { if (!field) return R; const f = (a / (2 * Math.PI)) * fieldSectors, i = Math.floor(f) % fieldSectors, t = f - Math.floor(f); return field[k][i] * (1 - t) + field[k][(i + 1) % fieldSectors] * t; };
+  const rings = [];
   for (let k = 0; k <= maxRings; k++) {   // k=0 terminator (outermost) → k=max apex (crown)
     const theta = (1 - k / maxRings) * HALF, ct = Math.cos(theta), st = Math.sin(theta), ring = [];
-    for (let s = 0; s <= samples; s++) { const a = (s / samples) * 2 * Math.PI; ring.push({ x: center.x + R * st * Math.cos(a), y: center.y + R * st * Math.sin(a), z: center.z + R * ct }); }
+    for (let s = 0; s <= samples; s++) { const a = (s / samples) * 2 * Math.PI, r = radAt(k, a); ring.push({ x: center.x + r * st * Math.cos(a), y: center.y + r * st * Math.sin(a), z: center.z + r * ct }); }
     rings.push(ring);
   }
   return { rings, center, R };
@@ -1165,12 +1350,23 @@ export function cutPredicate(cuts) {
 // Resolve BODY-RELATIVE cut declarations (on a spec) into absolute regions, measured
 // from the built garment's own geometry — so the same declaration carves any body.
 // z anchors: 'collar'/'top' = the garment top, 'hem'/'bottom' = the garment bottom,
-// a number in [0,1] = that fraction up from the hem. Front is the body's +y.
+// a number in [0,1] = that fraction up from the hem. BODY-relative z anchors (need
+// `body`): 'waist' = the belly (dantien) bottom — the anatomical waistline — and
+// 'crotch' = the groin bottom; these carve a clean waistband on any form regardless
+// of how tall the garment's own geometry runs. Front is the body's +y.
 export function resolveCuts(decls, pieces, body = null) {
   let cy = 0, n = 0, zMin = Infinity, zMax = -Infinity;
   for (const g of pieces) for (const r of g.rings) for (const v of r.polyline) { cy += v.y; n++; if (v.z < zMin) zMin = v.z; if (v.z > zMax) zMax = v.z; }
   cy = n ? cy / n : 0;
-  const zAt = (k, dflt) => k == null ? dflt : (k === 'collar' || k === 'top') ? zMax : (k === 'hem' || k === 'bottom') ? zMin : zMin + (zMax - zMin) * k;
+  const bodyZ = (id) => { const st = body && body.find((p) => p.id === id); return st ? Math.min(...st.rings.flatMap((r) => r.polyline.map((p) => p.z))) : null; };
+  const zAt = (k, dflt) => {
+    if (k == null) return dflt;
+    if (k === 'collar' || k === 'top') return zMax;
+    if (k === 'hem' || k === 'bottom') return zMin;
+    if (k === 'waist') { const z = bodyZ('dantien'); return z == null ? zMax : z; }
+    if (k === 'crotch') { const z = bodyZ('groin'); return z == null ? zMin : z; }
+    return zMin + (zMax - zMin) * k;
+  };
   const meanR = (st) => { let s = 0, m = 0; for (const rg of st.rings) for (const v of rg.polyline) { s += Math.hypot(v.x - rg.center.x, v.y - rg.center.y, v.z - rg.center.z); m++; } return m ? s / m : 0.05; };
   const sliceCenters = (st, t0, t1) => { const k = st.rings.length - 1; return [st.rings[Math.round(t0 * k)].center, st.rings[Math.round(t1 * k)].center]; };
   return (decls || []).map((d) => {

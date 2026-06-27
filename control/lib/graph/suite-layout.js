@@ -106,7 +106,7 @@ export function planSuite(spec = {}) {
     return {
       id: v.id, kind: v.kind, xRange: v.xRange, yRange: v.yRange, zRange: v.zRange,
       light, lamps, tint, sources, items: v.items || [], roomBasis,
-      shell: { xRange: v.xRange, yRange: v.yRange, zRange: v.zRange, omit: omit[i], doorways: doors[i], light, lamps, tint },
+      shell: { xRange: v.xRange, yRange: v.yRange, zRange: v.zRange, omit: omit[i], doorways: doors[i], wallSurface: v.wallSurface, light, lamps, tint },
     };
   });
   return {

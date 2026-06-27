@@ -23,7 +23,7 @@ import { PROTO_DEFAULT, buildProtoform } from './figure-proto.js';
 import { spineDeformerFromNodes, warpStacks, spineArmAnchors } from './figure-spine.js';
 import { groundBalance, groundVault } from './figure-balance.js';
 import { gait, WALK_DEFAULTS, resolveMotion } from './figure-posing.js';
-import { buildGarment, GARMENTS } from './figure-garments.js';
+import { buildGarment, GARMENTS, resolveCuts, cutPredicate, cutHits, cutBoundary } from './figure-garments.js';
 import { resolveFigureSetup } from '../../visual-language/themes.js';
 
 const FLESH_HEX = '#c8836a';
@@ -33,6 +33,12 @@ const LIGHT = makeLight({ direction: [0.42, -0.5, -0.76], ambient: 0.40, diffuse
 
 export const FIGURE_VIEWS = ['frontal', 'three-quarter', 'lateral', 'left', 'back'];
 const VIEW_AZ = { frontal: 0, 'three-quarter': 38, lateral: 90, left: -90, back: 180 };
+
+// a manifest `garment` may be one spec key or an array (layering: shirt + jacket …)
+const garmentList = (g) => (g == null ? [] : Array.isArray(g) ? g : [g]);
+const SEAM_HEX = '#1f2127';                                  // the red-line (cloth-edge) seam color
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 // The legs+feet carry ground IK (re-bent knee, planted ankle) the spine warp's
 // height field can't reproduce, so they are built on the BALANCED armature nodes
@@ -62,10 +68,13 @@ function liftStacks(stacks, dz) {
   return stacks.map((st) => ({ ...st, rings: st.rings.map((rg) => ({ center: f(rg.center), polyline: rg.polyline.map(f) })) }));
 }
 
-// The figure is off-rest (worth warping) if the spine is bent OR balance shifted
-// any node off its FK position. Neutral standing → all equal → no warp → canonical.
-function offRest(spine, full, balanced) {
+// The figure is off-rest (worth warping) if the spine is bent, the pelvis is
+// HINGED, OR balance shifted any node off its FK position. (The hinge lives in both
+// `full` and `balanced`, so the balance-delta check below can't see it on its own.)
+// Neutral standing → all equal → no warp → canonical.
+function offRest(spine, hinge, full, balanced) {
   if (spine && (spine.sagittal || spine.lateral || spine.axial)) return true;
+  if (hinge) return true;
   for (const k in balanced) {
     const a = balanced[k], b = full[k];
     if (Math.abs(a.x - b.x) > 1e-6 || Math.abs(a.y - b.y) > 1e-6 || Math.abs(a.z - b.z) > 1e-6) return true;
@@ -81,7 +90,7 @@ function offRest(spine, full, balanced) {
  * @param {?string} garment  a GARMENTS key (skinSuit/wetsuit/tee/tank/dress) or null
  */
 export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
-  const { spine, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, ...limbs } = pose || {};
+  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, ...limbs } = pose || {};
   const full = articulate(pose);          // spine + limbs (pure FK, feet float)
   // Plant the support foot/feet and shift the COM over them (weighted stance).
   // support 'none' = AIRBORNE: skip the ground solve entirely (pure FK), so both
@@ -94,8 +103,9 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
   const balanced = airborne ? full : (plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut }));
 
   // The trunk + girdle + arms are built on the LIMBS-posed, STRAIGHT-spine,
-  // PRE-balance armature: the trunk builders read only z-heights/widths so they
-  // MUST stay straight (the spine warp below bends them onto the curve), and
+  // UN-HINGED, PRE-balance armature: the trunk builders read only z-heights/widths
+  // so they MUST stay straight (the spine warp below bends them onto the curve — and
+  // the hip HINGE rides that same warp, which is why hinge is held out here like spine), and
   // baking balance in here would double it against that warp. The legs+feet are
   // the exception — they carry ground IK the height-warp can't reproduce — so they
   // are built on the BALANCED nodes and passed through the warp. `buildProtoform`
@@ -112,9 +122,16 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
   // sole to the ground (orientation). The walk does both; the sprint pins without flattening
   // (forefoot strike), so it passes footFlat = 0.
   const flatOf = (s) => (footFlat ? footFlat[s] || 0 : plant ? plant[s] || 0 : 0);
+  // wrist articulation (the hand's mirror of footFlex): wristL/R = { flex, deviation } (a bare
+  // number is treated as flex), fingersL/R = the knuckle curl. Threaded into the hand builder.
+  const wf = (w) => (typeof w === 'number' ? { flex: w } : (w || {}));
+  const wfL = wf(limbs.wristL), wfR = wf(limbs.wristR);
   let body = buildProtoform(restPos, { ...PROTO_DEFAULT, ...proto }, legPos, {
     L: { ankle: limbs.ankleL || 0, toe: limbs.toeL || 0, plant: plant ? plant.L || 0 : 0, flatten: flatOf('L') },
     R: { ankle: limbs.ankleR || 0, toe: limbs.toeR || 0, plant: plant ? plant.R || 0 : 0, flatten: flatOf('R') },
+  }, {
+    L: { flex: wfL.flex || 0, deviation: wfL.deviation || 0, curl: limbs.fingersL || 0 },
+    R: { flex: wfR.flex || 0, deviation: wfR.deviation || 0, curl: limbs.fingersR || 0 },
   });
 
   // Warp whenever the figure is off its rest pose. S0 = the straight rest spine the
@@ -122,7 +139,7 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
   // the trunk's pelvis onto the balanced hips, the trunk stays welded to the
   // (balanced) legs instead of floating. The arms ride the shoulder girdle rigidly;
   // the grounded lower-body stacks pass through unchanged. Rest → S0≡S1 → identity.
-  if (offRest(spine, full, balanced)) {
+  if (offRest(spine, hinge, full, balanced)) {
     const deformer = spineDeformerFromNodes(basePositions(), balanced);
     body = warpStacks(body, deformer, { anchors: spineArmAnchors(), skip: GROUNDED_STACKS });
   }
@@ -134,8 +151,27 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
   // units; the locked ground baseline in renderFigureFrames keeps it airborne.
   if (lift) body = liftStacks(body, lift * PROTO_SCALE);
   const stacks = body.map((s) => ({ id: s.id, rings: s.rings, hex: FLESH_HEX }));
-  if (garment && GARMENTS[garment]) {
-    for (const g of buildGarment(body, GARMENTS[garment])) stacks.push({ id: g.id, rings: g.rings, hex: g.hex });
+  // Garments: build each cloth shell, then RESOLVE its spec's cuts + panels against the
+  // body and attach them per-piece, so the shared mesher (litFaces) carves and recolours
+  // the cloth — svgile-row's cutter, finally in the production renderer (SVG + World).
+  // `garment` is a single spec KEY, an inline spec OBJECT, or an array (layering: shirt + trousers + jacket).
+  for (const garm of garmentList(garment)) {
+    const spec = (garm && typeof garm === 'object') ? garm : GARMENTS[garm]; if (!spec) continue;
+    const gpieces = buildGarment(body, spec);
+    const cuts = resolveCuts(spec.cuts, gpieces, body);
+    const pregions = resolveCuts((spec.panels || []).map((p) => p.region), gpieces, body);
+    const panels = (spec.panels || []).map((p, i) => ({ region: pregions[i], color: p.color, on: p.on }));
+    for (const g of gpieces) {
+      const ap = cuts.filter((c) => !c.on || c.on === g.panel);             // cuts scoped to this piece's panel
+      const pp = panels.filter((p) => !p.on || p.on === g.panel);
+      const outer = !g.id.includes(':under:');                              // seams trace OUTER cloth only
+      stacks.push({
+        id: g.id, rings: g.rings, hex: g.hex, panel: g.panel,
+        cut: ap.length ? cutPredicate(ap) : null,
+        panels: pp.length ? pp : null,
+        seamCuts: outer && ap.length ? ap : null,
+      });
+    }
   }
   return stacks;
 }
@@ -187,19 +223,44 @@ function worldVertex(stacks, groundZ) {
 // outward normal is oriented by the stack centre, not CAM — so colours are unchanged.
 function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true } = {}) {
   const V = worldVertex(stacks, groundZ);
+  const dist = (cen) => Math.hypot(cen[0] - CAM[0], cen[1] - CAM[1], cen[2] - CAM[2]);
   const faces = [];
   for (const st of stacks) {
+    const cut = st.cut, panels = st.panels;                                 // garment cutter + panel recolour (null for flesh)
     for (let i = 0; i < st.rings.length - 1; i++) {
       const a = st.rings[i].polyline, b = st.rings[i + 1].polyline, m = Math.min(a.length, b.length);
       const c0 = st.rings[i].center, c1 = st.rings[i + 1].center;
       const cw = V({ x: (c0.x + c1.x) / 2, y: (c0.y + c1.y) / 2, z: (c0.z + c1.z) / 2 });
       for (let j = 0; j < m - 1; j++) {
-        const wpts = [V(a[j]), V(a[j + 1]), V(b[j + 1]), V(b[j])];
+        const pa = a[j], pa1 = a[j + 1], pb1 = b[j + 1], pb = b[j];
+        // svgile-row cutter: a face is DELETED if its body-relative centroid lands in a
+        // cut scoped to this piece's panel; PANELS recolour by the last region covering
+        // it. Both test the RAW ring centroid — the cut frame is figure space, not world.
+        const praw = (cut || panels) ? { x: (pa.x + pa1.x + pb1.x + pb.x) / 4, y: (pa.y + pa1.y + pb1.y + pb.y) / 4, z: (pa.z + pa1.z + pb1.z + pb.z) / 4 } : null;
+        if (cut && cut(praw)) continue;
+        const wpts = [V(pa), V(pa1), V(pb1), V(pb)];
         let n = newell(wpts); const cen = centroid(wpts);
         if (dot3(n, sub3(cen, cw)) < 0) n = [-n[0], -n[1], -n[2]];
         if (cull && dot3(n, sub3(CAM, cen)) <= 0) continue;                 // back-face cull
-        faces.push({ wpts, fill: shadeHex(st.hex, n, light), dist: Math.hypot(cen[0] - CAM[0], cen[1] - CAM[1], cen[2] - CAM[2]) });
+        let hex = st.hex;
+        if (panels) for (const p of panels) if (cutHits(praw, p.region)) hex = p.color;   // last panel wins
+        faces.push({ wpts, fill: shadeHex(hex, n, light), dist: dist(cen) });
       }
+    }
+  }
+  // RED-LINE seams: each cut's boundary (cutBoundary) realised as a thin ribbon lying on
+  // the cloth along the seam, so lapels / neckline / armholes draw themselves in 3D
+  // (the World analogue of the SVG path's stroked polylines). Back-face culled per seam.
+  for (const st of stacks) {
+    if (!st.seamCuts) continue;
+    for (const s of cutBoundary(st.rings, st.seamCuts)) {
+      const P = V(s.p), Q = V(s.q), nW = unit3([s.n.x, s.n.y, s.n.z]);
+      const cen0 = [(P[0] + Q[0]) / 2, (P[1] + Q[1]) / 2, (P[2] + Q[2]) / 2];
+      if (cull && dot3(nW, sub3(CAM, cen0)) <= 0) continue;                 // cull far-side seams
+      const perp = unit3(cross3(unit3(sub3(Q, P)), nW)), w = 0.018, e = 0.006;
+      const off = (p, k) => [p[0] + perp[0] * k + nW[0] * e, p[1] + perp[1] * k + nW[1] * e, p[2] + perp[2] * k + nW[2] * e];
+      const wpts = [off(P, -w), off(Q, -w), off(Q, w), off(P, w)], cen = centroid(wpts);
+      faces.push({ wpts, fill: shadeHex(SEAM_HEX, nW, light), dist: dist(cen) - 1e-3 });   // tiebreak toward camera
     }
   }
   faces.sort((p, q) => q.dist - p.dist);                                    // far → near

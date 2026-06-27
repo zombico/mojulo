@@ -164,6 +164,64 @@ export function viewerHtml({ title, motion, hasGif, recipe, baseUrl, chrome = DE
 }
 
 /**
+ * The WORLD viewer — a three.js World motion is raster-native (no SVG flipbook):
+ * the looping GIF is the in-page preview and, when present, the MP4 is the
+ * scrub/fullscreen/download player. Mirrors the stitch viewer's <video> stage
+ * when an MP4 was baked; otherwise it shows the self-looping GIF.
+ *
+ * @param {object} args
+ * @param {string} args.title
+ * @param {string} args.motion
+ * @param {object} args.recipe   the persisted world-motion recipe (motion_ref, meta…)
+ * @param {string} args.baseUrl  absolute folder URL, e.g. "/outcomes/mo_x/"
+ * @param {boolean} args.hasGif
+ * @param {boolean} args.hasMp4
+ * @param {boolean} [args.loop=true]
+ */
+export function worldViewerHtml({ title, motion, recipe, baseUrl, hasGif, hasMp4, loop = true }) {
+  const m = recipe.meta || {};
+  const stage = hasMp4
+    ? `<video src="${baseUrl}motion.mp4" controls autoplay muted playsinline ${loop ? 'loop' : ''}></video>`
+    : `<img src="${baseUrl}motion.gif" alt="${escapeHtml(title)}" />`;
+  const dls = [
+    hasGif ? `<a class="dl" href="${baseUrl}motion.gif" download>download .gif</a>` : '',
+    hasMp4 ? `<a class="dl" href="${baseUrl}motion.mp4" download>download .mp4</a>` : '',
+  ].filter(Boolean).join('\n    ');
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(title)} — world motion</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0e1319; color: #c9d1d9; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 28px 20px; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .ref { font-family: ui-monospace, monospace; font-size: 11px; color: #6b7280; }
+  .stage { margin: 20px 0 12px; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .stage video, .stage img { width: 100%; max-height: 72vh; display: block; background: #000; object-fit: contain; }
+  .meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #8b949e; margin-top: 14px; }
+  .meta b { color: #c9d1d9; font-weight: 600; }
+  .dl { color: #6b7280; font-size: 12px; text-decoration: none; border-bottom: 1px dotted #6b7280; }
+  details { margin-top: 18px; } pre { overflow:auto; background:#161b22; padding:12px; border-radius:6px; font-size:11px; }
+</style></head>
+<body><main>
+  <h1>${escapeHtml(title)}</h1>
+  <div class="ref">${escapeHtml(recipe.motion_ref)} · three.js world</div>
+  <div class="stage">${stage}</div>
+  <div class="meta">
+    <span><b>motion</b> ${escapeHtml(motion)}</span>
+    <span><b>frames</b> ${m.frames ?? '—'}</span>
+    <span><b>fps</b> ${m.fps ?? '—'}</span>
+    <span><b>backend</b> three.js (WebGL)</span>
+    ${dls}
+  </div>
+  <details><summary>recipe</summary><pre>${escapeHtml(JSON.stringify(recipe, null, 2))}</pre></details>
+</main></body></html>
+`;
+}
+
+/**
  * The STITCH viewer — a long-form MP4 plays natively as <video> (seek, scrub,
  * fullscreen, download all for free). No bespoke frame driver: we baked the
  * frames into the file, so the browser's video pipeline is the player.

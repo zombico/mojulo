@@ -22,6 +22,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
 import { planTransportationHub, HUB_MODES, AIRPORT_GLYPHS, AIRPORT_PRIMARIES } from '@/lib/graph/transportation-hub';
 import { planSubwayStation, SUBWAY_LINES } from '@/lib/graph/subway-station';
+import { warmScenePng } from '@/lib/graph/scene-png-warm';
 
 // The hub tool's user-facing modes: the exterior apron modes plus the INTERIOR
 // subway station (a distinct render path — it persists as a `subway-station` scene
@@ -48,6 +49,7 @@ function mintSubwayStation({ title, seed, density, line, viewBox, ref, folderRef
     if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
     throw err;
   }
+  warmScenePng(sketch);   // background pre-bake of the gallery preview PNG
   return {
     ok: true,
     ref: sketch.ref,
@@ -96,6 +98,8 @@ export function mintTransportationHub({ title, mode, seed, density, depth, glyph
     }
     throw err;
   }
+
+  warmScenePng(sketch);   // background pre-bake of the gallery preview PNG
 
   return {
     ok: true,

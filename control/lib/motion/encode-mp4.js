@@ -150,3 +150,49 @@ export async function encodeStitchMp4(clips, outPath, opts = {}) {
     warning,
   };
 }
+
+/**
+ * Encode an ordered list of uniform PNG buffers (one clip's worth of frames, e.g.
+ * headless three.js World capture) into a single MP4/H.264 — the downloadable,
+ * broadly-playable form of a world motion. No letterbox/resample (single source,
+ * already uniform W×H); the source frames ARE the timeline at the given fps. The
+ * frames are padded to even dimensions for yuv420p. (.mov is the same encode with
+ * a container swap; P1 ships .mp4.)
+ *
+ * @param {Buffer[]} pngBuffers  one PNG per frame (uniform size)
+ * @param {string}   outPath     destination .mp4
+ * @param {object}   [opts]      { fps }
+ * @returns {Promise<{ outPath, totalFrames, fps, durationSec, bytes }>}
+ */
+export async function encodeFramesMp4(pngBuffers, outPath, opts = {}) {
+  const { fps = 24 } = opts;
+  if (!pngBuffers.length) throw new Error('encodeFramesMp4: no frames');
+
+  const tmpDir = path.join(os.tmpdir(), `moj-world-${randomUUID().slice(0, 8)}`);
+  await fs.mkdir(tmpDir, { recursive: true });
+  try {
+    for (let i = 0; i < pngBuffers.length; i++) {
+      // eslint-disable-next-line no-await-in-loop -- bounded by frame budget
+      await fs.writeFile(path.join(tmpDir, `f_${String(i + 1).padStart(6, '0')}.png`), pngBuffers[i]);
+    }
+    const bin = await resolveFfmpeg();
+    await runFfmpeg(bin, [
+      '-y',
+      '-framerate', String(fps),
+      '-i', path.join(tmpDir, 'f_%06d.png'),
+      // pad odd-sized captures up to even W×H so yuv420p/libx264 is happy.
+      '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
+      '-c:v', 'libx264',
+      '-pix_fmt', 'yuv420p',
+      '-movflags', '+faststart',
+      '-an',
+      outPath,
+    ]);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+
+  const { size } = await fs.stat(outPath);
+  const totalFrames = pngBuffers.length;
+  return { outPath, totalFrames, fps, durationSec: totalFrames / fps, bytes: size };
+}

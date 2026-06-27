@@ -104,6 +104,74 @@ describe('plant — expansion shape', () => {
     expect(t.every((x) => x.profile === 'capsule')).toBe(true);
   });
 
+  it('palm crowns a SEGMENTED trunk with arching pinnate fronds', () => {
+    const palm = expandPlant({ form: 'palm', ...AXIS, fronds: 8, pinnae: 10, coconuts: 4, trunkSegments: 6 });
+    // 6 trunk segments + fronds×(rachis 1 + pinnae 10) + coconuts(4)
+    expect(palm).toHaveLength(6 + 8 * (1 + 10) + 4);
+    expect(palm.slice(0, 6).every((x) => x.profile === 'capsule')).toBe(true);  // the ringed trunk
+    expect(palm.some((x) => x.profile === 'spindle')).toBe(true);                // pinnae/coconuts
+    // fronds droop: some pinna pole sits BELOW the crown (z=6 tip of AXIS)
+    expect(palm.some((x) => Math.min(x.yin.z, x.yang.z) < 6)).toBe(true);
+    // trunkSegments:0 collapses to a single smooth capsule trunk
+    const smooth = expandPlant({ form: 'palm', ...AXIS, fronds: 8, pinnae: 10, coconuts: 4, trunkSegments: 0 });
+    expect(smooth).toHaveLength(1 + 8 * (1 + 10) + 4);
+  });
+
+  it("palm frondType:'fan' makes a petiole + a flat peacock array of blades", () => {
+    const fanPalm = expandPlant({ form: 'palm', ...AXIS, frondType: 'fan', fronds: 6, pinnae: 10, coconuts: 0, trunkSegments: 5 });
+    // 5 trunk + fronds×(petiole 1 + 10 blades)
+    expect(fanPalm).toHaveLength(5 + 6 * (1 + 10));
+    expect(validatePlants([{ form: 'palm', ...AXIS, frondType: 'fan' }])).toEqual([]);
+  });
+
+  it('palm validates clean and stays bounded even at max fronds/pinnae', () => {
+    expect(validatePlants([{ form: 'palm', ...AXIS }])).toEqual([]);
+    expect(validatePlants([{ form: 'palm', ...AXIS, fronds: 16, pinnae: 24, trunkSegments: 16 }])).toEqual([]);
+    const max = expandPlant({ form: 'palm', ...AXIS, fronds: 16, pinnae: 24, coconuts: 16, trunkSegments: 16 });
+    expect(max.length).toBeLessThanOrEqual(MAX_TAIJIS_PER_PLANT);
+  });
+
+  it('flower is a free head with center, but gains a stem + leaves base→tip (bed-style)', () => {
+    expect(expandPlant({ form: 'flower', count: 8 })).toHaveLength(8); // free head: petals only
+    const stemmed = expandPlant({ form: 'flower', ...AXIS, count: 8, leaves: 2 });
+    expect(stemmed).toHaveLength(1 + 2 + 8);            // stem + 2 leaves + 8 petals
+    expect(stemmed[0].profile).toBe('capsule');        // the green stem
+    // a sunflower: many rays + a coloured disc head
+    const sun = expandPlant({ form: 'flower', ...AXIS, count: 20, discCount: 40, leaves: 2, petalColor: '#f2c12e', discColor: '#5a3a1e' });
+    expect(sun).toHaveLength(1 + 2 + 20 + 40);
+    expect(sun.some((x) => x.style.yinStroke === '#f2c12e')).toBe(true); // petals
+    expect(sun.some((x) => x.style.yinStroke === '#5a3a1e')).toBe(true); // disc centre
+  });
+
+  it('tulip is a green stem + a coloured petal cup + strap leaves', () => {
+    const t = expandPlant({ form: 'tulip', ...AXIS, petals: 6, leaves: 2 });
+    expect(t).toHaveLength(1 + 6 + 2);
+    expect(t[0].profile).toBe('capsule');                 // stem
+    // petals carry the bloom colour; the bladelike leaves are spindles too, so
+    // tell them apart by colour, not profile.
+    const petals = t.filter((x) => x.style.yinStroke === '#d6433a');
+    expect(petals).toHaveLength(6);
+    const leaves = t.filter((x) => x.profile === 'spindle' && x.style.yinStroke !== '#d6433a');
+    expect(leaves).toHaveLength(2);                        // bladelike, not tubular capsules
+    expect(t.some((x) => x.profile === 'capsule')).toBe(true); // only the stem is a capsule now
+    expect(validatePlants([{ form: 'tulip', ...AXIS }])).toEqual([]);
+  });
+
+  it('bed scatters a cluster of small plants with mixed bloom colours', () => {
+    const bed = expandPlant({ form: 'bed', base: { x: 0, y: 0, z: 0 }, region: { width: 6, depth: 6 }, count: 9 });
+    expect(bed).toHaveLength(9 * (1 + 6 + 2));            // 9 default tulips
+    // distinct PETAL colours (exclude the green leaf blades) → mixed cultivars
+    const bloomColours = new Set(bed.filter((x) => x.profile === 'spindle' && x.style.yinStroke !== '#7cb342').map((x) => x.style.yinStroke));
+    expect(bloomColours.size).toBeGreaterThan(1);
+    expect(validatePlants([{ form: 'bed' }])).toEqual([]);
+  });
+
+  it('a bed of shrubs (tree template) keeps green foliage, no bloom recolour', () => {
+    const bed = expandPlant({ form: 'bed', count: 4, plant: { form: 'tree', height: 1.6, depth: 2, branches: 3, foliage: 'cluster' } });
+    expect(bed.length).toBeGreaterThan(4);
+    expect(bed.every((x) => x.style.yinStroke !== '#d6433a')).toBe(true); // no tulip-red leaked in
+  });
+
   it('tree branches recursively into a geometric series of capsule limbs', () => {
     // branches=2, depth=3, no foliage → 1+2+4+8 = 15 segments, all capsule.
     const t = expandPlant({ form: 'tree', ...AXIS, depth: 3, branches: 2, foliage: false });
@@ -139,6 +207,64 @@ describe('plant — expansion shape', () => {
     expect(foliage.every((x) => x.matter?.fill === 'silhouette')).toBe(true);
     expect(foliage.some((x) => x.profile === 'capsule')).toBe(true);
     expect(foliage.some((x) => x.profile === 'spindle')).toBe(true);
+  });
+
+  // bbox over a list of taiji poles → spillover is measured as foliage that
+  // extends WIDER (canopy) or LOWER (weeping) than the cluster "hat" baseline.
+  const polesBBox = (ts) => {
+    const xs = ts.flatMap((t) => [t.yin.x, t.yang.x]);
+    const ys = ts.flatMap((t) => [t.yin.y, t.yang.y]);
+    const zs = ts.flatMap((t) => [t.yin.z, t.yang.z]);
+    return {
+      width: (Math.max(...xs) - Math.min(...xs)) + (Math.max(...ys) - Math.min(...ys)),
+      minZ: Math.min(...zs),
+    };
+  };
+
+  it("foliage:'canopy' spreads a wider crown than the cluster hat", () => {
+    const bare = expandPlant({ form: 'tree', ...AXIS, depth: 2, branches: 2, foliage: false });
+    const SPEC = { form: 'tree', ...AXIS, depth: 2, branches: 2, foliageTiers: 5, clusterSize: 0.8 };
+    const canopy = expandPlant({ ...SPEC, foliage: 'umbrella' });
+    const wig = expandPlant({ ...SPEC, foliage: 'cluster' });
+    const terminals = Math.pow(2, 2);
+    expect(canopy).toHaveLength(bare.length + terminals * 6); // cap + max(4,5)=5 lobes per terminal
+    // the ring of outward lobes makes the foliage footprint WIDER than the hat
+    expect(polesBBox(canopy.slice(bare.length)).width)
+      .toBeGreaterThan(polesBBox(wig.slice(bare.length)).width);
+  });
+
+  it("foliage:'weeping' (willow) hangs a curtain LOWER than the cluster hat", () => {
+    const bare = expandPlant({ form: 'tree', ...AXIS, depth: 2, branches: 2, foliage: false });
+    const SPEC = { form: 'tree', ...AXIS, depth: 2, branches: 2, foliageTiers: 5, clusterSize: 0.9 };
+    const weeping = expandPlant({ ...SPEC, foliage: 'willow' });
+    const wig = expandPlant({ ...SPEC, foliage: 'cluster' });
+    const terminals = Math.pow(2, 2);
+    expect(weeping).toHaveLength(bare.length + terminals * 6); // cap + max(4,5)=5 strands per terminal
+    // strands drop below where the perched hat bottoms out → mass spills down
+    expect(polesBBox(weeping.slice(bare.length)).minZ)
+      .toBeLessThan(polesBBox(wig.slice(bare.length)).minZ);
+  });
+
+  it("forkStyle:'planar' fans forks into ONE plane → a flat V / candelabra", () => {
+    const planar = expandPlant({ form: 'tree', ...AXIS, depth: 2, branches: 2, forkStyle: 'planar', foliage: false });
+    const spiral = expandPlant({ form: 'tree', ...AXIS, depth: 2, branches: 2, forkStyle: 'spiral', foliage: false });
+    const spread = (ts, k) => { const a = ts.flatMap((t) => [t.yin[k], t.yang[k]]); return Math.max(...a) - Math.min(...a); };
+    // AXIS is vertical (z), so the planar fork fans in y while x stays flat…
+    expect(spread(planar, 'x')).toBeLessThan(1e-6);
+    expect(spread(planar, 'y')).toBeGreaterThan(1);
+    // …whereas a spiral fork scatters across BOTH horizontal axes
+    expect(spread(spiral, 'x')).toBeGreaterThan(0.5);
+  });
+
+  it('foliageLevels stacks canopy shells on the deepest tiers', () => {
+    const bare = expandPlant({ form: 'tree', ...AXIS, depth: 3, branches: 2, foliage: false });
+    const one = expandPlant({ form: 'tree', ...AXIS, depth: 3, branches: 2, foliage: 'cluster' });
+    const two = expandPlant({ form: 'tree', ...AXIS, depth: 3, branches: 2, foliage: 'cluster', foliageLevels: 2 });
+    const limbs = bare.length;
+    // one shell: a wig on each of the 8 terminal twigs
+    expect(one.length).toBe(limbs + Math.pow(2, 3));
+    // two shells: terminal tier (8) + the interior tier above it (4) = 12 wigs
+    expect(two.length).toBe(limbs + Math.pow(2, 3) + Math.pow(2, 2));
   });
 
   it('a bare tree (foliage:false) is all-capsule limbs, bounded', () => {

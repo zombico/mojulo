@@ -17,6 +17,23 @@ describe('create_figure', () => {
     expect(svg).toMatch(/<polygon /);
   });
 
+  it('layers multiple garments (array) and carries each cut-bearing piece its resolved cutter', () => {
+    const bare = buildPosedFigure({}, {}, null);
+    const layered = buildPosedFigure({}, {}, ['trousers', 'jacketAllCut']);
+    // both garments add cloth stacks over the flesh…
+    expect(layered.length).toBeGreaterThan(bare.length);
+    expect(layered.some((s) => s.id.startsWith('trousers'))).toBe(true);
+    expect(layered.some((s) => s.id.startsWith('jacketAllCut'))).toBe(true);
+    // …and jacketAllCut's declared openings (front wedge / neck / armholes) ride its torso
+    // piece as a predicate the mesher applies — svgile-row's cutter in the production path
+    const jTorso = layered.find((s) => s.id === 'jacketAllCut:torso');
+    expect(typeof jTorso.cut).toBe('function');
+  });
+
+  it('rejects an unknown garment inside a layering array', async () => {
+    await expect(createFigureHandler({ title: 'x', garment: ['trousers', 'cape'] })).rejects.toThrow(/garment/);
+  });
+
   it('buildPosedFigure returns tagged stacks; spine bend changes the geometry', () => {
     const neutral = buildPosedFigure({}, {}, null);
     const bent = buildPosedFigure({ spine: { sagittal: 1 } }, {}, null);

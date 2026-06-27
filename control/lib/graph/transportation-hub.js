@@ -24,10 +24,12 @@
  */
 
 import { assembleBoxCityScene, emitPreserve3dScene } from './scene-css3d.js';
+import { buildFacadeCard } from './facade-card.js';
 import { makeLight, scaleHex, litFactor } from './polygonizer/vexar.js';
 import { groundStreet, airportStrip } from './roads.js';
 import { vehicleFaces, aircraftFootprint } from './vehicles-css3d.js';
 import { pickAircraftLiveryScheme } from './polygonizer/vehicle-fuselage-net.js';
+import { typesInFamily, describeType } from './meta-fabricator.js';
 
 export const HUB_MODES = ['airport', 'train-station', 'bus-terminal'];
 
@@ -100,6 +102,16 @@ function airportCurtain(lit, bands, glass = '#9fc0d8', mull = '#42566a', vbays =
     + `linear-gradient(to bottom, transparent 0 80%, ${base} 80%),`                                      // solid spandrel base
     + g;
 }
+// The World-renderer RELIEF twin of airportCurtain: the same curtainwall expressed as a
+// facade "shirt" card (buildFacadeCard) so scene-three's expandSurfaceCards floats proud
+// mullions/spandrels off a recessed glass sheet — the airport buildings stop reading flat
+// in the World the way the fractal-city facades already do. Purely additive: the CSS-3D
+// path ignores `card` and keeps painting airportCurtain's gradient. `vertical` selects the
+// vertical-fin rhythm (pier — dominant pilasters), matching airportCurtain's vertical variant
+// and towerGlass; the default `banded` rhythm matches the dominant horizontal floor bands.
+function airportCard(glass, mull, bands, bays, vertical = false) {
+  return buildFacadeCard({ material: 'glass', rhythm: vertical ? 'pier' : 'banded', glass, frame: mull }, bands, bays);
+}
 // vertical-mullion glass for the control-tower shaft — a different rhythm again.
 function towerGlass(lit, glass = '#8fb6cc', mull = '#3a4a59') {
   const g = scaleHex(glass, lit), m = scaleHex(mull, lit * 0.95);
@@ -118,7 +130,9 @@ function litQuadUp(c) {
 
 // an N-gon prism (the mandala terminal / the tower cab) as raw faces: curtainwall
 // sides (front winds outward) + an optional clipped polygon roof cap. `bgFn(lit)` → side CSS.
-function prismFaces(cx, cy, r, z0, z1, N, rot0, { bgFn, roof = AIRPORT_ROOF, cap = true }) {
+// `cardFn(bands, bays) -> facade card` is optional; when supplied, each glazed side face also
+// carries a World relief "shirt" (see airportCard) on top of its CSS gradient bg.
+function prismFaces(cx, cy, r, z0, z1, N, rot0, { bgFn, cardFn = null, roof = AIRPORT_ROOF, cap = true }) {
   const bot = polyRing(cx, cy, r, z0, N, rot0), top = polyRing(cx, cy, r, z1, N, rot0), faces = [];
   const bands = Math.max(2, Math.round((z1 - z0) / 0.62));
   for (let i = 0; i < N; i++) {
@@ -126,7 +140,10 @@ function prismFaces(cx, cy, r, z0, z1, N, rot0, { bgFn, roof = AIRPORT_ROOF, cap
     const mx = (bot[i][0] + bot[j][0]) / 2 - cx, my = (bot[i][1] + bot[j][1]) / 2 - cy, ml = Math.hypot(mx, my) || 1;
     const out = [mx / ml, my / ml, 0];
     const chord = Math.hypot(bot[j][0] - bot[i][0], bot[j][1] - bot[i][1]);
-    faces.push({ corners: quadOut(bot[i], bot[j], top[j], top[i], out), bg: bgFn(litFactor(out, SCENE_LIGHT), bands, Math.max(2, Math.round(chord / 0.7))) });
+    const lit = litFactor(out, SCENE_LIGHT), bays = Math.max(2, Math.round(chord / 0.7));
+    const f = { corners: quadOut(bot[i], bot[j], top[j], top[i], out), bg: bgFn(lit, bands, bays) };
+    if (cardFn) { f.card = cardFn(bands, bays); f.lit = lit; }
+    faces.push(f);
   }
   if (cap) {
     const poly = Array.from({ length: N }, (_, i) => { const a = rot0 + (i / N) * 2 * Math.PI; return `${(50 + 50 * Math.cos(a)).toFixed(1)}% ${(50 + 50 * Math.sin(a)).toFixed(1)}%`; }).join(', ');
@@ -230,7 +247,10 @@ function corridorFaces(A, B, width, z0, z1, { glass = '#a7c4d6', mull = '#46586a
   const P = (p, z) => [p[0], p[1], z];
   const bands = Math.max(2, Math.round((z1 - z0) / 0.62));
   const faces = [];
-  const wall = (p0, p1, out, span) => faces.push({ corners: quadOut(P(p0, z0), P(p1, z0), P(p1, z1), P(p0, z1), out), bg: airportCurtain(litFactor(out, SCENE_LIGHT), bands, glass, mull, Math.max(2, Math.round(span / 0.7)), vertical) });
+  const wall = (p0, p1, out, span) => {
+    const lit = litFactor(out, SCENE_LIGHT), bays = Math.max(2, Math.round(span / 0.7));
+    faces.push({ corners: quadOut(P(p0, z0), P(p1, z0), P(p1, z1), P(p0, z1), out), bg: airportCurtain(lit, bands, glass, mull, bays, vertical), card: airportCard(glass, mull, bands, bays, vertical), lit });
+  };
   wall(aL, bL, [nx, ny, 0], len); wall(aR, bR, [-nx, -ny, 0], len);     // long sides
   wall(aL, aR, [-ux, -uy, 0], width); wall(bL, bR, [ux, uy, 0], width); // end caps
   faces.push({ corners: [P(aL, z1), P(bL, z1), P(bR, z1), P(aR, z1)], fill: scaleHex(roof, litFactor([0, 0, 1], SCENE_LIGHT)), doubleSided: true });
@@ -241,8 +261,8 @@ function corridorFaces(A, B, width, z0, z1, { glass = '#a7c4d6', mull = '#46586a
 // octagonal cab + a roof ring + a thin mast. Its own façade language, not the cab box.
 function controlTowerFaces(cx, cy) {
   const faces = [];
-  faces.push(...prismFaces(cx, cy, 0.85, 0, 8.0, 4, Math.PI / 4, { bgFn: (lit) => towerGlass(lit), roof: '#6a7078' }));   // shaft
-  faces.push(...prismFaces(cx, cy, 1.45, 7.8, 9.5, 8, 0, { bgFn: (lit) => towerGlass(lit, '#33424f', '#222c35'), roof: '#525861' }));   // flared dark cab
+  faces.push(...prismFaces(cx, cy, 0.85, 0, 8.0, 4, Math.PI / 4, { bgFn: (lit) => towerGlass(lit), cardFn: (bands, vb) => airportCard('#8fb6cc', '#3a4a59', bands, vb, true), roof: '#6a7078' }));   // shaft
+  faces.push(...prismFaces(cx, cy, 1.45, 7.8, 9.5, 8, 0, { bgFn: (lit) => towerGlass(lit, '#33424f', '#222c35'), cardFn: (bands, vb) => airportCard('#33424f', '#222c35', bands, vb, true), roof: '#525861' }));   // flared dark cab
   return { faces, mast: { x: cx - 0.07, y: cy - 0.07, w: 0.14, d: 0.14, z0: 9.5, z1: 11.0, tint: '#9aa0a6' } };
 }
 
@@ -289,14 +309,14 @@ function canopy(boxes, x, y, w, d, z, roofTint = '#8b8378') {
 export const AIRPORT_GLYPHS = ['radial', 'linear'];
 export const AIRPORT_PRIMARIES = ['core', 'spine', 'hammerhead'];
 // the apron fleet: which aircraft classes park, and how often. Narrowbody liners
-// dominate, jumbos + regionals are common, bizjets sprinkle in. Each `type` resolves
-// to a fuselage net (vehicle-fuselage-net) whose proportions carry its real size.
-const AIRPORT_FLEET = [
-  { type: 'widebody', weight: 2 },
-  { type: 'airliner', weight: 5 },
-  { type: 'regional', weight: 3 },
-  { type: 'bizjet', weight: 2 },
-];
+// dominate, jumbos + regionals are common, bizjets sprinkle in. Derived from the
+// fixed-wing-aircraft FAMILY's airfield-eligible members (meta-fabricator is the
+// single source of truth: add an aircraft type to the vehicle registry and it
+// appears here, weighted by its registry `weight` — no edit needed in this file).
+const AIRPORT_FLEET = typesInFamily('fixed-wing-aircraft')
+  .map((type) => describeType(type))
+  .filter((d) => d.contexts.includes('airfield'))
+  .map((d) => ({ type: d.type, weight: d.weight }));
 // weighted pick from ctx.fleet via the seeded rng
 function sampleAircraft(ctx) {
   const total = ctx.fleet.reduce((s, f) => s + f.weight, 0);
@@ -387,9 +407,9 @@ function glyphRadial(ctx, region, rng, branchDepth, out) {
   const isCore = ctx.primary === 'core', isHammer = ctx.primary === 'hammerhead';
   const hubR = isCore ? 4.4 : isHammer ? 3.0 : 3.6, hubZ = isCore ? 4.1 : 3.7;
   const rDome = hubR * 0.66, clerZ = hubZ + 0.55, domeH = 1.7, apexZ = clerZ + domeH;
-  out.faces.push(...prismFaces(hcx, hcy, hubR, 0, hubZ, N, rot0, { bgFn: (lit, bands, vb) => airportCurtain(lit, bands, '#a9c6d8', '#3f5366', vb), cap: false }));
+  out.faces.push(...prismFaces(hcx, hcy, hubR, 0, hubZ, N, rot0, { bgFn: (lit, bands, vb) => airportCurtain(lit, bands, '#a9c6d8', '#3f5366', vb), cardFn: (bands, vb) => airportCard('#a9c6d8', '#3f5366', bands, vb), cap: false }));
   out.faces.push(...annulusRoofFaces(hcx, hcy, hubR, rDome, hubZ, N, rot0, AIRPORT_ROOF));
-  out.faces.push(...prismFaces(hcx, hcy, rDome, hubZ, clerZ, N, rot0, { bgFn: (lit, bands, vb) => airportCurtain(lit, bands, '#c2dbe8', '#52677a', vb, true), cap: false }));  // vertical-fin clerestory
+  out.faces.push(...prismFaces(hcx, hcy, rDome, hubZ, clerZ, N, rot0, { bgFn: (lit, bands, vb) => airportCurtain(lit, bands, '#c2dbe8', '#52677a', vb, true), cardFn: (bands, vb) => airportCard('#c2dbe8', '#52677a', bands, vb, true), cap: false }));  // vertical-fin clerestory
   out.faces.push(...sineDomeFaces(hcx, hcy, rDome, clerZ, domeH, N, rot0, 7, scaleHex(AIRPORT_ROOF, 1.06)));
   roofKit(out.boxes, hcx, hcy, rDome + 0.2, hubR * 0.95, hubZ, apexZ, rng);
   const ra = rot0 + 0.7, rk = (rDome + hubR) / 2;
@@ -772,5 +792,5 @@ export function assembleTransportationHubScene(opts = {}) {
 }
 
 export function renderTransportationHubToHtml(opts = {}) {
-  return emitPreserve3dScene(assembleTransportationHubScene(opts));
+  return emitPreserve3dScene({ ...assembleTransportationHubScene(opts), signs: opts.signs });
 }

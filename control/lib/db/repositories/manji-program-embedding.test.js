@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // text — cosine similarity then reflects literal token-overlap, which is
 // enough to verify the indexing wiring lands school-of-athens for
 // intent queries that share vocabulary with its retrieval body.
-vi.mock('../embedder/local.js', async () => {
+vi.mock('../../embedder/local.js', async () => {
   const { createHash } = await import('node:crypto');
   const LOCAL_EMBEDDING_DIM = 384;
   const LOCAL_EMBEDDING_MODEL = 'multilingual-e5-small';
@@ -145,8 +145,13 @@ describe('semantic_search surfaces school-of-athens for civic-hall intent', () =
   it('returns snowflake-sixfold for a six-fold radial query', { timeout: 30000 }, async () => {
     getDb();
     await reindexAll();
+    // The query leans on snowflake-sixfold's distinctive vocabulary (crystal,
+    // mirrored arms, branching spokes). A bare "six fold radial symmetry"
+    // query now collides with the markdown-shelf `mandala-six` card ("Mandala
+    // (six-fold)"), which is an equally valid answer — so disambiguate toward
+    // the card under test rather than weakening the assertion.
     const results = await EmbeddingsRepository.search(
-      'six fold radial symmetry spokes around one center',
+      'snowflake crystal with six mirrored radial arms branching around one center',
       { kinds: ['manji_program'], limit: 5 },
     );
     const refs = results.map((r) => r.source_ref);

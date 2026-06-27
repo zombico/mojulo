@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildingExtras } from './building-facade.js';
+import { buildingExtras, facadeCss } from './building-facade.js';
 
 describe('building facade extras', () => {
   it('renders storefronts as first-floor grouped panes and a header band', () => {
@@ -34,5 +34,21 @@ describe('building facade extras', () => {
     expect(extras.boxes.filter((b) => b.tint === '#555a60')).toHaveLength(2);
     expect(extras.boxes.some((b) => b.tint === '#2f3f59')).toBe(true);
     expect(extras.decals.some((d) => d.fill === '#f0d36a')).toBe(true);
+  });
+
+  it('renders brick facades with alternating running-bond mortar joints', () => {
+    const css = facadeCss({
+      material: 'brick',
+      glass: '#8f3f30',
+      frame: '#e7d4b8',
+      glassVar: 1,
+      mullion: 1,
+    }, 1, 4, 4);
+    const svg = decodeURIComponent(css.match(/data:image\/svg\+xml,([^"]+)/)[1]);
+
+    expect(css).toContain('data:image/svg+xml');
+    expect(css).not.toContain('repeating-linear-gradient(to right');
+    expect(svg).toContain('M0 .5V7.5');
+    expect(svg).toContain('M-9 7.5V13.5');
   });
 });

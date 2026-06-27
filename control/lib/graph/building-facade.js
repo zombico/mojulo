@@ -24,6 +24,17 @@ const BRICK_FAMILIES = [
   ['#b07a55', '#e6dac6'], ['#7a4636', '#c2ad96'], ['#a35640', '#d6c2aa'],
   ['#6f4a40', '#bdab98'], ['#bd8a5f', '#ece1cf'],
 ];
+// older low-countries rows: deep red / soot / warm ochre brick with pale stone trim.
+const DUTCH_ROW_FAMILIES = [
+  ['#8f3f30', '#e7d4b8'], ['#6f352d', '#d8c1a4'], ['#a85c3d', '#ead7bd'],
+  ['#4d3f37', '#cbb69d'], ['#9a6a43', '#eadcc7'], ['#7c4635', '#d9c8ae'],
+];
+// concrete/render families → [infill glazing, concrete slab/frame]. Mid-century
+// apartment-slab read: sun-bleached concrete piers over recessed ribbon glazing.
+const CONCRETE_FAMILIES = [
+  ['#8f9ba0', '#cfc9bd'], ['#86969b', '#c7c1b4'], ['#9aa39f', '#d3cdc1'],
+  ['#7f8c93', '#c2bcae'], ['#94928a', '#cac3b5'],
+];
 
 function mul32(a) {
   return function () {
@@ -41,12 +52,15 @@ export function makeFacade(seedOrRng, opts = {}) {
   const height = Number.isFinite(opts.height) ? opts.height : 3.5;
   // brick is a LOW/mid-rise material — tall towers stay glass/steel, never brick
   const brickChance = height < 3.2 ? 0.55 : height < 4.6 ? 0.28 : 0;
-  const material = rng() < brickChance ? 'brick' : 'glass';
-  const [glass, frame] = material === 'brick' ? pick(rng, BRICK_FAMILIES) : pick(rng, FAMILIES);
+  let material = rng() < brickChance ? 'brick' : 'glass';
+  let [glass, frame] = material === 'brick' ? pick(rng, BRICK_FAMILIES) : pick(rng, FAMILIES);
   // PROGRAM harmonizes a building's choices — so balconies (when present) repeat as
   // ONE coherent type/pattern building-wide, like a real condo, not random per cell.
-  const program = pick(rng, ['office', 'office', 'residential', 'residential', 'hotel', 'industrial']);
-  let rhythm, balcony = false, balconyType = null, balconyBays = 'all', rooftopKit = [];
+  // slab-block ('condo') is NOT in the random pool — it is seeded deliberately by the
+  // city generator on tall, square-ish lots (via opts.program) so condos read as towers.
+  let program = pick(rng, ['office', 'office', 'residential', 'residential', 'hotel', 'industrial']);
+  if (opts.program) program = opts.program;
+  let rhythm, balcony = false, balconyType = null, balconyBays = 'all', rooftopKit = [], loggia = false;
   if (program === 'office') {
     rhythm = pick(rng, ['curtain', 'punched', 'banded', 'grid', 'pier', 'pier']);   // pier = strong vertical pilasters (civic/brutalist read)
     rooftopKit = rng() < 0.5 ? ['mechanical', 'antenna'] : ['mechanical', 'cell-tower'];
@@ -60,6 +74,15 @@ export function makeFacade(seedOrRng, opts = {}) {
     rhythm = pick(rng, ['grid', 'banded']);
     if (material !== 'brick') { balcony = true; balconyType = 'slab'; balconyBays = 'all'; }   // glass hotel-balcony-stack
     rooftopKit = ['mechanical'];
+  } else if (program === 'slab-block') {
+    // mid-century apartment SLAB: a continuous, partitioned balcony loggia tucked behind
+    // strongly expressed floor slabs (the prominent floor edges wrapping every storey).
+    // Concrete, never brick — force the palette regardless of the earlier material roll.
+    material = 'concrete';
+    [glass, frame] = pick(rng, CONCRETE_FAMILIES);
+    rhythm = 'banded';                                  // recessed ribbon glazing behind the loggia
+    balcony = true; balconyType = 'partitioned'; balconyBays = 'all'; loggia = true;
+    rooftopKit = rng() < 0.5 ? ['water-tank', 'mechanical'] : ['mechanical'];
   } else { // industrial
     rhythm = pick(rng, ['banded', 'grid', 'pier']);
     rooftopKit = rng() < 0.6 ? ['smoke-stack', 'smoke-stack', 'mechanical'] : ['smoke-stack', 'mechanical'];
@@ -75,7 +98,7 @@ export function makeFacade(seedOrRng, opts = {}) {
     crown: pick(rng, CROWNS),
     mullion: (0.9 + rng() * 1.4),
     glassVar: 0.92 + rng() * 0.16,
-    balcony, balconyType, balconyBays,
+    balcony, balconyType, balconyBays, loggia,
     fireEscape: material === 'brick' && !balcony && rng() < 0.7,  // fire escapes ride brick walk-ups (never alongside balconies)
     awning: program !== 'office' && rng() < 0.3,
     awningTint: pick(rng, ['#b5563f', '#3f6f8a', '#5a7a4a', '#9a7a3a', '#7a4a6a']),
@@ -99,13 +122,15 @@ const MODERN_FAMILIES = [
  * returns (so facadeCss / facadeHtml / facadeFloors / facadeBays all work
  * unchanged), but the ornament flags are forced OFF — the row generator draws the
  * stoops, doors, cornices, and bays itself, so buildingExtras must NOT run.
- * `style` is 'brownstone' (warm masonry walk-up) or 'modern-stacked' (panel/glass);
- * `idx` rotates the palette so attached neighbours differ without breaking the row.
+ * `style` is 'brownstone' (warm masonry walk-up), 'modern-stacked' (panel/glass),
+ * or 'dutch-row' (narrow low-countries brick); `idx` rotates the palette so
+ * attached neighbours differ without breaking the row.
  */
 export function makeRowhouseFacade(style, seedOrRng, idx = 0) {
   const rng = typeof seedOrRng === 'function' ? seedOrRng : mul32((seedOrRng >>> 0) || 1);
+  const dutch = style === 'dutch-row';
   const brownstone = style !== 'modern-stacked';
-  const fam = brownstone ? BRICK_FAMILIES : MODERN_FAMILIES;
+  const fam = dutch ? DUTCH_ROW_FAMILIES : brownstone ? BRICK_FAMILIES : MODERN_FAMILIES;
   const [glass, frame] = fam[idx % fam.length];                 // rotate by unit index → coherent variation
   const common = {
     glass, frame, glassVar: 0.94 + rng() * 0.12,
@@ -116,6 +141,11 @@ export function makeRowhouseFacade(style, seedOrRng, idx = 0) {
     sign: null, storefront: false, storefrontTint: '#243848', storefrontTrim: '#d6c59b',
     noEntrance: true, rooftopKit: [],
   };
+  if (dutch) {
+    return { ...common, material: 'brick', program: 'residential',
+      rhythm: 'punched', style: 'dutch-row', crown: 'parapet',
+      floorH: 0.78 + rng() * 0.2, bayW: 0.72 + rng() * 0.24 };
+  }
   if (brownstone) {
     return { ...common, material: 'brick', program: 'residential',
       rhythm: 'punched', crown: 'parapet',
@@ -148,6 +178,61 @@ function addBalcony(boxes, type, cellX, cw, z, fh, y1) {
   // the facade), spanning between the wall and the front rail — so the balcony reads as an
   // enclosed box, not a slab and front rail floating apart.
   for (const sx of [bx, bx + bw - 0.04]) boxes.push({ x: sx, y: y1, w: 0.04, d: depth, z0: zt - 0.04, z1: zt, tint: '#857e71' });
+}
+
+// One storey of partitioned balcony box on a single FACE ('+y'/'-y'/'+x'/'-x'). The face
+// is parameterised: `horizontal` faces span x and project along y, vertical faces span y
+// and project along x; `positive` faces project toward +axis. `P` maps (span, depth) →
+// a world box so the same compartment recipe serves all four sides.
+//
+//   _|__|__|_][_|__|__|_   ← partition fins, thicker central party divider ( ][ )
+//   |________][_______|    ← low solid front parapet
+function loggiaFace(out, face, x, y, w, d, z, fh) {
+  const dep = 0.25, slab = '#cfc9bd', rail = '#c2bbae', fin = '#b3ada1', party = '#9c968b';
+  const horizontal = face === '+y' || face === '-y';
+  const positive = face === '+y' || face === '+x';
+  const spanLen = (horizontal ? w : d) - 0.1;
+  const a0 = (horizontal ? x : y) + 0.05;                       // span start (along the face)
+  const wall = positive ? (horizontal ? y + d : x + w) : (horizontal ? y : x);
+  const oMin = positive ? wall : wall - dep;                    // min coord of the projecting region
+  const outer = positive ? oMin + dep - 0.07 : oMin;            // near edge for the front parapet
+  const parts = Math.max(2, Math.round(spanLen / 1.25));        // compartments across this face
+  const P = (am, al, om, ol, z0, z1, t) => horizontal           // (span-min,span-len, depth-min,depth-len)
+    ? out.boxes.push({ x: am, y: om, w: al, d: ol, z0, z1, tint: t })
+    : out.boxes.push({ x: om, y: am, w: ol, d: al, z0, z1, tint: t });
+  P(a0, spanLen, oMin, dep, z, z + 0.1, slab);                              // balcony floor
+  P(a0, spanLen, outer, 0.07, z + 0.08, z + fh * 0.34, rail);              // low front parapet
+  for (let p = 1; p < parts; p++) {                                         // partition fins + party wall
+    const ax = a0 + (spanLen - 0.05) * (p / parts);
+    const centre = parts % 2 === 0 && p === parts / 2;
+    P(ax, centre ? 0.08 : 0.05, oMin, dep, z + 0.08, z + fh * (centre ? 0.5 : 0.42), centre ? party : fin);
+  }
+  for (const ax of [a0, a0 + spanLen - 0.05]) P(ax, 0.05, oMin, dep, z + 0.08, z + fh * 0.34, rail);  // side end rails
+}
+
+// A mid-century apartment-slab loggia: a partitioned projecting balcony box tucked behind a
+// prominent floor slab that wraps every storey. Small condos carry the loggia on the street
+// (+y) face only — a flat stack. Tall, square-ish condos SPIRAL it: two adjacent faces per
+// storey, advancing one face per floor, so the balconies climb around all four sides at an
+// angle. The floor slab itself stays proud on all four sides every storey (the === band).
+function addLoggia(out, x, y, w, d, z0, z1, floors) {
+  const fh = (z1 - z0) / floors, slab = '#cfc9bd';
+  const wrap = floors >= 6 && Math.min(w, d) >= 1.5;            // big enough to spiral around all sides
+  const cycle = ['+y', '+x', '-y', '-x'];                       // clockwise winding
+  for (let fl = 1; fl < floors; fl++) {
+    const z = z0 + fl * fh;
+    // floor slab — proud of the wall on all four sides so the floor edge reads as a band ( === )
+    out.boxes.push({ x: x - 0.05, y: y - 0.05, w: w + 0.1, d: d + 0.1, z0: z - 0.07, z1: z + 0.07, tint: slab });
+    if (wrap) {
+      const i = fl % 4;                                         // helix: corner-wrapping pair, advancing per storey
+      loggiaFace(out, cycle[i], x, y, w, d, z, fh);
+      loggiaFace(out, cycle[(i + 1) % 4], x, y, w, d, z, fh);
+    } else {
+      loggiaFace(out, '+y', x, y, w, d, z, fh);                 // flat street-facing stack
+    }
+  }
+  // cap the stack with a slab at the roof line
+  out.boxes.push({ x: x - 0.05, y: y - 0.05, w: w + 0.1, d: d + 0.1, z0: z1 - 0.07, z1: z1 + 0.02, tint: slab });
 }
 
 // rooftop equipment doodad of a given kind, placed by index to spread them out
@@ -211,7 +296,9 @@ export function buildingExtras(box, f, floors, bays) {
   const fh = (z1 - z0) / floors, cw = w / bays;
   const out = { boxes: [], decals: [], faces: [] };
 
-  if (f.balcony && f.balconyType) {
+  if (f.loggia) {                                            // continuous partitioned apartment-slab loggia
+    addLoggia(out, x, y, w, d, z0, z1, floors);
+  } else if (f.balcony && f.balconyType) {
     const step = floors * bays > 24 ? 2 : 1;                 // repeat every floor; thin out only if huge
     for (let fl = 1; fl < floors; fl += step) {
       for (let b = 0; b < bays; b++) {
@@ -261,6 +348,19 @@ export function buildingExtras(box, f, floors, bays) {
 export const facadeFloors = (f, height) => Math.max(3, Math.round(height / f.floorH));
 export const facadeBays = (f, width) => Math.max(2, Math.round(width / f.bayW));
 
+function runningBondBrickCss(mortar, brick) {
+  const bw = 18, ch = 7, tileW = bw * 2, tileH = ch * 2;
+  const joints = [
+    `M0 .5H${tileW}`,
+    `M0 ${ch + 0.5}H${tileW}`,
+    `M0 ${tileH - 0.5}H${tileW}`,
+  ];
+  for (let x = 0; x <= tileW; x += bw) joints.push(`M${x} .5V${ch + 0.5}`);
+  for (let x = -bw / 2; x <= tileW; x += bw) joints.push(`M${x} ${ch + 0.5}V${tileH - 0.5}`);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileW}" height="${tileH}" viewBox="0 0 ${tileW} ${tileH}"><path d="${joints.join(' ')}" fill="none" stroke="${mortar}" stroke-width="1" opacity=".88" shape-rendering="crispEdges"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}"),${brick}`;
+}
+
 /**
  * Build the CSS background for one shaded face.
  * @param {object} f       descriptor from makeFacade
@@ -278,8 +378,7 @@ export function facadeCss(f, lit, floors, bays) {
   const L = [];
 
   if (f.material === 'brick') {                          // brick-course texture; windows are child divs
-    return `repeating-linear-gradient(to top, ${frame} 0 1px, transparent 1px calc(100%/${Math.max(6, F * 5)})),`
-      + `repeating-linear-gradient(to right, ${frame} 0 1px, transparent 1px calc(100%/${Math.max(4, B * 4)})),${glass}`;
+    return runningBondBrickCss(frame, glass);
   }
   if (f.rhythm === 'curtain') {
     L.push(`repeating-linear-gradient(to right, ${frame} 0 ${m}px, transparent ${m}px calc(100%/${B}))`);

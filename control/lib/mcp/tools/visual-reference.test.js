@@ -41,6 +41,17 @@ const POSE_INSIGHTS = {
   caveats: ['forearm roll unresolved from frontal view'],
 };
 
+const LANDSCAPE_INSIGHTS = {
+  heartbeat: 'gentle-pulse',
+  splatch: 'dusk-trio',
+  scene: 'pine-forest',
+  camera: 'wide-cinematic',
+  light: { x: 0.3, y: 0.4, z: -0.3 },
+  seed: 'ref-001',
+  gesture: 'low rolling hills receding into a dusk haze',
+  caveats: ['palette derived — exact dusk magenta approximated'],
+};
+
 describe('registration', () => {
   it('registers both tools into the MCP server', async () => {
     await ensureToolsRegistered();
@@ -68,6 +79,19 @@ describe('reference_protocol', () => {
 
   it('rejects an unknown target', async () => {
     await expect(referenceProtocolHandler({ target: 'nope' })).rejects.toThrow(/scene/);
+  });
+
+  it('returns the landscape protocol with the glyph catalogues to pick from', async () => {
+    const land = await referenceProtocolHandler({ target: 'landscape' });
+    expect(land.ok).toBe(true);
+    expect(land.target).toBe('landscape');
+    expect(land.summary).toMatch(/mandala map/);
+    // The vocabulary catalogues ride along so the harness can pick named glyphs.
+    expect(land.vocabulary.heartbeats.length).toBeGreaterThan(0);
+    expect(land.vocabulary.splatches.length).toBeGreaterThan(0);
+    expect(land.vocabulary.scenes.length).toBeGreaterThan(0);
+    expect(land.dial_schema.heartbeat).toMatch(/REQUIRED/);
+    expect(land.capture_call).toMatch(/landscape/);
   });
 });
 
@@ -170,5 +194,95 @@ describe('capture_reference — scene', () => {
   it('rejects a missing target / insights', async () => {
     await expect(captureReferenceHandler({ insights: SCENE_INSIGHTS })).rejects.toThrow();
     await expect(captureReferenceHandler({ target: 'scene' })).rejects.toThrow();
+  });
+});
+
+describe('capture_reference — landscape', () => {
+  it('mints a painted-landscape cage from the glyph map, with the recipe stored', async () => {
+    const res = await captureReferenceHandler({ target: 'landscape', insights: LANDSCAPE_INSIGHTS, label: 'Dusk hills' });
+    expect(res.ok).toBe(true);
+    expect(res.target).toBe('landscape');
+    expect(res.fidelity).toBe('thematic'); // default
+    expect(res.passes).toBe(1);
+    expect(res.cage_ref).toMatch(/^sk_/);
+
+    // The cage is a real painted-landscape sketch that routes to its renderer.
+    const sketch = SketchRepository.getByRef(res.cage_ref);
+    expect(sketch.manifest.kind).toBe('painted-landscape');
+    expect(sketch.manifest.heartbeat).toBe('gentle-pulse');
+    expect(sketch.manifest.splatch).toBe('dusk-trio');
+    expect(sketch.manifest.scene).toBe('pine-forest');
+
+    // The recipe (the "mandala map") is stored back as insights for create_painted_landscape.
+    const full = StashRepository.getFull(res.stash_ref);
+    const item = full.items.find((it) => it.id === res.item_id);
+    expect(item.metadata.reference_target).toBe('landscape');
+    expect(item.metadata.insights.heartbeat).toBe('gentle-pulse');
+    expect(item.metadata.insights.gesture).toMatch(/rolling hills/);
+    // The next-step guidance hands back a create_painted_landscape replay.
+    expect(res.next).toMatch(/create_painted_landscape/);
+  });
+
+  it('rejects an unknown glyph pick (closed vocabulary)', async () => {
+    await expect(
+      captureReferenceHandler({ target: 'landscape', insights: { heartbeat: 'not-a-real-heartbeat', splatch: 'dusk-trio' } }),
+    ).rejects.toThrow(/unknown heartbeat/);
+  });
+
+  it('requires the mandatory heartbeat + splatch', async () => {
+    await expect(
+      captureReferenceHandler({ target: 'landscape', insights: { scene: 'pine-forest' } }),
+    ).rejects.toThrow(/heartbeat|splatch/);
+  });
+
+  it('carries built form (bridges + city massing) onto the manifest + offers a world_url', async () => {
+    const insights = {
+      ...LANDSCAPE_INSIGHTS,
+      bridges: [{ from: [-8, 2], to: [8, -6], archHeight: 1.8, pierEvery: 4 }],
+      city: true,
+      cityDensity: 0.5,
+    };
+    const res = await captureReferenceHandler({ target: 'landscape', insights, label: 'Bay city' });
+    expect(res.ok).toBe(true);
+    expect(res.world_url).toMatch(/\/world$/); // built form renders in the 3D view
+    expect(res.next).toMatch(/WORLD\/3D|world_url/);
+
+    const sketch = SketchRepository.getByRef(res.cage_ref);
+    expect(sketch.manifest.bridges).toHaveLength(1);
+    expect(sketch.manifest.city).toBe(true);
+    expect(sketch.manifest.cityDensity).toBe(0.5);
+
+    // The recipe (built form included) is the stored source of truth for re-mint.
+    const full = StashRepository.getFull(res.stash_ref);
+    const item = full.items.find((it) => it.id === res.item_id);
+    expect(item.metadata.insights.bridges).toHaveLength(1);
+  });
+
+  it('carves a bay via an elevation field + waterLevel (heartbeat optional in elevation mode)', async () => {
+    const insights = {
+      splatch: 'glacier-trio',
+      elevation: {
+        fields: {
+          shore: { kind: 'gradient', from: { x: -12, y: 6, z: 0 }, fromValue: -3, to: { x: 12, y: -24, z: 0 }, toValue: 9 },
+        },
+        field: 'shore',
+        waterLevel: 0,
+      },
+      gesture: 'a bay flooding a low shore',
+    };
+    const res = await captureReferenceHandler({ target: 'landscape', insights, label: 'Bay' });
+    expect(res.ok).toBe(true);
+    const sketch = SketchRepository.getByRef(res.cage_ref);
+    expect(sketch.manifest.elevation.waterLevel).toBe(0);
+    expect(sketch.manifest.elevation.field).toBe('shore');
+  });
+
+  it('rejects a malformed bridge span (shape-checked at capture, not at view)', async () => {
+    await expect(
+      captureReferenceHandler({
+        target: 'landscape',
+        insights: { ...LANDSCAPE_INSIGHTS, bridges: [{ from: [0, 0] }] }, // missing `to`
+      }),
+    ).rejects.toThrow(/bridges\[0\]/);
   });
 });

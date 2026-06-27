@@ -133,7 +133,7 @@ const SHOULDER_ANCHOR_U = (() => {
 })();
 // Stacks that branch off the shoulder girdle: carry them rigidly at the shoulder
 // frame instead of warping per-height (which would shear the limb off the body).
-export const RIGID_ARM_STACKS = ['deltoidL', 'deltoidR', 'upperArmL', 'upperArmR', 'forearmL', 'forearmR', 'handL', 'handR'];
+export const RIGID_ARM_STACKS = ['deltoidL', 'deltoidR', 'upperArmL', 'upperArmR', 'forearmL', 'forearmR', 'elbowCapL', 'elbowCapR', 'handL', 'handR'];
 export function spineArmAnchors() {
   const m = {};
   for (const id of RIGID_ARM_STACKS) m[id] = SHOULDER_ANCHOR_U;

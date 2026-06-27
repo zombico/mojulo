@@ -15,10 +15,13 @@ const VARIANTS = {
     pedestal: { supportPattern: 'center', supportKind: 'cylinder', apron: false, foot: true },
     trestle: { supportPattern: 'two-side', supportKind: 'block', apron: true, shelf: false },
     'shelf-table': { supportPattern: 'four-corner', supportKind: 'cylinder', apron: true, shelf: true },
+    dining: { supportPattern: 'four-corner', supportKind: 'cylinder', apron: true, shelf: false },
   },
   chair: {
     stool: { supportPattern: 'four-corner', supportKind: 'cylinder', back: false, arms: false },
     'side-chair': { supportPattern: 'four-corner', supportKind: 'cylinder', back: true, arms: false },
+    'yoke-back': { supportPattern: 'four-corner', supportKind: 'cylinder', back: true, arms: false },
+    'ladder-back': { supportPattern: 'four-corner', supportKind: 'cylinder', back: true, arms: false },
     armchair: { supportPattern: 'block-corners', supportKind: 'block', back: true, arms: true },
     bench: { supportPattern: 'two-side', supportKind: 'block', back: false, arms: false },
   },

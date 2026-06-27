@@ -526,6 +526,7 @@ describe('SOURCE_KINDS', () => {
       'sketch_vocab',
       'sketch_method',
       'manji_program',
+      'painted_landscape',
     ]);
   });
 });

@@ -151,6 +151,11 @@ export function resolvePose(spec = {}) {
   for (const k of RAW_SWIVELS) if (isAngles(spec[k])) dof[k] = { ...spec[k] };
   for (const h of HINGES) if (spec[h] != null) dof[h] = bendAmount(spec[h]);
   if (spec.spine) dof.spine = resolveSpine(spec.spine);
+  if (spec.pelvis != null) dof.pelvis = spec.pelvis;          // transverse pelvic rotation (deg; + = right hip forward)
+  if (spec.hinge != null) dof.hinge = spec.hinge;             // sagittal pelvic tilt / hip hinge (deg; + = trunk hinges forward over the hips)
+  if (spec.shoulders != null) dof.shoulders = spec.shoulders; // transverse shoulder-girdle rotation (deg; + = right shoulder forward)
+  for (const k of ['wristL', 'wristR']) if (spec[k] != null) dof[k] = spec[k];   // wrist { flex, deviation } (the hand's ankle)
+  for (const k of ['fingersL', 'fingersR']) if (spec[k] != null) dof[k] = spec[k]; // knuckle curl (the hand's toe)
   if (spec.squash != null) dof.squash = spec.squash;   // volume-preserving deform (1 = neutral)
   if (spec.weight != null) dof.weight = spec.weight;   // −1 over left foot … +1 over right (0 = centred)
   if (spec.support != null) dof.support = spec.support; // 'both' | 'L' | 'R' | 'none' (airborne)
@@ -234,13 +239,39 @@ const LEG_LEN = mag3(sub(B.kneeL, B.hipL)) + mag3(sub(B.ankleL, B.kneeL));   // 
 export const WALK_DEFAULTS = {
   strideLength: 0.33,    // fore/aft foot travel (STAND units) → hip swing amplitude (a planted
                          //   step: longer strides force the pelvis to vault deep into a crouch)
+  cross: 0,              // lateral crossover: each stepping foot swings toward/over the midline as it
+                         //   plants forward (STAND units of medial reach). 0 = normal hip-width sagittal
+                         //   walk; ≈0.10 lands the foot ON the centerline (a tightrope line); >0.10
+                         //   crosses it PAST the midline (catwalk crossover — the legs scissor and a
+                         //   little superposition at the hips is expected). Drives hip ADDUCTION (yaw).
+  stepFlare: 1.0,        // CROSSOVER CLEARANCE — circumduction so the swinging back foot maneuvers
+                         //   AROUND the planted ankle instead of cutting through it. Ratio of the
+                         //   swing-phase hip ABDUCTION (flare the hip out) to the crossover amplitude:
+                         //   the leg flares wide mid-swing (clearing the stance ankle), then adducts
+                         //   back in to cross-plant. 0 = no flare (feet collide on a hard crossover).
+                         //   Scales WITH cross, so a plain walk (cross 0) is untouched.
+  stepRoll: 14,          // companion to stepFlare: hip EXTERNAL rotation (deg) on the swing leg at
+                         //   mid-swing — rolls the bent knee / foot outward so it arcs around the
+                         //   stance ankle (the natural look of stepping around). Gated by cross too.
   stanceKnee: 10,        // base knee bend, degrees
   swingLift: 46,         // swing-leg knee-bend amplitude (step clearance), degrees
   armSwing: 22,          // shoulder counter-swing, degrees
   elbowBase: 16,         // base elbow bend, degrees
   elbowSwing: 14,        // elbow-bend swing amplitude, degrees
-  hipSway: 0.14,         // lateral spine sway, spine-drive units
-  spineTwist: 0.18,      // axial thorax counter-rotation, spine-drive units
+  hipSway: 0.05,         // lateral spine sway (spine-drive units) — now just a small thoracic
+                         //   counter-list for life; the BALANCE/weight-shift is mechanical (the
+                         //   vault carries the COM over the planted foot), not faked by this dial
+  pelvisRot: 5,          // transverse PELVIC rotation amplitude (deg) — the swing-side hip leads
+                         //   forward each step (a determinant of natural gait: lengthens the stride,
+                         //   smooths the COM). Subtle by default; this is the base-walk hip motion.
+                         //   0 = a rigid pelvis.
+  shoulderRot: 5,        // transverse SHOULDER-GIRDLE rotation amplitude (deg) — the upper mirror of
+                         //   pelvisRot: the shoulder line CONTRA-rotates against the hip line (when a
+                         //   hip leads, the opposite shoulder leads), the natural contralateral
+                         //   coordination that the arm swing rides on. 0 = a rigid girdle.
+  spineTwist: 0.12,      // axial thorax counter-rotation, spine-drive units (the mid-spine twist
+                         //   gradient BETWEEN the counter-rotating pelvis + shoulder girdle; eased
+                         //   down from 0.18 now that the girdle carries an explicit shoulder rotation)
   weightShift: 0.35,     // gentle COM list toward the bearing leg, 0..1 (0 = dead centre)
   headLevel: 7,          // head counter-yaw that holds the gaze level against the sway, degrees
   lean: 0,               // forward trunk lean / slouch (sagittal drive; + = rounded forward)
@@ -249,6 +280,10 @@ export const WALK_DEFAULTS = {
                          //   false → the fixed-height both-feet balance (feet float slightly fore/aft)
   ankleRoll: 8,          // ankle range across the step: dorsiflex at heel-strike → plantarflex at toe-off (deg)
   toeRoll: 22,           // toes (MTP) dorsiflex as the foot rolls over the ball at toe-off (deg)
+  handCurl: 16,          // relaxed finger curl held through the walk (deg) — the hands read as soft,
+                         //   living hands, not flat rigid paddles (the hand's analog of a natural foot)
+  wristGive: 6,          // the wrist passively FLEXES with the arm swing (deg) — the hand trails the
+                         //   forearm instead of being welded stiff to it (0 = a rigid wrist)
   cadence: 1,            // strides per loop (timing only; the walk stays in place)
 };
 
@@ -261,6 +296,14 @@ export const WALK_DEFAULTS = {
 export function gait(params = {}) {
   const p = { ...WALK_DEFAULTS, ...params };
   const theta = Math.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * LEG_LEN)))) * DEG;   // hip swing amplitude
+  // crossover adduction amplitude: the medial reach `cross` is a horizontal foot travel, so the
+  // hip yaw that achieves it is asin(cross / legLen) — same units→angle solve as the stride pitch.
+  // The leg's rest hip-to-foot is ~one leg length below the socket, so this lands the foot `cross`
+  // STAND units toward the midline at the peak of its forward stance (cone-clamped with the pitch
+  // by articulate's 62° hip limit, so an extreme catwalk stays inside the joint's range).
+  const phi = Math.asin(Math.max(0, Math.min(1, p.cross / LEG_LEN))) * DEG;   // hip adduction amplitude
+  const flareAmp = phi * p.stepFlare;       // swing-phase abduction, scaled to the crossover (0 → off)
+  const rollAmp = phi > 0 ? p.stepRoll : 0; // swing-phase external rotation, gated on crossing
   const swing = (ph) => Math.max(0, Math.sin(TAU_G * ph));     // a one-sided lift over the leg's swing half
   // plantedness: 1 through a foot's stance half, dipping smoothly to 0 mid-swing (so the
   // swing foot lifts and the stance↔stance handoff through double support never snaps).
@@ -269,14 +312,26 @@ export function gait(params = {}) {
     const phase = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1;
     const cyc = Math.cos(TAU_G * phase);                       // +1 = left leg fully forward
     const sway = Math.sin(TAU_G * (phase - 0.5));              // lists toward the bearing leg
+    // crossover: each leg adducts toward the midline in step with how FORWARD it is — so the
+    // stepping foot scissors across as it plants front-and-centre, then opens back out to hip
+    // width on its push-off half. Left adducts with −yaw, right with +yaw (toward centre).
+    const crossL = -phi * (0.5 + 0.5 * cyc);                   // peak inward when left leg is forward (phase 0)
+    const crossR = phi * (0.5 - 0.5 * cyc);                    // peak inward when right leg is forward (phase .5)
+    // crossover CLEARANCE: while a leg SWINGS (its knee lifts), flare the hip OUT (abduction)
+    // and externally rotate it so the foot arcs AROUND the planted ankle, then both relax to 0
+    // as it plants (so the cross-plant lands clean). Left swings ≈.75, right ≈.25; abduction is
+    // +yaw for the left leg, −yaw for the right (outward, away from the midline).
+    const swL = swing(phase - 0.5), swR = swing(phase);       // each leg's swing window (knee-lift gate)
+    const flareL = flareAmp * swL, flareR = -flareAmp * swR;
+    const rollL = rollAmp * swL, rollR = -rollAmp * swR;       // external rotation (rolls the knee out)
     // Balance: both feet anchor the solve; weight lists gently toward the leg that is
     // bearing (vertical at mid-stance) — over the left near phase .25, the right near
     // .75 — bounded by weightShift so the COM never over-commits past the foot.
     const weight = -p.weightShift * Math.cos(TAU_G * (phase - 0.25));
     return {
       // legs: thigh swings (sagittal), knee bends — more on the swing leg to clear the floor.
-      hipL: { pitch: theta * cyc },
-      hipR: { pitch: -theta * cyc },
+      hipL: { pitch: theta * cyc, yaw: crossL + flareL, roll: rollL },
+      hipR: { pitch: -theta * cyc, yaw: crossR + flareR, roll: rollR },
       kneeL: p.stanceKnee + p.swingLift * swing(phase - 0.5),
       kneeR: p.stanceKnee + p.swingLift * swing(phase),
       // ankle rolls dorsiflex (heel-strike) → plantarflex (toe-off); the toes (MTP) break
@@ -290,6 +345,17 @@ export function gait(params = {}) {
       shR: { pitch: p.armSwing * cyc },
       elbowL: p.elbowBase + p.elbowSwing * swing(phase),
       elbowR: p.elbowBase + p.elbowSwing * swing(phase - 0.5),
+      // hands: a relaxed finger curl, the wrist giving with the arm swing (the hand trails the
+      // forearm, antiphase L/R) — the wrist's mirror of the foot's ankle/toe roll. No longer stiff.
+      fingersL: p.handCurl, fingersR: p.handCurl,
+      wristL: { flex: p.wristGive * Math.sin(TAU_G * phase) },
+      wristR: { flex: -p.wristGive * Math.sin(TAU_G * phase) },
+      // pelvis rotates in the transverse plane so the forward leg's hip leads (+ = right hip
+      // forward); the shoulder girdle CONTRA-rotates (opposite sign) so the opposite shoulder
+      // leads — the contralateral coordination the arm swing rides on. The spine axial drive
+      // below is the smaller mid-trunk twist gradient between the two girdles.
+      pelvis: -p.pelvisRot * cyc,
+      shoulders: p.shoulderRot * cyc,
       // trunk: axial counter-rotation + lateral sway + optional forward lean/slouch.
       spine: { axial: p.spineTwist * Math.sin(TAU_G * phase), lateral: p.hipSway * sway, sagittal: p.lean },
       // neck juts the head forward (headTilt); head yaw counter-holds the gaze against the sway.

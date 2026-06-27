@@ -101,8 +101,10 @@ const WORLD_HIDE_SELECTORS = ['.hud', '.hint'];
  *   1. Software GL — launches with `CHROMIUM_WEBGL_ARGS` (SwiftShader). The default
  *      args pass `--disable-gpu`, which renders a WebGL canvas BLANK.
  *   2. Self-contained input — the World loads three.js from an importmap. Pass HTML
- *      emitted with `inline: true` so three is base64-embedded; otherwise it points
- *      at the control server's `/vendor/three`, which `setContent` can't resolve.
+ *      emitted with `inline: true` so three is base64-embedded and resolves with no
+ *      origin and no network; the `cdn:`/default importmaps point at a URL `setContent`
+ *      can't resolve (no origin) or shouldn't depend on here (network), so the offline
+ *      bake stays on `inline:`.
  *
  * @param {string} html — a self-contained World document (emitThreeWorld({ inline: true }))
  * @param {object} [opts]

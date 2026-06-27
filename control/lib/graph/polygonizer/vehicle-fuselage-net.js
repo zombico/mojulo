@@ -345,7 +345,7 @@ function fusPoint(body, profile, s, phi) {
 const DEFAULT_LIGHT = makeLight({ direction: [0.45, 0.5, -0.74], ambient: 0.5, diffuse: 0.58 });
 
 // Build the appendage world quads (a=root-lead, b=tip-lead, c=tip-trail, d=root-trail).
-function appendageQuads(body, appendages) {
+function appendageQuads(body, appendages, profile) {
   const yAt = (s) => body.noseY - s * body.length;
   const out = [];
   for (const a of appendages) {
@@ -356,7 +356,11 @@ function appendageQuads(body, appendages) {
       }
     } else { // vertical fin in the centerline plane
       const cx = body.center[0];
-      out.push({ card: a.card, corners: [[cx, yAt(a.base[0]), body.axisZ + body.radius * a.baseZ], [cx, yAt(a.tip[0]), body.axisZ + a.tipZ], [cx, yAt(a.tip[1]), body.axisZ + a.tipZ], [cx, yAt(a.base[1]), body.axisZ + body.radius * a.baseZ]] });
+      // Root rides the tapering roofline (axisZ + R(s)) instead of a flat baseZ, so the
+      // fin's aft corner stays attached as the tail shrinks — clamped to baseZ where the
+      // roof is taller (forward) so the front root keeps its authored embed.
+      const rootZ = (s) => body.axisZ + (profile ? Math.min(body.radius * a.baseZ, profileR(profile, body.radius, s)) : body.radius * a.baseZ);
+      out.push({ card: a.card, corners: [[cx, yAt(a.base[0]), rootZ(a.base[0])], [cx, yAt(a.tip[0]), body.axisZ + a.tipZ], [cx, yAt(a.tip[1]), body.axisZ + a.tipZ], [cx, yAt(a.base[1]), rootZ(a.base[1])]] });
     }
   }
   return out;
@@ -369,9 +373,12 @@ function appendageQuads(body, appendages) {
  * primitives as buildFaceNetSceneShapes (poly + fill), ready for serialization.
  *
  * `body` places + scales the fuselage: { center:[x,y], axisZ, noseY, length, radius }.
+ * `fillInterior` (with cull:false) paints the inner skin the livery's dominant colour
+ * so the open-ended tube reads filled, not hollow — `true` uses livery.base, a hex overrides.
  */
 export function buildFuselageNetSceneShapes(netOrId, {
   body, projectPoint, cameraPosition, light = DEFAULT_LIGHT, quality = 'default', stations, angles, scheme, cull = true,
+  fillInterior = false,
 } = {}) {
   // vexar LOD: sustainable base, tweak up via `quality`. Explicit values override.
   const NSTA = stations ?? lodCount(96, quality, 24), NANG = angles ?? lodCount(64, quality, 20);
@@ -385,6 +392,11 @@ export function buildFuselageNetSceneShapes(netOrId, {
   const profile = resolved.fuselage.profile;
   const uLen = body.length, vLen = 2 * Math.PI * body.radius;
   const ctx = stickerContext(livery, uLen, vLen);
+  // fillInterior: paint the inner (back-facing) skin with the livery's dominant
+  // colour (card.base — the area-largest fill) instead of the dark outward-normal
+  // shading, so an open-ended fuselage reads as a filled solid through the nose/tail
+  // rings rather than a hollow cavity. `true` → livery.base; a hex string overrides.
+  const interiorColor = fillInterior ? (typeof fillInterior === 'string' ? fillInterior : livery.base) : null;
   for (let i = 0; i < NSTA; i += 1) {
     const s0 = i / NSTA, s1 = (i + 1) / NSTA, u = (s0 + s1) / 2;
     for (let j = 0; j < NANG; j += 1) {
@@ -393,15 +405,20 @@ export function buildFuselageNetSceneShapes(netOrId, {
       const c = centroid(wpts);
       const ni = newellNormal(wpts);
       const n = [-ni[0], -ni[1], -ni[2]];                            // Newell winds inward → flip to the outer skin
-      if (cull && dot3(n, sub3(cameraPosition, c)) <= 0) continue;   // cull:false → emit the WHOLE shell (multi-camera scenes; shaded by the outward normal)
-      const fill = shadeHex(sampleStickerCard(livery, u, frac(pc / (2 * Math.PI)), ctx), n, light);
-      faces.push({ wpts, fill, role: `aircraft-livery:${i}.${j}`, dist: dist(c) });
+      const facing = dot3(n, sub3(cameraPosition, c));
+      if (cull && facing <= 0) continue;                             // cull:false → emit the WHOLE shell (multi-camera scenes; shaded by the outward normal)
+      // back-facing facet with fill on → it's the inner skin: flat dominant colour,
+      // softly lit by the INWARD normal so the cavity keeps form instead of going dark.
+      const fill = (interiorColor && facing <= 0)
+        ? shadeHex(interiorColor, [-n[0], -n[1], -n[2]], light)
+        : shadeHex(sampleStickerCard(livery, u, frac(pc / (2 * Math.PI)), ctx), n, light);
+      faces.push({ wpts, fill, role: `aircraft-livery:${i}.${j}${facing <= 0 ? ':in' : ''}`, dist: dist(c) });
     }
   }
 
   // --- appendages: flat card embed (box-net bilinear quad) ---
   const GU = lodCount(30, quality, 12), GV = lodCount(14, quality, 6);   // flat appendages: fewer cells suffice
-  for (const quad of appendageQuads(body, resolved.appendages)) {
+  for (const quad of appendageQuads(body, resolved.appendages, profile)) {
     const n0 = newellNormal(quad.corners), c0 = centroid(quad.corners);
     const lit = dot3(n0, sub3(cameraPosition, c0)) >= 0 ? n0 : [-n0[0], -n0[1], -n0[2]];
     const aspect = Math.hypot(...sub3(quad.corners[1], quad.corners[0])) / (Math.hypot(...sub3(quad.corners[3], quad.corners[0])) || 1);

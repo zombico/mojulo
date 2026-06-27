@@ -238,10 +238,3 @@ directional light, and the ray bake is brute-force (a spatial grid is the scalin
 - Tests: [light-diffusion-3d.test.js](../control/lib/graph/light-diffusion-3d.test.js),
   [scene-css3d-lighting.test.js](../control/lib/graph/scene-css3d-lighting.test.js),
   [sky-css.test.js](../control/lib/graph/sky-css.test.js).
-- Artifact ladder (`integration/0610/spike-output/scene-css3d/`): `suite.html`
-  (point lamps) · `suite-vexar.html` (bare) · `suite-potlights.html` (direct grid)
-  · `suite-diffusion.html` (traced, flat) · `suite-diffusion-lower-light.html`
-  (hanging pendant) · `suite-diffusion-soft.html` (soft gradient pools) ·
-  `cast-shadow.html` (cast shadows) · `bar-showcase.html` (the full room stack) ·
-  `fractal-night.html` (city: streetlamps + moonlight + sky) · `fractal-day.html`
-  (city: sun + building shadows + day sky).

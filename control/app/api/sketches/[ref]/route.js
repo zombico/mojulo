@@ -19,6 +19,7 @@ import {
   expandGridLayout,
 } from '@/lib/graph/sketch-manifest';
 import { expandNeoRembrandt } from '@/lib/graph/neo-rembrandt/index.js';
+import { warmScenePng } from '@/lib/graph/scene-png-warm';
 
 export async function GET(_request, { params }) {
   try {
@@ -140,6 +141,11 @@ export async function PATCH(request, { params }) {
         { error: `Sketch '${ref}' not found` },
         { status: 404 },
       );
+    }
+    // A changed manifest is a new PNG cache key — re-bake the world/scene
+    // preview in the background so the gallery doesn't re-render it on next view.
+    if (nextManifest !== undefined) {
+      warmScenePng({ ref: updated.ref, manifest: nextManifest });
     }
     return NextResponse.json(updated);
   } catch (err) {

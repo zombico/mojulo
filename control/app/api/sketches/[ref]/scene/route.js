@@ -27,7 +27,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: `Sketch '${ref}' has no manifest` }, { status: 400 });
     }
 
-    const html = renderSceneHtml(sketch);
+    // ?view=exterior renders the roofed exterior massing (companion to the cutaway).
+    const view = request.nextUrl.searchParams.get('view') || undefined;
+    const html = renderSceneHtml(sketch, { view });
     if (!html) {
       return NextResponse.json({
         eligible: false,

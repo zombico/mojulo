@@ -262,6 +262,7 @@ export function renderSubwayStationToHtml(recipe = {}) {
     faces, cameras, viewBox, unitScale: 30,
     title: recipe.title || 'mojulo subway station',
     bg: '#0c0e12',
+    signs: recipe.signs,
   });
 }
 

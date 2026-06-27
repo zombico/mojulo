@@ -156,6 +156,278 @@ export const FURNITURE_FACE_CARDS = {
     ],
   },
 
+  // ── wooden crest-back chairs (tall box; crest "head" rides the top of the front
+  //    face within the box silhouette — see wooden-chairs.plan.md) ──────────────
+  'wood-chair-top': {
+    id: 'wood-chair-top', faceKind: 'center', label: 'Wooden chair top',
+    parts: [
+      { kind: 'band', role: 'wood', v: 0, h: 1, fill: '#7a5d3c', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'line', role: 'grain-1', u0: 0.08, v0: 0.34, u1: 0.92, v1: 0.34, stroke: '#5a4426', strokeWidth: 0.5 },
+      { kind: 'line', role: 'grain-2', u0: 0.08, v0: 0.66, u1: 0.92, v1: 0.66, stroke: '#5a4426', strokeWidth: 0.5 },
+    ],
+  },
+  'yoke-chair-front': {
+    id: 'yoke-chair-front', faceKind: 'side', label: 'Yoke-back chair front',
+    parts: [
+      // back stiles + central splat (drawn behind seat + crest)
+      { kind: 'rect', role: 'stile-l', u: 0.12, w: 0.07, v: 0.50, h: 0.38, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'rect', role: 'stile-r', u: 0.81, w: 0.07, v: 0.50, h: 0.38, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'rect', role: 'splat', u: 0.40, w: 0.20, v: 0.54, h: 0.30, fill: '#7a5d3c', stroke: '#5a4426', strokeWidth: 0.5 },
+      // seat rail + seat (opaque; covers upper legs on this face)
+      { kind: 'band', role: 'seat-rail', v: 0.34, h: 0.07, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'rect', role: 'seat', u: 0.04, w: 0.92, v: 0.40, h: 0.11, fill: '#9b7c54', stroke: '#5a4426', strokeWidth: 0.8 },
+      // yoke crest — raised center crown + ears poking up = the "head"
+      { kind: 'poly', role: 'yoke-crest', fill: '#8a6b46', stroke: EDGE, strokeWidth: 0.8, points: [
+        { u: 0.08, v: 0.84 }, { u: 0.92, v: 0.84 }, { u: 0.92, v: 0.90 },
+        { u: 0.855, v: 0.965 }, { u: 0.78, v: 0.905 }, { u: 0.60, v: 0.93 },
+        { u: 0.54, v: 0.99 }, { u: 0.46, v: 0.99 }, { u: 0.40, v: 0.93 },
+        { u: 0.22, v: 0.905 }, { u: 0.145, v: 0.965 }, { u: 0.08, v: 0.90 },
+      ] },
+    ],
+  },
+  'ladder-chair-front': {
+    id: 'ladder-chair-front', faceKind: 'side', label: 'Ladder-back chair front',
+    parts: [
+      { kind: 'rect', role: 'stile-l', u: 0.12, w: 0.07, v: 0.50, h: 0.42, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'rect', role: 'stile-r', u: 0.81, w: 0.07, v: 0.50, h: 0.42, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      // stacked ladder slats between the stiles
+      { kind: 'rect', role: 'slat-1', u: 0.19, w: 0.62, v: 0.56, h: 0.05, fill: '#856544', stroke: '#5a4426', strokeWidth: 0.5 },
+      { kind: 'rect', role: 'slat-2', u: 0.19, w: 0.62, v: 0.66, h: 0.05, fill: '#856544', stroke: '#5a4426', strokeWidth: 0.5 },
+      { kind: 'rect', role: 'slat-3', u: 0.19, w: 0.62, v: 0.76, h: 0.05, fill: '#856544', stroke: '#5a4426', strokeWidth: 0.5 },
+      // seat rail + seat
+      { kind: 'band', role: 'seat-rail', v: 0.34, h: 0.07, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'rect', role: 'seat', u: 0.04, w: 0.92, v: 0.40, h: 0.11, fill: '#9b7c54', stroke: '#5a4426', strokeWidth: 0.8 },
+      // crest rail + raised-center head crown
+      { kind: 'rect', role: 'crest-rail', u: 0.10, w: 0.80, v: 0.85, h: 0.07, fill: '#8a6b46', stroke: EDGE, strokeWidth: 0.7 },
+      { kind: 'poly', role: 'crest-crown', fill: '#8a6b46', stroke: EDGE, strokeWidth: 0.7, points: [
+        { u: 0.36, v: 0.91 }, { u: 0.64, v: 0.91 }, { u: 0.57, v: 0.99 }, { u: 0.43, v: 0.99 },
+      ] },
+    ],
+  },
+  'wood-chair-side': {
+    id: 'wood-chair-side', faceKind: 'side', label: 'Wooden chair side',
+    parts: [
+      // back post + small crest cap toward the back edge
+      { kind: 'rect', role: 'back-post', u: 0.68, w: 0.11, v: 0.50, h: 0.40, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'rect', role: 'crest-cap', u: 0.62, w: 0.23, v: 0.86, h: 0.07, fill: '#8a6b46', stroke: EDGE, strokeWidth: 0.6 },
+      // seat rail + seat lip
+      { kind: 'band', role: 'seat-rail', v: 0.34, h: 0.07, fill: '#6e5436', stroke: EDGE, strokeWidth: 0.6 },
+      { kind: 'rect', role: 'seat-lip', u: 0.10, w: 0.80, v: 0.40, h: 0.11, fill: '#8a6b46', stroke: '#5a4426', strokeWidth: 0.7 },
+    ],
+  },
+
+  // ── dining table (long plank top + apron; distinct from generic table) ───────
+  'dining-table-top': {
+    id: 'dining-table-top', faceKind: 'center', label: 'Dining table top',
+    parts: [
+      { kind: 'band', role: 'wood', v: 0, h: 1, fill: '#b98c52' },
+      { kind: 'line', role: 'plank-1', u0: 0, v0: 0.20, u1: 1, v1: 0.20, stroke: '#8f6a39', strokeWidth: 0.9 },
+      { kind: 'line', role: 'plank-2', u0: 0, v0: 0.40, u1: 1, v1: 0.40, stroke: '#8f6a39', strokeWidth: 0.9 },
+      { kind: 'line', role: 'plank-3', u0: 0, v0: 0.60, u1: 1, v1: 0.60, stroke: '#8f6a39', strokeWidth: 0.9 },
+      { kind: 'line', role: 'plank-4', u0: 0, v0: 0.80, u1: 1, v1: 0.80, stroke: '#8f6a39', strokeWidth: 0.9 },
+      { kind: 'rect', role: 'edge-bevel', u: 0.03, w: 0.94, v: 0.06, h: 0.88, fill: 'none', stroke: '#7a5736', strokeWidth: 0.7 },
+    ],
+  },
+  'dining-table-apron': {
+    id: 'dining-table-apron', faceKind: 'side', label: 'Dining table apron',
+    parts: [
+      { kind: 'band', role: 'apron', v: 0.78, h: 0.22, fill: '#a87f47', stroke: '#5a4426', strokeWidth: 0.8 },
+      { kind: 'line', role: 'lip', u0: 0.02, v0: 0.965, u1: 0.98, v1: 0.965, stroke: '#3c2c1e', strokeWidth: 0.7 },
+    ],
+  },
+
+  // ── club chair / single-seater sofa (upholstered tall block: rolled arms +
+  //    plush back rise into the front-view silhouette; dusty-blue fabric) ───────
+  'club-chair-top': {
+    id: 'club-chair-top', faceKind: 'center', label: 'Club chair top',
+    parts: [
+      { kind: 'band', role: 'fabric', v: 0, h: 1, fill: '#6d7f86', stroke: '#3c484d', strokeWidth: 0.6 },
+      { kind: 'band', role: 'back-top', v: 0.70, h: 0.30, fill: '#647680', stroke: '#3c484d', strokeWidth: 0.5 },
+      { kind: 'line', role: 'seam', u0: 0.12, v0: 0.46, u1: 0.88, v1: 0.46, stroke: '#3c484d', strokeWidth: 0.6 },
+    ],
+  },
+  'club-chair-front': {
+    id: 'club-chair-front', faceKind: 'side', label: 'Club chair front',
+    parts: [
+      // plush back cushion rising between the arms (rounded top)
+      { kind: 'poly', role: 'back-cushion', fill: '#6d7f86', stroke: '#3c484d', strokeWidth: 0.8, points: [
+        { u: 0.22, v: 0.40 }, { u: 0.78, v: 0.40 }, { u: 0.78, v: 0.82 },
+        { u: 0.70, v: 0.93 }, { u: 0.30, v: 0.93 }, { u: 0.22, v: 0.82 },
+      ] },
+      // rolled arms (body + lighter padded roll on top)
+      { kind: 'rect', role: 'arm-l', u: 0.03, w: 0.16, v: 0.14, h: 0.44, fill: '#5f7078', stroke: '#3c484d', strokeWidth: 0.7 },
+      { kind: 'rect', role: 'arm-l-roll', u: 0.03, w: 0.16, v: 0.52, h: 0.08, fill: '#7e9097', stroke: '#3c484d', strokeWidth: 0.6 },
+      { kind: 'rect', role: 'arm-r', u: 0.81, w: 0.16, v: 0.14, h: 0.44, fill: '#5f7078', stroke: '#3c484d', strokeWidth: 0.7 },
+      { kind: 'rect', role: 'arm-r-roll', u: 0.81, w: 0.16, v: 0.52, h: 0.08, fill: '#7e9097', stroke: '#3c484d', strokeWidth: 0.6 },
+      // seat cushion (front, plump) + piping seam
+      { kind: 'rect', role: 'seat-cushion', u: 0.21, w: 0.58, v: 0.14, h: 0.30, fill: '#7e9097', stroke: '#3c484d', strokeWidth: 0.8 },
+      { kind: 'line', role: 'seat-pipe', u0: 0.23, v0: 0.42, u1: 0.77, v1: 0.42, stroke: '#90a1a7', strokeWidth: 0.8 },
+      // skirted base
+      { kind: 'band', role: 'skirt', v: 0, h: 0.14, fill: '#4f6068', stroke: '#3c484d', strokeWidth: 0.6 },
+    ],
+  },
+  'club-chair-side': {
+    id: 'club-chair-side', faceKind: 'side', label: 'Club chair side',
+    parts: [
+      // arm runs the depth: long low pad + roll
+      { kind: 'rect', role: 'arm', u: 0.08, w: 0.84, v: 0.30, h: 0.28, fill: '#647680', stroke: '#3c484d', strokeWidth: 0.7 },
+      { kind: 'rect', role: 'arm-roll', u: 0.08, w: 0.84, v: 0.52, h: 0.06, fill: '#7e9097', stroke: '#3c484d', strokeWidth: 0.6 },
+      // back cushion rises at the back edge
+      { kind: 'poly', role: 'back-cushion', fill: '#6d7f86', stroke: '#3c484d', strokeWidth: 0.7, points: [
+        { u: 0.62, v: 0.40 }, { u: 0.92, v: 0.40 }, { u: 0.92, v: 0.84 }, { u: 0.84, v: 0.92 }, { u: 0.62, v: 0.92 },
+      ] },
+      // skirted base
+      { kind: 'band', role: 'skirt', v: 0, h: 0.14, fill: '#4f6068', stroke: '#3c484d', strokeWidth: 0.6 },
+    ],
+  },
+
+  // ── modern lounge / tub chair (rounded barrel shell on thin pin legs; the
+  //    curves come from poly arcs + circle accents; sage upholstery) ────────────
+  'lounge-chair-top': {
+    id: 'lounge-chair-top', faceKind: 'center', label: 'Lounge chair top',
+    // round disc only (no full plate) so the box lid reads as the chair's round rim
+    parts: [
+      { kind: 'circle', role: 'rim', u: 0.5, v: 0.5, r: 0.46, fill: '#788a5f', stroke: '#3d472b', strokeWidth: 0.6 },
+      { kind: 'circle', role: 'well', u: 0.5, v: 0.52, r: 0.36, fill: '#586440', stroke: '#3d472b', strokeWidth: 0.5 },
+      { kind: 'circle', role: 'seat', u: 0.5, v: 0.46, r: 0.24, fill: '#97a675', stroke: '#3d472b', strokeWidth: 0.6 },
+    ],
+  },
+  'lounge-chair-front': {
+    id: 'lounge-chair-front', faceKind: 'side', label: 'Lounge chair front',
+    parts: [
+      // splayed pin legs (decals in the transparent base; shell covers their tops)
+      { kind: 'poly', role: 'leg-l', fill: '#5b4a32', stroke: '#332817', strokeWidth: 0.5, points: [
+        { u: 0.33, v: 0.16 }, { u: 0.37, v: 0.16 }, { u: 0.27, v: 0.0 }, { u: 0.23, v: 0.0 },
+      ] },
+      { kind: 'poly', role: 'leg-r', fill: '#5b4a32', stroke: '#332817', strokeWidth: 0.5, points: [
+        { u: 0.63, v: 0.16 }, { u: 0.67, v: 0.16 }, { u: 0.77, v: 0.0 }, { u: 0.73, v: 0.0 },
+      ] },
+      // rounded barrel shell (back + wraparound arms) — the defining round mass
+      { kind: 'poly', role: 'shell', fill: '#788a5f', stroke: '#3d472b', strokeWidth: 0.8, points: [
+        { u: 0.06, v: 0.10 }, { u: 0.05, v: 0.55 }, { u: 0.09, v: 0.74 }, { u: 0.18, v: 0.88 },
+        { u: 0.32, v: 0.96 }, { u: 0.50, v: 0.985 }, { u: 0.68, v: 0.96 }, { u: 0.82, v: 0.88 },
+        { u: 0.91, v: 0.74 }, { u: 0.95, v: 0.55 }, { u: 0.94, v: 0.10 },
+      ] },
+      // soft rounded sheen high on the shell
+      { kind: 'circle', role: 'sheen', u: 0.5, v: 0.66, r: 0.24, fill: '#8b9c72', strokeWidth: 0, opacity: 0.45 },
+      // concave inner well (scoop the sitter leans into)
+      { kind: 'poly', role: 'well', fill: '#586440', stroke: '#3d472b', strokeWidth: 0.5, points: [
+        { u: 0.24, v: 0.22 }, { u: 0.24, v: 0.56 }, { u: 0.30, v: 0.70 }, { u: 0.41, v: 0.78 },
+        { u: 0.50, v: 0.79 }, { u: 0.59, v: 0.78 }, { u: 0.70, v: 0.70 }, { u: 0.76, v: 0.56 }, { u: 0.76, v: 0.22 },
+      ] },
+      // rounded pillow seat cushion
+      { kind: 'poly', role: 'cushion', fill: '#97a675', stroke: '#3d472b', strokeWidth: 0.8, points: [
+        { u: 0.26, v: 0.16 }, { u: 0.74, v: 0.16 }, { u: 0.78, v: 0.27 }, { u: 0.72, v: 0.39 },
+        { u: 0.50, v: 0.42 }, { u: 0.28, v: 0.39 }, { u: 0.22, v: 0.27 },
+      ] },
+      { kind: 'line', role: 'tuck', u0: 0.30, v0: 0.30, u1: 0.70, v1: 0.30, stroke: '#aab891', strokeWidth: 0.7 },
+    ],
+  },
+  'lounge-chair-side': {
+    id: 'lounge-chair-side', faceKind: 'side', label: 'Lounge chair side',
+    parts: [
+      // splayed pin legs (front + back)
+      { kind: 'poly', role: 'leg-f', fill: '#5b4a32', stroke: '#332817', strokeWidth: 0.5, points: [
+        { u: 0.20, v: 0.16 }, { u: 0.24, v: 0.16 }, { u: 0.14, v: 0.0 }, { u: 0.10, v: 0.0 },
+      ] },
+      { kind: 'poly', role: 'leg-b', fill: '#5b4a32', stroke: '#332817', strokeWidth: 0.5, points: [
+        { u: 0.72, v: 0.16 }, { u: 0.76, v: 0.16 }, { u: 0.86, v: 0.0 }, { u: 0.82, v: 0.0 },
+      ] },
+      // tall rounded back at the back edge
+      { kind: 'poly', role: 'back', fill: '#788a5f', stroke: '#3d472b', strokeWidth: 0.8, points: [
+        { u: 0.55, v: 0.10 }, { u: 0.55, v: 0.78 }, { u: 0.62, v: 0.90 }, { u: 0.80, v: 0.92 }, { u: 0.88, v: 0.82 }, { u: 0.88, v: 0.10 },
+      ] },
+      // low rounded seat + front arm sweep
+      { kind: 'poly', role: 'seat-arm', fill: '#788a5f', stroke: '#3d472b', strokeWidth: 0.8, points: [
+        { u: 0.08, v: 0.10 }, { u: 0.08, v: 0.46 }, { u: 0.16, v: 0.54 }, { u: 0.34, v: 0.54 },
+        { u: 0.46, v: 0.48 }, { u: 0.62, v: 0.48 }, { u: 0.62, v: 0.10 },
+      ] },
+      { kind: 'circle', role: 'sheen', u: 0.72, v: 0.58, r: 0.16, fill: '#8b9c72', strokeWidth: 0, opacity: 0.4 },
+      // rounded seat cushion (profile)
+      { kind: 'poly', role: 'cushion', fill: '#97a675', stroke: '#3d472b', strokeWidth: 0.7, points: [
+        { u: 0.16, v: 0.40 }, { u: 0.56, v: 0.40 }, { u: 0.60, v: 0.46 }, { u: 0.56, v: 0.52 }, { u: 0.16, v: 0.52 }, { u: 0.12, v: 0.46 },
+      ] },
+    ],
+  },
+
+  // ── media unit: low walnut console (3 compartments + splayed legs) carrying a
+  //    TV on top. Tall box drawn as a full front elevation; the TV zone is left
+  //    transparent on sides/top so the screen reads thin, not as a deep block. ──
+  'media-unit-front': {
+    id: 'media-unit-front', faceKind: 'side', label: 'Media unit + TV front',
+    parts: [
+      // four splayed legs (decals in the transparent base)
+      { kind: 'poly', role: 'leg-1', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.11, v: 0.12 }, { u: 0.135, v: 0.12 }, { u: 0.075, v: 0.0 }, { u: 0.05, v: 0.0 } ] },
+      { kind: 'poly', role: 'leg-2', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.33, v: 0.12 }, { u: 0.355, v: 0.12 }, { u: 0.315, v: 0.0 }, { u: 0.29, v: 0.0 } ] },
+      { kind: 'poly', role: 'leg-3', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.645, v: 0.12 }, { u: 0.67, v: 0.12 }, { u: 0.71, v: 0.0 }, { u: 0.685, v: 0.0 } ] },
+      { kind: 'poly', role: 'leg-4', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.865, v: 0.12 }, { u: 0.89, v: 0.12 }, { u: 0.95, v: 0.0 }, { u: 0.925, v: 0.0 } ] },
+      // console carcass + top lip
+      { kind: 'band', role: 'body', v: 0.11, h: 0.35, fill: '#574231', stroke: '#2b2118', strokeWidth: 0.7 },
+      { kind: 'band', role: 'top-lip', v: 0.44, h: 0.045, fill: '#6e553c', stroke: '#2b2118', strokeWidth: 0.5 },
+      // three recessed open compartments (wider middle bay, like the sketch)
+      { kind: 'rect', role: 'cubby-l', u: 0.05, w: 0.24, v: 0.15, h: 0.26, fill: '#33271a', stroke: '#1f160d', strokeWidth: 0.6 },
+      { kind: 'rect', role: 'cubby-c', u: 0.33, w: 0.34, v: 0.15, h: 0.26, fill: '#33271a', stroke: '#1f160d', strokeWidth: 0.6 },
+      { kind: 'rect', role: 'cubby-r', u: 0.71, w: 0.24, v: 0.15, h: 0.26, fill: '#33271a', stroke: '#1f160d', strokeWidth: 0.6 },
+      // a shelf line splitting the middle bay
+      { kind: 'line', role: 'shelf-c', u0: 0.34, v0: 0.28, u1: 0.66, v1: 0.28, stroke: '#5a4631', strokeWidth: 0.8 },
+      // TV pedestal stand
+      { kind: 'rect', role: 'tv-foot', u: 0.40, w: 0.20, v: 0.45, h: 0.03, fill: '#3a3e44', stroke: '#1c1f24', strokeWidth: 0.4 },
+      { kind: 'rect', role: 'tv-neck', u: 0.47, w: 0.06, v: 0.47, h: 0.07, fill: '#2a2d31', stroke: '#1c1f24', strokeWidth: 0.4 },
+      // TV: bezel + screen + a little landscape glow
+      { kind: 'rect', role: 'tv-bezel', u: 0.16, w: 0.68, v: 0.52, h: 0.44, fill: '#17191c', stroke: '#0b0c0e', strokeWidth: 0.6 },
+      { kind: 'rect', role: 'tv-screen', u: 0.20, w: 0.60, v: 0.57, h: 0.34, fill: '#11202b', stroke: '#0a0c0e', strokeWidth: 0.5 },
+      { kind: 'rect', role: 'screen-land', u: 0.20, w: 0.60, v: 0.57, h: 0.13, fill: '#1d3a2b', opacity: 0.92 },
+      { kind: 'rect', role: 'screen-sky', u: 0.20, w: 0.60, v: 0.70, h: 0.21, fill: '#274d64', opacity: 0.88 },
+      { kind: 'circle', role: 'screen-sun', u: 0.66, v: 0.80, r: 0.045, fill: '#caa24e', opacity: 0.8 },
+      { kind: 'circle', role: 'power-led', u: 0.50, v: 0.535, r: 0.008, fill: '#7fd081' },
+    ],
+  },
+  'media-unit-side': {
+    id: 'media-unit-side', faceKind: 'side', label: 'Media unit side',
+    parts: [
+      { kind: 'poly', role: 'leg-f', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.18, v: 0.12 }, { u: 0.205, v: 0.12 }, { u: 0.13, v: 0.0 }, { u: 0.105, v: 0.0 } ] },
+      { kind: 'poly', role: 'leg-b', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.795, v: 0.12 }, { u: 0.82, v: 0.12 }, { u: 0.895, v: 0.0 }, { u: 0.87, v: 0.0 } ] },
+      { kind: 'band', role: 'body', v: 0.11, h: 0.35, fill: '#4d3a2a', stroke: '#2b2118', strokeWidth: 0.7 },
+      { kind: 'rect', role: 'side-panel', u: 0.14, w: 0.72, v: 0.15, h: 0.26, fill: '#563f2c', stroke: '#2b2118', strokeWidth: 0.5 },
+      { kind: 'band', role: 'top-lip', v: 0.44, h: 0.045, fill: '#5e4732', stroke: '#2b2118', strokeWidth: 0.5 },
+    ],
+  },
+  'media-unit-back': {
+    id: 'media-unit-back', faceKind: 'side', label: 'Media unit back',
+    // same console + cubbies as the front, but NO TV. Because the box's front/back
+    // orientation relative to the camera isn't fixed, this guarantees the nearest
+    // face always shows the cubbies (never a blank panel over them), while exactly
+    // one face carries the TV — so the screen reads with no ghost behind it.
+    parts: [
+      { kind: 'poly', role: 'leg-1', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.11, v: 0.12 }, { u: 0.135, v: 0.12 }, { u: 0.075, v: 0.0 }, { u: 0.05, v: 0.0 } ] },
+      { kind: 'poly', role: 'leg-2', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.33, v: 0.12 }, { u: 0.355, v: 0.12 }, { u: 0.315, v: 0.0 }, { u: 0.29, v: 0.0 } ] },
+      { kind: 'poly', role: 'leg-3', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.645, v: 0.12 }, { u: 0.67, v: 0.12 }, { u: 0.71, v: 0.0 }, { u: 0.685, v: 0.0 } ] },
+      { kind: 'poly', role: 'leg-4', fill: '#3f2f20', stroke: '#241a10', strokeWidth: 0.5, points: [
+        { u: 0.865, v: 0.12 }, { u: 0.89, v: 0.12 }, { u: 0.95, v: 0.0 }, { u: 0.925, v: 0.0 } ] },
+      { kind: 'band', role: 'body', v: 0.11, h: 0.35, fill: '#4d3a2a', stroke: '#2b2118', strokeWidth: 0.7 },
+      { kind: 'band', role: 'top-lip', v: 0.44, h: 0.045, fill: '#5e4732', stroke: '#2b2118', strokeWidth: 0.5 },
+      { kind: 'rect', role: 'cubby-l', u: 0.05, w: 0.24, v: 0.15, h: 0.26, fill: '#33271a', stroke: '#1f160d', strokeWidth: 0.6 },
+      { kind: 'rect', role: 'cubby-c', u: 0.33, w: 0.34, v: 0.15, h: 0.26, fill: '#33271a', stroke: '#1f160d', strokeWidth: 0.6 },
+      { kind: 'rect', role: 'cubby-r', u: 0.71, w: 0.24, v: 0.15, h: 0.26, fill: '#33271a', stroke: '#1f160d', strokeWidth: 0.6 },
+      { kind: 'line', role: 'shelf-c', u0: 0.34, v0: 0.28, u1: 0.66, v1: 0.28, stroke: '#5a4631', strokeWidth: 0.8 },
+    ],
+  },
+  'media-unit-top': {
+    id: 'media-unit-top', faceKind: 'center', label: 'Media unit top',
+    // box lid sits well above the console (at TV-top height); leave it open so
+    // nothing floats above the screen — the TV is the only tall element, on the front face
+    parts: [],
+  },
+
   // ── floor textiles (center face only) ──────────────────────────────────────
   'rug-woven': {
     id: 'rug-woven', faceKind: 'center', label: 'Woven rug',
@@ -525,6 +797,14 @@ export const FURNITURE_NETS = {
     conceptId: 'furniture.table.four-leg',
     faces: { center: 'table-top', front: 'table-apron-drawer', back: 'table-apron', left: 'table-apron', right: 'table-apron' },
   },
+  'dining-table': {
+    conceptId: 'furniture.table.dining',
+    faces: { center: 'dining-table-top', front: 'dining-table-apron', back: 'dining-table-apron', left: 'dining-table-apron', right: 'dining-table-apron' },
+  },
+  diningTable: {
+    conceptId: 'furniture.table.dining',
+    faces: { center: 'dining-table-top', front: 'dining-table-apron', back: 'dining-table-apron', left: 'dining-table-apron', right: 'dining-table-apron' },
+  },
   'standing-desk': {
     conceptId: 'furniture.desk.standing',
     faces: { center: 'standing-desk-top', front: 'standing-desk-apron', back: 'standing-desk-apron', left: 'table-apron', right: 'table-apron' },
@@ -601,6 +881,22 @@ export const FURNITURE_NETS = {
     conceptId: 'furniture.sideboard.doors',
     faces: { center: 'dresser-top', front: 'sideboard-front', back: 'cabinet-side', left: 'cabinet-side', right: 'cabinet-side' },
   },
+  'media-unit': {
+    conceptId: 'furniture.media-unit.tv',
+    faces: { center: 'media-unit-top', front: 'media-unit-front', back: 'media-unit-back', left: 'media-unit-side', right: 'media-unit-side' },
+  },
+  mediaUnit: {
+    conceptId: 'furniture.media-unit.tv',
+    faces: { center: 'media-unit-top', front: 'media-unit-front', back: 'media-unit-back', left: 'media-unit-side', right: 'media-unit-side' },
+  },
+  'tv-stand': {
+    conceptId: 'furniture.media-unit.tv',
+    faces: { center: 'media-unit-top', front: 'media-unit-front', back: 'media-unit-back', left: 'media-unit-side', right: 'media-unit-side' },
+  },
+  tvStand: {
+    conceptId: 'furniture.media-unit.tv',
+    faces: { center: 'media-unit-top', front: 'media-unit-front', back: 'media-unit-back', left: 'media-unit-side', right: 'media-unit-side' },
+  },
   chair: {
     conceptId: 'furniture.chair.four-leg',
     faces: { center: 'chair-seat', front: 'chair-rail', back: 'chair-rail', left: 'chair-rail', right: 'chair-rail' },
@@ -608,6 +904,54 @@ export const FURNITURE_NETS = {
   armchair: {
     conceptId: 'furniture.armchair.block',
     faces: { center: 'armchair-seat', front: 'armchair-front', back: 'armchair-front', left: 'armchair-side', right: 'armchair-side' },
+  },
+  'club-chair': {
+    conceptId: 'furniture.chair.club',
+    faces: { center: 'club-chair-top', front: 'club-chair-front', back: 'club-chair-front', left: 'club-chair-side', right: 'club-chair-side' },
+  },
+  clubChair: {
+    conceptId: 'furniture.chair.club',
+    faces: { center: 'club-chair-top', front: 'club-chair-front', back: 'club-chair-front', left: 'club-chair-side', right: 'club-chair-side' },
+  },
+  'single-sofa': {
+    conceptId: 'furniture.chair.club',
+    faces: { center: 'club-chair-top', front: 'club-chair-front', back: 'club-chair-front', left: 'club-chair-side', right: 'club-chair-side' },
+  },
+  singleSofa: {
+    conceptId: 'furniture.chair.club',
+    faces: { center: 'club-chair-top', front: 'club-chair-front', back: 'club-chair-front', left: 'club-chair-side', right: 'club-chair-side' },
+  },
+  'lounge-chair': {
+    conceptId: 'furniture.chair.lounge',
+    faces: { center: 'lounge-chair-top', front: 'lounge-chair-front', back: 'lounge-chair-front', left: 'lounge-chair-side', right: 'lounge-chair-side' },
+  },
+  loungeChair: {
+    conceptId: 'furniture.chair.lounge',
+    faces: { center: 'lounge-chair-top', front: 'lounge-chair-front', back: 'lounge-chair-front', left: 'lounge-chair-side', right: 'lounge-chair-side' },
+  },
+  'tub-chair': {
+    conceptId: 'furniture.chair.lounge',
+    faces: { center: 'lounge-chair-top', front: 'lounge-chair-front', back: 'lounge-chair-front', left: 'lounge-chair-side', right: 'lounge-chair-side' },
+  },
+  tubChair: {
+    conceptId: 'furniture.chair.lounge',
+    faces: { center: 'lounge-chair-top', front: 'lounge-chair-front', back: 'lounge-chair-front', left: 'lounge-chair-side', right: 'lounge-chair-side' },
+  },
+  'yoke-chair': {
+    conceptId: 'furniture.chair.yoke-back',
+    faces: { center: 'wood-chair-top', front: 'yoke-chair-front', back: 'yoke-chair-front', left: 'wood-chair-side', right: 'wood-chair-side' },
+  },
+  yokeChair: {
+    conceptId: 'furniture.chair.yoke-back',
+    faces: { center: 'wood-chair-top', front: 'yoke-chair-front', back: 'yoke-chair-front', left: 'wood-chair-side', right: 'wood-chair-side' },
+  },
+  'ladder-chair': {
+    conceptId: 'furniture.chair.ladder-back',
+    faces: { center: 'wood-chair-top', front: 'ladder-chair-front', back: 'ladder-chair-front', left: 'wood-chair-side', right: 'wood-chair-side' },
+  },
+  ladderChair: {
+    conceptId: 'furniture.chair.ladder-back',
+    faces: { center: 'wood-chair-top', front: 'ladder-chair-front', back: 'ladder-chair-front', left: 'wood-chair-side', right: 'wood-chair-side' },
   },
   monitor: {
     conceptId: 'electronics.monitor.stand',

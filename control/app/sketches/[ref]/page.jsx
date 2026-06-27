@@ -26,6 +26,7 @@ export default function SketchPage({ params }) {
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [mode, setMode] = useState('color');
+  const [glbStatus, setGlbStatus] = useState('idle'); // idle | preparing | unavailable | error
 
   const load = useCallback(async () => {
     setError('');
@@ -56,6 +57,36 @@ export default function SketchPage({ params }) {
     const search = new URLSearchParams(window.location.search);
     setMode(search.get('mode') === 'wireframe' ? 'wireframe' : 'color');
   }, []);
+
+  // Fetch the .glb through the API (rather than a bare <a download>) so an ineligible
+  // sketch — which 422s with a JSON body — surfaces a message instead of downloading JSON.
+  const downloadGlb = useCallback(async () => {
+    setGlbStatus('preparing');
+    try {
+      const res = await fetch(`/api/sketches/${encodeURIComponent(ref)}/model.glb`);
+      if (res.status === 422) {
+        setGlbStatus('unavailable');
+        return;
+      }
+      if (!res.ok) {
+        setGlbStatus('error');
+        return;
+      }
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const base = (data?.title || ref).replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '');
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = `${base || 'model'}.glb`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+      setGlbStatus('idle');
+    } catch {
+      setGlbStatus('error');
+    }
+  }, [ref, data]);
 
   const manifest = data?.manifest;
 
@@ -101,9 +132,30 @@ export default function SketchPage({ params }) {
   // — centralized so scene/illustration kinds never fall through to <CreationMap>.
   const renderMode = sketchRenderMode(manifest);
 
+  // Worlds and scenes carry exportable 3D geometry; offer a .glb download for them.
+  const canExportGlb = renderMode === 'world' || renderMode === 'scene';
+
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-7xl">
+        {canExportGlb && (
+          <div className="mb-3 flex items-center justify-end gap-3">
+            {glbStatus === 'unavailable' && (
+              <span className="text-xs text-[color:var(--text-muted)]">{t('downloadGlbUnavailable')}</span>
+            )}
+            {glbStatus === 'error' && (
+              <span className="text-xs text-red-400">{t('downloadGlbError')}</span>
+            )}
+            <button
+              type="button"
+              onClick={downloadGlb}
+              disabled={glbStatus === 'preparing'}
+              className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
+            >
+              {glbStatus === 'preparing' ? t('downloadGlbPreparing') : t('downloadGlb')}
+            </button>
+          </div>
+        )}
         {renderMode === 'svg' ? (
           <img
             src={`/api/sketches/${encodeURIComponent(ref)}/svg?inline=1`}

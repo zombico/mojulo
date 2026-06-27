@@ -50,6 +50,20 @@ The planning goal is to fit required content between the left and right
 terminator vectors in metamandala/top-down space, then project only that
 solved wedge into visible marks.
 
+## Auto-packed furniture runs
+
+Instead of hand-placing every kitchen unit, drop a single directive element into
+`roomConcept.elements` and the planner expands it against the room basis:
+
+```
+{ "type": "kitchen-run", "uppers": true, "gap": 0.01 }
+```
+
+`kitchen-run` lays base cabinets, sink, stove and fridge edge-to-edge along the
+back + one side wall (with wall cabinets above) in an L-shape, dropping any unit
+that overruns the wall budget. The units render as the workbench-authored
+`kitchen-*` room assets in both `/scene` (CSS-3D) and `/world` (walk-through).
+
 ## Composes with
 
 - See `camera-two-point` for the matching `cameraPrimitive` primitive.

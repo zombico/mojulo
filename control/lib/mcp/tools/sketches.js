@@ -14,9 +14,14 @@
  * See lite-template/integration/app-system/0527/SKETCHBOOK_PLAN.md.
  */
 
+import path from 'node:path';
+import { promises as fs } from 'node:fs';
+
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
+import { resolveWorldScene } from '@/lib/graph/world-scene';
+import { facesToGlb } from '@/lib/graph/scene-gltf';
 import {
   validateSketchManifest,
   expandGridLayout,
@@ -30,6 +35,7 @@ import {
   listSketchVocab,
 } from '@/lib/graph/sketch-vocab/loader';
 import { deriveSketchDiffManifest } from '@/lib/graph/sketch-diff';
+import { warmScenePng } from '@/lib/graph/scene-png-warm';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -219,6 +225,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     throw err;
   }
 
+  // Most sketches minted here are diagrams/illustrations (cheap on-demand SVG),
+  // but a world/scene-kind manifest can arrive via create_sketch / the POST API
+  // / "save as new". warmScenePng no-ops unless the kind renders heavy 3D.
+  warmScenePng(sketch);
+
   return {
     ok: true,
     ref: sketch.ref,
@@ -325,6 +336,12 @@ export async function updateSketchHandler(input) {
   });
   if (!updated) {
     throw new Error(`No sketch exists at ref '${ref}'`);
+  }
+  // A changed manifest is a new PNG cache key, so the previous warm is stale —
+  // re-bake in the background off the validated manifest. Title/folder/bucket-
+  // only edits don't change the key, so they skip the warm.
+  if (nextManifest !== undefined) {
+    warmScenePng({ ref: updated.ref, manifest: nextManifest });
   }
   return {
     ok: true,
@@ -537,6 +554,79 @@ export async function createPolygonizedSketchHandler(input) {
     });
   }
   return response;
+}
+
+// On-disk location for written .glb exports. Overridable for tests / alternate data roots;
+// defaults beside the other generated artifacts under control/data/.
+function exportsBaseDir() {
+  return process.env.MOJULO_EXPORTS_DIR || path.join(process.cwd(), 'data', 'exports');
+}
+
+/**
+ * export_model — serialize a stored sketch's traversable World as a .glb.
+ *
+ * Resolves the SAME baked geometry the /world route renders (via the shared
+ * world-scene seam), so the exported mesh matches the live World. Returns the
+ * download URL plus, when `write` is true (default), an on-disk path the host agent
+ * can open or move. Sketches with no World form return { ok:false, eligible:false }.
+ */
+export async function exportModelHandler(input) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('export_model requires { ref }');
+  }
+  const { ref, write = true } = input;
+  if (!ref || typeof ref !== 'string') {
+    throw new Error('`ref` is required (string)');
+  }
+  if (typeof write !== 'boolean') {
+    throw new Error('`write` must be a boolean if provided');
+  }
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) {
+    throw new Error(`No sketch exists at ref '${ref}'`);
+  }
+  if (!sketch.manifest) {
+    throw new Error(`Sketch '${ref}' has no manifest`);
+  }
+
+  const { payload, kind } = await resolveWorldScene(sketch);
+  const exported = payload ? facesToGlb(payload, { generator: `mojulo ${ref}` }) : null;
+  const url = `/api/sketches/${encodeURIComponent(ref)}/model.glb`;
+  if (!exported) {
+    return {
+      ok: false,
+      eligible: false,
+      ref,
+      kind: kind ?? null,
+      reason:
+        'This sketch has no traversable World geometry to export. glTF export covers the World '
+        + 'kinds (cities, transportation hubs, subway interiors, painted-landscape terrain, '
+        + 'workbench/assembler studies, vehicle instances, the science views, and furnished rooms). '
+        + 'Diagrams, charts, and CSS-3D-only turntables are not exportable.',
+      scene_url: `/api/sketches/${encodeURIComponent(ref)}/scene`,
+      svg_url: `/api/sketches/${encodeURIComponent(ref)}/svg`,
+    };
+  }
+
+  const result = {
+    ok: true,
+    ref,
+    kind: kind ?? null,
+    format: 'glb',
+    url,
+    bytes: exported.byteLength,
+    nodes: exported.nodeCount,
+    vertices: exported.vertexCount,
+    triangles: exported.triangleCount,
+  };
+  if (write) {
+    const dir = exportsBaseDir();
+    await fs.mkdir(dir, { recursive: true });
+    const file = path.join(dir, `${ref}.glb`);
+    await fs.writeFile(file, exported.bytes);
+    result.path = file;
+  }
+  return result;
 }
 
 export function registerSketchTools() {
@@ -927,5 +1017,28 @@ export function registerSketchTools() {
       required: ['prompt'],
     },
     handler: createPolygonizedSketchHandler,
+  });
+
+  registerTool({
+    name: 'export_model',
+    description:
+      "Export a stored sketch's traversable 3D World as a binary glTF (.glb) the operator can open in Blender, Unreal, three.js, or macOS Quick Look — turning a depiction into a portable asset rather than a walled view. Pass the sketch `ref`. Works for the World kinds (fractal cities, transportation hubs, subway interiors, painted-landscape terrain, workbench/assembler object studies, vehicle instances, the science views — molecule/atom/cell/field/fluid/ocean/mechanics/orbit — and furnished rooms); diagrams, charts, and CSS-3D-only turntables have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: mojulo's lighting is BAKED into the geometry and the mesh is exported UNLIT (glTF KHR_materials_unlit + per-vertex colours), so it looks identical to the live World from any camera with no lighting setup downstream — the depiction is the asset, not a re-lightable PBR approximation. Camera-facing glow billboards and the sky dome are dropped (not geometry); gradient-painted faces collapse to a single colour; animated channels export at their static pose. Returns `{ ok, ref, kind, url, bytes, nodes, vertices, triangles }` plus, when `write` is true (the default), an on-disk `path` to the written .glb. The `url` (`/api/sketches/<ref>/model.glb`) regenerates the file deterministically on each request, so hand it to the operator for a browser download.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: {
+          type: 'string',
+          description: 'Existing sketch ref (`sk_…`) to export. Errors if no sketch with this ref exists.',
+        },
+        write: {
+          type: 'boolean',
+          default: true,
+          description:
+            'When true (default), write the .glb to disk (under control/data/exports, or $MOJULO_EXPORTS_DIR) and return its `path` so the host agent can open or move the file. Set false to compute the export metadata + download URL without touching disk.',
+        },
+      },
+      required: ['ref'],
+    },
+    handler: exportModelHandler,
   });
 }

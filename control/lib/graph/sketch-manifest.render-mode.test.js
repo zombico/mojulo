@@ -6,6 +6,7 @@ describe('sketchRenderMode', () => {
   it('routes traversable box-world kinds to the three.js World renderer', () => {
     expect(sketchRenderMode({ kind: 'fractal-city' })).toBe('world');
     expect(sketchRenderMode({ kind: 'transportation-hub' })).toBe('world');
+    expect(sketchRenderMode({ kind: 'vehicle-instance' })).toBe('world');
   });
 
   it('keeps the turntable as a preset-shot CSS-3D scene', () => {

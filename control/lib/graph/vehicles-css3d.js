@@ -25,6 +25,7 @@ import { sweptFaces, fuselageFaces } from './vehicles-swept.js';
 import { fuselageFootprint } from './polygonizer/vehicle-fuselage-net.js';
 import { pickCarPaint, pickCarHull } from './polygonizer/vehicle-swept-net.js';
 import { streetcarTrack, streetcarPlatform, roadRibbons, straightPath } from './roads.js';
+import { cyclistFaces } from './cyclist-asset.js';
 
 // `paint:true` → the placement sampler gives this type a random factory color; every
 // `class:'car'` type also gets a random hull variant (see vehicleAntFaces). Taxi keeps
@@ -37,6 +38,9 @@ const VEHICLES = {
   boxTruck: { net: 'box-truck', family: 'box',   class: 'truck',    size: 1.0,  weight: 2,  contexts: ['street'] },        // too long for car stalls
   cityBus:  { net: 'city-bus',  family: 'box',   class: 'bus',      size: 1.0,  weight: 1,  contexts: ['street', 'terminal'] },
   streetcar:{ net: 'streetcar', family: 'box',   class: 'tram',     size: 1.0,  weight: 1,  contexts: ['rail', 'terminal'] },   // articulated tram — bus cross-section, 2.5× bus length (baked into the net, no size multiplier)
+  // human-scale composite (workbench bike + posed clothed protoform), not a swept net.
+  // Only sampled in the 'bike' context (the outer bike lane); see cyclist-asset.js.
+  cyclist:  { net: 'cyclist',   family: 'cycle', class: 'cyclist',  size: 1.0,  weight: 1,  contexts: ['bike'] },
   // ground-support equipment (GSE) — airfield-only; placed beside parked aircraft by the
   // hub planner, never sampled into city/street scenes (contexts gate it out).
   cateringTruck:  { net: 'catering-truck', family: 'box', class: 'truck', size: 1.0, weight: 1, contexts: ['airfield'] },    // hi-loader galley van
@@ -54,7 +58,7 @@ const VEHICLES = {
 export const VEHICLE_TYPES = Object.keys(VEHICLES);
 /** Read-only metadata view (class / weight / contexts) for callers that introspect. */
 export const VEHICLE_REGISTRY = Object.freeze(Object.fromEntries(
-  Object.entries(VEHICLES).map(([k, v]) => [k, Object.freeze({ class: v.class, size: v.size ?? 1, weight: v.weight, contexts: Object.freeze([...v.contexts]) })]),
+  Object.entries(VEHICLES).map(([k, v]) => [k, Object.freeze({ family: v.family, net: v.net, class: v.class, size: v.size ?? 1, weight: v.weight, contexts: Object.freeze([...v.contexts]) })]),
 ));
 export function isVehicleType(t) { return Object.prototype.hasOwnProperty.call(VEHICLES, t); }
 
@@ -71,9 +75,11 @@ export function vehicleTypesFor(context) {
   return VEHICLE_TYPES.filter((t) => !context || VEHICLES[t].contexts.includes(context));
 }
 
-/** Weighted-random vehicle type for a context. `rng()` → [0,1). null if the pool is empty. */
-export function sampleVehicleType(rng = Math.random, { context } = {}) {
-  const pool = vehicleTypesFor(context);
+/** Weighted-random vehicle type for a context. `rng()` → [0,1). null if the pool is empty.
+ * `exclude` (array of vehicle CLASSES, e.g. ['truck']) drops those classes from the pool. */
+export function sampleVehicleType(rng = Math.random, { context, exclude } = {}) {
+  let pool = vehicleTypesFor(context);
+  if (exclude && exclude.length) pool = pool.filter((t) => !exclude.includes(VEHICLES[t].class));
   if (!pool.length) return null;
   const total = pool.reduce((s, t) => s + VEHICLES[t].weight, 0);
   let r = rng() * total;
@@ -89,10 +95,11 @@ export function sampleVehicleType(rng = Math.random, { context } = {}) {
  * `hull` (variant name | multipliers) reshapes the silhouette. Feed the result to
  * renderBoxCityToHtml({ faces }).
  */
-export function vehicleFaces({ type = 'sedan', cx = 0, cy = 0, axis = 'x', dir = 1, heading, scale = 1, ns, na, quality, cull, camHint, stations, angles, livery, paint, hull } = {}) {
+export function vehicleFaces({ type = 'sedan', cx = 0, cy = 0, axis = 'x', dir = 1, heading, scale = 1, ns, na, quality, cull, camHint, stations, angles, livery, paint, hull, fillInterior } = {}) {
   const v = VEHICLES[type] || VEHICLES.sedan;
   const s = scale * (v.size ?? 1);                                  // bake the intrinsic real-world size onto the caller's scale
-  if (v.family === 'plane') return fuselageFaces({ net: v.net, cx, cy, axis, dir, heading, scale: s, quality, stations, angles, camHint, livery });
+  if (v.family === 'cycle') return cyclistFaces({ cx, cy, axis, dir, heading, scale: s });
+  if (v.family === 'plane') return fuselageFaces({ net: v.net, cx, cy, axis, dir, heading, scale: s, quality, stations, angles, camHint, livery, fillInterior });
   return sweptFaces({ net: v.net, family: v.family, cx, cy, axis, dir, heading, scale: s, ns, na, quality, cull, paint, hull });
 }
 
@@ -101,8 +108,8 @@ export function vehicleFaces({ type = 'sedan', cx = 0, cy = 0, axis = 'x', dir =
  * build it at a pose. This is how scenes populate movable vehicles — non-city
  * types are excluded by their `contexts` annotation. Returns [] if no type fits.
  */
-export function vehicleAntFaces({ rng = Math.random, context, cx = 0, cy = 0, axis = 'x', dir = 1, heading, scale = 1, ns, na, quality, cull, camHint } = {}) {
-  const type = sampleVehicleType(rng, { context });
+export function vehicleAntFaces({ rng = Math.random, context, exclude, cx = 0, cy = 0, axis = 'x', dir = 1, heading, scale = 1, ns, na, quality, cull, camHint } = {}) {
+  const type = sampleVehicleType(rng, { context, exclude });
   if (!type) return [];
   const v = VEHICLES[type];
   const paint = v.paint ? pickCarPaint(rng).body : undefined;        // sedans/SUVs → random factory color

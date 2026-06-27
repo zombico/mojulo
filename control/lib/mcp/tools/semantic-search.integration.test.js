@@ -72,6 +72,7 @@ import { semanticSearchHandler } from '@/lib/mcp/tools/semantic-search';
 import { getSketchVocabCard } from '@/lib/graph/sketch-vocab/loader';
 import { getSketchMethodCatalog } from '@/lib/graph/polygonizer/capabilities/loader';
 import { resolveManjiProgramCard } from '@/lib/graph/polygonizer/mandala-patterns';
+import { getPaintedLandscapeCardCatalog } from '@/lib/graph/painted-landscape-cards/loader';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -334,6 +335,11 @@ describe('semantic_search — cross-kind recall integration', () => {
         case 'manji_program': {
           const card = resolveManjiProgramCard(r.source_ref);
           expect(card, `manji_program ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'painted_landscape': {
+          const card = getPaintedLandscapeCardCatalog().get(r.source_ref);
+          expect(card, `painted_landscape ${r.source_ref} should exist`).toBeTruthy();
           break;
         }
         default:

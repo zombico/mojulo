@@ -2586,7 +2586,10 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
         if (haze) wc = applyHaze(wc, haze.horizon, haze.strength * depthT * 1.25);
         const alpha = Math.min(0.92, 0.46 + depth * 0.12);
         const wq = [[a[0], a[1], wl], [b[0], b[1], wl], [c[0], c[1], wl], [d[0], d[1], wl]];
-        waterFaces.push({ corners: wq, fill: withAlpha(wc, alpha), doubleSided: true });
+        // `water: true` tags the sheet so the three.js World renders it in a separate
+        // TRANSLUCENT mesh (per-vertex alpha from the rgba fill — shallows clear, deeps
+        // opaque). The CSS path already blends the rgba() fill, so it ignores the flag.
+        waterFaces.push({ corners: wq, fill: withAlpha(wc, alpha), doubleSided: true, water: true });
       }
     }
   }
@@ -2642,6 +2645,42 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
           x: x - w / 2, y: y - d / 2, w, d, z0, z1: z0 + h,
           wall: toHex(wallRgb),
           roof: toHex(lerp3(wallRgb, CITY_HI, 0.22)),          // roof a touch lighter (form read)
+        });
+      }
+    }
+  }
+
+  // ── scene scatter: forest / rocks / groundcover placed on the relief ────────
+  // Tree kinds (cone → conifer, canopy → broadleaf) become REAL branched taiji-plant
+  // geometry via the same shape+plant box spec the fractal-city street trees ride
+  // (meshed by plantBoxToFaces at assemble time, lit by the scene light). Boulders/tufts
+  // stay as small massed boxes. The SVG path draws its own painterly glyphs (resolveScene
+  // above) — this is the World's volumetric counterpart, ridden only by the css3d/three seam.
+  if (manifest.scene) {
+    const clampHex = (c) => '#' + c.map((v) => clamp255(v).toString(16).padStart(2, '0')).join('');
+    for (const it of resolveScene(manifest.scene, seed)) {
+      const z0 = sampler.heightAt(it.x, it.y);
+      if (hasWater && z0 < wl + 0.05) continue;                 // no scatter standing in the lake
+      const w = Math.max(0.2, it.width), hgt = Math.max(0.3, it.height);
+      const base = { x: it.x - w / 2, y: it.y - w / 2, w, d: w, z0 };
+      if (it.kind === 'cone' || it.kind === 'canopy') {
+        const conifer = it.kind === 'cone';
+        structures.push({
+          ...base, z1: z0 + hgt, shape: conifer ? 'conifer' : 'tree',
+          plant: {
+            height: hgt, stemRadius: Math.max(0.04, w * 0.09), depth: 1,
+            branches: conifer ? 3 : 4, foliage: conifer ? 'conifer' : 'cluster',
+            clusterSize: w * (conifer ? 0.5 : 0.62), foliageTiers: 4,
+          },
+        });
+      } else {
+        // boulder / tuft → a small massed box (rock / groundcover clump), palette-toned.
+        const rock = it.kind === 'boulder';
+        const tone = rock ? palette.shadow : palette.base;
+        structures.push({
+          ...base, z1: z0 + hgt * (rock ? 0.7 : 0.5),
+          wall: clampHex(tone.map((v) => v * (rock ? 0.7 : 0.85))),
+          roof: clampHex(tone.map((v) => v * (rock ? 0.82 : 0.96))),
         });
       }
     }
@@ -2715,11 +2754,36 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
     }
   }
 
+  // Star density for the World's night dome (mirrors skyCss): a number is verbatim, a
+  // boolean is the preset default, the card's { density } object is unwrapped, else none.
+  // `day` rides along so the World can night-gate + fade the stars exactly like the SVG sky.
+  const starDensity = (() => {
+    const st = skySpec && skySpec.stars;
+    if (st == null) return 0;
+    if (typeof st === 'number') return Math.max(0, Math.min(1, st));
+    if (typeof st === 'boolean') return st ? 0.55 : 0;
+    if (typeof st === 'object' && Number.isFinite(st.density)) return Math.max(0, Math.min(1, st.density));
+    return 0;
+  })();
+  // Moon adornment for the World (reuses the SVG normaliser, so phase/size/position +
+  // night-gating match the still). null unless a moon is configured AND it's night.
+  const moonPrim = SKY_PRIMITIVES.find((p) => p.id === 'moon');
+  const moonCfg = sky && moonPrim ? moonPrim.normalize(skySpec.moon, sky, seedNum) : null;
+  // Sun adornment for the World — the daytime counterpart of the moon, threaded through
+  // the same normaliser so glow/size/position + horizon-gating match the still. null unless
+  // a sun is configured AND it sits above the horizon (normalizeSun returns null below it).
+  const sunPrim = SKY_PRIMITIVES.find((p) => p.id === 'sun');
+  const sunCfg = sky && sunPrim ? sunPrim.normalize(skySpec.sun, sky, seedNum) : null;
+
   return {
     faces,
     structures,
     extraFaces,
     bounds: { xRange: [X_MIN, X_MAX], yRange: [Y_FAR, Y_NEAR], zRange: [zMin, zMax] },
-    sky: sky ? { zenith: sky.zenith, horizon: sky.horizon } : null,
+    // the terrain light vector → the assemble layer lights the structures/plants with it (so a
+    // night forest is dim, not day-lit) + the day factor for the ambient/diffuse balance.
+    light: { x: light.x, y: light.y, z: light.z },
+    day: sky ? sky.day : 1,
+    sky: sky ? { zenith: sky.zenith, horizon: sky.horizon, day: sky.day, stars: starDensity, seed: seedNum, moon: moonCfg, sun: sunCfg } : null,
   };
 }

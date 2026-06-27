@@ -141,14 +141,25 @@ const lerp = (a, b, t) => a + (b - a) * t;
  *
  * `plant[L|R]` ∈ [0,1] is each foot's plantedness — 1 = pinned to the floor (stance),
  * 0 = free (swing: the leg rides the pelvis and lifts via its own FK knee). Continuous, so
- * a gait crossing through double support never snaps. No lateral COM commit here (that is
- * groundBalance's job and the source of the single-foot warp); lateral life comes from the
- * spine. Neutral stance (plant 1/1, feet under the hips) is reproduced exactly.
+ * a gait crossing through double support never snaps. Neutral stance (plant 1/1, feet under
+ * the hips) is reproduced exactly.
+ *
+ * The vault is a full inverted pendulum, in BOTH planes — not just the sagittal height:
+ *   - SAGITTAL/vertical: the pelvis drops so the (near-straight) support leg reaches its
+ *     floored foot (highest at mid-stance, lowest at the fore/aft extremes).
+ *   - FRONTAL/lateral + fore-aft: the body's MASS is carried over the planted support. The
+ *     support base is the planted feet weighted by plantedness, so in single support it
+ *     collapses onto the one stance foot and the pelvis travels over it — the real
+ *     mechanical weight-shift. This is what makes a walk "hit the floor": the side-to-side
+ *     comes from the COM genuinely moving over each foot in turn, NOT from a spine-sway
+ *     dial faking it (`carry` = 0 restores the old sagittal-only vault). Referenced to the
+ *     neutral two-foot COM so the rest stance is still reproduced exactly.
  *
  * @param {object} p0  articulate() output
- * @param {{plant?: {L:number,R:number}, gain?: number}} opts
+ * @param {{plant?: {L:number,R:number}, gain?: number, carry?: number, iters?: number}} opts
+ *   carry — 0..1, how fully the COM commits over the planted support (1 = full pendulum).
  */
-export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1 } = {}) {
+export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, iters = 6 } = {}) {
   const p = {}; for (const k in p0) p[k] = { ...p0[k] };
   const base = basePositions();
   const GROUND = base.ankleL.z;                 // rest floor level (armature ankle)
@@ -157,29 +168,50 @@ export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1 } = {}) {
   for (const s of ['L', 'R']) { L1[s] = dist(base['hip' + s], base['knee' + s]); L2[s] = dist(base['knee' + s], base['ankle' + s]); }
   const fkAnkle = { L: { ...p.ankleL }, R: { ...p.ankleR } };
   const fkKnee = { L: { ...p.kneeL }, R: { ...p.kneeR } };
-  // Pelvis drop: the more a foot is planted and the further it is fore/aft, the lower the
-  // pelvis must sit for the (near-straight) support leg to keep that foot on the floor.
+  const wOf = (s) => Math.max(0, Math.min(1, plant[s]));
+  const wL = wOf('L'), wR = wOf('R'), wSum = wL + wR;
+  // COM carry is measured against the NEUTRAL two-foot stance, so plant 1/1 holds the rest
+  // pose exactly and only a committed (single-ish) support actually slides the body. The
+  // reference is the neutral base run through the SAME planted-leg IK (both feet floored),
+  // so ik2's extension-safety clamp settles identically on both sides and doesn't read as a
+  // phantom COM shift the carry would then chase — neutral stays exact.
+  const settled = {}; for (const k in base) settled[k] = { ...base[k] };
+  for (const s of ['L', 'R']) settled['knee' + s] = ik2(base['hip' + s], { x: base['ankle' + s].x, y: base['ankle' + s].y, z: GROUND }, L1[s], L2[s], { x: 0, y: 1, z: 0 });
+  const restOff = sub2(comOf(settled), footCentre(base, ['L', 'R']));
+  const fk0 = {}; for (const k of MOVE) fk0[k] = { ...p[k] };   // FK anchor for the body nodes
+  const sh = { x: 0, y: 0 };                    // accumulated horizontal COM carry
   let drop = 0;
-  for (const s of ['L', 'R']) {
-    const w = Math.max(0, Math.min(1, plant[s]));
-    if (w <= 0) continue;
-    const hip = p['hip' + s], legLen = L1[s] + L2[s];
-    const horiz = Math.hypot(hip.x - fkAnkle[s].x, hip.y - fkAnkle[s].y);
-    const reach = Math.sqrt(Math.max(0, legLen * legLen - horiz * horiz));
-    drop = Math.max(drop, w * Math.max(0, restPelvisZ - (GROUND + reach)));
-  }
-  drop *= gain;
-  for (const k of MOVE) p[k].z -= drop;         // lower pelvis + upper body + hips
-  // Solve each leg: planted → its foot pinned to the floor; swing → rides the dropped
-  // pelvis (its FK lift preserved). Knee re-solved by 2-bone IK so bone lengths stay exact.
-  for (const s of ['L', 'R']) {
-    const w = Math.max(0, Math.min(1, plant[s]));
-    const grounded = { x: fkAnkle[s].x, y: fkAnkle[s].y, z: GROUND };
-    const ridden = { x: fkAnkle[s].x, y: fkAnkle[s].y, z: fkAnkle[s].z - drop };
-    const target = { x: lerp(ridden.x, grounded.x, w), y: lerp(ridden.y, grounded.y, w), z: lerp(ridden.z, grounded.z, w) };
-    const pole = { x: fkKnee[s].x - fkAnkle[s].x, y: 1, z: 0 };   // keep the knee tracking its FK side
-    p['knee' + s] = ik2(p['hip' + s], target, L1[s], L2[s], pole);
-    p['ankle' + s] = target;
+  for (let it = 0; it < iters; it++) {
+    // 1) Carry the COM over the plantedness-weighted support foot/feet (horizontal plane).
+    const sx = wSum > 1e-6 ? (wL * fkAnkle.L.x + wR * fkAnkle.R.x) / wSum : (fkAnkle.L.x + fkAnkle.R.x) / 2;
+    const sy = wSum > 1e-6 ? (wL * fkAnkle.L.y + wR * fkAnkle.R.y) / wSum : (fkAnkle.L.y + fkAnkle.R.y) / 2;
+    const c = comOf(p);
+    sh.x -= ((c.x - sx) - restOff.x) * carry * gain;
+    sh.y -= ((c.y - sy) - restOff.y) * carry * gain;
+    // 2) Vault drop: each planted leg just reaches its floored foot, measured from the
+    //    CARRIED hip (the lateral/fore-aft shift changes how far the foot is from the hip).
+    drop = 0;
+    for (const s of ['L', 'R']) {
+      const w = wOf(s); if (w <= 0) continue;
+      const hx = fk0['hip' + s].x + sh.x, hy = fk0['hip' + s].y + sh.y, legLen = L1[s] + L2[s];
+      const horiz = Math.hypot(hx - fkAnkle[s].x, hy - fkAnkle[s].y);
+      const reach = Math.sqrt(Math.max(0, legLen * legLen - horiz * horiz));
+      drop = Math.max(drop, w * Math.max(0, restPelvisZ - (GROUND + reach)));
+    }
+    drop *= gain;
+    // 3) Place the body (pelvis + upper + hips) at the carried + dropped position…
+    for (const k of MOVE) { p[k].x = fk0[k].x + sh.x; p[k].y = fk0[k].y + sh.y; p[k].z = fk0[k].z - drop; }
+    // …and solve each leg: planted → foot pinned to the floor; swing → rides the carried,
+    // dropped body (its FK lift preserved). Knee re-solved by 2-bone IK so bones stay exact.
+    for (const s of ['L', 'R']) {
+      const w = wOf(s);
+      const grounded = { x: fkAnkle[s].x, y: fkAnkle[s].y, z: GROUND };
+      const ridden = { x: fkAnkle[s].x + sh.x, y: fkAnkle[s].y + sh.y, z: fkAnkle[s].z - drop };
+      const target = { x: lerp(ridden.x, grounded.x, w), y: lerp(ridden.y, grounded.y, w), z: lerp(ridden.z, grounded.z, w) };
+      const pole = { x: fkKnee[s].x - fkAnkle[s].x, y: 1, z: 0 };   // keep the knee tracking its FK side
+      p['knee' + s] = ik2(p['hip' + s], target, L1[s], L2[s], pole);
+      p['ankle' + s] = target;
+    }
   }
   return p;
 }

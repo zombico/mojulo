@@ -70,10 +70,12 @@ export function offsetPath(path, off) {
   });
 }
 
-export function roadRibbons({ path, width = 2.4, lift = 0, deck = 0.4, laneLine = true, edgeLines = false, asphalt = '#333a44', line = '#d9c468', pillars = true, pillarEvery = 5, lanes = 1, bikeLanes = null } = {}) {
+export function roadRibbons({ path, width = 2.4, lift = 0, deck = 0.4, laneLine = true, edgeLines = false, asphalt = '#333a44', line = '#d9c468', pillars = true, pillarEvery = 5, lanes = 1, bikeLanes = null, surface = 'asphalt' } = {}) {
   const z0 = lift > 0 ? lift : 0.03;
   const z1 = lift > 0 ? lift + deck : 0.05;
-  const ribbons = [{ path, z0, z1, width, tint: asphalt }];
+  // `surface` opts the carriageway into a tiled, multiply-lit texture in the World renderer
+  // (key resolved by surface-textures.js; CSS-3D ignores it). Pass surface:null for flat fill.
+  const ribbons = [{ path, z0, z1, width, tint: asphalt, ...(surface ? { texture: surface } : {}) }];
   if (bikeLanes === 'outer') {
     const laneW = Math.max(0.18, width * 0.13);
     const edge = width * 0.5 - laneW * 0.62;
@@ -112,7 +114,7 @@ export const groundStreet = (a, b, opts = {}) => roadRibbons({ path: straightPat
 export function airportStrip(a, b, { type = 'tarmac', width = 3, asphalt = '#363b42', n = 4 } = {}) {
   const path = straightPath(a, b, n);
   const z1 = 0.05;
-  const ribbons = [{ path, z0: 0.03, z1, width, tint: asphalt }];
+  const ribbons = [{ path, z0: 0.03, z1, width, tint: asphalt, texture: 'asphalt' }];
   const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
   if (type === 'runway') {
     const stripeLen = 2.1, step = stripeLen + 2.3;                                  // long stripes, big gaps
@@ -153,7 +155,7 @@ export function streetcarTrack({
   asphalt = '#363b43', railTint = '#aab2bb', wireTint = '#26282c', poleTint = '#566069', tie = '#4a4136',
 } = {}) {
   const ribbons = [], boxes = [];
-  if (paved) ribbons.push({ path, z0: 0.03, z1: 0.05, width: deckWidth, tint: asphalt });
+  if (paved) ribbons.push({ path, z0: 0.03, z1: 0.05, width: deckWidth, tint: asphalt, texture: 'asphalt' });
   // wooden-tie cross-hatch hint down the centre (a faint dark band between the rails)
   ribbons.push({ path, z0: 0.05, z1: 0.058, width: gauge + 0.12, tint: tie });
   // two steel rails, sitting just proud of the deck

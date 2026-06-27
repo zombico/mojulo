@@ -12,17 +12,21 @@
  * to the baked /svg path).
  */
 
-import { renderRoomManifestToHtml, renderPaintedLandscapeToHtml } from '@/lib/graph/scene-css3d';
+import { renderRoomManifestToHtml, renderPaintedLandscapeToHtml, resolveSceneLighting } from '@/lib/graph/scene-css3d';
+import { resolveSignage } from '@/lib/graph/signage-chrome';
 import { renderFractalCityToHtml } from '@/lib/graph/fractal-city';
 import { renderTransportationHubToHtml } from '@/lib/graph/transportation-hub';
 import { renderSolidTurntableToHtml } from '@/lib/graph/solid-turntable';
 import { renderSubwayStationToHtml } from '@/lib/graph/subway-station';
+import { renderWorkbenchToHtml } from '@/lib/graph/workbench';
+import { renderFloorplanToHtml } from '@/lib/graph/polygonizer/floorplan-structure';
+import { renderAssemblerToHtml } from '@/lib/graph/workbench-assembler';
 
 /**
  * @param {{ title?: string, manifest: object }} sketch — a stored sketch row
  * @returns {string|null} self-contained scene HTML, or null if not scene-eligible
  */
-export function renderSceneHtml(sketch) {
+export function renderSceneHtml(sketch, sceneOpts = {}) {
   const manifest = sketch?.manifest;
   if (!manifest || typeof manifest !== 'object') return null;
 
@@ -34,22 +38,50 @@ export function renderSceneHtml(sketch) {
   const sky = manifest.sky ?? scene.sky;
   const title = sketch.title || manifest.title;
 
+  // adaptive-signage: resolve the cross-backend annotation channel ONCE here and
+  // thread `signs` into whichever scene renderer is dispatched (each forwards it
+  // into emitPreserve3dScene). Chrome is derived from the scene's palette so a
+  // night-city note glows like the city, a painted landscape note reads as paper.
+  // No CSS-3D face access at this dispatch layer, so { object } anchors aren't
+  // resolved to a world centroid here (they degrade to a screen slot); the
+  // three.js /world path resolves object anchors at runtime via mesh userData.
+  const { lighting } = resolveSceneLighting(manifest);
+  const signs = resolveSignage(manifest.signage, {
+    palette: {
+      bg: manifest.bg,
+      sky: sky ?? lighting?.sky,
+      tint: lighting?.tint,
+      ambient: lighting?.vexar?.ambient,
+      lamps: lighting?.lamps,
+      mood: time === 'night' ? 'night' : undefined,
+    },
+  });
+
   // kind 'fractal-city' / 'css3d-turntable': the manifest IS the recipe — expand it on render
   // (zero stored geometry). Otherwise fall through to the two-point room renderer.
   if (manifest.kind === 'fractal-city') {
-    return renderFractalCityToHtml({ ...manifest, time, sky, title: title || 'mojulo city' });
+    return renderFractalCityToHtml({ ...manifest, time, sky, signs, title: title || 'mojulo city' });
   }
   if (manifest.kind === 'transportation-hub') {
-    return renderTransportationHubToHtml({ ...manifest, time, sky, title: title || 'mojulo transportation hub' });
+    return renderTransportationHubToHtml({ ...manifest, time, sky, signs, title: title || 'mojulo transportation hub' });
+  }
+  if (manifest.kind === 'workbench') {
+    return renderWorkbenchToHtml({ ...manifest, signs, title: title || 'mojulo workbench' });
+  }
+  if (manifest.kind === 'assembler') {
+    return renderAssemblerToHtml({ ...manifest, signs, title: title || 'mojulo assembler' });
   }
   if (manifest.kind === 'css3d-turntable') {
-    return renderSolidTurntableToHtml({ ...manifest, title: title || 'mojulo solid' });
+    return renderSolidTurntableToHtml({ ...manifest, signs, title: title || 'mojulo solid' });
   }
   if (manifest.kind === 'subway-station') {
-    return renderSubwayStationToHtml({ ...manifest, title: title || 'mojulo subway station' });
+    return renderSubwayStationToHtml({ ...manifest, signs, title: title || 'mojulo subway station' });
   }
   if (manifest.kind === 'painted-landscape') {
-    return renderPaintedLandscapeToHtml(manifest, { title: title || 'mojulo terrain' });
+    return renderPaintedLandscapeToHtml(manifest, { title: title || 'mojulo terrain', signs });
   }
-  return renderRoomManifestToHtml(manifest, { title: title || 'mojulo scene' });
+  if (manifest.kind === 'floorplan') {
+    return renderFloorplanToHtml(manifest, { ...manifest, view: sceneOpts.view ?? manifest.view, signs, title: title || 'mojulo house' });
+  }
+  return renderRoomManifestToHtml(manifest, { title: title || 'mojulo scene', signs });
 }

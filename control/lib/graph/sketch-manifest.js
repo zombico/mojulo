@@ -7,6 +7,9 @@
  *   - stations[] + edges[] — the original flow vocabulary (boxes + arrows).
  *       Station kinds:  input | mcp_tool | filesystem | db_row
  *       Edge `via`:     'right' | 'left' | 'top' | 'bottom'
+ *       Edge `pulse`:   optional traveling token(s) along the edge — the
+ *                       "A pings B" primitive ({ count?, period?, size?,
+ *                       color?, dir? }), rendered with native <animateMotion>.
  *   - marks[]              — the low-level chart vocabulary added for the
  *       chart-concept expansion. Mark kinds include rect | circle | wedge |
  *       line | polyline | polygon | blob | solid | volume | partition | array | mandalaArrangement | horizontalStack | mandalaField | fluidField | swirlField | rBrush | blobPla | visionPane | cubieLattice | text.
@@ -30,6 +33,14 @@ export const STATION_KINDS = ['input', 'mcp_tool', 'filesystem', 'db_row'];
 const STATION_KIND_SET = new Set(STATION_KINDS);
 export const EDGE_VIA_VALUES = ['right', 'left', 'top', 'bottom'];
 const EDGE_VIA_SET = new Set(EDGE_VIA_VALUES);
+
+// An edge can carry a live `pulse` — one or more tokens that travel along its
+// path (the "A pings B" primitive). Rendered with native SVG <animateMotion>,
+// so it plays in the /sketches viewer AND in the exported standalone .svg with
+// no bake step and no JS. `dir` is the travel direction along from→to.
+export const PULSE_DIRS = ['forward', 'reverse', 'pingpong'];
+const PULSE_DIR_SET = new Set(PULSE_DIRS);
+const PULSE_MAX_COUNT = 12;
 
 export const MARK_KINDS = [
   'rect',
@@ -69,6 +80,107 @@ const TEXT_ANCHORS = new Set(['start', 'middle', 'end']);
 
 const CURVATURE_MIN = 0.2;
 const CURVATURE_MAX = 3;
+
+// adaptive-signage: a cross-backend annotation channel (manifest.signage[]) read
+// by all three renderers (SVG diagram / CSS-3D scene / three.js world). Unlike a
+// `marks` kind (SVG-only, geometry-only), a sign carries behavior — it is a
+// sibling of the picks/tracers/motion channels. Three variants, each with built-in
+// behavior baked into the emitted artifact: a hover/tap `tooltip`, a fixed-size
+// `popup` that pages overflow via a down-button (never wheel-scrolls), and a
+// timed `toast` that appears then fades (a Mario-coin score pop).
+export const SIGNAGE_VARIANTS = ['tooltip', 'popup', 'toast'];
+const SIGNAGE_VARIANT_SET = new Set(SIGNAGE_VARIANTS);
+// Screen-relative anchor slots (camera-independent overlay positions). The
+// default for a toast.
+export const SIGNAGE_SLOTS = [
+  'top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right',
+];
+const SIGNAGE_SLOT_SET = new Set(SIGNAGE_SLOTS);
+
+// A sign anchors to exactly one of: a named target ({object} — a mesh group /
+// face / station id), a world point ({world:[x,y,z]}), a screen slot ({slot}),
+// or absolute viewBox coords ({xy:[x,y]} — the SVG fallback / toast screen pos).
+function validateSignageAnchor(anchor, path, errors) {
+  if (!anchor || typeof anchor !== 'object' || Array.isArray(anchor)) {
+    errors.push(`${path}.anchor must be an object ({ object } | { world } | { slot } | { xy })`);
+    return;
+  }
+  const forms = ['object', 'world', 'slot', 'xy'].filter((k) => anchor[k] !== undefined);
+  if (forms.length !== 1) {
+    errors.push(`${path}.anchor must declare exactly one of: object, world, slot, xy (got ${forms.length})`);
+    return;
+  }
+  if (anchor.object !== undefined && (typeof anchor.object !== 'string' || !anchor.object)) {
+    errors.push(`${path}.anchor.object must be a non-empty string`);
+  }
+  if (anchor.slot !== undefined && !SIGNAGE_SLOT_SET.has(anchor.slot)) {
+    errors.push(`${path}.anchor.slot must be one of: ${SIGNAGE_SLOTS.join(', ')} (got '${anchor.slot}')`);
+  }
+  if (
+    anchor.world !== undefined &&
+    (!Array.isArray(anchor.world) || anchor.world.length !== 3 || anchor.world.some((n) => !isFiniteNumber(n)))
+  ) {
+    errors.push(`${path}.anchor.world must be an [x, y, z] number triple`);
+  }
+  if (
+    anchor.xy !== undefined &&
+    (!Array.isArray(anchor.xy) || anchor.xy.length !== 2 || anchor.xy.some((n) => !isFiniteNumber(n)))
+  ) {
+    errors.push(`${path}.anchor.xy must be an [x, y] number pair`);
+  }
+}
+
+function validateSignageItem(sign, idx, errors) {
+  const path = `signage[${idx}]`;
+  if (!sign || typeof sign !== 'object' || Array.isArray(sign)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  if (!SIGNAGE_VARIANT_SET.has(sign.variant)) {
+    errors.push(`${path}.variant must be one of: ${SIGNAGE_VARIANTS.join(', ')} (got '${sign.variant}')`);
+  }
+  // text is required, except a popup may instead carry `body` (paged content).
+  const hasBody =
+    typeof sign.body === 'string' ||
+    (Array.isArray(sign.body) && sign.body.length > 0 && sign.body.every((p) => typeof p === 'string'));
+  if (sign.body !== undefined && !hasBody) {
+    errors.push(`${path}.body must be a non-empty string or array of strings if provided`);
+  }
+  if ((sign.text === undefined || typeof sign.text !== 'string' || !sign.text) && !(sign.variant === 'popup' && hasBody)) {
+    errors.push(`${path}.text is required (non-empty string)`);
+  } else if (sign.text !== undefined && typeof sign.text !== 'string') {
+    errors.push(`${path}.text must be a string if provided`);
+  }
+  validateSignageAnchor(sign.anchor, path, errors);
+  // toast timing (seconds) — ignored by tooltip/popup.
+  for (const k of ['after', 'ttl']) {
+    if (sign[k] !== undefined && (!isFiniteNumber(sign[k]) || sign[k] < 0)) {
+      errors.push(`${path}.${k} must be a non-negative number (seconds) if provided`);
+    }
+  }
+  if (sign.pageLines !== undefined && (!isFiniteNumber(sign.pageLines) || sign.pageLines < 1)) {
+    errors.push(`${path}.pageLines must be a number >= 1 if provided`);
+  }
+  if (sign.size !== undefined && (!isFiniteNumber(sign.size) || sign.size <= 0)) {
+    errors.push(`${path}.size must be a positive number if provided`);
+  }
+  validateOptionalString(sign, 'id', path, errors);
+  if (sign.palette !== undefined && (!sign.palette || typeof sign.palette !== 'object' || Array.isArray(sign.palette))) {
+    errors.push(`${path}.palette must be an object if provided`);
+  }
+}
+
+// manifest.signage[] is an overlay channel — like `geo`, it does NOT by itself
+// satisfy the "at least one drawable" rule (a manifest that is *only* signage has
+// nothing to annotate). Validated when present, never required.
+function validateSignage(signage, errors) {
+  if (signage === undefined) return;
+  if (!Array.isArray(signage)) {
+    errors.push('manifest.signage must be an array if provided');
+    return;
+  }
+  signage.forEach((s, i) => validateSignageItem(s, i, errors));
+}
 
 function isFiniteNumber(v) {
   return typeof v === 'number' && Number.isFinite(v);
@@ -364,6 +476,34 @@ function validateMark(mark, idx, errors) {
   }
 }
 
+// Optional traveling-token spec on an edge. All fields default in the renderer;
+// the validator only type-checks and range-checks what is present.
+function validatePulse(pulse, path, errors) {
+  if (pulse === undefined) return;
+  if (!pulse || typeof pulse !== 'object' || Array.isArray(pulse)) {
+    errors.push(`${path}.pulse must be an object { count?, period?, size?, color?, dir? } if provided`);
+    return;
+  }
+  if (
+    pulse.count !== undefined &&
+    (!isFiniteNumber(pulse.count) || pulse.count < 1 || pulse.count > PULSE_MAX_COUNT)
+  ) {
+    errors.push(`${path}.pulse.count must be a number between 1 and ${PULSE_MAX_COUNT} if provided`);
+  }
+  if (pulse.period !== undefined && (!isFiniteNumber(pulse.period) || pulse.period <= 0)) {
+    errors.push(`${path}.pulse.period must be a positive number (seconds) if provided`);
+  }
+  if (pulse.size !== undefined && (!isFiniteNumber(pulse.size) || pulse.size <= 0)) {
+    errors.push(`${path}.pulse.size must be a positive number if provided`);
+  }
+  if (pulse.color !== undefined && typeof pulse.color !== 'string') {
+    errors.push(`${path}.pulse.color must be a string if provided`);
+  }
+  if (pulse.dir !== undefined && !PULSE_DIR_SET.has(pulse.dir)) {
+    errors.push(`${path}.pulse.dir must be one of: ${PULSE_DIRS.join(', ')} (got '${pulse.dir}')`);
+  }
+}
+
 function validateEdge(edge, idx, stationIds, errors) {
   if (!edge || typeof edge !== 'object') {
     errors.push(`edges[${idx}] must be an object`);
@@ -396,6 +536,7 @@ function validateEdge(edge, idx, stationIds, errors) {
       );
     }
   }
+  validatePulse(edge.pulse, `edges[${idx}]`, errors);
 }
 
 // Optional informational block carried by map-illustrator sketches. Records
@@ -460,6 +601,7 @@ export function validateSketchManifest(manifest) {
 
   validateGrid(manifest.grid, errors);
   validateGeo(manifest.geo, errors);
+  validateSignage(manifest.signage, errors);
 
   const hasStations = Array.isArray(manifest.stations) && manifest.stations.length > 0;
   const hasMarks = Array.isArray(manifest.marks) && manifest.marks.length > 0;
@@ -650,7 +792,24 @@ export function classifyBucket(manifest) {
 // DOM compositor stalls on the same geometry under a moving camera), while the
 // turntable stays a preset-shot CSS-3D scene.
 export const SVG_RENDER_KINDS = ['manji-tree', 'painted-landscape', 'carved-solid'];
-export const WORLD_RENDER_KINDS = ['fractal-city', 'transportation-hub'];
+// 'planetary' is orbit-only — it has NO CSS-3D /scene fallback (the body in a celestial
+// sphere only reads under a free-orbit camera), so unlike the box-world kinds it does not
+// bake a /scene PNG gallery thumbnail (a documented v1 gap; see planetary.plan.md).
+// 'vehicle-instance' is a meta-fabricator family-instance preview (a sampled/authored
+// vehicle on the workbench's measured studio grid). Like 'planetary' it is orbit-only —
+// it renders through /world (assembleInstanceStudio → emitThreeWorld) and has no CSS-3D
+// /scene path, so it bakes no /scene PNG gallery thumbnail.
+// The EDUCATION module — math explainers (the sibling family to the science views). Each is an
+// orbit-only World built on the same primitives (faces / tracers / fields / deform / surface): one idea,
+// a few scenarios, usually a degenerate control. Advanced (linear algebra → complex analysis) and
+// high-school (geometry / trig / algebra / calculus) tiers. Discoverable as a set via this constant.
+export const EDUCATION_VIEW_KINDS = [
+  // advanced
+  'transform-view', 'field-flow-view', 'surface-view', 'series-view', 'probability-view', 'complex-view',
+  // high-school
+  'trig-circle-view', 'pythagoras-view', 'quadratic-view', 'complete-square-view', 'conics-view', 'derivative-view', 'ftc-view',
+];
+export const WORLD_RENDER_KINDS = ['fractal-city', 'transportation-hub', 'floorplan', 'workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'gravity-wave-view', 'parallel-transport-view', ...EDUCATION_VIEW_KINDS];
 export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
 const SVG_RENDER_SET = new Set(SVG_RENDER_KINDS);
 const WORLD_RENDER_SET = new Set(WORLD_RENDER_KINDS);

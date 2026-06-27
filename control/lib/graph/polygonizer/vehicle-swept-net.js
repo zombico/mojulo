@@ -833,6 +833,12 @@ function boxFaces(xmin, xmax, ymin, ymax, zmin, zmax) {
   ];
 }
 
+// How far the flat fascia is allowed to fill its minted superellipse cross-section.
+// 1.0 = clip exactly to the body silhouette; <1 insets the face for a thicker
+// body-colour lip framing the fascia. The fascia rect is already inset (capQuad),
+// so this only rounds the CORNERS in toward the minted outline.
+const CAP_SILHOUETTE_CLIP = 1.0;
+
 /**
  * The shared swept-vehicle renderer. Body wrap (swept superellipse) + flat fascia
  * caps + protruding wheel discs + accessory boxes, vexar-lit, back-face culled,
@@ -869,14 +875,22 @@ function buildSweptSceneShapes(form, {
 
   // fascia caps — flat, facing the camera (front/rear)
   const GU = lodCount(30, quality, 12), GV = lodCount(22, quality, 8);
-  for (const cap of [{ corners: capQuad(form, place, 0), card: front, n: [0, 1, 0] }, { corners: capQuad(form, place, 1), card: rear, n: [0, -1, 0] }]) {
+  for (const cap of [{ corners: capQuad(form, place, 0), card: front, n: [0, 1, 0], uEnd: 0 }, { corners: capQuad(form, place, 1), card: rear, n: [0, -1, 0], uEnd: 1 }]) {
     if (cull && dot3(cap.n, sub3(cameraPosition, centroid(cap.corners))) <= 0) continue;
     const aspect = Math.hypot(...sub3(cap.corners[1], cap.corners[0])) / (Math.hypot(...sub3(cap.corners[3], cap.corners[0])) || 1);
     const cctx = stickerContext(cap.card, aspect, 1);
+    // Clip the flat fascia to the MINTED superellipse cross-section so the front/rear
+    // face inherits the body silhouette — rounded corners on a low-seN car, near-square
+    // on a high-seN box — instead of the authoring rectangle's hard corners. The card's
+    // (u,v) space stays rectangular; only the emitted footprint is masked.
+    const chw = form.halfWAt(cap.uEnd), czb = form.zBotAt(cap.uEnd), czt = form.zTopAt(cap.uEnd), czc = (czb + czt) / 2, chh = (czt - czb) / 2;
     for (let i = 0; i < GU; i += 1) for (let j = 0; j < GV; j += 1) {
       const u0 = i / GU, u1 = (i + 1) / GU, v0 = j / GV, v1 = (j + 1) / GV;
       const wpts = [bilerp4(cap.corners, u0, v0), bilerp4(cap.corners, u1, v0), bilerp4(cap.corners, u1, v1), bilerp4(cap.corners, u0, v1)];
-      faces.push({ wpts, fill: shadeHex(sampleStickerCard(cap.card, (u0 + u1) / 2, (v0 + v1) / 2, cctx), cap.n, light), role: `${cap.card.id}:${i}.${j}`, dist: dist(centroid(wpts)) });
+      const cc = centroid(wpts);
+      const X = (cc[0] - place.cx) / chw, Z = (cc[2] - czc) / chh;     // cell center in cross-section-normalized coords
+      if (Math.pow(Math.abs(X), form.seN) + Math.pow(Math.abs(Z), form.seN) > CAP_SILHOUETTE_CLIP) continue;
+      faces.push({ wpts, fill: shadeHex(sampleStickerCard(cap.card, (u0 + u1) / 2, (v0 + v1) / 2, cctx), cap.n, light), role: `${cap.card.id}:${i}.${j}`, dist: dist(cc) });
     }
   }
 

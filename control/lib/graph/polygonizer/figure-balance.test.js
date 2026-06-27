@@ -56,4 +56,19 @@ describe('figure-balance — ground vault (pelvis-height / inverted pendulum)', 
     const v = groundVault(fk, { plant: { L: 1, R: 0 } });
     expect(v.ankleR.z).toBeGreaterThan(GROUND + 0.02);           // swing foot stays up, not planted
   });
+
+  it('carries the COM over the planted foot in single support — the MECHANICAL weight-shift', () => {
+    const fk = articulate({});
+    // left single support → the pelvis travels over the LEFT foot (x ≈ −0.10), not the spine.
+    const left = groundVault(fk, { plant: { L: 1, R: 0 } });
+    expect(left.pelvisHub.x).toBeLessThan(-0.05);
+    expect(left.pelvisHub.x).toBeCloseTo(base.ankleL.x, 1);      // ~over the stance foot
+    expect(left.ankleL.z).toBeCloseTo(GROUND, 4);                // …which stays pinned to the floor
+    // right single support → mirror; and the two are symmetric.
+    const right = groundVault(fk, { plant: { L: 0, R: 1 } });
+    expect(right.pelvisHub.x).toBeGreaterThan(0.05);
+    expect(right.pelvisHub.x).toBeCloseTo(-left.pelvisHub.x, 6);
+    // carry:0 restores the old sagittal-only vault — no lateral commit.
+    expect(groundVault(fk, { plant: { L: 1, R: 0 }, carry: 0 }).pelvisHub.x).toBeCloseTo(0, 6);
+  });
 });

@@ -441,6 +441,11 @@ function loadCards() {
   const CAMERAS = {};
   const SCENES = {};
   const SKIES = {};
+  // Flat, family-spanning index for semantic_search. Keyed by `${family}:${id}`
+  // (ids are only unique WITHIN a family, so the ref namespaces by family) and
+  // carries the markdown body — the strongest retrieval signal, which the
+  // frozen registries above deliberately drop.
+  const INDEX_CARDS = new Map();
   let files;
   try {
     files = readdirSync(CARDS_DIR).filter((f) => f.endsWith('.md')).sort();
@@ -449,7 +454,7 @@ function loadCards() {
   }
   for (const file of files) {
     const rawText = readFileSync(path.join(CARDS_DIR, file), 'utf8');
-    const { meta } = parseFrontmatter(rawText, file);
+    const { meta, body } = parseFrontmatter(rawText, file);
     const errors = validateCommon(meta, file);
     if (errors.length) {
       throw new Error(`painted-landscape card ${file}:\n - ${errors.join('\n - ')}`);
@@ -585,6 +590,17 @@ function loadCards() {
     } else {
       throw new Error(`painted-landscape card ${file}: unknown family '${meta.family}' (expected 'heartbeat', 'splatch', 'camera', 'scene', or 'sky')`);
     }
+    // Reaching here means the card validated and registered under a known
+    // family — record its indexable shape (ref namespaced by family).
+    const ref = `${meta.family}:${meta.id}`;
+    INDEX_CARDS.set(ref, Object.freeze({
+      ref,
+      id: meta.id,
+      family: meta.family,
+      intent: meta.intent,
+      aliases: Object.freeze([...(meta.aliases || [])]),
+      body: body || '',
+    }));
   }
   return {
     HEARTBEATS: Object.freeze(HEARTBEATS),
@@ -592,6 +608,7 @@ function loadCards() {
     CAMERAS: Object.freeze(CAMERAS),
     SCENES: Object.freeze(SCENES),
     SKIES: Object.freeze(SKIES),
+    INDEX_CARDS,
   };
 }
 
@@ -601,3 +618,12 @@ export const SPLATCHES = registries.SPLATCHES;
 export const CAMERAS = registries.CAMERAS;
 export const SCENES = registries.SCENES;
 export const SKIES = registries.SKIES;
+
+// Flat catalog spanning every family — the retrieval surface for
+// semantic_search (source_kind 'painted_landscape'). Mirrors
+// getManjiProgramCatalog()'s shape so reindexAll consumes it the same way.
+// Keyed by `${family}:${id}`; values carry { ref, id, family, intent,
+// aliases, body }.
+export function getPaintedLandscapeCardCatalog() {
+  return registries.INDEX_CARDS;
+}

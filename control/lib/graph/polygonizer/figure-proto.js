@@ -35,6 +35,8 @@ export const PROTO_DEFAULT = {
   // global
   height: 1.0,
   stockiness: 1.0,
+  headScale: 1.0,        // skull size about the neck join — the dominant child↔adult cue
+                         //   (>1 enlarges the cranium; "heads-tall" ages a figure down without armature edits)
   articulation: 'max',
   sex: 'male',
   stitched: true,        // canonical 8a build (pelvis folded in, tank + shirts)
@@ -109,7 +111,7 @@ export function proportioned(p, dim) {
  *   ground-IK solve while the rest of the body stays in the (warped) rest frame, in
  *   one pass. Default null → legs use `positions` (canonical, unchanged).
  */
-export function buildProtoform(positions, proto = {}, legNodes = null, footFlex = null) {
+export function buildProtoform(positions, proto = {}, legNodes = null, footFlex = null, handFlex = null) {
   const P = { ...PROTO_DEFAULT, ...proto };
   const dim = DIMORPH[P.sex];
   const SCALE = 12 * P.height;
@@ -148,20 +150,25 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     y: anchor.y + f.up.y * a + f.fwd.y * fw + f.side.y * sd,
     z: anchor.z + f.up.z * a + f.fwd.z * fw + f.side.z * sd,
   });
+  // headScale grows the skull about p.headBase (the neck↔skull join): every
+  // offset + radius is measured from headBase via onBone, so multiplying them by
+  // `hs` scales the head in place without detaching it from the neck (the head is
+  // a terminal segment — nothing rides on it). This is the child↔adult lever.
+  const hs = P.headScale;
   const headEggRings = (p) => {
     const f = boneFrame(p.headBase, p.headTop);
-    const top = onBone(p.headBase, f, 0.081, -0.012);
-    const cranial = onBone(p.headBase, f, 0.0525, -0.008);
-    const chin = onBone(p.headBase, f, 0.003, 0.018);
-    return worldRingsVajra(top, cranial, chin, [0.038, 0.052, 0.015], 40, 22);
+    const top = onBone(p.headBase, f, 0.081 * hs, -0.012 * hs);
+    const cranial = onBone(p.headBase, f, 0.0525 * hs, -0.008 * hs);
+    const chin = onBone(p.headBase, f, 0.003 * hs, 0.018 * hs);
+    return worldRingsVajra(top, cranial, chin, [0.038 * hs, 0.052 * hs, 0.015 * hs], 40, 22);
   };
   const faceMaskRings = (p) => {
     const f = boneFrame(p.headBase, p.headTop);
     const N = 11, M = 24, rings = [];
     for (let i = 0; i < N; i++) {
-      const t = i / (N - 1), along = 0.0525 + lerp(0.024, -0.072, t);   // cz±, along the head bone
+      const t = i / (N - 1), along = (0.0525 + lerp(0.024, -0.072, t)) * hs;   // cz±, along the head bone
       const env = Math.sin(Math.PI * (0.2 + 0.64 * t));
-      const wx = 0.044 * env, dy = 0.024 * env, cyc = 0.03 + 0.012 * t;
+      const wx = 0.044 * env * hs, dy = 0.024 * env * hs, cyc = (0.03 + 0.012 * t) * hs;
       const poly = [];
       for (let j = 0; j <= M; j++) { const a = (j / M) * Math.PI * 2; poly.push(toWorld(onBone(p.headBase, f, along, cyc + dy * Math.sin(a), wx * Math.cos(a)))); }
       rings.push({ polyline: poly, center: toWorld(onBone(p.headBase, f, along, cyc, 0)) });
@@ -344,7 +351,13 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const sp = Math.sin(Math.PI * (0.12 + 0.76 * t));
       const elbow = 1 - 0.36 * Math.pow(t, 2.2);
       const r = baseR * (0.5 + 0.5 * sp) * elbow * SCALE;
-      const bA = bicep * sp * elbow * SCALE, tA = tricep * sp * elbow * SCALE;
+      // Posterior (tricep) lobe is slimmed and its mass reallocated DOWN the arm toward the
+      // elbow: the mid-belly bulge is eased (less bulbous from the back) and a low taper
+      // (distalFill, peaking near the elbow) carries that volume into the joint so the cap
+      // reads as covered, not a separate bead. Anterior (bicep) gets the same gentle easing.
+      const distalFill = Math.exp(-Math.pow((t - 0.86) / 0.18, 2));
+      const bA = bicep * sp * elbow * SCALE * 0.86 + bicep * SCALE * 0.34 * distalFill;
+      const tA = tricep * sp * elbow * SCALE * 0.72 + tricep * SCALE * 0.40 * distalFill;
       const poly = [];
       for (let j = 0; j <= M; j++) {
         const th = (j / M) * Math.PI * 2, lat = Math.cos(th), apc = Math.sin(th);
@@ -367,8 +380,12 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     for (let i = 0; i < N; i++) {
       const t = i / (N - 1);
       const c = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t, z: A.z + (B.z - A.z) * t };
-      const belly = Math.exp(-Math.pow((t - 0.38) / 0.26, 2));
-      const r = (0.013 + 0.018 * P.forearm * belly + 0.011 * t * t) * SCALE;
+      // The flexor belly is eased (less bulbous) and part of its mass reallocated PROXIMALLY
+      // toward the elbow (elbowFill) so the forearm meets the joint with a fuller, smoother
+      // shoulder into the cap instead of a pinched neck below a fat belly.
+      const belly = Math.exp(-Math.pow((t - 0.40) / 0.30, 2));
+      const elbowFill = Math.exp(-Math.pow((t - 0.06) / 0.16, 2));
+      const r = (0.013 + 0.018 * P.forearm * belly * 0.82 + 0.0085 * P.forearm * elbowFill + 0.011 * t * t) * SCALE;
       const fr = r * 1.05, br = r * 0.92;
       const lr = r * (1 - 0.42 * P.wristTaper * Math.pow(t, 2.5));
       const poly = [];
@@ -430,17 +447,22 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       frames.push({ side: s, ap: vnorm(vcross(s, tang[i])) });
     }
     const rings = [];
+    // Thigh + calf VOLUME factors — same form decision as the arm: ease the bellies so
+    // the limb is leaner, the bulk reallocated toward the knee/ankle (the belly profiles
+    // already taper there) instead of a fat mid-belly. TH scales the thigh bulges (quad
+    // front, lat/med sides, ham), CF the calf. Glute/ankle bands left alone.
+    const TH = 0.78, CF = 0.78;
     for (let i = 0; i < N; i++) {
       const u = us[i], c = cs[i], { side, ap } = frames[i];
       const thigh = g(u, 0.3, 0.23), calfB = g(u, uK + 0.1, 0.22), pinch = g(u, uK, 0.05);
       const ankleHold = g(u, 1, 0.13);                       // tighter band → a slimmer ankle
       const glute = g(u, 0.13, 0.21);
       const hamB = g(u, 0.3, 0.13);
-      const r = baseR * (0.5 + 0.55 * thigh + 0.6 * calfB + 0.5 * ankleHold) * (1 - 0.34 * pinch) * SCALE;
-      const fr = r + quad * thigh * SCALE + calf * calfB * 0.25 * SCALE;
-      const br = r + post * glute * SCALE + ham * hamB * SCALE + calf * calfB * SCALE;
-      const latR = r + lat * thigh * SCALE + post * glute * 0.4 * SCALE + calf * calfB * 0.55 * SCALE;
-      const medR = r + med * thigh * SCALE + ham * hamB * 0.45 * SCALE + post * glute * 0.55 * SCALE + calf * calfB * 0.55 * SCALE;
+      const r = baseR * (0.5 + 0.55 * thigh * TH + 0.6 * calfB * CF + 0.5 * ankleHold) * (1 - 0.34 * pinch) * SCALE;
+      const fr = r + quad * thigh * TH * SCALE + calf * calfB * 0.25 * CF * SCALE;
+      const br = r + post * glute * SCALE + ham * hamB * TH * SCALE + calf * calfB * CF * SCALE;
+      const latR = r + lat * thigh * TH * SCALE + post * glute * 0.4 * SCALE + calf * calfB * 0.55 * CF * SCALE;
+      const medR = r + med * thigh * TH * SCALE + ham * hamB * 0.45 * TH * SCALE + post * glute * 0.55 * SCALE + calf * calfB * 0.55 * CF * SCALE;
       const poly = [];
       for (let j = 0; j <= M; j++) {
         const th = (j / M) * Math.PI * 2, cx = Math.cos(th), sy = Math.sin(th);
@@ -454,9 +476,13 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   };
 
   // ── masses (glutes / scapula buns) ──
+  // Female glute projects less to the REAR (−30%): both the fore-aft radius and the centre's
+  // backward offset are scaled, so the buttock bulges less AND sits less far back — the mass
+  // that reads in the LATERAL (side) view, distinct from anatomical-lateral (x) width.
+  const gluteRear = dim.sex === 'female' ? 0.70 : 1;
   const glute = (p, s) => ellipsoidRings(
-    { x: s * Math.abs(p.hipL.x) * 0.47, y: -0.035 * dim.glute * P.gluteSize, z: p.hipL.z - 0.045 },
-    0.052 * dim.glute * P.gluteSize, 0.055 * dim.glute * P.gluteSize, 0.062 * dim.glute * P.gluteSize,
+    { x: s * Math.abs(p.hipL.x) * 0.47, y: -0.035 * dim.glute * P.gluteSize * gluteRear, z: p.hipL.z - 0.045 },
+    0.052 * dim.glute * P.gluteSize, 0.055 * dim.glute * P.gluteSize * gluteRear, 0.062 * dim.glute * P.gluteSize,
   );
   // Hip cap — a rounded mass over the hip ball joint, nudged down the thigh so it
   // follows the leg's aim (the hip socket flesh moves WITH the leg, and the
@@ -466,7 +492,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const hp = s < 0 ? p.hipL : p.hipR, kn = s < 0 ? p.kneeL : p.kneeR;
     const dir = vnorm({ x: kn.x - hp.x, y: kn.y - hp.y, z: kn.z - hp.z });
     const c = { x: hp.x * 0.9 + dir.x * 0.03, y: hp.y + dir.y * 0.03, z: hp.z + dir.z * 0.03 };
-    return ellipsoidRings(c, 0.046 * dim.hip, 0.05, 0.052, { N: 14, M: 22 });
+    return ellipsoidRings(c, 0.0377 * dim.hip, 0.041, 0.0426, { N: 14, M: 22 });
   };
   const scapBun = (p, s) => ellipsoidRings(
     { x: s * Math.abs(p.shoulderL.x) * 0.6, y: -0.032, z: lerp(p.navel.z, p.neckHub.z, 0.82) },
@@ -480,7 +506,26 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const sh = s < 0 ? p.shoulderL : p.shoulderR, el = s < 0 ? p.elbowL : p.elbowR;
     const dir = vnorm({ x: el.x - sh.x, y: el.y - sh.y, z: el.z - sh.z });
     const c = { x: sh.x + dir.x * 0.026, y: sh.y + dir.y * 0.026 + 0.004, z: sh.z + dir.z * 0.026 };
-    return ellipsoidRings(c, 0.050 * dim.shoulder, 0.050, 0.058, { N: 16, M: 24 });
+    return ellipsoidRings(c, 0.040 * dim.shoulder, 0.040, 0.046, { N: 16, M: 24 });
+  };
+  // Elbow cap — a small superposed ball seated at the elbow joint, the deltoid trick
+  // for the hinge. As the elbow flexes, the upper-arm and forearm tubes meet at an
+  // angle and a gap opens on the OUTER (convex) side of the bend — whitespace leaks
+  // through the joint during arm motion. This ball fills that corner. It is nudged
+  // toward the elbow point (the bend bisector, away from the crease) by an amount that
+  // grows with the flex (≈0 when straight), seated slightly behind with a smaller
+  // anterior radius so it does not push the FRONT silhouette. Rides the arm rigidly
+  // (RIGID_ARM_STACKS) through the spine warp, like the deltoid/forearm.
+  const elbowCap = (p, s) => {
+    const sh = s < 0 ? p.shoulderL : p.shoulderR, el = s < 0 ? p.elbowL : p.elbowR, wr = s < 0 ? p.wristL : p.wristR;
+    const up = vnorm(vsub(sh, el)), dn = vnorm(vsub(wr, el));         // elbow → shoulder, elbow → wrist
+    const bis = { x: up.x + dn.x, y: up.y + dn.y, z: up.z + dn.z };   // 0 when straight (up ≈ −dn), grows as it folds
+    const bend = Math.hypot(bis.x, bis.y, bis.z);
+    const outer = bend > 1e-6 ? { x: -bis.x / bend, y: -bis.y / bend, z: -bis.z / bend } : { x: 0, y: -1, z: 0 };
+    const k = 0.011 * bend;                                           // nudge toward the elbow point, only when bent
+    const c = { x: el.x + outer.x * k, y: el.y + outer.y * k - 0.004, z: el.z + outer.z * k };
+    const rr = 0.019 * (0.85 + 0.15 * dim.limb);
+    return ellipsoidRings(c, rr, rr * 0.85, rr, { N: 12, M: 20 });
   };
 
   // ── foot / hand ──
@@ -594,23 +639,55 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
     const at = (c, u, su, v, sv) => ({ x: c.x + u.x * su + v.x * sv, y: c.y + u.y * su + v.y * sv, z: c.z + u.z * su + v.z * sv });
     const g = (x, mu, s) => Math.exp(-Math.pow((x - mu) / s, 2));
-    const d = norm(sub(wr, el));
+    // Rodrigues rotation of vector `v` about unit axis `k` by `ang` (radians).
+    const rotV = (v, k, ang) => {
+      const c = Math.cos(ang), s = Math.sin(ang), kd = k.x * v.x + k.y * v.y + k.z * v.z;
+      const kx = { x: k.y * v.z - k.z * v.y, y: k.z * v.x - k.x * v.z, z: k.x * v.y - k.y * v.x };
+      return { x: v.x * c + kx.x * s + k.x * kd * (1 - c), y: v.y * c + kx.y * s + k.y * kd * (1 - c), z: v.z * c + kx.z * s + k.z * kd * (1 - c) };
+    };
+    let d = norm(sub(wr, el));                                // forearm direction (wrist → fingertips)
     const dn = d.y;
-    const wAx = norm({ x: -d.x * dn, y: 1 - d.y * dn, z: -d.z * dn });
-    const tAx = norm(cross(d, wAx));
+    let wAx = norm({ x: -d.x * dn, y: 1 - d.y * dn, z: -d.z * dn });   // across-hand (width) axis
+    let tAx = norm(cross(d, wAx));                            // palm normal (palm ↔ back-of-hand)
+    // WRIST JOINT — the hand articulates relative to the forearm (the mirror of the ANKLE, which
+    // flexes the foot relative to the shank). `flex` rotates the hand about the across-hand axis:
+    // + = extension (back of hand / fingers up), − = palmar flexion (fingers down toward the palm).
+    // `deviation` rotates about the palm normal: + = radial, − = ulnar. The frame is rotated up
+    // front, so the whole palm + thumb swing off the wrist (no hand node — the bend lives here).
+    const hf = handFlex ? (sgn < 0 ? handFlex.L : handFlex.R) : null;
+    const flexA = (hf ? Math.max(-75, Math.min(75, hf.flex || 0)) : 0) * Math.PI / 180;
+    const devA = (hf ? Math.max(-30, Math.min(30, hf.deviation || 0)) : 0) * Math.PI / 180;
+    if (flexA) { d = norm(rotV(d, wAx, flexA)); tAx = norm(rotV(tAx, wAx, flexA)); }
+    if (devA) { d = norm(rotV(d, tAx, devA)); wAx = norm(rotV(wAx, tAx, devA)); }
     const out = [];
     const L = 0.10 * P.handSize, NL = 8, M = 22, palm = [];
+    // FINGER (knuckle/MCP) CURL — the mirror of the toe (MTP) joint: the palm past the knuckle
+    // line folds toward the palm about the across-hand axis (a relaxed/closing hand). `curl` ∈
+    // 0..90° (+ = closing). Like the foot's forefoot breaking over the ball, the fingers break
+    // over the knuckles.
+    const curlA = (hf ? Math.max(0, Math.min(90, hf.curl || 0)) : 0) * Math.PI / 180;
+    const knT = 0.55;                                         // knuckle line, fraction along the palm
+    const Kp = { x: wr.x + d.x * L * knT, y: wr.y + d.y * L * knT, z: wr.z + d.z * L * knT };
     for (let i = 0; i < NL; i++) {
-      const t = i / (NL - 1), c = { x: wr.x + d.x * L * t, y: wr.y + d.y * L * t, z: wr.z + d.z * L * t };
+      const t = i / (NL - 1);
+      let c = { x: wr.x + d.x * L * t, y: wr.y + d.y * L * t, z: wr.z + d.z * L * t };
+      let tx = tAx;
+      if (curlA && t > knT) {                                 // fold the fingers down about the knuckle
+        const a = -curlA * (t - knT) / (1 - knT);             // − about wAx curls toward the palm
+        const off = rotV(sub(c, Kp), wAx, a);
+        c = { x: Kp.x + off.x, y: Kp.y + off.y, z: Kp.z + off.z };
+        tx = rotV(tAx, wAx, a);
+      }
       const ww = (0.016 + 0.020 * g(t, 0.42, 0.40) - 0.012 * t * t) * P.handSize, th = 0.013 * (1 - 0.45 * t) * P.handSize;
       const poly = [];
       for (let j = 0; j <= M; j++) {
         const a = (j / M) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), rd = 0.7;
-        poly.push(toWorld(at(c, wAx, ww * Math.sign(ca) * Math.pow(Math.abs(ca), rd), tAx, th * Math.sign(sa) * Math.pow(Math.abs(sa), rd))));
+        poly.push(toWorld(at(c, wAx, ww * Math.sign(ca) * Math.pow(Math.abs(ca), rd), tx, th * Math.sign(sa) * Math.pow(Math.abs(sa), rd))));
       }
       palm.push({ polyline: poly, center: toWorld(c) });
     }
     out.push(palm);
+    // thumb — built from the (flexed + deviated) frame so it tracks the wrist.
     const tb = { x: wr.x + d.x * L * 0.20 + wAx.x * 0.016, y: wr.y + d.y * L * 0.20 + wAx.y * 0.016, z: wr.z + d.z * L * 0.20 + wAx.z * 0.016 };
     const med = -sgn;
     const thDir = norm({ x: wAx.x * 0.6 + d.x * 0.5 + tAx.x * med * 0.4, y: wAx.y * 0.6 + d.y * 0.5 + tAx.y * med * 0.4, z: wAx.z * 0.6 + d.z * 0.5 + tAx.z * med * 0.4 });
@@ -631,6 +708,13 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   // The legs/feet may ride a different (balanced/ground-IK) armature than the rest
   // of the body; pL is that armature, proportioned the same way. Default → p.
   const pL = legNodes ? proportioned(legNodes, dim) : p;
+  // Female pelvis tuned separately: bring the whole leg + hip IN toward the midline by 12%
+  // (the flesh that follows them — pelvis/diaper, hip cap, glute root, legs — comes in too).
+  if (dim.sex === 'female') {
+    for (const m of (pL === p ? [p] : [p, pL])) {
+      for (const k of ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR']) m[k].x *= 0.88;
+    }
+  }
   const ch = chakras(p), dan = ch.find((c) => c.name === 'dantien'), grn = ch.find((c) => c.name === 'groin');
   const pieces = [];
   const add = (id, rings) => pieces.push({ id, rings });
@@ -662,11 +746,14 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   }
   const danC = { x: 0, y: dan.c.y + 0.014, z: dan.c.z };
   add('dantien', ellipsoidRings(danC, dan.r * 0.82 * P.dantien, dan.r * 0.66 * P.dantien, dan.r * 0.82 * P.dantien));
+  // Groin orb reduced — 0.72 overall × an extra 0.72 anterior flatten (and the centre pulled
+  // back in y) — so it no longer reads as a big frontal bulge in the lateral profile: smaller
+  // from the front, pulled back, smoothed into the diaper. (Dantien left as-is.)
   if (dim.sex === 'male') {
-    const grnC = { x: 0, y: grn.c.y, z: grn.c.z - 0.04 * P.groinDrop };
-    add('groin', ellipsoidRings(grnC, grn.r * 0.8, grn.r * 0.85, grn.r));
+    const grnC = { x: 0, y: grn.c.y * 0.72, z: grn.c.z - 0.04 * P.groinDrop };
+    add('groin', ellipsoidRings(grnC, grn.r * 0.576, grn.r * 0.441, grn.r * 0.72));
   } else {
-    add('groin', ellipsoidRings({ x: 0, y: 0.020, z: grn.c.z + 0.006 }, 0.030, 0.034, 0.034));
+    add('groin', ellipsoidRings({ x: 0, y: 0.0144, z: grn.c.z + 0.006 }, 0.0216, 0.0176, 0.0245));
   }
   add('deltoidL', deltoidCap(p, -1));
   add('deltoidR', deltoidCap(p, 1));
@@ -674,6 +761,8 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   add('upperArmR', upperArmRings(p.shoulderR, p.elbowR));
   add('forearmL', forearmRings(p, -1));
   add('forearmR', forearmRings(p, 1));
+  add('elbowCapL', elbowCap(p, -1));
+  add('elbowCapR', elbowCap(p, 1));
   for (const rs of handRings(p, -1)) add('handL', rs);
   for (const rs of handRings(p, 1)) add('handR', rs);
   add('hipCapL', hipCap(pL, -1));

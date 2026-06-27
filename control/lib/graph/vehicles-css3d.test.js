@@ -27,8 +27,11 @@ describe('vehicles-css3d', () => {
       const faces = vehicleFaces({ type, cx: 5, cy: 3 });
       expect(faces.length).toBeGreaterThan(40);                  // swept shell = many facets
       expect(faces.every(validFace)).toBe(true);
-      // coin wheels on wheeled vehicles only — the plane and the rail-borne tram have none
-      if (!['aircraft', 'tram'].includes(VEHICLE_REGISTRY[type].class)) expect(faces.some((f) => f.clip === 'circle(50%)')).toBe(true);
+      // coin wheels on wheeled SWEPT vehicles only — the plane and rail-borne tram have none,
+      // and the cyclist (a workbench composite) carries real spoked-wheel geometry instead.
+      // The cap is a square quad with radius:'50%' (rounds in BOTH css3d and the three.js
+      // realizer); a circle() clip would only round in css3d.
+      if (!['aircraft', 'tram', 'cyclist'].includes(VEHICLE_REGISTRY[type].class)) expect(faces.some((f) => f.radius === '50%')).toBe(true);
     }
   });
 
@@ -92,8 +95,9 @@ describe('vehicles-css3d', () => {
     expect(lot).not.toContain('boxTruck');
     expect(lot).not.toContain('airliner');                     // the plane never enters a car lot
     expect(vehicleTypesFor('street')).toEqual(expect.arrayContaining(['cityBus', 'boxTruck']));
-    // the airfield fleet — every aircraft class, and ONLY aircraft (the annotation keeps planes to their own context)
-    expect(vehicleTypesFor('airfield')).toEqual(['airliner', 'widebody', 'regional', 'bizjet']);
+    // the airfield fleet — ground-support equipment (GSE) + every aircraft class, and ONLY
+    // those (the annotation keeps both GSE and planes to the airfield context)
+    expect(vehicleTypesFor('airfield')).toEqual(['cateringTruck', 'opsWagon', 'beltLoader', 'boardingStairs', 'airliner', 'widebody', 'regional', 'bizjet']);
     expect(vehicleTypesFor('orbit')).toEqual([]);              // a context nothing is tagged for → nothing
   });
 

@@ -38,6 +38,9 @@ each a 3-view contact sheet (frontal · three-quarter · lateral) unless noted.
 | `13-dimorphism-pair` | male \| female (4 panels) — the sex axis from one generator |
 | `14-female-vexar` | the female pole alone |
 | `15-female-vexar-bust-study` | **piece study**: golden-ratio breast ring-waves, wireframe |
+| `48-human-builds` | somatotype taxonomy — ecto / meso / endo × male / female (auto-fit → shape) |
+| `49-human-sizes` | stature lineup on a **shared scale** + common ground line (toddler→tall ♂); `height` reads true |
+| `50-child-head-ratio` | `headScale` 1.0 / 1.4 / 1.8 ages one figure adult→child→toddler (heads-tall) |
 
 ## Two study modes
 
@@ -74,7 +77,8 @@ To study a new region (e.g. a shoulder, glute, knee) the way the bust was done:
 ## Sex / tuning
 
 `DIM = DIMORPH.male | .female` (set before a render) drives the dimorphic pole;
-`GIRTH` (stockiness) and `PROTO.height` are the global knobs. See
+`GIRTH` (stockiness), `PROTO.height`, and `PROTO.headScale` (skull size — the
+child↔adult lever) are the global knobs. See
 [figure-proto-params.plan.md](../../../lite-template/integration/0610/figure-proto-params.plan.md)
 and [figure-dimorphism.plan.md](../../../lite-template/integration/0610/figure-dimorphism.plan.md).
 The rig/metadata is [figure-rig.js](../../../control/lib/graph/polygonizer/figure-rig.js).

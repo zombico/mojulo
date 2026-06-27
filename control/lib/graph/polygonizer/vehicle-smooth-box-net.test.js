@@ -13,7 +13,7 @@ const projectPoint = (w) => [w[1] * 40, 400 - w[2] * 40];
 
 describe('vehicle-smooth-box-net', () => {
   it('registers bus / van / truck and resolves their cards', () => {
-    expect(Object.keys(SMOOTH_BOX_NETS)).toEqual(['city-bus', 'box-van', 'box-truck', 'delivery-truck', 'streetcar']);
+    expect(Object.keys(SMOOTH_BOX_NETS)).toEqual(['city-bus', 'box-van', 'box-truck', 'catering-truck', 'belt-loader', 'boarding-stairs', 'delivery-truck', 'streetcar']);
     const bus = resolveSmoothBoxNet('city-bus');
     expect(bus.body.id).toBe('bus-body');
     expect(bus.front.id).toBe('bus-front');

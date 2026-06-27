@@ -17,11 +17,31 @@ Each station: `{ id, kind, label, sublabel?, items?, x, y, w, h }` (or a `cell`
 instead of x/y/w/h when a `grid` is declared).
 
 ## Edges
-`{ from, to, label?, via?, curvature? }` — `label` is a lowercase verb
+`{ from, to, label?, via?, curvature?, pulse? }` — `label` is a lowercase verb
 ("writes", "reads", "triggers"). The default is an S-curve between the two boxes.
 If a straight line would pierce a third station, set `via` to the side to route
 around (`right`/`left` for vertical lanes, `top`/`bottom` for horizontal).
 `curvature` (0.2–3) swoops (>1) or flattens (<1) the default curve.
+
+## Pulse — the "A pings B" primitive (a live edge)
+Give an edge a `pulse` to send token(s) traveling along it. They animate with
+native SVG `<animateMotion>`, so the motion plays in the viewer AND in the
+exported standalone `.svg` — no motion bake, no GIF, no JS. Use it to show
+*flow over a connection*: a packet hop, a request, a signal, data moving.
+
+`pulse: { count?, period?, size?, color?, dir? }`
+- `count` — tokens in flight at once (1–12, default 1); staggered evenly along the path
+- `period` — seconds for one traversal (default 2; smaller = faster)
+- `size` — token radius in px (default 4)
+- `color` — token fill (default the teal accent)
+- `dir` — `forward` (from→to, default), `reverse` (to→from), or `pingpong` (out and back)
+
+```json
+edge: { "from": "host", "to": "router", "label": "packet",
+        "pulse": { "count": 3, "period": 1.2, "dir": "forward" } }
+```
+A round-trip ("ping → reply") reads best as two edges: a `forward` pulse on
+host→server and a `reverse` (or a second edge) for the reply.
 
 ## Layout patterns
 - left→right pipeline: single lane, 3–5 stations, even x stride

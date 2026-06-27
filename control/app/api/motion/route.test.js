@@ -85,7 +85,7 @@ describe('GET /api/motion', () => {
 
 describe('motion gallery page module', () => {
   it('compiles (JSX) and exports a component', async () => {
-    const mod = await import('@/app/motion/page.jsx');
+    const mod = await import('@/app/maker/motion/page.jsx');
     expect(typeof mod.default).toBe('function');
   });
 });
