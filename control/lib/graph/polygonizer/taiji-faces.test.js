@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { taijiToFaces, FACE_SAMPLES, FACE_CROSS_SECTIONS } from './taiji-faces.js';
 import { plantToFaces } from './plant-faces.js';
-import { faceListToMesh } from '../face-mesh.js';
+import { faceListToMesh } from '../figures/face-mesh.js';
 
 const isHex = (s) => /^#[0-9a-f]{6}$/i.test(s);
 const finiteVec = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);

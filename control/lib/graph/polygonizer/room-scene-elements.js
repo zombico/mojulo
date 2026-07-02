@@ -8,7 +8,7 @@
  */
 
 import { projectTwoPoint } from './pure-mandala.js';
-import { planKitchenRun } from '../kitchen-run.js';
+import { planKitchenRun } from '../architecture/kitchen-run.js';
 
 const DEFAULT_PRESETS = {
   rug: { surface: 'floor', aspect: 1.55, areaShare: 0.18, motif: 'woven-rug', height: 0.02, supportPattern: 'none', planeRole: 'floor-skin' },

@@ -36,9 +36,15 @@ export const QUADRUPED_DEFAULT = {
   headLength: 0.10,
   // leg joint heights as a fraction of backHeight (ground = 0, girdle = 1):
   foreKneeFrac: 0.52, foreFootFrac: 0.21,
-  hindKneeFrac: 0.51, hindFootFrac: 0.14,
-  // joint fore/aft bend (STAND) — the stance, not a straight post:
-  foreKneeBack: 0.045, foreFootFwd: 0.02, hindKneeFwd: 0.05, hindFootBack: 0.025,
+  // CLEAN hind-leg model (operator's construction): the FEMUR starts at the TOP of the pelvis
+  // (hip at the topline z=H) and drops VERTICAL (6 o'clock) to a knee at MID-leg → a visible
+  // vertical thigh, not a stub hidden in the body. Then EVERYTHING BELOW the knee bends BACK.
+  hindKneeFrac: 0.50, hindFootFrac: 0.14,   // knee mid (long visible femur); hock low
+  // joint fore/aft bend (STAND): femur vertical (hindKneeFwd 0), lower leg bent BACK (hock behind
+  // the knee) → the bottom-bent-back hind leg, foot trailing under the rump.
+  foreKneeBack: 0.045, foreFootFwd: 0.02, hindKneeFwd: 0.0, hindFootBack: 0.11,   // lower leg ≈ 7 o'clock (30° back of vertical) for the wolf's H; absolute STAND → small species dial down (fox)
+  pelvisBack: 0,        // (kept as a knob; a pure translation of the whole hindquarter is camera-invisible,
+                        //   so it is NOT the lever for "rump sticks out" — the lean/taper silhouette is)
   // fore-limb mode: 'ground' (quadruped — drops to the floor) or 'tuck' (BIPED — a
   // small raised arm near the chest, NOT weight-bearing; the hind legs alone carry
   // the body). Theropods tuck. Offsets are off the shoulder (forward +y, down -z).
@@ -84,8 +90,12 @@ export function quadrupedNodes(cfg = {}) {
   const H = c.backHeight, T = c.trunkLength;
   const q = {};
   // ── spine beam (rear → front), with a gentle loin arch at the mid-back ──
-  q.pelvisHub = v(0, 0, H);
-  q.navel     = v(0, T * 0.45, H + c.backArch);
+  // pelY shifts the whole HINDQUARTER rearward (quadruped standing stance): the pelvis end
+  // of the spine, the hip girdle, and the tail root (which anchors at pelvisHub) all move
+  // back TOGETHER, so the legs attach at the relocated pelvis with no thigh stretch.
+  const pelY = c.foreMode === 'ground' ? -(c.pelvisBack || 0) : 0;
+  q.pelvisHub = v(0, pelY, H);
+  q.navel     = v(0, pelY + (T - pelY) * 0.45, H + c.backArch);
   q.neckHub   = v(0, T, H);
   // ── neck + head, forward and up off the front of the spine ──
   const neckDir = rotEW(v(0, 1, 0), c.neckAngle);                 // +y rotated up by neckAngle
@@ -93,12 +103,14 @@ export function quadrupedNodes(cfg = {}) {
   const headDir = rotEW(neckDir, c.headPitch);                    // muzzle drops off the neck line
   q.headTop = add(q.headBase, mul(headDir, c.headLength));
   // ── girdles (the limb roots) sit on the spine ends; limbs drop to the ground ──
+  // the hind girdle sits AT the (rearward-shifted) pelvis, so the leg roots there with no
+  // stretch; knee/ankle are offset off that pelvis y (stifle forward, hock back).
   for (const [s, sgn] of [['L', -1], ['R', 1]]) {
-    q['hip' + s]      = v(sgn * c.hipHalf, 0, H);
+    q['hip' + s]      = v(sgn * c.hipHalf, pelY, H);
     q['shoulder' + s] = v(sgn * c.shoulderHalf, T, H);
     // hind leg: hip → knee (stifle forward) → ankle (hock back), to the ground
-    q['knee' + s]  = v(sgn * c.hipHalf, c.hindKneeFwd, H * c.hindKneeFrac);
-    q['ankle' + s] = v(sgn * c.hipHalf, -c.hindFootBack, H * c.hindFootFrac);
+    q['knee' + s]  = v(sgn * c.hipHalf, pelY + c.hindKneeFwd, H * c.hindKneeFrac);
+    q['ankle' + s] = v(sgn * c.hipHalf, pelY - c.hindFootBack, H * c.hindFootFrac);
     if (c.foreMode === 'tuck') {
       // biped: a small raised arm held near the chest (forward + down off the shoulder)
       q['elbow' + s] = v(sgn * c.shoulderHalf, T + c.tuckElbowFwd, H - c.tuckElbowDrop);
@@ -151,16 +163,18 @@ export const QUADRUPED_ARCHETYPES = {
   // rats / mice / squirrels / hamsters — small, hunched, BIG hindquarters, short
   // neck, big head, short front paws. ('long rats' like meerkats: raise trunkLength.)
   rodent: {
+    skin: { tag: 'fur' },
     backHeight: 0.30, trunkLength: 0.40, backArch: 0.045, hipHalf: 0.10, shoulderHalf: 0.075,
     neckLength: 0.11, neckAngle: 52, headPitch: -6, headLength: 0.105,
     foreKneeFrac: 0.50, foreFootFrac: 0.12, hindKneeFrac: 0.56, hindFootFrac: 0.10,
     // gentle single-direction bend (no fore/aft reversal) so the thin limb vajra bridges
-    foreKneeBack: 0.022, foreFootFwd: 0.0, hindKneeFwd: 0.04, hindFootBack: 0.0,
+    foreKneeBack: 0.022, foreFootFwd: 0.0, hindKneeFwd: 0.05, hindFootBack: 0.04,   // MILD hock-back (plantigrade-ish rodent)
     girthBody: 1.15, girthFore: 0.9, girthHind: 1.5, girthHead: 1.25,
     tail: { length: 0.55, droop: 6, rootR: 0.020, tipR: 0.006, waveAmp: 0.05, waveN: 0.7 },
   },
   // dogs / wolves — the balanced walker: medium legs, deep chest, even fore/hind.
   canine: {
+    skin: { tag: 'fur' },
     backHeight: 0.42, trunkLength: 0.50, backArch: 0.015, hipHalf: 0.085, shoulderHalf: 0.095,
     neckLength: 0.20, neckAngle: 40, headPitch: -16, headLength: 0.11,
     girthBody: 1.05, girthFore: 1.0, girthHind: 1.0, girthHead: 0.95,
@@ -169,6 +183,7 @@ export const QUADRUPED_ARCHETYPES = {
   // cats / big cats — feline sibling of canine: lower, suppler, smaller head,
   // longer tail, slightly leaner.
   feline: {
+    skin: { tag: 'fur' },
     backHeight: 0.38, trunkLength: 0.47, backArch: 0.02, hipHalf: 0.082, shoulderHalf: 0.088,
     neckLength: 0.15, neckAngle: 30, headPitch: -10, headLength: 0.095,
     foreKneeFrac: 0.50, hindKneeFrac: 0.50,
@@ -178,6 +193,7 @@ export const QUADRUPED_ARCHETYPES = {
   // rhino / elephant / hippo — STUMPY: heavy barrel, wide track, short thick pillar
   // legs (near-straight = stable), big head, short low neck.
   stumpy: {
+    skin: { tag: 'hide' },
     backHeight: 0.44, trunkLength: 0.56, backArch: 0.01, hipHalf: 0.125, shoulderHalf: 0.13,
     neckLength: 0.11, neckAngle: 18, headPitch: -8, headLength: 0.12,
     foreKneeFrac: 0.55, foreFootFrac: 0.16, hindKneeFrac: 0.55, hindFootFrac: 0.12,
@@ -187,16 +203,18 @@ export const QUADRUPED_ARCHETYPES = {
   },
   // horses — long straight legs, long neck, level back, long head; built for gallop.
   equine: {
+    skin: { tag: 'hide' },
     backHeight: 0.58, trunkLength: 0.52, backArch: 0.008, hipHalf: 0.085, shoulderHalf: 0.09,
     neckLength: 0.30, neckAngle: 38, headPitch: -26, headLength: 0.14,
     foreKneeFrac: 0.54, foreFootFrac: 0.10, hindKneeFrac: 0.52, hindFootFrac: 0.08,
-    foreKneeBack: 0.03, hindKneeFwd: 0.04,
+    foreKneeBack: 0.03, hindKneeFwd: 0.04, hindFootBack: 0.05,   // moderate hock-back (unguligrade — pinned, not the digitigrade default)
     girthBody: 1.05, girthFore: 0.85, girthHind: 0.92, girthHead: 0.85,
     tail: { length: 0.5, droop: 34, rootR: 0.022, tipR: 0.01, wavePlane: 'vertical', waveAmp: 0.04 },
   },
   // gazelle / deer — slender hopper: long THIN legs, light body, alert upright neck,
   // small head, more leg bend (spring).
   gazelle: {
+    skin: { tag: 'hide' },
     backHeight: 0.55, trunkLength: 0.42, backArch: 0.02, hipHalf: 0.07, shoulderHalf: 0.072,
     neckLength: 0.26, neckAngle: 46, headPitch: -18, headLength: 0.10,
     foreKneeFrac: 0.50, foreFootFrac: 0.09, hindKneeFrac: 0.48, hindFootFrac: 0.08,
@@ -211,6 +229,7 @@ export const QUADRUPED_ARCHETYPES = {
   // — a long neck and a long heavy tail — with a tiny head. The built-in head triple
   // is collapsed to a nub at the neck hub; the neck CHAIN carries the real reach.
   sauropod: {
+    skin: { tag: 'scale' },
     backHeight: 0.52, trunkLength: 0.64, backArch: 0.02, hipHalf: 0.13, shoulderHalf: 0.125,
     neckLength: 0.05, neckAngle: 40, headPitch: 0, headLength: 0.045,   // collapsed nub — chain carries the neck
     foreKneeFrac: 0.56, foreFootFrac: 0.10, hindKneeFrac: 0.56, hindFootFrac: 0.08,
@@ -224,6 +243,7 @@ export const QUADRUPED_ARCHETYPES = {
   // TAIL cantilevered back as the counterweight; tiny tucked forelimbs; a short thick
   // neck carrying a big head (short neckChain, large tipR).
   theropod: {
+    skin: { tag: 'scale' },
     backHeight: 0.52, trunkLength: 0.40, backArch: 0.012, hipHalf: 0.10, shoulderHalf: 0.10,
     neckLength: 0.05, neckAngle: 30, headLength: 0.045,           // collapsed nub — neckChain carries the head
     foreMode: 'tuck', tuckElbowFwd: 0.04, tuckElbowDrop: 0.10, tuckWristFwd: 0.09, tuckWristDrop: 0.14,
@@ -236,6 +256,7 @@ export const QUADRUPED_ARCHETYPES = {
   // grasping forelimbs (still tucked), a horizontal S-neck with a small head, and a
   // long STIFF tail held out for balance (low waveAmp).
   raptor: {
+    skin: { tag: 'feather' },
     backHeight: 0.42, trunkLength: 0.34, backArch: 0.015, hipHalf: 0.072, shoulderHalf: 0.072,
     neckLength: 0.05, neckAngle: 34, headLength: 0.04,
     foreMode: 'tuck', tuckElbowFwd: 0.07, tuckElbowDrop: 0.10, tuckWristFwd: 0.15, tuckWristDrop: 0.13,
@@ -249,6 +270,7 @@ export const QUADRUPED_ARCHETYPES = {
   // the flank by default), an S-curved neck with a small beaked head, and a short
   // broad tail (the feather fan). Wings can be spread by raising the wing*Out knobs.
   avian: {
+    skin: { tag: 'feather' },
     backHeight: 0.40, trunkLength: 0.30, backArch: 0.02, hipHalf: 0.058, shoulderHalf: 0.07,
     neckLength: 0.05, neckAngle: 42, headLength: 0.038,
     foreMode: 'wing',                                       // folded-wing defaults
@@ -264,12 +286,27 @@ export const QUADRUPED_ARCHETYPES = {
   // short thick neck (the built-in head triple, no neckChain), and a stub tail. It
   // also REARS — see URSINE_REAR, which reuses the theropod biped primitives.
   ursine: {
+    skin: { tag: 'fur' },
     backHeight: 0.42, trunkLength: 0.52, backArch: 0.028, hipHalf: 0.108, shoulderHalf: 0.118,
     neckLength: 0.13, neckAngle: 24, headPitch: -12, headLength: 0.125,
     foreKneeFrac: 0.54, foreFootFrac: 0.12, hindKneeFrac: 0.52, hindFootFrac: 0.10,
-    foreKneeBack: 0.022, foreFootFwd: 0.0, hindKneeFwd: 0.03, hindFootBack: 0.0,   // near-straight, no reversal (plantigrade)
+    foreKneeBack: 0.022, foreFootFwd: 0.0, hindKneeFwd: 0.04, hindFootBack: 0.04,   // MILD hock-back — plantigrade stays flatter (heel down) than the digitigrade default
     girthBody: 1.45, girthFore: 1.5, girthHind: 1.42, girthHead: 1.2,
     tail: { length: 0.12, droop: 30, rootR: 0.016, tipR: 0.006, segments: 8, waveAmp: 0.008 },   // stub tail
+  },
+  // RACCOON — a procyonid: a CANIFORM CARNIVORAN (sibling of the bear, NOT a rodent).
+  // The ursine plan scaled DOWN and lightened: plantigrade like the bear, hunched back,
+  // a pear-shaped heavy haunch, a pointier muzzle, bigger ears, and — the tell — a long
+  // THICK (bushy, ring-furred) tail carried out behind. Same carnivoran package as the
+  // bear, just smaller; reusing the ursine armature, not the rodent's.
+  raccoon: {
+    skin: { tag: 'fur' },
+    backHeight: 0.30, trunkLength: 0.42, backArch: 0.05, hipHalf: 0.085, shoulderHalf: 0.082,
+    neckLength: 0.10, neckAngle: 30, headPitch: -16, headLength: 0.095,
+    foreKneeFrac: 0.52, foreFootFrac: 0.12, hindKneeFrac: 0.50, hindFootFrac: 0.10,
+    foreKneeBack: 0.02, foreFootFwd: 0.0, hindKneeFwd: 0.04, hindFootBack: 0.04,   // MILD hock-back — plantigrade stays flatter than the digitigrade default
+    girthBody: 1.2, girthFore: 1.05, girthHind: 1.3, girthHead: 1.0,              // pear-shaped, heavy haunch
+    tail: { length: 0.5, droop: 10, rootR: 0.038, tipR: 0.028, segments: 16, waveAmp: 0.03, waveN: 0.6, wavePlane: 'lateral' },   // long + thick → bushy
   },
 };
 
@@ -297,8 +334,8 @@ export const QUADRUPED_ARCHETYPE_NAMES = Object.keys(QUADRUPED_ARCHETYPES);
  */
 export function quadrupedArmature(archetype = {}) {
   const preset = typeof archetype === 'string' ? (QUADRUPED_ARCHETYPES[archetype] || {}) : archetype;
-  const { tail: tailCfg = {}, neck: neckCfg = null, ...cfg } = preset;
-  return { cfg, nodes: quadrupedNodes(cfg), radii: quadrupedRadii(cfg), tailCfg, neckCfg };
+  const { tail: tailCfg = {}, neck: neckCfg = null, skin = null, ...cfg } = preset;
+  return { cfg, nodes: quadrupedNodes(cfg), radii: quadrupedRadii(cfg), tailCfg, neckCfg, skin };
 }
 
 // ─── Chain appendage — the topology extension (tail AND neck) ───────────
@@ -324,6 +361,11 @@ export const CHAIN_DEFAULT = {
                         //   directions are opposite, so + lifts the neck / drops the tail)
   rootR: 0.032,         // radius at the root (~ the hub it joins, so it merges)
   tipR: 0.009,          // radius at the tip (taper)
+  // optional TEARDROP profile: radius bulges to `bulgeR` at `bulgeAt` (s along the chain)
+  // then tapers to `tipR` — a fox brush / leaf-shaped plume (narrow attach, fat middle,
+  // pointed tip). null `bulgeR` → the plain linear root→tip taper (every other chain).
+  bulgeR: null,
+  bulgeAt: 0.35,
   segments: 20,         // rings sampled along the chain
   around: 18,           // points per ring
   // sine/cosine articulation
@@ -373,7 +415,16 @@ export function chainAppendage(nodes, cfg = {}, phase = null) {
     const disp = c.waveAmp * env * Math.sin(2 * Math.PI * c.waveN * s + ph);
     const planeVec = c.wavePlane === 'vertical' ? vert : side;
     const center = add(p, mul(planeVec, disp));
-    const r = c.rootR + (c.tipR - c.rootR) * s;
+    // teardrop: root→bulge→tip (smoothstep each segment) when bulgeR set; else linear taper.
+    let r;
+    if (c.bulgeR != null) {
+      const a = c.bulgeAt, sm = (t) => t * t * (3 - 2 * t);
+      r = s <= a
+        ? c.rootR + (c.bulgeR - c.rootR) * sm(s / (a || 1e-6))
+        : c.bulgeR + (c.tipR - c.bulgeR) * sm((s - a) / ((1 - a) || 1e-6));
+    } else {
+      r = c.rootR + (c.tipR - c.rootR) * s;
+    }
     const poly = [];
     for (let j = 0; j <= A; j++) {
       const ang = (j / A) * Math.PI * 2;

@@ -14,7 +14,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planCellularScene } from '@/lib/graph/cellular-view';
+import { planCellularScene } from '@/lib/graph/views/bio/cellular-view';
 
 const CELL_TYPES = ['animal', 'plant'];
 

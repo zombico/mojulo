@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planDoubleSlitScene, DOUBLE_SLIT_SCENARIOS } from '@/lib/graph/double-slit-view';
+import { planDoubleSlitScene, DOUBLE_SLIT_SCENARIOS } from '@/lib/graph/views/science/double-slit-view';
 
 export function mintDoubleSlitView({ title, scenario, separation, slitWidth, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

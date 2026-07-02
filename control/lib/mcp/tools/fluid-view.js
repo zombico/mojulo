@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planFluidScene, FLUID_SCENARIOS } from '@/lib/graph/fluid-view';
+import { planFluidScene, FLUID_SCENARIOS } from '@/lib/graph/landscape/fluid-view';
 
 export function mintFluidView({ title, scenario, angle, density, viscosity, spin, emitters, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

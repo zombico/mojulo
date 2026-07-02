@@ -30,6 +30,7 @@ export const SKULL_DEFAULT = {
   muzzleDrop: 0.18, // how far the snout dips below the cranium line (× length)
   jaw: 0.6,         // lower-jaw depth (0 = none)
   beak: 0,          // beak length (× length) past the snout (0 = none)
+  boxy: 0,          // muzzle boxiness: 0 = conical/round, →1 = a broad squared-off block
   N: 14, M: 20, stroke: '#c8836a',
 };
 
@@ -54,14 +55,19 @@ function interp(st, q) {
 // Sweep an elliptical cross-section (side radius rh, up radius rv — fractions of
 // `width`) along `dir` for `L`, dipping by dz (× dropL) below the axis.
 function sweep(stations, anchor, dir, side, up, L, width, dropL, c) {
-  const rings = [];
+  const rings = [], bx = c.boxy || 0;
   for (let i = 0; i < c.N; i++) {
     const s = i / (c.N - 1), st = interp(stations, s);
     const center = add(anchor, add(mul(dir, s * L), mul(up, -st.dz * dropL)));
     const rh = width * st.rh, rv = width * st.rv, poly = [];
+    // square the cross-section toward the FRONT (a boxy muzzle); the cranium back stays
+    // round. A superellipse: exponent 1 = circle, <1 fills the corners toward a block.
+    const sq = bx * Math.min(1, Math.max(0, (s - 0.35) / 0.65)), pexp = 1 - 0.6 * sq;
     for (let j = 0; j <= c.M; j++) {
-      const ang = (j / c.M) * Math.PI * 2;
-      poly.push(add(center, add(mul(side, rh * Math.cos(ang)), mul(up, rv * Math.sin(ang)))));
+      const ang = (j / c.M) * Math.PI * 2, ca = Math.cos(ang), sa = Math.sin(ang);
+      const ux = sq > 0 ? Math.sign(ca) * Math.abs(ca) ** pexp : ca;
+      const uy = sq > 0 ? Math.sign(sa) * Math.abs(sa) ** pexp : sa;
+      poly.push(add(center, add(mul(side, rh * ux), mul(up, rv * uy))));
     }
     rings.push(poly);
   }
@@ -75,14 +81,18 @@ function sweep(stations, anchor, dir, side, up, L, width, dropL, c) {
 export function protoSkull(anchor, dirIn, cfg = {}) {
   const c = { ...SKULL_DEFAULT, ...cfg };
   const dir = normalize3(dirIn), { side, up } = frameFrom(dir);
-  const cranEnd = 1 - c.muzzle;
+  const cranEnd = 1 - c.muzzle, bx = c.boxy || 0;
+  // boxy muzzle keeps its breadth/depth to a BLUNT end; conical tapers to the nose.
+  const frontRh = (1 - bx) * Math.max(c.snout, 0.5) + bx * 0.82;
+  const tipRh = (1 - bx) * c.snout + bx * Math.max(c.snout, 0.66);
+  const tipRv = (1 - bx) * (c.snout * 0.85) + bx * 0.5;
   // cranium (back, domed up) → brow/stop → muzzle → nose tip (dropped)
   const main = [
     { s: 0.0, rh: 0.55, rv: 0.55, dz: -0.02 },
     { s: cranEnd * 0.5, rh: 1.0, rv: 1.0 * c.dome, dz: -0.05 },
     { s: cranEnd, rh: 0.72, rv: 0.74 * c.dome, dz: 0.02 },
-    { s: 1 - c.muzzle * 0.4, rh: Math.max(c.snout, 0.5), rv: 0.52, dz: c.muzzleDrop * 0.55 },
-    { s: 1.0, rh: c.snout, rv: c.snout * 0.85, dz: c.muzzleDrop },
+    { s: 1 - c.muzzle * 0.4, rh: frontRh, rv: 0.52, dz: c.muzzleDrop * 0.55 },
+    { s: 1.0, rh: tipRh, rv: tipRv, dz: c.muzzleDrop },
   ];
   const parts = [sweep(main, anchor, dir, side, up, c.length, c.width, c.length, c)];
   // lower jaw — a shorter, slimmer tube slung below the muzzle line
@@ -111,26 +121,29 @@ export function protoSkull(anchor, dirIn, cfg = {}) {
 
 // ─── Per-family proto-skulls (read off the silhouettes) ─────────────────
 export const SKULL_PRESETS = {
-  // big rounded cranium, short blunt snout, big cheeks
-  rodent: { length: 0.12, width: 0.052, dome: 1.15, muzzle: 0.45, snout: 0.42, muzzleDrop: 0.14, jaw: 0.45 },
+  // big rounded cranium, short blunt snout, big cheeks — rodents carry a BIG head for the body
+  rodent: { length: 0.155, width: 0.062, dome: 1.15, muzzle: 0.45, snout: 0.42, muzzleDrop: 0.14, jaw: 0.45, boxy: 0.5 },
   // defined elongated muzzle, moderate cranium
-  canine: { length: 0.18, width: 0.044, dome: 0.95, muzzle: 0.6, snout: 0.28, muzzleDrop: 0.2, jaw: 0.7 },
-  // short rounded muzzle, broad domed cranium (flat face)
-  feline: { length: 0.12, width: 0.05, dome: 1.08, muzzle: 0.36, snout: 0.42, muzzleDrop: 0.12, jaw: 0.55 },
+  canine: { length: 0.18, width: 0.044, dome: 0.95, muzzle: 0.6, snout: 0.28, muzzleDrop: 0.2, jaw: 0.7, boxy: 0.7 },
+  // short rounded muzzle, broad domed cranium (flat face) — bumped up; read small on the body
+  feline: { length: 0.145, width: 0.056, dome: 1.08, muzzle: 0.36, snout: 0.42, muzzleDrop: 0.12, jaw: 0.55, boxy: 0.6 },
   // big blocky heavy head, broad blunt muzzle
-  stumpy: { length: 0.21, width: 0.085, dome: 0.92, muzzle: 0.5, snout: 0.6, muzzleDrop: 0.1, jaw: 0.7 },
-  // long deep head, long muzzle (horse)
-  equine: { length: 0.25, width: 0.046, dome: 0.85, muzzle: 0.68, snout: 0.34, muzzleDrop: 0.16, jaw: 0.72 },
+  stumpy: { length: 0.21, width: 0.085, dome: 0.92, muzzle: 0.5, snout: 0.6, muzzleDrop: 0.1, jaw: 0.7, boxy: 0.8 },
+  // long deep head, long muzzle (horse) — widened so the long head reads beefier, not a stick
+  equine: { length: 0.25, width: 0.054, dome: 0.85, muzzle: 0.68, snout: 0.34, muzzleDrop: 0.16, jaw: 0.72, boxy: 0.45 },
   // small delicate tapered head
-  gazelle: { length: 0.15, width: 0.034, dome: 0.98, muzzle: 0.64, snout: 0.24, muzzleDrop: 0.18, jaw: 0.5 },
+  gazelle: { length: 0.15, width: 0.034, dome: 0.98, muzzle: 0.64, snout: 0.24, muzzleDrop: 0.18, jaw: 0.5, boxy: 0.35 },
   // tiny short boxy head (small relative to body)
   sauropod: { length: 0.12, width: 0.04, dome: 0.82, muzzle: 0.5, snout: 0.5, muzzleDrop: 0.08, jaw: 0.5 },
-  // huge deep tall skull, powerful jaw (T. rex)
-  theropod: { length: 0.27, width: 0.072, dome: 0.98, muzzle: 0.6, snout: 0.42, muzzleDrop: 0.12, jaw: 1.1 },
+  // huge deep tall skull, powerful jaw (T. rex) — enlarged; the massive head is the tell
+  theropod: { length: 0.31, width: 0.086, dome: 0.98, muzzle: 0.6, snout: 0.42, muzzleDrop: 0.12, jaw: 1.1 },
   // smaller, low, elongated pointed predator skull
   raptor: { length: 0.18, width: 0.04, dome: 0.85, muzzle: 0.66, snout: 0.26, muzzleDrop: 0.12, jaw: 0.7 },
   // small cranium + a long BEAK, no jaw teeth
   avian: { length: 0.09, width: 0.04, dome: 1.12, muzzle: 0.32, snout: 0.34, muzzleDrop: 0.0, jaw: 0, beak: 1.0 },
-  // broad heavy domed skull, medium muzzle (bear)
-  ursine: { length: 0.18, width: 0.07, dome: 1.06, muzzle: 0.5, snout: 0.44, muzzleDrop: 0.14, jaw: 0.75 },
+  // broad heavy domed skull, medium muzzle (bear) — the boxiest snout; bigger + broader head
+  ursine: { length: 0.195, width: 0.079, dome: 1.06, muzzle: 0.5, snout: 0.44, muzzleDrop: 0.14, jaw: 0.75, boxy: 0.85 },
+  // small carnivoran skull, a LONGER POINTY muzzle tapering to a fine nose (raccoon) —
+  // conical, not boxed: low boxy + a long muzzle fraction + a thin snout tip.
+  raccoon: { length: 0.14, width: 0.048, dome: 1.05, muzzle: 0.64, snout: 0.22, muzzleDrop: 0.16, jaw: 0.55, boxy: 0.15 },
 };

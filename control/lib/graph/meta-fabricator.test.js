@@ -4,7 +4,7 @@ import {
   describeType, listDecorations, describeFamily, sampleType, sampleInstance,
   buildInstanceFaces, assembleInstanceStudio, planInstance,
 } from './meta-fabricator.js';
-import { VEHICLE_TYPES, VEHICLE_REGISTRY, vehicleFaces } from './vehicles-css3d.js';
+import { VEHICLE_TYPES, VEHICLE_REGISTRY, vehicleFaces } from './vehicles/vehicles-css3d.js';
 import { AIRCRAFT_LIVERY_SCHEMES } from './polygonizer/vehicle-fuselage-net.js';
 
 // deterministic rng (matches the sibling vehicle tests)
@@ -19,7 +19,7 @@ const validFace = (f) =>
 
 describe('meta-fabricator family layer', () => {
   it('exposes the three vehicle families', () => {
-    expect(listFamilies().sort()).toEqual(['fixed-wing-aircraft', 'ground-box', 'ground-car']);
+    expect(listFamilies().sort()).toEqual(['fixed-wing-aircraft', 'ground-box', 'ground-car', 'ground-cycle']);
     expect(getFamily('fixed-wing-aircraft').backend).toBe('plane');
     expect(() => getFamily('spaceships')).toThrow(/unknown family/);
   });

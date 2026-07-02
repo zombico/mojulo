@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planCometScene, COMET_SCENARIOS } from '@/lib/graph/comet-view';
+import { planCometScene, COMET_SCENARIOS } from '@/lib/graph/views/science/comet-view';
 
 export function mintCometView({ title, scenario, scale, tails, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planReactorScene, REACTOR_SCENARIO_NAMES } from '@/lib/graph/reactor-view';
+import { planReactorScene, REACTOR_SCENARIO_NAMES } from '@/lib/graph/views/science/reactor-view';
 
 export function mintReactorView({ title, scenario, rods, seed, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

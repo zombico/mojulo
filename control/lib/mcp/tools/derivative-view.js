@@ -12,7 +12,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planDerivativeScene, DERIVATIVE_SCENARIOS } from '@/lib/graph/derivative-view';
+import { planDerivativeScene, DERIVATIVE_SCENARIOS } from '@/lib/graph/views/math/derivative-view';
 
 export function mintDerivativeView({ title, scenario, at, animate, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

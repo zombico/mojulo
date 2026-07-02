@@ -107,11 +107,14 @@ export function mintPaintedLandscape({
     throw err;
   }
 
+  const enc = encodeURIComponent(sketch.ref);
   return {
     ok: true,
     ref: sketch.ref,
-    url: `/sketches/${encodeURIComponent(sketch.ref)}`,
-    svgUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/svg?inline=1`,
+    url: `/sketches/${enc}`,
+    svgUrl: `/api/sketches/${enc}/svg?inline=1`,
+    worldUrl: `/api/sketches/${enc}/world`,                        // live three.js polygon world
+    raymarchUrl: `/api/sketches/${enc}/world?render=raymarch`,     // per-pixel raymarch (terrain/water/sky)
     ...(scene ? { completion: computeSceneCompletion(scene) } : {}),
   };
 }

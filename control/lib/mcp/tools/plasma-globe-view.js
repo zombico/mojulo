@@ -9,7 +9,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planPlasmaGlobeScene, PLASMA_GLOBE_SCENARIOS } from '@/lib/graph/plasma-globe-view';
+import { planPlasmaGlobeScene, PLASMA_GLOBE_SCENARIOS } from '@/lib/graph/views/science/plasma-globe-view';
 
 export function mintPlasmaGlobeView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

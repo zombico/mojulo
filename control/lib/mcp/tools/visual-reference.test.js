@@ -7,7 +7,7 @@ import { getDb } from '@/lib/db/index.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { StashRepository } from '@/lib/db/repositories/stashes';
 import { renderFigureToSvg } from '@/lib/graph/polygonizer/figure-render';
-import { renderSketchToSvg } from '@/lib/graph/sketch-svg';
+import { renderSketchToSvg } from '@/lib/graph/sketch/sketch-svg';
 import { referenceProtocolHandler, captureReferenceHandler } from './visual-reference.js';
 import { ensureToolsRegistered, listRegisteredToolNames } from '@/lib/mcp/server';
 

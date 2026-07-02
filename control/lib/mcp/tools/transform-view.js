@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planTransformScene, TRANSFORM_SCENARIOS } from '@/lib/graph/transform-view';
+import { planTransformScene, TRANSFORM_SCENARIOS } from '@/lib/graph/views/math/transform-view';
 
 export function mintTransformView({ title, scenario, matrix, dim, animate, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

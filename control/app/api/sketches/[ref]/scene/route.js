@@ -14,7 +14,7 @@
 import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { renderSceneHtml } from '@/lib/graph/scene-html';
+import { renderSceneHtml } from '@/lib/graph/scene/scene-html';
 
 export async function GET(request, { params }) {
   try {

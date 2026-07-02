@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planParallelTransportScene, PARALLEL_TRANSPORT_SCENARIOS } from '@/lib/graph/parallel-transport-view';
+import { planParallelTransportScene, PARALLEL_TRANSPORT_SCENARIOS } from '@/lib/graph/views/science/parallel-transport-view';
 
 export function mintParallelTransportView({ title, scenario, latitude, loopSize, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

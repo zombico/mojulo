@@ -13,7 +13,7 @@
 import { NextResponse } from 'next/server';
 import { ensureToolsRegistered } from '@/lib/mcp/server';
 import { CREATION_MAP } from '@/lib/graph/creation-map';
-import { validateCreationMap } from '@/lib/graph/validate';
+import { validateCreationMap } from '@/lib/graph/sketch/validate';
 import { listApps } from '@/lib/apps/loader';
 
 export async function GET() {

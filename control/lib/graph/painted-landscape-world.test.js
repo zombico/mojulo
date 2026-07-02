@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { assemblePaintedLandscapeScene, renderPaintedLandscapeToHtml } from './scene-css3d.js';
-import { emitThreeWorld } from './scene-three.js';
+import { assemblePaintedLandscapeScene, renderPaintedLandscapeToHtml } from './scene/scene-css3d.js';
+import { emitThreeWorld } from './scene/scene-three.js';
 
 // painted-landscape gained a traversable three.js World by riding the shared
 // assemble*Scene → emitThreeWorld seam (the terrain heightfield is already a

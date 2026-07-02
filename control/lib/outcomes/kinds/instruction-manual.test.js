@@ -14,7 +14,7 @@ import { getDb } from '../../db/index.js';
 import { StashRepository } from '../../db/repositories/stashes.js';
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { cookHandler, recommendKindHandler, sketchStashHandler } from '../../mcp/tools/cook.js';
-import { renderSketchToSvg } from '../../graph/sketch-svg.js';
+import { renderSketchToSvg } from '../../graph/sketch/sketch-svg.js';
 import {
   writeInstructionManualOutcome, INSTRUCTION_MANUAL_VERSION, _internals,
 } from './instruction-manual.js';

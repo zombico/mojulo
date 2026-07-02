@@ -15,9 +15,9 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planWorkbench } from '@/lib/graph/workbench';
+import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
-import { warmScenePng } from '@/lib/graph/scene-png-warm';
+import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 export function mintWorkbench({ title, lathes, extrudes, sweeps, reliefs, assembly, units, viewBox, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to

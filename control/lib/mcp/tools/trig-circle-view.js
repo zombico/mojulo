@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planTrigCircleScene, TRIG_SCENARIOS } from '@/lib/graph/trig-circle-view';
+import { planTrigCircleScene, TRIG_SCENARIOS } from '@/lib/graph/views/math/trig-circle-view';
 
 export function mintTrigCircleView({ title, scenario, angle, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

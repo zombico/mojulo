@@ -1,5 +1,5 @@
 import { getDb } from '../index.js';
-import { classifyBucket } from '../../graph/sketch-manifest.js';
+import { classifyBucket } from '../../graph/sketch/sketch-manifest.js';
 
 function shortRef() {
   // Short collision-resistant slug: 10 chars of base36 from crypto entropy.

@@ -1,5 +1,5 @@
 import { expandNeoRembrandt } from '@/lib/graph/neo-rembrandt/index.js';
-import { expandGridLayout, validateSketchManifest } from '@/lib/graph/sketch-manifest.js';
+import { expandGridLayout, validateSketchManifest } from '@/lib/graph/sketch/sketch-manifest.js';
 import { ApiKeyRepository } from '@/lib/db/repositories/apiKeys.js';
 import { decryptApiKey } from '@/lib/deployment-auth.js';
 import { generateStructured, getDefaultModelForTask, LLM_PROVIDERS } from '@/lib/llm-providers.js';

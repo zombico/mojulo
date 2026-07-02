@@ -9,7 +9,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planStarBirthScene, STAR_BIRTH_SCENARIOS } from '@/lib/graph/star-birth-view';
+import { planStarBirthScene, STAR_BIRTH_SCENARIOS } from '@/lib/graph/views/science/star-birth-view';
 
 export function mintStarBirthView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { extractRoomSceneFaces, contactShadowDecals, resolveSceneLighting, extractRoomFacesFromManifest } from './scene-css3d.js';
+import { extractRoomSceneFaces, contactShadowDecals, resolveSceneLighting, extractRoomFacesFromManifest } from './scene/scene-css3d.js';
 import { makeLight } from './polygonizer/vexar.js';
 
 const ROOM = { worldExtent: { width: 5, depth: 5, height: 3 }, xRange: [0, 5], yRange: [0, 5], zRange: [0, 3] };

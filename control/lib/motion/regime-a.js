@@ -8,7 +8,7 @@
  * group is addressable as `.moj-mark[data-idx="i"]` (CreationMap structured-emit).
  */
 
-import { renderSketchToSvg } from '../graph/sketch-svg.js';
+import { renderSketchToSvg } from '../graph/sketch/sketch-svg.js';
 import { compileMotionCss } from './css-motion.js';
 import { stripSketchBody, DECK_BG } from './deck.js';
 

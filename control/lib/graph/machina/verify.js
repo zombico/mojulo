@@ -15,7 +15,7 @@
  * Pure: numbers in, verdict out. No rendering, no DB.
  */
 
-import { clampNum } from '../motion-vocabulary.js';
+import { clampNum } from '../worlds/motion-vocabulary.js';
 import { toUnit } from './quantities.js';
 import { compound } from './machines.js';
 import { margin } from './capacity.js';

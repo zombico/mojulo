@@ -256,7 +256,9 @@ export async function ensureToolsRegistered() {
   const { registerCarvedSolidTools } = await import('@/lib/mcp/tools/carved-solid');
   const { registerFigureTools } = await import('@/lib/mcp/tools/figure');
   const { registerSceneCityTools } = await import('@/lib/mcp/tools/scene-city');
+  const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerSceneControllableTools } = await import('@/lib/mcp/tools/scene-controllable');
+  const { registerActionWorldTools } = await import('@/lib/mcp/tools/scene-action-world');
   const { registerSceneTransportHubTools } = await import('@/lib/mcp/tools/scene-transport-hub');
   const { registerSolidTurntableTools } = await import('@/lib/mcp/tools/solid-turntable-tool');
   const { registerPlanetaryTools } = await import('@/lib/mcp/tools/scene-planetary');
@@ -478,10 +480,19 @@ export async function ensureToolsRegistered() {
   // dependency-free CSS preserve-3d HTML scene. Fractal generation: thousands of
   // boxes from ~6 numbers, near-zero tokens.
   registerSceneCityTools();
+  // compose_world / list_world_themes — the generic world-composer: a BASE (geometry generator)
+  // × a THEME (flavor pack from theme-registry) × overrides, minted through the same recipe→
+  // render path as create_fractal_city. One tool → many worlds; themes extensible across
+  // earth/scifi/fantasy families. MVP base: 'city'. See world-composer.plan.md.
+  registerComposeWorldTools();
   // create_controllable_world — a LIVE, interactive world the user drives (walk a figure, fly a
   // drone). Stores ONLY the recipe (kind `controllable`: entities = transform + rule + body, the
   // camera is an entity); the traversable world regenerates on render at /api/sketches/<ref>/world.
   registerSceneControllableTools();
+  // create_action_world — the consequence sibling of create_controllable_world: a world where things
+  // HAPPEN (a game with score/timer/spawns/pickups). Stores ONLY the recipe (kind `controllable` +
+  // a lowered `events` block composed from an idiom recipe); served live at /api/sketches/<ref>/world.
+  registerActionWorldTools();
   // create_transportation_hub — a transit-tuned sibling of create_fractal_city. Stores
   // ONLY the recipe (kind `transportation-hub`); the full hub (terminal + concourse
   // fingers + gates/platforms/bays + apron + runways/rails/lanes + parked aircraft/

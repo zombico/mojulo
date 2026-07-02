@@ -9,7 +9,7 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { renderSketchToSvg } from '@/lib/graph/sketch-svg';
+import { renderSketchToSvg } from '@/lib/graph/sketch/sketch-svg';
 
 /**
  * Strip the `<?xml ?>` declaration so the SVG can be inlined into HTML.

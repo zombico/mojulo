@@ -12,7 +12,7 @@
  * the verify pass can compare them to demand. Margins are reported as headroom, never a bare boolean.
  */
 
-import { clampNum } from '../motion-vocabulary.js';
+import { clampNum } from '../worlds/motion-vocabulary.js';
 import { toUnit } from './quantities.js';
 
 // throughput is count-per-time; express it as {value, per:'s'|'min'|'h'} → canonical units/second.

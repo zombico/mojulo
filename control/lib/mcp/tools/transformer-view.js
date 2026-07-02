@@ -9,7 +9,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planTransformerScene, TRANSFORMER_SCENARIOS, TRANSFORMER_PATTERNS } from '@/lib/graph/transformer-view';
+import { planTransformerScene, TRANSFORMER_SCENARIOS, TRANSFORMER_PATTERNS } from '@/lib/graph/views/math/transformer-view';
 
 export function mintTransformerView({ title, scenario, sequence, pattern, focus, layers, focusLayer, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

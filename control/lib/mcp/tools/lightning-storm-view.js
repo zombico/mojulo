@@ -9,7 +9,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planLightningStormScene, LIGHTNING_STORM_SCENARIOS } from '@/lib/graph/lightning-storm-view';
+import { planLightningStormScene, LIGHTNING_STORM_SCENARIOS } from '@/lib/graph/views/science/lightning-storm-view';
 
 export function mintLightningStormView({ title, scenario, exposure, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

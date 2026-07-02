@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getConnectedService } from '@/lib/connected-services/loader';
 import { deriveConnectedServiceTopology } from '@/lib/graph/derivers/connected-service';
 import { layoutConnectedService } from '@/lib/graph/layout/connected-service';
-import { validateSketchManifest } from '@/lib/graph/sketch-manifest';
+import { validateSketchManifest } from '@/lib/graph/sketch/sketch-manifest';
 
 export async function GET(_req, ctx) {
   try {

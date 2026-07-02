@@ -12,7 +12,7 @@ import path from 'node:path';
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
-import { renderCarvedSolidToSvg, renderCarvedSolidFrames, carvedSolidIsAnimated } from '@/lib/graph/carved-solid';
+import { renderCarvedSolidToSvg, renderCarvedSolidFrames, carvedSolidIsAnimated } from '@/lib/graph/effects/carved-solid';
 import { encodeGif } from '@/lib/motion';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
 

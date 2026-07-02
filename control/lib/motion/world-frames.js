@@ -13,7 +13,7 @@
 
 import puppeteer from 'puppeteer-core';
 
-import { resolveChromium, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/chromium';
+import { resolveChromium, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
 
 const WORLD_ROOT_SELECTOR = '#wrap';
 const WORLD_HIDE_SELECTORS = ['.hud', '.hint'];

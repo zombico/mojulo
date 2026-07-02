@@ -20,8 +20,8 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planAssembler } from '@/lib/graph/workbench-assembler';
-import { warmScenePng } from '@/lib/graph/scene-png-warm';
+import { planAssembler } from '@/lib/graph/worlds/workbench-assembler';
+import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 // Pull the renderable monomer arrays off a workbench-shaped manifest (the frozen part).
 function monomersOf(manifest) {

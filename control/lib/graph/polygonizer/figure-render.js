@@ -25,6 +25,7 @@ import { groundBalance, groundVault } from './figure-balance.js';
 import { gait, WALK_DEFAULTS, resolveMotion } from './figure-posing.js';
 import { buildGarment, GARMENTS, resolveCuts, cutPredicate, cutHits, cutBoundary } from './figure-garments.js';
 import { resolveFigureSetup } from '../../visual-language/themes.js';
+import { buildAnimal } from './figure-animal-build.js';
 
 const FLESH_HEX = '#c8836a';
 const PROTO_SCALE = 12;                 // buildProtoform world scale (STAND × 12)
@@ -221,7 +222,7 @@ function worldVertex(stacks, groundZ) {
 // but the live World orbit camera moves, so the back of the figure must survive
 // (the three.js material renders DoubleSide). Shading is camera-independent — the
 // outward normal is oriented by the stack centre, not CAM — so colours are unchanged.
-function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true } = {}) {
+function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = null } = {}) {
   const V = worldVertex(stacks, groundZ);
   const dist = (cen) => Math.hypot(cen[0] - CAM[0], cen[1] - CAM[1], cen[2] - CAM[2]);
   const faces = [];
@@ -242,9 +243,13 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true } = {}) {
         let n = newell(wpts); const cen = centroid(wpts);
         if (dot3(n, sub3(cen, cw)) < 0) n = [-n[0], -n[1], -n[2]];
         if (cull && dot3(n, sub3(CAM, cen)) <= 0) continue;                 // back-face cull
-        let hex = st.hex;
+        let hex = st.hex, shadeN = n;
         if (panels) for (const p of panels) if (cutHits(praw, p.region)) hex = p.color;   // last panel wins
-        faces.push({ wpts, fill: shadeHex(hex, n, light), dist: dist(cen) });
+        // per-face recolor (animal countershading): when a face flips to the underside
+        // colour, shade it with the z-FLIPPED (upward) normal so the white belly catches
+        // overhead light instead of shading to muddy grey — biological countershading.
+        if (recolor) { const rc = recolor(hex, n, cen); if (rc) { hex = rc; shadeN = [n[0], n[1], Math.abs(n[2])]; } }
+        faces.push({ wpts, fill: shadeHex(hex, shadeN, light), dist: dist(cen) });
       }
     }
   }
@@ -366,6 +371,99 @@ export function renderFigureToSvg(manifest = {}, fit = null) {
   }
   const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
   return svgDoc(drawPolys(proj, fit || fitFor(bb, VB_W, VB_H, PAD)), setup.bg);
+}
+
+// ─── ANIMAL render — the character builder, pointed at the animal-realm ──────
+// `buildAnimal` (figure-animal-build) emits the SAME currency as the figure: parts of
+// ring polylines `{polylines, stroke}`. So the animal renders through the EXACT figure
+// mesher (litFaces → projectFaces → drawPolys), no second renderer — we just adapt the
+// parts into the stack shape litFaces consumes, frame a horizontal-subject camera, and
+// reuse everything else. The /api/sketches route dispatches kind:'animal' here.
+const VB_WA = 760, VB_HA = 540, BG_A = '#eef1f4';
+// animal azimuths: head-on (front of the body) = 180°, lateral = 90°, three-quarter ≈ 130°.
+const ANIMAL_VIEW_AZ = { frontal: 180, 'three-quarter': 130, lateral: 90, left: -90, back: 0 };
+
+// buildAnimal parts → litFaces stacks. STAND coords are lifted into PROTO_SCALE units so
+// worldVertex (÷PROTO_SCALE ×S) lands them in the same render world as the figure; each
+// ring carries its centroid as `center` (litFaces orients normals outward from it).
+function animalStacks(parts) {
+  const lift = (q) => ({ x: q.x * PROTO_SCALE, y: q.y * PROTO_SCALE, z: q.z * PROTO_SCALE });
+  const centroidOf = (poly) => { let x = 0, y = 0, z = 0; for (const q of poly) { x += q.x; y += q.y; z += q.z; } const n = poly.length || 1; return lift({ x: x / n, y: y / n, z: z / n }); };
+  return parts.map((p) => ({ hex: p.stroke, rings: p.polylines.map((poly) => ({ polyline: poly.map(lift), center: centroidOf(poly) })) }));
+}
+
+// A self-framing two-point camera orbiting the animal's world bounding box (so any
+// archetype frames itself). Mirrors makeCamera's screen-x un-mirror so left/right read
+// naturally. az/elev in radians/deg.
+function animalCamera(stacks, az, elevDeg) {
+  const V = worldVertex(stacks, null);
+  const bb = { mnx: Infinity, mny: Infinity, mnz: Infinity, mxx: -Infinity, mxy: -Infinity, mxz: -Infinity };
+  for (const st of stacks) for (const rg of st.rings) for (const q of rg.polyline) {
+    const [x, y, z] = V(q);
+    if (x < bb.mnx) bb.mnx = x; if (y < bb.mny) bb.mny = y; if (z < bb.mnz) bb.mnz = z;
+    if (x > bb.mxx) bb.mxx = x; if (y > bb.mxy) bb.mxy = y; if (z > bb.mxz) bb.mxz = z;
+  }
+  const center = [(bb.mnx + bb.mxx) / 2, (bb.mny + bb.mxy) / 2, (bb.mnz + bb.mxz) / 2];
+  const radius = 0.5 * Math.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
+  const el = (elevDeg * Math.PI) / 180, R = radius * 3.2;
+  const CAM = [center[0] + R * Math.cos(el) * Math.sin(az), center[1] - R * Math.cos(el) * Math.cos(az), center[2] + R * Math.sin(el)];
+  const cam = { kind: 'two-point', viewBox: { width: 1000, height: 1000 }, worldFraming: { cameraPosition: CAM, lookAt: center, horizontalFov: 32, pictureCenter: [500, 500] } };
+  const project = (p) => { const r = projectTwoPoint([p[0], p[1], p[2]], cam, ROOM); return [-r[0], r[1]]; };
+  return { CAM, project };
+}
+
+/**
+ * Render an animal (a buildAnimal recipe) to a standalone SVG through the figure mesher.
+ * @param {{archetype?:string, opts?:object, view?:string|number, elev?:number, background?:false}} manifest
+ */
+// Filter assembled parts to the HEAD region (upper-forward) — a face study close-up. Same
+// rule as the spike's cropHead: a part is kept if its centroid is in the top of the z-range
+// AND the forward part of the y-range (the head sits high + forward on a quadruped).
+function cropToHead(parts) {
+  let zmin = Infinity, zmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+  for (const p of parts) for (const r of p.polylines) for (const q of r) {
+    if (q.z < zmin) zmin = q.z; if (q.z > zmax) zmax = q.z;
+    if (q.y < ymin) ymin = q.y; if (q.y > ymax) ymax = q.y;
+  }
+  return parts.filter((p) => {
+    let cz = 0, cy = 0, n = 0;
+    for (const r of p.polylines) for (const q of r) { cz += q.z; cy += q.y; n++; }
+    if (!n) return false; cz /= n; cy /= n;
+    return cz > zmin + 0.55 * (zmax - zmin) && cy > ymin + 0.62 * (ymax - ymin);
+  });
+}
+
+export function renderAnimalToSvg(manifest = {}) {
+  const { archetype = 'canine', opts = {}, view, elev, crop } = manifest;
+  const built = buildAnimal(archetype, opts);
+  const parts = crop === 'head' ? cropToHead(built.parts) : built.parts;
+  const stacks = animalStacks(parts);
+  const azDeg = typeof view === 'number' ? view : (ANIMAL_VIEW_AZ[view] ?? ANIMAL_VIEW_AZ['three-quarter']);
+  const az = (azDeg * Math.PI) / 180, elDeg = typeof elev === 'number' ? elev : 12;
+  const { CAM, project } = animalCamera(stacks, az, elDeg);
+  // NORMAL-RULE ZONES: recolor body/tail faces by their OUTWARD NORMAL direction — a mark
+  // with a geometric (normal) signature comes OFF the patch-colour wall, the same way the
+  // ventral belly did. Two cases, mirror images, both gated to the coat hex (so feet / tips /
+  // face zones are untouched) and both shaded as-if-lit so they read bright, not muddy:
+  //   • `underHex` / `underCut` — DOWN-facing faces (n_z < cut) → countershaded belly (most mammals).
+  //   • `overHex`  / `overCut`  — UP-facing faces   (n_z > cut) → a dorsal stripe down the back AND
+  //     the tail-top (skunk / badger / dorsal-stripe). The tail must be SOLID coat for it to catch.
+  const coatHex = opts?.coat?.color, underHex = opts?.underHex, underCut = opts?.underCut ?? -0.3;
+  const overHex = opts?.overHex, overCut = opts?.overCut ?? 0.3;
+  const recolor = (coatHex && (underHex || overHex)) ? (hex, n) => {
+    if (hex !== coatHex) return null;
+    if (underHex && n[2] < underCut) return underHex;
+    if (overHex && n[2] > overCut) return overHex;
+    return null;
+  } : null;
+  const { proj, bb } = projectFaces(litFaces(stacks, CAM, LIGHT, null, { cull: true, recolor }), project);
+  const bg = manifest.background === false ? 'none' : BG_A;
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_WA} ${VB_HA}" width="${VB_WA}" height="${VB_HA}">`,
+    `<rect width="${VB_WA}" height="${VB_HA}" fill="${bg}"/>`,
+    ...drawPolys(proj, fitFor(bb, VB_WA, VB_HA, PAD)),
+    `</svg>`,
+  ].join('\n');
 }
 
 // ── motion: walk is the formalized, parameterized gait (figure-posing.js) ──

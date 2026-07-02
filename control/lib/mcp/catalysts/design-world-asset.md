@@ -43,7 +43,7 @@ primitives **already emit exactly this**, so an authored asset is drop-in.
 1. **embedded-faces (simplest — start here).** Lower the asset → faces at world scale + a placement
    point, and push them into a scene's `extraFaces`:
    ```js
-   import { workbenchAssetFaces } from '@/lib/graph/workbench';
+   import { workbenchAssetFaces } from '@/lib/graph/worlds/workbench';
    const faces = workbenchAssetFaces(assetManifest, { scale: meruPerAuthoredUnit, translate: [x, y, 0], light: SCENE_LIGHT });
    assembleBoxCityScene({ faces: [...cityFaces, ...faces], grounds, cameras, light: SCENE_LIGHT });
    ```

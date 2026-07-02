@@ -11,7 +11,7 @@ import { createSketchHandler } from '@/lib/mcp/tools/sketches';
 import { getDb } from '@/lib/db/index.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
-import { isBucket } from '@/lib/graph/sketch-manifest';
+import { isBucket } from '@/lib/graph/sketch/sketch-manifest';
 
 function sketchAssociationMap() {
   const db = getDb();

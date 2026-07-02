@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { EDUCATION_VIEW_KINDS, sketchRenderMode, classifyBucket } from './sketch-manifest.js';
-import { resolveWorldScene } from './world-scene.js';
+import { EDUCATION_VIEW_KINDS, sketchRenderMode, classifyBucket } from './sketch/sketch-manifest.js';
+import { resolveWorldScene } from './worlds/world-scene.js';
 import { listTools } from '@/lib/mcp/server';
 
 // The education module — math explainers, the sibling family to the science views. This test locks the

@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
-import { sketchRenderMode } from '@/lib/graph/sketch-manifest';
+import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 
 function printFilename(data, fallbackRef) {
   if (typeof window === 'undefined') return 'sketch.pdf';

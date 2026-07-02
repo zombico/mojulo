@@ -16,7 +16,7 @@
 import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { rasterizeSketchToPng } from '@/lib/graph/sketch-png';
+import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
 
 function safeFilename(title, ref) {
   const base = [title, ref].filter(Boolean).join(' ');

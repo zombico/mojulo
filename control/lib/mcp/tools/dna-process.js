@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planDnaProcess, DNA_PROCESSES } from '@/lib/graph/dna-process';
+import { planDnaProcess, DNA_PROCESSES } from '@/lib/graph/views/bio/dna-process';
 
 const TITLE = {
   meiosis: 'meiosis · crossover + assortment → a gamete',

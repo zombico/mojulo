@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planComplexScene, COMPLEX_SCENARIOS } from '@/lib/graph/complex-view';
+import { planComplexScene, COMPLEX_SCENARIOS } from '@/lib/graph/views/math/complex-view';
 
 export function mintComplexView({ title, scenario, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

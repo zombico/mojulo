@@ -34,7 +34,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { ResearchRepository } from '@/lib/db/repositories/research';
 import { evaluateAbstract } from '@/lib/research/evaluate';
 import { mintSketch } from '@/lib/mcp/tools/sketches';
-import { researchToSketchManifest } from '@/lib/graph/sketch-derive';
+import { researchToSketchManifest } from '@/lib/graph/sketch/sketch-derive';
 
 function sketchUrl(ref) {
   return `/sketches/${encodeURIComponent(ref)}`;

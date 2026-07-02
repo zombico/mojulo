@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planOceanScene, OCEAN_SCENARIOS } from '@/lib/graph/ocean-view';
+import { planOceanScene, OCEAN_SCENARIOS } from '@/lib/graph/landscape/ocean-view';
 
 export function mintOceanView({ title, scenario, amplitude, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

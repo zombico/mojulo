@@ -18,7 +18,7 @@
  * m, work in J), no rendering, no DB. The verify pass wraps these with typed Quantities + capacity.
  */
 
-import { clampNum } from '../motion-vocabulary.js';
+import { clampNum } from '../worlds/motion-vocabulary.js';
 
 const TAU = Math.PI * 2;
 const eta_ = (e) => clampNum(e, 1e-3, 1, 1);   // efficiency in (0,1]; default ideal. Clamped so ama≤ima.

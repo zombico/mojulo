@@ -12,7 +12,7 @@
  * Pure: no rendering, no three.js, no DB. Same inputs → byte-identical outputs.
  */
 
-import { clampNum } from '../motion-vocabulary.js';
+import { clampNum } from '../worlds/motion-vocabulary.js';
 
 // ── dimension signatures: exponents of the SI base [M(ass), L(ength), T(ime)]. Derived quantities are
 // products of these — force = M·L·T⁻², work = M·L²·T⁻², power = M·L²·T⁻³. Count is dimensionless. ──

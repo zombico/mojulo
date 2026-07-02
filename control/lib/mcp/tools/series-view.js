@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planSeriesScene, SERIES_SCENARIOS } from '@/lib/graph/series-view';
+import { planSeriesScene, SERIES_SCENARIOS } from '@/lib/graph/views/math/series-view';
 
 export function mintSeriesView({ title, scenario, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

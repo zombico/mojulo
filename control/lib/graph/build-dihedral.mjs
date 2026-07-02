@@ -25,8 +25,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 
-import { assembleBoxCityScene, emitPreserve3dScene } from '../../../../../control/lib/graph/scene-css3d.js';
-import { emitThreeWorld } from '../../../../../control/lib/graph/scene-three.js';
+import { assembleBoxCityScene, emitPreserve3dScene } from './scene/scene-css3d.js';
+import { emitThreeWorld } from './scene/scene-three.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const viewBox = { width: 1280, height: 860 };

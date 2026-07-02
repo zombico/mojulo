@@ -26,10 +26,10 @@
 
 import {
   VEHICLE_REGISTRY, VEHICLE_TYPES, vehicleFaces, vehicleTypesFor, aircraftFootprint,
-} from './vehicles-css3d.js';
+} from './vehicles/vehicles-css3d.js';
 import { AIRCRAFT_LIVERY_SCHEMES, pickAircraftLiveryScheme } from './polygonizer/vehicle-fuselage-net.js';
 import { CAR_PAINT_SCHEMES, pickCarPaint, CAR_HULL_NAMES, pickCarHull } from './polygonizer/vehicle-swept-net.js';
-import { studioSceneFromFaces } from './workbench.js';
+import { studioSceneFromFaces } from './worlds/workbench.js';
 
 export const META_FABRICATOR_VERSION = 'meta-fabricator-v0.1.0';
 
@@ -102,6 +102,13 @@ export const VEHICLE_FAMILIES = {
     backend: 'box',
     decoration: BAKED_DECOR,
     tunables: ['geo.length', 'geo.halfW', 'geo.halfH', 'geo.seN', 'profile', 'wid'],
+  },
+  'ground-cycle': {
+    id: 'ground-cycle',
+    label: 'Ground vehicle (cycle)',
+    backend: 'cycle',
+    decoration: BAKED_DECOR,
+    tunables: ['scale'],
   },
 };
 

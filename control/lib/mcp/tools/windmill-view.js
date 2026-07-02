@@ -9,7 +9,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planWindmillScene, WINDMILL_SCENARIOS } from '@/lib/graph/windmill-view';
+import { planWindmillScene, WINDMILL_SCENARIOS } from '@/lib/graph/vehicles/windmill-view';
 
 export function mintWindmillView({ title, scenario, wind, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

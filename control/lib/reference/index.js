@@ -25,7 +25,7 @@
  * See lite-template/integration/0612/visual-reference.plan.md.
  */
 
-import { validateSketchManifest } from '@/lib/graph/sketch-manifest';
+import { validateSketchManifest } from '@/lib/graph/sketch/sketch-manifest';
 import {
   HEARTBEATS,
   SPLATCHES,

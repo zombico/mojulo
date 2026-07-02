@@ -16,8 +16,8 @@
 import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { emitThreeWorld } from '@/lib/graph/scene-three';
-import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/world-scene';
+import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
+import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 
 export async function GET(request, { params }) {
   try {
@@ -36,7 +36,9 @@ export async function GET(request, { params }) {
     // ?view=exterior renders the roofed, on-the-ground massing (basement hidden) as a
     // companion to the default cutaway doll-house. Threaded into the per-kind assembler.
     const view = request.nextUrl.searchParams.get('view') || undefined;
-    const { payload, kind } = await resolveWorldScene(sketch, { view });
+    // ?render=raymarch selects a per-pixel raymarch backend where a kind supports it (painted-landscape).
+    const render = request.nextUrl.searchParams.get('render') || undefined;
+    const { payload, kind } = await resolveWorldScene(sketch, { view, render });
 
     if (!payload) {
       return NextResponse.json({

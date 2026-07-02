@@ -20,9 +20,10 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planTransportationHub, HUB_MODES, AIRPORT_GLYPHS, AIRPORT_PRIMARIES } from '@/lib/graph/transportation-hub';
-import { planSubwayStation, SUBWAY_LINES } from '@/lib/graph/subway-station';
-import { warmScenePng } from '@/lib/graph/scene-png-warm';
+import { planTransportationHub, HUB_MODES, AIRPORT_GLYPHS, AIRPORT_PRIMARIES } from '@/lib/graph/architecture/transportation-hub';
+import { planSubwayStation, SUBWAY_LINES } from '@/lib/graph/architecture/subway-station';
+import { stackSubway, planSubwayInterchange } from '@/lib/graph/architecture/subway-building';
+import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 // The hub tool's user-facing modes: the exterior apron modes plus the INTERIOR
 // subway station (a distinct render path — it persists as a `subway-station` scene
@@ -30,21 +31,11 @@ import { warmScenePng } from '@/lib/graph/scene-png-warm';
 // instead of the three.js /world path).
 const TRANSPORT_MODES = [...HUB_MODES, 'subway'];
 
-// Mint the interior subway station: an island-platform hall, three-quarter
-// establishing view, train parked at the platform. Persists ONLY the recipe.
-function mintSubwayStation({ title, seed, density, line, viewBox, ref, folderRef } = {}) {
-  const manifest = {
-    kind: 'subway-station',
-    seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
-    density: Number.isFinite(+density) ? Math.max(0.2, Math.min(1, +density)) : 0.6,
-    ...(SUBWAY_LINES.includes(line) ? { line } : {}),
-    ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
-    ...(title ? { title } : {}),
-  };
-  const { stats } = planSubwayStation(manifest);   // validate + stat readout (no geometry stored)
+// Shared persist + return for both subway shapes.
+function persistSubway(manifest, { title, ref, folderRef, fallbackTitle }) {
   let sketch;
   try {
-    sketch = SketchRepository.create({ title: title || `subway ${manifest.seed}`, manifest, ref, folderRef: folderRef ?? null });
+    sketch = SketchRepository.create({ title: title || fallbackTitle, manifest, ref, folderRef: folderRef ?? null });
   } catch (err) {
     if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
     throw err;
@@ -53,18 +44,61 @@ function mintSubwayStation({ title, seed, density, line, viewBox, ref, folderRef
   return {
     ok: true,
     ref: sketch.ref,
+    worldUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/world`,   // traversable fly-through
     sceneUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/scene`,
-    worldUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/world`,   // open-fronted traversable fly-through
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     recipe: manifest,
-    stats,
   };
 }
 
-export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, region, viewBox, time, ref, folderRef } = {}) {
-  // The interior subway station is a distinct render path — delegate early.
+// Mint the interior subway station: a single island-platform hall, three-quarter
+// establishing view, train parked at the platform. Persists ONLY the recipe.
+function mintSubwayStation({ title, seed, density, line, atmosphere, viewBox, ref, folderRef } = {}) {
+  const manifest = {
+    kind: 'subway-station',
+    seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
+    density: Number.isFinite(+density) ? Math.max(0.2, Math.min(1, +density)) : 0.6,
+    ...(SUBWAY_LINES.includes(line) ? { line } : {}),
+    ...(atmosphere ? { atmosphere: true } : {}),
+    ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
+    ...(title ? { title } : {}),
+  };
+  const { stats } = planSubwayStation(manifest);   // validate + stat readout (no geometry stored)
+  return { ...persistSubway(manifest, { title, ref, folderRef, fallbackTitle: `subway ${manifest.seed}` }), stats };
+}
+
+// Mint the 2-LEVEL subway BUILDING: the platform hall stacked under a mezzanine concourse
+// (fare line + turnstiles + operator booth + ticket machines) joined by stair/escalator/
+// elevator through a void. A `subway-building` /world kind — tiling, marble, glass and the
+// optional atmospheric relight all render here. Persists ONLY the recipe.
+function mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphere, layout, viewBox, ref, folderRef } = {}) {
+  const interchange = layout === 'interchange';
+  const manifest = {
+    kind: 'subway-building',
+    seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
+    density: Number.isFinite(+density) ? Math.max(0.2, Math.min(1, +density)) : 0.6,
+    ...(SUBWAY_LINES.includes(line) ? { line } : {}),
+    // INTERCHANGE variation: a second perpendicular platform stacked above (Bloor-Yonge / St George).
+    ...(interchange ? { layout: 'interchange' } : {}),
+    ...(interchange && SUBWAY_LINES.includes(lineB) ? { lineB } : {}),
+    ...(Number.isFinite(+gates) ? { mezzanine: { gates: Math.max(2, Math.min(8, Math.trunc(+gates))) } } : {}),
+    ...(atmosphere ? { atmosphere: true } : {}),
+    ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
+    ...(title ? { title } : {}),
+  };
+  // validate + stat readout via the layout's own builder (no geometry stored — recipe only)
+  const { stats } = interchange ? planSubwayInterchange(manifest) : stackSubway(manifest);
+  return { ...persistSubway(manifest, { title, ref, folderRef, fallbackTitle: `subway ${interchange ? 'interchange' : 'building'} ${manifest.seed}` }), stats };
+}
+
+export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, gates, region, viewBox, time, ref, folderRef } = {}) {
+  // The interior subway is a distinct render path — delegate early. `building` mints the
+  // 2-level station+concourse (a /world `subway-building`); `layout:'interchange'` makes it a
+  // perpendicular two-line interchange; otherwise the single hall.
   if (mode === 'subway') {
-    return mintSubwayStation({ title, seed, density, line, viewBox, ref, folderRef });
+    return (building || layout === 'interchange')
+      ? mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphere, layout, viewBox, ref, folderRef })
+      : mintSubwayStation({ title, seed, density, line, atmosphere, viewBox, ref, folderRef });
   }
   const manifest = {
     kind: 'transportation-hub',
@@ -116,8 +150,8 @@ export async function createTransportationHubHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_transportation_hub requires a recipe object');
   }
-  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, region, viewBox, time, ref, folder_ref: folderRef } = input;
-  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, region, viewBox, time, ref, folderRef });
+  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, gates, region, viewBox, time, ref, folder_ref: folderRef } = input;
+  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, gates, region, viewBox, time, ref, folderRef });
 }
 
 export function registerSceneTransportHubTools() {
@@ -139,16 +173,26 @@ export function registerSceneTransportHubTools() {
       + "`subway`, is the INTERIOR sibling: instead of an exterior top-down apron, it renders the inside of a "
       + "wide enclosed island-platform hall — central platform with a track trough on each side, columns marching "
       + "down the platform, tiled walls + a station-name frieze, a glowing ceiling-fixture strip, tunnel portals, "
-      + "and a multi-car train parked broadside — framed as a three-quarter establishing shot looking across the "
-      + "hall. (Subway persists as a `subway-station` scene kind; it has a baked /scene + PNG view, not a /world "
-      + "view.) Reach for this on framing like 'make an airport / train station / bus terminal / subway station / "
-      + "a transit hub'.",
+      + "and a multi-car train parked broadside (accurate cars with a laid-out interior — bench seats + poles + "
+      + "glass) — framed as a three-quarter establishing shot looking across the hall. Pass `building: true` for the "
+      + "2-LEVEL version: that hall stacked under a mezzanine CONCOURSE (a full-width fare line of turnstiles + an "
+      + "operator booth + ticket machines + a wall map) joined by stair / escalator / elevator through a void — a "
+      + "traversable `subway-building` /world kind with tiled pillars, brick-bond walls and a marble floor. Either "
+      + "shape takes `atmosphere: true` for a moody traced-light relight (dark base + ceiling-fixture light pools + "
+      + "cast shadows) on its /world view. (The single hall persists as a `subway-station` scene kind with a baked "
+      + "/scene + PNG; the building persists as `subway-building`, /world.) Reach for this on framing like 'make an "
+      + "airport / train station / bus terminal / subway station / a transit hub'.",
     inputSchema: {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         mode: { type: 'string', enum: TRANSPORT_MODES, description: "Hub mode (default 'airport'): 'airport' | 'train-station' | 'bus-terminal' | 'subway' (interior station hall)." },
         line: { type: 'string', enum: SUBWAY_LINES, description: "Subway only: line colour theme for the train band / frieze / roundels ('blue' | 'red' | 'green' | 'orange'). Omit to pick by seed." },
+        building: { type: 'boolean', description: 'Subway only: mint the 2-LEVEL building — the platform hall under a mezzanine concourse (fare line + turnstiles + operator booth + ticket machines + wall map) joined by stair/escalator/elevator through a void. A traversable `subway-building` /world kind (vs the single-hall `subway-station`). Default false.' },
+        layout: { type: 'string', enum: ['standard', 'interchange'], description: "Subway building only: 'standard' (platform under a mezzanine, default) or 'interchange' — a perpendicular TWO-LINE crossing where a N-S platform sits below an E-W platform, joined by escalators through a punched crossing void (Toronto's Bloor-Yonge / St George). Implies the building." },
+        line_b: { type: 'string', enum: SUBWAY_LINES, description: "Interchange only: line colour for the SECOND (upper, E-W) platform ('blue' | 'red' | 'green' | 'orange'). Omit to auto-pick a contrasting line." },
+        atmosphere: { type: 'boolean', description: 'Subway only: render with the atmospheric traced-diffusion relight — a dark low-ambient base with warm light pools at the ceiling fixtures + cast shadows (the moody chiaroscuro look), instead of the bright even lighting. Shows on the /world view. Default false.' },
+        gates: { type: 'integer', minimum: 2, maximum: 8, description: 'Subway building only: number of turnstile lanes on the fare line (2–8, default 5).' },
         seed: { type: 'integer', description: 'Deterministic seed — the whole hub is a pure function of it. Same seed → same hub.' },
         density: { type: 'number', minimum: 0.2, maximum: 1, description: 'How full the gates/platforms/bays are with parked vehicles, 0.2–1 (default 0.6).' },
         depth: { type: 'integer', minimum: 1, maximum: 3, description: 'Airport only: boarding-corridor branch depth (default 2). Higher → concourses manji-hook further from the central terminal.' },

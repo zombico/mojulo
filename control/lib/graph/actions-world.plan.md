@@ -25,7 +25,7 @@ substrate that makes *some* actions continuous; the class is the actions.
 actions-world
 ├── actions      ← what can happen + what triggers it   (defines the class)
 ├── physics?     ← optional property: gravity + bodies w/ mass/restitution/friction
-└── events?      ← in-world occurrences routed back to the substrate (the payoff)
+└── events?      ← in-world occurrences driving in-world reactions (stay inside the page; see Scope)
 ```
 
 ## Why a new class (the one fact that drives everything)
@@ -116,10 +116,26 @@ dynamic action happen, either autonomously (elements acting on their own) or und
 It renders, runs, and responds entirely inside the `/world` page. It does NOT (yet) talk back
 to mojulo.
 
-Explicitly DEFERRED — not being built now:
+Explicitly EXCLUDED — and not merely "later":
 - event → trigger / `emit_chat_signal` / `bind_trigger` wiring (the "input device for the
   substrate" idea). The integrator already surfaces `state.contacts` + `body.resting` per step,
   so the detection edges exist when we want them — but nothing routes out of the page today.
+
+This is a **portability guardrail, not a roadmap gap.** A self-contained world is just HTML+JS:
+it can be exported, embedded, and run anywhere with zero dependency on mojulo, the agent, or the
+localhost MCP transport. The moment a world calls back into the agent/substrate it is tethered to
+*this host* — dead on arrival anywhere else. Portability and the determinism contract are the same
+contract from two angles: fixed-timestep + seeded + **no outbound calls** is what makes a no-input
+playthrough byte-reproducible AND what makes the artifact self-contained. Agent-in-the-loop breaks
+both at once. mojulo's role is to *compose and mint* the world (deliberation anchor + audit trail),
+not to be its runtime — the thing that "keeps running after the chat ends" is the portable artifact,
+precisely because the chat/agent isn't in it.
+
+Trap to watch: the `emit` verb stays **in-world** (it drives in-world reactions via the event-bus).
+It must never quietly become an outbound `emit_chat_signal`; the naming collision with the deferred
+"second bus" is the easy place to violate this. If world→substrate ever returns, it returns as an
+explicit opt-in *export mode* that consciously trades portability away — never as a default baked
+into the runtime.
 
 So the work ahead is about RULES, not plumbing: broaden what dynamic action a world can express.
 

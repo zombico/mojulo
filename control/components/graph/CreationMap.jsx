@@ -11,7 +11,7 @@
  *   db_row      — purple accent
  */
 
-import { resolveSignage } from '@/lib/graph/signage-chrome';
+import { resolveSignage } from '@/lib/graph/scene/signage-chrome';
 
 const STATION_STYLES = {
   input: {

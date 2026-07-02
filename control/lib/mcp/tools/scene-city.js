@@ -19,9 +19,9 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planFractalCity, normalizeCivicAreas } from '@/lib/graph/fractal-city';
+import { planFractalCity, normalizeCivicAreas } from '@/lib/graph/city/fractal-city';
 import { isLandmarkShape } from '@/lib/graph/landmarks/index.js';
-import { warmScenePng } from '@/lib/graph/scene-png-warm';
+import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 // Coerce the `landmark` input (single shape, array of shapes, or junk) into a stored value:
 // a string for one monument, an array for a cluster, or null if nothing valid remains.

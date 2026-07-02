@@ -17,9 +17,9 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { assembleControllableScene } from '@/lib/graph/controllable-world';
+import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
 
-const KNOWN_RULES = new Set(['glide', 'walk', 'follow', 'clock', 'static']);
+const KNOWN_RULES = new Set(['glide', 'walk', 'platform', 'follow', 'clock', 'static']);
 
 export function mintControllableWorld({ title, entities, camera, figures, faces, ground, worldFraming, viewBox, bg, ref, folderRef } = {}) {
   if (!Array.isArray(entities) || entities.length === 0) {
@@ -98,12 +98,15 @@ export function registerSceneControllableTools() {
       + "The world is a list of ENTITIES. An entity = a transform + a RULE (how it moves each frame) + a "
       + "BODY (what it looks like). The CAMERA is just an entity too.\n"
       + "Rules: `glide` (free flight, momentum, no gravity — drones/spectator), `walk` (ground-locked, "
-      + "W/S move + A/D turn, drives a walk-cycle gait), `follow` (a chase camera slaved to a target "
-      + "entity), `clock` (autonomous frame playback — a self-walking figure), `static`.\n"
+      + "W/S move + A/D turn, drives a walk-cycle gait), `platform` (a tuned PLATFORMER character "
+      + "controller — gravity + jump with variable height, coyote time, jump buffering, air control; "
+      + "Space jumps. 3D-native, so a 2.5D side-scroller is just this with `strafe:0` + a fixed heading), "
+      + "`follow` (a chase camera slaved to a target entity), `clock` (autonomous frame playback — a "
+      + "self-walking figure), `static`.\n"
       + "Bodies: `mesh` ({shape:'box'|'sphere', size|radius, color}), `figure-frames` ({figure:<name>} — a "
       + "baked human figure declared in `figures`), `none` (invisible — e.g. a first-person camera entity).\n"
-      + "Controls in the rendered world: W/S move, A/D turn, Q/E strafe, Space/Shift up-down (glide), "
-      + "mouse-drag to look; a clock world plays itself under orbit.\n"
+      + "Controls in the rendered world: W/S move, A/D turn, Q/E strafe, Space/Shift up-down (glide) or "
+      + "Space to jump (platform), mouse-drag to look; a clock world plays itself under orbit.\n"
       + "Because input makes it path-dependent the world is non-bakeable (the /svg + /scene tiers show only "
       + "its initial frame); /world is the live tier.",
     inputSchema: {
@@ -112,7 +115,7 @@ export function registerSceneControllableTools() {
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         entities: {
           type: 'array',
-          description: "The things in the world (at least one). Each: { id, transform:{ pos:[x,y,z], heading?, pitch? }, rule:{ type, ...params }, body:{ type, ...} }. z is up; heading is yaw in radians. Rule params — walk: { speed, turn, stride }; glide: { accel, maxSpeed, damping }; follow: { target:<entity id>, dist, height, shoulder, lead, lerp }; clock: { rate } (cycles/sec). Body — mesh: { shape:'box'|'sphere', size:[w,d,h] or radius, color }; figure-frames: { figure:<name declared in figures> }.",
+          description: "The things in the world (at least one). Each: { id, transform:{ pos:[x,y,z], heading?, pitch? }, rule:{ type, ...params }, body:{ type, ...} }. z is up; heading is yaw in radians. Rule params — walk: { speed, turn, stride }; glide: { accel, maxSpeed, damping }; platform: { speed, jumpSpeed, gravity, fallGravity, jumpCut (release-to-shorten cap), coyote, buffer, airControl, turnMode:'tank'|'look', strafe }; follow: { target:<entity id>, dist, height, shoulder, lead, lerp }; clock: { rate } (cycles/sec). Body — mesh: { shape:'box'|'sphere', size:[w,d,h] or radius, color }; figure-frames: { figure:<name declared in figures> }.",
           items: { type: 'object' },
           minItems: 1,
         },

@@ -17,9 +17,9 @@ import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import {
   validateSketchManifest,
   expandGridLayout,
-} from '@/lib/graph/sketch-manifest';
+} from '@/lib/graph/sketch/sketch-manifest';
 import { expandNeoRembrandt } from '@/lib/graph/neo-rembrandt/index.js';
-import { warmScenePng } from '@/lib/graph/scene-png-warm';
+import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 export async function GET(_request, { params }) {
   try {

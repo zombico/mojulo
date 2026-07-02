@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planFieldScene, FIELD_SCENARIOS } from '@/lib/graph/field-view';
+import { planFieldScene, FIELD_SCENARIOS } from '@/lib/graph/views/science/field-view';
 
 export function mintFieldView({ title, scenario, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

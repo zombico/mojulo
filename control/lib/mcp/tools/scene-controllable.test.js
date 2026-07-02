@@ -32,6 +32,17 @@ describe('create_controllable_world mint', () => {
     expect(() => mintControllableWorld({})).toThrow(/non-empty/);
   });
 
+  it('mints a platformer character (the platform rule)', () => {
+    const out = mintControllableWorld({
+      title: 'platformer',
+      entities: [{ id: 'hero', rule: { type: 'platform', jumpSpeed: 9, coyote: 0.12 }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.2], color: '#6cf' }, transform: { pos: [0, 0, 2] } }],
+      camera: { rule: 'follow', target: 'hero' },
+    });
+    expect(out.ok).toBe(true);
+    expect(out.recipe.kind).toBe('controllable');
+    expect(out.stats.rules).toEqual(['platform']);
+  });
+
   it('rejects an unknown rule type', () => {
     expect(() => mintControllableWorld({ entities: [{ id: 'x', rule: { type: 'teleport' } }] })).toThrow(/unknown rule/);
   });

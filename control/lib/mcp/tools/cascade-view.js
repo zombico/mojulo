@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planCascadeScene, CASCADE_REGIME_NAMES } from '@/lib/graph/cascade-view';
+import { planCascadeScene, CASCADE_REGIME_NAMES } from '@/lib/graph/landscape/cascade-view';
 
 export function mintCascadeView({ title, regime, nuclei, nu, seed, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

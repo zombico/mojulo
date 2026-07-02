@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planBlackHoleScene, BLACK_HOLE_SCENARIOS } from '@/lib/graph/black-hole-view';
+import { planBlackHoleScene, BLACK_HOLE_SCENARIOS } from '@/lib/graph/views/science/black-hole-view';
 
 export function mintBlackHoleView({ title, scenario, inclination, diskOuter, beta, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

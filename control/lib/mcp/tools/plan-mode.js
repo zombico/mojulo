@@ -41,7 +41,7 @@ import { PlanRepository } from '@/lib/db/repositories/plans';
 import { CookRepository } from '@/lib/db/repositories/cooks';
 import { recordPlanReleases, isReleaseCommitType } from '@/lib/mcp/meta-context/plan-release';
 import { mintSketch } from '@/lib/mcp/tools/sketches';
-import { planToSketchManifest } from '@/lib/graph/sketch-derive';
+import { planToSketchManifest } from '@/lib/graph/sketch/sketch-derive';
 
 // Plan-mode meta-tools may never appear inside a plan's manifest — that would
 // let a plan forge/compile/execute other plans, defeating the per-execution

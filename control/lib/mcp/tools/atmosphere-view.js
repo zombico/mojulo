@@ -12,7 +12,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planAtmosphereScene, ATMOSPHERE_SCENARIOS } from '@/lib/graph/atmosphere-view';
+import { planAtmosphereScene, ATMOSPHERE_SCENARIOS } from '@/lib/graph/landscape/atmosphere-view';
 
 export function mintAtmosphereView({ title, scenario, brightness, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

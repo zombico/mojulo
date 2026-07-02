@@ -12,7 +12,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planFtcScene, FTC_SCENARIOS } from '@/lib/graph/ftc-view';
+import { planFtcScene, FTC_SCENARIOS } from '@/lib/graph/views/math/ftc-view';
 
 export function mintFtcView({ title, scenario, at, animate, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

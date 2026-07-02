@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planEnergyCycle } from '@/lib/graph/energy-cycle';
+import { planEnergyCycle } from '@/lib/graph/views/bio/energy-cycle';
 
 export function mintEnergyCycle({ title, speed, scene, viewBox, ref, folderRef } = {}) {
   const manifest = {

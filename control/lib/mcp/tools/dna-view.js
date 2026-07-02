@@ -15,7 +15,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planDnaScene } from '@/lib/graph/dna-view';
+import { planDnaScene } from '@/lib/graph/views/bio/dna-view';
 
 const LODS = ['draft', 'default', 'hero'];
 const HANDS = ['right', 'left'];

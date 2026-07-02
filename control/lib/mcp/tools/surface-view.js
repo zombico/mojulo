@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planSurfaceScene, SURFACE_SCENARIOS } from '@/lib/graph/surface-view';
+import { planSurfaceScene, SURFACE_SCENARIOS } from '@/lib/graph/views/math/surface-view';
 
 export function mintSurfaceView({ title, scenario, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

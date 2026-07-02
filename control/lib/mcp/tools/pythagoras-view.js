@@ -12,7 +12,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planPythagorasScene, PYTHAGORAS_SCENARIOS } from '@/lib/graph/pythagoras-view';
+import { planPythagorasScene, PYTHAGORAS_SCENARIOS } from '@/lib/graph/views/math/pythagoras-view';
 
 export function mintPythagorasView({ title, scenario, a, b, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

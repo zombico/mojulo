@@ -15,8 +15,8 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planMoleculeScene, BOND_STYLES } from '@/lib/graph/molecule-view';
-import { MOLECULE_NAMES } from '@/lib/graph/molecule-builder';
+import { planMoleculeScene, BOND_STYLES } from '@/lib/graph/views/bio/molecule-view';
+import { MOLECULE_NAMES } from '@/lib/graph/views/bio/molecule-builder';
 
 const LODS = ['draft', 'default', 'hero'];
 

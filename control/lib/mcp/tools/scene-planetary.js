@@ -14,7 +14,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planPlanetaryScene, PLANETARY_SUBJECTS } from '@/lib/graph/scene-planetary';
+import { planPlanetaryScene, PLANETARY_SUBJECTS } from '@/lib/graph/scene/scene-planetary';
 
 export function mintPlanetary({ title, subject, seed, stars, sunU, sunH, sun, sunSize, sunGlow, obliquity, mandala, continents, blanket, relief, reliefScale, atmosphere, clouds, moon, moonAngle, moonScale, nightFill, datetime, live, viewBox, ref, folderRef } = {}) {
   const subjectKey = PLANETARY_SUBJECTS.includes(subject) ? subject : 'earth';

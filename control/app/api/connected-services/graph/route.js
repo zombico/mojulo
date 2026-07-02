@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { loadFleetScene } from '@/lib/fleet-scene/loader';
 import { deriveFleetSceneTopology } from '@/lib/graph/derivers/fleet-scene';
 import { layoutFleetScene } from '@/lib/graph/layout/fleet-scene';
-import { validateSketchManifest } from '@/lib/graph/sketch-manifest';
+import { validateSketchManifest } from '@/lib/graph/sketch/sketch-manifest';
 
 const FRAMINGS = new Set(['map', 'mcp-skills']);
 

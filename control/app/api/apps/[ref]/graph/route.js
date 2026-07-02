@@ -3,7 +3,7 @@ import { getApp } from '@/lib/apps/loader';
 import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
 import { deriveAppTopology } from '@/lib/graph/derivers/app';
 import { layout } from '@/lib/graph/layout';
-import { validateSketchManifest } from '@/lib/graph/sketch-manifest';
+import { validateSketchManifest } from '@/lib/graph/sketch/sketch-manifest';
 
 export async function GET(_req, ctx) {
   try {

@@ -12,7 +12,7 @@
 import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { renderStoredSketchSvg } from '@/lib/graph/stored-sketch-svg';
+import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
 
 function safeFilename(title, ref) {
   const base = [title, ref].filter(Boolean).join(' ');

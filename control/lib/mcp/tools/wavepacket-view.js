@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planWavepacketScene, WAVEPACKET_SCENARIOS } from '@/lib/graph/wavepacket-view';
+import { planWavepacketScene, WAVEPACKET_SCENARIOS } from '@/lib/graph/views/science/wavepacket-view';
 
 export function mintWavepacketView({ title, scenario, density, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

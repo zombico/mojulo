@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planFusionScene } from '@/lib/graph/fusion-view';
+import { planFusionScene } from '@/lib/graph/views/science/fusion-view';
 
 export function mintFusionView({ title, density, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

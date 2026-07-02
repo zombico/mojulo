@@ -31,11 +31,12 @@
  */
 
 import { shadeHex, makeLight, scaleHex } from './vexar.js';
-import { generatePlan, generateProgramPlan, resolveTier, furnishElements, archetypeArea, ARCHETYPES } from './floorplan-glyphs.js';
-import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene-css3d.js';
-import { emitThreeWorld } from '../scene-three.js';
-import { buildRoof } from '../roof.js';
-import { surfaceTexture } from '../surface-textures.js';
+import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES } from './floorplan-glyphs.js';
+import { doorApproaches } from '../worlds/movement-flow.js';
+import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d.js';
+import { emitThreeWorld } from '../scene/scene-three.js';
+import { buildRoof } from '../architecture/roof.js';
+import { surfaceTexture } from '../landscape/surface-textures.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
 
 // ── structural glyph alphabet (the wall graph that relates rooms) ────────────
@@ -366,6 +367,7 @@ function placeEntryDoor(graph, o) {
     a, b, sill: 0, top,
     entry: true,
     exterior: true,
+    kind: entry.kind,                                    // 'cased' → clean opening (no leaf); default hinged
     doorSwing: entry.swing ?? run.exteriorSide,
   });
   return run.openings[run.openings.length - 1];
@@ -458,7 +460,7 @@ function ceilingFaces(fp, z, tint, light, holes = []) {
 // Reuses the room-spike furniture pipeline: the generated cell IS the room basis, so
 // `extractRoomSceneFaces` returns furniture already in world coords, ready to merge.
 // Structural openings (window/door) are dropped — the house cuts those for real.
-function furnishCell(rect, glyph, baseZ, o, wall = null) {
+function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
   if (!glyph || glyph === 'H') return [];
   const pad = Math.max(o.wallThickness, 0.4);           // keep furniture off the walls
   const x0 = rect.x + pad, x1 = rect.x + rect.w - pad, y0 = rect.y + pad, y1 = rect.y + rect.h - pad;
@@ -467,6 +469,9 @@ function furnishCell(rect, glyph, baseZ, o, wall = null) {
   const W = x1 - x0, H = y1 - y0;
   let elements = furnishElements(glyph, seed, { w: W, h: H, wall })
     .filter((e) => e.type !== 'window' && e.type !== 'door');
+  // command position (movement-flow kernel #2): rotate the canonical layout so the anchor
+  // piece backs a solid wall and faces the room's ACTUAL door, not the assumed front 'S'.
+  if (doorEdge) elements = orientElementsToDoor(elements, doorEdge, W, H);
   // keep furniture OUT of circulation: drop any piece whose footprint overlaps a stair
   // exclusion rect (the flight rising through this room). Hall cells are already skipped.
   const exclude = o.furnishExclude || [];
@@ -499,24 +504,18 @@ function furnishCell(rect, glyph, baseZ, o, wall = null) {
 // the private-room doors onto the core and the entry door stay clear of the seating /
 // dining / kitchen zones, so a room is never furnished shut.
 function doorClearanceRects(doors, o) {
-  const half = (o.doorWidth ?? 3) / 2 + 0.3;            // doorway half-width + a little slack
-  const clr = o.doorClearance ?? 2.5;                   // approach depth kept clear each side of the leaf
-  const out = [];
-  for (const d of doors || []) {
-    if (!d || d.x == null || d.y == null) continue;
-    const horiz = d.edge === 'N' || d.edge === 'S';     // door on a horizontal wall → varies in x
-    out.push(horiz
-      ? { x0: d.x - half, x1: d.x + half, y0: d.y - clr, y1: d.y + clr }
-      : { x0: d.x - clr, x1: d.x + clr, y0: d.y - half, y1: d.y + half });
-  }
-  return out;
+  // shared primitive (graph/movement-flow.js); `half` fixes the jamb width to the doorway
+  // (ignoring per-door width) to preserve this path's long-standing behavior.
+  return doorApproaches(doors, { clr: o.doorClearance ?? 2.5, half: (o.doorWidth ?? 3) / 2 + 0.3 });
 }
 
 // One room → its furniture. The OPEN CORE (open + multi-zone) is split along its long
 // axis into living/kitchen/dining sub-rects (weighted by furniture budget) and each is
 // furnished as itself — open plan, distinct zones.
-function furnishRoom(room, baseZ, o) {
+function furnishRoom(room, baseZ, o, doorEdge = null) {
   if (room.open && Array.isArray(room.zones) && room.zones.length > 1) {
+    // the open core keeps its canonical zone layout (open plan — command position is the
+    // private rooms' concern, not the great room's), so doorEdge is not threaded here.
     const horiz = room.w >= room.h;
     const span = horiz ? room.w : room.h;
     const weights = room.zones.map((g) => archetypeArea(g));
@@ -534,7 +533,7 @@ function furnishRoom(room, baseZ, o) {
     });
     return faces;
   }
-  return furnishCell(room, room.glyph, baseZ, o);
+  return furnishCell(room, room.glyph, baseZ, o, null, doorEdge);
 }
 
 /** Plan-space rect for a [s0,s1] span of a run, straddling its centerline by t/2. */
@@ -729,13 +728,15 @@ const palettePick = (arr, ...k) => arr[Math.floor(hashf(...k) * arr.length) % ar
  * field). Bands are clipped to the segment's z-range and laid just proud of the wall face,
  * with staggered lift so the layers never z-fight. `side` = +1/−1 along the run's normal.
  */
-function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light) {
+function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}) {
   const faces = [];
   const tHalf = t / 2;
   const N = run.orientation === 'h' ? [0, side, 0] : [side, 0, 0];
   const key = (run.orientation === 'h' ? 1 : -1) * run.at;
   const kindRoll = hashf(key, (s0 + s1) * 0.5, side * 1.3);
-  const kind = kindRoll < 0.6 ? 'paint' : kindRoll < 0.8 ? 'wainscot' : 'wallpaper';
+  // `interiorWallStyle` forces one finish on every interior face (e.g. exposed BRICK,
+  // the inside face of a brick building); otherwise the finish is chosen by geometry.
+  const kind = o.interiorWallStyle || (kindRoll < 0.6 ? 'paint' : kindRoll < 0.8 ? 'wainscot' : 'wallpaper');
   const paint = palettePick(WALL_PAINTS, key, side, 7.1);
   const rect = (a0, a1, lo, hi, color, lift) => {
     const A0 = Math.max(s0, a0), A1 = Math.min(s1, a1), L = Math.max(zb, lo), Hi = Math.min(zt, hi);
@@ -746,6 +747,21 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light) {
       : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
     faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true });
   };
+  // EXPOSED BRICK — a brick field + a recessed running-bond mortar grid (coarser unit than
+  // the facade so the interior face doesn't explode in count). Same material inside and out.
+  if (kind === 'brick') {
+    const brick = o.brickBodyTint || FLOORPLAN_DEFAULTS.brickBodyTint;
+    const mortar = o.brickMortarTint || FLOORPLAN_DEFAULTS.brickMortarTint;
+    const bw = 2.3, ch = 0.62, jt = 0.05;
+    rect(s0, s1, baseZ, baseZ + H, brick, 0.012);
+    let ci = 0;
+    for (let z = baseZ; z < baseZ + H - ch * 0.4; z += ch, ci += 1) {
+      rect(s0, s1, z, z + jt, mortar, 0.024);                                  // bed joint
+      const phase = (ci % 2) ? bw / 2 : 0, bx0 = Math.floor((s0 - phase) / bw) * bw + phase;
+      for (let x = bx0; x <= s1; x += bw) rect(x, x + jt, z + jt, z + ch, mortar, 0.024);   // head joints
+    }
+    return faces;
+  }
   const baseTop = baseZ + 0.5;
   rect(s0, s1, baseZ, baseTop, WOOD_FINISH.base, 0.013);                 // baseboard (all finishes)
   if (kind === 'paint') {
@@ -853,7 +869,7 @@ export function wallRunFaces(run, opts = {}) {
     const sides = run.interior ? [1, -1] : [-run.exteriorSide];
     for (const [s0, s1, z0, z1] of subs) {
       if (s1 - s0 < Q || z1 - z0 < Q) continue;
-      for (const side of sides) if (side) faces.push(...interiorWallDecor(run, side, s0, s1, baseZ + z0, baseZ + z1, baseZ, H, t, light));
+      for (const side of sides) if (side) faces.push(...interiorWallDecor(run, side, s0, s1, baseZ + z0, baseZ + z1, baseZ, H, t, light, o));
     }
   }
   if (o.facadeDecor && !run.interior) {
@@ -1038,8 +1054,10 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     ? { rooms: input.rooms, halls: input.halls || [], doors: input.doors || [], width: input.width, height: input.height, seed: input.seed }
     : generatePlan(input.seed ?? 1, { width: input.width, height: input.height, maxDepth: input.maxDepth, corridors: input.corridors ?? false, minRoom: input.minRoom });
   const cells = [
-    ...plan.rooms.map((r) => ({ x: r.x, y: r.y, w: r.w, h: r.h, kind: 'room', glyph: r.glyph || 'S' })),
-    ...(plan.halls || []).map((h) => ({ x: h.x, y: h.y, w: h.w, h: h.h, kind: 'hall', glyph: 'H' })),
+    // carry `role` through (the true space-type the principle evaluator reads); `glyph` stays the
+    // furniture/finish costume. Undefined role is fine — the evaluator defaults it from the glyph.
+    ...plan.rooms.map((r) => ({ x: r.x, y: r.y, w: r.w, h: r.h, kind: 'room', glyph: r.glyph || 'S', role: r.role })),
+    ...(plan.halls || []).map((h) => ({ x: h.x, y: h.y, w: h.w, h: h.h, kind: 'hall', glyph: 'H', role: h.role })),
   ];
   const wallGraph = buildWallGraph(cells, o);
   placeOpenings(wallGraph, plan.doors || [], o);
@@ -1077,7 +1095,12 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     const fo = doorClear.length
       ? { ...o, furnishExclude: [...(o.furnishExclude || []), ...doorClear] }
       : o;
-    for (const room of plan.rooms) faces.push(...furnishRoom(room, baseZ, fo));
+    // the edge a room is entered from (its interior access door) → command-position orient.
+    const doorEdgeFor = (i) => {
+      const d = (plan.doors || []).find((dr) => dr.room === i && !dr.exterior && !dr.entry);
+      return d ? d.edge : null;
+    };
+    plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i))));
   }
   // built site structures adjacent to the house: porch/stoop off the entry, deck off the
   // terrace slider, balcony off an upper bedroom. Each keys off a door, so the relevant floor

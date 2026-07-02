@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planConicsScene, CONICS_SCENARIOS } from '@/lib/graph/conics-view';
+import { planConicsScene, CONICS_SCENARIOS } from '@/lib/graph/views/math/conics-view';
 
 export function mintConicsView({ title, scenario, animate, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

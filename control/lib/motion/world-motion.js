@@ -16,8 +16,8 @@
  * buffers (framePngs), not frameSvgs, and forge_motion files it accordingly.
  */
 
-import { resolveWorldScene } from '@/lib/graph/world-scene';
-import { emitThreeWorld, verticalFov } from '@/lib/graph/scene-three';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { emitThreeWorld, verticalFov } from '@/lib/graph/scene/scene-three';
 import { cameraPathFor, CAMERA_MOTIONS } from './camera-path.js';
 import { renderWorldFrames } from './world-frames.js';
 

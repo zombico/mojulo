@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planVectorMatchScene, VECTOR_MATCH_VOCAB } from '@/lib/graph/vector-match-view';
+import { planVectorMatchScene, VECTOR_MATCH_VOCAB } from '@/lib/graph/views/math/vector-match-view';
 
 export function mintVectorMatchView({ title, query, candidates, topK, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

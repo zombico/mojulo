@@ -10,7 +10,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planGravityWaveScene, GRAVITY_WAVE_SCENARIOS } from '@/lib/graph/gravity-wave-view';
+import { planGravityWaveScene, GRAVITY_WAVE_SCENARIOS } from '@/lib/graph/views/science/gravity-wave-view';
 
 export function mintGravityWaveView({ title, scenario, amplitude, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

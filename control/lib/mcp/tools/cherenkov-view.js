@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planCherenkovScene, CHERENKOV_SCENARIOS } from '@/lib/graph/cherenkov-view';
+import { planCherenkovScene, CHERENKOV_SCENARIOS } from '@/lib/graph/views/science/cherenkov-view';
 
 export function mintCherenkovView({ title, scenario, density, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planGalaxyScene, GALAXY_SCENARIOS } from '@/lib/graph/galaxy-view';
+import { planGalaxyScene, GALAXY_SCENARIOS } from '@/lib/graph/views/science/galaxy-view';
 
 export function mintGalaxyView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

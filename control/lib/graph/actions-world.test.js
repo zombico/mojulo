@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { emitThreeWorld } from './scene-three.js';
-import { buildSim } from './physics-sim.js';
+import { emitThreeWorld } from './scene/scene-three.js';
+import { buildSim } from './worlds/physics-sim.js';
 
 const physics = {
   gravity: [0, 0, -9.8],

@@ -14,7 +14,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planMechanicsScene, MECHANICS_SCENARIOS } from '@/lib/graph/mechanics-view';
+import { planMechanicsScene, MECHANICS_SCENARIOS } from '@/lib/graph/views/science/mechanics-view';
 
 export function mintMechanicsView({ title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

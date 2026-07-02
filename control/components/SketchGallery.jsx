@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
-import { sketchRenderMode } from '@/lib/graph/sketch-manifest';
+import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 
 // Preview body for one sketch, dispatched on its renderer mode so scene /
 // illustration kinds (fractal-city, turntables, …) render via their /scene or
@@ -24,16 +24,15 @@ function SketchPreviewBody({ sketch, t, fit = false }) {
     );
   }
   if (mode === 'world' || mode === 'scene') {
-    // The 3D kinds (navigable three.js worlds, CSS-3D turntables) render hard
-    // live, so the gallery previews a baked PNG instead of standing up a 3D
-    // context per card. scale=1 keeps the (rasterization-heavy) first bake quick;
-    // the full-res 2× image is the "Download PNG" target. The live, traversable
-    // view is one click away via "Open in New Tab".
+    // The 3D kinds (navigable three.js worlds, CSS-3D turntables) render live in
+    // the preview/modal — a single mounted <iframe> on the same /world (or
+    // /scene) endpoint the detail page uses. Only one is ever mounted at a time
+    // (the selected sketch), so there's no per-card 3D-context cost here.
     return (
-      <img
-        src={`/api/sketches/${ref}/png?inline=1&scale=1`}
-        alt={sketch.title || sketch.ref}
-        className="max-w-full max-h-full block"
+      <iframe
+        src={`/api/sketches/${ref}/${mode}`}
+        title={sketch.title || sketch.ref}
+        className="w-full h-full border-0 block"
       />
     );
   }
@@ -41,14 +40,16 @@ function SketchPreviewBody({ sketch, t, fit = false }) {
 }
 
 // The shared download/open affordances for a previewed sketch, used by both the
-// split-view header and the full-view modal. Every kind offers "Download PNG";
-// SVG download is offered only for kinds that have a vector form (illustration
-// SVGs + CreationMap diagrams) — the 3D world/scene kinds have no SVG to export,
-// so their only still export is the baked PNG.
+// split-view header and the full-view modal. SVG download is offered only for
+// kinds that have a vector form (illustration SVGs + CreationMap diagrams), and
+// the baked PNG is offered for those same still kinds. The 3D world/scene kinds
+// render live inline (see SketchPreviewBody) and are traversed in a new tab, so
+// they expose no still export here.
 function SketchDownloads({ sketch, t }) {
   const ref = encodeURIComponent(sketch.ref);
   const mode = sketchRenderMode(sketch.manifest);
   const hasSvg = mode === 'svg' || mode === 'diagram';
+  const hasPng = mode !== 'world' && mode !== 'scene';
   return (
     <div className="flex items-center gap-2">
       <a
@@ -69,13 +70,15 @@ function SketchDownloads({ sketch, t }) {
           {t('downloadSvg')}
         </a>
       )}
-      <a
-        href={`/api/sketches/${ref}/png`}
-        className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
-      >
-        <DownloadIcon />
-        {t('downloadPng')}
-      </a>
+      {hasPng && (
+        <a
+          href={`/api/sketches/${ref}/png`}
+          className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
+        >
+          <DownloadIcon />
+          {t('downloadPng')}
+        </a>
+      )}
     </div>
   );
 }

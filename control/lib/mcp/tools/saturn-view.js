@@ -1,4 +1,4 @@
-up/**
+/**
  * create_saturn_view — mint Saturn and its rings, rendered by a per-pixel ray-tracing fragment shader
  * (the same raymarch-mode path as the black hole). The shader does what meshes can't cleanly: the
  * rings cast a shadow on the planet, the planet casts its shadow across the rings, the rings are
@@ -11,7 +11,7 @@ up/**
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planSaturnScene, SATURN_SCENARIOS, SATURN_PLANETS } from '@/lib/graph/saturn-view';
+import { planSaturnScene, SATURN_SCENARIOS, SATURN_PLANETS } from '@/lib/graph/views/science/saturn-view';
 
 export function mintSaturnView({ title, planet, gallery, scenario, inclination, ringOuter, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

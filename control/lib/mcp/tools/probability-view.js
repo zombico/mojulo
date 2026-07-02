@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planProbabilityScene, PROBABILITY_SCENARIOS } from '@/lib/graph/probability-view';
+import { planProbabilityScene, PROBABILITY_SCENARIOS } from '@/lib/graph/views/math/probability-view';
 
 export function mintProbabilityView({ title, scenario, rows, p, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

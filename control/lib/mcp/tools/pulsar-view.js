@@ -9,7 +9,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planPulsarScene, PULSAR_SCENARIOS } from '@/lib/graph/pulsar-view';
+import { planPulsarScene, PULSAR_SCENARIOS } from '@/lib/graph/views/science/pulsar-view';
 
 export function mintPulsarView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

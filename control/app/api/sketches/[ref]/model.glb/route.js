@@ -14,8 +14,8 @@
 import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { resolveWorldScene } from '@/lib/graph/world-scene';
-import { facesToGlb } from '@/lib/graph/scene-gltf';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 
 // A filesystem-safe download name derived from the sketch title (falls back to the ref).
 function glbFilename(sketch, ref) {

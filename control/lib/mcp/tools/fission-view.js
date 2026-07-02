@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planFissionScene } from '@/lib/graph/fission-view';
+import { planFissionScene } from '@/lib/graph/views/science/fission-view';
 
 export function mintFissionView({ title, asymmetry, density, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

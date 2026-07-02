@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { deriveBaseShot, WORLD_MOTION_NAMES } from './world-motion.js';
-import { emitThreeWorld } from '@/lib/graph/scene-three';
+import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 
 describe('motion/world-motion — deriveBaseShot', () => {
   it('prefers the world\'s first authored camera bookmark', () => {

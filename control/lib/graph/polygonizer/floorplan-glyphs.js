@@ -439,6 +439,35 @@ export function furnishElements(glyph, seed = 1, dims = {}) {
   return (ARCHETYPES[glyph] || ARCHETYPES.S).fill(rng);
 }
 
+// ── COMMAND POSITION (movement-flow, kernel #2) ─────────────────────────────────
+// The arrangers above lay a room out CANONICALLY: the door is assumed at the front
+// ('S' wall), so the anchor piece (bed/desk/sofa) backs the opposite wall and faces the
+// door. But generateProgramPlan doors land on a room's ACTUAL edge (private rows door onto
+// the hall on their 'N' wall). `orientElementsToDoor` rotates the whole canonical layout so
+// its front aligns with the real door edge — the anchor then backs a solid wall and faces
+// the door (the "command position"), instead of jamming its headboard under the doorway.
+// 180° (the common 'N'-door case) is extent-safe; a 90° turn swaps the piece's w/h footprint.
+// See graph/movement-flow.plan.md (kernel #2) and graph/movement-flow.js (facingToward).
+const FACING_SPIN = { S: 0, E: 1, N: 2, W: 3 };       // CW quarter-turns from the 'S' front
+const SPIN_FACING = ['S', 'E', 'N', 'W'];
+const SURFACE_EDGE = { backWall: 'N', rightWall: 'E', frontWall: 'S', leftWall: 'W' };
+const EDGE_SURFACE = { N: 'backWall', E: 'rightWall', S: 'frontWall', W: 'leftWall' };
+export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1) {
+  const k = FACING_SPIN[doorEdge] ?? 0;               // door 'S' ⇒ already canonical
+  if (!k) return elements;
+  const rotUV = (u, v) => { let x = u, y = v; for (let i = 0; i < k; i += 1) { const nx = y, ny = 1 - x; x = nx; y = ny; } return [x, y]; };
+  const spin = (letter) => SPIN_FACING[(FACING_SPIN[letter] + k) % 4];
+  const odd = k % 2 === 1;
+  return elements.map((e) => {
+    const out = { ...e };
+    if (Array.isArray(e.anchor)) out.anchor = rotUV(e.anchor[0], e.anchor[1]);
+    if (e.facing != null && FACING_SPIN[e.facing] != null) out.facing = spin(e.facing);
+    if (e.surface && SURFACE_EDGE[e.surface]) out.surface = EDGE_SURFACE[spin(SURFACE_EDGE[e.surface])];
+    if (odd && e.w != null && e.h != null) { out.w = (e.h * H) / W; out.h = (e.w * W) / H; }  // 90°: footprint swaps
+    return out;
+  });
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // PROGRAM-DRIVEN, OPEN-SPACE-FIRST GENERATOR
 // Open space is the SEED, not a leftover: reserve a wall-less public core, carve

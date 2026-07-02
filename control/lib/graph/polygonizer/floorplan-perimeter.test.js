@@ -7,7 +7,7 @@ import {
   PERIMETER_DEFAULTS,
 } from './floorplan-perimeter.js';
 import { structurizeSplitMirror, structurizeFloorplan } from './floorplan-structure.js';
-import { ROOF_STYLES } from '../roof.js';
+import { ROOF_STYLES } from '../architecture/roof.js';
 
 const fp = { x0: 6, x1: 46, y0: 6, y1: 36 };   // a ~40×30 ft house footprint (feet)
 

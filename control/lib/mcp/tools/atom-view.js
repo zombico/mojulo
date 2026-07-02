@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planAtomScene } from '@/lib/graph/atom-view';
+import { planAtomScene } from '@/lib/graph/views/science/atom-view';
 
 export function mintAtomView({ title, element, Z, mode, style, orbital, viewBox, scene, ref, folderRef } = {}) {
   const scientific = style === 'scientific';

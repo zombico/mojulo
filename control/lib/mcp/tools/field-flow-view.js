@@ -12,7 +12,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planFieldFlowScene, FIELD_FLOW_SCENARIOS } from '@/lib/graph/field-flow-view';
+import { planFieldFlowScene, FIELD_FLOW_SCENARIOS } from '@/lib/graph/views/science/field-flow-view';
 
 export function mintFieldFlowView({ title, scenario, matrix, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

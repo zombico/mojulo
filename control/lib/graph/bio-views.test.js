@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { planEnergyCycle, assembleEnergyCycleScene } from './energy-cycle.js';
-import { planDnaProcess, assembleDnaProcessScene, DNA_PROCESSES } from './dna-process.js';
-import { classifyBucket } from './sketch-manifest.js';
+import { planEnergyCycle, assembleEnergyCycleScene } from './views/bio/energy-cycle.js';
+import { planDnaProcess, assembleDnaProcessScene, DNA_PROCESSES } from './views/bio/dna-process.js';
+import { classifyBucket } from './sketch/sketch-manifest.js';
 
 const finite3 = (c) => Array.isArray(c) && c.length === 3 && c.every((v) => Number.isFinite(v));
 const facesValid = (faces) => faces.length > 0 && faces.every((f) => f.corners.length >= 3 && f.corners.every(finite3) && /^#[0-9a-fA-F]{6}$/.test(f.fill));

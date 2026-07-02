@@ -60,7 +60,7 @@ import {
   resolvePresentationTheme,
   PRESENTATION_THEME_NAMES,
 } from '@/lib/visual-language/themes';
-import { renderMaterializeFrames, renderTransfigureFrames } from '@/lib/graph/carved-motion';
+import { renderMaterializeFrames, renderTransfigureFrames } from '@/lib/graph/effects/carved-motion';
 
 // EFFECT motions — the third subject family: phase-driven transitions over carved
 // solids (carve's temporal peers). Distinct from CAMERA (manji-tree) and DECK.

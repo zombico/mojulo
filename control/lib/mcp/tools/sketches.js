@@ -20,22 +20,23 @@ import { promises as fs } from 'node:fs';
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
-import { resolveWorldScene } from '@/lib/graph/world-scene';
-import { facesToGlb } from '@/lib/graph/scene-gltf';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import {
   validateSketchManifest,
   expandGridLayout,
   STATION_KINDS,
   EDGE_VIA_VALUES,
   MARK_KINDS,
-} from '@/lib/graph/sketch-manifest';
+} from '@/lib/graph/sketch/sketch-manifest';
 import { expandNeoRembrandt } from '@/lib/graph/neo-rembrandt/index.js';
+import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import {
   getSketchVocabCard,
   listSketchVocab,
 } from '@/lib/graph/sketch-vocab/loader';
-import { deriveSketchDiffManifest } from '@/lib/graph/sketch-diff';
-import { warmScenePng } from '@/lib/graph/scene-png-warm';
+import { deriveSketchDiffManifest } from '@/lib/graph/sketch/sketch-diff';
+import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -210,14 +211,25 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   } catch (err) {
     throw new Error(`Rendrant expansion error: ${err.message}`);
   }
-  const { ok, errors } = validateSketchManifest(expanded);
+  // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
+  // pick the best-scoring seed / cut a door into a stranded room, and stamp a `quality` grade so
+  // the stored manifest carries its own quality signal. The render path stays pure (it just
+  // regenerates this manifest). Grading must never block minting, so fall back on any error.
+  let finalized = expanded;
+  try {
+    finalized = improveFloorplanManifest(expanded);
+  } catch {
+    finalized = expanded;
+  }
+
+  const { ok, errors } = validateSketchManifest(finalized);
   if (!ok) {
     throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);
   }
 
   let sketch;
   try {
-    sketch = SketchRepository.create({ title, manifest: expanded, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
+    sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
   } catch (err) {
     if (err && /UNIQUE constraint failed/.test(err.message || '')) {
       throw new Error(`A sketch with ref '${ref}' already exists`);
@@ -320,11 +332,17 @@ export async function updateSketchHandler(input) {
     } catch (err) {
       throw new Error(`Rendrant expansion error: ${err.message}`);
     }
-    const { ok, errors } = validateSketchManifest(expanded);
+    let finalized = expanded;
+    try {
+      finalized = improveFloorplanManifest(expanded);   // grade + auto-improve floorplans; no-op otherwise
+    } catch {
+      finalized = expanded;
+    }
+    const { ok, errors } = validateSketchManifest(finalized);
     if (!ok) {
       throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);
     }
-    nextManifest = expanded;
+    nextManifest = finalized;
   }
 
   const updated = SketchRepository.update({

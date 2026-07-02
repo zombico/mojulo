@@ -11,7 +11,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planQuadraticScene, QUADRATIC_SCENARIOS } from '@/lib/graph/quadratic-view';
+import { planQuadraticScene, QUADRATIC_SCENARIOS } from '@/lib/graph/views/math/quadratic-view';
 
 export function mintQuadraticView({ title, scenario, a, b, c, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

@@ -14,7 +14,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planOrbitScene, ORBIT_SCENARIOS } from '@/lib/graph/orbit-view';
+import { planOrbitScene, ORBIT_SCENARIOS } from '@/lib/graph/views/science/orbit-view';
 
 export function mintOrbitView({ title, scenario, scale, vectors, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {

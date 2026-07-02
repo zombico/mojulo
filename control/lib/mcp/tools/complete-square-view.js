@@ -13,7 +13,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planCompleteSquareScene, COMPLETE_SQUARE_SCENARIOS } from '@/lib/graph/complete-square-view';
+import { planCompleteSquareScene, COMPLETE_SQUARE_SCENARIOS } from '@/lib/graph/views/math/complete-square-view';
 
 export function mintCompleteSquareView({ title, scenario, x, b, animate, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {
