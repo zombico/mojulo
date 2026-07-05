@@ -419,6 +419,10 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
   for (const f of src) {
     const c = f && f.corners;
     if (!c || c.length < 4) continue;
+    // Baked per-corner ambient occlusion (effects/ao-bake.js): `vao` multiplies the face's
+    // baked colour per corner, and the GPU interpolates the gradient across the face. Absent
+    // (every pre-AO scene) → factor 1 everywhere, byte-identical output.
+    const vao = Array.isArray(f.vao) && f.vao.length >= 4 ? f.vao : null;
     if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= 4) {
       const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false });
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
@@ -428,10 +432,10 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
       const [tr, tg, tb] = faceColorLinear(f);
       for (const tri of TRIS) {
         for (const idx of tri) {
-          const p = c[idx], uv = f.uv[idx];
+          const p = c[idx], uv = f.uv[idx], a = vao ? vao[idx] : 1;
           grp.positions.push(p[0], p[1], p[2]);
           grp.uvs.push(uv[0], uv[1]);
-          grp.colors.push(tr, tg, tb);
+          grp.colors.push(tr * a, tg * a, tb * a);
         }
       }
       for (let i = 0; i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
@@ -441,19 +445,23 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
     const clipPts = parseClipPolygon(f.clip);
     const radPts = clipPts ? null : parseBorderRadius(f.radius);
     if (clipPts || radPts) {
-      const mapped = (clipPts || roundedRectOutline(radPts)).map(([u, v]) => bilerp(c, u, v));
+      const mapped0 = (clipPts || roundedRectOutline(radPts));
+      const mapped = mapped0.map(([u, v]) => bilerp(c, u, v));
+      // clip/radius vertices live at (u,v) inside the quad → interpolate corner AO bilinearly
+      const aoAt = vao ? mapped0.map(([u, v]) => { const t = vao[0] + (vao[1] - vao[0]) * u, b = vao[3] + (vao[2] - vao[3]) * u; return t + (b - t) * v; }) : null;
       for (let i = 1; i < mapped.length - 1; i++) {
-        for (const p of [mapped[0], mapped[i], mapped[i + 1]]) {
+        for (const j of [0, i, i + 1]) {
+          const p = mapped[j], a = aoAt ? aoAt[j] : 1;
           positions.push(p[0], p[1], p[2]);
-          colors.push(lr, lg, lb);
+          colors.push(lr * a, lg * a, lb * a);
         }
       }
     } else {
       for (const tri of TRIS) {
         for (const idx of tri) {
-          const p = c[idx];
+          const p = c[idx], a = vao ? vao[idx] : 1;
           positions.push(p[0], p[1], p[2]);
-          colors.push(lr, lg, lb);
+          colors.push(lr * a, lg * a, lb * a);
         }
       }
     }

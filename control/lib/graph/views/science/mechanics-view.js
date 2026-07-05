@@ -303,6 +303,55 @@ export function planMechanicsScene(recipe = {}) {
   return { faces, picks, movers, bounds: { center, radius }, stats: { scenario, g, bodyRadius: rB, samples: N_SAMPLES, period, loop: !!sim.loop, T: sim.T } };
 }
 
+// ── the physical read-back channel (measure_view). The renderer computes the full equal-dt
+// trajectory on every mint/render and throws it away; this returns it as data instead. Sampled
+// from the UNSCALED rule output — positions in real metres, speed/accel in real m/s and m/s²
+// (the same kPhys numbers the readout shows), never the render-scaled world path. Restricted to
+// the single-body MECHANICS_RULES dynamics scenarios: machines are quasi-static, engines are
+// kinematic linkages, compare/collision are multi-mover — none of those yield one honest
+// SI time-series, so they refuse rather than return numbers that would lie. ──
+export const MEASURABLE_MECHANICS_SCENARIOS = Object.keys(MECHANICS_RULES);
+
+export function sampleMechanicsPhysics(recipe = {}, { every = 1 } = {}) {
+  const scenario = recipe.scenario;
+  if (recipe.compare) {
+    throw new Error(
+      "sampleMechanicsPhysics: compare recipes are two movers — measure each variant as its own recipe (drop `compare`).",
+    );
+  }
+  if (!MECHANICS_RULES[scenario]) {
+    throw new Error(
+      `sampleMechanicsPhysics: scenario '${scenario}' has no single-body dynamics rule. Measurable scenarios: ${MEASURABLE_MECHANICS_SCENARIOS.join(', ')}.`,
+    );
+  }
+  // same parameter resolution as planMechanicsScene, so measured numbers match the rendered readout.
+  const g = clampNum(recipe.g, 0.5, 40, 9.8);
+  const mass = clampNum(recipe.mass, 0.1, 100, 1);
+  const P = { g, mass, v0: recipe.v0, angle: recipe.angle, mu: recipe.mu, length: recipe.length, height: recipe.height, k: recipe.k, amplitude: recipe.amplitude, radius: recipe.radius };
+  const sim = MECHANICS_RULES[scenario](P);
+  const dt = sim.T / (N_SAMPLES - 1);
+  const k = deriveKinematics(sim.path, dt);
+  const zFloor = Math.min(...sim.path.map((p) => p[2]));
+  const ke = Array.isArray(sim.keArray) ? sim.keArray : k.speed.map((v) => 0.5 * mass * v * v);
+  const pe = Array.isArray(sim.peArray) ? sim.peArray : sim.path.map((p) => mass * g * (p[2] - zFloor));
+  const step = Math.max(1, Math.round(clampNum(every, 1, N_SAMPLES, 1)));
+  const samples = [];
+  for (let i = 0; i < sim.path.length; i += step) {
+    samples.push({
+      t: +(i * dt).toFixed(6),
+      pos: sim.path[i].map((c) => +c.toFixed(6)),
+      speed: +k.speed[i].toFixed(6),
+      accel: +k.accel[i].toFixed(6),
+      ...(sim.noEnergy ? {} : { ke: +ke[i].toFixed(6), pe: +pe[i].toFixed(6) }),
+    });
+  }
+  return {
+    scenario, label: sim.label, T: sim.T, dt, loop: !!sim.loop, static: !!sim.static,
+    units: { t: 's', pos: 'm', speed: 'm/s', accel: 'm/s²', ...(sim.noEnergy ? {} : { ke: 'J', pe: 'J' }) },
+    facts: sim.facts, samples, count: samples.length,
+  };
+}
+
 /**
  * Two-body 1-D COLLISION (Phase 3a): two bodies on a horizontal track approach, collide, and separate
  * with velocities set by conservation of momentum + a restitution e (e=1 elastic / KE conserved, e=0

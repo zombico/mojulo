@@ -118,3 +118,17 @@ describe('facesToGlb', () => {
     expect(json.materials[shadow.primitives[0].material].alphaMode).toBe('BLEND');
   });
 });
+
+describe('facesToGlb cross-group de-collide (renderer-emitter.plan.md E4)', () => {
+  it('coincident faces in DIFFERENT groups are lifted apart, exactly like the World path', () => {
+    // two byte-identical quads in different render groups → different glTF nodes. Before the
+    // global de-collide they exported at identical depth (z-fight in every importer); now one
+    // is staggered off the shared plane, matching emitThreeWorld's global pass.
+    const { json } = parseGlb(facesToGlb({ faces: [quad('#888888', { group: 'a' }), quad('#888888', { group: 'b' })] }).bytes);
+    const zs = json.meshes
+      .filter((m) => m.name === 'a' || m.name === 'b')
+      .map((m) => json.accessors[m.primitives[0].attributes.POSITION].max[2]);
+    expect(zs).toHaveLength(2);
+    expect(zs[0]).not.toBe(zs[1]); // one plane lifted → no coincident depth across nodes
+  });
+});

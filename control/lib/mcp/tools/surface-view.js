@@ -10,7 +10,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planSurfaceScene, SURFACE_SCENARIOS } from '@/lib/graph/views/math/surface-view';
 
 export function mintSurfaceView({ title, scenario, scale, viewBox, scene, ref, folderRef } = {}) {
@@ -47,39 +46,4 @@ export async function createSurfaceViewHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_surface_view requires a recipe object');
   const { title, scenario, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintSurfaceView({ title, scenario, scale, viewBox, scene, ref, folderRef });
-}
-
-export function registerSurfaceViewTools() {
-  registerTool({
-    name: 'create_surface_view',
-    description:
-      "Mint an interactive MULTIVARIABLE-CALCULUS explainer — the graph of z = f(x,y) rendered as a 3-D "
-      + "LANDSCAPE you can traverse, with a ball that ROLLS DOWNHILL (gradient descent) and traces its path "
-      + "as a live three.js World. Critical points (where ∇f = 0) become readable terrain: hilltops, "
-      + "valleys and saddles; optimization becomes a ball finding the bottom of a basin. Five scenarios, "
-      + "one idea worn many ways: 'bowl' (one global minimum — the ball always finds it), 'saddle' (∇f = 0 "
-      + "but NO optimum — the ball rolls away, the control), 'monkey' (three valleys meeting at a degenerate "
-      + "critical point), 'wells' (two basins → two LOCAL minima, where you drop the ball decides which one "
-      + "it falls into), 'ripple' (many local minima — a bumpy bowl where the starting point determines "
-      + "where descent stops). Multivariable calculus made a place: the surface IS the function and the "
-      + "ball's path IS the optimizer. Part of mojulo's EDUCATION module (math explainers, sibling to the "
-      + "science views). Served at `/api/sketches/<ref>/world`; the substrate stores ONLY the recipe "
-      + "(`manifest.kind === 'surface-view'`) and regenerates on render. ORBIT-ONLY: no CSS-3D /scene form. "
-      + "Reach for this on framing like 'multivariable calculus / gradient descent / critical points / "
-      + "saddle / local minima / surface plot'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...SURFACE_SCENARIOS], description: "Which surface (default 'bowl'): 'bowl' (one global min), 'saddle' (∇f=0 but no optimum — the ball rolls away), 'monkey' (three valleys), 'wells' (two basins → local minima), 'ripple' (many local minima — where you start decides where you stop)." },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height }.' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#0b1020" }.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createSurfaceViewHandler,
-  });
 }

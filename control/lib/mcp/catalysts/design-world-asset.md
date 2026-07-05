@@ -55,7 +55,7 @@ primitives **already emit exactly this**, so an authored asset is drop-in.
    Write `myMonument(b, { L, camHint, cityBox }) → faces[]` (use the workbench primitives inside,
    sized from `min(b.w, b.d)`), then register it in `control/lib/graph/landmarks/index.js`: add the
    shape to `LANDMARK_SHAPES`, a height hint to `LANDMARK_HEIGHTS` (a multiple of the min footprint),
-   and a dispatch case in `renderLandmarkBuilding`. Then `create_fractal_city({ landmark:'my-shape' })`
+   and a dispatch case in `renderLandmarkBuilding`. Then `compose_world({ base:'city', overrides:{ landmark:'my-shape' } })`
    reserves its footprint and places it. (Source-modifying — this is the internal/world-building path.)
 
 3. **city-prop (scattered).** For repeated furniture (lampposts, benches), add a placement function

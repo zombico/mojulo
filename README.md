@@ -51,8 +51,8 @@ Back in your agent, try these in order. They render locally and hand you a URL:
 
 ```
 what is this?                  → forward_context: mojulo orients itself, out loud
-generate a 3D city             → create_fractal_city → open the /scene URL
-make me a walkable world       → create_controllable_world → drive it at /world
+generate a 3D city             → compose_world (base: city) → open the /scene URL
+make me a walkable world       → compose_world (base: controllable) → drive it at /world
 ```
 
 The first prompt is the one to watch: your agent reads mojulo's own routing
@@ -152,11 +152,12 @@ The Sketches bay isn't just charts. The same `create_*` family your agent calls 
 
 ![A city block your agent generated — buildings, streets, cars, and a landmark tower — rendered by mojulo as a dependency-free CSS-3D scene](docs/images/hero-city-civic.png)
 
-- **Cities & structures** — `create_fractal_city` (a recursive skyline), `create_transportation_hub` (airport / station / subway), `create_manji_tree` (cardinal-grammar structural illustration).
+- **Cities & structures** — `compose_world` (base `city` for a recursive skyline; base `transport-hub` for an airport / station / subway), `create_manji_tree` (cardinal-grammar structural illustration).
 - **Figures** — `create_figure` poses a human body: male or female, stances, a reach, a walking gait.
 - **Objects & marks** — `create_workbench` blocks out an everyday object at literal scale (candlestick, lamp, dumbbell); `create_carved_solid` extrudes a metal or beveled wordmark, logo, or badge.
-- **Landscapes** — `create_painted_landscape` composes a painterly scene from sky / palette / geometry glyphs.
-- **Drivable worlds** — `create_controllable_world` builds a world you can walk or fly through, with the camera and entities as first-class primitives.
+- **Landscapes** — `compose_world` (base `painted-landscape`) composes a painterly scene from sky / palette / geometry glyphs.
+- **Drivable worlds** — `compose_world` (base `controllable`) builds a world you can walk or fly through, with the camera and entities as first-class primitives.
+- **Study objects** — `create_view` mints an animated science / math / bio explainer (nuclear fission, the double-slit experiment, a derivative, DNA) from one `kind` + a few knobs — 43 kinds behind one tool.
 - **Motion** — `forge_motion` puts any of the above in motion: a turntable, an orbit, a fly-through, or a paced concept explainer, rendered to a shareable GIF (clips stitch into an MP4).
 
 The distinctive part is the render pipeline: **one geometry spec, several targets.** The same world serves as a still (SVG, or a dependency-free CSS-3D `preserve-3d` scene — a real 3D view in a plain HTML file, no WebGL and no build step), a **traversable** WebGL world you walk with WASD, or a `.glb` you export into Blender or Unreal — all off a single minted ref at `/api/sketches/<ref>/{svg,scene,world,model.glb}`.

@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
+import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 
 function safeFilename(title, ref) {
   const base = [title, ref].filter(Boolean).join(' ');
@@ -33,6 +34,14 @@ export async function GET(request, { params }) {
     }
     if (!sketch.manifest) {
       return NextResponse.json({ error: `Sketch '${ref}' has no manifest` }, { status: 400 });
+    }
+    // Beats artifacts are audio-only — no still form. Point at the live player
+    // instead of falling through to the diagram renderer (which would throw).
+    if (isBeatsKind(sketch.manifest.kind)) {
+      return NextResponse.json({
+        error: `Sketch '${ref}' is a beats artifact (audio) — it has no SVG form`,
+        player: `/api/sketches/${encodeURIComponent(ref)}/beats`,
+      }, { status: 422 });
     }
 
     const body = await renderStoredSketchSvg(sketch);

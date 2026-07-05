@@ -23,11 +23,12 @@ function SketchPreviewBody({ sketch, t, fit = false }) {
       />
     );
   }
-  if (mode === 'world' || mode === 'scene') {
-    // The 3D kinds (navigable three.js worlds, CSS-3D turntables) render live in
-    // the preview/modal — a single mounted <iframe> on the same /world (or
-    // /scene) endpoint the detail page uses. Only one is ever mounted at a time
-    // (the selected sketch), so there's no per-card 3D-context cost here.
+  if (mode === 'world' || mode === 'scene' || mode === 'beats') {
+    // The live kinds (navigable three.js worlds, CSS-3D turntables, beats audio
+    // players) render live in the preview/modal — a single mounted <iframe> on
+    // the same /world (or /scene, /beats) endpoint the detail page uses. Only
+    // one is ever mounted at a time (the selected sketch), so there's no
+    // per-card live-context cost here.
     return (
       <iframe
         src={`/api/sketches/${ref}/${mode}`}
@@ -49,7 +50,8 @@ function SketchDownloads({ sketch, t }) {
   const ref = encodeURIComponent(sketch.ref);
   const mode = sketchRenderMode(sketch.manifest);
   const hasSvg = mode === 'svg' || mode === 'diagram';
-  const hasPng = mode !== 'world' && mode !== 'scene';
+  // world/scene render live (no still export); beats are audio-only (no still form at all).
+  const hasPng = mode !== 'world' && mode !== 'scene' && mode !== 'beats';
   return (
     <div className="flex items-center gap-2">
       <a
@@ -97,7 +99,7 @@ function associationTagLabel(tag, t) {
 
 // The shared two-pane sketch gallery, mounted by both sibling concerns:
 // /sketches (the Sketches/diagram concern) and /maker/illustrations (the Maker
-// illustration concern). `bucket` ('diagram' | 'illustration' | null) narrows
+// illustration concern). `bucket` ('diagram' | 'illustration' | 'world' | 'beats' | null) narrows
 // the list to one concern; null shows every sketch. `heading`/`subtitle`
 // override the default copy. A diagram and an illustration are the same sketch
 // primitive — this only changes which bucket the list is filtered to.

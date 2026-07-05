@@ -130,6 +130,42 @@ export function planSeriesScene(recipe = {}) {
   };
 }
 
+// ── the exact read-back channel (measure_view, tier 'exact'). One series per drawn term
+// count: samples of the true f(x), the partial sum Sₙ(x), and the pointwise error, plus
+// max/mean absolute error over the rendered domain. Everything evaluated directly from the
+// scenario's exact f and S — so convergence RATES are measurable (Taylor error collapsing
+// with n, the geometric control exploding outside |x| < 1, the Gibbs overshoot refusing
+// to shrink at a Fourier jump). Errors are computed over the domain AS RENDERED, which for
+// the geometric scenario deliberately includes territory outside the interval of
+// convergence — the divergence is the lesson, not an artifact. ──
+export function sampleSeriesExact(recipe = {}, { every = 1 } = {}) {
+  const scen = SERIES_SCENARIOS.includes(recipe.scenario) ? recipe.scenario : 'taylor-sin';
+  const s = SCENARIOS[scen];
+  const [x0, x1] = s.dom;
+  const step = Math.max(1, Math.round(clampNum(every, 1, SAMP, 1)));
+  const series = s.terms.map((n) => {
+    const samples = [];
+    let maxAbsError = 0, sumAbs = 0;
+    for (let i = 0; i <= SAMP; i += step) {
+      const x = lerp(x0, x1, i / SAMP);
+      const fx = s.f(x), snx = s.S(n, x), err = snx - fx;
+      maxAbsError = Math.max(maxAbsError, Math.abs(err));
+      sumAbs += Math.abs(err);
+      samples.push({ x: +x.toFixed(9), fx: +fx.toFixed(9), snx: +snx.toFixed(9), err: +err.toFixed(9) });
+    }
+    return {
+      n, samples, count: samples.length,
+      maxAbsError: +maxAbsError.toFixed(9),
+      meanAbsError: +(sumAbs / samples.length).toFixed(9),
+    };
+  });
+  return {
+    scenario: scen, label: s.title, domain: [x0, x1], family: scen.split('-')[0],
+    units: { x: 'dimensionless', fx: 'dimensionless', snx: 'dimensionless', err: 'dimensionless' },
+    series,
+  };
+}
+
 /**
  * Resolve a recipe → the emitThreeWorld payload — a near-front camera on the x–z plane (+ a 3/4).
  */

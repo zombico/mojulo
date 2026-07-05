@@ -1,0 +1,253 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`world-scene kinds — per-arm characterization > every dispatch arm resolves its fixture to a stable { title, hash } snapshot 1`] = `
+{
+  "assembler": {
+    "hash": "a2875276",
+    "title": "mojulo assembler",
+  },
+  "atmosphere-view": {
+    "hash": "8a9a1a75",
+    "title": "mojulo atmosphere",
+  },
+  "atom-view": {
+    "hash": "a9c6c4de",
+    "title": "mojulo atom",
+  },
+  "black-hole-view": {
+    "hash": "3944daf5",
+    "title": "mojulo black hole",
+  },
+  "cascade-view": {
+    "hash": "aa36ad60",
+    "title": "mojulo chain reaction",
+  },
+  "cellular-view": {
+    "hash": "6c16b460",
+    "title": "mojulo cell",
+  },
+  "cherenkov-view": {
+    "hash": "f636860d",
+    "title": "mojulo Cherenkov glow",
+  },
+  "comet-view": {
+    "hash": "ca7994bd",
+    "title": "mojulo comet",
+  },
+  "complete-square-view": {
+    "hash": "f84a8a8f",
+    "title": "mojulo completing the square",
+  },
+  "complex-view": {
+    "hash": "dadc5ca5",
+    "title": "mojulo complex function",
+  },
+  "condo-complex": {
+    "hash": "394a711a",
+    "title": "mojulo condo complex",
+  },
+  "conics-view": {
+    "hash": "b029d0bc",
+    "title": "mojulo conic sections",
+  },
+  "controllable": {
+    "hash": "7e86ea40",
+    "title": "mojulo controllable world",
+  },
+  "derivative-view": {
+    "hash": "8d95f717",
+    "title": "mojulo derivative",
+  },
+  "dna-process": {
+    "hash": "ccf1b578",
+    "title": "mojulo DNA process",
+  },
+  "dna-view": {
+    "hash": "9b332100",
+    "title": "mojulo DNA",
+  },
+  "double-slit-view": {
+    "hash": "d3ef8578",
+    "title": "mojulo double-slit",
+  },
+  "energy-cycle": {
+    "hash": "9dd54165",
+    "title": "mojulo energy cycle",
+  },
+  "field-flow-view": {
+    "hash": "b17ff188",
+    "title": "mojulo vector field",
+  },
+  "field-view": {
+    "hash": "3bdc294b",
+    "title": "mojulo field",
+  },
+  "fission-view": {
+    "hash": "828fe78a",
+    "title": "mojulo fission",
+  },
+  "floorplan": {
+    "hash": "2a65704c",
+    "title": "mojulo house",
+  },
+  "fluid-view": {
+    "hash": "1324dc01",
+    "title": "mojulo fluid",
+  },
+  "fractal-city": {
+    "hash": "894ae5da",
+    "title": "mojulo city",
+  },
+  "ftc-view": {
+    "hash": "bb640a14",
+    "title": "mojulo fundamental theorem",
+  },
+  "fusion-view": {
+    "hash": "f9538b4f",
+    "title": "mojulo fusion",
+  },
+  "galaxy-view": {
+    "hash": "715fc2d8",
+    "title": "mojulo galaxy",
+  },
+  "gravity-wave-view": {
+    "hash": "c64a958c",
+    "title": "mojulo gravitational waves",
+  },
+  "lightning-storm-view": {
+    "hash": "2a86fc2d",
+    "title": "mojulo lightning storm",
+  },
+  "mechanics-view": {
+    "hash": "c04845bc",
+    "title": "mojulo mechanics",
+  },
+  "molecule-view": {
+    "hash": "f3a3b5e9",
+    "title": "mojulo molecule",
+  },
+  "ocean-view": {
+    "hash": "6fd93cfc",
+    "title": "mojulo ocean",
+  },
+  "operator-world": {
+    "hash": "e0cc976d",
+    "title": "mojulo operator world",
+  },
+  "orbit-view": {
+    "hash": "a758c276",
+    "title": "mojulo orbit",
+  },
+  "painted-landscape": {
+    "hash": "77469d08",
+    "title": "mojulo terrain",
+  },
+  "parallel-transport-view": {
+    "hash": "1bae518d",
+    "title": "mojulo parallel transport",
+  },
+  "planetary": {
+    "hash": "c087d742",
+    "title": "mojulo planetary",
+  },
+  "plasma-globe-view": {
+    "hash": "d1ef5889",
+    "title": "mojulo plasma globe",
+  },
+  "probability-view": {
+    "hash": "4066dcdd",
+    "title": "mojulo galton board",
+  },
+  "pulsar-view": {
+    "hash": "c698e225",
+    "title": "mojulo pulsar",
+  },
+  "pythagoras-view": {
+    "hash": "03324b4c",
+    "title": "mojulo pythagoras",
+  },
+  "quadratic-view": {
+    "hash": "5b6e9ec5",
+    "title": "mojulo quadratic",
+  },
+  "reactor-view": {
+    "hash": "02d9b128",
+    "title": "mojulo reactor",
+  },
+  "restaurant": {
+    "hash": "76d56fc5",
+    "title": "mojulo restaurant",
+  },
+  "room": {
+    "hash": "09772829",
+    "title": "mojulo room",
+  },
+  "saturn-view": {
+    "hash": "8d25c8ce",
+    "title": "mojulo Saturn",
+  },
+  "series-view": {
+    "hash": "0b39c6ec",
+    "title": "mojulo series",
+  },
+  "star-birth-view": {
+    "hash": "de3141e1",
+    "title": "mojulo star birth",
+  },
+  "subway-building": {
+    "hash": "446d5a3a",
+    "title": "mojulo subway",
+  },
+  "subway-station": {
+    "hash": "2d8da2ec",
+    "title": "mojulo subway station",
+  },
+  "surface-view": {
+    "hash": "23e168ed",
+    "title": "mojulo surface",
+  },
+  "transform-view": {
+    "hash": "b7f0ea7e",
+    "title": "mojulo linear transform",
+  },
+  "transformer-view": {
+    "hash": "3dccb2ca",
+    "title": "mojulo transformer attention",
+  },
+  "transportation-hub": {
+    "hash": "a9e46f3f",
+    "title": "mojulo transportation hub",
+  },
+  "trig-circle-view": {
+    "hash": "8960b3a3",
+    "title": "mojulo unit circle",
+  },
+  "vector-match-view": {
+    "hash": "60103554",
+    "title": "mojulo vector match",
+  },
+  "vehicle-instance": {
+    "hash": "6d0b28dc",
+    "title": "workbench · airliner",
+  },
+  "wavepacket-view": {
+    "hash": "aa7c0cca",
+    "title": "mojulo wavepacket",
+  },
+  "windmill-view": {
+    "hash": "184685ad",
+    "title": "mojulo windmill",
+  },
+  "workbench": {
+    "hash": "9b010d71",
+    "title": "mojulo workbench",
+  },
+}
+`;
+
+exports[`world-scene kinds — per-arm characterization > viewOpts.view forwards into the floorplan arm (pinned: forwarding must survive the refactor) 1`] = `
+{
+  "base": "2a65704c",
+  "dollhouse": "2a65704c",
+}
+`;

@@ -1,0 +1,258 @@
+{{>doc-head}}
+<meta name="description" content="{{seo_description}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{site_name}}">
+<meta property="og:title" content="{{og_title}}">
+<meta property="og:description" content="{{seo_description}}">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  /* ==========================================================================
+     site — the navigational publication kind. ONE stylesheet, four presets.
+     A preset is a body[data-preset="…"] token block + a few structural deltas.
+     Zero dependencies, zero JS (the mobile nav is a CSS-only checkbox toggle).
+     ========================================================================== */
+
+  /* ---- base tokens (the `business` preset is the neutral default) ---------- */
+  :root {
+    --ink: #0f172a;
+    --muted: #475569;
+    --faint: #94a3b8;
+    --line: #e2e8f0;
+    --bg: #ffffff;
+    --surface: #f8fafc;
+    --accent: #1d4ed8;
+    --accent-ink: #ffffff;   /* text ON an accent fill */
+    --accent-soft: #eff6ff;  /* accent-tinted band background */
+
+    --font-head: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --measure: 68rem;        /* container max-width */
+    --prose: 40rem;          /* readable text column */
+    --gutter: clamp(1rem, 4vw, 2.5rem);
+    --section-y: clamp(2.5rem, 5vw, 4.25rem);
+    --hero-y: clamp(3.5rem, 9vw, 7rem);
+    --radius: 12px;
+    --nav-h: 60px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  img, svg, video { max-width: 100%; height: auto; }
+  a { color: var(--accent); }
+  h1, h2, h3 { font-family: var(--font-head); line-height: 1.15; letter-spacing: -0.01em; }
+
+  /* ---- layout primitives --------------------------------------------------- */
+  .wrap { width: min(100% - 2 * var(--gutter), var(--measure)); margin-inline: auto; }
+  .prose { max-width: var(--prose); }
+  .prose > :first-child { margin-top: 0; }
+  .prose h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin: 1.8em 0 0.5em; }
+  .prose h3 { font-size: clamp(1.15rem, 2vw, 1.35rem); margin: 1.6em 0 0.4em; }
+  .prose p, .prose ul, .prose ol { margin: 0.9em 0; }
+  .prose ul, .prose ol { padding-left: 1.4em; }
+  .prose a { text-underline-offset: 2px; }
+  .prose img { border-radius: var(--radius); }
+  .prose code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em; background: var(--surface); padding: 1px 6px; border-radius: 5px;
+  }
+
+  /* intrinsic responsive grid: reflows 3→2→1 with no media query */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: clamp(1rem, 2.5vw, 1.75rem);
+    margin: 0;
+  }
+  .section-head + .grid { margin-top: 2rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.6rem;
+  }
+  .card h3 { margin: 0 0 0.4rem; font-size: 1.2rem; }
+  .card p { margin: 0; color: var(--muted); }
+  .card .card-eyebrow { font-size: 1.7rem; line-height: 1; margin-bottom: 0.7rem; }
+
+  /* ---- nav ----------------------------------------------------------------- */
+  .site-nav {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .site-nav .wrap {
+    display: flex; align-items: center; justify-content: space-between;
+    min-height: var(--nav-h); gap: 1rem;
+  }
+  .brand { font-family: var(--font-head); font-weight: 800; font-size: 1.15rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
+  .nav-links { display: flex; align-items: center; gap: 0.4rem; list-style: none; margin: 0; padding: 0; }
+  .nav-links a {
+    display: block; padding: 0.45rem 0.8rem; border-radius: 8px;
+    color: var(--muted); text-decoration: none; font-size: 0.95rem; font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--ink); background: var(--surface); }
+  .nav-links a[aria-current="page"] { color: var(--accent); font-weight: 700; }
+  .nav-links a.nav-cta {
+    background: var(--accent); color: var(--accent-ink); font-weight: 600;
+  }
+  .nav-links a.nav-cta:hover { background: var(--accent); filter: brightness(0.94); color: var(--accent-ink); }
+  /* CSS-only mobile toggle */
+  .nav-toggle { position: absolute; opacity: 0; pointer-events: none; }
+  .nav-burger {
+    display: none; cursor: pointer; padding: 0.4rem 0.6rem; border-radius: 8px;
+    font-size: 1.4rem; line-height: 1; color: var(--ink); user-select: none;
+  }
+  @media (max-width: 720px) {
+    .nav-burger { display: block; }
+    .nav-links {
+      display: none; position: absolute; left: 0; right: 0; top: var(--nav-h);
+      flex-direction: column; align-items: stretch; gap: 0;
+      background: var(--bg); border-bottom: 1px solid var(--line);
+      padding: 0.5rem var(--gutter) 1rem;
+    }
+    .nav-toggle:checked ~ .nav-links { display: flex; }
+    .nav-links a { padding: 0.7rem 0.5rem; }
+    .nav-links a.nav-cta { text-align: center; margin-top: 0.4rem; }
+  }
+
+  /* ---- hero ---------------------------------------------------------------- */
+  .hero { padding-top: var(--hero-y); padding-bottom: clamp(1.75rem, 4vw, 3rem); }
+  .hero + .section { border-top: 0; }
+  .hero .eyebrow {
+    font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 1rem;
+  }
+  .hero h1 { font-size: clamp(2.1rem, 6vw, 3.6rem); margin: 0 0 1rem; max-width: 18ch; }
+  .hero .lede { font-size: clamp(1.1rem, 2.4vw, 1.4rem); color: var(--muted); max-width: 42ch; margin: 0; }
+  .hero .actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.8rem; }
+
+  .btn {
+    display: inline-block; padding: 0.8rem 1.5rem; border-radius: 10px;
+    font-weight: 600; text-decoration: none; font-size: 1rem;
+    background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent);
+    transition: filter 0.15s ease, transform 0.15s ease;
+  }
+  .btn:hover { filter: brightness(0.94); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.ghost:hover { border-color: var(--muted); filter: none; }
+
+  /* ---- sections ------------------------------------------------------------ */
+  .section { padding-block: var(--section-y); }
+  .section + .section { border-top: 1px solid var(--line); }
+  .section .section-head { max-width: var(--prose); margin-bottom: 0.5rem; }
+  .section h2 { font-size: clamp(1.5rem, 3.5vw, 2.2rem); margin: 0 0 0.5rem; }
+  .section .section-sub { color: var(--muted); font-size: 1.1rem; margin: 0; }
+  /* accent band — full-bleed tinted strip (marketing leans on this) */
+  .section.band { background: var(--accent-soft); border: 0; }
+  .section.contrast { background: var(--ink); color: var(--bg); border: 0; }
+  .section.contrast h2, .section.contrast .brand { color: var(--bg); }
+  .section.contrast .section-sub { color: color-mix(in srgb, var(--bg) 75%, transparent); }
+
+  .figure { margin: 2rem 0; }
+  .figure svg, .figure img { display: block; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); }
+  .figure figcaption { color: var(--faint); font-size: 0.9rem; margin-top: 0.6rem; }
+  .figure.missing { color: var(--faint); font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; padding: 2rem; border: 1px dashed var(--line); border-radius: var(--radius); text-align: center; }
+
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--surface);
+    border-radius: 0 8px 8px 0; padding: 1rem 1.3rem; margin: 1.5rem 0;
+  }
+  .callout .callout-title { font-weight: 700; margin: 0 0 0.3rem; }
+  .callout p { margin: 0; color: var(--muted); }
+
+  .linkcard {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+    padding: 0.9rem 0; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink);
+  }
+  .linkcard:hover { color: var(--accent); }
+  .linkcard .lc-domain { color: var(--faint); font-size: 0.85rem; }
+
+  /* ---- footer -------------------------------------------------------------- */
+  .site-footer {
+    border-top: 1px solid var(--line); background: var(--surface);
+    padding-block: clamp(2.5rem, 6vw, 4rem); margin-top: var(--section-y);
+    color: var(--muted); font-size: 0.95rem;
+  }
+  .site-footer .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 1.5rem 2rem; }
+  .site-footer .foot-brand { font-family: var(--font-head); font-weight: 800; color: var(--ink); font-size: 1.1rem; }
+  .site-footer a { color: var(--muted); text-decoration: none; }
+  .site-footer a:hover { color: var(--accent); }
+  .site-footer .colophon { margin-top: 2rem; padding-top: 1.2rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--faint); }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  /* ======================================================================
+     PRESETS — each is a token block over the base + a few structural deltas.
+     Token blocks use `body[data-preset]` (0,1,1) so they beat the :root base
+     (0,1,0). publication.style.accent overrides just --accent and is applied
+     INLINE on <body> (1,0,0,0) so it wins over the preset's own --accent.
+     ====================================================================== */
+
+  /* personal — warm, editorial, writer/portfolio homepage */
+  body[data-preset="personal"] {
+    --ink: #2b2620; --muted: #6b6156; --faint: #a89e90; --line: #eae4da;
+    --bg: #fdfbf7; --surface: #f6f1e8; --accent: #b4552d; --accent-ink: #ffffff; --accent-soft: #f8efe6;
+    --font-head: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --measure: 58rem; --prose: 38rem; --radius: 10px;
+  }
+  body[data-preset="personal"] .hero h1 { letter-spacing: -0.02em; }
+  body[data-preset="personal"] .card { background: var(--bg); }
+
+  /* marketing — bold, conversion-first product/landing */
+  body[data-preset="marketing"] {
+    --ink: #0b1120; --muted: #475569; --faint: #94a3b8; --line: #e6ebf2;
+    --bg: #ffffff; --surface: #f6f8fc; --accent: #6d28d9; --accent-ink: #ffffff; --accent-soft: #f5f0ff;
+    --font-head: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --measure: 72rem; --radius: 16px;
+  }
+  body[data-preset="marketing"] .hero { text-align: center; }
+  body[data-preset="marketing"] .hero .lede, body[data-preset="marketing"] .hero h1 { margin-inline: auto; }
+  body[data-preset="marketing"] .hero .actions { justify-content: center; }
+  body[data-preset="marketing"] .hero h1 { font-weight: 800; letter-spacing: -0.03em; max-width: 16ch; }
+  body[data-preset="marketing"] .section .section-head { margin-inline: auto; text-align: center; }
+  body[data-preset="marketing"] .btn { border-radius: 12px; padding: 0.9rem 1.8rem; }
+  body[data-preset="marketing"] .card { text-align: center; }
+  body[data-preset="marketing"] .card .card-eyebrow { display: block; }
+
+  /* business — clean, trustworthy, agency / local / professional (≈ base) */
+  body[data-preset="business"] {
+    --accent: #0f766e; --accent-ink: #ffffff; --accent-soft: #ecfdf5;
+    --measure: 70rem; --radius: 10px;
+  }
+
+  /* minimal — near-zero chrome, link-in-bio / index */
+  body[data-preset="minimal"] {
+    --ink: #18181b; --muted: #71717a; --faint: #a1a1aa; --line: #e4e4e7;
+    --bg: #ffffff; --surface: #fafafa; --accent: #18181b; --accent-ink: #ffffff; --accent-soft: #f4f4f5;
+    --measure: 46rem; --prose: 40rem; --radius: 8px; --section-y: clamp(2.5rem, 5vw, 4rem);
+  }
+  body[data-preset="minimal"] .site-nav { backdrop-filter: none; background: var(--bg); }
+  body[data-preset="minimal"] .card { background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 1.2rem 0; }
+  body[data-preset="minimal"] .hero h1 { font-weight: 700; }
+  body[data-preset="minimal"] .site-footer { background: transparent; }
+</style>
+{{style_overrides}}
+</head>
+<body data-preset="{{preset}}" data-page="{{page_slug}}"{{body_style}}>
+<nav class="site-nav">{{nav_html}}</nav>
+<main>
+{{page_content}}
+</main>
+{{footer_html}}
+</body>
+</html>

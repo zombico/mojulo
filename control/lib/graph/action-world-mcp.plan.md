@@ -13,7 +13,7 @@ not one where *things happen with consequence*. This plan adds that one tool.
 |---|---|
 | event-bus runtime (`events` reducer) | ✓ built, tested, deterministic |
 | game-idioms (authoring composition) | ✓ built, tested (10 idioms + `compose`) |
-| world-scene dispatch (reads `events`/`walk`/stage) | ✓ already wired ([world-scene.js:317](world-scene.js), [:327](world-scene.js)) |
+| world-scene dispatch (reads `events`/`walk`/stage) | ✓ already wired (the `events` + `walk` channel blocks in [world-scene.js](worlds/world-scene.js)) |
 | stage assembler (`assembleControllableScene`, faces/ground, no top-level entities needed) | ✓ ([controllable-world.js:265](controllable-world.js)) |
 | persistence (`SketchRepository.create` → `/world` route) | ✓ exists |
 | **MCP mint tool that emits an `events` manifest** | ✗ **missing — this plan** |
@@ -61,7 +61,7 @@ an advanced escape hatch, merged through the same `compose()`.
   worldFraming?, viewBox?, bg?, title? }
 ```
 
-`resolveWorldScene` then layers `events` ([:317](world-scene.js)) + `walk` ([:327](world-scene.js))
+`resolveWorldScene` then layers `events` + `walk` (the channel blocks in [world-scene.js](worlds/world-scene.js))
 and flags `nonBakeable` (input-driven ⇒ /svg + /scene show frame zero; /world is the live tier).
 
 ## Build steps

@@ -161,5 +161,64 @@ export function researchToSketchManifest(book, thesis) {
   };
 }
 
+// compact numeric label: enough digits to distinguish sweep points, no float noise.
+function numLabel(v) {
+  if (!Number.isFinite(v)) return '';
+  const a = Math.abs(v);
+  if (a >= 1000) return String(Math.round(v));
+  if (a >= 10) return String(+v.toFixed(1));
+  return String(+v.toFixed(3));
+}
+
+/**
+ * Experiment sweep → param-vs-outcome chart, from primitive marks (axes as `line`s, the
+ * curve as a `polyline`, points as `circle`s, labels as `text`). Pure and deterministic —
+ * the auto-plot seam for run_experiment_sweep, posture-sibling of the hub-spoke derives
+ * above: structure in, manifest out, no DB, no LLM.
+ *
+ * @param {object} spec - { title, param, outcome, unitX?, unitY?, points: [{ x, y }] }
+ */
+export function experimentsToChartManifest({ title, param, outcome, unitX, unitY, points } = {}) {
+  const pts = (Array.isArray(points) ? points : [])
+    .filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y))
+    .slice()
+    .sort((a, b) => a.x - b.x);
+  if (pts.length < 2) {
+    throw new Error('experimentsToChartManifest requires >= 2 { x, y } points');
+  }
+
+  const W = 760, H = 480;
+  const mL = 96, mR = 44, mT = 68, mB = 78;
+  const AXIS = '#94a3b8', CURVE = '#5b8fd6', POINT = '#f59e0b', TEXT = '#cbd5e1';
+
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = Math.min(0, ...ys), yMax = Math.max(...ys);   // physical outcomes: keep the zero baseline
+  const spanX = xMax - xMin || 1, spanY = yMax - yMin || 1;
+  const px = (x) => +(mL + ((x - xMin) / spanX) * (W - mL - mR)).toFixed(1);
+  const py = (y) => +(H - mB - ((y - yMin) / spanY) * (H - mT - mB)).toFixed(1);
+
+  const marks = [
+    { kind: 'text', x: mL, y: 34, value: truncate(title, 72) || `${outcome} vs ${param}`, size: 17, color: TEXT },
+    // axes
+    { kind: 'line', x1: mL, y1: py(yMin), x2: W - mR, y2: py(yMin), stroke: AXIS },
+    { kind: 'line', x1: mL, y1: py(yMin), x2: mL, y2: mT, stroke: AXIS },
+    // axis labels
+    { kind: 'text', x: mL + (W - mL - mR) / 2 - 40, y: H - 18, value: `${param}${unitX ? ` (${unitX})` : ''}`, size: 13, color: TEXT },
+    { kind: 'text', x: 16, y: mT - 16, value: `${outcome}${unitY ? ` (${unitY})` : ''}`, size: 13, color: TEXT },
+    // y extents
+    { kind: 'text', x: 16, y: py(yMax) + 4, value: numLabel(yMax), size: 11, color: AXIS },
+    { kind: 'text', x: 16, y: py(yMin) + 4, value: numLabel(yMin), size: 11, color: AXIS },
+    // the curve
+    { kind: 'polyline', points: pts.map((p) => [px(p.x), py(p.y)]), stroke: CURVE },
+  ];
+  for (const p of pts) {
+    marks.push({ kind: 'circle', cx: px(p.x), cy: py(p.y), r: 5, fill: POINT });
+    marks.push({ kind: 'text', x: px(p.x) - 12, y: H - mB + 22, value: numLabel(p.x), size: 11, color: AXIS });
+  }
+
+  return { title: title || `${outcome} vs ${param}`, viewBox: { width: W, height: H }, marks };
+}
+
 // Test seam.
-export const _internals = { truncate, firstLine, itemStationKind, ITEM_CAP };
+export const _internals = { truncate, firstLine, itemStationKind, ITEM_CAP, numLabel };

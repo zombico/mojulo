@@ -61,8 +61,9 @@ export const CONDO_DEFAULTS = {
 };
 
 // ── geometry helpers ──────────────────────────────────────────────────────────
-/** A solid box → vexar-shaded quads (no bottom by default; optional top). */
-function boxFaces(x0, x1, y0, y1, z0, z1, tint, light, { top = true, bottom = false } = {}) {
+/** A solid box → vexar-shaded quads (no bottom by default; optional top).
+ *  Exported as part of the condo vocabulary seam (fractal-condo.plan.md). */
+export function boxFaces(x0, x1, y0, y1, z0, z1, tint, light, { top = true, bottom = false } = {}) {
   if (x1 - x0 < 1e-3 || y1 - y0 < 1e-3 || z1 - z0 < 1e-3) return [];
   const f = [];
   const q = (corners, n) => f.push({ corners, fill: shadeHex(tint, n, light), doubleSided: true });
@@ -95,8 +96,9 @@ function solidSegments(lo, hi, gaps) {
 // is the building's exterior read — prominent glass — and the unit's required window.
 // `inset` + `outSign` SLIDE the glass (and its mullions) inward from the wall plane by `inset`
 // (outSign = +1 if the exterior is the +cross side, −1 if −cross), so a projecting floor/spandrel
-// band reads proud of the recessed glazing — the expressed floor-plate effect. ────────────────
-function curtainWallFaces({ axis, al0, al1, cAt, z0, z1, o, bay = 5.5, sill = 0.9, head = 0.9, mull = 0.2, inset = 0, outSign = 0 }, light) {
+// band reads proud of the recessed glazing — the expressed floor-plate effect.
+// Exported as part of the condo vocabulary seam (fractal-condo.plan.md). ────────────────────────
+export function curtainWallFaces({ axis, al0, al1, cAt, z0, z1, o, bay = 5.5, sill = 0.9, head = 0.9, mull = 0.2, inset = 0, outSign = 0 }, light) {
   const faces = [];
   const span = al1 - al0;
   if (span < 0.6) return faces;
@@ -106,7 +108,11 @@ function curtainWallFaces({ axis, al0, al1, cAt, z0, z1, o, bay = 5.5, sill = 0.
     ? boxFaces(a0, a1, c0, c1, za, zb, tint, light) : boxFaces(c0, c1, a0, a1, za, zb, tint, light));
   faces.push(...box(al0, al1, cLo, cHi, z0, z0 + sill, o.spandrel));            // base spandrel (at the wall plane)
   faces.push(...box(al0, al1, cLo, cHi, z1 - head, z1, o.spandrel));            // head spandrel
-  faces.push(...box(al0, al1, gc - 0.05, gc + 0.05, z0 + sill, z1 - head, o.facadeGlass));   // vision glass (recessed by `inset`)
+  // vision glass (recessed by `inset`); `o.glassAlpha` opts the pane into the renderer's
+  // translucent group pass (group + alpha), so interiors read through the window
+  const vision = box(al0, al1, gc - 0.05, gc + 0.05, z0 + sill, z1 - head, o.facadeGlass);
+  if (o.glassAlpha != null) for (const f of vision) { f.group = 'glass'; f.alpha = o.glassAlpha; }
+  faces.push(...vision);
   const nBay = Math.max(1, Math.round(span / bay));
   for (let i = 0; i <= nBay; i += 1) {                                          // vertical mullions (at the glass plane)
     const a = al0 + (span * i) / nBay;
@@ -117,18 +123,21 @@ function curtainWallFaces({ axis, al0, al1, cAt, z0, z1, o, bay = 5.5, sill = 0.
   return faces;
 }
 
-// ── UNIT SLOTS — where the units sit along a hallway (both sides). ONE source for both the
-// renderer (hallwayFaces) and the livability assessor. ────────────────────────────────────
-function unitSlots({ axis, along0, along1, crossMid, hallHalf, unitDepth, backDepth, unitsPerSide }) {
+// ── UNIT SLOTS — where the units sit along a hallway (both sides by default; `sides`
+// opts a side out for single-loaded corridors, e.g. a courtyard ring keeping its inner
+// face open). ONE source for both the renderer (hallwayFaces) and the livability
+// assessor. Exported as part of the condo vocabulary seam (fractal-condo.plan.md). ─────────
+export function unitSlots({ axis, along0, along1, crossMid, hallHalf, unitDepth, backDepth, unitsPerSide, sides }) {
   const m = 3, span = along1 - along0 - 2 * m, pitch = span / unitsPerSide;
   const sfW = Math.min(pitch * 0.66, unitDepth + 4);
   const centers = Array.from({ length: unitsPerSide }, (_, i) => along0 + m + (i + 0.5) * pitch);
   const total = unitDepth + (backDepth ?? unitDepth);
   const c0 = crossMid - hallHalf, c1 = crossMid + hallHalf;
+  const plus = sides?.plus !== false, minus = sides?.minus !== false;
   const slots = [];
   for (const ac of centers) {
-    slots.push({ axis, alongCenter: ac, sfW, cInner: c1, cOuter: c1 + total });   // hall's +cross side
-    slots.push({ axis, alongCenter: ac, sfW, cInner: c0, cOuter: c0 - total });   // hall's −cross side
+    if (plus) slots.push({ axis, alongCenter: ac, sfW, cInner: c1, cOuter: c1 + total, side: 'plus' });    // hall's +cross side
+    if (minus) slots.push({ axis, alongCenter: ac, sfW, cInner: c0, cOuter: c0 - total, side: 'minus' });  // hall's −cross side
   }
   return { slots, centers, sfW };
 }
@@ -167,8 +176,9 @@ function liftBankFaces({ rect, facing = 'S', elevators = 3, baseZ = 0, height = 
 // ── the lift core's resolved geometry: which way it faces + how far it is OFFSET off the
 // entry axis (feng shui) + its footprint rect. ONE source for both the renderer and the
 // feng-shui assessor, so they can never drift. ──────────────────────────────────────────
-/** @returns { facing, offset, run, cabDepth, bankRect:{x0,x1,y0,y1} }. */
-function coreBankLayout(rect, coreWall, elevators, t = CONDO_DEFAULTS.wallT) {
+/** @returns { facing, offset, run, cabDepth, bankRect:{x0,x1,y0,y1} }.
+ *  Exported as part of the condo vocabulary seam (fractal-condo.plan.md). */
+export function coreBankLayout(rect, coreWall, elevators, t = CONDO_DEFAULTS.wallT) {
   const facing = coreWall === 'N' ? 'S' : coreWall === 'S' ? 'N' : coreWall === 'W' ? 'E' : 'W';
   const cx = (rect.x0 + rect.x1) / 2, cy = (rect.y0 + rect.y1) / 2;
   const vertical = facing === 'N' || facing === 'S';
@@ -183,8 +193,9 @@ function coreBankLayout(rect, coreWall, elevators, t = CONDO_DEFAULTS.wallT) {
 }
 
 // ── CHAMBER — a tower's ground floor: marble floor, perimeter walls (with passage/entry
-// openings), a lift core against one wall, and a few doodads. ──────────────────────────────
-function chamberFaces({ rect, baseZ, height, elevators, coreWall, openings = [], entrance = false, central = false, glaze = [], seed = 1 }, o) {
+// openings), a lift core against one wall, and a few doodads. Exported as part of the condo
+// vocabulary seam (fractal-condo.plan.md). ──────────────────────────────────────────────────
+export function chamberFaces({ rect, baseZ, height, elevators, coreWall, openings = [], entrance = false, central = false, glaze = [], seed = 1 }, o) {
   const light = o.light, faces = [];
   const z0 = baseZ, z1 = baseZ + height, t = o.wallT;
   const tints = { cab: o.cab, door: o.door, ind: o.ind };
@@ -269,9 +280,12 @@ function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height }, o)
   const tankWall = axis === 'x' ? (dir > 0 ? '+y' : '-y') : (dir > 0 ? '+x' : '-x');
   for (const f of assetFaces(buildToilet({ x: wx, y: wy, z: z0 + 0.02, wall: tankWall }), { light })) faces.push(f);
 
-  // glass storefront onto the hall (at cInner), with a frame surround
+  // glass storefront onto the hall (at cInner), with a frame surround; translucent when the
+  // scene opts into clear glazing (o.glassAlpha), so the unit fit-out reads from the hall
   const gz1 = z0 + (z1 - z0) * 0.9;
-  faces.push(...box(alongCenter - sfW / 2, alongCenter + sfW / 2, cInner - 0.06, cInner + 0.06, z0 + 0.1, gz1, o.glassTint));
+  const store = box(alongCenter - sfW / 2, alongCenter + sfW / 2, cInner - 0.06, cInner + 0.06, z0 + 0.1, gz1, o.glassTint);
+  if (o.glassAlpha != null) for (const f of store) { f.group = 'glass'; f.alpha = o.glassAlpha; }
+  faces.push(...store);
   faces.push(...box(alongCenter - sfW / 2, alongCenter - sfW / 2 + 0.2, cInner - 0.12, cInner + 0.12, z0, z1, o.frameTint));
   faces.push(...box(alongCenter + sfW / 2 - 0.2, alongCenter + sfW / 2, cInner - 0.12, cInner + 0.12, z0, z1, o.frameTint));
   faces.push(...box(alongCenter - sfW / 2, alongCenter + sfW / 2, cInner - 0.12, cInner + 0.12, gz1, gz1 + 0.2, o.frameTint));   // head
@@ -282,8 +296,10 @@ function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height }, o)
   return faces;
 }
 
-// ── HALLWAY — a marble corridor with side walls and empty units lining both sides. ──────────
-function hallwayFaces({ axis, along0, along1, crossMid, hallHalf, baseZ, height, unitsPerSide, unitDepth, backDepth }, o) {
+// ── HALLWAY — a marble corridor with side walls and empty units lining both sides (or one
+// side, when `sides` opts a side out for a single-loaded corridor). Exported as part of the
+// condo vocabulary seam (fractal-condo.plan.md). ─────────────────────────────────────────────
+export function hallwayFaces({ axis, along0, along1, crossMid, hallHalf, baseZ, height, unitsPerSide, unitDepth, backDepth, sides }, o) {
   const light = o.light, faces = [];
   const z0 = baseZ, z1 = baseZ + height, t = o.wallT;
   const c0 = crossMid - hallHalf, c1 = crossMid + hallHalf;
@@ -292,14 +308,14 @@ function hallwayFaces({ axis, along0, along1, crossMid, hallHalf, baseZ, height,
     : boxFaces(cr0, cr1, al0, al1, za, zb, tint, light);
   faces.push(...box(along0, along1, c0, c1, z0 - 0.3, z0, o.hallFloor));                         // hall floor
 
-  const { slots, centers, sfW } = unitSlots({ axis, along0, along1, crossMid, hallHalf, unitDepth, backDepth, unitsPerSide });
+  const { slots, centers, sfW } = unitSlots({ axis, along0, along1, crossMid, hallHalf, unitDepth, backDepth, unitsPerSide, sides });
   const gaps = centers.map((c) => ({ c, w: sfW, top: height - 1 }));
-  // two long side walls with the storefront gaps
+  // two long side walls with the storefront gaps (solid where the side carries no units)
   const sideWall = (cc, gs) => {
     for (const [s0, s1] of solidSegments(along0, along1, gs)) faces.push(...box(s0, s1, cc - t / 2, cc + t / 2, z0, z1, o.hallWallTint));
     for (const g of gs) if (z0 + g.top < z1) faces.push(...box(g.c - g.w / 2, g.c + g.w / 2, cc - t / 2, cc + t / 2, z0 + g.top, z1, o.hallWallTint));
   };
-  sideWall(c1, gaps); sideWall(c0, gaps);
+  sideWall(c1, sides?.plus !== false ? gaps : []); sideWall(c0, sides?.minus !== false ? gaps : []);
   // the apartments, on both sides (fractally furnished; each backs an exterior glass facade)
   for (const s of slots) faces.push(...unitFaces({ ...s, baseZ, height }, o));
   return faces;
@@ -423,8 +439,9 @@ function buildingFloorTwo(rect, coreWall, elevators, voidSides, floorZ, wallH, o
 }
 
 // ── CONCRETE FACADE COLUMNS — exposed structural piers marching along the perimeter, projecting
-// proud of the glass, full building height. Rhythmic VARIETY: every third bay is a broad pier. ──
-function facadeColumnFaces(b, baseZ, topZ, o) {
+// proud of the glass, full building height. Rhythmic VARIETY: every third bay is a broad pier.
+// Exported as part of the condo vocabulary seam (fractal-condo.plan.md). ────────────────────────
+export function facadeColumnFaces(b, baseZ, topZ, o) {
   const faces = [], light = o.light, tint = o.columnTint;
   const edge = (axis, al0, al1, cAt, out) => {
     const span = al1 - al0, n = Math.max(2, Math.round(span / 11));

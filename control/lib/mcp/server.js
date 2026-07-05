@@ -18,6 +18,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { rememberClientInfo } from '@/lib/mcp/client-bindings';
+import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 
 export const PROTOCOL_VERSION = '2024-11-05';
 export const SERVER_NAME = 'mojulo-control-plane';
@@ -66,15 +67,28 @@ export function registerTool(tool) {
   if (!tool || !tool.name || typeof tool.handler !== 'function') {
     throw new Error('registerTool requires { name, handler }');
   }
+  // Optional `timeoutMs` overrides the global soft-timeout budget for handlers
+  // that legitimately run long (heavy render bakes, gif encodes). See the soft
+  // timeout in lib/mcp/telemetry.js.
   registeredTools.set(tool.name, tool);
 }
 
 export function listTools() {
-  return Array.from(registeredTools.values()).map((t) => ({
-    name: t.name,
-    description: t.description || '',
-    inputSchema: t.inputSchema || { type: 'object', properties: {} },
-  }));
+  // `listed: false` tools (deprecated aliases) resolve in tools/call and
+  // invokeRegisteredTool but are omitted from tools/list — retired names keep
+  // executing for compiled plans / skills without costing context.
+  return Array.from(registeredTools.values())
+    .filter((t) => t.listed !== false)
+    .map((t) => ({
+      name: t.name,
+      description: t.description || '',
+      inputSchema: t.inputSchema || { type: 'object', properties: {} },
+    }));
+}
+
+export function isToolListed(name) {
+  const tool = registeredTools.get(name);
+  return Boolean(tool) && tool.listed !== false;
 }
 
 export function hasRegisteredTool(name) {
@@ -96,7 +110,10 @@ export function listRegisteredToolNames() {
 export async function invokeRegisteredTool(name, input, context) {
   const tool = registeredTools.get(name);
   if (!tool) throw new Error(`Unknown tool: ${name}`);
-  return await tool.handler(input || {}, context || {});
+  return await instrumentedInvoke(tool, input || {}, context || {}, {
+    via: 'plan-executor',
+    name,
+  });
 }
 
 function jsonRpcResult(id, result) {
@@ -194,7 +211,10 @@ async function handleToolCall(message, context) {
   }
 
   try {
-    const result = await tool.handler(toolInput, context);
+    const result = await instrumentedInvoke(tool, toolInput, context, {
+      via: 'rpc',
+      name: toolName,
+    });
     return jsonRpcResult(message.id, toMcpToolResult(result));
   } catch (err) {
     // Per MCP spec, tool execution failures are returned as a tool_result
@@ -246,73 +266,28 @@ export async function ensureToolsRegistered() {
   const { registerAgentUiTools } = await import('@/lib/mcp/tools/agent-ui');
   const { registerPlanModeTools } = await import('@/lib/mcp/tools/plan-mode');
   const { registerResearchModeTools } = await import('@/lib/mcp/tools/research-mode');
+  const { registerResearchSweepTools } = await import('@/lib/mcp/tools/research-sweep');
   const { registerStashModeTools } = await import('@/lib/mcp/tools/stash-mode');
   const { registerCookTools } = await import('@/lib/mcp/tools/cook');
   const { registerVisualReferenceTools } = await import('@/lib/mcp/tools/visual-reference');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerManjiTreeTools } = await import('@/lib/mcp/tools/manji-trees');
-  const { registerPaintedLandscapeTools } = await import('@/lib/mcp/tools/painted-landscape');
   const { registerCarvedSolidTools } = await import('@/lib/mcp/tools/carved-solid');
   const { registerFigureTools } = await import('@/lib/mcp/tools/figure');
-  const { registerSceneCityTools } = await import('@/lib/mcp/tools/scene-city');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
-  const { registerSceneControllableTools } = await import('@/lib/mcp/tools/scene-controllable');
-  const { registerActionWorldTools } = await import('@/lib/mcp/tools/scene-action-world');
-  const { registerSceneTransportHubTools } = await import('@/lib/mcp/tools/scene-transport-hub');
+  const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
+  const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
   const { registerSolidTurntableTools } = await import('@/lib/mcp/tools/solid-turntable-tool');
-  const { registerPlanetaryTools } = await import('@/lib/mcp/tools/scene-planetary');
-  const { registerMoleculeViewTools } = await import('@/lib/mcp/tools/molecule-view');
-  const { registerDnaViewTools } = await import('@/lib/mcp/tools/dna-view');
   const { registerDnaProcessTools } = await import('@/lib/mcp/tools/dna-process');
   const { registerEnergyCycleTools } = await import('@/lib/mcp/tools/energy-cycle');
-  const { registerCellularViewTools } = await import('@/lib/mcp/tools/cellular-view');
-  const { registerAtomViewTools } = await import('@/lib/mcp/tools/atom-view');
-  const { registerMechanicsViewTools } = await import('@/lib/mcp/tools/mechanics-view');
-  const { registerOrbitViewTools } = await import('@/lib/mcp/tools/orbit-view');
-  const { registerCometViewTools } = await import('@/lib/mcp/tools/comet-view');
-  const { registerFieldViewTools } = await import('@/lib/mcp/tools/field-view');
-  const { registerFluidViewTools } = await import('@/lib/mcp/tools/fluid-view');
-  const { registerOceanViewTools } = await import('@/lib/mcp/tools/ocean-view');
-  const { registerGravityWaveViewTools } = await import('@/lib/mcp/tools/gravity-wave-view');
-  const { registerParallelTransportViewTools } = await import('@/lib/mcp/tools/parallel-transport-view');
-  const { registerWindmillViewTools } = await import('@/lib/mcp/tools/windmill-view');
-  const { registerDoubleSlitViewTools } = await import('@/lib/mcp/tools/double-slit-view');
-  const { registerBlackHoleViewTools } = await import('@/lib/mcp/tools/black-hole-view');
-  const { registerSaturnViewTools } = await import('@/lib/mcp/tools/saturn-view');
-  const { registerGalaxyViewTools } = await import('@/lib/mcp/tools/galaxy-view');
-  const { registerStarBirthViewTools } = await import('@/lib/mcp/tools/star-birth-view');
-  const { registerPulsarViewTools } = await import('@/lib/mcp/tools/pulsar-view');
-  const { registerPlasmaGlobeViewTools } = await import('@/lib/mcp/tools/plasma-globe-view');
-  const { registerLightningStormViewTools } = await import('@/lib/mcp/tools/lightning-storm-view');
-  const { registerWavepacketViewTools } = await import('@/lib/mcp/tools/wavepacket-view');
-  const { registerFissionViewTools } = await import('@/lib/mcp/tools/fission-view');
-  const { registerCascadeViewTools } = await import('@/lib/mcp/tools/cascade-view');
-  const { registerFusionViewTools } = await import('@/lib/mcp/tools/fusion-view');
-  const { registerCherenkovViewTools } = await import('@/lib/mcp/tools/cherenkov-view');
-  const { registerReactorViewTools } = await import('@/lib/mcp/tools/reactor-view');
-  const { registerAtmosphereViewTools } = await import('@/lib/mcp/tools/atmosphere-view');
-  const { registerTransformerViewTools } = await import('@/lib/mcp/tools/transformer-view');
-  const { registerVectorMatchViewTools } = await import('@/lib/mcp/tools/vector-match-view');
-  // education module — math explainers
-  const { registerTransformViewTools } = await import('@/lib/mcp/tools/transform-view');
-  const { registerFieldFlowViewTools } = await import('@/lib/mcp/tools/field-flow-view');
-  const { registerSurfaceViewTools } = await import('@/lib/mcp/tools/surface-view');
-  const { registerSeriesViewTools } = await import('@/lib/mcp/tools/series-view');
-  const { registerProbabilityViewTools } = await import('@/lib/mcp/tools/probability-view');
-  const { registerComplexViewTools } = await import('@/lib/mcp/tools/complex-view');
-  const { registerTrigCircleViewTools } = await import('@/lib/mcp/tools/trig-circle-view');
-  const { registerPythagorasViewTools } = await import('@/lib/mcp/tools/pythagoras-view');
-  const { registerQuadraticViewTools } = await import('@/lib/mcp/tools/quadratic-view');
-  const { registerCompleteSquareViewTools } = await import('@/lib/mcp/tools/complete-square-view');
-  const { registerConicsViewTools } = await import('@/lib/mcp/tools/conics-view');
-  const { registerDerivativeViewTools } = await import('@/lib/mcp/tools/derivative-view');
-  const { registerFtcViewTools } = await import('@/lib/mcp/tools/ftc-view');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
   const { registerWorkbenchTools } = await import('@/lib/mcp/tools/workbench');
   const { registerAssemblerTools } = await import('@/lib/mcp/tools/assembler');
   const { registerPreviewVehicleTools } = await import('@/lib/mcp/tools/preview-vehicle');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
+  const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
+  const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
   const { registerOperationsModeTools } = await import('@/lib/mcp/tools/operations-mode');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
@@ -410,6 +385,12 @@ export async function ensureToolsRegistered() {
   // lite-template/integration/app-system/0528/research-mode.md and
   // 0601/RESEARCH_PATH_CONVERGENCE.md for the cook-stays-at-cook framing.
   registerResearchModeTools();
+  // run_experiment_sweep — the parameter sweep as one deterministic call: N mechanics-view
+  // mints + N provenance-carrying experiment binds + an auto-plotted param-vs-outcome
+  // figure, all into one research book. Registers immediately after research-mode so the
+  // sweep verb reads beside the bind/synthesize verbs it composes. See
+  // research-science.plan.md (Phase 5).
+  registerResearchSweepTools();
   // Ring 9 (stash mode) — the sharper-edged successor to research_sessions.
   // Gather/Stash/Drawer with a typed intake contract (seven item types, each
   // with required-per-type metadata validated at the gate). Registers
@@ -453,16 +434,6 @@ export async function ensureToolsRegistered() {
   // sketch-authoring paths next to each other in tools/list. See
   // lite-template/integration/0604/polygonizer-manji-tree.plan.md.
   registerManjiTreeTools();
-  // create_painted_landscape — closed-vocabulary landscape minter. The model
-  // picks one heartbeat + one splatch + an optional structure-glyph; the
-  // substrate resolves recipes, samples within ranges using a seed, derives a
-  // 4-stop palette from the splatch's three seeds, and renders a flat-Lambert
-  // borderless SVG. Persists with manifest.kind === 'painted-landscape'; the
-  // /api/sketches/<ref>/svg route dispatches on that kind. Sibling to
-  // create_manji_tree — both are sketch-authoring entry points; adjacent
-  // ordering keeps illustration tools together in tools/list. See
-  // lib/graph/polygonizer/painted-landscape.js for the renderer.
-  registerPaintedLandscapeTools();
   // create_carved_solid — a CARVED, metalified 3D solid (wordmark / logo / icon)
   // from any vector outline. Sits next to the other illustration mints; persists
   // with kind `carved-solid`, rendered by the /api/sketches svg route.
@@ -474,31 +445,26 @@ export async function ensureToolsRegistered() {
   // armature LIMITS + spine caps. See lite-template/integration/0610/
   // figure-spine-articulation.plan.md and figure-proto-params.plan.md.
   registerFigureTools();
-  // create_fractal_city — an autogenerative cityscape from a tiny RECIPE (seed + a
-  // few params). Stores ONLY the recipe (kind `fractal-city`); the full city is
-  // regenerated deterministically on render by /api/sketches/<ref>/scene as a
-  // dependency-free CSS preserve-3d HTML scene. Fractal generation: thousands of
-  // boxes from ~6 numbers, near-zero tokens.
-  registerSceneCityTools();
   // compose_world / list_world_themes — the generic world-composer: a BASE (geometry generator)
   // × a THEME (flavor pack from theme-registry) × overrides, minted through the same recipe→
   // render path as create_fractal_city. One tool → many worlds; themes extensible across
   // earth/scifi/fantasy families. MVP base: 'city'. See world-composer.plan.md.
   registerComposeWorldTools();
-  // create_controllable_world — a LIVE, interactive world the user drives (walk a figure, fly a
-  // drone). Stores ONLY the recipe (kind `controllable`: entities = transform + rule + body, the
-  // camera is an entity); the traversable world regenerates on render at /api/sketches/<ref>/world.
-  registerSceneControllableTools();
-  // create_action_world — the consequence sibling of create_controllable_world: a world where things
-  // HAPPEN (a game with score/timer/spawns/pickups). Stores ONLY the recipe (kind `controllable` +
-  // a lowered `events` block composed from an idiom recipe); served live at /api/sketches/<ref>/world.
-  registerActionWorldTools();
-  // create_transportation_hub — a transit-tuned sibling of create_fractal_city. Stores
-  // ONLY the recipe (kind `transportation-hub`); the full hub (terminal + concourse
-  // fingers + gates/platforms/bays + apron + runways/rails/lanes + parked aircraft/
-  // trains/buses) is regenerated deterministically on render as a dependency-free CSS
-  // preserve-3d HTML scene. mode picks airport | train-station | bus-terminal.
-  registerSceneTransportHubTools();
+  // create_view / get_view_vocab — the consolidated study-object entry point
+  // (science / math / bio explainers; the former 43 create_*_view tools) plus
+  // the vocab-card reader that also serves compose_world's base manuals. The
+  // per-kind prose lives in view-vocab cards behind semantic_search — see
+  // tool-list-drawerization.plan.md. Registers right after compose_world so
+  // the two consolidated visual entries read adjacently in tools/list. The
+  // retired per-kind names remain callable as unlisted aliases.
+  registerCreateViewTools();
+  // measure_view — the physical read-back channel for the SI-honest science views
+  // (mechanics-view dynamics, orbit-view): re-plan from the stored recipe, return the
+  // time-series in declared real units. Registers right after create_view so mint and
+  // measure read adjacently in tools/list. Also exports recomputeViewStats — the
+  // deterministic reviewer behind research mode's synthesize_abstract({ review:true }).
+  // See research-science.plan.md.
+  registerMeasureViewTools();
   // create_solid_turntable — a single convex solid (lit ball / crystal polyhedron / gem)
   // spinning LIVE in CSS-3D from a tiny recipe (kind `css3d-turntable`). Highlight fixed in
   // the viewport via per-frame vexar re-shade. The live counterpart to the baked forge_motion
@@ -513,144 +479,12 @@ export async function ensureToolsRegistered() {
   // preview_vehicle_instance — render a meta-fabricator vehicle family instance on the workbench
   // studio grid (the catalyst's eyeball-before-commit render affordance).
   registerPreviewVehicleTools();
-  // create_planetary — a space-accurate body (Earth) hung in a full celestial sphere (kind
-  // `planetary`). Built on the rotatable-starmap basis: a traversable three.js World at /world
-  // whose world-fixed FULL-sphere starfield pans as you orbit. The subject fixes the AXIS MUNDI
-  // (its tilted polar axis) and the MANDALA (its graticule cage) from the core. Orbit-only — no
-  // CSS-3D /scene form. Sibling of the city/hub/workbench world-kinds. See planetary.plan.md.
-  registerPlanetaryTools();
-  // create_molecule_view — interactive ball-and-stick molecule (atoms + blobpla bond rods) in the
-  // World, atoms/bonds pickable → metadata popups; canonically framed on the principal axis. Orbit-only,
-  // no CSS-3D /scene form. Science/educational viewer. See molecule-view.plan.md.
-  registerMoleculeViewTools();
-  // create_dna_view — interactive 3D DNA double helix from one chiral taiji primitive lowered to
-  // lit solids (beaded backbones + base-pair rungs), base pairs/backbones pickable → popups. Author
-  // by A/T/G/C sequence or base-pair count; handedness = taiji twist sign. Orbit-only science viewer.
-  registerDnaViewTools();
   // create_dna_process — animated DNA biology processes (meiosis / conception / recombination /
   // assortment) as a traversable World; the process is selected by `process`. Science explainer.
   registerDnaProcessTools();
   // create_energy_cycle — photosynthesis ⇄ respiration loop (chloroplast + mitochondrion) with a
   // timed reaction cascade; orbit-only science explainer.
   registerEnergyCycleTools();
-  // create_cellular_view — interactive 3D cell: organelles (workbench-lowered) in superposition inside
-  // a translucent jelly cytoplasm, organelles pickable → metadata popups. Orbit-only science/educational
-  // viewer. Sibling of molecule-view. See cellular-view.plan.md.
-  registerCellularViewTools();
-  // create_atom_view — interactive 3D atom: nucleus + electron orbitals as wave primitives (lathe
-  // s-spheres, phase-coloured vajra p-dumbbells with a nodal-plane waist), translucent superposition,
-  // orbitals pickable → quantum-number popups. Orbit-only science/educational viewer. See atom-view.plan.md.
-  registerAtomViewTools();
-  // create_mechanics_view — a classical-Newtonian motion depictor: a solid body translating along its
-  // real equal-dt trajectory (projectile / free-fall / inclined-plane / pendulum) with live
-  // velocity/accel vectors + readout. Rides emitThreeWorld's mover channel. See mechanics-view.plan.md.
-  registerMechanicsViewTools();
-  // create_orbit_view — an orbital-mechanics orrery: bodies on real Kepler orbits around a central
-  // mass (compressed scale, exact motion — Kepler's 2nd/3rd laws, real-units readout). Rides the
-  // mover channel + its faint per-orbit track. See orbit-view.plan.md.
-  registerOrbitViewTools();
-  // create_comet_view — a comet on a real eccentric Kepler orbit growing a coma + anti-solar ion tail
-  // + curved dust tail that bloom near perihelion (the "how the trail is made" sibling of orbit-view).
-  // Rides emitThreeWorld's comet channel; path + closeup cameras. See comet-view.plan.md.
-  registerCometViewTools();
-  // create_field_view — an electromagnetism depictor: a travelling E⊥B wave, or magnetic field lines
-  // + iron-filing needles (bar magnet / wire / solenoid). Rides emitThreeWorld's field channel (a
-  // lattice of vector arrows + field-line curves). See field-view.plan.md.
-  registerFieldViewTools();
-  // create_fluid_view — a fluid-dynamics depictor (lift): an airfoil in a real Joukowski potential
-  // flow where lift EMERGES (Kutta circulation, faster-over-top, L = ρVΓ). Composes the field +
-  // tracer channels. See fluid-view.plan.md.
-  registerFluidViewTools();
-  // create_ocean_view — an animated ocean surface: a grid mesh deformed per frame by a Gerstner
-  // waveform sequence (sum of moving wave trains), lit, with buoys riding the swell. Rides
-  // emitThreeWorld's surface channel. See ocean-view.plan.md.
-  registerOceanViewTools();
-  // create_gravity_wave_view — a spacetime membrane rippling under a compact-binary inspiral: the
-  // quadrupole GW strain (chirp → merger → ringdown), two bodies riding the sheet. Rides the surface
-  // channel's new `gw` strain mode. See gravity-wave-view.plan.md.
-  registerGravityWaveViewTools();
-  // create_parallel_transport_view — holonomy made visible: an arrow parallel-transported around a loop
-  // returns rotated by the enclosed curvature (Gauss-Bonnet); Foucault / Berry / flat scenarios. Rides
-  // the new transport channel. See parallel-transport-view.plan.md.
-  registerParallelTransportViewTools();
-  // create_windmill_view — air moving a windmill: airfoil blades → lift → torque → a spinning rotor,
-  // with wind streamlines. Rides the mover channel's new rotational `spin` mode. See windmill-view.plan.md.
-  registerWindmillViewTools();
-  // create_double_slit_view — the double-slit experiment as a ripple tank: two coherent slit sources
-  // interfere into fringes (+ a quantum particle-buildup scenario). Rides the surface channel's new
-  // point-source wavefield mode. See double-slit-view.plan.md.
-  registerDoubleSlitViewTools();
-  // create_black_hole_view — a Schwarzschild black hole via a per-pixel GR geodesic raymarcher:
-  // gravitational lensing of the accretion disk, the photon ring, the shadow, Doppler beaming. Rides
-  // emitThreeWorld's new raymarch mode. See black-hole-view.plan.md.
-  registerBlackHoleViewTools();
-  // create_saturn_view — Saturn + rings via the raymarch shader path: ring shadows on the planet, the
-  // planet's shadow on the rings, semi-transparent rings, backlit forward-scatter glow.
-  registerSaturnViewTools();
-  // create_galaxy_view — a Milky Way barred spiral via a per-pixel VOLUME raymarcher: emission/absorption
-  // through a 3-D stellar-density field, real dust-lane extinction (reddening), population colour, ACES
-  // tone-map. Rides the same emitThreeWorld raymarch mode as the black hole. See galaxy-view.plan.md.
-  registerGalaxyViewTools();
-  // create_star_birth_view — a single-star nursery via the galaxy volume idiom: dusty molecular envelope,
-  // embedded protostar, accretion disk, and bipolar outflow cavities in one emission/absorption shader.
-  registerStarBirthViewTools();
-  // create_pulsar_view — a rotating magnetised neutron star: a tiny bright remnant with twin lighthouse
-  // beams sweeping from a tilted magnetic axis, via the star-birth/galaxy emission/absorption raymarch path.
-  registerPulsarViewTools();
-  // create_plasma_globe_view — a Tesla-style plasma globe: discrete jagged arcs leaping from a central
-  // electrode to the glass, rendered as EMISSIVE plasma (ext=0) with a two-gas neon→argon/xenon gradient.
-  registerPlasmaGlobeViewTools();
-  // create_lightning_storm_view — a volumetric fbm storm deck threaded with an electric-arc primitive
-  // whose strikes appear, travel along a bowed arc, flash, light the cloud, then vanish (ground / cloud-to-cloud).
-  registerLightningStormViewTools();
-  // create_wavepacket_view — a time-evolving |ψ(x,t)|² quantum wavepacket (free/coherent/box) via a
-  // per-pixel VOLUME raymarcher. Roadmap Tier-1 #1; the first consumer of the reusable volume-raymarch
-  // scaffold (lib/graph/volume-raymarch.js). See volume-raymarch.plan.md.
-  registerWavepacketViewTools();
-  // create_fission_view — the SINGLE fission event (liquid-drop split) as a time-evolving VOLUME.
-  // Roadmap Category-3 (topology change), Tier-2 #6; third time-dependent consumer of the volume-raymarch
-  // scaffold and first consumer of the shared SDF snippets (lib/graph/sdf-glsl.js). See fission-view.plan.md.
-  registerFissionViewTools();
-  // create_cascade_view — the CHAIN REACTION (branching neutron cascade) as mesh + movers, played on the
-  // renderer's shared-clock mover lifetimes. The mesh companion to fission-view. See fission-view.plan.md.
-  registerCascadeViewTools();
-  // create_fusion_view — NUCLEAR FUSION (D–T merge → He-4 + neutron) as a time-evolving VOLUME, the
-  // release-mechanism counterpart of fission-view (a topology-change MERGE). See fission-view.plan.md.
-  registerFusionViewTools();
-  // create_cherenkov_view — CHERENKOV RADIATION (the reactor-pool blue glow + the shock cone) as a
-  // time-evolving emission VOLUME. A light-transport subject, not a topology change. See fission-view.plan.md.
-  registerCherenkovViewTools();
-  // create_reactor_view — a CONTROLLED chain reaction (cascade + control rods that absorb neutrons; the
-  // SCRAM shutdown vs the runaway). Mesh + the Phase-2 mover lifetimes. See fission-view.plan.md.
-  registerReactorViewTools();
-  // create_atmosphere_view — atmospheric single-scattering (blue sky / red sunset / limb glow) via a
-  // per-pixel VOLUME raymarcher. Roadmap Tier-1 #4; the second consumer of the volume-raymarch scaffold,
-  // the one that added its rayDir + occluder generalizations. See volume-raymarch.plan.md.
-  registerAtmosphereViewTools();
-  // create_transformer_view — the TRANSFORMER's attention mechanic as a traversable World: token
-  // strip + the N×N softmax weight matrix (back wall) + a focus token's value-gather streams. The
-  // AI-architecture science view; mesh + tracer channel, NOT raymarch. See transformer-view.plan.md.
-  registerTransformerViewTools();
-  // create_vector_match_view — VECTOR MATCHING (semantic nearest-neighbour search): words as arrows on
-  // the unit sphere, a query, and its top-k nearest by cosine. The mechanic behind vector RAG /
-  // semantic_search. Mesh + tracer channel, NOT raymarch. See vector-match-view.js.
-  registerVectorMatchViewTools();
-  // ── education module — math explainers (sibling family to the science views). Advanced (linear
-  // algebra → complex analysis) + high-school (geometry / trig / algebra / calculus) tiers; see
-  // EDUCATION_VIEW_KINDS in sketch-manifest.js. All orbit-only Worlds on the shared primitives. ──
-  registerTransformViewTools();
-  registerFieldFlowViewTools();
-  registerSurfaceViewTools();
-  registerSeriesViewTools();
-  registerProbabilityViewTools();
-  registerComplexViewTools();
-  registerTrigCircleViewTools();
-  registerPythagorasViewTools();
-  registerQuadraticViewTools();
-  registerCompleteSquareViewTools();
-  registerConicsViewTools();
-  registerDerivativeViewTools();
-  registerFtcViewTools();
   registerMachinaTools();
   // forge_motion — put a manji-tree subject IN MOTION and render it to an
   // animated artifact (CSS flipbook SVG + GIF). An OUTPUT concern, sibling to
@@ -662,6 +496,18 @@ export async function ensureToolsRegistered() {
   // ships subject-agnostic camera motions; performance motions land in Phase 2.
   // See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
   registerMotionTools();
+  // Mojulo Beats — the AUDIO mint, sibling to the visual mints: seeded
+  // generative soundtracks, explicit-score compositions, and gesture-built
+  // foley cues, all synthesized-WebAudio recipes (no media bytes stored).
+  // Registers after motion so picture → motion → sound read adjacent in
+  // tools/list. See lib/graph/beats/beats.plan.md.
+  registerBeatsTools();
+  // Mojulo Game Designer — the fourth creatable paradigm (sibling to bots /
+  // connected services / apps): a standalone game artifact = a shell owning a
+  // typed store + levels that are worlds minted with a `game:` contract channel.
+  // Registers after beats so the visual-mint cluster (world → view → motion →
+  // sound → game) reads adjacent in tools/list. See game-metacontext.plan.md.
+  registerGameTools();
   // Ring 11 (operations mode) — domain-scoped orchestration. An ops tag binds
   // a hand-curated set of committed-reality resources (bots, apps, mcp-orbit
   // compositions, cooks, catalysts, triggers, stashes) under one descriptor.

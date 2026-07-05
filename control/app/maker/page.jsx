@@ -78,6 +78,18 @@ export default function MakerHubPage() {
     total: (d.sketches || []).length,
   }));
 
+  // Beats have no still form (audio-only) — cards render the title-text
+  // fallback instead of a thumb endpoint; the shelf previews the live player.
+  const beats = useRecent('/api/sketches?bucket=beats', (d) => ({
+    items: (d.sketches || []).map((s) => ({
+      key: s.ref,
+      href: `/sketches/${encodeURIComponent(s.ref)}`,
+      thumb: null,
+      title: s.title,
+    })),
+    total: (d.sketches || []).length,
+  }));
+
   const motion = useRecent('/api/motion', (d) => {
     const motions = (d.projects || []).flatMap((p) => p.motions || []);
     return {
@@ -96,6 +108,7 @@ export default function MakerHubPage() {
     { key: 'illustrations', href: '/maker/illustrations', data: illustrations, accent: 'violet' },
     { key: 'worlds', href: '/maker/worlds', data: worlds, accent: 'cyan' },
     { key: 'motion', href: '/maker/motion', data: motion, accent: 'amber' },
+    { key: 'beats', href: '/maker/beats', data: beats, accent: 'teal' },
   ];
 
   return (

@@ -45,6 +45,7 @@ import { writeComicOutcome } from '@/lib/outcomes/kinds/comic';
 import { writeInstructionManualOutcome } from '@/lib/outcomes/kinds/instruction-manual';
 import { writeLessonPlanOutcome } from '@/lib/outcomes/kinds/lesson-plan';
 import { writePhotojournalOutcome } from '@/lib/outcomes/kinds/photojournal';
+import { writeSiteOutcome } from '@/lib/outcomes/kinds/site';
 import {
   resolvePresentationTheme,
   presentationDocVars,
@@ -78,6 +79,7 @@ const PUBLICATION_KINDS = new Set([
   'instruction_manual',
   'lesson_plan',
   'photojournal',
+  'site',
 ]);
 
 // Kinds that accept the `viewer_aspect` override (paginated/book-viewer kinds).
@@ -86,7 +88,7 @@ const PAGINATED_KINDS = new Set(['picture_book', 'slide_deck', 'field_guide', 'p
 
 // Kinds with whole-stash semantics (no item_ids cleaving — the publication
 // IS the stash). picture_book pioneered this; comic and photojournal inherit it.
-const WHOLE_STASH_KINDS = new Set(['picture_book', 'comic', 'photojournal']);
+const WHOLE_STASH_KINDS = new Set(['picture_book', 'comic', 'photojournal', 'site']);
 
 // Kinds that accept `visuals[]` (only essay — the rest read items from the stash).
 const ACCEPTS_VISUALS = new Set(['essay']);
@@ -438,6 +440,7 @@ export async function cookHandler(input, _ctx) {
       instruction_manual: writeInstructionManualOutcome,
       lesson_plan: writeLessonPlanOutcome,
       photojournal: writePhotojournalOutcome,
+      site: writeSiteOutcome,
     };
     const writer = writers[publicationKind];
     if (!writer) {
@@ -460,6 +463,16 @@ export async function cookHandler(input, _ctx) {
         ...(format !== undefined ? { format } : {}),
         ...(fidelity !== undefined ? { fidelity } : {}),
       };
+    } else if (publicationKind === 'site') {
+      // site is whole-stash. It threads the preset (a full token block) and an
+      // optional accent override from publication.style. The accent is resolved
+      // to hex here and applied INLINE on <body> by the writer (so it beats the
+      // preset's own --accent); site is not a THEMED_KIND, so styleOverridesHtml
+      // is unused for it.
+      const styleObj = styleRaw && typeof styleRaw === 'object' ? styleRaw : {};
+      const preset = styleObj.preset;
+      const accentHex = styleObj.accent !== undefined ? resolveAccent(styleObj.accent) : undefined;
+      args = { cookRef, aim, stashRef: slice.stashRef, reportMd: report_md || '', publicationKind, ...(preset !== undefined ? { preset } : {}), ...(accentHex !== undefined ? { accent: accentHex } : {}) };
     } else if (WHOLE_STASH_KINDS.has(publicationKind)) {
       args = { cookRef, aim, stashRef: slice.stashRef, reportMd: report_md || '', publicationKind, styleOverridesHtml, ...(includeAspect ? { viewerAspect } : {}) };
     } else if (publicationKind === 'lesson_plan') {
@@ -633,6 +646,28 @@ const KIND_SCORERS = {
     const nonText = scan.item_count - scan.type_counts.markdown - scan.type_counts.text;
     if (nonText > 0) { score -= nonText * 5; notes.push(`⚠ ${nonText} non-text item(s) will be skipped`); }
     return { score: clamp(score, 0, 100), rationale: 'opinionated 1-page CV with sidebar routing by drawer', fit_notes: notes };
+  },
+
+  site(scan) {
+    // A site is inherently multi-page: it wants drawers (each becomes a page).
+    // Score conservatively — only spike when the stash is clearly site-shaped
+    // (multiple pages, especially page-named drawers) so single-doc stashes
+    // keep routing to essay/newsletter/resume.
+    const t = scan.type_counts;
+    const contentish = t.markdown + t.text + t.link;
+    if (scan.drawer_count === 0) {
+      return { score: 0, rationale: 'a website needs pages — gather content into drawers (about, services, contact…) first', fit_notes: [] };
+    }
+    let score = 15 + Math.min(scan.drawer_count * 10, 35);
+    const notes = [`${scan.drawer_count} drawer(s) → ${scan.drawer_count} page(s) + a home page`];
+    const SITE_PAGES = ['about', 'services', 'service', 'contact', 'work', 'portfolio', 'pricing', 'team', 'faq', 'products', 'product', 'blog', 'home'];
+    const hits = scan.drawer_names.filter((n) => SITE_PAGES.includes(n));
+    if (hits.length >= 2) { score += Math.min(hits.length * 10, 30); notes.push(`site-shaped pages: ${hits.join(', ')}`); }
+    else if (hits.length === 1) { score += 6; notes.push(`page-named drawer: ${hits[0]}`); }
+    if (t.link > 0) { score += 5; notes.push(`${t.link} link(s) → nav / CTA buttons`); }
+    if (contentish >= 4) { score += 8; notes.push('prose + links → brochure content'); }
+    if (t.sketch + t.image + contentish === 0) { score -= 20; notes.push('⚠ no renderable content'); }
+    return { score: clamp(score, 0, 100), rationale: 'multi-page static website — nav + pages, one per drawer', fit_notes: notes };
   },
 
   newsletter(scan) {
@@ -1424,7 +1459,7 @@ export function registerCookTools() {
           properties: {
             kind: {
               type: 'string',
-              enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal'],
+              enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'],
               description:
                 "The publication kind. Each entry: shape · resolver · `min:` content shape to look good. If unsure, call `recommend_kind` first.\n" +
                 "  · `essay`        — scroll · letter · 1col, report_md is the whole body, optional visuals[].\n" +
@@ -1455,7 +1490,8 @@ export function registerCookTools() {
                 "                      min: ≥3 sketch items (each ideally a panel-recipe-authored page). Drawers become chapters. report_md = cover blurb. Pages with metadata.comic.spread='left' then 'right' render side-by-side.\n" +
                 "  · `instruction_manual` — paginated · portrait booklet · per-page: a dominant exploded-diagram band + a numbered multi-column step + a fine-print band. markdown → numbered steps (h1 = step title; body = instructions; trailing `> blockquote` = fine print), the sketch gathered right after a step → that step's diagram, drawers → numbered Parts, text → step notes. Author diagrams with create_sketch using the `assembly-line-art` vocab card (exploded isometric line art).\n" +
                 "                      min: 4–16 markdown steps each followed by a sketch diagram. Drawers = Parts. report_md = cover overview. Default aspect '7 / 10'.\n" +
-                "  · `lesson_plan` — scroll · TWO faces in one folder: index.html (teacher plan) + handout.html (printable learner copy), cross-linked. Reserved drawers route to pedagogical sections (objectives, references, activities, assessment, materials, extensions, teacher_notes); unknown drawers fall through to generic sections; root items lead as Overview. markdown → steps/objectives/checks (h1 = title), link → reference cards, sketch → inline figures, text → callouts. metadata.audience (teacher | learner | both, drawer-defaulted) decides which face an item lands on; metadata.lesson.{timing,teacher_note,answer} render on the teacher face only (the answer key is stripped from the handout — structured field or a trailing `> **Answer:** …` blockquote). Set publication.style.learner_band (lower_primary…professional, default secondary) to tune the handout’s type scale + scaffolding — presentation only, not prose. v1 is single-band.",
+                "  · `lesson_plan` — scroll · TWO faces in one folder: index.html (teacher plan) + handout.html (printable learner copy), cross-linked. Reserved drawers route to pedagogical sections (objectives, references, activities, assessment, materials, extensions, teacher_notes); unknown drawers fall through to generic sections; root items lead as Overview. markdown → steps/objectives/checks (h1 = title), link → reference cards, sketch → inline figures, text → callouts. metadata.audience (teacher | learner | both, drawer-defaulted) decides which face an item lands on; metadata.lesson.{timing,teacher_note,answer} render on the teacher face only (the answer key is stripped from the handout — structured field or a trailing `> **Answer:** …` blockquote). Set publication.style.learner_band (lower_primary…professional, default secondary) to tune the handout’s type scale + scaffolding — presentation only, not prose. v1 is single-band." +
+                "  · `site`        — NAVIGATIONAL · multi-page static WEBSITE (personal / marketing / business brochure sites). ONE whole-stash slice becomes a folder of cross-linked pages with a shared sticky nav + footer, fully responsive (desktop and mobile, CSS-only mobile menu), and PORTABLE (relative links only — deploys to Netlify/Pages/S3 or opens from file://). drawer = page (root items = the home page); item order = section order. markdown -> prose sections (h1 = section heading), text -> callouts, link -> link cards, sketch/svg/image -> figures. metadata.role routes an item to a slot: hero (headline+lede band; home defaults to aim+report_md), cta (link -> hero button), feature/service (-> responsive card grid), footer (-> site footer). Pick the look with publication.style.preset, one of: personal | marketing | business (default) | minimal — a full palette+type token block; publication.style.accent still overrides just the accent. Presentation only, never rewrites prose. metadata.site.name/tagline + metadata.seo.description feed the title and OG tags.",
             },
             viewer_aspect: {
               type: 'string',
@@ -1545,7 +1581,7 @@ export function registerCookTools() {
         intent: { type: 'string', description: 'One-line description of what to make ("a flyer for the open house", "a brief on the Q3 refactor", …). Drives the stash title and the cook aim.' },
         target_kind: {
           type: 'string',
-          enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal'],
+          enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'],
           description: 'Optional. If known, the proposal is shaped specifically for this kind. Omit to get a default essay-shaped proposal + a nudge toward recommend_kind.',
         },
       },
@@ -1606,7 +1642,7 @@ export function registerCookTools() {
           type: 'array',
           items: {
             type: 'string',
-            enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal'],
+            enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'],
           },
           description: '2–4 distinct publication kinds to materialize against the same slice + aim. Each becomes its own cook (DB row + folder).',
         },

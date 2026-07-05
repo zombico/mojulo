@@ -36,7 +36,7 @@
  * See lite-template/integration/app-system/0527/plan-feature/PLAN_MODE.md.
  */
 
-import { registerTool, invokeRegisteredTool, hasRegisteredTool } from '@/lib/mcp/server';
+import { registerTool, invokeRegisteredTool, hasRegisteredTool, isToolListed } from '@/lib/mcp/server';
 import { PlanRepository } from '@/lib/db/repositories/plans';
 import { CookRepository } from '@/lib/db/repositories/cooks';
 import { recordPlanReleases, isReleaseCommitType } from '@/lib/mcp/meta-context/plan-release';
@@ -298,10 +298,11 @@ function validateManifest(manifest) {
   const errors = [];
   const unknownTools = [];
   const illegalTools = [];
+  const deprecatedTools = [];
   const calls = [];
   if (!Array.isArray(manifest) || manifest.length === 0) {
     errors.push('manifest must be a non-empty array of { tool, args } calls');
-    return { calls, unknownTools, illegalTools, errors };
+    return { calls, unknownTools, illegalTools, deprecatedTools, errors };
   }
   manifest.forEach((entry, i) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
@@ -325,9 +326,15 @@ function validateManifest(manifest) {
       unknownTools.push(tool);
       return;
     }
+    // Unlisted tools (deprecated aliases, e.g. the retired create_*_view /
+    // per-type world creators) still compile and execute — but warn so the
+    // plan author migrates to the consolidated entry before the aliases drop.
+    if (!isToolListed(tool)) {
+      deprecatedTools.push(tool);
+    }
     calls.push({ step: i, tool, args: args || {}, note: entry.note });
   });
-  return { calls, unknownTools, illegalTools, errors };
+  return { calls, unknownTools, illegalTools, deprecatedTools, errors };
 }
 
 export async function compilePlanHandler(input, _ctx) {
@@ -343,7 +350,7 @@ export async function compilePlanHandler(input, _ctx) {
     throw new Error(`Plan '${plan_ref}' not found.`);
   }
 
-  const { calls, unknownTools, illegalTools, errors } = validateManifest(plan.manifest);
+  const { calls, unknownTools, illegalTools, deprecatedTools, errors } = validateManifest(plan.manifest);
   const tractable =
     errors.length === 0 && unknownTools.length === 0 && illegalTools.length === 0;
 
@@ -390,6 +397,7 @@ export async function compilePlanHandler(input, _ctx) {
     }
   }
 
+  const deprecated = [...new Set(deprecatedTools)];
   return {
     ok: true,
     compiled: true,
@@ -398,6 +406,12 @@ export async function compilePlanHandler(input, _ctx) {
     steps: calls.length,
     ...(sketchRef ? { sketch_ref: sketchRef, sketch_url: sketchUrl(sketchRef) } : {}),
     ...(sketchWarning ? { sketch_warning: sketchWarning } : {}),
+    ...(deprecated.length
+      ? {
+          deprecated_tools: deprecated,
+          deprecation_warning: `Manifest references deprecated tool alias(es): ${deprecated.join(', ')}. They still execute, but will be dropped in a future release — migrate to the consolidated entry (see each alias's description).`,
+        }
+      : {}),
     message: `Plan is Actionable: ${calls.length} step(s) resolve to live tools.${sketchRef ? ` Diagram at ${sketchUrl(sketchRef)}.` : ''} Awaiting operator approval — execute_plan with confirm:true to run.`,
   };
 }

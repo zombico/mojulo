@@ -49,7 +49,7 @@ const LEXICON = [
     concept: 'A fast, low-detail massing pass to lock proportion, scale, and layout before real modelling.',
     support: NATIVE,
     routes: [
-      { tool: 'create_fractal_city', when: 'an urban / environment massing', args: { depth: 1 } },
+      { tool: 'compose_world', when: 'an urban / environment massing', args: { base: 'city', overrides: { depth: 1 } } },
       { tool: 'create_sketch', when: 'architectural massing (recipe: architecturalConstruction)' },
       { tool: 'create_polygonized_sketch', when: 'a single object or figure blockout', args: { prompt: '<subject>' } },
       { tool: 'create_workbench', when: 'an object study on a measured studio grid' },
@@ -63,9 +63,9 @@ const LEXICON = [
     concept: 'Populating a scene with many supporting pieces — furniture, foliage, vehicles, buildings — rather than a single hero asset.',
     support: NATIVE,
     routes: [
-      { tool: 'create_fractal_city', when: 'streets of buildings, cars, trees, lampposts' },
+      { tool: 'compose_world', when: 'streets of buildings, cars, trees, lampposts', args: { base: 'city' } },
       { tool: 'create_sketch', when: 'a furnished room (rooms generate furniture sets)' },
-      { tool: 'create_painted_landscape', when: 'terrain to dress' },
+      { tool: 'compose_world', when: 'terrain to dress', args: { base: 'painted-landscape' } },
       { tool: 'preview_vehicle_instance', when: 'sampled vehicle instances for traffic' },
     ],
     then: [EXPORT],
@@ -118,7 +118,7 @@ const LEXICON = [
     support: PARTIAL,
     routes: [
       { tool: 'create_polygonized_sketch', when: 'an object/figure', args: { prompt: '<subject>' } },
-      { tool: 'create_fractal_city', when: 'an environment (control density/depth to bound count)' },
+      { tool: 'compose_world', when: 'an environment (control density/depth to bound count)', args: { base: 'city' } },
     ],
     then: [EXPORT],
     ceiling: 'Mojulo geometry is already coarse, but it is unindexed triangle soup with no triangle budget control, no LODs, and no edge-flow discipline.',

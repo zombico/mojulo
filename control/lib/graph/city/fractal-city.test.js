@@ -1067,3 +1067,55 @@ describe('fractal-city civic areas', () => {
     for (const n of [pond, trail, centre]) { expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(lawns); }
   });
 });
+
+describe('fractal-city — instanced street furniture (renderer-convergence 1b)', () => {
+  const SPEC = { region: { x: 2, y: 2, w: 30, d: 18 }, depth: 2, seed: 1 };
+  // the two heavy assembles are shared across the assertions below (deterministic, so safe);
+  // re-assembling per test made this file a timeout magnet under full-suite parallel load.
+  let plain0 = null, inst0 = null;
+  const plainScene = () => (plain0 ??= assembleFractalCityScene(SPEC));
+  const instScene = () => (inst0 ??= assembleFractalCityScene({ ...SPEC, instancing: true }));
+
+  it('is strictly opt-in: no `instancing` → no repeats channel, payload untouched', () => {
+    const scene = plainScene();
+    expect(scene.repeats).toBeUndefined();
+    expect(scene.repeatsInfo).toBeUndefined();
+  });
+
+  it('moves repeated furniture into `repeats` with EXACT face accounting and a smaller payload', () => {
+    const plain = plainScene();
+    const inst = instScene();
+    expect(inst.repeats.length).toBeGreaterThan(0);
+    const depicted = inst.repeats.reduce((a, r) => a + r.template.length * r.transforms.length, 0);
+    // every face removed from the soup is depicted by a template × its copies — nothing lost
+    expect(inst.faces.length + depicted).toBe(plain.faces.length);
+    // and the payload is smaller than its expanded equivalent (the channel's reason to exist)
+    const bytes = (o) => JSON.stringify({ f: o.faces, r: o.repeats || [] }).length;
+    expect(bytes(inst)).toBeLessThan(bytes(plain));
+    // ledger: adopted groups all clear the copy threshold; skips are recorded, never silent
+    for (const g of inst.repeatsInfo.instanced) expect(g.copies).toBeGreaterThanOrEqual(6);
+    expect(Array.isArray(inst.repeatsInfo.skipped)).toBe(true);
+  });
+
+  it('templates realize through the same assembler: faces match the expanded look at the template position', () => {
+    const plain = plainScene();
+    const inst = instScene();
+    const r0 = inst.repeats[0];
+    const t0 = r0.transforms[0];
+    // translate the template's first face by the first transform: an identical face (same fill,
+    // same corners within float noise) must exist in the expanded scene.
+    const tf = r0.template[0];
+    const moved = tf.corners.map((c) => [c[0] + t0.pos[0], c[1] + t0.pos[1], c[2] + t0.pos[2]]);
+    const match = plain.faces.find((f) => f.fill === tf.fill && Array.isArray(f.corners)
+      && f.corners.every((c, i) => Math.hypot(c[0] - moved[i][0], c[1] - moved[i][1], c[2] - moved[i][2]) < 1e-6));
+    expect(match).toBeTruthy();
+  });
+
+  it('stands down (recorded, not silent) under position-dependent lighting', () => {
+    for (const extra of [{ time: 'night' }, { time: 'day' }, { groundShadows: true }]) {
+      const scene = assembleFractalCityScene({ ...SPEC, instancing: true, ...extra });
+      expect(scene.repeats).toBeUndefined();
+      expect(scene.repeatsInfo.disabled).toBeTruthy();
+    }
+  });
+});

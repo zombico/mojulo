@@ -50,7 +50,7 @@ Build new effects by composing/extending these — do not start from scratch.
 | `composeVolumeFog(boxes, opts)` | [effects-fog.js](../control/lib/graph/effects-fog.js) | The productized fog effect: bakes the box field, composes occluder + fog transfer fn + overlay shader, returns `{ frag, customUniforms, dataTextures }` ready for `emitThreeWorld`'s `fog`. |
 | `emitThreeWorld({ …, fog })` | [scene-three.js](../control/lib/graph/scene-three.js) | The mesh-world host. The `fog` param adds the effect as the transparent fullscreen quad (premultiplied blend, depthTest off, `onBeforeRender` camera feed). `dataTextures` builds Float32 `DataTexture`s in-page. |
 | `emitRaymarchWorld({ …, dataTextures })` | [scene-three.js](../control/lib/graph/scene-three.js) | The standalone raymarch host (no mesh) — for opaque, full-frame raymarch worlds and for isolating an effect's SDF/transfer fn before composing it over a mesh. |
-| `resolveWorldScene` `fog` setting | [world-scene.js](../control/lib/graph/world-scene.js) | The opt-in wiring: a manifest `fog: true \| {tuning}` on a kind with a registered occluder-box extractor (`FOG_OCCLUDER_BOXES`) attaches `payload.fog = composeVolumeFog(...)`. Renders only on the live `/world` path. |
+| `resolveWorldScene` `fog` setting | [world-scene.js](../control/lib/graph/worlds/world-scene.js) | The opt-in wiring: a manifest `fog: true \| {tuning}` on a kind whose registry descriptor ([world-kinds.js](../control/lib/graph/worlds/world-kinds.js)) declares a `fogBoxes` extractor attaches `payload.fog = composeVolumeFog(...)`. Renders only on the live `/world` path. |
 
 ## Recipe — add a new raymarch effect layer
 

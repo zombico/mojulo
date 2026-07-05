@@ -329,3 +329,22 @@ describe('get_substrate — PLAYful Cloud positioning', () => {
     expect(body).toContain('`get_substrate`');
   });
 });
+
+describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
+  it('every LISTED tool name appears in the tool index (unlisted aliases exempt)', async () => {
+    // The routing/tool index in this file must stay in sync with the live
+    // registry — a missing entry leaves the connecting agent flying blind
+    // (the view family flew dark for months exactly this way; see
+    // tool-list-drawerization.plan.md). Unlisted deprecated aliases are
+    // exempt by construction: they resolve in tools/call but are not part
+    // of the surfaced tool list.
+    const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    const { content } = await toolIndexHandler({});
+    const text = content[0].text;
+    const missing = listTools()
+      .map((t) => t.name)
+      .filter((name) => !text.includes(`\`${name}\``));
+    expect(missing).toEqual([]);
+  });
+});

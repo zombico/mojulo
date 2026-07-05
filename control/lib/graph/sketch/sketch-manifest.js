@@ -734,6 +734,8 @@ export function expandGridLayout(manifest) {
 //                  (the /maker/illustrations concern)
 //   world        — Mojulo Maker: a traversable three.js cityscape / hub — something
 //                  you MOVE THROUGH (the /maker/worlds concern)
+//   beats        — Mojulo Maker: a synthesized musical artifact — something you
+//                  LISTEN TO (the /maker/beats shelf; beats.plan.md)
 //
 // The bucket is derived purely from `manifest.kind`; the optional
 // `sketches.bucket` column overrides the derived value for the rare edge case
@@ -741,7 +743,7 @@ export function expandGridLayout(manifest) {
 // concerns share the renderer today and are expected to diverge into separately
 // tuned renderers over time — the bucket is the seam they split along.
 
-export const BUCKETS = ['diagram', 'illustration', 'world'];
+export const BUCKETS = ['diagram', 'illustration', 'world', 'beats'];
 const BUCKET_SET = new Set(BUCKETS);
 
 // Kinds that render in a perspective / css3d / painterly context — the
@@ -772,6 +774,7 @@ export function isBucket(value) {
 export function classifyBucket(manifest) {
   const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
   if (WORLD_RENDER_SET.has(kind)) return 'world';
+  if (BEATS_RENDER_SET.has(kind)) return 'beats';   // heard, not looked at — the Maker beats shelf
   return ILLUSTRATION_KIND_SET.has(kind) ? 'illustration' : 'diagram';
 }
 
@@ -808,17 +811,24 @@ export const EDUCATION_VIEW_KINDS = [
   'transform-view', 'field-flow-view', 'surface-view', 'series-view', 'probability-view', 'complex-view',
   // high-school
   'trig-circle-view', 'pythagoras-view', 'quadratic-view', 'complete-square-view', 'conics-view', 'derivative-view', 'ftc-view',
+  'heat-sphere-view',
 ];
-export const WORLD_RENDER_KINDS = ['fractal-city', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'gravity-wave-view', 'parallel-transport-view', ...EDUCATION_VIEW_KINDS];
+export const WORLD_RENDER_KINDS = ['fractal-city', 'condo-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', ...EDUCATION_VIEW_KINDS];
 export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
+// Beats artifacts (beats.plan.md) — heard, not looked at. Rendered as a live
+// self-contained audio-player page at /api/sketches/<ref>/beats in an <iframe>.
+export const BEATS_RENDER_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const SVG_RENDER_SET = new Set(SVG_RENDER_KINDS);
 const WORLD_RENDER_SET = new Set(WORLD_RENDER_KINDS);
 const SCENE_RENDER_SET = new Set(SCENE_RENDER_KINDS);
+const BEATS_RENDER_SET = new Set(BEATS_RENDER_KINDS);
 
 export function sketchRenderMode(manifest) {
   const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
   if (WORLD_RENDER_SET.has(kind)) return 'world';
   if (SCENE_RENDER_SET.has(kind)) return 'scene';
   if (SVG_RENDER_SET.has(kind)) return 'svg';
+  if (BEATS_RENDER_SET.has(kind)) return 'beats';
+  if (kind === 'game') return 'game';   // played, not looked at — the game shell (create_game)
   return 'diagram';
 }

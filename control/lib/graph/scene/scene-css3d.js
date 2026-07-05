@@ -31,10 +31,12 @@ import {
 import { planArchitectureMandala } from '../polygonizer/architecture-mandala-planner.js';
 import { getFurnitureNet, getFurnitureFaceCard } from '../polygonizer/furniture-cards.js';
 import { bakeDiffusion3d, applyDiffusion, bakeDiffusionField, applyDiffusionSoft, emissiveFixture } from '../effects/light-diffusion-3d.js';
+import { bakeAmbientOcclusion } from '../effects/ao-bake.js';
 import { makeFacade, facadeCss, facadeHtml, facadeFloors, facadeBays, buildingExtras } from '../architecture/building-facade.js';
 import { buildFacadeCard } from '../architecture/facade-card.js';
 import { buildTerrainWorldMesh } from '../polygonizer/painted-landscape.js';
 import { skyCss } from './sky-css.js';
+import { safeJson, escapeHtml } from './emit-util.js';
 import { isLandmarkShape, renderLandmarkBuilding } from '../landmarks/index.js';
 import { isPlantShape, plantBoxToFaces } from '../polygonizer/plant-faces.js';
 import { roomFurnitureAssetFaces } from '../architecture/room-assets.js';
@@ -995,7 +997,14 @@ export function buildRoundRoomShellFaces({ center = [0, 0], radius = 12, height 
  * @param {object} opts.viewBox     { width, height }
  * @param {number} opts.unitScale   px per world unit (cancels in projection; sets Z magnitude)
  */
-export function emitPreserve3dScene({ faces = [], cameras = [], viewBox = { width: 1080, height: 720 }, unitScale = 30, title = 'mojulo scene', bg = '#1b1712', sky, inflate = 1, signs = [] } = {}) {
+export function emitPreserve3dScene({ faces = [], cameras = [], viewBox = { width: 1080, height: 720 }, unitScale = 30, title = 'mojulo scene', bg = '#1b1712', sky, inflate = 1, signs = [], ao = null } = {}) {
+  // Baked ambient occlusion, CSS-3D tier (renderer-convergence 1d): a div panel is one flat
+  // colour — it cannot gradient per vertex like the World's mesh — so this backend takes the
+  // FACE-AVERAGE of the per-corner `vao` multipliers as flat darkening. Callers either pass
+  // `ao` here (the bake runs over the given faces) or hand in faces already carrying `vao`;
+  // absent both, every existing scene stays byte-identical. The SVG tier has no shared face
+  // painter (per-kind cel renderers) — its vao lowering is DEFERRED until one exists.
+  if (ao) faces = bakeAmbientOcclusion(faces, typeof ao === 'object' ? ao : {});
   const W = viewBox.width, H = viewBox.height;
   // `sky` (painted-landscape sky concept) → a CSS gradient backdrop; else the flat bg.
   if (sky) bg = skyCss(sky);
@@ -1016,8 +1025,12 @@ export function emitPreserve3dScene({ faces = [], cameras = [], viewBox = { widt
     const clip = tri ? 'clip-path:polygon(0 0,100% 0,0 100%);' : (f.clip ? `clip-path:${f.clip};` : '');   // f.clip = polygon mask (e.g. cylinder roof cap)
     const radius = f.radius ? `border-radius:${f.radius};` : '';  // f.radius = rounded corners (e.g. arched window top)
     const glow = f.glow ? `box-shadow:${f.glow};` : '';  // f.glow = CSS bloom halo for emissive faces (light fixtures)
+    // face-average AO fallback: `vao` darkens the flat fill (hex-only — gradients/html panels
+    // carry surface content the average would muddy, so they pass through untouched).
+    const aoAvg = Array.isArray(f.vao) && f.vao.length >= 4 ? (f.vao[0] + f.vao[1] + f.vao[2] + f.vao[3]) / 4 : 1;
+    const paint = aoAvg < 0.999 && !f.bg && typeof f.fill === 'string' && f.fill[0] === '#' ? scaleHex(f.fill, aoAvg) : (f.bg || f.fill);
     // f.bg = full CSS background (facade gradient); f.html = inner content (brick arched windows).
-    return `      <div class="f" style="width:${wPx}px;height:${hPx}px;background:${f.bg || f.fill};${clip}${radius}${glow}transform:${planeMatrix(c[0], uVec, vVec, unitScale)}${grow};backface-visibility:${bf}">${f.html || ''}</div>`;
+    return `      <div class="f" style="width:${wPx}px;height:${hPx}px;background:${paint};${clip}${radius}${glow}transform:${planeMatrix(c[0], uVec, vVec, unitScale)}${grow};backface-visibility:${bf}">${f.html || ''}</div>`;
   }).join('\n');
 
   // adaptive-signage: gated so signage-less scenes stay byte-identical.
@@ -1029,7 +1042,7 @@ export function emitPreserve3dScene({ faces = [], cameras = [], viewBox = { widt
     const base = { name: cam.name || 'view', matrix, perspective, center };
     return sig ? { ...base, signs: sig.camSigns[ci] } : base;
   });
-  const camJson = JSON.stringify(cams);
+  const camJson = safeJson(cams);
 
   const viewportBlock = hasSigns
     ? `  <div class="stage"><div class="viewport"><div class="view" id="view">
@@ -1041,7 +1054,7 @@ ${dom}
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
+<title>${escapeHtml(title)}</title>
 <style>
   :root{color-scheme:dark}
   body{margin:0;background:#0b1220;color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}

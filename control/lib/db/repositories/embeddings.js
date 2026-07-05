@@ -61,8 +61,25 @@ export const SOURCE_KINDS = [
   'manji_program',
   // painted-landscape glyph cards (heartbeat / splatch / camera / scene / sky
   // markdown under painted-landscape-cards/). Discovered by intent and passed
-  // as a named glyph to `create_painted_landscape`.
+  // as a named glyph to `compose_world` (base 'painted-landscape', via
+  // `overrides`).
   'painted_landscape',
+  // view-vocab cards — one per `create_view` kind / `compose_world` base
+  // (markdown under lib/graph/views/view-vocab/). Each carries the depiction
+  // prose, routing phrases, and parameter manual that used to live in the
+  // retired per-kind tool's description. Discovered by intent; read in full
+  // via `get_view_vocab`.
+  'view_vocab',
+  // beats-vocab cards — one per `create_beats` kind (markdown under
+  // lib/graph/beats/beats-vocab/). Routing phrases + the recipe/patch/gesture
+  // parameter manual for the audio mints. Discovered by intent; read in full
+  // via `get_beats_vocab`.
+  'beats_vocab',
+  // game-vocab cards — one per store SLICE KIND + the typed-event family
+  // (markdown under lib/graph/game/slice-cards/). Routing phrases + the store
+  // schema manual for `create_game`. Discovered by intent; read in full via
+  // `get_game_vocab`.
+  'game_vocab',
 ];
 
 const SNIPPET_MAX_CHARS = 280;
@@ -501,6 +518,40 @@ export const BodyComposition = {
     if (card.body) lines.push('', '---', '', card.body);
     return lines.join('\n');
   },
+  viewVocab(card) {
+    // Same shape as sketchVocab: lead with name / family / summary / when so
+    // an intent-phrased query ("show my student nuclear fission") matches
+    // before the parameter manual does. The body (depiction prose + params)
+    // is the strongest signal for structurally-phrased queries.
+    const lines = [];
+    lines.push(`# ${card.name} (${card.family})`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  beatsVocab(card) {
+    // Same shape as viewVocab: lead with the intent-phrased fields so "give
+    // this world a soundtrack" / "make a pickup sound" match before the
+    // recipe manual does.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  gameVocab(card) {
+    // Same shape as beatsVocab: lead with the intent-phrased fields so "a
+    // customizable army that persists" / "loot carried between levels" match
+    // before the store-schema manual does.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
   sketchMethod(method) {
     // Lead with the categorical name (family . knob . value) so a query
     // phrased structurally ("style: victorian") also matches the slot, then
@@ -931,6 +982,55 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`painted_landscape: ${paintedCards.size}`);
+
+  // 12. View-vocab cards — one *.md per `create_view` kind / `compose_world`
+  // base under lib/graph/views/view-vocab/. Each carries the depiction prose
+  // + routing phrases + parameter manual of a retired per-kind tool, so the
+  // agent discovers a kind by intent and reads the full card via
+  // `get_view_vocab` before composing params. Repo-curated markdown, like
+  // sketch_vocab. See tool-list-drawerization.plan.md.
+  const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
+  const viewVocab = getViewVocabCatalog();
+  for (const card of viewVocab.values()) {
+    items.push({
+      sourceKind: 'view_vocab',
+      sourceRef: card.id,
+      bodyText: BodyComposition.viewVocab(card),
+    });
+  }
+  log(`view_vocab: ${viewVocab.size}`);
+
+  // 13. Beats-vocab cards — one *.md per `create_beats` kind under
+  // lib/graph/beats/beats-vocab/. Routing phrases + the recipe / patch-shelf /
+  // gesture parameter manual for the audio mints, so "give this world music" /
+  // "make a pickup sound" surfaces the right kind before composing params.
+  // Repo-curated markdown, like sketch_vocab. See lib/graph/beats/beats.plan.md.
+  const { getBeatsVocabCatalog } = await import('../../graph/beats/beats-vocab/loader.js');
+  const beatsVocab = getBeatsVocabCatalog();
+  for (const card of beatsVocab.values()) {
+    items.push({
+      sourceKind: 'beats_vocab',
+      sourceRef: card.id,
+      bodyText: BodyComposition.beatsVocab(card),
+    });
+  }
+  log(`beats_vocab: ${beatsVocab.size}`);
+
+  // 14. Game-vocab cards — one *.md per store slice KIND plus the typed-events
+  // family under lib/graph/game/slice-cards/. Routing phrases + the store-schema
+  // manual for `create_game`, so "a tactics game with a persistent army" /
+  // "inventory carried between levels" surfaces the right slice before composing
+  // the schema. Repo-curated markdown. See lib/graph/game-metacontext.plan.md.
+  const { getGameVocabCatalog } = await import('../../graph/game/slice-cards/loader.js');
+  const gameVocab = getGameVocabCatalog();
+  for (const card of gameVocab.values()) {
+    items.push({
+      sourceKind: 'game_vocab',
+      sourceRef: card.id,
+      bodyText: BodyComposition.gameVocab(card),
+    });
+  }
+  log(`game_vocab: ${gameVocab.size}`);
 
   if (items.length === 0) {
     log('nothing to index');

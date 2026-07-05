@@ -10,7 +10,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planCherenkovScene, CHERENKOV_SCENARIOS } from '@/lib/graph/views/science/cherenkov-view';
 
 export function mintCherenkovView({ title, scenario, density, viewBox, scene, ref, folderRef } = {}) {
@@ -54,38 +53,4 @@ export async function createCherenkovViewHandler(input) {
   }
   const { title, scenario, density, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCherenkovView({ title, scenario, density, viewBox, scene, ref, folderRef });
-}
-
-export function registerCherenkovViewTools() {
-  registerTool({
-    name: 'create_cherenkov_view',
-    description:
-      "Mint CHERENKOV RADIATION — the eerie BLUE GLOW of a submerged reactor core, ray-marched as a "
-      + "time-evolving emission VOLUME. A charged particle moving through water FASTER than light travels "
-      + "in water (v > c/n, n≈1.33) drags a luminous shock cone behind it — the optical analog of a sonic "
-      + "boom — and the light is blue/UV-weighted (Frank–Tamm: intensity ∝ 1/λ², which is WHY it glows "
-      + "blue). This is a LIGHT-TRANSPORT subject (distinct from the topology-change fission/fusion "
-      + "views). Two scenarios: 'pool' (the iconic reactor-pool glow — brightest at the fuel, fading into "
-      + "the water, with energetic particle streaks rising) and 'cone' (the bare shock cone of a single "
-      + "relativistic particle, whose half-angle obeys cos θc = 1/(βn) ≈ 0.76, θc ≈ 41°). Drag to ORBIT "
-      + "the camera, scroll to zoom; the glow animates on its own. Served as a live three.js World at "
-      + "`/api/sketches/<ref>/world`. You pass a tiny recipe; the substrate stores ONLY the recipe "
-      + "(`manifest.kind === 'cherenkov-view'`, no geometry) and regenerates the shader on render. "
-      + "ORBIT-ONLY object study: no CSS-3D `/scene` form; open the worldUrl. Reach for this on framing "
-      + "like 'show me Cherenkov radiation / the blue glow in a reactor / why reactor pools glow blue'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...CHERENKOV_SCENARIOS], description: "Which depiction (default 'pool'): 'pool' (a submerged reactor core's blue glow with rising particle streaks) or 'cone' (the bare Cherenkov shock cone of one relativistic particle — the light-transport geometry)." },
-        density: { type: 'number', description: 'Opacity/brightness of the blue glow (1–30). Higher = denser, more opaque. Overrides the scenario default.' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1120×780).' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#02040a" }.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createCherenkovViewHandler,
-  });
 }

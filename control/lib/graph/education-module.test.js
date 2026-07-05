@@ -49,18 +49,38 @@ describe('education module — world-scene dispatch', () => {
 });
 
 describe('education module — MCP tool registration', () => {
-  it('registering the education tools exposes a create_*_view per kind, each with a scenario enum', async () => {
-    // registerTool just populates the in-memory registry (no DB, no server) — safe to call here.
-    const regs = await Promise.all(EDUCATION_VIEW_KINDS.map((k) =>
-      import(`@/lib/mcp/tools/${k}.js`).then((m) => Object.values(m).find((v) => typeof v === 'function' && v.name.startsWith('register')))));
-    regs.forEach((fn) => fn());
+  it('every education kind is a create_view kind (math family) with an unlisted deprecated alias', async () => {
+    // The per-kind create_*_view registrations retired into the consolidated
+    // create_view entry (see lib/mcp/tools/tool-list-drawerization.plan.md).
+    // What this locks now: each education kind has a VIEW_KINDS row in the
+    // math family, appears in create_view's kind enum, keeps its retired
+    // name as an unlisted alias, and documents its scenarios in a view-vocab
+    // card (the scenario enum moved from tools/list into the card + the
+    // mint's own validation).
+    const { VIEW_KINDS } = await import('@/lib/mcp/tools/create-view.js');
+    const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view.js');
+    const { getViewVocabCatalog } = await import('@/lib/graph/views/view-vocab/loader.js');
+    registerCreateViewTools();
 
     const byName = new Map(listTools().map((t) => [t.name, t]));
+    const createView = byName.get('create_view');
+    expect(createView, 'create_view not registered').toBeTruthy();
+    const kindEnum = createView.inputSchema?.properties?.kind?.enum || [];
+    const catalog = getViewVocabCatalog();
+
     for (const [kind, toolName] of Object.entries(TOOL_OF)) {
-      const tool = byName.get(toolName);
-      expect(tool, `${toolName} not registered`).toBeTruthy();
-      const scen = tool.inputSchema?.properties?.scenario;
-      expect(Array.isArray(scen?.enum) && scen.enum.length, `${toolName} missing scenario enum`).toBeTruthy();
+      const shortKind = kind.replace(/-view$/, '');
+      const entry = VIEW_KINDS[shortKind];
+      expect(entry, `${shortKind} missing from VIEW_KINDS`).toBeTruthy();
+      expect(entry.family, `${shortKind} family`).toBe('math');
+      expect(entry.retired).toBe(toolName);
+      expect(kindEnum, `${shortKind} missing from create_view kind enum`).toContain(shortKind);
+      // The retired name resolves but is NOT listed.
+      expect(byName.has(toolName), `${toolName} should be unlisted`).toBe(false);
+      // The scenario documentation moved into the kind's vocab card.
+      const card = catalog.get(shortKind);
+      expect(card, `${shortKind} missing view-vocab card`).toBeTruthy();
+      expect(card.body, `${shortKind} card missing parameter manual`).toMatch(/## Parameters/);
     }
   });
 });

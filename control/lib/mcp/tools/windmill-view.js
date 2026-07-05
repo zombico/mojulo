@@ -8,7 +8,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planWindmillScene, WINDMILL_SCENARIOS } from '@/lib/graph/vehicles/windmill-view';
 
 export function mintWindmillView({ title, scenario, wind, scale, viewBox, scene, ref, folderRef } = {}) {
@@ -53,39 +52,4 @@ export async function createWindmillViewHandler(input) {
   }
   const { title, scenario, wind, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintWindmillView({ title, scenario, wind, scale, viewBox, scene, ref, folderRef });
-}
-
-export function registerWindmillViewTools() {
-  registerTool({
-    name: 'create_windmill_view',
-    description:
-      "Mint an interactive WINDMILL turned by the wind — air moving a rotor, rendered in the traversable "
-      + "three.js World. It depicts the whole chain from first principles: the blades are AIRFOILS, the "
-      + "wind makes LIFT on them, lift's tangential component is a TORQUE, and the rotor SPINS. Wind "
-      + "streamlines stream past as flowing particles; the rotor turns live. Two types: 'turbine' (a "
-      + "modern 3-blade horizontal-axis wind turbine — tower, nacelle, airfoil blades, tip-speed ratio "
-      + "λ = ωR/V) and 'classic' (a Dutch 4-sail tower windmill). The `wind` knob (m/s) drives the "
-      + "rotation rate and the particle speed. Served as a live, traversable three.js World at "
-      + "`/api/sketches/<ref>/world` (drag to ORBIT, scroll to zoom); CLICK the rotor/tower for facts. "
-      + "You pass a tiny recipe (a windmill type + wind speed); the substrate stores ONLY the recipe "
-      + "(`manifest.kind === 'windmill-view'`, no geometry) and regenerates it on render. ORBIT-ONLY "
-      + "object study: no CSS-3D `/scene` form; open the worldUrl. Reach for this on framing like 'show "
-      + "me a wind turbine / how a windmill works / air turning a rotor / wind power / a spinning "
-      + "windmill in the wind'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...WINDMILL_SCENARIOS], description: "Windmill type (default 'turbine'): 'turbine' (modern 3-blade wind turbine), 'classic' (Dutch 4-sail windmill)." },
-        wind: { type: 'number', description: 'Wind speed in m/s (default 10 for turbine, 8 for classic). Higher → faster rotation and faster streaming particles.' },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1120×780).' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#9cc4e8" } for the sky colour.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createWindmillViewHandler,
-  });
 }

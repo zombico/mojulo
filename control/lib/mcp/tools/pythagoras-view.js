@@ -11,7 +11,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planPythagorasScene, PYTHAGORAS_SCENARIOS } from '@/lib/graph/views/math/pythagoras-view';
 
 export function mintPythagorasView({ title, scenario, a, b, scale, viewBox, scene, ref, folderRef } = {}) {
@@ -50,40 +49,4 @@ export async function createPythagorasViewHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_pythagoras_view requires a recipe object');
   const { title, scenario, a, b, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintPythagorasView({ title, scenario, a, b, scale, viewBox, scene, ref, folderRef });
-}
-
-export function registerPythagorasViewTools() {
-  registerTool({
-    name: 'create_pythagoras_view',
-    description:
-      "Mint an interactive GEOMETRY explainer — the iconic a² + b² = c² figure, rendered as a live "
-      + "traversable three.js World. A right triangle sits with a coloured SQUARE built outward on each "
-      + "of its sides; the two scenarios show the theorem two complementary ways. 'squares' draws the "
-      + "blue square on leg a, the green square on leg b and the orange square on hypotenuse c so you SEE "
-      + "the two leg-squares' areas add up to exactly the hypotenuse square — a² + b² = c² as visible "
-      + "tilework. 'dissection' is the one-figure proof: four copies of the triangle packed around a "
-      + "tilted c² square, all sitting inside a big (a+b)² square — slide the triangles and the same area "
-      + "rearranges into an a² square plus a b² square. The `a` and `b` knobs set the two legs so it "
-      + "becomes ANY right triangle (3-4-5, 5-12-13, or your own). Part of mojulo's EDUCATION module "
-      + "(math explainers, sibling to the science views). Served at `/api/sketches/<ref>/world`; the "
-      + "substrate stores ONLY the recipe (`manifest.kind === 'pythagoras-view'`) and regenerates on "
-      + "render. ORBIT-ONLY: no CSS-3D /scene form. Reach for this on framing like 'Pythagorean theorem / "
-      + "Pythagoras / a squared plus b squared / right triangle proof'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...PYTHAGORAS_SCENARIOS], description: "Which figure (default 'squares'): 'squares' (the coloured square built on each side — blue a², green b², orange c²), 'dissection' (the one-figure proof — four triangles around a tilted c² square inside an (a+b)² square)." },
-        a: { type: 'number', description: 'Length of leg a (sets the right triangle).' },
-        b: { type: 'number', description: 'Length of leg b (sets the right triangle).' },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height }.' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#0b1020" }.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createPythagorasViewHandler,
-  });
 }

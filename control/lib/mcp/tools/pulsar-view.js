@@ -8,7 +8,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planPulsarScene, PULSAR_SCENARIOS } from '@/lib/graph/views/science/pulsar-view';
 
 export function mintPulsarView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef } = {}) {
@@ -58,37 +57,4 @@ export async function createPulsarViewHandler(input) {
   }
   const { title, scenario, inclination, exposure, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintPulsarView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef });
-}
-
-export function registerPulsarViewTools() {
-  registerTool({
-    name: 'create_pulsar_view',
-    description:
-      "Mint a PULSAR — a rapidly spinning, magnetised NEUTRON STAR with twin radiation beams that sweep "
-      + "like a lighthouse, rendered by the same per-pixel VOLUME raymarcher that powers star-birth-view "
-      + "and galaxy-view. This is the right tool when the prompt is about a pulsar / spinning neutron star "
-      + "/ lighthouse beams: a tiny savage point source, twin beams along a magnetic axis TILTED from the "
-      + "spin axis (so they sweep as it rotates), a brightening 'pulse' each time a beam crosses the "
-      + "sightline, and a faint synchrotron nebula. Three looks via `scenario`: 'oblique' (default), "
-      + "'orthogonal' (near-perpendicular rotator, strong sweep), 'aligned' (small tilt, weak pulse). Use "
-      + "`inclination` (0 = pole-on, 90 = equator-on) and `exposure` (0.4-4) to tune the view. Served as a "
-      + "live three.js World at `/api/sketches/<ref>/world`. The substrate stores ONLY the recipe "
-      + "(`manifest.kind === 'pulsar-view'`, no geometry) and regenerates the shader on render. "
-      + "ORBIT-ONLY object study: no CSS-3D `/scene` form; open the worldUrl.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...PULSAR_SCENARIOS], description: "The look (default 'oblique'): 'oblique', 'orthogonal', or 'aligned'." },
-        inclination: { type: 'number', description: 'Viewing inclination in degrees (0-88). 0 = looking down the spin axis; 90 = equator-on.' },
-        exposure: { type: 'number', description: 'Global exposure applied once before tone-map (0.4-4). Higher = brighter.' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1120x780).' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#01020a" }.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createPulsarViewHandler,
-  });
 }

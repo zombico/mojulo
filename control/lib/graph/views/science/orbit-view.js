@@ -198,6 +198,44 @@ export function planOrbitScene(recipe = {}) {
   return { faces, picks, movers, bounds: { center, radius }, stats: { scenario, bodies: S.bodies.length, periods: movers.map((m) => +m.period.toFixed(2)) } };
 }
 
+// ── the physical read-back channel (measure_view). The rendered path is the orrery compromise —
+// radii compressed by ORBIT_GAMMA, artistic and honest only in shape — so this recomputes the
+// SAME Kepler sweep in real units instead: positions in km in the orbital plane (periapsis
+// rotated by omega, focus at the origin), r from the true semi-major axis, speed from vis-viva,
+// accel = μ/r². Uniform mean anomaly = uniform time, so t is real seconds of the real period. ──
+export function sampleOrbitPhysics(recipe = {}, { every = 1 } = {}) {
+  const scenario = SCENARIOS[recipe.scenario] ? recipe.scenario : 'system';
+  const S = SCENARIOS[scenario]();
+  const step = Math.max(1, Math.round(clampNum(every, 1, N_SAMPLES, 1)));
+  const series = S.bodies.map((b) => {
+    const realT = realPeriod(b.aKm, S.mu);
+    const co = Math.cos(b.omega), so = Math.sin(b.omega);
+    const samples = [];
+    for (let k = 0; k <= N_SAMPLES; k += step) {
+      const M = TAU * (k / N_SAMPLES);
+      const E = solveE(M, b.e);
+      const cosv = (Math.cos(E) - b.e) / (1 - b.e * Math.cos(E));
+      const sinv = (Math.sqrt(1 - b.e * b.e) * Math.sin(E)) / (1 - b.e * Math.cos(E));
+      const rKm = b.aKm * (1 - b.e * Math.cos(E));
+      const x = rKm * cosv, y = rKm * sinv;
+      samples.push({
+        t: +((k / N_SAMPLES) * realT).toFixed(3),
+        pos: [+(x * co - y * so).toFixed(3), +(x * so + y * co).toFixed(3), 0],
+        r: +rKm.toFixed(3),
+        speed: +Math.sqrt(S.mu * (2 / rKm - 1 / b.aKm)).toFixed(6),
+        accel: +(S.mu / (rKm * rKm)).toFixed(9),
+      });
+    }
+    return { name: b.name, label: b.label, a_km: b.aKm, e: b.e, period_s: +realT.toFixed(3), samples, count: samples.length };
+  });
+  return {
+    scenario,
+    units: { t: 's', pos: 'km', r: 'km', speed: 'km/s', accel: 'km/s²' },
+    mu_km3_s2: S.mu,
+    series,
+  };
+}
+
 /**
  * Resolve a recipe into the emitThreeWorld payload. Orbit-only; a 3/4 view over the orbital plane is
  * primary (with a top-down second), glow off.

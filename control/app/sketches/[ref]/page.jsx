@@ -162,12 +162,12 @@ export default function SketchPage({ params }) {
             alt={data?.title || ref}
             className="w-full h-auto block"
           />
-        ) : renderMode === 'world' || renderMode === 'scene' ? (
+        ) : renderMode === 'world' || renderMode === 'scene' || renderMode === 'beats' || renderMode === 'game' ? (
           <iframe
             src={`/api/sketches/${encodeURIComponent(ref)}/${renderMode}`}
             title={data?.title || ref}
             className="w-full block border-0"
-            style={{ aspectRatio: '1120 / 780' }}
+            style={{ aspectRatio: renderMode === 'beats' ? '760 / 640' : renderMode === 'game' ? '4 / 3' : '1120 / 780' }}
           />
         ) : (
           <CreationMap manifest={manifest} technical={false} mode={mode} />

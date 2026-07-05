@@ -96,6 +96,34 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_jobs_created_at ON mcp_jobs(created_at);
 
+    -- MCP tool-call telemetry. One row per handler invocation across both call
+    -- paths (rpc tools/call + plan-mode executor). Describes the CALL — never
+    -- the conversation: input_keys is top-level key NAMES only, input_bytes /
+    -- result_bytes are serialized sizes, values are never stored unless the
+    -- operator opts into MOJULO_MCP_TELEMETRY_CAPTURE=full (input_json /
+    -- result_json, truncated). Writes are fire-and-forget from telemetry.js —
+    -- a failure here must never fail a tool call. See lib/mcp/telemetry.js and
+    -- lib/mcp/observability.plan.md.
+    CREATE TABLE IF NOT EXISTS mcp_tool_calls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tool TEXT NOT NULL,
+      via TEXT NOT NULL,
+      session_id TEXT,
+      client_name TEXT,
+      client_version TEXT,
+      started_at INTEGER NOT NULL,
+      duration_ms REAL,
+      status TEXT NOT NULL,
+      error_message TEXT,
+      input_keys TEXT,
+      input_bytes INTEGER,
+      result_bytes INTEGER,
+      input_json TEXT,
+      result_json TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_tool ON mcp_tool_calls(tool, started_at);
+    CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_status ON mcp_tool_calls(status, started_at);
+
     CREATE TABLE IF NOT EXISTS meta_nodes (
       id INTEGER PRIMARY KEY,
       kind TEXT NOT NULL CHECK(kind IN ('bot', 'mcp_tool', 'catalyst', 'adapter', 'artifact', 'operator')),
@@ -310,7 +338,10 @@ function init(db) {
         'sketch_vocab',
         'sketch_method',
         'manji_program',
-        'painted_landscape'
+        'painted_landscape',
+        'view_vocab',
+        'beats_vocab',
+        'game_vocab'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
@@ -607,6 +638,7 @@ function init(db) {
   migrateStashCookArchivedAt(db);
   migrateEmbeddingsSourceKinds(db);
   reapStaleMcpJobs(db);
+  pruneMcpToolCalls(db);
   maybeBackfillEmbeddings(db);
   maybeStartNodeFulfiller();
   maybeStartTriggerDaemons();
@@ -1058,7 +1090,7 @@ function migrateEmbeddingsSourceKinds(db) {
     .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
     .get();
   if (!row || !row.sql) return;
-  if (row.sql.includes('painted_landscape')) return;
+  if (row.sql.includes('game_vocab')) return;
   db.exec(`
     BEGIN;
     CREATE TABLE meta_embeddings_new (
@@ -1074,7 +1106,10 @@ function migrateEmbeddingsSourceKinds(db) {
         'sketch_vocab',
         'sketch_method',
         'manji_program',
-        'painted_landscape'
+        'painted_landscape',
+        'view_vocab',
+        'beats_vocab',
+        'game_vocab'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
@@ -1105,6 +1140,33 @@ function reapStaleMcpJobs(db) {
      SET status = 'error', error = COALESCE(error, 'Control plane restarted while job was in flight'), updated_at = ?
      WHERE status IN ('pending', 'running')`
   ).run(Date.now());
+}
+
+// Telemetry retention caps. Keep at most MCP_TELEMETRY_MAX_DAYS of history and
+// at most MCP_TELEMETRY_MAX_ROWS rows, whichever bounds tighter. Exported so the
+// startup sweep here and scripts/cleanup-stale-artifacts.js prune identically.
+export const MCP_TELEMETRY_MAX_DAYS = 30;
+export const MCP_TELEMETRY_MAX_ROWS = 50_000;
+
+// Bound the telemetry table without a cron: age out old rows, then trim to the
+// row cap by dropping the oldest ids. Runs on startup init and is also invoked
+// by the artifact-cleanup script. Returns the number of rows deleted.
+export function pruneMcpToolCalls(db) {
+  const cutoff = Date.now() - MCP_TELEMETRY_MAX_DAYS * 24 * 60 * 60 * 1000;
+  const byAge = db.prepare('DELETE FROM mcp_tool_calls WHERE started_at < ?').run(cutoff);
+  const byCap = db.prepare(
+    `DELETE FROM mcp_tool_calls
+     WHERE id NOT IN (
+       SELECT id FROM mcp_tool_calls ORDER BY id DESC LIMIT ?
+     )`
+  ).run(MCP_TELEMETRY_MAX_ROWS);
+  const deleted = (byAge.changes || 0) + (byCap.changes || 0);
+  if (deleted > 0) {
+    console.error(
+      `[mcp] telemetry prune: removed ${deleted} row(s) (age>${MCP_TELEMETRY_MAX_DAYS}d or beyond ${MCP_TELEMETRY_MAX_ROWS} cap)`
+    );
+  }
+  return deleted;
 }
 
 function migrateDeploymentColumns(db) {

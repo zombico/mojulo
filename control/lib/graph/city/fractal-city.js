@@ -2442,6 +2442,48 @@ function daySun(region) {
  * scene (streetlamp sources + moonlight + starry sky). `opts.maxLamps` caps the night
  * bake on dense cities.
  */
+// ── INSTANCED STREET FURNITURE (renderer-convergence.plan.md, 1b) ────────────────────────────
+// Fixed-geometry furniture classes (lamp poles/arms/heads, sign posts, park bins/benches,
+// tram poles, …) repeat identically across a city modulo translation. With `instancing: true`
+// on the manifest, eligible boxes leave the flat face soup and ship as ONE realized template +
+// N position transforms (the `repeats` payload channel) — the biggest copy-count win the
+// channel was built for. Eligibility is by SIGNATURE (kind + dims + tint), not a curated kind
+// list, restricted to plain-branch boxes (no facade/shape/roof/curtainwall — those realize
+// bespoke geometry). Trees/palms stay expanded: each carries its own `plant` spec (individuals
+// by design). APPROXIMATE by declaration: the template freezes the first instance's shading
+// (cityBox's camera-facing lit asymmetry is per-position), so instancing only engages in the
+// PLAIN lighting mode — night/day diffusion, moonlight, and groundShadows are all
+// position-dependent bakes the template cannot carry; under any of them furniture stays
+// expanded (recorded in `repeatsInfo.disabled`, never silent).
+const FURNITURE_MIN_COPIES = 6;
+const FURNITURE_SPECIAL_KINDS = new Set(['building', 'anchor', 'midtower', 'townhouse', 'house', 'garage']);
+function extractFurnitureRepeats(boxes) {
+  const bySig = new Map();
+  for (let i = 0; i < boxes.length; i++) {
+    const b = boxes[i];
+    if (!b || typeof b.kind !== 'string' || FURNITURE_SPECIAL_KINDS.has(b.kind)) continue;
+    if (b.shape || b.roof || b.curtainwall || b.facade || b.plant || b.class) continue;
+    const sig = `${b.kind}|${b.w.toFixed(6)}|${b.d.toFixed(6)}|${(b.z0 || 0).toFixed(6)}|${b.z1.toFixed(6)}|${b.tint || ''}`;
+    (bySig.get(sig) || bySig.set(sig, []).get(sig)).push(i);
+  }
+  const drop = new Set();
+  const groups = [];
+  const skipped = [];
+  for (const [sig, idx] of bySig) {
+    const kind = sig.slice(0, sig.indexOf('|'));
+    if (idx.length < FURNITURE_MIN_COPIES) { skipped.push({ kind, sig, count: idx.length }); continue; }
+    const b0 = boxes[idx[0]];
+    groups.push({
+      name: `furniture:${kind}:${groups.length}`,
+      // template centred at the XY origin; z stays absolute (ground-mounted furniture)
+      template: { ...b0, x: -b0.w / 2, y: -b0.d / 2 },
+      transforms: idx.map((i) => ({ pos: [boxes[i].x + boxes[i].w / 2, boxes[i].y + boxes[i].d / 2, 0] })),
+    });
+    for (const i of idx) drop.add(i);
+  }
+  return { boxes: drop.size ? boxes.filter((_, i) => !drop.has(i)) : boxes, groups, skipped };
+}
+
 export function assembleFractalCityScene(opts = {}) {
   const plan = planFractalCity(opts);
   let { boxes, grounds, ribbons, faces } = plan;
@@ -2457,7 +2499,19 @@ export function assembleFractalCityScene(opts = {}) {
   let sources = night ? (opts.sources || plan.sources) : day ? [daySun(region)] : (opts.sources || []);
   const cap = opts.maxLamps ?? 20;                              // sample lamps down so the night bake stays bounded
   if (night && sources.length > cap) sources = Array.from({ length: cap }, (_, i) => sources[Math.floor(i * (sources.length / cap))]);
-  return assembleBoxCityScene({
+  // instanced street furniture (see extractFurnitureRepeats): opt-in + plain lighting mode only
+  const plainLit = !night && !day && !sources.length && !opts.moonlight && !opts.groundShadows;
+  let furniture = null;
+  if (opts.instancing) {
+    if (plainLit) {
+      const ex = extractFurnitureRepeats(boxes);
+      boxes = ex.boxes;
+      furniture = ex;
+    } else {
+      furniture = { groups: [], skipped: [], disabled: 'position-dependent lighting (night/day/moonlight/groundShadows) — furniture stays expanded' };
+    }
+  }
+  const scene = assembleBoxCityScene({
     boxes, grounds, ribbons, faces,
     sources,
     diffusion: opts.diffusion || (night ? NIGHT_DIFFUSION : day ? DAY_DIFFUSION : {}),
@@ -2474,6 +2528,29 @@ export function assembleFractalCityScene(opts = {}) {
     creaseSeams: opts.creaseSeams ?? false,            // opt-in vgl concave contact-shadow feather
     ...(opts.sky ? { sky: opts.sky } : night ? { sky: { preset: 'night', stars: true, moon: true, seed: opts.seed ?? 7 } } : day ? { sky: { preset: 'day' } } : {}),
   });
+  if (furniture) {
+    // each template realizes through the SAME assembler (one box, no grounds) so its faces are
+    // byte-identical to what the expanded path would have produced at the template's position.
+    if (furniture.groups.length) {
+      scene.repeats = furniture.groups.map((g) => ({
+        template: assembleBoxCityScene({
+          boxes: [g.template], cameras: opts.cameras || FRACTAL_CAMERAS,
+          viewBox: opts.viewBox || { width: 1120, height: 780 }, unitScale: opts.unitScale || 22,
+          light: opts.light,
+        }).faces,
+        transforms: g.transforms,
+        group: g.name,
+      }));
+    }
+    // adoption ledger — what got instanced, what fell below the copy threshold, or why the
+    // whole pass stood down. Never silent (renderer-convergence "no silent caps").
+    scene.repeatsInfo = {
+      instanced: furniture.groups.map((g) => ({ group: g.name, copies: g.transforms.length })),
+      skipped: furniture.skipped || [],
+      ...(furniture.disabled ? { disabled: furniture.disabled } : {}),
+    };
+  }
+  return scene;
 }
 
 export function renderFractalCityToHtml(opts = {}) {

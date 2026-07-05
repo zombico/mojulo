@@ -9,7 +9,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planOceanScene, OCEAN_SCENARIOS } from '@/lib/graph/landscape/ocean-view';
 
 export function mintOceanView({ title, scenario, amplitude, scale, viewBox, scene, ref, folderRef } = {}) {
@@ -54,40 +53,4 @@ export async function createOceanViewHandler(input) {
   }
   const { title, scenario, amplitude, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintOceanView({ title, scenario, amplitude, scale, viewBox, scene, ref, folderRef });
-}
-
-export function registerOceanViewTools() {
-  registerTool({
-    name: 'create_ocean_view',
-    description:
-      "Mint an interactive ANIMATED OCEAN SURFACE — a live sea that heaves and rolls, rendered in the "
-      + "traversable three.js World. The surface is a grid mesh deformed every frame by a GERSTNER "
-      + "'waveform sequence': a superposition of moving wave trains (height Σ A·sin θ, with the Gerstner "
-      + "horizontal pull that sharpens crests and broadens troughs), lit by a sun so it catches "
-      + "highlights, with foam on the whitecaps and red/gold buoys that ride the swell — tracing the "
-      + "circular orbital motion of the water. Accurate physics: deep-water dispersion ω = √(g·k), so "
-      + "longer waves travel faster. Three sea states: 'swell' (long, low, smooth — a calm ocean), "
-      + "'chop' (short steep wind waves, foamy), 'storm' (big mixed seas, whitecaps); an `amplitude` "
-      + "knob scales the whole sea. Served as a live, traversable three.js World at "
-      + "`/api/sketches/<ref>/world` (drag to ORBIT, scroll to zoom). You pass a tiny recipe (a sea "
-      + "state); the substrate stores ONLY the recipe (`manifest.kind === 'ocean-view'`, no geometry) "
-      + "and regenerates the wave spectrum on render. ORBIT-ONLY object study: no CSS-3D `/scene` form; "
-      + "open the worldUrl. Reach for this on framing like 'animate an ocean / ocean waves / a stormy "
-      + "sea / water surface waves / a rolling swell'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...OCEAN_SCENARIOS], description: "Sea state (default 'swell'): 'swell' (long smooth), 'chop' (short steep wind waves), 'storm' (big whitecaps)." },
-        amplitude: { type: 'number', description: 'Wave-height multiplier (default 1; e.g. 0.5 calmer, 2 rougher).' },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1120×780).' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#0a1a2e" } for the background colour.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createOceanViewHandler,
-  });
 }

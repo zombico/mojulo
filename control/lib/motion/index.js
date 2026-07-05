@@ -17,7 +17,7 @@ import { composeFlipbook } from './flipbook.js';
 export { CAMERA_MOTIONS } from './camera-path.js';
 export { encodeGif, encodeGifBuffers } from './encode-gif.js';
 export { encodeStitchMp4, encodeFramesMp4, planClip, STITCH_WARN_FRAMES, STITCH_WARN_SECONDS } from './encode-mp4.js';
-export { renderWorldMotion, WORLD_MOTION_NAMES } from './world-motion.js';
+export { renderWorldMotion, renderWorldTraversalMotion, WORLD_MOTION_NAMES } from './world-motion.js';
 export { resolveFfmpeg } from './ffmpeg.js';
 export { renderDeckMotion, DECK_MOTIONS, DECK_MOTION_NAMES, isDeckMotion, DECK_BG } from './deck.js';
 export { expandSlide, hasReveals } from './reveal.js';

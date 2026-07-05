@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { deriveBaseShot, WORLD_MOTION_NAMES } from './world-motion.js';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
+import { assembleOperatorWorldScene } from '@/lib/graph/worlds/operator-world';
 
 describe('motion/world-motion — deriveBaseShot', () => {
   it('prefers the world\'s first authored camera bookmark', () => {
@@ -32,6 +33,21 @@ describe('motion/world-motion — deriveBaseShot', () => {
 
   it('exposes exactly the camera motions (no deck/effect names)', () => {
     expect(WORLD_MOTION_NAMES).toEqual(['turntable', 'orbit', 'push_in', 'dolly_zoom', 'flythrough']);
+  });
+
+  it('an operator-world payload yields a finite base shot (world-motion eligible)', () => {
+    const payload = assembleOperatorWorldScene({
+      kind: 'operator-world',
+      nodes: [
+        { id: 'svc', type: 'service', label: 'digest', present: true, at: [0, -6] },
+        { id: 'mcp', type: 'mcp', label: 'gdrive', present: true, at: [0, 6] },
+      ],
+      edges: [{ from: 'svc', to: 'mcp', present: true }],
+    }, {});
+    const base = deriveBaseShot(payload);
+    for (const v of [...base.cameraPosition, ...base.lookAt, base.horizontalFov]) {
+      expect(Number.isFinite(v)).toBe(true);
+    }
   });
 });
 

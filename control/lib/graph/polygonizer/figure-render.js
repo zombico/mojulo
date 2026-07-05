@@ -593,6 +593,44 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
  *
  * @returns {{ frames: {faces:{corners:number[][],fill:string}[]}[], title:string, bg:string }}
  */
+/**
+ * figureRigSamples — the rig-bake feed (renderer-convergence step 2): rest faces + per-key
+ * BALANCED armature nodes, all in the SAME world space renderFigureWorldFrames faces use
+ * (worldVertex over the rest build's ground). Keeping both sides of the transform in this
+ * module means rig-bake never replicates PROTO_SCALE / S / groundZ — the spaces agree by
+ * construction. Nodes come from the same articulate + groundBalance/groundVault solve the
+ * flesh is built on (the spine warp's smooth deformation is NOT reproduced — rigid parts
+ * approximate it; see rig-bake.js).
+ */
+export function figureRigSamples(manifest = {}, keys = 8) {
+  const setup = resolveSetup(manifest);
+  const { CAM } = makeCamera(manifest.view);
+  const move = motionFn(manifest.motion || 'walk', keys);
+  const restPose = manifest.pose || {};
+  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment), setup.fleshHex);
+  const groundZ = stackMinZ(restStacks);
+  const V = worldVertex(restStacks, groundZ);
+  const restFaces = litFaces(restStacks, CAM, setup.light, groundZ, { cull: false })
+    .map((f) => ({ corners: f.wpts, fill: f.fill }));
+  // armature nodes (STAND units) → the same world space: scale up to stack units, then the
+  // shared worldVertex transform.
+  const mapNodes = (nodes) => Object.fromEntries(Object.entries(nodes).map(([k, n]) => {
+    const [x, y, z] = V({ x: n.x * PROTO_SCALE, y: n.y * PROTO_SCALE, z: n.z * PROTO_SCALE });
+    return [k, { x, y, z }];
+  }));
+  const solve = (pose) => {
+    const { support = 'both', weight = 0, crouch = 0, kneeOut = 0, plant = null } = pose || {};
+    const full = articulate(pose);
+    if (support === 'none') return full;                     // airborne: pure FK
+    const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
+    return plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut });
+  };
+  const restNodes = mapNodes(solve(restPose));
+  const nodeFrames = Array.from({ length: keys }, (_, i) =>
+    mapNodes(solve({ ...restPose, ...(move ? move(i / keys) : {}) })));
+  return { restFaces, restNodes, nodeFrames };
+}
+
 export function renderFigureWorldFrames(manifest = {}, frames = 30) {
   const setup = resolveSetup(manifest);
   const { CAM } = makeCamera(manifest.view);

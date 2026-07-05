@@ -10,7 +10,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planParallelTransportScene, PARALLEL_TRANSPORT_SCENARIOS } from '@/lib/graph/views/science/parallel-transport-view';
 
 export function mintParallelTransportView({ title, scenario, latitude, loopSize, scale, viewBox, scene, ref, folderRef } = {}) {
@@ -56,43 +55,4 @@ export async function createParallelTransportViewHandler(input) {
   }
   const { title, scenario, latitude, loopSize, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintParallelTransportView({ title, scenario, latitude, loopSize, scale, viewBox, scene, ref, folderRef });
-}
-
-export function registerParallelTransportViewTools() {
-  registerTool({
-    name: 'create_parallel_transport_view',
-    description:
-      "Mint an interactive HOLONOMY demonstrator — a tangent arrow carried (parallel-transported) around "
-      + "a closed loop on a surface, rendered in the traversable three.js World. Carry an arrow around a "
-      + "loop without ever actively turning it: on a FLAT surface it returns pointing exactly as it "
-      + "started; on a CURVED surface it returns ROTATED, and that rotation (the holonomy) EQUALS the "
-      + "curvature enclosed by the loop — the Gauss–Bonnet theorem, checked live on screen (for the unit "
-      + "sphere the enclosed curvature is just the enclosed solid angle). A green START arrow and a red "
-      + "RETURNED arrow at the start point make the gap visible, with a fan of breadcrumb arrows showing "
-      + "the rotation accumulate around the trip. This single idea is the Foucault pendulum, the quantum "
-      + "Berry phase, and spacetime curvature. Four scenarios: 'sphere-triangle' (the textbook 90° proof "
-      + "— a triangle with three right angles), 'foucault' (a circle of latitude; the swing-plane "
-      + "precession, with a `latitude` knob), 'berry' (a loop on the Bloch sphere; geometric phase = ½ "
-      + "the solid angle), 'flat-plane' (the control: holonomy = 0). Served as a live, traversable "
-      + "three.js World at `/api/sketches/<ref>/world` (drag to ORBIT, scroll to zoom). You pass a tiny "
-      + "recipe; the substrate stores ONLY the recipe (`manifest.kind === 'parallel-transport-view'`, no "
-      + "geometry) and recomputes the transport on render. ORBIT-ONLY object study: no CSS-3D `/scene` "
-      + "form; open the worldUrl. Reach for this on framing like 'parallel transport / holonomy / "
-      + "geometric phase / Berry phase / Foucault pendulum / curvature of a surface / Gauss-Bonnet'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...PARALLEL_TRANSPORT_SCENARIOS], description: "Which framing (default 'sphere-triangle'): 'sphere-triangle', 'foucault', 'berry', 'flat-plane'." },
-        latitude: { type: 'number', description: 'For foucault/berry: the latitude (deg) of the transport loop (default 48 foucault / 35 berry).' },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1120×780).' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#070b16" } for the background colour.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createParallelTransportViewHandler,
-  });
 }

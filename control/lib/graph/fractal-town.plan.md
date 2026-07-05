@@ -91,9 +91,9 @@ even though it shares the engine. Touch points, in order:
   (~line 802) so it renders via three.js / gets a world card.
 - **`control/lib/graph/scene-html.js`**: add a `kind === 'fractal-town'` →
   `renderFractalTownToHtml` branch (after the fractal-city branch, ~line 62).
-- **`control/lib/graph/world-scene.js`**: add a `kind === 'fractal-town'` →
-  `assembleFractalTownScene` branch (~line 150); add `'fractal-town'` to `WALK_KINDS` (~line 79)
-  so it supports first-person walk like the city.
+- **`control/lib/graph/worlds/world-kinds.js`**: add a `'fractal-town'` registry row
+  (descriptor with `resolve` → `assembleFractalTownScene` and `walk: true` — `WALK_KINDS` is
+  derived from the flags) so it supports first-person walk like the city.
 - **Routes auto-enable**: `/api/sketches/<ref>/{scene,world,png}` need no change — they dispatch
   through `scene-html.js` / `world-scene.js`.
 - **Optional**: `modeler-lingo.js` routes ("suburb", "residential", "neighborhood" →

@@ -73,6 +73,8 @@ import { getSketchVocabCard } from '@/lib/graph/sketch-vocab/loader';
 import { getSketchMethodCatalog } from '@/lib/graph/polygonizer/capabilities/loader';
 import { resolveManjiProgramCard } from '@/lib/graph/polygonizer/mandala-patterns';
 import { getPaintedLandscapeCardCatalog } from '@/lib/graph/painted-landscape-cards/loader';
+import { getBeatsVocabCard } from '@/lib/graph/beats/beats-vocab/loader';
+import { getViewVocabCatalog } from '@/lib/graph/views/view-vocab/loader';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -340,6 +342,16 @@ describe('semantic_search — cross-kind recall integration', () => {
         case 'painted_landscape': {
           const card = getPaintedLandscapeCardCatalog().get(r.source_ref);
           expect(card, `painted_landscape ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'view_vocab': {
+          const card = getViewVocabCatalog().get(r.source_ref);
+          expect(card, `view_vocab ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'beats_vocab': {
+          const card = getBeatsVocabCard(r.source_ref);
+          expect(card, `beats_vocab ${r.source_ref} should exist`).toBeTruthy();
           break;
         }
         default:

@@ -4,6 +4,7 @@
     "saving": "Saving…",
     "cancel": "Cancel",
     "servicesMap": "Services Map",
+    "observability": "Observability",
     "delete": "Delete",
     "deleting": "Deleting…",
     "download": "Download",
@@ -1660,6 +1661,11 @@
     "motion": {
       "title": "Motion",
       "blurb": "Movies and GIFs — camera paths and slideshows rendered to animated artifacts."
+    },
+    "beats": {
+      "title": "Beats",
+      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats.",
+      "blurb": "Ambient loops, scores, and foley cues — the audio artifacts you listen to. Everything synthesized, nothing sampled."
     }
   },
   "motion": {
@@ -1988,6 +1994,36 @@
       "components": "Components",
       "knobs": "Knobs",
       "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
+    }
+  },
+  "observability": {
+    "title": "Observability",
+    "subtitle": "MCP tool-layer telemetry: one row per handler call across both transports. Records shapes and timings only — never input values or conversation content.",
+    "loading": "Loading telemetry…",
+    "refresh": "Refresh",
+    "error": "Failed to load telemetry",
+    "empty": "No tool calls recorded yet. Telemetry records once the host agent starts calling MCP tools.",
+    "windowLabel": "Window",
+    "window7d": "Last 7 days",
+    "window30d": "Last 30 days",
+    "window1d": "Last 24 hours",
+    "aggregatesTitle": "Per-tool aggregates",
+    "recentErrorsTitle": "Recent errors",
+    "recentCallsTitle": "Recent calls",
+    "noErrors": "No errors in this window.",
+    "backToObservability": "Back to Observability",
+    "table": {
+      "tool": "Tool",
+      "calls": "Calls",
+      "errorRate": "Error %",
+      "p50": "p50",
+      "p95": "p95",
+      "lastCalled": "Last called",
+      "status": "Status",
+      "duration": "Duration",
+      "via": "Via",
+      "when": "When",
+      "message": "Message"
     }
   }
 }

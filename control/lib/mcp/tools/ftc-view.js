@@ -11,7 +11,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planFtcScene, FTC_SCENARIOS } from '@/lib/graph/views/math/ftc-view';
 
 export function mintFtcView({ title, scenario, at, animate, scale, viewBox, scene, ref, folderRef } = {}) {
@@ -50,41 +49,4 @@ export async function createFtcViewHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_ftc_view requires a recipe object');
   const { title, scenario, at, animate, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintFtcView({ title, scenario, at, animate, scale, viewBox, scene, ref, folderRef });
-}
-
-export function registerFtcViewTools() {
-  registerTool({
-    name: 'create_ftc_view',
-    description:
-      "Mint an interactive CALCULUS explainer — the FUNDAMENTAL THEOREM OF CALCULUS, rendered as a live "
-      + "traversable three.js World in two stacked panels. The TOP panel shows a function f(t) with the "
-      + "AREA from 0 to x shaded in. The BOTTOM panel plots the area-so-far function A(x) = ∫₀ˣ f, the "
-      + "running total of that shaded area. The punchline the two panels make visible: the RATE at which "
-      + "the area grows equals the HEIGHT of f at x equals the SLOPE of A at x — so A′(x) = f(x), and "
-      + "differentiating the accumulated area hands you the original function straight back. The red height "
-      + "bar up top and the gold tangent slope down below are literally the SAME number. Four scenarios, "
-      + "one idea worn many ways: 'constant' (f = 1 → A = x), 'linear' (f = t → A = x²/2), 'sine' (f = "
-      + "sin t → A = 1 − cos t), 'square' (f = t² → A = x³/3). OR pass `at` to set the sweep position x. "
-      + "Part of mojulo's EDUCATION module (math explainers, sibling to the science views). Served at "
-      + "`/api/sketches/<ref>/world`; the substrate stores ONLY the recipe (`manifest.kind === "
-      + "'ftc-view'`) and regenerates on render. ORBIT-ONLY: no CSS-3D /scene form. Reach for this on "
-      + "framing like 'fundamental theorem of calculus / integral as area / antiderivative / accumulation "
-      + "function / FTC'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...FTC_SCENARIOS], description: "Which pair (default 'linear'): 'constant' (f = 1 → A = x), 'linear' (f = t → A = x²/2), 'sine' (f = sin t → A = 1 − cos t), 'square' (f = t² → A = x³/3)." },
-        at: { type: 'number', description: 'The sweep position x — sets how far the shaded area runs and where the height/slope are compared.' },
-        animate: { type: 'boolean', description: 'Play the sweep (default true). false bakes the final position statically.' },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height }.' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#0b1020" }.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createFtcViewHandler,
-  });
 }

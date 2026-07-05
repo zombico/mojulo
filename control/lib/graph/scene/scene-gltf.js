@@ -24,8 +24,9 @@
  * No three.js import — pure typed-array + Buffer assembly, unit-testable in node.
  */
 
-import { faceListToMesh, collectWaterMesh, collectShadowDecals } from '../figures/face-mesh.js';
+import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals } from '../figures/face-mesh.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
+import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
 
 const COMPONENT_FLOAT = 5126;
 const TARGET_ARRAY_BUFFER = 34962;
@@ -163,6 +164,27 @@ class GlbBuilder {
     return nodeIdx;
   }
 
+  // One shared mesh + N thin nodes (renderer-ladder P4 instancing): the template geometry is
+  // stored ONCE; each transform becomes a node referencing the same mesh with its own TRS.
+  // Rotation is about +Z — the nodes live in the pre-root z-up frame, exactly like addNode
+  // geometry, so the y-up root conversion applies uniformly.
+  addInstancedNodes(name, positions, colors, colorComponents, materialIndex, transforms) {
+    const posAcc = this.floatAccessor(positions, 3, bounds3(positions));
+    const attributes = { POSITION: posAcc };
+    if (colors && colors.length) attributes.COLOR_0 = this.floatAccessor(colors, colorComponents);
+    this.json.meshes.push({ name, primitives: [{ attributes, mode: MODE_TRIANGLES, material: materialIndex }] });
+    const meshIdx = this.json.meshes.length - 1;
+    transforms.forEach((t, i) => {
+      const node = { name: `${name}:${i}`, mesh: meshIdx };
+      if (Array.isArray(t.pos) && t.pos.some((v) => v)) node.translation = [t.pos[0], t.pos[1], t.pos[2]];
+      const rz = t.rotZ || 0;
+      if (rz) node.rotation = [0, 0, Math.sin(rz / 2), Math.cos(rz / 2)];
+      if (Number.isFinite(t.scale) && t.scale !== 1) node.scale = [t.scale, t.scale, t.scale];
+      this.children.push(this.json.nodes.push(node) - 1);
+    });
+    return meshIdx;
+  }
+
   build() {
     // y-up root: parent every geometry node under one rotated node.
     const rootIdx = this.json.nodes.push({ name: 'mojulo', rotation: ZUP_TO_YUP, children: this.children }) - 1;
@@ -209,8 +231,9 @@ class GlbBuilder {
  * (cameras, sky, movers, …) is ignored — only geometry exports.
  */
 export function facesToGlb(payload = {}, { generator } = {}) {
-  const { faces = [], textures = {}, light = null } = payload || {};
-  if (!Array.isArray(faces) || !faces.length) return null;
+  const { faces = [], textures = {}, light = null, ao = null, repeats = [] } = payload || {};
+  const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
+  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length) return null;
 
   const b = new GlbBuilder(generator);
   let vertexCount = 0;
@@ -224,7 +247,26 @@ export function facesToGlb(payload = {}, { generator } = {}) {
   // Water renders in its own translucent pass; pull it out before surface-card expansion
   // exactly as emitThreeWorld does (water quads carry no cards).
   const waterRaw = faces.filter((f) => f && f.water);
-  const expanded = expandSurfaceCards(faces.filter((f) => !(f && f.water)), { light });
+  const expanded0 = expandSurfaceCards(faces.filter((f) => !(f && f.water)), { light });
+  // De-collide ONCE over the whole opaque face set, exactly where emitThreeWorld does it —
+  // coincident faces that land in DIFFERENT render groups (separate glTF nodes, the worst
+  // z-fight case in an importer) get lifted apart too. Groups below then mesh with
+  // decollide:false; before this the .glb only de-collided per group and cross-group
+  // duplicates survived into the export (renderer-emitter.plan.md E4).
+  const expanded1 = decollideFaces(expanded0);
+  // Baked ambient occlusion — the same post-expansion, post-decollide pass emitThreeWorld
+  // applies, so the .glb carries the identical darkening in its COLOR_0 vertex colours (and
+  // samples the same final corner positions). Repeat templates expand once here and feed the
+  // bake as instance-transformed occluder-only phantoms (renderer-convergence 1a, CAST) —
+  // mirroring the World path, so exported terrain darkens under instanced canopies.
+  const repExpanded = repeatList.map((r) => expandSurfaceCards(r.template, { light }));
+  const aoOpts = ao ? (typeof ao === 'object' ? ao : {}) : null;
+  const aoPhantoms = aoOpts && repeatList.length
+    ? repeatList.flatMap((r, i) => instanceOccluderFaces(repExpanded[i], r.transforms))
+    : [];
+  const expanded = aoOpts
+    ? bakeAmbientOcclusion(expanded1, aoPhantoms.length ? { ...aoOpts, extraOccluders: aoPhantoms } : aoOpts)
+    : expanded1;
 
   // Opaque/lit geometry, one node per render group (mirrors emitThreeWorld's grouping so a
   // Blender import shows the same toggleable walls/shells as named objects).
@@ -236,7 +278,7 @@ export function facesToGlb(payload = {}, { generator } = {}) {
     groupMap.get(k).push(f);
   }
   for (const [name, fs] of groupMap) {
-    const gm = faceListToMesh(fs);
+    const gm = faceListToMesh(fs, { decollide: false }); // already de-collided globally above
     // group-wide translucency (e.g. cellular jelly + organelles): a face alpha < 1 turns the
     // whole group transparent, matching emitThreeWorld's per-group alpha.
     const af = fs.find((f) => typeof f.alpha === 'number' && f.alpha < 1);
@@ -299,6 +341,22 @@ export function facesToGlb(payload = {}, { generator } = {}) {
       tally(positions);
     }
   }
+
+  // Instanced repeats (renderer-ladder P4): each entry's template bakes to ONE mesh, and its
+  // transforms become thin nodes sharing it — a 500-tree block stores one tree. Mirrors
+  // emitThreeWorld's InstancedMesh lowering, so the .glb depicts the same world. With `ao` on,
+  // the template self-bakes (its own creases darken in every instance); the World path's
+  // per-instance ambient tint is deliberately NOT mirrored (glTF per-node color would need
+  // per-node materials).
+  repeatList.forEach((r, i) => {
+    const gm = faceListToMesh(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]);
+    if (!gm.positions.length) return;
+    const name = r.group || `repeat-${i}`;
+    const mat = b.unlitMaterial({ name });
+    b.addInstancedNodes(name, gm.positions, gm.colors, 3, mat, r.transforms);
+    vertexCount += gm.positions.length / 3;                                // stored once
+    triangleCount += (gm.positions.length / 9) * r.transforms.length;      // depicted N times
+  });
 
   if (!b.children.length) return null; // expansion produced nothing exportable
 

@@ -59,6 +59,10 @@ export async function GET(request, { params }) {
         'Content-Disposition': `attachment; filename="${glbFilename(sketch, ref)}"`,
         'Content-Length': String(exported.byteLength),
         'Cache-Control': 'no-store',
+        // a nonBakeable world (live physics/entities/events) exports its FROZEN frame-zero
+        // stage — geometry only, no inhabitants or live channels. Recorded here so the
+        // degradation is observable, not implied (renderer-emitter.plan.md E4).
+        ...(payload.nonBakeable ? { 'X-Mojulo-Degraded': 'frame-zero' } : {}),
       },
     });
   } catch (err) {

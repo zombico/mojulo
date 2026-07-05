@@ -13,7 +13,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planCellularScene } from '@/lib/graph/views/bio/cellular-view';
 
 const CELL_TYPES = ['animal', 'plant'];
@@ -64,41 +63,4 @@ export async function createCellularViewHandler(input) {
   }
   const { title, cell_type: cellType, seed, scale, jelly_alpha: jellyAlpha, organelle_alpha: organelleAlpha, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCellularView({ title, cellType, seed, scale, jellyAlpha, organelleAlpha, viewBox, scene, ref, folderRef });
-}
-
-export function registerCellularViewTools() {
-  registerTool({
-    name: 'create_cellular_view',
-    description:
-      "Mint an interactive 3D CELL — a science/education viewer for cell structure. Two cell types: "
-      + "'animal' (nucleus, mitochondria, ER, Golgi, lysosomes, ribosomes) and 'plant' (a boxy cellulose "
-      + "cell WALL, a LARGE central VACUOLE that pushes a thin peripheral cytoplasm, green CHLOROPLASTS, "
-      + "nucleus, mitochondria, ER, Golgi, ribosomes). Organelles are suspended in "
-      + "SUPERPOSITION inside a translucent 'jelly' cytoplasm: the cytoplasm is see-through and each "
-      + "organelle is lightly translucent, so overlapping organelles read as layered. The organelle "
-      + "shapes are OUTPUT through the workbench's monomer machinery. Served as a live, traversable "
-      + "three.js World at `/api/sketches/<ref>/world` (drag to ORBIT, scroll to zoom): CLICK any "
-      + "organelle to raise a metadata popup (its role / function / structure). You pass a tiny recipe "
-      + "(a CELL TYPE + a seed); the substrate stores ONLY the recipe (`manifest.kind === 'cellular-view'`, "
-      + "no geometry) and regenerates the cell on render — same seed → same cell. ORBIT-ONLY object study: "
-      + "no CSS-3D `/scene` form; open the worldUrl. Reach for this on framing like 'show me an animal "
-      + "cell in 3D / visualize cell organelles / a cell with its parts I can click'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        cell_type: { type: 'string', enum: [...CELL_TYPES], description: "The cell type to populate (default 'animal'). 'animal' — nucleus, mitochondria, ER, Golgi, lysosomes, ribosomes. 'plant' — boxy cell wall, large central vacuole, chloroplasts, nucleus, mitochondria, ER, Golgi, ribosomes." },
-        seed: { type: 'number', description: 'Layout seed — same seed reproduces the same organelle arrangement (default 1).' },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        jelly_alpha: { type: 'number', description: 'Cytoplasm (jelly) opacity 0..1 (default 0.22 — quite see-through).' },
-        organelle_alpha: { type: 'number', description: 'Organelle opacity 0..1 (default 0.7 — lightly translucent so overlaps read as superposed).' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1120×780).' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#0b1020" } for the background colour.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createCellularViewHandler,
-  });
 }

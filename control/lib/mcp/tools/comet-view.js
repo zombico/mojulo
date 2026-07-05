@@ -10,7 +10,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planCometScene, COMET_SCENARIOS } from '@/lib/graph/views/science/comet-view';
 
 export function mintCometView({ title, scenario, scale, tails, viewBox, scene, ref, folderRef } = {}) {
@@ -55,45 +54,4 @@ export async function createCometViewHandler(input) {
   }
   const { title, scenario, scale, tails, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCometView({ title, scenario, scale, tails, viewBox, scene, ref, folderRef });
-}
-
-export function registerCometViewTools() {
-  registerTool({
-    name: 'create_comet_view',
-    description:
-      "Mint an interactive COMET depictor — a comet on a real, highly eccentric Kepler orbit around the "
-      + "Sun that grows a glowing coma + a straight anti-solar ION tail + a curved, lagging DUST tail. "
-      + "The headline lesson, made vivid: the tails ALWAYS point AWAY FROM THE SUN (not backward along "
-      + "the path — so on the outbound leg the tail LEADS the comet), and they BLOOM near perihelion and "
-      + "shrink to nothing near aphelion. ACCURATE MOTION, ARTISTIC SCALE: the true eccentric ellipse "
-      + "shape is kept (eccentricity is the whole point) and only scaled to fit one frame, while the "
-      + "motion is physically exact — Kepler's 2nd law (the comet whips through perihelion, crawls at "
-      + "aphelion, which is exactly when the tail blooms) — and the live readout shows REAL distance "
-      + "(AU), REAL speed (vis-viva, km/s), and REAL period. Three scenarios by eccentricity: 'classic' "
-      + "(e=0.90, the clean default), 'halley' (e=0.967, Halley-type, ~75 yr period), 'sungrazer' "
-      + "(e=0.985, extreme bloom). Served as a live, traversable three.js World at "
-      + "`/api/sketches/<ref>/world` with TWO bookmarked cameras — 'path' (the whole orbit) and "
-      + "'closeup' (the perihelion arc + Sun, where you watch the tail form and reorient) — drag to "
-      + "ORBIT, scroll to zoom; CLICK the Sun for its role. You pass a tiny recipe (a scenario); the "
-      + "substrate stores ONLY the recipe (`manifest.kind === 'comet-view'`, no geometry) and "
-      + "regenerates the comet on render. ORBIT-ONLY object study: no CSS-3D `/scene` form; open the "
-      + "worldUrl. Reach for this on framing like 'show me a comet / how a comet's tail is made / why "
-      + "comet tails point away from the Sun / a comet swinging past the Sun'. (The general moving-orrery "
-      + "of planets on Kepler orbits is create_orbit_view; this is the tail-growing comet.)",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scenario: { type: 'string', enum: [...COMET_SCENARIOS], description: "Which comet to depict (default 'classic'): 'classic' (e=0.90), 'halley' (e=0.967), 'sungrazer' (e=0.985)." },
-        scale: { type: 'number', description: 'Overall size multiplier (default 1).' },
-        tails: { type: 'boolean', description: 'Render the ion + dust tails (default true). false → bare nucleus + coma on the orbit.' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1120×780).' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#05070f" } for the background colour.' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createCometViewHandler,
-  });
 }

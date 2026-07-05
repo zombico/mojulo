@@ -473,6 +473,12 @@ function BotsPageInner() {
               {t('dataLink')}
             </Link>
             <Link
+              href="/observability"
+              className="rounded-lg px-4 py-2 border border-[color:var(--border-color)] hover:border-[color:var(--text-muted)] transition"
+            >
+              {tCommon('observability')}
+            </Link>
+            <Link
               href="/chat-builder"
               className="rounded-lg px-4 py-2 bg-[color:var(--brand-teal)] text-[color:var(--brand-navy)] font-semibold hover:bg-[color:var(--brand-teal-hover)] transition"
             >

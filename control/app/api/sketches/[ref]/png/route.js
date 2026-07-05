@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
+import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 
 function safeFilename(title, ref) {
   const base = [title, ref].filter(Boolean).join(' ');
@@ -37,6 +38,14 @@ export async function GET(request, { params }) {
     }
     if (!sketch.manifest) {
       return NextResponse.json({ error: `Sketch '${ref}' has no manifest` }, { status: 400 });
+    }
+    // Beats artifacts are audio-only — no still form. Point at the live player
+    // instead of falling through to the diagram rasterizer (which would throw).
+    if (isBeatsKind(sketch.manifest.kind)) {
+      return NextResponse.json({
+        error: `Sketch '${ref}' is a beats artifact (audio) — it has no PNG form`,
+        player: `/api/sketches/${encodeURIComponent(ref)}/beats`,
+      }, { status: 422 });
     }
 
     const url = new URL(request.url);

@@ -40,16 +40,20 @@ function colorScheme(pageBg) {
  * @param {string} args.title
  * @param {string} args.motion
  * @param {boolean} args.hasGif
+ * @param {boolean} [args.hasMp4]     an H.264 was baked beside the svg (export:'mp4')
  * @param {object} args.recipe        the persisted recipe (motion_ref, meta…)
  * @param {string} args.baseUrl       absolute folder URL, e.g. "/outcomes/mo_x/"
  * @param {object} [args.chrome]      presentation-theme chrome (DEFAULT_CHROME if absent)
  */
-export function viewerHtml({ title, motion, hasGif, recipe, baseUrl, chrome = DEFAULT_CHROME }) {
+export function viewerHtml({ title, motion, hasGif, hasMp4, recipe, baseUrl, chrome = DEFAULT_CHROME }) {
   const c = chrome || DEFAULT_CHROME;
   const scheme = colorScheme(c.pageBg);
   const meta = { frames: recipe.meta.frames, fps: recipe.meta.fps, motion, svg: `${baseUrl}motion.svg` };
   const gifLink = hasGif
     ? `<a class="dl" href="${baseUrl}motion.gif" download>download .gif</a>`
+    : '';
+  const mp4Link = hasMp4
+    ? `<a class="dl" href="${baseUrl}motion.mp4" download>download .mp4</a>`
     : '';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
@@ -98,6 +102,7 @@ export function viewerHtml({ title, motion, hasGif, recipe, baseUrl, chrome = DE
     <span><b>fps</b> ${recipe.meta.fps}</span>
     <span><b>framing</b> ${escapeHtml(recipe.meta.viewBoxStrategy)}</span>
     ${gifLink}
+    ${mp4Link}
   </div>
   <details><summary>recipe</summary><pre>${escapeHtml(JSON.stringify(recipe, null, 2))}</pre></details>
 <script>

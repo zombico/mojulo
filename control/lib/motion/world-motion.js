@@ -1,6 +1,7 @@
 /**
  * Motion — the three.js WORLD subject family. A stored, world-eligible sketch
- * (fractal-city, transportation-hub, room, painted-landscape, planetary, …) is
+ * (fractal-city, transportation-hub, room, painted-landscape, planetary,
+ * operator-world, …) is
  * put under one of the same camera motions the manji-SVG path uses (turntable /
  * orbit / push_in / dolly_zoom / flythrough) and baked to raster frames via
  * headless WebGL.
@@ -19,7 +20,7 @@
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld, verticalFov } from '@/lib/graph/scene/scene-three';
 import { cameraPathFor, CAMERA_MOTIONS } from './camera-path.js';
-import { renderWorldFrames } from './world-frames.js';
+import { renderWorldFrames, renderWorldTraversal, compileWorldWaypoints } from './world-frames.js';
 
 export const WORLD_MOTION_NAMES = Object.keys(CAMERA_MOTIONS);
 
@@ -80,7 +81,7 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
     throw new Error(
       `sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no traversable three.js World form. `
       + 'World motions animate world-eligible kinds (fractal-city, transportation-hub, subway-station, '
-      + 'painted-landscape, planetary, floorplan, workbench, room). Other kinds animate as a manji-tree (sketch_ref) or deck.',
+      + 'painted-landscape, planetary, floorplan, workbench, room, operator-world). Other kinds animate as a manji-tree (sketch_ref) or deck.',
     );
   }
 
@@ -124,5 +125,75 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
     height,
     viewBox: [0, 0, width, height],
     meta: { motion, frames: frameCount, fps, loop, backend: 'three' },
+  };
+}
+
+/**
+ * Replay a TRAVERSAL over a stored world sketch (renderer-ladder P3): an input script — one
+ * normalized input snapshot per tick at a fixed rate — drives the world's live channels
+ * (controllable entities, physics, events) and is baked to raster frames plus a per-tick probe
+ * stream. The ticks ARE the recipe: the model layer is wall-clock-free, so the same stored
+ * { world_ref, ticks, fps } reproduces the identical run, frames, and probes.
+ *
+ * Camera: a camera ENTITY in the world's manifest (follow / FPV) owns the view; `params.camera`
+ * may inject one (the same { rule, target, ... } sugar the controllable channel takes) for
+ * worlds that ship without; otherwise the world's authored framing holds a static wide shot.
+ *
+ * @param {object} args
+ * @param {object} args.sketch   stored-sketch-like { manifest, title, ref }
+ * @param {Array<object|null>} args.ticks  input snapshots ({ forward, strafe, turn, jump, lookDX, ... })
+ * @param {number} [args.fps=24]
+ * @param {object} [args.params]  { width, height, camera, view, frames:false → probes only }
+ * @returns {Promise<{ framePngs, probes, width, height, viewBox, meta }>}
+ */
+export async function renderWorldTraversalMotion({ sketch, ticks, waypoints, fps = 24, params = {} }) {
+  if ((!Array.isArray(ticks) || !ticks.length) && (!Array.isArray(waypoints) || !waypoints.length)) {
+    throw new Error("a traversal needs a non-empty 'ticks' input script (one snapshot per tick — {} for idle ticks) or a 'waypoints' route to compile into one.");
+  }
+  const { payload } = await resolveWorldScene(sketch, { view: params.view });
+  if (!payload) {
+    throw new Error(`sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no traversable three.js World form.`);
+  }
+  if (params.camera && params.camera.rule) payload.camera = params.camera;   // inject a follow/FPV camera entity
+
+  const width = Math.round(params.width || DEFAULT_W);
+  const height = Math.round(params.height || DEFAULT_H);
+
+  const html = emitThreeWorld({
+    ...payload,
+    inline: true,
+    capture: true,
+    walk: false,            // the input script drives entities; no interactive FPV layer
+    decollide: params.decollide !== false,
+  });
+
+  // WAYPOINT route (renderer-convergence step 3): compile "walk to X" into ticks against the
+  // live rule (one page load), then REPLAY those ticks on a fresh load below — the stored
+  // recipe stays a plain tick script, so every Phase-3 determinism guarantee holds unchanged.
+  // A blocked leg surfaces in `legs` (the compiled prefix still renders, so the failure is
+  // watchable, and the final probe shows where the run died).
+  let legs = null;
+  if (!Array.isArray(ticks) || !ticks.length) {
+    const compiled = await compileWorldWaypoints(html, waypoints, { fps, id: params.entity || null });
+    if (!compiled.ticks.length) {
+      throw new Error(`waypoint compile produced no ticks (first leg: ${JSON.stringify(compiled.legs[0] || null)})`);
+    }
+    ticks = compiled.ticks;
+    legs = compiled.legs;
+  }
+
+  const { pngs, probes } = await renderWorldTraversal(html, ticks, {
+    fps, width, height, frames: params.frames !== false,
+  });
+
+  return {
+    framePngs: pngs,
+    probes,
+    ticks,                   // the (possibly compiled) script — callers persist THIS as the recipe
+    ...(legs ? { legs } : {}),
+    width,
+    height,
+    viewBox: [0, 0, width, height],
+    meta: { motion: 'traversal', frames: ticks.length, fps, loop: false, backend: 'three' },
   };
 }

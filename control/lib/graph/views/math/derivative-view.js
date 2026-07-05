@@ -121,6 +121,36 @@ export function planDerivativeScene(recipe = {}) {
   };
 }
 
+// ── the exact read-back channel (measure_view, tier 'exact'). The math twin of the SI
+// samplers: no units to be honest about, only "is this number the true value of the
+// expression?" — and every value here is the implemented f/f′ evaluated directly, so yes.
+// Returns the function pair over the domain plus the limit process itself (the secant
+// slopes at the shrinking HSTEPS), which is the mathematically interesting data: the
+// convergence of Δy/Δx onto f′(a). Note the sampled functions are the RENDERED ones (the
+// cubic is 0.34x³ fitted to the frame) — exact with respect to the artifact, and the
+// derivative identity dfx = d(fx)/dx holds exactly regardless of that scaling. ──
+export function sampleDerivativeExact(recipe = {}, { every = 1 } = {}) {
+  const scen = DERIVATIVE_SCENARIOS.includes(recipe.scenario) ? recipe.scenario : 'parabola';
+  const s = SCENARIOS[scen];
+  const [x0, x1] = s.dom;
+  const a = clampNum(recipe.at, x0 + 0.2, x1 - 0.2, s.at);
+  const fa = s.f(a);
+  const step = Math.max(1, Math.round(clampNum(every, 1, NSAMP, 1)));
+  const samples = [];
+  for (let i = 0; i <= NSAMP; i += step) {
+    const x = lerp(x0, x1, i / NSAMP);
+    samples.push({ x: +x.toFixed(9), fx: +s.f(x).toFixed(9), dfx: +s.df(x).toFixed(9) });
+  }
+  const secants = HSTEPS.map((h) => ({ h, slope: +(((s.f(a + h) - fa) / h)).toFixed(9) }));
+  return {
+    scenario: scen, label: s.title, rule: s.dlabel, domain: [x0, x1],
+    at: +a.toFixed(9), fAt: +fa.toFixed(9), slope: +s.df(a).toFixed(9),
+    secants,
+    units: { x: 'dimensionless', fx: 'dimensionless', dfx: 'dimensionless' },
+    samples, count: samples.length,
+  };
+}
+
 /**
  * Resolve a recipe → the emitThreeWorld payload — a front camera on the x–z plane.
  */

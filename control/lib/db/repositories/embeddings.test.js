@@ -527,6 +527,9 @@ describe('SOURCE_KINDS', () => {
       'sketch_method',
       'manji_program',
       'painted_landscape',
+      'view_vocab',
+      'beats_vocab',
+      'game_vocab',
     ]);
   });
 });

@@ -18,7 +18,7 @@
 
 # Design a measured object with the workbench
 
-`create_workbench` is the OBJECT-scale sibling of `create_fractal_city`: it renders ONE everyday
+`create_workbench` is the OBJECT-scale sibling of `compose_world`'s `city` base: it renders ONE everyday
 object on a measured grid at **literal real-world scale** (cm/in/ft), for form accuracy. The whole
 discipline is: **model each object by the manufacturing process that makes it.**
 
