@@ -4,6 +4,7 @@ Guidance for Claude Code (claude.ai/code) and other agent runtimes working in th
 
 ## First read
 
+- [docs/STATUS.md](docs/STATUS.md) is the current-state snapshot: what's true *right now*, including uncommitted branch work (it supersedes the changelog's Unreleased view). **Committing a staged batch supersedes its branch-state section — rewriting STATUS.md is part of the commit, not an afterthought.**
 - [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) is the source of truth for bot factory flow: cartridge composition, vector baking, artifact layout, Fly deploy, and Connect Bot proxy.
 - [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) is the source of truth for the headless control surface: transport, ring model, session binding, deliberation surfaces, catalysts, mcp-orbit, and primitive binding.
 - [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) is the source of truth for the polygonizer/manji-tree substrate as it stands today: the four wave primitives, structure-manji, the seven field kinds, shelf cards, and how they all couple. Supersedes the dozen integration plan files in `lite-template/integration/0605/`.
@@ -13,6 +14,8 @@ Guidance for Claude Code (claude.ai/code) and other agent runtimes working in th
 Read the relevant deeper doc before non-trivial work that crosses `control/` and `lite-template/`, changes deploy/build behavior, or touches the MCP tool registry.
 
 ## Repo shape
+
+Mojulo is the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing after the chat ends: running chatbots, connected services, apps, playable games, and creative artifacts (worlds, views, films, audio, publications) minted as tiny deterministic recipes. The canonical self-description lives in the `get_substrate` drawer ([control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js)); keep user-facing copy consistent with it.
 
 Two-package monorepo. Both usually matter:
 

@@ -7,7 +7,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
 import {
+  PARADIGMS,
   buildForwardContextBody,
+  FORWARD_CONTEXT_BODY,
   forwardContextHandler,
   buildRegisterKitBody,
   registerKitHandler,
@@ -90,7 +92,7 @@ describe('buildForwardContextBody — variant composition', () => {
     // One register-invariant opener — no per-register ramp prose, no "don't
     // surface" plain marker (that machinery lives in get_register_kit now).
     for (const body of [plain, mojulo]) {
-      expect(body).toMatch(/control plane for solutions composed over the operator's installed MCPs/);
+      expect(body).toMatch(/the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing/);
       expect(body).toContain('routing index');
       expect(body).not.toMatch(/Don't surface to the user/i);
     }
@@ -135,7 +137,21 @@ describe('buildForwardContextBody — variant composition', () => {
   it('concept names are invariant — same identifiers in every register variant of the register kit', () => {
     // The glossary moved out of forward_context into get_register_kit; concept
     // names stay invariant across registers (the agent uses them to call tools).
-    const names = ['Bot', 'Deployment', 'Protocol', 'Chain', 'Catalyst', 'Host adapter'];
+    // The list includes the game paradigm + creative-arm nouns (orientation-diet
+    // thread C) — paradigm parity means the glossary covers every arm, not just
+    // the bot/service/app one.
+    const names = [
+      'Bot',
+      'Deployment',
+      'Protocol',
+      'Chain',
+      'Catalyst',
+      'Host adapter',
+      'Connected Service',
+      'Game',
+      'Stash / Gather / Cook',
+      'Recipe artifact',
+    ];
     for (const register of VOCABULARY_REGISTERS) {
       const kit = buildRegisterKitBody({ register, disclosure: 'reflective' });
       for (const n of names) {
@@ -346,5 +362,128 @@ describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
       .map((t) => t.name)
       .filter((name) => !text.includes(`\`${name}\``));
     expect(missing).toEqual([]);
+  });
+});
+
+describe('workshop pulse (orientation-ramp R1) + craft floor (R5)', () => {
+  it('pulse line renders counts, omitting zero segments', () => {
+    const body = buildForwardContextBody({
+      pulse: {
+        bots: 3,
+        sketches: 12,
+        stashes: 0,
+        cooks: 1,
+        unseenPlans: 4,
+        triggers: 0,
+        lastActivityMs: Date.now() - 2 * 86_400_000,
+      },
+    });
+    expect(body).toContain('Workshop pulse: 3 bots · 12 sketches · 1 open cook · 4 unseen plans');
+    expect(body).toContain('last activity 2d ago');
+    const pulseLine = body.split('\n').find((l) => l.includes('Workshop pulse'));
+    expect(pulseLine).not.toContain('stash'); // zero-count segments are omitted
+  });
+
+  it('empty workshop renders the first-win variant instead of counts', () => {
+    const body = buildForwardContextBody({
+      pulse: { bots: 0, sketches: 0, stashes: 0, cooks: 0, unseenPlans: 0, triggers: 0, lastActivityMs: 0 },
+    });
+    expect(body).toContain('Workshop pulse: empty');
+    expect(body).toContain('`create_sketch`');
+  });
+
+  it('no pulse (fail-soft null) → body renders without the line; module-load constant stays pulseless', () => {
+    const body = buildForwardContextBody({});
+    expect(body).not.toContain('Workshop pulse');
+    expect(FORWARD_CONTEXT_BODY).not.toContain('Workshop pulse');
+  });
+
+  it('handler resolves the pulse from the live DB (empty in-memory DB → empty variant)', async () => {
+    const { content } = await forwardContextHandler({});
+    expect(content[0].text).toContain('Workshop pulse: empty');
+  });
+
+  it('craft-floor sentence is in the opener in every register', () => {
+    for (const register of VOCABULARY_REGISTERS) {
+      const body = buildForwardContextBody({ register });
+      expect(body).toContain('artifacts prove themselves before promotion');
+    }
+  });
+});
+
+describe('refusal legend (orientation-ramp R3b)', () => {
+  it('register kit carries the legend in every register × disclosure cell', () => {
+    for (const register of VOCABULARY_REGISTERS) {
+      for (const disclosure of PROCEDURAL_DISCLOSURES) {
+        const kit = buildRegisterKitBody({ register, disclosure });
+        expect(kit).toContain('When mojulo says no');
+        expect(kit).toContain('Promotion gate');
+        expect(kit).toContain('allow_unaudited');
+      }
+    }
+  });
+
+  it('the legend stays OUT of the always-paid forward_context body', () => {
+    const body = buildForwardContextBody({});
+    expect(body).not.toContain('When mojulo says no');
+  });
+});
+
+describe('paradigm coverage sweep (orientation-diet thread E) — the "three vs four artifacts" drift class', () => {
+  it('every PARADIGMS member is named on every orientation surface', async () => {
+    const { SERVER_INSTRUCTIONS, ensureToolsRegistered, listTools } = await import(
+      '@/lib/mcp/server'
+    );
+    await ensureToolsRegistered();
+    const surfaces = {
+      'initialize preamble (SERVER_INSTRUCTIONS)': SERVER_INSTRUCTIONS,
+      'lean opener (forward_context body)': buildForwardContextBody({}),
+      'get_substrate description': listTools().find((t) => t.name === 'get_substrate').description,
+      'get_substrate body': (await substrateHandler({})).content[0].text,
+    };
+    for (const register of VOCABULARY_REGISTERS) {
+      surfaces[`register-kit glossary (${register})`] = buildRegisterKitBody({
+        register,
+        disclosure: 'reflective',
+      });
+    }
+    for (const [surface, text] of Object.entries(surfaces)) {
+      const lower = text.toLowerCase();
+      for (const paradigm of PARADIGMS) {
+        expect(lower, `${surface} does not name paradigm "${paradigm}"`).toContain(
+          paradigm.toLowerCase(),
+        );
+      }
+    }
+  });
+});
+
+describe('routing index row lint (orientation-diet thread B) — "index, not glossary" as a test', () => {
+  // A routing row is a recognizer + an entry tool + one card pointer. A row
+  // that outgrows this ceiling is a drawer wearing an index's clothing — move
+  // the detail into the tool description, a vocab card, or get_tool_index.
+  const ROUTING_ROW_CEILING = 1000;
+
+  it(`no routing bullet exceeds ${ROUTING_ROW_CEILING} chars`, () => {
+    const body = buildForwardContextBody({});
+    const section = body.split('## Routing index')[1].split('## Drawers')[0];
+    const offenders = section
+      .split('\n')
+      .filter((l) => l.startsWith('- ') && l.length > ROUTING_ROW_CEILING)
+      .map((l) => `${l.length} chars: ${l.slice(0, 80)}…`);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('enumerated counts stay true (orientation-diet thread E)', () => {
+  it('the "N kinds" claim for create_view matches the live kind registry on both index surfaces', async () => {
+    const { VIEW_KINDS } = await import('./create-view.js');
+    const claim = `${Object.keys(VIEW_KINDS).length} kinds`;
+    const { content } = await toolIndexHandler({});
+    expect(content[0].text, `TOOL_INDEX create_view row must say "${claim}"`).toContain(claim);
+    expect(
+      buildForwardContextBody({}),
+      `routing index create_view row must say "${claim}"`,
+    ).toContain(claim);
   });
 });

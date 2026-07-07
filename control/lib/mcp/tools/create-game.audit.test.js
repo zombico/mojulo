@@ -45,7 +45,7 @@ describe('create_game — the completability gate', () => {
   it('promotes a level backed by a WINNING traversal, and records it audited', async () => {
     mintLevel('crypt-1');
     writeWinningTraversal('mo_c1', 'crypt-1');
-    const out = mintGame({ title: 'G', store: STORE, levels: [{ ref: 'crypt-1' }], audits: { 'crypt-1': { motion_ref: 'mo_c1' } }, ref: 'g1' });
+    const out = await mintGame({ title: 'G', store: STORE, levels: [{ ref: 'crypt-1' }], audits: { 'crypt-1': { motion_ref: 'mo_c1' } }, ref: 'g1' });
     expect(out.ok).toBe(true);
     expect(out.audits).toEqual([{ ref: 'crypt-1', completable: true, result: 'success', audited: true, note: expect.stringMatching(/reached result: success/) }]);
   });
@@ -66,7 +66,7 @@ describe('create_game — the completability gate', () => {
 
   it('allow_unaudited promotes without evidence but records audited:false', async () => {
     mintLevel('crypt-1');
-    const out = mintGame({ title: 'G', store: STORE, levels: [{ ref: 'crypt-1' }], allowUnaudited: true, ref: 'g2' });
+    const out = await mintGame({ title: 'G', store: STORE, levels: [{ ref: 'crypt-1' }], allowUnaudited: true, ref: 'g2' });
     expect(out.ok).toBe(true);
     expect(out.audits[0]).toMatchObject({ ref: 'crypt-1', audited: false, completable: null });
   });
@@ -78,7 +78,7 @@ describe('create_game — the completability gate', () => {
     await expect(createGameHandler({ title: 'G', store: STORE, levels: [{ ref: 'crypt-1' }, { ref: 'crypt-2' }], audits: { 'crypt-1': { motion_ref: 'mo_c1' } } }))
       .rejects.toThrow(/crypt-2: no completability evidence/);
     // with the override, both promote; the audited one is still recorded as proven
-    const out = mintGame({ title: 'G', store: STORE, levels: [{ ref: 'crypt-1' }, { ref: 'crypt-2' }], audits: { 'crypt-1': { motion_ref: 'mo_c1' } }, allowUnaudited: true, ref: 'g3' });
+    const out = await mintGame({ title: 'G', store: STORE, levels: [{ ref: 'crypt-1' }, { ref: 'crypt-2' }], audits: { 'crypt-1': { motion_ref: 'mo_c1' } }, allowUnaudited: true, ref: 'g3' });
     expect(out.audits.find((a) => a.ref === 'crypt-1').audited).toBe(true);
     expect(out.audits.find((a) => a.ref === 'crypt-2').audited).toBe(false);
   });

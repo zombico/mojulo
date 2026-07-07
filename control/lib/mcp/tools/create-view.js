@@ -157,7 +157,10 @@ export async function getViewVocabHandler(input) {
         `get_view_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}`,
       );
     }
-    return { ok: true, card };
+    // _telemetrySignal: orientation-gap hit signal (stripped from the wire by
+    // instrumentedInvoke); the miss path above throws and is caught as an
+    // error-row drawer miss by the same cut.
+    return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
   let cards = [...catalog.values()];
   if (family) cards = cards.filter((c) => c.family === family);
@@ -166,6 +169,7 @@ export async function getViewVocabHandler(input) {
     cards: cards.map(({ id: cid, name, family: fam, entry, summary, when }) => ({
       id: cid, name, family: fam, entry, summary, when,
     })),
+    _telemetrySignal: { id_requested: false, found: true },
   };
 }
 

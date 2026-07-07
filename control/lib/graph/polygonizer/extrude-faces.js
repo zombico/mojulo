@@ -18,7 +18,8 @@
  * Design: control/lib/graph/workbench.plan.md §3, §6. Sibling: lathe-faces.js.
  */
 
-import { norm3, dot3, sub3, centroid, newellNormal, shadeHex, DEFAULT_LIGHT } from './vexar.js';
+import { norm3, dot3, sub3, centroid, newellNormal, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
+import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -101,8 +102,13 @@ export function extrudeToFaces(spec = {}, opts = {}) {
   const light = opts.light || DEFAULT_LIGHT;
   const caps = opts.caps !== false;
   const nc = Number.isInteger(spec.cornerSamples) ? spec.cornerSamples : DEFAULT_CORNER_SAMPLES;
-  const tint = opts.tint || pickTint(spec);
+  // Optional material response curve (polygonizer/materials.js) — camera-independent terms only
+  // (these faces feed the shared payload). Absent → byte-identical plain-vexar output.
+  const mat = opts.material ? resolveMaterial(opts.material) : null;
+  // a material with no explicit tint contributes its own albedo — 'gold' LOOKS gold
+  const tint = opts.tint || spec.tint || spec.fill || (spec.style && spec.style.fill) || (mat && mat.base) || pickTint(spec);
   const innerTint = opts.innerTint || spec.innerTint || tint;
+  const shade = (hex, n) => shadeHexMat(hex, n, mat, { light });
 
   const aF = spec.axisFrom, aT = spec.axisTo;
   const dir = norm3([aT.x - aF.x, aT.y - aF.y, aT.z - aF.z]);
@@ -122,7 +128,7 @@ export function extrudeToFaces(spec = {}, opts = {}) {
   const fanCap = (path, s, normal, fillTint, flip) => {
     let cu = 0, cv = 0; for (const p of path) { cu += p.u; cv += p.v; }
     const c = pt({ u: cu / path.length, v: cv / path.length }, s);
-    const fill = shadeHex(fillTint, normal, light);
+    const fill = shade(fillTint, normal);
     const o = [];
     for (let i = 0; i < path.length; i += 1) {
       const a = pt(path[i], s), b = pt(path[(i + 1) % path.length], s);
@@ -137,14 +143,14 @@ export function extrudeToFaces(spec = {}, opts = {}) {
     for (let i = 0; i < M; i += 1) {
       const j = (i + 1) % M;
       const no = norm3(add3(out3(prof[i]), out3(prof[j])));
-      faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shadeHex(tint, no, light), doubleSided: true });
+      faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shade(tint, no), doubleSided: true });
       if (faces.length >= MAX_FACES_PER_EXTRUDE) return faces;
     }
     if (caps) {
       faces.push(...fanCap(prof, 0, [-dir[0], -dir[1], -dir[2]], tint, true));
       faces.push(...fanCap(prof, 1, dir, tint, false));
     }
-    return faces.slice(0, MAX_FACES_PER_EXTRUDE);
+    return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_EXTRUDE), mat);
   }
 
   // ── SHELL (rect only): outer walls + inner cavity walls + rim + inner floor + closed back ──
@@ -159,17 +165,17 @@ export function extrudeToFaces(spec = {}, opts = {}) {
     const no = norm3(add3(out3(prof[i]), out3(prof[j])));
     const ino = [-no[0], -no[1], -no[2]];
     // outer wall (full length)
-    faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shadeHex(tint, no, light), doubleSided: true });
+    faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shade(tint, no), doubleSided: true });
     // inner cavity wall (floor → open), faces inward
-    faces.push({ corners: [pt(inner[i], sFloor), pt(inner[i], sOpen), pt(inner[j], sOpen), pt(inner[j], sFloor)], fill: shadeHex(innerTint, ino, light), doubleSided: true });
+    faces.push({ corners: [pt(inner[i], sFloor), pt(inner[i], sOpen), pt(inner[j], sOpen), pt(inner[j], sFloor)], fill: shade(innerTint, ino), doubleSided: true });
     // rim at the open end, between outer & inner
     const rimN = open === 'to' ? dir : [-dir[0], -dir[1], -dir[2]];
-    faces.push({ corners: [pt(prof[i], sOpen), pt(prof[j], sOpen), pt(inner[j], sOpen), pt(inner[i], sOpen)], fill: shadeHex(tint, rimN, light), doubleSided: true });
+    faces.push({ corners: [pt(prof[i], sOpen), pt(prof[j], sOpen), pt(inner[j], sOpen), pt(inner[i], sOpen)], fill: shade(tint, rimN), doubleSided: true });
   }
   // inner floor (faces toward the cavity = toward the open end) + closed back cap
   faces.push(...fanCap(inner, sFloor, open === 'to' ? dir : [-dir[0], -dir[1], -dir[2]], innerTint, open !== 'to'));
   faces.push(...fanCap(prof, sBack, open === 'to' ? [-dir[0], -dir[1], -dir[2]] : dir, tint, open === 'to'));
-  return faces.slice(0, MAX_FACES_PER_EXTRUDE);
+  return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_EXTRUDE), mat);
 }
 
 /** Validate extrude specs (mirrors validateLathes). Returns an array of error strings. */

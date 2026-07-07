@@ -39,6 +39,10 @@ import { AgentRuntimeError } from '@/lib/runtime-adapters/errors';
 const DEFAULT_INVOKE_TIMEOUT_MS = 60_000;
 const DEFAULT_PULL_WAIT_MS = 25_000;
 
+// Keyed on globalThis (not module scope) so it survives dev HMR re-evaluation
+// and we never stack more than one SIGTERM listener across reloads.
+const SIGTERM_HANDLER_KEY = Symbol.for('mojulo.nodeFulfiller.sigtermHandler');
+
 let state = null;
 
 function logInfo(msg) {
@@ -159,13 +163,21 @@ export function startNodeFulfiller(opts = {}) {
   };
 
   // SIGTERM during a control-plane restart should drain cleanly: stop the
-  // loop after the current in-flight task completes. Re-entrant-safe: we
-  // only attach the handler if no prior fulfiller already did.
+  // loop after the current in-flight task completes. Registration is made
+  // idempotent across HMR: dev re-evaluates this module (resetting `state`)
+  // while `process` outlives module scope, so a naive process.once() would
+  // accumulate one dead listener per reload (MaxListenersExceededWarning).
+  // We stash the live handler on globalThis and drop any prior one first.
   const handler = () => {
     logInfo('SIGTERM received — draining current task and stopping');
     stopNodeFulfiller().catch(() => {});
   };
   state.sigtermHandler = handler;
+  const prior = globalThis[SIGTERM_HANDLER_KEY];
+  if (prior) {
+    try { process.off('SIGTERM', prior); } catch { /* ignore */ }
+  }
+  globalThis[SIGTERM_HANDLER_KEY] = handler;
   process.once('SIGTERM', handler);
 
   logInfo(`started (runtime: ${adapter.id}, supportedKinds: ${adapter.supportedKinds.join(',')})`);
@@ -192,6 +204,9 @@ export async function stopNodeFulfiller() {
   try { state.abortController.abort(); } catch { /* ignore */ }
   if (state.sigtermHandler) {
     try { process.off('SIGTERM', state.sigtermHandler); } catch { /* ignore */ }
+    if (globalThis[SIGTERM_HANDLER_KEY] === state.sigtermHandler) {
+      globalThis[SIGTERM_HANDLER_KEY] = undefined;
+    }
   }
   // Wait for loop to settle so a subsequent start gets a clean state.
   const deadline = Date.now() + 5000;

@@ -1,0 +1,138 @@
+// Isolate to in-memory SQLite — must run before any import that pulls in
+// db/index.js. Same pattern as context.test.js.
+process.env.SQLITE_PATH = ':memory:';
+process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
+
+import { describe, it, expect } from 'vitest';
+
+// ---------------------------------------------------------------------------
+// Description budget ratchet (orientation-diet.plan.md thread A0).
+//
+// tools/list is the one surface that can't be drawerized from inside: on hosts
+// without deferred tool loading, every listed tool's description rides into
+// the model's context whether or not the session touches it. The rule:
+// **route in the description, teach in the drawer** — routing phrases + a
+// vocab-card/drawer pointer fit the ceiling; lessons and parameter manuals
+// don't belong in the list.
+//
+// - A NEW tool must fit DESCRIPTION_CEILING.
+// - The allowlist below is a snapshot of the offenders at ratchet time
+//   (2026-07-06). An allowlisted tool may shrink but never grow past its
+//   snapshot; once it fits the ceiling, its entry must be DELETED (the test
+//   fails on stale entries, so the list only ratchets down).
+// - The payload pin holds the whole tools/list body under a deliberate
+//   ceiling — growth is a conscious re-pin, same contract as the emit
+//   char-net. Baseline at ratchet time: 150 tools, 314,028 bytes.
+// ---------------------------------------------------------------------------
+
+const DESCRIPTION_CEILING = 700;
+
+// tool name → description length at ratchet time. Shrink freely; never grow.
+// The A1–A3 prose-diet phases in orientation-diet.plan.md work this list down
+// (forge_motion → motion vocab cards; create_manji_tree → manji_program cards;
+// dna/energy/turntable → create_view kinds).
+const DESCRIPTION_ALLOWLIST = {
+  bind_primitives: 1904,
+  bind_research_item: 1233,
+  bind_trigger: 1227,
+  capture_reference: 1523,
+  compile_plan: 841,
+  compose_world: 1330,
+  cook: 2756,
+  create_assembler: 2100,
+  create_beats: 1142,
+  create_carved_solid: 2605,
+  create_dna_process: 1137,
+  create_energy_cycle: 1011,
+  create_figure: 3525,
+  create_game: 2012,
+  create_manji_tree: 19844,
+  create_polygonized_sketch: 932,
+  create_sketch: 3989,
+  create_solid_turntable: 1172,
+  create_view: 723,
+  create_workbench: 3150,
+  custom_protocol: 791,
+  declare_skills: 1041,
+  diff_sketches: 875,
+  execute_plan: 1314,
+  export_model: 1412,
+  forge_motion: 12999,
+  forge_plan: 1167,
+  forge_publications: 955,
+  forward_context: 1081,
+  gather: 1181,
+  get_adapter: 981,
+  get_game_vocab: 860,
+  get_mcp_capabilities: 890,
+  get_register_kit: 731,
+  get_substrate: 832,
+  get_tool_telemetry: 906,
+  get_worked_example: 946,
+  install_scaffold: 1317,
+  measure_view: 1327,
+  meta_context_brief: 972,
+  meta_context_commit: 2635,
+  meta_context_declare_inventory: 1405,
+  preview_vehicle_instance: 1193,
+  pull_agent_task: 810,
+  recommend_catalysts: 1042,
+  recommend_kind: 922,
+  recommend_mcp_orbit_compositions: 1056,
+  record_mcp_capabilities: 1301,
+  reference_protocol: 1708,
+  request_chat_decision: 893,
+  run_experiment_sweep: 866,
+  semantic_search: 1768,
+  sketch_plan: 774,
+  sketch_research: 712,
+  sketch_stash: 1016,
+  sketch_what_possible: 1316,
+  stitch_motion: 1435,
+  synthesize_abstract: 1420,
+  translate_modeler_lingo: 1178,
+  verify_machina: 2180,
+};
+
+// Whole-body pin: baseline 314,028 bytes at ratchet time. Deliberate growth
+// (a new tool, an intended description) re-pins this number in the same
+// commit; silent growth fails here first.
+const PAYLOAD_CEILING = 320_000;
+
+async function listedTools() {
+  const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
+  await ensureToolsRegistered();
+  return listTools();
+}
+
+describe('tools/list description budget — the ratchet', () => {
+  it(`every listed tool description fits its budget (${DESCRIPTION_CEILING} chars, or its allowlist snapshot)`, async () => {
+    const offenders = (await listedTools())
+      .map((t) => ({
+        name: t.name,
+        len: (t.description || '').length,
+        budget: DESCRIPTION_ALLOWLIST[t.name] ?? DESCRIPTION_CEILING,
+      }))
+      .filter((t) => t.len > t.budget)
+      .map((t) => `${t.name}: ${t.len} chars > budget ${t.budget}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('the allowlist only ratchets down — stale entries must be deleted', async () => {
+    const byName = new Map((await listedTools()).map((t) => [t.name, (t.description || '').length]));
+    const stale = Object.keys(DESCRIPTION_ALLOWLIST)
+      .filter((name) => {
+        const len = byName.get(name);
+        // Stale when the tool no longer exists as a listed name, or its
+        // description now fits the ceiling on its own.
+        return len === undefined || len <= DESCRIPTION_CEILING;
+      })
+      .map((name) => `${name} (now ${byName.get(name) ?? 'unlisted'})`);
+    expect(stale).toEqual([]);
+  });
+
+  it(`total tools/list payload stays under the pin (${PAYLOAD_CEILING} bytes)`, async () => {
+    const payload = JSON.stringify(await listedTools()).length;
+    expect(payload).toBeLessThan(PAYLOAD_CEILING);
+  });
+});

@@ -31,7 +31,16 @@ export async function semanticSearchHandler(input, _ctx) {
   if (kinds !== undefined && kinds !== null) opts.kinds = kinds;
   if (limit !== undefined && limit !== null) opts.limit = limit;
   const results = await EmbeddingsRepository.search(query, opts);
-  return { results };
+  // Outcome signal for the orientation-gap telemetry (numbers/enums only,
+  // stripped from the wire by instrumentedInvoke). A zero-result or weak-top
+  // search is a coined term that failed to reward the question — see
+  // orientation-ramp.plan.md R4.
+  const signal = {
+    result_count: results.length,
+    ...(results.length ? { top_score: results[0].score } : {}),
+    ...(opts.kinds ? { kinds: [].concat(opts.kinds) } : {}),
+  };
+  return { results, _telemetrySignal: signal };
 }
 
 export function registerSemanticSearchTools() {

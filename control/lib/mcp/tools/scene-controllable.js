@@ -17,10 +17,12 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
+import { synthesizeLevel } from '@/lib/graph/game/level-synth';
+import { validateLevelContract } from '@/lib/graph/game/level-contract';
 
 const KNOWN_RULES = new Set(['glide', 'walk', 'platform', 'follow', 'clock', 'static']);
 
-export function mintControllableWorld({ title, entities, camera, figures, faces, ground, worldFraming, viewBox, bg, ref, folderRef } = {}) {
+export function mintControllableWorld({ title, entities, camera, figures, faces, ground, worldFraming, viewBox, bg, game, ref, folderRef } = {}) {
   if (!Array.isArray(entities) || entities.length === 0) {
     throw new Error('create_controllable_world requires a non-empty `entities` array');
   }
@@ -35,10 +37,24 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(bg ? { bg } : {}),
     ...(title ? { title } : {}),
+    ...(game && typeof game === 'object' ? { game } : {}),
   };
 
   // validate the recipe is renderable (no geometry persisted beyond the recipe itself).
   assembleControllableScene(manifest, {});   // throws if the stage is malformed
+
+  // GAME channel (game-mechanics.plan.md M1/M4): a level = a world minted WITH its contract.
+  // Mechanics-authored channels lower through the same synthesizeLevel seam world-scene uses at
+  // render/resolve (throws on malformed verbs); hand-authored contracts validate structurally.
+  // The store isn't known here — create_game re-validates the contract against the actual store.
+  if (manifest.game) {
+    if (Array.isArray(manifest.game.mechanics) && manifest.game.mechanics.length) {
+      synthesizeLevel(manifest);
+    } else {
+      const v = validateLevelContract(manifest.game);
+      if (!v.ok) throw new Error(`game channel is invalid:\n${v.errors.join('\n')}`);
+    }
+  }
   const figNames = new Set(Object.keys(manifest.figures || {}));
   for (const e of entities) {
     if (!e || typeof e !== 'object') throw new Error('each entity must be an object');

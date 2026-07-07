@@ -37,39 +37,11 @@ import { makeLight, newellNormal, centroid, sub3, dot3, norm3, hexToRgb, rgbToHe
 import { parseSvgPath, normalizeContours, extrudeProfile } from '../polygonizer/carve-solid.js';
 import { formEffect, outerEffect, innerEffect, outerRing } from './form-effect.js';
 import { loadFont, layoutText } from '../../motion/glyph-carver.js';
-
-// Materials are a shading MODEL, not just a tint — metal is one family among
-// matte / stone / plastic / glass / neon / cel. Each: { base, ambient, diffuse,
-// specular?, shininess?, emissive?, cel?, opacity? }. Extend by adding a row.
-const MATERIALS = {
-  // metallic — specular highlight, tinted
-  gold:     { base: '#d8b25a', ambient: 0.26, diffuse: 0.70, specular: 0.60, shininess: 22 },
-  steel:    { base: '#c7d0da', ambient: 0.26, diffuse: 0.70, specular: 0.60, shininess: 22 },
-  chrome:   { base: '#dfe6ee', ambient: 0.20, diffuse: 0.58, specular: 0.85, shininess: 40 },
-  bronze:   { base: '#b08d57', ambient: 0.26, diffuse: 0.68, specular: 0.50, shininess: 18 },
-  silver:   { base: '#cfd6dd', ambient: 0.26, diffuse: 0.70, specular: 0.62, shininess: 26 },
-  copper:   { base: '#c8743a', ambient: 0.26, diffuse: 0.68, specular: 0.50, shininess: 20 },
-  gunmetal: { base: '#8b94a0', ambient: 0.24, diffuse: 0.66, specular: 0.45, shininess: 24 },
-  // non-metal — matte / soft, little or no specular
-  matte:    { base: '#c9ccd2', ambient: 0.44, diffuse: 0.60, specular: 0,    shininess: 1 },
-  plaster:  { base: '#e8e4dc', ambient: 0.50, diffuse: 0.50, specular: 0.05, shininess: 4 },
-  stone:    { base: '#8d8f93', ambient: 0.40, diffuse: 0.60, specular: 0.05, shininess: 3 },
-  wood:     { base: '#9b6b3f', ambient: 0.40, diffuse: 0.60, specular: 0.06, shininess: 4 },
-  rubber:   { base: '#2c2f36', ambient: 0.40, diffuse: 0.58, specular: 0.10, shininess: 6 },
-  plastic:  { base: '#2f9bff', ambient: 0.34, diffuse: 0.66, specular: 0.35, shininess: 16 },
-  satin:    { base: '#cdd3da', ambient: 0.34, diffuse: 0.62, specular: 0.22, shininess: 12 },
-  // translucent / stylized
-  glass:    { base: '#bfe6ff', ambient: 0.30, diffuse: 0.42, specular: 0.75, shininess: 48, opacity: 0.5 },
-  neon:     { base: '#19f0c8', ambient: 0.60, diffuse: 0.40, specular: 0,    emissive: 0.85 },
-  cel:      { base: '#ff5d73', ambient: 0.50, diffuse: 0.50, specular: 0,    cel: 4 },
-};
-export const MATERIAL_NAMES = Object.keys(MATERIALS);
-// Resolve a name, a #hex (→ satin tint), or an object { preset?, base?, … overrides }.
-export function resolveMaterial(m) {
-  if (!m) return MATERIALS.steel;
-  if (typeof m === 'string') return MATERIALS[m] || (m.startsWith('#') ? { ...MATERIALS.satin, base: m } : MATERIALS.steel);
-  return { ...(MATERIALS[m.preset] || MATERIALS.satin), ...m };
-}
+// The material shelf lived here first; it graduated to a polygonizer primitive
+// (material-response.plan.md) so lathe/extrude surfaces can name materials too.
+// Re-exported so existing importers (carved-motion, tools) are untouched.
+import { resolveMaterial } from '../polygonizer/materials.js';
+export { MATERIAL_NAMES, resolveMaterial } from '../polygonizer/materials.js';
 const DEFAULT_FONTS = [
   '/System/Library/Fonts/Supplemental/Arial Black.ttf',
   '/System/Library/Fonts/Supplemental/Arial Bold.ttf',

@@ -38,10 +38,10 @@ const contract = (levelRef) => ({
 });
 
 describe('create_game — mint + promotion discipline', () => {
-  it('mints a game over validated levels and returns the play URL', () => {
+  it('mints a game over validated levels and returns the play URL', async () => {
     mintLevel('crypt-1', contract('crypt-1'));
     mintLevel('crypt-2', contract('crypt-2'));
-    const out = mintGame({
+    const out = await mintGame({
       title: 'Crypt Campaign',
       store: STORE,
       levels: [{ ref: 'crypt-1', title: 'The Door' }, { ref: 'crypt-2', gate: { completed: 'crypt-1' } }],
@@ -103,6 +103,34 @@ describe('get_game_vocab', () => {
     for (const id of ['slice-character', 'slice-inventory', 'slice-party', 'slice-progression', 'slice-flags', 'typed-events']) {
       expect(cat.has(id), id).toBe(true);
     }
+  });
+
+  it('serves BOTH families: slice + mechanic cards, filterable by scope', async () => {
+    const all = await getGameVocabHandler({});
+    const ids = all.cards.map((c) => c.id);
+    expect(ids).toContain('slice-party');        // store family
+    expect(ids).toContain('reach-exit');         // mechanic family
+    expect(all.cards.find((c) => c.id === 'reach-exit').scope).toBe('mechanic');
+    // reads a mechanic card by id
+    const rx = await getGameVocabHandler({ id: 'reach-exit' });
+    expect(rx.card.body).toMatch(/goal:reached/);
+    // scope filters the list
+    const onlyMech = await getGameVocabHandler({ scope: 'mechanic' });
+    expect(onlyMech.cards.every((c) => c.scope === 'mechanic')).toBe(true);
+    expect(onlyMech.cards.some((c) => c.id === 'fall-policy')).toBe(true);
+    const onlySlice = await getGameVocabHandler({ scope: 'slice' });
+    expect(onlySlice.cards.some((c) => c.id.startsWith('slice-'))).toBe(true);
+    expect(onlySlice.cards.some((c) => c.id === 'reach-exit')).toBe(false);
+  });
+
+  it('serves the KIT family too (game types) + reads a kit card by id', async () => {
+    const all = await getGameVocabHandler({});
+    expect(all.cards.some((c) => c.id === 'dungeon-crawler' && c.scope === 'kit')).toBe(true);
+    const kit = await getGameVocabHandler({ id: 'dungeon-crawler' });
+    expect(kit.card.body).toMatch(/create_game/);
+    const onlyKits = await getGameVocabHandler({ scope: 'kit' });
+    expect(onlyKits.cards.every((c) => c.scope === 'kit')).toBe(true);
+    expect(onlyKits.cards.some((c) => c.id === 'survival-arena')).toBe(true);
   });
 });
 

@@ -128,22 +128,64 @@ export function readTraversalAudit(motionRef, levelRef) {
 }
 
 /**
- * The full promotion audit for one level. Combines the always-on dry-run with completability
- * evidence (when a motionRef is supplied). Pure except the evidence read.
- * @returns {{ ref, dryRun: {ok,errors}, completable: boolean|null, result: string|null, reason: string, promotable: boolean }}
+ * Compile a level's MECHANIC-derived audits (game-mechanics.plan.md, M3) into a runnable
+ * forge_motion traversal plan that would prove completability — the "auto-generated audit". A
+ * success-terminal mechanic carries its win condition as an audit hint:
+ *   { kind:'walkto', target:[x,y,z] }  (reach-exit) → a waypoint route to the exit
+ *   { kind:'idle', seconds }           (survive)    → N idle ticks past the timer
+ * The compiled plan is a `shot` the traversal runner executes; its final probe's game.result must
+ * read 'success'. Pure. Returns { ok, plan, reason }.
  */
-export function auditLevel({ ref, store, contract, motionRef, allowUnaudited = false }) {
+export function compileMechanicAudit(contract, { fps = 12 } = {}) {
+  const audits = (contract && Array.isArray(contract.audits)) ? contract.audits : [];
+  const walkto = audits.find((a) => a && a.kind === 'walkto' && Array.isArray(a.target));
+  if (walkto) {
+    return { ok: true, plan: { motion: 'traversal', fps, waypoints: [[walkto.target[0], walkto.target[1]]], expect: 'success', via: walkto.mechanic || 'reach-exit' } };
+  }
+  const idle = audits.find((a) => a && a.kind === 'idle' && Number.isFinite(a.seconds));
+  if (idle) {
+    // idle past the timer + a small margin so the countdown watch fires within the run.
+    const n = Math.ceil(idle.seconds * fps) + fps;
+    return { ok: true, plan: { motion: 'traversal', fps, ticks: Array.from({ length: n }, () => ({})), expect: 'success', via: idle.mechanic || 'survive' } };
+  }
+  return { ok: false, reason: 'no auto-auditable mechanic audit on this level (needs a reach-exit or survive terminal)' };
+}
+
+/**
+ * The full promotion audit for one level. Always runs the dry-run; establishes completability from
+ * (in priority) a supplied stored traversal (motionRef), else an AUTO-RUN of the compiled mechanic
+ * audit (when `autoRun` is provided — M3), else the allow_unaudited waiver. Async because autoRun
+ * drives a real traversal. Pure except the evidence read / autoRun.
+ * @param {(a:{levelRef,plan})=>Promise<object>} [autoRun]  runs a traversal plan, returns its final probe
+ * @returns {Promise<{ ref, dryRun, completable, result, reason, promotable, autoAuditPlan? }>}
+ */
+export async function auditLevel({ ref, store, contract, motionRef, allowUnaudited = false, autoRun = null }) {
   const dryRun = dryRunContract(store, contract);
-  let completable = null; let result = null; let reason;
+  let completable = null; let result = null; let reason; let autoAuditPlan;
   if (motionRef) {
     const ev = readTraversalAudit(motionRef, ref);
     if (!ev.ok) { completable = false; reason = ev.reason; }
     else { completable = ev.completable; result = ev.result; reason = ev.reason; }
   } else {
-    reason = allowUnaudited
-      ? 'promoted WITHOUT a completability audit (allow_unaudited)'
-      : 'no completability evidence — run forge_motion({ subject:{ world_ref }, shot:{ motion:\'traversal\', waypoints|ticks } }) to the win condition and pass its motion_ref, or set allow_unaudited:true';
+    const compiled = compileMechanicAudit(contract);
+    if (compiled.ok) autoAuditPlan = compiled.plan;
+    if (autoRun && compiled.ok) {
+      try {
+        const probe = await autoRun({ levelRef: ref, plan: compiled.plan });
+        const judged = probeShowsCompletion(probe);
+        completable = judged.completable; result = judged.result;
+        reason = `auto-audit (${compiled.plan.via}): ${judged.reason}`;
+      } catch (e) {
+        completable = false; reason = `auto-audit failed to run: ${e.message}`;
+      }
+    } else if (allowUnaudited) {
+      reason = 'promoted WITHOUT a completability audit (allow_unaudited)';
+    } else if (compiled.ok) {
+      reason = `no completability evidence — this level is auto-auditable (${compiled.plan.via}): set auto_audit:true, or run forge_motion({ subject:{ world_ref:'${ref}' }, shot:${JSON.stringify(compiled.plan)} }) and pass its motion_ref`;
+    } else {
+      reason = `no completability evidence — run forge_motion({ subject:{ world_ref:'${ref}' }, shot:{ motion:'traversal', waypoints|ticks } }) to the win condition and pass its motion_ref, or set allow_unaudited:true`;
+    }
   }
   const promotable = dryRun.ok && (completable === true || (completable === null && allowUnaudited));
-  return { ref, dryRun, completable, result, reason, promotable };
+  return { ref, dryRun, completable, result, reason, promotable, autoAuditPlan };
 }

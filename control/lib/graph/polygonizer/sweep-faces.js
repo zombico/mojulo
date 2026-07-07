@@ -18,7 +18,8 @@
  * Design: control/lib/graph/workbench.plan.md §11. Sibling: lathe-faces.js, extrude-faces.js.
  */
 
-import { norm3, dot3, sub3, centroid, newellNormal, shadeHex, DEFAULT_LIGHT } from './vexar.js';
+import { norm3, dot3, sub3, centroid, newellNormal, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
+import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -42,7 +43,11 @@ export function pickTint(spec) {
  */
 export function sweepToFaces(spec = {}, opts = {}) {
   const light = opts.light || DEFAULT_LIGHT;
-  const tint = opts.tint || pickTint(spec);
+  // optional material response curve (polygonizer/materials.js) — absent → byte-identical
+  const mat = opts.material ? resolveMaterial(opts.material) : null;
+  // a material with no explicit tint contributes its own albedo — 'chrome' LOOKS chrome
+  const tint = opts.tint || spec.tint || (spec.style && spec.style.fill) || (mat && mat.base) || pickTint(spec);
+  const shade = (hex, n) => shadeHexMat(hex, n, mat, { light });
   const caps = (spec.caps !== false) && (opts.caps !== false);
   const sides = Number.isInteger(spec.sides) ? Math.max(3, spec.sides) : DEFAULT_SIDES;
   const r = Number.isFinite(spec.radius) ? spec.radius : 0.5;
@@ -82,16 +87,16 @@ export function sweepToFaces(spec = {}, opts = {}) {
       let no = newellNormal(corners);
       if (!Number.isFinite(no[0]) || !Number.isFinite(no[1]) || !Number.isFinite(no[2])) continue;
       if (dot3(no, sub3(centroid(corners), axisMid)) < 0) no = scl3(no, -1);
-      faces.push({ corners, fill: shadeHex(tint, no, light), doubleSided: true });
-      if (faces.length >= MAX_FACES_PER_SWEEP) return faces;
+      faces.push({ corners, fill: shade(tint, no), doubleSided: true });
+      if (faces.length >= MAX_FACES_PER_SWEEP) return tagFacesWithMaterial(faces, mat);
     }
   }
   if (caps) {
-    const fan = (ring, c, no) => { const o = []; for (let j = 0; j < sides; j += 1) o.push({ corners: [c, ring[j], ring[j + 1], c], fill: shadeHex(tint, no, light), doubleSided: true }); return o; };
+    const fan = (ring, c, no) => { const o = []; for (let j = 0; j < sides; j += 1) o.push({ corners: [c, ring[j], ring[j + 1], c], fill: shade(tint, no), doubleSided: true }); return o; };
     faces.push(...fan(rings[0], P[0], scl3(T[0], -1)));
     faces.push(...fan(rings[m - 1], P[m - 1], T[m - 1]));
   }
-  return faces.slice(0, MAX_FACES_PER_SWEEP);
+  return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_SWEEP), mat);
 }
 
 /** Validate sweep specs (mirrors validateLathes/validateExtrudes). Returns an array of error strings. */

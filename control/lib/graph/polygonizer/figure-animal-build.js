@@ -17,7 +17,7 @@
  * recipe shape, and the "single-animal builder (playbook)" + lever inventory in
  * zoo-mammals.plan.md for how to author one (research → face study → classify → tune by tier).
  * opts: { skin, fleshCfg, skullCfg, footCfg, armatureCfg, tailCfg, neckCfg, coat, underHex,
- *   facePaint, face, tailTip, tailRings, mane }.
+ *   facePaint, face, tailTip, tailRings, mane, fluffs, forepaws, antlers }.
  */
 import { quadrupedArmature, tailChain, neckChain, QUADRUPED_ARCHETYPES } from './figure-animal.js';
 import { animalBodyFlesh } from './figure-animal-flesh.js';
@@ -28,6 +28,8 @@ import { animalCOM, balanceFeet, plantParts, headFrameFrom } from './figure-anim
 import { lionMane } from './figure-animal-mane.js';
 import { coatBlades, darkenHex } from './figure-animal-pelage.js';
 import { faceDecor, FACE_PRESETS } from './figure-animal-face.js';
+import { buildFluffs } from './figure-fluff.js';
+import { antlers as buildAntlers } from './figure-animal-antler.js';
 
 const chainPart = (ch) => ({ polylines: ch.rings, stroke: ch.stroke });
 
@@ -65,7 +67,7 @@ function ringTail(rings, cfg, coatCfg) {
  * @param {{skin?:boolean, fleshCfg?:object, skullCfg?:object, footCfg?:object}} [opts]
  * @returns {{parts, nodes, com, feetKeys, chains, head}}
  */
-export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, footCfg = {}, mane = null, coat = null, face = null, tailRings = null, facePaint = null, tailCfg: tailOverride = null, neckCfg: neckOverride = null, armatureCfg = null, tailTip = null, tailBands = null } = {}) {
+export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, footCfg = {}, mane = null, coat = null, face = null, tailRings = null, facePaint = null, tailCfg: tailOverride = null, neckCfg: neckOverride = null, armatureCfg = null, tailTip = null, tailBands = null, fluffs = null, forepaws = null, antlers = null } = {}) {
   // a recipe may SCALE/bias the named archetype's proportions (shorter legs, lower body,
   // lighter girth) without minting a new archetype — the plan's "pick the nearest, then
   // scale it" rule. Merge armatureCfg over the preset so the species stays DATA.
@@ -115,6 +117,17 @@ export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, 
 
   // mane (a few bold locks around the neck) — included before planting
   const maneParts = mane ? lionMane(nodes, head, mane === true ? {} : mane) : [];
+
+  // FLUFFS — the zdog volume vocabulary (figure-fluff.js) pointed at the ANIMAL
+  // armature: named chunky volumes (a bead hump, a football haunch, a bell ruff)
+  // bound to the balanced nodes as pure DATA. scale:1 keeps STAND units so the
+  // stacks convert straight into parts (the renderer lifts once, like everything
+  // else). Fluffs are BODY mass: painted the coat colour unless a spec carries
+  // its own `hex`, so countershading and normal-rule zones read across them.
+  const fluffParts = fluffs ? buildFluffs(nodes, fluffs, { scale: 1 }).map((st) => ({
+    polylines: st.rings.map((r) => r.polyline),
+    stroke: st.hex || (coat && coat !== true && coat.color) || '#8a8175',
+  })) : [];
 
   // COAT = a coloured coat (PAINT, not fur). Colorize the body + head in the coat colour
   // — no per-strand fur (far fewer polygons). Markings come from colour zones, and the
@@ -187,8 +200,31 @@ export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, 
   });
   const ringTailParts = (tailRings && chains[0]) ? ringTail(chains[0].rings, tailRings, painted ? coatCfg : null) : [];
 
+  // FOREPAWS (hands) — a tuck-mode biped (kangaroo/theropod) stands on its hind feet, so the
+  // forelimbs get no `groundedFeet`. `forepaws` seats a small paw at each wrist: protoFoot
+  // reaches DOWN to `sole`, so anchoring sole just below the wrist makes a compact hanging hand
+  // rather than a floor-reaching foot. Painted the coat (or footCfg.stroke). Defaults-off — the
+  // accepted bare-armed theropod/raptor stay byte-unchanged.
+  const handParts = (forepaws && cfg.foreMode === 'tuck')
+    ? ['wristL', 'wristR'].flatMap((k) => (nodes[k]
+        ? protoFoot(nodes[k], {
+            kind: 'paw', sole: nodes[k].z - 0.06, topR: 0.014, width: 0.016, fwd: 0.03,
+            padH: 0.008, toeR: 0.006, toeSpread: 0.011,
+            stroke: footCfg.stroke || (painted ? bodyHex : undefined),
+            ...(forepaws === true ? {} : forepaws),
+          })
+        : []))
+    : [];
+
+  // ANTLERS / HORNS — the branched cranial appendage (figure-animal-antler.js), seated on the
+  // crown from the head frame + skull size. `antlers: true` = the default rack; a cfg tunes the
+  // beam sweep / tines (a single spike or a curled horn is the same primitive). Defaults-off.
+  const antlerParts = antlers
+    ? buildAntlers(head.anchor, head.dir, { headLen: skullFull.length ?? 0.16, headW: skullFull.width ?? 0.045, ...(antlers === true ? {} : antlers) })
+    : [];
+
   // PLANT the whole assembly on the floor (lowest contact → z = 0).
-  const parts = plantParts([...bodyOut, ...skullOut, ...feet, ...chainsOut, ...maneParts, ...ringTailParts, ...faceParts]);
+  const parts = plantParts([...bodyOut, ...fluffParts, ...skullOut, ...feet, ...handParts, ...chainsOut, ...maneParts, ...ringTailParts, ...faceParts, ...antlerParts]);
   return { parts, nodes, com, feetKeys, chains, head };
 }
 
@@ -247,6 +283,24 @@ export const RACCOON_BUILD = {
   facePaint: { snoutHex: RACCOON_LIGHT, mouthHex: RACCOON_LIGHT },
 };
 
+// The shared cervid body — the doe (`deer`) uses it as-is; the `buck` spreads it and adds
+// antlers. Alert but not craning: a moderate neck angle so the head carries forward-and-up
+// (a steeper angle over-cranes the neck and tips the antler rack forward off the crown).
+const DEER_OPTS = {
+  skin: true,
+  fleshCfg: { thorax: 1.74, belly: 1.86, bellyDrop: 0.34, taper: 0.42 },   // lean cervid, but a deeper barrel than the whippet-thin gazelle
+  armatureCfg: { backHeight: 0.58, trunkLength: 0.46, backArch: 0.02, neckLength: 0.28, neckAngle: 42, headPitch: -26,
+    girthBody: 0.98, girthFore: 0.82, girthHind: 0.86, girthHead: 0.8 },   // a touch bulkier + longer-necked than the gazelle
+  skullCfg: { length: 0.16, width: 0.04, muzzle: 0.62, snout: 0.26, boxy: 0.32, muzzleDrop: 0.18 },   // slender tapered head, defined muzzle
+  coat: { color: '#9c7a50' },                                     // tan-fawn
+  underHex: '#e6ddcc', underCut: -0.4,                            // white throat → belly (countershading)
+  facePaint: { snoutHex: '#efe8da', mouthHex: '#efe8da' },        // white muzzle / throat
+  footCfg: { stroke: '#2a2018' },                                 // dark cloven hooves
+  face: { eyeHex: '#15110d', noseHex: '#15110d', earHex: '#8a6c48',
+    eyeR: 0.14, earLen: 1.15, earW: 0.72, earTip: 0.5, earUp: 0.95, earSide: 0.78 },   // BIG upright rounded ears (the mule/white-tail tell)
+  tailCfg: { rootR: 0.016, tipR: 0.006, droop: 26, length: 0.2, waveAmp: 0.01 },   // small tail
+};
+
 // ─── ZOO_BUILDS — the recurring zoo-mammal recipes (see zoo-mammals.plan.md) ─────
 // Each entry is `{ archetype, opts }`: a QUADRUPED_ARCHETYPES key + the buildAnimal opts.
 // The DATA layer the zoo-mammals loop appends to — no new primitives, just recipes over
@@ -298,5 +352,125 @@ export const ZOO_BUILDS = {
     // flows off the rump) AND to a POINT at the tip; the fat belly sits mid-tail. To the sketch.
     tailCfg: { rootR: 0.05, bulgeR: 0.082, bulgeAt: 0.44, tipR: 0.008, droop: 36, length: 0.6, waveAmp: 0.02, waveN: 0.5 },
     tailTip: { color: '#efe9dd', frac: 0.3 },                         // the white pointed tip
+  } },
+
+  // CAMEL (Camelus dromedarius) — the FLUFF debut on the animal armature: an `equine`
+  // body (tall pillar legs, long neck) whose one irreducible tell — the single dorsal
+  // HUMP — is carried as a `bead` FLUFF at the mid-spine (`navel`), biased UP so it
+  // mounds above the topline. This is the fluff principle doing exactly what paint and
+  // chains can't: adding a NAMED body volume that isn't an appendage. Sandy coat, pale
+  // countershaded underside, a short blunt (not horse-long) head on the long low-slung
+  // neck. Reference: Silverton NSW profile (Wikimedia). Caveat: the real two-toe padded
+  // foot + the knock-kneed stance are past the kit; hoof feet read close enough.
+  camel: { archetype: 'equine', opts: {
+    skin: true,
+    armatureCfg: { backHeight: 0.6, trunkLength: 0.5, backArch: 0.02, neckLength: 0.34, neckAngle: 50, headPitch: -30,
+      girthBody: 1.12, girthFore: 0.92, girthHind: 0.92, girthHead: 0.8 },   // tall, barrel body, small head on a long neck
+    skullCfg: { length: 0.16, width: 0.05, muzzle: 0.5, snout: 0.4, boxy: 0.4, muzzleDrop: 0.22 },   // short soft blunt head (not the horse's long wedge)
+    coat: { color: '#d4b483' },                                     // sandy tan (lifted — the lit mesh renders it down toward camel-brown)
+    underHex: '#e4d1a8', underCut: -0.4,                            // paler belly (mild countershading)
+    // THE HUMP — a bead fluff seated on the mid-spine. `peak` pulls the sphere toward a CONE so
+    // it reads as a TRIANGULAR dromedary hump (not a dome); lifted (bias.z) so the broad cone base
+    // stays buried in the barrel and only the triangle shows. Painted the coat (no `hex`) so the
+    // countershade + lit shading read across it as body.
+    fluffs: [{ node: 'navel', shape: 'bead', r: 0.22, peak: 0.55, squash: 0.93, bias: { z: 0.14 } }],
+    footCfg: { stroke: '#a98f68' },                                 // tan feet (not pink/black)
+    face: { eyeHex: '#241a12', noseHex: '#20160e', earHex: '#b39770',
+      eyeR: 0.13, earLen: 0.4, earW: 0.6, earTip: 0.6, earUp: 0.85, earSide: 0.9 },   // small rounded ears
+  } },
+
+  // KANGAROO (Macropus rufus) — a BIPED marsupial off the `theropod` balance (huge hind
+  // legs, heavy counterweight tail, tucked forelimbs, small head), with the second FLUFF
+  // showcase: the massive muscular HAUNCH carried as a `football` fluff on each hip→knee
+  // segment (a volumized thigh the round leg-vajra can't bulge to). Upright short neck
+  // carrying a small head with big erect ears; rusty-red coat with a pale chest/underside.
+  // Reference: red kangaroo (Wikimedia). Caveats: the true digitigrade long hind-foot and
+  // the grasping forepaws are past the kit; the balance tail stands in for the tripod prop.
+  kangaroo: { archetype: 'theropod', opts: {
+    skin: true,
+    // fleshCfg only turns ON the joint bridges — the nape (neck→back) and the hind knees close
+    // through the smooth field the same way the spine seam does; body weight stays at default.
+    fleshCfg: { neckBridge: 0.4, kneeBridge: 0.5 },
+    forepaws: true,                                                          // small grasping hands at the wrists
+    armatureCfg: { backHeight: 0.5, trunkLength: 0.36, spineTilt: 30,       // rock the trunk upright (the sitting-hopper posture)
+      girthBody: 1.05, girthHind: 1.35, girthFore: 0.5, girthHead: 0.7 },
+    skullCfg: { length: 0.13, width: 0.05, muzzle: 0.5, snout: 0.3, boxy: 0.4 },   // small blunt head
+    neckCfg: { length: 0.16, droop: 22, rootR: 0.03, tipR: 0.02, segments: 12, waveAmp: 0.02 },   // SHORT neck; low droop aims the muzzle FORWARD-and-up (higher droop compounds with spineTilt and curls the face up-and-BACK over the shoulder)
+    coat: { color: '#a86b4a' },                                     // rusty red-brown
+    underHex: '#cbb7a4', underCut: -0.38,                           // pale grey chest/belly
+    // THE HAUNCH — a football fluff on each thigh (hip→knee): girth-heavy, belly slid toward
+    // the hip (peak < 0.5). Painted the coat colour, so it reads as continuous muscle.
+    fluffs: [
+      { segment: ['hipL', 'kneeL'], shape: 'football', girth: 0.115, peak: 0.34 },
+      { segment: ['hipR', 'kneeR'], shape: 'football', girth: 0.115, peak: 0.34 },
+    ],
+    footCfg: { stroke: '#4a382a' },                                 // dark long hind feet
+    tailCfg: { rootR: 0.05, tipR: 0.02, droop: 8, length: 0.78, waveAmp: 0.02, waveN: 0.5 },   // thick low heavy balance tail
+    face: { eyeHex: '#1a120c', noseHex: '#15100a', earHex: '#8a5a3e',
+      eyeR: 0.15, earLen: 1.05, earW: 0.5, earTip: 0.55, earUp: 1.0, earSide: 0.75 },   // BIG erect rounded ears
+  } },
+
+  // RED PANDA (Ailurus fulgens) — the DECORATION-only path (no new form): the `raccoon`
+  // armature (low, hunched, long ringed tail) recoloured into the ailurid palette. Three
+  // levers do all the work — a rich RUST coat, an INVERTED countershade (`underHex` DARK,
+  // not pale — the tell is a BLACK belly + black legs), a white muzzle/face (`facePaint`),
+  // and a ringed bushy tail (`tailBands` over the volumized fox-brush chain). Reference:
+  // Munich Zoo lateral (Wikimedia). Wall caveats: the white eyebrow/ear spots + the dark
+  // eye-to-jaw "tear tracks" are localized PATCHES with no geometric signature — not faked.
+  redPanda: { archetype: 'raccoon', opts: {
+    skin: true,
+    fleshCfg: { thorax: 1.7, belly: 1.8, bellyDrop: 0.44, taper: 0.4 },   // lean procyonid (declare it — no bear-weight default)
+    armatureCfg: { backHeight: 0.28, trunkLength: 0.42, backArch: 0.05, girthHead: 1.15, girthBody: 1.02, girthFore: 0.9 },
+    skullCfg: { length: 0.11, width: 0.052, muzzle: 0.4, snout: 0.42, boxy: 0.35, muzzleDrop: 0.12 },   // short round face
+    coat: { color: '#c8631f' },                                     // rich rust (starts bright — it renders down)
+    underHex: '#241611', underCut: -0.32,                           // INVERTED countershade: BLACK belly (tight cut so it doesn't speckle the flanks)
+    facePaint: { snoutHex: '#f2ece0', mouthHex: '#f2ece0' },         // white muzzle / cheeks
+    footCfg: { stroke: '#20140c' },                                 // black feet
+    // the ringed bushy tail — the fox brush SHAPE, banded rust/dark like the raccoon (ordered
+    // so the tip lands dark), the ailurid ringtail by paint over a volumized chain.
+    tailCfg: { rootR: 0.048, bulgeR: 0.066, bulgeAt: 0.4, tipR: 0.026, droop: 20, length: 0.52, waveAmp: 0.03, waveN: 0.6 },
+    tailBands: { colors: ['#d08a52', '#7a4526'], band: 2 },
+    face: { eyeHex: '#120c08', noseHex: '#120c08', earHex: '#efe6d6', eyeR: 0.2, eyeSide: 0.6,
+      earLen: 0.7, earW: 0.78, earTip: 0.5, earUp: 0.95, earSide: 0.82 },   // big rounded white-backed ears
+  } },
+
+  // DEER — the cervid body off the `gazelle` archetype (a deer is a large gazelle: slender,
+  // long thin legs, cloven hooves, alert neck, small tapered head, big ears). Tan-fawn coat
+  // with a white throat/belly (countershade + `facePaint`) and a dark nose. `deer` is the
+  // hornless DOE (Phase-1 checkpoint — proves the body reads as a deer with no rack); `buck`
+  // is the SAME body + the antler primitive (figure-animal-antler.js), the Phase-2 unlock.
+  // Reference: white-tailed deer (Wikimedia). Caveat: the white eye-ring + white tail-flag are
+  // localized patches.
+  deer: { archetype: 'gazelle', opts: DEER_OPTS },
+  buck: { archetype: 'gazelle', opts: {
+    ...DEER_OPTS,
+    coat: { color: '#8f6c46' },     // buck a touch darker/greyer than the doe
+    antlers: true,                  // the branched rack, seated on the crown
+  } },
+
+  // GAZELLE (Thomson's-ish) — rounds out the cervid/bovid family off the SAME `gazelle` archetype
+  // as the deer, but smaller/lighter and warm-tan, and it proves the antler primitive generalizes
+  // to HORNS: a horn is an antler with NO tines (`tines: []`) — here thin, dark, swept UP and BACK
+  // with a slight forward hook (the gazelle tell), where the buck's rack branched. White belly +
+  // muzzle. Reference: the deer refs + the antelope silhouette. Caveats: the black flank stripe +
+  // white face bands are localized PATCHES (the wall); the dark tail-tip is the one colour zone.
+  gazelle: { archetype: 'gazelle', opts: {
+    skin: true,
+    fleshCfg: { thorax: 1.5, belly: 1.62, bellyDrop: 0.32, taper: 0.42 },   // lean, a little lighter than the deer
+    armatureCfg: { backHeight: 0.54, trunkLength: 0.42, backArch: 0.03, neckLength: 0.24, neckAngle: 48, headPitch: -22,
+      girthBody: 0.86, girthFore: 0.78, girthHind: 0.82, girthHead: 0.78 },   // small + slender
+    skullCfg: { length: 0.14, width: 0.038, muzzle: 0.6, snout: 0.26, boxy: 0.3, muzzleDrop: 0.16 },   // small delicate tapered head
+    coat: { color: '#c2884a' },                                     // warm tan
+    underHex: '#efe7d6', underCut: -0.4,                            // white belly / throat
+    facePaint: { snoutHex: '#efe8da', mouthHex: '#efe8da' },        // white muzzle
+    footCfg: { stroke: '#241a12' },                                 // dark cloven hooves
+    face: { eyeHex: '#15110d', noseHex: '#15110d', earHex: '#a0743e',
+      eyeR: 0.14, earLen: 0.95, earW: 0.6, earTip: 0.4, earUp: 0.9, earSide: 0.8 },   // medium pointed ears
+    // HORNS — the antler primitive with NO tines: thin dark horns swept UP + BACK with a slight
+    // forward hook at the tips (high `back`, small `out`, low forward `curl`), close-set (`spread`).
+    antlers: { tines: [], beamLen: 0.26, segs: 7, rise: 0.9, back: 0.52, out: 0.1, curl: 0.22,
+      rootR: 0.013, tipR: 0.004, spread: 0.02, pedFwd: 0.12, stroke: '#3a2c1c' },
+    tailCfg: { rootR: 0.012, tipR: 0.004, droop: 22, length: 0.2, waveAmp: 0.01 },
+    tailTip: { color: '#241a12', frac: 0.4 },                       // dark tail tip
   } },
 };

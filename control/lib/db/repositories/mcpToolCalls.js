@@ -27,6 +27,7 @@ function rowToCall(row) {
     resultBytes: row.result_bytes != null ? row.result_bytes : null,
     inputJson: row.input_json || null,
     resultJson: row.result_json || null,
+    signal: row.signal_json ? safeParse(row.signal_json, null) : null,
   };
 }
 
@@ -61,8 +62,8 @@ export const McpToolCallRepository = {
       `INSERT INTO mcp_tool_calls
         (tool, via, session_id, client_name, client_version, started_at,
          duration_ms, status, error_message, input_keys, input_bytes,
-         result_bytes, input_json, result_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         result_bytes, input_json, result_json, signal_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       row.tool,
       row.via,
@@ -77,7 +78,8 @@ export const McpToolCallRepository = {
       row.inputBytes ?? null,
       row.resultBytes ?? null,
       row.inputJson ?? null,
-      row.resultJson ?? null
+      row.resultJson ?? null,
+      row.signalJson ?? null
     );
   },
 
@@ -153,5 +155,87 @@ export const McpToolCallRepository = {
         };
       })
       .sort((a, b) => b.calls - a.calls);
+  },
+
+  /**
+   * The orientation-gap cut (orientation-ramp.plan.md R4): the moments the
+   * ask-and-discover loop failed to reward the question. Three signals:
+   *
+   *  - lowScoreSearches — semantic_search calls whose attached signal shows an
+   *    empty result set or a weak top score (the coined term didn't retrieve).
+   *  - drawerMisses — vocab/worked-example drawer calls whose signal recorded
+   *    { found: false } (an id was asked for that doesn't exist).
+   *  - abandonment — sessions that called an orientation tool and then made NO
+   *    non-orientation call afterward (oriented, then went nowhere). Derived
+   *    at read time from existing rows; nothing extra is captured for it.
+   *
+   * `orientationTools` is passed in by the caller — ring membership is Ring-0
+   * knowledge (context.js), not a repository concern.
+   */
+  orientationGaps({ sinceDays = 7, orientationTools = [], lowScoreThreshold = 0.35 } = {}) {
+    const db = getDb();
+    const cutoff = Date.now() - sinceDays * 24 * 60 * 60 * 1000;
+    const rows = db
+      .prepare(
+        `SELECT tool, session_id, started_at, status, error_message, signal_json
+         FROM mcp_tool_calls
+         WHERE started_at >= ?
+         ORDER BY id ASC`
+      )
+      .all(cutoff);
+
+    const orientationSet = new Set(orientationTools);
+    const lowScoreSearches = [];
+    const drawerMisses = [];
+    const sessions = new Map(); // session_id → { oriented: bool, followed: bool }
+
+    for (const r of rows) {
+      const signal = r.signal_json ? safeParse(r.signal_json, null) : null;
+
+      if (r.tool === 'semantic_search' && signal) {
+        const empty = signal.result_count === 0;
+        const weak =
+          typeof signal.top_score === 'number' && signal.top_score < lowScoreThreshold;
+        if (empty || weak) {
+          lowScoreSearches.push({ startedAt: r.started_at, sessionId: r.session_id, signal });
+        }
+      }
+
+      // A drawer miss arrives two ways: a signal-carrying soft miss
+      // ({ id_requested, found: false }) or a vocab drawer that throws on an
+      // unknown id (error row whose message names the unknown card/id).
+      if (
+        (signal && signal.id_requested === true && signal.found === false) ||
+        (r.status === 'error' &&
+          /^get_.*_vocab$/.test(r.tool) &&
+          /unknown (card|id)/i.test(r.error_message || ''))
+      ) {
+        drawerMisses.push({ tool: r.tool, startedAt: r.started_at, sessionId: r.session_id });
+      }
+
+      if (r.session_id) {
+        let s = sessions.get(r.session_id);
+        if (!s) {
+          s = { oriented: false, followed: false };
+          sessions.set(r.session_id, s);
+        }
+        if (orientationSet.has(r.tool)) s.oriented = true;
+        else if (s.oriented) s.followed = true;
+      }
+    }
+
+    const orientedSessions = [...sessions.values()].filter((s) => s.oriented);
+    const abandonedSessions = orientedSessions.filter((s) => !s.followed);
+
+    return {
+      sinceDays,
+      lowScoreSearches: lowScoreSearches.slice(-25),
+      drawerMisses: drawerMisses.slice(-25),
+      sessions: {
+        total: sessions.size,
+        oriented: orientedSessions.length,
+        abandoned: abandonedSessions.length,
+      },
+    };
   },
 };

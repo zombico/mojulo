@@ -370,7 +370,7 @@ describe('beats-manifest validation', () => {
     expect(validateBeatsManifest({ ...base }).errors.join(' ')).toMatch(/tracks is required/);
     // zero instruments and two instruments both teach.
     expect(validateBeatsManifest({ ...base, tracks: [{ name: 'a', mask: [1] }] }).errors.join(' '))
-      .toMatch(/exactly ONE instrument/);
+      .toMatch(/exactly ONE voice/);
     expect(validateBeatsManifest({ ...base, tracks: [{ name: 'a', patch: 'hat', gesture: { type: 'burst' }, mask: [1] }] }).errors.join(' '))
       .toMatch(/got patch \+ gesture/);
     expect(validateBeatsManifest({ ...base, tracks: [{ name: 'a', patch: 'hat' }] }).errors.join(' '))
@@ -438,6 +438,50 @@ describe('noteFeel — the anti-MIDI performance layer', () => {
       expect(f.velScale).toBeLessThanOrEqual(1.1);
       expect(Math.abs(f.pluck)).toBeLessThanOrEqual(0.05);
     }
+  });
+});
+
+describe('harmony bus — chord-following tracks (B7)', () => {
+  const CHORDS = { Fm: ['F3', 'Ab3', 'C4'], Bb: ['Bb3', 'D4', 'F4'] };
+
+  it('chordVoiceNotes derives notes per mode', () => {
+    const c = CHORDS.Fm;
+    expect(K.chordVoiceNotes('chord', c, 0)).toEqual(['F3', 'Ab3', 'C4']); // whole chord
+    expect(K.chordVoiceNotes(true, c, 0)).toEqual(['F3', 'Ab3', 'C4']);    // true = chord
+    expect(K.chordVoiceNotes('root', c, 5)).toEqual(['F3']);               // lowest note
+    expect(K.chordVoiceNotes('upper', c, 0)).toEqual(['Ab3', 'C4']);       // chord minus root (bass takes root)
+    expect(K.chordVoiceNotes('arp', c, 0)).toEqual(['F3']);                // walks up by step
+    expect(K.chordVoiceNotes('arp', c, 1)).toEqual(['Ab3']);
+    expect(K.chordVoiceNotes('arp', c, 3)).toEqual(['F3']);                // wraps (3 % 3)
+    expect(K.chordVoiceNotes('chord', [], 0)).toEqual([]);                 // no chord → nothing
+  });
+
+  it('a chordVoice track reads the shared progression, not its own notes', () => {
+    const recipe = {
+      kind: 'beats-pattern', bpm: 120, steps: 4,
+      chords: CHORDS,
+      progression: ['Fm', 'Fm', 'Bb', 'Bb'], // already per-step
+      tracks: [
+        { name: 'gtr', patch: 'guitarClean', chordVoice: 'chord', mask: [1, 0, 1, 0] },
+        { name: 'bass', patch: 'bassMono', chordVoice: 'root', mask: [1, 1, 1, 1] },
+      ],
+    };
+    const { events } = K.patternEvents(recipe);
+    const gtr = events.filter((e) => e.channel === 'gtr');
+    expect(gtr.map((e) => e.notes)).toEqual([['F3', 'Ab3', 'C4'], ['Bb3', 'D4', 'F4']]); // steps 0 & 2
+    const bass = events.filter((e) => e.channel === 'bass');
+    expect(bass.map((e) => e.notes[0])).toEqual(['F3', 'F3', 'Bb3', 'Bb3']); // root follows the chord
+  });
+
+  it('change the chord chart → every chord voice follows (one edit moves the band)', () => {
+    const mk = (prog) => ({
+      kind: 'beats-pattern', bpm: 120, steps: 2, chords: CHORDS, progression: prog,
+      tracks: [{ name: 'g', patch: 'guitarClean', chordVoice: 'chord', mask: [1, 1] }],
+    });
+    const a = K.patternEvents(mk(['Fm', 'Fm'])).events.map((e) => e.notes);
+    const b = K.patternEvents(mk(['Bb', 'Bb'])).events.map((e) => e.notes);
+    expect(a).toEqual([['F3', 'Ab3', 'C4'], ['F3', 'Ab3', 'C4']]);
+    expect(b).toEqual([['Bb3', 'D4', 'F4'], ['Bb3', 'D4', 'F4']]);
   });
 });
 

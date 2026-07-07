@@ -61,30 +61,24 @@ export default function MakerHubPage() {
     items: (d.sketches || []).map((s) => ({
       key: s.ref,
       href: `/sketches/${encodeURIComponent(s.ref)}`,
-      thumb: `/api/sketches/${encodeURIComponent(s.ref)}/svg?inline=1`,
       title: s.title,
     })),
     total: (d.sketches || []).length,
   }));
 
-  // Worlds use PNG thumbs (they have no SVG form — the still is the baked PNG).
   const worlds = useRecent('/api/sketches?bucket=world', (d) => ({
     items: (d.sketches || []).map((s) => ({
       key: s.ref,
       href: `/sketches/${encodeURIComponent(s.ref)}`,
-      thumb: `/api/sketches/${encodeURIComponent(s.ref)}/png?inline=1&scale=1`,
       title: s.title,
     })),
     total: (d.sketches || []).length,
   }));
 
-  // Beats have no still form (audio-only) — cards render the title-text
-  // fallback instead of a thumb endpoint; the shelf previews the live player.
   const beats = useRecent('/api/sketches?bucket=beats', (d) => ({
     items: (d.sketches || []).map((s) => ({
       key: s.ref,
       href: `/sketches/${encodeURIComponent(s.ref)}`,
-      thumb: null,
       title: s.title,
     })),
     total: (d.sketches || []).length,
@@ -97,7 +91,6 @@ export default function MakerHubPage() {
         key: m.motionRef,
         href: m.url,
         external: true,
-        thumb: m.svgUrl || m.gifUrl,
         title: m.title,
       })),
       total: (d.motions || motions).length,
@@ -127,6 +120,25 @@ export default function MakerHubPage() {
   );
 }
 
+function FolderItemIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-3.5 w-3.5 shrink-0 text-gray-500"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 5.5a1 1 0 0 1 1-1h3.5l1.2 1.5H16a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9Z"
+      />
+    </svg>
+  );
+}
+
 const ACCENT = {
   teal: 'hover:border-teal-500 hover:shadow-teal-500/10',
   violet: 'hover:border-violet-500 hover:shadow-violet-500/10',
@@ -148,28 +160,20 @@ function RailCard({ rail, t }) {
       </div>
       <p className="mt-1 text-xs text-gray-400 min-h-[2.5rem]">{t(`${key}.blurb`)}</p>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-4 flex flex-col gap-1">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="aspect-[4/3] rounded bg-gray-700/40 animate-pulse" />
+            <div key={i} className="h-6 rounded bg-gray-700/40 animate-pulse" />
           ))
         ) : items.length === 0 ? (
-          <div className="col-span-2 aspect-[8/3] rounded bg-gray-900/40 border border-dashed border-gray-700 flex items-center justify-center text-[11px] text-gray-600">
+          <div className="rounded bg-gray-900/40 border border-dashed border-gray-700 py-3 flex items-center justify-center text-[11px] text-gray-600">
             {t('empty')}
           </div>
         ) : (
           items.map((it) => (
-            <div
-              key={it.key}
-              className="aspect-[4/3] rounded overflow-hidden bg-[#fafaf6] flex items-center justify-center"
-              title={it.title}
-            >
-              {it.thumb ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={it.thumb} alt={it.title || ''} className="max-w-full max-h-full object-contain" />
-              ) : (
-                <span className="text-[10px] text-gray-400">{it.title}</span>
-              )}
+            <div key={it.key} className="flex items-center gap-2 text-xs text-gray-300" title={it.title}>
+              <FolderItemIcon />
+              <span className="truncate">{it.title}</span>
             </div>
           ))
         )}

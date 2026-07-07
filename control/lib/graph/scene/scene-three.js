@@ -46,8 +46,9 @@ import {
   actionsChannelScript, audioChannelScript, channelRuntimeSection, controllableChannelScript,
   eventsChannelScript, gameChannelScript, glowSpriteScript, inkDecalScript, mojStepCalls,
   normalizeRuntimeChannels, physicsChannelScript, pickChannelScript, shadowDecalScript,
-  skyDomeScript, walkModeScript, waterMeshScript,
+  skyDomeScript, specularChannelScript, walkModeScript, waterMeshScript,
 } from './channels.js';
+import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 
 
 // horizontal fov (deg) + aspect → vertical fov (deg) for THREE.PerspectiveCamera
@@ -279,7 +280,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // scene. Stays a real group mesh (raycastable for picks, togglable to wireframe).
     const af = fs.find((f) => typeof f.alpha === 'number' && f.alpha < 1);
     const alpha = af ? af.alpha : null;
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha };
+    // per-vertex specular params (faces tagged `spec` by a material) — the key is only present
+    // when the group carries them, so material-free scenes serialize byte-identically.
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}) };
   });
   const hasTextures = groups.some((g) => g.tex.length);
 
@@ -288,6 +291,15 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const glowCfg = glow && typeof glow === 'object' ? glow : {};
   const sprites = glow ? collectGlowSprites(faces, { scale: glowCfg.scale ?? 1 }) : [];
   const glowBlock = sprites.length ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95) : '';
+
+  // Specular channel (material-response.plan.md P2): live Blinn-Phong against the fixed baked
+  // light for groups whose faces carry `spec`. One-shot setup block (glow/shadow posture) —
+  // no spec faces → zero bytes, every existing World byte-for-byte unchanged. The highlight
+  // direction follows the scene's own baked light when the payload carries one (a vexar
+  // makeLight — the workbench studio does), so specular and diffuse agree.
+  const specBlock = groups.some((g) => g.spec)
+    ? specularChannelScript(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight)
+    : '';
 
   // Shadow decals: the CSS-3D cast/contact shadows, realized as flat dark ground quads.
   const decals = collectShadowDecals(faces);
@@ -672,7 +684,7 @@ ${skyBlock}
 ${waterBlock}
 ${shadowBlock}
 ${inkBlock}
-${glowBlock}
+${glowBlock}${specBlock}
 ${pickBlock}
 ${channelRuntimeSection(chBlocks)}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated

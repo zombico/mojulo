@@ -19,6 +19,15 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 
+// A filesystem-safe download name derived from the sketch title (falls back to the ref).
+function htmlFilename(sketch, ref) {
+  const base = (sketch.title || sketch.manifest?.title || ref || 'world')
+    .trim()
+    .replace(/[^a-z0-9._-]+/gi, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${base || 'world'}.html`;
+}
+
 export async function GET(request, { params }) {
   try {
     const { ref } = await params;
@@ -69,12 +78,17 @@ export async function GET(request, { params }) {
     // ?decollide=0 disables the coplanar depth-stagger (z-fight de-collision) for A/B verification.
     // ON by default for every World; this is purely a debug/compare affordance like ?wire.
     const decollide = !['0', 'false'].includes(request.nextUrl.searchParams.get('decollide'));
-    const html = emitThreeWorld({ ...payload, wireframe, walk, decollide });
+    // ?download=1 bakes the three.js runtime itself into data: URL modules (see
+    // emit-util.js inlineImportmap) instead of pointing at this server's /vendor/three,
+    // so the saved file is a genuinely portable, open-anywhere page — the live iframe
+    // keeps using the small server-served importmap.
+    const download = ['1', 'true'].includes(request.nextUrl.searchParams.get('download'));
+    const html = emitThreeWorld({ ...payload, wireframe, walk, decollide, inline: download });
     return new Response(html, {
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': 'inline',
+        'Content-Disposition': download ? `attachment; filename="${htmlFilename(sketch, ref)}"` : 'inline',
         'Cache-Control': 'no-store',
       },
     });

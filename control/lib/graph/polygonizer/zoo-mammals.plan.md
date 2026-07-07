@@ -56,9 +56,15 @@ honest, not just convenient:
 Two strata, and the whole game is keeping them apart:
 
 ```
-FORM         = archetype proportions + chains + skull + foot      (moves vertices)
-DECORATION   = coat paint + facePaint + tailRings + mane + face   (rides the vertices)
+FORM         = archetype proportions + chains + skull + foot + FLUFFS + ANTLERS   (moves vertices)
+DECORATION   = coat paint + facePaint + tailRings + mane + face                   (rides the vertices)
 ```
+
+(FLUFFS — named added volumes from figure-fluff.js: the camel hump `bead`, the kangaroo
+haunch `football`. The FORM lever for a body mass that is neither a proportion dial nor an
+appendage. Added minting camel + kangaroo. ANTLERS — a BRANCHED cranial appendage from
+figure-animal-antler.js: the buck's rack, and the whole horned set by cfg. Both are FORM: they
+move the silhouette. See the build log.)
 
 A new recognizable mammal is, in priority order:
 1. **pick the nearest archetype** (the clade skeleton) — never invent a new one if a
@@ -219,10 +225,14 @@ No new primitive. Each = archetype + presets + a paint/mask/mane recipe.
   muzzle/black socks), husky/shepherd (canine + facePaint).
 - **Felids (solid):** cougar/panther (`feline` solid), lion (done).
 - **Ursids:** brown/polar/panda (done).
-- **Procyonids:** raccoon (done), red panda (`raccoon` palette swap + brighter coat).
+- **Procyonids:** raccoon (done), red panda (`raccoon` + rust coat + INVERTED-dark `underHex`
+  belly/legs + white `facePaint` + ringed `tailBands` — DONE).
 - **Mustelids:** otter/weasel (elongated small `ursine`: ↑trunkLength, ↓backHeight).
 - **Stumpy solids:** hippo (`stumpy` solid), rhino-body (stumpy; HORN deferred to P2).
-- **Equine solids:** horse (`equine`, done-ish), donkey (equine variant).
+- **Equine solids:** horse (`equine`, done-ish), donkey (equine variant), camel (`equine` +
+  triangular-hump `fluff` (`bead` `peak`) — DONE).
+- **Cervids / small bovids (`gazelle` archetype):** deer/doe + buck (antlers), gazelle (tineless
+  antler = horn) — all DONE. The horned Phase-2 set (ram/bull/antelope) reuses the same antler cfg.
 - **Primates (posture edit, no new primitive):** gorilla (heavy `ursine`-ish,
   knuckle-stance via fore tuck-ish), chimp/monkey (lighter, long-arm) — verify these
   read; they may want a stance knob, flag if so.
@@ -231,19 +241,26 @@ No new primitive. Each = archetype + presets + a paint/mask/mane recipe.
 
 Marsupials reuse EXISTING archetypes — the framing is exactly right:
 
-- **Kangaroo** ≈ `raptor`/`theropod` balance (biped hopper: huge hind legs, heavy
-  balance tail, tucked forelimbs, small head) — solid sandy coat.
+- **Kangaroo** ≈ `theropod` balance (biped hopper: huge hind legs, heavy balance tail,
+  tucked forelimbs, small head) + `spineTilt` upright + haunch `fluff` — solid rusty coat. DONE.
 - **Koala** ≈ small `ursine` (stout, big round `face` ears, stub tail) — grey coat.
 - **Wombat** ≈ small `stumpy` (barrel, short pillar legs) — solid brown.
 - **Tasmanian devil** ≈ small `canine`/`ursine`, black coat (+ white chest = small
   `facePaint`/patch — borderline; may slip to P2).
 - **Opossum** ≈ `rodent` + bare (un-furred) ringtail-shaped tail — grey/white.
 
-### Phase 2 — needs HORN chain (small new code, then loopable)
+### Phase 2 — the HORN/ANTLER primitive (DONE) → the horned set is now loopable
 
-deer, antelope, gazelle-with-horns, cattle/bull, bison (horn + cape mane), rhino
-(nasal horn), goat/ram (curled horn). One primitive (`hornChain`, branched tailChain
-at the skull), then a sub-loop over the horned set.
+The primitive landed: `antlers()` in [figure-animal-antler.js](figure-animal-antler.js) — a
+branched cranial appendage (main beam + tines, mirrored L/R), seated on the crown from the head
+frame, wired as the defaults-off `antlers` opt on `buildAnimal`. Built the first two cervids:
+- **deer** (hornless DOE) + **buck** (deer body + the antler rack) — DONE.
+
+The rest of the horned set is now "turn the knobs on the same primitive" (each is a body recipe +
+an `antlers`/horn cfg): antelope, cattle/bull, bison (+ cape mane), goat/ram (high `curl` → a
+curled horn), rhino (nasal horn = a single beam, no tines, rooted forward on the muzzle). A single
+undecorated beam (`tines: []`) is a HORN; the same beam with a high `curl` is a ram's curl — so the
+whole Phase-2 set is one primitive, as the roadmap predicted.
 
 ### Phase 3 — BLOCKED on PATCH colour (the wall; escalate to user)
 
@@ -461,7 +478,112 @@ no new geometry primitives):
 - `tailTip` — `{ color, frac }` paints the last `frac` of the tail rings a second colour
   (the fox white tip / snow-leopard tip) — a bare colour-zone over existing tail rings, no fur.
 
+Then, minting camel + kangaroo + red panda, a FOURTH override — the FORM one:
+- `fluffs` — a list of `figure-fluff.js` volume specs (`bead` / `football` / `cone` / `bell` /
+  `slab`) bound to the ANIMAL armature nodes, built at `scale:1` (STAND) and folded into the
+  parts painted the coat colour (or a spec's own `hex`). This is the first lever that adds a
+  NAMED body volume that is neither an appendage (chain) nor a proportion dial — the zdog
+  register pointed at animals. Debut tells: the camel HUMP (a `bead` at `navel`, biased up) and
+  the kangaroo HAUNCH (a `football` per hip→knee thigh). Defaults-off: every prior species is
+  byte-unchanged. See figure-fluff.plan.md for the shape table.
+
+Then, on the kangaroo (nape/knee/hands) and the deer/buck (antlers), five more, all defaults-off:
+- `forepaws` — a small `protoFoot` paw at each wrist for a tuck-biped (a HAND, by anchoring the
+  foot's ground plane just below the wrist).
+- `neckBridge` / `kneeBridge` (`figure-animal-skin.js`) — the `spineBridge` joint-seam fix at the
+  NAPE and the KNEE (a bridge axis marched across the bend through the smooth field).
+- `antlers` — the BRANCHED cranial appendage (`figure-animal-antler.js`): a beam + tines, mirrored
+  L/R, seated on the crown. `antlers:true` = the default rack; a cfg tunes the sweep/tines, and by
+  cfg the same primitive is a horn (`tines:[]`) or a ram's curl (high `curl`) — the whole Phase-2
+  horned set.
+
 ## Build log
+
+- **camel hump → triangular + gazelle (the horn = tineless antler proof).** Two small follow-ups:
+  - **camel hump was too CIRCULAR.** The hump was a spherical `bead` fluff (a dome). Added a `peak`
+    dial to the `bead` shape (figure-fluff.js): 0 = sphere, 1 = a base-down/apex-up CONE (straight
+    sides → a triangular profile), blended per-ring, plus a `squash` vertical scale. The camel hump
+    is now `peak: 0.55` — a proper triangular dromedary hump. **LESSON — extend a shape's DIALS
+    before adding a new shape.** The closed 5-shape table stays closed; hump-vs-dome is a profile
+    knob on the existing `bead`, not a 6th primitive. Gotcha: a cone's widest ring is its BASE, so
+    lift the bead (`bias.z`) enough that the base stays buried in the barrel and only the triangle
+    shows — else the wide base pokes out below the belly.
+  - **gazelle — the HORN is an ANTLER with no tines.** Rounds out the deer family off the same
+    `gazelle` archetype, and validates the Phase-2 claim on the FIRST reuse: `antlers: { tines: [],
+    … }` with high `back` + small `out` + low forward `curl` gives thin dark horns swept up-and-back
+    with a hook — no horn-specific code, just the antler cfg. Confirms the whole horned set (ram
+    curl, bull, rhino nasal spike) is knob-turning over the one primitive, as predicted.
+
+- **deer + buck (the ANTLER primitive — Phase-2 unlock).** Two cervids off the `gazelle`
+  archetype (a deer is a large gazelle: slender, long thin legs, cloven hooves, small tapered
+  head, big ears): **deer** = the hornless doe (tan coat, white countershade throat/belly, dark
+  hooves), built + judged FIRST as the Phase-1 checkpoint; **buck** = the SAME body (shared
+  `DEER_OPTS`) + the new `antlers` opt. Reference-grounded (red stag + white-tailed buck,
+  Wikimedia). The primitive: `antlers()` (figure-animal-antler.js) builds a main BEAM sweeping
+  up-back-out off the crown with TINES branching off, as a set of tapered tubes, mirrored L/R —
+  the roadmap's "branched tailChain at the skull," realized as tubes because an antler is a TREE
+  (many branch points) and a chain can only bow once. **LESSONS:**
+  - **antlers are GRAVITY-oriented, not head-oriented** — the frame is {worldUp, horizontal
+    head-heading, lateral}, NOT the skull's dir frame, so the rack rises vertical regardless of
+    head pitch. (First render seated the rack on the head-dir frame and it tipped forward with the
+    craned neck.) 1 tune: eased the shared neck (angle 52→42, headPitch −20→−26) so the doe stops
+    craning AND the buck's crown faces up for the rack; 1 tune: `pedFwd` 0.28→0.16 to seat the
+    pedicle back on the crown (behind the eyes), not over the nose.
+  - **one primitive spans the whole Phase-2 set by cfg** — `tines:[]` → a HORN (single beam);
+    high `curl` → a ram's curl; rooted forward with no tines → a rhino nasal horn. So the horned
+    clade is now a knob-turning sub-loop, not new geometry per species (the fluff lesson again:
+    add ONE general, reusable FORM primitive, then every relative is data).
+  - **share the body, vary the tell** — `DEER_OPTS` is spread by both doe and buck; the buck adds
+    only `antlers` + a slightly darker coat. The doe↔buck pair is the sexual-dimorphism analog of
+    the brown↔polar colour-morph: same geometry, one appendage's worth of difference.
+
+- **camel / kangaroo / red panda (the fluff + inverted-countershade iteration).** Three species,
+  each proving one durable point:
+  - **camel** (`equine` + hump `fluff`) — ACCEPTED (1 tune: coat lifted; the lit mesh renders a
+    sandy swatch down to camel-brown, the known "judge from the render" rule). The single dorsal
+    hump is a `bead` fluff at `navel` biased +z, so it mounds above the topline. **LESSON — the
+    fluff is a FORM lever, not decoration.** It moves the silhouette (a blind man feels the hump),
+    so it belongs beside archetype/chain/skull/foot in the FORM stratum, not beside paint/mask.
+    The abstraction's FORM line is now "archetype proportions + chains + skull + foot + FLUFFS."
+  - **kangaroo** (`theropod` biped + haunch `fluff` + `spineTilt`) — ACCEPTED (1 tune: neck
+    `droop`). The massive thigh is a `football` fluff on each hip→knee (a volume the round
+    leg-vajra can't bulge to); the trunk is rocked upright with `spineTilt` (the bear-rear knob
+    reused for the sitting hopper). Confirms the fluff superposes cleanly onto a limb the skin
+    already covers. **LESSON — for a chain-headed animal the muzzle direction IS the neck's end
+    tangent (`headFrameFrom`), and neck `droop` COMPOUNDS with `spineTilt`.** A high droop meant
+    to "lift the head" (74) rotated the already-tilted neck base past vertical, so the face aimed
+    up-and-BACK over the shoulder. There is no separate head-pitch knob here, so a forward gaze is
+    a LOW droop (22) that lands the neck forward-and-up. Rule: when the trunk is tilted, budget the
+    neck droop against that tilt — the face points where the LAST neck segment points.
+    Then a second pass (nape / knees / hands) added three general levers, all defaults-off:
+    - **`neckBridge`** (`figure-animal-skin.js`) — the SPINE-SEAM fix at the NAPE. A neck CHAIN
+      roots at neckHub and projects away, but the thorax tube ends there perpendicular to its own
+      axis, so the dorsal wedge behind the neck is left open. A span marched from inside the thorax
+      across the corner to an early neck center (through the smooth field) closes it — the exact
+      `spineBridge` move, one joint over. Fires only for chain-necked builds (identifies the neck
+      chain by its root sitting on neckHub), so quadrupeds are untouched.
+    - **`kneeBridge`** (`figure-animal-skin.js`) — the SAME seam on the LEG. The thigh (hip→knee)
+      and shank (knee→ankle) tubes each march perpendicular to their own axis, so a sharply bent
+      knee leaves a hole on the outside of the bend (visible as background THROUGH the joint once
+      the countershade was stripped for the diagnosis). A span across the joint wraps it.
+    - **`forepaws`** (`figure-animal-build.js`) — a tuck-biped stands on its hind feet, so
+      `groundedFeet` gives the forelimbs no foot and they end in blunt stubs. `forepaws` seats a
+      small `protoFoot` paw at each wrist with `sole` anchored just BELOW the wrist (protoFoot
+      reaches down to `sole`, so a near-wrist sole makes a hanging HAND, not a floor-reaching foot).
+    **LESSON — the joint seam is ONE defect with ONE fix, wherever two marched tubes meet at an
+    angle** (navel, nape, knee). Each new bend is a `lerp3(a,joint,1−f)→lerp3(joint,b,f)` bridge
+    axis through the field, gated defaults-off so it only touches builds that ask. And a "foot"
+    primitive becomes a "hand" purely by where you anchor its ground plane — no new geometry.
+  - **red panda** (`raccoon`, decoration-only) — ACCEPTED (1 tune: `underCut` −0.12 → −0.32). No
+    new form; the ailurid read is all levers that already existed — rust coat, white-muzzle
+    `facePaint`, ringed bushy `tailBands` over the fox-brush chain, and the key one: **an INVERTED
+    countershade.** **LESSON — `underHex` is a two-way lever.** The wolf/fox used it for a PALE
+    belly; the red panda uses a DARK `underHex` for its BLACK belly + legs. Same down-normal
+    signature, opposite colour — so "dark-bellied" animals (red panda, some squirrels, ring-tailed
+    cats) are OFF the wall too, not just white-bellied ones. The tune taught the second half: keep
+    `underCut` TIGHT (steeply-down faces only) or the zone speckles onto side-facing flank faces.
+    Wall caveats logged: the red panda's white eyebrow/ear spots + dark "tear-track" cheek stripes
+    are localized patches with no geometric signature — not faked.
 
 - **raccoon (REVISITED).** The "locked" raccoon was re-judged and FAILED a hard look: near-black
   body, a dorsal back-cleft, bear-sized bloat with a tiny head, and an eye-mask that read as two

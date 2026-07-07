@@ -14,6 +14,7 @@
 
 import { validateGameManifest, normalizeGameManifest } from './game-manifest.js';
 import { validateLevelContract, normalizeLevelContract } from './level-contract.js';
+import { synthesizeLevel } from './level-synth.js';
 
 /**
  * @param {object} manifest        a game manifest (validated here)
@@ -32,11 +33,15 @@ export function resolveGame(manifest, getSketch, levelSrc) {
   for (const lv of norm.levels) {
     const sketch = getSketch(lv.ref);
     if (!sketch || !sketch.manifest) { errors.push(`level '${lv.ref}': no sketch with that ref`); continue; }
-    const game = sketch.manifest.game;
-    if (!game || typeof game !== 'object') {
-      errors.push(`level '${lv.ref}': its sketch carries no \`game\` channel — a level is a world minted WITH a level contract (compose_world … { game: { levelRef, produces, … } })`);
+    if (!sketch.manifest.game || typeof sketch.manifest.game !== 'object') {
+      errors.push(`level '${lv.ref}': its sketch carries no \`game\` channel — a level is a world minted WITH a level contract or mechanics (compose_world … { game: { levelRef, mechanics|produces, … } })`);
       continue;
     }
+    // synthesize the contract from mechanics (if any) — a level stores the RECIPE, so the contract
+    // (produces/on/audits) is generated here, exactly as the world route does at render time.
+    let game;
+    try { game = synthesizeLevel(sketch.manifest).game; }
+    catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
     const cv = validateLevelContract(game, norm.store);
     if (!cv.ok) { errors.push(`level '${lv.ref}' contract (against this game's store): ${cv.errors.join('; ')}`); continue; }
     levels.push({ ref: lv.ref, title: lv.title, contract: normalizeLevelContract(game), src: levelSrc(lv.ref) });

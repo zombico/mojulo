@@ -30,7 +30,8 @@
 
 import { readFileSync } from 'node:fs';
 
-import { norm3, sub3, dot3, centroid, newellNormal, orientOutward, shadeHex, DEFAULT_LIGHT } from './vexar.js';
+import { norm3, sub3, dot3, centroid, newellNormal, orientOutward, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
+import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import { parseSvgPath, normalizeContours, extrudeProfile } from './carve-solid.js';
 import { triangulateRings } from './triangulate.js';
 import { loadFont, layoutText } from '../../motion/glyph-carver.js';
@@ -83,7 +84,10 @@ export function reliefToFaces(spec = {}, opts = {}) {
   const depth = Number.isFinite(style.depth) ? style.depth : 0.18;
   const bevel = Number.isFinite(style.bevel) ? style.bevel : 0.04;
   const size = Number.isFinite(spec.size) ? spec.size : 1;
-  const tint = opts.tint || spec.tint || '#c79a4b';
+  // optional material response curve (polygonizer/materials.js) — absent → byte-identical
+  const mat = opts.material ? resolveMaterial(opts.material) : null;
+  // a material with no explicit tint contributes its own albedo — 'bronze' LOOKS bronze
+  const tint = opts.tint || spec.tint || (mat && mat.base) || '#c79a4b';
 
   const contours = resolveContours(spec.shape, { ...style, depth });
   const { faces } = extrudeProfile(contours, { depth, bevel, bevelSteps: style.bevelSteps ?? 6 });
@@ -116,7 +120,7 @@ export function reliefToFaces(spec = {}, opts = {}) {
   // culls behave (the place() frame mirror + z-flip would otherwise vary winding).
   const emit = (corners, want) => {
     const c = dot3(newellNormal(corners), want) < 0 ? corners.slice().reverse() : corners;
-    out.push({ corners: c, fill: shadeHex(tint, want, light), doubleSided: true });
+    out.push({ corners: c, fill: shadeHexMat(tint, want, mat, { light }), doubleSided: true });
   };
   for (const f of faces) {
     if (f.kind === 'quad') {
@@ -129,7 +133,7 @@ export function reliefToFaces(spec = {}, opts = {}) {
       for (const tri of triangulateRings(rings2d)) emit(tri.map(([x, y]) => place([x, y, capZ])), want);
     }
   }
-  return out;
+  return tagFacesWithMaterial(out, mat);
 }
 
 /** Validate relief specs (mirrors validateExtrudes). Returns an array of error strings. */

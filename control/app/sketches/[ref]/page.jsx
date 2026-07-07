@@ -27,6 +27,7 @@ export default function SketchPage({ params }) {
   const [notFound, setNotFound] = useState(false);
   const [mode, setMode] = useState('color');
   const [glbStatus, setGlbStatus] = useState('idle'); // idle | preparing | unavailable | error
+  const [htmlStatus, setHtmlStatus] = useState('idle'); // idle | preparing | unavailable | error
 
   const load = useCallback(async () => {
     setError('');
@@ -88,6 +89,39 @@ export default function SketchPage({ params }) {
     }
   }, [ref, data]);
 
+  // Fetches the /world or /scene HTML with ?download=1, which asks the backend to bake
+  // the render's own runtime (three.js for worlds) into the page as data: URLs — a
+  // self-contained file that opens standalone, unlike the live iframe's server-relative
+  // /vendor paths.
+  const downloadHtml = useCallback(async () => {
+    const mode = sketchRenderMode(data?.manifest);
+    setHtmlStatus('preparing');
+    try {
+      const res = await fetch(`/api/sketches/${encodeURIComponent(ref)}/${mode}?download=1`);
+      if (res.status === 422) {
+        setHtmlStatus('unavailable');
+        return;
+      }
+      if (!res.ok) {
+        setHtmlStatus('error');
+        return;
+      }
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const base = (data?.title || ref).replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '');
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = `${base || mode}.html`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+      setHtmlStatus('idle');
+    } catch {
+      setHtmlStatus('error');
+    }
+  }, [ref, data]);
+
   const manifest = data?.manifest;
 
   useEffect(() => {
@@ -146,6 +180,20 @@ export default function SketchPage({ params }) {
             {glbStatus === 'error' && (
               <span className="text-xs text-red-400">{t('downloadGlbError')}</span>
             )}
+            {htmlStatus === 'unavailable' && (
+              <span className="text-xs text-[color:var(--text-muted)]">{t('downloadHtmlUnavailable')}</span>
+            )}
+            {htmlStatus === 'error' && (
+              <span className="text-xs text-red-400">{t('downloadHtmlError')}</span>
+            )}
+            <button
+              type="button"
+              onClick={downloadHtml}
+              disabled={htmlStatus === 'preparing'}
+              className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
+            >
+              {htmlStatus === 'preparing' ? t('downloadHtmlPreparing') : t('downloadHtml')}
+            </button>
             <button
               type="button"
               onClick={downloadGlb}

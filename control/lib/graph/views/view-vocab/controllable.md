@@ -31,5 +31,6 @@ Pass these via `compose_world`'s `overrides` (deep-merged over the theme pack). 
 - `worldFraming` (object) — Optional initial camera framing { cameraPosition:[x,y,z], lookAt:[x,y,z], horizontalFov }. A follow/orbit camera then takes over each frame.
 - `viewBox` (object) — Optional render viewBox { width, height } (default 1120×780).
 - `bg` (string) — Optional background color (default #0b1220).
+- `game` (object) — Optional GAME level channel: mint this world as a game level. Either mechanics-authored ({ levelRef, mechanics:[{ kind:'reach-exit'|'survive'|'collect'|'hazard-damage'|'fail-on-death', … }], fall? } — verbs lower into world behavior + a synthesized contract; manuals via get_game_vocab, kits via get_game_vocab({scope:'kit'})) or a hand-authored contract ({ levelRef, consumes?, produces, on? }). Validated at mint; create_game re-validates against the game's actual store.
 - `ref` (string) — optional stable sketch ref.
 - `folder_ref` (string) — optional sketch folder to file under.

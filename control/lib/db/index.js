@@ -119,7 +119,8 @@ function init(db) {
       input_bytes INTEGER,
       result_bytes INTEGER,
       input_json TEXT,
-      result_json TEXT
+      result_json TEXT,
+      signal_json TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_tool ON mcp_tool_calls(tool, started_at);
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_status ON mcp_tool_calls(status, started_at);
@@ -341,7 +342,9 @@ function init(db) {
         'painted_landscape',
         'view_vocab',
         'beats_vocab',
-        'game_vocab'
+        'game_vocab',
+        'game_mechanic',
+        'game_kit'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
@@ -637,6 +640,7 @@ function init(db) {
   migrateStashCookColumns(db);
   migrateStashCookArchivedAt(db);
   migrateEmbeddingsSourceKinds(db);
+  migrateMcpToolCallColumns(db);
   reapStaleMcpJobs(db);
   pruneMcpToolCalls(db);
   maybeBackfillEmbeddings(db);
@@ -826,6 +830,19 @@ function migrateInventoryColumns(db) {
   db.exec(
     'CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_running_ref ON meta_mcp_inventory(running_ref)'
   );
+}
+
+function migrateMcpToolCallColumns(db) {
+  // signal_json (orientation-ramp.plan.md R4): an optional handler-attached
+  // outcome signal — numbers and enums only, never values (same discipline as
+  // input_keys). First emitters: semantic_search ({ top_score, result_count,
+  // kinds }) and the vocab/worked-example drawers ({ id_requested, found }).
+  // Read by McpToolCallRepository.orientationGaps.
+  const cols = db.prepare('PRAGMA table_info(mcp_tool_calls)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('signal_json')) {
+    db.exec('ALTER TABLE mcp_tool_calls ADD COLUMN signal_json TEXT');
+  }
 }
 
 function migratePlanColumns(db) {
@@ -1090,7 +1107,7 @@ function migrateEmbeddingsSourceKinds(db) {
     .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
     .get();
   if (!row || !row.sql) return;
-  if (row.sql.includes('game_vocab')) return;
+  if (row.sql.includes('game_kit')) return;
   db.exec(`
     BEGIN;
     CREATE TABLE meta_embeddings_new (
@@ -1109,7 +1126,9 @@ function migrateEmbeddingsSourceKinds(db) {
         'painted_landscape',
         'view_vocab',
         'beats_vocab',
-        'game_vocab'
+        'game_vocab',
+        'game_mechanic',
+        'game_kit'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,

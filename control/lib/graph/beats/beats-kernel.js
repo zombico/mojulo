@@ -187,10 +187,25 @@ export function buildBeatsKernel() {
   // sixteenths land late by swing × sixteenth × 2/3 — the pulse-channel model.
   // Returns { events: [{ t, channel, notes, dur, vel }], duration }; the
   // transport loops the pattern (a pattern has no end by construction).
+  // ── harmony bus: derive a chord-following track's notes at a step (B7) ───────
+  // A chordVoice track ignores its note contour and instead READS the shared
+  // progression's chord for this step, so many instruments follow one chord chart.
+  // Modes: chord/strum/block = the whole chord (feel strums it); arp = one note
+  // walking up the chord by step; root = the chord's lowest note (basslines).
+  function chordVoiceNotes(mode, chord, step) {
+    if (!chord || !chord.length) return [];
+    if (mode === 'arp') return [chord[step % chord.length]];
+    if (mode === 'root') return [chord[0]];
+    if (mode === 'upper') return chord.length > 1 ? chord.slice(1) : chord.slice(); // chord minus root — harmony over a separate bass
+    return chord.slice(); // 'chord' | 'strum' | 'block' | true
+  }
+
   function patternEvents(recipe) {
     const bpm = recipe.bpm, swing = recipe.swing || 0;
     const sixteenth = 60 / bpm / 4;
     const N = recipe.steps || 32;
+    const chords = recipe.chords || {};
+    const prog = Array.isArray(recipe.progression) ? recipe.progression : [];
     const events = [];
     for (const tr of recipe.tracks || []) {
       const mask = Array.isArray(tr.mask) ? tr.mask : [];
@@ -199,9 +214,17 @@ export function buildBeatsKernel() {
         const v = mask[i % mask.length];
         if (!v) continue;
         const t = i * sixteenth + (i % 2 === 1 ? swing * sixteenth * (2 / 3) : 0);
-        // a contour entry is one note or an array (a chord — the garage stab).
-        const entry = Array.isArray(tr.notes) && tr.notes.length ? tr.notes[i % tr.notes.length] : (tr.note || 'C3');
-        events.push({ t, channel: tr.name, notes: Array.isArray(entry) ? entry.slice() : [entry], dur: sixteenth, vel: v === true ? 0.9 : v });
+        let notes;
+        if (tr.chordVoice && prog.length) {
+          // harmony bus: notes come from the shared progression, not tr.notes.
+          notes = chordVoiceNotes(tr.chordVoice, chords[prog[i % prog.length]], i);
+          if (!notes.length) continue; // no chord assigned here → rest
+        } else {
+          // a contour entry is one note or an array (a chord — the garage stab).
+          const entry = Array.isArray(tr.notes) && tr.notes.length ? tr.notes[i % tr.notes.length] : (tr.note || 'C3');
+          notes = Array.isArray(entry) ? entry.slice() : [entry];
+        }
+        events.push({ t, channel: tr.name, notes, dur: sixteenth, vel: v === true ? 0.9 : v });
       }
     }
     events.sort((a, b) => a.t - b.t || (a.channel < b.channel ? -1 : 1));
@@ -473,6 +496,26 @@ export function buildBeatsKernel() {
         env.connect(bq); post = bq;
       }
       post.connect(out);
+      // attack-transient layer (B7): a short filtered-noise burst at onset — the
+      // PICK / bachi contact click for plucked strings (also bow scratch, breath
+      // chiff). Runs PARALLEL to the voice with its own fast envelope, so it's an
+      // additive onset, not shaped by the note's ADSR; sent to `out` so the part's
+      // body/reverb catch it too (the bachi striking the skin excites the box).
+      if (patch.attackNoise) {
+        const an = patch.attackNoise;
+        const nz = ctx.createBufferSource(); nz.buffer = noiseBuffer(); nz.loop = true;
+        const bp = ctx.createBiquadFilter();
+        bp.type = an.mode || 'bandpass';
+        bp.frequency.value = an.tone == null ? 2400 : an.tone;
+        bp.Q.value = an.q == null ? 0.8 : an.q;
+        const ng = ctx.createGain();
+        const adec = an.decay == null ? 0.02 : an.decay;
+        const apk = dbGain(an.level == null ? -12 : an.level) * (vel == null ? 0.8 : vel);
+        ng.gain.setValueAtTime(Math.max(0.0001, apk), t);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t + adec);
+        nz.connect(bp); bp.connect(ng); ng.connect(out);
+        nz.start(t); nz.stop(t + adec + 0.02);
+      }
       if (voice === 'noise') {
         const src = ctx.createBufferSource(); src.buffer = noiseBuffer(); src.loop = true;
         src.connect(env); src.start(t); src.stop(end);
@@ -496,6 +539,32 @@ export function buildBeatsKernel() {
         idx.gain.exponentialRampToValueAtTime(Math.max(0.01, hz * 0.05), t + (patch.modDecay == null ? 0.5 : patch.modDecay));
         mod.connect(idx); idx.connect(car.frequency);
         car.connect(env); mod.start(t); car.start(t); mod.stop(end); car.stop(end);
+      } else if (voice === 'modal') {
+        // modal synthesis (B6.2): a struck object = a sum of decaying sine partials
+        // (its resonant modes). Each partial has its own ratio (freq = hz×ratio),
+        // gain, and decay time — higher modes ring shorter, so the strike is bright
+        // then warms as it decays. THE voice for tuned struck metal/wood: steelpan,
+        // bells, marimba, vibes, gongs. Bypasses the ADSR — each mode's own decay IS
+        // the envelope — and rings for its own length regardless of note duration
+        // (struck notes ring out; they don't sustain-then-release). Goes to `out` so
+        // the part's chain (reverb) and the attackNoise mallet tick sit with it.
+        const partials = Array.isArray(patch.partials) && patch.partials.length ? patch.partials : [{ ratio: 1, gain: 1, decay: 1 }];
+        const base = dbGain(patch.volume) * (vel == null ? 0.8 : vel);
+        const atk = patch.attack == null ? 0.002 : patch.attack;
+        const nyq = ctx.sampleRate * 0.5;
+        for (const p of partials) {
+          const f = hz * (p.ratio == null ? 1 : p.ratio);
+          if (f <= 0 || f >= nyq) continue; // skip DC / above Nyquist
+          const dec = p.decay == null ? 1 : p.decay;
+          const pk = Math.max(0.0001, base * (p.gain == null ? 1 : p.gain));
+          const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(pk, t + atk);       // fast strike (no click)
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dec);   // per-mode ring-down
+          o.connect(g); g.connect(out);
+          o.start(t); o.stop(t + dec + 0.02);
+        }
       } else {
         // osc voice; detune/unison (B5.0) spreads N copies across ±detune cents —
         // the supersaw stab. Loudness is normalized by 1/√N so patches keep their
@@ -504,10 +573,25 @@ export function buildBeatsKernel() {
         const n = Math.max(1, Math.round(patch.unison || (cents ? 2 : 1)));
         const mix = ctx.createGain(); mix.gain.value = 1 / Math.sqrt(n);
         mix.connect(env);
+        // vibrato (B7): a sine LFO on each osc's detune (cents) — the pitch wobble
+        // that makes a sustained saw read as BOWED (violin/cello). depth ramps in
+        // over `delay` so the bow onset is steady before the vibrato blooms.
+        let vib = null;
+        if (patch.vibrato) {
+          const vr = patch.vibrato.rate == null ? 5.5 : patch.vibrato.rate;
+          const vd = patch.vibrato.depth == null ? 14 : patch.vibrato.depth;
+          const vdel = patch.vibrato.delay == null ? 0.25 : patch.vibrato.delay;
+          const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = vr;
+          vib = ctx.createGain();
+          vib.gain.setValueAtTime(0, t);
+          vib.gain.linearRampToValueAtTime(vd, t + vdel);
+          lfo.connect(vib); lfo.start(t); lfo.stop(end);
+        }
         for (let u = 0; u < n; u++) {
           const osc = ctx.createOscillator(); osc.type = patch.wave || 'sine';
           const spread = n === 1 ? 0 : (u / (n - 1)) * 2 - 1;
           osc.frequency.value = hz * Math.pow(2, (cents * spread) / 1200);
+          if (vib) vib.connect(osc.detune);
           osc.connect(mix); osc.start(t); osc.stop(end);
         }
       }
@@ -581,16 +665,23 @@ export function buildBeatsKernel() {
           // pattern loops by construction; a track's instrument is a patch OR a
           // gesture/cue (B5.1 move 1 — the foley vocabulary doubles as the drum kit).
           while (cursor * pat.duration <= horizon) {
-            for (const ev of pat.events) {
+            pat.events.forEach((ev, ei) => {
               const tr = (recipe.tracks || []).find((c) => c.name === ev.channel);
               const when = t0 + cursor * pat.duration + ev.t;
               if (tr && (tr.cue || tr.gesture)) {
                 playOps(cuePlan(tr.cue || [tr.gesture]), when, chains[ev.channel], ev.vel);
               } else {
                 const patch = patches[(tr && tr.patch) || 'sinePluck'] || {};
-                for (const n of ev.notes) playVoice(patch, noteHz(n), when, ev.dur, ev.vel, chains[ev.channel]);
+                const feel = tr && tr.feel;
+                // per-loop evolving feel: the loop index folds into the seed so the
+                // groove humanizes without repeating identically each bar (B6.1).
+                ev.notes.forEach((n, ni) => {
+                  const fl = noteFeel(feel, recipe.seed, cursor * 1000 + ei, ni, ev.notes.length);
+                  const p = fl.pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + fl.pluck)) }) : patch;
+                  playVoice(p, noteHz(n), when + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
+                });
               }
-            }
+            });
             cursor += 1;
           }
           return;
@@ -668,6 +759,7 @@ export function buildBeatsKernel() {
     ambientBarEvents,
     compositionEvents,
     noteFeel,
+    chordVoiceNotes,
     patternEvents,
     gesturePlan,
     cuePlan,

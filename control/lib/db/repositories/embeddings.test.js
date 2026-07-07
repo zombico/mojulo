@@ -530,6 +530,8 @@ describe('SOURCE_KINDS', () => {
       'view_vocab',
       'beats_vocab',
       'game_vocab',
+      'game_mechanic',
+      'game_kit',
     ]);
   });
 });

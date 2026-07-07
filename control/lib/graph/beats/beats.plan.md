@@ -332,3 +332,244 @@ soundtrack tone follows player depth; muted capture stays byte-identical.
 - Audio-rate modulation routing / LFO matrices.
 - Kernel growth past ~2× its B0 size — if a move breaks the budget, the
   move shrinks, not the budget.
+
+---
+
+## B6 — the instrument model (guitar spike, 2026-07-05)
+
+A third spike: a plucked-string voice, worked up interactively from "can it
+make guitar sounds" to acoustic + electric with strum and humanization. What
+shipped: a `string` voice (Karplus-Strong) in playVoice; five `guitar*`
+patches; two chain effects (`body` = parallel bandpass body resonators,
+`drive` = computed soft-clip + cabinet lowpass); and `noteFeel`, a seeded
+per-note performance layer applied in composition mode. All pure/seeded, 46
+tests green, kernel still inside budget.
+
+### What the spike taught
+
+An instrument is not a monolith — it is a **stack of four orthogonal layers**,
+and the guitar touched all four. Each is independently reusable and lives at
+its own single dispatch point:
+
+| layer | what it is | home | cost |
+|-------|-----------|------|------|
+| **voice** | excitation × resonator (the physics/topology) | a `playVoice` branch | **expensive** — kernel branch + realizer test |
+| **patch** | timbre params over a voice | `PATCHES` data | cheap — pure data, validated by name |
+| **color** | post-resonance shaping (body / drive / formant / filter) | a `buildChain` branch | cheap — composable, instrument-agnostic |
+| **feel** | trigger + humanization (strum, jitter, articulation) | `noteFeel` (pure) | cheap — instrument-agnostic |
+
+The load-bearing lesson: **most instruments need no new voice.** Guitar earned
+one only because plucked-string physics was inexpressible by osc/fm/noise/
+membrane. Bass, e-piano, Rhodes, pizzicato, clav, organ, synth leads/pads are
+all reachable from *existing* voices + new patches + color + feel. The
+expensive layer is the one to add most rarely and most deliberately — the
+other three are where an instrument library should grow.
+
+Second lesson: **color and feel are already instrument-agnostic and were built
+that way by accident of good structure.** `drive` fattens a bass or a lead;
+`body` warms any plucked/bowed voice; `noteFeel`'s strum/jitter is a property
+of *performance*, not of guitars. They belong to the substrate, not to the
+instrument — so the model must not let an instrument "own" them.
+
+### Thesis
+
+Do not accrete a monolithic instrument per instrument. Define a small
+**excitation × resonator voice basis**, and make an instrument a *named
+composition of the four layers* resolved at ONE point — the golden-rule
+posture (converge on composition, never branch downstream) that
+`buildDeploymentConfig` holds for bots and `getPatch`'s merge already models
+in miniature.
+
+```
+Instrument (named, shelved data)
+├── voice   : which playVoice topology
+├── patch   : params for that voice (the timbre)
+├── color   : default chain effects (body / drive / formant / filter)
+└── feel    : default performance preset (strum, jitter, articulation)
+```
+
+A manifest part references `instrument: 'electric-guitar'` and gets the whole
+stack; explicit `patch`/`chain`/`feel` on the part still work and *override*
+the instrument's defaults (same merge as `getPatch(name, overrides)`). The
+instrument is sugar that resolves to the existing primitives — it adds no new
+runtime path, only a shelf lookup + merge. `resolveInstrument(name, overrides)
+→ { patch, chain, feel }`, called once in the scheduler where `patches[...]`
+is read today.
+
+### The voice basis (the one expensive axis — plan it, don't accrete it)
+
+Frame every voice as **excitation × resonator**. Today's five and the gaps:
+
+- osc — oscillator, no resonator (additive-ish via unison). Reeds/leads/pads.
+- fm — 2-op FM. Bells, e-piano, metallic — inharmonic.
+- membrane — pitch-swept sine. Drums.
+- noise — noise source. Percussion/breath/wind.
+- string — impulse → waveguide (KS). Plucked/struck strings. **(B6 added.)**
+
+Candidate new voices, in priority by **coverage per kernel branch**:
+
+1. **modal** — a bank of N decaying sine partials (freq/decay/gain each). One
+   topology unlocks a whole family: bells, mallets, marimba, vibes, glass,
+   gongs, tines, and struck-metal — and sharpens piano (partly modal). Highest
+   leverage; pure and seeded; the natural next voice.
+2. **formant** — source (pulse/noise) through 3–5 formant band-passes. Voice,
+   choir, vowel pads, and the "throat" of winds. Moderate.
+3. **bowed / sustained-excitation** — continuous drive into a resonator.
+   Bowed strings; with formant, brass/reed. Hardest (sustaining loop); last.
+
+Explicitly *fold, don't fork*: a wind/brass **bore** is a KS cousin — extend
+the `string` voice with a `boundary`/`loss` param, not a new branch. New
+branches are for genuinely new topologies, not parameter variants.
+
+Reachable NOW with zero kernel change (patch + color + feel only), so they
+are B6 shelf work, not voice work: **bass** (string + finger/slap feel),
+**e-piano/Rhodes/DX bells** (fm patches), **pizzicato** (string patches),
+**organ/drawbar** (osc unison, or cleaner once `modal` lands), **synth
+leads/pads** (osc/fm), **drum kit** (membrane+noise+gesture rack, per B5.1).
+
+### Feel presets (articulation as named data)
+
+`noteFeel` params are performance vocabulary, not per-part magic numbers.
+Shelve named presets — `strum-down`, `fingerpick`, `alt-pick`, `ensemble`
+(detune+timing spread for sections), `staccato`, `robotic` (the null feel) —
+reused across instruments exactly like patches. An instrument's default `feel`
+references a preset by name.
+
+### Sustainability rules (carry the doctrine forward)
+
+- **One dispatch point per layer.** Voices → `playVoice`; color → `buildChain`;
+  feel → `noteFeel`; instruments → `resolveInstrument`. Every addition is one
+  additive, localized clause that cannot break its siblings. No cross-layer
+  special-casing.
+- **Pure + seeded, always.** New voices join the realizer (untested by
+  design); everything else (patch data, feel, instrument resolution) stays on
+  the pure, unit-tested side. Determinism/replay is non-negotiable.
+- **A card per primitive.** Each voice, color effect, feel preset, and named
+  instrument earns a vocab card (the "new kind costs a card, not a
+  registration" discipline) so intent → primitive routes via semantic_search
+  and it is mintable, not just scratch-scriptable.
+- **Kernel budget still binds.** The four-layer split is what *keeps* the
+  budget: instruments are data, not code. If a voice is a parameter variant of
+  an existing one, it is a param, not a branch.
+
+### Phases
+
+**B6.0 — the layered spike.** ✅ Built (working tree, uncommitted): `string`
+voice, `guitar*` patches, `body`/`drive` chain effects, `noteFeel` +
+composition-mode feel, tests. Not yet documented as vocab, not yet mintable
+beyond patches/effects the existing kinds already accept.
+
+**B6.1 — name the model + shelves.** `resolveInstrument` + an `INSTRUMENTS`
+shelf (data), a `FEEL_PRESETS` shelf (data); manifest `instrument:` on a part
+resolving to `{patch, chain, feel}` with part-level overrides merged; feel
+applied in pattern mode too (composition-only today). Vocab cards for the
+`string` voice, `body`/`drive` effects, feel presets, and the seed guitar
+instruments. Exit: an agent mints an electric-guitar composition over MCP by
+name, no scratch script; the null path is byte-identical to today.
+
+**B6.2 — the modal voice.** ✅ Built. The `modal` voice in playVoice — a sum
+of decaying sine partials ({ ratio, gain, decay } each), bypassing the ADSR so
+each mode's own decay is the envelope and the note rings for its own length
+(struck, not sustain-then-release). First instrument: `steel-drum` (patch
+`steelpan`), tuned octave/twelfth/double-octave modes + bright inharmonic
+modes that die fast. Composes with attackNoise (mallet tick), the chain
+(reverb), harmony bus, and feel. Still to shelf on this voice: bells / marimba
+/ vibes / glockenspiel / gongs — all now pure patch data (partial sets).
+
+**B6.3 — later.** formant voice (voice/choir/wind throat); bowed/sustained
+voice; bass slap articulation; string-voice `boundary`/`loss` extension for
+bores; per-instrument default color presets in the player UI.
+
+### Deliberately out (B6)
+
+- Sample import / multisampled realism (unchanged doctrine — acoustic piano,
+  human voice stay out; the model closes the gap by *modeling*, not sampling).
+- A voice per instrument. Instruments are compositions; a new voice must earn
+  a genuinely new excitation×resonator topology, not a timbre.
+- An instrument inheritance tree / class hierarchy — flat named data + a merge,
+  not OO. If two instruments share color/feel, they reference the same shelf
+  entry; they do not subclass.
+- Audio-rate modulation, LFO matrices, effect automation (unchanged from B5).
+
+---
+
+## B7 — the harmony bus (house-sequencer analysis, 2026-07-06)
+
+A fourth spike input: a matured, fully-featured house/UKG step sequencer
+(descendant of the Night Bus artifact), all-synth, raw WebAudio, no Tone.js —
+so it re-confirms the substrate's synthesis surface and doctrine while
+demonstrating primitives B5/B6 lack. Analysis separated **substrate
+primitives** (recipe-level, agent-authorable, deterministic) from **player/UI
+affordances** (add/remove-from-catalog editor, drag-repitch, slots, project
+file — beyond the "recipe is the author; the player performs + tweaks macros"
+posture; a reference design, not substrate work).
+
+The load-bearing find, spiked in B7.0: the **harmony bus** — author the chords
+ONCE, and many instruments follow. Everything else the file showed (arrangement
+scenes, send/master-bus routing, sidechain, formant/texture voices, .wav
+export) is independent of each other and of this — a **menu**, not a sequence.
+So B7.0 spikes the bus alone; the rest are pulled from B7.x by what's wanted.
+
+### What the spike taught
+
+- The file's real gift is not more voices (its ~20 CATALOG instruments map onto
+  our 5 voices + patches) but **compositional/structural** primitives: a shared
+  chord progression that any `chordVoice:true` track reads, chord-relative
+  sequencing (arp = `chord[i%n]`, comp = `chord[⌊i/8⌋%n]`), per-step pitch
+  offsets, A/B scenes, send/master buses, and sidechain ducking.
+- Harmony was already half-present: `beats-ambient` has a `progression`, but
+  only two hard-coded roles (harmony/roots) consume it, only in that kind. The
+  generalization is "*any* instrument subscribes to a harmony layer" — which
+  composes with the B6 instrument model (chord-following is a track behavior
+  orthogonal to the instrument's sound).
+- Doctrine flags for anything imported from the file: it uses `Math.random`
+  freely (crackle grains, reverb impulse, clap timing) — every one must reseed
+  through mulberry32; its MP3 export loads lamejs from a CDN — out (network
+  dependency); `.wav` via OfflineAudioContext is clean and in-doctrine (B4).
+
+### The primitive (B7.0, built — beats-pattern)
+
+Harmony rides the pattern kind (its native fit — explicit steps make a per-step
+chord schedule natural):
+
+- Manifest gains `chords: { name: [notes] }` (a voicing dictionary) and
+  `progression: [name, …]` (chord names). normalize **stretches** the
+  progression across the loop (4 chords over 32 steps → 8 steps each) and
+  stores it per-step — the stored manifest stays the explicit grid (B5.2).
+- A track gains `chordVoice: 'chord'|'strum'|'block'|'arp'|'root'` (or `true` =
+  chord). It ignores its note contour and derives notes from
+  `chords[progression[step]]` via `chordVoiceNotes(mode, chord, step)` in the
+  kernel (pure, tested): whole chord (feel strums it), one note walking up
+  (arp), or the root (basslines). Composes with the B6 feel layer — a
+  chord-following guitar + a strum feel = a rhythm guitar tracking the chart.
+- `instrument:` now expands on pattern tracks too (the B6.1 loose end), so
+  chord voices are authored by instrument name (`acoustic-guitar`, …).
+- Determinism preserved; a pattern without `chords`/`progression` is
+  byte-identical to before. Exit met: four instruments (strummed acoustic,
+  arpeggiated electric, root bass, pad) follow one Am–F–C–G chart; changing
+  ONLY the progression line moves the whole band (proven by test + two demos).
+
+### The menu (B7.x — independent, pull by want)
+
+- **Scenes / arrangement** — multiple named patterns in one artifact + a
+  section order (verse/chorus). The A/B of the source file.
+- **Send / master-bus routing** — shared delay/reverb sends + a master FX chain,
+  so reverb isn't duplicated per part's `chain`. A routing model above per-part.
+- **Sidechain / trigger-modulation** — one track's hits duck/gate a bus (the
+  house pump). The intra-audio analog of the world `bindings` seam.
+- **Formant voice** — the file's `vocalchop` (source → two formant bandpass) is
+  the B6.3 `formant` voice, proven; folds into B6, not here.
+- **Texture bed + filter-sweep gesture** — `crackle` (seeded stochastic grains)
+  and `riser`/`downlift` (bandpass cutoff sweep, the filter cousin of the pitch
+  `sweep` gesture). B6-adjacent voice/gesture work.
+- **`.wav` export** — the file's `renderOffline` (repoint the graph at an
+  `OfflineAudioContext`, re-run the voices, restore) is exactly B4's
+  export-only render.
+
+### Deliberately out (B7)
+
+- The full grid editor (catalog add/remove, drag-repitch, slots, project file)
+  — player affordances, not substrate; the recipe stays the author.
+- Chord *theory* helpers (progression generation, voice leading) — the agent's
+  job at authoring time; the substrate stores the chosen voicings (B0 doctrine).
+- MP3 export / any CDN dependency (unchanged doctrine).

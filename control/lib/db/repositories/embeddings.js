@@ -80,6 +80,14 @@ export const SOURCE_KINDS = [
   // schema manual for `create_game`. Discovered by intent; read in full via
   // `get_game_vocab`.
   'game_vocab',
+  // game-mechanic cards — one per level MECHANIC (+ the fall policy + a guide)
+  // under lib/graph/game/mechanic-cards/. Routing phrases + the parameter manual
+  // for a level's `game.mechanics`. Discovered by intent; read via `get_game_vocab`.
+  'game_mechanic',
+  // game-kit cards — one per game KIT (generated from lib/graph/game/kits.js):
+  // a curated store + level-template + progression bundle. Discovered by intent
+  // ("a dungeon crawler", "a survival arena"); read via `get_game_vocab`.
+  'game_kit',
 ];
 
 const SNIPPET_MAX_CHARS = 280;
@@ -545,6 +553,26 @@ export const BodyComposition = {
     // Same shape as beatsVocab: lead with the intent-phrased fields so "a
     // customizable army that persists" / "loot carried between levels" match
     // before the store-schema manual does.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  gameMechanic(card) {
+    // Same shape: lead with intent phrases so "reach the exit" / "collect coins" /
+    // "don't die from falling" match the mechanic card before its param manual.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  gameKit(card) {
+    // Same shape: lead with intent phrases so "make a dungeon crawler" / "a survival
+    // arena" match the kit card before its store/level-template recipe.
     const lines = [];
     lines.push(`# ${card.name}`);
     if (card.summary) lines.push('', card.summary);
@@ -1031,6 +1059,35 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`game_vocab: ${gameVocab.size}`);
+
+  // 15. Game-mechanic cards — one *.md per level mechanic (+ the fall policy + a guide) under
+  // lib/graph/game/mechanic-cards/. Routing phrases + the parameter manual for a level's
+  // `game.mechanics`, so "reach the exit" / "collect coins" / "don't die from falling" surfaces
+  // the right mechanic before composing a level. Repo-curated markdown. See game-mechanics.plan.md.
+  const { getMechanicVocabCatalog } = await import('../../graph/game/mechanic-cards/loader.js');
+  const mechanicVocab = getMechanicVocabCatalog();
+  for (const card of mechanicVocab.values()) {
+    items.push({
+      sourceKind: 'game_mechanic',
+      sourceRef: card.id,
+      bodyText: BodyComposition.gameMechanic(card),
+    });
+  }
+  log(`game_mechanic: ${mechanicVocab.size}`);
+
+  // 16. Game-kit cards — one per game KIT, GENERATED from lib/graph/game/kits.js (store + level
+  // template + progression + a worked example), so "make a dungeon crawler" / "a survival arena"
+  // surfaces a ready game shape. See game-mechanics.plan.md (M4).
+  const { getKitVocabCatalog } = await import('../../graph/game/kit-cards/loader.js');
+  const kitVocab = getKitVocabCatalog();
+  for (const card of kitVocab.values()) {
+    items.push({
+      sourceKind: 'game_kit',
+      sourceRef: card.id,
+      bodyText: BodyComposition.gameKit(card),
+    });
+  }
+  log(`game_kit: ${kitVocab.size}`);
 
   if (items.length === 0) {
     log('nothing to index');

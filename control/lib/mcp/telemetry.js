@@ -93,6 +93,51 @@ function recordRow(row) {
   }
 }
 
+// --- Handler-attached outcome signals (orientation-ramp.plan.md R4) ---
+//
+// A handler may attach `_telemetrySignal` to its result — a small object of
+// NUMBERS and ENUMS describing the call's outcome shape (e.g. semantic_search
+// → { top_score, result_count, kinds }; a vocab drawer → { id_requested,
+// found }). The key is stripped here on EVERY path (including telemetry-off)
+// so it never reaches the wire; the sanitized value persists to signal_json.
+// Same discipline as input_keys: shapes and numbers, never values — the
+// sanitizer enforces it mechanically (short strings only, shallow, capped).
+
+const SIGNAL_STRING_MAX = 64;
+const SIGNAL_JSON_MAX = 512;
+
+function sanitizeSignal(signal) {
+  if (!signal || typeof signal !== 'object' || Array.isArray(signal)) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(signal)) {
+    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
+    else if (typeof value === 'boolean') out[key] = value;
+    else if (typeof value === 'string') out[key] = truncate(value, SIGNAL_STRING_MAX);
+    else if (Array.isArray(value)) {
+      out[key] = value
+        .slice(0, 16)
+        .filter((v) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')
+        .map((v) => (typeof v === 'string' ? truncate(v, SIGNAL_STRING_MAX) : v));
+    }
+    // objects / functions / anything deeper: dropped.
+  }
+  if (Object.keys(out).length === 0) return null;
+  try {
+    return truncate(JSON.stringify(out), SIGNAL_JSON_MAX);
+  } catch {
+    return null;
+  }
+}
+
+// Pull the signal off the result (mutating it so the key never serializes to
+// the wire) and return the sanitized JSON string or null.
+function takeSignal(result) {
+  if (!result || typeof result !== 'object' || !('_telemetrySignal' in result)) return null;
+  const signal = result._telemetrySignal;
+  delete result._telemetrySignal;
+  return sanitizeSignal(signal);
+}
+
 function logLine({ tool, durationMs, status, via, sessionId }) {
   const ms = Math.round(durationMs);
   const session = sessionId ? ` session=${sessionId}` : '';
@@ -116,9 +161,12 @@ function logLine({ tool, durationMs, status, via, sessionId }) {
 export async function instrumentedInvoke(tool, input, context, { via, name } = {}) {
   const calledName = name || tool?.name || 'unknown';
 
-  // Fast path: telemetry off ⇒ no timing, no timeout, no record.
+  // Fast path: telemetry off ⇒ no timing, no timeout, no record. The signal
+  // key is still stripped so it never leaks to the wire.
   if (!telemetryEnabled()) {
-    return await tool.handler(input || {}, context || {});
+    const result = await tool.handler(input || {}, context || {});
+    takeSignal(result);
+    return result;
   }
 
   const sessionId = context?.mcpSessionId || null;
@@ -151,12 +199,14 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
     const result = await Promise.race([handlerPromise, timeoutPromise]);
     if (timer) clearTimeout(timer);
     const durationMs = performance.now() - started;
+    const signalJson = takeSignal(result); // strip BEFORE measuring wire bytes
     recordRow({
       ...base,
       durationMs,
       status: 'ok',
       resultBytes: serializedBytes(result),
       resultJson: captureJson(result),
+      signalJson,
     });
     logLine({ tool: calledName, durationMs, status: 'ok', via: base.via, sessionId });
     return result;
@@ -173,12 +223,14 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
       handlerPromise.then(
         (lateResult) => {
           const lateMs = performance.now() - started;
+          const lateSignalJson = takeSignal(lateResult);
           recordRow({
             ...base,
             durationMs: lateMs,
             status: 'late_settle',
             resultBytes: serializedBytes(lateResult),
             resultJson: captureJson(lateResult),
+            signalJson: lateSignalJson,
           });
           logLine({ tool: calledName, durationMs: lateMs, status: 'late_settle', via: base.via, sessionId });
         },

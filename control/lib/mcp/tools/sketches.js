@@ -448,7 +448,7 @@ export async function diffSketchesHandler(input) {
       similarity: diff.similarity,
       summary: diff.summary,
       message:
-        'Sketches do not appear comparable enough for a useful visual diff. Pass force:true to mint a low-confidence comparison anyway.',
+        'Sketches do not appear comparable enough for a useful visual diff. next: re-call with force:true if you really want the low-confidence comparison, or diff nearer revisions.',
     };
   }
 

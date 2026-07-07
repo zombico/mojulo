@@ -26,6 +26,7 @@ import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
 import { composeLandscapeRaymarch } from '@/lib/graph/landscape/painted-landscape-raymarch';
 import { renderFigureWorldFrames } from '@/lib/graph/polygonizer/figure-render';
 import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/worlds/world-kinds';
+import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 
 export { resolveWrapTextures };
 
@@ -182,13 +183,29 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // MECHANICS lowering (game-mechanics.plan.md, M1): if the level's `game` channel declares
+  // `mechanics` (+ an optional `fall` policy), lower them ONCE here — into an events fragment
+  // (zones/reactions/watches/timers/hud/vars, onto the M0-pre zone fact source) merged into the
+  // manifest's own events, and into synthesized contract fragments (produces/on/consumes/audits)
+  // merged into the game channel below. The author declares verbs; the plumbing is generated. The
+  // store isn't known at level-resolve, so mechanics NAME their slices (into:'bag'); create_game
+  // re-validates the synthesized contract against the game's actual store. Deterministic + pure.
+  let mechEvents = null;
+  if (payload && sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics) && sketch.manifest.game.mechanics.length) {
+    const synth = synthesizeLevel(sketch.manifest);   // lower mechanics → events + synthesized contract
+    mechEvents = synth.mechEvents;
+    // stash the synthesized contract onto a working copy of the game channel for the block below
+    sketch = { ...sketch, manifest: { ...sketch.manifest, game: synth.game } };
+  }
+
   // generic, opt-in EVENTS channel (event-bus.plan.md): the in-world bus. A manifest may carry an
   // `events` block ({ sources, reactions, sequences, initial, entities }) — declarative reactions
   // that turn physics FACTS (contact/rest) and timers into meaning (spawn/toggle/move/emit), and
   // reach back into physics via the 5b bridge. It rides on top of any kind (typically alongside
   // `physics`), so it is gated on an existing payload. Present (reactions or sequences) ⇒ a LIVE
   // channel the static stills can't run, so `nonBakeable` (the /svg + /scene degrade to frame zero).
-  const ev = payload && sketch.manifest.events;
+  // Mechanics-lowered events (mechEvents) merge in here so the one bus runs both.
+  const ev = payload && mergeEventManifests(sketch.manifest.events, mechEvents);
   if (ev && ((Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length))) {
     payload.events = ev;
     payload.nonBakeable = true;

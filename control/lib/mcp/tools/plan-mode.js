@@ -370,10 +370,10 @@ export async function compilePlanHandler(input, _ctx) {
       illegal_tools: illegalTools,
       message:
         unknownTools.length > 0
-          ? `Plan stays Draft: ${unknownTools.length} manifest call(s) reference tools mojulo doesn't ship (${[...new Set(unknownTools)].join(', ')}). Either revise the spike to use live tools, or treat the gap as a roadmap signal.`
+          ? `Plan stays Draft: ${unknownTools.length} manifest call(s) reference tools mojulo doesn't ship (${[...new Set(unknownTools)].join(', ')}). Either revise the spike to use live tools, or treat the gap as a roadmap signal. next: revise_plan to remove or replace the unknown calls, then re-compile.`
           : illegalTools.length > 0
-            ? `Plan stays Draft: manifest references plan-mode meta-tools (${[...new Set(illegalTools)].join(', ')}), which may not appear in a manifest.`
-            : `Plan stays Draft: manifest is malformed. ${errors.join('; ')}`,
+            ? `Plan stays Draft: manifest references plan-mode meta-tools (${[...new Set(illegalTools)].join(', ')}), which may not appear in a manifest. next: revise_plan to drop them, then re-compile.`
+            : `Plan stays Draft: manifest is malformed. ${errors.join('; ')} next: revise_plan to fix the listed steps, then re-compile.`,
     };
   }
 

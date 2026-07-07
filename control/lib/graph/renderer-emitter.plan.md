@@ -1,6 +1,7 @@
 # renderer emitter — pay down the accretion mechanics
 
-Status: E1–E4, E6, E7 LANDED (2026-07-05, one spike); E5 (walk unification) remains PROPOSED.
+Status: E1–E4, E6, E7 LANDED (2026-07-05, one spike); E8 (sprite-safe ground probe) LANDED
+2026-07-06; E5 (walk unification) remains PROPOSED.
 What shipped vs. the design below, with recorded deviations:
 
 - **E1** — `scene/emit-util.js` (`safeJson`, `escapeHtml`, `b64`, the three.js delivery-mode
@@ -41,6 +42,30 @@ What shipped vs. the design below, with recorded deviations:
 - Known unrelated failure at spike end: `education-module.test.js` (13-kinds pin vs the new
   `heat-sphere-view`, whose payload rides the `heatSpheres` channel the test's content check
   doesn't know) — pre-existing drift from the math-worlds thread, not touched here.
+- **E8 (2026-07-06)** — decoration-safe ground probe (mesh-only footing). TWO bugs, found
+  composing tracers/comets with a walk entity in a one-off world (the channels had never met
+  in a shipped kind):
+  1. `__ground` raycasts `scene.children` recursively without setting `raycaster.camera`,
+     and `THREE.Sprite.raycast` dereferences it — ONE glow sprite anywhere in the scene
+     (tracer/comet heads + trails) crashed the first walk/platform ground probe with
+     "Cannot read properties of null (reading 'matrixWorld')", killing the page before
+     `__mojCapture.ready`.
+  2. With that survived, `THREE.Line.raycast`'s fat default threshold let the comet's
+     orbital TRACK LINE read as a floor — the walker probe-verified at z=0.6, standing on
+     a decoration.
+  Counter, all in `scene/channels.js`: root — `__ground` sets `__groundRay.camera = camera`
+  (survives whatever raycast-hostile object a channel adds next) and skips every
+  **non-mesh** hit (only meshes are footing: sprites, lines, points can never be floor);
+  belt-and-braces — tracer glows, comet glows, and the comet track line set
+  `raycast = () => {}` (decoration invisible to ground probes and picks alike).
+  Emitted-byte change by design → char-net re-pin of the fixtures this touches (`tracers`,
+  `comets`, and every controllable-carrying fixture). Verified live in headless Chromium:
+  a tracers + comets + walk-entity world reaches ready, `compileWalkTo` completes, the
+  route passes under both glow rings and the track line with probe z pinned to the real
+  floor. Caveat noted while testing: a hand-authored comet spec needs `period`, `rPeri`,
+  `rAphe`, and `readout:false` (the readout HUD assumes comet-view's planner arrays
+  `dist`/`speed`) — the channel normalize only checks `path`, so a partial spec still
+  crashes stepComets; tighten if comets ever get a second producer.
 
 Sequel to [renderer-ladder.plan.md](renderer-ladder.plan.md)
 (raised the ceiling) and [renderer-convergence.plan.md](renderer-convergence.plan.md) (made the

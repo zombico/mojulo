@@ -51,6 +51,40 @@ for (const e of GLOW) {
 }`;
 }
 
+// In-page script: the specular channel (material-response.plan.md P2) — the view-dependent
+// half of the material response. Groups whose geometry carries a per-vertex `aSpec`
+// [strength, power] attribute (packed by faceListToMesh from faces tagged `spec`) get their
+// MeshBasicMaterial patched with a Blinn-Phong term against the FIXED baked light direction
+// and the LIVE camera: baked solve, live reconstruction — the AO posture. Flat normals are
+// derived in-fragment (dFdx × dFdy of the world position), so the triangle-soup geometry
+// needs no normal attribute. A one-shot setup block like glow/shadow/pick: scenes with no
+// spec faces emit ZERO bytes of this and stay byte-identical.
+export function specularChannelScript(toLight) {
+  return `
+// --- specular channel (material response): baked light dir + live camera highlight ---
+const SPEC_L = ${safeJson(toLight.map((v) => +v.toFixed(6)))};
+for (const grp of GROUPS) {
+  if (!grp.spec) continue;
+  const sm = meshes[grp.name]; if (!sm) continue;
+  sm.geometry.setAttribute('aSpec', new THREE.BufferAttribute(decodeF32(grp.spec), 2));
+  sm.material.onBeforeCompile = (sh) => {
+    sh.uniforms.uSpecL = { value: new THREE.Vector3(SPEC_L[0], SPEC_L[1], SPEC_L[2]) };
+    sh.vertexShader = 'attribute vec2 aSpec;\\nvarying vec2 vSpec;\\nvarying vec3 vSpecWp;\\n' + sh.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\\nvSpec = aSpec;\\nvSpecWp = (modelMatrix * vec4(position, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform vec3 uSpecL;\\nvarying vec2 vSpec;\\nvarying vec3 vSpecWp;\\n' + sh.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      'vec3 sN = normalize(cross(dFdx(vSpecWp), dFdy(vSpecWp)));\\n' +
+      'vec3 sV = normalize(cameraPosition - vSpecWp);\\n' +
+      'if (dot(sN, sV) < 0.0) sN = -sN;\\n' +
+      'float sNdH = max(0.0, dot(sN, normalize(uSpecL + sV)));\\n' +
+      'gl_FragColor.rgb += vSpec.x * pow(sNdH, max(vSpec.y, 1.0));\\n' +
+      '#include <dithering_fragment>');
+  };
+  sm.material.needsUpdate = true;
+}`;
+}
+
 // In-page script: the PICK channel (emitThreeWorld picks option). Click a pickable sub-mesh
 // (keyed by its render-group name via mesh.userData.g) → raise a DOM metadata popup. A small
 // pointer-movement threshold distinguishes a click from an orbit-drag, so it composes with
@@ -168,7 +202,8 @@ const tracerRigs = TRACERS.map((tr) => {
   const rgb = tr.color || [120, 200, 255];
   const tex = tracerTex(rgb);
   const trail = Math.max(0, Math.floor(tr.trail ?? 14));
-  const mk = (op, sz) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: op })); s.scale.set(sz, sz, 1); s.renderOrder = 3; scene.add(s); return s; };
+  // decorative glow — opt out of raycasts (ground probes and picks alike; see __ground's E8 note).
+  const mk = (op, sz) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: op })); s.raycast = () => {}; s.scale.set(sz, sz, 1); s.renderOrder = 3; scene.add(s); return s; };
   const head = mk(1, tr.size || 1.2);
   const trailSprites = Array.from({ length: trail }, (_, i) => mk(0.5 * (1 - i / (trail + 1)), (tr.size || 1.2) * (1 - 0.5 * i / (trail + 1))));
   return { path: tr.path, segments: tr.segments || null, period: Math.max(1, tr.period || 10), lag: (tr.trailLag ?? 0.006), head, trailSprites };
@@ -234,6 +269,8 @@ function cometTex(rgb, soft) {
 }
 function cometSprite(tex, op, sz) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: op }));
+  // decorative glow — opt out of raycasts (ground probes and picks alike; see __ground's E8 note).
+  s.raycast = () => {};
   s.scale.set(sz, sz, 1); s.renderOrder = 3; scene.add(s); return s;
 }
 function cometAt(path, u) {
@@ -250,6 +287,8 @@ const cometRigs = COMETS.map((cm) => {
   if (cm.track !== false) {
     const tg = new THREE.BufferGeometry().setFromPoints(cm.path.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
     const ln = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: cm.trackColor != null ? cm.trackColor : 0x39507a, transparent: true, opacity: 0.5 }));
+    // decorative track — opt out of raycasts (see __ground's E8 note; Line's default threshold is fat).
+    ln.raycast = () => {};
     ln.renderOrder = 1; scene.add(ln);
   }
   const sg = cometSprite(cometTex(cm.sunColor || [255, 210, 110], true), 0.95, cm.sunSize || 3);
@@ -1031,9 +1070,15 @@ function __ground(pos) {
   // surface under the FEET and ignores platforms whose tops sit above them — you jump onto a ledge, you
   // do not warp up into it by walking into its base). (Was pos.z+20, which grabbed any overhead surface.)
   __groundRay.set(new THREE.Vector3(pos[0], pos[1], pos[2] + 0.05), new THREE.Vector3(0, 0, -1));
+  // decoration safety (E8): only MESHES are footing. THREE.Sprite.raycast dereferences
+  // raycaster.camera — without it, ONE glow sprite anywhere in the scene (a tracer/comet head)
+  // kills the first ground probe of a walk/platform entity; and THREE.Line raycasts with a fat
+  // default threshold, so an orbit/track line reads as a floor 0.6 units up. Set the camera so
+  // the traverse survives whatever channels add, and skip every non-mesh hit.
+  __groundRay.camera = camera;
   const own = __bodySet();
   const hits = __groundRay.intersectObjects(scene.children, true);
-  for (const hit of hits) { let o = hit.object; while (o) { if (own.includes(o)) break; o = o.parent; } if (!o) return hit.point.z; }
+  for (const hit of hits) { if (!hit.object.isMesh) continue; let o = hit.object; while (o) { if (own.includes(o)) break; o = o.parent; } if (!o) return hit.point.z; }
   return null;
 }
 // input: keys → normalized axes, mouse → look deltas (consumed each frame).
@@ -2052,7 +2097,7 @@ function __syncBus() {
 // first, so window.__mojSim is already present).
 if (window.__mojSim) __BUS.linkPhysics(__busState, window.__mojSim.state);
 if (EVENTS.initial) __BUS.processEvents(__busState, EVENTS.initial);
-let __busPrev, __busPrevT = 0;
+let __busPrev, __busPrevT = 0, __zonePrev;
 stepEvents = (t) => {
   const dtSec = __busPrevT ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0
   if (window.__mojSim) __BUS.syncFromBodies(__busState, window.__mojSim.state);   // fresh body reads
@@ -2063,6 +2108,11 @@ stepEvents = (t) => {
     __busPrev = d.prev;
     for (const ev of d.events) incoming.push(ev);
   }
+  if (window.__mojCtrl) {           // ZONE FACTS → enter/exit events for the walking player (M0-pre)
+    const z = __BUS.deriveZoneEvents(window.__mojCtrl.world.entities, __zonePrev, __SOURCES);
+    __zonePrev = z.prev;
+    for (const ev of z.events) incoming.push(ev);
+  }
   if (incoming.length) __BUS.processEvents(__busState, incoming);
   __watchFix();                                      // conceptual predicates (vars/entities/counts)
   const ticks = __BUS.tickTimers(__busState, dtSec); // recurring world heartbeats (spawners, countdowns)
@@ -2071,6 +2121,7 @@ stepEvents = (t) => {
   if (timed.length) __BUS.processEvents(__busState, timed);
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
+  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities); // apply respawn/teleport warps
   __syncBus(); __syncHud(); __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
@@ -2232,7 +2283,16 @@ const __GAME = ${safeJson(game)};
     };
     const prev = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
-      for (const ev of events) {
+      // Match against state.log's DELTA, not the incoming array: the reducer cascades
+      // reaction-emitted events (goal:reached, pickup:*) INTERNALLY (frontier=next), so they
+      // never re-enter this wrapper as arguments. Every processed event — incoming facts AND
+      // cascaded emissions — lands in the durable log, so the delta is the complete drained
+      // stream. Read-only on bus state: determinism (hash → replay) is untouched.
+      const n0 = state.log.length;
+      const out = prev(state, events);
+      for (let i = n0; i < state.log.length; i++) {
+        const ev = state.log[i];
+        if (!ev || !ev.type) continue;   // cap/noop markers carry no type
         for (const pat in __GAME.on) {
           if (!glob(ev.type, pat)) continue;
           const act = __GAME.on[pat];
@@ -2241,7 +2301,7 @@ const __GAME = ${safeJson(game)};
           break;
         }
       }
-      return prev(state, events);
+      return out;
     };
   }
   // handshake: hosted levels announce and await params; standalone/capture runs fall back to

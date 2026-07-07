@@ -75,18 +75,28 @@ export async function gatherHandler(input, _ctx) {
   if (!type || typeof type !== 'string') {
     throw new Error('type is required (one of: text, markdown, image, svg, script, pointer, link)');
   }
-  const item = StashRepository.gather({
-    stashRef: stash_ref,
-    drawer,
-    type,
-    title,
-    sourceUrl: source_url,
-    body,
-    bodyMd: body_md,
-    bodySvg: body_svg,
-    mediaRef: media_ref,
-    metadata,
-  });
+  let item;
+  try {
+    item = StashRepository.gather({
+      stashRef: stash_ref,
+      drawer,
+      type,
+      title,
+      sourceUrl: source_url,
+      body,
+      bodyMd: body_md,
+      bodySvg: body_svg,
+      mediaRef: media_ref,
+      metadata,
+    });
+  } catch (err) {
+    // Intake rejection — carry the remediation with the refusal (R3a,
+    // orientation-ramp.plan.md) so the gate never reads as a dead end.
+    if (err instanceof Error && /require|must|exceeds|invalid/i.test(err.message)) {
+      err.message += ' next: fix the named field and re-gather — nothing was stored.';
+    }
+    throw err;
+  }
   return {
     ok: true,
     item_id: item.id,

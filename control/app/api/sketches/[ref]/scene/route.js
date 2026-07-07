@@ -16,6 +16,15 @@ import { NextResponse } from 'next/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { renderSceneHtml } from '@/lib/graph/scene/scene-html';
 
+// A filesystem-safe download name derived from the sketch title (falls back to the ref).
+function htmlFilename(sketch, ref) {
+  const base = (sketch.title || sketch.manifest?.title || ref || 'scene')
+    .trim()
+    .replace(/[^a-z0-9._-]+/gi, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${base || 'scene'}.html`;
+}
+
 export async function GET(request, { params }) {
   try {
     const { ref } = await params;
@@ -40,11 +49,12 @@ export async function GET(request, { params }) {
       }, { status: 422 });
     }
 
+    const download = ['1', 'true'].includes(request.nextUrl.searchParams.get('download'));
     return new Response(html, {
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': 'inline',
+        'Content-Disposition': download ? `attachment; filename="${htmlFilename(sketch, ref)}"` : 'inline',
         'Cache-Control': 'no-store',
       },
     });

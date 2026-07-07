@@ -17,12 +17,16 @@
  */
 
 import { PATCHES } from './audio-patches.js';
+import { INSTRUMENTS, FEEL_PRESETS, resolveInstrument, resolveFeel } from './instruments.js';
 
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
 const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump']);
 const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive']);
+// B7 harmony bus: a chordVoice track derives its notes from the shared
+// progression instead of a note contour. Modes = how it reads the chord.
+const CHORD_VOICE_MODES = new Set(['chord', 'strum', 'block', 'arp', 'root', 'upper']);
 const NOTE_RE = /^[A-Ga-g][#b]?-?\d+$/;
 
 export function isBeatsKind(kind) {
@@ -58,6 +62,63 @@ function checkChain(chain, where, errors) {
 function checkPatch(patch, where, errors) {
   if (patch !== undefined && !PATCHES[patch]) {
     errors.push(`${where}.patch '${patch}' is unknown (patches: ${Object.keys(PATCHES).join(', ')})`);
+  }
+}
+
+// B6: an `instrument` name resolves to { patch, chain, feel } at normalize time.
+function checkInstrument(instrument, where, errors) {
+  if (instrument !== undefined && !INSTRUMENTS[instrument]) {
+    errors.push(`${where}.instrument '${instrument}' is unknown (instruments: ${Object.keys(INSTRUMENTS).join(', ')})`);
+  }
+}
+
+// B7: the harmony bus — a named chord dictionary + a progression that
+// references it. chordVoice tracks read progression[step] → chords[name].
+function checkHarmony(manifest, errors) {
+  const { chords, progression } = manifest;
+  if (chords !== undefined) {
+    if (!chords || typeof chords !== 'object' || Array.isArray(chords) || !Object.keys(chords).length) {
+      errors.push('chords must be a non-empty object { name: [notes] } (the chord dictionary)');
+    } else {
+      for (const [name, notes] of Object.entries(chords)) {
+        if (!Array.isArray(notes) || !notes.length) errors.push(`chords.${name} must be a non-empty note array`);
+        else notes.forEach((n) => checkNote(n, `chords.${name}`, errors));
+      }
+    }
+  }
+  if (progression !== undefined) {
+    if (!Array.isArray(progression) || !progression.length) {
+      errors.push('progression must be a non-empty array of chord names (stretched across the loop)');
+    } else if (chords && typeof chords === 'object') {
+      progression.forEach((nm, i) => {
+        if (typeof nm !== 'string' || !chords[nm]) errors.push(`progression[${i}] '${nm}' is not a key in chords`);
+      });
+    }
+  }
+}
+
+// B7: a chordVoice track follows the harmony bus. Requires chords+progression
+// and a sounding voice (patch|instrument, not a foley gesture/cue).
+function checkChordVoice(tr, where, manifest, errors) {
+  if (!tr || tr.chordVoice === undefined) return;
+  if (tr.chordVoice !== true && !CHORD_VOICE_MODES.has(tr.chordVoice)) {
+    errors.push(`${where}.chordVoice must be one of: ${[...CHORD_VOICE_MODES].join(', ')} (or true = chord)`);
+  }
+  if (tr.gesture !== undefined || tr.cue !== undefined) {
+    errors.push(`${where}.chordVoice needs a musical voice (patch | instrument), not a gesture/cue`);
+  }
+  if (!manifest.chords || !manifest.progression) {
+    errors.push(`${where}.chordVoice needs a harmony bus: add manifest-level chords + progression`);
+  }
+}
+
+// B6: `feel` is a preset name or an inline noteFeel params object.
+function checkFeel(feel, where, errors) {
+  if (feel === undefined) return;
+  if (typeof feel === 'string') {
+    if (!FEEL_PRESETS[feel]) errors.push(`${where}.feel '${feel}' is unknown (presets: ${Object.keys(FEEL_PRESETS).join(', ')})`);
+  } else if (typeof feel !== 'object' || Array.isArray(feel)) {
+    errors.push(`${where}.feel must be a preset name (string) or a params object`);
   }
 }
 
@@ -142,7 +203,9 @@ export function validateBeatsManifest(manifest) {
       manifest.parts.forEach((p, i) => {
         const where = `parts[${i}]`;
         if (!p || typeof p.name !== 'string' || !p.name) errors.push(`${where}.name is required (string)`);
+        checkInstrument(p && p.instrument, where, errors);
         checkPatch(p && p.patch, where, errors);
+        checkFeel(p && p.feel, where, errors);
         checkChain(p && p.chain, where, errors);
         if (!p || !Array.isArray(p.events) || !p.events.length) {
           errors.push(`${where}.events must be a non-empty array of [time, notes, dur?, vel?]`);
@@ -163,6 +226,7 @@ export function validateBeatsManifest(manifest) {
     if (manifest.steps !== undefined && (!Number.isInteger(manifest.steps) || manifest.steps < 8 || manifest.steps > 64)) {
       errors.push('steps must be an integer in [8, 64] (sixteenths per loop; default 32 = two bars)');
     }
+    checkHarmony(manifest, errors);
     if (!Array.isArray(manifest.tracks) || !manifest.tracks.length) {
       errors.push('tracks is required: [{ name, patch|gesture|cue, mask: [velocities], notes?|note?, chain?, level? }]');
     } else {
@@ -172,18 +236,21 @@ export function validateBeatsManifest(manifest) {
         if (!tr || typeof tr.name !== 'string' || !tr.name) errors.push(`${where}.name is required (string)`);
         else if (seen.has(tr.name)) errors.push(`${where}.name '${tr.name}' is duplicated`);
         else seen.add(tr.name);
-        // exactly one instrument: a patch (musical voice) OR a gesture / cue
-        // (the foley vocabulary doubling as the drum kit).
-        const instruments = ['patch', 'gesture', 'cue'].filter((k) => tr && tr[k] !== undefined);
+        // exactly one voice source: a patch or B6 instrument (musical voice) OR a
+        // gesture / cue (the foley vocabulary doubling as the drum kit).
+        const instruments = ['patch', 'instrument', 'gesture', 'cue'].filter((k) => tr && tr[k] !== undefined);
         if (instruments.length !== 1) {
-          errors.push(`${where} needs exactly ONE instrument: patch (synth voice) | gesture (one foley gesture) | cue (gesture list)${instruments.length ? ` — got ${instruments.join(' + ')}` : ''}`);
+          errors.push(`${where} needs exactly ONE voice: patch | instrument (synth voice) | gesture (one foley gesture) | cue (gesture list)${instruments.length ? ` — got ${instruments.join(' + ')}` : ''}`);
         } else if (tr.patch !== undefined) {
           checkPatch(tr.patch, where, errors);
+        } else if (tr.instrument !== undefined) {
+          checkInstrument(tr.instrument, where, errors);
         } else if (tr.gesture !== undefined) {
           checkGestures([tr.gesture], `${where}.gesture`, errors);
         } else {
           checkGestures(tr.cue, `${where}.cue`, errors);
         }
+        checkChordVoice(tr, where, manifest, errors);
         if (!tr || !Array.isArray(tr.mask) || !tr.mask.length) {
           errors.push(`${where}.mask is required: velocities per sixteenth (0 = rest, true = 0.9), wraps if shorter than steps`);
         } else {
@@ -203,6 +270,7 @@ export function validateBeatsManifest(manifest) {
           });
         }
         if (tr && tr.note != null) checkNote(tr.note, `${where}.note`, errors);
+        checkFeel(tr && tr.feel, where, errors);
         checkChain(tr && tr.chain, where, errors);
       });
     }
@@ -224,6 +292,24 @@ export function validateBeatsManifest(manifest) {
  * Fill musical defaults so a minimal valid recipe is fully self-contained when
  * stored. Never mutates the input. Defaults mirror the spike's tuned values.
  */
+// B6: expand a part's `instrument` into { patch, chain, feel } (part fields
+// override the instrument's defaults), and resolve any `feel` preset name to
+// params. A node with neither is returned unchanged — the null path is stable.
+function expandNode(node, { allowInstrument }) {
+  const out = { ...node };
+  if (allowInstrument && node.instrument) {
+    const r = resolveInstrument(node.instrument, { patch: node.patch, chain: node.chain, feel: node.feel });
+    out.patch = r.patch;
+    if (r.chain !== undefined) out.chain = r.chain; else delete out.chain;
+    if (r.feel !== undefined) out.feel = r.feel; else delete out.feel;
+    delete out.instrument;
+  } else if (node.feel !== undefined) {
+    const f = resolveFeel(node.feel);
+    if (f !== undefined) out.feel = f; else delete out.feel;
+  }
+  return out;
+}
+
 export function normalizeBeatsManifest(manifest) {
   const m = JSON.parse(JSON.stringify(manifest));
   if (m.kind === 'beats-ambient') {
@@ -242,7 +328,12 @@ export function normalizeBeatsManifest(manifest) {
   if (m.kind === 'beats-composition') {
     if (m.swing === undefined) m.swing = 0;
     if (m.loop === undefined) m.loop = false;
-    m.parts = m.parts.map((p) => ({ level: 0, patch: p.patch || 'sinePluck', ...p }));
+    m.parts = m.parts.map((p) => {
+      const e = expandNode(p, { allowInstrument: true });
+      const out = { level: 0, ...e };
+      if (!out.patch) out.patch = 'sinePluck';
+      return out;
+    });
   }
   if (m.kind === 'beats-pattern') {
     if (m.swing === undefined) m.swing = 0;
@@ -250,8 +341,14 @@ export function normalizeBeatsManifest(manifest) {
     // store masks/contours expanded to full loop length — the stored manifest
     // IS the grid (B5.2 renders it), so make every cell explicit.
     const expand = (arr) => Array.from({ length: m.steps }, (_, i) => arr[i % arr.length]);
+    // B7 harmony bus: stretch the progression across the loop (4 chords over 32
+    // steps → 8 steps each), then store it per-step so every cell is explicit.
+    if (Array.isArray(m.progression) && m.progression.length) {
+      const pl = m.progression.length;
+      m.progression = Array.from({ length: m.steps }, (_, i) => m.progression[Math.floor((i * pl) / m.steps)]);
+    }
     m.tracks = m.tracks.map((tr) => {
-      const out = { level: 0, ...tr };
+      const out = { level: 0, ...expandNode(tr, { allowInstrument: true }) };
       out.mask = expand(out.mask).map((v) => (v === true ? 0.9 : v === false ? 0 : v));
       if (out.notes) out.notes = expand(out.notes);
       return out;

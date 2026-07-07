@@ -406,6 +406,14 @@ export function decollideFaces(faces = [], { eps = STAGGER_EPS } = {}) {
 export function faceListToMesh(faces = [], { decollide = true } = {}) {
   const positions = [];
   const colors = [];
+  // Per-vertex specular params (material-response.plan.md P2): a face carrying
+  // `spec: [strength, power]` contributes them per vertex so the World's specular
+  // channel can add a live Blinn-Phong highlight. Packed ONLY when some face asks
+  // (specs stays null otherwise — zero cost, byte-identical emission downstream).
+  // Textured faces don't participate (labels/roads aren't specular surfaces).
+  const hasSpec = faces.some((f) => f && Array.isArray(f.spec) && f.spec.length >= 2);
+  const specs = hasSpec ? [] : null;
+  const pushSpec = (f, n) => { if (!specs) return; const s = Array.isArray(f.spec) ? f.spec : null; for (let i = 0; i < n; i++) specs.push(s ? s[0] : 0, s ? s[1] : 1); };
   // Faces carrying a `texture` key + per-corner `uv` are split into one mesh group per key (rendered
   // with a MeshBasicMaterial({ map }) by emitThreeWorld — the workbench's label-wrap path). Faces
   // WITHOUT a texture follow the exact path below, so a scene with no textured faces is unchanged.
@@ -455,6 +463,7 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
           positions.push(p[0], p[1], p[2]);
           colors.push(lr * a, lg * a, lb * a);
         }
+        pushSpec(f, 3);
       }
     } else {
       for (const tri of TRIS) {
@@ -464,6 +473,7 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
           colors.push(lr * a, lg * a, lb * a);
         }
       }
+      pushSpec(f, 6);
     }
     for (let i = 0; i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
   }
@@ -485,6 +495,8 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
   return {
     positions: Float32Array.from(positions),
     colors: Float32Array.from(colors),
+    // per-vertex [strength, power] — null unless some face carried `spec`
+    specs: specs && specs.length ? Float32Array.from(specs) : null,
     vertexCount: positions.length / 3,
     faceCount: faces.length,
     center,

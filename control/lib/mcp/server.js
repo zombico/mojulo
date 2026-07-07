@@ -42,20 +42,25 @@ export function getServerVersion() {
 // Surfaced to the connecting model on `initialize`. Most MCP clients hand this
 // to the agent as a system-prompt-style preamble — it has to fit and stick
 // even on clients that truncate aggressively. We lead with mojulo's software
-// primitives (stateful MCP server + process supervisor) and name the three
+// primitives (stateful MCP server + process supervisor) and name the four
 // creatable artifacts with their entry tools, then point at `forward_context`
 // as a cheap routing index. The heavy lifting (concept glossary + register,
 // deliberation surfaces, full tool index, dashboard map, substrate philosophy)
 // lives behind the sibling drawers (`get_register_kit`, `get_tool_index`,
 // `get_deliberation_overview`, `get_ui_map`, `get_substrate`) so the agent only
 // pays each context cost when a task actually needs it.
-// Budget ~180–200 words; paid once per session by every connecting agent.
-const SERVER_INSTRUCTIONS = `Mojulo is a stateful MCP server on the operator's host — a SQLite + graph database the agent reads and writes through tools, plus a process supervisor (the runtime daemons) that spawns chatbots and local apps (apps come with their own MCP sidecar that mojulo registers into the local MCP graph). Unlike vendor MCPs (Gmail, Linear, Drive) that proxy a remote service, mojulo's tool calls mutate mojulo's own database — the agent's job is to compose that state into things that keep running after the chat ends.
+// Budget ~230–260 words; paid once per session by every connecting agent.
+// Exported for the paradigm-coverage sweep in context.test.js (every PARADIGMS
+// member must be named here — the preamble is the first orientation surface).
+export const SERVER_INSTRUCTIONS = `Mojulo is a stateful MCP server on the operator's host — a SQLite + graph database the agent reads and writes through tools, plus a process supervisor (the runtime daemons) that spawns chatbots and local apps (apps come with their own MCP sidecar that mojulo registers into the local MCP graph). Unlike vendor MCPs (Gmail, Linear, Drive) that proxy a remote service, mojulo's tool calls mutate mojulo's own database — mojulo is the agent's workshop, and the agent's job is to compose that state into things that keep existing after the chat ends.
 
-Three things the agent can create:
+Four things the agent can create:
 - **Bot** — chatbot deployed as its own process. Entry: \`start_new_bot\`.
 - **Connected Service** — a workflow over the operator's installed MCPs, no chatbot. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
 - **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
+- **Game** — playable standalone artifact: a typed store + levels that are worlds; a level is refused until proven completable. Entry: \`create_game\`.
+
+The same discipline mints creative artifacts — diagrams, views, walkable worlds, figures, audio, films, publications — as tiny deterministic recipes, never renders. Entries: \`create_sketch\` / \`create_view\` / \`compose_world\` / \`cook\`.
 
 **Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped bot as user secrets. Use \`inspect_bot_env\`, never \`cat\` or \`Read\`.
 
@@ -245,6 +250,7 @@ export async function ensureToolsRegistered() {
   if (_registered) return;
   _registered = true;
   const { registerContextTools } = await import('@/lib/mcp/tools/context');
+  const { registerWorkedExampleTools } = await import('@/lib/mcp/tools/worked-examples');
   const { registerAdapterTools } = await import('@/lib/mcp/tools/adapters');
   const { registerBuildTools } = await import('@/lib/mcp/tools/build');
   const { registerJobsTools } = await import('@/lib/mcp/tools/jobs-tools');
@@ -308,6 +314,7 @@ export async function ensureToolsRegistered() {
   // composer → primitive binding → trigger binding → semantic recall.
   // See MCP_PRIMITIVE_BINDING_PLAN.md and TRIGGER_BINDING_PLAN.md.
   registerContextTools();
+  registerWorkedExampleTools();
   registerAdapterTools();
   registerBuildTools();
   registerJobsTools();

@@ -1638,7 +1638,11 @@
     "downloadGlb": "Download .glb",
     "downloadGlbPreparing": "Preparing…",
     "downloadGlbUnavailable": "No 3D mesh to export for this sketch.",
-    "downloadGlbError": "Export failed."
+    "downloadGlbError": "Export failed.",
+    "downloadHtml": "Download HTML",
+    "downloadHtmlPreparing": "Preparing…",
+    "downloadHtmlUnavailable": "No standalone HTML to export for this sketch.",
+    "downloadHtmlError": "Export failed."
   },
   "maker": {
     "hub": {

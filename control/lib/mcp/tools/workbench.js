@@ -91,7 +91,7 @@ export function registerWorkbenchTools() {
       + "city/hub mints drop you INTO a traversable world at abstract scale, the workbench presents a "
       + "single everyday object on a measured grid at LITERAL real-world scale, for form accuracy "
       + "(neutral studio light, no mood). You build the object as a POLYGOMER — monomer primitives "
-      + "bonded by literal placement of their axes. Two monomer kinds today:\n"
+      + "bonded by literal placement of their axes. Four monomer kinds:\n"
       + "• `lathes` — surfaces of REVOLUTION (axisFrom→axisTo + a radius `profile` of {t,radius}, "
       + "optional N-fold `harmonics` for fluting/threads): candlestick, bottle, dumbbell, vase, lamp, "
       + "wheel, plate, spindle.\n"
@@ -100,11 +100,9 @@ export function registerWorkbenchTools() {
       + "bin (shell). Profile is { rect:{w,h,r?} } or { points:[[u,v]…] }.\n"
       + "• `sweeps` — a tube swept ALONG a 3D `path`: handles, frames, hooks, cables, coil springs.\n"
       + "• `reliefs` — a 2D outline (an SVG `path` or font `text`) RAISED off a base along its normal "
-      + "into bevelled geometry (additive emboss, never a cut): an embossed nameplate/plaque, a wordmark "
-      + "or logo lifted off a panel, a star/seal struck onto a lathe disc (a coin/medallion). { shape: "
-      + "{ path:'<svg d>' } | { text:'…', font? }, size (literal height the unit outline maps to), "
-      + "anchor:{x,y,z} (the surface it rises from — sink it ~0.1 into the base to avoid coplanar "
-      + "z-fight), normal? (raise direction, default +z), up?, style?:{ depth, bevel, tracking, … } }.\n"
+      + "into bevelled geometry (additive emboss, never a cut): nameplates/plaques, wordmarks lifted "
+      + "off a panel, a seal struck onto a lathe disc. Params in the schema; sink `anchor` ~0.1 into "
+      + "the base to avoid coplanar z-fight.\n"
       + "STACKING (relative composition): for a vertical multi-part object (candlestick, lamp, vase, "
       + "dumbbell, spindle) prefer `assembly` over hand-placed axes — declare each part by `height` + "
       + "`profile` and it auto-stacks on the one below (running z computed for you; `on`/`gap`/`offset` "
@@ -116,6 +114,8 @@ export function registerWorkbenchTools() {
       + "still seats on its single top. The result `stats.parts[]` reports each part's size + base/top "
       + "z, and `stats.warnings` flags an object floating off the measured grid — read them before "
       + "opening /world.\n"
+      + "MATERIALS: any monomer takes `material` — a named finish (gold, chrome, wood, glass, …): "
+      + "live metal gleam in /world, real PBR in .glb. Full shelf in the lathes[].material schema.\n"
       + "PACKAGE DESIGN: a lathe can carry a `wrap` — a label image (inline svg, a data URL, or a "
       + "stored `sketchRef`) mapped around the wall → a labeled can/bottle/cup (shown in /world). "
       + "Compose them: a mug = a shell lathe + a swept handle; a labeled can = one lathe + a wrap. "
@@ -142,6 +142,7 @@ export function registerWorkbenchTools() {
                 items: { type: 'object', properties: { t: { type: 'number' }, radius: { type: 'number' } }, required: ['t', 'radius'] },
               },
               tint: { type: 'string', description: "Optional base albedo hex (e.g. '#c79a4b' brass, '#9aa3b0' steel). Vexar Lambert shades it per face." },
+              material: { description: "Optional surface FINISH from the material shelf — what the part is MADE OF, not just its colour: gold / steel / chrome / bronze / silver / copper / gunmetal (metals — live specular highlight in /world, real PBR metallic in .glb export) · matte / plaster / stone / wood / rubber / plastic / satin (soft) · glass / neon / cel (stylized). Also accepts a '#hex' (satin-tinted) or { preset, ...overrides }. Composes with `tint` (tint = albedo, material = response). Unknown names are rejected at mint." },
               harmonics: { type: 'array', description: 'Optional N-fold angular harmonics [{ n, amplitude, phase? }] for fluting / chiselling / thread-like ridges.' },
               normalFrom: { type: 'object', description: 'Optional cross-section normal {x,y,z} at t=0 (paired with normalTo) to bend the sweep frame.' },
               normalTo: { type: 'object', description: 'Optional cross-section normal {x,y,z} at t=1.' },
@@ -168,6 +169,7 @@ export function registerWorkbenchTools() {
               floorThickness: { type: 'number', description: 'Shell only: thickness of the closed back/floor (default = wallThickness).' },
               openFace: { type: 'string', enum: ['to', 'from', 'none'], description: "Shell only: which end is open — 'to' (the axisTo end, default), 'from', or 'none'." },
               tint: { type: 'string', description: 'Optional base albedo hex.' },
+              material: { description: "Optional surface finish from the material shelf (same vocabulary as lathes[].material): a named row (gold/steel/chrome/…/wood/stone/glass), a '#hex', or { preset, ...overrides }." },
               innerTint: { type: 'string', description: 'Optional shell cavity albedo (default = tint; a darker value reads more sunken).' },
               cornerSamples: { type: 'integer', description: 'Optional rounded-corner resolution (default 6).' },
             },
@@ -184,6 +186,7 @@ export function registerWorkbenchTools() {
               radius: { type: 'number', description: 'Tube radius.' },
               sides: { type: 'integer', description: 'Optional cross-section resolution around the tube (default 16; >= 3).' },
               tint: { type: 'string', description: 'Optional base albedo hex.' },
+              material: { description: "Optional surface finish from the material shelf (same vocabulary as lathes[].material) — a chrome towel-rail or copper pipe is a sweep + a metal material." },
               caps: { type: 'boolean', description: 'Optional — close the two ends (default true). Set false when both ends embed in another monomer (e.g. a handle into a mug wall).' },
             },
             required: ['path', 'radius'],
@@ -202,6 +205,7 @@ export function registerWorkbenchTools() {
               up: { type: 'object', description: 'Optional in-plane orientation {x,y,z} of the glyph vertical (default {x:0,y:1,z:0}).' },
               style: { type: 'object', description: 'Optional geometry style: { depth, bevel, bevelSteps, weight, blocky, slant, tracking, curveSteps } — same vocabulary as the carved-solid kernel (depth/bevel are in normalized outline units, scaled by `size`).' },
               tint: { type: 'string', description: 'Optional base albedo hex (vexar Lambert shades it per face).' },
+              material: { description: "Optional surface finish from the material shelf (same vocabulary as lathes[].material) — a bronze plaque or gold seal is a relief + a metal material." },
             },
             required: ['shape', 'anchor'],
           },
@@ -212,7 +216,7 @@ export function registerWorkbenchTools() {
           properties: {
             parts: {
               type: 'array', minItems: 1,
-              description: 'Ordered parts, stacked bottom→top. Each: { kind:"lathe"|"extrude", height (axis length along z, >0), profile (lathe: [{t,radius}]; extrude: {rect|points}), id? (name for `on`), on? ("ground" | an earlier part id/index; default = the previous part), gap? (lift above the support, default 0), offset? ([dx,dy] off the stack axis, default [0,0]), radial? ({ count, radius, startAngle?, center? } — ring N copies around a circle), mirror? ("x"|"y"|"xy" — reflect the offset into 2/4 corner copies; e.g. offset:[a,b],mirror:"xy" = 4 legs), + any monomer passthrough (tint, harmonics, wrap, wallThickness, openFace, …). Use radial OR mirror, not both.',
+              description: 'Ordered parts, stacked bottom→top. Each: { kind:"lathe"|"extrude", height (axis length along z, >0), profile (lathe: [{t,radius}]; extrude: {rect|points}), id? (name for `on`), on? ("ground" | an earlier part id/index; default = the previous part), gap? (lift above the support, default 0), offset? ([dx,dy] off the stack axis, default [0,0]), radial? ({ count, radius, startAngle?, center? } — ring N copies around a circle), mirror? ("x"|"y"|"xy" — reflect the offset into 2/4 corner copies; e.g. offset:[a,b],mirror:"xy" = 4 legs), + any monomer passthrough (tint, material, harmonics, wrap, wallThickness, openFace, …). Use radial OR mirror, not both.',
               items: { type: 'object' },
             },
           },

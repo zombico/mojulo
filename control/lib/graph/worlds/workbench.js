@@ -31,6 +31,7 @@ import { extrudeToFaces, validateExtrudes } from '../polygonizer/extrude-faces.j
 import { sweepToFaces, validateSweeps } from '../polygonizer/sweep-faces.js';
 import { reliefToFaces, validateReliefs } from '../polygonizer/relief-faces.js';
 import { makeLight } from '../polygonizer/vexar.js';
+import { validateMaterialRef } from '../polygonizer/materials.js';
 
 // Neutral studio key (z is UP in this World) — a clean form light, not a mood scene. Shared by the
 // baked faces and the scene so object, grid, and ground all agree. Mirrors the proven 0616 spike.
@@ -53,11 +54,14 @@ export function lowerObjectFaces(manifest, light) {
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
   const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
+  // Per-monomer `material` (polygonizer/materials.js): a named finish on the spec rides into the
+  // generator — response curve baked into the fills, plus `spec`/`pbr` face tags for the World's
+  // live highlight and the .glb PBR export. Absent → byte-identical (material-response.plan.md P4).
   return [
-    ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec) })),
-    ...extrudes.flatMap((spec) => extrudeToFaces(spec, { light })),
-    ...sweeps.flatMap((spec) => sweepToFaces(spec, { light })),
-    ...reliefs.flatMap((spec) => reliefToFaces(spec, { light })),
+    ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material })),
+    ...extrudes.flatMap((spec) => extrudeToFaces(spec, { light, material: spec.material })),
+    ...sweeps.flatMap((spec) => sweepToFaces(spec, { light, material: spec.material })),
+    ...reliefs.flatMap((spec) => reliefToFaces(spec, { light, material: spec.material })),
   ];
 }
 
@@ -226,6 +230,10 @@ export function planWorkbench(manifest = {}) {
     throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, and/or `reliefs` array.');
   }
   const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateReliefs(reliefs, [])]; // endpoints are literal {x,y,z}
+  // material refs fail LOUDLY at mint (resolveMaterial's fallback would silently steel a typo)
+  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['reliefs', reliefs]]) {
+    arr.forEach((s, i) => { const e = validateMaterialRef(s && s.material); if (e) errors.push(`${k}[${i}].material: ${e}`); });
+  }
   if (errors.length) {
     throw new Error(`Invalid monomers:\n- ${errors.join('\n- ')}`);
   }

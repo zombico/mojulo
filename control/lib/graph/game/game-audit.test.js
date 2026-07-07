@@ -105,28 +105,28 @@ describe('readTraversalAudit — verifying stored evidence', () => {
 describe('auditLevel — the combined promotion verdict', () => {
   const contract = normalizeLevelContract({ levelRef: 'lv1', produces: { events: [{ type: 'promote', slice: 'campaign' }] } });
 
-  it('promotable only with a winning audit', () => {
+  it('promotable only with a winning audit', async () => {
     writeTraversal('mo_lv1', { worldRef: 'lv1', finalGame: { ended: true, result: 'success' } });
-    const a = auditLevel({ ref: 'lv1', store: STORE, contract, motionRef: 'mo_lv1' });
+    const a = await auditLevel({ ref: 'lv1', store: STORE, contract, motionRef: 'mo_lv1' });
     expect(a.promotable).toBe(true);
     expect(a.completable).toBe(true);
   });
 
-  it('NOT promotable without evidence, unless allow_unaudited', () => {
-    const blocked = auditLevel({ ref: 'lv1', store: STORE, contract });
+  it('NOT promotable without evidence, unless allow_unaudited', async () => {
+    const blocked = await auditLevel({ ref: 'lv1', store: STORE, contract });
     expect(blocked.promotable).toBe(false);
     expect(blocked.reason).toMatch(/no completability evidence/);
-    const waived = auditLevel({ ref: 'lv1', store: STORE, contract, allowUnaudited: true });
+    const waived = await auditLevel({ ref: 'lv1', store: STORE, contract, allowUnaudited: true });
     expect(waived.promotable).toBe(true);
     expect(waived.completable).toBe(null);   // waived, not proven
   });
 
-  it('a failed dry-run blocks promotion even with allow_unaudited', () => {
+  it('a failed dry-run blocks promotion even with allow_unaudited', async () => {
     // consume from a slice that isn't inventory would be caught earlier by the contract validator;
     // here we prove the dry-run is a hard gate the override can't bypass by giving a promotable
     // level a contract the store cannot host (setFlag to a nonexistent slice name).
     const bad = { levelRef: 'lv1', produces: { events: [{ type: 'setFlag', slice: 'ghost' }] }, presets: { default: {} } };
-    const a = auditLevel({ ref: 'lv1', store: STORE, contract: bad, allowUnaudited: true });
+    const a = await auditLevel({ ref: 'lv1', store: STORE, contract: bad, allowUnaudited: true });
     expect(a.dryRun.ok).toBe(false);
     expect(a.promotable).toBe(false);
   });

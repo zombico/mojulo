@@ -22,7 +22,8 @@
  */
 
 import { sampleLathe } from './lathe.js';
-import { centroid, newellNormal, dot3, sub3, norm3, shadeHex, DEFAULT_LIGHT } from './vexar.js';
+import { centroid, newellNormal, dot3, sub3, norm3, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
+import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 
 // {x,y,z} (lathe frame) → [x,y,z] (vexar / World face frame).
 const P = (p) => [p.x, p.y, p.z];
@@ -48,8 +49,8 @@ export function pickTint(spec) {
 // A flat end cap: a triangle fan from the ring centre, emitted as (degenerate) 4-corner quads so
 // face-mesh — which skips <4-corner faces — renders each triangle. One uniform shade (the cap
 // normal is the axis direction) reads as a flat disc. `flip` reverses winding for the far end.
-function capFan(ring, center, normal, tint, light, flip) {
-  const fill = shadeHex(tint, normal, light);
+function capFan(ring, center, normal, tint, light, flip, mat = null) {
+  const fill = shadeHexMat(tint, normal, mat, { light });
   const out = [];
   for (let j = 0; j < ring.length - 1; j += 1) {
     const p0 = P(ring[j]);
@@ -64,16 +65,22 @@ function capFan(ring, center, normal, tint, light, flip) {
  *
  * @param {object} spec  a lathe spec ({ axisFrom, axisTo, profile, harmonics?, normalFrom?,
  *                       normalTo?, crossSections?, samples?, style? }) with resolved axis endpoints.
- * @param {object} opts  { light, tint, caps, crossSections, samples }
+ * @param {object} opts  { light, tint, material, caps, crossSections, samples }
  *   light         — a vexar light (makeLight). Defaults to DEFAULT_LIGHT.
  *   tint          — override albedo hex (else derived from spec.style.fill / spec.fill).
+ *   material      — optional material row / name / #hex (polygonizer/materials.js): the surface's
+ *                   response curve (wood / steel / stone …). Camera-independent terms only — these
+ *                   faces feed the shared payload, so no baked specular here. Absent → byte-identical
+ *                   plain-vexar output (material-response.plan.md).
  *   caps          — close real-radius ends (default true). false → tube walls only (taiji-style).
  *   crossSections — override mesh density along the axis (else spec.crossSections / default).
  *   samples       — override mesh density around the axis (else spec.samples / default).
  */
 export function latheToFaces(spec = {}, opts = {}) {
   const light = opts.light || DEFAULT_LIGHT;
-  const tint = opts.tint || pickTint(spec);
+  const mat = opts.material ? resolveMaterial(opts.material) : null;
+  // a material with no explicit tint contributes its own albedo — 'gold' LOOKS gold
+  const tint = opts.tint || (spec.style && spec.style.fill) || spec.fill || (mat && mat.base) || pickTint(spec);
   const caps = opts.caps !== false;
   const cs = Number.isInteger(opts.crossSections) ? opts.crossSections
     : Number.isInteger(spec.crossSections) ? spec.crossSections : DEFAULT_CROSS_SECTIONS;
@@ -116,7 +123,7 @@ export function latheToFaces(spec = {}, opts = {}) {
       let n = newellNormal(corners);
       if (!Number.isFinite(n[0]) || !Number.isFinite(n[1]) || !Number.isFinite(n[2])) continue; // collapsed cell
       if (dot3(n, sub3(centroid(corners), axisMid)) < 0) n = [-n[0], -n[1], -n[2]];
-      const face = { corners, fill: shadeHex(tint, n, light), doubleSided: true };
+      const face = { corners, fill: shadeHexMat(tint, n, mat, { light }), doubleSided: true };
       if (inBand) {
         const uj = j / sm + seam, uj1 = (j + 1) / sm + seam;
         face.uv = [[uj, vAt(ti)], [uj1, vAt(ti)], [uj1, vAt(ti1)], [uj, vAt(ti1)]];
@@ -132,13 +139,13 @@ export function latheToFaces(spec = {}, opts = {}) {
     const prof = [...spec.profile].sort((p, q) => p.t - q.t);
     const axisDir = norm3([aT.x - aF.x, aT.y - aF.y, aT.z - aF.z]);
     if (prof[0].radius > CAP_MIN_RADIUS) {
-      faces.push(...capFan(polylines[0], centerAt(0), [-axisDir[0], -axisDir[1], -axisDir[2]], tint, light, true));
+      faces.push(...capFan(polylines[0], centerAt(0), [-axisDir[0], -axisDir[1], -axisDir[2]], tint, light, true, mat));
     }
     if (prof[prof.length - 1].radius > CAP_MIN_RADIUS) {
-      faces.push(...capFan(polylines[polylines.length - 1], centerAt(cs), axisDir, tint, light, false));
+      faces.push(...capFan(polylines[polylines.length - 1], centerAt(cs), axisDir, tint, light, false, mat));
     }
   }
-  return faces.slice(0, MAX_FACES_PER_LATHE);
+  return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_LATHE), mat);
 }
 
 export { DEFAULT_CROSS_SECTIONS, DEFAULT_SAMPLES, MAX_FACES_PER_LATHE, CAP_MIN_RADIUS };

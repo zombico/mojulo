@@ -2,3 +2,5 @@
 # The legitimate control-plane DB lives at control/data/.
 /data/
 node_modules/
+# mojulo.ai site — its own repo, not part of the substrate
+/site/

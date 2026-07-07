@@ -251,6 +251,15 @@ window.addEventListener('message', (e) => {
     const r = K.applyOutcome(SCHEMA, state, session.level.contract, d.envelope);
     if (!r.ok) { toast('outcome rejected (store untouched): ' + r.errors.join('; '), true); return; }
     state = r.state;
+    // auto-record completion: beating a level marks it done in the progression slice, so gates on
+    // it open (the universal campaign behavior; mechanics levels don't emit their own promote).
+    if (d.envelope.result === 'success') {
+      const prog = SCHEMA.slices.filter((s) => s.kind === 'progression')[0];
+      if (prog && !state[prog.name].completed[session.level.ref]) {
+        const pr = K.applyEvents(SCHEMA, state, [{ type: 'promote', slice: prog.name, ref: session.level.ref, result: 'success' }]);
+        if (pr.ok) state = pr.state;
+      }
+    }
     runLog.push(d.envelope);
     persist();
     toast(session.level.title + ': ' + d.envelope.result + ' — ' + (d.envelope.events || []).length + ' event(s) applied');

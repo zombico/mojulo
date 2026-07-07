@@ -110,3 +110,49 @@ export function shadeFace(corners, hex, { light = DEFAULT_LIGHT, inside = null }
   if (inside) normal = orientOutward(normal, centroid(corners), inside);
   return { fill: shadeHex(hex, normal, light), normal };
 }
+
+// ---- material response (material-response.plan.md) --------------------------
+// A material is a RESPONSE CURVE row from polygonizer/materials.js: { ambient,
+// diffuse, specular?, shininess?, emissive?, cel? }. vexar consumes the row but
+// deliberately does not import the shelf — data flows in, keeping this module
+// dependency-free. Promoted from carved-solid's matRgb (same math, parity-tested).
+
+/**
+ * Material-aware shade. `material` null/absent → EXACT shadeHex path (byte-equal,
+ * the opt-in identity every baked channel holds). With a material: Lambert with
+ * the row's own ambient/diffuse (falling back to the light's), optional `cel`
+ * band quantization, optional `emissive` blend toward the unlit albedo — all
+ * camera-independent. The Blinn-Phong `specular` highlight is added ONLY when
+ * the caller passes BOTH `viewFrom` (camera position) and `at` (surface point):
+ * passing them declares a fixed-camera render (carved-solid's hero shot, a
+ * single-camera SVG study). Faces bound for the camera-independent face payload
+ * must omit them.
+ */
+export function shadeHexMat(hex, normal, material, { light = DEFAULT_LIGHT, viewFrom = null, at = null } = {}) {
+  if (!material) return shadeHex(hex, normal, light);
+  let lam = Math.max(0, dot3(normal, light.toLight));
+  if (material.cel) lam = Math.round(lam * material.cel) / material.cel;
+  const f = (material.ambient ?? light.ambient) + (material.diffuse ?? light.diffuse) * lam;
+  const base = hexToRgb(hex);
+  let rgb = base.map((v) => v * f);
+  if (material.specular && viewFrom && at) {
+    const toView = norm3(sub3(viewFrom, at));
+    const half = norm3([light.toLight[0] + toView[0], light.toLight[1] + toView[1], light.toLight[2] + toView[2]]);
+    const s = material.specular * Math.pow(Math.max(0, dot3(normal, half)), material.shininess || 16);
+    rgb = rgb.map((v) => v + 255 * s);
+  }
+  if (material.emissive) rgb = rgb.map((v, i) => v * (1 - material.emissive) + base[i] * material.emissive);
+  return rgbToHex(rgb);
+}
+
+/**
+ * Material-aware shadeFace: same normal bridge, material-aware fill. The face
+ * centroid doubles as the specular `at` point when `viewFrom` is given.
+ * @returns {{ fill:string, normal:number[] }}
+ */
+export function shadeFaceMat(corners, hex, material, { light = DEFAULT_LIGHT, inside = null, viewFrom = null } = {}) {
+  let normal = newellNormal(corners);
+  const c = centroid(corners);
+  if (inside) normal = orientOutward(normal, c, inside);
+  return { fill: shadeHexMat(hex, normal, material, { light, viewFrom, at: viewFrom ? c : null }), normal };
+}

@@ -242,3 +242,99 @@ describe('pruneMcpToolCalls — retention caps', () => {
     expect(count).toBe(MCP_TELEMETRY_MAX_ROWS);
   });
 });
+
+describe('handler-attached outcome signals (orientation-ramp R4)', () => {
+  const signalTool = {
+    name: 'semantic_search',
+    handler: async () => ({
+      results: [{ score: 0.12 }],
+      _telemetrySignal: { result_count: 1, top_score: 0.12, kinds: ['view_vocab'] },
+    }),
+  };
+
+  it('persists the sanitized signal to signal_json and STRIPS the key from the result', async () => {
+    const result = await instrumentedInvoke(signalTool, { query: 'x' }, {}, { via: 'rpc' });
+    expect('_telemetrySignal' in result).toBe(false);
+    const row = allRows()[0];
+    const signal = JSON.parse(row.signal_json);
+    expect(signal).toEqual({ result_count: 1, top_score: 0.12, kinds: ['view_vocab'] });
+  });
+
+  it('strips the key even when telemetry is off (never reaches the wire)', async () => {
+    process.env.MOJULO_MCP_TELEMETRY = 'off';
+    const result = await instrumentedInvoke(signalTool, { query: 'x' }, {}, { via: 'rpc' });
+    expect('_telemetrySignal' in result).toBe(false);
+    expect(allRows()).toEqual([]);
+  });
+
+  it('sanitizer drops nested objects and long strings — shapes only, mechanically', async () => {
+    const sneaky = {
+      name: 'semantic_search',
+      handler: async () => ({
+        ok: true,
+        _telemetrySignal: {
+          n: 3,
+          nested: { leak: 'user text' },
+          long: 'y'.repeat(500),
+          list: ['a', { deep: true }, 2],
+        },
+      }),
+    };
+    await instrumentedInvoke(sneaky, {}, {}, { via: 'rpc' });
+    const signal = JSON.parse(allRows()[0].signal_json);
+    expect(signal.nested).toBeUndefined();
+    expect(signal.long.length).toBeLessThanOrEqual(64);
+    expect(signal.list).toEqual(['a', 2]);
+    expect(signal.n).toBe(3);
+  });
+});
+
+describe('McpToolCallRepository.orientationGaps — the dead-end-clue cut', () => {
+  const ORIENT = ['forward_context', 'get_tool_index'];
+
+  function record({ tool, sessionId = null, status = 'ok', signal = null, errorMessage = null, at = Date.now() }) {
+    McpToolCallRepository.record({
+      tool,
+      via: 'rpc',
+      sessionId,
+      startedAt: at,
+      status,
+      errorMessage,
+      signalJson: signal ? JSON.stringify(signal) : null,
+    });
+  }
+
+  it('flags weak + empty searches, signal-based and error-based drawer misses', () => {
+    record({ tool: 'semantic_search', signal: { result_count: 0 } });
+    record({ tool: 'semantic_search', signal: { result_count: 3, top_score: 0.1 } });
+    record({ tool: 'semantic_search', signal: { result_count: 5, top_score: 0.9 } }); // healthy
+    record({ tool: 'get_worked_example', signal: { id_requested: true, found: false } });
+    record({ tool: 'get_view_vocab', status: 'error', errorMessage: "get_view_vocab: unknown card 'flying-spaghetti'" });
+    record({ tool: 'get_view_vocab', status: 'error', errorMessage: 'something else broke' }); // not a miss
+
+    const gaps = McpToolCallRepository.orientationGaps({ orientationTools: ORIENT });
+    expect(gaps.lowScoreSearches).toHaveLength(2);
+    expect(gaps.drawerMisses.map((m) => m.tool)).toEqual(['get_worked_example', 'get_view_vocab']);
+  });
+
+  it('abandonment: oriented-then-nothing sessions counted; oriented-then-acted sessions are not', () => {
+    record({ tool: 'forward_context', sessionId: 'abandoned' });
+    record({ tool: 'get_tool_index', sessionId: 'abandoned' }); // more orientation ≠ following through
+    record({ tool: 'forward_context', sessionId: 'productive' });
+    record({ tool: 'create_sketch', sessionId: 'productive' });
+    record({ tool: 'create_view', sessionId: 'never-oriented' });
+
+    const gaps = McpToolCallRepository.orientationGaps({ orientationTools: ORIENT });
+    expect(gaps.sessions).toEqual({ total: 3, oriented: 2, abandoned: 1 });
+  });
+
+  it('get_tool_telemetry { orientation: true } renders the cut', async () => {
+    record({ tool: 'semantic_search', signal: { result_count: 0 }, sessionId: 's1' });
+    record({ tool: 'forward_context', sessionId: 's1' });
+    const { content } = await getToolTelemetryHandler({ orientation: true });
+    const text = content[0].text;
+    expect(text).toContain('Orientation gaps');
+    expect(text).toContain('Weak searches');
+    expect(text).toContain('oriented');
+  });
+});

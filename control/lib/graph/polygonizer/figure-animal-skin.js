@@ -39,6 +39,17 @@ export const SKIN_DEFAULT = {
   // continuous rings over the kink and closes the cleft. `spineBridge` = how far it reaches
   // into each tube from the navel (0 = off).
   spineBridge: 0.5,
+  // NECK BRIDGE — the same seam at the NAPE: a neck CHAIN roots at neckHub and projects away,
+  // but the thorax tube ends at neckHub perpendicular to its OWN axis, so the dorsal wedge
+  // between the back of the neck and the shoulders is left open. When a chain roots at neckHub,
+  // march a span from inside the thorax across the corner to an early neck center, through the
+  // smooth field, closing the nape. Off by default (only chain-necked builds want it).
+  neckBridge: 0,
+  // KNEE BRIDGE — the spine seam on the LEG: the thigh (hip→knee) and shank (knee→ankle) tubes
+  // each march perpendicular to their own axis, so a sharply bent knee leaves a notch on the
+  // outside of the bend. A span marched across the joint through the field wraps it. `kneeBridge`
+  // = how far it reaches into each segment from the knee (0 = off).
+  kneeBridge: 0,
   // HAUNCH — the quadruped "ham": a big BACK-SWEPT mass that buries the upper femur and merges
   // the rump into the thigh. The protoform-inherited hind limb is a THIN human leg off a compact
   // pelvis, so without this the rump cap + leg tube read as two masses ("secondary rear"). The
@@ -137,6 +148,26 @@ function buildField(nodes, radii, chains, skull, c, headBridge) {
   if (c.spineBridge > 0 && nodes.neckHub && nodes.navel && nodes.pelvisHub) {
     const f = Math.min(0.95, c.spineBridge);
     axes.push({ a: lerp3(nodes.neckHub, nodes.navel, 1 - f), b: lerp3(nodes.navel, nodes.pelvisHub, f) });
+  }
+  // NECK BRIDGE — close the nape wedge for a chain-necked build (see SKIN_DEFAULT.neckBridge).
+  if (c.neckBridge > 0 && nodes.neckHub && nodes.navel) {
+    const f = Math.min(0.6, c.neckBridge);
+    for (const ch of chains) {
+      const cs = ch.centers;
+      if (!cs || cs.length < 3 || vlen(sub3(cs[0], nodes.neckHub)) > 0.05) continue;   // only the neck chain (rooted at neckHub)
+      const into = lerp3(nodes.neckHub, nodes.navel, f * 0.5);                          // a little way down the thorax
+      const upNeck = cs[Math.max(2, Math.round((cs.length - 1) * f))];                  // an early neck center
+      axes.push({ a: into, b: upNeck });
+    }
+  }
+  // KNEE BRIDGE — close the outside-of-the-bend notch at each hind knee (see SKIN_DEFAULT.kneeBridge).
+  if (c.kneeBridge > 0) {
+    const f = Math.min(0.7, c.kneeBridge);
+    for (const s of ['L', 'R']) {
+      const hip = nodes['hip' + s], knee = nodes['knee' + s], ankle = nodes['ankle' + s];
+      if (!hip || !knee || !ankle) continue;
+      axes.push({ a: lerp3(hip, knee, 1 - f), b: lerp3(knee, ankle, f) });
+    }
   }
   const navelFill = 1 + ((c.thorax + c.belly) / 2 - 1) * 0.5;
   const NF = { navel: navelFill, pelvisHub: c.rump, hipL: c.rump, hipR: c.rump };

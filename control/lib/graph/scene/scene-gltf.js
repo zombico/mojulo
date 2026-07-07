@@ -137,6 +137,25 @@ class GlbBuilder {
     return this.json.materials.length - 1;
   }
 
+  // A REAL (lit) PBR material for faces tagged with material factors (material-response.plan.md
+  // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
+  // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
+  // the documented trade of exporting a baked world into a lit viewer.
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, name } = {}) {
+    const mat = {
+      doubleSided: true,
+      pbrMetallicRoughness: {
+        baseColorFactor: [1, 1, 1, alpha == null ? 1 : alpha],
+        metallicFactor: metallic,
+        roughnessFactor: roughness,
+      },
+    };
+    if (name) mat.name = name;
+    if (alpha != null) mat.alphaMode = 'BLEND';
+    this.json.materials.push(mat);
+    return this.json.materials.length - 1;
+  }
+
   // Only PNG/JPEG data URLs embed as glTF textures; SVG/other → null so the caller
   // falls back to baked vertex colour (geometry survives, the sticker image doesn't).
   imageFromDataUrl(dataUrl) {
@@ -278,7 +297,20 @@ export function facesToGlb(payload = {}, { generator } = {}) {
     groupMap.get(k).push(f);
   }
   for (const [name, fs] of groupMap) {
-    const gm = faceListToMesh(fs, { decollide: false }); // already de-collided globally above
+    // Faces tagged `pbr: [metallic, roughness]` (a named material from the shelf) split into
+    // their own node with a REAL pbrMetallicRoughness material, one node per distinct factor
+    // pair; everything else keeps the unlit path. No pbr faces → identical export to today.
+    const pbrBuckets = new Map();
+    const plain = [];
+    for (const f of fs) {
+      // textured faces stay on the texture path (a label wrap outranks its material)
+      if (f && Array.isArray(f.pbr) && f.pbr.length >= 2 && typeof f.texture !== 'string') {
+        const k = `${f.pbr[0]},${f.pbr[1]}`;
+        if (!pbrBuckets.has(k)) pbrBuckets.set(k, []);
+        pbrBuckets.get(k).push(f);
+      } else plain.push(f);
+    }
+    const gm = faceListToMesh(plain, { decollide: false }); // already de-collided globally above
     // group-wide translucency (e.g. cellular jelly + organelles): a face alpha < 1 turns the
     // whole group transparent, matching emitThreeWorld's per-group alpha.
     const af = fs.find((f) => typeof f.alpha === 'number' && f.alpha < 1);
@@ -287,6 +319,16 @@ export function facesToGlb(payload = {}, { generator } = {}) {
       const mat = b.unlitMaterial({ alpha: groupAlpha, name });
       b.addNode(name, gm.positions, gm.colors, 3, mat);
       tally(gm.positions);
+    }
+    let pbrIdx = 0;
+    for (const [, bucket] of pbrBuckets) {
+      const bm = faceListToMesh(bucket, { decollide: false });
+      if (!bm.positions.length) continue;
+      const [metallic, roughness] = bucket[0].pbr;
+      const nodeName = pbrBuckets.size > 1 ? `${name}:pbr${pbrIdx++}` : `${name}:pbr`;
+      const mat = b.pbrMaterial({ metallic, roughness, alpha: groupAlpha, name: nodeName });
+      b.addNode(nodeName, bm.positions, bm.colors, 3, mat);
+      tally(bm.positions);
     }
     for (const [key, grp] of Object.entries(gm.textureGroups || {})) {
       if (!grp.positions.length) continue;

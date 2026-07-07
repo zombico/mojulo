@@ -136,12 +136,19 @@ export function buildBus() {
     }
     if (verb === 'spawn') { spawnEntity(state, spec, ev); return []; }
     // CONCEPTUAL-STATE verbs (no entity target): write the `vars` bag where non-physical meaning lives.
-    if (verb === 'set') { state.vars[spec.var] = resolveRef(spec.to, ev); return []; }
-    if (verb === 'inc') { const by = Number(resolveRef(spec.by, ev)); state.vars[spec.var] = (Number(state.vars[spec.var]) || 0) + (Number.isFinite(by) ? by : 1); return []; }
+    // Optional `min`/`max` CLAMP a numeric result (health floors, ammo caps, score ceilings) — the
+    // fall-penalty-respawn case needs `{do:'inc',var:'hp',by:-20,min:1}` so a fall can never reach 0.
+    if (verb === 'set') { let v = resolveRef(spec.to, ev); if (typeof v === 'number') v = clampVar(v, spec); state.vars[spec.var] = v; return []; }
+    if (verb === 'inc') { const by = Number(resolveRef(spec.by, ev)); state.vars[spec.var] = clampVar((Number(state.vars[spec.var]) || 0) + (Number.isFinite(by) ? by : 1), spec); return []; }
 
     const tid = resolveRef(spec.target, ev);
     const target = state.byId[tid];
     if (!target) {
+      // `move` to an id the bus doesn't own = a CONTROLLABLE WARP intent (respawn / teleport the
+      // walking player, who lives in __mojCtrl, not as a bus entity). Applied by syncToCtrl after
+      // the tick — the symmetric inverse of deriveZoneEvents' position READ. Other verbs on a
+      // missing target stay no-ops.
+      if (verb === 'move') { const to = resolveRef(spec.to, ev); if (Array.isArray(to)) { (state._ctrlWarps || (state._ctrlWarps = {}))[tid] = to.slice(); return []; } }
       state.metrics.noops++;
       state.log.push({ op: 'noop', verb, target: tid === undefined ? null : tid });
       return [];
@@ -154,6 +161,12 @@ export function buildBus() {
       else target.pose = to;
     }
     return [];
+  }
+  // clamp a numeric var result to optional [min, max] (either bound may be absent).
+  function clampVar(v, spec) {
+    if (spec && Number.isFinite(spec.min) && v < spec.min) v = spec.min;
+    if (spec && Number.isFinite(spec.max) && v > spec.max) v = spec.max;
+    return v;
   }
 
   // spawn id is CONTENT-derived (from the spawning event), NOT a counter — so spawn order does
@@ -421,6 +434,59 @@ export function buildBus() {
     return { events, prev: { contacts: curContacts, resting: curResting } };
   }
 
+  // ── ZONE facts (game-mechanics.plan.md M0-pre): the CONTROLLABLE analogue of deriveEvents ──────
+  // The walk/platform player emits no contact facts (physics contacts are rigid-body only), yet
+  // every spatial mechanic (reach-exit / collect / hazard / rescue / deliver / key) is "the player
+  // enters a region". This is that missing FACT source: a per-tick, deterministic overlap test of
+  // entity positions against declared `{ type:'zone' }` sources, emitting edge-triggered `enter` /
+  // `exit` events into the SAME bus the reactions consume. Pure — entity positions are deterministic
+  // and dt is fixed, so same run → same facts (the replay/capture guarantee holds).
+  //
+  // A zone source: { type:'zone', zone:<id>, at:[x,y,z], radius:R | half:[hx,hy,hz],
+  //                  watch?:<entityId>|'*' (default '*'), planar?:true (ignore Z — a floor footprint) }
+  // Entities may be controllable ({ id, transform:{ pos } }) or physics bodies ({ id, position }).
+  function zonePos(e) { return e && (e.transform ? e.transform.pos : e.position); }
+  function inZone(p, s) {
+    if (!p) return false;
+    const at = s.at || [0, 0, 0];
+    const dims = s.planar ? 2 : 3;
+    if (Array.isArray(s.half)) {
+      for (let i = 0; i < dims; i++) if (Math.abs(p[i] - at[i]) > s.half[i]) return false;
+      return true;
+    }
+    const r = Number.isFinite(s.radius) ? s.radius : 1;
+    let d2 = 0;
+    for (let i = 0; i < dims; i++) { const dd = p[i] - at[i]; d2 += dd * dd; }
+    return d2 <= r * r;
+  }
+  function deriveZoneEvents(entities, prev, sources) {
+    prev = prev || { inside: {} };
+    sources = sources || [];
+    const list = entities || [];
+    const events = [];
+    const curInside = {};
+    for (const s of sources) {
+      if (s.type !== 'zone' || !s.zone) continue;
+      const watch = s.watch || '*';
+      for (const e of list) {
+        if (!e || !e.id) continue;
+        if (!glob(e.id, watch)) continue;
+        if (!inZone(zonePos(e), s)) continue;
+        const key = s.zone + '|' + e.id;
+        curInside[key] = 1;
+        if (prev.inside[key]) continue;                 // still inside since last step — not an onset
+        events.push({ type: 'enter', zone: s.zone, entity: e.id, source: s.zone, at: (zonePos(e) || []).slice() });
+      }
+    }
+    // exits: keys present last step but not this step
+    for (const key in prev.inside) {
+      if (curInside[key]) continue;
+      const i = key.indexOf('|');
+      events.push({ type: 'exit', zone: key.slice(0, i), entity: key.slice(i + 1), source: key.slice(0, i) });
+    }
+    return { events, prev: { inside: curInside } };
+  }
+
   // ── physics ← policy (Phase 5b): the BIDIRECTIONAL membrane ──────────────────────────────────
   // So a reaction can reach back INTO physics (rule feeds physics — the domino/cradle case). Each
   // physics body is registered as a bus entity PROXY; sync bodies→proxies before processEvents
@@ -447,7 +513,24 @@ export function buildBus() {
     }
   }
 
-  return { createBusState, processEvents, stepTime, tickTimers, watchEvents, hashState, deriveEvents, linkPhysics, syncFromBodies, syncToBodies, normalizeEvent, sortKey, addEntity };
+  // syncToCtrl(state, ctrlEntities) — apply pending WARP intents (from a `move` reaction targeting a
+  // controllable id) to the walking entities, then clear them. The bus→controllable WRITE, run once
+  // per tick AFTER processEvents (the respawn/teleport path for fall-handling; game-mechanics.plan.md).
+  // Conditional by construction: only ids a reaction warped this tick are touched, so the walk rule's
+  // own per-tick position is never fought — a warp is an event, not a continuous sync like bodies.
+  function syncToCtrl(state, ctrlEntities) {
+    const warps = state._ctrlWarps;
+    if (!warps) return;
+    for (const e of (ctrlEntities || [])) {
+      if (e && e.id && warps[e.id] && e.transform && Array.isArray(e.transform.pos)) {
+        e.transform.pos = warps[e.id].slice();
+        if (Array.isArray(e.vel)) e.vel = [0, 0, 0];   // a respawn kills fall velocity
+      }
+    }
+    state._ctrlWarps = {};
+  }
+
+  return { createBusState, processEvents, stepTime, tickTimers, watchEvents, hashState, deriveEvents, deriveZoneEvents, linkPhysics, syncFromBodies, syncToBodies, syncToCtrl, normalizeEvent, sortKey, addEntity };
 }
 
 // Live node instance (tested in event-bus.test.js). The browser does NOT import these — Phase 5
@@ -460,9 +543,11 @@ export const tickTimers = _bus.tickTimers;
 export const watchEvents = _bus.watchEvents;
 export const hashState = _bus.hashState;
 export const deriveEvents = _bus.deriveEvents;
+export const deriveZoneEvents = _bus.deriveZoneEvents;
 export const linkPhysics = _bus.linkPhysics;
 export const syncFromBodies = _bus.syncFromBodies;
 export const syncToBodies = _bus.syncToBodies;
+export const syncToCtrl = _bus.syncToCtrl;
 export const normalizeEvent = _bus.normalizeEvent;
 export const sortKey = _bus.sortKey;
 export const addEntity = _bus.addEntity;
