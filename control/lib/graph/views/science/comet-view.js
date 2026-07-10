@@ -21,16 +21,12 @@
  * Orbit-only object study (like orbit-view / atom-view) — no walk, no CSS-3D /scene form.
  */
 
-import { lowerObjectFaces, WORKBENCH_LIGHT } from '../../worlds/workbench.js';
 import { TAU, DEG, clampNum, clamp } from '../../worlds/motion-vocabulary.js';
 
-// ── workbench lathe sphere (the Sun), same machinery orbit-view / mechanics use. ──
-const pt = (a) => ({ x: a[0], y: a[1], z: a[2] });
-const circleProfile = (R, n = 18) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return { t, radius: R * Math.sin(Math.PI * t) }; });
-const sphereSpec = (center, radius, tint, samples = 24) => ({
-  axisFrom: pt([center[0], center[1], center[2] - radius]), axisTo: pt([center[0], center[1], center[2] + radius]),
-  profile: circleProfile(radius, 18), crossSections: 24, samples, tint,
-});
+// ── the Sun is a real lit three.js sphere (emitThreeWorld's `planets` channel), not a lathe "onion":
+// a self-luminous body at the focus that drops the system's point light. The channel builds the geometry
+// at the ORIGIN and registers meshes['sun'] (userData.g='sun' → still pickable), same as orbit-view's star. ──
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
 
 // ── physical constants (km, s) ──
 const AU_KM = 1.495978707e8;
@@ -97,10 +93,10 @@ export function planCometScene(recipe = {}) {
     speed.push(Math.sqrt(MU_SUN * (2 / rReal - 1 / aKm)));   // km/s (vis-viva)
   }
 
-  // Sun at the focus (origin) — a solid lit sphere, pickable.
+  // Sun at the focus (origin) — a self-luminous lit sphere that lights the system, static + pickable.
   const faces = [];
   const sunSize = 1.7 * scale;
-  for (const f of lowerObjectFaces({ lathes: [sphereSpec([0, 0, 0], sunSize, '#ffce6b', 28)] }, WORKBENCH_LIGHT)) faces.push({ ...f, group: 'sun' });
+  const planets = [{ group: 'sun', center: [0, 0, 0], radius: sunSize, tint: hexRgb('#ffce6b'), star: true, spin: 0.05, bands: 0, mottle: 0.08 }];
   const picks = [{ name: 'sun', kind: 'central', label: 'Sun', fields: compactFields([['role', 'central mass'], ['at', 'orbit focus']]) }];
 
   // tail lengths scale off the render perihelion distance.
@@ -125,7 +121,7 @@ export function planCometScene(recipe = {}) {
   radius = radius || aR;
 
   return {
-    faces, picks, comets: [comet],
+    faces, picks, planets, comets: [comet],
     bounds: { center, radius },
     stats: { scenario, e, period: fmtPeriod(realT), perihelionAU: +(aKm * (1 - e) / AU_KM).toFixed(3) },
   };
@@ -149,6 +145,7 @@ export function assembleCometScene(recipe = {}, { title } = {}) {
   return {
     faces: plan.faces,
     picks: plan.picks,
+    planets: plan.planets,
     comets: plan.comets,
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },

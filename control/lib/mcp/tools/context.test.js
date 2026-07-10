@@ -475,6 +475,30 @@ describe('routing index row lint (orientation-diet thread B) — "index, not glo
   });
 });
 
+describe('forward_context body ceiling (orientation-diet, routing-card move) — the aggregate pin', () => {
+  // The row lint above pins each row; this pins the WHOLE always-paid body.
+  // Row-size ratchets alone leak through row COUNT (each new capability ships
+  // a fresh near-ceiling row and the per-row lint passes while the index
+  // grows) — that is exactly how the pre-diet body reached ~18.5K chars. The
+  // mini segmented Create-things index + routing cards brought it to ~10.4K;
+  // this ceiling makes regrowth a conscious, test-failing decision. Shrink
+  // freely; to grow deliberately, raise the number in the same commit that
+  // justifies it. New creative capability = a routing card, not a body row.
+  const BODY_CEILING = 11_000;
+
+  it(`every register × disclosure cell stays under ${BODY_CEILING} chars`, () => {
+    for (const register of VOCABULARY_REGISTERS) {
+      for (const disclosure of PROCEDURAL_DISCLOSURES) {
+        const body = buildForwardContextBody({ register, disclosure });
+        expect(
+          body.length,
+          `cell ${register}+${disclosure} is ${body.length} chars (> ${BODY_CEILING})`,
+        ).toBeLessThan(BODY_CEILING);
+      }
+    }
+  });
+});
+
 describe('enumerated counts stay true (orientation-diet thread E)', () => {
   it('the "N kinds" claim for create_view matches the live kind registry on both index surfaces', async () => {
     const { VIEW_KINDS } = await import('./create-view.js');

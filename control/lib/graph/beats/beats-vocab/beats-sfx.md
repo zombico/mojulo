@@ -46,3 +46,10 @@ A world binds cues to its live runtime via `manifest.audio.sfx`: bus reactions
 and inputs may carry `sound: '<cueId>'`, footsteps ride the gait channel, and
 `pickup`/`hitConfirm`-style bus events map to cues by event type. Everything is
 a pure function of (params, time) — muted capture runs are byte-identical.
+
+## Revising
+
+Revise with the domain tools, never re-mint: `get_beats` reads the cues +
+revision index; `update_beats` validates like create and snapshots a revision;
+`annotate_beats` marks a cue (`{ scope: 'cue', cue }`); `diff_beats` reports
+added/removed/changed cues. The studio at `/beats/<ref>` fires cues live.

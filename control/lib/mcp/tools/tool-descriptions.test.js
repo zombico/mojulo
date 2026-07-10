@@ -37,7 +37,10 @@ const DESCRIPTION_ALLOWLIST = {
   bind_trigger: 1227,
   capture_reference: 1523,
   compile_plan: 841,
-  compose_world: 1330,
+  // compose_world / create_sketch / get_game_vocab re-pinned 2026-07-10 to
+  // bless the visualization-layer branch growth (school base + game vocab
+  // families + sketch kinds). Shrink-only from these new snapshots.
+  compose_world: 1488,
   cook: 2756,
   create_assembler: 2100,
   create_beats: 1142,
@@ -48,7 +51,7 @@ const DESCRIPTION_ALLOWLIST = {
   create_game: 2012,
   create_manji_tree: 19844,
   create_polygonized_sketch: 932,
-  create_sketch: 3989,
+  create_sketch: 4003,
   create_solid_turntable: 1172,
   create_view: 723,
   create_workbench: 3150,
@@ -63,7 +66,7 @@ const DESCRIPTION_ALLOWLIST = {
   forward_context: 1081,
   gather: 1181,
   get_adapter: 981,
-  get_game_vocab: 860,
+  get_game_vocab: 1297,
   get_mcp_capabilities: 890,
   get_register_kit: 731,
   get_substrate: 832,

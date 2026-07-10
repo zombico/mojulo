@@ -11,7 +11,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo atmosphere",
   },
   "atom-view": {
-    "hash": "a9c6c4de",
+    "hash": "dfb79d6d",
     "title": "mojulo atom",
   },
   "black-hole-view": {
@@ -19,11 +19,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo black hole",
   },
   "cascade-view": {
-    "hash": "aa36ad60",
+    "hash": "2a39ccaa",
     "title": "mojulo chain reaction",
   },
   "cellular-view": {
-    "hash": "6c16b460",
+    "hash": "ed9da4c3",
     "title": "mojulo cell",
   },
   "cherenkov-view": {
@@ -31,7 +31,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo Cherenkov glow",
   },
   "comet-view": {
-    "hash": "ca7994bd",
+    "hash": "eeebff53",
     "title": "mojulo comet",
   },
   "complete-square-view": {
@@ -91,7 +91,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo house",
   },
   "fluid-view": {
-    "hash": "1324dc01",
+    "hash": "1f907547",
     "title": "mojulo fluid",
   },
   "fractal-city": {
@@ -119,7 +119,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo lightning storm",
   },
   "mechanics-view": {
-    "hash": "c04845bc",
+    "hash": "37d64cb5",
     "title": "mojulo mechanics",
   },
   "molecule-view": {
@@ -135,7 +135,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo operator world",
   },
   "orbit-view": {
-    "hash": "a758c276",
+    "hash": "30f00e66",
     "title": "mojulo orbit",
   },
   "painted-landscape": {
@@ -143,7 +143,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo terrain",
   },
   "parallel-transport-view": {
-    "hash": "1bae518d",
+    "hash": "096803c7",
     "title": "mojulo parallel transport",
   },
   "planetary": {
@@ -171,7 +171,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo quadratic",
   },
   "reactor-view": {
-    "hash": "02d9b128",
+    "hash": "11115ca6",
     "title": "mojulo reactor",
   },
   "restaurant": {
@@ -185,6 +185,10 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   "saturn-view": {
     "hash": "8d25c8ce",
     "title": "mojulo Saturn",
+  },
+  "school-complex": {
+    "hash": "c21c61d6",
+    "title": "mojulo school complex",
   },
   "series-view": {
     "hash": "0b39c6ec",

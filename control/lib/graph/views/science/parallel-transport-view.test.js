@@ -82,10 +82,22 @@ describe('parallel-transport-view registration', () => {
     expect(classifyBucket(m)).toBe('world');
   });
 
-  it('assemble threads the transport channel + the surface faces', () => {
+  it('assemble threads the transport channel + the globe as a lit planet', () => {
     const scene = assembleParallelTransportScene({ kind: 'parallel-transport-view' }, {});
     expect(scene.transports.length).toBe(1);
-    expect(scene.faces.length).toBeGreaterThan(0);
+    // the sphere globe rides the lit `planets` channel now (a static, non-star, translucent body).
+    const globe = scene.planets.find((p) => p.group === 'globe');
+    expect(globe).toBeTruthy();
+    expect(globe.radius).toBeGreaterThan(0);
+    expect(globe.center).toEqual([0, 0, 0]);
+    expect(globe.star).toBe(false);
+    expect(globe.opacity).toBeLessThan(1);
     expect(scene.cameras.map((c) => c.name)).toContain('3/4');
+  });
+
+  it('the flat-plane control emits checkerboard faces and no globe planet', () => {
+    const scene = assembleParallelTransportScene({ kind: 'parallel-transport-view', scenario: 'flat-plane' }, {});
+    expect(scene.faces.length).toBeGreaterThan(0);
+    expect(scene.planets.length).toBe(0);
   });
 });

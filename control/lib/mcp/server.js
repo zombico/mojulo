@@ -294,7 +294,6 @@ export async function ensureToolsRegistered() {
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
-  const { registerOperationsModeTools } = await import('@/lib/mcp/tools/operations-mode');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -515,16 +514,4 @@ export async function ensureToolsRegistered() {
   // Registers after beats so the visual-mint cluster (world → view → motion →
   // sound → game) reads adjacent in tools/list. See game-metacontext.plan.md.
   registerGameTools();
-  // Ring 11 (operations mode) — domain-scoped orchestration. An ops tag binds
-  // a hand-curated set of committed-reality resources (bots, apps, mcp-orbit
-  // compositions, cooks, catalysts, triggers, stashes) under one descriptor.
-  // The descriptor is the THESIS members are measured against; the tag is the
-  // bound. Consulted, not driving — no execute verb. Distinct from plan
-  // (effort-shaped, pre-reality) and from stash (intake-oriented): operations
-  // is the far-range domain view ("marketing", "finance"). Registers LAST so
-  // every prior ring's resources are discoverable as bindable members. v0
-  // ships the primitive only; multi-scope, audit, contextmap-node integration,
-  // and the architecture-mode graph extension land in v0.5. See
-  // lite-template/integration/app-system/0605/operations-view.md.
-  registerOperationsModeTools();
 }

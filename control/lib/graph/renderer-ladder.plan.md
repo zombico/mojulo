@@ -337,31 +337,13 @@ mode; payload smaller than today's 1×.
 
 ## Phase 5 — deterministic ambient audio
 
-**Goal.** Presence. Synthesized — never sampled — WebAudio driven by recipe
-parameters, so the self-contained-HTML and zero-asset doctrines hold (no media
-bytes, no network).
-
-**Model.**
-
-- An `audio` manifest channel, opt-in like `fog`: `{ wind, footsteps, events }`.
-- Wind/ambience: filtered noise shaped by the sky/atmosphere settings the
-  recipe already carries.
-- Footsteps: triggered off the walk channel's existing head-bob phase (the
-  gait signal already exists in-page) — zero new state.
-- Event stingers: the event-bus reactions (`pickup`, `hitConfirm`, `emit`)
-  gain an optional synth patch id; patches are tiny param sets in one
-  `audio-patches.js`, in the spirit of theme packs.
-- Determinism note: audio is presentation, not simulation — it reads sim state
-  and never feeds back into it, so replay/capture (Phase 3) is unaffected.
-  Browser autoplay policy requires a user gesture; the World's existing
-  click/pointer-lock entry is the natural unlock.
-
-**Verify.** Mostly by ear; structurally, a unit test that patches are pure
-functions of (params, time) and an e2e that a muted capture run is
-byte-identical to today's.
-
-**Exit criteria.** Walk mode in a dungeon has footsteps and wind; an action
-world's pickup dings; a recipe with `audio` omitted is byte-identical to today.
+**Built — absorbed into [beats.plan.md](beats/beats.plan.md).** This phase's
+constraints (synthesized never sampled, no media bytes, no network, audio is
+presentation not simulation, muted capture byte-identical) were carried
+forward verbatim as beats doctrine and shipped as the Mojulo Beats primitive
+family: the `audio` world channel (soundtrack / SFX cues / footsteps / wind,
+B2–B3), the CSS3D `/scene` soundtrack (B4), and the world-modulation
+`bindings` seam (B5.3). See beats.plan.md for the full model and build log.
 
 ## Deliberately not on the ladder
 

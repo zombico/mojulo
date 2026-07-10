@@ -27,6 +27,7 @@ import { composeLandscapeRaymarch } from '@/lib/graph/landscape/painted-landscap
 import { renderFigureWorldFrames } from '@/lib/graph/polygonizer/figure-render';
 import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/worlds/world-kinds';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
+import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 
 export { resolveWrapTextures };
 
@@ -158,6 +159,29 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // `figure-frames` bodies reference a baked-at-resolve-time figure: manifest.figures is a map of
   // name → renderFigureWorldFrames spec ({ motion, proto, frames? }); we bake each here so the stored
   // manifest stays a tiny recipe (no packed geometry persisted), matching the rest of the substrate.
+  // MECHANIC DECORATION (game-ui-language.plan.md, U5): a level declared purely as `game.mechanics`
+  // gets its default UI-language dressing here — glyph pickup/exit bodies + fx float/burst + sfx
+  // sparkle/aura — merged into the manifest BEFORE the entities/glyph/fx/sfx lowering below, so a
+  // verbs-only level renders legible + juicy with zero styling. Default-ON; `game.decorate:false`
+  // opts out; hand-authored entities/fx/sfx compose on top. The decoration's bus reactions + the
+  // set of mechanic markers it replaces are applied to the mechanics events further down.
+  let decorReactions = null;
+  let decorSuppress = null;
+  if (payload && sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics)
+      && sketch.manifest.game.mechanics.length && sketch.manifest.game.decorate !== false) {
+    const { decorateMechanics, mergeDecorFx } = await import('@/lib/graph/game/mechanic-decor');
+    const decor = decorateMechanics(sketch.manifest.game.mechanics);
+    decorReactions = decor.reactions;
+    decorSuppress = new Set(decor.suppress);
+    const m = sketch.manifest;
+    sketch = { ...sketch, manifest: {
+      ...m,
+      entities: [...(Array.isArray(m.entities) ? m.entities : []), ...decor.entities],
+      fx: mergeDecorFx(m.fx, decor.fx),
+      sfx: [...(Array.isArray(m.sfx) ? m.sfx : []), ...decor.sfx],
+    } };
+  }
+
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;
@@ -181,6 +205,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         }
       }
     }
+    // GLYPH bodies (game-ui-language.plan.md, U1): body:{type:'glyph', form, tint?, scale?}
+    // lowers here to a single-frame figure-frames body + a generated `glyph:<form>` clip — the
+    // form shelf addressable by name, no emitter changes. No glyph bodies ⇒ payload untouched.
+    const glyphLowered = lowerGlyphBodies(payload.entities, payload.figures);
+    if (glyphLowered) {
+      payload.entities = glyphLowered.entities;
+      payload.figures = glyphLowered.figures;
+    }
+  }
+
+  // fx channel (game-ui-language.plan.md, U2): standing states + one-shot gestures on entities by
+  // id. The stored /world path threads it here (emitThreeWorld reads `fx` from `...payload`); absent
+  // ⇒ untouched. Carries hand-authored fx AND the U5 mechanic decoration merged above.
+  if (payload && sketch.manifest.fx && typeof sketch.manifest.fx === 'object') {
+    payload.fx = sketch.manifest.fx;
   }
 
   // MECHANICS lowering (game-mechanics.plan.md, M1): if the level's `game` channel declares
@@ -194,6 +233,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics) && sketch.manifest.game.mechanics.length) {
     const synth = synthesizeLevel(sketch.manifest);   // lower mechanics → events + synthesized contract
     mechEvents = synth.mechEvents;
+    // U5 decoration: drop the box markers the glyphs replaced, and add the per-pickup burst signal
+    // reactions — so the decoration's fx.on bindings (above) fire on collect.
+    if (mechEvents && decorSuppress && decorSuppress.size && Array.isArray(mechEvents.entities)) {
+      mechEvents.entities = mechEvents.entities.filter((e) => !(e && decorSuppress.has(e.id)));
+    }
+    if (mechEvents && decorReactions && decorReactions.length) {
+      mechEvents.reactions = [...(Array.isArray(mechEvents.reactions) ? mechEvents.reactions : []), ...decorReactions];
+    }
     // stash the synthesized contract onto a working copy of the game channel for the block below
     sketch = { ...sketch, manifest: { ...sketch.manifest, game: synth.game } };
   }
@@ -230,6 +277,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const opts = (sketch.manifest.fog && typeof sketch.manifest.fog === 'object') ? sketch.manifest.fog : {};
       payload.fog = composeVolumeFog(boxes, { up: 'z', ...opts });
     }
+  }
+
+  // SFX channel (game-ui-language.plan.md §V — geometry sfx backend, 2026-07-08). A manifest
+  // `sfx: [{ verb, at:[x,y,z] | on:'<entityId>', color?, rate?, size?, params? }]` renders the "juice"
+  // verb shelf (sparkle / heal / ward / aura / beacon / …) as ADDITIVE SPRITES — one sprite per bead,
+  // moved each frame along the verb's path — NOT a fullscreen raymarch overlay (the overlay was
+  // retired for game sfx: perf drain too severe). An `on` id resolves to that entity's transform.pos;
+  // deferred verbs (kokusen/ssj-aura, which absorb light) drop. Absent ⇒ payload untouched.
+  if (payload && Array.isArray(sketch.manifest.sfx) && sketch.manifest.sfx.length) {
+    const { resolveSpriteSfxLayers } = await import('@/lib/graph/game/glyph-sfx-sprites');
+    const layers = resolveSpriteSfxLayers(sketch.manifest.sfx, sketch.manifest.entities);
+    if (layers.length) payload.spriteSfx = layers;
   }
 
   // generic, opt-in AUDIO channel (beats.plan.md): synthesized WebAudio presence — an ambient

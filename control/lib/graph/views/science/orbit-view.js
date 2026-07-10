@@ -20,16 +20,13 @@
  * Orbit-only object study (like mechanics-view / atom-view) — no walk, no CSS-3D /scene form.
  */
 
-import { lowerObjectFaces, WORKBENCH_LIGHT } from '../../worlds/workbench.js';
-import { TAU, DEG, clampNum, clamp, add, sub, scl, len, norm } from '../../worlds/motion-vocabulary.js';
+import { TAU, DEG, clampNum, clamp, sub, scl, norm } from '../../worlds/motion-vocabulary.js';
 
-// ── workbench lathe sphere (bodies + central star), same machinery cellular / mechanics use. ──
-const pt = (a) => ({ x: a[0], y: a[1], z: a[2] });
-const circleProfile = (R, n = 18) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return { t, radius: R * Math.sin(Math.PI * t) }; });
-const sphereSpec = (center, radius, tint, samples = 22) => ({
-  axisFrom: pt(add(center, [0, 0, -radius])), axisTo: pt(add(center, [0, 0, radius])),
-  profile: circleProfile(radius, 18), crossSections: 24, samples, tint,
-});
+// ── bodies are real lit three.js spheres (emitThreeWorld's `planets` channel), not lathe "onions":
+// each is a UV-sphere lit by a point light at the Sun, so it shows a day/night terminator. The channel
+// builds the geometry at the ORIGIN and registers meshes[group]; the orbit mover (base = [0,0,0])
+// translates each body along its ellipse, and the channel spins it slowly on its polar axis. ──
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
 
 // ── physical constants (km, s) ──
 const AU_KM = 1.495978707e8;
@@ -122,15 +119,13 @@ export function planOrbitScene(recipe = {}) {
   const tMin = Math.min(...S.bodies.map((b) => realPeriod(b.aKm, S.mu)));
   const timeScale = PLAY_INNER / tMin;
 
-  const faces = [], picks = [], movers = [];
-  const tag = (fs, group) => { for (const f of fs) faces.push({ ...f, group }); };
+  const faces = [], picks = [], movers = [], planets = [];
 
-  // central body (Sun / Earth) at the focus — static, pickable.
-  const star = scl([0, 0, 0], 1);
-  tag(lowerObjectFaces({ lathes: [sphereSpec(star, S.central.size * scale, S.central.tint, 28)] }, WORKBENCH_LIGHT), 'central');
+  // central body (Sun / Earth) at the focus — a self-luminous sphere that lights the system, static + pickable.
+  planets.push({ group: 'central', center: [0, 0, 0], radius: S.central.size * scale, tint: hexRgb(S.central.tint), star: true, spin: 0.05, bands: 0, mottle: 0.08 });
   picks.push({ name: 'central', kind: 'central', label: S.central.label, fields: compactFields([['role', 'central mass'], ['at', 'orbit focus']]) });
 
-  for (const b of S.bodies) {
+  for (const [bi, b] of S.bodies.entries()) {
     const aR = renderR(b.aKm), e = b.e, co = Math.cos(b.omega), so = Math.sin(b.omega);
     const realT = realPeriod(b.aKm, S.mu);
     const period = realT * timeScale;     // playback seconds — Kepler-3rd-accurate ratio
@@ -158,7 +153,9 @@ export function planOrbitScene(recipe = {}) {
     const avec = path.map((p) => norm(scl(p, -1)));   // points at the star (origin)
 
     const sizeR = bodySize(b.rKm) * scale;
-    tag(lowerObjectFaces({ lathes: [sphereSpec(path[0], sizeR, b.tint, 22)] }, WORKBENCH_LIGHT), `body:${b.name}`);
+    // a real lit sphere, built at the origin; the mover (base = [0,0,0]) walks it around the ellipse and the
+    // planet channel spins it on its polar axis. Per-body seed/freq give each world its own banding.
+    planets.push({ group: `body:${b.name}`, center: [0, 0, 0], radius: sizeR, tint: hexRgb(b.tint), star: false, spin: 0.5 + bi * 0.12, seed: bi * 1.7, freq: 5 + bi, bands: 0.55, mottle: 0.2 });
     picks.push({ name: `body:${b.name}`, kind: 'body', label: b.label, fields: compactFields([
       ['a (semi-major)', `${(b.aKm / S.distDiv).toFixed(2)} ${S.distUnit}`], ['eccentricity', e.toFixed(4)],
       ['period', fmtPeriod(realT)], ['v (mean)', `${(Math.sqrt(S.mu / b.aKm)).toFixed(2)} km/s`],
@@ -169,7 +166,7 @@ export function planOrbitScene(recipe = {}) {
       : `T = ${fmtPeriod(realT)} · e = ${e.toFixed(3)}`;
 
     movers.push({
-      group: `body:${b.name}`, path, basePos: path[0],
+      group: `body:${b.name}`, path, basePos: [0, 0, 0],   // sphere geometry is authored at the origin
       vdir, avec, speed, accel,
       maxSpeed: Math.max(...speed), maxAccel: Math.max(...accel),
       period, loop: true, hold: 0,
@@ -195,7 +192,7 @@ export function planOrbitScene(recipe = {}) {
   const arrowLen = Math.max(2, radius * 0.22);
   for (const mv of movers) mv.arrowLen = arrowLen;
 
-  return { faces, picks, movers, bounds: { center, radius }, stats: { scenario, bodies: S.bodies.length, periods: movers.map((m) => +m.period.toFixed(2)) } };
+  return { faces, picks, movers, planets, bounds: { center, radius }, stats: { scenario, bodies: S.bodies.length, periods: movers.map((m) => +m.period.toFixed(2)) } };
 }
 
 // ── the physical read-back channel (measure_view). The rendered path is the orrery compromise —
@@ -253,6 +250,7 @@ export function assembleOrbitScene(recipe = {}, { title } = {}) {
     faces: plan.faces,
     picks: plan.picks,
     movers: plan.movers,
+    planets: plan.planets,
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo ${plan.stats.scenario} orbit`,

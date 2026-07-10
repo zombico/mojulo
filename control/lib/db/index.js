@@ -344,7 +344,10 @@ function init(db) {
         'beats_vocab',
         'game_vocab',
         'game_mechanic',
-        'game_kit'
+        'game_kit',
+        'game_glyph',
+        'game_sfx',
+        'routing'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
@@ -588,15 +591,14 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_meta_skills_mirrored_at ON meta_skills(mirrored_at DESC);
 
-    -- Operations view (Ring 11). A tag with a descriptor and a set of members
-    -- drawn from committed reality (bots, apps, mcp-orbit compositions, cooks,
-    -- catalysts, triggers, stashes). The tag is the bound; the descriptor is
-    -- the thesis members are measured against. Consulted, not driving — no
-    -- execute verb, no cascade-retire. Pre-reality nodes (plans, research
-    -- books) are deliberately NOT taggable — they're reachable as provenance
-    -- through tagged members instead. v0 stores the descriptor on the row;
-    -- meta_principles + a meta_nodes(kind='ops_tag') consult node ship in
-    -- v0.5. See lite-template/integration/app-system/0605/operations-view.md.
+    -- Ops tags: a resource-grouping primitive (a tag_ref + title + descriptor
+    -- + a set of bound members). Originally the "operations view" (Ring 11)
+    -- deliberation surface; that surface (enter/forge/bind/get/list/revise MCP
+    -- tools + the /operations dashboard) was deprecated as unused. The tables
+    -- and OpsTagRepository are retained as the grouping store for the MOTION
+    -- subsystem: forge_motion / stitch_motion forge a tag per "Motion Project"
+    -- and bind the subject stash + rendered motion as members (member_kind
+    -- 'motion' / 'stash'). See lib/mcp/tools/motion.js.
     CREATE TABLE IF NOT EXISTS ops_tags (
       id INTEGER PRIMARY KEY,
       tag_ref TEXT NOT NULL UNIQUE,
@@ -614,9 +616,9 @@ function init(db) {
     -- trigger / stash) so adding a kind is a one-line repo change, not a
     -- schema migration. UNIQUE on (tag_ref, member_kind, member_ref) prevents
     -- duplicate bindings; the reverse index supports "which tags own this
-    -- resource" lookups. member_ref is opaque to this table — refs into the
-    -- per-kind primary table (deployments.id for bot, etc.) and is only
-    -- resolved when get_ops_tag assembles the bounded read.
+    -- resource" lookups (used by the /motion gallery). member_ref is opaque to
+    -- this table — refs into the per-kind primary table (deployments.id for
+    -- bot, motion outcome folder name for motion, etc.).
     CREATE TABLE IF NOT EXISTS ops_tag_members (
       id INTEGER PRIMARY KEY,
       tag_ref TEXT NOT NULL REFERENCES ops_tags(tag_ref) ON DELETE CASCADE,
@@ -627,6 +629,43 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_ops_tag_members_by_tag ON ops_tag_members(tag_ref);
     CREATE INDEX IF NOT EXISTS idx_ops_tag_members_reverse ON ops_tag_members(member_kind, member_ref);
+
+    -- Beats revisions (B9, beats.plan.md). Beats artifacts stay rows in
+    -- sketches (the universal recipe store); sovereignty is the DOMAIN layer,
+    -- not a table move. create_beats writes rev 1, every update_beats appends —
+    -- the sketches row always holds the HEAD manifest (world beatsRef
+    -- resolution, player, export all read it unchanged); revisions are history,
+    -- not the live pointer. note is the revision's commit message.
+    CREATE TABLE IF NOT EXISTS beats_revisions (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL,
+      rev INTEGER NOT NULL,
+      manifest_json TEXT NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(ref, rev)
+    );
+    CREATE INDEX IF NOT EXISTS idx_beats_revisions_ref ON beats_revisions(ref, rev DESC);
+
+    -- Beats annotations (B9.1): commentary anchored to a beats ref in MUSICAL
+    -- terms — the mark-it half of the listen → mark → revise → compare loop.
+    -- anchor_json is a small union: { scope:'artifact' } | { scope:'track',
+    -- track } | { scope:'time', bar, step?, track?, timeSec? } | { scope:'cue',
+    -- cue }. Time anchors are meaningful even for generative ambient because
+    -- performances are seeded — bar N is reproducible. rev records which
+    -- revision the mark was made against; resolved_rev the one that answered it.
+    CREATE TABLE IF NOT EXISTS beats_annotations (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL,
+      rev INTEGER NOT NULL,
+      anchor_json TEXT NOT NULL,
+      body_md TEXT NOT NULL,
+      author TEXT NOT NULL CHECK(author IN ('operator','agent')) DEFAULT 'operator',
+      status TEXT NOT NULL CHECK(status IN ('open','resolved')) DEFAULT 'open',
+      resolved_rev INTEGER,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_beats_annotations_ref ON beats_annotations(ref, status);
   `);
 
   migrateDeploymentColumns(db);
@@ -1107,7 +1146,7 @@ function migrateEmbeddingsSourceKinds(db) {
     .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
     .get();
   if (!row || !row.sql) return;
-  if (row.sql.includes('game_kit')) return;
+  if (row.sql.includes("'routing'")) return;
   db.exec(`
     BEGIN;
     CREATE TABLE meta_embeddings_new (
@@ -1128,7 +1167,10 @@ function migrateEmbeddingsSourceKinds(db) {
         'beats_vocab',
         'game_vocab',
         'game_mechanic',
-        'game_kit'
+        'game_kit',
+        'game_glyph',
+        'game_sfx',
+        'routing'
       )),
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,

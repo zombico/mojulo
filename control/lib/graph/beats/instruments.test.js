@@ -124,6 +124,76 @@ describe('validation', () => {
   });
 });
 
+describe('keyboards shelf (B6.2b)', () => {
+  const comp = (part) => ({ kind: 'beats-composition', title: 't', bpm: 120, parts: [{ name: 'k', events: [['0:0:0', ['C4', 'E4', 'G4']]], ...part }] });
+
+  it('piano resolves to the string-voice piano patch + soundboard body + keys feel', () => {
+    const r = resolveInstrument('piano');
+    expect(PATCHES[r.patch].voice).toBe('string');
+    expect(PATCHES[r.patch].velToFilter).toBeGreaterThan(0); // velocity → brightness, the piano axis
+    expect(PATCHES[r.patch].attackNoise).toBeDefined();      // hammer knock
+    expect(r.chain.map((f) => f.type)).toEqual(['body', 'reverb']);
+    expect(r.feel).toEqual(FEEL_PRESETS.keys);
+  });
+
+  it('the family spans three voices with zero new kernel topology', () => {
+    expect(PATCHES[INSTRUMENTS.rhodes.patch].voice).toBe('fm');
+    expect(PATCHES[INSTRUMENTS.celesta.patch].voice).toBe('modal');
+    expect(PATCHES[INSTRUMENTS.harpsichord.patch].voice).toBe('string');
+    expect(PATCHES[INSTRUMENTS.organ.patch].voice).toBe('osc');
+  });
+
+  it('character-preserving feels: harpsichord has no velocity jitter, music-box/organ are robotic', () => {
+    expect(resolveInstrument('harpsichord').feel.jitterVel).toBeUndefined();
+    expect(resolveInstrument('music-box').feel).toBeUndefined();
+    expect(resolveInstrument('organ').feel).toBeUndefined();
+  });
+
+  it('a piano part normalizes like any instrument (expansion, overrides intact)', () => {
+    const out = normalizeBeatsManifest(comp({ instrument: 'piano', feel: { strum: 0 } }));
+    const p = out.parts[0];
+    expect(p.patch).toBe('piano');
+    expect(p.feel.strum).toBe(0);                          // override wins
+    expect(p.feel.jitterVel).toBe(FEEL_PRESETS.keys.jitterVel); // merged from keys
+  });
+});
+
+describe('instrument on ambient channels (world-orchestra wiring)', () => {
+  const ambient = (channel) => ({
+    kind: 'beats-ambient', title: 't', bpm: 90, seed: 7,
+    progression: [{ chord: ['C3', 'E3', 'G3'], root: 'C2' }],
+    channels: [{ name: 'keys', role: 'harmony', ...channel }],
+  });
+
+  it('accepts and expands instrument → patch + chain + feel on a channel', () => {
+    const m = ambient({ instrument: 'piano' });
+    expect(validateBeatsManifest(m).ok, validateBeatsManifest(m).errors.join(', ')).toBe(true);
+    const ch = normalizeBeatsManifest(m).channels[0];
+    expect(ch.instrument).toBeUndefined();
+    expect(ch.patch).toBe('piano');
+    expect(ch.chain).toEqual(INSTRUMENTS.piano.chain);
+    expect(ch.feel).toEqual(FEEL_PRESETS.keys);
+  });
+
+  it('channel overrides win, same merge as parts/tracks', () => {
+    const ch = normalizeBeatsManifest(ambient({ instrument: 'piano', feel: { strum: 0 } })).channels[0];
+    expect(ch.feel.strum).toBe(0);
+    expect(ch.feel.jitterVel).toBe(FEEL_PRESETS.keys.jitterVel);
+  });
+
+  it('teaches on an unknown instrument or feel', () => {
+    expect(validateBeatsManifest(ambient({ instrument: 'kazoo' })).errors.join(' ')).toMatch(/instrument 'kazoo' is unknown/);
+    expect(validateBeatsManifest(ambient({ patch: 'piano', feel: 'shredly' })).errors.join(' ')).toMatch(/feel 'shredly' is unknown/);
+  });
+
+  it('NULL PATH: a plain patch channel gains no feel/instrument keys', () => {
+    const ch = normalizeBeatsManifest(ambient({ patch: 'pad' })).channels[0];
+    expect(ch.patch).toBe('pad');
+    expect('feel' in ch).toBe(false);
+    expect('instrument' in ch).toBe(false);
+  });
+});
+
 describe('harmony-bus validation + normalize (B7)', () => {
   const harmony = (extra) => ({
     kind: 'beats-pattern', title: 't', bpm: 120, steps: 32,

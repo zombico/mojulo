@@ -23,7 +23,7 @@ export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
 const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump']);
-const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive']);
+const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive', 'amp']);
 // B7 harmony bus: a chordVoice track derives its notes from the shared
 // progression instead of a note contour. Modes = how it reads the chord.
 const CHORD_VOICE_MODES = new Set(['chord', 'strum', 'block', 'arp', 'root', 'upper']);
@@ -112,6 +112,19 @@ function checkChordVoice(tr, where, manifest, errors) {
   }
 }
 
+// B5.2 performance macros: per-channel transpose (semitones) and tone (a
+// low-pass at the chain head, 1 = open). Stored values seed the player's
+// sliders and the world `bindings` seam; they round-trip through normalize.
+function checkMacros(node, where, errors) {
+  if (!node || typeof node !== 'object') return;
+  if (node.transpose !== undefined && (!Number.isFinite(node.transpose) || node.transpose < -24 || node.transpose > 24)) {
+    errors.push(`${where}.transpose must be a number in [-24, 24] (semitones)`);
+  }
+  if (node.tone !== undefined && (!Number.isFinite(node.tone) || node.tone < 0 || node.tone > 1)) {
+    errors.push(`${where}.tone must be a number in [0, 1] (1 = open, 0 = dark)`);
+  }
+}
+
 // B6: `feel` is a preset name or an inline noteFeel params object.
 function checkFeel(feel, where, errors) {
   if (feel === undefined) return;
@@ -175,8 +188,13 @@ export function validateBeatsManifest(manifest) {
         else if (seen.has(ch.name)) errors.push(`${where}.name '${ch.name}' is duplicated`);
         else seen.add(ch.name);
         if (!ROLES.has(ch && ch.role)) errors.push(`${where}.role must be one of: ${[...ROLES].join(', ')}`);
+        // B6: ambient channels take `instrument` too (piano in the world orchestra),
+        // expanding to patch + chain + feel exactly like parts/tracks.
+        checkInstrument(ch && ch.instrument, where, errors);
         checkPatch(ch && ch.patch, where, errors);
+        checkFeel(ch && ch.feel, where, errors);
         checkChain(ch && ch.chain, where, errors);
+        checkMacros(ch, where, errors);
         if (ch && ch.role === 'melody') {
           if (!ch.sequence || !Array.isArray(ch.sequence.table) || !ch.sequence.table.length) {
             errors.push(`${where} (melody) needs sequence: { table: [notes], gate? }`);
@@ -207,6 +225,7 @@ export function validateBeatsManifest(manifest) {
         checkPatch(p && p.patch, where, errors);
         checkFeel(p && p.feel, where, errors);
         checkChain(p && p.chain, where, errors);
+        checkMacros(p, where, errors);
         if (!p || !Array.isArray(p.events) || !p.events.length) {
           errors.push(`${where}.events must be a non-empty array of [time, notes, dur?, vel?]`);
         } else {
@@ -272,6 +291,7 @@ export function validateBeatsManifest(manifest) {
         if (tr && tr.note != null) checkNote(tr.note, `${where}.note`, errors);
         checkFeel(tr && tr.feel, where, errors);
         checkChain(tr && tr.chain, where, errors);
+        checkMacros(tr, where, errors);
       });
     }
   }
@@ -315,7 +335,7 @@ export function normalizeBeatsManifest(manifest) {
   if (m.kind === 'beats-ambient') {
     if (m.swing === undefined) m.swing = 0;
     m.channels = m.channels.map((ch) => {
-      const out = { level: 0, ...ch };
+      const out = { level: 0, ...expandNode(ch, { allowInstrument: true }) };
       if (!out.patch) {
         out.patch = { harmony: 'pad', roots: 'bassMono', melody: 'sinePluck', pulse: 'kick' }[out.role];
       }

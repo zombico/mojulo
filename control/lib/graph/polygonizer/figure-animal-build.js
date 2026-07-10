@@ -30,6 +30,7 @@ import { coatBlades, darkenHex } from './figure-animal-pelage.js';
 import { faceDecor, FACE_PRESETS } from './figure-animal-face.js';
 import { buildFluffs } from './figure-fluff.js';
 import { antlers as buildAntlers } from './figure-animal-antler.js';
+import { plateMuzzle as buildPlateMuzzle } from './figure-animal-faceplate.js';
 
 const chainPart = (ch) => ({ polylines: ch.rings, stroke: ch.stroke });
 
@@ -67,7 +68,7 @@ function ringTail(rings, cfg, coatCfg) {
  * @param {{skin?:boolean, fleshCfg?:object, skullCfg?:object, footCfg?:object}} [opts]
  * @returns {{parts, nodes, com, feetKeys, chains, head}}
  */
-export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, footCfg = {}, mane = null, coat = null, face = null, tailRings = null, facePaint = null, tailCfg: tailOverride = null, neckCfg: neckOverride = null, armatureCfg = null, tailTip = null, tailBands = null, fluffs = null, forepaws = null, antlers = null } = {}) {
+export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, footCfg = {}, mane = null, coat = null, face = null, tailRings = null, facePaint = null, tailCfg: tailOverride = null, neckCfg: neckOverride = null, armatureCfg = null, tailTip = null, tailBands = null, fluffs = null, forepaws = null, antlers = null, plateMuzzle = null } = {}) {
   // a recipe may SCALE/bias the named archetype's proportions (shorter legs, lower body,
   // lighter girth) without minting a new archetype — the plan's "pick the nearest, then
   // scale it" rule. Merge armatureCfg over the preset so the species stays DATA.
@@ -223,8 +224,24 @@ export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, 
     ? buildAntlers(head.anchor, head.dir, { headLen: skullFull.length ?? 0.16, headW: skullFull.width ?? 0.045, ...(antlers === true ? {} : antlers) })
     : [];
 
+  // PLATED MUZZLE — the four-facet snout (figure-animal-faceplate.js): two top plates (L/R of the
+  // dorsal ridge) + a nose pad + a jaw, seated at the STOP (front of the cranium) from the head
+  // frame. The two-mass alternative to the swept-cone muzzle for brachycephalic faces (cats, pandas,
+  // primates): a round cranium (the skull dome) + a DEFINED plated snout with a real stop. Painted
+  // the coat by default (top/jaw), the nose kept dark unless overridden. Defaults-off. Seated along
+  // the muzzle axis at cranEnd (where the cone's muzzle would start), nudged up onto the muzzle top.
+  const plateParts = plateMuzzle ? (() => {
+    const upV = { x: 0, y: 0, z: 1 };
+    const sl = Math.hypot(hd.y, hd.x) || 1, sideVec = { x: -hd.y / sl, y: hd.x / sl, z: 0 };   // horizontal lateral = normalize(cross(up, dir))
+    const seat = { x: ha.x + hd.x * hL * cranEnd, y: ha.y + hd.y * hL * cranEnd, z: ha.z + hd.z * hL * cranEnd };
+    const pcfg = plateMuzzle === true ? {} : plateMuzzle;
+    // default the plate colours to the coat (top/jaw) so they read as one head; nose stays dark.
+    const withCoat = painted ? { topHex: bodyHex, jawHex: (facePaint && facePaint.mouthHex) || bodyHex, ...pcfg } : pcfg;
+    return buildPlateMuzzle(seat, hd, upV, sideVec, withCoat);
+  })() : [];
+
   // PLANT the whole assembly on the floor (lowest contact → z = 0).
-  const parts = plantParts([...bodyOut, ...fluffParts, ...skullOut, ...feet, ...handParts, ...chainsOut, ...maneParts, ...ringTailParts, ...faceParts, ...antlerParts]);
+  const parts = plantParts([...bodyOut, ...fluffParts, ...skullOut, ...feet, ...handParts, ...chainsOut, ...maneParts, ...ringTailParts, ...faceParts, ...antlerParts, ...plateParts]);
   return { parts, nodes, com, feetKeys, chains, head };
 }
 
@@ -472,5 +489,202 @@ export const ZOO_BUILDS = {
       rootR: 0.013, tipR: 0.004, spread: 0.02, pedFwd: 0.12, stroke: '#3a2c1c' },
     tailCfg: { rootR: 0.012, tipR: 0.004, droop: 22, length: 0.2, waveAmp: 0.01 },
     tailTip: { color: '#241a12', frac: 0.4 },                       // dark tail tip
+  } },
+
+  // LION (Panthera leo) — PROMOTED from the inline spike into a first-class recipe, rounding
+  // out Felidae beside the maneless cougar. `feline` archetype (low supple cat) + the MANE: a
+  // big lobed RUFF of lock-blades encircling the face (the sexual-dimorphism tell carried
+  // entirely by decoration, like the buck's antlers). Powerful forequarters, tawny coat, pale
+  // belly, and a DARK tail-tip (the tuft-by-paint — the true terminal pom is the shape
+  // register's known limit, an added decorator, so we paint it instead of faking geometry).
+  lion: { archetype: 'feline', opts: {
+    skin: true,
+    // DEEP front-loaded torso: heavier chest/belly than the default flesh, dropped LOW (bellyDrop)
+    // so the brisket dips and the frontal mass reads — the big-cat deep chest.
+    fleshCfg: { thorax: 2.2, belly: 2.32, bellyDrop: 0.54, taper: 0.45 },
+    armatureCfg: { backHeight: 0.44, trunkLength: 0.52, neckLength: 0.14, neckAngle: 30,
+      girthBody: 1.16, girthFore: 1.26, girthHind: 1.02, girthHead: 1.05 },   // heavy forequarters (the male-lion front-loaded build)
+    // CAT SKULL (see cougar for the dial rationale) — short round braincase + very short blunt
+    // muzzle dropped low. Broader + a hair longer than the cougar's (the lion is big-headed).
+    skullCfg: { length: 0.14, width: 0.072, dome: 1.36, muzzle: 0.22, snout: 0.6, boxy: 0.72, muzzleDrop: 0.2 },
+    coat: { color: '#c39a5b' },                                     // tawny (renders down to lion-tan)
+    underHex: '#d8c39a', underCut: -0.4,                            // pale belly
+    footCfg: { stroke: '#9c8358' },
+    // the mane — collar pushed forward toward the head, large radius, locks radiating OUT so
+    // they ring the face like a halo, longer on top (crest). Ported from the accepted spike.
+    mane: { anchorT: 0.9, radius: 0.07, out: 0.78, back: 0.05, rise: 0.42, hang: 0.6,
+      len: 0.12, width: 0.06, thick: 0.043, tip: 0.45, flick: 0.06, crest: 0.85, color: '#7a5230',
+      rings: [ { count: 27, radScale: 1.0, lenScale: 1.0 },
+        { count: 20, radScale: 0.8, lenScale: 0.86, phase: 0.5 },
+        { count: 15, radScale: 0.62, lenScale: 0.72, phase: 0.25 } ] },
+    face: true,
+    tailCfg: { rootR: 0.028, bulgeR: 0.03, bulgeAt: 0.5, tipR: 0.014, droop: 32, length: 0.54, waveAmp: 0.02, waveN: 0.5 },
+    tailTip: { color: '#3a2c1c', frac: 0.16 },                      // dark tuft-tip (paint; the pom is a decorator limit)
+  } },
+
+  // COUGAR / PUMA (Puma concolor) — the MANELESS big cat, rounding out Felidae with the
+  // decoration-only felid: same `feline` archetype as the lion, no mane. Lithe, strong
+  // hindquarters, a small round cat head, plain tawny coat with a cream countershaded belly and
+  // pale muzzle, and the tell — a very LONG heavy low-carried tail with a DARK tip. Proves the
+  // felid body reads as a distinct species purely by paint + tail, no mane geometry.
+  cougar: { archetype: 'feline', opts: {
+    skin: true,
+    // deep torso dropped low for frontal mass (the same big-cat brisket as the lion, a touch lighter)
+    fleshCfg: { thorax: 2.14, belly: 2.26, bellyDrop: 0.5, taper: 0.45 },
+    armatureCfg: { backHeight: 0.42, trunkLength: 0.54, neckLength: 0.14, neckAngle: 28,
+      girthBody: 1.1, girthFore: 1.14, girthHind: 1.08, girthHead: 0.94 },   // fuller chest, strong rear drive
+    // CAT SKULL — pushed to the dial ceiling for the feline face: SHORT absolute head (length↓),
+    // BROAD + TALL ROUND braincase (width↑, dome↑↑ = the globular cat cranium + high forehead),
+    // a VERY short muzzle fraction (0.2), a blunt boxy nose (snout↑, boxy), and the nose DROPPED
+    // low under the eyes (muzzleDrop↑) so the front of the face is near-vertical, not a wedge.
+    skullCfg: { length: 0.125, width: 0.066, dome: 1.42, muzzle: 0.2, snout: 0.62, boxy: 0.72, muzzleDrop: 0.24 },
+    coat: { color: '#c49b6c' },                                     // tawny
+    underHex: '#e7ddca', underCut: -0.4,                            // cream belly (countershade)
+    facePaint: { snoutHex: '#efe7d8', mouthHex: '#efe7d8' },        // pale muzzle / chin
+    footCfg: { stroke: '#a08663' },
+    face: { eyeHex: '#8a6a2c', noseHex: '#2a1c14', earHex: '#8a6a44',
+      eyeR: 0.16, earLen: 0.6, earW: 0.8, earTip: 0.72, earUp: 0.9, earSide: 0.8 },   // round cat ears, amber eyes
+    tailCfg: { rootR: 0.028, bulgeR: 0.032, bulgeAt: 0.5, tipR: 0.016, droop: 34, length: 0.66, waveAmp: 0.03, waveN: 0.6 },   // very long thick low tail
+    tailTip: { color: '#3a2c1c', frac: 0.15 },                      // dark tail tip (the cougar tell)
+  } },
+
+  // HIPPO (Hippopotamus amphibius) — megafauna off `stumpy`: a colossal barrel body on stubby
+  // pillar legs, an ENORMOUS broad blunt muzzle, and tiny eyes + ears set high on the head. Pure
+  // silhouette + solid grey; no markings. Scaled UP hard on girth (body + head) with a deep heavy
+  // flesh so the barrel dominates and the legs read as stumps.
+  hippo: { archetype: 'stumpy', opts: {
+    skin: true,
+    fleshCfg: { thorax: 2.1, belly: 2.35, bellyDrop: 0.55, taper: 0.72 },   // deep heavy barrel, thick legs
+    armatureCfg: { backHeight: 0.4, trunkLength: 0.62, backArch: 0.0, neckLength: 0.08, neckAngle: 18,
+      girthBody: 1.35, girthFore: 1.15, girthHind: 1.15, girthHead: 1.35 },   // vast barrel, massive head, no neck
+    skullCfg: { length: 0.22, width: 0.115, muzzle: 0.55, snout: 0.78, boxy: 0.82, muzzleDrop: 0.05, jaw: 0.9 },   // enormous broad blunt muzzle
+    coat: { color: '#7d7278' },                                     // grey-mauve hide
+    underHex: '#8c7c7a', underCut: -0.4,
+    footCfg: { stroke: '#5a5256' },
+    face: { eyeHex: '#241a14', noseHex: '#3a3236', earHex: '#6a5f64',
+      eyeR: 0.1, eyeUp: 0.85, earLen: 0.3, earW: 0.72, earTip: 0.72, earUp: 1.0, earSide: 0.78 },   // tiny ears + eyes set high
+    tailCfg: { rootR: 0.02, tipR: 0.008, droop: 30, length: 0.16 },   // small tail
+  } },
+
+  // RHINO (Rhinoceros) — `stumpy` megafauna + the NASAL HORN, proving the antler primitive seats
+  // a horn FORWARD on the muzzle (not the crown): a single tineless beam, spread 0 (both mirrors
+  // on the midline → one horn), rooted at the nose (`pedFwd` ≈ 0.9) and low (`pedRise` small),
+  // rising with a slight forward curl. Barrel body, head carried low, thick grey hide, small
+  // tubular ears. The whole horned set is knob-turning over one primitive — here it's the horn's
+  // SEAT (forward + low) that makes a rhino instead of a bovid.
+  rhino: { archetype: 'stumpy', opts: {
+    skin: true,
+    fleshCfg: { thorax: 2.0, belly: 2.1, bellyDrop: 0.48, taper: 0.66 },
+    armatureCfg: { backHeight: 0.46, trunkLength: 0.6, backArch: 0.05, neckLength: 0.07, neckAngle: 20, headPitch: -36,
+      girthBody: 1.28, girthFore: 1.12, girthHind: 1.12, girthHead: 1.02 },   // barrel body, head slung low
+    skullCfg: { length: 0.22, width: 0.078, muzzle: 0.62, snout: 0.5, boxy: 0.55, muzzleDrop: 0.3 },   // long head dropping to the nose
+    coat: { color: '#8b8580' },                                     // grey hide
+    underHex: '#948e88', underCut: -0.42,
+    footCfg: { stroke: '#5f5a55' },
+    face: { eyeHex: '#241a14', noseHex: '#3a3632', earHex: '#7a746e',
+      eyeR: 0.09, earLen: 0.5, earW: 0.5, earTip: 0.35, earUp: 1.0, earSide: 0.85 },   // small tubular ears
+    // NASAL HORN — one tineless beam, seated FORWARD (pedFwd) + low (pedRise) on the muzzle, on
+    // the midline (spread 0), rising with a slight forward curl. The pale keratin horn.
+    antlers: { tines: [], beamLen: 0.19, segs: 6, rise: 1.0, back: 0.0, out: 0.0, curl: 0.28,
+      rootR: 0.034, tipR: 0.006, spread: 0.0, pedRise: 0.06, pedFwd: 0.84, stroke: '#c9c4bc' },
+    tailCfg: { rootR: 0.02, tipR: 0.008, droop: 34, length: 0.22 },
+  } },
+
+  // HORSE (Equus caballus) — rounding out Equidae beside the camel: the `equine` archetype at
+  // its intended proportions (tall, long deep head, high arched neck, hooves) in a solid bay-brown
+  // with dark points, a full low tail, and a dark dorsal neck MANE (the lock primitive as a small
+  // dark crest at the nape — a modest use of the ruff; a full running crest-mane is not yet wired,
+  // so this is a compact nape tuft, not a fake full mane). Reference: standing bay horse profile.
+  horse: { archetype: 'equine', opts: {
+    skin: true,
+    fleshCfg: { thorax: 1.9, belly: 1.95, bellyDrop: 0.36, taper: 0.46 },
+    armatureCfg: { backHeight: 0.62, trunkLength: 0.5, backArch: 0.0, neckLength: 0.3, neckAngle: 46, headPitch: -32,
+      girthBody: 1.02, girthFore: 0.96, girthHind: 1.02, girthHead: 0.9 },   // tall, deep girth, arched neck
+    skullCfg: { length: 0.24, width: 0.05, muzzle: 0.66, snout: 0.32, boxy: 0.4, muzzleDrop: 0.2 },   // long horse head
+    coat: { color: '#7a4d2e' },                                     // bay brown
+    underHex: '#6e4528', underCut: -0.4,                            // mild darker belly (horses aren't strongly countershaded)
+    footCfg: { stroke: '#241a12' },                                 // dark hooves
+    face: { eyeHex: '#1a120c', noseHex: '#2a1c14', earHex: '#4a3020',
+      eyeR: 0.13, earLen: 0.72, earW: 0.5, earTip: 0.42, earUp: 1.0, earSide: 0.82 },   // upright pointed ears
+    // MANE — a dark crest of a few locks at the nape (anchorT high on the neck), swept back and
+    // draping (high hang), low `out` so it hugs the crest rather than radiating like the lion ruff.
+    mane: { anchorT: 0.72, radius: 0.035, out: 0.12, back: 0.55, rise: 0.15, hang: 0.9,
+      len: 0.11, width: 0.035, thick: 0.026, tip: 0.5, flick: 0.05, crest: 0.7, color: '#241a12',
+      rings: [ { count: 14, radScale: 1.0, lenScale: 1.0 } ] },
+    tailCfg: { rootR: 0.028, bulgeR: 0.038, bulgeAt: 0.28, tipR: 0.018, droop: 42, length: 0.5, waveAmp: 0.03 },   // full low tail
+  } },
+
+  // RAM / BIGHORN (Ovis) — the CURLED-HORN showcase for Phase 2: a stocky bovid body (heavier
+  // than the gazelle) off the `gazelle` archetype, with the big spiralling horns carried as a
+  // tineless antler at HIGH `curl` — the beam sweeps up-and-back then curls hard FORWARD-down into
+  // a ram's C, seated back on the crown with ears splayed out below. Muddy-brown wool coat, pale
+  // muzzle. Proves the ram's curl is the same primitive as the buck's rack and the gazelle's spike.
+  ram: { archetype: 'gazelle', opts: {
+    skin: true,
+    fleshCfg: { thorax: 1.86, belly: 1.96, bellyDrop: 0.42, taper: 0.52 },   // stocky, woolly barrel
+    armatureCfg: { backHeight: 0.46, trunkLength: 0.46, backArch: 0.03, neckLength: 0.16, neckAngle: 38, headPitch: -20,
+      girthBody: 1.06, girthFore: 0.98, girthHind: 1.0, girthHead: 0.95 },
+    skullCfg: { length: 0.15, width: 0.052, muzzle: 0.56, snout: 0.3, boxy: 0.42, muzzleDrop: 0.22 },   // blunter than the deer
+    coat: { color: '#8a7052' },                                     // muddy brown wool
+    underHex: '#b3a184', underCut: -0.34,                           // paler underside
+    facePaint: { snoutHex: '#c8b79a', mouthHex: '#c8b79a' },        // pale muzzle
+    footCfg: { stroke: '#2a2018' },                                 // dark cloven hooves
+    face: { eyeHex: '#1a120c', noseHex: '#241a14', earHex: '#7a6248',
+      eyeR: 0.13, earLen: 0.62, earW: 0.55, earTip: 0.5, earUp: 0.55, earSide: 0.98 },   // ears splayed OUT to the side (below the horns)
+    // CURLED HORNS — tineless, and the debut of the `hook` (downcurl) lever: the beam rises + spirals
+    // OUT, then hooks back DOWN (hook > rise → the tip ends below the pedicle) and forward into the
+    // bighorn's C beside the face. Thick, ridged keratin. (Plain up/back/out gave an oryx sweep; the
+    // downcurl is what makes it a RAM — see the antler `hook` dial.)
+    antlers: { tines: [], beamLen: 0.34, segs: 12, rise: 0.62, back: 0.26, out: 0.42, curl: 0.5, hook: 1.15,
+      rootR: 0.03, tipR: 0.014, spread: 0.03, pedRise: 0.5, pedFwd: 0.16, stroke: '#a89878' },
+    tailCfg: { rootR: 0.014, tipR: 0.006, droop: 42, length: 0.12 },   // tiny down tail
+  } },
+
+  // BULL / OX (Bos taurus) — the OUTSWEPT-HORN bovid: a heavy deep-chested body off `equine`
+  // (cattle are big and long-headed, not slender like the gazelle clade) with a pair of tineless
+  // horns at LOW rise + HIGH `out` (they sweep sideways off the poll) curling forward to points.
+  // Warm dark-brown coat (kept OFF near-black so the lit mesh doesn't render it flat), a broad
+  // blunt head, a long tufted tail. Rounds out the domestic-bovid slot next to the wild ram.
+  bull: { archetype: 'equine', opts: {
+    skin: true,
+    fleshCfg: { thorax: 2.02, belly: 2.12, bellyDrop: 0.44, taper: 0.56 },   // heavy, deep barrel
+    armatureCfg: { backHeight: 0.52, trunkLength: 0.56, backArch: 0.02, neckLength: 0.14, neckAngle: 30, headPitch: -26,
+      girthBody: 1.2, girthFore: 1.16, girthHind: 1.06, girthHead: 1.02 },   // deep chest, powerful forequarter
+    skullCfg: { length: 0.2, width: 0.078, muzzle: 0.55, snout: 0.52, boxy: 0.58, muzzleDrop: 0.16 },   // broad blunt bovine head
+    coat: { color: '#6a4f38' },                                     // warm dark brown (lifted off near-black)
+    underHex: '#5c4530', underCut: -0.4,
+    footCfg: { stroke: '#1a1410' },                                 // dark cloven-ish hooves
+    face: { eyeHex: '#1a120c', noseHex: '#2a2420', earHex: '#4a3626',
+      eyeR: 0.12, earLen: 0.55, earW: 0.62, earTip: 0.62, earUp: 0.55, earSide: 0.98 },   // ears out to the side, below the horns
+    // OUTSWEPT HORNS — tineless, low `rise` + high `out` so they sweep laterally off the poll,
+    // with a forward `curl` bringing the tips forward to points. Pale keratin.
+    antlers: { tines: [], beamLen: 0.2, segs: 7, rise: 0.32, back: 0.06, out: 0.9, curl: 0.5,
+      rootR: 0.024, tipR: 0.006, spread: 0.042, pedRise: 0.65, pedFwd: 0.15, stroke: '#d8d0c0' },
+    tailCfg: { rootR: 0.018, bulgeR: 0.02, bulgeAt: 0.9, tipR: 0.008, droop: 50, length: 0.52 },   // long tufted tail
+  } },
+
+  // KOALA — DEFERRED (needs the upright arboreal pose). Built as a small grey `ursine` (big head,
+  // huge round side ears, big nose, pale chest) but on the ground-plant all-fours stance it reads
+  // as "small grey bear," not distinctly koala: the koala's identity is the tree-clinging upright
+  // pose (belly forward, limbs gripping) + the round-ear/big-nose face, and the kit only plants
+  // quadrupeds on the floor. Honest loop exit — logged, not faked. Revisit when a clinging/upright
+  // stance lever exists (the same gap that would give a sitting kangaroo its true tripod).
+
+  // WOMBAT (Vombatus ursinus) — marsupial off a SMALL `stumpy` (the wombat is a low barrel on
+  // short pillar legs, ~no neck, ~no tail): scaled down, sandy-brown, broad blunt head, small
+  // round ears. Pure silhouette + solid colour, the burrower's tank body — the small-stumpy
+  // sibling of the hippo.
+  wombat: { archetype: 'stumpy', opts: {
+    skin: true,
+    fleshCfg: { thorax: 1.98, belly: 2.08, bellyDrop: 0.5, taper: 0.64 },
+    armatureCfg: { backHeight: 0.26, trunkLength: 0.44, backArch: 0.02, neckLength: 0.05, neckAngle: 18,
+      girthBody: 1.16, girthFore: 1.02, girthHind: 1.02, girthHead: 1.1 },   // low barrel, stubby legs, no neck
+    skullCfg: { length: 0.15, width: 0.082, muzzle: 0.5, snout: 0.55, boxy: 0.6, muzzleDrop: 0.12 },   // broad blunt head
+    coat: { color: '#8a7358' },                                     // sandy brown
+    underHex: '#9a8468', underCut: -0.4,
+    footCfg: { stroke: '#4a3d2e' },
+    face: { eyeHex: '#1a140e', noseHex: '#2a221c', earHex: '#7a6650',
+      eyeR: 0.11, earLen: 0.5, earW: 0.72, earTip: 0.7, earUp: 0.85, earSide: 0.85 },   // small round ears
+    tailCfg: { rootR: 0.012, tipR: 0.006, droop: 20, length: 0.03 },   // ~no tail
   } },
 };

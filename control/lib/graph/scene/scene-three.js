@@ -44,9 +44,9 @@ import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
 import {
   actionsChannelScript, audioChannelScript, channelRuntimeSection, controllableChannelScript,
-  eventsChannelScript, gameChannelScript, glowSpriteScript, inkDecalScript, mojStepCalls,
+  eventsChannelScript, fxChannelScript, gameChannelScript, glowSpriteScript, inkDecalScript, mojStepCalls,
   normalizeRuntimeChannels, physicsChannelScript, pickChannelScript, shadowDecalScript,
-  skyDomeScript, specularChannelScript, walkModeScript, waterMeshScript,
+  skyDomeScript, specularChannelScript, spriteSfxChannelScript, walkModeScript, waterMeshScript,
 } from './channels.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 
@@ -152,16 +152,28 @@ renderer.setAnimationLoop((t) => {
 }
 
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, picks = [], tracers = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, game = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null } = {}) {
   // effects-layer fog overlay (effects-occluder.js): a transparent volumetric pass composited over
   // the rasterized world. `fog` = { frag, customUniforms, dataTextures }. Built as a fullscreen quad
   // added to the scene with depthTest off + premultiplied blending, so three's transparent pass
   // draws it last over the mesh; an onBeforeRender hook feeds it the live camera each frame.
-  const fogCu = fog ? Object.entries(fog.customUniforms || {}).map(([k, v]) => `${k}:{value:${Array.isArray(v) ? `new THREE.Vector3(${v.join(',')})` : (+v)}}`).join(',') : '';
-  const fogTd = fog ? Object.entries(fog.dataTextures || {}).map(([k, t]) =>
-    `${k}:{value:(()=>{const tx=new THREE.DataTexture(new Float32Array(${safeJson(t.data)}),${t.width},${t.height},THREE.RGBAFormat,THREE.FloatType);tx.minFilter=THREE.NearestFilter;tx.magFilter=THREE.NearestFilter;tx.needsUpdate=true;return tx;})()}`,
-  ).join(',') : '';
-  const fogExtras = [fogCu, fogTd].filter(Boolean).join(',');
+  // A raymarch overlay LAYER is { frag, customUniforms, dataTextures } — the fog effect is the
+  // first, and `effects[]` (game-ui-language.plan.md U3) stacks more (glow / wisps) over the same
+  // world. overlayExtras builds the per-layer uniform declarations (custom scalars/vec3s + data
+  // textures) shared by fog and every effect layer, so all overlays speak one shape.
+  const overlayExtras = (layer) => {
+    const cu = Object.entries(layer.customUniforms || {}).map(([k, v]) => `${k}:{value:${Array.isArray(v) ? `new THREE.Vector3(${v.join(',')})` : (+v)}}`).join(',');
+    const td = Object.entries(layer.dataTextures || {}).map(([k, t]) =>
+      `${k}:{value:(()=>{const tx=new THREE.DataTexture(new Float32Array(${safeJson(t.data)}),${t.width},${t.height},THREE.RGBAFormat,THREE.FloatType);tx.minFilter=THREE.NearestFilter;tx.magFilter=THREE.NearestFilter;tx.needsUpdate=true;return tx;})()}`,
+    ).join(',');
+    return [cu, td].filter(Boolean).join(',');
+  };
+  const fogExtras = fog ? overlayExtras(fog) : '';
+  // effects[] — additional stacked overlay layers beside fog. Each gets its own fullscreen quad,
+  // camera-fed onBeforeRender, and a renderOrder above fog so they composite last. Deterministic
+  // under camera bakes because frame() now pins __mojClock (U3). Absent ⇒ no bytes.
+  const effectsList = Array.isArray(effects) ? effects.filter((e) => e && typeof e.frag === 'string') : [];
+  const hasOverlay = !!fog || effectsList.length > 0;
   // Raymarch mode (black-hole-view): a full-screen GR geodesic fragment shader replaces the mesh
   // pipeline entirely. The mesh channels can't bend light; this can. Same /world funnel.
   if (raymarch && raymarch.frag) return emitRaymarchWorld({ ...raymarch, viewBox, title, bg, inline, cdn });
@@ -274,7 +286,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const wireframe = fs.some((f) => f.wireframe);
     // textured sub-groups (label wraps): one { key, pos, uv } per texture, rendered as a
     // MeshBasicMaterial({ map }). Empty for every existing scene → no behavior change.
-    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit }));
+    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit, ...(g.specs ? { spec: b64(g.specs) } : {}) }));
     // per-group translucency (cellular-view jelly + organelles): a face-level `alpha` < 1 turns
     // the whole group into a transparent mesh. null/absent → opaque, unchanged for every existing
     // scene. Stays a real group mesh (raycastable for picks, togglable to wireframe).
@@ -297,7 +309,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // no spec faces → zero bytes, every existing World byte-for-byte unchanged. The highlight
   // direction follows the scene's own baked light when the payload carries one (a vexar
   // makeLight — the workbench studio does), so specular and diffuse agree.
-  const specBlock = groups.some((g) => g.spec)
+  const specBlock = groups.some((g) => g.spec || (g.tex || []).some((t) => t.spec))
     ? specularChannelScript(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight)
     : '';
 
@@ -394,7 +406,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // additive — an absent channel contributes ZERO bytes to the page. Bespoke channels
   // (walk / physics / actions / events / controllable) are normalized below and hand
   // their finished block into the same map.
-  const { lists: chLists, blocks: chBlocks } = normalizeRuntimeChannels({ tracers, movers, comets, fields, surfaces, heatSpheres, starSurfaces, buildups, transports, deforms, signs });
+  const { lists: chLists, blocks: chBlocks } = normalizeRuntimeChannels({ tracers, planets, movers, comets, fields, surfaces, heatSpheres, starSurfaces, buildups, transports, deforms, signs });
   const hasSigns = !!chLists.signs;
   chBlocks.walk = walkBlock;
 
@@ -447,7 +459,44 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       if (Object.keys(clips).length) packedFigures[name] = { clips };
     }
   }
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures) : '';
+  // fx channel (game-ui-language.plan.md, U2): standing states + one-shot gestures decorating
+  // controllable entities by id. Present only when the manifest carries a non-empty `fx`; absent
+  // ⇒ byte-identical (no scaffolding emitted). It reads __mojCtrl.bodies, so the controllable
+  // channel exposes that map ONLY when fx is active (keeping fx-free worlds byte-identical). It is
+  // driven by __mojStep(t) — deterministic in every mode, unlike audio's own rAF loop — so it is
+  // NOT capture-gated: gestures/states render in bakes and audits alike (presentation-only, so
+  // probes are untouched).
+  const fxNorm = (fx && typeof fx === 'object'
+    && ((fx.states && Object.keys(fx.states).length) || (fx.on && Object.keys(fx.on).length))) ? fx : null;
+  const fxBlock = fxNorm ? fxChannelScript(fxNorm) : '';
+  // sprite sfx channel (game-ui-language.plan.md §V): the game sfx VERB shelf rendered as additive
+  // sprites (not a raymarch overlay). Present only when the manifest carries resolved `spriteSfx`
+  // layers; absent ⇒ byte-identical. Driven by __mojStep(t) like fx, so it renders in bakes too.
+  const spriteSfxList = Array.isArray(spriteSfx) ? spriteSfx.filter((L) => L && typeof L.verb === 'string' && Array.isArray(L.cc) && L.cc.length === 3) : [];
+  const spriteSfxBlock = spriteSfxList.length ? spriteSfxChannelScript(spriteSfxList) : '';
+  // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
+  // above fog (renderOrder 100001+i). Same shape as the fog quad, so fog stays byte-identical and
+  // glow/wisp layers ride beside it. uTime rides window.__mojClock (pinned by frame()/step()).
+  const effectsBlock = effectsList.length ? `
+// ---- effects layers (game UI language U3): stacked raymarch overlays over the world ----
+${effectsList.map((layer, i) => `{
+const __eU${i} = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${overlayExtras(layer)} };
+const __eMat${i} = new THREE.ShaderMaterial({ uniforms: __eU${i}, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: ${safeJson(layer.frag)}, transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
+const __eQuad${i} = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), __eMat${i});
+__eQuad${i}.frustumCulled = false; __eQuad${i}.renderOrder = ${100001 + i};
+const __efw${i} = new THREE.Vector3(), __efr${i} = new THREE.Vector3(), __efu${i} = new THREE.Vector3(), __efs${i} = new THREE.Vector2();
+__eQuad${i}.onBeforeRender = (rnd, scn, cam) => {
+  cam.getWorldDirection(__efw${i}); __efr${i}.crossVectors(__efw${i}, cam.up).normalize(); __efu${i}.crossVectors(__efr${i}, __efw${i}).normalize();
+  __eU${i}.uCamBasis.value.set(__efr${i}.x, __efu${i}.x, __efw${i}.x, __efr${i}.y, __efu${i}.y, __efw${i}.y, __efr${i}.z, __efu${i}.z, __efw${i}.z);
+  __eU${i}.uCamPos.value.copy(cam.position);
+  __eU${i}.uFov.value = cam.fov * Math.PI / 180;
+  rnd.getSize(__efs${i}); const __dpr = rnd.getPixelRatio(); __eU${i}.uRes.value.set(__efs${i}.x * __dpr, __efs${i}.y * __dpr);
+  __eU${i}.uTime.value = (window.__mojClock != null ? window.__mojClock : (typeof performance !== 'undefined' ? performance.now() : 0)) / 1000;
+};
+scene.add(__eQuad${i});
+}`).join('\n')}
+` : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -691,8 +740,8 @@ ${channelRuntimeSection(chBlocks)}
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-function __mojStep(t) { ${mojStepCalls()} }
-${fog ? `
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
+${fxBlock}${spriteSfxBlock}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };
 const __fogMat = new THREE.ShaderMaterial({ uniforms: __fogU, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: ${safeJson(fog.frag)}, transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
@@ -710,7 +759,7 @@ __fogQuad.onBeforeRender = (rnd, scn, cam) => {
   __fogU.uTime.value = (window.__mojClock != null ? window.__mojClock : (typeof performance !== 'undefined' ? performance.now() : 0)) / 1000;
 };
 scene.add(__fogQuad);
-` : ''}${audioBlock}
+` : ''}${effectsBlock}${audioBlock}
 const _freezeRaw = new URLSearchParams(location.search).get('t');
 const _freeze = _freezeRaw !== null && Number.isFinite(+_freezeRaw) ? +_freezeRaw : null;
 const _capture = ${capture ? 'true' : 'false'};${gameBlock}
@@ -735,7 +784,7 @@ if (_capture) {
       if (Array.isArray(spec.target)) controls.target.set(spec.target[0], spec.target[1], spec.target[2]);
       if (Number.isFinite(spec.vfov)) { camera.fov = spec.vfov; camera.updateProjectionMatrix(); }
       controls.update();
-      __mojStep(Number.isFinite(spec.t) ? spec.t : 0);
+      ${(capture && hasOverlay) ? 'window.__mojClock = Number.isFinite(spec.t) ? spec.t : 0;   // U3: pin the overlay clock so raymarch effects (fog/glow/wisps) bake deterministically under camera frames\n      ' : ''}__mojStep(Number.isFinite(spec.t) ? spec.t : 0);
       updateCutaway();
       renderer.render(scene, camera);
     },

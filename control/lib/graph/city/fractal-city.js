@@ -682,8 +682,11 @@ const LANDMARK_FOOTPRINT = {
 // The cluster is capped to ~58% of the region's anchor axis (the "zoom out far enough so it
 // fits" rule): if the monuments wouldn't fit with road room, the whole cluster scales down.
 // Deterministic (no rng) so landmark presence never perturbs the seed stream.
-function landmarkAnchor(region, landmarks, big = true) {
-  const minDim = Math.min(region.w, region.d);
+// `sizeRegion` is the BUDGET basis: when a corridor pushes placement into a side band,
+// pass the full city region here so the monuments keep their real surface-area budget
+// (displacing blocks) instead of being re-budgeted off the shallow band.
+function landmarkAnchor(region, landmarks, big = true, sizeRegion = region) {
+  const minDim = Math.min(sizeRegion.w, sizeRegion.d);
   const horizontal = region.w >= region.d;             // lay the cluster along the longer axis
   const gap = minDim * 0.05;
   let items = landmarks.map((shape) => {
@@ -692,9 +695,22 @@ function landmarkAnchor(region, landmarks, big = true) {
     return { shape, w: horizontal ? base * spec.aspect : base, d: horizontal ? base : base * spec.aspect };
   });
   const alongOf = (it) => (horizontal ? it.w : it.d);
+  const acrossOf = (it) => (horizontal ? it.d : it.w);
   const along = items.reduce((s, it) => s + alongOf(it), 0) + gap * (items.length - 1);
   const budget = (horizontal ? region.w : region.d) * 0.58;        // leave room for the road network
-  const scale = along > budget ? budget / along : 1;
+  let scale = along > budget ? budget / along : 1;
+  // ACROSS-AXIS FIT — the same zoom-out rule for the placement band's short axis: the
+  // footprint (plaza ring included) must sit INSIDE the band so it never crosses a
+  // reserved boulevard. Iterative because the ring margin has a floor (1.8) below
+  // which shrinking the cluster stops shrinking the ring.
+  const acrossDim = horizontal ? region.d : region.w;
+  for (let i = 0; i < 4; i++) {
+    const acrossMax = Math.max(...items.map(acrossOf)) * scale;
+    const m2 = Math.max(1.8, Math.min(along * scale, acrossMax) * 0.25);
+    const need = acrossMax + 2 * m2;
+    if (need <= acrossDim) break;
+    scale *= acrossDim / need;
+  }
   if (scale < 1) items = items.map((it) => ({ ...it, w: it.w * scale, d: it.d * scale }));
   const g = gap * scale;
   const totalAlong = items.reduce((s, it) => s + alongOf(it), 0) + g * (items.length - 1);
@@ -2306,8 +2322,12 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   let placedRootAnchor = false;
   let landmarkZone = null;                                     // reserved plaza footprint → roads avoid it (opts.avoid)
   if (landmarks.length && recipeElements.anchorTowers && anchorRegion.w > 4 && anchorRegion.d > 4) {
-    const la = landmarkAnchor(anchorRegion, landmarks, true);
-    if (bs !== 1) shrinkAnchorAbout(la, bs, true);   // monument is footprint-relative → scale footprint AND height uniformly
+    // Budget off the FULL region and take NO baseScale pre-shrink: a landmark's
+    // LANDMARK_FOOTPRINT is its REAL surface-area budget, so under baseScale (<1) the
+    // monuments stay frame-true while only the generic fabric densifies — the plaza
+    // reservation displaces blocks/props to pay for it. (The generic tower below keeps
+    // its pre-shrink: it has no real-world budget to honour.)
+    const la = landmarkAnchor(anchorRegion, landmarks, true, region);
     boxes.push(...la.boxes); seedReserved.push({ ...la.footprint, hard: true });
     stampRect(grid, la.footprint, CLAIM.PLAZA);              // claim the whole plaza (incl. the ring) so nothing builds on it
     // the monument BASES are a hard claim, not plaza: PLAZA is a TREE_SURFACE (so the civic

@@ -73,6 +73,7 @@ export const MARK_KINDS = [
   'solidPreset',
   'object',
   'boxNet',
+  'arabesque',
   'text',
 ];
 const MARK_KIND_SET = new Set(MARK_KINDS);
@@ -409,6 +410,26 @@ function validateMark(mark, idx, errors) {
       }
       if (mark.glyph !== undefined && (!mark.glyph || typeof mark.glyph !== 'object' || Array.isArray(mark.glyph))) {
         errors.push(`${path}.glyph must be an object if provided`);
+      }
+      break;
+    case 'arabesque':
+      ['n', 'contactAngle', 'cols', 'rows', 'cx', 'cy', 'size', 'strokeWidth',
+        'shoulder', 'pointWidth', 'gap', 'bandWidth', 'opacity', 'z'].forEach((key) =>
+        validateOptionalNumber(mark, key, path, errors),
+      );
+      ['mode', 'pattern', 'stroke', 'starFill', 'petalFill', 'coreFill', 'bandColor', 'casingColor'].forEach((key) =>
+        validateOptionalString(mark, key, path, errors),
+      );
+      ['fill', 'interlace'].forEach((key) => {
+        if (mark[key] !== undefined && typeof mark[key] !== 'boolean') {
+          errors.push(`${path}.${key} must be a boolean if provided`);
+        }
+      });
+      if (mark.mode !== undefined && !['field', 'rosette', 'medallion'].includes(mark.mode)) {
+        errors.push(`${path}.mode must be one of field|rosette|medallion`);
+      }
+      if (mark.pattern !== undefined && !['hex', 'square', 'khatam'].includes(mark.pattern)) {
+        errors.push(`${path}.pattern must be one of hex|square|khatam`);
       }
       break;
     case 'rBrush':
@@ -813,7 +834,7 @@ export const EDUCATION_VIEW_KINDS = [
   'trig-circle-view', 'pythagoras-view', 'quadratic-view', 'complete-square-view', 'conics-view', 'derivative-view', 'ftc-view',
   'heat-sphere-view',
 ];
-export const WORLD_RENDER_KINDS = ['fractal-city', 'condo-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', ...EDUCATION_VIEW_KINDS];
+export const WORLD_RENDER_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', ...EDUCATION_VIEW_KINDS];
 export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
 // Beats artifacts (beats.plan.md) — heard, not looked at. Rendered as a live
 // self-contained audio-player page at /api/sketches/<ref>/beats in an <iframe>.

@@ -20,6 +20,8 @@ import { promises as fs } from 'node:fs';
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
+import { exportsBaseDir } from './exports-dir.js';
+import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import {
@@ -324,6 +326,18 @@ export async function updateSketchHandler(input) {
     }
   }
 
+  // Beats guard rail (B9): a beats recipe is not an SVG manifest — routing it
+  // through the sketch validator half-works for titles and hard-fails
+  // confusingly on manifests. Teach the domain tool instead.
+  const existingSketch = SketchRepository.getByRef(ref);
+  if (existingSketch?.manifest && isBeatsKind(existingSketch.manifest.kind)) {
+    throw new Error(
+      `'${ref}' is a beats artifact (${existingSketch.manifest.kind}) — edit it with `
+      + 'update_beats { ref, manifest?, title?, note? } (validated musically, and every edit '
+      + 'snapshots a revision). Read it first with get_beats.',
+    );
+  }
+
   let nextManifest;
   if (manifest !== undefined) {
     let expanded;
@@ -431,6 +445,15 @@ export async function diffSketchesHandler(input) {
   if (!left) throw new Error(`No sketch exists at left_ref '${left_ref}'`);
   const right = SketchRepository.getByRef(right_ref);
   if (!right) throw new Error(`No sketch exists at right_ref '${right_ref}'`);
+
+  // Beats guard rail (B9): geometry diffing two recipes produces a meaningless
+  // picture — the musical diff is a report, not a picture.
+  if ((left.manifest && isBeatsKind(left.manifest.kind)) || (right.manifest && isBeatsKind(right.manifest.kind))) {
+    throw new Error(
+      'These are beats artifacts — use diff_beats { refA, refB } (accepts ref@rev) for a '
+      + 'structured musical diff: tempo/track/grid/progression changes, not SVG geometry.',
+    );
+  }
 
   const diff = deriveSketchDiffManifest({
     left,
@@ -574,11 +597,9 @@ export async function createPolygonizedSketchHandler(input) {
   return response;
 }
 
-// On-disk location for written .glb exports. Overridable for tests / alternate data roots;
-// defaults beside the other generated artifacts under control/data/.
-function exportsBaseDir() {
-  return process.env.MOJULO_EXPORTS_DIR || path.join(process.cwd(), 'data', 'exports');
-}
+// exportsBaseDir lives in ./exports-dir.js (shared with tools/beats.js);
+// re-exported here for existing importers.
+export { exportsBaseDir };
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb.
@@ -753,7 +774,7 @@ export function registerSketchTools() {
             marks: {
               type: 'array',
               description:
-                'Low-level chart/vector primitives composed into sketches (read the matching sketch_vocab card for chart paradigms). Common fields: kind, z?, fill?, stroke?, strokeWidth?, opacity?, dash?, blend?, elevate?, role?, closed?, weightRank?. Geometry by kind — rect{x,y,w,h,rx?} (or cell); circle{cx,cy,r}; wedge{cx,cy,r,rInner?,start,end} (start/end are fractions 0–1, clockwise from 12 o’clock); line{x1,y1,x2,y2}; polyline{points:[[x,y],…]}; polygon{points:[[x,y],…]}; blob{anchor:[x,y] OR gestureT,rx,ry,offset?,rotation?,wobble?,points?}; sphere{anchor:[x,y] OR cx,cy,r}; oval{anchor:[x,y] OR cx,cy,rx,ry}; egg{anchor:[x,y] OR cx,cy,rx,ry}; cylinder{anchor:[x,y] OR cx,cy,rx,height,depth?,openTop?}; volume{primitive:"cup",anchor:[x,y],height,rimWidth,footWidth,wallThickness?,rings?,openTop?} expands a hollow tapered ring-stack cup; form{mode:"abstract"|"animated"|"realistic",stock:"bipedal"|"plane-object",role?,anchor:[x,y],scale?,massTuning?,speciesStock?} compiles broad figure/object stocks into renderer-native marks; plane{anchor:[x,y],length,width,axis? OR points:[[x,y],...]}; solid{x,y,width,height,depth,depthOffset?,faces?} projects one cuboid into filled SVG plane faces; partition{target:"role",axis:"y",count,role?,thickness?} splits a previous solid into repeated shelf-board solids; array{role,count,from:[x,y],to:[x,y],upperFrom?,upperTo?,item:{kind:"line"|"solid",...}} repeats lines or solids along a path; cubieLattice{role,anchor:[x,y],cols?,rows?,layers?,cellSize?,gap?,depth?} expands into separated solid cubies whose gaps create negative space; planePreset{ref:"bookshelf",x,y,width,height,depth?,shelves?}; solidPreset{ref:"bookshelf",x,y,width,height,depth?,shelves?} projects 3D cuboids into filled SVG plane faces; object{ref:"bookshelf-wireframe",x,y,w,h,depth?,shelves?,columns?} legacy wireframe; text{x,y,value,size?,weight?,anchor?,color?,family?}. Optional top-level polygonizer records subject, impactPoint, realityFacts, and minimalAbstractions for prompt-to-grammar audit; polygonizer.pureMandala plus cameraPrimitive{kind:"two-point", vanishingPoints, horizonY?, cropBox?, showFullMandala?} expands a deterministic room projection with paired floor/ceiling grids and pinned elements. The audit fields are informational and do not render directly. Optional top-level scene.perspective:{mode:"one-point",horizonY?,vanishingPoint:[x,y],depthScale?} locks solid depth edges to the vanishing point. Cylinder tops are closed by default; use openTop:true only for intentional tubes; prefer volume{primitive:"cup"} for hollow tapered cups. Optional top-level gesture:{kind?,points:[[x,y],...]} lets compact blobs use gestureT 0..1; create_sketch resolves anchor/rotation before storage. P0 sticker painting: a closed polygon, sphere, oval, egg, cylinder, volume, plane, solid face, or compact blob may include shade:{algorithm:"form-light-stack", intensity?} and optional highlights:{algorithm:"form-light-stack", intensity?}; legacy shade:{algorithm:"convex-value-stack"} and highlights:{algorithm:"simple-highlight"} still work. Rendrant expands construction marks, compact blobs, round primitives, cylinders, volumes, form primitives, cubie lattices, solids, planes, plane presets, solid presets, legacy object assets, and algorithmic polygon stickers before storage.',
+                'Low-level chart/vector primitives composed into sketches (read the matching sketch_vocab card for chart paradigms). Common fields: kind, z?, fill?, stroke?, strokeWidth?, opacity?, dash?, blend?, elevate?, role?, closed?, weightRank?. Geometry by kind — rect{x,y,w,h,rx?} (or cell); circle{cx,cy,r}; wedge{cx,cy,r,rInner?,start,end} (start/end are fractions 0–1, clockwise from 12 o’clock); line{x1,y1,x2,y2}; polyline{points:[[x,y],…]}; polygon{points:[[x,y],…]}; blob{anchor:[x,y] OR gestureT,rx,ry,offset?,rotation?,wobble?,points?}; sphere{anchor:[x,y] OR cx,cy,r}; oval{anchor:[x,y] OR cx,cy,rx,ry}; egg{anchor:[x,y] OR cx,cy,rx,ry}; cylinder{anchor:[x,y] OR cx,cy,rx,height,depth?,openTop?}; volume{primitive:"cup",anchor:[x,y],height,rimWidth,footWidth,wallThickness?,rings?,openTop?} expands a hollow tapered ring-stack cup; form{mode:"abstract"|"animated"|"realistic",stock:"bipedal"|"plane-object",role?,anchor:[x,y],scale?,massTuning?,speciesStock?} compiles broad figure/object stocks into renderer-native marks; plane{anchor:[x,y],length,width,axis? OR points:[[x,y],...]}; solid{x,y,width,height,depth,depthOffset?,faces?} projects one cuboid into filled SVG plane faces; partition{target:"role",axis:"y",count,role?,thickness?} splits a previous solid into repeated shelf-board solids; array{role,count,from:[x,y],to:[x,y],upperFrom?,upperTo?,item:{kind:"line"|"solid",...}} repeats lines or solids along a path; cubieLattice{role,anchor:[x,y],cols?,rows?,layers?,cellSize?,gap?,depth?} expands into separated solid cubies whose gaps create negative space; arabesque{mode:"field"|"rosette"|"medallion",pattern?:"hex"|"square"|"khatam",n?,contactAngle?,cols?,rows?,interlace?,fill?,cx?,cy?,size?,starFill?,petalFill?,coreFill?} constructs Islamic geometric star patterns / rosettes (shams) / concentric medallions via polygons-in-contact and lowers to polygon/polyline/circle marks (read the `arabesque` sketch_vocab card); planePreset{ref:"bookshelf",x,y,width,height,depth?,shelves?}; solidPreset{ref:"bookshelf",x,y,width,height,depth?,shelves?} projects 3D cuboids into filled SVG plane faces; object{ref:"bookshelf-wireframe",x,y,w,h,depth?,shelves?,columns?} legacy wireframe; text{x,y,value,size?,weight?,anchor?,color?,family?}. Optional top-level polygonizer records subject, impactPoint, realityFacts, and minimalAbstractions for prompt-to-grammar audit; polygonizer.pureMandala plus cameraPrimitive{kind:"two-point", vanishingPoints, horizonY?, cropBox?, showFullMandala?} expands a deterministic room projection with paired floor/ceiling grids and pinned elements. The audit fields are informational and do not render directly. Optional top-level scene.perspective:{mode:"one-point",horizonY?,vanishingPoint:[x,y],depthScale?} locks solid depth edges to the vanishing point. Cylinder tops are closed by default; use openTop:true only for intentional tubes; prefer volume{primitive:"cup"} for hollow tapered cups. Optional top-level gesture:{kind?,points:[[x,y],...]} lets compact blobs use gestureT 0..1; create_sketch resolves anchor/rotation before storage. P0 sticker painting: a closed polygon, sphere, oval, egg, cylinder, volume, plane, solid face, or compact blob may include shade:{algorithm:"form-light-stack", intensity?} and optional highlights:{algorithm:"form-light-stack", intensity?}; legacy shade:{algorithm:"convex-value-stack"} and highlights:{algorithm:"simple-highlight"} still work. Rendrant expands construction marks, compact blobs, round primitives, cylinders, volumes, form primitives, cubie lattices, solids, planes, plane presets, solid presets, legacy object assets, and algorithmic polygon stickers before storage.',
               items: {
                 type: 'object',
                 properties: {

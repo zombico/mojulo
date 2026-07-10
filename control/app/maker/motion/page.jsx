@@ -127,12 +127,9 @@ export default function MotionGalleryPage() {
               <section key={p.tagRef || '__untagged__'}>
                 <div className="flex items-baseline gap-2 mb-3 pb-2 border-b border-gray-800">
                   {p.tagRef ? (
-                    <Link
-                      href="/operations"
-                      className="text-sm font-semibold text-gray-200 hover:text-teal-300"
-                    >
+                    <span className="text-sm font-semibold text-gray-200">
                       {p.title || t('untitledProject')}
-                    </Link>
+                    </span>
                   ) : (
                     <span className="text-sm font-semibold text-gray-400 italic">{t('untagged')}</span>
                   )}

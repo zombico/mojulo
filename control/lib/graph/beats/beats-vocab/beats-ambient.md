@@ -48,6 +48,12 @@
     `note` picks the pitch (kick wants `"C1"`); optional `dropout` humanizes.
 - **patch** (see audio-patches.js): `pad`, `bassMono`, `sinePluck`, `chipLead`,
   `fmBell`, `kick`, `hat`, `burstSoft`. Omit to get the role's default.
+- **instrument** (B6, instead of `patch`): a channel can name a shelf
+  instrument — `piano`, `rhodes`, `acoustic-guitar`, `violin`/`cello`,
+  `trumpet`, … — and gets its whole patch + color chain + feel stack; explicit
+  channel fields override. This is how the orchestra joins a world soundtrack:
+  e.g. `{ "name": "keys", "role": "harmony", "instrument": "piano" }` plays the
+  progression as softly rolled piano chords. See the beats-instruments card.
 - **chain** effects per channel: `filter` { mode, freq, q } · `delay` /
   `pingpong` { time, feedback, mix } · `chorus` { rate, depth, mix } ·
   `reverb` { decay, wet — impulse is computed from the seed, never sampled }.
@@ -58,3 +64,23 @@ Slow attack pads + a probability-gated pentatonic melody + sparse drums is the
 proven ambient shape. Keep bpm 70–95 for presence beds. For darker moods drop
 the progression into minor roots and lower `gate` toward 0.4. A world can carry
 one of these inline or by ref: `manifest.audio = { soundtrack: { beatsRef } }`.
+
+## Performance macros + revising
+
+Every channel/part/track accepts two performance macros (B5.2): `transpose`
+(semitones, [-24, 24], applied at schedule time) and `tone` ([0, 1], a low-pass
+at the chain head — 1 = open, 0 = dark; delay/reverb tails darken with their
+source). Stored values seed the player's sliders and round-trip through the
+manifest. In a world, `audio.bindings` drives these macros from sim state
+(depth/height/speed/proximity → tone/level/transpose) — read-only, one
+direction, so the soundtrack follows the world without ever writing back.
+
+Revise with the domain tools, never re-mint: `get_beats { ref }` reads the
+recipe + revision index + open annotations; `update_beats { ref, manifest,
+note, resolveAnnotations }` validates like create and snapshots a revision
+(`?rev=` plays any of them); `diff_beats { refA, refB }` (accepts `ref@rev`)
+reports what changed musically; `annotate_beats` marks bars/tracks/cues. The
+studio at `/beats/<ref>` is the listening + marking surface. Hand off to
+musicians with `export_beats { format: 'midi' }` (or `/api/beats/<ref>.mid`):
+the score as a Standard MIDI File — swing/feel/velocities travel, timbre
+ships in the .wav.

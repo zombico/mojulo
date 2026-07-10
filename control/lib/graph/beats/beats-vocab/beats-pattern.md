@@ -46,12 +46,21 @@
   every active step). Only the steps the mask activates sound, but every step
   carries a note, so editing the mask never lands on a note-less cell. Falls
   back to single `note`, then `'C3'`.
-- **Instrument — exactly one of:**
-  - `patch` — a shelf patch name (see the beats-ambient card for the shelf;
-    `sawStab` is the detuned-saw garage/house stab with a swept filter).
+- **Instrument — exactly one of `patch | instrument | gesture | cue`:**
+  - `patch` — a shelf patch name (`sawStab` is the detuned-saw garage/house
+    stab with a swept filter); the base patch shelf is listed in the
+    beats-ambient card.
+  - `instrument` — a named shelf instrument (`clav`, `rhodes`, `muted-guitar`,
+    `trumpet`, …) that expands to patch + color + feel. Reach here for the
+    funk/soul kit (clav, rhodes, guitars) and the horn/string sections — the
+    full shelf is far larger than the eight base patches and lives in the
+    beats-instruments card.
   - `gesture` — one foley gesture object (`sweep | flutter | burst | thump`).
     The step's mask velocity scales the gesture's volume.
   - `cue` — a gesture list fired together (the three-burst clap above).
+- **feel** — a track can carry a `feel` (preset name or params) to de-quantize
+  the groove: strum chord stabs, add per-hit timing/velocity jitter. The
+  anti-MIDI layer; see the beats-instruments card.
 - **swing** — 0–0.5; odd sixteenths land late by `swing × sixteenth × 2/3`.
   0.3–0.4 is the UK garage pocket.
 - **chain** — per-track effects as in beats-ambient. `delay`/`pingpong`
@@ -70,3 +79,23 @@
 - Use a `"3/16"` delay on stabs/plucks at 0.15–0.2 mix for the dub tail.
 - A pattern makes a world soundtrack: `audio: { soundtrack: { beatsRef } }`
   loops it by construction.
+
+## Performance macros + revising
+
+Every channel/part/track accepts two performance macros (B5.2): `transpose`
+(semitones, [-24, 24], applied at schedule time) and `tone` ([0, 1], a low-pass
+at the chain head — 1 = open, 0 = dark; delay/reverb tails darken with their
+source). Stored values seed the player's sliders and round-trip through the
+manifest. In a world, `audio.bindings` drives these macros from sim state
+(depth/height/speed/proximity → tone/level/transpose) — read-only, one
+direction, so the soundtrack follows the world without ever writing back.
+
+Revise with the domain tools, never re-mint: `get_beats { ref }` reads the
+recipe + revision index + open annotations; `update_beats { ref, manifest,
+note, resolveAnnotations }` validates like create and snapshots a revision
+(`?rev=` plays any of them); `diff_beats { refA, refB }` (accepts `ref@rev`)
+reports what changed musically; `annotate_beats` marks bars/tracks/cues. The
+studio at `/beats/<ref>` is the listening + marking surface. Hand off to
+musicians with `export_beats { format: 'midi' }` (or `/api/beats/<ref>.mid`):
+the score as a Standard MIDI File — swing/feel/velocities travel, timbre
+ships in the .wav.

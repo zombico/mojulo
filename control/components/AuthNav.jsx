@@ -7,6 +7,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import WorkshopDrawer from '@/components/WorkshopDrawer';
 
 function HomeIcon({ className = 'h-5 w-5' }) {
   // Mojulo favicon (3-card stack with teal gradient) — keeps the brand
@@ -84,16 +86,18 @@ function SignOutIcon({ className = 'h-4 w-4' }) {
 export default function AuthNav({ authEnabled = false }) {
   const tSettings = useTranslations('settings');
   const tLogin = useTranslations('login');
+  const tHome = useTranslations('home');
   const router = useRouter();
   const pathname = usePathname();
+  const [navOpen, setNavOpen] = useState(false);
 
   // Bare-view routes: the agent launches the user directly into a single
   // artifact (e.g. a minted sketch) and the surrounding nav would distract
   // from the thing they came to see. Skip rendering chrome on these paths.
   if (pathname && pathname.startsWith('/sketches/')) return null;
-  // Home is its own launcher — the logo, wordmark, and services grid carry
-  // the brand and surface settings as a tile, so the nav row is redundant.
-  if (pathname === '/') return null;
+  // Home (Workshop Home) keeps the top bar: the launcher's own heading now
+  // reads "Workshop Home", so the nav brand is what carries the Mojulo
+  // wordmark, and its Settings/sign-out replace the launcher's old tile.
 
   async function onLogout() {
     try {
@@ -104,10 +108,20 @@ export default function AuthNav({ authEnabled = false }) {
 
   return (
     <nav className="w-full border-b border-[color:var(--border-color)] bg-[color:var(--surface-primary)] px-4 py-2 flex items-center justify-between text-sm">
-      <Link href="/" className="font-semibold tracking-tight inline-flex items-center gap-2">
+      {/* The brand opens the global Workshop nav drawer rather than navigating
+          home — home stays reachable as the first link inside the drawer. */}
+      <button
+        type="button"
+        onClick={() => setNavOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={navOpen}
+        aria-label={tHome('drawer.open')}
+        className="font-semibold tracking-tight inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:text-white hover:bg-[color:var(--surface-elevated)]/40 transition"
+      >
         <HomeIcon />
         Mojulo
-      </Link>
+      </button>
+      <WorkshopDrawer open={navOpen} onClose={() => setNavOpen(false)} />
       <div className="flex items-center gap-4 text-[color:var(--text-muted)]">
         <Link href="/settings" className="inline-flex items-center gap-1.5 hover:text-white">
           <GearIcon />

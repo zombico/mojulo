@@ -26,6 +26,7 @@ import {
   buildCarNetSceneShapes, buildSmoothBoxNetSceneShapes, getCarNet, getSmoothBoxNet,
 } from '../polygonizer/vehicle-swept-net.js';
 import { buildFuselageNetSceneShapes, getFuselageNet } from '../polygonizer/vehicle-fuselage-net.js';
+import { resolveMaterial, materialPbr } from '../polygonizer/materials.js';
 
 const GLOBAL_K = 0.35;                                 // 5 m sedan → ~1.75 world units
 const P3 = (w) => ({ x: w[0], y: w[1], z: w[2] });     // identity projector (non-array → kept verbatim, z survives)
@@ -43,15 +44,21 @@ function rotFor(axis, dir, heading) {
   return ((deg - 90) * Math.PI) / 180;
 }
 
-export function sweptFaces({ net = 'sedan', family = 'car', cx = 0, cy = 0, axis = 'x', dir = 1, heading, scale = 1, ns = 10, na = 11, quality = 0.3, cull = false, paint, hull } = {}) {
+export function sweptFaces({ net = 'sedan', family = 'car', cx = 0, cy = 0, axis = 'x', dir = 1, heading, scale = 1, ns = 10, na = 11, quality = 0.3, cull = false, paint, hull, material } = {}) {
   const isCar = family === 'car';
   const build = isCar ? buildCarNetSceneShapes : buildSmoothBoxNetSceneShapes;
   const L = isCar ? getCarNet(net).length : getSmoothBoxNet(net).geo.length;
 
   const place = { cx: 0, noseY: L / 2 };                            // centred, length along +y
-  const buildOpts = { place, projectPoint: P3, cameraPosition: [0, 0, 1e4], ns, na, quality, cull };
+  const buildOpts = { place, projectPoint: P3, cameraPosition: [0, 0, 1e4], ns, na, quality, cull, material };
   if (isCar) { buildOpts.paint = paint; buildOpts.hull = hull; }    // paint/hull are car-family finishes
   const { shapes } = build(net, buildOpts);
+  // PAINT material → face tags for the World's live specular + .glb PBR (body + fascia only —
+  // wheels stay rubber, accessories keep their own read). The response curve is already in the fills.
+  const mat = material ? resolveMaterial(material) : null;
+  const spec = mat && mat.specular > 0 ? [mat.specular, mat.shininess || 16] : null;
+  const pbr = mat ? materialPbr(mat) : null;
+  const paintTags = (role) => (spec && !String(role || '').startsWith('accessory:') ? { spec, pbr } : {});
 
   // local → world: uniform scale (GLOBAL_K·scale) about origin, rotate to heading, translate
   const k = GLOBAL_K * scale, rot = rotFor(axis, dir, heading), cos = Math.cos(rot), sin = Math.sin(rot);
@@ -61,7 +68,7 @@ export function sweptFaces({ net = 'sedan', family = 'car', cx = 0, cy = 0, axis
   for (const s of shapes) {
     if (s.role === 'wheel') { out.push(...wheelCoin(s, W)); continue; }
     if (s.role === 'hub') { out.push(disc(s, W)); continue; }
-    if (s.points.length === 4) out.push({ corners: s.points.map((p) => W([p.x, p.y, p.z])), fill: s.fill, doubleSided: true });
+    if (s.points.length === 4) out.push({ corners: s.points.map((p) => W([p.x, p.y, p.z])), fill: s.fill, doubleSided: true, ...paintTags(s.role) });
   }
   return out;
 }

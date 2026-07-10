@@ -80,6 +80,12 @@ export function buildBeatsKernel() {
     const eighth = 60 / bpm / 2;
     return i * eighth + (i % 2 === 1 ? (swing || 0) * eighth * (2 / 3) : 0);
   }
+  // tone macro (B5.2): [0,1] → low-pass cutoff, exponential 120Hz → 18kHz.
+  // 1 ≈ open (the null position), 0 = rolled all the way down. Pure, so the
+  // offline render and the live transport map a stored tone identically.
+  function toneFreq(v) {
+    return 120 * Math.pow(150, Math.max(0, Math.min(1, v == null ? 1 : v)));
+  }
 
   // ── ambient scheduling: one bar of events, pure in (recipe, barIndex) ───────
   // Returns [{ t, channel, notes, dur, vel }] with t in seconds from bar start.
@@ -369,6 +375,23 @@ export function buildBeatsKernel() {
       return c;
     }
 
+    // asymmetric soft-clip for the `amp` effect: the same k-shape evaluated off
+    // center (a bias term = tube stage bias), recentered so y(0) = 0. Asymmetry
+    // is what puts even harmonics in the exhaust; the sign alternates per stage.
+    function ampCurve(edge, bias) {
+      const n = 2048, c = new Float32Array(n);
+      const a = Math.max(0.05, Math.min(0.95, edge == null ? 0.55 : edge));
+      const k = (2 * a) / (1 - a);
+      const b = bias == null ? 0 : Math.max(-0.5, Math.min(0.5, bias));
+      const f = (x) => ((1 + k) * x) / (1 + k * Math.abs(x));
+      const f0 = f(b);
+      for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1;
+        c[i] = f(x + b) - f0;
+      }
+      return c;
+    }
+
     // effects chain: fx = [{ type: 'filter'|'delay'|'pingpong'|'chorus'|'reverb'|'body'|'drive', ... }]
     // Returns { input, output }; wet/dry mixed per node so chains compose linearly.
     // delay/pingpong `time` accepts note fractions ('3/16') resolved against bpm.
@@ -453,6 +476,44 @@ export function buildBeatsKernel() {
             cab.frequency.value = f.tone == null ? 3000 : f.tone; cab.Q.value = f.q == null ? 0.7 : f.q;
             post.connect(cab); head = cab;
           }
+        } else if (t === 'amp') {
+          // amp voice (B6 spike): `drive` is one polite clip; an amp is gain
+          // STAGING. Enough pre-gain that the clip stays saturated for most of the
+          // note's life (the envelope decouples from the string — loudness holds,
+          // brightness decays), split across cascaded asymmetric stages with
+          // shaping between them, into a resonant cabinet (formants, not a lowpass).
+          // gain (dB, default 32) is the identity knob; edge = per-stage curve
+          // hardness; bias = asymmetry (even harmonics), sign alternating per stage.
+          const gainDb = Math.max(0, Math.min(50, f.gain == null ? 32 : f.gain));
+          const stages = Math.max(1, Math.min(4, Math.round(f.stages == null ? 3 : f.stages)));
+          const bias = f.bias == null ? 0.18 : f.bias;
+          // tighten: sub-lows out before any gain (flub becomes indistinct roar),
+          // then pre-emphasis: the mids that survive clipping best get boosted
+          // going in and carved back out after (the classic distortion voicing).
+          const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 85; hp.Q.value = 0.7;
+          const emph = ctx.createBiquadFilter(); emph.type = 'peaking'; emph.frequency.value = 780; emph.Q.value = 0.7; emph.gain.value = 5;
+          head.connect(hp); hp.connect(emph); head = emph;
+          for (let s = 0; s < stages; s++) {
+            const pre = ctx.createGain(); pre.gain.value = dbGain(gainDb / stages);
+            const ws = ctx.createWaveShaper(); ws.curve = ampCurve(f.edge, (s % 2 ? -1 : 1) * bias); ws.oversample = '4x';
+            // dc block (asymmetry pushes signal-dependent offset), then interstage
+            // fizz control so each stage clips a shaped signal, not the last one's hash.
+            const dc = ctx.createBiquadFilter(); dc.type = 'highpass'; dc.frequency.value = 25; dc.Q.value = 0.5;
+            const il = ctx.createBiquadFilter(); il.type = 'lowpass'; il.frequency.value = 6500; il.Q.value = 0.6;
+            head.connect(pre); pre.connect(ws); ws.connect(dc); dc.connect(il); head = il;
+          }
+          const deEmph = ctx.createBiquadFilter(); deEmph.type = 'peaking'; deEmph.frequency.value = 780; deEmph.Q.value = 0.7; deEmph.gain.value = -3;
+          // cabinet: a formant bank, not a tone knob — low bump, presence peak,
+          // then a steep cliff (two cascaded lowpasses ≈ 24dB/oct) above `cut`.
+          const bump = ctx.createBiquadFilter(); bump.type = 'peaking'; bump.frequency.value = 105; bump.Q.value = 1; bump.gain.value = 4.5;
+          const pres = ctx.createBiquadFilter(); pres.type = 'peaking'; pres.frequency.value = 3200; pres.Q.value = 1.2; pres.gain.value = f.presence == null ? 4 : f.presence;
+          const cut = f.cut == null ? 5200 : f.cut;
+          const lp1 = ctx.createBiquadFilter(); lp1.type = 'lowpass'; lp1.frequency.value = cut; lp1.Q.value = 0.8;
+          const lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass'; lp2.frequency.value = cut; lp2.Q.value = 0.6;
+          // makeup: a saturated stage leaves ~unity amplitude regardless of input,
+          // so makeup is a fixed level, not a function of gain.
+          const post = ctx.createGain(); post.gain.value = dbGain(f.level == null ? -10 : f.level);
+          head.connect(deEmph); deEmph.connect(bump); bump.connect(pres); pres.connect(lp1); lp1.connect(lp2); lp2.connect(post); head = post;
         }
       }
       return { input, output: head };
@@ -491,7 +552,15 @@ export function buildBeatsKernel() {
           bq.frequency.setValueAtTime(Math.max(1, from), t);
           bq.frequency.exponentialRampToValueAtTime(Math.max(1, fe.to == null ? 420 : fe.to), t + (fe.decay == null ? 0.2 : fe.decay));
         } else {
-          bq.frequency.value = fl.freq == null ? 1800 : fl.freq;
+          // velToFilter (B6.2b): velocity → brightness, the piano/keys expressive
+          // axis — harder hits open the cutoff, soft hits darken (a pow curve
+          // centered on the default vel 0.8, so patches without it and notes at
+          // default velocity are byte-identical). k ≈ 1–2; osc/fm/string/modal alike.
+          let fq = fl.freq == null ? 1800 : fl.freq;
+          if (patch.velToFilter != null) {
+            fq = Math.min(ctx.sampleRate * 0.45, Math.max(40, fq * Math.pow((vel == null ? 0.8 : vel) / 0.8, patch.velToFilter)));
+          }
+          bq.frequency.value = fq;
         }
         env.connect(bq); post = bq;
       }
@@ -524,7 +593,21 @@ export function buildBeatsKernel() {
         // decay carries the ring; the ADSR gates onset/note-off (hold sustain ≈ 1,
         // short release) so the string is damped when the note ends — like a hand.
         const src = ctx.createBufferSource(); src.buffer = stringBuffer(hz, patch);
-        src.connect(env); src.start(t); src.stop(end);
+        if (patch.pluckDetune) {
+          // dual pluck (amp-voice spike): two strings a few cents apart. Alone the
+          // beating is subtle; through a clip stage the difference tones become the
+          // growl — a lone harmonic string gives intermodulation nothing to chew.
+          const cents = patch.pluckDetune;
+          const g1 = ctx.createGain(); g1.gain.value = 0.6;
+          const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * Math.pow(2, -cents / 2400), patch);
+          src2.playbackRate.value = Math.pow(2, cents / 1200);
+          const g2 = ctx.createGain(); g2.gain.value = 0.6;
+          src.connect(g1); g1.connect(env); src2.connect(g2); g2.connect(env);
+          src2.start(t); src2.stop(end);
+        } else {
+          src.connect(env);
+        }
+        src.start(t); src.stop(end);
       } else if (voice === 'membrane') {
         const osc = ctx.createOscillator(); osc.type = 'sine';
         const oct = patch.octaves == null ? 5 : patch.octaves;
@@ -641,6 +724,39 @@ export function buildBeatsKernel() {
       return channels[name];
     }
 
+    // ── performance macros (B5.2): transpose + tone per channel ──────────────
+    // The two knobs that turn playback into performance (Night Bus finding):
+    // transpose (semitones) is applied at SCHEDULE time so it can move mid-
+    // performance; tone is a low-pass at the chain HEAD, so fx sends tap after
+    // it and delay tails darken with their source. Macros are performance
+    // state, not recipe state — setters mutate the live engine and never write
+    // back to the manifest (the recipe stays the only author). State survives
+    // stop/start (a retuned kick stays retuned); the recipe's own transpose /
+    // tone fields seed the initial position on first play.
+    const macroState = {};
+    function macro(name) {
+      if (!macroState[name]) macroState[name] = { transpose: 0, tone: 1, toneNode: null, level: 1 };
+      return macroState[name];
+    }
+    function setTranspose(name, semis) {
+      macro(name).transpose = Number.isFinite(semis) ? semis : 0;
+    }
+    function setTone(name, v) {
+      const m = macro(name);
+      m.tone = Math.max(0, Math.min(1, v == null ? 1 : v));
+      if (m.toneNode) m.toneNode.frequency.setTargetAtTime(toneFreq(m.tone), ctx.currentTime, 0.03);
+    }
+    function setLevel(name, v) {
+      const m = macro(name);
+      m.level = Math.max(0, Math.min(1, v == null ? 1 : v));
+      channelGain(name).gain.setTargetAtTime(m.level, ctx.currentTime, 0.03);
+    }
+    // transposed pitch for a channel's note, read at schedule time.
+    function chHz(name, note) {
+      const semis = macro(name).transpose || 0;
+      return noteHz(note) * (semis ? Math.pow(2, semis / 12) : 1);
+    }
+
     // ── transport: lookahead scheduler over pure event derivation ────────────
     // Every 25ms, schedule everything inside the next 120ms window. Ambient
     // derives bars on demand from ambientBarEvents; composition pre-flattens.
@@ -652,7 +768,22 @@ export function buildBeatsKernel() {
       for (const ch of recipe.channels || recipe.parts || recipe.tracks || []) {
         const built = buildChain(ch.chain, recipe.seed, recipe.bpm);
         built.output.connect(channelGain(ch.name));
-        chains[ch.name] = built.input;
+        // macro seed: the recipe's own transpose/tone set the initial position,
+        // but only on FIRST play — a live macro survives stop/start.
+        if (!macroState[ch.name]) {
+          macroState[ch.name] = { transpose: ch.transpose || 0, tone: ch.tone == null ? 1 : ch.tone, toneNode: null, level: 1 };
+        }
+        const m = macroState[ch.name];
+        // tone macro at the chain head: voices → low-pass → chain, so delay/
+        // reverb tails darken with their source. Always present live (so a
+        // slider/binding can move any channel); at the open position it sits
+        // at 18kHz and is inaudible.
+        const tn = ctx.createBiquadFilter();
+        tn.type = 'lowpass'; tn.Q.value = 0.5;
+        tn.frequency.value = toneFreq(m.tone);
+        tn.connect(built.input);
+        m.toneNode = tn;
+        chains[ch.name] = tn;
       }
       const flat = mode === 'composition' ? compositionEvents(recipe) : null;
       const pat = mode === 'pattern' ? patternEvents(recipe) : null;
@@ -678,7 +809,7 @@ export function buildBeatsKernel() {
                 ev.notes.forEach((n, ni) => {
                   const fl = noteFeel(feel, recipe.seed, cursor * 1000 + ei, ni, ev.notes.length);
                   const p = fl.pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + fl.pluck)) }) : patch;
-                  playVoice(p, noteHz(n), when + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
+                  playVoice(p, chHz(ev.channel, n), when + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
                 });
               }
             });
@@ -697,7 +828,7 @@ export function buildBeatsKernel() {
               const fl = noteFeel(feel, recipe.seed, evIndex, ni, ev.notes.length);
               // pluck jitter nudges the excitation brightness per note (pluck-position drift)
               const p = fl.pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + fl.pluck)) }) : patch;
-              playVoice(p, noteHz(n), t0 + ev.t + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
+              playVoice(p, chHz(ev.channel, n), t0 + ev.t + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
             });
           }
           if (cursor >= flat.events.length && !recipe.loop) stopTransport();
@@ -705,11 +836,20 @@ export function buildBeatsKernel() {
         }
         while (cursor * bar <= horizon) {
           const events = ambientBarEvents(recipe, cursor);
-          for (const ev of events) {
+          events.forEach((ev, ei) => {
             const ch = (recipe.channels || []).find((c) => c.name === ev.channel);
             const patch = patches[(ch && ch.patch) || 'sinePluck'] || {};
-            for (const n of ev.notes) playVoice(patch, noteHz(n), t0 + cursor * bar + ev.t, ev.dur, ev.vel, chains[ev.channel]);
-          }
+            // B6: channels carry feel too (an `instrument` channel expands to one at
+            // normalize time) — the bar index folds into the seed like pattern mode,
+            // so the humanization evolves per bar yet replays identically. A channel
+            // with no feel gets offset 0 / velScale 1: the pre-B6 path, unchanged.
+            const feel = ch && ch.feel;
+            ev.notes.forEach((n, ni) => {
+              const fl = noteFeel(feel, recipe.seed, cursor * 1000 + ei, ni, ev.notes.length);
+              const p = fl.pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + fl.pluck)) }) : patch;
+              playVoice(p, chHz(ev.channel, n), t0 + cursor * bar + ev.t + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
+            });
+          });
           cursor += 1;
         }
       }, 25);
@@ -745,6 +885,10 @@ export function buildBeatsKernel() {
       stop: stopTransport,
       wind,
       setMuted(m) { master.gain.value = m ? 0 : 0.9; },
+      setTranspose,
+      setTone,
+      setLevel,
+      getMacro(name) { const m = macro(name); return { transpose: m.transpose, tone: m.tone, level: m.level }; },
     };
   }
 
@@ -756,6 +900,7 @@ export function buildBeatsKernel() {
     barSeconds,
     fxTimeSeconds,
     swungEighth,
+    toneFreq,
     ambientBarEvents,
     compositionEvents,
     noteFeel,

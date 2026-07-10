@@ -410,7 +410,8 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
   // `spec: [strength, power]` contributes them per vertex so the World's specular
   // channel can add a live Blinn-Phong highlight. Packed ONLY when some face asks
   // (specs stays null otherwise — zero cost, byte-identical emission downstream).
-  // Textured faces don't participate (labels/roads aren't specular surfaces).
+  // Textured faces participate too (texture × material: a marble floor that gleams);
+  // their specs pack per texture group, kept only for groups a spec face touches.
   const hasSpec = faces.some((f) => f && Array.isArray(f.spec) && f.spec.length >= 2);
   const specs = hasSpec ? [] : null;
   const pushSpec = (f, n) => { if (!specs) return; const s = Array.isArray(f.spec) ? f.spec : null; for (let i = 0; i < n; i++) specs.push(s ? s[0] : 0, s ? s[1] : 1); };
@@ -432,18 +433,21 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
     // (every pre-AO scene) → factor 1 everywhere, byte-identical output.
     const vao = Array.isArray(f.vao) && f.vao.length >= 4 ? f.vao : null;
     if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= 4) {
-      const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false });
+      const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false });
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
       // colour rides into the group so emitThreeWorld can do texel × bakedLight (vertexColors).
       // Label wraps omit it → unlit sticker, exactly as before.
       if (f.textureLit) grp.lit = true;
       const [tr, tg, tb] = faceColorLinear(f);
+      const fs = Array.isArray(f.spec) && f.spec.length >= 2 ? f.spec : null;
+      if (fs) grp.hasSpec = true;
       for (const tri of TRIS) {
         for (const idx of tri) {
           const p = c[idx], uv = f.uv[idx], a = vao ? vao[idx] : 1;
           grp.positions.push(p[0], p[1], p[2]);
           grp.uvs.push(uv[0], uv[1]);
           grp.colors.push(tr * a, tg * a, tb * a);
+          if (grp.specs) grp.specs.push(fs ? fs[0] : 0, fs ? fs[1] : 1);
         }
       }
       for (let i = 0; i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
@@ -490,7 +494,14 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
   const textures = {};
   for (const [key, grp] of Object.entries(textureGroups)) {
     bound(grp.positions);
-    textures[key] = { positions: Float32Array.from(grp.positions), uvs: Float32Array.from(grp.uvs), colors: Float32Array.from(grp.colors), lit: grp.lit };
+    textures[key] = {
+      positions: Float32Array.from(grp.positions),
+      uvs: Float32Array.from(grp.uvs),
+      colors: Float32Array.from(grp.colors),
+      lit: grp.lit,
+      // per-vertex [strength, power] — null unless a spec face touched THIS group
+      specs: grp.hasSpec && grp.specs ? Float32Array.from(grp.specs) : null,
+    };
   }
   return {
     positions: Float32Array.from(positions),

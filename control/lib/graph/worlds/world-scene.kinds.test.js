@@ -67,6 +67,7 @@ const FIXTURES = {
   'ftc-view': { kind: 'ftc-view' },
   'fractal-city': { kind: 'fractal-city' },
   'condo-complex': { kind: 'condo-complex' },
+  'school-complex': { kind: 'school-complex' },
   'transportation-hub': { kind: 'transportation-hub' },
   'subway-station': { kind: 'subway-station' },
   'subway-building': { kind: 'subway-building' },
@@ -156,8 +157,8 @@ describe('world-scene kinds — side tables pinned as literals', () => {
   it('WALK_KINDS survives the derivation change bit-for-bit', () => {
     expect([...WALK_KINDS].sort()).toEqual([
       'condo-complex', 'floorplan', 'fractal-city', 'koenigsberg', 'math-structure',
-      'operator-world', 'painted-landscape', 'restaurant', 'room', 'subway-building',
-      'subway-station', 'transportation-hub',
+      'operator-world', 'painted-landscape', 'restaurant', 'room', 'school-complex',
+      'subway-building', 'subway-station', 'transportation-hub',
     ]);
   });
 

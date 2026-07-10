@@ -13,6 +13,7 @@
  */
 
 import { renderRoomManifestToHtml, renderPaintedLandscapeToHtml, resolveSceneLighting } from '@/lib/graph/scene/scene-css3d';
+import { resolveWorldAudio, emitSceneSoundtrackScript } from '@/lib/graph/beats/beats-world';
 import { resolveSignage } from '@/lib/graph/scene/signage-chrome';
 import { renderFractalCityToHtml } from '@/lib/graph/city/fractal-city';
 import { renderTransportationHubToHtml } from '@/lib/graph/architecture/transportation-hub';
@@ -30,6 +31,28 @@ import { renderAssemblerToHtml } from '@/lib/graph/worlds/workbench-assembler';
 export function renderSceneHtml(sketch, sceneOpts = {}) {
   const manifest = sketch?.manifest;
   if (!manifest || typeof manifest !== 'object') return null;
+  return withSceneSoundtrack(dispatchSceneHtml(sketch, sceneOpts), manifest, sceneOpts);
+}
+
+// beats soundtrack on the CSS3D path (B4): a manifest `audio` block gets its
+// soundtrack + wind injected as a self-contained <script> before </body> — the
+// preserve-3d pages have no bus or gait, so no SFX. Never on capture runs (the
+// PNG rasterizer passes capture:true), so bakes stay byte-identical to a
+// soundtrack-less page; a manifest without `audio` is untouched either way.
+function withSceneSoundtrack(html, manifest, sceneOpts) {
+  if (!html || sceneOpts.capture === true) return html;
+  if (!manifest.audio || typeof manifest.audio !== 'object') return html;
+  const scene = manifest.scene && typeof manifest.scene === 'object' ? manifest.scene : {};
+  const resolved = resolveWorldAudio(manifest.audio, { time: manifest.time ?? scene.time });
+  const script = emitSceneSoundtrackScript(resolved);
+  if (!script) return html;
+  const at = html.lastIndexOf('</body>');
+  if (at < 0) return html + script;
+  return `${html.slice(0, at)}${script}\n${html.slice(at)}`;
+}
+
+function dispatchSceneHtml(sketch, sceneOpts = {}) {
+  const manifest = sketch.manifest;
 
   // declarative scene lighting: `time` ('day'|'night') + `sky` may be authored at the
   // manifest top level OR under `scene` — normalize so the city kind reads them too (the

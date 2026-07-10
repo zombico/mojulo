@@ -18,8 +18,6 @@
  * Orbit-only object study (like field-view / mechanics-view) — no walk, no CSS-3D /scene form.
  */
 
-import { lowerObjectFaces, WORKBENCH_LIGHT } from '../worlds/workbench.js';   // (Stokes spheres)
-
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -47,10 +45,9 @@ const speedColor = (ratio) => lerpColor([74, 134, 240], [240, 90, 70], (ratio - 
 // colour by hydrostatic depth fraction: shallow → pale cyan, deep → deep blue (higher pressure).
 const pressureColor = (depthFrac) => lerpColor([150, 205, 235], [22, 62, 165], depthFrac);
 
-// ── a lathe sphere (Stokes falling balls), via the workbench monomer machinery. ──
-const pt = (a) => ({ x: a[0], y: a[1], z: a[2] });
-const circleProfile = (R, n = 18) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return { t, radius: R * Math.sin(Math.PI * t) }; });
-const sphereSpec = (center, radius, tint, samples = 20) => ({ axisFrom: pt([center[0], center[1], center[2] - radius]), axisTo: pt([center[0], center[1], center[2] + radius]), profile: circleProfile(radius, 18), crossSections: 22, samples, tint });
+// ── falling / steel balls are real lit three.js spheres (emitThreeWorld's `planets` channel), not lathe
+// "onions". Non-star lit bodies (the channel adds a studio rig). hex → [r,g,b] in 0..1 for the tint. ──
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
 
 // ── a solid (or translucent) box as six quads — water bodies, blocks, tank walls. ──
 const quad = (corners, fill, group, alpha) => ({ corners, fill, group, ...(alpha != null ? { alpha } : {}) });
@@ -377,10 +374,8 @@ const SCENARIOS = {
     const place = (p) => [sailAt[0] + (p[0] * cr - p[1] * sr), sailAt[1] + (p[0] * sr + p[1] * cr)];
     const faces = extrudeSail(prof.outline.map(place), SC, 0, 10, '#e6e9ef', 'sail');
 
-    // the two steel balls (spheres in the flow plane).
-    emitters.forEach((e, i) => {
-      faces.push(...lowerObjectFaces({ lathes: [sphereSpec([e.x * SC, e.y * SC, ZF], e.r * SC * 0.9, '#aab0ba', 18)] }, WORKBENCH_LIGHT).map((f) => ({ ...f, group: `ball:${i}` })));
-    });
+    // the two steel balls — real lit spheres (planets channel), static in the flow plane.
+    const planets = emitters.map((e, i) => ({ group: `ball:${i}`, center: [e.x * SC, e.y * SC, ZF], radius: e.r * SC * 0.9, tint: hexRgb('#aab0ba'), star: false }));
 
     // wind field — arrows on a grid (skip inside a ball), speed-coloured by the jet reference.
     const arrows = [];
@@ -419,7 +414,7 @@ const SCENARIOS = {
     ];
 
     return {
-      faces, picks, tracers,
+      faces, picks, tracers, planets,
       field: {
         animate: false,
         sets: [
@@ -508,9 +503,8 @@ const SCENARIOS = {
     faces.push({ corners: hullLocal.map(([px, py]) => [px * HULL, py * HULL, zDeck]), fill: '#7c5a3a', group: 'hull' });
     const kh = 2.6, kbot = -5;
     faces.push({ corners: [[-kh, 0, zDeck], [kh, 0, zDeck], [kh, 0, kbot], [-kh, 0, kbot]], fill: '#5b6470', group: 'keel' });
-    emitters.forEach((e, i) => {
-      faces.push(...lowerObjectFaces({ lathes: [sphereSpec([e.x * SC, e.y * SC, ZF], e.r * SC * 0.9, '#aab0ba', 18)] }, WORKBENCH_LIGHT).map((f) => ({ ...f, group: `ball:${i}` })));
-    });
+    // the two steel balls (aft) — real lit spheres (planets channel), static in the flow plane.
+    const planets = emitters.map((e, i) => ({ group: `ball:${i}`, center: [e.x * SC, e.y * SC, ZF], radius: e.r * SC * 0.9, tint: hexRgb('#aab0ba'), star: false }));
 
     // force diagram: per-ball Magnus arrows, total DRIVE (forward), HEEL, keel reaction; spin + headwind hints.
     const forces = [
@@ -530,7 +524,7 @@ const SCENARIOS = {
     ];
 
     return {
-      faces, picks, tracers,
+      faces, picks, tracers, planets,
       field: {
         animate: false,
         sets: [
@@ -642,17 +636,18 @@ const SCENARIOS = {
     const xc = (i) => (i - 1) * (cw * 2 + gap);
     const vRel = fluids.map((fl) => (rhoS - fl.rhoF) / fl.mu);   // ∝ terminal velocity
     const vMax = Math.max(...vRel);
-    const faces = [], movers = [], picks = [];
+    const faces = [], movers = [], picks = [], planets = [];
     fluids.forEach((fl, i) => {
       const x = xc(i);
       faces.push(...boxFaces([x, 0, H / 2], [cw, cw, H / 2], fl.tint, `fluid:${fl.key}`, 0.3));
-      faces.push(...lowerObjectFaces({ lathes: [sphereSpec([x, 0, H - r], r, '#b9bfc8', 20)] }, WORKBENCH_LIGHT).map((f) => ({ ...f, group: `ball:${fl.key}` })));
+      // the falling ball — a real lit sphere authored at the origin; the mover (base = [0,0,0]) walks it down the column.
+      planets.push({ group: `ball:${fl.key}`, center: [0, 0, 0], radius: r, tint: hexRgb('#b9bfc8'), star: false });
       const path = Array.from({ length: 26 }, (_, k) => { const t = k / 25; return [x, 0, (H - r) + (r - (H - r)) * t]; });
-      movers.push({ group: `ball:${fl.key}`, path, basePos: path[0], period: clamp(1.4 * Math.pow(vMax / vRel[i], 0.22), 1.4, 8), loop: false, hold: 0.7 });
+      movers.push({ group: `ball:${fl.key}`, path, basePos: [0, 0, 0], period: clamp(1.4 * Math.pow(vMax / vRel[i], 0.22), 1.4, 8), loop: false, hold: 0.7 });
       picks.push({ name: `fluid:${fl.key}`, kind: 'fluid', label: fl.name, fields: compactFields([['μ (viscosity)', `${fl.mu} Pa·s`], ['fall speed', `${(vRel[i] / vMax * 100).toFixed(vRel[i] / vMax < 0.05 ? 2 : 0)}% of fastest`], ['Stokes', 'v ∝ 1/μ']]) });
     });
     return {
-      faces, picks, movers, tracers: [],
+      faces, picks, movers, planets, tracers: [],
       field: { animate: false, sets: [], lines: [],
         readout: ['Viscosity — Stokes falling-sphere', 'v = (2/9)(ρ_s−ρ_f)·g·r² / μ', 'higher viscosity → slower fall', 'water ≪ oil ≪ honey (μ: 0.001 → 0.1 → 10 Pa·s)'] },
       span: H + 4,
@@ -721,10 +716,13 @@ export function planFluidScene(recipe = {}) {
   }];
   const tracers = (built.tracers || []).map((tr) => ({ ...tr, path: tr.path.map(sc), size: tr.size * scale }));
   const movers = (built.movers || []).map((mv) => ({ ...mv, path: mv.path.map(sc), basePos: sc(mv.basePos) }));
+  // lit spheres (planets channel): scale the center + radius. Mover-driven balls sit at the origin and
+  // are placed by their mover; static balls carry their world center.
+  const planets = (built.planets || []).map((p) => ({ ...p, center: sc(p.center), radius: p.radius * scale }));
   // deform channel (opt-in): scale only the pivot — the `to`/`basis` matrices are scale-invariant ratios.
   const deforms = (built.deforms || []).map((d) => ({ ...d, ...(d.pivot ? { pivot: sc(d.pivot) } : {}) }));
 
-  // bounds over faces + arrows + lines.
+  // bounds over faces + arrows + lines + lit spheres.
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   const bump = (c) => { for (let i = 0; i < 3; i++) { if (c[i] < mn[i]) mn[i] = c[i]; if (c[i] > mx[i]) mx[i] = c[i]; } };
   for (const f of faces) for (const c of f.corners) bump(c);
@@ -732,12 +730,13 @@ export function planFluidScene(recipe = {}) {
   for (const ln of fields[0].lines) for (const p of ln.pts) bump(p);
   for (const tr of tracers) for (const p of tr.path) bump(p);   // jets reach beyond the tank
   for (const mv of movers) for (const p of mv.path) bump(p);
+  for (const p of planets) { bump([p.center[0] - p.radius, p.center[1] - p.radius, p.center[2] - p.radius]); bump([p.center[0] + p.radius, p.center[1] + p.radius, p.center[2] + p.radius]); }
   const center = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
   let radius = 0;
   for (const c of [mn, mx]) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
   radius = radius || built.span * scale;
 
-  return { faces, picks: built.picks, fields, tracers, movers, deforms, bounds: { center, radius }, stats: { scenario, ...built.stats } };
+  return { faces, picks: built.picks, fields, tracers, movers, planets, deforms, bounds: { center, radius }, stats: { scenario, ...built.stats } };
 }
 
 /**
@@ -765,6 +764,7 @@ export function assembleFluidScene(recipe = {}, { title } = {}) {
     fields: plan.fields,
     tracers: plan.tracers,
     movers: plan.movers,
+    planets: plan.planets,
     ...(plan.deforms && plan.deforms.length ? { deforms: plan.deforms } : {}),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },

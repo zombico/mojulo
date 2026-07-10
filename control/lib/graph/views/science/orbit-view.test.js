@@ -6,16 +6,20 @@ import { sketchRenderMode, classifyBucket } from '../../sketch/sketch-manifest.j
 const SYSTEM = { kind: 'orbit-view', scenario: 'system' };
 
 describe('planOrbitScene — determinism & shape', () => {
-  it('is deterministic — same recipe yields byte-identical faces and mover paths', () => {
+  it('is deterministic — same recipe yields byte-identical planet spheres and mover paths', () => {
     const a = planOrbitScene(SYSTEM), b = planOrbitScene(SYSTEM);
-    expect(JSON.stringify(a.faces)).toBe(JSON.stringify(b.faces));
+    expect(JSON.stringify(a.planets)).toBe(JSON.stringify(b.planets));
     expect(JSON.stringify(a.movers.map((m) => m.path))).toBe(JSON.stringify(b.movers.map((m) => m.path)));
   });
 
-  it('emits a central mass + one mover per body, every body on a track, vectors only on the featured', () => {
+  it('emits a central star sphere + one lit sphere & mover per body, every body on a track, vectors only on the featured', () => {
     const plan = planOrbitScene(SYSTEM);
-    const groups = new Set(plan.faces.map((f) => f.group));
-    expect(groups.has('central')).toBe(true);
+    const planetGroups = new Set(plan.planets.map((p) => p.group));
+    expect(planetGroups.has('central')).toBe(true);
+    expect(plan.planets.find((p) => p.group === 'central').star).toBe(true);
+    // central star + four planet bodies are all real spheres; bodies orbit (star is static, no mover)
+    expect(plan.planets.length).toBe(5);
+    expect(plan.planets.filter((p) => !p.star).length).toBe(4);
     expect(plan.movers.length).toBe(4);
     expect(plan.movers.every((m) => m.track)).toBe(true);
     expect(plan.movers.filter((m) => m.vectors).length).toBe(1);   // featured only
@@ -32,6 +36,7 @@ describe('planOrbitScene — determinism & shape', () => {
     expect(scene.glow).toBe(false);
     expect(scene.cameras[0].name).toBe('3/4');
     expect(scene.movers.length).toBe(4);
+    expect(scene.planets.length).toBe(5);   // sun + four bodies, threaded to the planet channel
   });
 });
 

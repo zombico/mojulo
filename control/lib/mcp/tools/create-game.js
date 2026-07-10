@@ -27,6 +27,8 @@ import { auditLevel } from '@/lib/graph/game/game-audit';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
 import { getMechanicVocabCatalog } from '@/lib/graph/game/mechanic-cards/loader';
 import { getKitVocabCatalog } from '@/lib/graph/game/kit-cards/loader';
+import { getGlyphVocabCatalog } from '@/lib/graph/game/glyph-cards/loader';
+import { getSfxVocabCatalog } from '@/lib/graph/game/sfx-cards/loader';
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
@@ -112,10 +114,12 @@ export async function getGameVocabHandler(input) {
   const slices = getGameVocabCatalog();
   const mechanics = getMechanicVocabCatalog();
   const kits = getKitVocabCatalog();
+  const glyphs = getGlyphVocabCatalog();
+  const sfx = getSfxVocabCatalog();
   if (id) {
-    const card = slices.get(id) || mechanics.get(id) || kits.get(id);
+    const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...slices.keys(), ...mechanics.keys(), ...kits.keys()].join(', ')}`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys()].join(', ')}`);
     }
     return { ok: true, card };
   }
@@ -124,6 +128,8 @@ export async function getGameVocabHandler(input) {
     ...(scope && scope !== 'slice' ? [] : row(slices, 'slice')),
     ...(scope && scope !== 'mechanic' ? [] : row(mechanics, 'mechanic')),
     ...(scope && scope !== 'kit' ? [] : row(kits, 'kit')),
+    ...(scope && scope !== 'glyph' ? [] : row(glyphs, 'glyph')),
+    ...(scope && scope !== 'sfx' ? [] : row(sfx, 'sfx')),
   ];
   return { ok: true, cards };
 }
@@ -186,20 +192,25 @@ export function registerGameTools() {
   registerTool({
     name: 'get_game_vocab',
     description:
-      'Read a game-vocab card in full — three families. STORE cards (scope:slice): one store SLICE KIND '
+      'Read a game-vocab card in full — five families. STORE cards (scope:slice): one store SLICE KIND '
       + '(slice-character / inventory / party / progression / flags: state shape, accepted events) or the '
       + 'typed-events reference. LEVEL-MECHANIC cards (scope:mechanic): one level verb for a world\'s '
       + '`game.mechanics` (reach-exit / survive / collect / hazard-damage / fail-on-death, the fall policy, '
       + 'a mechanics-guide). GAME-KIT cards (scope:kit): a whole game TYPE — a ready store + level template '
       + '+ progression + a worked example (dungeon-crawler / collectathon / survival-arena); start here to '
-      + 'skip designing the store. Pass `id` for one card (any family); omit for index rows '
+      + 'skip designing the store. GLYPH cards (scope:glyph): one FORM on the game-UI-language shelf '
+      + '(glyph-gem / coin / key / heart / star / orb / flag / skull) — icon-grade pickup/marker bodies an '
+      + "entity uses via body:{type:'glyph', form}. SFX cards (scope:sfx): one raymarch \"juice\" verb "
+      + '(sfx-sparkle / heal / ward / enchant / kokusen / …) a world\'s `sfx` channel composes as a glowing '
+      + 'overlay anchored at an entity or point. Pass `id` for one card (any family); omit for index rows '
       + '{ id, name, summary, when, scope }; `scope` filters the list. Discover by intent via '
-      + "semantic_search({ kinds: ['game_vocab'] }) store, ['game_mechanic'] verbs, ['game_kit'] game types. Read-only.",
+      + "semantic_search({ kinds: ['game_vocab'] }) store, ['game_mechanic'] verbs, ['game_kit'] game types, "
+      + "['game_glyph'] forms, ['game_sfx'] effects. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string', description: 'Card id: a store card (slice-<kind> / typed-events), a mechanic card (reach-exit / … / fall-policy / mechanics-guide), or a kit card (dungeon-crawler / collectathon / survival-arena).' },
-        scope: { type: 'string', enum: ['slice', 'mechanic', 'kit'], description: 'Optional list filter: store slice cards, level-mechanic cards, or game-kit cards. Omit to list all.' },
+        id: { type: 'string', description: 'Card id: a store card (slice-<kind> / typed-events), a mechanic card (reach-exit / … / fall-policy / mechanics-guide), a kit card (dungeon-crawler / collectathon / survival-arena), a glyph card (glyph-gem / … / glyph-skull), or an sfx card (sfx-sparkle / … / sfx-kokusen).' },
+        scope: { type: 'string', enum: ['slice', 'mechanic', 'kit', 'glyph', 'sfx'], description: 'Optional list filter: store slice cards, level-mechanic cards, game-kit cards, glyph form cards, or sfx verb cards. Omit to list all.' },
       },
       required: [],
     },

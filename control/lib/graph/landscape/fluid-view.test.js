@@ -103,11 +103,12 @@ describe('fluid-view — rotor-sail (Magnus / Flettner: spin drives into a headw
     expect(Math.abs(s.drive)).toBeLessThan(1e-9);
   });
 
-  it('emits the hull, keel, two balls, dust tracers, and the drive arrow', () => {
+  it('emits the hull, keel, two lit-sphere balls, dust tracers, and the drive arrow', () => {
     const plan = rotor();
     expect(plan.faces.some((f) => f.group === 'hull')).toBe(true);
     expect(plan.faces.some((f) => f.group === 'keel')).toBe(true);
-    expect(plan.faces.some((f) => f.group === 'ball:0')).toBe(true);
+    expect(plan.planets.some((p) => p.group === 'ball:0')).toBe(true);
+    expect(plan.planets.some((p) => p.group === 'ball:1')).toBe(true);
     expect(plan.tracers.length).toBeGreaterThan(5);
     expect(plan.fields[0].sets[1].samples.map((s) => s.color)).toContain(0x66dd99);  // drive
   });
@@ -131,10 +132,10 @@ describe('fluid-view — spin-sail (Gyro Zeppeli: wind conjured from two points)
     expect(spinsail({ spin: 12 }).stats.Gamma).toBeGreaterThan(spinsail({ spin: 4 }).stats.Gamma);
   });
 
-  it('emits two steel balls, a sail body, dust tracers, and the lift arrow', () => {
+  it('emits two lit-sphere steel balls, a sail body, dust tracers, and the lift arrow', () => {
     const plan = spinsail();
-    expect(plan.faces.some((f) => f.group === 'ball:0')).toBe(true);
-    expect(plan.faces.some((f) => f.group === 'ball:1')).toBe(true);
+    expect(plan.planets.some((p) => p.group === 'ball:0')).toBe(true);
+    expect(plan.planets.some((p) => p.group === 'ball:1')).toBe(true);
     expect(plan.faces.some((f) => f.group === 'sail')).toBe(true);
     expect(plan.tracers.length).toBeGreaterThan(5);
     expect(plan.fields[0].sets[1].samples.map((s) => s.color)).toContain(0xffe066);  // lift
@@ -187,9 +188,13 @@ describe('fluid-view — sail (lift to windward)', () => {
 describe('fluid-view — viscosity (Stokes falling-sphere)', () => {
   const plan = planFluidScene({ kind: 'fluid-view', scenario: 'falling-sphere' });
 
-  it('drops one ball per fluid column, each on the mover channel', () => {
+  it('drops one lit-sphere ball per fluid column, each on the mover channel (base at origin)', () => {
     expect(plan.movers.length).toBe(3);
     expect(plan.movers.every((m) => m.group.startsWith('ball:') && m.loop === false)).toBe(true);
+    // the falling balls are lit spheres authored at the origin; the mover walks them down (base = [0,0,0]).
+    expect(plan.planets.length).toBe(3);
+    expect(plan.planets.every((p) => p.group.startsWith('ball:') && p.center.every((c) => c === 0))).toBe(true);
+    expect(plan.movers.every((m) => m.basePos.every((c) => c === 0))).toBe(true);
     expect(plan.picks.map((p) => p.name).sort()).toEqual(['fluid:honey', 'fluid:oil', 'fluid:water']);
   });
 

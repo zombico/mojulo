@@ -20,6 +20,10 @@ import { lowerObjectFaces, WORKBENCH_LIGHT } from '../../worlds/workbench.js';
 
 const clampNum = (v, lo, hi, fb) => { const n = +v; return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fb; };
 
+// hex → [r,g,b] in 0..1 for the lit-sphere (planets) channel — nuclei/neutrons/fragments/flashes render
+// as real shaded spheres (lit by the channel's studio rig, no star here), not lathe "onions".
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
+
 // ── deterministic PRNG (mulberry32) — same seed → same reactor run. ──
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -34,15 +38,9 @@ const len = (a) => Math.hypot(a[0], a[1], a[2]);
 const norm = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 function randDir(rng) { const u = 2 * rng() - 1, th = 2 * Math.PI * rng(), r = Math.sqrt(Math.max(0, 1 - u * u)); return [r * Math.cos(th), r * Math.sin(th), u]; }
 
-// ── workbench lathes: a sphere (nuclei/neutrons/fragments) and a cylinder (a control rod). ──
+// ── workbench lathe: a cylinder (a control rod). Nuclei/neutrons/fragments/flashes are now lit
+// three.js spheres via the `planets` channel (see planReactorScene), not lathe onions. ──
 const pt = (a) => ({ x: a[0], y: a[1], z: a[2] });
-const circleProfile = (R, n) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return { t, radius: R * Math.sin(Math.PI * t) }; });
-const sphereSpec = (center, radius, tint, prof, cross) => ({
-  axisFrom: pt([center[0], center[1], center[2] - radius]), axisTo: pt([center[0], center[1], center[2] + radius]),
-  profile: circleProfile(radius, prof), crossSections: cross, samples: cross, tint,
-});
-const sphereFaces = (center, radius, tint, group, prof, cross) =>
-  lowerObjectFaces({ lathes: [sphereSpec(center, radius, tint, prof, cross)] }, WORKBENCH_LIGHT).map((f) => ({ ...f, group }));
 // a VERTICAL cylinder rod of half-height hy about its centre, lathed along the z-axis (z is up in this
 // world — see the mechanics-view frame), constant radius with slightly rounded ends.
 const rodFaces = (center, radius, hy, tint, group) => {
@@ -83,7 +81,7 @@ const rodCenterZ = (t) => ROD_TOP * (1 - rodDepth(t));      // descends from +2R
 
 /**
  * Lay out the core, run the seeded cascade with rod absorption, and emit faces + timed movers + HUD.
- * Pure — no DB, no HTML. @returns {{ faces, picks, movers, bounds, stats }}
+ * Pure — no DB, no HTML. @returns {{ faces, picks, movers, planets, bounds, stats }}
  */
 export function planReactorScene(recipe = {}) {
   const scenarioName = REACTOR_SCENARIOS[recipe.scenario] ? recipe.scenario : 'scram';
@@ -186,7 +184,7 @@ export function planReactorScene(recipe = {}) {
 
   // ── faces + timed movers (everything scaled by `scale`) ──
   const S = (p) => scl(p, scale);
-  const faces = [], movers = [];
+  const faces = [], movers = [], planets = [];
   const tLast = Math.max(T_MAX, ...neutronRecs.map((r) => r.t1), SCRAM_T + SCRAM_DUR);
 
   movers.push({
@@ -204,31 +202,34 @@ export function planReactorScene(recipe = {}) {
     movers.push({ group: g, path, basePos: c0, t0: 0, t1: tLast, vanish: false, kindTag: 'rod' });
   });
 
-  // nuclei (a fissioning one vanishes at its fission time); flashes; fragments; neutrons — as cascade-view.
+  // nuclei (a fissioning one vanishes at its fission time); flashes; fragments; neutrons — all lit
+  // spheres now. A mover-driven body's geometry is authored at the ORIGIN (center [0,0,0]) and its mover
+  // base is [0,0,0], so the mover's `pos - base` places it at the true world point; a STATIC (unconsumed)
+  // nucleus sits at its core position with no mover.
   nuclei.forEach((nuc, i) => {
     const c = S(nuc.pos), g = `nuc${i}`;
-    faces.push(...sphereFaces(c, R_NUC * scale, NUC_TINT, g, 14, 16));
-    if (nuc.consumed) movers.push({ group: g, path: [c, c], basePos: c, t0: 0, t1: nuc.fissionT, vanish: true, kindTag: 'nucleus' });
+    planets.push({ group: g, center: nuc.consumed ? [0, 0, 0] : c, radius: R_NUC * scale, tint: hexRgb(NUC_TINT), nlat: 16, nlon: 20 });
+    if (nuc.consumed) movers.push({ group: g, path: [c, c], basePos: [0, 0, 0], t0: 0, t1: nuc.fissionT, vanish: true, kindTag: 'nucleus' });
   });
   fissionRecs.forEach((f, i) => {
     const g = `flash${i}`;
-    faces.push(...sphereFaces([0, 0, 0], R_NUC * 1.6 * scale, '#fff3c8', g, 10, 10));
+    planets.push({ group: g, center: [0, 0, 0], radius: R_NUC * 1.6 * scale, tint: hexRgb('#fff3c8'), nlat: 12, nlon: 16 });
     movers.push({ group: g, at: S(f.pos), basePos: [0, 0, 0], flash: { size: 1 }, t0: f.t, t1: f.t + 0.22, kindTag: 'fission' });
   });
   fragmentRecs.forEach((fr, i) => {
     const c = S(fr.pos), end = S(add(fr.pos, scl(fr.dir, FRAG_DIST))), g = `frag${i}`;
-    faces.push(...sphereFaces(c, R_FRAG * scale, FRAG_TINTS[fr.which], g, 12, 14));
-    movers.push({ group: g, path: [c, end], basePos: c, t0: fr.t, t1: fr.t + FRAG_DUR, vanish: false, kindTag: 'fragment' });
+    planets.push({ group: g, center: [0, 0, 0], radius: R_FRAG * scale, tint: hexRgb(FRAG_TINTS[fr.which]), nlat: 14, nlon: 18 });
+    movers.push({ group: g, path: [c, end], basePos: [0, 0, 0], t0: fr.t, t1: fr.t + FRAG_DUR, vanish: false, kindTag: 'fragment' });
   });
   neutronRecs.forEach((r, i) => {
     const p0 = S(r.p0), p1 = S(r.p1), g = `neu${i}`;
-    faces.push(...sphereFaces(p0, R_NEU * scale, NEU_TINT, g, 8, 8));
-    movers.push({ group: g, path: [p0, p1], basePos: p0, t0: r.t0, t1: r.t1, vanish: true, kindTag: 'neutron' });
+    planets.push({ group: g, center: [0, 0, 0], radius: R_NEU * scale, tint: hexRgb(NEU_TINT), nlat: 10, nlon: 12 });
+    movers.push({ group: g, path: [p0, p1], basePos: [0, 0, 0], t0: r.t0, t1: r.t1, vanish: true, kindTag: 'neutron' });
   });
 
   const radius = R_CORE * scale * 1.5;
   return {
-    faces, picks: [], movers,
+    faces, picks: [], movers, planets,
     bounds: { center: [0, 0, 0], radius },
     stats: {
       scenario: scenarioName, rods: nRods, nuclei: nuclei.length, fissions: fissionRecs.length,
@@ -251,6 +252,7 @@ export function assembleReactorScene(recipe = {}, { title } = {}) {
     faces: plan.faces,
     picks: plan.picks,
     movers: plan.movers,
+    planets: plan.planets,
     cameras: [angle, side],
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo reactor · ${plan.stats.scenario}`,

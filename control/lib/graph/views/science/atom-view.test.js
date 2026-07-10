@@ -18,10 +18,13 @@ describe('planAtomScene', () => {
     expect(JSON.stringify(planAtomScene(NE).faces)).toBe(JSON.stringify(planAtomScene(NE).faces));
   });
 
-  it('renders nucleus + an s-sphere and a p-dumbbell subshell, each a pickable group', () => {
+  it('renders nucleus (lit sphere) + an s-sphere and a p-dumbbell subshell, each a pickable group', () => {
     const plan = planAtomScene(NE);
     const groups = new Set(plan.faces.map((f) => f.group));
-    for (const g of ['nucleus', 'orb:1s', 'orb:2s', 'orb:2p']) expect(groups.has(g), `missing ${g}`).toBe(true);
+    for (const g of ['orb:1s', 'orb:2s', 'orb:2p']) expect(groups.has(g), `missing ${g}`).toBe(true);
+    // the nucleus is now a lit planet, not lathe faces
+    expect(plan.planets.map((p) => p.group)).toContain('nucleus');
+    expect(groups.has('nucleus')).toBe(false);
     expect(plan.picks.map((p) => p.name)).toEqual(['nucleus', 'orb:1s', 'orb:2s', 'orb:2p']);
     expect(plan.stats.element).toBe('Neon');
   });
@@ -44,7 +47,7 @@ describe('planAtomScene', () => {
   it('orbital clouds are translucent; the nucleus is near-opaque', () => {
     const plan = planAtomScene(NE);
     expect(plan.faces.find((f) => f.group === 'orb:2p').alpha).toBeLessThan(0.6);
-    expect(plan.faces.find((f) => f.group === 'nucleus').alpha).toBeGreaterThan(0.9);
+    expect(plan.planets.find((p) => p.group === 'nucleus').opacity).toBeGreaterThan(0.9);
   });
 
   it('defaults to neon on an unknown element and accepts Z', () => {
@@ -67,7 +70,8 @@ describe('electron wave-tour (mode: tour)', () => {
   it('emits faint orbital mazes + a touring electron tracer path', () => {
     const payload = assembleAtomScene({ kind: 'atom-view', element: 'H', mode: 'tour' }, { title: 'tour' });
     const groups = new Set(payload.faces.map((f) => f.group));
-    for (const g of ['nucleus', 'orb:1s', 'orb:2s', 'orb:2p', 'orb:3s', 'orb:3p', 'orb:3d', 'orb:4s', 'orb:4p', 'orb:4d', 'orb:4f']) expect(groups.has(g), `missing ${g}`).toBe(true);
+    for (const g of ['orb:1s', 'orb:2s', 'orb:2p', 'orb:3s', 'orb:3p', 'orb:3d', 'orb:4s', 'orb:4p', 'orb:4d', 'orb:4f']) expect(groups.has(g), `missing ${g}`).toBe(true);
+    expect(payload.planets.map((p) => p.group)).toContain('nucleus');   // nucleus is a lit sphere now
     // the orbital mazes are faint (low alpha); one tracer with a real path touring the whole chart (n=1..4).
     expect(payload.faces.find((f) => f.group === 'orb:1s').alpha).toBeLessThan(0.35);
     expect(payload.tracers).toHaveLength(1);

@@ -30,6 +30,10 @@ export const FEEL_PRESETS = {
   'palm-mute': { strum: 0.009, jitterTime: 0.004, jitterVel: 0.16, jitterTimbre: 0.05 },
   ensemble: { strum: 0.03, jitterTime: 0.014, jitterVel: 0.14, jitterTimbre: 0.06 },
   staccato: { strum: 0.005, jitterTime: 0.004, jitterVel: 0.12 },
+  // two hands on a keyboard: a whisper of chord roll + touch variation. Velocity
+  // jitter matters more here than elsewhere — velToFilter turns it into per-note
+  // brightness variation, which is most of what "played, not programmed" means on keys.
+  keys: { strum: 0.006, jitterTime: 0.005, jitterVel: 0.12 },
 };
 
 // ── instrument shelf — { patch, chain, feel } compositions of the four layers ──
@@ -46,6 +50,14 @@ export const INSTRUMENTS = {
   'electric-guitar': { patch: 'guitarElectric', chain: [{ type: 'drive', amount: 0.55, tone: 3400 }, { type: 'reverb', wet: 0.12, decay: 1.5 }], feel: 'alt-pick' },
   'electric-clean': { patch: 'guitarElectric', chain: [{ type: 'reverb', wet: 0.16, decay: 1.8 }], feel: 'alt-pick' },
   'distorted-guitar': { patch: 'guitarElectric', chain: [{ type: 'drive', amount: 0.72, tone: 3400 }, { type: 'reverb', wet: 0.08, decay: 1.2 }], feel: 'palm-mute' },
+  // rock pair (amp spike, proven in the Twin Circuit A/B): `amp` = gain STAGING,
+  // not curve shape — the clip saturates most of the note's life so the envelope
+  // decouples from the string (loudness holds, brightness decays). Dual-pluck
+  // patch feeds the intermodulation growl. rock-guitar is the rhythm wall;
+  // rock-lead runs the same amp 12dB cooler + delay so its phrasing stays a
+  // VOICE above the wall (enough envelope survives to read as played notes).
+  'rock-guitar': { patch: 'guitarAmp', chain: [{ type: 'amp', gain: 42, bias: 0.18, presence: 4 }, { type: 'reverb', wet: 0.06, decay: 1 }], feel: 'palm-mute' },
+  'rock-lead': { patch: 'guitarLead', chain: [{ type: 'amp', gain: 30, bias: 0.14, presence: 5, level: -12 }, { type: 'delay', time: '3/16', feedback: 0.3, mix: 0.22 }, { type: 'reverb', wet: 0.2, decay: 2.5 }], feel: 'alt-pick' },
   'lead-guitar': { patch: 'guitarLead', chain: [{ type: 'drive', amount: 0.5, tone: 3000 }, { type: 'delay', time: '3/16', feedback: 0.3, mix: 0.25 }, { type: 'reverb', wet: 0.15 }], feel: 'alt-pick' },
   'muted-guitar': { patch: 'guitarMuted', chain: [{ type: 'body', mix: 0.2 }], feel: 'palm-mute' },
   // Bowed strings (synth section, not sampled). Body warmth + a long hall reverb;
@@ -71,6 +83,23 @@ export const INSTRUMENTS = {
   // steelpan (tuned struck metal) — a bright hall reverb is the steel-band setting;
   // a light timing/velocity jitter is the human mallet touch.
   'steel-drum': { patch: 'steelpan', chain: [{ type: 'reverb', wet: 0.3, decay: 2.4 }], feel: { jitterTime: 0.007, jitterVel: 0.14 } },
+  // ── keyboards (B6.2b) ────────────────────────────────────────────────────────
+  // A piano soundboard: big low resonances under the struck strings — the same
+  // `body` trick as the guitar dreadnought, an octave down and wider. Room, not
+  // hall, reverb: a piano sits IN the room.
+  piano: { patch: 'piano', chain: [{ type: 'body', mix: 0.3, resonances: [{ freq: 90, q: 7, gain: 0.9 }, { freq: 180, q: 6, gain: 0.7 }, { freq: 280, q: 5, gain: 0.5 }, { freq: 450, q: 4, gain: 0.35 }] }, { type: 'reverb', wet: 0.16, decay: 1.8 }], feel: 'keys' },
+  // suitcase rhodes: the chorus is the stereo vibrato of the amp — it's half the sound.
+  rhodes: { patch: 'rhodes', chain: [{ type: 'chorus', rate: 0.8, depth: 0.006, mix: 0.4 }, { type: 'reverb', wet: 0.18, decay: 1.8 }], feel: 'keys' },
+  // harpsichord: NO velocity jitter — the quill gives every note the same weight
+  // (that flatness is the instrument, not a limitation). Tiny timing humanization only.
+  harpsichord: { patch: 'harpsichord', chain: [{ type: 'body', mix: 0.28, resonances: [{ freq: 140, q: 7, gain: 0.8 }, { freq: 320, q: 5, gain: 0.55 }, { freq: 600, q: 4, gain: 0.35 }] }, { type: 'reverb', wet: 0.2, decay: 1.9 }], feel: { jitterTime: 0.005 } },
+  // clavinet through a lightly driven amp — Superstition. Staccato is the idiom.
+  clavinet: { patch: 'clav', chain: [{ type: 'drive', amount: 0.3, tone: 3400 }, { type: 'reverb', wet: 0.1, decay: 1.2 }], feel: 'staccato' },
+  celesta: { patch: 'celesta', chain: [{ type: 'reverb', wet: 0.3, decay: 2.4 }], feel: 'keys' },
+  // a music box is a machine — perfectly quantized IS the sound. Long sweet reverb.
+  'music-box': { patch: 'musicBox', chain: [{ type: 'reverb', wet: 0.35, decay: 2.8 }], feel: 'robotic' },
+  // drawbar organ: binary keys (no velocity), rotary swirl from a deeper chorus.
+  organ: { patch: 'organ', chain: [{ type: 'chorus', rate: 0.7, depth: 0.007, mix: 0.5 }, { type: 'reverb', wet: 0.22, decay: 2 }], feel: 'robotic' },
 };
 
 // Resolve a feel value (preset name | inline params | null) to a params object,

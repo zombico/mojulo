@@ -1,8 +1,9 @@
 # material response — a per-surface material channel for the baked lighting solve
 
-Status: Phases 1–4 LANDED 2026-07-07 (shelf promotion + vexar extension + first
+Status: Phases 1–5 LANDED 2026-07-07 (shelf promotion + vexar extension + first
 consumers; face `spec` channel + live World specular; .glb pbrMetallicRoughness
-mapping; operator-facing manifest surface). Deviations recorded at the bottom.
+mapping; operator-facing manifest surface; prior-surface-library plug-in). Deviations
+recorded at the bottom.
 
 Provenance: the TRELLIS/TRELLIS.2 study (2026-07-06) — their O-Voxel result showed
 per-surface material response (rough vs. metallic vs. translucent) is what separates
@@ -120,6 +121,32 @@ from the unlit and lit sides in
 `lite-template/integration/0707/spike-output/workbench-material/`. Contract tests in
 `worlds/workbench-material.test.js`.
 
+## Phase 5 (LANDED) — plugging in the prior surface libraries
+
+The pattern layer and the response layer are orthogonal — texture answers "what is
+ON the surface" (albedo), material answers "how does it MEET light" — and this phase
+made them compose:
+
+- **Texture × material on one face.** `faceListToMesh` now packs `specs` per texture
+  group (kept only for groups a spec face touches); the specular channel patches the
+  textured sub-meshes too, re-finding each by its exact position buffer (the static
+  loop gives them no name handle — both sides decode the same base64, so float
+  equality is exact); `facesToGlb` exports a textured `pbr` face as a REAL lit
+  pbrMetallicRoughness material carrying the tile as `baseColorTexture` (no unlit
+  extension). The subway's `marble-carrara` floors can now carry a satin sheen.
+- **Vehicle paint (sticker livery × material).** `buildSweptSceneShapes` takes a
+  `material`: the sticker card keeps supplying the albedo, the material the response.
+  The Blinn-Phong term bakes ONLY on the culled fixed-camera painter path (the
+  carved-solid tier); the `cull:false` shell takes camera-independent terms and
+  `sweptFaces({ material })` tags body + fascia faces (`spec`/`pbr` — wheels and
+  accessories stay untagged) for the World's live channel and the .glb export.
+
+Evidence: `scene/material-texture.spike.gen.test.js` → satin-marble floor + glossy
+sedan beside their plain controls, two cameras, in
+`lite-template/integration/0707/spike-output/material-texture/`. Contract tests in
+`scene/material-channels.test.js` (texture-group spec packing, textured-material
+emission, lit textured .glb material, vehicle paint tagging).
+
 ## Deviations / recorded limits
 
 - `matte` the preset ≠ identity: it carries its own ambient/diffuse (0.44/0.60) vs
@@ -138,8 +165,13 @@ from the unlit and lit sides in
   a generator shading under a custom vexar light gets a highlight consistent with the
   default sun, not its own. Thread the light through the payload when a consumer
   actually needs it.
-- Per-vertex spec is not packed for textured faces, instanced `repeats` templates, or
-  the SVG/CSS-3D lowerings (same deferral as `vao`).
+- Per-vertex spec is not packed for instanced `repeats` templates or the SVG/CSS-3D
+  lowerings (same deferral as `vao`). ~~Textured faces~~ — lifted in Phase 5.
+- Vehicle paint reaches `sweptFaces` (the world-asset path) and the painter builders;
+  the fuselage net (planes/trains) and the vehicle MCP manifests don't thread
+  `material` yet — same one-line pattern when a consumer asks.
+- No texture→material default pairing table yet ('marble-carrara' → satin, wood
+  panels → wood): authors say both words today.
 - .glb PBR nodes keep baked Lambert in COLOR_0, so a lit importer shades over the
   baked shading. Accepted: albedo-with-baked-light is how every mojulo export reads,
   and stripping it would desaturate the form.

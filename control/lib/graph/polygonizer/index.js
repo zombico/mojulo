@@ -387,6 +387,7 @@ const KIND_TO_CARD_ID = {
   wispField: 'wisp-field',
   visionPane: 'vision-pane',
   cubieLattice: 'cubie-lattice',
+  arabesque: 'arabesque',
 };
 
 function vocabHintsForFailure({ expansionFailure, errors } = {}) {

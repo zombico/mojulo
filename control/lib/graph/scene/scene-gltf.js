@@ -141,15 +141,15 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, name } = {}) {
-    const mat = {
-      doubleSided: true,
-      pbrMetallicRoughness: {
-        baseColorFactor: [1, 1, 1, alpha == null ? 1 : alpha],
-        metallicFactor: metallic,
-        roughnessFactor: roughness,
-      },
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name } = {}) {
+    const pbr = {
+      baseColorFactor: [1, 1, 1, alpha == null ? 1 : alpha],
+      metallicFactor: metallic,
+      roughnessFactor: roughness,
     };
+    // texture × material: the surface tile rides as the lit albedo (a marble floor with sheen)
+    if (baseColorTexture != null) pbr.baseColorTexture = { index: baseColorTexture };
+    const mat = { doubleSided: true, pbrMetallicRoughness: pbr };
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
     this.json.materials.push(mat);
@@ -330,15 +330,24 @@ export function facesToGlb(payload = {}, { generator } = {}) {
       b.addNode(nodeName, bm.positions, bm.colors, 3, mat);
       tally(bm.positions);
     }
+    // texture × material: a textured face that ALSO carries `pbr` exports its tile as the
+    // albedo of a REAL lit PBR material (marble floor with sheen) instead of the unlit sticker.
+    const texPbr = new Map();
+    for (const f of fs) if (f && typeof f.texture === 'string' && Array.isArray(f.pbr) && f.pbr.length >= 2) texPbr.set(f.texture, f.pbr);
     for (const [key, grp] of Object.entries(gm.textureGroups || {})) {
       if (!grp.positions.length) continue;
       const texIdx = b.imageFromDataUrl(textures[key]);
+      const pbr = texPbr.get(key) || null;
       if (texIdx != null) {
-        const mat = b.unlitMaterial({ baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` });
+        const mat = pbr
+          ? b.pbrMaterial({ metallic: pbr[0], roughness: pbr[1], baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` })
+          : b.unlitMaterial({ baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` });
         // lit groups multiply texel × baked colour (COLOR_0); unlit stickers show the texel as-is.
         b.addNode(`${name}:${key}`, grp.positions, grp.lit ? grp.colors : null, 3, mat, grp.uvs);
       } else {
-        const mat = b.unlitMaterial({ alpha: groupAlpha, name: `${name}:${key}` });
+        const mat = pbr
+          ? b.pbrMaterial({ metallic: pbr[0], roughness: pbr[1], alpha: groupAlpha, name: `${name}:${key}` })
+          : b.unlitMaterial({ alpha: groupAlpha, name: `${name}:${key}` });
         b.addNode(`${name}:${key}`, grp.positions, grp.colors, 3, mat);
       }
       tally(grp.positions);

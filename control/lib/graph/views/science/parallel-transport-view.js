@@ -26,8 +26,6 @@
  * scale?, viewBox?, scene?:{ bg? }, title? }. Orbit-only object study — no walk, no CSS-3D /scene form.
  */
 
-import { lowerObjectFaces, WORKBENCH_LIGHT } from '../../worlds/workbench.js';
-
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const clampNum = (v, lo, hi, fb) => { const n = +v; return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fb; };
@@ -136,13 +134,12 @@ const SCENARIOS = {
 
 export const PARALLEL_TRANSPORT_SCENARIOS = Object.keys(SCENARIOS);
 
-// translucent globe (faces) — same lathe machinery orbit/atom views use.
-const pt = (a) => ({ x: a[0], y: a[1], z: a[2] });
-const circleProfile = (R, n = 22) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return { t, radius: R * Math.sin(Math.PI * t) }; });
-function sphereFaces(R, tint, alpha) {
-  const spec = { axisFrom: pt([0, 0, -R]), axisTo: pt([0, 0, R]), profile: circleProfile(R, 24), crossSections: 36, samples: 26, tint };
-  return lowerObjectFaces({ lathes: [spec] }, WORKBENCH_LIGHT).map((f) => ({ ...f, group: 'globe', alpha }));
-}
+// the translucent globe is now a real lit three.js sphere (emitThreeWorld's `planets` channel), not a
+// lathe "onion". It is STATIC (no mover) at the origin, radius R — the curved surface the vector rides
+// on. The transported vector / loop / breadcrumbs are computed from pure unit-sphere math (scaled by R),
+// not sampled from this body, so swapping the body's geometry leaves the holonomy visualization intact.
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
+
 // a flat checkerboard plane (hand-built quads) for the flat-plane control.
 function planeFaces(S, nx) {
   const faces = [], step = (2 * S) / nx;
@@ -173,7 +170,7 @@ export function planParallelTransportScene(recipe = {}) {
   const R = 8 * scale;
   const arrowLen = R * 0.34;
 
-  let faces, loopRender, vecsUnit, holonomy, omega, surface;
+  let faces, planets = [], loopRender, vecsUnit, holonomy, omega, surface;
 
   if (S.surface === 'plane') {
     surface = 'plane';
@@ -189,7 +186,9 @@ export function planParallelTransportScene(recipe = {}) {
     holonomy = 0; omega = 0;
   } else {
     surface = 'sphere';
-    faces = sphereFaces(R, '#2c4a7a', 0.16);
+    faces = [];
+    // the globe: a static translucent lit sphere at the origin (replaces the old lathe onion faces).
+    planets.push({ group: 'globe', center: [0, 0, 0], radius: R, tint: hexRgb('#2c4a7a'), opacity: 0.16, star: false });
     const loopUnit = S.loop(params);
     // parallel-transport the tangent around the loop.
     vecsUnit = [tangentToward(loopUnit[0], loopUnit[1])];
@@ -219,7 +218,7 @@ export function planParallelTransportScene(recipe = {}) {
   };
 
   return {
-    faces, transports: [transport],
+    faces, planets, transports: [transport],
     bounds: { center: [0, 0, 0], radius: surface === 'plane' ? R * 1.5 : R * 1.25 },
     stats: { scenario, surface, holonomyDeg: transport.holonomyDeg, solidAngleSr: transport.solidAngleSr },
   };
@@ -240,6 +239,7 @@ export function assembleParallelTransportScene(recipe = {}, { title } = {}) {
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#070b16';
   return {
     faces: plan.faces,
+    planets: plan.planets,
     transports: plan.transports,
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },

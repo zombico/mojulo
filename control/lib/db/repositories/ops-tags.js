@@ -1,18 +1,18 @@
 /**
- * ops_tags repository (Ring 11 — operations mode).
+ * ops_tags repository — a resource-grouping primitive.
  *
- * An ops tag is a tag + a descriptor + a set of members drawn from committed
- * reality (bots, apps, mcp-orbit compositions, cooks, catalysts, triggers,
- * stashes). The tag is the bound; the descriptor is the *thesis* against
- * which members are measured. Consulted, not driving — no execute verb, no
- * cascade-retire.
+ * An ops tag is a tag_ref + a title + a descriptor + a set of bound members.
+ * It began as the "operations mode" (Ring 11) domain-scoped deliberation
+ * surface; that surface (the enter/forge/bind/get/list/revise MCP tools and
+ * the /operations dashboard) was DEPRECATED as unused — nothing consumed the
+ * descriptor/thesis semantics.
  *
- * Member kinds are committed-reality only. Pre-reality nodes (plans,
- * research books) are reachable as PROVENANCE through tagged members but
- * are not themselves taggable — keeps the domain-view from drifting into a
- * deliberation-thrust surface.
- *
- * See lite-template/integration/app-system/0605/operations-view.md.
+ * This repository is retained as the grouping store for the MOTION subsystem:
+ * forge_motion / stitch_motion (control/lib/mcp/tools/motion.js) forge one tag
+ * per "Motion Project" and bind the subject stash + rendered motion outcome as
+ * members; the /motion gallery groups by them via listTagsForMember. The
+ * member_kind gate still accepts the original committed-reality kinds plus
+ * 'motion', but in practice only 'motion' / 'stash' are written.
  */
 
 import { randomUUID } from 'node:crypto';

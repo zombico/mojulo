@@ -86,7 +86,9 @@ async function svgToPng(svg, scale) {
 }
 
 async function bakeScenePng(sketch, scale) {
-  const html = renderSceneHtml(sketch);
+  // capture: bakes never carry the soundtrack script (byte-identical to a
+  // soundtrack-less page; audio needs a user gesture anyway).
+  const html = renderSceneHtml(sketch, { capture: true });
   if (!html) {
     const err = new Error(
       'This scene kind has no live CSS-3D renderer to bake — use the /svg path instead.',

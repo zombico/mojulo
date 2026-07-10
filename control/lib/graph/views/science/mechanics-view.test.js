@@ -15,7 +15,8 @@ describe('planMechanicsScene — determinism & shape', () => {
   it('emits a solid pickable body + a single mover, with set dressing that is NOT picked', () => {
     const plan = planMechanicsScene(PROJECTILE);
     const groups = new Set(plan.faces.map((f) => f.group));
-    expect(groups.has('body')).toBe(true);
+    // the focal body is a lit sphere (planets channel); set-dressing stays faces
+    expect(plan.planets.some((p) => p.group === 'body')).toBe(true);
     expect(groups.has('scene')).toBe(true);
     expect(plan.movers.length).toBe(1);
     expect(plan.movers[0].group).toBe('body');
@@ -580,7 +581,7 @@ describe('planMachineScene — simple machines (mechanical advantage + work)', (
   it('frames as a world with a pickable load + static structure', () => {
     const plan = machine('pulley');
     const groups = new Set(plan.faces.map((f) => f.group));
-    expect(groups.has('body')).toBe(true);
+    expect(plan.planets.some((p) => p.group === 'body')).toBe(true);   // load is a lit sphere now
     expect(groups.has('scene')).toBe(true);
     expect(plan.picks[0].name).toBe('body');
     expect(plan.stats.scenario).toBe('pulley');

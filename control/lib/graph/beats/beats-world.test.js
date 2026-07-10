@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveWorldAudio } from './beats-world.js';
+import { resolveWorldAudio, emitSceneSoundtrackScript } from './beats-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
+import { renderSceneHtml } from '../scene/scene-html.js';
 import { sketchRenderMode, classifyBucket, isBucket } from '../sketch/sketch-manifest.js';
 
 // ── the Phase-5 exit criteria, structurally (beats.plan.md → B2/B3) ────────────
@@ -78,6 +79,72 @@ describe('resolveWorldAudio', () => {
   it('empty / absent specs resolve to null (the channel stays un-emitted)', () => {
     expect(resolveWorldAudio(null)).toBe(null);
     expect(resolveWorldAudio({})).toBe(null);
+  });
+
+  // ── B5.3: audio.bindings — sim state → channel macros ──────────────────────
+  it('resolves bindings against the soundtrack and rejects unknown channels/macros', () => {
+    const bindings = [
+      { source: 'depth', range: [0, 12], target: { channel: 'pads', macro: 'tone', range: [1, 0.2] } },
+      { source: 'proximity', point: [4, 4, 0], range: [10, 1], target: { channel: 'pads', macro: 'level', range: [0.4, 1] } },
+    ];
+    const out = resolveWorldAudio({ soundtrack: SOUNDTRACK, bindings });
+    expect(out.bindings).toHaveLength(2);
+    expect(out.bindings[0].target.macro).toBe('tone');
+    expect(out.bindings[1].point).toEqual([4, 4, 0]);
+
+    expect(() => resolveWorldAudio({ soundtrack: SOUNDTRACK, bindings: [{ source: 'depth', range: [0, 1], target: { channel: 'nope', macro: 'tone', range: [1, 0] } }] }))
+      .toThrow(/not a soundtrack channel/);
+    expect(() => resolveWorldAudio({ soundtrack: SOUNDTRACK, bindings: [{ source: 'depth', range: [0, 1], target: { channel: 'pads', macro: 'wah', range: [1, 0] } }] }))
+      .toThrow(/target.macro must be one of/);
+    expect(() => resolveWorldAudio({ soundtrack: SOUNDTRACK, bindings: [{ source: 'gravity', range: [0, 1], target: { channel: 'pads', macro: 'tone', range: [1, 0] } }] }))
+      .toThrow(/source must be one of/);
+    expect(() => resolveWorldAudio({ soundtrack: SOUNDTRACK, bindings: [{ source: 'proximity', range: [0, 1], target: { channel: 'pads', macro: 'tone', range: [1, 0] } }] }))
+      .toThrow(/needs a reference/);
+    // bindings without a soundtrack have nothing to drive.
+    expect(() => resolveWorldAudio({ bindings })).toThrow(/add audio.soundtrack/);
+  });
+
+  it('bindings ride the emitted page and drive the macro setters', () => {
+    const audio = resolveWorldAudio({
+      soundtrack: SOUNDTRACK,
+      bindings: [{ source: 'depth', range: [0, 12], target: { channel: 'pads', macro: 'tone', range: [1, 0.2] } }],
+    });
+    const html = emitThreeWorld({ faces: FACES, audio });
+    expect(html).toContain('__beatsBind');
+    expect(html).toContain('setTone');
+    // absent bindings ⇒ evaluator not emitted... but the kernel still carries the setters.
+    const plain = emitThreeWorld({ faces: FACES, audio: resolveWorldAudio({ soundtrack: SOUNDTRACK }) });
+    expect(plain).toContain('__AUDIO.bindings && __AUDIO.bindings.length');
+  });
+});
+
+describe('CSS3D scene soundtrack (B4)', () => {
+  // a minimal two-point room manifest the CSS3D room renderer accepts.
+  const ROOM = {
+    kind: 'fractal-city',
+    seed: 7,
+    title: 'humming city',
+  };
+
+  it('soundtrack script emits for soundtrack/wind, empty otherwise', () => {
+    const audio = resolveWorldAudio({ soundtrack: SOUNDTRACK, wind: true });
+    const script = emitSceneSoundtrackScript(audio);
+    expect(script).toContain('buildBeatsKernel');
+    expect(script).toContain('startAmbient');
+    expect(script).toContain('__beatsUnlock');
+    expect(emitSceneSoundtrackScript(null)).toBe('');
+    // sfx-only audio has nothing for the scene path (no bus there).
+    expect(emitSceneSoundtrackScript({ cues: { ding: [] } })).toBe('');
+  });
+
+  it('renderSceneHtml injects the soundtrack live, never on capture, never without audio', () => {
+    const plain = renderSceneHtml({ manifest: ROOM });
+    expect(plain).not.toContain('__beatsUnlock');
+    const withAudio = renderSceneHtml({ manifest: { ...ROOM, audio: { soundtrack: SOUNDTRACK } } });
+    expect(withAudio).toContain('__beatsUnlock');
+    expect(withAudio.indexOf('</body>')).toBeGreaterThan(withAudio.indexOf('__beatsUnlock'));
+    const captured = renderSceneHtml({ manifest: { ...ROOM, audio: { soundtrack: SOUNDTRACK } } }, { capture: true });
+    expect(captured).toBe(plain);   // bakes byte-identical to a soundtrack-less page
   });
 });
 

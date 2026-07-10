@@ -8,6 +8,7 @@ import {
   normalize,
 } from './geometry.js';
 import { annotateMarksWithConstellation, constellationDebugMarks } from '../polygonizer/constellation.js';
+import { expandArabesque } from '../polygonizer/arabesque.js';
 import { runAuthorshipPreview } from '../rendrant/authorship-preview.js';
 import { deriveMaterialContracts, summarizeMaterialContracts } from '../rendrant/material-contracts.js';
 import { findMandalaBlock, projectMandalaBlock, projectMandalaPoint, projectTwoPoint, withGeneratedElementMandala, withResolvedWorldCamera } from '../polygonizer/pure-mandala.js';
@@ -3503,6 +3504,7 @@ function isConstructionMark(mark) {
     mark?.kind === 'mandalaArrangement' ||
     mark?.kind === 'stickerField' ||
     mark?.kind === 'cubieLattice' ||
+    mark?.kind === 'arabesque' ||
     mark?.kind === 'form';
 }
 
@@ -3593,6 +3595,12 @@ function resolveConstructionMarks(marks, scene = {}, manifest = {}) {
       }
       if (mark?.kind === 'form') {
         const next = expandFormMark(mark);
+        resolved.push(...next);
+        next.forEach((item) => rememberRole(item, byRole));
+        continue;
+      }
+      if (mark?.kind === 'arabesque') {
+        const next = expandArabesque(mark, manifest);
         resolved.push(...next);
         next.forEach((item) => rememberRole(item, byRole));
         continue;

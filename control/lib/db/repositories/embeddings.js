@@ -88,6 +88,23 @@ export const SOURCE_KINDS = [
   // a curated store + level-template + progression bundle. Discovered by intent
   // ("a dungeon crawler", "a survival arena"); read via `get_game_vocab`.
   'game_kit',
+  // glyph cards — one per FORM on the game-UI-language shelf (generated from
+  // lib/graph/game/glyph-forms.js): the closed pickup/marker vocabulary
+  // (gem / coin / key / …). Discovered by intent ("a health pickup", "a goal
+  // flag"); read via `get_game_vocab`.
+  'game_glyph',
+  // sfx cards — one per VERB on the game-UI-language SFX shelf (generated from
+  // lib/graph/game/glyph-sfx.js): the raymarch "juice" verbs (sparkle / heal /
+  // ward / kokusen / …). Discovered by intent ("a magic shimmer", "a heal
+  // effect"); read via `get_game_vocab`.
+  'game_sfx',
+  // routing cards — one per creative-mint routing row retired from
+  // forward_context's Create-things section (markdown under
+  // lib/mcp/routing-cards/). Recognizer quotes + entry tool + fork sentences;
+  // the mini segmented index in forward_context names the FORM, this kind
+  // carries the full row. Search returns the FULL body for this kind (cards
+  // are lint-capped to snippet scale) — no separate reader tool.
+  'routing',
 ];
 
 const SNIPPET_MAX_CHARS = 280;
@@ -420,7 +437,11 @@ export const EmbeddingsRepository = {
         source_kind: r.source_kind,
         source_ref: r.source_ref,
         score,
-        snippet: snippetOf(r.body_text),
+        // Routing cards ARE the payload — a routing row is snippet-scale by
+        // lint (ROUTING_CARD_BODY_CEILING), and there is deliberately no
+        // structured reader for them, so return the full body instead of a
+        // truncated snippet. Every other kind pairs with a structured reader.
+        snippet: r.source_kind === 'routing' ? r.body_text : snippetOf(r.body_text),
       });
     }
     scored.sort((a, b) => b.score - a.score);
@@ -575,6 +596,39 @@ export const BodyComposition = {
     // arena" match the kit card before its store/level-template recipe.
     const lines = [];
     lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  gameGlyph(card) {
+    // Same shape: lead with intent phrases so "a health pickup" / "a goal flag"
+    // match the form card before its semantics/fit manual.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  gameSfx(card) {
+    // Same shape: lead with intent phrases so "a magic shimmer" / "a heal effect"
+    // match the verb card before its param/mechanism manual.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  routingCard(card) {
+    // Lead with name / entry / summary / when so an intent-phrased query
+    // ("walk to the exit", "a portrait") matches before the fork prose. The
+    // entry line rides in the indexed body because search returns routing
+    // bodies whole — the agent reads the door straight out of the result.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    lines.push('', `Entry: \`${card.entry}\``);
     if (card.summary) lines.push('', card.summary);
     if (card.when) lines.push('', `When: ${card.when}`);
     if (card.body) lines.push('', '---', '', card.body);
@@ -1088,6 +1142,50 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`game_kit: ${kitVocab.size}`);
+
+  // 17. Glyph cards — one per FORM on the game-UI-language shelf, GENERATED from
+  // lib/graph/game/glyph-forms.js (semantics + symmetry/idle rule + fit anchor + body usage),
+  // so "a health pickup" / "a goal flag" surfaces the right form. See game-ui-language.plan.md (U1).
+  const { getGlyphVocabCatalog } = await import('../../graph/game/glyph-cards/loader.js');
+  const glyphVocab = getGlyphVocabCatalog();
+  for (const card of glyphVocab.values()) {
+    items.push({
+      sourceKind: 'game_glyph',
+      sourceRef: card.id,
+      bodyText: BodyComposition.gameGlyph(card),
+    });
+  }
+  log(`game_glyph: ${glyphVocab.size}`);
+
+  // 18. SFX cards — one per VERB on the game-UI-language SFX shelf, GENERATED from
+  // lib/graph/game/glyph-sfx.js (mechanism + default params + manifest usage), so "a magic
+  // shimmer" / "a heal effect" surfaces the right verb. See game-ui-language.plan.md (U4).
+  const { getSfxVocabCatalog } = await import('../../graph/game/sfx-cards/loader.js');
+  const sfxVocab = getSfxVocabCatalog();
+  for (const card of sfxVocab.values()) {
+    items.push({
+      sourceKind: 'game_sfx',
+      sourceRef: card.id,
+      bodyText: BodyComposition.gameSfx(card),
+    });
+  }
+  log(`game_sfx: ${sfxVocab.size}`);
+
+  // 19. Routing cards — one *.md per creative-mint routing row retired from
+  // forward_context's Create-things section (lib/mcp/routing-cards/). The
+  // recognizer quotes are the retrieval signal: "walk to the exit" / "stitch
+  // these together" / "a portrait" surface the full routing row (entry tool +
+  // forks). See the orientation-diet routing-card move in context.js.
+  const { getRoutingCardCatalog } = await import('../../mcp/routing-cards/loader.js');
+  const routingCards = getRoutingCardCatalog();
+  for (const card of routingCards.values()) {
+    items.push({
+      sourceKind: 'routing',
+      sourceRef: card.id,
+      bodyText: BodyComposition.routingCard(card),
+    });
+  }
+  log(`routing: ${routingCards.size}`);
 
   if (items.length === 0) {
     log('nothing to index');

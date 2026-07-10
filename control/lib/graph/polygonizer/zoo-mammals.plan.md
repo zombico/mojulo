@@ -223,14 +223,15 @@ No new primitive. Each = archetype + presets + a paint/mask/mane recipe.
 
 - **Canids:** wolf (`canine` solid), fox (`canine` + bushy tail + `facePaint` white
   muzzle/black socks), husky/shepherd (canine + facePaint).
-- **Felids (solid):** cougar/panther (`feline` solid), lion (done).
+- **Felids (solid):** cougar (`feline` solid, long dark-tipped tail — DONE), lion (DONE, now a
+  first-class `ZOO_BUILDS` recipe) — panther still open (feline solid, dark coat).
 - **Ursids:** brown/polar/panda (done).
 - **Procyonids:** raccoon (done), red panda (`raccoon` + rust coat + INVERTED-dark `underHex`
   belly/legs + white `facePaint` + ringed `tailBands` — DONE).
-- **Mustelids:** otter/weasel (elongated small `ursine`: ↑trunkLength, ↓backHeight).
-- **Stumpy solids:** hippo (`stumpy` solid), rhino-body (stumpy; HORN deferred to P2).
-- **Equine solids:** horse (`equine`, done-ish), donkey (equine variant), camel (`equine` +
-  triangular-hump `fluff` (`bead` `peak`) — DONE).
+- **Mustelids:** otter/weasel (elongated small `ursine`: ↑trunkLength, ↓backHeight) — OPEN.
+- **Stumpy solids:** hippo (`stumpy` solid — DONE), rhino (stumpy + nasal HORN — DONE in P2).
+- **Equine solids:** horse (`equine` + nape mane + full tail — DONE), donkey (equine variant, OPEN),
+  camel (`equine` + triangular-hump `fluff` (`bead` `peak`) — DONE).
 - **Cervids / small bovids (`gazelle` archetype):** deer/doe + buck (antlers), gazelle (tineless
   antler = horn) — all DONE. The horned Phase-2 set (ram/bull/antelope) reuses the same antler cfg.
 - **Primates (posture edit, no new primitive):** gorilla (heavy `ursine`-ish,
@@ -243,8 +244,10 @@ Marsupials reuse EXISTING archetypes — the framing is exactly right:
 
 - **Kangaroo** ≈ `theropod` balance (biped hopper: huge hind legs, heavy balance tail,
   tucked forelimbs, small head) + `spineTilt` upright + haunch `fluff` — solid rusty coat. DONE.
-- **Koala** ≈ small `ursine` (stout, big round `face` ears, stub tail) — grey coat.
-- **Wombat** ≈ small `stumpy` (barrel, short pillar legs) — solid brown.
+- **Koala** ≈ small `ursine` (stout, big round `face` ears, stub tail) — grey coat. DEFERRED:
+  reads as "small grey bear" on the all-fours ground-plant; needs the upright tree-clinging pose
+  (a stance lever the kit doesn't have). Cut + logged, not faked (see build log).
+- **Wombat** ≈ small `stumpy` (barrel, short pillar legs) — solid brown. DONE.
 - **Tasmanian devil** ≈ small `canine`/`ursine`, black coat (+ white chest = small
   `facePaint`/patch — borderline; may slip to P2).
 - **Opossum** ≈ `rodent` + bare (un-furred) ringtail-shaped tail — grey/white.
@@ -257,10 +260,15 @@ frame, wired as the defaults-off `antlers` opt on `buildAnimal`. Built the first
 - **deer** (hornless DOE) + **buck** (deer body + the antler rack) — DONE.
 
 The rest of the horned set is now "turn the knobs on the same primitive" (each is a body recipe +
-an `antlers`/horn cfg): antelope, cattle/bull, bison (+ cape mane), goat/ram (high `curl` → a
-curled horn), rhino (nasal horn = a single beam, no tines, rooted forward on the muzzle). A single
-undecorated beam (`tines: []`) is a HORN; the same beam with a high `curl` is a ram's curl — so the
-whole Phase-2 set is one primitive, as the roadmap predicted.
+an `antlers`/horn cfg): antelope, cattle/**bull** (outswept: low `rise` + high `out`) — DONE,
+bison (+ cape mane), goat/**ram** (the `hook` downcurl → the bighorn C) — DONE, **rhino** (nasal
+horn = a single tineless beam rooted FORWARD on the muzzle via `pedFwd`/`pedRise`, `spread` 0) —
+DONE. A single undecorated beam (`tines: []`) is a HORN. NOTE (corrected by render): the "fan" of
+the set (deer/gazelle/bull/rhino — up/back/out/forward) is one primitive, but the ram/goat CURL is
+NOT reachable by `curl` alone (`curl` is forward-horizontal; `rise` is monotone up → the beam can't
+descend). It needed a new axis — the `hook` (downward) dial — added defaults-off. So the horned set
+is one primitive + one extra axis; the roadmap's "high curl → ram's curl" was a hypothesis the
+render falsified. See the build-log "eight-species round-out" entry.
 
 ### Phase 3 — BLOCKED on PATCH colour (the wall; escalate to user)
 
@@ -498,6 +506,107 @@ Then, on the kangaroo (nape/knee/hands) and the deer/buck (antlers), five more, 
   horned set.
 
 ## Build log
+
+- **the PLATED SNOUT — a projecting 4-plate muzzle off a small cranium (figure-animal-faceplate.js).**
+  Arrived at through three framings, each corrected by the operator, which is itself the lesson:
+  (1) FIRST build = outward-angled structural facets (a tented roof + forward nose + down jaw) —
+  rejected; (2) SECOND = a flat FRONT-FACING sticker card ("wrap the form then plate the front, like
+  the car" / vehicle-face-cards.js) — right method, but a flat decal can't carry the operator's
+  reference SKETCH, which is a PROFILE with a projecting, sloped, tapered muzzle; (3) FINAL, chosen
+  explicitly ("plate becomes the snout") = the plate IS the muzzle. The 4 pieces are the faces of a
+  TAPERED SWEPT BOX projecting forward off a SMALL cranium: **topL / topR** (the two top planes, ridge
+  → cheek, tenting to a dorsal ridge that SLOPES down brow→nose), **jaw** (a shallow-V bottom keel),
+  **nose** (the front cap at the tip). At each station root→nose the cross-section tapers (width,
+  ridge height, jaw depth all lerp down) and the axis DROPS, so the snout narrows and dips to the nose
+  — the sketch's profile. Each plate is a thin extruded slab (a cross-section edge swept root→nose)
+  so it meshes + lights like every part. Wired defaults-off as `plateMuzzle` on `buildAnimal` (null →
+  zero parts, every existing animal byte-unchanged); pair it with a SHORT skull + tiny `muzzle`
+  fraction so the cone is just a cranium ball and the plate carries the muzzle. Demo: the
+  `plated-muzzle cat` spike (`faceplate-cat-{lateral,3q,face}[-head].svg`) — a projecting tapered
+  snout in profile, the 4 plates reading as ridge + cheeks + jaw + nose. **LESSON — a "face plate"
+  spans a whole spectrum from DECAL (flat front sticker) to STRUCTURE (the plate IS the form); pin
+  which end you're on with the operator BEFORE tuning.** Three rebuilds burned because "face plate"
+  was read as decal when the reference wanted structure — one clarifying question (decal vs projecting
+  muzzle vs reshape-the-skull) settled it. The projecting-plate muzzle is the two-mass head done right:
+  small round cranium + a separate tapered muzzle mass with a real stop, the thing the single swept
+  cone (structurally a wedge) can't be. OPEN tuning: weld the muzzle ROOT into the cranium field on
+  the `skin` path (today there's a faint seam at the join); per-species dial the taper/slope/length
+  (short broad = cat/bear, long = wolf/anteater).
+
+- **the eight-species round-out (lion·cougar·hippo·rhino·horse·ram·bull·wombat) + the antler `hook`
+  (downcurl) lever.** One batch, run through the loop, that roughly doubled `ZOO_BUILDS` (8→15) and
+  spanned the family's open gaps — Felidae, megafauna, Equidae, horned bovids, marsupials. Seven
+  landed on turn-the-knobs alone (no new code); ONE (`ram`) forced the batch's real lesson.
+  - **lion — PROMOTED from the inline spike into a recipe.** `feline` + the mane cfg, ported verbatim
+    from the accepted `lion-face` spike, with heavy forequarter girths and a dark tuft-tip by paint
+    (`tailTip`, not geometry — the terminal pom is still the shape-register's known limit). The mane
+    is a first-class DECORATION recipe now, beside the maneless cougar. **LESSON — an accepted spike
+    `it()` is a recipe waiting to be promoted;** the loop's job is to move a proven inline build into
+    `ZOO_BUILDS` so it renders in the study sheet and is reusable, not to re-derive it.
+  - **cougar — the maneless felid.** Same `feline` archetype as the lion, decoration-only: plain
+    tawny + cream countershade + pale muzzle + a very long dark-tipped tail. Proves the felid body
+    reads as a distinct species with ZERO added geometry (the doe↔buck / brown↔polar move, one clade
+    over): lion and cougar are one archetype, separated by a mane's worth of decoration.
+  - **felid FLESH + FACE profile — and the FELINE-vs-CANINE skull wall.** First pass inherited the
+    default flesh (thorax 1.9 / belly 2.1 / bellyDrop 0.30) and read too tubular + dog-snouted. Two
+    axes fixed it, one fully, one only to a ceiling:
+    - **FLESH (fully reachable by dial):** the felid tell is a DEEP FRONT-LOADED barrel. Declared
+      `fleshCfg` heavier (thorax ≈ 2.2, belly ≈ 2.3) + dropped LOW (bellyDrop ≈ 0.5) so the brisket
+      dips and frontal chest mass reads, + more `girthFore`. This is the flesh-tier sibling of the
+      raccoon's "declare your flesh weight per clade."
+    - **SKULL (the real question — why a cat reads canine):** the cat↔dog difference is almost
+      entirely the SKULL. Canine = a LONG projecting rostrum + a flat braincase that ramps smoothly
+      into the muzzle (a WEDGE). Feline = a SHORT rostrum (brachycephalic) + a large ROUND globular
+      braincase + a steep STOP, so the front of the face is near-vertical (a BALL with a stub nose).
+      Pushed the dials to their ceiling for the cat: `length`↓ (short head), `dome`↑↑ (≈1.4 — the
+      round tall cranium), `width`↑ (broad), `muzzle` fraction ≈ 0.2 (barely-projecting snout),
+      `snout`↑ + `boxy` (blunt nose), `muzzleDrop`↑ (nose dropped low under the eyes → vertical
+      front). Materially more feline — but NOT fully. **LESSON — the single-swept-cone skull
+      (`protoSkull`: cranium stations tapering along ONE axis to a nose tip) is inherently
+      WEDGE-biased, i.e. structurally canine.** Shrinking the muzzle fraction shortens the front
+      but never buys the two things that SAY "cat": a distinct ROUND braincase mass and a STEEP
+      STOP. Those need a TWO-MASS skull primitive — a spherical braincase SDF + a short muzzle stub
+      joined at an angle — the same class of fix as the boxy-muzzle superellipse section and the
+      welded-skull weld. So: felid FACE is a dial-ceiling case (good-enough read now), with the
+      true fix being a `protoSkull` v2 (round braincase + stub muzzle + stop), logged for later.
+  - **hippo / wombat / rhino — the `stumpy` family, scaled three ways.** `stumpy` at MAX girth +
+    a huge broad muzzle = hippo; the SAME archetype scaled DOWN (low backHeight, short trunk) = the
+    wombat (the small-stumpy sibling, as `raccoon` is to `ursine`); `stumpy` + a nasal horn = rhino.
+    **LESSON — girth-scale spans a clade the way stature-scale does;** hippo→wombat is one archetype
+    at two sizes, no new primitive, exactly the caniform bear→raccoon lesson on the pachyderm branch.
+  - **rhino — the horn's SEAT makes the species, not new geometry.** The antler primitive seats a
+    tineless beam FORWARD on the muzzle (`pedFwd` ≈ 0.84) and low (`pedRise` ≈ 0.06), on the midline
+    (`spread` 0 → both mirrors coincide = one horn). Same primitive as the buck's crown rack; only
+    WHERE it roots (nose vs crown) changes. Confirms the roadmap's "the horned set is one primitive
+    by cfg" now includes the horn's ANCHOR as a cfg axis, not just its shape.
+  - **horse — Equidae rounded out beside the camel.** `equine` at its intended tall arched-neck
+    proportions + a dark nape MANE (the lock primitive as a small crest at `anchorT` high on the
+    neck, low `out`, high `hang` so it drapes rather than radiates like the lion ruff) + a full low
+    tail. CAVEAT logged: a full RUNNING crest-mane down the whole neck is still not wired — this is a
+    compact nape tuft, honest about what the collar/ruff primitive can carry.
+  - **bull — the OUTSWEPT horn (low rise + high `out` + forward `curl`).** Heavy `equine` body (cattle
+    are big-and-long-headed, not the slender gazelle clade), tineless horns sweeping laterally off the
+    poll to forward-curved points. Head-on it's an unmistakable longhorn. The lateral hides the sweep
+    (the horns point at/away from camera) — **LESSON: judge a laterally-swept appendage from the
+    HEAD-ON view, not the profile;** the profile under-sells any out-swept horn/ear/tusk.
+  - **ram — the batch's real yield: the antler `hook` (downcurl) lever.** The roadmap PREDICTED "high
+    `curl` → a ram's curl," but the implementation's `curl` term is forward-HORIZONTAL only, and `rise`
+    is monotone up — so the beam could never come back DOWN, and a high-curl ram rendered as a straight
+    up-and-back ORYX sweep. The fix is a tier-3 general lever (defaults-off, reusable, byte-unchanged
+    for every existing antler/horn): `hook` — a downward (−up) displacement concentrated near the top,
+    the vertical sibling of `curl`. With `hook > rise` the tip ends BELOW the pedicle → the bighorn's
+    C spiralling out-and-down beside the face. **LESSON — a roadmap PREDICTION is a hypothesis, not a
+    guarantee; the render is the test.** "One primitive spans the horned set by cfg" was TRUE for the
+    fan (deer/gazelle/bull/rhino: up/back/out/forward) and FALSE for the curl (ram/goat: needs down) —
+    the primitive was missing a whole axis. When a predicted knob-turn produces the wrong silhouette,
+    the honest move is to add the missing GENERAL axis (one dial, all curled horns inherit it), not to
+    hand-shape that one species. `hook` now unlocks the goat/ibex/kudu-spiral sub-family the same way.
+  - **koala — DEFERRED (honest exit, not faked).** Built as a small grey `ursine` (round ears, big
+    nose, pale chest) but on the all-fours ground-plant it reads "small grey bear," not koala: the
+    koala's identity is the UPRIGHT tree-clinging pose the kit can't plant. Logged as needs-attention
+    behind a stance lever (the same gap that would give a sitting kangaroo its true tripod), and CUT
+    from `ZOO_BUILDS` rather than shipped ambiguous. **LESSON — the loop has three honest exits and
+    "reads ambiguously" is the retry-cap one; cut + log beats shipping a mush that dilutes the sheet.**
 
 - **camel hump → triangular + gazelle (the horn = tineless antler proof).** Two small follow-ups:
   - **camel hump was too CIRCULAR.** The hump was a spherical `bead` fluff (a dome). Added a `peak`

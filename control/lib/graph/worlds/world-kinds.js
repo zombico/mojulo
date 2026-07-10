@@ -16,6 +16,7 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
+import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene } from '@/lib/graph/architecture/subway-station';
@@ -187,6 +188,7 @@ export const WORLD_KINDS = {
     resolve: (m, ctx) => assembleKoenigsbergScene(m, { title: ctx.title }),
   },
   'condo-complex': { walk: true, ...view(assembleFractalCondoScene, 'mojulo condo complex') },
+  'school-complex': { walk: true, ...view(assembleFractalSchoolScene, 'mojulo school complex') },
   'transportation-hub': {
     title: 'mojulo transportation hub',
     walk: true,

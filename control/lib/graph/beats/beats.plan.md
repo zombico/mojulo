@@ -1,16 +1,54 @@
 # Mojulo Beats — authorable musical artifacts, wired to worlds
 
-Status: B0–B3 built (kernel + patches + manifests + tests; create_beats /
-get_beats_vocab + vocab cards + embeddings + player page + /beats route; the
-`audio` world channel with soundtrack / beatsRef / wind / footsteps / bus-cue
-SFX). B4 (CSS3D soundtrack, .wav export, CLAUDE.md entry, renderer-ladder
-Phase 5 trim) remains. B5 (the groove-instrument elevation, from the Night
-Bus sequencer spike of 2026-07-04): B5.0 + B5.1 built (composition swing,
-filterEnv/detune, note-fraction fx times, sawStab patch; the beats-pattern
-kind end to end — kernel patternEvents/startPattern, gesture-as-instrument,
-chord contours, manifest, vocab card, player, world soundtrack, render mode;
-exit met: Night Bus minted over MCP at /sketches/night-bus). B5.2 (macros +
-grid player) and B5.3 (world bindings) remain.
+Status: B0–B9 built (2026-07-10 closes the plan's open items). B0–B3: kernel +
+patches + manifests + tests; create_beats / get_beats_vocab + vocab cards +
+embeddings + player page + /beats route; the `audio` world channel with
+soundtrack / beatsRef / wind / footsteps / bus-cue SFX. B4: .wav export landed
+as B8; the remainder (CSS3D `/scene` soundtrack via emitSceneSoundtrackScript —
+soundtrack + wind only, capture-safe; CLAUDE.md architecture-map entry;
+renderer-ladder Phase 5 trimmed to a pointer) built 2026-07-10. B5.0 + B5.1
+built (composition swing, filterEnv/detune, note-fraction fx times, sawStab;
+the beats-pattern kind end to end; exit met: Night Bus at /sketches/night-bus).
+B5.2 built: `transpose`/`tone` performance macros on every channel/part/track
+(kernel setTranspose/setTone/setLevel + toneFreq, tone low-pass at the chain
+head, transpose at schedule time, macro state survives stop/start), player
+macro sliders, offline-render parity (macro-less renders stay byte-identical);
+the grid player folded into B9.2 as planned. B5.3 built: `audio.bindings` —
+sim-state selectors (depth / height / speed / proximity, camera or entity
+subject) → channel macros, validated against the soundtrack at resolve time,
+evaluated read-only per frame in the audio channel. B6.0/B6.2x built (B6.1
+partially — instrument expansion shipped on all kinds; the remaining vocab
+shelf work rides beats-instruments.md). B7.0 harmony bus + B8 WAV export
+built. B9 built (first-class beats): `beats_revisions` + `beats_annotations`
+tables + repos; get_beats / update_beats (full-manifest replace through the
+create gate, revision snapshot per edit, pre-B9 heads backfilled, ?rev= plays
+any revision) / annotate_beats / diff_beats (structured musical diff, ref@rev;
+exit met: diffing the mute-bar-2-kick revisions reports exactly the kick-mask
+change); update_sketch / diff_sketches teach on beats refs; exportsBaseDir
+moved to tools/exports-dir.js; the `/api/beats/<ref>` namespace (player with
+?rev=, `<ref>.wav`, /annotations GET, /meta, /diff) with the old
+/api/sketches aliases intact; the `/beats/<ref>` studio (player iframe +
+revision list with what-changed + read-only annotation panel + WAV export +
+copy-revision-prompt); player grid + playhead + annotation markers for the
+pattern kind; /maker/beats cards link to the studio; vocab cards carry the
+macro + revise sections. Amendment (same day, operator call): annotation
+WRITES stay MCP-only — annotate_beats is the single write surface; the studio
+and player render marks read-only (the B9.2 annotate-here POST affordance was
+removed after landing). Addendum (same day, operator call): **MIDI export**,
+the musician handoff — `export_beats { format: 'midi' }` +
+`/api/beats/<ref>.mid` (`?rev=`, bars/loops) render the SCORE as a format-1
+SMF via [beats-midi.js](beats-midi.js), built on the same pure
+renderBeatsPlan seam as the WAV (swing/feel/velocities/transpose travel;
+timbre doesn't — pair with the .wav). GM program best-guesses per patch,
+drum-shaped rows (membrane/noise patches, thump/burst gestures) on channel
+10, pitched foley (sweep/flutter) skipped with a `skipped_gesture_hits`
+count, beats-sfx refused (choreography, not a score). Export-only — MIDI
+IMPORT stays deliberately out. Studio grew an Export .mid affordance.
+Amendment (same day, operator call): beats are never LABELED sketches on the
+surface — /sketches/<ref> redirects beats kinds to the studio, the
+/maker/beats shelf speaks in "tracks" (sketchesIndex.beatsNoun overrides),
+the studio carries its own breadcrumb trail, and tool copy says /beats/<ref>.
+Rows stay in the sketches table; the sovereignty remains the domain layer.
 
 This plan formalizes the audio spike of 2026-07-04 (two Tone.js artifacts:
 "Night Circuit", a generative ambient loop, and "Buster Lab", a chiptune
@@ -476,6 +514,71 @@ modes that die fast. Composes with attackNoise (mallet tick), the chain
 (reverb), harmony bus, and feel. Still to shelf on this voice: bells / marimba
 / vibes / glockenspiel / gongs — all now pure patch data (partial sets).
 
+**B6.2b — keyboards shelf (2026-07-10).** ✅ Built. The keyboard family as
+pure shelf data over three existing voices, exactly as §"Reachable NOW"
+predicted: `rhodes` (fm tine + suitcase chorus), `harpsichord` (string,
+`pick: 0` — the quill the guitars engineer away from), `clav`/`clavinet`
+(string + light drive, staccato), `celesta` + `musicBox` (modal partial
+sets), `organ` (gate-envelope triangle unison + rotary-ish chorus), and
+`piano` — the modeled acoustic (doctrine holds: modeled, not sampled):
+hammer-struck KS string + hammer-knock attackNoise + soundboard `body`
+chain. One kernel param earned its keep (fold, don't fork): `velToFilter: k`
+scales a patch's static filter cutoff by `(vel/0.8)^k` — velocity →
+BRIGHTNESS, the piano's defining expressive axis; neutral at default
+velocity, so the null path is byte-identical. One new feel preset: `keys`
+(chord-roll whisper + touch jitter, which velToFilter turns into per-note
+brightness variation). Character-preserving feels: harpsichord has no
+velocity jitter (quills have no dynamics), music-box/organ stay `robotic`
+(they are machines). Vocab card updated; shelf-integrity + keyboards tests
+green. Piano refinement (same day): the amp spike's `pluckDetune` (two KS
+strings a few cents apart) turned out to be exactly a piano unison course —
+the slow beat between strings is the shimmer and the two-stage decay (unison
+energy cancels fast = the bloom; the detuned residue rings on = the singing
+tail). Adopted as pure patch data (`pluckDetune: 2.5`, `pluckDecay: 0.998`,
+`maxRing: 6`) — no piano-specific kernel code. Still not pursued:
+sympathetic resonance / per-register string counts (the sample-realism
+slope §"Deliberately out" guards).
+
+**B6.2c — amp voice (2026-07-10).** ✅ Spiked. Why `drive` reads as "a string,
+slightly toasted": a string is a linear resonator whose identity is its decay
+envelope; an amp is a nonlinear observer whose gain depends on level. You hear
+a string while the output envelope tracks the string's decay; you hear an amp
+once the clip stays saturated for most of the note's life and the envelope
+decouples (loudness holds, *brightness* decays — distortion is a ferocious
+compressor with harmonic exhaust). `drive`'s pre-gain tops out ~17dB — never
+reaches that regime. Built: `amp` chain effect (gain STAGING in dB up to 50,
+2–4 cascaded asymmetric clip stages via `ampCurve` — bias term recentered so
+y(0)=0, sign alternating per stage for even harmonics — tighten-highpass +
+mid pre-emphasis in, de-emphasis out, dc-block + interstage lowpass between
+stages, cabinet as formant bank: 105Hz bump, presence peak, 24dB/oct cliff);
+`pluckDetune` dual-pluck on the string voice (cents; intermodulation feed —
+a lone harmonic string gives the clip nothing to growl with); `guitarAmp`
+patch (new names — existing artifacts re-synthesize byte-identical);
+negative-time clamp in beats-render (feel jitter at t=0: browser clamps,
+OfflineAudioContext threw). Measured (A/B sk_fgq0cructm, held note over
+1.5s): drive −3.6dB (string decay reads through) vs amp −1.3dB (envelope
+decoupled). Riff comparison: sk_eyprci9g75 (drive) vs sk_21396htdo5 (amp).
+Folded in (same day): shelf pair `rock-guitar` (guitarAmp + amp gain 42,
+palm-mute — the rhythm wall) + `rock-lead` (guitarLead + amp gain 30
+level −12 + 3/16 delay — same amp 12dB cooler so the lead keeps enough
+envelope to phrase as a voice above the wall; settings proven in the Twin
+Circuit two-guitar piece, sk_3scss1sljl). Vocab card updated (`amp` effect
+row, shelf entries, metal/hard-rock routing phrases in `when`). Not yet:
+power-amp sag (envelope follower on pre-gain), string↔amp feedback,
+kill-switch/whammy gestures.
+
+**B6.2d — instruments on ambient channels (2026-07-10).** ✅ Built. The last
+kind without the instrument layer was `beats-ambient` — the world-soundtrack
+primitive — so shelf instruments (piano first) couldn't join a world's
+orchestra by name. Wired: ambient channels accept `instrument` (validate
+teaches, normalize expands via the same `expandNode` as parts/tracks), and
+the ambient scheduler applies `noteFeel` per note (the bar index folds into
+the seed like pattern mode — humanization evolves per bar, replays
+identically; a feel-less channel gets offset 0 / velScale 1, the pre-B6
+path). Vocab: ambient + composition + instruments cards updated with
+orchestra-member guidance (`{ role: 'harmony', instrument: 'piano' }`).
+Null path untouched; 91 tests green.
+
 **B6.3 — later.** formant voice (voice/choir/wind throat); bowed/sustained
 voice; bass slap articulation; string-voice `boundary`/`loss` extension for
 bores; per-instrument default color presets in the player UI.
@@ -573,3 +676,251 @@ chord schedule natural):
 - Chord *theory* helpers (progression generation, voice leading) — the agent's
   job at authoring time; the substrate stores the chosen voicings (B0 doctrine).
 - MP3 export / any CDN dependency (unchanged doctrine).
+
+---
+
+## B8 — WAV export: the sound-sample seam (2026-07-09)
+
+Status: B8.0 + B8.1 built. This is B4's export leg (and the B7 menu's
+`renderOffline` row) executed — elevated from "player button someday" to the
+seam that lets OTHER mojulo things consume a sound.
+
+### Doctrine
+
+- **A "sample" in mojulo is a beats ref.** The recipe stays the only source of
+  truth; the WAV is a derived render, regenerated on demand, never stored and
+  never imported back (export-only, the .glb posture exactly). If something
+  needs a new sound, it mints a recipe, not uploads bytes.
+- **One realizer, no drift.** The offline render replays the kernel's OWN
+  `createEngine()` against an `OfflineAudioContext` from `node-web-audio-api`
+  (a native dep, lazy-imported so create_beats and the player never load it;
+  registered in next.config.mjs `serverExternalPackages` per the landmine
+  rules). No second synthesis path to diverge from the browser player.
+- **Deterministic bytes.** The kernel has no unseeded randomness, so the same
+  manifest + options render the same PCM — verified byte-for-byte in tests.
+- **MP3 stays out** (unchanged). WAV imports everywhere; the earlier ban's
+  substance was the CDN-loaded encoder, but nothing has earned compression yet.
+
+### Shape
+
+```
+beats-render.js        renderBeatsPlan (PURE: manifest → absolute-time schedule
+                       entries + duration, reusing ambientBarEvents /
+                       compositionEvents / patternEvents / cuePlan / noteFeel
+                       exactly as the live transport applies them; unit-tested)
+                       + renderBeatsOffline (realizer → WAV Buffer)
+                       + encodeWavPcm16 (plain-JS 16-bit RIFF, no deps)
+                       + MAX_RENDER_SECONDS = 300 (a sample, not an album side)
+```
+
+Duration per kind (loops/scores have no intrinsic file length): composition =
+its own flattened duration; ambient = `bars` (default one progression cycle);
+pattern = `loops` (default 2, so the per-loop evolving feel is audible); sfx =
+one `cue` per render (defaults when there is exactly one). All renders append
+`tail` seconds of ring-out (default 2).
+
+Three consumption tiers, outermost thinnest:
+
+1. **The seam** — `renderBeatsOffline(manifest, opts)` in beats-render.js:
+   what server-side mojulo subsystems (a game build step, a publication cook)
+   import directly.
+2. **The URL** — `GET /api/sketches/<ref>/beats.wav?bars|loops|cue|tail`:
+   regenerates deterministically per request (the model.glb pattern); anything
+   page-shaped points an `<audio src>` at it.
+3. **The tool** — `export_beats { ref, bars?, loops?, cue?, tail?, write? }`:
+   the export_model contract — writes `control/data/exports/<ref>[.cue].wav`
+   (or `$MOJULO_EXPORTS_DIR`), returns `{ ok, url, path, bytes, duration_s,
+   sample_rate }`. TOOL_INDEX row beside the beats mints.
+
+### Deliberately out (B8)
+
+- Sample import / a samples table (a sample IS a beats ref).
+- MP3 or any compressed format (nothing has earned the encoder yet).
+- Stems / per-channel export (cheap follow-on if a consumer wants it).
+- Loudness normalization / mastering — the master-bus compressor is the sound;
+  the file matches the player.
+- Embedding WAV bytes into deployed artifacts by default — worlds/games keep
+  live kernel synthesis; the seam exists for surfaces that can't run it.
+- The player-page "Export WAV" button (browser OfflineAudioContext) — nice
+  later, not substrate.
+
+---
+
+## B9 — first-class beats: identity, editing, annotations (2026-07-10)
+
+Status: planned. B0–B8 built the *sound*; B9 builds the *practice* — the
+loop a composer or enthusiast actually lives in: listen → mark what's wrong
+→ revise → compare → listen again. Today that loop is impossible: beats is
+a tenant of the sketch tool, and the tenancy shows exactly where iteration
+should happen.
+
+### The problem, precisely
+
+Beats owns its kernel, manifest validation, vocab, render seam, and
+world-audio resolver. Everything *composer-facing* is borrowed:
+
+- **Storage/identity** — rows in `sketches` with `sk_` refs; kind lives
+  inside `manifest_json`; bucket derived by `classifyBucket` in
+  *sketch*-manifest.js.
+- **URLs** — `/sketches/<ref>` page, `/api/sketches/<ref>/beats(.wav)`
+  routes hanging off the sketch tree; `/maker/beats` is a `SketchGallery`
+  with a beats bucket filter.
+- **No read tool** — there is no `get_beats`; an agent cannot read a recipe
+  back to modify it.
+- **No edit path** — `update_sketch` *rejects* beats manifests
+  (`validateSketchManifest` demands `viewBox` + `stations`), and its bucket
+  gate doesn't accept `'beats'`. The only way to change one note is to
+  re-mint the whole artifact under a new ref, orphaning its history.
+- **No musical diff** — `diff_sketches` is SVG-geometry diffing; two beats
+  refs produce a meaningless picture.
+- **No annotation surface** — nothing in the substrate attaches commentary
+  to a beats ref (`ops-tags` member kinds exclude sketches; stash items can
+  hold an `sk_` ref + body but have no musical anchor and no player
+  presence).
+- **Shared plumbing** — `export_beats` imports `exportsBaseDir` from
+  `tools/sketches.js`.
+
+### Thesis
+
+Sovereignty is a **domain layer, not a table migration**. What makes beats
+"its own thing" to a composer is refs that resolve to a *musical* surface:
+tools that read/edit/diff/annotate in musical terms, a revision history,
+and a studio page where listening and marking happen. None of that requires
+moving rows. The sketches table is the substrate's universal recipe store
+(worlds, games, views all ride it — "a kind costs a card, not a table"),
+and `beatsRef` world resolution, stash sketch-items, and folders all lean
+on it. So: **keep storage where it is; build the beats domain on top.**
+New mints keep `sk_` refs (refs are opaque; identity comes from kind and
+from the surfaces a ref resolves to). Revisit only if a concrete constraint
+bites (e.g. SQL-side filtering on bpm/key for a large library) — the domain
+layer built here is exactly the facade that would make a later migration
+cheap.
+
+### The iteration loop (the point of B9)
+
+```
+mint (create_beats)
+  → listen at /beats/<ref> (studio: player + grid)
+  → mark it: annotations anchored to bar/track/step, dropped at the
+    playhead in the studio or via annotate_beats over MCP
+  → operator copies the studio's revision prompt into their host agent
+  → agent: get_beats (recipe + open annotations) → update_beats
+    (validated, note-carrying) → new revision, annotations resolved
+  → compare: diff_beats ref@3 ref@4; play any revision (?rev=)
+```
+
+The dashboard stays a deliberation surface, not a chat: the studio renders
+state (player, grid, revisions, annotations) and offers copy-starter-prompt
+affordances; authoring stays with the host agent. Annotation capture from
+the player is state-writing, not conversation — same posture as plan mode.
+
+### Shape
+
+**Two new tables** (migrations in db/index.js, repositories beside the
+sketch repo):
+
+- `beats_revisions (id, ref, rev INTEGER, manifest_json, note, created_at)`
+  — `create_beats` writes rev 1; every `update_beats` appends. The
+  `sketches` row always holds the head manifest (world `beatsRef`
+  resolution, player, export all keep working unchanged); revisions are
+  history, not the live pointer.
+- `beats_annotations (id, ref, rev, anchor_json, body_md, author
+  ('operator'|'agent'), status ('open'|'resolved'), resolved_rev,
+  created_at)` — anchor is a small union:
+  `{ scope: 'artifact' } | { scope: 'track', track } |
+  { scope: 'time', bar, step?, track?, timeSec? } | { scope: 'cue', cue }`.
+  Time anchors are meaningful even for generative ambient because
+  performances are seeded — bar N is reproducible.
+
+**Four new MCP tools** (in tools/beats.js, TOOL_INDEX rows beside the
+existing three; `update`/`annotate` earn a `forward_context` routing row —
+"edit/revise/tweak the tune → update_beats" — because unlike minting,
+revision is a user-initiated flow):
+
+- `get_beats { ref, rev? }` → `{ manifest, kind, title, revisions:
+  [{rev, note, created_at}], annotations (open first) }`. The
+  read-modify-write anchor.
+- `update_beats { ref, manifest?, title?, folderRef?, note?,
+  resolveAnnotations?: [ids] }` — full-manifest replace through the same
+  `validateBeatsManifest`/`normalizeBeatsManifest` gate as create (teaching
+  errors), snapshots a revision with `note` as the commit message. No
+  patch-op language: the agent reads, edits the JSON, writes — manifests
+  are small and the grid representation is exactly what makes "mute bar 2's
+  kick" a legible JSON edit (the B5 thesis paying off).
+- `annotate_beats { ref, action: add|resolve|list, anchor?, body?, ids? }`
+  — the agent-side counterpart of studio marking; `add` defaults
+  author='agent'.
+- `diff_beats { refA, refB }` (accepting `ref@rev`) → structured *musical*
+  diff, plain data + text: tempo/swing/key deltas, tracks/parts/channels
+  added/removed, per-track patch/instrument/macro changes, pattern grids
+  compared cell-wise ("kick: bar 2 steps 12,14 removed"), progression
+  changes. No SVG; the diff is a report, not a picture.
+
+**Guard rails in the sketch tools**: `update_sketch` on a beats-kind ref
+returns a teaching refusal pointing at `update_beats` (today it half-works
+for title-only edits and hard-fails confusingly on manifests);
+`diff_sketches` likewise points at `diff_beats`. `exportsBaseDir` moves to
+a small shared module both tool files import.
+
+**Routes — beats' own namespace**, thin handlers over the same emitters:
+
+- `/beats/<ref>` — the **studio page** (new, `control/app/beats/[ref]/`):
+  player iframe + revision list (play any rev) + annotation panel + WAV
+  export affordance + copy-revision-prompt. `/maker/beats` gallery cards
+  link here; `/sketches/<ref>` keeps working for beats kinds (it's the
+  generic artifact frame) but the studio is the canonical home.
+- `/api/beats/<ref>` (player HTML, `?rev=`), `/api/beats/<ref>.wav`,
+  `/api/beats/<ref>/annotations` (GET; POST from the studio/player —
+  localhost-only like everything else). Existing
+  `/api/sketches/<ref>/beats(.wav)` stay as aliases; nothing breaks.
+
+**Player growth** (folds in the remaining B5.2 grid work): render the grid
+with playhead sweep; annotation markers on the timeline/grid at their
+anchors; an "annotate here" affordance that captures the current
+bar/step/track and POSTs. Macro sliders stay performance-only — a macro
+position worth keeping is submitted as a *proposed annotation* ("suggest
+tone 0.4 on stab"), which the agent applies via `update_beats`. The recipe
+remains the only author.
+
+### Phases
+
+**B9.0 — read + edit.** `get_beats`, `update_beats`, `beats_revisions`
+table + repo, revision snapshot on create/update, `?rev=` on player + .wav
+routes, sketch-tool guard rails, shared `exportsBaseDir`. Exit: an agent
+minted-then-revised a pattern over MCP in two calls ("mute bar 2's kick"),
+both revisions play at their URLs, `update_sketch` on the ref teaches.
+
+**B9.1 — annotations.** `beats_annotations` table + repo, `annotate_beats`,
+annotations in `get_beats`, `/api/beats/<ref>/annotations` GET/POST. Exit:
+agent adds a track-scoped note, resolves it via `update_beats
+resolveAnnotations`, list round-trips.
+
+**B9.2 — the studio.** `/beats/<ref>` page (player + revisions +
+annotations + export + copy-revision-prompt), player grid/playhead +
+annotate-here + markers, `/maker/beats` links through. Exit: the full loop
+runs without touching an `sk_` URL: listen → mark at playhead → copy
+prompt → agent revises → resolved marker on the new revision.
+
+**B9.3 — musical diff.** `diff_beats` with `ref@rev`, wired into the studio
+revision list ("what changed"). Exit: diffing the B9.0 exit's two revisions
+reports exactly the kick-mask change and nothing else.
+
+**B9.4 — paperwork.** CLAUDE.md architecture-map entry for beats (it has
+none today), context.js routing rows, vocab card cross-links
+("revise with update_beats"), STATUS.md.
+
+### Deliberately out (B9)
+
+- **Moving storage.** Rows stay in `sketches`; the domain layer is the
+  sovereignty. Revisit trigger: needing SQL-side musical metadata queries.
+- **A DAW / grid editor in the browser** (unchanged since B0). The studio
+  marks and performs; the agent authors.
+- **Direct macro-writes from the player** — propose-as-annotation instead;
+  keeps "recipe is the only author" intact.
+- **Patch-op edit language** in `update_beats` — full-manifest replace is
+  enough while manifests are grid-legible; revisit if manifests outgrow it.
+- **Annotation threads / multi-author identity** — single-user substrate;
+  `author` distinguishes operator vs agent, nothing more.
+- **Embedding beats artifacts in semantic search** — sketches are
+  deliberately off the index; a library-search story is its own decision.
+- **MIDI or audio import** (unchanged doctrine — export-only).

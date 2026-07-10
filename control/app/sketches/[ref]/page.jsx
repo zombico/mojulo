@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
 import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
@@ -21,6 +22,7 @@ function printFilename(data, fallbackRef) {
 
 export default function SketchPage({ params }) {
   const { ref } = use(params);
+  const router = useRouter();
   const t = useTranslations('sketches');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -52,6 +54,15 @@ export default function SketchPage({ params }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Beats artifacts have their own home — the studio. On the surface a beats
+  // ref is never presented as a sketch; this page is the generic frame for
+  // everything else (the /api/sketches aliases keep serving beats unchanged).
+  useEffect(() => {
+    if (data?.manifest && sketchRenderMode(data.manifest) === 'beats') {
+      router.replace(`/beats/${encodeURIComponent(ref)}`);
+    }
+  }, [data, ref, router]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -165,6 +176,11 @@ export default function SketchPage({ params }) {
   // svg (rasterized <img>) | scene (live preserve-3d <iframe>) | diagram (CreationMap)
   // — centralized so scene/illustration kinds never fall through to <CreationMap>.
   const renderMode = sketchRenderMode(manifest);
+
+  // beats redirect (above) is in flight — don't flash the player here.
+  if (renderMode === 'beats') {
+    return <main className="min-h-screen" aria-hidden />;
+  }
 
   // Worlds and scenes carry exportable 3D geometry; offer a .glb download for them.
   const canExportGlb = renderMode === 'world' || renderMode === 'scene';

@@ -52,10 +52,14 @@ function SketchDownloads({ sketch, t }) {
   const hasSvg = mode === 'svg' || mode === 'diagram';
   // world/scene render live (no still export); beats are audio-only (no still form at all).
   const hasPng = mode !== 'world' && mode !== 'scene' && mode !== 'beats';
+  // beats export straight off the shelf: the .wav (audio) and — for the
+  // musical kinds — the .mid score (sfx cues are foley choreography, wav-only).
+  const hasWav = mode === 'beats';
+  const hasMid = mode === 'beats' && sketch.manifest?.kind !== 'beats-sfx';
   return (
     <div className="flex items-center gap-2">
       <a
-        href={`/sketches/${ref}`}
+        href={mode === 'beats' ? `/beats/${ref}` : `/sketches/${ref}`}
         target="_blank"
         rel="noreferrer"
         className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
@@ -63,6 +67,24 @@ function SketchDownloads({ sketch, t }) {
         <ExternalLinkIcon />
         {t('openNewTab')}
       </a>
+      {hasWav && (
+        <a
+          href={`/api/beats/${ref}.wav`}
+          className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
+        >
+          <DownloadIcon />
+          {t('exportWav')}
+        </a>
+      )}
+      {hasMid && (
+        <a
+          href={`/api/beats/${ref}.mid`}
+          className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
+        >
+          <DownloadIcon />
+          {t('exportMidi')}
+        </a>
+      )}
       {hasSvg && (
         <a
           href={`/api/sketches/${ref}/svg`}
@@ -103,8 +125,22 @@ function associationTagLabel(tag, t) {
 // the list to one concern; null shows every sketch. `heading`/`subtitle`
 // override the default copy. A diagram and an illustration are the same sketch
 // primitive — this only changes which bucket the list is filtered to.
+// Strings that say "sketch" get a beats-worded override on the Beats shelf —
+// on the surface a beats artifact is a track, not a sketch (the `sketches`
+// table underneath is storage, not vocabulary).
+const BEATS_NOUN_KEYS = new Set([
+  'total', 'count', 'emptyState', 'noMatch', 'selectPrompt', 'invalidManifest',
+  'openNewTab', 'renameLabel', 'renamePlaceholder', 'renameSaveNew',
+  'exportWav', 'exportMidi',
+]);
+
 export default function SketchGallery({ bucket = null, heading, subtitle } = {}) {
-  const t = useTranslations('sketchesIndex');
+  const tBase = useTranslations('sketchesIndex');
+  const tBeats = useTranslations('sketchesIndex.beatsNoun');
+  const t = useCallback(
+    (key, values) => (bucket === 'beats' && BEATS_NOUN_KEYS.has(key) ? tBeats(key, values) : tBase(key, values)),
+    [bucket, tBase, tBeats],
+  );
   const tFolder = useTranslations('sketchesIndex.folder');
   const tSelect = useTranslations('sketchesIndex.select');
   const [sketches, setSketches] = useState([]);

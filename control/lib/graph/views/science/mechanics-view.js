@@ -36,6 +36,12 @@ const sphereSpec = (center, radius, tint, samples = 22) => ({
   axisFrom: pt(add(center, [0, 0, -radius])), axisTo: pt(add(center, [0, 0, radius])),
   profile: circleProfile(radius, 18), crossSections: 24, samples, tint,
 });
+// hex → [r,g,b] 0..1 for the lit-sphere (planets) channel. The focal MOVING body of each scenario is
+// a real lit sphere now (not a lathe "onion"); it rides the mover with geometry at the origin, so its
+// planet carries center [0,0,0] and the mover's basePos is [0,0,0] (small/faint/pulse spheres — strobe
+// ghosts, pivots, flywheel rim marks, engine sparks — stay lathe faces; no prominent onion there).
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
+const litBody = (group, radius, tint) => ({ group, center: [0, 0, 0], radius, tint: hexRgb(tint), rough: 0.5 });
 
 // ── flat set-dressing as explicit quads (ground, ramp): a face is { corners:[[x,y,z]…], fill, group }.
 // Solid, untextured, never picked — the body is the only interactive thing. ──
@@ -219,7 +225,7 @@ export function planMechanicsScene(recipe = {}) {
   const rB = sim.bobR != null ? sim.bobR * scale : Math.min(1.2 * scale, Math.max(0.4, span * 0.03));
   const arrowLen = Math.max(2.5, span * 0.18);
 
-  const faces = [], picks = [];
+  const faces = [], picks = [], planets = [];
   const tag = (fs, group) => { for (const f of fs) faces.push({ ...f, group }); };
 
   // trajectory ribbon — the persistent shape of the arc, drawn first so the body/ghosts sit over it.
@@ -236,8 +242,8 @@ export function planMechanicsScene(recipe = {}) {
     }
   }
 
-  // the body — a solid lathe ball authored at the trajectory start (the mover translates it from here).
-  tag(lowerObjectFaces({ lathes: [sphereSpec(path[0], rB, BODY_TINT, 24)] }, WORKBENCH_LIGHT), 'body');
+  // the body — a real lit sphere the mover walks along `path` (geometry at origin, basePos [0,0,0]).
+  planets.push(litBody('body', rB, BODY_TINT));
   picks.push({ name: 'body', kind: 'body', label: sim.label, fields: compactFields([['g', `${g} m/s²`], ...sim.facts]) });
 
   // ground line under the motion (every scenario rests on z = 0).
@@ -280,7 +286,7 @@ export function planMechanicsScene(recipe = {}) {
     ? Math.max(...forceChannels.flatMap((c) => c.vecs.map((v) => len(v))), 1e-6) : 0;
 
   const movers = [{
-    group: 'body', path, basePos: path[0],
+    group: 'body', path, basePos: [0, 0, 0],
     vdir: k.vdir, speed: kPhys.speed, avec: k.avec, accel: kPhys.accel,
     ...(energy && !sim.static && !sim.noEnergy ? { energy: true, ke, pe, etotal, emax } : {}),
     ...(forceChannels ? { forces: forceChannels, maxForce } : {}),
@@ -300,7 +306,7 @@ export function planMechanicsScene(recipe = {}) {
   for (const c of [...path, ...faces.flatMap((f) => f.corners)]) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
   radius = radius || span;
 
-  return { faces, picks, movers, bounds: { center, radius }, stats: { scenario, g, bodyRadius: rB, samples: N_SAMPLES, period, loop: !!sim.loop, T: sim.T } };
+  return { faces, picks, movers, planets, bounds: { center, radius }, stats: { scenario, g, bodyRadius: rB, samples: N_SAMPLES, period, loop: !!sim.loop, T: sim.T } };
 }
 
 // ── the physical read-back channel (measure_view). The renderer computes the full equal-dt
@@ -391,10 +397,10 @@ function planCollisionScene(recipe = {}) {
   const span = Math.max(...sp2.map((p) => p[0])) - Math.min(...sp1.map((p) => p[0])) || 1;
   const arrowLen = Math.max(2.5, span * 0.14);
 
-  const faces = [], picks = [];
+  const faces = [], picks = [], planets = [];
   const tag = (fs, group) => { for (const f of fs) faces.push({ ...f, group }); };
-  tag(lowerObjectFaces({ lathes: [sphereSpec(sp1[0], R1, BODY_TINT, 24)] }, WORKBENCH_LIGHT), 'body');
-  tag(lowerObjectFaces({ lathes: [sphereSpec(sp2[0], R2, BODY2_TINT, 24)] }, WORKBENCH_LIGHT), 'body2');
+  planets.push(litBody('body', R1, BODY_TINT));
+  planets.push(litBody('body2', R2, BODY2_TINT));
   picks.push({ name: 'body', kind: 'body', label: `Body 1 (${m1} kg)`, fields: compactFields([['mass', `${m1} kg`], ['u₁', `${u1} m/s`], ['v₁', `${v1.toFixed(2)} m/s`], ['e', `${e}`]]) });
   picks.push({ name: 'body2', kind: 'body', label: `Body 2 (${m2} kg)`, fields: compactFields([['mass', `${m2} kg`], ['u₂', `${u2} m/s`], ['v₂', `${v2.toFixed(2)} m/s`], ['e', `${e}`]]) });
 
@@ -409,10 +415,10 @@ function planCollisionScene(recipe = {}) {
   const period = 4.5;
   const system = { e, m1, m2, pTotal, keBefore, vx1, vx2, keNow };
   const movers = [
-    { group: 'body', path: sp1, basePos: sp1[0], vdir: k1.vdir, speed: k1p.speed, avec: k1.avec, accel: k1p.accel,
+    { group: 'body', path: sp1, basePos: [0, 0, 0], vdir: k1.vdir, speed: k1p.speed, avec: k1.avec, accel: k1p.accel,
       maxSpeed: k1p.maxSpeed, maxAccel: k1p.maxAccel, period, loop: false, hold: 1.6, vectors, arrowLen,
       duration: T, label: `Collision · e = ${e}`, system },
-    { group: 'body2', path: sp2, basePos: sp2[0], vdir: k2.vdir, speed: k2p.speed, avec: k2.avec, accel: k2p.accel,
+    { group: 'body2', path: sp2, basePos: [0, 0, 0], vdir: k2.vdir, speed: k2p.speed, avec: k2.avec, accel: k2p.accel,
       maxSpeed: k2p.maxSpeed, maxAccel: k2p.maxAccel, period, loop: false, hold: 1.6, vectors, arrowLen,
       duration: T, label: 'Body 2' },
   ];
@@ -426,7 +432,7 @@ function planCollisionScene(recipe = {}) {
   let radius = 0;
   for (const c of [...sp1, ...sp2, ...faces.flatMap((f) => f.corners)]) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
 
-  return { faces, picks, movers, bounds: { center, radius: radius || span }, stats: { scenario: 'collision', g: 0, samples: N_SAMPLES, period, loop: false, T } };
+  return { faces, picks, movers, planets, bounds: { center, radius: radius || span }, stats: { scenario: 'collision', g: 0, samples: N_SAMPLES, period, loop: false, T } };
 }
 
 /**
@@ -469,7 +475,7 @@ function planCompareScene(recipe = {}) {
   const mapLane = (p, y) => [p[0] * scale, y, p[2] * scale];
   const pathA = simA.path.map((p) => mapLane(p, -laneGap)), pathB = simB.path.map((p) => mapLane(p, laneGap));
 
-  const faces = [], picks = [];
+  const faces = [], picks = [], planets = [];
   const tag = (fs, group) => { for (const f of fs) faces.push({ ...f, group }); };
 
   // strobe afterimages per lane (their differing spacing IS the comparison, frozen) — dim, never picked.
@@ -480,8 +486,8 @@ function planCompareScene(recipe = {}) {
     }
   }
 
-  tag(lowerObjectFaces({ lathes: [sphereSpec(pathA[0], rA, BODY_TINT, 24)] }, WORKBENCH_LIGHT), 'body');
-  tag(lowerObjectFaces({ lathes: [sphereSpec(pathB[0], rB, BODY2_TINT, 24)] }, WORKBENCH_LIGHT), 'body2');
+  planets.push(litBody('body', rA, BODY_TINT));
+  planets.push(litBody('body2', rB, BODY2_TINT));
   picks.push({ name: 'body', kind: 'body', label: `A · ${labA}`, fields: compactFields([[mode === 'mass' ? 'mass' : 'g', labA], [unitLabel === 'T' ? 'period' : 't_land', `${simA.T.toFixed(2)} s`], ...simA.facts]) });
   picks.push({ name: 'body2', kind: 'body', label: `B · ${labB}`, fields: compactFields([[mode === 'mass' ? 'mass' : 'g', labB], [unitLabel === 'T' ? 'period' : 't_land', `${simB.T.toFixed(2)} s`], ...simB.facts]) });
 
@@ -512,9 +518,9 @@ function planCompareScene(recipe = {}) {
     ...(sim.tether ? { tether: mapLane(sim.tether, group === 'body' ? -laneGap : laneGap) } : {}),
   });
   const movers = [
-    { ...mk('body', pathA, pathA[0], kA, kAp, simA), label: `Compare · ${mode}`,
+    { ...mk('body', pathA, [0, 0, 0], kA, kAp, simA), label: `Compare · ${mode}`,
       compare: { mode, labA, labB, ta: simA.T, tb: simB.T, unitLabel, note } },
-    mk('body2', pathB, pathB[0], kB, kBp, simB),
+    mk('body2', pathB, [0, 0, 0], kB, kBp, simB),
   ];
 
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
@@ -525,7 +531,7 @@ function planCompareScene(recipe = {}) {
   let radius = 0;
   for (const c of [...pathA, ...pathB, ...faces.flatMap((f) => f.corners)]) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
 
-  return { faces, picks, movers, bounds: { center, radius: radius || span }, stats: { scenario, g, samples: N_SAMPLES, period: cycle, loop, T: Tmax } };
+  return { faces, picks, movers, planets, bounds: { center, radius: radius || span }, stats: { scenario, g, samples: N_SAMPLES, period: cycle, loop, T: Tmax } };
 }
 
 const MACHINE_FILL = '#3a4150';     // beams / shafts / frames — cool steel set-dressing
@@ -676,14 +682,14 @@ function planMachineScene(recipe = {}) {
   const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 4);
   const rLoad = Math.max(0.5, 0.55 * Math.cbrt(sim.loadForce / g)) * scale, rEff = rLoad * 0.7;
 
-  const faces = [], picks = [];
+  const faces = [], picks = [], planets = [];
   const tag = (fs, group) => { for (const f of fs) faces.push({ ...f, group }); };
 
   const period = 3.2, hold = 1.4;
   const rig = buildMachineRig(sim, scale, span, period, hold, tag);
 
-  tag(lowerObjectFaces({ lathes: [sphereSpec(loadPath[0], rLoad, LOAD_TINT, 24)] }, WORKBENCH_LIGHT), 'body');
-  if (effortPath) tag(lowerObjectFaces({ lathes: [sphereSpec(effortPath[0], rEff, EFFORT_TINT, 20)] }, WORKBENCH_LIGHT), 'body2');
+  planets.push(litBody('body', rLoad, LOAD_TINT));
+  if (effortPath) planets.push(litBody('body2', rEff, EFFORT_TINT));
 
   picks.push({ name: 'body', kind: 'body', label: sim.label, fields: compactFields([
     ['MA', sim.MA_ideal.toFixed(2)], ['effort', `${sim.effortForce.toFixed(0)} N`], ['load', `${sim.loadForce.toFixed(0)} N`],
@@ -710,7 +716,7 @@ function planMachineScene(recipe = {}) {
   const loadAnchor = sim.structure.loadAnchor ? sc(sim.structure.loadAnchor) : null;
   const effortAnchor = sim.structure.effortAnchor ? sc(sim.structure.effortAnchor) : null;
   const movers = [{
-    group: 'body', path: loadPath, basePos: loadPath[0],
+    group: 'body', path: loadPath, basePos: [0, 0, 0],
     vdir: kLoad.vdir, speed: kLoad.speed, avec: kLoad.avec, accel: kLoad.accel,
     maxSpeed: kLoad.maxSpeed, maxAccel: kLoad.maxAccel,
     period, loop: false, hold: 1.4, vectors: false, arrowLen, duration: sim.T, g, label: sim.label, machine,
@@ -718,7 +724,7 @@ function planMachineScene(recipe = {}) {
   }];
   if (effortPath) {
     const kEff = deriveKinematics(effortPath, dt);
-    movers.push({ group: 'body2', path: effortPath, basePos: effortPath[0],
+    movers.push({ group: 'body2', path: effortPath, basePos: [0, 0, 0],
       vdir: kEff.vdir, speed: kEff.speed, avec: kEff.avec, accel: kEff.accel,
       maxSpeed: kEff.maxSpeed, maxAccel: kEff.maxAccel,
       period, loop: false, hold, vectors: false, arrowLen, duration: sim.T, label: 'Effort',
@@ -735,7 +741,7 @@ function planMachineScene(recipe = {}) {
   let radius = 0;
   for (const c of wpts) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
 
-  return { faces, picks, movers, bounds: { center, radius: radius || span }, stats: { scenario, g, samples: MACHINE_SAMPLES, period, loop: false, T: sim.T } };
+  return { faces, picks, movers, planets, bounds: { center, radius: radius || span }, stats: { scenario, g, samples: MACHINE_SAMPLES, period, loop: false, T: sim.T } };
 }
 
 /**
@@ -1395,6 +1401,7 @@ export function assembleMechanicsScene(recipe = {}, { title } = {}) {
     faces: plan.faces,
     picks: plan.picks,
     movers: plan.movers,
+    ...(plan.planets ? { planets: plan.planets } : {}),   // focal moving bodies as lit spheres
     ...(plan.fields ? { fields: plan.fields } : {}),   // the EM field channel (motors emit real B-field lines)
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },

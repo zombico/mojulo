@@ -21,6 +21,8 @@ const WORLD_BASES = [
   'operator',
   'planetary',
   'painted-landscape',
+  'math',
+  'school',
 ];
 
 describe('view-vocab cards ↔ VIEW_KINDS / compose_world bases', () => {
@@ -105,9 +107,9 @@ describe('get_view_vocab reader', () => {
 
   it('lists index rows, filterable by family', async () => {
     const all = await getViewVocabHandler({});
-    expect(all.cards.length).toBe(50);
+    expect(all.cards.length).toBe(54);
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(7);
+    expect(world.cards.length).toBe(9);
     expect(world.cards.every((c) => c.entry === 'compose_world')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();
@@ -129,6 +131,20 @@ describe('compose_world bases (identity adapters)', () => {
     expect(res.ok).toBe(true);
     expect(res.base).toBe('transport-hub');
     expect(res.recipe?.mode ?? res.manifest?.mode ?? 'train-station').toBeTruthy();
+  });
+
+  it('mints the school base with overrides as the param channel', () => {
+    const res = composeWorld({
+      base: 'school',
+      seed: 4,
+      overrides: { pattern: 'courtyard', program: 'high-school', facade: 'brick-civic' },
+      title: 'smoke school',
+    });
+    expect(res.ok).toBe(true);
+    expect(res.base).toBe('school');
+    expect(res.recipe.kind).toBe('school-complex');
+    expect(res.recipe.pattern).toBe('courtyard');
+    expect(res.stats.walkable).toBe(true);
   });
 
   it('unknown base errors teach: base list + vocab pointer', () => {

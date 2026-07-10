@@ -66,6 +66,15 @@ const FOG = {
   dataTextures: { uBoxTex: { data: [0, 0, 0, 0], width: 1, height: 1 } },
 };
 
+// an effects[] overlay LAYER (game-ui-language.plan.md U3): same { frag, customUniforms,
+// dataTextures } shape as fog, stacked over the world. This one is a glow (scalar uniform, no
+// data texture) so the layer path is pinned distinctly from fog's textured occluder.
+const EFFECT = {
+  frag: 'precision highp float; uniform float uTime; void main(){ gl_FragColor = vec4(0.2, 0.9, 0.7, 0.25 + 0.1 * sin(uTime)); }',
+  customUniforms: { uK: 0.6 },
+  dataTextures: {},
+};
+
 const SIGNS = [
   { id: 's1', variant: 'tooltip', anchor: { kind: 'world', world: [1, 1, 2] }, text: 'a tip', body: [], chrome: { bg: '#111', color: '#fff', border: '1px solid #333', radius: '6px', shadow: 'none', glow: 'none', font: 'system-ui', fontSize: 12, fontWeight: 500, padding: '6px 8px' } },
   { id: 's2', variant: 'popup', anchor: { kind: 'slot', slot: 'top-left' }, text: 'p', body: ['line one', 'line two', 'line three', 'line four', 'line five'], pageLines: 2, chrome: { bg: '#182238', color: '#dfe9ff', border: 'none', radius: '8px', shadow: 'none', glow: 'none', font: 'system-ui', fontSize: 12, fontWeight: 400, padding: '8px 10px' } },
@@ -112,6 +121,10 @@ export const EMIT_FIXTURES = [
 
   ['tracers', { faces: [quad()], tracers: [{ path: [[0, 0, 0], [1, 0, 1], [2, 0, 0]], color: '#88ddff', size: 0.3, period: 2 }] }],
   ['movers', { faces: [floor()], movers: [{ label: 'cart', path: [[0, 0, 0.5], [1, 0, 0.5], [2, 0, 0.5], [3, 0, 0.5]], dt: 0.1, size: 0.4 }] }],
+  ['planets', { faces: [floor()], planets: [
+    { group: 'central', center: [0, 0, 0], radius: 2, tint: [1, 0.8, 0.42], star: true, spin: 0.05, bands: 0 },
+    { group: 'body:earth', center: [0, 0, 0], radius: 0.6, tint: [0.36, 0.56, 0.84], spin: 0.6, seed: 1.7, freq: 6, bands: 0.55, mottle: 0.2 },
+  ], movers: [{ group: 'body:earth', path: [[7, 0, 0], [0, 7, 0], [-7, 0, 0], [0, -7, 0], [7, 0, 0]], basePos: [0, 0, 0], period: 5, loop: true, track: true }] }],
   ['comets', { faces: [quad('#111122')], comets: [{ path: [[4, 0, 0], [3, 2, 0], [0, 4, 0], [-3, 2, 0]], sun: [0, 0, 0] }] }],
   ['fields', { faces: [floor()], fields: [{ sets: [], readout: ['field', 'E = 0'] }] }],
   ['surfaces', { faces: [floor()], surfaces: [{ grid: { nx: 3, ny: 3, x0: 0, y0: 0, dx: 1, dy: 1, z: 0.2 }, waves: [{ amp: 0.2, len: 2, speed: 1, dir: [1, 0] }] }] }],
@@ -133,8 +146,24 @@ export const EMIT_FIXTURES = [
   }],
 
   ['fog', { faces: [floor()], fog: FOG }],
+  // effects[] (U3): stacked raymarch overlays. `effects` alone (live); `fog-effects` co-resident +
+  // capture (pins the fog quad + effect quad + the frame() __mojClock overlay-clock pin together).
+  ['effects', { faces: [floor()], effects: [EFFECT] }],
+  ['fog-effects', { faces: [floor()], fog: FOG, effects: [EFFECT, EFFECT], capture: true }],
   ['audio', { faces: [floor()], audio: resolveWorldAudio({ soundtrack: SOUNDTRACK, wind: true, footsteps: true }) }],
   ['game', { faces: [floor()], game: GAME }],
+  // fx (game-ui-language.plan.md U2): standing states + one-shot gestures on entities by id.
+  // No events here → the bus-wrap path stays inert (pins the no-__BUS branch); the with-bus
+  // branch is pinned by kitchen-sink, which co-resides fx with events + controllable.
+  ['fx', { faces: [floor()], entities: ENTITIES, fx: { states: { d: 'float' }, on: { 'goal:*': 'burst' } } }],
+  // sprite sfx (game-ui-language.plan.md §V): the geometry sfx backend — additive-sprite verb
+  // shelf, one pool per layer, driven by __mojStep. Resolved layers (cc, not at). Pins the channel
+  // emission; absent spriteSfx ⇒ byte-identical (every other fixture omits it, unchanged).
+  ['sprite-sfx', { faces: [floor()], spriteSfx: [
+    { verb: 'sparkle', cc: [0, 0, 0], color: [1, 0.95, 0.7], rate: 1, size: 0.6 },
+    { verb: 'ward', cc: [3, 0, 0], color: [1, 0.5, 0.2], rate: 1, size: 0.6 },
+    { verb: 'beacon', cc: [-3, 0, 0], color: [0.27, 0.77, 0.41], rate: 1, size: 0.6 },
+  ] }],
 
   ['repeats', { faces: [floor()], repeats: REPEATS }],
   ['ao', { faces: [quad('#8899aa', { group: 'shell:leftWall', normal: [1, 0, 0] }), floor()], ao: true }],
@@ -170,7 +199,9 @@ export const EMIT_FIXTURES = [
     entities: ENTITIES,
     camera: CAMERA,
     fog: FOG,
+    effects: [EFFECT],
     audio: resolveWorldAudio({ soundtrack: SOUNDTRACK, wind: true }),
+    fx: { states: { d: 'shimmer' }, on: { 'goal:*': 'ghost' } },
     game: GAME,
     repeats: REPEATS,
     ao: true,

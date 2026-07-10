@@ -20,9 +20,11 @@
  *   { kind:'cascade-view', regime?, nuclei?, nu?, seed?, scale?, viewBox?, scene?:{ bg? }, title? }
  */
 
-import { lowerObjectFaces, WORKBENCH_LIGHT } from '../worlds/workbench.js';
-
 const clampNum = (v, lo, hi, fb) => { const n = +v; return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fb; };
+
+// hex → [r,g,b] in 0..1 for the lit-sphere (planets) channel — every body (nuclei, flashes, fragments,
+// neutrons) renders as a real lit three.js sphere lit by a neutral studio rig, not a lathe "onion".
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
 
 // ── deterministic PRNG (mulberry32) — same seed → same cascade. No Math.random (would break determinism). ──
 function mulberry32(seed) {
@@ -38,16 +40,6 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
 const norm = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 function randDir(rng) { const u = 2 * rng() - 1, th = 2 * Math.PI * rng(), r = Math.sqrt(Math.max(0, 1 - u * u)); return [r * Math.cos(th), r * Math.sin(th), u]; }
-
-// ── workbench lathe sphere (every body is one), tessellation scaled to the body's importance/size. ──
-const pt = (a) => ({ x: a[0], y: a[1], z: a[2] });
-const circleProfile = (R, n) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return { t, radius: R * Math.sin(Math.PI * t) }; });
-const sphereSpec = (center, radius, tint, prof, cross) => ({
-  axisFrom: pt([center[0], center[1], center[2] - radius]), axisTo: pt([center[0], center[1], center[2] + radius]),
-  profile: circleProfile(radius, prof), crossSections: cross, samples: cross, tint,
-});
-const sphereFaces = (center, radius, tint, group, prof, cross) =>
-  lowerObjectFaces({ lathes: [sphereSpec(center, radius, tint, prof, cross)] }, WORKBENCH_LIGHT).map((f) => ({ ...f, group }));
 
 // pCap (per-encounter capture probability) is the criticality knob; with the fixed geometry below it sets
 // the multiplication factor k. Tuned (reliability sweep over 20 seeds) so the regimes separate cleanly and
@@ -170,9 +162,13 @@ export function planCascadeScene(recipe = {}) {
   let cur = 0, peak = 1;
   for (const [, d] of evs) { cur += d; if (cur > peak) peak = cur; }
 
-  // ── emit faces + the timed mover list (everything scaled uniformly by `scale`) ──
+  // ── emit lit spheres (planets channel) + the timed mover list (everything scaled uniformly by `scale`) ──
+  // Every body is a SPHERE → each is one real lit three.js sphere on the `planets` channel (no lathe onions).
+  // A mover-driven body's geometry is authored at the ORIGIN (center [0,0,0], basePos [0,0,0]): the mover then
+  // places it at the true world path point every frame (exactly orbit-view's pattern). A static (non-mover)
+  // nucleus emits its world center directly. Non-star bodies (no sun) → the channel's neutral studio rig.
   const S = (p) => scl(p, scale);
-  const faces = [], movers = [];
+  const faces = [], movers = [], planets = [];
 
   // the cascade carrier (movers[0]): meshless, drives the population HUD.
   movers.push({
@@ -180,37 +176,38 @@ export function planCascadeScene(recipe = {}) {
     label: `Chain reaction · ${R.label}`, kindTag: 'carrier',
   });
 
-  // nuclei: static spheres; a fissioning one gets a vanish-mover that removes it at its fission time.
+  // nuclei: static lit spheres; a fissioning one gets a vanish-mover that removes it at its fission time.
+  // Static → center = world pos; consumed → center [0,0,0] + mover basePos [0,0,0] (mover holds it at pos, then vanishes).
   nuclei.forEach((nuc, i) => {
     const c = S(nuc.pos), g = `nuc${i}`;
-    faces.push(...sphereFaces(c, R_NUC * scale, NUC_TINT, g, 14, 16));
-    if (nuc.consumed) movers.push({ group: g, path: [c, c], basePos: c, t0: 0, t1: nuc.fissionT, vanish: true, kindTag: 'nucleus' });
+    planets.push({ group: g, center: nuc.consumed ? [0, 0, 0] : c, radius: R_NUC * scale, tint: hexRgb(NUC_TINT), nlat: 16, nlon: 20, bands: 0.35, mottle: 0.16, seed: i * 1.3, freq: 5, rough: 0.9 });
+    if (nuc.consumed) movers.push({ group: g, path: [c, c], basePos: [0, 0, 0], t0: 0, t1: nuc.fissionT, vanish: true, kindTag: 'nucleus' });
   });
 
-  // flashes: a brief scale-pop at each fission point (geometry authored centred on the ORIGIN).
+  // flashes: a brief scale-pop at each fission point (geometry authored centred on the ORIGIN, mover carries `at`).
   fissionRecs.forEach((f, i) => {
     const g = `flash${i}`;
-    faces.push(...sphereFaces([0, 0, 0], R_FLASH * scale, FLASH_TINT, g, 10, 10));
+    planets.push({ group: g, center: [0, 0, 0], radius: R_FLASH * scale, tint: hexRgb(FLASH_TINT), nlat: 12, nlon: 16, bands: 0 });
     movers.push({ group: g, at: S(f.pos), basePos: [0, 0, 0], flash: { size: 1 }, t0: f.t, t1: f.t + FLASH_DUR, kindTag: 'fission' });
   });
 
   // fragments: born at the fission point, recoil a short distance, and stay (the spent-fuel residue).
   fragmentRecs.forEach((fr, i) => {
     const c = S(fr.pos), end = S(add(fr.pos, scl(fr.dir, FRAG_DIST))), g = `frag${i}`;
-    faces.push(...sphereFaces(c, R_FRAG * scale, FRAG_TINTS[fr.which], g, 12, 14));
-    movers.push({ group: g, path: [c, end], basePos: c, t0: fr.t, t1: fr.t + FRAG_DUR, vanish: false, kindTag: 'fragment' });
+    planets.push({ group: g, center: [0, 0, 0], radius: R_FRAG * scale, tint: hexRgb(FRAG_TINTS[fr.which]), nlat: 14, nlon: 18, bands: 0.25, mottle: 0.12, seed: i });
+    movers.push({ group: g, path: [c, end], basePos: [0, 0, 0], t0: fr.t, t1: fr.t + FRAG_DUR, vanish: false, kindTag: 'fragment' });
   });
 
   // neutrons: small fast bodies that travel their segment, then vanish (absorbed or escaped).
   neutronRecs.forEach((r, i) => {
     const p0 = S(r.p0), p1 = S(r.p1), g = `neu${i}`;
-    faces.push(...sphereFaces(p0, R_NEU * scale, NEU_TINT, g, 8, 8));
-    movers.push({ group: g, path: [p0, p1], basePos: p0, t0: r.t0, t1: r.t1, vanish: true, kindTag: 'neutron' });
+    planets.push({ group: g, center: [0, 0, 0], radius: R_NEU * scale, tint: hexRgb(NEU_TINT), nlat: 10, nlon: 14, bands: 0 });
+    movers.push({ group: g, path: [p0, p1], basePos: [0, 0, 0], t0: r.t0, t1: r.t1, vanish: true, kindTag: 'neutron' });
   });
 
   const radius = R_CLOUD * scale * 1.35;
   return {
-    faces, picks: [], movers,
+    faces, picks: [], movers, planets,
     bounds: { center: [0, 0, 0], radius },
     stats: {
       regime: regimeName, nu, nuclei: nuclei.length, fissions: fissionRecs.length,
@@ -234,6 +231,7 @@ export function assembleCascadeScene(recipe = {}, { title } = {}) {
     faces: plan.faces,
     picks: plan.picks,
     movers: plan.movers,
+    planets: plan.planets,
     cameras: [angle, side],
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo ${plan.stats.regime} chain reaction`,

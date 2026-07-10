@@ -80,6 +80,44 @@ const ROUTES = [
   },
   { tpl: '/data', trail: [{ labelKey: 'data.title' }] },
   { tpl: '/graph', trail: [{ labelKey: 'graph.title' }] },
+  { tpl: '/map', trail: [{ labelKey: 'map.title' }] },
+  { tpl: '/observability', trail: [{ labelKey: 'observability.title' }] },
+  { tpl: '/research', trail: [{ labelKey: 'research.title' }] },
+  { tpl: '/stashes', trail: [{ labelKey: 'stashes.title' }] },
+  {
+    tpl: '/stashes/[ref]',
+    trail: [{ labelKey: 'stashes.title', href: '/stashes' }, { dynamic: 'ref' }],
+  },
+  { tpl: '/outputs', trail: [{ labelKey: 'home.tiles.outputs' }] },
+  // Studio (the retired "Maker" wordmark) — the /maker hub lists these rails,
+  // so the Studio crumb links up to it.
+  { tpl: '/maker', trail: [{ labelKey: 'home.groups.studio' }] },
+  {
+    tpl: '/maker/illustrations',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.illustrations' }],
+  },
+  {
+    tpl: '/maker/worlds',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.worlds' }],
+  },
+  {
+    tpl: '/maker/motion',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.motion' }],
+  },
+  {
+    tpl: '/maker/beats',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.beats' }],
+  },
+  {
+    // the beats studio — a dashboard page (unlike /sketches/<ref>, which is a
+    // bare artifact frame and drops all chrome).
+    tpl: '/beats/[ref]',
+    trail: [
+      { labelKey: 'home.groups.studio', href: '/maker' },
+      { labelKey: 'home.tiles.beats', href: '/maker/beats' },
+      { dynamic: 'ref' },
+    ],
+  },
   { tpl: '/mcp-skills', trail: [{ labelKey: 'mcpSkills.title' }] },
   {
     tpl: '/mcp-skills/[ref]',

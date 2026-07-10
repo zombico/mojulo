@@ -51,6 +51,11 @@ export const PATCHES = {
   // `drive` chain effect (the amp) which supplies the overdrive + cabinet tone.
   // e.g. chain: [{ type:'drive', amount:0.5, tone:3200 }, { type:'reverb', wet:0.12 }].
   guitarElectric: { voice: 'string', pluckDamping: 0.42, pluckDecay: 0.9986, pick: 0.18, attack: 0.003, decay: 0.06, sustain: 1, release: 0.18, volume: -14 },
+  // amp-voice feedstock (B6 amp spike): guitarElectric with two detuned plucks
+  // (pluckDetune, cents) and a longer ring. The beating is barely audible dry;
+  // through an `amp` chain the difference tones become the growl. New name, not a
+  // guitarElectric edit — existing artifacts re-synthesize byte-identical.
+  guitarAmp: { voice: 'string', pluckDamping: 0.42, pluckDecay: 0.999, pick: 0.15, pluckDetune: 9, attack: 0.003, decay: 0.06, sustain: 1, release: 0.22, volume: -14 },
   // Bowed strings (voice: 'osc', sawtooth) — the string-machine / section sound,
   // NOT the plucked `string` voice. The bow is a slow attack + sustain; ensemble
   // `unison`/`detune` gives the section chorus; `vibrato` is the pitch wobble that
@@ -79,6 +84,55 @@ export const PATCHES = {
   // (high-Q) low-pass gives the reedy/nasal edge, and a deep, fast vibrato that
   // blooms in quickly is the erhu's singing signature. Solo (no ensemble unison).
   erhu: { voice: 'osc', wave: 'sawtooth', attack: 0.09, decay: 0.15, sustain: 0.9, release: 0.4, volume: -16, unison: 1, detune: 0, vibrato: { rate: 6.2, depth: 22, delay: 0.12 }, filter: { mode: 'lowpass', freq: 2200, q: 3 } },
+  // ── keyboards (B6.2b) — all reachable from existing voices; no new topology ──
+  // rhodes — electric piano (FM voice). The tine is a near-harmonic 2-op stack:
+  // ratio 1 keeps it pitched, the index envelope IS the "bark" (bright strike
+  // that mellows into a sine-ish sustain). Pair with a chorus chain (the stereo
+  // vibrato of the suitcase amp).
+  rhodes: { voice: 'fm', ratio: 1, index: 1.8, modDecay: 0.4, attack: 0.004, decay: 0.6, sustain: 0.5, release: 0.9, volume: -14, filter: { mode: 'lowpass', freq: 3800, q: 0.7 }, velToFilter: 1.2 },
+  // harpsichord — the quill: pick 0 (the sharp attack the guitars engineer AWAY
+  // from is exactly a plucked quill), bright low damping, moderate ring. No
+  // velocity-to-anything: a harpsichord has no dynamics — that's its character.
+  harpsichord: { voice: 'string', pluckDamping: 0.3, pluckDecay: 0.994, pick: 0, attack: 0.002, decay: 0.04, sustain: 1, release: 0.1, volume: -14, filter: { mode: 'lowpass', freq: 4600, q: 0.6 } },
+  // clavinet — a struck/fretted string against a pickup: short funky ring, bright,
+  // a little resonant bite. Wants a light drive chain (the amp) + staccato feel.
+  clav: { voice: 'string', pluckDamping: 0.35, pluckDecay: 0.988, pick: 0.08, attack: 0.002, decay: 0.04, sustain: 1, release: 0.06, volume: -13, filter: { mode: 'lowpass', freq: 3200, q: 1.4 }, velToFilter: 0.9 },
+  // piano — acoustic piano, MODELED not sampled (B6 doctrine): a hammer-struck KS
+  // string. pick rounds the felt hammer, long pluckDecay is the open-string ring,
+  // velToFilter is the defining expressive axis (harder = brighter, not just
+  // louder), attackNoise is the hammer knock. The soundboard lives in the
+  // instrument's `body` chain. pluckDetune = the unison course (a real key strikes
+  // 2-3 strings ~1-3 cents apart): the slow beat between them is the piano's
+  // shimmer AND its two-stage decay — unison energy cancels fast (the bloom), the
+  // detuned residue rings on (the singing tail). maxRing lifted so bass notes
+  // ring like open strings, not gated samples.
+  piano: { voice: 'string', pluckDamping: 0.55, pluckDecay: 0.998, pick: 0.3, pluckDetune: 2.5, maxRing: 6, attack: 0.004, decay: 0.05, sustain: 1, release: 0.16, volume: -12, filter: { mode: 'lowpass', freq: 3400, q: 0.7 }, velToFilter: 1.6, attackNoise: { level: -20, decay: 0.014, tone: 320, q: 0.7 } },
+  // celesta — struck steel plate over a wooden resonator (modal): a strong pure
+  // fundamental, one bright shimmer partial, dies sweetly. The Nutcracker voice.
+  celesta: {
+    voice: 'modal', attack: 0.002, volume: -12,
+    partials: [
+      { ratio: 1, gain: 1.0, decay: 1.6 },
+      { ratio: 4, gain: 0.22, decay: 0.5 },
+      { ratio: 5.4, gain: 0.08, decay: 0.2 },
+    ],
+    attackNoise: { level: -26, decay: 0.006, tone: 3800, q: 0.5 },
+  },
+  // music box — a plucked comb tine (modal): bright, slightly inharmonic uppers,
+  // tiny body, quick sparkle. Pair with the `robotic` feel — it IS a machine.
+  musicBox: {
+    voice: 'modal', attack: 0.001, volume: -16,
+    partials: [
+      { ratio: 1, gain: 1.0, decay: 1.2 },
+      { ratio: 3.4, gain: 0.3, decay: 0.5 },
+      { ratio: 6.8, gain: 0.14, decay: 0.25 },
+    ],
+    attackNoise: { level: -30, decay: 0.005, tone: 5200, q: 0.5 },
+  },
+  // organ — drawbar-ish sustain (osc voice): triangle for soft odd harmonics,
+  // gate envelope (organs are binary — no velocity, no decay), slight unison
+  // warmth. The rotary swirl is the instrument's chorus chain, not the patch.
+  organ: { voice: 'osc', wave: 'triangle', attack: 0.006, decay: 0.02, sustain: 1, release: 0.08, volume: -16, unison: 2, detune: 4, filter: { mode: 'lowpass', freq: 4200, q: 0.5 } },
   // steelpan — tuned struck metal (MODAL voice, B6.2). Panmakers tune the octave
   // (2×) and twelfth (3×) into each note, so the low modes are near-harmonic and
   // ring long; the bright, slightly-inharmonic upper modes give the metallic

@@ -9,24 +9,20 @@
 
 import { NextResponse } from 'next/server';
 
-import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
+import { BeatsAnnotationRepository } from '@/lib/db/repositories/beats';
+import { resolveBeatsAt, BeatsHttpError } from '@/lib/graph/beats/beats-resolve';
 import { emitBeatsPlayer } from '@/lib/graph/beats/beats-player';
 
 export async function GET(request, { params }) {
   try {
     const { ref } = await params;
-    const sketch = SketchRepository.getByRef(ref);
-    if (!sketch) {
-      return NextResponse.json({ error: `Sketch '${ref}' not found` }, { status: 404 });
-    }
-    if (!sketch.manifest || !isBeatsKind(sketch.manifest.kind)) {
-      return NextResponse.json({
-        error: `Sketch '${ref}' is not a beats artifact`,
-        hint: 'Beats artifacts have manifest.kind beats-ambient | beats-composition | beats-sfx (create_beats).',
-      }, { status: 422 });
-    }
-    const html = emitBeatsPlayer(sketch.manifest);
+    // alias of /api/beats/[ref] (B9) — same resolution, same `?rev=`.
+    const { manifest, rev } = resolveBeatsAt(ref, new URL(request.url).searchParams.get('rev'));
+    const html = emitBeatsPlayer(manifest, {
+      ref,
+      rev,
+      annotations: BeatsAnnotationRepository.list(ref, { status: 'open' }),
+    });
     return new Response(html, {
       status: 200,
       headers: {
@@ -36,6 +32,9 @@ export async function GET(request, { params }) {
       },
     });
   } catch (err) {
+    if (err instanceof BeatsHttpError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     return NextResponse.json(
       { error: err.message || 'Failed to render beats player' },
       { status: 500 },

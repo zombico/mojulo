@@ -28,6 +28,10 @@ export const ANTLER_DEFAULT = {
   back: 0.34,         // rearward sweep low on the beam (× beamLen)
   out: 0.32,          // lateral spread, max near the top (× beamLen)
   curl: 0.42,         // forward curl high on the beam (× beamLen) — the beam tips forward over the brow
+  hook: 0,            // DOWNWARD curl high on the beam (× beamLen) — the ram/goat spiral: the tip
+                      // curls back DOWN (past horizontal) beside the face. Defaults 0 (antlers/
+                      // straight horns rise; only a curled horn hooks down). With hook > rise the
+                      // tip ends BELOW the pedicle — the bighorn's C. Concentrated near the top.
   rootR: 0.02,        // beam radius at the pedicle
   tipR: 0.005,        // beam radius at the tip
   spread: 0.028,      // lateral offset of each pedicle from the midline
@@ -69,7 +73,8 @@ function beamPoints(base, frame, c, sgn) {
     const drift = mul(fwdH, -c.beamLen * c.back * t * (1 - t));         // sweep back low, ease off high
     const flare = mul(side, sgn * c.beamLen * c.out * Math.sin(t * Math.PI / 2));
     const curl = mul(fwdH, c.beamLen * c.curl * smooth(t) * t);         // curl forward, concentrated near the top
-    pts.push(add(base, add(climb, add(drift, add(flare, curl)))));
+    const hook = mul(up, -c.beamLen * (c.hook || 0) * smooth(t) * t);   // curl DOWN, concentrated near the top (the ram spiral)
+    pts.push(add(base, add(climb, add(drift, add(flare, add(curl, hook))))));
   }
   return pts;
 }

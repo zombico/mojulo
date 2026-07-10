@@ -21,6 +21,7 @@ import { PATCHES as BEATS_PATCHES } from '../beats/audio-patches.js';
 import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_READY as GAME_MSG_READY, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME } from '../game/level-contract.js';
 import { b64, safeJson } from './emit-util.js';
 import { MOVER_HUD_JS } from '../views/science/mover-huds.js';
+import { SPRITE_VERBS } from '../game/glyph-sfx-sprites.js';
 
 
 // In-page script: build one shared radial-gradient sprite texture, then drop an additive
@@ -51,6 +52,51 @@ for (const e of GLOW) {
 }`;
 }
 
+// In-page SPRITE SFX channel (game-ui-language.plan.md §V, geometry sfx backend). Each layer =
+// { verb, cc:[x,y,z], color:[r,g,b], rate, size, params }. One additive camera-facing sprite per
+// emission BEAD; each frame the verb's path fn (from glyph-sfx-sprites.js, stringified here so the
+// module stays the one source of truth) is evaluated at ph = t/1000 × rate and written to each
+// sprite's position/scale/opacity. Assigns the module-scoped `stepSpriteSfx`, which __mojStep calls
+// every frame (deterministic in every mode, like fx — so it renders in bakes/audits too). Absent
+// sfx ⇒ this block is not emitted (byte-identical). Cost is O(beads) per frame — no fullscreen march.
+export function spriteSfxChannelScript(layers) {
+  const verbSrc = Object.entries(SPRITE_VERBS).map(([k, v]) => `${JSON.stringify(k)}: ${v.beads.toString()}`).join(',\n    ');
+  const defs = Object.fromEntries(Object.entries(SPRITE_VERBS).map(([k, v]) => [k, v.defaults]));
+  return `
+// --- sprite sfx channel (game UI language §V: geometry sfx backend) ---
+{
+  const TAU = 6.283185307179586;
+  const frac = (x) => x - Math.floor(x);
+  const hsh = (a, b) => frac(Math.sin(a * 12.9898 + b * 78.233) * 43758.5453);
+  const __sfxVerb = {
+    ${verbSrc}
+  };
+  const __sfxDef = ${safeJson(defs)};
+  const __sfxLayers = ${safeJson(layers)};
+  const __sfxTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.5)'); g.addColorStop(0.6, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill(); return new THREE.CanvasTexture(cv); })();
+  const __sfxPools = __sfxLayers.map((L) => {
+    const p = Object.assign({}, __sfxDef[L.verb], L.params || {});
+    const n = __sfxVerb[L.verb](L.cc, 0, p).length;
+    const sprs = [];
+    for (let i = 0; i < n; i++) { const m = new THREE.SpriteMaterial({ map: __sfxTex, color: new THREE.Color(L.color[0], L.color[1], L.color[2]), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9 }); const s = new THREE.Sprite(m); s.visible = false; scene.add(s); sprs.push(s); }
+    return { L, p, sprs };
+  });
+  stepSpriteSfx = (tMs) => {
+    const ph = (tMs || 0) / 1000;
+    for (const pool of __sfxPools) {
+      const bs = __sfxVerb[pool.L.verb](pool.L.cc, ph * (pool.L.rate || 1), pool.p);
+      for (let i = 0; i < pool.sprs.length; i++) {
+        const b = bs[i], s = pool.sprs[i];
+        if (!b || b.w < 0.05) { s.visible = false; continue; }
+        s.visible = true; s.position.set(b.p[0], b.p[1], b.p[2]);
+        const sz = (pool.L.size || 0.6) * (0.35 + 0.65 * Math.min(1, b.w));
+        s.scale.set(sz, sz, 1); s.material.opacity = Math.min(1, 0.35 + 0.65 * b.w);
+      }
+    }
+  };
+}`;
+}
+
 // In-page script: the specular channel (material-response.plan.md P2) — the view-dependent
 // half of the material response. Groups whose geometry carries a per-vertex `aSpec`
 // [strength, power] attribute (packed by faceListToMesh from faces tagged `spec`) get their
@@ -63,11 +109,8 @@ export function specularChannelScript(toLight) {
   return `
 // --- specular channel (material response): baked light dir + live camera highlight ---
 const SPEC_L = ${safeJson(toLight.map((v) => +v.toFixed(6)))};
-for (const grp of GROUPS) {
-  if (!grp.spec) continue;
-  const sm = meshes[grp.name]; if (!sm) continue;
-  sm.geometry.setAttribute('aSpec', new THREE.BufferAttribute(decodeF32(grp.spec), 2));
-  sm.material.onBeforeCompile = (sh) => {
+const __specPatch = (m) => {
+  m.material.onBeforeCompile = (sh) => {
     sh.uniforms.uSpecL = { value: new THREE.Vector3(SPEC_L[0], SPEC_L[1], SPEC_L[2]) };
     sh.vertexShader = 'attribute vec2 aSpec;\\nvarying vec2 vSpec;\\nvarying vec3 vSpecWp;\\n' + sh.vertexShader.replace(
       '#include <begin_vertex>',
@@ -81,7 +124,29 @@ for (const grp of GROUPS) {
       'gl_FragColor.rgb += vSpec.x * pow(sNdH, max(vSpec.y, 1.0));\\n' +
       '#include <dithering_fragment>');
   };
-  sm.material.needsUpdate = true;
+  m.material.needsUpdate = true;
+};
+for (const grp of GROUPS) {
+  if (grp.spec) {
+    const sm = meshes[grp.name];
+    if (sm) { sm.geometry.setAttribute('aSpec', new THREE.BufferAttribute(decodeF32(grp.spec), 2)); __specPatch(sm); }
+  }
+  // textured sub-meshes (texture × material — a marble floor that gleams): the static loop
+  // gives them no name handle, so re-find each by its EXACT position buffer (both sides
+  // decode the same base64, so float equality is exact).
+  for (const t of (grp.tex || [])) {
+    if (!t.spec) continue;
+    const tp = decodeF32(t.pos);
+    let tm = null;
+    scene.traverse((o) => {
+      if (tm || !o.isMesh || !o.material || !o.material.map) return;
+      const a = o.geometry.getAttribute('position');
+      if (a && a.array.length === tp.length && a.array[0] === tp[0] && a.array[a.array.length - 1] === tp[tp.length - 1]) tm = o;
+    });
+    if (!tm) continue;
+    tm.geometry.setAttribute('aSpec', new THREE.BufferAttribute(decodeF32(t.spec), 2));
+    __specPatch(tm);
+  }
 }`;
 }
 
@@ -854,7 +919,7 @@ window.__mojActions = { list: ACTIONS, fire: (i) => __runAction(typeof i === 'nu
 // mapped once here from keys/pointer to the normalized axes the pure rules consume. The `ground` hook
 // raycasts the scene so `walk` entities follow terrain; `window.__mojCtrl` is exposed for headless
 // verification (it can push input frames).
-export function controllableChannelScript(entities, camera, figures) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false } = {}) {
   return `
 const __CW = (${buildControllable.toString()})();
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)} });
@@ -1130,7 +1195,7 @@ stepControllable = (dt, inputOverride) => {
   }
   if (__ctrlOwnsCamera) __driveCamera();
 };
-window.__mojCtrl = { world: __world, step: (dt, input) => stepControllable(dt, input) };`;
+window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''} step: (dt, input) => stepControllable(dt, input) };`;
 }
 
 // In-page script: the SURFACE channel. The other channels move discrete things (sprites, bodies,
@@ -1435,6 +1500,58 @@ stepStarSurfaces = (ms) => {
     }
     r.geo.attributes.color.needsUpdate = true;
   }
+};`;
+}
+
+// In-page script: the PLANET channel (orbit-view orrery bodies). A lit UV-sphere per body, so a planet
+// reads as a real 3-D world with a day/night terminator instead of a lathe "onion". Each mesh registers
+// into the shared `meshes` map under its group name, and the channel is emitted BEFORE the mover channel
+// so an orbit mover binds and translates it exactly like the old face body did. Geometry is built at the
+// ORIGIN (the body mover carries base = [0,0,0]); a slow axial spin about the sphere's own polar axis
+// (z, the orbital normal) runs each frame. Per-vertex colour is texture-free and procedural — base tint ×
+// (latitude banding + a hashed value-noise mottle) — so every body is a distinct world with no external
+// assets. A `star` body is self-luminous (MeshBasicMaterial) and drops a point light at its centre plus
+// an ambient fill: the sun lighting the system from the focus. Reuses __uvSphereRig. Only with `planets`.
+export function planetChannelScript(planets) {
+  return `
+const PLANETS = ${safeJson(planets)};
+const _plHash = (i, j, k) => { let n = (i * 374761393 + j * 668265263 + k * 1274126177) | 0; n = (n ^ (n >> 13)) * 1274126177 | 0; return ((n ^ (n >> 16)) >>> 0) / 4294967296; };
+const _plHasStar = PLANETS.some((p) => p.star);   // a star lights the scene from its focus; else a studio rig
+const _planetRigs = PLANETS.map((pl) => {
+  const rig = __uvSphereRig(pl.radius, pl.nlat || 30, pl.nlon || 40);   // shared UV-sphere, built at the origin
+  const base = pl.tint || [0.6, 0.6, 0.6], bands = pl.bands != null ? pl.bands : 0.5;
+  for (let vi = 0; vi < rig.N; vi++) {
+    const o = 3 * vi, nx = rig.nor[o], ny = rig.nor[o + 1], nz = rig.nor[o + 2];
+    // latitude banding (nz = cos θ) + a cheap hashed value-noise mottle sampled on the unit sphere.
+    const band = 1 + bands * Math.sin((pl.seed || 0) + nz * (pl.freq || 6));
+    const noise = _plHash(Math.floor((nx + 1) * 6), Math.floor((ny + 1) * 6), Math.floor((nz + 1) * 6));
+    const shade = 0.7 + 0.3 * (band * 0.5) + (noise - 0.5) * (pl.mottle != null ? pl.mottle : 0.18);
+    rig.col[o] = Math.min(1, base[0] * shade); rig.col[o + 1] = Math.min(1, base[1] * shade); rig.col[o + 2] = Math.min(1, base[2] * shade);
+  }
+  rig.geo.attributes.color.needsUpdate = true;
+  const opacity = pl.opacity != null ? pl.opacity : 1, translucent = opacity < 1;
+  const matOpts = { vertexColors: true, transparent: translucent, opacity, depthWrite: !translucent, side: translucent ? THREE.DoubleSide : THREE.FrontSide };
+  const mat = pl.star
+    ? new THREE.MeshBasicMaterial(matOpts)                                        // self-luminous star
+    : new THREE.MeshStandardMaterial({ ...matOpts, roughness: pl.rough != null ? pl.rough : 0.85, metalness: 0.03 });
+  const mesh = new THREE.Mesh(rig.geo, mat);
+  const c = pl.center || [0, 0, 0];
+  mesh.position.set(c[0], c[1], c[2]);           // static placement; a mover (base [0,0,0]) overrides per frame
+  if (translucent) mesh.renderOrder = 1;         // translucent shells (cell envelope) draw after opaque bodies
+  mesh.userData.g = pl.group;                    // group name → pick lookup (PICK_META)
+  scene.add(mesh);
+  meshes[pl.group] = mesh;                        // <-- the mover channel (emitted after) binds this by group name
+  solids.push(mesh);                             // pickable + wireframe toggle; a no-pick shell is hit then skipped (pass-through)
+  if (pl.star) { const sun = new THREE.PointLight(0xfff2d8, 2.6, 0, 0); sun.position.set(c[0], c[1], c[2]); scene.add(sun); }
+  return { mesh, spin: pl.spin || 0 };
+});
+if (_planetRigs.length) {
+  if (_plHasStar) { scene.add(new THREE.AmbientLight(0x24304a, 0.6)); }
+  else { const _pd = new THREE.DirectionalLight(0xffffff, 1.05); _pd.position.set(0.5, -0.8, 1.0); scene.add(_pd); scene.add(new THREE.AmbientLight(0x8894a8, 0.85)); }
+}
+stepPlanets = (ms) => {
+  const t = ms / 1000;
+  for (const r of _planetRigs) { if (r.spin) r.mesh.rotation.z = t * r.spin; }
 };`;
 }
 
@@ -2221,7 +2338,152 @@ if (__AUDIO.footsteps) {
       __walkPrev.x = camera.position.x; __walkPrev.y = camera.position.y;
     } else { __walkPrev.x = null; __walkPrev.y = null; }
   })();
+}
+// world bindings (B5.3): sim-state selectors → soundtrack channel macros, evaluated per frame.
+// Read-only and one-directional — the binding READS the camera / controllable entities and writes
+// only into the audio engine's B5.2 macro state (tone / level / transpose); nothing flows back into
+// sim state, so bus determinism and capture byte-identity are untouched (capture never emits audio).
+if (__AUDIO.bindings && __AUDIO.bindings.length) {
+  const __bindLast = new Array(__AUDIO.bindings.length).fill(null);
+  const __bindKin = { pos: null, t: 0, speed: 0 };
+  function __bindEntityPos(id) {
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world;
+    if (!ctrl) return null;
+    for (const e of ctrl.entities) if (e.id === id) return e.position;
+    return null;
+  }
+  (function __beatsBind() {
+    requestAnimationFrame(__beatsBind);
+    if (!__beatsEng || __beatsMuted) return;
+    const now = performance.now() / 1000;
+    const cam = [camera.position.x, camera.position.y, camera.position.z];
+    if (__bindKin.pos) {
+      const dt = Math.min(0.1, Math.max(1e-3, now - __bindKin.t));
+      const d = Math.hypot(cam[0] - __bindKin.pos[0], cam[1] - __bindKin.pos[1], cam[2] - __bindKin.pos[2]);
+      __bindKin.speed += (d / dt - __bindKin.speed) * 0.15;   // smoothed travel speed
+    }
+    __bindKin.pos = cam; __bindKin.t = now;
+    __AUDIO.bindings.forEach((b, i) => {
+      let v = null;
+      if (b.source === 'speed') v = __bindKin.speed;
+      else if (b.source === 'proximity') {
+        const ref = b.point || __bindEntityPos(b.entity);
+        if (ref) v = Math.hypot(cam[0] - ref[0], cam[1] - ref[1], cam[2] - ref[2]);
+      } else {
+        const pos = b.entity ? __bindEntityPos(b.entity) : cam;
+        if (pos) v = b.source === 'depth' ? -pos[2] : pos[2];
+      }
+      if (v === null) return;
+      const n = Math.max(0, Math.min(1, (v - b.range[0]) / (b.range[1] - b.range[0] || 1e-9)));
+      const out = b.target.range[0] + n * (b.target.range[1] - b.target.range[0]);
+      if (__bindLast[i] !== null && Math.abs(out - __bindLast[i]) < 0.002) return;
+      __bindLast[i] = out;
+      if (b.target.macro === 'tone') __beatsEng.setTone(b.target.channel, out);
+      else if (b.target.macro === 'level') __beatsEng.setLevel(b.target.channel, out);
+      else __beatsEng.setTranspose(b.target.channel, out);
+    });
+  })();
 }`;
+}
+
+// fx channel (game-ui-language.plan.md, U2): the game UI LANGUAGE decoration — standing STATES
+// (float / spin / pulse / dim / shimmer) and one-shot disappear GESTURES (pop / burst / ghost /
+// dissolve) applied to controllable entities by id. Presentation-only, exactly the audio rule: it
+// READS entity meshes + bus events and never writes sim state — so probes/audits/replay are
+// untouched. Driven by __mojStep(t), so it is DETERMINISTIC in every mode (live rAF, capture
+// frame(spec.t), capture step(__capT)); nothing here reads a wall clock. It decorates on the free
+// transform seams __syncEntity never writes: the inner figure mesh's LOCAL position/rotation/scale
+// (glyph/figure bodies), the outer mesh SCALE (any body), and material.color / opacity (multiply,
+// so tints darken cleanly under vertexColors). Emitted only when the manifest carries `fx`;
+// absent ⇒ byte-identical, and it requires the controllable channel (its `__mojCtrl.bodies` map).
+export function fxChannelScript(fx) {
+  return `
+// ---- fx channel: game UI language decoration (presentation-only) ----
+const __FX = ${safeJson(fx)};
+const __fxState = {};   // id → { base:[Color…], baseOpacity:[…], hidden, captured }
+let __fxQ = [];         // queued one-shot gestures: { id, gesture, t0:null }
+const __fxGlob = (str, pat) => {
+  if (pat === '*') return true;
+  if (pat.indexOf('*') < 0) return String(str) === pat;
+  return new RegExp('^' + pat.split('*').map((s) => s.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$').test(String(str));
+};
+// remember an entity's rest materials once, so every tint/opacity is computed FROM base (idempotent).
+function __fxCapture(id, m) {
+  if (__fxState[id]) return __fxState[id];
+  const base = [], baseOpacity = [];
+  m.traverse((o) => { if (o.material && o.material.color) { base.push(o.material.color.clone()); baseOpacity.push(o.material.opacity); } });
+  return (__fxState[id] = { base, baseOpacity, hidden: false });
+}
+// reset an entity's free seams to rest, then the current state/gesture re-applies from a clean slate.
+function __fxReset(id, m, inner, canMove) {
+  const st = __fxState[id]; if (!st) return;
+  inner.scale.setScalar(1);
+  if (canMove) { inner.position.z = 0; inner.rotation.z = 0; }
+  let i = 0;
+  m.traverse((o) => { if (o.material && o.material.color) { o.material.color.copy(st.base[i]); o.material.opacity = st.baseOpacity[i]; o.material.transparent = st.baseOpacity[i] < 1; i++; } });
+}
+function __fxTint(m, r, g, b) { m.traverse((o) => { if (o.material && o.material.color) o.material.color.setRGB(o.material.color.r * r, o.material.color.g * g, o.material.color.b * b); }); }
+function __fxFade(m, k) { m.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.opacity = o.material.opacity * k; } }); }
+// standing state: decorate one entity for state \`s\` at time t.
+function __fxApplyState(m, inner, canMove, s, t) {
+  const TAU = 6.28318530718;
+  if (s === 'float') { if (canMove) inner.position.z = 0.16 * Math.sin(t * 2.2); }
+  else if (s === 'spin') { if (canMove) { inner.position.z = 0.12 * Math.sin(t * 2.2); inner.rotation.z = (t * 1.6) % TAU; } }
+  else if (s === 'pulse') { inner.scale.setScalar(1 + 0.12 * Math.sin(t * 3.0)); }
+  else if (s === 'dim') { __fxTint(m, 0.4, 0.42, 0.46); }
+  else if (s === 'shimmer') { const k = 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(t * 4.0)); __fxTint(m, k, k, Math.min(1, k + 0.08)); }
+}
+// one-shot gesture envelope p∈[0,1]; returns true while active, hides the entity on completion.
+function __fxApplyGesture(id, m, inner, canMove, gesture, p) {
+  const done = p >= 1;
+  if (gesture === 'pop') {
+    if (p < 0.3) { const q = p / 0.3; inner.scale.setScalar(1 + 0.22 * q); __fxTint(m, 1 + q, 1 + q, 1 + q); }
+    else { const q = (p - 0.3) / 0.7; inner.scale.setScalar(Math.max(0.001, 1.22 * (1 - q))); }
+  } else if (gesture === 'burst') {
+    inner.scale.setScalar(1 + 1.3 * p); __fxFade(m, Math.max(0, 1 - p * 1.1));
+  } else if (gesture === 'ghost') {
+    if (canMove) inner.position.z = 1.1 * p * p; inner.scale.setScalar(1 + 0.2 * p); __fxFade(m, Math.max(0, 1 - p));
+  } else if (gesture === 'dissolve') {
+    if (canMove) inner.rotation.z = p * 6.0; inner.scale.setScalar(Math.max(0.001, 1 - p)); __fxFade(m, Math.max(0, 1 - p * 0.9));
+  }
+  if (done) { m.visible = false; if (__fxState[id]) __fxState[id].hidden = true; }
+  return !done;
+}
+// bus wrap: a matching event QUEUES a gesture (t0 stamped at the next stepFx so timing rides __mojStep).
+if (__FX.on && typeof __BUS !== 'undefined') {
+  const __fxPE = __BUS.processEvents;
+  __BUS.processEvents = function (state, events) {
+    // match a binding against the event's TYPE, or its zone SOURCE (deriveZoneEvents' enter/exit
+    // carry source/zone = the zone id) — so a per-zone binding (e.g. a pickup's zone) fires on the
+    // top-level enter event. NOTE the wrap only sees TOP-LEVEL incoming events; emit-ted events
+    // drain recursively INSIDE processEvents, so bind to facts (enter/contact/timer), not emits.
+    for (const ev of events) for (const pat in __FX.on) { if (__fxGlob(ev.type, pat) || (ev.source && __fxGlob(ev.source, pat)) || (ev.zone && __fxGlob(ev.zone, pat))) { var __b = __FX.on[pat]; var __g = (__b && typeof __b === 'object') ? __b.gesture : __b; var __t = (__b && typeof __b === 'object' && __b.target) ? __b.target : (ev.id || ev.entity || (ev.match && ev.match.target) || __FX.onTarget || null); __fxQ.push({ id: __t, gesture: __g, t0: null }); break; } }
+    return __fxPE(state, events);
+  };
+}
+const __fxActive = [];   // in-flight gestures { id, gesture, t0 }
+stepFx = (tMs) => {
+  const t = tMs / 1000;   // __mojStep drives t in MILLISECONDS (live rAF, __capT, ?t=); fx works in seconds
+  const ctrl = window.__mojCtrl; if (!ctrl || !ctrl.bodies) return;
+  // promote queued triggers, stamping t0 = now so the envelope is measured off __mojStep time.
+  if (__fxQ.length) { for (const g of __fxQ) { g.t0 = t; __fxActive.push(g); } __fxQ = []; }
+  const busy = {};   // id → true while a gesture owns it (states yield to gestures)
+  for (let k = __fxActive.length - 1; k >= 0; k--) {
+    const g = __fxActive[k]; const m = g.id && ctrl.bodies[g.id]; if (!m) { __fxActive.splice(k, 1); continue; }
+    const inner = (m.userData && m.userData.fig) ? m.userData.fig.mesh : m; const canMove = inner !== m;
+    __fxCapture(g.id, m); __fxReset(g.id, m, inner, canMove);
+    const p = Math.min(1, (t - g.t0) / 0.5);
+    busy[g.id] = true;
+    if (!__fxApplyGesture(g.id, m, inner, canMove, g.gesture, p)) __fxActive.splice(k, 1);
+  }
+  if (__FX.states) for (const id in __FX.states) {
+    const m = ctrl.bodies[id]; if (!m) continue;
+    const st = __fxState[id]; if (st && st.hidden) continue; if (busy[id]) continue;
+    const inner = (m.userData && m.userData.fig) ? m.userData.fig.mesh : m; const canMove = inner !== m;
+    __fxCapture(id, m); __fxReset(id, m, inner, canMove);
+    __fxApplyState(m, inner, canMove, __FX.states[id], t);
+  }
+};`;
 }
 
 // game channel (game-metacontext.plan.md): the level-contract bridge. Emitted when the payload
@@ -2346,6 +2608,18 @@ export const RUNTIME_CHANNELS = [
     lets: `let stepTracers = () => {};`, step: `stepTracers(t);`,
     normalize: (v) => listOrNull(v, (tr) => tr && Array.isArray(tr.path) && tr.path.length > 1),
     script: tracerChannelScript },
+  // sphereRig + planets are placed BEFORE movers on purpose: the planet channel registers its meshes
+  // into the shared `meshes` map at eval time, and the mover channel binds `meshes[mv.group]` at eval
+  // time too — so an orbiting body's sphere must exist before movers runs. sphereRig (defines
+  // __uvSphereRig) precedes planets, which reuses it (the heat-sphere/star-surface channels sit later).
+  { key: 'sphereRig',
+    comment: [`// shared UV-sphere rig for the planet + heat-sphere + star-surface channels (defines __uvSphereRig once).`] },
+  { key: 'planets',
+    comment: [`// planet channel (opt-in): stepPlanets stays inert unless a planetBlock is emitted. Emitted before`,
+      `// movers so an orbit mover can bind + translate each registered planet sphere.`],
+    lets: `let stepPlanets = () => {};`, step: `stepPlanets(t);`,
+    normalize: (v) => listOrNull(v, (pl) => pl && pl.radius > 0 && typeof pl.group === 'string'),
+    script: planetChannelScript },
   { key: 'movers',
     comment: [`// mover channel (opt-in): stepMovers stays inert unless a moverBlock is emitted.`],
     lets: `let stepMovers = () => {};`, step: `stepMovers(t);`,
@@ -2366,8 +2640,6 @@ export const RUNTIME_CHANNELS = [
     lets: `let stepSurfaces = () => {};`, step: `stepSurfaces(t);`,
     normalize: (v) => listOrNull(v, (sf) => sf && sf.grid && (Array.isArray(sf.waves) || Array.isArray(sf.sources) || (sf.gw && typeof sf.gw === 'object'))),
     script: surfaceChannelScript },
-  { key: 'sphereRig',
-    comment: [`// shared UV-sphere rig for the heat-sphere + star-surface channels (defines __uvSphereRig once).`] },
   { key: 'heatSpheres',
     comment: [`// heat-sphere channel (opt-in): stepHeatSpheres stays inert unless a heatSphereBlock is emitted.`],
     lets: `let stepHeatSpheres = () => {};`, step: `stepHeatSpheres(t);`,
@@ -2424,7 +2696,7 @@ export function normalizeRuntimeChannels(opts) {
     lists[r.key] = v;
     blocks[r.key] = v ? r.script(v) : '';
   }
-  blocks.sphereRig = (lists.heatSpheres || lists.starSurfaces) ? sphereRigPreamble() : '';
+  blocks.sphereRig = (lists.planets || lists.heatSpheres || lists.starSurfaces) ? sphereRigPreamble() : '';
   return { lists, blocks };
 }
 

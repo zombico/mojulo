@@ -8,7 +8,22 @@
  *     sfx?:        { cues?: {...} | undefined, beatsRef?, on?: { '<event type glob>': '<cueId>' } },
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
+ *     bindings?:   [{ source, entity?|point?, range: [from,to],
+ *                     target: { channel, macro: tone|level|transpose, range: [a,b] } }]
  *   }
+ *
+ * `bindings` (B5.3) is the world-modulation seam: sim-state selectors → the
+ * soundtrack's B5.2 channel macros, evaluated per frame in the audio channel,
+ * read-only, one direction — depth rolls the pads' tone down, sprint raises
+ * the hats' level, proximity opens the stab's filter. Sources:
+ *   height    — subject's vertical position (z; subject = `entity` id, else camera)
+ *   depth     — negative height (deeper = larger)
+ *   speed     — the player/camera's smoothed travel speed (units/s)
+ *   proximity — distance from the camera to `point: [x,y,z]` or to entity `entity`
+ * The value maps through `range: [from, to]` → 0..1 (from > to inverts), then
+ * onto `target.range`. Beats joins the world's atmosphere model the way the
+ * lighting layer did — and stays inside "audio is presentation, not
+ * simulation" because the flow never reverses.
  *
  * `beatsRef` follows the workbench wrap-texture `sketchRef` precedent: the
  * referenced beats artifact's recipe is INLINED into the payload here, so the
@@ -21,6 +36,9 @@
 
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind } from './beats-manifest.js';
+import { buildBeatsKernel } from './beats-kernel.js';
+import { PATCHES } from './audio-patches.js';
+import { safeJson } from '../scene/emit-util.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
 const DEFAULT_FOOTSTEPS = {
@@ -28,6 +46,52 @@ const DEFAULT_FOOTSTEPS = {
   jump: [{ type: 'sweep', wave: 'square', from: 'A4', to: 'E5', dur: 0.12, vol: 0.3 }],
   land: [{ type: 'thump', from: 'A2', to: 'G1', decay: 0.18, vol: 0.5 }],
 };
+
+const BINDING_SOURCES = new Set(['depth', 'height', 'speed', 'proximity']);
+const BINDING_MACROS = new Set(['tone', 'level', 'transpose']);
+
+// B5.3: validate + normalize audio.bindings against the resolved soundtrack —
+// a binding targeting a channel that doesn't exist is a manifest error, caught
+// at resolve time (authoring), never at play time.
+function resolveBindings(bindings, soundtrack) {
+  if (!Array.isArray(bindings) || !bindings.length) {
+    throw new Error('audio.bindings must be a non-empty array of { source, range, target } bindings');
+  }
+  const rows = soundtrack.channels || soundtrack.parts || soundtrack.tracks || [];
+  const names = new Set(rows.map((r) => r.name));
+  const pair = (v, where) => {
+    if (!Array.isArray(v) || v.length !== 2 || !v.every(Number.isFinite)) {
+      throw new Error(`${where} must be [from, to] (two numbers; from > to inverts the mapping)`);
+    }
+  };
+  return bindings.map((b, i) => {
+    const where = `audio.bindings[${i}]`;
+    if (!b || typeof b !== 'object' || !BINDING_SOURCES.has(b.source)) {
+      throw new Error(`${where}.source must be one of: ${[...BINDING_SOURCES].join(', ')}`);
+    }
+    pair(b.range, `${where}.range`);
+    const t = b.target;
+    if (!t || typeof t !== 'object') throw new Error(`${where}.target is required: { channel, macro, range }`);
+    if (!names.has(t.channel)) {
+      throw new Error(`${where}.target.channel '${t.channel}' is not a soundtrack channel (${[...names].join(', ')})`);
+    }
+    if (!BINDING_MACROS.has(t.macro)) throw new Error(`${where}.target.macro must be one of: ${[...BINDING_MACROS].join(', ')}`);
+    pair(t.range, `${where}.target.range`);
+    if (b.point !== undefined && (!Array.isArray(b.point) || b.point.length !== 3 || !b.point.every(Number.isFinite))) {
+      throw new Error(`${where}.point must be [x, y, z]`);
+    }
+    if (b.entity !== undefined && (typeof b.entity !== 'string' || !b.entity)) {
+      throw new Error(`${where}.entity must be a controllable entity id (string)`);
+    }
+    if (b.source === 'proximity' && b.point === undefined && b.entity === undefined) {
+      throw new Error(`${where} (proximity) needs a reference: point: [x,y,z] or entity: '<id>'`);
+    }
+    const out = { source: b.source, range: b.range.slice(), target: { channel: t.channel, macro: t.macro, range: t.range.slice() } };
+    if (b.entity !== undefined) out.entity = b.entity;
+    if (b.point !== undefined) out.point = b.point.slice();
+    return out;
+  });
+}
 
 function resolveBeatsRef(beatsRef, expectKinds) {
   const sketch = SketchRepository.getByRef(beatsRef);
@@ -63,6 +127,13 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     // (ambient and pattern kinds loop by construction).
     if (recipe.kind === 'beats-composition') recipe = { ...recipe, loop: true };
     out.soundtrack = recipe;
+  }
+
+  if (audioSpec.bindings) {
+    if (!out.soundtrack) {
+      throw new Error('audio.bindings drive soundtrack channel macros — add audio.soundtrack first');
+    }
+    out.bindings = resolveBindings(audioSpec.bindings, out.soundtrack);
   }
 
   if (audioSpec.sfx) {
@@ -105,4 +176,57 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   }
 
   return Object.keys(out).length ? out : null;
+}
+
+/**
+ * emitSceneSoundtrackScript(resolvedAudio) → '<script>…</script>' | '' (B4).
+ *
+ * The CSS3D `/scene` path's soundtrack: the dependency-free preserve-3d pages
+ * have no bus, no gait, and no sim loop, so only the presence layers ride —
+ * soundtrack + wind. Injected by renderSceneHtml before </body> on live views
+ * only (the PNG rasterizer passes capture:true and gets byte-identical HTML to
+ * a soundtrack-less page). Same posture as the three.js audio channel: the
+ * kernel is emitted via .toString(), the first pointer gesture unlocks the
+ * AudioContext, and a HUD speaker toggles mute.
+ */
+export function emitSceneSoundtrackScript(resolvedAudio) {
+  if (!resolvedAudio || (!resolvedAudio.soundtrack && !resolvedAudio.wind)) return '';
+  const audio = {};
+  if (resolvedAudio.soundtrack) audio.soundtrack = resolvedAudio.soundtrack;
+  if (resolvedAudio.wind) audio.wind = resolvedAudio.wind;
+  return `<script>
+// ---- beats soundtrack channel (CSS3D scene, presentation-only) ----
+const __AUDIO = ${safeJson(audio)};
+const __BEATS_PATCHES = ${safeJson(PATCHES)};
+const __BEATS = (${buildBeatsKernel.toString()})();
+let __beatsCtx = null, __beatsEng = null, __beatsMuted = false;
+function __beatsUnlock() {
+  if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume(); return; }
+  __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
+  __beatsEng = __BEATS.createEngine(__beatsCtx);
+  if (__AUDIO.soundtrack) {
+    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
+    else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
+    else __beatsEng.startAmbient(__AUDIO.soundtrack, __BEATS_PATCHES);
+  }
+  if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);
+  __beatsBtn.textContent = '\\u{1F50A}';
+}
+document.addEventListener('pointerdown', __beatsUnlock);
+const __beatsBtn = document.createElement('button');
+__beatsBtn.textContent = '\\u{1F507}';
+__beatsBtn.title = 'sound (click scene to start)';
+__beatsBtn.setAttribute('aria-label', 'toggle sound');
+__beatsBtn.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:40;width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(10,12,18,.55);color:#dfe6f2;font-size:15px;cursor:pointer';
+__beatsBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+__beatsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!__beatsCtx) { __beatsUnlock(); return; }
+  __beatsMuted = !__beatsMuted;
+  __beatsEng.setMuted(__beatsMuted);
+  if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume();
+  __beatsBtn.textContent = __beatsMuted ? '\\u{1F507}' : '\\u{1F50A}';
+});
+document.body.appendChild(__beatsBtn);
+</script>`;
 }

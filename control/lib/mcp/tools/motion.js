@@ -14,7 +14,9 @@
  *   - an OPS TAG names the project (the shared tag / the bound),
  *   - a STASH holds the subject pointer + the shot recipe (the durable recipe),
  *   - a MOTION OUTCOME FOLDER holds the rendered motion.svg / motion.gif.
- * The tag binds the stash + the motion so get_ops_tag surfaces the whole group.
+ * The tag binds the stash + the motion so the /motion gallery can surface the
+ * whole group (the ops-tag tables are motion's grouping store; the standalone
+ * operations deliberation surface was deprecated).
  *
  * Two subject families behind the one door:
  *   - CAMERA motions over a single manji-tree (turntable, orbit, push_in,

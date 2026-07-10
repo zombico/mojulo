@@ -7,15 +7,18 @@ import { sketchRenderMode, classifyBucket } from '../../sketch/sketch-manifest.j
 const CLASSIC = { kind: 'comet-view', scenario: 'classic' };
 
 describe('planCometScene — determinism & shape', () => {
-  it('is deterministic — same recipe yields byte-identical faces and comet path', () => {
+  it('is deterministic — same recipe yields byte-identical planets and comet path', () => {
     const a = planCometScene(CLASSIC), b = planCometScene(CLASSIC);
-    expect(JSON.stringify(a.faces)).toBe(JSON.stringify(b.faces));
+    expect(JSON.stringify(a.planets)).toBe(JSON.stringify(b.planets));
     expect(JSON.stringify(a.comets[0].path)).toBe(JSON.stringify(b.comets[0].path));
   });
 
-  it('emits a pickable Sun and one comet carrying ion + dust tail payloads', () => {
+  it('emits a pickable self-luminous Sun planet and one comet carrying ion + dust tail payloads', () => {
     const plan = planCometScene(CLASSIC);
-    expect(new Set(plan.faces.map((f) => f.group)).has('sun')).toBe(true);
+    const sun = plan.planets.find((p) => p.group === 'sun');
+    expect(sun).toBeTruthy();
+    expect(sun.star).toBe(true);
+    expect(sun.center).toEqual([0, 0, 0]);
     expect(plan.picks.map((p) => p.name)).toEqual(['sun']);
     expect(plan.comets.length).toBe(1);
     const cm = plan.comets[0];

@@ -8002,3 +8002,60 @@ describe('expandNeoRembrandt Phase 6 material contracts', () => {
     expect(contracts[0].role).toBe('shoulders');
   });
 });
+
+describe('expandNeoRembrandt arabesque mark', () => {
+  const vb = { width: 600, height: 600 };
+
+  it('expands a rosette into filled polygon faces', () => {
+    const expanded = expandNeoRembrandt({
+      viewBox: vb,
+      marks: [{ kind: 'arabesque', mode: 'rosette', n: 12, fill: true }],
+    });
+    const kinds = new Set(expanded.marks.map((m) => m.kind));
+    expect(kinds.has('polygon')).toBe(true);
+    // 12 points + 12 petals + 1 core, filled + outlined
+    expect(expanded.marks.length).toBeGreaterThan(24);
+    expect(expanded.marks.every((m) => m.constructionKind === 'arabesque' || m.kind !== 'polygon')).toBe(true);
+    // all polygon marks carry >= 3 [x,y] pairs
+    for (const m of expanded.marks) {
+      if (m.kind === 'polygon') {
+        expect(Array.isArray(m.points)).toBe(true);
+        expect(m.points.length).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('expands a khatam field into star outlines', () => {
+    const expanded = expandNeoRembrandt({
+      viewBox: vb,
+      marks: [{ kind: 'arabesque', mode: 'field', pattern: 'khatam' }],
+    });
+    expect(expanded.marks.some((m) => m.kind === 'polygon')).toBe(true);
+    expect(expanded.marks.length).toBeGreaterThan(0);
+  });
+
+  it('expands a medallion into circles + polygons', () => {
+    const expanded = expandNeoRembrandt({
+      viewBox: vb,
+      marks: [{ kind: 'arabesque', mode: 'medallion', n: 12 }],
+    });
+    const kinds = new Set(expanded.marks.map((m) => m.kind));
+    expect(kinds.has('circle')).toBe(true);
+    expect(kinds.has('polygon')).toBe(true);
+  });
+
+  it('expands an interlaced field into polyline bands', () => {
+    const expanded = expandNeoRembrandt({
+      viewBox: vb,
+      marks: [{ kind: 'arabesque', mode: 'field', pattern: 'hex', interlace: true }],
+    });
+    expect(expanded.marks.some((m) => m.kind === 'polyline')).toBe(true);
+  });
+
+  it('is deterministic (identical expansion for identical input)', () => {
+    const m = { viewBox: vb, marks: [{ kind: 'arabesque', mode: 'rosette', n: 10, fill: true }] };
+    const a = JSON.stringify(expandNeoRembrandt(m).marks);
+    const b = JSON.stringify(expandNeoRembrandt(m).marks);
+    expect(a).toBe(b);
+  });
+});

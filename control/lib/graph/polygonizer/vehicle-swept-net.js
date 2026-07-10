@@ -30,7 +30,8 @@
 
 import { bilerp4 } from './box-net.js';
 import { sampleStickerCard, stickerContext } from './vehicle-fuselage-net.js';
-import { makeLight, shadeHex, dot3, sub3, centroid, newellNormal, orientOutward, lodCount } from './vexar.js';
+import { makeLight, shadeHex, shadeHexMat, dot3, sub3, centroid, newellNormal, orientOutward, lodCount } from './vexar.js';
+import { resolveMaterial } from './materials.js';
 
 export const VEHICLE_SWEPT_NET_VERSION = 'vehicle-swept-net-v0.1.0';
 export const VEHICLE_SMOOTH_BOX_NET_VERSION = 'vehicle-smooth-box-net-v0.1.0';   // back-compat alias
@@ -848,7 +849,16 @@ const CAP_SILHOUETTE_CLIP = 1.0;
 function buildSweptSceneShapes(form, {
   body, front, rear, axles = [], accessories = [],
   place, projectPoint, cameraPosition, light = SWEPT_DEFAULT_LIGHT, quality = 'default', ns, na, cull = true,
+  material = null,
 }) {
+  // Optional PAINT material (polygonizer/materials.js) over the body wrap + fascia caps —
+  // the sticker card keeps supplying the albedo (livery), the material supplies the response.
+  // The Blinn-Phong highlight bakes ONLY on the culled (fixed-camera painter) path; the
+  // cull=false shell feeds any-camera backends, so it takes the camera-independent terms only.
+  const mat = material ? resolveMaterial(material) : null;
+  const shadeBody = (hex, n, at) => (mat
+    ? shadeHexMat(hex, n, mat, { light, viewFrom: cull ? cameraPosition : null, at: cull ? at : null })
+    : shadeHex(hex, n, light));
   // cull=true: keep only camera-facing faces (the 2D painter path). cull=false:
   // emit the whole closed shell so a 3D backend (CSS3D) can show it from any camera.
   const NS = ns ?? lodCount(80, quality, 16), NA = na ?? lodCount(56, quality, 14);
@@ -869,7 +879,7 @@ function buildSweptSceneShapes(form, {
       const c = centroid(wpts);
       const n = orientOutward(newellNormal(wpts), c, spine);
       if (cull && dot3(n, sub3(cameraPosition, c)) <= 0) continue;
-      faces.push({ wpts, fill: shadeHex(sampleStickerCard(body, uc, tc, ctx), n, light), role: `${body.id}:${i}.${j}`, dist: dist(c) });
+      faces.push({ wpts, fill: shadeBody(sampleStickerCard(body, uc, tc, ctx), n, c), role: `${body.id}:${i}.${j}`, dist: dist(c) });
     }
   }
 
@@ -890,7 +900,7 @@ function buildSweptSceneShapes(form, {
       const cc = centroid(wpts);
       const X = (cc[0] - place.cx) / chw, Z = (cc[2] - czc) / chh;     // cell center in cross-section-normalized coords
       if (Math.pow(Math.abs(X), form.seN) + Math.pow(Math.abs(Z), form.seN) > CAP_SILHOUETTE_CLIP) continue;
-      faces.push({ wpts, fill: shadeHex(sampleStickerCard(cap.card, (u0 + u1) / 2, (v0 + v1) / 2, cctx), cap.n, light), role: `${cap.card.id}:${i}.${j}`, dist: dist(cc) });
+      faces.push({ wpts, fill: shadeBody(sampleStickerCard(cap.card, (u0 + u1) / 2, (v0 + v1) / 2, cctx), cap.n, cc), role: `${cap.card.id}:${i}.${j}`, dist: dist(cc) });
     }
   }
 
@@ -970,21 +980,21 @@ function buildSweptSceneShapes(form, {
 /** Box vehicle (bus / van / truck). `place` = { cx, noseY }. */
 export function buildSmoothBoxNetSceneShapes(netOrId, opts = {}) {
   const resolved = typeof netOrId === 'object' && netOrId.body?.parts ? netOrId : resolveSmoothBoxNet(netOrId);
-  const { place, projectPoint, cameraPosition, light = SMOOTH_BOX_DEFAULT_LIGHT, quality = 'default', ns, na, cull } = opts;
+  const { place, projectPoint, cameraPosition, light = SMOOTH_BOX_DEFAULT_LIGHT, quality = 'default', ns, na, cull, material } = opts;
   const shapes = buildSweptSceneShapes(boxForm(resolved), {
     body: resolved.body, front: resolved.front, rear: resolved.rear, axles: resolved.axles, accessories: resolved.accessories,
-    place, projectPoint, cameraPosition, light, quality, ns, na, cull,
+    place, projectPoint, cameraPosition, light, quality, ns, na, cull, material,
   });
   return { resolved, shapes };
 }
 
 /** Car (sedan / suv / limo / taxi). `place` = { cx, noseY }. */
 export function buildCarNetSceneShapes(netOrId, opts = {}) {
-  const { place, projectPoint, cameraPosition, light = CAR_DEFAULT_LIGHT, quality = 'default', ns, na, cull, paint, hull } = opts;
+  const { place, projectPoint, cameraPosition, light = CAR_DEFAULT_LIGHT, quality = 'default', ns, na, cull, paint, hull, material } = opts;
   const resolved = typeof netOrId === 'object' && netOrId.body?.parts ? netOrId : resolveCarNet(netOrId, paint);
   const shapes = buildSweptSceneShapes(carForm(resolved, hull), {
     body: resolved.body, front: resolved.front, rear: resolved.rear, axles: resolved.axles, accessories: resolved.accessories,
-    place, projectPoint, cameraPosition, light, quality, ns, na, cull,
+    place, projectPoint, cameraPosition, light, quality, ns, na, cull, material,
   });
   return { resolved, shapes };
 }

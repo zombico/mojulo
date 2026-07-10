@@ -55,6 +55,31 @@ describe('planCascadeScene — determinism & branching', () => {
     expect(planCascadeScene({ nuclei: 999 }).stats.nuclei).toBeLessThanOrEqual(80);
     expect(planCascadeScene({ nuclei: 1 }).stats.nuclei).toBeGreaterThanOrEqual(12);
   });
+
+  it('every body is a lit sphere on the planets channel (no lathe faces left)', () => {
+    const plan = planCascadeScene({ regime: 'supercritical', seed: 9 });
+    // all bodies converted → faces is now empty; each body is one non-star lit sphere.
+    expect(plan.faces).toEqual([]);
+    expect(plan.planets.length).toBeGreaterThan(0);
+    // one planet per nucleus + fission flash + fragment + neutron.
+    const expected = plan.stats.nuclei + plan.stats.fissions + plan.stats.fissions * 2 + plan.stats.neutrons;
+    expect(plan.planets.length).toBe(expected);
+    for (const p of plan.planets) {
+      expect(p.radius).toBeGreaterThan(0);
+      expect(Array.isArray(p.tint)).toBe(true);
+      expect(p.star).toBeFalsy();       // lab frame — no sun, neutral studio rig
+    }
+  });
+
+  it('mover-driven bodies author geometry at the origin (center + basePos both [0,0,0])', () => {
+    const plan = planCascadeScene({ regime: 'supercritical', seed: 9 });
+    const byGroup = new Map(plan.planets.map((p) => [p.group, p]));
+    for (const mv of plan.movers.slice(1)) {          // [0] is the meshless carrier
+      if (!mv.group) continue;
+      expect(mv.basePos).toEqual([0, 0, 0]);
+      expect(byGroup.get(mv.group).center).toEqual([0, 0, 0]);
+    }
+  });
 });
 
 describe('cascade-view — emit + registration', () => {
@@ -62,6 +87,7 @@ describe('cascade-view — emit + registration', () => {
     const html = emitThreeWorld(assembleCascadeScene({ kind: 'cascade-view', regime: 'supercritical' }, {}));
     expect(html.startsWith('<!doctype html>')).toBe(true);
     expect(html).toContain('GROUPS =');             // the mesh pipeline (NOT raymarch)
+    expect(html).toContain('const PLANETS =');      // bodies are lit spheres on the planets channel
     expect(html).toContain('_cascadeHud');          // the population readout
     expect(html).toContain('const _LIFE_T');        // shared-clock lifetimes
     expect(html).toContain('OrbitControls');

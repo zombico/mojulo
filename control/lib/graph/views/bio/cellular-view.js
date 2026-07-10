@@ -26,6 +26,12 @@ import { lowerObjectFaces, WORKBENCH_LIGHT } from '../../worlds/workbench.js';
 
 const TAU = Math.PI * 2;
 
+// hex → [r,g,b] in 0..1 for the lit-sphere (planets) channel — the big rounded bodies (cytoplasm
+// envelope, nucleus, plant vacuole) render as real lit spheres, not lathe "onions".
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
+// a lit-sphere descriptor consumed by planCellularScene (tint stays hex; opacity resolved there from layer/pick).
+const litSphere = (group, center, radius, tint, layer, pickType) => ({ group, center, radius, tint, layer, pickType });
+
 // ── tiny vec helpers ──
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -120,12 +126,13 @@ const PLANT_CYTO_TINT = '#cfe0c8';  // pale green plant cytoplasm
 // NO pick (clicks pass through them). `R` is the cell radius; `r` the seeded PRNG.
 const CELL_TYPES = {
   animal(R, r) {
-    const organelles = {};
-    // nucleus (off-centre a touch) + nucleolus inside it
+    const organelles = {}, spheres = [];
+    // nucleus (off-centre a touch) + nucleolus inside it — big rounded bodies → lit spheres (same PRNG draws).
     const nucC = randInShell(r, R * 0.16);
     const nucR = R * 0.33;
-    organelles.nucleus = [sphereSpec(nucC, nucR, ORGANELLE_INFO.nucleus.tint, 32),
-      sphereSpec(add(nucC, randInShell(r, nucR * 0.4)), nucR * 0.34, '#4f4377', 22)];
+    const nlC = add(nucC, randInShell(r, nucR * 0.4));
+    spheres.push(litSphere('org:nucleus', nucC, nucR, ORGANELLE_INFO.nucleus.tint, 'organelle', 'nucleus'));
+    spheres.push(litSphere('org:nucleus', nlC, nucR * 0.34, '#4f4377', 'organelle'));
     organelles.mitochondria = Array.from({ length: 12 }, () =>
       capsuleSpec(randInShell(r, R * 0.92, R * 0.42), randDir(r), R * 0.30, R * 0.07, ORGANELLE_INFO.mitochondria.tint, 16));
     organelles.er = [];
@@ -140,22 +147,25 @@ const CELL_TYPES = {
       sphereSpec(randInShell(r, R * 0.9, R * 0.4), R * between(r, 0.045, 0.07), ORGANELLE_INFO.lysosomes.tint, 14));
     organelles.ribosomes = Array.from({ length: 64 }, () =>
       sphereSpec(randInShell(r, R * 0.95, R * 0.2), R * 0.016, ORGANELLE_INFO.ribosomes.tint, 8));
-    return { organelles, jelly: [{ group: 'cytoplasm', lathes: [sphereSpec([0, 0, 0], R, CYTOPLASM_TINT, 44)] }] };
+    // the whole-cell cytoplasm envelope — the single biggest onion → a translucent lit sphere (no pick).
+    spheres.push(litSphere('cytoplasm', [0, 0, 0], R, CYTOPLASM_TINT, 'jelly'));
+    return { organelles, jelly: [], spheres };
   },
 
   // plant cell: a boxy cellulose wall, a LARGE central vacuole that pushes the cytoplasm + organelles
   // (incl. green chloroplasts) into a thin peripheral shell. No lysosomes.
   plant(R, r) {
-    const organelles = {};
+    const organelles = {}, spheres = [];
     const vacR = R * 0.6;
-    // the dominant central vacuole (very see-through), slightly off-centre
-    organelles.central_vacuole = [sphereSpec(randInShell(r, R * 0.06), vacR, ORGANELLE_INFO.central_vacuole.tint, 40)];
+    // the dominant central vacuole (very see-through), slightly off-centre → a big translucent lit sphere.
+    spheres.push(litSphere('org:central_vacuole', randInShell(r, R * 0.06), vacR, ORGANELLE_INFO.central_vacuole.tint, 'organelle', 'central_vacuole'));
     // everything else lives in the thin shell between the vacuole and the wall
     const peri = (rMax = R * 0.86, rMin = R * 0.63) => randInShell(r, rMax, rMin);
     const nucC = peri();
     const nucR = R * 0.17;
-    organelles.nucleus = [sphereSpec(nucC, nucR, ORGANELLE_INFO.nucleus.tint, 30),
-      sphereSpec(add(nucC, randInShell(r, nucR * 0.4)), nucR * 0.34, '#4f4377', 20)];
+    const nlC = add(nucC, randInShell(r, nucR * 0.4));
+    spheres.push(litSphere('org:nucleus', nucC, nucR, ORGANELLE_INFO.nucleus.tint, 'organelle', 'nucleus'));
+    spheres.push(litSphere('org:nucleus', nlC, nucR * 0.34, '#4f4377', 'organelle'));
     // chloroplasts — green lens discs (unique to plants)
     organelles.chloroplasts = Array.from({ length: 9 }, () =>
       discSpec(peri(), randDir(r), R * between(r, 0.10, 0.14), R * 0.05, ORGANELLE_INFO.chloroplasts.tint, 20));
@@ -170,10 +180,12 @@ const CELL_TYPES = {
       sphereSpec(peri(R * 0.88, R * 0.6), R * 0.015, ORGANELLE_INFO.ribosomes.tint, 8));
     return {
       organelles,
+      // the boxy cellulose wall + cytoplasm stay workbench extrudes (not spheres — no onion to fix).
       jelly: [
         { group: 'cell_wall', extrudes: [boxSpec([0, 0, 0], [R * 0.97, R * 0.97, R * 0.97], R * 0.2, WALL_TINT)] },
         { group: 'cytoplasm', extrudes: [boxSpec([0, 0, 0], [R * 0.9, R * 0.9, R * 0.9], R * 0.17, PLANT_CYTO_TINT)] },
       ],
+      spheres,
     };
   },
 };
@@ -194,11 +206,11 @@ export function planCellularScene(recipe = {}) {
   const R = 10 * scale;
   const r = mulberry32(seed);
 
-  const faces = [], picks = [];
+  const faces = [], picks = [], planets = [];
   const tagged = (fs, group, alpha) => { for (const f of fs) faces.push({ ...f, group, alpha }); };
 
   // organelles — each TYPE lowered through the workbench, tagged as one translucent pick group.
-  const { organelles, jelly } = CELL_TYPES[cellType](R, r);
+  const { organelles, jelly, spheres } = CELL_TYPES[cellType](R, r);
   const stats = { cellType, organelles: {} };
   for (const [type, specs] of Object.entries(organelles)) {
     if (!specs.length) continue;
@@ -208,22 +220,45 @@ export function planCellularScene(recipe = {}) {
     stats.organelles[type] = specs.length;
   }
 
-  // jelly boundary layers (cytoplasm; plus the plant cell wall) — translucent, NO pick, so a click
-  // passes THROUGH them to the nearest organelle behind. May be lathe (sphere) or extrude (box).
+  // jelly boundary layers (the plant cell wall + cytoplasm boxes) — translucent, NO pick, so a click
+  // passes THROUGH them to the nearest organelle behind. Extrudes only now (sphere shells are lit spheres).
   for (const layer of jelly) {
     tagged(lowerObjectFaces({ lathes: layer.lathes || [], extrudes: layer.extrudes || [] }, WORKBENCH_LIGHT), layer.group, jellyAlpha);
   }
 
-  // bounds from the actual geometry (sphere vs box) — drives the camera framing. radius is the true
-  // bounding-SPHERE radius (max corner distance from centre): R for the sphere, corner-dist for the box.
+  // big rounded bodies → the lit-sphere (planets) channel: real shaded spheres, not lathe onions.
+  // opacity mirrors the faces path (jelly → jellyAlpha; organelle → its own alpha or organelleAlpha),
+  // and picks/counts are generated per group exactly like the merged organelle groups above.
+  const planetPick = new Map();
+  for (const s of spheres) {
+    const opacity = s.layer === 'jelly'
+      ? jellyAlpha
+      : (ORGANELLE_INFO[s.pickType] && ORGANELLE_INFO[s.pickType].alpha != null ? ORGANELLE_INFO[s.pickType].alpha : organelleAlpha);
+    planets.push({
+      group: s.group, center: s.center, radius: s.radius, tint: hexRgb(s.tint), opacity,
+      bands: s.layer === 'jelly' ? 0 : 0.3, mottle: s.layer === 'jelly' ? 0.04 : 0.14,
+    });
+    if (!planetPick.has(s.group)) planetPick.set(s.group, { type: null, count: 0 });
+    const g = planetPick.get(s.group); g.count++; if (s.pickType) g.type = s.pickType;
+  }
+  for (const [group, g] of planetPick) {
+    if (!g.type) continue;   // the cytoplasm shell carries no pick (clicks pass through it)
+    const info = ORGANELLE_INFO[g.type];
+    picks.push({ name: group, kind: 'organelle', label: info.label, fields: compactFields(info.fields, { count: g.count }) });
+    stats.organelles[g.type] = g.count;
+  }
+
+  // bounds over faces AND lit spheres (drives camera framing). radius is the true bounding-SPHERE radius.
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < mn[k]) mn[k] = c[k]; if (c[k] > mx[k]) mx[k] = c[k]; }
+  for (const p of planets) for (let k = 0; k < 3; k++) { if (p.center[k] - p.radius < mn[k]) mn[k] = p.center[k] - p.radius; if (p.center[k] + p.radius > mx[k]) mx[k] = p.center[k] + p.radius; }
   const center = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
   let radius = 0;
   for (const f of faces) for (const c of f.corners) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
+  for (const p of planets) radius = Math.max(radius, Math.hypot(p.center[0] - center[0], p.center[1] - center[1], p.center[2] - center[2]) + p.radius);
   radius = radius || R;
 
-  return { faces, picks, bounds: { center, radius }, stats };
+  return { faces, picks, planets, bounds: { center, radius }, stats };
 }
 
 /**
@@ -242,6 +277,7 @@ export function assembleCellularScene(recipe = {}, { title } = {}) {
   return {
     faces: plan.faces,
     picks: plan.picks,
+    planets: plan.planets,
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || 'mojulo cell',

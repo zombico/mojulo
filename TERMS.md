@@ -1,6 +1,6 @@
 # Terms of Use
 
-mojulo is software you install on your own machine. There is no hosted mojulo service. There is no account you sign up for, no server we operate on your behalf, no data we receive about how you use it. The maintainer ("we") publishes source code, an npm package, and a container image; everything else — what you do with it, what you build with it, what runs on your hardware — is yours.
+mojulo is software you install on your own machine. There is no hosted mojulo service. There is no account you sign up for, no server we operate on your behalf, no data we receive about how you use it. The maintainer ("we") — **2364758 Ontario Inc.**, an Ontario corporation — publishes source code, an npm package, and a container image; everything else — what you do with it, what you build with it, what runs on your hardware — is yours.
 
 This document describes how to think about that responsibility split. It supplements (and does not replace) the [Apache License 2.0](LICENSE) that governs the code itself, and the threat model in [SECURITY.md](SECURITY.md).
 
@@ -99,7 +99,7 @@ These terms may be updated. The version that applies to your use of mojulo is th
 
 ## 11. Governing law
 
-These terms are interpreted under the laws of the jurisdiction in which the maintainer resides, without reference to its conflict-of-laws rules. Nothing in this document waives mandatory consumer-protection rights you have under the laws of your own jurisdiction.
+These terms are governed by and interpreted under the laws of the Province of Ontario and the federal laws of Canada applicable therein, without reference to conflict-of-laws rules. Nothing in this document waives mandatory consumer-protection rights you have under the laws of your own jurisdiction.
 
 ## 12. Severability
 

@@ -496,3 +496,59 @@ describe('kernel emission contract', () => {
     expect(rebuilt.ambientBarEvents(AMBIENT, 3)).toEqual(K.ambientBarEvents(AMBIENT, 3));
   });
 });
+
+describe('performance macros — transpose + tone (B5.2)', () => {
+  it('toneFreq maps [0,1] exponentially 120Hz → 18kHz, open by default', () => {
+    expect(K.toneFreq(0)).toBeCloseTo(120, 6);
+    expect(K.toneFreq(1)).toBeCloseTo(18000, 6);
+    expect(K.toneFreq(undefined)).toBeCloseTo(18000, 6);   // null position = open
+    expect(K.toneFreq(0.5)).toBeCloseTo(120 * Math.sqrt(150), 6);
+    expect(K.toneFreq(2)).toBeCloseTo(18000, 6);           // clamped
+    expect(K.toneFreq(-1)).toBeCloseTo(120, 6);
+  });
+
+  it('validation accepts macro fields on every musical kind and teaches on bad values', () => {
+    const pattern = {
+      kind: 'beats-pattern', title: 'macro grid', bpm: 132,
+      tracks: [
+        { name: 'kick', patch: 'kick', mask: [1, 0, 0, 0], transpose: -2, tone: 0.7 },
+        { name: 'stab', patch: 'sawStab', mask: [0, 1], notes: ['A3'], tone: 0.4 },
+      ],
+    };
+    expect(validateBeatsManifest(pattern).ok).toBe(true);
+
+    const bad = validateBeatsManifest({
+      ...pattern,
+      tracks: [{ name: 'kick', patch: 'kick', mask: [1], transpose: 99, tone: 3 }],
+    });
+    expect(bad.ok).toBe(false);
+    expect(bad.errors.join('\n')).toMatch(/transpose must be a number in \[-24, 24\]/);
+    expect(bad.errors.join('\n')).toMatch(/tone must be a number in \[0, 1\]/);
+  });
+
+  it('macro values round-trip through normalize on all three musical kinds', () => {
+    const pattern = normalizeBeatsManifest({
+      kind: 'beats-pattern', title: 't', bpm: 120,
+      tracks: [{ name: 'kick', patch: 'kick', mask: [1, 0], transpose: 3, tone: 0.55 }],
+    });
+    expect(pattern.tracks[0].transpose).toBe(3);
+    expect(pattern.tracks[0].tone).toBe(0.55);
+
+    const comp = normalizeBeatsManifest({
+      kind: 'beats-composition', title: 't', bpm: 100,
+      parts: [{ name: 'lead', patch: 'sinePluck', events: [['0:0:0', 'A4']], transpose: -12 }],
+    });
+    expect(comp.parts[0].transpose).toBe(-12);
+    expect(comp.parts[0].tone).toBeUndefined();   // absent stays absent (null path)
+
+    const amb = normalizeBeatsManifest({ ...AMBIENT, channels: AMBIENT.channels.map((c) => ({ ...c, tone: 0.8 })) });
+    for (const ch of amb.channels) expect(ch.tone).toBe(0.8);
+  });
+
+  it('engine macro surface exists in the emitted kernel (setTranspose/setTone/setLevel/getMacro)', () => {
+    const src = buildBeatsKernel.toString();
+    for (const name of ['setTranspose', 'setTone', 'setLevel', 'getMacro', 'toneFreq']) {
+      expect(src).toContain(name);
+    }
+  });
+});

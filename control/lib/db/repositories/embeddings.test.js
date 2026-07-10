@@ -532,6 +532,9 @@ describe('SOURCE_KINDS', () => {
       'game_vocab',
       'game_mechanic',
       'game_kit',
+      'game_glyph',
+      'game_sfx',
+      'routing',
     ]);
   });
 });

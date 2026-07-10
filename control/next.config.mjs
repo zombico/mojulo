@@ -27,6 +27,7 @@ const nextConfig = {
     'officeparser',
     '@huggingface/transformers',
     'onnxruntime-node',
+    'node-web-audio-api',
     'sharp',
     'opentype.js',
     'puppeteer-core',

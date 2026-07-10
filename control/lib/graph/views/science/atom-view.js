@@ -17,8 +17,11 @@
  */
 
 import { makeLight, shadeHex } from '../../polygonizer/vexar.js';
-import { latheToFaces } from '../../polygonizer/lathe-faces.js';
 import { sampleVajra } from '../../polygonizer/vajra.js';
+
+// hex → [r,g,b] in 0..1 for the lit-sphere (planets) channel — the nucleus renders as a real lit
+// sphere (a non-star MeshStandardMaterial body), not a lathe "onion".
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]; };
 
 // ── tiny vec helpers ──
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -55,16 +58,6 @@ export function electronConfig(Z) {
 }
 
 // ── shapes via the wave primitives ──
-const circleProfile = (R, n = 16) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return { t, radius: R * Math.sin(Math.PI * t) }; });
-
-// the nucleus: a small solid lathe sphere (the localized dense core), pre-lit by latheToFaces.
-function sphereFaces(R, tint, samples) {
-  return latheToFaces(
-    { axisFrom: { x: 0, y: 0, z: -R }, axisTo: { x: 0, y: 0, z: R }, profile: circleProfile(R, 16), crossSections: 22, samples },
-    { light: ATOM_LIGHT, tint },
-  );
-}
-
 // sweep a thin round tube of radius r along a polyline centreline → {corners, normal} faces.
 function sweepTube(cl, r, sides) {
   if (cl.length < 2) return [];
@@ -226,11 +219,12 @@ const shellRadius = (n) => 2.0 + 2.2 * n;   // world units; outer shells are big
 export function planAtomScene(recipe = {}) {
   const Z = resolveZ(recipe);
   const config = electronConfig(Z);
-  const faces = [], picks = [];
+  const faces = [], picks = [], planets = [];
   const tagged = (fs, group, alpha) => { for (const f of fs) faces.push({ ...f, group, alpha }); };
 
-  // nucleus — a small bright central sphere (the stabilizing singularity).
-  tagged(sphereFaces(1.1, NUCLEUS_TINT, 24), 'nucleus', NUC_ALPHA);
+  // nucleus — a small bright central sphere (the stabilizing singularity), a real lit body (non-star)
+  // sitting at the origin on the lit-sphere (planets) channel; pickable via userData.g = 'nucleus'.
+  planets.push({ group: 'nucleus', center: [0, 0, 0], radius: 1.1, tint: hexRgb(NUCLEUS_TINT), opacity: NUC_ALPHA, star: false, bands: 0, mottle: 0.1 });
   picks.push({ name: 'nucleus', kind: 'nucleus', label: 'Nucleus', fields: compactFields([['protons (Z)', Z], ['neutrons', `≈ ${Z}`], ['charge', `+${Z}`], ['note', 'dense core — almost all the mass']]) });
 
   const stats = { Z, element: ELEMENT_NAME[Z] || `Z${Z}`, subshells: config.map((s) => `${s.label}${superscript(s.electrons)}`).join(' '), dropped: [] };
@@ -261,14 +255,16 @@ export function planAtomScene(recipe = {}) {
     }
   }
 
-  // bounds (true bounding sphere) for camera framing.
+  // bounds (true bounding sphere) for camera framing — over faces AND the lit nucleus sphere.
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < mn[k]) mn[k] = c[k]; if (c[k] > mx[k]) mx[k] = c[k]; }
+  for (const p of planets) for (let k = 0; k < 3; k++) { if (p.center[k] - p.radius < mn[k]) mn[k] = p.center[k] - p.radius; if (p.center[k] + p.radius > mx[k]) mx[k] = p.center[k] + p.radius; }
   const center = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
   let radius = 0;
   for (const f of faces) for (const c of f.corners) radius = Math.max(radius, len(sub(c, center)));
+  for (const p of planets) radius = Math.max(radius, len(sub(p.center, center)) + p.radius);
 
-  return { faces, picks, bounds: { center, radius: radius || 10 }, stats };
+  return { faces, picks, planets, bounds: { center, radius: radius || 10 }, stats };
 }
 
 /**
@@ -278,11 +274,12 @@ export function planAtomScene(recipe = {}) {
  * illustrative guide, NOT a literal particle orbit (that would be the discredited Bohr model).
  */
 export function assembleAtomTour(recipe = {}, { title } = {}) {
-  const faces = [], picks = [];
+  const faces = [], picks = [], planets = [];
   const tag = (fs, group, alpha) => { for (const f of fs) faces.push({ ...f, group, alpha }); };
   const MAZE = 0.26;
 
-  tag(sphereFaces(1.0, NUCLEUS_TINT, 24), 'nucleus', NUC_ALPHA);
+  // nucleus — a real lit sphere (non-star) at the origin on the planets channel; pickable via userData.g.
+  planets.push({ group: 'nucleus', center: [0, 0, 0], radius: 1.0, tint: hexRgb(NUCLEUS_TINT), opacity: NUC_ALPHA, star: false, bands: 0, mottle: 0.1 });
   picks.push({ name: 'nucleus', kind: 'nucleus', label: 'Nucleus (proton)', fields: [{ k: 'charge', v: '+1' }] });
 
   const R1 = shellRadius(1) * 0.62, R2 = shellRadius(2) * 0.62;
@@ -355,9 +352,11 @@ export function assembleAtomTour(recipe = {}, { title } = {}) {
 
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < mn[k]) mn[k] = c[k]; if (c[k] > mx[k]) mx[k] = c[k]; }
+  for (const p of planets) for (let k = 0; k < 3; k++) { if (p.center[k] - p.radius < mn[k]) mn[k] = p.center[k] - p.radius; if (p.center[k] + p.radius > mx[k]) mx[k] = p.center[k] + p.radius; }
   const center = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
   let radius = 0;
   for (const f of faces) for (const c of f.corners) radius = Math.max(radius, len(sub(c, center)));
+  for (const p of planets) radius = Math.max(radius, len(sub(p.center, center)) + p.radius);
   const d = radius * 2.8;
   const cameras = [
     { name: 'angle', worldFraming: { cameraPosition: [center[0] + d * 0.7, center[1] - d * 0.95, center[2] + d * 0.5], lookAt: center, horizontalFov: 46 } },
@@ -365,7 +364,7 @@ export function assembleAtomTour(recipe = {}, { title } = {}) {
   ];
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#070b18';
   return {
-    faces, picks, tracers, cameras,
+    faces, picks, planets, tracers, cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || 'hydrogen electron tour', bg, glow: false,
   };
@@ -495,6 +494,7 @@ export function assembleAtomScene(recipe = {}, { title } = {}) {
   return {
     faces: plan.faces,
     picks: plan.picks,
+    planets: plan.planets,
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || plan.stats.element || 'mojulo atom',
