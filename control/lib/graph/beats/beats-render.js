@@ -34,6 +34,14 @@
 
 import { buildBeatsKernel } from './beats-kernel.js';
 import { PATCHES } from './audio-patches.js';
+import { authorSyllable } from './beats-song-lyrics.js';
+import { renderParametricNote } from './beats-song-voice-parametric.js';
+
+// The singing instrument (beats-song S0). A composition part with `patch: 'voice'`
+// is not a synth patch: each of its events is a sung syllable, synthesized beside
+// the kernel by the parametric vocal emitter and spliced into the offline mix as a
+// buffer source. Kept out of the kernel (the reserved `voice:'buffer'` seam).
+export const VOICE_PATCH = 'voice';
 
 // Hard ceiling on rendered audio — an export is a sample, not an album side.
 export const MAX_RENDER_SECONDS = 300;
@@ -64,6 +72,80 @@ function noteEntries(events, { seed, feelFor, seedIndexFor }) {
     });
   });
   return entries;
+}
+
+// Push one `sing` plan entry per event of every voice part, returning the voice
+// tail (latest note end) and any lyric-alignment warnings. A `sing` entry stays
+// plain data — the syllable→katakana authoring and formant synthesis happen in the
+// realizer, mirroring how note entries defer the patch/feel merge.
+function voiceEntriesInto(entries, voiceParts, manifest) {
+  const bpm = manifest.bpm;
+  const swing = manifest.swing || 0;
+  const sixteenth = 60 / bpm / 4;
+  const beat = 60 / bpm;
+  const warnings = [];
+  let end = 0;
+  for (const part of voiceParts) {
+    const events = part.events || [];
+    const lyrics = Array.isArray(part.lyrics) ? part.lyrics : [];
+    if (lyrics.length !== events.length) {
+      warnings.push(`part '${part.name}': ${lyrics.length} lyric syllable(s) for ${events.length} event(s) — ${lyrics.length < events.length ? 'padded with "la"' : 'extra lyrics ignored'}`);
+    }
+    events.forEach((ev, i) => {
+      const [at, notes, dur, vel] = ev;
+      let t = kernel.timeToSeconds(at, bpm);
+      if (swing) {
+        const pos = t / sixteenth;
+        const idx = Math.round(pos);
+        if (Math.abs(pos - idx) < 1e-6 && idx % 2 === 1) t += swing * sixteenth * (2 / 3);
+      }
+      const durSec = dur == null ? beat : kernel.timeToSeconds(dur, bpm);
+      // A voice sings one pitch: take the melody (first) note of a chord event.
+      const note = Array.isArray(notes) ? notes[0] : notes;
+      const syllable = lyrics[i] != null ? lyrics[i] : 'la';
+      entries.push({
+        type: 'sing', t, channel: part.name, syllable, note, durSec,
+        vel: vel == null ? 0.8 : vel,
+        voice: part.voice || {}, emphasis: part.emphasis || {},
+        seed: ((manifest.seed || 0) + i * 0x9e37) >>> 0,
+      });
+      if (t + durSec > end) end = t + durSec;
+    });
+  }
+  return { warnings, duration: end };
+}
+
+// Synthesize one `sing` entry to a mono Float32Array at `sampleRate`. Solo by
+// default; if the part carries `voice.ensemble.voices`, render the syllable once per
+// de-locked singer (its detune/tract-size/timing nudged off the base voice) and mix —
+// the choir as an optional register: the one locked voice, deliberately de-locked per
+// singer. Deterministic (each singer seeded off the event seed).
+function renderSingMono(e, sampleRate) {
+  const v = e.voice || {};
+  const kata = authorSyllable(e.syllable, e.durSec);
+  const ens = v.ensemble && Array.isArray(v.ensemble.voices) && v.ensemble.voices.length ? v.ensemble.voices : null;
+  const singers = ens || [{}];   // solo = one singer with no de-locking
+  const parts = [];
+  let maxLen = 1;
+  singers.forEach((sv, k) => {
+    const data = renderParametricNote(kata, e.note, e.durSec, {
+      sr: sampleRate,
+      seed: (e.seed + k * 0x9e3779b1) >>> 0,
+      formantScale: (v.formantScale || 1) * (sv.formantScale || 1),
+      detuneCents: (v.detuneCents || 0) + (sv.detuneCents || 0),
+      emphasis: e.emphasis || {},
+      expression: sv.vib ? { ...(v.expression || {}), vibrato: sv.vib } : (v.expression || {}),
+    });
+    const offset = Math.max(0, Math.round(((sv.timeMs || 0) / 1000) * sampleRate));
+    parts.push({ data, offset });
+    maxLen = Math.max(maxLen, data.length + offset);
+  });
+  if (parts.length === 1 && parts[0].offset === 0) return parts[0].data;
+  const mix = new Float32Array(maxLen);
+  for (const { data, offset } of parts) for (let i = 0; i < data.length; i++) mix[offset + i] += data[i];
+  // scale an N-singer stack back toward a solo's level so the choir doesn't clip.
+  if (singers.length > 1) { const g = 1 / Math.sqrt(singers.length); for (let i = 0; i < mix.length; i++) mix[i] *= g; }
+  return mix;
 }
 
 // Conservative end time for one gesture-op list (cuePlan output).
@@ -98,10 +180,14 @@ export function renderBeatsPlan(manifest, opts = {}) {
   }
 
   if (kind === 'beats-composition') {
-    const flat = kernel.compositionEvents(manifest);
     const parts = manifest.parts || [];
+    const voiceParts = parts.filter((p) => p.patch === VOICE_PATCH);
+    const instrParts = parts.filter((p) => p.patch !== VOICE_PATCH);
+
+    // Instrument parts go through the kernel's own event derivation, unchanged.
+    const flat = kernel.compositionEvents({ ...manifest, parts: instrParts });
     const withPatch = flat.events.map((ev) => {
-      const part = parts.find((p) => p.name === ev.channel);
+      const part = instrParts.find((p) => p.name === ev.channel);
       return { ...ev, patch: (part && part.patch) || 'sinePluck', part };
     });
     const entries = noteEntries(withPatch, {
@@ -109,7 +195,14 @@ export function renderBeatsPlan(manifest, opts = {}) {
       feelFor: (ev) => (ev.part && ev.part.feel) || manifest.feel,
       seedIndexFor: (ei) => ei,
     });
-    return { entries, duration: flat.duration, meta: {} };
+
+    // Voice parts: each event is a sung syllable. Lyrics align 1:1 with the part's
+    // events (in declared order — NOT the cross-part sort), padded/truncated so a
+    // mismatch never crashes. Timing mirrors compositionEvents (timeToSeconds +
+    // swing) so a voice sits on the same grid as the instruments.
+    const { warnings, duration: voiceEnd } = voiceEntriesInto(entries, voiceParts, manifest);
+    const meta = warnings.length ? { warnings } : {};
+    return { entries, duration: Math.max(flat.duration, voiceEnd), meta };
   }
 
   if (kind === 'beats-pattern') {
@@ -248,6 +341,21 @@ export async function renderBeatsOffline(manifest, opts = {}) {
     const t = Math.max(0, e.t);
     if (e.type === 'cue') {
       engine.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel);
+    } else if (e.type === 'sing') {
+      // Synthesize the sung syllable at the context rate (no resample) and splice
+      // it in as a buffer source — the reserved `voice:'buffer'` seam beside the
+      // kernel. Deterministic: same manifest → same PCM (seeded per event).
+      const data = renderSingMono(e, sampleRate);
+      const len = Math.max(1, data.length);
+      const buf = ctx.createBuffer(1, len, sampleRate);
+      buf.getChannelData(0).set(data);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.value = e.vel;
+      src.connect(g);
+      g.connect(chains[e.channel]);
+      src.start(t);
     } else {
       const patch = PATCHES[e.patch] || {};
       const p = e.pluck ? { ...patch, pick: clamp01((patch.pick || 0) + e.pluck) } : patch;

@@ -12,6 +12,8 @@
  */
 
 import { NextResponse } from 'next/server';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
@@ -35,6 +37,21 @@ export async function GET(request, { params }) {
     }
     if (!sketch.manifest) {
       return NextResponse.json({ error: `Sketch '${ref}' has no manifest` }, { status: 400 });
+    }
+
+    const coloredOverridePath = path.join(process.cwd(), 'data', 'exports', `${ref}_vertex_colored.glb`);
+    if (fs.existsSync(coloredOverridePath)) {
+      const bytes = fs.readFileSync(coloredOverridePath);
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          'Content-Type': 'model/gltf-binary',
+          'Content-Disposition': `attachment; filename="${glbFilename(sketch, ref).replace(/\.glb$/i, '-vertex-colored.glb')}"`,
+          'Content-Length': String(bytes.byteLength),
+          'Cache-Control': 'no-store',
+          'X-Mojulo-Model-Override': 'vertex-colored',
+        },
+      });
     }
 
     const { payload } = await resolveWorldScene(sketch);

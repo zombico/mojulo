@@ -68,10 +68,24 @@ export function scaleHex(hex, f) { return rgbToHex(hexToRgb(hex).map((v) => v * 
 // ---- the light + the shade -------------------------------------------------
 /** A light. `direction` is the way the light travels (normalized); `ambient` is
  *  the floor brightness for fully-turned-away faces; `diffuse` is the range
- *  added as a face turns to meet the light. Brightness ∈ [ambient, ambient+diffuse]. */
-export function makeLight({ direction = [0.4, 0.5, -0.76], ambient = 0.46, diffuse = 0.6 } = {}) {
+ *  added as a face turns to meet the light. Brightness ∈ [ambient, ambient+diffuse].
+ *
+ *  Optional `fill` = { diffuse, direction? } adds a soft SECONDARY light that lifts
+ *  the faces the key leaves at ambient. With no `direction` the fill sits OPPOSITE the
+ *  key (its toLight = the key's travel direction), so it illuminates exactly the key's
+ *  shadow hemisphere — a form-study key+fill that keeps flat, camera-facing surfaces off
+ *  the near-black ambient floor (a single directional key renders any face perpendicular
+ *  to it at ambient only, which reads as "no surface"). Absent → single-key output is
+ *  byte-identical, so only opted-in lights (the workbench studio) change. */
+export function makeLight({ direction = [0.4, 0.5, -0.76], ambient = 0.46, diffuse = 0.6, fill = null } = {}) {
   const d = norm3(direction);
-  return { dir: d, toLight: [-d[0], -d[1], -d[2]], ambient, diffuse };
+  const light = { dir: d, toLight: [-d[0], -d[1], -d[2]], ambient, diffuse };
+  if (fill && Number.isFinite(fill.diffuse) && fill.diffuse > 0) {
+    const fd = fill.direction ? norm3(fill.direction) : null;
+    light.fillToLight = fd ? [-fd[0], -fd[1], -fd[2]] : [d[0], d[1], d[2]];
+    light.fillDiffuse = fill.diffuse;
+  }
+  return light;
 }
 export const DEFAULT_LIGHT = makeLight();
 
@@ -91,9 +105,11 @@ export function lodCount(base, quality = 'default', floor = 8) {
   return Math.max(floor, Math.round(base * vexarLod(quality)));
 }
 
-/** Lambert brightness for an outward normal under a light. */
+/** Lambert brightness for an outward normal under a light (+ optional opposite fill). */
 export function litFactor(normal, light = DEFAULT_LIGHT) {
-  return light.ambient + light.diffuse * Math.max(0, dot3(normal, light.toLight));
+  let f = light.ambient + light.diffuse * Math.max(0, dot3(normal, light.toLight));
+  if (light.fillDiffuse) f += light.fillDiffuse * Math.max(0, dot3(normal, light.fillToLight));
+  return f;
 }
 /** Scale a flat fill by the Lambert factor — the per-cell shade. */
 export function shadeHex(hex, normal, light = DEFAULT_LIGHT) {
@@ -132,7 +148,8 @@ export function shadeHexMat(hex, normal, material, { light = DEFAULT_LIGHT, view
   if (!material) return shadeHex(hex, normal, light);
   let lam = Math.max(0, dot3(normal, light.toLight));
   if (material.cel) lam = Math.round(lam * material.cel) / material.cel;
-  const f = (material.ambient ?? light.ambient) + (material.diffuse ?? light.diffuse) * lam;
+  let f = (material.ambient ?? light.ambient) + (material.diffuse ?? light.diffuse) * lam;
+  if (light.fillDiffuse) f += light.fillDiffuse * Math.max(0, dot3(normal, light.fillToLight));
   const base = hexToRgb(hex);
   let rgb = base.map((v) => v * f);
   if (material.specular && viewFrom && at) {

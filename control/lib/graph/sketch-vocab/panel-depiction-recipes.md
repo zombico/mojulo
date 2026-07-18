@@ -1,10 +1,17 @@
 ---
-{ "id": "panel-depiction-recipes", "name": "Named panel-depiction recipes (sunday-comic, manga, natgeo, time-cover, …)", "summary": "graphic-design/layout-mode recipes for multi-panel pictures and magazine covers", "when": "graphic-design layout modes for multi-panel pictures, comics, manga, magazine covers, or other recognizable panel-blocking paradigms", "tier": "recipe", "marks": [], "phase": "p1" }
+{ "id": "panel-depiction-recipes", "name": "Named panel-depiction recipes (sunday-comic, manga, natgeo, time-cover, …)", "summary": "graphic-design/layout-mode recipes for multi-panel pictures and magazine covers", "when": "graphic-design layout modes for MOJULO-DRAWN (vexar/deterministic) multi-panel pictures, magazine covers, and infographic panel blocking; for an AI-PAINTED comic or manga page use the sequential-art kind instead", "tier": "recipe", "marks": [], "phase": "p1" }
 ---
 
 Named panel-depiction recipes encode common graphic-design layout modes.
 Use them as `depiction.panelRecipe` or `display.kind` only; **never as
 `marks[].kind`**.
+
+Routing note: these recipes lay out pages that MOJULO DRAWS itself
+(deterministic vexar marks). When the user wants an AI-painted comic or
+manga page — "make manga", "AI comic", crisp bubbles over generated art —
+reach for the `sequential-art` sketch kind instead: its `pageRecipe` field
+reuses these same paradigms (`manga-high-eye-control`, `sunday-comic`, …)
+to auto-compute panel bounds for the external image worker.
 
 ## Recipe ids
 

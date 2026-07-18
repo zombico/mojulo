@@ -43,4 +43,20 @@ describe('planWorkbench — per-part readout', () => {
     expect(stats.warnings).toBeDefined();
     expect(stats.warnings[0]).toMatch(/floats/);
   });
+
+  it('counts and reads out drapes like any other monomer', () => {
+    const drape = { anchor: [[-4, 0, 10], [4, 0, 10]], hang: 8 };
+    const { stats } = planWorkbench({ kind: 'workbench', lathes: [lathe()], drapes: [drape] });
+    expect(stats.monomers).toBe(2);
+    expect(stats.drapes).toBe(1);
+    const drapePart = stats.parts.find((p) => p.kind === 'drape');
+    expect(drapePart).toBeDefined();
+    expect(drapePart.size.w).toBeGreaterThan(0);
+    expect(drapePart.open).toBeUndefined(); // a sheet is open by intent — no closure warning
+  });
+
+  it('rejects a drape material typo loudly instead of silently falling back', () => {
+    const drape = { anchor: [[-4, 0, 10], [4, 0, 10]], material: 'golden' };
+    expect(() => planWorkbench({ kind: 'workbench', drapes: [drape] })).toThrow(/drapes\[0\]\.material/);
+  });
 });

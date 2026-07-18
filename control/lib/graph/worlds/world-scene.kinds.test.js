@@ -156,7 +156,7 @@ describe('world-scene kinds — per-arm characterization', () => {
 describe('world-scene kinds — side tables pinned as literals', () => {
   it('WALK_KINDS survives the derivation change bit-for-bit', () => {
     expect([...WALK_KINDS].sort()).toEqual([
-      'condo-complex', 'floorplan', 'fractal-city', 'koenigsberg', 'math-structure',
+      'condo-complex', 'edifice', 'floorplan', 'fractal-city', 'koenigsberg', 'math-structure',
       'operator-world', 'painted-landscape', 'restaurant', 'room', 'school-complex',
       'subway-building', 'subway-station', 'transportation-hub',
     ]);

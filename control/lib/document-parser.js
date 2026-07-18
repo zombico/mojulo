@@ -152,6 +152,10 @@ async function parseDocument(buffer, fileName) {
     if (fileExtension === 'pdf') {
       extractedText = await parsePDF(buffer);
     }
+    // Plain-text formats need no parser — officeparser rejects them
+    else if (fileExtension === 'txt' || fileExtension === 'md') {
+      extractedText = buffer.toString('utf8');
+    }
     // Use officeparser for other document types
     else {
       extractedText = await parseOfficeDocument(buffer, fileName);

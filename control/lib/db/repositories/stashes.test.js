@@ -160,14 +160,24 @@ describe('StashRepository', () => {
       }),
     ).toThrow(/sketch_ref/);
 
-    // sketch with badly-shaped ref
+    // sketch with a genuinely malformed ref (chars outside [A-Za-z0-9_-]).
+    // NB: a plain hyphenated slug like 'my-custom-ref' is a VALID custom ref
+    // (create_sketch mints those), so the gate only rejects invalid CHARSET.
     expect(() =>
       StashRepository.gather({
         stashRef: s.stashRef,
         type: 'sketch',
-        metadata: { sketch_ref: 'definitely-not-a-sketch', label: 'x' },
+        metadata: { sketch_ref: 'not a valid ref!', label: 'x' },
       }),
-    ).toThrow(/sk_/);
+    ).toThrow(/not a valid sketch ref/);
+
+    // a custom (non-sk_) ref that create_sketch could mint IS accepted (D4)
+    const customItem = StashRepository.gather({
+      stashRef: s.stashRef,
+      type: 'sketch',
+      metadata: { sketch_ref: 'm1-a-vague', label: 'custom-ref slide' },
+    });
+    expect(customItem.metadata.sketch_ref).toBe('m1-a-vague');
 
     // sketch missing label
     expect(() =>

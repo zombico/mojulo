@@ -216,6 +216,23 @@ const LEXICON = [
     then: [EXPORT],
     dcc: 'Mojulo emits a single density. Generate the LOD chain (decimate/impostor) in your DCC or engine.',
   },
+  {
+    id: '3d-print',
+    terms: ['3d print', '3d printing', 'print', 'printable', 'stl', 'slicer', 'slicing', 'prusaslicer', 'cura', 'bambu', 'fdm', 'resin print', 'manifold', 'watertight', 'mesh repair'],
+    concept: 'Turning a model into a physical object via a slicer and printer.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'create_polygonized_sketch', when: 'most objects/figures to print', args: { prompt: '<subject>' } },
+      { tool: 'create_carved_solid', when: 'a sculptural solid — naturally print-friendly mass' },
+      { tool: 'create_manji_tree', when: 'a turnable polygomer object' },
+      { tool: 'create_figure', when: 'a posed human figure' },
+    ],
+    then: [
+      { tool: 'export_model', when: 'the print handoff — binary STL, z-up, scale maps world units → mm', args: { ref: '<sk_ref>', format: 'stl' } },
+    ],
+    ceiling: 'The STL is shape only (colour/groups dropped — the filament is the colour) and honest triangle soup, not guaranteed watertight/manifold: open shells and intersecting parts survive export.',
+    dcc: "Import into your slicer (PrusaSlicer/Cura/Bambu) and let its mesh repair union the shells; orient, hollow, and add supports there. Set `scale` at export so the print lands at real millimetres.",
+  },
 ];
 
 // Normalise + tokenise for matching.

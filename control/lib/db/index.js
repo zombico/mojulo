@@ -666,6 +666,36 @@ function init(db) {
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_beats_annotations_ref ON beats_annotations(ref, status);
+
+    -- Render handoff (render-handoff.plan.md — the durable I3 seam, framed as a
+    -- bicycle; see docs/bicycles.md). One DURABLE row per render target parked
+    -- for an external image-capable worker: request to pull to submit to audit
+    -- to accept. Mirrors the beats-sidecar durability (survives a control-plane
+    -- restart) — deliberately NOT the in-memory mcp_jobs long-poll, which drops
+    -- on restart and is wrong for minutes-long renders. render_n links a
+    -- submitted PNG to its append-only render-store slot; worker_audit is what
+    -- the worker claims at submit, accept_audit what the accepting agent
+    -- verifies (the same worker cannot self-accept). Spike folds the I4 audit
+    -- sidecar into this row; the split is promotion work.
+    CREATE TABLE IF NOT EXISTS image_render_requests (
+      id            TEXT PRIMARY KEY,
+      ref           TEXT NOT NULL,
+      target        TEXT NOT NULL,
+      kind          TEXT NOT NULL,
+      manifest_hash TEXT NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'pending'
+                      CHECK(status IN ('pending','in_flight','submitted','accepted','rejected','expired','cancelled')),
+      render_n      INTEGER,
+      worker_audit  TEXT,
+      accept_audit  TEXT,
+      source        TEXT,
+      pulled_at     INTEGER,
+      created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(ref, target, manifest_hash)
+    );
+    CREATE INDEX IF NOT EXISTS idx_irq_status ON image_render_requests(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_irq_ref ON image_render_requests(ref);
   `);
 
   migrateDeploymentColumns(db);

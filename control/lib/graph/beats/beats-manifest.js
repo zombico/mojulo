@@ -8,7 +8,7 @@
  *   beats-composition — explicit score: bpm/swing, parts with literal events.
  *   beats-pattern     — groove loop (B5.1): tracks × sixteenth-step velocity masks,
  *                       optional per-step note contours; instrument = patch | gesture | cue.
- *   beats-sfx         — foley cues: named gesture lists (sweep|flutter|burst|thump).
+ *   beats-sfx         — foley cues: named gesture lists (sweep|flutter|burst|thump|grain|ring).
  *
  * Validation throws teaching errors (the create_beats handler surfaces them with
  * a pointer at the kind's beats-vocab card). Normalization fills musical defaults
@@ -22,7 +22,8 @@ import { INSTRUMENTS, FEEL_PRESETS, resolveInstrument, resolveFeel } from './ins
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
-const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump']);
+const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring']);
+const RING_MATERIALS = new Set(['glass', 'metal', 'wood']);
 const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive', 'amp']);
 // B7 harmony bus: a chordVoice track derives its notes from the shared
 // progression instead of a note contour. Modes = how it reads the chord.
@@ -62,6 +63,60 @@ function checkChain(chain, where, errors) {
 function checkPatch(patch, where, errors) {
   if (patch !== undefined && !PATCHES[patch]) {
     errors.push(`${where}.patch '${patch}' is unknown (patches: ${Object.keys(PATCHES).join(', ')})`);
+  }
+}
+
+// The singing instrument (beats-song S0). `patch: 'voice'` selects the parametric
+// vocal emitter (rendered beside the kernel, not a synth patch). A voice part
+// carries `lyrics` (1:1 with its events; padded/truncated at render, never crashes)
+// plus optional per-part `voice` (formant/register/choir knobs) and `emphasis`
+// (per-consonant legibility scalars). All fields are optional and additive; a
+// non-voice part is untouched.
+export const VOICE_PATCH = 'voice';
+function checkVoicePart(node, where, errors) {
+  if (node.lyrics !== undefined) {
+    if (!Array.isArray(node.lyrics) || node.lyrics.some((s) => typeof s !== 'string')) {
+      errors.push(`${where}.lyrics must be an array of syllable strings (1:1 with events)`);
+    }
+  }
+  if (node.emphasis !== undefined) {
+    if (!node.emphasis || typeof node.emphasis !== 'object' || Array.isArray(node.emphasis)
+      || Object.values(node.emphasis).some((v) => !Number.isFinite(v))) {
+      errors.push(`${where}.emphasis must be an object of per-consonant numbers (e.g. { m: 2.0 })`);
+    }
+  }
+  const v = node.voice;
+  if (v !== undefined) {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) {
+      errors.push(`${where}.voice must be an object { formantScale?, detuneCents?, register?, ensemble? }`);
+    } else {
+      if (v.formantScale !== undefined && (!Number.isFinite(v.formantScale) || v.formantScale <= 0)) {
+        errors.push(`${where}.voice.formantScale must be a positive number (vocal-tract size; >1 = lower/darker)`);
+      }
+      if (v.detuneCents !== undefined && !Number.isFinite(v.detuneCents)) {
+        errors.push(`${where}.voice.detuneCents must be a number (cents)`);
+      }
+      if (v.register !== undefined && typeof v.register !== 'string') {
+        errors.push(`${where}.voice.register must be a string (register recipe name)`);
+      }
+      // The choir is an OPTIONAL register: `ensemble` renders N de-locked copies of
+      // this one voice (the locked voice, deliberately de-locked per singer) and mixes
+      // them. Absent → a solo voice. Each singer nudges detune / vocal-tract / timing.
+      if (v.ensemble !== undefined) {
+        const en = v.ensemble;
+        if (!en || typeof en !== 'object' || Array.isArray(en) || !Array.isArray(en.voices) || !en.voices.length) {
+          errors.push(`${where}.voice.ensemble must be { voices: [{ detuneCents?, formantScale?, timeMs? }, ...] } (the de-locked singers)`);
+        } else {
+          en.voices.forEach((sv, k) => {
+            const w2 = `${where}.voice.ensemble.voices[${k}]`;
+            if (!sv || typeof sv !== 'object' || Array.isArray(sv)) { errors.push(`${w2} must be an object`); return; }
+            if (sv.formantScale !== undefined && (!Number.isFinite(sv.formantScale) || sv.formantScale <= 0)) errors.push(`${w2}.formantScale must be a positive number`);
+            if (sv.detuneCents !== undefined && !Number.isFinite(sv.detuneCents)) errors.push(`${w2}.detuneCents must be a number (cents)`);
+            if (sv.timeMs !== undefined && !Number.isFinite(sv.timeMs)) errors.push(`${w2}.timeMs must be a number (ms onset offset)`);
+          });
+        }
+      }
+    }
   }
 }
 
@@ -144,6 +199,29 @@ function checkGestures(list, where, errors) {
     }
     if (g.type === 'sweep') { if (g.from != null) checkNote(g.from, `${where}[${i}].from`, errors); if (g.to != null) checkNote(g.to, `${where}[${i}].to`, errors); }
     if (g.type === 'thump') { if (g.from != null) checkNote(g.from, `${where}[${i}].from`, errors); if (g.to != null) checkNote(g.to, `${where}[${i}].to`, errors); }
+    if (g.type === 'flutter' && g.jitter !== undefined && (!Number.isFinite(g.jitter) || g.jitter < 0 || g.jitter > 1)) {
+      errors.push(`${where}[${i}].jitter must be in [0, 1] (0 = machine-gun flutter, ~0.8 = stick-slip creak)`);
+    }
+    if (g.type === 'grain') {
+      if (g.decay !== undefined && !(Number.isFinite(g.decay) || (Array.isArray(g.decay) && g.decay.length === 2 && g.decay.every(Number.isFinite)))) {
+        errors.push(`${where}[${i}].decay must be seconds or [min, max] seconds per grain`);
+      }
+      if (g.band !== undefined && (typeof g.band !== 'object' || Array.isArray(g.band))) {
+        errors.push(`${where}[${i}].band must be { lo?: hzHighpass, hi?: hzLowpass }`);
+      }
+    }
+    if (g.type === 'ring') {
+      if (g.note != null) checkNote(g.note, `${where}[${i}].note`, errors);
+      if (g.material !== undefined && !RING_MATERIALS.has(g.material)) {
+        errors.push(`${where}[${i}].material must be one of: ${[...RING_MATERIALS].join(', ')} (or pass partials)`);
+      }
+      if (g.partials !== undefined) {
+        if (!Array.isArray(g.partials) || !g.partials.length) errors.push(`${where}[${i}].partials must be a non-empty array of { ratio, gain?, decay? }`);
+        else g.partials.forEach((p, j) => {
+          if (!p || !Number.isFinite(p.ratio)) errors.push(`${where}[${i}].partials[${j}] must be { ratio: number, gain?, decay? }`);
+        });
+      }
+    }
     if (g.type === 'flutter' && g.tiers !== undefined) {
       if (!Array.isArray(g.tiers) || !g.tiers.length) errors.push(`${where}[${i}].tiers must be a non-empty array of { at, table }`);
       else g.tiers.forEach((tier, j) => {
@@ -222,7 +300,8 @@ export function validateBeatsManifest(manifest) {
         const where = `parts[${i}]`;
         if (!p || typeof p.name !== 'string' || !p.name) errors.push(`${where}.name is required (string)`);
         checkInstrument(p && p.instrument, where, errors);
-        checkPatch(p && p.patch, where, errors);
+        if (p && p.patch === VOICE_PATCH) checkVoicePart(p, where, errors);
+        else checkPatch(p && p.patch, where, errors);
         checkFeel(p && p.feel, where, errors);
         checkChain(p && p.chain, where, errors);
         checkMacros(p, where, errors);
@@ -299,7 +378,7 @@ export function validateBeatsManifest(manifest) {
   if (kind === 'beats-sfx') {
     const cues = manifest.cues;
     if (!cues || typeof cues !== 'object' || !Object.keys(cues).length) {
-      errors.push('cues is required: { <cueId>: [gesture, ...] } with gesture.type ∈ sweep|flutter|burst|thump');
+      errors.push('cues is required: { <cueId>: [gesture, ...] } with gesture.type ∈ sweep|flutter|burst|thump|grain|ring');
     } else {
       for (const [id, list] of Object.entries(cues)) checkGestures(list, `cues.${id}`, errors);
     }

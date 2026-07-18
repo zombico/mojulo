@@ -14,6 +14,8 @@
  */
 
 import { NextResponse } from 'next/server';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
@@ -28,6 +30,141 @@ function htmlFilename(sketch, ref) {
   return `${base || 'world'}.html`;
 }
 
+function escapedJson(value) {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
+function glbViewerHtml({ ref, title }) {
+  const modelUrl = `/api/sketches/${encodeURIComponent(ref)}/model.glb`;
+  const safeTitle = title || ref;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${safeTitle.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #f7f5ef; }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/three.module.min.js",
+        "three/addons/": "/vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const modelUrl = ${escapedJson(modelUrl)};
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0xf7f5ef, 1);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.01, 100);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd4cab8, 2.2));
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(3, 6, 4);
+scene.add(key);
+
+function parseGlb(buffer) {
+  const view = new DataView(buffer);
+  if (view.getUint32(0, true) !== 0x46546c67) throw new Error('Not a GLB file');
+  let offset = 12;
+  let json = null;
+  let bin = null;
+  while (offset < buffer.byteLength) {
+    const length = view.getUint32(offset, true);
+    const type = view.getUint32(offset + 4, true);
+    const start = offset + 8;
+    if (type === 0x4e4f534a) {
+      json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, start, length)).trim());
+    } else if (type === 0x004e4942) {
+      bin = buffer.slice(start, start + length);
+    }
+    offset = start + length;
+  }
+  return { json, bin };
+}
+
+function components(type) {
+  return type === 'SCALAR' ? 1 : type === 'VEC2' ? 2 : type === 'VEC3' ? 3 : type === 'VEC4' ? 4 : 0;
+}
+
+function accessorArray(json, bin, index) {
+  const accessor = json.accessors[index];
+  const view = json.bufferViews[accessor.bufferView];
+  if (accessor.componentType !== 5126) throw new Error('Only float attributes are supported');
+  const comps = components(accessor.type);
+  const source = new DataView(bin, (view.byteOffset || 0) + (accessor.byteOffset || 0), view.byteLength);
+  const stride = view.byteStride || comps * 4;
+  const out = new Float32Array(accessor.count * comps);
+  for (let i = 0; i < accessor.count; i++) {
+    for (let c = 0; c < comps; c++) out[i * comps + c] = source.getFloat32(i * stride + c * 4, true);
+  }
+  return { array: out, comps, count: accessor.count };
+}
+
+const { json, bin } = parseGlb(await (await fetch(modelUrl, { cache: 'no-store' })).arrayBuffer());
+const group = new THREE.Group();
+group.rotation.x = -Math.PI / 2;
+scene.add(group);
+
+for (const mesh of json.meshes || []) {
+  for (const primitive of mesh.primitives || []) {
+    const attrs = primitive.attributes || {};
+    if (attrs.POSITION == null) continue;
+    const pos = accessorArray(json, bin, attrs.POSITION);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(pos.array, 3));
+    if (attrs.COLOR_0 != null) {
+      const color = accessorArray(json, bin, attrs.COLOR_0);
+      geometry.setAttribute('color', new THREE.BufferAttribute(color.array, color.comps));
+    }
+    geometry.computeVertexNormals();
+    const material = new THREE.MeshBasicMaterial({ vertexColors: attrs.COLOR_0 != null, side: THREE.DoubleSide });
+    group.add(new THREE.Mesh(geometry, material));
+  }
+}
+
+const box = new THREE.Box3().setFromObject(group);
+const center = box.getCenter(new THREE.Vector3());
+const size = box.getSize(new THREE.Vector3()).length() || 5;
+controls.target.copy(center);
+camera.position.copy(center).add(new THREE.Vector3(size * 0.35, size * 0.2, size * 0.9));
+camera.near = Math.max(0.01, size / 1000);
+camera.far = size * 10;
+camera.updateProjectionMatrix();
+controls.update();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function animate() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>`;
+}
+
 export async function GET(request, { params }) {
   try {
     const { ref } = await params;
@@ -37,6 +174,20 @@ export async function GET(request, { params }) {
     }
     if (!sketch.manifest) {
       return NextResponse.json({ error: `Sketch '${ref}' has no manifest` }, { status: 400 });
+    }
+
+    const coloredOverridePath = path.join(process.cwd(), 'data', 'exports', `${ref}_vertex_colored.glb`);
+    if (fs.existsSync(coloredOverridePath)) {
+      const download = ['1', 'true'].includes(request.nextUrl.searchParams.get('download'));
+      return new Response(glbViewerHtml({ ref, title: sketch.title || sketch.manifest?.title }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Disposition': download ? `attachment; filename="${htmlFilename(sketch, ref)}"` : 'inline',
+          'Cache-Control': 'no-store',
+          'X-Mojulo-World-Override': 'vertex-colored-glb',
+        },
+      });
     }
 
     // The kind → assemble*Scene dispatch lives in lib/graph/world-scene.js so the live

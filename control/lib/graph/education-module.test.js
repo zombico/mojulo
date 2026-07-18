@@ -7,7 +7,7 @@ import { listTools } from '@/lib/mcp/server';
 // The education module — math explainers, the sibling family to the science views. This test locks the
 // whole wiring end to end: routing → world-scene dispatch → MCP tool registration, for every kind.
 
-// the 13 kinds and the MCP tool that mints each (create_<snake>_view).
+// the 14 kinds and the MCP tool that mints each (create_<snake>_view).
 const TOOL_OF = {
   'transform-view': 'create_transform_view',
   'field-flow-view': 'create_field_flow_view',
@@ -22,10 +22,11 @@ const TOOL_OF = {
   'conics-view': 'create_conics_view',
   'derivative-view': 'create_derivative_view',
   'ftc-view': 'create_ftc_view',
+  'heat-sphere-view': 'create_heat_sphere_view',
 };
 
 describe('education module — routing', () => {
-  it('exposes exactly the 13 math-explainer kinds', () => {
+  it('exposes exactly the 14 math-explainer kinds', () => {
     expect(EDUCATION_VIEW_KINDS).toEqual(Object.keys(TOOL_OF));
   });
 
@@ -41,7 +42,7 @@ describe('education module — world-scene dispatch', () => {
   it('every kind resolves to a renderable payload (faces / raymarch / surfaces) + cameras', async () => {
     for (const kind of EDUCATION_VIEW_KINDS) {
       const { payload } = await resolveWorldScene({ ref: 't', title: kind, manifest: { kind } });
-      const content = (payload.faces && payload.faces.length) || payload.raymarch || (payload.surfaces && payload.surfaces.length);
+      const content = (payload.faces && payload.faces.length) || payload.raymarch || (payload.surfaces && payload.surfaces.length) || (payload.heatSpheres && payload.heatSpheres.length);
       expect(content, `${kind} produced no renderable content (dispatch miss?)`).toBeTruthy();
       expect(payload.cameras && payload.cameras.length, `${kind} has no cameras`).toBeTruthy();
     }

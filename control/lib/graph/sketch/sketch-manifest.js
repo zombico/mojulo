@@ -29,6 +29,11 @@
  * z-layering.md and app-system/0528/sketch-chart-vocab/PLAN.md.
  */
 
+import {
+  isImageOutcomesKind,
+  normalizeImageOutcomesManifest,
+} from '../image-outcomes/manifest.js';
+
 export const STATION_KINDS = ['input', 'mcp_tool', 'filesystem', 'db_row'];
 const STATION_KIND_SET = new Set(STATION_KINDS);
 export const EDGE_VIA_VALUES = ['right', 'left', 'top', 'bottom'];
@@ -606,6 +611,17 @@ export function validateSketchManifest(manifest) {
   if (!manifest || typeof manifest !== 'object') {
     return { ok: false, errors: ['manifest must be an object'] };
   }
+  // Image-outcomes kinds (director-layer scaffolds for external image
+  // generation) carry their own normalizer — they have forms/panels, not
+  // stations/marks. See lib/graph/image-outcomes/image-outcomes.plan.md.
+  if (isImageOutcomesKind(manifest.kind)) {
+    try {
+      normalizeImageOutcomesManifest(manifest);
+      return { ok: true, errors: [] };
+    } catch (err) {
+      return { ok: false, errors: [err.message] };
+    }
+  }
   if (!manifest.title || typeof manifest.title !== 'string') {
     errors.push('manifest.title is required (string)');
   }
@@ -764,7 +780,7 @@ export function expandGridLayout(manifest) {
 // concerns share the renderer today and are expected to diverge into separately
 // tuned renderers over time — the bucket is the seam they split along.
 
-export const BUCKETS = ['diagram', 'illustration', 'world', 'beats'];
+export const BUCKETS = ['diagram', 'illustration', 'world', 'beats', 'voice'];
 const BUCKET_SET = new Set(BUCKETS);
 
 // Kinds that render in a perspective / css3d / painterly context — the
@@ -780,11 +796,36 @@ export const ILLUSTRATION_KINDS = [
   'css3d-turntable',
   'room',
   'subway-station',
+  // Director-layer scaffolds for external image generation
+  // (image-outcomes.plan.md): looked-at artifacts, Maker concern.
+  'image-outcome',
+  'sequential-art',
+  'character-sheet',
 ];
 const ILLUSTRATION_KIND_SET = new Set(ILLUSTRATION_KINDS);
 
 export function isBucket(value) {
   return typeof value === 'string' && BUCKET_SET.has(value);
+}
+
+// A polygomer: a 3D manji-tree carrying lathe monomers (a top-level `lathes[]`
+// array or in-tree `kind:'lathe'` leaf nodes). Only lathes lower to baked world
+// faces (worlds/polygomer-world.js), so this is the exact membership test for
+// the turnable-World form; a 2D structural manji-tree, or a 3D one with no
+// lathes (bars/vajra wireframe only), has no face-lowerable mass and stays an
+// SVG still.
+function hasLatheLeaf(node) {
+  if (Array.isArray(node)) return node.some(hasLatheLeaf);
+  if (!node || typeof node !== 'object') return false;
+  if (node.kind === 'lathe') return true;
+  return Object.values(node).some(hasLatheLeaf);
+}
+
+export function isPolygomerManjiTree(manifest) {
+  if (!manifest || typeof manifest !== 'object' || manifest.kind !== 'manji-tree') return false;
+  if (manifest.dimensions !== '3d') return false;
+  if (Array.isArray(manifest.lathes) && manifest.lathes.length > 0) return true;
+  return hasLatheLeaf(manifest.tree);
 }
 
 // Concern bucket, in priority order: a traversable world is its own concern
@@ -794,8 +835,9 @@ export function isBucket(value) {
 // safe and keeps WORLD_RENDER_KINDS the single source of truth for membership.
 export function classifyBucket(manifest) {
   const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
-  if (WORLD_RENDER_SET.has(kind)) return 'world';
+  if (WORLD_RENDER_SET.has(kind) || isPolygomerManjiTree(manifest)) return 'world';
   if (BEATS_RENDER_SET.has(kind)) return 'beats';   // heard, not looked at — the Maker beats shelf
+  if (VOICE_RENDER_SET.has(kind)) return 'voice';   // spoken, not looked at — the Maker voice shelf
   return ILLUSTRATION_KIND_SET.has(kind) ? 'illustration' : 'diagram';
 }
 
@@ -815,7 +857,7 @@ export function classifyBucket(manifest) {
 // (cities, hubs) are navigable in three.js (depth-buffered, frustum-culled — the
 // DOM compositor stalls on the same geometry under a moving camera), while the
 // turntable stays a preset-shot CSS-3D scene.
-export const SVG_RENDER_KINDS = ['manji-tree', 'painted-landscape', 'carved-solid'];
+export const SVG_RENDER_KINDS = ['manji-tree', 'painted-landscape', 'carved-solid', 'image-outcome', 'sequential-art', 'character-sheet'];
 // 'planetary' is orbit-only — it has NO CSS-3D /scene fallback (the body in a celestial
 // sphere only reads under a free-orbit camera), so unlike the box-world kinds it does not
 // bake a /scene PNG gallery thumbnail (a documented v1 gap; see planetary.plan.md).
@@ -839,17 +881,26 @@ export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
 // Beats artifacts (beats.plan.md) — heard, not looked at. Rendered as a live
 // self-contained audio-player page at /api/sketches/<ref>/beats in an <iframe>.
 export const BEATS_RENDER_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
+// Voice registers (voice-worker.plan.md) — recipes for how a voice sounds;
+// no in-plane render at all (an external worker speaks them). The /maker/voice
+// shelf shows the recipe itself: axes, resolved blend weights, worker handoff.
+export const VOICE_RENDER_KINDS = ['voice-register'];
 const SVG_RENDER_SET = new Set(SVG_RENDER_KINDS);
 const WORLD_RENDER_SET = new Set(WORLD_RENDER_KINDS);
 const SCENE_RENDER_SET = new Set(SCENE_RENDER_KINDS);
 const BEATS_RENDER_SET = new Set(BEATS_RENDER_KINDS);
+const VOICE_RENDER_SET = new Set(VOICE_RENDER_KINDS);
 
 export function sketchRenderMode(manifest) {
   const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
   if (WORLD_RENDER_SET.has(kind)) return 'world';
+  // A polygomer manji-tree is a turnable World (registered in world-kinds.js);
+  // the structural 2D manji-tree stays an SVG still below.
+  if (isPolygomerManjiTree(manifest)) return 'world';
   if (SCENE_RENDER_SET.has(kind)) return 'scene';
   if (SVG_RENDER_SET.has(kind)) return 'svg';
   if (BEATS_RENDER_SET.has(kind)) return 'beats';
+  if (VOICE_RENDER_SET.has(kind)) return 'voice';   // spoken, not looked at
   if (kind === 'game') return 'game';   // played, not looked at — the game shell (create_game)
   return 'diagram';
 }

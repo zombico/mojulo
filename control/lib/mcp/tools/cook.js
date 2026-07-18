@@ -1500,7 +1500,7 @@ export function registerCookTools() {
             format: {
               type: 'string',
               enum: ['american-comic', 'sunday-strip', 'manga-tankobon', 'webtoon'],
-              description: "Comic-only. Format preset resolving to (pagination, reading_direction, aspect). Defaults to 'american-comic'. 'manga-tankobon' is R→L; 'webtoon' is vertical-scroll (no page breaks).",
+              description: "Comic-only. Format preset resolving to (pagination, reading_direction, aspect). Defaults to 'american-comic'. 'manga-tankobon' is R→L; 'webtoon' is vertical-scroll (no page breaks). NOTE: cook PUBLISHES existing sketches as pages — it does not draw them. To CREATE AI-painted comic/manga pages first, mint `sequential-art` sketches via create_sketch (style presets, page recipes, character sheets) and drive the external image worker via `get_image_render_packet`; then gather those pages into the stash this cook publishes.",
             },
             fidelity: {
               type: 'string',

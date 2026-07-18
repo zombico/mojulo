@@ -27,6 +27,8 @@
  * `GARMENTS` table is the validated wardrobe. See the plan's CLOTHING PRINCIPLES canon.
  */
 
+import { drapeSheet } from './wave-field.js';
+
 // cloth colors (vexar-lit like flesh — Lambert over these base hexes)
 const TEE_HEX = '#3f6f93';     // shirt
 const SHORTS_HEX = '#2f3a4c';  // shorts
@@ -551,6 +553,64 @@ export function garmentCoverage(body, spec) {
   return ids;
 }
 
+// ── wave-drape: a hanging cloth SHEET (cape / cloak / tabard / mantle) ─────────
+// The cape model (0624 cape-walk spike) promoted to a production garment piece.
+// A drape is not a tailored shell (shieldRings/basin) but a 2D HEIGHT-FIELD over
+// a 4-corner quad pinned to body anchors — the same `wave-field` primitive that
+// is a first-class creatable mesh (manji leaf mark). That is why a drape is
+// PROVABLY creatable: its shape is a bounded superposition of plane waves, so a
+// dreamed drape either fits the wave-field (and its fitted params ARE the recipe)
+// or names a vocabulary gap.
+//   • corners  — top edge PINNED to the shoulders, hem corners flared + dropped.
+//   • sag      — baked into the hem corners (gravity, not a solver).
+//   • folds    — a rest superposition (phase 0); a moving cape adds a gait phase.
+//   • pin→free — the wave is scaled 0 at the anchored top edge → 1 at the free hem.
+// Output is an OPEN sheet (flag `sheet:true`) the mesher renders TWO-SIDED; the
+// same svgile-row cuts still carve it (e.g. a neck yoke). Multiple wave-drape
+// pieces COMPOSE in one spec (a back panel + front lapels + a collar). The drape
+// GEOMETRY is the form-agnostic `drapeSheet` kernel (wave-field.js) — this file
+// only supplies the HUMAN anchor resolution; any other form pins its own edge.
+
+// The top edge a drape pins to, as a left/right pair of body-space points. Every
+// anchor resolves from the body's OWN parts, so one spec pins on any figure:
+//   shoulders — a wide cape/cloak/mantle hung from the deltoids (ring[0] = shoulder).
+//   waist     — a tabard/apron/half-cape hung from the hip girdle at the waistline.
+//   neck      — a short mantle/cowl hung from the neck (a narrow top edge).
+function drapeTopEdge(body, anchor) {
+  const find = (id) => body.find((p) => p.id === id);
+  const topRing = (st) => st.rings.reduce((a, b) => (b.center.z > a.center.z ? b : a));   // highest ring
+  const meanR = (rg) => { let s = 0; for (const p of rg.polyline) s += Math.hypot(p.x - rg.center.x, p.y - rg.center.y, p.z - rg.center.z); return s / rg.polyline.length; };
+  if (anchor === 'waist') {
+    const l = find('hipCapL'), r = find('hipCapR');
+    if (!l || !r) return null;
+    return { cL: topRing(l).center, cR: topRing(r).center };
+  }
+  if (anchor === 'neck') {
+    const nk = find('neck'); if (!nk) return null;
+    const rg = topRing(nk), c = rg.center, rad = meanR(rg);       // narrow edge straddling the neck axis
+    return { cL: { x: c.x - rad, y: c.y, z: c.z }, cR: { x: c.x + rad, y: c.y, z: c.z } };
+  }
+  // shoulders (default)
+  const l = find('upperArmL'), r = find('upperArmR');
+  if (!l || !r) return null;
+  return { cL: l.rings[0].center, cR: r.rings[0].center };        // ring[0] = the shoulder (top of the arm)
+}
+
+export function buildWaveDrape(body, piece, cloth) {
+  const edge = drapeTopEdge(body, piece.anchor ?? 'shoulders');
+  if (!edge) return null;                                         // the anchor's body parts are absent
+  // The human path only resolves the anchor edge; the drape GEOMETRY (corners,
+  // sag, folds, pin→free) is the shared form-agnostic kernel. hemZ stays a
+  // fraction of the anchor height (the figure convention) unless the piece overrides.
+  const hemZ = piece.hemZ != null ? piece.hemZ : edge.cL.z * 0.16;
+  const { rings } = drapeSheet({
+    cL: edge.cL, cR: edge.cR, hang: piece.hang, back: piece.back, drop: piece.drop,
+    flare: piece.flare, hemZ, spread: piece.spread, waves: piece.waves,
+    pinToFree: piece.pinToFree, samples: piece.samples,
+  });
+  return { rings, hex: cloth };
+}
+
 /**
  * Build a garment over a body from a declarative spec.
  * @param {Array<{id,rings}>} body  buildProtoform output
@@ -565,6 +625,13 @@ export function buildGarment(body, spec) {
   for (const piece of spec.pieces) {
     const pieceCloth = piece.cloth ?? cloth;
     const fit = piece.fit ?? 'hug';
+    if (fit === 'wave-drape') {
+      // a hanging SHEET (cape/cloak/tabard) as a wave-field — an OPEN two-sided
+      // panel (sheet:true), not a closed shell. Composes with other pieces.
+      const dp = buildWaveDrape(body, piece, pieceCloth);
+      if (dp) out.push({ id: `${spec.id}:${piece.id ?? 'drape'}`, rings: dp.rings, hex: dp.hex, sheet: true, panel: piece.panel });
+      continue;
+    }
     if (fit === 'radial') {
       // fill ONE segment's verified golden-ratio plan as a cloth cap (the bust
       // method, applied to garment coverage). `term` is the tuned terminator.
@@ -725,6 +792,15 @@ export const GARMENTS = {
   wetsuit: { id: 'wetsuit', color: { cloth: '#222a36' }, pieces: [{ coverage: ['body'], fit: 'hug', thickness: 0.06, taperEnds: { forearm: 'tail', leg: 'tail' } }] },
   tee: { id: 'tee', color: { cloth: '#3f6f93' }, pieces: [{ coverage: ['torso'], fit: 'hull', clearance: 0.18 }, { coverage: ['upperArms'], fit: 'hug', thickness: 0.05 }] },
   tank: { id: 'tank', color: { cloth: '#6a8f5a' }, pieces: [{ coverage: ['torso'], fit: 'drape', anchor: 'shoulders', clearance: 0.12 }] },
+  // CLOAK — a shoulder-pinned wave-field sheet hanging behind the body (the cape
+  // model as a wardrobe key). Composes over any top: figure garment ['tee','cloak'].
+  cloak: { id: 'cloak', color: { cloth: '#6d2f3a' }, pieces: [{ fit: 'wave-drape', anchor: 'shoulders', hang: 'back', back: 1.0, drop: 3.2, flare: 1.35 }] },
+  // TABARD — a front panel hung from the waistline (waist anchor), a short drop.
+  tabard: { id: 'tabard', color: { cloth: '#2f4a6d' }, pieces: [{ fit: 'wave-drape', anchor: 'waist', hang: 'front', back: 0.3, drop: 1.8, flare: 1.1 }] },
+  // MANTLE — a short shoulder-cape (shoulders anchor, shallow drop).
+  mantle: { id: 'mantle', color: { cloth: '#5a4a2f' }, pieces: [{ fit: 'wave-drape', anchor: 'shoulders', hang: 'back', back: 0.9, drop: 1.6, flare: 1.5 }] },
+  // COWL — a neck-anchored short cape fanned wide across the shoulders (spread).
+  cowl: { id: 'cowl', color: { cloth: '#3a4a3a' }, pieces: [{ fit: 'wave-drape', anchor: 'neck', hang: 'back', spread: 4.0, back: 0.6, drop: 1.5, flare: 1.4 }] },
   dress: { id: 'dress', color: { cloth: '#7a4a6a' }, pieces: [{ coverage: ['torso', 'seat'], fit: 'drape', anchor: 'shoulders', clearance: 0.14, sag: 0.1 }] },
   // GOWN — a floor-length shoulder drape (torso → seat → legs unioned into one bell, ankle to
   // shoulder). Static here like any garment; it FLOWS when run through cloth-flow.js `flowDrape`.
@@ -1409,4 +1485,91 @@ export function cutBoundary(rings, cuts) {
     }
   }
   return segs;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INLINE-SPEC VALIDATION — the wardrobe-piece authoring gate (create_figure).
+//
+// A garment has always been pure data resolved against any body (buildGarment),
+// but the MCP surface only admitted GARMENTS keys. This validator opens the
+// authoring door to INLINE specs (character-from-dream.plan.md C0b/C1: a
+// dreamed wardrobe piece minted as data, superposed with its own mugen score)
+// while keeping the closed-vocabulary discipline: unknown fit/cut kinds are
+// refused at mint, not discovered as silent no-ops at render.
+
+export const GARMENT_FIT_KINDS = ['hug', 'hull', 'drape', 'wave-drape', 'radial', 'pelvis', 'torso', 'shoulders', 'sleeve', 'sash'];
+export const GARMENT_CUT_KINDS = ['wedge', 'band', 'capsule', 'hole', 'halfspace', 'all', 'neck', 'armhole'];
+
+/**
+ * Validate an inline garment spec (the `buildGarment` input shape).
+ * Mirrors validateFluffs: returns an array of error strings (empty = valid).
+ */
+export function validateGarmentSpec(spec, label = 'garment') {
+  const errors = [];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
+    return [`${label}: an inline garment must be an object ({ id, color?, pieces, cuts?, panels? })`];
+  }
+  if (!spec.id || typeof spec.id !== 'string') errors.push(`${label}.id: required (string) — names the piece's stacks`);
+  if (spec.color !== undefined) {
+    if (!spec.color || typeof spec.color !== 'object') errors.push(`${label}.color: must be { cloth, under? }`);
+    else for (const k of ['cloth', 'under']) {
+      if (spec.color[k] !== undefined && !/^#[0-9a-fA-F]{3,8}$/.test(spec.color[k])) errors.push(`${label}.color.${k}: must be a hex color`);
+    }
+  }
+  if (!Array.isArray(spec.pieces) || spec.pieces.length === 0) {
+    errors.push(`${label}.pieces: required (non-empty array of { fit, coverage?/segment?, clearance?, … })`);
+  } else {
+    spec.pieces.forEach((piece, i) => {
+      if (!piece || typeof piece !== 'object') { errors.push(`${label}.pieces[${i}]: must be an object`); return; }
+      const fit = piece.fit ?? 'hug';
+      if (!GARMENT_FIT_KINDS.includes(fit)) errors.push(`${label}.pieces[${i}].fit: '${fit}' is not one of ${GARMENT_FIT_KINDS.join(' | ')}`);
+      for (const k of ['clearance', 'thickness', 'sag', 'term']) {
+        if (piece[k] !== undefined && !(Number.isFinite(piece[k]) && piece[k] >= 0 && piece[k] <= 2)) {
+          errors.push(`${label}.pieces[${i}].${k}: must be a number in [0, 2]`);
+        }
+      }
+      if (piece.coverage !== undefined && (!Array.isArray(piece.coverage) || piece.coverage.some((c) => typeof c !== 'string'))) {
+        errors.push(`${label}.pieces[${i}].coverage: must be an array of region/stack names`);
+      }
+    });
+  }
+  for (const [field, decls] of [['cuts', spec.cuts], ['panels', (spec.panels || []).map((p) => p?.region)]]) {
+    if (spec[field] === undefined) continue;
+    if (!Array.isArray(spec[field])) { errors.push(`${label}.${field}: must be an array`); continue; }
+    decls.forEach((d, i) => {
+      const kind = d?.kind;
+      if (!GARMENT_CUT_KINDS.includes(kind)) errors.push(`${label}.${field}[${i}]: kind '${kind}' is not one of ${GARMENT_CUT_KINDS.join(' | ')}`);
+    });
+  }
+  return errors;
+}
+
+// The wardrobe keys create_figure accepts by name (the baked GARMENTS enum).
+export const GARMENT_KEYS = Object.keys(GARMENTS);
+
+/**
+ * Validate the create_figure-shaped `garment` FIELD — the single source both
+ * create_figure and the character-sheet body channel gate against. Accepts a
+ * wardrobe key, an inline spec object (validateGarmentSpec), or an array that
+ * LAYERS keys/specs. Returns an array of error strings (empty = valid); null
+ * (bare body) is valid.
+ */
+export function validateGarmentField(garment, label = 'garment') {
+  if (garment == null) return [];
+  const entries = Array.isArray(garment) ? garment : [garment];
+  if (entries.length === 0) return [`${label}: an array must be non-empty (or omit \`garment\` for a bare body)`];
+  const errors = [];
+  entries.forEach((entry, i) => {
+    const lbl = Array.isArray(garment) ? `${label}[${i}]` : label;
+    if (typeof entry === 'string') {
+      if (!GARMENT_KEYS.includes(entry)) {
+        errors.push(`${lbl}: '${entry}' is not a wardrobe key (${GARMENT_KEYS.join(' | ')}) — or pass an inline spec object`);
+      }
+    } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      errors.push(...validateGarmentSpec(entry, lbl));
+    } else {
+      errors.push(`${lbl}: must be a wardrobe key or an inline spec object ({ id, pieces, … })`);
+    }
+  });
+  return errors;
 }

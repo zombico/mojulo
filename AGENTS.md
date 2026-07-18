@@ -29,6 +29,7 @@ For comparison, Claude Code uses `claude mcp add --transport http mojulo http://
 ## After you're connected
 
 - Call `forward_context` once at session start. The `initialize` preamble is deliberately tiny, and `forward_context` stays intentionally lean; heavier orientation lives behind its sibling drawers.
+- When a mojulo tool **rejects an input the schema appears to permit** (a motion spec, a nested object, an enum-like string), isolate the constraint with a minimal probe before falling back — do not treat the first rejection as the tool's true limit. Most such rejections are a param that needs an explicit shape (author nested values as real JSON objects, not stringified) or an unknown name where a clear error lists the valid set. Read that error; it usually names the fix. Reach for a different family only once you've confirmed the surface actually can't express the request.
 - When materializing a catalyst, read the **Codex host adapter** at [control/lib/mcp/adapters/codex.md](control/lib/mcp/adapters/codex.md). It tells you which artifact target to pick (Codex automation, workspace workflow file, or inline one-shot), how to bake the dry-run pattern in, where to put cursors, and how to handle secrets.
 - The catalyst body itself ([control/lib/mcp/catalysts/](control/lib/mcp/catalysts/)) is host-neutral. Combine it with the Codex adapter rules to produce the runnable artifact — don't write `.claude/skills/` files; that's Claude-specific.
 

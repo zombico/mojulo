@@ -3,7 +3,7 @@
 exports[`world-scene kinds — per-arm characterization > every dispatch arm resolves its fixture to a stable { title, hash } snapshot 1`] = `
 {
   "assembler": {
-    "hash": "a2875276",
+    "hash": "80ecfdc6",
     "title": "mojulo assembler",
   },
   "atmosphere-view": {
@@ -23,7 +23,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo chain reaction",
   },
   "cellular-view": {
-    "hash": "ed9da4c3",
+    "hash": "04156ad6",
     "title": "mojulo cell",
   },
   "cherenkov-view": {
@@ -119,7 +119,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo lightning storm",
   },
   "mechanics-view": {
-    "hash": "37d64cb5",
+    "hash": "8d6774b1",
     "title": "mojulo mechanics",
   },
   "molecule-view": {
@@ -171,7 +171,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo quadratic",
   },
   "reactor-view": {
-    "hash": "11115ca6",
+    "hash": "f1b9a1e1",
     "title": "mojulo reactor",
   },
   "restaurant": {
@@ -231,7 +231,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo vector match",
   },
   "vehicle-instance": {
-    "hash": "6d0b28dc",
+    "hash": "a355998c",
     "title": "workbench · airliner",
   },
   "wavepacket-view": {
@@ -243,7 +243,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo windmill",
   },
   "workbench": {
-    "hash": "9b010d71",
+    "hash": "705f5de1",
     "title": "mojulo workbench",
   },
 }

@@ -303,6 +303,53 @@ describe('gesturePlan / cuePlan — the foley vocabulary', () => {
     expect(a.map((o) => o.kind)).toEqual(['sweep', 'noise']);
     expect(K.cuePlan(cue)).toEqual(a);
   });
+
+  it('grain scatters seeded band-shaped noise ops — same seed same grit, new seed new grit', () => {
+    const g = { type: 'grain', grains: 8, over: 0.2, decay: [0.01, 0.03], band: { lo: 800, hi: 4000 }, seed: 7 };
+    const ops = K.gesturePlan(g);
+    expect(ops).toHaveLength(8);
+    ops.forEach((o) => {
+      expect(o.kind).toBe('noise');
+      expect(o.at).toBeGreaterThanOrEqual(0);
+      expect(o.at).toBeLessThanOrEqual(0.2);
+      expect(o.decay).toBeGreaterThanOrEqual(0.01);
+      expect(o.decay).toBeLessThanOrEqual(0.03);
+      expect(o.highpass).toBe(800);
+      expect(o.lowpass).toBe(4000);
+    });
+    for (let i = 1; i < ops.length; i++) expect(ops[i].at).toBeGreaterThanOrEqual(ops[i - 1].at);
+    expect(K.gesturePlan(g)).toEqual(ops);
+    expect(K.gesturePlan({ ...g, seed: 8 })).not.toEqual(ops);
+  });
+
+  it('ring lowers material partials to flat thumps — brights die first', () => {
+    const ops = K.gesturePlan({ type: 'ring', note: 'C7', material: 'glass' });
+    expect(ops.length).toBeGreaterThanOrEqual(4);
+    ops.forEach((o) => { expect(o.kind).toBe('thump'); expect(o.from).toBeCloseTo(o.to, 9); });
+    expect(ops[0].from).toBeCloseTo(K.noteHz('C7'), 3);
+    for (let i = 1; i < ops.length; i++) {
+      expect(ops[i].from).toBeGreaterThan(ops[i - 1].from);
+      expect(ops[i].decay).toBeLessThan(ops[i - 1].decay);
+    }
+    const custom = K.gesturePlan({ type: 'ring', hz: 1000, partials: [{ ratio: 1 }, { ratio: 3.1, gain: 0.5, decay: 0.4 }] });
+    expect(custom).toHaveLength(2);
+    expect(custom[1].from).toBeCloseTo(3100, 3);
+  });
+
+  it('flutter jitter wobbles timing and pitch, seeded; jitter 0 is the pre-spike path', () => {
+    const base = { type: 'flutter', rateHz: 13, hold: 1, tiers: [{ at: 0, table: ['D3'] }] };
+    const straight = K.gesturePlan(base);
+    expect(K.gesturePlan({ ...base, jitter: 0 })).toEqual(straight);
+    const creak = K.gesturePlan({ ...base, jitter: 0.8, seed: 3 });
+    expect(creak).toHaveLength(straight.length);
+    expect(creak).not.toEqual(straight);
+    expect(K.gesturePlan({ ...base, jitter: 0.8, seed: 3 })).toEqual(creak);
+    const hz = K.noteHz('D3');
+    creak.forEach((o) => {
+      expect(o.hz).toBeGreaterThan(hz * Math.pow(2, -80 / 1200) - 1e-9);
+      expect(o.hz).toBeLessThan(hz * Math.pow(2, 80 / 1200) + 1e-9);
+    });
+  });
 });
 
 describe('audio-patches', () => {

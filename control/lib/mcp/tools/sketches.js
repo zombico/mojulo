@@ -22,8 +22,10 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { exportsBaseDir } from './exports-dir.js';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
+import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
+import { facesToStl } from '@/lib/graph/scene/scene-stl';
 import {
   validateSketchManifest,
   expandGridLayout,
@@ -32,6 +34,29 @@ import {
   MARK_KINDS,
 } from '@/lib/graph/sketch/sketch-manifest';
 import { expandNeoRembrandt } from '@/lib/graph/neo-rembrandt/index.js';
+import {
+  isImageOutcomesKind,
+  normalizeImageOutcomesManifest,
+  renderTargets,
+  parseKeyframeTarget,
+  KIND_IMAGE_OUTCOME,
+  KIND_SEQUENTIAL_ART,
+  KIND_CHARACTER_SHEET,
+  KIND_KEYFRAME_ANIMATION,
+  KIND_SCENE_MOTION,
+} from '@/lib/graph/image-outcomes/manifest';
+import { STYLE_VOCAB, STYLE_PRESETS, isStylePreset, resolveStyle } from '@/lib/graph/image-outcomes/styles';
+import {
+  buildRenderInstructions,
+  buildCharacterSheetInstructions,
+} from '@/lib/graph/image-outcomes/instructions';
+import { latestBoundSheet, nextSheetPath } from '@/lib/graph/image-outcomes/sheet-store';
+import { buildLocalRenderParams } from '@/lib/graph/image-outcomes/local-render-params';
+import { nextRenderPath, boundRenderMap } from '@/lib/graph/image-outcomes/render-store';
+import sharp from 'sharp';
+import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
+import { reskinManjiSvg, rasterSampler, analyzeSkin } from '@/lib/graph/polygonizer/skin-projection';
+import { nextSkinPath, skinInputPath, latestSkin } from '@/lib/graph/polygonizer/skin-store';
 import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import {
   getSketchVocabCard,
@@ -163,6 +188,34 @@ export function resolvePreloadSketch(preloadRef) {
 }
 
 /**
+ * Resolve `characters: [{ ref: 'sk_…' }]` entries on a sequential-art or
+ * image-outcome manifest against stored character-sheet sketches — the
+ * reuse seam: a character minted once (its own `sk_` ref, its own bound
+ * sheet render) can be pulled into any comic page or single shot by ref.
+ * The referenced sheet's character block is inlined (so the stored
+ * manifest stays self-contained and deterministic) and the ref is kept
+ * for provenance + bound-PNG lookup. Inline fields on the entry override
+ * the sheet's (rename an id locally, trim outfits); pure-inline entries
+ * pass through untouched.
+ */
+export function resolveCharacterRefs(manifest) {
+  const castsCharacters = manifest?.kind === KIND_SEQUENTIAL_ART || manifest?.kind === KIND_IMAGE_OUTCOME;
+  if (!castsCharacters || !Array.isArray(manifest.characters)) return manifest;
+  const characters = manifest.characters.map((entry, i) => {
+    if (!entry || typeof entry !== 'object' || !entry.ref || entry.description) return entry;
+    const sheet = SketchRepository.getByRef(entry.ref);
+    if (!sheet) {
+      throw new Error(`characters[${i}]: character-sheet '${entry.ref}' not found — mint it via create_sketch { kind: 'character-sheet' } first`);
+    }
+    if (sheet.manifest?.kind !== KIND_CHARACTER_SHEET) {
+      throw new Error(`characters[${i}]: '${entry.ref}' is kind '${sheet.manifest?.kind}', not a character-sheet`);
+    }
+    return { ...sheet.manifest.character, ...entry };
+  });
+  return { ...manifest, characters };
+}
+
+/**
  * Validate + persist a sketch, returning { ok, ref, url }. Shared by the
  * create_sketch MCP tool AND the plan-mode / research-mode auto-mint path
  * (which derives a manifest deterministically, then persists it here). Keeping
@@ -194,6 +247,34 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
       throw new Error(`Folder '${folderRef}' not found`);
     }
   }
+  let finalized;
+  if (isImageOutcomesKind(manifest?.kind)) {
+    // Image-outcomes kinds (director scaffolds for external image
+    // generation) bypass the diagram pipeline — no recipe lowering, no
+    // Rendrant expansion. The stored manifest is the normalized form so
+    // the contract version, depth sort, and defaults are pinned at mint.
+    try {
+      finalized = normalizeImageOutcomesManifest(resolveCharacterRefs(manifest));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message}`);
+    }
+    // Scene cohesion (load-bearing shared source): when a scene declares no
+    // explicit plate style, the plate INHERITS the lead cast clip's style at
+    // mint, so the background is painted in the same look as the characters —
+    // "background watercolor = character watercolor" by construction, no check.
+    if (finalized.kind === KIND_SCENE_MOTION && !finalized.renderBrief) {
+      const lead = finalized.cast?.[0];
+      // clipRef may be a keyframe SKETCH ref (sk_ or a custom ref) or a forged
+      // motion (mo_, not in the sketch store). Look up the sketch; inherit its
+      // style when present. A mo_ ref simply resolves to null and is skipped.
+      if (lead && !/^mo_/i.test(lead.clipRef)) {
+        const clipBrief = SketchRepository.getByRef(lead.clipRef)?.manifest?.renderBrief;
+        if (clipBrief) {
+          finalized = { ...finalized, renderBrief: clipBrief, plateStyleInheritedFrom: lead.clipRef };
+        }
+      }
+    }
+  } else {
   // Lower a recipe-shaped manifest into a drawable one. Recipe shape means
   // `manifest.recipe = { kind: 'architecturalConstruction', style: 'victorian',
   // … }` — typically the terminal call from a `sketch_what_possible` knob-
@@ -217,7 +298,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   // pick the best-scoring seed / cut a door into a stranded room, and stamp a `quality` grade so
   // the stored manifest carries its own quality signal. The render path stays pure (it just
   // regenerates this manifest). Grading must never block minting, so fall back on any error.
-  let finalized = expanded;
+  finalized = expanded;
   try {
     finalized = improveFloorplanManifest(expanded);
   } catch {
@@ -227,6 +308,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   const { ok, errors } = validateSketchManifest(finalized);
   if (!ok) {
     throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);
+  }
   }
 
   let sketch;
@@ -337,9 +419,25 @@ export async function updateSketchHandler(input) {
       + 'snapshots a revision). Read it first with get_beats.',
     );
   }
+  // Voice guard rail: a voice register is not an SVG manifest either — the
+  // sketch validator would mangle it. Re-mint through the domain tool.
+  if (existingSketch?.manifest && isVoiceRegisterKind(existingSketch.manifest.kind)) {
+    throw new Error(
+      `'${ref}' is a voice register — re-mint a variant with create_voice (read it first `
+      + 'with get_voice; the capability manual is get_voice_vocab).',
+    );
+  }
 
   let nextManifest;
-  if (manifest !== undefined) {
+  if (manifest !== undefined && isImageOutcomesKind(manifest?.kind)) {
+    // Image-outcomes kinds skip the diagram pipeline; store the normalized
+    // form (same gate as mintSketch).
+    try {
+      nextManifest = normalizeImageOutcomesManifest(resolveCharacterRefs(manifest));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message}`);
+    }
+  } else if (manifest !== undefined) {
     let expanded;
     try {
       expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(manifest)));
@@ -400,6 +498,43 @@ export async function getSketchVocabHandler(input) {
   return { card };
 }
 
+const STYLE_AUTHOR_NOTE =
+  'Presets are TEMPLATES, not a closed gate. Author a style on renderBrief three ways: '
+  + '(1) preset (+ dials); (2) preset + overrides { style?, mood?, lighting?, lock:[extra lines], negative:[extra lines] } to FORK a template; '
+  + '(3) a fully inline custom style { id, style, mood, lighting, lock:[...], negative:[...] } with no preset. '
+  + 'Applying the SAME style to a scene’s cast clips and its plate is what makes the scene cohesive (the plate inherits the cast style by default).';
+
+export async function getStyleVocabHandler(input) {
+  const id = input && typeof input === 'object' ? input.id : undefined;
+  if (id === undefined || id === null || id === '') {
+    return {
+      note: STYLE_AUTHOR_NOTE,
+      presets: STYLE_PRESETS.map((p) => ({
+        preset: p,
+        name: STYLE_VOCAB[p].name,
+        style: STYLE_VOCAB[p].style,
+        dials: Object.keys(STYLE_VOCAB[p].dials),
+      })),
+    };
+  }
+  if (typeof id !== 'string') throw new Error('`id` must be a style preset name (string)');
+  if (!isStylePreset(id)) {
+    throw new Error(`No style preset '${id}'. Available: ${STYLE_PRESETS.join(', ')} (or author a custom style — see note).`);
+  }
+  const resolved = resolveStyle(id); // default dials
+  return {
+    preset: id,
+    name: resolved.name,
+    style: resolved.style,
+    mood: resolved.mood,
+    lighting: resolved.lighting,
+    lock: resolved.lock,
+    negative: resolved.negative,
+    dials: STYLE_VOCAB[id].dials, // full dial spec (kinds, poles/values, defaults, bands/phrases)
+    fork: STYLE_AUTHOR_NOTE,
+  };
+}
+
 export async function diffSketchesHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('diff_sketches requires { left_ref, right_ref }');
@@ -452,6 +587,12 @@ export async function diffSketchesHandler(input) {
     throw new Error(
       'These are beats artifacts — use diff_beats { refA, refB } (accepts ref@rev) for a '
       + 'structured musical diff: tempo/track/grid/progression changes, not SVG geometry.',
+    );
+  }
+  if ((left.manifest && isVoiceRegisterKind(left.manifest.kind)) || (right.manifest && isVoiceRegisterKind(right.manifest.kind))) {
+    throw new Error(
+      'These are voice registers — compare them by reading both with get_voice: the recipes are '
+      + 'two axes + a blend, small enough to diff by eye, not SVG geometry.',
     );
   }
 
@@ -602,23 +743,33 @@ export async function createPolygonizedSketchHandler(input) {
 export { exportsBaseDir };
 
 /**
- * export_model — serialize a stored sketch's traversable World as a .glb.
+ * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
  *
  * Resolves the SAME baked geometry the /world route renders (via the shared
- * world-scene seam), so the exported mesh matches the live World. Returns the
- * download URL plus, when `write` is true (default), an on-disk path the host agent
- * can open or move. Sketches with no World form return { ok:false, eligible:false }.
+ * world-scene seam), so the exported mesh matches the live World. `format: 'glb'`
+ * (default) is the faithful depiction capture (vertex colours, named group nodes);
+ * `format: 'stl'` is the 3D-printing handoff — bare binary triangle soup for
+ * slicers, colour and grouping deliberately dropped, `scale` mapping world units
+ * to millimetres. Returns the download URL plus, when `write` is true (default),
+ * an on-disk path the host agent can open or move. Sketches with no World form
+ * return { ok:false, eligible:false }.
  */
 export async function exportModelHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true } = input;
+  const { ref, write = true, format = 'glb', scale = 1 } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
+  }
+  if (format !== 'glb' && format !== 'stl') {
+    throw new Error("`format` must be 'glb' or 'stl' if provided");
+  }
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new Error('`scale` must be a positive number if provided');
   }
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) {
@@ -629,8 +780,12 @@ export async function exportModelHandler(input) {
   }
 
   const { payload, kind } = await resolveWorldScene(sketch);
-  const exported = payload ? facesToGlb(payload, { generator: `mojulo ${ref}` }) : null;
-  const url = `/api/sketches/${encodeURIComponent(ref)}/model.glb`;
+  const exported = payload
+    ? (format === 'stl'
+      ? facesToStl(payload, { scale, generator: `mojulo ${ref}` })
+      : facesToGlb(payload, { generator: `mojulo ${ref}` }))
+    : null;
+  const url = `/api/sketches/${encodeURIComponent(ref)}/model.${format}`;
   if (!exported) {
     return {
       ok: false,
@@ -638,7 +793,7 @@ export async function exportModelHandler(input) {
       ref,
       kind: kind ?? null,
       reason:
-        'This sketch has no traversable World geometry to export. glTF export covers the World '
+        'This sketch has no traversable World geometry to export. Model export covers the World '
         + 'kinds (cities, transportation hubs, subway interiors, painted-landscape terrain, '
         + 'workbench/assembler studies, vehicle instances, the science views, and furnished rooms). '
         + 'Diagrams, charts, and CSS-3D-only turntables are not exportable.',
@@ -651,21 +806,389 @@ export async function exportModelHandler(input) {
     ok: true,
     ref,
     kind: kind ?? null,
-    format: 'glb',
+    format,
     url,
     bytes: exported.byteLength,
-    nodes: exported.nodeCount,
     vertices: exported.vertexCount,
     triangles: exported.triangleCount,
   };
+  if (format === 'glb') result.nodes = exported.nodeCount;
+  else {
+    // the print handoff is shape-only and unverified-manifold; say so in-band
+    result.note =
+      'STL is bare triangle soup for slicers: colour/groups dropped, water/decals omitted, '
+      + 'repeats expanded, z-up, units read as mm (use `scale`). Not guaranteed manifold — '
+      + "let the slicer's mesh repair union open shells on import.";
+  }
   if (write) {
     const dir = exportsBaseDir();
     await fs.mkdir(dir, { recursive: true });
-    const file = path.join(dir, `${ref}.glb`);
+    const file = path.join(dir, `${ref}.${format}`);
     await fs.writeFile(file, exported.bytes);
     result.path = file;
   }
   return result;
+}
+
+/**
+ * get_image_render_packet — the read half of the image-outcomes render
+ * handoff (image-outcomes.plan.md I3): everything an external image-capable
+ * worker (the Codex/GPT agent first) needs to paint a minted
+ * image-outcome / sequential-art ref. Returns render instructions (built
+ * from the manifest — camera/pose phrasings + Style Lock when a style
+ * preset is set), the normalized manifest, and scaffold URLs (page + per-
+ * panel crops). Read-only and stateless — the durable request queue and
+ * `submit_image_render` are the gated remainder of I3; until they land the
+ * worker hands its PNG back to the operator out of band.
+ */
+export async function getImageRenderPacketHandler(input) {
+  const { ref, target } = input || {};
+  if (!ref || typeof ref !== 'string') {
+    throw new Error('get_image_render_packet requires { ref }');
+  }
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`Sketch '${ref}' not found`);
+  if (!isImageOutcomesKind(sketch.manifest?.kind)) {
+    throw new Error(
+      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — not an image-outcome/sequential-art `
+      + 'director packet. Mint one via create_sketch with those kinds (read the sketch_vocab cards).',
+    );
+  }
+  const manifest = normalizeImageOutcomesManifest(sketch.manifest);
+  const encoded = encodeURIComponent(sketch.ref || ref);
+  const isKeyframe = manifest.kind === KIND_KEYFRAME_ANIMATION;
+  const isScene = manifest.kind === KIND_SCENE_MOTION;
+  const scaffoldUrls = (panelId) => {
+    // A keyframe target's scaffold is that key's meru guide (the posed mannequin
+    // between register lines) — the raster the worker paints OVER — plus the
+    // per-key OpenPose skeleton as the structural (ControlNet) variant. A face
+    // variant re-renders the SAME pose, so it shares the key's guide.
+    if (isKeyframe) {
+      const { keyIndex } = parseKeyframeTarget(panelId ?? 'key-0');
+      return {
+        pngUrl: `/api/sketches/${encoded}/png?inline=1&key=${keyIndex}`,
+        controlPngUrl: `/api/sketches/${encoded}/png?inline=1&key=${keyIndex}&skeleton=1`,
+      };
+    }
+    // A scene-motion target's scaffold is the STAGE GUIDE — the declared ground
+    // plane (horizon + tick figures) the worker paints a background over. A
+    // cross-cut shot's plate target serves that shot's OWN stage guide.
+    if (isScene) {
+      const t = panelId ?? 'plate';
+      return { pngUrl: `/api/sketches/${encoded}/png?inline=1&plate=1&target=${encodeURIComponent(t)}` };
+    }
+    const panel = panelId ? `&panel=${encodeURIComponent(panelId)}` : '';
+    return {
+      svgUrl: `/api/sketches/${encoded}/svg?inline=1${panel}`,
+      pngUrl: `/api/sketches/${encoded}/png?inline=1&scale=2${panel}`,
+      // Geometry-only variant for structural conditioners (ControlNet):
+      // labels and dashed boxes stripped so they can't be traced into the art.
+      controlPngUrl: `/api/sketches/${encoded}/png?inline=1&scale=2&control=1${panel}`,
+    };
+  };
+
+  // Targets mirror the manifest's render strategy (the I3 expansion rule,
+  // shared with bind_image_render and the final composite).
+  const targets = renderTargets(manifest);
+
+  const resolvedTarget = target ?? targets[0];
+  if (!targets.includes(resolvedTarget)) {
+    throw new Error(
+      `target '${resolvedTarget}' is not a render target of '${ref}' (targets for its `
+      + `${manifest.kind === KIND_SEQUENTIAL_ART ? `'${manifest.renderStrategy}' strategy` : 'kind'}: ${targets.join(', ')})`,
+    );
+  }
+  const panelId = resolvedTarget === 'page' ? undefined : resolvedTarget;
+
+  const response = {
+    ok: true,
+    ref: sketch.ref || ref,
+    kind: manifest.kind,
+    title: manifest.title,
+    ...(manifest.kind === KIND_SEQUENTIAL_ART ? { renderStrategy: manifest.renderStrategy } : {}),
+    target: resolvedTarget,
+    targets,
+    // The step the spike showed workers skip: actually invoking image
+    // generation. The scaffold is conditioning input, never the deliverable —
+    // a worker that returns the wireframe has traced, not generated.
+    workerProtocol: [
+      ...(manifest.kind === KIND_CHARACTER_SHEET
+        ? [
+            '0. This target IS a character reference sheet — a reusable identity artifact. Generate it from `instructions` conditioned on the scaffold (the strip layout), then SUBMIT the PNG back via `bind_character_sheet { ref, image_path }` so mojulo can serve it as a conditioning reference to every future comic that casts this character.',
+          ]
+        : []),
+      ...(manifest.characters?.length
+        ? [
+            '0. FIRST — before any panel or shot: for each entry in `characterSheets`, if it carries `boundSheet`, FETCH that PNG (`boundSheet.url` / `boundSheet.path`) and use it as the identity reference — do NOT regenerate that character. Otherwise generate the sheet from its `instructions` (neutral-light turnaround strip, one row per outfit) and, when the entry has a `ref`, submit the PNG via `bind_character_sheet { ref, image_path }` so it is saved for reuse. Condition every panel or shot featuring a character on that character\'s sheet, and return any newly generated sheets alongside the artwork.',
+          ]
+        : []),
+      `1. Fetch the scaffold PNG (scaffold.pngUrl) — it is a wireframe control diagram, NOT the artifact.`,
+      '2. INVOKE your image-generation capability, conditioning on the scaffold image with `instructions` as the prompt.',
+      '3. Verify the output is a fully painted raster — no wireframe lines, flat colored polygons, stick figures, dashed boxes, or labels from the scaffold. If any survive, regenerate.',
+      ...(manifest.kind === KIND_CHARACTER_SHEET
+        ? ['4. Submit the sheet via `bind_character_sheet { ref, image_path }`.']
+        : [
+            `4. SUBMIT the generated PNG back via \`bind_image_render { ref: '${sketch.ref || ref}', target: '<this target>', image_path }\`. Once every target is bound, mojulo composites the finished page — borders, bubbles, and lettering re-imposed deterministically — at \`finalUrl\`, ready to publish (gather + cook comic).`,
+          ]),
+      ...(targets.length > 1
+        ? [`5. Repeat for each remaining target: ${targets.filter((t) => t !== resolvedTarget).join(', ')}.`]
+        : []),
+    ],
+    instructions: buildRenderInstructions(manifest, (isKeyframe || isScene) ? { target: resolvedTarget } : (panelId ? { panelId } : {})),
+    // Deterministic head start for a diffusion-backend worker (ComfyUI et
+    // al., local-render-worker.plan.md L1): compact prompt fragments,
+    // negatives, ControlNet strength, and pixel size. The driving agent
+    // appends its own beat/subject distillation before generating.
+    localParams: buildLocalRenderParams(manifest, resolvedTarget),
+    // Identity metadata: one reference-sheet brief per declared character.
+    // A character carrying a `ref` points at a standalone character-sheet
+    // sketch; when that sheet has a bound render, the PNG rides along as
+    // `boundSheet` — the stored conditioning reference.
+    ...(manifest.characters?.length
+      ? {
+          characterSheets: manifest.characters.map((c) => {
+            const bound = c.ref ? latestBoundSheet(c.ref) : null;
+            return {
+              id: c.id,
+              ...(c.name ? { name: c.name } : {}),
+              ...(c.ref ? { ref: c.ref } : {}),
+              outfits: c.outfits.map((o) => o.id),
+              ...(bound
+                ? { boundSheet: { n: bound.n, path: bound.path, url: `/api/sketches/${encodeURIComponent(c.ref)}/sheet.png` } }
+                : {}),
+              instructions: buildCharacterSheetInstructions(manifest, c.id),
+            };
+          }),
+        }
+      : {}),
+    ...(manifest.kind === KIND_CHARACTER_SHEET
+      ? (() => {
+          const bound = latestBoundSheet(sketch.ref || ref);
+          return bound
+            ? { boundSheet: { n: bound.n, path: bound.path, url: `/api/sketches/${encoded}/sheet.png` } }
+            : {};
+        })()
+      : {}),
+    scaffold: scaffoldUrls(panelId),
+    // Submitted-render bookkeeping: which targets already have a bound PNG
+    // (latest n per target), and the composite URL once all are bound.
+    ...(manifest.kind !== KIND_CHARACTER_SHEET
+      ? (() => {
+          const bound = boundRenderMap(sketch.ref || ref, targets);
+          const boundTargets = Object.keys(bound);
+          return {
+            ...(boundTargets.length
+              ? { boundRenders: Object.fromEntries(boundTargets.map((t) => [t, bound[t].n])) }
+              : {}),
+            // A keyframe animation / scene has no still `final.png` — the finished
+            // artifact is a forge_motion `mo_` GIF/MP4 (keyframe: stitched from the
+            // accepted cels; scene: composited from clips over the accepted plate).
+            ...(boundTargets.length === targets.length
+              ? (isKeyframe
+                  ? { allCelsAccepted: true }
+                  : isScene
+                    ? { sceneReady: true }
+                    : { finalUrl: `/api/sketches/${encoded}/final.png` })
+              : {}),
+          };
+        })()
+      : {}),
+    manifest,
+  };
+  if (panelId && !isKeyframe && !isScene) {
+    // The page scaffold rides along with every panel target — the page
+    // teaches layout and continuity, the crop teaches the local shot.
+    response.pageScaffold = scaffoldUrls();
+  }
+  return response;
+}
+
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+/**
+ * bind_character_sheet — the submit half of the character-sheet loop:
+ * the render worker (or the operator) hands back the generated sheet PNG
+ * and it is snapshotted, append-only, into the sketch's outcome folder.
+ * From then on every render packet for a comic casting this character
+ * serves the PNG as `boundSheet` — the stored conditioning reference.
+ */
+export async function bindCharacterSheetHandler(input) {
+  const { ref, image_path: imagePath, image_base64: imageBase64 } = input || {};
+  if (!ref || typeof ref !== 'string') throw new Error('bind_character_sheet requires { ref }');
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`Sketch '${ref}' not found`);
+  if (sketch.manifest?.kind !== KIND_CHARACTER_SHEET) {
+    throw new Error(
+      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — sheet renders bind to the character-sheet ref itself, not to a comic`,
+    );
+  }
+  if ((imagePath ? 1 : 0) + (imageBase64 ? 1 : 0) !== 1) {
+    throw new Error('bind_character_sheet requires exactly one of image_path | image_base64');
+  }
+  const bytes = imagePath ? await fs.readFile(imagePath) : Buffer.from(imageBase64, 'base64');
+  if (bytes.length < 8 || !bytes.subarray(0, 4).equals(PNG_MAGIC)) {
+    throw new Error('the submitted image is not a PNG (the sheet must be a generated raster, not the SVG scaffold)');
+  }
+  const slot = nextSheetPath(sketch.ref);
+  await fs.writeFile(slot.path, bytes);
+  return {
+    ok: true,
+    ref: sketch.ref,
+    n: slot.n,
+    path: slot.path,
+    url: `/api/sketches/${encodeURIComponent(sketch.ref)}/sheet.png`,
+    bytes: bytes.length,
+  };
+}
+
+/**
+ * get_skin_packet — the conversational skin handoff for a skinnable polygomer.
+ * Carries the render-worker discipline as DATA (which scaffold to paint over,
+ * the paint brief, how to submit, what comes next) so the driving agent needs
+ * no memorized procedure — pull, paint what it asks, submit. The polygomer
+ * analogue of get_image_render_packet.
+ */
+// Kinds whose control scaffold + skin projection ride the shared polygon
+// contract (renderStoredSketchSvg control mode → reskinManjiSvg / world bake).
+const SKINNABLE_KINDS = new Set(['manji-tree', 'figure', 'workbench', 'assembler']);
+export async function getSkinPacketHandler(input) {
+  const { ref } = input || {};
+  if (!ref || typeof ref !== 'string') throw new Error('get_skin_packet requires { ref }');
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`Sketch '${ref}' not found`);
+  if (!SKINNABLE_KINDS.has(sketch.manifest?.kind)) {
+    throw new Error(
+      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — get_skin_packet skins manji-tree polygomers (sketch_polygomer / create_manji_tree), workbench/assembler polygomers (create_workbench / create_assembler), or figures (create_figure)`,
+    );
+  }
+  const encoded = encodeURIComponent(sketch.ref);
+  const title = sketch.title || sketch.manifest.title || 'this polygomer';
+  const bound = latestSkin(sketch.ref);
+  return {
+    ref: sketch.ref,
+    kind: sketch.manifest.kind,
+    title,
+    scaffold: {
+      url: `/api/sketches/${encoded}/png?control=1&inline=1&scale=2`,
+      note: 'The FILLED lit-solid silhouette — paint your finished creature directly OVER this, matching its silhouette, proportions, and part layout. NOT the wireframe /svg (a wireframe fragments a diffusion skin into many objects).',
+    },
+    brief: `Paint a finished "${title}" over the scaffold: ONE coherent subject that keeps the scaffold's silhouette and massing. No wireframe / ring / dot / diagram language, no text.`,
+    submit: `skin_polygomer({ ref: "${sketch.ref}", image_path })  — hand back the painted PNG; it projects onto the model's faces.`,
+    then: sketch.manifest.kind === 'figure'
+      ? `/api/sketches/${encoded}/skin.png — the figure wearing the skin deterministically (albedo × its own form shading). 3D world/glb bake for figures is a follow-up.`
+      : `export_model({ ref: "${sketch.ref}" }) → /api/sketches/${encoded}/model.glb (portable turnable GLB, skin baked into the vertex colours). Live turntable: /api/sketches/${encoded}/world`,
+    ...(bound ? { alreadySkinned: { n: bound.n, url: `/api/sketches/${encoded}/skin.png` } } : {}),
+  };
+}
+
+/**
+ * skin_polygomer — the polygomer WEARS a diffusion skin (skin-projection.js).
+ * A `manji-tree` polygomer is built, its filled control scaffold
+ * (`?control=1`) is painted over by the render worker, and the painted PNG is
+ * handed back here. Because the skin was painted over the scaffold from a fixed
+ * camera, it is already registered to the render in screen space: every filled
+ * face samples the skin at its screen centroid → a DETERMINISTIC render that
+ * wears the skin's colours, snapshotted append-only into the outcome folder.
+ * The manji-tree recipe stays sovereign; the skin is a bound render.
+ */
+export async function skinPolygomerHandler(input) {
+  const { ref, image_path: imagePath, image_base64: imageBase64 } = input || {};
+  if (!ref || typeof ref !== 'string') throw new Error('skin_polygomer requires { ref }');
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`Sketch '${ref}' not found`);
+  if (!SKINNABLE_KINDS.has(sketch.manifest?.kind)) {
+    throw new Error(
+      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — skin_polygomer wears a skin on a manji-tree/workbench/assembler polygomer or a figure`,
+    );
+  }
+  if ((imagePath ? 1 : 0) + (imageBase64 ? 1 : 0) !== 1) {
+    throw new Error('skin_polygomer requires exactly one of image_path | image_base64');
+  }
+  const skinBytes = imagePath ? await fs.readFile(imagePath) : Buffer.from(imageBase64, 'base64');
+  if (skinBytes.length < 8 || !skinBytes.subarray(0, 4).equals(PNG_MAGIC)) {
+    throw new Error('the skin must be a PNG (the painted render over the ?control=1 scaffold, not the SVG)');
+  }
+  // The filled control scaffold the skin was painted over — the shared camera IS
+  // the registration, so no UV unwrap is needed. The stored-sketch dispatcher
+  // renders each kind's own control scaffold (manji-svg, figure-render, or the
+  // workbench/assembler faces-scaffold) through the same polygon contract.
+  const controlSvg = await renderStoredSketchSvg(sketch, { control: true });
+  const { data, info } = await sharp(skinBytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const raster = { data, width: info.width, height: info.height, channels: info.channels };
+  // Background clamp: faces whose centroid misses the creature take the mean
+  // skin colour instead of a stray background pixel (kills pale-edge dots).
+  const { background, fallback } = analyzeSkin(raster);
+  const sampler = rasterSampler({ ...raster, background, fallback });
+  const { svg, faces } = reskinManjiSvg(controlSvg, sampler);
+  const png = await sharp(Buffer.from(svg)).png().toBuffer();
+  const slot = nextSkinPath(sketch.ref);
+  await fs.writeFile(slot.path, png);
+  // Keep the INPUT painted skin too, so the turnable /world + .glb model can
+  // bake the same skin onto its 3D faces (export_model / the manji-tree world kind).
+  await fs.writeFile(skinInputPath(sketch.ref, slot.n), skinBytes);
+  return {
+    ok: true,
+    ref: sketch.ref,
+    n: slot.n,
+    faces,
+    url: `/api/sketches/${encodeURIComponent(sketch.ref)}/skin.png`,
+    path: slot.path,
+    bytes: png.length,
+  };
+}
+
+/**
+ * bind_image_render — the submit half of the page/panel render loop
+ * (plan I3's submit surface, minimal like bind_character_sheet): the
+ * render worker hands back a generated PNG for one target of an
+ * image-outcome / sequential-art sketch. Once every target from
+ * `renderTargets` is bound, `/api/sketches/<ref>/final.png` composites
+ * the finished page (I5) and the page is publishable via the comic cook.
+ */
+export async function bindImageRenderHandler(input) {
+  const { ref, target, image_path: imagePath, image_base64: imageBase64 } = input || {};
+  if (!ref || typeof ref !== 'string') throw new Error('bind_image_render requires { ref }');
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`Sketch '${ref}' not found`);
+  const kind = sketch.manifest?.kind;
+  if (kind !== KIND_IMAGE_OUTCOME && kind !== KIND_SEQUENTIAL_ART) {
+    throw new Error(
+      kind === KIND_CHARACTER_SHEET
+        ? `Sketch '${ref}' is a character-sheet — submit its render via bind_character_sheet`
+        : `Sketch '${ref}' is kind '${kind}' — page/panel renders bind to image-outcome / sequential-art sketches`,
+    );
+  }
+  const manifest = normalizeImageOutcomesManifest(sketch.manifest);
+  const targets = renderTargets(manifest);
+  const resolvedTarget = target ?? (targets.length === 1 ? targets[0] : null);
+  if (!resolvedTarget || !targets.includes(resolvedTarget)) {
+    throw new Error(
+      `bind_image_render requires a valid target for '${ref}' (targets: ${targets.join(', ')})`,
+    );
+  }
+  if ((imagePath ? 1 : 0) + (imageBase64 ? 1 : 0) !== 1) {
+    throw new Error('bind_image_render requires exactly one of image_path | image_base64');
+  }
+  const bytes = imagePath ? await fs.readFile(imagePath) : Buffer.from(imageBase64, 'base64');
+  if (bytes.length < 8 || !bytes.subarray(0, 4).equals(PNG_MAGIC)) {
+    throw new Error('the submitted image is not a PNG (submit the generated raster, not the SVG scaffold)');
+  }
+  const slot = nextRenderPath(sketch.ref, resolvedTarget);
+  await fs.writeFile(slot.path, bytes);
+  const bound = boundRenderMap(sketch.ref, targets);
+  const remaining = targets.filter((t) => !bound[t]);
+  return {
+    ok: true,
+    ref: sketch.ref,
+    target: resolvedTarget,
+    n: slot.n,
+    path: slot.path,
+    bytes: bytes.length,
+    remaining_targets: remaining,
+    ...(remaining.length === 0
+      ? { final_url: `/api/sketches/${encodeURIComponent(sketch.ref)}/final.png` }
+      : {}),
+  };
 }
 
 export function registerSketchTools() {
@@ -708,7 +1231,8 @@ export function registerSketchTools() {
         manifest: {
           type: 'object',
           description:
-            'Diagram manifest. Required: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. Rendrant resolves construction marks before storage; edges[] and grid are optional.',
+            'Diagram manifest. Required: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. Rendrant resolves construction marks before storage; edges[] and grid are optional. '
+            + "Alternatively `manifest.kind` selects a kind-dispatched manifest with its OWN shape (no stations/marks): `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts). Read that kind's sketch_vocab card (`get_sketch_vocab`) for the manifest contract before minting.",
           properties: {
             title: { type: 'string' },
             viewBox: {
@@ -915,6 +1439,22 @@ export function registerSketchTools() {
   });
 
   registerTool({
+    name: 'get_style_vocab',
+    description:
+      "Read the STYLE presets — drawing-discipline templates (steamboat, tv-cartoon, louvrijks oil, ukiyo-e, photo-realism/'unreal-engine', …) that `renderBrief` locks on image / keyframe-animation / scene-motion sketches. Omit `id` to LIST; pass a preset to read it in full (Style Lock lines + dial specs). Presets are TEMPLATES: fork via `renderBrief.overrides`, or author a fully custom style inline (`{ id, style, mood, lighting, lock[], negative[] }`). Applying the SAME style to a scene's cast clips and its plate is what makes it cohesive. Read-only.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'A style preset name (e.g. steamboat, ukiyo-e, photo-realism). Omit to list all presets + how to author a custom style.',
+        },
+      },
+    },
+    handler: getStyleVocabHandler,
+  });
+
+  registerTool({
     name: 'diff_sketches',
     description:
       "Create a scratch visual diff between two existing sketch refs. Use this only when two diagrams look like variants of the same thing and a visual comparison would help the operator; it is intentionally optional and low-prominence like create_sketch. The tool reads both manifests, matches stations/marks structurally, highlights differences in a derived side-by-side sketch, persists that derived sketch, and returns `{ ok, ref, url, verdict, similarity, summary }`. Highlight vocabulary: green = added in `right_ref`, red = removed from `left_ref`, amber = changed labels/items/kinds/marks, blue = moved/resized, grey/muted = context. If the sketches are probably unrelated, the tool returns `{ ok:false, verdict:'too_different', similarity, summary }` and does not mint unless `force:true` is passed. Read/write only to the scratch sketchbook; does not commit to contextmap.",
@@ -1059,9 +1599,124 @@ export function registerSketchTools() {
   });
 
   registerTool({
+    name: 'get_image_render_packet',
+    description:
+      "Pull the render packet for a minted `image-outcome` / `sequential-art` sketch — the handoff for an external image-capable render worker. Returns `{ ref, kind, renderStrategy?, target, targets, workerProtocol, instructions, localParams, scaffold: { svgUrl, pngUrl }, pageScaffold?, manifest }`. The instructions are the full worker brief: camera/pose phrasings, Style Lock (`renderBrief.preset`), art-layer-only rule. Call once per target: `target: '<panel id>'` yields panel-scoped instructions + `?panel=` scaffold crops. Follow `workerProtocol`: INVOKE your image generator conditioned on the scaffold PNG — the wireframe scaffold is input, NEVER the deliverable. Read-only; return the PNG to the operator.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: {
+          type: 'string',
+          description: 'Existing image-outcome / sequential-art sketch ref (`sk_…`). Errors on other kinds.',
+        },
+        target: {
+          type: 'string',
+          description:
+            "Render target: `'page'` or a panel id from `targets`. Omit to get the default target (`'page'` for image-outcome/whole-page; the first panel for per-panel) plus the full `targets` list to iterate.",
+        },
+      },
+      required: ['ref'],
+    },
+    handler: getImageRenderPacketHandler,
+  });
+
+  registerTool({
+    name: 'bind_image_render',
+    description:
+      "Bind a worker-generated PNG to one render target of an `image-outcome` / `sequential-art` sketch — the submit half of the render loop. Pass the `target` from `get_image_render_packet` (`'page'`, or a panel id under per-panel/hybrid) plus `image_path` (same-host file) or `image_base64`. Snapshotted append-only into `data/outcomes/<ref>/`. Returns `{ ok, ref, target, n, remaining_targets, final_url? }` — once every target is bound, mojulo composites the finished page at `/api/sketches/<ref>/final.png` (panel renders fitted into bounds, borders/gutters/bubbles/LETTERING re-imposed deterministically), and that final is what gather + cook publish as a comic page in any format.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: {
+          type: 'string',
+          description: 'The image-outcome / sequential-art sketch ref (`sk_…`). Character sheets use bind_character_sheet.',
+        },
+        target: {
+          type: 'string',
+          description: "Render target this PNG fulfils: `'page'` or a panel id. Optional when the sketch has a single target.",
+        },
+        image_path: {
+          type: 'string',
+          description: 'Absolute path to the generated PNG on this host (primary for same-host workers).',
+        },
+        image_base64: {
+          type: 'string',
+          description: 'Base64-encoded PNG bytes (remote-worker fallback). Exactly one of image_path | image_base64.',
+        },
+      },
+      required: ['ref'],
+    },
+    handler: bindImageRenderHandler,
+  });
+
+  registerTool({
+    name: 'bind_character_sheet',
+    description:
+      "Bind a generated character-sheet PNG to its `character-sheet` sketch — the save half of the reusable-character loop. After the render worker generates the sheet (pulled via `get_image_render_packet` on the sheet's ref), submit the PNG here with `image_path` (same-host file) or `image_base64`. The PNG is snapshotted append-only into the sketch's outcome folder (`data/outcomes/<ref>/sheet-<n>.png`); the latest binding is served at `/api/sketches/<ref>/sheet.png` and rides along as `boundSheet` in every render packet for a comic that casts this character (`characters: [{ ref }]`), so identity persists across artifacts without regeneration. Returns `{ ok, ref, n, path, url, bytes }`.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: {
+          type: 'string',
+          description: 'The character-sheet sketch ref (`sk_…`) the render belongs to. Errors on other kinds.',
+        },
+        image_path: {
+          type: 'string',
+          description: 'Absolute path to the generated sheet PNG on this host (primary for same-host workers).',
+        },
+        image_base64: {
+          type: 'string',
+          description: 'Base64-encoded PNG bytes (fallback for remote/foreign workers). Exactly one of image_path | image_base64.',
+        },
+      },
+      required: ['ref'],
+    },
+    handler: bindCharacterSheetHandler,
+  });
+
+  registerTool({
+    name: 'get_skin_packet',
+    description:
+      "Pull the SKIN packet for a `manji-tree`/`workbench`/`assembler` polygomer or a `figure` — the handoff to paint it into a finished model. Returns `{ ref, title, scaffold:{ url, note }, brief, submit, then, alreadySkinned? }`: `scaffold.url` is the FILLED control render to paint OVER (not the wireframe), `brief` is the one-line paint instruction, `submit` names the bind tool, `then` names the export. The whole procedure is DATA here — pull this, paint what `brief` says over `scaffold.url` with your image generator, then call `skin_polygomer`. No memorized rules needed. (The polygomer analogue of get_image_render_packet.)",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string', description: 'The manji-tree polygomer sketch ref (`sk_…`). Errors on other kinds.' },
+      },
+      required: ['ref'],
+    },
+    handler: getSkinPacketHandler,
+  });
+
+  registerTool({
+    name: 'skin_polygomer',
+    description:
+      "Make a `manji-tree`/`workbench`/`assembler` polygomer — or a `figure` (create_figure) — WEAR a painted skin: the deterministic approximation of a diffusion render. Flow: build the model → pull its FILLED control scaffold (`/api/sketches/<ref>/png?control=1` — the lit solid silhouette, NOT the wireframe, which fragments a diffusion skin) → paint a finished subject OVER that scaffold with your image generator (keeping its silhouette + massing) → submit the painted PNG here with `image_path` (same-host file) or `image_base64`. Painted over the scaffold from the same camera, every face samples the skin at its screen position (no UV unwrap) → a deterministic render wearing the skin's colours at `/api/sketches/<ref>/skin.png`. The recipe stays the deliverable; the skin is a bound render/provenance. Single-view (front-facing); full wrap-around is the turntable multi-view bake. Returns `{ ok, ref, n, faces, url, path, bytes }`.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: {
+          type: 'string',
+          description: 'The manji-tree polygomer sketch ref (`sk_…`). Errors on other kinds.',
+        },
+        image_path: {
+          type: 'string',
+          description: 'Absolute path to the painted skin PNG on this host (painted over the ?control=1 scaffold).',
+        },
+        image_base64: {
+          type: 'string',
+          description: 'Base64-encoded PNG bytes (fallback for remote workers). Exactly one of image_path | image_base64.',
+        },
+      },
+      required: ['ref'],
+    },
+    handler: skinPolygomerHandler,
+  });
+
+  registerTool({
     name: 'export_model',
     description:
-      "Export a stored sketch's traversable 3D World as a binary glTF (.glb) the operator can open in Blender, Unreal, three.js, or macOS Quick Look — turning a depiction into a portable asset rather than a walled view. Pass the sketch `ref`. Works for the World kinds (fractal cities, transportation hubs, subway interiors, painted-landscape terrain, workbench/assembler object studies, vehicle instances, the science views — molecule/atom/cell/field/fluid/ocean/mechanics/orbit — and furnished rooms); diagrams, charts, and CSS-3D-only turntables have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: mojulo's lighting is BAKED into the geometry and the mesh is exported UNLIT (glTF KHR_materials_unlit + per-vertex colours), so it looks identical to the live World from any camera with no lighting setup downstream — the depiction is the asset, not a re-lightable PBR approximation. Camera-facing glow billboards and the sky dome are dropped (not geometry); gradient-painted faces collapse to a single colour; animated channels export at their static pose. Returns `{ ok, ref, kind, url, bytes, nodes, vertices, triangles }` plus, when `write` is true (the default), an on-disk `path` to the written .glb. The `url` (`/api/sketches/<ref>/model.glb`) regenerates the file deterministically on each request, so hand it to the operator for a browser download.",
+      "Export a stored sketch's traversable 3D World as a binary glTF (.glb) the operator can open in Blender, Unreal, three.js, or macOS Quick Look — turning a depiction into a portable asset rather than a walled view. Pass the sketch `ref`. Works for the World kinds (fractal cities, transportation hubs, subway interiors, painted-landscape terrain, workbench/assembler object studies, **`manji-tree` polygomers** — a `create_manji_tree` object is a turnable 3D model with no conversion step: the SAME ref serves `/world` and exports here, its bonded lathes lowered to baked faces, plus a `skin_polygomer` skin baked into the vertex colours — vehicle instances, the science views — molecule/atom/cell/field/fluid/ocean/mechanics/orbit — and furnished rooms); diagrams, charts, and CSS-3D-only turntables have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: mojulo's lighting is BAKED into the geometry and the mesh is exported UNLIT (glTF KHR_materials_unlit + per-vertex colours), so it looks identical to the live World from any camera with no lighting setup downstream — the depiction is the asset, not a re-lightable PBR approximation. Camera-facing glow billboards and the sky dome are dropped (not geometry); gradient-painted faces collapse to a single colour; animated channels export at their static pose. Pass `format: 'stl'` for the 3D-PRINTING handoff instead: a binary STL for slicers (PrusaSlicer/Cura/Bambu) — shape only (colour/groups/textures deliberately dropped; water + ground decals omitted; instanced repeats expanded into real geometry; z-up as slicers expect), with `scale` mapping world units → millimetres. Honest triangle soup, not guaranteed-manifold — slicers repair open shells on import. Returns `{ ok, ref, kind, format, url, bytes, vertices, triangles }` (+ `nodes` for glb) plus, when `write` is true (the default), an on-disk `path` to the written file. The `url` (`/api/sketches/<ref>/model.glb` or `.stl`) regenerates the file deterministically on each request, so hand it to the operator for a browser download.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1069,11 +1724,24 @@ export function registerSketchTools() {
           type: 'string',
           description: 'Existing sketch ref (`sk_…`) to export. Errors if no sketch with this ref exists.',
         },
+        format: {
+          type: 'string',
+          enum: ['glb', 'stl'],
+          default: 'glb',
+          description:
+            "'glb' (default): faithful depiction capture — vertex colours, named group nodes, unlit. 'stl': binary STL for 3D printing — bare triangles, no colour.",
+        },
+        scale: {
+          type: 'number',
+          default: 1,
+          description:
+            'STL only: multiply every coordinate on export. Slicers read STL units as millimetres, so this is the world-units → mm dial (e.g. 10 prints a 12-unit-tall figure at 120mm).',
+        },
         write: {
           type: 'boolean',
           default: true,
           description:
-            'When true (default), write the .glb to disk (under control/data/exports, or $MOJULO_EXPORTS_DIR) and return its `path` so the host agent can open or move the file. Set false to compute the export metadata + download URL without touching disk.',
+            'When true (default), write the export to disk (under control/data/exports, or $MOJULO_EXPORTS_DIR) and return its `path` so the host agent can open or move the file. Set false to compute the export metadata + download URL without touching disk.',
         },
       },
       required: ['ref'],

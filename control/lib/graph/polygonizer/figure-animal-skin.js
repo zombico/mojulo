@@ -110,7 +110,7 @@ const SKULL_SKIN = { blend: 0.02, N: 18, M: 24 };
  */
 export function weldedSkull(skull, stroke = '#c8836a', cfg = {}) {
   const c = { ...SKULL_SKIN, ...cfg };
-  const dir = normalize3(skull.dir), { up } = frameOf(dir);
+  const dir = normalize3(skull.dir), { up } = frameOf(dir), side = normalize3(cross3(dir, up));
   const s = skull.cfg, L = s.length, w = s.width, anchor = skull.anchor, tip = add(anchor, mul(dir, L));
   const prims = [];
   prims.push({ c: add(anchor, add(mul(dir, L * 0.18), mul(up, w * 0.15 * (s.dome || 1)))), r: w });          // cranium
@@ -124,10 +124,44 @@ export function weldedSkull(skull, stroke = '#c8836a', cfg = {}) {
     prims.push({ a: add(add(anchor, mul(dir, L * 0.22)), mul(up, -w * 0.1)), b: jb, ra: w * 0.74, rb: w * 0.5 });   // cheek → fuse the hinge
   }
   if (s.beak > 0) prims.push({ a: tip, b: add(tip, add(mul(dir, L * s.beak), mul(up, -w * s.beak * 0.5))), ra: w * s.snout, rb: w * 0.07 });
+  // WHISKER PADS — two blunt masses flanking the FRONT of the muzzle → a WIDE, SQUARED snout
+  // (the cat pad: broad box front with the nose between the lobes), vs the default narrow round
+  // cone. Opt-in via `s.pad`; they widen the front opening so the cap closes over a broad front.
+  if (s.pad > 0) {
+    const padCtr = add(add(anchor, mul(dir, L * 0.9)), mul(up, -w * 0.14));
+    const padOut = w * (0.42 + 0.5 * s.pad), padR = w * (0.42 + 0.5 * s.pad);
+    prims.push({ c: add(padCtr, mul(side, padOut)), r: padR });
+    prims.push({ c: add(padCtr, mul(side, -padOut)), r: padR });
+  }
+  // NASAL BRIDGE — a raised ridge up the top-centre from the brow (between the eyes) to the nose,
+  // so the bridge reads prominent (the felid dorsal ridge). Opt-in via `s.bridge`.
+  if (s.bridge > 0) {
+    const bRoot = add(add(anchor, mul(dir, L * 0.44)), mul(up, w * 0.5 * (s.dome || 1)));   // brow, high + back
+    const bNose = add(noseTip, mul(up, w * 0.3));                                            // nose top
+    prims.push({ a: bRoot, b: bNose, ra: w * 0.36 * s.bridge, rb: w * 0.24 * s.bridge });
+  }
   const field = makeField(prims, c.blend);
   const bound = Math.max(0.13, w * 3.4);
   const a = add(anchor, mul(dir, -L * 0.06)), b = add(anchor, mul(dir, L * (s.beak > 0 ? 1 + s.beak : 1.0)));
-  return [marchAxis(field, a, b, { ...c, bound, stroke })];
+  const part = marchAxis(field, a, b, { ...c, bound, stroke });
+  // FRONT CAP — marchAxis emits an OPEN tube (rings ⟂ the muzzle axis, no end faces). A long
+  // muzzle hides its front opening, but a SHORT (cat) muzzle leaves it gaping, so the face reads
+  // hollow / shows its pale interior from the front + ¾. Close the frontmost ring with a rounded
+  // cap fan (front ring → forward apex, hemispherical profile) so the head is a solid closed
+  // surface. Follows whatever outline the muzzle+jaw opening has, so it caps every family's head.
+  if (part && part.polylines.length) {
+    const front = part.polylines[part.polylines.length - 1], n = front.length || 1;
+    const ctr = front.reduce((m, q) => add(m, q), { x: 0, y: 0, z: 0 });
+    ctr.x /= n; ctr.y /= n; ctr.z /= n;
+    const rad = front.reduce((m, q) => m + vlen(sub3(q, ctr)), 0) / n;   // mean opening radius → cap depth
+    const fwd = mul(normalize3(sub3(b, a)), rad * (s.capDepth ?? 1));    // <1 = flatter, SHORTER, squarer front
+    const K = 4;
+    for (let k = 1; k <= K; k++) {
+      const u = k / K, shrink = Math.cos(u * Math.PI / 2), push = Math.sin(u * Math.PI / 2);
+      part.polylines.push(front.map((q) => add(add(ctr, mul(sub3(q, ctr), shrink)), mul(fwd, push))));
+    }
+  }
+  return [part];
 }
 
 // Assemble the global field primitives + the axes to surface along.

@@ -247,7 +247,11 @@ function resolvePanelBounds(panel, fallback) {
   return roundBox({ x, y, w, h });
 }
 
-function layoutPanelBounds(display, viewBox, panelCount) {
+// Exported: the sequential-art comic kind (image-outcomes family) reuses
+// this exact panel-blocking math for its pageRecipe auto-layout, so the
+// deterministic and AI-painted comic paths share one source of truth for
+// how a named paradigm carves a page.
+export function layoutPanelBounds(display, viewBox, panelCount) {
   const width = Math.max(finiteOr(viewBox.width, 720), 1);
   const height = Math.max(finiteOr(viewBox.height, 520), 1);
   const pad = finiteOr(display.pad, 24);

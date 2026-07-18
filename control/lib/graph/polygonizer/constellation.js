@@ -1,3 +1,11 @@
+// CCA = Cardinal Construction Axes. Each major element's local coordinate
+// authority: a cardinal-named frame (lengthAxis 'E-W', heightAxis
+// 'Zenith-Nadir', depthAxis toward the vanishing point) centered on the
+// element, used to solve its block — anchors, bounds, cuboid hit points,
+// child regions — before any visible skin is accepted. The constellation
+// grid ('cca-constellation-grid') holds one CCA node per element so children
+// attach to parent-local axes instead of guessing in screen space.
+
 import { resolveMeruUnitScale } from './pure-mandala.js';
 
 const DEPTH_ORDER = {

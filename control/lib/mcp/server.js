@@ -277,10 +277,12 @@ export async function ensureToolsRegistered() {
   const { registerCookTools } = await import('@/lib/mcp/tools/cook');
   const { registerVisualReferenceTools } = await import('@/lib/mcp/tools/visual-reference');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
+  const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerManjiTreeTools } = await import('@/lib/mcp/tools/manji-trees');
   const { registerCarvedSolidTools } = await import('@/lib/mcp/tools/carved-solid');
   const { registerFigureTools } = await import('@/lib/mcp/tools/figure');
+  const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
   const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
@@ -289,10 +291,12 @@ export async function ensureToolsRegistered() {
   const { registerEnergyCycleTools } = await import('@/lib/mcp/tools/energy-cycle');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
   const { registerWorkbenchTools } = await import('@/lib/mcp/tools/workbench');
+  const { registerEdificeTools } = await import('@/lib/mcp/tools/edifice');
   const { registerAssemblerTools } = await import('@/lib/mcp/tools/assembler');
   const { registerPreviewVehicleTools } = await import('@/lib/mcp/tools/preview-vehicle');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
+  const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
   const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
@@ -428,6 +432,10 @@ export async function ensureToolsRegistered() {
   // via tools/list. See lite-template/integration/app-system/0527/
   // SKETCHBOOK_PLAN.md.
   registerSketchTools();
+  // The render handoff (render-handoff.plan.md) — durable request → pull →
+  // submit → accept for the external image worker; registered right after the
+  // sketch tools it extends (get_image_render_packet / bind_image_render).
+  registerRenderHandoffTools();
   // translate_modeler_lingo — routes 3D-modeler vocabulary (blockout, retopo, kitbash,
   // bake, rig…) to mojulo execution + the export_model handoff, the modeler-facing
   // sibling of forward_context. Adjacent to registerSketchTools (its routes point at the
@@ -451,6 +459,9 @@ export async function ensureToolsRegistered() {
   // armature LIMITS + spine caps. See lite-template/integration/0610/
   // figure-spine-articulation.plan.md and figure-proto-params.plan.md.
   registerFigureTools();
+  // draft_figure_spec / get_figure_spec / resolve_figure_spec / build_figure_spec — the
+  // character-from-dream propose→approve→build split (listed:false; the catalyst documents it).
+  registerFigureSpecTools();
   // compose_world / list_world_themes — the generic world-composer: a BASE (geometry generator)
   // × a THEME (flavor pack from theme-registry) × overrides, minted through the same recipe→
   // render path as create_fractal_city. One tool → many worlds; themes extensible across
@@ -481,6 +492,12 @@ export async function ensureToolsRegistered() {
   // literal scale, served traversable at /world + preset shots at /scene. Object-scale sibling of
   // the city/hub world-kinds; form accuracy over mood.
   registerWorkbenchTools();
+  // create_edifice — a bespoke inhabitable BUILDING (kind `edifice`): a graph of MASSES
+  // (footprint + floors + facade + roof + interior) connected by CONCOURSES, placed by
+  // relation, rendered walkable. The building-scale sibling of create_workbench; for
+  // one-off buildings the frozen fractal generators don't make. Advisory livability,
+  // never gated. See dream-architecture.plan.md + the dream-edifice catalyst.
+  registerEdificeTools();
   registerAssemblerTools();
   // preview_vehicle_instance — render a meta-fabricator vehicle family instance on the workbench
   // studio grid (the catalyst's eyeball-before-commit render affordance).
@@ -508,6 +525,11 @@ export async function ensureToolsRegistered() {
   // Registers after motion so picture → motion → sound read adjacent in
   // tools/list. See lib/graph/beats/beats.plan.md.
   registerBeatsTools();
+  // Mojulo Voice — the SPEECH mint, sibling to beats: voice registers as
+  // deterministic axis→blend recipes over stock Kokoro embeddings; rendering
+  // stays with an external worker through the voice seam. Registers after
+  // beats so audio reads adjacent. See lib/graph/voice/voice-worker.plan.md.
+  registerVoiceTools();
   // Mojulo Game Designer — the fourth creatable paradigm (sibling to bots /
   // connected services / apps): a standalone game artifact = a shell owning a
   // typed store + levels that are worlds minted with a `game:` contract channel.

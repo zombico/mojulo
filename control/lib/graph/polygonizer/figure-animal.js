@@ -184,11 +184,15 @@ export const QUADRUPED_ARCHETYPES = {
   // longer tail, slightly leaner.
   feline: {
     skin: { tag: 'fur' },
-    backHeight: 0.38, trunkLength: 0.47, backArch: 0.02, hipHalf: 0.082, shoulderHalf: 0.088,
-    neckLength: 0.15, neckAngle: 30, headPitch: -10, headLength: 0.095,
+    // refined feline protoform (leopard tuning): a COMPACT balanced body, medium legs, and a
+    // SLENDER neck — girthFore leaner than the body so the neck root/throat doesn't thicken.
+    backHeight: 0.40, trunkLength: 0.48, backArch: 0.02, hipHalf: 0.082, shoulderHalf: 0.088,
+    neckLength: 0.16, neckAngle: 30, headPitch: -10, headLength: 0.095,
     foreKneeFrac: 0.50, hindKneeFrac: 0.50,
-    girthBody: 0.95, girthFore: 0.92, girthHind: 0.98, girthHead: 0.82,
-    tail: { length: 0.62, droop: 10, rootR: 0.020, tipR: 0.007, waveAmp: 0.05, waveN: 0.8 },
+    girthBody: 0.98, girthFore: 0.85, girthHind: 0.98, girthHead: 0.82,
+    // the tail roots at the SACRUM (top of the back, not mid-rump — the feline tell) via rootRise,
+    // and hangs/curves in the VERTICAL plane. Species scale rootR/length over this.
+    tail: { length: 0.62, droop: 16, rootR: 0.020, tipR: 0.007, waveAmp: 0.05, waveN: 0.7, wavePlane: 'vertical', rootRise: 0.05 },
   },
   // rhino / elephant / hippo — STUMPY: heavy barrel, wide track, short thick pillar
   // legs (near-straight = stable), big head, short low neck.
@@ -374,6 +378,7 @@ export const CHAIN_DEFAULT = {
   wavePhase: 0,         // radians; advance over time → a traveling wave
   wavePlane: 'lateral', // 'lateral' = sway in x (wag / swim) · 'vertical' = undulate in z
   waveEnvPow: 1,        // amplitude envelope exponent (1 = linear root→tip)
+  rootRise: 0,          // lift the root UP the spine (STAND z); felid tail roots at the SACRUM (top of back)
 };
 
 const catmull3 = (p0, p1, p2, p3, t) => {
@@ -394,7 +399,10 @@ const catmull3 = (p0, p1, p2, p3, t) => {
 export function chainAppendage(nodes, cfg = {}, phase = null) {
   const c = { ...CHAIN_DEFAULT, ...cfg };
   const ph = phase == null ? c.wavePhase : phase;
-  const core = nodes[c.coreKey], root = nodes[c.rootKey];
+  const core = nodes[c.coreKey], root0 = nodes[c.rootKey];
+  // rootRise lifts the attachment UP the spine (STAND z) — a felid tail roots at the SACRUM
+  // (top of the back), not mid-rump, so it starts at the topline and hangs from there.
+  const root = c.rootRise ? { x: root0.x, y: root0.y, z: root0.z + c.rootRise } : root0;
   const baseDir = rotEW(normalize3(sub3(root, core)), c.droop);    // spine continuation past the root, tilted
   const tip = add(root, mul(baseDir, c.length));
   const [P0, P1, P2, P3] = [core, root, tip, tip];                 // the three anchors (tip doubled as the phantom end)

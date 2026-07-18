@@ -43,6 +43,16 @@ Sitting alongside this family is **structure-manji** — the cardinal
 lattice that anchors everything else. Structure is "where things
 deterministically are." Waves are "how things modulate around them."
 
+Naming note: the sketch-planning layer uses the same cardinal axis
+vocabulary under the acronym **CCA — Cardinal Construction Axes**
+(each element's local coordinate authority in the
+`cca-constellation-grid`; see
+[constellation.js](../control/lib/graph/polygonizer/constellation.js)).
+That is a different layer from structure-manji's cardinal grammar:
+CCA plans where an element's block sits before skins are accepted;
+structure-manji pins bars and folds inside a primitive's own
+geometry. Same compass, different altitude.
+
 ## The four wave primitives, in their final shape
 
 Every primitive uses the same authoring grammar: endpoint paths into a

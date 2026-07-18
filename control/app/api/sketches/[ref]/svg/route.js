@@ -44,11 +44,17 @@ export async function GET(request, { params }) {
       }, { status: 422 });
     }
 
-    const body = await renderStoredSketchSvg(sketch);
-
     const url = new URL(request.url);
+    // ?panel=<id> — sequential-art scaffolds only: serve one panel's crop
+    // (the per-panel render payload for the image-render worker).
+    const panelId = url.searchParams.get('panel') || undefined;
+    const body = await renderStoredSketchSvg(sketch, panelId ? { panelId } : {});
+
     const disposition = url.searchParams.get('inline') === '1' ? 'inline' : 'attachment';
-    const filename = safeFilename(sketch.title, sketch.ref || ref);
+    const filename = safeFilename(
+      panelId ? `${sketch.title || ''} ${panelId}` : sketch.title,
+      sketch.ref || ref,
+    );
 
     return new Response(body, {
       status: 200,

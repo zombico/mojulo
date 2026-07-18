@@ -14,6 +14,9 @@ import {
   buildRegisterKitBody,
   registerKitHandler,
   toolIndexHandler,
+  creativeToolsetHandler,
+  CREATIVE_FORMS,
+  FORM_TOOLSETS,
   deliberationOverviewHandler,
   uiMapHandler,
   substrateHandler,
@@ -356,12 +359,74 @@ describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
     // of the surfaced tool list.
     const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
     await ensureToolsRegistered();
+    // Creative-mint tools (Ring 10) moved behind get_creative_toolset, so the
+    // sweep walks the UNION of the base index + every form drawer. A tool named
+    // in any of those surfaces counts as covered.
     const { content } = await toolIndexHandler({});
-    const text = content[0].text;
+    let corpus = content[0].text;
+    for (const form of CREATIVE_FORMS) {
+      corpus += (await creativeToolsetHandler({ form })).content[0].text;
+    }
     const missing = listTools()
       .map((t) => t.name)
-      .filter((name) => !text.includes(`\`${name}\``));
+      .filter((name) => !corpus.includes(`\`${name}\``));
     expect(missing).toEqual([]);
+  });
+});
+
+describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader', () => {
+  const RING10_TOOLS = [
+    'create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches', 'create_polygonized_sketch',
+    'sketch_what_possible', 'create_figure', 'emote_figure', 'create_manji_tree',
+    'sketch_polygomer', 'get_skin_packet',
+    'reference_protocol', 'capture_reference',
+    'get_image_render_packet', 'bind_character_sheet', 'bind_image_render', 'request_image_render',
+    'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',
+    'create_carved_solid', 'create_solid_turntable', 'create_workbench', 'create_assembler', 'create_edifice',
+    'preview_vehicle_instance', 'verify_machina',
+    'compose_world', 'list_world_themes', 'export_model', 'translate_modeler_lingo',
+    'create_view', 'get_view_vocab', 'create_dna_process', 'create_energy_cycle', 'measure_view',
+    'forge_motion', 'stitch_motion',
+    'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
+    'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
+    'create_game', 'get_game_vocab',
+  ];
+
+  it('FORM_TOOLSETS keys are the shared CREATIVE_FORMS enum, in order (single source of truth)', () => {
+    expect(Object.keys(FORM_TOOLSETS)).toEqual(CREATIVE_FORMS);
+  });
+
+  it('every Ring 10 tool lives in exactly one form drawer (clean partition)', () => {
+    const homes = new Map();
+    for (const form of CREATIVE_FORMS) {
+      for (const m of FORM_TOOLSETS[form].body.matchAll(/^- `([a-z_]+)`/gm)) {
+        const name = m[1];
+        homes.set(name, [...(homes.get(name) || []), form]);
+      }
+    }
+    const duped = [...homes].filter(([, forms]) => forms.length > 1).map(([n, f]) => `${n}: ${f.join(', ')}`);
+    expect(duped, 'tools appearing in more than one form drawer').toEqual([]);
+    expect([...homes.keys()].sort()).toEqual([...RING10_TOOLS].sort());
+  });
+
+  it('no-arg returns the form map naming all 11 forms', async () => {
+    const { content } = await creativeToolsetHandler({});
+    for (const form of CREATIVE_FORMS) {
+      expect(content[0].text, `form map names ${form}`).toContain(`\`${form}\``);
+    }
+    expect(CREATIVE_FORMS.length).toBe(11);
+  });
+
+  it('a valid form returns its title + body; an unknown form throws', async () => {
+    const { content } = await creativeToolsetHandler({ form: 'audio' });
+    expect(content[0].text).toContain('create_beats');
+    expect(content[0].text).toContain(FORM_TOOLSETS.audio.title);
+    await expect(creativeToolsetHandler({ form: 'nope' })).rejects.toThrow(/must be one of/);
+  });
+
+  it('the form map stays cheap to pull (< 2500 chars)', async () => {
+    const { content } = await creativeToolsetHandler({});
+    expect(content[0].text.length).toBeLessThan(2500);
   });
 });
 
@@ -484,7 +549,15 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // this ceiling makes regrowth a conscious, test-failing decision. Shrink
   // freely; to grow deliberately, raise the number in the same commit that
   // justifies it. New creative capability = a routing card, not a body row.
-  const BODY_CEILING = 11_000;
+  // Re-pinned 2026-07-13 (was 11_000): Mojulo Voice is a new FORM, which is
+  // the one case that legitimately adds a segmented-index row (+ the two
+  // form-list mentions) to the always-paid body.
+  // Re-pinned 2026-07-17 (was 11_200; widest cell plain+pedagogical measured
+  // 11_623): the BUILDING segmented-index row (create_edifice + the
+  // dream-edifice catalyst pointer) — a new Create-things artifact category
+  // no existing row's phrasing reaches, the same segmented-index-row case as
+  // Voice.
+  const BODY_CEILING = 11_700;
 
   it(`every register × disclosure cell stays under ${BODY_CEILING} chars`, () => {
     for (const register of VOCABULARY_REGISTERS) {
@@ -503,8 +576,10 @@ describe('enumerated counts stay true (orientation-diet thread E)', () => {
   it('the "N kinds" claim for create_view matches the live kind registry on both index surfaces', async () => {
     const { VIEW_KINDS } = await import('./create-view.js');
     const claim = `${Object.keys(VIEW_KINDS).length} kinds`;
-    const { content } = await toolIndexHandler({});
-    expect(content[0].text, `TOOL_INDEX create_view row must say "${claim}"`).toContain(claim);
+    // create_view moved into the `view` creative-toolset drawer; its "N kinds"
+    // claim now rides that surface plus the forward_context routing WORLD row.
+    const { content } = await creativeToolsetHandler({ form: 'view' });
+    expect(content[0].text, `view toolset create_view row must say "${claim}"`).toContain(claim);
     expect(
       buildForwardContextBody({}),
       `routing index create_view row must say "${claim}"`,

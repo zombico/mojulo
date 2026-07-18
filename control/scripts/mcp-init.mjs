@@ -8,7 +8,7 @@
  * [mcp-config.mjs](./mcp-config.mjs)) so it can reach ApiKeyRepository for the
  * optional key step, then exits — it never returns to the stdio server loop.
  *
- * Flow (see scripts/mcp-init.plan.md for the full spec):
+ * Flow:
  *   detect hosts → per-host wire (y/n) → optional provider key → open dashboard
  *   → print the KEYLESS first-look instruction.
  *

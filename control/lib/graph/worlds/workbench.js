@@ -29,13 +29,17 @@ import { latheToFaces } from '../polygonizer/lathe-faces.js';
 import { validateLathes } from '../polygonizer/lathe.js';
 import { extrudeToFaces, validateExtrudes } from '../polygonizer/extrude-faces.js';
 import { sweepToFaces, validateSweeps } from '../polygonizer/sweep-faces.js';
+import { drapeToFaces, validateDrapes } from '../polygonizer/drape-faces.js';
 import { reliefToFaces, validateReliefs } from '../polygonizer/relief-faces.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { validateMaterialRef } from '../polygonizer/materials.js';
+import { auditClosure } from '../polygonizer/face-closure.js';
+import { rasterSampler, analyzeSkin, bakeSkinOntoFaces } from '../polygonizer/skin-projection.js';
+import { scaffoldViewBox } from '../polygonizer/faces-scaffold-svg.js';
 
 // Neutral studio key (z is UP in this World) — a clean form light, not a mood scene. Shared by the
 // baked faces and the scene so object, grid, and ground all agree. Mirrors the proven 0616 spike.
-const WORKBENCH_LIGHT = makeLight({ direction: [0.4, -0.5, 0.74], ambient: 0.5, diffuse: 0.56 });
+const WORKBENCH_LIGHT = makeLight({ direction: [0.4, -0.5, 0.74], ambient: 0.5, diffuse: 0.56, fill: { diffuse: 0.34 } });
 
 const GRID_STEP = 5;        // measured-grid spacing, in the manifest's `units` (informational today)
 const DEFAULT_UNITS = 'cm';
@@ -53,6 +57,7 @@ export function lowerObjectFaces(manifest, light) {
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
+  const drapes = Array.isArray(manifest.drapes) ? manifest.drapes : [];
   const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
   // Per-monomer `material` (polygonizer/materials.js): a named finish on the spec rides into the
   // generator — response curve baked into the fills, plus `spec`/`pbr` face tags for the World's
@@ -61,6 +66,7 @@ export function lowerObjectFaces(manifest, light) {
     ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material })),
     ...extrudes.flatMap((spec) => extrudeToFaces(spec, { light, material: spec.material })),
     ...sweeps.flatMap((spec) => sweepToFaces(spec, { light, material: spec.material })),
+    ...drapes.flatMap((spec) => drapeToFaces(spec, { light, material: spec.material })),
     ...reliefs.flatMap((spec) => reliefToFaces(spec, { light, material: spec.material })),
   ];
 }
@@ -104,13 +110,37 @@ export function collectWrapSources(manifest) {
   return out;
 }
 
-/** Bake ONE monomer alone → its axis-aligned bounds (for the per-part size/placement readout). */
-function monomerBounds(kind, spec, light) {
-  const m = kind === 'lathe' ? { lathes: [spec] }
+/** A single-monomer manifest (for baking / measuring / auditing ONE part in isolation). */
+function monomerManifest(kind, spec) {
+  return kind === 'lathe' ? { lathes: [spec] }
     : kind === 'extrude' ? { extrudes: [spec] }
       : kind === 'relief' ? { reliefs: [spec] }
-        : { sweeps: [spec] };
-  return boundsOf(lowerObjectFaces(m, light));
+        : kind === 'drape' ? { drapes: [spec] }
+          : { sweeps: [spec] };
+}
+
+/** Bake ONE monomer alone → its baked face list. */
+function monomerFaceList(kind, spec, light) {
+  return lowerObjectFaces(monomerManifest(kind, spec), light);
+}
+
+/** Bake ONE monomer alone → its axis-aligned bounds (for the per-part size/placement readout). */
+function monomerBounds(kind, spec, light) {
+  return boundsOf(monomerFaceList(kind, spec, light));
+}
+
+// Does this monomer INTEND to be a closed solid? A surface modeler ships a hole whenever a shell is
+// left open — but some openings are deliberate (an extrude `openFace` recess, a sweep with embedded
+// ends, a drape cloth sheet). We only lint the intent-closed monomers, so the warning stays
+// high-signal: an open one of THESE is a dropped cap, not a design choice.
+function monomerIntendsClosed(kind, spec) {
+  if (kind === 'drape') return false;                       // a cloth sheet is open by nature
+  if (kind === 'sweep') return spec && spec.caps === false ? false : true; // caps:false = embedded ends
+  if (kind === 'extrude') {
+    const shell = spec && Number.isFinite(spec.wallThickness) && spec.wallThickness > 0;
+    return shell ? spec.openFace === 'none' : true;         // a recessed shell is open unless openFace:'none'
+  }
+  return true;                                              // lathe + relief: always meant to be closed
 }
 
 /** Axis-aligned bounds of a baked face list → { min, max, center, radius }, or null if empty. */
@@ -155,14 +185,23 @@ function measuredFloor(bounds, step = GRID_STEP) {
   return { grounds, faces };
 }
 
+// The studio's shot names assume the model's face points +y (the 'front' camera sits at +y
+// looking back). A manifest may declare which way it was actually authored via `facing`:
+// '+y' (default) | '-y' | '+x' | '-x', or a raw azimuth offset in degrees — the whole
+// turntable rotates so 'front' stays honest. Camera-only: geometry is untouched.
+function facingYaw(facing) {
+  if (Number.isFinite(facing)) return facing;
+  return { '+y': 0, '-y': 180, '+x': -90, '-x': 90 }[facing] ?? 0;
+}
+
 // Preset turntable shots framed to the object's bounds (free orbit is added by /world regardless;
 // these are the HUD buttons + the camera the /scene + PNG stills use).
-function turntableCameras(bounds) {
+function turntableCameras(bounds, yaw = 0) {
   const t = [bounds.center[0], bounds.center[1], bounds.center[2]];
   const r = bounds.radius * 3.0;
   const h = bounds.center[2] + bounds.radius * 0.9;
   const shot = (name, deg, fov = 38) => {
-    const a = (deg / 180) * Math.PI;
+    const a = ((deg + yaw) / 180) * Math.PI;
     return { name, worldFraming: { cameraPosition: [t[0] + r * Math.cos(a), t[1] + r * Math.sin(a), h], lookAt: t, horizontalFov: fov } };
   };
   return [
@@ -192,7 +231,7 @@ export function studioSceneFromFaces(objectFaces = [], opts = {}) {
   const payload = assembleBoxCityScene({
     faces: [...objectFaces, ...floor.faces],
     grounds: floor.grounds,
-    cameras: turntableCameras(bounds),
+    cameras: turntableCameras(bounds, facingYaw(opts.facing)),
     viewBox,
     title: opts.title || 'mojulo workbench',
     bg: '#0d1218',
@@ -204,12 +243,30 @@ export function studioSceneFromFaces(objectFaces = [], opts = {}) {
 }
 
 /**
+ * Bake a bound painted skin (skin_polygomer's stored INPUT raster) onto a
+ * workbench/assembler face list: each face samples the skin at its centroid
+ * projected through the SAME camera the ?control=1 faces-scaffold used —
+ * `scaffoldViewBox` reproduces that scaffold's viewBox exactly, so painter and
+ * bake stay registered. No skin (or no faces) → faces unchanged.
+ */
+export function bakeBoundSkinFaces(faces, skin, manifest = {}) {
+  if (!skin || !faces.length) return faces;
+  const camera = manifest.camera || {};
+  const roomBasis = manifest.roomBasis || {};
+  const viewBox = scaffoldViewBox(faces, { camera, roomBasis });
+  const { background, fallback } = analyzeSkin(skin);
+  const sampler = rasterSampler({ ...skin, background, fallback });
+  return bakeSkinOntoFaces(faces, { sampler, viewBox, camera, roomBasis, light: WORKBENCH_LIGHT });
+}
+
+/**
  * Assemble a workbench manifest into the shared scene payload (faces + grounds + cameras + light),
  * consumed by BOTH emitPreserve3dScene (/scene) and emitThreeWorld (/world). The seam every
- * box-world rides — mirrors assembleFractalCityScene.
+ * box-world rides — mirrors assembleFractalCityScene. When `opts.skin` is a bound
+ * painted raster (the world route loads it), the faces wear it.
  */
 export function assembleWorkbenchScene(opts = {}) {
-  return studioSceneFromFaces(lowerObjectFaces(opts, WORKBENCH_LIGHT), opts);
+  return studioSceneFromFaces(bakeBoundSkinFaces(lowerObjectFaces(opts, WORKBENCH_LIGHT), opts.skin, opts), opts);
 }
 
 /** /scene + PNG path: CSS-3D preset-shot HTML. (The /world route calls assembleWorkbenchScene → emitThreeWorld.) */
@@ -225,13 +282,14 @@ export function planWorkbench(manifest = {}) {
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
+  const drapes = Array.isArray(manifest.drapes) ? manifest.drapes : [];
   const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
-  if (!lathes.length && !extrudes.length && !sweeps.length && !reliefs.length) {
-    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, and/or `reliefs` array.');
+  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length) {
+    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, and/or `reliefs` array.');
   }
-  const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateReliefs(reliefs, [])]; // endpoints are literal {x,y,z}
+  const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateDrapes(drapes, []), ...validateReliefs(reliefs, [])]; // endpoints are literal {x,y,z}
   // material refs fail LOUDLY at mint (resolveMaterial's fallback would silently steel a typo)
-  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['reliefs', reliefs]]) {
+  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['drapes', drapes], ['reliefs', reliefs]]) {
     arr.forEach((s, i) => { const e = validateMaterialRef(s && s.material); if (e) errors.push(`${k}[${i}].material: ${e}`); });
   }
   if (errors.length) {
@@ -245,26 +303,49 @@ export function planWorkbench(manifest = {}) {
     ? { w: round1(bounds.max[0] - bounds.min[0]), d: round1(bounds.max[1] - bounds.min[1]), h: round1(bounds.max[2] - bounds.min[2]) }
     : null;
 
+  // Closure lint — the surface modeler ships a silent hole whenever an intent-closed monomer's shell
+  // is left open (a dropped cap: a constant-radius lathe → hollow tube, a sub-threshold end, a bad
+  // profile winding). Catch it here from the geometry so "3D-prints with no surface" is a loud,
+  // sized warning at mint, not something the operator finds in a render from the wrong angle.
+  const openHints = {
+    lathe: 'A constant-radius profile makes a hollow tube; taper an end to radius→0 for a rounded cap, or keep the end radius above ~0.08 so it gets a flat cap.',
+    extrude: 'A solid prism should close on both ends — check the profile winding; if you meant a recessed tray/case, set `wallThickness` + `openFace` so the opening is intentional.',
+    sweep: 'Ends are open — keep `caps:true` (default) unless both ends embed inside another monomer.',
+    relief: 'The raised outline did not close — check the glyph/path tessellation (an unclosed contour or self-intersection).',
+  };
+  const closureWarnings = [];
+
   // Per-monomer readout — the model's eyes on each part's size + where it sits on the z stack,
   // so gaps/overlaps are legible from the numbers before spending a render→view loop.
   const part = (kind, spec, index) => {
-    const b = monomerBounds(kind, spec, WORKBENCH_LIGHT);
+    const monoFaces = monomerFaceList(kind, spec, WORKBENCH_LIGHT);
+    const b = boundsOf(monoFaces);
     if (!b) return null;
-    return {
+    const closure = auditClosure(monoFaces, { intendClosed: monomerIntendsClosed(kind, spec) });
+    const out = {
       kind, index,
       size: { w: round1(b.max[0] - b.min[0]), d: round1(b.max[1] - b.min[1]), h: round1(b.max[2] - b.min[2]) },
       base: round1(b.min[2]), top: round1(b.max[2]),
     };
+    if (!closure.closed) {
+      const widest = round1(closure.holes[0].diameter);
+      out.open = { holes: closure.holes.length, widest };
+      closureWarnings.push(
+        `${kind}[${index}] is an open shell — ${closure.holes.length} hole${closure.holes.length === 1 ? '' : 's'}, widest ≈${widest} ${units} across; you'll see straight through it. ${openHints[kind]}`,
+      );
+    }
+    return out;
   };
   const parts = [
     ...lathes.map((s, i) => part('lathe', s, i)),
     ...extrudes.map((s, i) => part('extrude', s, i)),
     ...sweeps.map((s, i) => part('sweep', s, i)),
+    ...drapes.map((s, i) => part('drape', s, i)),
     ...reliefs.map((s, i) => part('relief', s, i)),
   ].filter(Boolean);
 
   // Grid-alignment lint — unambiguous, high-signal checks the measured vantage cares about.
-  const warnings = [];
+  const warnings = [...closureWarnings];
   if (bounds) {
     const tol = Math.max(0.2, (bounds.max[2] - bounds.min[2]) * 0.02);
     if (bounds.min[2] > tol) {
@@ -274,7 +355,7 @@ export function planWorkbench(manifest = {}) {
     }
   }
 
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + reliefs.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, reliefs: reliefs.length, faces: faces.length, units, size, parts, ...(warnings.length ? { warnings } : {}) } };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + drapes.length + reliefs.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, drapes: drapes.length, reliefs: reliefs.length, faces: faces.length, units, size, parts, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

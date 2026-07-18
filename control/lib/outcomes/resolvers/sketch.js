@@ -10,6 +10,9 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { renderSketchToSvg } from '@/lib/graph/sketch/sketch-svg';
+import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
+import { isImageOutcomesKind, KIND_CHARACTER_SHEET } from '@/lib/graph/image-outcomes/manifest';
+import { compositeFinalForSketch } from '@/lib/graph/image-outcomes/final-page';
 
 /**
  * Strip the `<?xml ?>` declaration so the SVG can be inlined into HTML.
@@ -36,19 +39,34 @@ export function stripXmlDecl(svg) {
  *   with both SVG fields null — the caller is responsible for rendering a
  *   placeholder.
  */
-export async function resolveSketchItem(item, { technical = false, surface = 'dark', vars = null } = {}) {
+export async function resolveSketchItem(item, { technical = false, surface = 'dark', vars = null, preferFinalRender = false } = {}) {
   const sketchRef = item?.metadata?.sketch_ref;
   if (!sketchRef) {
-    return { svgInline: null, svgStandalone: null, dangling: true };
+    return { svgInline: null, svgStandalone: null, png: null, dangling: true };
   }
   const sketch = SketchRepository.getByRef(sketchRef);
   if (!sketch || !sketch.manifest) {
-    return { svgInline: null, svgStandalone: null, dangling: true };
+    return { svgInline: null, svgStandalone: null, png: null, dangling: true };
+  }
+  // Image-outcomes kinds (AI-painted comic pages / directed shots) are not
+  // CreationMap diagrams: their SVG form is the director scaffold, and —
+  // once the render worker has bound every target — a composited FINAL page
+  // exists. `preferFinalRender` (the comic cook passes it) publishes the
+  // final PNG when complete and falls back to the scaffold, which maps
+  // faithfully onto the comic's roughest fidelity stage (the nēmu).
+  if (isImageOutcomesKind(sketch.manifest.kind)) {
+    if (preferFinalRender && sketch.manifest.kind !== KIND_CHARACTER_SHEET) {
+      const { png } = await compositeFinalForSketch(sketch);
+      if (png) return { svgInline: null, svgStandalone: null, png, dangling: false };
+    }
+    const svgStandalone = await renderStoredSketchSvg(sketch);
+    return { svgInline: stripXmlDecl(svgStandalone), svgStandalone, png: null, dangling: false };
   }
   const svgStandalone = await renderSketchToSvg(sketch.manifest, { technical, surface, vars });
   return {
     svgInline: stripXmlDecl(svgStandalone),
     svgStandalone,
+    png: null,
     dangling: false,
   };
 }

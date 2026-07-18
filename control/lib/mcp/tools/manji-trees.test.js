@@ -460,3 +460,41 @@ describe('create_manji_tree wave fields', () => {
     })).rejects.toThrow(/waveFields.*3D only/);
   });
 });
+
+describe('create_manji_tree drapes (a covering over any form)', () => {
+  it('drapes a cloth sheet pinned to two of the form\'s OWN named slots (endpoint paths)', async () => {
+    const result = await createManjiTreeHandler({
+      title: 'draped floor',
+      tree: floorPlanTree(),
+      dimensions: '3d',
+      ref: 'mt_drape',
+      showSlotMarkers: false,
+      physics: { gravity: { x: 0, y: 0, z: -1 } },
+      drapes: [{
+        anchor: ['world/slot/nw', 'world/slot/ne'],   // resolves against the form's own nodes
+        drop: 6, hemZ: -6, style: { stroke: '#8e2f3a', width: 1 },
+      }],
+    });
+    expect(result.ok).toBe(true);
+    const stored = SketchRepository.getByRef('mt_drape');
+    expect(stored.manifest.drapes).toHaveLength(1);            // persisted through the tool
+    const svg = renderManjiTreeToSvg(stored.manifest);
+    expect((svg.match(/stroke="#8e2f3a"/g) || []).length).toBeGreaterThan(20);   // drape strokes painted
+  });
+
+  it('rejects a drape whose anchor is not exactly two points', async () => {
+    await expect(createManjiTreeHandler({
+      title: 'bad drape', tree: floorPlanTree(), dimensions: '3d', ref: 'mt_drape_bad',
+      drapes: [{ anchor: ['world/slot/nw'] }],
+    })).rejects.toThrow(/anchor.*two points/);
+  });
+
+  it('rejects drapes on 2D trees', async () => {
+    await expect(createManjiTreeHandler({
+      title: '2d drape',
+      tree: { inlineProgram: { bar1: { rotationDeg: 0 }, bar2: { rotationDeg: 90 } } },
+      dimensions: '2d', ref: 'mt_drape_2d',
+      drapes: [{ anchor: [{ x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 }] }],
+    })).rejects.toThrow(/drapes.*3D only/);
+  });
+});

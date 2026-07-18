@@ -28,7 +28,8 @@ export default function SketchPage({ params }) {
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [mode, setMode] = useState('color');
-  const [glbStatus, setGlbStatus] = useState('idle'); // idle | preparing | unavailable | error
+  // per-format model export status: idle | preparing | unavailable | error
+  const [modelStatus, setModelStatus] = useState({ glb: 'idle', stl: 'idle' });
   const [htmlStatus, setHtmlStatus] = useState('idle'); // idle | preparing | unavailable | error
 
   const load = useCallback(async () => {
@@ -70,18 +71,19 @@ export default function SketchPage({ params }) {
     setMode(search.get('mode') === 'wireframe' ? 'wireframe' : 'color');
   }, []);
 
-  // Fetch the .glb through the API (rather than a bare <a download>) so an ineligible
+  // Fetch a model export through the API (rather than a bare <a download>) so an ineligible
   // sketch — which 422s with a JSON body — surfaces a message instead of downloading JSON.
-  const downloadGlb = useCallback(async () => {
-    setGlbStatus('preparing');
+  // `format` is 'glb' (the faithful depiction capture) or 'stl' (the 3D-printing handoff).
+  const downloadModel = useCallback(async (format) => {
+    setModelStatus((s) => ({ ...s, [format]: 'preparing' }));
     try {
-      const res = await fetch(`/api/sketches/${encodeURIComponent(ref)}/model.glb`);
+      const res = await fetch(`/api/sketches/${encodeURIComponent(ref)}/model.${format}`);
       if (res.status === 422) {
-        setGlbStatus('unavailable');
+        setModelStatus((s) => ({ ...s, [format]: 'unavailable' }));
         return;
       }
       if (!res.ok) {
-        setGlbStatus('error');
+        setModelStatus((s) => ({ ...s, [format]: 'error' }));
         return;
       }
       const blob = await res.blob();
@@ -89,14 +91,14 @@ export default function SketchPage({ params }) {
       const base = (data?.title || ref).replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '');
       const a = document.createElement('a');
       a.href = objUrl;
-      a.download = `${base || 'model'}.glb`;
+      a.download = `${base || 'model'}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(objUrl);
-      setGlbStatus('idle');
+      setModelStatus((s) => ({ ...s, [format]: 'idle' }));
     } catch {
-      setGlbStatus('error');
+      setModelStatus((s) => ({ ...s, [format]: 'error' }));
     }
   }, [ref, data]);
 
@@ -182,19 +184,25 @@ export default function SketchPage({ params }) {
     return <main className="min-h-screen" aria-hidden />;
   }
 
-  // Worlds and scenes carry exportable 3D geometry; offer a .glb download for them.
-  const canExportGlb = renderMode === 'world' || renderMode === 'scene';
+  // Worlds and scenes carry exportable 3D geometry; offer .glb + .stl downloads for them.
+  const canExportModel = renderMode === 'world' || renderMode === 'scene';
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-7xl">
-        {canExportGlb && (
+        {canExportModel && (
           <div className="mb-3 flex items-center justify-end gap-3">
-            {glbStatus === 'unavailable' && (
+            {modelStatus.glb === 'unavailable' && (
               <span className="text-xs text-[color:var(--text-muted)]">{t('downloadGlbUnavailable')}</span>
             )}
-            {glbStatus === 'error' && (
+            {modelStatus.glb === 'error' && (
               <span className="text-xs text-red-400">{t('downloadGlbError')}</span>
+            )}
+            {modelStatus.stl === 'unavailable' && (
+              <span className="text-xs text-[color:var(--text-muted)]">{t('downloadStlUnavailable')}</span>
+            )}
+            {modelStatus.stl === 'error' && (
+              <span className="text-xs text-red-400">{t('downloadStlError')}</span>
             )}
             {htmlStatus === 'unavailable' && (
               <span className="text-xs text-[color:var(--text-muted)]">{t('downloadHtmlUnavailable')}</span>
@@ -212,11 +220,20 @@ export default function SketchPage({ params }) {
             </button>
             <button
               type="button"
-              onClick={downloadGlb}
-              disabled={glbStatus === 'preparing'}
+              onClick={() => downloadModel('glb')}
+              disabled={modelStatus.glb === 'preparing'}
               className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
             >
-              {glbStatus === 'preparing' ? t('downloadGlbPreparing') : t('downloadGlb')}
+              {modelStatus.glb === 'preparing' ? t('downloadGlbPreparing') : t('downloadGlb')}
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadModel('stl')}
+              disabled={modelStatus.stl === 'preparing'}
+              title={t('downloadStlHint')}
+              className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
+            >
+              {modelStatus.stl === 'preparing' ? t('downloadStlPreparing') : t('downloadStl')}
             </button>
           </div>
         )}

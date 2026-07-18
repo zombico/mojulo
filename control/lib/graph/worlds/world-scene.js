@@ -66,6 +66,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     groundShadows,
     view: viewOpts.view,
     render: viewOpts.render,
+    ref: sketch.ref,
   };
   const payload = await desc.resolve(sketch.manifest, ctx);
 
@@ -189,8 +190,30 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const figs = sketch.manifest.figures;
     if (figs && typeof figs === 'object') {
       payload.figures = {};
-      for (const [name, spec] of Object.entries(figs)) {
-        if (!spec || typeof spec !== 'object') continue;
+      for (const [name, rawSpec] of Object.entries(figs)) {
+        if (!rawSpec || typeof rawSpec !== 'object') continue;
+        // figureRef (figure-emotes.plan.md): a figures-map entry may reference a STORED
+        // kind:'figure' sketch instead of re-declaring the body — the entry inherits the
+        // recipe's pose/proto/garment/motion and its own fields override. This is how a
+        // figure minted once via create_figure is re-used across scenes; the world manifest
+        // stays a tiny recipe (only the ref persists — resolution happens here at bake time).
+        let spec = rawSpec;
+        if (typeof rawSpec.figureRef === 'string') {
+          const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+          const src = SketchRepository.getByRef(rawSpec.figureRef);
+          if (!src || src.manifest?.kind !== 'figure') {
+            throw new Error(`figures.${name}: figureRef '${rawSpec.figureRef}' is not a stored figure sketch`);
+          }
+          const { figureRef, ...own } = rawSpec;
+          const m = src.manifest;
+          spec = {
+            ...(m.pose ? { pose: m.pose } : {}),
+            ...(m.proto ? { proto: m.proto } : {}),
+            ...(m.garment ? { garment: m.garment } : {}),
+            ...(m.motion ? { motion: m.motion } : {}),
+            ...own,
+          };
+        }
         // RIG delivery (renderer-ladder P2 rung 2): `delivery:'rig'` bakes pose CURVES + rigid
         // parts (rig-bake.js) instead of frame stacks — orders of magnitude smaller, continuous
         // poses, head-look-at capable. `asset:'megaboy'` routes to the FK builder; anything

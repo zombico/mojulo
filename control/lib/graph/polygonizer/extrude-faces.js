@@ -138,7 +138,10 @@ export function extrudeToFaces(spec = {}, opts = {}) {
   };
 
   const wall = spec.wallThickness;
-  if (!Number.isFinite(wall) || wall <= 0) {
+  // openFace:'none' asks for a FULLY SEALED shell (no opening). A sealed cavity is invisible, so we
+  // build the closed solid outer prism — watertight by construction. (Without this, 'none' fell
+  // through to the 'to' branch and shipped an open end: a closed enclosure with no surface on it.)
+  if (!Number.isFinite(wall) || wall <= 0 || spec.openFace === 'none') {
     // ── SOLID prism: side walls + two end caps ──
     for (let i = 0; i < M; i += 1) {
       const j = (i + 1) % M;

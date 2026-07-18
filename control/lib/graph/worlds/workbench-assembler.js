@@ -40,7 +40,7 @@
  * Design: control/lib/graph/workbench-assembler.plan.md.
  */
 
-import { lowerObjectFaces, studioSceneFromFaces, WORKBENCH_LIGHT } from './workbench.js';
+import { lowerObjectFaces, studioSceneFromFaces, WORKBENCH_LIGHT, bakeBoundSkinFaces } from './workbench.js';
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { makeLight } from '../polygonizer/vexar.js';
 
@@ -275,7 +275,8 @@ export function planAssembler(manifest = {}) {
  * own measured studio vantage so a chariot is verified on the same grid its parts were.
  */
 export function assembleAssemblerScene(opts = {}) {
-  return studioSceneFromFaces(lowerAssemblerFaces(opts), { ...opts, title: opts.title || 'mojulo assembler' });
+  const faces = bakeBoundSkinFaces(lowerAssemblerFaces(opts), opts.skin, opts);
+  return studioSceneFromFaces(faces, { ...opts, title: opts.title || 'mojulo assembler' });
 }
 
 /** /scene + PNG path: CSS-3D preset-shot HTML. (The /world route calls assembleAssemblerScene → emitThreeWorld.) */

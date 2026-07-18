@@ -53,7 +53,7 @@ function freezeSource(source, index) {
   return inline;
 }
 
-export function mintAssembler({ title, items, units, viewBox, ref, folderRef } = {}) {
+export function mintAssembler({ title, items, units, viewBox, facing, ref, folderRef } = {}) {
   if (!Array.isArray(items) || !items.length) {
     throw new Error('Provide a non-empty `items` array — each item places one workbench part in the shared worldspace.');
   }
@@ -77,6 +77,7 @@ export function mintAssembler({ title, items, units, viewBox, ref, folderRef } =
     items: frozenItems,
     ...(typeof units === 'string' ? { units } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
+    ...(typeof facing === 'string' || Number.isFinite(facing) ? { facing } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -112,8 +113,8 @@ export async function createAssemblerHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_assembler requires a recipe object with an `items` array');
   }
-  const { title, items, units, viewBox, ref, folder_ref: folderRef } = input;
-  return mintAssembler({ title, items, units, viewBox, ref, folderRef });
+  const { title, items, units, viewBox, facing, ref, folder_ref: folderRef } = input;
+  return mintAssembler({ title, items, units, viewBox, facing, ref, folderRef });
 }
 
 export function registerAssemblerTools() {
@@ -176,6 +177,7 @@ export function registerAssemblerTools() {
         },
         units: { type: 'string', description: "Informational unit label (e.g. 'cm') — surfaced in the size readout and grid (1 grid cell = 5 units). Default 'cm'." },
         viewBox: { type: 'object', description: 'Optional render viewBox { width, height } (default 900×900).' },
+        facing: { type: ['string', 'number'], description: "Which way the assembled model's FRONT points, so the preset 'front' shot (and the /png + /scene + /world opening camera) looks it in the face: '+y' (default — the studio camera convention), '-y', '+x', '-x', or a raw azimuth offset in degrees. Camera-only; geometry is untouched." },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
       },

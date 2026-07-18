@@ -18,11 +18,13 @@
  */
 import { articulate, basePositions } from './figure-vajra.js';
 import { projectTwoPoint } from './pure-mandala.js';
-import { makeLight, shadeHex, dot3, sub3, centroid } from './vexar.js';
+import { makeLight, shadeHex, litFactor, dot3, sub3, centroid } from './vexar.js';
 import { PROTO_DEFAULT, buildProtoform } from './figure-proto.js';
+import { buildFluffs } from './figure-fluff.js';
 import { spineDeformerFromNodes, warpStacks, spineArmAnchors } from './figure-spine.js';
 import { groundBalance, groundVault } from './figure-balance.js';
 import { gait, WALK_DEFAULTS, resolveMotion } from './figure-posing.js';
+import { emoteMotion, isEmoteSpec } from './figure-emotes.js';
 import { buildGarment, GARMENTS, resolveCuts, cutPredicate, cutHits, cutBoundary } from './figure-garments.js';
 import { resolveFigureSetup } from '../../visual-language/themes.js';
 import { buildAnimal } from './figure-animal-build.js';
@@ -84,24 +86,34 @@ function offRest(spine, hinge, full, balanced) {
 }
 
 /**
+ * The posed, ground-solved armature nodes (pure) — the same balance solve
+ * buildPosedFigure runs before fleshing. Plant the support foot/feet and shift
+ * the COM over them (weighted stance). support 'none' = AIRBORNE: skip the
+ * ground solve entirely (pure FK), so both feet can leave the ground for a
+ * hop/jump — pair with `lift`. `crouch` drops the pelvis (a squat); `kneeOut`
+ * tracks the knees out/in. `plant` (per-foot ground weights) → the
+ * inverted-pendulum vault (feet pinned, pelvis height derived).
+ * Exported for the declared-coordinate layer (animation-cheats.plan.md):
+ * OpenPose skeletons and joint anchors are projections of THESE nodes.
+ */
+export function balancedArmature(pose = {}, full = articulate(pose)) {
+  const { weight = 0, support = 'both', crouch = 0, kneeOut = 0, plant = null } = pose || {};
+  if (support === 'none') return full;
+  const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
+  return plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut });
+}
+
+/**
  * Compose the posed, dressed figure as tagged ring-stacks (pure).
  * @param {object} pose  dof: { shL:{yaw,pitch}, elbowL, hipL, kneeL, head, …,
  *                        spine:{ sagittal, lateral, axial } }  (spine drives the warp)
  * @param {object} proto figure tuning ({ sex, height, build knobs … })
  * @param {?string} garment  a GARMENTS key (skinSuit/wetsuit/tee/tank/dress) or null
  */
-export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
+export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs = null) {
   const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, ...limbs } = pose || {};
   const full = articulate(pose);          // spine + limbs (pure FK, feet float)
-  // Plant the support foot/feet and shift the COM over them (weighted stance).
-  // support 'none' = AIRBORNE: skip the ground solve entirely (pure FK), so both
-  // feet can leave the ground for a hop/jump — pair with `lift`. `crouch` drops the
-  // pelvis (a squat); `kneeOut` tracks the knees out/in.
-  const airborne = support === 'none';
-  const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
-  // `plant` (per-foot ground weights) → the inverted-pendulum vault (feet pinned to the
-  // floor, pelvis height derived). Otherwise the fixed-height balance solve (or airborne).
-  const balanced = airborne ? full : (plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut }));
+  const balanced = balancedArmature(pose, full);
 
   // The trunk + girdle + arms are built on the LIMBS-posed, STRAIGHT-spine,
   // UN-HINGED, PRE-balance armature: the trunk builders read only z-heights/widths
@@ -127,13 +139,27 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
   // number is treated as flex), fingersL/R = the knuckle curl. Threaded into the hand builder.
   const wf = (w) => (typeof w === 'number' ? { flex: w } : (w || {}));
   const wfL = wf(limbs.wristL), wfR = wf(limbs.wristR);
-  let body = buildProtoform(restPos, { ...PROTO_DEFAULT, ...proto }, legPos, {
-    L: { ankle: limbs.ankleL || 0, toe: limbs.toeL || 0, plant: plant ? plant.L || 0 : 0, flatten: flatOf('L') },
-    R: { ankle: limbs.ankleR || 0, toe: limbs.toeR || 0, plant: plant ? plant.R || 0 : 0, flatten: flatOf('R') },
-  }, {
-    L: { flex: wfL.flex || 0, deviation: wfL.deviation || 0, curl: limbs.fingersL || 0 },
-    R: { flex: wfR.flex || 0, deviation: wfR.deviation || 0, curl: limbs.fingersR || 0 },
-  });
+  let body;
+  if (Array.isArray(fluffs) && fluffs.length) {
+    // FLUFFFORM — the stylized flesh register (figure-fluff.plan.md §3): a SIBLING
+    // of protoform, not a layer on top. buildFluffs emits the exact proto stack
+    // shape ({ id, rings }, world = STAND × scale), so the spine warp, garment
+    // layer, and vexar mesher below eat it unchanged. Fluffs bind landmark
+    // segments/nodes on the rest frame with the grounded leg nodes spliced in
+    // (mirroring buildProtoform's legNodes pass), so leg/foot fluffs sit on the
+    // balanced ground-IK ankles.
+    const fluffPos = { ...restPos };
+    for (const k of GROUNDED_NODES) fluffPos[k] = legPos[k];
+    body = buildFluffs(fluffPos, fluffs, { scale: PROTO_SCALE });
+  } else {
+    body = buildProtoform(restPos, { ...PROTO_DEFAULT, ...proto }, legPos, {
+      L: { ankle: limbs.ankleL || 0, toe: limbs.toeL || 0, plant: plant ? plant.L || 0 : 0, flatten: flatOf('L') },
+      R: { ankle: limbs.ankleR || 0, toe: limbs.toeR || 0, plant: plant ? plant.R || 0 : 0, flatten: flatOf('R') },
+    }, {
+      L: { flex: wfL.flex || 0, deviation: wfL.deviation || 0, curl: limbs.fingersL || 0 },
+      R: { flex: wfR.flex || 0, deviation: wfR.deviation || 0, curl: limbs.fingersR || 0 },
+    });
+  }
 
   // Warp whenever the figure is off its rest pose. S0 = the straight rest spine the
   // flesh was built on; S1 = the fully posed + BALANCED spine. Because S1 carries
@@ -168,6 +194,7 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null) {
       const outer = !g.id.includes(':under:');                              // seams trace OUTER cloth only
       stacks.push({
         id: g.id, rings: g.rings, hex: g.hex, panel: g.panel,
+        sheet: g.sheet || false,                                              // open two-sided cloth (wave-drape)
         cut: ap.length ? cutPredicate(ap) : null,
         panels: pp.length ? pp : null,
         seamCuts: outer && ap.length ? ap : null,
@@ -222,11 +249,57 @@ function worldVertex(stacks, groundZ) {
 // but the live World orbit camera moves, so the back of the figure must survive
 // (the three.js material renders DoubleSide). Shading is camera-independent — the
 // outward normal is oriented by the stack centre, not CAM — so colours are unchanged.
+// An OPEN cloth SHEET (wave-drape: cape/cloak/tabard) — the ring grid is a 2D
+// panel, not a closed tube. It has no meaningful centerline, so we can't orient
+// by a ring centre or back-face cull. Instead: SMOOTH the shading with vertex
+// normals (mean of the ≤4 incident face normals) so the wave folds read as soft
+// gradients not a hard facet checkerboard, and light BOTH sides by |Lambert|
+// (flip each face normal into the light hemisphere). svgile-row cuts + panels
+// still apply, tested against the raw figure-space centroid like any garment.
+function emitSheetFaces(st, V, light, dist, faces) {
+  const cut = st.cut, panels = st.panels, R = st.rings;
+  const Ni = R.length, Nj = Math.min(...R.map((r) => r.polyline.length));
+  if (Ni < 2 || Nj < 2) return;
+  const P = R.map((r) => r.polyline.slice(0, Nj).map((p) => V(p)));         // world positions [i][j]
+  const FN = [];                                                            // face normals, consistent winding
+  for (let i = 0; i < Ni - 1; i++) { FN[i] = []; for (let j = 0; j < Nj - 1; j++) FN[i][j] = newell([P[i][j], P[i][j + 1], P[i + 1][j + 1], P[i + 1][j]]); }
+  const VN = [];                                                            // vertex normals = mean of incident faces
+  for (let i = 0; i < Ni; i++) {
+    VN[i] = [];
+    for (let j = 0; j < Nj; j++) {
+      let x = 0, y = 0, z = 0;
+      for (const [di, dj] of [[-1, -1], [-1, 0], [0, -1], [0, 0]]) {
+        const fi = i + di, fj = j + dj;
+        if (fi >= 0 && fi < Ni - 1 && fj >= 0 && fj < Nj - 1) { const f = FN[fi][fj]; x += f[0]; y += f[1]; z += f[2]; }
+      }
+      const l = Math.hypot(x, y, z) || 1; VN[i][j] = [x / l, y / l, z / l];
+    }
+  }
+  for (let i = 0; i < Ni - 1; i++) {
+    const a = R[i].polyline, b = R[i + 1].polyline;
+    for (let j = 0; j < Nj - 1; j++) {
+      const pa = a[j], pa1 = a[j + 1], pb1 = b[j + 1], pb = b[j];
+      const praw = (cut || panels) ? { x: (pa.x + pa1.x + pb1.x + pb.x) / 4, y: (pa.y + pa1.y + pb1.y + pb.y) / 4, z: (pa.z + pa1.z + pb1.z + pb.z) / 4 } : null;
+      if (cut && cut(praw)) continue;
+      const wpts = [P[i][j], P[i][j + 1], P[i + 1][j + 1], P[i + 1][j]];
+      const vn = [VN[i][j], VN[i][j + 1], VN[i + 1][j + 1], VN[i + 1][j]];
+      let nx = 0, ny = 0, nz = 0; for (const v of vn) { nx += v[0]; ny += v[1]; nz += v[2]; }
+      const l = Math.hypot(nx, ny, nz) || 1; let shadeN = [nx / l, ny / l, nz / l];
+      if (dot3(shadeN, light.toLight) < 0) shadeN = [-shadeN[0], -shadeN[1], -shadeN[2]];   // two-sided |Lambert|
+      let hex = st.hex;
+      if (panels) for (const p of panels) if (cutHits(praw, p.region)) hex = p.color;
+      const cen = centroid(wpts);
+      faces.push({ wpts, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) });
+    }
+  }
+}
+
 function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = null } = {}) {
   const V = worldVertex(stacks, groundZ);
   const dist = (cen) => Math.hypot(cen[0] - CAM[0], cen[1] - CAM[1], cen[2] - CAM[2]);
   const faces = [];
   for (const st of stacks) {
+    if (st.sheet) { emitSheetFaces(st, V, light, dist, faces); continue; }  // open two-sided cloth (wave-drape)
     const cut = st.cut, panels = st.panels;                                 // garment cutter + panel recolour (null for flesh)
     for (let i = 0; i < st.rings.length - 1; i++) {
       const a = st.rings[i].polyline, b = st.rings[i + 1].polyline, m = Math.min(a.length, b.length);
@@ -249,7 +322,10 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
         // colour, shade it with the z-FLIPPED (upward) normal so the white belly catches
         // overhead light instead of shading to muddy grey — biological countershading.
         if (recolor) { const rc = recolor(hex, n, cen); if (rc) { hex = rc; shadeN = [n[0], n[1], Math.abs(n[2])]; } }
-        faces.push({ wpts, fill: shadeHex(hex, shadeN, light), dist: dist(cen) });
+        // `shade` = the raw Lambert factor, carried so the skin-projection seam can
+        // multiply a sampled albedo by the deterministic form-shading (the control
+        // scaffold emits it as data-shade — same contract as manji-svg lit faces).
+        faces.push({ wpts, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) });
       }
     }
   }
@@ -265,7 +341,7 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
       const perp = unit3(cross3(unit3(sub3(Q, P)), nW)), w = 0.018, e = 0.006;
       const off = (p, k) => [p[0] + perp[0] * k + nW[0] * e, p[1] + perp[1] * k + nW[1] * e, p[2] + perp[2] * k + nW[2] * e];
       const wpts = [off(P, -w), off(Q, -w), off(Q, w), off(P, w)], cen = centroid(wpts);
-      faces.push({ wpts, fill: shadeHex(SEAM_HEX, nW, light), dist: dist(cen) - 1e-3 });   // tiebreak toward camera
+      faces.push({ wpts, fill: shadeHex(SEAM_HEX, nW, light), shade: litFactor(nW, light), dist: dist(cen) - 1e-3 });   // tiebreak toward camera
     }
   }
   faces.sort((p, q) => q.dist - p.dist);                                    // far → near
@@ -274,7 +350,7 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
 
 // Project lit faces to 2D + the screen bounding box (no fit applied yet).
 function projectFaces(faces, project) {
-  const proj = faces.map((f) => ({ pts: f.wpts.map(project), fill: f.fill }));
+  const proj = faces.map((f) => ({ pts: f.wpts.map(project), fill: f.fill, shade: f.shade }));
   const bb = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   for (const f of proj) for (const [x, y] of f.pts) if (Number.isFinite(x) && Number.isFinite(y)) {
     if (x < bb.minX) bb.minX = x; if (y < bb.minY) bb.minY = y; if (x > bb.maxX) bb.maxX = x; if (y > bb.maxY) bb.maxY = y;
@@ -288,12 +364,17 @@ function fitFor(bb, W, H, pad) {
   const s = Math.min((W - pad * 2) / fw, (H - pad * 2) / fh);
   return { s, ox: pad + ((W - pad * 2) - fw * s) / 2 - bb.minX * s, oy: pad + ((H - pad * 2) - fh * s) / 2 - bb.minY * s };
 }
-function drawPolys(proj, fit) {
+function drawPolys(proj, fit, { control = false } = {}) {
   const X = (x) => (x * fit.s + fit.ox).toFixed(1), Y = (y) => (y * fit.s + fit.oy).toFixed(1);
   const out = [];
   for (const f of proj) {
     const pts = f.pts.filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)).map(([x, y]) => `${X(x)},${Y(y)}`).join(' ');
-    if (pts) out.push(`<polygon points="${pts}" fill="${f.fill}" stroke="${f.fill}" stroke-width="0.5"/>`);
+    if (!pts) continue;
+    // Control-scaffold faces use the manji-svg lit-face polygon contract
+    // (stroke-linejoin + data-shade) so skin-projection's reskin matches them.
+    out.push(control
+      ? `<polygon points="${pts}" fill="${f.fill}" stroke="${f.fill}" stroke-width="0.5" stroke-linejoin="round" data-shade="${(f.shade ?? 1).toFixed(4)}"/>`
+      : `<polygon points="${pts}" fill="${f.fill}" stroke="${f.fill}" stroke-width="0.5"/>`);
   }
   return out;
 }
@@ -361,16 +442,46 @@ function recolorFlesh(stacks, fleshHex) {
  * Render a single posed figure to a standalone SVG string. Pass a precomputed
  * `fit` (from a motion's locked framing) to keep the figure from rescaling.
  */
-export function renderFigureToSvg(manifest = {}, fit = null) {
+export function renderFigureToSvg(manifest = {}, fit = null, { control = false } = {}) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
-  if (setup.mode === 'wire') {
+  // The control scaffold (skin seam) is ALWAYS the filled lit render — a wire
+  // setup would fragment a diffusion skin (the polygomer-skin lesson).
+  if (setup.mode === 'wire' && !control) {
     const { lines, bb } = projectWire(stacks, project);
     return svgDoc(drawWire(lines, fit || fitFor(bb, VB_W, VB_H, PAD), setup.wireStroke), setup.bg);
   }
   const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
-  return svgDoc(drawPolys(proj, fit || fitFor(bb, VB_W, VB_H, PAD)), setup.bg);
+  return svgDoc(drawPolys(proj, fit || fitFor(bb, VB_W, VB_H, PAD), { control }), setup.bg);
+}
+
+/**
+ * Render the figure AND return its armature nodes in final SVG pixel
+ * coordinates — the declared-coordinate seam (animation-cheats.plan.md).
+ * The nodes ride the exact same world transform, camera, and fit as the
+ * mesh, so a skeleton drawn from them is pixel-aligned with the render by
+ * construction. Returns { svg, nodes: { headTop, neckHub, shoulderL, … :
+ * [x, y] }, fit, viewBox }. Limitation: `pose.squash` deforms the flesh but
+ * not the armature — don't rely on node alignment under squash.
+ */
+export function renderFigureWithArmature(manifest = {}, fit = null) {
+  const setup = resolveSetup(manifest);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
+  const { CAM, project } = makeCamera(manifest.view);
+  const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
+  const F = fit || fitFor(bb, VB_W, VB_H, PAD);
+  const svg = svgDoc(drawPolys(proj, F), setup.bg);
+  const pose = manifest.pose || {};
+  const arm = balancedArmature(pose);
+  const lift = pose.lift || 0;                     // liftStacks moved the flesh; move the nodes with it
+  const minZ = stackMinZ(stacks);                  // same ground plant as worldVertex
+  const nodes = {};
+  for (const [k, n] of Object.entries(arm)) {
+    const [x, y] = project([n.x * S, n.y * S, ((n.z + lift) - minZ) * S + 0.02]);
+    nodes[k] = [x * F.s + F.ox, y * F.s + F.oy];
+  }
+  return { svg, nodes, fit: F, viewBox: { width: VB_W, height: VB_H } };
 }
 
 // ─── ANIMAL render — the character builder, pointed at the animal-realm ──────
@@ -534,14 +645,36 @@ function stretchPose(u) {
 }
 const MOTIONS = { walk: gait(WALK_DEFAULTS), wave: wavePose, stretch: stretchPose };
 // Resolve a motion. The string names 'wave'/'stretch' (choreographies that live
-// here) come from MOTIONS; everything else — 'walk', a parameterized gait/walk
+// here) come from MOTIONS; emote names / { emote } specs come from the named
+// figure-emotes library; everything else — 'walk', a parameterized gait/walk
 // spec, a keyframe-motion spec, a function, a `perform`-wrapped motion — goes
 // through figure-posing's resolveMotion, the shared motion front door.
 const motionFn = (m, frames) => {
   if (m === 'wave' || m === 'stretch') return MOTIONS[m];
+  if (isEmoteSpec(m)) return emoteMotion(m, { frames });
   return resolveMotion(m, { frames });
 };
 export function figureIsAnimated(manifest) { return !!(manifest && motionFn(manifest.motion)); }
+
+// Does this STRING resolve to a known motion? Manifest validators use this to
+// reject an unknown keyframe motion name up front (a clear error) instead of
+// letting it crash later at guide render (sampleMotionPose → null → deref).
+// Object specs ({ keyframes }, { walk }, …) are validated by their own shape;
+// this is only the name-string gate.
+export function isKnownMotionName(m) { return typeof m === 'string' && !!motionFn(m); }
+
+/**
+ * Sample a motion's pose at phase u ∈ [0,1) — the still-frame door into the
+ * motion vocabulary ('walk'/'wave'/'stretch'/gait/keyframe specs). Returns the
+ * sampled dof object, or null when the motion doesn't resolve. Callers merge it
+ * under/over a base pose exactly like renderFigureFrames does per frame.
+ */
+export function sampleMotionPose(motion, u = 0, frames = 30) {
+  const move = motionFn(motion, frames);
+  if (!move) return null;
+  const t = ((u % 1) + 1) % 1;
+  return move(t);
+}
 
 /**
  * Render N frames of a motion as SVG strings (for a GIF). The camera framing is
@@ -563,7 +696,7 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
   let groundZ = Infinity;
   for (let i = 0; i < frames; i++) {
     const pose = { ...(manifest.pose || {}), ...move(i / frames) };
-    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment), setup.fleshHex);
+    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
     built.push(stacks);
     const mz = stackMinZ(stacks);
     if (mz < groundZ) groundZ = mz;
@@ -607,7 +740,7 @@ export function figureRigSamples(manifest = {}, keys = 8) {
   const { CAM } = makeCamera(manifest.view);
   const move = motionFn(manifest.motion || 'walk', keys);
   const restPose = manifest.pose || {};
-  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment), setup.fleshHex);
+  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
   const groundZ = stackMinZ(restStacks);
   const V = worldVertex(restStacks, groundZ);
   const restFaces = litFaces(restStacks, CAM, setup.light, groundZ, { cull: false })
@@ -639,7 +772,7 @@ export function renderFigureWorldFrames(manifest = {}, frames = 30) {
     ? Array.from({ length: frames }, (_, i) => ({ ...(manifest.pose || {}), ...move(i / frames) }))
     : [manifest.pose || {}];
   // Pass 1: build every frame; share the lowest ground contact across the motion.
-  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment), setup.fleshHex));
+  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex));
   let groundZ = Infinity;
   for (const stacks of built) { const mz = stackMinZ(stacks); if (mz < groundZ) groundZ = mz; }
   // Pass 2: mesh each frame to world faces — no projection, no cull → orbitable.

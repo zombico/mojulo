@@ -43,13 +43,25 @@ const DESCRIPTION_ALLOWLIST = {
   compose_world: 1488,
   cook: 2756,
   create_assembler: 2100,
-  create_beats: 1142,
+  // create_beats / create_figure / export_beats / get_image_render_packet
+  // re-pinned 2026-07-13 to bless visualization-layer branch growth measured
+  // at the Mojulo Voice landing (figure garment/setup dials, beats export
+  // midi handoff, render-packet control-scaffold pointer). Shrink-only.
+  create_beats: 1150,
   create_carved_solid: 2605,
   create_dna_process: 1137,
   create_energy_cycle: 1011,
-  create_figure: 3525,
+  // create_figure re-pinned 2026-07-14: inline wardrobe-piece specs (the
+  // character-from-dream C0b unlock — garment as data, mugen = looseness) +
+  // the figure skin seam pointer (get_skin_packet/skin_polygomer). Shrink-only.
+  create_figure: 4275,
   create_game: 2012,
-  create_manji_tree: 19844,
+  // create_manji_tree / export_model re-pinned + skin_polygomer /
+  // sketch_polygomer allowlisted 2026-07-17 to bless the "dream, borrow,
+  // keep" batch growth (drapes channel + detail dial on manji trees, the
+  // skin-projection seam pointers, the sketch_polygomer parts grammar).
+  // Shrink-only from these snapshots.
+  create_manji_tree: 20151,
   create_polygonized_sketch: 932,
   create_sketch: 4003,
   create_solid_turntable: 1172,
@@ -59,7 +71,10 @@ const DESCRIPTION_ALLOWLIST = {
   declare_skills: 1041,
   diff_sketches: 875,
   execute_plan: 1314,
-  export_model: 1412,
+  export_beats: 1124,
+  // export_model re-pinned 2026-07-17: the STL print-handoff format
+  // (format:'glb'|'stl' + scale → mm) rides the same tool. Shrink-only.
+  export_model: 2104,
   forge_motion: 12999,
   forge_plan: 1167,
   forge_publications: 955,
@@ -67,6 +82,7 @@ const DESCRIPTION_ALLOWLIST = {
   gather: 1181,
   get_adapter: 981,
   get_game_vocab: 1297,
+  get_image_render_packet: 708,
   get_mcp_capabilities: 890,
   get_register_kit: 731,
   get_substrate: 832,
@@ -88,7 +104,9 @@ const DESCRIPTION_ALLOWLIST = {
   run_experiment_sweep: 866,
   semantic_search: 1768,
   sketch_plan: 774,
+  sketch_polygomer: 1093,
   sketch_research: 712,
+  skin_polygomer: 953,
   sketch_stash: 1016,
   sketch_what_possible: 1316,
   stitch_motion: 1435,
@@ -100,7 +118,21 @@ const DESCRIPTION_ALLOWLIST = {
 // Whole-body pin: baseline 314,028 bytes at ratchet time. Deliberate growth
 // (a new tool, an intended description) re-pins this number in the same
 // commit; silent growth fails here first.
-const PAYLOAD_CEILING = 320_000;
+// Re-pinned 2026-07-11 (was 320,000; measured 320,235) to bless the
+// image-outcomes worker seam growth: get_image_render_packet +
+// bind_character_sheet + the cook comic-format creation pointer.
+// Re-pinned 2026-07-12 (was 324,000; measured 328,325) to bless the render
+// handoff (render-handoff.plan.md): request_/pull_/submit_/accept_/
+// reject_image_render — the durable render-worker bicycle.
+// Re-pinned 2026-07-13 (was 332,000; measured 333,814) to bless Mojulo Voice
+// (voice-worker.plan.md): create_voice / get_voice / get_voice_vocab.
+// Re-pinned 2026-07-17 (was 336,000; measured 351,493) to bless the "dream,
+// borrow, keep" batch: create_edifice, emote_figure, sketch_polygomer,
+// get_skin_packet / skin_polygomer, bind_voice_sample, and the manji-tree
+// drapes/detail growth.
+// Re-pinned 2026-07-17 (was 352,000; measured 352,387) to bless the STL
+// print handoff on export_model (format:'glb'|'stl' + scale → mm).
+const PAYLOAD_CEILING = 353_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -22,7 +22,7 @@
  * merely importing this helper from a mint tool stays cheap until a warm fires.
  */
 
-import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
+import { isPolygomerManjiTree, sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 
 // Warming spawns a headless Chromium. Skip it under the test runner (vitest sets
 // VITEST) so the mint-tool unit tests don't each launch a browser in the
@@ -47,6 +47,9 @@ export function warmScenePng(sketch) {
   if (!sketch || !sketch.manifest) return;
   const mode = sketchRenderMode(sketch.manifest);
   if (mode !== 'world' && mode !== 'scene') return;
+  // Polygomer stills bake from the cheap manji SVG path (no Chromium, no PNG
+  // cache) — nothing worth pre-warming.
+  if (isPolygomerManjiTree(sketch.manifest)) return;
 
   // Fire-and-forget. The IIFE keeps the heavy import + bake entirely off the
   // caller's path; any failure (no Chromium, ineligible scene, write error) is

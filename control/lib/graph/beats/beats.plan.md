@@ -1,6 +1,12 @@
 # Mojulo Beats — authorable musical artifacts, wired to worlds
 
-Status: B0–B9 built (2026-07-10 closes the plan's open items). B0–B3: kernel +
+Status: B0–B9 built (2026-07-10 closes the plan's open items). B10 (the foley
+spike, 2026-07-13) built: `grain` + `ring` gestures, `burst.lowpass`,
+`flutter.jitter` — the sfx kind goes naturalistic (footsteps, creaks, glass,
+fire); A/B refs foley-lab-1 / foley-lab-2. B11 (the armory pack, 2026-07-14)
+added no kernel surface — a 14-cue weapon reference pack (ref `armory`:
+gunfire / lock-and-load / energy weapons) built entirely from the B10 six
+gestures. B0–B3: kernel +
 patches + manifests + tests; create_beats / get_beats_vocab + vocab cards +
 embeddings + player page + /beats route; the `audio` world channel with
 soundtrack / beatsRef / wind / footsteps / bus-cue SFX. B4: .wav export landed
@@ -924,3 +930,188 @@ none today), context.js routing rows, vocab card cross-links
 - **Embedding beats artifacts in semantic search** — sketches are
   deliberately off the index; a library-search story is its own decision.
 - **MIDI or audio import** (unchanged doctrine — export-only).
+
+---
+
+## B10 — the foley spike: naturalistic SFX (2026-07-13)
+
+Status: spiked + folded (working tree). The B0 gestures were validated on
+chiptune (Buster Lab); this spike asked how far they stretch toward
+*naturalistic* foley — footsteps on materials, doors, water, glass, fire,
+cloth — and added the minimum that closes the gap.
+
+### Method
+
+Two artifacts, A/B'd through the render seam (no ears needed — per-frame RMS
+envelope + zero-crossing rate read the character):
+
+- `foley-lab-1` — nine everyday cues built best-effort from the four
+  existing gestures.
+- `foley-lab-2` — the same targets rebuilt on the spike's additions.
+
+### What Lab I proved (the gaps, measured)
+
+- **Granular textures don't exist.** Gravel and fire hand-authored as
+  stacked bursts merge into one white hiss (ZCR pinned at 8–11 kHz, no
+  grain separation, no body) — and the "crackle" is byte-identical
+  choreography every play. flutter is periodic *tones*, not noise grains.
+- **No modal ring.** Glass faked as a flat sweep (from == to) reads as a
+  beep with a linear fade, dead at 200 ms — no inharmonic partials, no
+  fast-dying brights over a singing fundamental.
+- **No stick-slip.** A 13 Hz sawtooth flutter is a perfectly periodic buzz;
+  a creak is *irregular* in both timing and pitch.
+- **Noise has no material body.** burst's only filter is a highpass —
+  everything noise-shaped is hiss.
+
+### What was added (all plan-time, all seeded)
+
+The design move: every addition is a **pure `gesturePlan` expansion to
+existing op kinds**, so the realizer is almost untouched and everything is
+unit-testable on the pure side.
+
+- **`grain`** — a seeded stochastic noise-grain train: `{ grains, over,
+  decay: s|[min,max], band: {lo,hi}, vol, spread, seed }` → lowers to
+  `noise` ops via mulberry32(hashSeed(seed, grains)). Gravel, crackle,
+  rustle, rain, debris. Same seed = the same grit (determinism holds:
+  re-render is byte-identical).
+- **`ring`** — a modal material strike: `{ note|hz, material:
+  glass|metal|wood | partials: [{ratio,gain,decay}], decay, vol }` →
+  lowers to flat `thump` ops (from == to), one per partial — **zero
+  realizer change**; the material presets carry inharmonic ratios with
+  brights decaying first. The computed cousin of the B6.2 modal voice.
+- **`burst.lowpass`** (+ grain's `band.hi`) — the one realizer change
+  (~3 lines): noise ops chain highpass → lowpass, giving noise a body.
+- **`flutter.jitter`** (0–1, + `seed`) — fold, don't fork: seeded timing
+  (±40% of period) and pitch (±80 cents) wobble per retrigger. jitter 0 is
+  bit-identical to the pre-spike path; ~0.8 at rateHz 13 is a door creak.
+
+Validation teaches per gesture (GESTURES + material/partials/band/jitter
+checks in beats-manifest.js); the sfx vocab card documents all six gestures
+plus layering recipes (footstep = thump + grain scuff; slam = thump +
+lowpassed burst + latch ring). 108 tests green (grain determinism/sorting/
+band, ring lowering + custom partials, jitter seeding + null path).
+
+### A/B (25 ms frames, RMS dB + ZCR)
+
+- gravel: merged hiss → thump body then separated grit, ZCR evolving
+  2.8→5.3 kHz. glass: linear fade → exponential modal decay, fundamental
+  singing past 500 ms. creak: flat periodic → −33..−76 dB frame-to-frame
+  stick-slip gapping with pitch wander. fire: continuous hiss → sparse
+  irregular pops over a low band-limited bed.
+
+Addendum (same day, operator call): **foley-lab-2 is a standing reference
+pack, not scratch.** Each cue carries a cue-scoped annotation (usage seams +
+re-voicing recipes — the annotations are standing metadata, deliberately left
+open); foley-lab-1 carries an artifact-scope "historical baseline, don't use"
+mark. Discovery path: the sfx vocab card grew a reference-pack table (cue →
+use → seam) and the audio-beats routing card grew foley recognizer phrases,
+so intent → `semantic_search` → card → `get_beats { ref: 'foley-lab-2' }` →
+copy the cue into the world/game's own mint. Beats artifacts stay off the
+semantic index (B9 doctrine) — the CARD carries the pointer.
+
+### Deliberately out (B10)
+
+- **A `creak` gesture** — flutter + jitter covers it; a dedicated gesture
+  must earn a genuinely new shape, not a preset.
+- **Pitched/wavetable grains** (grain stays noise-only; pitched scatter is
+  flutter's territory).
+- **Velocity/round-robin variation per trigger** — world SFX fire cues
+  deterministically; per-hit variation should come from the *caller* seam
+  (e.g. gait phase → seed offset) if a world ever wants it, not from
+  unseeded dice.
+- **Convolution/spatial foley (room, distance)** — the world's atmosphere
+  model owns space; cues stay dry.
+
+## B11 — the armory pack: weapon foley (2026-07-14)
+
+Status: minted + folded (working tree). A second themed reference pack beside
+`foley-forest`, on the same spike-to-pack convention B10 established — but
+this one added **zero kernel/gesture surface**: the B10 six gestures already
+reach the whole weapon domain, so B11 is a pure vocabulary build (recipes +
+annotations + card/routing/plan doctrine).
+
+### The pack — ref `armory`, 14 cues, three groups
+
+- **Ballistic:** `gunshot`, `shot-suppressed`, `shotgun-blast`, `dry-fire`.
+- **Handling (lock and load):** `rack-slide`, `bolt-action`, `pump-shotgun`
+  (the "chk-chk"), `mag-insert`, `mag-eject`, `shell-drop`, `safety-click`.
+- **Energy (sci-fi/fantasy):** `laser-pew`, `charge-beam`, `plasma-bolt`,
+  `overheat-vent`.
+
+Each cue carries a cue-scoped annotation (usage seam + re-voicing recipe),
+same standing-metadata discipline as `foley-lab-2` / `foley-forest`; the sfx
+vocab card grew an `armory` reference-pack table and the audio-beats routing
+card grew weapon recognizer phrases. Off the semantic index (B9 doctrine) —
+the card carries the pointer.
+
+### Gesture mapping (why no new gesture earned its place)
+
+- `burst` (highpass→lowpass body) + `thump` = the report + punch; the
+  gunshot/shotgun mass is `lowpass` + `decay`, not a new op.
+- a highpassed `burst` = every mechanical clack — slide, bolt, mag clunk,
+  casing ping, selector detent. Two clacks at offset `at`s = the back/forward
+  two-stroke of a rack/bolt. (See the metal-clack correction below — the clack
+  is NOT `ring`.)
+- `grain` = the action grit / friction draw / steam vent.
+- `sweep` (down) = blaster/plasma bolt; `flutter` (jittered tiers) = the
+  charge wind-up, released by a `sweep`+`burst` discharge.
+
+### Method — objective A/B, no ears (as B10)
+
+Every cue rendered through the render seam and read by per-25ms-frame RMS(dB)
++ zero-crossing rate. Confirmed the shapes: gunshot a −17.7dB transient dead
+in ~100ms; shotgun fatter/lower (7 frames, 140Hz body) vs the rifle crack;
+bolt-action's two clacks gapped by a low-ZCR grain draw; shell-drop three
+descending metal pings; charge-beam 44 frames of rising-ZCR flutter (160→
+1000Hz as tiers climb) then a −16.6dB release sweep; overheat-vent 20 frames
+of high-ZCR steam (3.8–5.4kHz) thinning out. All 14 valid + audible.
+
+### Doctrine (carried on the cues + card)
+
+- **One cue = one shot.** Full-auto fire is the caller retriggering `gunshot`
+  on a cadence timer with a varied grain `seed` — never an "auto" cue (the
+  same call the forest pack makes for birdsong).
+- **A reload is a cue sequence,** not one cue: `mag-eject` → `mag-insert` →
+  `rack-slide`.
+
+### Correction — metal is noise, not `ring` (operator's ears, rev 3)
+
+First voicing leaned on `ring material:'metal'` for the slide/bolt/casing
+clacks and voiced them low (A3–E4) for "heaviness." The operator heard it
+straight: *"nothing sounds like metal in the rack — it all sounds like bongo
+taps."* Measured (spectral centroid over the 12ms attack, node render):
+
+- `ring material:'metal'` at E4 → **509Hz centroid = bongo.** The ring was
+  *dragging brightness down*. A pure sine stack can't be metallic — even at A6
+  it only reaches ~1900Hz.
+- A short highpassed `burst` (≈4kHz hp) alone → **~7.5kHz = metal.** The bright
+  noise transient IS the metallic character.
+
+Fix (recipe-only, no kernel change): all mechanical cues rebuilt
+**noise-forward** — the clack is a highpassed `burst` that leads, `ring` is
+demoted to a quiet HIGH shimmer (≥A6, vol ~0.15), and the body `thump` is quiet
+and a hair late so the bright contact leads the attack. Result: mechanical
+onsets moved 509Hz → **2.8–4.0kHz** (metal). rev 3 rebuilt rack-slide /
+bolt-action / pump-shotgun / mag-insert / mag-eject / shell-drop / dry-fire /
+safety-click / shot-suppressed; card carries the "metal is noise" recipe note.
+
+**Kernel finding (deferred):** the `ring material:'metal'` preset (4 sine
+partials, ratios ≤ 8.93×) does not earn its name at usable pitches — it's a
+tuned-mallet timbre, fine for a high glass/wood tink but not for metal. A
+proper fix (denser + higher inharmonic partials, or an intrinsic noise
+excitation in the `ring` op) is a kernel spike affecting glass/wood too; left
+for later since the recipe-level noise-forward path fully covers armory.
+
+### Deliberately out (B11)
+
+- **A continuous held beam / weapon hum** — the one real gap surfaced. `sweep`
+  is a one-shot ramp and `flutter` is retriggered grains, so neither sustains
+  smoothly; a held beam belongs to a looped `beats-ambient` bed, not a cue.
+  A dedicated sustained-tone sfx gesture (osc + tremolo/vibrato, held for a
+  `dur`) would be the shape to earn — deferred until a world actually needs
+  a held beam a soundtrack loop can't cover.
+- **Explosions/grenades** — a big lowpassed `burst`+`thump` reaches a small
+  one, but a proper blast wants a longer body + debris tail; left for a
+  demolition-themed pass if asked.
+- **Spatial/distance modeling (a shot echoing down a canyon)** — the world's
+  atmosphere model owns space; cues stay dry (B10 call, unchanged).

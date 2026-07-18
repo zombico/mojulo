@@ -57,6 +57,10 @@ import {
   isDeckMotion,
   DECK_BG,
 } from '@/lib/motion';
+import { KIND_SCENE_MOTION, KIND_KEYFRAME_ANIMATION, normalizeImageOutcomesManifest } from '@/lib/graph/image-outcomes/manifest';
+import { resolveSceneForge, resolveClipForge } from '@/lib/graph/image-outcomes/scene-forge';
+import { clipFrameSelections, compositeCels } from '@/lib/graph/image-outcomes/keyframe-composite';
+import { renderSceneFrames } from '@/lib/graph/image-outcomes/keyframe-spike/scene-composite';
 import { viewerHtml, worldViewerHtml, stitchViewerHtml } from '@/lib/motion/viewer';
 import { composeFlipbook } from '@/lib/motion/flipbook';
 import {
@@ -194,7 +198,53 @@ function resolveSubject(subject) {
     const c = resolveCarvedSpec(subject.carved_solid, 'subject.carved_solid');
     return { kind: 'carved', carved: c.spec, subjectRef: c.ref, recipeSubject: { carved_solid: c.ref ?? c.spec } };
   }
-  throw new Error('forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, or from+to');
+
+  // ── scene subjects (a scene-motion recipe: character clips staged over a
+  // background plate with depth + camera moves — the RASTER/CHARACTER family,
+  // composited from accepted cels + the accepted plate; renderShot resolves the
+  // store-backed assets via resolveSceneForge). ──
+  if (subject.scene_ref) {
+    const sketch = SketchRepository.getByRef(subject.scene_ref);
+    if (!sketch) throw new Error(`subject scene '${subject.scene_ref}' not found`);
+    if (sketch.manifest?.kind !== KIND_SCENE_MOTION) {
+      throw new Error(`subject scene '${subject.scene_ref}' is kind '${sketch.manifest?.kind}', not a scene-motion recipe (mint one via create_sketch kind 'scene-motion').`);
+    }
+    const scene = normalizeImageOutcomesManifest(sketch.manifest);
+    return { kind: 'scene', scene, sceneRef: sketch.ref, subjectRef: sketch.ref, recipeSubject: { scene_ref: sketch.ref } };
+  }
+
+  // ── clip subjects (a finished keyframe-animation clip: stitch its ACCEPTED
+  // cels into the mo_ GIF/MP4 — mcp-promotion.plan.md A3). Re-time knobs
+  // (fps/onTwos/cycles/blink/speech) re-mint over the SAME accepted cels, zero
+  // new generations; pose/keys/motion are baked into the paint, so changing
+  // them means a new clip, and overriding them here is refused. ──
+  if (subject.cel_set) {
+    const cs = typeof subject.cel_set === 'string' ? { ref: subject.cel_set } : subject.cel_set;
+    if (!cs || typeof cs !== 'object' || !cs.ref) {
+      throw new Error("subject.cel_set requires { ref: 'sk_…' } — the keyframe-animation clip whose accepted cels to stitch.");
+    }
+    const sketch = SketchRepository.getByRef(cs.ref);
+    if (!sketch) throw new Error(`subject clip '${cs.ref}' not found`);
+    if (sketch.manifest?.kind !== KIND_KEYFRAME_ANIMATION) {
+      throw new Error(`subject clip '${cs.ref}' is kind '${sketch.manifest?.kind}', not a keyframe-animation clip (mint one via create_sketch kind 'keyframe-animation').`);
+    }
+    const RETIME_KEYS = ['fps', 'onTwos', 'cycles', 'blink', 'speech'];
+    const unknown = Object.keys(cs).filter((k) => k !== 'ref' && !RETIME_KEYS.includes(k));
+    if (unknown.length) {
+      throw new Error(
+        `cel_set re-time overrides accept only ${RETIME_KEYS.join(', ')} (got: ${unknown.join(', ')}). `
+        + 'Pose, keys, and motion are baked into the accepted cels — mint a new clip to change them.',
+      );
+    }
+    const overrides = {};
+    for (const k of RETIME_KEYS) if (k in cs) overrides[k] = cs[k];
+    const km = normalizeImageOutcomesManifest({ ...sketch.manifest, ...overrides });
+    return {
+      kind: 'cels', km, clipRef: sketch.ref, subjectRef: sketch.ref,
+      recipeSubject: { cel_set: { ref: sketch.ref, ...overrides } },
+    };
+  }
+  throw new Error('forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, from+to, scene_ref, or cel_set');
 }
 
 /**
@@ -213,6 +263,8 @@ export async function renderShot({ subject, shot }) {
   const isDeck = resolved.kind === 'deck';
   const isEffect = resolved.kind === 'carved' || resolved.kind === 'carved-pair';
   const isWorld = resolved.kind === 'world';
+  const isScene = resolved.kind === 'scene';
+  const isCels = resolved.kind === 'cels';
 
   // A named presentation theme unifies the surface + backdrop + (downstream)
   // player chrome behind one token, so they can't drift. Explicit surface/bg
@@ -221,13 +273,37 @@ export async function renderShot({ subject, shot }) {
 
   // Deck subjects imply the slideshow motion; camera subjects require a named
   // camera motion. Validate the pairing so the model gets a clear error.
-  const motion = shot.motion || (isDeck ? 'deck' : undefined);
+  const motion = shot.motion || (isDeck ? 'deck' : isScene ? 'scene' : isCels ? 'clip' : undefined);
   if (!motion) {
     throw new Error('shot.motion is required, one of: ' + [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES].join(', '));
   }
 
   let result;
-  if (isWorld) {
+  if (isCels) {
+    // A clip is self-contained (the recipe carries fps/onTwos/cycles + face
+    // schedule). Resolve the accepted cels (completability-gated) and select
+    // one per output frame — zero generations, the raster shape
+    // forgeMotionHandler encodes to GIF/MP4.
+    const { km, cel } = await resolveClipForge(resolved.clipRef, resolved.km);
+    const selections = clipFrameSelections(km);
+    const framePngs = await compositeCels({
+      selections,
+      cel,
+      downscale: { width: Math.round(km.canvas.width / 2), height: Math.round(km.canvas.height / 2) },
+    });
+    result = { framePngs, meta: { fps: km.fps, frames: framePngs.length } };
+  } else if (isScene) {
+    // A scene is self-contained (the recipe carries fps + shots + camera). Resolve
+    // the store-backed assets (accepted cels + plate, completability-gated) and
+    // composite → framePngs, the raster shape forgeMotionHandler encodes to GIF/MP4.
+    const { scene, plate, cel } = await resolveSceneForge(resolved.scene, resolved.sceneRef);
+    const framePngs = await renderSceneFrames(scene, {
+      plate,
+      cel,
+      downscale: { width: Math.round(scene.frame.width / 2), height: Math.round(scene.frame.height / 2) },
+    });
+    result = { framePngs, meta: { fps: scene.fps, frames: framePngs.length } };
+  } else if (isWorld) {
     if (isDeckMotion(motion)) {
       throw new Error("'deck' needs a deck subject — a world animates with a camera motion (turntable/orbit/push_in/dolly_zoom/flythrough) or a 'traversal' input script.");
     }
@@ -292,7 +368,7 @@ export async function renderShot({ subject, shot }) {
     });
   }
 
-  return { resolved, isDeck, isEffect, isWorld, motion, result, theme };
+  return { resolved, isDeck, isEffect, isWorld, isScene, isCels, motion, result, theme };
 }
 
 /**
@@ -346,7 +422,10 @@ export async function forgeMotionHandler(input) {
   if (!title || typeof title !== 'string') throw new Error('title is required');
   if (!shot || typeof shot !== 'object') throw new Error('forge_motion requires a shot');
 
-  const { resolved, isDeck, isEffect, isWorld, motion, result, theme } = await renderShot({ subject, shot });
+  const { resolved, isDeck, isEffect, isWorld, isScene, isCels, motion, result, theme } = await renderShot({ subject, shot });
+  // Raster-native families (no SVG flipbook): a three.js World, a composited
+  // scene, or a keyframe clip's stitched cels.
+  const isRaster = isWorld || isScene || isCels;
 
   // ── materialize the outcome folder ──
   const ref = motionRef();
@@ -356,9 +435,9 @@ export async function forgeMotionHandler(input) {
   let gifInfo = null;
   let mp4Info = null;
   let wantGif;
-  if (isWorld) {
-    // A three.js World is raster-native — no SVG flipbook. The GIF is the portable
-    // preview; the MP4 is the scrub/download form. Default ('both') bakes both.
+  if (isRaster) {
+    // Raster-native — no SVG flipbook. The GIF is the portable preview; the
+    // MP4 is the scrub/download form.
     wantGif = exportFormat !== 'mp4';
     const wantMp4 = exportFormat === 'mp4' || exportFormat === 'both';
     if (wantGif) {
@@ -427,7 +506,7 @@ export async function forgeMotionHandler(input) {
   }
   await fs.writeFile(
     path.join(dir, 'index.html'),
-    isWorld
+    isRaster
       ? worldViewerHtml({ title, motion, recipe, baseUrl: outcomeUrlFor(ref), hasGif: !!gifInfo, hasMp4: !!mp4Info, loop: result.meta.loop })
       : viewerHtml({ title, motion, hasGif: !!gifInfo, hasMp4: !!mp4Info, recipe, baseUrl: outcomeUrlFor(ref), chrome: theme?.chrome }),
     'utf8',
@@ -437,7 +516,7 @@ export async function forgeMotionHandler(input) {
   const subjectDesc = isDeck
     ? `a ${resolved.deckSlides.length}-slide deck${resolved.sourceStashRef ? ` from stash \`${resolved.sourceStashRef}\`` : ''}`
     : resolved.subjectRef
-      ? `${isWorld ? 'three.js world' : isEffect ? 'carved subject' : 'sketch'} \`${resolved.subjectRef}\``
+      ? `${isWorld ? 'three.js world' : isEffect ? 'carved subject' : isScene ? 'scene' : isCels ? 'keyframe clip' : 'sketch'} \`${resolved.subjectRef}\``
       : isEffect ? 'an inline carved subject' : 'inline manji-tree';
   const tag = existingTag
     ? OpsTagRepository.getByRef(existingTag)
@@ -484,7 +563,7 @@ export async function forgeMotionHandler(input) {
     tag_ref: tag.tagRef,
     stash_ref: stash.stashRef,
     url,
-    svg_path: isWorld ? null : `${url}motion.svg`,
+    svg_path: isRaster ? null : `${url}motion.svg`,
     gif_path: gifInfo ? `${url}motion.gif` : null,
     mp4_path: mp4Info ? `${url}motion.mp4` : null,
     frames: result.meta.frames,
@@ -665,6 +744,8 @@ export function registerMotionTools() {
             carved_solid: { type: ['string', 'object'], description: 'EFFECT (materialize): a carved-solid ref (sk_…) or an inline { shape, style?, material? } — the subject that comes into being.' },
             from: { type: ['string', 'object'], description: 'EFFECT (transfigure): the START carved solid (ref or inline { shape, … }). Requires `to`.' },
             to: { type: ['string', 'object'], description: 'EFFECT (transfigure): the END carved solid the subject becomes (ref or inline { shape, … }). Lends the morph its material. Requires `from`.' },
+            scene_ref: { type: 'string', description: "SCENE (raster/character family): a stored sketch ref (sk_…) whose kind is scene-motion — hand-drawn character CLIPS staged over a background PLATE with depth + camera moves. Composited from the clips' accepted keyframe cels + the accepted plate (all must be accepted first), baked to .gif/.mp4 (no .svg). This is the ONE motion family whose pixels come from an external image model, not from mojulo — output quality = that model's." },
+            cel_set: { type: 'object', description: "CLIP (raster/character family): stitch ONE finished keyframe-animation clip's ACCEPTED cels into its GIF/MP4 — pass { ref: 'sk_…' } plus optional re-time knobs { fps, onTwos, cycles, blink, speech } that re-mint over the SAME accepted cels (zero new generations; pose/keys/motion are baked into the paint — mint a new clip to change those). Refused until every cel target of the clip is accepted through the render handoff. To stage clips over a background with depth/cuts/camera, use scene_ref instead." },
             deck: {
               type: 'array',
               description: "DECK: an ordered list of slides. Each entry is a sketch ref (sk_…) or an inline sketch manifest. Plays one-per-beat as a slideshow. A slide's marks may carry reveal:{step,enter,from,dwell} to build in sequence (see the description); ≥2 still slides, or ≥1 reveal slide.",

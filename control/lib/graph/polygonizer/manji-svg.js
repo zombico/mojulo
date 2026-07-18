@@ -46,12 +46,12 @@ import {
   sampleLineBetween,
   sampleLineBetweenVolumized,
 } from './line-between.js';
-import { sampleWaveField } from './wave-field.js';
+import { sampleWaveField, drapeSheet } from './wave-field.js';
 import { printWaveManji } from './wave-manji.js';
-import { sampleLathe } from './lathe.js';
+import { applyLatheDetail, sampleLathe } from './lathe.js';
 import { sampleVajra } from './vajra.js';
 import { sampleTaiji, taijiFibers } from './taiji.js';
-import { makeLight, shadeHex, newellNormal, orientOutward, centroid } from './vexar.js';
+import { makeLight, shadeHex, litFactor, newellNormal, orientOutward, centroid } from './vexar.js';
 import { buildFieldResolver } from './fields.js';
 import { projectTwoPoint } from './pure-mandala.js';
 import { resolveSkinColor } from './skin-palette.js';
@@ -192,7 +192,14 @@ function renderTree3D(manifest, options = {}) {
   // ── Wave fields: 2D height fields over 4-corner quads, sampled as a
   // grid of crest polylines. Zero waves = flat quad, the "flat floor"
   // default. Same projection path as everything else.
-  const projectedWaveFields = projectWaveFields(manifest, emitted, camera, roomBasis);
+  // `drapes[]` are hanging cloth SHEETS (cape/covering/shroud) over ANY form — a
+  // wave-field specialized into cloth (sag + pin→free folds) pinned to two anchor
+  // points on the form. They render as crest strokes exactly like a wave-field, so
+  // they join the same paint list.
+  const projectedWaveFields = [
+    ...projectWaveFields(manifest, emitted, camera, roomBasis),
+    ...projectDrapes(manifest, emitted, camera, roomBasis),
+  ];
 
   // ── Wave manji: closed-loop printer scripts winding around a singularity.
   // Each spec produces a stream of polylines (ouroboros = 1, mandala = N,
@@ -205,7 +212,7 @@ function renderTree3D(manifest, options = {}) {
   // Vexar (Lambert) light for opt-in lit/solid lathes (style.fill === 'vexar').
   // Default direction is a soft over-the-shoulder key; override via manifest.light.
   const latheLight = makeLight(manifest.light || {});
-  const projectedLathes = projectLathes(manifest, emitted, camera, roomBasis, latheLight);
+  const projectedLathes = projectLathes(manifest, emitted, camera, roomBasis, latheLight, !!options.control);
 
   // ── Vajras: 3-point relational volumes. Each emits a golden-ring stack
   // (iso-surface cross-sections of the smooth-union field). A vajra has
@@ -393,7 +400,10 @@ function renderTree3D(manifest, options = {}) {
       for (const f of litFaces) {
         const pts = f.pts.map((p) => { const v = fit.toView(p); return `${v.x.toFixed(1)},${v.y.toFixed(1)}`; }).join(' ');
         // Thin same-color stroke closes the hairline seams between adjacent quads.
-        body.push(`<polygon points="${pts}" fill="${f.fill}" stroke="${f.fill}" stroke-width="0.6" stroke-linejoin="round"/>`);
+        // Control scaffolds carry `data-shade` (the Lambert factor) — invisible in
+        // the raster, read by the skin bake to shade the sampled albedo.
+        const shadeAttr = options.control && Number.isFinite(f.shade) ? ` data-shade="${f.shade.toFixed(3)}"` : '';
+        body.push(`<polygon points="${pts}" fill="${f.fill}" stroke="${f.fill}" stroke-width="0.6" stroke-linejoin="round"${shadeAttr}/>`);
       }
     }
   }
@@ -580,7 +590,9 @@ function renderTree3D(manifest, options = {}) {
     }
   }
 
-  return wrapSvg(fit, body, manifest.title, defs);
+  // Control scaffolds (the skin-worker's paint target) omit the title text —
+  // it otherwise bleeds into the diffusion paint as garbled letters.
+  return wrapSvg(fit, body, options.control ? null : manifest.title, defs);
 }
 
 // ----- Role-aware overlays -------------------------------------------
@@ -888,6 +900,35 @@ function projectSurfaceFills(manifest, emittedNodes, camera, roomBasis) {
   return out;
 }
 
+// `drapes[]` — a hanging cloth SHEET (cape / covering / shroud / caparison) over
+// ANY polygonized form. Each spec pins a top edge to TWO anchor points on the
+// form (`anchor: [left, right]` — endpoint paths like 'spine/0' or inline {x,y,z})
+// and the shared drapeSheet kernel hangs a sagging, folded, pin→free sheet from
+// it. Same {spec, polylines, style} shape as a wave-field → same stroke render.
+function projectDrapes(manifest, emittedNodes, camera, roomBasis) {
+  const specs = Array.isArray(manifest.drapes) ? manifest.drapes : [];
+  if (specs.length === 0) return [];
+  const resolveEndpoint = buildEndpointResolver(emittedNodes);
+  const resolve = (p) => (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) ? p : resolveEndpoint(p);
+  const projectPoly = (poly) => poly.map((p) => { const [x, y, depthT] = projectTwoPoint(p, camera, roomBasis); return { x, y, depthT }; });
+  const out = [];
+  for (const spec of specs) {
+    const anchor = Array.isArray(spec?.anchor) ? spec.anchor : null;
+    if (!anchor || anchor.length !== 2) continue;                 // a drape needs a two-point top edge
+    let cL, cR;
+    try { cL = resolve(anchor[0]); cR = resolve(anchor[1]); }
+    catch { continue; }                                          // an unresolvable anchor drops the drape, not the scene
+    const { isoUPolylines, isoVPolylines } = drapeSheet({
+      cL, cR, hang: spec.hang, back: spec.back, drop: spec.drop, flare: spec.flare,
+      hemZ: spec.hemZ, spread: spec.spread, waves: spec.waves,
+      pinToFree: spec.pinToFree, samples: spec.samples, displacement: spec.displacement,
+    });
+    const polylines = [...isoUPolylines.map(projectPoly), ...isoVPolylines.map(projectPoly)];
+    out.push({ spec, polylines, style: spec.style || null });
+  }
+  return out;
+}
+
 // Same pattern for wave-fields.
 function projectWaveFields(manifest, emittedNodes, camera, roomBasis) {
   const arraySpecs = Array.isArray(manifest.waveFields) ? manifest.waveFields : [];
@@ -941,13 +982,16 @@ function litLatheFaces(polylines, axisFrom, axisTo, baseColor, light, camera, ro
         depth += depthT;
         return { x, y, depthT };
       });
-      faces.push({ pts, fill, depthT: depth / 4 });
+      // `shade` = the Lambert factor for this face — carried so a skin bake can
+      // multiply the sampled albedo by the deterministic form-shading (control
+      // scaffolds emit it as data-shade; skin-projection.js consumes it).
+      faces.push({ pts, fill, depthT: depth / 4, shade: litFactor(n, light) });
     }
   }
   return faces;
 }
 
-function projectOneLathe(spec, selfId, resolveEndpoint, camera, roomBasis, light) {
+function projectOneLathe(spec, selfId, resolveEndpoint, camera, roomBasis, light, forceLit = false) {
   const axisFrom = typeof spec.axisFrom === 'string'
     ? resolveEndpoint(spec.axisFrom, selfId)
     : spec.axisFrom;
@@ -955,7 +999,11 @@ function projectOneLathe(spec, selfId, resolveEndpoint, camera, roomBasis, light
     ? resolveEndpoint(spec.axisTo, selfId)
     : spec.axisTo;
   const { polylines } = sampleLathe({ ...spec, axisFrom, axisTo });
-  if (latheIsLit(spec)) {
+  // `forceLit` (the control-scaffold render) fills EVERY lathe as a lit solid
+  // regardless of its authored stroke style — a wireframe polygomer is too
+  // sparse to condition a diffusion skin (it fragments); a filled silhouette
+  // reads as one form. See docs/local-image-worker.md (polygomer skin seam).
+  if (latheIsLit(spec) || forceLit) {
     const baseColor = spec.style?.fillColor || spec.style?.color || spec.style?.stroke || '#9aa3b2';
     const faces = litLatheFaces(polylines, axisFrom, axisTo, baseColor, light, camera, roomBasis);
     return { spec, lit: true, faces, style: spec.style || null };
@@ -967,20 +1015,28 @@ function projectOneLathe(spec, selfId, resolveEndpoint, camera, roomBasis, light
   return { spec, polylines: projected, style: spec.style || null };
 }
 
-function projectLathes(manifest, emittedNodes, camera, roomBasis, light) {
+function projectLathes(manifest, emittedNodes, camera, roomBasis, light, forceLit = false) {
   const arraySpecs = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const leafNodes = emittedNodes.filter((n) => n?.leafMark?.kind === 'lathe');
   if (arraySpecs.length === 0 && leafNodes.length === 0) return [];
   const resolveEndpoint = buildEndpointResolver(emittedNodes);
-  const out = [];
-  for (const spec of arraySpecs) {
-    out.push(projectOneLathe(spec, undefined, resolveEndpoint, camera, roomBasis, light));
-  }
-  for (const node of leafNodes) {
-    const { spec, selfId } = node.leafMark;
-    out.push(projectOneLathe(spec, selfId, resolveEndpoint, camera, roomBasis, light));
-  }
-  return out;
+  // Endpoints resolve up front (instead of inside projectOneLathe) so the
+  // model-level `detail` dial can weight each lathe by its real world size;
+  // projectOneLathe's own resolution then no-ops on the literal {x,y,z}.
+  const resolvePt = (v, selfId) => (typeof v === 'string' ? resolveEndpoint(v, selfId) : v);
+  const resolved = [
+    ...arraySpecs.map((spec) => ({
+      ...spec,
+      axisFrom: resolvePt(spec.axisFrom, undefined),
+      axisTo: resolvePt(spec.axisTo, undefined),
+    })),
+    ...leafNodes.map((node) => {
+      const { spec, selfId } = node.leafMark;
+      return { ...spec, axisFrom: resolvePt(spec.axisFrom, selfId), axisTo: resolvePt(spec.axisTo, selfId) };
+    }),
+  ];
+  return applyLatheDetail(resolved, manifest.detail)
+    .map((spec) => projectOneLathe(spec, undefined, resolveEndpoint, camera, roomBasis, light, forceLit));
 }
 
 function projectOneVajra(spec, selfId, resolveEndpoint, camera, roomBasis) {

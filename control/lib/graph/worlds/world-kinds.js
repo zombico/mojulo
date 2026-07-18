@@ -17,11 +17,14 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
+import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
+import { assembleManjiTreeWorld } from '@/lib/graph/worlds/polygomer-world';
+import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
 import { assembleAssemblerScene } from '@/lib/graph/worlds/workbench-assembler';
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
@@ -82,12 +85,18 @@ import { assembleFtcScene } from '@/lib/graph/views/math/ftc-view';
 import { assembleMathStructureScene } from '@/lib/graph/structures/math-structure';
 import { assembleKoenigsbergScene } from '@/lib/graph/structures/koenigsberg';
 import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
+import { latestBoundRender } from '@/lib/graph/image-outcomes/render-store';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import sharp from 'sharp';
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
 
 // Resolve workbench label-wrap sources → a { key: dataURL } texture map. A source is an inline
-// `svg` string, a `dataUrl`, or a `sketchRef` (a stored sketch rendered to SVG → data URL — the
-// browser rasterizes the SVG when it uploads the texture, so no server-side rasterizer is needed).
+// `svg` string, a `dataUrl`, a `sketchRef` (a stored sketch rendered to SVG → data URL — the
+// browser rasterizes the SVG when it uploads the texture, so no server-side rasterizer is needed),
+// or an `outcomeRef` (an image-outcome sketch whose latest bound render PNG — the image-worker
+// seam's artifact — becomes the label; PNG sources also survive .glb export as real textures).
 // External stash IMAGE items (mediaRef → file) are a documented follow-on.
 export async function resolveWrapTextures(manifest) {
   const textures = {};
@@ -100,6 +109,11 @@ export async function resolveWrapTextures(manifest) {
       if (s) {
         try { dataUrl = svgDataUrl(await renderStoredSketchSvg(s)); } catch { /* dangling/invalid sketch → skip */ }
       }
+    } else if (source && typeof source.outcomeRef === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(source.outcomeRef)) {
+      try {
+        const bound = latestBoundRender(source.outcomeRef, typeof source.target === 'string' ? source.target : 'page');
+        if (bound) dataUrl = `data:image/png;base64,${(await readFile(bound.path)).toString('base64')}`;
+      } catch { /* invalid target / unreadable render → skip */ }
     }
     if (dataUrl) textures[key] = dataUrl;
   }
@@ -189,6 +203,14 @@ export const WORLD_KINDS = {
   },
   'condo-complex': { walk: true, ...view(assembleFractalCondoScene, 'mojulo condo complex') },
   'school-complex': { walk: true, ...view(assembleFractalSchoolScene, 'mojulo school complex') },
+  // a bespoke building authored as a graph of masses + concourses (dream-architecture,
+  // track E): the "workbench for buildings". fogBoxes clip against the mass/hall envelopes.
+  edifice: {
+    title: 'mojulo edifice',
+    walk: true,
+    fogBoxes: (m) => planEdifice(m).envelopes.map((e) => boxFromFootprint({ x: e.x0, y: e.y0, w: e.x1 - e.x0, d: e.y1 - e.y0, z0: 0, z1: e.top }, { up: 'z' })),
+    resolve: (m, ctx) => assembleEdificeScene(m, { title: ctx.title, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows }),
+  },
   'transportation-hub': {
     title: 'mojulo transportation hub',
     walk: true,
@@ -226,11 +248,25 @@ export const WORLD_KINDS = {
       { pose: m.pose, viewBox: m.viewBox, title: ctx.title },
     ),
   },
+  // Workbench + assembler polygomers wear a bound painted skin the same way the
+  // manji-tree does (skin_polygomer → bakeBoundSkinFaces at assemble time).
   workbench: {
     title: 'mojulo workbench',
-    resolve: async (m, ctx) => assembleWorkbenchScene({ ...m, title: ctx.title, textures: await resolveWrapTextures(m) }),
+    resolve: async (m, ctx) => assembleWorkbenchScene({
+      ...m, title: ctx.title, textures: await resolveWrapTextures(m), skin: await loadBoundSkin(ctx.ref),
+    }),
   },
-  assembler: spread(assembleAssemblerScene, 'mojulo assembler'),
+  // A polygomer (create_manji_tree) as a turnable 3D model: its slot-bonded lathes
+  // lower to baked faces (turntable cameras + .glb export). When a skin is bound
+  // (skin_polygomer), it's baked onto the faces so the model wears the painted look.
+  'manji-tree': {
+    title: 'mojulo polygomer',
+    resolve: async (m, ctx) => assembleManjiTreeWorld(m, { title: ctx.title, skin: await loadBoundSkin(ctx.ref) }),
+  },
+  assembler: {
+    title: 'mojulo assembler',
+    resolve: async (m, ctx) => assembleAssemblerScene({ ...m, title: ctx.title, skin: await loadBoundSkin(ctx.ref) }),
+  },
   'painted-landscape': { walk: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host
   // entities, so an entities-only manifest renders without piggybacking on another kind.
@@ -245,3 +281,14 @@ export const WORLD_KINDS = {
 // traversable form" contract callers rely on). `room` IS walkable when it resolves; the world
 // route's WALK_KINDS carries it explicitly.
 export const ROOM_FALLBACK = { title: 'mojulo room', walk: true, ao: true, resolve: (m, ctx) => assembleRoomScene(m, { title: ctx.title }) };
+
+// Load the latest bound INPUT skin for a polygomer ref as a raw raster (for the
+// manji-tree world bake), or null. Kept here (the DB/IO-aware layer) so the
+// polygomer-world assembler stays a pure geometry+colour function.
+async function loadBoundSkin(ref) {
+  if (!ref) return null;
+  const bound = latestSkinInput(ref);
+  if (!bound || !existsSync(bound.path)) return null;
+  const { data, info } = await sharp(await readFile(bound.path)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.height, channels: info.channels };
+}

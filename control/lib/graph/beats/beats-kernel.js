@@ -242,9 +242,17 @@ export function buildBeatsKernel() {
   // [{ at, kind, ... }] — pure, so the foley choreography is unit-testable.
   //   sweep   — pitch ramp: { wave?, from, to, dur?, vol? }
   //   flutter — pitch-table loop at rateHz with tiered table swaps over hold time:
-  //             { rateHz?, hold?, tiers: [{ at, table }], wave?, vol? }
-  //   burst   — enveloped noise: { decay?, vol?, highpass? }
+  //             { rateHz?, hold?, tiers: [{ at, table }], wave?, vol?, jitter?, seed? }
+  //             jitter (0..1) wobbles each retrigger's timing and pitch (seeded) —
+  //             0 is the machine-gun chiptune flutter, ~0.8 is stick-slip (creaks).
+  //   burst   — enveloped noise: { decay?, vol?, highpass?, lowpass? }
   //   thump   — pitch-swept sine: { from?, to?, decay?, vol? }
+  //   grain   — seeded stochastic noise-grain train (gravel, crackle, rustle, rain):
+  //             { grains?, over?, decay? (per-grain, number|[min,max]), band?: {lo,hi},
+  //               vol?, spread?, seed? } — lowers to noise ops; same seed, same grit.
+  //   ring    — modal strike (glass clink, metal tink, wood knock): { note?|hz?,
+  //             material?: glass|metal|wood, partials?: [{ratio,gain,decay}], decay?,
+  //             vol? } — lowers to flat thump ops (from == to), one per partial.
   function gesturePlan(gesture) {
     const g = gesture || {};
     if (g.type === 'sweep') {
@@ -254,23 +262,74 @@ export function buildBeatsKernel() {
       const rate = g.rateHz == null ? 30 : g.rateHz;
       const hold = g.hold == null ? 0.5 : g.hold;
       const tiers = Array.isArray(g.tiers) && g.tiers.length ? g.tiers : [{ at: 0, table: ['E4', 'G4', 'A4', 'B4'] }];
+      const jitter = g.jitter == null ? 0 : Math.max(0, Math.min(1, g.jitter));
+      const rng = jitter ? mulberry32(hashSeed(g.seed == null ? 0xF107 : g.seed, Math.round(rate * 97))) : null;
       const ops = [];
       const n = Math.max(1, Math.round(rate * hold));
       for (let i = 0; i < n; i++) {
-        const at = (g.at || 0) + i / rate;
+        // jitter wobbles timing (up to ±40% of the period) and pitch (up to ±80
+        // cents) per retrigger — periodic buzz becomes stick-slip. Seeded: the
+        // same creak groans identically every play.
+        const at = (g.at || 0) + i / rate + (jitter ? (rng() * 2 - 1) * jitter * 0.4 / rate : 0);
+        const nominal = (g.at || 0) + i / rate;
         let table = tiers[0].table;
-        for (const tier of tiers) if (at - (g.at || 0) >= tier.at) table = tier.table;
-        ops.push({ at, kind: 'tone', wave: g.wave || 'square', hz: noteHz(table[i % table.length]), dur: 0.025, vol: g.vol == null ? 0.5 : g.vol });
+        for (const tier of tiers) if (nominal - (g.at || 0) >= tier.at) table = tier.table;
+        const cents = jitter ? (rng() * 2 - 1) * jitter * 80 : 0;
+        const hz = noteHz(table[i % table.length]) * Math.pow(2, cents / 1200);
+        ops.push({ at: Math.max(g.at || 0, at), kind: 'tone', wave: g.wave || 'square', hz, dur: 0.025, vol: g.vol == null ? 0.5 : g.vol });
       }
       return ops;
     }
     if (g.type === 'burst') {
-      return [{ at: g.at || 0, kind: 'noise', decay: g.decay == null ? 0.15 : g.decay, vol: g.vol == null ? 0.6 : g.vol, highpass: g.highpass || 0 }];
+      return [{ at: g.at || 0, kind: 'noise', decay: g.decay == null ? 0.15 : g.decay, vol: g.vol == null ? 0.6 : g.vol, highpass: g.highpass || 0, lowpass: g.lowpass || 0 }];
     }
     if (g.type === 'thump') {
       return [{ at: g.at || 0, kind: 'thump', from: noteHz(g.from == null ? 'G2' : g.from), to: noteHz(g.to == null ? 'G1' : g.to), decay: g.decay == null ? 0.25 : g.decay, vol: g.vol == null ? 0.9 : g.vol }];
     }
-    throw new Error('beats: unknown gesture type "' + g.type + '" (sweep | flutter | burst | thump)');
+    if (g.type === 'grain') {
+      // A cluster of tiny band-shaped noise grains scattered over `over` seconds —
+      // the stochastic texture the hand-authored burst stack can't be (gravel
+      // crunch, fire crackle, cloth rustle, rain). Seeded: same seed, same grit.
+      const grains = Math.max(1, Math.round(g.grains == null ? 12 : g.grains));
+      const over = g.over == null ? 0.25 : g.over;
+      const dRange = Array.isArray(g.decay) ? g.decay : [g.decay == null ? 0.012 : g.decay, g.decay == null ? 0.035 : g.decay];
+      const band = g.band || {};
+      const vol = g.vol == null ? 0.5 : g.vol;
+      const spread = g.spread == null ? 0.6 : Math.max(0, Math.min(1, g.spread));
+      const rng = mulberry32(hashSeed(g.seed == null ? 0x64A17 : g.seed, grains));
+      const ops = [];
+      for (let i = 0; i < grains; i++) {
+        ops.push({
+          at: (g.at || 0) + rng() * over,
+          kind: 'noise',
+          decay: dRange[0] + rng() * Math.max(0, dRange[1] - dRange[0]),
+          vol: vol * (1 - spread * rng()),
+          highpass: band.lo || 0,
+          lowpass: band.hi || 0,
+        });
+      }
+      ops.sort(function (a, b) { return a.at - b.at; });
+      return ops;
+    }
+    if (g.type === 'ring') {
+      // Modal strike: a stack of flat decaying sine partials (thump with
+      // from == to) — inharmonic ratios per material, brights dying first,
+      // the fundamental singing on. Computed cousin of the modal voice.
+      const RING_MATERIALS = {
+        glass: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 2.32, gain: 0.55, decay: 0.55 }, { ratio: 4.25, gain: 0.35, decay: 0.3 }, { ratio: 6.63, gain: 0.2, decay: 0.15 }, { ratio: 9.38, gain: 0.1, decay: 0.08 }],
+        metal: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 2.76, gain: 0.6, decay: 0.8 }, { ratio: 5.4, gain: 0.4, decay: 0.55 }, { ratio: 8.93, gain: 0.25, decay: 0.35 }],
+        wood: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 2.8, gain: 0.5, decay: 0.5 }, { ratio: 5.2, gain: 0.25, decay: 0.25 }],
+      };
+      const partials = Array.isArray(g.partials) && g.partials.length ? g.partials : RING_MATERIALS[g.material || 'glass'] || RING_MATERIALS.glass;
+      const hz = g.hz != null ? g.hz : noteHz(g.note == null ? 'C7' : g.note);
+      const decay = g.decay == null ? (g.material === 'wood' ? 0.12 : 0.8) : g.decay;
+      const vol = g.vol == null ? 0.5 : g.vol;
+      return partials.map(function (p) {
+        const f = hz * (p.ratio == null ? 1 : p.ratio);
+        return { at: g.at || 0, kind: 'thump', from: f, to: f, decay: decay * (p.decay == null ? 1 : p.decay), vol: vol * (p.gain == null ? 1 : p.gain) };
+      });
+    }
+    throw new Error('beats: unknown gesture type "' + g.type + '" (sweep | flutter | burst | thump | grain | ring)');
   }
   function cuePlan(gestures) {
     const ops = [];
@@ -703,7 +762,8 @@ export function buildBeatsKernel() {
           g.gain.setValueAtTime(dbGain(-12) * op.vol * vs, t);
           g.gain.exponentialRampToValueAtTime(0.0001, t + op.decay);
           let node = g;
-          if (op.highpass) { const bq = ctx.createBiquadFilter(); bq.type = 'highpass'; bq.frequency.value = op.highpass; g.connect(bq); node = bq; }
+          if (op.highpass) { const bq = ctx.createBiquadFilter(); bq.type = 'highpass'; bq.frequency.value = op.highpass; node.connect(bq); node = bq; }
+          if (op.lowpass) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = op.lowpass; node.connect(lp); node = lp; }
           src.connect(g); node.connect(out); src.start(t); src.stop(t + op.decay + 0.05);
         } else if (op.kind === 'thump') {
           const osc = ctx.createOscillator(); osc.type = 'sine';

@@ -29,12 +29,14 @@ const ITEM_TYPES = new Set([
   'sketch',
 ]);
 
-// Sketch refs are minted by SketchRepository as `sk_<10 base36 chars>`. The
-// gate checks the shape, not existence — dangling refs are tolerated by the
-// same "navigational, not enforced" posture that stash_bindings uses (a
-// sketch deleted out from under a stash item resolves to a clearly-labeled
-// fallback in the renderer instead of vanishing the item).
-const SKETCH_REF_RE = /^sk_[a-z0-9]+$/i;
+// Sketch refs default to `sk_<10 base36 chars>` but create_sketch also accepts
+// an explicit CUSTOM ref (any [A-Za-z0-9_-]{1,64}). The gate checks the shape,
+// not existence — dangling refs are tolerated by the same "navigational, not
+// enforced" posture that stash_bindings uses (a sketch deleted out from under a
+// stash item resolves to a clearly-labeled fallback in the renderer instead of
+// vanishing the item). The charset here MUST match create_sketch's `ref` rule,
+// or a custom-ref sketch can be minted but never pinned/decked.
+const SKETCH_REF_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 // Size caps enforced at intake. SQLite happily stores megabytes, but the UI
 // (and Cook's static template renderer) get unhappy past these; 5MB markdown
@@ -251,7 +253,8 @@ export function validateItemContract({ type, title, sourceUrl, body, bodyMd, bod
       }
       if (!SKETCH_REF_RE.test(meta.sketch_ref)) {
         throw new Error(
-          `metadata.sketch_ref '${meta.sketch_ref}' is not shaped like 'sk_<…>'`,
+          `metadata.sketch_ref '${meta.sketch_ref}' is not a valid sketch ref `
+          + `(expected 1-64 chars of [A-Za-z0-9_-], the default sk_… or an explicit create_sketch ref)`,
         );
       }
       if (!meta.label || typeof meta.label !== 'string') {

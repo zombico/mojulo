@@ -21,6 +21,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CREATIVE_FORMS } from '../creative-forms.js';
 
 const CARDS_DIR = dirname(fileURLToPath(import.meta.url));
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'when', 'entry'];
@@ -48,6 +49,16 @@ export function parseRoutingCard(filePath, raw) {
       throw new Error(`Routing card ${filePath} is missing required string field '${field}'.`);
     }
   }
+  // `form` links a creative-mint card to its get_creative_toolset drawer. It is
+  // OPTIONAL — a routing card can point at a non-Ring-10 paradigm (e.g.
+  // publication-cook → mint_stash) and omit it — but when present it must name a
+  // real form. The coverage lint (routing-cards.test.js) pins that every
+  // CREATIVE_FORM has ≥1 card carrying it.
+  if (meta.form !== undefined && !CREATIVE_FORMS.includes(meta.form)) {
+    throw new Error(
+      `Routing card ${filePath} has form '${meta.form}' — must be one of: ${CREATIVE_FORMS.join(', ')} (or omitted).`,
+    );
+  }
   const body = raw.slice(match[0].length).trim();
   if (!body) {
     throw new Error(`Routing card ${filePath} has an empty body — the routing row is the value.`);
@@ -58,7 +69,7 @@ export function parseRoutingCard(filePath, raw) {
         'Move parameter detail into the entry tool description or a vocab card.',
     );
   }
-  return { id: meta.id, name: meta.name, summary: meta.summary, when: meta.when, entry: meta.entry, body };
+  return { id: meta.id, name: meta.name, summary: meta.summary, when: meta.when, entry: meta.entry, form: meta.form ?? null, body };
 }
 
 function loadCatalog() {

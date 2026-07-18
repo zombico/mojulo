@@ -48,6 +48,21 @@ const FIXTURE = [
   ['merge those short clips into a single movie file', 'stitch_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
   ['turn my notes into a picture book for kids', 'mint_stash'],
+  ['lay out a comic page of my hero fighting the dragon', 'create_sketch'],
+  ['an AI-painted portrait I will render with an image model', 'create_sketch'],
+  ['make my anime character actually talk and blink', 'create_sketch'],
+  ['stage the two drawn characters in one scene and cut between their rooms', 'create_sketch'],
+];
+
+// Discriminating fixtures: create_sketch is the entry for BOTH diagram-chart
+// and image-render, so the entry-tool eval above can't tell them apart. These
+// pin the CARD (source_ref) the intent must surface, gating the form linkage.
+const CARD_FIXTURE = [
+  ['lay out a comic page of my hero fighting the dragon', 'image-render'],
+  ['an AI-painted portrait I will render with an image model', 'image-render'],
+  ['bar chart of last month signups by week', 'diagram-chart'],
+  ['make my anime character actually talk and blink', 'animate-character'],
+  ['stage the two drawn characters in one scene and cut between their rooms', 'animate-character'],
 ];
 
 const TOP_K = 3;
@@ -107,6 +122,29 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
         }
       }
       expect(misses, `routing misses:\n${misses.join('\n')}`).toEqual([]);
+    },
+    120_000,
+  );
+
+  it(
+    `every discriminating phrasing surfaces its specific card in the top-${TOP_K}`,
+    async () => {
+      const misses = [];
+      for (const [phrasing, expectedCard] of CARD_FIXTURE) {
+        const results = await EmbeddingsRepository.search(phrasing, {
+          kinds: ['routing'],
+          limit: TOP_K,
+        });
+        const refs = results.map((r) => r.source_ref);
+        if (!refs.includes(expectedCard)) {
+          misses.push(
+            `"${phrasing}" → wanted card ${expectedCard}, got [${results
+              .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
+              .join(', ')}]`,
+          );
+        }
+      }
+      expect(misses, `card-level routing misses:\n${misses.join('\n')}`).toEqual([]);
     },
     120_000,
   );

@@ -202,15 +202,25 @@ function groupSpreads(chapterItems, pages, startIndex, opts) {
   return groups;
 }
 
+// One illustration body for both single pages and spread halves: inline SVG
+// (diagram pages / scaffolds), a composited final PNG (AI-painted pages —
+// referenced by relative filename so the folder stays self-contained), or
+// the missing placeholder.
+function illustrationHtml(page) {
+  if (page.svgInline) return `<div class="illustration">${page.svgInline}</div>`;
+  if (page.pngFilename) {
+    return `<div class="illustration"><img src="${escapeHtml(page.pngFilename)}" alt="${escapeHtml(page.label || page.sketchRef || 'page')}" style="width:100%;height:100%;object-fit:contain;display:block;"/></div>`;
+  }
+  return `<div class="illustration missing">missing illustration &middot; ${escapeHtml(page.sketchRef || '(no sketch_ref)')}</div>`;
+}
+
 function fidelityFor(page, defaultFidelity) {
   return page.fidelityOverride || defaultFidelity;
 }
 
 function renderPage(page, displayNumber, chapter, opts) {
   const fidelity = fidelityFor(page, opts.fidelity);
-  const illustration = page.svgInline
-    ? `<div class="illustration">${page.svgInline}</div>`
-    : `<div class="illustration missing">missing illustration &middot; ${escapeHtml(page.sketchRef || '(no sketch_ref)')}</div>`;
+  const illustration = illustrationHtml(page);
   const captionHtml = page.captionMd
     ? `<div class="caption">${renderMarkdown(page.captionMd)}</div>`
     : '';
@@ -245,9 +255,7 @@ function renderSpread(left, right, leftNumber, rightNumber, chapter, opts) {
     });
   }
   const inner = (page, num, role) => {
-    const illustration = page.svgInline
-      ? `<div class="illustration">${page.svgInline}</div>`
-      : `<div class="illustration missing">missing illustration &middot; ${escapeHtml(page.sketchRef || '(no sketch_ref)')}</div>`;
+    const illustration = illustrationHtml(page);
     const captionHtml = page.captionMd
       ? `<div class="caption">${renderMarkdown(page.captionMd)}</div>`
       : '';
@@ -349,16 +357,21 @@ export async function writeComicOutcome({
   for (const chapter of plan.chapters) {
     for (const item of chapter.items) {
       pageIdx += 1;
-      const filename = `page-${pageNumber(pageIdx)}.svg`;
+      // AI-painted pages (sequential-art / image-outcome) publish their
+      // composited final PNG when every render target is bound; otherwise
+      // (and for all diagram sketches) the SVG path is unchanged.
       const resolved = await resolveSketchItem(
         { metadata: { sketch_ref: item.sketchRef } },
-        { technical: false },
+        { technical: false, preferFinalRender: true },
       );
+      const filename = `page-${pageNumber(pageIdx)}.${resolved.png ? 'png' : 'svg'}`;
       pages.push({
         ...item,
         filename,
         svgInline: resolved.svgInline,
         svgStandalone: resolved.svgStandalone,
+        png: resolved.png,
+        pngFilename: resolved.png ? filename : null,
         dangling: resolved.dangling,
       });
     }
@@ -370,7 +383,9 @@ export async function writeComicOutcome({
   await fs.writeFile(path.join(dir, 'report.md'), reportMd, 'utf8');
 
   for (const page of pages) {
-    if (page.svgStandalone) {
+    if (page.png) {
+      await fs.writeFile(path.join(dir, page.filename), page.png);
+    } else if (page.svgStandalone) {
       await fs.writeFile(path.join(dir, page.filename), page.svgStandalone, 'utf8');
     }
   }
@@ -439,10 +454,10 @@ export async function writeComicOutcome({
       name: c.name,
       page_count: c.items.length,
       pages: c.items.map((item, ii) => {
-        const filename = `page-${pageNumber(
+        const matched = pages.find((p) => p.stashItemId === item.stashItemId);
+        const filename = matched?.filename || `page-${pageNumber(
           plan.chapters.slice(0, ci).reduce((n, cc) => n + cc.items.length, 0) + ii + 1,
         )}.svg`;
-        const matched = pages.find((p) => p.stashItemId === item.stashItemId);
         return {
           stash_item_id: item.stashItemId,
           sketch_ref: item.sketchRef,
@@ -462,7 +477,7 @@ export async function writeComicOutcome({
     files: [
       'report.md',
       'index.html',
-      ...pages.filter((p) => p.svgStandalone).map((p) => p.filename),
+      ...pages.filter((p) => p.svgStandalone || p.png).map((p) => p.filename),
     ],
   };
   await fs.writeFile(

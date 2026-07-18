@@ -20,7 +20,7 @@ import path from 'node:path';
 
 import sharp from 'sharp';
 
-import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
+import { isPolygomerManjiTree, sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
 import { renderSceneHtml } from '@/lib/graph/scene/scene-html';
 import { renderSceneToPng } from '@/lib/graph/scene/scene-png';
@@ -105,15 +105,26 @@ async function bakeScenePng(sketch, scale) {
  * @param {{ ref?: string, title?: string, manifest: object }} sketch
  * @param {object} [opts]
  * @param {number} [opts.scale=2] — pixel density / supersample factor
+ * @param {string} [opts.panelId] — sequential-art scaffolds only: rasterize a
+ *   single panel's crop (the per-panel render payload). SVG-path kinds only.
+ * @param {boolean} [opts.control] — image-outcomes scaffolds only: the
+ *   ControlNet variant (geometry only, no labels/dashed boxes).
  * @returns {Promise<Buffer>} PNG bytes
  */
-export async function rasterizeSketchToPng(sketch, { scale = 2 } = {}) {
+export async function rasterizeSketchToPng(sketch, { scale = 2, panelId, control } = {}) {
   if (!sketch?.manifest) throw new Error('rasterizeSketchToPng requires a sketch manifest');
   const mode = sketchRenderMode(sketch.manifest);
 
   // 'world' (three.js) and 'scene' (CSS-3D) are both the heavy 3D kinds — bake
   // both from the CSS preserve-3d HTML, which renders city/hub/turntable alike.
-  if (mode === 'scene' || mode === 'world') {
+  // Exceptions stay on the SVG path below: a polygomer manji-tree's native
+  // STILL is the manji SVG, and a workbench/assembler's ?control=1 request is
+  // the filled faces-scaffold SVG the skin seam paints over (their plain
+  // stills remain scene captures).
+  const skinScaffold = control
+    && (sketch.manifest.kind === 'workbench' || sketch.manifest.kind === 'assembler');
+  if ((mode === 'scene' || mode === 'world') && !isPolygomerManjiTree(sketch.manifest) && !skinScaffold) {
+    if (panelId || control) throw new Error('panel crops / control scaffolds only apply to SVG-rendered scaffold kinds');
     const dir = scenePngCacheDir();
     const cacheFile = path.join(dir, `${sketch.ref || 'scene'}-${sceneCacheKey(sketch, scale)}.png`);
     if (existsSync(cacheFile)) {
@@ -130,6 +141,9 @@ export async function rasterizeSketchToPng(sketch, { scale = 2 } = {}) {
     return png;
   }
 
-  const svg = await renderStoredSketchSvg(sketch);
+  const svg = await renderStoredSketchSvg(sketch, {
+    ...(panelId ? { panelId } : {}),
+    ...(control ? { control: true } : {}),
+  });
   return svgToPng(svg, scale);
 }

@@ -221,6 +221,68 @@ export function sampleLathe(spec) {
   return { polylines };
 }
 
+// ─── the `detail` dial ────────────────────────────────────────────────
+//
+// A model-level resolution multiplier for lathe part-graphs (polygomers).
+// `detail: 2` on a manji-tree manifest raises articulation where it matters
+// without re-authoring 20+ individual lathes — and WITHOUT a uniform face
+// explosion. The taming is budget reuse, not instancing:
+//   • each lathe's boost is weighted by its size share (axis length × max
+//     profile radius ≈ surface-area share), so hero masses get the full dial
+//     while detail beads (eyes, teeth) keep their authored lean counts;
+//   • the ADDED resolution is damped until the estimated face total fits
+//     LATHE_DETAIL_FACE_BUDGET — authored counts are never reduced.
+// Same posture as the plant primitive's auto-lightening `detail` enum: the
+// default path is always renderable. Pure and deterministic; `detail` absent
+// or ≤ 1 returns the input array untouched (byte-identical renders).
+// Endpoints must already be literal {x,y,z} (resolve slot paths first).
+
+export const LATHE_DETAIL_FACE_BUDGET = 150_000;
+export const LATHE_DETAIL_MAX = 4;
+
+export function applyLatheDetail(lathes, detail) {
+  const k = Number(detail);
+  if (!Array.isArray(lathes) || lathes.length === 0) return lathes;
+  if (!Number.isFinite(k) || k <= 1) return lathes;
+  const dial = Math.min(k, LATHE_DETAIL_MAX);
+  const sizes = lathes.map((s) => {
+    const a = s?.axisFrom;
+    const b = s?.axisTo;
+    if (!isFiniteVec(a) || !isFiniteVec(b)) return 0;
+    const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    let maxR = 0;
+    if (Array.isArray(s.profile)) {
+      for (const p of s.profile) if (Number.isFinite(p?.radius)) maxR = Math.max(maxR, p.radius);
+    }
+    return len * maxR;
+  });
+  const maxSize = Math.max(...sizes);
+  if (!(maxSize > 0)) return lathes;
+  // sqrt of the area share: mid-sized masses still benefit meaningfully,
+  // beads stay near 1×.
+  const muls = sizes.map((sz) => 1 + (dial - 1) * Math.sqrt(sz / maxSize));
+  const baseCs = (s) => clampInt(s.crossSections, 2, 256, 24);
+  const baseSm = (s) => clampInt(s.samples, 8, 1024, 36);
+  const mulAt = (i, f) => 1 + (muls[i] - 1) * f;
+  const estimate = (f) => lathes.reduce(
+    (sum, s, i) => sum + Math.round(baseCs(s) * mulAt(i, f)) * Math.round(baseSm(s) * mulAt(i, f)),
+    0,
+  );
+  let damp = 1;
+  for (let iter = 0; iter < 8 && estimate(damp) > LATHE_DETAIL_FACE_BUDGET; iter += 1) {
+    damp *= Math.sqrt(LATHE_DETAIL_FACE_BUDGET / estimate(damp));
+  }
+  return lathes.map((s, i) => {
+    const m = mulAt(i, damp);
+    if (m <= 1) return s;
+    return {
+      ...s,
+      crossSections: Math.min(256, Math.round(baseCs(s) * m)),
+      samples: Math.min(1024, Math.round(baseSm(s) * m)),
+    };
+  });
+}
+
 // ─── helpers ──────────────────────────────────────────────────────────
 
 /**

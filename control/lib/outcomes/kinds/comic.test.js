@@ -470,3 +470,66 @@ describe('comic — direct writer (bypassing cook)', () => {
     expect(manifest.publication.fidelity).toBe('inks');
   });
 });
+
+describe('comic — AI-painted sequential-art pages (bound final renders)', () => {
+  it('publishes the composited final PNG as a page; unbound pages fall back to the scaffold', async () => {
+    const { default: sharp } = await import('sharp');
+    const { nextRenderPath } = await import('../../graph/image-outcomes/render-store.js');
+    const tiny = (bg) => sharp({ create: { width: 8, height: 8, channels: 3, background: bg } }).png().toBuffer();
+
+    function paintedPage(title) {
+      return {
+        kind: 'sequential-art',
+        title,
+        intent: 'a painted page',
+        viewBox: { width: 300, height: 400 },
+        panels: [
+          { id: 'p1', beat: 'opening', bounds: { x: 20, y: 20, w: 260, h: 170 },
+            bubbleZones: [{ x: 40, y: 40, w: 180, h: 60, lettering: 'Tonight.' }] },
+          { id: 'p2', beat: 'closing', bounds: { x: 20, y: 210, w: 260, h: 170 } },
+        ],
+      };
+    }
+
+    const bound = SketchRepository.create({ title: 'painted', manifest: paintedPage('Painted page') });
+    const unbound = SketchRepository.create({ title: 'unpainted', manifest: paintedPage('Unpainted page') });
+    for (const target of ['p1', 'p2']) {
+      const slot = nextRenderPath(bound.ref, target);
+      await fs.writeFile(slot.path, await tiny({ r: 180, g: 30, b: 30 }));
+    }
+
+    const stash = StashRepository.mint({ title: 'Painted comic' });
+    StashRepository.gather({
+      stashRef: stash.stashRef, type: 'sketch',
+      metadata: { sketch_ref: bound.ref, label: 'painted' }, bodyMd: 'the painted page',
+    });
+    StashRepository.gather({
+      stashRef: stash.stashRef, type: 'sketch',
+      metadata: { sketch_ref: unbound.ref, label: 'scaffold' }, bodyMd: 'still a nemu',
+    });
+
+    const result = await cookHandler({
+      slices: [{ stash_ref: stash.stashRef }],
+      aim: 'Painted comic',
+      report_md: 'imagegen pages in a tankobon.',
+      publication: { kind: 'comic', format: 'manga-tankobon', fidelity: 'inks' },
+    });
+    expect(result.ok).toBe(true);
+
+    const files = (await fs.readdir(result.outcome_dir)).sort();
+    expect(files).toContain('page-001.png'); // the bound page publishes as its final render
+    expect(files).toContain('page-002.svg'); // the unbound page publishes as its scaffold
+
+    const png = await fs.readFile(path.join(result.outcome_dir, 'page-001.png'));
+    expect(png.subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+    const html = await fs.readFile(path.join(result.outcome_dir, 'index.html'), 'utf8');
+    expect(html).toContain('src="page-001.png"');
+    expect(html).toContain('clip-p1'); // scaffold SVG inlined for the unbound page
+
+    const manifest = JSON.parse(await fs.readFile(path.join(result.outcome_dir, 'manifest.json'), 'utf8'));
+    expect(manifest.files).toContain('page-001.png');
+    expect(manifest.chapters[0].pages[0].filename).toBe('page-001.png');
+    expect(manifest.publication.format).toBe('manga-tankobon');
+  });
+});

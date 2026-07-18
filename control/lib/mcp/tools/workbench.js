@@ -19,7 +19,7 @@ import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, reliefs, assembly, units, viewBox, ref, folderRef } = {}) {
+export function mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, assembly, units, viewBox, facing, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -32,18 +32,21 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, reliefs, assemb
   const hasLathes = baseLathes.length > 0;
   const hasExtrudes = baseExtrudes.length > 0;
   const hasSweeps = Array.isArray(sweeps) && sweeps.length > 0;
+  const hasDrapes = Array.isArray(drapes) && drapes.length > 0;
   const hasReliefs = Array.isArray(reliefs) && reliefs.length > 0;
-  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasReliefs) {
-    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `reliefs`, or `assembly` (the polygomer).');
+  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasDrapes && !hasReliefs) {
+    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, `reliefs`, or `assembly` (the polygomer).');
   }
   const manifest = {
     kind: 'workbench',
     ...(hasLathes ? { lathes: baseLathes } : {}),
     ...(hasExtrudes ? { extrudes: baseExtrudes } : {}),
     ...(hasSweeps ? { sweeps } : {}),
+    ...(hasDrapes ? { drapes } : {}),
     ...(hasReliefs ? { reliefs } : {}),
     ...(typeof units === 'string' ? { units } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
+    ...(typeof facing === 'string' || Number.isFinite(facing) ? { facing } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -79,8 +82,8 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, reliefs, assembly, units, viewBox, ref, folder_ref: folderRef } = input;
-  return mintWorkbench({ title, lathes, extrudes, sweeps, reliefs, assembly, units, viewBox, ref, folderRef });
+  const { title, lathes, extrudes, sweeps, drapes, reliefs, assembly, units, viewBox, facing, ref, folder_ref: folderRef } = input;
+  return mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, assembly, units, viewBox, facing, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {
@@ -116,8 +119,9 @@ export function registerWorkbenchTools() {
       + "opening /world.\n"
       + "MATERIALS: any monomer takes `material` — a named finish (gold, chrome, wood, glass, …): "
       + "live metal gleam in /world, real PBR in .glb. Full shelf in the lathes[].material schema.\n"
-      + "PACKAGE DESIGN: a lathe can carry a `wrap` — a label image (inline svg, a data URL, or a "
-      + "stored `sketchRef`) mapped around the wall → a labeled can/bottle/cup (shown in /world). "
+      + "PACKAGE DESIGN: a lathe can carry a `wrap` — a label image (inline svg, a data URL, a "
+      + "stored `sketchRef`, or an `outcomeRef` — a generated image-outcome render as the skin) "
+      + "mapped around the wall → a labeled can/bottle/cup (shown in /world). "
       + "Compose them: a mug = a shell lathe + a swept handle; a labeled can = one lathe + a wrap. "
       + "Fractal-generation path — the substrate stores ONLY the recipe and regenerates the object "
       + "deterministically, served as a traversable three.js World at `/api/sketches/<ref>/world` "
@@ -150,7 +154,7 @@ export function registerWorkbenchTools() {
               samples: { type: 'integer', description: 'Optional mesh density around the axis (default 36).' },
               wrap: {
                 type: 'object',
-                description: "Optional LABEL WRAP — map a label image around a t-band of the wall (a can/bottle/cup label; a cylinder is a perfect developable surface, so no distortion). Renders in the traversable /world view. { source: { svg:'<svg…>' | dataUrl:'data:…' | sketchRef:'sk_…' (a stored sketch as the label) }, band?:{ tFrom, tTo } (0..1 of the axis; default the whole wall), seam?: number (rotate the label so its centre faces front / hide the seam at the back, 0..1) }. Tip: a full-wrap label whose art includes the metal top/bottom reads like a real can.",
+                description: "Optional LABEL WRAP — map a label image around a t-band of the wall (a can/bottle/cup label; a cylinder is a perfect developable surface, so no distortion). Renders in the traversable /world view. { source: { svg:'<svg…>' | dataUrl:'data:…' | sketchRef:'sk_…' (a stored sketch as the label) | outcomeRef:'sk_…' (an image-outcome sketch — its latest bound render PNG becomes the skin; optional target?, default 'page'; mint the art via create_sketch kind:'image-outcome' → the image-worker render seam → bind_image_render) }, band?:{ tFrom, tTo } (0..1 of the axis; default the whole wall), seam?: number (rotate the label so its centre faces front / hide the seam at the back, 0..1) }. PNG sources (dataUrl PNG / outcomeRef) also export as real textures in .glb; svg sources render in /world only. Tip: a full-wrap label whose art includes the metal top/bottom reads like a real can.",
               },
             },
             required: ['axisFrom', 'axisTo', 'profile'],
@@ -192,6 +196,22 @@ export function registerWorkbenchTools() {
             required: ['path', 'radius'],
           },
         },
+        drapes: {
+          type: 'array',
+          description: "Drape monomers: a hanging cloth SHEET — cape, robe, cloak, tabard, shroud, banner, or covering. UNLIKE lathes/extrudes/sweeps (solid parts), a drape is an OPEN two-sided sheet with real folds, sag, and a pin→free billow — so STOP faking cloth with thin flat extrudes (they collapse to slivers off-axis). A drape is the wave-field specialized into cloth: a top edge pinned to two anchor points, hem flared + dropped, folds that grow from 0 at the pinned edge to full at the free hem. Same body-agnostic kernel the human wardrobe uses, so it drapes over ANY part of the object. Each entry: `{ anchor, hang?, back?, drop?, flare?, hemZ?, spread?, waves?, pinToFree?, samples?, tint?, material? }`. `anchor` (required) is EXACTLY TWO points ([x,y,z] or {x,y,z}) — the pinned top edge (e.g. the two shoulder points for a cape). `hang` is 'back' (default) or 'front'. `back` = standoff off the object (default 1); `drop` = how far the hem swings past `back` (default 3); `flare` widens the hem about its midpoint (default 1.32); `hemZ` = absolute hem height (default = anchor-height × 0.16 — set it to the ground for a floor-length robe); `spread` widens the top edge (default 1; >1 fans a narrow edge into a wide cape). `waves` = rest folds (default vertical pleats); `pinToFree` (default true) keeps the pinned edge still while the hem billows. `tint`/`material` shade it like any monomer.",
+          items: {
+            type: 'object',
+            properties: {
+              anchor: { type: 'array', description: 'Exactly two pinned top-edge points ([x,y,z] or {x,y,z}).' },
+              hang: { type: 'string', description: "'back' (default) or 'front'." },
+              back: { type: 'number' }, drop: { type: 'number' }, flare: { type: 'number' },
+              hemZ: { type: 'number' }, spread: { type: 'number' }, pinToFree: { type: 'boolean' },
+              tint: { type: 'string', description: 'Optional base albedo hex.' },
+              material: { description: 'Optional surface finish from the material shelf (satin, velvet, etc.).' },
+            },
+            required: ['anchor'],
+          },
+        },
         reliefs: {
           type: 'array',
           description: 'Relief monomers: a 2D outline (SVG path or font text) raised off a base plane along its normal into bevelled geometry — an ADDITIVE emboss, never a subtractive cut. Embossed nameplates/plaques, wordmarks/logos lifted off a panel, a seal/star struck onto a lathe disc (coin/medallion). Geometry only (no metal/glow/fx). Tip: sink `anchor` slightly into the base so the buried back face does not z-fight the base top.',
@@ -224,6 +244,7 @@ export function registerWorkbenchTools() {
         },
         units: { type: 'string', description: "Informational unit label for the world coordinates (e.g. 'cm', 'mm', 'in') — surfaced in the size readout and grid (1 grid cell = 5 units). Default 'cm'." },
         viewBox: { type: 'object', description: 'Optional render viewBox { width, height } (default 900×900).' },
+        facing: { type: ['string', 'number'], description: "Which way the model's FRONT points, so the preset 'front' shot (and the /png + /scene + /world opening camera) looks it in the face: '+y' (default — the studio camera convention), '-y', '+x', '-x', or a raw azimuth offset in degrees. Camera-only; geometry is untouched." },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
       },

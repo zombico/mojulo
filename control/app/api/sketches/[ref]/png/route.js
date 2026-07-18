@@ -18,6 +18,9 @@ import { NextResponse } from 'next/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
+import { KIND_KEYFRAME_ANIMATION, KIND_SCENE_MOTION, normalizeImageOutcomesManifest } from '@/lib/graph/image-outcomes/manifest';
+import { emitKeyGuide } from '@/lib/graph/image-outcomes/keyframe-emit';
+import { emitStageGuidePng } from '@/lib/graph/image-outcomes/scene-plate';
 
 function safeFilename(title, ref) {
   const base = [title, ref].filter(Boolean).join(' ');
@@ -49,13 +52,77 @@ export async function GET(request, { params }) {
     }
 
     const url = new URL(request.url);
+
+    // Keyframe animations have no diagram/scene form — a scaffold request
+    // serves the per-key MERU GUIDE (the posed mannequin between register lines
+    // the worker paints over) or its OpenPose skeleton (?skeleton=1), emitted
+    // deterministically from the manifest's motion + keys.
+    if (sketch.manifest.kind === KIND_KEYFRAME_ANIMATION) {
+      const keyParam = url.searchParams.get('key');
+      const index = Number.parseInt(keyParam ?? '0', 10);
+      if (!Number.isInteger(index)) {
+        return NextResponse.json({ error: `?key must be an integer (got '${keyParam}')` }, { status: 400 });
+      }
+      const m = sketch.manifest;
+      const emitted = await emitKeyGuide({
+        motion: m.motion,
+        keys: m.keys ?? 6,
+        index,
+        ...(m.canvas ? { canvas: m.canvas } : {}),
+      });
+      const wantSkeleton = url.searchParams.get('skeleton') === '1';
+      const buf = wantSkeleton ? emitted.skeleton : emitted.guide;
+      const inline = url.searchParams.get('inline') === '1' ? 'inline' : 'attachment';
+      return new Response(buf, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/png',
+          'Content-Disposition': `${inline}; filename="${safeFilename(`${sketch.title || ''} key-${index}${wantSkeleton ? ' skeleton' : ' guide'}`, sketch.ref || ref)}"`,
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
+    // Scene-motion plate scaffold — the STAGE GUIDE (declared ground plane the
+    // worker paints a background over), emitted deterministically from the
+    // manifest's stage. ?plate=1; &target=plate-shot-<i> serves a cross-cut
+    // shot's own stage guide (default: the base plate).
+    if (sketch.manifest.kind === KIND_SCENE_MOTION) {
+      const normalized = normalizeImageOutcomesManifest(sketch.manifest);
+      const target = url.searchParams.get('target') || 'plate';
+      const buf = await emitStageGuidePng(normalized, { target });
+      const inline = url.searchParams.get('inline') === '1' ? 'inline' : 'attachment';
+      return new Response(buf, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/png',
+          'Content-Disposition': `${inline}; filename="${safeFilename(`${sketch.title || ''} ${target} stage guide`, sketch.ref || ref)}"`,
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
     const rawScale = Number.parseFloat(url.searchParams.get('scale'));
     const scale = Number.isFinite(rawScale) ? Math.min(4, Math.max(1, rawScale)) : 2;
+    // ?panel=<id> — sequential-art scaffolds only: rasterize one panel's crop
+    // (the per-panel render payload for the image-render worker).
+    const panelId = url.searchParams.get('panel') || undefined;
+    // ?control=1 — image-outcomes scaffolds only: the ControlNet variant
+    // (geometry only — no labels or dashed boxes for a structural
+    // conditioner to trace into pseudo-text).
+    const control = url.searchParams.get('control') === '1';
 
-    const png = await rasterizeSketchToPng(sketch, { scale });
+    const png = await rasterizeSketchToPng(sketch, {
+      scale,
+      ...(panelId ? { panelId } : {}),
+      ...(control ? { control: true } : {}),
+    });
 
     const disposition = url.searchParams.get('inline') === '1' ? 'inline' : 'attachment';
-    const filename = safeFilename(sketch.title, sketch.ref || ref);
+    const filename = safeFilename(
+      panelId ? `${sketch.title || ''} ${panelId}` : sketch.title,
+      sketch.ref || ref,
+    );
 
     return new Response(png, {
       status: 200,

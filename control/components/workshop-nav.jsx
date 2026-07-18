@@ -161,6 +161,16 @@ export function BeatsIcon({ className = 'h-10 w-10' }) {
   );
 }
 
+export function VoiceIcon({ className = 'h-10 w-10' }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="9" y="3" width="6" height="10" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3" />
+    </svg>
+  );
+}
+
 // --- Mode (group) icons ---
 
 export function IdeateIcon({ className = 'h-12 w-12' }) {
@@ -271,6 +281,7 @@ export const WORKSHOP_GROUPS = [
       { key: 'worlds', href: '/maker/worlds', Icon: WorldIcon },
       { key: 'motion', href: '/maker/motion', Icon: MotionIcon },
       { key: 'beats', href: '/maker/beats', Icon: BeatsIcon },
+      { key: 'voice', href: '/maker/voice', Icon: VoiceIcon },
       { key: 'outputs', href: '/outputs', Icon: CookIcon },
     ],
   },
