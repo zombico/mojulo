@@ -26,8 +26,16 @@ import { groundBalance, groundVault } from './figure-balance.js';
 import { gait, WALK_DEFAULTS, resolveMotion } from './figure-posing.js';
 import { emoteMotion, isEmoteSpec } from './figure-emotes.js';
 import { buildGarment, GARMENTS, resolveCuts, cutPredicate, cutHits, cutBoundary } from './figure-garments.js';
+import { buildWig, WIGS } from './wig.js';
 import { resolveFigureSetup } from '../../visual-language/themes.js';
 import { buildAnimal } from './figure-animal-build.js';
+// engine→mobile-suit seam (mobile-suit-pack.plan.md): the shield prop rides the ms-shield shelf
+// LAZILY and CONTAINED — with that module absent or broken, figures render shieldless instead of
+// the whole figure pipeline failing at import time.
+let resolveMsShieldRecipe = null;
+try { ({ resolveMsShieldRecipe } = await import('../worlds/ms-shield.js')); } catch (err) { console.error('ms-shield shelf unavailable — figures render shieldless:', err?.message); }
+import { extrudeToFaces } from './extrude-faces.js';
+import { sweepToFaces } from './sweep-faces.js';
 
 const FLESH_HEX = '#c8836a';
 const PROTO_SCALE = 12;                 // buildProtoform world scale (STAND × 12)
@@ -63,6 +71,28 @@ function squashStretch(stacks, s) {
   const h = 1 / Math.sqrt(s);
   const f = (q) => ({ x: q.x * h, y: q.y * h, z: footZ + (q.z - footZ) * s });
   return stacks.map((st) => ({ ...st, rings: st.rings.map((rg) => ({ center: f(rg.center), polyline: rg.polyline.map(f) })) }));
+}
+
+// CHIBI RIG — remap the armature to few-heads-tall proportions BEFORE the flesh
+// binds, so the vajra rig is kept purely as the skeleton (joints/animation) while
+// the read becomes a stylized mascot. It shrinks every body landmark's offset from
+// an anchor (the neck) — `body` scales the vertical drop (short torso + stubby
+// limbs), `lateral` the sideways spread (narrower shoulders/hips) — and leaves the
+// head/neck untouched so the head stays full-size over a shrunken body (the big-head
+// cue). `headLift` nudges the head up to clear the shoulders. Coordinate-agnostic:
+// pure offset scaling about `anchor`. Pairs with a `fluffs` body; the fluff shape
+// girths are absolute, so the body stays chunky while the skeleton compresses.
+const CHIBI_KEEP = new Set(['headTop', 'headBase', 'neckHub']);
+function chibiRig(pos, opts = {}) {
+  const { body = 0.5, lateral = 0.82, anchor = 'neckHub', headLift = 0 } = (opts === true ? {} : opts);
+  const a = pos[anchor];
+  if (!a) return pos;
+  const out = {};
+  for (const [k, p] of Object.entries(pos)) {
+    if (CHIBI_KEEP.has(k)) { out[k] = headLift ? { x: p.x, y: p.y, z: p.z + headLift } : { ...p }; continue; }
+    out[k] = { x: a.x + (p.x - a.x) * lateral, y: a.y + (p.y - a.y) * lateral, z: a.z + (p.z - a.z) * body };
+  }
+  return out;
 }
 
 // Rigid vertical translation of the whole figure (root lift, in PROTO_SCALE units).
@@ -110,7 +140,59 @@ export function balancedArmature(pose = {}, full = articulate(pose)) {
  * @param {object} proto figure tuning ({ sex, height, build knobs … })
  * @param {?string} garment  a GARMENTS key (skinSuit/wetsuit/tee/tank/dress) or null
  */
-export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs = null) {
+// A HELD SHIELD — a real ms-armory shield mounted on a posed forearm. The shield
+// is an ms-shield workbench recipe (families / palettes / rims / bosses) lowered
+// to placed faces (workbenchAssetFaces), scaled to the figure and dropped at the
+// posed forearm, so it composites with the body and RIDES the pose. The shield's
+// local frame is +y forward / +z up — the SAME axes as the figure — so the mount
+// hardware (−y) sits toward the arm and the face (+y) points forward. `hold` (or
+// `hold.shield`) is `true` or `{ side, family, palette, seed, size, front, mount }`.
+function buildHeldShield(nodes, hold) {
+  const spec = hold === true ? {} : (hold && typeof hold === 'object' ? (hold.shield && typeof hold.shield === 'object' ? hold.shield : hold) : null);
+  if (!spec) return [];
+  const side = (spec.side === 'R' || (hold && hold.side === 'R')) ? 'R' : 'L';
+  const wrist = nodes['wrist' + side], elbow = nodes['elbow' + side];
+  if (!wrist || !elbow) return [];
+  if (!resolveMsShieldRecipe) return [];   // shelf unavailable — shieldless, never fatal
+  let raw;
+  try {
+    const recipe = resolveMsShieldRecipe({ family: spec.family, palette: spec.palette, seed: spec.seed ?? 3 });
+    // lower the shield's extrudes + sweeps DIRECTLY with the polygonizer face-lowerers (light, leaf
+    // modules) — importing workbench.js here would drag in the scene/world chain and cycle back.
+    raw = [
+      ...(recipe.extrudes || []).flatMap((s) => extrudeToFaces(s)),
+      ...(recipe.sweeps || []).flatMap((s) => sweepToFaces(s)),
+    ];   // [{ corners:[[x,y,z]…], fill, doubleSided? }] — vexar-shaded
+  } catch { return []; }
+  if (!raw.length) return [];
+  let mnx = Infinity, mny = Infinity, mnz = Infinity, mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
+  for (const f of raw) for (const c of f.corners) {
+    if (c[0] < mnx) mnx = c[0]; if (c[0] > mxx) mxx = c[0];
+    if (c[1] < mny) mny = c[1]; if (c[1] > mxy) mxy = c[1];
+    if (c[2] < mnz) mnz = c[2]; if (c[2] > mxz) mxz = c[2];
+  }
+  const cxL = (mnx + mxx) / 2, cyL = (mny + mxy) / 2, czL = (mnz + mxz) / 2;   // shield-local center
+  const targetH = spec.size ?? 0.62;                 // shield height in STAND units (~shoulder to hip)
+  const scale = targetH / ((mxz - mnz) || 1);
+  const t = spec.mount ?? 0.5;                        // mount along elbow→wrist (0 = elbow, 1 = wrist)
+  const front = spec.front ?? 0.12;                  // push the shield center in FRONT of the forearm (+y)
+  const mx = elbow.x + (wrist.x - elbow.x) * t;
+  const my = elbow.y + (wrist.y - elbow.y) * t + front;
+  const mz = elbow.z + (wrist.z - elbow.z) * t;
+  const S = PROTO_SCALE;
+  const faces = raw.map((f) => ({
+    fill: f.fill,
+    doubleSided: f.doubleSided,
+    corners: f.corners.map(([x, y, z]) => ({
+      x: (mx + (x - cxL) * scale) * S,
+      y: (my + (y - cyL) * scale) * S,
+      z: (mz + (z - czL) * scale) * S,
+    })),
+  }));
+  return [{ id: 'shield:' + side, faces }];
+}
+
+export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs = null, hold = null, hair = null, proportions = null) {
   const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, ...limbs } = pose || {};
   const full = articulate(pose);          // spine + limbs (pure FK, feet float)
   const balanced = balancedArmature(pose, full);
@@ -150,7 +232,9 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
     // balanced ground-IK ankles.
     const fluffPos = { ...restPos };
     for (const k of GROUNDED_NODES) fluffPos[k] = legPos[k];
-    body = buildFluffs(fluffPos, fluffs, { scale: PROTO_SCALE });
+    // Chibi rig: compress the skeleton to mascot proportions before the shapes bind.
+    const boundPos = proportions ? chibiRig(fluffPos, proportions) : fluffPos;
+    body = buildFluffs(boundPos, fluffs, { scale: PROTO_SCALE });
   } else {
     body = buildProtoform(restPos, { ...PROTO_DEFAULT, ...proto }, legPos, {
       L: { ankle: limbs.ankleL || 0, toe: limbs.toeL || 0, plant: plant ? plant.L || 0 : 0, flatten: flatOf('L') },
@@ -177,7 +261,11 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   // Root lift — raise the whole figure off the ground (a hop/jump arc). In STAND
   // units; the locked ground baseline in renderFigureFrames keeps it airborne.
   if (lift) body = liftStacks(body, lift * PROTO_SCALE);
-  const stacks = body.map((s) => ({ id: s.id, rings: s.rings, hex: FLESH_HEX }));
+  // A fluff (or proto) stack that authored its OWN colour keeps it; only uncoloured
+  // flesh falls back to FLESH_HEX (and thus tracks the setup material via recolorFlesh).
+  // This is what lets a stylized fluff body be multi-coloured (a blue vest-bead, a
+  // black hair-bead) from the recipe alone, without the skin-paint seam.
+  const stacks = body.map((s) => ({ id: s.id, rings: s.rings, hex: s.hex || FLESH_HEX }));
   // Garments: build each cloth shell, then RESOLVE its spec's cuts + panels against the
   // body and attach them per-piece, so the shared mesher (litFaces) carves and recolours
   // the cloth — svgile-row's cutter, finally in the production renderer (SVG + World).
@@ -199,6 +287,32 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
         panels: pp.length ? pp : null,
         seamCuts: outer && ap.length ? ap : null,
       });
+    }
+  }
+  // HAIR (wig.js): a scalp-anchored shell read off the posed head (needs `headEgg`),
+  // appended after the flesh map so recolorFlesh leaves the hair colour alone. Same
+  // ring-stack currency as a garment — the curtain is an OPEN sheet (two-sided smooth
+  // shading), the tail/strand/knot/bun kinds are CLOSED tubes. A wig is one spec KEY,
+  // an inline spec object, OR { style, color?, tipColor?, highlight? } (style + colour
+  // variations). buildWig ramps (ombre) ride the stack as `ramp`; the mesher ignores
+  // unknown keys, so hair meshes through the shared litFaces unchanged.
+  if (hair) {
+    const style = (hair && typeof hair === 'object' && 'style' in hair) ? hair.style : hair;
+    const opts = (hair && typeof hair === 'object') ? hair : {};
+    try {
+      for (const st of buildWig(body, style, opts)) {
+        stacks.push({ id: st.id, rings: st.rings, hex: st.hex, ...(st.ramp ? { ramp: st.ramp } : {}), sheet: !st.closed });
+      }
+    } catch (err) { /* a figure with no headEgg (fluffform) renders hairless rather than failing */ }
+  }
+  // held prop (shield): appended AFTER the flesh mapping so recolorFlesh leaves its hex alone;
+  // ride the same root lift the body took so it stays in the hand off the ground.
+  if (hold) {
+    for (const st of buildHeldShield(balanced, hold)) {
+      if (lift) st.faces = st.faces.map((f) => ({
+        ...f, corners: f.corners.map((q) => ({ x: q.x, y: q.y, z: q.z + lift * PROTO_SCALE })),
+      }));
+      stacks.push(st);
     }
   }
   return stacks;
@@ -232,7 +346,10 @@ const newell = (pts) => {
 // The lowest ring height (in /PROTO_SCALE units) — the figure's ground contact.
 function stackMinZ(stacks) {
   let minZ = Infinity;
-  for (const st of stacks) for (const rg of st.rings) for (const q of rg.polyline) { const z = q.z / PROTO_SCALE; if (z < minZ) minZ = z; }
+  for (const st of stacks) {
+    if (st.faces) { for (const f of st.faces) for (const q of f.corners) { const z = q.z / PROTO_SCALE; if (z < minZ) minZ = z; } continue; }
+    for (const rg of st.rings) for (const q of rg.polyline) { const z = q.z / PROTO_SCALE; if (z < minZ) minZ = z; }
+  }
   return minZ;
 }
 // The shared STAND→render world transform. The lowest ring plants on the ground,
@@ -300,6 +417,13 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
   const faces = [];
   for (const st of stacks) {
     if (st.sheet) { emitSheetFaces(st, V, light, dist, faces); continue; }  // open two-sided cloth (wave-drape)
+    if (st.faces) {   // prebuilt object faces (a lowered workbench prop, e.g. the ms-shield) — already shaded
+      for (const f of st.faces) {
+        const wpts = f.corners.map(V);
+        faces.push({ wpts, fill: f.fill, shade: 1, dist: dist(centroid(wpts)) });   // painter's-sort by depth; fill carries its own shading
+      }
+      continue;
+    }
     const cut = st.cut, panels = st.panels;                                 // garment cutter + panel recolour (null for flesh)
     for (let i = 0; i < st.rings.length - 1; i++) {
       const a = st.rings[i].polyline, b = st.rings[i + 1].polyline, m = Math.min(a.length, b.length);
@@ -444,7 +568,7 @@ function recolorFlesh(stacks, fleshHex) {
  */
 export function renderFigureToSvg(manifest = {}, fit = null, { control = false } = {}) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
   // The control scaffold (skin seam) is ALWAYS the filled lit render — a wire
   // setup would fragment a diffusion skin (the polygomer-skin lesson).
@@ -467,7 +591,7 @@ export function renderFigureToSvg(manifest = {}, fit = null, { control = false }
  */
 export function renderFigureWithArmature(manifest = {}, fit = null) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
   const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
   const F = fit || fitFor(bb, VB_W, VB_H, PAD);
@@ -696,7 +820,7 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
   let groundZ = Infinity;
   for (let i = 0; i < frames; i++) {
     const pose = { ...(manifest.pose || {}), ...move(i / frames) };
-    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
+    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
     built.push(stacks);
     const mz = stackMinZ(stacks);
     if (mz < groundZ) groundZ = mz;
@@ -740,7 +864,7 @@ export function figureRigSamples(manifest = {}, keys = 8) {
   const { CAM } = makeCamera(manifest.view);
   const move = motionFn(manifest.motion || 'walk', keys);
   const restPose = manifest.pose || {};
-  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex);
+  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
   const groundZ = stackMinZ(restStacks);
   const V = worldVertex(restStacks, groundZ);
   const restFaces = litFaces(restStacks, CAM, setup.light, groundZ, { cull: false })
@@ -772,7 +896,7 @@ export function renderFigureWorldFrames(manifest = {}, frames = 30) {
     ? Array.from({ length: frames }, (_, i) => ({ ...(manifest.pose || {}), ...move(i / frames) }))
     : [manifest.pose || {}];
   // Pass 1: build every frame; share the lowest ground contact across the motion.
-  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs), setup.fleshHex));
+  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex));
   let groundZ = Infinity;
   for (const stacks of built) { const mz = stackMinZ(stacks); if (mz < groundZ) groundZ = mz; }
   // Pass 2: mesh each frame to world faces — no projection, no cull → orbitable.
