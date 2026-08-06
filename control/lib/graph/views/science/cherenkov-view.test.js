@@ -63,10 +63,10 @@ describe('cherenkov-view — raymarch emit + registration', () => {
     expect(html).toContain('uScenario:{value:1}');
   });
 
-  it('routes to the world renderer and the world concern bucket', () => {
+  it('routes to the world renderer and the object concern bucket', () => {
     const m = { kind: 'cherenkov-view' };
     expect(sketchRenderMode(m)).toBe('world');
-    expect(classifyBucket(m)).toBe('world');
+    expect(classifyBucket(m)).toBe('object');
   });
 
   it('exposes the two scenarios', () => {

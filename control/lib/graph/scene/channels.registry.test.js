@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { RUNTIME_CHANNELS, channelRuntimeSection, mojStepCalls, normalizeRuntimeChannels } from './channels.js';
+import { RUNTIME_CHANNELS, channelRuntimeSection, mojStepCalls, normalizeRuntimeChannels } from './channels/index.js';
 import { emitThreeWorld } from './scene-three.js';
 
 // ── registry round-trip (renderer-emitter.plan.md E2b exit criterion) ──────────────

@@ -15,15 +15,29 @@
 import { validateGameManifest, normalizeGameManifest } from './game-manifest.js';
 import { validateLevelContract, normalizeLevelContract } from './level-contract.js';
 import { synthesizeLevel } from './level-synth.js';
+import { isBeatsKind } from '../beats/beats-manifest.js';
 
 /**
  * @param {object} manifest        a game manifest (validated here)
  * @param {(ref:string)=>object|null} getSketch  ref → stored sketch ({ manifest, ... }) | null
  * @param {(ref:string)=>string} levelSrc        ref → the level's playable URL (iframe src)
- * @returns {{ manifest, levels }}  normalized manifest + emitGameShell level entries
+ * @param {(ref:string)=>string} [worldSrc]      ref → a menu world-view URL (defaults to levelSrc)
+ * @param {(ref:string)=>string} [beatsSrc]      ref → a streamable audio URL for a beats sketch
+ *                                               (defaults to the served beats.wav route)
+ * @param {(ref:string)=>string} [portraitSrc]   ref → a still-image URL for a setup card portrait
+ *                                               (defaults to the served /png raster)
+ * @param {(ref:string)=>string} [spinSrc]       ref → a self-rotating World URL for a setup card
+ *                                               preview (defaults to /world?spin=1)
+ * @returns {{ manifest, levels, menu, music, setup }}  normalized manifest + emitGameShell level
+ *          entries + resolved menu entries (world entries carry src; null when the manifest has no
+ *          menu) + resolved music { menu: src|null, battle: [src,…] } (null without music) +
+ *          resolved setup presentation (card refs mapped to srcs; null without setup)
  * @throws  with a teaching message listing every fault (manifest, missing level, bad contract)
  */
-export function resolveGame(manifest, getSketch, levelSrc) {
+export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
+  beatsSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/beats.wav`,
+  portraitSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/png?inline=1`,
+  spinSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world?spin=1&hud=0`) {
   const v = validateGameManifest(manifest);
   if (!v.ok) throw new Error(`game manifest is invalid:\n- ${v.errors.join('\n- ')}`);
   const norm = normalizeGameManifest(manifest);
@@ -46,6 +60,73 @@ export function resolveGame(manifest, getSketch, levelSrc) {
     if (!cv.ok) { errors.push(`level '${lv.ref}' contract (against this game's store): ${cv.errors.join('; ')}`); continue; }
     levels.push({ ref: lv.ref, title: lv.title, contract: normalizeLevelContract(game), src: levelSrc(lv.ref) });
   }
+  // menu entries (Start → Menu presentation), resolved depth-first so a nested submenu ('menu') is
+  // walked too: a 'world' entry's viewed world must exist as a sketch (its src resolves here like a
+  // level src); 'mode' entries carry only level refs (already resolved into levels[] above — the shell
+  // looks them up by ref), so they pass through untouched. Nothing is baked into the game row.
+  let menu = null;
+  if (norm.menu) {
+    const resolveEntry = (en) => {
+      if (en.kind === 'world') {
+        const sketch = getSketch(en.ref);
+        if (!sketch || !sketch.manifest) { errors.push(`menu entry '${en.id}': no sketch with ref '${en.ref}'`); return { ...en }; }
+        return { ...en, src: worldSrc(en.ref) };
+      }
+      if (en.kind === 'menu') return { ...en, entries: (en.entries || []).map(resolveEntry) };
+      return { ...en };
+    };
+    menu = norm.menu.entries.map(resolveEntry);
+  }
+
+  // music refs (the shell's score): each must be a stored beats sketch; resolved to a
+  // streamable src (the derived beats.wav render) — the game row keeps only the refs.
+  let music = null;
+  if (norm.music) {
+    const beat = (ref, where) => {
+      const sketch = getSketch(ref);
+      if (!sketch || !sketch.manifest) { errors.push(`${where}: no sketch with ref '${ref}'`); return null; }
+      if (!isBeatsKind(sketch.manifest.kind)) { errors.push(`${where}: '${ref}' is kind '${sketch.manifest.kind}', not a beats artifact`); return null; }
+      return beatsSrc(ref);
+    };
+    music = {
+      menu: norm.music.menu ? beat(norm.music.menu, 'music.menu') : null,
+      battle: (norm.music.battle || []).map((r, i) => beat(r, `music.battle[${i}]`)).filter(Boolean),
+    };
+  }
+
+  // setup presentation (pre-level screens): hangar card portrait/preview refs must exist as
+  // sketches; each resolves to a servable src (a /png still, a ?spin=1 self-rotating World) —
+  // the game row keeps only the refs, exactly like menu worlds and music beats.
+  let setup = null;
+  if (norm.setup) {
+    setup = {};
+    for (const slice of Object.keys(norm.setup)) {
+      const p = norm.setup[slice];
+      if (p.style !== 'hangar') { setup[slice] = { ...p }; continue; }
+      const cards = {};
+      for (const id of Object.keys(p.cards || {})) {
+        const c = p.cards[id];
+        const out = { ...c };
+        for (const [k, toSrc] of [['portrait', portraitSrc], ['preview', spinSrc]]) {
+          if (!c[k]) continue;
+          const sketch = getSketch(c[k]);
+          if (!sketch || !sketch.manifest) { errors.push(`setup.${slice}.cards.${id}.${k}: no sketch with ref '${c[k]}'`); continue; }
+          out[k] = toSrc(c[k]);
+        }
+        // per-livery preview turntables (livery-ingame.plan.md): a card's `liveries` may each carry a
+        // `preview` world ref so the setup carousel repaints when the operator picks a livery. Resolve
+        // each to a servable src; an unresolvable ref drops to null so the shell falls back to
+        // card.preview. (The swatch id + hex pass through untouched for the picker + in-match paint.)
+        if (Array.isArray(out.liveries)) {
+          out.liveries = out.liveries.map((l) =>
+            (l && l.preview) ? { ...l, preview: getSketch(l.preview) ? spinSrc(l.preview) : null } : l);
+        }
+        cards[id] = out;
+      }
+      setup[slice] = { ...p, cards };
+    }
+  }
+
   if (errors.length) throw new Error(`cannot assemble game '${norm.title}':\n- ${errors.join('\n- ')}`);
-  return { manifest: norm, levels };
+  return { manifest: norm, levels, menu, music, setup };
 }

@@ -1,8 +1,8 @@
 {
   "name": "mojulo",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "license": "Apache-2.0",
-  "description": "Mojulo — MCP server for building self-hosted chatbots from any MCP-capable agent (Claude Code, Codex, and friends).",
+  "description": "Mojulo — the agent's workshop: a local, stateful MCP substrate that turns conversations into durable things — self-hosted chatbots, connected services, apps, playable games, and creative artifacts minted as deterministic recipes.",
   "author": "Franz Ombico",
   "homepage": "https://github.com/zombico/mojulo",
   "repository": {
@@ -24,6 +24,11 @@
     "bot-builder",
     "rag",
     "self-hosted",
+    "local-first",
+    "ai-agent",
+    "agent-tools",
+    "games",
+    "generative",
     "mojulo"
   ],
   "engines": {

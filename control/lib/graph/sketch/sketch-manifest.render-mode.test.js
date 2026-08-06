@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { classifyBucket, isBucket, isPolygomerManjiTree, sketchRenderMode } from './sketch-manifest.js';
+import {
+  OBJECT_RENDER_KINDS,
+  WALKABLE_WORLD_KINDS,
+  classifyBucket,
+  isBucket,
+  isPolygomerManjiTree,
+  sketchRenderMode,
+} from './sketch-manifest.js';
 
 // A polygomer: 3D manji-tree with lathe monomers (shape-from-dream / polygomerization).
 const POLYGOMER = {
@@ -51,9 +58,22 @@ describe('sketchRenderMode', () => {
 });
 
 describe('classifyBucket', () => {
-  it('classifies traversable box-world kinds into the world concern', () => {
+  it('classifies walkable world kinds into the world concern', () => {
     expect(classifyBucket({ kind: 'fractal-city' })).toBe('world');
     expect(classifyBucket({ kind: 'transportation-hub' })).toBe('world');
+    // walk-flagged kinds that used to fall through to the diagram bucket
+    expect(classifyBucket({ kind: 'edifice' })).toBe('world');
+    expect(classifyBucket({ kind: 'operator-world' })).toBe('world');
+    expect(classifyBucket({ kind: 'math-structure' })).toBe('world');
+    expect(classifyBucket({ kind: 'koenigsberg' })).toBe('world');
+  });
+
+  it('classifies orbit-only 3D artifacts into the object concern', () => {
+    expect(classifyBucket({ kind: 'workbench' })).toBe('object');
+    expect(classifyBucket({ kind: 'assembler' })).toBe('object');
+    expect(classifyBucket({ kind: 'vehicle-instance' })).toBe('object');
+    expect(classifyBucket({ kind: 'planetary' })).toBe('object');
+    expect(classifyBucket({ kind: 'molecule-view' })).toBe('object');
   });
 
   it('keeps still / painterly kinds (incl. the turntable) in the illustration concern', () => {
@@ -62,8 +82,8 @@ describe('classifyBucket', () => {
     expect(classifyBucket({ kind: 'css3d-turntable' })).toBe('illustration');
   });
 
-  it('classifies polygomer manji-trees into the world concern; structural trees stay illustration', () => {
-    expect(classifyBucket(POLYGOMER)).toBe('world');
+  it('classifies polygomer manji-trees into the object concern; structural trees stay illustration', () => {
+    expect(classifyBucket(POLYGOMER)).toBe('object');
     expect(classifyBucket(MANJI_2D)).toBe('illustration');
     expect(classifyBucket(MANJI_3D_BARE)).toBe('illustration');
   });
@@ -72,6 +92,31 @@ describe('classifyBucket', () => {
     expect(classifyBucket({ kind: 'stacked-bar' })).toBe('diagram');
     expect(classifyBucket({})).toBe('diagram');
     expect(classifyBucket(null)).toBe('diagram');
+  });
+});
+
+describe('bucket ↔ walk-flag alignment', () => {
+  it('mirrors the world-kinds.js walk flags into the world/object split', async () => {
+    const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
+    // Walk-flagged kinds owned by another concern (see the WALKABLE_WORLD_KINDS
+    // comment), plus the polygomer manji-tree (joins `object` via
+    // isPolygomerManjiTree, not by kind).
+    const OTHER_CONCERN = new Set(['painted-landscape', 'subway-station', 'manji-tree']);
+    // In the world concern without a registry walk flag: locomotion comes from
+    // the manifest's per-entity rules, not the kind descriptor.
+    const MANIFEST_DRIVEN_WALK = new Set(['controllable']);
+    for (const [kind, desc] of Object.entries(WORLD_KINDS)) {
+      if (OTHER_CONCERN.has(kind)) continue;
+      const expected = desc.walk || MANIFEST_DRIVEN_WALK.has(kind) ? 'world' : 'object';
+      expect(classifyBucket({ kind }), kind).toBe(expected);
+    }
+    for (const kind of WALKABLE_WORLD_KINDS) {
+      if (MANIFEST_DRIVEN_WALK.has(kind)) continue;
+      expect(WORLD_KINDS[kind]?.walk, `${kind} should carry walk:true in world-kinds.js`).toBe(true);
+    }
+    for (const kind of OBJECT_RENDER_KINDS) {
+      expect(WORLD_KINDS[kind]?.walk, `${kind} should NOT carry walk:true in world-kinds.js`).toBeUndefined();
+    }
   });
 });
 
@@ -87,8 +132,8 @@ describe('isPolygomerManjiTree', () => {
 });
 
 describe('isBucket', () => {
-  it('accepts the three concern buckets and rejects anything else', () => {
-    for (const b of ['diagram', 'illustration', 'world']) expect(isBucket(b)).toBe(true);
+  it('accepts the concern buckets and rejects anything else', () => {
+    for (const b of ['diagram', 'illustration', 'world', 'object', 'beats', 'voice']) expect(isBucket(b)).toBe(true);
     expect(isBucket('scene')).toBe(false);
     expect(isBucket('')).toBe(false);
     expect(isBucket(null)).toBe(false);

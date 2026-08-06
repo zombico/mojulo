@@ -13,6 +13,7 @@ import { renderCarvedSolidToSvg } from '@/lib/graph/effects/carved-solid';
 import { renderFigureToSvg } from '@/lib/graph/polygonizer/figure-render';
 import { renderScaffoldSvg } from '@/lib/graph/image-outcomes/scaffold';
 import { isImageOutcomesKind } from '@/lib/graph/image-outcomes/manifest';
+import { renderCoverSvg } from '@/lib/graph/image-outcomes/cover-preview';
 import { renderFacesScaffoldSvg } from '@/lib/graph/polygonizer/faces-scaffold-svg';
 import { lowerObjectFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
 import { lowerAssemblerFaces } from '@/lib/graph/worlds/workbench-assembler';
@@ -60,6 +61,9 @@ export async function renderStoredSketchSvg(sketch, { panelId, control } = {}) {
   }
   if (manifest.kind === 'painted-landscape') return renderPaintedLandscapeToSvg(manifest);
   if (manifest.kind === 'carved-solid') return renderCarvedSolidToSvg(manifest);
+  // A cover's deterministic SVG face (illustration placeholder + title + subtext
+  // + metadata); the raster composite with painted layers is /cover.png.
+  if (manifest.kind === 'cover') return renderCoverSvg(manifest);
   // A figure's control scaffold carries per-face data-shade (the skin seam).
   if (manifest.kind === 'figure') return renderFigureToSvg(manifest, null, control ? { control: true } : {});
   // Image-outcomes kinds render their deterministic director scaffold —

@@ -39,10 +39,10 @@ describe('pulsar-view — rotating magnetised neutron star', () => {
     expect(html).not.toContain('GROUPS =');
   });
 
-  it('registers as a world concern', () => {
+  it('registers as an object concern', () => {
     const manifest = { kind: 'pulsar-view' };
     expect(sketchRenderMode(manifest)).toBe('world');
-    expect(classifyBucket(manifest)).toBe('world');
+    expect(classifyBucket(manifest)).toBe('object');
   });
 
   it('exposes the three pulsar looks', () => {

@@ -3,7 +3,7 @@
 exports[`world-scene kinds — per-arm characterization > every dispatch arm resolves its fixture to a stable { title, hash } snapshot 1`] = `
 {
   "assembler": {
-    "hash": "80ecfdc6",
+    "hash": "fc9bc84e",
     "title": "mojulo assembler",
   },
   "atmosphere-view": {
@@ -95,7 +95,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fluid",
   },
   "fractal-city": {
-    "hash": "894ae5da",
+    "hash": "eb5e459d",
     "title": "mojulo city",
   },
   "ftc-view": {
@@ -231,7 +231,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo vector match",
   },
   "vehicle-instance": {
-    "hash": "a355998c",
+    "hash": "db2cdf32",
     "title": "workbench · airliner",
   },
   "wavepacket-view": {
@@ -243,7 +243,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo windmill",
   },
   "workbench": {
-    "hash": "705f5de1",
+    "hash": "695f09e9",
     "title": "mojulo workbench",
   },
 }

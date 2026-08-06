@@ -63,7 +63,7 @@ export function lowerObjectFaces(manifest, light) {
   // generator — response curve baked into the fills, plus `spec`/`pbr` face tags for the World's
   // live highlight and the .glb PBR export. Absent → byte-identical (material-response.plan.md P4).
   return [
-    ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material })),
+    ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps })),
     ...extrudes.flatMap((spec) => extrudeToFaces(spec, { light, material: spec.material })),
     ...sweeps.flatMap((spec) => sweepToFaces(spec, { light, material: spec.material })),
     ...drapes.flatMap((spec) => drapeToFaces(spec, { light, material: spec.material })),
@@ -140,7 +140,8 @@ function monomerIntendsClosed(kind, spec) {
     const shell = spec && Number.isFinite(spec.wallThickness) && spec.wallThickness > 0;
     return shell ? spec.openFace === 'none' : true;         // a recessed shell is open unless openFace:'none'
   }
-  return true;                                              // lathe + relief: always meant to be closed
+  if (kind === 'lathe') return spec && spec.caps === false ? false : true;
+  return true;                                              // relief: always meant to be closed
 }
 
 /** Axis-aligned bounds of a baked face list → { min, max, center, radius }, or null if empty. */
@@ -164,7 +165,11 @@ function boundsOf(faces) {
 // A measured floor: a base plane + a grid of thin flat quads on the object's base (z = min.z),
 // graduated in `units`. The grid is the workbench's scale cue — it makes the literal size legible.
 function measuredFloor(bounds, step = GRID_STEP) {
-  const z = bounds.min[2];
+  // Drop the grid a hair below the object's lowest point so downward-hanging detail
+  // (e.g. a "fist down" whose fingers point at the floor) reads with clearance instead of
+  // z-fighting / sitting flush on the grid. Small + proportional so scale still reads true.
+  const clearance = Math.max(0.12, (bounds.max[2] - bounds.min[2]) * 0.04);
+  const z = bounds.min[2] - clearance;
   const halfX = Math.max(step * 2, (bounds.max[0] - bounds.min[0]) / 2 + step * 1.5);
   const halfY = Math.max(step * 2, (bounds.max[1] - bounds.min[1]) / 2 + step * 1.5);
   const cx = bounds.center[0];
@@ -189,7 +194,7 @@ function measuredFloor(bounds, step = GRID_STEP) {
 // looking back). A manifest may declare which way it was actually authored via `facing`:
 // '+y' (default) | '-y' | '+x' | '-x', or a raw azimuth offset in degrees — the whole
 // turntable rotates so 'front' stays honest. Camera-only: geometry is untouched.
-function facingYaw(facing) {
+export function facingYaw(facing) {
   if (Number.isFinite(facing)) return facing;
   return { '+y': 0, '-y': 180, '+x': -90, '-x': 90 }[facing] ?? 0;
 }

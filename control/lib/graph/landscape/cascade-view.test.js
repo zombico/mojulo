@@ -93,10 +93,10 @@ describe('cascade-view — emit + registration', () => {
     expect(html).toContain('OrbitControls');
   });
 
-  it('routes to the world renderer and the world concern bucket', () => {
+  it('routes to the world renderer and the object concern bucket', () => {
     const m = { kind: 'cascade-view' };
     expect(sketchRenderMode(m)).toBe('world');
-    expect(classifyBucket(m)).toBe('world');
+    expect(classifyBucket(m)).toBe('object');
   });
 
   it('exposes the three regimes', () => {

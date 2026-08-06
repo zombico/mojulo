@@ -58,6 +58,32 @@ export const KITS = {
     },
   },
 
+  platformer: {
+    name: 'Platformer',
+    summary: 'Jump across platforms, grab the collectibles, reach the goal flag. Falls respawn you (they cost position, not your run); hazards are opt-in and can be lethal. Pairs with platformField() for island geometry + moving platforms.',
+    when: 'a 3D platformer, jump between floating platforms, a Kirby / Mario-style jumping level, collect gems then reach the exit flag, moving platforms and spike hazards over a void',
+    store: {
+      slices: [
+        { name: 'bag', kind: 'inventory' },
+        { name: 'hero', kind: 'character', init: { stats: { hp: 100 } } },
+        { name: 'campaign', kind: 'progression' },
+      ],
+    },
+    fall: { mode: 'respawn' },
+    progression: 'linear',
+    levelChannel(g) {
+      const mechanics = [];
+      if (Array.isArray(g.pickups) && g.pickups.length) mechanics.push({ kind: 'collect', into: 'bag', pickups: g.pickups });
+      mechanics.push({ kind: 'reach-exit', at: g.exit, ...(g.exitRadius ? { radius: g.exitRadius } : {}) });
+      if (Array.isArray(g.hazards) && g.hazards.length) {
+        mechanics.push({ kind: 'hazard-damage', hazards: g.hazards });
+        if (g.lethal) mechanics.push({ kind: 'fail-on-death' });   // opt-in: a hardcore platformer where hazards kill
+      }
+      // per-level fall override (e.g. { mode:'lethal' } for a no-net course); else the kit's respawn net.
+      return { levelRef: g.ref, mechanics, fall: g.fall || this.fall };
+    },
+  },
+
   'survival-arena': {
     name: 'Survival arena',
     summary: 'Outlast a timer in a hazard-filled arena. Survive to win, die to lose. A character with hp carries across a linear run of arenas.',

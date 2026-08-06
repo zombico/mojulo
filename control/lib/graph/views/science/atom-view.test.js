@@ -86,9 +86,9 @@ describe('electron wave-tour (mode: tour)', () => {
 });
 
 describe('atom-view render routing', () => {
-  it('routes to the traversable World, in the world concern bucket', () => {
+  it('routes to the World renderer, in the object concern bucket', () => {
     expect(sketchRenderMode({ kind: 'atom-view' })).toBe('world');
-    expect(classifyBucket({ kind: 'atom-view' })).toBe('world');
+    expect(classifyBucket({ kind: 'atom-view' })).toBe('object');
   });
 });
 

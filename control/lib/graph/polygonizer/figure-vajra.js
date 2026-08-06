@@ -130,7 +130,7 @@ export const FIGURE_EDGES = [
 // head/neck split into two joints: the NECK flexes/tilts the whole column at its
 // base; the HEAD nods/tilts the skull on top of the neck (atlas). Their cones sum
 // to roughly the old headNeck (90).
-export const LIMITS = { neck: 45, head: 45, headNeck: 90, shoulder: 180, armRoll: 110, elbow: 150, coreTwist: 35, coreBend: 25, hip: 62, hipRoll: 45, pelvis: 20, hinge: 80, shoulders: 30, knee: 150 };
+export const LIMITS = { neck: 45, head: 45, headNeck: 90, shoulder: 180, armRoll: 110, elbow: 150, coreTwist: 35, coreBend: 25, hip: 62, hipRoll: 45, pelvis: 20, hinge: 80, shoulders: 30, knee: 150, wrist: 70, wristTwist: 120 };
 
 // Kinematic subtrees — the nodes a joint carries when it rotates.
 export const ARMS_L = ['elbowL', 'wristL'], ARMS_R = ['elbowR', 'wristR'];
@@ -342,6 +342,202 @@ export function articulate(dof = {}) {
   if (dof.neck) swivelSub(m, ['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
   if (dof.head) swivelSub(m, ['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
   return m;
+}
+
+// ─── Rigid-bone articulation (the same kinematics, as affine transforms) ────
+// `articulate` moves POINTS; a rigid-armor consumer (a posed mobile suit, any
+// hardware body) needs the rigid TRANSFORM each bone segment underwent, applied
+// about ITS OWN skeleton's pivots. `articulateTransforms` replays the exact
+// op sequence of `articulate` — same order, same clamps, same computed axes —
+// but accumulates a per-bone affine alongside the moving node map, and takes an
+// optional `base` so the skeleton can have non-human proportions (a suit's
+// joints derived from its stations). With the default base its node output is
+// bit-identical to `articulate(dof)` — pinned by the parity test.
+//
+// Bones and their CARRIER node (the node that rigidly rides the bone, so "ops
+// whose subtree contains the carrier" = "ops that move this bone"):
+//   pelvis→hipL · torso→neckHub · head→headTop · upperArmL/R→elbowL/R ·
+//   forearmL/R→wristL/R (hand rides) · thighL/R→kneeL/R · shinL/R→ankleL/R
+//   (the foot rides the shin — the armature has no ankle DOF).
+export const BONE_CARRIERS = {
+  pelvis: 'hipL', torso: 'neckHub', head: 'headTop',
+  upperArmL: 'elbowL', upperArmR: 'elbowR', forearmL: 'wristL', forearmR: 'wristR',
+  // the HAND rides the wrist node exactly like the forearm does, so handX
+  // accumulates the same arm motion as forearmX — until a wrist DOF rotates it
+  // about the wrist joint (articulateTransforms). A held weapon binds to handX,
+  // so the wrist AIMS the blade independently of the forearm.
+  handL: 'wristL', handR: 'wristR',
+  thighL: 'kneeL', thighR: 'kneeR', shinL: 'ankleL', shinR: 'ankleR',
+};
+
+const I3 = () => [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+const mmul = (A, B) => A.map((r) => [
+  r[0] * B[0][0] + r[1] * B[1][0] + r[2] * B[2][0],
+  r[0] * B[0][1] + r[1] * B[1][1] + r[2] * B[2][1],
+  r[0] * B[0][2] + r[1] * B[1][2] + r[2] * B[2][2],
+]);
+const mvec = (M, v) => ({
+  x: M[0][0] * v.x + M[0][1] * v.y + M[0][2] * v.z,
+  y: M[1][0] * v.x + M[1][1] * v.y + M[1][2] * v.z,
+  z: M[2][0] * v.x + M[2][1] * v.y + M[2][2] * v.z,
+});
+const axisMat = { // matches rotateAbout: EW = about x, NS = about y, ZN = about z
+  EW: (a) => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; },
+  NS: (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; },
+  ZN: (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; },
+};
+// Rodrigues rotation matrix about unit `axis` (matches rotAxis).
+function rodMat(axis, deg) {
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), t = 1 - c;
+  const { x, y, z } = axis;
+  return [
+    [c + x * x * t, x * y * t - z * s, x * z * t + y * s],
+    [y * x * t + z * s, c + y * y * t, y * z * t - x * s],
+    [z * x * t - y * s, z * y * t + x * s, c + z * z * t],
+  ];
+}
+
+export function articulateTransforms(dof = {}, base = null, opts = {}) {
+  const m = base
+    ? Object.fromEntries(Object.entries(base).map(([k, v]) => [k, { x: v.x, y: v.y, z: v.z }]))
+    : basePositions();
+  const T = Object.fromEntries(Object.keys(BONE_CARRIERS).map((b) => [b, { m: I3(), t: { x: 0, y: 0, z: 0 } }]));
+  const L = LIMITS;
+  // RIGID UPPER BODY (suits): the torso bone is a single rigid chest plate, so
+  // its shoulder sockets must turn WITH it. By default the torso bone rides only
+  // the lower spine (pelvis + navel joints), lagging the sockets by the neckHub-
+  // level spine rotation + the girdle rotation — on flesh that shear is correct,
+  // on rigid armor it splits the chest from the arms (the arms end up rooting at
+  // the chest's front corner and the back). When set, the torso carrier node is
+  // added to those two rotations. It IS their pivot, so no node moves — node
+  // output stays bit-identical to articulate() — and only the torso bone's affine
+  // picks up the rotation, so the chest turns as one piece with its sockets.
+  // Opt-in (bakeUnitRig / compileUnitPose pass it); the default path is unchanged.
+  const rigidUpper = opts.rigidUpperBody === true;
+  const TORSO_CARRIER = BONE_CARRIERS.torso;
+  // WAIST SWIVEL (suits): the shoulder-girdle turn (dof.shoulders) rotates about a
+  // vertical axis through the centerline, so with rigidUpper it is a clean waist
+  // bearing — chest + sockets + arms turn as one rigid plate, no shear. A mobile
+  // suit's waist can rotate far past a human's ~30° scapular range, so the suit
+  // path opts into a larger cap; flesh (no opt) keeps L.shoulders exactly.
+  const shouldersLim = Number.isFinite(opts.shouldersLimit) ? opts.shouldersLimit : L.shoulders;
+
+  // One op: rotate `keys` by matrix R about the CURRENT position of `pivot`,
+  // moving the node map and composing the step into every bone whose carrier moved.
+  const step = (keys, pivotPos, R) => {
+    const p = { x: pivotPos.x, y: pivotPos.y, z: pivotPos.z };  // freeze (pivot may be in keys)
+    const rp = mvec(R, p);
+    const st = { x: p.x - rp.x, y: p.y - rp.y, z: p.z - rp.z };
+    const keySet = new Set(keys);
+    for (const k of keySet) {
+      const rv = mvec(R, m[k]);
+      m[k] = { x: rv.x + st.x, y: rv.y + st.y, z: rv.z + st.z };
+    }
+    for (const [bone, carrier] of Object.entries(BONE_CARRIERS)) {
+      if (!keySet.has(carrier)) continue;
+      const rt = mvec(R, T[bone].t);
+      T[bone] = { m: mmul(R, T[bone].m), t: { x: rt.x + st.x, y: rt.y + st.y, z: rt.z + st.z } };
+    }
+  };
+  const rot = (keys, pivotKey, axis, deg) => { if (deg) step(keys, m[pivotKey], axisMat[axis](deg * Math.PI / 180)); };
+  const swivel = (keys, pivotKey, yaw, pitch, limit) => {
+    const mag = Math.hypot(yaw, pitch);
+    if (mag > limit) { yaw *= limit / mag; pitch *= limit / mag; }
+    rot(keys, pivotKey, 'NS', yaw);
+    rot(keys, pivotKey, 'EW', pitch);
+  };
+  const hinge = (joint, distal, refDir, deg) => {
+    if (deg === 0) return;
+    const seg = normalize3(sub3(m[distal], m[joint]));
+    const axis = cross3(seg, refDir);
+    const al = Math.hypot(axis.x, axis.y, axis.z);
+    if (al < 1e-6) return;
+    step([distal], m[joint], rodMat({ x: axis.x / al, y: axis.y / al, z: axis.z / al }, deg));
+  };
+
+  // ── the exact articulate() sequence ──
+  if (dof.spine) {
+    const { sagittal = 0, lateral = 0, axial = 0 } = dof.spine;
+    let sg = clamp(sagittal, -1, 1), la = clamp(lateral, -1, 1);
+    const ax = clamp(axial, -1, 1);
+    const r = Math.hypot(sg, la);
+    if (r > 1) { sg /= r; la /= r; }
+    for (const j of SPINE_ORDER) {
+      const cap = SPINE_CAP[j];
+      // rigidUpper: the chest bone follows the neckHub joint too (see the flag note) —
+      // pelvis/navel already carry it via UPPER_BODY; only neckHub's level is missing.
+      const sub = (rigidUpper && j === 'neckHub') ? [...SPINE_SUB[j], TORSO_CARRIER] : SPINE_SUB[j];
+      const bend = sg >= 0 ? sg * cap.flex : sg * cap.ext;
+      if (bend) rot(sub, j, 'EW', -bend);
+      if (la)   rot(sub, j, 'NS', la * cap.lateral);
+      if (ax)   rot(sub, j, 'ZN', ax * cap.axial);
+    }
+  }
+  if (dof.bend) rot(UPPER_BODY, 'navel', 'EW', clamp(dof.bend, -L.coreBend, L.coreBend));
+  if (dof.twist) {
+    const t = clamp(dof.twist, -L.coreTwist, L.coreTwist);
+    rot(UPPER_BODY, 'navel', 'ZN', t);
+    rot(LOWER_BODY, 'pelvisHub', 'ZN', -t);
+  }
+  if (dof.pelvis) rot(LOWER_BODY, 'pelvisHub', 'ZN', clamp(dof.pelvis, -L.pelvis, L.pelvis));
+  if (dof.hinge) rot(['navel', ...UPPER_BODY], 'pelvisHub', 'EW', -clamp(dof.hinge, 0, L.hinge));
+  if (dof.shoulders) rot(rigidUpper ? [...SHOULDER_GIRDLE, TORSO_CARRIER] : [...SHOULDER_GIRDLE], 'neckHub', 'ZN', clamp(dof.shoulders, -shouldersLim, shouldersLim));
+  if (dof.shL) swivel(ARMS_L, 'shoulderL', dof.shL.yaw || 0, dof.shL.pitch || 0, L.shoulder);
+  if (dof.shR) swivel(ARMS_R, 'shoulderR', dof.shR.yaw || 0, dof.shR.pitch || 0, L.shoulder);
+  if (dof.hipL) swivel(LEG_L, 'hipL', dof.hipL.yaw || 0, dof.hipL.pitch || 0, L.hip);
+  if (dof.hipR) swivel(LEG_R, 'hipR', dof.hipR.yaw || 0, dof.hipR.pitch || 0, L.hip);
+  hinge('elbowL', 'wristL', REF_FWD, clamp(dof.elbowL || 0, 0, L.elbow));
+  hinge('elbowR', 'wristR', REF_FWD, clamp(dof.elbowR || 0, 0, L.elbow));
+  hinge('kneeL', 'ankleL', REF_BACK, clamp(dof.kneeL || 0, 0, L.knee));
+  hinge('kneeR', 'ankleR', REF_BACK, clamp(dof.kneeR || 0, 0, L.knee));
+  for (const s of ['L', 'R']) {
+    const roll = dof['sh' + s] && dof['sh' + s].roll;
+    if (!roll) continue;
+    const axis = normalize3(sub3(m['elbow' + s], m['shoulder' + s]));
+    step(['wrist' + s], m['elbow' + s], rodMat(axis, clamp(roll, -L.armRoll, L.armRoll)));
+  }
+  for (const s of ['L', 'R']) {
+    const roll = dof['hip' + s] && dof['hip' + s].roll;
+    if (!roll) continue;
+    const axis = normalize3(sub3(m['knee' + s], m['hip' + s]));
+    step(['ankle' + s], m['knee' + s], rodMat(axis, clamp(roll, -L.hipRoll, L.hipRoll)));
+  }
+  // WRIST — the hand bone (handX) has tracked the forearm exactly so far (shared
+  // wrist-node carrier). A wrist DOF now rotates handX about the wrist joint,
+  // pitch = flex/extend, yaw = radial/ulnar deviation — composed into the hand
+  // bone ONLY (the forearm armor is untouched), so a weapon bound to handX aims
+  // independently of the forearm. No wrist dof ⇒ handX stays == forearmX (byte-
+  // identical). The wrist node has no geometry past it, so articulate()'s node
+  // output is unchanged; only this bone moves.
+  for (const s of ['L', 'R']) {
+    const w = dof['wrist' + s];
+    if (!w || (!w.pitch && !w.yaw && !w.roll)) continue;
+    const pitch = clamp(w.pitch || 0, -L.wrist, L.wrist);
+    const yaw = clamp(w.yaw || 0, -L.wrist, L.wrist);
+    // roll = pronation/supination: the hand TWISTS about the forearm axis (thumb
+    // rotates around) without moving the forearm — the DOF a held weapon needs to be
+    // gripped thumb-up vs thumb-down. Composed after flex/yaw; absent ⇒ unchanged.
+    const roll = clamp(w.roll || 0, -L.wristTwist, L.wristTwist);
+    const f = normalize3(sub3(m['wrist' + s], m['elbow' + s]));   // forearm axis
+    // build the perp basis from a reference axis that is NOT near-parallel to the
+    // forearm — else the cross product collapses when the arm points straight up/down
+    // (the wrist axes would degenerate and the blade couldn't be aimed).
+    const ref = Math.abs(f.z) < 0.9 ? { x: 0, y: 0, z: 1 } : { x: 1, y: 0, z: 0 };
+    const devAxis = normalize3(cross3(f, ref));                   // deviation axis (perp to forearm)
+    const flexAxis = normalize3(cross3(devAxis, f));              // the other perp (flexion)
+    let Rw = rodMat(flexAxis, pitch);
+    if (yaw) Rw = mmul(rodMat(devAxis, yaw), Rw);
+    if (roll) Rw = mmul(rodMat(f, roll), Rw);                     // twist about the forearm axis
+    const Pw = m['wrist' + s];                                    // posed wrist point
+    const hb = T['hand' + s];
+    const trel = { x: hb.t.x - Pw.x, y: hb.t.y - Pw.y, z: hb.t.z - Pw.z };
+    const trot = mvec(Rw, trel);
+    T['hand' + s] = { m: mmul(Rw, hb.m), t: { x: trot.x + Pw.x, y: trot.y + Pw.y, z: trot.z + Pw.z } };
+  }
+  if (dof.neck) swivel(['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
+  if (dof.head) swivel(['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+
+  return { nodes: m, bones: T };
 }
 
 // ─── Manji manifestation — the joint graph ─────────────────────────────

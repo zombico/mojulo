@@ -15,7 +15,11 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { emitGameShell } from '@/lib/graph/game/game-shell';
 
-const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world?walk=1`;
+// hud=0: game play screens present clean — the world page's dev-chrome strip (view cams,
+// wireframe, fly/walk, reverse view, AI attack) never shows inside the shell's iframes.
+const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world?walk=1&hud=0`;
+// menu world views (e.g. a hangar) open plain — no walk auto-entry.
+const worldSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world?hud=0`;
 
 export async function GET(request, { params }) {
   try {
@@ -30,14 +34,35 @@ export async function GET(request, { params }) {
         hint: 'Games have manifest.kind "game" (create_game).',
       }, { status: 422 });
     }
+
+    // Pixelizer reducer games (brickster & kin) are self-contained shells, not
+    // world/level games — serve the shell directly, skipping the world resolver.
+    if (sketch.manifest.engine === 'pixelizer') {
+      const { emitPixelizerGame } = await import('@/lib/graph/pixelizer/pixelizer-games');
+      let shellHtml;
+      try {
+        shellHtml = emitPixelizerGame(sketch.manifest, { title: sketch.title });
+      } catch (err) {
+        return NextResponse.json({ error: err.message }, { status: 422 });
+      }
+      return new Response(shellHtml, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Disposition': 'inline',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
     let resolved;
     try {
-      resolved = resolveGame(sketch.manifest, (r) => SketchRepository.getByRef(r), levelSrc);
+      resolved = resolveGame(sketch.manifest, (r) => SketchRepository.getByRef(r), levelSrc, worldSrc);
     } catch (err) {
       // A level was deleted or its contract drifted after the game was minted — teach, don't 500.
       return NextResponse.json({ error: err.message }, { status: 422 });
     }
-    const html = emitGameShell(resolved.manifest, resolved.levels);
+    const html = emitGameShell(resolved.manifest, resolved.levels, resolved.menu, resolved.music, resolved.setup);
     return new Response(html, {
       status: 200,
       headers: {

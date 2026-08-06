@@ -21,6 +21,7 @@ import { projectTwoPoint } from './pure-mandala.js';
 import { makeLight, shadeHex, litFactor, dot3, sub3, centroid } from './vexar.js';
 import { PROTO_DEFAULT, buildProtoform } from './figure-proto.js';
 import { buildFluffs } from './figure-fluff.js';
+import { weldFluffs } from './figure-weld.js';
 import { spineDeformerFromNodes, warpStacks, spineArmAnchors } from './figure-spine.js';
 import { groundBalance, groundVault } from './figure-balance.js';
 import { gait, WALK_DEFAULTS, resolveMotion } from './figure-posing.js';
@@ -33,7 +34,7 @@ import { buildAnimal } from './figure-animal-build.js';
 // LAZILY and CONTAINED — with that module absent or broken, figures render shieldless instead of
 // the whole figure pipeline failing at import time.
 let resolveMsShieldRecipe = null;
-try { ({ resolveMsShieldRecipe } = await import('../worlds/ms-shield.js')); } catch (err) { console.error('ms-shield shelf unavailable — figures render shieldless:', err?.message); }
+try { ({ resolveMsShieldRecipe } = await import('../mobile-suit/ms-shield.js')); } catch (err) { console.error('ms-shield shelf unavailable — figures render shieldless:', err?.message); }
 import { extrudeToFaces } from './extrude-faces.js';
 import { sweepToFaces } from './sweep-faces.js';
 
@@ -192,7 +193,7 @@ function buildHeldShield(nodes, hold) {
   return [{ id: 'shield:' + side, faces }];
 }
 
-export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs = null, hold = null, hair = null, proportions = null) {
+export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs = null, hold = null, hair = null, proportions = null, fluffQuality = 1, weld = null) {
   const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, ...limbs } = pose || {};
   const full = articulate(pose);          // spine + limbs (pure FK, feet float)
   const balanced = balancedArmature(pose, full);
@@ -234,7 +235,26 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
     for (const k of GROUNDED_NODES) fluffPos[k] = legPos[k];
     // Chibi rig: compress the skeleton to mascot proportions before the shapes bind.
     const boundPos = proportions ? chibiRig(fluffPos, proportions) : fluffPos;
-    body = buildFluffs(boundPos, fluffs, { scale: PROTO_SCALE });
+    // fluffQuality scales the tessellation off the defaults (14 rings × 24 samples ×
+    // 10 latitude) — >1 rounds the beads/pipes (smoother spheres, finer joint seams)
+    // at a polygon cost. 1 = the byte-identical default.
+    const q = Math.max(0.5, fluffQuality || 1);
+    const tess = q === 1 ? {} : { rings: Math.round(14 * q), samples: Math.round(24 * q), latRings: Math.round(10 * q) };
+    if (weld) {
+      // Seamless path: weld the STRUCTURAL fluffs (bulbs+pipes) into one skin per
+      // colour via the SDF field; keep `overlay:true` specs (face marks / doodads)
+      // as ordinary beads on top. `overlay` isn't a fluff dial, so strip it first.
+      const strip = ({ overlay, ...f }) => f;   // eslint-disable-line no-unused-vars
+      const structural = fluffs.filter((f) => !f.overlay).map(strip);
+      const overlays = fluffs.filter((f) => f.overlay).map(strip);
+      const weldOpts = (weld && typeof weld === 'object') ? weld : {};
+      body = [
+        ...weldFluffs(boundPos, structural, { scale: PROTO_SCALE, ...weldOpts }),
+        ...(overlays.length ? buildFluffs(boundPos, overlays, { scale: PROTO_SCALE, ...tess }) : []),
+      ];
+    } else {
+      body = buildFluffs(boundPos, fluffs, { scale: PROTO_SCALE, ...tess });
+    }
   } else {
     body = buildProtoform(restPos, { ...PROTO_DEFAULT, ...proto }, legPos, {
       L: { ankle: limbs.ankleL || 0, toe: limbs.toeL || 0, plant: plant ? plant.L || 0 : 0, flatten: flatOf('L') },
@@ -568,7 +588,7 @@ function recolorFlesh(stacks, fleshHex) {
  */
 export function renderFigureToSvg(manifest = {}, fit = null, { control = false } = {}) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
   // The control scaffold (skin seam) is ALWAYS the filled lit render — a wire
   // setup would fragment a diffusion skin (the polygomer-skin lesson).
@@ -591,7 +611,7 @@ export function renderFigureToSvg(manifest = {}, fit = null, { control = false }
  */
 export function renderFigureWithArmature(manifest = {}, fit = null) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
   const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
   const F = fit || fitFor(bb, VB_W, VB_H, PAD);
@@ -820,7 +840,7 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
   let groundZ = Infinity;
   for (let i = 0; i < frames; i++) {
     const pose = { ...(manifest.pose || {}), ...move(i / frames) };
-    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
+    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
     built.push(stacks);
     const mz = stackMinZ(stacks);
     if (mz < groundZ) groundZ = mz;
@@ -864,7 +884,7 @@ export function figureRigSamples(manifest = {}, keys = 8) {
   const { CAM } = makeCamera(manifest.view);
   const move = motionFn(manifest.motion || 'walk', keys);
   const restPose = manifest.pose || {};
-  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex);
+  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
   const groundZ = stackMinZ(restStacks);
   const V = worldVertex(restStacks, groundZ);
   const restFaces = litFaces(restStacks, CAM, setup.light, groundZ, { cull: false })
@@ -896,7 +916,7 @@ export function renderFigureWorldFrames(manifest = {}, frames = 30) {
     ? Array.from({ length: frames }, (_, i) => ({ ...(manifest.pose || {}), ...move(i / frames) }))
     : [manifest.pose || {}];
   // Pass 1: build every frame; share the lowest ground contact across the motion.
-  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions), setup.fleshHex));
+  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex));
   let groundZ = Infinity;
   for (const stacks of built) { const mz = stackMinZ(stacks); if (mz < groundZ) groundZ = mz; }
   // Pass 2: mesh each frame to world faces — no projection, no cull → orbitable.

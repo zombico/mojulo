@@ -771,8 +771,16 @@ export function expandGridLayout(manifest) {
 //                  (the /maker/illustrations concern)
 //   world        — Mojulo Maker: a traversable three.js cityscape / hub — something
 //                  you MOVE THROUGH (the /maker/worlds concern)
+//   object       — Mojulo Maker: a single orbit-only 3D artifact or study — a
+//                  workbench part, an assembler composition, a polygomer, a
+//                  planet, a science/math view — something you TURN and look at
+//                  (the /maker/objects concern). Same three.js /world renderer
+//                  as `world`; the split is walkable vs orbit-only, mirrored
+//                  from the `walk` flag in worlds/world-kinds.js.
 //   beats        — Mojulo Maker: a synthesized musical artifact — something you
 //                  LISTEN TO (the /maker/beats shelf; beats.plan.md)
+//   game         — Mojulo Arcade: a playable standalone game (create_game) —
+//                  something you PLAY (the /arcade concern; game-developer.plan.md)
 //
 // The bucket is derived purely from `manifest.kind`; the optional
 // `sketches.bucket` column overrides the derived value for the rare edge case
@@ -780,14 +788,16 @@ export function expandGridLayout(manifest) {
 // concerns share the renderer today and are expected to diverge into separately
 // tuned renderers over time — the bucket is the seam they split along.
 
-export const BUCKETS = ['diagram', 'illustration', 'world', 'beats', 'voice'];
+export const BUCKETS = ['diagram', 'illustration', 'world', 'object', 'beats', 'voice', 'game'];
 const BUCKET_SET = new Set(BUCKETS);
 
 // Kinds that render in a perspective / css3d / painterly context — the
 // illustration set (Maker). Everything else (no kind, charts, flows) is a
-// diagram (Sketches). The traversable box-world kinds (fractal-city,
-// transportation-hub) are NOT here — they classify into the `world` bucket below,
-// keyed off WORLD_RENDER_KINDS so renderer mode and concern bucket stay aligned.
+// diagram (Sketches). The three.js kinds are NOT here — they classify into the
+// `world` bucket (walkable: fractal-city, transportation-hub, …) or the
+// `object` bucket (orbit-only: workbench, assembler, views, …) below, keyed off
+// WALKABLE_WORLD_KINDS / OBJECT_RENDER_KINDS so renderer mode and concern
+// bucket stay aligned.
 export const ILLUSTRATION_KINDS = [
   'manji-tree',
   'painted-landscape',
@@ -801,6 +811,10 @@ export const ILLUSTRATION_KINDS = [
   'image-outcome',
   'sequential-art',
   'character-sheet',
+  'sprite-sheet',
+  // Publication cover: illustration + title + subtext + metadata composited to
+  // cover.png, bound onto a publication (cover-composition.plan.md).
+  'cover',
 ];
 const ILLUSTRATION_KIND_SET = new Set(ILLUSTRATION_KINDS);
 
@@ -828,16 +842,19 @@ export function isPolygomerManjiTree(manifest) {
   return hasLatheLeaf(manifest.tree);
 }
 
-// Concern bucket, in priority order: a traversable world is its own concern
-// (moved-through), then the still illustration set (looked-at), else a diagram.
-// WORLD_RENDER_SET is declared just below in this module; classifyBucket is only
-// ever called at query time (well after module init), so the forward reference is
-// safe and keeps WORLD_RENDER_KINDS the single source of truth for membership.
+// Concern bucket, in priority order: a walkable world is its own concern
+// (moved-through), an orbit-only 3D artifact is the object concern (turned),
+// then the still illustration set (looked-at), else a diagram. The kind sets
+// are declared just below in this module; classifyBucket is only ever called at
+// query time (well after module init), so the forward reference is safe and
+// keeps the render-kind lists the single source of truth for membership.
 export function classifyBucket(manifest) {
   const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
-  if (WORLD_RENDER_SET.has(kind) || isPolygomerManjiTree(manifest)) return 'world';
+  if (WALKABLE_WORLD_SET.has(kind)) return 'world';
+  if (OBJECT_RENDER_SET.has(kind) || isPolygomerManjiTree(manifest)) return 'object';
   if (BEATS_RENDER_SET.has(kind)) return 'beats';   // heard, not looked at — the Maker beats shelf
   if (VOICE_RENDER_SET.has(kind)) return 'voice';   // spoken, not looked at — the Maker voice shelf
+  if (kind === 'game') return 'game';               // played, not looked at — the Arcade concern
   return ILLUSTRATION_KIND_SET.has(kind) ? 'illustration' : 'diagram';
 }
 
@@ -857,7 +874,7 @@ export function classifyBucket(manifest) {
 // (cities, hubs) are navigable in three.js (depth-buffered, frustum-culled — the
 // DOM compositor stalls on the same geometry under a moving camera), while the
 // turntable stays a preset-shot CSS-3D scene.
-export const SVG_RENDER_KINDS = ['manji-tree', 'painted-landscape', 'carved-solid', 'image-outcome', 'sequential-art', 'character-sheet'];
+export const SVG_RENDER_KINDS = ['manji-tree', 'painted-landscape', 'carved-solid', 'image-outcome', 'sequential-art', 'character-sheet', 'sprite-sheet', 'cover'];
 // 'planetary' is orbit-only — it has NO CSS-3D /scene fallback (the body in a celestial
 // sphere only reads under a free-orbit camera), so unlike the box-world kinds it does not
 // bake a /scene PNG gallery thumbnail (a documented v1 gap; see planetary.plan.md).
@@ -876,7 +893,23 @@ export const EDUCATION_VIEW_KINDS = [
   'trig-circle-view', 'pythagoras-view', 'quadratic-view', 'complete-square-view', 'conics-view', 'derivative-view', 'ftc-view',
   'heat-sphere-view',
 ];
-export const WORLD_RENDER_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', ...EDUCATION_VIEW_KINDS];
+// The world/object split within the three.js /world renderer. Both lists render
+// identically (render mode 'world'); the split is the CONCERN axis — walkable
+// (moved through, first-person) vs orbit-only (turned and looked at) — and it
+// mirrors the `walk` flag on each kind's descriptor in worlds/world-kinds.js.
+// Three walk-flagged kinds deliberately stay OUT of WALKABLE_WORLD_KINDS
+// because another concern owns them: 'painted-landscape' (illustration, SVG
+// still by default), 'subway-station' (illustration, CSS-3D scene), 'room'
+// (illustration; walkable only via the world route's ROOM_FALLBACK).
+// 'controllable' carries no registry walk flag (locomotion is per-entity, from
+// the manifest's rules) but is a LIVE moved-through stage — action worlds and
+// game levels — so it belongs to the world concern.
+export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'edifice', 'math-structure', 'koenigsberg', 'operator-world', 'controllable'];
+// Orbit-only single artifacts and studies — the /maker/objects concern. The
+// polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
+// stays an illustration SVG).
+export const OBJECT_RENDER_KINDS = ['workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', 'transformer-view', 'vector-match-view', ...EDUCATION_VIEW_KINDS];
+export const WORLD_RENDER_KINDS = [...WALKABLE_WORLD_KINDS, ...OBJECT_RENDER_KINDS];
 export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
 // Beats artifacts (beats.plan.md) — heard, not looked at. Rendered as a live
 // self-contained audio-player page at /api/sketches/<ref>/beats in an <iframe>.
@@ -886,6 +919,8 @@ export const BEATS_RENDER_KINDS = ['beats-ambient', 'beats-composition', 'beats-
 // shelf shows the recipe itself: axes, resolved blend weights, worker handoff.
 export const VOICE_RENDER_KINDS = ['voice-register'];
 const SVG_RENDER_SET = new Set(SVG_RENDER_KINDS);
+const WALKABLE_WORLD_SET = new Set(WALKABLE_WORLD_KINDS);
+const OBJECT_RENDER_SET = new Set(OBJECT_RENDER_KINDS);
 const WORLD_RENDER_SET = new Set(WORLD_RENDER_KINDS);
 const SCENE_RENDER_SET = new Set(SCENE_RENDER_KINDS);
 const BEATS_RENDER_SET = new Set(BEATS_RENDER_KINDS);

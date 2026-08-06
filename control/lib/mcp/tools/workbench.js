@@ -169,6 +169,7 @@ export function registerWorkbenchTools() {
               profile: { type: 'object', description: 'The 2D cross-section: { rect: { w, h, r? } } (rounded rectangle — the common case) OR { points: [[u,v], …] } (a closed polygon, e.g. an L-bracket or hex). r is the corner radius.' },
               axisFrom: { type: 'object', description: 'Extrusion start point {x,y,z} (z up). The profile lies in the plane ⟂ to axisFrom→axisTo and sweeps to axisTo.' },
               axisTo: { type: 'object', description: 'Extrusion end point {x,y,z} (axis length = the depth/height).' },
+              endProfile: { type: 'object', description: 'Optional linear TAPER: a second { points:[[u,v],…] } ring (SAME point count as profile) at the axisTo end — the cross-section lerps along the axis into wedges, pyramidal frusta, tapered fins/keels. Repeat a vertex to pinch a face; a zero-area end ring drops its cap. Points profiles only; cannot combine with wallThickness.' },
               wallThickness: { type: 'number', description: 'Optional — omit for a SOLID prism; set it to hollow the prism into a recessed SHELL (tray/case/enclosure) with walls this thick. Rect profiles only (v1).' },
               floorThickness: { type: 'number', description: 'Shell only: thickness of the closed back/floor (default = wallThickness).' },
               openFace: { type: 'string', enum: ['to', 'from', 'none'], description: "Shell only: which end is open — 'to' (the axisTo end, default), 'from', or 'none'." },

@@ -22,7 +22,10 @@ import {
   KIND_IMAGE_OUTCOME,
   KIND_SEQUENTIAL_ART,
   KIND_CHARACTER_SHEET,
+  KIND_SPRITE_SHEET,
   normalizeImageOutcomesManifest,
+  spriteGridLayout,
+  parseSpriteTarget,
 } from './manifest.js';
 import { poseFigure } from './poses.js';
 import { renderFigureToSvg, sampleMotionPose } from '../polygonizer/figure-render.js';
@@ -241,10 +244,56 @@ function renderCharacterSheetSvg(manifest, { control } = {}) {
   return svgDocument({ viewBox: `0 0 ${width} ${height}`, body });
 }
 
+// One sprite cell: a registration frame + baseline + a stand-pose placeholder
+// (scale + ground contact the worker paints a sprite over). Drawn relative to
+// the cell's (ox, oy) origin. In the control variant every label/dash is dropped
+// so a structural conditioner sees only the cell box and the placeholder pose.
+function spriteCell(cell, { control } = {}) {
+  const { x: ox, y: oy, w, h, frame } = cell;
+  const baseline = oy + h * 0.9;
+  const cx = ox + w / 2;
+  const scale = (h * 0.7) / 200;
+  const placeholder = figureSvg({ id: frame.id, x: cx, y: baseline - 104 * scale, scale, pose: 'stand' });
+  return [
+    `  <rect x="${ox}" y="${oy}" width="${w}" height="${h}" fill="none" stroke="#94a3b8" stroke-width="2"${control ? '' : ' stroke-dasharray="8 6"'} opacity="0.5"/>`,
+    ...(control ? [] : [
+      `  <line x1="${ox}" y1="${baseline}" x2="${ox + w}" y2="${baseline}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.5"/>`,
+      `  <text x="${ox + 6}" y="${oy + 20}" fill="#94a3b8" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${esc(frame.action)}${frame.direction ? ` ${esc(frame.direction)}` : ''}${frame.base ? ' ·base' : ''}</text>`,
+    ]),
+    `  ${placeholder}`,
+  ].join('\n');
+}
+
+// The whole grid, or a single cell cropped to its painted size (the per-frame
+// pull payload — panelId is that frame's `frame-<id>` render target).
+function renderSpriteSheetSvg(manifest, { panelId, control } = {}) {
+  if (panelId) {
+    const cell = parseSpriteTarget(manifest, panelId);
+    // Crop to the painted cell: origin at (0,0), sized to the cell so the worker
+    // paints exactly one sprite at the target resolution.
+    const local = { ...cell, x: 0, y: 0 };
+    const body = [
+      `  <rect width="${cell.w}" height="${cell.h}" fill="#0b0f19"/>`,
+      spriteCell(local, { control }),
+    ].join('\n');
+    return svgDocument({ viewBox: `0 0 ${cell.w} ${cell.h}`, body });
+  }
+  const { width, height } = manifest.viewBox;
+  const body = [
+    `  <rect width="${width}" height="${height}" fill="#0b0f19"/>`,
+    ...(control ? [] : [
+      `  <text x="12" y="26" fill="#f8fafc" font-size="20" font-family="Inter, system-ui, sans-serif" font-weight="800">${esc(manifest.title)}</text>`,
+    ]),
+    ...spriteGridLayout(manifest).map((cell) => spriteCell(cell, { control })),
+  ].join('\n');
+  return svgDocument({ viewBox: `0 0 ${width} ${height}`, body });
+}
+
 export function renderScaffoldSvg(manifest, options = {}) {
   const normalized = normalizeImageOutcomesManifest(manifest);
   if (normalized.kind === KIND_IMAGE_OUTCOME) return renderImageOutcomeSvg(normalized, options);
   if (normalized.kind === KIND_SEQUENTIAL_ART) return renderSequentialArtSvg(normalized, options);
   if (normalized.kind === KIND_CHARACTER_SHEET) return renderCharacterSheetSvg(normalized, options);
+  if (normalized.kind === KIND_SPRITE_SHEET) return renderSpriteSheetSvg(normalized, options);
   throw new Error(`unknown image-outcomes kind: ${normalized.kind}`);
 }

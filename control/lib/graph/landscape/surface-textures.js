@@ -589,6 +589,265 @@ const WOOD_PANEL_SEEDS = [['a', 5], ['b', 19], ['c', 41]];
 const woodPanelVariants = (name, species, dna = WOOD_PANEL_DNA) => WOOD_PANEL_SEEDS.map(([suf, seed]) => [`${name}-${suf}`, { ...dna, ...species, seed }]);
 const WOOD_PANEL = Object.fromEntries(Object.entries(WOOD_PANEL_SPECIES).flatMap(([name, sp]) => woodPanelVariants(name, sp)));
 
+// ── SOILS / ground surfaces (the terrain vocabulary): coloured seamless tiles via the rock
+// generator (hue + grain from `base`/DNA) — dirt, sand, dune-sand, mud, gravel, riverbed
+// cobbles, scree, cracked clay, banded red canyon rock. 'repeat' family (small world-XY
+// tiling). Grasses live in GRASS; concrete + wildflower + snow are below.
+const SOIL = {
+  'soil-dirt':   { base: [120, 94, 66],  baseFreq: 6, amp: 26, speckle: 0.16, speckleHi: 1.6, speckleLo: 0.55, crackFreq: 10, crackWidth: 0.02, crackDepth: 0.14, seed: 171 },
+  'soil-sand':   { base: [210, 192, 150], baseFreq: 6, amp: 12, speckle: 0.05, crackFreq: 10, crackWidth: 0.02, crackDepth: 0,    seed: 172 },
+  'dune-sand':   { base: [214, 194, 150], baseFreq: 5, amp: 16, bands: 5, bandAmp: 12, crackFreq: 14, crackWidth: 0.02, crackDepth: 0, seed: 173 },
+  'soil-mud':    { base: [82, 64, 47],    baseFreq: 6, amp: 13, speckle: 0.04, crackFreq: 10, crackWidth: 0.02, crackDepth: 0.1,  seed: 174 },
+  'soil-gravel': { base: [140, 130, 114], baseFreq: 5, amp: 46, crackFreq: 7, crackWidth: 0.12, crackDepth: 0.6, seed: 175 },
+  riverbed:      { base: [126, 132, 128], baseFreq: 5, amp: 40, crackFreq: 7, crackWidth: 0.14, crackDepth: 0.5, seed: 176 },
+  'soil-scree':  { base: [178, 168, 148], baseFreq: 5, amp: 54, crackFreq: 7, crackWidth: 0.05, crackDepth: 0.5, seed: 177 },
+  'soil-clay':   { base: [164, 124, 86],  baseFreq: 5, amp: 18, crackFreq: 5, crackWidth: 0.03, crackDepth: 0.55, seed: 178 },
+  'red-rock':    { base: [168, 92, 62],   baseFreq: 5, amp: 26, bands: 6, bandAmp: 20, crackFreq: 12, crackWidth: 0.03, crackDepth: 0.45, seed: 179 },
+};
+
+// ── board-form CONCRETE (structures / walls): cement mottle + horizontal form-board seams +
+// form-tie dimples + one vertical panel joint. Luminance-led (cool grey `base` × value) so it
+// multiplies over a light face fill; seamless (mottle is periodic fbm; seams/ties sit on a grid
+// that divides the tile). 'repeat' family.
+function concretePng(cfg, { size = 256, seed = 7 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  const base = cfg.base ?? [176, 178, 183], boards = cfg.boards ?? 4, bh = H / boards, tieR = cfg.tieR ?? 3.4;
+  const mott = cfg.mottle ?? 0.12, pore = cfg.pore ?? 0.05, seam = cfg.seam ?? 0.17, tie = cfg.tie ?? 0.15, joint = cfg.joint ?? 0.19;
+  const cxs = [], cys = []; for (let i = 0; i < boards; i++) { cxs.push(bh * (i + 0.5)); cys.push(bh * i); }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H;
+    let L = 1 + (n.fbm(u, v, 5, 4) - 0.5) * mott + (n.fbm(u + 0.5, v + 0.2, 22, 3) - 0.5) * pore;
+    const fy = (y % bh) / bh; if (fy < 0.03 || fy > 0.97) L -= seam;           // form-board seam grooves
+    if (u < 0.014 || u > 0.986) L -= joint;                                     // vertical panel joint (wraps at tile edge)
+    for (const cx of cxs) for (const cy of cys) {                               // form-tie dimples on the seam grid
+      const dx = Math.min(Math.abs(x - cx), W - Math.abs(x - cx)), dy = Math.min(Math.abs(y - cy), H - Math.abs(y - cy));
+      if (dx * dx + dy * dy < tieR * tieR) L -= tie;
+    }
+    const o = (y * W + x) * 3;
+    for (let ch = 0; ch < 3; ch++) rgb[o + ch] = Math.max(0, Math.min(255, base[ch] * L)) | 0;
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+const CONCRETE = { 'concrete-board': { base: [176, 178, 183], boards: 4, seed: 7 } };
+
+// ── WILDFLOWER meadow: grassy fbm base + short blades + scattered flower clusters. Full-colour
+// (like grass) — ride on a light fill. put() wraps → seamless-ish. ──
+function wildflowerPng(cfg = {}, { size = 192, seed = 13 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  let s = (seed >>> 0) || 1; const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const lerp = (a, b, t) => a + (b - a) * t, dark = cfg.dark ?? [30, 58, 26], mid = cfg.mid ?? [74, 116, 50], lite = cfg.lite ?? [124, 168, 78];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const t = Math.min(1, n.fbm(x / W, y / H, 4, 4) * 0.9 + n.fbm(x / W + 0.3, y / H + 0.6, 9, 3) * 0.3), o = (y * W + x) * 3;
+    for (let ch = 0; ch < 3; ch++) rgb[o + ch] = (t < 0.5 ? lerp(dark[ch], mid[ch], t * 2) : lerp(mid[ch], lite[ch], (t - 0.5) * 2)) | 0;
+  }
+  const put = (x, y, c) => { const xi = ((x % W) + W) % W, yi = ((y % H) + H) % H, o = (yi * W + xi) * 3; rgb[o] = c[0]; rgb[o + 1] = c[1]; rgb[o + 2] = c[2]; };
+  for (let i = 0; i < W * H * 0.9; i++) { const cx = rand() * W, cy = rand() * H, a = rand() * Math.PI * 2, len = 1 + rand() * 2.4, dx = Math.cos(a), dy = Math.sin(a), col = rand() < 0.5 ? mid : lite; for (let k = 0; k <= len; k++) put(Math.round(cx + dx * k), Math.round(cy + dy * k), col); }
+  const flowers = cfg.flowers ?? [[242, 242, 236], [236, 210, 74], [176, 128, 214], [226, 112, 122], [240, 158, 70]];
+  for (let i = 0; i < W * H * 0.004; i++) { const cx = (rand() * W) | 0, cy = (rand() * H) | 0, col = flowers[(rand() * flowers.length) | 0]; put(cx, cy, col); put(cx + 1, cy, col); put(cx - 1, cy, col); put(cx, cy + 1, col); put(cx, cy - 1, col); }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+
+// ── SNOW: bright cool base with drift mottle + sparkle specks. Full-colour — ride on a light fill. ──
+function snowPng(cfg = {}, { size = 192, seed = 21 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  let s = (seed >>> 0) || 1; const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const b = cfg.base ?? 236;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H, drift = n.fbm(u, v, 4, 4), fine = n.fbm(u + 0.4, v + 0.7, 16, 3);
+    let L = b + (drift - 0.5) * 26 + (fine - 0.5) * 8; L = Math.max(0, Math.min(255, L));
+    const o = (y * W + x) * 3;
+    rgb[o] = Math.min(255, L - 6) | 0; rgb[o + 1] = Math.min(255, L - 1) | 0; rgb[o + 2] = Math.min(255, L + 6) | 0;
+  }
+  const put = (x, y, v) => { const o = ((((y % H) + H) % H) * W + (((x % W) + W) % W)) * 3; rgb[o] = v; rgb[o + 1] = v; rgb[o + 2] = Math.min(255, v + 2); };
+  for (let i = 0; i < W * H * 0.02; i++) put((rand() * W) | 0, (rand() * H) | 0, 252);
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+
+// ── SPACE surfaces: asteroid rock, metal hull plating, solar panels (the space-arena objects). ──
+// Asteroids reuse the rock generator (dark, cratered — wide deep cracks read as pits). 'repeat'.
+const ASTEROID = {
+  asteroid:      { base: [98, 92, 84],  baseFreq: 4, amp: 62, ridged: 0.5, crackFreq: 5, crackWidth: 0.13, crackDepth: 0.62, seed: 181 }, // grey stony
+  'asteroid-iron': { base: [116, 84, 66], baseFreq: 4, amp: 58, ridged: 0.45, crackFreq: 5, crackWidth: 0.12, crackDepth: 0.58, speckle: 0.12, speckleHi: 1.8, seed: 182 }, // rusty metallic
+  'asteroid-ice':  { base: [170, 184, 198], baseFreq: 5, amp: 38, crackFreq: 6, crackWidth: 0.08, crackDepth: 0.5, speckle: 0.1, speckleHi: 1.9, seed: 183 }, // dirty ice
+};
+
+// metal HULL plating (station / ship): rectangular panel grid with recessed seams + corner rivets +
+// a faint brushed mottle. Luminance-led cool steel `base` × value → multiplies over a light fill.
+// Seamless (panel grid + rivets sit on a grid that divides the tile; mottle is periodic fbm). 'repeat'.
+function hullPlatePng(cfg, { size = 256, seed = 5 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  const base = cfg.base ?? [150, 156, 164], rows = cfg.rows ?? 4, cols = cfg.cols ?? 4;
+  const seam = cfg.seam ?? 0.045, seamD = cfg.seamDepth ?? 0.22, rivetR = cfg.rivet ?? 2.6, rivetD = cfg.rivetDepth ?? 0.2;
+  const ph = H / rows, pw = W / cols;
+  const rxs = [], rys = []; for (let i = 0; i <= cols; i++) rxs.push(i * pw); for (let j = 0; j <= rows; j++) rys.push(j * ph);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H;
+    let L = 1 + (n.fbm(u, v * 3, 6, 3) - 0.5) * 0.07 + (n.fbm(u + 0.3, v + 0.5, 24, 2) - 0.5) * 0.05;   // brushed mottle
+    const fx = (x % pw) / pw, fy = (y % ph) / ph;
+    if (fx < seam || fx > 1 - seam || fy < seam || fy > 1 - seam) L -= seamD;   // recessed panel seams
+    for (const rx of rxs) for (const ry of rys) {                               // corner rivets (wrap-aware)
+      const dx = Math.min(Math.abs(x - rx), W - Math.abs(x - rx)), dy = Math.min(Math.abs(y - ry), H - Math.abs(y - ry));
+      if (dx * dx + dy * dy < rivetR * rivetR) { L -= rivetD; }
+    }
+    const o = (y * W + x) * 3;
+    for (let ch = 0; ch < 3; ch++) rgb[o + ch] = Math.max(0, Math.min(255, base[ch] * L)) | 0;
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+const HULL = { 'hull-plate': { base: [150, 156, 164], rows: 4, cols: 4, seed: 51 }, 'hull-plate-dark': { base: [98, 104, 114], rows: 3, cols: 3, seed: 52 } };
+
+// solar PANELS: a dark-blue photovoltaic cell grid (reuses the ceramic-tile generator — cells +
+// busbar grout + a top sheen). 'repeat'.
+const SOLAR = { 'solar-panel': { tile: [36, 52, 96], groutCol: [10, 14, 26], rows: 8, cols: 8, groutW: 0.05, bevel: 0.12, vary: 8, seed: 61 } };
+
+// ── structural METAL (columns, girders, struts, collapsed beams): one flexible generator over a
+// brushed-steel base with optional vertical FLUTES (ribs), a rivet-band grid, and CORROSION (rust
+// patches + downward streaks + pitting). Distinct from hull-plate's flat panel grid — this is for the
+// UPRIGHT elements (pillars, beams) that want a heavier, ribbed/riveted or rusted-out read. Colour-led
+// (base steel × value, rust blended IN) so it multiplies over a face fill; apply with a near-neutral
+// tint on rusted variants so the corrosion colour survives. Seamless: brushed streaks + rust are
+// wrapping (aniso)fbm, ribs are an integer count across the tile, rivets sit on a wrap-aware grid,
+// pitting is per-texel. 'repeat'.
+function metalPng(cfg, { size = 256, seed = 1 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  let s = (seed >>> 0) || 1; const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const base = cfg.base ?? [150, 156, 164];
+  const ribs = cfg.ribs ?? 0, ribAmp = cfg.ribAmp ?? 0.14;
+  const brush = cfg.brush ?? 0.05, mottle = cfg.mottle ?? 0.04;
+  const rCols = cfg.rivetCols ?? 0, rRows = cfg.rivetRows ?? 0, rivetR = cfg.rivetR ?? 2.6, rivetD = cfg.rivetDepth ?? 0.2;
+  const rust = cfg.rust ?? 0, rustCol = cfg.rustCol ?? [112, 66, 42], rustFreq = cfg.rustFreq ?? 5, streak = cfg.streak ?? 0;
+  const pit = cfg.pit ?? 0, pitD = cfg.pitDepth ?? 0.5;
+  const clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  const rxs = []; for (let i = 0; i < rCols; i++) rxs.push((i + 0.5) * W / rCols);
+  const rys = []; for (let j = 0; j < rRows; j++) rys.push((j + 0.5) * H / rRows);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H, o = (y * W + x) * 3;
+    // brushed vertical streaks (fine across u, stretched along v) + faint mottle
+    let L = 1 + (n.fbmA(u, v, 44, 4, 3) - 0.5) * brush + (n.fbm(u, v, 7, 3) - 0.5) * mottle;
+    // vertical flutes: bright ridge across u, deeper valley between
+    if (ribs) { const r = Math.sin(u * ribs * Math.PI * 2); L += r * ribAmp - Math.max(0, -r) * ribAmp * 0.5; }
+    // rivets: bright dome + dark recessed ring (wrap-aware distance so the grid tiles)
+    for (const rx of rxs) for (const ry of rys) {
+      const dx = Math.min(Math.abs(x - rx), W - Math.abs(x - rx)), dy = Math.min(Math.abs(y - ry), H - Math.abs(y - ry)), d2 = dx * dx + dy * dy;
+      if (d2 < rivetR * rivetR) L += d2 < rivetR * rivetR * 0.3 ? 0.16 : -rivetD;
+    }
+    let col = [base[0] * L, base[1] * L, base[2] * L];
+    // corrosion: rust patches (optionally with downward streaks) blended over the steel
+    if (rust) {
+      let rr = n.fbm(u + 3.1, v + 1.7, rustFreq, 4);
+      if (streak) rr = Math.max(rr, n.fbmA(u, v, 3, 16, 3) * (0.6 + streak));
+      const m = Math.max(0, Math.min(1, (rr - (1 - rust)) / rust));
+      if (m > 0) { const t = m * (0.6 + n.fbm(u, v, 12, 2) * 0.6); col = col.map((c, ch) => c * (1 - t) + rustCol[ch] * L * t); }
+    }
+    // pitting: scattered dark corrosion pocks
+    if (pit && rand() < pit) col = col.map((c) => c * (1 - pitD * (0.5 + rand() * 0.5)));
+    rgb[o] = clamp(col[0]); rgb[o + 1] = clamp(col[1]); rgb[o + 2] = clamp(col[2]);
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+
+// The vertical-element metal family: two clean structural steels (a FLUTED riveted column, a
+// densely-BOLTED strut) and two dead ones (RUSTED and SCORCHED collapse metal).
+const METAL = {
+  'steel-column':   { base: [150, 158, 168], ribs: 5, ribAmp: 0.15, brush: 0.05, rivetRows: 5, rivetCols: 3, rivetR: 2.4, rivetDepth: 0.18, seed: 131 },  // fluted + rivet bands — pillars
+  'steel-strut':    { base: [140, 148, 158], brush: 0.06, rivetRows: 6, rivetCols: 6, rivetR: 2.2, rivetDepth: 0.2, seed: 132 },                            // densely bolted plate strut
+  'metal-corroded': { base: [128, 124, 118], brush: 0.05, rust: 0.62, rustCol: [104, 62, 40], rustFreq: 5, streak: 0.5, pit: 0.10, pitDepth: 0.55, seed: 133 }, // rusted collapse beam
+  'metal-scorched': { base: [98, 98, 102], brush: 0.05, rust: 0.4, rustCol: [56, 48, 44], rustFreq: 4, pit: 0.14, pitDepth: 0.62, seed: 134 },              // burnt/blast-darkened metal
+};
+
+// ── DECK floors: bolder, higher-contrast metal floor tilings (vs. hull-plate's flat panels). Two
+// generators: a two-tone CHECKER of riveted plates, and a diamond TREAD plate. ──
+
+// riveted plate floor on a CHECKER of two tones — recessed seams + a rivet at every tile corner + a
+// brushed mottle + per-tile value jitter. The alternating tones give the visual interest a single-
+// tone grid lacks. Seamless (tile grid + corner rivets divide the tile; brushed streaks are wrapping
+// fbm). Colour-led (tone × value) so a face tint recolours the whole deck. 'repeat'.
+function deckPlatePng(cfg, { size = 256, seed = 1 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  let s = (seed >>> 0) || 1; const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const rows = cfg.rows ?? 4, cols = cfg.cols ?? 4;
+  const toneA = cfg.toneA ?? [150, 156, 166], toneB = cfg.toneB ?? [96, 102, 114];
+  const seam = cfg.seam ?? 0.05, seamD = cfg.seamDepth ?? 0.26, rivetR = cfg.rivet ?? 2.3, rivetD = cfg.rivetDepth ?? 0.2;
+  const vary = cfg.vary ?? 9, brush = cfg.brush ?? 0.05;
+  const th = H / rows, tw = W / cols;
+  const clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  const jit = []; for (let r = 0; r < rows; r++) { jit[r] = []; for (let c = 0; c < cols; c++) jit[r][c] = (rand() - 0.5) * 2 * vary; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H, o = (y * W + x) * 3;
+    const ci = Math.min(cols - 1, (x / tw) | 0), ri = Math.min(rows - 1, (y / th) | 0);
+    const fx = (x - ci * tw) / tw, fy = (y - ri * th) / th;
+    const tone = (ci + ri) % 2 === 0 ? toneA : toneB;
+    let L = 1 + (n.fbmA(u, v, 44, 4, 3) - 0.5) * brush;
+    if (fx < seam || fx > 1 - seam || fy < seam || fy > 1 - seam) L -= seamD;          // recessed seam
+    const dx = Math.min(fx, 1 - fx) * tw, dy = Math.min(fy, 1 - fy) * th, d2 = dx * dx + dy * dy;
+    if (d2 < rivetR * rivetR) L += d2 < rivetR * rivetR * 0.3 ? 0.16 : -rivetD;         // corner rivet
+    for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp((tone[ch] + jit[ri][ci]) * L);
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+
+// diamond TREAD / safety-checker plate: two crossing families of diagonal raised bars form a diamond
+// hatch; the ridges catch light, the base sits between. `freq` integer → seamless. 'repeat'.
+function treadPlatePng(cfg, { size = 256, seed = 1 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  const base = cfg.base ?? [140, 146, 156], freq = cfg.freq ?? 7, barW = cfg.barW ?? 0.34, bump = cfg.bump ?? 0.5;
+  const clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  const ridge = (p) => { const f = p - Math.floor(p); return f < barW ? Math.sin((f / barW) * Math.PI) : 0; };   // 0→1→0 rounded bar
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H, o = (y * W + x) * 3;
+    const raised = Math.max(ridge((u + v) * freq), ridge((u - v) * freq));             // crossing diagonal ridges → diamonds
+    const L = 0.8 + raised * bump + (n.fbm(u, v, 10, 2) - 0.5) * 0.05;
+    for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(base[ch] * L);
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+
+// DECK floor family: a cool steel/graphite checker, a warm brass/graphite checker, and a tread plate.
+const DECK = {
+  'deck-checker':      { rows: 4, cols: 4, toneA: [150, 156, 166], toneB: [92, 99, 112], seamDepth: 0.26, rivet: 2.3, vary: 9, seed: 141 },   // cool steel / graphite
+  'deck-checker-warm': { rows: 4, cols: 4, toneA: [172, 156, 126], toneB: [110, 98, 82], seamDepth: 0.26, rivet: 2.3, vary: 10, seed: 142 },   // warm brass / graphite
+  'deck-tread':        { base: [140, 146, 156], freq: 7, barW: 0.34, bump: 0.55, seed: 143 },                                                  // diamond safety tread
+};
+
+// ── CONCRETE floor with STEEL highlights: a calm, UNIFORM concrete field (broad mottle + fine grain +
+// aggregate speckle + faint wear) — reads as a poured floor, not a pattern — divided into large slabs
+// by thin brushed-STEEL seam strips with corner BOLTS (the highlights). Colour-led (concrete × value,
+// steel strips a touch brighter) so a light-blue face tint themes the whole floor while the steel
+// seams keep their metallic pop. Seamless: mottle/wear are wrapping fbm, the slab grid + bolts sit on
+// a wrap-aware panel grid, speckle is per-texel. 'repeat'.
+function concreteFloorPng(cfg, { size = 256, seed = 1 } = {}) {
+  const W = size, H = size, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3);
+  let s = (seed >>> 0) || 1; const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const base = cfg.base ?? [192, 197, 203], steel = cfg.steel ?? [176, 184, 194];
+  const panels = cfg.panels ?? 2, strip = cfg.strip ?? 0.03, boltR = cfg.bolt ?? 0, boltD = cfg.boltDepth ?? 0.22;
+  const mottle = cfg.mottle ?? 0.10, speckle = cfg.speckle ?? 0.05, wear = cfg.wear ?? 0.10;
+  const clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  const ph = H / panels, pw = W / panels;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H, o = (y * W + x) * 3;
+    let L = 1 + (n.fbm(u, v, 5, 4) - 0.5) * mottle + (n.fbm(u + 0.4, v + 0.7, 18, 3) - 0.5) * 0.05;  // concrete value
+    const w = n.fbm(u + 2.3, v + 1.1, 3, 3); if (w > 1 - wear) L -= (w - (1 - wear)) / wear * 0.12;   // faint wear stains
+    const fx = (x % pw) / pw, fy = (y % ph) / ph;
+    let col;
+    if (fx < strip || fx > 1 - strip || fy < strip || fy > 1 - strip) {                               // steel seam strip
+      const sl = 1 + (n.fbmA(u, v, 40, 4, 3) - 0.5) * 0.08;
+      col = [steel[0] * sl, steel[1] * sl, steel[2] * sl];
+    } else {
+      col = [base[0] * L, base[1] * L, base[2] * L];
+      if (rand() < speckle) { const g = rand() < 0.5 ? 0.86 : 1.12; col = col.map((c) => c * g); }    // aggregate flecks
+    }
+    if (boltR) {                                                                                       // bolts at slab corners
+      const dx = Math.min(x % pw, pw - (x % pw)), dy = Math.min(y % ph, ph - (y % ph)), d2 = dx * dx + dy * dy;
+      if (d2 < boltR * boltR) { const t = d2 < boltR * boltR * 0.3 ? 1.14 : 1 - boltD; col = [steel[0] * t, steel[1] * t, steel[2] * t]; }
+    }
+    rgb[o] = clamp(col[0]); rgb[o + 1] = clamp(col[1]); rgb[o + 2] = clamp(col[2]);
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+const CONCRETE_FLOOR = {
+  'concrete-steel': { base: [196, 201, 208], steel: [178, 187, 198], panels: 2, strip: 0.028, bolt: 2.2, boltDepth: 0.22, mottle: 0.10, speckle: 0.05, wear: 0.11, seed: 151 },
+};
+
 // key → lazy, memoized generator. Extend with new surfaces (concrete, gravel...) here.
 const GENERATORS = {
   brick: () => brickPng(MASONRY.brick, { size: 256, seed: MASONRY.brick.seed }),
@@ -607,6 +866,16 @@ const GENERATORS = {
   ...Object.fromEntries(Object.entries(GRANITE).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(STONE_WALL).map(([k, cfg]) => [k, () => stoneBrickPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(WOOD_PANEL).map(([k, cfg]) => [k, () => woodPanelPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(SOIL).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(ASTEROID).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(CONCRETE).map(([k, cfg]) => [k, () => concretePng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(HULL).map(([k, cfg]) => [k, () => hullPlatePng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(METAL).map(([k, cfg]) => [k, () => metalPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(DECK).map(([k, cfg]) => [k, () => (cfg.freq ? treadPlatePng(cfg, { size: 256, seed: cfg.seed }) : deckPlatePng(cfg, { size: 256, seed: cfg.seed }))])),
+  ...Object.fromEntries(Object.entries(CONCRETE_FLOOR).map(([k, cfg]) => [k, () => concreteFloorPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(SOLAR).map(([k, cfg]) => [k, () => tilePng(cfg, { size: 256, seed: cfg.seed })])),
+  wildflower: () => wildflowerPng({}, { size: 192, seed: 13 }),
+  snow: () => snowPng({}, { size: 192, seed: 21 }),
 };
 
 // UV family per key: 'repeat' → tile small via world-XY; 'slab' → map one tile 0→1 per face.
@@ -635,6 +904,17 @@ export const SURFACE_TILING = {
   // Wood paneling is a DIRECTIONAL repeat (boards run vertically); the wall builder must
   // author per-face UV with the tile's +v along world-up, like the roof tiles do.
   ...Object.fromEntries(Object.keys(WOOD_PANEL).map((k) => [k, 'repeat'])),
+  // Ground/terrain soils, concrete structures, and the wildflower/snow surfaces all tile small
+  // over world-XY (the terrain builder authors per-face uv). All 'repeat'.
+  ...Object.fromEntries(Object.keys(SOIL).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(ASTEROID).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(CONCRETE).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(HULL).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(METAL).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(DECK).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(CONCRETE_FLOOR).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(SOLAR).map((k) => [k, 'repeat'])),
+  wildflower: 'repeat', snow: 'repeat',
 };
 
 /**

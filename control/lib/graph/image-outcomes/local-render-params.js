@@ -2,15 +2,20 @@
  * Local render params — the deterministic half of the local-worker prompt
  * (local-render-worker.plan.md L1).
  *
- * A diffusion backend (ComfyUI + SDXL/ControlNet first) wants a compact
- * positive prompt, a negative prompt, conditioning strength, and pixel
- * dimensions — not the prose worker brief instructions.js writes for an
- * agentic renderer. Everything derivable from the closed vocabularies is
- * derived HERE, pure and deterministic (same manifest + target → same
- * params); the freeform remainder (panel beat, subject action, mood
- * nuance) is distilled by the DRIVING AGENT at render time and appended
- * to `promptFragments`. The module emits params, the agent finishes the
- * prompt.
+ * A diffusion backend wants a compact positive prompt, a negative
+ * prompt, conditioning parameters, and pixel dimensions — not the prose
+ * worker brief instructions.js writes for an agentic renderer. Everything
+ * derivable from the closed vocabularies is derived HERE, pure and
+ * deterministic (same manifest + target → same params); the freeform
+ * remainder (panel beat, subject action, mood nuance) is distilled by the
+ * DRIVING AGENT at render time and appended to `promptFragments`. The
+ * module emits params, the agent finishes the prompt.
+ *
+ * Two local rungs share these params (local-render-worker.plan.md L4):
+ * the Qwen edit rung reads `edit` (preservation asked for in language —
+ * the VL encoder sees the scaffold) + `promptFragments`; the legacy
+ * SDXL/ControlNet rung reads `controlnet` + `negative`. One preserve
+ * decision feeds both, so the rungs cannot drift apart.
  *
  * Exposed on the render packet as `localParams` so any backend-driving
  * agent gets the head start — not just the ComfyUI stack.
@@ -23,8 +28,10 @@ import {
   KIND_CHARACTER_SHEET,
   KIND_KEYFRAME_ANIMATION,
   KIND_SCENE_MOTION,
+  KIND_SPRITE_SHEET,
   parseKeyframeTarget,
   parseSceneTarget,
+  parseSpriteTarget,
 } from './manifest.js';
 import { cameraPhrase } from './cameras.js';
 import { subCelPhrase } from './pan-cel-spike/sub-cels.js';
@@ -57,6 +64,31 @@ const STRENGTH_LOOSE = 0.35;
 // scene geometry.
 const STRENGTH_SHEET = 0.6;
 
+// The Qwen edit rung conditions by ASKING: the scaffold goes in as an image
+// the VL encoder reads, and each preserve tier becomes instruction language
+// instead of a strength number. The repaint clause is the scaffold-echo
+// negative restated positively — an edit model preserves what it isn't told
+// to replace, so the diagram language must be explicitly painted over.
+const EDIT_MODEL = 'qwen-image-edit-2511';
+const EDIT_REPAINT =
+  'Repaint this diagram as a finished picture — replace every wireframe line, flat polygon, and dashed box with painted content, and put no text anywhere';
+const EDIT_PRESERVE = {
+  strict: 'Keep the composition, camera framing, and the drawn forms exactly where they are',
+  guided: 'Keep the overall arrangement and figure staging, but refine the shapes freely',
+  loose: 'Treat the layout as loose inspiration and paint freely',
+  sheet: 'Keep the strip layout, view order, and common ground line exactly; paint each view as finished art',
+  pose: "Keep the mannequin's exact pose, scale, and ground contact, and paint the character over it",
+  sprite: "Keep the placeholder's exact scale, centering, and baseline; paint one game sprite over it on a transparent background",
+};
+
+function editBrief(preserve) {
+  return {
+    model: EDIT_MODEL,
+    preserve,
+    instructionFragments: [EDIT_REPAINT, EDIT_PRESERVE[preserve]],
+  };
+}
+
 function snapDimension(value) {
   const snapped = Math.round(value / DIM_STEP) * DIM_STEP;
   return Math.min(DIM_MAX, Math.max(DIM_MIN, snapped));
@@ -67,11 +99,17 @@ function sizeFromBox(w, h) {
   return { width: snapDimension(w * scale), height: snapDimension(h * scale) };
 }
 
-function strengthFromForms(forms, figureCount) {
-  if (forms.some((f) => f.preserve === 'strict')) return STRENGTH_STRICT;
-  if (figureCount > 0 || forms.some((f) => f.preserve === 'guided')) return STRENGTH_GUIDED;
-  return STRENGTH_LOOSE;
+function preserveFromForms(forms, figureCount) {
+  if (forms.some((f) => f.preserve === 'strict')) return 'strict';
+  if (figureCount > 0 || forms.some((f) => f.preserve === 'guided')) return 'guided';
+  return 'loose';
 }
+
+const STRENGTH_BY_PRESERVE = {
+  strict: STRENGTH_STRICT,
+  guided: STRENGTH_GUIDED,
+  loose: STRENGTH_LOOSE,
+};
 
 function dedupe(list) {
   return [...new Set(list.filter(Boolean))];
@@ -122,6 +160,7 @@ export function buildLocalRenderParams(rawManifest, target) {
       // The guide (mannequin) carries scale + pose for img2img; the OpenPose
       // skeleton is the ControlNet conditioning (the packet serves both).
       controlnet: { kind: 'openpose', strength: 0.7 },
+      edit: editBrief('pose'),
       identity: { method: 'ip-adapter', characters: manifest.characters.map((c) => c.id) },
     };
   }
@@ -151,6 +190,35 @@ export function buildLocalRenderParams(rawManifest, target) {
         'readable text, labels, captions, watermark, signature',
       ]),
       controlnet: { kind: 'scribble', strength: STRENGTH_GUIDED },
+      edit: editBrief('guided'),
+    };
+  }
+
+  if (manifest.kind === KIND_SPRITE_SHEET) {
+    const { frame } = parseSpriteTarget(manifest, resolved);
+    const ch = manifest.characters[0];
+    const sb = manifest.renderBrief;
+    return {
+      target: resolved,
+      // The painted cell is small and square-ish — render near the sprite's own
+      // pixel size (snapped to the diffusion step), not the SDXL mega-area.
+      size: { width: snapDimension(manifest.cell.width), height: snapDimension(manifest.cell.height) },
+      promptFragments: dedupe([
+        sb?.style || 'clean 2D game sprite, flat colors, crisp readable silhouette',
+        ch?.description || null,
+        `${frame.action}${frame.direction ? ` facing ${frame.direction}` : ''} pose`,
+        'single centered sprite, feet on the baseline, fully transparent background, no shadow, no scenery',
+      ]),
+      negative: dedupe([
+        ...(sb?.negative || []),
+        ...SCAFFOLD_NEGATIVES,
+        'background, ground, floor, drop shadow, scenery',
+        'multiple characters, cropped limbs, off-center subject',
+        'anti-aliased halo, glow fringe, soft edges bleeding past the silhouette',
+      ]),
+      controlnet: { kind: 'scribble', strength: STRENGTH_GUIDED },
+      edit: editBrief('sprite'),
+      ...(ch ? { identity: { method: 'ip-adapter', characters: manifest.characters.map((c) => c.id) } } : {}),
     };
   }
 
@@ -168,6 +236,7 @@ export function buildLocalRenderParams(rawManifest, target) {
       ]),
       negative,
       controlnet: { kind: 'scribble', strength: STRENGTH_SHEET },
+      edit: editBrief('sheet'),
     };
   }
 
@@ -207,7 +276,8 @@ export function buildLocalRenderParams(rawManifest, target) {
       brief.lighting,
     ]),
     negative,
-    controlnet: { kind: 'scribble', strength: strengthFromForms(forms, figureCount) },
+    controlnet: { kind: 'scribble', strength: STRENGTH_BY_PRESERVE[preserveFromForms(forms, figureCount)] },
+    edit: editBrief(preserveFromForms(forms, figureCount)),
   };
 
   // Identity pointers only — the packet's `characterSheets[].boundSheet`

@@ -40,10 +40,10 @@ describe('star-birth-view — volumetric single-star nursery', () => {
     expect(html).not.toContain('GROUPS =');
   });
 
-  it('registers as a world concern', () => {
+  it('registers as an object concern', () => {
     const manifest = { kind: 'star-birth-view' };
     expect(sketchRenderMode(manifest)).toBe('world');
-    expect(classifyBucket(manifest)).toBe('world');
+    expect(classifyBucket(manifest)).toBe('object');
   });
 
   it('exposes the three star-birth looks', () => {

@@ -76,10 +76,10 @@ describe('parallel-transport-view — the holonomy physics', () => {
 });
 
 describe('parallel-transport-view registration', () => {
-  it('routes to the world renderer and the world concern bucket', () => {
+  it('routes to the world renderer and the object concern bucket', () => {
     const m = { kind: 'parallel-transport-view' };
     expect(sketchRenderMode(m)).toBe('world');
-    expect(classifyBucket(m)).toBe('world');
+    expect(classifyBucket(m)).toBe('object');
   });
 
   it('assemble threads the transport channel + the globe as a lit planet', () => {

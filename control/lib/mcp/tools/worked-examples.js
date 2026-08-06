@@ -34,7 +34,7 @@ Pass \`paradigm\` to read one annotated trace (real call sequence, gate moments 
 - \`connected-service\` — declare inventory → bind a primitive → dry-run → seal. MCP-to-MCP with no chatbot.
 - \`app\` — scaffold → commit → start → fulfill parked inference. The local-runner paradigm.
 - \`game\` — mint a level world → watch the promotion gate refuse it → prove it completable → mint the game. The flagship verification-gate trace.
-- \`creative-mint\` — stash → gather typed items (one rejection shown) → cook a publication.
+- \`media\` — stash → gather typed items (one rejection shown) → cook a publication.
 
 Each trace is illustrative (your refs and values will differ) but the call sequence, gate order, and refusal shapes are real.`;
 
@@ -169,7 +169,7 @@ const TRACES = {
   'connected-service': TRACE_CONNECTED_SERVICE,
   app: TRACE_APP,
   game: TRACE_GAME,
-  'creative-mint': TRACE_CREATIVE_MINT,
+  media: TRACE_CREATIVE_MINT,
 };
 
 export const WORKED_EXAMPLE_PARADIGMS = Object.keys(TRACES);
@@ -186,7 +186,9 @@ export async function workedExampleHandler(input, _ctx) {
       _telemetrySignal: { id_requested: false, found: true },
     };
   }
-  const trace = TRACES[paradigm];
+  // 'creative-mint' was the pre-1.0 name for the media paradigm's trace —
+  // accepted as an alias so older prompts/plans keep resolving.
+  const trace = TRACES[paradigm === 'creative-mint' ? 'media' : paradigm];
   if (!trace) {
     return {
       content: [
@@ -210,7 +212,7 @@ export function registerWorkedExampleTools() {
   registerTool({
     name: 'get_worked_example',
     description:
-      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs materialized, dry-run vs promoted, sealed vs not recorded), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `bot` (build → compile → operate), `connected-service` (inventory → primitive binding → seal), `app` (scaffold → commit → start → fulfill inference), `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `creative-mint` (stash → gather → cook). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
+      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs materialized, dry-run vs promoted, sealed vs not recorded), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `bot` (build → compile → operate), `connected-service` (inventory → primitive binding → seal), `app` (scaffold → commit → start → fulfill inference), `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `media` (stash → gather → cook). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
     inputSchema: {
       type: 'object',
       properties: {

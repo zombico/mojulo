@@ -1567,9 +1567,12 @@
       "stash": "スタッシュ",
       "illustrations": "イラスト",
       "worlds": "ワールド",
+      "objects": "オブジェクト",
       "motion": "モーション",
       "beats": "ビート",
       "voice": "ボイス",
+      "games": "ゲーム開発者",
+      "arcade": "アーケード",
       "settings": "設定"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "準備中…",
     "downloadGlbUnavailable": "このスケッチにエクスポートする3Dメッシュがありません。",
     "downloadGlbError": "エクスポートに失敗しました。",
+    "downloadStl": ".stl をダウンロード",
+    "downloadStlPreparing": "準備中…",
+    "downloadStlUnavailable": "このスケッチには書き出せる印刷可能なメッシュがありません。",
+    "downloadStlError": "エクスポートに失敗しました。",
+    "downloadStlHint": "3Dプリント用のバイナリSTL — 形状のみ、色なし。スライサーで開いてください。",
     "downloadHtml": "HTMLをダウンロード",
     "downloadHtmlPreparing": "準備中…",
     "downloadHtmlUnavailable": "このスケッチにエクスポートするスタンドアロンHTMLがありません。",
@@ -1632,10 +1640,82 @@
       "step": "ステップ {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "ゲーム開発者",
+    "gallerySubtitle": "ゲームごとに1プロジェクト — ルール、レベル、キャラクター、オーディオ、アートを1つの棚にまとめます。",
+    "galleryEmpty": "まだゲームプロジェクトはありません。ホストエージェントから create_game_project を実行して開始してください。",
+    "copyStarterPrompt": "スタータープロンプトをコピー",
+    "loading": "プロジェクトを読み込み中…",
+    "noMembersYet": "まだメンバーがいません",
+    "notFound": "そのプロジェクトは存在しません — アーカイブされたか、ref が間違っている可能性があります。",
+    "backToProjects": "ゲーム開発者に戻る",
+    "charter": "憲章",
+    "playInArcade": "アーケードでプレイ",
+    "copyWorkPrompt": "作業プロンプトをコピー",
+    "copyAddPrompt": "追加",
+    "copyMintPrompt": "ゲームを生成",
+    "copied": "コピーしました",
+    "playable": "プレイ可能",
+    "missing": "不足",
+    "missingBody": "このメンバーのアーティファクトはもう存在しません。プロジェクトはスロットを保持します。ホストエージェントから再バインドまたは削除してください。",
+    "noRules": "まだゲームは生成されていません — プロジェクトはプリプロダクション段階です。",
+    "fromManifest": "マニフェストから",
+    "gated": "ゲート済み",
+    "openNewTab": "新しいタブで開く",
+    "closeViewer": "閉じる",
+    "noPreview": "このメンバーのインラインプレビューはありません — ホストエージェントからアーティファクトを開いてください。",
+    "gameOverview": "ゲーム",
+    "playNewTab": "新しいタブでプレイ",
+    "storeLabel": "ストア",
+    "contentsLabel": "コンテンツ",
+    "themeLabel": "テーマ",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, other {# レベル}}",
+    "trackCountLine": "{count, plural, other {# 音楽トラック}}",
+    "slot": {
+      "menu": "メニュー",
+      "battle": "バトル"
+    },
+    "roles": {
+      "rules": "ルール",
+      "level": "レベル",
+      "character": "キャラクター",
+      "audio": "オーディオ",
+      "graphic": "グラフィック",
+      "animation": "アニメーション",
+      "reference": "リファレンス"
+    },
+    "levelStatus": {
+      "promoted": "昇格済み",
+      "contract": "コントラクトあり",
+      "candidate": "候補",
+      "missing": "不足"
+    },
+    "audioKind": {
+      "soundtrack": "サウンドトラック",
+      "sfx": "SFX",
+      "voice": "ボイス"
+    },
+    "emptyFolder": "まだ何もありません。"
+  },
+  "arcade": {
+    "title": "Mojulo アーケード",
+    "subtitle": "ワークショップから生成された、プレイ可能なスタンドアロンゲーム。筐体を選んでプレイしましょう。",
+    "loading": "筐体を読み込み中…",
+    "emptyState": "まだフロアにゲームはありません。ホストエージェントから create_game を実行して最初の筐体を生成してください。",
+    "copyStarterPrompt": "スタータープロンプトをコピー",
+    "copied": "コピーしました",
+    "play": "プレイ",
+    "levelCount": "{count, plural, other {# レベル}}",
+    "shipped": "リリース済み",
+    "notFound": "その筐体はフロアにありません — ゲームが削除された可能性があります。",
+    "backToArcade": "アーケードに戻る",
+    "openStandalone": "スタンドアロンで開く"
+  },
   "maker": {
     "hub": {
       "title": "Mojuloメーカー",
-      "subtitle": "イラストスタジオ: ランドスケープ、フィギュア、3Dシーンをミントし、モーションを設定します。チューニングされたクリエイティブサーフェス、スケッチの兄弟(図の調整済み)。イラストは同じスケッチプリミティブ — スタッシュ、参照、どちらの方法でも差分化できます。"
+      "subtitle": "スタジオ：イラスト、歩けるワールド、3Dオブジェクト、モーション、ビート、ボイス、そして完成した出力。ダイアグラム向けに調整された Sketches の姉妹となる、調整済みのクリエイティブ面です。どの作品も同じスケッチプリミティブ — どちらの方法でもスタッシュ、参照、差分ができます。"
     },
     "open": "開く",
     "empty": "まだ何もありません",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "ワールド",
-      "subtitle": "トラバーサル可能なthree.jsシティスケープと交通ハブ — ドラッグして軌道、スクロールしてズーム、移動します。",
-      "blurb": "フラクタルシティと交通ハブは、フラットな画像ではなく、ナビゲート可能な3Dワールドとしてレンダリングされます。"
+      "subtitle": "歩ける three.js のワールド — 一人称で移動する都市、建物、インテリア、ハブ。",
+      "blurb": "フラクタル都市、建造物、インテリアを、平面の絵ではなく歩ける3Dワールドとしてレンダリングします。"
+    },
+    "objects": {
+      "title": "オブジェクト",
+      "subtitle": "単一の3Dアーティファクトとスタディ — ワークベンチのパーツ、アセンブリ、ポリゴマー、惑星、科学・数学のビュー。ドラッグで回転、スクロールでズームします。",
+      "blurb": "ワークベンチのパーツ、アセンブリ、ポリゴマー、オービットスタディ — 回して眺める3Dの物体。"
     },
     "motion": {
       "title": "モーション",

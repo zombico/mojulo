@@ -101,6 +101,10 @@ const ROUTES = [
     trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.worlds' }],
   },
   {
+    tpl: '/maker/objects',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.objects' }],
+  },
+  {
     tpl: '/maker/motion',
     trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.motion' }],
   },
@@ -117,6 +121,25 @@ const ROUTES = [
       { labelKey: 'home.tiles.beats', href: '/maker/beats' },
       { dynamic: 'ref' },
     ],
+  },
+  {
+    tpl: '/maker/games',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.games' }],
+  },
+  {
+    // the game-developer studio — a dashboard page (the project shelf +
+    // context viewer), unlike /sketches/<ref>'s bare artifact frame.
+    tpl: '/games/[ref]',
+    trail: [
+      { labelKey: 'home.groups.studio', href: '/maker' },
+      { labelKey: 'home.tiles.games', href: '/maker/games' },
+      { dynamic: 'ref' },
+    ],
+  },
+  {
+    // cabinets launch the standalone shell in a new tab — /arcade/[ref] no longer exists.
+    tpl: '/arcade',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.arcade' }],
   },
   { tpl: '/mcp-skills', trail: [{ labelKey: 'mcpSkills.title' }] },
   {

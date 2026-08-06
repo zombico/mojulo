@@ -140,6 +140,16 @@ export function WorldIcon({ className = 'h-10 w-10' }) {
   );
 }
 
+export function ObjectsIcon({ className = 'h-10 w-10' }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M12 2.5 21 7.5v9l-9 5-9-5v-9l9-5z" />
+      <path d="M3 7.5l9 5 9-5" />
+      <path d="M12 12.5v9" />
+    </svg>
+  );
+}
+
 export function MotionIcon({ className = 'h-10 w-10' }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -167,6 +177,31 @@ export function VoiceIcon({ className = 'h-10 w-10' }) {
       <rect x="9" y="3" width="6" height="10" rx="3" />
       <path d="M5 11a7 7 0 0 0 14 0" />
       <path d="M12 18v3" />
+    </svg>
+  );
+}
+
+export function GameDevIcon({ className = 'h-10 w-10' }) {
+  // A gamepad under construction: d-pad + buttons over a workbench line.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3" y="7" width="18" height="10" rx="4" />
+      <path d="M8 10v4M6 12h4" />
+      <circle cx="16" cy="11" r="0.75" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="13" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function ArcadeIcon({ className = 'h-10 w-10' }) {
+  // A cabinet joystick: ball on a stick over the button deck.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="9" cy="5" r="2" />
+      <path d="M9 7v7" />
+      <rect x="3" y="14" width="18" height="6" rx="2" />
+      <circle cx="15" cy="17" r="0.75" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="17" r="0.75" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -279,9 +314,12 @@ export const WORKSHOP_GROUPS = [
     tiles: [
       { key: 'illustrations', href: '/maker/illustrations', Icon: MakerIcon },
       { key: 'worlds', href: '/maker/worlds', Icon: WorldIcon },
+      { key: 'objects', href: '/maker/objects', Icon: ObjectsIcon },
       { key: 'motion', href: '/maker/motion', Icon: MotionIcon },
       { key: 'beats', href: '/maker/beats', Icon: BeatsIcon },
       { key: 'voice', href: '/maker/voice', Icon: VoiceIcon },
+      { key: 'games', href: '/maker/games', Icon: GameDevIcon },
+      { key: 'arcade', href: '/arcade', Icon: ArcadeIcon },
       { key: 'outputs', href: '/outputs', Icon: CookIcon },
     ],
   },

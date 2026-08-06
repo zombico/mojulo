@@ -1567,9 +1567,12 @@
       "stash": "Samlingar",
       "illustrations": "Illustrationer",
       "worlds": "Världar",
+      "objects": "Objekt",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Röst",
+      "games": "Spelutvecklare",
+      "arcade": "Arkad",
       "settings": "Inställningar"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Förbereder…",
     "downloadGlbUnavailable": "Ingen 3D-nät att exportera för denna skiss.",
     "downloadGlbError": "Export misslyckades.",
+    "downloadStl": "Ladda ner .stl",
+    "downloadStlPreparing": "Förbereder…",
+    "downloadStlUnavailable": "Ingen utskrivbar mesh att exportera för den här skissen.",
+    "downloadStlError": "Export misslyckades.",
+    "downloadStlHint": "Binär STL för 3D-utskrift — endast form, ingen färg; öppna i din slicer.",
     "downloadHtml": "Ladda ner HTML",
     "downloadHtmlPreparing": "Förbereder…",
     "downloadHtmlUnavailable": "Ingen fristående HTML att exportera för denna skiss.",
@@ -1632,10 +1640,82 @@
       "step": "steg {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Spelutvecklare",
+    "gallerySubtitle": "Ett projekt per spel — dess regler, nivåer, karaktärer, ljud och grafik på en enda hylla.",
+    "galleryEmpty": "Inga spelprojekt än. Kör create_game_project från din värdagent för att starta ett.",
+    "copyStarterPrompt": "Kopiera startprompt",
+    "loading": "Laddar projekt…",
+    "noMembersYet": "Inga medlemmar än",
+    "notFound": "Det projektet finns inte — det kan ha arkiverats eller så är referensen fel.",
+    "backToProjects": "Tillbaka till Spelutvecklare",
+    "charter": "Stadga",
+    "playInArcade": "Spela i Arkaden",
+    "copyWorkPrompt": "Kopiera arbetsprompt",
+    "copyAddPrompt": "lägg till",
+    "copyMintPrompt": "mynta spelet",
+    "copied": "Kopierad",
+    "playable": "Spelbar",
+    "missing": "Saknad",
+    "missingBody": "Den här medlemmens artefakt finns inte längre. Projektet behåller platsen; bind om eller ta bort den från din värdagent.",
+    "noRules": "Inget spel myntat än — projektet är i förproduktion.",
+    "fromManifest": "från manifest",
+    "gated": "spärrad",
+    "openNewTab": "Öppna i ny flik",
+    "closeViewer": "Stäng",
+    "noPreview": "Ingen inbäddad förhandsvisning för den här medlemmen — öppna dess artefakt från din värdagent.",
+    "gameOverview": "Spelet",
+    "playNewTab": "Spela i ny flik",
+    "storeLabel": "Lager",
+    "contentsLabel": "Innehåll",
+    "themeLabel": "Tema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# nivå} other {# nivåer}}",
+    "trackCountLine": "{count, plural, one {# musikspår} other {# musikspår}}",
+    "slot": {
+      "menu": "Meny",
+      "battle": "Strid"
+    },
+    "roles": {
+      "rules": "Regler",
+      "level": "Nivåer",
+      "character": "Karaktärer",
+      "audio": "Ljud",
+      "graphic": "Grafik",
+      "animation": "Animation",
+      "reference": "Referenser"
+    },
+    "levelStatus": {
+      "promoted": "Befordrad",
+      "contract": "Har kontrakt",
+      "candidate": "Kandidat",
+      "missing": "Saknad"
+    },
+    "audioKind": {
+      "soundtrack": "Ljudspår",
+      "sfx": "SFX",
+      "voice": "Röst"
+    },
+    "emptyFolder": "Inget här än."
+  },
+  "arcade": {
+    "title": "Mojulo Arkad",
+    "subtitle": "Spelbara fristående spel, myntade i verkstaden. Välj ett spelskåp och spela.",
+    "loading": "Laddar spelskåp…",
+    "emptyState": "Inga spel på golvet än. Kör create_game från din värdagent för att mynta det första spelskåpet.",
+    "copyStarterPrompt": "Kopiera startprompt",
+    "copied": "Kopierad",
+    "play": "Spela",
+    "levelCount": "{count, plural, one {# nivå} other {# nivåer}}",
+    "shipped": "Släppt",
+    "notFound": "Det spelskåpet finns inte på golvet — spelet kan ha tagits bort.",
+    "backToArcade": "Tillbaka till Arkaden",
+    "openStandalone": "Öppna fristående"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "Illustrationsstudion: mynta landskap, figurer och 3D-scener och sätt dem i rörelse. En inställd kreativ yta, syskon till Skisser (inställd för diagram). En illustration är samma skissursprunglig — lagra, referera och diff den båda vägen."
+      "subtitle": "Studion: illustrationer, gångbara världar, 3D-objekt, rörelse, beats, röst och färdiga resultat. En finjusterad kreativ yta, syskon till Skisser (finjusterad för diagram). Varje del är samma skiss-primitiv — spara, referera och diffa den hur som helst."
     },
     "open": "Öppna",
     "empty": "Ingenting här ännu",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Världar",
-      "subtitle": "Traversabla three.js stadsbilder och transportnav — dra för att kretsa, bläddra för att zooma, röra dig genom dem.",
-      "blurb": "Fraktala städer och transportnav renderade som navigerbara 3D-världar, inte platta bilder."
+      "subtitle": "Gångbara three.js-världar — städer, byggnader, interiörer och nav som du rör dig genom i förstaperson.",
+      "blurb": "Fraktalstäder, byggnadsverk och interiörer renderade som gångbara 3D-världar, inte platta bilder."
+    },
+    "objects": {
+      "title": "Objekt",
+      "subtitle": "Enskilda 3D-artefakter och studier — verkstadsdelar, sammansättningar, polygomerer, planeter, vetenskaps- och matematikvyer. Dra för att rotera, skrolla för att zooma.",
+      "blurb": "Verkstadsdelar, sammansättningar, polygomerer och orbitstudier — 3D-saker du vrider på och tittar på."
     },
     "motion": {
       "title": "Motion",

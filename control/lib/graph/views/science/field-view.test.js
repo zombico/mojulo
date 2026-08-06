@@ -82,10 +82,10 @@ describe('magnetism — static fields + analytic direction', () => {
 });
 
 describe('field-view registration', () => {
-  it('routes to the world renderer and the world concern bucket', () => {
+  it('routes to the world renderer and the object concern bucket', () => {
     const m = { kind: 'field-view' };
     expect(sketchRenderMode(m)).toBe('world');
-    expect(classifyBucket(m)).toBe('world');
+    expect(classifyBucket(m)).toBe('object');
   });
 
   it('exposes the four scenarios', () => {

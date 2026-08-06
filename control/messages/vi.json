@@ -1567,9 +1567,12 @@
       "stash": "Kho lưu trữ",
       "illustrations": "Minh họa",
       "worlds": "Thế giới",
+      "objects": "Đối tượng",
       "motion": "Chuyển động",
       "beats": "Nhịp",
       "voice": "Giọng nói",
+      "games": "Nhà phát triển game",
+      "arcade": "Arcade",
       "settings": "Cài đặt"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Đang chuẩn bị…",
     "downloadGlbUnavailable": "Không có mesh 3D để xuất cho phác thảo này.",
     "downloadGlbError": "Xuất thất bại.",
+    "downloadStl": "Tải xuống .stl",
+    "downloadStlPreparing": "Đang chuẩn bị…",
+    "downloadStlUnavailable": "Không có lưới in được để xuất cho bản phác thảo này.",
+    "downloadStlError": "Xuất thất bại.",
+    "downloadStlHint": "STL nhị phân để in 3D — chỉ hình dạng, không màu; mở trong phần mềm cắt lớp của bạn.",
     "downloadHtml": "Tải xuống HTML",
     "downloadHtmlPreparing": "Đang chuẩn bị…",
     "downloadHtmlUnavailable": "Không có HTML độc lập để xuất cho phác thảo này.",
@@ -1632,10 +1640,82 @@
       "step": "bước {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Nhà phát triển game",
+    "gallerySubtitle": "Mỗi game một dự án — luật chơi, màn chơi, nhân vật, âm thanh và hình ảnh trên cùng một kệ.",
+    "galleryEmpty": "Chưa có dự án game nào. Chạy create_game_project từ tác nhân máy chủ để bắt đầu.",
+    "copyStarterPrompt": "Sao chép lời nhắc khởi động",
+    "loading": "Đang tải dự án…",
+    "noMembersYet": "Chưa có thành viên nào",
+    "notFound": "Dự án đó không tồn tại — có thể đã bị lưu trữ hoặc ref sai.",
+    "backToProjects": "Quay lại Nhà phát triển game",
+    "charter": "Điều lệ",
+    "playInArcade": "Chơi trong Arcade",
+    "copyWorkPrompt": "Sao chép prompt công việc",
+    "copyAddPrompt": "thêm",
+    "copyMintPrompt": "tạo game",
+    "copied": "Đã sao chép",
+    "playable": "Chơi được",
+    "missing": "Missing",
+    "missingBody": "Artifact của thành viên này không còn tồn tại. Dự án vẫn giữ vị trí; hãy liên kết lại hoặc gỡ bỏ từ tác nhân máy chủ.",
+    "noRules": "Chưa tạo game — dự án đang ở giai đoạn tiền sản xuất.",
+    "fromManifest": "từ manifest",
+    "gated": "bị khóa",
+    "openNewTab": "Mở trong tab mới",
+    "closeViewer": "Đóng",
+    "noPreview": "Không có xem trước nội tuyến cho thành viên này — mở artifact từ tác nhân máy chủ.",
+    "gameOverview": "Game",
+    "playNewTab": "Chơi trong tab mới",
+    "storeLabel": "Kho",
+    "contentsLabel": "Nội dung",
+    "themeLabel": "Chủ đề",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, other {# màn chơi}}",
+    "trackCountLine": "{count, plural, other {# bản nhạc}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Trận đấu"
+    },
+    "roles": {
+      "rules": "Luật chơi",
+      "level": "Màn chơi",
+      "character": "Nhân vật",
+      "audio": "Âm thanh",
+      "graphic": "Đồ họa",
+      "animation": "Hoạt ảnh",
+      "reference": "Tham chiếu"
+    },
+    "levelStatus": {
+      "promoted": "Đã thăng cấp",
+      "contract": "Có hợp đồng",
+      "candidate": "Ứng viên",
+      "missing": "Missing"
+    },
+    "audioKind": {
+      "soundtrack": "Nhạc nền",
+      "sfx": "SFX",
+      "voice": "Giọng nói"
+    },
+    "emptyFolder": "Chưa có gì ở đây."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Các game độc lập chơi được, tạo từ xưởng. Chọn một máy game và chơi.",
+    "loading": "Đang tải máy game…",
+    "emptyState": "Chưa có game nào trên sàn. Chạy create_game từ tác nhân máy chủ để tạo máy game đầu tiên.",
+    "copyStarterPrompt": "Sao chép lời nhắc khởi động",
+    "copied": "Đã sao chép",
+    "play": "Chơi",
+    "levelCount": "{count, plural, other {# màn chơi}}",
+    "shipped": "Đã phát hành",
+    "notFound": "Máy game đó không có trên sàn — game có thể đã bị gỡ bỏ.",
+    "backToArcade": "Quay lại Arcade",
+    "openStandalone": "Mở độc lập"
+  },
   "maker": {
     "hub": {
       "title": "Xưởng Mojulo",
-      "subtitle": "Xưởng minh họa: tạo phong cảnh, nhân vật và cảnh 3D, và đặt chúng chuyển động. Một bề mặt sáng tạo được điều chỉnh, anh em với Phác thảo (được điều chỉnh cho biểu đồ). Một minh họa là phác thảo nguyên thủy giống nhau — lưu trữ, tham chiếu và khác biệt theo cách nào đó."
+      "subtitle": "Studio: hình minh họa, thế giới đi lại được, đối tượng 3D, chuyển động, beats, giọng nói và các đầu ra hoàn thiện. Một bề mặt sáng tạo được tinh chỉnh, anh em với Sketches (tinh chỉnh cho sơ đồ). Mỗi thành phần đều là cùng một sketch primitive — cất giữ, tham chiếu và so sánh theo cách nào cũng được."
     },
     "open": "Mở",
     "empty": "Chưa có gì ở đây",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Thế giới",
-      "subtitle": "Phong cảnh đô thị và trung tâm giao thông có thể đi qua ba chiều — kéo để quay, cuộn để phóng to, di chuyển qua chúng.",
-      "blurb": "Các thành phố fractal và trung tâm giao thông được hiển thị dưới dạng các thế giới 3D có thể điều hướng, không phải hình ảnh phẳng."
+      "subtitle": "Thế giới three.js đi lại được — thành phố, tòa nhà, nội thất và trung tâm mà bạn di chuyển qua ở góc nhìn thứ nhất.",
+      "blurb": "Thành phố fractal, công trình và nội thất được kết xuất thành thế giới 3D đi lại được, không phải hình phẳng."
+    },
+    "objects": {
+      "title": "Đối tượng",
+      "subtitle": "Các artifact và nghiên cứu 3D đơn lẻ — bộ phận workbench, cụm lắp ráp, polygomer, hành tinh, các góc nhìn khoa học và toán học. Kéo để xoay quanh, cuộn để thu phóng.",
+      "blurb": "Bộ phận workbench, cụm lắp ráp, polygomer và nghiên cứu quỹ đạo — các vật thể 3D bạn xoay và ngắm nhìn."
     },
     "motion": {
       "title": "Chuyển động",

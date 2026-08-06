@@ -2190,7 +2190,7 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
       pushStreet(ribbons, [vx, hy + half], [vx, region.y + region.d], opt, reserved);
       pushStreet(ribbons, [region.x, hy], [vx - half, hy], opt, reserved);
       pushStreet(ribbons, [vx + half, hy], [region.x + region.w, hy], opt, reserved);
-      if (opts.elements.cars) placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes);
+      if (opts.elements.cars && !opts.traffic) placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes);   // moving cars (traffic) replace the static street ants
       if (bikeLanes && opts.elements.cyclists) placeBikeLaneCyclists(cars, vx, hy, region, streetW);
     } else {
       const opt = { width: streetW, laneLine: false, lanes: 1, bikeLanes };
@@ -2279,7 +2279,168 @@ function shrinkAnchorAbout(anchor, s, withHeight) {
  *   ['rogers-centre', 'cn-tower'] places the Toronto pair side by side.
  * @returns {{ boxes, grounds, stats }}
  */
-export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = 'tower', subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null } = {}) {
+// ── ambient-walker loop planner (city/walkers.plan.md P1) ──────────────────────────────
+// Grid-validated CLOSED sidewalk/plaza rings for the `walkers` channel. Seeded off the city
+// seed, additive, and run only when opted in — a walkers-off city never calls this and is
+// byte-identical. Each loop is a rounded rectangle whose whole band sits on PED_SURFACE
+// (verge + plaza), grown from a walkable seed until its perimeter would leave the walkable
+// area (so it hugs a block's sidewalk ring or fills an open plaza). Paths are in city units
+// (z on the ground) — the same space as the static pedestrians.
+const WALKER_LOOP_KINDS = new Set(['building', 'anchor', 'townhouse', 'house', 'midtower', 'garage']);
+const WALKER_SOLID = new Set([CLAIM.BUILDING, CLAIM.ANCHOR, CLAIM.LOT]);   // masses a walker must never cross
+function planCityWalkerLoops(grid, region, seed, opt, boxes) {
+  const o = (opt && typeof opt === 'object') ? opt : {};
+  const want = Math.max(1, Math.min(24, Number.isFinite(o.count) ? o.count : 8));
+  const cell = grid.cell;
+  const rng = mulberry32(((seed >>> 0) ^ 0x51ed2701) >>> 0);
+  const band = cell;   // the ring edge is a one-cell-thick band (a verge is ~1 cell wide)
+  // per-edge cell census of a ring [cx±hw, cy±hh]: how much of it is sidewalk (verge/plaza) vs. a solid
+  // mass (building/anchor/lot). A loop is followed BLINDLY (ambient decoration, no runtime collision),
+  // so the ONLY hard rule is it must never cross a building; brushing a road at a corner reads as a
+  // pedestrian crossing the street. So we accept a ring that clears every solid mass AND rides mostly
+  // on real sidewalk — not one that is 100% verge (blocks rarely have an unbroken sidewalk ring).
+  const ringStats = (cx, cy, hw, hh) => {
+    const rects = [
+      { x: cx - hw, y: cy - hh, w: 2 * hw, d: band },        // south
+      { x: cx - hw, y: cy + hh - band, w: 2 * hw, d: band },  // north
+      { x: cx - hw, y: cy - hh, w: band, d: 2 * hh },        // west
+      { x: cx + hw - band, y: cy - hh, w: band, d: 2 * hh },  // east
+    ];
+    let tot = 0, ped = 0, solid = 0;
+    for (const r of rects) {
+      const { c0, c1, r0, r1 } = gridCells(grid, r);
+      for (let rr = r0; rr <= r1; rr++) for (let c = c0; c <= c1; c++) {
+        const v = grid.data[rr * grid.cols + c]; tot++;
+        if (PED_SURFACE.has(v)) ped++; else if (WALKER_SOLID.has(v)) solid++;
+      }
+    }
+    return { tot, pedFrac: tot ? ped / tot : 0, solid };
+  };
+  const ok = (cx, cy, hw, hh) => { const s = ringStats(cx, cy, hw, hh); return s.tot > 0 && s.solid === 0 && s.pedFrac >= 0.35; };
+  const cands = [];
+  // PRIMARY: a sidewalk ring around each block, the footprint pushed OUT into its fronting verge. Try a
+  // few offsets and keep the first that clears the neighbours + rides the sidewalk.
+  for (const b of (boxes || [])) {
+    if (!b || !(b.w > 0) || !(b.d > 0) || !WALKER_LOOP_KINDS.has(b.kind)) continue;
+    const cx = b.x + b.w / 2, cy = b.y + b.d / 2;
+    for (const off of [cell, cell * 1.5, cell * 2, cell * 2.5, cell * 3]) {
+      const hw = b.w / 2 + off, hh = b.d / 2 + off;
+      if (ok(cx, cy, hw, hh)) { cands.push({ cx, cy, hw, hh, area: hw * hh }); break; }
+    }
+  }
+  // FALLBACK: inscribe + grow rings in open walkable areas (plazas), for strolls with no block to hug.
+  const MINH = cell * 3, MAXH = Math.min(region.w, region.d) * 0.3, GROW = cell;
+  const step = Math.max(cell * 4, Math.min(region.w, region.d) / 8);
+  for (let sy = region.y + step * 0.5; sy < region.y + region.d; sy += step)
+    for (let sx = region.x + step * 0.5; sx < region.x + region.w; sx += step) {
+      if (!ok(sx, sy, MINH, MINH)) continue;
+      let hw = MINH, hh = MINH;
+      while (hw + GROW < MAXH && ok(sx, sy, hw + GROW, hh)) hw += GROW;
+      while (hh + GROW < MAXH && ok(sx, sy, hw, hh + GROW)) hh += GROW;
+      cands.push({ cx: sx, cy: sy, hw, hh, area: hw * hh });
+    }
+  // biggest loops first (they read best), spaced apart so they don't overlap, capped at `want`.
+  cands.sort((a, b) => b.area - a.area);
+  const loops = [], taken = [];
+  for (const c of cands) {
+    if (loops.length >= want) break;
+    if (taken.some(([tx, ty, tr]) => Math.hypot(tx - c.cx, ty - c.cy) < (tr + Math.max(c.hw, c.hh)) * 0.5)) continue;
+    rng();   // one draw per accepted loop keeps selection seed-varying without perturbing geometry
+    loops.push({ path: roundedRingPath(c.cx, c.cy, c.hw, c.hh, Math.min(c.hw, c.hh) * 0.3), style: 'bumble' });
+    taken.push([c.cx, c.cy, Math.max(c.hw, c.hh)]);
+  }
+  return loops;
+}
+// closed rounded-rectangle polyline (city units, z on ground): straight sides + quarter-arc corners
+// sampled so the walker's tangent heading turns smoothly instead of snapping 90° at each corner.
+function roundedRingPath(cx, cy, hw, hh, r) {
+  r = Math.max(0, Math.min(r, hw, hh));
+  const K = 5, Z = 0.02, pts = [];
+  const corners = [
+    { ox: cx + hw - r, oy: cy + hh - r, a0: 0 },                 // NE
+    { ox: cx - hw + r, oy: cy + hh - r, a0: Math.PI / 2 },       // NW
+    { ox: cx - hw + r, oy: cy - hh + r, a0: Math.PI },           // SW
+    { ox: cx + hw - r, oy: cy - hh + r, a0: 3 * Math.PI / 2 },   // SE
+  ];
+  for (const c of corners)
+    for (let i = 0; i <= K; i++) { const a = c.a0 + (i / K) * (Math.PI / 2); pts.push([c.ox + r * Math.cos(a), c.oy + r * Math.sin(a), Z]); }
+  pts.push([pts[0][0], pts[0][1], Z]);   // repeat the first point → seamless closed loop
+  return pts;
+}
+
+// ── ambient-traffic lane planner (the driver-ants: moving cars) ─────────────────────────
+// Read the FINAL grid (post-recurse, like the walker-loop planner) and extract the MAIN AVENUES as
+// two-lane pacman corridors for the `cars` channel. A road corridor is a band of CLAIM.ROAD cells that
+// spans the region (a full-length avenue); each becomes TWO opposing lanes, offset either side of the
+// centre-line. Which lane travels which way is the driving-side convention (right-hand default; left
+// flips it) — so a two-way road has cars going opposite directions, and a left-hand city drives on the
+// left. Lane paths are authored in TRAVEL order (so the car's tangent heading = its direction) and
+// extended a little past the region edge so the pacman wrap pops off-screen. City units, z on the road.
+const CAR_LANE_Z = 0.06;
+function planCityCarLanes(grid, region, opt) {
+  const o = (opt && typeof opt === 'object') ? opt : {};
+  const side = o.side === 'left' ? -1 : 1;         // right-hand traffic by default
+  const cell = grid.cell, cols = grid.cols, rows = grid.rows;
+  const isRoad = (c, r) => grid.data[r * cols + c] === CLAIM.ROAD;
+  const margin = cell * 8;                          // extend lanes past the edge so the wrap is off-screen
+  // collect road BANDS along one axis: consecutive lines (rows or cols) that are mostly road spanning
+  // the region → { c: centre line index, w: thickness (cells), lo/hi: road extent along the line }.
+  const bandsAlong = (vertical) => {
+    const nLines = vertical ? cols : rows, nCross = vertical ? rows : cols;
+    const lineFrac = [];
+    for (let l = 0; l < nLines; l++) {
+      let n = 0; for (let k = 0; k < nCross; k++) { const c = vertical ? l : k, r = vertical ? k : l; if (isRoad(c, r)) n++; }
+      lineFrac.push(n / nCross);
+    }
+    const bands = []; let s = -1;
+    for (let l = 0; l <= nLines; l++) {
+      const on = l < nLines && lineFrac[l] > 0.5;   // this line is a road (spans >half the region)
+      if (on && s < 0) s = l; else if (!on && s >= 0) { bands.push([s, l - 1]); s = -1; }
+    }
+    return bands.map(([a, b]) => {
+      const mid = Math.round((a + b) / 2);
+      // road extent along the mid line (first→last road cell, the avenue's span)
+      let lo = -1, hi = -1;
+      for (let k = 0; k < nCross; k++) { const c = vertical ? mid : k, r = vertical ? k : mid; if (isRoad(c, r)) { if (lo < 0) lo = k; hi = k; } }
+      return { mid, w: (b - a + 1), lo, hi };
+    }).filter((bd) => bd.lo >= 0 && bd.hi > bd.lo);
+  };
+  const hBands = bandsAlong(false), vBands = bandsAlong(true);
+  // keep only the MAIN avenues: the widest bands (the top-tier cross is ~2.4× a side street). Adaptive
+  // so it works across seeds/regions; a side street that happens to span the region is dropped.
+  const maxW = Math.max(1, ...hBands.map((b) => b.w), ...vBands.map((b) => b.w));
+  const keep = (bd) => bd.w >= 0.55 * maxW;
+  const lanes = [];
+  const laneOffOf = (wCells) => Math.max(cell, wCells * cell * 0.22);   // half-lane offset from the centre
+  const wx = (c) => grid.x0 + (c + 0.5) * cell, wy = (r) => grid.y0 + (r + 0.5) * cell;
+  for (const b of hBands) {   // horizontal avenue (travel along x)
+    if (!keep(b)) continue;
+    const cy = wy(b.mid), off = laneOffOf(b.w), lo = wx(b.lo) - margin, hi = wx(b.hi) + margin;
+    // right-hand: the south lane (lower y) travels +x, the north lane −x (left flips it)
+    lanes.push({ axis: 'x', cross: cy - off, lo, hi, dir: side });
+    lanes.push({ axis: 'x', cross: cy + off, lo, hi, dir: -side });
+  }
+  for (const b of vBands) {   // vertical avenue (travel along y)
+    if (!keep(b)) continue;
+    const cx = wx(b.mid), off = laneOffOf(b.w), lo = wy(b.lo) - margin, hi = wy(b.hi) + margin;
+    // right-hand: the east lane (higher x) travels +y, the west lane −y
+    lanes.push({ axis: 'y', cross: cx + off, lo, hi, dir: side });
+    lanes.push({ axis: 'y', cross: cx - off, lo, hi, dir: -side });
+  }
+  return lanes;
+}
+// a lane spec → a straight pacman path [[x,y,z]...] authored in TRAVEL order (so the car faces its dir).
+export function carLaneToPath(L) {
+  const z = CAR_LANE_Z;
+  const a = L.dir >= 0 ? L.lo : L.hi, b = L.dir >= 0 ? L.hi : L.lo;
+  return L.axis === 'x' ? [[a, L.cross, z], [b, L.cross, z]] : [[L.cross, a, z], [L.cross, b, z]];
+}
+
+// anchor default is `null` (a plain city), NOT 'tower' — a giant central landmark must be OPT-IN via
+// an explicit anchor:'tower'|'freeway'. This keeps the generator default aligned with the mint default
+// (mintFractalCity) + the theme adapter's intent, so a recipe that merely OMITS `anchor` can never
+// silently grow a tower in the middle of the streets (the default-drift bug, city/walkers.plan.md).
+export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null } = {}) {
   const rng = mulberry32(seed >>> 0 || 1);
   // baseScale (<1) SHRINKS every object while the frame stays fixed → proportionally MORE, smaller
   // blocks in the same scene. Implemented as a similarity transform: generate in an ENLARGED region
@@ -2354,7 +2515,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // recurse plants the root tower ONLY if we didn't already place an anchor (landmark or
   // corridor-side) and there's no corridor — preserving the original centred-tower path.
   const recurseRoot = (placedRootAnchor || corridor) ? null : (anchor || null);
-  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: landmarkZone ? [landmarkZone] : [], baseScale: bs, profile }, grid, cars);
+  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: landmarkZone ? [landmarkZone] : [], baseScale: bs, profile, traffic }, grid, cars);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
   // FINAL CAR PASS: emit each deferred vehicle only if its lane/stall cell is actually
   // the right surface — ROAD for street ants, LOT for parked ants. This is what makes the
@@ -2379,6 +2540,12 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // (verge + plaza). Additive + seed-deterministic; runs after vehicles, before the scene
   // scale-down so people shrink with everything else (like cars).
   if (people) placePedestrianGroups(region, grid, people, faces, seed);
+  // AMBIENT-WALKER LOOPS (city/walkers.plan.md): grid-validated closed rings for the `walkers`
+  // channel, planned off the now-final walkable grid. Opt-in only (null ⇒ untouched); paths ride
+  // the output scale-down below, exactly like the faces + static people.
+  const walkerLoops = walkers ? planCityWalkerLoops(grid, region, seed, walkers, boxes) : null;
+  // AMBIENT TRAFFIC (driver-ants): main-avenue lanes for moving cars, read off the final road grid.
+  const carLanes = traffic ? planCityCarLanes(grid, region, traffic) : null;
   // LEFTOVER LAYER: the still-EMPTY cells, flood-filled into tagged components. Emitted as
   // ground tiles (pocket → planted green, gore → neutral plaza) so the void a clipped /
   // (phase-2) curved network leaves reads as deliberate open space, not a hole.
@@ -2404,6 +2571,14 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // after every box/ground/ribbon/face exists and before lampSources(boxes), so the derived light
   // sources read the scaled lamp-head positions.
   if (bs !== 1) scaleSceneAbout(frameOrigin, bs, { boxes, grounds, ribbons, faces });
+  // walker paths aren't in the face sets scaleSceneAbout touches — apply the SAME shrink so a
+  // baseScale<1 city's loops stay aligned with the streets they ride.
+  if (walkerLoops && bs !== 1) for (const L of walkerLoops) L.path = L.path.map((p) => [frameOrigin.x + (p[0] - frameOrigin.x) * bs, frameOrigin.y + (p[1] - frameOrigin.y) * bs, p[2] * bs]);
+  // car lanes ride the same output shrink (a lane's cross/lo/hi are city coords about frameOrigin).
+  if (carLanes && bs !== 1) for (const L of carLanes) {
+    const fx = frameOrigin.x, fy = frameOrigin.y, f = L.axis === 'x' ? fy : fx, o = L.axis === 'x' ? fx : fy;
+    L.cross = f + (L.cross - f) * bs; L.lo = o + (L.lo - o) * bs; L.hi = o + (L.hi - o) * bs;
+  }
   const stats = {
     boxes: boxes.length,
     ribbons: ribbons.length,
@@ -2421,7 +2596,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     leftoverArea: Math.round(leftover.reduce((a, c) => a + c.area, 0) * bs * bs * 100) / 100,   // gen-space area → frame-space (×baseScale²)
     parkDoodads: boxes.filter((b) => b.kind === 'park-bin' || b.kind === 'park-bench' || (b.kind && b.kind.startsWith('play-'))).length,
   };
-  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale };
+  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}) };
 }
 
 // Derive light SOURCES from the warm lamp HEADS the generator already places — each
@@ -2570,6 +2745,10 @@ export function assembleFractalCityScene(opts = {}) {
       ...(furniture.disabled ? { disabled: furniture.disabled } : {}),
     };
   }
+  // carry the planned walker loops (paths + style, city units) onto the payload; the world resolve
+  // bakes the rig + finalizes `walkers` (figure + scale). Absent when `walkers` isn't requested.
+  if (plan.walkerLoops && plan.walkerLoops.length) scene.walkerLoops = plan.walkerLoops;
+  if (plan.carLanes && plan.carLanes.length) scene.carLanes = plan.carLanes;
   return scene;
 }
 

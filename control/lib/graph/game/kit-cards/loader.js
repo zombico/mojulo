@@ -20,6 +20,10 @@ function exampleFor(id) {
       { ref: 'grove-1', exit: [18, 0, 0], pickups: [{ item: 'gem', at: [6, 0, 0] }, { item: 'gem', at: [12, 3, 0] }] },
       { ref: 'grove-2', exit: [20, 0, 0], pickups: [{ item: 'gem', at: [9, 0, 0] }] },
     ],
+    platformer: [
+      { ref: 'isles-1', exit: [22, 0, 4], exitRadius: 2, pickups: [{ item: 'gear', at: [6, 0, 2] }, { item: 'gear', at: [14, 0, 5] }], hazards: [{ at: [10, 0, 1], damage: 20 }] },
+      { ref: 'isles-2', exit: [26, 0, 6], pickups: [{ item: 'gear', at: [9, 0, 3] }], hazards: [{ at: [16, 0, 2], damage: 25 }], lethal: true },
+    ],
     'survival-arena': [
       { ref: 'arena-1', seconds: 30, hazards: [{ at: [5, 0, 0], damage: 20 }] },
       { ref: 'arena-2', seconds: 45, hazards: [{ at: [4, 2, 0], damage: 25 }] },

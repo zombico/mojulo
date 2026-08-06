@@ -1567,9 +1567,12 @@
       "stash": "Letak",
       "illustrations": "Ilustrasi",
       "worlds": "Dunia",
+      "objects": "Objek",
       "motion": "Gerakan",
       "beats": "Rentak",
       "voice": "Suara",
+      "games": "Pembangun Permainan",
+      "arcade": "Arked",
       "settings": "Pengaturan"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Menyediakan …",
     "downloadGlbUnavailable": "Tiada jerat 3D untuk dieksport bagi lakaran ini.",
     "downloadGlbError": "Eksport gagal.",
+    "downloadStl": "Muat turun .stl",
+    "downloadStlPreparing": "Menyediakan …",
+    "downloadStlUnavailable": "Tiada mesh boleh cetak untuk dieksport bagi lakaran ini.",
+    "downloadStlError": "Eksport gagal.",
+    "downloadStlHint": "STL binari untuk cetakan 3D — bentuk sahaja, tanpa warna; buka dalam slicer anda.",
     "downloadHtml": "Muat turun HTML",
     "downloadHtmlPreparing": "Menyediakan …",
     "downloadHtmlUnavailable": "Tiada HTML berdiri sendiri untuk dieksport bagi lakaran ini.",
@@ -1632,10 +1640,82 @@
       "step": "step {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Pembangun Permainan",
+    "gallerySubtitle": "Satu projek setiap permainan — peraturan, tahap, watak, audio, dan seninya pada satu rak.",
+    "galleryEmpty": "Belum ada projek permainan. Jalankan create_game_project dari ejen hos anda untuk memulakannya.",
+    "copyStarterPrompt": "Copy starter prompt",
+    "loading": "Memuatkan projek…",
+    "noMembersYet": "Belum ada ahli",
+    "notFound": "Projek itu tidak wujud — mungkin telah diarkibkan atau ruj tidak tepat.",
+    "backToProjects": "Kembali ke Pembangun Permainan",
+    "charter": "Piagam",
+    "playInArcade": "Main dalam Arked",
+    "copyWorkPrompt": "Salin gesaan kerja",
+    "copyAddPrompt": "tambah",
+    "copyMintPrompt": "cetak permainan",
+    "copied": "Disalin",
+    "playable": "Boleh dimainkan",
+    "missing": "Missing",
+    "missingBody": "Artifak ahli ini tidak lagi wujud. Projek mengekalkan slot; ikat semula atau buang ia dari ejen hos anda.",
+    "noRules": "Belum ada permainan dicetak — projek dalam pra-produksi.",
+    "fromManifest": "dari manifes",
+    "gated": "berpagar",
+    "openNewTab": "Buka dalam tab baharu",
+    "closeViewer": "Tutup",
+    "noPreview": "Tiada pratonton sebaris untuk ahli ini — buka artifaknya dari ejen hos anda.",
+    "gameOverview": "Permainan",
+    "playNewTab": "Main dalam tab baharu",
+    "storeLabel": "Kedai",
+    "contentsLabel": "Kandungan",
+    "themeLabel": "Tema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, other {# tahap}}",
+    "trackCountLine": "{count, plural, other {# trek muzik}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Pertempuran"
+    },
+    "roles": {
+      "rules": "Peraturan",
+      "level": "Tahap",
+      "character": "Watak",
+      "audio": "Audio",
+      "graphic": "Grafik",
+      "animation": "Animasi",
+      "reference": "Rujukan"
+    },
+    "levelStatus": {
+      "promoted": "Dinaikkan",
+      "contract": "Ada kontrak",
+      "candidate": "Calon",
+      "missing": "Missing"
+    },
+    "audioKind": {
+      "soundtrack": "Runut bunyi",
+      "sfx": "SFX",
+      "voice": "Suara"
+    },
+    "emptyFolder": "Belum ada apa-apa di sini."
+  },
+  "arcade": {
+    "title": "Arked Mojulo",
+    "subtitle": "Permainan sendirian boleh dimainkan, dicetak dari bengkel. Pilih kabinet dan main.",
+    "loading": "Memuatkan kabinet…",
+    "emptyState": "Belum ada permainan di lantai. Jalankan create_game dari ejen hos anda untuk mencetak kabinet pertama.",
+    "copyStarterPrompt": "Copy starter prompt",
+    "copied": "Disalin",
+    "play": "Main",
+    "levelCount": "{count, plural, other {# tahap}}",
+    "shipped": "Dihantar",
+    "notFound": "Kabinet itu tiada di lantai — permainan mungkin telah dibuang.",
+    "backToArcade": "Kembali ke Arked",
+    "openStandalone": "Buka sendirian"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "The illustration studio: mint landscapes, figures, and 3D scenes, and set them in motion. A tuned creative surface, sibling to Sketches (tuned for diagrams). An illustration is the same sketch primitive — stash, reference, and diff it either way."
+      "subtitle": "Studio: ilustrasi, dunia boleh dilalui, objek 3D, gerakan, beats, suara, dan output siap. Permukaan kreatif yang ditala, adik-beradik kepada Sketches (ditala untuk gambar rajah). Setiap keping ialah primitif lakaran yang sama — simpan, rujuk, dan diff ia dalam mana-mana cara."
     },
     "open": "Buka",
     "empty": "Nothing here yet",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Dunia",
-      "subtitle": "Traversable three.js cityscapes and transportation hubs — drag to orbit, scroll to zoom, move through them.",
-      "blurb": "Fractal cities and transportation hubs rendered as navigable 3D worlds, not flat pictures."
+      "subtitle": "Dunia three.js boleh dilalui — bandar, bangunan, ruang dalaman, dan hab yang anda lalui secara orang pertama.",
+      "blurb": "Bandar fraktal, edifis, dan ruang dalaman dipapar sebagai dunia 3D boleh dilalui, bukan gambar rata."
+    },
+    "objects": {
+      "title": "Objek",
+      "subtitle": "Artifak dan kajian 3D tunggal — bahagian meja kerja, pemasangan, polygomer, planet, paparan sains dan matematik. Seret untuk mengorbit, tatal untuk zum.",
+      "blurb": "Bahagian meja kerja, pemasangan, polygomer, dan kajian orbit — benda 3D yang anda putar dan lihat."
     },
     "motion": {
       "title": "Gerakan",

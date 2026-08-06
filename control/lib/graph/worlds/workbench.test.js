@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { planWorkbench } from './workbench.js';
+import { lowerObjectFaces, planWorkbench } from './workbench.js';
 import { lowerAssembly } from '../polygonizer/workbench-assembly.js';
 
 const lathe = (extra = {}) => ({ axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 2 }, profile: [{ t: 0, radius: 1 }, { t: 1, radius: 1 }], ...extra });
@@ -53,6 +53,13 @@ describe('planWorkbench — per-part readout', () => {
     expect(drapePart).toBeDefined();
     expect(drapePart.size.w).toBeGreaterThan(0);
     expect(drapePart.open).toBeUndefined(); // a sheet is open by intent — no closure warning
+  });
+
+  it('passes caps:false through to lathe face lowering', () => {
+    const capped = lowerObjectFaces({ kind: 'workbench', lathes: [lathe({ crossSections: 4, samples: 8 })] });
+    const open = lowerObjectFaces({ kind: 'workbench', lathes: [lathe({ crossSections: 4, samples: 8, caps: false })] });
+    expect(open.length).toBeLessThan(capped.length);
+    expect(() => planWorkbench({ kind: 'workbench', lathes: [lathe({ caps: false })] })).not.toThrow();
   });
 
   it('rejects a drape material typo loudly instead of silently falling back', () => {

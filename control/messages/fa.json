@@ -1567,9 +1567,12 @@
       "stash": "حافظه‌ها",
       "illustrations": "تصویرات",
       "worlds": "دنیاها",
+      "objects": "اشیا",
       "motion": "حرکت",
       "beats": "ضربات",
       "voice": "صدا",
+      "games": "توسعه‌دهنده بازی",
+      "arcade": "آرکید",
       "settings": "Settings"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "در حال آماده‌سازی…",
     "downloadGlbUnavailable": "هیچ مش 3D برای صادرات برای این طرح وجود ندارد.",
     "downloadGlbError": "صادرات ناموفق بود.",
+    "downloadStl": "دانلود .stl",
+    "downloadStlPreparing": "در حال آماده‌سازی…",
+    "downloadStlUnavailable": "مشی قابل چاپی برای صادرات این طرح وجود ندارد.",
+    "downloadStlError": "صادرات ناموفق بود.",
+    "downloadStlHint": "STL باینری برای چاپ سه‌بعدی — فقط شکل، بدون رنگ؛ در اسلایسر خود باز کنید.",
     "downloadHtml": "دانلود HTML",
     "downloadHtmlPreparing": "در حال آماده‌سازی…",
     "downloadHtmlUnavailable": "هیچ HTML مستقل برای صادرات برای این طرح وجود ندارد.",
@@ -1632,10 +1640,82 @@
       "step": "step {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "توسعه‌دهنده بازی",
+    "gallerySubtitle": "هر بازی یک پروژه — قوانین، مراحل، شخصیت‌ها، صدا و هنر آن روی یک قفسه.",
+    "galleryEmpty": "هنوز پروژه بازی‌ای وجود ندارد. برای شروع یکی، create_game_project را از عامل میزبان خود اجرا کنید.",
+    "copyStarterPrompt": "کپی نوع پرسش ابتدایی",
+    "loading": "در حال بارگذاری پروژه‌ها…",
+    "noMembersYet": "هنوز عضوی وجود ندارد",
+    "notFound": "آن پروژه وجود ندارد — ممکن است بایگانی شده باشد یا ارجاع نادرست باشد.",
+    "backToProjects": "بازگشت به توسعه‌دهنده بازی",
+    "charter": "منشور",
+    "playInArcade": "بازی در آرکید",
+    "copyWorkPrompt": "کپی درخواست کار",
+    "copyAddPrompt": "افزودن",
+    "copyMintPrompt": "ساخت بازی",
+    "copied": "کپی شد",
+    "playable": "قابل بازی",
+    "missing": "گمشده",
+    "missingBody": "مصنوع این عضو دیگر وجود ندارد. پروژه جایگاه را حفظ می‌کند؛ آن را از عامل میزبان خود دوباره متصل یا حذف کنید.",
+    "noRules": "هنوز بازی‌ای ساخته نشده — پروژه در مرحله پیش‌تولید است.",
+    "fromManifest": "از مانیفست",
+    "gated": "محدودشده",
+    "openNewTab": "باز کردن در برگه جدید",
+    "closeViewer": "بستن",
+    "noPreview": "پیش‌نمایش درون‌خطی برای این عضو وجود ندارد — مصنوع آن را از عامل میزبان خود باز کنید.",
+    "gameOverview": "بازی",
+    "playNewTab": "بازی در برگه جدید",
+    "storeLabel": "ذخیره‌گاه",
+    "contentsLabel": "محتوا",
+    "themeLabel": "زمینه",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, other {# مرحله}}",
+    "trackCountLine": "{count, plural, other {# قطعه موسیقی}}",
+    "slot": {
+      "menu": "منو",
+      "battle": "نبرد"
+    },
+    "roles": {
+      "rules": "قوانین",
+      "level": "مراحل",
+      "character": "شخصیت‌ها",
+      "audio": "صدا",
+      "graphic": "گرافیک",
+      "animation": "انیمیشن",
+      "reference": "مراجع"
+    },
+    "levelStatus": {
+      "promoted": "ارتقایافته",
+      "contract": "دارای قرارداد",
+      "candidate": "نامزد",
+      "missing": "گمشده"
+    },
+    "audioKind": {
+      "soundtrack": "موسیقی متن",
+      "sfx": "افکت صوتی",
+      "voice": "صدا"
+    },
+    "emptyFolder": "هنوز چیزی اینجا نیست."
+  },
+  "arcade": {
+    "title": "آرکید Mojulo",
+    "subtitle": "بازی‌های مستقل قابل بازی، ساخته‌شده در کارگاه. یک دستگاه انتخاب کنید و بازی کنید.",
+    "loading": "در حال بارگذاری دستگاه‌ها…",
+    "emptyState": "هنوز بازی‌ای روی صحنه نیست. برای ساخت اولین دستگاه، create_game را از عامل میزبان خود اجرا کنید.",
+    "copyStarterPrompt": "کپی نوع پرسش ابتدایی",
+    "copied": "کپی شد",
+    "play": "بازی",
+    "levelCount": "{count, plural, other {# مرحله}}",
+    "shipped": "منتشرشده",
+    "notFound": "آن دستگاه روی صحنه نیست — ممکن است بازی حذف شده باشد.",
+    "backToArcade": "بازگشت به آرکید",
+    "openStandalone": "باز کردن مستقل"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "The illustration studio: mint landscapes, figures, and 3D scenes, and set them in motion. A tuned creative surface, sibling to Sketches (tuned for diagrams). An illustration is the same sketch primitive — stash, reference, and diff it either way."
+      "subtitle": "استودیو: تصویرسازی‌ها، جهان‌های قابل پیمایش، اشیای سه‌بعدی، حرکت، بیت‌ها، صدا و خروجی‌های نهایی. یک سطح خلاقانه تنظیم‌شده، هم‌خانواده با Sketches (تنظیم‌شده برای نمودارها). هر قطعه همان پریمیتیو sketch است — به هر حال می‌توانید آن را ذخیره، ارجاع و مقایسه کنید."
     },
     "open": "باز کردن",
     "empty": "هنوز چیزی اینجا نیست",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "دنیاها",
-      "subtitle": "Traversable three.js cityscapes and transportation hubs — drag to orbit, scroll to zoom, move through them.",
-      "blurb": "Fractal cities and transportation hubs rendered as navigable 3D worlds, not flat pictures."
+      "subtitle": "جهان‌های قابل پیمایش three.js — شهرها، ساختمان‌ها، فضاهای داخلی و مرکزهایی که به‌صورت اول‌شخص در آن‌ها حرکت می‌کنید.",
+      "blurb": "شهرهای فراکتالی، بناها و فضاهای داخلی که به‌جای تصاویر تخت، به‌صورت جهان‌های سه‌بعدی قابل پیمایش رندر می‌شوند."
+    },
+    "objects": {
+      "title": "اشیا",
+      "subtitle": "مصنوعات و مطالعات سه‌بعدی مجزا — قطعات میزکار، مجموعه‌ها، پلیگومرها، سیارات، نماهای علمی و ریاضی. برای چرخش بکشید، برای بزرگ‌نمایی اسکرول کنید.",
+      "blurb": "قطعات میزکار، مجموعه‌ها، پلیگومرها و مطالعات مداری — چیزهای سه‌بعدی که می‌چرخانید و نگاه می‌کنید."
     },
     "motion": {
       "title": "حرکت",

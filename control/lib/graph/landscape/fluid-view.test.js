@@ -64,10 +64,10 @@ describe('fluid-view — lift emerges from the flow', () => {
 });
 
 describe('fluid-view registration', () => {
-  it('routes to the world renderer and the world concern bucket', () => {
+  it('routes to the world renderer and the object concern bucket', () => {
     const m = { kind: 'fluid-view' };
     expect(sketchRenderMode(m)).toBe('world');
-    expect(classifyBucket(m)).toBe('world');
+    expect(classifyBucket(m)).toBe('object');
   });
 
   it('exposes the aerodynamic, hydrostatic and viscosity scenarios', () => {

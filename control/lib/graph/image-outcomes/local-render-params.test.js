@@ -74,4 +74,31 @@ describe('buildLocalRenderParams', () => {
     const p = buildLocalRenderParams(mangaSignalPageFixture());
     expect(p.target).toBe('p1');
   });
+
+  it('carries an edit brief whose preserve tier agrees with the controlnet strength', () => {
+    const strict = buildLocalRenderParams(cityBlockoutFixture(), 'page');
+    expect(strict.edit.model).toBe('qwen-image-edit-2511');
+    expect(strict.edit.preserve).toBe('strict');
+    expect(strict.controlnet.strength).toBe(0.6);
+
+    const manifest = mangaSignalPageFixture();
+    const panel = manifest.panels.find((pn) => (pn.figures || []).length > 0);
+    for (const form of panel.forms || []) form.preserve = 'loose';
+    const guided = buildLocalRenderParams(manifest, panel.id);
+    expect(guided.edit.preserve).toBe('guided');
+    expect(guided.controlnet.strength).toBe(0.5);
+  });
+
+  it('edit instructions always demand the repaint (scaffold-echo, edit-model edition)', () => {
+    for (const [manifest, target] of [
+      [cityBlockoutFixture(), 'page'],
+      [mangaSignalPageFixture(), 'p1'],
+    ]) {
+      const p = buildLocalRenderParams(manifest, target);
+      const joined = p.edit.instructionFragments.join('. ');
+      expect(joined).toMatch(/Repaint this diagram/);
+      expect(joined).toMatch(/no text anywhere/);
+      expect(joined).toMatch(/Keep|Treat/);
+    }
+  });
 });

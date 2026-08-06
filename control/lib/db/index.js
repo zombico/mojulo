@@ -347,6 +347,7 @@ function init(db) {
         'game_kit',
         'game_glyph',
         'game_sfx',
+        'game_project',
         'routing'
       )),
       source_ref TEXT NOT NULL,
@@ -667,6 +668,82 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_beats_annotations_ref ON beats_annotations(ref, status);
 
+    -- Local catalysts (local-catalysts.plan.md) — the operator-minted shelf
+    -- beside the curated library. The row is the HEAD (list/get/recommend read
+    -- it directly); revisions are history, never the live pointer — the beats
+    -- pattern. frontmatter_json holds the validated meta in the same shape
+    -- parseCatalystFile() produces, so the tool layer composes curated + local
+    -- entries through one code path. rev doubles as the served version
+    -- (derived, not honor-system). Archived rows keep their revisions; their
+    -- embedding row is deleted at archive time.
+    CREATE TABLE IF NOT EXISTS local_catalysts (
+      id TEXT PRIMARY KEY,
+      frontmatter_json TEXT NOT NULL,
+      body_md TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('workflow','technique')) DEFAULT 'workflow',
+      rev INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL CHECK(status IN ('active','archived')) DEFAULT 'active',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    -- note is the revision's commit message (required on updates by the tool
+    -- layer; rev 1's note is optional — minting is its own message).
+    CREATE TABLE IF NOT EXISTS local_catalyst_revisions (
+      id INTEGER PRIMARY KEY,
+      catalyst_id TEXT NOT NULL REFERENCES local_catalysts(id) ON DELETE CASCADE,
+      rev INTEGER NOT NULL,
+      frontmatter_json TEXT NOT NULL,
+      body_md TEXT NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(catalyst_id, rev)
+    );
+    CREATE INDEX IF NOT EXISTS idx_local_catalyst_revisions
+      ON local_catalyst_revisions(catalyst_id, rev DESC);
+
+    -- Game projects (game-developer.plan.md, GP0) — the project layer over the
+    -- game composer substrate. A project is a GROUPING object, not a recipe:
+    -- it corrals the artifacts of ONE game (rules / levels / characters /
+    -- audio / graphics / animation / references) so they read as a single
+    -- project instead of six gallery rails. Same principles as the
+    -- connected-MCP composer: intent up front (charter_md, mirrored into the
+    -- semantic index), a small status machine, membership by typed ref. It
+    -- never gates a mint and never becomes an editor — shelf and map only.
+    CREATE TABLE IF NOT EXISTS game_projects (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      charter_md TEXT,
+      status TEXT NOT NULL CHECK(status IN ('active','shipped','archived')) DEFAULT 'active',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_game_projects_status ON game_projects(status);
+    CREATE INDEX IF NOT EXISTS idx_game_projects_updated_at ON game_projects(updated_at DESC);
+
+    -- Polymorphic membership. member_kind (the namespace member_ref resolves
+    -- in) and role (the game-facing semantic: rules / level / character /
+    -- audio / graphic / animation / reference) are validated at the REPO gate
+    -- so adding one is a one-line repo change, not a schema migration.
+    -- member_ref is NOT a foreign key — a deleted artifact leaves the member
+    -- reading "missing" in the studio (navigational, dangling tolerated).
+    -- Manifest-derivable facts are NEVER stored here: a bound game's own
+    -- levels/music surface as IMPLIED members derived at read time.
+    CREATE TABLE IF NOT EXISTS game_project_members (
+      id INTEGER PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES game_projects(id) ON DELETE CASCADE,
+      member_kind TEXT NOT NULL,
+      member_ref TEXT NOT NULL,
+      role TEXT NOT NULL,
+      label TEXT,
+      meta_json TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(project_id, member_kind, member_ref, role)
+    );
+    CREATE INDEX IF NOT EXISTS idx_gp_members_by_project ON game_project_members(project_id);
+    CREATE INDEX IF NOT EXISTS idx_gp_members_reverse ON game_project_members(member_kind, member_ref);
+
     -- Render handoff (render-handoff.plan.md — the durable I3 seam, framed as a
     -- bicycle; see docs/bicycles.md). One DURABLE row per render target parked
     -- for an external image-capable worker: request to pull to submit to audit
@@ -709,6 +786,7 @@ function init(db) {
   migrateStashCookColumns(db);
   migrateStashCookArchivedAt(db);
   migrateEmbeddingsSourceKinds(db);
+  migrateEmbeddingsGameProjectKind(db);
   migrateMcpToolCallColumns(db);
   reapStaleMcpJobs(db);
   pruneMcpToolCalls(db);
@@ -1200,6 +1278,61 @@ function migrateEmbeddingsSourceKinds(db) {
         'game_kit',
         'game_glyph',
         'game_sfx',
+        'routing'
+      )),
+      source_ref TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      body_text TEXT NOT NULL,
+      embedding BLOB NOT NULL,
+      model TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(source_kind, source_ref)
+    );
+    INSERT INTO meta_embeddings_new
+      (id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at)
+      SELECT id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at
+      FROM meta_embeddings;
+    DROP TABLE meta_embeddings;
+    ALTER TABLE meta_embeddings_new RENAME TO meta_embeddings;
+    CREATE INDEX IF NOT EXISTS idx_meta_embeddings_kind ON meta_embeddings(source_kind);
+    COMMIT;
+  `);
+}
+
+// Adds the 'game_project' source kind (game-developer.plan.md GP0 — project
+// charters mirrored for semantic recall). Same rebuild idiom as
+// migrateEmbeddingsSourceKinds, guarded on the new value; the CHECK list here
+// must match the CREATE TABLE block above.
+function migrateEmbeddingsGameProjectKind(db) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
+    .get();
+  if (!row || !row.sql) return;
+  if (row.sql.includes("'game_project'")) return;
+  db.exec(`
+    BEGIN;
+    CREATE TABLE meta_embeddings_new (
+      id INTEGER PRIMARY KEY,
+      source_kind TEXT NOT NULL CHECK(source_kind IN (
+        'principle',
+        'mcp_tool',
+        'mcp_capability',
+        'orbit_component',
+        'orbit_composition',
+        'orbit_artifact',
+        'catalyst',
+        'sketch_vocab',
+        'sketch_method',
+        'manji_program',
+        'painted_landscape',
+        'view_vocab',
+        'beats_vocab',
+        'game_vocab',
+        'game_mechanic',
+        'game_kit',
+        'game_glyph',
+        'game_sfx',
+        'game_project',
         'routing'
       )),
       source_ref TEXT NOT NULL,

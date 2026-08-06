@@ -35,9 +35,26 @@ export const RESULTS = ['success', 'fail', 'abort'];
 //   level → shell  { moj: MSG_READY,   contractVersion, levelRef }
 //   shell → level  { moj: MSG_INIT,    contractVersion, params, seed }
 //   level → shell  { moj: MSG_OUTCOME, envelope }
+// The envelope may carry an optional `stats` payload ({ pilot, rows }) beside its events —
+// pure presentation (the shell's score screen); the store only ever applies `events`.
 export const MSG_READY = 'game-ready';
 export const MSG_INIT = 'game-init';
 export const MSG_OUTCOME = 'game-outcome';
+// presentation-only sidecars (unversioned, safe to ignore):
+//   shell → level  { moj: MSG_AUDIO, on, volume }        — settings panel audio prefs → beats channel
+//   shell → level  { moj: MSG_PAUSE, on }                — pause menu freezes / resumes the sim
+//   level → shell  { moj: MSG_CONTROLS, rows: [[k,v]] }  — the live controls legend, replied on pause
+//   shell → level  { moj: MSG_GAMEPAD, on, deadZone, lookScale, invertY }
+//                                                        — controller prefs → the world's gamepad poll
+//   shell → level  { moj: MSG_AI, on }                   — practice-mode AI attack switch; the world
+//                                                          converges via the same input edge the G key uses
+//                                                          (the MSG_CONTROLS reply carries `ai: { on }` when
+//                                                          the level offers the switch)
+export const MSG_AUDIO = 'game-audio';
+export const MSG_PAUSE = 'game-pause';
+export const MSG_CONTROLS = 'game-controls';
+export const MSG_GAMEPAD = 'game-gamepad';
+export const MSG_AI = 'game-ai';
 
 export function validateLevelContract(game, schema) {
   const errors = [];

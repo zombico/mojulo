@@ -3,6 +3,8 @@ import {
   getCatalyst,
   getCatalystCatalog,
   listCatalysts,
+  serializeCatalystFile,
+  validateCatalystMeta,
   _parseCatalystFileForTests as parseCatalystFile,
 } from './loader.js';
 
@@ -98,6 +100,57 @@ describe('parseCatalystFile', () => {
       JSON.stringify({ id: 'x', name: 'X', summary: 's', valueHook: 'v' }) +
       '\n---\n\n   \n';
     expect(() => parseCatalystFile('test.md', raw)).toThrow(/empty body/);
+  });
+});
+
+describe('validateCatalystMeta', () => {
+  const meta = { id: 'x', name: 'X', summary: 's', valueHook: 'v' };
+
+  it('validates mint-shaped input (no shelf) with either kind', () => {
+    expect(validateCatalystMeta(meta, 'body').kind).toBe('workflow');
+    expect(validateCatalystMeta({ ...meta, kind: 'technique' }, 'body').kind).toBe('technique');
+  });
+
+  it('enforces destinationExamples when destinationMcpCategory is set', () => {
+    const withCategory = { ...meta, requires: { destinationMcpCategory: 'crm-like' } };
+    expect(() => validateCatalystMeta(withCategory, 'body', { source: 'mint x' })).toThrow(
+      /destinationExamples must be a non-empty array/
+    );
+    const withExamples = {
+      ...meta,
+      requires: { destinationMcpCategory: 'crm-like', destinationExamples: ['HubSpot'] },
+    };
+    expect(() => validateCatalystMeta(withExamples, 'body')).not.toThrow();
+  });
+
+  it('rejects non-object frontmatter', () => {
+    expect(() => validateCatalystMeta(['nope'], 'body')).toThrow(/must be a JSON object/);
+    expect(() => validateCatalystMeta(null, 'body')).toThrow(/must be a JSON object/);
+  });
+});
+
+describe('serializeCatalystFile', () => {
+  it('round-trips through parseCatalystFile', () => {
+    const catalyst = validateCatalystMeta(
+      {
+        id: 'rt',
+        name: 'Round Trip',
+        summary: 's',
+        valueHook: 'v',
+        category: 'digest',
+        requires: { destinationMcpCategory: 'crm-like', destinationExamples: ['HubSpot'] },
+        parameters: [{ name: 'p', prompt: 'q' }],
+      },
+      '# Body\n\nProse.'
+    );
+    const reparsed = parseCatalystFile('rt.md', serializeCatalystFile(catalyst));
+    expect(reparsed).toEqual({ ...catalyst, version: 1 });
+  });
+
+  it('omits workflow kind and default version from frontmatter', () => {
+    const text = serializeCatalystFile(validateCatalystMeta({ id: 'x', name: 'X', summary: 's', valueHook: 'v' }, 'body'));
+    expect(text).not.toMatch(/"kind"/);
+    expect(text).not.toMatch(/"version"/);
   });
 });
 

@@ -1,0 +1,84 @@
+{
+  "_fill": {
+    "notes": "ComfyUI API-format workflow template for the local render worker, Qwen rung (local-render-worker.plan.md L4). Qwen-Image-Edit-2511 is an INSTRUCTION-FOLLOWING EDIT model: the scaffold PNG goes in as an image the VL encoder actually reads, and preservation is asked for in language (localParams.edit.instructionFragments), not tuned as a ControlNet strength. Fill by STRING REPLACEMENT on the raw file text, then JSON.parse and POST { prompt: <the .prompt object> } to http://127.0.0.1:8188/prompt. Numeric slots are quoted placeholder strings — replace INCLUDING the surrounding quotes (e.g. '\"{{WIDTH}}\"' -> '1024') so the parsed JSON carries real numbers. Sampler contract is the Lightning LoRA's, not a taste knob: 4 steps, cfg 1.0, euler/simple — do not raise cfg (the negative is inert at cfg 1.0 and that is expected; steer with the positive instruction instead).",
+    "slots": {
+      "{{SCAFFOLD_IMAGE}}": "scaffold PNG filename previously uploaded via POST /upload/image — use the CONTROL scaffold (packet.scaffold.controlPngUrl): Qwen renders text too well, so labels on the default scaffold WILL come back legible in the paint",
+      "{{PROMPT}}": "localParams.edit.instructionFragments joined '. ' + localParams.promptFragments joined ', ' + the agent's beat/subject distillation (JSON-escape it)",
+      "{{NEGATIVE}}": "localParams.negative joined with ', ' (JSON-escape; inert at cfg 1.0, kept for graph validity and for anyone re-running at higher cfg without the Lightning LoRA)",
+      "\"{{WIDTH}}\"": "localParams.size.width (number)",
+      "\"{{HEIGHT}}\"": "localParams.size.height (number)",
+      "\"{{SEED}}\"": "render-event seed (number) — record it with the bind; recipes stay timeless",
+      "{{FILENAME_PREFIX}}": "e.g. <ref>-<target>"
+    },
+    "variants": {
+      "identity reference": "to condition on a bound character sheet (replaces the SDXL IP-Adapter rung), add another LoadImage node for the sheet PNG and wire it as \"image2\" on node 8 (and 9) — TextEncodeQwenImageEditPlus takes image1/image2/image3, then name the character in the instruction ('the character from the reference sheet').",
+      "pure dream (no scaffold)": "for a dream reference with no structural conditioning (shape-from-dream / vehicle-designer DREAM step), drop nodes 7 and the vae/image1 inputs on 8 and 9, and let the prompt stand alone — the graph degrades to the proven qwen-pilot t2i shape.",
+      "gguf": "on lower-RAM hosts swap node 1 for {\"class_type\": \"UnetLoaderGGUF\", \"inputs\": {\"unet_name\": \"qwen-image-edit-2511-Q6_K.gguf\"}} (needs the ComfyUI-GGUF node pack, installed by the script)."
+    }
+  },
+  "prompt": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": { "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors", "weight_dtype": "default" }
+    },
+    "2": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": { "model": ["1", 0], "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors", "strength_model": 1.0 }
+    },
+    "3": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": { "model": ["2", 0], "shift": 3.1 }
+    },
+    "4": {
+      "class_type": "CFGNorm",
+      "inputs": { "model": ["3", 0], "strength": 1.0 }
+    },
+    "5": {
+      "class_type": "CLIPLoader",
+      "inputs": { "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "type": "qwen_image", "device": "default" }
+    },
+    "6": {
+      "class_type": "VAELoader",
+      "inputs": { "vae_name": "qwen_image_vae.safetensors" }
+    },
+    "7": {
+      "class_type": "LoadImage",
+      "inputs": { "image": "{{SCAFFOLD_IMAGE}}" }
+    },
+    "8": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": { "clip": ["5", 0], "prompt": "{{PROMPT}}", "vae": ["6", 0], "image1": ["7", 0] }
+    },
+    "9": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": { "clip": ["5", 0], "prompt": "{{NEGATIVE}}", "vae": ["6", 0], "image1": ["7", 0] }
+    },
+    "10": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": { "width": "{{WIDTH}}", "height": "{{HEIGHT}}", "batch_size": 1 }
+    },
+    "11": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["4", 0],
+        "positive": ["8", 0],
+        "negative": ["9", 0],
+        "latent_image": ["10", 0],
+        "seed": "{{SEED}}",
+        "steps": 4,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    "12": {
+      "class_type": "VAEDecode",
+      "inputs": { "samples": ["11", 0], "vae": ["6", 0] }
+    },
+    "13": {
+      "class_type": "SaveImage",
+      "inputs": { "images": ["12", 0], "filename_prefix": "{{FILENAME_PREFIX}}" }
+    }
+  }
+}

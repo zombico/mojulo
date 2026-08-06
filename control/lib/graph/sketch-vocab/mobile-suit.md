@@ -6,7 +6,8 @@
 reach for the `figure`/protoform primitive here** — it tunes flesh, and a mech
 reads as *layered armor over a dark frame*, not a tuned body. You assemble a
 machine from lathe-turned segments, then bake a prop skin over it. Full method +
-provenance: [[mobile-suit-builder.plan.md]] (`lib/graph/polygonizer/`).
+provenance: [[mobile-suit-builder.plan.md]] (archived:
+`lite-template/integration/archive-mobile-suit/plans/`, untracked).
 
 ## Step 0 — Identity lock (do FIRST, restate on EVERY subsystem)
 

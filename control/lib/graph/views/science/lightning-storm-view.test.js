@@ -38,10 +38,10 @@ describe('lightning-storm-view — volumetric storm deck + electric-arc strikes'
     expect(html).not.toContain('GROUPS =');
   });
 
-  it('registers as a world concern', () => {
+  it('registers as an object concern', () => {
     const manifest = { kind: 'lightning-storm-view' };
     expect(sketchRenderMode(manifest)).toBe('world');
-    expect(classifyBucket(manifest)).toBe('world');
+    expect(classifyBucket(manifest)).toBe('object');
   });
 
   it('exposes the two storm scenarios', () => {

@@ -1567,9 +1567,12 @@
       "stash": "Stashes",
       "illustrations": "Illustraties",
       "worlds": "Werelden",
+      "objects": "Objecten",
       "motion": "Beweging",
       "beats": "Beats",
       "voice": "Stem",
+      "games": "Gameontwikkelaar",
+      "arcade": "Arcade",
       "settings": "Instellingen"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Voorbereiding…",
     "downloadGlbUnavailable": "Geen 3D-netwerk om voor deze schets te exporteren.",
     "downloadGlbError": "Export mislukt.",
+    "downloadStl": "Download .stl",
+    "downloadStlPreparing": "Voorbereiding…",
+    "downloadStlUnavailable": "Geen printbare mesh om te exporteren voor deze sketch.",
+    "downloadStlError": "Export mislukt.",
+    "downloadStlHint": "Binaire STL voor 3D-printen — alleen vorm, geen kleur; open in je slicer.",
     "downloadHtml": "HTML downloaden",
     "downloadHtmlPreparing": "Voorbereiding…",
     "downloadHtmlUnavailable": "Geen zelfstandige HTML om voor deze schets te exporteren.",
@@ -1632,10 +1640,82 @@
       "step": "stap {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Gameontwikkelaar",
+    "gallerySubtitle": "Eén project per game — de regels, levels, personages, audio en art op één plank.",
+    "galleryEmpty": "Nog geen gameprojecten. Stuur create_game_project aan vanuit je host-agent om er een te starten.",
+    "copyStarterPrompt": "Startprompt kopiëren",
+    "loading": "Projecten laden…",
+    "noMembersYet": "Nog geen leden",
+    "notFound": "Dat project bestaat niet — het is mogelijk gearchiveerd of de ref klopt niet.",
+    "backToProjects": "Terug naar Gameontwikkelaar",
+    "charter": "Handvest",
+    "playInArcade": "Speel in Arcade",
+    "copyWorkPrompt": "Kopieer werk-prompt",
+    "copyAddPrompt": "toevoegen",
+    "copyMintPrompt": "de game minten",
+    "copied": "Gekopieerd",
+    "playable": "Speelbaar",
+    "missing": "Ontbrekend",
+    "missingBody": "Het artefact van dit lid bestaat niet meer. Het project houdt de slot; herbind of verwijder het vanuit je host-agent.",
+    "noRules": "Nog geen game gemint — het project is pre-productie.",
+    "fromManifest": "uit manifest",
+    "gated": "afgeschermd",
+    "openNewTab": "Open in nieuw tabblad",
+    "closeViewer": "Sluiten",
+    "noPreview": "Geen inline preview voor dit lid — open het artefact vanuit je host-agent.",
+    "gameOverview": "De game",
+    "playNewTab": "Speel in nieuw tabblad",
+    "storeLabel": "Store",
+    "contentsLabel": "Inhoud",
+    "themeLabel": "Thema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# level} other {# levels}}",
+    "trackCountLine": "{count, plural, one {# muziektrack} other {# muziektracks}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Gevecht"
+    },
+    "roles": {
+      "rules": "Regels",
+      "level": "Levels",
+      "character": "Personages",
+      "audio": "Audio",
+      "graphic": "Graphics",
+      "animation": "Animatie",
+      "reference": "Referenties"
+    },
+    "levelStatus": {
+      "promoted": "Gepromoveerd",
+      "contract": "Heeft contract",
+      "candidate": "Kandidaat",
+      "missing": "Ontbrekend"
+    },
+    "audioKind": {
+      "soundtrack": "Soundtrack",
+      "sfx": "SFX",
+      "voice": "Stem"
+    },
+    "emptyFolder": "Hier is nog niets."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Speelbare standalone games, gemint vanuit de workshop. Kies een kast en speel.",
+    "loading": "Kasten laden…",
+    "emptyState": "Nog geen games op de vloer. Stuur create_game aan vanuit je host-agent om de eerste kast te minten.",
+    "copyStarterPrompt": "Startprompt kopiëren",
+    "copied": "Gekopieerd",
+    "play": "Speel",
+    "levelCount": "{count, plural, one {# level} other {# levels}}",
+    "shipped": "Uitgebracht",
+    "notFound": "Die kast staat niet op de vloer — de game is mogelijk verwijderd.",
+    "backToArcade": "Terug naar Arcade",
+    "openStandalone": "Open standalone"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "De illustratiestudio: maak landschappen, figuren en 3D-scènes, en zet ze in beweging. Een afgestemd creatief oppervlak, zusterproject van Schetsen (afgestemd op diagrammen). Een illustratie is dezelfde schetsprimaire — stash, referentie en diff op beide manieren."
+      "subtitle": "De studio: illustraties, beloopbare werelden, 3D-objecten, motion, beats, voice en afgewerkte output. Een afgestemd creatief oppervlak, broer van Sketches (afgestemd op diagrammen). Elk stuk is dezelfde sketch-primitive — stash, refereer en diff het hoe dan ook."
     },
     "open": "Openen",
     "empty": "Nog niets hier",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Werelden",
-      "subtitle": "Begaanbare three.js stadssilhouetten en vervoersknopen — sleep om in een baan om te gaan, scroll om in te zoomen, beweeg erdoorheen.",
-      "blurb": "Fractale steden en vervoersknopen weergegeven als navigeerbare 3D-werelden, geen platte afbeeldingen."
+      "subtitle": "Beloopbare three.js-werelden — steden, gebouwen, interieurs en hubs waar je first-person doorheen beweegt.",
+      "blurb": "Fractale steden, edifices en interieurs gerenderd als beloopbare 3D-werelden, niet als platte plaatjes."
+    },
+    "objects": {
+      "title": "Objecten",
+      "subtitle": "Losse 3D-artefacten en studies — workbench-onderdelen, assemblies, polygomers, planeten, wetenschap- en wiskundeviews. Sleep om te draaien, scroll om te zoomen.",
+      "blurb": "Workbench-onderdelen, assemblies, polygomers en orbit-studies — 3D-dingen die je draait en bekijkt."
     },
     "motion": {
       "title": "Beweging",

@@ -23,12 +23,12 @@ function SketchPreviewBody({ sketch, t, fit = false }) {
       />
     );
   }
-  if (mode === 'world' || mode === 'scene' || mode === 'beats') {
+  if (mode === 'world' || mode === 'scene' || mode === 'beats' || mode === 'game') {
     // The live kinds (navigable three.js worlds, CSS-3D turntables, beats audio
-    // players) render live in the preview/modal — a single mounted <iframe> on
-    // the same /world (or /scene, /beats) endpoint the detail page uses. Only
-    // one is ever mounted at a time (the selected sketch), so there's no
-    // per-card live-context cost here.
+    // players, playable game shells) render live in the preview/modal — a single
+    // mounted <iframe> on the same /world (or /scene, /beats, /game) endpoint
+    // the detail page uses. Only one is ever mounted at a time (the selected
+    // sketch), so there's no per-card live-context cost here.
     return (
       <iframe
         src={`/api/sketches/${ref}/${mode}`}
@@ -50,8 +50,9 @@ function SketchDownloads({ sketch, t }) {
   const ref = encodeURIComponent(sketch.ref);
   const mode = sketchRenderMode(sketch.manifest);
   const hasSvg = mode === 'svg' || mode === 'diagram';
-  // world/scene render live (no still export); beats are audio-only (no still form at all).
-  const hasPng = mode !== 'world' && mode !== 'scene' && mode !== 'beats';
+  // world/scene render live (no still export); beats are audio-only (no still
+  // form at all); a game is played, not pictured.
+  const hasPng = mode !== 'world' && mode !== 'scene' && mode !== 'beats' && mode !== 'game';
   // beats export straight off the shelf: the .wav (audio) and — for the
   // musical kinds — the .mid score (sfx cues are foley choreography, wav-only).
   const hasWav = mode === 'beats';
@@ -59,7 +60,7 @@ function SketchDownloads({ sketch, t }) {
   return (
     <div className="flex items-center gap-2">
       <a
-        href={mode === 'beats' ? `/beats/${ref}` : `/sketches/${ref}`}
+        href={mode === 'beats' ? `/beats/${ref}` : mode === 'game' ? `/api/sketches/${ref}/game` : `/sketches/${ref}`}
         target="_blank"
         rel="noreferrer"
         className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 inline-flex items-center gap-1.5"
@@ -121,7 +122,7 @@ function associationTagLabel(tag, t) {
 
 // The shared two-pane sketch gallery, mounted by both sibling concerns:
 // /sketches (the Sketches/diagram concern) and /maker/illustrations (the Maker
-// illustration concern). `bucket` ('diagram' | 'illustration' | 'world' | 'beats' | null) narrows
+// illustration concern). `bucket` ('diagram' | 'illustration' | 'world' | 'object' | 'beats' | null) narrows
 // the list to one concern; null shows every sketch. `heading`/`subtitle`
 // override the default copy. A diagram and an illustration are the same sketch
 // primitive — this only changes which bucket the list is filtered to.
@@ -450,6 +451,40 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
       setDeleteBusy(false);
     }
   }, [fullView, load, previewRef, selectedRef, selectedSet, tSelect]);
+
+  // Single-sketch delete for the split-view preview header. Same hard-delete
+  // semantics as bulkDelete, over the existing DELETE /api/sketches/[ref] route.
+  const deleteOne = useCallback(
+    async (ref) => {
+      if (!ref) return;
+      if (!window.confirm(tSelect('deleteConfirm', { count: 1 }))) return;
+      setDeleteBusy(true);
+      setDeleteError('');
+      try {
+        const res = await fetch(`/api/sketches/${encodeURIComponent(ref)}`, {
+          method: 'DELETE',
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        if (selectedRef === ref) setSelectedRef(null);
+        if (previewRef === ref) setPreviewRef(null);
+        setSelectedSet((prev) => {
+          if (!prev.has(ref)) return prev;
+          const next = new Set(prev);
+          next.delete(ref);
+          return next;
+        });
+        await load();
+      } catch (e) {
+        setDeleteError(tSelect('deleteError', { error: e.message }));
+      } finally {
+        setDeleteBusy(false);
+      }
+    },
+    [load, previewRef, selectedRef, tSelect],
+  );
 
   const createFolder = useCallback(
     async (name) => {
@@ -818,7 +853,17 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
               >
                 {tSelect('moveTo')}
               </button>
+              <button
+                type="button"
+                disabled={selectedSet.size === 0 || deleteBusy}
+                onClick={bulkDelete}
+                className="w-full px-3 py-1.5 text-xs border border-red-700 rounded-md bg-red-900/40 text-red-200 hover:bg-red-900/70 disabled:opacity-50 disabled:hover:bg-red-900/40 inline-flex items-center justify-center gap-1.5"
+              >
+                <TrashIcon className="h-3 w-3" />
+                {tSelect('delete')}
+              </button>
               {moveError && <p className="text-xs text-red-400">{moveError}</p>}
+              {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
             </div>
           )}
         </div>
@@ -955,16 +1000,31 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRef(null)}
-                    aria-label={t('close')}
-                    title={t('close')}
-                    className="h-8 w-8 inline-flex items-center justify-center border border-gray-600 rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  >
-                    <CloseIcon />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => deleteOne(selected.ref)}
+                      disabled={deleteBusy}
+                      aria-label={tSelect('delete')}
+                      title={tSelect('delete')}
+                      className="h-8 w-8 inline-flex items-center justify-center border border-red-700 rounded-md bg-red-900/30 text-red-300 hover:bg-red-900/60 disabled:opacity-50"
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRef(null)}
+                      aria-label={t('close')}
+                      title={t('close')}
+                      className="h-8 w-8 inline-flex items-center justify-center border border-gray-600 rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    >
+                      <CloseIcon />
+                    </button>
+                  </div>
                   <SketchDownloads sketch={selected} t={t} />
+                  {!selectMode && deleteError && (
+                    <p className="text-xs text-red-400">{deleteError}</p>
+                  )}
                 </div>
               </div>
 

@@ -1,6 +1,8 @@
 # Mojulo
 
-**MCP server for building self-hosted chatbots from any MCP-capable agent** (Claude Code, Codex, and friends). Describe the bot you want — Mojulo compiles it into a portable Docker artifact you own. Conversations live in the bot's own SQLite, hash-chained turn by turn. The MCP surface composes alongside your other MCPs (Drive, Gmail, your CRM), so the build/deploy/operate loop runs entirely inside an agent session.
+**The agent's workshop** — a local, stateful MCP substrate that turns conversations into things that keep existing after the chat ends: running chatbots, connected services, apps, media (walkable worlds, scientific views, figures, synthesized music and song, films, publications — deterministic recipes, never renders), and playable games composed from the rest. The five paradigms look like different products until you see they are all **durable bindings minted from a conversation** — that is the category.
+
+**The inversion that makes it cohere:** your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own — apps park inference back on the agent's queue, photo references are read by the agent's eyes, publications are agent-authored, games are verified by agent-compiled traversals. Mojulo supplies what a stateless agent constitutionally lacks (persistence, runtime, memory); the agent supplies what mojulo deliberately refuses to embed (judgment, vision, language).
 
 Three binaries, one install:
 
@@ -8,7 +10,7 @@ Three binaries, one install:
 - `mojulo-ui` — local dashboard for visual operation (`npx -y -p mojulo mojulo-ui`).
 - `mojulo-config` — provider key CLI (`npx -y -p mojulo mojulo-config set anthropic sk-...`).
 
-Both `mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint from your agent shows up in the dashboard's fleet view immediately, and vice versa.
+Both `mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint from your agent shows up in the dashboard immediately, and vice versa.
 
 ## Quickstart
 
@@ -22,40 +24,31 @@ claude mcp add mojulo --command "npx -y mojulo"
 #      args = ["-y", "mojulo"]
 #    Other MCP hosts: register the same `npx -y mojulo` stdio command.
 
-# 2. Configure at least one LLM provider key
-#    (mojulo-config ships inside the mojulo package, so -p mojulo is required)
+# 2. (Only needed for deployed bots — they bring their own LLM key.
+#    Everything else runs keyless.)
 npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 
-# 3. In an agent session, ask:
-#    "build me a triage bot for my dental practice"
-
-# 4. Operate the fleet visually (optional, anytime):
-npx -y -p mojulo mojulo-ui
-#    Opens a local dashboard at 127.0.0.1 and pops your browser. Shares
-#    ~/.mojulo/ with the MCP, so any bot you mint via your agent appears in
-#    the fleet view immediately. Flags: --port <n>, --no-open, --help.
+# 3. In an agent session, just ask.
 ```
 
-Compiled bots land in `~/.mojulo/data/artifacts/`. Run them with `docker compose up`, or set a Fly token (`npx -y -p mojulo mojulo-config set fly fo1_...`) and ask your agent to deploy to the cloud.
+## What you can make
 
-On first connect, your agent calls `forward_context` to read mojulo's glossary, lifecycle, and tool index — so the session orients itself before doing anything. Host adapters (`claude-code`, `codex`, `generic`) auto-resolve from the connecting client.
+- **"Build me a triage bot for my dental practice"** → a compiled, self-hosted chatbot artifact — its own Docker zip, its own SQLite, every turn hash-chained. Run it locally or deploy to Fly.
+- **"Every Monday, digest my form submissions into Drive"** → a connected service over the MCPs you already have installed, with an append-only record of *why* it's composed the way it is.
+- **"Give me a local app that extracts fields from these scans"** → a scaffolded local process + MCP sidecar; its inference queues back to *your agent* — no per-app API key.
+- **"Draw the architecture" / "a walkable city at dusk" / "an ambient loop for it"** → media: diagrams, worlds, figures, music, films, publications — minted as tiny deterministic recipes (a world is ~30 tokens, not megabytes of mesh), re-rendered byte-identically on demand, exportable (`.glb`, `.stl`, WAV/MIDI, self-contained HTML).
+- **"Make me a game"** → composition: media levels, music, and art bound to a typed store with rules — playable standalone, and a level is refused until proven completable. 2D reducer games land in the built-in Arcade.
 
-## Tools at a glance
+On first connect your agent calls `forward_context` — a thin routing index that unfolds progressively, so a session spends tokens only on the tools it actually fires; the full tool surface stays behind drawers until needed. The optional `mojulo-orient` gallery gives consent-first guided tours that mint real starter artifacts.
 
-- **Build** — `infer_intent`, `generate_*`, `save_modular_bot`. Describe a bot in free text; the tools sequence themselves into a compiled zip.
-- **Operate** — `get_deployment`, `query_conversations`, `get_conversation`, `query_submissions`, `verify_chain`. Read what each connected bot has captured. Transcript content never leaves the bot's SQLite — these tools proxy through.
-- **Fleet** — `fleet_query_conversations`, `fleet_analytics_summary`, `verify_fleet_chains`. Cross-bot rollups; same posture, just batched.
-- **Catalysts** — `list_catalysts`, `recommend_catalysts`, `get_catalyst`. Curated workflow recipes your agent materializes through its host adapter — a Claude Code skill, a Codex automation, or a generic `workflow.md`.
+## Why it's different
 
-## Catalysts shipped
-
-`qualify-lead-to-crm` · `appointment-to-calendar` · `submission-to-ticket` · `submissions-to-warehouse` · `document-extract-to-store` · `scan-conversations-for-signal` · `knowledge-gap-miner` · `weekly-submissions-digest` · `conversations-to-channel-digest`
-
-Your agent reads one, binds it to a destination MCP you already have installed, and writes a runnable artifact through the host adapter for its client. The catalyst is the nucleation point; the resulting artifact is yours.
+- **Keyless.** Installed from npm, runs on your machine, nothing to sign up for. The MCP binds to localhost only.
+- **Recipes, not renders.** Creative artifacts are seeded deterministic recipes — diffable, replayable, re-mintable on any mojulo host. Painted images and audio renders are derived files with provenance, never the sovereign artifact.
+- **It remembers why.** Every artifact is minted beside an append-only record of intent (the contextmap), so a fresh session reconstructs prior decisions and improves the existing outcome instead of minting a stranger next to it.
+- **Verification gates.** Bots are hash-chain auditable (`verify_chain`), games are completability-gated, workflows dry-run before they promote.
 
 ## Dashboard
-
-The `mojulo-ui` bin boots a local Next.js dashboard on 127.0.0.1, no clone required:
 
 ```bash
 npx -y -p mojulo mojulo-ui                # auto-port, opens browser
@@ -63,21 +56,19 @@ npx -y -p mojulo mojulo-ui --port 3999    # pin the port
 npx -y -p mojulo mojulo-ui --no-open      # skip browser launch
 ```
 
-Same primitives as the MCP, different face — useful when you want to:
+Same primitives as the MCP, different face: browse conversations and fleet analytics, walk your worlds, play your games in the Arcade, review game projects at a glance. It renders state and hands authoring back to your agent — the workshop is driven from the conversation.
 
-- Browse conversations and submissions interactively (filter, scroll, scan).
-- Mint a bot via the wizard form rather than chat-builder turn-taking.
-- See fleet analytics as charts rather than JSON tables.
-- Click around between bots without leaving the browser.
+## 1.0
 
-Shares `~/.mojulo/data/mojulo-lite.db` with the MCP via WAL mode, so the two can run side-by-side.
+From `1.0.0` the five paradigm loops (bot · connected service · app · media · game) and the recipe format are the stable surface: additive-only DB migrations, deterministic re-render of stored recipes, loopback-only transport. The creative vocabularies keep growing in minor releases. See the [changelog](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md).
 
 ## More
 
 - Full repo and docs: <https://github.com/zombico/mojulo>
-- Architecture: [docs/BOT-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (MCP control surface)
+- Architecture: [docs/BOT-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (MCP control surface), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the visual substrate)
 - MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md)
 - Catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)
+- Terms & responsibility model: [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md), [docs/responsibility-model.md](https://github.com/zombico/mojulo/blob/main/docs/responsibility-model.md)
 
 ## License
 

@@ -1567,9 +1567,12 @@
       "stash": "스태시",
       "illustrations": "삽화",
       "worlds": "세계",
+      "objects": "오브젝트",
       "motion": "모션",
       "beats": "비트",
       "voice": "음성",
+      "games": "게임 개발자",
+      "arcade": "아케이드",
       "settings": "설정"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "준비 중…",
     "downloadGlbUnavailable": "이 스케치에 대해 내보낼 3D 메시가 없습니다.",
     "downloadGlbError": "내보내기 실패.",
+    "downloadStl": ".stl 다운로드",
+    "downloadStlPreparing": "준비 중…",
+    "downloadStlUnavailable": "이 스케치에는 내보낼 프린트 가능한 메시가 없어요.",
+    "downloadStlError": "내보내기 실패.",
+    "downloadStlHint": "3D 프린팅용 바이너리 STL — 색상 없이 형태만; 슬라이서에서 열어요.",
     "downloadHtml": "HTML 다운로드",
     "downloadHtmlPreparing": "준비 중…",
     "downloadHtmlUnavailable": "이 스케치에 대해 내보낼 독립형 HTML이 없습니다.",
@@ -1632,10 +1640,82 @@
       "step": "스텝 {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "게임 개발자",
+    "gallerySubtitle": "게임당 프로젝트 하나 — 규칙, 레벨, 캐릭터, 오디오, 아트를 한 선반에 모아요.",
+    "galleryEmpty": "아직 게임 프로젝트가 없어요. 호스트 에이전트에서 create_game_project를 실행해 시작하세요.",
+    "copyStarterPrompt": "Copy starter prompt",
+    "loading": "프로젝트 불러오는 중…",
+    "noMembersYet": "아직 멤버가 없어요",
+    "notFound": "그 프로젝트가 없어요 — 보관됐거나 ref가 잘못됐을 수 있어요.",
+    "backToProjects": "게임 개발자로 돌아가기",
+    "charter": "차터",
+    "playInArcade": "아케이드에서 플레이",
+    "copyWorkPrompt": "작업 프롬프트 복사",
+    "copyAddPrompt": "추가",
+    "copyMintPrompt": "게임 발행",
+    "copied": "복사됨",
+    "playable": "플레이 가능",
+    "missing": "Missing",
+    "missingBody": "이 멤버의 아티팩트가 더 이상 없어요. 프로젝트는 슬롯을 유지해요; 호스트 에이전트에서 다시 바인딩하거나 제거하세요.",
+    "noRules": "아직 발행된 게임이 없어요 — 프로젝트는 사전 제작 단계예요.",
+    "fromManifest": "매니페스트에서",
+    "gated": "게이트됨",
+    "openNewTab": "새 탭에서 열기",
+    "closeViewer": "닫기",
+    "noPreview": "이 멤버는 인라인 미리보기가 없어요 — 호스트 에이전트에서 아티팩트를 여세요.",
+    "gameOverview": "게임",
+    "playNewTab": "새 탭에서 플레이",
+    "storeLabel": "스토어",
+    "contentsLabel": "콘텐츠",
+    "themeLabel": "테마",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, other {레벨 #개}}",
+    "trackCountLine": "{count, plural, other {음악 트랙 #개}}",
+    "slot": {
+      "menu": "메뉴",
+      "battle": "전투"
+    },
+    "roles": {
+      "rules": "규칙",
+      "level": "레벨",
+      "character": "캐릭터",
+      "audio": "오디오",
+      "graphic": "그래픽",
+      "animation": "애니메이션",
+      "reference": "레퍼런스"
+    },
+    "levelStatus": {
+      "promoted": "승격됨",
+      "contract": "계약 있음",
+      "candidate": "후보",
+      "missing": "Missing"
+    },
+    "audioKind": {
+      "soundtrack": "사운드트랙",
+      "sfx": "효과음",
+      "voice": "음성"
+    },
+    "emptyFolder": "아직 아무것도 없어요."
+  },
+  "arcade": {
+    "title": "Mojulo 아케이드",
+    "subtitle": "워크숍에서 발행한 플레이 가능한 독립 게임들이에요. 캐비닛을 골라 플레이하세요.",
+    "loading": "캐비닛 불러오는 중…",
+    "emptyState": "아직 플로어에 게임이 없어요. 호스트 에이전트에서 create_game을 실행해 첫 캐비닛을 발행하세요.",
+    "copyStarterPrompt": "Copy starter prompt",
+    "copied": "복사됨",
+    "play": "플레이",
+    "levelCount": "{count, plural, other {레벨 #개}}",
+    "shipped": "출시됨",
+    "notFound": "그 캐비닛이 플로어에 없어요 — 게임이 제거됐을 수 있어요.",
+    "backToArcade": "아케이드로 돌아가기",
+    "openStandalone": "독립 실행으로 열기"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "삽화 스튜디오: 풍경, 인물, 3D 장면을 생성하고 동작시킵니다. 튜닝된 창작 표면, Sketches의 형제 (다이어그램용으로 튜닝됨). 삽화는 동일한 스케치 프리미티브입니다 — 두 가지 방식으로든 보관하고, 참조하고, diff할 수 있습니다."
+      "subtitle": "스튜디오: 일러스트, 걸어다닐 수 있는 월드, 3D 오브젝트, 모션, 비트, 보이스, 그리고 완성된 출력물. 다이어그램에 맞춰진 Sketches의 형제 격인, 창작에 맞춰진 작업 공간이에요. 모든 조각은 같은 sketch 프리미티브 — 어느 쪽이든 스태시하고, 참조하고, diff할 수 있어요."
     },
     "open": "열기",
     "empty": "아직 아무것도 없습니다.",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "세계",
-      "subtitle": "Traversable three.js cityscapes and transportation hubs — drag to orbit, scroll to zoom, move through them.",
-      "blurb": "Fractal cities and transportation hubs rendered as navigable 3D worlds, not flat pictures."
+      "subtitle": "걸어다닐 수 있는 three.js 월드 — 1인칭으로 이동하는 도시, 건물, 인테리어, 허브예요.",
+      "blurb": "평면 그림이 아니라 걸어다닐 수 있는 3D 월드로 렌더링된 프랙탈 도시, 건축물, 인테리어예요."
+    },
+    "objects": {
+      "title": "오브젝트",
+      "subtitle": "단일 3D 아티팩트와 스터디 — 워크벤치 부품, 어셈블리, 폴리고머, 행성, 과학·수학 뷰예요. 드래그로 궤도 회전, 스크롤로 줌해요.",
+      "blurb": "워크벤치 부품, 어셈블리, 폴리고머, 궤도 스터디 — 돌려보며 살펴보는 3D 오브젝트예요."
     },
     "motion": {
       "title": "모션",

@@ -7,6 +7,10 @@
  *   - solid             → box, slab, bracket, phone body, sign, hex blank   (profile + depth)
  *   - + wallThickness   → tray, case, enclosure, drawer, lid, planter, bin  (a recess WITHOUT a
  *                         general boolean — the same move `volume` makes for rotational vessels)
+ *   - + endProfile      → linear TAPER: a second points-profile (same point count) rings the axisTo
+ *                         end and the cross-section lerps along the axis — wedges, pyramidal frusta,
+ *                         tapered fins/keels. Repeat a vertex to pinch a face; a zero-area end ring
+ *                         drops its cap. Points profiles only; no tapered shells.
  *
  * Proven in the 0616 spikes (workbench-box, workbench-case). Emits the engine-agnostic baked face
  * list (`{ corners, fill, doubleSided }`) the World renderers consume, vexar-shaded (camera-
@@ -138,20 +142,40 @@ export function extrudeToFaces(spec = {}, opts = {}) {
   };
 
   const wall = spec.wallThickness;
+  // Optional linear taper: a second points ring at the axisTo end (validated same count). Wall
+  // normals come from the actual corner geometry (newell) since tapered walls tilt off the ring
+  // normals; a degenerate (pinched) wall is skipped and a zero-area end ring drops its cap.
+  const profTo = spec.endProfile ? buildProfile(spec.endProfile, nc) : null;
+  const ringArea = (path) => {
+    let a = 0;
+    for (let i = 0; i < path.length; i += 1) { const p = path[i], q = path[(i + 1) % path.length]; a += p.u * q.v - q.u * p.v; }
+    return a / 2;
+  };
   // openFace:'none' asks for a FULLY SEALED shell (no opening). A sealed cavity is invisible, so we
   // build the closed solid outer prism — watertight by construction. (Without this, 'none' fell
   // through to the 'to' branch and shipped an open end: a closed enclosure with no surface on it.)
   if (!Number.isFinite(wall) || wall <= 0 || spec.openFace === 'none') {
     // ── SOLID prism: side walls + two end caps ──
+    const P1 = profTo || prof;
     for (let i = 0; i < M; i += 1) {
       const j = (i + 1) % M;
-      const no = norm3(add3(out3(prof[i]), out3(prof[j])));
-      faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shade(tint, no), doubleSided: true });
+      const corners = [pt(prof[i], 0), pt(prof[j], 0), pt(P1[j], 1), pt(P1[i], 1)];
+      let no;
+      if (profTo) {
+        let raw = newellNormal(corners);
+        if (Math.hypot(raw[0], raw[1], raw[2]) < 1e-9) continue;   // pinched wall: zero area
+        const hint = add3(add3(out3(prof[i]), out3(prof[j])), add3(out3(P1[i]), out3(P1[j])));
+        if (dot3(raw, hint) < 0) raw = [-raw[0], -raw[1], -raw[2]];
+        no = norm3(raw);
+      } else {
+        no = norm3(add3(out3(prof[i]), out3(prof[j])));
+      }
+      faces.push({ corners, fill: shade(tint, no), doubleSided: true });
       if (faces.length >= MAX_FACES_PER_EXTRUDE) return faces;
     }
     if (caps) {
-      faces.push(...fanCap(prof, 0, [-dir[0], -dir[1], -dir[2]], tint, true));
-      faces.push(...fanCap(prof, 1, dir, tint, false));
+      if (!profTo || Math.abs(ringArea(prof)) > 1e-9) faces.push(...fanCap(prof, 0, [-dir[0], -dir[1], -dir[2]], tint, true));
+      if (!profTo || Math.abs(ringArea(P1)) > 1e-9) faces.push(...fanCap(P1, 1, dir, tint, false));
     }
     return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_EXTRUDE), mat);
   }
@@ -212,6 +236,16 @@ export function validateExtrudes(extrudes, _emittedNodes) {
     }
     if (spec.floorThickness !== undefined && (!Number.isFinite(spec.floorThickness) || spec.floorThickness < 0)) errors.push(`${at}.floorThickness must be a non-negative number if provided`);
     if (spec.openFace !== undefined && !['to', 'from', 'none'].includes(spec.openFace)) errors.push(`${at}.openFace must be 'to' | 'from' | 'none' if provided`);
+    // taper
+    if (spec.endProfile !== undefined) {
+      const ep = spec.endProfile;
+      const isPolyEnd = ep && Array.isArray(ep.points) && ep.points.length >= 3
+        && ep.points.every((p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+      if (!isPoly) errors.push(`${at}.endProfile: a taper requires a points profile (rect profiles cannot taper in v1)`);
+      if (!isPolyEnd) errors.push(`${at}.endProfile must be { points:[≥3 [u,v]] }`);
+      else if (isPoly && ep.points.length !== prof.points.length) errors.push(`${at}.endProfile must have the same point count as profile (${prof.points.length})`);
+      if (spec.wallThickness !== undefined) errors.push(`${at}.endProfile cannot combine with wallThickness (no tapered shells in v1)`);
+    }
   });
   return errors;
 }

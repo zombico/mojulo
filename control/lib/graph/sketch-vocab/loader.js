@@ -105,18 +105,31 @@ export function parseVocabCard(filePath, raw) {
 function loadCatalog() {
   const cards = new Map();
   if (!existsSync(VOCAB_DIR)) return cards;
-  const files = readdirSync(VOCAB_DIR).filter((f) => f.endsWith('.md'));
-  for (const file of files) {
-    const filePath = join(VOCAB_DIR, file);
-    const raw = readFileSync(filePath, 'utf8');
-    const card = parseVocabCard(filePath, raw);
+  const addCard = (filePath, fileLabel) => {
+    const card = parseVocabCard(filePath, readFileSync(filePath, 'utf8'));
     if (cards.has(card.id)) {
       throw new Error(
-        `Sketch vocab id collision: '${card.id}' is declared in both ${cards.get(card.id)._file} and ${file}.`,
+        `Sketch vocab id collision: '${card.id}' is declared in both ${cards.get(card.id)._file} and ${fileLabel}.`,
       );
     }
-    card._file = file;
+    card._file = fileLabel;
     cards.set(card.id, card);
+  };
+  for (const file of readdirSync(VOCAB_DIR).filter((f) => f.endsWith('.md'))) {
+    addCard(join(VOCAB_DIR, file), file);
+  }
+  // Pack vocab (generic seam): any `lib/graph/<pack>/vocab/*.md` joins the catalog. Content
+  // packs are gitignored trees (e.g. the mobile-suit pack) whose cards ride the same
+  // retrieval index only while the pack is installed — pack absent, cards absent; no
+  // name-list to edit on either side.
+  const GRAPH_DIR = join(VOCAB_DIR, '..');
+  for (const entry of readdirSync(GRAPH_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'sketch-vocab') continue;
+    const packVocab = join(GRAPH_DIR, entry.name, 'vocab');
+    if (!existsSync(packVocab)) continue;
+    for (const file of readdirSync(packVocab).filter((f) => f.endsWith('.md'))) {
+      addCard(join(packVocab, file), join(entry.name, 'vocab', file));
+    }
   }
   return cards;
 }

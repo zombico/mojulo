@@ -3,6 +3,10 @@
 // hit the DB or only exercise the "unknown deploymentId → null → throw" path,
 // so this change doesn't affect their behavior.
 process.env.SQLITE_PATH = ':memory:';
+// The mint_catalyst tests write through the *WithEmbedding repository paths —
+// disable the semantic index so no ONNX model load fires under test (the
+// embedding mirror itself is covered by local-catalysts-embedding.test.js).
+process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -14,6 +18,7 @@ import {
   customCatalystHandler,
   getCatalystHandler,
   listCatalystsHandler,
+  mintCatalystHandler,
   recommendCatalystsHandler,
 } from './catalysts.js';
 import { rememberClientInfo, _resetClientBindingsForTests } from '@/lib/mcp/client-bindings';
@@ -401,6 +406,15 @@ describe('CUSTOM_CATALYST_GUIDE — author posture for remote contributors', () 
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/control\/lib\/mcp\/catalysts\//);
   });
 
+  it('mint-first posture — mint_catalyst is the default endpoint, PR is graduation', () => {
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/mint_catalyst/);
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/local shelf \(default endpoint\)/i);
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/graduation/i);
+    // The bar framing survives the fork — local minting is not an excuse for
+    // thin catalysts.
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/curated bar even when minting locally/i);
+  });
+
   it('reminds the agent the body is a prompt, not documentation', () => {
     // This is the single most load-bearing framing from the in-repo skill —
     // worth asserting it survives every edit to the guide.
@@ -418,6 +432,172 @@ describe('customCatalystHandler', () => {
     const a = await customCatalystHandler({});
     const b = await customCatalystHandler({ foo: 'bar' });
     expect(a).toEqual(b);
+  });
+});
+
+// The local shelf (local-catalysts.plan.md) — mint_catalyst + merged catalog
+// behavior across list/get/recommend.
+describe('mintCatalystHandler — the local shelf', () => {
+  beforeEach(() => {
+    closeDb();
+    getDb();
+  });
+
+  const mintInput = {
+    id: 'evening-digest',
+    name: 'Evening Digest',
+    summary: 'Digest the day into a channel',
+    valueHook: 'A nightly summary without asking for it',
+    category: 'digest',
+    body: '# Body\n\nMapping intent prose.',
+  };
+
+  it('mints at rev 1 and returns the graduation fileText', async () => {
+    const out = await mintCatalystHandler(mintInput);
+    expect(out.action).toBe('mint');
+    expect(out.catalyst).toMatchObject({ id: 'evening-digest', rev: 1, version: 1, origin: 'local', status: 'active' });
+    expect(out.revisions).toHaveLength(1);
+    expect(out.fileText).toMatch(/^---\n/);
+    expect(out.fileText).toContain('"id": "evening-digest"');
+    expect(out.fileText).toContain('Mapping intent prose.');
+    expect(out.graduation).toMatch(/control\/lib\/mcp\/catalysts\//);
+  });
+
+  it('a minted catalyst is live in list_catalysts and get_catalyst like a shipped one', async () => {
+    await mintCatalystHandler(mintInput);
+
+    const list = await listCatalystsHandler({});
+    const mine = list.catalysts.find((c) => c.id === 'evening-digest');
+    expect(mine).toMatchObject({ origin: 'local', rev: 1, kind: 'workflow' });
+    // Curated entries are annotated too.
+    expect(list.catalysts.find((c) => c.id === 'qualify-lead-to-crm').origin).toBe('curated');
+
+    const got = await getCatalystHandler({ id: 'evening-digest', host: 'generic' });
+    expect(got.origin).toBe('local');
+    expect(got.body.startsWith(CATALYST_CORE_PREAMBLE)).toBe(true); // workflow composition applies
+    expect(got.fileText).toContain('"id": "evening-digest"');
+    expect(got.revisions).toHaveLength(1);
+  });
+
+  it('a minted catalyst participates in recommend_catalysts with origin local', async () => {
+    seedDeployment();
+    await mintCatalystHandler({ ...mintInput, requires: { protocols: ['knowledge'] } });
+    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const mine = [...out.applicable, ...out.requiresProtocolChange].find((r) => r.id === 'evening-digest');
+    expect(mine).toBeTruthy();
+    expect(mine.origin).toBe('local');
+  });
+
+  it('update requires a note, appends a revision, and rev reads history', async () => {
+    await mintCatalystHandler(mintInput);
+    await expect(mintCatalystHandler({ ...mintInput, summary: 'v2' })).rejects.toThrow(/requires 'note'/);
+
+    const updated = await mintCatalystHandler({ ...mintInput, summary: 'v2', body: '# v2\n\nRevised.', note: 'tighten' });
+    expect(updated.action).toBe('update');
+    expect(updated.catalyst.rev).toBe(2);
+    expect(updated.revisions.map((r) => r.rev)).toEqual([2, 1]);
+
+    const head = await getCatalystHandler({ id: 'evening-digest', host: 'generic' });
+    expect(head.summary).toBe('v2');
+    const rev1 = await getCatalystHandler({ id: 'evening-digest', host: 'generic', rev: 1 });
+    expect(rev1.summary).toBe('Digest the day into a channel');
+    expect(rev1.headRev).toBe(2);
+    await expect(getCatalystHandler({ id: 'evening-digest', rev: 9 })).rejects.toThrow(/no revision 9/);
+  });
+
+  it('rev is rejected for curated ids — their history lives in git', async () => {
+    await expect(getCatalystHandler({ id: 'qualify-lead-to-crm', rev: 1 })).rejects.toThrow(/git/);
+  });
+
+  it('refuses curated ids in both directions', async () => {
+    await expect(mintCatalystHandler({ ...mintInput, id: 'qualify-lead-to-crm' })).rejects.toThrow(
+      /curated catalyst shipped with mojulo/,
+    );
+  });
+
+  it('enforces the structural spec — destinationExamples pairing', async () => {
+    await expect(
+      mintCatalystHandler({ ...mintInput, requires: { destinationMcpCategory: 'crm-like' } }),
+    ).rejects.toThrow(/destinationExamples/);
+  });
+
+  it('archive hides it from list/get with a revival hint; update revives', async () => {
+    await mintCatalystHandler(mintInput);
+    const archived = await mintCatalystHandler({ id: 'evening-digest', archive: true });
+    expect(archived).toMatchObject({ action: 'archive', changed: true, status: 'archived' });
+
+    const list = await listCatalystsHandler({});
+    expect(list.catalysts.some((c) => c.id === 'evening-digest')).toBe(false);
+    await expect(getCatalystHandler({ id: 'evening-digest' })).rejects.toThrow(/archived.*revives/s);
+
+    const revived = await mintCatalystHandler({ ...mintInput, note: 'bring it back' });
+    expect(revived.action).toBe('revive');
+    expect(revived.catalyst).toMatchObject({ rev: 2, status: 'active' });
+  });
+
+  it('a curated catalyst shipped later eclipses the local id — curated wins, local flagged', async () => {
+    await mintCatalystHandler({ ...mintInput, id: 'fixture-eclipse' });
+    // Simulate a mojulo upgrade shipping a curated catalyst under the same id.
+    _resetCatalogForTests(
+      new Map([
+        [
+          'fixture-eclipse',
+          {
+            id: 'fixture-eclipse',
+            name: 'Shipped Eclipse',
+            summary: 'now curated',
+            valueHook: 'v',
+            kind: 'workflow',
+            version: 1,
+            category: 'misc',
+            requires: {},
+            parameters: [],
+            mcpTools: {},
+            outputContract: null,
+            body: 'Curated body.',
+            _file: 'fixture-eclipse.md',
+          },
+        ],
+      ]),
+    );
+    try {
+      const list = await listCatalystsHandler({});
+      const entries = list.catalysts.filter((c) => c.id === 'fixture-eclipse');
+      expect(entries).toHaveLength(2);
+      expect(entries.find((c) => c.origin === 'curated').eclipsed).toBeUndefined();
+      const eclipsed = entries.find((c) => c.origin === 'local');
+      expect(eclipsed.eclipsed).toBe(true);
+      expect(eclipsed.note).toMatch(/re-mint/i);
+
+      // Bare id resolves to the curated one; the local row is preserved but unreachable.
+      const got = await getCatalystHandler({ id: 'fixture-eclipse', host: 'generic' });
+      expect(got.origin).toBe('curated');
+      expect(got.name).toBe('Shipped Eclipse');
+
+      // And the id can no longer be minted over.
+      await expect(mintCatalystHandler({ ...mintInput, id: 'fixture-eclipse', note: 'n' })).rejects.toThrow(
+        /curated catalyst shipped with mojulo/,
+      );
+    } finally {
+      _resetCatalogForTests(null);
+    }
+  });
+
+  it('minted technique catalysts skip preamble/adapter and recommendations', async () => {
+    seedDeployment();
+    await mintCatalystHandler({
+      ...mintInput,
+      id: 'technique-scratch-store',
+      kind: 'technique',
+      body: 'Technique body.',
+    });
+    const got = await getCatalystHandler({ id: 'technique-scratch-store' });
+    expect(got.adapter).toBeNull();
+    expect(got.body).toBe('Technique body.');
+
+    const rec = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const all = [...rec.applicable, ...rec.requiresProtocolChange];
+    expect(all.some((r) => r.id === 'technique-scratch-store')).toBe(false);
   });
 });
 

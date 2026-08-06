@@ -56,10 +56,10 @@ describe('windmill-view — the rotor spins about its axis', () => {
 });
 
 describe('windmill-view registration', () => {
-  it('routes to the world renderer and the world concern bucket', () => {
+  it('routes to the world renderer and the object concern bucket', () => {
     const m = { kind: 'windmill-view' };
     expect(sketchRenderMode(m)).toBe('world');
-    expect(classifyBucket(m)).toBe('world');
+    expect(classifyBucket(m)).toBe('object');
   });
 
   it('assemble threads faces + the spin mover + wind tracers, glow off', () => {

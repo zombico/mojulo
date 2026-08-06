@@ -32,7 +32,7 @@ import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
 import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
-import { getCatalyst } from '@/lib/mcp/catalysts/loader';
+import { getMergedCatalyst } from '@/lib/mcp/catalysts/catalog';
 import { verifyArtifact, verifyAppArtifact } from '@/lib/mcp/meta-context/verification';
 import {
   embedPrincipleBodies,
@@ -335,7 +335,9 @@ function buildArtifactRef(adapterId, locator) {
 }
 
 function resolveCatalystLabel(catalystRef) {
-  const catalyst = getCatalyst(catalystRef);
+  // Merged view — a materialization can come from the curated shelf or an
+  // operator-minted local catalyst.
+  const catalyst = getMergedCatalyst(catalystRef);
   return catalyst?.name || catalystRef;
 }
 

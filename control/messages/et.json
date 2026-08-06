@@ -1567,9 +1567,12 @@
       "stash": "Peidud",
       "illustrations": "Illustratsioonid",
       "worlds": "Maailmad",
+      "objects": "Objektid",
       "motion": "Liikumine",
       "beats": "Rütmid",
       "voice": "Hääl",
+      "games": "Mänguarendaja",
+      "arcade": "Arkaad",
       "settings": "Seaded"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Ettevalmistamine…",
     "downloadGlbUnavailable": "Selle skitseri jaoks pole 3D võrku eksportida.",
     "downloadGlbError": "Eksport ebaõnnestus.",
+    "downloadStl": "Laadi alla .stl",
+    "downloadStlPreparing": "Ettevalmistamine…",
+    "downloadStlUnavailable": "Selle visandi jaoks pole eksportida prinditavat võrgustikku.",
+    "downloadStlError": "Eksport ebaõnnestus.",
+    "downloadStlHint": "Binaarne STL 3D-printimiseks — ainult kuju, ilma värvita; ava oma viilutajas.",
     "downloadHtml": "Laadi HTML",
     "downloadHtmlPreparing": "Ettevalmistamine…",
     "downloadHtmlUnavailable": "Selle skitseri jaoks pole iseseisvat HTML-i eksportida.",
@@ -1632,10 +1640,82 @@
       "step": "samm {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Mänguarendaja",
+    "gallerySubtitle": "Üks projekt mängu kohta — selle reeglid, tasemed, tegelased, heli ja kunst ühel riiulil.",
+    "galleryEmpty": "Veel pole mänguprojekte. Alusta create_game_project käivitamisega oma host-agendist.",
+    "copyStarterPrompt": "Kopeeri käivitamiskutsed",
+    "loading": "Projektide laadimine…",
+    "noMembersYet": "Veel pole liikmeid",
+    "notFound": "Seda projekti ei ole olemas — see võib olla arhiveeritud või viide on vale.",
+    "backToProjects": "Tagasi Mänguarendajasse",
+    "charter": "Harta",
+    "playInArcade": "Mängi Arkaadis",
+    "copyWorkPrompt": "Kopeeri tööviip",
+    "copyAddPrompt": "lisa",
+    "copyMintPrompt": "vermi mäng",
+    "copied": "Kopeeritud",
+    "playable": "Mängitav",
+    "missing": "[UNTRANSLATED:Missing]",
+    "missingBody": "Selle liikme artefakti enam ei ole. Projekt hoiab pesa alles; seo uuesti või eemalda see oma host-agendist.",
+    "noRules": "Mängu pole veel vermitud — projekt on eeltootmises.",
+    "fromManifest": "manifestist",
+    "gated": "piiratud",
+    "openNewTab": "Ava uuel vahekaardil",
+    "closeViewer": "Sulge",
+    "noPreview": "Selle liikme jaoks pole reasisest eelvaadet — ava selle artefakt oma host-agendist.",
+    "gameOverview": "Mäng",
+    "playNewTab": "Mängi uuel vahekaardil",
+    "storeLabel": "Salv",
+    "contentsLabel": "Sisu",
+    "themeLabel": "Teema",
+    "refLabel": "[UNTRANSLATED:Ref]",
+    "levelCountLine": "{count, plural, one {# tase} other {# taset}}",
+    "trackCountLine": "{count, plural, one {# muusikapala} other {# muusikapala}}",
+    "slot": {
+      "menu": "Menüü",
+      "battle": "Lahing"
+    },
+    "roles": {
+      "rules": "Reeglid",
+      "level": "Tasemed",
+      "character": "Tegelased",
+      "audio": "Heli",
+      "graphic": "Graafika",
+      "animation": "Animatsioon",
+      "reference": "Viited"
+    },
+    "levelStatus": {
+      "promoted": "Edutatud",
+      "contract": "Lepinguga",
+      "candidate": "Kandidaat",
+      "missing": "[UNTRANSLATED:Missing]"
+    },
+    "audioKind": {
+      "soundtrack": "Heliriba",
+      "sfx": "SFX",
+      "voice": "Hääl"
+    },
+    "emptyFolder": "Siin pole veel midagi."
+  },
+  "arcade": {
+    "title": "Mojulo Arkaad",
+    "subtitle": "Mängitavad iseseisvad mängud, vermitud töökojas. Vali kapp ja mängi.",
+    "loading": "Kappide laadimine…",
+    "emptyState": "Põrandal pole veel mänge. Esimese kapi vermimiseks käivita create_game oma host-agendist.",
+    "copyStarterPrompt": "Kopeeri käivitamiskutsed",
+    "copied": "Kopeeritud",
+    "play": "Mängi",
+    "levelCount": "{count, plural, one {# tase} other {# taset}}",
+    "shipped": "Tarnitud",
+    "notFound": "Seda kappi pole põrandal — mäng võib olla eemaldatud.",
+    "backToArcade": "Tagasi Arkaadi",
+    "openStandalone": "Ava iseseisvana"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "[UNTRANSLATED:The illustration studio: mint landscapes]"
+      "subtitle": "Stuudio: illustratsioonid, läbitavad maailmad, 3D-objektid, liikumine, biidid, hääl ja valmis väljundid. Häälestatud loominguline pind, Visandite sõsar (häälestatud diagrammide jaoks). Iga tükk on sama visandi primitiiv — talleta, viita ja võrdle seda mõlemal juhul."
     },
     "open": "Ava",
     "empty": "Siia pole midagi",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Maailmad",
-      "subtitle": "[UNTRANSLATED:Traversable three.js cityscapes and tran]",
-      "blurb": "Fraktaalilised linnad ja transpordisilmad renderdatakse navigeeritavate 3D-maailmadena, mitte lamedad piltidena."
+      "subtitle": "Läbitavad three.js maailmad — linnad, hooned, siseruumid ja sõlmed, mida läbid esimeses isikus.",
+      "blurb": "Fraktaallinnad, ehitised ja siseruumid renderdatud läbitavate 3D-maailmadena, mitte lamedate piltidena."
+    },
+    "objects": {
+      "title": "Objektid",
+      "subtitle": "Üksikud 3D-artefaktid ja uuringud — töölaua osad, koostud, polügomeerid, planeedid, teadus- ja matemaatikavaated. Lohista tiirlemiseks, keri suumimiseks.",
+      "blurb": "Töölaua osad, koostud, polügomeerid ja orbiidiuuringud — 3D-asjad, mida keerad ja vaatad."
     },
     "motion": {
       "title": "Liikumine",

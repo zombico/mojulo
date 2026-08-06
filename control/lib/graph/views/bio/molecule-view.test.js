@@ -129,8 +129,8 @@ describe('assembleMoleculeScene', () => {
 });
 
 describe('molecule-view render routing', () => {
-  it('routes to the traversable World, in the world concern bucket', () => {
+  it('routes to the World renderer, in the object concern bucket', () => {
     expect(sketchRenderMode({ kind: 'molecule-view' })).toBe('world');
-    expect(classifyBucket({ kind: 'molecule-view' })).toBe('world');
+    expect(classifyBucket({ kind: 'molecule-view' })).toBe('object');
   });
 });

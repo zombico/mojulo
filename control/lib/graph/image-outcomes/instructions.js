@@ -16,9 +16,11 @@ import {
   KIND_CHARACTER_SHEET,
   KIND_KEYFRAME_ANIMATION,
   KIND_SCENE_MOTION,
+  KIND_SPRITE_SHEET,
   normalizeImageOutcomesManifest,
   parseKeyframeTarget,
   parseSceneTarget,
+  parseSpriteTarget,
 } from './manifest.js';
 import { subCelPhrase } from './pan-cel-spike/sub-cels.js';
 import { cameraPhrase } from './cameras.js';
@@ -198,7 +200,52 @@ export function buildRenderInstructions(manifest, options = {}) {
   }
   if (normalized.kind === KIND_KEYFRAME_ANIMATION) return keyframeInstructions(normalized, options);
   if (normalized.kind === KIND_SCENE_MOTION) return sceneStageInstructions(normalized, options);
+  if (normalized.kind === KIND_SPRITE_SHEET) return spriteSheetInstructions(normalized, options);
   throw new Error(`unknown image-outcomes kind: ${normalized.kind}`);
+}
+
+/**
+ * The per-frame handoff for a sprite-sheet target. The worker paints ONE game
+ * sprite — the character in the frame's action/direction pose — over the single
+ * cell scaffold, on a fully TRANSPARENT background so the bake step can quantize
+ * it cleanly. Identity across frames is held by the character sheet conditioning
+ * (same rules as keyframe-animation); this brief scopes the one pose.
+ */
+export function spriteSheetInstructions(manifest, options = {}) {
+  const normalized = normalizeImageOutcomesManifest(manifest);
+  const targets = normalized.frames.map((f) => `frame-${f.id}`);
+  const target = options.target ?? targets[0];
+  const { frame } = parseSpriteTarget(normalized, target);
+  const ch = normalized.characters[0];
+  const styleBlock = normalized.renderBrief
+    ? briefSections(normalized.renderBrief)
+    : [
+        '## Style',
+        '- clean 2D game sprite, flat colors, crisp readable silhouette, on-model with every other frame',
+      ];
+  return [
+    `# Sprite frame — ${normalized.title} · ${frame.action}${frame.direction ? ` (${frame.direction})` : ''}${frame.base ? ' · BASE' : ''}`,
+    '',
+    ...WORKER_PIPELINE,
+    '',
+    ...(ch
+      ? [
+          `## Character (identity — hold across ALL frames)`,
+          `- ${ch.name ? `${ch.name}: ` : ''}${ch.description}`,
+          ...(frame.base
+            ? ['- This is the BASE frame — the canonical pose every other frame is measured against. Render the clearest, most neutral read of the character.']
+            : ['- Match the base frame\'s exact design, palette, scale, and framing — ONLY the pose changes for this action.']),
+          '',
+        ]
+      : []),
+    '## The contract',
+    `- Paint ONE sprite performing "${frame.action}"${frame.direction ? ` facing ${frame.direction}` : ''}, centered in the cell, feet on the baseline.`,
+    `- Output EXACTLY ${normalized.cell.width}×${normalized.cell.height}px, on a FULLY TRANSPARENT background — no ground, no shadow, no scenery, no gutter fill.`,
+    '- Keep the character the SAME size and vertical registration as every other frame (a walk cycle must not bob in scale).',
+    '- No outline halo or anti-aliased fringe bleeding past the silhouette — the bake quantizes hard edges.',
+    '',
+    ...styleBlock,
+  ].join('\n');
 }
 
 /**
@@ -339,7 +386,7 @@ export function buildCharacterSheetInstructions(manifest, characterId) {
     }
   } else if (
     normalized.kind === KIND_SEQUENTIAL_ART || normalized.kind === KIND_IMAGE_OUTCOME
-    || normalized.kind === KIND_KEYFRAME_ANIMATION
+    || normalized.kind === KIND_KEYFRAME_ANIMATION || normalized.kind === KIND_SPRITE_SHEET
   ) {
     ch = normalized.characters.find((c) => c.id === characterId);
     if (!ch) {
@@ -348,7 +395,7 @@ export function buildCharacterSheetInstructions(manifest, characterId) {
       );
     }
   } else {
-    throw new Error('character sheets belong to image-outcome, sequential-art, keyframe-animation, or character-sheet manifests');
+    throw new Error('character sheets belong to image-outcome, sequential-art, keyframe-animation, sprite-sheet, or character-sheet manifests');
   }
   const outfits = ch.outfits.length ? ch.outfits : [{ id: 'default', description: 'as described above' }];
   // A keyframe-animation clip MAY carry a renderBrief (preset / fork / custom

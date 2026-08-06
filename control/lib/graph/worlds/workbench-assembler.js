@@ -136,6 +136,7 @@ function walkAssembler(manifest = {}) {
   const placements = [];
 
   items.forEach((item, index) => {
+    const faceStart = faces.length;
     const oriented = bakeOriented(item);
     const { min: zmin, max: zmax } = zExtent(oriented);
     const at = Array.isArray(item.at) ? item.at : [0, 0, 0];
@@ -152,11 +153,21 @@ function walkAssembler(manifest = {}) {
 
     const offsets = repeatOffsets(item);
     let itemTop = -Infinity;
+    const itemBounds = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
     for (const off of offsets) {
       const tx = at[0] + off[0];
       const ty = at[1] + off[1];
       const tz = translateZ + off[2];
-      for (const f of oriented) faces.push({ ...f, corners: f.corners.map(([x, y, z]) => [x + tx, y + ty, z + tz]) });
+      for (const f of oriented) {
+        faces.push({ ...f, corners: f.corners.map(([x, y, z]) => [x + tx, y + ty, z + tz]) });
+        for (const [x, y, z] of f.corners) {
+          const w = [x + tx, y + ty, z + tz];
+          for (let i = 0; i < 3; i += 1) {
+            if (w[i] < itemBounds.min[i]) itemBounds.min[i] = w[i];
+            if (w[i] > itemBounds.max[i]) itemBounds.max[i] = w[i];
+          }
+        }
+      }
       if (zmax + tz > itemTop) itemTop = zmax + tz;
     }
     if (itemTop === -Infinity) itemTop = zmax + translateZ;
@@ -170,6 +181,14 @@ function walkAssembler(manifest = {}) {
       copies: offsets.length,
       baseZ: translateZ + zmin,
       topZ: itemTop,
+      // The RESOLVED base-copy translate (gravity z computed) + the item's world AABB
+      // across all copies — consumed by the rig/pose seam (unit-pose.js).
+      translate: [at[0], at[1], translateZ],
+      bounds: Number.isFinite(itemBounds.min[0]) ? itemBounds : null,
+      // This item's contiguous slice of the merged face list (all copies) —
+      // the rig bake (unit-rig.js) groups faces per station through this.
+      faceStart,
+      faceCount: faces.length - faceStart,
       ...(item.on != null ? { on: item.on, gap } : {}),
     });
   });
@@ -180,6 +199,24 @@ function walkAssembler(manifest = {}) {
 /** Lower the whole assembler to one merged World face list (every seated + repeated part). */
 export function lowerAssemblerFaces(manifest = {}) {
   return walkAssembler(manifest).faces;
+}
+
+/**
+ * Faces AND resolved placements from ONE walk — for consumers that need both
+ * (the rig bake slices per-item faces out of the merged list via each
+ * placement's faceStart/faceCount) without lowering the assembly twice.
+ */
+export function lowerAssemblerBuild(manifest = {}) {
+  return walkAssembler(manifest);
+}
+
+/**
+ * Per-item RESOLVED placements — id, computed translate (gravity z included), world AABB —
+ * without keeping the merged faces. The rig/pose seam reads suit joints and station
+ * positions from this, so posing math never re-derives seating.
+ */
+export function resolveAssemblerPlacements(manifest = {}) {
+  return walkAssembler(manifest).placements;
 }
 
 const round1 = (n) => Math.round(n * 10) / 10;

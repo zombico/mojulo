@@ -1567,9 +1567,12 @@
       "stash": "Depolama Alanları",
       "illustrations": "İllüstrasyonlar",
       "worlds": "Dünyalar",
+      "objects": "Nesneler",
       "motion": "Hareket",
       "beats": "Ritimler",
       "voice": "Ses",
+      "games": "Oyun Geliştirici",
+      "arcade": "Oyun Salonu",
       "settings": "Ayarlar"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Hazırlanıyor…",
     "downloadGlbUnavailable": "Bu taslak için dışa aktarılacak 3D ağ yok.",
     "downloadGlbError": "Dışa aktarma başarısız oldu.",
+    "downloadStl": "İndir .stl",
+    "downloadStlPreparing": "Hazırlanıyor…",
+    "downloadStlUnavailable": "Bu eskiz için dışa aktarılacak yazdırılabilir örgü yok.",
+    "downloadStlError": "Dışa aktarma başarısız oldu.",
+    "downloadStlHint": "3D baskı için ikili STL — yalnızca şekil, renk yok; dilimleyicinde aç.",
     "downloadHtml": "HTML İndir",
     "downloadHtmlPreparing": "Hazırlanıyor…",
     "downloadHtmlUnavailable": "Bu taslak için dışa aktarılacak bağımsız HTML yok.",
@@ -1632,10 +1640,82 @@
       "step": "adım {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Oyun Geliştirici",
+    "gallerySubtitle": "Oyun başına tek proje — kuralları, seviyeleri, karakterleri, sesi ve sanatı tek bir rafta.",
+    "galleryEmpty": "Henüz oyun projesi yok. Bir tane başlatmak için ana makine ajanından create_game_project çalıştır.",
+    "copyStarterPrompt": "Başlangıç istemini kopyala",
+    "loading": "Projeler yükleniyor…",
+    "noMembersYet": "Henüz üye yok",
+    "notFound": "Bu proje mevcut değil — arşivlenmiş olabilir ya da referans hatalı.",
+    "backToProjects": "Oyun Geliştirici'ye dön",
+    "charter": "Tüzük",
+    "playInArcade": "Oyun Salonunda oyna",
+    "copyWorkPrompt": "Çalışma istemini kopyala",
+    "copyAddPrompt": "ekle",
+    "copyMintPrompt": "oyunu bas",
+    "copied": "Kopyalandı",
+    "playable": "Oynanabilir",
+    "missing": "Eksik",
+    "missingBody": "Bu üyenin yapıtı artık mevcut değil. Proje yuvayı koruyor; ana makine ajanından yeniden bağla ya da kaldır.",
+    "noRules": "Henüz oyun basılmadı — proje ön yapım aşamasında.",
+    "fromManifest": "manifestten",
+    "gated": "kapılı",
+    "openNewTab": "Yeni sekmede aç",
+    "closeViewer": "Kapat",
+    "noPreview": "Bu üye için satır içi önizleme yok — yapıtını ana makine ajanından aç.",
+    "gameOverview": "Oyun",
+    "playNewTab": "Yeni sekmede oyna",
+    "storeLabel": "Depo",
+    "contentsLabel": "İçerik",
+    "themeLabel": "Tema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# seviye} other {# seviye}}",
+    "trackCountLine": "{count, plural, one {# müzik parçası} other {# müzik parçası}}",
+    "slot": {
+      "menu": "Menü",
+      "battle": "Savaş"
+    },
+    "roles": {
+      "rules": "Kurallar",
+      "level": "Seviyeler",
+      "character": "Karakterler",
+      "audio": "Ses",
+      "graphic": "Grafik",
+      "animation": "Animasyon",
+      "reference": "Referanslar"
+    },
+    "levelStatus": {
+      "promoted": "Yükseltildi",
+      "contract": "Sözleşmesi var",
+      "candidate": "Aday",
+      "missing": "Eksik"
+    },
+    "audioKind": {
+      "soundtrack": "Müzik",
+      "sfx": "SFX",
+      "voice": "Ses"
+    },
+    "emptyFolder": "Burada henüz bir şey yok."
+  },
+  "arcade": {
+    "title": "Mojulo Oyun Salonu",
+    "subtitle": "Atölyeden basılmış, oynanabilir bağımsız oyunlar. Bir kabin seç ve oyna.",
+    "loading": "Kabinler yükleniyor…",
+    "emptyState": "Salonda henüz oyun yok. İlk kabini basmak için ana makine ajanından create_game çalıştır.",
+    "copyStarterPrompt": "Başlangıç istemini kopyala",
+    "copied": "Kopyalandı",
+    "play": "Oyna",
+    "levelCount": "{count, plural, one {# seviye} other {# seviye}}",
+    "shipped": "Yayınlandı",
+    "notFound": "Bu kabin salonda değil — oyun kaldırılmış olabilir.",
+    "backToArcade": "Oyun Salonuna dön",
+    "openStandalone": "Bağımsız aç"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Yapımcı",
-      "subtitle": "İllüstrasyon stüdyosu: peyzaj, figür ve 3B sahne oluşturun ve bunları harekete geçirin. İnce ayarlanmış yaratıcı yüzey, Taslakların (diyagramlar için ayarlanmış) kardeşi. Bir illüstrasyon aynı taslak ilkelidir — bunu her iki şekilde de depolayın, referans alın ve farkını bulun."
+      "subtitle": "Stüdyo: illüstrasyonlar, gezilebilir dünyalar, 3D nesneler, hareket, beat'ler, ses ve bitmiş çıktılar. İnce ayarlı bir yaratıcı yüzey, Eskizler'in kardeşi (diyagramlar için ayarlı). Her parça aynı eskiz ilkeli — her iki şekilde de sakla, referansla ve karşılaştır."
     },
     "open": "Aç",
     "empty": "Henüz hiçbir şey yok",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Dünyalar",
-      "subtitle": "Gezinti yapılabilir three.js şehir manzaraları ve ulaştırma merkezleri — yörüngede sürükleyin, yakınlaştırmak için kaydırın, aralarında gezinin.",
-      "blurb": "Fraktal şehirler ve ulaştırma merkezleri, düz resimler değil, gezinti yapılabilir 3D dünyalar olarak işlenir."
+      "subtitle": "Gezilebilir three.js dünyaları — birinci şahıs olarak içinde dolaştığın şehirler, binalar, iç mekânlar ve merkezler.",
+      "blurb": "Düz resimler değil, gezilebilir 3D dünyalar olarak işlenmiş fraktal şehirler, yapılar ve iç mekânlar."
+    },
+    "objects": {
+      "title": "Nesneler",
+      "subtitle": "Tekil 3D yapıtlar ve çalışmalar — tezgah parçaları, montajlar, polygomer'ler, gezegenler, bilim ve matematik görünümleri. Yörüngede döndürmek için sürükle, yakınlaştırmak için kaydır.",
+      "blurb": "Tezgah parçaları, montajlar, polygomer'ler ve yörünge çalışmaları — döndürüp baktığın 3D şeyler."
     },
     "motion": {
       "title": "Hareket",

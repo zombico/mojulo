@@ -36,7 +36,8 @@ built like an assembly (surfaces of revolution + prisms + tubes). Neither
 neighbour serves it: the figure protoform reads too fleshy, and the plain object
 loop has no identity-lock or bilateral discipline.
 
-Design + doctrine: `control/lib/graph/polygonizer/mobile-suit-builder.plan.md`.
+Design + doctrine: `mobile-suit-builder.plan.md` (archived under
+`lite-template/integration/archive-mobile-suit/plans/`, untracked).
 The hardware IDIOM (identity lock · boxiness-from-rounded · palette-as-taxonomy ·
 the lathe grammar) is the `mobile-suit` sketch-vocab card — pull it in step 2.
 Substrate: `docs/POLYGONIZER-SYNTHESIS.md`; assembler

@@ -1016,21 +1016,34 @@ export function emitPreserve3dScene({ faces = [], cameras = [], viewBox = { widt
   const grow = inflate && inflate !== 1 ? ` scale(${inflate})` : '';
   const dom = faces.map((f) => {
     const c = f.corners;
-    // A panel is a parallelogram (origin c0 + uVec + vVec). A TRIANGLE face (3 corners — e.g. a
-    // relief/mesh cap) is exactly half of one: take vVec to c2 and clip to the lower-left triangle.
-    const tri = c.length === 3;
+    // A panel is a parallelogram (origin c0 + uVec + vVec). A TRIANGLE face is exactly half of
+    // one: take vVec to c2 and clip to the lower-left triangle. Triangles arrive as 3 corners
+    // (relief/mesh caps) OR as 4 corners whose last duplicates the first — the lathe/extrude
+    // cap-fan encoding (kept for face-mesh, which skips <4-corner faces); reading that 4th
+    // corner as vVec would collapse the panel to zero height and drop every end cap.
+    // (compare components — the local `len` clamps a zero vector to 1, hiding the duplicate)
+    const tri = c.length === 3
+      || (c.length === 4 && Math.hypot(c[3][0] - c[0][0], c[3][1] - c[0][1], c[3][2] - c[0][2]) < 1e-9);
     const uVec = sub(c[1], c[0]), vVec = sub(tri ? c[2] : c[3], c[0]);
     const wPx = (len(uVec) * unitScale).toFixed(2), hPx = (len(vVec) * unitScale).toFixed(2);
     const bf = f.doubleSided ? 'visible' : 'hidden';
-    const clip = tri ? 'clip-path:polygon(0 0,100% 0,0 100%);' : (f.clip ? `clip-path:${f.clip};` : '');   // f.clip = polygon mask (e.g. cylinder roof cap)
     const radius = f.radius ? `border-radius:${f.radius};` : '';  // f.radius = rounded corners (e.g. arched window top)
     const glow = f.glow ? `box-shadow:${f.glow};` : '';  // f.glow = CSS bloom halo for emissive faces (light fixtures)
     // face-average AO fallback: `vao` darkens the flat fill (hex-only — gradients/html panels
     // carry surface content the average would muddy, so they pass through untouched).
     const aoAvg = Array.isArray(f.vao) && f.vao.length >= 4 ? (f.vao[0] + f.vao[1] + f.vao[2] + f.vao[3]) / 4 : 1;
     const paint = aoAvg < 0.999 && !f.bg && typeof f.fill === 'string' && f.fill[0] === '#' ? scaleHex(f.fill, aoAvg) : (f.bg || f.fill);
+    // A triangle paints its half-parallelogram with a corner-keyword gradient (the 50% stop
+    // line of `to bottom right` passes through the other two corners), NOT clip-path: a mask
+    // on a 3D-transformed layer defeats Chromium's compositor fast path, and a cap-fan-heavy
+    // scene (hundreds of tiny masked layers) takes the studio bake from ~11s to minutes.
+    const triGrad = tri && typeof paint === 'string' && paint[0] === '#';
+    const clip = tri
+      ? (triGrad ? '' : 'clip-path:polygon(0 0,100% 0,0 100%);')
+      : (f.clip ? `clip-path:${f.clip};` : '');   // f.clip = polygon mask (e.g. cylinder roof cap)
+    const paintCss = triGrad ? `linear-gradient(to bottom right,${paint} 50%,#0000 50%)` : paint;
     // f.bg = full CSS background (facade gradient); f.html = inner content (brick arched windows).
-    return `      <div class="f" style="width:${wPx}px;height:${hPx}px;background:${paint};${clip}${radius}${glow}transform:${planeMatrix(c[0], uVec, vVec, unitScale)}${grow};backface-visibility:${bf}">${f.html || ''}</div>`;
+    return `      <div class="f" style="width:${wPx}px;height:${hPx}px;background:${paintCss};${clip}${radius}${glow}transform:${planeMatrix(c[0], uVec, vVec, unitScale)}${grow};backface-visibility:${bf}">${f.html || ''}</div>`;
   }).join('\n');
 
   // adaptive-signage: gated so signage-less scenes stay byte-identical.

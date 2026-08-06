@@ -40,14 +40,16 @@ import path from 'node:path';
 import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, collectShadowDecals, collectWaterMesh } from '../figures/face-mesh.js';
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
 import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO } from './capture-contract.js';
+import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
 import {
-  actionsChannelScript, audioChannelScript, channelRuntimeSection, controllableChannelScript,
-  eventsChannelScript, fxChannelScript, gameChannelScript, glowSpriteScript, inkDecalScript, mojStepCalls,
-  normalizeRuntimeChannels, physicsChannelScript, pickChannelScript, shadowDecalScript,
-  skyDomeScript, specularChannelScript, spriteSfxChannelScript, walkModeScript, waterMeshScript,
-} from './channels.js';
+  actionsChannelScript, audioChannelScript, castShadowScript, channelRuntimeSection, channelSetupSection,
+  controllableChannelScript, eventsChannelScript, fxChannelScript, gameChannelScript,
+  glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
+  physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
+  specularChannelScript, spriteSfxChannelScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
+} from './channels/index.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 
 
@@ -152,7 +154,11 @@ renderer.setAnimationLoop((t) => {
 }
 
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {} } = {}) {
+  // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
+  // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
+  // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
+  const backdropUrl = typeof backdrop === 'string' && backdrop.trim() && !/["'()\s\\]/.test(backdrop.trim()) ? backdrop.trim() : null;
   // effects-layer fog overlay (effects-occluder.js): a transparent volumetric pass composited over
   // the rasterized world. `fog` = { frag, customUniforms, dataTextures }. Built as a fullscreen quad
   // added to the scene with depthTest off + premultiplied blending, so three's transparent pass
@@ -309,7 +315,12 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // no spec faces → zero bytes, every existing World byte-for-byte unchanged. The highlight
   // direction follows the scene's own baked light when the payload carries one (a vexar
   // makeLight — the workbench studio does), so specular and diffuse agree.
-  const specBlock = groups.some((g) => g.spec || (g.tex || []).some((t) => t.spec))
+  // RIG FIGURES (mobile suits) carry their spec on packed bone PARTS, not render groups —
+  // the runtime rig builder (channels.js __makeRigGroup) reuses the same __specPatch, so a
+  // suit with material-finished panels also needs this block emitted. Absent → still zero bytes.
+  const anyRigSpec = Object.values(figures || {}).some((f) => f && f.rig
+    && Array.isArray(f.parts) && f.parts.some((p) => p && p.spec));
+  const specBlock = (anyRigSpec || groups.some((g) => g.spec || (g.tex || []).some((t) => t.spec)))
     ? specularChannelScript(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight)
     : '';
 
@@ -453,6 +464,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   for (const [name, spec] of Object.entries(figures || {})) {
     if (Array.isArray(spec)) { if (spec.length) packedFigures[name] = { clips: { forward: __packClip(spec) } }; }
     else if (spec && spec.rig === true) packedFigures[name] = spec;   // rig-bake output (pose curves + rigid parts) — already packed
+    else if (spec && spec.polygomer === true) {   // polygomer body (platformer.plan.md P2): bake faces → b64 pos/col, no clip packing
+      const gm = faceListToMesh(spec.faces || []);
+      packedFigures[name] = { polygomer: true, pos: b64(gm.positions), col: b64(gm.colors) };
+    }
     else if (spec && typeof spec === 'object') {
       const clips = {};
       for (const [cn, frames] of Object.entries(spec)) if (Array.isArray(frames) && frames.length) clips[cn] = __packClip(frames);
@@ -474,6 +489,38 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // layers; absent ⇒ byte-identical. Driven by __mojStep(t) like fx, so it renders in bakes too.
   const spriteSfxList = Array.isArray(spriteSfx) ? spriteSfx.filter((L) => L && typeof L.verb === 'string' && Array.isArray(L.cc) && L.cc.length === 3) : [];
   const spriteSfxBlock = spriteSfxList.length ? spriteSfxChannelScript(spriteSfxList) : '';
+  // walkers channel (city/walkers.plan.md): ambient rig figures on looped paths. Each walker names a
+  // `figures[]` rig bake (rig:true) and carries a path; resolved against the SAME packed figure bank so
+  // no bake is duplicated. Self-contained (its own compact rig poser), so it needs no controllable
+  // block. Absent/empty ⇒ '' ⇒ every walker-free world is byte-identical (constraint: walkers-off pins).
+  const walkerList = (Array.isArray(walkers) ? walkers : []).filter((w) =>
+    w && typeof w.figure === 'string' && packedFigures[w.figure] && packedFigures[w.figure].rig === true
+    && Array.isArray(w.path) && w.path.length > 2);
+  const walkerBank = {};
+  for (const w of walkerList) walkerBank[w.figure] = packedFigures[w.figure];
+  // cast shadows (opt-in `shadows.cast`): the scene-level shadow-map channel — every opaque mass
+  // and figure casts its real silhouette (channels/cast-shadows.js). Derived here because the
+  // baked light and the walker/controllable integrations meet at the emit site: the light
+  // direction reuses the payload's sun when it has one; walkers + controllable bodies flag
+  // themselves as casters; the controllable pilot steers the follow box. Absent ⇒ '' ⇒ every
+  // existing world's emitted bytes are untouched (the char net holds).
+  const castShadows = shadows && typeof shadows === 'object' && shadows.cast ? shadows : null;
+  const castShadowBlock = castShadows ? castShadowScript({
+    toLight: Array.isArray(castShadows.toLight) && castShadows.toLight.length === 3 ? castShadows.toLight
+      : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
+    alpha: typeof castShadows.alpha === 'number' ? castShadows.alpha : 0.38,
+    mapSize: castShadows.mapSize || 2048,
+    span: castShadows.span || 420,
+  }) : '';
+  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: !!castShadows }) : '';
+  // cars channel (the driver-ants sibling of walkers): each car names a baked mesh in `carMeshes` and
+  // carries a lane path; only the meshes actually driven are embedded. Absent/empty ⇒ '' ⇒ a car-free
+  // world is byte-identical (same discipline as walkers).
+  const carList = (Array.isArray(cars) ? cars : []).filter((c) =>
+    c && typeof c.car === 'string' && carMeshes[c.car] && Array.isArray(c.path) && c.path.length > 1);
+  const carBank = {};
+  for (const c of carList) carBank[c.car] = carMeshes[c.car];
+  const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: !!castShadows }) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
   // above fog (renderOrder 100001+i). Same shape as the fog quad, so fog stays byte-identical and
   // glow/wisp layers ride beside it. uTime rides window.__mojClock (pinned by frame()/step()).
@@ -496,25 +543,56 @@ __eQuad${i}.onBeforeRender = (rnd, scn, cam) => {
 scene.add(__eQuad${i});
 }`).join('\n')}
 ` : '';
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm }) : '';
+  // directional contact-shadow key (arena-atmosphere worlds): when the payload carries a baked
+  // light AND opts into contact shadows, the live blobs elongate along the light's ground cast —
+  // same down-probe, oriented ellipse (see suitShadowBlock). No light (or a sun at/below the
+  // horizon) ⇒ null ⇒ the emitted channel is byte-identical.
+  const shadowKey = (() => {
+    if (!shadows || !light || !Array.isArray(light.toLight)) return null;
+    const [tx, ty, tz] = light.toLight;
+    const horiz = Math.hypot(tx, ty);
+    if (!(horiz > 1e-6) || !(tz > 0.05)) return null;
+    const dir = [-tx / horiz, -ty / horiz];
+    return { dir, rot: Math.atan2(dir[1], dir[0]), stretch: Math.min(4.5, horiz / tz) };
+  })();
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm, pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, key: shadowKey }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
   chBlocks.events = eventsBlock;
   chBlocks.controllable = controllableBlock;
+  // the setup/post blocks hand theirs into the SETUP_CHANNELS-ordered sections (S3):
+  // the registry owns splice order per anchor; the template interpolates one section call
+  // per anchor instead of a hand-wired run of block variables.
+  const setupBlocks = {
+    sky: skyBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
+    glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
+    fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
+  };
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>
   :root{color-scheme:dark}
-  body{margin:0;background:#0b1220;color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}
+  body{margin:0;background:#0b1220;color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}${backdropUrl ? `
+  body{background:#04070d url("${backdropUrl}") center/cover no-repeat fixed}
+  #wrap{background:transparent}` : ''}
   #wrap{position:relative;width:${W}px;height:${H}px;max-width:100%;aspect-ratio:${W} / ${H};overflow:hidden}
-  canvas{display:block;width:100%;height:100%}
+${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fill whatever viewport
+     the host gives instead of holding the authored studio pixel size — a short pane would
+     otherwise clip the canvas bottom (and skew the camera aspect the fit is computed at). */
+  #wrap{width:100vw;height:100vh}
+` : ''}  canvas{display:block;width:100%;height:100%}
   .hud{position:absolute;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
   .hud button{color:#9cc4ff;background:rgba(11,18,32,.6);border:1px solid #24324a;border-radius:5px;padding:4px 10px;cursor:pointer;font:inherit}
   .hud button.on{background:#1b2740;color:#fff}
-  .hud button.off{opacity:.45;text-decoration:line-through}
+  .hud button.off{opacity:.45;text-decoration:line-through}${hud ? '' : `
+  /* hud:false (?hud=0 — e.g. a game-shell level iframe): the dev-chrome strip (view cams,
+     wireframe, fly/walk, reverse view, AI attack) stays in the DOM so every channel keeps
+     appending to it and the keyboard twins (V/G/…) keep working, but it never shows. The
+     speaker button hides with it — the shell's settings panel owns audio over the sidecar. */
+  .hud,.moj-audio-btn{display:none}`}
   .hint{position:absolute;right:8px;bottom:8px;color:#6f86ad;font-size:11px;user-select:none}
   .moj-readout{position:absolute;left:8px;bottom:8px;background:rgba(11,18,32,.82);border:1px solid #24324a;border-radius:6px;padding:7px 10px;font-size:12px;color:#cfe3ff;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums;pointer-events:none;z-index:4}
   .moj-readout b{color:#fff;margin-bottom:2px}
@@ -559,6 +637,7 @@ const BG = ${safeJson(bg)};
 const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
 function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }
+function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
 
 const wrap = document.getElementById('wrap'), canvas = document.getElementById('c'), hud = document.getElementById('hud');
 // logarithmicDepthBuffer: the world camera spans near 0.05 → far 8000 (close interiors
@@ -566,11 +645,11 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 // sit only a few cm in front of their wall. A linear depth buffer starves that gap of
 // precision and the decals z-fight (shimmer). The log buffer restores precision across
 // the range so the proud faces win cleanly from any orbit distance.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''} });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(BG);
+${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}
 
 // One mesh per render group. Hideable groups (walls/ceiling) get a transparent material so
 // they can fade; static groups (furniture, floor, whole cities) stay opaque.
@@ -646,13 +725,53 @@ camera.up.set(0, 0, 1); // world is z-up
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
+${spin ? `// ?spin=1 — the showcase turntable: the orbit slowly self-rotates until the user grabs it.
+controls.autoRotate = true; controls.autoRotateSpeed = 1.5;
+controls.addEventListener('start', () => { controls.autoRotate = false; });
+` : ''}
 
 function applyCam(i){
   const c = CAMS[i];
   camera.position.set(c.pos[0], c.pos[1], c.pos[2]);
   controls.target.set(c.target[0], c.target[1], c.target[2]);
   camera.fov = c.vfov; camera.updateProjectionMatrix();
-  controls.update();
+${spin ? `  // showcase FIT (?spin=1): the preset shots frame tight (and target high) for the studio
+  // read — re-center on the SUBJECT's true bounds and back off far enough that the whole
+  // machine sits in frame at this pane's aspect, keeping the preset's viewing direction.
+  // The scene arrives as ONE merged mesh (floor grid included), so the subject is separated
+  // at the VERTEX level: the studio floor hugs the lowest slice of the z-range — fit what
+  // stands above it, then drop the box floor back down so the ground contact stays in frame.
+  let zMin = Infinity, zMax = -Infinity;
+  const geos = [];
+  for (const s of solids) {
+    const p = s.geometry && s.geometry.attributes && s.geometry.attributes.position;
+    if (!p || !p.array) continue;
+    geos.push(p.array);
+    for (let k = 2; k < p.array.length; k += 3) { const z = p.array[k]; if (z < zMin) zMin = z; if (z > zMax) zMax = z; }
+  }
+  if (zMax > zMin) {
+    const zCut = zMin + (zMax - zMin) * 0.04;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, seen = false;
+    for (const a of geos) {
+      for (let k = 0; k < a.length; k += 3) {
+        if (a[k + 2] <= zCut) continue;
+        seen = true;
+        if (a[k] < x0) x0 = a[k]; if (a[k] > x1) x1 = a[k];
+        if (a[k + 1] < y0) y0 = a[k + 1]; if (a[k + 1] > y1) y1 = a[k + 1];
+      }
+    }
+    if (seen) {
+      const ctr = new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (zMin + zMax) / 2);
+      const rad = Math.max(x1 - x0, y1 - y0, zMax - zMin) * 0.5;
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      const vf = camera.fov * Math.PI / 180;
+      const hf = 2 * Math.atan(Math.tan(vf / 2) * (camera.aspect || 1));
+      const dist = Math.max(rad / Math.tan(vf / 2), rad / Math.tan(hf / 2)) * 1.12;
+      controls.target.copy(ctr);
+      camera.position.copy(ctr).add(dir.multiplyScalar(dist));
+    }
+  }
+` : ''}  controls.update();
   [...hud.children].forEach((b, k) => b.classList.toggle('on', k === i));
 }
 CAMS.forEach((c, i) => { const b = document.createElement('button'); b.textContent = c.name; b.onclick = () => applyCam(i); hud.appendChild(b); });
@@ -729,19 +848,14 @@ window.addEventListener('resize', resize);
 resize();
 applyCam(0);
 if (WIREFRAME0) setWireframe(true);   // deep-link / baked still can open straight in wire
-${skyBlock}
-${waterBlock}
-${shadowBlock}
-${inkBlock}
-${glowBlock}${specBlock}
-${pickBlock}
-${channelRuntimeSection(chBlocks)}
+${channelSetupSection('pre-runtime', setupBlocks)}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${carsBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
-${fxBlock}${spriteSfxBlock}${fog ? `
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
+${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };
 const __fogMat = new THREE.ShaderMaterial({ uniforms: __fogU, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: ${safeJson(fog.frag)}, transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
@@ -759,10 +873,77 @@ __fogQuad.onBeforeRender = (rnd, scn, cam) => {
   __fogU.uTime.value = (window.__mojClock != null ? window.__mojClock : (typeof performance !== 'undefined' ? performance.now() : 0)) / 1000;
 };
 scene.add(__fogQuad);
-` : ''}${effectsBlock}${audioBlock}
+` : ''}${effectsBlock}${channelSetupSection('post-overlays', setupBlocks)}
 const _freezeRaw = new URLSearchParams(location.search).get('t');
 const _freeze = _freezeRaw !== null && Number.isFinite(+_freezeRaw) ? +_freezeRaw : null;
-const _capture = ${capture ? 'true' : 'false'};${gameBlock}
+const _capture = ${capture ? 'true' : 'false'};${channelSetupSection('post-capture', setupBlocks)}
+// ---- pause sidecar (game-shell menu): freeze the sim + clocked channels, reply with a
+// controls legend derived from the LIVE input mode so the shell's pause menu teaches exactly
+// the keys this world answers to. Presentation-only, unversioned (like the audio sidecar);
+// a world outside a shell never receives it. Live rAF mode only — capture drivers own time.
+let __mojPaused = false, __pausedAt = null, __pauseOffset = 0;
+// practice-mode AI switch (game-ai sidecar): the pause reply advertises the switch + its live
+// state ONLY when the world is a practice bout with ai seats — the shell renders the options
+// row from this, so a scored match never grows the control.
+function __aiSwitchInfo() {
+  const W = (typeof __world !== 'undefined') ? __world : null;
+  if (!W || !W.match || !W.match.practice) return null;
+  const hasAi = W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai'));
+  return hasAi ? { on: W.aiEnabled !== false } : null;
+}
+function __controlRows() {
+  const rows = [];
+  const W = (typeof __world !== 'undefined') ? __world : null;
+  const pil = W && W.pilotId && W.byId ? W.byId[W.pilotId] : null;
+  if (pil) {
+    const r = pil.rule || pil.pilotRule || {};
+    const space = r.space === true;
+    rows.push(['W A S D / arrows', space ? 'thrust & turn' : 'move & turn']);
+    rows.push([(typeof __MOUSELOOK !== 'undefined' && __MOUSELOOK) ? 'mouse · click to capture' : 'mouse drag', 'look / aim']);
+    rows.push(['E / Q', 'strafe']);
+    rows.push(space ? ['Space / X', 'ascend / descend'] : ['Space', 'jump']);
+    rows.push(['F (hold)', 'boost thrusters']);
+    if (!space && r.kneel === true) rows.push(['X (hold)', 'kneel']);
+    const lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
+    if (W.entities.some((e) => e.weapon || lo(e))) { rows.push(['left mouse', 'fire']); rows.push(['R · 1–5', 'cycle · select weapon']); }
+    if (W.entities.filter((e) => e.pilotable).length > 1) rows.push(['T', 'switch suit']);
+    if (W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai'))) rows.push(['G', 'AI attack on / off']);
+    if (W.camera && W.camera.rule && W.camera.rule.type === 'follow') rows.push(['V', 'reverse view']);
+    // controller legend (only once a pad has spoken): the standard-mapping bindings the
+    // controllable channel's gamepad poll answers to — same actions, second device.
+    if (window.__mojPad && window.__mojPad.active()) {
+      rows.push(['🎮 left stick', space ? 'thrust & strafe' : 'move']);
+      rows.push(['right stick', 'look / aim']);
+      rows.push(['RT / LT', 'fire / boost (tap-tap: dodge)']);
+      rows.push(['RB', 'tap: next weapon · hold: selector']);
+      rows.push(['RB + □ / △', 'main weapon / main melee']);
+      rows.push([space ? 'A / B' : 'A · △ (Y)', space ? 'ascend / descend' : 'jump · tackle']);
+      rows.push(['D-pad ↑ · select', 'switch suit · AI toggle']);
+      rows.push(['start', 'pause']);
+    }
+  } else if (typeof walkMode !== 'undefined') {
+    rows.push(['W A S D / arrows', 'move']);
+    rows.push(['mouse drag', 'look']);
+    rows.push(['Space / Shift', 'fly up / down']);
+  } else {
+    rows.push(['mouse drag', 'orbit']);
+    rows.push(['scroll', 'zoom']);
+  }
+  return rows;
+}
+window.addEventListener('message', (e) => {
+  const d = e.data;
+  if (!d || d.moj !== '${GAME_MSG_PAUSE}') return;
+  __mojPaused = !!d.on;
+  if (__mojPaused) {
+    // release the captured mouse (its raw moves would pile into the look accumulators under
+    // the shell's overlay) and answer with the legend for the shell's Controls panel.
+    if (document.pointerLockElement) document.exitPointerLock();
+    if (typeof __fireDown !== 'undefined') __fireDown = false;
+    if (typeof window.__mojWcHide === 'function') window.__mojWcHide();   // drop the RB weapon selector under the overlay
+    try { window.parent.postMessage({ moj: '${GAME_MSG_CONTROLS}', rows: __controlRows(), ai: __aiSwitchInfo() }, '*'); } catch (err) { /* opaque parent */ }
+  } else if (typeof __lookDX !== 'undefined') { __lookDX = 0; __lookDY = 0; }   // drop paused-drift
+});
 if (_capture) {
   // Headless frame-capture mode (forge_motion world subjects): no rAF loop. Two drivers share
   // the one WebGL context (lib/motion/world-frames.js):
@@ -812,8 +993,18 @@ if (_capture) {
           out.entities[e.id] = {
             pos: e.transform.pos.slice(), heading: e.transform.heading, pitch: e.transform.pitch || 0,
             vel: (e.vel || []).slice(), moving: !!e.moving, locomotion: e.locomotion || null, gaitPhase: e.gaitPhase || 0,
+            hp: e.body && Number.isFinite(e.body.hp) ? e.body.hp : null, hpMax: e.hpMax || null, hits: e.hits || 0,
+            downed: !!e.downed, invincible: !!e.invincible,
           };
         }
+        // match layer (mobile-suit-arena.plan.md): surfacing the bout state makes a traversal a
+        // MATCH audit — kills credited, respawns, the winner — beside the game envelope below.
+        const mm = window.__mojCtrl.world.match;
+        if (mm) out.match = { kills: JSON.parse(JSON.stringify(mm.kills)), over: !!mm.over, winner: mm.winner || null, feed: mm.feed.length };
+        // spectate (ai-battle-spectator.plan.md): pilotId null + the whole cast on ai — surfaced so a
+        // traversal can audit "nobody flies; the camera is the only thing WASD drives".
+        out.pilotId = window.__mojCtrl.world.pilotId || null;
+        out.spectate = !!window.__mojCtrl.world.spectate;
       }
       if (typeof __busState !== 'undefined' && __busState && __busState.vars) out.hud = JSON.parse(JSON.stringify(__busState.vars));
       if (window.__mojSim) out.bodies = window.__mojSim.state.bodies.map((b) => ({ id: b.id, position: b.position.slice(), velocity: (b.velocity || []).slice() }));
@@ -828,6 +1019,9 @@ if (_capture) {
           ended: !!env,
           result: env ? env.result : null,
           events: env ? env.events.length : 0,
+          // the score-screen payload, summarized: the pilot + row count is enough for an audit
+          // to pin "stats rode the envelope" without dumping the table into every probe.
+          stats: env && env.stats ? { pilot: env.stats.pilot, rows: (env.stats.rows || []).length } : null,
         };
       }
       return out;
@@ -890,13 +1084,17 @@ if (_capture) {
   updateCutaway(); renderer.render(scene, camera);
   controls.addEventListener('change', () => renderer.render(scene, camera));
 } else renderer.setAnimationLoop((t) => {
+  // paused (shell menu): hold the last frame; the clocked channels resume where they froze
+  // (__pauseOffset rebases __mojStep's clock so movers/effects don't jump the gap).
+  if (__mojPaused) { if (__pausedAt === null) __pausedAt = t; renderer.render(scene, camera); return; }
+  if (__pausedAt !== null) { __pauseOffset += t - __pausedAt; __pausedAt = null; walkPrevT = t; }
   const dt = walkPrevT ? Math.min((t - walkPrevT) / 1000, 0.05) : 0; walkPrevT = t;
   if (walkOn) stepWalk(dt);
   else {
     if (__ctrlActive) stepControllable(dt);                 // step entities (clock/walk/glide/follow)
     if (!__ctrlOwnsCamera) controls.update();               // OrbitControls unless a camera entity owns the view
   }
-  __mojStep(t);
+  __mojStep(t - __pauseOffset);
   updateCutaway(); renderer.render(scene, camera);
 });
 </script>

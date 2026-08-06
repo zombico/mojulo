@@ -21,6 +21,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
+import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/repositories/game-projects';
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
@@ -32,7 +33,7 @@ import { getSfxVocabCatalog } from '@/lib/graph/game/sfx-cards/loader';
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
-export async function mintGame({ title, store, levels, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null } = {}) {
+export async function mintGame({ title, store, levels, menu, music, theme, setup, difficulty, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -43,8 +44,16 @@ export async function mintGame({ title, store, levels, ref, folderRef, audits, a
     if (typeof folderRef !== 'string' || !folderRef) throw new Error('`folderRef` must be a non-empty string or null if provided');
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
   }
+  // Project claim validated BEFORE the mint so a typo'd gp_ ref fails cheap
+  // (game-developer.plan.md GP1). The bind itself happens after the row lands.
+  if (projectRef !== null && projectRef !== undefined) {
+    if (typeof projectRef !== 'string' || !projectRef) throw new Error('`project_ref` must be a non-empty gp_ ref if provided');
+    if (!GameProjectRepository.getByRef(projectRef)) {
+      throw new Error(`Game project '${projectRef}' not found — create_game_project first, or list_game_projects to find it`);
+    }
+  }
 
-  const manifest = { kind: 'game', title, store, levels };
+  const manifest = { kind: 'game', title, store, levels, ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
@@ -86,6 +95,16 @@ export async function mintGame({ title, store, levels, ref, folderRef, audits, a
     throw err;
   }
 
+  // Project claim: the minted game becomes the project's ACTIVE rules member
+  // (newest bind wins; a prior rules member stays as history). Levels/music
+  // are NOT copied into members — they surface as implied members at read
+  // time, derived from this manifest (store only what isn't derivable).
+  let project = null;
+  if (projectRef) {
+    GameProjectMemberRepository.bind({ projectRef, memberRef: sketch.ref, role: 'rules' });
+    project = { ref: projectRef, url: `/games/${encodeURIComponent(projectRef)}` };
+  }
+
   return {
     ok: true,
     ref: sketch.ref,
@@ -93,6 +112,7 @@ export async function mintGame({ title, store, levels, ref, folderRef, audits, a
     playUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/game`,
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
+    ...(project ? { project } : {}),
   };
 }
 
@@ -100,9 +120,9 @@ export async function createGameHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit } = input;
+  const { title, store, levels, menu, music, theme, setup, difficulty, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   try {
-    return await mintGame({ title, store, levels, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit });
+    return await mintGame({ title, store, levels, menu, music, theme, setup, difficulty, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
   } catch (err) {
     // Error-as-drawer: a failed mint points at the store-schema manuals.
     throw new Error(`${err.message}\n— store-schema manuals: get_game_vocab() (slices: character | inventory | party | progression | flags; events: typed-events).`);
@@ -139,7 +159,7 @@ export function registerGameTools() {
     name: 'create_game',
     description:
       'Mint a GAME — a standalone playable artifact composed of levels you have already minted as '
-      + 'worlds (the fourth creatable paradigm, sibling to bots / connected services / apps). A game '
+      + 'worlds (the fifth creatable paradigm — composition over Media: levels, music, art). A game '
       + 'is a SHELL that owns a typed STORE plus a list of promoted LEVELS; the shell renders a '
       + 'pre-level setup screen from each level\'s declared inputs, hosts the level, and applies its '
       + 'one outcome to the store. Persistent state (a character\'s level, an inventory, a customizable '
@@ -175,8 +195,29 @@ export function registerGameTools() {
           description: 'Promoted levels in play order: [{ ref, title?, gate? }]. Each ref is a world minted with a `game:` contract channel. gate ∈ { flag, equals?, slice? } | { completed: <ref>, slice? }.',
           items: { type: 'object' },
         },
+        menu: {
+          type: 'object',
+          description: "Optional game-frame presentation: { tagline?, entries: [{ id, title, subtitle?, kind: 'levels'|'world', ref? }] }. When present the shell boots Start screen → main menu; exactly one entry is kind:'levels' (the level list), kind:'world' entries iframe another stored world by ref (e.g. a hangar/viewer). Omit for the plain level-list shell.",
+        },
+        music: {
+          type: 'object',
+          description: "Optional shell score by beats ref: { menu?: <beatsRef>, battle?: [<beatsRef>, …], volume?, menuVolume?, battleVolume? }. The menu track loops on menu/setup screens; the battle list rotates while a level runs. Refs must be stored beats artifacts (create_beats); the shell streams their derived WAV renders. The volume keys (0..1) set the music BED LEVEL so the score plays under the game's own SFX — defaults: battle 0.4, menu 0.55; `volume` sets both, the per-context keys override. A kind:'world' menu entry (e.g. a hangar) is silent shell-side — give that world its own manifest `audio` channel instead.",
+        },
+        theme: {
+          type: 'object',
+          description: "Optional presentation skin the shell reads: { accent?, accent2? (hex colors), style?: 'hud'|'clean' }. style:'hud' turns on the stylized treatment (mono type, cold accents, corner brackets, accent glow); absent → the default clean look. The loading overlay + progress bar are universal — theme only flavors them. Pure presentation; never gates play.",
+        },
+        setup: {
+          type: 'object',
+          description: "Optional pre-level setup presentation, per party slice: { <sliceName>: { style: 'hangar', label?, cards?: { <memberId>: { portrait?: <sketchRef>, preview?: <sketchRef>, stats?: { <label>: value }, blurb? } } } | { style: 'count', label?, blurb? } }. 'hangar' renders the full-page single-pick selector (portrait card rail + the selected member's preview World self-rotating in a side panel beside its stats) — applies when a level consumes the slice with pick.max 1. 'count' asks only HOW MANY and draws that many members at random (seeded per session). Slices without presentation keep the plain picker. Refs resolve at serve time like menu/music refs.",
+        },
+        difficulty: {
+          type: 'object',
+          description: "Optional pre-battle difficulty pick: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] }. ids are engine ai-tuning tiers ('max' = the untuned brain); name/sub are the game's own display voice. The shell renders the pick on the map step of piloted setups (a hangar pick present) and passes the picked id to the level as params.difficulty; spectate setups never show it.",
+        },
         ref: { type: 'string', description: 'Optional stable sketch ref for the game.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
+        project_ref: { type: 'string', description: 'Optional game-project ref (gp_… from create_game_project): binds the minted game as that project\'s ACTIVE rules member, so it appears in the /games/<ref> studio and its arcade cabinet carries the project chip. Levels/music are not copied — they surface as implied members.' },
         audits: {
           type: 'object',
           description: "Completability evidence per level: { <levelRef>: { motion_ref } }. motion_ref is a forge_motion TRAVERSAL of that level (world_ref = the level) whose run reached the win condition — its final probe carries game.result:'success'. The gate verifies the stored probe. A level with no audit is refused unless allow_unaudited.",

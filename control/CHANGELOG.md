@@ -4,13 +4,126 @@ All notable changes to the `mojulo` npm package are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-While in `0.x`, the artifact format and bundled bot image are pinned per
-control-plane version — a minor bump may move the pinned bot image tag.
+From `1.0.0`, the five paradigm loops and the recipe format are the stable
+surface (see "The 1.0 contract" below); the bundled bot image stays pinned
+exact per control-plane version.
 
-## 2026-06-16
+## [1.0.0] — 2026-08-04
+
+An editorial release. Everything since 0.8.0 — the visualization era — consolidated into one
+release, plus the statement of what the version number now promises. 0.8.0 shipped a bot
+factory that had just learned to run apps; 1.0.0 ships **the agent's workshop**: five creatable
+paradigms — bot / connected service / app / **media** / **game** — where **Media** is the creative
+arm promoted to first class (diagrams, walkable worlds, figures, synthesized music and song,
+voice registers, films, publications, covers, directed pictures — all tiny deterministic
+recipes, never renders) and a **Game** is composition over it: Media levels, music, and art
+bound to a typed store with rules.
+
+### The 1.0 contract
+
+- **Stable surface:** the five paradigm loops (bot mint→deploy→verify_chain · connected-service
+  deliberation→bind→trigger · app scaffold→start→envelope-inference · media mint→render→export ·
+  game mint→play→export),
+  the recipe→render doctrine (stored manifests re-render deterministically; derived renders are
+  disposable, provenance-bound files under `data/outcomes/`), additive-only DB migrations
+  (existing DBs upgrade at open), the loopback-only MCP transport, and the no-LLM-keys posture
+  on creative/vision/inference paths.
+- **Moving surface (minor releases):** the creative vocabularies — sketch/view/world/beats/game
+  kinds, vocab cards, routing cards, registers, catalysts. Content-extensible by design;
+  expected to keep accreting through 1.x without a major bump.
+- **Bot image:** pinned exact (`bot-v0.5.1`); the bot runtime is unchanged in this release.
+- **Taxonomy note:** Media is promoted from "the creative arm beside the paradigms" to the
+  fourth paradigm, and Game moves to fifth as composition over it. The worked-example key
+  `creative-mint` is renamed `media` (the old key still resolves as an alias).
+
+### Media — the fourth paradigm (the visualization + audio substrate, Ring 10)
+
+Recipe→render across four backends over one engine-agnostic payload: SVG (two-point
+perspective), CSS-3D (dependency-free `matrix3d` scenes), three.js (traversable Worlds with
+orbit/WASD, `.glb` + z-up `.stl` export), and GLSL raymarch (painted landscapes + the fog
+effects overlay). Worlds/objects split into distinct concern buckets with their own rails;
+45 science/math/bio study kinds drawerized under `create_view`; figures gained rigs, emotes,
+garments-as-data, fluff bodies with SDF welding, and skin projection; per-surface material
+response (Blinn-Phong over the baked vexar solve, diffuse-preserving); real-unit read-back via
+`measure_view`; films via `forge_motion` / `stitch_motion`. `lib/graph/` folderized a second
+pass (`derivers/`, `geo/`, `landmarks/`, `layout/`, the `scene/channels/` registry split).
+
+### Game — the fifth paradigm: composition
+
+`create_game` (typed store + levels-as-worlds, **completability-gated at mint**), level-verb
+mechanics + game kits + the glyph/sfx UI language — all proven on the **Mobile Suit Arena**
+build line, whose lasting deposit in the repo is *engine*: assembler units made posable →
+walkable → playable (the station-graph walking-unit layer — unit-pose/anchors/rig,
+dodge-poses, pose-lab), the controllable-world combat/match machinery (AI fire-back with
+boost-juking, spawn drop-ins, contact shadows, egg-exact target reticle, match stats,
+proximity audio), the game shell's hangar/setup/score-screen machinery, **gamepad support**
+(standard-mapping pads merged into the one input snapshot, weapon-select chords, a
+controller-diagram pause sheet) and **practice mode**. The arena's game *content* — weapons,
+shields, maps, liveries, suit vocab — ships as an operator-local content pack behind guarded
+lazy-import seams that degrade clean when absent: game content is an artifact, not source.
+Around the paradigm, the project layer: **game projects** (`create_game_project` /
+`bind_to_game_project`, the read-only Game Developer studio at `/games/<ref>`), the **Mojulo
+Arcade** (`/arcade`), the **pixelizer** 2D register (declarative PPU-model frames, pure
+`step(state, action)` reducer games — brickster + philosopher's stone seeded —
+`create_pixelizer_game`), the **sprite-sheet** pipeline over the image-render handoff
+(`create_sprite_sheet` / `bake_sprite_sheet`), publication **covers** (`create_cover`), and
+**`export_game`** — a stored game materialized as a self-contained folder, one `git init` from
+a public GitHub-Pages playable URL.
+
+### Audio, voice, song
+
+Beats (synthesized-never-sampled seeded recipes: ambient / composition / groove / SFX) grew a
+domain layer (revisions + annotations + the `/beats/<ref>` studio), world bindings driven by
+sim state, WAV/MIDI export, foley, and **song**: a composition sings via the in-process
+parametric formant vocaloid (`patch:'voice'`) — grown in-house where a borrowed sense failed
+the determinism bar. Voice registers (`create_voice` — confidence × depth resolved to Kokoro
+blend weights, pure math) with WAVs as disposable derived renders via the optional local
+worker. In-world combat audio is proximity-scaled.
+
+### Borrowed senses (image outcomes)
+
+Mojulo designs pictures it cannot paint: designed-picture sketch kinds (`image-outcome` /
+`sequential-art` / `character-sheet` / keyframes / scene-motion), the durable render-worker
+handoff (`request/pull/submit/accept/reject_image_render` over `image_render_requests`, two-gate
+machine+eyes doctrine), the optional local ComfyUI worker reweighed SDXL → **Qwen-Image-Edit**
+(one protocol over two transports), skin projection onto polygomers and assembled units, and
+the agent-as-vision-adapter reference protocol.
+
+### Orientation & operations
+
+`forward_context` dieted to a thin routing index (routing cards + FORM-scoped
+`get_creative_toolset` subdrawers), tool telemetry + `/observability`, worked examples + the
+register kit, description-budget ratchets + payload pins enforced by test, the workshop nav
+drawer + `/maker` hub tiles, and **mojulo-orient** — a separate consent-first stdio MCP
+carrying founding works as mintable recipes for practical orientation.
+
+### Deprecated / removed
+
+Operations mode (Ring 11) removed as unused (`ops_tags` retained as motion's grouping store);
+the ~40 per-view tools retired into `create_view` kinds (retired names still execute as
+unlisted aliases); the pixelizer artifact gallery archived out of the tree (engine + two
+reference games remain, gallery recipes retained as test fixtures); **the mobile-suit game
+content extracted** to a gitignored operator-local pack (`lib/graph/mobile-suit/`) behind
+guarded seams — the `g-series-livery` module and the g/z-series livery vocab cards leave the
+tree, cold copies in `lite-template/integration/archive-mobile-suit/`; closed plan/spike
+files consolidated into the changelog and `control/docs/` orientation docs.
+
+### Data & migrations
+
+All additive: `beats_revisions` / `beats_annotations`, `game_projects` (+ typed-role members),
+`image_render_requests`, sketches `bucket` / `folder_ref` columns (buckets derive at read
+time — existing rows reclassify with no migration), new embeddings kinds (routing / vocab
+families). No destructive migration; existing 0.x DBs upgrade at open.
+
+### Previously-unreleased sections
+
+The six dated sections below were accumulated as "Unreleased" between 0.8.0 and this release;
+they ship in 1.0.0 and are retained verbatim for the record.
+
+### 2026-06-16
 Bring visual capability to browser-based 3D via css3D and three.js. Enhance scene composition and enable figure drawing. See HTML-CSS-NATIVE-RENDERING and POLYGONIZER-SYNTHESIS 
 
-## Unreleased (minor) — 2026-06-07
+### 2026-06-07 (was "Unreleased (minor)")
 
 Painted landscapes — closed-vocabulary, glyph-driven landscape primitive. The model picks one **heartbeat** (geometry recipe), one **splatch** (3-seed palette), and an optional **structure-glyph** (scatter recipe); the substrate samples wave parameters within the heartbeat's declared ranges using a seed, derives a balanced 4-stop palette from the splatch via Rec.709 luminance-sorted interpolation, scatters obelisks/boxes at footprints whose `z_base` rides the wave surface, and renders a flat-Lambert borderless SVG with back-to-front depth sort. Authoring surface collapses to `{heartbeat, splatch, structures?, seed?, light?}` — measured at ~30 tokens vs ~14K for the equivalent raw SVG (~449× reduction) and ~250 for a fully-specified manifest (~8× reduction). Math provenance and design ladder in the spike series: [field-coupled-wedges.spike.gen.test.js](lib/graph/polygonizer/field-coupled-wedges.spike.gen.test.js) → [-lambert](lib/graph/polygonizer/field-coupled-wedges-lambert.spike.gen.test.js) → [-step3](lib/graph/polygonizer/field-coupled-wedges-step3.spike.gen.test.js) → [-step4](lib/graph/polygonizer/field-coupled-wedges-step4.spike.gen.test.js) → [-structures](lib/graph/polygonizer/field-coupled-wedges-structures.spike.gen.test.js) → [glyph-driven-landscape](lib/graph/polygonizer/glyph-driven-landscape.spike.gen.test.js).
 
@@ -28,7 +141,7 @@ Painted landscapes — closed-vocabulary, glyph-driven landscape primitive. The 
 - **Seven new stylistic splatches** in [painted-landscape-cards/](lib/graph/painted-landscape-cards/) covering the cinematic / vector-technical / textbook registers: `terminal-amber` (amber-on-black phosphor / retrocomputing); `synthwave-neon` (deep-purple → hot-pink outrun / 80s math cover); `vector-cyan` (deep-blue → electric-cyan CAD / blueprint); `chart-primary` (deep textbook-blue + vermilion + bone-white scholastic chart); `velvet-cinema` (inky-midnight + velvet-violet + antique-gold noir); `harvest-gold` (deep-umber + fired-amber + burnished-gold autumnal); `mist-coastal` (slate + muted-teal + pale-fog overcast cinematic). Splatch count goes from 6 to 13; combinatorics now ~12K distinct templates excluding overrides. Showcase spike at [`lite-template/integration/spike-output/stylistic-register-showcase/`](../lite-template/integration/spike-output/stylistic-register-showcase/) demonstrates the same primitive covering cinematic / vector-technical / topographic registers.
 - **`camera` glyph family** — closed-vocabulary cards that lock the scene's projection (vanishing points + room basis + vertical axis + depth foreshortening). The loader gains a third family (`camera`) alongside `heartbeat` and `splatch`; five seed cards land in [painted-landscape-cards/](lib/graph/painted-landscape-cards/): `medium-survey` (substrate default baseline), `wide-cinematic` (panoramic letterbox with deep room), `close-up-detail` (tight foreshortening + taller verticality), `low-angle-hero` (horizon pushed high + 48-unit verticality for monumental structures), `top-down-survey` (near-orthographic / topographic / map-view). The renderer threads `(camera, roomBasis)` through every `projectTwoPoint` call; omitting `camera` falls back to the substrate's prior default projection so existing renders are byte-identical. Six new loader/unit tests + two MCP integration tests cover the round-trip and the multi-camera differentiation. Showcase spike at [`lite-template/integration/spike-output/camera-lock-showcase/`](../lite-template/integration/spike-output/camera-lock-showcase/) renders the same fixed scene under all five cameras (1–5) plus four recommended pairings (P1–P4) demonstrating camera × renderStyle × splatch composability. **One extra named pick rotates / tilts / zooms the camera without touching terrain or palette** — combinatorics now roll in the camera dimension on top of heartbeat × splatch × structure × renderStyle.
 
-## Unreleased (patch) — 2026-06-03
+### 2026-06-03 (was "Unreleased (patch)")
 
 Stash mode (Ring 9 v2) earns its **operator-facing surface**. v0.9.0 shipped the substrate — `mint_stash` / `gather` / `mint_drawer` / `cook` as MCP tools, with the agent the only reader. This patch lands the **`/stashes` inbox + per-stash detail pane** so the operator can browse what the agent has gathered and shape it (rename, archive, file into drawers, move between drawers, prune) without round-tripping back through chat. Two structural beats ride along: a **`stash_bindings` adjacency table** (many-to-many edges from a stash to a bot / app / plan / cook / contextmap node — the substrate that turns "stash inbox" into "this bot's knowledge corpus, this plan's working memory"), and **soft-delete for stash items** (an `archived_at` column on `stash_items` so the operator can prune the inbox without breaking downstream cook citations — the citable-atoms posture).
 
@@ -56,7 +169,7 @@ The shared posture across the surface: **structural edits ride on HTTP; content 
 - **Structural edits via HTTP, content edits via MCP.** The dashboard owns rename / move / archive / status — operations that don't touch the per-type contract gate. Item body / metadata edits stay on the MCP `update_item` path so there is one substrate path through the gate. The HTTP move route deliberately exposes only the structural slice.
 - **Stash bindings are navigational in v0.** `stash_bindings` rows feed operator-facing chips ("linked to bot X, plan Y") without auto-injecting context mid-conversation. The wiring surface that turns a binding into a runtime side-effect ships in a later patch when a concrete consumer demands it.
 
-## Unreleased — 2026-06-01
+### 2026-06-01 (was "Unreleased")
 
 The release where mojulo's deliberation rings gain an **exit door** and the operator's host agent becomes the substrate's **inference layer**. Two complementary beats run through every other thread.
 
@@ -191,7 +304,7 @@ The load-bearing posture across plan mode, stash/cook, and Connected Services: *
 - **i18n synced this cycle.** Both `en.json` and `sv.json` are up to date; future locale additions should run `/sync-locales` against the new keys.
 - **Going forward.** This entry is sealed as the comprehensive snapshot of the cycle that brought materialization + agent-as-inference online. Subsequent in-flight work — even still `Unreleased` — opens a new section above this one rather than appending here.
 
-## Unreleased (patch) — 2026-05-27
+### 2026-05-27 (was "Unreleased (patch)")
 
 The follow-up patch on 0.8.0's app substrate plus the **UI refactor that lets the new primitives breathe**. The dashboard's bot-centric home page assumed mojulo only built one kind of thing; 0.8.0 added apps and 0.9.0 added trigger-binding, and the home page didn't move with them. This patch reshapes `/` into a six-tile launcher (Bots / MCP+Skills / Apps / Sketch / Plan / Settings) and moves the prior bot-detail surface to `/bots`. Two new agent-facing surfaces ride along: a **sketchbook** (the operator agent mints flow-charty diagrams via a new `create_sketch` MCP tool that reuse the existing `CreationMap` renderer) and a **per-app derived graph view** (`/apps/<ref>/graph` projects an app's contextmap node + bindings + active triggers into a topology, lays it out via slot-based geometry, and renders it through the same compact-mode `CreationMap`). On the substrate side, two small follow-ups land: the app-MCP scaffold optionally seeds the app's `.env` with its own MCP bearer + URL + materialization ref (opt-in, bearer never crosses the response), and the apps loader stops routing reads through the agent-capped fleet brief.
 
@@ -226,7 +339,7 @@ The shared posture across the surfaces: **one renderer, three call sites.** [Cre
 - **Sketches stay outside the contextmap on purpose.** They aren't structural commits; they're scratch visualizations. If a sketch surface earns a durable place later (e.g. attaching one to a materialization principle as a structural overlay), it graduates explicitly through a Ring 6 surface — not by gradual feature-creep on the sketchbook table.
 - **Per-app graph derives, never persists.** Every `/apps/<ref>/graph` request walks the contextmap node + inventory + triggers fresh. There is no derived-graph cache row; rename a binding, restart a trigger, and the next refresh shows it.
 
-## Unreleased — 2026-05-27
+### 2026-05-27 (was "Unreleased")
 
 The release where mojulo's typed shapes become **more legible** — both to the operator (a new graph view at `/graph` that visualizes the app-creation paradigm) and to itself (composer-anchored runtime for the `trigger` axis: every activation binding references a typed component by ref, so the contextmap's audit chain walks back to *which shape* was bound, not just that something was bound). Capability growth slows here on purpose; the substrate has accreted Rings and surfaces across several quiet releases (0.5.0 primitives + capabilities; 0.6.0 semantic recall; 0.7.0 register tuning; 0.8.0 apps + local-storage). 0.9.0 lets the operator see what mojulo has become — at design time (the graph view) and at runtime (autonomous firing whose every fire leaves a `trigger_firing → app_inference` chain on the artifact node).
 

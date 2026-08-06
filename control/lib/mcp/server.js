@@ -54,13 +54,12 @@ export function getServerVersion() {
 // member must be named here — the preamble is the first orientation surface).
 export const SERVER_INSTRUCTIONS = `Mojulo is a stateful MCP server on the operator's host — a SQLite + graph database the agent reads and writes through tools, plus a process supervisor (the runtime daemons) that spawns chatbots and local apps (apps come with their own MCP sidecar that mojulo registers into the local MCP graph). Unlike vendor MCPs (Gmail, Linear, Drive) that proxy a remote service, mojulo's tool calls mutate mojulo's own database — mojulo is the agent's workshop, and the agent's job is to compose that state into things that keep existing after the chat ends.
 
-Four things the agent can create:
+Five things the agent can create:
 - **Bot** — chatbot deployed as its own process. Entry: \`start_new_bot\`.
 - **Connected Service** — a workflow over the operator's installed MCPs, no chatbot. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
 - **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
-- **Game** — playable standalone artifact: a typed store + levels that are worlds; a level is refused until proven completable. Entry: \`create_game\`.
-
-The same discipline mints creative artifacts — diagrams, views, walkable worlds, figures, audio, films, publications — as tiny deterministic recipes, never renders. Entries: \`create_sketch\` / \`create_view\` / \`compose_world\` / \`cook\`.
+- **Media** — creative artifacts: diagrams, views, walkable worlds, figures, audio, films, publications — minted as tiny deterministic recipes, never renders. Entries: \`create_sketch\` / \`create_view\` / \`compose_world\` / \`cook\`.
+- **Game** — composition over the other paradigms: Media levels/music/art bound to a typed store with rules, playable standalone; a level is refused until proven completable. Entry: \`create_game\`.
 
 **Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped bot as user secrets. Use \`inspect_bot_env\`, never \`cat\` or \`Read\`.
 
@@ -281,6 +280,7 @@ export async function ensureToolsRegistered() {
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerManjiTreeTools } = await import('@/lib/mcp/tools/manji-trees');
   const { registerCarvedSolidTools } = await import('@/lib/mcp/tools/carved-solid');
+  const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
   const { registerFigureTools } = await import('@/lib/mcp/tools/figure');
   const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
@@ -298,6 +298,10 @@ export async function ensureToolsRegistered() {
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
   const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
+  const { registerGameProjectTools } = await import('@/lib/mcp/tools/game-projects');
+  const { registerPixelizerGameTools } = await import('@/lib/mcp/tools/pixelizer-game');
+  const { registerSpriteSheetTools } = await import('@/lib/mcp/tools/sprite-sheet');
+  const { registerExportGameTools } = await import('@/lib/mcp/tools/export-game');
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
@@ -452,6 +456,11 @@ export async function ensureToolsRegistered() {
   // from any vector outline. Sits next to the other illustration mints; persists
   // with kind `carved-solid`, rendered by the /api/sketches svg route.
   registerCarvedSolidTools();
+  // create_cover — a publication COVER (illustration + title + subtext + metadata
+  // composed under one art direction). Sits next to the other illustration mints;
+  // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png
+  // (cover-composition.plan.md).
+  registerCoverTools();
   // create_figure — a POSED protoform human figure (armature + flesh + spine bend
   // + garments). Sits next to the other illustration mints; persists with kind
   // `figure`, rendered by the /api/sketches svg route. The figure is a pure
@@ -530,10 +539,25 @@ export async function ensureToolsRegistered() {
   // stays with an external worker through the voice seam. Registers after
   // beats so audio reads adjacent. See lib/graph/voice/voice-worker.plan.md.
   registerVoiceTools();
-  // Mojulo Game Designer — the fourth creatable paradigm (sibling to bots /
+  // Mojulo Game Designer — the fifth creatable paradigm (composition over bots /
   // connected services / apps): a standalone game artifact = a shell owning a
   // typed store + levels that are worlds minted with a `game:` contract channel.
   // Registers after beats so the visual-mint cluster (world → view → motion →
   // sound → game) reads adjacent in tools/list. See game-metacontext.plan.md.
   registerGameTools();
+  // Game projects register immediately after the game mint — the project
+  // layer that ties one game's artifacts together (game-developer.plan.md).
+  registerGameProjectTools();
+  // Pixelizer reducer games (brickster & kin) — the 2D arcade register beside
+  // the world/level games; a `kind:'game'` sketch served by the pixelizer
+  // branch of /api/sketches/<ref>/game (pixelizer.plan.md P5).
+  registerPixelizerGameTools();
+  // create_sprite_sheet + bake_sprite_sheet — the bridge from the image-worker
+  // handoff loop to the pixelizer's 2D sprite substrate (sprite-sheet.plan.md):
+  // a `kind:'sprite-sheet'` director recipe whose accepted per-frame renders bake
+  // into pixelizer {size,palette,cells} sprites.
+  registerSpriteSheetTools();
+  // export_game — the self-contained-folder export beside the game mints
+  // (game-publish.plan.md phase 2): the sharing seam for playable artifacts.
+  registerExportGameTools();
 }

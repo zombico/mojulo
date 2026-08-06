@@ -215,7 +215,7 @@ function beadRings(c, r, { latRings, samples, peak = 0, squash = 1 }) {
  * at thin ends) — the femoral-neck move.
  */
 export function buildFluffs(positions, fluffs, opts = {}) {
-  const { scale = 12, rings: RING_N = 14, samples = 24, blend = FLUFF_BLEND } = opts;
+  const { scale = 12, rings: RING_N = 14, samples = 24, latRings = 10, blend = FLUFF_BLEND } = opts;
   const errors = validateFluffs(fluffs, positions);
   if (errors.length) throw new Error(`buildFluffs: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ''}`);
   const toWorld = (q) => ({ x: q.x * scale, y: q.y * scale, z: q.z * scale });
@@ -228,7 +228,7 @@ export function buildFluffs(positions, fluffs, opts = {}) {
       stacks.push({
         id: spec.id || `fluff:${spec.node}`,
         ...(spec.hex ? { hex: spec.hex } : {}),
-        rings: beadRings(c, d.r, { latRings: 10, samples, peak: d.peak, squash: d.squash }).map((rg) => ({ center: toWorld(rg.center), polyline: rg.polyline.map(toWorld) })),
+        rings: beadRings(c, d.r, { latRings, samples, peak: d.peak, squash: d.squash }).map((rg) => ({ center: toWorld(rg.center), polyline: rg.polyline.map(toWorld) })),
       });
     } else {
       const key = `${spec.segment[0]}→${spec.segment[1]}`;

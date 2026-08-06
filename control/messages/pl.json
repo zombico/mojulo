@@ -1567,9 +1567,12 @@
       "stash": "Magazyny",
       "illustrations": "Ilustracje",
       "worlds": "Światy",
+      "objects": "Obiekty",
       "motion": "Ruch",
       "beats": "Bity",
       "voice": "Głos",
+      "games": "Twórca gier",
+      "arcade": "Arcade",
       "settings": "Ustawienia"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Przygotowywanie…",
     "downloadGlbUnavailable": "Brak siatki 3D do wyeksportowania dla tego szkicu.",
     "downloadGlbError": "Eksport nie powiódł się.",
+    "downloadStl": "Pobierz .stl",
+    "downloadStlPreparing": "Przygotowywanie…",
+    "downloadStlUnavailable": "Brak siatki do wydruku dla tego szkicu.",
+    "downloadStlError": "Eksport nie powiódł się.",
+    "downloadStlHint": "Binarny STL do druku 3D — tylko kształt, bez koloru; otwórz w slicerze.",
     "downloadHtml": "Pobierz HTML",
     "downloadHtmlPreparing": "Przygotowywanie…",
     "downloadHtmlUnavailable": "Brak samodzielnego HTML do wyeksportowania dla tego szkicu.",
@@ -1632,10 +1640,82 @@
       "step": "krok {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Twórca gier",
+    "gallerySubtitle": "Jeden projekt na grę — jej zasady, poziomy, postacie, dźwięk i grafika na jednej półce.",
+    "galleryEmpty": "Brak projektów gier. Uruchom create_game_project z agenta hosta, aby rozpocząć.",
+    "copyStarterPrompt": "Skopiuj prompt startowy",
+    "loading": "Ładowanie projektów…",
+    "noMembersYet": "Brak członków",
+    "notFound": "Ten projekt nie istnieje — mógł zostać zarchiwizowany lub ref jest błędny.",
+    "backToProjects": "Powrót do Twórcy gier",
+    "charter": "Statut",
+    "playInArcade": "Zagraj w Arcade",
+    "copyWorkPrompt": "Kopiuj prompt roboczy",
+    "copyAddPrompt": "dodaj",
+    "copyMintPrompt": "utwórz grę",
+    "copied": "Skopiowano",
+    "playable": "Grywalna",
+    "missing": "Brakujący",
+    "missingBody": "Artefakt tego członka już nie istnieje. Projekt zachowuje slot; podepnij ponownie lub usuń go z agenta hosta.",
+    "noRules": "Nie utworzono jeszcze gry — projekt jest w fazie przedprodukcyjnej.",
+    "fromManifest": "z manifestu",
+    "gated": "zablokowane",
+    "openNewTab": "Otwórz w nowej karcie",
+    "closeViewer": "Zamknij",
+    "noPreview": "Brak podglądu w miejscu dla tego członka — otwórz jego artefakt z agenta hosta.",
+    "gameOverview": "Gra",
+    "playNewTab": "Zagraj w nowej karcie",
+    "storeLabel": "Magazyn",
+    "contentsLabel": "Zawartość",
+    "themeLabel": "Motyw",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# poziom} few {# poziomy} many {# poziomów} other {# poziomu}}",
+    "trackCountLine": "{count, plural, one {# utwór muzyczny} few {# utwory muzyczne} many {# utworów muzycznych} other {# utworu muzycznego}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Walka"
+    },
+    "roles": {
+      "rules": "Zasady",
+      "level": "Poziomy",
+      "character": "Postacie",
+      "audio": "Dźwięk",
+      "graphic": "Grafika",
+      "animation": "Animacja",
+      "reference": "Odniesienia"
+    },
+    "levelStatus": {
+      "promoted": "Awansowane",
+      "contract": "Ma kontrakt",
+      "candidate": "Kandydat",
+      "missing": "Brakujący"
+    },
+    "audioKind": {
+      "soundtrack": "Ścieżka dźwiękowa",
+      "sfx": "SFX",
+      "voice": "Głos"
+    },
+    "emptyFolder": "Jeszcze nic tu nie ma."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Grywalne samodzielne gry, utworzone w warsztacie. Wybierz automat i graj.",
+    "loading": "Ładowanie automatów…",
+    "emptyState": "Brak gier na sali. Uruchom create_game z agenta hosta, aby utworzyć pierwszy automat.",
+    "copyStarterPrompt": "Skopiuj prompt startowy",
+    "copied": "Skopiowano",
+    "play": "Graj",
+    "levelCount": "{count, plural, one {# poziom} few {# poziomy} many {# poziomów} other {# poziomu}}",
+    "shipped": "Wydane",
+    "notFound": "Tego automatu nie ma na sali — gra mogła zostać usunięta.",
+    "backToArcade": "Powrót do Arcade",
+    "openStandalone": "Otwórz samodzielnie"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "Studio ilustracji: wymint krajobrazy, postacie i sceny 3D, a następnie uruchom je w ruchu. Dopracowana powierzchnia twórcza, siostra Szkiców (dopracowana do diagramów). Ilustracja to ten sam prymityw szkicu — magazynuj, referuj i różnicuj w obie strony."
+      "subtitle": "Studio: ilustracje, chodliwe światy, obiekty 3D, ruch, beaty, głos i gotowe wyniki. Dostrojona powierzchnia twórcza, siostra Szkiców (dostrojonych do diagramów). Każdy element to ten sam prymityw szkicu — odkładaj, odwołuj i porównuj go tak czy inaczej."
     },
     "open": "Otwórz",
     "empty": "Tutaj jeszcze nic",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Światy",
-      "subtitle": "Przejezdne krajobrazy three.js i huby transportu — przeciągnij, aby orbitować, przewiń, aby powiększyć, poruszaj się przez nich.",
-      "blurb": "Fraktalne miasta i huby transportu renderowane jako nawigowalne światy 3D, nie płaskie obrazy."
+      "subtitle": "Chodliwe światy three.js — miasta, budynki, wnętrza i węzły, po których poruszasz się z perspektywy pierwszej osoby.",
+      "blurb": "Fraktalne miasta, gmachy i wnętrza renderowane jako chodliwe światy 3D, a nie płaskie obrazy."
+    },
+    "objects": {
+      "title": "Obiekty",
+      "subtitle": "Pojedyncze artefakty 3D i studia — części stołu roboczego, złożenia, poligomery, planety, widoki naukowe i matematyczne. Przeciągnij, aby obracać, przewiń, aby przybliżyć.",
+      "blurb": "Części stołu roboczego, złożenia, poligomery i studia orbitalne — rzeczy 3D, które obracasz i oglądasz."
     },
     "motion": {
       "title": "Ruch",

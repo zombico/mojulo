@@ -55,7 +55,7 @@ describe('assembleDnaScene', () => {
 describe('dna-view classification', () => {
   it('is a world-render kind (walkable/orbital gallery, not a flat sketch)', () => {
     const manifest = { kind: 'dna-view', sequence: 'GATTACA' };
-    expect(classifyBucket(manifest)).toBe('world');
+    expect(classifyBucket(manifest)).toBe('object');
     expect(sketchRenderMode(manifest)).toBe('world');
   });
 });

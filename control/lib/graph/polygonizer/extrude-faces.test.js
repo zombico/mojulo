@@ -34,6 +34,39 @@ describe('extrudeToFaces — solid prism', () => {
   });
 });
 
+describe('extrudeToFaces — endProfile taper', () => {
+  it('lerps the ring along the axis: a shrunk triangle → 3 walls + both caps', () => {
+    const faces = extrudeToFaces(vbox({
+      profile: { points: [[-2, -1], [2, -1], [0, 2]] },
+      endProfile: { points: [[-1, -0.5], [1, -0.5], [0, 1]] },
+    }));
+    expect(faces.length).toBe(3 /* walls */ + 3 + 3 /* two 3-fan caps */);
+    expect(allWellFormed(faces)).toBe(true);
+  });
+
+  it('a collapsed end ring pinches walls into triangles and drops the zero-area end cap', () => {
+    const wedge = extrudeToFaces(vbox({
+      profile: { points: [[-2, -1], [2, -1], [2, 1], [-2, 1]] },
+      endProfile: { points: [[-2, -1], [2, -1], [2, -1], [-2, -1]] },   // roof ridge: top edge folds onto the bottom
+    }));
+    expect(wedge.length).toBe(4 /* walls (two pinched to triangles) */ + 4 /* start cap fan only */);
+    expect(allWellFormed(wedge)).toBe(true);
+  });
+
+  it('is byte-identical to the plain prism when endProfile is absent', () => {
+    expect(extrudeToFaces(vbox())).toEqual(extrudeToFaces(vbox()));
+  });
+
+  it('validateExtrudes gates count mismatch, rect profiles, and shells', () => {
+    const axis = { axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 1 } };
+    const tri = { points: [[0, 0], [1, 0], [0, 1]] };
+    expect(validateExtrudes([{ ...axis, profile: tri, endProfile: { points: [[0, 0], [1, 0]] } }]).length).toBeGreaterThan(0);
+    expect(validateExtrudes([{ ...axis, profile: { rect: { w: 2, h: 2 } }, endProfile: tri }]).length).toBeGreaterThan(0);
+    expect(validateExtrudes([{ ...axis, profile: tri, endProfile: tri, wallThickness: 0.2 }]).length).toBeGreaterThan(0);
+    expect(validateExtrudes([{ ...axis, profile: tri, endProfile: { points: [[0, 0], [0.5, 0], [0, 0.5]] } }]).length).toBe(0);
+  });
+});
+
 describe('extrudeToFaces — recessed shell', () => {
   const shell = vbox({ profile: { rect: { w: 8, h: 15, r: 1.3 } }, axisTo: { x: 0, y: 0, z: 1.2 }, wallThickness: 0.5 });
 

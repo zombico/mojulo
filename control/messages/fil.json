@@ -1567,9 +1567,12 @@
       "stash": "Stashes",
       "illustrations": "Mga ilustrasyon",
       "worlds": "Mga mundo",
+      "objects": "Mga Bagay",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Tunog",
+      "games": "Developer ng Laro",
+      "arcade": "Arcade",
       "settings": "Mga Setting"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Naghahanda…",
     "downloadGlbUnavailable": "Walang 3D mesh na i-export para sa sketch na ito.",
     "downloadGlbError": "Nabigo ang export.",
+    "downloadStl": "I-download ang .stl",
+    "downloadStlPreparing": "Naghahanda…",
+    "downloadStlUnavailable": "Walang printable na mesh na maie-export para sa sketch na ito.",
+    "downloadStlError": "Nabigo ang export.",
+    "downloadStlHint": "Binary STL para sa 3D printing — hugis lang, walang kulay; buksan sa iyong slicer.",
     "downloadHtml": "I-download ang HTML",
     "downloadHtmlPreparing": "Naghahanda…",
     "downloadHtmlUnavailable": "Walang standalone HTML na i-export para sa sketch na ito.",
@@ -1632,10 +1640,82 @@
       "step": "step {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Developer ng Laro",
+    "gallerySubtitle": "Isang proyekto bawat laro — ang mga panuntunan, level, karakter, audio, at art nito sa iisang shelf.",
+    "galleryEmpty": "Wala pang game project. Patakbuhin ang create_game_project mula sa iyong host agent para magsimula.",
+    "copyStarterPrompt": "Kopyahin ang starter prompt",
+    "loading": "Naglo-load ng mga proyekto…",
+    "noMembersYet": "Wala pang miyembro",
+    "notFound": "Wala ang proyektong iyon — maaaring na-archive na ito o mali ang ref.",
+    "backToProjects": "Bumalik sa Developer ng Laro",
+    "charter": "Charter",
+    "playInArcade": "Maglaro sa Arcade",
+    "copyWorkPrompt": "Kopyahin ang work prompt",
+    "copyAddPrompt": "idagdag",
+    "copyMintPrompt": "i-mint ang laro",
+    "copied": "Nakopya",
+    "playable": "Nalalaro",
+    "missing": "Missing",
+    "missingBody": "Wala na ang artifact ng miyembrong ito. Pinapanatili ng proyekto ang slot; i-rebind o alisin ito mula sa iyong host agent.",
+    "noRules": "Wala pang na-mint na laro — nasa pre-production ang proyekto.",
+    "fromManifest": "mula sa manifest",
+    "gated": "naka-gate",
+    "openNewTab": "Buksan sa bagong tab",
+    "closeViewer": "Isara",
+    "noPreview": "Walang inline preview para sa miyembrong ito — buksan ang artifact nito mula sa iyong host agent.",
+    "gameOverview": "Ang laro",
+    "playNewTab": "Maglaro sa bagong tab",
+    "storeLabel": "Store",
+    "contentsLabel": "Mga Nilalaman",
+    "themeLabel": "Tema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# level} other {# na level}}",
+    "trackCountLine": "{count, plural, one {# music track} other {# na music track}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Labanan"
+    },
+    "roles": {
+      "rules": "Mga Panuntunan",
+      "level": "Mga Level",
+      "character": "Mga Karakter",
+      "audio": "Audio",
+      "graphic": "Mga Graphic",
+      "animation": "Animation",
+      "reference": "Mga Reperensya"
+    },
+    "levelStatus": {
+      "promoted": "Na-promote",
+      "contract": "May kontrata",
+      "candidate": "Kandidato",
+      "missing": "Missing"
+    },
+    "audioKind": {
+      "soundtrack": "Soundtrack",
+      "sfx": "SFX",
+      "voice": "Tunog"
+    },
+    "emptyFolder": "Wala pang laman dito."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Mga nalalarong standalone na laro, na-mint mula sa workshop. Pumili ng cabinet at maglaro.",
+    "loading": "Naglo-load ng mga cabinet…",
+    "emptyState": "Wala pang laro sa floor. Patakbuhin ang create_game mula sa iyong host agent para i-mint ang unang cabinet.",
+    "copyStarterPrompt": "Kopyahin ang starter prompt",
+    "copied": "Nakopya",
+    "play": "Maglaro",
+    "levelCount": "{count, plural, one {# level} other {# na level}}",
+    "shipped": "Nailabas na",
+    "notFound": "Wala sa floor ang cabinet na iyon — maaaring inalis na ang laro.",
+    "backToArcade": "Bumalik sa Arcade",
+    "openStandalone": "Buksan bilang standalone"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "Ang illustration studio: mag-mint ng landscapes, figures, at 3D scenes, at ilagay ang mga ito sa motion. Isang tuned creative surface, kapatid sa Sketches (tuned para sa diagrams). Ang isang illustration ay parehong sketch primitive — stash, reference, at diff ito sa alinmang paraan."
+      "subtitle": "Ang studio: mga ilustrasyon, nalalakarang mundo, 3D na bagay, motion, beats, voice, at tapos nang output. Isang tuned na creative surface, kapatid ng Sketches (tuned para sa mga diagram). Bawat piraso ay iisang sketch primitive — i-stash, i-reference, at i-diff ito sa alinmang paraan."
     },
     "open": "Buksan",
     "empty": "Walang dito pa",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Mga mundo",
-      "subtitle": "Mga malyayaang three.js cityscapes at transportation hubs — mag-drag upang mag-orbit, mag-scroll upang mag-zoom, lumipat sa pamamagitan ng mga ito.",
-      "blurb": "Mga fractal city at transportation hubs na ire-render bilang navigable 3D worlds, hindi flat pictures."
+      "subtitle": "Mga nalalakarang three.js na mundo — mga lungsod, gusali, interior, at hub na tatahakin mo nang first-person.",
+      "blurb": "Mga fractal na lungsod, edifice, at interior na na-render bilang nalalakarang 3D na mundo, hindi patag na larawan."
+    },
+    "objects": {
+      "title": "Mga Bagay",
+      "subtitle": "Mga solong 3D artifact at pag-aaral — mga workbench part, assembly, polygomer, planeta, science at math view. I-drag para umorbit, i-scroll para mag-zoom.",
+      "blurb": "Mga workbench part, assembly, polygomer, at orbit study — mga 3D na bagay na iniikot at tinitingnan mo."
     },
     "motion": {
       "title": "Motion",

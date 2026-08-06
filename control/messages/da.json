@@ -1567,9 +1567,12 @@
       "stash": "Gemmer",
       "illustrations": "Illustrationer",
       "worlds": "Verdener",
+      "objects": "Objekter",
       "motion": "Bevægelse",
       "beats": "Beats",
       "voice": "Stemme",
+      "games": "Spiludvikler",
+      "arcade": "Arkade",
       "settings": "Indstillinger"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Forbereder…",
     "downloadGlbUnavailable": "Intet 3D-net at eksportere for denne skitse.",
     "downloadGlbError": "Eksport mislykkedes.",
+    "downloadStl": "Download .stl",
+    "downloadStlPreparing": "Forbereder…",
+    "downloadStlUnavailable": "Ingen printbar mesh at eksportere for denne sketch.",
+    "downloadStlError": "Eksport mislykkedes.",
+    "downloadStlHint": "Binær STL til 3D-print — kun form, ingen farve; åbn i din slicer.",
     "downloadHtml": "Download HTML",
     "downloadHtmlPreparing": "Forbereder…",
     "downloadHtmlUnavailable": "Ingen selvstændig HTML at eksportere for denne skitse.",
@@ -1632,10 +1640,82 @@
       "step": "trin {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Spiludvikler",
+    "gallerySubtitle": "Ét projekt per spil — dets regler, baner, karakterer, lyd og grafik på én hylde.",
+    "galleryEmpty": "Ingen spilprojekter endnu. Kør create_game_project fra din host-agent for at starte et.",
+    "copyStarterPrompt": "Kopier startprompt",
+    "loading": "Indlæser projekter…",
+    "noMembersYet": "Ingen medlemmer endnu",
+    "notFound": "Det projekt findes ikke — det er måske arkiveret, eller ref'en er forkert.",
+    "backToProjects": "Tilbage til Spiludvikler",
+    "charter": "Charter",
+    "playInArcade": "Spil i Arkade",
+    "copyWorkPrompt": "Kopiér arbejdsprompt",
+    "copyAddPrompt": "tilføj",
+    "copyMintPrompt": "mint spillet",
+    "copied": "Kopieret",
+    "playable": "Spilbar",
+    "missing": "Manglende",
+    "missingBody": "Dette medlems artefakt findes ikke længere. Projektet beholder pladsen; genbind eller fjern den fra din host-agent.",
+    "noRules": "Intet spil mintet endnu — projektet er i præproduktion.",
+    "fromManifest": "fra manifest",
+    "gated": "spærret",
+    "openNewTab": "Åbn i ny fane",
+    "closeViewer": "Luk",
+    "noPreview": "Ingen inline-forhåndsvisning for dette medlem — åbn dets artefakt fra din host-agent.",
+    "gameOverview": "Spillet",
+    "playNewTab": "Spil i ny fane",
+    "storeLabel": "Lager",
+    "contentsLabel": "Indhold",
+    "themeLabel": "Tema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# bane} other {# baner}}",
+    "trackCountLine": "{count, plural, one {# musiknummer} other {# musiknumre}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Kamp"
+    },
+    "roles": {
+      "rules": "Regler",
+      "level": "Baner",
+      "character": "Karakterer",
+      "audio": "Lyd",
+      "graphic": "Grafik",
+      "animation": "Animation",
+      "reference": "Referencer"
+    },
+    "levelStatus": {
+      "promoted": "Promoveret",
+      "contract": "Har kontrakt",
+      "candidate": "Kandidat",
+      "missing": "Manglende"
+    },
+    "audioKind": {
+      "soundtrack": "Soundtrack",
+      "sfx": "SFX",
+      "voice": "Stemme"
+    },
+    "emptyFolder": "Intet her endnu."
+  },
+  "arcade": {
+    "title": "Mojulo Arkade",
+    "subtitle": "Spilbare standalone-spil, mintet fra værkstedet. Vælg et kabinet og spil.",
+    "loading": "Indlæser kabinetter…",
+    "emptyState": "Ingen spil på gulvet endnu. Kør create_game fra din host-agent for at minte det første kabinet.",
+    "copyStarterPrompt": "Kopier startprompt",
+    "copied": "Kopieret",
+    "play": "Spil",
+    "levelCount": "{count, plural, one {# bane} other {# baner}}",
+    "shipped": "Udgivet",
+    "notFound": "Det kabinet er ikke på gulvet — spillet er måske fjernet.",
+    "backToArcade": "Tilbage til Arkade",
+    "openStandalone": "Åbn standalone"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "Illustrationsstudiet: mønt landskaber, figurer og 3D-scener og sæt dem i bevægelse. En indstillet kreativ overflade, søskende til Skitser (indstillet til diagrammer). En illustration er den samme skitseprimitive — gem, referencer og diff den på begge måder."
+      "subtitle": "Studiet: illustrationer, gåbare verdener, 3D-objekter, bevægelse, beats, stemme og færdige outputs. En tunet kreativ flade, søskende til Sketches (tunet til diagrammer). Hver del er den samme sketch-primitiv — stash, referér og diff den uanset hvad."
     },
     "open": "Åbn",
     "empty": "Intet her endnu",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Verdener",
-      "subtitle": "Gangbare three.js bysteder og transportknutepunkter — træk for at kredse, rul for at zoome, bevæg dig gennem dem.",
-      "blurb": "Fraktalbyer og transportknutepunkter gengivet som navigerbare 3D-verdener, ikke flade billeder."
+      "subtitle": "Gåbare three.js-verdener — byer, bygninger, interiører og hubs du bevæger dig gennem i førsteperson.",
+      "blurb": "Fraktale byer, bygningsværker og interiører gengivet som gåbare 3D-verdener, ikke flade billeder."
+    },
+    "objects": {
+      "title": "Objekter",
+      "subtitle": "Enkelte 3D-artefakter og studier — workbench-dele, samlinger, polygomers, planeter, videnskabs- og matematikvisninger. Træk for at kredse, scroll for at zoome.",
+      "blurb": "Workbench-dele, samlinger, polygomers og kredsløbsstudier — 3D-ting du drejer og kigger på."
     },
     "motion": {
       "title": "Bevægelse",

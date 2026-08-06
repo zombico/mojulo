@@ -98,6 +98,11 @@ export const SOURCE_KINDS = [
   // ward / kokusen / …). Discovered by intent ("a magic shimmer", "a heal
   // effect"); read via `get_game_vocab`.
   'game_sfx',
+  // game-project charters (game-developer.plan.md) — one row per game project
+  // (gp_ ref), body = the charter (premise / register / scope). Discovered by
+  // intent ("my platformer project", "the game with the mono-eye suits");
+  // read in full via `get_game_project`.
+  'game_project',
   // routing cards — one per creative-mint routing row retired from
   // forward_context's Create-things section (markdown under
   // lib/mcp/routing-cards/). Recognizer quotes + entry tool + fork sentences;
@@ -963,9 +968,13 @@ export async function reindexAll({ verbose = false } = {}) {
   }
   log(`orbit_artifacts: ${artifactRows.length}`);
 
-  // 7. Catalysts — filesystem markdown via the loader.
-  const { getCatalystCatalog } = await import('../../mcp/catalysts/loader.js');
-  const catalog = getCatalystCatalog();
+  // 7. Catalysts — the merged view: curated filesystem markdown plus the
+  // operator's active local shelf (mint_catalyst rows). Local catalysts also
+  // have a per-write hook (local-catalysts.js mirrorEmbedding); this pass
+  // makes a from-scratch reindex include them. Archived/eclipsed local rows
+  // are already absent from the merged catalog.
+  const { getMergedCatalog } = await import('../../mcp/catalysts/catalog.js');
+  const catalog = getMergedCatalog();
   for (const cat of catalog.values()) {
     items.push({
       sourceKind: 'catalyst',

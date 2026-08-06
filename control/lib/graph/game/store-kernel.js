@@ -167,8 +167,10 @@ export function buildGameStoreKernel() {
 
   // ── outcome envelopes ─────────────────────────────────────────────────────────
   // envelope: { contractVersion, levelRef, seed, result: success|fail|abort,
-  //             events: [typed events], ticks? }
+  //             events: [typed events], ticks?, stats? }
   // contract.produces: { results?: [allowed results], events: [{ type, slice, max? }] }
+  // `stats` is an OPTIONAL presentation payload (e.g. the match layer's score-screen rows) —
+  // validation ignores it; only `events` ever touches the store.
   function validateEnvelope(contract, envelope) {
     const errors = [];
     if (!envelope || typeof envelope !== 'object') return { ok: false, errors: ['envelope must be an object'] };

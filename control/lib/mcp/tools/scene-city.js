@@ -32,7 +32,7 @@ function normalizeLandmarkInput(landmark) {
   return isLandmarkShape(landmark) ? landmark : null;
 }
 
-export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, ref, folderRef } = {}) {
+export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, ref, folderRef } = {}) {
   const manifest = {
     kind: 'fractal-city',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
@@ -49,6 +49,18 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
 
     ...((() => { const lm = normalizeLandmarkInput(landmark); return lm ? { landmark: lm } : {}; })()),   // monument(s) as the reserved root anchor (one shape, or an array for a cluster like Toronto's CN Tower + Rogers Centre)
     ...((() => { const ca = normalizeCivicAreas(civicAreas); return ca.length ? { civicAreas: ca } : {}; })()),   // reserved districts (town-square / school / strip-mall), each given a surface-area budget before roads
+    // ambient walking people on looped sidewalk/plaza rings (city/walkers.plan.md). Opt-in — omit ⇒
+    // byte-identical, static-only city. `true` for defaults, or { count } to cap how many loops. Motion
+    // is /world (three.js) only; the /scene CSS3D still + gallery PNG stay static.
+    ...(walkers ? { walkers: walkers === true ? true
+      : (typeof walkers === 'object'
+        ? { ...(Number.isFinite(+walkers.count) ? { count: Math.max(1, Math.min(24, Math.trunc(+walkers.count))) } : {}) }
+        : true) } : {}),
+    // ambient moving traffic on the main avenues (the driver-ants). Opt-in; omit ⇒ static-only city.
+    // `true` for defaults, or { side:'left'|'right' } for the driving paradigm (right-hand default).
+    // Motion is /world (three.js) only; the /scene CSS3D still + gallery PNG stay static.
+    ...(traffic ? { traffic: traffic === true ? true
+      : (typeof traffic === 'object' && traffic.side === 'left' ? { side: 'left' } : true) } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -88,6 +100,6 @@ export async function createFractalCityHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_fractal_city requires a recipe object');
   }
-  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, ref, folder_ref: folderRef } = input;
-  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, ref, folderRef });
+  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, ref, folder_ref: folderRef } = input;
+  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, ref, folderRef });
 }

@@ -49,6 +49,11 @@ const DESCRIPTION_ALLOWLIST = {
   // midi handoff, render-packet control-scaffold pointer). Shrink-only.
   create_beats: 1150,
   create_carved_solid: 2605,
+  // create_cover / export_game allowlisted + sketch_polygomer re-pinned
+  // 2026-08-04 to bless the 1.0 consolidation batch (publication covers,
+  // the game-publish phase-2 export seam, the polygomer drapes/detail
+  // growth). Shrink-only from these snapshots.
+  create_cover: 1138,
   create_dna_process: 1137,
   create_energy_cycle: 1011,
   // create_figure re-pinned 2026-07-14: inline wardrobe-piece specs (the
@@ -72,6 +77,7 @@ const DESCRIPTION_ALLOWLIST = {
   diff_sketches: 875,
   execute_plan: 1314,
   export_beats: 1124,
+  export_game: 1253,
   // export_model re-pinned 2026-07-17: the STL print-handoff format
   // (format:'glb'|'stl' + scale → mm) rides the same tool. Shrink-only.
   export_model: 2104,
@@ -85,7 +91,10 @@ const DESCRIPTION_ALLOWLIST = {
   get_image_render_packet: 708,
   get_mcp_capabilities: 890,
   get_register_kit: 731,
-  get_substrate: 832,
+  // get_substrate re-pinned 2026-08-05: Media promoted to a first-class
+  // paradigm (five paradigms; Game reframed as composition) — the cloud-shape
+  // mapping row grew. Shrink-only.
+  get_substrate: 914,
   get_tool_telemetry: 906,
   get_worked_example: 946,
   install_scaffold: 1317,
@@ -104,7 +113,7 @@ const DESCRIPTION_ALLOWLIST = {
   run_experiment_sweep: 866,
   semantic_search: 1768,
   sketch_plan: 774,
-  sketch_polygomer: 1093,
+  sketch_polygomer: 1214,
   sketch_research: 712,
   skin_polygomer: 953,
   sketch_stash: 1016,
@@ -132,7 +141,22 @@ const DESCRIPTION_ALLOWLIST = {
 // drapes/detail growth.
 // Re-pinned 2026-07-17 (was 352,000; measured 352,387) to bless the STL
 // print handoff on export_model (format:'glb'|'stl' + scale → mm).
-const PAYLOAD_CEILING = 353_000;
+// Re-pinned 2026-07-19 (was 353,000; measured 353,675) to bless the in-flight
+// armory/vehicle tool growth riding the tree (~600 bytes) plus the Qwen
+// reweigh of the render-image-outcome-locally catalyst summary (~75 bytes,
+// local-render-worker.plan.md L4).
+// Re-pinned 2026-07-24 (was 354,000; measured 359,539) to bless the five
+// game-project tools + create_game's project_ref (game-developer.plan.md
+// GP1, ~4.6k) — noting ~1.2k of other in-flight growth had already crossed
+// the old pin before GP1 (measured 354,897 without it).
+// Re-pinned 2026-07-25 (360_000 → 362_000) to bless `create_pixelizer_game`
+// (pixelizer.plan.md P5 — the 2D reducer-game arcade mint; description already
+// trimmed to lean routing prose, drawer teaches). Measured 360,962 with it.
+// Re-pinned 2026-08-04 (was 362,000; measured 371,050) to bless the 1.0
+// consolidation batch: create_cover (cover-composition phase B) + export_game
+// (game-publish phase 2) + create_sprite_sheet / bake_sprite_sheet
+// (sprite-sheet.plan.md P0/P1) + the sketch_polygomer growth.
+const PAYLOAD_CEILING = 372_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

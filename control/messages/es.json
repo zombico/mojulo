@@ -1567,9 +1567,12 @@
       "stash": "Almacenes",
       "illustrations": "Ilustraciones",
       "worlds": "Mundos",
+      "objects": "Objetos",
       "motion": "Movimiento",
       "beats": "Beats",
       "voice": "Voz",
+      "games": "Desarrollador de juegos",
+      "arcade": "Arcade",
       "settings": "Configuración"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Preparando…",
     "downloadGlbUnavailable": "Sin malla 3D para exportar de este esquema.",
     "downloadGlbError": "Exportación fallida.",
+    "downloadStl": "Descargar .stl",
+    "downloadStlPreparing": "Preparando…",
+    "downloadStlUnavailable": "No hay malla imprimible para exportar de este boceto.",
+    "downloadStlError": "Exportación fallida.",
+    "downloadStlHint": "STL binario para impresión 3D — solo la forma, sin color; ábrelo en tu slicer.",
     "downloadHtml": "Descargar HTML",
     "downloadHtmlPreparing": "Preparando…",
     "downloadHtmlUnavailable": "Sin HTML independiente para exportar de este esquema.",
@@ -1632,10 +1640,82 @@
       "step": "paso {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Desarrollador de juegos",
+    "gallerySubtitle": "Un proyecto por juego — sus reglas, niveles, personajes, audio y arte en un solo estante.",
+    "galleryEmpty": "Aún no hay proyectos de juego. Ejecuta create_game_project desde tu agente anfitrión para empezar uno.",
+    "copyStarterPrompt": "Copiar mensaje inicial",
+    "loading": "Cargando proyectos…",
+    "noMembersYet": "Aún no hay miembros",
+    "notFound": "Ese proyecto no existe — puede que se haya archivado o que la referencia esté mal.",
+    "backToProjects": "Volver a Desarrollador de juegos",
+    "charter": "Estatuto",
+    "playInArcade": "Jugar en el Arcade",
+    "copyWorkPrompt": "Copiar prompt de trabajo",
+    "copyAddPrompt": "añadir",
+    "copyMintPrompt": "acuñar el juego",
+    "copied": "Copiado",
+    "playable": "Jugable",
+    "missing": "Falta",
+    "missingBody": "El artefacto de este miembro ya no existe. El proyecto conserva el espacio; vuelve a vincularlo o elimínalo desde tu agente anfitrión.",
+    "noRules": "Aún no se ha acuñado ningún juego — el proyecto está en preproducción.",
+    "fromManifest": "del manifiesto",
+    "gated": "restringido",
+    "openNewTab": "Abrir en una pestaña nueva",
+    "closeViewer": "Cerrar",
+    "noPreview": "No hay vista previa en línea para este miembro — abre su artefacto desde tu agente anfitrión.",
+    "gameOverview": "El juego",
+    "playNewTab": "Jugar en una pestaña nueva",
+    "storeLabel": "Almacén",
+    "contentsLabel": "Contenido",
+    "themeLabel": "Tema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# nivel} other {# niveles}}",
+    "trackCountLine": "{count, plural, one {# pista de música} other {# pistas de música}}",
+    "slot": {
+      "menu": "Menú",
+      "battle": "Batalla"
+    },
+    "roles": {
+      "rules": "Reglas",
+      "level": "Niveles",
+      "character": "Personajes",
+      "audio": "Audio",
+      "graphic": "Gráficos",
+      "animation": "Animación",
+      "reference": "Referencias"
+    },
+    "levelStatus": {
+      "promoted": "Promovido",
+      "contract": "Tiene contrato",
+      "candidate": "Candidato",
+      "missing": "Falta"
+    },
+    "audioKind": {
+      "soundtrack": "Banda sonora",
+      "sfx": "SFX",
+      "voice": "Voz"
+    },
+    "emptyFolder": "Aún no hay nada aquí."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Juegos independientes jugables, acuñados desde el taller. Elige una máquina y juega.",
+    "loading": "Cargando máquinas…",
+    "emptyState": "Aún no hay juegos en el salón. Ejecuta create_game desde tu agente anfitrión para acuñar la primera máquina.",
+    "copyStarterPrompt": "Copiar mensaje inicial",
+    "copied": "Copiado",
+    "play": "Jugar",
+    "levelCount": "{count, plural, one {# nivel} other {# niveles}}",
+    "shipped": "Publicado",
+    "notFound": "Esa máquina no está en el salón — puede que el juego se haya eliminado.",
+    "backToArcade": "Volver al Arcade",
+    "openStandalone": "Abrir de forma independiente"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "El estudio de ilustración: crea paisajes, figuras y escenas 3D, y ponlos en movimiento. Una superficie creativa refinada, hermana de Esquemas (refinada para diagramas). Una ilustración es la misma primitiva de esquema — almacena, referencia y diff de cualquier forma."
+      "subtitle": "El estudio: ilustraciones, mundos transitables, objetos 3D, movimiento, beats, voz y salidas terminadas. Una superficie creativa afinada, hermana de Sketches (afinada para diagramas). Cada pieza es la misma primitiva de boceto — guárdala, referénciala y compárala de cualquier forma."
     },
     "open": "Abierto",
     "empty": "Nada aquí aún",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Mundos",
-      "subtitle": "Paisajes urbanos three.js atravesables y centros de transporte — arrastra para orbitar, desplázate para hacer zoom, muévete a través de ellos.",
-      "blurb": "Ciudades fractales y centros de transporte renderizados como mundos 3D navegables, no imágenes planas."
+      "subtitle": "Mundos transitables en three.js — ciudades, edificios, interiores y hubs que recorres en primera persona.",
+      "blurb": "Ciudades fractales, edificios e interiores renderizados como mundos 3D transitables, no imágenes planas."
+    },
+    "objects": {
+      "title": "Objetos",
+      "subtitle": "Artefactos y estudios 3D individuales — piezas de banco de trabajo, ensamblajes, polygomers, planetas, vistas de ciencia y matemáticas. Arrastra para orbitar, desplázate para hacer zoom.",
+      "blurb": "Piezas de banco de trabajo, ensamblajes, polygomers y estudios de órbita — cosas 3D que giras y observas."
     },
     "motion": {
       "title": "Movimiento",

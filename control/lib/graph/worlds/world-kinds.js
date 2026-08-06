@@ -128,6 +128,96 @@ const spread = (assemble, title) => ({ title, resolve: (m, ctx) => assemble({ ..
 // fog overlay to clip against (effects-layer.plan.md / P3.5).
 const FRACTAL_CITY_FOG_KINDS = new Set(['building', 'anchor', 'house', 'townhouse', 'midtower', 'garage']);
 
+// ambient walkers (city/walkers.plan.md P4): when the city plan produced walker loops, dress + bake a
+// small cast of CLOTHED walk rigs (tee + trousers) once and finalize the `walkers` payload the
+// scene-three walkers channel reads — a figure name + city-unit path + the scale that sizes the
+// (~1.8-unit) bake down to the city's ~0.6-unit people. Motion is /world (three.js) only; the CSS3D
+// /scene stays static. A scene without walkerLoops is returned untouched (byte-identical), so this is
+// inert for a walkers-off city.
+const CITY_PED_HEIGHT = 0.62;   // static adult height in city units (pedestrian-asset ARCHETYPES.adultM)
+// outfit colours borrowed from the static-pedestrian PALETTES so the walking crowd matches the standing
+// one; spread across the loops so the cast isn't clones.
+// four outfits, not more: each clothed rig is a distinct multi-MB bake (geometry can't be shared
+// across colours), so the cast is capped to keep the /world page light while still reading as varied.
+const WALKER_OUTFITS = [
+  { shirt: '#3a6ea5', pants: '#2c3038' },   // blue tee
+  { shirt: '#b5483f', pants: '#33363d' },   // red tee
+  { shirt: '#d9b65a', pants: '#4a5a3a' },   // mustard tee
+  { shirt: '#4f9a78', pants: '#22252b' },   // green tee
+];
+// the clothed rigs are city-INDEPENDENT, so bake them once and memoize across every city render.
+let _walkerRigs = null;
+function walkerRigVariants() {
+  if (!_walkerRigs) {
+    _walkerRigs = (async () => {
+      const { bakeProtoformRig } = await import('@/lib/graph/figures/rig-bake');
+      const { GARMENTS } = await import('@/lib/graph/polygonizer/figure-garments');
+      const outfit = (o) => [{ ...GARMENTS.tee, color: { cloth: o.shirt } }, { ...GARMENTS.trousers, color: { cloth: o.pants } }];
+      const out = [];
+      for (const o of WALKER_OUTFITS) out.push(await bakeProtoformRig({ proto: { sex: 'male' }, garment: outfit(o), motion: 'walk', keys: 8 }));
+      return out;
+    })().catch((err) => { _walkerRigs = null; throw err; });   // let a failed bake retry next render
+  }
+  return _walkerRigs;
+}
+async function attachCityWalkers(scene) {
+  const loops = scene && scene.walkerLoops;
+  if (!Array.isArray(loops) || !loops.length) return scene;
+  const rigs = await walkerRigVariants();
+  const scale = CITY_PED_HEIGHT / (rigs[0].figH || 1.85);
+  scene.walkers = loops.map((L, i) => ({ figure: 'ped' + (i % rigs.length), path: L.path, style: L.style || 'bumble', scale, speed: 0.7 }));
+  // embed only the outfits actually walking this city (a 2-loop city ships 2 rigs, not all six).
+  const used = new Set(scene.walkers.map((w) => w.figure));
+  scene.figures = { ...(scene.figures || {}) };
+  rigs.forEach((r, i) => { const name = 'ped' + i; if (used.has(name)) scene.figures[name] = r; });
+  delete scene.walkerLoops;   // consumed → keep the payload clean for emitThreeWorld
+  return scene;
+}
+
+// ambient TRAFFIC (the driver-ants): when the city plan produced main-avenue lanes, bake a small cast of
+// vehicles once and finalize the `cars` payload the scene-three cars channel reads — a mesh name + a
+// pacman lane path + speed. Cars are authored in city units already (unlike the rig, no down-scaling).
+// Motion is /world only; the CSS3D /scene stays static. A scene without carLanes is returned untouched.
+const CITY_CAR_SCALE = 0.9;   // matches the static street-car ants (vehicleFaces scale)
+const CAR_SPEED = 1.26;       // ≈ 1.8× the walker speed (0.7 city units/s)
+const CARS_PER_LANE = 3;
+// a small mulberry32 so the vehicle cast is deterministic + city-independent (bake once, memoize).
+const _mul32 = (a) => () => { a |= 0; a = a + 0x6d2b79f5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+let _carBank = null;
+function carMeshBank() {
+  if (!_carBank) {
+    _carBank = (async () => {
+      const { bakeCarMesh } = await import('@/lib/graph/vehicles/car-bake');
+      const rng = _mul32(0x2545f491);
+      const bank = {};
+      for (let i = 0; i < 6; i++) bank['car' + i] = bakeCarMesh({ scale: CITY_CAR_SCALE, rng });   // sampled type + paint + hull
+      return bank;
+    })().catch((err) => { _carBank = null; throw err; });
+  }
+  return _carBank;
+}
+async function attachCityCars(scene) {
+  const lanes = scene && scene.carLanes;
+  if (!Array.isArray(lanes) || !lanes.length) return scene;
+  const { carLaneToPath } = await import('@/lib/graph/city/fractal-city');
+  const bank = await carMeshBank();
+  const names = Object.keys(bank);
+  const cars = [];
+  lanes.forEach((L, li) => {
+    const path = carLaneToPath(L);
+    for (let k = 0; k < CARS_PER_LANE; k++) {
+      cars.push({ car: names[(li * CARS_PER_LANE + k) % names.length], path, speed: CAR_SPEED,
+        startFrac: ((k / CARS_PER_LANE) + li * 0.19) % 1 });   // stagger lane-mates + neighbouring lanes
+    }
+  });
+  scene.cars = cars;
+  const used = new Set(cars.map((c) => c.car));
+  scene.carMeshes = {};
+  for (const n of used) scene.carMeshes[n] = bank[n];
+  delete scene.carLanes;   // consumed
+  return scene;
+}
+
 export const WORLD_KINDS = {
   planetary: spread(assemblePlanetaryScene, 'mojulo planetary'),
   'molecule-view': view(assembleMoleculeScene, 'mojulo molecule'),
@@ -185,7 +275,7 @@ export const WORLD_KINDS = {
     fogBoxes: (m) => planFractalCity(m).boxes
       .filter((b) => FRACTAL_CITY_FOG_KINDS.has(b.kind) && b.z1 > (b.z0 || 0) && b.w > 0 && b.d > 0)
       .map((b) => boxFromFootprint(b, { up: 'z' })),
-    resolve: (m, ctx) => assembleFractalCityScene({ ...m, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title }),
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).
@@ -270,7 +360,17 @@ export const WORLD_KINDS = {
   'painted-landscape': { walk: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host
   // entities, so an entities-only manifest renders without piggybacking on another kind.
-  controllable: view(assembleControllableScene, 'mojulo controllable world'),
+  // fogBoxes: the manifest's own AABB collision hull doubles as the fog occluder — the same
+  // masses the platform rule ejects the suit from clip the aerial-perspective fog overlay.
+  controllable: {
+    ...view(assembleControllableScene, 'mojulo controllable world'),
+    fogBoxes: (m) => (Array.isArray(m.colliders) ? m.colliders : [])
+      .filter((c) => Array.isArray(c?.min) && Array.isArray(c?.max))
+      .map((c) => ({
+        cx: (c.min[0] + c.max[0]) / 2, cy: (c.min[1] + c.max[1]) / 2, cz: (c.min[2] + c.max[2]) / 2,
+        hx: (c.max[0] - c.min[0]) / 2, hy: (c.max[1] - c.min[1]) / 2, hz: (c.max[2] - c.min[2]) / 2,
+      })),
+  },
   // the operator's own Connected Services state, projected to a walkable block-graph (ground + sky +
   // blocks). Regenerated from the { nodes, edges } the mint tool snapshotted into the manifest.
   'operator-world': { walk: true, ...view(assembleOperatorWorldScene, 'mojulo operator world') },

@@ -67,6 +67,52 @@ describe('game manifest', () => {
   });
 });
 
+describe('music bed level (the volume keys)', () => {
+  const withMusic = (music) => validateGameManifest({ ...GAME, music });
+
+  it('accepts 0..1 volumes (volume + per-context overrides)', () => {
+    expect(withMusic({ menu: 'sk_m', volume: 0.5 })).toEqual({ ok: true, errors: [] });
+    expect(withMusic({ menu: 'sk_m', battle: ['sk_b'], menuVolume: 0.55, battleVolume: 0.35 })).toEqual({ ok: true, errors: [] });
+    expect(withMusic({ menu: 'sk_m', volume: 0 })).toEqual({ ok: true, errors: [] });   // silent is a valid bed
+  });
+
+  it('teaches on out-of-range / non-numeric volumes', () => {
+    expect(withMusic({ menu: 'sk_m', volume: 1.5 }).errors.join(' ')).toMatch(/between 0 and 1/);
+    expect(withMusic({ menu: 'sk_m', battleVolume: -0.2 }).errors.join(' ')).toMatch(/between 0 and 1/);
+    expect(withMusic({ menu: 'sk_m', menuVolume: 'quiet' }).errors.join(' ')).toMatch(/between 0 and 1/);
+  });
+});
+
+describe('setup presentation (the pre-level screens)', () => {
+  const partyGame = () => {
+    const g = JSON.parse(JSON.stringify(GAME));
+    g.store.slices.push({ name: 'party', kind: 'party', init: { roster: { a: { name: 'A' } } } });
+    return g;
+  };
+  const withSetup = (setup) => validateGameManifest({ ...partyGame(), setup });
+
+  it('accepts hangar + count styles on party slices', () => {
+    expect(withSetup({
+      party: { style: 'hangar', label: 'select your machine', cards: { a: { portrait: 'sk_h', preview: 'sk_p', stats: { hull: 900, armament: 'RIFLE' }, blurb: 'the ace machine' } } },
+    })).toEqual({ ok: true, errors: [] });
+    expect(withSetup({ party: { style: 'count', label: 'how many', blurb: 'drawn at random' } })).toEqual({ ok: true, errors: [] });
+  });
+
+  it('teaches on unknown slices, non-party slices, bad styles, and bad cards', () => {
+    expect(withSetup({ ghost: { style: 'count' } }).errors.join(' ')).toMatch(/not a declared slice/);
+    expect(withSetup({ bag: { style: 'count' } }).errors.join(' ')).toMatch(/party slices/);
+    expect(withSetup({ party: { style: 'carousel' } }).errors.join(' ')).toMatch(/'hangar'.+'count'/);
+    expect(withSetup({ party: { style: 'hangar', cards: { a: { portrait: 42 } } } }).errors.join(' ')).toMatch(/sketch ref/);
+    expect(withSetup({ party: { style: 'hangar', cards: { a: { stats: { hp: {} } } } } }).errors.join(' ')).toMatch(/string or number/);
+  });
+
+  it('normalizes through untouched (refs stay refs in the stored row)', () => {
+    const g = partyGame();
+    g.setup = { party: { style: 'hangar', cards: { a: { portrait: 'sk_h' } } } };
+    expect(normalizeGameManifest(g).setup).toEqual(g.setup);
+  });
+});
+
 describe('level contract', () => {
   it('accepts the contract against the game schema and normalizes defaults', () => {
     expect(validateLevelContract(LEVEL, GAME.store)).toEqual({ ok: true, errors: [] });

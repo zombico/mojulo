@@ -60,10 +60,10 @@ describe('ocean-view — accurate physics', () => {
 });
 
 describe('ocean-view registration', () => {
-  it('routes to the world renderer and the world concern bucket', () => {
+  it('routes to the world renderer and the object concern bucket', () => {
     const m = { kind: 'ocean-view' };
     expect(sketchRenderMode(m)).toBe('world');
-    expect(classifyBucket(m)).toBe('world');
+    expect(classifyBucket(m)).toBe('object');
   });
 
   it('assemble threads the surface channel with an across-the-water camera', () => {

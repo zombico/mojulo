@@ -1567,9 +1567,12 @@
       "stash": "Stashes",
       "illustrations": "Illustrations",
       "worlds": "Worlds",
+      "objects": "Objects",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Voice",
+      "games": "Game Developer",
+      "arcade": "Arcade",
       "settings": "Settings"
     },
     "agentStatus": {
@@ -1637,10 +1640,82 @@
       "step": "step {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Game Developer",
+    "gallerySubtitle": "One project per game — its rules, levels, characters, audio, and art on a single shelf.",
+    "galleryEmpty": "No game projects yet. Drive create_game_project from your host agent to start one.",
+    "copyStarterPrompt": "Copy starter prompt",
+    "loading": "Loading projects…",
+    "noMembersYet": "No members yet",
+    "notFound": "That project doesn't exist — it may have been archived or the ref is off.",
+    "backToProjects": "Back to Game Developer",
+    "charter": "Charter",
+    "playInArcade": "Play in Arcade",
+    "copyWorkPrompt": "Copy work prompt",
+    "copyAddPrompt": "add",
+    "copyMintPrompt": "mint the game",
+    "copied": "Copied",
+    "playable": "Playable",
+    "missing": "Missing",
+    "missingBody": "This member's artifact no longer exists. The project keeps the slot; rebind or remove it from your host agent.",
+    "noRules": "No game minted yet — the project is pre-production.",
+    "fromManifest": "from manifest",
+    "gated": "gated",
+    "openNewTab": "Open in new tab",
+    "closeViewer": "Close",
+    "noPreview": "No inline preview for this member — open its artifact from your host agent.",
+    "gameOverview": "The game",
+    "playNewTab": "Play in new tab",
+    "storeLabel": "Store",
+    "contentsLabel": "Contents",
+    "themeLabel": "Theme",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# level} other {# levels}}",
+    "trackCountLine": "{count, plural, one {# music track} other {# music tracks}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Battle"
+    },
+    "roles": {
+      "rules": "Rules",
+      "level": "Levels",
+      "character": "Characters",
+      "audio": "Audio",
+      "graphic": "Graphics",
+      "animation": "Animation",
+      "reference": "References"
+    },
+    "levelStatus": {
+      "promoted": "Promoted",
+      "contract": "Has contract",
+      "candidate": "Candidate",
+      "missing": "Missing"
+    },
+    "audioKind": {
+      "soundtrack": "Soundtrack",
+      "sfx": "SFX",
+      "voice": "Voice"
+    },
+    "emptyFolder": "Nothing here yet."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Playable standalone games, minted from the workshop. Pick a cabinet and play.",
+    "loading": "Loading cabinets…",
+    "emptyState": "No games on the floor yet. Drive create_game from your host agent to mint the first cabinet.",
+    "copyStarterPrompt": "Copy starter prompt",
+    "copied": "Copied",
+    "play": "Play",
+    "levelCount": "{count, plural, one {# level} other {# levels}}",
+    "shipped": "Shipped",
+    "notFound": "That cabinet isn't on the floor — the game may have been removed.",
+    "backToArcade": "Back to Arcade",
+    "openStandalone": "Open standalone"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "The illustration studio: mint landscapes, figures, and 3D scenes, and set them in motion. A tuned creative surface, sibling to Sketches (tuned for diagrams). An illustration is the same sketch primitive — stash, reference, and diff it either way."
+      "subtitle": "The studio: illustrations, walkable worlds, 3D objects, motion, beats, voice, and finished outputs. A tuned creative surface, sibling to Sketches (tuned for diagrams). Every piece is the same sketch primitive — stash, reference, and diff it either way."
     },
     "open": "Open",
     "empty": "Nothing here yet",
@@ -1652,8 +1727,13 @@
     },
     "worlds": {
       "title": "Worlds",
-      "subtitle": "Traversable three.js cityscapes and transportation hubs — drag to orbit, scroll to zoom, move through them.",
-      "blurb": "Fractal cities and transportation hubs rendered as navigable 3D worlds, not flat pictures."
+      "subtitle": "Walkable three.js worlds — cities, buildings, interiors, and hubs you move through first-person.",
+      "blurb": "Fractal cities, edifices, and interiors rendered as walkable 3D worlds, not flat pictures."
+    },
+    "objects": {
+      "title": "Objects",
+      "subtitle": "Single 3D artifacts and studies — workbench parts, assemblies, polygomers, planets, science and math views. Drag to orbit, scroll to zoom.",
+      "blurb": "Workbench parts, assemblies, polygomers, and orbit studies — 3D things you turn and look at."
     },
     "motion": {
       "title": "Motion",

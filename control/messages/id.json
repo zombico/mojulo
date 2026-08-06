@@ -1567,9 +1567,12 @@
       "stash": "Gudang",
       "illustrations": "Ilustrasi",
       "worlds": "Dunia",
+      "objects": "Objek",
       "motion": "Gerak",
       "beats": "Ketukan",
       "voice": "Suara",
+      "games": "Pengembang Game",
+      "arcade": "Arcade",
       "settings": "Pengaturan"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Menyiapkan…",
     "downloadGlbUnavailable": "Tidak ada mesh 3D untuk diekspor untuk sketsa ini.",
     "downloadGlbError": "Ekspor gagal.",
+    "downloadStl": "Unduh .stl",
+    "downloadStlPreparing": "Menyiapkan…",
+    "downloadStlUnavailable": "Tidak ada mesh yang dapat dicetak untuk diekspor dari sketsa ini.",
+    "downloadStlError": "Ekspor gagal.",
+    "downloadStlHint": "STL biner untuk pencetakan 3D — hanya bentuk, tanpa warna; buka di slicer Anda.",
     "downloadHtml": "Unduh HTML",
     "downloadHtmlPreparing": "Menyiapkan…",
     "downloadHtmlUnavailable": "Tidak ada HTML mandiri untuk diekspor untuk sketsa ini.",
@@ -1632,10 +1640,82 @@
       "step": "langkah {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Pengembang Game",
+    "gallerySubtitle": "Satu proyek per game — aturan, level, karakter, audio, dan seni-nya dalam satu rak.",
+    "galleryEmpty": "Belum ada proyek game. Jalankan create_game_project dari agen host Anda untuk memulai.",
+    "copyStarterPrompt": "Salin prompt pemula",
+    "loading": "Memuat proyek…",
+    "noMembersYet": "Belum ada anggota",
+    "notFound": "Proyek itu tidak ada — mungkin sudah diarsipkan atau ref-nya salah.",
+    "backToProjects": "Kembali ke Pengembang Game",
+    "charter": "Piagam",
+    "playInArcade": "Mainkan di Arcade",
+    "copyWorkPrompt": "Salin prompt kerja",
+    "copyAddPrompt": "tambahkan",
+    "copyMintPrompt": "cetak game",
+    "copied": "Disalin",
+    "playable": "Dapat dimainkan",
+    "missing": "Hilang",
+    "missingBody": "Artefak anggota ini sudah tidak ada. Proyek tetap menyimpan slotnya; ikat ulang atau hapus dari agen host Anda.",
+    "noRules": "Belum ada game yang dicetak — proyek masih pra-produksi.",
+    "fromManifest": "dari manifest",
+    "gated": "terkunci",
+    "openNewTab": "Buka di tab baru",
+    "closeViewer": "Tutup",
+    "noPreview": "Tidak ada pratinjau inline untuk anggota ini — buka artefaknya dari agen host Anda.",
+    "gameOverview": "Game",
+    "playNewTab": "Mainkan di tab baru",
+    "storeLabel": "Store",
+    "contentsLabel": "Isi",
+    "themeLabel": "Tema",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, other {# level}}",
+    "trackCountLine": "{count, plural, other {# trek musik}}",
+    "slot": {
+      "menu": "Menu",
+      "battle": "Pertarungan"
+    },
+    "roles": {
+      "rules": "Aturan",
+      "level": "Level",
+      "character": "Karakter",
+      "audio": "Audio",
+      "graphic": "Grafik",
+      "animation": "Animasi",
+      "reference": "Referensi"
+    },
+    "levelStatus": {
+      "promoted": "Dipromosikan",
+      "contract": "Ada kontrak",
+      "candidate": "Kandidat",
+      "missing": "Hilang"
+    },
+    "audioKind": {
+      "soundtrack": "Soundtrack",
+      "sfx": "SFX",
+      "voice": "Suara"
+    },
+    "emptyFolder": "Belum ada apa-apa di sini."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Game mandiri yang dapat dimainkan, dicetak dari workshop. Pilih kabinet dan mainkan.",
+    "loading": "Memuat kabinet…",
+    "emptyState": "Belum ada game di lantai. Jalankan create_game dari agen host Anda untuk mencetak kabinet pertama.",
+    "copyStarterPrompt": "Salin prompt pemula",
+    "copied": "Disalin",
+    "play": "Mainkan",
+    "levelCount": "{count, plural, other {# level}}",
+    "shipped": "Dirilis",
+    "notFound": "Kabinet itu tidak ada di lantai — game mungkin sudah dihapus.",
+    "backToArcade": "Kembali ke Arcade",
+    "openStandalone": "Buka mandiri"
+  },
   "maker": {
     "hub": {
       "title": "Pembuat Mojulo",
-      "subtitle": "Studio ilustrasi: buat lanskap, figur, dan pemandangan 3D, dan gerakkan mereka. Permukaan kreatif yang disetel, saudara dari Sketsa (disetel untuk diagram). Ilustrasi adalah primitif sketsa yang sama — gudang, referensi, dan diff apa pun cara."
+      "subtitle": "Studio: ilustrasi, dunia yang bisa dijelajahi, objek 3D, gerak, beat, suara, dan hasil akhir. Permukaan kreatif yang disetel, saudara dari Sketches (disetel untuk diagram). Setiap bagian adalah primitif sketsa yang sama — simpan, rujuk, dan diff dengan cara apa pun."
     },
     "open": "Buka",
     "empty": "Tidak ada apa-apa di sini",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Dunia",
-      "subtitle": "Kota three.js yang dapat dijelajahi dan pusat transportasi — seret untuk mengorbit, gulir untuk memperbesar, bergerak melaluinya.",
-      "blurb": "Kota fraktal dan pusat transportasi yang dirender sebagai dunia 3D yang dapat dinavigasi, bukan gambar datar."
+      "subtitle": "Dunia three.js yang bisa dijelajahi — kota, bangunan, interior, dan hub yang Anda lalui secara first-person.",
+      "blurb": "Kota fraktal, bangunan, dan interior yang dirender sebagai dunia 3D yang bisa dijelajahi, bukan gambar datar."
+    },
+    "objects": {
+      "title": "Objek",
+      "subtitle": "Artefak dan studi 3D tunggal — bagian workbench, rakitan, polygomer, planet, tampilan sains dan matematika. Seret untuk mengorbit, gulir untuk memperbesar.",
+      "blurb": "Bagian workbench, rakitan, polygomer, dan studi orbit — objek 3D yang Anda putar dan amati."
     },
     "motion": {
       "title": "Gerak",

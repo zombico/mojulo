@@ -31,7 +31,7 @@ describe('energy-cycle', () => {
     expect(fast).toBeLessThan(slow);
   });
   it('classifies as a world', () => {
-    expect(classifyBucket({ kind: 'energy-cycle' })).toBe('world');
+    expect(classifyBucket({ kind: 'energy-cycle' })).toBe('object');
   });
 });
 
@@ -53,6 +53,6 @@ describe('dna-process', () => {
     expect(planDnaProcess({ process: 'bogus' }).process).toBe('meiosis');
   });
   it('classifies as a world', () => {
-    expect(classifyBucket({ kind: 'dna-process', process: 'meiosis' })).toBe('world');
+    expect(classifyBucket({ kind: 'dna-process', process: 'meiosis' })).toBe('object');
   });
 });

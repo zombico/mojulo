@@ -175,6 +175,59 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     };
   }
 
+  // thruster ROAR: a sustained rocket-engine voice the audio channel swells with a controllable
+  // entity's e.thrust (boost). Continuous like wind, but gain-modulated by sim state instead of an
+  // LFO. `level` (0..1) is the overall loudness; `true` takes the default.
+  if (audioSpec.thruster) {
+    const th = audioSpec.thruster === true ? {} : audioSpec.thruster;
+    out.thruster = { level: Number.isFinite(th.level) ? th.level : 0.5 };
+  }
+
+  // JUMP audio: the stop-and-charge GATHER whine (sustained synth) + a RELEASE transient scaled by
+  // hold-time + a metal-clang LAND cue scaled by fall speed. `charge`/`release` take `{ level }` (or
+  // `true`); `land` is a beats gesture list (validated); `landRef` (world units/sec) is the fall
+  // speed that maxes the clang. All read-only sim-state → SFX, absent on captures (byte-identical).
+  if (audioSpec.jump) {
+    const jp = audioSpec.jump, jOut = {};
+    if (jp.charge) jOut.charge = { level: Number.isFinite((jp.charge || {}).level) ? jp.charge.level : 0.26 };
+    if (jp.release) jOut.release = { level: Number.isFinite((jp.release || {}).level) ? jp.release.level : 0.5 };
+    if (Array.isArray(jp.land) && jp.land.length) {
+      const check = validateBeatsManifest({ kind: 'beats-sfx', title: 'jump land', cues: { land: jp.land } });
+      if (!check.ok) throw new Error(`audio.jump.land: invalid cue:\n - ${check.errors.join('\n - ')}`);
+      jOut.land = jp.land;
+      if (Number.isFinite(jp.landRef) && jp.landRef > 0) jOut.landRef = jp.landRef;
+    }
+    if (Object.keys(jOut).length) out.jump = jOut;
+  }
+
+  // DODGE (acrobatic roll) SFX: one beats gesture list whose `at` offsets lay out the three roll
+  // beats (land / roll / stand) across the tumble. Fired once per roll on the dodgeCount edge.
+  if (Array.isArray(audioSpec.dodge) && audioSpec.dodge.length) {
+    const check = validateBeatsManifest({ kind: 'beats-sfx', title: 'dodge roll', cues: { dodge: audioSpec.dodge } });
+    if (!check.ok) throw new Error(`audio.dodge: invalid cue:\n - ${check.errors.join('\n - ')}`);
+    out.dodge = audioSpec.dodge;
+  }
+
+  // weapon SFX (mobile-suit R6-C): a controllable entity's `weapon` firing drives cues, the same
+  // read-only sim-state → SFX pattern as footsteps. `shot` plays on each round; optional `hit`
+  // (a landed shot) and `reload` (magazine empties). Each is a beats gesture list, passed to playCue.
+  if (audioSpec.weapon) {
+    const wp = audioSpec.weapon;
+    const wOut = {};
+    for (const k of ['shot', 'hit', 'reload']) if (Array.isArray(wp[k]) && wp[k].length) wOut[k] = wp[k];
+    if (Object.keys(wOut).length) out.weapon = wOut;
+  }
+
+  // strike (melee) SFX: the beam saber's swing + connect — the same read-only sim-state → SFX
+  // pattern as weapon. `swing` plays on each swing START (the crackling-ozone whoosh); `hit`
+  // plays whenever the blade CONNECTS with a target. Each is a beats gesture list for playCue.
+  if (audioSpec.strike) {
+    const st = audioSpec.strike;
+    const sOut = {};
+    for (const k of ['swing', 'hit']) if (Array.isArray(st[k]) && st[k].length) sOut[k] = st[k];
+    if (Object.keys(sOut).length) out.strike = sOut;
+  }
+
   return Object.keys(out).length ? out : null;
 }
 

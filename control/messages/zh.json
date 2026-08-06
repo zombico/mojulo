@@ -1567,9 +1567,12 @@
       "stash": "储存",
       "illustrations": "插图",
       "worlds": "世界",
+      "objects": "物件",
       "motion": "动作",
       "beats": "节拍",
       "voice": "语音",
+      "games": "游戏开发者",
+      "arcade": "街机厅",
       "settings": "设置"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "准备中…",
     "downloadGlbUnavailable": "此草图无 3D 网格可导出。",
     "downloadGlbError": "导出失败。",
+    "downloadStl": "下载 .stl",
+    "downloadStlPreparing": "准备中…",
+    "downloadStlUnavailable": "此草图没有可打印的网格可导出。",
+    "downloadStlError": "导出失败。",
+    "downloadStlHint": "用于 3D 打印的二进制 STL — 仅形状，无颜色；在切片软件中打开。",
     "downloadHtml": "下载 HTML",
     "downloadHtmlPreparing": "准备中…",
     "downloadHtmlUnavailable": "此草图无独立 HTML 可导出。",
@@ -1632,10 +1640,82 @@
       "step": "步骤 {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "游戏开发者",
+    "gallerySubtitle": "每个游戏一个项目 — 其规则、关卡、角色、音频和美术都在同一个货架上。",
+    "galleryEmpty": "暂无游戏项目。从你的主机代理调用 create_game_project 来创建一个。",
+    "copyStarterPrompt": "复制启动提示",
+    "loading": "正在加载项目…",
+    "noMembersYet": "暂无成员",
+    "notFound": "该项目不存在 — 它可能已被归档，或 ref 有误。",
+    "backToProjects": "返回游戏开发者",
+    "charter": "章程",
+    "playInArcade": "在街机厅中游玩",
+    "copyWorkPrompt": "复制工作提示词",
+    "copyAddPrompt": "添加",
+    "copyMintPrompt": "铸造游戏",
+    "copied": "已复制",
+    "playable": "可游玩",
+    "missing": "缺失",
+    "missingBody": "该成员的产物已不存在。项目保留此槽位；请从你的主机代理重新绑定或移除它。",
+    "noRules": "尚未铸造游戏 — 项目处于前期制作阶段。",
+    "fromManifest": "来自清单",
+    "gated": "已门控",
+    "openNewTab": "在新标签页中打开",
+    "closeViewer": "关闭",
+    "noPreview": "该成员没有内嵌预览 — 请从你的主机代理打开其产物。",
+    "gameOverview": "游戏",
+    "playNewTab": "在新标签页中游玩",
+    "storeLabel": "存储",
+    "contentsLabel": "内容",
+    "themeLabel": "主题",
+    "refLabel": "参考",
+    "levelCountLine": "{count, plural, other {# 个关卡}}",
+    "trackCountLine": "{count, plural, other {# 首音乐曲目}}",
+    "slot": {
+      "menu": "菜单",
+      "battle": "战斗"
+    },
+    "roles": {
+      "rules": "规则",
+      "level": "关卡",
+      "character": "角色",
+      "audio": "音频",
+      "graphic": "图形",
+      "animation": "动画",
+      "reference": "参考"
+    },
+    "levelStatus": {
+      "promoted": "已晋级",
+      "contract": "有契约",
+      "candidate": "候选",
+      "missing": "缺失"
+    },
+    "audioKind": {
+      "soundtrack": "配乐",
+      "sfx": "音效",
+      "voice": "语音"
+    },
+    "emptyFolder": "这里还什么都没有。"
+  },
+  "arcade": {
+    "title": "Mojulo 街机厅",
+    "subtitle": "可游玩的独立游戏，从工作坊铸造而来。选择一台机台开始游玩。",
+    "loading": "正在加载机台…",
+    "emptyState": "场内暂无游戏。从你的主机代理调用 create_game 来铸造第一台机台。",
+    "copyStarterPrompt": "复制启动提示",
+    "copied": "已复制",
+    "play": "游玩",
+    "levelCount": "{count, plural, other {# 个关卡}}",
+    "shipped": "已发布",
+    "notFound": "该机台不在场内 — 游戏可能已被移除。",
+    "backToArcade": "返回街机厅",
+    "openStandalone": "独立打开"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo 制作器",
-      "subtitle": "The illustration studio: mint landscapes, figures, and 3D scenes, and set them in motion. A tuned creative surface, sibling to Sketches (tuned for diagrams). An illustration is the same sketch primitive — stash, reference, and diff it either way."
+      "subtitle": "工作室：插画、可行走世界、3D 物件、动态、节拍、语音和成品输出。一个经过调校的创作界面，与 Sketches（为图表调校）互为姊妹。每件作品都是同一个 sketch 原语 — 无论如何都可以暂存、引用和比对。"
     },
     "open": "打开",
     "empty": "这里还没有任何内容",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "世界",
-      "subtitle": "Traversable three.js cityscapes and transportation hubs — drag to orbit, scroll to zoom, move through them.",
-      "blurb": "Fractal cities and transportation hubs rendered as navigable 3D worlds, not flat pictures."
+      "subtitle": "可行走的 three.js 世界 — 你以第一人称穿行的城市、建筑、室内和枢纽。",
+      "blurb": "分形城市、大型建筑和室内被渲染为可行走的 3D 世界，而非平面图片。"
+    },
+    "objects": {
+      "title": "物件",
+      "subtitle": "单个 3D 产物与研究 — 工作台部件、装配体、polygomer、行星、科学与数学视图。拖动以环绕观察，滚动以缩放。",
+      "blurb": "工作台部件、装配体、polygomer 和环绕研究 — 你可以转动并观察的 3D 事物。"
     },
     "motion": {
       "title": "动作",

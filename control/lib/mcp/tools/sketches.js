@@ -44,6 +44,7 @@ import {
   KIND_CHARACTER_SHEET,
   KIND_KEYFRAME_ANIMATION,
   KIND_SCENE_MOTION,
+  KIND_SPRITE_SHEET,
 } from '@/lib/graph/image-outcomes/manifest';
 import { STYLE_VOCAB, STYLE_PRESETS, isStylePreset, resolveStyle } from '@/lib/graph/image-outcomes/styles';
 import {
@@ -858,6 +859,7 @@ export async function getImageRenderPacketHandler(input) {
   const encoded = encodeURIComponent(sketch.ref || ref);
   const isKeyframe = manifest.kind === KIND_KEYFRAME_ANIMATION;
   const isScene = manifest.kind === KIND_SCENE_MOTION;
+  const isSprite = manifest.kind === KIND_SPRITE_SHEET;
   const scaffoldUrls = (panelId) => {
     // A keyframe target's scaffold is that key's meru guide (the posed mannequin
     // between register lines) — the raster the worker paints OVER — plus the
@@ -988,7 +990,11 @@ export async function getImageRenderPacketHandler(input) {
                   ? { allCelsAccepted: true }
                   : isScene
                     ? { sceneReady: true }
-                    : { finalUrl: `/api/sketches/${encoded}/final.png` })
+                    // A sprite sheet has no still composite — the finished artifact
+                    // is the baked pixelizer sprite payload. Point at the bake tool.
+                    : isSprite
+                      ? { spritesReady: true, bakeTool: 'bake_sprite_sheet' }
+                      : { finalUrl: `/api/sketches/${encoded}/final.png` })
               : {}),
           };
         })()

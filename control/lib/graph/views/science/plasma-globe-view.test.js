@@ -39,10 +39,10 @@ describe('plasma-globe-view — emissive Tesla-globe arcs', () => {
     expect(html).not.toContain('GROUPS =');
   });
 
-  it('registers as a world concern', () => {
+  it('registers as an object concern', () => {
     const manifest = { kind: 'plasma-globe-view' };
     expect(sketchRenderMode(manifest)).toBe('world');
-    expect(classifyBucket(manifest)).toBe('world');
+    expect(classifyBucket(manifest)).toBe('object');
   });
 
   it('exposes the three gas fills', () => {

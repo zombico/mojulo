@@ -8,12 +8,13 @@
  * rendered shot). This page is the browse surface: cards grouped by project,
  * each linking to the frame-accurate player at /outcomes/<motion_ref>/.
  *
- * Cards are left-preview / right-metadata. Previews do NOT auto-play: on a
- * mouse device the animation is loaded only on hover; on a touch device (no
- * hover) it plays on its own. This keeps a wall of motion from animating at
- * once. Since a motion's only assets are themselves animated (the motion.svg
- * flipbook, motion.gif, or motion.mp4) and there's no static first-frame, the
- * un-hovered state shows a placeholder rather than a frozen frame.
+ * Cards are YouTube-style: a widescreen (16:9) preview on top, title and
+ * metadata underneath, three to a row. Previews do NOT auto-play: on a mouse
+ * device the animation is loaded only on hover; on a touch device (no hover) it
+ * plays on its own. This keeps a wall of motion from animating at once. Since a
+ * motion's only assets are themselves animated (the motion.svg flipbook,
+ * motion.gif, or motion.mp4) and there's no static first-frame, the un-hovered
+ * state shows a placeholder rather than a frozen frame.
  *
  * Renders state; offers no authoring. The operator drives forge_motion from
  * their host agent per the dashboard golden rule.
@@ -83,7 +84,7 @@ export default function MotionGalleryPage() {
 
   return (
     <div className="min-h-[calc(100vh-66px)] bg-gray-900">
-      <div className="px-8 pt-6 pb-4 max-w-6xl mx-auto">
+      <div className="px-8 pt-6 pb-4 max-w-7xl mx-auto">
         <div className="flex justify-between items-start gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-100">{t('title')}</h1>
@@ -136,7 +137,7 @@ export default function MotionGalleryPage() {
                   <span className="text-xs text-gray-500">· {t('shots', { count: p.motions.length })}</span>
                   {p.tagRef && <span className="font-mono text-[10px] text-gray-600">{p.tagRef}</span>}
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
                   {p.motions.map((m) => (
                     <MotionTile key={m.motionRef} motion={m} t={t} />
                   ))}
@@ -152,8 +153,13 @@ export default function MotionGalleryPage() {
 
 function MotionTile({ motion, t }) {
   const style = MOTION_STYLES[motion.motion] || MOTION_STYLES.motion;
-  const isStitch = motion.kind === 'stitch' || (motion.mp4Url && !motion.svgUrl);
-  const asset = isStitch ? motion.mp4Url : motion.svgUrl || motion.gifUrl;
+  // Preview asset, in memory order: an mp4 streams + decodes in hardware; a gif
+  // is a single decoded loop. The flipbook SVG is the heaviest — every frame
+  // lives in the DOM at once — so it's the last resort, used only when a motion
+  // shipped nothing else (export:'svg'). This keeps a wall of thumbnails cheap
+  // even though the durable artifact for the SVG families is still the .svg.
+  const asset = motion.mp4Url || motion.gifUrl || motion.svgUrl;
+  const hasVideo = Boolean(motion.mp4Url);
 
   const coarse = useCoarsePointer();
   const [hovered, setHovered] = useState(false);
@@ -170,43 +176,43 @@ function MotionTile({ motion, t }) {
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
-      className="group flex rounded-lg border border-gray-700 bg-gray-800 hover:border-teal-500 hover:bg-gray-700/30 transition overflow-hidden"
+      className="group flex flex-col"
     >
-      {/* Left: preview. Animates only when active. */}
+      {/* Top: widescreen preview. Animates only when active. */}
       <div
-        className={`relative shrink-0 w-32 sm:w-40 aspect-square flex items-center justify-center overflow-hidden ${
-          isStitch ? 'bg-black' : 'bg-[#fafaf6]'
+        className={`relative aspect-video w-full flex items-center justify-center overflow-hidden rounded-xl border border-gray-700 group-hover:border-teal-500 transition ${
+          hasVideo ? 'bg-black' : 'bg-[#fafaf6]'
         }`}
       >
-        <MotionPreview motion={motion} asset={asset} isStitch={isStitch} active={active} t={t} />
+        <MotionPreview motion={motion} asset={asset} hasVideo={hasVideo} active={active} t={t} />
         {!active && asset && (
           <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <PlayBadge />
           </span>
         )}
+        {motion.frames != null && (
+          <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/75 text-[10px] font-medium text-white/90 pointer-events-none">
+            {t('framesLabel', { count: motion.frames })}
+          </span>
+        )}
       </div>
 
-      {/* Right: metadata. */}
-      <div className="flex flex-col justify-between p-3 min-w-0 flex-1">
-        <div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span
-              className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border shrink-0 ${style}`}
-            >
-              {motion.motion}
-            </span>
-            <span className="text-sm font-medium text-gray-200 truncate">{motion.title}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
-            {motion.frames != null && <span>{t('framesLabel', { count: motion.frames })}</span>}
-            {motion.fps != null && <span>· {t('fpsLabel', { fps: motion.fps })}</span>}
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 mt-3">
-          <p className="font-mono text-[10px] text-gray-600 truncate">{motion.motionRef}</p>
-          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-gray-900/80 text-teal-300 border border-teal-500/50 opacity-0 group-hover:opacity-100 transition">
-            {t('openPlayer')} →
+      {/* Below: title, then smaller metadata line. */}
+      <div className="mt-2.5 min-w-0">
+        <div className="flex items-start gap-1.5">
+          <span
+            className={`mt-0.5 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border shrink-0 ${style}`}
+          >
+            {motion.motion}
           </span>
+          <h3 className="text-sm font-medium text-gray-100 leading-snug line-clamp-2 group-hover:text-teal-300 transition">
+            {motion.title}
+          </h3>
+        </div>
+        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
+          {motion.fps != null && <span>{t('fpsLabel', { fps: motion.fps })}</span>}
+          {motion.fps != null && <span className="text-gray-700">·</span>}
+          <span className="font-mono text-[10px] text-gray-600 truncate">{motion.motionRef}</span>
         </div>
       </div>
     </Link>
@@ -214,10 +220,11 @@ function MotionTile({ motion, t }) {
 }
 
 // The animated asset. Mounted only when `active` so previews don't all run at
-// once — for the flipbook SVG / GIF that means assigning the <img> src on
-// demand (the only way to gate a self-animating asset); for a stitch MP4 it
-// means play()/pause() on the <video>.
-function MotionPreview({ motion, asset, isStitch, active, t }) {
+// once — for an mp4 that means play()/pause() on the <video> (which stays
+// mounted, `preload="metadata"` so it isn't buffered until played); for the
+// flipbook SVG / GIF it means assigning the <img> src on demand (the only way
+// to gate a self-animating raster/DOM asset).
+function MotionPreview({ motion, asset, hasVideo, active, t }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -236,11 +243,11 @@ function MotionPreview({ motion, asset, isStitch, active, t }) {
     return <span className="text-xs text-gray-400">{t('noPreview')}</span>;
   }
 
-  if (isStitch) {
+  if (hasVideo) {
     return (
       <video
         ref={videoRef}
-        src={motion.mp4Url}
+        src={asset}
         className="max-w-full max-h-full object-contain"
         muted
         loop

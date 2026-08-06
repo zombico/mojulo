@@ -342,6 +342,16 @@ const POLY_SHAPES = {
   bulb: (g) => [{ t: 0, radius: g * 0.5 }, { t: 0.45, radius: g }, { t: 1, radius: g * 0.6 }],
   dome: (g) => [{ t: 0, radius: g * 0.15 }, { t: 0.5, radius: g }, { t: 1, radius: g * 0.85 }],
   sphere: (g) => [{ t: 0, radius: g * 0.2 }, { t: 0.5, radius: g }, { t: 1, radius: g * 0.2 }],
+  // A TRUE round ball: a many-point semicircle profile (radius = g·√(1−(2t−1)²)), densened near the
+  // poles so the surface curves closed instead of coming to a cone point. Use this (not `sphere`,
+  // which is a slim bicone) for round heads / creature bodies / Kirby-style mascots. See platformer.plan.md.
+  ball: (g) => [
+    { t: 0, radius: g * 0.02 }, { t: 0.06, radius: g * 0.475 }, { t: 0.12, radius: g * 0.65 },
+    { t: 0.2, radius: g * 0.8 }, { t: 0.3, radius: g * 0.917 }, { t: 0.4, radius: g * 0.98 },
+    { t: 0.5, radius: g }, { t: 0.6, radius: g * 0.98 }, { t: 0.7, radius: g * 0.917 },
+    { t: 0.8, radius: g * 0.8 }, { t: 0.88, radius: g * 0.65 }, { t: 0.94, radius: g * 0.475 },
+    { t: 1, radius: g * 0.02 },
+  ],
   bead: (g) => [{ t: 0, radius: g * 0.2 }, { t: 0.5, radius: g }, { t: 1, radius: g * 0.2 }],
   cone: (g, taper) => [{ t: 0, radius: g }, { t: 1, radius: Math.max(0.02, g * taper) }],
   stalk: (g) => [{ t: 0, radius: g }, { t: 0.85, radius: g * 0.8 }, { t: 1, radius: g * 0.55 }],
@@ -921,7 +931,7 @@ export function registerManjiTreeTools() {
   registerTool({
     name: 'sketch_polygomer',
     description:
-      "Author a CREATURE or OBJECT as a turnable 3D polygomer by listing its PARTS — no slot bookkeeping. Each part is a named simple volume (a surface of revolution) bonded by explicit endpoints; the tool generates the manji-tree slots + lathes for you. This is the conversational, composable authoring door for non-humanoid 3D models (create_figure is humanoid-only). Input `{ title, parts: [{ shape, from:[x,y,z], to:[x,y,z], girth?, taper?, tint?, radial?{count,radius?,center?}, mirror?'x'|'y'|'xy' }] }`. Shapes: bulb | dome | sphere | bead | cone | stalk | drum | barrel | bell | disc | tube. `girth` (default 0.3) is the max radius; `taper` (cone, default 0.15) the tip fraction; `radial` rings N copies around the z-axis (tentacles/legs/petals); `mirror` reflects a pair. Rounded forms only (no boxes yet). Returns `{ ok, ref, url, svgUrl, parts, next }` — open svgUrl, adjust, then follow `next`: get_skin_packet → paint → skin_polygomer → export_model → a turnable .glb. Example tentacle ring: `{ shape:'cone', from:[0.4,0,1.6], to:[0.7,0,-1.2], girth:0.18, taper:0.1, radial:{count:6} }`.",
+      "Author a CREATURE or OBJECT as a turnable 3D polygomer by listing its PARTS — no slot bookkeeping. Each part is a named simple volume (a surface of revolution) bonded by explicit endpoints; the tool generates the manji-tree slots + lathes for you. This is the conversational, composable authoring door for non-humanoid 3D models (create_figure is humanoid-only). Input `{ title, parts: [{ shape, from:[x,y,z], to:[x,y,z], girth?, taper?, tint?, radial?{count,radius?,center?}, mirror?'x'|'y'|'xy' }] }`. Shapes: bulb | dome | sphere | ball | bead | cone | stalk | drum | barrel | bell | disc | tube (use `ball` for a TRUE ROUND ball — a round head / creature body / Kirby-style mascot; `sphere` is a slim bicone). `girth` (default 0.3) is the max radius; `taper` (cone, default 0.15) the tip fraction; `radial` rings N copies around the z-axis (tentacles/legs/petals); `mirror` reflects a pair. Rounded forms only (no boxes yet). Returns `{ ok, ref, url, svgUrl, parts, next }` — open svgUrl, adjust, then follow `next`: get_skin_packet → paint → skin_polygomer → export_model → a turnable .glb. Example tentacle ring: `{ shape:'cone', from:[0.4,0,1.6], to:[0.7,0,-1.2], girth:0.18, taper:0.1, radial:{count:6} }`.",
     inputSchema: {
       type: 'object',
       properties: {

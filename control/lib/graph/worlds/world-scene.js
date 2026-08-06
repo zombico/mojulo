@@ -26,6 +26,7 @@ import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
 import { composeLandscapeRaymarch } from '@/lib/graph/landscape/painted-landscape-raymarch';
 import { renderFigureWorldFrames } from '@/lib/graph/polygonizer/figure-render';
 import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/worlds/world-kinds';
+import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 
@@ -58,6 +59,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   const groundShadows = sketch.manifest.groundShadows ?? scene.groundShadows ?? false;
   const kind = sketch.manifest.kind;
 
+  // ?livery=<shelf name> (z-series assembler units — the arena hangar's swatch row): repaint
+  // the stored unit onto another shelf livery BEFORE assembly. Deterministic (a pure tint
+  // remap through the baseline anchors), so the /world HTML cache keys on it like any flag.
+  let manifest = sketch.manifest;
+  if (viewOpts.livery && kind === 'assembler') {
+    // engine→mobile-suit seam: the shelf lives in the content pack — absent, serve the base world
+    try {
+      const { reliveryZSeries } = await import('../mobile-suit/z-series-livery.js');
+      manifest = reliveryZSeries(manifest, { to: viewOpts.livery }).manifest;
+    } catch (err) { console.error('mobile-suit pack absent — ?livery ignored:', err?.message); }
+  }
+
   const desc = WORLD_KINDS[kind] ?? ROOM_FALLBACK;
   const ctx = {
     title: sketch.title || sketch.manifest.title || desc.title,
@@ -68,7 +81,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     render: viewOpts.render,
     ref: sketch.ref,
   };
-  const payload = await desc.resolve(sketch.manifest, ctx);
+  const payload = await desc.resolve(manifest, ctx);
 
   // opt-in RAYMARCH backend for painted-landscape (?render=raymarch): a per-pixel terrain/water/sky
   // render (painted-landscape-raymarch.js) instead of the polygon mesh. emitThreeWorld dispatches a
@@ -96,6 +109,29 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   const aoSetting = sketch.manifest.ao ?? desc.ao;
   if (payload && aoSetting && Array.isArray(payload.faces) && payload.faces.length) {
     payload.ao = typeof aoSetting === 'object' ? aoSetting : {};
+  }
+
+  // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
+  // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the
+  // world's solids composite over the photo — the hangar-bay read. Pure presentation; absent →
+  // the emitted page is byte-identical.
+  if (payload && typeof sketch.manifest.backdrop === 'string' && sketch.manifest.backdrop.trim()) {
+    payload.backdrop = sketch.manifest.backdrop.trim();
+  }
+
+  // generic, opt-in face TEXTURES: any mesh world whose faces opt into a surface via
+  // `texture: '<key>'` (+ per-corner `uv`) gets the { key: dataURL } map built here — procedural
+  // surface-textures.js tiles (soils, grasses, concrete, stone, …) resolved by collectFaceTextures,
+  // merged over any assembler-set payload.textures (e.g. the workbench label-wraps) and any explicit
+  // manifest.textures (custom dataURL / an image-worker bound PNG). emitThreeWorld + facesToGlb read
+  // payload.textures. Additive: a face list with no `texture` opt-ins leaves the payload untouched.
+  if (payload && Array.isArray(payload.faces) && payload.faces.length) {
+    const textures = collectFaceTextures(payload.faces, { ...(payload.textures || {}) });
+    const manifestTex = sketch.manifest.textures;
+    if (manifestTex && typeof manifestTex === 'object') {
+      for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;
+    }
+    if (Object.keys(textures).length) payload.textures = textures;
   }
 
   // generic, opt-in INSTANCED REPEATS (renderer-ladder P4): a manifest may carry `repeats` —
@@ -183,9 +219,46 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     } };
   }
 
+  // shadows: any world can opt in, entity-bearing or not. `shadows: true / { r, alpha, fade,
+  // occlude, … }` is the suit contact-blob decal (controllable worlds — a soft down-probed pool
+  // under every rig-figure body, the landing tell). `shadows: { cast: true, alpha?, span?,
+  // mapSize?, toLight? }` is the scene-level CAST-SHADOW channel: real shadow-map silhouettes
+  // off every opaque mass and figure (static masses, walkers, controllable bodies), light keyed
+  // to the payload's baked sun when one exists. Opt-in; absent ⇒ byte-identical.
+  if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;
+    // suit switcher: `pilot` names the initially-piloted `pilotable` entity (default: the first one)
+    if (typeof sketch.manifest.pilot === 'string') payload.pilot = sketch.manifest.pilot;
+    // spectate (ai-battle-spectator.plan.md): NO pilot — the whole cast runs its ai brain and the
+    // operator watches from a glide/follow spectator camera (WASD free-fly, Tab cycles the watched
+    // fighter). Opt-in; absent ⇒ the world seats a pilot as before (byte-identical).
+    if (sketch.manifest.spectate === true) payload.spectate = true;
+    // AI-attack switch: `ai:'off'` loads the world passive (ai-ambient suits stand down until the
+    // G / HUD toggle wakes them); absent ⇒ authored ai runs from load.
+    if (typeof sketch.manifest.ai === 'string') payload.ai = sketch.manifest.ai;
+    // lateral blocking: analytic AABB colliders (the invisible collision hull under the visual
+    // faces) — the platform rule ejects the suit's footprint from them. See mobile-suit-city.plan.md.
+    if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
+    // hangar (mobile-suit-hangar.plan.md P2): the non-combat suit-stepper menu — an ordered list of
+    // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
+    // ⇒ no menu emitted (byte-identical).
+    if (sketch.manifest.hangar && typeof sketch.manifest.hangar === 'object') payload.hangar = sketch.manifest.hangar;
+    // match (mobile-suit-arena.plan.md M1): the scored-bout layer — kills credited, respawns, first
+    // to killTarget wins (scoreboard + result HUD in the emitted runtime). Opt-in; absent ⇒ byte-identical.
+    if (sketch.manifest.match && typeof sketch.manifest.match === 'object') payload.match = sketch.manifest.match;
+    // projectile smoke: pooled billow-sprite puffs on the bazooka/grenade fire trail + a seeded
+    // rolling cloud at each detonation, read off the engine's projectiles/bursts records. `true`
+    // or a tuning object { max, spacing, alpha, burstCount, trailTint, burstTint }. Opt-in;
+    // absent ⇒ byte-identical (the smoke-test experiment map is the first consumer).
+    if (sketch.manifest.smoke) payload.smoke = sketch.manifest.smoke;
+    // wreck finisher (dev-rules sequence): a destroyed suit's death burst is DEFERRED until its
+    // topple fall settles, then the wreck DETONATES (staggering + smoking) and VANISHES — fall →
+    // boom → gone, instead of the instant blast that leaves a persistent wreck. `true` or a tuning
+    // object { delay } (seconds the settled wreck lingers before it blows). Non-match worlds only
+    // (a match owns its own corpse-window → respawn lifecycle). Opt-in; absent ⇒ byte-identical.
+    if (sketch.manifest.wreckExplodes) payload.wreckExplodes = sketch.manifest.wreckExplodes;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
     if (figs && typeof figs === 'object') {
@@ -197,6 +270,86 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // recipe's pose/proto/garment/motion and its own fields override. This is how a
         // figure minted once via create_figure is re-used across scenes; the world manifest
         // stays a tiny recipe (only the ref persists — resolution happens here at bake time).
+        // unitRef (mobile-suit-builder.plan.md R3): a figures-map entry may
+        // reference a stored ASSEMBLER unit — the biped rig derives from its
+        // stations (unit-pose.js) and the body bakes as rig delivery only
+        // (unit-rig.js): a suit is rigid parts by construction, and frame
+        // stacks at unit face counts would dwarf the payload ceiling.
+        if (typeof rawSpec.unitRef === 'string') {
+          const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+          const src = SketchRepository.getByRef(rawSpec.unitRef);
+          if (!src || src.manifest?.kind !== 'assembler') {
+            throw new Error(`figures.${name}: unitRef '${rawSpec.unitRef}' is not a stored assembler unit`);
+          }
+          const { bakeUnitRig } = await import('@/lib/graph/worlds/unit-rig.js');
+          const baked = bakeUnitRig(src.manifest, {
+            keys: rawSpec.keys || 12,
+            targetH: Number.isFinite(rawSpec.targetH) ? rawSpec.targetH : null,
+            frame: rawSpec.frame === true || (rawSpec.frame && typeof rawSpec.frame === 'object') ? rawSpec.frame : false,
+            // frameOnly (skinless read): bake JUST the generated inner frame — the
+            // stick figure of the derived rig — with none of the suit's armor, so
+            // the walk (and every clip) can be examined without any livery. Same
+            // bones/clips/grounding as a full bake; only the skin is stripped.
+            frameOnly: rawSpec.frameOnly === true || (rawSpec.frameOnly && typeof rawSpec.frameOnly === 'object') ? rawSpec.frameOnly : false,
+            // pose (posing studio): hold one authored DOF static instead of the gait, so a
+            // clock world freezes the suit in it — the clean surface for posing from scratch.
+            pose: rawSpec.pose && typeof rawSpec.pose === 'object' ? rawSpec.pose : null,
+            // aim (armed walkers): an arm-dof object locks the arms — and any
+            // weapon station rigid with them — into a stabilized hold through
+            // every clip (unit-rig.js aimLockClips).
+            aim: rawSpec.aim && typeof rawSpec.aim === 'object' ? rawSpec.aim : null,
+            // aimArms (per-arm lock mode): hold ONE arm on the aim while the other
+            // swings with the gait (geof: left vulcan hand held, right sword hand
+            // free). A string or { L, R } of 'lock'|'hold'|'free'; absent → both lock.
+            aimArms: (rawSpec.aimArms && typeof rawSpec.aimArms === 'object') || typeof rawSpec.aimArms === 'string' ? rawSpec.aimArms : null,
+            // swings (melee): pack swing-shelf names (mobile-suit/unit-swings.js) baked as unlocked swing_<name>
+            // clips beside the aim-locked gait — the strike verbs.
+            swings: Array.isArray(rawSpec.swings) ? rawSpec.swings : null,
+            // dodges (acrobatic dodge): DODGE_POSES names baked as unlocked
+            // maneuver clips beside the gait — the tuck/pike/spin tumble shapes.
+            dodges: Array.isArray(rawSpec.dodges) ? rawSpec.dodges : null,
+            // space (R18, the second play mode): swap the ground gait clips for
+            // thrust poses + add ascend/descend, so a floating suit thrusts
+            // instead of walking (pairs with the platform rule's `space:true`).
+            space: rawSpec.space === true,
+            // weldOffHand (left-arm control spike): weld the LEFT (off-hand) arm to
+            // the chest so it holds a constant shape and turns only with the torso,
+            // instead of being posed by shL/elbowL/aim/injection.
+            weldOffHand: rawSpec.weldOffHand === true,
+            // material (specular finish): a uniform clear-coat over every body panel so
+            // the suit catches a live highlight (material-response specular channel). A
+            // material-shelf ref (preset name / '#hex' / object). Diffuse-preserving, so
+            // only the highlight is added; absent → byte-identical. Role-differentiated
+            // finishes come from re-minting through the g/z livery `material:true`.
+            material: rawSpec.material != null ? rawSpec.material : null,
+          });
+          // previewClip (eyes-gate): alias a baked maneuver clip onto `forward`
+          // so an ambient clock world HOLDS that pose — the dodge shapes are
+          // static, so the clock just displays them. Resolve-time only; the
+          // emitted page bytes are unchanged (no char re-pin), and worlds that
+          // don't set it are byte-identical.
+          if (typeof rawSpec.previewClip === 'string' && baked.clips[rawSpec.previewClip]) {
+            baked.clips = { ...baked.clips, forward: baked.clips[rawSpec.previewClip] };
+          }
+          payload.figures[name] = baked;
+          continue;
+        }
+        // polygomerRef (platformer.plan.md P2): a figures-map entry may reference a stored
+        // kind:'manji-tree' POLYGOMER (a dreamed creature/object). It bakes to a STATIC face mesh —
+        // no gait clips: a polygomer has no rig and animates by squash/stretch (driven in the
+        // renderer off the platform rule's grounded/jumped/landed edges). This is how a round,
+        // Kirby-style dreamed hero becomes a walking entity body. The world manifest stays a ref.
+        if (typeof rawSpec.polygomerRef === 'string') {
+          const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+          const src = SketchRepository.getByRef(rawSpec.polygomerRef);
+          if (!src || src.manifest?.kind !== 'manji-tree') {
+            throw new Error(`figures.${name}: polygomerRef '${rawSpec.polygomerRef}' is not a stored manji-tree polygomer`);
+          }
+          const { resolveManjiTreeLathes } = await import('@/lib/graph/worlds/polygomer-world.js');
+          const { lowerObjectFaces, WORKBENCH_LIGHT } = await import('@/lib/graph/worlds/workbench.js');
+          payload.figures[name] = { polygomer: true, faces: lowerObjectFaces({ lathes: resolveManjiTreeLathes(src.manifest) }, WORKBENCH_LIGHT) };
+          continue;
+        }
         let spec = rawSpec;
         if (typeof rawSpec.figureRef === 'string') {
           const { SketchRepository } = await import('@/lib/db/repositories/sketches');

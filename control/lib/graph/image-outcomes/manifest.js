@@ -29,12 +29,23 @@ export const KIND_SEQUENTIAL_ART = 'sequential-art';
 export const KIND_CHARACTER_SHEET = 'character-sheet';
 export const KIND_KEYFRAME_ANIMATION = 'keyframe-animation';
 export const KIND_SCENE_MOTION = 'scene-motion';
+export const KIND_SPRITE_SHEET = 'sprite-sheet';
 
 export const IMAGE_OUTCOME_CONTRACT = 'image-outcome/v1';
 export const SEQUENTIAL_ART_CONTRACT = 'sequential-art/v1';
 export const CHARACTER_SHEET_CONTRACT = 'character-sheet/v1';
 export const KEYFRAME_ANIMATION_CONTRACT = 'keyframe-animation/v1';
 export const SCENE_MOTION_CONTRACT = 'scene-motion/v1';
+export const SPRITE_SHEET_CONTRACT = 'sprite-sheet/v1';
+
+// A sprite-sheet's painted cell is square-ish and small — the worker paints one
+// game sprite per grid cell (default 96px). The bake grid is the pixelizer cell
+// resolution each painted cell is quantized DOWN into (the {size,palette,cells}
+// raster) — 16×16 is the classic sprite tile. Register → palette budget mirrors
+// cutscene.js: 8bit = 3 colors, 16bit = 15, 32bit = 61 (+ transparent).
+const SPRITE_CELL = { width: 96, height: 96 };
+const SPRITE_BAKE_GRID = [16, 16];
+const SPRITE_REGISTER_BUDGET = { '8bit': 3, '16bit': 15, '32bit': 61 };
 
 // Default frame canvas for keyframe cels (matches parts-bank-spike/front.js's
 // CANVAS — the meru guides the render packet emits are this size).
@@ -55,7 +66,7 @@ const PRESERVE_LEVELS = new Set(['strict', 'guided', 'loose']);
 export function isImageOutcomesKind(kind) {
   return kind === KIND_IMAGE_OUTCOME || kind === KIND_SEQUENTIAL_ART
     || kind === KIND_CHARACTER_SHEET || kind === KIND_KEYFRAME_ANIMATION
-    || kind === KIND_SCENE_MOTION;
+    || kind === KIND_SCENE_MOTION || kind === KIND_SPRITE_SHEET;
 }
 
 function rectToPolygon({ x, y, w, h }) {
@@ -864,6 +875,171 @@ export function parseSceneTarget(manifest, target) {
   throw new Error(`'${target}' is not a scene-motion render target (expected 'plate', 'plate-shot-<i>', or a band ref)`);
 }
 
+/**
+ * sprite-sheet — a 2D game sprite atlas as a director recipe. The worker paints
+ * ONE game sprite per grid cell (an idle/walk/jump pose per direction); on
+ * accept, each painted cell is quantized DOWN into a pixelizer {size,palette,cells}
+ * raster (the bake step, bake_sprite_sheet), and diff-extracted against the base
+ * frame so per-state variants become sub-cels for free. Per-frame render targets
+ * (one `frame-<id>` each) — so each pose accepts/rejects on its own and the base
+ * renders first (bakeActor needs it to diff the rest).
+ *
+ * The manifest is the recipe: the grid + frame list + bake spec are sovereign;
+ * each painted cell PNG is a bound derived render, and the baked cell rasters
+ * (once bake_sprite_sheet runs) ride the optional `baked` field, re-derivable
+ * from the archived source. Identity across frames rides `characters[]` exactly
+ * as keyframe-animation does (the packet's sheet conditioning locks the sprite's
+ * look across every pose).
+ */
+function normalizeSpriteFrame(frame, index) {
+  if (!frame || typeof frame !== 'object') throw new Error(`sprite-sheet frames[${index}] must be an object`);
+  const action = frame.action != null ? String(frame.action).trim() : '';
+  if (!action) throw new Error(`sprite-sheet frames[${index}] requires an action (e.g. 'idle', 'walk-1', 'jump')`);
+  const direction = frame.direction != null ? String(frame.direction).trim() : '';
+  // Stable id: explicit, else action[-direction]. Cell chars/facing come later.
+  const id = frame.id != null ? String(frame.id).trim() : (direction ? `${action}-${direction}` : action);
+  if (!/^[a-z0-9-]+$/.test(id)) {
+    throw new Error(`sprite-sheet frames[${index}] id '${id}' must be [a-z0-9-] (lowercase kebab)`);
+  }
+  const out = { id, action };
+  if (direction) out.direction = direction;
+  if (frame.base === true) out.base = true;
+  if (frame.note != null) out.note = String(frame.note);
+  return out;
+}
+
+export function normalizeSpriteSheetManifest(input) {
+  if (!input?.title) throw new Error('sprite-sheet manifest requires title');
+  const register = input.register || '16bit';
+  if (!SPRITE_REGISTER_BUDGET[register]) {
+    throw new Error(`sprite-sheet register must be one of ${Object.keys(SPRITE_REGISTER_BUDGET).join('/')}, got ${JSON.stringify(input.register)}`);
+  }
+  const rawFrames = Array.isArray(input.frames) ? input.frames : [];
+  if (rawFrames.length === 0) throw new Error('sprite-sheet manifest requires at least one frame');
+  const frames = rawFrames.map(normalizeSpriteFrame);
+  const seen = new Set();
+  for (const f of frames) {
+    if (seen.has(f.id)) throw new Error(`sprite-sheet duplicate frame id '${f.id}'`);
+    seen.add(f.id);
+  }
+  // Exactly one base frame (bakeActor diffs every variant against it). Default the
+  // first frame when none is flagged; refuse two so the bake anchor is unambiguous.
+  const bases = frames.filter((f) => f.base);
+  if (bases.length > 1) throw new Error(`sprite-sheet declares ${bases.length} base frames — exactly one frame may set base:true`);
+  if (bases.length === 0) frames[0].base = true;
+  const cellW = Number(input.cell?.width ?? SPRITE_CELL.width);
+  const cellH = Number(input.cell?.height ?? SPRITE_CELL.height);
+  if (!(cellW > 0 && cellH > 0)) throw new Error('sprite-sheet cell requires positive width/height');
+  const gutter = Number(input.gutter ?? 8);
+  if (!(gutter >= 0)) throw new Error('sprite-sheet gutter must be >= 0');
+  const cols = Number(input.cols ?? Math.ceil(Math.sqrt(frames.length)));
+  if (!Number.isInteger(cols) || cols < 1) throw new Error('sprite-sheet cols must be a positive integer');
+  const rows = Math.ceil(frames.length / cols);
+  const bakeGrid = Array.isArray(input.bake?.grid)
+    ? [Number(input.bake.grid[0]), Number(input.bake.grid[1])]
+    : [...SPRITE_BAKE_GRID];
+  if (!bakeGrid.every((n) => Number.isInteger(n) && n > 0)) {
+    throw new Error('sprite-sheet bake.grid must be two positive integers (the pixelizer cell resolution per frame)');
+  }
+  const characters = normalizeCharacters(input.characters);
+  const out = {
+    kind: KIND_SPRITE_SHEET,
+    contractVersion: SPRITE_SHEET_CONTRACT,
+    title: String(input.title),
+    intent: input.intent ? String(input.intent) : `sprite sheet: ${frames.map((f) => f.id).join(', ')}`,
+    register,
+    cell: { width: cellW, height: cellH },
+    gutter,
+    cols,
+    rows,
+    // The painted sheet canvas the grid tiles into (cells + gutters), the viewBox
+    // the scaffold + rasterizer use.
+    viewBox: {
+      width: cols * cellW + (cols + 1) * gutter,
+      height: rows * cellH + (rows + 1) * gutter,
+    },
+    bake: { grid: bakeGrid, budget: SPRITE_REGISTER_BUDGET[register] },
+    frames,
+    characters,
+  };
+  if (input.renderBrief != null) {
+    out.renderBrief = normalizeRenderBrief(input.renderBrief, {
+      style: 'clean 2D game sprite, flat colors, crisp readable silhouette',
+      mood: 'on-model, consistent across every pose',
+      lighting: 'flat even light, no cast shadow',
+      mustPreserve: [
+        'the same character design, palette, and proportions in every cell',
+        'one sprite centered per cell, feet on a common baseline',
+        'fully transparent background and transparent gutters between cells',
+      ],
+      mayInvent: ['pose-specific limb positions consistent with the action'],
+      negative: [
+        'no readable text, labels, or grid lines',
+        'no background scenery, ground, or drop shadow',
+        'no anti-aliased halo bleeding into the gutter',
+      ],
+    });
+  }
+  // Provenance-carrying bake output (bake_sprite_sheet writes it back in place):
+  // the sovereign pixelizer sprite payload, re-derivable from the archived cells.
+  // Preserved untouched across re-normalization so a mint/update round-trip can't
+  // drop it; shape-validated only (the bake tool owns its contents).
+  if (input.baked != null) {
+    if (typeof input.baked !== 'object' || Array.isArray(input.baked)) {
+      throw new Error('sprite-sheet baked must be an object (bake_sprite_sheet writes it)');
+    }
+    out.baked = input.baked;
+  }
+  return out;
+}
+
+/**
+ * The grid placement of each sprite frame on the painted sheet: left-to-right,
+ * top-to-bottom into `cols`, each cell inset by the gutter. Shared by the
+ * scaffold (draw the cells), the packet (crop one frame), and the bake (slice
+ * the accepted sheet). Returns [{ frame, col, row, x, y, w, h }].
+ */
+export function spriteGridLayout(manifest) {
+  const m = manifest.kind === KIND_SPRITE_SHEET ? manifest : normalizeSpriteSheetManifest(manifest);
+  const { width: cw, height: ch } = m.cell;
+  const g = m.gutter;
+  return m.frames.map((frame, i) => {
+    const col = i % m.cols;
+    const row = Math.floor(i / m.cols);
+    return {
+      frame,
+      col,
+      row,
+      x: g + col * (cw + g),
+      y: g + row * (ch + g),
+      w: cw,
+      h: ch,
+    };
+  });
+}
+
+/** Parse a sprite-sheet render target ('frame-<id>') → the frame + its cell placement. */
+export function parseSpriteTarget(manifest, target) {
+  const t = String(target || '');
+  const m = /^frame-(.+)$/.exec(t);
+  if (!m) throw new Error(`'${target}' is not a sprite-sheet render target (expected frame-<id>)`);
+  const cell = spriteGridLayout(manifest).find((c) => c.frame.id === m[1]);
+  if (!cell) {
+    const ids = (manifest.frames || []).map((f) => f.id).join(', ');
+    throw new Error(`'${target}' names frame '${m[1]}', not declared (frames: ${ids || 'none'})`);
+  }
+  return cell;
+}
+
+/**
+ * A sprite sheet expands to one target per frame (`frame-<id>`), base frame
+ * first so the bake anchor renders before the variants that diff against it.
+ */
+function spriteRenderTargets(manifest) {
+  const ordered = [...manifest.frames].sort((a, b) => (b.base ? 1 : 0) - (a.base ? 1 : 0));
+  return ordered.map((f) => `frame-${f.id}`);
+}
+
 export function normalizeImageOutcomesManifest(input) {
   if (!input || typeof input !== 'object') throw new Error('manifest must be an object');
   if (input.kind === KIND_IMAGE_OUTCOME) return normalizeImageOutcomeManifest(input);
@@ -871,6 +1047,7 @@ export function normalizeImageOutcomesManifest(input) {
   if (input.kind === KIND_CHARACTER_SHEET) return normalizeCharacterSheetManifest(input);
   if (input.kind === KIND_KEYFRAME_ANIMATION) return normalizeKeyframeAnimationManifest(input);
   if (input.kind === KIND_SCENE_MOTION) return normalizeSceneMotionManifest(input);
+  if (input.kind === KIND_SPRITE_SHEET) return normalizeSpriteSheetManifest(input);
   throw new Error(`unknown image-outcomes kind: ${input.kind}`);
 }
 
@@ -885,6 +1062,7 @@ export function renderTargets(manifest) {
   const normalized = normalizeImageOutcomesManifest(manifest);
   if (normalized.kind === KIND_KEYFRAME_ANIMATION) return keyframeRenderTargets(normalized);
   if (normalized.kind === KIND_SCENE_MOTION) return sceneRenderTargets(normalized);
+  if (normalized.kind === KIND_SPRITE_SHEET) return spriteRenderTargets(normalized);
   if (normalized.kind !== KIND_SEQUENTIAL_ART || normalized.renderStrategy === 'whole-page') {
     return ['page'];
   }

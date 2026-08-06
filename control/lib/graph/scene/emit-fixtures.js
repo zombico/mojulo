@@ -139,11 +139,42 @@ export const EMIT_FIXTURES = [
   ['events', { faces: [floor()], physics: PHYSICS, events: EVENTS }],
 
   ['controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA }],
+  // suit contact shadows: the opt-in blob-decal block interpolated into the controllable channel.
+  // Every other controllable fixture omits `shadows` ⇒ their bytes are untouched (the opt-in pin).
+  ['controllable-shadows', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: true }],
+  // cast shadows: the opt-in scene-level shadow-map channel (real silhouettes off every opaque
+  // mass + body; channels/cast-shadows.js). `shadows.cast` swaps the controllable blob for the
+  // caster/follow integration; the blob fixture above stays byte-identical (the opt-in pin).
+  ['cast-shadows', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: { cast: true } }],
+  // projectile smoke: the opt-in trail/burst puff block. Same opt-in discipline as shadows.
+  ['controllable-smoke', { faces: [floor()], entities: ENTITIES, camera: CAMERA, smoke: true }],
   ['controllable-figure', {
     faces: [floor()],
     entities: [{ id: 'guy', transform: { pos: [1, 1, 0], heading: 0 }, rule: { type: 'walk' }, body: { type: 'figure-frames', figure: 'guy' } }],
     figures: { guy: [{ faces: [quad('#cc9977')] }, { faces: [quad('#cc9977')] }] },
   }],
+  // hangar menu: pins the hangar-PRESENT emission (hangarStepperBlock + the input hangarHook),
+  // which no other fixture reaches — before this row it rode gitignored spike gens only
+  // (channel-registry-formalization.plan.md amendment, pre-S2). Nested suits[i].liveries[j]
+  // model: each livery id names an entity; ms-a carries two liveries + a loadout.
+  ['controllable-hangar', {
+    faces: [floor()],
+    entities: [
+      { id: 'ms-a', transform: { pos: [1, 1, 0], heading: 0 }, rule: { type: 'glide', loadout: [{ name: 'RIFLE' }, { name: 'BLADE' }] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 0.6] } },
+      { id: 'ms-a-red', transform: { pos: [1, 1, 0], heading: 0 }, rule: { type: 'glide', loadout: [{ name: 'RIFLE' }, { name: 'BLADE' }] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 0.6] } },
+      { id: 'ms-b', transform: { pos: [2, 1, 0], heading: 0 }, rule: { type: 'glide' }, body: { type: 'mesh', shape: 'box', size: [0.5, 0.5, 0.9] } },
+    ],
+    camera: { rule: 'follow', target: 'ms-a' },
+    hangar: { suits: [
+      { id: 'ms-a', name: 'MK I', liveries: [{ id: 'ms-a', name: 'FACTORY', color: '#8899aa' }, { id: 'ms-a-red', name: 'CRIMSON', color: '#aa3333' }] },
+      { id: 'ms-b', name: 'MK II' },
+    ] },
+  }],
+
+  // specular channel (material-response P2): faces carrying `spec: [strength, power]` gate the
+  // live Blinn-Phong block (and __specPatch). Before this row NO fixture emitted it — found by
+  // the channels.contract.test.js provides check (channel-registry-formalization amendment).
+  ['specular', { faces: [floor(), { ...quad('#8899aa'), spec: [0.8, 24] }], light: { toLight: [0.4, -0.5, 0.75] } }],
 
   ['fog', { faces: [floor()], fog: FOG }],
   // effects[] (U3): stacked raymarch overlays. `effects` alone (live); `fog-effects` co-resident +

@@ -37,7 +37,8 @@ const vlen = (a) => Math.hypot(a[0], a[1], a[2]);
 const vnorm = (a) => { const l = vlen(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 // rotation matrix (3×3, column basis) → quaternion [x,y,z,w]
-function matToQuat(m) {
+// (exported for unit-rig.js — the mobile-suit bake shares this packing math)
+export function matToQuat(m) {
   const [xx, yx, zx] = m[0], [xy, yy, zy] = m[1], [xz, yz, zz] = m[2];
   const tr = xx + yy + zz;
   let q;
@@ -101,7 +102,16 @@ function distSqPointSeg(p, a, b) {
   return vdot(d, d);
 }
 
-const b64f32 = (arr) => Buffer.from(new Float32Array(arr).buffer).toString('base64');
+export const b64f32 = (arr) => Buffer.from(new Float32Array(arr).buffer).toString('base64');
+// per-vertex COLOUR packed as normalized uint8 instead of float32 (4× smaller). Baked colours are
+// [0,1] and read back as a normalized THREE attribute (÷255 on the GPU), so the quantization error
+// is ≤1/255 — imperceptible on Gouraud-interpolated rig meshes, and the suit roster is the bulk of a
+// World's page weight. Decoded by scene-three's `decodeU8` + a normalized BufferAttribute.
+export const b64u8 = (arr) => {
+  const u = new Uint8Array(arr.length);
+  for (let i = 0; i < arr.length; i++) { const v = arr[i] * 255; u[i] = v <= 0 ? 0 : v >= 255 ? 255 : (v + 0.5) | 0; }
+  return Buffer.from(u.buffer).toString('base64');
+};
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 // ── the biped bone table (armature node names from figure-vajra) ─────────────
@@ -191,7 +201,10 @@ export function bakeRigFigure({ nodesAt, facesAt, clips = {}, keys = 8, targetH 
     if (!fs.length) return null;
     const gm = faceListToMesh(fs);
     if (!gm.positions.length) return null;
-    return { pos: b64f32(gm.positions), col: b64f32(gm.colors), faces: fs.length };
+    // per-vertex specular [strength, power] — packed only when a face carried a material
+    // `spec` tag (gm.specs null otherwise → byte-identical). Consumed by channels.js
+    // __makeRigGroup, same as the unit-rig path.
+    return { pos: b64f32(gm.positions), col: b64u8(gm.colors), faces: fs.length, ...(gm.specs ? { spec: b64f32(gm.specs) } : {}) };
   });
 
   // pose curves: per clip, K keys; per key, per bone, [qx,qy,qz,qw, hx,hy,hz]

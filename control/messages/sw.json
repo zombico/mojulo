@@ -1567,9 +1567,12 @@
       "stash": "Hazina",
       "illustrations": "Picha",
       "worlds": "Ulimwengu",
+      "objects": "Vitu",
       "motion": "Mwendo",
       "beats": "Kupiga",
       "voice": "Sauti",
+      "games": "Msanidi wa Michezo",
+      "arcade": "Arcade",
       "settings": "Mipangilio"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Inajitayarisha…",
     "downloadGlbUnavailable": "Hakuna mesh ya 3D ya kuhamisha kwa muundo huu.",
     "downloadGlbError": "Hamisha kuishindwa.",
+    "downloadStl": "Pakua .stl",
+    "downloadStlPreparing": "Inajitayarisha…",
+    "downloadStlUnavailable": "Hakuna meshi inayoweza kuchapishwa ya kusafirisha kwa mchoro huu.",
+    "downloadStlError": "Hamisha kuishindwa.",
+    "downloadStlHint": "STL ya binary kwa uchapishaji wa 3D — umbo pekee, bila rangi; fungua kwenye slicer yako.",
     "downloadHtml": "Pakua HTML",
     "downloadHtmlPreparing": "Inajitayarisha…",
     "downloadHtmlUnavailable": "Hakuna HTML ijiyenye kuhamisha kwa muundo huu.",
@@ -1632,10 +1640,82 @@
       "step": "hatua {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "Msanidi wa Michezo",
+    "gallerySubtitle": "Mradi mmoja kwa kila mchezo — sheria zake, ngazi, wahusika, sauti, na sanaa kwenye rafu moja.",
+    "galleryEmpty": "Bado hakuna miradi ya michezo. Endesha create_game_project kutoka kwa wakala wako mwenyeji ili kuanza mmoja.",
+    "copyStarterPrompt": "Nakili haraka ya kuanza",
+    "loading": "Inapakia miradi…",
+    "noMembersYet": "Bado hakuna wanachama",
+    "notFound": "Mradi huo haupo — huenda umehifadhiwa kwenye kumbukumbu au ref si sahihi.",
+    "backToProjects": "Rudi kwa Msanidi wa Michezo",
+    "charter": "Hati ya Mradi",
+    "playInArcade": "Cheza kwenye Arcade",
+    "copyWorkPrompt": "Nakili kidokezo cha kazi",
+    "copyAddPrompt": "ongeza",
+    "copyMintPrompt": "tengeneza mchezo",
+    "copied": "Kunakiliwa",
+    "playable": "Inachezeka",
+    "missing": "Haipo",
+    "missingBody": "Kifaa cha mwanachama huyu hakipo tena. Mradi unahifadhi nafasi; funga upya au kiondoe kutoka kwa wakala wako mwenyeji.",
+    "noRules": "Bado hakuna mchezo uliotengenezwa — mradi uko katika hatua ya awali ya uzalishaji.",
+    "fromManifest": "kutoka kwa manifest",
+    "gated": "imefungwa",
+    "openNewTab": "Fungua kwenye kichupo kipya",
+    "closeViewer": "Funga",
+    "noPreview": "Hakuna onyesho la awali la papo hapo kwa mwanachama huyu — fungua kifaa chake kutoka kwa wakala wako mwenyeji.",
+    "gameOverview": "Mchezo",
+    "playNewTab": "Cheza kwenye kichupo kipya",
+    "storeLabel": "Hifadhi",
+    "contentsLabel": "Yaliyomo",
+    "themeLabel": "Mandhari",
+    "refLabel": "Kumbuka",
+    "levelCountLine": "{count, plural, one {# ngazi} other {# ngazi}}",
+    "trackCountLine": "{count, plural, one {# wimbo} other {# nyimbo}}",
+    "slot": {
+      "menu": "Menyu",
+      "battle": "Vita"
+    },
+    "roles": {
+      "rules": "Sheria",
+      "level": "Ngazi",
+      "character": "Wahusika",
+      "audio": "Sauti",
+      "graphic": "Grafiki",
+      "animation": "Uhuishaji",
+      "reference": "Marejeleo"
+    },
+    "levelStatus": {
+      "promoted": "Imepandishwa",
+      "contract": "Ina mkataba",
+      "candidate": "Mgombea",
+      "missing": "Haipo"
+    },
+    "audioKind": {
+      "soundtrack": "Muziki wa Mandhari",
+      "sfx": "SFX",
+      "voice": "Sauti"
+    },
+    "emptyFolder": "Bado hakuna kitu hapa."
+  },
+  "arcade": {
+    "title": "Mojulo Arcade",
+    "subtitle": "Michezo huru inayochezeka, iliyotengenezwa kutoka warshani. Chagua kabati na ucheze.",
+    "loading": "Inapakia makabati…",
+    "emptyState": "Bado hakuna michezo sakafuni. Endesha create_game kutoka kwa wakala wako mwenyeji ili kutengeneza kabati la kwanza.",
+    "copyStarterPrompt": "Nakili haraka ya kuanza",
+    "copied": "Kunakiliwa",
+    "play": "Cheza",
+    "levelCount": "{count, plural, one {# ngazi} other {# ngazi}}",
+    "shipped": "Imetolewa",
+    "notFound": "Kabati hilo halipo sakafuni — huenda mchezo umeondolewa.",
+    "backToArcade": "Rudi kwa Arcade",
+    "openStandalone": "Fungua kama huru"
+  },
   "maker": {
     "hub": {
       "title": "Mjumbe wa Mojulo",
-      "subtitle": "Studhio ya picha: unda mandhari, takwimu, na mifuatano ya 3D, na iweke katika mwendo. Uso wa umilikaji ulioboreswa, mjumbe kwa Miundo (ulioboreswa kwa michoro). Picha ni muundo sawa — hazina, rejea, na tofautisha kwa njia yoyote."
+      "subtitle": "Studio: michoro, ulimwengu unaotembeka, vitu vya 3D, mwendo, beats, sauti, na matokeo yaliyokamilika. Uso wa ubunifu uliorekebishwa, ndugu wa Sketches (uliorekebishwa kwa michoro-mchoro). Kila kipande ni primitive ile ile ya sketch — hifadhi, rejelea, na linganisha kwa vyovyote."
     },
     "open": "Fungua",
     "empty": "Hakuna kitu hapa bado",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Ulimwengu",
-      "subtitle": "Mandhari ya jiji ya three.js inayoweza kuvuta, na vituo vya usafiri — buruta kufa, scroll kuzumia, songe kupitia.",
-      "blurb": "Miji ya fractal na vituo vya usafiri inavyotozwa kama ulimwengu wa 3D unaoveza kuvuta, si picha tupu."
+      "subtitle": "Ulimwengu wa three.js unaotembeka — miji, majengo, mambo ya ndani, na vituo unavyopita kwa mtazamo wa nafsi ya kwanza.",
+      "blurb": "Miji ya fractal, majengo makubwa, na mambo ya ndani yaliyotolewa kama ulimwengu wa 3D unaotembeka, si picha tambarare."
+    },
+    "objects": {
+      "title": "Vitu",
+      "subtitle": "Vifaa vya 3D pekee na masomo — sehemu za workbench, mikusanyiko, polygomers, sayari, mionekano ya sayansi na hisabati. Buruta kuzunguka, sogeza kukuza.",
+      "blurb": "Sehemu za workbench, mikusanyiko, polygomers, na masomo ya mzunguko — vitu vya 3D unavyozungusha na kutazama."
     },
     "motion": {
       "title": "Mwendo",

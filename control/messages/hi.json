@@ -1567,9 +1567,12 @@
       "stash": "Stashes",
       "illustrations": "Illustrations",
       "worlds": "Worlds",
+      "objects": "ऑब्जेक्ट",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Voice",
+      "games": "गेम डेवलपर",
+      "arcade": "आर्केड",
       "settings": "सेटिंग्स"
     },
     "agentStatus": {
@@ -1598,6 +1601,11 @@
     "downloadGlbPreparing": "Preparing…",
     "downloadGlbUnavailable": "No 3D mesh to export for this sketch.",
     "downloadGlbError": "Export failed.",
+    "downloadStl": ".stl डाउनलोड करें",
+    "downloadStlPreparing": "Preparing…",
+    "downloadStlUnavailable": "इस स्केच के लिए एक्सपोर्ट करने योग्य कोई प्रिंट करने लायक मेश नहीं है।",
+    "downloadStlError": "Export failed.",
+    "downloadStlHint": "3D प्रिंटिंग के लिए बाइनरी STL — केवल आकार, कोई रंग नहीं; अपने स्लाइसर में खोलें।",
     "downloadHtml": "Download HTML",
     "downloadHtmlPreparing": "Preparing…",
     "downloadHtmlUnavailable": "No standalone HTML to export for this sketch.",
@@ -1632,10 +1640,82 @@
       "step": "step {step}"
     }
   },
+  "gameDev": {
+    "galleryTitle": "गेम डेवलपर",
+    "gallerySubtitle": "हर गेम के लिए एक प्रोजेक्ट — इसके नियम, लेवल, किरदार, ऑडियो और आर्ट एक ही शेल्फ पर।",
+    "galleryEmpty": "अभी तक कोई गेम प्रोजेक्ट नहीं। एक शुरू करने के लिए अपने होस्ट एजेंट से create_game_project चलाएँ।",
+    "copyStarterPrompt": "Copy starter prompt",
+    "loading": "प्रोजेक्ट लोड हो रहे हैं…",
+    "noMembersYet": "अभी तक कोई सदस्य नहीं",
+    "notFound": "वह प्रोजेक्ट मौजूद नहीं है — यह आर्काइव किया गया हो सकता है या ref गलत है।",
+    "backToProjects": "गेम डेवलपर पर वापस",
+    "charter": "चार्टर",
+    "playInArcade": "आर्केड में खेलें",
+    "copyWorkPrompt": "वर्क प्रॉम्प्ट कॉपी करें",
+    "copyAddPrompt": "जोड़ें",
+    "copyMintPrompt": "गेम मिंट करें",
+    "copied": "Copied",
+    "playable": "खेलने योग्य",
+    "missing": "Missing",
+    "missingBody": "इस सदस्य का आर्टिफ़ैक्ट अब मौजूद नहीं है। प्रोजेक्ट स्लॉट रखता है; अपने होस्ट एजेंट से इसे फिर से बाइंड करें या हटाएँ।",
+    "noRules": "अभी तक कोई गेम मिंट नहीं हुआ — प्रोजेक्ट प्री-प्रोडक्शन में है।",
+    "fromManifest": "मैनिफ़ेस्ट से",
+    "gated": "गेटेड",
+    "openNewTab": "नए टैब में खोलें",
+    "closeViewer": "बंद करें",
+    "noPreview": "इस सदस्य के लिए कोई इनलाइन प्रीव्यू नहीं — अपने होस्ट एजेंट से इसका आर्टिफ़ैक्ट खोलें।",
+    "gameOverview": "गेम",
+    "playNewTab": "नए टैब में खेलें",
+    "storeLabel": "स्टोर",
+    "contentsLabel": "सामग्री",
+    "themeLabel": "थीम",
+    "refLabel": "Ref",
+    "levelCountLine": "{count, plural, one {# लेवल} other {# लेवल}}",
+    "trackCountLine": "{count, plural, one {# म्यूज़िक ट्रैक} other {# म्यूज़िक ट्रैक}}",
+    "slot": {
+      "menu": "मेन्यू",
+      "battle": "बैटल"
+    },
+    "roles": {
+      "rules": "नियम",
+      "level": "लेवल",
+      "character": "किरदार",
+      "audio": "ऑडियो",
+      "graphic": "ग्राफ़िक्स",
+      "animation": "एनिमेशन",
+      "reference": "संदर्भ"
+    },
+    "levelStatus": {
+      "promoted": "प्रमोट किया गया",
+      "contract": "कॉन्ट्रैक्ट मौजूद",
+      "candidate": "उम्मीदवार",
+      "missing": "Missing"
+    },
+    "audioKind": {
+      "soundtrack": "साउंडट्रैक",
+      "sfx": "SFX",
+      "voice": "Voice"
+    },
+    "emptyFolder": "अभी यहाँ कुछ नहीं।"
+  },
+  "arcade": {
+    "title": "Mojulo आर्केड",
+    "subtitle": "वर्कशॉप से मिंट किए गए खेलने योग्य स्टैंडअलोन गेम। एक कैबिनेट चुनें और खेलें।",
+    "loading": "कैबिनेट लोड हो रहे हैं…",
+    "emptyState": "अभी तक फ़्लोर पर कोई गेम नहीं। पहला कैबिनेट मिंट करने के लिए अपने होस्ट एजेंट से create_game चलाएँ।",
+    "copyStarterPrompt": "Copy starter prompt",
+    "copied": "Copied",
+    "play": "खेलें",
+    "levelCount": "{count, plural, one {# लेवल} other {# लेवल}}",
+    "shipped": "शिप किया गया",
+    "notFound": "वह कैबिनेट फ़्लोर पर नहीं है — गेम हटाया गया हो सकता है।",
+    "backToArcade": "आर्केड पर वापस",
+    "openStandalone": "स्टैंडअलोन खोलें"
+  },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
-      "subtitle": "The illustration studio: mint landscapes, figures, and 3D scenes, and set them in motion. A tuned creative surface, sibling to Sketches (tuned for diagrams). An illustration is the same sketch primitive — stash, reference, and diff it either way."
+      "subtitle": "स्टूडियो: चित्र, चलने योग्य दुनिया, 3D ऑब्जेक्ट, मोशन, बीट्स, वॉइस और तैयार आउटपुट। एक ट्यून किया गया रचनात्मक सतह, Sketches का सहोदर (डायग्राम के लिए ट्यून किया गया)। हर टुकड़ा वही sketch प्रिमिटिव है — किसी भी तरह इसे स्टैश, संदर्भित और diff करें।"
     },
     "open": "Open",
     "empty": "Nothing here yet",
@@ -1647,8 +1727,13 @@
     },
     "worlds": {
       "title": "Worlds",
-      "subtitle": "Traversable three.js cityscapes and transportation hubs — drag to orbit, scroll to zoom, move through them.",
-      "blurb": "Fractal cities and transportation hubs rendered as navigable 3D worlds, not flat pictures."
+      "subtitle": "चलने योग्य three.js दुनिया — शहर, इमारतें, अंदरूनी हिस्से और हब जिनमें आप फर्स्ट-पर्सन घूमते हैं।",
+      "blurb": "फ़्रैक्टल शहर, इमारतें और अंदरूनी हिस्से चलने योग्य 3D दुनिया के रूप में रेंडर किए गए, न कि सपाट तस्वीरें।"
+    },
+    "objects": {
+      "title": "ऑब्जेक्ट",
+      "subtitle": "एकल 3D आर्टिफ़ैक्ट और अध्ययन — वर्कबेंच पार्ट्स, असेंबली, पॉलीगोमर, ग्रह, विज्ञान और गणित के दृश्य। ऑर्बिट के लिए ड्रैग करें, ज़ूम के लिए स्क्रॉल करें।",
+      "blurb": "वर्कबेंच पार्ट्स, असेंबली, पॉलीगोमर और ऑर्बिट अध्ययन — 3D चीज़ें जिन्हें आप घुमाकर देखते हैं।"
     },
     "motion": {
       "title": "Motion",

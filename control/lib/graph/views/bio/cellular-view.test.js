@@ -100,8 +100,8 @@ describe('assembleCellularScene', () => {
 });
 
 describe('cellular-view render routing', () => {
-  it('routes to the traversable World, in the world concern bucket', () => {
+  it('routes to the World renderer, in the object concern bucket', () => {
     expect(sketchRenderMode({ kind: 'cellular-view' })).toBe('world');
-    expect(classifyBucket({ kind: 'cellular-view' })).toBe('world');
+    expect(classifyBucket({ kind: 'cellular-view' })).toBe('object');
   });
 });

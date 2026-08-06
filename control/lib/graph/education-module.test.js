@@ -30,10 +30,10 @@ describe('education module — routing', () => {
     expect(EDUCATION_VIEW_KINDS).toEqual(Object.keys(TOOL_OF));
   });
 
-  it('every education kind routes to the world renderer + world bucket', () => {
+  it('every education kind routes to the world renderer + object bucket', () => {
     for (const kind of EDUCATION_VIEW_KINDS) {
       expect(sketchRenderMode({ kind }), kind).toBe('world');
-      expect(classifyBucket({ kind }), kind).toBe('world');
+      expect(classifyBucket({ kind }), kind).toBe('object');
     }
   });
 });

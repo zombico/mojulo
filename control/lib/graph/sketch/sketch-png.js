@@ -27,7 +27,7 @@ import { renderSceneToPng } from '@/lib/graph/scene/scene-png';
 
 // Bump when the scene rasterizer's output changes in a way that should invalidate
 // already-baked PNGs (new camera default, lighting model, screenshot crop, …).
-const SCENE_CACHE_VERSION = 'v1';
+const SCENE_CACHE_VERSION = 'v2'; // v2: CSS-3D emitter renders duplicate-corner cap triangles (previously 0-height)
 
 // Cap the longest rasterized SVG edge so a huge viewBox can't ask sharp for a
 // gigapixel surface. 3000px is plenty for a crisp download/preview.

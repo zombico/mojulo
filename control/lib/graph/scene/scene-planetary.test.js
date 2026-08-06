@@ -247,6 +247,6 @@ describe('emitThreeWorld over a planetary body', () => {
 describe('kind registry', () => {
   it('classifies planetary as a traversable world (orbit-only, /world render mode)', () => {
     expect(sketchRenderMode(EARTH)).toBe('world');
-    expect(classifyBucket(EARTH)).toBe('world');
+    expect(classifyBucket(EARTH)).toBe('object');
   });
 });

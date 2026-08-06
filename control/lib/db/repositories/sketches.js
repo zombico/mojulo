@@ -121,6 +121,19 @@ export const SketchRepository = {
   // an empty list just because root has crowded them past the cap.
   list({ rootLimit = 200, bucket = null } = {}) {
     const db = getDb();
+    // Bucket-scoped queries (the Arcade, the Maker galleries) must see EVERY
+    // sketch in the bucket, so the root cap must NOT pre-truncate the candidate
+    // set — otherwise an older game/world silently drops out of its gallery once
+    // >rootLimit newer root sketches exist. Bucket is JS-derived from
+    // manifest_json, so we scan the full table and filter in JS; a bucket result
+    // is naturally small. Single-user scratch surface, so the full scan is fine
+    // (see maker.plan.md — persist a derived bucket column to move this to SQL).
+    if (bucket) {
+      const rows = db
+        .prepare('SELECT * FROM sketches ORDER BY created_at DESC')
+        .all();
+      return rows.map(rowToSketch).filter((s) => s.bucket === bucket);
+    }
     const rows = db
       .prepare(
         `SELECT * FROM sketches WHERE folder_ref IS NOT NULL
@@ -132,12 +145,7 @@ export const SketchRepository = {
          ORDER BY created_at DESC`,
       )
       .all(rootLimit);
-    const sketches = rows.map(rowToSketch);
-    // Effective-bucket filter is JS-side because `kind` lives in manifest_json.
-    // Acceptable for a single-user scratch surface; if the table grows large,
-    // persist a derived bucket column and filter in SQL (see maker.plan.md).
-    if (bucket) return sketches.filter((s) => s.bucket === bucket);
-    return sketches;
+    return rows.map(rowToSketch);
   },
 
   // Pin (or clear) a sketch's Maker gallery without touching its content. Pass

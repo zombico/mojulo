@@ -38,6 +38,8 @@ const FIXTURE = [
   ['our company logo in shiny 3D chrome', 'create_carved_solid'],
   ['model a wine glass true to size', 'create_workbench'],
   ['put the wheels and the chassis together into one model', 'create_assembler'],
+  ['turn this concept art of an espresso machine into a 3d model piece by piece', 'create_assembler'],
+  ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', 'create_assembler'],
   ['build me a little town I can wander around in', 'compose_world'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
@@ -52,6 +54,8 @@ const FIXTURE = [
   ['an AI-painted portrait I will render with an image model', 'create_sketch'],
   ['make my anime character actually talk and blink', 'create_sketch'],
   ['stage the two drawn characters in one scene and cut between their rooms', 'create_sketch'],
+  ['make a pixel-art cutscene of my hero character', 'get_catalyst'],
+  ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
 ];
 
 // Discriminating fixtures: create_sketch is the entry for BOTH diagram-chart
@@ -63,6 +67,7 @@ const CARD_FIXTURE = [
   ['bar chart of last month signups by week', 'diagram-chart'],
   ['make my anime character actually talk and blink', 'animate-character'],
   ['stage the two drawn characters in one scene and cut between their rooms', 'animate-character'],
+  ['make a pixel-art cutscene of my hero character', 'pixel-art'],
 ];
 
 const TOP_K = 3;
