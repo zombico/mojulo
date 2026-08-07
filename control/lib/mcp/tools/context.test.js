@@ -8,6 +8,7 @@ import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
 import {
   PARADIGMS,
+  FORWARD_CONTEXT_MODES,
   buildForwardContextBody,
   FORWARD_CONTEXT_BODY,
   forwardContextHandler,
@@ -243,6 +244,16 @@ describe('forwardContextHandler — register resolution', () => {
     expect(text).toMatch(/vocabulary_register: plain/);
     // Override's disclosure wins.
     expect(text).toMatch(/procedural_disclosure: pedagogical/);
+  });
+
+  it('mode selects the wing: default/office vs studio, and invalid mode is rejected', async () => {
+    const office = await forwardContextHandler({});
+    expect(office.content[0].text).toContain('# Mojulo, oriented');
+    expect(office.content[0].text).not.toContain('## Studio routing index');
+    const studio = await forwardContextHandler({ mode: 'studio' });
+    expect(studio.content[0].text).toContain('# Mojulo studio, oriented');
+    expect(studio.content[0].text).toContain('## Studio routing index');
+    await expect(forwardContextHandler({ mode: 'atelier' })).rejects.toThrow(/mode/);
   });
 
   it('rejects invalid register override', async () => {
@@ -506,7 +517,8 @@ describe('paradigm coverage sweep (orientation-diet thread E) — the "three vs 
     await ensureToolsRegistered();
     const surfaces = {
       'initialize preamble (SERVER_INSTRUCTIONS)': SERVER_INSTRUCTIONS,
-      'lean opener (forward_context body)': buildForwardContextBody({}),
+      'lean opener (office forward_context body)': buildForwardContextBody({}),
+      'studio forward_context body': buildForwardContextBody({ mode: 'studio' }),
       'get_substrate description': listTools().find((t) => t.name === 'get_substrate').description,
       'get_substrate body': (await substrateHandler({})).content[0].text,
     };
@@ -533,14 +545,20 @@ describe('routing index row lint (orientation-diet thread B) — "index, not glo
   // the detail into the tool description, a vocab card, or get_tool_index.
   const ROUTING_ROW_CEILING = 1000;
 
-  it(`no routing bullet exceeds ${ROUTING_ROW_CEILING} chars`, () => {
-    const body = buildForwardContextBody({});
-    const section = body.split('## Routing index')[1].split('## Drawers')[0];
-    const offenders = section
-      .split('\n')
-      .filter((l) => l.startsWith('- ') && l.length > ROUTING_ROW_CEILING)
-      .map((l) => `${l.length} chars: ${l.slice(0, 80)}…`);
-    expect(offenders).toEqual([]);
+  it(`no routing bullet exceeds ${ROUTING_ROW_CEILING} chars (both wings)`, () => {
+    const sections = {
+      office: buildForwardContextBody({}).split('## Routing index')[1].split('## Drawers')[0],
+      studio: buildForwardContextBody({ mode: 'studio' })
+        .split('## Studio routing index')[1]
+        .split('## Studio drawers')[0],
+    };
+    for (const [wing, section] of Object.entries(sections)) {
+      const offenders = section
+        .split('\n')
+        .filter((l) => l.startsWith('- ') && l.length > ROUTING_ROW_CEILING)
+        .map((l) => `${wing}: ${l.length} chars: ${l.slice(0, 80)}…`);
+      expect(offenders).toEqual([]);
+    }
   });
 });
 
@@ -561,17 +579,92 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // dream-edifice catalyst pointer) — a new Create-things artifact category
   // no existing row's phrasing reaches, the same segmented-index-row case as
   // Voice.
-  const BODY_CEILING = 11_700;
+  // Split 2026-08-06 (orientation-containment C1, was one BODY_CEILING at
+  // 11_700): the FORM recognizer rows relocated into the studio body behind
+  // forward_context({mode:'studio'}); the office body carries one STUDIO hook
+  // row. A new creative FORM now grows the STUDIO ceiling, never the office
+  // ceiling — the office pin only moves for new OPERATE capability.
+  // Pinned 2026-08-06 at the split: office measured 9_435 (was 11_623 as the
+  // single body), studio measured 7_169 (both at mojulo+pedagogical).
+  const MODE_CEILINGS = { office: 9_600, studio: 7_400 };
 
-  it(`every register × disclosure cell stays under ${BODY_CEILING} chars`, () => {
+  it('every mode × register × disclosure cell stays under its ceiling', () => {
+    for (const [mode, ceiling] of Object.entries(MODE_CEILINGS)) {
+      for (const register of VOCABULARY_REGISTERS) {
+        for (const disclosure of PROCEDURAL_DISCLOSURES) {
+          const body = buildForwardContextBody({ mode, register, disclosure });
+          expect(
+            body.length,
+            `cell ${mode}+${register}+${disclosure} is ${body.length} chars (> ${ceiling})`,
+          ).toBeLessThan(ceiling);
+        }
+      }
+    }
+  });
+});
+
+describe('studio containment (orientation-containment C1) — office pays no creative orientation', () => {
+  // The office body's only creative content is the STUDIO hook row (+ the
+  // opener's wing sentence). Entry tools for creative mints must not leak
+  // back — a new creative capability is a studio row + routing card, never
+  // an office-body mention. (`create_sketch` can appear via the live pulse
+  // line's first-win hint, so containment is asserted on the pulseless body.)
+  const STUDIO_ENTRY_TOOLS = [
+    'create_sketch',
+    'sketch_what_possible',
+    'create_figure',
+    'reference_protocol',
+    'create_workbench',
+    'create_assembler',
+    'create_carved_solid',
+    'create_solid_turntable',
+    'compose_world',
+    'create_view',
+    'create_edifice',
+    'forge_motion',
+    'stitch_motion',
+    'create_beats',
+    'create_voice',
+    'forge_publications',
+  ];
+
+  it('office body names no creative entry tool, but carries the studio hook row', () => {
+    const office = buildForwardContextBody({});
+    for (const tool of STUDIO_ENTRY_TOOLS) {
+      expect(office, `office body leaks creative entry tool \`${tool}\``).not.toContain(tool);
+    }
+    expect(office).toContain("forward_context({mode:'studio'})");
+    expect(office).toContain('get_creative_toolset');
+  });
+
+  it('studio body is standalone: spine (floor + safety) present in every cell', () => {
     for (const register of VOCABULARY_REGISTERS) {
       for (const disclosure of PROCEDURAL_DISCLOSURES) {
-        const body = buildForwardContextBody({ register, disclosure });
-        expect(
-          body.length,
-          `cell ${register}+${disclosure} is ${body.length} chars (> ${BODY_CEILING})`,
-        ).toBeLessThan(BODY_CEILING);
+        const body = buildForwardContextBody({ mode: 'studio', register, disclosure });
+        for (const phrase of FLOOR_PHRASES) {
+          expect(body, `studio cell ${register}+${disclosure} missing "${phrase}"`).toContain(
+            phrase,
+          );
+        }
+        expect(body).toContain('## Standing safety rules');
+        // Pointer back to the office wing.
+        expect(body).toContain('forward_context()');
       }
+    }
+  });
+
+  it('studio completeness: every CREATIVE_FORM named, every entry tool present and registered', async () => {
+    const studio = buildForwardContextBody({ mode: 'studio' });
+    for (const form of CREATIVE_FORMS) {
+      expect(studio, `studio body does not name form "${form}"`).toContain(form);
+    }
+    const entryTools = [...STUDIO_ENTRY_TOOLS, 'create_game', 'mint_stash', 'cook'];
+    const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    const registered = new Set(listTools().map((t) => t.name));
+    for (const tool of entryTools) {
+      expect(studio, `studio body does not name entry tool \`${tool}\``).toContain(tool);
+      expect(registered.has(tool), `studio body names unregistered tool \`${tool}\``).toBe(true);
     }
   });
 });
@@ -581,12 +674,13 @@ describe('enumerated counts stay true (orientation-diet thread E)', () => {
     const { VIEW_KINDS } = await import('./create-view.js');
     const claim = `${Object.keys(VIEW_KINDS).length} kinds`;
     // create_view moved into the `view` creative-toolset drawer; its "N kinds"
-    // claim now rides that surface plus the forward_context routing WORLD row.
+    // claim now rides that surface plus the STUDIO routing WORLD row
+    // (relocated out of the office body by orientation-containment C1).
     const { content } = await creativeToolsetHandler({ form: 'view' });
     expect(content[0].text, `view toolset create_view row must say "${claim}"`).toContain(claim);
     expect(
-      buildForwardContextBody({}),
-      `routing index create_view row must say "${claim}"`,
+      buildForwardContextBody({ mode: 'studio' }),
+      `studio routing index create_view row must say "${claim}"`,
     ).toContain(claim);
   });
 });

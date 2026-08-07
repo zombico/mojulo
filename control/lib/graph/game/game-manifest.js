@@ -262,7 +262,7 @@ export function validateGameManifest(manifest) {
 
   // difficulty (optional): the pre-battle DIFFICULTY pick — engine ai-tuning tiers named in the
   // game's own voice. options[].id must be an engine tier (controllable-world AI_DIFFICULTY:
-  // 'easy' | 'medium' | 'max'; 'max' is the untuned brain); the shell renders name/sub on the
+  // 'easy' | 'medium' | 'max'; 'max' is the top brain — NEWTYPE — with the tackle-guard read); the shell renders name/sub on the
   // map step of piloted setups and passes the picked id to the level as params.difficulty.
   if (manifest.difficulty !== undefined) {
     const df = manifest.difficulty;

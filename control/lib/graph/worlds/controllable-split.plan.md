@@ -229,8 +229,9 @@ parry probe, AI drivers) can interleave any time after S0, landing as builders.
   config) — doc-comment rewrites, not API churn.
 - Parry/guard verb as a clash-variant maneuver — the cheapest probe that the
   maneuver contract generalizes beyond the mecha fantasy.
-- Drivable-vehicles D2 lands as `rules-drive.js` (its plan's engine touchpoint,
-  re-pointed here).
+- ~~Drivable-vehicles D2 lands as `rules-drive.js`~~ — LANDED 2026-08-06: the
+  first external tenant of the architecture (see drivable-vehicles.plan.md's
+  build log); a rule-level builder needed zero engine edits, as designed.
 - Promote proven idioms (reaction chain, commitment maneuver, resource gauge,
   contact-window melee, additive match layer) into `game-idioms.js` / vocab cards.
 
@@ -238,11 +239,143 @@ parry probe, AI drivers) can interleave any time after S0, landing as builders.
 
 | Stage | State | Notes |
 |---|---|---|
-| S0 kernel + wrap | not started | |
-| S1 leaf carves | not started | gait → colliders → rules-basic |
-| S2 combat carves | not started | hit → ranged → melee → match |
-| S3 pipeline | not started | |
-| S4 maneuvers + MS pack | not started | |
+| S0 kernel + wrap | **landed 2026-08-06** | see build log below |
+| S1 leaf carves | **landed 2026-08-06** | see build log below |
+| S2 combat carves | **landed 2026-08-06** | hit → match → ranged → melee (see log) |
+| S3 pipeline | **landed 2026-08-06** | see log |
+| S4 maneuvers + MS pack | **landed 2026-08-06** | see log — the split is COMPLETE |
 
 (Keep this table + dated notes current as stages land; a landed stage's notes
 record any deviation from the plan above.)
+
+### S0 — landed 2026-08-06
+
+- `worlds/controllable/compose.js` (kernel + `EMISSION` + `composeLive` +
+  `emissionSource`) and `worlds/controllable/all.js` (the monolith closure moved
+  verbatim: signature → `buildControllableAll(E)`, tail `return {…}` →
+  `Object.assign(E, {…})` + the widened core-helper attach). The façade
+  `controllable-world.js` went 3,305 → 86 lines: header, the standalone-scene
+  section (defaultGround / assembleControllableScene / arena-atmosphere lazy
+  import, unchanged), and the composed live-instance re-exports. `buildControllable`
+  is gone as an export; the emitter now interpolates `emissionSource()`.
+- **Golden traces** landed FIRST, recorded against the pre-split monolith
+  (`controllable-world.trace.test.js`, 4 scenarios: walk / groundArena / space /
+  teamMatch-dropIn; full-precision digests every 6 frames). Deviation from open
+  decision 4's sketch: the ground-arena hunter is a pure SHOOTER with two ranged
+  slots (ai weapon rotation) — a meleeSeek hunter stun-locked the scripted pilot
+  and starved the bazooka/tackle branches; the space seeker keeps ai-melee
+  coverage. Traces passed unchanged against the composed engine.
+- Parity test generalized to the per-builder self-containment tripwire + a
+  stringified-vs-module identical-step assertion (`controllable-world.test.js`,
+  "single source of truth" block). Emit test asserts `emissionSource()` inline.
+- **Char-net re-pin** (the emission-shape change this plan announced): 10
+  fixtures re-pinned in `scene/emit-channels.char.test.js.snap` — capture-controllable,
+  cast-shadows, controllable, controllable-figure, controllable-hangar,
+  controllable-shadows, controllable-smoke, fx, kitchen-sink, kitchen-sink-capture.
+  Every non-controllable fixture hash unchanged.
+- Full suite: 6072 passed; the only 2 failures (`mcp/tools/tool-descriptions.test.js`
+  catalyst description budgets) reproduce with the working tree stashed —
+  pre-existing at HEAD, unrelated.
+
+### S1 — landed 2026-08-06
+
+- Three carves out of `all.js` (3,247 → 2,911 lines), one composition:
+  `core.js` (vec/heading math, smooth, TAU/HALF_PI, lerp3, resolveBlocking 2D/3D,
+  segAabbT/sightBlocked/nearestWallT, normalizeColliders, eggRadius, **and the
+  RULES registry** — an empty shared object rule builders register into),
+  `gait.js` (gaitFramePair, advanceGaitMix), `rules-basic.js` (glide, walk,
+  follow, clock, mover — registered via `Object.assign(RULES, {…})`).
+- `EMISSION = [buildCore, buildGait, buildRulesBasic, buildControllableAll]` —
+  core first; `all.js` destructures the core helpers + RULES at build time and
+  registers its remaining rules (platform, ai) into the shared registry.
+- SIDE_STRIKE_YAW stayed in `all.js` (melee flavor — meleeSwingSpec's only
+  consumer); follow moved WITH its cinematic branch (semantics move in S4, the
+  read is a nullable world field).
+- Golden traces + full worlds suite unchanged; char-net re-pinned (same 10
+  controllable-channel fixtures — every carve changes emission bytes by design).
+
+### S2 — landed 2026-08-06
+
+- Four carves (all.js 2,911 → 1,463 lines), order **hit → match → ranged → melee**
+  (match moved BEFORE ranged/melee — deviation from the sketched order — so
+  `matchStat` is build-time destructurable by both; the one backward edge,
+  respawnEntity → cancelWeaponCharge, is late-bound via `E.*`).
+- `combat-hit.js`: egg family, shields, breakGuards, boostStunFactor, armReaction,
+  beginDodge + stepReaction; registers the poise/collide/hpMax/shield normalize
+  extension. `combat-match.js`: matchStat, applySpawnProtect, stepDrop,
+  respawnEntity, stepMatch, explodeUnit; registers the match/wreckExplodes STATE
+  INIT. `combat-ranged.js`: initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon,
+  stepProjectiles, burstProjectile. `combat-melee.js`: SIDE_STRIKE_YAW +
+  meleeSwingSpec, stepMelee, clash, stepTackle, tackle counter + cinematic.
+- Core grew the S2 hooks (`registerNormalize`/`registerStateInit` + runners) and
+  took `stepBodyCollisions` + `stepCarry` (the file-map's core passes).
+  `createWorld` restructured: state literal (match/wreckExplodes null) →
+  `runStateInits(state, spec)` → return.
+- Still in `all.js` (by design): platform + ai rules, AI_DIFFICULTY,
+  armSwitchReady, beginAiSwing*, tickBoostRecovery, input snapshot,
+  normalizeEntity/createWorld/stepWorld, loadout/pilotable/seat/team/livery
+  hoists — the S3/S4 material.
+- Golden traces byte-identical after every carve; char-net re-pinned (same 10);
+  full suite at baseline (6,072 + the 2 pre-existing catalyst-budget failures).
+
+### S3 — landed 2026-08-06
+
+- `stepWorld` moved to core as the SLOT RUNNER; the frame sequence is now registered,
+  not hardcoded. Slots in run order: preSteps (may replace input) → per entity:
+  entityTimers → bodyOwners (truthy = owns; any owner suppresses rule+weapon) →
+  entityAsserts → rule (else suppressedTicks) → entityActions → worldPasses →
+  camera → time. Entries sort by explicit `order`, ties by EMISSION position.
+- Registrations, preserving the pre-split sequence exactly: match-over-zero(10,
+  match) → ai-toggle(20, all) → pilot-swap(30, all) → carry-snapshot(40, core);
+  owners reaction(10, hit) → clash(20, melee) → cine(30, melee) → drop(40, match);
+  asserts charge-cancel(10, ranged) → spawn-guard(20, match); actions
+  weapon/melee/tackle (all.js — they carry the ai-fire routing + pilot gating, S4
+  redistributes); world passes body-collisions(10, core) → carry(20, core) →
+  projectiles(30, ranged) → death-burst(40, match) → match(50, match).
+- ZERO_INPUT/readInput moved to core (still carrying the MS keys — S4 splits them
+  via input-defaults registration). `hooks.physics` now runs before the pre-steps
+  instead of between match-zero and ai-toggle — commutes (physics reads no input,
+  match-zero writes only input); traces confirm.
+- Gate landed: the pipeline-order PIN test (controllable-world.test.js, "step
+  pipeline") — an exact `toEqual` on `pipelineOrder()`, not a snapshot, so a
+  reorder is a loud diff. Golden traces byte-identical; full suite at baseline.
+- normalizeEntity/createWorld stay in `all.js` (deliberate: they move with the S4
+  redistribution so the loadout/pilot/seat/team/livery hoists move once, not twice).
+
+### S4 — landed 2026-08-06 (the split is complete; all.js dissolved)
+
+- **Sub-stage A** (scaffold to core + registration redistribution): normalizeEntity/
+  createWorld moved to core — weapon init late-bound (`E.initWeapon`), aiTuning
+  deferred to a pack state-init, seat/liveries/loadout hoists lifted out to a
+  registered normalizer; the pilot-swap pre-step moved to core (possession is
+  engine); the weapon timers + weapon action → combat-ranged, melee/tackle
+  actions → combat-melee.
+- **Sub-stage B** (the maneuver seam + the pack lift): `rules-platform.js` holds
+  the platform rule with the S4 maneuver-phase registry — five phases over a
+  shared per-frame ctx (`maneuver → equip → act → dash → claim`), each hook the
+  verbatim inline block reading/writing the same locals via ctx at the same point
+  in the frame. `registerPlatformManeuver(phase, key, fn, order)` +
+  `platformPhaseOrder()` are the seam API. combat-melee registers strike/throw
+  (act) + cleave-step (dash) — melee ACTING is combat, not pack (the parry/GoW
+  argument). `mobile-suit/ms-maneuvers.js` registers dodge/tackle (maneuver),
+  loadout (equip), their dashes and locomotion claims, the arena dressing
+  normalizer (seat/liveries/loadout), and attaches armSwitchReady.
+  `mobile-suit/ms-ai.js` holds the ai rule + AI_DIFFICULTY + the ai melee
+  strings, the ai-toggle pre-step, and the difficulty state-init. `all.js` is
+  DELETED. `EMISSION_ENGINE` (8 builders, pack-less) + `EMISSION` (10, the packs
+  appended) are both exported; the emitter ships EMISSION.
+- Gates, all landed: golden traces byte-identical against the unwoven engine;
+  the platform-phase order pin (exact toEqual beside the pipeline pin); the
+  pack-less test (EMISSION_ENGINE runs walk + basic platform with jump/landing;
+  RULES.ai and AI_DIFFICULTY undefined); char-net re-pinned (same 10
+  controllable fixtures); full suite at baseline (6,075 + the 2 pre-existing).
+- **Residual MS flavor, deliberate (the "de-flavor pass" in Later owns these):**
+  the boost/thruster layer (gauge/overheat/hover/flame) stays in rules-platform
+  as ENGINE — it is load-bearing across movement/vertical/locomotion and a
+  jetpack platformer is a generic genre; only its arena tuning is MS. eggLean's
+  boost-clip coupling stays in combat-hit. ZERO_INPUT keeps all keys in core
+  (per-pack input-key registration deferred). createWorld's `spec.ai !== 'off'`
+  read stays in core (inert without an ai rule).
+- Two generation faults caught by the gates during the lift (a stripped gauge
+  close-brace; the throw hook losing the strike block's shared `strikeOn`
+  local) — both surfaced before any suite ran, by the import tripwire + traces.

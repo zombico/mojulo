@@ -50,5 +50,9 @@ export { deriveAxleSockets, deriveBaySockets, planComponentFit } from './veh-gar
 // The archetype table + advisory BOM audit (VA layer).
 export { VEH_ARCHETYPES, mapChassisStations, planAssemblyBom, planVehicleBuild } from './assembly-bom.js';
 
+// drivable vehicles (drivable-vehicles.plan.md): the rig pair (D1) + the drivetrain deriver (D3)
+export { deriveVehicleRig, bakeVehicleRig } from './vehicle-rig.js';
+export { deriveDrivetrain } from './drivetrain.js';
+
 // The shared kit: six color roles, shelf-wide palettes, seeded determinism.
 export { VEH_COLOR_ROLES, VEH_PALETTES } from './veh-common.js';

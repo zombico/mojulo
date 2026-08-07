@@ -80,6 +80,19 @@ import {
 
 const HEADER = '# Mojulo, oriented';
 
+// --- Orientation wings (orientation-containment.plan.md C1) ---
+//
+// Two forward_context bodies behind one tool: the OFFICE (default — bots,
+// connected services, apps, deliberation, operate-what-exists) and the STUDIO
+// (the creative wing — the FORM recognizer rows + creative drawers). Office/
+// Studio is the user- and agent-facing vocabulary (it matches the Studio mode
+// on Workshop Home); do not resurrect "operations mode" (deprecated Ring 11
+// internal naming). `mode` is stateless per call — it selects which body
+// composes, never session state.
+export const FORWARD_CONTEXT_MODES = ['office', 'studio'];
+const DEFAULT_FORWARD_CONTEXT_MODE = 'office';
+const STUDIO_HEADER = '# Mojulo studio, oriented';
+
 // The five creatable artifact paradigms — THE single source for the sweep test
 // in context.test.js that asserts every orientation surface (initialize
 // preamble, lean opener, get_substrate, register-kit glossary) names all of
@@ -110,7 +123,7 @@ function communicationSettingsNotice({ register, disclosure, source }) {
 // named in the `initialize` preamble; we don't re-enumerate them, we route
 // them below.
 
-const LEAN_OPENER = `Mojulo is the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing after the chat ends. Two arms, one discipline: solutions composed over the operator's installed MCPs (CRM, calendar, drive, ticketing, warehouse), and creative artifacts (worlds, views, films, games, audio, publications) minted as deterministic recipes. Everything minted is a tiny deterministic recipe, and artifacts prove themselves before promotion — lean on that with a skeptical operator. Its tool calls mutate mojulo's own SQLite + graph state and supervise processes. The \`initialize\` preamble already named the five creatable artifacts (Bot/Connected Service/App/Media/Game) and their entry tools — this is the **routing index** that maps a request onto the right entry point, plus a directory of drawers to pull when a task needs depth. Recognize the path from the user's framing, reach for the entry tool, and read a drawer only when you need it. When unsure whether the work needs a conversational surface, ask — that answer routes the session.`;
+const LEAN_OPENER = `Mojulo is the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing after the chat ends. Two wings, one discipline: the OFFICE — solutions composed over the operator's installed MCPs (CRM, calendar, drive, ticketing, warehouse) — and the STUDIO — creative artifacts minted as deterministic recipes (\`forward_context({mode:'studio'})\` for its routing index). Everything minted is a tiny deterministic recipe, and artifacts prove themselves before promotion — lean on that with a skeptical operator. Its tool calls mutate mojulo's own SQLite + graph state and supervise processes. The \`initialize\` preamble already named the five creatable artifacts (Bot/Connected Service/App/Media/Game) and their entry tools — this is the office **routing index** that maps a request onto the right entry point, plus a directory of drawers to pull when a task needs depth. Recognize the path from the user's framing, reach for the entry tool, and read a drawer only when you need it. When unsure whether the work needs a conversational surface, ask — that answer routes the session.`;
 
 // --- Workshop pulse (R1, orientation-ramp.plan.md) ---
 //
@@ -390,7 +403,7 @@ If a refusal you hit isn't in this table, the tool's own message carries the rem
 const TOOL_INDEX = `## Tool index (one line each)
 
 ### Orientation
-- \`forward_context\` — the routing index: a lean opener, user-framing → entry-tool rows, a drawer directory, and the standing safety + commitment rules. Call FIRST when unsure what mojulo is or which tool fits. A thin map, not a manual — depth lives in the drawers below.
+- \`forward_context\` — the routing index, two wings behind one tool: default \`mode:'office'\` (bots / connected services / apps / operate), \`mode:'studio'\` (the creative wing's FORM recognizer rows + drawers). A lean opener, user-framing → entry-tool rows, a drawer directory, and the standing safety + commitment rules. Call FIRST when unsure what mojulo is or which tool fits. A thin map, not a manual — depth lives in the drawers below.
 - \`get_tool_index\` — (you are reading its output) the full one-line-per-tool index across every ring. Call when \`forward_context\`'s routing index isn't specific enough.
 - \`get_creative_toolset\` — the per-tool list for one creative FORM (diagram · illustration · reference · image-render · object · world · view · motion · audio · voice · game). No arg → the form map. The Ring 10 mint tools moved here; call it to MAKE something visual / audible / playable.
 - \`get_register_kit\` — the concept glossary (Bot, Deployment, Protocol, Chain, Catalyst, App, …) in the operator's active \`vocabulary_register\`, plus the refusal legend (what each family of "no" protects · the next move), the active disclosure directive, and the invariant commitment-level floor. **This is where the vocabulary lives** — pull it to define a term, phrase something for the user, or decode a refusal. Optional per-call \`register\` / \`disclosure\` override.
@@ -694,40 +707,34 @@ function buildCreativeToolsetMap() {
 // entry tool is the START of a flow, not the whole flow — `get_tool_index`
 // carries the full ring-grouped list when this isn't specific enough.
 //
-// Create-things is a MINI SEGMENTED INDEX (orientation-diet, routing-card
-// move): one row per FORM (picture / object / world / motion / audio / game /
-// publication) naming recognizers + entry tool only. The full per-family
-// routing rows (recognizer quotes + forks) retired into routing cards under
-// lib/mcp/routing-cards/, retrieved whole via semantic_search({kinds:
-// ['routing']}). Adding a creative capability = a routing card + (if new
-// tool) a TOOL_INDEX row — NOT a new fat row here. The body-ceiling test in
-// context.test.js pins the aggregate; the row lint pins each row.
+// Create-things carries the operate paradigm rows + ONE studio hook row
+// (orientation-containment C1): the per-FORM recognizer rows relocated
+// verbatim into STUDIO_ROUTING_INDEX below, pulled via
+// forward_context({mode:'studio'}) only when a creative ask appears. The
+// full per-family routing rows (recognizer quotes + forks) stay retired in
+// routing cards under lib/mcp/routing-cards/, retrieved whole via
+// semantic_search({kinds:['routing']}). Adding a creative capability = a
+// routing card + a STUDIO_ROUTING_INDEX row — NEVER a new office-body row.
+// The per-mode body-ceiling tests in context.test.js pin the aggregates; the
+// row lint pins each row in both bodies.
 
 const ROUTING_INDEX = `## Routing index — recognize the path, reach for the entry tool
 
 Match the user's framing to a row. The named tool is the starting point; pull \`get_tool_index\` for the full ring-grouped list when a row isn't specific enough.
 
-**Create things** — the five paradigms; Media's creative mints segmented by FORM. Match the form → call the entry tool. When a form row isn't enough (families, forks, flow), \`semantic_search({kinds:['routing'], query:'<the user's ask>'})\` returns that family's full routing card (complete body, no follow-up read); parameter manuals live behind the \`get_*_vocab\` readers.
+**Create things** — the five paradigms. Match the framing → call the entry tool.
 - First flight of a paradigm ("how does a bot/app/game actually get built end to end?") → \`get_worked_example({ paradigm })\` — the annotated trace with the gate moments marked; cheaper than trial-and-error.
 - CHATBOT ("build a bot", "deploy this for my customers") → \`infer_intent\` (or a \`generate_*\` tool if the shape is known). Flow: build → deploy (\`save_modular_bot\` → \`poll_job\`, hand the user \`artifactPath\`) → bot phones home → operate.
 - CONNECTED SERVICE (automate over installed MCPs, **no chatbot**: "every Monday summarize X into Y") → \`meta_context_declare_inventory\` first (include \`inputSchema\`s when you can read them). Then one rule picks the composer: **schemas declared → \`bind_primitives\`**; **first encounter with a provider you lack schema knowledge for → \`recommend_mcp_orbit_compositions\`**. A host-adapter Skill via \`get_catalyst\` is the other form. Mojulo is the deliberation anchor + audit trail here, not the runtime.
 - APP (long-running local tool that calls back to **you** for inference: "watch this folder") → \`install_scaffold\` → \`meta_context_commit({type:'app_materialization'})\` → \`start_app\`; inference parks on \`pull_agent_task\` / \`submit_envelope_inference\`, no per-app LLM key.
-- GAME (playable artifact; persistent typed store; every level must prove completable at mint) → \`create_game\`; fastest start is a kit via \`semantic_search({kinds:['game_kit']})\`. Project home for its pieces → \`create_game_project\` (\`/games/<ref>\`).
-- PICTURE — diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\`; scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\`; posed human figure → \`create_figure\`; build from a PHOTO you can see → \`reference_protocol\`; direct an AI-generated image / comic page → \`create_sketch\` kind \`'image-outcome'\`/\`'sequential-art'\` (read the sketch_vocab card).
-- OBJECT (3D at literal scale) — everyday object / mechanical part → \`create_workbench\`; assemble parts → \`create_assembler\`; carved wordmark / logo → \`create_carved_solid\`; single convex solid spinning live → \`create_solid_turntable\`.
-- WORLD (traversable) — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME); animated science / math / bio study object ("teach me nuclear fission") → \`create_view\` (45 kinds; find one via \`semantic_search({kinds:['view_vocab']})\`).
-- BUILDING (bespoke, inhabitable) — a NEW one-off building / campus / connected complex the generators don't make ("design a bespoke building", "a custom <building type>", "a walkable building I compose myself") → \`create_edifice\` (a graph of MASSES + CONCOURSES, placed by relation); dream it from a reference → the \`dream-edifice\` catalyst. (A generic seed-sampled city/school/hub is \`compose_world\` instead; a single object is \`create_workbench\`.)
-- MOTION (adds time) — animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (four families: camera / deck / traversal / waypoints — pull the routing card before your first motion); join clips into one film → \`stitch_motion\`.
-- AUDIO — soundtrack / tune / beat / sound effect → \`create_beats\` (kinds via \`semantic_search({kinds:['beats_vocab']})\`).
-- VOICE — make / tune HOW A VOICE SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (capabilities behind \`get_voice_vocab\`; an external worker speaks it).
-- PUBLICATION (essay / picture book / slide deck / brief / newsletter / comic from gathered material) → \`mint_stash\` → \`gather\` → \`cook\`; multi-kind preview → \`forge_publications\`.
+- STUDIO — create something media-shaped: a Media artifact (picture / object / world / building / motion / audio / voice / publication) or a Game → \`forward_context({mode:'studio'})\`, the studio routing index (FORM recognizer rows + the creative drawers). Already know the form → \`get_creative_toolset({form})\`; fuzzy route → \`semantic_search({kinds:['routing'], query:'<the user's ask>'})\`.
 - Schedule / activate an existing artifact ("every morning", "on a cadence") → \`bind_trigger\` (binding persists; it only *fires* when the trigger runtime daemon is enabled).
 
 **Operate what exists**
 - Turn a bot's captured signal into action / "what can this bot do for me?" → \`recommend_catalysts\` → \`get_catalyst\` (read the host-adapter section to materialize the runnable artifact). Across the fleet: \`recommend_catalysts({scope:'fleet'})\`.
 - Read a deployed bot → \`list_deployments\` / \`get_deployment\` (identity, form schema, protocol configs) / \`query_conversations\` → \`get_conversation\`; form data via \`query_submissions\`. The bot's \`.env\` → \`inspect_bot_env\` (never \`cat\`).
 - Fleet-wide questions ("how's the whole fleet?", "busiest bots", "find any conversation that mentioned X") → \`fleet_analytics_summary\`; \`fleet_query_conversations\` to **locate**, then per-bot \`get_conversation\` to **read**. Audit chains across bots → \`verify_fleet_chains\`; one conversation → \`verify_chain\`.
-- Edit / revise / tweak a minted TUNE or beat ("mute bar 2's kick", "slow it down", "answer the studio notes") → \`get_beats\` (recipe + open annotations) → \`update_beats\`; mark or read notes → \`annotate_beats\`; "what changed between revisions" → \`diff_beats\`.
+- Edit / revise / tweak a minted creative artifact ("mute bar 2's kick", "slow the tune down", "answer the studio notes") → the studio wing: \`get_creative_toolset({form:'audio'})\` for beats editing, or \`forward_context({mode:'studio'})\` for the full creative routing index.
 
 **Reason about structure**
 - "Why was X bound this way?" / "what have I materialized?" → \`meta_context_brief\` (the \`materialized_by\` / \`binds\` edges carry the reasoning principles). Distinct from \`fleet_*\` (metrics) and the operate tools (content).
@@ -747,6 +754,39 @@ const DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 - \`get_deliberation_overview\` — the why-it's-structured model for the Ring 6 surfaces + daemon runtime gating. Pull before structural / non-bot work.
 - \`get_ui_map\` — the \`mojulo-ui\` dashboard page map; pull when the user wants to look / browse / click and you need to name the right page.
 - \`get_substrate\` — the PLAYful Cloud substrate positioning; pull when the user compares mojulo to cloud primitives or asks "what is this really?".`;
+
+// --- Studio body (orientation-containment C1) ---
+//
+// The creative wing's orientation, behind forward_context({mode:'studio'}).
+// The FORM recognizer rows below are RELOCATED VERBATIM from the office
+// routing index (recognition quality is preserved by relocation, not
+// re-derivation). Standalone, not a delta: the studio body re-carries the
+// shared spine (settings notice, standing rules, safety one-liners) so an
+// agent that jumps straight here is never missing the standing rules — a
+// session that reads both bodies pays the spine (~1.5K) twice, accepted.
+
+const STUDIO_OPENER = `The studio — mojulo's creative wing. Media artifacts (pictures, objects, worlds, buildings, motion, audio, voice, publications) and Games composed over them, minted as tiny deterministic recipes: seeded, diffable, replayable — never stored renders. Artifacts prove themselves before promotion — a game level is refused until a recorded traversal beats it. The office wing — the Bot, Connected Service, and App paradigms, deliberation, operate-what-exists — orients at \`forward_context()\` (the default mode). Below: the studio **routing index** (match the user's framing to a FORM row, reach for the entry tool) and the studio drawers.`;
+
+const STUDIO_ROUTING_INDEX = `## Studio routing index — recognize the FORM, reach for the entry tool
+
+Match the user's framing to a row. When a form row isn't enough (families, forks, flow), \`semantic_search({kinds:['routing'], query:'<the user's ask>'})\` returns that family's full routing card (complete body, no follow-up read); parameter manuals live behind the \`get_*_vocab\` readers.
+
+- GAME (playable artifact; persistent typed store; every level must prove completable at mint) → \`create_game\`; fastest start is a kit via \`semantic_search({kinds:['game_kit']})\`. Project home for its pieces → \`create_game_project\` (\`/games/<ref>\`).
+- PICTURE — diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\`; scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\`; posed human figure → \`create_figure\`; build from a PHOTO you can see → \`reference_protocol\`; direct an AI-generated image / comic page → \`create_sketch\` kind \`'image-outcome'\`/\`'sequential-art'\` (read the sketch_vocab card).
+- OBJECT (3D at literal scale) — everyday object / mechanical part → \`create_workbench\`; assemble parts → \`create_assembler\`; carved wordmark / logo → \`create_carved_solid\`; single convex solid spinning live → \`create_solid_turntable\`.
+- WORLD (traversable) — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME); animated science / math / bio study object ("teach me nuclear fission") → \`create_view\` (45 kinds; find one via \`semantic_search({kinds:['view_vocab']})\`).
+- BUILDING (bespoke, inhabitable) — a NEW one-off building / campus / connected complex the generators don't make ("design a bespoke building", "a custom <building type>", "a walkable building I compose myself") → \`create_edifice\` (a graph of MASSES + CONCOURSES, placed by relation); dream it from a reference → the \`dream-edifice\` catalyst. (A generic seed-sampled city/school/hub is \`compose_world\` instead; a single object is \`create_workbench\`.)
+- MOTION (adds time) — animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (four families: camera / deck / traversal / waypoints — pull the routing card before your first motion); join clips into one film → \`stitch_motion\`.
+- AUDIO — soundtrack / tune / beat / sound effect → \`create_beats\` (kinds via \`semantic_search({kinds:['beats_vocab']})\`); edit / revise a minted tune → \`get_beats\` → \`update_beats\`; notes → \`annotate_beats\`; "what changed" → \`diff_beats\`.
+- VOICE — make / tune HOW A VOICE SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (capabilities behind \`get_voice_vocab\`; an external worker speaks it).
+- PUBLICATION (essay / picture book / slide deck / brief / newsletter / comic from gathered material) → \`mint_stash\` → \`gather\` → \`cook\`; multi-kind preview → \`forge_publications\`.`;
+
+const STUDIO_DRAWER_DIRECTORY = `## Studio drawers — pull on demand, don't front-load
+
+- \`get_creative_toolset({ form })\` — the per-FORM tool list; form ∈ diagram · illustration · reference · image-render · object · world · view · motion · audio · voice · game. No arg → the form map with a tool count each. The deterministic read once a routing row has named the family.
+- \`semantic_search({ kinds: ['routing'] })\` — a creative family's full routing card (recognizer quotes + forks + flow). Vocab manuals ride the same tool: kinds \`sketch_vocab\` / \`view_vocab\` / \`beats_vocab\` / \`game_vocab\` / \`game_mechanic\` / \`game_kit\` / \`manji_program\`, read in full via the \`get_*_vocab\` readers.
+- \`get_worked_example({ paradigm: 'media' | 'game' })\` — an annotated end-to-end trace of one successful creative flight, the gate moments marked; pull before your FIRST mint of a paradigm.
+- The office drawers (\`get_tool_index\`, \`get_register_kit\`, \`get_deliberation_overview\`, \`get_ui_map\`, \`get_substrate\`) stay available from either mode.`;
 
 // --- Deliberation overview (Ring 6 deep block, promoted to its own tool) ---
 //
@@ -816,10 +856,31 @@ const SECTION_DIVIDER = '\n\n---\n\n';
 // no longer branch here; they drawerize. `pulse` is resolved in the HANDLER
 // (like the operator anchor), never here — this builder must stay pure so the
 // module-load-time FORWARD_CONTEXT_BODY export never touches the DB.
-export function buildForwardContextBody({ register, disclosure, source, pulse } = {}) {
+export function buildForwardContextBody({ register, disclosure, source, pulse, mode } = {}) {
+  const m = FORWARD_CONTEXT_MODES.includes(mode) ? mode : DEFAULT_FORWARD_CONTEXT_MODE;
   const r = VOCABULARY_REGISTERS.includes(register) ? register : DEFAULT_VOCABULARY_REGISTER;
   const d = PROCEDURAL_DISCLOSURES.includes(disclosure) ? disclosure : DEFAULT_PROCEDURAL_DISCLOSURE;
   const standingRulesSection = `${STANDING_RULE_FLOOR}\n\n${DISCLOSURE_DIRECTIVE_VARIANTS[d]}`;
+  if (m === 'studio') {
+    // The studio body is pulseless by design: the pulse is workshop-wide
+    // onboarding state and belongs to the default (office) read.
+    return [
+      STUDIO_HEADER,
+      '',
+      communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
+      '',
+      STUDIO_OPENER,
+      SECTION_DIVIDER.trim(),
+      STUDIO_ROUTING_INDEX,
+      SECTION_DIVIDER.trim(),
+      STUDIO_DRAWER_DIRECTORY,
+      SECTION_DIVIDER.trim(),
+      standingRulesSection,
+      SECTION_DIVIDER.trim(),
+      SAFETY_ONELINERS,
+      '',
+    ].join('\n');
+  }
   const pulseLine = buildWorkshopPulseLine(pulse);
   return [
     HEADER,
@@ -892,8 +953,20 @@ function resolveRegisterPrefs(input) {
 }
 
 export async function forwardContextHandler(input, _ctx) {
+  const mode = input?.mode;
+  if (mode !== undefined && !FORWARD_CONTEXT_MODES.includes(mode)) {
+    throw new Error(
+      `\`mode\` must be one of: ${FORWARD_CONTEXT_MODES.join(', ')} (got '${mode}')`,
+    );
+  }
   const { register, disclosure, source } = resolveRegisterPrefs(input);
-  const body = buildForwardContextBody({ register, disclosure, source, pulse: readWorkshopPulse() });
+  const body = buildForwardContextBody({
+    register,
+    disclosure,
+    source,
+    mode,
+    pulse: mode === 'studio' ? null : readWorkshopPulse(),
+  });
   // Plain text content (not JSON-stringified) so the agent reads it as prose.
   return { content: [{ type: 'text', text: body }] };
 }
@@ -1320,10 +1393,16 @@ export function registerContextTools() {
   registerTool({
     name: 'forward_context',
     description:
-      "Forward the agent mojulo's routing index: a lean opener, a `user-framing → entry-tool` table that maps a request onto its starting tool, a directory of drawers to pull for depth (`get_tool_index` full per-tool index, `get_register_kit` concept glossary + register, `get_deliberation_overview` Ring 6, `get_ui_map` dashboard pages, `get_substrate` cloud positioning), and the standing safety + commitment-level rules. A thin map, not a manual — the glossary, lifecycle detail, and substrate philosophy live in the drawers, not here. Call this FIRST whenever the user asks what mojulo is or which tool to pick, or whenever you feel uncertain which entry point fits — then drill into one drawer if the task needs it. The disclosure directive branches on the operator's `procedural_disclosure`; the body is otherwise register-invariant (the active `vocabulary_register` is reported in the settings notice, and the glossary that varies on it lives in `get_register_kit`). Optional per-call `register` / `disclosure` override the operator anchor for this one read. Read-only, idempotent.",
+      "Forward the agent mojulo's routing index — two wings behind one tool. Default `mode:'office'`: a lean opener, `user-framing → entry-tool` rows for bots / connected services / apps / operate-what-exists, a directory of drawers to pull for depth (`get_tool_index`, `get_register_kit`, `get_deliberation_overview`, `get_ui_map`, `get_substrate`), and the standing safety + commitment-level rules. `mode:'studio'`: the creative wing — per-FORM recognizer rows (picture / object / world / building / motion / audio / voice / publication / game) plus the creative drawers (`get_creative_toolset`, routing cards, vocab kinds). Call this FIRST whenever the user asks what mojulo is or which tool to pick; open the studio when the ask is to MAKE something visual, audible, or playable. A thin map, not a manual — depth lives in the drawers. The disclosure directive branches on the operator's `procedural_disclosure`; optional per-call `register` / `disclosure` override the operator anchor for this one read. Read-only, idempotent.",
     inputSchema: {
       type: 'object',
       properties: {
+        mode: {
+          type: 'string',
+          enum: FORWARD_CONTEXT_MODES,
+          description:
+            "'office' (default — bots, connected services, apps, deliberation, operate) or 'studio' (the creative wing: Media FORM routing + Game). Stateless per call — pull the wing the current ask lives in.",
+        },
         register: {
           type: 'string',
           enum: VOCABULARY_REGISTERS,

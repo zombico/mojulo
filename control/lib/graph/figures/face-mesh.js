@@ -432,6 +432,14 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
     // baked colour per corner, and the GPU interpolates the gradient across the face. Absent
     // (every pre-AO scene) → factor 1 everywhere, byte-identical output.
     const vao = Array.isArray(f.vao) && f.vao.length >= 4 ? f.vao : null;
+    // Per-corner GRADIENT colour: a face carrying `cornerFills: [hex,hex,hex,hex]` gives each of its
+    // four corners its own baked colour and the GPU interpolates the gradient across the face
+    // (Gouraud) — the era-authentic "gradient per polygon" look, no texture needed. Parallel to `vao`
+    // (which multiplies per corner) and composes with it. Absent → the single `fill` is used for all
+    // corners, byte-identical to every existing scene.
+    const cornerCols = Array.isArray(f.cornerFills) && f.cornerFills.length >= 4
+      ? f.cornerFills.map((h) => faceColorLinear({ fill: h }))
+      : null;
     if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= 4) {
       const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false });
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
@@ -444,9 +452,10 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
       for (const tri of TRIS) {
         for (const idx of tri) {
           const p = c[idx], uv = f.uv[idx], a = vao ? vao[idx] : 1;
+          const cc = cornerCols ? cornerCols[idx] : [tr, tg, tb];
           grp.positions.push(p[0], p[1], p[2]);
           grp.uvs.push(uv[0], uv[1]);
-          grp.colors.push(tr * a, tg * a, tb * a);
+          grp.colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
           if (grp.specs) grp.specs.push(fs ? fs[0] : 0, fs ? fs[1] : 1);
         }
       }
@@ -473,8 +482,9 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
       for (const tri of TRIS) {
         for (const idx of tri) {
           const p = c[idx], a = vao ? vao[idx] : 1;
+          const cc = cornerCols ? cornerCols[idx] : [lr, lg, lb];
           positions.push(p[0], p[1], p[2]);
-          colors.push(lr * a, lg * a, lb * a);
+          colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
         }
       }
       pushSpec(f, 6);

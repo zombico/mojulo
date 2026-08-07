@@ -1,5 +1,6 @@
 import { b64, safeJson } from '../../emit-util.js';
-import { buildControllable } from '../../../worlds/controllable-world.js';
+import { emissionSource } from '../../../worlds/controllable/compose.js';
+import { agentCommanderSource } from '../../../mobile-suit/agent-commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
 import { projectileSmokeBlock } from './projectile-smoke.js';
@@ -8,8 +9,9 @@ import { suitShadowBlock } from './suit-shadows.js';
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
 // entity), one input snapshot, one per-frame step — superseding the bespoke walk/over-shoulder/orbit
-// controllers. The model is the SAME code as the node module controllable-world.js, emitted via
-// buildControllable.toString() (single source of truth). When a camera entity is present it OWNS the
+// controllers. The model is the SAME code as the node engine, emitted via the composed builder
+// sources (worlds/controllable/compose.js#emissionSource() — single source of truth, per-system
+// since the S0 split, controllable-split.plan.md). When a camera entity is present it OWNS the
 // camera (OrbitControls disabled), driven from the camera entity's transform each frame.
 //
 // Bodies (Phase 3): `mesh` (sphere/box, optional front marker so heading reads) and `none`. Input is
@@ -17,7 +19,7 @@ import { suitShadowBlock } from './suit-shadows.js';
 // raycasts the scene so `walk` entities follow terrain; `window.__mojCtrl` is exposed for headless
 // verification (it can push input frames).
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, key = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, agentSpectate = null, key = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -27,6 +29,36 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   const rigSpecHook = figHasSpec
     ? `\n    if (part.spec && typeof __specPatch === 'function') { geo.setAttribute('aSpec', new THREE.BufferAttribute(decodeF32(part.spec), 2)); __specPatch(mesh); }`
     : '';
+  // rim (ms-contrast.plan.md SPIKE): additive fresnel edge light — injected ONLY when a
+  // packed figure carries a `rim` spec ([r,g,b,strength,power], baked by unit-rig's
+  // `contrast` opt-in). Absent → the emitted channel is byte-identical (the char-net
+  // pin holds), same gating pattern as figHasSpec above.
+  const figHasRim = Object.values(figures || {}).some((f) => f && f.rig && Array.isArray(f.rim));
+  const rigRimHook = figHasRim ? `\n    if (Array.isArray(fig.rim)) __rimPatch(mesh, fig.rim);` : '';
+  const rimPatchBlock = figHasRim ? `
+// rim (ms-contrast SPIKE): fresnel edge term for contrast-treated rigs. Chains AFTER any
+// spec patch on the same material — both replacements preserve their include markers, so
+// the two terms compose on one onBeforeCompile pass.
+const __rimPatch = (m, rim) => {
+  const prev = m.material.onBeforeCompile;
+  m.material.onBeforeCompile = (sh) => {
+    if (prev) prev(sh);
+    sh.uniforms.uRim = { value: new THREE.Vector4(rim[0], rim[1], rim[2], rim[3]) };
+    sh.uniforms.uRimP = { value: rim[4] };
+    sh.vertexShader = 'varying vec3 vRimWp;\\n' + sh.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\\nvRimWp = (modelMatrix * vec4(position, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform vec4 uRim;\\nuniform float uRimP;\\nvarying vec3 vRimWp;\\n' + sh.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      'vec3 rN = normalize(cross(dFdx(vRimWp), dFdy(vRimWp)));\\n' +
+      'vec3 rV = normalize(cameraPosition - vRimWp);\\n' +
+      'if (dot(rN, rV) < 0.0) rN = -rN;\\n' +
+      'float rF = pow(1.0 - max(dot(rN, rV), 0.0), uRimP);\\n' +
+      'gl_FragColor.rgb += uRim.rgb * (uRim.a * rF);\\n' +
+      '#include <dithering_fragment>');
+  };
+  m.material.needsUpdate = true;
+};` : '';
   // suit contact shadows: `true` or a tuning object { r, alpha, fade, color } over the defaults
   // (r = blob radius at contact, world units; fade = the altitude where the blob dies). The
   // defaults match the static dusk spawn pools' read (r 14 · alpha 0.5 in mint-relit-variant)
@@ -64,10 +96,31 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   const smokeHook = sm ? '\n    __updateSmoke();' : '';
   const hangarBlock = hangar ? hangarStepperBlock(hangar) : '';
   const hangarHook = hangar ? '  window.__mojHangar.sync();\n  if (inputOverride) { if (inputOverride.hangarStep) window.__mojHangar.step(inputOverride.hangarStep); if (inputOverride.liverySet != null) window.__mojHangar.livery(inputOverride.liverySet); if (inputOverride.equipSlot != null) window.__mojHangar.equip(inputOverride.equipSlot); }\n' : '';
+  // AGENT-SPECTATE (0807 spike): inject the commander port ONLY when a manifest stamps `agentSpectate`.
+  // The reference agent (`builtin`) is standalone; `hook`/`http` open the port to any model. One
+  // watched suit is driven; the scripted ai() keeps its reflexes. Absent → the block is '' (byte-identical).
+  const agentBlock = agentSpectate ? `
+${agentCommanderSource()}
+(function () {
+  var __cmdId = ${safeJson(agentSpectate.commanded)};
+  var __port = ${safeJson(agentSpectate.port || 'builtin')};
+  var __foe = (__world.entities || []).find(function (e) { return e.id !== __cmdId && e.body && e.body.hittable; });
+  window.__agentPort = createAgentPort({ commandedId: __cmdId, foeId: __foe ? __foe.id : null, port: __port, period: ${Number(agentSpectate.period) || 5}, url: ${safeJson(agentSpectate.url || null)} });
+  // intent overlay — read the commander's mind: its live strategy note, refreshed each frame.
+  var __hud = document.createElement('div');
+  __hud.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:80;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9cc4ff;background:rgba(11,18,32,.72);border:1px solid #24324a;border-radius:6px;padding:6px 10px;max-width:62vw;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  __hud.innerHTML = '<span style="color:#5f7fb0;letter-spacing:1px">◆ COMMANDER · ' + __cmdId + ' · ' + __port + '</span><br><span id="__agentNote">awaiting first read…</span>';
+  document.body.appendChild(__hud);
+  window.__agentNote = __hud.querySelector('#__agentNote');
+})();
+` : '';
+  // gated per-frame hook — present ONLY in agent-spectate pages, so every other controllable page
+  // stays byte-identical (the char-net pin holds), same discipline as agentBlock above.
+  const agentStep = agentSpectate ? 'if (window.__agentPort) { window.__agentPort.onFrame(__world, dt); if (window.__agentNote) window.__agentNote.textContent = window.__agentPort.currentNote(); }\n    ' : '';
   return `
-const __CW = (${buildControllable.toString()})();
+const __CW = ${emissionSource()};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''} });
-const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)
+${agentBlock}const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)
 const __bodies = {};
 // figure-frames body: re-expand baked frames (Uint16 corners + Uint8 colour) into raw Float32
 // position arrays, feet planted at the body's local z=0 (FOOT subtracted) — packFigureFrames'
@@ -89,7 +142,7 @@ function __decodeFigFrame(posB64, colB64, origin, inv, foot) {
       col[o] = r; col[o+1] = g; col[o+2] = b; o += 3; }
   }
   return { pos, col };
-}
+}${rimPatchBlock}
 // build one figure-rig group (rigid parts, one mesh per bone) for a baked fig — shared by the
 // single-figure body below and the loadout variant builder (weapon switching).
 function __makeRigGroup(fig, b) {
@@ -103,7 +156,7 @@ function __makeRigGroup(fig, b) {
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rigSpecHook}${castHook}
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rigSpecHook}${rigRimHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
@@ -620,7 +673,11 @@ function __syncEntity(e, dt) {
     if (mix.prevMode) __figAccum(out, __figClipOf(fig, e, mix.prevMode), mix.prevPhase, mix.prevMode === 'idle', 1 - w);
     attr.needsUpdate = true;
   } else {
-    m.rotation.set(0, 0, e.transform.heading);   // yaw about +Z (z-up)
+    // vehicle attitude (fly): e.tilt banks/pitches the mesh about its own axes — 'ZYX' applies
+    // roll (body x), then pitch (body y, negated so nose-up pitches up), then the yaw.
+    // Absent → the flat yaw-only read, byte-identical.
+    if (e.tilt) m.rotation.set(e.tilt.roll || 0, -(e.tilt.pitch || 0), e.transform.heading, 'ZYX');
+    else m.rotation.set(0, 0, e.transform.heading);   // yaw about +Z (z-up)
   }
 }
 // WALL PULL-IN (camera-tuning.plan.md): a chase cam behind a wall-backed suit ends up INSIDE the
@@ -832,6 +889,9 @@ function __pollPad() {
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
     fire: b(7), boost: b(6),
+    // analog trigger VALUES — the vehicle rules (drive/fly) read RT/LT as throttle/brake, the
+    // console-driving standard; suits keep the pressed reads above untouched.
+    rt: (g.buttons[7] && g.buttons[7].value) || 0, lt: (g.buttons[6] && g.buttons[6].value) || 0,
     tackle: b(3) && !rb,                       // Y / PS triangle (operator, 2026-08-03) — silent inside an RB chord
     kneel: b(4) || (b(1) && !rb),              // LB or B / PS circle — descend in space, kneel on ground
     jump: b(0) && !rb,                         // A / PS cross — ascend in space
@@ -895,17 +955,24 @@ function __readInput() {
   // keyboard wins an axis it is actively pressing; otherwise the pad's analog float flows
   // through (the rules multiply by accel/speed, so magnitude = walk-to-run travel).
   const __pmx = __pad ? __pad.moveX : 0, __pmy = __pad ? __pad.moveY : 0;
+  // VEHICLE PILOT (drive / fly): the pad's ANALOG triggers become throttle (RT) and brake (LT) —
+  // the console-driving standard — with the stick as fallback; RT stops firing and LT stops
+  // boosting while a vehicle is piloted (F is reserved there anyway). Keyed off the LIVE piloted
+  // entity's rule each frame, so T in-and-out of a car swaps the scheme with the seat.
+  const __vp = __world.pilotId && __world.byId[__world.pilotId];
+  const __veh = !!(__vp && __vp.rule && (__vp.rule.type === 'drive' || __vp.rule.type === 'fly'));
   const inp = {
-    forward: __ax('KeyW', 'KeyS') || __ax('ArrowUp', 'ArrowDown') || __pmy,
+    forward: __ax('KeyW', 'KeyS') || __ax('ArrowUp', 'ArrowDown')
+      || (__veh && __pad && (__pad.rt > 0.02 || __pad.lt > 0.02) ? __pad.rt - __pad.lt : __pmy),
     // look worlds steer with the stick/mouse — left stick X strafes (matching how A/D fold
     // into sideIn there); tank-turn worlds keep left stick X as the turn axis.
     turn: __ax('KeyD', 'KeyA') || __ax('ArrowRight', 'ArrowLeft') || (__MOUSELOOK ? 0 : __pmx),
     strafe: __ax('KeyE', 'KeyQ') || (__MOUSELOOK ? __pmx : 0),
     lift: __ax('Space', 'ShiftLeft') || __ax('Space', 'ShiftRight') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
     jump, jumpHeld: sp ? 1 : 0,
-    boost: __held['KeyF'] || (__pad && __pad.boost) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
+    boost: __held['KeyF'] || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
     kneel: __held['KeyX'] || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
-    fire: __fireDown || (__pad && __pad.fire) ? 1 : 0,         // left mouse or RT (weapon subsystem): held = fire request
+    fire: __fireDown || (__pad && __pad.fire && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
@@ -1970,7 +2037,7 @@ if (__ctrlOwnsCamera) __driveCamera();
 stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0) {
-    __CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
+    ${agentStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
     for (const e of __world.entities) __syncEntity(e, dt);
     __updateFx();
     __updateProjectiles();

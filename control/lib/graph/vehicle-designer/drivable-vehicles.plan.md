@@ -249,3 +249,83 @@ body), D1 beside it, then D3 → D4 → D5.
    Ambient traffic (cars driving city loops the way `walkers.js` drives
    pedestrians) is a natural NEXT plan on top of D1's rig + a path
    follower; explicitly out of scope here.
+
+## Status / build log
+
+### D1–D5 landed 2026-08-06 (D4's visual eyes-gate spike pending)
+
+- **D2 (first, per the split-plan sequencing)**: the `drive` rule landed as
+  `worlds/controllable/rules-drive.js` — a BUILDER in the composed engine
+  (controllable-split.plan.md), NOT a monolith edit; the plan's ":1630 in
+  controllable-world.js" target is superseded. Registered in `EMISSION_ENGINE`
+  (engine, not pack — wheels are as generic as legs), accepted by the mint's
+  KNOWN_RULES. All physics-shape gates green in `worlds/rules-drive.test.js`:
+  determinism, 2× horsepower → measurably faster 0→15, 2× mass (same brakes) →
+  1.5×+ braking distance, turning radius ≈ wheelbase/tan(steer) with the truck
+  turning wider, distance-true wheelPhase, terrain follow + clamped ledge
+  descent. Deviation: `steerTighten` (linear-in-speed steer-cap falloff) is the
+  tightening model; `vFloor` default 2; deadband 0.15 u/s parks a coasting car.
+- **D1**: `vehicle-rig.js` (this folder, barrel-exported). deriveVehicleRig
+  classifies by position against deriveAxleSockets (4 bones FL/FR/RL/RR,
+  wheelbase/track/radius read); bakeVehicleRig packs the browser's rig-figure
+  format with the single `roll` clip — faces partitioned BY ITEM (proximity
+  binding would spin the fenders), wheels spinning −2π·phase about vehicle +x
+  (x-mirror-proof for flip:'x' left wheels), `yaw: -π/2` mapping the authored +y
+  nose onto heading-forward. Steering visual deferred per open decision 2.
+- **D3**: `VEH_ENGINE_DRIVETRAIN` (a SEPARATE table — a key on the family rows
+  would leak into the modules spread) emitted into each engine's garage block;
+  VEH_ARCHETYPES rows carry `curbMass` + truck `brake` overrides (absolute — a
+  truck's brakes don't scale with the towing mass, which is what makes it stop
+  LONG); `drivetrain.js` deriveDrivetrain composes them + a rig's geometry via
+  `unitScale`. Trailer derives null. The towtruck-vs-coupe braking gate is
+  asserted by DRIVING both derived configs through the D2 rule.
+- **D4 (binding + replay landed; eyes pending)**: `figures.vehicleRef` in
+  world-scene.js beside unitRef (loads the stored assembler build →
+  bakeVehicleRig → figure-rig delivery); the proving-ground REPLAY gate runs
+  headless in rules-drive.test.js — walk up, T boards (both entities pilotable —
+  the swap transfers among pilotables, so the plan's sketch gains
+  `pilotable:true` on the driver), throttle/coast/steer-arc/brake-release, the
+  camera retargets, the vacated driver holds still, wheelPhase distance-true
+  through the whole bout. REMAINING: the visual frame-strip spike (boost-hover
+  mold — needs a minted proving-ground world with a real sedan build) and the
+  follow-camera framing pass at car speeds.
+- **D5**: the affordance facts ride the rule (tested field-by-field, edges
+  included); the vocabulary card is `sketch-vocab/veh-drive.md` (tier `recipe` —
+  the loader rejects invented tiers, found the hard way). `boarded` is the
+  first-driven-frame edge; dismount rides the pilot-swap event as planned.
+- Open decisions resolved as recommended: F reserved (no-op), steer visual
+  deferred, real-ish units (kg/hp/m through `unitScale`), AI drivers out of
+  scope (now a natural post-split builder when a plan wants traffic).
+
+### Gamepad + the fly rule — landed 2026-08-06
+
+- **Controller mapping (open decision on input, resolved)**: while the PILOTED
+  entity's rule is `drive` or `fly`, the pad's ANALOG triggers become RT =
+  throttle / LT = brake (the console-driving standard; RT−LT flows into
+  `input.forward`), with the left stick as fallback and steering/bank; RT stops
+  firing and LT stops boosting for the duration (F is reserved in vehicles
+  anyway). Keyed off the LIVE pilot each frame, so T in-and-out of a seat swaps
+  the scheme with it. Suit worlds byte-identical (the remap gates on the rule).
+- **`rules-fly.js`** — the SECOND vehicle feel-model builder, same lessons as
+  drive: pure kinematic energy-and-attitude model (thrust/drag/airbrake;
+  gravity ALONG the path so climbing bleeds airspeed and diving refunds it;
+  bank-to-turn at (g/v)·tan(bank) with self-leveling; direct pitch ±pitchMax;
+  stall below stallSpeed drops the nose and sinks by the deficit; taxi +
+  rotation at takeoffSpeed + touchdown with wheel brakes). Physics-shape gates
+  in `worlds/rules-fly.test.js` (8): determinism, rotation-gated takeoff (a
+  drag-capped weak engine never lifts), the energy exchange both ways, the
+  coordinated-turn rate matching the formula, the stall taking the nose, the
+  landing edge + brakes, and the affordance facts (airspeed/throttle/bank/
+  climbRate/stalled+edge/airborne/takeoff/touchdown/tilt + the prop-driving
+  gaitPhase). In KNOWN_RULES.
+- **Mesh attitude sync**: opt-in `e.tilt { pitch, roll }` — the renderer's mesh
+  body path applies roll→pitch→yaw ('ZYX') so the plane visibly banks and
+  pitches; absent → the flat yaw-only read, byte-identical.
+- The proving ground now carries the PLANE beside the car (T cycles driver →
+  car → plane); no plane shelf yet — the body is a mesh slab the tilt sync
+  attitudes (a veh-air shelf is future content, the mechanics are the read).
+- **Lesson banked as a tripwire**: an emitter edit landed a backtick inside the
+  in-page TEMPLATE LITERAL — invisible to node --check of the emitter file. The
+  drive-world smoke test now PARSES every emitted script tag (imports stripped
+  for module scripts), so template-literal breakage fails in vitest, not in the
+  browser.

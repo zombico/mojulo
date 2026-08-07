@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emitThreeWorld } from '../scene/scene-three.js';
-import { buildControllable } from './controllable-world.js';
+import { emissionSource } from './controllable/compose.js';
 
 const floor = { corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]], fill: '#445566', doubleSided: true };
 
@@ -13,9 +13,9 @@ describe('emitThreeWorld controllable channel', () => {
     expect(html).toContain('window.__mojCtrl');
   });
 
-  it('emits the model source inline (single source of truth)', () => {
+  it('emits the model source inline (single source of truth — the composed builders)', () => {
     const html = emitThreeWorld({ faces: [floor], entities: [{ id: 'd', rule: { type: 'glide' } }], camera: { rule: 'follow', target: 'd' } });
-    expect(html).toContain(buildControllable.toString());
+    expect(html).toContain(emissionSource());
   });
 
   it('wires stepControllable into the loop and gates camera ownership', () => {

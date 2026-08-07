@@ -531,6 +531,15 @@ try {
   ({ UNIT_SWINGS } = await import('../mobile-suit/unit-swings.js'));
 } catch (err) { console.error('mobile-suit pack absent — swing shelf empty:', err?.message); }
 
+// contrast treatment seam (ms-contrast.plan.md SPIKE): the role-based material
+// contrast treatment is game-pack CONTENT like the swing shelf — loaded lazily
+// and contained. Pack absent → a `contrast` opt-in no-ops and the unit bakes
+// exactly as before.
+let applyContrastTreatment = null;
+try {
+  ({ applyContrastTreatment } = await import('../mobile-suit/ms-contrast.js'));
+} catch (err) { console.error('mobile-suit pack absent — contrast treatment unavailable:', err?.message); }
+
 // ── aim lock — arms hold a weapon-aim pose through every clip ────────────────
 // The armed-walker read (mobile-suit-builder.plan.md R5): a unit carries a
 // weapon rigid with forearmR, and "moving while the gun stays pointed" means
@@ -909,7 +918,7 @@ const SPACE_DESCEND = {
   },
 };
 
-export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = UNIT_CLIPS, rig: rigOverride, frame = false, frameOnly = false, pose = null, aim = null, swings = null, dodges = null, space = false, aimArms = null, weldOffHand = false, material = null } = {}) {
+export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = UNIT_CLIPS, rig: rigOverride, frame = false, frameOnly = false, pose = null, aim = null, swings = null, dodges = null, space = false, aimArms = null, weldOffHand = false, material = null, contrast = null } = {}) {
   // pose (posing studio): HOLD a single authored DOF instead of the gait shelf —
   // every clip becomes this static pose, so an ambient clock world displays the suit
   // frozen in it. The clean surface for authoring a pose from scratch (no aim lock, no
@@ -939,6 +948,16 @@ export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = 
   // Role-differentiated finishes come from the g/z liveries; this is the uniform
   // clear-coat for a base unit that carries no livery role split.
   if (material != null) manifest = stampUniformMaterial(manifest, material);
+  // contrast (ms-contrast.plan.md SPIKE): the opt-in role-based material-contrast
+  // treatment — value separation + finishes rewritten on a manifest clone, plus a
+  // rim spec carried through to the payload for the gated runtime fresnel term.
+  // null → byte-identical bake (the isolation contract).
+  let contrastRim = null;
+  if (contrast != null && contrast !== false && applyContrastTreatment) {
+    const treated = applyContrastTreatment(manifest, contrast);
+    manifest = treated.manifest;
+    contrastRim = treated.rim;
+  }
   const rig = rigOverride || deriveBipedRig(manifest);
   if (space) {
     // SPACE units (R18) — the second play mode: the suit FLOATS and thrusts, never walks. Swap every
@@ -1644,5 +1663,8 @@ export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = 
     ...(Object.keys(armOverlays).length ? { armOverlays } : {}),
     ...(muzzle ? { muzzle } : {}),
     ...(thrusters.length ? { thrusters } : {}),
+    // rim (ms-contrast SPIKE): [r,g,b,strength,power] — presence gates the runtime
+    // fresnel patch (controllable channel); absent → payload byte-identical.
+    ...(contrastRim ? { rim: contrastRim } : {}),
   };
 }

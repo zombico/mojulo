@@ -56,6 +56,12 @@ const FIXTURE = [
   ['stage the two drawn characters in one scene and cut between their rooms', 'create_sketch'],
   ['make a pixel-art cutscene of my hero character', 'get_catalyst'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
+  // Orientation-containment C1: the FORM recognizer rows moved into the studio
+  // body (forward_context mode:'studio'); these rows pin that an agent that
+  // skips the studio read and goes straight to semantic_search still lands on
+  // the right card. Voice previously had no fixture coverage.
+  ['I want the narrator to sound deeper and more sure of herself', 'create_voice'],
+  ['give my app a japanese female announcer voice', 'create_voice'],
 ];
 
 // Discriminating fixtures: create_sketch is the entry for BOTH diagram-chart

@@ -108,6 +108,15 @@ export function latheToFaces(spec = {}, opts = {}) {
   const seam = Number.isFinite(wrap && wrap.seam) ? wrap.seam : 0;
   const vAt = (t) => (tTo - tFrom > 1e-6 ? (t - tFrom) / (tTo - tFrom) : 0);
 
+  // Sparse glow (spec.glowProxy): instead of tagging EVERY wall face (~cs×sm halos — a per-facet
+  // trace that is both a perf sink and reads as an outline), emit the halo from only a few rings ×
+  // a few columns spread over the surface. Radial coverage is kept (columns face all directions),
+  // so from any orbit angle some source faces you — but the count drops from hundreds to ~rings×around.
+  const proxy = spec.glow && spec.glowProxy ? (spec.glowProxy === true ? {} : spec.glowProxy) : null;
+  const ringStep = proxy ? Math.max(1, Math.round(cs / (proxy.rings ?? 4))) : 1;
+  const colStep = proxy ? Math.max(1, Math.round(sm / (proxy.around ?? 6))) : 1;
+  const glowAt = (i, j) => spec.glow && (!proxy || (i % ringStep === 0 && j % colStep === 0));
+
   const faces = [];
   for (let i = 0; i < polylines.length - 1; i += 1) {
     const a = polylines[i];
@@ -124,6 +133,7 @@ export function latheToFaces(spec = {}, opts = {}) {
       if (!Number.isFinite(n[0]) || !Number.isFinite(n[1]) || !Number.isFinite(n[2])) continue; // collapsed cell
       if (dot3(n, sub3(centroid(corners), axisMid)) < 0) n = [-n[0], -n[1], -n[2]];
       const face = { corners, fill: shadeHexMat(tint, n, mat, { light }), doubleSided: true };
+      if (glowAt(i, j)) face.glow = spec.glow;   // emissive halo marker → object-glow sprite (three) / box-shadow bloom (css-3d)
       if (inBand) {
         const uj = j / sm + seam, uj1 = (j + 1) / sm + seam;
         face.uv = [[uj, vAt(ti)], [uj1, vAt(ti)], [uj1, vAt(ti1)], [uj, vAt(ti1)]];
@@ -145,6 +155,7 @@ export function latheToFaces(spec = {}, opts = {}) {
       faces.push(...capFan(polylines[polylines.length - 1], centerAt(cs), axisDir, tint, light, false, mat));
     }
   }
+  if (spec.glow && !proxy) for (const f of faces) if (!f.glow) f.glow = spec.glow;   // full glow: cap faces inherit the halo too (proxy mode stays sparse)
   return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_LATHE), mat);
 }
 

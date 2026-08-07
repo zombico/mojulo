@@ -20,9 +20,9 @@ import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world
 import { synthesizeLevel } from '@/lib/graph/game/level-synth';
 import { validateLevelContract } from '@/lib/graph/game/level-contract';
 
-const KNOWN_RULES = new Set(['glide', 'walk', 'platform', 'follow', 'clock', 'static']);
+const KNOWN_RULES = new Set(['glide', 'walk', 'platform', 'drive', 'fly', 'follow', 'clock', 'static']);
 
-export function mintControllableWorld({ title, entities, camera, figures, faces, ground, worldFraming, viewBox, bg, game, ref, folderRef } = {}) {
+export function mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, ref, folderRef } = {}) {
   if (!Array.isArray(entities) || entities.length === 0) {
     throw new Error('create_controllable_world requires a non-empty `entities` array');
   }
@@ -32,6 +32,11 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
     ...(camera && typeof camera === 'object' && camera.rule ? { camera } : {}),
     ...(figures && typeof figures === 'object' ? { figures } : {}),
     ...(Array.isArray(faces) && faces.length ? { faces } : {}),
+    // custom face-texture atlas ({ key: dataURL }) that pairs with faces carrying `texture:'<key>'` + `uv`.
+    // world-scene.js merges this into payload.textures; scene-three emits it as TEXTURES. Procedural
+    // surface-textures.js keys self-resolve via collectFaceTextures and need no entry here — this is the
+    // channel for CUSTOM PNG tiles (image-worker bound / hand-authored dataURLs). Absent → untouched.
+    ...(textures && typeof textures === 'object' && Object.keys(textures).length ? { textures } : {}),
     ...(ground && typeof ground === 'object' ? { ground } : {}),
     ...(worldFraming && typeof worldFraming === 'object' ? { worldFraming } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
@@ -95,6 +100,6 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
 
 export async function createControllableWorldHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_controllable_world requires a recipe object');
-  const { title, entities, camera, figures, faces, ground, worldFraming, viewBox, bg, ref, folder_ref: folderRef } = input;
-  return mintControllableWorld({ title, entities, camera, figures, faces, ground, worldFraming, viewBox, bg, ref, folderRef });
+  const { title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, ref, folder_ref: folderRef } = input;
+  return mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, ref, folderRef });
 }

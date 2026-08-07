@@ -58,12 +58,12 @@ Five things the agent can create:
 - **Bot** — chatbot deployed as its own process. Entry: \`start_new_bot\`.
 - **Connected Service** — a workflow over the operator's installed MCPs, no chatbot. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
 - **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
-- **Media** — creative artifacts: diagrams, views, walkable worlds, figures, audio, films, publications — minted as tiny deterministic recipes, never renders. Entries: \`create_sketch\` / \`create_view\` / \`compose_world\` / \`cook\`.
-- **Game** — composition over the other paradigms: Media levels/music/art bound to a typed store with rules, playable standalone; a level is refused until proven completable. Entry: \`create_game\`.
+- **Media** — creative artifacts minted as tiny deterministic recipes, never renders. Entry: \`forward_context({mode:'studio'})\` — the studio routing index.
+- **Game** — composition over Media, playable standalone; a level is refused until proven completable. Entry: \`create_game\` (routing: the studio).
 
 **Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped bot as user secrets. Use \`inspect_bot_env\`, never \`cat\` or \`Read\`.
 
-Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural/non-bot surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (how mojulo compares to cloud).`;
+Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing — the office wing by default; \`forward_context({mode:'studio'})\` opens the creative wing's FORM routing when the ask is to MAKE something visual, audible, or playable. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural/non-bot surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (how mojulo compares to cloud).`;
 
 const registeredTools = new Map();
 

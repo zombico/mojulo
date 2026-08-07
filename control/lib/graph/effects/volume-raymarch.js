@@ -85,6 +85,7 @@ export function buildVolumeFrag({
   rayDirArg = false,
   occluder = null,
   overlay = false,
+  depthStop = false,
 } = {}) {
   const N = Math.max(1, Math.floor(steps));
   const bg = background ? `${background}(rd)` : 'vrStars(rd)';
@@ -141,8 +142,22 @@ export function buildVolumeFrag({
   // premultiplied RGBA (emission, 1−transmittance) so it alpha-blends over the mesh. No background,
   // no opaque tonemap (the mesh underneath owns colour management). Requires an SDF occluder.
   // OPAQUE (default): the standalone volume image — bounding sphere, background composite, tonemap.
+  // depthStop (overlay only): clamp every ray at the rasterized scene's depth, so fog NEVER
+  // paints over foreground meshes the scene-SDF doesn't know (suits, rigged entities). The host
+  // renders a depth prepass into uDepth; perspective depth linearizes to a view-forward distance,
+  // then divides by the ray's forward cosine to become a march distance. dz==1.0 → sky, no clamp.
+  const depthClamp = depthStop
+    ? `    { float dz = texture2D(uDepth, gl_FragCoord.xy / uRes).x;\n` +
+      `      if (dz < 1.0) {\n` +
+      `        float ndc = dz * 2.0 - 1.0;\n` +
+      `        float viewZ = (2.0 * uNear * uFar) / (uFar + uNear - ndc * (uFar - uNear));\n` +
+      `        vec3 vrFwd = uCamBasis * vec3(0.0, 0.0, 1.0);\n` +
+      `        t1 = min(t1, viewZ / max(dot(rd, vrFwd), 1e-4));\n` +
+      `      } }\n`
+    : '';
+  const depthUniforms = depthStop ? 'uniform sampler2D uDepth; uniform float uNear; uniform float uFar;\n' : '';
   const marchBlock = overlay
-    ? `${occSetup}  {\n    float t0 = 0.0, t1 = ${boundsRadius};\n${occClip}${marchLoop}  }\n`
+    ? `${occSetup}  {\n    float t0 = 0.0, t1 = ${boundsRadius};\n${depthClamp}${occClip}${marchLoop}  }\n`
     : `  vec2 tt = vrSphereT(ro, rd, ${boundsRadius});\n${occSetup}  if (tt.y > tt.x) {\n    float t0 = max(tt.x, 0.0), t1 = tt.y;\n${occClip}${marchLoop}  }\n`;
   const outputBlock = overlay
     ? `  float vrA = clamp(1.0 - (trans.r + trans.g + trans.b) / 3.0, 0.0, 1.0);\n  gl_FragColor = vec4(col, vrA);          // premultiplied fog, blended over the mesh\n`
@@ -150,7 +165,7 @@ export function buildVolumeFrag({
 
   return `precision highp float;
 uniform vec3 uCamPos; uniform mat3 uCamBasis; uniform vec2 uRes; uniform float uTime; uniform float uFov;
-${uniforms.join('\n')}
+${depthUniforms}${uniforms.join('\n')}
 ${VR_HELPERS}
 ${globals}
 void main(){

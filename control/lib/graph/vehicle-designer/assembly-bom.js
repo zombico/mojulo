@@ -21,39 +21,49 @@
 
 import { deriveAxleSockets, deriveBaySockets } from './veh-garage.js';
 
+// D3 (drivable-vehicles.plan.md): rows carry `curbMass` (kg-ish in world units) and optional
+// `brake` (N) overrides — deriveDrivetrain composes them with the engine part's horsepower into
+// the drive rule's params. The trailer stays a row, not a special case (assembly-bom doctrine).
 export const VEH_ARCHETYPES = {
   sedan: {
     class: 'car',
+    curbMass: 1450,
     chassis: { family: 'unibodyPan' },
     body: { family: 'sedanThree' },
     bom: { 'veh-chassis': 1, 'veh-wheel': 4, 'veh-engine': 1, 'veh-cabin': 1, 'veh-steering': 1, 'veh-dash': 1, 'veh-body': 1, 'veh-lights': 2 },
   },
   coupe: {
     class: 'car',
+    curbMass: 1300,
     chassis: { family: 'sportPan' },
     body: { family: 'coupeThree' },
     bom: { 'veh-chassis': 1, 'veh-wheel': 4, 'veh-engine': 1, 'veh-cabin': 1, 'veh-steering': 1, 'veh-dash': 1, 'veh-body': 1, 'veh-lights': 2 },
   },
   suv: {
     class: 'car',
+    curbMass: 1900,
     chassis: { family: 'unibodyPan', overrides: { rideHeight: 'high' } },
     body: { family: 'wagonTwo' },
     bom: { 'veh-chassis': 1, 'veh-wheel': 4, 'veh-engine': 1, 'veh-cabin': 1, 'veh-steering': 1, 'veh-dash': 1, 'veh-body': 1, 'veh-lights': 2 },
   },
   minivan: {
     class: 'van',
+    curbMass: 1850,
     chassis: { family: 'unibodyPan', overrides: { wheelbase: 'long' } },
     body: { family: 'vanOne', overrides: { glasshouse: 'glassy' } },
     bom: { 'veh-chassis': 1, 'veh-wheel': 4, 'veh-engine': 1, 'veh-cabin': 1, 'veh-steering': 1, 'veh-dash': 1, 'veh-body': 1, 'veh-lights': 2 },
   },
   caravanVan: {
     class: 'van',
+    curbMass: 1950,
     chassis: { family: 'unibodyPan', overrides: { wheelbase: 'long' } },
     body: { family: 'vanOne' },
     bom: { 'veh-chassis': 1, 'veh-wheel': 4, 'veh-engine': 1, 'veh-cabin': 2, 'veh-steering': 1, 'veh-dash': 1, 'veh-body': 1, 'veh-lights': 2 },
   },
   towtruck: {
     class: 'truck',
+    curbMass: 3400,
+    brake: 16000,   // truck brakes don't scale with the towing mass — it stops LONG (D3)
     chassis: { family: 'ladderFrame' },
     body: { family: 'truckCab' },
     payload: { family: 'towBoom' },
@@ -61,6 +71,8 @@ export const VEH_ARCHETYPES = {
   },
   flatbed: {
     class: 'truck',
+    curbMass: 3200,
+    brake: 16000,
     chassis: { family: 'ladderFrame' },
     body: { family: 'truckCab' },
     payload: { family: 'flatbedDeck' },
@@ -68,6 +80,7 @@ export const VEH_ARCHETYPES = {
   },
   trailer: {
     class: 'trailer',
+    curbMass: 900,   // a row like any other — not drivable BY DATA (no engine in the bom)
     chassis: { family: 'towedFrame' },
     payload: { family: 'boxVan' },
     bom: { 'veh-chassis': 1, 'veh-wheel': 4, 'veh-payload': 1 },

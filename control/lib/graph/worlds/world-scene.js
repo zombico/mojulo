@@ -27,6 +27,7 @@ import { composeLandscapeRaymarch } from '@/lib/graph/landscape/painted-landscap
 import { renderFigureWorldFrames } from '@/lib/graph/polygonizer/figure-render';
 import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/worlds/world-kinds';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
+import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 
@@ -94,6 +95,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     } catch {
       // an unsupportable recipe (should not happen — both engines port) falls back to the mesh world.
     }
+  }
+
+  // generic, opt-in procedural VERTEX-COLOUR MATERIALS (materials/procedural-material.js): any face
+  // carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed? }`) is tessellated
+  // and vertex-coloured through the layered material system (top-lit ramp + brushed cloud + weathering)
+  // — the texture-free Wii-era metal look. Runs BEFORE the AO bake and texture collection so those
+  // channels see the expanded faces. Absent `material` on every face ⇒ the list is returned untouched.
+  if (payload && Array.isArray(payload.faces) && payload.faces.length) {
+    payload.faces = resolveFaceMaterials(payload.faces);
   }
 
   // generic, opt-in baked AMBIENT OCCLUSION (renderer-ladder.plan.md / P1): any mesh world may set
@@ -259,6 +269,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // object { delay } (seconds the settled wreck lingers before it blows). Non-match worlds only
     // (a match owns its own corpse-window → respawn lifecycle). Opt-in; absent ⇒ byte-identical.
     if (sketch.manifest.wreckExplodes) payload.wreckExplodes = sketch.manifest.wreckExplodes;
+    // agent-spectate (0807 spike): one watched suit is driven by a live commander port (built-in
+    // reference agent / hook / http). Page-only signal (not a createWorld field); absent ⇒ byte-identical.
+    if (sketch.manifest.agentSpectate && typeof sketch.manifest.agentSpectate === 'object') payload.agentSpectate = sketch.manifest.agentSpectate;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
     if (figs && typeof figs === 'object') {
@@ -270,6 +283,25 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // recipe's pose/proto/garment/motion and its own fields override. This is how a
         // figure minted once via create_figure is re-used across scenes; the world manifest
         // stays a tiny recipe (only the ref persists — resolution happens here at bake time).
+        // vehicleRef (drivable-vehicles.plan.md D4): a figures-map entry may reference a stored
+        // ASSEMBLER vehicle build — the vehicle rig derives from its veh-* garage blocks
+        // (vehicle-designer/vehicle-rig.js: root + four wheel bones classified against the
+        // chassis's axle sockets) and bakes as rig delivery with the single distance-true `roll`
+        // clip, so the existing figure-rig body path renders it unchanged. EXPLICIT beside
+        // unitRef — a car is not a biped; unitRef stays biped-only.
+        if (typeof rawSpec.vehicleRef === 'string') {
+          const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+          const src = SketchRepository.getByRef(rawSpec.vehicleRef);
+          if (!src || src.manifest?.kind !== 'assembler') {
+            throw new Error(`figures.${name}: vehicleRef '${rawSpec.vehicleRef}' is not a stored assembler build`);
+          }
+          const { bakeVehicleRig } = await import('@/lib/graph/vehicle-designer/vehicle-rig.js');
+          payload.figures[name] = bakeVehicleRig(src.manifest, {
+            keys: rawSpec.keys || 12,
+            targetH: Number.isFinite(rawSpec.targetH) ? rawSpec.targetH : null,
+          });
+          continue;
+        }
         // unitRef (mobile-suit-builder.plan.md R3): a figures-map entry may
         // reference a stored ASSEMBLER unit — the biped rig derives from its
         // stations (unit-pose.js) and the body bakes as rig delivery only
@@ -322,6 +354,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             // only the highlight is added; absent → byte-identical. Role-differentiated
             // finishes come from re-minting through the g/z livery `material:true`.
             material: rawSpec.material != null ? rawSpec.material : null,
+            // contrast (ms-contrast.plan.md SPIKE): opt-in role-based material-contrast
+            // treatment (value separation + finishes + rim). No game world sets this
+            // until the treatment passes its eyes gate; absent → byte-identical.
+            contrast: rawSpec.contrast != null ? rawSpec.contrast : null,
           });
           // previewClip (eyes-gate): alias a baked maneuver clip onto `forward`
           // so an ambient clock world HOLDS that pose — the dodge shapes are
@@ -388,6 +424,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (glyphLowered) {
       payload.entities = glyphLowered.entities;
       payload.figures = glyphLowered.figures;
+    }
+  }
+
+  // generic, opt-in figure WEATHERING (materials/procedural-material.js `weatherRigParts`): the suit
+  // analog of the face `material` channel. `weathering: true` (or `{ amt, seed }`) modulates every rig
+  // figure's baked per-vertex colour buffers by the rust/grime field — livery colours stay the base,
+  // weathering reads on top. Runs AFTER figures are baked (parts exist). Absent ⇒ figures untouched.
+  if (payload && sketch.manifest.weathering && payload.figures && typeof payload.figures === 'object') {
+    const w = sketch.manifest.weathering;
+    const opts = w && typeof w === 'object' ? w : {};
+    for (const key of Object.keys(payload.figures)) {
+      const fig = payload.figures[key];
+      if (fig && Array.isArray(fig.parts)) weatherRigParts(fig.parts, opts);
     }
   }
 

@@ -4,6 +4,8 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { mintControllableWorld } from './scene-controllable.js';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 
 beforeEach(() => { closeDb(); });
 
@@ -53,5 +55,40 @@ describe('create_controllable_world mint', () => {
 
   it('rejects a camera target that is not an entity', () => {
     expect(() => mintControllableWorld({ entities: [drone], camera: { rule: 'follow', target: 'nope' } })).toThrow(/not an entity id/);
+  });
+});
+
+// A CUSTOM PNG face-texture atlas (the mobile-suit "colony wallpaper" case): faces carry
+// `texture:'<key>'` + `uv`, and the dataURL tiles live in `manifest.textures`. The mint used to
+// drop the atlas (whitelisted manifest keys, no `textures` slot), so the minted /world emitted
+// `TEXTURES = {}` even though the renderer supports it. This guards the atlas end-to-end:
+// mint persists it → resolveWorldScene surfaces it into payload.textures → emitThreeWorld emits it.
+describe('create_controllable_world custom texture atlas (manifest.textures)', () => {
+  const atlas = {
+    'ms-wall': 'data:image/png;base64,IND1WALLPNGTILEDATA==',
+    'ms-floor': 'data:image/png;base64,IND2FLOORPNGTILEDATA==',
+  };
+  const texturedFloor = {
+    corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]],
+    fill: '#334455', doubleSided: true, texture: 'ms-wall', uv: [[0, 0], [4, 0], [4, 4], [0, 4]],
+  };
+
+  it('persists a custom textures atlas into the stored recipe', () => {
+    const out = mintControllableWorld({ title: 'colony', entities: [drone], faces: [texturedFloor], textures: atlas });
+    expect(out.recipe.textures).toEqual(atlas);
+  });
+
+  it('drops an absent or empty atlas (no textures key on the recipe)', () => {
+    expect(mintControllableWorld({ entities: [drone], faces: [texturedFloor] }).recipe.textures).toBeUndefined();
+    expect(mintControllableWorld({ entities: [drone], faces: [texturedFloor], textures: {} }).recipe.textures).toBeUndefined();
+  });
+
+  it('surfaces the atlas through the /world render path (resolveWorldScene → emitThreeWorld TEXTURES)', async () => {
+    const out = mintControllableWorld({ title: 'colony', entities: [drone], faces: [texturedFloor], textures: atlas });
+    const { payload } = await resolveWorldScene({ ref: out.ref, manifest: out.recipe });
+    expect(payload.textures['ms-wall']).toBe(atlas['ms-wall']);
+    const html = emitThreeWorld(payload);
+    expect(html).toContain(atlas['ms-wall']);
+    expect(html).not.toContain('const TEXTURES = {};');
   });
 });

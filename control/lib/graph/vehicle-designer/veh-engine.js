@@ -56,6 +56,17 @@ export const VEH_ENGINE_FAMILIES = {
   },
 };
 
+// ── the drivetrain seed (drivable-vehicles.plan.md, D3): horsepower AS DATA, per family — the
+// "engines with horsepower" layer the drive rule's feel derives from (deriveDrivetrain). The
+// ladder: transverseFour < inlineFour < vintageStacks < veeEight. Keyed off the RESOLVED family
+// (a randomized layout doesn't change what the family's block makes).
+export const VEH_ENGINE_DRIVETRAIN = {
+  transverseFour: { horsepower: 110 },
+  inlineFour: { horsepower: 160 },
+  vintageStacks: { horsepower: 240 },
+  veeEight: { horsepower: 300 },
+};
+
 export const VEH_ENGINE_MODULES = {
   layout: ['inline', 'vee', 'transverse'],
   displacement: ['small', 'standard', 'big'],
@@ -262,6 +273,7 @@ export function resolveVehEngineRecipe({ family, palette, colors = {}, seed = 1,
       },
       localFrame: { forward: '+y', up: '+z', crank: modules.layout === 'transverse' ? 'x' : 'y' },
       mountFamily: 'bay-mount',
+      drivetrain: { ...VEH_ENGINE_DRIVETRAIN[pickedFamily] },   // D3: the horsepower seed deriveDrivetrain reads
       hardpoints: {
         mount: [0, 0, 0],
         driveOutput: modules.layout === 'transverse'

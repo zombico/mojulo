@@ -8,10 +8,12 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
-## [1.0.0] — 2026-08-04
+## [1.0.0] — 2026-08-07
 
 An editorial release. Everything since 0.8.0 — the visualization era — consolidated into one
-release, plus the statement of what the version number now promises. 0.8.0 shipped a bot
+release, plus the statement of what the version number now promises. (The consolidation dated
+2026-08-04; a coherent late batch landed 2026-08-06 and folded in before the merge — see "Late
+additions" below.) 0.8.0 shipped a bot
 factory that had just learned to run apps; 1.0.0 ships **the agent's workshop**: five creatable
 paradigms — bot / connected service / app / **media** / **game** — where **Media** is the creative
 arm promoted to first class (diagrams, walkable worlds, figures, synthesized music and song,
@@ -114,6 +116,61 @@ All additive: `beats_revisions` / `beats_annotations`, `game_projects` (+ typed-
 `image_render_requests`, sketches `bucket` / `folder_ref` columns (buckets derive at read
 time — existing rows reclassify with no migration), new embeddings kinds (routing / vocab
 families). No destructive migration; existing 0.x DBs upgrade at open.
+
+### Late additions (2026-08-06, folded into 1.0.0 before the merge)
+
+A coherent batch landed on the branch after the 08-04 consolidation and ships in 1.0.0. Build
+logs live in the plan files named inline.
+
+- **Controllable-world engine decomposed** (`worlds/controllable-split.plan.md`, complete). The
+  3,305-line `worlds/controllable-world.js` monolith — the whole action-game engine as one
+  import-free closure — was split into **import-free builder closures composed over a shared
+  namespace** (`worlds/controllable/`: `compose`/`core`/`gait`/`rules-*`/`combat-{hit,ranged,melee,match}`;
+  the mobile-suit maneuvers + AI lifted into the operator-local content pack), so the
+  single-source-of-truth browser emission survives per-system rather than as one blob.
+  `stepWorld` became a **registered slot-runner** with the frame order test-pinned. The façade
+  `controllable-world.js` shrank 3,305 → 86 lines, re-exporting the same API; behavior is
+  **byte-identical**, gated by four golden scenario traces and a per-builder `new Function`
+  self-containment tripwire (char-net re-pinned on the 10 controllable-channel fixtures — every
+  carve changes emission bytes by design).
+
+- **Drivable and flyable vehicles** (`vehicle-designer/drivable-vehicles.plan.md`, D1–D5 +
+  gamepad + fly). The veh-* part shelf meets the worlds engine as the **first external tenants**
+  of the decomposition — rule-level builders that needed zero engine edits. A `drive` rule
+  (pure kinematic longitudinal dynamics: real `F=P/v` power curve capped by traction, quadratic
+  drag, bicycle-model steering off the rig wheelbase, distance-true wheel spin) and a `fly` rule
+  (energy-and-attitude flight with stall + coordinated bank-to-turn). A vehicle rig
+  (`deriveVehicleRig`/`bakeVehicleRig`, wheels classified FL/FR/RL/RR by position, a single
+  `roll` clip) renders through the existing figure-rig path; drivetrain data is seeded **on the
+  parts** (`VEH_ENGINE_DRIVETRAIN`, `curbMass`/brake overrides on the archetypes) and composed by
+  `deriveDrivetrain` — no engine part → not drivable, by data. Worlds bind a vehicle via
+  `figures.vehicleRef` beside `unitRef`; board / drive / dismount ride the existing pilot-swap
+  (T); gamepad RT/LT map to throttle/brake off the live pilot each frame; opt-in mesh `tilt`
+  banks planes. The `veh-drive` vocab card names the affordance facts (`speed` / `throttle` /
+  `braking` / `skidding` / `boarded` …) later fx/sfx layers bind against.
+
+- **`forward_context` office/studio split** (`mcp/tools/orientation-containment.plan.md`, C1–C3).
+  `forward_context` gains a stateless `mode: 'office' | 'studio'` (default office). The creative
+  FORM recognizer rows + the game row relocate **verbatim** into a standalone studio body reached
+  by one hook row, dieting the always-paid office body from ~11.6K to ~9.4K chars/cell; the single
+  `BODY_CEILING` retires for per-mode pins (office 9,600 / studio 7,400). `SERVER_INSTRUCTIONS`
+  Media/Game bullets collapse to one line each teaching the two wings. Follow-on schema-diet and
+  result-shaped tool-pack work is staked in plan files; a host spike found
+  `notifications/tools/list_changed` non-actionable on the primary host today (client never
+  re-lists mid-session), so dynamic tool-packs park behind a dispatcher-hybrid fallback and the
+  near-term economic fix stays the per-schema diet.
+
+- **Volumetric fog depth-clip** (`map-treatment.plan.md`, engine seam). Fog gains an opt-in
+  `depthClip`: a per-frame depth prepass clamps the raymarch at the rasterized scene's foreground
+  meshes (rigged suits, walkers, cars) the box-field SDF doesn't carry, so fog stops painting over
+  them. Opt-in — absent, the composed frag and every emitted page stay **byte-identical**.
+
+Recorded gate at the batch's close: **6,075 tests green**. The description-budget ratchets were
+re-pinned upward in the batch — `PAYLOAD_CEILING` 372,000 → 376,000 and three catalyst
+descriptions allowlisted — to bless the local-catalyst shelf and absorb the `forward_context`
+mode schema; the payload now sits at 374,898/376,000. The downward schema diet (moving the
+`create_manji_tree` / `forge_motion` enums behind their vocab cards to shrink the ~94K-token
+connect surface) stays open as an orientation-containment follow-up.
 
 ### Previously-unreleased sections
 

@@ -32,6 +32,10 @@ export function composeVolumeFog(boxes, {
   up = 'z', cell = 5, margin = 3, K = 12,
   height = 9, density = 0.4, color = [0.88, 0.90, 0.95],
   maxDist = 150, steps = 160, traceSteps = 130,
+  // depthClip: clamp the march at the rasterized scene's depth (host renders a depth prepass),
+  // so fog never paints over foreground meshes the box-field SDF doesn't carry — rigged suits,
+  // walkers, cars. Opt-in: absent → the composed frag and the emitted page are byte-identical.
+  depthClip = false,
 } = {}) {
   const baked = bakeBoxField(boxes, { cell, margin, K, up });
   const U = up;                                              // height component
@@ -60,10 +64,12 @@ void volSample(vec3 p, vec3 rd, out vec3 emis, out vec3 ext){
     boundsRadius: 'uMaxDist',
     steps,
     occluder: { sdfFn: 'sdfScene', traceSteps, surfEps: '0.02', minStep: '0.05' },
+    depthStop: !!depthClip,
   });
 
   return {
     frag,
+    ...(depthClip ? { depthClip: true } : {}),
     customUniforms: {
       uMaxDist: maxDist,
       uBoxCount: baked.count,

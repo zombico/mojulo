@@ -72,6 +72,12 @@ const DESCRIPTION_ALLOWLIST = {
   create_solid_turntable: 1172,
   create_view: 723,
   create_workbench: 3150,
+  // custom_catalyst / list_catalysts / mint_catalyst allowlisted 2026-08-06 to
+  // bless the local-catalyst shelf (local-catalysts.plan.md): mint_catalyst is
+  // the new local-shelf write path, list_catalysts/custom_catalyst grew to
+  // route curated + local origins and the mint author-guide hand-off.
+  // Shrink-only from these snapshots.
+  custom_catalyst: 764,
   custom_protocol: 791,
   declare_skills: 1041,
   diff_sketches: 875,
@@ -98,8 +104,10 @@ const DESCRIPTION_ALLOWLIST = {
   get_tool_telemetry: 906,
   get_worked_example: 946,
   install_scaffold: 1317,
+  list_catalysts: 833,
   measure_view: 1327,
   meta_context_brief: 972,
+  mint_catalyst: 850,
   meta_context_commit: 2635,
   meta_context_declare_inventory: 1405,
   preview_vehicle_instance: 1193,
@@ -156,7 +164,11 @@ const DESCRIPTION_ALLOWLIST = {
 // consolidation batch: create_cover (cover-composition phase B) + export_game
 // (game-publish phase 2) + create_sprite_sheet / bake_sprite_sheet
 // (sprite-sheet.plan.md P0/P1) + the sketch_polygomer growth.
-const PAYLOAD_CEILING = 372_000;
+// Re-pinned 2026-08-06 (was 372,000; measured 374,898) to bless the
+// local-catalyst shelf (local-catalysts.plan.md): mint_catalyst + the
+// list_catalysts/custom_catalyst/get_catalyst growth for curated + local
+// origins and the mint/graduation hand-off.
+const PAYLOAD_CEILING = 376_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -88,14 +88,17 @@ describe('routing-card shelf — registry + body sweeps', () => {
     }
   });
 
-  it('every card entry tool is reachable from the always-paid body (inline or via the hop)', () => {
-    // The mini index names the high-traffic entry tools inline; the rest ride
-    // behind the routing hop. Either way the tool must appear in the body or
-    // in a card — a creative entry named in NEITHER layer is dark.
-    const body = buildForwardContextBody({});
+  it('every card entry tool is reachable from an orientation body (office, or studio via the hook row)', () => {
+    // Orientation-containment C1: creative entry tools moved out of the
+    // always-paid office body into the studio body, which the office hook row
+    // names (`forward_context({mode:'studio'})`) — one named hop, so the
+    // union of the two bodies is the reachability surface. A creative entry
+    // named in NEITHER body nor a card is dark.
+    const bodies =
+      buildForwardContextBody({}) + buildForwardContextBody({ mode: 'studio' });
     const catalog = getRoutingCardCatalog();
     const dark = [...catalog.values()]
-      .filter((c) => !body.includes(`\`${c.entry}\``))
+      .filter((c) => !bodies.includes(`\`${c.entry}\``))
       .map((c) => c.entry);
     // Cards exist precisely so the body doesn't need every tool inline — this
     // asserts the card itself carries the entry (loader guarantees `entry`),

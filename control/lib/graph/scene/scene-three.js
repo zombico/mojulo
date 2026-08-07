@@ -154,7 +154,7 @@ renderer.setAnimationLoop((t) => {
 }
 
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {} } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, agentSpectate = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {} } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -175,6 +175,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     return [cu, td].filter(Boolean).join(',');
   };
   const fogExtras = fog ? overlayExtras(fog) : '';
+  // fog depthClip (map-treatment.plan.md): when the composed fog asks for a scene-depth stop,
+  // every render is preceded by a depth prepass ('__fogPrepass(); ' spliced before the render
+  // calls). Absent → fogPre is '' and every emitted page stays byte-identical (char-pin safe).
+  const fogPre = fog && fog.depthClip ? '__fogPrepass(); ' : '';
   // effects[] — additional stacked overlay layers beside fog. Each gets its own fullscreen quad,
   // camera-fed onBeforeRender, and a renderOrder above fog so they composite last. Deterministic
   // under camera bakes because frame() now pins __mojClock (U3). Absent ⇒ no bytes.
@@ -555,7 +559,7 @@ scene.add(__eQuad${i});
     const dir = [-tx / horiz, -ty / horiz];
     return { dir, rot: Math.atan2(dir[1], dir[0]), stretch: Math.min(4.5, horiz / tz) };
   })();
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm, pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, key: shadowKey }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm, pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, agentSpectate, key: shadowKey }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -870,10 +874,24 @@ __fogQuad.onBeforeRender = (rnd, scn, cam) => {
   rnd.getSize(__fsz); const __dpr = rnd.getPixelRatio(); __fogU.uRes.value.set(__fsz.x * __dpr, __fsz.y * __dpr);
   // capture/traversal runs pin the clock (window.__mojClock, ms) so baked fog is reproducible;
   // live viewing keeps wall-clock drift.
-  __fogU.uTime.value = (window.__mojClock != null ? window.__mojClock : (typeof performance !== 'undefined' ? performance.now() : 0)) / 1000;
+  __fogU.uTime.value = (window.__mojClock != null ? window.__mojClock : (typeof performance !== 'undefined' ? performance.now() : 0)) / 1000;${fog.depthClip ? `
+  __fogU.uNear.value = cam.near; __fogU.uFar.value = cam.far;` : ''}
 };
 scene.add(__fogQuad);
-` : ''}${effectsBlock}${channelSetupSection('post-overlays', setupBlocks)}
+${fog.depthClip ? `// depth prepass (fog depthClip): render the scene's depth to a texture before each frame so the
+// fog march clamps at foreground meshes (rigged suits, walkers) the box-field SDF doesn't carry.
+const __fogDT = new THREE.DepthTexture();
+const __fogRT = new THREE.WebGLRenderTarget(1, 1, { depthTexture: __fogDT });
+__fogU.uDepth = { value: __fogDT }; __fogU.uNear = { value: 0.1 }; __fogU.uFar = { value: 4000 };
+const __fogPrepass = () => {
+  const __ps = renderer.getSize(new THREE.Vector2()), __pd = renderer.getPixelRatio();
+  const __pw = Math.max(1, Math.round(__ps.x * __pd)), __ph = Math.max(1, Math.round(__ps.y * __pd));
+  if (__fogRT.width !== __pw || __fogRT.height !== __ph) __fogRT.setSize(__pw, __ph);
+  __fogQuad.visible = false;
+  renderer.setRenderTarget(__fogRT); renderer.render(scene, camera); renderer.setRenderTarget(null);
+  __fogQuad.visible = true;
+};
+` : ''}` : ''}${effectsBlock}${channelSetupSection('post-overlays', setupBlocks)}
 const _freezeRaw = new URLSearchParams(location.search).get('t');
 const _freeze = _freezeRaw !== null && Number.isFinite(+_freezeRaw) ? +_freezeRaw : null;
 const _capture = ${capture ? 'true' : 'false'};${channelSetupSection('post-capture', setupBlocks)}
@@ -955,7 +973,7 @@ if (_capture) {
   //                 stays where frame()/the initial framing put it. window.__mojClock pins
   //                 every clocked visual (fog) to the traversal clock so replays are exact.
   //   probe()     — the assertion surface: entity transforms + HUD/bus vars + physics bodies.
-  controls.update(); updateCutaway(); __mojStep(0); renderer.render(scene, camera);
+  controls.update(); updateCutaway(); __mojStep(0); ${fogPre}renderer.render(scene, camera);
   let __capT = 0;   // traversal clock, ms
   window.${CAPTURE_GLOBAL} = {
     ${CAPTURE_READY}: true,
@@ -967,7 +985,7 @@ if (_capture) {
       controls.update();
       ${(capture && hasOverlay) ? 'window.__mojClock = Number.isFinite(spec.t) ? spec.t : 0;   // U3: pin the overlay clock so raymarch effects (fog/glow/wisps) bake deterministically under camera frames\n      ' : ''}__mojStep(Number.isFinite(spec.t) ? spec.t : 0);
       updateCutaway();
-      renderer.render(scene, camera);
+      ${fogPre}renderer.render(scene, camera);
     },
     ${CAPTURE_STEP}(spec) {
       spec = spec || {};
@@ -983,7 +1001,7 @@ if (_capture) {
       }
       __mojStep(__capT);   // clocked channels + physics + events ride the same tick clock
       updateCutaway();
-      renderer.render(scene, camera);
+      ${fogPre}renderer.render(scene, camera);
     },
     ${CAPTURE_PROBE}() {
       const out = { t: __capT, entities: null, hud: null, bodies: null };
@@ -1081,12 +1099,12 @@ if (_capture) {
 } else if (_freeze !== null) {
   controls.update();
   __mojStep(_freeze);
-  updateCutaway(); renderer.render(scene, camera);
-  controls.addEventListener('change', () => renderer.render(scene, camera));
+  updateCutaway(); ${fogPre}renderer.render(scene, camera);
+  ${fogPre ? "controls.addEventListener('change', () => { __fogPrepass(); renderer.render(scene, camera); });" : "controls.addEventListener('change', () => renderer.render(scene, camera));"}
 } else renderer.setAnimationLoop((t) => {
   // paused (shell menu): hold the last frame; the clocked channels resume where they froze
   // (__pauseOffset rebases __mojStep's clock so movers/effects don't jump the gap).
-  if (__mojPaused) { if (__pausedAt === null) __pausedAt = t; renderer.render(scene, camera); return; }
+  if (__mojPaused) { if (__pausedAt === null) __pausedAt = t; ${fogPre}renderer.render(scene, camera); return; }
   if (__pausedAt !== null) { __pauseOffset += t - __pausedAt; __pausedAt = null; walkPrevT = t; }
   const dt = walkPrevT ? Math.min((t - walkPrevT) / 1000, 0.05) : 0; walkPrevT = t;
   if (walkOn) stepWalk(dt);
@@ -1095,7 +1113,7 @@ if (_capture) {
     if (!__ctrlOwnsCamera) controls.update();               // OrbitControls unless a camera entity owns the view
   }
   __mojStep(t - __pauseOffset);
-  updateCutaway(); renderer.render(scene, camera);
+  updateCutaway(); ${fogPre}renderer.render(scene, camera);
 });
 </script>
 </body></html>

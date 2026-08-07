@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildControllable, createWorld, stepWorld, normalizeEntity, assembleControllableScene } from './controllable-world.js';
+import { createWorld, stepWorld, normalizeEntity, assembleControllableScene } from './controllable-world.js';
+import { composeControllable, EMISSION, EMISSION_ENGINE } from './controllable/compose.js';
 
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 // run a fixed input for N steps at fixed dt.
@@ -1062,13 +1063,75 @@ describe('assembleControllableScene (standalone stage)', () => {
   });
 });
 
-describe('single source of truth', () => {
-  it('buildControllable source is self-contained, runnable JS (browser parity)', () => {
+describe('single source of truth (composed builders, controllable-split.plan.md S0)', () => {
+  it('every EMISSION builder is self-contained, runnable JS (browser parity)', () => {
+    // The tripwire for the split: a builder that closes over an IMPORTED symbol stringifies into
+    // a browser copy with a dangling reference. Re-instantiating each builder from its own source
+    // (no module scope) catches that the moment it happens.
+    for (const b of EMISSION) {
+      // eslint-disable-next-line no-new-func
+      const rebuilt = new Function(`return (${b.toString()});`)();
+      expect(typeof rebuilt).toBe('function');
+    }
+  });
+
+  it('the composed engine from stringified sources behaves like the module (browser parity)', () => {
     // eslint-disable-next-line no-new-func
-    const cw = new Function(`return (${buildControllable.toString()})();`)();
+    const builders = EMISSION.map((b) => new Function(`return (${b.toString()});`)());
+    const cw = composeControllable(builders);
     const w = cw.createWorld({ entities: [{ id: 'h', rule: { type: 'walk' }, transform: { heading: 0 } }] });
     cw.stepWorld(w, { forward: 1 }, 1 / 60);
     expect(w.byId.h.transform.pos[0]).toBeGreaterThan(0);
+    // same step through the module instance → identical result (no drift between the two paths)
+    const w2 = createWorld({ entities: [{ id: 'h', rule: { type: 'walk' }, transform: { heading: 0 } }] });
+    stepWorld(w2, { forward: 1 }, 1 / 60);
+    expect(w.byId.h.transform.pos).toEqual(w2.byId.h.transform.pos);
+  });
+});
+
+describe('step pipeline (controllable-split.plan.md S3) — the registered slot order', () => {
+  it('the resolved pipeline order is pinned — replay determinism depends on it', () => {
+    // The runner executes slots in a fixed sequence; WITHIN a slot, entries run in this exact
+    // order (explicit `order` values, ties by EMISSION position). A diff here means the frame
+    // sequence changed — that is a behavior change and must be a deliberate plan step.
+    const cw = composeControllable(EMISSION);
+    expect(cw.pipelineOrder()).toEqual({
+      preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot'],
+      entityTimers: ['weapon-and-cooldowns'],
+      bodyOwners: ['reaction', 'clash', 'cine', 'drop'],
+      entityAsserts: ['charge-cancel', 'spawn-guard'],
+      suppressedTicks: ['boost-recovery'],
+      entityActions: ['weapon', 'melee', 'tackle'],
+      worldPasses: ['body-collisions', 'carry', 'projectiles', 'death-burst', 'match'],
+    });
+  });
+
+  it('the platform maneuver-phase order is pinned (S4 — the seam packs plug into)', () => {
+    const cw = composeControllable(EMISSION);
+    expect(cw.platformPhaseOrder()).toEqual({
+      maneuver: ['dodge', 'tackle'],
+      equip: ['loadout'],
+      act: ['strike', 'throw'],
+      dash: ['dodge-dash', 'tackle-dash', 'charge-dash-carry', 'cleave-step'],
+      claim: ['tackle', 'dodge'],
+    });
+  });
+
+  it('a pack-less compose (EMISSION_ENGINE) still runs walk + basic platform worlds (S4)', () => {
+    // The engine without the mobile-suit pack: basic rules + the base platformer + combat. The
+    // pack's phases are simply empty; `ai` is not a known rule; melee strike still works (it is
+    // combat, not pack). This is the "pack absent → basic worlds run" gate.
+    const cw = composeControllable(EMISSION_ENGINE);
+    expect(cw.RULES.platform).toBeDefined();
+    expect(cw.RULES.ai).toBeUndefined();          // the ai brain is pack content
+    expect(cw.AI_DIFFICULTY).toBeUndefined();     // so is the difficulty table
+    const w = cw.createWorld({ entities: [{ id: 'h', rule: { type: 'platform', speed: 6, jumpSpeed: 8 }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    const hooks = { ground: () => 0 };
+    for (let i = 0; i < 90; i++) {
+      cw.stepWorld(w, { forward: 1, jump: i === 10 ? 1 : 0, jumpHeld: i >= 10 && i < 18 ? 1 : 0 }, 1 / 60, hooks);
+    }
+    expect(w.byId.h.transform.pos[0]).toBeGreaterThan(5);   // walked forward
+    expect(w.byId.h.grounded).toBe(true);                   // jumped and landed
   });
 });
 
