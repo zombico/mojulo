@@ -20,6 +20,16 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
+// `npx mojulo init` — one-shot installer. Branch out BEFORE this process
+// configures itself as an stdio MCP server (register loader, chdir, the
+// stdout→stderr pin, tool registration, embedder preload). mcp-init.mjs is
+// self-contained and interactive — it owns real stdout — and exits itself;
+// the guard exit here is a belt-and-suspenders no-fallthrough.
+if (process.argv[2] === 'init') {
+  await import('./mcp-init.mjs');
+  process.exit(0);
+}
+
 // Resolve `@/...` like Next.js does, so the stdio entry can reuse the same
 // server.js + tool modules the Next.js route uses.
 register('./mcp-stdio-loader.mjs', import.meta.url);

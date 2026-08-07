@@ -111,7 +111,7 @@ What the user gets when they unzip (prebuilt-image mode — default):
 The bot image (`ghcr.io/zombico/mojulo-bot:X`) bakes in:
 
 - `Dockerfile` — Debian slim Node 20 + native deps (better-sqlite3, onnxruntime-node).
-- `server.js`, `package.json`, `client/`, `middleware/`, `integration/`.
+- `server.js`, `package.json`, `client/`, `middleware/`.
 - `helper/` — `llm-client.js` (3-provider abstraction: Anthropic, OpenAI, Ollama), `envelope-schema.js` (canonical response shape, mirrored to control plane), `vector-rag.js` (cosine over baked embeddings.json), `embedder-local.js` (multilingual-e5-small ONNX, in-process query embedding), `prompt-assembler.js`, `form-submission.js`.
 - `models/Xenova/multilingual-e5-small/` — q8 ONNX + tokenizer (~113MB, fetched by `scripts/fetch-embed-model.mjs` during the GHCR build).
 

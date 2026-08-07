@@ -126,9 +126,94 @@ export function recordInferenceOutcome({ caller_ref, inputs, envelope, durationM
   return { principle, artifactNode };
 }
 
+// ---------------------------------------------------------------------------
+// trigger_firing — the daemon-side audit for each scheduled (and later
+// webhook / watch) fire.
+//
+// Sibling to recordInferenceOutcome. Called by the scheduler daemon inside
+// its fire callback, atomically with the parkTask call. The principle is
+// scoped to the same artifact node as the eventual app_inference principle
+// the fulfilled task will produce — walking the artifact's principles
+// yields a chain like `trigger_firing → app_inference → trigger_firing
+// → app_inference`, telling the full story of each autonomous run.
+//
+// Phase 1 supports only the schedule kind. Webhook / watch principles
+// reuse the same composer with kind-specific evidence shapes; new kinds
+// add fields to the evidence object without a schema change (principle
+// bodies are markdown).
+// ---------------------------------------------------------------------------
+
+function composeTriggerFiringPrincipleBody({
+  triggerRef,
+  componentRef,
+  firedAt,
+  parkedTaskRef,
+  evidence,
+}) {
+  const lines = [
+    `**Trigger fired:** \`${triggerRef}\` (${componentRef})`,
+    '',
+    `- **fired_at:** ${firedAt}`,
+  ];
+  if (parkedTaskRef) lines.push(`- **parked_task_ref:** \`${parkedTaskRef}\``);
+  if (evidence && typeof evidence === 'object' && Object.keys(evidence).length > 0) {
+    lines.push('', '**Evidence:**', '```json', JSON.stringify(evidence, null, 2), '```');
+  }
+  return lines.join('\n');
+}
+
+function recordTriggerFiringPrinciple({ artifactNode, body }) {
+  if (!artifactNode) return null;
+  return MetaPrincipleRepository.insert({
+    scope_kind: 'node',
+    scope_id: artifactNode.id,
+    body_md: body,
+    source_event: 'trigger_firing',
+  });
+}
+
+/**
+ * Build and write a `trigger_firing` principle for a single fire on the
+ * target artifact node. Called by the scheduler daemon inside its fire
+ * callback, atomically with the parkTask call (the daemon owns the txn
+ * boundary; this helper just writes the row).
+ *
+ * @param {object} args
+ * @param {string} args.artifactRef - The trigger's target artifact_ref.
+ * @param {string} args.triggerRef
+ * @param {string} args.componentRef - e.g. 'trigger/scheduled@0.1.0'
+ * @param {string} args.firedAt - ISO timestamp.
+ * @param {string} [args.parkedTaskRef] - The task ref returned by parkTask.
+ * @param {object} [args.evidence] - Kind-specific evidence (e.g. schedule
+ *   carries { scheduled_at, fired_at, drift_ms }).
+ * @returns {{ principle: object|null, artifactNode: object|null }}
+ */
+export function recordTriggerFiring({
+  artifactRef,
+  triggerRef,
+  componentRef,
+  firedAt,
+  parkedTaskRef,
+  evidence,
+}) {
+  const artifactNode = resolveCallerArtifactNode(artifactRef);
+  if (!artifactNode) return { principle: null, artifactNode: null };
+  const body = composeTriggerFiringPrincipleBody({
+    triggerRef,
+    componentRef,
+    firedAt,
+    parkedTaskRef,
+    evidence,
+  });
+  const principle = recordTriggerFiringPrinciple({ artifactNode, body });
+  return { principle, artifactNode };
+}
+
 export const _internals = {
   resolveCallerArtifactNode,
   composeInferencePrincipleBody,
   composeFulfillerLines,
   recordInferencePrinciple,
+  composeTriggerFiringPrincipleBody,
+  recordTriggerFiringPrinciple,
 };

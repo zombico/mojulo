@@ -1,0 +1,315 @@
+/**
+ * export_game — materialize a stored game as a SELF-CONTAINED folder
+ * (game-publish.plan.md phase 2): the sharing seam for playable artifacts.
+ *
+ * The served form of a game is loopback-bound by design (`/api/sketches/<ref>/game`,
+ * no-store, levels iframed off live routes). This tool bakes the SAME recipes into a
+ * portable folder under `data/outcomes/<game_ref>/` — shell + inline levels + WAV
+ * score + the sovereign recipes + a provenance README — so the existing `/outcomes/`
+ * route doubles as a local preview of exactly what ships, and the folder itself is
+ * `git init && gh repo create` away from a public GitHub-Pages playable URL.
+ *
+ * Determinism: same rows → same folder. Levels re-emit through the identical
+ * resolveWorldScene → emitThreeWorld path the /world route runs for
+ * `?walk=1&hud=0&download=1` (three.js + geometry inlined as data: modules — zero
+ * external fetches); WAVs come from renderBeatsOffline (byte-identical per recipe);
+ * the shell is emitGameShell over resolvers that return folder-relative paths
+ * instead of API URLs (game-resolve's injectable-src seam — no resolver changes).
+ *
+ * Deliberate edges (from the plan):
+ *  - The `_vertex_colored.glb` world-route override is bypassed by construction —
+ *    we emit from the manifest, never from the override viewer (which runtime-fetches
+ *    model.glb and is not standalone).
+ *  - Opening game.html via file:// may block the music fetch (browser CORS on local
+ *    files); play is unaffected. The README says "serve the folder" — Pages serves https.
+ *  - Pixelizer games are already single-file: their export is game.html + recipe + README.
+ */
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+
+import { registerTool } from '@/lib/mcp/server';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { resolveGame } from '@/lib/graph/game/game-resolve';
+import { emitGameShell } from '@/lib/graph/game/game-shell';
+import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
+import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
+import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
+import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+
+// The recipe-hash style of image_render_requests.manifest_hash — short, stable,
+// enough to tie a published render back to the exact recipe that minted it.
+const manifestHash = (manifest) =>
+  createHash('sha256').update(JSON.stringify(manifest)).digest('hex').slice(0, 16);
+
+// Folder-relative src resolvers: the export twin of the /game route's API-URL
+// resolvers. Whatever these return is BOTH the src baked into game.html and the
+// path this tool writes — they cannot drift apart. Refs are [A-Za-z0-9_-]{1,64}
+// at mint, so they are filesystem-safe as-is.
+const LEVEL_SRC = (ref) => `levels/${ref}.html`;
+const MENU_SRC = (ref) => `levels/menu-${ref}.html`;
+const BEATS_SRC = (ref) => `assets/${ref}.wav`;
+const PORTRAIT_SRC = (ref) => `assets/${ref}.png`;
+const PREVIEW_SRC = (ref) => `levels/preview-${ref}.html`;
+
+/**
+ * Emit one world sketch as a self-contained page, mirroring the /world route's
+ * flag logic for the three iframe roles a game shell requests:
+ *   level   → ?walk=1&hud=0  (walk forced on, dev chrome off)
+ *   menu    → ?hud=0         (walk per the world's own default)
+ *   preview → ?spin=1&hud=0  (turntable read, orbit only)
+ * plus `inline: true` (the ?download=1 behavior) so the page carries its own three.js.
+ */
+async function emitWorldPage(sketch, role) {
+  const { payload, kind } = await resolveWorldScene(sketch);
+  if (!payload) {
+    throw new Error(`'${sketch.ref}' has no traversable World form (kind '${kind ?? sketch.manifest?.kind}') — it cannot ship as a ${role} page`);
+  }
+  // backdrop image: a locally-bound /outcomes/… URL would leave the exported page fetching the
+  // control plane — inline it as a data: URI instead so the page stays genuinely standalone.
+  const bd = typeof payload.backdrop === 'string' ? payload.backdrop.match(/^\/outcomes\/([^/]+)\/(.+)$/) : null;
+  if (bd) {
+    const abs = path.join(outcomeDirFor(decodeURIComponent(bd[1])), decodeURIComponent(bd[2]));
+    const mime = path.extname(abs).toLowerCase() === '.jpg' || path.extname(abs).toLowerCase() === '.jpeg' ? 'image/jpeg' : 'image/png';
+    payload.backdrop = `data:${mime};base64,${(await fs.readFile(abs)).toString('base64')}`;
+  }
+  const exteriorView = sketch.manifest?.view === 'exterior';
+  const walk = role === 'level'
+    ? true
+    : role === 'menu' && !exteriorView && (payload.walk || WALK_KINDS.has(kind));
+  return emitThreeWorld({
+    ...payload,
+    wireframe: false,
+    walk,
+    spin: role === 'preview',
+    decollide: true,
+    hud: false,
+    inline: true,
+  });
+}
+
+function buildReadme({ manifest, ref, hash, files, engine }) {
+  const levelRefs = (manifest.levels || []).map((l) => `- \`${l.ref}\`${l.title ? ` — ${l.title}` : ''}`);
+  const lines = [
+    `# ${manifest.title}`,
+    '',
+    `A standalone playable game exported from [mojulo](https://github.com/zombico/mojulo) — recipes, not renders: \`recipe/\` is the sovereign source, everything else is its deterministic derived render.`,
+    '',
+    '## Provenance',
+    '',
+    `- game ref: \`${ref}\``,
+    `- manifest sha256/16: \`${hash}\``,
+    ...(engine === 'pixelizer'
+      ? [`- engine: pixelizer (single-file 2D reducer game)`]
+      : levelRefs.length ? ['- levels:', ...levelRefs.map((l) => `  ${l}`)] : []),
+    '',
+    '## How to play',
+    '',
+    'Serve this folder with any static server and open `game.html`:',
+    '',
+    '```bash',
+    'npx serve .        # or: python3 -m http.server',
+    '```',
+    '',
+    'GitHub Pages works as-is (the folder has zero external dependencies — no CDN, no',
+    'network fetches at play time). Opening `game.html` straight from the filesystem',
+    '(`file://`) also plays, though some browsers block the music track there — a',
+    'static server restores it.',
+    '',
+    '## How to re-mint',
+    '',
+    'On any host running mojulo, the recipes under `recipe/` reproduce this artifact:',
+    'each `recipe/<ref>.json` is a world manifest (`compose_world` + its `game:`',
+    'channel mints the level), and `recipe/game.json` is the game manifest',
+    '(`create_game` promotes the levels back into this shell). Same recipes → the',
+    'same game, byte-for-byte where it matters.',
+    '',
+    '## Files',
+    '',
+    ...files.map((f) => `- \`${f.file}\` — ${(f.bytes / 1024).toFixed(0)} KB`),
+    '',
+  ];
+  return lines.join('\n');
+}
+
+export async function exportGameHandler(input) {
+  if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
+  const { ref } = input;
+  if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
+
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest || sketch.manifest.kind !== 'game') {
+    throw new Error(`Sketch '${ref}' is not a game (kind '${sketch.manifest?.kind ?? 'none'}') — export_game covers create_game / create_pixelizer_game artifacts. For a single world use /world?download=1; for geometry use export_model.`);
+  }
+
+  const dir = outcomeDirFor(ref);
+  const files = [];
+  const write = async (rel, data) => {
+    const abs = path.join(dir, rel);
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    await fs.writeFile(abs, data);
+    files.push({ file: rel, bytes: Buffer.byteLength(data) });
+  };
+  const writeRecipe = async (rel, manifest) =>
+    write(rel, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  const manifest = sketch.manifest;
+  const hash = manifestHash(manifest);
+
+  // ── pixelizer branch: already single-file, the export is just the folder dressing ──
+  if (manifest.engine === 'pixelizer') {
+    const { emitPixelizerGame } = await import('@/lib/graph/pixelizer/pixelizer-games');
+    await write('game.html', emitPixelizerGame(manifest, { title: sketch.title }));
+    await writeRecipe('recipe/game.json', manifest);
+    await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'pixelizer' }));
+    const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
+    return {
+      ok: true, ref, engine: 'pixelizer', dir,
+      preview_url: `${outcomeUrlFor(ref)}game.html`,
+      files, total_bytes: totalBytes,
+      note: 'Single-file reducer game — game.html plays anywhere, file:// included.',
+    };
+  }
+
+  // ── world/level games: resolve once with folder-relative resolvers, then bake each part ──
+  const getSketch = (r) => SketchRepository.getByRef(r);
+  const resolved = resolveGame(manifest, getSketch, LEVEL_SRC, MENU_SRC, BEATS_SRC, PORTRAIT_SRC, PREVIEW_SRC);
+  const norm = resolved.manifest;
+
+  // menu.art (title-card backdrop): copy a locally-bound image into assets/ and repoint the
+  // SHELL's copy at the folder-relative path, so the export stays self-contained (zero network
+  // fetches). Only /outcomes/… art is copied — an absolute http(s)/data: value passes
+  // through untouched. The recipe keeps the SOVEREIGN serve-side value, not the assets/ path.
+  let shellManifest = norm;
+  for (const [key, base] of [['art', 'menu-art'], ['setupArt', 'setup-art']]) {
+    const m = typeof shellManifest.menu?.[key] === 'string'
+      ? shellManifest.menu[key].match(/^\/outcomes\/([^/]+)\/(.+)$/) : null;
+    if (!m) continue;
+    const srcAbs = path.join(outcomeDirFor(decodeURIComponent(m[1])), decodeURIComponent(m[2]));
+    const ext = path.extname(srcAbs) || '.png';
+    await write(`assets/${base}${ext}`, await fs.readFile(srcAbs));
+    shellManifest = { ...shellManifest, menu: { ...shellManifest.menu, [key]: `assets/${base}${ext}` } };
+  }
+
+  // mode-variant map stills (`shot` on menu mode variants — the setup carousel): same treatment
+  // as menu.art — locally-bound /outcomes/… images are copied into assets/maps/ and the SHELL's
+  // resolved menu repointed, so the carousel works offline. Non-outcome URLs pass through; the
+  // recipe keeps the sovereign serve-side values. The shell hides the carousel if an image is
+  // missing, so an export baked before the stills existed still degrades to the label buttons.
+  let shellMenu = resolved.menu;
+  if (shellMenu) {
+    const copied = new Map();   // sovereign URL → assets path (a shot shared across modes copies once)
+    const repointShots = async (entries) => {
+      const out = [];
+      for (const en of entries) {
+        if (en && en.kind === 'menu' && Array.isArray(en.entries)) { out.push({ ...en, entries: await repointShots(en.entries) }); continue; }
+        if (!en || en.kind !== 'mode' || !Array.isArray(en.variants)) { out.push(en); continue; }
+        const variants = [];
+        for (const vr of en.variants) {
+          const m = typeof vr?.shot === 'string' ? vr.shot.match(/^\/outcomes\/([^/]+)\/(.+)$/) : null;
+          if (!m) { variants.push(vr); continue; }
+          if (!copied.has(vr.shot)) {
+            const srcAbs = path.join(outcomeDirFor(decodeURIComponent(m[1])), decodeURIComponent(m[2]));
+            const rel = `assets/maps/${path.basename(srcAbs)}`;
+            await write(rel, await fs.readFile(srcAbs));
+            copied.set(vr.shot, rel);
+          }
+          variants.push({ ...vr, shot: copied.get(vr.shot) });
+        }
+        out.push({ ...en, variants });
+      }
+      return out;
+    };
+    shellMenu = await repointShots(shellMenu);
+  }
+
+  await write('game.html', emitGameShell(shellManifest, resolved.levels, shellMenu, resolved.music, resolved.setup));
+  await writeRecipe('recipe/game.json', norm);
+
+  // levels — the ?walk=1&hud=0&download=1 bake, one self-contained page per level
+  for (const lv of resolved.levels) {
+    const levelSketch = getSketch(lv.ref);
+    await write(LEVEL_SRC(lv.ref), await emitWorldPage(levelSketch, 'level'));
+    await writeRecipe(`recipe/${lv.ref}.json`, levelSketch.manifest);
+  }
+
+  // menu worlds (a hangar, a viewer) — resolveGame already verified the refs exist
+  for (const en of norm.menu?.entries || []) {
+    if (en.kind !== 'world') continue;
+    const menuSketch = getSketch(en.ref);
+    await write(MENU_SRC(en.ref), await emitWorldPage(menuSketch, 'menu'));
+    await writeRecipe(`recipe/${en.ref}.json`, menuSketch.manifest);
+  }
+
+  // music — the shell's score as offline WAV renders (default opts match the served beats.wav)
+  const beatsRefs = [...new Set([norm.music?.menu, ...(norm.music?.battle || [])].filter(Boolean))];
+  for (const br of beatsRefs) {
+    const rendered = await renderBeatsOffline(getSketch(br).manifest, {});
+    await write(BEATS_SRC(br), rendered.wav);
+  }
+
+  // setup presentation — hangar card portraits (PNG stills) + preview turntables
+  for (const slice of Object.values(norm.setup || {})) {
+    if (slice.style !== 'hangar') continue;
+    for (const card of Object.values(slice.cards || {})) {
+      if (card.portrait) {
+        await write(PORTRAIT_SRC(card.portrait), await rasterizeSketchToPng(getSketch(card.portrait), { scale: 2 }));
+      }
+      if (card.preview) {
+        await write(PREVIEW_SRC(card.preview), await emitWorldPage(getSketch(card.preview), 'preview'));
+      }
+      // per-livery preview turntables (livery-ingame): one page per swatch so the setup carousel
+      // repaints offline too. De-duped against card.preview (the default livery reuses it).
+      for (const l of (card.liveries || [])) {
+        if (l && l.preview && l.preview !== card.preview) {
+          await write(PREVIEW_SRC(l.preview), await emitWorldPage(getSketch(l.preview), 'preview'));
+        }
+      }
+    }
+  }
+
+  await write('README.md', buildReadme({ manifest: norm, ref, hash, files }));
+
+  const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
+  const heavy = files.filter((f) => f.bytes > 25 * 1024 * 1024).map((f) => f.file);
+  return {
+    ok: true, ref, engine: 'shell', dir,
+    preview_url: `${outcomeUrlFor(ref)}game.html`,
+    files, total_bytes: totalBytes,
+    ...(heavy.length ? {
+      note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
+    } : {}),
+  };
+}
+
+export function registerExportGameTools() {
+  registerTool({
+    name: 'export_game',
+    description:
+      'Materialize a stored game as a SELF-CONTAINED folder the operator can share — the game '
+      + 'sibling of export_model / export_beats, and the first leg of publishing a playable artifact '
+      + '(game-publish: the folder is `git init && gh repo create` away from a GitHub-Pages public URL). '
+      + 'Pass the game `ref` (a create_game or create_pixelizer_game sketch). Writes '
+      + '`data/outcomes/<ref>/`: `game.html` (the shell, srcs resolved folder-relative), '
+      + '`levels/<ref>.html` (each level as a genuinely standalone page — three.js + geometry inlined, '
+      + 'zero network fetches), `assets/<ref>.wav` (the shell score via the deterministic offline '
+      + 'render), hangar setup portraits/previews when declared, `recipe/*.json` (the SOVEREIGN game + '
+      + 'level manifests — anyone with mojulo re-mints from these), and a provenance README (refs + '
+      + 'manifest hash + how to play + how to re-mint). Deterministic: same rows → same folder. The '
+      + 'folder previews locally at `/outcomes/<ref>/game.html` — exactly what ships. Level pages carry '
+      + 'their full inlined geometry, so a heavy world exports heavy (the result flags files over '
+      + "25MB). Slow for big games (each level is a full world bake). Reach for \"export this game\", "
+      + '"make the game shareable / playable outside mojulo", "publish the game to GitHub Pages".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
+      },
+      required: ['ref'],
+    },
+    handler: exportGameHandler,
+  });
+}

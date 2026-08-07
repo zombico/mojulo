@@ -523,6 +523,19 @@ describe('SOURCE_KINDS', () => {
       'orbit_composition',
       'orbit_artifact',
       'catalyst',
+      'sketch_vocab',
+      'sketch_method',
+      'manji_program',
+      'painted_landscape',
+      'view_vocab',
+      'beats_vocab',
+      'game_vocab',
+      'game_mechanic',
+      'game_kit',
+      'game_glyph',
+      'game_sfx',
+      'game_project',
+      'routing',
     ]);
   });
 });
@@ -565,5 +578,27 @@ describe('reindexAll', () => {
     const second = await reindexAll();
     expect(second.written).toBe(0);
     expect(second.skipped).toBe(first.totalSeen);
+  });
+
+  it('includes active local-shelf catalysts (merged catalog), not archived ones', async () => {
+    getDb();
+    const { LocalCatalystRepository } = await import('./local-catalysts.js');
+    const { validateCatalystMeta } = await import('../../mcp/catalysts/loader.js');
+    const mint = (id) =>
+      LocalCatalystRepository.create({
+        catalyst: validateCatalystMeta(
+          { id, name: id, summary: 's', valueHook: 'v' },
+          `body of ${id}`,
+        ),
+      });
+    mint('local-live');
+    mint('local-shelved');
+    LocalCatalystRepository.archive('local-shelved');
+
+    await reindexAll();
+    const live = EmbeddingsRepository.findByRef('catalyst', 'local-live');
+    expect(live).not.toBe(null);
+    expect(live.bodyText).toContain('body of local-live');
+    expect(EmbeddingsRepository.findByRef('catalyst', 'local-shelved')).toBe(null);
   });
 });

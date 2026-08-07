@@ -1,0 +1,244 @@
+{{>doc-head}}
+<style>
+  :root {
+    --ink: #1c1917;
+    --muted: #57534e;
+    --faint: #a8a29e;
+    --line: #e7e5e4;
+    --paper: #fafaf9;
+    --page: #ffffff;
+    --accent: #7c2d12;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .book {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 72px 24px 96px;
+  }
+  .cover {
+    text-align: center;
+    padding: 96px 32px 72px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 48px;
+  }
+  .cover .eyebrow {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 24px;
+  }
+  .cover h1 {
+    font-family: "Iowan Old Style", Palatino, Georgia, serif;
+    font-size: 44px;
+    line-height: 1.15;
+    margin: 0 0 36px;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .cover .front-matter {
+    font-size: 14.5px;
+    color: var(--muted);
+    max-width: 44ch;
+    margin: 0 auto;
+    font-style: italic;
+    line-height: 1.7;
+  }
+  .cover .front-matter p { margin: 0 0 0.9em; }
+  .cover .front-matter p:last-child { margin-bottom: 0; }
+
+  .toc {
+    margin: 0 0 64px;
+    padding: 28px 32px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .toc h2 {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 16px;
+    text-align: center;
+    font-weight: 600;
+  }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc li a {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 6px 0;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .toc li a:hover { color: var(--accent); }
+  .toc-num {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .toc-title {
+    flex: 1;
+    font-size: 14.5px;
+    font-style: italic;
+  }
+
+  .chapter {
+    margin: 0 0 64px;
+  }
+  .chapter-head {
+    text-align: center;
+    margin: 0 0 40px;
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .chapter-head .chapter-num {
+    font-family: "Iowan Old Style", Palatino, Georgia, serif;
+    font-size: 22px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    margin: 0 0 12px;
+    font-weight: 400;
+  }
+  .chapter-head h2 {
+    font-family: "Iowan Old Style", Palatino, Georgia, serif;
+    font-size: 26px;
+    margin: 0;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--ink);
+  }
+  .frontispiece {
+    margin: 0 auto 32px;
+    max-width: 480px;
+    text-align: center;
+  }
+  .frontispiece svg { width: 100%; height: auto; max-height: 320px; display: block; margin: 0 auto; }
+  .frontispiece figcaption {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-top: 10px;
+  }
+  .epigraph {
+    border: none;
+    margin: 0 auto 40px;
+    max-width: 440px;
+    padding: 0 32px;
+    text-align: center;
+  }
+  .epigraph p {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+    margin: 0;
+  }
+  .epigraph::after {
+    content: "";
+    display: block;
+    width: 48px;
+    height: 1px;
+    background: var(--accent);
+    margin: 20px auto 0;
+  }
+  .scene {
+    font-size: 16.5px;
+    color: var(--ink);
+    text-align: justify;
+    hyphens: auto;
+  }
+  .scene p { margin: 0 0 1.1em; text-indent: 1.4em; }
+  .scene p:first-child { text-indent: 0; }
+  .scene p:first-child::first-line { font-variant: small-caps; letter-spacing: 0.06em; }
+  .scene blockquote {
+    margin: 1em 1.5em;
+    font-style: italic;
+    color: var(--muted);
+    border: none;
+    padding: 0;
+  }
+
+  .scene-break {
+    border: none;
+    text-align: center;
+    margin: 32px 0;
+    color: var(--accent);
+  }
+  .scene-break::before {
+    content: "✦ ✦ ✦";
+    letter-spacing: 0.8em;
+    font-size: 12px;
+  }
+
+  .pull-quote {
+    text-align: center;
+    margin: 32px auto;
+    max-width: 380px;
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .pull-quote p {
+    font-style: italic;
+    color: var(--accent);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  footer.colophon {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: none; letter-spacing: 0; }
+
+  @media print {
+    body { background: white; }
+    .book { padding: 0; max-width: none; }
+    .cover, .toc, .chapter { page-break-after: always; break-after: page; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="book">
+  <section class="cover">
+    <p class="eyebrow">Fiction</p>
+    <h1>{{cover_title}}</h1>
+    <div class="front-matter">{{front_matter_html}}</div>
+  </section>
+
+  {{toc_html}}
+
+  {{chapters_html}}
+
+  <footer class="colophon">
+    novel template v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_human}}
+  </footer>
+</article>
+</body>
+</html>

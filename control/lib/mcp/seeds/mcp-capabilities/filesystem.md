@@ -98,6 +98,6 @@ If a future MCP exposes a watch affordance, the appropriate move is the same as 
 The reference implementation `@modelcontextprotocol/server-filesystem` exposes snake-cased tools: `read_file`, `write_file`, `list_directory`, `create_directory`, `move_file`, `search_files`, `get_file_info`, `edit_file`. Community forks (server-everything's filesystem subset, third-party rewrites) typically preserve these names but occasionally rename `read_file` → `read_text_file` or split `edit_file` into multiple affordances. The capability row's `readShapes`/`writeShapes` list semantic anchors (`read_file`, `write_file`, etc.); the generator's bind-time discovery resolves them to whatever the bound MCP actually exposes. **Compositions must not hard-code MCP tool names** — they reference affordance names from the primitive (`read`, `write`, `watch` for document-store; `list-recent`, `find-by-key-in-scope`, `create-with-mime` etc. for sub-affordances on richer primitives), and the generator binds them to actual tool names at composition time.
 
 <!-- sources
-  - mojulo://CHANGELOG#v0.7.0 (capability body authored as the seed for the `local-storage` technique; thinness is deliberate per the technique's family-template alignment)
+  - mojulo://CHANGELOG#v0.8.0 (capability body authored as the seed for the `local-storage` technique; thinness is deliberate per the technique's family-template alignment)
   - https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem (reference implementation; canonical tool names and allow-list-at-launch semantics)
 -->

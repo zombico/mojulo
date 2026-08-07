@@ -1,11 +1,20 @@
 // Unit test for the runner MCP handlers — covers input validation +
-// dispatch shape. The heavier integration smoke (real subprocess spawn
-// through the MCP dispatcher) lives in runner.integration.test.js.
+// dispatch shape, and the daemon-down behavior of the LocalRunner HTTP client
+// the handlers delegate to. The heavier integration smoke (real subprocess
+// spawn through the MCP dispatcher against a live daemon) lives in
+// runner.integration.test.js.
+//
+// MOJULO_HOME is isolated to a temp dir with no daemon port/bearer file, so
+// these tests deterministically exercise the "no daemon" path regardless of
+// what's running on the dev machine.
 
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
 import {
   listRunnersHandler,
@@ -17,11 +26,18 @@ import {
   setEnvHandler,
   deleteEnvHandler,
 } from './runner.js';
-import { LocalRunner } from '@/lib/runners/local';
+
+let homeRoot;
 
 beforeEach(() => {
   closeDb();
-  LocalRunner._reset();
+  homeRoot = mkdtempSync(join(tmpdir(), 'mojulo-home-'));
+  process.env.MOJULO_HOME = homeRoot;
+});
+
+afterEach(() => {
+  rmSync(homeRoot, { recursive: true, force: true });
+  delete process.env.MOJULO_HOME;
 });
 
 describe('list_runners', () => {
@@ -35,7 +51,7 @@ describe('list_runners', () => {
 });
 
 describe('list_running', () => {
-  it('returns { running: [] } when nothing is started', async () => {
+  it('returns { running: [] } when the daemon is unreachable (degrades)', async () => {
     const out = await listRunningHandler();
     expect(out.running).toEqual([]);
   });
@@ -66,10 +82,11 @@ describe('stop_app — validation', () => {
     await expect(stopAppHandler({})).rejects.toThrow(/running_ref/);
   });
 
-  it('returns stopped: false on unknown running_ref', async () => {
-    const out = await stopAppHandler({ running_ref: 'run-unknown' });
-    expect(out.stopped).toBe(false);
-    expect(out.reason).toBe('unknown_running_ref');
+  it('throws a clear error when the daemon is unreachable', async () => {
+    // stop is a write — it can't no-op when the daemon (which owns the
+    // processes) is down. The unknown-ref no-op is covered against the live
+    // engine in engine.integration.test.js.
+    await expect(stopAppHandler({ running_ref: 'run-unknown' })).rejects.toThrow(/not reachable/);
   });
 });
 

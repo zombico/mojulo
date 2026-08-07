@@ -1,0 +1,157 @@
+{{>doc-head}}
+<style>
+  body { --viewer-aspect: {{viewer_aspect}}; }
+</style>
+<style>
+  :root {
+    --ink: #18181b;
+    --muted: #52525b;
+    --faint: #a1a1aa;
+    --line: #e4e4e7;
+    --paper: #fafafa;
+    --panel: #ffffff;
+    --accent: #7c3aed;
+    --accent-soft: #f5f3ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .tri-fold {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 32px 0 96px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 36px 32px;
+    margin: 0 0 24px;
+    aspect-ratio: 11 / 17;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .panel.front {
+    background: linear-gradient(160deg, var(--accent) 0%, #5b21b6 100%);
+    color: white;
+    justify-content: space-between;
+    text-align: left;
+  }
+  .panel.front .top { }
+  .panel.front .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 12px;
+  }
+  .panel.front h1 {
+    font-size: 30px;
+    line-height: 1.1;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .panel.front .imprint {
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0;
+  }
+  .panel.back {
+    background: var(--accent-soft);
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+  }
+  .panel.back h2 {
+    font-size: 20px;
+    margin: 0 0 8px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .panel.back .end-note {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 32ch;
+  }
+  .panel.content .label {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 8px;
+    font-weight: 700;
+  }
+  .panel.content h2 {
+    font-size: 22px;
+    margin: 0 0 14px;
+    color: var(--ink);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .panel.content .body {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.55;
+    flex: 1;
+    overflow: auto;
+  }
+  .panel.content .body p { margin: 0 0 0.8em; }
+  .panel.content .body ul, .panel.content .body ol { padding-left: 1.4em; margin: 0 0 0.8em; }
+  .panel.content .body strong { color: var(--ink); }
+  .panel.content .illustration {
+    margin-top: 14px;
+    background: var(--paper);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: 40%;
+  }
+  .panel.content .illustration svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  footer.colophon {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  @media print {
+    body { background: white; }
+    .tri-fold { max-width: none; padding: 0; }
+    .panel { box-shadow: none; border: none; margin: 0; aspect-ratio: auto; }
+    @page { size: letter; margin: 0; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="tri-fold">
+  {{panels_html}}
+  <footer class="colophon">
+    pamphlet template v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_human}}
+  </footer>
+</article>
+
+{{>book-viewer}}
+</body>
+</html>

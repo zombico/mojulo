@@ -9,6 +9,9 @@
 //   - mcp_orbit_compositions via MCPOrbitCompositionRepository.insertWithEmbedding
 //   - mcp_orbit_provider_artifacts via ProviderArtifactRepository.insertWithEmbedding
 //   - catalysts via reindexAll() (filesystem markdown — no write event)
+//   - sketch_vocab via reindexAll() (filesystem markdown — no write event)
+//   - sketch_method via reindexAll() (filesystem capability catalog)
+//   - manji_program via reindexAll() (filesystem + in-code illustration cards)
 //
 // Then runs semantic_search and confirms cross-kind recall returns the
 // expected refs with the expected source_kind tags.
@@ -66,6 +69,12 @@ import {
   commitPrimitiveArtifactMaterialization,
 } from '@/lib/mcp/tools/meta-context';
 import { semanticSearchHandler } from '@/lib/mcp/tools/semantic-search';
+import { getSketchVocabCard } from '@/lib/graph/sketch-vocab/loader';
+import { getSketchMethodCatalog } from '@/lib/graph/polygonizer/capabilities/loader';
+import { resolveManjiProgramCard } from '@/lib/graph/polygonizer/mandala-patterns';
+import { getPaintedLandscapeCardCatalog } from '@/lib/graph/painted-landscape-cards/loader';
+import { getBeatsVocabCard } from '@/lib/graph/beats/beats-vocab/loader';
+import { getViewVocabCatalog } from '@/lib/graph/views/view-vocab/loader';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -208,19 +217,31 @@ async function seedFullCorpus() {
 describe('semantic_search — cross-kind recall integration', () => {
   it('returns rows tagged with every source_kind we wrote', async () => {
     await seedFullCorpus();
-    const { results } = await semanticSearchHandler({ query: 'lead routing into HubSpot', limit: 50 });
-    expect(results.length).toBeGreaterThan(0);
-    const kinds = new Set(results.map((r) => r.source_kind));
     // We expect at least one row per kind we seeded — the integration is
     // only "working" if the index actually has material from every host
-    // write path the plan touches.
-    expect(kinds.has('principle')).toBe(true);
-    expect(kinds.has('mcp_tool')).toBe(true);
-    expect(kinds.has('mcp_capability')).toBe(true);
-    expect(kinds.has('orbit_component')).toBe(true);
-    expect(kinds.has('orbit_composition')).toBe(true);
-    expect(kinds.has('orbit_artifact')).toBe(true);
-    expect(kinds.has('catalyst')).toBe(true);
+    // write path the plan touches. Scope per kind so a broad query's
+    // ranking does not accidentally crowd out a source kind at limit=50.
+    const expectedKinds = [
+      'principle',
+      'mcp_tool',
+      'mcp_capability',
+      'orbit_component',
+      'orbit_composition',
+      'orbit_artifact',
+      'catalyst',
+      'sketch_vocab',
+      'sketch_method',
+      'manji_program',
+    ];
+    for (const kind of expectedKinds) {
+      const { results } = await semanticSearchHandler({
+        query: 'lead routing into HubSpot illustration card architecture',
+        kinds: [kind],
+        limit: 5,
+      });
+      expect(results.length, `${kind} should return at least one result`).toBeGreaterThan(0);
+      for (const r of results) expect(r.source_kind).toBe(kind);
+    }
   });
 
   it('per-kind scoping returns rows only of the requested kind', async () => {
@@ -239,10 +260,16 @@ describe('semantic_search — cross-kind recall integration', () => {
     expect(results.map((r) => r.source_ref)).toContain('google_calendar::create_event');
   });
 
-  it('snippets respect the 280-char cap', async () => {
+  it('snippets respect the 280-char cap (routing cards exempt — returned whole by contract)', async () => {
     await seedFullCorpus();
     const { results } = await semanticSearchHandler({ query: 'HubSpot', limit: 50 });
-    for (const r of results) expect(r.snippet.length).toBeLessThanOrEqual(280);
+    for (const r of results) {
+      // Routing cards deliberately return the full composed body — they have
+      // no structured reader and are lint-capped at source. Everything else
+      // pairs with a reader and stays snippet-sized.
+      if (r.source_kind === 'routing') continue;
+      expect(r.snippet.length).toBeLessThanOrEqual(280);
+    }
   });
 
   it('every result references a real row in its source table', async () => {
@@ -301,6 +328,70 @@ describe('semantic_search — cross-kind recall integration', () => {
           // Catalysts come from the filesystem via the loader; we only
           // assert the source_ref looks like an id.
           expect(r.source_ref).toMatch(/^[a-z0-9-]+$/);
+          break;
+        }
+        case 'sketch_vocab': {
+          const card = getSketchVocabCard(r.source_ref);
+          expect(card, `sketch_vocab ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'sketch_method': {
+          const method = getSketchMethodCatalog().get(r.source_ref);
+          expect(method, `sketch_method ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'manji_program': {
+          const card = resolveManjiProgramCard(r.source_ref);
+          expect(card, `manji_program ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'painted_landscape': {
+          const card = getPaintedLandscapeCardCatalog().get(r.source_ref);
+          expect(card, `painted_landscape ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'view_vocab': {
+          const card = getViewVocabCatalog().get(r.source_ref);
+          expect(card, `view_vocab ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'beats_vocab': {
+          const card = getBeatsVocabCard(r.source_ref);
+          expect(card, `beats_vocab ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'routing': {
+          const { getRoutingCardCatalog } = await import('@/lib/mcp/routing-cards/loader');
+          const card = getRoutingCardCatalog().get(r.source_ref);
+          expect(card, `routing card ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        // The five game card families ship through reindexAll like the other
+        // filesystem/generated shelves; which of them surface in the top-50
+        // is score-dependent, so all five need resolvable cases here.
+        case 'game_vocab': {
+          const { getGameVocabCatalog } = await import('@/lib/graph/game/slice-cards/loader');
+          expect(getGameVocabCatalog().get(r.source_ref), `game_vocab ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'game_mechanic': {
+          const { getMechanicVocabCatalog } = await import('@/lib/graph/game/mechanic-cards/loader');
+          expect(getMechanicVocabCatalog().get(r.source_ref), `game_mechanic ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'game_kit': {
+          const { getKitVocabCatalog } = await import('@/lib/graph/game/kit-cards/loader');
+          expect(getKitVocabCatalog().get(r.source_ref), `game_kit ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'game_glyph': {
+          const { getGlyphVocabCatalog } = await import('@/lib/graph/game/glyph-cards/loader');
+          expect(getGlyphVocabCatalog().get(r.source_ref), `game_glyph ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
+        case 'game_sfx': {
+          const { getSfxVocabCatalog } = await import('@/lib/graph/game/sfx-cards/loader');
+          expect(getSfxVocabCatalog().get(r.source_ref), `game_sfx ${r.source_ref} should exist`).toBeTruthy();
           break;
         }
         default:

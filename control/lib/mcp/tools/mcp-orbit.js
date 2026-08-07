@@ -548,6 +548,18 @@ export async function recommendCompositionsHandler(input, _ctx) {
     warnings.push('inventory_stale');
   }
 
+  // Response-layer redirect (same pattern as the provider-state warning tags):
+  // when the declared inventory carries introspected inputSchemas, the
+  // runtime-introspected composer produces a higher-confidence artifact than
+  // this vendor-shaped one — say so in the response, so an agent that picked
+  // the wrong door gets redirected by the door itself. The decision rule
+  // lives in forward_context's routing row: schemas declared →
+  // `bind_primitives`; first encounter without schema knowledge → here.
+  const schemaToolCount = inventory.servers.reduce(
+    (sum, srv) => sum + srv.tools.filter((t) => t.inputSchema).length,
+    0,
+  );
+
   return {
     ok: true,
     operatorAnchor: operatorAnchor
@@ -580,6 +592,15 @@ export async function recommendCompositionsHandler(input, _ctx) {
       'Dry-run against a draft destination artifact before promoting.',
       'On promotion: host-adapter materialization → `meta_context_commit({type:"artifact_materialization", ...})`. Record the compositionRef in an artifact-scope principle.',
     ],
+    ...(schemaToolCount > 0
+      ? {
+          bindPrimitivesHint:
+            `Declared inventory carries introspected inputSchemas for ${schemaToolCount} tool(s). ` +
+            "`bind_primitives` fills a role template with the operator's actual installed tool schemas " +
+            'and produces a higher-confidence artifact than this vendor-shaped composer — prefer it ' +
+            'unless a chosen provider has no schema knowledge at all.',
+        }
+      : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
   };
 }

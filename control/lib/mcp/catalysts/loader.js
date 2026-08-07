@@ -14,11 +14,11 @@
  * resulting skill — it's the nucleation point that lets the skill crystallize
  * out.
  *
- * Mojulo only ships the canonical library — there is no user-writable
- * catalyst directory. Custom or one-off patterns are Claude Code's
- * responsibility: a user wanting a bespoke workflow either lets Claude
- * synthesize from scratch or maintains their own catalyst-shaped markdown
- * locally.
+ * This loader owns the CURATED shelf only. The operator's own catalysts are
+ * DB rows (`mint_catalyst` → lib/db/repositories/local-catalysts.js), merged
+ * with this catalog by lib/mcp/catalysts/catalog.js — see
+ * local-catalysts.plan.md. One-off automations that aren't catalyst-shaped
+ * remain the host agent's responsibility (a local skill, not a shelf entry).
  *
  * File format — JSON frontmatter between two `---` fences, then markdown body:
  *
@@ -63,6 +63,99 @@ const VALID_KINDS = new Set(['workflow', 'technique']);
 
 let _catalog = null;
 
+/**
+ * Object-level catalyst validation, shared by the file loader and the
+ * `mint_catalyst` write path (local-catalysts.plan.md, D3). `source` anchors
+ * error messages (a file path for the curated shelf, a mint descriptor for
+ * local rows). When `shelfKind` is set, an explicit frontmatter `kind` must
+ * match it (the curated shelves infer kind from directory placement); minted
+ * catalysts have no shelf, so they pass `defaultKind` only and may declare
+ * either kind freely.
+ *
+ * Returns the normalized catalyst object (without any shelf/file bookkeeping).
+ */
+export function validateCatalystMeta(meta, body, { defaultKind = 'workflow', shelfKind = null, source = 'catalyst' } = {}) {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    throw new Error(`Catalyst ${source} frontmatter must be a JSON object.`);
+  }
+  for (const field of REQUIRED_FIELDS) {
+    if (!meta[field] || typeof meta[field] !== 'string') {
+      throw new Error(`Catalyst ${source} is missing required string field '${field}'.`);
+    }
+  }
+  let kind = shelfKind ?? defaultKind;
+  if (meta.kind !== undefined) {
+    if (typeof meta.kind !== 'string' || !VALID_KINDS.has(meta.kind)) {
+      throw new Error(
+        `Catalyst ${source} has invalid 'kind' value '${meta.kind}' (must be one of: ${[...VALID_KINDS].join(', ')}).`
+      );
+    }
+    if (shelfKind && meta.kind !== shelfKind) {
+      throw new Error(
+        `Catalyst ${source} declares kind '${meta.kind}' but its shelf implies kind '${shelfKind}'. Move the file or remove the explicit kind.`
+      );
+    }
+    kind = meta.kind;
+  }
+  const trimmedBody = typeof body === 'string' ? body.trim() : '';
+  if (!trimmedBody) {
+    throw new Error(`Catalyst ${source} has an empty body — the prose is the catalyst's value.`);
+  }
+  const requires = meta.requires || {};
+  // destinationExamples powers recommend_catalysts' consultation suggestions
+  // ("you could install HubSpot to unlock this"). Formerly enforced only by
+  // loader.test.js as a curation guardrail; mechanical here because minted
+  // catalysts have no PR review.
+  if (requires.destinationMcpCategory) {
+    const examples = requires.destinationExamples;
+    const ok =
+      Array.isArray(examples) &&
+      examples.length > 0 &&
+      examples.every((e) => typeof e === 'string' && e.length > 0);
+    if (!ok) {
+      throw new Error(
+        `Catalyst ${source} sets requires.destinationMcpCategory but requires.destinationExamples must be a non-empty array of named MCPs that satisfy the category.`
+      );
+    }
+  }
+  return {
+    id: meta.id,
+    name: meta.name,
+    summary: meta.summary,
+    valueHook: meta.valueHook,
+    kind,
+    version: meta.version ?? 1,
+    category: meta.category || null,
+    requires,
+    parameters: Array.isArray(meta.parameters) ? meta.parameters : [],
+    mcpTools: meta.mcpTools || {},
+    // Optional structured shape of the per-run output the materialized
+    // artifact must produce. When present, host adapters can read this to
+    // shape their own output reporting without parsing prose. Required for
+    // new catalysts after the Phase 2 cutover; optional during migration.
+    outputContract: meta.outputContract || null,
+    body: trimmedBody,
+  };
+}
+
+/**
+ * Serialize a normalized catalyst back to the exact `.md` shape the curated
+ * shelf holds — the graduation affordance (local-catalysts.plan.md, D7): a
+ * minted catalyst that proves out is PR'd as this file, verbatim. Round-trips
+ * through parseCatalystFile.
+ */
+export function serializeCatalystFile(catalyst) {
+  const meta = { id: catalyst.id, name: catalyst.name, summary: catalyst.summary, valueHook: catalyst.valueHook };
+  if (catalyst.kind && catalyst.kind !== 'workflow') meta.kind = catalyst.kind;
+  if (catalyst.version && catalyst.version !== 1) meta.version = catalyst.version;
+  if (catalyst.category) meta.category = catalyst.category;
+  if (catalyst.requires && Object.keys(catalyst.requires).length) meta.requires = catalyst.requires;
+  if (Array.isArray(catalyst.parameters) && catalyst.parameters.length) meta.parameters = catalyst.parameters;
+  if (catalyst.mcpTools && Object.keys(catalyst.mcpTools).length) meta.mcpTools = catalyst.mcpTools;
+  if (catalyst.outputContract) meta.outputContract = catalyst.outputContract;
+  return `---\n${JSON.stringify(meta, null, 2)}\n---\n\n${catalyst.body}\n`;
+}
+
 function parseCatalystFile(filePath, raw, { defaultKind = 'workflow' } = {}) {
   const match = raw.match(FRONTMATTER_FENCE);
   if (!match) {
@@ -76,52 +169,15 @@ function parseCatalystFile(filePath, raw, { defaultKind = 'workflow' } = {}) {
   } catch (err) {
     throw new Error(`Catalyst ${filePath} has invalid JSON frontmatter: ${err.message}`);
   }
-  for (const field of REQUIRED_FIELDS) {
-    if (!meta[field] || typeof meta[field] !== 'string') {
-      throw new Error(`Catalyst ${filePath} is missing required string field '${field}'.`);
-    }
-  }
-  let kind = defaultKind;
-  if (meta.kind !== undefined) {
-    if (typeof meta.kind !== 'string' || !VALID_KINDS.has(meta.kind)) {
-      throw new Error(
-        `Catalyst ${filePath} has invalid 'kind' value '${meta.kind}' (must be one of: ${[...VALID_KINDS].join(', ')}).`
-      );
-    }
-    if (meta.kind !== defaultKind) {
-      throw new Error(
-        `Catalyst ${filePath} declares kind '${meta.kind}' but its shelf implies kind '${defaultKind}'. Move the file or remove the explicit kind.`
-      );
-    }
-    kind = meta.kind;
-  }
-  const body = raw.slice(match[0].length).trim();
-  if (!body) {
-    throw new Error(`Catalyst ${filePath} has an empty body — the prose is the catalyst's value.`);
-  }
-  return {
-    id: meta.id,
-    name: meta.name,
-    summary: meta.summary,
-    valueHook: meta.valueHook,
-    kind,
-    version: meta.version ?? 1,
-    category: meta.category || null,
-    requires: meta.requires || {},
-    parameters: Array.isArray(meta.parameters) ? meta.parameters : [],
-    mcpTools: meta.mcpTools || {},
-    // Optional structured shape of the per-run output the materialized
-    // artifact must produce. When present, host adapters can read this to
-    // shape their own output reporting without parsing prose. Required for
-    // new catalysts after the Phase 2 cutover; optional during migration.
-    outputContract: meta.outputContract || null,
-    body,
-  };
+  const body = raw.slice(match[0].length);
+  return validateCatalystMeta(meta, body, { shelfKind: defaultKind, source: filePath });
 }
 
 function loadShelf(dirPath, defaultKind, catalysts) {
   if (!existsSync(dirPath)) return;
-  const files = readdirSync(dirPath).filter((f) => f.endsWith('.md'));
+  // *.plan.md files are design docs colocated by repo convention, not shelf
+  // entries (e.g. local-catalysts.plan.md).
+  const files = readdirSync(dirPath).filter((f) => f.endsWith('.md') && !f.endsWith('.plan.md'));
   for (const file of files) {
     const filePath = join(dirPath, file);
     const raw = readFileSync(filePath, 'utf8');

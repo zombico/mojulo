@@ -1,23 +1,48 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) and other agent runtimes working in this repository. Keep this file as the fast orientation layer: commands, invariants, and pointers to deeper docs. If a detail needs a paragraph of caveats, it probably belongs in `docs/` or an integration plan, then linked here.
+
+## First read
+
+- [docs/STATUS.md](docs/STATUS.md) is the current-state snapshot: what's true *right now*, including uncommitted branch work (it supersedes the changelog's Unreleased view). **Committing a staged batch supersedes its branch-state section — rewriting STATUS.md is part of the commit, not an afterthought.**
+- [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) is the source of truth for bot factory flow: cartridge composition, vector baking, artifact layout, Fly deploy, and Connect Bot proxy.
+- [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) is the source of truth for the headless control surface: transport, ring model, session binding, deliberation surfaces, catalysts, mcp-orbit, and primitive binding.
+- [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) is the source of truth for the polygonizer/manji-tree substrate as it stands today: the four wave primitives, structure-manji, the seven field kinds, shelf cards, and how they all couple. Supersedes the dozen integration plan files in `lite-template/integration/0605/`.
+- [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) is the deeper agent-facing map for MCP rings, data layout, runtime daemons, and release notes that are too dense for this file.
+- [AGENTS.md](AGENTS.md) adds Codex-specific setup for connecting to the local MCP control plane.
+
+Read the relevant deeper doc before non-trivial work that crosses `control/` and `lite-template/`, changes deploy/build behavior, or touches the MCP tool registry.
 
 ## Repo shape
 
-Two-package monorepo. Both must usually be understood together:
+Mojulo is the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing after the chat ends: running chatbots, connected services, apps, media (worlds, views, films, audio, publications — minted as tiny deterministic recipes), and playable games composed from the rest. The canonical self-description lives in the `get_substrate` drawer ([control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js)); keep user-facing copy consistent with it.
 
-- [control/](control/) — Next.js 16 control plane (port 3001). The "factory" that compiles bots **and** the MCP server external Claude Code sessions drive.
-- [lite-template/](lite-template/) — Express 5 bot runtime (port 3000). The thing that gets compiled and shipped.
+Two-package monorepo. Both usually matter:
 
-The control plane stages files from [lite-template/](lite-template/) into a per-bot zip; the same source tree is also published as the GHCR image `ghcr.io/zombico/mojulo-bot:X.Y.Z` via [.github/workflows/publish-bot-image.yml](.github/workflows/publish-bot-image.yml). When you change [lite-template/](lite-template/) you typically also need to bump [BOT_IMAGE](control/.env.example) (or rely on `MOJULO_OFFLINE_BUILD=1` to bundle source instead of pulling).
+- [control/](control/) - Next.js 16 control plane on port 3001. It is the bot factory, dashboard, and HTTP MCP server.
+- [lite-template/](lite-template/) - Express 5 bot runtime on port 3000. It is the source staged into per-bot artifacts and published as the GHCR bot image.
 
-The control plane is increasingly used **headlessly** — a user runs Claude Code against the control plane's MCP server ([control/lib/mcp/](control/lib/mcp/)) to design, deploy, observe, and act on the bot fleet. The Next.js UI (chat builder + wizard + `/data` pane) and the MCP tools are two faces of the same primitives. Changes that touch builder, deployer, or fleet code should be reviewed against both faces.
+The control plane stages files from `lite-template/` into a per-bot zip. The same runtime is published as `ghcr.io/zombico/mojulo-bot:X.Y.Z` via [.github/workflows/publish-bot-image.yml](.github/workflows/publish-bot-image.yml). When changing `lite-template/`, check whether [control/.env.example](control/.env.example)'s `BOT_IMAGE` and the matching constant in [control/lib/deployers/docker.js](control/lib/deployers/docker.js) need a bot tag bump.
 
-[docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) is the source of truth for the bot factory's build-time → runtime data flow (cartridge composition, vector baking, artifact layout, Fly cloud deploy, Connect Bot proxy). [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) is the source of truth for the headless control surface (transport, ring model, session binding, deliberation surfaces, catalysts, mcp-orbit, primitive binding). Always read the relevant one before non-trivial changes that cross the control/lite-template boundary or touch the MCP tool registry.
+The control plane is increasingly headless: the dashboard, chat builder, wizard, and MCP tools are different faces over the same primitives. Changes to builder, deployer, fleet, or app runtime code should be checked against both UI and MCP call paths.
+
+## Golden rules
+
+- Conversation data never moves into the control-plane DB. Per-bot conversation and submission reads must go through [control/lib/deployers/bot-proxy.js](control/lib/deployers/bot-proxy.js).
+- The chat builder, modular wizard, and MCP build tools converge on [buildDeploymentConfig()](control/lib/config-builder.js). Do not add paradigm-specific branches downstream of config composition.
+- Bot turn rows must go through the hashing helpers. Do not insert turns that bypass `content_hash` / `chain_hash`; see [docs/turn-hashing.md](docs/turn-hashing.md).
+- The bot image is bot-agnostic. Fly deploy injects per-bot config as files; do not rebuild images per bot.
+- `forward_context` is a thin routing index, not a glossary. Keep heavy orientation behind Ring 0 drawers and update `TOOL_INDEX` / `ROUTING_INDEX` when adding main-flow MCP tools.
+- The control plane is single-user and self-hosted. Do not introduce multi-tenant assumptions.
+- The MCP transport binds to localhost. Do not expose it publicly or add a tunnel path — the substrate has no auth layer and assumes loopback-only reachability. Remote agents reach mojulo by being run on the same host, not by the substrate reaching out to them.
+- The dashboard is not a conversational surface. The operator drives mojulo from their host MCP agent (Claude Code / Codex / etc.); dashboard pages render state and offer "copy starter prompt" affordances that direct the operator to drive work from that agent. The bot builder chat is the deliberate exception (it is the bot's own chat, not a chat with the substrate). Do not add `HomeAgentChat`/`useAgentChatStream` consumers to deliberation surfaces.
+- Do not read or echo `.env` secrets from generated bot/app directories. Use masking helpers or MCP tools designed for env inspection.
+- UI strings should be i18n-ready in the English source messages.
+- Capability, intent, and suitability assessments belong to the operator, not to mojulo or the maintainer. When drafting user-facing copy, marketing material, dashboard affordances, or refusal/gating logic, default to the posture in [TERMS.md](TERMS.md) and [docs/responsibility-model.md](docs/responsibility-model.md): the substrate composes primitives, the operator owns the consequences. Do not introduce intent-classification, use-case gating, or content-policy enforcement layers on top of what the operator's LLM provider already enforces.
 
 ## Commands
 
-### Control plane ([control/](control/))
+### Control plane
 
 ```bash
 cd control
@@ -26,137 +51,68 @@ npm install
 npm run dev                 # Next.js on http://localhost:3001
 npm run build               # next build
 npm run start               # next start -p 3001
-npm run build:bot           # docker build -t mojulo/bot:latest ../lite-template (offline-mode artifacts)
-node scripts/cleanup-stale-artifacts.js [--dry-run]   # GC zips whose deployment_id is gone
-node scripts/reindex-embeddings.js [--verbose]        # Manual reindex of the meta_embeddings semantic-search sidecar (idempotent)
+npm run build:bot           # docker build -t mojulo/bot:latest ../lite-template
+node scripts/cleanup-stale-artifacts.js [--dry-run]
+node scripts/reindex-embeddings.js [--verbose]
 ```
 
-There is **no test runner, lint, or typecheck script** in either package. To smoke-check a JS file: `node --check <file>`. For JSX, parse with `@babel/parser` (see [.claude/settings.local.json](.claude/settings.local.json) for the exact invocation that has been pre-approved).
+There is no repo-wide lint/typecheck script. For simple JS smoke checks, use `node --check <file>`. For JSX, parse with `@babel/parser` from the `control` package. The control path alias is `@/*` -> `./*` in [control/jsconfig.json](control/jsconfig.json).
 
-Path alias in control: `@/*` → `./*` (see [control/jsconfig.json](control/jsconfig.json)).
-
-### Bot runtime ([lite-template/](lite-template/))
+### Bot runtime
 
 ```bash
 cd lite-template
-npm install                 # postinstall fetches multilingual-e5-small q8 ONNX (~113MB) into models/
-npm start                   # node server.js  (port 3000)
-docker compose up           # uses the local Dockerfile; Debian slim Node 20
+npm install                 # fetches multilingual-e5-small q8 ONNX into models/
+npm start                   # node server.js on port 3000
+docker compose up           # Debian slim Node 20 runtime
 ```
 
-The `.onnx` weights are gitignored (>100MB). They're fetched by [scripts/fetch-embed-model.mjs](lite-template/scripts/fetch-embed-model.mjs) at `npm install` and again inside the Docker build. **Do not commit them.**
+The `.onnx` weights are gitignored and larger than 100MB. They are fetched by [lite-template/scripts/fetch-embed-model.mjs](lite-template/scripts/fetch-embed-model.mjs) during bot install/build. Do not commit model weights.
 
-### Bot image publish
+## Release notes
 
-Tag a release `bot-vX.Y.Z` and push the tag — [publish-bot-image.yml](.github/workflows/publish-bot-image.yml) builds multi-arch (amd64+arm64) and pushes `ghcr.io/zombico/mojulo-bot:X.Y.Z` plus `:latest` (latest only on default branch). The control plane pins an exact tag in [control/lib/deployers/docker.js](control/lib/deployers/docker.js) — never use `:latest` from the control plane side.
+### Bot image
 
-### Control-plane release
+Tag a bot runtime release as `bot-vX.Y.Z` and push it. The publish workflow builds multi-arch images and pushes `ghcr.io/zombico/mojulo-bot:X.Y.Z` plus `:latest` on the default branch. The control plane pins exact bot tags; never use `:latest` from control-plane deploy code.
 
-Add a `## [X.Y.Z] — YYYY-MM-DD` section to [control/CHANGELOG.md](control/CHANGELOG.md), commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`. [publish-release.yml](.github/workflows/publish-release.yml) fires on the tag push, slices the matching changelog section, and creates a GitHub Release with that body marked as `--latest`. The workflow fails loudly if the section is missing — don't push the tag before the changelog entry exists. `bot-v*` tags do not trigger this workflow (they don't start with `v`).
+### Control plane
 
-## Architecture, the parts that need multiple files to grasp
+Add a `## [X.Y.Z] - YYYY-MM-DD` section to [control/CHANGELOG.md](control/CHANGELOG.md), commit, then tag `vX.Y.Z`. The release workflow slices that changelog section. `bot-v*` tags do not trigger control-plane releases.
 
-### MCP control surface
+## Architecture map
 
-The control plane runs an MCP server at `/api/mcp` (HTTP transport + bearer auth) so any Claude Code session can drive bot design, deploy, observation, and outcome workflows from outside the UI. Protocol dispatch lives in [control/lib/mcp/server.js](control/lib/mcp/server.js); tools are registered in **rings** under [control/lib/mcp/tools/](control/lib/mcp/tools/):
-
-- Ring 0 — [context.js](control/lib/mcp/tools/context.js): `forward_context`. The `initialize` preamble is deliberately tiny; this tool hands the connecting agent the full glossary, capability model, deploy/connect lifecycle, and tool index on demand.
-- Ring 1 — [build.js](control/lib/mcp/tools/build.js): bot design tools that wrap `BuilderSession` and call into the same [tool-executors.js](control/lib/builder/tool-executors.js) the chat builder uses. Sessions are attached via [session-binding.js](control/lib/mcp/session-binding.js) keyed on `mcpSessionId`.
-- Ring 2 — [jobs-tools.js](control/lib/mcp/tools/jobs-tools.js): async deploy / rebuild jobs ([jobs.js](control/lib/mcp/jobs.js)). MCP clients are short-lived, so long-running deploys are surfaced as poll-able jobs.
-- Ring 3 — [operate.js](control/lib/mcp/tools/operate.js): per-bot read tools (`get_deployment`, conversation/submission readers, chain verification). All forward through [bot-proxy.js](control/lib/deployers/bot-proxy.js); none copy data into the control-plane DB.
-- Ring 4 — [fleet.js](control/lib/mcp/tools/fleet.js): cross-bot rollups + the SQL Explorer (see Fleet aggregation below).
-- Ring 5 — [catalysts.js](control/lib/mcp/tools/catalysts.js): `list_catalysts` / `get_catalyst` / `recommend_catalysts` (see Catalysts below).
-- Ring 6 — six deliberation surfaces, all bot-independent and used together when the agent reasons about structure rather than reads content:
-  - **Contextmap** — [meta-context.js](control/lib/mcp/tools/meta-context.js): `meta_context_brief` / `meta_context_commit`. Writeable, durable layer that records *why* structural decisions were made — what host adapter materialized which artifact for which bot, what locked-in constraints the operator declared, what mapping decisions specific bindings encode. Three MVP write triggers: operator KYC (optional bootstrap), `artifact_materialization` (bot-shaped catalyst flow, atomic per-materialization), and `primitive_artifact_materialization` (no-bot primitive-binding flow, sibling commit path that records the artifact → bound MCP tools audit chain). Writes happen at structural events only, never at outcome events — outcomes happen at run-rate, structural decisions at deliberation-rate, and the asymmetry is what makes the layer auditable. Adapter-delegated verification runs before each commit ([meta-context/verification.js](control/lib/mcp/meta-context/verification.js)) — claude-code/generic require existsSync, codex accepts opaque automation handles on the agent's assertion (deliberate MVP relaxation). See [docs/meta-context.md](docs/meta-context.md).
-  - **Inventory** — [mcp-inventory.js](control/lib/mcp/tools/mcp-inventory.js): `meta_context_declare_inventory`. Replace-semantic current-state cache of the connecting agent's MCP environment (which servers are connected, which tools they expose, optionally with per-tool `inputSchema` + `introspectionConfidence` in richer-snapshot mode for primitive binding). Sits alongside the append-only contextmap on purpose: inventory is *present environment*, not a sealed decision, so it gets DELETE+INSERT semantics in one transaction. The entry point for using mojulo without deploying a chatbot — once inventory is declared, MCP-to-MCP workflows have something to compose against. Snapshot rides on `meta_context_brief({kind:'fleet'})` as `inventory.{servers, declaredAt, ageSeconds, toolCount}`. See [lite-template/integration/MCP_INVENTORY_PLAN.md](lite-template/integration/MCP_INVENTORY_PLAN.md).
-  - **Capabilities** — [mcp-capabilities.js](control/lib/mcp/tools/mcp-capabilities.js): `record_mcp_capabilities` / `get_mcp_capabilities`. The **research facet** of a provider, sibling to inventory's introspection facet. `record_mcp_capabilities` writes a vendor knowledge body (frontmatter + prose + cited URLs) for one canonical `provider_ref` with transactional supersession preserving full history; `get_mcp_capabilities` reads the current row or walks the chain via `asOf`. Both write into provider rows on a shared identity layer (`meta_mcp_providers`) — one logical "Gmail" in mojulo regardless of which path arrived at it. Mojulo ships four seeded vendor bodies on first install (gmail, notion, linear, google_drive) honestly attributed via `source_urls[0]=mojulo://CHANGELOG#v0.5.0`; the `research-mcp-vendor` catalyst refreshes them. See [lib/mcp/seeds/mcp-capabilities/](control/lib/mcp/seeds/mcp-capabilities/) for the seed bodies and the catalyst at [lib/mcp/catalysts/research-mcp-vendor.md](control/lib/mcp/catalysts/research-mcp-vendor.md).
-  - **mcp-orbit composer** — [mcp-orbit.js](control/lib/mcp/tools/mcp-orbit.js): `list_mcp_orbit_components` / `get_mcp_orbit_component` / `get_meta_catalyst` / `recommend_mcp_orbit_compositions`. Sits on top of contextmap + inventory + capabilities through a consolidated view (`CapabilitiesRepository.consolidatedView`). Decomposes the non-bot workflow space into five typed component kinds (`mcp` × `trigger` × `pattern` × `idempotency` × `render`) the agent composes under the meta-catalyst's discipline; the server provides components + constraint validation, the agent provides judgment. `source` and `destination` are **composition roles** carried per-entry in `component_refs`, not kinds — each `mcp` component declares an `affordances` map (`read` / `write` / `watch`) and plays whichever role its affordances support, so the same Gmail MCP can play source in one composition and destination in another. Five composer states per chosen provider (`research` / `seed` / `inventory_only` / `capabilities_only` / `none`) each surface as their own warning tag so the agent routes remediation directly. Every recommendation persists as a `proposed` composition row so the deliberation log itself is auditable; on materialization, `meta_context_commit` records the composition ref in an artifact-scope principle as the durable link between the artifact and the components it was built from. See [docs/mcp-orbit.md](docs/mcp-orbit.md).
-  - **Primitive binding** — [mcp-primitive-binding.js](control/lib/mcp/tools/mcp-primitive-binding.js): `bind_primitives`. The **runtime-introspected composer** for MCP-to-MCP workflows. Takes a vendor-agnostic primitive (`document-store`, `structured-record-store`, `messaging-channel`, `message-thread`) + a composition role (`source` | `destination`) + a server from declared inventory + an affordance→tool bindings map, runs the deterministic generator in [mcp-orbit-components/generator.js](control/lib/mcp/mcp-orbit-components/generator.js), and persists the result in `mcp_orbit_provider_artifacts` as a session-scoped provider artifact (`prov_<id>`). The artifact's body is the primitive's role template filled with the **actual bound tool names + schemas from the operator's installed MCP** — not a curated guess. Graduates via `meta_context_commit({type:'primitive_artifact_materialization', ...})`. This is the supported path for composing MCP-to-MCP workflows from typed primitives; the vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding. The four primitives live in [mcp-orbit-components/primitive/](control/lib/mcp/mcp-orbit-components/primitive/) as body + source-role template + destination-role template triples.
-  - **Semantic recall** — [semantic-search.js](control/lib/mcp/tools/semantic-search.js): `semantic_search`. **Fuzzy lookup over durable mojulo state** — the recall counterpart to the five structured readers above. Backed by a single embedding sidecar table ([meta_embeddings](control/lib/db/index.js)) keyed on `(source_kind, source_ref)` and populated atomically alongside every source-row write through the split sync/async helpers in [lib/db/repositories/embeddings.js](control/lib/db/repositories/embeddings.js). Covers seven source kinds: `principle`, `mcp_tool` (declared inventory), `mcp_capability` (current row only — supersession filter is load-bearing), `orbit_component`, `orbit_composition`, `orbit_artifact`, `catalyst`. Returns ranked `{ source_kind, source_ref, score, snippet }` rows — *retrieve, don't resolve*; the agent pairs results with the structured readers to pull full bodies. Embeddings use the in-process multilingual-e5-small ONNX model (same one that powers bot-side RAG; no new dependency). First-boot backfill via `maybeBackfillEmbeddings` in [lib/db/index.js](control/lib/db/index.js); `MOJULO_SEMANTIC_INDEX_DISABLED=1` skips the auto-run, and [scripts/reindex-embeddings.js](control/scripts/reindex-embeddings.js) is the manual recovery / body-composition-change path. See [lite-template/integration/SEMANTIC_INDEX_PLAN.md](lite-template/integration/SEMANTIC_INDEX_PLAN.md).
-
-Tool registration is lazy ([`ensureToolsRegistered`](control/lib/mcp/server.js)) and ordered — `forward_context` first, fleet between per-bot operate and catalysts, then Ring 6 in the order contextmap → inventory → capabilities → composer → primitive-binding → semantic-search so the natural reading order surfaces orientation → per-bot → fleet → outcome → deliberation (structured walks) → deliberation (fuzzy recall). When you add a tool, slot it into the right ring and update the tool index in [context.js](control/lib/mcp/tools/context.js); the agent reads that index to disambiguate, so a missing entry leaves it flying blind.
-
-Auth is `local`-user only: there's no multi-tenant identity inside MCP — every call is scoped to the single control-plane user (see [auth/service.js](control/lib/auth/service.js)).
-
-### Catalysts
-
-Catalysts are curated workflow recipes shipped as markdown in [control/lib/mcp/catalysts/](control/lib/mcp/catalysts/) (e.g. [qualify-lead-to-crm.md](control/lib/mcp/catalysts/qualify-lead-to-crm.md), [appointment-to-calendar.md](control/lib/mcp/catalysts/appointment-to-calendar.md), [scan-conversations-for-signal.md](control/lib/mcp/catalysts/scan-conversations-for-signal.md)). The connecting agent pulls one via `get_catalyst`, combines it with a specific bot's shape (via Ring 3 tools) and the user's already-installed MCPs (Gmail, Drive, Calendar, CRM, ticketing, warehouse, etc.), and **synthesizes a local Claude Code skill** into the user's `.claude/skills/<name>/SKILL.md`. The catalyst is the nucleation point, not the artifact — it persists, the synthesized skill is what actually runs.
-
-Frontmatter is **JSON** (not YAML) and the loader ([catalysts/loader.js](control/lib/mcp/catalysts/loader.js)) requires `id`, `name`, `summary`, and `valueHook` (one-sentence outcome framing used by `recommend_catalysts` in consultation mode). Validation faults throw — the library is curated, not user input. Authoring is repo-side only; there is no user-writable catalyst directory. Use the [/write-catalyst](.claude/skills/) skill to draft a new one. See [docs/catalysts.md](docs/catalysts.md).
-
-### Fleet aggregation, read-only
-
-The control plane has a `/data` pane (Explorer / Analytics / SQL Explorer tabs) and Ring 4 MCP tools that give fleet-wide visibility **without** persisting conversation content to the control-plane DB. The posture: "conversation data never leaves the bot's SQLite" extends to fleet too.
-
-- [bot-fleet.js](control/lib/deployers/bot-fleet.js) fans out the existing per-bot proxy across all connected deployments (timeout + concurrency capped).
-- Each bot computes its own rollups via local `/api/analytics/*` endpoints (SELECT/COUNT/GROUP-BY over its turns table).
-- The SQL Explorer ([control/lib/fleet/scoped-sql.js](control/lib/fleet/scoped-sql.js)) assembles a **fresh in-memory SQLite** per query from rollup endpoints, validates the user's SQL (SELECT/WITH only, single statement, no ATTACH/PRAGMA/destructive verbs), runs it with row + duration caps, and discards the DB. Nothing crosses to control-plane SQLite.
-
-We deliberately deferred the event-driven push variant (bots POSTing turns home). See [FLEET_AGGREGATION_PLAN.md](FLEET_AGGREGATION_PLAN.md) for the rationale and the conditions under which that decision flips.
-
-### Three entry points, one config
-
-The chat builder ([control/app/chat-builder/](control/app/chat-builder/), [control/lib/builder/](control/lib/builder/)), the wizard ([control/components/wizard/modular/](control/components/wizard/modular/)), and the MCP Ring 1 `build_*` tools all converge on [buildDeploymentConfig()](control/lib/config-builder.js), producing the **same deployment config shape**. From that point downstream — composer, embedder, deployer — there is no branch on which builder produced the config. Don't add paradigm-specific logic past `config-builder.js`.
-
-The chat builder is Claude tool-use over SSE. Tools are defined in [control/lib/builder/tools.js](control/lib/builder/tools.js), executed in [control/lib/builder/tool-executors.js](control/lib/builder/tool-executors.js), driven from [control/app/api/builder/stream/route.js](control/app/api/builder/stream/route.js). The MCP build ring wraps the **same `BuilderSession` + executor pair** so MCP-driven design behaves identically to in-UI chat. See [docs/chat-builder.md](docs/chat-builder.md) and [docs/wizard-builder.md](docs/wizard-builder.md).
-
-### Build pipeline (control plane → zip)
-
-[DockerDeployer.deploy()](control/lib/deployers/docker.js) is the entrypoint. It:
-
-1. Composes `instructions.txt` from the enabled cartridges in [control/lib/composer/protocols/](control/lib/composer/protocols/) (`00_base`, `01_knowledge`, `02_form-gathering`, `03_appointments`, `04_triage`, `05_optical-read`).
-2. Copies the prebaked `embeddings.json` (built upstream by [control/app/api/vectorize-rag/route.js](control/app/api/vectorize-rag/route.js)) — knowledge chunks AND triage-route chunks share one cosine index, distinguished by `metadata.source`.
-3. Writes `config/`, `docker-compose.yml`, `.env`, `.env.example`, `README.md` into a staging dir and zips it.
-
-Two build modes — see `PREBUILT_EXCLUDES` in [control/lib/deployers/docker.js](control/lib/deployers/docker.js):
-
-- **Prebuilt-image** (default): zip ships only config; bot pulls from GHCR.
-- **Offline-build** (`MOJULO_OFFLINE_BUILD=1`): zip bundles full lite-template source + Dockerfile so `docker compose up --build` works air-gapped.
-
-### Cloud deploy (Fly.io)
-
-Same artifact path. [cloudDeploy()](control/lib/deployers/cloud-deploy.js) builds the zip if stale, harvests `config/*` files, decrypts the LLM key from `api_keys`, and hands off to [FlyDeployer](control/lib/deployers/fly.js). Per-bot config is injected via the Machines API `files[]` field as base64 — **the image is bot-agnostic, never rebuilt per bot**. The patterns codified at the top of `fly.js` (deterministic app name, find-or-create volume, idempotent lifecycle) are load-bearing — read those comments before changing anything in that file.
-
-### Connect Bot proxy
-
-Conversation data **never leaves the bot's SQLite**. The control plane stores only `url` + `last_seen_at` on the `deployments` row. Both sides already share `MOJULO_API_KEY` (written into the artifact's `.env` at build time, kept on the deployment row). [bot-proxy.js](control/lib/deployers/bot-proxy.js) (`probeBotConnection`, `fetchFromBot`) is the only path; all `/api/deployments/[id]/conversations*` and `/api/deployments/[id]/submissions*` routes in the control plane forward through it. Don't introduce a route that copies conversation rows into the control-plane DB.
-
-### Tamper-evident chain
-
-Every bot turn writes `content_hash` + `chain_hash` to SQLite; `/verify/:id` walks the chain. Triage handoffs extend the chain across bots via URL-carried tip-of-chain + a `sendBeacon`-posted `handoff` event row on the sender. See [docs/turn-hashing.md](docs/turn-hashing.md) and [docs/federated-routing.md](docs/federated-routing.md). Don't insert turn rows that bypass the hashing helpers.
-
-### Vector RAG, fully in-process
-
-[lite-template/helper/embedder-local.js](lite-template/helper/embedder-local.js) loads multilingual-e5-small q8 ONNX via `@huggingface/transformers` with `env.allowRemoteModels = false` — **the bot never makes embedding-API calls at runtime**. The query embedder runs in-process; cosine search runs over the baked `config/embeddings.json`. If `embeddings.json` is missing, RAG silently disables. See [docs/vector-rag.md](docs/vector-rag.md).
-
-### LLM provider abstraction
-
-[lite-template/helper/llm-client.js](lite-template/helper/llm-client.js) supports Anthropic, OpenAI, and Ollama. Anthropic uses forced tool use (`tool_choice: { type: 'tool', name: 'respond' }`) with `input_schema = ENVELOPE_SCHEMA` — schema-valid envelope is enforced at the API boundary, so the prose-to-fallback path is unreachable on that provider. OpenAI and Ollama return raw text against the composed cartridge guidance and rely on [server.js](lite-template/server.js)'s `extractJSON` + fallback synthesis when the model leans prose. The canonical envelope shape lives at [lite-template/helper/envelope-schema.js](lite-template/helper/envelope-schema.js) and is mirrored to [control/lib/envelope-schema.js](control/lib/envelope-schema.js) — when adding envelope fields, update both files and cross-check protocol cartridges in [control/lib/composer/protocols/](control/lib/composer/protocols/).
-
-Vision input is supported on Anthropic and OpenAI; the runtime adapter check lives in [llm-client.js](lite-template/helper/llm-client.js) and the wizard/preview gates use `providerSupportsVision` from [control/lib/llm-providers.js](control/lib/llm-providers.js). Ollama rejects images at the adapter level.
-
-**Per-model protocol gates (control plane).** Anthropic runs every protocol. On OpenAI, gpt-5 and gpt-5-mini run every protocol; gpt-4.1 is gated off `formGathering` — without wire-level enforcement, 4.1 doesn't reliably track form-field state across turns. On Ollama, llama3.3 (70B) runs everything; qwen3 and mistral-nemo are gated to `knowledge` only — the multi-step tool-following that form-gathering, appointments, triage, and optical-read need is unreliable on smaller local models. The gate is `getAllowedProtocolsForModel(provider, model)` / `isProtocolAllowedForModel(...)` in [control/lib/llm-providers.js](control/lib/llm-providers.js), enforced at three points: the wizard's [ProtocolSelection.jsx](control/components/wizard/modular/steps/ProtocolSelection.jsx) disables the cards (and [ModularWizardContext.jsx](control/components/wizard/modular/ModularWizardContext.jsx) prunes `enabledProtocols` when provider/model changes), the chat builder's `recommend_protocols` handler in [tool-executors.js](control/lib/builder/tool-executors.js) clamps its suggestions against the allowlist, and [buildDeploymentConfig](control/lib/config-builder.js) throws if a disallowed protocol slips through. New control-plane code that drives the wizard or composes a config should consult `isProtocolAllowedForModel` before enabling a protocol.
-
-**Per-task model tiers (control plane).** `MODEL_TIERS` and `getDefaultModelForTask(provider, task)` in [control/lib/llm-providers.js](control/lib/llm-providers.js) pick the right model within a provider for the workload at hand. Three tiers: `reasoning` (chat-builder agentic loop), `structured` (form gen, identity gen, builder form-tool calls), `summary` (RAG summary, federation metadata, doc digests). Wired call sites: [stream/route.js](control/app/api/builder/stream/route.js), [generate-form/route.js](control/app/api/generate-form/route.js), [generate-rag/route.js](control/app/api/generate-rag/route.js), and per-handler in [tool-executors.js](control/lib/builder/tool-executors.js) via `getLLMConfigFromSession(session, userId, task)`. New control-plane LLM call sites should pick a tier rather than reaching for `providerConfig.defaultModel`; wizard user-overrides still win — tier resolution only fires when no explicit model is passed. See [lite-template/integration/provider_model_optimizer.md](lite-template/integration/provider_model_optimizer.md). The bot runtime stays single-model per artifact — tiers are control-plane only.
+- MCP server: [control/lib/mcp/server.js](control/lib/mcp/server.js), tools in [control/lib/mcp/tools/](control/lib/mcp/tools/), full model in [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md).
+- Bot build pipeline: [control/lib/deployers/docker.js](control/lib/deployers/docker.js), [control/lib/composer/](control/lib/composer/), [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md).
+- Cloud deploy: [control/lib/deployers/cloud-deploy.js](control/lib/deployers/cloud-deploy.js), [control/lib/deployers/fly.js](control/lib/deployers/fly.js). Read the top comments in `fly.js` before changing lifecycle behavior.
+- Builder/wizard convergence: [control/lib/builder/](control/lib/builder/), [control/components/wizard/modular/](control/components/wizard/modular/), [docs/chat-builder.md](docs/chat-builder.md), [docs/wizard-builder.md](docs/wizard-builder.md).
+- Fleet aggregation and scoped SQL: [control/lib/deployers/bot-fleet.js](control/lib/deployers/bot-fleet.js), [control/lib/fleet/scoped-sql.js](control/lib/fleet/scoped-sql.js), and [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#fleet-aggregation).
+- Catalysts: [control/lib/mcp/catalysts/](control/lib/mcp/catalysts/), [docs/catalysts.md](docs/catalysts.md). Catalyst frontmatter is JSON, not YAML.
+- App runtime: [control/lib/runners/](control/lib/runners/), [docs/app-runtime.md](docs/app-runtime.md).
+- Vector RAG: [docs/vector-rag.md](docs/vector-rag.md), [lite-template/helper/embedder-local.js](lite-template/helper/embedder-local.js).
+- Protocol and LLM behavior: [lite-template/helper/llm-client.js](lite-template/helper/llm-client.js), [control/lib/llm-providers.js](control/lib/llm-providers.js), [docs/protocol-composition.md](docs/protocol-composition.md).
+- CSS-3D scene backend (a live, dependency-free `preserve-3d` second renderer beside the SVG path — rooms, suites, cities from the same world geometry): [control/lib/graph/scene-css3d.js](control/lib/graph/scene-css3d.js), suites [control/lib/graph/suite-layout.js](control/lib/graph/suite-layout.js), cities [control/lib/graph/fractal-city.js](control/lib/graph/fractal-city.js). The baked, camera-independent lighting/atmosphere model (vexar + traced diffusion + soft pools + cast/contact shadows + moonlight + sky) is in [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md).
+- Dungeon-designer (the fantasy-interior primitive — organic, not-flat caves/dungeons, as opposed to the flat generative houses/rooms of suite-layout; invariant: there is a ceiling and a floor, but no surface is assumed flat): [control/lib/graph/dungeon-designer.js](control/lib/graph/dungeon-designer.js), design + roadmap (texture tiles, airsealed corridors, castle interiors) in [control/lib/graph/dungeon-designer.plan.md](control/lib/graph/dungeon-designer.plan.md). A `{chambers, tunnels}` graph spec → walkable World or ant-farm section; composes the round-chamber + golden-relief + carved-mouth + traced-fire kernels in scene-css3d.js.
+- Raymarch effects layer (volumetric effects — fog first — raymarched as a transparent overlay that composites OVER the three.js mesh worlds, occluding against the world's own solids via a grid-culled scene SDF; NOT a world-replacement raymarch): primitives in [control/lib/graph/volume-raymarch.js](control/lib/graph/volume-raymarch.js) (`buildVolumeFrag`, `overlay:true`), [control/lib/graph/effects-occluder.js](control/lib/graph/effects-occluder.js) (grid-culled box-field SDF), [control/lib/graph/effects-fog.js](control/lib/graph/effects-fog.js) (`composeVolumeFog`); hosted by `emitThreeWorld({ fog })` in scene-three.js and exposed as an opt-in `fog` manifest setting in [control/lib/graph/world-scene.js](control/lib/graph/world-scene.js). Read [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md) (principles + primitive inventory + how to add a new effect layer) before building another raymarch visual layer; build log in [control/lib/graph/effects-layer.plan.md](control/lib/graph/effects-layer.plan.md).
+- Procedural materials (the texture-free vertex-colour material system — the Wii/PS2-era metal look: lambert base + top-lit ramp + brushed cloud + weathering, all baked into per-corner `cornerFills`, NOT textures or shaders; peer to `surface-textures.js`): registry + layers + `resolveFaceMaterials` in [control/lib/graph/materials/procedural-material.js](control/lib/graph/materials/procedural-material.js), exposed as a generic opt-in — any mesh-world face carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed?, lit? }`) is tessellated + vertex-coloured by `resolveFaceMaterials` in [control/lib/graph/worlds/world-scene.js](control/lib/graph/worlds/world-scene.js) (runs before the AO bake; composes with `vao`/`spec`). Presets: `gradient-plate`/`brushed-steel`/`brushed-hull`/`weathered-hull`/`weathered-heavy`. The render primitive underneath is per-corner `cornerFills` in [control/lib/graph/figures/face-mesh.js](control/lib/graph/figures/face-mesh.js). Invariants: seeded noise only (deterministic, byte-identical re-render); absent `material` ⇒ face list untouched; grid² tessellation cost → grid ≤4 for live worlds, grid 8 + AO for offline hero renders. Design + usage: [control/lib/graph/materials/procedural-material.plan.md](control/lib/graph/materials/procedural-material.plan.md).
+- Beats (the audio primitive family — synthesized-never-sampled musical artifacts as tiny seeded recipes; kinds: ambient loop / composition score / pattern groove / sfx cues): kernel + patches + instruments + manifests + player + offline WAV render in [control/lib/graph/beats/](control/lib/graph/beats/), MCP tools (create / get / update / annotate / diff / export + vocab) in [control/lib/mcp/tools/beats.js](control/lib/mcp/tools/beats.js), the studio at [control/app/beats/](control/app/beats/) over the `control/app/api/beats/[ref]/` routes (revisions + annotations ride `beats_revisions` / `beats_annotations`; rows stay in `sketches` — the domain layer is the sovereignty). Worlds opt in via the manifest `audio` channel (soundtrack / SFX cues / footsteps / wind / macro `bindings`), resolved by [control/lib/graph/beats/beats-world.js](control/lib/graph/beats/beats-world.js). Design + build log: [control/lib/graph/beats/beats.plan.md](control/lib/graph/beats/beats.plan.md). Invariants: recipes not renders; seeded dice only (mulberry32, never `Math.random`); audio reads sim state and never writes back; muted capture stays byte-identical. A composition can *sing*: a `patch:'voice'` part is realized by the in-process parametric formant synth ([control/lib/graph/beats/beats-song-voice-parametric.js](control/lib/graph/beats/beats-song-voice-parametric.js) + the beats-song-* siblings) — no external worker, no new tool or route; design + engine decision in [control/lib/graph/beats/beats-song.plan.md](control/lib/graph/beats/beats-song.plan.md).
+- Image outcomes (the director layer for external image generation — mojulo designs pictures but cannot paint them; scaffold recipes stay sovereign, painted PNGs are bound derived renders with provenance): [control/lib/graph/image-outcomes/](control/lib/graph/image-outcomes/), durable worker handoff (`request/pull/submit/accept/reject_image_render` over the `image_render_requests` table) in [control/lib/mcp/tools/render-handoff.js](control/lib/mcp/tools/render-handoff.js), optional local ComfyUI+SDXL worker in [docs/local-image-worker.md](docs/local-image-worker.md). The seam doctrine ("bicycles": self-documenting loops with a machine gate and an eyes gate, never conflated) is [docs/bicycles.md](docs/bicycles.md).
+- Voice (deterministic voice-register recipes — confidence × depth resolved to Kokoro blend weights, pure math, no dice; WAVs are disposable derived renders via the optional local Kokoro worker): [control/lib/graph/voice/](control/lib/graph/voice/), MCP tools in [control/lib/mcp/tools/voice.js](control/lib/mcp/tools/voice.js), worker doc [docs/local-voice-worker.md](docs/local-voice-worker.md). Scope: voiceovers and narration; character acting is out of scope.
+- Edifice (the workbench for buildings — a bespoke walkable building authored as a graph of masses + concourses with doorway punches, vs. the frozen generators of compose_world; advisory livability checks, never gated): [control/lib/graph/architecture/edifice.js](control/lib/graph/architecture/edifice.js), tool in [control/lib/mcp/tools/edifice.js](control/lib/mcp/tools/edifice.js), design + roadmap in [control/lib/graph/architecture/dream-architecture.plan.md](control/lib/graph/architecture/dream-architecture.plan.md).
+- Plan mode (Ring 8): [control/lib/mcp/tools/plan-mode.js](control/lib/mcp/tools/plan-mode.js), dashboard at [control/app/plan/](control/app/plan/). Plans are the proposed speculative layer; contextmap is sealed reality. See [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#plan-and-research-modes).
+- Research mode (Ring 9): [control/lib/mcp/tools/research-mode.js](control/lib/mcp/tools/research-mode.js). Accretive optional drawer upstream of plans; deliberately not woven into `forward_context`. See [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#plan-and-research-modes).
 
 ## Native dependency landmines
 
-- **`onnxruntime-node` is glibc-only.** The Dockerfile uses `node:20-bookworm-slim`, not Alpine. Don't switch to Alpine — the prebuilt binaries crash on musl.
-- **`better-sqlite3` compiles per arch.** That's why the GHCR build is multi-arch; on the host, `npm install` rebuilds against the local arch.
-- **The 113MB ONNX file** is gitignored and fetched independently per package — don't try to share the scripts. [lite-template/scripts/fetch-embed-model.mjs](lite-template/scripts/fetch-embed-model.mjs) runs as the bot's `postinstall` (also during the Docker build). [control/scripts/fetch-embed-model.js](control/scripts/fetch-embed-model.js) is invoked **explicitly** — `npm run fetch-models` in the clone-and-dev path, or lazy `preloadModel()` on bin cold-start when `MOJULO_MODELS_DIR` is set (the `npx mojulo` path). The control plane intentionally has no `postinstall` so an `npx mojulo` install isn't forced to download 113MB.
-- **Next.js externals.** The control plane's [next.config.mjs](control/next.config.mjs) marks `better-sqlite3`, `archiver`, `pdf2json`, `officeparser`, `@huggingface/transformers`, `onnxruntime-node`, `sharp` as `serverExternalPackages` — adding another native dep usually means adding it here too.
+- `onnxruntime-node` is glibc-only. Keep the bot Dockerfile on Debian slim Node 20; do not switch it to Alpine.
+- `better-sqlite3` compiles per architecture. The GHCR bot image is multi-arch for this reason.
+- The control plane intentionally has no `postinstall` model download. `control/scripts/fetch-embed-model.js` is explicit/lazy so `npx mojulo` does not immediately fetch 113MB.
+- When adding native server dependencies to control, check [control/next.config.mjs](control/next.config.mjs)'s `serverExternalPackages`.
 
 ## Data layout
 
-- Control plane SQLite: [control/data/mojulo-lite.db](control/data/) — tables `api_keys`, `documents`, `deployments`, `modular_sessions`, `mcp_jobs`, plus the Ring 6 stack: contextmap tables `meta_nodes` / `meta_edges` / `meta_principles` (see [docs/meta-context.md](docs/meta-context.md)); inventory cache `meta_mcp_inventory` (replace-semantic, with per-tool `input_schema_json` + `introspection_confidence` columns for richer-snapshot mode); the providers identity layer `meta_mcp_providers` + the research-facet `meta_mcp_capabilities` (transactional supersession via `superseded_by`, unique-partial index on `current` rows per provider); the mcp-orbit composer's `mcp_orbit_components` / `mcp_orbit_compositions` (typed component store + composition log); the primitive-binding `mcp_orbit_provider_artifacts` (session-scoped bound primitive artifacts with affordance manifest + bindings + body — see [docs/mcp-orbit.md](docs/mcp-orbit.md)); and the semantic-search sidecar `meta_embeddings` (one row per `(source_kind, source_ref)` across the seven indexed kinds — principles, mcp tools, capabilities, orbit components/compositions/artifacts, catalysts — with a raw `float32[384]` BLOB embedding, `content_hash` skip-on-unchanged, and a `model` column reserved for future model swaps; see [lite-template/integration/SEMANTIC_INDEX_PLAN.md](lite-template/integration/SEMANTIC_INDEX_PLAN.md)). Migration-added columns on `deployments` (`config_hash`, `last_built_hash`, `url`, `last_seen_at`, `cloud_progress`, etc — see migration block in [control/lib/db/index.js](control/lib/db/index.js)). WAL mode, foreign keys on. Repositories live in [control/lib/db/repositories/](control/lib/db/repositories/).
-- Generated zips: [control/data/artifacts/](control/data/artifacts/) (cleaned by `scripts/cleanup-stale-artifacts.js`).
-- Uploaded documents (originals + parsed text): [control/data/storage/](control/data/storage/).
-- Bot SQLite: `data/conversation.db` inside each bot's `./data/` mount (created at first run).
+- Control SQLite: [control/data/mojulo-lite.db](control/data/), schema and migrations in [control/lib/db/index.js](control/lib/db/index.js), repositories in [control/lib/db/repositories/](control/lib/db/repositories/).
+- Generated zips: [control/data/artifacts/](control/data/artifacts/).
+- Uploaded documents: [control/data/storage/](control/data/storage/).
+- Bot SQLite: `data/conversation.db` inside each bot's `./data/` mount.
 
-## Status reminders baked into the project
-
-- The control plane is **single-user, self-hosted**, with an **opt-in HTTP login** (see [control/middleware.js](control/middleware.js), [control/lib/auth/session.js](control/lib/auth/session.js)). Set `CONTROL_PLANE_USER` + `CONTROL_PLANE_PASSWORD` in env to enable; sessions are HMAC-signed with the password itself. The login is a last-line-of-defense affordance — don't expose the control plane to the public internet, and don't add features that assume multi-tenancy.
-- Versioning is `0.x`. The bot image pin tracks **lite-template releases**, not control-plane releases — bump the [BOT_IMAGE](control/.env.example) tag in `.env.example` and the matching constant in [docker.js](control/lib/deployers/docker.js) when a new `bot-vX.Y.Z` tag ships out of `lite-template/`. The two must move together. A control-plane release with no `lite-template/` runtime changes since the last `bot-vX.Y.Z` does not need a pin bump.
-
-## Coding Standards
-- When outputting new UI, ensure strings are i18n in EN
+For table-level orientation, see [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#data-layout).

@@ -1,8 +1,8 @@
 {
   "name": "mojulo",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "license": "Apache-2.0",
-  "description": "Mojulo — MCP server for building self-hosted chatbots from any MCP-capable agent (Claude Code, Codex, and friends).",
+  "description": "Mojulo — the agent's workshop: a local, stateful MCP substrate that turns conversations into durable things — self-hosted chatbots, connected services, apps, playable games, and creative artifacts minted as deterministic recipes.",
   "author": "Franz Ombico",
   "homepage": "https://github.com/zombico/mojulo",
   "repository": {
@@ -24,6 +24,11 @@
     "bot-builder",
     "rag",
     "self-hosted",
+    "local-first",
+    "ai-agent",
+    "agent-tools",
+    "games",
+    "generative",
     "mojulo"
   ],
   "engines": {
@@ -32,12 +37,16 @@
   "bin": {
     "mojulo": "./scripts/mcp-stdio.mjs",
     "mojulo-config": "./scripts/mcp-config.mjs",
-    "mojulo-ui": "./scripts/mcp-ui.mjs"
+    "mojulo-ui": "./scripts/mcp-ui.mjs",
+    "mojulo-app-runtime": "./bin/app-runtime.mjs",
+    "mojulo-daemons": "./bin/daemons.mjs"
   },
   "files": [
     "lib/**",
     "!lib/embedder/models/**",
     "!lib/**/*.test.js",
+    "bin/app-runtime.mjs",
+    "bin/daemons.mjs",
     "scripts/mcp-stdio.mjs",
     "scripts/mcp-stdio-loader.mjs",
     "scripts/mcp-config.mjs",
@@ -65,23 +74,34 @@
     "stage-lite-template": "node scripts/stage-lite-template.mjs",
     "stage-standalone": "node scripts/stage-standalone.mjs",
     "fetch-models": "node scripts/fetch-embed-model.js",
+    "gen-app": "node scripts/gen-app.js",
     "prepack": "node scripts/stage-lite-template.mjs && next build --webpack && node scripts/stage-standalone.mjs",
     "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1011.0",
     "@huggingface/transformers": "^4.2.0",
+    "@puppeteer/browsers": "^2.13.2",
     "archiver": "^7.0.1",
     "better-sqlite3": "^12.4.1",
+    "croner": "^10.0.1",
     "dotenv": "^17.2.3",
+    "image-size": "^2.0.2",
+    "isomorphic-dompurify": "^3.15.0",
     "next": "^16.0.7",
     "next-intl": "^4.8.3",
+    "node-web-audio-api": "^2.0.0",
     "officeparser": "^5.2.2",
     "open": "^11.0.0",
+    "opentype.js": "^2.0.0",
     "pdf2json": "^4.0.0",
+    "puppeteer-core": "^23.11.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "swr": "^2.4.1"
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "swr": "^2.4.1",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

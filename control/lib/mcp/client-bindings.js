@@ -26,6 +26,10 @@ export function getClientInfo(mcpSessionId) {
   return bindings.get(mcpSessionId) || null;
 }
 
+export function getAllClientInfo() {
+  return Array.from(bindings.values()).map(({ name, version }) => ({ name, version }));
+}
+
 // Test seam.
 export function _resetClientBindingsForTests() {
   bindings.clear();

@@ -12,7 +12,7 @@
 import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
-import { getDb } from '../lib/db/index.js';
+import { getDb, pruneMcpToolCalls } from '../lib/db/index.js';
 
 const ARTIFACTS_DIR =
   process.env.ARTIFACTS_DIR || path.join(process.cwd(), 'data', 'artifacts');
@@ -92,6 +92,14 @@ async function main() {
   console.log(
     `${dryRun ? '[dry-run] ' : ''}removed=${removedCount} kept=${keptCount}`
   );
+
+  // Piggyback the MCP telemetry retention prune on this sweep (also runs on
+  // control-plane startup). Skipped under --dry-run so the sweep stays read-only
+  // when asked to be.
+  if (!dryRun) {
+    const prunedRows = pruneMcpToolCalls(db);
+    console.log(`telemetry rows pruned=${prunedRows}`);
+  }
 }
 
 main().catch((err) => {

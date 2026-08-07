@@ -20,6 +20,7 @@ import { useModularStream, MESSAGE_TYPES, TOOL_STATUS, SESSION_STATUS } from '@/
 import ModularChatInput from './ModularChatInput';
 import { CollapsibleToolCalls } from './ToolCallCard';
 import ProtocolConfirmCard from './ProtocolConfirmCard';
+import DecisionCard from './DecisionCard';
 import { ModuloAvatar } from './ModuloAvatar';
 
 export default function InvertedModularChatPanel({
@@ -46,6 +47,7 @@ export default function InvertedModularChatPanel({
     disableModuloAnimation,
     sendMessage,
     deploy,
+    respondToDecision,
     reset,
   } = useModularStream({ workspaceId, deploymentId });
 
@@ -172,7 +174,7 @@ export default function InvertedModularChatPanel({
         )}
 
         {/* Render messages - group consecutive tool calls */}
-        {renderGroupedMessages(messages, status)}
+        {renderGroupedMessages(messages, status, respondToDecision)}
 
         {/* Protocol confirmation card */}
         {showConfirmCard && (
@@ -224,7 +226,7 @@ export default function InvertedModularChatPanel({
 /**
  * Group consecutive tool calls and render messages
  */
-function renderGroupedMessages(messages, sessionStatus) {
+function renderGroupedMessages(messages, sessionStatus, onRespondDecision) {
   const groups = [];
   let currentToolCalls = [];
 
@@ -262,6 +264,9 @@ function renderGroupedMessages(messages, sessionStatus) {
           shouldCollapse={shouldCollapse}
         />
       );
+    }
+    if (group.type === MESSAGE_TYPES.DECISION) {
+      return <DecisionCard key={group.key} message={group} onRespond={onRespondDecision} />;
     }
     return <MessageItem key={group.key} message={group} />;
   });

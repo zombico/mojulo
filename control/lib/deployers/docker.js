@@ -103,7 +103,7 @@ services:
 function buildEnvExample(llmConfig) {
   const provider = llmConfig.provider || 'anthropic';
   return [
-    '# Mojulo-Lite bot runtime env.',
+    '# Mojulo bot runtime env.',
     '# The builder baked your selected LLM provider + model into config/config.json,',
     `# so you only need to paste the matching API key below before running 'docker compose up'.`,
     '',

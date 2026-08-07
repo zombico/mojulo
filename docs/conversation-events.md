@@ -1,6 +1,6 @@
 # Conversation Events
 
-A Mojulo-Lite bot's conversation history is stored as an **append-only typed event log**, not a chat-message table. Chat turns, optical-read extractions, and triage handoff events are all rows in the same `turns` table, in the same column shape, in the same chain. Every consumer — the LLM context window, the integrity verifier, the control-plane viewer, the JSON exporter — reconstructs the view it needs by replaying that one log forward and filtering by `event_type`.
+A Mojulo bot's conversation history is stored as an **append-only typed event log**, not a chat-message table. Chat turns, optical-read extractions, and triage handoff events are all rows in the same `turns` table, in the same column shape, in the same chain. Every consumer — the LLM context window, the integrity verifier, the control-plane viewer, the JSON exporter — reconstructs the view it needs by replaying that one log forward and filtering by `event_type`.
 
 This doc describes the event types currently emitted, what gets stored on each row, how the consumers replay differently, and where the system deliberately steps *outside* the event log.
 

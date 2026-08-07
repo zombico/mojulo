@@ -11,6 +11,8 @@ export default function ModularChatInput({
   disabled = false,
   placeholder,
   showAttachButton = false,
+  autoFocus = false,
+  focusSignal = 0,
 }) {
   const t = useTranslations('chatBuilder.input');
   const effectivePlaceholder = placeholder ?? t('defaultPlaceholder');
@@ -26,6 +28,10 @@ export default function ModularChatInput({
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   }, [value]);
+
+  useEffect(() => {
+    if (autoFocus) textareaRef.current?.focus();
+  }, [autoFocus, focusSignal]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

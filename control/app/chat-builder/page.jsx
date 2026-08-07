@@ -7,11 +7,11 @@ export default function ChatBuilderPage() {
   const router = useRouter();
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 33px)' }}>
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 66px)' }}>
       <div className="flex-1 overflow-hidden">
         <InvertedModularChatPanel
           workspaceId={null}
-          workspaceName="Mojulo-Lite"
+          workspaceName="Mojulo-Control"
           onDeployComplete={(deploymentId) => {
             router.push(`/dashboard?built=${deploymentId}`);
           }}

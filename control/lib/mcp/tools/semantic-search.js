@@ -31,14 +31,23 @@ export async function semanticSearchHandler(input, _ctx) {
   if (kinds !== undefined && kinds !== null) opts.kinds = kinds;
   if (limit !== undefined && limit !== null) opts.limit = limit;
   const results = await EmbeddingsRepository.search(query, opts);
-  return { results };
+  // Outcome signal for the orientation-gap telemetry (numbers/enums only,
+  // stripped from the wire by instrumentedInvoke). A zero-result or weak-top
+  // search is a coined term that failed to reward the question — see
+  // orientation-ramp.plan.md R4.
+  const signal = {
+    result_count: results.length,
+    ...(results.length ? { top_score: results[0].score } : {}),
+    ...(opts.kinds ? { kinds: [].concat(opts.kinds) } : {}),
+  };
+  return { results, _telemetrySignal: signal };
 }
 
 export function registerSemanticSearchTools() {
   registerTool({
     name: 'semantic_search',
     description:
-      "Fuzzy retrieval over durable mojulo state: principles, capability bodies, mcp-orbit components / compositions / provider artifacts, declared MCP tool inventory, and the shipped catalyst library. Use when you have an intent or topic but not a specific ref — for finding which rows in the contextmap / capabilities / composer state are relevant before navigating them structurally. Returns `{ results: [{ source_kind, source_ref, score, snippet }] }`; snippets are capped at ~280 chars and the agent is expected to pair this with the structured readers (`meta_context_brief`, `get_mcp_capabilities`, `get_mcp_orbit_component`, `get_catalyst`, ...) to retrieve full bodies. Optional `kinds` filter restricts to one or more source kinds; default returns all kinds. Capability rows that have been superseded never appear in results — the search filters against the current row per provider. Read-only.",
+      "Fuzzy retrieval over durable mojulo state: principles, capability bodies, mcp-orbit components / compositions / provider artifacts, declared MCP tool inventory, the shipped catalyst library, sketch vocabulary cards, the per-knob `sketch_method` capability records, manji-program-bearing cards (mandala-patterns + shot-glyphs whose card declares a `manjiProgram` field), painted-landscape glyph cards, view-vocab cards (one per `create_view` kind / `compose_world` base — the study-object and world parameter manuals), and routing cards (`kinds:['routing']`: creative recognizer rows → entry tool + forks, returned whole). Use when you have an intent or topic but not a specific ref — for finding which rows in the contextmap / capabilities / composer state are relevant before navigating them structurally, which sketch layout card to read before composing a diagram, which view kind or world base fits an intent, or which shot-glyph / mandala-pattern to pass as `programRef` to `create_manji_tree`. Returns `{ results: [{ source_kind, source_ref, score, snippet }] }`; snippets are capped at ~280 chars and the agent is expected to pair this with the structured readers (`meta_context_brief`, `get_mcp_capabilities`, `get_mcp_orbit_component`, `get_catalyst`, `get_sketch_vocab`, `get_view_vocab`, ...) to retrieve full bodies — or in the `manji_program` case, pass the `source_ref` straight to `create_manji_tree`, or in the `painted_landscape` case use the card's `id` as a named glyph in `compose_world`'s 'painted-landscape' `overrides`. Optional `kinds` filter restricts to one or more source kinds; default returns all kinds. Capability rows that have been superseded never appear in results — the search filters against the current row per provider. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {

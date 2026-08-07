@@ -1,4 +1,4 @@
-// Mojulo-Lite i18n config.
+// Mojulo i18n config.
 //
 // `locales` lists which locales are actually shipped — only codes that have a
 // matching messages/<code>.json file should be in here. The translate-messages

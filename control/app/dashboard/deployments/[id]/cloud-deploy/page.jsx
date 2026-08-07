@@ -174,7 +174,7 @@ export default function CloudDeployPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <header className="space-y-2">
         <Link
-          href="/dashboard"
+          href="/bots"
           className="text-xs text-[color:var(--text-muted)] hover:underline"
         >
           {t('backToDashboard')}

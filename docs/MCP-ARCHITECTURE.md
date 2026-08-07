@@ -54,7 +54,7 @@ Key invariants:
 
 ## 2. The ring model
 
-Every tool slots into one of seven rings. The rings carry meaning — they're how the connecting model orients itself, and how `forward_context`'s tool index groups things.
+Every tool slots into one of seven rings. The rings carry meaning — they're how the connecting model orients itself, and how `get_tool_index` groups things.
 
 ```
                     ┌───────────────────────────────────────────────────┐
@@ -86,17 +86,38 @@ Every tool slots into one of seven rings. The rings carry meaning — they're ho
                             └─────────────┬─────────────┘
                                           ▼
                 ┌─────────────────────────────────────────────────────┐
-                │  Ring 6 — deliberation (six surfaces, bot-indep.)   │
+                │  Ring 6 — deliberation (seven surfaces, bot-indep.)│
                 │                                                     │
                 │  contextmap          meta_context_brief / commit    │
                 │  inventory           meta_context_declare_inventory │
                 │  capabilities        record_/get_mcp_capabilities   │
                 │  mcp-orbit composer  recommend_mcp_orbit_compositions
                 │  primitive binding   bind_primitives                │
+                │  trigger binding     bind_trigger / list_triggers   │
                 │  semantic recall     semantic_search                │
                 │                                                     │
                 │  Reasoning ABOUT structure, not reading content.    │
                 └─────────────────────────────────────────────────────┘
+                                          ▼
+                ┌─────────────────────────────────────────────────────┐
+                │  Ring 7 — runtime                                   │
+                │                                                     │
+                │  runner         start_app / stop_app / status_app   │
+                │  agent-tasks    pull_agent_task / submit / cancel   │
+                │                                                     │
+                │  App lifecycle + the agent-mediated work loop.      │
+                └─────────────────────────────────────────────────────┘
+                                          ▼
+        ┌──────────────────────────────────────────────────────────┐
+        │  Ring 8 — plan mode         Ring 9 — research mode       │
+        │                                                          │
+        │  Proposed/speculative.      Accretive/exploratory.       │
+        │  compile_plan validates     Upstream of plans;           │
+        │  manifest vs registry;      optional drawer not woven    │
+        │  execute_plan runs it.      into forward_context.        │
+        │  Graduates to contextmap    synthesize_abstract bridges  │
+        │  on materialization.        to plan forge.               │
+        └──────────────────────────────────────────────────────────┘
 ```
 
 | Ring | Purpose | What flows | Source |
@@ -107,9 +128,12 @@ Every tool slots into one of seven rings. The rings carry meaning — they're ho
 | 3 | Per-bot reads | All forwarded through [bot-proxy.js](../control/lib/deployers/bot-proxy.js); never copied locally | [operate.js](../control/lib/mcp/tools/operate.js) |
 | 4 | Cross-bot rollups + ad-hoc SQL | Per-bot `/api/analytics/*` rollups composed into a fresh in-memory SQLite per query | [fleet.js](../control/lib/mcp/tools/fleet.js), [fleet/scoped-sql.js](../control/lib/fleet/scoped-sql.js) |
 | 5 | Curated workflow recipes | Markdown nuclei in [catalysts/](../control/lib/mcp/catalysts/); agent fuses with bot shape + local MCPs into `.claude/skills/<name>/SKILL.md` | [catalysts.js](../control/lib/mcp/tools/catalysts.js) |
-| 6 | Deliberation about structure | Contextmap, inventory, capabilities, mcp-orbit composer, primitive binding, semantic recall — all bot-independent | see §4 |
+| 6 | Deliberation about structure | Contextmap, inventory, capabilities, mcp-orbit composer, primitive binding, trigger binding, semantic recall — all bot-independent | see §4 |
+| 7 | Runtime: app lifecycle and agent-task queue | App process daemon (`mojulo-app-runtime`) + in-memory FIFO fulfiller queue for the agent-mediated work loop | [runner.js](../control/lib/mcp/tools/runner.js), [agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) |
+| 8 | Plan mode: proposed/speculative layer | Executable plans (`plans` table) that compile against the live tool registry and graduate to contextmap on artifact materialization | [plan-mode.js](../control/lib/mcp/tools/plan-mode.js) |
+| 9 | Research mode: accretive exploratory drawer | Durable research sessions, items, and abstracts; `synthesize_abstract` bridges to plan forge via research→plan evaluator | [research-mode.js](../control/lib/mcp/tools/research-mode.js) |
 
-**Why `forward_context` matters.** The `initialize` preamble surfaced to the connecting model is deliberately *tiny* — one framing sentence + a pointer to call `forward_context`. The full briefing (glossary, capability model, lifecycle, every tool's one-line description) lives in that tool's response. The agent only pays the context cost when the user actually needs orientation. **When you add a tool, the tool index in [context.js](../control/lib/mcp/tools/context.js) must be updated** — a missing entry leaves the connecting agent flying blind.
+**Why `forward_context` matters.** The `initialize` preamble surfaced to the connecting model is deliberately *tiny* — it names the four creatable artifacts with their entry tools, then points at `forward_context`. `forward_context` is itself a **thin routing index** (pinned by the body-ceiling test in `context.test.js`, ~2.5K tokens), not a full briefing: a lean opener, a `user-framing → entry-tool` table, a directory of drawers, and the standing safety + commitment rules. Its Create-things section is a **mini segmented index** — one row per FORM (picture / object / world / motion / audio / game / publication) naming recognizers + entry tool; the full per-family routing rows (recognizer quotes + fork sentences) live as **routing cards** under [lib/mcp/routing-cards/](../control/lib/mcp/routing-cards/), indexed as `routing` in semantic recall and returned *whole* by `semantic_search({kinds:['routing']})` (no follow-up reader). The rest of the heavy content drawerizes behind sibling Ring 0 tools the agent pulls only when a task needs depth — `get_register_kit` (concept glossary + narration register), `get_tool_index` (the full one-line-per-tool index), `get_deliberation_overview` (the Ring 6 structural model), `get_ui_map` (dashboard pages), `get_substrate` (PLAYful Cloud / cloud-comparison positioning). Most tool descriptions in `tools/list` self-route, so the agent often routes from the outer layers (preamble + tool descriptions + this index) without drilling further. **When you add a tool, the routing index and tool index in [context.js](../control/lib/mcp/tools/context.js) must be updated** — a missing entry leaves the connecting agent flying blind; the registry-sweep test in `context.test.js` enforces this (every listed tool name must appear in `TOOL_INDEX`; unlisted deprecated aliases are exempt). A new `create_view` kind or `compose_world` base is NOT a new tool — it needs a view-vocab card under [lib/graph/views/view-vocab/](../control/lib/graph/views/view-vocab/), not an index row. A new **creative capability** needs a routing card + fixture rows in the retrieval eval ([routing-eval.integration.test.js](../control/lib/mcp/routing-cards/routing-eval.integration.test.js) — paraphrased phrasings → expected entry tool against the real local embedder), NOT a new fat Create-things row. See [FORWARD_CONTEXT_INDEX_PLAN.md](../lite-template/integration/FORWARD_CONTEXT_INDEX_PLAN.md) and [tool-list-drawerization.plan.md](../control/lib/mcp/tools/tool-list-drawerization.plan.md).
 
 **Standing secrets rule.** The initialize preamble also tells the connecting agent: treat `.env` files under `$MOJULO_HOME` and inside any unzipped mojulo bot as user secrets. To inspect a bot's environment, call `inspect_bot_env` — it returns masked values. The agent must never `cat`, `Read`, or echo raw `.env` contents.
 
@@ -161,6 +185,20 @@ Every tool slots into one of seven rings. The rings carry meaning — they're ho
 
 The execution context (`{ mcpSessionId, userId }`) carried on every dispatch is what makes session-scoped state possible without a per-tool session-id parameter — see §5.
 
+### 3a. Tool-call telemetry (observability)
+
+The `tool.handler(input, ctx)` step above is wrapped by a single instrumentation seam, `instrumentedInvoke` in [`lib/mcp/telemetry.js`](../control/lib/mcp/telemetry.js). Both handler entry points route through it — `handleToolCall` (rpc `tools/call`) and `invokeRegisteredTool` (the plan-mode executor) — so every invocation, including future transports, is timed and recorded from one place. Each call emits one structured stderr line (`[mcp] tool=… ms=… ok via=rpc session=…`) and one `mcp_tool_calls` row.
+
+**What is recorded:** tool name (the name *as called* — an alias records the alias, not its canonical target), `via`, session id, client name/version (from `rememberClientInfo`), start time, duration, status (`ok` / `error` / `timeout` / `late_settle`), a truncated error message on the error path, and the input's **shape** — top-level key *names* plus serialized byte size — and the result byte size.
+
+**What is deliberately NOT recorded:** input *values* and conversation content. Telemetry stores shapes and sizes only. The one exception is the explicit debug flag `MOJULO_MCP_TELEMETRY_CAPTURE=full`, which additionally stores truncated (~4KB) input/result JSON into nullable columns — off by default, documented with the secrets warning in `.env.example`. This upholds the same data-locality rule as the rest of the substrate: the control DB describes tool *calls*, never the conversations behind `get_conversation` and friends.
+
+**Soft timeout:** `MOJULO_MCP_TOOL_TIMEOUT_MS` (default 120s; per-tool override via `registerTool({ timeoutMs })`). JS can't cancel a running handler, so on expiry the seam unblocks the session with an `isError` result, records a `timeout` row, and attaches a watcher to the orphaned promise — when it finally settles, a second `late_settle` row records the true duration. `timeout` + `late_settle` distinguishes "slow" from "hung forever" after the fact. Long-running work should use the async jobs ring (`{ jobId }`) rather than a raised budget.
+
+**Retention:** `pruneMcpToolCalls` keeps ≤30 days and ≤50k rows (whichever bounds tighter), run on startup init and piggybacked on `scripts/cleanup-stale-artifacts.js`.
+
+**Read surfaces:** the `get_tool_telemetry` tool (in-session: aggregates + recent errors, or one tool's recent calls), the `/observability` dashboard page, and `GET /api/mcp-telemetry`. Flags: `MOJULO_MCP_TELEMETRY=off` disables recording entirely.
+
 ---
 
 ## 4. Ring 6 in detail
@@ -171,11 +209,14 @@ Ring 6 is the deliberation layer. Where Rings 1–5 do work (design, deploy, rea
 
 Writeable, durable, append-only. Records *why* this artifact was materialized via that adapter for this bot, what locked-in constraints the operator declared, what mapping decisions a specific binding encodes.
 
-Three MVP write triggers:
+Six structural commit types:
 
-- **Operator KYC** — optional bootstrap commit when the operator declares their situation up front.
+- **`operator_kyc`** — optional one-time bootstrap when the operator declares their situation up front.
+- **`operator_workspace_setup`** — records `workspace_root` + `workspace_conventions` for local-storage technique bindings; append-only.
 - **`artifact_materialization`** — bot-shaped catalyst flow. One atomic commit per materialization.
-- **`primitive_artifact_materialization`** — no-bot primitive-binding flow. Sibling commit path that records the artifact → bound MCP tools audit chain.
+- **`primitive_artifact_materialization`** — no-bot primitive-binding flow. Records the artifact → bound MCP tools audit chain.
+- **`app_materialization`** — App paradigm SPA + four bindings.
+- **`trigger_artifact_materialization`** — composer-anchored activation binding via `bind_trigger`.
 
 Writes happen at **structural events only**, never at outcome events — outcomes (a conversation, an automation run) happen at run-rate; structural decisions (a fleet pivot, an artifact being materialized) happen at deliberation-rate. The asymmetry is what makes the layer auditable.
 
@@ -221,7 +262,17 @@ This is the **supported path** for composing MCP-to-MCP workflows from typed pri
 
 Source: [mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js).
 
-### 4f. Semantic recall — `semantic_search`
+### 4f. Trigger binding — `bind_trigger` / `unbind_trigger` / `list_triggers` / `get_trigger`
+
+Composer-anchored activation. Takes a typed `component_ref` from the orbit composer (Phase 1 ships `trigger/scheduled@0.1.0`), validates `binding_params` (cron parsed at bind time), and persists in `mcp_orbit_trigger_artifacts` as a session-scoped trigger artifact (`trig_<id>`). Graduates via `meta_context_commit({type:'trigger_artifact_materialization', ...})`.
+
+The scheduler daemon at [control/lib/triggers/scheduler.js](../control/lib/triggers/scheduler.js) is gated by `MOJULO_TRIGGER_RUNTIME=enabled` (symmetric with `MOJULO_APP_RUNTIME`). On each fire it renders the payload template, calls `parkRequestForTrigger` (fire-and-forget sibling to `parkRequest`), and writes a `trigger_firing` principle on the target artifact node. The audit chain `trigger_firing → app_inference → trigger_firing → app_inference` on an artifact node tells the full story of each autonomous cycle.
+
+Adding a new trigger kind = ship a typed component + its runtime daemon; the bind tool needs no per-kind code branch.
+
+Source: [mcp-trigger-binding.js](../control/lib/mcp/tools/mcp-trigger-binding.js).
+
+### 4g. Semantic recall — `semantic_search`
 
 **Fuzzy lookup over durable mojulo state** — the recall counterpart to the five structured readers above. Backed by a single embedding sidecar table (`meta_embeddings`) keyed on `(source_kind, source_ref)` and populated atomically alongside every source-row write through the split sync/async helpers in [repositories/embeddings.js](../control/lib/db/repositories/embeddings.js).
 
@@ -354,7 +405,11 @@ All Ring 6 state lives in the control plane SQLite at [control/data/mojulo-lite.
 | `mcp_orbit_components` | mcp-orbit composer | Typed component store (`source='builtin'` or `'custom'`). Loaded from disk at startup. |
 | `mcp_orbit_compositions` | mcp-orbit composer | Composition log. Every recommendation persists as a `proposed` row; promotion is its own state transition. |
 | `mcp_orbit_provider_artifacts` | primitive binding | Session-scoped bound primitive artifacts (`prov_<id>`) — affordance manifest + bindings + body. |
+| `mcp_orbit_trigger_artifacts` | trigger binding | Session-scoped activation bindings (`trig_<id>`) — `component_ref`, `binding_params_json`, `payload_template_json`. Unique partial index on `(composition_ref, artifact_ref, component_ref)`. |
 | `meta_embeddings` | semantic recall | One row per `(source_kind, source_ref)` across the seven indexed kinds. Raw `float32[384]` BLOB embedding, `content_hash` skip-on-unchanged, `model` column reserved for future model swaps. |
+| `plans` | plan mode | Proposed/speculative layer (`status`: draft→actionable→executing→executed/failed). JSON columns for manifest, frame, analysis, revision log, execution log. `archived` / `release_json` set when a plan graduates to contextmap. |
+| `research_sessions`, `research_items` | research mode | Durable research book. Items have freeform `kind` (link / article / summary / screencap / note / quote / snippet). |
+| `research_abstracts` | research mode | Append-only synthesis history. `plan_ref` + `assessment_json` backfilled when abstract is evaluated by plan mojulo. |
 
 Migration is in the migration block in [db/index.js](../control/lib/db/index.js).
 
@@ -392,9 +447,21 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 | [control/lib/mcp/mcp-orbit-components/generator.js](../control/lib/mcp/mcp-orbit-components/generator.js) | Deterministic primitive-binding generator |
 | [control/lib/mcp/tools/mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js) | Ring 6 — `bind_primitives` |
 | [control/lib/mcp/mcp-orbit-components/primitive/](../control/lib/mcp/mcp-orbit-components/primitive/) | The four primitives (body + source-role template + destination-role template) |
+| [control/lib/mcp/tools/mcp-trigger-binding.js](../control/lib/mcp/tools/mcp-trigger-binding.js) | Ring 6 — `bind_trigger` / `unbind_trigger` / `list_triggers` / `get_trigger` |
+| [control/lib/triggers/scheduler.js](../control/lib/triggers/scheduler.js) | Scheduler daemon for `trigger/scheduled` artifacts; gated by `MOJULO_TRIGGER_RUNTIME=enabled` |
 | [control/lib/mcp/tools/semantic-search.js](../control/lib/mcp/tools/semantic-search.js) | Ring 6 — `semantic_search` |
 | [control/lib/db/repositories/embeddings.js](../control/lib/db/repositories/embeddings.js) | Split sync/async helpers that keep `meta_embeddings` in lockstep with source writes |
 | [control/scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js) | Manual recovery / body-composition-change path |
+| [control/lib/mcp/tools/runner.js](../control/lib/mcp/tools/runner.js) | Ring 7 — app lifecycle tools (`install_scaffold`, `start_app`, `stop_app`, `status_app`, `list_running`, env CRUD) |
+| [control/lib/runners/local.js](../control/lib/runners/local.js) | Loopback HTTP client; lifecycle verbs proxy to the daemon, env CRUD stays local filesystem |
+| [control/lib/runners/engine.js](../control/lib/runners/engine.js) | App runtime engine inside the daemon |
+| [control/lib/mcp/tools/agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) | Ring 7 — `pull_agent_task`, `submit_envelope_inference`, `cancel_agent_task` |
+| [control/lib/mcp/agent-tasks/queue.js](../control/lib/mcp/agent-tasks/queue.js) | In-memory FIFO single-claim queue; `parkRequest` / `parkRequestForTrigger` entry points |
+| [control/lib/mcp/tools/plan-mode.js](../control/lib/mcp/tools/plan-mode.js) | Ring 8 — plan mode tools (`enter_plan_mode`, `forge_plan`, `compile_plan`, `execute_plan`, `list_plans`, `get_plan`) |
+| [control/lib/mcp/meta-context/plan-release.js](../control/lib/mcp/meta-context/plan-release.js) | One-way plan→contextmap bridge; writes `plan_release` principles and archives plans on materialization |
+| [control/app/plan/page.jsx](../control/app/plan/page.jsx) | Dashboard plan inbox (read-only; archived plans hidden behind toggle) |
+| [control/lib/mcp/tools/research-mode.js](../control/lib/mcp/tools/research-mode.js) | Ring 9 — research mode tools (`enter_research_mode`, `start_research`, `bind_research_item`, `synthesize_abstract`, `get_research`, `list_research`) |
+| [control/lib/research/evaluate.js](../control/lib/research/evaluate.js) | Shared research→plan evaluator; also surfaced at `POST /api/plans/from-abstract` |
 
 ---
 
@@ -408,4 +475,5 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 - [wizard-builder.md](wizard-builder.md) — the form-driven third entry point that also converges on `buildDeploymentConfig()`
 - [conversations-api.md](conversations-api.md) — the bot-side API that Ring 3 proxies through
 - [federated-routing.md](federated-routing.md) — cross-bot handoffs and how the tamper-evident chain extends through them
+- [app-runtime.md](app-runtime.md) — Ring 7 app runner daemon: lifecycle, reconciliation, env CRUD, daemon posture
 - [BOT-ARCHITECTURE.md](BOT-ARCHITECTURE.md) — the bot-shaped face: how the artifact is compiled and what runs inside it

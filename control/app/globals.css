@@ -19,7 +19,70 @@
   --text-primary: #ffffff;
   --text-secondary: #d1d5db; /* gray-300 */
   --text-muted: #9ca3af; /* gray-400 */
+
+  /* Workshop nav mode hues. Teal stays the brand anchor; each mode carries one
+     signature hue (cool → warm mirrors upstream → running → output). `idle` is
+     the dimmed rest tint; `base`/`strong` are the hover/active tints. */
+  --mode-ideate: #a5b4fc;
+  --mode-ideate-strong: #818cf8;
+  --mode-ideate-idle: #7b83b8;
+  --mode-operate: #5eead4;
+  --mode-operate-strong: #2dd4bf;
+  --mode-operate-idle: #4a9d92;
+  --mode-studio: #f4a86a;
+  --mode-studio-strong: #ef8f4c;
+  --mode-studio-idle: #b57c4f;
 }
+
+/* Mode-hue nav system. A mode section/button sets --h (base), --h-strong, and
+   --h-idle inline; these classes read them so hover/active states pick up the
+   mode color without per-instance utility soup. Used by the Workshop drawer
+   (WorkshopDrawer.jsx) and the home launcher (HomeLauncher.jsx). */
+.ws-mode-label { color: var(--h); }
+.ws-mode-idle-ico { color: var(--h-idle); transition: color 0.15s; }
+
+/* Drawer destination rows */
+.ws-row { color: var(--text-secondary); transition: background-color 0.15s, color 0.15s; }
+.ws-row .ws-row-box {
+  color: var(--h-idle);
+  border-color: var(--border-color);
+  transition: color 0.15s, border-color 0.15s;
+}
+.ws-row:hover { background: color-mix(in srgb, var(--h) 9%, transparent); color: var(--text-primary); }
+.ws-row:hover .ws-row-box { color: var(--h); border-color: var(--h); }
+.ws-row.is-active {
+  background: color-mix(in srgb, var(--h) 12%, transparent);
+  color: var(--text-primary);
+  box-shadow: inset 2px 0 0 var(--h);
+}
+.ws-row.is-active .ws-row-box { color: var(--h); border-color: var(--h); }
+
+/* Home-launcher mode tiles (buttons) + the panel tiles below them */
+.ws-modebtn { transition: border-color 0.15s, background-color 0.15s, transform 0.15s; }
+.ws-modebtn-ico { color: var(--h-idle); transition: color 0.15s; }
+.ws-modebtn-label { color: var(--text-secondary); transition: color 0.15s; }
+.ws-modebtn:hover { border-color: var(--h); transform: translateY(-2px); }
+.ws-modebtn:hover .ws-modebtn-ico { color: var(--h); }
+.ws-modebtn.is-active {
+  border-color: var(--h);
+  background: color-mix(in srgb, var(--h) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--h);
+}
+.ws-modebtn.is-active .ws-modebtn-ico { color: var(--h); }
+.ws-modebtn.is-active .ws-modebtn-label { color: var(--text-primary); }
+
+.ws-tile .ws-tile-box {
+  color: var(--h-idle);
+  border-color: var(--border-color);
+  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.ws-tile:hover .ws-tile-box {
+  color: var(--h);
+  border-color: var(--h);
+  background: color-mix(in srgb, var(--surface-elevated) 30%, transparent);
+}
+.ws-tile .ws-tile-label { transition: color 0.15s; }
+.ws-tile:hover .ws-tile-label { color: var(--text-primary); }
 
 @theme inline {
   --color-background: var(--background);

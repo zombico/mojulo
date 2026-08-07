@@ -49,11 +49,12 @@ See the exemplar [control/lib/mcp/catalysts/qualify-lead-to-crm.md](../control/l
 
 ## Where catalysts live
 
-`control/lib/mcp/catalysts/` — one `.md` file per catalyst, shipped with the repo. The loader ([control/lib/mcp/catalysts/loader.js](../control/lib/mcp/catalysts/loader.js)) scans this directory at process start and exposes the library via four MCP tools (see [MCP surface](#mcp-surface) below).
+Two shelves, merged into one catalog by [control/lib/mcp/catalysts/catalog.js](../control/lib/mcp/catalysts/catalog.js):
 
-**There is no user-writable catalyst directory.** This is a deliberate scope choice — catalysts are an MCP affordance, and custom or one-off patterns belong on the agent's host side, not in mojulo's storage. Users wanting a bespoke workflow either let their agent synthesize from scratch (no catalyst needed) or maintain their own catalyst-shaped markdown locally for their agent to consume.
+- **Curated shelf** — `control/lib/mcp/catalysts/`, one `.md` file per catalyst, shipped with the repo. The loader ([control/lib/mcp/catalysts/loader.js](../control/lib/mcp/catalysts/loader.js)) scans this directory at process start. To add a built-in catalyst: write the `.md` file, restart the control plane, send a PR.
+- **Local shelf** — operator-minted rows in the control-plane DB (`local_catalysts` + `local_catalyst_revisions`, repository at [control/lib/db/repositories/local-catalysts.js](../control/lib/db/repositories/local-catalysts.js)), written via the `mint_catalyst` MCP tool. Live immediately — no restart, no PR — and served through the same tools as curated entries, annotated `origin: 'local'`. See [Local catalysts](#local-catalysts) below.
 
-To add a new built-in catalyst: write the `.md` file, restart the control plane, send a PR.
+One-off automations that aren't catalyst-shaped still belong on the agent's host side (a local skill), not on either shelf — the posture-check in `custom_catalyst` guards this.
 
 ---
 
@@ -169,18 +170,32 @@ Every shipped catalyst follows this six-section template. Don't deviate without 
 
 ## MCP surface
 
-Four tools, registered by [control/lib/mcp/tools/catalysts.js](../control/lib/mcp/tools/catalysts.js):
+Five tools, registered by [control/lib/mcp/tools/catalysts.js](../control/lib/mcp/tools/catalysts.js). All read the merged catalog (curated + local shelves):
 
 | Tool                  | Purpose                                                                                                                                                                       |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_catalysts`      | Returns `id`, `name`, `summary`, `valueHook`, `category`, `requires` for each catalyst. Optional `category` filter.                                                          |
-| `get_catalyst`        | Returns one catalyst's full composed body: core preamble + host adapter section + catalyst body. Accepts optional `host` to override the auto-resolved adapter.              |
-| `recommend_catalysts` | Recommends catalysts for one bot (`deploymentId`) or across the fleet (`scope: 'fleet'` / `deploymentIds`). Annotates each with `missingProtocols`, `crossBot`, etc. Includes a `consultationPosture` block + a `materialization` block (available adapters + recommended-for-this-client). |
-| `custom_catalyst`     | Returns an author's guide for drafting a new catalyst to PR back to the library. Self-contained — posture-check rules, batched context questions, body template, validation checklist, PR hand-off. Use this when the user wants to *contribute* a new catalyst, not when they want to automate something for themselves. |
+| `list_catalysts`      | Returns `id`, `name`, `summary`, `valueHook`, `category`, `requires`, `origin` for each catalyst. Optional `category` filter. Local entries eclipsed by a later-shipped curated id are flagged `eclipsed: true`. |
+| `get_catalyst`        | Returns one catalyst's full composed body: core preamble + host adapter section + catalyst body. Accepts optional `host` to override the auto-resolved adapter, and `rev` to read a local catalyst's historical revision. Local reads include `fileText` (the shelf-file serialization) + the revision index. |
+| `recommend_catalysts` | Recommends catalysts for one bot (`deploymentId`) or across the fleet (`scope: 'fleet'` / `deploymentIds`). Annotates each with `missingProtocols`, `crossBot`, `origin`, etc. Includes a `consultationPosture` block + a `materialization` block (available adapters + recommended-for-this-client). |
+| `custom_catalyst`     | Returns the author's guide for drafting a new catalyst. Self-contained — posture-check rules, batched context questions, body template, validation checklist, mint + graduation hand-off. Read before `mint_catalyst`. |
+| `mint_catalyst`       | Writes to the local shelf. Upsert keyed on `id`: new id → rev 1; existing local id → appends a revision (`note` required — the commit message) and revives if archived; `archive: true` shelves it (revisions kept, embedding row dropped). Refuses curated ids. Response includes `fileText` for graduation. |
 
 Bot-shape introspection is intentionally not a separate tool — `get_deployment` ([control/lib/mcp/tools/operate.js](../control/lib/mcp/tools/operate.js)) already returns enabled protocols, form schema, triage routes, and identity. The agent does the match between a catalyst's `requires` and a deployment's shape.
 
 Adapter discovery is handled by `list_adapters` / `get_adapter` from the adapters ring (sibling to catalysts). Every `get_catalyst` response auto-composes the resolved adapter into the returned body, so most agents won't need to call `get_adapter` directly — but it's there for sessions that want to bind the adapter once and reuse it across multiple catalyst reads.
+
+---
+
+## Local catalysts
+
+The operator's own shelf, minted over MCP (design + build log: [control/lib/mcp/catalysts/local-catalysts.plan.md](../control/lib/mcp/catalysts/local-catalysts.plan.md)).
+
+- **Same spec, same gate.** `mint_catalyst` runs the exact validator the file loader runs (`validateCatalystMeta` — required fields, kind rules, the `destinationMcpCategory` → `destinationExamples` pairing, non-empty body). The six-section editorial template is advisory locally; it's enforced by maintainers only at PR graduation.
+- **Head + revisions.** The row is the live pointer; every update appends to `local_catalyst_revisions` with a required `note` (the commit message). For local catalysts `version` is derived — always the head `rev`. `get_catalyst({ id, rev })` reads history.
+- **Kind is explicit.** No shelf directory to infer from — `kind` defaults to `workflow`; `technique` is equally mintable and gets the same bare-body serving rules.
+- **Id policy.** Minting a curated id is refused. If a later mojulo upgrade ships a curated catalyst with an id the operator already minted, the curated one **eclipses** it: curated wins the bare id, the local row is preserved and flagged `eclipsed: true` in `list_catalysts` until re-minted under a new slug.
+- **Search.** Mints/updates mirror into the semantic index per-write (under the existing `catalyst` source kind, soft-fail); archive deletes the embedding row; `reindexAll` sources the merged catalog so a from-scratch reindex includes the local shelf.
+- **Graduation.** Every mint/get returns `fileText` — the exact `.md` the curated shelf would hold. Prove the catalyst out, PR that file under `control/lib/mcp/catalysts/`, then archive the local row once the curated version ships.
 
 ---
 

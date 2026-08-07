@@ -53,6 +53,30 @@ export function isProtocolAllowedForModel(provider, model, protocolId) {
   return allowed.has(protocolId);
 }
 
+/**
+ * MODEL LIST CONVENTION — suggestions, not a wall.
+ *
+ * The model field is free text everywhere (wizard input + datalist, chat
+ * builder, MCP build tools): any model ID the provider's API serves is valid,
+ * exactly as the provider spells it (e.g. `claude-sonnet-4-6`, `gpt-5-mini`,
+ * `llama3.3:70b`). Nothing validates a typed model against the `models`
+ * arrays below, and nothing should — that's what makes a new provider model
+ * usable the day it ships, with no mojulo release.
+ *
+ * What the arrays below ARE for:
+ *   - datalist suggestions in the wizard's model input
+ *   - `defaultModel` seeding when a provider is picked or a saved key is used
+ *   - MODEL_TIERS defaults for control-plane tasks
+ *
+ * Corollary for the protocol gates (getAllowedProtocolsForModel): restricted
+ * models are DENY-listed by exact ID. An unknown ID returns null (all
+ * protocols allowed) by design — the operator vouches for what they typed.
+ * When a model family proves unable to run a protocol, add its exact ID to
+ * the deny-list; never switch to an allow-list keyed on the arrays below.
+ *
+ * A mistyped ID fails at first real call with the provider's own error
+ * (surfaced in the wizard's live preview before anything deploys).
+ */
 export const LLM_PROVIDERS = {
   openai: {
     name: 'OpenAI',

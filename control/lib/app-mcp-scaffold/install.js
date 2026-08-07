@@ -93,16 +93,58 @@ function ensureBearer(envPath) {
   return { bearer, generated: true };
 }
 
+// Idempotent KEY=value append. If `key` already appears on a line, leaves it
+// alone (operator may have set it intentionally) and returns false. Otherwise
+// appends and returns true. The bearer is the value passed in — this helper
+// never reads it from process.env so callers can keep the bearer's lifetime
+// scoped to the public entry point.
+function appendEnvVarIfMissing(envPath, key, value) {
+  let existing = '';
+  if (existsSync(envPath)) existing = readFileSync(envPath, 'utf8');
+  const re = new RegExp(`^${key}\\s*=`, 'm');
+  if (re.test(existing)) return false;
+  const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+  appendFileSync(envPath, `${prefix}${key}=${value}\n`);
+  return true;
+}
+
+function wireControlPlaneVars(envPath, materializationRef) {
+  const bearer = process.env.CONTROL_PLANE_MCP_KEY;
+  if (!bearer) {
+    return {
+      controlPlaneKeyWired: false,
+      urlWired: false,
+      appRefWired: false,
+      reason: 'CONTROL_PLANE_MCP_KEY not set in control-plane env',
+    };
+  }
+  const url = process.env.CONTROL_PLANE_URL || 'http://127.0.0.1:3001';
+  // Re-check after each write — appendEnvVarIfMissing returns true when it
+  // wrote a NEW line; an already-present line still counts as "wired" since
+  // the on-disk state after the call has the var. The agent cares whether
+  // the app can read the value, not who put it there.
+  appendEnvVarIfMissing(envPath, 'MOJULO_CONTROL_PLANE_URL', url);
+  appendEnvVarIfMissing(envPath, 'MOJULO_CONTROL_PLANE_KEY', bearer);
+  appendEnvVarIfMissing(envPath, 'MOJULO_APP_REF', materializationRef);
+  const finalContent = readFileSync(envPath, 'utf8');
+  return {
+    controlPlaneKeyWired: /^MOJULO_CONTROL_PLANE_KEY\s*=/m.test(finalContent),
+    urlWired: /^MOJULO_CONTROL_PLANE_URL\s*=/m.test(finalContent),
+    appRefWired: /^MOJULO_APP_REF\s*=/m.test(finalContent),
+  };
+}
+
 /**
  * Install the scaffold into `<targetDir>/app-mcp/`.
  *
  * @param {object} opts
- * @param {string} opts.targetDir          — absolute path of the app's artifact directory.
- * @param {string} opts.appName            — human-readable app name, baked into describe.js.
- * @param {string} opts.materializationRef — opaque ref baked into describe.js (typically the artifact node ref from the materialization commit).
- * @param {string} [opts.declaredPurpose]  — optional one-line purpose; baked into describe.js. Defaults to empty.
- * @param {boolean} [opts.overwrite]       — when true, overwrites the scaffold directory if it already exists (default false).
- * @returns {{ scaffoldDir: string, bearer: string, bearerGenerated: boolean, envPath: string }}
+ * @param {string} opts.targetDir              — absolute path of the app's artifact directory.
+ * @param {string} opts.appName                — human-readable app name, baked into describe.js.
+ * @param {string} opts.materializationRef     — opaque ref baked into describe.js (typically the artifact node ref from the materialization commit).
+ * @param {string} [opts.declaredPurpose]      — optional one-line purpose; baked into describe.js. Defaults to empty.
+ * @param {boolean} [opts.overwrite]           — when true, overwrites the scaffold directory if it already exists (default false).
+ * @param {boolean} [opts.wireControlPlaneKey] — when true, writes MOJULO_CONTROL_PLANE_URL/KEY/APP_REF to the app's `.env` server-side using the control plane's own bearer. The bearer never crosses the return value. Default false (byte-identical behavior to pre-0.8.1).
+ * @returns {{ scaffoldDir: string, bearer: string, bearerGenerated: boolean, envPath: string, controlPlaneKeyWired: boolean, urlWired: boolean, appRefWired: boolean }}
  */
 export function installScaffold({
   targetDir,
@@ -110,6 +152,7 @@ export function installScaffold({
   materializationRef,
   declaredPurpose,
   overwrite = false,
+  wireControlPlaneKey = false,
 }) {
   if (!targetDir || typeof targetDir !== 'string') {
     throw new Error('installScaffold requires targetDir (absolute path)');
@@ -130,7 +173,20 @@ export function installScaffold({
     // overwrite:true if they want to repave (e.g. evolve-mode, post-spike).
     const envPath = join(targetDir, '.env');
     const { bearer, generated } = ensureBearer(envPath);
-    return { scaffoldDir, bearer, bearerGenerated: generated, envPath, reused: true };
+    const wire = wireControlPlaneKey
+      ? wireControlPlaneVars(envPath, materializationRef.trim())
+      : { controlPlaneKeyWired: false, urlWired: false, appRefWired: false };
+    return {
+      scaffoldDir,
+      bearer,
+      bearerGenerated: generated,
+      envPath,
+      reused: true,
+      controlPlaneKeyWired: wire.controlPlaneKeyWired,
+      urlWired: wire.urlWired,
+      appRefWired: wire.appRefWired,
+      ...(wire.reason ? { controlPlaneKeyWireReason: wire.reason } : {}),
+    };
   }
   mkdirSync(scaffoldDir, { recursive: true });
 
@@ -142,8 +198,21 @@ export function installScaffold({
 
   const envPath = join(targetDir, '.env');
   const { bearer, generated } = ensureBearer(envPath);
+  const wire = wireControlPlaneKey
+    ? wireControlPlaneVars(envPath, materializationRef.trim())
+    : { controlPlaneKeyWired: false, urlWired: false, appRefWired: false };
 
-  return { scaffoldDir, bearer, bearerGenerated: generated, envPath, reused: false };
+  return {
+    scaffoldDir,
+    bearer,
+    bearerGenerated: generated,
+    envPath,
+    reused: false,
+    controlPlaneKeyWired: wire.controlPlaneKeyWired,
+    urlWired: wire.urlWired,
+    appRefWired: wire.appRefWired,
+    ...(wire.reason ? { controlPlaneKeyWireReason: wire.reason } : {}),
+  };
 }
 
 // Test seam — exposed for direct unit testing of the substitution path

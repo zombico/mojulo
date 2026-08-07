@@ -1,0 +1,161 @@
+{{>doc-head}}
+<style>
+  body { --viewer-aspect: {{viewer_aspect}}; }
+</style>
+<style>
+  :root {
+    --ink: #1c1917;
+    --muted: #57534e;
+    --faint: #a8a29e;
+    --line: #e7e5e4;
+    --paper: #f5f5f4;
+    --page: #ffffff;
+    --accent: #166534;
+    --accent-soft: #f0fdf4;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .guide {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  .cover {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 64px 48px;
+    margin-bottom: 36px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .cover .eyebrow {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+    font-weight: 600;
+  }
+  .cover h1 {
+    font-size: 36px;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .cover .foreword {
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 52ch;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .cover .foreword p { margin: 0 0 0.7em; }
+  .cover .foreword p:last-child { margin-bottom: 0; }
+  .section-divider {
+    margin: 56px 0 18px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .section-divider h2 {
+    font-size: 14px;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+    font-weight: 700;
+  }
+  .specimen {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 28px 32px;
+    margin: 18px 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .specimen .illustration {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  .specimen .illustration svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .specimen .illustration.missing {
+    color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    padding: 24px;
+  }
+  .specimen .label {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0 0 4px;
+    letter-spacing: -0.005em;
+  }
+  .specimen .scientific {
+    font-style: italic;
+    color: var(--accent);
+    font-size: 13px;
+    margin: 0 0 14px;
+  }
+  .specimen .description { font-size: 15px; color: var(--muted); line-height: 1.6; }
+  .specimen .description p { margin: 0 0 0.7em; }
+  .specimen .description p:last-child { margin-bottom: 0; }
+  .specimen.text-only .label {
+    font-size: 18px;
+  }
+  footer.colophon {
+    margin-top: 64px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  @media print {
+    body { background: white; }
+    .guide { padding: 0; max-width: none; }
+    .cover, .specimen { box-shadow: none; }
+    .specimen { page-break-inside: avoid; break-inside: avoid; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="guide">
+  <section class="cover" data-viewer-page>
+    <p class="eyebrow">A field guide</p>
+    <h1>{{cover_title}}</h1>
+    <div class="foreword">{{cover_foreword_html}}</div>
+  </section>
+  {{specimens_html}}
+  <footer class="colophon">
+    field_guide template v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_human}}
+  </footer>
+</article>
+
+{{>book-viewer}}
+</body>
+</html>

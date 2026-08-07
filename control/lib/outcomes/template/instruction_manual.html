@@ -1,0 +1,192 @@
+{{>doc-head}}
+<style>
+  body { --viewer-aspect: {{viewer_aspect}}; }
+</style>
+<style>
+  :root {
+    --ink: #161616;
+    --muted: #4a4a4a;
+    --faint: #8a8a8a;
+    --line: #d9d6cf;
+    --paper: #eceae4;   /* dark-ish backdrop behind the booklet page */
+    --page: #ffffff;    /* the assembly-sheet white */
+    --accent: #0d5c63;  /* IKEA-ish teal; override via publication.style.accent */
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .book { max-width: 720px; margin: 0 auto; padding: 48px 20px 96px; }
+
+  /* ── cover ─────────────────────────────────────────────────────────── */
+  .cover {
+    background: var(--page); border: 1px solid var(--line); border-radius: 4px;
+    padding: 64px 48px; margin-bottom: 40px; text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .cover .eyebrow {
+    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 20px;
+  }
+  .cover h1 { font-size: clamp(26px, 5vw, 40px); line-height: 1.1; margin: 0 0 24px; font-weight: 800; letter-spacing: -0.01em; }
+  .cover .blurb { font-size: 15px; color: var(--muted); max-width: 52ch; margin: 0 auto; text-align: left; }
+  .cover .blurb p { margin: 0 0 0.7em; }
+  .cover .blurb p:last-child { margin-bottom: 0; }
+  .cover .imprint { font-size: 11px; color: var(--faint); margin-top: 32px; letter-spacing: 0.04em; }
+
+  /* ── part divider ──────────────────────────────────────────────────── */
+  .part-divider {
+    background: var(--page); border: 1px solid var(--line); border-radius: 4px;
+    padding: 72px 48px; margin: 28px 0; text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .part-eyebrow { font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 0 0 14px; }
+  .part-name { font-size: clamp(22px, 4vw, 32px); margin: 0; font-weight: 800; letter-spacing: -0.01em; }
+
+  /* ── step page: the workhorse layout ───────────────────────────────── */
+  /* A step page is a vertical stack: big diagram, then the numbered
+     instruction block, then a pinned fine-print foot. The page is a query
+     container so the inner type/columns react to the ACTUAL page frame, not
+     the viewport — that's what makes the same template read correctly at
+     print, desktop-viewer, and phone sizes.
+
+     IMPORTANT: the base container-type is `inline-size`, NOT `size`. Size
+     containment makes the element ignore its own contents for height — fine
+     when something else supplies a height (the viewer's active page gets an
+     explicit one below), but in SCROLL mode ("Show all") nothing does, so a
+     `size`-contained step page collapses to ~0 height and every page piles up
+     on top of the next. `inline-size` contains only the width, so block height
+     still derives from content and scroll mode lays pages out normally. The
+     two @container width queries below are inline-axis, so they keep working;
+     only block-axis `cqmin` clamps fall back to the viewport in scroll mode,
+     which is an acceptable degradation for the secondary view. */
+  .step-page {
+    background: var(--page); border: 1px solid var(--line); border-radius: 4px;
+    padding: 28px 32px 18px; margin: 28px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    display: flex; flex-direction: column; gap: 18px;
+    container-type: inline-size; container-name: page;
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  /* Only the viewer's active page has a determinate height (set by the
+     book-viewer from --viewer-aspect), so promote it to full size containment
+     there — that's what lets the diagram band flex to fill the frame and the
+     block-axis cqmin clamps resolve against the page. Scoped to screen so print
+     keeps the content-sized fallback (it flattens to fixed columns below). */
+  @media screen {
+    body.viewer-mode .step-page.viewer-active { container-type: size; }
+  }
+
+  /* Diagram zone — dominant top band. In SCROLL mode it holds a 4/3 box; in
+     VIEWER mode the book-viewer's own rule
+     (body.viewer-mode .page.viewer-active .illustration { flex:1 1 auto })
+     lets it grow to fill the frame, so we reuse class `illustration` to
+     inherit that proven picture_book behavior. */
+  .step-page .illustration {
+    aspect-ratio: 4 / 3; background: #fbfaf7; border: 1px solid var(--line);
+    border-radius: 3px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-page .illustration .diagram { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+  .step-page .illustration .diagram svg { width: 100%; height: 100%; display: block; }
+  .step-page .illustration .diagram.missing {
+    color: var(--faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; padding: 20px; text-align: center;
+  }
+  .step-page .illustration .diagram.empty { width: 100%; height: 100%; }
+
+  /* Instruction block: big step number in a left gutter, text to the right. */
+  .step-text { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start; flex: 0 1 auto; }
+  .step-num {
+    font-weight: 800; line-height: 1; color: #fff; background: var(--accent);
+    border-radius: 999px; display: flex; align-items: center; justify-content: center;
+    /* clamp keeps the IKEA "big number" legible across print / viewer / phone */
+    width: clamp(34px, 9cqmin, 56px); height: clamp(34px, 9cqmin, 56px);
+    font-size: clamp(18px, 5cqmin, 30px);
+  }
+  .step-content { min-width: 0; }   /* allow column shrink inside the grid cell */
+  .step-title { font-size: clamp(16px, 3.4cqmin, 21px); font-weight: 700; margin: 2px 0 10px; letter-spacing: -0.01em; }
+
+  /* Multi-column body that ADAPTS to available width.
+     column-width (not column-count) → the browser fits as many ~22ch columns
+     as the frame allows and reflows on resize. column-fill: balance evens the
+     last row. Font-size scales with the container via clamp(cqmin). */
+  .step-body {
+    column-width: 22ch; column-gap: 28px; column-rule: 1px solid var(--line);
+    column-fill: balance;
+    font-size: clamp(13px, 2.6cqmin, 15.5px); color: var(--ink); line-height: 1.55;
+  }
+  .step-body p { margin: 0 0 0.7em; break-inside: avoid; }
+  .step-body p:first-child { margin-top: 0; }
+  .step-body ul, .step-body ol { margin: 0 0 0.7em; padding-left: 1.3em; break-inside: avoid; }
+  .step-body li { margin: 0 0 0.35em; }
+  .step-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  /* Narrow frames (phones / small print panels): one column so short measures
+     don't shred the prose. */
+  @container page (max-width: 420px) {
+    .step-body { column-width: auto; column-count: 1; column-rule: none; }
+    .step-text { gap: 12px; }
+  }
+  /* Wide frames: give columns more air. */
+  @container page (min-width: 640px) {
+    .step-body { column-gap: 36px; }
+  }
+
+  /* ── fine-print / disclaimer zone — pinned foot, "really small text" ── */
+  .fine-print {
+    margin-top: auto;                /* push to the bottom of the flex column */
+    padding-top: 10px; border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start;
+    font-size: clamp(8px, 1.4cqmin, 10px); line-height: 1.35; color: var(--faint);
+    letter-spacing: 0.01em;
+  }
+  .fine-print-mark {
+    width: 14px; height: 14px; border-radius: 3px;
+    background: var(--warn); color: #fff; font-weight: 800; font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── colophon ──────────────────────────────────────────────────────── */
+  footer.colophon {
+    margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line);
+    font-size: 11px; color: var(--faint); text-align: center; letter-spacing: 0.04em;
+  }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ── print: flatten to a fixed 2-col sheet, force ink-on-white ──────── */
+  @media print {
+    body { background: white; }
+    .book { padding: 0; max-width: none; }
+    .cover, .part-divider, .step-page { box-shadow: none; border-color: #ccc; page-break-after: always; break-after: page; }
+    .step-page { container-type: normal; }          /* cq units fall back; use fixed cols */
+    .step-body { column-count: 2; column-width: auto; font-size: 10.5pt; }
+    .step-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .fine-print { font-size: 7.5pt; color: #555; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="book">
+
+  <section class="cover" data-viewer-page>
+    <p class="eyebrow">Assembly instructions</p>
+    <h1>{{cover_title}}</h1>
+    <div class="blurb">{{cover_blurb_html}}</div>
+    <p class="imprint">Mojulo &middot; {{generated_at_human}}</p>
+  </section>
+
+  {{pages_html}}
+
+  <footer class="colophon">
+    instruction_manual template v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_iso}}
+  </footer>
+
+</article>
+
+{{>book-viewer}}
+</body>
+</html>

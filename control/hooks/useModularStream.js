@@ -14,6 +14,7 @@ export const MESSAGE_TYPES = {
   USER: 'user',
   ASSISTANT: 'assistant',
   TOOL_CALL: 'tool_call',
+  DECISION: 'decision',
   SYSTEM: 'system',
 };
 
@@ -66,6 +67,11 @@ export function useModularStream(options = {}) {
 
   // Ref for current streaming text
   const currentTextRef = useRef('');
+  // The assistant bubble that `text` events currently append to. Reset to null
+  // when a decision card is inserted mid-turn, so the next text opens a FRESH
+  // bubble below the card (keeps the answer temporally after the question).
+  const currentAssistantIdRef = useRef(null);
+  const bubbleSeqRef = useRef(0);
   const abortControllerRef = useRef(null);
 
   /**
@@ -88,7 +94,8 @@ export function useModularStream(options = {}) {
     setMessages((prev) => [...prev, userMessage]);
 
     // Add placeholder for assistant response
-    const assistantPlaceholderId = `assistant-${Date.now()}`;
+    const assistantPlaceholderId = `assistant-${Date.now()}-${bubbleSeqRef.current++}`;
+    currentAssistantIdRef.current = assistantPlaceholderId;
     setMessages((prev) => [
       ...prev,
       {
@@ -174,18 +181,31 @@ export function useModularStream(options = {}) {
         setStatus(event.status);
         break;
 
-      case 'text':
+      case 'text': {
+        // Lazily (re)open an assistant bubble when none is active — e.g. after
+        // a decision card reset the ref. Fresh bubble starts from empty text.
+        if (!currentAssistantIdRef.current) {
+          const newId = `assistant-${Date.now()}-${bubbleSeqRef.current++}`;
+          currentAssistantIdRef.current = newId;
+          currentTextRef.current = '';
+          setMessages((prev) => [
+            ...prev,
+            { id: newId, type: MESSAGE_TYPES.ASSISTANT, content: '', timestamp: Date.now() },
+          ]);
+        }
         currentTextRef.current += event.text;
         // Strip [expression:...] markers from displayed text
         const cleanText = currentTextRef.current.replace(/\[expression:\w+\]\s*/g, '');
+        const activeId = currentAssistantIdRef.current;
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantPlaceholderId
+            m.id === activeId
               ? { ...m, content: cleanText }
               : m
           )
         );
         break;
+      }
 
       case 'tool_started':
         setToolCalls((prev) => [
@@ -340,12 +360,72 @@ export function useModularStream(options = {}) {
         setModuloState(event.state);
         break;
 
+      case 'decision':
+        // Agent-routed worker is asking the operator a structured question
+        // mid-turn (request_chat_decision). Render it as an inline card; the
+        // answer flows back via respondToDecision → /api/agent-ui/respond.
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: MESSAGE_TYPES.DECISION,
+            promptId: event.prompt_id,
+            question: event.question,
+            options: event.options || [],
+            allowText: !!event.allow_text,
+            answered: false,
+            answer: null,
+            timestamp: event.timestamp,
+          },
+        ]);
+        // Close the current bubble so the worker's post-decision text opens a
+        // new one below the card.
+        currentAssistantIdRef.current = null;
+        break;
+
       case 'error':
         setError(event.error);
         onError?.(new Error(event.error));
         break;
     }
   }, [onError]);
+
+  /**
+   * Answer a mid-turn decision card. POSTs the operator's choice to the
+   * agent-ui respond route (which unblocks the worker's request_chat_decision)
+   * and marks the card answered so it renders disabled with the chosen value.
+   */
+  const respondToDecision = useCallback(async (promptId, answer) => {
+    // Optimistically mark answered so the buttons disable immediately.
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.type === MESSAGE_TYPES.DECISION && m.promptId === promptId
+          ? { ...m, answered: true, answer }
+          : m
+      )
+    );
+    try {
+      const response = await fetch('/api/agent-ui/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, prompt_id: promptId, ...answer }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP error: ${response.status}`);
+      }
+    } catch (err) {
+      console.error('[useModularStream] Decision respond error:', err);
+      setError(err.message);
+      // Roll back so the operator can retry.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.type === MESSAGE_TYPES.DECISION && m.promptId === promptId
+            ? { ...m, answered: false, answer: null }
+            : m
+        )
+      );
+    }
+  }, [sessionId]);
 
   /**
    * Deploy the bot with confirmed protocols
@@ -488,6 +568,7 @@ export function useModularStream(options = {}) {
     setDisableModuloAnimation(false);
     identityReceivedRef.current = false;
     currentTextRef.current = '';
+    currentAssistantIdRef.current = null;
   }, []);
 
   return {
@@ -509,6 +590,7 @@ export function useModularStream(options = {}) {
     // Actions
     sendMessage,
     deploy,
+    respondToDecision,
     cancel,
     reset,
   };

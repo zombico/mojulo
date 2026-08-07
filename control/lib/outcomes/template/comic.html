@@ -1,0 +1,409 @@
+{{>doc-head}}
+<style>
+  body {
+    --viewer-aspect: {{viewer_aspect}};
+    --ink: #1a1a1a;
+    --muted: #525252;
+    --faint: #8a8a8a;
+    --line: #d4d2cd;
+    --paper: #f5f3ee;
+    --page: #ffffff;
+    --accent: #b91c1c;
+    --pencil: #4b4a47;
+    --guide: #b9b6af;
+    --balloon-draft: #ededea;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  body[data-pagination="vertical_scroll"] { --viewer-aspect: 1 / 999; }
+
+  .book {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  /* ── cover ────────────────────────────────────────────────────────── */
+  .cover {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 64px 48px 56px;
+    margin-bottom: 40px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .cover .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+    font-weight: 600;
+  }
+  .cover h1 {
+    font-size: 44px;
+    line-height: 1.1;
+    margin: 0 0 24px;
+    color: var(--ink);
+    font-weight: 800;
+    letter-spacing: -0.015em;
+  }
+  .cover .blurb {
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 50ch;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .cover .blurb p { margin: 0 0 0.8em; }
+  .cover .blurb p:last-child { margin-bottom: 0; }
+  .cover .imprint {
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 32px;
+    letter-spacing: 0.06em;
+  }
+  .cover .format-chip {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  /* ── chapter divider ─────────────────────────────────────────────── */
+  .chapter-divider {
+    margin: 56px 0 20px;
+    text-align: center;
+  }
+  .chapter-divider .label {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .chapter-divider h2 {
+    font-size: 24px;
+    margin: 6px 0 0;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* ── page ────────────────────────────────────────────────────────── */
+  .page,
+  .spread {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 24px 28px 16px;
+    margin: 24px 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  body[data-pagination="vertical_scroll"] .page {
+    margin: 0;
+    border-radius: 0;
+    border-width: 0 1px;
+    box-shadow: none;
+  }
+  body[data-pagination="vertical_scroll"] .page + .page { border-top: 0; }
+
+  .page .illustration,
+  .spread-half .illustration {
+    aspect-ratio: var(--viewer-aspect);
+    background: #fdfdfb;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .page .illustration svg,
+  .spread-half .illustration svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .page .illustration.missing,
+  .spread-half .illustration.missing {
+    color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  .page .caption,
+  .spread-half .caption {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .page .caption p,
+  .spread-half .caption p { margin: 0 0 0.6em; }
+  .page .caption p:last-child,
+  .spread-half .caption p:last-child { margin-bottom: 0; }
+
+  .page-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 10px;
+    color: var(--faint);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .page-meta .fidelity-override {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ── spread (two pages side-by-side) ─────────────────────────────── */
+  .spread .spread-row {
+    display: flex;
+    gap: 8px;
+  }
+  .spread .spread-half {
+    flex: 1 1 50%;
+    min-width: 0;
+  }
+  .spread .spread-meta { margin-top: 12px; }
+  @media (max-width: 720px) {
+    .spread .spread-row { flex-direction: column; gap: 16px; }
+  }
+
+  /* ── fidelity-keyed presentation ─────────────────────────────────── */
+  /* Nēmu — sketchy guides everywhere. */
+  [data-fidelity="nemu"] .illustration {
+    border-style: dashed;
+    border-color: var(--guide);
+    background: #fbfaf7;
+    filter: saturate(0.75) contrast(0.92);
+  }
+  [data-fidelity="nemu"] .illustration svg .comic-overlay-eyeline,
+  [data-fidelity="nemu"] .illustration svg .comic-overlay-camera,
+  [data-fidelity="nemu"] .illustration svg .comic-overlay-framing,
+  [data-fidelity="nemu"] .illustration svg .comic-overlay-balloon-draft {
+    display: initial;
+    opacity: 0.9;
+  }
+  /* Breakdown — overlays soften, panels solid. */
+  [data-fidelity="breakdown"] .illustration { border-color: var(--guide); }
+  [data-fidelity="breakdown"] .illustration svg .comic-overlay-eyeline,
+  [data-fidelity="breakdown"] .illustration svg .comic-overlay-camera,
+  [data-fidelity="breakdown"] .illustration svg .comic-overlay-framing {
+    display: initial;
+    opacity: 0.5;
+  }
+  [data-fidelity="breakdown"] .illustration svg .comic-overlay-balloon-draft {
+    display: initial;
+    opacity: 0.7;
+  }
+  /* Pencils + Inks — overlays hidden, finals shown. */
+  [data-fidelity="pencils"] .illustration svg .comic-overlay-eyeline,
+  [data-fidelity="pencils"] .illustration svg .comic-overlay-camera,
+  [data-fidelity="pencils"] .illustration svg .comic-overlay-framing,
+  [data-fidelity="pencils"] .illustration svg .comic-overlay-balloon-draft,
+  [data-fidelity="inks"] .illustration svg .comic-overlay-eyeline,
+  [data-fidelity="inks"] .illustration svg .comic-overlay-camera,
+  [data-fidelity="inks"] .illustration svg .comic-overlay-framing,
+  [data-fidelity="inks"] .illustration svg .comic-overlay-balloon-draft {
+    display: none;
+  }
+  [data-fidelity="inks"] .illustration { background: #ffffff; }
+
+  /* Stage label badge — visible at nemu/breakdown only. */
+  .page, .spread-half { position: relative; }
+  .page[data-fidelity="nemu"]::before,
+  .page[data-fidelity="breakdown"]::before,
+  .spread-half[data-fidelity="nemu"]::before,
+  .spread-half[data-fidelity="breakdown"]::before {
+    content: attr(data-fidelity);
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(255,255,255,0.85);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--accent);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── fidelity dial (top-right chrome) ─────────────────────────────── */
+  .fidelity-dial {
+    position: fixed;
+    top: 14px;
+    left: 18px;
+    z-index: 20;
+    display: flex;
+    gap: 0;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 2px;
+  }
+  .fidelity-dial button {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    padding: 5px 11px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .fidelity-dial button:hover { color: var(--ink); }
+  .fidelity-dial button[aria-pressed="true"] {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .fidelity-dial .label {
+    padding: 5px 10px 5px 6px;
+    color: var(--faint);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    align-self: center;
+  }
+
+  footer.colophon {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.06em;
+  }
+  footer.colophon a { color: var(--faint); text-decoration: none; }
+  footer.colophon a:hover { color: var(--accent); text-decoration: underline; }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  @media print {
+    body { background: white; }
+    .book { padding: 0; max-width: none; }
+    .cover, .page, .spread { box-shadow: none; border-color: #ccc; page-break-after: always; break-after: page; }
+    .chapter-divider { page-break-before: always; break-before: page; }
+    footer.colophon { page-break-before: always; break-before: page; }
+    .fidelity-dial { display: none; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body
+  data-format="{{format_name}}"
+  data-pagination="{{pagination}}"
+  data-reading-direction="{{reading_direction}}"
+  data-fidelity="{{initial_fidelity}}"
+>
+<div class="fidelity-dial" role="group" aria-label="Fidelity">
+  <span class="label">Stage</span>
+  <button type="button" data-fidelity-set="nemu" aria-pressed="false">ネーム</button>
+  <button type="button" data-fidelity-set="breakdown" aria-pressed="false">Breakdown</button>
+  <button type="button" data-fidelity-set="pencils" aria-pressed="false">Pencils</button>
+  <button type="button" data-fidelity-set="inks" aria-pressed="false">Inks</button>
+</div>
+
+<article class="book">
+
+  <section class="cover" data-viewer-page>
+    <p class="eyebrow">A comic &middot; {{initial_fidelity_label}}</p>
+    <h1>{{cover_title}}</h1>
+    <div class="blurb">{{cover_blurb_html}}</div>
+    <p class="imprint">
+      Mojulo &middot; {{generated_at_human}}<br>
+      <span class="format-chip">{{format_label}}</span>
+    </p>
+  </section>
+
+  {{pages_html}}
+
+  <footer class="colophon">
+    Materialized by <a href="https://mojulo.local">mojulo cook</a> &middot;
+    comic template v{{template_version}} &middot;
+    <code>{{cook_ref}}</code> &middot;
+    {{generated_at_iso}}
+  </footer>
+
+</article>
+
+<script>
+(function () {
+  // Fidelity dial — flips `data-fidelity` on the root, updates the cover
+  // eyebrow label, and updates the page-level data-fidelity on every page
+  // that does NOT carry an explicit override (a per-page override stays
+  // pinned regardless of the dial; the override badge in the page-meta
+  // makes that visible). Pure presentation flip; no regeneration, no
+  // re-fetch.
+  var LABELS = {
+    nemu: 'ネーム / Nēmu',
+    breakdown: 'Breakdown',
+    pencils: 'Pencils',
+    inks: 'Inks'
+  };
+  var body = document.body;
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('[data-fidelity-set]'));
+  var eyebrow = document.querySelector('.cover .eyebrow');
+
+  function applyFidelity(level) {
+    body.setAttribute('data-fidelity', level);
+    buttons.forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-fidelity-set') === level ? 'true' : 'false');
+    });
+    // Update pages without an explicit override. Locked pages keep the
+    // fidelity the writer pinned.
+    var pages = document.querySelectorAll('.page, .spread-half');
+    Array.prototype.forEach.call(pages, function (p) {
+      if (p.getAttribute('data-fidelity-locked') === 'true') return;
+      p.setAttribute('data-fidelity', level);
+    });
+    if (eyebrow) eyebrow.textContent = 'A comic · ' + (LABELS[level] || level);
+    try { history.replaceState(null, '', '#fidelity=' + level); } catch (e) { /* ignore */ }
+  }
+
+  function init() {
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        applyFidelity(b.getAttribute('data-fidelity-set'));
+      });
+    });
+    // Honor a #fidelity=… hash on entry; otherwise use the initial.
+    var m = /#fidelity=(nemu|breakdown|pencils|inks)/.exec(window.location.hash);
+    var initial = m ? m[1] : (body.getAttribute('data-fidelity') || 'nemu');
+    applyFidelity(initial);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>

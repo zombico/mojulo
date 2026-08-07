@@ -36,6 +36,7 @@ describe('schema bootstraps', () => {
       'meta_mcp_providers',
       'meta_nodes',
       'meta_principles',
+      'meta_skills',
     ]);
   });
 
@@ -58,6 +59,7 @@ describe('schema bootstraps', () => {
       'idx_meta_mcp_inventory_tool_ref',
       'idx_meta_nodes_kind_ref',
       'idx_meta_principles_scope',
+      'idx_meta_skills_mirrored_at',
     ]);
   });
 
@@ -367,6 +369,51 @@ describe('MetaContextRepository.brief — fleet scope', () => {
     MetaNodeRepository.upsert({ kind: 'bot', ref: 'dep-1', label: 'B' });
     const brief = MetaContextRepository.brief({ kind: 'bot', ref: 'dep-1' });
     expect(brief.inventory).toBeUndefined();
+  });
+
+  it('includes active-trigger summary on fleet briefs (count + byComponent)', async () => {
+    const empty = MetaContextRepository.brief({ kind: 'fleet' });
+    expect(empty.triggers).toEqual({ count: 0, byComponent: {} });
+
+    const { TriggerArtifactRepository } = await import('./trigger-artifacts.js');
+    TriggerArtifactRepository.insert({
+      componentRef: 'trigger/scheduled@0.1.0',
+      bindingParams: { cron: '0 9 * * *', timezone: 'UTC' },
+      payloadTemplate: { task_kind: 'envelope_inference', envelope: {} },
+      artifactRef: 'app:summary-1',
+    });
+    TriggerArtifactRepository.insert({
+      componentRef: 'trigger/scheduled@0.1.0',
+      bindingParams: { cron: '0 10 * * *', timezone: 'UTC' },
+      payloadTemplate: { task_kind: 'envelope_inference', envelope: {} },
+      artifactRef: 'app:summary-2',
+    });
+    const populated = MetaContextRepository.brief({ kind: 'fleet' });
+    expect(populated.triggers.count).toBe(2);
+    expect(populated.triggers.byComponent['trigger/scheduled@0.1.0']).toBe(2);
+  });
+
+  it('excludes disabled / superseded triggers from the summary', async () => {
+    const { TriggerArtifactRepository } = await import('./trigger-artifacts.js');
+    const active = TriggerArtifactRepository.insert({
+      componentRef: 'trigger/scheduled@0.1.0',
+      bindingParams: { cron: '0 9 * * *', timezone: 'UTC' },
+      payloadTemplate: { task_kind: 'envelope_inference', envelope: {} },
+      artifactRef: 'app:active',
+    });
+    const disabled = TriggerArtifactRepository.insert({
+      componentRef: 'trigger/scheduled@0.1.0',
+      bindingParams: { cron: '0 9 * * *', timezone: 'UTC' },
+      payloadTemplate: { task_kind: 'envelope_inference', envelope: {} },
+      artifactRef: 'app:disabled',
+    });
+    TriggerArtifactRepository.disable(disabled.triggerRef);
+
+    const brief = MetaContextRepository.brief({ kind: 'fleet' });
+    expect(brief.triggers.count).toBe(1);
+    expect(brief.triggers.byComponent['trigger/scheduled@0.1.0']).toBe(1);
+    // Sanity: the active one is what we kept.
+    expect(active.triggerRef).toBeTruthy();
   });
 
   it('honors BRIEF_NODE_CAP and marks the response as capped', () => {

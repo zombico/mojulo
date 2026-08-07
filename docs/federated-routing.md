@@ -1,6 +1,6 @@
 # Federated Routing
 
-Mojulo-Lite bots already maintain a **per-bot tamper-evident chain**: every conversation turn stores a content hash and a chain hash that links to the previous turn. `/verify/:conversationId` walks the chain and reports whether the local SQLite has been tampered with.
+Mojulo bots already maintain a **per-bot tamper-evident chain**: every conversation turn stores a content hash and a chain hash that links to the previous turn. `/verify/:conversationId` walks the chain and reports whether the local SQLite has been tampered with.
 
 Federated routing extends that chain across **triage handoffs**. When bot A routes a user to bot B, two things happen:
 

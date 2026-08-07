@@ -1,5 +1,5 @@
 /**
- * Mojulo-Lite — Builder Streaming Endpoint (Inverted Flow)
+ * Mojulo — Builder Streaming Endpoint (Inverted Flow)
  *
  * Adapted from dragbot-control:
  * - Single-user auth stub
@@ -30,6 +30,8 @@ import { parseDocument } from '@/lib/document-parser';
 import { buildBedrockModelId, getDefaultModelForTask, resolveOllamaHost } from '@/lib/llm-providers';
 import { uploadFile } from '@/lib/storage';
 import { decryptApiKey } from '@/lib/deployment-auth';
+import { relayAgentTurn } from '@/lib/agent-chat/relay';
+import { AppSettingsRepository, BUILDER_DRIVER_MODES } from '@/lib/db/repositories/appSettings';
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
@@ -127,7 +129,7 @@ async function buildPreloadedContext(userId) {
 
   return {
     organizationName: 'Local',
-    workspaceName: 'Mojulo-Lite',
+    workspaceName: 'Mojulo Control',
     workspaceDocuments: documents.map((d) => ({
       id: d.id,
       name: d.originalName,
@@ -166,11 +168,20 @@ export async function POST(request) {
   try {
     const user = await getCurrentUser();
 
-    // Gate: Lite's chat builder (and the per-bot artifact it compiles) cannot
-    // function without an LLM provider key. Fail fast with 409 so the UI can
-    // surface the /settings deep-link.
+    // The builder's brain. In 'agent' mode the local Claude Code agent fulfills
+    // each turn via the agent-tasks queue, so the control plane needs no LLM
+    // key. In 'self-hosted' mode the control plane runs its own Claude loop.
+    const driverMode = AppSettingsRepository.getBuilderDriverMode();
+
+    // Gate: the self-hosted chat builder (and the per-bot artifact it compiles)
+    // cannot function without an LLM provider key. Fail fast with 409 so the UI
+    // can surface the /settings deep-link. Skipped in agent mode — conversation
+    // is fulfilled by the operator's agent, not a control-plane key.
     const availableKeys = await ApiKeyRepository.findByUserId(user.id);
-    if (!availableKeys || availableKeys.length === 0) {
+    if (
+      driverMode !== BUILDER_DRIVER_MODES.AGENT &&
+      (!availableKeys || availableKeys.length === 0)
+    ) {
       return new Response(
         JSON.stringify({
           error: 'No LLM provider key configured. Add one on /settings.',
@@ -275,6 +286,22 @@ export async function POST(request) {
             userMessageContent = `${message}\n\n[Attached documents - process ONLY these, not other workspace documents]\n${attachedDocs}`;
           }
           messages.push({ role: 'user', content: userMessageContent });
+
+          // Agent mode: park the turn for the local agent to fulfill, then
+          // resolve back over the same SSE vocabulary. No control-plane Claude
+          // loop runs. (Phase 1: conversational relay — answer text only.)
+          if (driverMode === BUILDER_DRIVER_MODES.AGENT) {
+            await runAgentChatTurn({
+              session,
+              userId: user.id,
+              userMessageContent,
+              messages,
+              controller,
+              encoder,
+            });
+            controller.close();
+            return;
+          }
 
           const isFirstMessage = (session.messages || []).length === 0;
           const isEditMode = session.status === SESSION_STATUS.EDITING;
@@ -384,6 +411,52 @@ export async function POST(request) {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+}
+
+/**
+ * Agent-routed turn (Phase 1: conversational relay). Parks the user's turn on
+ * the agent-tasks queue and awaits the local agent's envelope, resolving it
+ * back over the same SSE event vocabulary the self-hosted loop uses — so the
+ * chat UI is unchanged. Builder-card parity (driving build_* tools against a
+ * shared session) is a later phase; here we relay answer text only.
+ */
+async function runAgentChatTurn({ session, userId, userMessageContent, messages, controller, encoder }) {
+  // Prior turns become the worker's conversation history; the just-pushed user
+  // message is the current input, carried separately as inputs.text.
+  const history = messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
+
+  const result = await relayAgentTurn({
+    taskKind: 'chat_turn',
+    sessionId: session.id,
+    text: userMessageContent,
+    history,
+    locale: session.preloadedContext?.locale || null,
+    callerRef: { kind: 'builder_chat', sessionId: session.id },
+    controller,
+    encoder,
+    onAnswer: async (answer) => {
+      await BuilderSessionRepository.appendMessage(session.id, userId, {
+        role: 'assistant',
+        content: answer,
+      });
+    },
+    doneFields: async () => {
+      const finalSession = await BuilderSessionRepository.findById(session.id);
+      return {
+        sessionId: session.id,
+        status: finalSession?.status || session.status,
+      };
+    },
+  });
+
+  await auditLog({
+    eventType: 'builder.stream',
+    actor: { id: userId },
+    resource: { type: 'modular_session', id: session.id },
+    action: 'process',
+    outcome: result.ok ? 'success' : 'failure',
+    metadata: result.ok ? { mode: 'agent' } : { mode: 'agent', code: result.code },
+  }).catch(() => {});
 }
 
 async function handleConfirmAndDeploy(body, user) {

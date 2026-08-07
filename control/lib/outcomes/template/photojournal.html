@@ -1,0 +1,178 @@
+{{>doc-head}}
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #525252;
+    --faint: #8a8a8a;
+    --line: #e5e3df;
+    --paper: #f4f3ef;
+    --page: #ffffff;
+    --accent: #1d4ed8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .journal {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  /* ---- Title page (cover photo + blurb) ---- */
+  .cover {
+    margin-bottom: 64px;
+  }
+  .cover-photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 3px;
+    background: #fdfdfb;
+  }
+  .cover-photo.missing {
+    aspect-ratio: 3 / 2;
+    border: 1px dashed var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    text-align: center;
+  }
+  .cover .eyebrow {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 28px 0 12px;
+  }
+  .cover h1 {
+    font-size: 40px;
+    line-height: 1.12;
+    margin: 0 0 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .cover .blurb {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 60ch;
+  }
+  .cover .blurb p { margin: 0 0 0.8em; }
+  .cover .blurb p:last-child { margin-bottom: 0; }
+
+  /* ---- Section dividers (drawers) ---- */
+  .section-divider {
+    margin: 72px 0 28px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-divider h2 {
+    font-size: 24px;
+    margin: 0;
+    font-weight: 600;
+  }
+
+  /* ---- Photo + prose entries (the scroll) ---- */
+  .entry { margin: 0 0 56px; }
+  figure.entry { margin-left: 0; margin-right: 0; }
+  img.photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 3px;
+    background: #fdfdfb;
+  }
+  .photo.missing {
+    aspect-ratio: 3 / 2;
+    border: 1px dashed var(--line);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+  }
+  .caption {
+    margin: 14px 2px 0;
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .caption p { margin: 0 0 0.6em; }
+  .caption p:last-child { margin-bottom: 0; }
+  .prose-entry {
+    font-size: 18px;
+    color: var(--ink);
+    max-width: 62ch;
+  }
+  .prose-entry p { margin: 0 0 0.9em; }
+
+  footer.colophon {
+    margin-top: 72px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  footer.colophon a { color: var(--faint); text-decoration: none; }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ---- Print: "direct" output ----
+     On screen this is a continuous scroll. Printed (browser → PDF, no
+     Playwright), it breaks cleanly: the title page prints alone, each photo
+     lands on its own sheet without splitting, and every trace of substrate
+     chrome (colophon, generator footer) is dropped so the operator gets just
+     the photographs and their captions. */
+  @media print {
+    body { background: white; }
+    .journal { padding: 0; max-width: none; }
+    .cover { margin-bottom: 0; page-break-after: always; break-after: page; }
+    .section-divider { page-break-before: always; break-before: page; border-bottom: none; }
+    figure.photo-entry {
+      margin: 0;
+      page-break-before: always;
+      break-before: page;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .prose-entry { page-break-inside: avoid; break-inside: avoid; }
+    footer.colophon { display: none; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="journal">
+
+  <section class="cover">
+    {{cover_photo_html}}
+    <p class="eyebrow">A photojournal</p>
+    <h1>{{cover_title}}</h1>
+    <div class="blurb">{{cover_blurb_html}}</div>
+  </section>
+
+  {{sections_html}}
+
+  <footer class="colophon">
+    Materialized by <a href="https://mojulo.local">mojulo cook</a> &middot;
+    photojournal template v{{template_version}} &middot;
+    <code>{{cook_ref}}</code> &middot;
+    {{generated_at_iso}}
+  </footer>
+
+</article>
+</body>
+</html>

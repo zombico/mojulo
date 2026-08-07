@@ -54,7 +54,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8 select-none">
           <Logo />
-          <h1 className="mt-5 text-xl font-semibold tracking-tight mj-fade">Mojulo-Lite</h1>
+          <h1 className="mt-5 text-xl font-semibold tracking-tight mj-fade">Mojulo</h1>
           <p className="mt-1 text-sm text-[color:var(--text-muted)] mj-fade">{t('subtitle')}</p>
         </div>
 

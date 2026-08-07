@@ -30,6 +30,18 @@ Hard rules:
 - Reason over the user input and any embedded image fully before answering.
 - If the input is genuinely unfulfillable, return a JSON object: {"_cancel":"<short reason>"} — the parent process treats that as a cancel signal.`;
 
+// chat_turn relays the control plane's own web chat builder (agent-routed-chat.md).
+// Headless: this one-shot subprocess has no mojulo MCP connection, so it answers
+// conversationally only — the tool-driven build path runs in the operator's
+// interactive worker session, not here.
+const CHAT_TURN_SYSTEM_PROMPT = `You are the conversational brain of mojulo's chat builder — the web chat an operator uses to design and reason about their bot/app fleet. Answer the operator's latest message helpfully and concisely, grounded in the conversation so far.
+
+Hard rules:
+- Output ONLY a JSON envelope satisfying the embedded schema. No prose outside the JSON, no markdown fences.
+- Put your reply to the operator in the 'answer' field. Optionally add up to 3 short 'suggestions' for what the operator might say next.
+- You are running headless with no tools this turn. Answer conversationally. If the request needs you to actually build, deploy, or inspect bots, describe what you would do and ask the operator to confirm — the richer tool-driven path runs in their interactive agent session.
+- If the message is genuinely unfulfillable, return {"_cancel":"<short reason>"}.`;
+
 function buildUserPrompt({ taskPayload, envelope_schema }) {
   const parts = [];
   parts.push('## Envelope schema (must satisfy):');
@@ -59,6 +71,39 @@ function buildUserPrompt({ taskPayload, envelope_schema }) {
   }
 
   parts.push('## Produce the JSON envelope now.');
+  return parts.join('\n\n');
+}
+
+function buildChatTurnUserPrompt({ taskPayload, envelope_schema }) {
+  const parts = [];
+  parts.push('## Envelope schema (must satisfy):');
+  parts.push('```json');
+  parts.push(JSON.stringify(envelope_schema, null, 2));
+  parts.push('```');
+
+  const ctx = taskPayload?.protocol_context || {};
+  const history = Array.isArray(ctx.history) ? ctx.history : [];
+  if (history.length > 0) {
+    parts.push('## Conversation so far:');
+    parts.push(
+      history
+        .map((m) => {
+          const who = m.role === 'assistant' ? 'Assistant' : 'Operator';
+          const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+          return `${who}: ${content}`;
+        })
+        .join('\n'),
+    );
+  }
+  if (ctx.locale) {
+    parts.push(`## Reply in this language/locale: ${ctx.locale}`);
+  }
+
+  const text = taskPayload?.inputs?.text;
+  parts.push("## Operator's latest message:");
+  parts.push(typeof text === 'string' ? text : '');
+
+  parts.push('## Produce the JSON envelope now — your reply goes in "answer".');
   return parts.join('\n\n');
 }
 
@@ -147,7 +192,7 @@ export const claudeCodeHeadlessAdapter = {
     vision: true,
     streaming: false,
   },
-  supportedKinds: ['envelope_inference'],
+  supportedKinds: ['envelope_inference', 'chat_turn'],
 
   /**
    * @param {object} args
@@ -161,9 +206,13 @@ export const claudeCodeHeadlessAdapter = {
    * @returns {Promise<{ envelope, model }>}
    */
   invoke: async ({ taskPayload, envelope_schema, timeoutMs, signal }) => {
-    const userPrompt = buildUserPrompt({ taskPayload, envelope_schema });
+    const isChatTurn = taskPayload?.task_kind === 'chat_turn';
+    const systemPrompt = isChatTurn ? CHAT_TURN_SYSTEM_PROMPT : SYSTEM_PROMPT;
+    const userPrompt = isChatTurn
+      ? buildChatTurnUserPrompt({ taskPayload, envelope_schema })
+      : buildUserPrompt({ taskPayload, envelope_schema });
     const { stdout } = await spawnClaudePrint({
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt,
       userPrompt,
       timeoutMs,
       signal,
@@ -174,6 +223,8 @@ export const claudeCodeHeadlessAdapter = {
 
 export const _internals = {
   SYSTEM_PROMPT,
+  CHAT_TURN_SYSTEM_PROMPT,
   buildUserPrompt,
+  buildChatTurnUserPrompt,
   parseClaudeOutput,
 };

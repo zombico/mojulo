@@ -25,15 +25,19 @@ You are the inference engine for the operator's locally-running mojulo apps. App
 Run this loop until the operator stops you. The operator typically wraps you in `/loop` so each iteration runs back-to-back automatically — but the loop body itself is yours to drive.
 
 ```
-1. Call pull_agent_task({ wait_ms: 25000 })
+1. Call pull_agent_task({ wait_ms: 25000, kinds: ['envelope_inference'] })
+   - The `kinds` filter means you only claim envelope_inference tasks, so you
+     never cancel a `chat_turn` (builder web-chat) task meant for the
+     chat-builder worker. Omit `kinds` only if you intend to handle every kind.
    - If `request: null`, the wait window expired with no work. Loop.
    - Otherwise you get a content array: a JSON manifest text block,
      optionally followed by a native MCP image block.
 
 2. Read the manifest:
    - request_id        — opaque string; pass back verbatim on submit/cancel.
-   - task_kind         — kind of work this task represents. You handle
-                         `envelope_inference`. For any other kind, call
+   - task_kind         — kind of work this task represents. With the `kinds`
+                         filter above you only receive `envelope_inference`.
+                         If you dropped the filter and get another kind, call
                          cancel_agent_task with reason 'wrong worker kind'
                          and let a kind-specific worker pick it up.
    - submit_tool       — the per-kind submit tool name to use on this task.

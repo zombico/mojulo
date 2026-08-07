@@ -216,6 +216,34 @@ export async function parkRequest(payload, opts = {}) {
 }
 
 /**
+ * Fire-and-forget entry point — sibling to `parkRequest`. Used by the
+ * scheduler daemon (and future webhook / watch daemons) where no HTTP
+ * request is waiting on the task's eventual envelope. Returns the
+ * `request_id` synchronously so the caller can audit the firing
+ * immediately; the eventual fulfillment (or rejection) is consumed
+ * internally so no UnhandledPromiseRejection fires when no one awaits.
+ *
+ * The fulfilled envelope still produces an `app_inference` principle via
+ * the existing `submit_envelope_inference` audit path, so the outcome is
+ * observable in the contextmap even though the daemon doesn't await it.
+ *
+ * @param {object} payload — { envelope_schema?, inputs, protocol_context?, caller_ref?, task_kind? }
+ * @param {object} [opts]
+ * @returns {{ request_id: string }}
+ */
+export function parkRequestForTrigger(payload, opts = {}) {
+  const noWorkerWindowMs = opts.noWorkerWindowMs ?? DEFAULT_NO_WORKER_WINDOW_MS;
+  const submitTimeoutMs = opts.submitTimeoutMs ?? DEFAULT_SUBMIT_TIMEOUT_MS;
+  const entry = newEntry(payload, { noWorkerWindowMs, submitTimeoutMs });
+  // Consume the eventual rejection so an expired task (NO_AGENT_WORKER, etc.)
+  // doesn't bubble up as an unhandled rejection. Outcomes are audited via
+  // the fulfillment path; the trigger daemon doesn't need to react.
+  entry.promise.catch(() => {});
+  notifyWaitingPullers();
+  return { request_id: entry.id };
+}
+
+/**
  * Long-poll for the next pending entry. Returns the entry (marked
  * `in_flight`) or null if none arrives within waitMs.
  *

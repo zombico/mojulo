@@ -1,0 +1,290 @@
+{{>doc-head}}
+<style>
+  body { --viewer-aspect: {{viewer_aspect}}; }
+</style>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #525252;
+    --faint: #8a8a8a;
+    --line: #e5e3df;
+    --paper: #f7f4ee;
+    --page: #fffdf8;
+    --accent: #c2410c;
+    --accent-soft: #fff7ed;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .guide {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  .cover {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 88px 64px;
+    margin-bottom: 28px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .cover .eyebrow {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 24px;
+    font-weight: 700;
+  }
+  .cover h1 {
+    font-size: 44px;
+    line-height: 1.1;
+    margin: 0 0 28px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .cover .blurb {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 52ch;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .cover .blurb p { margin: 0 0 0.7em; }
+  .cover .blurb p:last-child { margin-bottom: 0; }
+
+  .toc {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 36px 48px;
+    margin-bottom: 28px;
+  }
+  .toc h2 {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 20px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc-row {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 16px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px dotted var(--line);
+  }
+  .toc-row:last-child { border-bottom: 0; }
+  .toc-num {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .toc-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .toc-count {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .chapter-divider {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 80px 64px;
+    margin: 28px 0;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .chapter-eyebrow {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+    font-weight: 700;
+  }
+  .chapter-name {
+    font-size: 34px;
+    margin: 0 0 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .chapter-subtitle {
+    font-size: 16px;
+    color: var(--muted);
+    font-style: italic;
+    margin: 0 0 22px;
+  }
+  .chapter-intro {
+    text-align: left;
+    max-width: 56ch;
+    margin: 0 auto;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .chapter-intro p { margin: 0 0 0.8em; }
+  .chapter-intro p:last-child { margin-bottom: 0; }
+
+  .plate {
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 36px 48px 28px;
+    margin: 28px 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .plate .plate-img {
+    aspect-ratio: 4 / 3;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .plate .plate-img svg { width: 100%; height: 100%; display: block; }
+  .plate .plate-img.missing {
+    color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  .plate .plate-label {
+    margin: 20px 0 10px;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .plate .plate-num {
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .plate .plate-caption {
+    margin-top: 12px;
+    color: var(--ink);
+    font-size: 15.5px;
+    line-height: 1.6;
+  }
+  .plate .plate-caption p { margin: 0 0 0.6em; }
+  .plate .plate-caption p:last-child { margin-bottom: 0; }
+  .plate .plate-caption h1, .plate .plate-caption h2, .plate .plate-caption h3 {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    margin: 8px 0 6px;
+    color: var(--ink);
+  }
+
+  .interstitial {
+    background: var(--accent-soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 48px 64px;
+    margin: 28px 0;
+  }
+  .interstitial h3 {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    color: var(--accent);
+    font-size: 18px;
+    margin: 0 0 14px;
+    letter-spacing: 0.02em;
+  }
+  .interstitial-body {
+    color: var(--ink);
+    font-size: 15.5px;
+    line-height: 1.7;
+    max-width: 56ch;
+  }
+  .interstitial-body p { margin: 0 0 0.8em; }
+  .interstitial-body p:last-child { margin-bottom: 0; }
+
+  .quote {
+    padding: 64px 48px;
+    margin: 28px 0;
+    text-align: center;
+    border-top: 2px solid var(--accent);
+    border-bottom: 2px solid var(--accent);
+  }
+  .quote blockquote {
+    margin: 0 auto;
+    max-width: 48ch;
+    font-size: 22px;
+    font-style: italic;
+    color: var(--ink);
+    line-height: 1.5;
+    border: none;
+    padding: 0;
+  }
+
+  footer.colophon {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  footer.colophon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  @media print {
+    body { background: white; }
+    .guide { padding: 0; max-width: none; }
+    .cover, .toc, .chapter-divider, .plate, .interstitial, .quote { box-shadow: none; page-break-after: always; break-after: page; }
+  }
+</style>
+{{style_overrides}}
+</head>
+<body>
+<article class="guide">
+  <section class="cover" data-viewer-page>
+    <p class="eyebrow">A visual guide</p>
+    <h1>{{cover_title}}</h1>
+    <div class="blurb">{{cover_blurb_html}}</div>
+  </section>
+
+  <nav class="toc" data-viewer-page>
+    <h2>Contents</h2>
+    <ol>
+      {{toc_rows}}
+    </ol>
+  </nav>
+
+  {{pages_html}}
+
+  <footer class="colophon">
+    visual_guide template v{{template_version}} &middot; <code>{{cook_ref}}</code> &middot; {{generated_at_human}}
+  </footer>
+</article>
+
+{{>book-viewer}}
+</body>
+</html>

@@ -30,60 +30,14 @@ import {
 } from '@/lib/db/repositories/meta-context';
 import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
-import { EmbeddingsRepository } from '@/lib/db/repositories/embeddings';
+import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
-import { getCatalyst } from '@/lib/mcp/catalysts/loader';
+import { getMergedCatalyst } from '@/lib/mcp/catalysts/catalog';
 import { verifyArtifact, verifyAppArtifact } from '@/lib/mcp/meta-context/verification';
-
-// Pre-embed every distinct principle body that'll be written by a commit.
-// Principles are append-only, so the source_ref (the inserted row's id) is
-// unknown until we're inside the sync txn — we batch on body_text instead
-// and resolve to (hash, vector) inside the txn after each insert. Returns a
-// Map keyed on body_text. Distinct-only to avoid redundant model work in
-// the 'binds' fan-out case (one user-supplied principle body, N inserted
-// rows sharing it). Soft on failure: callers walk the map and skip upsert
-// when `vector` is null.
-async function embedPrincipleBodies(bodies) {
-  // Operator-facing kill switch — also doubles as the test escape hatch so
-  // suites that don't care about the embedding sidecar can skip the ONNX
-  // model load with one line at the top of the file.
-  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return new Map();
-  const cleaned = (Array.isArray(bodies) ? bodies : [])
-    .filter((b) => typeof b === 'string' && b.length > 0);
-  if (cleaned.length === 0) return new Map();
-  const distinct = Array.from(new Set(cleaned));
-  const items = distinct.map((body) => ({
-    sourceKind: 'principle',
-    // Placeholder ref: principles are append-only so there's nothing to
-    // hash-skip against. skipUnchanged: false below also short-circuits the
-    // SELECT — we just want the model to run once per distinct body.
-    sourceRef: '__pending__',
-    bodyText: body,
-  }));
-  const embedded = await EmbeddingsRepository.embedMany(items, {
-    skipUnchanged: false,
-  });
-  const map = new Map();
-  for (const e of embedded) {
-    map.set(e.bodyText, { hash: e.hash, vector: e.vector });
-  }
-  return map;
-}
-
-// Sync. Pair a freshly-inserted principle row with its pre-computed
-// embedding and upsert the sidecar row. Soft on missing entries.
-function upsertPrincipleEmbedding(principle, bodyEmbeddings) {
-  if (!principle || !bodyEmbeddings) return;
-  const e = bodyEmbeddings.get(principle.bodyMd);
-  if (!e) return;
-  EmbeddingsRepository.upsertSync({
-    sourceKind: 'principle',
-    sourceRef: String(principle.id),
-    bodyText: principle.bodyMd,
-    hash: e.hash,
-    vector: e.vector,
-  });
-}
+import {
+  embedPrincipleBodies,
+  upsertPrincipleEmbedding,
+} from '@/lib/mcp/meta-context/principle-embeddings';
 
 // ---------------------------------------------------------------------------
 // brief
@@ -123,9 +77,11 @@ export async function commitHandler(input, ctx) {
       return commitPrimitiveArtifactMaterialization(input, ctx);
     case 'app_materialization':
       return commitAppMaterialization(input, ctx);
+    case 'trigger_artifact_materialization':
+      return commitTriggerArtifactMaterialization(input, ctx);
     default:
       throw new Error(
-        `Unknown commit event type '${input.type}'. Supported: 'operator_kyc', 'operator_workspace_setup', 'artifact_materialization', 'primitive_artifact_materialization', 'app_materialization'.`,
+        `Unknown commit event type '${input.type}'. Supported: 'operator_kyc', 'operator_workspace_setup', 'artifact_materialization', 'primitive_artifact_materialization', 'app_materialization', 'trigger_artifact_materialization'.`,
       );
   }
 }
@@ -379,7 +335,9 @@ function buildArtifactRef(adapterId, locator) {
 }
 
 function resolveCatalystLabel(catalystRef) {
-  const catalyst = getCatalyst(catalystRef);
+  // Merged view — a materialization can come from the curated shelf or an
+  // operator-minted local catalyst.
+  const catalyst = getMergedCatalyst(catalystRef);
   return catalyst?.name || catalystRef;
 }
 
@@ -1136,6 +1094,113 @@ export async function commitAppMaterialization(input, _ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// commit: trigger_artifact_materialization
+//
+// Seals a binding between a typed composer trigger component (e.g.
+// `trigger/scheduled@0.1.0`) and a target artifact node. Called by
+// `bind_trigger` AFTER the trigger artifact row is inserted into
+// `mcp_orbit_trigger_artifacts` — this handler resolves the trigger by ref,
+// composes the audit principle, and attaches it to the target artifact node.
+//
+// Phase 1 requires the trigger to carry an `artifact_ref` (no composition-
+// only triggers yet — those need either a composition-node representation
+// or a new principle scope_kind, both deferred).
+//
+// Atomicity boundary: the trigger artifact insert in `bind_trigger` lands
+// before this commit fires (same precedent as `bind_primitives` + the
+// existing `primitive_artifact_materialization` commit). If this commit
+// fails after the insert succeeded, the trigger artifact stays at
+// `enabled = 1` with no audit principle; `unbind_trigger` is the recovery
+// path. The window is small and observable.
+// ---------------------------------------------------------------------------
+
+function composeTriggerMaterializationPrincipleBody({
+  triggerRef,
+  componentRef,
+  bindingParams,
+  payloadTemplate,
+  artifactRef,
+  artifactLabel,
+}) {
+  const lines = [
+    `**Trigger bound:** \`${triggerRef}\` (${componentRef})`,
+    '',
+    `**Drives artifact:** ${artifactLabel} (\`${artifactRef}\`)`,
+    '',
+    '**Binding params:**',
+    '```json',
+    JSON.stringify(bindingParams, null, 2),
+    '```',
+    '',
+    '**Payload template:**',
+    '```json',
+    JSON.stringify(payloadTemplate, null, 2),
+    '```',
+  ];
+  return lines.join('\n');
+}
+
+export async function commitTriggerArtifactMaterialization(input, _ctx) {
+  const { trigger_ref } = input || {};
+
+  if (!trigger_ref || typeof trigger_ref !== 'string') {
+    throw new Error('trigger_ref is required (the ref returned by bind_trigger)');
+  }
+
+  const trigger = TriggerArtifactRepository.getByRef(trigger_ref);
+  if (!trigger) {
+    throw new Error(
+      `Trigger '${trigger_ref}' not found. Call bind_trigger first; the returned trigger_ref is what this commit type seals.`,
+    );
+  }
+
+  if (!trigger.artifactRef) {
+    throw new Error(
+      'trigger_artifact_materialization requires the trigger to carry an artifact_ref. ' +
+        'Composition-only triggers are deferred to a later phase.',
+    );
+  }
+
+  const artifactNode = MetaNodeRepository.findByRef('artifact', trigger.artifactRef);
+  if (!artifactNode) {
+    throw new Error(
+      `Artifact '${trigger.artifactRef}' has no contextmap node. ` +
+        'Materialize the artifact (via primitive_artifact_materialization or app_materialization) before binding triggers to it.',
+    );
+  }
+
+  const bodyMd = composeTriggerMaterializationPrincipleBody({
+    triggerRef: trigger.triggerRef,
+    componentRef: trigger.componentRef,
+    bindingParams: trigger.bindingParams,
+    payloadTemplate: trigger.payloadTemplate,
+    artifactRef: trigger.artifactRef,
+    artifactLabel: artifactNode.label,
+  });
+
+  const bodyEmbeddings = await embedPrincipleBodies([bodyMd]);
+
+  const result = MetaContextRepository.commit(() => {
+    const principle = MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: artifactNode.id,
+      body_md: bodyMd,
+      source_event: 'trigger_artifact_materialization',
+    });
+    upsertPrincipleEmbedding(principle, bodyEmbeddings);
+    return { principle };
+  });
+
+  return {
+    ok: true,
+    triggerRef: trigger.triggerRef,
+    componentRef: trigger.componentRef,
+    artifactNodeId: artifactNode.id,
+    principleId: result.principle.id,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // registration
 // ---------------------------------------------------------------------------
 
@@ -1143,7 +1208,7 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_brief',
     description:
-      "Read the contextmap subgraph for a scope: `{ kind: 'fleet' }` for the whole graph, or `{ kind: 'bot' | 'catalyst' | 'adapter' | 'artifact', ref }` for a 1-hop neighborhood. Use when checking \"has the fleet already committed to something related to what I'm about to do?\", or when the user asks why a binding looks the way it does — the `materialized_by` / `binds` edges carry the reasoning principles. Empty fleet brief returns `meta.suggest_kyc: true` — surface the operator KYC at that point. **Brief returns the graph as recorded, not as currently active.** Append-only by design — stale rows from deleted artifacts are not auto-pruned; cross-reference with `list_deployments` or filesystem checks before treating a binding as live. Read-only.",
+      "Read the contextmap subgraph for a scope: `{ kind: 'fleet' }` for the whole graph, or `{ kind: 'bot' | 'catalyst' | 'adapter' | 'artifact', ref }` for a 1-hop neighborhood. Use when checking \"has the fleet already committed to something related to what I'm about to do?\", or when the user asks why a binding looks the way it does — the `materialized_by` / `binds` edges carry the reasoning principles. Also call BEFORE materializing a new artifact (app, skill, trigger, bot): if a related artifact already exists, improve it rather than minting a sibling — this before-build check is how prior decisions survive fresh sessions. Empty fleet brief returns `meta.suggest_kyc: true` — surface the operator KYC at that point. **Brief returns the graph as recorded, not as currently active.** Append-only by design — stale rows from deleted artifacts are not auto-pruned; cross-reference with `list_deployments` or filesystem checks before treating a binding as live. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1172,7 +1237,7 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_commit',
     description:
-      "Seal a structural decision. Five event types: (1) `operator_kyc` — optional one-time bootstrap anchoring the fleet on role + primary_goal + locked-in constraints (use `revise: true` to attach a new principle to the same operator node). (2) `operator_workspace_setup` — record an absolute `workspace_root` (and optional `workspace_conventions`) the `local-storage` technique materializes folder bindings under. Append-only — every call writes a fresh principle stack; readers pick the latest `source_event = 'operator_workspace_setup'` principle on the operator node. Requires `operator_kyc` to have run first. (3) `artifact_materialization` — atomic per-materialization seal for bot-shaped catalysts: which catalyst was materialized into which artifact via which host adapter for which bot, plus bindings (mcp_tool + fields_bound) and principles. (4) `primitive_artifact_materialization` — atomic per-materialization seal for primitive-binding compositions (no bot, no catalyst): adapter_id + artifact + composition_intent + `provider_artifact_refs` from prior `bind_primitives` calls. The contextmap auto-writes a summary principle on the artifact node listing every binding (primitive / role / affordance / bound tool / confidence) so future readers recover the composition's intent + shape from one row. (5) `app_materialization` — atomic per-materialization seal for generated SPA apps (App paradigm, spike): adapter_id + artifact + app_name + four bindings (runner / durability / inference / mcp_self). Bindings live on the artifact node's payload; an auto-summary principle on the artifact node renders them for audit + semantic recall. Verification additionally requires the scaffolded `<locator>/app-mcp/server.js` to exist — the runner can't lifecycle an app whose sidecar is incomplete, so the commit refuses at the gate. Adapter-delegated verification runs before write (claude-code/generic require existsSync; codex accepts opaque locators on assertion). Call ONLY AFTER materializing the artifact — never to declare intent. On commit failure, roll back via the host adapter's own affordance (delete file / cancel automation).",
+      "Seal a structural decision. Six event types: (1) `operator_kyc` — optional one-time bootstrap anchoring the fleet on role + primary_goal + locked-in constraints (use `revise: true` to attach a new principle to the same operator node). (2) `operator_workspace_setup` — record an absolute `workspace_root` (and optional `workspace_conventions`) the `local-storage` technique materializes folder bindings under. Append-only — every call writes a fresh principle stack; readers pick the latest `source_event = 'operator_workspace_setup'` principle on the operator node. Requires `operator_kyc` to have run first. (3) `artifact_materialization` — atomic per-materialization seal for bot-shaped catalysts: which catalyst was materialized into which artifact via which host adapter for which bot, plus bindings (mcp_tool + fields_bound) and principles. (4) `primitive_artifact_materialization` — atomic per-materialization seal for primitive-binding compositions (no bot, no catalyst): adapter_id + artifact + composition_intent + `provider_artifact_refs` from prior `bind_primitives` calls. The contextmap auto-writes a summary principle on the artifact node listing every binding (primitive / role / affordance / bound tool / confidence) so future readers recover the composition's intent + shape from one row. (5) `app_materialization` — atomic per-materialization seal for generated SPA apps (App paradigm, spike): adapter_id + artifact + app_name + four bindings (runner / durability / inference / mcp_self). Bindings live on the artifact node's payload; an auto-summary principle on the artifact node renders them for audit + semantic recall. Verification additionally requires the scaffolded `<locator>/app-mcp/server.js` to exist — the runner can't lifecycle an app whose sidecar is incomplete, so the commit refuses at the gate. Adapter-delegated verification runs before write (claude-code/generic require existsSync; codex accepts opaque locators on assertion). (6) `trigger_artifact_materialization` — atomic seal for activation triggers bound via `bind_trigger`. Takes a `trigger_ref` returned by `bind_trigger`; resolves the trigger artifact, validates it carries an `artifact_ref` to a materialized contextmap node, and writes an audit principle on that node summarizing the composer component bound (e.g. `trigger/scheduled@0.1.0`), the binding params, and the payload template. Composition-only triggers (no `artifact_ref`) are not supported in Phase 1. Call ONLY AFTER materializing the artifact — never to declare intent. On commit failure, roll back via the host adapter's own affordance (delete file / cancel automation).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1184,7 +1249,14 @@ export function registerMetaContextTools() {
             'artifact_materialization',
             'primitive_artifact_materialization',
             'app_materialization',
+            'trigger_artifact_materialization',
           ],
+        },
+        // trigger_artifact_materialization fields
+        trigger_ref: {
+          type: 'string',
+          description:
+            'For trigger_artifact_materialization: the `trig_<id>` ref returned by `bind_trigger`. The handler resolves the trigger artifact and attaches an audit principle to the target artifact node.',
         },
         // operator_kyc fields
         role: { type: 'string' },
