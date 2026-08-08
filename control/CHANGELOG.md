@@ -20,13 +20,15 @@ never environment-portable.
 
 Fix — make the two offending pins portable by construction so they are byte-identical on any node/OS:
 
-- `world-scene.kinds` now hashes the payload **structurally**: integers, strings, booleans, array
-  lengths and object key-sets exactly, but a non-integer number contributes only its presence, never
-  its drifting value. Rounding was insufficient here — some payload floats are near-zero cancellation
-  values (~1e-9) that diverge in *relative* terms across V8 builds, which no significant-figure
-  rounding rescues. The structural hash still catches everything the test guards (a dropped
-  `{ ...manifest }` spread, a title typo, time/sky not forwarded, a mis-dispatched kind); the emitted
-  -output char-net (`emit-channels.char` et al.) remains the portable guard on the float geometry.
+- `world-scene.kinds`' broad per-arm hash is now **structural** (integers/strings/booleans/array
+  -lengths/key-sets exactly; non-integer numbers as presence only) **and local-only** (skipped under
+  `CI`). The complex generated kinds (planetary, orbit-view, …) build geometry through threshold
+  -based vertex/face decisions, and a few payload coordinates are near-zero cancellation values
+  (~1e-9) that differ by V8 build — when one straddles a dedup/cull threshold the FACE COUNT itself
+  flips, so even a structural hash diverges between environments. The payload is deterministic
+  *within* an environment (the `resolves are deterministic` sub-test proves this and runs on CI); it
+  is simply not portable *between* them. The pin stays a local transcription-error guard; the
+  emitted-output char-net (`emit-channels.char` et al.) is the portable guard on the float geometry.
 - The controllable golden traces round every float to 6 significant figures — coarser than the
   cross-environment drift, finer than any behavioral change (a maneuver firing, a hit landing shows
   as a structural diff). Both snapshots were regenerated in the full-suite context (async-texture
