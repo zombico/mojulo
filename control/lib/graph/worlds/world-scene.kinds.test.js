@@ -95,10 +95,16 @@ const mix = (state, str) => {
   }
   return h;
 };
+// Quantize floats before hashing so the pin is portable across V8/libm builds.
+// Trig-derived values (camera pitch, positions) differ by ~1 ULP between the dev
+// machine (node 24 / macOS) and CI (node 20 / glibc); 8 significant figures is far
+// coarser than that drift yet fine enough to catch any real payload change.
+const qnum = (x) => (Number.isFinite(x) && !Number.isInteger(x) ? Number(x.toPrecision(8)) : x);
 const hashWalk = (v, h) => {
   if (v === null || v === undefined) return mix(h, v === null ? 'null' : 'undef');
   const t = typeof v;
-  if (t === 'number' || t === 'boolean' || t === 'string') return mix(h, `${t}:${v};`);
+  if (t === 'number') return mix(h, `number:${qnum(v)};`);
+  if (t === 'boolean' || t === 'string') return mix(h, `${t}:${v};`);
   if (t === 'function') return mix(h, 'fn;'); // payloads should not carry functions; hash presence only
   if (Array.isArray(v)) {
     h = mix(h, `[${v.length}`);

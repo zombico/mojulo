@@ -82,13 +82,26 @@ function digestFrame(state, frame) {
   return d;
 }
 
+// Round every float in the trace to 6 significant figures before it is pinned, so the
+// snapshot is portable across V8/libm builds. The sim integrates trig-derived motion
+// over hundreds of frames; libm differences between the pin machine (node 24 / macOS)
+// and CI (node 20 / glibc) accumulate into the low digits. 6 sig figs is orders of
+// magnitude coarser than that drift and far finer than any behavioral change — a
+// maneuver firing or a hit landing shows up as a structural diff, not sub-1e-5 wobble.
+const roundDeep = (v) => {
+  if (typeof v === 'number') return Number.isFinite(v) && !Number.isInteger(v) ? Number(v.toPrecision(6)) : v;
+  if (Array.isArray(v)) return v.map(roundDeep);
+  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) o[k] = roundDeep(v[k]); return o; }
+  return v;
+};
+
 function trace(state, script, frames, hooks) {
   const samples = [];
   for (let i = 0; i < frames; i++) {
     stepWorld(state, script(i), DT, hooks);
     if ((i + 1) % SAMPLE_EVERY === 0) samples.push(digestFrame(state, i + 1));
   }
-  return samples;
+  return roundDeep(samples);
 }
 
 // press-edge helper: 1 on exactly the listed frames

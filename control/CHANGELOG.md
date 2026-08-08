@@ -8,6 +8,30 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.0.3] — 2026-08-07
+
+A CI-portability patch — test-only, no runtime or API change. Once 1.0.2 cleared the module-load
+break, CI surfaced a second, older problem: the visualization-era characterization snapshots were
+pinned on the developer's machine (node 24 / macOS) and hashed **full-precision, trig-derived
+floats** (camera pitch, entity positions). Those values drift ~1 ULP across V8 versions and libm
+builds, so the pins mismatched on CI (node 20, ubuntu/glibc) — the reason CI had been red across
+1.0.0–1.0.2. This is why the local "6,134 green" gate never reproduced in CI: the char-net was
+never environment-portable.
+
+Fix — quantize floats before hashing/pinning so the snapshots are byte-identical on any node/OS:
+
+- `world-scene.kinds` hashes each number rounded to 8 significant figures; the controllable golden
+  traces round every float to 6 — both far coarser than the cross-environment drift yet far finer
+  than any behavioral change (a maneuver firing, a hit landing shows as a structural diff). The two
+  snapshots were regenerated in the full-suite context (async-texture warming makes the world-scene
+  hashes context-sensitive, so an isolated regen would not match CI's full run).
+- Also fixes a time-seeded flake in the session-token test: flipping the **last** base64url char of
+  a 32-byte HMAC signature can be a no-op on the trailing padding bits and still verify; flip the
+  first char, which always maps to real signature bytes.
+
+Green on node 24 across two consecutive full runs (424 files / 6,134 tests); the node-20
+ubuntu+macOS CI matrix is the portability gate.
+
 ## [1.0.2] — 2026-08-07
 
 A stability patch that closes the 1.0.0/1.0.1 CI break at its root. The controllable-world

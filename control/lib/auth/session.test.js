@@ -59,8 +59,11 @@ describe('verifySessionToken rejection paths', () => {
   it('rejects a token whose signature byte was flipped', async () => {
     const token = await createSessionToken('pw');
     const [exp, sig] = token.split('.');
-    // Flip the last char of the b64url signature to a definitely-different one.
-    const flipped = sig.slice(0, -1) + (sig.slice(-1) === 'A' ? 'B' : 'A');
+    // Flip the FIRST char of the b64url signature. The LAST char of a 32-byte
+    // (SHA-256) HMAC only carries 4 meaningful bits — its low bits are b64 padding
+    // beyond the 32nd byte — so flipping A↔B there can decode to the same bytes and
+    // still verify (a time-seeded flake). The first char always maps to real bytes.
+    const flipped = (sig[0] === 'A' ? 'B' : 'A') + sig.slice(1);
     expect(await verifySessionToken(`${exp}.${flipped}`, 'pw')).toBe(false);
   });
 
