@@ -8,6 +8,18 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.0.1] — 2026-08-07
+
+A test-pin patch — no runtime or API change. The `1.0.0` release commit shipped a stale
+characterization snapshot: the final edits in the controllable-world decomposition changed the
+emitted bytes of the ten controllable / shadow / fx / capture channel fixtures, but
+`lib/graph/scene/__snapshots__/emit-channels.char.test.js.snap` was regenerated one edit too
+early, so `emitThreeWorld`'s byte-level pins failed in CI. The emitted world code itself was
+correct throughout (the behavioral trace / parity / emit / determinism suites all passed on
+`1.0.0`); only the stored hashes lagged. This release re-pins those ten hashes so the suite is
+green (424 files / 6134 tests). No consumer of the package is affected — the snapshot is a
+test-only artifact, never executed at runtime.
+
 ## [1.0.0] — 2026-08-07
 
 An editorial release. Everything since 0.8.0 — the visualization era — consolidated into one

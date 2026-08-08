@@ -1,6 +1,6 @@
 {
   "name": "mojulo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "Apache-2.0",
   "description": "Mojulo — the agent's workshop: a local, stateful MCP substrate that turns conversations into durable things — self-hosted chatbots, connected services, apps, playable games, and creative artifacts minted as deterministic recipes.",
   "author": "Franz Ombico",
