@@ -8,6 +8,32 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.0.2] — 2026-08-07
+
+A stability patch that closes the 1.0.0/1.0.1 CI break at its root. The controllable-world
+decomposition in 1.0.0 had lifted three modules into the gitignored mobile-suit content pack and
+then **statically imported them back** into tracked source — `ms-maneuvers.js` (dodge/tackle
+maneuvers), `ms-ai.js` (the AI opponent brain), and `agent-commander.js` (the 0807 "agent-spectate"
+spike: a live commander that reads the fight and drives a suit). On a clean checkout — CI or a
+fresh `npx mojulo` — those imports resolved to absent files and threw `ERR_MODULE_NOT_FOUND` at
+module load, taking down the whole controllable-world path. (The published 1.0.0 tarball happened
+to bundle the pack via its `files` allowlist, so `npx` ran; CI on the bare repo did not.)
+
+Resolution — **cull the spike, keep the behavior**:
+
+- The `agentSpectate` / agent-commander plumbing (the "make an agent play the arena" experiment)
+  is removed from tracked source. Its emit blocks were gated and byte-neutral when a manifest did
+  not stamp `agentSpectate`, so no world or fixture changes bytes. Touches the controllable channel
+  emitter, `scene-three.js`, and `world-scene.js`.
+- `ms-maneuvers.js` and `ms-ai.js` are engine **behavior** — they carry tracked test coverage in
+  `controllable-world.test.js` — not content, so they are now tracked directly (a `.gitignore`
+  exception) and resolve on a clean checkout. The rest of the mobile-suit content pack stays
+  gitignored.
+
+Verified green in BOTH states: pack present (424 files / 6134 tests) and, crucially, pack absent —
+the real clean-checkout condition — (412 files / 6025 tests). Folds in the 1.0.1 characterization
+snapshot re-pin. No API or world-recipe change.
+
 ## [1.0.1] — 2026-08-07
 
 A test-pin patch — no runtime or API change. The `1.0.0` release commit shipped a stale

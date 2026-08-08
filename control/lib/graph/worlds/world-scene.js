@@ -269,9 +269,6 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // object { delay } (seconds the settled wreck lingers before it blows). Non-match worlds only
     // (a match owns its own corpse-window → respawn lifecycle). Opt-in; absent ⇒ byte-identical.
     if (sketch.manifest.wreckExplodes) payload.wreckExplodes = sketch.manifest.wreckExplodes;
-    // agent-spectate (0807 spike): one watched suit is driven by a live commander port (built-in
-    // reference agent / hook / http). Page-only signal (not a createWorld field); absent ⇒ byte-identical.
-    if (sketch.manifest.agentSpectate && typeof sketch.manifest.agentSpectate === 'object') payload.agentSpectate = sketch.manifest.agentSpectate;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
     if (figs && typeof figs === 'object') {

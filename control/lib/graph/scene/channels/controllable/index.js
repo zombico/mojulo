@@ -1,6 +1,5 @@
 import { b64, safeJson } from '../../emit-util.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
-import { agentCommanderSource } from '../../../mobile-suit/agent-commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
 import { projectileSmokeBlock } from './projectile-smoke.js';
@@ -19,7 +18,7 @@ import { suitShadowBlock } from './suit-shadows.js';
 // raycasts the scene so `walk` entities follow terrain; `window.__mojCtrl` is exposed for headless
 // verification (it can push input frames).
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, agentSpectate = null, key = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, key = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -96,31 +95,10 @@ const __rimPatch = (m, rim) => {
   const smokeHook = sm ? '\n    __updateSmoke();' : '';
   const hangarBlock = hangar ? hangarStepperBlock(hangar) : '';
   const hangarHook = hangar ? '  window.__mojHangar.sync();\n  if (inputOverride) { if (inputOverride.hangarStep) window.__mojHangar.step(inputOverride.hangarStep); if (inputOverride.liverySet != null) window.__mojHangar.livery(inputOverride.liverySet); if (inputOverride.equipSlot != null) window.__mojHangar.equip(inputOverride.equipSlot); }\n' : '';
-  // AGENT-SPECTATE (0807 spike): inject the commander port ONLY when a manifest stamps `agentSpectate`.
-  // The reference agent (`builtin`) is standalone; `hook`/`http` open the port to any model. One
-  // watched suit is driven; the scripted ai() keeps its reflexes. Absent → the block is '' (byte-identical).
-  const agentBlock = agentSpectate ? `
-${agentCommanderSource()}
-(function () {
-  var __cmdId = ${safeJson(agentSpectate.commanded)};
-  var __port = ${safeJson(agentSpectate.port || 'builtin')};
-  var __foe = (__world.entities || []).find(function (e) { return e.id !== __cmdId && e.body && e.body.hittable; });
-  window.__agentPort = createAgentPort({ commandedId: __cmdId, foeId: __foe ? __foe.id : null, port: __port, period: ${Number(agentSpectate.period) || 5}, url: ${safeJson(agentSpectate.url || null)} });
-  // intent overlay — read the commander's mind: its live strategy note, refreshed each frame.
-  var __hud = document.createElement('div');
-  __hud.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:80;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9cc4ff;background:rgba(11,18,32,.72);border:1px solid #24324a;border-radius:6px;padding:6px 10px;max-width:62vw;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-  __hud.innerHTML = '<span style="color:#5f7fb0;letter-spacing:1px">◆ COMMANDER · ' + __cmdId + ' · ' + __port + '</span><br><span id="__agentNote">awaiting first read…</span>';
-  document.body.appendChild(__hud);
-  window.__agentNote = __hud.querySelector('#__agentNote');
-})();
-` : '';
-  // gated per-frame hook — present ONLY in agent-spectate pages, so every other controllable page
-  // stays byte-identical (the char-net pin holds), same discipline as agentBlock above.
-  const agentStep = agentSpectate ? 'if (window.__agentPort) { window.__agentPort.onFrame(__world, dt); if (window.__agentNote) window.__agentNote.textContent = window.__agentPort.currentNote(); }\n    ' : '';
   return `
 const __CW = ${emissionSource()};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''} });
-${agentBlock}const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)
+const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)
 const __bodies = {};
 // figure-frames body: re-expand baked frames (Uint16 corners + Uint8 colour) into raw Float32
 // position arrays, feet planted at the body's local z=0 (FOOT subtracted) — packFigureFrames'
@@ -2037,7 +2015,7 @@ if (__ctrlOwnsCamera) __driveCamera();
 stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0) {
-    ${agentStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
+    __CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
     for (const e of __world.entities) __syncEntity(e, dt);
     __updateFx();
     __updateProjectiles();
