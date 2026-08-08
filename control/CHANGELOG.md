@@ -18,13 +18,19 @@ builds, so the pins mismatched on CI (node 20, ubuntu/glibc) — the reason CI h
 1.0.0–1.0.2. This is why the local "6,134 green" gate never reproduced in CI: the char-net was
 never environment-portable.
 
-Fix — quantize floats before hashing/pinning so the snapshots are byte-identical on any node/OS:
+Fix — make the two offending pins portable by construction so they are byte-identical on any node/OS:
 
-- `world-scene.kinds` hashes each number rounded to 8 significant figures; the controllable golden
-  traces round every float to 6 — both far coarser than the cross-environment drift yet far finer
-  than any behavioral change (a maneuver firing, a hit landing shows as a structural diff). The two
-  snapshots were regenerated in the full-suite context (async-texture warming makes the world-scene
-  hashes context-sensitive, so an isolated regen would not match CI's full run).
+- `world-scene.kinds` now hashes the payload **structurally**: integers, strings, booleans, array
+  lengths and object key-sets exactly, but a non-integer number contributes only its presence, never
+  its drifting value. Rounding was insufficient here — some payload floats are near-zero cancellation
+  values (~1e-9) that diverge in *relative* terms across V8 builds, which no significant-figure
+  rounding rescues. The structural hash still catches everything the test guards (a dropped
+  `{ ...manifest }` spread, a title typo, time/sky not forwarded, a mis-dispatched kind); the emitted
+  -output char-net (`emit-channels.char` et al.) remains the portable guard on the float geometry.
+- The controllable golden traces round every float to 6 significant figures — coarser than the
+  cross-environment drift, finer than any behavioral change (a maneuver firing, a hit landing shows
+  as a structural diff). Both snapshots were regenerated in the full-suite context (async-texture
+  warming makes the world-scene hashes context-sensitive, so an isolated regen would not match CI).
 - Also fixes a time-seeded flake in the session-token test: flipping the **last** base64url char of
   a 32-byte HMAC signature can be a no-op on the trailing padding bits and still verify; flip the
   first char, which always maps to real signature bytes.

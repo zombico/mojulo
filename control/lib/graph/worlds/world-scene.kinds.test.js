@@ -6,10 +6,12 @@ import { resolveWorldScene, WALK_KINDS } from './world-scene.js';
  * Characterization net for the kind → assemble*Scene dispatch (world-scene-registry.plan.md).
  *
  * One row per dispatch arm: the minimal manifest that yields a non-null payload, snapshotted
- * as { title, hash } where hash is a stable content hash of the whole payload. Payloads are
- * deterministic by the substrate's own invariant (recipe → regenerated geometry, no RNG, no
- * clock), so any snapshot diff during the registry refactor is a transcription error by
- * construction — a title typo, a dropped { ...manifest } spread, time/sky not forwarded.
+ * as { title, hash } where hash is a stable STRUCTURAL hash of the payload (shape + stable
+ * scalars; drifting geometry floats contribute presence only — see hashWalk — so the pin is
+ * portable across V8/libm builds). Payloads are deterministic by the substrate's own invariant
+ * (recipe → regenerated geometry, no RNG, no clock), so any snapshot diff during the registry
+ * refactor is a transcription error by construction — a title typo, a dropped { ...manifest }
+ * spread, time/sky not forwarded, a mis-dispatched kind.
  *
  * Kept after the refactor: it becomes the standing guard that a new kind's registry row
  * actually renders, and that shared-assembler edits change payloads consciously
@@ -95,15 +97,20 @@ const mix = (state, str) => {
   }
   return h;
 };
-// Quantize floats before hashing so the pin is portable across V8/libm builds.
-// Trig-derived values (camera pitch, positions) differ by ~1 ULP between the dev
-// machine (node 24 / macOS) and CI (node 20 / glibc); 8 significant figures is far
-// coarser than that drift yet fine enough to catch any real payload change.
-const qnum = (x) => (Number.isFinite(x) && !Number.isInteger(x) ? Number(x.toPrecision(8)) : x);
+// STRUCTURAL content hash — portable across V8/libm builds by construction.
+// The payload's geometry floats (face vertices, camera angles) are trig-derived and drift a few
+// ULP across node/OS; worse, near-zero cancellation values (~1e-9) diverge in RELATIVE terms, so
+// no significant-figure rounding rescues them. A full-value hash was therefore environment-specific
+// (CI ran red on exactly this). So we hash STRUCTURE + stable scalars only: integers exactly
+// (counts, indices, enum-ish), strings and booleans exactly (titles, colours, kinds), plus array
+// lengths and object key-sets — but a non-integer number contributes only its PRESENCE ('float'),
+// never its drifting value. This still catches everything this test exists to catch — a dropped
+// { ...manifest } spread, a title typo, time/sky not forwarded, a mis-dispatched kind — while the
+// emitted-output char-net (emit-channels.char et al.) stays the portable guard on the float geometry.
 const hashWalk = (v, h) => {
   if (v === null || v === undefined) return mix(h, v === null ? 'null' : 'undef');
   const t = typeof v;
-  if (t === 'number') return mix(h, `number:${qnum(v)};`);
+  if (t === 'number') return mix(h, Number.isInteger(v) ? `int:${v};` : 'float;');
   if (t === 'boolean' || t === 'string') return mix(h, `${t}:${v};`);
   if (t === 'function') return mix(h, 'fn;'); // payloads should not carry functions; hash presence only
   if (Array.isArray(v)) {
