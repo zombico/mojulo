@@ -46,6 +46,12 @@ import {
   KIND_SCENE_MOTION,
   KIND_SPRITE_SHEET,
 } from '@/lib/graph/image-outcomes/manifest';
+import {
+  isMotionComicKind,
+  normalizeMotionComicManifest,
+  resolveMotionComicLayout,
+  validateMotionComicRefs,
+} from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { STYLE_VOCAB, STYLE_PRESETS, isStylePreset, resolveStyle } from '@/lib/graph/image-outcomes/styles';
 import {
   buildRenderInstructions,
@@ -72,6 +78,15 @@ import {
   withConstellationGrid,
   lowerRecipeManifest,
   recipeFamilyAllowlist,
+  buildPolygonizerSystemPrompt,
+  buildPolygonizerUserPrompt,
+  buildPolygonizerPlanningSystemPrompt,
+  buildPolygonizerSkinSystemPrompt,
+  buildSkinTurnUserPrompt,
+  POLYGONIZER_SCHEMA,
+  POLYGONIZER_PLANNING_SCHEMA,
+  finalizeAgentManifest,
+  finalizePlanningManifest,
 } from '@/lib/graph/polygonizer/index.js';
 
 // Cap on the number of priors a single create_* call may carry forward.
@@ -249,7 +264,22 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     }
   }
   let finalized;
-  if (isImageOutcomesKind(manifest?.kind)) {
+  if (isMotionComicKind(manifest?.kind)) {
+    // Motion comics (the click-gated presentation, motion-comic.plan.md)
+    // bypass the diagram pipeline like image-outcomes kinds: the stored
+    // manifest is the normalized fold document. Refs and page bubbleZones are
+    // resolved against the store at mint — a dangling source or empty zone is
+    // a mint error, never a play-time one.
+    try {
+      finalized = normalizeMotionComicManifest(manifest);
+      // Slot placements get concrete rects here (layout × source aspect),
+      // pinned into the stored manifest like every other mint-time default.
+      finalized = resolveMotionComicLayout(finalized, (r) => SketchRepository.getByRef(r));
+      validateMotionComicRefs(finalized, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message}`);
+    }
+  } else if (isImageOutcomesKind(manifest?.kind)) {
     // Image-outcomes kinds (director scaffolds for external image
     // generation) bypass the diagram pipeline — no recipe lowering, no
     // Rendrant expansion. The stored manifest is the normalized form so
@@ -430,7 +460,17 @@ export async function updateSketchHandler(input) {
   }
 
   let nextManifest;
-  if (manifest !== undefined && isImageOutcomesKind(manifest?.kind)) {
+  if (manifest !== undefined && isMotionComicKind(manifest?.kind)) {
+    // Same gate as mintSketch — update is the accrete-cheaply surface, so it
+    // pays the same normalization + store checks.
+    try {
+      nextManifest = normalizeMotionComicManifest(manifest);
+      nextManifest = resolveMotionComicLayout(nextManifest, (r) => SketchRepository.getByRef(r));
+      validateMotionComicRefs(nextManifest, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message}`);
+    }
+  } else if (manifest !== undefined && isImageOutcomesKind(manifest?.kind)) {
     // Image-outcomes kinds skip the diagram pipeline; store the normalized
     // form (same gate as mintSketch).
     try {
@@ -729,6 +769,163 @@ export async function createPolygonizedSketchHandler(input) {
   if (result.authorshipPreview) response.authorshipPreview = result.authorshipPreview;
   if (result.scaffold) response.scaffold = result.scaffold;
   if (preloadEcho) response.preload = preloadEcho;
+  if (mint) {
+    response.sketch = mintSketch({
+      title: title || result.manifest?.title || prompt,
+      manifest: result.manifest,
+      ref,
+    });
+  }
+  return response;
+}
+
+/**
+ * get_polygonizer_packet / submit_polygonizer_manifest — the KEY-FREE twin of
+ * create_polygonized_sketch. The calling agent (Claude Code / Codex) is
+ * itself the generative model: the packet hands it the same system/user
+ * prompts + schema the keyed path would send a provider, and the submit runs
+ * the model-independent finalize (validate → deterministic repairs → lower →
+ * mint). The server-side maxRepairs loop becomes conversational — a failed
+ * submit returns `repairPrompt` for the agent to apply and resubmit.
+ * Stateless between calls: plan-then-skin passes the planning manifest back
+ * into submit, and the scaffold is recomputed server-side (never trusted
+ * from the agent). The polygonizer analogue of get_skin_packet.
+ */
+export async function getPolygonizerPacketHandler(input) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('get_polygonizer_packet requires { prompt }');
+  }
+  const { prompt, mode = 'one-trip', preload } = input;
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+    throw new Error('`prompt` is required');
+  }
+  if (mode !== 'one-trip' && mode !== 'plan-then-skin') {
+    throw new Error('`mode` must be "one-trip" or "plan-then-skin"');
+  }
+  const priors = resolvePreloads(preload);
+  let preloadEcho = null;
+  if (priors) {
+    if (!Array.isArray(preload)) {
+      const [only] = priors;
+      preloadEcho = { ref: only.ref, title: only.title };
+    } else {
+      preloadEcho = priors.map((p) => ({ ref: p.ref, title: p.title, as: p.as, note: p.note }));
+    }
+  }
+  const classification = await classifyPromptForCards({ prompt });
+  const userPrompt = buildPolygonizerUserPrompt(prompt, { preloadManifests: priors });
+
+  if (mode === 'one-trip') {
+    return {
+      ok: true,
+      mode,
+      classification,
+      brief:
+        'YOU are the polygonizer model — no provider call happens. Adopt `instructions` as your working discipline and answer `userPrompt` with ONE JSON object matching `schema`. JSON only (a fenced ```json block is accepted).',
+      instructions: buildPolygonizerSystemPrompt({ cards: classification.cards }),
+      userPrompt,
+      schema: POLYGONIZER_SCHEMA,
+      submit:
+        'submit_polygonizer_manifest({ prompt: <the SAME prompt string>, manifest, mode: "one-trip", title?, ref? }) — mojulo validates, applies deterministic repairs, lowers, and mints. On { ok: false } fix your manifest per `repairPrompt` and resubmit.',
+      ...(preloadEcho ? { preload: preloadEcho } : {}),
+    };
+  }
+
+  return {
+    ok: true,
+    mode,
+    phase: 'planning',
+    classification,
+    brief:
+      'YOU are the polygonizer model — turn 1 is PLANNING ONLY: no `marks` field. Adopt `instructions` as your working discipline and answer `userPrompt` with ONE JSON object matching `schema`. JSON only (a fenced ```json block is accepted).',
+    instructions: buildPolygonizerPlanningSystemPrompt(),
+    userPrompt,
+    schema: POLYGONIZER_PLANNING_SCHEMA,
+    submit:
+      'submit_polygonizer_manifest({ prompt: <the SAME prompt string>, manifest, mode: "plan-then-skin", phase: "planning" }) — mojulo solves + gates the scaffold and returns `skinPacket` for your second (marks) turn.',
+    ...(preloadEcho ? { preload: preloadEcho } : {}),
+  };
+}
+
+export async function submitPolygonizerManifestHandler(input) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('submit_polygonizer_manifest requires { prompt, manifest }');
+  }
+  const { prompt, manifest, mode = 'one-trip', phase, ref, title, mint = true } = input;
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+    throw new Error('`prompt` is required (the SAME prompt the packet was pulled for)');
+  }
+  if (manifest === undefined || manifest === null) {
+    throw new Error('`manifest` is required (object, or raw/fenced JSON string)');
+  }
+  if (mode !== 'one-trip' && mode !== 'plan-then-skin') {
+    throw new Error('`mode` must be "one-trip" or "plan-then-skin"');
+  }
+  if (mode === 'one-trip' && phase !== undefined) {
+    throw new Error('`phase` applies to plan-then-skin only');
+  }
+  if (mode === 'plan-then-skin' && phase !== 'planning' && phase !== 'skin') {
+    throw new Error('plan-then-skin submits require `phase`: "planning" or "skin"');
+  }
+
+  if (phase === 'planning') {
+    const result = finalizePlanningManifest({ prompt, manifest });
+    if (!result.ok) {
+      return {
+        ok: false,
+        mode,
+        phase,
+        errors: result.errors,
+        authorshipPreview: result.authorshipPreview,
+        repairPrompt: result.repairPrompt,
+        manifest: result.manifest,
+        patchesApplied: result.patchesApplied,
+        next: 'Fix the planning manifest (no marks) per `repairPrompt` and resubmit with phase: "planning".',
+      };
+    }
+    // Same card set the keyed orchestrator would give the skin turn — cache
+    // hit when the packet was pulled in this process; falls back to 'all'.
+    const classification = await classifyPromptForCards({ prompt });
+    return {
+      ok: true,
+      mode,
+      phase,
+      scaffold: result.scaffold,
+      authorshipPreview: result.authorshipPreview,
+      patchesApplied: result.patchesApplied,
+      skinPacket: {
+        brief:
+          'Turn 2 — author `marks` against the solved scaffold. Adopt `instructions`, answer `userPrompt` with ONE JSON object matching `schema`. Do not redo planning.',
+        instructions: buildPolygonizerSkinSystemPrompt({ cards: classification.cards }),
+        userPrompt: buildSkinTurnUserPrompt(buildPolygonizerUserPrompt(prompt), result.scaffold),
+        schema: POLYGONIZER_SCHEMA,
+        submit:
+          'submit_polygonizer_manifest({ prompt: <the SAME prompt string>, manifest, mode: "plan-then-skin", phase: "skin", title?, ref? })',
+      },
+    };
+  }
+
+  const result = finalizeAgentManifest({ prompt, manifest });
+  if (!result.ok) {
+    return {
+      ok: false,
+      mode,
+      ...(phase ? { phase } : {}),
+      errors: result.errors,
+      repairPrompt: result.repairPrompt,
+      manifest: result.manifest,
+      patchesApplied: result.patchesApplied,
+      next: 'Fix the manifest per `repairPrompt` and re-call submit_polygonizer_manifest with the SAME prompt.',
+    };
+  }
+  const response = {
+    ok: true,
+    mode,
+    ...(phase ? { phase } : {}),
+    manifest: result.manifest,
+    expandedManifest: result.expandedManifest,
+    patchesApplied: result.patchesApplied,
+  };
   if (mint) {
     response.sketch = mintSketch({
       title: title || result.manifest?.title || prompt,
@@ -1197,6 +1394,45 @@ export async function bindImageRenderHandler(input) {
   };
 }
 
+// Shared by create_polygonized_sketch and get_polygonizer_packet — the two
+// entry halves of the keyed and key-free polygonizer paths take identical
+// preload input.
+const POLYGONIZER_PRELOAD_SCHEMA = {
+  oneOf: [
+    { type: 'string' },
+    {
+      type: 'array',
+      maxItems: PRELOAD_MAX_ITEMS,
+      items: {
+        oneOf: [
+          { type: 'string' },
+          {
+            type: 'object',
+            properties: {
+              ref: { type: 'string', description: 'Prior sketch ref (`sk_…`).' },
+              as: {
+                type: 'string',
+                description:
+                  "Free-form role label for this prior — e.g. 'character', 'setting', 'palette', 'composition'. Becomes the section heading in the prior-context prefix the polygonizer model sees, so it knows which prior plays which role in the new scene.",
+              },
+              note: {
+                type: 'string',
+                description:
+                  'Optional per-prior note (e.g. "the fox\'s pose"). Surfaced to the model alongside the prior manifest and round-tripped in the response.',
+              },
+            },
+            required: ['ref'],
+          },
+        ],
+      },
+    },
+  ],
+  description:
+    "Optional prior sketch ref (`sk_…`) — or an array of refs / labeled-ref objects — to seed the polygonizer turn with as advisory context. The single-string form prefixes the resolved prior manifest under a 'Prior scene' header. The array-of-labeled-objects form prefixes each prior under its own 'Prior {as}' header (one labeled section per item), so the model can compose a new page from, e.g., a recurring character + a recurring setting carried from earlier sketches. Advisory only — no enforcement, no role-pinning, no validation that prior elements survive the new turn; the model may extend, modify, or ignore any prior. In plan-then-skin mode the preload is fed to the planning turn only; the skin turn sees the solved scaffold instead. Errors if any ref doesn't resolve. Capped at " +
+    PRELOAD_MAX_ITEMS +
+    ' priors per call.',
+};
+
 export function registerSketchTools() {
   registerTool({
     name: 'create_sketch',
@@ -1557,41 +1793,7 @@ export function registerSketchTools() {
           type: 'string',
           description: 'Optional one-off API key/credential string. Prefer apiKeyId when possible.',
         },
-        preload: {
-          oneOf: [
-            { type: 'string' },
-            {
-              type: 'array',
-              maxItems: PRELOAD_MAX_ITEMS,
-              items: {
-                oneOf: [
-                  { type: 'string' },
-                  {
-                    type: 'object',
-                    properties: {
-                      ref: { type: 'string', description: 'Prior sketch ref (`sk_…`).' },
-                      as: {
-                        type: 'string',
-                        description:
-                          "Free-form role label for this prior — e.g. 'character', 'setting', 'palette', 'composition'. Becomes the section heading in the prior-context prefix the polygonizer model sees, so it knows which prior plays which role in the new scene.",
-                      },
-                      note: {
-                        type: 'string',
-                        description:
-                          'Optional per-prior note (e.g. "the fox\'s pose"). Surfaced to the model alongside the prior manifest and round-tripped in the response.',
-                      },
-                    },
-                    required: ['ref'],
-                  },
-                ],
-              },
-            },
-          ],
-          description:
-            "Optional prior sketch ref (`sk_…`) — or an array of refs / labeled-ref objects — to seed the polygonizer turn with as advisory context. The single-string form prefixes the resolved prior manifest under a 'Prior scene' header. The array-of-labeled-objects form prefixes each prior under its own 'Prior {as}' header (one labeled section per item), so the model can compose a new page from, e.g., a recurring character + a recurring setting carried from earlier sketches. Advisory only — no enforcement, no role-pinning, no validation that prior elements survive the new turn; the model may extend, modify, or ignore any prior. In plan-then-skin mode the preload is fed to the planning turn only; the skin turn sees the solved scaffold instead. Errors if any ref doesn't resolve. Capped at " +
-            PRELOAD_MAX_ITEMS +
-            ' priors per call.',
-        },
+        preload: POLYGONIZER_PRELOAD_SCHEMA,
         preloadMetadata: {
           type: 'object',
           additionalProperties: true,
@@ -1602,6 +1804,78 @@ export function registerSketchTools() {
       required: ['prompt'],
     },
     handler: createPolygonizedSketchHandler,
+  });
+
+  registerTool({
+    name: 'get_polygonizer_packet',
+    description:
+      "KEY-FREE sibling of `create_polygonized_sketch` — YOU (the calling agent) are the generative model; no provider key, no ollama. Returns the polygonizer discipline as data: `{ instructions, userPrompt, schema, classification, submit }`. Adopt `instructions`, answer `userPrompt` with ONE JSON object matching `schema`, then call `submit_polygonizer_manifest` with the SAME `prompt`. `mode: 'one-trip'` (default; flat scenes) is one authoring turn; `mode: 'plan-then-skin'` (perspective / multi-figure / architectural) returns the PLANNING packet first — its submit hands back `skinPacket` for your second turn. `preload` seeds prior sketches exactly like `create_polygonized_sketch`.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        prompt: {
+          type: 'string',
+          description: 'Natural-language visual prompt to polygonize. Pass the SAME string to submit_polygonizer_manifest.',
+        },
+        mode: {
+          type: 'string',
+          enum: ['one-trip', 'plan-then-skin'],
+          default: 'one-trip',
+          description: 'one-trip: one authoring turn (full manifest). plan-then-skin: planning turn first (no marks); the planning submit returns the skin packet.',
+        },
+        preload: POLYGONIZER_PRELOAD_SCHEMA,
+      },
+      required: ['prompt'],
+    },
+    handler: getPolygonizerPacketHandler,
+  });
+
+  registerTool({
+    name: 'submit_polygonizer_manifest',
+    description:
+      "Submit half of the key-free polygonizer loop (pair with `get_polygonizer_packet`). Pass the SAME `prompt` plus your authored `manifest` (object, or raw/fenced JSON string). One-trip or `phase: 'skin'`: mojulo validates, applies deterministic repairs, lowers, and mints → `{ ok, sketch: { ref, url }, manifest, patchesApplied }`; on failure `{ ok: false, errors, repairPrompt }` — YOU are the repair loop: fix per `repairPrompt` and resubmit. Plan-then-skin `phase: 'planning'`: solves + gates the scaffold (authorship preview) and returns `{ scaffold, skinPacket }` — author marks per `skinPacket` and resubmit with `phase: 'skin'`. Stateless; `mint: false` validates without persisting.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        prompt: {
+          type: 'string',
+          description: 'The SAME visual prompt the packet was pulled for — feeds prompt-specific validation and repair prompts.',
+        },
+        manifest: {
+          oneOf: [
+            { type: 'object', additionalProperties: true },
+            { type: 'string' },
+          ],
+          description: 'Your authored polygonizer manifest — a JSON object, or a raw/fenced JSON string.',
+        },
+        mode: {
+          type: 'string',
+          enum: ['one-trip', 'plan-then-skin'],
+          default: 'one-trip',
+          description: 'Must match the packet mode. plan-then-skin submits also require `phase`.',
+        },
+        phase: {
+          type: 'string',
+          enum: ['planning', 'skin'],
+          description: 'plan-then-skin only: "planning" submits the planning manifest (returns skinPacket); "skin" submits the final marks manifest. Forbidden for one-trip.',
+        },
+        mint: {
+          type: 'boolean',
+          default: true,
+          description: 'When true, persist the sketch and return sketch.url. When false, only validate and return manifests.',
+        },
+        ref: {
+          type: 'string',
+          description: 'Optional stable sketch ref if minting. Collides → error; pick a new ref and resubmit.',
+        },
+        title: {
+          type: 'string',
+          description: 'Optional sketch title if minting.',
+        },
+      },
+      required: ['prompt', 'manifest'],
+    },
+    handler: submitPolygonizerManifestHandler,
   });
 
   registerTool({

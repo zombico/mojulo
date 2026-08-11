@@ -17,6 +17,7 @@ export const CREATIVE_FORMS = [
   'world',
   'view',
   'motion',
+  'motion-comic',
   'audio',
   'voice',
   'game',

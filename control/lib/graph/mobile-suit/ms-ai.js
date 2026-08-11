@@ -34,6 +34,27 @@ export function buildMsAi(E) {
     e.swingCd = sc.strikeCooldown ?? r.strikeCooldown ?? 0;
     breakGuards(e);   // attacking spends any protection (spawn shield / wake guard / dodge i-frames)
   }
+  // aiDodgeExhaust(e, r) — POST-DODGE THRUSTER LOCKOUT (2026-08-08). The pilot's acrobatic roll DUMPS
+  // the boost gauge + latches the overheat (beginDodge, combat-hit.js) — no boost or tackle until the
+  // bar recovers. The ai self-authors its own dodge (its own escape direction), so it never went
+  // through beginDodge and paid NOTHING — it could tackle or boost the instant the roll ended. The ai
+  // is gauge-INDEPENDENT (its rule runs in place of the suppressed boost-recovery tick, so it never
+  // spends or recharges e.boost), so the fix is a wall-clock the ai already speaks (like e.dodgeCdT /
+  // e.tackleCdT), sized to the pilot's overheat-recovery window so the two reads match. Gaugeless /
+  // heat-sink (`dodgeOverheat:false`) / free-roll (`dodgeBoostCost:0`) suits — the ones the pilot
+  // dodges freely on — impose NO lockout. Tunable per-rule via `dodgeExhaust` (seconds).
+  function aiDodgeExhaust(e, r) {
+    // free-roll (`dodgeBoostCost:0`) / heat-sink (`dodgeOverheat:false`) suits dodge freely — parity
+    // with the pilot who takes no overheat on those. EVERYTHING ELSE pays (default dodgeBoostCost 2,
+    // dodgeOverheat true). Crucially this must NOT gate on `boostMax`: the ai seat rule is gauge-
+    // independent and usually carries NO boostMax, so a boostMax gate would exempt every real arena
+    // suit (the roll-then-counter the operator hit). Window = the pilot's 0→full overheat recovery
+    // when the suit HAS a gauge, else a fixed default; tunable per-rule via `dodgeExhaust`.
+    if ((r.dodgeBoostCost ?? 2) <= 0 || !(r.dodgeOverheat ?? true)) return;
+    const bm = r.boostMax ?? 0;
+    const win = bm > 0 ? bm / (r.overheatRegen ?? bm / 7.5) : 7.5;
+    e.aiBoostRestT = r.dodgeExhaust ?? win;
+  }
   // beginAiSwing(e, sc, r, dif) — the AI opens a melee attack. On a COMBO slot (`combo:1`) it throws a
   // TWO-HIT string: an OPENER (a neutral or alternating side cut — a setup hit) then, chained on
   // completion in the swing playback, a DOWNSWING finisher that topples. A single-hit slot (no combo)
@@ -85,6 +106,7 @@ export function buildMsAi(E) {
     const dif = (world && world.aiTuning) || null;
     e.aiFire = 0;
     e.thrust = 0; e.thrustYaw = 0; e.boosting = false;   // reset per frame; a boost burst (R23, opt-in r.boost) re-arms them
+    if (e.aiBoostRestT > 0) e.aiBoostRestT = Math.max(0, e.aiBoostRestT - dt);   // post-dodge boost/tackle lockout (aiDodgeExhaust)
     const f = fwdXY(t.heading), rt = rightXY(t.heading);
     // an in-flight dodge OWNS the body (same commitment as the platform dodge: no re-aim, i-frames,
     // the renderer tumbles the rig about the maneuver axis).
@@ -95,6 +117,10 @@ export function buildMsAi(E) {
         const env = Math.sin(Math.min(1, e.dodgeT) * Math.PI);
         const dsp = (r.dodgeSpeed ?? speed * 2.6) * env * dt;
         if (e.dodgeDir) { t.pos[0] += e.dodgeDir[0] * dsp; t.pos[1] += e.dodgeDir[1] * dsp; }
+        // SOLID (operator, 2026-08-10): the roll blocks like every other move — the pilot's dash
+        // phase resolves after every write (rules-platform), but this playback used to return
+        // early and tunnel through pillars/walls. Ground path only, matching the seek's gate.
+        if (!r.space && world && world.colliders) resolveBlocking(t.pos, t.pos[2] - eye, r.collideHeight ?? 24, r.collideRadius ?? 0, world.colliders, r.step ?? 0.35);
         // ground roll hugs the terrain; a SPACE roll holds its altitude — the probe would
         // otherwise glue the suit onto whatever hull happens to lie below the maneuver.
         const gd = !r.space && world && world.ground ? world.ground(t.pos) : null;
@@ -118,6 +144,11 @@ export function buildMsAi(E) {
       else {
         const tsp = (r.tackleSpeed ?? r.boostSpeed ?? speed * 3.5) * dt;
         if (e.tackleDir) { t.pos[0] += e.tackleDir[0] * tsp; t.pos[1] += e.tackleDir[1] * tsp; if (r.space && e.tackleDir[2]) t.pos[2] += e.tackleDir[2] * tsp; }
+        // SOLID (operator, 2026-08-10): the charge blocks like the pilot's charge-leap — at tackle
+        // speed a 16-unit wall crossed in a frame or two, and once the center was through, the
+        // eject released it on the far side (the NEWTYPE body-check phased through the depot's
+        // interior divide). Pinned against the box it slides along the face instead.
+        if (!r.space && world && world.colliders) resolveBlocking(t.pos, t.pos[2] - eye, r.collideHeight ?? 24, r.collideRadius ?? 0, world.colliders, r.step ?? 0.35);
         if (!r.space && world && world.ground) { const g = world.ground([t.pos[0], t.pos[1], (t.pos[2] - eye) + (r.collideHeight ?? 24)]); if (g != null) t.pos[2] = g + eye; }
         e.locomotion = 'boost'; e.moving = true; e.invincible = true; e.tumble = null;
         e.gaitPhase = (e.gaitPhase || 0) + tsp / strideLen; e.boosting = true; e.thrust = 1;
@@ -193,6 +224,7 @@ export function buildMsAi(E) {
         e.dodgeT = 0; e.dodgeClip = 'dodge_sideroll'; e.dodgeKind = 'side'; e.dodgeSign = sd < 0 ? -1 : 1;
         e.dodgeSpent = false; e.dodgeCdT = (r.dodgeCooldown ?? 8) * (dif ? dif.dodgeCdMul : 1);
         e.dodgeCount = (e.dodgeCount || 0) + 1;
+        aiDodgeExhaust(e, r);   // the roll spends the thruster — no instant tackle/boost follow-up
         // committed from THIS frame (i-frames + the roll clip), like the platform dodge
         e.locomotion = 'dodge_sideroll'; e.invincible = true; e.gaitPhase = 0; e.moving = true;
         return;
@@ -212,6 +244,7 @@ export function buildMsAi(E) {
         e.dodgeT = 0; e.dodgeClip = 'dodge_sideroll'; e.dodgeKind = 'side'; e.dodgeSign = sd < 0 ? -1 : 1;
         e.dodgeSpent = false; e.dodgeCdT = (r.dodgeCooldown ?? 8) * (dif ? dif.dodgeCdMul : 1);
         e.dodgeCount = (e.dodgeCount || 0) + 1;
+        aiDodgeExhaust(e, r);   // the roll spends the thruster — no instant tackle/boost follow-up
         e.locomotion = 'dodge_sideroll'; e.invincible = true; e.gaitPhase = 0; e.moving = true;
         return;
       }
@@ -226,8 +259,14 @@ export function buildMsAi(E) {
     // instead beats it for free — a dodge's i-frames make the target un-hittable, so the tackle passes
     // through (stepTackle skips `invincible`); which is exactly why the brain restrains its OWN melee
     // below. Gated on `tackleGuard` → only NEWTYPE; every other tier is byte-identical.
-    if (dif && dif.tackleGuard && (e.tackleCdT || 0) <= 0
-        && target.swingT != null && target.strikeParams && target.staggerT == null && !target.downed) {
+    // FACING GATE (operator, 2026-08-09): the counter only fires on a swing the brain can SEE — the
+    // swinger must sit inside the tackler's front cone (`tackleGuardCone` half-angle, default 1.1 rad
+    // — the same "facing" the melee close uses). A melee from BEHIND lands; the brain no longer
+    // whips 180° to stuff an attack it never saw. (The in-cone square-up below stays — a small
+    // shoulder-turn to center the charge is reading the attack, not eyes in the back of the head.)
+    if (dif && dif.tackleGuard && (e.tackleCdT || 0) <= 0 && !(e.aiBoostRestT > 0)   // spent thruster (post-dodge) can't tackle
+        && target.swingT != null && target.strikeParams && target.staggerT == null && !target.downed
+        && (f[0] * dx + f[1] * dy) / dist2d >= Math.cos(r.tackleGuardCone ?? 1.1)) {
       const tspeed = r.tackleSpeed ?? r.boostSpeed ?? speed * 3.5;
       const mdz0 = target.transform.pos[2] - t.pos[2];
       const tdist = r.space ? Math.hypot(dx, dy, mdz0) : dist2d;
@@ -367,7 +406,7 @@ export function buildMsAi(E) {
     const weaveMul = Number.isFinite(aOv && aOv.weave) ? aOv.weave : aProf[2];
     const f2 = fwdXY(t.heading), rt2 = rightXY(t.heading), facing = Math.abs(rem) < 1.1;
     let boostBurst = false;
-    if (r.boost) {
+    if (r.boost && !(e.aiBoostRestT > 0)) {   // spent thruster (post-dodge) grounds the boost-juke
       // difficulty AGGRESSION detune: less boost-juke uptime, longer stunnable rest beats.
       const bb = (r.boostBurst ?? 2.5) * (dif ? dif.boostBurstMul : 1), brest = (r.boostRest ?? 1.6) * (dif ? dif.boostRestMul : 1), cyc = Math.max(0.1, bb + brest);
       e.aiBoostClock = (e.aiBoostClock || 0) + dt;
@@ -379,7 +418,7 @@ export function buildMsAi(E) {
       // opening) or still a way off, otherwise march (walk-seek). Within reach + on-aim: throw the
       // back-cleave → a TOPPLE on connect. Firing is naturally off here (the melee slot carries no weapon).
       if (meleeDist > meleeReach * 0.85) {
-        const canBoost = !!(r.boost || r.boostSpeed);   // AGGRESSIVE: boost the WHOLE close (was: only a reeling/far target)
+        const canBoost = !!(r.boost || r.boostSpeed) && !(e.aiBoostRestT > 0);   // AGGRESSIVE: boost the WHOLE close — but a spent thruster (post-dodge) walks it
         const spd = (canBoost ? (r.boostSpeed ?? speed * 3.5) : speed) * dt;
         if (facing) {
           if (r.space) {

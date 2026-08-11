@@ -349,20 +349,47 @@ function placeEntryDoor(graph, o) {
   const eligible = graph.runs.filter((run) => !run.interior && (run.along[1] - run.along[0]) >= width + 1.2);
   if (!eligible.length) return null;
   const requestedSide = entry.side || entry.wall;
+  // LIVABILITY, not just facade preference: the front door belongs on the ENTRY
+  // room's exterior wall (the evaluator's "entry: mustTouch exterior" rule made
+  // real). Cutting by south-bias alone can land the door in a bedroom or a
+  // storage room — straight into that room's furniture. Side bias survives only
+  // as a tiebreaker among the entry room's own walls; an explicit side/wall
+  // request still dominates everything.
+  const entryCell = (graph.cells || []).find((c) => c.glyph === 'E');
+  const entrySpan = (run) => {
+    if (!entryCell) return null;
+    const c = entryCell;
+    const lo = Math.max(run.along[0], run.orientation === 'h' ? c.x : c.y);
+    const hi = Math.min(run.along[1], run.orientation === 'h' ? c.x + c.w : c.y + c.h);
+    if (hi - lo < width) return null;
+    const touches = run.orientation === 'h'
+      ? Math.abs(c.y - run.at) < eps || Math.abs(c.y + c.h - run.at) < eps
+      : Math.abs(c.x - run.at) < eps || Math.abs(c.x + c.w - run.at) < eps;
+    return touches ? [lo, hi] : null;
+  };
   const frontScore = (run) => {
     const len = run.along[1] - run.along[0];
     const side = run.orientation === 'h'
       ? (run.exteriorSide < 0 ? 'south' : 'north')
       : (run.exteriorSide < 0 ? 'west' : 'east');
-    const sidePenalty = requestedSide && requestedSide !== side ? 10000 : 0;
+    const sidePenalty = requestedSide && requestedSide !== side ? 1e6 : 0;
+    const entryBonus = entrySpan(run) ? -100000 : 0;
     const southBias = side === 'south' ? -1000 : side === 'east' ? -250 : 0;
-    return sidePenalty + southBias - len;
+    return sidePenalty + entryBonus + southBias - len;
   };
   const run = eligible.slice().sort((a, b) => frontScore(a) - frontScore(b))[0];
-  const center = Number.isFinite(entry.center) ? entry.center : (run.along[0] + run.along[1]) / 2;
+  // Center the door on the stretch of wall the entry room actually owns, not on
+  // the whole facade run (which may front other rooms too).
+  const span = entrySpan(run);
+  const center = Number.isFinite(entry.center) ? entry.center
+    : span ? (span[0] + span[1]) / 2
+    : (run.along[0] + run.along[1]) / 2;
   const a = Math.max(run.along[0] + 0.35, center - width / 2);
   const b = Math.min(run.along[1] - 0.35, center + width / 2);
   if (b - a < width * 0.65) return null;
+  // The doorway owns its stretch of wall: drop any window already placed where
+  // the door will be cut (windows are placed per-room before the entry door).
+  run.openings = run.openings.filter((op) => op.b < a - 0.4 || op.a > b + 0.4);
   run.openings.push({
     a, b, sill: 0, top,
     entry: true,
@@ -370,6 +397,12 @@ function placeEntryDoor(graph, o) {
     kind: entry.kind,                                    // 'cased' → clean opening (no leaf); default hinged
     doorSwing: entry.swing ?? run.exteriorSide,
   });
+  // Publish the cut as a plan-door-shaped record so downstream passes that only
+  // read plan.doors (furnish keep-clear, approach lines) see the front door too —
+  // otherwise the entry room can be furnished shut against its own entrance.
+  graph.entryDoor = run.orientation === 'h'
+    ? { x: (a + b) / 2, y: run.at, edge: run.exteriorSide < 0 ? 'S' : 'N', width: b - a, entry: true, exterior: true }
+    : { x: run.at, y: (a + b) / 2, edge: run.exteriorSide < 0 ? 'W' : 'E', width: b - a, entry: true, exterior: true };
   return run.openings[run.openings.length - 1];
 }
 
@@ -483,6 +516,27 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
       const r = { x0: cx - ew / 2, x1: cx + ew / 2, y0: cy - eh / 2, y1: cy + eh / 2 };
       return !exclude.some((h) => Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
     });
+  }
+  // Wall-hung decor (picture / sconce / tv) mounts on the room's BACK wall (the
+  // y0 wall) by box-net convention, regardless of its plan anchor — so the
+  // plan-rect test above cannot keep it off a doorway or window cut into that
+  // wall. Test the decor where it will actually hang: its horizontal span along
+  // the back-wall line vs every opening on that line. Doorways and windows own
+  // their wall; decor never overlaps them.
+  const WALL_HUNG = new Set(['picture', 'sconce', 'tv', 'television']);
+  const wallOpenings = o.wallOpenings || [];
+  if (wallOpenings.length) {
+    const wallLine = rect.y;
+    const onBackWall = wallOpenings.filter((op) => op.orientation === 'h' && Math.abs(op.at - wallLine) <= (o.exteriorThickness || 0.67) + 0.35);
+    if (onBackWall.length) {
+      elements = elements.filter((e) => {
+        if (!WALL_HUNG.has(e.type)) return true;
+        const u = e.anchor ? e.anchor[0] : 0.5;
+        const ew = (e.w || 0.12) * W;
+        const s0 = x0 + u * W - ew / 2 - 0.3, s1 = x0 + u * W + ew / 2 + 0.3;
+        return !onBackWall.some((op) => Math.min(s1, op.b) > Math.max(s0, op.a));
+      });
+    }
   }
   if (!elements.length) return [];
   const height = o.wallHeight;
@@ -1091,10 +1145,21 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   if (o.furnish) {
     // keep furniture out of doorways (alongside any stair exclusions already in
     // furnishExclude) so an open-concept core stays walkable, not furnished shut.
-    const doorClear = doorClearanceRects(plan.doors, o);
-    const fo = doorClear.length
-      ? { ...o, furnishExclude: [...(o.furnishExclude || []), ...doorClear] }
-      : o;
+    // The perimeter entry door counts: placeEntryDoor cuts it at the wall-graph
+    // level, so its keep-clear record rides in from wallGraph.entryDoor.
+    const doorClear = doorClearanceRects(
+      [...(plan.doors || []), ...(wallGraph.entryDoor ? [wallGraph.entryDoor] : [])],
+      o,
+    );
+    // Every opening (door, window, entry) as a span on its wall line — wall-hung
+    // decor checks against these where it actually mounts (see furnishCell).
+    const wallOpenings = wallGraph.runs.flatMap((run) =>
+      run.openings.map((op) => ({ orientation: run.orientation, at: run.at, a: op.a, b: op.b })));
+    const fo = {
+      ...o,
+      ...(doorClear.length ? { furnishExclude: [...(o.furnishExclude || []), ...doorClear] } : {}),
+      wallOpenings,
+    };
     // the edge a room is entered from (its interior access door) → command-position orient.
     const doorEdgeFor = (i) => {
       const d = (plan.doors || []).find((dr) => dr.room === i && !dr.exterior && !dr.entry);

@@ -18,6 +18,7 @@ import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/frac
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
+import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene } from '@/lib/graph/architecture/subway-station';
@@ -300,6 +301,14 @@ export const WORLD_KINDS = {
     walk: true,
     fogBoxes: (m) => planEdifice(m).envelopes.map((e) => boxFromFootprint({ x: e.x0, y: e.y0, w: e.x1 - e.x0, d: e.y1 - e.y0, z0: 0, z1: e.top }, { up: 'z' })),
     resolve: (m, ctx) => assembleEdificeScene(m, { title: ctx.title, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows }),
+  },
+  // the fantasy-interior primitive (dungeon-designer): a { chambers, tunnels } graph of
+  // organic round chambers at elevation, joined by sloping tube/corridor tunnels, lit by
+  // traced fires. Fully enclosed and walkable; no CSS-3D /scene form.
+  dungeon: {
+    title: 'mojulo dungeon',
+    walk: true,
+    resolve: (m, ctx) => assembleDungeonScene(m, { title: ctx.title }),
   },
   'transportation-hub': {
     title: 'mojulo transportation hub',

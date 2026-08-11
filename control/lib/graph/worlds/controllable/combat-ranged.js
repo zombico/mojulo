@@ -60,6 +60,16 @@ export function buildCombatRanged(E) {
       // charged-shot AMMO COST (taisa charge): a charged bolt spends this many rounds, CLAMPED to
       // what's left — one bullet in the magazine still fires the charge (it just empties it).
       chargedAmmoCost: Number.isFinite(w.chargedAmmoCost) && w.chargedAmmoCost > 0 ? Math.round(w.chargedAmmoCost) : null,
+      // charged-shot DAMAGE (operator 2026-08-10, taisa): the charged bolt's own hp chip —
+      // taisa's stun bolt lands 3.5 bullets' worth (42 vs 12/round). null → the base damage,
+      // byte-identical (the mk2 V78 charge keeps its plain-round numbers).
+      chargedDamage: Number.isFinite(w.chargedDamage) ? w.chargedDamage : null,
+      // charged-shot RANGE (operator 2026-08-10, mk2 + taisa beam rifles): a FULL charge carries
+      // 20% further than the base sight range — the held bolt rewards the commit with reach.
+      // A property of the charge mechanic itself (the only charging weapons are the two beam
+      // rifles), so 1.2 is the default; a weapon opts out / retunes via `chargedRangeMul`.
+      // Uncharged shots always fire at plain `range` — a chargeTime:0 weapon never reads this.
+      chargedRangeMul: Number.isFinite(w.chargedRangeMul) && w.chargedRangeMul > 0 ? w.chargedRangeMul : 1.2,
       eye: w.eye ?? 0,                    // fire-origin height above the entity's pos
       muzzleOffset: w.muzzleOffset || null,   // { f, r, u } body-frame gun tip (tracer/flash/launch origin; renderer)
       muzzleAlt: w.muzzleAlt || false,        // DUAL WIELD (alternate): flip the lateral muzzle each shot (two guns take turns)
@@ -220,6 +230,8 @@ export function buildCombatRanged(E) {
     }
     w.prevFire = fireHeld;
     const shotImpact = chargedShot ? (w.chargedImpact ?? w.impact ?? 0) : (w.impact || 0);
+    const shotRange = chargedShot ? w.range * (w.chargedRangeMul || 1) : w.range;   // the charged bolt reaches further
+    const shotDamage = chargedShot ? (w.chargedDamage ?? w.damage ?? 0) : (w.damage || 0);
     // a semi trigger pull OPENS a burst of `burst` rounds; the pending rounds then fire
     // themselves at burstRof regardless of the trigger (a burst commits — see initWeapon).
     if (!w.auto && !forcedShot && edge && w.cooldownT <= 0 && w.burstLeft <= 0 && w.ammo > 0) w.burstLeft = w.burst;
@@ -274,12 +286,12 @@ export function buildCombatRanged(E) {
           const friendly = e.team && tg.team && tg.team === e.team;   // TEAM: friendly fire off — allies pass through, but stagger
           const v = sub(tg.transform.pos, origin);
           const d = Math.hypot(v[0], v[1], v[2]);
-          if (d < 1e-3 || d > w.range) continue;
+          if (d < 1e-3 || d > shotRange) continue;
           let mode = null, hd = d;
           if (tg.body.egg) {
             // R19 CORE = the aim ray actually passing THROUGH the tilted egg (fair — aim at the body).
             const te = hitEgg(origin, aim, tg);
-            if (te != null && te <= w.range) { mode = 'core'; hd = te; }
+            if (te != null && te <= shotRange) { mode = 'core'; hd = te; }
             else if (w.fireClass === 'area') {
               // the MG assist ring stays ITS OWN thing: the outer angular ring, sized off the egg's width.
               const ang = Math.acos(clamp((v[0] * aim[0] + v[1] * aim[1] + v[2] * aim[2]) / d, -1, 1));
@@ -317,13 +329,13 @@ export function buildCombatRanged(E) {
           if (mst) mst.hits += 1;   // score screen: the round connected (a shield catch still counts on-target)
           // R19: a frontal shield EATS the shot (drains its HP by the shot's damage, no hp/poise; a
           // break staggers). Shield HP is in hp points, so a 100-hp shield takes ~5 damage-20 rifle hits.
-          if (absorbShield(tg, origin, w.damage || 0, state)) {
+          if (absorbShield(tg, origin, shotDamage, state)) {
             /* absorbed by the shield */
           } else {
           // damage is just numbers: chip hp (floored at 0; the target survives at 0 for this spike).
           if (tg.body && Number.isFinite(tg.body.hp)) {
             const hp0 = tg.body.hp;
-            tg.body.hp = Math.max(0, tg.body.hp - w.damage);
+            tg.body.hp = Math.max(0, tg.body.hp - shotDamage);
             if (mst) mst.dmg += hp0 - tg.body.hp;   // hull damage actually dealt (overkill clamped away)
           }
           // poise is the mechanic: chip it, and when it BREAKS (<=0) the target STAGGERS — a rooted
@@ -342,7 +354,7 @@ export function buildCombatRanged(E) {
           }
         } else {
           // miss (or blocked by cover): stop the tracer AT the wall if the aim ray hits one, else fly to range.
-          const far = [origin[0] + aim[0] * w.range, origin[1] + aim[1] * w.range, origin[2] + aim[2] * w.range];
+          const far = [origin[0] + aim[0] * shotRange, origin[1] + aim[1] * shotRange, origin[2] + aim[2] * shotRange];
           const wt = nearestWallT(from, far, state.colliders);
           e.lastShot = { mode: 'miss', t: state.time, from, to: wt != null ? lerp3(from, far, wt) : far, charged: chargedShot };
         }

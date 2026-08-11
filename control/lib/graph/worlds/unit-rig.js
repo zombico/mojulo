@@ -32,11 +32,12 @@
 
 import { articulateTransforms } from '../polygonizer/figure-vajra.js';
 import { faceListToMesh } from '../figures/face-mesh.js';
-import { matToQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
+import { matToQuat, packRigMesh } from '../figures/rig-bake.js';
 import { DODGE_POSES } from './dodge-poses.js';
 import { deriveBipedRig, SUIT_WAIST_SWIVEL } from './unit-pose.js';
 import { deriveUnitAnchors } from './unit-anchors.js';
 import { lowerAssemblerBuild } from './workbench-assembler.js';
+import { bakeAmbientOcclusion, bakeSkyShadow } from '../effects/ao-bake.js';
 import { facingYaw, WORKBENCH_LIGHT } from './workbench.js';
 import { env } from './pose-env.js';
 import { stampUniformMaterial } from '../polygonizer/ms-materials.js';
@@ -918,7 +919,48 @@ const SPACE_DESCEND = {
   },
 };
 
-export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = UNIT_CLIPS, rig: rigOverride, frame = false, frameOnly = false, pose = null, aim = null, swings = null, dodges = null, space = false, aimArms = null, weldOffHand = false, material = null, contrast = null } = {}) {
+// ── rig-bake LRU (CACHE, not persistence — the same discipline as ao-bake's AO_CACHE) ─────────
+// bakeUnitRig is a pure function of (manifest, opts) — deterministic by doctrine (seeded dice
+// only) — and an arena LEVEL resolve calls it for the whole roster (7 suits + 7 livery variants),
+// at ~1s per bake even with `ao` off. Every one of the game's 35 mode×map levels re-bakes the SAME
+// suits, so a keyed cache turns every level bake after the first into a lookup. The key hashes the
+// manifest + opts JSON; bakes carrying non-serializable overrides (`clips` pose functions, a `rig`
+// override) BYPASS the cache. Hits return a shallow-protected copy — top level, `clips`, and each
+// part object are fresh (`previewClip` reassigns clips; `weatherRigParts` replaces part.col), the
+// heavy base64 buffers are shared immutably. ~10MB per entry; 32 ≈ the ground + space arena
+// rosters with headroom.
+const RIG_CACHE = new Map();
+const RIG_CACHE_MAX = 32;
+
+function rigCacheKey(manifest, opts) {
+  let h1 = 0x811c9dc5, h2 = 0x1000193;
+  const mix = (s) => {
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+      h2 = (Math.imul(h2 ^ (h2 >>> 15), 0x85ebca6b) + c) >>> 0;
+    }
+  };
+  const m = JSON.stringify(manifest), o = JSON.stringify(opts, (k, v) => (v === undefined ? null : v));
+  mix(m); mix(' '); mix(o);
+  return `${h1.toString(36)}:${h2.toString(36)}:${m.length}:${o.length}`;
+}
+
+export function bakeUnitRig(manifest = {}, opts = {}) {
+  if (opts.clips || opts.rig) return bakeUnitRigUncached(manifest, opts);   // function-bearing overrides don't key
+  const key = rigCacheKey(manifest, opts);
+  let baked = RIG_CACHE.get(key);
+  if (baked) {
+    RIG_CACHE.delete(key); RIG_CACHE.set(key, baked);   // LRU touch
+  } else {
+    baked = bakeUnitRigUncached(manifest, opts);
+    RIG_CACHE.set(key, baked);
+    if (RIG_CACHE.size > RIG_CACHE_MAX) RIG_CACHE.delete(RIG_CACHE.keys().next().value);
+  }
+  return { ...baked, clips: { ...baked.clips }, parts: baked.parts.map((p) => (p ? { ...p } : p)) };
+}
+
+function bakeUnitRigUncached(manifest = {}, { keys = 12, targetH = null, clips = UNIT_CLIPS, rig: rigOverride, frame = false, frameOnly = false, pose = null, aim = null, swings = null, dodges = null, space = false, aimArms = null, weldOffHand = false, material = null, contrast = null, ao = null, shade = null } = {}) {
   // pose (posing studio): HOLD a single authored DOF instead of the gait shelf —
   // every clip becomes this static pose, so an ambient clock world displays the suit
   // frozen in it. The clean surface for authoring a pose from scratch (no aim lock, no
@@ -1317,16 +1359,129 @@ export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = 
     return [j.x, j.y, j.z];
   };
 
-  const parts = boneList.map((b) => {
-    const fs = boneFaces.get(b.id);
+  // Normalized rest-pose face lists per bone — the frame every part meshes in (and the
+  // frame the optional AO bake below runs in, so its radius reads in final suit units).
+  const normFaces = boneList.map((b) => boneFaces.get(b.id).map((f) => ({ ...f, corners: f.corners.map(N) })));
+
+  // ao (covered-parts shading, opt-in `ao: true | { radius, strength, minAo, steps, sky }`):
+  // TWO baked terms over the whole rest-pose body (effects/ao-bake.js), so armor that COVERS
+  // a section darkens it — the bicep under a pauldron, the upper thigh under a skirt plate,
+  // the abdomen under the chest bell:
+  //   • crevice AO (bakeAmbientOcclusion): normal-tap occlusion in junctions and gaps;
+  //   • sky shadow (bakeSkyShadow): the top-light "roof" term — a vertical ray per corner
+  //     darkens whatever solid geometry sits OVERHEAD within reach. This is the term that
+  //     actually reads as coverage; normal taps can't run skyward (a face's own tangent
+  //     plane hugs the ray). `sky: false` drops it; `sky: { reach, strength }` tunes it.
+  // The combined `vao` factors fold into the per-part vertex colours (faceListToMesh), so
+  // the shading rides every posed clip at zero runtime cost. Deterministic by construction
+  // (both bakes are pure arithmetic, no dice). Baked in the BIND pose — coverage shadows
+  // are pose-invariant by intent (the pauldron rides the arm it shades). Synthetic weapon_/
+  // shield kit is EXCLUDED both ways: racked multi-weapon copies stack in one grip, so
+  // they would bake phantom shadows for kit the loadout may be hiding. Gated → absent
+  // means a byte-identical bake.
+  if (ao != null && ao !== false) {
+    const aoOpts = ao && typeof ao === 'object' ? ao : {};
+    const h = (mxz - mnz) * s || 1;
+    const flat = [];
+    const spans = [];   // [boneIdx, offset, length] of each body bucket in `flat`
+    for (let i = 0; i < boneList.length; i++) {
+      const bid = boneList[i].id;
+      if (bid.indexOf('weapon_') === 0 || bid === 'shield') continue;
+      spans.push([i, flat.length, normFaces[i].length]);
+      for (const f of normFaces[i]) flat.push(f);
+    }
+    let baked = bakeAmbientOcclusion(flat, {
+      radius: Number.isFinite(aoOpts.radius) ? aoOpts.radius : h * 0.06,
+      strength: Number.isFinite(aoOpts.strength) ? aoOpts.strength : 0.85,
+      minAo: Number.isFinite(aoOpts.minAo) ? aoOpts.minAo : 0.35,
+      steps: Number.isFinite(aoOpts.steps) ? aoOpts.steps : 4,
+    });
+    if (aoOpts.sky !== false) {
+      const sky = aoOpts.sky && typeof aoOpts.sky === 'object' ? aoOpts.sky : {};
+      baked = bakeSkyShadow(baked, {
+        reach: Number.isFinite(sky.reach) ? sky.reach : h * 0.12,
+        strength: Number.isFinite(sky.strength) ? sky.strength : 0.55,
+        minAo: Number.isFinite(sky.minAo) ? sky.minAo : 0.3,
+      });
+    }
+    for (const [i, off, len] of spans) normFaces[i] = baked.slice(off, off + len);
+  }
+
+  // shade (MANUAL covered-parts shading, opt-in `shade: true | { strength, bands }`): the
+  // hand-authored sibling of `ao` — fixed per-bone gradient BANDS instead of geometric
+  // occlusion, for when the ao ray bakes cost too much (game load). Each listed bone darkens
+  // toward one end of its own rest-pose z-extent — a black shadow fading over the band:
+  //   • upperArmL/R: dark at the TOP (the bicep under its pauldron/shoulder)
+  //   • thighL/R:    dark at the TOP (the thigh under the skirt plates)
+  //   • torso:       dark at the BOTTOM (the abdomen under the chest bell)
+  // factor = 1 − strength·t (t = 1 at the dark end, 0 past the band), multiplied into the
+  // same per-corner `vao` the ao bake uses, so it folds into the part vertex colours with
+  // zero runtime cost and near-zero bake cost (pure per-vertex arithmetic, no rays). Bands
+  // are fractions of each bone's own z-extent, so one table fits every suit height; a spec
+  // object overrides per bone: { strength, bands: { <bone>: { from, span, strength? } } }.
+  // Composes multiplicatively with `ao` when both are set. Gated → absent = byte-identical.
+  if (shade != null && shade !== false) {
+    const shOpts = shade && typeof shade === 'object' ? shade : {};
+    const strength = Number.isFinite(shOpts.strength) ? shOpts.strength : 0.4;
+    // Band SHAPE: full strength across the PLATEAU (the covered stretch, measured from the
+    // dark end), then a linear fade over the rest of the span. A plain triangle fade put the
+    // dark end exactly where the covering armor HIDES it (thigh top under the skirt), so the
+    // visible surface only caught the weak tail and the treatment barely read.
+    // Default table: the operator's three sections — upper bicep, upper thigh, torso — PLUS
+    // the buckets that actually own those surfaces on a skirt-split biped (bucket-map
+    // diagnostic, 2026-08-10): the visible "upper thigh" plates ride the SKIRT bones (the
+    // true thigh hides behind them) and the visible waist is the PELVIS top. Suits without
+    // those synthetic bones have empty buckets → the entries no-op.
+    const bands = {
+      upperArmL: { from: 'top', span: 0.6, plateau: 0.5 }, upperArmR: { from: 'top', span: 0.6, plateau: 0.5 },
+      thighL: { from: 'top', span: 0.6, plateau: 0.5 }, thighR: { from: 'top', span: 0.6, plateau: 0.5 },
+      torso: { from: 'bottom', span: 0.45, plateau: 0.5 },
+      pelvis: { from: 'top', span: 0.55, plateau: 0.5 },
+      skirtFL: { from: 'top', span: 0.7, plateau: 0.45 }, skirtFC: { from: 'top', span: 0.7, plateau: 0.45 },
+      skirtFR: { from: 'top', span: 0.7, plateau: 0.45 }, skirtR: { from: 'top', span: 0.7, plateau: 0.45 },
+      ...(shOpts.bands && typeof shOpts.bands === 'object' ? shOpts.bands : {}),
+    };
+    for (let i = 0; i < boneList.length; i++) {
+      const band = bands[boneList[i].id];
+      if (!band) continue;
+      const fs = normFaces[i];
+      let zMin = Infinity, zMax = -Infinity;
+      for (const f of fs) for (const c of f.corners) { if (c[2] < zMin) zMin = c[2]; if (c[2] > zMax) zMax = c[2]; }
+      const ext = zMax - zMin;
+      if (!(ext > 1e-9)) continue;
+      const span = Number.isFinite(band.span) && band.span > 0 ? band.span : 0.6;
+      const plateau = Number.isFinite(band.plateau) ? Math.max(0, Math.min(0.95, band.plateau)) : 0.5;
+      const st = Number.isFinite(band.strength) ? band.strength : strength;
+      const bandH = ext * span;
+      for (const f of fs) {
+        let vao = null;
+        for (let k = 0; k < f.corners.length && k < 4; k++) {
+          const z = f.corners[k][2];
+          // u: 0 at the dark end of the band → 1 at its far edge (past it = open)
+          const u = band.from === 'bottom' ? (z - zMin) / bandH : (zMax - z) / bandH;
+          if (u >= 1) continue;
+          const t = u <= plateau ? 1 : 1 - (u - plateau) / (1 - plateau);
+          if (t <= 0) continue;
+          if (!vao) vao = Array.isArray(f.vao) && f.vao.length >= 4 ? f.vao.slice() : [1, 1, 1, 1];
+          vao[k] *= 1 - st * t;
+        }
+        if (vao) f.vao = vao;   // normFaces entries are per-bake clones — in-place is safe
+      }
+    }
+  }
+
+  const parts = boneList.map((b, bi) => {
+    const fs = normFaces[bi];
     if (!fs.length) return null;
-    const gm = faceListToMesh(fs.map((f) => ({ ...f, corners: f.corners.map(N) })));
+    const gm = faceListToMesh(fs);
     if (!gm.positions.length) return null;
-    // per-vertex specular [strength, power] — packed ONLY when a monomer carried a
-    // `material` (faceListToMesh returns gm.specs null otherwise), so a material-free
-    // suit serializes byte-identically. Consumed by the rig-figure runtime (channels.js
-    // __makeRigGroup → aSpec attribute + the shared spec patch).
-    return { pos: b64f32(gm.positions), col: b64u8(gm.colors), faces: fs.length, ...(gm.specs ? { spec: b64f32(gm.specs) } : {}) };
+    // indexed + quantized packing (rig-bake.js packRigMesh): shared corners deduped on the
+    // (quantized pos, colour, spec) tuple + a triangle index — ~4-5× smaller than the legacy
+    // float32 triangle soup at unit face counts, render-equivalent (every triangle keeps its
+    // exact corner values; spec rides per unique vertex the same way). The runtime's
+    // __makeRigGroup takes the `part.q` branch; vehicle/protoform rigs still pack soup and
+    // take the legacy `part.pos` branch.
+    return packRigMesh(gm, fs.length);
   });
 
   // Pose curves: per clip, K keys; per key, per bone, [qx,qy,qz,qw, hx,hy,hz].
@@ -1636,6 +1791,13 @@ export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = 
     // flame dims scale with the unit's height (figH), not the station bbox, so a
     // jet reads as a thin, long plume rather than a blob the size of the backpack.
     const figH = (mxz - mnz) * s;
+    // OPT-IN JET FAMILIES (`manifest.jets`, operator 2026-08-10) for units whose nozzles are
+    // SCULPTED INTO larger stations instead of named ones: 'calf' — a rear-face nozzle high on
+    // each lower leg (taisa's leg thrusters); 'torso-back' — a vectoring backpack pair derived
+    // off the torso's rear face (the mk2's integrated pack — it carries no separate backpack
+    // item, so the name-derivation found nothing and it boosted flameless). Absent → [] and
+    // every existing unit bakes byte-identically.
+    const jetFams = Array.isArray(manifest.jets) ? manifest.jets : [];
     for (const pl of placements) {
       const key = pl.id || String(pl.index);
       const lk = key.toLowerCase();
@@ -1650,6 +1812,33 @@ export function bakeUnitRig(manifest = {}, { keys = 12, targetH = null, clips = 
       } else if (/foot|sole/.test(lk)) {
         const b = boxOf(pl);
         thrusters.push({ bone, kind: 'foot', dir: [0, 0, -1], size: r4(figH * 0.024), len: r4(figH * 0.12), local: N([b.cx, b.cy, b.mnZ]).map(r4) });
+      } else if (jetFams.includes('calf') && /lower_leg|calf|shin/.test(lk)) {
+        // rear-face nozzle high on the calf, firing back-and-down; body-fixed (kind 'calf'
+        // skips the backpack vectoring — leg jets ride the leg, like the foot jets).
+        const b = boxOf(pl);
+        const dir = unit([0, -1, -0.45]).map(r4);
+        const z = b.mnZ + (b.mxZ - b.mnZ) * 0.7;
+        thrusters.push({ bone, kind: 'calf', dir, size: r4(figH * 0.022), len: r4(figH * 0.14), local: N([b.cx, b.mnY, z]).map(r4) });
+      }
+    }
+    // AUTHORED JETS (`manifest.jets` object entries, operator 2026-08-10): a unit whose nozzles
+    // are sculpted into a big station at KNOWN model coords (the mk2's two pack cones at the
+    // bottom of its torso-integrated backpack) names them exactly — `{ bone, anchors: [[x,y,z]…],
+    // dir: [x,y,z], kind?, size?, len? }`, all in the unit's own MODEL space. Anchors + dir map
+    // through the same assembly rotation as the geometry, so the flame roots at the cone mouth
+    // and fires along the cone axis. kind 'backpack' vectors with the dash like a named pack.
+    for (const jf of jetFams) {
+      if (!jf || typeof jf !== 'object' || !Array.isArray(jf.anchors)) continue;
+      const bone = jf.bone || 'torso';
+      if (!Object.values(rig.bones).includes(bone) && bone !== 'torso') continue;
+      const dv = jf.dir ? mvec(A, jf.dir) : [0, -1, -0.32];
+      const dir = unit(dv).map(r4);
+      for (const a of jf.anchors) {
+        thrusters.push({
+          bone, kind: jf.kind || 'backpack', dir,
+          size: r4(figH * (jf.size || 0.028)), len: r4(figH * (jf.len || 0.19)),
+          local: N(mvec(A, a)).map(r4),
+        });
       }
     }
   }

@@ -18,15 +18,47 @@ import { suitShadowBlock } from './suit-shadows.js';
 // raycasts the scene so `walk` entities follow terrain; `window.__mojCtrl` is exposed for headless
 // verification (it can push input frames).
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, key = null } = {}) {
+// figure-buffer pool: livery variants bake byte-identical part GEOMETRY (only the colour buffers
+// differ) and identical pose curves, so a roster page serializes every pos/clip buffer twice —
+// ~half the __FIG payload on an arena level. Emit each duplicated base64 string ONCE in __FIGPOOL
+// and mark its uses `{__p:i}`; the page rehydrates the markers before any consumer runs. A figures
+// map with no duplicated buffers pools nothing and the emission stays byte-identical to the
+// unpooled form (the char-net contract).
+function poolFigureBuffers(figures) {
+  const counts = new Map();
+  const scan = (v) => {
+    if (typeof v === 'string') { if (v.length >= 256) counts.set(v, (counts.get(v) || 0) + 1); return; }
+    if (v && typeof v === 'object') for (const k in v) scan(v[k]);
+  };
+  scan(figures);
+  const idx = new Map();
+  for (const [s, n] of counts) if (n >= 2) idx.set(s, idx.size);
+  if (!idx.size) return { fig: figures, pool: [] };
+  const rewrite = (v) => {
+    if (typeof v === 'string') { const i = idx.get(v); return i === undefined ? v : { __p: i }; }
+    if (Array.isArray(v)) return v.map(rewrite);
+    if (v && typeof v === 'object') { const o = {}; for (const k in v) o[k] = rewrite(v[k]); return o; }
+    return v;
+  };
+  return { fig: rewrite(figures), pool: [...idx.keys()] };
+}
+
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, key = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
   // matching how specularChannelScript itself is gated in scene-three.js.
   const figHasSpec = Object.values(figures || {}).some((f) => f && f.rig
-    && Array.isArray(f.parts) && f.parts.some((p) => p && p.spec));
+    && Array.isArray(f.parts) && f.parts.some((p) => p && (p.spec || p.spec8)));
+  // indexed+quantized parts present (unit rigs since the level-load perf batch) — gates the
+  // __makeRigGroup q branch below so rig pages without them stay byte-identical.
+  const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
+    && Array.isArray(f.parts) && f.parts.some((p) => p && p.q));
+  // spec rides two encodings: legacy float32 pairs (`spec`, vehicle/protoform rigs) and the
+  // unit rigs' u8 pairs (`spec8` — [strength×255, shininess], dequantized to the same float
+  // attribute here so the shared spec patch shader is unchanged).
   const rigSpecHook = figHasSpec
-    ? `\n    if (part.spec && typeof __specPatch === 'function') { geo.setAttribute('aSpec', new THREE.BufferAttribute(decodeF32(part.spec), 2)); __specPatch(mesh); }`
+    ? `\n    if ((part.spec || part.spec8) && typeof __specPatch === 'function') { let sa; if (part.spec8) { const su = decodeU8(part.spec8); sa = new Float32Array(su.length); for (let i = 0; i < su.length; i += 2) { sa[i] = su[i] / 255; sa[i + 1] = su[i + 1]; } } else sa = decodeF32(part.spec); geo.setAttribute('aSpec', new THREE.BufferAttribute(sa, 2)); __specPatch(mesh); }`
     : '';
   // rim (ms-contrast.plan.md SPIKE): additive fresnel edge light — injected ONLY when a
   // packed figure carries a `rim` spec ([r,g,b,strength,power], baked by unit-rig's
@@ -97,8 +129,14 @@ const __rimPatch = (m, rim) => {
   const hangarHook = hangar ? '  window.__mojHangar.sync();\n  if (inputOverride) { if (inputOverride.hangarStep) window.__mojHangar.step(inputOverride.hangarStep); if (inputOverride.liverySet != null) window.__mojHangar.livery(inputOverride.liverySet); if (inputOverride.equipSlot != null) window.__mojHangar.equip(inputOverride.equipSlot); }\n' : '';
   return `
 const __CW = ${emissionSource()};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''} });
-const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''} });
+${(() => {
+    const pooled = poolFigureBuffers(figures || {});
+    if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
+    return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
+const __FIG = ${safeJson(pooled.fig)};   // name → packed baked figure frames (pos/col b64 or {__p:i} into __FIGPOOL)
+(function __unpool(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { if (v.__p != null) o[k] = __FIGPOOL[v.__p]; else __unpool(v); } } })(__FIG);`;
+  })()}
 const __bodies = {};
 // figure-frames body: re-expand baked frames (Uint16 corners + Uint8 colour) into raw Float32
 // position arrays, feet planted at the body's local z=0 (FOOT subtracted) — packFigureFrames'
@@ -122,14 +160,27 @@ function __decodeFigFrame(posB64, colB64, origin, inv, foot) {
   return { pos, col };
 }${rimPatchBlock}
 // build one figure-rig group (rigid parts, one mesh per bone) for a baked fig — shared by the
-// single-figure body below and the loadout variant builder (weapon switching).
+// single-figure body below and the loadout variant builder (weapon switching). Two part
+// encodings: unit rigs pack INDEXED + QUANTIZED (part.q: uint16 grid positions dequantized by
+// origin o + per-axis step s, triangles as an index — uint32 when n tops 65535; rig-bake
+// packRigMesh); vehicle/protoform rigs still pack legacy float32 triangle soup (part.pos).
+// The q branch is emitted only when some figure carries it (figHasQ, same gating pattern as
+// figHasSpec) so a page without unit rigs stays byte-identical.${figHasQ ? `
+function __decodeU16(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint16Array(u.buffer); }
+function __decodeU32(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint32Array(u.buffer); }` : ''}
 function __makeRigGroup(fig, b) {
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
+    const geo = new THREE.BufferGeometry();${figHasQ ? `
+    if (part.q) {
+      const q = __decodeU16(part.q), o = part.o, s = part.s, p = new Float32Array(part.n * 3);
+      for (let i = 0; i < p.length; i += 3) { p[i] = o[0] + q[i] * s[0]; p[i + 1] = o[1] + q[i + 1] * s[1]; p[i + 2] = o[2] + q[i + 2] * s[2]; }
+      geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+      geo.setIndex(new THREE.BufferAttribute(part.n > 65535 ? __decodeU32(part.idx) : __decodeU16(part.idx), 1));
+    } else geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));` : `
+    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));`}
     // rig-part colour is packed as normalized uint8 (rig-bake b64u8, 4× smaller than float32) →
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
@@ -1259,8 +1310,10 @@ function __updateWepHud() {
   } else __wep.ret.style.display = 'none';   // aim point behind the camera
   if (ent.readyT > 0) {
     __retStatus(Math.max(0, Math.min(1, ent.readyT / (ent.readyMax || 1))), '#ffb066');
-  } else if (W.cooldownT > 0) {
-    const __cdMax = W.burstLeft > 0 ? (1 / (W.burstRof || 8)) : (W.auto ? (1 / (W.rof || 10)) : (W.cooldown || 0.5));
+  } else if (W.cooldownT > 0 && !W.auto) {
+    // semi/lob only — an AUTO weapon's between-round gap IS its fire rate (operator, 2026-08-10):
+    // a 16/s gatling flashed this ring at rof, pure noise. Autos skip straight to ready.
+    const __cdMax = W.burstLeft > 0 ? (1 / (W.burstRof || 8)) : (W.cooldown || 0.5);
     __retStatus(Math.max(0, Math.min(1, W.cooldownT / __cdMax)), '#ffb066');
   } else {
     __retReady();
@@ -1489,7 +1542,9 @@ function __updateEnemyHp() {
   camera.updateMatrixWorld();
   for (const r of __ehp) {
     const e = __world.byId[r.id];
-    if (!e || e === pilot) { r.el.style.display = 'none'; continue; }
+    // gone covers both the vanished wreck (finisher) and a DORMANT tutorial seat parked at its
+    // authored pose — neither should float a bar over empty air.
+    if (!e || e === pilot || e.gone) { r.el.style.display = 'none'; continue; }
     // TEAM: an ALLY bar is always shown (green) so you can track your wing's health; an enemy bar keeps
     // the engage/target gate — ENGAGING (recently hit) OR TARGETING (aim ray within its angular size).
     const ally = __teamOn && __selfTeam && e.team && e.team === __selfTeam;
@@ -1925,6 +1980,74 @@ function __updateMatchHudInner() {
     }
   }
 }
+// ---- TUTORIAL objective HUD + terminal (tutorial-mode.plan.md T1): the director's face ----
+// Built only when the world runs a tutorial script (state.tutorial — worlds without one emit the
+// same inert function). The card (top-center) shows the active step's prompt + progress; when the
+// script completes the banner freezes over the tableau and the ONE outcome envelope leaves through
+// window.__mojGame — the same promote/end discipline as the match layer, the director being the
+// terminal here (tutorial levels run no match). Fault-contained like the match HUD.
+let __tut = null;
+if (__world.tutorial) {
+  const __tutWrap = document.createElement('div');
+  __tutWrap.style.cssText = 'position:absolute;left:50%;top:16px;transform:translateX(-50%);max-width:520px;padding:9px 18px 10px;border-radius:10px;background:rgba(8,14,22,0.55);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.25);pointer-events:none;z-index:9;text-align:center';
+  const __tutEyebrow = document.createElement('div');
+  __tutEyebrow.style.cssText = 'font:700 9px system-ui,sans-serif;letter-spacing:.22em;color:#8fb4d8;margin-bottom:4px';
+  const __tutPrompt = document.createElement('div');
+  __tutPrompt.style.cssText = 'font:700 14px system-ui,sans-serif;letter-spacing:.05em;color:#eaf4ff;text-shadow:0 1px 3px rgba(0,0,0,.6)';
+  const __tutProg = document.createElement('div');
+  __tutProg.style.cssText = 'font:600 11px system-ui,sans-serif;color:#7fd4ff;margin-top:3px;display:none';
+  __tutWrap.appendChild(__tutEyebrow); __tutWrap.appendChild(__tutPrompt); __tutWrap.appendChild(__tutProg);
+  wrap.appendChild(__tutWrap);
+  const __tutBanner = document.createElement('div');
+  __tutBanner.style.cssText = 'position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);padding:16px 34px;border-radius:12px;background:rgba(10,16,26,0.88);box-shadow:0 0 0 1px rgba(140,210,255,0.35),0 6px 28px rgba(0,0,0,0.55);text-align:center;display:none;pointer-events:none;z-index:12;font:700 15px system-ui,sans-serif;color:#eaf4ff;letter-spacing:.06em';
+  wrap.appendChild(__tutBanner);
+  __tut = { wrap: __tutWrap, eyebrow: __tutEyebrow, prompt: __tutPrompt, prog: __tutProg, banner: __tutBanner, ended: false, dead: false };
+}
+function __updateTutorialHud() {
+  if (!__tut || __tut.dead) return;
+  try { __updateTutorialHudInner(); } catch (err) {
+    __tut.dead = true;
+    console.error('tutorial HUD disabled after error:', err);
+  }
+}
+function __updateTutorialHudInner() {
+  const T = __world.tutorial;
+  if (!T || T.dead) { if (__tut) __tut.wrap.style.display = 'none'; return; }
+  if (T.over) {
+    if (__tut.ended) return;
+    __tut.ended = true;
+    __tut.wrap.style.display = 'none';
+    const won = T.result === 'success';
+    __tut.banner.innerHTML = '<div style="font-size:22px;letter-spacing:.12em;color:' + (won ? '#7fe0a8' : '#ff8f8f') + '">' + (won ? 'TUTORIAL COMPLETE' : 'SUIT LOST') + '</div><div style="margin-top:6px;font:600 12px system-ui,sans-serif;color:#bcd2ea">' + (won ? T.steps.length + ' objectives cleared' : 'restart the level to try again') + '</div>';
+    __tut.banner.style.display = '';
+    if (window.__mojGame) {
+      try {
+        const c = window.__mojGame.contract || {};
+        const evs = (c.produces && c.produces.events) || [];
+        for (let i = 0; i < evs.length; i++) {
+          if (evs[i].type === 'promote') {
+            window.__mojGame.emit({ type: 'promote', slice: evs[i].slice, ref: c.levelRef, result: won ? 'success' : 'fail' });
+            break;
+          }
+        }
+        window.__mojGame.end(won ? 'success' : 'fail', { pilot: __world.pilotId, tutorial: { steps: T.steps.length, cleared: won ? T.steps.length : T.idx } });
+      } catch (err) { console.error('tutorial outcome', err); }
+    }
+    return;
+  }
+  const s = T.steps[T.idx];
+  if (!s) { __tut.wrap.style.display = 'none'; return; }
+  __tut.wrap.style.display = '';
+  __tut.eyebrow.textContent = 'TUTORIAL \\u00b7 ' + (T.idx + 1) + ' / ' + T.steps.length;
+  __tut.prompt.textContent = s.prompt;
+  // the advance flash: a brief bright ring when a step clears, so progress is felt without reading.
+  const fresh = T.flash >= 0 && (__world.time - T.flash) < 0.6;
+  __tut.wrap.style.boxShadow = fresh ? 'inset 0 0 0 2px rgba(127,224,168,0.85)' : 'inset 0 0 0 1px rgba(120,200,255,0.25)';
+  if (s.goal.count > 1) {
+    __tut.prog.style.display = '';
+    __tut.prog.textContent = Math.min(Math.floor(T.count), Math.ceil(s.goal.count)) + ' / ' + Math.ceil(s.goal.count);
+  } else __tut.prog.style.display = 'none';
+}
 // game-params seam (arena M3): a hosting shell's launcher picks arrive as __mojGame params —
 // the chosen suit takes the pilot seat (other seat:'player' options despawn), and only the
 // picked seat:'opponent' entities stay in the arena. Standalone opens fall back to the level's
@@ -1941,7 +2064,26 @@ function __msDespawn(id) {
   if (b) { scene.remove(b); delete __bodies[id]; }
 }
 function __applyMatchParams(params) {
-  if (__world.spectate) return;   // no picks in a spectate bout — the whole cast fights; never despawn a seat
+  if (__world.spectate) {
+    // SPECTATE PICKS (2026-08-09): the level authors every candidate seat:'ai' fighter; the shell's
+    // watch picks name who fights and the unpicked cast leaves before the bout. Only roster slices
+    // are read — no pilot, difficulty or livery here (an all-AI show is never detuned). An absent or
+    // empty pick keeps the whole cast, so a pickless watch level plays exactly as before.
+    if (!params || typeof params !== 'object') return;
+    const keep = {};
+    let anyPicked = false;
+    for (const k in params) {
+      const v = params[k];
+      const ids = v && typeof v === 'object' && v.roster && typeof v.roster === 'object' ? Object.keys(v.roster) : null;
+      if (ids && ids.length) { anyPicked = true; for (let i = 0; i < ids.length; i++) keep[ids[i]] = true; }
+    }
+    if (!anyPicked) return;
+    for (let i = __world.entities.length - 1; i >= 0; i--) {
+      const e = __world.entities[i];
+      if (e.seat === 'ai' && !keep[e.id]) __msDespawn(e.id);
+    }
+    return;
+  }
   if (!params || typeof params !== 'object') return;
   // DIFFICULTY (arena difficulty select): the shell's pick rides beside the slice params as a
   // plain string naming an engine tuning tier ('easy' | 'medium' | 'max'); unknown or absent →
@@ -1983,7 +2125,7 @@ function __applyMatchParams(params) {
   // slice the shell passed (opponents for FFA, duel_enemy for a solo pick, team_allies + team_foes for
   // a team bout), despawn the rest. Generalises the old opponents-only despawn — a mode declares its
   // own combatant slices and this seam honours them all without hardcoding names. seat:'player' is the
-  // pilot slice (handled above); seat:'ai' is a spectate cast (never touched — spectate returns early).
+  // pilot slice (handled above); seat:'ai' is a spectate cast (handled by the spectate branch above).
   const __combatantSeat = { opponent: 1, enemy: 1, ally: 1 };
   const keep = {};
   let anyPicked = false;
@@ -2029,6 +2171,7 @@ ${hangarHook}  __msHookParams();
   __updateHpHud();
   __updateEnemyHp();
   __updateMatchHud();
+  __updateTutorialHud();
 };
 window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''} step: (dt, input) => stepControllable(dt, input) };`;
 }

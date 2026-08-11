@@ -8,6 +8,150 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.1.0] — 2026-08-10
+
+A creative-surface and engine release: one new creative FORM (the motion comic), one new
+walkable world kind (the dungeon), a key-free authoring path for the polygonizer, the
+match-mode layer promoted from game content into the tracked engine, and a baked
+coverage-shading pass for rigged units. Additive throughout — absent the new opt-ins,
+every existing recipe renders byte-identical.
+
+### Motion comic — a new creative FORM
+
+`create_sketch { kind: 'motion-comic' }` mints the click-gated comic presentation — "the
+powerpoint of comics": a fixed BOX + matte, no pages, bound by PANELS. Each scene frames one
+panel crop (`{pageRef, panel}`) as the showcase and its events piecemeal balloons and
+elements out one click at a time. The delta vocabulary: `show` / `say` / `swap` (direct
+single-panel action — same frame, new art, cut by default; the reader interpolates) /
+`move` (the camera cheat: shrink = depth, grow = approach) / `letter` (SFX lettering as
+mojulo-drawn z-index overlays — the image worker never letters) / `focus` / `hold` /
+`hide` / `clear`; balloon `tail`s foreshadow. The grammar is Turbomedia (Balak / Marvel
+Infinite Comics lineage); the keyframe cheat shelf ships as the `motion-comic-tricks`
+vocab card. Scene layouts: `full-spread` / `splash` / `two-panel` (slot-placed,
+aspect-fitted at mint). Two lettering modes over the same says: drawn `bubbles` or
+movie-style `subtitles`. State is a pure fold — insert/reorder events freely. Plays at
+`/api/sketches/<ref>/play` (four-move navigation, deep-linkable); `?download=1` exports
+ONE self-contained HTML file (player + art inlined, opens from disk). The form costs a
+vocab card + routing card + `FORM_TOOLSETS` entry — no new tool registrations.
+
+### Dungeon — a new `compose_world` base
+
+The fantasy-interior primitive graduates into the world registry: `base: 'dungeon'` mints
+a torch-lit walkable INTERIOR from a tiny `{ chambers, tunnels }` graph recipe — organic
+round chambers at elevation joined by sloping tube/corridor tunnels, traced-fire lit,
+deliberately the opposite of the flat generative house/room generators (the one invariant:
+there is a ceiling and a floor, but no surface is assumed flat). Structural validity (a
+tunnel to an unknown chamber, an unknown material) fails at mint; the movement-flow check
+is advisory, never gated. Walkable `/world` + `.glb` export follow free from
+`WORLD_KINDS` membership; the parameter manual is the `dungeon` view-vocab card.
+
+### Key-free polygonizer authoring
+
+`get_polygonizer_packet` / `submit_polygonizer_manifest` — the key-free twin of
+`create_polygonized_sketch`, where the calling agent IS the generative model. The packet
+hands the agent the same system/user prompts + JSON schema the keyed path would send a
+provider; the submit runs the model-independent tail (validate → deterministic repairs →
+lower → mint). A failed submit returns `repairPrompt` — the server-side repair loop
+becomes conversational. Plan-then-skin passes the planning manifest back into submit; the
+solved scaffold is recomputed server-side, never trusted from the agent. The polygonizer
+analogue of `get_skin_packet`: natural-language → sketch now needs no provider key at all.
+
+### Match modes in the engine
+
+The game-mode layer joins the tracked engine as `worlds/match-modes.js`: five suit-agnostic
+mode builders (solo / practice / ffa / team / watch) + geometry/seat/match helpers +
+`lightenMatchLevel`, with `prelude`/`nameOf` hooks for content packs. The `compose_world`
+controllable base now takes `match: { mode, killTarget?, rivals?, teamNames?, … }` and
+`mapRef` — ANY stored controllable world with pilotable entities mints as a match level in
+light form, promotable via `create_game`. `mapRef` terrain inheritance
+(`worlds/map-ref.js`: spread-merge, level wins, `null` tombstones) resolves at the top of
+`resolveWorldScene`, so `/world`, `.glb` export, `export_game`, and the audit runner all
+inherit through one seam — a level row stores the mode's own output (~46KB), not a terrain
+clone. Game shells gain the `roster` setup style (named-member check-picks, spectate-aware:
+all-AI setups drop the difficulty card and despawn unpicked fighters).
+
+### Tutorial mode — the scripted teaching layer
+
+The controllable engine gains the TUTORIAL DIRECTOR (`worlds/controllable/tutorial.js`): an
+opt-in `tutorial: { steps }` manifest channel — ordered prompt + goal steps the director
+advances by edge-detecting live sim state each frame (no emissions added to the combat
+systems; a world without steps is byte-identical). Facts: move / ascend / descend (vertical
+travel — the space thrust lessons) / boost / boost-steer /
+jump / hit / clip-empty / switch / swing (directional) / combo / tackle / dodge / stagger /
+destroy — the maneuver facts edge-read the engine commit counters
+(`e.tackleCount` / `e.dodgeCount`), so the director stays pack-agnostic; a destroy `of`
+may name an id SET (all must fall). The
+director is the level terminal (no match layer): the objective HUD card renders the active
+prompt top-center, completion (or losing the suit) emits the one outcome envelope. Steps'
+entry actions: `activate` (wake dormant seats), `heal` (restore a body to its minted
+hull + shield — the between-phases repair), `set.aiDifficulty` (retune mid-level); an
+`optional: true` step is a BONUS phase — the clear is already earned when it enters, so
+the pilot going down there ends the level in success, not fail. Two
+sibling affordances land with it: the `patrol` rule (a passive waypoint walker — hittable,
+staggerable, never fires) and DORMANT seats (`dormant: true` — minted into the roster but
+absent from play until a step's `activate` wakes them with the sky drop-in; the
+deterministic mid-level reinforcement). `aiDifficulty` on a manifest seeds the AI tier at
+mint. First consumers: the Mobile Suit Arena's tutorial track, both missions unlocked and
+numbered — **1. Mobile Suit Rising**
+(City: the trimmed mk2 vs a green Z-A11 patrol dummy at half hull; thirteen steps from
+WASD through the knockdown cleave to the tackle) and **2. Canyon Rumble** (Canyon: full
+kit vs an armed RECRUIT Z-A11; clearing it wakes a dormant Geof at ACE, whose drop-in step
+teaches the dodge roll — tap F twice with a direction held — before the kill order; Geof
+falling triggers the optional BONUS WAVE — "ENEMY MOBILE SUITS DETECTED! DEPLOYING
+BACKUP": full repair, a V78 ally drops in beside the player and three Torettos on the far
+side, sides picked by team tags + the ai's team-aware `target:'enemy'` hunt; wipe the
+squad or go down swinging, the level clears either way) and **3. Encounters in Space**
+(the asteroid-field station map: the full-kit mk2 in 6DoF — thrust WASD, ascend SPACE,
+descend X, boost F, the space roll tap-tap-F — then first contact with a green Z-A11,
+and on its fall the optional wave: a Taisa + two more z's on a wider ring with a V78
+backup deploying beside the player, same optional-victory posture) — stored light like every matrix
+cell. (The Rising→Canyon `gate` was exercised end-to-end then retired by operator call;
+`evalGate` and the shell's lock rendering remain available.)
+
+### `export_game` — shared asset banks
+
+Exported level pages were ~98% inlined rigged-figure bank, repeated identically per page —
+past static-host file limits at roster scale. The export now hoists the figure bank and
+big geometry literals (`GROUPS`/`REPEATS`/`TEXTURES`) into content-hashed, deduped
+`assets/figures/` and `assets/geometry/` files with a top-level-await fetch shim; mode
+variants of one map ship their terrain once, and a referenced map recipe ships beside a
+light level's recipe so `recipe/` stays re-mintable. Trade-off, recorded in the tool
+description: exported folders now need an HTTP server — `file://` no longer loads levels.
+(Real-world validation: a 35-level export dropped from ~5GB to under 1GB, no file over
+20MB, and published clean to GitHub Pages.)
+
+### Baked coverage shading (visual layer)
+
+- `bakeSkyShadow` (`effects/ao-bake.js`) — the directional sibling of the AO bake: per-corner
+  overhead rays (a small cone fan tilted toward the face's open side) darken whatever sits
+  under solid geometry, with distance falloff, multiplying into existing `vao`. Pure
+  deterministic arithmetic; LRU-cached like the AO bake (cache sized up 16 → 32).
+- `bakeUnitRig` opt-in `ao:` — crevice AO × sky shadow over the rest-pose body, folded into
+  per-part vertex colours: armor that covers a section now shades it (the bicep under a
+  pauldron), pose-invariant at zero runtime cost. Absent ⇒ byte-identical bake.
+- `shadows.cast.noCastGroups` — a declared roof/ceiling group receives shadows but never
+  casts, so enclosed interiors no longer blanket their floors; emitted only when declared.
+- `materials/face-material-roles.js` — a pure manifest→manifest selector that stamps
+  procedural-material presets onto a finished map's faces by height band or baked fill
+  colour, preset-validated at mint.
+
+### Fixed
+
+- Polygonizer house recipes: the whole house assembly is now authored in one
+  compiler-owned oblique space (facade datum, shared recession, forward apron) instead of
+  mixing in renderer-anchored solids — the bug that detached roofs from bodies. Plus
+  entry-door and furnishing upgrades in `floorplan-structure.js`.
+- `create_sketch` can now MINT the seeded interior kinds (`floorplan` / `restaurant`), not
+  just render ones minted elsewhere — the manifest gate dispatches on kind.
+- `procedural-material.js` imports vexar relatively so mint scripts run under plain `node`.
+
+### Docs
+
+- README: npm/license/node badges + the `npx mojulo init` install one-liner above the fold.
+- New plan: `lib/graph/interchange.plan.md` — "standard formats at the edge, recipes at
+  home" (animated GLB export, eligibility widening, the bind-back door, semantic level
+  GLB), with blender-mcp as the standing verification rig. The dungeon kind above is its I0.
+
 ## [1.0.3] — 2026-08-07
 
 A CI-portability patch — test-only, no runtime or API change. Once 1.0.2 cleared the module-load

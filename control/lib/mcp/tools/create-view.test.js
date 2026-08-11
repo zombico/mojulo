@@ -23,6 +23,7 @@ const WORLD_BASES = [
   'painted-landscape',
   'math',
   'school',
+  'dungeon',
 ];
 
 describe('view-vocab cards ↔ VIEW_KINDS / compose_world bases', () => {
@@ -107,9 +108,9 @@ describe('get_view_vocab reader', () => {
 
   it('lists index rows, filterable by family', async () => {
     const all = await getViewVocabHandler({});
-    expect(all.cards.length).toBe(54);
+    expect(all.cards.length).toBe(55);
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(9);
+    expect(world.cards.length).toBe(10);
     expect(world.cards.every((c) => c.entry === 'compose_world')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();

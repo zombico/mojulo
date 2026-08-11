@@ -29,6 +29,7 @@ import { mintPlanetary, createPlanetaryHandler } from '@/lib/mcp/tools/scene-pla
 import { mintPaintedLandscape, createPaintedLandscapeHandler } from '@/lib/mcp/tools/painted-landscape';
 import { mintMathStructure } from '@/lib/mcp/tools/scene-math-structure';
 import { mintSchoolComplex } from '@/lib/mcp/tools/scene-school';
+import { mintDungeon } from '@/lib/mcp/tools/scene-dungeon';
 
 // Identity adapter: theme slots pass straight through as mint params. Each
 // mint destructures only its own knobs, so a theme pack's abstract slots
@@ -50,6 +51,7 @@ const BASES = {
   'painted-landscape': { mint: mintPaintedLandscape, adapt: identityAdapter },
   math: { mint: mintMathStructure, adapt: identityAdapter },
   school: { mint: mintSchoolComplex, adapt: identityAdapter },
+  dungeon: { mint: mintDungeon, adapt: identityAdapter },
 };
 
 // Retired per-type creators → { base, handler }. Each old name still resolves
@@ -122,7 +124,8 @@ export function registerComposeWorldTools() {
       + "'planetary' (a space-accurate body in a celestial sphere), 'painted-landscape' (painterly glyph-composed "
       + "terrain SVG), 'math' (a finite group as a walkable Cayley city — plazas are elements, generators are "
       + "street types, walking a relation returns you home), 'school' (a generated K-12 CAMPUS — classroom wings, "
-      + "gyms, library/cafeteria, brick/glass facades, athletic fields + parking + vehicles, walkable interiors). "
+      + "gyms, library/cafeteria, brick/glass facades, athletic fields + parking + vehicles, walkable interiors), "
+      + "'dungeon' (torch-lit fantasy cave INTERIOR — organic chambers + sloping tunnels, walkable). "
       + "Each base's parameter manual + routing phrases live in its view-vocab card — "
       + "semantic_search({kinds:['view_vocab']}) to find, get_view_vocab({id:'<base>'}) to read before passing "
       + "overrides. Themes via list_world_themes (theme lowering ships for 'city'; other bases take theme's place "
@@ -134,7 +137,7 @@ export function registerComposeWorldTools() {
       properties: {
         base: {
           type: 'string',
-          enum: ['city', 'transport-hub', 'controllable', 'action', 'operator', 'planetary', 'painted-landscape', 'math', 'school'],
+          enum: ['city', 'transport-hub', 'controllable', 'action', 'operator', 'planetary', 'painted-landscape', 'math', 'school', 'dungeon'],
           description: "Which geometry generator (the world's SHAPE). Read the base's view-vocab card for its overrides manual.",
         },
         theme: { type: 'string', description: "A theme pack id (the world's FLAVOR). See list_world_themes. Defaults to 'earth-temperate' (identity)." },

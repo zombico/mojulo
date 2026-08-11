@@ -60,6 +60,8 @@ const FIXTURE = [
   // body (forward_context mode:'studio'); these rows pin that an agent that
   // skips the studio read and goes straight to semantic_search still lands on
   // the right card. Voice previously had no fixture coverage.
+  ['I want my comic to reveal one speech bubble per tap on my phone', 'create_sketch'],
+  ['present the graphic novel like a slideshow I click through', 'create_sketch'],
   ['I want the narrator to sound deeper and more sure of herself', 'create_voice'],
   ['give my app a japanese female announcer voice', 'create_voice'],
 ];
@@ -74,6 +76,8 @@ const CARD_FIXTURE = [
   ['make my anime character actually talk and blink', 'animate-character'],
   ['stage the two drawn characters in one scene and cut between their rooms', 'animate-character'],
   ['make a pixel-art cutscene of my hero character', 'pixel-art'],
+  ['I want my comic to reveal one speech bubble per tap on my phone', 'motion-comic'],
+  ['present the graphic novel like a slideshow I click through', 'motion-comic'],
 ];
 
 const TOP_K = 3;

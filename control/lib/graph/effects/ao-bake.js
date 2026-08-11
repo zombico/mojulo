@@ -290,9 +290,11 @@ export function sampleAmbientAt(faces = [], points = [], { strength = 0.65, radi
 // no stale face objects ever cross emissions. `subdivide` bakes bypass the cache (the
 // output face list changes shape); aoStats gains `cached:true` on hits so tests can see.
 const AO_CACHE = new Map();
-const AO_CACHE_MAX = 16;
+// 32: shared between WORLD bakes and per-suit `ao` bakes — the arena roster alone is 14
+// figures, so 16 would let one map bake start evicting suit entries mid-session.
+const AO_CACHE_MAX = 32;
 
-function aoCacheKey(faces, extraOccluders, opts) {
+function aoCacheKey(faces, extraOccluders, nums) {
   const f64 = new Float64Array(1);
   const u32 = new Uint32Array(f64.buffer);
   let h1 = 0x811c9dc5, h2 = 0x1000193;
@@ -306,9 +308,12 @@ function aoCacheKey(faces, extraOccluders, opts) {
     if (!f || !Array.isArray(f.corners)) { mixInt(0xdead); return; }
     for (const c of f.corners) { mixNum(c[0]); mixNum(c[1]); mixNum(c[2]); }
     if (Array.isArray(f.normal) && f.normal.length === 3) { mixInt(7); mixNum(f.normal[0]); mixNum(f.normal[1]); mixNum(f.normal[2]); }
+    // input vao matters: bakeSkyShadow MULTIPLIES into it, so the same geometry with a
+    // different upstream crevice bake must not alias (crevice-pass inputs never carry vao).
+    if (Array.isArray(f.vao) && f.vao.length >= 4) { mixInt(9); mixNum(f.vao[0]); mixNum(f.vao[1]); mixNum(f.vao[2]); mixNum(f.vao[3]); }
     mixInt((isReceiver(f) ? 2 : 0) | (isOccluder(f) ? 1 : 0));
   };
-  mixNum(opts.strength); mixNum(opts.radius == null ? -1 : opts.radius); mixNum(opts.steps); mixNum(opts.minAo); mixNum(opts.kPerCell);
+  for (const n of nums) mixNum(n);
   mixInt(faces.length);
   for (const f of faces) mixFace(f, 1);
   mixInt(extraOccluders.length);
@@ -316,13 +321,202 @@ function aoCacheKey(faces, extraOccluders, opts) {
   return `${h1.toString(36)}:${h2.toString(36)}:${faces.length}`;
 }
 
+/**
+ * bakeSkyShadow(faces, opts) → faces (new array; only darkened faces are new objects).
+ *
+ * The DIRECTIONAL sibling of the AO bake: top-light "roof" shadow. For each receiver corner,
+ * rays (Möller–Trumbore over grid-culled candidates) ask "is there solid geometry overhead
+ * within `reach`?" — a hit darkens the corner, scaled by how close the roof is (near roof ≈
+ * full shadow, roof at `reach` ≈ none). This captures exactly the coverage the normal-tap AO
+ * cannot: a face's own tangent plane hugs an up-ray (distance ~0 everywhere), so SDF taps
+ * can't run skyward, but a parallel ray simply never intersects — only geometry truly
+ * CROSSING the ray registers. Deterministic pure arithmetic, same discipline as the AO bake.
+ *
+ * Ray CONE (the boxy-build fix): a single vertical ray can't shade a VERTICAL surface under
+ * an OUTBOARD overhang — a skirt plate hanging beside a thigh panel is parallel to the ray.
+ * So each corner casts a small fan tilted from vertical TOWARD the face's OPEN side (up ·
+ * up-and-out) — the same open-side convention as the AO taps above: an authored `normal`
+ * wins (shell faces author it toward the room), else the winding. Rays never lean into the
+ * solid side, so there are no false interior hits. Combined by MAX occlusion (see below);
+ * the penumbra comes from the distance falloff.
+ *
+ * Composes with bakeAmbientOcclusion: existing `vao` factors are multiplied, not replaced.
+ *
+ * @param {Array} faces engine-agnostic face list, z-up world coords.
+ * @param {object} [opts]
+ * @param {number} [opts.reach]  how far overhead a roof still shades, world units. Default 8%
+ *   of the bounds diagonal.
+ * @param {number} [opts.strength=0.6] shadow depth at zero roof distance (0..1).
+ * @param {number} [opts.minAo=0.25] hard floor on the combined multiplier.
+ * @param {boolean} [opts.cone=true] cast the tilted fan (false → single vertical ray).
+ * @param {number} [opts.kPerCell=64] max occluder faces per XY grid cell (overflow → lighter).
+ */
+// Sky-pass LRU (same discipline as AO_CACHE below): the pass is a pure function of geometry +
+// input vao + opts, and the ray fan is the expensive half of a suit's `ao` bake (~3–5s at unit
+// face counts) — a cache is what makes per-level arena resolves (a dozen figures) affordable.
+const SKY_CACHE = new Map();
+const SKY_CACHE_MAX = 32;   // sized with AO_CACHE_MAX — the arena roster is 14 figures
+
+export function bakeSkyShadow(faces = [], opts = {}) {
+  const { reach = null, strength = 0.6, minAo = 0.25, cone = true, kPerCell = 64 } = opts;
+  const key = aoCacheKey(faces, [], [2, reach ?? -1, strength, minAo, cone ? 1 : 0, kPerCell]);
+  const hit = SKY_CACHE.get(key);
+  if (hit) {
+    SKY_CACHE.delete(key); SKY_CACHE.set(key, hit);   // refresh LRU recency
+    const out = faces.map((f, i) => (hit.vaos[i] ? { ...f, vao: hit.vaos[i] } : f));
+    Object.defineProperty(out, 'skyStats', { value: { ...hit.stats, cached: true }, enumerable: false });
+    return out;
+  }
+  const out = bakeSkyUncached(faces, { reach, strength, minAo, cone, kPerCell });
+  if (out.skyStats) {
+    SKY_CACHE.set(key, { vaos: out.map((f) => f.vao || null), stats: out.skyStats });
+    if (SKY_CACHE.size > SKY_CACHE_MAX) SKY_CACHE.delete(SKY_CACHE.keys().next().value);
+  }
+  return out;
+}
+
+function bakeSkyUncached(faces = [], { reach = null, strength = 0.6, minAo = 0.25, cone = true, kPerCell = 64 } = {}) {
+  const occIdx = [];
+  for (let i = 0; i < faces.length; i++) if (isOccluder(faces[i])) occIdx.push(i);
+  if (!occIdx.length) return faces.slice();
+
+  let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (const i of occIdx) {
+    for (const p of faces[i].corners) {
+      if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+      if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+      if (p[2] < minZ) minZ = p[2]; if (p[2] > maxZ) maxZ = p[2];
+    }
+  }
+  const diag = Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) || 1;
+  const R = Number.isFinite(reach) && reach > 0 ? reach : diag * 0.08;
+  const eps = R * 0.02;   // skip the corner's own surface / coplanar neighbour tiles at t≈0
+
+  // XY grid — a vertical ray culls by point-in-cell, so insertion covers each face's XY AABB.
+  const cell = Math.max(1e-9, diag / 64);
+  const cols = Math.max(1, Math.ceil((maxX - minX) / cell) + 1);
+  const rows = Math.max(1, Math.ceil((maxY - minY) / cell) + 1);
+  const cells = new Map();
+  let overflow = 0;
+  for (const i of occIdx) {
+    const c = faces[i].corners;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of c) {
+      if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0];
+      if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1];
+    }
+    const c0 = Math.max(0, Math.floor((x0 - minX) / cell)), c1 = Math.min(cols - 1, Math.floor((x1 - minX) / cell));
+    const r0 = Math.max(0, Math.floor((y0 - minY) / cell)), r1 = Math.min(rows - 1, Math.floor((y1 - minY) / cell));
+    for (let r = r0; r <= r1; r++) {
+      for (let ci = c0; ci <= c1; ci++) {
+        const key = r * cols + ci;
+        let list = cells.get(key);
+        if (!list) { list = []; cells.set(key, list); }
+        if (list.length >= kPerCell) { overflow++; continue; }
+        list.push(i);
+      }
+    }
+  }
+
+  // Generic Möller–Trumbore along `dir` (unit), walking every XY grid cell the ray's
+  // projection crosses (a tilted ray leaves its origin cell). Returns the nearest hit
+  // distance in (eps, cap], or Infinity. `stamp`/`seen` dedupe faces across cells.
+  const seen = new Int32Array(faces.length);
+  let stamp = 0;
+  const rayNear = (p, dx, dy, dz, cap, self) => {
+    stamp++;
+    let best = cap;
+    let hit = false;
+    const xyLen = Math.hypot(dx, dy);
+    const steps = xyLen > 1e-9 ? Math.max(1, Math.ceil((xyLen * cap) / (cell * 0.5))) : 1;
+    let lastKey = -1;
+    for (let j = 0; j <= steps; j++) {
+      const tj = (cap * j) / steps;
+      const ci = Math.floor((p[0] + dx * tj - minX) / cell), ri = Math.floor((p[1] + dy * tj - minY) / cell);
+      if (ci < 0 || ci >= cols || ri < 0 || ri >= rows) continue;
+      const key = ri * cols + ci;
+      if (key === lastKey) continue;
+      lastKey = key;
+      const list = cells.get(key);
+      if (!list) continue;
+      for (const i of list) {
+        if (i === self || seen[i] === stamp) continue;
+        seen[i] = stamp;
+        const c = faces[i].corners;
+        for (const t of TRIS) {
+          const a = c[t[0]], b = c[t[1]], d = c[t[2]];
+          const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+          const acx = d[0] - a[0], acy = d[1] - a[1], acz = d[2] - a[2];
+          // h = dir × ac
+          const hx = dy * acz - dz * acy, hy = dz * acx - dx * acz, hz = dx * acy - dy * acx;
+          const det = abx * hx + aby * hy + abz * hz;
+          if (det > -1e-12 && det < 1e-12) continue;   // ray parallel to the plane — no roof
+          const inv = 1 / det;
+          const sx = p[0] - a[0], sy = p[1] - a[1], sz = p[2] - a[2];
+          const u = (sx * hx + sy * hy + sz * hz) * inv;
+          if (u < 0 || u > 1) continue;
+          // q = s × ab
+          const qx = sy * abz - sz * aby, qy = sz * abx - sx * abz, qz = sx * aby - sy * abx;
+          const v = (dx * qx + dy * qy + dz * qz) * inv;
+          if (v < 0 || u + v > 1) continue;
+          const tt = (acx * qx + acy * qy + acz * qz) * inv;
+          if (tt > eps && tt < best) { best = tt; hit = true; }
+        }
+      }
+    }
+    return hit ? best : Infinity;
+  };
+
+  // fan angles from vertical toward the face normal — 0° (straight up) always; the tilted
+  // pair only with `cone`, reaching outboard overhangs a vertical ray runs parallel to.
+  const TILT = cone ? [0, 25 * Math.PI / 180, 50 * Math.PI / 180] : [0];
+
+  const out = [];
+  for (let fi = 0; fi < faces.length; fi++) {
+    const f = faces[fi];
+    if (!isReceiver(f)) { out.push(f); continue; }
+    const c4 = f.corners;
+    // outward direction for the fan: the authored normal (shell faces point at the room —
+    // the open side) or the winding normal, flattened to XY (the tilt is a lean off vertical).
+    const n = Array.isArray(f.normal) && f.normal.length === 3 ? f.normal : windingNormal(c4);
+    let ox = 0, oy = 0;
+    if (n) {
+      const L = Math.hypot(n[0], n[1]);
+      if (L > 1e-9) { ox = n[0] / L; oy = n[1] / L; }
+    }
+    const prev = Array.isArray(f.vao) && f.vao.length >= 4 ? f.vao : null;
+    let vao = null;
+    for (let k = 0; k < 4; k++) {
+      // MAX occlusion across the fan: any ray finding a roof shades the corner (an averaged
+      // fan dilutes a single outboard hit to invisibility); the penumbra comes from the
+      // distance falloff, near roof ≈ full shadow.
+      let occ = 0;
+      for (const a of TILT) {
+        const sA = Math.sin(a), cA = Math.cos(a);
+        if (a > 0 && ox === 0 && oy === 0) continue;   // no lean axis (horizontal face) — the fan collapses to the vertical ray
+        const t = rayNear(c4[k], ox * sA, oy * sA, cA, R, fi);
+        if (t !== Infinity) { const o = 1 - t / R; if (o > occ) occ = o; }
+      }
+      const shade = Math.max(minAo, 1 - strength * occ);
+      if (shade < 0.999) {
+        if (!vao) vao = prev ? prev.slice() : [1, 1, 1, 1];
+        vao[k] = Math.max(minAo, vao[k] * shade);
+      }
+    }
+    out.push(vao ? { ...f, vao } : f);
+  }
+  Object.defineProperty(out, 'skyStats', {
+    value: { reach: R, cells: cells.size, overflow },
+    enumerable: false,
+  });
+  return out;
+}
+
 export function bakeAmbientOcclusion(faces = [], opts = {}) {
   const { subdivide = false, extraOccluders = [] } = opts;
   if (subdivide) return bakeAoUncached(faces, opts);   // tessellation reshapes the list — uncached
-  const key = aoCacheKey(faces, Array.isArray(extraOccluders) ? extraOccluders : [], {
-    strength: opts.strength ?? 0.65, radius: opts.radius ?? null, steps: opts.steps ?? 4,
-    minAo: opts.minAo ?? 0.2, kPerCell: opts.kPerCell ?? 64,
-  });
+  const key = aoCacheKey(faces, Array.isArray(extraOccluders) ? extraOccluders : [],
+    [1, opts.strength ?? 0.65, opts.radius ?? -1, opts.steps ?? 4, opts.minAo ?? 0.2, opts.kPerCell ?? 64]);
   const hit = AO_CACHE.get(key);
   if (hit) {
     AO_CACHE.delete(key); AO_CACHE.set(key, hit);      // refresh LRU recency

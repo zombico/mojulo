@@ -389,6 +389,7 @@ describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
 describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader', () => {
   const RING10_TOOLS = [
     'create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches', 'create_polygonized_sketch',
+    'get_polygonizer_packet', 'submit_polygonizer_manifest',
     'sketch_what_possible', 'create_figure', 'emote_figure', 'create_manji_tree',
     'sketch_polygomer', 'get_skin_packet', 'create_cover',
     'reference_protocol', 'capture_reference',
@@ -424,12 +425,12 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     expect([...homes.keys()].sort()).toEqual([...RING10_TOOLS].sort());
   });
 
-  it('no-arg returns the form map naming all 11 forms', async () => {
+  it('no-arg returns the form map naming all 12 forms', async () => {
     const { content } = await creativeToolsetHandler({});
     for (const form of CREATIVE_FORMS) {
       expect(content[0].text, `form map names ${form}`).toContain(`\`${form}\``);
     }
-    expect(CREATIVE_FORMS.length).toBe(11);
+    expect(CREATIVE_FORMS.length).toBe(12);
   });
 
   it('a valid form returns its title + body; an unknown form throws', async () => {
@@ -586,7 +587,9 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // ceiling — the office pin only moves for new OPERATE capability.
   // Pinned 2026-08-06 at the split: office measured 9_435 (was 11_623 as the
   // single body), studio measured 7_169 (both at mojulo+pedagogical).
-  const MODE_CEILINGS = { office: 9_600, studio: 7_400 };
+  // Grown 2026-08-08: the motion-comic FORM row (its own routing row per the
+  // operator's call, motion-comic.plan.md) — studio measured 7_691.
+  const MODE_CEILINGS = { office: 9_600, studio: 7_750 };
 
   it('every mode × register × disclosure cell stays under its ceiling', () => {
     for (const [mode, ceiling] of Object.entries(MODE_CEILINGS)) {

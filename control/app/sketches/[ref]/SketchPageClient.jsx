@@ -186,11 +186,14 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
 
   // Worlds and scenes carry exportable 3D geometry; offer .glb + .stl downloads for them.
   const canExportModel = renderMode === 'world' || renderMode === 'scene';
+  // A motion-comic's /play page is itself the export: one self-contained HTML
+  // file (player + inlined art), same emitter as the live iframe.
+  const canDownloadHtml = canExportModel || renderMode === 'play';
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-7xl">
-        {canExportModel && (
+        {canDownloadHtml && (
           <div className="mb-3 flex items-center justify-end gap-3">
             {modelStatus.glb === 'unavailable' && (
               <span className="text-xs text-[color:var(--text-muted)]">{t('downloadGlbUnavailable')}</span>
@@ -218,23 +221,27 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
             >
               {htmlStatus === 'preparing' ? t('downloadHtmlPreparing') : t('downloadHtml')}
             </button>
-            <button
-              type="button"
-              onClick={() => downloadModel('glb')}
-              disabled={modelStatus.glb === 'preparing'}
-              className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
-            >
-              {modelStatus.glb === 'preparing' ? t('downloadGlbPreparing') : t('downloadGlb')}
-            </button>
-            <button
-              type="button"
-              onClick={() => downloadModel('stl')}
-              disabled={modelStatus.stl === 'preparing'}
-              title={t('downloadStlHint')}
-              className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
-            >
-              {modelStatus.stl === 'preparing' ? t('downloadStlPreparing') : t('downloadStl')}
-            </button>
+            {canExportModel && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => downloadModel('glb')}
+                  disabled={modelStatus.glb === 'preparing'}
+                  className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
+                >
+                  {modelStatus.glb === 'preparing' ? t('downloadGlbPreparing') : t('downloadGlb')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadModel('stl')}
+                  disabled={modelStatus.stl === 'preparing'}
+                  title={t('downloadStlHint')}
+                  className="text-xs px-3 py-1.5 rounded border border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
+                >
+                  {modelStatus.stl === 'preparing' ? t('downloadStlPreparing') : t('downloadStl')}
+                </button>
+              </>
+            )}
           </div>
         )}
         {renderMode === 'svg' ? (
@@ -243,12 +250,19 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
             alt={data?.title || ref}
             className="w-full h-auto block"
           />
-        ) : renderMode === 'world' || renderMode === 'scene' || renderMode === 'beats' || renderMode === 'game' ? (
+        ) : renderMode === 'world' || renderMode === 'scene' || renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' ? (
           <iframe
             src={`/api/sketches/${encodeURIComponent(ref)}/${renderMode}`}
             title={data?.title || ref}
             className="w-full block border-0"
-            style={{ aspectRatio: renderMode === 'beats' ? '760 / 640' : renderMode === 'game' ? '4 / 3' : '1120 / 780' }}
+            style={{
+              aspectRatio: renderMode === 'beats' ? '760 / 640'
+                : renderMode === 'game' ? '4 / 3'
+                : renderMode === 'play'
+                  // the motion-comic BOX plus the player's 46px nav bar
+                  ? `${manifest.box?.width || 4} / ${(manifest.box?.height || 3) + 46}`
+                  : '1120 / 780',
+            }}
           />
         ) : (
           <CreationMap manifest={manifest} technical={false} mode={mode} />

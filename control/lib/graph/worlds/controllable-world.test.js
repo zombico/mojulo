@@ -492,6 +492,33 @@ describe('rule: platform (gravity + jump)', () => {
     expect(w.byId.foe.locomotion).toBe('topple');
   });
 
+  it('per-verb swingSet (hidden heat rod): the side sweep rides the saber swing clips while forward keeps the whip set', () => {
+    // the 2026-08-10 geof shape: slot swingSet 'whip', but left/right claim the standard
+    // 'swing' set — the mk2 saber side cut — with the default ±50° side yaw (no strikeYaw).
+    const verbs = {
+      left: { swingSet: 'swing' },
+      right: { swingSet: 'swing' },
+      forward: { strikeReach: 8, strikeCone: 12 },
+    };
+    const world = (foePos) => createWorld({ entities: [
+      { id: 'atk', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeDur: 0.4, strikeReach: 4, strikeDamage: 10, swingSet: 'whip', strikeVerbs: verbs }, transform: { pos: [0, 0, 0], heading: 0 } },
+      { id: 'foe', rule: { type: 'static' }, body: { type: 'figure-rig', hittable: true, radius: 0.5, hp: 500, poise: 100, staggerDur: 1, toppleDur: 2 }, transform: { pos: foePos } },
+    ] });
+    // LEFT sweep: the saber clip, and the saber's ±50° side hitbox — a foe on the front-left
+    // quarter (the saber side-cut catch) is struck
+    let w = world([1.5, 1.5, 0]); run(w, {}, 5, 1 / 60, FLAT); run(w, { fire: 1, strafe: -1 }, 27, 1 / 60, FLAT);
+    expect(w.byId.atk.swingClip).toBe('swing_left');
+    expect(w.byId.foe.hits).toBe(1);
+    // RIGHT sweep mirrors
+    w = world([1.5, -1.5, 0]); run(w, {}, 5, 1 / 60, FLAT); run(w, { fire: 1, strafe: 1 }, 27, 1 / 60, FLAT);
+    expect(w.byId.atk.swingClip).toBe('swing_right');
+    expect(w.byId.foe.hits).toBe(1);
+    // FORWARD (no per-verb set) still fires the slot's whip clip — the rope-dart thrust
+    w = world([7, 0, 0]); run(w, {}, 5, 1 / 60, FLAT); run(w, { fire: 1, forward: 1 }, 27, 1 / 60, FLAT);
+    expect(w.byId.atk.swingClip).toBe('whip_forward');
+    expect(w.byId.foe.hits).toBe(1);
+  });
+
   it('clash records (melee-clash-fx): a connect stamps a seq-keyed contact point on the target hull', () => {
     const world = (extra = {}) => createWorld({ entities: [
       { id: 'atk', rule: { type: 'platform', eye: 0, strikeEye: 2, speed: 6, strike: 'melee', strikeDur: 0.4, strikeReach: 4, strikeDamage: 10, ...extra }, transform: { pos: [0, 0, 0], heading: 0 } },
@@ -1098,11 +1125,11 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot'],
       entityTimers: ['weapon-and-cooldowns'],
-      bodyOwners: ['reaction', 'clash', 'cine', 'drop'],
+      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
       entityActions: ['weapon', 'melee', 'tackle'],
-      worldPasses: ['body-collisions', 'carry', 'projectiles', 'death-burst', 'match'],
+      worldPasses: ['body-collisions', 'carry', 'projectiles', 'death-burst', 'match', 'tutorial'],
     });
   });
 
@@ -2494,6 +2521,61 @@ describe('energy weapons (V78 beam rifle heat budget)', () => {
     run(charged, { fire: 1 }, 31);
     stepWorld(charged, { fire: 0 }, 1 / 60);
     expect(charged.byId.target.staggerT).not.toBeNull();
+  });
+
+  it('a charged bolt reaches 20% past the base range; an uncharged shot does not (mk2/taisa rifles)', () => {
+    // target parked at 110 — past the plain 100 range, inside the charged 120 (default chargedRangeMul 1.2)
+    const mk = (weaponOver = {}) => createWorld({
+      entities: [
+        {
+          id: 'gun',
+          rule: { type: 'static' },
+          transform: { pos: [0, 0, 1], heading: 0, pitch: 0 },
+          weapon: {
+            fireClass: 'sight', auto: false, cooldown: 0.1, magazine: 99,
+            coreAngle: 90, range: 100, damage: 10, eye: 0, chargeTime: 0.5, ...weaponOver,
+          },
+        },
+        {
+          id: 'target',
+          rule: { type: 'static' },
+          transform: { pos: [110, 0, 1] },
+          body: { type: 'mesh', hittable: true, radius: 2, hp: 100 },
+        },
+      ],
+    });
+    const normal = mk();                                  // early release — uncharged tap
+    stepWorld(normal, { fire: 1 }, 1 / 60);
+    run(normal, { fire: 1 }, 10);
+    stepWorld(normal, { fire: 0 }, 1 / 60);
+    expect(normal.byId.gun.lastShot.mode).toBe('miss');   // 110 > 100 — out of plain reach
+    expect(normal.byId.target.body.hp).toBe(100);
+
+    const charged = mk();                                 // full hold — the charged bolt
+    stepWorld(charged, { fire: 1 }, 1 / 60);
+    run(charged, { fire: 1 }, 31);
+    stepWorld(charged, { fire: 0 }, 1 / 60);
+    expect(charged.byId.gun.lastShot.charged).toBe(true);
+    expect(charged.byId.gun.lastShot.mode).toBe('core');  // 110 <= 120 — the charge carries
+    expect(charged.byId.target.body.hp).toBe(90);
+
+    const optedOut = mk({ chargedRangeMul: 1 });          // per-weapon opt-out retunes to plain range
+    stepWorld(optedOut, { fire: 1 }, 1 / 60);
+    run(optedOut, { fire: 1 }, 31);
+    stepWorld(optedOut, { fire: 0 }, 1 / 60);
+    expect(optedOut.byId.gun.lastShot.charged).toBe(true);
+    expect(optedOut.byId.gun.lastShot.mode).toBe('miss');
+    expect(optedOut.byId.target.body.hp).toBe(100);
+
+    // chargedDamage (taisa stun bolt): the charged hit lands its OWN chip — 3.5 bullets' worth —
+    // while the charged-range default still carries it to the 110-unit target. (The charged case
+    // above, no chargedDamage, already pins the base-damage fallback.)
+    const heavy = mk({ damage: 12, chargedDamage: 42 });
+    stepWorld(heavy, { fire: 1 }, 1 / 60);
+    run(heavy, { fire: 1 }, 31);
+    stepWorld(heavy, { fire: 0 }, 1 / 60);
+    expect(heavy.byId.gun.lastShot.charged).toBe(true);
+    expect(heavy.byId.target.body.hp).toBe(58);           // 100 − 42, not 100 − 12
   });
 
   it('cancels a held rifle charge when the suit is staggered', () => {

@@ -39,8 +39,11 @@ const DESCRIPTION_ALLOWLIST = {
   compile_plan: 841,
   // compose_world / create_sketch / get_game_vocab re-pinned 2026-07-10 to
   // bless the visualization-layer branch growth (school base + game vocab
-  // families + sketch kinds). Shrink-only from these new snapshots.
-  compose_world: 1488,
+  // families + sketch kinds). compose_world re-pinned 2026-08-10 to bless
+  // the 'dungeon' base clause (dungeon-designer wired into the world
+  // registry; the parameter manual lives in its view-vocab card,
+  // off-payload). Shrink-only from these new snapshots.
+  compose_world: 1580,
   cook: 2756,
   create_assembler: 2100,
   // create_beats / create_figure / export_beats / get_image_render_packet
@@ -168,7 +171,10 @@ const DESCRIPTION_ALLOWLIST = {
 // local-catalyst shelf (local-catalysts.plan.md): mint_catalyst + the
 // list_catalysts/custom_catalyst/get_catalyst growth for curated + local
 // origins and the mint/graduation hand-off.
-const PAYLOAD_CEILING = 376_000;
+// Re-pinned 2026-08-09 (was 376,000; measured 379,549) to bless the key-free
+// polygonizer handoff: get_polygonizer_packet / submit_polygonizer_manifest —
+// the calling agent authors the manifest itself, no provider key.
+const PAYLOAD_CEILING = 381_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

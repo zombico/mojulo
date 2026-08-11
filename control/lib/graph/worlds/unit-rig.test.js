@@ -4,6 +4,7 @@ import { bakeUnitRig, UNIT_BONES } from './unit-rig.js';
 import { compileUnitPose, deriveBipedRig } from './unit-pose.js';
 import { lowerAssemblerBuild } from './workbench-assembler.js';
 import { facingYaw } from './workbench.js';
+import { partPositions } from '../materials/procedural-material.js';
 
 // The same minimal biped fixture unit-pose.test.js poses: g-series authoring
 // convention (facing '-y', screen-relative _l/_r suffixes — suit −x is the
@@ -91,8 +92,9 @@ describe('bakeUnitRig', () => {
     expect(fig.rig).toBe(true);
     expect(fig.bones).toHaveLength(UNIT_BONES.length);
     expect(fig.bones.map((b) => b.id)).toEqual(UNIT_BONES.map((b) => b.id));
-    // every bone has stations in the fixture → no null parts
-    expect(fig.parts.every((p) => p && p.pos && p.col)).toBe(true);
+    // every bone has stations in the fixture → no null parts. Unit rigs pack the
+    // indexed+quantized form (rig-bake packRigMesh): q grid + index, never legacy pos soup.
+    expect(fig.parts.every((p) => p && p.q && p.idx && p.col && Number.isFinite(p.n))).toBe(true);
     expect(Object.keys(fig.clips).sort()).toEqual(['boost', 'boost_back', 'boost_left', 'boost_right', 'boost_side', 'forward', 'getup', 'idle', 'kneel', 'leap', 'squat', 'stagger', 'strafe', 'topple', 'turn']);
     expect(fig.clips.forward.k).toBe(4);
     expect(fig.clips.forward.b).toHaveLength(4 * UNIT_BONES.length * 7);
@@ -127,7 +129,7 @@ describe('bakeUnitRig', () => {
     const fig = bakeUnitRig(miniBiped(), { keys: 2 });
     let mnz = Infinity, mnx = Infinity, mxx = -Infinity;
     for (const p of fig.parts) {
-      const b = boundsOfFlat(decodeF32(p.pos));
+      const b = boundsOfFlat(partPositions(p));
       if (b.min[2] < mnz) mnz = b.min[2];
       if (b.min[0] < mnx) mnx = b.min[0];
       if (b.max[0] > mxx) mxx = b.max[0];
@@ -165,7 +167,7 @@ describe('bakeUnitRig', () => {
     const rh = fig.bones[bi].head;
 
     // apply M·v = head' + q·(v − restHead) to the bone's rest part
-    const rest = decodeF32(fig.parts[bi].pos);
+    const rest = partPositions(fig.parts[bi]);
     const posed = [];
     for (let i = 0; i < rest.length; i += 3) {
       const r = qrot(q, [rest[i] - rh[0], rest[i + 1] - rh[1], rest[i + 2] - rh[2]]);
@@ -339,8 +341,8 @@ describe('bakeUnitRig', () => {
     for (let i = 0; i < col.length; i += 3) if (col[i] < 0.25 && col[i + 1] < 0.25 && col[i + 2] < 0.25) dark += 1;
     expect(dark).toBeGreaterThan(0);
     // frame is opt-in: the plain bake is untouched (byte-identical parts)
-    expect(plain.parts[boneIndex('thighL')].pos)
-      .toBe(bakeUnitRig(miniBiped(), opts).parts[boneIndex('thighL')].pos);
+    expect(plain.parts[boneIndex('thighL')].q)
+      .toBe(bakeUnitRig(miniBiped(), opts).parts[boneIndex('thighL')].q);
   });
 
   it('a pure axial TWIST reaches the bone — where a node-pair bake would emit identity', () => {

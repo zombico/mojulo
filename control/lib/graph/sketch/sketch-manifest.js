@@ -622,6 +622,22 @@ export function validateSketchManifest(manifest) {
       return { ok: false, errors: [err.message] };
     }
   }
+  // Seeded interior world kinds are kind-dispatched: the manifest is a tiny
+  // generator recipe ({ seed, width, height, … } or explicit { rooms, halls,
+  // doors }), not a stations/marks diagram — the world-kinds registry resolves
+  // it at render time, and improveFloorplanManifest has already graded it in
+  // the mint pipeline. Without this gate create_sketch could render a house
+  // but never mint one.
+  if (manifest.kind === 'floorplan' || manifest.kind === 'restaurant') {
+    if (!manifest.title || typeof manifest.title !== 'string') {
+      errors.push('manifest.title is required (string)');
+    }
+    const hasSeedForm = isFiniteNumber(manifest.seed) || Array.isArray(manifest.rooms);
+    if (!hasSeedForm) {
+      errors.push(`kind '${manifest.kind}' needs a seed (integer) or an explicit rooms[] plan`);
+    }
+    return { ok: errors.length === 0, errors };
+  }
   if (!manifest.title || typeof manifest.title !== 'string') {
     errors.push('manifest.title is required (string)');
   }
@@ -815,6 +831,11 @@ export const ILLUSTRATION_KINDS = [
   // Publication cover: illustration + title + subtext + metadata composited to
   // cover.png, bound onto a publication (cover-composition.plan.md).
   'cover',
+  // Motion comic: the click-gated comic presentation — panels pieced out
+  // event by event in a fixed box (motion-comic.plan.md). Looked-at (and
+  // clicked-through), so it lives with the Maker illustrations; its render
+  // face is the /play iframe below, not /svg.
+  'motion-comic',
 ];
 const ILLUSTRATION_KIND_SET = new Set(ILLUSTRATION_KINDS);
 
@@ -904,7 +925,7 @@ export const EDUCATION_VIEW_KINDS = [
 // 'controllable' carries no registry walk flag (locomotion is per-entity, from
 // the manifest's rules) but is a LIVE moved-through stage — action worlds and
 // game levels — so it belongs to the world concern.
-export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'edifice', 'math-structure', 'koenigsberg', 'operator-world', 'controllable'];
+export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'operator-world', 'controllable'];
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).
@@ -937,5 +958,6 @@ export function sketchRenderMode(manifest) {
   if (BEATS_RENDER_SET.has(kind)) return 'beats';
   if (VOICE_RENDER_SET.has(kind)) return 'voice';   // spoken, not looked at
   if (kind === 'game') return 'game';   // played, not looked at — the game shell (create_game)
+  if (kind === 'motion-comic') return 'play';   // clicked-through — the /play presentation player
   return 'diagram';
 }

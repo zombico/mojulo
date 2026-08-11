@@ -114,6 +114,72 @@ export const b64u8 = (arr) => {
 };
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
+// ── indexed + quantized rig-part packing ─────────────────────────────────────
+// The legacy part encoding is raw triangle soup: every triangle writes its 3 corners as full
+// float32 xyz, shared corners repeated (a quad = 2 tris = 6 verts for 4 unique points), so a
+// unit-face-count suit is ~10MB of base64 per bake. packRigMesh replaces it with the standard
+// mesh form: positions quantized to a per-part uint16 grid (origin `o` + per-axis step `s`;
+// worst-case error = extent/65535, ~3e-4 world units on a 24-unit suit — invisible), vertices
+// deduped on the (quantized pos, colour, spec) tuple, triangles as an index list (uint16, or
+// uint32 when a part tops 65535 unique verts — the decoder infers width from `n`). Colour/spec
+// stay per-UNIQUE-vertex, so every triangle's corner values are preserved exactly and the
+// rendered image is byte-equivalent to the soup form. Spec packs as `spec8` u8 pairs
+// ([strength×255, shininess] — strength is [0,1] and the shelf shininess is a small integer,
+// so a byte each loses nothing visible; 4× smaller than float32 pairs, and spec was the single
+// biggest field of a contrast-treated roster page). ~4-5× smaller serialized overall.
+// Deterministic pure arithmetic — the byte-identical re-render doctrine holds. Decoded by
+// __makeRigGroup's `part.q` branch (channels/controllable) and weatherRigParts' q-reader
+// (procedural-material).
+export function packRigMesh(gm, faceCount) {
+  const pos = gm.positions, col = gm.colors, spec = gm.specs || null;
+  const nV = (pos.length / 3) | 0;
+  let mnx = Infinity, mny = Infinity, mnz = Infinity, mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+    if (x < mnx) mnx = x; if (x > mxx) mxx = x;
+    if (y < mny) mny = y; if (y > mxy) mxy = y;
+    if (z < mnz) mnz = z; if (z > mxz) mxz = z;
+  }
+  // steps carry 8 sig figs and the origin 4 decimals — position error stays ≤ the quantization
+  // step while the JSON floats stay short. A degenerate axis (flat part) steps 0 → all q = 0.
+  const step = (mn, mx) => Number((((mx - mn) / 65535) || 0).toPrecision(8));
+  const o = [r4(mnx), r4(mny), r4(mnz)];
+  const s = [step(mnx, mxx), step(mny, mxy), step(mnz, mxz)];
+  const quant = (v, oi, si) => { if (!si) return 0; const q = Math.round((v - o[oi]) / si); return q <= 0 ? 0 : q >= 65535 ? 65535 : q; };
+  const u8 = (v) => { const b = Math.round(v); return b <= 0 ? 0 : b >= 255 ? 255 : b; };
+  const seen = new Map();          // dedup key → unique index
+  const q = [], uCol = [], uSpec = [];
+  const idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV);   // worst case: no sharing
+  for (let i = 0; i < nV; i++) {
+    const qx = quant(pos[3 * i], 0, s[0]), qy = quant(pos[3 * i + 1], 1, s[1]), qz = quant(pos[3 * i + 2], 2, s[2]);
+    const c0 = col[3 * i], c1 = col[3 * i + 1], c2 = col[3 * i + 2];
+    const s0 = spec ? u8(spec[2 * i] * 255) : 0, s1 = spec ? u8(spec[2 * i + 1]) : 0;
+    const key = spec
+      ? `${qx},${qy},${qz},${c0},${c1},${c2},${s0},${s1}`
+      : `${qx},${qy},${qz},${c0},${c1},${c2}`;
+    let u = seen.get(key);
+    if (u === undefined) {
+      u = q.length / 3;
+      seen.set(key, u);
+      q.push(qx, qy, qz);
+      uCol.push(c0, c1, c2);
+      if (spec) uSpec.push(s0, s1);
+    }
+    idx[i] = u;
+  }
+  const n = q.length / 3;
+  // the index width was sized for the pre-dedup worst case; shrink to uint16 when dedup landed under
+  const idxOut = (n <= 65535 && idx.BYTES_PER_ELEMENT === 4) ? Uint16Array.from(idx) : idx;
+  return {
+    q: Buffer.from(new Uint16Array(q).buffer).toString('base64'),
+    idx: Buffer.from(idxOut.buffer).toString('base64'),
+    o, s, n,
+    col: b64u8(uCol),
+    faces: faceCount,
+    ...(spec ? { spec8: Buffer.from(Uint8Array.from(uSpec).buffer).toString('base64') } : {}),
+  };
+}
+
 // ── the biped bone table (armature node names from figure-vajra) ─────────────
 // aux = a landmark PAIR whose line fixes the bone's twist (trunk counter-rotation).
 // `bindExtend` stretches a bone's BINDING segment past its tail (fraction of its length) so

@@ -868,6 +868,22 @@ function renderMenuScreen(entries, opts) {
       btn.appendChild(sub);
     }
     if (en.kind === 'soon') { btn.disabled = true; s.appendChild(btn); continue; }
+    // GATED mode (tutorial-mode.plan.md T4): a kind:'mode' entry whose every variant level is
+    // gate-locked renders locked — the level gate (levels[].gate) surfaces in the menu, not just
+    // the flat list. Re-evaluated on every render, so beating the gating level unlocks it live.
+    if (en.kind === 'mode') {
+      const vls = (en.variants || []).map((v) => LEVEL_BY_REF[v.ref]).filter(Boolean);
+      if (vls.length && vls.every((lv) => !K.evalGate(SCHEMA, state, lv.gate))) {
+        const g = vls[0].gate || {};
+        const tag = document.createElement('span');
+        tag.className = 'soon-tag';
+        tag.textContent = g.completed ? 'locked — beat ' + ((LEVEL_BY_REF[g.completed] || {}).title || g.completed) : 'locked';
+        btn.appendChild(tag);
+        btn.disabled = true;
+        s.appendChild(btn);
+        continue;
+      }
+    }
     btn.addEventListener('click', () => {
       if (en.kind === 'menu') renderMenuScreen(en.entries, { heading: en.title, back: backHere, backLabel: opts.back ? 'back' : 'back to home' });
       else if (en.kind === 'mode') renderModeSetup(en, backHere);
@@ -960,12 +976,17 @@ function renderHome() { if (MENU) renderStart(); else renderLevels(); }
 // live click must never queue behind a stampede of warm fetches). Bodies are cancelled once
 // headers land — the server-side bake (the expensive part) is already done and cached.
 (function warmSetupPreviews() {
-  if (!SETUP || typeof fetch !== 'function') return;
+  if (typeof fetch !== 'function') return;
   const urls = [];
-  for (const s in SETUP) {
+  if (SETUP) for (const s in SETUP) {
     const cards = SETUP[s] && SETUP[s].cards;
     if (cards) for (const id in cards) { if (cards[id].preview && urls.indexOf(cards[id].preview) < 0) urls.push(cards[id].preview); }
   }
+  // LEVEL worlds ride the same oven queue AFTER the previews: a level's first request is a
+  // long server-side bake (the whole suit roster resolves), so start those ovens while the
+  // player is still on the menus. Warm with the EXACT launch URL (frame.src = lv.src) so the
+  // server-cache key (and the /world ETag) match the eventual play request byte-for-byte.
+  for (let li = 0; li < LEVELS.length; li++) { if (LEVELS[li].src && urls.indexOf(LEVELS[li].src) < 0) urls.push(LEVELS[li].src); }
   if (!urls.length) return;
   let i = 0;
   const next = () => {
@@ -1174,6 +1195,64 @@ function renderCountPick(c, pane) {
   return { c, kind: 'party', chosen: () => drawSeeded(ids, n) };
 }
 
+// the ROSTER pick (setup style 'roster'): choose WHICH members — named checkboxes (radios when the
+// pick is one), default-checked from the level's presets.default so the standalone lineup is the
+// opening state. Nothing checked → chosen() falls back to that same default (a bout never launches
+// with an empty side).
+function renderRosterPick(c, pane, contract) {
+  const pres = SETUP[c.slice];
+  const roster = state[c.slice].roster;
+  const ids = Object.keys(roster);
+  const max = Math.max(1, Math.min(c.pick.max || ids.length, ids.length));
+  const single = max === 1;
+  const preset = contract && contract.presets && contract.presets.default && contract.presets.default[c.slice];
+  const defIds = (preset && preset.roster && typeof preset.roster === 'object' ? Object.keys(preset.roster) : []).filter((id) => roster[id]).slice(0, max);
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  const h = document.createElement('h3');
+  h.textContent = pres.label || (c.slice + (single ? ' — choose one' : ' — take up to ' + max));
+  wrap.appendChild(h);
+  if (!ids.length) {
+    wrap.innerHTML += '<div style="font-size:12px;color:#8fa5c8">nothing to pick — the ' + c.slice + ' roster is empty</div>';
+    pane.appendChild(wrap);
+    return { c, kind: 'party', chosen: () => [] };
+  }
+  const boxes = [];
+  const def0 = defIds[0] || ids[0];
+  for (const id of ids) {
+    const label = document.createElement('label');
+    label.className = 'pick';
+    const box = document.createElement('input');
+    box.value = id;
+    if (single) {
+      box.type = 'radio';
+      box.name = 'pick_' + c.slice;
+      box.checked = id === def0;
+    } else {
+      box.type = 'checkbox';
+      box.checked = defIds.indexOf(id) >= 0;
+      box.addEventListener('change', () => {
+        if (boxes.filter((b) => b.checked).length > max) box.checked = false;
+      });
+    }
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(roster[id].name || id));
+    wrap.appendChild(label);
+    boxes.push(box);
+  }
+  if (pres.blurb) {
+    const p = document.createElement('div');
+    p.style.cssText = 'font-size:12px;color:var(--dim);margin-top:8px';
+    p.textContent = pres.blurb;
+    wrap.appendChild(p);
+  }
+  pane.appendChild(wrap);
+  return { c, kind: 'party', chosen: () => {
+    const picked = boxes.filter((b) => b.checked).map((b) => b.value);
+    return picked.length ? picked : (defIds.length ? defIds : [ids[0]]);
+  } };
+}
+
 // the pre-level setup screen: a param composer over the level contract's consumes. A slice with
 // declared setup presentation renders its styled page (hangar / count); everything else keeps
 // the plain radio/checkbox picker. A multi-map mode runs it as TWO steps (operator, 2026-08-06):
@@ -1270,6 +1349,7 @@ function renderSetup(lv, opts) {
     const pres = SETUP && SETUP[c.slice];
     if (pres && kind === 'party' && c.pick && pres.style === 'hangar' && c.pick.max === 1) { pickers.push(renderHangarPick(c, pickPane)); continue; }
     if (pres && kind === 'party' && c.pick && pres.style === 'count') { pickers.push(renderCountPick(c, pickPane)); continue; }
+    if (pres && kind === 'party' && c.pick && pres.style === 'roster') { pickers.push(renderRosterPick(c, pickPane, setupLv.contract)); continue; }
     const card = document.createElement('div');
     card.className = 'card';
     if (c.pick && (kind === 'inventory' || kind === 'party')) {
@@ -1310,12 +1390,12 @@ function renderSetup(lv, opts) {
     pickPane.appendChild(card);
   }
   // the DIFFICULTY card (manifest.difficulty, operator 2026-08-06): set AFTER the map — it rides
-  // the map step, under the map card. Piloted setups only (a hangar pick present): an all-AI
-  // spectate bout is never detuned, and its setup has no hangar. The picked tier id is read by
-  // launch via a closure, so the default ('max' — the untuned current brain — unless the game
-  // says otherwise) applies untouched.
+  // the map step, under the map card. Piloted setups only (a hangar pick present, and never a
+  // contract flagged spectate — an all-AI bout is not detuned even though its watch picks are
+  // hangar pages too). The picked tier id is read by launch via a closure, so the default
+  // ('max' — the untuned current brain — unless the game says otherwise) applies untouched.
   let difficulty = null, diffCard = null;
-  if (DIFFICULTY && hangarCount > 0) {
+  if (DIFFICULTY && hangarCount > 0 && !setupLv.contract.spectate) {
     difficulty = DIFFICULTY.default || DIFFICULTY.options[0].id;
     diffCard = document.createElement('div');
     diffCard.className = 'card';

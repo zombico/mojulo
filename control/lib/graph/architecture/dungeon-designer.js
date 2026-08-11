@@ -311,6 +311,32 @@ export function renderDungeonWorld(spec, { viewBox = { width: 1120, height: 780 
 }
 
 /**
+ * assembleDungeonScene — manifest → World PAYLOAD (the WORLD_KINDS resolver).
+ * The payload-returning sibling of renderDungeonWorld: same plan → faces → padded
+ * quads, but returns { faces, cameras, viewBox, title, bg, glow, walk } for
+ * resolveWorldScene, so the live /world route and the .glb export resolve identical
+ * geometry (renderDungeonWorld keeps emitting HTML directly for the spike path).
+ * Deterministic: pure function of the manifest (seeded relief, no dice).
+ */
+export function assembleDungeonScene(manifest = {}, ctx = {}) {
+  const plan = planDungeon(manifest);
+  if (!plan.chambers.length) {
+    throw new Error('dungeon-designer: spec needs at least one chamber ({ chambers: [{ id, at, radius, … }] })');
+  }
+  const { faces } = buildDungeonFaces(plan, { lighting: manifest.lighting || {}, section: false });
+  return {
+    faces: padTrianglesForWorld(faces),
+    cameras: [manifest.camera || defaultHubCamera(plan)],
+    viewBox: manifest.viewBox || { width: 1120, height: 780 },
+    title: ctx.title || manifest.title || 'mojulo dungeon',
+    bg: manifest.bg || '#070605',
+    glow: true,
+    walk: manifest.walk === false ? false
+      : { speed: 9, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },
+  };
+}
+
+/**
  * Render the ant-farm SECTION of the dungeon: open-top chambers sliced at the section
  * plane so the whole colony reads as one cutaway. Returns a (still-orbitable) World.
  */

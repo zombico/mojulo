@@ -28,6 +28,7 @@ import { buildCombatMelee } from './combat-melee.js';
 import { buildRulesPlatform } from './rules-platform.js';
 import { buildRulesDrive } from './rules-drive.js';
 import { buildRulesFly } from './rules-fly.js';
+import { buildTutorial } from './tutorial.js';
 import { buildMsManeuvers } from '../../mobile-suit/ms-maneuvers.js';
 import { buildMsAi } from '../../mobile-suit/ms-ai.js';
 
@@ -41,7 +42,7 @@ export function composeControllable(builders) {
 // (later builders destructure its helpers at build time). ENGINE is the pack-less composition
 // (basic rules + platform + combat — runs any non-arena world); EMISSION appends the mobile-suit
 // content pack (maneuvers riding the platform seam, the ai brain). S4: all.js is dissolved.
-export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee];
+export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildTutorial];
 export const EMISSION = [...EMISSION_ENGINE, buildMsManeuvers, buildMsAi];
 
 // The live Node instance factory (the façade composes one; tests may compose their own).

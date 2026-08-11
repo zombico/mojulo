@@ -25,7 +25,10 @@ export function buildCombatMelee(E) {
     const sv = (sc.strikeVerbs && sc.strikeVerbs[swingDir]) || {};
     const contact = sv.strikeContact || sc.strikeContact || r.strikeContact;
     return {
-      clip: `${sc.swingSet || 'swing'}_${swingDir}`,
+      // a verb may claim its OWN clip set (operator 2026-08-10, geof heat rod): the whip's side
+      // sweeps ride the standard `swing` set (the saber side cut) while forward/down keep the
+      // `whip` clips. Absent per-verb swingSet → the slot set → 'swing', byte-identical.
+      clip: `${sv.swingSet || sc.swingSet || 'swing'}_${swingDir}`,
       params: {
         reach: sv.strikeReach ?? sc.strikeReach ?? r.strikeReach ?? (r.speed ?? 6),
         damage: sv.strikeDamage ?? sc.strikeDamage ?? r.strikeDamage ?? 0,

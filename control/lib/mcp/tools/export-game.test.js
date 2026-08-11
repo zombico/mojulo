@@ -2,6 +2,8 @@
 // db/index.js. Same pattern as create-game.test.js.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
+// Force the geometry hoist on toy-sized worlds so the dedup path is exercised (prod: 256KB).
+process.env.MOJULO_EXPORT_GEOMETRY_HOIST_MIN = '64';
 
 import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -73,6 +75,53 @@ describe('export_game — pixelizer branch', () => {
 });
 
 describe('export_game — world/level games', () => {
+  it('mapRef levels: ships the map recipe once and hoists shared geometry into one file', async () => {
+    const floor = [
+      { corners: [[-50, -50, 0], [50, -50, 0], [50, 50, 0], [-50, 50, 0]], fill: '#565' },
+      { corners: [[-50, -50, 0], [-50, -50, 20], [-50, 50, 20], [-50, 50, 0]], fill: '#343' },
+    ];
+    const hero = (speed) => ({
+      id: 'hero', transform: { pos: [0, 0, 0] },
+      rule: { type: 'walk', speed }, body: { type: 'mesh', shape: 'box', size: [4, 4, 8], color: '#fa0' },
+    });
+    SketchRepository.create({ title: 'eg map', ref: 'sk_eg_map', manifest: { kind: 'controllable', faces: floor, entities: [hero(10)] } });
+    for (const [ref, speed] of [['sk_eg_lv_a', 10], ['sk_eg_lv_b', 20]]) {
+      SketchRepository.create({
+        title: ref, ref,
+        manifest: { kind: 'controllable', mapRef: 'sk_eg_map', entities: [hero(speed)],
+          game: { levelRef: ref, produces: { results: ['success'], events: [] } } },
+      });
+    }
+    SketchRepository.create({
+      title: 'Toy Duo', ref: 'sk_eg_duo',
+      manifest: { kind: 'game', title: 'Toy Duo',
+        store: { slices: [{ name: 'career', kind: 'progression' }] },
+        levels: [{ ref: 'sk_eg_lv_a', title: 'A' }, { ref: 'sk_eg_lv_b', title: 'B' }] },
+    });
+
+    const result = await exportGameHandler({ ref: 'sk_eg_duo' });
+    expect(result.ok).toBe(true);
+    const names = result.files.map((f) => f.file);
+    // sovereignty: the shared map recipe ships ONCE beside the two light level recipes
+    expect(names).toContain('recipe/sk_eg_map.json');
+    expect(names.filter((f) => f === 'recipe/sk_eg_map.json')).toHaveLength(1);
+    expect(names).toContain('recipe/sk_eg_lv_a.json');
+    const mapRecipe = JSON.parse(readFileSync(path.join(result.dir, 'recipe/sk_eg_map.json'), 'utf8'));
+    expect(mapRecipe.faces).toHaveLength(2);
+    // geometry bank: both level pages bake identical GROUPS → exactly one shared groups file
+    const groups = names.filter((f) => /^assets\/geometry\/groups-[0-9a-f]{8}\.json$/.test(f));
+    expect(groups).toHaveLength(1);
+    expect(result.geometry_bank.files).toBe(1);
+    for (const lv of ['sk_eg_lv_a', 'sk_eg_lv_b']) {
+      const page = readFileSync(path.join(result.dir, `levels/${lv}.html`), 'utf8');
+      expect(page).toContain(`const GROUPS = await (await fetch("../${groups[0]}")).json()`);
+    }
+    // the hoisted file is plain JSON and carries the packed terrain mesh
+    const bank = JSON.parse(readFileSync(path.join(result.dir, groups[0]), 'utf8'));
+    expect(Array.isArray(bank)).toBe(true);
+    expect(bank[0].pos.length).toBeGreaterThan(0);   // packed vertex buffer
+  });
+
   it('surfaces resolveGame teaching errors for a game pointing at a missing level', async () => {
     SketchRepository.create({
       title: 'Broken',

@@ -36,6 +36,9 @@ import {
   lowerDepictionLayout,
   mandalaPatternIds,
   normalizeModelResponse,
+  finalizeAgentManifest,
+  finalizePlanningManifest,
+  buildSkinTurnUserPrompt,
   PANEL_DEPICTION_RECIPES,
   POLYGONIZER_CORE_PROMPT,
   POLYGONIZER_SYSTEM_PROMPT,
@@ -48,6 +51,7 @@ import {
   validatePolygonizerManifest,
   _resetClassifierCacheForTests,
 } from './index.js';
+import { buildSolvedScaffold } from './scaffold.js';
 
 function bookshelfManifest() {
   return {
@@ -864,14 +868,16 @@ describe('polygonizer prompt orchestration', () => {
     expect(manifest.polygonizer.architecturalLibraries.porches.map((item) => item.id)).toContain('covered');
     expect(manifest.polygonizer.architecturalLibraries.steps.map((item) => item.id)).toContain('front-treads');
     expect(manifest.polygonizer.pureMandala.fitRules.join('\n')).toContain('door occupies center lower');
-    expect(manifest.marks.some((mark) => mark.role === 'house-body' && mark.kind === 'solid')).toBe(true);
-    expect(manifest.marks.some((mark) => mark.role === 'door' && mark.kind === 'solid')).toBe(true);
-    expect(manifest.marks.some((mark) => mark.role === 'porch' && mark.kind === 'solid')).toBe(true);
-    expect(manifest.marks.some((mark) => mark.role === 'steps' && mark.kind === 'array')).toBe(true);
-    expect(manifest.marks.some((mark) => mark.role === 'chimney' && mark.kind === 'solid')).toBe(true);
-    expect(manifest.marks.some((mark) => mark.kind === 'facePattern' && mark.role === 'window-band')).toBe(true);
-    expect(result.expandedManifest.marks.some((mark) => mark.kind === 'facePattern')).toBe(false);
-    expect(result.expandedManifest.marks.some((mark) => mark.faceAttachment?.patternRole === 'window-band')).toBe(true);
+    // The house assembly lowers to FLAT marks in one compiler-owned oblique
+    // space — never `solid` marks, whose renderer-side re-anchoring detached
+    // the roof/door/porch from the body (the floating-roof bug).
+    expect(manifest.marks.some((mark) => mark.role === 'house-body' && mark.kind === 'polygon')).toBe(true);
+    expect(manifest.marks.some((mark) => mark.role === 'door' && mark.kind === 'rect')).toBe(true);
+    expect(manifest.marks.some((mark) => mark.role === 'porch' && mark.kind === 'polygon')).toBe(true);
+    expect(manifest.marks.some((mark) => mark.role === 'steps' && mark.kind === 'polygon')).toBe(true);
+    expect(manifest.marks.some((mark) => mark.role === 'chimney' && mark.kind === 'polygon')).toBe(true);
+    expect(manifest.marks.some((mark) => mark.role === 'window-band' && mark.kind === 'rect')).toBe(true);
+    expect(manifest.marks.some((mark) => mark.kind === 'solid' || mark.kind === 'facePattern')).toBe(false);
   });
 
   it('exposes named mandala imprint patterns as a zero-pixel metaconcept layer', () => {
@@ -2336,5 +2342,89 @@ describe('polygonizer user-prompt preload prefix', () => {
     expect(calls[0].prompt).toContain('Prior character — sk_char');
     expect(calls[0].prompt).toContain('Prior setting — sk_set');
     expect(calls[0].prompt).toContain('Visual prompt:\nsecond scene');
+  });
+});
+
+describe('agent-authored finalize (the key-free packet/submit path)', () => {
+  const PROMPT = 'bookshelf with 4 rows at a slight angle';
+
+  function planningOnlyManifest() {
+    const m = bookshelfManifest();
+    delete m.marks;
+    return m;
+  }
+
+  it('finalizeAgentManifest matches polygonizePrompt for the same valid manifest', async () => {
+    const keyed = await polygonizePrompt({
+      prompt: PROMPT,
+      modelClient: async () => bookshelfManifest(),
+    });
+    const agent = finalizeAgentManifest({ prompt: PROMPT, manifest: bookshelfManifest() });
+    expect(agent.ok).toBe(true);
+    expect(agent.manifest).toEqual(keyed.manifest);
+    expect(agent.expandedManifest).toEqual(keyed.expandedManifest);
+  });
+
+  it('finalizeAgentManifest returns the same errors + repairPrompt as the keyed path at maxRepairs 0', async () => {
+    const broken = () => {
+      const m = bookshelfManifest();
+      m.marks[1] = { ...m.marks[1], target: 'missing-cabinet' };
+      return m;
+    };
+    const keyed = await polygonizePrompt({ prompt: PROMPT, modelClient: async () => broken() });
+    const agent = finalizeAgentManifest({ prompt: PROMPT, manifest: broken() });
+    expect(agent.ok).toBe(false);
+    expect(agent.errors).toEqual(keyed.errors);
+    expect(agent.repairPrompt).toEqual(keyed.repairPrompt);
+  });
+
+  it('finalizeAgentManifest applies the deterministic patches instead of failing', () => {
+    const typo = bookshelfManifest();
+    typo.marks[1] = { ...typo.marks[1], target: 'cabinet-bod' };
+    const result = finalizeAgentManifest({ prompt: PROMPT, manifest: typo });
+    expect(result.ok).toBe(true);
+    expect(result.patchesApplied).toEqual(['partition-target-rename']);
+    expect(result.manifest.marks[1].target).toBe('cabinet-body');
+  });
+
+  it('finalizePlanningManifest solves the same scaffold as buildSolvedScaffold directly', () => {
+    const result = finalizePlanningManifest({ prompt: PROMPT, manifest: planningOnlyManifest() });
+    expect(result.ok).toBe(true);
+    const direct = buildSolvedScaffold(planningOnlyManifest());
+    expect(result.scaffold).toEqual(direct.scaffold);
+    expect(result.authorshipPreview).toEqual(direct.authorshipPreview);
+  });
+
+  it('finalizePlanningManifest surfaces the same planning errors as the keyed two-turn path', async () => {
+    const broken = () => {
+      const m = planningOnlyManifest();
+      delete m.viewBox;
+      return m;
+    };
+    const keyed = await polygonizePrompt({
+      prompt: PROMPT,
+      mode: 'plan-then-skin',
+      maxRepairs: 0,
+      modelClient: async () => broken(),
+    });
+    const agent = finalizePlanningManifest({ prompt: PROMPT, manifest: broken() });
+    expect(agent.ok).toBe(false);
+    expect(agent.errors).toEqual(keyed.errors);
+    expect(agent.repairPrompt).toContain('planning manifest');
+  });
+
+  it('buildSkinTurnUserPrompt matches the prompt the keyed skin turn sends', async () => {
+    const calls = [];
+    const responses = [planningOnlyManifest(), bookshelfManifest()];
+    const result = await polygonizePrompt({
+      prompt: PROMPT,
+      mode: 'plan-then-skin',
+      modelClient: async (input) => {
+        calls.push(input);
+        return responses.shift();
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(calls[1].prompt).toBe(buildSkinTurnUserPrompt(buildPolygonizerUserPrompt(PROMPT), result.scaffold));
   });
 });

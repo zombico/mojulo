@@ -20,7 +20,9 @@
  * for live worlds. resolveFaceMaterials caps grid at MAX_GRID as a runaway guard.
  */
 
-import { shadeHex, DEFAULT_LIGHT as LIGHT } from '@/lib/graph/polygonizer/vexar';
+// relative (not '@/') so the module resolves under plain `node` too — mint scripts compose the
+// material system without the bundler alias (vexar has no imports, so the chain stays node-safe).
+import { shadeHex, DEFAULT_LIGHT as LIGHT } from '../polygonizer/vexar.js';
 
 const MAX_GRID = 8;
 const RUST = [118, 58, 28];
@@ -154,6 +156,19 @@ export function stampMaterial(faces, material) {
 // `col` in place by the SAME weathering field — livery colours stay the base, rust/grime reads on top.
 const decF32 = (b) => { const r = Buffer.from(b, 'base64'); return new Float32Array(r.buffer.slice(r.byteOffset, r.byteOffset + r.length)); };
 const decU8 = (b) => { const r = Buffer.from(b, 'base64'); return new Uint8Array(r.buffer.slice(r.byteOffset, r.byteOffset + r.length)); };
+const decU16 = (b) => { const r = Buffer.from(b, 'base64'); return new Uint16Array(r.buffer.slice(r.byteOffset, r.byteOffset + r.length)); };
+// a part's positions in either rig encoding: legacy float32 soup (`pos`) or the unit rigs'
+// indexed+quantized form (`q` on an o/s grid — rig-bake packRigMesh). Both return one float
+// triple per COLOUR entry, so the weathering loop below is encoding-agnostic. Exported: the
+// unit-rig tests read rest geometry through the same seam.
+export const partPositions = (p) => {
+  if (p && p.q) {
+    const q = decU16(p.q), o = p.o, s = p.s, out = new Float32Array(q.length);
+    for (let i = 0; i < q.length; i += 3) { out[i] = o[0] + q[i] * s[0]; out[i + 1] = o[1] + q[i + 1] * s[1]; out[i + 2] = o[2] + q[i + 2] * s[2]; }
+    return out;
+  }
+  return p && p.pos ? decF32(p.pos) : null;
+};
 const encU8 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 const to255 = (x) => Math.max(0, Math.min(255, x));
 
@@ -173,13 +188,15 @@ export function weatherRigParts(parts, { seed = 1337, amt = 1, cloud = 0, zmin, 
   const NZ = mkNoise(seed);
   if (zmin == null || zmax == null) {
     zmin = Infinity; zmax = -Infinity;
-    for (const p of parts) { if (!p || !p.pos) continue; const pos = decF32(p.pos); for (let i = 2; i < pos.length; i += 3) { if (pos[i] < zmin) zmin = pos[i]; if (pos[i] > zmax) zmax = pos[i]; } }
+    for (const p of parts) { const pos = partPositions(p); if (!pos) continue; for (let i = 2; i < pos.length; i += 3) { if (pos[i] < zmin) zmin = pos[i]; if (pos[i] > zmax) zmax = pos[i]; } }
   }
   if (!isFinite(zmin)) return parts;
   const span = (zmax - zmin) || 1;
   for (const p of parts) {
-    if (!p || !p.pos || !p.col) continue;
-    const pos = decF32(p.pos), col = decU8(p.col), nV = (col.length / 3) | 0;
+    if (!p || !p.col) continue;
+    const pos = partPositions(p);
+    if (!pos) continue;
+    const col = decU8(p.col), nV = (col.length / 3) | 0;
     for (let i = 0; i < nV; i++) {
       const x = pos[3 * i], y = pos[3 * i + 1], z = pos[3 * i + 2];
       let c0 = col[3 * i], c1 = col[3 * i + 1], c2 = col[3 * i + 2];

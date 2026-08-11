@@ -48,3 +48,14 @@ built from mechanics is auto-verifiable by the completability gate without a han
 `reach-exit` · `survive` · `collect` · `hazard-damage` · `fail-on-death`, plus the `fall` policy.
 Read each card for its parameter manual. (Combat mechanics — `defeat-all`, `party-battle` — are
 deferred behind a combat world idiom.)
+
+## Level variants over one map (`mapRef`)
+
+A game that plays the SAME world under different rules (an easy/hard pair, per-mode variants of
+one arena, a time-attack remix) should NOT copy the map into every level. Mint the map once as a
+stored controllable world, then mint each level with `mapRef: '<map ref>'` and only the level's
+OWN keys — entities, the `game:` contract, camera, match rules. The stored level stays a few KB;
+faces/colliders/lighting merge in from the map at resolve time (level keys win), and a map re-mint
+flows terrain to every variant automatically. `export_game` ships the map recipe once beside the
+light level recipes. Worked example at scale: the Mobile Suit Arena's 35-level mode × map matrix
+(7 modes × 5 maps, ~46KB per level row).

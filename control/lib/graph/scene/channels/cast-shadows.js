@@ -24,6 +24,14 @@ import { safeJson } from '../emit-util.js';
 // Light direction comes from the payload's baked light when it has one (arena-atmosphere and
 // relit worlds — actors tie into the keyed stage), else cfg.toLight's default mid-elevation sun.
 export function castShadowScript(cfg) {
+  // Non-casting groups (interiors): a face `group` listed in cfg.noCast still RECEIVES shadows but
+  // does not CAST — the fix for an enclosed roof/ceiling that would otherwise blanket the whole
+  // floor in the sun's shadow, killing every suit/pillar silhouette (a directional shadow map
+  // records the nearest occluder; an overhead ceiling wins for every floor texel). Emitted ONLY
+  // when a world declares noCast, so every existing cast-shadow world stays byte-identical.
+  const noCastGuard = Array.isArray(cfg.noCast) && cfg.noCast.length
+    ? `\n  if (m.userData && __CS.noCast.indexOf(m.userData.g) !== -1) m.castShadow = false;   // roof/ceiling receives but never casts`
+    : '';
   return `
 // --- cast shadows (opt-in world 'shadows.cast'): shadow-map silhouettes ---
 const __CS = ${safeJson(cfg)};
@@ -112,7 +120,7 @@ window.__mojCast = {   // the channel's public seam (spikes/debug + dynamic-chan
   },
 };
 for (const m of solids) {
-  m.castShadow = true;   // static masses cast (walls/buildings shade the ground)
+  m.castShadow = true;   // static masses cast (walls/buildings shade the ground)${noCastGuard}
   __csPatch(m.material); // …and receive, textured + instanced fills included
   // lazy map bind: the depth target is allocated by the first shadow pass, which runs at the top
   // of the same renderer.render() that first draws these fills — bound by first onBeforeRender.

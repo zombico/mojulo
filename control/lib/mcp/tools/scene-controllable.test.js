@@ -1,94 +1,126 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { closeDb } from '@/lib/db/index';
-import { mintControllableWorld } from './scene-controllable.js';
+// mapRef terrain inheritance at the tool surface (match-modes.plan.md M1): a game that plays one
+// map under different rules mints the map ONCE and N light levels over it. This is the toy-scale
+// twin of the arena's 7-mode × 5-map matrix — two levels, one map, promoted into a game.
+import { describe, it, expect } from 'vitest';
+import { mintControllableWorld } from '@/lib/mcp/tools/scene-controllable';
+import { mintGame } from '@/lib/mcp/tools/create-game';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
-import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 
-beforeEach(() => { closeDb(); });
-
-const drone = { id: 'drone', rule: { type: 'glide' }, body: { type: 'mesh', shape: 'box', size: [1, 1, 0.4], color: '#ff7a59' }, transform: { pos: [0, 0, 3] } };
-
-describe('create_controllable_world mint', () => {
-  it('stores a kind:controllable recipe and returns the world URL', () => {
-    const out = mintControllableWorld({ title: 'drone test', entities: [drone], camera: { rule: 'follow', target: 'drone' } });
-    expect(out.ok).toBe(true);
-    expect(out.recipe.kind).toBe('controllable');
-    expect(out.worldUrl).toBe(`/api/sketches/${encodeURIComponent(out.ref)}/world`);
-    expect(out.stats.entities).toBe(1);
-    expect(out.stats.rules).toEqual(['glide']);
-    expect(out.stats.camera).toBe('follow');
-    expect(out.stats.nonBakeable).toBe(true);
-  });
-
-  it('keeps the manifest a recipe — no baked geometry persisted', () => {
-    const out = mintControllableWorld({ entities: [drone], figures: { male: { motion: 'walk', proto: 'male' } } });
-    expect(out.recipe.figures.male).toEqual({ motion: 'walk', proto: 'male' });   // spec, not frames
-    expect(out.recipe.faces).toBeUndefined();   // default floor built on render, not stored
-  });
-
-  it('requires at least one entity', () => {
-    expect(() => mintControllableWorld({ entities: [] })).toThrow(/non-empty/);
-    expect(() => mintControllableWorld({})).toThrow(/non-empty/);
-  });
-
-  it('mints a platformer character (the platform rule)', () => {
-    const out = mintControllableWorld({
-      title: 'platformer',
-      entities: [{ id: 'hero', rule: { type: 'platform', jumpSpeed: 9, coyote: 0.12 }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.2], color: '#6cf' }, transform: { pos: [0, 0, 2] } }],
-      camera: { rule: 'follow', target: 'hero' },
-    });
-    expect(out.ok).toBe(true);
-    expect(out.recipe.kind).toBe('controllable');
-    expect(out.stats.rules).toEqual(['platform']);
-  });
-
-  it('rejects an unknown rule type', () => {
-    expect(() => mintControllableWorld({ entities: [{ id: 'x', rule: { type: 'teleport' } }] })).toThrow(/unknown rule/);
-  });
-
-  it('rejects a figure-frames body that references an undeclared figure', () => {
-    expect(() => mintControllableWorld({ entities: [{ id: 'h', rule: { type: 'walk' }, body: { type: 'figure-frames', figure: 'ghost' } }] })).toThrow(/not declared in figures/);
-  });
-
-  it('rejects a camera target that is not an entity', () => {
-    expect(() => mintControllableWorld({ entities: [drone], camera: { rule: 'follow', target: 'nope' } })).toThrow(/not an entity id/);
-  });
+const FLOOR = [
+  { corners: [[-100, -100, 0], [100, -100, 0], [100, 100, 0], [-100, 100, 0]], fill: '#556' },
+  { corners: [[-100, -100, 0], [-100, -100, 30], [-100, 100, 30], [-100, 100, 0]], fill: '#334' },
+];
+const hero = (over = {}) => ({
+  id: 'hero', transform: { pos: [0, 0, 0] },
+  rule: { type: 'walk', speed: 12 }, body: { type: 'mesh', shape: 'box', size: [4, 4, 8], color: '#fa0' },
+  ...over,
 });
+const contract = (levelRef) => ({ levelRef, produces: { results: ['success'], events: [] } });
 
-// A CUSTOM PNG face-texture atlas (the mobile-suit "colony wallpaper" case): faces carry
-// `texture:'<key>'` + `uv`, and the dataURL tiles live in `manifest.textures`. The mint used to
-// drop the atlas (whitelisted manifest keys, no `textures` slot), so the minted /world emitted
-// `TEXTURES = {}` even though the renderer supports it. This guards the atlas end-to-end:
-// mint persists it → resolveWorldScene surfaces it into payload.textures → emitThreeWorld emits it.
-describe('create_controllable_world custom texture atlas (manifest.textures)', () => {
-  const atlas = {
-    'ms-wall': 'data:image/png;base64,IND1WALLPNGTILEDATA==',
-    'ms-floor': 'data:image/png;base64,IND2FLOORPNGTILEDATA==',
-  };
-  const texturedFloor = {
-    corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]],
-    fill: '#334455', doubleSided: true, texture: 'ms-wall', uv: [[0, 0], [4, 0], [4, 4], [0, 4]],
-  };
+function mintToyMap() {
+  if (SketchRepository.getByRef('sk_toy_map')) return;   // one :memory: DB per file
+  return mintControllableWorld({
+    ref: 'sk_toy_map', title: 'toy map', faces: FLOOR,
+    entities: [{ ...hero(), pilotable: true }],   // a one-body roster for the match-channel tests
+    figures: { guy: { motion: 'walk', proto: 'male' } },
+  });
+}
 
-  it('persists a custom textures atlas into the stored recipe', () => {
-    const out = mintControllableWorld({ title: 'colony', entities: [drone], faces: [texturedFloor], textures: atlas });
-    expect(out.recipe.textures).toEqual(atlas);
+describe('mapRef at the mint surface', () => {
+  it('mints light levels over one map, promotable into a game, resolving with the map terrain', async () => {
+    mintToyMap();
+    for (const [ref, title] of [['sk_toy_lv_easy', 'Toy · Easy'], ['sk_toy_lv_hard', 'Toy · Hard']]) {
+      const res = mintControllableWorld({
+        ref, title, mapRef: 'sk_toy_map',
+        entities: [hero({ rule: { type: 'walk', speed: ref.endsWith('hard') ? 20 : 12 } })],
+        game: contract(ref),
+      });
+      expect(res.ok).toBe(true);
+    }
+    // the stored rows are LIGHT: mapRef + own keys, no terrain
+    for (const ref of ['sk_toy_lv_easy', 'sk_toy_lv_hard']) {
+      const m = SketchRepository.getByRef(ref).manifest;
+      expect(m.mapRef).toBe('sk_toy_map');
+      expect(m.faces).toBeUndefined();
+    }
+    // promotion: both levels pass create_game's contract validation against the store
+    const game = await mintGame({
+      title: 'toy game', ref: 'sk_toy_game',
+      store: { slices: [{ name: 'career', kind: 'progression' }] },
+      levels: [{ ref: 'sk_toy_lv_easy', title: 'Easy' }, { ref: 'sk_toy_lv_hard', title: 'Hard' }],
+      allowUnaudited: true,
+    });
+    expect(game.ok).toBe(true);
+    // resolve: the light level plays on the map's terrain with ITS OWN entities
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sk_toy_lv_easy'));
+    expect(payload.faces).toHaveLength(FLOOR.length);
+    expect(payload.entities.map((e) => e.id)).toEqual(['hero']);
+    expect(payload.entities[0].rule.speed).toBe(12);
   });
 
-  it('drops an absent or empty atlas (no textures key on the recipe)', () => {
-    expect(mintControllableWorld({ entities: [drone], faces: [texturedFloor] }).recipe.textures).toBeUndefined();
-    expect(mintControllableWorld({ entities: [drone], faces: [texturedFloor], textures: {} }).recipe.textures).toBeUndefined();
+  it('validates figure references against the MERGED form (figures live on the map)', () => {
+    mintToyMap();
+    const res = mintControllableWorld({
+      ref: 'sk_toy_lv_fig', title: 'Toy · Figure', mapRef: 'sk_toy_map',
+      entities: [hero({ body: { type: 'figure-frames', figure: 'guy' } })],
+    });
+    expect(res.ok).toBe(true);
+    expect(SketchRepository.getByRef('sk_toy_lv_fig').manifest.figures).toBeUndefined();
   });
 
-  it('surfaces the atlas through the /world render path (resolveWorldScene → emitThreeWorld TEXTURES)', async () => {
-    const out = mintControllableWorld({ title: 'colony', entities: [drone], faces: [texturedFloor], textures: atlas });
-    const { payload } = await resolveWorldScene({ ref: out.ref, manifest: out.recipe });
-    expect(payload.textures['ms-wall']).toBe(atlas['ms-wall']);
-    const html = emitThreeWorld(payload);
-    expect(html).toContain(atlas['ms-wall']);
-    expect(html).not.toContain('const TEXTURES = {};');
+  it('match channel: a mode authors seats + match layer + contract from the map roster', async () => {
+    mintToyMap();
+    const res = mintControllableWorld({ ref: 'sk_toy_ffa', mapRef: 'sk_toy_map', match: { mode: 'ffa', rivals: 3, killTarget: 2 } });
+    expect(res.ok).toBe(true);
+    expect(res.stats.match).toEqual({ mode: 'ffa', killTarget: 2, seats: ['player', 'opponent', 'opponent', 'opponent'] });
+    const m = SketchRepository.getByRef('sk_toy_ffa').manifest;
+    expect(m.mapRef).toBe('sk_toy_map');
+    expect(m.faces).toBeUndefined();                                   // light form
+    expect(m.match.spawns).toHaveLength(8);
+    expect(m.game.consumes.map((c) => c.slice)).toEqual(['suits', 'ffa_rivals']);
+    // and it PLAYS: promote + resolve like any level
+    const game = await mintGame({
+      title: 'toy match', ref: 'sk_toy_match_game',
+      store: { slices: [{ name: 'suits', kind: 'party' }, { name: 'ffa_rivals', kind: 'party' }, { name: 'career', kind: 'progression' }] },
+      levels: [{ ref: 'sk_toy_ffa', title: 'FFA' }],
+      allowUnaudited: true,
+    });
+    expect(game.ok).toBe(true);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sk_toy_ffa'));
+    expect(payload.faces).toHaveLength(FLOOR.length);
+    expect(payload.match.killTarget).toBe(2);
+  });
+
+  it('match channel: watch modes seat an all-AI cast with a spectate contract', () => {
+    mintToyMap();
+    const res = mintControllableWorld({ ref: 'sk_toy_watch', mapRef: 'sk_toy_map', match: { mode: 'watch_ffa' } });
+    expect(res.ok).toBe(true);
+    const m = SketchRepository.getByRef('sk_toy_watch').manifest;
+    expect(m.spectate).toBe(true);
+    expect(m.pilot).toBeNull();                                        // tombstone in the stored form
+    expect(m.entities.every((e) => e.seat === 'ai')).toBe(true);
+    expect(m.game.spectate).toBe(true);
+  });
+
+  it('match channel: guards — needs mapRef + ref, and owns the level shape', () => {
+    mintToyMap();
+    expect(() => mintControllableWorld({ ref: 'sk_x1', match: { mode: 'ffa' } })).toThrow(/requires `mapRef`/);
+    expect(() => mintControllableWorld({ mapRef: 'sk_toy_map', match: { mode: 'ffa' } })).toThrow(/explicit `ref`/);
+    expect(() => mintControllableWorld({ ref: 'sk_x2', mapRef: 'sk_toy_map', match: { mode: 'ffa' }, entities: [hero()] }))
+      .toThrow(/drop: entities/);
+    expect(() => mintControllableWorld({ ref: 'sk_x3', mapRef: 'sk_toy_map', match: { mode: 'king_of_the_hill' } }))
+      .toThrow(/unknown match mode/);
+  });
+
+  it('refuses a dangling or wrong-kind mapRef at mint', () => {
+    expect(() => mintControllableWorld({ entities: [hero()], mapRef: 'sk_nope' }))
+      .toThrow(/does not exist/);
+    SketchRepository.create({ ref: 'sk_toy_notworld', title: 'x', manifest: { kind: 'assembler', items: [] } });
+    expect(() => mintControllableWorld({ entities: [hero()], mapRef: 'sk_toy_notworld' }))
+      .toThrow(/kind 'assembler'/);
   });
 });

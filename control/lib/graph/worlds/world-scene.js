@@ -51,6 +51,20 @@ export const WALK_KINDS = new Set([
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
 export async function resolveWorldScene(sketch, viewOpts = {}) {
+  // mapRef (map-ref.js): a controllable LEVEL manifest may inherit its terrain from a stored map
+  // world instead of carrying a clone of it — the world twin of the figures-map `unitRef` (a game's
+  // mode-variant levels share one map row; see mobile-suit/arena-modes.js). Resolved FIRST so every
+  // channel below reads the merged manifest. Absent `mapRef` ⇒ byte-identical.
+  if (sketch.manifest?.kind === 'controllable' && typeof sketch.manifest.mapRef === 'string') {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const src = SketchRepository.getByRef(sketch.manifest.mapRef);
+    if (!src || src.manifest?.kind !== 'controllable') {
+      throw new Error(`mapRef '${sketch.manifest.mapRef}' is not a stored controllable world — mint the map first`);
+    }
+    const { applyMapRef } = await import('@/lib/graph/worlds/map-ref.js');
+    sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
+  }
+
   // declarative scene lighting — same normalization the /scene route uses.
   const scene = sketch.manifest.scene && typeof sketch.manifest.scene === 'object' ? sketch.manifest.scene : {};
   const time = sketch.manifest.time ?? scene.time;
@@ -269,6 +283,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // object { delay } (seconds the settled wreck lingers before it blows). Non-match worlds only
     // (a match owns its own corpse-window → respawn lifecycle). Opt-in; absent ⇒ byte-identical.
     if (sketch.manifest.wreckExplodes) payload.wreckExplodes = sketch.manifest.wreckExplodes;
+    // tutorial (tutorial-mode.plan.md T1): the scripted teaching layer — ordered prompt+goal steps
+    // the engine director advances by edge-detecting the sim; the director is the level terminal
+    // (tutorial levels run no match). Opt-in; absent ⇒ byte-identical.
+    if (sketch.manifest.tutorial && typeof sketch.manifest.tutorial === 'object') payload.tutorial = sketch.manifest.tutorial;
+    // aiDifficulty: mint-time tier seed ('easy' | 'medium' | 'max') for worlds whose difficulty is
+    // authored rather than shell-picked (tutorial levels); the game-params seam still overrides.
+    if (typeof sketch.manifest.aiDifficulty === 'string') payload.aiDifficulty = sketch.manifest.aiDifficulty;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
     if (figs && typeof figs === 'object') {
@@ -355,6 +376,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             // treatment (value separation + finishes + rim). No game world sets this
             // until the treatment passes its eyes gate; absent → byte-identical.
             contrast: rawSpec.contrast != null ? rawSpec.contrast : null,
+            // ao (covered-parts shading): opt-in rest-pose ambient-occlusion bake over the
+            // whole body (unit-rig.js), darkening sections armor covers — bicep under
+            // pauldron, thigh under skirt. `true` or { radius, strength, minAo, steps };
+            // absent → byte-identical bake.
+            ao: rawSpec.ao != null ? rawSpec.ao : null,
+            // shade (manual covered-parts shading): the hand-authored, near-zero-cost
+            // sibling of `ao` — fixed per-bone gradient bands (bicep/thigh tops, abdomen).
+            // `true` or { strength, bands }; absent → byte-identical bake.
+            shade: rawSpec.shade != null ? rawSpec.shade : null,
           });
           // previewClip (eyes-gate): alias a baked maneuver clip onto `forward`
           // so an ambient clock world HOLDS that pose — the dodge shapes are

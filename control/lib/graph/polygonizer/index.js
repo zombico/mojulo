@@ -721,16 +721,19 @@ async function runPlanningTurn(callModel, userPrompt, systemInstruction) {
 }
 
 async function runSkinTurn(callModel, userPrompt, systemInstruction, scaffold) {
-  const promptWithScaffold = `${userPrompt}
-
-Solved scaffold (use these resolved anchors as known-good context; do not redo planning):
-${JSON.stringify(scaffold, null, 2)}`;
   const response = await callModel({
     systemInstruction,
-    prompt: promptWithScaffold,
+    prompt: buildSkinTurnUserPrompt(userPrompt, scaffold),
     schema: POLYGONIZER_SCHEMA,
   });
   return { manifest: normalizeModelResponse(response) };
+}
+
+export function buildSkinTurnUserPrompt(userPrompt, scaffold) {
+  return `${userPrompt}
+
+Solved scaffold (use these resolved anchors as known-good context; do not redo planning):
+${JSON.stringify(scaffold, null, 2)}`;
 }
 
 function buildPlanningRepairPrompt({ prompt, manifest, errors, authorshipPreview }) {
@@ -787,6 +790,95 @@ function shouldIncludeConstellation(errors, partial) {
     return true;
   }
   return Boolean(partial);
+}
+
+// ── Agent-authored finalize ───────────────────────────────────────────────
+//
+// The key-free twin of polygonizePrompt: the CALLING agent is the generative
+// model (get_polygonizer_packet hands it the same system/user prompts +
+// schema this module would send a provider), and these helpers run the
+// model-independent tail of the pipeline on the manifest the agent hands
+// back. The server-side maxRepairs loop becomes conversational — a failed
+// finalize returns the same repairPrompt the keyed path would send back to
+// the provider, for the agent to apply itself and resubmit.
+
+function coerceAgentManifest(manifest) {
+  if (manifest === undefined || manifest === null) {
+    throw new Error('manifest is required (object, or raw/fenced JSON string)');
+  }
+  try {
+    return normalizeModelResponse(manifest);
+  } catch (err) {
+    throw new Error(`manifest must be a JSON object or a raw/fenced JSON string: ${err.message}`);
+  }
+}
+
+/**
+ * Finalize an agent-authored one-trip (or plan-then-skin turn-2) manifest:
+ * glyph implications → validate → deterministic repairs → lower. Mirrors the
+ * ok-path of polygonizePrompt minus the model call.
+ */
+export function finalizeAgentManifest({ prompt, manifest } = {}) {
+  if (!prompt || typeof prompt !== 'string') {
+    throw new Error('finalizeAgentManifest requires a non-empty prompt string');
+  }
+  const patchesApplied = [];
+  let current = applyShotGlyphImplications(coerceAgentManifest(manifest));
+  let validation = validatePolygonizerManifest(current, prompt);
+  ({ manifest: current, validation } = tryDeterministicRepairs({ manifest: current, validation, prompt, patchesApplied }));
+  if (validation.ok) {
+    return {
+      ok: true,
+      manifest: lowerRecipeManifest(current),
+      expandedManifest: validation.expandedManifest,
+      patchesApplied,
+    };
+  }
+  return {
+    ok: false,
+    manifest: current,
+    errors: validation.errors,
+    repairPrompt: buildRepairPromptFromValidation({ prompt, manifest: current, validation }),
+    patchesApplied,
+  };
+}
+
+/**
+ * Finalize an agent-authored planning manifest (plan-then-skin turn 1):
+ * glyph implications → buildSolvedScaffold → deterministic planning repairs.
+ * On ok the caller embeds the recomputed scaffold in the skin packet — the
+ * scaffold is never round-tripped through the agent.
+ */
+export function finalizePlanningManifest({ prompt, manifest } = {}) {
+  if (!prompt || typeof prompt !== 'string') {
+    throw new Error('finalizePlanningManifest requires a non-empty prompt string');
+  }
+  const patchesApplied = [];
+  let current = applyShotGlyphImplications(coerceAgentManifest(manifest));
+  let scaffoldResult = buildSolvedScaffold(current);
+  ({ manifest: current, scaffoldResult } = tryDeterministicPlanningRepairs({ manifest: current, scaffoldResult, patchesApplied }));
+  if (scaffoldResult.ok) {
+    return {
+      ok: true,
+      manifest: current,
+      scaffold: scaffoldResult.scaffold,
+      authorshipPreview: scaffoldResult.authorshipPreview,
+      patchesApplied,
+    };
+  }
+  return {
+    ok: false,
+    manifest: current,
+    errors: scaffoldResult.errors,
+    authorshipPreview: scaffoldResult.authorshipPreview || null,
+    repairPrompt: buildPlanningRepairPrompt({
+      prompt,
+      manifest: current,
+      errors: scaffoldResult.errors,
+      authorshipPreview: scaffoldResult.authorshipPreview,
+    }),
+    patchesApplied,
+  };
 }
 
 // ── Card classifier ───────────────────────────────────────────────────────

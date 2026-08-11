@@ -231,8 +231,14 @@ export function validateGameManifest(manifest) {
           }
           // opt-in FIXED draw: the count isn't the player's to choose — this many are drawn at random.
           if (p.fixed !== undefined && !(typeof p.fixed === 'number' && Number.isInteger(p.fixed) && p.fixed >= 1)) errors.push(`${where}.fixed must be a positive integer (a fixed random-draw size)`);
+        } else if (p.style === 'roster') {
+          // named member check-pick (WHICH members, not how many) — default-checked from the
+          // level's presets.default, so the standalone lineup is the opening state.
+          for (const k of ['label', 'blurb']) {
+            if (p[k] !== undefined && typeof p[k] !== 'string') errors.push(`${where}.${k} must be a string`);
+          }
         } else {
-          errors.push(`${where}.style must be 'hangar' (portrait single-pick) or 'count' (how-many pick over a random draw)`);
+          errors.push(`${where}.style must be 'hangar' (portrait single-pick), 'count' (how-many pick over a random draw), or 'roster' (named member check-pick)`);
         }
       }
     }

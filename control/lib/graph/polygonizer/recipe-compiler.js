@@ -1511,61 +1511,147 @@ function architecturalZeroVectorMap(mass, variant, libraries) {
   };
 }
 
+// The whole house assembly is authored in ONE compiler-owned oblique space:
+// the facade rect is the shared datum, depth recedes up-right by proj.dx/dy,
+// and the porch/steps apron comes toward the viewer by proj.fwd. Nothing here
+// uses the generic `solid` path — solids re-anchor under the renderer's own
+// camera, which is what detached the roof from the body (mixed projection
+// spaces). Flat polygons keep every attachment true by construction.
+function houseProjection(mass) {
+  const dx = Math.round(mass.depth * 0.58);
+  const dy = -Math.round(mass.depth * 0.27);
+  return { dx, dy, fwd: { x: -Math.round(dx * 0.32), y: Math.round(-dy * 0.5) + 4 } };
+}
+
+function houseLerp(a, b, t) {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
 function architecturalConstructionMarks({ mass, palette, variant, recipe }) {
+  const proj = houseProjection(mass);
   const marks = [];
-  const roof = houseRoofMarks(mass, palette, variant);
+  const body = houseBodyMarks(mass, palette, proj);
+  const roof = houseRoofMarks(mass, palette, variant, proj);
+  const windows = houseWindowMarks(mass, palette, variant, roof.gableApex);
   const door = houseDoorMarks(mass, palette, variant);
-  const porch = housePorchMarks(mass, palette, variant, door);
-  const steps = houseStepMarks(palette, variant, porch);
-  const chimney = houseChimneyMarks(mass, palette, variant);
+  const porch = housePorchMarks(mass, palette, variant, door, proj);
+  const steps = houseStepMarks(palette, variant, porch, proj);
+  const chimney = houseChimneyMarks(mass, palette, variant, roof, proj);
   marks.push(
     { kind: 'rect', role: 'house-sky-ground', x: 0, y: 0, w: recipe.viewBox?.width || 760, h: recipe.viewBox?.height || 520, fill: palette.sky, stroke: 'none', z: 0 },
-    { kind: 'rect', role: 'ground-plane', x: 0, y: mass.y + mass.h + 42, w: recipe.viewBox?.width || 760, h: 180, fill: palette.ground, stroke: 'none', opacity: 0.58, z: 1 },
-    { kind: 'solid', role: 'house-body', x: mass.x, y: mass.y, width: mass.w, height: mass.h, depth: mass.depth, faceCull: 'hide-back', fill: palette.body, stroke: palette.line, z: 10 },
-    ...roof,
+    { kind: 'rect', role: 'ground-plane', x: 0, y: mass.y + mass.h - 2, w: recipe.viewBox?.width || 760, h: 220, fill: palette.ground, stroke: 'none', opacity: 0.58, z: 1 },
+    ...body,
+    ...roof.marks,
     ...chimney,
-    { kind: 'facePattern', role: 'window-band', target: { solidRole: 'house-body', face: 'front' }, pattern: { kind: 'mandalaFractal', basis: 'facade-bays', subdivide: { cols: 4, rows: 2 }, edgeBands: ['trim-band'], verticalAccent: { col: 2, role: 'entry-axis' } }, motifs: { cell: 'french-window', topBand: 'trim-band', verticalAccent: 'entry-axis' }, language: 'house-facade-library' },
+    ...windows,
     ...door,
-    ...porch,
-    ...steps,
-    { kind: 'array', role: 'roof-shingle-pattern', count: 7, from: [mass.x - 22, mass.y - 28], to: [mass.x + mass.w + 22, mass.y - 28], item: { kind: 'line', x1: -18, y1: 0, x2: 18, y2: 0, stroke: palette.trim, strokeWidth: 1, opacity: 0.42 }, z: 22 },
+    ...porch.marks,
+    ...steps.marks,
     { kind: 'text', role: 'house-library-label', x: mass.x, y: mass.y + mass.h + 88, value: `HOUSE CONSTRUCTION / ${variant.roof} / ${variant.door} / ${variant.porch}`, size: 12, color: palette.label, family: 'monospace', z: 60 },
   );
   return marks;
 }
 
-function houseRoofMarks(mass, palette, variant) {
-  if (variant.roof === 'flat-parapet') {
-    return [
-      { kind: 'solid', role: 'roof', x: mass.x - 16, y: mass.y - 24, width: mass.w + 32, height: 24, depth: mass.depth + 10, fill: palette.roof, stroke: palette.line, z: 18 },
-      { kind: 'rect', role: 'roof-parapet-band', x: mass.x - 18, y: mass.y - 34, w: mass.w + 36, h: 16, fill: palette.roofDark, stroke: palette.line, z: 21 },
-    ];
-  }
-  if (variant.roof === 'mansard') {
-    return [
-      { kind: 'polygon', role: 'roof', points: [[mass.x - 32, mass.y + 8], [mass.x + mass.w * 0.18, mass.y - 74], [mass.x + mass.w * 0.82, mass.y - 74], [mass.x + mass.w + 32, mass.y + 8], [mass.x + mass.w - 4, mass.y + 30], [mass.x + 4, mass.y + 30]], fill: palette.roof, stroke: palette.line, strokeWidth: 1, z: 18 },
-      { kind: 'array', role: 'roof-dormer-band', count: 3, from: [mass.x + mass.w * 0.24, mass.y - 36], to: [mass.x + mass.w * 0.76, mass.y - 36], item: { kind: 'solid', width: 30, height: 28, depth: 4, fill: palette.bodySide, stroke: palette.line }, z: 23 },
-    ];
-  }
+function houseBodyMarks(mass, palette, proj) {
+  const { x, y, w, h } = mass;
+  const { dx, dy } = proj;
   return [
-    { kind: 'polygon', role: 'roof-left-panel', points: [[mass.x - 30, mass.y + 10], [mass.x + mass.w * 0.5, mass.y - 86], [mass.x + mass.w * 0.56, mass.y - 54], [mass.x + 4, mass.y + 34]], fill: palette.roof, stroke: palette.line, strokeWidth: 1, z: 18 },
-    { kind: 'polygon', role: 'roof-right-panel', points: [[mass.x + mass.w * 0.5, mass.y - 86], [mass.x + mass.w + 42, mass.y + 12], [mass.x + mass.w + 4, mass.y + 38], [mass.x + mass.w * 0.56, mass.y - 54]], fill: palette.roofDark, stroke: palette.line, strokeWidth: 1, z: 17 },
-    { kind: 'line', role: 'roof-ridge-cap', x1: mass.x + mass.w * 0.5, y1: mass.y - 86, x2: mass.x + mass.w + 42, y2: mass.y + 12, stroke: palette.trim, strokeWidth: 2, opacity: 0.65, z: 24 },
+    { kind: 'polygon', role: 'house-body', points: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill: palette.body, stroke: palette.line, strokeWidth: 1, z: 10 },
+    { kind: 'polygon', role: 'house-body-side', points: [[x + w, y], [x + w + dx, y + dy], [x + w + dx, y + h + dy], [x + w, y + h]], fill: palette.bodySide, stroke: palette.line, strokeWidth: 1, z: 9 },
   ];
 }
 
+function houseRoofMarks(mass, palette, variant, proj) {
+  const { x, y, w } = mass;
+  const { dx, dy } = proj;
+  if (variant.roof === 'flat-parapet') {
+    return {
+      gableApex: null,
+      slope: null,
+      marks: [
+        { kind: 'polygon', role: 'roof', points: [[x, y], [x + w, y], [x + w + dx, y + dy], [x + dx, y + dy]], fill: palette.roof, stroke: palette.line, strokeWidth: 1, z: 18 },
+        { kind: 'rect', role: 'roof-parapet-band', x: x - 4, y: y - 12, w: w + 8, h: 14, fill: palette.roofDark, stroke: palette.line, z: 21 },
+        { kind: 'polygon', role: 'roof-parapet-side', points: [[x + w + 4, y - 12], [x + w + 4 + dx, y - 12 + dy], [x + w + 4 + dx, y + 2 + dy], [x + w + 4, y + 2]], fill: palette.roofDark, stroke: palette.line, strokeWidth: 1, z: 20 },
+      ],
+    };
+  }
+  if (variant.roof === 'mansard') {
+    const skirtTopY = y - Math.round(w * 0.2);
+    const capL = [x + w * 0.2, skirtTopY];
+    const capR = [x + w * 0.8, skirtTopY];
+    return {
+      gableApex: null,
+      slope: { front: [capR, [x + w + 12, y + 2]], back: [[capR[0] + dx * 0.7, capR[1] + dy * 0.7], [x + w + 12 + dx * 0.7, y + 2 + dy * 0.7]] },
+      marks: [
+        { kind: 'polygon', role: 'roof', points: [[x - 12, y + 2], capL, capR, [x + w + 12, y + 2]], fill: palette.roof, stroke: palette.line, strokeWidth: 1, z: 18 },
+        { kind: 'polygon', role: 'roof-mansard-side', points: [[x + w + 12, y + 2], [x + w + 12 + dx * 0.7, y + 2 + dy * 0.7], [capR[0] + dx * 0.7, capR[1] + dy * 0.7], capR], fill: palette.roofDark, stroke: palette.line, strokeWidth: 1, z: 17 },
+        { kind: 'polygon', role: 'roof-mansard-cap', points: [capL, capR, [capR[0] + dx * 0.7, capR[1] + dy * 0.7], [capL[0] + dx * 0.7, capL[1] + dy * 0.7]], fill: palette.roofDark, stroke: palette.line, strokeWidth: 1, z: 16 },
+        { kind: 'array', role: 'roof-dormer-band', count: 3, from: [x + w * 0.26, y - Math.round(w * 0.1)], to: [x + w * 0.74, y - Math.round(w * 0.1)], item: { kind: 'rect', x: -13, y: -12, w: 26, h: 24, fill: palette.bodySide, stroke: palette.line, strokeWidth: 1 }, z: 23 },
+      ],
+    };
+  }
+  const steep = /cottage|victorian|farmhouse|colonial/.test(variant.style) ? 0.46 : 0.3;
+  const gh = Math.round(w * steep);
+  const overhang = 14;
+  const apexF = [x + w / 2, y - gh];
+  const apexB = [apexF[0] + dx, apexF[1] + dy];
+  const eaveL = [x - overhang, y + 6];
+  const eaveRF = [x + w + overhang, y + 6];
+  const eaveRB = [eaveRF[0] + dx, eaveRF[1] + dy];
+  const marks = [
+    { kind: 'polygon', role: 'roof-gable-face', points: [eaveL, eaveRF, apexF], fill: palette.body, stroke: palette.line, strokeWidth: 1, z: 15 },
+    { kind: 'polygon', role: 'roof', points: [apexF, apexB, eaveRB, eaveRF], fill: palette.roof, stroke: palette.line, strokeWidth: 1, z: 18 },
+    { kind: 'line', role: 'roof-barge-left', x1: eaveL[0], y1: eaveL[1], x2: apexF[0], y2: apexF[1], stroke: palette.roof, strokeWidth: 7, z: 19 },
+    { kind: 'line', role: 'roof-barge-right', x1: apexF[0], y1: apexF[1], x2: eaveRF[0], y2: eaveRF[1], stroke: palette.roofDark, strokeWidth: 7, z: 19 },
+    { kind: 'line', role: 'roof-ridge-cap', x1: apexF[0], y1: apexF[1], x2: apexB[0], y2: apexB[1], stroke: palette.roofDark, strokeWidth: 3, z: 24 },
+  ];
+  for (const t of [0.3, 0.55, 0.8]) {
+    const a = houseLerp(apexF, eaveRF, t);
+    const b = houseLerp(apexB, eaveRB, t);
+    marks.push({ kind: 'line', role: 'roof-shingle-pattern', x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: palette.trim, strokeWidth: 1, opacity: 0.35, z: 22 });
+  }
+  return { gableApex: { apexF, gh }, slope: { front: [apexF, eaveRF], back: [apexB, eaveRB] }, marks };
+}
+
+function houseWindowMarks(mass, palette, variant, gableApex) {
+  const { x, y, w, h } = mass;
+  const winW = Math.round(w * 0.16);
+  const winH = Math.round(h * 0.26);
+  const wy = y + Math.round(h * 0.24);
+  const marks = [];
+  let first = true;
+  for (const cx of [x + Math.round(w * 0.13), x + Math.round(w * 0.71)]) {
+    marks.push(
+      { kind: 'rect', role: first ? 'window-band' : 'window-band-frame', x: cx - 3, y: wy - 3, w: winW + 6, h: winH + 6, fill: palette.trim, stroke: palette.line, strokeWidth: 1, z: 12 },
+      { kind: 'rect', role: 'window-glass', x: cx, y: wy, w: winW, h: winH, fill: palette.glass, stroke: palette.line, strokeWidth: 1, opacity: 0.92, z: 13 },
+      { kind: 'line', role: 'window-muntin-v', x1: cx + winW / 2, y1: wy, x2: cx + winW / 2, y2: wy + winH, stroke: palette.trim, strokeWidth: 1.4, z: 14 },
+      { kind: 'line', role: 'window-muntin-h', x1: cx, y1: wy + winH / 2, x2: cx + winW, y2: wy + winH / 2, stroke: palette.trim, strokeWidth: 1.4, z: 14 },
+    );
+    first = false;
+  }
+  if (gableApex) {
+    const gy = gableApex.apexF[1] + Math.round(gableApex.gh * 0.52);
+    marks.push(
+      { kind: 'circle', role: 'gable-light-ring', cx: x + w / 2, cy: gy, r: 11, fill: palette.trim, stroke: palette.line, strokeWidth: 1, z: 16 },
+      { kind: 'circle', role: 'gable-light', cx: x + w / 2, cy: gy, r: 8, fill: palette.glass, stroke: 'none', z: 17 },
+    );
+  }
+  return marks;
+}
+
 function houseDoorMarks(mass, palette, variant) {
-  const w = variant.door === 'double-panel' ? 82 : 54;
-  const h = 92;
+  const w = variant.door === 'double-panel' ? 76 : 50;
+  const h = Math.min(88, Math.round(mass.h * 0.52));
   const x = mass.x + mass.w / 2 - w / 2;
   const y = mass.y + mass.h - h;
   const marks = [
-    { kind: 'solid', role: 'door', x, y, width: w, height: h, depth: 8, fill: palette.door, stroke: palette.line, z: 30 },
-    { kind: 'rect', role: 'door-lite', x: x + w * 0.22, y: y + 14, w: w * 0.56, h: 22, fill: palette.glass, stroke: palette.trim, strokeWidth: 1, opacity: 0.82, z: 34 },
-    { kind: 'circle', role: 'door-knob', cx: x + w * 0.78, cy: y + h * 0.56, r: 3, fill: palette.trim, stroke: 'none', z: 35 },
+    { kind: 'rect', role: 'door-frame', x: x - 4, y: y - 4, w: w + 8, h: h + 4, fill: palette.trim, stroke: palette.line, strokeWidth: 1, z: 29 },
+    { kind: 'rect', role: 'door', x, y, w, h, fill: palette.door, stroke: palette.line, strokeWidth: 1, z: 30 },
+    { kind: 'rect', role: 'door-lite', x: x + w * 0.22, y: y + 12, w: w * 0.56, h: 18, fill: palette.glass, stroke: palette.trim, strokeWidth: 1, opacity: 0.82, z: 34 },
+    { kind: 'circle', role: 'door-knob', cx: x + w * 0.8, cy: y + h * 0.55, r: 3, fill: palette.trim, stroke: 'none', z: 35 },
   ];
   if (variant.door === 'arched-panel') {
-    marks.push({ kind: 'oval', role: 'door-arched-fanlight', cx: x + w / 2, cy: y + 8, rx: w * 0.42, ry: 16, fill: palette.glass, stroke: palette.trim, opacity: 0.5, z: 36 });
+    marks.push({ kind: 'oval', role: 'door-arched-fanlight', cx: x + w / 2, cy: y + 6, rx: w * 0.42, ry: 14, fill: palette.glass, stroke: palette.trim, opacity: 0.5, z: 36 });
   }
   if (variant.door === 'double-panel') {
     marks.push({ kind: 'line', role: 'door-center-seam', x1: x + w / 2, y1: y, x2: x + w / 2, y2: y + h, stroke: palette.trim, strokeWidth: 1, opacity: 0.6, z: 36 });
@@ -1573,44 +1659,84 @@ function houseDoorMarks(mass, palette, variant) {
   return marks;
 }
 
-function housePorchMarks(mass, palette, variant, doorMarks) {
-  const door = doorMarks[0];
-  const porchW = variant.porch === 'wraparound' ? mass.w * 0.82 : variant.porch === 'stoop' ? door.width + 46 : door.width + 98;
-  const x = mass.x + mass.w / 2 - porchW / 2;
-  const y = mass.y + mass.h - 18;
+function housePorchMarks(mass, palette, variant, doorMarks, proj) {
+  const door = doorMarks.find((m) => m.role === 'door');
+  const { fwd } = proj;
+  const porchW = variant.porch === 'wraparound' ? Math.round(mass.w * 0.82) : variant.porch === 'stoop' ? door.w + 46 : door.w + 98;
+  const px = mass.x + mass.w / 2 - porchW / 2;
+  const pyb = mass.y + mass.h;
+  const lipH = 10;
+  const frontL = [px + fwd.x, pyb + fwd.y];
+  const frontR = [px + porchW + fwd.x, pyb + fwd.y];
   const marks = [
-    { kind: 'solid', role: 'porch', x, y, width: porchW, height: 18, depth: 44, fill: palette.porch, stroke: palette.line, z: 32 },
+    { kind: 'polygon', role: 'porch', points: [[px, pyb], [px + porchW, pyb], frontR, frontL], fill: palette.porch, stroke: palette.line, strokeWidth: 1, z: 32 },
+    { kind: 'polygon', role: 'porch-lip', points: [frontL, frontR, [frontR[0], frontR[1] + lipH], [frontL[0], frontL[1] + lipH]], fill: palette.shadow, stroke: palette.line, strokeWidth: 1, opacity: 0.85, z: 32 },
   ];
   if (variant.porch !== 'stoop') {
+    const postH = (door.h || 84) + 12;
+    const roofAttachY = door.y - 14;
+    const postTopY = pyb + fwd.y - postH;
+    const posts = variant.porch === 'wraparound'
+      ? [frontL[0] + 10, frontL[0] + porchW / 2 - 5, frontR[0] - 20]
+      : [frontL[0] + 10, frontR[0] - 20];
+    for (const postX of posts) {
+      marks.push({ kind: 'rect', role: 'porch-post', x: postX, y: postTopY, w: 10, h: postH, fill: palette.trim, stroke: palette.line, strokeWidth: 1, z: 33 });
+    }
     marks.push(
-      { kind: 'solid', role: 'porch-left-post', x: x + 12, y: y - 78, width: 10, height: 78, depth: 8, fill: palette.trim, stroke: palette.line, z: 33 },
-      { kind: 'solid', role: 'porch-right-post', x: x + porchW - 22, y: y - 78, width: 10, height: 78, depth: 8, fill: palette.trim, stroke: palette.line, z: 33 },
-      { kind: 'polygon', role: 'porch-roof', points: [[x - 8, y - 75], [x + porchW / 2, y - 112], [x + porchW + 8, y - 75], [x + porchW - 6, y - 62], [x + 6, y - 62]], fill: palette.roofDark, stroke: palette.line, z: 34 },
+      { kind: 'polygon', role: 'porch-roof', points: [[px - 6, roofAttachY], [px + porchW + 6, roofAttachY], [frontR[0] + 6, postTopY], [frontL[0] - 6, postTopY]], fill: palette.roofDark, stroke: palette.line, strokeWidth: 1, z: 34 },
     );
   }
-  return marks;
+  return { platform: { frontL, frontR, lipH, porchW }, marks };
 }
 
-function houseStepMarks(palette, variant, porchMarks) {
-  const porch = porchMarks[0];
-  const count = variant.steps === 'terraced' ? 5 : 4;
-  const widthStep = variant.steps === 'terraced' ? 22 : 12;
-  return [
-    { kind: 'array', role: 'steps', count, from: [porch.x + porch.width * 0.18, porch.y + 24], to: [porch.x + porch.width * 0.82, porch.y + 24], scaleFrom: 0.72, scaleTo: 1.15, item: { kind: 'solid', width: porch.width * 0.62, height: 9, depth: widthStep, fill: palette.porch, stroke: palette.line }, z: 38 },
-  ];
+function houseStepMarks(palette, variant, porch, proj) {
+  const { frontL, lipH, porchW } = porch.platform;
+  const { fwd } = proj;
+  const count = variant.steps === 'terraced' ? 4 : 3;
+  const treadW = Math.round(porchW * (variant.steps === 'terraced' ? 0.9 : 0.62));
+  const stepFwd = { x: Math.round(fwd.x * 0.55), y: Math.max(6, Math.round(fwd.y * 0.6)) };
+  const diag = variant.steps === 'side-stair' ? 26 : 0;
+  const marks = [];
+  let ax = frontL[0] + Math.round((porchW - treadW) / 2);
+  let ay = frontL[1] + lipH;
+  for (let i = 0; i < count; i += 1) {
+    const bx = ax + stepFwd.x + (diag ? diag : 0);
+    const by = ay + stepFwd.y;
+    marks.push(
+      { kind: 'polygon', role: 'steps', points: [[ax, ay], [ax + treadW, ay], [bx + treadW, by], [bx, by]], fill: palette.porch, stroke: palette.line, strokeWidth: 1, z: 38 },
+      { kind: 'polygon', role: 'steps-riser', points: [[bx, by], [bx + treadW, by], [bx + treadW, by + 6], [bx, by + 6]], fill: palette.shadow, stroke: palette.line, strokeWidth: 1, opacity: 0.85, z: 38 },
+    );
+    ax = bx;
+    ay = by + 6;
+  }
+  return { marks };
 }
 
-function houseChimneyMarks(mass, palette, variant) {
-  if (variant.chimney === 'none') return [];
+function houseChimneyMarks(mass, palette, variant, roof, proj) {
+  if (variant.chimney === 'none' || !roof.slope) return [];
   const twin = variant.chimney === 'twin-stack';
-  const baseX = mass.x + mass.w * 0.68;
-  const y = mass.y - 96;
-  const marks = [
-    { kind: 'solid', role: 'chimney', x: baseX, y, width: twin ? 34 : 24, height: 72, depth: 18, fill: palette.bodySide, stroke: palette.line, z: 26 },
-    { kind: 'rect', role: 'chimney-cap', x: baseX - 5, y: y - 9, w: twin ? 44 : 34, h: 10, fill: palette.roofDark, stroke: palette.line, z: 29 },
-    { kind: 'array', role: 'chimney-brick-pattern', count: 4, from: [baseX + 2, y + 14], to: [baseX + (twin ? 30 : 20), y + 58], item: { kind: 'line', x1: 0, y1: 0, x2: 18, y2: 0, stroke: palette.trim, strokeWidth: 1, opacity: 0.45 }, z: 30 },
-  ];
-  if (twin) marks.push({ kind: 'line', role: 'chimney-twin-seam', x1: baseX + 17, y1: y, x2: baseX + 17, y2: y + 72, stroke: palette.line, strokeWidth: 1, z: 31 });
+  const { dx, dy } = proj;
+  const stacks = twin ? [0.34, 0.62] : [0.42];
+  const marks = [];
+  for (const t of stacks) {
+    const onFront = houseLerp(roof.slope.front[0], roof.slope.front[1], t);
+    const onBack = houseLerp(roof.slope.back[0], roof.slope.back[1], t);
+    const base = houseLerp(onFront, onBack, 0.45);
+    const cw = 22;
+    const ch = 52;
+    const bx = base[0] - cw / 2;
+    const by = base[1] + 10;
+    const sideDx = Math.round(dx * 0.16);
+    const sideDy = Math.round(dy * 0.16);
+    marks.push(
+      { kind: 'polygon', role: 'chimney', points: [[bx, by - ch], [bx + cw, by - ch], [bx + cw, by], [bx, by]], fill: palette.bodySide, stroke: palette.line, strokeWidth: 1, z: 26 },
+      { kind: 'polygon', role: 'chimney-side', points: [[bx + cw, by - ch], [bx + cw + sideDx, by - ch + sideDy], [bx + cw + sideDx, by + sideDy], [bx + cw, by]], fill: palette.shadow, stroke: palette.line, strokeWidth: 1, z: 25 },
+      { kind: 'rect', role: 'chimney-cap', x: bx - 4, y: by - ch - 8, w: cw + 8 + sideDx, h: 8, fill: palette.roofDark, stroke: palette.line, z: 29 },
+    );
+    for (let i = 0; i < 3; i += 1) {
+      marks.push({ kind: 'line', role: 'chimney-brick-pattern', x1: bx + 3, y1: by - ch + 12 + i * 13, x2: bx + cw - 3, y2: by - ch + 12 + i * 13, stroke: palette.trim, strokeWidth: 1, opacity: 0.45, z: 30 });
+    }
+  }
   return marks;
 }
 
