@@ -17,7 +17,10 @@ coverage-shading pass for rigged units — and the glTF interchange arc: animate
 export, a bind-back door for externally refined meshes, semantic level export, and
 Blender as an optional local worker that bakes Cycles GI into a world's (or a walking
 figure's) own vertex colours at zero runtime cost. Additive throughout — absent the new
-opt-ins, every existing recipe renders byte-identical.
+opt-ins, every existing recipe renders byte-identical. Under the hood, a tool-list
+token-load pass consolidates the figure/solid family behind one door and extends the
+routing-card two-step to the office paradigms — the callable surface shrinks while the
+substrate does not.
 
 ### Motion comic — a new creative FORM
 
@@ -261,6 +264,24 @@ deterministic, world-route (and glTF export) only — the SVG path is untouched.
 - `create_sketch` can now MINT the seeded interior kinds (`floorplan` / `restaurant`), not
   just render ones minted elsewhere — the manifest gate dispatches on kind.
 - `procedural-material.js` imports vexar relatively so mint scripts run under plain `node`.
+
+### Tool-list token load — consolidation + routing
+
+The figure/solid family collapses behind one door: `mint_solid(kind)` / `edit_solid(op)` /
+`get_solid_vocab` replace ~15 closed `create_*` tools (figure, manji-tree, workbench,
+assembler, carved-solid, solid-turntable, edifice, vehicle; skin + emote as `edit_solid`
+ops), every retired name kept callable as an unlisted alias and every per-kind manual
+parked in a `solid_vocab` card pulled on demand. The science-process views fold into
+`create_view` kinds (`dna-process` / `energy-cycle`), and `forge_motion` / `stitch_motion`
+shed their essay descriptions into `motion_vocab` cards. The routing-card two-step then
+extends from the studio wing to the OFFICE wing: new `bot` / `app` / `connected-service`
+paradigm cards turn the "is this a bot, an app, or a service?" boundary into a
+surface-the-candidate-set → decide-by-who-touches-it → ask-if-underdetermined flow,
+relocating the build-flow prose out of the always-resident office index. Retrieval is
+pinned by an expanded eval harness (rank-0 collision ordering, office top-3 entry, two-step
+SET coverage). Net: the always-on `tools/list` payload holds at ~250 KB while ~15 tool
+names leave the surface; `PAYLOAD_CEILING` ratchets 381,500 → 255,000 to lock the reclaim
+in. Additive — every retired name still resolves; recipes and renders are byte-identical.
 
 ### Docs
 
