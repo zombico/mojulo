@@ -240,7 +240,9 @@ export function studioSceneFromFaces(objectFaces = [], opts = {}) {
     viewBox,
     title: opts.title || 'mojulo workbench',
     bg: '#0d1218',
-    light: WORKBENCH_LIGHT,
+    // studio light for the grid/ground (the object faces carry their own baked shading).
+    // `opts.light` is FLAT_LIGHT under unshaded export; absent → WORKBENCH_LIGHT (byte-identical).
+    light: opts.light || WORKBENCH_LIGHT,
   });
   payload.inflate = Number.isFinite(opts.inflate) ? opts.inflate : STUDIO_PANEL_INFLATE;
   // label-wrap textures (key → data-URL), pre-resolved by the caller; emitThreeWorld reads them.
@@ -254,14 +256,15 @@ export function studioSceneFromFaces(objectFaces = [], opts = {}) {
  * `scaffoldViewBox` reproduces that scaffold's viewBox exactly, so painter and
  * bake stay registered. No skin (or no faces) → faces unchanged.
  */
-export function bakeBoundSkinFaces(faces, skin, manifest = {}) {
+export function bakeBoundSkinFaces(faces, skin, manifest = {}, light = WORKBENCH_LIGHT) {
   if (!skin || !faces.length) return faces;
   const camera = manifest.camera || {};
   const roomBasis = manifest.roomBasis || {};
   const viewBox = scaffoldViewBox(faces, { camera, roomBasis });
   const { background, fallback } = analyzeSkin(skin);
   const sampler = rasterSampler({ ...skin, background, fallback });
-  return bakeSkinOntoFaces(faces, { sampler, viewBox, camera, roomBasis, light: WORKBENCH_LIGHT });
+  // `light` defaults to WORKBENCH_LIGHT (byte-identical); FLAT_LIGHT under unshaded export.
+  return bakeSkinOntoFaces(faces, { sampler, viewBox, camera, roomBasis, light });
 }
 
 /**
@@ -271,7 +274,11 @@ export function bakeBoundSkinFaces(faces, skin, manifest = {}) {
  * painted raster (the world route loads it), the faces wear it.
  */
 export function assembleWorkbenchScene(opts = {}) {
-  return studioSceneFromFaces(bakeBoundSkinFaces(lowerObjectFaces(opts, WORKBENCH_LIGHT), opts.skin, opts), opts);
+  // `opts.light` is FLAT_LIGHT under unshaded export (world-scene ctx.light); absent → the
+  // neutral studio key, so the shaded path is byte-identical. Threaded through the object bake
+  // AND the skin re-bake so a flat-albedo export carries no directional term.
+  const light = opts.light || WORKBENCH_LIGHT;
+  return studioSceneFromFaces(bakeBoundSkinFaces(lowerObjectFaces(opts, light), opts.skin, opts, light), opts);
 }
 
 /** /scene + PNG path: CSS-3D preset-shot HTML. (The /world route calls assembleWorkbenchScene → emitThreeWorld.) */

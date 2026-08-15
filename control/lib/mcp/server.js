@@ -103,6 +103,33 @@ export function listRegisteredToolNames() {
   return Array.from(registeredTools.keys());
 }
 
+// ── single-writer execution queue (harness parallelism guard) ────────────────
+// Agent harnesses batch independent tool calls in parallel by design — client
+// behavior mojulo cannot control. The substrate is single-user, and its tool
+// handlers assume single-writer execution (sync better-sqlite3, append-only
+// file stores, validate-then-write sequences), so rather than requiring every
+// handler to be concurrency-safe, `tools/call` executions serialize through one
+// promise chain: a parallel batch becomes a FIFO queue, every call still
+// succeeds, and no handler ever observes another's half-applied state. This is
+// the in-process sibling of the hand-off buses (mcp_jobs, image_render_requests)
+// — they park work BETWEEN parties; this serializes execution WITHIN the plane.
+//
+// Two deliberate exclusions:
+//  - Tools that BLOCK awaiting an external event (the long-polls:
+//    pull_agent_task, request_chat_decision) register `concurrent: true` and
+//    bypass the queue — a parked 25s wait must never starve the writes behind it.
+//  - `invokeRegisteredTool` (the plan-executor path) is NOT queued: it runs
+//    INSIDE an already-serialized outer tool call (execute_plan holds the queue
+//    slot; see plan-mode.js), so queuing it would deadlock a plan on its own steps.
+let toolCallChain = Promise.resolve();
+function runSerialized(tool, fn) {
+  if (tool.concurrent) return fn();
+  const run = toolCallChain.then(fn);
+  // Keep the chain alive past rejections without swallowing this call's error.
+  toolCallChain = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 /**
  * Invoke a registered tool's handler directly, bypassing JSON-RPC framing.
  * Used by the plan-mode executor to run a compiled manifest of tool calls
@@ -215,10 +242,11 @@ async function handleToolCall(message, context) {
   }
 
   try {
-    const result = await instrumentedInvoke(tool, toolInput, context, {
-      via: 'rpc',
-      name: toolName,
-    });
+    const result = await runSerialized(tool, () =>
+      instrumentedInvoke(tool, toolInput, context, {
+        via: 'rpc',
+        name: toolName,
+      }));
     return jsonRpcResult(message.id, toMcpToolResult(result));
   } catch (err) {
     // Per MCP spec, tool execution failures are returned as a tool_result

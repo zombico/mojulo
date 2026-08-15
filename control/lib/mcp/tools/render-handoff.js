@@ -131,6 +131,16 @@ export async function submitImageRenderHandler(input) {
   if ((imagePath ? 1 : 0) + (imageBase64 ? 1 : 0) !== 1) {
     throw new Error('submit_image_render requires exactly one of image_path | image_base64');
   }
+  // Validate the lifecycle state BEFORE any side effect. recordSubmit enforces
+  // the same rule at the DB layer, but by then the PNG has already hit the
+  // render store — a submit-from-'pending' used to deposit an orphan snapshot
+  // on its way to the error (0813 first-contact probe). Fail here, pre-disk;
+  // the repository check below stays as the backstop.
+  if (!['in_flight', 'submitted', 'rejected'].includes(request.status)) {
+    throw new Error(
+      `render request '${requestId}' is '${request.status}' — pull it first (submit accepts in_flight | submitted | rejected)`,
+    );
+  }
   const bytes = imagePath ? await fs.readFile(imagePath) : Buffer.from(imageBase64, 'base64');
   if (bytes.length < 8 || !bytes.subarray(0, 4).equals(PNG_MAGIC)) {
     throw new Error('the submitted image is not a PNG (submit the generated raster, not the SVG scaffold)');

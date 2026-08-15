@@ -33,5 +33,6 @@ Pass these via `compose_world`'s `overrides` (deep-merged over the theme pack). 
 - `shadows` (boolean) — Baked contact/cast ground shadows grounding the buildings + objects. Default on; pass `false` to drop them.
 - `title` (string) — Title for the resulting sketch artifact.
 - `viewBox` (object) — Optional render viewBox `{ width, height }`.
+- `audio` (object) — Optional world AUDIO channel (generic across every base; resolved on the live /world path): { soundtrack?: { beatsRef: '<stored beats ref>' } or an inline beats recipe (compositions loop), sfx?: { beatsRef? | cues?, on? }, footsteps?: true|{ step, jump, land }, wind?: true|{ level, freq }, bindings? (soundtrack channel macros) }. Validated at mint — an unknown beats ref or invalid recipe REFUSES the mint rather than storing a world that fails to render. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).
 - `ref` (string) — optional stable sketch ref.
 - `folder_ref` (string) — optional sketch folder to file under.

@@ -34,5 +34,6 @@ Pass these via `compose_world`'s `overrides` (deep-merged over the theme pack). 
 - `time` (string) — Optional daylight model: 'day' (sun + cast shadows + day sky) or 'night' (flood-mast light pools + moonlight + stars).
 - `region` (object) — Optional world footprint { x, y, w, d } (default a 40×34 apron).
 - `viewBox` (object) — Optional render viewBox { width, height }.
+- `audio` (object) — Optional world AUDIO channel (generic across every base; resolved on the live /world path): { soundtrack?: { beatsRef: '<stored beats ref>' } or an inline beats recipe (compositions loop), sfx?: { beatsRef? | cues?, on? }, footsteps?: true|{ step, jump, land }, wind?: true|{ level, freq }, bindings? (soundtrack channel macros) }. Validated at mint — an unknown beats ref or invalid recipe REFUSES the mint rather than storing a world that fails to render. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).
 - `ref` (string) — optional stable sketch ref.
 - `folder_ref` (string) — optional sketch folder to file under.

@@ -8,7 +8,18 @@ export const SESSION_STATUS = {
   DEPLOYING: 'deploying',
   DEPLOYED: 'deployed',
   EDITING: 'editing',
+  // Explicitly discarded via start_new_bot — never resumed by the MCP binding.
+  ABANDONED: 'abandoned',
 };
+
+// Statuses the MCP binding may silently resume after its in-memory
+// connection→session map is lost (dev reload, MCP client reconnect).
+const RESUMABLE_STATUSES = new Set([
+  SESSION_STATUS.CREATED,
+  SESSION_STATUS.PROCESSING,
+  SESSION_STATUS.AWAITING_CONFIRM,
+  SESSION_STATUS.EDITING,
+]);
 
 const DEFAULT_ENABLED_PROTOCOLS = {
   knowledge: false,
@@ -131,6 +142,28 @@ export const BuilderSessionRepository = {
 
   async findByIdAndUserId(sessionId, _userId) {
     return fetchSession(sessionId);
+  },
+
+  // R2 (0813 persona sims): the MCP connection→session binding is in-memory and
+  // rotates across dev reloads / reconnects while the session rows themselves are
+  // perfectly durable — Devon watched four bindings strand his processed documents.
+  // This is the binding's durable fallback: the newest MCP-origin session that is
+  // still worth resuming. Web-origin sessions (no preloadedContext.mcpOrigin) are
+  // never adopted — the web flow threads its own session_id explicitly.
+  async findLatestResumableMcpSession(_userId, { maxAgeMs = 24 * 60 * 60 * 1000 } = {}) {
+    const db = getDb();
+    const rows = db
+      .prepare('SELECT * FROM modular_sessions ORDER BY updated_at DESC LIMIT 10')
+      .all();
+    const now = Date.now();
+    for (const row of rows) {
+      const session = rowToSession(row);
+      if (!RESUMABLE_STATUSES.has(session.status)) continue;
+      if (!session.preloadedContext?.mcpOrigin) continue;
+      if (now - session.updatedAt.getTime() > maxAgeMs) continue;
+      return session;
+    }
+    return null;
   },
 
   async updateStatus(sessionId, _userId, status) {

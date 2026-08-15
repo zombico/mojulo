@@ -61,10 +61,12 @@ describe('facesToGlb', () => {
     }
   });
 
-  it('counts two triangles and six vertices per quad', () => {
+  it('counts two triangles and four vertices per quad (welded diagonal)', () => {
     const out = facesToGlb({ faces: [quad()] });
     expect(out.triangleCount).toBe(2);
-    expect(out.vertexCount).toBe(6);
+    // GLB weld: a quad's two split tris share the diagonal edge (c0,c2), so the 6 soup
+    // verts collapse to the quad's 4 unique corners (indexed primitive).
+    expect(out.vertexCount).toBe(4);
     expect(out.nodeCount).toBe(1);
   });
 

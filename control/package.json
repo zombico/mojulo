@@ -2,7 +2,7 @@
   "name": "mojulo",
   "version": "1.0.3",
   "license": "Apache-2.0",
-  "description": "Mojulo — the agent's workshop: a local, stateful MCP substrate that turns conversations into durable things — self-hosted chatbots, connected services, apps, playable games, and creative artifacts minted as deterministic recipes.",
+  "description": "Mojulo — the agent's workshop: a local MCP server where you build repeatable things by talking to Claude Code or Codex — self-hosted chatbots, connected services, apps, worlds, music, and playable games — each a tiny deterministic recipe on your machine, editable a line at a time and composable into bigger works.",
   "author": "Franz Ombico",
   "homepage": "https://github.com/zombico/mojulo",
   "repository": {
@@ -64,7 +64,8 @@
     "!.next/standalone/**/*.test.js"
   ],
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 3001 --webpack",
+    "dev:turbo": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
     "build:bot": "docker build -t mojulo/bot:latest ../lite-template",

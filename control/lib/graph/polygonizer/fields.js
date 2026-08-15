@@ -274,6 +274,17 @@ export function validateFields(fields, emittedNodes) {
           }
         });
       }
+      if (decl.noise !== undefined && decl.noise !== null) {
+        const nz = decl.noise;
+        if (typeof nz !== 'object' || Array.isArray(nz)) {
+          errors.push(`${here}.noise: must be an object { amplitude, scale?, octaves?, persistence?, seed? } when provided`);
+        } else {
+          if (!Number.isFinite(nz.amplitude)) errors.push(`${here}.noise.amplitude: must be a finite number`);
+          if (nz.scale !== undefined && (!Number.isFinite(nz.scale) || nz.scale <= 0)) errors.push(`${here}.noise.scale: must be a positive finite number when provided`);
+          if (nz.octaves !== undefined && (!Number.isInteger(nz.octaves) || nz.octaves < 1 || nz.octaves > 12)) errors.push(`${here}.noise.octaves: must be an integer in [1, 12] when provided`);
+          if (nz.persistence !== undefined && !Number.isFinite(nz.persistence)) errors.push(`${here}.noise.persistence: must be a finite number when provided`);
+        }
+      }
     }
   }
   // Cross-field cycle check for sum fields. A `sum` whose components
@@ -641,6 +652,16 @@ function compileField(decl, resolveEndpoint) {
     const peak = Number.isFinite(decl.peak) ? decl.peak : 0;
     const waves = Array.isArray(decl.waves) ? decl.waves : [];
     const linear = decl.falloff === 'linear';
+    // Optional windowed NOISE texture: fbm displacement that dies at the region
+    // border exactly like the waves — rough/craggy landforms without touching the
+    // terrain outside the window (a global noise field cannot be masked by `sum`).
+    const nz = decl.noise && typeof decl.noise === 'object' ? {
+      seed: hashSeedNoise(decl.noise.seed),
+      scale: Number.isFinite(decl.noise.scale) ? decl.noise.scale : 0.5,
+      octaves: Number.isInteger(decl.noise.octaves) ? Math.max(1, Math.min(12, decl.noise.octaves)) : 4,
+      persistence: Number.isFinite(decl.noise.persistence) ? decl.noise.persistence : 0.5,
+      amplitude: Number.isFinite(decl.noise.amplitude) ? decl.noise.amplitude : 0,
+    } : null;
     return function terrainRegionField(position) {
       const dx = position.x - center.x;
       const dy = position.y - center.y;
@@ -659,6 +680,16 @@ function compileField(decl, resolveEndpoint) {
         const cv = Number.isFinite(wv.cycles?.v) ? wv.cycles.v : 0;
         const phase = Number.isFinite(wv.phase) ? wv.phase : 0;
         tex += amp * Math.sin(2 * Math.PI * (cu * u + cv * v) + phase);
+      }
+      if (nz && nz.amplitude !== 0) {
+        let total = 0, amp = 1, freq = 1, maxAmp = 0;
+        for (let o = 0; o < nz.octaves; o += 1) {
+          total += valueNoise2D(position.x * nz.scale * freq, position.y * nz.scale * freq, nz.seed + o) * amp;
+          maxAmp += amp;
+          amp *= nz.persistence;
+          freq *= 2;
+        }
+        tex += nz.amplitude * (maxAmp > 0 ? total / maxAmp : 0);
       }
       return w * (peak + tex);
     };

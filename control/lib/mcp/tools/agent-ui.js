@@ -222,5 +222,9 @@ export function registerAgentUiTools() {
       },
     },
     handler: requestChatDecisionHandler,
+    // Long-poll: blocks up to wait_ms awaiting the operator's answer — must
+    // bypass the single-writer tool queue (server.js runSerialized) or the
+    // wait starves every call queued behind it.
+    concurrent: true,
   });
 }

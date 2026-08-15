@@ -59,7 +59,8 @@ const TRACE_BOT = `# Worked example — Bot (build → compile → operate)
 **4. The refusal + recovery.** Calling \`save_modular_bot({})\` before the builder session has an identity fails with a validation error naming the missing pieces. Recovery: the builder session is readable — \`get_builder_session({})\` shows exactly what's set and what's missing; fill the gap and retry. (Starting over is \`start_new_bot({})\`, which discards the in-progress config.)
 
 **5. Compile.** *(the materialization gate — this writes to disk)*
-\`save_modular_bot({ ... })\` → \`{ jobId }\`; \`poll_job({ jobId })\` → \`{ status: 'done', result: { deploymentId, artifactPath } }\`
+\`save_modular_bot({ sessionId, confirmedProtocols, llm: { provider: 'anthropic', apiKeyId } })\` → \`{ jobId }\`; \`poll_job({ jobId })\` → \`{ status: 'done', result: { deploymentId, artifactPath } }\`
+The \`llm\` choice is the operator's, made explicitly — the deployed bot calls that provider with that key at runtime (\`{ provider: 'ollama' }\` is the local, keyless option). Omit it and the save refuses with the configured choices listed; nothing is lost — re-call with the operator's pick.
 **\`artifactPath\` is the value to hand the user** — the absolute path to the zip. Unzipped + \`npm install && npm start\`, the bot phones home and its deployment row goes live.
 
 **6. Operate.** *(read-once vs watched — these are reads, not bindings)*

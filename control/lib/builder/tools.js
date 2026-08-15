@@ -269,6 +269,13 @@ export const BUILDER_TOOLS = [
           type: 'object',
           description: 'User-confirmed protocol selections',
         },
+        llm: {
+          type: 'object',
+          description:
+            "The deployed bot's LLM, chosen explicitly: { provider: 'anthropic'|'openai'|'ollama', apiKeyId?, model? }. "
+            + "The bot runs on this provider/key; 'ollama' = local, keyless. Omitted on an MCP-built bot, the save "
+            + 'refuses and lists the configured options.',
+        },
       },
       required: ['sessionId', 'confirmedProtocols'],
     },

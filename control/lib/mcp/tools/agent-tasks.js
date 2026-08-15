@@ -230,6 +230,10 @@ export function registerAgentTaskTools() {
       },
     },
     handler: pullAgentTaskHandler,
+    // Long-poll: blocks up to wait_ms awaiting parked work — must bypass the
+    // single-writer tool queue (server.js runSerialized) or it starves every
+    // call queued behind it.
+    concurrent: true,
   });
 
   registerTool({

@@ -5,3 +5,6 @@ node_modules/
 .DS_Store
 # mojulo.ai site — its own repo, not part of the substrate
 /site/
+# Maintainer's private working-tree ledger. Agents operating mojulo orient via
+# forward_context (runtime MCP); repo-dev orientation is CLAUDE.md + CHANGELOG.
+/docs/STATUS.md

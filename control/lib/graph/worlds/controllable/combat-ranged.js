@@ -323,7 +323,12 @@ export function buildCombatRanged(E) {
         }
         if (best) {
           const tg = best.tg;
-          e.lastShot = { mode: best.mode, targetId: best.id, t: state.time, from, to: tg.transform.pos.slice(), charged: chargedShot };
+          // ANATOMICAL impact point (2026-08-13): the hit lands where the aim ray meets the target,
+          // `best.d` along the ray — the egg-entry point for a core hit (chest/torso for center-mass),
+          // NOT the target's FEET origin (`transform.pos`, z≈0), which made every impact fx + beam bolt
+          // terminate at the legs. Purely the visual/impact anchor (damage/poise are unchanged below).
+          const hitPt = [origin[0] + aim[0] * best.d, origin[1] + aim[1] * best.d, origin[2] + aim[2] * best.d];
+          e.lastShot = { mode: best.mode, targetId: best.id, t: state.time, from, to: hitPt, charged: chargedShot };
           tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1;
           tg.lastHitBy = e.id;   // match-layer attribution: the most recent hitter takes the kill credit
           if (mst) mst.hits += 1;   // score screen: the round connected (a shield catch still counts on-target)

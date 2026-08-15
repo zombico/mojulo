@@ -52,13 +52,19 @@ function persistSubway(manifest, { title, ref, folderRef, fallbackTitle }) {
 
 // Mint the interior subway station: a single island-platform hall, three-quarter
 // establishing view, train parked at the platform. Persists ONLY the recipe.
-function mintSubwayStation({ title, seed, density, line, atmosphere, viewBox, ref, folderRef } = {}) {
+function mintSubwayStation({ title, seed, density, line, atmosphere, fog, audio, viewBox, ref, folderRef } = {}) {
   const manifest = {
     kind: 'subway-station',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
     density: Number.isFinite(+density) ? Math.max(0.2, Math.min(1, +density)) : 0.6,
     ...(SUBWAY_LINES.includes(line) ? { line } : {}),
     ...(atmosphere ? { atmosphere: true } : {}),
+    // opt-in volumetric fog (effects-layer P3.5) — `true` or a tuning object;
+    // absent/invalid ⇒ not stored ⇒ no fog. Clips against the plan's occluders
+    // via the world-kinds fogBoxes extractor; renders on the live /world path only.
+    ...(fog === true || (fog && typeof fog === 'object' && !Array.isArray(fog)) ? { fog } : {}),
+    // opt-in audio channel (beats.plan.md) — soundtrack / wind / sfx cues; /world only.
+    ...(audio && typeof audio === 'object' && !Array.isArray(audio) ? { audio } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(title ? { title } : {}),
   };
@@ -70,7 +76,7 @@ function mintSubwayStation({ title, seed, density, line, atmosphere, viewBox, re
 // (fare line + turnstiles + operator booth + ticket machines) joined by stair/escalator/
 // elevator through a void. A `subway-building` /world kind — tiling, marble, glass and the
 // optional atmospheric relight all render here. Persists ONLY the recipe.
-function mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphere, layout, viewBox, ref, folderRef } = {}) {
+function mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphere, audio, layout, viewBox, ref, folderRef } = {}) {
   const interchange = layout === 'interchange';
   const manifest = {
     kind: 'subway-building',
@@ -82,6 +88,10 @@ function mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphe
     ...(interchange && SUBWAY_LINES.includes(lineB) ? { lineB } : {}),
     ...(Number.isFinite(+gates) ? { mezzanine: { gates: Math.max(2, Math.min(8, Math.trunc(+gates))) } } : {}),
     ...(atmosphere ? { atmosphere: true } : {}),
+    // opt-in audio channel — the generic /world audio path (beats.plan.md). NOTE: no `fog`
+    // here yet — subway-building declares no fogBoxes extractor, and storing a key the
+    // renderer ignores is exactly the silent-gap this pass is closing.
+    ...(audio && typeof audio === 'object' && !Array.isArray(audio) ? { audio } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(title ? { title } : {}),
   };
@@ -90,14 +100,14 @@ function mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphe
   return { ...persistSubway(manifest, { title, ref, folderRef, fallbackTitle: `subway ${interchange ? 'interchange' : 'building'} ${manifest.seed}` }), stats };
 }
 
-export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, gates, region, viewBox, time, ref, folderRef } = {}) {
+export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef } = {}) {
   // The interior subway is a distinct render path — delegate early. `building` mints the
   // 2-level station+concourse (a /world `subway-building`); `layout:'interchange'` makes it a
   // perpendicular two-line interchange; otherwise the single hall.
   if (mode === 'subway') {
     return (building || layout === 'interchange')
-      ? mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphere, layout, viewBox, ref, folderRef })
-      : mintSubwayStation({ title, seed, density, line, atmosphere, viewBox, ref, folderRef });
+      ? mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphere, audio, layout, viewBox, ref, folderRef })
+      : mintSubwayStation({ title, seed, density, line, atmosphere, fog, audio, viewBox, ref, folderRef });
   }
   const manifest = {
     kind: 'transportation-hub',
@@ -149,6 +159,6 @@ export async function createTransportationHubHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_transportation_hub requires a recipe object');
   }
-  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, gates, region, viewBox, time, ref, folder_ref: folderRef } = input;
-  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, gates, region, viewBox, time, ref, folderRef });
+  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folder_ref: folderRef } = input;
+  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef });
 }

@@ -53,6 +53,11 @@ export function mintPaintedLandscape({
   camera,
   sky,
   forest,
+  ground,
+  elevation,
+  walk,
+  extent,
+  builds,
   ref,
   folderRef,
 } = {}) {
@@ -88,6 +93,11 @@ export function mintPaintedLandscape({
     ...(camera !== undefined && camera !== null ? { camera } : {}),
     ...(sky !== undefined && sky !== null ? { sky } : {}),
     ...(forest !== undefined && forest !== null ? { forest } : {}),
+    ...(ground !== undefined && ground !== null ? { ground } : {}),
+    ...(elevation !== undefined && elevation !== null ? { elevation } : {}),
+    ...(walk !== undefined && walk !== null ? { walk } : {}),
+    ...(extent !== undefined && extent !== null ? { extent } : {}),
+    ...(builds !== undefined && builds !== null ? { builds } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -136,12 +146,17 @@ export async function createPaintedLandscapeHandler(input) {
     camera,
     sky,
     forest,
+    ground,
+    elevation,
+    walk,
+    extent,
+    builds,
     ref,
     folder_ref: folderRef,
   } = input;
   return mintPaintedLandscape({
     title, heartbeat, splatch, structures, scene, seed, light,
-    paletteOverrides, heartbeatOverrides, renderStyle, camera, sky, forest, ref, folderRef,
+    paletteOverrides, heartbeatOverrides, renderStyle, camera, sky, forest, ground, elevation, walk, extent, builds, ref, folderRef,
   });
 }
 

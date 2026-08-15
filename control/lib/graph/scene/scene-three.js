@@ -302,11 +302,20 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // scene. Stays a real group mesh (raycastable for picks, togglable to wireframe).
     const af = fs.find((f) => typeof f.alpha === 'number' && f.alpha < 1);
     const alpha = af ? af.alpha : null;
+    // Single-sided group (opt-in): a closed solid whose winding is outward-consistent (a baked +
+    // interior-culled meshRef statue) renders FRONT faces only — the backfaces point into the solid
+    // and are never seen, so culling them halves the fragment cost on approach. Every face in the
+    // group must opt in; absent → the key is omitted → DoubleSide, byte-identical to every scene.
+    const singleSide = fs.length > 0 && fs.every((f) => f && f.singleSide);
     // per-vertex specular params (faces tagged `spec` by a material) — the key is only present
     // when the group carries them, so material-free scenes serialize byte-identically.
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}) };
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}) };
   });
   const hasTextures = groups.some((g) => g.tex.length);
+  // Any single-sided (bound-mesh) group? Only then does the render script reference
+  // grp.singleSide — so a world without one emits the exact prior `side: THREE.DoubleSide`
+  // string and stays byte-identical (the emit char-net holds; the feature is opt-in).
+  const hasSingleSide = groups.some((g) => g.singleSide);
 
   // Object-glow: one camera-facing additive sprite per emissive-fixture face. Driven by
   // the SAME `glow` markers the baked face list already carries (see collectGlowSprites).
@@ -403,6 +412,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     bob: wk.bob && Array.isArray(wk.bob.curve) ? wk.bob : null,
   } : null;
   const walkBlock = walkCfg ? walkModeScript(walkCfg, mesh.center) : '';
+  // Suppressed entirely on GAME LEVELS (payload carries `game`): a level teaches its controls
+  // through the shell's pause menu, and the corner hint reads as dev chrome on a play screen.
   const hintText = walkCfg
     ? 'drag to orbit · <b>walk</b> = gravity + walls · <b>fly</b> = free 6DOF'
     : 'drag to orbit · scroll to zoom · right-drag to pan';
@@ -629,7 +640,7 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
 </style></head><body>
   <div id="wrap"><canvas id="c"></canvas>
     <div class="hud" id="hud"></div>
-    <div class="hint">${hintText}</div>
+    ${game ? '' : `<div class="hint">${hintText}</div>`}
     ${hasPicks ? '<div class="mol-popup" id="molPopup" hidden></div>' : ''}
     ${hasSigns ? '<div class="moj-signs" id="mojSigns"></div>' : ''}
   </div>
@@ -667,7 +678,7 @@ for (const grp of GROUPS) {
   geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(grp.col), 3));
   geo.computeBoundingSphere();
   const translucent = typeof grp.alpha === 'number' && grp.alpha < 1;
-  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: grp.hideable || translucent, opacity: translucent ? grp.alpha : 1, depthWrite: !translucent });
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: ${hasSingleSide ? 'grp.singleSide ? THREE.FrontSide : THREE.DoubleSide' : 'THREE.DoubleSide'}, transparent: grp.hideable || translucent, opacity: translucent ? grp.alpha : 1, depthWrite: !translucent });
   const m = new THREE.Mesh(geo, mat); m.renderOrder = (grp.hideable || translucent) ? 1 : 0;
   m.userData.g = grp.name;   // group name → pick lookup (PICK_META); inert when no picks emitted
   scene.add(m); meshes[grp.name] = m;

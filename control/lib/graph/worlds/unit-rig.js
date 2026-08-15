@@ -947,7 +947,12 @@ function rigCacheKey(manifest, opts) {
 }
 
 export function bakeUnitRig(manifest = {}, opts = {}) {
-  if (opts.clips || opts.rig) return bakeUnitRigUncached(manifest, opts);   // function-bearing overrides don't key
+  // Function-bearing overrides don't key — EXCEPT a `prelit` recolour whose caller declares its
+  // identity via `prelitKey` (the bound-mesh path; bind slots are append-only, so the path names
+  // the bake content). JSON.stringify drops the closure from the key and the path stands in for
+  // it, so the arena's GI-baked roster caches across level resolves instead of re-baking all
+  // seven suits on every mode×map cell (the post-prelit-fleet cold-load regression).
+  if (opts.clips || opts.rig || (opts.prelit && typeof opts.prelitKey !== 'string')) return bakeUnitRigUncached(manifest, opts);
   const key = rigCacheKey(manifest, opts);
   let baked = RIG_CACHE.get(key);
   if (baked) {
@@ -960,7 +965,7 @@ export function bakeUnitRig(manifest = {}, opts = {}) {
   return { ...baked, clips: { ...baked.clips }, parts: baked.parts.map((p) => (p ? { ...p } : p)) };
 }
 
-function bakeUnitRigUncached(manifest = {}, { keys = 12, targetH = null, clips = UNIT_CLIPS, rig: rigOverride, frame = false, frameOnly = false, pose = null, aim = null, swings = null, dodges = null, space = false, aimArms = null, weldOffHand = false, material = null, contrast = null, ao = null, shade = null } = {}) {
+function bakeUnitRigUncached(manifest = {}, { keys = 12, targetH = null, clips = UNIT_CLIPS, rig: rigOverride, frame = false, frameOnly = false, pose = null, aim = null, swings = null, dodges = null, space = false, aimArms = null, weldOffHand = false, material = null, contrast = null, ao = null, shade = null, light = null, prelit = null, noWeapons = false } = {}) {
   // pose (posing studio): HOLD a single authored DOF instead of the gait shelf —
   // every clip becomes this static pose, so an ambient clock world displays the suit
   // frozen in it. The clean surface for authoring a pose from scratch (no aim lock, no
@@ -1116,7 +1121,12 @@ function bakeUnitRigUncached(manifest = {}, { keys = 12, targetH = null, clips =
     clips = { ...clips, ...add };
   }
   const A = rotZdeg(-facingYaw(manifest.facing));   // suit → rig frame
-  const { faces, placements } = lowerAssemblerBuild(manifest);
+  // UNSHADED export (interchange.plan.md I5): `light` is FLAT_LIGHT (ambient 1 / diffuse 0),
+  // threaded through the assembler's per-part bake so every armor face lowers at raw livery
+  // albedo — no Lambert directional term. null (the universal case) → WORKBENCH_LIGHT default in
+  // walkAssembler, byte-identical. The suit's own baked darkening passes (ao / shade / contrast /
+  // material) are additionally forced off by the caller (world-scene unitRef path) when unshaded.
+  const { faces, placements } = lowerAssemblerBuild(manifest, light ? { light } : {});
   if (!faces.length) throw new Error('bakeUnitRig: unit lowered to no faces');
 
   // Group rig-frame faces per bone through the station map. A bone name outside
@@ -1320,7 +1330,13 @@ function bakeUnitRigUncached(manifest = {}, { keys = 12, targetH = null, clips =
       shieldBones.push({ id: 'shield', synthetic: true, rides: 'forearmL', hinge: false, pivot: [elbowL.x, elbowL.y, elbowL.z] });
     } else boneFaces.delete('shield');
   }
-  const boneList = [...UNIT_BONES, ...handBones, ...skirtBones, ...capBones, ...offArmBones, ...weaponBones, ...shieldBones];
+  // noWeapons (skin/livery previews): drop the synthetic weapon_<tag> + shield riders so the bake
+  // reads as the bare suit — the paint, not the gun. The buckets are held-in-hand/off-arm riders, so
+  // excluding them from boneList leaves the body (and the hands) untouched; the prelit transfer still
+  // lands on every body face (the posMap's weapon colours just go unqueried). Gated → off = untouched.
+  const weaponRiders = noWeapons ? [] : weaponBones;
+  const shieldRiders = noWeapons ? [] : shieldBones;
+  const boneList = [...UNIT_BONES, ...handBones, ...skirtBones, ...capBones, ...offArmBones, ...weaponRiders, ...shieldRiders];
 
   // Generated inner frame (opt-in): manji joint spheres + bone links, already
   // in the rig frame (joints are), merged into the bone buckets before
@@ -1469,6 +1485,17 @@ function bakeUnitRigUncached(manifest = {}, { keys = 12, targetH = null, clips =
       }
     }
   }
+
+  // prelit (prelit-figure.plan.md P0): swap the rig's rest-face colours for externally
+  // baked GI colours right before packing. The callback receives the per-bone normFaces
+  // (final suit units, one array per boneList entry) and mutates each face's fill/cornerFills
+  // in place; faceListToMesh + packRigMesh then pack the baked colours exactly as they pack
+  // the vexar ones — nothing downstream changes. Runs AFTER ao/shade by intent (a GI bake
+  // already carries its own occlusion). Gated → absent = byte-identical bake.
+  // `s` (the targetH height-scale, 1 when native) is handed over so the transfer can undo it
+  // before keying — the baked posMap lives in NATIVE space, but normFaces here are already
+  // scaled by targetH (the arena normalizes combatants to 24u), which otherwise misses 100%.
+  if (typeof prelit === 'function') prelit(normFaces, boneList, s);
 
   const parts = boneList.map((b, bi) => {
     const fs = normFaces[bi];

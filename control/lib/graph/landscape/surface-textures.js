@@ -458,6 +458,29 @@ const ROCK = {
   'rock-mossy':   { base: [150, 150, 138], baseFreq: 5, amp: 58, crackFreq: 7, crackWidth: 0.05, crackDepth: 0.5, moss: [70, 96, 54], mossFreq: 3, mossAmt: 0.5, seed: 29 },   // damp rock with moss
 };
 
+// Golden cliff sandstone — strata bands + vertical weather-streaks, low-contrast macro so
+// the world-repeat hides. A FAMILY (stone-wall doctrine): one structural DNA, four seeds.
+// 'rock-sandstone' is the standalone tile; the -a..d variants exist to be MIXED per
+// tile-repeat region (terrain's ground channel rotates them via the family registry) so a
+// large cliff face never shows the same patch twice. Bands share phase across seeds, so
+// strata read continuous across a variant switch.
+const SANDSTONE_DNA = { base: [196, 162, 106], anisoX: 20, anisoY: 5, octaves: 6, amp: 38, bands: 7, bandAmp: 8, crackFreq: 14, crackWidth: 0.025, crackDepth: 0.38 };
+const SANDSTONE_SEEDS = [['a', 57], ['b', 131], ['c', 289], ['d', 411]];
+const SANDSTONE = {
+  'rock-sandstone': { ...SANDSTONE_DNA, seed: 57 },
+  ...Object.fromEntries(SANDSTONE_SEEDS.map(([suf, seed]) => [`rock-sandstone-${suf}`, { ...SANDSTONE_DNA, seed }])),
+};
+
+// Snowbound crag — cold pale rock with ridged relief and dark fissures where the stone
+// shows through the snow. Same family doctrine as sandstone: one DNA, four seeds, mixed
+// per tile-repeat region by the terrain ground channel.
+const SNOWCRAG_DNA = { base: [198, 205, 214], baseFreq: 4, octaves: 6, amp: 58, ridged: 0.55, crackFreq: 7, crackWidth: 0.045, crackDepth: 0.42 };
+const SNOWCRAG_SEEDS = [['a', 23], ['b', 97], ['c', 211], ['d', 349]];
+const SNOWCRAG = {
+  'rock-snowcrag': { ...SNOWCRAG_DNA, seed: 23 },
+  ...Object.fromEntries(SNOWCRAG_SEEDS.map(([suf, seed]) => [`rock-snowcrag-${suf}`, { ...SNOWCRAG_DNA, seed }])),
+};
+
 // Dressed stone (slate, granite) — coloured stones for floors / castle interiors. Carry
 // their own characteristic COLOUR, so apply over a neutral/light face fill (not the warm
 // cave fill) to keep the hue. Same rockPng generator; slate = low-contrast cool cleavage,
@@ -861,6 +884,8 @@ const GENERATORS = {
   ...Object.fromEntries(Object.entries(CLAY).map(([k, cfg]) => [k, () => clayTilePng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(GRASS).map(([k, cfg]) => [k, () => grassPng(cfg, { size: 128, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(ROCK).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(SANDSTONE).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(SNOWCRAG).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(SLATE).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(SLATE_RIVEN).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(GRANITE).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
@@ -897,6 +922,8 @@ export const SURFACE_TILING = {
   // Rock/cave tiles are isotropic-ish (cracks every which way) — small repeat over the
   // cave faces' local UV. Strata is directional but still seamless, so it stays 'repeat'.
   ...Object.fromEntries(Object.keys(ROCK).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(SANDSTONE).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(SNOWCRAG).map((k) => [k, 'repeat'])),
   ...Object.fromEntries(Object.keys(SLATE).map((k) => [k, 'repeat'])),
   ...Object.fromEntries(Object.keys(SLATE_RIVEN).map((k) => [k, 'repeat'])),
   ...Object.fromEntries(Object.keys(GRANITE).map((k) => [k, 'repeat'])),
@@ -927,6 +954,8 @@ export const TEXTURE_FAMILIES = {
   ...Object.fromEntries(Object.keys(STONE_PALETTES).map((name) => [name, STONE_WALL_SEEDS.map(([suf]) => `${name}-${suf}`)])),
   ...Object.fromEntries(Object.keys(WOOD_PANEL_SPECIES).map((name) => [name, WOOD_PANEL_SEEDS.map(([suf]) => `${name}-${suf}`)])),
   'slate-blend': Object.keys(SLATE),   // variegated slate (grey/purple/green) — a real roofing blend
+  'rock-sandstone': SANDSTONE_SEEDS.map(([suf]) => `rock-sandstone-${suf}`),   // golden cliff rock, mixed per tile-repeat region
+  'rock-snowcrag': SNOWCRAG_SEEDS.map(([suf]) => `rock-snowcrag-${suf}`),      // snowbound crag, mixed per tile-repeat region
 };
 
 /** The rock structural styles available to defineRockTile. */

@@ -70,6 +70,8 @@ Spec-level `style` applies to every chamber/tunnel; per-chamber/per-tunnel field
 - `material` — a finish from the material shelf, per surface (`{ floor?, wall?, ceiling? }`) or one bare value for all three. A value is a shelf name (`gold`, `steel`, `chrome`, `bronze`, `silver`, `copper`, `gunmetal`, `matte`, `plaster`, `stone`, `wood`, `rubber`, `plastic`, `satin`, `glass`, `neon`, `cel`), a `'#hex'` tint, or `{ preset, …overrides }`. Adds live specular in /world and PBR factors in the .glb. Unknown names throw at mint.
 - `style.tunnel` — `{ base?: '#hex', material? }` defaults for every tunnel.
 
+- `audio` (object) — Optional world AUDIO channel (generic across every base; resolved on the live /world path): { soundtrack?: { beatsRef: '<stored beats ref>' } or an inline beats recipe (compositions loop), sfx?: { beatsRef? | cues?, on? }, footsteps?: true|{ step, jump, land }, wind?: true|{ level, freq }, bindings? (soundtrack channel macros) }. Validated at mint — an unknown beats ref or invalid recipe REFUSES the mint rather than storing a world that fails to render. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).
+
 ## Lighting
 
 - `ambient` (default 0.2), `tint` ([r,g,b] multipliers, warm by default).

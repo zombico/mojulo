@@ -65,7 +65,8 @@ export function bakeSkinOntoFaces(faces, opts = {}) {
  * @param {object} opts  { title, skin?: { data,width,height,channels } }
  */
 export function assembleManjiTreeWorld(manifest, opts = {}) {
-  const light = WORKBENCH_LIGHT;
+  // FLAT_LIGHT under unshaded export (opts.light); absent → WORKBENCH_LIGHT (byte-identical).
+  const light = opts.light || WORKBENCH_LIGHT;
   const lathes = resolveManjiTreeLathes(manifest);
   let faces = lowerObjectFaces({ lathes }, light);
   if (opts.skin && faces.length) {

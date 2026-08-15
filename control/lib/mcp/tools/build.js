@@ -90,7 +90,7 @@ export function registerBuildTools() {
       'Reset the builder session for this MCP connection so the next build tool call starts a fresh bot from scratch. Use when the user wants to build a second bot in the same session, or to discard in-progress configuration.',
     inputSchema: { type: 'object', properties: {} },
     handler: async (_input, mcpContext) => {
-      resetBuilderSession(mcpContext.mcpSessionId);
+      await resetBuilderSession(mcpContext.mcpSessionId, mcpContext.userId);
       return { message: 'Builder session reset. The next build tool call will start a new bot.' };
     },
   });

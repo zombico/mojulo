@@ -28,6 +28,7 @@ import { renderFigureWorldFrames } from '@/lib/graph/polygonizer/figure-render';
 import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/worlds/world-kinds';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
+import { FLAT_LIGHT } from '@/lib/graph/polygonizer/vexar';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 
@@ -41,6 +42,21 @@ export const WALK_KINDS = new Set([
   ...Object.keys(WORLD_KINDS).filter((k) => WORLD_KINDS[k].walk),
   ...(ROOM_FALLBACK.walk ? ['room'] : []),
 ]);
+
+// ── prelit posMap LRU (CACHE, not persistence — same discipline as unit-rig's RIG_CACHE) ──────
+// A prelit figure's position→colour map is a pure read of its bound GLB (append-only slot, so
+// the path names the content). One entry per bound suit; the arena fleet is 7, so 16 is roomy.
+// Loader fns arrive as arguments (they're lazy-imported at the one call site).
+const POSMAP_CACHE = new Map();
+const POSMAP_CACHE_MAX = 16;
+function posMapFor(path, readBoundMeshFaces, buildPosMap) {
+  let m = POSMAP_CACHE.get(path);
+  if (m) { POSMAP_CACHE.delete(path); POSMAP_CACHE.set(path, m); return m; }   // LRU touch
+  m = buildPosMap(readBoundMeshFaces(path));
+  POSMAP_CACHE.set(path, m);
+  if (POSMAP_CACHE.size > POSMAP_CACHE_MAX) POSMAP_CACHE.delete(POSMAP_CACHE.keys().next().value);
+  return m;
+}
 
 /**
  * resolveWorldScene(sketch) → { payload, kind }
@@ -86,6 +102,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     } catch (err) { console.error('mobile-suit pack absent — ?livery ignored:', err?.message); }
   }
 
+  // UNSHADED (flat-albedo) export mode (interchange.plan.md I5 blender leg): resolve the
+  // world carrying RAW ALBEDO — no Lambert directional shading, no ambient occlusion, no
+  // procedural-material/weathering darkening — as a clean base for external GI baking
+  // (Blender). The single mechanism is FLAT_LIGHT (vexar: ambient 1 / diffuse 0 ⇒ litFactor
+  // ≡ 1), threaded onto `ctx.light` so object-kind assemblers shade flat; the material / AO /
+  // weathering darkening passes below are additionally SKIPPED. Absent `viewOpts.unshaded`
+  // (the universal case) ⇒ every guard below is inert and every output byte is identical.
+  const unshaded = viewOpts.unshaded === true;
   const desc = WORLD_KINDS[kind] ?? ROOM_FALLBACK;
   const ctx = {
     title: sketch.title || sketch.manifest.title || desc.title,
@@ -95,6 +119,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     view: viewOpts.view,
     render: viewOpts.render,
     ref: sketch.ref,
+    // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
+    // its own default key (WORKBENCH_LIGHT etc.), so the shaded path is byte-identical.
+    light: unshaded ? FLAT_LIGHT : undefined,
+    // Kinds that shade their OWN faces (fractal-city) read this to emit RAW ALBEDO for a clean
+    // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
+    unshaded,
   };
   const payload = await desc.resolve(manifest, ctx);
 
@@ -111,12 +141,47 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // meshRef (interchange.plan.md I3 — the bind-back door): a figures-map entry may reference a
+  // sketch carrying a BOUND external mesh (bind_mesh_render — e.g. an export_model .glb refined
+  // in Blender and bound back). The GLB is lowered HERE, server-side, to the standard face-list
+  // currency (scene-gltf-read.js: indexed/soup triangles → padded [a,b,c,c] quads, COLOR_0 /
+  // baseColor → fill/cornerFills, node TRS applied, y-up→z-up), so every consumer (svg / scene /
+  // world / export) inherits the mesh with ZERO emitted-page changes — no runtime GLB loader
+  // ships. Static scenery, not a body (re-rigging imported meshes is deferred, per the plan):
+  // the entry's `transform` ({ pos, rotZ, scale }) bakes into the corners at resolve time, and
+  // the entity-body loop below skips these entries. Runs BEFORE the material/AO/texture channels
+  // so they see the decoded faces. The recipe stores only the ref; the decode is LRU-memoized
+  // per bound file. No meshRef entries ⇒ every existing payload is untouched.
+  if (payload && sketch.manifest.figures && typeof sketch.manifest.figures === 'object') {
+    for (const [name, rawSpec] of Object.entries(sketch.manifest.figures)) {
+      if (!rawSpec || typeof rawSpec !== 'object' || typeof rawSpec.meshRef !== 'string') continue;
+      const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+      const src = SketchRepository.getByRef(rawSpec.meshRef);
+      if (!src) throw new Error(`figures.${name}: meshRef '${rawSpec.meshRef}' is not a stored sketch`);
+      const { latestBoundMesh } = await import('@/lib/graph/scene/mesh-store.js');
+      const bound = latestBoundMesh(src.ref);
+      if (!bound) {
+        throw new Error(`figures.${name}: sketch '${rawSpec.meshRef}' has no bound mesh — bind one first via bind_mesh_render`);
+      }
+      const { readBoundMeshFaces } = await import('@/lib/graph/scene/scene-gltf-read.js');
+      const meshFaces = readBoundMeshFaces(bound.path, { transform: rawSpec.transform, group: `mesh:${name}` });
+      // `singleSide: true` on the placement renders the bound mesh FRONT-faces-only in the live
+      // World (scene-three) — a closed solid (a baked, interior-culled statue) shows the same
+      // silhouette at half the fragment cost. Opt-in per placement: a bound mesh with inconsistent
+      // winding would drop faces, so the operator asserts the mesh is a clean solid.
+      const tagged = rawSpec.singleSide === true ? meshFaces.map((f) => ({ ...f, singleSide: true })) : meshFaces;
+      payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...tagged];
+    }
+  }
+
   // generic, opt-in procedural VERTEX-COLOUR MATERIALS (materials/procedural-material.js): any face
   // carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed? }`) is tessellated
   // and vertex-coloured through the layered material system (top-lit ramp + brushed cloud + weathering)
   // — the texture-free Wii-era metal look. Runs BEFORE the AO bake and texture collection so those
   // channels see the expanded faces. Absent `material` on every face ⇒ the list is returned untouched.
-  if (payload && Array.isArray(payload.faces) && payload.faces.length) {
+  // UNSHADED skips this: the material system's top-lit ramp + brushed cloud + weathering
+  // are baked DARKENING, so a flat-albedo export leaves faces at their base tint.
+  if (payload && !unshaded && Array.isArray(payload.faces) && payload.faces.length) {
     payload.faces = resolveFaceMaterials(payload.faces);
   }
 
@@ -130,8 +195,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (live /world, PNG/MP4 bakes, .glb export) inherits it. Interior kinds default it ON via
   // their registry descriptor's `ao` field (renderer-convergence 1c) — a manifest `ao: false`
   // always wins. Otherwise additive; absent ⇒ untouched.
+  // UNSHADED forces NO occlusion bake: ambient occlusion is a second baked darkening term,
+  // exactly what a flat-albedo base must omit (it defaults ON for interior kinds via desc.ao).
   const aoSetting = sketch.manifest.ao ?? desc.ao;
-  if (payload && aoSetting && Array.isArray(payload.faces) && payload.faces.length) {
+  if (payload && !unshaded && aoSetting && Array.isArray(payload.faces) && payload.faces.length) {
     payload.ao = typeof aoSetting === 'object' ? aoSetting : {};
   }
 
@@ -296,6 +363,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.figures = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
+        // meshRef entries were consumed by the bind-back block above (static
+        // scenery lowered into payload.faces — not an entity body).
+        if (typeof rawSpec.meshRef === 'string') continue;
         // figureRef (figure-emotes.plan.md): a figures-map entry may reference a STORED
         // kind:'figure' sketch instead of re-declaring the body — the entry inherits the
         // recipe's pose/proto/garment/motion and its own fields override. This is how a
@@ -332,7 +402,32 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             throw new Error(`figures.${name}: unitRef '${rawSpec.unitRef}' is not a stored assembler unit`);
           }
           const { bakeUnitRig } = await import('@/lib/graph/worlds/unit-rig.js');
+          // prelit (prelit-figure.plan.md P1): a unitRef figure may carry `prelit: '<ref>'`
+          // naming a mesh-store binding whose GLB is a GI-baked TRANSFER bake of THIS suit's
+          // rest faces (offline, via the mobile-suit pack's scripts/spike-prelit-suit.mjs --bind). We read it, build the
+          // quantised position->colour map, and hand bakeUnitRig a recolour step that swaps the
+          // rig's rest-face vexar colours for the baked GI colours before packing — so a
+          // premium-lit suit WALKS (the moving twin of the meshRef statue). Colours come from the
+          // binding, not the recipe (bound-derived-artifact posture, same as meshRef/giBake).
+          // Absent → prelitFn is null and the bake is byte-identical (null skips the hook + keys the cache).
+          let prelitFn = null, prelitKey = null;
+          if (typeof rawSpec.prelit === 'string') {
+            const { latestBoundMesh } = await import('@/lib/graph/scene/mesh-store.js');
+            const bound = latestBoundMesh(rawSpec.prelit);
+            if (!bound) throw new Error(`figures.${name}: prelit '${rawSpec.prelit}' has no bound mesh — bake+bind one first (spike-prelit-suit.mjs --bind)`);
+            const { readBoundMeshFaces } = await import('@/lib/graph/scene/scene-gltf-read.js');
+            const { buildPosMap, recolourNormFaces } = await import('@/lib/graph/worlds/prelit-transfer.js');
+            // prelitKey lets bakeUnitRig CACHE this bake (bind slots are append-only, so the
+            // path names the bake content — a re-bind mints mesh-<n+1>.glb and re-keys). The
+            // posMap build is LAZY (a rig-cache hit never touches the GLB) and memoized per
+            // path, so a cache miss under different bake opts (space clips, a preview card)
+            // re-reads nothing.
+            prelitKey = bound.path;
+            prelitFn = (normFaces, _boneList, scale) => { recolourNormFaces(normFaces, posMapFor(bound.path, readBoundMeshFaces, buildPosMap), scale); };
+          }
           const baked = bakeUnitRig(src.manifest, {
+            prelit: prelitFn,
+            prelitKey,
             keys: rawSpec.keys || 12,
             targetH: Number.isFinite(rawSpec.targetH) ? rawSpec.targetH : null,
             frame: rawSpec.frame === true || (rawSpec.frame && typeof rawSpec.frame === 'object') ? rawSpec.frame : false,
@@ -366,6 +461,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             // the chest so it holds a constant shape and turns only with the torso,
             // instead of being posed by shL/elbowL/aim/injection.
             weldOffHand: rawSpec.weldOffHand === true,
+            // noWeapons (skin/livery previews): drop the weapon + shield riders so the
+            // bake reads as the bare suit — the paint, not the gun. Body/prelit untouched.
+            noWeapons: rawSpec.noWeapons === true,
             // material (specular finish): a uniform clear-coat over every body panel so
             // the suit catches a live highlight (material-response specular channel). A
             // material-shelf ref (preset name / '#hex' / object). Diffuse-preserving, so
@@ -385,6 +483,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             // sibling of `ao` — fixed per-bone gradient bands (bicep/thigh tops, abdomen).
             // `true` or { strength, bands }; absent → byte-identical bake.
             shade: rawSpec.shade != null ? rawSpec.shade : null,
+            // UNSHADED (flat-albedo export): FLAT_LIGHT threads through the rig's own
+            // lowerAssemblerBuild bake (unit-rig → workbench-assembler), and every baked
+            // darkening pass is forced OFF, so the suit exports at raw livery albedo. The
+            // keys are added ONLY when unshaded, so the default-path opts object — and thus
+            // the RIG_CACHE key — is byte-identical.
+            ...(unshaded ? { light: ctx.light, ao: false, shade: false, contrast: null, material: null } : {}),
           });
           // previewClip (eyes-gate): alias a baked maneuver clip onto `forward`
           // so an ambient clock world HOLDS that pose — the dodge shapes are
@@ -443,6 +547,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = renderFigureWorldFrames(spec, spec.frames || 24).frames;
         }
       }
+      // I4 (interchange.plan.md): record each figures-map entry's manifest-level body
+      // source so the GLB export can stamp `moj:body` extras on entity nodes. Payload-only
+      // metadata — emitThreeWorld destructures known keys and ignores this, so no emitted
+      // page changes; no ref-sourced figures ⇒ field absent.
+      const figureSources = {};
+      for (const [name, rawSpec] of Object.entries(figs)) {
+        if (!rawSpec || typeof rawSpec !== 'object') continue;
+        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef']
+          .find((k) => typeof rawSpec[k] === 'string');
+        if (refKey) figureSources[name] = `${refKey}:${rawSpec[refKey]}`;
+      }
+      if (Object.keys(figureSources).length) payload.figureSources = figureSources;
     }
     // GLYPH bodies (game-ui-language.plan.md, U1): body:{type:'glyph', form, tint?, scale?}
     // lowers here to a single-frame figure-frames body + a generated `glyph:<form>` clip — the
@@ -458,7 +574,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // analog of the face `material` channel. `weathering: true` (or `{ amt, seed }`) modulates every rig
   // figure's baked per-vertex colour buffers by the rust/grime field — livery colours stay the base,
   // weathering reads on top. Runs AFTER figures are baked (parts exist). Absent ⇒ figures untouched.
-  if (payload && sketch.manifest.weathering && payload.figures && typeof payload.figures === 'object') {
+  // UNSHADED skips this: weathering modulates baked figure colours by a rust/grime DARKENING
+  // field — a flat-albedo export keeps the base livery.
+  if (payload && !unshaded && sketch.manifest.weathering && payload.figures && typeof payload.figures === 'object') {
     const w = sketch.manifest.weathering;
     const opts = w && typeof w === 'object' ? w : {};
     for (const key of Object.keys(payload.figures)) {
@@ -573,5 +691,26 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.game = normalizeLevelContract(sketch.manifest.game);
   }
 
+  // UNSHADED honesty (interchange.plan.md I5): FLAT_LIGHT only reaches the kinds that shade
+  // through the ctx.light seam onto the vexar Lambert solve (workbench / assembler / manji-tree,
+  // and unitRef rig figures inside a controllable world). Two families are NOT flattened: the
+  // environment kinds (rooms / suites / cities / floorplans / dungeons) render through
+  // scene-css3d's baked, camera-independent traced-diffusion model that FLAT_LIGHT can't touch;
+  // and the other object studies (figure / carved-solid / css3d-turntable, science views) bake
+  // their own lighting internally rather than through ctx.light. For all of these, unshaded is a
+  // silent no-op (deliberately not chased — a separate, larger change, out of scope here), so
+  // surface a non-fatal note. Payload-only metadata — emitThreeWorld destructures known keys and
+  // ignores this, so no emitted page changes; absent unshaded ⇒ unset.
+  if (unshaded && payload && !UNSHADED_LAMBERT_KINDS.has(kind)) {
+    payload.unshadedWarning = `kind '${kind}' does not shade through the vexar FLAT_LIGHT seam (it bakes environment/self lighting), so unshaded export did not flatten it — the exported base still carries baked lighting.`;
+  }
+
   return { payload, kind };
 }
+
+// The kinds whose faces shade through the ctx.light → vexar Lambert solve (lowerObjectFaces /
+// bakeUnitRig), which FLAT_LIGHT genuinely neutralizes to raw albedo. Every other kind bakes its
+// lighting elsewhere (scene-css3d traced diffusion, or an internal per-kind solve) that FLAT_LIGHT
+// can't reach — see the unshadedWarning above. `fractal-city` honours `ctx.unshaded` in its own
+// assembler (plain lighting + FLAT_LIGHT, no diffusion/moonlight/shadows), so it flattens too.
+const UNSHADED_LAMBERT_KINDS = new Set(['workbench', 'assembler', 'manji-tree', 'controllable', 'fractal-city']);

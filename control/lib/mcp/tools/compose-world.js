@@ -19,6 +19,9 @@
 
 import { registerTool } from '@/lib/mcp/server';
 import { resolveTheme, listThemes } from '@/lib/graph/theme-registry';
+import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { mintFractalCity, createFractalCityHandler } from '@/lib/mcp/tools/scene-city';
 import { cityThemeAdapter } from '@/lib/graph/city/fractal-city';
 import { mintTransportationHub, createTransportationHubHandler } from '@/lib/mcp/tools/scene-transport-hub';
@@ -90,6 +93,23 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   }
   const pack = resolveTheme(theme);                    // throws (with known ids) on miss
   const slots = deepMerge(pack.slots || {}, overrides || {});
+  // The `audio` channel is KIND-GENERIC — the world route resolves manifest.audio for
+  // every registry kind (world-scene.js) — but only the city/transport-hub mints
+  // whitelist it, so a documented overrides.audio silently vanished on every other
+  // base (0813 persona sims). Validate it eagerly for ALL bases — a bad beats ref or
+  // recipe must refuse the mint here, not 500 the stored world link — then stamp it
+  // onto the minted manifest below when the base's own whitelist didn't carry it.
+  let audio;
+  if (slots.audio !== undefined) {
+    if (!slots.audio || typeof slots.audio !== 'object' || Array.isArray(slots.audio)) {
+      throw new Error(
+        `compose_world: overrides.audio must be an object ({ soundtrack?, sfx?, footsteps?, wind?, bindings? }); `
+          + `got ${JSON.stringify(slots.audio)}. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).`,
+      );
+    }
+    resolveWorldAudio(slots.audio); // throws per-channel (unknown beats ref, invalid recipe, dangling cue)
+    audio = slots.audio;
+  }
   const params = b.adapt(slots);
   // Only spread top-level fields the caller actually set, so an
   // overrides-supplied seed/title isn't clobbered by `undefined`.
@@ -99,12 +119,59 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   if (ref !== undefined) top.ref = ref;
   if (folderRef !== undefined) top.folderRef = folderRef;
   const result = b.mint({ ...params, ...top });
-  return { ...result, base, theme };
+  if (audio && result && result.ref && !(result.recipe && result.recipe.audio)) {
+    const stored = SketchRepository.getByRef(result.ref);
+    if (stored) {
+      SketchRepository.update({ ref: result.ref, manifest: { ...stored.manifest, audio } });
+      if (result.recipe && typeof result.recipe === 'object') result.recipe.audio = audio;
+    }
+  }
+  // Silent-swallow guard (0813 first-contact reports): every mint destructures a
+  // parameter whitelist, so an override key the base doesn't know — or a value that
+  // fails its validation — used to vanish without a trace. Surface a soft note for
+  // any override key that didn't land in the stored recipe, minus keys compose_world
+  // consumes structurally. Advisory only: some bases legitimately lower a key into
+  // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
+  // parameter manual, never a refusal.
+  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio']);
+  const ignored = Object.keys(overrides || {}).filter(
+    (k) => !STRUCTURAL_KEYS.has(k) && !(result.recipe && typeof result.recipe === 'object' && k in result.recipe),
+  );
+  return {
+    ...result, base, theme,
+    ...(ignored.length ? {
+      note: `override key(s) not reflected in the stored recipe: ${ignored.join(', ')} — either consumed `
+        + `structurally, invalid for this base, or not supported by it. Parameter manual: `
+        + `get_view_vocab({ id: '${base}' }).`,
+    } : {}),
+  };
 }
 
 export async function composeWorldHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('compose_world requires an object');
-  return composeWorld(input);
+  const result = composeWorld(input);
+  // R1 validator half (0813 persona sims): the recipe layer was permissive where the
+  // renderer is not — an undocumented fog:{color:'#hex'} stored with ok:true and the
+  // world link opened HTTP 500 (color.map is not a function). `ok:true` must mean the
+  // link opens: resolve the STORED sketch through the world registry — the same path
+  // /world runs, fog/audio/game channels included — before answering, and unmint on
+  // failure so no 500-rendering recipe survives a mint. The full override-contract
+  // reconciliation (flat vs slotted, overrides-beat-theme) is staked separately.
+  if (result && result.ref) {
+    const stored = SketchRepository.getByRef(result.ref);
+    if (stored) {
+      try {
+        await resolveWorldScene(stored);
+      } catch (err) {
+        SketchRepository.deleteByRef(result.ref);
+        throw new Error(
+          `compose_world: the minted recipe failed render validation and was NOT kept — ${err.message}. `
+            + `Parameter manual: get_view_vocab({ id: '${typeof input.base === 'string' ? input.base : 'city'}' }).`,
+        );
+      }
+    }
+  }
+  return result;
 }
 
 export async function listWorldThemesHandler(input) {

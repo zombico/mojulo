@@ -357,6 +357,20 @@ function makeCamera(view) {
   return { CAM, project };
 }
 
+/**
+ * The /svg studio orbit camera as a World-payload camera (interchange.plan.md I2 —
+ * the figure world/export form). Same rig makeCamera builds: azimuth around the
+ * figure at FIG_R/FIG_H, 30° fov. NOTE the /svg path additionally MIRRORS screen-x
+ * (the photo convention); a 3D viewport cannot, so left/right read un-mirrored there.
+ */
+export function figureWorldCamera(view) {
+  const a = (viewAzimuth(view) * Math.PI) / 180;
+  return {
+    name: 'studio',
+    worldFraming: { cameraPosition: [FIG_R * Math.sin(a), FIG_R * Math.cos(a), FIG_H], lookAt: LOOK, horizontalFov: 30, pictureCenter: [280, 380] },
+  };
+}
+
 const newell = (pts) => {
   let nx = 0, ny = 0, nz = 0;
   for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }

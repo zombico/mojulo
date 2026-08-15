@@ -145,7 +145,7 @@ function envelopeRoof(footprint, topZ, o) {
 function groundPlaneFaces(footprint, z, o) {
   const m = o.groundMargin ?? 30;
   const { x0, x1, y0, y1 } = footprint;
-  return [{ corners: [[x0 - m, y0 - m, z], [x1 + m, y0 - m, z], [x1 + m, y1 + m, z], [x0 - m, y1 + m, z]], fill: o.groundTint || '#3a4632', doubleSided: true, ground: true }];
+  return [{ corners: [[x0 - m, y0 - m, z], [x1 + m, y0 - m, z], [x1 + m, y1 + m, z], [x0 - m, y1 + m, z]], fill: o.groundTint || '#3a4632', doubleSided: true, outNormal: [0, 0, 1], ground: true }];
 }
 
 // Exterior orbit cameras: frame the whole massed house + roof from outside & above.
@@ -409,7 +409,7 @@ function placeEntryDoor(graph, o) {
 // ── STRUCTURIZE: extrude wall runs into thick boxes (the bar's move) ─────────
 function boxFaces(x0, x1, y0, y1, z0, z1, tint, light, { top = true, bottom = false } = {}) {
   const f = [];
-  const quad = (corners, normal) => f.push({ corners, fill: shadeHex(tint, normal, light), doubleSided: true });
+  const quad = (corners, normal) => f.push({ corners, fill: shadeHex(tint, normal, light), doubleSided: true, outNormal: normal });
   quad([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], [1, 0, 0]);   // +x
   quad([[x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1]], [-1, 0, 0]);  // -x
   quad([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], [0, 1, 0]);   // +y
@@ -445,7 +445,7 @@ function floorFinishFaces(rect, style, baseZ, o, holes = []) {
   let rects = [{ x0: rect.x, x1: rect.x + rect.w, y0: rect.y, y1: rect.y + rect.h }];
   for (const h of holes) rects = rects.flatMap((r) => subtractRect(r, h));
   const N = [0, 0, 1], faces = [];
-  const quad = (x0, x1, y0, y1, zz, tint) => { if (x1 - x0 > Q && y1 - y0 > Q) faces.push({ corners: [[x0, y0, zz], [x1, y0, zz], [x1, y1, zz], [x0, y1, zz]], fill: shadeHex(tint, N, o.light), group: 'floor:skin' }); };
+  const quad = (x0, x1, y0, y1, zz, tint) => { if (x1 - x0 > Q && y1 - y0 > Q) faces.push({ corners: [[x0, y0, zz], [x1, y0, zz], [x1, y1, zz], [x0, y1, zz]], fill: shadeHex(tint, N, o.light), outNormal: N, group: 'floor:skin' }); };
   for (const r of rects) {
     if (style === 'marble') {
       const base = o.marbleTint || FLOORPLAN_DEFAULTS.marbleTint, seam = scaleHex(base, 0.88);
@@ -485,7 +485,7 @@ function ceilingFaces(fp, z, tint, light, holes = []) {
   const fill = shadeHex(tint, normal, light);
   return rects.map((r) => ({
     corners: [[r.x0, r.y1, z], [r.x1, r.y1, z], [r.x1, r.y0, z], [r.x0, r.y0, z]],
-    fill, doubleSided: true, group: 'shell:ceiling', normal,
+    fill, doubleSided: true, group: 'shell:ceiling', normal, outNormal: normal,
   }));
 }
 
@@ -799,7 +799,7 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
     const corners = run.orientation === 'h'
       ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
       : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
-    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true });
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N });
   };
   // EXPOSED BRICK — a brick field + a recessed running-bond mortar grid (coarser unit than
   // the facade so the interior face doesn't explode in count). Same material inside and out.
@@ -859,7 +859,7 @@ function facadeDecor(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
     const corners = run.orientation === 'h'
       ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
       : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
-    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, group: 'facade:skin' });
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, group: 'facade:skin' });
   };
   rect(s0, s1, baseZ, baseZ + 1.05, water, 0.03);                  // water table / plinth
   const course = 0.62;
@@ -957,7 +957,7 @@ function brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
     const corners = run.orientation === 'h'
       ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
       : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
-    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, group: 'facade:skin' });
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, group: 'facade:skin' });
   };
   const plinthTop = baseZ + 1.05;
   rect(s0, s1, baseZ, plinthTop, o.facadeWaterTableTint || FLOORPLAN_DEFAULTS.facadeWaterTableTint, 0.05);  // water table
@@ -995,7 +995,7 @@ function tofuFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
     const corners = run.orientation === 'h'
       ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
       : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
-    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, group: 'facade:skin' });
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, group: 'facade:skin' });
   };
   rect(s0, s1, baseZ, baseZ + H, body, 0.03);                       // clean planar body
   rect(s0, s1, baseZ + 0.12, baseZ + 0.34, reveal, 0.05);           // floor-line reveal (storey base shadow groove)
@@ -1580,7 +1580,7 @@ function railBeam(p0, p1, halfW, halfH, tint, light) {
   const C = (p, ds, du) => [p[0] + s[0] * ds + u[0] * du, p[1] + s[1] * ds + u[1] * du, p[2] + s[2] * ds + u[2] * du];
   const c = [C(p0, -halfW, -halfH), C(p0, halfW, -halfH), C(p0, halfW, halfH), C(p0, -halfW, halfH),
     C(p1, -halfW, -halfH), C(p1, halfW, -halfH), C(p1, halfW, halfH), C(p1, -halfW, halfH)];
-  const q = (i, j, k, l, n) => ({ corners: [c[i], c[j], c[k], c[l]], fill: shadeHex(tint, n, light), doubleSided: true });
+  const q = (i, j, k, l, n) => ({ corners: [c[i], c[j], c[k], c[l]], fill: shadeHex(tint, n, light), doubleSided: true, outNormal: n });
   return [q(0, 3, 7, 4, [-s[0], -s[1], -s[2]]), q(1, 5, 6, 2, s), q(3, 2, 6, 7, u),
     q(0, 4, 5, 1, [-u[0], -u[1], -u[2]]), q(4, 7, 6, 5, a), q(0, 1, 2, 3, [-a[0], -a[1], -a[2]])];
 }
@@ -1634,7 +1634,7 @@ export function buildStairFlight(spec = {}) {
     // step solid: floor → this tread's top (riser tint on the sides)
     faces.push(...boxFaces(r.x0, r.x1, r.y0, r.y1, baseZ, baseZ + i * rise, o.riserTint, light, { top: false }));
     // the tread surface, a lighter top face
-    faces.push({ corners: [[r.x0, r.y0, baseZ + i * rise], [r.x1, r.y0, baseZ + i * rise], [r.x1, r.y1, baseZ + i * rise], [r.x0, r.y1, baseZ + i * rise]], fill: shadeHex(o.treadTint, [0, 0, 1], light), doubleSided: true });
+    faces.push({ corners: [[r.x0, r.y0, baseZ + i * rise], [r.x1, r.y0, baseZ + i * rise], [r.x1, r.y1, baseZ + i * rise], [r.x0, r.y1, baseZ + i * rise]], fill: shadeHex(o.treadTint, [0, 0, 1], light), doubleSided: true, outNormal: [0, 0, 1] });
   }
   const slot = stepRect(0, runLength);
   // railings: a wall-side handrail and an open-side banister (balusters + newel posts)
@@ -1673,7 +1673,7 @@ export function buildSwitchbackFlight(spec = {}) {
   const tread = (a0, a1, o0, o1, z) => {
     const A = P(a0, o0), B = P(a1, o1);
     const x0 = Math.min(A[0], B[0]), x1 = Math.max(A[0], B[0]), y0 = Math.min(A[1], B[1]), y1 = Math.max(A[1], B[1]);
-    return { corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], fill: shadeHex(o.treadTint, [0, 0, 1], light), doubleSided: true };
+    return { corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], fill: shadeHex(o.treadTint, [0, 0, 1], light), doubleSided: true, outNormal: [0, 0, 1] };
   };
   const faces = [];
   for (let i = 1; i <= m; i += 1) {                           // flight 1: perp [0,w], climbing +dir

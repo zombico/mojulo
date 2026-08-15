@@ -23,7 +23,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo chain reaction",
   },
   "cellular-view": {
-    "hash": "b4e43cd7",
+    "hash": "f90b9ab4",
     "title": "mojulo cell",
   },
   "cherenkov-view": {
@@ -43,7 +43,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo complex function",
   },
   "condo-complex": {
-    "hash": "8d6877e0",
+    "hash": "40439d51",
     "title": "mojulo condo complex",
   },
   "conics-view": {
@@ -87,7 +87,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fission",
   },
   "floorplan": {
-    "hash": "c0bf854c",
+    "hash": "9bbc2737",
     "title": "mojulo house",
   },
   "fluid-view": {
@@ -119,7 +119,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo lightning storm",
   },
   "mechanics-view": {
-    "hash": "7212a4ed",
+    "hash": "d6ec378d",
     "title": "mojulo mechanics",
   },
   "molecule-view": {
@@ -171,11 +171,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo quadratic",
   },
   "reactor-view": {
-    "hash": "82e3e982",
+    "hash": "f6a5e570",
     "title": "mojulo reactor",
   },
   "restaurant": {
-    "hash": "c2728219",
+    "hash": "aba8a851",
     "title": "mojulo restaurant",
   },
   "room": {
@@ -199,7 +199,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo star birth",
   },
   "subway-building": {
-    "hash": "80075b7a",
+    "hash": "c2f33600",
     "title": "mojulo subway",
   },
   "subway-station": {
@@ -251,7 +251,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
 
 exports[`world-scene kinds — per-arm characterization > viewOpts.view forwards into the floorplan arm (pinned: forwarding must survive the refactor) 1`] = `
 {
-  "base": "c0bf854c",
-  "dollhouse": "c0bf854c",
+  "base": "9bbc2737",
+  "dollhouse": "9bbc2737",
 }
 `;

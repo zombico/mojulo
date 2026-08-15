@@ -1398,25 +1398,29 @@ function __aimLocked(ent, W, tr) {
   return false;
 }
 // BOOST GAUGE HUD (mobile-suit boost resource): a translucent minimalist horizontal bar pinned
-// top-middle whose fill tracks the piloted suit's boost/boostMax. Built ONLY when some entity
-// carries a gauge (rule.boostMax, or pilotRule.boostMax on an unpiloted pilotable suit). The fill
-// dims + reddens while the gauge is empty-locked (the "spent" read), ambers when low.
+// bottom-middle whose fill tracks the piloted suit's boost/boostMax (moved off the top 2026-08-13 —
+// the top-center band is reserved for announcements: Mobile Suit Destroyed, match calls). Built
+// ONLY when some entity carries a gauge (rule.boostMax, or pilotRule.boostMax on an unpiloted
+// pilotable suit). The fill dims + reddens while the gauge is empty-locked (the "spent" read),
+// ambers when low. Bottom-center is free in piloted mode: the bottom spectate HUD and this gauge
+// are mutually exclusive (no gauge in spectate), and the weapon/HP cards keep to the right edge.
 let __bg = null;
 const __boostMaxOf = (e) => (e.rule && e.rule.boostMax > 0 ? e.rule.boostMax
   : (e.pilotRule && e.pilotRule.boostMax > 0 ? e.pilotRule.boostMax : 0));
 const __boostEnt = __world.entities.find((e) => __boostMaxOf(e) > 0);
 if (__boostEnt && !__world.spectate) {   // SPECTATE: boost is a pilot resource — no gauge when nobody flies
   const __bgWrap = document.createElement('div');
-  __bgWrap.style.cssText = 'position:absolute;left:50%;top:16px;transform:translateX(-50%);width:240px;height:7px;border-radius:4px;background:rgba(10,18,28,0.32);box-shadow:inset 0 0 0 1px rgba(160,200,232,0.22);overflow:hidden;pointer-events:none;z-index:9';
+  __bgWrap.style.cssText = 'position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:240px;height:7px;border-radius:4px;background:rgba(10,18,28,0.32);box-shadow:inset 0 0 0 1px rgba(160,200,232,0.22);overflow:hidden;pointer-events:none;z-index:9';
   const __bgFill = document.createElement('div');
   __bgFill.style.cssText = 'height:100%;width:100%;background:#7fd4ff;opacity:0.72';
   __bgWrap.appendChild(__bgFill);
   wrap.appendChild(__bgWrap);
   // the OVERHEAT tell: while the gauge is locked (drained, or dumped by a dodge), thrust is dead —
-  // a small red caption under the bar reads it out. Hidden whenever the thruster is live.
+  // a small red caption just above the bar reads it out (inboard of the screen edge, mirroring
+  // the old under-the-bar placement at top). Hidden whenever the thruster is live.
   const __bgLabel = document.createElement('div');
   __bgLabel.textContent = 'OVERHEAT';
-  __bgLabel.style.cssText = 'position:absolute;left:50%;top:27px;transform:translateX(-50%);font:700 10px system-ui,sans-serif;letter-spacing:.14em;color:#ff6b6b;text-shadow:0 1px 3px rgba(0,0,0,.6);display:none;pointer-events:none;z-index:9';
+  __bgLabel.style.cssText = 'position:absolute;left:50%;bottom:27px;transform:translateX(-50%);font:700 10px system-ui,sans-serif;letter-spacing:.14em;color:#ff6b6b;text-shadow:0 1px 3px rgba(0,0,0,.6);display:none;pointer-events:none;z-index:9';
   wrap.appendChild(__bgLabel);
   __bg = { wrap: __bgWrap, fill: __bgFill, label: __bgLabel };
 }
@@ -1598,22 +1602,67 @@ function __updateBoostHud() {
 const __fxSeen = {};   // entity id -> { w, shots } — the weapon + shot count each shooter's fx track
 const __fx = [];
 const __muzzleV = new THREE.Vector3();
+const __beamUpY = new THREE.Vector3(0, 1, 0);   // the cylinder's own axis (+Y), rotated onto the travel dir
+const __beamDir = new THREE.Vector3();
+const __impUpZ = new THREE.Vector3(0, 0, 1);    // +Z → shot dir, for orienting the impact ring/star
 function __fxMat(c) { return new THREE.MeshBasicMaterial({ color: new THREE.Color(c), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }); }
-function __spawnShotFx(shot, from, col, sz) {
+// richer HIT feedback (2026-08-13, operator "add more impact frames so we can see we're hitting"): a
+// landed rifle/vulcan shot pops a CLUSTER at the impact point — a bright core FLASH, an expanding shock
+// RING facing back up the shot, and a radial SPARK STAR in the plane perpendicular to the shot — so a
+// hit reads visually, not just as a dropping number. Deferred to the bolt's arrival, and seeded
+// ONLY by geometry (no Math.random → capture stays byte-identical). Sized by the weapon's fxScale, so a
+// vulcan round sparks small and a rifle bolt hits big.
+function __spawnImpactFx(b, col, sz, dir, at) {
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
+  flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42); flash.raycast = function () {}; flash.visible = false; scene.add(flash);
+  __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.13, 6, 20), __fxMat(col));
+  ring.position.set(b[0], b[1], b[2]);
+  ring.quaternion.setFromUnitVectors(__impUpZ, __beamDir.set(-dir[0], -dir[1], -dir[2]));   // face back up the shot
+  ring.raycast = function () {}; ring.visible = false; scene.add(ring);
+  __fx.push({ obj: ring, born: at, ttl: 0.2, kind: 'shock', base: sz * 0.32 });
+  const N = 7, pts = [];
+  for (let k = 0; k < N; k++) { const ang = k * (Math.PI * 2 / N); pts.push(0, 0, 0, Math.cos(ang), Math.sin(ang), 0); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const star = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: new THREE.Color(col), transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+  star.position.set(b[0], b[1], b[2]);
+  star.quaternion.setFromUnitVectors(__impUpZ, __beamDir.set(dir[0], dir[1], dir[2]));   // star plane ⟂ the shot
+  star.raycast = function () {}; star.visible = false; scene.add(star);
+  __fx.push({ obj: star, born: at, ttl: 0.16, kind: 'shard', base: sz * 0.9 });
+}
+function __spawnShotFx(shot, from, col, sz, range) {
   if (!shot || !from || !shot.to) return;
   const a = from, b = shot.to, born = __world.time;
-  const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a[0], a[1], a[2]), new THREE.Vector3(b[0], b[1], b[2])]);
-  const line = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: new THREE.Color(col), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
-  line.raycast = function () {}; scene.add(line);
-  __fx.push({ obj: line, born: born, ttl: 0.09, kind: 'tracer' });
+  // TRAVELLING BOLT (2026-08-13): a hitscan shot (beam rifle / beam MG / vulcan — the engine resolves
+  // the hit instantly) is drawn as a thin ELONGATED ROD that FLIES from the muzzle to the target over a
+  // brief beat, instead of the old instant full-length tracer line (which read as "just a flash"). The
+  // rod is a slim cylinder aligned to the travel direction — NO spherical bead (operator "less ball,
+  // more rod, no circular effect"). The travel time scales with how far the shot reached vs the weapon's
+  // RANGE, so it is world-scale independent — a full-range shot takes ~beamMaxT, a point-blank one
+  // ~beamMinT. Each weapon's fxColor tints the rod (cyan beams, amber tracers), so it reads as
+  // beam-vs-round by colour. The bazooka never reaches here (to:null; the projectile channel owns it).
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const dist = Math.hypot(dx, dy, dz);
+  if (dist < 0.05) return;   // degenerate (muzzle == target): no bolt, and no zero-vector orientation
+  const beamMinT = 0.045, beamMaxT = 0.26;
+  const rng = (range && range > 0) ? range : dist;
+  const travelT = Math.max(beamMinT, Math.min(beamMaxT, beamMaxT * dist / rng));
+  const dir = [dx / dist, dy / dist, dz / dist];
+  // length scales with the WEAPON (fxScale), NOT the shot distance — so a small head vulcan fires a
+  // small bolt (a distance-driven length made vulcan rounds long streaks; operator 2026-08-13). Capped
+  // at half the gap so a point-blank shot stays short. Rifle ≈ sz·1.6, vulcan ≈ sz·1.6 of a small sz.
+  const rodLen = Math.min(dist * 0.5, sz * 1.6);
+  const rodRad = Math.max(0.2, sz * 0.1);                                 // slim — a rod, not a ball
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(rodRad, rodRad, rodLen, 6, 1), __fxMat(col));
+  rod.quaternion.setFromUnitVectors(__beamUpY, __beamDir.set(dir[0], dir[1], dir[2]));   // +Y → travel dir (fixed for a straight shot)
+  rod.raycast = function () {}; scene.add(rod);
+  __fx.push({ obj: rod, born: born, ttl: travelT, kind: 'beam', p0: a.slice(), p1: b.slice(), dir: dir, len: rodLen, dist: dist });
   const mf = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), __fxMat(col));
   mf.position.set(a[0], a[1], a[2]); mf.scale.setScalar(sz * 0.5); mf.raycast = function () {}; scene.add(mf);
   __fx.push({ obj: mf, born: born, ttl: 0.08, kind: 'flash', base: sz * 0.5 });
-  if (shot.mode === 'core' || shot.mode === 'assist') {
-    const im = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
-    im.position.set(b[0], b[1], b[2]); im.scale.setScalar(sz * 0.4); im.raycast = function () {}; scene.add(im);
-    __fx.push({ obj: im, born: born, ttl: 0.16, kind: 'impact', base: sz });
-  }
+  // the impact CLUSTER is DEFERRED to the bolt's arrival (born + travelT), so the hit lands WHEN the
+  // bolt reaches the target instead of at fire time (each piece stays invisible until then, age < 0 guard).
+  if (shot.mode === 'core' || shot.mode === 'assist') __spawnImpactFx(b, col, sz, dir, born + travelT);
 }
 function __updateFx() {
   // EVERY armed entity's shots spawn fx (the pilot, a fixed armed entity, an AI fire-back suit).
@@ -1638,14 +1687,14 @@ function __updateFx() {
       const bodyMuzzle = __fshow === 'none';
       const body = __bodies[fent.id], rf = body && body.userData && body.userData.rigFig;
       if (rf && rf.muzzle && !bodyMuzzle) { rf.muzzle.getWorldPosition(__muzzleV); from = [__muzzleV.x, __muzzleV.y, __muzzleV.z]; }
-      __spawnShotFx(fent.lastShot, from, col, sz);
+      __spawnShotFx(fent.lastShot, from, col, sz, rec.w.range);
       // DUAL WIELD (muzzleDual): the second gun fires SIMULTANEOUSLY — mirror the muzzle across the
       // body's sagittal plane (normal = the right vector) so the off-hand pistol flashes at its own tip.
       if (from && rec.w.muzzleDual) {
         const __tp = fent.transform.pos, __hh = fent.transform.heading || 0;
         const __rx = Math.sin(__hh), __ry = -Math.cos(__hh);
         const __lat = (from[0] - __tp[0]) * __rx + (from[1] - __tp[1]) * __ry;
-        __spawnShotFx(fent.lastShot, [from[0] - 2 * __lat * __rx, from[1] - 2 * __lat * __ry, from[2]], col, sz);
+        __spawnShotFx(fent.lastShot, [from[0] - 2 * __lat * __rx, from[1] - 2 * __lat * __ry, from[2]], col, sz, rec.w.range);
       }
       rec.shots = s;
     }
@@ -1653,13 +1702,43 @@ function __updateFx() {
   for (let i = __fx.length - 1; i >= 0; i--) {
     const f = __fx[i], age = (__world.time - f.born) / f.ttl;
     if (age >= 1) { scene.remove(f.obj); f.obj.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); __fx.splice(i, 1); continue; }
-    if (f.kind === 'tracer') f.obj.material.opacity = 0.9 * (1 - age);
+    if (age < 0) { f.obj.visible = false; continue; }   // DEFERRED fx (a beam's impact) waits for its born time
+    if (!f.obj.visible) f.obj.visible = true;
+    if (f.kind === 'beam') {
+      // the ROD EMERGES from the muzzle and flies forward: the leading tip travels p0→p1, and the rod's
+      // tail is CLAMPED at the muzzle (never extends behind p0) — so a bolt spawns AT the gun tip, not
+      // trailing out the back (operator 2026-08-13, head vulcan). It grows to full length as it clears
+      // the muzzle, then travels rigid. Orientation is fixed (straight shot); centre + length update.
+      const leadDist = f.dist * age;                    // the leading tip's distance from the muzzle
+      const effLen = Math.min(f.len, leadDist);         // visible length: 0 at the muzzle → full once clear
+      const c = leadDist - effLen * 0.5;                // rod centre, measured from the muzzle along dir
+      f.obj.position.set(f.p0[0] + f.dir[0] * c, f.p0[1] + f.dir[1] * c, f.p0[2] + f.dir[2] * c);
+      f.obj.scale.set(1, f.len > 0 ? effLen / f.len : 1, 1);   // shrink the cylinder to its un-clipped length
+      const fade = age > 0.8 ? (1 - (age - 0.8) / 0.2) : 1;   // a brief guttering as it lands
+      f.obj.material.opacity = 0.9 * fade;
+    }
     else if (f.kind === 'flash') { f.obj.material.opacity = 1 - age; f.obj.scale.setScalar(f.base * (1 + age * 0.6)); }
     else if (f.kind === 'impact') { f.obj.material.opacity = 1 - age; f.obj.scale.setScalar(f.base * (0.3 + age * 1.4)); }
+    // impact CLUSTER (rifle/vulcan hit): a shock RING expands + fades; a radial SPARK STAR flies out + snaps out.
+    else if (f.kind === 'shock') { f.obj.material.opacity = 0.9 * (1 - age); f.obj.scale.setScalar(f.base * (0.3 + age * 1.7)); }
+    else if (f.kind === 'shard') { f.obj.material.opacity = 0.95 * (1 - age * age); f.obj.scale.setScalar(f.base * (0.25 + age * 1.25)); }
     // R14 burst: an expanding shell that carries its OWN base + dim (so it is not coupled to the
     // active hitscan weapon's __fxSz like the shot flash is). dim caps peak opacity — the wide
     // splash shell is translucent (a fireball), the small inner flash near-opaque.
     else if (f.kind === 'burst') { f.obj.material.opacity = (f.dim != null ? f.dim : 1) * (1 - age); f.obj.scale.setScalar(f.base * (0.3 + age * 1.0)); }
+    // suit-death fragment shower: each point flies out along its own velocity and arcs down under
+    // gravity, resting on the ground (z=0), fading out (quicker at the end).
+    else if (f.kind === 'debris') {
+      const t = age * f.ttl, ap = f.obj.geometry.attributes.position;
+      for (let k = 0; k < f.vels.length; k++) {
+        const v = f.vels[k];
+        let z = f.p0[2] + v[2] * t - 0.5 * f.grav * t * t;
+        if (z < 0) z = 0;
+        ap.setXYZ(k, f.p0[0] + v[0] * t, f.p0[1] + v[1] * t, z);
+      }
+      ap.needsUpdate = true;
+      f.obj.material.opacity = 1 - age * age;
+    }
     // spark (melee clash): a glowing mote + line tail on an analytic ballistic arc — head at
     // age·ttl seconds of flight, tail trailing 45ms behind, both floor-clamped, fading linearly.
     else if (f.kind === 'spark') {
@@ -1674,6 +1753,52 @@ function __updateFx() {
       bead.scale.setScalar(f.bsz * (1 - age * 0.55));   // the mote gutters as it cools
       ln.material.opacity = 0.95 * (1 - age);
       bead.material.opacity = 0.95 * (1 - age);
+    }
+  }
+}
+// CHARGE RING (2026-08-13, operator): a world-space energy ring at the rifle MUZZLE that appears while a
+// charge weapon spins up — it CONVERGES (shrinks) and brightens as the charge fills, then BLINKS once
+// fully charged (the "ready" tell). This is the in-world twin of the screen-space reticle charge SVG
+// (__retCharge). One ring per entity, built lazily and shown only while that entity's active weapon is
+// charging (so a semi-firing AI never shows one). Faces along the barrel aim, so it reads as an aperture
+// glowing at the gun tip. Pure presentation — reads the live weapon's charge state, writes nothing.
+const __chgRings = {};   // entity id -> { ring: Mesh }
+const __chgUpZ = new THREE.Vector3(0, 0, 1);   // the torus's hole-axis (+Z), rotated onto the aim dir
+const __chgDir = new THREE.Vector3();
+function __updateChargeRings() {
+  for (const e of __world.entities) {
+    const w = e.weapon;
+    let rec = __chgRings[e.id];
+    if (!(w && w.charging === true)) { if (rec) rec.ring.visible = false; continue; }
+    const sz = (w.fxScale != null ? w.fxScale : 3);
+    const col = (w.fxColor != null ? w.fxColor : 0x66e0ff);
+    // muzzle world point: the held rifle's weapon-tip locator when present, else the body muzzle offset.
+    const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig, tr = e.transform;
+    let mp;
+    if (rf && rf.muzzle) { rf.muzzle.getWorldPosition(__muzzleV); mp = [__muzzleV.x, __muzzleV.y, __muzzleV.z]; }
+    else { const mo = w.muzzleOffset || { f: sz, u: sz }, hf = Math.cos(tr.heading), hs = Math.sin(tr.heading);
+      mp = [tr.pos[0] + hf * (mo.f || 0), tr.pos[1] + hs * (mo.f || 0), tr.pos[2] + (mo.u || 0)]; }
+    if (!rec) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.16, 8, 24),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(col), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+      ring.raycast = function () {}; scene.add(ring);
+      rec = __chgRings[e.id] = { ring };
+    }
+    rec.ring.material.color.set(col);
+    rec.ring.visible = true;
+    rec.ring.position.set(mp[0], mp[1], mp[2]);
+    // face along the barrel aim (ring normal = the aim forward, same convention as the radar)
+    const pp = tr.pitch || 0, cp = Math.cos(pp);
+    rec.ring.quaternion.setFromUnitVectors(__chgUpZ, __chgDir.set(cp * Math.cos(tr.heading), cp * Math.sin(tr.heading), Math.sin(pp)));
+    const frac = Math.max(0, Math.min(1, w.chargeFrac || 0));
+    // small — a tight ring right at the muzzle TIP (operator 2026-08-13: "a lot smaller"). ~0.12·fxScale.
+    const baseR = Math.max(0.35, sz * 0.12);
+    if (w.chargeReady) {
+      rec.ring.scale.setScalar(baseR);
+      rec.ring.material.opacity = (Math.sin(__world.time * 22) > 0) ? 1.0 : 0.12;   // BLINK when charged
+    } else {
+      rec.ring.scale.setScalar(baseR * (1.4 - 0.4 * frac));   // converges as it fills (stays tight)
+      rec.ring.material.opacity = 0.25 + 0.6 * frac;          // and brightens
     }
   }
 }
@@ -1733,6 +1858,25 @@ function __updateProjectiles() {
     const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
     flash.position.set(b.pos[0], b.pos[1], b.pos[2]); flash.raycast = function () {}; scene.add(flash);
     __fx.push({ obj: flash, born: __world.time, ttl: 0.16, kind: 'burst', base: (b.fxScale != null ? b.fxScale : 3) * 0.5, dim: 1 });
+    // SUIT-DEATH fragment shower (operator 2026-08-13): a suit blows APART into many pieces flung out
+    // and up, arcing down under gravity to rest on the ground — so the death reads as an explosion of
+    // debris ahead of the smoke, not just one ball flash. Deterministic (golden-angle directions +
+    // modulo speeds, no Math.random), so capture stays byte-identical. Only death bursts carry the flag.
+    if (b.debris) {
+      const N = 28, base = (b.fxScale != null ? b.fxScale : 6), col2 = b.fxColor != null ? b.fxColor : 0xffa03c;
+      const positions = new Float32Array(N * 3), vels = [];
+      for (let k = 0; k < N; k++) {
+        const yy = 1 - (k + 0.5) / N * 1.6;                 // 1 .. -0.6 — mostly the upper hemisphere
+        const rr = Math.sqrt(Math.max(0, 1 - yy * yy)), phi = k * 2.399963;   // golden-angle spiral
+        const spd = base * (1.4 + ((k * 13) % 11) / 11 * 1.3);
+        vels.push([Math.cos(phi) * rr * spd, Math.sin(phi) * rr * spd, yy * spd + base * 0.9]);   // outward + upward bias
+        positions[k * 3] = b.pos[0]; positions[k * 3 + 1] = b.pos[1]; positions[k * 3 + 2] = b.pos[2];
+      }
+      const dgeo = new THREE.BufferGeometry(); dgeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const dmat = new THREE.PointsMaterial({ color: new THREE.Color(col2), size: Math.max(0.5, base * 0.16), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+      const pts = new THREE.Points(dgeo, dmat); pts.raycast = function () {}; scene.add(pts);
+      __fx.push({ obj: pts, born: __world.time, ttl: 0.75, kind: 'debris', p0: b.pos.slice(), vels: vels, grav: base * 4.5 });
+    }
   }
 }
 // melee CLASH sparks (melee-clash-fx): when a swing CONNECTS, the engine records a clash in
@@ -2160,6 +2304,7 @@ ${hangarHook}  __msHookParams();
     __CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
     for (const e of __world.entities) __syncEntity(e, dt);
     __updateFx();
+    __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
     __updateThrusters(dt);${shadowHook}${smokeHook}

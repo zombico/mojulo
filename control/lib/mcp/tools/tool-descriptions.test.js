@@ -88,8 +88,12 @@ const DESCRIPTION_ALLOWLIST = {
   export_beats: 1124,
   export_game: 1253,
   // export_model re-pinned 2026-07-17: the STL print-handoff format
-  // (format:'glb'|'stl' + scale → mm) rides the same tool. Shrink-only.
-  export_model: 2104,
+  // (format:'glb'|'stl' + scale → mm) rides the same tool. Re-pinned
+  // 2026-08-11 to bless the animated-GLB clause (interchange.plan.md I1:
+  // `clips` bakes rig clips into glTF animations). Re-pinned 2026-08-11
+  // (2228 → 2285) to bless the I2 eligibility widening: posed figures,
+  // carved-solid wordmarks, and css3d-turntable solids export. Shrink-only.
+  export_model: 2285,
   forge_motion: 12999,
   forge_plan: 1167,
   forge_publications: 955,
@@ -174,7 +178,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-08-09 (was 376,000; measured 379,549) to bless the key-free
 // polygonizer handoff: get_polygonizer_packet / submit_polygonizer_manifest —
 // the calling agent authors the manifest itself, no provider key.
-const PAYLOAD_CEILING = 381_000;
+// Re-pinned 2026-08-14 (was 381,000) to bless the save_modular_bot `llm`
+// gate (0813 persona sims R2): the deployed bot's provider/key is the
+// operator's explicit choice, not a silent vault default.
+const PAYLOAD_CEILING = 381_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

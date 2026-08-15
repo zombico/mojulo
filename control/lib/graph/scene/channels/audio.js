@@ -259,7 +259,9 @@ if (__AUDIO.thruster) {
     if (!__thr) { try { __thr = __thrBuild(); } catch (e) { return; } }
     const ctrl = window.__mojCtrl && window.__mojCtrl.world;
     let thrust = 0;
-    if (ctrl) for (const e of ctrl.entities) { const v = e.thrust || 0; if (v > thrust) thrust = v; }
+    // R28 proximity: weight each suit's thrust by its distance from you BEFORE taking the loudest, so a
+    // booster across the map is a faint roar (or silent past the far cutoff), not full-volume in your ear.
+    if (ctrl) for (const e of ctrl.entities) { const v = (e.thrust || 0) * __proxGain(e.transform.pos); if (v > thrust) thrust = v; }
     if (__beatsMuted) thrust = 0;
     thrust = Math.max(0, Math.min(1, thrust));
     const now = __beatsCtx.currentTime;
@@ -302,9 +304,9 @@ if (__AUDIO.jump) {
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.045);
     nz.connect(hp); hp.connect(lp); lp.connect(g); g.connect(master); nz.start(t0); nz.stop(t0 + 0.08);
   };
-  const __jFireRelease = (p) => {
+  const __jFireRelease = (p, gain) => {
     const ctx = __beatsCtx, master = __beatsEng.master, t0 = ctx.currentTime;
-    const lvl = (__J.release && __J.release.level) || 0.5;
+    const lvl = ((__J.release && __J.release.level) || 0.5) * (gain == null ? 1 : gain);   // R28 proximity: fades with the jumper's range
     // a PISTON SLAM: a sharp pneumatic air-release burst + a deep SINE launch thunk (sine, not saw —
     // a weighty thunk, not a cartoon boing). Depth + length scale with the charge held.
     const nz = ctx.createBufferSource(); nz.buffer = __jn.buf; nz.loop = true;
@@ -326,14 +328,17 @@ if (__AUDIO.jump) {
     if (!__beatsEng || __beatsMuted) return;
     if (!__jn) { try { __jn = __jBuild(); } catch (e) { return; } }
     const ctrl = window.__mojCtrl && window.__mojCtrl.world;
-    let frac = 0, charging = false;
+    let frac = 0, charging = false, chargeG = 0;
     if (ctrl) for (const e of ctrl.entities) {
-      if (e.charging) { charging = true; if ((e.chargeFrac || 0) > frac) frac = e.chargeFrac || 0; }
+      // R28 proximity: a distant suit's charge/jump/land fades with range (charge servo scaled by
+      // chargeG, the nearest charger's gain; the release + land cues by their own jumper's gain).
+      const __pg = __proxGain(e.transform.pos);
+      if (e.charging && __pg > 0.02) { charging = true; if ((e.chargeFrac || 0) > frac) frac = e.chargeFrac || 0; if (__pg > chargeG) chargeG = __pg; }
       const last = __jLast[e.id] || (__jLast[e.id] = { j: false, l: false });
-      if (__J.release && e.jumped && !last.j) __jFireRelease(Math.max(0, Math.min(1, e.jumpPower || 0)));
-      if (__J.land && e.landed && !last.l) {
+      if (__J.release && e.jumped && !last.j && __pg > 0.02) __jFireRelease(Math.max(0, Math.min(1, e.jumpPower || 0)), __pg);
+      if (__J.land && e.landed && !last.l && __pg > 0.02) {
         const vel = Math.min(1, (e.landVel || 0) / (__J.landRef || 30));   // fall speed -> clang loudness
-        __beatsEng.playCue(__J.land, __beatsCtx.currentTime, __beatsEng.master, 0.55 + vel * 0.75);
+        __beatsEng.playCue(__J.land, __beatsCtx.currentTime, __beatsEng.master, (0.55 + vel * 0.75) * __pg);
       }
       last.j = !!e.jumped; last.l = !!e.landed;
     }
@@ -342,7 +347,7 @@ if (__AUDIO.jump) {
     // servo strain rises + tightens as it gathers; the resonant cutoff climbs so the motor "loads up"
     __jn.motor.frequency.setTargetAtTime(66 + frac * 74, now, 0.05);
     __jn.motorLp.frequency.setTargetAtTime(240 + frac * 520, now, 0.06);
-    __jn.motorG.gain.setTargetAtTime(charging ? (0.16 + frac * 0.34) * __jn.level : 0, now, 0.03);
+    __jn.motorG.gain.setTargetAtTime(charging ? (0.16 + frac * 0.34) * __jn.level * chargeG : 0, now, 0.03);   // R28 proximity: distant charge servo fades
     // piston chuffs: 4/sec at rest -> ~13/sec at full coil (the pistons pumping faster as it gathers)
     if (charging) { __jn.chuffPh += dtJ * (4 + frac * 9); while (__jn.chuffPh >= 1) { __jn.chuffPh -= 1; __jChuff(frac); } }
     else __jn.chuffPh = 0;

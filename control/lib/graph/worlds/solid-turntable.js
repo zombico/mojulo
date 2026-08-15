@@ -181,6 +181,44 @@ function faceDiv(corners, normal, hex, surface) {
 }
 
 /**
+ * css3d-turntable → World payload (interchange.plan.md I2 — export eligibility).
+ * The SAME planSolidTurntable faces, lowered to the standard `{ faces, cameras,
+ * viewBox, title, bg }` shape so `resolveWorldScene` (and therefore export_model /
+ * the three.js /world route) cover the kind beside its live CSS-3D /scene form.
+ * Fills bake the first-frame vexar shade (yaw 0 against the fixed turntable light —
+ * exactly what /scene shows before the spin starts); 'solid'/'glow' surfaces keep
+ * their flat hex (a glow halo is a screen effect, not geometry). Coordinates remap
+ * CSS space (x right, y down, z toward viewer) into the z-up world by the proper
+ * rotation [x, z, -y]; the camera sits on +y (the CSS-front side) above by `tilt`.
+ */
+export function assembleSolidTurntableScene(recipe = {}, ctx = {}) {
+  const plan = planSolidTurntable(recipe);
+  // The World mesh builder consumes QUADS (first 4 corners; <4 skipped) — lower each
+  // n-gon into quads + a final padded triangle ([a,b,c,c], padTrianglesForWorld's
+  // convention). Flat per-face shade, so the split is invisible.
+  const lowerPoly = (c) => {
+    if (c.length <= 4) return [c.length === 3 ? [...c, c[2]] : c];
+    const out = [];
+    let i = 1;
+    while (i + 2 < c.length) { out.push([c[0], c[i], c[i + 1], c[i + 2]]); i += 2; }
+    if (i + 1 < c.length) out.push([c[0], c[i], c[i + 1], c[i + 1]]);
+    return out;
+  };
+  const faces = plan.faces.flatMap((f) => {
+    const fill = plan.surface === 'vexar' ? shadeHex(f.hex, f.normal, plan.light) : f.hex;
+    return lowerPoly(f.corners.map(([x, y, z]) => [x, z, -y])).map((corners) => ({ corners, fill, group: plan.shape }));
+  });
+  const el = (plan.tilt * Math.PI) / 180, R = 3.4;
+  return {
+    faces,
+    cameras: [{ name: 'turntable', worldFraming: { cameraPosition: [0, R * Math.cos(el), R * Math.sin(el)], lookAt: [0, 0, 0], horizontalFov: 32, pictureCenter: [240, 240] } }],
+    viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 480, height: 480 },
+    title: ctx.title || recipe.title || 'mojulo solid',
+    bg: '#0e1014',
+  };
+}
+
+/**
  * Render a recipe into a self-contained, dependency-free preserve-3d HTML page: a single
  * convex solid spinning on a turntable, the highlight fixed in the viewport (vexar surface
  * re-shaded per frame). `?a=DEG` freezes a yaw (headless capture); hover pauses.

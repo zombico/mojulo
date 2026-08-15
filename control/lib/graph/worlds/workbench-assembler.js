@@ -86,21 +86,34 @@ function orientationMatrix(item) {
  * every face lit exactly as WORKBENCH_LIGHT would light it in the final orientation. (Faces are
  * doubleSided, so a mirror's winding flip needs no special handling.)
  */
-function bakeOriented(item) {
+function bakeOriented(item, baseLight = WORKBENCH_LIGHT) {
   const source = item && item.source && typeof item.source === 'object' ? item.source : {};
   const A = orientationMatrix(item);
   const isIdentity = A === IDENT;
+  // `baseLight` defaults to WORKBENCH_LIGHT (byte-identical); it is FLAT_LIGHT under unshaded
+  // export (threaded from bakeUnitRig → lowerAssemblerBuild). The per-item relight preserves the
+  // orientation-invariant read: rotating geometry by A rotates its normals by A, so baking with
+  // Aᵀ·dir cancels it. With FLAT_LIGHT (diffuse 0) every relit copy is still flat albedo.
   const light = isIdentity
-    ? WORKBENCH_LIGHT
-    : makeLight({ direction: matVec(transpose(A), WORKBENCH_LIGHT.dir), ambient: WORKBENCH_LIGHT.ambient, diffuse: WORKBENCH_LIGHT.diffuse });
+    ? baseLight
+    : makeLight({ direction: matVec(transpose(A), baseLight.dir), ambient: baseLight.ambient, diffuse: baseLight.diffuse });
   const s = Number.isFinite(item.scale) ? item.scale : 1;
-  return lowerObjectFaces(source, light).map((f) => ({
-    ...f,
-    corners: f.corners.map((c) => {
-      const v = isIdentity ? c : matVec(A, c);
-      return [v[0] * s, v[1] * s, v[2] * s];
-    }),
-  }));
+  return lowerObjectFaces(source, light).map((f) => {
+    const out = {
+      ...f,
+      corners: f.corners.map((c) => {
+        const v = isIdentity ? c : matVec(A, c);
+        return [v[0] * s, v[1] * s, v[2] * s];
+      }),
+    };
+    // Authored outward normals must survive the mirror (export-normals.plan.md §2). A = R·F is
+    // orthonormal, so A·n is the correctly-REFLECTED outward direction (unit length preserved);
+    // uniform positive scale s and the later translate don't change a direction. A mirror that
+    // moved corners but not the normal is exactly the black-bake bug this fixes. `outNormal` is
+    // the export-only field (distinct from scene-three's inward `.normal`); absent it, byte-identical.
+    if (!isIdentity && Array.isArray(f.outNormal)) out.outNormal = matVec(A, f.outNormal);
+    return out;
+  });
 }
 
 /** Post-orientation z-extent of a baked part (the seating math needs only z). */
@@ -129,7 +142,7 @@ function repeatOffsets(item) {
  * `on` is given. `at` always supplies x/y; with `on`, the z from `at` is ignored. A `repeat` arrays
  * the seated base part by `step` (so you seat the first, then step).
  */
-function walkAssembler(manifest = {}) {
+function walkAssembler(manifest = {}, { light = WORKBENCH_LIGHT } = {}) {
   const items = Array.isArray(manifest.items) ? manifest.items : [];
   const tops = new Map();              // item id / index → top-of-stack world z
   const faces = [];
@@ -137,7 +150,7 @@ function walkAssembler(manifest = {}) {
 
   items.forEach((item, index) => {
     const faceStart = faces.length;
-    const oriented = bakeOriented(item);
+    const oriented = bakeOriented(item, light);
     const { min: zmin, max: zmax } = zExtent(oriented);
     const at = Array.isArray(item.at) ? item.at : [0, 0, 0];
     const gap = Number.isFinite(item.gap) ? item.gap : 0;
@@ -196,9 +209,11 @@ function walkAssembler(manifest = {}) {
   return { faces, placements };
 }
 
-/** Lower the whole assembler to one merged World face list (every seated + repeated part). */
-export function lowerAssemblerFaces(manifest = {}) {
-  return walkAssembler(manifest).faces;
+/** Lower the whole assembler to one merged World face list (every seated + repeated part).
+ *  `opts.light` (FLAT_LIGHT under unshaded export) threads to the per-part bake; default
+ *  WORKBENCH_LIGHT ⇒ byte-identical. */
+export function lowerAssemblerFaces(manifest = {}, opts = {}) {
+  return walkAssembler(manifest, opts).faces;
 }
 
 /**
@@ -206,8 +221,10 @@ export function lowerAssemblerFaces(manifest = {}) {
  * (the rig bake slices per-item faces out of the merged list via each
  * placement's faceStart/faceCount) without lowering the assembly twice.
  */
-export function lowerAssemblerBuild(manifest = {}) {
-  return walkAssembler(manifest);
+export function lowerAssemblerBuild(manifest = {}, opts = {}) {
+  // `opts.light` (FLAT_LIGHT under unshaded export, threaded from bakeUnitRig) → per-part bake;
+  // default WORKBENCH_LIGHT ⇒ byte-identical.
+  return walkAssembler(manifest, opts);
 }
 
 /**
@@ -312,7 +329,9 @@ export function planAssembler(manifest = {}) {
  * own measured studio vantage so a chariot is verified on the same grid its parts were.
  */
 export function assembleAssemblerScene(opts = {}) {
-  const faces = bakeBoundSkinFaces(lowerAssemblerFaces(opts), opts.skin, opts);
+  // `opts.light` is FLAT_LIGHT under unshaded export; absent → WORKBENCH_LIGHT (byte-identical).
+  const light = opts.light || WORKBENCH_LIGHT;
+  const faces = bakeBoundSkinFaces(lowerAssemblerFaces(opts, { light }), opts.skin, opts, light);
   return studioSceneFromFaces(faces, { ...opts, title: opts.title || 'mojulo assembler' });
 }
 

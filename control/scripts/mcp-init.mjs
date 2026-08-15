@@ -19,9 +19,10 @@
  *   - Never touch .env secrets. The key step goes through ApiKeyRepository +
  *     encryptApiKey (AES-256-GCM), the same path as mojulo-config.
  *
- * STATUS: scaffold. Claude Code wiring (CLI shell-out), the provider-key step,
- * and the dashboard launch are real. Codex + Claude Desktop config-file merging
- * are marked TODO and currently degrade to printing the manual snippet.
+ * STATUS: all three host writers are real — Claude Code (CLI shell-out), Codex
+ * and Claude Desktop (config-file merge with backup + detect-before-write) — plus
+ * the provider-key step and the dashboard launch. A host with no writer, or a
+ * write that fails, degrades to printing the manual snippet.
  */
 
 import readline from 'node:readline';

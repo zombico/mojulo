@@ -136,7 +136,9 @@ export function extrudeToFaces(spec = {}, opts = {}) {
     const o = [];
     for (let i = 0; i < path.length; i += 1) {
       const a = pt(path[i], s), b = pt(path[(i + 1) % path.length], s);
-      o.push({ corners: flip ? [c, b, a, c] : [c, a, b, c], fill, doubleSided: true });
+      // Authored outward normal = the cap's uniform axis-direction `normal` (export-normals.plan.md
+      // §1/P2); `flip` reverses winding but the true outward is the passed `normal`. Export-only field.
+      o.push({ corners: flip ? [c, b, a, c] : [c, a, b, c], fill, doubleSided: true, outNormal: normal });
     }
     return o;
   };
@@ -157,6 +159,14 @@ export function extrudeToFaces(spec = {}, opts = {}) {
   if (!Number.isFinite(wall) || wall <= 0 || spec.openFace === 'none') {
     // ── SOLID prism: side walls + two end caps ──
     const P1 = profTo || prof;
+    // Winding-robust EXPORT normal (export-normals.plan.md P2 foot finding). `out3` assumes a CCW
+    // profile; a CW profile — e.g. a hand-mirrored part like the mk2's left foot — yields INWARD
+    // out3, so the exported outNormal points into the solid and a Cycles bake lights the wall's
+    // back → BLACK. Detect the profile winding once (signed area: CCW ⇒ >0) and flip the exported
+    // outNormal to genuine outward. The SHADED `fill` deliberately keeps the raw `no`: mojulo's own
+    // renderers tolerate an inward normal (clamped Lambert → dim-but-right-hue), so leaving `fill`
+    // untouched keeps every emitted page byte-identical — only the export normal is corrected.
+    const outSign = ringArea(P1) >= 0 ? 1 : -1;
     for (let i = 0; i < M; i += 1) {
       const j = (i + 1) % M;
       const corners = [pt(prof[i], 0), pt(prof[j], 0), pt(P1[j], 1), pt(P1[i], 1)];
@@ -170,7 +180,12 @@ export function extrudeToFaces(spec = {}, opts = {}) {
       } else {
         no = norm3(add3(out3(prof[i]), out3(prof[j])));
       }
-      faces.push({ corners, fill: shade(tint, no), doubleSided: true });
+      // `no` is the analytic normal (profile out3 avg, or newell+out3 hint for tapered), outward
+      // for a CCW profile; `outSign` corrects it to genuine outward for a CW profile. Kept as the
+      // export-only `outNormal` so the assembler mirror (§2) carries it and the GLB bake lights this
+      // flat panel from the right side. Dominant mk2 generator (263 extrudes — chest/arm/foot panels).
+      const outNormal = outSign > 0 ? no : [-no[0], -no[1], -no[2]];
+      faces.push({ corners, fill: shade(tint, no), doubleSided: true, outNormal });
       if (faces.length >= MAX_FACES_PER_EXTRUDE) return faces;
     }
     if (caps) {
@@ -191,13 +206,13 @@ export function extrudeToFaces(spec = {}, opts = {}) {
     const j = (i + 1) % M;
     const no = norm3(add3(out3(prof[i]), out3(prof[j])));
     const ino = [-no[0], -no[1], -no[2]];
-    // outer wall (full length)
-    faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shade(tint, no), doubleSided: true });
-    // inner cavity wall (floor → open), faces inward
-    faces.push({ corners: [pt(inner[i], sFloor), pt(inner[i], sOpen), pt(inner[j], sOpen), pt(inner[j], sFloor)], fill: shade(innerTint, ino), doubleSided: true });
+    // outer wall (full length) — authored outward `no` (export-normals.plan.md P2)
+    faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shade(tint, no), doubleSided: true, outNormal: no });
+    // inner cavity wall (floor → open), faces inward — `ino` (the cavity surface's true outward)
+    faces.push({ corners: [pt(inner[i], sFloor), pt(inner[i], sOpen), pt(inner[j], sOpen), pt(inner[j], sFloor)], fill: shade(innerTint, ino), doubleSided: true, outNormal: ino });
     // rim at the open end, between outer & inner
     const rimN = open === 'to' ? dir : [-dir[0], -dir[1], -dir[2]];
-    faces.push({ corners: [pt(prof[i], sOpen), pt(prof[j], sOpen), pt(inner[j], sOpen), pt(inner[i], sOpen)], fill: shade(tint, rimN), doubleSided: true });
+    faces.push({ corners: [pt(prof[i], sOpen), pt(prof[j], sOpen), pt(inner[j], sOpen), pt(inner[i], sOpen)], fill: shade(tint, rimN), doubleSided: true, outNormal: rimN });
   }
   // inner floor (faces toward the cavity = toward the open end) + closed back cap
   faces.push(...fanCap(inner, sFloor, open === 'to' ? dir : [-dir[0], -dir[1], -dir[2]], innerTint, open !== 'to'));

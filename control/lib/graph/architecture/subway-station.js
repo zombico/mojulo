@@ -115,7 +115,17 @@ export function planSubwayStation(recipe = {}, { forWorld = false } = {}) {
   function panel(x0, x1, y0, y1, z, tint, extra = {}) {
     faces.push({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], fill: scaleHex(tint, litFactor([0, 0, 1], L)), doubleSided: true, ...extra });
   }
+  // Fog occluders (effects-layer P3.5): every solid built through box()/tiledColumn()
+  // also records its footprint, so the world-kinds `fogBoxes` extractor can clip the
+  // volumetric fog against the same geometry the eye sees. Pure accumulation — faces
+  // and their bytes are untouched, so existing renders stay byte-identical.
+  const occluders = [];
   function box(x0, x1, y0, y1, z0, z1, tint, opts = {}) {
+    occluders.push({
+      x: Math.min(x0, x1), y: Math.min(y0, y1),
+      w: Math.abs(x1 - x0), d: Math.abs(y1 - y0),
+      z0: Math.min(z0, z1), z1: Math.max(z0, z1),
+    });
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
     const quads = [
       [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]],
@@ -137,6 +147,11 @@ export function planSubwayStation(recipe = {}, { forWorld = false } = {}) {
   // a column shaft CLAD in ceramic tile: 4 side faces carry `texture` + uv (WebGL draws
   // texel × the lit `fill`; the CSS scene ignores it and keeps the flat fill).
   function tiledColumn(x0, x1, y0, y1, z0, z1, texKey, baseHex, ts = 1.2) {
+    occluders.push({
+      x: Math.min(x0, x1), y: Math.min(y0, y1),
+      w: Math.abs(x1 - x0), d: Math.abs(y1 - y0),
+      z0: Math.min(z0, z1), z1: Math.max(z0, z1),
+    });
     const h = z1 - z0, wx = x1 - x0, wy = y1 - y0;
     const side = (corners, n, wspan) => faces.push({
       corners, fill: scaleHex(baseHex, litFactor(n, L)),
@@ -318,7 +333,7 @@ export function planSubwayStation(recipe = {}, { forWorld = false } = {}) {
   ];
 
   return {
-    faces, cameras,
+    faces, cameras, occluders,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1200, height: 760 },
     stats: { faces: faces.length, columns, cars, figures, line: recipe.line || 'seeded' },
   };

@@ -1472,11 +1472,76 @@ Return ONLY the summary text, nothing else.`;
    * dashboard's Build button picks up where this left off.
    */
   async save_modular_bot(input, context) {
-    const { sessionId, confirmedProtocols } = input;
-    const { session, userId } = context;
+    const { sessionId, confirmedProtocols, llm } = input;
+    const { userId } = context;
+    let { session } = context;
 
     if (session.id !== sessionId) {
-      throw new Error('Session ID mismatch');
+      // R2 (0813 persona sims): the agent's explicit sessionId — obtained from
+      // get_builder_session — is the truth anchor; the connection binding under
+      // context.session can rotate (dev reloads, MCP reconnects). Adopt the named
+      // session instead of erasing a novice's work at the moment of commitment.
+      const explicit = await BuilderSessionRepository.findByIdAndUserId(sessionId, userId);
+      if (!explicit) {
+        throw new Error(
+          `Session '${sessionId}' not found. Call get_builder_session and save with the sessionId it returns.`,
+        );
+      }
+      session = explicit;
+    }
+
+    // R2 key gate: a deployed bot calls an LLM on its own — which provider/key it
+    // ships with is the operator's explicit choice, not a silently-attached vault
+    // default. Web-origin sessions made this choice in the wizard's step 1 and are
+    // untouched; MCP-origin sessions must state it once, here or in a prior save.
+    const coreCfg = session.generatedConfigs?.core || {};
+    if (llm !== undefined) {
+      if (!llm || typeof llm !== 'object' || !['anthropic', 'openai', 'ollama'].includes(llm.provider)) {
+        throw new Error(
+          "llm must be { provider: 'anthropic' | 'openai' | 'ollama', apiKeyId?, model? }",
+        );
+      }
+      const keys = await ApiKeyRepository.findByUserId(userId);
+      let apiKeyId = llm.apiKeyId ?? null;
+      if (apiKeyId != null) {
+        const match = keys.find((k) => k.id === apiKeyId && k.provider === llm.provider);
+        if (!match) {
+          throw new Error(
+            `No ${llm.provider} key with id ${JSON.stringify(apiKeyId)}. Configured: `
+              + (keys.map((k) => `${k.provider} '${k.name}' (id ${k.id})`).join('; ') || '(none)'),
+          );
+        }
+      } else if (llm.provider !== 'ollama') {
+        const matches = keys.filter((k) => k.provider === llm.provider);
+        if (matches.length === 1) apiKeyId = matches[0].id;
+        else if (matches.length === 0) {
+          throw new Error(`No ${llm.provider} key configured — add one at /settings, or use llm: { provider: 'ollama' } (local, keyless).`);
+        } else {
+          throw new Error(
+            `Multiple ${llm.provider} keys — pass llm.apiKeyId. Configured: `
+              + matches.map((k) => `'${k.name}' (id ${k.id})`).join('; '),
+          );
+        }
+      }
+      const model = llm.model || getDefaultModelForTask(llm.provider, 'reasoning');
+      await BuilderSessionRepository.updateGeneratedConfig(session.id, userId, 'core', {
+        ...coreCfg,
+        provider: llm.provider,
+        model,
+        ...(apiKeyId != null ? { apiKeyId } : {}),
+        llmExplicit: true,
+      });
+      session = await BuilderSessionRepository.findById(session.id);
+    } else if (session.preloadedContext?.mcpOrigin && !coreCfg.llmExplicit) {
+      const keys = (await ApiKeyRepository.findByUserId(userId))
+        .filter((k) => ['anthropic', 'openai', 'ollama'].includes(k.provider));
+      throw new Error(
+        "save_modular_bot needs the deployed bot's LLM stated explicitly — this bot will call that "
+          + "provider with that key at runtime. Re-call with llm: { provider: 'anthropic' | 'openai', apiKeyId? } "
+          + "or llm: { provider: 'ollama' } (local, keyless). Configured keys: "
+          + (keys.map((k) => `${k.provider} '${k.name}' (id ${k.id})`).join('; ') || '(none — add one at /settings, or choose ollama)')
+          + '. Nothing was saved; the session is intact.',
+      );
     }
 
     const editingDeployment = session.generatedConfigs?._editingDeployment;

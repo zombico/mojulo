@@ -39,6 +39,7 @@
  */
 
 import { projectTwoPoint } from './pure-mandala.js';
+import { familyKeys } from '../landscape/surface-textures.js';
 import { buildFieldResolver, validateFields } from './fields.js';
 import {
   HEARTBEATS as LOADED_HEARTBEATS,
@@ -136,6 +137,25 @@ export const STRUCTURE_GLYPHS = Object.freeze({
   }),
 });
 
+// ── GROUND presets — named tile pairs for the `ground` surface-texture channel ─────────
+// `ground: '<preset>'` is the front door: it picks the steep/flat tile pair and inherits
+// the tuned dial defaults (tile 3.0, flatMin 0.62, contrast 1.8, cloud 0.55) that make
+// terrain read as textured rock/soil out of the box. The object form remains the full
+// dial surface for per-world tuning. Steep tiles are family names where one exists
+// (rock-sandstone rotates its -a..d variants per tile-repeat region).
+export const GROUND_PRESETS = Object.freeze({
+  sandstone: Object.freeze({ steep: 'rock-sandstone', flat: 'soil-sand' }),     // golden desert cliffs
+  granite: Object.freeze({ steep: 'rock-granite', flat: 'soil-scree' }),        // grey alpine crags
+  'red-rock': Object.freeze({ steep: 'red-rock', flat: 'soil-clay' }),          // banded canyon country
+  meadow: Object.freeze({ steep: 'rock-cave', flat: 'grass-meadow' }),          // green hills, bare rock faces
+  // Snowfields under cold crag cliffs (rock-snowcrag family — pale ridged rock, dark
+  // fissures; band-free, since banded stones read as knit stripes wrapped around curved
+  // walls). Gentler contrast: near-white snow amplifies per-cell Lambert quilting at the
+  // rock default of 1.8.
+  snow: Object.freeze({ steep: 'rock-snowcrag', flat: 'snow', cloud: 0.35, contrast: 1.3 }),
+});
+export function groundPresetIds() { return Object.keys(GROUND_PRESETS); }
+
 export function heartbeatIds() { return Object.keys(HEARTBEATS); }
 export function splatchIds() { return Object.keys(SPLATCHES); }
 export function structureGlyphIds() { return Object.keys(STRUCTURE_GLYPHS); }
@@ -221,6 +241,63 @@ export function validatePaintedLandscape(manifest) {
   }
   if (manifest.heartbeatOverrides !== undefined && manifest.heartbeatOverrides !== null) {
     errors.push(...validateHeartbeatOverrides(manifest.heartbeatOverrides, manifest.heartbeat));
+  }
+  if (manifest.extent !== undefined && manifest.extent !== null) {
+    if (!Number.isFinite(manifest.extent) || manifest.extent <= 0 || manifest.extent > 8) {
+      errors.push('extent must be a number in (0, 8] (uniform World-mesh magnification; 1 = the standard quad)');
+    }
+  }
+  if (manifest.builds !== undefined && manifest.builds !== null) {
+    if (!Array.isArray(manifest.builds)) {
+      errors.push('builds must be an array of { x, y, w, d, h, z0?, sink?, material?, tint? } box specs');
+    } else {
+      const num = (v) => typeof v === 'number' && Number.isFinite(v);
+      manifest.builds.forEach((b, i) => {
+        if (!b || typeof b !== 'object' || Array.isArray(b)) { errors.push(`builds[${i}] must be an object`); return; }
+        if (!num(b.x) || !num(b.y)) errors.push(`builds[${i}]: x and y are required finite numbers (terrain coords)`);
+        for (const k of ['w', 'd', 'h']) if (b[k] !== undefined && (!num(b[k]) || b[k] <= 0)) errors.push(`builds[${i}].${k} must be a positive number when provided`);
+        for (const k of ['z0', 'sink']) if (b[k] !== undefined && !num(b[k])) errors.push(`builds[${i}].${k} must be a finite number when provided`);
+        if (b.material !== undefined && typeof b.material !== 'string' && (typeof b.material !== 'object' || Array.isArray(b.material))) errors.push(`builds[${i}].material must be a material-preset id or { kind, ... } object`);
+        if (b.texture !== undefined && typeof b.texture !== 'string') errors.push(`builds[${i}].texture must be a surface-texture key (string)`);
+        if (b.tile !== undefined && (!num(b.tile) || b.tile <= 0)) errors.push(`builds[${i}].tile must be a positive number (world units per panel repeat)`);
+        if (b.slope !== undefined && !['+x', '-x', '+y', '-y'].includes(b.slope)) errors.push(`builds[${i}].slope must be one of '+x','-x','+y','-y' (ramp incline axis)`);
+        if (b.shape !== undefined && b.shape !== 'box' && b.shape !== 'cylinder') errors.push(`builds[${i}].shape must be 'box' or 'cylinder'`);
+        if (b.sides !== undefined && (!num(b.sides) || b.sides < 6)) errors.push(`builds[${i}].sides must be a number >= 6 (cylinder facet count)`);
+        if (b.rotZ !== undefined && !num(b.rotZ)) errors.push(`builds[${i}].rotZ must be a finite number (degrees)`);
+        if (b.tint !== undefined && !/^#?[0-9a-fA-F]{6}$/.test(String(b.tint))) errors.push(`builds[${i}].tint must be a #rrggbb hex when provided`);
+      });
+    }
+  }
+  if (manifest.ground !== undefined && manifest.ground !== null) {
+    const g = manifest.ground;
+    if (typeof g === 'string') {
+      if (!GROUND_PRESETS[g]) {
+        errors.push(`unknown ground preset '${g}' (available: ${groundPresetIds().join(', ')})`);
+      }
+    } else if (typeof g !== 'object' || Array.isArray(g)) {
+      errors.push('ground must be a preset id or { steep?, flat?, tile?, flatMin?, contrast?, cloud? } when provided');
+    } else {
+      // steep/flat are surface-texture keys; runtime-minted tiles (defineRockTile) are
+      // legal, so only the type is checked here — unknown keys resolve to no texture.
+      if (g.steep !== undefined && g.steep !== null && typeof g.steep !== 'string') errors.push('ground.steep must be a surface-texture key (string)');
+      if (g.flat !== undefined && g.flat !== null && typeof g.flat !== 'string') errors.push('ground.flat must be a surface-texture key (string)');
+      if (g.tile !== undefined && (!Number.isFinite(g.tile) || g.tile <= 0)) errors.push('ground.tile must be a positive number (world units per tile repeat)');
+      if (g.contrast !== undefined) {
+        const okC = (v) => Number.isFinite(v) && v > 0;
+        const c = g.contrast;
+        const objOk = c && typeof c === 'object' && !Array.isArray(c)
+          && (c.steep === undefined || okC(c.steep)) && (c.flat === undefined || okC(c.flat));
+        if (!okC(c) && !objOk) errors.push('ground.contrast must be a positive number or { steep?, flat? } of such (Lambert exponent for textured cells)');
+      }
+      if (g.cloud !== undefined) {
+        const okNum = (v) => Number.isFinite(v) && v >= 0 && v <= 1;
+        const c = g.cloud;
+        const objOk = c && typeof c === 'object' && !Array.isArray(c)
+          && (c.steep === undefined || okNum(c.steep)) && (c.flat === undefined || okNum(c.flat));
+        if (!okNum(c) && !objOk) errors.push('ground.cloud must be a number in [0, 1] or { steep?, flat? } of such (macro grime/streak darkening for textured cells)');
+      }
+      if (g.flatMin !== undefined && (!Number.isFinite(g.flatMin) || g.flatMin < 0 || g.flatMin > 1)) errors.push('ground.flatMin must be a number in [0, 1]');
+    }
   }
   if (manifest.renderStyle !== undefined && manifest.renderStyle !== null) {
     if (!RENDER_STYLES.includes(manifest.renderStyle)) {
@@ -2485,6 +2562,11 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
     return `rgb(${clamp255(m[1] * f)},${clamp255(m[2] * f)},${clamp255(m[3] * f)})`;
   };
   const withAlpha = (s, a) => s.replace('rgb(', 'rgba(').replace(')', `,${a.toFixed(3)})`);
+  const lightenRgbStr = (s, t) => {
+    const m = /^rgb\((\d+),(\d+),(\d+)\)$/.exec(s);
+    if (!m) return s;
+    return `rgb(${clamp255(+m[1] + (255 - m[1]) * t)},${clamp255(+m[2] + (255 - m[2]) * t)},${clamp255(+m[3] + (255 - m[3]) * t)})`;
+  };
   // ── shared terrain oracles (slope + seeded hash) — used by farmland, city, bridges ──
   const cE = 0.25;
   const flatnessAt = (x, y) => {
@@ -2497,6 +2579,65 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
     let h = (Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ seedNum) >>> 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
     return h / 4294967296;
+  };
+
+  // ── ground surface textures (opt-in): manifest.ground routes terrain cells into the
+  // surface-textures tile pipeline by SLOPE — `steep` tile on cliff faces, `flat` tile on
+  // gentle ground (either may be omitted → those cells keep the plain palette fill).
+  // Textured cells ride the generic mesh-world texture path (`texture` + `uv` +
+  // `textureLit`): world-scene's collectFaceTextures resolves the keys, and the three.js
+  // World draws texel × bakedLight. The CSS-3D path ignores textures and paints the baked
+  // fill, so textured cells lighten their palette fill (multiply headroom for the World,
+  // a paler wash for CSS). A string names a GROUND_PRESETS entry (tile pair only — the
+  // tuned dial defaults below apply to every ground). Absent `ground` → face list
+  // byte-identical.
+  const ground = typeof manifest.ground === 'string'
+    ? GROUND_PRESETS[manifest.ground] || null
+    : (manifest.ground && typeof manifest.ground === 'object' ? manifest.ground : null);
+  const groundFlatMin = ground && Number.isFinite(ground.flatMin) ? ground.flatMin : 0.62;
+  const groundTile = ground && Number.isFinite(ground.tile) && ground.tile > 0 ? ground.tile : 3.0;
+  // `contrast` (default 1) is an exponent on the Lambert term of textured cells only —
+  // >1 deepens the shadowed facets (the baked light the texel multiplies), leaving the
+  // sunlit faces near-full. The plain palette fill path is untouched.
+  // `contrast`, like `cloud`, is a number or { steep?, flat? } — craggy rock wants a hard
+  // shading curve (facets pop) while near-white snow quilts at the same exponent.
+  const contrastSpec = ground ? ground.contrast : undefined;
+  const contrastFor = (key) => {
+    if (Number.isFinite(contrastSpec) && contrastSpec > 0) return contrastSpec;
+    if (contrastSpec && typeof contrastSpec === 'object' && Number.isFinite(contrastSpec[key]) && contrastSpec[key] > 0) return contrastSpec[key];
+    return 1.8;
+  };
+  const groundContrastSteep = contrastFor('steep');
+  const groundContrastFlat = contrastFor('flat');
+  // `cloud` (0..1, default 0) bakes the era-authentic macro grunge layer over textured
+  // cells: seeded low-frequency fbm sampled in WORLD coordinates — a different scale and
+  // space than the tile's UV repeat, so it can never alias with it — darkens the baked
+  // fill in soft multi-unit blotches. Steep cells add a second field stretched along z
+  // (narrow in plan, tall in height): the water-stain streak read. Darken-only, applied
+  // before haze (grime is on the rock; haze is atmosphere). Pure bake, no extra texture.
+  // `cloud` is a number (both slope classes) or { steep?, flat? } — max grime on a cliff
+  // face shouldn't stain the snowfield below it.
+  const cloudSpec = ground ? ground.cloud : undefined;
+  const cloudFor = (dflt, key) => {
+    if (Number.isFinite(cloudSpec)) return Math.max(0, Math.min(1, cloudSpec));
+    if (cloudSpec && typeof cloudSpec === 'object' && Number.isFinite(cloudSpec[key])) return Math.max(0, Math.min(1, cloudSpec[key]));
+    return dflt;
+  };
+  const groundCloudSteep = ground ? cloudFor(0.55, 'steep') : 0;
+  const groundCloudFlat = ground ? cloudFor(0.55, 'flat') : 0;
+  const CLOUD_FBM = { octaves: 4, persistence: 0.55, lacunarity: 2.2, baseScale: 4.5, amplitude: 1, noiseSeed: (seedNum ^ 0x9e3779b9) | 0 };
+  const STREAK_FBM = { octaves: 3, persistence: 0.5, lacunarity: 2.3, baseScale: 1, amplitude: 1, noiseSeed: (seedNum ^ 0x51ab) | 0 };
+  const c01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+  // Per-corner UV by the face's dominant normal axis: flat ground maps world-XY (the soil
+  // convention), cliff walls map world-z into v so strata bands stay level and the tile's
+  // weather-streaks run down the face. Rock tiles are isotropic-ish, so the projection
+  // seam where a cell flips axis hides in the crack noise.
+  const quadUv = (c, ts) => {
+    const ux = c[1][0] - c[0][0], uy = c[1][1] - c[0][1], uz = c[1][2] - c[0][2];
+    const vx = c[3][0] - c[0][0], vy = c[3][1] - c[0][1], vz = c[3][2] - c[0][2];
+    const nx = Math.abs(uy * vz - uz * vy), ny = Math.abs(uz * vx - ux * vz), nz = Math.abs(ux * vy - uy * vx);
+    const [pa, pb] = nz >= nx && nz >= ny ? [0, 1] : (nx >= ny ? [1, 2] : [0, 2]);
+    return c.map((p) => [p[pa] / ts, p[pb] / ts]);
   };
 
   // ── farmland sticker: an aerial patchwork of fields on gentle, dry, lower land ──
@@ -2556,25 +2697,95 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
       const terrainC = sampler.heightAt(xc, yc);
       const isWater = hasWater && terrainC < wl;
       const depthT = Math.max(0, Math.min(1, (Y_NEAR - yc) / Y_SPAN));
+      const lambRaw = sampler.lambertAt(xc, yc, light);
+      // ground textures: slope routes the cell to the steep (cliff) or flat tile. The
+      // decision uses the MIN flatness over a cell-scale neighborhood, not the center
+      // point alone — a small ledge partway up a cliff face reads locally flat but should
+      // stay rock, or the wall speckles with the flat tile.
+      let texKey = null;
+      let cellSteep = false;
+      if (ground && !isWater) {
+        // Neighborhood radius scales with the GRID, not a fixed world distance — a fixed
+        // 0.6 was wider than a terrace ledge on fine grids, so every ledge inherited a
+        // steep neighbor and snow could never settle on it.
+        const nbE = 1.5 * Math.max(cellWX, cellWY);
+        const nb = Math.min(
+          flatnessAt(xc, yc),
+          flatnessAt(xc - nbE, yc), flatnessAt(xc + nbE, yc),
+          flatnessAt(xc, yc - nbE), flatnessAt(xc, yc + nbE),
+        );
+        cellSteep = nb < groundFlatMin;
+        texKey = cellSteep ? (ground.steep || null) : (ground.flat || null);
+      }
       // bed/terrain: TRUE terrain shading everywhere; submerged cells darken so the
       // real lakebed reads through the translucent water laid over it.
-      let fill = shadeFromLambert(palette, sampler.lambertAt(xc, yc, light));
+      let fill = texKey
+        ? lightenRgbStr(shadeFromLambert(palette, Math.pow(Math.max(0, Math.min(1, lambRaw)), cellSteep ? groundContrastSteep : groundContrastFlat)), 0.42)
+        : shadeFromLambert(palette, lambRaw);
+      let cloudCorners = null;
+      const cellCloud = cellSteep ? groundCloudSteep : groundCloudFlat;
+      if (texKey && cellCloud) {
+        // fbm2D's octave average lives well inside ±0.4, so the fields are gained up
+        // (×1.5 / ×1.8) before thresholding or the blotches never develop. Steep cells
+        // sample the blotch field in the wall's own surface space (x, z) — sampling plan
+        // (x, y) would collapse a vertical wall to one blotch row (y barely varies with
+        // height there), leaving only vertical banding. Sampled PER CORNER into
+        // `cornerFills` so the GPU interpolates the blotch across each face — a single
+        // per-face factor quantizes the cloud into hard cell rectangles.
+        const cloudFactor = (px, py, pz) => {
+          const iso = cellSteep
+            ? 0.5 + 1.5 * fbm2D(px * 0.9, pz * 0.9, CLOUD_FBM)
+            : 0.5 + 1.5 * fbm2D(px, py, CLOUD_FBM);
+          let cloudV = smoothstep(c01((iso - 0.5) / 0.45));
+          if (cellSteep) {
+            const st = 0.5 + 1.8 * fbm2D(px * 1.5, pz * 0.3, STREAK_FBM);
+            cloudV = Math.max(cloudV, smoothstep(c01((st - 0.6) / 0.35)) * 0.9);
+          }
+          return 1 - cellCloud * 0.65 * cloudV;
+        };
+        cloudCorners = [a, b, c, d].map((p) => scaleRgbStr(fill, cloudFactor(p[0], p[1], p[2])));
+        fill = scaleRgbStr(fill, cloudFactor(xc, yc, terrainC));
+      }
       if (isWater) fill = scaleRgbStr(fill, 0.5);
-      if (haze) {
-        fill = applyHaze(fill, haze.horizon, haze.strength * depthT);
+      const hazeFill = (f) => {
+        if (!haze) return f;
+        f = applyHaze(f, haze.horizon, haze.strength * depthT);
         if (haze.day < 1) {
-          fill = applyHaze(fill, NIGHT_TINT, (1 - haze.day) * 0.6);
+          f = applyHaze(f, NIGHT_TINT, (1 - haze.day) * 0.6);
           if (haze.moon && !isWater) {
             const lunarTerm = Math.max(0, (sampler.lambertAt(xc, yc, haze.moon.dir) - AMBIENT) / LAMBERT_GAIN);
-            fill = applyHaze(fill, MOON_LIGHT, haze.moon.strength * lunarTerm);
+            f = applyHaze(f, MOON_LIGHT, haze.moon.strength * lunarTerm);
           }
         }
-      }
+        return f;
+      };
+      fill = hazeFill(fill);
+      if (cloudCorners) cloudCorners = cloudCorners.map(hazeFill);
       // farmland: paint a field patch over suitable (gentle, dry, lower) land
       let face = { corners: [a, b, c, d], fill, doubleSided: true };
-      if (farmland && !isWater) {
+      if (texKey) {
+        const uv = quadUv([a, b, c, d], groundTile);
+        // Family rotation: when the key names a texture FAMILY, pick the variant per
+        // tile-repeat region (the integer part of the cell-centre UV) — every repeat of
+        // the tile is a different family member, so a big surface never shows the same
+        // patch twice. Keyed in the face's own UV space so cliff walls rotate vertically
+        // too, and seeded by hsh so re-renders are byte-identical.
+        const fam = familyKeys(texKey);
+        if (fam.length) {
+          const uc = (uv[0][0] + uv[1][0] + uv[2][0] + uv[3][0]) / 4;
+          const vc = (uv[0][1] + uv[1][1] + uv[2][1] + uv[3][1]) / 4;
+          const pick = hsh(Math.floor(uc) * 13 + 101, Math.floor(vc) * 17 + 203);
+          face.texture = fam[Math.floor(pick * fam.length) % fam.length];
+        } else {
+          face.texture = texKey;
+        }
+        face.textureLit = true;
+        face.uv = uv;
+        if (cloudCorners) face.cornerFills = cloudCorners;
+      }
+      if (farmland && !isWater && !texKey) {
         const amp = (terrainC - zMin) / zSpan;
-        const bg = fieldBgAt(xc, yc, sampler.lambertAt(xc, yc, light), depthT, amp);
+        const bg = fieldBgAt(xc, yc, lambRaw, depthT, amp);
         if (bg) face = { corners: [a, b, c, d], bg, doubleSided: true };
       }
       faces.push(face);
@@ -2754,6 +2965,113 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
     }
   }
 
+  // ── explicit BUILDS: placed box structures (launchpads, buildings, walkways, towers) ──
+  // manifest.builds: [{ x, y, w, d, h, z0?, sink?, material?|texture?, tint?, tile? }] in
+  // terrain (domain) coords, same space the elevation fields are authored in — so a build
+  // rides the `extent` scale with the terrain. Each box is terrain-anchored (z0 defaults to
+  // the terrain height under its footprint centre, minus `sink` to bed it in — a NEGATIVE
+  // sink RAISES it, for elevated walkways), extruded `h` up, and emitted as top+4-wall faces.
+  // Two finish channels (a build picks one):
+  //   • `material` — texture-free vertex-colour metal (brushed-*/weathered-hull/gradient-plate)
+  //     resolved by resolveFaceMaterials in the World path;
+  //   • `texture`  — a surface-textures.js panel tile (hull-plate / deck-checker / deck-tread /
+  //     …), multiply-lit (texel × bakedLight) via the generic texture+uv+textureLit channel.
+  // Either way each face also carries a Lambert-shaded `fill` (SVG/CSS/collision fallback).
+  // No bottom face (it sits on the ground). Absent `builds` → nothing emitted.
+  const builds = Array.isArray(manifest.builds) ? manifest.builds : [];
+  if (builds.length) {
+    const hexToRgbB = (h) => {
+      const m = /^#?([0-9a-f]{6})$/i.exec(String(h || ''));
+      if (!m) return null;
+      const n = parseInt(m[1], 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    // Man-made metal reads with a HIGHER ambient floor than terrain (0.22): a backlit
+    // valley-facing panel wall must not crush to black. For textured builds this fill is
+    // the actual multiply-lit light term (texel × fill), so the floor is load-bearing.
+    const BUILD_AMBIENT = 0.55, BUILD_DIFFUSE = 0.5;
+    const boxShade = (base, n) => {
+      const f = BUILD_AMBIENT + BUILD_DIFFUSE * Math.max(0, dot3(n, light));
+      return `rgb(${clamp255(base[0] * f)},${clamp255(base[1] * f)},${clamp255(base[2] * f)})`;
+    };
+    // per-corner UV by the face's dominant normal axis (matches the ground tiler)
+    const boxUv = (c, ts) => {
+      const ux = c[1][0] - c[0][0], uy = c[1][1] - c[0][1], uz = c[1][2] - c[0][2];
+      const vx = c[3][0] - c[0][0], vy = c[3][1] - c[0][1], vz = c[3][2] - c[0][2];
+      const nx = Math.abs(uy * vz - uz * vy), ny = Math.abs(uz * vx - ux * vz), nz = Math.abs(ux * vy - uy * vx);
+      const [pa, pb] = nz >= nx && nz >= ny ? [0, 1] : (nx >= ny ? [1, 2] : [0, 2]);
+      return c.map((p) => [p[pa] / ts, p[pb] / ts]);
+    };
+    const nrm = (v) => { const L = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / L, y: v.y / L, z: v.z / L }; };
+    const DEFAULT_METAL = [150, 158, 168];
+    const TEX_LIT = [232, 236, 242];   // near-white multiplier so a panel texel shows near-full
+    for (const b of builds) {
+      const w = Math.max(0.02, b.w ?? 1), d = Math.max(0.02, b.d ?? 1), h = Math.max(0.02, b.h ?? 1);
+      const sink = Number.isFinite(b.sink) ? b.sink : 0;
+      const z0 = (Number.isFinite(b.z0) ? b.z0 : sampler.heightAt(b.x, b.y)) - sink;
+      const z1 = z0 + h;
+      const tex = typeof b.texture === 'string' ? b.texture : null;
+      const ts = Number.isFinite(b.tile) && b.tile > 0 ? b.tile : 1.2;
+      const mat = b.material ?? 'brushed-hull';
+      const material = b.tint ? { kind: mat, tint: b.tint } : mat;
+      const baseRgb = tex ? ((b.tint && hexToRgbB(b.tint)) || TEX_LIT) : ((b.tint && hexToRgbB(b.tint)) || DEFAULT_METAL);
+      const face = (corners, n) => {
+        const f = { corners, fill: boxShade(baseRgb, n), doubleSided: true };
+        if (tex) { f.texture = tex; f.uv = boxUv(corners, ts); f.textureLit = true; }
+        else f.material = material;
+        extraFaces.push(f);
+      };
+      // `rotZ` (degrees) spins the footprint about its centre — angled ring segments, chamfers.
+      const rot = Number.isFinite(b.rotZ) ? (b.rotZ * Math.PI) / 180 : 0;
+      const ca = Math.cos(rot), sa = Math.sin(rot), hw = w / 2, hd = d / 2;
+      const W2 = (lx, ly) => [b.x + lx * ca - ly * sa, b.y + lx * sa + ly * ca];   // local xy → world xy
+      const rn = (nx, ny, nz) => nrm({ x: nx * ca - ny * sa, y: nx * sa + ny * ca, z: nz });
+      // CYLINDER / disc: `shape:'cylinder'` extrudes an N-gon prism (w,d = diameters → ellipse
+      // ok) — a landing circle, silo, or round tower. `sides` sets the facet count.
+      if (b.shape === 'cylinder') {
+        const TAU = Math.PI * 2;
+        const N = Math.max(6, Math.min(48, Math.round(b.sides ?? 20)));
+        const rx = w / 2, ry = d / 2, cx = b.x, cy = b.y;
+        const ring = (z) => Array.from({ length: N }, (_, i) => { const a = (i / N) * TAU; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, z]; });
+        const bot = ring(z0), top = ring(z1), ct = [cx, cy, z1];
+        for (let i = 0; i < N; i += 1) {
+          const j = (i + 1) % N, a = ((i + 0.5) / N) * TAU;
+          face([bot[i], bot[j], top[j], top[i]], nrm({ x: Math.cos(a) * ry, y: Math.sin(a) * rx, z: 0 }));   // side
+          face([ct, top[i], top[j], ct], { x: 0, y: 0, z: 1 });                                              // top cap wedge
+        }
+        continue;
+      }
+      // RAMP wedge: `slope` ∈ '+x'|'-x'|'+y'|'-y' makes the top face RISE from z0 (+ a small
+      // lip) at the low edge to z0+h at the high edge along that axis — a walkable incline up
+      // to a raised deck. Same finish channels as a box; walls are trapezoids down to z0.
+      const slope = ['+x', '-x', '+y', '-y'].includes(b.slope) ? b.slope : null;
+      const LC = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]];   // local footprint corners (CCW)
+      if (slope) {
+        const zLo = z0 + 0.06, zHi = z0 + h, dz = zHi - zLo;
+        // top param t (0 low → 1 high) per LOCAL corner, along the slope axis
+        const tL = (lx, ly) => slope === '+x' ? (lx + hw) / (2 * hw) : slope === '-x' ? (hw - lx) / (2 * hw) : slope === '+y' ? (ly + hd) / (2 * hd) : (hd - ly) / (2 * hd);
+        const Wc = LC.map((c) => W2(c[0], c[1]));
+        const T = Wc.map(([x, y], i) => [x, y, zLo + dz * tL(LC[i][0], LC[i][1])]);
+        const B = Wc.map(([x, y]) => [x, y, z0]);
+        const run = (slope === '+x' || slope === '-x') ? 2 * hw : 2 * hd;
+        const dir = slope === '+x' ? [-dz, 0] : slope === '-x' ? [dz, 0] : slope === '+y' ? [0, -dz] : [0, dz];
+        face([T[0], T[1], T[2], T[3]], rn(dir[0], dir[1], run));   // sloped top
+        face([B[0], B[1], T[1], T[0]], rn(0, -1, 0));
+        face([B[1], B[2], T[2], T[1]], rn(1, 0, 0));
+        face([B[2], B[3], T[3], T[2]], rn(0, 1, 0));
+        face([B[3], B[0], T[0], T[3]], rn(-1, 0, 0));
+        continue;
+      }
+      const Wc = LC.map((c) => W2(c[0], c[1]));
+      const T = Wc.map(([x, y]) => [x, y, z1]), B = Wc.map(([x, y]) => [x, y, z0]);
+      face([T[0], T[1], T[2], T[3]], rn(0, 0, 1));      // top
+      face([B[0], B[1], T[1], T[0]], rn(0, -1, 0));     // -y edge
+      face([B[1], B[2], T[2], T[1]], rn(1, 0, 0));      // +x edge
+      face([B[2], B[3], T[3], T[2]], rn(0, 1, 0));      // +y edge
+      face([B[3], B[0], T[0], T[3]], rn(-1, 0, 0));     // -x edge
+    }
+  }
+
   // Star density for the World's night dome (mirrors skyCss): a number is verbatim, a
   // boolean is the preset default, the card's { density } object is unwrapped, else none.
   // `day` rides along so the World can night-gate + fade the stars exactly like the SVG sky.
@@ -2775,11 +3093,37 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
   const sunPrim = SKY_PRIMITIVES.find((p) => p.id === 'sun');
   const sunCfg = sky && sunPrim ? sunPrim.normalize(skySpec.sun, sky, seedNum) : null;
 
+  // ── extent: uniform world magnification (manifest.extent, default 1) ──────────────
+  // The terrain DOMAIN is a fixed quad (X ±12, Y −24..6) every glyph is authored against,
+  // so map SIZE is a post-pass: scale the finished mesh (and everything measured in its
+  // units) by `extent`. Walk speed/eye are absolute, so 1.7× extent means a 1.7× longer
+  // crossing under proportionally taller relief — the map gets BIGGER, not re-gridded.
+  // UVs scale with the mesh so texel density per world unit is preserved. The SVG painting
+  // ignores extent (fixed easel); this is a World-mesh channel.
+  const ext = Number.isFinite(manifest.extent) && manifest.extent > 0 ? manifest.extent : 1;
+  if (ext !== 1) {
+    const sc = (f) => {
+      if (Array.isArray(f.corners)) f.corners = f.corners.map(([x, y, z]) => [x * ext, y * ext, z * ext]);
+      if (Array.isArray(f.uv)) f.uv = f.uv.map(([u, v]) => [u * ext, v * ext]);
+    };
+    faces.forEach(sc);
+    if (Array.isArray(extraFaces)) extraFaces.forEach(sc);
+    if (Array.isArray(structures)) {
+      for (const b of structures) {
+        b.x *= ext; b.y *= ext;
+        if (Number.isFinite(b.w)) b.w *= ext;
+        if (Number.isFinite(b.d)) b.d *= ext;
+        if (Number.isFinite(b.z0)) b.z0 *= ext;
+        if (Number.isFinite(b.z1)) b.z1 *= ext;
+      }
+    }
+  }
+
   return {
     faces,
     structures,
     extraFaces,
-    bounds: { xRange: [X_MIN, X_MAX], yRange: [Y_FAR, Y_NEAR], zRange: [zMin, zMax] },
+    bounds: { xRange: [X_MIN * ext, X_MAX * ext], yRange: [Y_FAR * ext, Y_NEAR * ext], zRange: [zMin * ext, zMax * ext] },
     // the terrain light vector → the assemble layer lights the structures/plants with it (so a
     // night forest is dim, not day-lit) + the day factor for the ambient/diffuse balance.
     light: { x: light.x, y: light.y, z: light.z },

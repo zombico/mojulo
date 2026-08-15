@@ -21,9 +21,12 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
-import { assembleSubwayStationScene } from '@/lib/graph/architecture/subway-station';
+import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
+import { assembleFigureScene } from '@/lib/graph/figures/figure-world';
+import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
+import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable';
 import { assembleManjiTreeWorld } from '@/lib/graph/worlds/polygomer-world';
 import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
 import { assembleAssemblerScene } from '@/lib/graph/worlds/workbench-assembler';
@@ -85,7 +88,11 @@ import { assembleFtcScene } from '@/lib/graph/views/math/ftc-view';
 // math worlds — mathematical structures given walkable bodies (math-worlds.plan.md)
 import { assembleMathStructureScene } from '@/lib/graph/structures/math-structure';
 import { assembleKoenigsbergScene } from '@/lib/graph/structures/koenigsberg';
-import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
+// renderStoredSketchSvg is imported LAZILY inside resolveWrapTextures (below): its transitive
+// chain (sketch-svg.js) statically pulls a React `.jsx` component, which the Next.js/vitest
+// bundlers transform but plain Node cannot parse. Keeping it off the eager import graph lets a
+// plain-Node caller (scripts/blender-bake.mjs) import resolveWorldScene → this module to generate
+// an unshaded export without dragging in the UI layer. Workbench label-wraps are the only consumer.
 import { latestBoundRender } from '@/lib/graph/image-outcomes/render-store';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -101,7 +108,14 @@ const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg)
 // External stash IMAGE items (mediaRef → file) are a documented follow-on.
 export async function resolveWrapTextures(manifest) {
   const textures = {};
-  for (const { key, source } of collectWrapSources(manifest)) {
+  const sources = collectWrapSources(manifest);
+  // Lazy so the eager import graph stays plain-Node-safe (see the import note above); only a
+  // manifest carrying a `sketchRef` wrap source actually needs the SVG renderer.
+  let renderStoredSketchSvg = null;
+  if (sources.some((s) => s.source && typeof s.source.sketchRef === 'string')) {
+    ({ renderStoredSketchSvg } = await import('@/lib/graph/sketch/stored-sketch-svg'));
+  }
+  for (const { key, source } of sources) {
     let dataUrl = null;
     if (source && typeof source.dataUrl === 'string') dataUrl = source.dataUrl;
     else if (source && typeof source.svg === 'string') dataUrl = svgDataUrl(source.svg);
@@ -276,7 +290,9 @@ export const WORLD_KINDS = {
     fogBoxes: (m) => planFractalCity(m).boxes
       .filter((b) => FRACTAL_CITY_FOG_KINDS.has(b.kind) && b.z1 > (b.z0 || 0) && b.w > 0 && b.d > 0)
       .map((b) => boxFromFootprint(b, { up: 'z' })),
-    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title }))),
+    // `unshaded` (GI-bake raw-albedo export) forces plain lighting + FLAT_LIGHT inside the
+    // assembler; absent it, every field is byte-identical to before.
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).
@@ -320,7 +336,16 @@ export const WORLD_KINDS = {
   // floorplan 9ms · subway-station 195ms · subway-building 220ms · restaurant 353ms — acceptable
   // one-time emit cost. condo-complex is deliberately NOT defaulted: 692ms on 74k faces AND heavy
   // per-cell overflow at kPerCell=64 (reads lighter than truth) — opt in per manifest instead.
-  'subway-station': { walk: true, ao: true, ...spread(assembleSubwayStationScene, 'mojulo subway station') },
+  'subway-station': {
+    walk: true,
+    ao: true,
+    // fog clips against the same solids the plan builds (box()/tiledColumn()
+    // record their footprints as `occluders`); paper-thin trims are dropped.
+    fogBoxes: (m) => planSubwayStation(m).occluders
+      .filter((b) => b.z1 > b.z0 && b.w > 0.05 && b.d > 0.05)
+      .map((b) => boxFromFootprint(b, { up: 'z' })),
+    ...spread(assembleSubwayStationScene, 'mojulo subway station'),
+  },
   'subway-building': {
     title: 'mojulo subway',
     walk: true,
@@ -351,8 +376,9 @@ export const WORLD_KINDS = {
   // manji-tree does (skin_polygomer → bakeBoundSkinFaces at assemble time).
   workbench: {
     title: 'mojulo workbench',
+    // ctx.light is FLAT_LIGHT under unshaded export (else undefined → WORKBENCH_LIGHT default).
     resolve: async (m, ctx) => assembleWorkbenchScene({
-      ...m, title: ctx.title, textures: await resolveWrapTextures(m), skin: await loadBoundSkin(ctx.ref),
+      ...m, title: ctx.title, textures: await resolveWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light,
     }),
   },
   // A polygomer (create_manji_tree) as a turnable 3D model: its slot-bonded lathes
@@ -360,11 +386,27 @@ export const WORLD_KINDS = {
   // (skin_polygomer), it's baked onto the faces so the model wears the painted look.
   'manji-tree': {
     title: 'mojulo polygomer',
-    resolve: async (m, ctx) => assembleManjiTreeWorld(m, { title: ctx.title, skin: await loadBoundSkin(ctx.ref) }),
+    resolve: async (m, ctx) => assembleManjiTreeWorld(m, { title: ctx.title, skin: await loadBoundSkin(ctx.ref), light: ctx.light }),
   },
   assembler: {
     title: 'mojulo assembler',
-    resolve: async (m, ctx) => assembleAssemblerScene({ ...m, title: ctx.title, skin: await loadBoundSkin(ctx.ref) }),
+    resolve: async (m, ctx) => assembleAssemblerScene({ ...m, title: ctx.title, skin: await loadBoundSkin(ctx.ref), light: ctx.light }),
+  },
+  // ── interchange.plan.md I2: sketch kinds widened into the World/export form ──
+  // A lone figure / wordmark / solid is an OBJECT STUDY (orbit, export), not a
+  // traversable world — deliberately not `walk` (same posture as workbench /
+  // vehicle-instance / manji-tree).
+  figure: {
+    title: 'mojulo figure',
+    resolve: (m, ctx) => assembleFigureScene(m, { title: ctx.title }),
+  },
+  'carved-solid': {
+    title: 'mojulo carved solid',
+    resolve: (m, ctx) => assembleCarvedSolidScene(m, { title: ctx.title }),
+  },
+  'css3d-turntable': {
+    title: 'mojulo solid',
+    resolve: (m, ctx) => assembleSolidTurntableScene(m, { title: ctx.title }),
   },
   'painted-landscape': { walk: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host

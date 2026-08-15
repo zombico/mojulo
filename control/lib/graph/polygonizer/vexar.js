@@ -88,6 +88,20 @@ export function makeLight({ direction = [0.4, 0.5, -0.76], ambient = 0.46, diffu
   return light;
 }
 export const DEFAULT_LIGHT = makeLight();
+// FLAT_LIGHT — the UNSHADED (flat-albedo) light. ambient 1 + diffuse 0 ⇒ litFactor ≡ 1
+// for EVERY normal (see litFactor below), so shadeHex/shadeFace return the base albedo
+// UNCHANGED — no Lambert directional term, no ambient darkening. This is the mechanism
+// behind the opt-in unshaded export mode (resolveWorldScene({ unshaded:true })): a GLB
+// carrying raw albedo as a clean base for external GI baking (Blender). Purely additive:
+// only a caller that threads this light in place of a directional key changes output.
+//
+// `flat: true` is a hard marker read by shadeHex/shadeHexMat: under FLAT_LIGHT they
+// return the base albedo for EVERY face, INCLUDING material faces. A material's own
+// ambient/diffuse would otherwise override the light (see shadeHexMat) and keep a
+// NORMAL-DEPENDENT term alive — which, on mirror-built parts (flipped normals), bakes
+// asymmetric (one side dark). The flat marker drops that term so unshaded truly emits
+// raw albedo, mirror-symmetric, regardless of normal orientation.
+export const FLAT_LIGHT = { ...makeLight({ ambient: 1, diffuse: 0 }), flat: true };
 
 // ---- LOD: sustainable-by-default tessellation, tweakable upward ------------
 // vexar surfaces read smooth from SHADING, not polygon count — so the default
@@ -113,6 +127,7 @@ export function litFactor(normal, light = DEFAULT_LIGHT) {
 }
 /** Scale a flat fill by the Lambert factor — the per-cell shade. */
 export function shadeHex(hex, normal, light = DEFAULT_LIGHT) {
+  if (light.flat) return hex; // FLAT_LIGHT: raw albedo, no directional term
   return scaleHex(hex, litFactor(normal, light));
 }
 /**
@@ -145,6 +160,7 @@ export function shadeFace(corners, hex, { light = DEFAULT_LIGHT, inside = null }
  * must omit them.
  */
 export function shadeHexMat(hex, normal, material, { light = DEFAULT_LIGHT, viewFrom = null, at = null } = {}) {
+  if (light.flat) return hex; // FLAT_LIGHT: raw albedo — skip the material's normal-dependent response
   if (!material) return shadeHex(hex, normal, light);
   let lam = Math.max(0, dot3(normal, light.toLight));
   if (material.cel) lam = Math.round(lam * material.cel) / material.cel;

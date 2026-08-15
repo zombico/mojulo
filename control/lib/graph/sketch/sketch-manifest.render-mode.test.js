@@ -100,8 +100,14 @@ describe('bucket ↔ walk-flag alignment', () => {
     const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
     // Walk-flagged kinds owned by another concern (see the WALKABLE_WORLD_KINDS
     // comment), plus the polygomer manji-tree (joins `object` via
-    // isPolygomerManjiTree, not by kind).
-    const OTHER_CONCERN = new Set(['painted-landscape', 'subway-station', 'manji-tree']);
+    // isPolygomerManjiTree, not by kind), plus the illustration-concern kinds
+    // that carry a WORLD_KINDS row only for export/`/world` eligibility
+    // (interchange.plan.md I2 — object studies, deliberately not `walk`, but
+    // still classified `illustration`, not `object`).
+    const OTHER_CONCERN = new Set([
+      'painted-landscape', 'subway-station', 'manji-tree',
+      'figure', 'carved-solid', 'css3d-turntable',
+    ]);
     // In the world concern without a registry walk flag: locomotion comes from
     // the manifest's per-entity rules, not the kind descriptor.
     const MANIFEST_DRIVEN_WALK = new Set(['controllable']);

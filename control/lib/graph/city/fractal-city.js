@@ -16,7 +16,7 @@
  */
 
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
-import { makeLight, scaleHex } from '../polygonizer/vexar.js';
+import { makeLight, scaleHex, FLAT_LIGHT } from '../polygonizer/vexar.js';
 import { makeRowhouseFacade } from '../architecture/building-facade.js';
 import { straightPath, sinePath, chainPaths, roadRibbons, groundStreet, offsetPath } from './roads.js';
 import { vehicleAntFaces, streetcarCorridor } from '../vehicles/vehicles-css3d.js';
@@ -2688,10 +2688,16 @@ export function assembleFractalCityScene(opts = {}) {
     const CW = new Set(['building', 'anchor', 'midtower']);
     boxes = boxes.map((b) => (CW.has(b.kind) && !b.shape ? { ...b, curtainwall: opts.curtainwall } : b));
   }
-  const time = opts.time || (opts.night ? 'night' : opts.day ? 'day' : null);
+  // UNSHADED (GI-bake raw-albedo export): the city normally shades its own faces via
+  // scaleHex(tint, litFactor(n, L)) + baked diffusion/moonlight/ground-shadows. For a clean GI
+  // base we force plain daylight-free lighting with FLAT_LIGHT (litFactor ≡ 1 ⇒ fill = raw tint)
+  // and skip every baked-lighting pass, so Blender's GI is the ONLY lighting. Fixed material
+  // tints (glass 0.62 etc.) stay — those are albedo, not directional shading.
+  const unshaded = opts.unshaded === true;
+  const time = unshaded ? null : (opts.time || (opts.night ? 'night' : opts.day ? 'day' : null));
   const night = time === 'night', day = time === 'day';
   const region = opts.region || DEFAULT_REGION;
-  let sources = night ? (opts.sources || plan.sources) : day ? [daySun(region)] : (opts.sources || []);
+  let sources = unshaded ? [] : (night ? (opts.sources || plan.sources) : day ? [daySun(region)] : (opts.sources || []));
   const cap = opts.maxLamps ?? 20;                              // sample lamps down so the night bake stays bounded
   if (night && sources.length > cap) sources = Array.from({ length: cap }, (_, i) => sources[Math.floor(i * (sources.length / cap))]);
   // instanced street furniture (see extractFurnitureRepeats): opt-in + plain lighting mode only
@@ -2709,17 +2715,17 @@ export function assembleFractalCityScene(opts = {}) {
   const scene = assembleBoxCityScene({
     boxes, grounds, ribbons, faces,
     sources,
-    diffusion: opts.diffusion || (night ? NIGHT_DIFFUSION : day ? DAY_DIFFUSION : {}),
-    moonlight: opts.moonlight ?? (night ? true : undefined),  // cool directional moonlight on rooftops / moon-facing walls
-    light: opts.light || (night ? makeLight({ direction: [0.2, 0.3, -0.9], ambient: 0.18, diffuse: 0.1 })
-      : day ? makeLight({ direction: [0.35, 0.4, -0.85], ambient: 0.5, diffuse: 0.4 }) : undefined),
+    diffusion: unshaded ? {} : (opts.diffusion || (night ? NIGHT_DIFFUSION : day ? DAY_DIFFUSION : {})),
+    moonlight: unshaded ? undefined : (opts.moonlight ?? (night ? true : undefined)),  // cool directional moonlight on rooftops / moon-facing walls
+    light: unshaded ? FLAT_LIGHT : (opts.light || (night ? makeLight({ direction: [0.2, 0.3, -0.9], ambient: 0.18, diffuse: 0.1 })
+      : day ? makeLight({ direction: [0.35, 0.4, -0.85], ambient: 0.5, diffuse: 0.4 }) : undefined)),
     cameras: opts.cameras || FRACTAL_CAMERAS,
     viewBox: opts.viewBox || { width: 1120, height: 780 },
     unitScale: opts.unitScale || 22,
     title: opts.title || (night ? 'mojulo fractal city · night' : day ? 'mojulo fractal city · day' : 'mojulo fractal city'),
     // opt-in per-building ground shadows (off by default). For day the dir defaults to the
     // sun (sources[0]) → directional cast; for night the downward lamps give grounding blobs.
-    groundShadows: opts.groundShadows ?? false,
+    groundShadows: unshaded ? false : (opts.groundShadows ?? false),
     creaseSeams: opts.creaseSeams ?? false,            // opt-in vgl concave contact-shadow feather
     ...(opts.sky ? { sky: opts.sky } : night ? { sky: { preset: 'night', stars: true, moon: true, seed: opts.seed ?? 7 } } : day ? { sky: { preset: 'day' } } : {}),
   });
@@ -2781,5 +2787,11 @@ export function cityThemeAdapter(slots = {}) {
   if (asset.monument) out.landmark = asset.monument;
   if (Array.isArray(asset.civic) && asset.civic.length) out.civicAreas = asset.civic;
   if (asset.elements && typeof asset.elements === 'object') out.elements = { ...asset.elements };
+  // Effect channels ride the top level of the slot bag (they are render toggles, not
+  // theme roles): opt-in volumetric fog + the audio channel pass through to the mint,
+  // which owns their validation (fog: true | tuning object; audio: object). Absent ⇒
+  // omitted ⇒ off — same default as every other opt-in here.
+  if (slots.fog !== undefined) out.fog = slots.fog;
+  if (slots.audio !== undefined) out.audio = slots.audio;
   return out;
 }

@@ -121,6 +121,19 @@ export function collectShadowDecals(faces = []) {
 }
 
 const TRIS = [[0, 1, 2], [0, 2, 3]]; // quad → two triangles
+const TRIS_REV = [[0, 2, 1], [0, 3, 2]]; // reversed winding (both tris flipped)
+
+// Raw winding normal of the FIRST emitted triangle (corners 0,1,2) — sign follows winding,
+// NOT canonicalized like faceNormal. Export-path only: used to decide whether a face's triangle
+// order must reverse so its winding AGREES with the authored outward normal. A Cycles diffuse
+// bake shades a face whose geometric (winding) normal opposes its shading normal as a BACKFACE →
+// bakes it black; mirror-built parts wind backwards, so exporting the right NORMAL is not enough —
+// the winding must agree too (export-normals.plan.md P2 bake finding).
+function windingNormal(c) {
+  const ux = c[1][0] - c[0][0], uy = c[1][1] - c[0][1], uz = c[1][2] - c[0][2];
+  const wx = c[2][0] - c[0][0], wy = c[2][1] - c[0][1], wz = c[2][2] - c[0][2];
+  return [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx];
+}
 
 // Alpha channel of an `rgba(r,g,b,a)` fill (1 when opaque / no alpha).
 const RGBA_A_RE = /rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/i;
@@ -403,7 +416,7 @@ export function decollideFaces(faces = [], { eps = STAGGER_EPS } = {}) {
  * curve in the World instead of squaring off. `ellipse(...)` clips and px-unit radii
  * are still approximated by the full quad.
  */
-export function faceListToMesh(faces = [], { decollide = true } = {}) {
+export function faceListToMesh(faces = [], { decollide = true, withNormals = false } = {}) {
   const positions = [];
   const colors = [];
   // Per-vertex specular params (material-response.plan.md P2): a face carrying
@@ -425,6 +438,13 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
   // (so cross-mesh collisions are caught) and then bakes each group with this off to avoid a
   // redundant second pass.
   const src = decollide ? decollideFaces(faces) : faces;
+  // Authored outward normals (export-normals.plan.md §3): only collected when a caller opts in
+  // (facesToGlb, for the GLB NORMAL attribute) AND the non-textured face set actually carries
+  // one — so every other consumer (World/three, STL, rigs) and every normal-free scene stays
+  // byte-identical. Buffer runs parallel to `positions`; faces without an authored normal fall
+  // back to the winding-derived geometric normal so the buffer never has a hole.
+  const anyNormal = withNormals && src.some((f) => f && Array.isArray(f.outNormal) && !(typeof f.texture === 'string' && Array.isArray(f.uv)));
+  const normals = anyNormal ? [] : null;
   for (const f of src) {
     const c = f && f.corners;
     if (!c || c.length < 4) continue;
@@ -463,6 +483,11 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
       continue;
     }
     const [lr, lg, lb] = faceColorLinear(f);
+    // Flat per-face normal replicated to every vertex this face emits: the authored outward
+    // normal when present, else the winding-derived geometric normal (fallback keeps the buffer
+    // aligned with `positions`). Textured faces `continue` above, so they never reach here.
+    const fn = normals ? (Array.isArray(f.outNormal) ? f.outNormal : faceNormal(c)) : null;
+    const pushNormal = (count) => { if (!normals) return; for (let i = 0; i < count; i++) normals.push(fn[0], fn[1], fn[2]); };
     const clipPts = parseClipPolygon(f.clip);
     const radPts = clipPts ? null : parseBorderRadius(f.radius);
     if (clipPts || radPts) {
@@ -477,9 +502,17 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
           colors.push(lr * a, lg * a, lb * a);
         }
         pushSpec(f, 3);
+        pushNormal(3);
       }
     } else {
-      for (const tri of TRIS) {
+      // Export path (normals active): reverse the triangle order when the face's winding opposes
+      // its authored outward normal, so the emitted GLB winds consistently outward (bake-correct).
+      // Purely export-only — `fn` is null unless withNormals, so the World/STL paths keep TRIS
+      // and stay byte-identical. Per-vertex colour/vao stay aligned (indexed by `idx`); the flat
+      // per-face normal is unchanged.
+      const wn = fn ? windingNormal(c) : null;
+      const rev = wn && (wn[0] * fn[0] + wn[1] * fn[1] + wn[2] * fn[2]) < 0;
+      for (const tri of (rev ? TRIS_REV : TRIS)) {
         for (const idx of tri) {
           const p = c[idx], a = vao ? vao[idx] : 1;
           const cc = cornerCols ? cornerCols[idx] : [lr, lg, lb];
@@ -488,6 +521,7 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
         }
       }
       pushSpec(f, 6);
+      pushNormal(6);
     }
     for (let i = 0; i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
   }
@@ -516,6 +550,10 @@ export function faceListToMesh(faces = [], { decollide = true } = {}) {
   return {
     positions: Float32Array.from(positions),
     colors: Float32Array.from(colors),
+    // per-vertex flat outward normal — null unless a caller opted in AND some face carried one
+    // (export-normals.plan.md §3). Emitted as the GLB NORMAL attribute so external GI bakes
+    // (Blender) light mirror-built parts from the right side instead of guessing from winding.
+    normals: normals && normals.length ? Float32Array.from(normals) : null,
     // per-vertex [strength, power] — null unless some face carried `spec`
     specs: specs && specs.length ? Float32Array.from(specs) : null,
     vertexCount: positions.length / 3,

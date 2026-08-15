@@ -8,13 +8,16 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
-## [1.1.0] — 2026-08-10
+## [1.1.0] — 2026-08-13
 
 A creative-surface and engine release: one new creative FORM (the motion comic), one new
 walkable world kind (the dungeon), a key-free authoring path for the polygonizer, the
-match-mode layer promoted from game content into the tracked engine, and a baked
-coverage-shading pass for rigged units. Additive throughout — absent the new opt-ins,
-every existing recipe renders byte-identical.
+match-mode layer promoted from game content into the tracked engine, a baked
+coverage-shading pass for rigged units — and the glTF interchange arc: animated GLB
+export, a bind-back door for externally refined meshes, semantic level export, and
+Blender as an optional local worker that bakes Cycles GI into a world's (or a walking
+figure's) own vertex colours at zero runtime cost. Additive throughout — absent the new
+opt-ins, every existing recipe renders byte-identical.
 
 ### Motion comic — a new creative FORM
 
@@ -91,22 +94,9 @@ sibling affordances land with it: the `patrol` rule (a passive waypoint walker �
 staggerable, never fires) and DORMANT seats (`dormant: true` — minted into the roster but
 absent from play until a step's `activate` wakes them with the sky drop-in; the
 deterministic mid-level reinforcement). `aiDifficulty` on a manifest seeds the AI tier at
-mint. First consumers: the Mobile Suit Arena's tutorial track, both missions unlocked and
-numbered — **1. Mobile Suit Rising**
-(City: the trimmed mk2 vs a green Z-A11 patrol dummy at half hull; thirteen steps from
-WASD through the knockdown cleave to the tackle) and **2. Canyon Rumble** (Canyon: full
-kit vs an armed RECRUIT Z-A11; clearing it wakes a dormant Geof at ACE, whose drop-in step
-teaches the dodge roll — tap F twice with a direction held — before the kill order; Geof
-falling triggers the optional BONUS WAVE — "ENEMY MOBILE SUITS DETECTED! DEPLOYING
-BACKUP": full repair, a V78 ally drops in beside the player and three Torettos on the far
-side, sides picked by team tags + the ai's team-aware `target:'enemy'` hunt; wipe the
-squad or go down swinging, the level clears either way) and **3. Encounters in Space**
-(the asteroid-field station map: the full-kit mk2 in 6DoF — thrust WASD, ascend SPACE,
-descend X, boost F, the space roll tap-tap-F — then first contact with a green Z-A11,
-and on its fall the optional wave: a Taisa + two more z's on a wider ring with a V78
-backup deploying beside the player, same optional-victory posture) — stored light like every matrix
-cell. (The Rising→Canyon `gate` was exercised end-to-end then retired by operator call;
-`evalGate` and the shell's lock rendering remain available.)
+mint. A tutorial track's levels store light like every matrix cell. (The optional
+step-`gate` mechanism — a level locked until a prior one clears — was exercised end-to-end
+then retired by operator call; `evalGate` and the shell's lock rendering remain available.)
 
 ### `export_game` — shared asset banks
 
@@ -119,6 +109,34 @@ light level's recipe so `recipe/` stays re-mintable. Trade-off, recorded in the 
 description: exported folders now need an HTTP server — `file://` no longer loads levels.
 (Real-world validation: a 35-level export dropped from ~5GB to under 1GB, no file over
 20MB, and published clean to GitHub Pages.)
+
+### Level-load performance
+
+A roster-scale controllable level went from a ~40–55s server bake + a 148.5MB page on
+EVERY play to **~0.6–1.5s warm bakes, a 47.7MB page (−68%), and ~10ms 304 replays**.
+Five stacked fixes, all engine-general:
+
+- **Rig-bake LRU** (`worlds/unit-rig.js`): `bakeUnitRig` is now a keyed cache
+  (manifest + opts hash; function-bearing overrides bypass; hits return
+  shallow-protected copies) — levels sharing a roster re-bake nothing.
+- **Indexed + quantized rig parts** (`figures/rig-bake.js`): positions on a per-part
+  uint16 grid (worst-case error 1.3e-4 world units, verified numerically), deduped
+  vertices, uint16/uint32 triangle indices, spec as u8 pairs. Self-describing per part —
+  pages without unit rigs stay byte-identical.
+- **Figure-buffer pool**: the controllable channel dedupes repeated packed buffers across
+  the figure bank into a `__FIGPOOL` + in-page rehydration (livery variants share
+  geometry); `export_game` hoists the pool into the content-hashed figure bank.
+- **`/world` browser-cache tier**: the route sends an `ETag` (= the server world-cache
+  key) under `no-cache`; a matching `If-None-Match` 304s before any resolve work, even
+  across server restarts. `?nocache=1` stays `no-store`; the world cache budget is
+  env-tunable (`MOJULO_WORLD_CACHE_MB`).
+- **Level pre-warm**: game shells warm level worlds after the suit previews, using the
+  exact launch URL so the cache key + ETag match the play request.
+
+Also in the engine from the same tuning pass: per-weapon `chargedRangeMul` /
+`chargedDamage` knobs (combat-ranged), the AI tackle-guard facing cone (ms-ai), opt-in
+`manifest.jets` thruster families (unit-rig), and AI maneuver playbacks now running the
+same blocking resolution as pilot dashes.
 
 ### Baked coverage shading (visual layer)
 
@@ -135,6 +153,105 @@ description: exported folders now need an HTTP server — `file://` no longer lo
   procedural-material presets onto a finished map's faces by height band or baked fill
   colour, preset-validated at mint.
 
+### glTF interchange — standard formats at the edge (I1–I4)
+
+The `interchange.plan.md` sequence landed whole: recipes stay sovereign at home; the
+edge speaks standard glTF both directions.
+
+- **Animated export** (`scene/scene-gltf.js`): `export_model` takes opt-in `clips`
+  (names or `'_all'`) — every packed rig figure exports as bone-local mesh nodes with
+  one glTF animation per clip (FK→TRS, LINEAR samplers, 1 s/cycle, K+1 wrap key so
+  loops don't hitch, hemisphere continuity enforced per bone). Absent ⇒ byte-identical
+  (pinned).
+- **Three new exportable kinds** (`worlds/world-kinds.js`): `figure`
+  (`figures/figure-world.js` — static posed mesh + the packed FK rig with a clip from
+  the stored motion vocabulary; the rig declares `embodies:'body'` so the clips path
+  drops the static ghost), `carved-solid` (`effects/carved-solid-world.js` — the SVG
+  frame's geometry/shading kernels replicated so the GLB matches the still's palette;
+  caps via the existing ear-clipper), and `css3d-turntable` (an assembler beside
+  `planSolidTurntable`, CSS→z-up). All three also serve `/world` live orbit.
+- **The bind-back door** (`bind_mesh_render`, `scene/mesh-store.js`,
+  `scene/scene-gltf-read.js`): an externally refined GLB binds onto its sketch as an
+  append-only derived artifact (`data/outcomes/<ref>/mesh-<n>.glb` + sha256 provenance
+  sidecar), machine-gated by a FULL geometry decode at the door. `meshRef` joins the
+  figures map as the sixth body source — lowered server-side into `payload.faces` (no
+  runtime GLB loader ships; a bound mesh picks up `ao:` etc. for free and rides every
+  consumer: svg / scene / world / export). Reader: pure-Buffer writer's-mirror —
+  indexed+soup tris → padded quads, COLOR_0/baseColor → per-corner fills round-tripping
+  flat hexes byte-exact, TRS and matrix trees, y-up→z-up.
+- **Semantic level export** (`scene/scene-gltf-level.js`, default-on): `worldFraming`
+  cameras become posed glTF cameras; entities become identifiable nodes (a baked rig's
+  wrapper IS its placement, standing at spawn facing its heading) carrying
+  `moj:entity`/`moj:rule`/`moj:body` extras; scene extras carry `moj:spawn`,
+  `moj:colliders`, and the `moj:game` contract digest. `export_model({write:true})` now
+  writes the sketch's outcome folder — `model.glb` beside `recipe.json` and a README
+  with the import notes (`data/exports/` is beats-only now).
+- **Gates closed in real Blender** (5.2 LTS, headless): 351 animations imported off a
+  roster-level export with the designed key/duration shape; cameras and `moj:` extras
+  readable; mid-stride eyes gate clean; a Blender edit re-exported by Blender decodes
+  cleanly back through the bind gate (COLOR_0 survives the round trip).
+- Bound statues can opt into `singleSide` front-face culling (`scene/scene-three.js`) —
+  interior-culled closed solids halve fragment cost; absent ⇒ byte-identical. Game
+  levels also stop rendering the corner control-hint (the pause menu teaches).
+
+### Blender as a local worker — hero bakes, world GI, prelit figures
+
+Same posture as the image/voice workers: optional, operator-hosted, produces bound
+derived artifacts, holds no substrate state. The runtime stays 100% unlit vertex
+colour — a bake is a colour swap, never a lighting engine, so baked results ship to any
+player/bot/deploy with no Blender anywhere.
+
+- **Hero-object bake** (`scripts/blender-bake.mjs` + `.py`,
+  `docs/local-blender-worker.md`): export → Cycles diffuse GI baked into vertex
+  colours → bound back through the `bind_mesh_render` gate → placed via `meshRef`.
+  The `statue` preset carries the eyes-gate findings (ambient fill + no-cast shoulder
+  groups, a dense plinth for the baked shadow).
+- **World GI bake — the "blenderification" bicycle** (`scripts/bake-world-gi.mjs` +
+  `.py`, design in `scene/map-gi-bake.plan.md`): a fixed drivetrain
+  (FACING→EXPORT→BAKE→machine gate→BIND→eyes gate) with gear adapters per world kind —
+  `inline-faces` (recolours frozen `manifest.faces` in place, so `mapRef` mode
+  variants inherit) and `generated-mesh` (resolve→bake→a `<ref>_gi` meshRef variant).
+  Presets `interior-day` / `exterior` / `space` / `interior-lit`.
+- **Unshaded export mode** — the substrate change the bakes ride:
+  `resolveWorldScene(sketch, { unshaded:true })` exports RAW ALBEDO (a `FLAT_LIGHT`
+  in `vexar.js` plus skipping the material/AO/weathering darkening channels; the light
+  seam threaded through workbench/assembler/polygomer/city paths), so the bake's GI is
+  the only lighting. Deliberately not an MCP schema field (description-payload
+  ceiling); lives in the resolver + workers. Absent the flag, every output byte is
+  identical.
+- **Authored outward normals, P1** (`export-normals.plan.md`): the root cause of black
+  parts on baked mirror-built units is winding-derived normals flipping under mirror.
+  Lathe parts now author `outNormal`, carried through the assembler mirror and emitted
+  as the GLB NORMAL attribute with winding made to agree
+  (`faceListToMesh({withNormals})` — opt-in, every other consumer byte-identical).
+  P2 (remaining generators) / P3 (rig-packed path) staked in the plan.
+- **Prelit figures, P1** (`worlds/prelit-transfer.js`): a `unitRef` figure may carry
+  `prelit:'<ref>'` naming a bound GI-baked transfer mesh — the rig's rest faces are
+  recoloured through a quantised position→colour map before packing, so a
+  premium-lit suit WALKS at zero runtime cost (rigid FK parts carry baked form-shading
+  correctly). Cacheable via `prelitKey` (append-only bind slots name the bake
+  content). Absent ⇒ the bake is byte-identical.
+
+### Painted landscape — ground, extent, builds
+
+The painterly terrain kind grows a walkable-world material layer, all seeded and
+deterministic, world-route (and glTF export) only — the SVG path is untouched.
+
+- `ground` — slope-routed surface textures for the `/world` mesh (steep cliff faces vs
+  gentle ground), with a world-space grime-cloud + weather-streak bake into the vertex
+  colours so tiling can never show, and a deepened facet-shading curve. Presets:
+  `sandstone` / `granite` / `red-rock` / `meadow` / `snow`; object form for per-world
+  tuning. Two new rock tile FAMILIES in `landscape/surface-textures.js`
+  (`rock-sandstone`, `rock-snowcrag` — one structural DNA, four seed variants rotated
+  per tile-repeat region).
+- `extent` — uniform world-mesh magnification: a longer crossing under proportionally
+  taller relief, without re-gridding.
+- `builds` — terrain-anchored placed structures (launchpads, towers, decks): boxes,
+  `shape:'cylinder'` prisms, `slope` ramps you can walk up, `rotZ` spins, `sink`
+  bedding (negative = elevated walkways); one finish channel per build — a
+  procedural-material preset + tint, or a panel texture tile. Absent ⇒ byte-identical
+  face list.
+
 ### Fixed
 
 - Polygonizer house recipes: the whole house assembly is now authored in one
@@ -148,9 +265,20 @@ description: exported folders now need an HTTP server — `file://` no longer lo
 ### Docs
 
 - README: npm/license/node badges + the `npx mojulo init` install one-liner above the fold.
+- README + `package.json` description repositioned around composability ("the range is
+  what allows composability" — recipes compose into bigger works; no prompt
+  engineering, the vocabularies carry the small decisions).
 - New plan: `lib/graph/interchange.plan.md` — "standard formats at the edge, recipes at
   home" (animated GLB export, eligibility widening, the bind-back door, semantic level
-  GLB), with blender-mcp as the standing verification rig. The dungeon kind above is its I0.
+  GLB), with blender-mcp as the standing verification rig. The dungeon kind above is its
+  I0 — and I1–I4 landed in this release (see the interchange section above), with the
+  build logs and closed Blender gates recorded in the plan.
+- New worker doc: `docs/local-blender-worker.md` (posture + both bake legs); CLAUDE.md
+  gains the world-GI-bake capability row.
+- New plans from the Blender arc: `scene/map-gi-bake.plan.md` (the bicycle, generalized),
+  `scene/level-gi-spike.plan.md` (the throwaway proof), `scene/export-normals.plan.md`
+  (authored normals, P1 landed), `worlds/prelit-figure.plan.md` (the moving prelit suit),
+  `interchange-render-leg.plan.md` (the Cycles render seam — orientation, no code).
 
 ## [1.0.3] — 2026-08-07
 

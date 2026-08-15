@@ -55,7 +55,10 @@ function capFan(ring, center, normal, tint, light, flip, mat = null) {
   for (let j = 0; j < ring.length - 1; j += 1) {
     const p0 = P(ring[j]);
     const p1 = P(ring[j + 1]);
-    out.push({ corners: flip ? [center, p1, p0, center] : [center, p0, p1, center], fill, doubleSided: true });
+    // Authored outward normal = the cap's axis-direction normal (export-normals.plan.md §1);
+    // `flip` reverses winding but the true outward direction is the passed `normal`, unchanged.
+    // Stored as `outNormal` (export-only field — see the wall face above).
+    out.push({ corners: flip ? [center, p1, p0, center] : [center, p0, p1, center], fill, doubleSided: true, outNormal: normal });
   }
   return out;
 }
@@ -132,7 +135,14 @@ export function latheToFaces(spec = {}, opts = {}) {
       let n = newellNormal(corners);
       if (!Number.isFinite(n[0]) || !Number.isFinite(n[1]) || !Number.isFinite(n[2])) continue; // collapsed cell
       if (dot3(n, sub3(centroid(corners), axisMid)) < 0) n = [-n[0], -n[1], -n[2]];
-      const face = { corners, fill: shadeHexMat(tint, n, mat, { light }), doubleSided: true };
+      // Keep the outward normal on the face (export-normals.plan.md §1): `n` is already
+      // oriented AWAY from the axis (line above), i.e. a TRUE outward normal, not the
+      // winding-derived one. Carried through the assembler's mirror (§2) and written as the
+      // GLB NORMAL attribute (§3) so a Blender GI bake never has to guess "outward" from
+      // winding — the mirror-built-suit black-bake fix. Named `outNormal` — DISTINCT from
+      // scene-three's `normal` (an INWARD shell-hide vector), so the three/SVG emitters (which
+      // read `.normal`, never `.outNormal`) stay byte-identical; only the GLB export reads it.
+      const face = { corners, fill: shadeHexMat(tint, n, mat, { light }), doubleSided: true, outNormal: n };
       if (glowAt(i, j)) face.glow = spec.glow;   // emissive halo marker → object-glow sprite (three) / box-shadow bloom (css-3d)
       if (inBand) {
         const uj = j / sm + seam, uj1 = (j + 1) / sm + seam;

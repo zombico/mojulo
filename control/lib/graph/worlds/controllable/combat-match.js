@@ -206,7 +206,9 @@ export function buildCombatMatch(E) {
     // the SPECTACLE outsizes the shove (operator): fxRadius drives the fireball + smoke at 2x the
     // stagger radius — the blast is adjudicated the same frame it spawns, so the bigger shell is
     // pure theater and never overstates a dodgeable circle. `radius` stays the honest mechanic.
-    state.bursts.push({ seq: state.burstSeq++, pos, t: state.time, radius: R, fxRadius: Math.round(R * 2 * 10) / 10, fxColor: 0xffa03c, fxScale: Math.round(hgt * 0.85 * 10) / 10 });
+    // `debris: true` marks this as a SUIT-DEATH blast (vs a projectile burst): the renderer adds a
+    // fragment shower — the suit blowing apart into many pieces, not just a fireball (operator 2026-08-13).
+    state.bursts.push({ seq: state.burstSeq++, pos, t: state.time, radius: R, fxRadius: Math.round(R * 2 * 10) / 10, fxColor: 0xffa03c, fxScale: Math.round(hgt * 0.85 * 10) / 10, debris: true });
   }
 
   // the createWorld STATE INIT — verbatim from the pre-split inline block: build the bout (or

@@ -11,7 +11,7 @@
  * behavior. See plan section 9 for the upgrade path (persist + resume).
  */
 
-import { BuilderSessionRepository } from '@/lib/db/repositories/builderSessions';
+import { BuilderSessionRepository, SESSION_STATUS } from '@/lib/db/repositories/builderSessions';
 import { DocumentRepository } from '@/lib/db/repositories/documents';
 import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { ApiKeyRepository } from '@/lib/db/repositories/apiKeys';
@@ -58,6 +58,9 @@ async function buildPreloadedContext(userId) {
   }
 
   return {
+    // Origin marker (R2): lets the durable-resume fallback distinguish MCP-born
+    // sessions from web chat-builder ones, which thread their own session_id.
+    mcpOrigin: true,
     organizationName: 'Local',
     workspaceName: 'Mojulo Control',
     workspaceDocuments: documents.map((d) => ({
@@ -98,6 +101,18 @@ export async function getOrCreateBuilderSession(mcpSessionId, userId) {
     bindings.delete(mcpSessionId);
   }
 
+  // Durable-resume fallback (R2, 0813 persona sims): this map is in-memory, so a
+  // dev reload or an MCP client reconnect rotates the binding while the session
+  // row — and the operator's in-progress work — sits durable in SQLite. Before
+  // creating a fresh session, adopt the newest resumable MCP-origin one.
+  // start_new_bot marks a session ABANDONED, which this finder skips — so "start
+  // over" stays an explicit act rather than an accident of transport.
+  const resumed = await BuilderSessionRepository.findLatestResumableMcpSession(userId);
+  if (resumed) {
+    bindings.set(mcpSessionId, resumed.id);
+    return resumed;
+  }
+
   const apiKeys = await ApiKeyRepository.findByUserId(userId);
   const hasLlmKey = apiKeys.some((k) => LLM_PROVIDERS.has(k.provider));
   if (!hasLlmKey) {
@@ -120,9 +135,19 @@ export async function getOrCreateBuilderSession(mcpSessionId, userId) {
  * Force a new BuilderSession on the next build-tool call. Used by the
  * `start_new_bot` MCP tool so the user's Claude can build a second bot in
  * the same MCP connection without restarting the client.
+ *
+ * Marks the discarded session ABANDONED in SQLite (not just unmapped) so the
+ * durable-resume fallback can never resurrect it — reset must survive the same
+ * reloads the binding map doesn't.
  */
-export function resetBuilderSession(mcpSessionId) {
+export async function resetBuilderSession(mcpSessionId, userId = 'local') {
+  const boundId = bindings.get(mcpSessionId);
   bindings.delete(mcpSessionId);
+  const id = boundId
+    || (await BuilderSessionRepository.findLatestResumableMcpSession(userId))?.id;
+  if (id) {
+    await BuilderSessionRepository.updateStatus(id, userId, SESSION_STATUS.ABANDONED);
+  }
 }
 
 export function getBoundSessionId(mcpSessionId) {
