@@ -65,6 +65,10 @@ import { createTrigCircleViewHandler } from '@/lib/mcp/tools/trig-circle-view';
 import { createVectorMatchViewHandler } from '@/lib/mcp/tools/vector-match-view';
 import { createWavepacketViewHandler } from '@/lib/mcp/tools/wavepacket-view';
 import { createWindmillViewHandler } from '@/lib/mcp/tools/windmill-view';
+// Animated bio PROCESS explainers — folded in from the standalone create_dna_process /
+// create_energy_cycle tools (mint-solid-consolidation.plan.md Tier 2 sibling).
+import { createDnaProcessHandler } from '@/lib/mcp/tools/dna-process';
+import { createEnergyCycleHandler } from '@/lib/mcp/tools/energy-cycle';
 
 // kind → { family, retired tool name, original handler }. The handler keeps
 // each view's own param whitelisting/validation; create_view is pure dispatch.
@@ -114,6 +118,10 @@ export const VIEW_KINDS = {
   'vector-match': { family: 'math', retired: 'create_vector_match_view', handler: createVectorMatchViewHandler },
   'wavepacket': { family: 'science', retired: 'create_wavepacket_view', handler: createWavepacketViewHandler },
   'windmill': { family: 'science', retired: 'create_windmill_view', handler: createWindmillViewHandler },
+  // Animated bio PROCESS explainers (a live orbit World, not a still) — the
+  // time-based siblings of the static bio kinds (dna / cellular / molecule).
+  'dna-process': { family: 'bio', retired: 'create_dna_process', handler: createDnaProcessHandler },
+  'energy-cycle': { family: 'bio', retired: 'create_energy_cycle', handler: createEnergyCycleHandler },
 };
 
 const KIND_LIST = Object.keys(VIEW_KINDS);

@@ -45,36 +45,27 @@ const DESCRIPTION_ALLOWLIST = {
   // off-payload). Shrink-only from these new snapshots.
   compose_world: 1580,
   cook: 2756,
-  create_assembler: 2100,
   // create_beats / create_figure / export_beats / get_image_render_packet
   // re-pinned 2026-07-13 to bless visualization-layer branch growth measured
   // at the Mojulo Voice landing (figure garment/setup dials, beats export
   // midi handoff, render-packet control-scaffold pointer). Shrink-only.
   create_beats: 1150,
-  create_carved_solid: 2605,
   // create_cover / export_game allowlisted + sketch_polygomer re-pinned
   // 2026-08-04 to bless the 1.0 consolidation batch (publication covers,
   // the game-publish phase-2 export seam, the polygomer drapes/detail
   // growth). Shrink-only from these snapshots.
   create_cover: 1138,
-  create_dna_process: 1137,
-  create_energy_cycle: 1011,
   // create_figure re-pinned 2026-07-14: inline wardrobe-piece specs (the
   // character-from-dream C0b unlock — garment as data, mugen = looseness) +
   // the figure skin seam pointer (get_skin_packet/skin_polygomer). Shrink-only.
-  create_figure: 4275,
   create_game: 2012,
   // create_manji_tree / export_model re-pinned + skin_polygomer /
   // sketch_polygomer allowlisted 2026-07-17 to bless the "dream, borrow,
   // keep" batch growth (drapes channel + detail dial on manji trees, the
   // skin-projection seam pointers, the sketch_polygomer parts grammar).
   // Shrink-only from these snapshots.
-  create_manji_tree: 20151,
-  create_polygonized_sketch: 932,
   create_sketch: 4003,
-  create_solid_turntable: 1172,
   create_view: 723,
-  create_workbench: 3150,
   // custom_catalyst / list_catalysts / mint_catalyst allowlisted 2026-08-06 to
   // bless the local-catalyst shelf (local-catalysts.plan.md): mint_catalyst is
   // the new local-shelf write path, list_catalysts/custom_catalyst grew to
@@ -94,7 +85,7 @@ const DESCRIPTION_ALLOWLIST = {
   // (2228 → 2285) to bless the I2 eligibility widening: posed figures,
   // carved-solid wordmarks, and css3d-turntable solids export. Shrink-only.
   export_model: 2285,
-  forge_motion: 12999,
+  forge_motion: 1409,
   forge_plan: 1167,
   forge_publications: 955,
   forward_context: 1081,
@@ -117,7 +108,6 @@ const DESCRIPTION_ALLOWLIST = {
   mint_catalyst: 850,
   meta_context_commit: 2635,
   meta_context_declare_inventory: 1405,
-  preview_vehicle_instance: 1193,
   pull_agent_task: 810,
   recommend_catalysts: 1042,
   recommend_kind: 922,
@@ -126,14 +116,12 @@ const DESCRIPTION_ALLOWLIST = {
   reference_protocol: 1708,
   request_chat_decision: 893,
   run_experiment_sweep: 866,
-  semantic_search: 1768,
+  semantic_search: 2049,
   sketch_plan: 774,
-  sketch_polygomer: 1214,
   sketch_research: 712,
-  skin_polygomer: 953,
   sketch_stash: 1016,
   sketch_what_possible: 1316,
-  stitch_motion: 1435,
+  stitch_motion: 819,
   synthesize_abstract: 1420,
   translate_modeler_lingo: 1178,
   verify_machina: 2180,
@@ -181,7 +169,16 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-08-14 (was 381,000) to bless the save_modular_bot `llm`
 // gate (0813 persona sims R2): the deployed bot's provider/key is the
 // operator's explicit choice, not a silent vault default.
-const PAYLOAD_CEILING = 381_500;
+// RATCHETED DOWN 2026-08-15 (was 381,500; measured 250,370) — the reclaim
+// from the mint_solid + science-view-fold + motion-trim consolidation passes
+// (tool-list-token-load.md §6.1) had left ~131KB of slack under the old pin,
+// most of it predating that work. Pinning just above actual locks the ~12K-token
+// reclaim in and makes the next feature RE-PIN consciously instead of silently
+// spending the space back. No tools were added in the routing-effectiveness
+// work of this session — the office paradigm cards (bot/app/connected-service)
+// live in meta_embeddings behind semantic_search, not in tools/list — so the
+// payload is byte-identical to the consolidation baseline.
+const PAYLOAD_CEILING = 255_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -306,22 +306,13 @@ export async function ensureToolsRegistered() {
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
-  const { registerManjiTreeTools } = await import('@/lib/mcp/tools/manji-trees');
-  const { registerCarvedSolidTools } = await import('@/lib/mcp/tools/carved-solid');
+  const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
   const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
-  const { registerFigureTools } = await import('@/lib/mcp/tools/figure');
   const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
   const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
-  const { registerSolidTurntableTools } = await import('@/lib/mcp/tools/solid-turntable-tool');
-  const { registerDnaProcessTools } = await import('@/lib/mcp/tools/dna-process');
-  const { registerEnergyCycleTools } = await import('@/lib/mcp/tools/energy-cycle');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
-  const { registerWorkbenchTools } = await import('@/lib/mcp/tools/workbench');
-  const { registerEdificeTools } = await import('@/lib/mcp/tools/edifice');
-  const { registerAssemblerTools } = await import('@/lib/mcp/tools/assembler');
-  const { registerPreviewVehicleTools } = await import('@/lib/mcp/tools/preview-vehicle');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
@@ -473,29 +464,19 @@ export async function ensureToolsRegistered() {
   // sibling of forward_context. Adjacent to registerSketchTools (its routes point at the
   // create_* / export_model surface those tools register). See modeler-lingo.js.
   registerModelerLingoTools();
-  // create_manji_tree — the manji-program tree IR as a first-class authoring
-  // surface. Mints into SketchRepository with manifest.kind === 'manji-tree';
-  // the /api/sketches/<ref>/svg route dispatches on that kind to walk + project
-  // + render the tree. Adjacent to registerSketchTools so the agent sees both
-  // sketch-authoring paths next to each other in tools/list. See
-  // lite-template/integration/0604/polygonizer-manji-tree.plan.md.
-  registerManjiTreeTools();
-  // create_carved_solid — a CARVED, metalified 3D solid (wordmark / logo / icon)
-  // from any vector outline. Sits next to the other illustration mints; persists
-  // with kind `carved-solid`, rendered by the /api/sketches svg route.
-  registerCarvedSolidTools();
+  // mint_solid / edit_solid / get_solid_vocab — the consolidated figure/solid
+  // family entry point (figure / manji-tree / workbench / assembler / carved-solid
+  // / solid-turntable / edifice; the skin + emote verbs) + the vocab-card reader.
+  // The per-type prose lives in solid-vocab cards behind semantic_search; the
+  // retired per-type names remain callable as unlisted aliases. Mints into
+  // SketchRepository unchanged — only the tools/list surface consolidated.
+  // See mint-solid-consolidation.plan.md.
+  registerMintSolidTools();
   // create_cover — a publication COVER (illustration + title + subtext + metadata
   // composed under one art direction). Sits next to the other illustration mints;
   // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png
   // (cover-composition.plan.md).
   registerCoverTools();
-  // create_figure — a POSED protoform human figure (armature + flesh + spine bend
-  // + garments). Sits next to the other illustration mints; persists with kind
-  // `figure`, rendered by the /api/sketches svg route. The figure is a pure
-  // function of (pose, proto, garment) — posing = choosing dials, clamped by the
-  // armature LIMITS + spine caps. See lite-template/integration/0610/
-  // figure-spine-articulation.plan.md and figure-proto-params.plan.md.
-  registerFigureTools();
   // draft_figure_spec / get_figure_spec / resolve_figure_spec / build_figure_spec — the
   // character-from-dream propose→approve→build split (listed:false; the catalyst documents it).
   registerFigureSpecTools();
@@ -519,32 +500,6 @@ export async function ensureToolsRegistered() {
   // deterministic reviewer behind research mode's synthesize_abstract({ review:true }).
   // See research-science.plan.md.
   registerMeasureViewTools();
-  // create_solid_turntable — a single convex solid (lit ball / crystal polyhedron / gem)
-  // spinning LIVE in CSS-3D from a tiny recipe (kind `css3d-turntable`). Highlight fixed in
-  // the viewport via per-frame vexar re-shade. The live counterpart to the baked forge_motion
-  // turntable — single convex solids only; interpenetrating molecules/helices stay baked.
-  registerSolidTurntableTools();
-  // create_workbench — a measured OBJECT vantage (kind `workbench`): a polygomer of `lathe`
-  // monomers (candlestick / bottle / dumbbell …) baked via latheToFaces onto a measured grid at
-  // literal scale, served traversable at /world + preset shots at /scene. Object-scale sibling of
-  // the city/hub world-kinds; form accuracy over mood.
-  registerWorkbenchTools();
-  // create_edifice — a bespoke inhabitable BUILDING (kind `edifice`): a graph of MASSES
-  // (footprint + floors + facade + roof + interior) connected by CONCOURSES, placed by
-  // relation, rendered walkable. The building-scale sibling of create_workbench; for
-  // one-off buildings the frozen fractal generators don't make. Advisory livability,
-  // never gated. See dream-architecture.plan.md + the dream-edifice catalyst.
-  registerEdificeTools();
-  registerAssemblerTools();
-  // preview_vehicle_instance — render a meta-fabricator vehicle family instance on the workbench
-  // studio grid (the catalyst's eyeball-before-commit render affordance).
-  registerPreviewVehicleTools();
-  // create_dna_process — animated DNA biology processes (meiosis / conception / recombination /
-  // assortment) as a traversable World; the process is selected by `process`. Science explainer.
-  registerDnaProcessTools();
-  // create_energy_cycle — photosynthesis ⇄ respiration loop (chloroplast + mitochondrion) with a
-  // timed reaction cascade; orbit-only science explainer.
-  registerEnergyCycleTools();
   registerMachinaTools();
   // forge_motion — put a manji-tree subject IN MOTION and render it to an
   // animated artifact (CSS flipbook SVG + GIF). An OUTPUT concern, sibling to

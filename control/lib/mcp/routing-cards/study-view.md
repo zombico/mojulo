@@ -8,4 +8,4 @@
   "form": "view"
 }
 ---
-→ `create_view` (45 kinds; find one by intent via `semantic_search({kinds:['view_vocab']})`, read its parameter manual via `get_view_vocab`, then pass `kind` + `params`; served live at `/world`). Animated DNA-biology PROCESSES (meiosis / conception / recombination / assortment) → `create_dna_process`; the photosynthesis ⇄ respiration cycle → `create_energy_cycle`. Read the physical time-series back out in declared real units → `measure_view`. Full family → `get_creative_toolset({ form: 'view' })`.
+→ `create_view` (47 kinds; find one by intent via `semantic_search({kinds:['view_vocab']})`, read its parameter manual via `get_view_vocab`, then pass `kind` + `params`; served live at `/world`). Animated bio PROCESSES ride the same tool: DNA meiosis / conception / recombination / assortment → kind `dna-process`; the photosynthesis ⇄ respiration cycle → kind `energy-cycle`. Read the physical time-series back out in declared real units → `measure_view`. Full family → `get_creative_toolset({ form: 'view' })`.

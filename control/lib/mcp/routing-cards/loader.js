@@ -59,6 +59,16 @@ export function parseRoutingCard(filePath, raw) {
       `Routing card ${filePath} has form '${meta.form}' — must be one of: ${CREATIVE_FORMS.join(', ')} (or omitted).`,
     );
   }
+  // `wing` tags which orientation wing a card serves — 'studio' (creative FORMs,
+  // the default and original population) or 'office' (the Bot / App / Connected
+  // Service paradigm-disambiguation cards). Optional; both wings share the
+  // 'routing' source_kind and the one semantic_search hop. The eval harness
+  // filters office vs studio fixtures on it.
+  if (meta.wing !== undefined && meta.wing !== 'office' && meta.wing !== 'studio') {
+    throw new Error(
+      `Routing card ${filePath} has wing '${meta.wing}' — must be 'office' or 'studio' (or omitted, defaulting to 'studio').`,
+    );
+  }
   const body = raw.slice(match[0].length).trim();
   if (!body) {
     throw new Error(`Routing card ${filePath} has an empty body — the routing row is the value.`);
@@ -69,7 +79,7 @@ export function parseRoutingCard(filePath, raw) {
         'Move parameter detail into the entry tool description or a vocab card.',
     );
   }
-  return { id: meta.id, name: meta.name, summary: meta.summary, when: meta.when, entry: meta.entry, form: meta.form ?? null, body };
+  return { id: meta.id, name: meta.name, summary: meta.summary, when: meta.when, entry: meta.entry, form: meta.form ?? null, wing: meta.wing ?? 'studio', body };
 }
 
 function loadCatalog() {

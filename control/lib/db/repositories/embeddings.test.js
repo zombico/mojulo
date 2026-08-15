@@ -528,6 +528,8 @@ describe('SOURCE_KINDS', () => {
       'manji_program',
       'painted_landscape',
       'view_vocab',
+      'solid_vocab',
+      'motion_vocab',
       'beats_vocab',
       'game_vocab',
       'game_mechanic',

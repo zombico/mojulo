@@ -259,5 +259,8 @@ tool description carries the routing hook; teaching prose lives in a drawer or v
   `create_manji_tree`, `create_polygonized_sketch`, `create_workbench`,
   `preview_vehicle_instance`, motion tools). More heterogeneous, smaller dividend — roadmap:
   revisit as `mint_solid(kind, spec)` once `create_view` has proven the vocab-card ergonomics.
+  **PROMOTED** — scoped with a decided boundary in `mint-solid-consolidation.plan.md`
+  (figure/manji/workbench/carved/assembler/turntable/vehicle → `mint_solid`; skin + emote →
+  `edit_solid`; `export_model`/`bind_mesh_render`/`forge_motion`/`stitch_motion` stay listed).
 - Theme lowering for the new Phase-1 bases (identity adapters are fine until a base wants
   flavor packs).

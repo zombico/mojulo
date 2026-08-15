@@ -33,13 +33,13 @@ const FIXTURE = [
   ['can you sketch our deployment pipeline as boxes and arrows', 'create_sketch'],
   ['bar chart of last month signups by week', 'create_sketch'],
   ['paint a moody mountain valley at dusk', 'sketch_what_possible'],
-  ['I want a picture of a woman mid-stride', 'create_figure'],
+  ['I want a picture of a woman mid-stride', 'mint_solid'],
   ['recreate the camera angle from this photo I am showing you', 'reference_protocol'],
-  ['our company logo in shiny 3D chrome', 'create_carved_solid'],
-  ['model a wine glass true to size', 'create_workbench'],
-  ['put the wheels and the chassis together into one model', 'create_assembler'],
-  ['turn this concept art of an espresso machine into a 3d model piece by piece', 'create_assembler'],
-  ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', 'create_assembler'],
+  ['our company logo in shiny 3D chrome', 'mint_solid'],
+  ['model a wine glass true to size', 'mint_solid'],
+  ['put the wheels and the chassis together into one model', 'mint_solid'],
+  ['turn this concept art of an espresso machine into a 3d model piece by piece', 'mint_solid'],
+  ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', 'mint_solid'],
   ['build me a little town I can wander around in', 'compose_world'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
@@ -78,6 +78,46 @@ const CARD_FIXTURE = [
   ['make a pixel-art cutscene of my hero character', 'pixel-art'],
   ['I want my comic to reveal one speech bubble per tap on my phone', 'motion-comic'],
   ['present the graphic novel like a slideshow I click through', 'motion-comic'],
+];
+
+// Adjacency collisions: pairs of cards that share heavy surface vocabulary
+// ("walk", "dungeon", "world", "animated") where the top-3 membership gate
+// above is too loose — the WRONG neighbour can sit at RANK 0 while the right
+// card rides along at rank 1 and the top-3 gate stays green. These pin RANK-0
+// (true top-1) for the intent: the gate that actually catches a mis-route.
+// Seeded from the persona-sweep loop that found "playable dungeon crawler I
+// walk around in" landing on the walkability-audit card instead of create_game.
+const COLLISION_FIXTURE = [
+  // a playable artifact vs the walkability audit — both are "walk in a world"
+  ['a playable dungeon crawler I can actually walk around in', 'create_game'],
+  // ...while the audit itself must still win its own turf (the control)
+  ['walk to the exit and check the level is beatable', 'forge_motion'],
+  // an animated explainer vs a camera flythrough — margin was ~0.004
+  ['show my kid how a black hole bends light, animated', 'create_view'],
+];
+
+// Office wing (Bot / App / Connected Service) — the paradigm-disambiguation
+// cards. Same top-K entry-membership contract as FIXTURE. Business phrasings
+// are less messy than creative ones (concrete nouns: CRM, submissions, folder),
+// so these route cleanly; the genuinely-ambiguous asks live in COVERAGE below.
+const OFFICE_FIXTURE = [
+  ['build me a customer support chatbot for my website', 'start_new_bot'],
+  ['every Monday summarize qualified leads into our CRM', 'meta_context_declare_inventory'],
+  ['sync new form submissions to a google sheet nightly', 'meta_context_declare_inventory'],
+  ['watch this folder and process new invoices as they arrive', 'install_scaffold'],
+  ['a background worker on my machine that reacts to events', 'install_scaffold'],
+];
+
+// The TWO-STEP contract. For an ask that genuinely spans paradigms ("triage
+// support emails" — chat surface, or silent inbox automation?), a top-1 gate is
+// wrong: the design wants the candidate SET to CONTAIN the viable paradigms so
+// step-2 (crisp who-touches-it criteria + ask-the-user) can decide. This pins
+// SET COVERAGE — ≥2 of the expected paradigm cards present in the top-SET_K —
+// which is the assertion the bot/app/connected-service two-step is built on.
+const SET_K = 5;
+const COVERAGE_FIXTURE = [
+  ['triage incoming support emails and route them to the right team', ['bot', 'connected-service']],
+  ['book appointments and add them to my calendar', ['bot', 'connected-service']],
 ];
 
 const TOP_K = 3;
@@ -160,6 +200,76 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
         }
       }
       expect(misses, `card-level routing misses:\n${misses.join('\n')}`).toEqual([]);
+    },
+    120_000,
+  );
+
+  it(
+    `every collision phrasing surfaces its entry tool at RANK 0 (top-1, not just top-${TOP_K})`,
+    async () => {
+      const misses = [];
+      for (const [phrasing, expectedEntry] of COLLISION_FIXTURE) {
+        const results = await EmbeddingsRepository.search(phrasing, {
+          kinds: ['routing'],
+          limit: TOP_K,
+        });
+        const topEntry = catalog.get(results[0]?.source_ref)?.entry;
+        if (topEntry !== expectedEntry) {
+          misses.push(
+            `"${phrasing}" → wanted ${expectedEntry} at rank 0, got [${results
+              .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
+              .join(', ')}]`,
+          );
+        }
+      }
+      expect(misses, `collision (rank-0) misses:\n${misses.join('\n')}`).toEqual([]);
+    },
+    120_000,
+  );
+
+  it(
+    `every OFFICE phrasing surfaces its paradigm entry tool in the top-${TOP_K} cards`,
+    async () => {
+      const misses = [];
+      for (const [phrasing, expectedEntry] of OFFICE_FIXTURE) {
+        const results = await EmbeddingsRepository.search(phrasing, {
+          kinds: ['routing'],
+          limit: TOP_K,
+        });
+        const entries = results.map((r) => catalog.get(r.source_ref)?.entry);
+        if (!entries.includes(expectedEntry)) {
+          misses.push(
+            `"${phrasing}" → wanted ${expectedEntry}, got [${results
+              .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
+              .join(', ')}]`,
+          );
+        }
+      }
+      expect(misses, `office routing misses:\n${misses.join('\n')}`).toEqual([]);
+    },
+    120_000,
+  );
+
+  it(
+    `every ambiguous OFFICE ask surfaces ≥2 viable paradigms in the top-${SET_K} SET (two-step coverage)`,
+    async () => {
+      const misses = [];
+      for (const [phrasing, expectedCards] of COVERAGE_FIXTURE) {
+        const results = await EmbeddingsRepository.search(phrasing, {
+          kinds: ['routing'],
+          limit: SET_K,
+        });
+        const refs = new Set(results.map((r) => r.source_ref));
+        const covered = expectedCards.filter((c) => refs.has(c));
+        if (covered.length < 2) {
+          misses.push(
+            `"${phrasing}" → wanted ≥2 of [${expectedCards.join(', ')}] in the SET, got [${results
+              .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
+              .join(', ')}]`,
+          );
+        }
+      }
+      expect(misses, `two-step coverage misses:\n${misses.join('\n')}`).toEqual([]);
     },
     120_000,
   );

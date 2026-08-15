@@ -70,6 +70,19 @@ export const SOURCE_KINDS = [
   // retired per-kind tool's description. Discovered by intent; read in full
   // via `get_view_vocab`.
   'view_vocab',
+  // solid-vocab cards — one per `mint_solid` kind / `edit_solid` op (markdown
+  // under lib/graph/solid-vocab/). Each carries the depiction prose, routing
+  // phrases, and parameter manual that used to live in the retired per-type
+  // creator's description (figure / manji-tree / workbench / assembler /
+  // carved-solid / solid-turntable / edifice / skin / emote). Discovered by
+  // intent; read in full via `get_solid_vocab`.
+  'solid_vocab',
+  // motion-vocab cards — one per `forge_motion` / `stitch_motion` subject
+  // family (camera / deck / effect / world / stitch) under
+  // lib/graph/motion-vocab/. The parameter manual that used to ride
+  // forge_motion's ~13k-char description; discovered by intent, read in full
+  // via `get_motion_vocab`.
+  'motion_vocab',
   // beats-vocab cards — one per `create_beats` kind (markdown under
   // lib/graph/beats/beats-vocab/). Routing phrases + the recipe/patch/gesture
   // parameter manual for the audio mints. Discovered by intent; read in full
@@ -559,6 +572,28 @@ export const BodyComposition = {
     // is the strongest signal for structurally-phrased queries.
     const lines = [];
     lines.push(`# ${card.name} (${card.family})`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  solidVocab(card) {
+    // Same shape as viewVocab: lead with name / family / summary / when so an
+    // intent-phrased query ("a chrome wordmark", "a posed female figure", "a
+    // spinning crystal") matches before the parameter manual does.
+    const lines = [];
+    lines.push(`# ${card.name} (${card.family})`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  motionVocab(card) {
+    // Same shape as solidVocab: lead with the intent-phrased fields so "spin
+    // it / a turntable", "play these charts / a deck", "materialize the logo",
+    // "fly through the city" match before the parameter manual does.
+    const lines = [];
+    lines.push(`# ${card.name}`);
     if (card.summary) lines.push('', card.summary);
     if (card.when) lines.push('', `When: ${card.when}`);
     if (card.body) lines.push('', '---', '', card.body);
@@ -1090,6 +1125,39 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`view_vocab: ${viewVocab.size}`);
+
+  // 12b. Solid-vocab cards — one *.md per `mint_solid` kind / `edit_solid` op
+  // under lib/graph/solid-vocab/. Each carries the depiction prose + routing
+  // phrases + parameter manual of a retired per-type creator (figure /
+  // manji-tree / workbench / assembler / carved-solid / solid-turntable /
+  // edifice / skin / emote), so the agent discovers a kind by intent and reads
+  // the full card via `get_solid_vocab` before composing `spec`. Repo-curated
+  // markdown, like view_vocab. See mint-solid-consolidation.plan.md.
+  const { getSolidVocabCatalog } = await import('../../graph/solid-vocab/loader.js');
+  const solidVocab = getSolidVocabCatalog();
+  for (const card of solidVocab.values()) {
+    items.push({
+      sourceKind: 'solid_vocab',
+      sourceRef: card.id,
+      bodyText: BodyComposition.solidVocab(card),
+    });
+  }
+  log(`solid_vocab: ${solidVocab.size}`);
+
+  // 12c. Motion-vocab cards — one *.md per `forge_motion` / `stitch_motion`
+  // subject family under lib/graph/motion-vocab/. The parameter manual that
+  // used to ride forge_motion's ~13k-char description, discovered by intent
+  // and read via `get_motion_vocab`. See mint-solid-consolidation.plan.md.
+  const { getMotionVocabCatalog } = await import('../../graph/motion-vocab/loader.js');
+  const motionVocab = getMotionVocabCatalog();
+  for (const card of motionVocab.values()) {
+    items.push({
+      sourceKind: 'motion_vocab',
+      sourceRef: card.id,
+      bodyText: BodyComposition.motionVocab(card),
+    });
+  }
+  log(`motion_vocab: ${motionVocab.size}`);
 
   // 13. Beats-vocab cards — one *.md per `create_beats` kind under
   // lib/graph/beats/beats-vocab/. Routing phrases + the recipe / patch-shelf /
