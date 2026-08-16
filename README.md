@@ -40,11 +40,23 @@ Plus **Settings** for host config. The reasoning happens in your agent; mojulo p
 
 ## Quickstart
 
-You need **Claude Code** or **Codex** installed. You do **not** need an LLM
-provider key for most of mojulo — your agent is the reasoning loop, so sketches,
-worlds, cooks, research, and apps all run keyless. The one thing that needs a key
-is a **bot**: a compiled bot is a chatbot that calls an LLM on its own, and
-building one generates a few pieces (form schema, identity, summary) server-side.
+You need two things installed first:
+
+1. **Node.js 20 or newer** — mojulo is installed and run through `npx`, which ships
+   with Node. Check with `node --version`; if you don't have it (or it's older than
+   20), install it from [nodejs.org](https://nodejs.org) — or just ask your coding
+   agent to install it for you ("install Node 20 with brew/winget and verify
+   `node --version`").
+2. A **desktop coding agent** (Claude Code/Codex) or a high-end local model —
+   mojulo is model-agnostic and runs on whatever model your harness provides.
+   (Claude Desktop works too — `init` detects and wires it — but a coding agent
+   gets more out of the workshop.)
+
+You don't give mojulo its own provider key for most of it — your agent is the
+reasoning loop, so sketches, worlds, cooks, research, and apps all run keyless.
+The one thing that needs a key is a **bot**: a compiled bot is a chatbot that calls
+an LLM on its own, and building one generates a few pieces (form schema, identity,
+summary) server-side.
 
 ```bash
 npx mojulo init
@@ -52,7 +64,20 @@ npx mojulo init
 
 `init` detects your MCP host(s), wires mojulo into each (one yes/no per host),
 *optionally* offers to set a provider key, and opens the dashboard at
-`http://localhost:3001`. Nothing is sent anywhere; state lands in `~/.mojulo/`.
+`http://localhost:3001` (or the next free port — the installer prints the URL).
+Nothing is sent anywhere; state lands in `~/.mojulo/`. The first install is the
+big one: npx pulls the package and its runtime (a few hundred MB), and the first
+launch fetches a ~113 MB embedding model in the background — after that, starts
+are instant.
+
+On a slow connection, or if you'd rather your agent's first connect never wait on
+npx resolving the package, install globally instead and re-run `init` — it wires
+whatever `npx -y mojulo` resolves to, and a global install makes that resolution
+local and instant:
+
+```bash
+npm install -g mojulo && mojulo init     # update later with: npm update -g mojulo
+```
 
 ### First look — no key required
 
@@ -115,16 +140,25 @@ On Apple Silicon, run with the GGUF quant — the fp8 checkpoint hits an MPS dty
 
 ### Manual wiring (if you prefer)
 
-If you'd rather not run the installer, wire mojulo into your agent directly:
+If you'd rather not run the installer, wire mojulo into your host directly:
 
 ```bash
-# Claude Code / Claude Desktop:
-claude mcp add mojulo --command "npx -y mojulo"
+# Claude Code (--scope user makes mojulo available in every project, not just this directory):
+claude mcp add --scope user mojulo -- npx -y mojulo
 
 # Codex: add to ~/.codex/config.toml
 [mcp_servers.mojulo]
 command = "npx"
 args = ["-y", "mojulo"]
+```
+
+```jsonc
+// Claude Desktop: add under "mcpServers" in claude_desktop_config.json
+// (macOS: ~/Library/Application Support/Claude/ · Windows: %APPDATA%\Claude\)
+// then restart Claude Desktop. If it fails to start with "spawn npx ENOENT",
+// replace "npx" with the absolute path from `which npx` — the app's GUI
+// environment often can't see nvm/homebrew installs.
+"mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
 ```
 
 Open the dashboard separately anytime with `npx -y -p mojulo mojulo-ui`.

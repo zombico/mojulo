@@ -14,11 +14,26 @@
  * (§12 Milestone 3) will ship a bundled equivalent as `bin/mojulo-mcp`.
  */
 
-import { register } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import readline from 'node:readline';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
+
+// Node floor — checked before anything version-sensitive loads. `register`
+// from node:module (below, dynamic for this reason) doesn't exist before
+// 20.6, so a static import of it would crash old Nodes with a cryptic
+// missing-export error before this message could print. Stderr, not stdout:
+// in server mode stdout is the MCP protocol channel.
+const nodeMajor = Number(process.versions.node.split('.')[0]);
+if (nodeMajor < 20) {
+  process.stderr.write(
+    `mojulo needs Node.js 20 or newer — this is Node ${process.versions.node}.\n` +
+      `Install the current LTS from https://nodejs.org (or ask your coding agent\n` +
+      `to install it), then re-run: npx mojulo init\n`
+  );
+  process.exit(1);
+}
+const { register } = await import('node:module');
 
 // `npx mojulo init` — one-shot installer. Branch out BEFORE this process
 // configures itself as an stdio MCP server (register loader, chdir, the

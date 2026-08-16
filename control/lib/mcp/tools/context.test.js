@@ -359,6 +359,27 @@ describe('get_substrate — PLAYful Cloud positioning', () => {
     expect(body).not.toContain('PLAYful Cloud — what mojulo is at the substrate');
     expect(body).toContain('`get_substrate`');
   });
+
+  it('carries the substrate facts — posture answers derive from invariants, not guesses', async () => {
+    // 0816 post-install persona sims: agents routed build questions cleanly but
+    // had no in-substrate source for "does it phone home?", "how do I
+    // uninstall?", "do I have to pay?" — semantic_search returned vendor tools.
+    // The facts block closes that: a dozen falsifiable architecture invariants
+    // the agent derives meta-answers from, with the repo as the depth layer.
+    const { content } = await substrateHandler({});
+    const text = content[0].text;
+    expect(text).toMatch(/## Substrate facts/);
+    expect(text).toMatch(/No telemetry, no phone-home/);
+    expect(text).toMatch(/AES-256-GCM/);
+    expect(text).toMatch(/Apache-2\.0/);
+    expect(text).toMatch(/\*\*Removal\.\*\*/);
+    expect(text).toMatch(/tamper-evident, not tamper-proof/);
+    // The verification layer underneath: the public repo, read at the installed tag.
+    expect(text).toMatch(/github\.com\/zombico\/mojulo/);
+    // Facts stay behind the drawer — never in the always-paid routing body.
+    const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
+    expect(body).not.toContain('## Substrate facts');
+  });
 });
 
 describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {

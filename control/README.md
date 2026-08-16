@@ -16,14 +16,23 @@ Both `mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you
 
 ## Quickstart
 
+Prerequisite: **Node.js 20+** (`node --version`). Everything below runs through
+`npx`, which ships with Node — if you don't have it, install it from
+[nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
+
 ```bash
-# 1. Wire mojulo into your MCP-capable agent.
-#    Claude Code / Claude Desktop:
-claude mcp add mojulo --command "npx -y mojulo"
+# 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
+#    Claude Code, Codex, and Claude Desktop, asks y/n per host, and opens the dashboard:
+npx mojulo init
+#    Or wire manually —
+#    Claude Code:
+#      claude mcp add --scope user mojulo -- npx -y mojulo
 #    Codex CLI: add to ~/.codex/config.toml
 #      [mcp_servers.mojulo]
 #      command = "npx"
 #      args = ["-y", "mojulo"]
+#    Claude Desktop: add under "mcpServers" in claude_desktop_config.json, then restart it
+#      "mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
 #    Other MCP hosts: register the same `npx -y mojulo` stdio command.
 
 # 2. (Only needed for deployed bots — they bring their own LLM key.

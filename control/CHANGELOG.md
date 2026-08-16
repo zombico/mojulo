@@ -8,6 +8,106 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.1.1] — 2026-08-16
+
+A first-contact release, shaped by a six-persona post-install simulation (0816
+persona sims): a first-run install hardening pass — everything between "I have
+an MCP host" and "mojulo is wired everywhere and I'm looking at the dashboard" —
+plus the other half of first contact: the substrate can now answer questions
+about *itself* (posture, privacy, cost, uninstall) through the same
+ask-the-agent channel the install docs point at. One engine addition rides
+along: boost inertia for the mobile-suit pack.
+
+### Substrate self-description — meta-questions get in-substrate answers
+
+The persona sims showed a clean split: agents routed *build* asks perfectly but
+had no in-substrate source for questions about mojulo itself — "does it phone
+home?" retrieved a declared vendor tool (`gmail.untrash_thread`), "how do I
+uninstall?" had no answer anywhere on the tool surface.
+
+- **`get_substrate` now ends with the substrate facts:** twelve falsifiable
+  architecture invariants (localhost-only process, one SQLite under
+  `$MOJULO_HOME`, bot data stays in the bot's own DB, no telemetry / no
+  phone-home, the one LLM flow that leaves the machine, AES-256-GCM key storage,
+  Apache-2.0 / no subscription, plain-file exports, tamper-evident hash chain,
+  full uninstall steps, single-user tenancy, and the source-repo pointer read at
+  the installed tag). Facts, not an FAQ — the agent *derives* answers, including
+  to questions nobody anticipated, and each fact names its own check
+  (`list_daemons`, `verify_chain`, `version`).
+- **Three routes lead there,** because agents take different paths:
+  meta-question trigger phrases in `get_substrate`'s tools/list description, the
+  `forward_context` drawer directory (both wings), and a new `substrate-self`
+  routing card in the semantic index — "phone home" and "uninstall" now surface
+  the referral at rank 0 instead of vendor-tool noise.
+- **Pinned:** new `context.test.js` assertions on the facts body, four
+  meta-question families in the routing eval's office fixture, and the
+  description-budget re-pin (`get_substrate` 914 → 1023 chars; tools/list grows
+  109 bytes, everything else stays behind the drawer).
+
+### Boost inertia — the mobile-suit dash ends in a skid
+
+Ground dashes used to snap to walk speed the frame F was released. An opt-in
+`boostInertia` (seconds) on the rule leaves the suit *sliding* along the last
+thrust vector, full boost speed decaying linearly to zero — with the transposed
+brake pose (lean against the momentum, thrusters vectored the other way).
+Deterministic pure-dt math; walls still stop it; a fresh boost swallows the
+slide, and a melee swing / dodge / tackle / stagger kills it on the spot (the
+strike is always planted). Ground mode only — space keeps its own Newtonian
+coasting undecorated. Absent the knob: byte-identical runtime behavior. The
+maneuver source is inlined into every emitted world, so all 10
+`emit-channels` characterization hashes were re-pinned.
+
+### `init` fixes — first-run correctness
+
+- **Claude Code is now wired at user scope.** The previous `init` used the CLI's
+  default `local` scope, registering mojulo only for the directory `init` happened
+  to run from. Now: `claude mcp add --scope user mojulo -- npx -y mojulo` (also
+  the current CLI syntax — the old `--command "..."` form predated it).
+- **Claude Desktop detection covers fresh installs.** A fresh Desktop has no
+  `claude_desktop_config.json` until developer settings are opened — config-file
+  detection missed exactly the first-timers `init` exists for. Detection now falls
+  back to the app's install footprint (`/Applications/Claude.app`,
+  `%LOCALAPPDATA%\AnthropicClaude`); the writer creates the config when missing.
+- **Absolute `npx` for Desktop.** Desktop spawns MCP servers from the GUI
+  environment, whose PATH often lacks nvm/homebrew node (`spawn npx ENOENT`).
+  The writer now resolves an absolute npx — first hit on the installer's PATH
+  (stable symlinks win), then the running node's sibling.
+- **Windows:** host probes and `claude` shell-outs route through the shell so the
+  `.cmd` shims resolve.
+- **Dashboard port honesty:** prefer 3001 (what every doc says), fall back to the
+  next free port, print the real URL in the final banner; the UI child's stderr
+  stays attached so a failed boot is visible.
+
+### `init` repairs stale entries
+
+Re-running `npx mojulo init` now heals installs wired by older inits instead of
+skipping them: a project-local Claude Code registration is re-added at user scope,
+and a Desktop entry carrying bare `npx` (or an absolute npx path that no longer
+exists) is rewritten to the current form — backup + atomic write as always.
+Entries the operator customized (env, extra keys, different args) are never
+touched. Codex detection now also recognizes hand-written config variants
+(inline table, dotted key, `[mcp_servers]` section key) so none of them gets a
+duplicate appended.
+
+### Node.js floor made explicit
+
+- The `mojulo` bin checks for Node 20+ **before** loading anything
+  version-sensitive and exits with a plain-language pointer (nodejs.org, or ask
+  your coding agent to install it) instead of the previous cryptic
+  missing-export crash on old Nodes.
+- READMEs state the prerequisite up front — Node 20+, installed manually or by
+  asking your agent — and document a global-install alternative
+  (`npm install -g mojulo && mojulo init`) for slow connections, since a global
+  bin makes `npx -y mojulo` resolve locally without a registry round-trip.
+
+### Tests
+
+- The init config writers (Codex, Claude Desktop) are now covered by
+  `scripts/mcp-init.test.js` — the real bin driven against a temp `HOME`:
+  merge-beside-existing, backup-once, idempotent re-run, all three hand-written
+  Codex forms, the bare-npx / dead-path repairs, customized-entry hands-off,
+  invalid-JSON fallback, and `--print` as a true dry run.
+
 ## [1.1.0] — 2026-08-13
 
 A creative-surface and engine release: one new creative FORM (the motion comic), one new

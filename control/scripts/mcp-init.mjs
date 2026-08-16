@@ -22,10 +22,15 @@
  * STATUS: all three host writers are real — Claude Code (CLI shell-out), Codex
  * and Claude Desktop (config-file merge with backup + detect-before-write) — plus
  * the provider-key step and the dashboard launch. A host with no writer, or a
- * write that fails, degrades to printing the manual snippet.
+ * write that fails, degrades to printing the manual snippet. Re-running init
+ * also REPAIRS stale entries from older inits: a project-local Claude Code
+ * registration is re-added at user scope, and a Desktop entry with bare `npx`
+ * (or a dead npx path) is rewritten to the current absolute-npx form. Entries
+ * the operator customized are never touched.
  */
 
 import readline from 'node:readline';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { existsSync, readFileSync, copyFileSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
@@ -92,22 +97,39 @@ async function confirm(question, def = true) {
 }
 
 // ── host detection ────────────────────────────────────────────────────────────
+// On Windows the CLIs are .cmd shims that plain spawnSync can't resolve; route
+// the probes (and the claude shell-outs below) through the shell there.
+const WIN_SHELL = process.platform === 'win32';
+
 function detectHosts() {
   const hosts = [];
 
   // Claude Code — the `claude` CLI on PATH.
-  const claudeProbe = spawnSync('claude', ['--version'], { stdio: 'ignore' });
+  const claudeProbe = spawnSync('claude', ['--version'], { stdio: 'ignore', shell: WIN_SHELL });
   if (!claudeProbe.error && claudeProbe.status === 0) hosts.push('claude-code');
 
   // Codex — ~/.codex/config.toml, or `codex` on PATH.
   const codexCfg = path.join(os.homedir(), '.codex', 'config.toml');
-  const codexProbe = spawnSync('codex', ['--version'], { stdio: 'ignore' });
+  const codexProbe = spawnSync('codex', ['--version'], { stdio: 'ignore', shell: WIN_SHELL });
   if (existsSync(codexCfg) || (!codexProbe.error && codexProbe.status === 0)) hosts.push('codex');
 
-  // Claude Desktop — the config dir (macOS / Windows / Linux).
-  if (existsSync(desktopConfigPath())) hosts.push('desktop');
+  if (desktopInstalled()) hosts.push('desktop');
 
   return hosts;
+}
+
+// Claude Desktop — a fresh install has no claude_desktop_config.json until the
+// user opens developer settings, so the config file alone under-detects exactly
+// the first-timers init exists for. Fall back to the app's install footprint;
+// wireDesktop creates the config file when it's missing.
+function desktopInstalled() {
+  if (existsSync(desktopConfigPath())) return true;
+  if (process.platform === 'darwin') return existsSync('/Applications/Claude.app');
+  if (process.platform === 'win32') {
+    const local = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    return existsSync(path.join(local, 'AnthropicClaude'));
+  }
+  return false;
 }
 
 function desktopConfigPath() {
@@ -120,7 +142,7 @@ function desktopConfigPath() {
 }
 
 const MANUAL = {
-  'claude-code': 'claude mcp add mojulo --command "npx -y mojulo"',
+  'claude-code': 'claude mcp add --scope user mojulo -- npx -y mojulo',
   codex: '[mcp_servers.mojulo]\ncommand = "npx"\nargs = ["-y", "mojulo"]   # add to ~/.codex/config.toml',
   desktop: '"mojulo": { "command": "npx", "args": ["-y", "mojulo"] }   # add under mcpServers in the Desktop config',
 };
@@ -154,13 +176,30 @@ function wireHost(host, opts) {
 
 // Codex — append `[mcp_servers.mojulo]` to ~/.codex/config.toml. Append-if-absent
 // is deliberately round-trip-safe: existing servers, comments, and formatting are
-// never rewritten. Detection matches the standard table-header form we write;
-// hand-written inline-table variants aren't detected (documented in the plan).
+// never rewritten. Detection covers the table-header form we write plus the
+// hand-written variants (dotted key, inline table, `[mcp_servers]` section key)
+// so none of them gets a duplicate appended.
+function codexHasMojulo(text) {
+  if (/^\s*\[mcp_servers\.mojulo\]/m.test(text)) return true; // what we write
+  if (/^\s*mcp_servers\.mojulo\s*=/m.test(text)) return true; // dotted key
+  if (/^\s*mcp_servers\s*=\s*{[^}]*\bmojulo\s*=/m.test(text)) return true; // inline table
+  let inSection = false;
+  for (const line of text.split('\n')) {
+    const header = line.match(/^\s*\[([^\]]+)\]/);
+    if (header) {
+      inSection = header[1].trim() === 'mcp_servers';
+      continue;
+    }
+    if (inSection && /^\s*("mojulo"|mojulo)\s*=/.test(line)) return true;
+  }
+  return false;
+}
+
 function wireCodex({ print }) {
   const cfg = path.join(os.homedir(), '.codex', 'config.toml');
   const exists = existsSync(cfg);
   const text = exists ? readFileSync(cfg, 'utf8') : '';
-  if (/^\s*\[mcp_servers\.mojulo\]/m.test(text)) {
+  if (codexHasMojulo(text)) {
     process.stdout.write('  ✓ codex: mojulo already in config.toml — leaving it as-is.\n');
     return true;
   }
@@ -196,12 +235,40 @@ function wireDesktop({ print }) {
       return false;
     }
   }
-  if (json.mcpServers && json.mcpServers.mojulo) {
-    process.stdout.write('  ✓ desktop: mojulo already in config — leaving it as-is.\n');
-    return true;
+  // Repair path: an entry from an older init may carry the bare-`npx` form
+  // (breaks with `spawn npx ENOENT` in the GUI environment) or an absolute npx
+  // that no longer exists (node upgrade moved it). Rewrite only shapes we
+  // recognize as ours-and-stale; a customized entry (env, extra keys, different
+  // args) is the operator's — leave it alone. The per-host "Wire mojulo into
+  // desktop?" consent covers the rewrite; no second prompt.
+  const existing = json.mcpServers && json.mcpServers.mojulo;
+  if (existing) {
+    const plainShape =
+      Object.keys(existing).length === 2 &&
+      typeof existing.command === 'string' &&
+      Array.isArray(existing.args) &&
+      existing.args.join(' ') === '-y mojulo';
+    const commandWorks =
+      plainShape && existing.command !== 'npx' && existsSync(existing.command);
+    if (commandWorks) {
+      process.stdout.write('  ✓ desktop: mojulo already in config — leaving it as-is.\n');
+      return true;
+    }
+    if (!plainShape) {
+      process.stdout.write(
+        '  ✓ desktop: found a customized mojulo entry — leaving it as-is.\n'
+      );
+      return true;
+    }
+    // plain shape, but bare `npx` or a dead absolute path → refresh below.
+    process.stdout.write(
+      `  · desktop: existing mojulo entry uses ${
+        existing.command === 'npx' ? 'bare `npx` (fails from the GUI environment)' : 'a missing npx path'
+      } — updating to the current form.\n`
+    );
   }
   json.mcpServers = json.mcpServers || {};
-  json.mcpServers.mojulo = { command: 'npx', args: ['-y', 'mojulo'] };
+  json.mcpServers.mojulo = { command: npxCommand(), args: ['-y', 'mojulo'] };
   const out = JSON.stringify(json, null, 2) + '\n';
   if (print) {
     process.stdout.write(`  (--print) would write ${cfg}:\n\n${out}\n`);
@@ -216,21 +283,75 @@ function wireDesktop({ print }) {
   return true;
 }
 
+// Claude Desktop spawns MCP servers from the GUI environment, whose PATH often
+// lacks nvm/homebrew node on macOS and can't exec `npx` without the .cmd shim
+// on Windows — the classic `spawn npx ENOENT`. Write an absolute npx: first hit
+// on the installer's PATH (stable symlinks like /opt/homebrew/bin/npx win over
+// process.execPath's realpathed, version-pinned Cellar dir), then the sibling
+// of the running node, then bare `npx` as the last resort.
+function npxCommand() {
+  const exe = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    const candidate = path.join(dir, exe);
+    if (existsSync(candidate)) return candidate;
+  }
+  const sibling = path.join(path.dirname(process.execPath), exe);
+  return existsSync(sibling) ? sibling : 'npx';
+}
+
+// Classify WHERE an existing Claude Code registration lives. `claude mcp list`
+// merges every scope, but the old init wired the default `local` scope — pinned
+// to the one directory init happened to run from. The fix is a user-scope entry,
+// which lives at top-level `mcpServers` in ~/.claude.json. Read-only peek; all
+// writes stay CLI-owned. Returns true / false / null (couldn't tell).
+function claudeUserScopeHasMojulo() {
+  try {
+    const raw = readFileSync(path.join(os.homedir(), '.claude.json'), 'utf8');
+    const json = JSON.parse(raw);
+    return Boolean(json.mcpServers && json.mcpServers.mojulo);
+  } catch {
+    return null;
+  }
+}
+
 function wireClaudeCode({ print }) {
-  // Detect-before-write: skip if `mojulo` already registered.
-  const list = spawnSync('claude', ['mcp', 'list'], { encoding: 'utf8' });
+  // Detect-before-write: skip if `mojulo` is already registered at user scope.
+  // Registered-but-not-user-scope is the old init's local-scope wiring — fall
+  // through and add the user-scope entry so mojulo works in every project.
+  const list = spawnSync('claude', ['mcp', 'list'], { encoding: 'utf8', shell: WIN_SHELL });
   const already = !list.error && (list.stdout || '').includes('mojulo');
   if (already) {
-    process.stdout.write('  ✓ claude-code: mojulo already registered — leaving it as-is.\n');
-    return true;
+    const userScoped = claudeUserScopeHasMojulo();
+    if (userScoped !== false) {
+      process.stdout.write('  ✓ claude-code: mojulo already registered — leaving it as-is.\n');
+      return true;
+    }
+    process.stdout.write(
+      '  · claude-code: mojulo is registered project-locally (older init default) — adding the user-scope entry so it is available in every project.\n'
+    );
+    if (!print) {
+      // Best-effort: clear a local-scope entry for THIS directory so the add
+      // can't collide. Local entries in other project directories are only
+      // removable from those directories; they shadow the user entry there but
+      // run the identical command, so they are harmless duplicates.
+      spawnSync('claude', ['mcp', 'remove', '-s', 'local', 'mojulo'], {
+        stdio: 'ignore',
+        shell: WIN_SHELL,
+      });
+    }
   }
   if (print) {
     process.stdout.write(`  (--print) would run: ${MANUAL['claude-code']}\n`);
     return true;
   }
-  const res = spawnSync('claude', ['mcp', 'add', 'mojulo', '--command', 'npx -y mojulo'], {
-    stdio: 'inherit',
-  });
+  // `--scope user`: the default scope is `local` (current project only), which
+  // would wire mojulo only for whatever directory init happened to run from.
+  const res = spawnSync(
+    'claude',
+    ['mcp', 'add', '--scope', 'user', 'mojulo', '--', 'npx', '-y', 'mojulo'],
+    { stdio: 'inherit', shell: WIN_SHELL }
+  );
   if (res.error || res.status !== 0) {
     process.stdout.write(
       `  ↪ claude-code: CLI wiring failed — add manually:\n\n    ${MANUAL['claude-code']}\n\n`
@@ -280,10 +401,39 @@ async function maybeSetKey({ yes }) {
 }
 
 // ── dashboard launch ──────────────────────────────────────────────────────────
-function launchDashboard() {
+function portIsFree(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', () => resolve(false));
+    server.listen({ port, host: '127.0.0.1' }, () => server.close(() => resolve(true)));
+  });
+}
+
+// Pick the port HERE so the final banner can print the real URL — the docs say
+// 3001, so prefer it and fall back to an OS-assigned free port. Stderr stays
+// attached to the terminal so a failed boot (missing standalone bundle, port
+// race) is visible instead of vanishing with the detached child.
+async function launchDashboard() {
   const uiScript = path.join(SCRIPTS_DIR, 'mcp-ui.mjs');
-  const child = spawn(process.execPath, [uiScript], { detached: true, stdio: 'ignore' });
+  let port = 3001;
+  if (!(await portIsFree(port))) {
+    port = await new Promise((resolve, reject) => {
+      const server = net.createServer();
+      server.unref();
+      server.on('error', reject);
+      server.listen({ port: 0, host: '127.0.0.1' }, () => {
+        const { port: p } = server.address();
+        server.close(() => resolve(p));
+      });
+    });
+  }
+  const child = spawn(process.execPath, [uiScript, '--port', String(port)], {
+    detached: true,
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
   child.unref();
+  return port;
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -321,7 +471,7 @@ if (!args.print) await maybeSetKey({ yes: args.yes });
 
 const openUi = args.ui && !args.print && (args.yes || (await confirm('\nOpen the dashboard now?', true)));
 if (rl) rl.close();
-if (openUi) launchDashboard();
+const uiPort = openUi ? await launchDashboard() : null;
 
 // ── final message — the keyless first-look, not "done" ────────────────────────
 process.stdout.write(
@@ -335,7 +485,9 @@ process.stdout.write(
     '    generate a 3D city         →  opens a rendered scene',
     '    make a walkable world      →  a world you can drive',
     '',
-    openUi ? '    Dashboard: opening at http://localhost:3001' : '    Dashboard: npx -y -p mojulo mojulo-ui',
+    openUi
+      ? `    Dashboard: opening at http://localhost:${uiPort}`
+      : '    Dashboard: npx -y -p mojulo mojulo-ui',
     '    Add a key later:           mojulo-config set anthropic sk-...',
     '',
   ].join('\n')

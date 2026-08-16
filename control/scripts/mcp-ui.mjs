@@ -7,7 +7,7 @@
  * outcomes. Both share `~/.mojulo/` state via [resolveMojuloPaths](./mojulo-paths.mjs).
  *
  * Usage:
- *   npx -y -p mojulo mojulo-ui                # auto-port, opens browser
+ *   npx -y -p mojulo mojulo-ui                # port 3001 (or next free), opens browser
  *   npx -y -p mojulo mojulo-ui --port 3999    # pin the port
  *   npx -y -p mojulo mojulo-ui --no-open      # skip browser launch
  *
@@ -79,6 +79,15 @@ function findFreePort() {
   });
 }
 
+function portIsFree(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', () => resolve(false));
+    server.listen({ port, host: '127.0.0.1' }, () => server.close(() => resolve(true)));
+  });
+}
+
 async function openInBrowser(url) {
   try {
     const { default: open } = await import('open');
@@ -113,7 +122,9 @@ resolveMojuloPaths();
 // lite-template/ directory staged into the package by stage-lite-template.mjs.
 process.env.LITE_TEMPLATE_PATH ??= path.join(CONTROL_DIR, 'lite-template');
 
-const port = args.port ?? (await findFreePort());
+// The docs (and every mojulo surface that prints a dashboard URL) say 3001 —
+// prefer it, fall back to an OS-assigned free port only when it's taken.
+const port = args.port ?? ((await portIsFree(3001)) ? 3001 : await findFreePort());
 process.env.PORT = String(port);
 // Loopback-only: the control plane is single-user and the auth middleware is
 // opt-in. Don't bind to 0.0.0.0 from the npx entry.

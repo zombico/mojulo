@@ -95,10 +95,14 @@ const DESCRIPTION_ALLOWLIST = {
   get_image_render_packet: 708,
   get_mcp_capabilities: 890,
   get_register_kit: 731,
-  // get_substrate re-pinned 2026-08-05: Media promoted to a first-class
-  // paradigm (five paradigms; Game reframed as composition) — the cloud-shape
-  // mapping row grew. Shrink-only.
-  get_substrate: 914,
+  // get_substrate re-pinned 2026-08-16: self-description routing landed
+  // (0816 post-install persona sims) — the drawer now carries the substrate
+  // facts (posture/costs/uninstall axioms + repo pointer) and its description
+  // gained the meta-question triggers ('does it phone home?', 'where does my
+  // data live?', 'how do I uninstall?') so those asks route here instead of
+  // dead-ending in semantic_search. Cloud-verb + paradigm enumerations were
+  // compressed to offset most of the growth. Shrink-only.
+  get_substrate: 1023,
   get_tool_telemetry: 906,
   get_worked_example: 946,
   install_scaffold: 1317,

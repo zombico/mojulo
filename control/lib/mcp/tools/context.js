@@ -64,7 +64,7 @@ import {
 // floor + the active procedural-disclosure directive, and two standing safety
 // one-liners. The heavy prose drawerizes:
 //   - concept glossary           → get_register_kit (active vocabulary_register)
-//   - substrate / PLAYful Cloud  → get_substrate
+//   - substrate / PLAYful Cloud / self-description (phone home? my data? uninstall?) → get_substrate
 //   - full one-line-per-tool idx → get_tool_index
 //   - Ring 6 structural model    → get_deliberation_overview
 //   - dashboard page map         → get_ui_map
@@ -244,6 +244,35 @@ When the operator's ask is shaped "bind a folder / database / API" → primitive
 **Mapping shapes when asked.** Bot ~ a persistent service; Skill ~ a function; App ~ a local worker with an inverted inference fabric (closest cloud analog: Temporal's durable execution + parked steps); Game ~ a shipped build with save state; recipe artifacts ~ IaC for media — the manifest is the source, the render is disposable. Acknowledge the parallel, name which verbs travel, and don't oversell physics mojulo doesn't have — "real cloud" is one wire-hop away when that's what the operator actually needs.
 `;
 
+// --- Substrate facts (self-description axioms, appended to get_substrate) ---
+//
+// Not an FAQ. A small set of falsifiable architecture invariants the agent
+// DERIVES meta-answers from — privacy, data location, network posture, cost,
+// uninstall — including questions nobody anticipated. Each fact names its own
+// check where one exists, so a skeptical operator can verify instead of
+// trusting a self-report. These restate invariants already enforced as golden
+// rules (CLAUDE.md) and documented in the repo; the last fact points at the
+// repo as the verification layer underneath. Keep facts, not answers: an
+// answer here would rot; an invariant changes only when the architecture does.
+
+const SUBSTRATE_FACTS = `## Substrate facts — derive posture answers from these
+
+When the operator asks a meta-question about mojulo itself — "does it phone home?", "where does my data live?", "is my customers' data safe?", "do I have to pay for anything?", "how do I uninstall?" — derive the answer from these invariants rather than guessing. Each names its own check.
+
+1. **Process.** One local control-plane process; the dashboard and this MCP are two faces over the same state. The MCP transport binds to localhost only and has no auth layer — loopback reachability is the security model, by design. Runtime daemons (triggers, app supervision) are opt-in and off by default (*check: \`list_daemons\`, \`list_running\`*).
+2. **State.** One SQLite under \`$MOJULO_HOME\` (\`~/.mojulo/\` on an npm install; \`version\` reports the active home), plus \`artifacts/\` (bot zips) and \`storage/\` (uploaded documents). No launch agents, no system services, no other footprint.
+3. **Bot data.** Each compiled bot keeps conversations and form submissions in its own SQLite; the control plane reads them live through an authenticated proxy and never copies them into its own DB (*check: \`verify_chain\` walks a bot's hash chain*).
+4. **Network.** No telemetry, no phone-home. Outbound traffic happens only on explicit actions: update checks (npm/GHCR) via \`check_for_updates\`, image/model pulls during bot builds, Fly deploys if the operator configures Fly, and whatever the bots/services the operator builds call themselves.
+5. **The one LLM flow that leaves the machine:** a *running bot* sends conversation turns to its configured provider — OpenAI, Anthropic, or local Ollama, which keeps even that on-machine. Everything else parks inference on the connecting agent; mojulo holds no LLM credentials on that path.
+6. **Credentials.** The substrate stores nothing it isn't handed: provider keys the operator explicitly saves are AES-256-GCM encrypted at rest. Exactly one artifact needs an LLM key of its own — a compiled bot.
+7. **Money.** Mojulo is free, Apache-2.0, no account, no subscription. Operating costs are the operator's: LLM provider usage for deployed bots, and optional Fly.io hosting on the operator's own Fly account.
+8. **Artifacts.** Everything minted is a tiny seeded deterministic recipe; exports are plain files (zip, HTML, glb, stl, WAV, MIDI) that run without mojulo. Nothing is locked to the runtime.
+9. **Audit.** Bot transcripts are hash-chained: tamper-evident, not tamper-proof — no signing key, no external anchor; an operator with DB access could rebuild a coherent forged history. Don't oversell this to someone whose threat model includes the operator.
+10. **Removal.** Uninstall = unwire mojulo from the MCP host config, remove the npm package, delete \`$MOJULO_HOME\`, and remove any bot containers/images or Fly apps the operator created. That is the whole footprint.
+11. **Tenancy.** Single-user, self-hosted. No mojulo account, no cloud counterpart, no remote kill switch — capability and suitability judgments belong to the operator (TERMS.md, docs/responsibility-model.md).
+12. **Depth & verification.** Source, README, SECURITY.md (threat model), TERMS.md, and docs/ live at https://github.com/zombico/mojulo — read at the installed tag (\`version\` reports it) so the answer matches what is actually running. For questions these facts don't settle, fetch the repo docs rather than guessing.
+`;
+
 // --- Standing safety rules (compressed one-liners) ---
 //
 // The full secrets body (deny-rule JSON, AES-GCM rationale) and the full
@@ -410,7 +439,7 @@ const TOOL_INDEX = `## Tool index (one line each)
 - \`get_worked_example\` — an annotated end-to-end trace of one successful flight for a paradigm (\`bot\` / \`connected-service\` / \`app\` / \`media\` / \`game\`): the real call sequence with args, the gate moments marked in place, one refusal + recovery. No arg → index of available traces. Pull before your first build of a paradigm.
 - \`get_deliberation_overview\` — the why-it's-structured-this-way explainer for the Ring 6 deliberation surfaces plus the daemon runtime-gating posture. Call only when doing structural / non-bot work.
 - \`get_ui_map\` — the page-by-page map of the \`mojulo-ui\` dashboard (one line per page + when to point the user there). Call when the user wants to look / browse / click and you need to name the right page.
-- \`get_substrate\` — the PLAYful Cloud substrate positioning (Persistent · Local · Agent-Yoked) and the cloud-verbs-that-travel framing. Call when the user compares mojulo to cloud primitives (Lambda / Cloud Run / Temporal) or asks "what is this really?".
+- \`get_substrate\` — the PLAYful Cloud substrate positioning (Persistent · Local · Agent-Yoked) plus the substrate facts: a dozen architecture invariants (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE self-description answers from. Call when the user compares mojulo to cloud primitives (Lambda / Cloud Run / Temporal), asks "what is this really?", or asks about mojulo itself — "does it phone home?", "where does my data live?", "do I have to pay?", "how do I uninstall?".
 - \`version\` — runtime versions: server, MCP protocol, Node, platform, pinned bot image tag, offline-build flag, MOJULO_HOME. Use to diagnose version mismatches.
 - \`check_for_updates\` — compare the running control-plane package (\`mojulo\` on npm) and the pinned bot image (\`ghcr.io/zombico/mojulo-bot\`) against their latest published versions. Returns \`{ controlPlane, botImage, warnings }\` with current, latest, \`updateAvailable\`, and a one-line install hint per surface. Read-only; never performs the upgrade. Call when the user asks "am I up to date?" or after a long gap between sessions.
 - \`get_tool_telemetry\` — the substrate's own tool-call telemetry. No args → per-tool aggregate table (calls, error rate, p50/p95, last-called) over the last N days + recent errors/timeouts; \`{ tool }\` → that tool's recent calls; \`{ orientation: true }\` → the orientation-gap cut (weak searches, drawer misses, oriented-then-abandoned sessions — "is the lexicon working?"). Records shapes only, never values. Mirrors the \`/observability\` page.
@@ -754,7 +783,7 @@ const DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 - \`get_worked_example\` — an annotated end-to-end trace of one successful flight per paradigm (\`bot\` / \`connected-service\` / \`app\` / \`media\` / \`game\`): real call sequence, the gate moments marked, one refusal + recovery included. Pull before your FIRST build of a paradigm — it replaces trial-and-error against per-tool descriptions.
 - \`get_deliberation_overview\` — the why-it's-structured model for the Ring 6 surfaces + daemon runtime gating. Pull before structural / non-bot work.
 - \`get_ui_map\` — the \`mojulo-ui\` dashboard page map; pull when the user wants to look / browse / click and you need to name the right page.
-- \`get_substrate\` — the PLAYful Cloud substrate positioning; pull when the user compares mojulo to cloud primitives or asks "what is this really?".`;
+- \`get_substrate\` — the PLAYful Cloud substrate positioning + the substrate facts (posture / costs / uninstall invariants); pull when the user compares mojulo to cloud primitives, asks "what is this really?", or asks a meta-question about mojulo itself (phone home? my data? pay? uninstall?).`;
 
 // --- Studio body (orientation-containment C1) ---
 //
@@ -1031,7 +1060,7 @@ export async function uiMapHandler(_input, _ctx) {
 }
 
 export async function substrateHandler(_input, _ctx) {
-  return { content: [{ type: 'text', text: PLAYFUL_CLOUD }] };
+  return { content: [{ type: 'text', text: `${PLAYFUL_CLOUD}\n${SUBSTRATE_FACTS}` }] };
 }
 
 // Back-compat for any importer (mostly tests) that wants today's default body
@@ -1491,7 +1520,7 @@ export function registerContextTools() {
   registerTool({
     name: 'get_substrate',
     description:
-      "Return mojulo's substrate positioning — the PLAYful Cloud framing (PLAY = Persistent · Local · Agent-Yoked), which cloud verbs mojulo borrows (composition, always-on, typed surfaces, audit trail, vendor-interchangeable-behind-a-shape) versus the ones it deliberately doesn't claim (auto-scaling, multi-region, multi-tenancy, IAM, per-call billing), the tri-staff (primitives / catalysts / app-builder assistant), and how the five paradigms map to cloud shapes (Bot ~ service, Connected Service/Skill ~ function, App ~ Temporal-style durable worker, Media ~ artifact registry of deterministic recipes, Game ~ shipped build with save state — composition over the others). Most sessions never need this; call it when the user compares mojulo to cloud primitives (Lambda / Cloud Run / Kubernetes / Heroku / Temporal), asks 'is this self-hosted cloud?', or asks 'what is this really?'. Read-only, no inputs, idempotent.",
+      "Return mojulo's substrate positioning — the PLAYful Cloud framing (PLAY = Persistent · Local · Agent-Yoked), which cloud verbs mojulo borrows versus the ones it deliberately doesn't claim, the tri-staff (primitives / catalysts / app-builder assistant), and how the five paradigms map to cloud shapes (Bot ~ service, Connected Service/Skill ~ function, App ~ Temporal-style durable worker, Media ~ recipe registry, Game ~ shipped build) — PLUS the substrate's SELF-DESCRIPTION: a dozen concrete architecture facts (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE meta-answers from instead of guessing. Call it when the user compares mojulo to cloud primitives (Lambda / Cloud Run / Temporal), asks 'is this self-hosted cloud?' or 'what is this really?' — or asks about mojulo ITSELF: 'does it phone home?', 'where does my data live?', 'is my customers'/patients' data safe?', 'do I have to pay for anything?', 'how do I update or uninstall?'. Read-only, no inputs, idempotent.",
     inputSchema: { type: 'object', properties: {} },
     handler: substrateHandler,
   });

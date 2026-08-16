@@ -8,8 +8,9 @@
  * phases are simply empty.
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function; engine builders precede this
- * in EMISSION. Field ownership: the e.dodge- and e.tackle- families (fTapWin, tacklePrev,
- * tackleT, tackleDir), e.loadoutIdx/loadoutWeapons/switched/readyT/readyMax, e.seat/liveries.
+ * in EMISSION. Field ownership: the e.dodge-, e.tackle- and e.inertia- families (fTapWin,
+ * tacklePrev, tackleT, tackleDir, inertiaT/inertiaDir/inertiaLocal/inertiaStep/inertiaPrev/
+ * inertiaCap), e.loadoutIdx/loadoutWeapons/switched/readyT/readyMax, e.seat/liveries.
  */
 
 export function buildMsManeuvers(E) {
@@ -169,6 +170,51 @@ export function buildMsManeuvers(E) {
       t.pos[0] += e.tackleDir[0] * tsp; t.pos[1] += e.tackleDir[1] * tsp;
     }
   }, 20);
+  registerPlatformManeuver('dash', 'boost-inertia', (e, input, dt, world, ctx) => {
+    const r = ctx.r, t = ctx.t;
+    // BOOST INERTIA (opt-in `boostInertia` SECONDS on the rule; ground mode only — space already
+    // coasts on real Newtonian momentum, and the operator prefers the void's own physics
+    // undecorated): the ground dash is a kinematic position write, so
+    // releasing F used to snap the suit to walk speed the very next frame. With inertia, the cut
+    // thrust leaves the body SLIDING along the last boost vector — full boost speed decaying
+    // linearly to zero over the window — so a dash ends in a skid, not a stop. Deterministic
+    // (pure dt math), and the slide runs BEFORE the lateral-blocking pass, so walls still stop it.
+    // CANCELS: a fresh boost swallows the slide; a melee swing KILLS it on the spot (the strike is
+    // always planted — the arena doctrine); dodge/tackle/charge/kneel/stagger own the body and
+    // clear it too. The R22 boost-cancel melee (`e.boostCut`) spawns NO slide at all — that
+    // cancel's whole identity is plant-and-swing, and a slide would undo the grounding it paid
+    // for. Absent `boostInertia` → early return, no fields touched, byte-identical.
+    const dur = r.boostInertia > 0 && !ctx.space ? r.boostInertia : 0;
+    if (dur <= 0) return;
+    const wasBoosting = !!e.inertiaPrev;
+    e.inertiaPrev = ctx.boosting;
+    if (ctx.boosting) {
+      // capture the LIVE thrust vector every boosting frame: on the release frame the held keys
+      // already read as walk input, so the slide must launch from the LAST boosting frame's dash.
+      let bf = input.forward, bs = ctx.sideIn;
+      if (Math.abs(bf) + Math.abs(bs) < 1e-3) bf = 1;   // plain F = forward, like the engine
+      const n = Math.hypot(bf, bs) || 1;
+      const f = ctx.f, rt = ctx.rt;
+      e.inertiaCap = { dir: [(f[0] * bf + rt[0] * bs) / n, (f[1] * bf + rt[1] * bs) / n], local: [bf / n, bs / n] };
+      e.inertiaT = null; e.inertiaDir = null; e.inertiaLocal = null;   // fresh thrust swallows any slide
+      return;
+    }
+    // the boost FALLING edge (F released, or the gauge sputtering empty) latches the slide —
+    // unless a cancel owns the moment (boost-cancel melee plants; dodge/tackle carry themselves).
+    if (wasBoosting && e.inertiaCap && !e.boostCut && !ctx.dodging && !ctx.tackling && !ctx.swinging) {
+      e.inertiaT = 0; e.inertiaDir = e.inertiaCap.dir; e.inertiaLocal = e.inertiaCap.local;
+    }
+    if (e.inertiaT == null) return;
+    if (ctx.swinging || ctx.dodging || ctx.tackling || ctx.charging || ctx.kneeling || e.staggerT != null) {
+      e.inertiaT = null; e.inertiaDir = null; e.inertiaLocal = null;   // grounded — the swing (or maneuver) killed the skid
+      return;
+    }
+    e.inertiaT += dt / dur;
+    if (e.inertiaT >= 1) { e.inertiaT = null; e.inertiaDir = null; e.inertiaLocal = null; return; }
+    const sp = (r.boostInertiaSpeed ?? ctx.boostSpeed) * (1 - e.inertiaT) * dt;
+    t.pos[0] += e.inertiaDir[0] * sp; t.pos[1] += e.inertiaDir[1] * sp;
+    e.inertiaStep = sp;   // world distance this frame — the claim below drives the gait phase on it
+  }, 50);
   registerPlatformManeuver('claim', 'tackle', (e, input, dt, world, ctx) => {
     if (!ctx.tackling) return false;
     const r = ctx.r, boostSpeed = ctx.boostSpeed, strideLen = ctx.strideLen;
@@ -194,6 +240,23 @@ export function buildMsManeuvers(E) {
       e.tumble = { axis: ax, angle: ang };
     return true;
   }, 20);
+  // the TRANSPOSED boost pose — the suit leans AGAINST its momentum, thrusters vectored the other
+  // way: slide left plays boost_right, slide forward plays boost_back (the counter-thrust braking
+  // read). All four clips are already baked into every rig (the directional-boost set), so no suit
+  // needs a rebake; pre-split bodies degrade through the renderer's boost_left/right → boost_side
+  // → forward fallback like the dash does. `bf`/`bs` are the body-local slide direction.
+  const brakeClip = (bf, bs) => (Math.abs(bs) > Math.abs(bf)
+    ? (bs > 0 ? 'boost_left' : 'boost_right')
+    : (bf < 0 ? 'boost' : 'boost_back'));
+  registerPlatformManeuver('claim', 'boost-inertia', (e, input, dt, world, ctx) => {
+    if (e.inertiaT == null) return false;
+    // the skid owns the body for the slide window. The gait phase advances by the SKID
+    // distance, so the pose tremor decays with the slide.
+    e.locomotion = brakeClip(e.inertiaLocal[0], e.inertiaLocal[1]);
+    e.gaitPhase = (e.gaitPhase || 0) + (e.inertiaStep || 0) / ctx.strideLen;
+    e.moving = true;
+    return true;
+  }, 30);
 
   // arena entity dressing — the pack's normalize extension (runs after combat-hit's hoists):
   registerNormalize((ent, raw) => {

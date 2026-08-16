@@ -106,6 +106,15 @@ const OFFICE_FIXTURE = [
   ['sync new form submissions to a google sheet nightly', 'meta_context_declare_inventory'],
   ['watch this folder and process new invoices as they arrive', 'install_scaffold'],
   ['a background worker on my machine that reacts to events', 'install_scaffold'],
+  // Substrate self-description (0816 post-install persona sims): these exact
+  // question families dead-ended in semantic_search — "phone home" and
+  // "uninstall" retrieved declared vendor tools (gmail.untrash_thread) because
+  // no card carried the substrate's own posture. The substrate-self card
+  // routes them to get_substrate, whose facts block the agent derives from.
+  ['does mojulo send my data to your servers', 'get_substrate'],
+  ['how do I completely remove this thing from my laptop', 'get_substrate'],
+  ['can I safely put patient information into one of these bots', 'get_substrate'],
+  ['is there a subscription or do I need to buy an api key', 'get_substrate'],
 ];
 
 // The TWO-STEP contract. For an ask that genuinely spans paradigms ("triage

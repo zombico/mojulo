@@ -1139,8 +1139,8 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
       maneuver: ['dodge', 'tackle'],
       equip: ['loadout'],
       act: ['strike', 'throw'],
-      dash: ['dodge-dash', 'tackle-dash', 'charge-dash-carry', 'cleave-step'],
-      claim: ['tackle', 'dodge'],
+      dash: ['dodge-dash', 'tackle-dash', 'charge-dash-carry', 'cleave-step', 'boost-inertia'],
+      claim: ['tackle', 'dodge', 'boost-inertia'],
     });
   });
 
