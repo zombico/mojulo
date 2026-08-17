@@ -24,10 +24,16 @@ import { resolveMojuloPaths } from './mojulo-paths.mjs';
 // 20.6, so a static import of it would crash old Nodes with a cryptic
 // missing-export error before this message could print. Stderr, not stdout:
 // in server mode stdout is the MCP protocol channel.
-const nodeMajor = Number(process.versions.node.split('.')[0]);
-if (nodeMajor < 20) {
+//
+// The floor is 22.12, not 20: lib/ ships ESM in `.js` files while
+// package.json has no `"type": "module"`, so it only loads on runtimes where
+// module-syntax detection is on by default (Node >=22.12, >=23). On Node 20
+// or 21 the first lib import dies with `SyntaxError: Cannot use import
+// statement outside a module`, far below this check.
+const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
+if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 12)) {
   process.stderr.write(
-    `mojulo needs Node.js 20 or newer — this is Node ${process.versions.node}.\n` +
+    `mojulo needs Node.js 22.12 or newer — this is Node ${process.versions.node}.\n` +
       `Install the current LTS from https://nodejs.org (or ask your coding agent\n` +
       `to install it), then re-run: npx mojulo init\n`
   );

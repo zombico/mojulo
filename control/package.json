@@ -32,7 +32,7 @@
     "mojulo"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "bin": {
     "mojulo": "./scripts/mcp-stdio.mjs",
@@ -45,6 +45,7 @@
     "lib/**",
     "!lib/embedder/models/**",
     "!lib/**/*.test.js",
+    "components/graph/CreationMap.jsx",
     "bin/app-runtime.mjs",
     "bin/daemons.mjs",
     "scripts/mcp-stdio.mjs",
@@ -83,6 +84,7 @@
     "@aws-sdk/client-bedrock-runtime": "^3.1011.0",
     "@huggingface/transformers": "^4.2.0",
     "@puppeteer/browsers": "^2.13.2",
+    "@swc/core": "^1.15.47",
     "archiver": "^7.0.1",
     "better-sqlite3": "^12.4.1",
     "croner": "^10.0.1",
