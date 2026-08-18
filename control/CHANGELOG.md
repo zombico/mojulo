@@ -10,6 +10,42 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Published dashboard works off the build machine (Windows field report)
+
+A 1.2.0 field report from Windows 11 exposed that the packaged `mojulo-ui`
+standalone bundle only ever worked on the machine that built it — every npm
+install, every platform:
+
+- **Bundler-baked absolute paths:** `next build --webpack` inlines
+  `import.meta.url` as a literal build-machine string, so ~40 lib modules that
+  located sibling resources (vocab cards, catalysts, adapters, outcome
+  templates, vendored fonts/three, the embedder cache fallback) resolved to
+  `file:///Users/<builder>/…` inside the standalone bundle — nonexistent paths
+  on macOS/Linux installs, an `ERR_INVALID_FILE_URL_PATH` module-scope throw
+  (→ route 500s) on Windows. New `lib/module-dir.js` resolves resource dirs
+  env-first from `MOJULO_CONTROL_DIR` (the installed package root, which ships
+  the complete `lib/` tree), exported by all four bins; the `import.meta.url`
+  fallback stays for repo-dev and is only parsed when the env var is absent.
+  Same treatment for the `process.cwd()`-anchored readers (composer protocols,
+  pixelizer game shells) whose dynamically-read siblings file tracing can't
+  see. `public/vendor/**` now ships at the package root so the three.js
+  vendor modes resolve there too.
+- **Build-platform-only native binaries:** the standalone `node_modules`
+  shipped `better-sqlite3` and sharp's `@img/*` as darwin-arm64 only
+  (`better_sqlite3.node is not a valid Win32 application` from every
+  DB-touching route). Both are now excluded from the tarball; Node module
+  resolution walks up from `.next/standalone/` to the host install's
+  `node_modules`, where npm already put the right platform build.
+  (`onnxruntime-node` / `node-web-audio-api` ship all platforms in-package
+  and are untouched.)
+- **`city` vocab card documented knobs the adapter never read:** the card
+  listed `time` / `anchor` / `landmark` / `civicAreas` as flat override keys,
+  but `cityThemeAdapter` reads theme slots (`context.time`, `asset.anchor`,
+  `asset.monument`, `asset.civic`) — flat keys silently produced a flat-lit
+  render. The card now documents the real slot paths (with an example), and
+  `region` / `viewBox` pass through the adapter top-level like `fog` / `audio`
+  (they had no reachable path since `create_fractal_city` retired).
+
 ### Routing telemetry + retrieval hardening (routing context weaving)
 
 The tool-routing path — `forward_context` rows, routing cards behind

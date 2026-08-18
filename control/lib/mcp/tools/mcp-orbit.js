@@ -23,9 +23,8 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
 import {
   MCPOrbitComponentRepository,
   MCPOrbitCompositionRepository,
@@ -38,7 +37,7 @@ import { seedComponents, indexSeededComponents } from '@/lib/mcp/mcp-orbit-compo
 import { registerTool } from '@/lib/mcp/server';
 
 const META_CATALYST_PATH = join(
-  dirname(fileURLToPath(import.meta.url)),
+  moduleDir(import.meta.url, 'lib/mcp/tools'),
   '..',
   'mcp-orbit-components',
   'meta-catalyst.md',

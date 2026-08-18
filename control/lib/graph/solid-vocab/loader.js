@@ -25,10 +25,9 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const VOCAB_DIR = dirname(fileURLToPath(import.meta.url));
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
+const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 
 // `when` is required for the same reason as view-vocab: it's the intent-shaped
 // line the embedding leads with, so a goal-phrased query ("a chrome wordmark",

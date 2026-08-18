@@ -14,9 +14,11 @@
  * Recipes, not renders — the sketch row stores a tiny manifest; the HTML is
  * regenerated here per request.
  *
- * Source is read from `process.cwd()/lib/graph/pixelizer` (control is the cwd
- * for both `next` and the vitest spike run), so this survives Next's bundler
- * where `import.meta.url` would resolve into `.next/`.
+ * Source is read via moduleDir (MOJULO_CONTROL_DIR-first): cwd is NOT a safe
+ * anchor — the published standalone server chdirs to .next/standalone/, whose
+ * traced lib/ copy misses these siblings (they're read dynamically, invisible
+ * to file tracing) — and a raw `import.meta.url` is baked to the build
+ * machine's path by the bundler.
  */
 
 import { readFileSync } from 'node:fs';
@@ -25,8 +27,9 @@ import { join } from 'node:path';
 import { buildBeatsKernel } from '../beats/beats-kernel.js';
 import { PATCHES } from '../beats/audio-patches.js';
 import { GROOVE, POLKA, SFX } from './brickster-audio.recipe.js';
+import { moduleDir } from '../../module-dir.js';
 
-const SRC = join(process.cwd(), 'lib', 'graph', 'pixelizer');
+const SRC = moduleDir(import.meta.url, 'lib/graph/pixelizer');
 
 /** Read a sibling pixelizer module and strip its import/export lines to inline it. */
 export const inlineSource = (file) =>

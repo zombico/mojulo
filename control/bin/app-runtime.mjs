@@ -57,6 +57,7 @@ resolveMojuloPaths();
 // (mirrors mcp-stdio.mjs). artifact_ref is always absolute, so this never
 // affects app spawning.
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+process.env.MOJULO_CONTROL_DIR ??= CONTROL_DIR; // moduleDir anchor, see lib/module-dir.js
 process.chdir(CONTROL_DIR);
 
 // A crashing app must not take the daemon down. Children already surface as

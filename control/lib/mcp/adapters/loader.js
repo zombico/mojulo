@@ -17,10 +17,9 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ADAPTER_DIR = dirname(fileURLToPath(import.meta.url));
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
+const ADAPTER_DIR = moduleDir(import.meta.url, 'lib/mcp/adapters');
 
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'artifactTarget'];
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;

@@ -30,8 +30,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
+import { moduleDir } from '../../module-dir.js';
 import { StashRepository } from '@/lib/db/repositories/stashes';
 
 import { renderMarkdown } from '../markdown.js';
@@ -41,7 +40,7 @@ import { resolveImageItem } from '../resolvers/image.js';
 
 export const PHOTOJOURNAL_VERSION = 'pj-1';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = moduleDir(import.meta.url, 'lib/outcomes/kinds');
 const TEMPLATE_PATH = path.join(HERE, '..', 'template', 'photojournal.html');
 
 const HTML_ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };

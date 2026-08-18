@@ -14,9 +14,8 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+import { moduleDir } from '../module-dir.js';
+const HERE = moduleDir(import.meta.url, 'lib/outcomes');
 const PARTIALS_DIR = path.join(HERE, 'partials');
 
 const PARTIAL_RE = /\{\{>([a-z0-9_-]+)\}\}/g;

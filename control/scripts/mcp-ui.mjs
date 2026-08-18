@@ -122,6 +122,13 @@ resolveMojuloPaths();
 // lite-template/ directory staged into the package by stage-lite-template.mjs.
 process.env.LITE_TEMPLATE_PATH ??= path.join(CONTROL_DIR, 'lite-template');
 
+// Packaged-asset anchor for moduleDir (lib/module-dir.js). The webpack build
+// inlines each lib module's import.meta.url as a LITERAL build-machine path,
+// so the standalone bundle cannot locate vocab cards / catalysts / templates
+// on any other host (and throws ERR_INVALID_FILE_URL_PATH on Windows). The
+// package root ships the complete lib/ tree — resolve resources from it.
+process.env.MOJULO_CONTROL_DIR ??= CONTROL_DIR;
+
 // The docs (and every mojulo surface that prints a dashboard URL) say 3001 —
 // prefer it, fall back to an OS-assigned free port only when it's taken.
 const port = args.port ?? ((await portIsFree(3001)) ? 3001 : await findFreePort());

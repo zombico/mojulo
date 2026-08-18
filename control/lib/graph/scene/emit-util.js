@@ -28,11 +28,11 @@ export function b64(typedArray) {
 // default → the control server's /vendor; cdn:true → jsdelivr pinned to the vendored
 // revision; inline → the vendored modules embedded as data: URLs (self-contained page).
 
-import { fileURLToPath } from 'node:url';
+import { moduleDir } from '../../module-dir.js';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const VENDOR_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../public/vendor/three');
+const VENDOR_DIR = path.resolve(moduleDir(import.meta.url, 'lib/graph/scene'), '../../../public/vendor/three');
 
 // Server-served importmap (default): three loads from the control plane's /vendor.
 const VENDOR_IMPORTMAP = JSON.stringify({

@@ -60,11 +60,13 @@ register('./mcp-stdio-loader.mjs', import.meta.url);
 // code lands user state there instead of a cwd-relative ./data/.
 resolveMojuloPaths();
 
-// chdir to control/ for packaged-asset paths the lib still reads from cwd
-// (lib/composer/composer.js PROTOCOLS_DIR default). M3 v0.2.0 will swap
-// these for __dirname-relative resolution when the UI bin lands and we
-// re-ship lite-template/ for the wizard preview path.
+// chdir to control/ for packaged-asset paths the lib still reads from cwd,
+// and export the package root for moduleDir (lib/module-dir.js) — the
+// env-first anchor that keeps bundled lib code (the standalone UI) off the
+// build machine's baked import.meta.url paths. Raw-lib runs like this one
+// don't strictly need it, but every bin exporting it keeps resolution uniform.
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+process.env.MOJULO_CONTROL_DIR ??= CONTROL_DIR;
 process.chdir(CONTROL_DIR);
 
 // Stdout is the MCP protocol channel — any stray log corrupts the frame

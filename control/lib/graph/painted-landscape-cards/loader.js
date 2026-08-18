@@ -59,10 +59,10 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { moduleDir } from '../../module-dir.js';
 import path from 'node:path';
 
-const CARDS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const CARDS_DIR = moduleDir(import.meta.url, 'lib/graph/painted-landscape-cards');
 
 const FRONTMATTER_RE = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/;
 const HEX_RE = /^#[0-9a-f]{6}$/i;

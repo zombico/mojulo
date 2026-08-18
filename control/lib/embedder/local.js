@@ -19,10 +19,10 @@
  */
 
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { moduleDir } from '../module-dir.js';
 import { pipeline, env } from '@huggingface/transformers';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = moduleDir(import.meta.url, 'lib/embedder');
 
 // Two modes:
 //   - MOJULO_MODELS_DIR set (npx flow): cache lives under the user's home,
