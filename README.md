@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/mojulo)](https://www.npmjs.com/package/mojulo)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen)](package.json)
+[![node](https://img.shields.io/badge/node-%E2%89%A522.12-brightgreen)](package.json)
 
 **Mojulo is a workshop for coding agents** — local, yours, not a hosted service. You talk to the agent you already run (Claude Code, Codex); it does the reasoning, and mojulo is the machine it works in — where bots, apps, workflows, publications, and worlds accumulate as things you own, on your own disk.
 
@@ -40,12 +40,34 @@ Plus **Settings** for host config. The reasoning happens in your agent; mojulo p
 
 ## Quickstart
 
-You need two things installed first:
+The fastest path: don't install anything yourself. Paste this into the coding
+agent you already run (Claude Code, Codex) and let it drive — it checks the
+machine first, reports what it found, and asks before installing anything:
 
-1. **Node.js 20 or newer** — mojulo is installed and run through `npx`, which ships
+```text
+Help me install mojulo — a free, local workshop you'll drive over MCP.
+Orientation, if you can fetch it: https://mojulo.ai/llms.txt
+(mirror if the site is down: https://github.com/zombico/mojulo)
+
+1. First just check: run `node --version`. Mojulo needs Node 22.12+.
+   Tell me what you found before changing anything.
+2. If Node is missing or too old, ask my permission, then install it
+   the way this machine expects (brew / winget / nvm / apt).
+3. With my go-ahead, run `npx mojulo init`. It wires mojulo into the
+   coding agents on this machine (one yes/no per host) and opens a
+   dashboard at localhost:3001. Everything stays on my machine.
+4. When it finishes, tell me to open a fresh session and ask you:
+   "what is this?"
+
+Never install anything without asking me first.
+```
+
+Driving it yourself instead? You need two things installed first:
+
+1. **Node.js 22.12 or newer** — mojulo is installed and run through `npx`, which ships
    with Node. Check with `node --version`; if you don't have it (or it's older than
-   20), install it from [nodejs.org](https://nodejs.org) — or just ask your coding
-   agent to install it for you ("install Node 20 with brew/winget and verify
+   22.12), install it from [nodejs.org](https://nodejs.org) — or just ask your coding
+   agent to install it for you ("install Node 22 with brew/winget and verify
    `node --version`").
 2. A **desktop coding agent** (Claude Code/Codex) or a high-end local model —
    mojulo is model-agnostic and runs on whatever model your harness provides.

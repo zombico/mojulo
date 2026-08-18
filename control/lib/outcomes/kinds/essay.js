@@ -20,15 +20,14 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
+import { moduleDir } from '../../module-dir.js';
 import { renderMarkdown } from '../markdown.js';
 import { renderTemplate } from '../render-template.js';
 import { outcomeDirFor } from '../paths.js';
 
 export const TEMPLATE_VERSION = '1';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = moduleDir(import.meta.url, 'lib/outcomes/kinds');
 const TEMPLATE_PATH = path.join(HERE, '..', 'template', 'outcome.html');
 
 const FILENAME_SAFE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}\.(svg|png)$/;

@@ -60,6 +60,7 @@ import {
   composeOrbitComponentRef,
   BodyComposition,
   reindexAll,
+  lexicalOverlap,
   _internals as embeddingsInternals,
 } from './embeddings.js';
 import { CapabilitiesRepository } from './mcp-capabilities.js';
@@ -602,5 +603,62 @@ describe('reindexAll', () => {
     expect(live).not.toBe(null);
     expect(live.bodyText).toContain('body of local-live');
     expect(EmbeddingsRepository.findByRef('catalyst', 'local-shelved')).toBe(null);
+  });
+});
+
+describe('lexicalOverlap — the routing tiebreaker (routing-context-weaving.plan.md B1)', () => {
+  it('scores the query-term hit rate against the when quotes', () => {
+    const when = '"build me a bot", "a chatbot for my website", "collect leads in a conversation"';
+    expect(lexicalOverlap('build a chatbot', when)).toBe(1); // build + chatbot both hit ("a" < 3 chars, dropped)
+    expect(lexicalOverlap('chatbot pottery studio', when)).toBeCloseTo(1 / 3); // 1 of 3 terms
+    expect(lexicalOverlap('quarterly revenue report', when)).toBe(0);
+  });
+
+  it('dedupes repeated terms and folds case + diacritics', () => {
+    const when = '"a café menu bot"';
+    expect(lexicalOverlap('CAFE cafe Café', when)).toBe(1); // one deduped term, hits
+  });
+
+  it('non-segmenting scripts degrade to a substring probe, never a false positive', () => {
+    // A CJK query is one ≥3-char letter run — it hits only as a literal substring.
+    expect(lexicalOverlap('画一个饼图', '"画一个饼图", "make a pie chart"')).toBe(1);
+    expect(lexicalOverlap('画一个饼图', '"make a pie chart"')).toBe(0);
+    // Too short to yield terms → whole-phrase substring probe.
+    expect(lexicalOverlap('図で', '"図で説明して"')).toBe(1);
+    expect(lexicalOverlap('図で', '"a diagram"')).toBe(0);
+  });
+
+  it('empty / degenerate inputs score 0', () => {
+    expect(lexicalOverlap('', '"anything"')).toBe(0);
+    expect(lexicalOverlap('anything', '')).toBe(0);
+    expect(lexicalOverlap('!!! ???', '"punctuation"')).toBe(0);
+  });
+
+  it('the boost only applies to routing rows — other kinds stay pure cosine', async () => {
+    getDb();
+    // Two catalyst rows with identical embedded text (same mock vector) but
+    // different body_text `When:` lines would tie; the tiebreaker must NOT
+    // separate them because the kind is not 'routing'.
+    const a = await EmbeddingsRepository.embed('catalyst', 'tie-a', 'identical body');
+    EmbeddingsRepository.upsertSync({
+      sourceKind: 'catalyst',
+      sourceRef: 'tie-a',
+      bodyText: 'When: walk the dungeon',
+      hash: 'h-a',
+      vector: a.vector,
+    });
+    const b = await EmbeddingsRepository.embed('catalyst', 'tie-b', 'identical body');
+    EmbeddingsRepository.upsertSync({
+      sourceKind: 'catalyst',
+      sourceRef: 'tie-b',
+      bodyText: 'When: unrelated prose',
+      hash: 'h-b',
+      vector: b.vector ?? a.vector,
+    });
+    const results = await EmbeddingsRepository.search('walk the dungeon', {
+      kinds: ['catalyst'],
+    });
+    expect(results).toHaveLength(2);
+    expect(results[0].score).toBeCloseTo(results[1].score, 10);
   });
 });

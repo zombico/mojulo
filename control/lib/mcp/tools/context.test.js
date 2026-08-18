@@ -456,7 +456,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     const { content } = await creativeToolsetHandler({ form: 'audio' });
     expect(content[0].text).toContain('create_beats');
     expect(content[0].text).toContain(FORM_TOOLSETS.audio.title);
-    await expect(creativeToolsetHandler({ form: 'nope' })).rejects.toThrow(/must be one of/);
+    await expect(creativeToolsetHandler({ form: 'nope' })).rejects.toThrow(/unknown form/);
   });
 
   it('the form map stays cheap to pull (< 2500 chars)', async () => {

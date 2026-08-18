@@ -15,7 +15,9 @@
  *
  * Two modes (Free Play endless · Alchemist's Trial timed level progression),
  * pointer swaps (tap-tap or drag onto a neighbour) + a keyboard cursor. Source is
- * read from `process.cwd()/lib/graph/pixelizer` so it survives Next's bundler.
+ * read via moduleDir so it survives Next's bundler AND the published standalone
+ * server (whose cwd is .next/standalone/, where these dynamically-read siblings
+ * are not traced) — see brickster-shell.js for the full rationale.
  */
 
 import { readFileSync } from 'node:fs';
@@ -24,8 +26,9 @@ import { join } from 'node:path';
 import { buildBeatsKernel } from '../beats/beats-kernel.js';
 import { PATCHES } from '../beats/audio-patches.js';
 import { PS_THEME, PS_SFX } from './philosophers-stone-beats.js';
+import { moduleDir } from '../../module-dir.js';
 
-const SRC = join(process.cwd(), 'lib', 'graph', 'pixelizer');
+const SRC = moduleDir(import.meta.url, 'lib/graph/pixelizer');
 
 /** Read a sibling pixelizer module and strip its import/export lines to inline it. */
 export const inlineSource = (file) =>

@@ -174,6 +174,43 @@ function snippetOf(bodyText) {
   return bodyText.slice(0, SNIPPET_MAX_CHARS - 1) + '…';
 }
 
+// --- Routing lexical tiebreaker (routing-context-weaving.plan.md B1) ---
+//
+// Routing cards that share heavy surface vocabulary ("walk", "dungeon",
+// "animated") rank by cosine margins as thin as ~0.004 (the collision fixture
+// in routing-eval.integration.test.js pins the flip point). The tiebreaker
+// puts a deterministic floor under those near-ties: a small boost from literal
+// query-term overlap with the card's `When:` anchor quotes — the field that is
+// already the card's retrieval-signal contract, so anchor quotes do double
+// duty. λ keeps cosine dominant; the boost settles near-ties, it never
+// outvotes the embedding. Routing rows only — every other kind stays pure
+// cosine.
+export const ROUTING_LEXICAL_LAMBDA = 0.03;
+
+const WHEN_LINE_RE = /^When: (.*)$/m;
+
+function normalizeLexical(text) {
+  return String(text)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+// Query-term hit rate in [0, 1] against a card's `when` quotes. Terms are the
+// query's ≥3-char letter/digit runs (deduped); a query that yields no such
+// terms — or a non-segmenting script whose whole phrase is one run that
+// doesn't hit — degrades to a whole-phrase substring probe / a zero boost,
+// never a false positive. Exported for the unit pin in embeddings tests.
+export function lexicalOverlap(query, whenText) {
+  const q = normalizeLexical(query).trim();
+  const t = normalizeLexical(whenText);
+  if (!q || !t) return 0;
+  const terms = [...new Set(q.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3))];
+  if (!terms.length) return t.includes(q) ? 1 : 0;
+  const hits = terms.filter((w) => t.includes(w)).length;
+  return hits / terms.length;
+}
+
 export const EmbeddingsRepository = {
   /**
    * Compute an embedding for one body text. Returns `{ hash, vector }`. When
@@ -372,12 +409,20 @@ export const EmbeddingsRepository = {
    * scores against the query embedding, sorts, slices. Acceptable to ~10k
    * rows; past that, swap in sqlite-vec without changing the row shape.
    *
-   * Returns `[{ source_kind, source_ref, score, snippet }]`. The caller
-   * (`semantic_search` MCP tool) is responsible for re-checking row
-   * relevance against current state — e.g. filtering out superseded
-   * capability rows by joining against meta_mcp_capabilities.
+   * Routing rows only additionally earn a small deterministic lexical boost
+   * (ROUTING_LEXICAL_LAMBDA × query-term overlap with the card's `When:`
+   * anchor quotes) — see the tiebreaker comment above lexicalOverlap.
+   *
+   * Returns `[{ source_kind, source_ref, score, snippet }]`. With
+   * `withMeta: true`, returns `{ results, degraded }` instead — `degraded`
+   * is true when the query itself could not be embedded, so the caller can
+   * tell "the index answered nothing" from "the index couldn't answer"
+   * (routing-context-weaving.plan.md C2). The caller (`semantic_search` MCP
+   * tool) is responsible for re-checking row relevance against current
+   * state — e.g. filtering out superseded capability rows by joining
+   * against meta_mcp_capabilities.
    */
-  async search(query, { kinds, limit = 8 } = {}) {
+  async search(query, { kinds, limit = 8, withMeta = false } = {}) {
     if (typeof query !== 'string' || query.trim().length === 0) {
       throw new Error('search: query must be a non-empty string');
     }
@@ -399,7 +444,7 @@ export const EmbeddingsRepository = {
       queryVector = v;
     } catch (err) {
       console.warn(`[meta_embeddings] search embed failed: ${err.message}`);
-      return [];
+      return withMeta ? { results: [], degraded: true } : [];
     }
 
     const db = getDb();
@@ -450,7 +495,11 @@ export const EmbeddingsRepository = {
         continue;
       }
       const vec = bufferToVector(r.embedding);
-      const score = cosine(queryVector, vec);
+      let score = cosine(queryVector, vec);
+      if (r.source_kind === 'routing') {
+        const whenLine = WHEN_LINE_RE.exec(r.body_text || '');
+        if (whenLine) score += ROUTING_LEXICAL_LAMBDA * lexicalOverlap(query, whenLine[1]);
+      }
       scored.push({
         source_kind: r.source_kind,
         source_ref: r.source_ref,
@@ -463,7 +512,8 @@ export const EmbeddingsRepository = {
       });
     }
     scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, limit);
+    const results = scored.slice(0, limit);
+    return withMeta ? { results, degraded: false } : results;
   },
 
   /** Read-only inspector used by tests + the integration suite. */

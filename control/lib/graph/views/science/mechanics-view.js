@@ -26,7 +26,9 @@
 
 import { lowerObjectFaces, WORKBENCH_LIGHT } from '../../worlds/workbench.js';
 import { clampNum, add, sub, scl, len, norm, DEG, deriveKinematics, MECHANICS_RULES, MECHANICS_SAMPLES,
-  MACHINE_RULES, MACHINE_SCENARIOS, MACHINE_SAMPLES, ENGINE_RULES, ENGINE_SCENARIOS } from '../../worlds/motion-vocabulary.js';
+  MACHINE_RULES, MACHINE_SCENARIOS, MACHINE_SAMPLES, ENGINE_RULES, ENGINE_SCENARIOS,
+  weightChannel, F_NORMAL, F_FRICTION } from '../../worlds/motion-vocabulary.js';
+import { flightPath, BALL as FLIGHT_BALL, RHO_SEA_LEVEL, dragCoeff, liftCoeff } from '../../physics/flight.js';
 
 // ── workbench lathe sphere (the body + the pendulum pivot marker), same machinery cellular-view uses.
 // The lathe interpolates its profile LINEARLY, so a round ball needs a finely sampled sinusoid. ──
@@ -149,7 +151,7 @@ const N_SAMPLES = MECHANICS_SAMPLES;
 // a rule generator, but a selectable scenario, so it joins the public list the tool validates against.
 const MOTOR_SCENARIOS = ['dc-motor', 'ac-motor'];   // electric motors — electromagnetism, not mechanical linkages
 const VEHICLE_SCENARIOS = ['drone', 'drone-flight', 'submarine'];   // Newtonian force-balance vehicles: air (thrust) / water (buoyancy)
-export const MECHANICS_SCENARIOS = [...Object.keys(MECHANICS_RULES), 'collision', ...MACHINE_SCENARIOS, ...ENGINE_SCENARIOS, ...MOTOR_SCENARIOS, ...VEHICLE_SCENARIOS];
+export const MECHANICS_SCENARIOS = [...Object.keys(MECHANICS_RULES), 'collision', 'flight', ...MACHINE_SCENARIOS, ...ENGINE_SCENARIOS, ...MOTOR_SCENARIOS, ...VEHICLE_SCENARIOS];
 const MACHINE_SET = new Set(MACHINE_SCENARIOS);
 const ENGINE_SET = new Set(ENGINE_SCENARIOS);
 
@@ -194,6 +196,7 @@ const MOON_G = 1.62;
 
 export function planMechanicsScene(recipe = {}) {
   if (recipe.scenario === 'collision') return planCollisionScene(recipe);   // two-body branch
+  if (recipe.scenario === 'flight') return planFlightScene(recipe);         // real-air strike (drag crisis + Magnus)
   if (recipe.scenario === 'dc-motor') return planDcMotorScene(recipe);       // brushed-DC motor branch
   if (recipe.scenario === 'ac-motor') return planAcMotorScene(recipe);       // AC induction motor branch
   if (recipe.scenario === 'drone') return planDroneScene(recipe);            // multirotor hover (force balance)
@@ -316,7 +319,7 @@ export function planMechanicsScene(recipe = {}) {
 // the single-body MECHANICS_RULES dynamics scenarios: machines are quasi-static, engines are
 // kinematic linkages, compare/collision are multi-mover — none of those yield one honest
 // SI time-series, so they refuse rather than return numbers that would lie. ──
-export const MEASURABLE_MECHANICS_SCENARIOS = Object.keys(MECHANICS_RULES);
+export const MEASURABLE_MECHANICS_SCENARIOS = [...Object.keys(MECHANICS_RULES), 'flight'];
 
 export function sampleMechanicsPhysics(recipe = {}, { every = 1 } = {}) {
   const scenario = recipe.scenario;
@@ -325,6 +328,7 @@ export function sampleMechanicsPhysics(recipe = {}, { every = 1 } = {}) {
       "sampleMechanicsPhysics: compare recipes are two movers — measure each variant as its own recipe (drop `compare`).",
     );
   }
+  if (scenario === 'flight') return sampleFlightPhysics(recipe, { every });
   if (!MECHANICS_RULES[scenario]) {
     throw new Error(
       `sampleMechanicsPhysics: scenario '${scenario}' has no single-body dynamics rule. Measurable scenarios: ${MEASURABLE_MECHANICS_SCENARIOS.join(', ')}.`,
@@ -355,6 +359,41 @@ export function sampleMechanicsPhysics(recipe = {}, { every = 1 } = {}) {
     scenario, label: sim.label, T: sim.T, dt, loop: !!sim.loop, static: !!sim.static,
     units: { t: 's', pos: 'm', speed: 'm/s', accel: 'm/s²', ...(sim.noEnergy ? {} : { ke: 'J', pe: 'J' }) },
     facts: sim.facts, samples, count: samples.length,
+  };
+}
+
+// the flight scenario's measure branch: same parameter resolution as planFlightScene, sampled from
+// the UNSCALED integrator output — real metres / m/s / m/s² / joules, matching the rendered readout.
+function sampleFlightPhysics(recipe = {}, { every = 1 } = {}) {
+  const v0 = clampNum(recipe.v0, 5, 60, 27);
+  const angle = clampNum(recipe.angle, 3, 60, 15);
+  const curl = clampNum(recipe.curl, -16, 16, 6);
+  const spinRev = clampNum(recipe.spin, -16, 16, 3);
+  const res = flightPath({ projectile: flightProjectileSpec(recipe), speed: v0, elevationDeg: angle, spin: { curlRev: curl, spinRev } });
+  const m = res.ball.mass;
+  const { path, T, summary } = resampleFlight(res, N_SAMPLES);
+  const dt = T / (N_SAMPLES - 1);
+  const k = deriveKinematics(path, dt);
+  const step = Math.max(1, Math.round(clampNum(every, 1, N_SAMPLES, 1)));
+  const samples = [];
+  for (let i = 0; i < path.length; i += step) {
+    samples.push({
+      t: +(i * dt).toFixed(6),
+      pos: path[i].map((c) => +c.toFixed(6)),
+      speed: +k.speed[i].toFixed(6),
+      accel: +k.accel[i].toFixed(6),
+      ke: +(0.5 * m * k.speed[i] * k.speed[i]).toFixed(6),
+      pe: +(m * 9.81 * path[i][2]).toFixed(6),
+    });
+  }
+  return {
+    scenario: 'flight', label: 'Ball in flight (real air)', T, dt, loop: false, static: false,
+    units: { t: 's', pos: 'm', speed: 'm/s', accel: 'm/s²', ke: 'J', pe: 'J' },
+    facts: [['ball', `${(m * 1000).toFixed(0)} g · Ø ${(res.ball.diameter * 100).toFixed(1)} cm`],
+      ['v₀', `${v0} m/s`], ['angle', `${angle}°`], ['curl spin', `${curl} rev/s`], ['lift spin', `${spinRev} rev/s`],
+      ['range', `${summary.range.toFixed(1)} m`], ['apex', `${summary.apex.toFixed(1)} m`],
+      ['curl', `${summary.peakLateral.toFixed(2)} m`], ['hang', `${summary.flightTime.toFixed(2)} s`]],
+    samples, count: samples.length,
   };
 }
 
@@ -532,6 +571,216 @@ function planCompareScene(recipe = {}) {
   for (const c of [...pathA, ...pathB, ...faces.flatMap((f) => f.corners)]) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
 
   return { faces, picks, movers, planets, bounds: { center, radius: radius || span }, stats: { scenario, g, samples: N_SAMPLES, period: cycle, loop, T: Tmax } };
+}
+
+// ── FLIGHT (integration/0818/ball-flight.plan.md, F1): the projectile scenario stepping OUT of the
+// vacuum — the same strike run through the physics/flight.js integrator (gravity + drag-crisis C_d +
+// spin-ratio Magnus C_l), so carry, dip and curl are real. `compare:'air'` races the identical launch
+// against its vacuum twin from the SAME spot (no depth lanes — the vacuum ball holding y = 0 while the
+// real one bends away IS the comparison); `stage:'goal'` dresses the pitch + regulation goal (the
+// kick-spike staging, folded in) so the curl reads against something. ──
+const BALL_TINT = '#e9e6dc';        // the real-air ball — off-white leather
+const PITCH_FILL = '#2f5c35';       // stage:'goal' grass
+const PITCH_LINE = '#57905e';       // mowing lines
+const POST_FILL = '#e8ecef';        // goalposts + crossbar
+const VAC_TRACE = '#31394d';        // the vacuum twin's dimmer ribbon
+
+// trajectory ribbon for a genuinely 3-D path: a thin VERTICAL band hung on the path (offset ±z), so it
+// reads face-on from the side and its curl reads from above — traceRibbonFaces assumes y = 0 motion.
+function flightRibbonFaces(path, halfW, fill, group) {
+  const faces = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    const p = path[i], q = path[i + 1];
+    faces.push(quad([[p[0], p[1], p[2] + halfW], [p[0], p[1], p[2] - halfW], [q[0], q[1], q[2] - halfW], [q[0], q[1], q[2] + halfW]], fill, group));
+  }
+  return faces;
+}
+
+// equal-dt resample of the integrator's fine samples (linear interp by time) down to the mover
+// resolution — equal TIME steps, so the body's visible deceleration IS the drag, like every sibling.
+function resampleFlight(res, n) {
+  const S = res.samples, T = res.summary.flightTime || S[S.length - 1].t || 1;
+  const path = [], vel = [], omg = [];
+  let j = 0;
+  for (let i = 0; i < n; i++) {
+    const t = (i / (n - 1)) * T;
+    while (j < S.length - 2 && S[j + 1].t <= t) j++;
+    const a = S[j], b = S[Math.min(j + 1, S.length - 1)];
+    const f = Math.max(0, Math.min(1, (t - a.t) / ((b.t - a.t) || 1)));
+    const L = (ka, kb) => ka + (kb - ka) * f;
+    path.push([L(a.p.x, b.p.x), L(a.p.y, b.p.y), L(a.p.z, b.p.z)]);
+    vel.push([L(a.v.x, b.v.x), L(a.v.y, b.v.y), L(a.v.z, b.v.z)]);
+    omg.push([L(a.omega.x, b.omega.x), L(a.omega.y, b.omega.y), L(a.omega.z, b.omega.z)]);
+  }
+  return { path, vel, omg, T, summary: res.summary };
+}
+
+// the real per-sample aerodynamic free-body (newtons), recomputed from the resampled state with the
+// same coefficient curves the integrator used: weight mg, drag ½ρAC_d|v|² (−v̂), Magnus ½ρAC_l|v|² (ω̂×v̂).
+function flightForceChannels(vel, omg, ball) {
+  const A = ball.area, rBall = ball.radius, rho = RHO_SEA_LEVEL;
+  const dragVecs = vel.map((v) => {
+    const sp = len(v); if (sp < 1e-9) return [0, 0, 0];
+    return scl(v, -0.5 * rho * A * dragCoeff(sp, ball.aero) * sp);
+  });
+  const magnusVecs = vel.map((v, i) => {
+    const c = cross(omg[i], v), cm = len(c), sp = len(v);
+    if (cm < 1e-9 || sp < 1e-9) return [0, 0, 0];
+    const S = (rBall * (cm / sp)) / sp;
+    return scl(c, (0.5 * rho * A * liftCoeff(S, ball.aero) * sp * sp) / cm);
+  });
+  return [
+    weightChannel(ball.mass, 9.81, vel.length),
+    { label: 'drag (air)', color: F_FRICTION, vecs: dragVecs },
+    { label: 'Magnus (spin)', color: F_NORMAL, vecs: magnusVecs },
+  ];
+}
+
+// the recipe's ball dials → a flightPath projectile spec: absent ⇒ the validated soccer preset;
+// any of mass / diameter / density present ⇒ a custom sphere (same model, operator-owned numbers).
+// mass wins over density when both are given (density only exists to DERIVE a mass).
+function flightProjectileSpec(recipe) {
+  const custom = {};
+  if (Number.isFinite(+recipe.mass)) custom.mass = clampNum(recipe.mass, 0.02, 50, FLIGHT_BALL.mass);
+  if (Number.isFinite(+recipe.diameter)) custom.diameter = clampNum(recipe.diameter, 0.02, 1.2, FLIGHT_BALL.diameter);
+  if (!('mass' in custom) && Number.isFinite(+recipe.density)) custom.density = clampNum(recipe.density, 1, 20000, 78);
+  return Object.keys(custom).length ? custom : 'soccer';
+}
+
+function planFlightScene(recipe = {}) {
+  const scale = clampNum(recipe.scale, 0.2, 5, 1);
+  const vectors = recipe.vectors === false ? false : true;
+  const trace = recipe.trace === false ? false : true;
+  const strobe = recipe.strobe === false ? false : true;
+  const strobeEvery = Math.round(clampNum(recipe.strobeEvery, 4, 40, 12));
+  const energy = recipe.energy === false ? false : true;
+  const forces = recipe.forces === true;
+  const v0 = clampNum(recipe.v0, 5, 60, 27);
+  const angle = clampNum(recipe.angle, 3, 60, 15);
+  const curl = clampNum(recipe.curl, -16, 16, 6);       // sidespin rev/s · + curls left of aim
+  const spinRev = clampNum(recipe.spin, -16, 16, 3);    // + backspin (floats) · − topspin (dips)
+  const stage = recipe.stage === 'goal' ? 'goal' : 'range';
+  const compareAir = recipe.compare === 'air';
+
+  const launch = { projectile: flightProjectileSpec(recipe), speed: v0, elevationDeg: angle, spin: { curlRev: curl, spinRev } };
+  const flown = flightPath(launch);
+  const ball = flown.ball, m = ball.mass;
+  const A = resampleFlight(flown, N_SAMPLES);
+  const B = compareAir ? resampleFlight(flightPath(launch, { drag: false, spin: false }), N_SAMPLES) : null;
+
+  const sc = (p) => (scale === 1 ? p : scl(p, scale));
+  const pathA = A.path.map(sc), pathB = B ? B.path.map(sc) : null;
+  const allPts = [...pathA, ...(pathB || [])];
+  const span = Math.max(...allPts.map((p) => Math.max(Math.abs(p[0]), Math.abs(p[1]), p[2])), 1);
+  // display radius tracks the REAL ball's size relative to the soccer baseline (clamped so a
+  // marble stays visible and a beach ball doesn't swallow the scene).
+  const sizeF = clampNum(ball.diameter / FLIGHT_BALL.diameter, 0.4, 2.5, 1);
+  const rB = Math.min(1.2 * scale, Math.max(0.4, span * 0.03)) * sizeF;
+  const arrowLen = Math.max(2.5, span * 0.16);
+
+  const faces = [], picks = [], planets = [];
+  const tag = (fs, group) => { for (const f of fs) faces.push({ ...f, group }); };
+
+  // ribbons first (under the ghosts + body): the vacuum twin's dim parabola, then the real bend.
+  if (trace) {
+    if (pathB) tag(flightRibbonFaces(pathB, Math.max(rB * 0.25, span * 0.005), VAC_TRACE, 'scene'), 'scene');
+    tag(flightRibbonFaces(pathA, Math.max(rB * 0.3, span * 0.006), TRACE_FILL, 'scene'), 'scene');
+  }
+  if (strobe) {
+    // path markers at 0.32·rB — small enough to read as a TRAIL of time-stamps, never a second ball.
+    for (let i = strobeEvery; i < N_SAMPLES - 1; i += strobeEvery) {
+      tag(lowerObjectFaces({ lathes: [sphereSpec(pathA[i], rB * 0.32, GHOST_TINT, 12)] }, WORKBENCH_LIGHT), 'scene');
+      if (pathB) tag(lowerObjectFaces({ lathes: [sphereSpec(pathB[i], rB * 0.32, GHOST2_TINT, 12)] }, WORKBENCH_LIGHT), 'scene');
+    }
+  }
+
+  const s = A.summary;
+  const ballFact = `${(m * 1000).toFixed(0)} g · Ø ${(ball.diameter * 100).toFixed(1)} cm${ball.key === 'custom' ? '' : ' (soccer)'}`;
+  planets.push(litBody('body', rB, BALL_TINT));
+  picks.push({ name: 'body', kind: 'body', label: 'Ball in flight (real air)', fields: compactFields([
+    ['ball', ballFact],
+    ['v₀', `${v0} m/s`], ['angle', `${angle}°`], ['curl spin', `${curl} rev/s`], ['lift spin', `${spinRev} rev/s`],
+    ['range', `${s.range.toFixed(1)} m`], ['apex', `${s.apex.toFixed(1)} m`],
+    ['curl', `${s.peakLateral.toFixed(2)} m`], ['hang', `${s.flightTime.toFixed(2)} s`]]) });
+  if (B) {
+    planets.push(litBody('body2', rB, BODY2_TINT));
+    picks.push({ name: 'body2', kind: 'body', label: 'Vacuum twin', fields: compactFields([
+      ['range', `${B.summary.range.toFixed(1)} m`], ['apex', `${B.summary.apex.toFixed(1)} m`],
+      ['curl', '0 m (no air, no bend)'], ['hang', `${B.summary.flightTime.toFixed(2)} s`]]) });
+  }
+
+  // stage dressing. 'range': the sibling ground band. 'goal': grass + mowing lines + a regulation
+  // goal (7.32 × 2.44) planted at goalDist down the aim line — what the curl reads against.
+  const xEnd = Math.max(...allPts.map((p) => p[0]));
+  const yMax = Math.max(...allPts.map((p) => Math.abs(p[1])));
+  if (stage === 'goal') {
+    const gd = clampNum(recipe.goalDist, 8, 60, 20) * scale;
+    const fx0 = -4 * scale, fx1 = Math.max(gd + 10 * scale, xEnd + 6 * scale);
+    const fy = Math.max(8 * scale, yMax + 6 * scale, 3.66 * scale + 3 * scale);
+    tag([quad([[fx0, -fy, 0], [fx1, -fy, 0], [fx1, fy, 0], [fx0, fy, 0]], PITCH_FILL, 'scene')], 'scene');
+    const lw = 0.09 * scale;
+    for (let x = 0; x <= fx1; x += 5 * scale) {   // mowing lines every 5 m, slightly proud of the grass
+      tag([quad([[x - lw, -fy, 0.02], [x + lw, -fy, 0.02], [x + lw, fy, 0.02], [x - lw, fy, 0.02]], PITCH_LINE, 'scene')], 'scene');
+    }
+    const pr = Math.max(0.07 * scale, rB * 0.14);
+    for (const gy of [-3.66 * scale, 3.66 * scale]) {
+      tag(cylinderFaces([gd, gy, 1.22 * scale], pr, [0, 0, 1], 1.22 * scale, POST_FILL, 'scene', 10), 'scene');
+    }
+    tag(cylinderFaces([gd, 0, 2.44 * scale], pr, [0, 1, 0], 3.66 * scale, POST_FILL, 'scene', 10), 'scene');
+  } else {
+    const pad = Math.max(span * 0.12, 3 * scale);
+    const yHalf = Math.max(span * 0.12, yMax + 2 * scale);
+    tag([quad([[-pad, -yHalf, 0], [xEnd + pad, -yHalf, 0], [xEnd + pad, yHalf, 0], [-pad, yHalf, 0]], GROUND_FILL, 'scene'),
+      quad([[-pad, -yHalf, 0], [-pad, yHalf, 0], [-pad, yHalf, -span * 0.04], [-pad, -yHalf, -span * 0.04]], GROUND_EDGE, 'scene')], 'scene');
+  }
+
+  // movers: kinematics from the scaled world path (directions) + the raw metres (real m/s, m/s²).
+  const dtA = A.T / (N_SAMPLES - 1);
+  const kA = deriveKinematics(pathA, dtA), kAp = deriveKinematics(A.path, dtA);
+  const ke = kAp.speed.map((v) => 0.5 * m * v * v);
+  const pe = A.path.map((p) => m * 9.81 * p[2]);
+  const etotal = ke.map((e, i) => e + pe[i]);
+  const forceChannels = forces ? flightForceChannels(A.vel, A.omg, ball) : null;
+  const maxForce = forceChannels ? Math.max(...forceChannels.flatMap((c) => c.vecs.map((v) => len(v))), 1e-6) : 0;
+
+  let movers, period;
+  if (B) {
+    // compare timing, like planCompareScene: one shared reset cycle so the twins restart in step.
+    const dtB = B.T / (N_SAMPLES - 1);
+    const kB = deriveKinematics(pathB, dtB), kBp = deriveKinematics(B.path, dtB);
+    const Tmax = Math.max(A.T, B.T), scaleP = 3.5 / Tmax, cycle = Tmax * scaleP + 1.2;
+    period = cycle;
+    movers = [
+      { group: 'body', path: pathA, basePos: [0, 0, 0], vdir: kA.vdir, speed: kAp.speed, avec: kA.avec, accel: kAp.accel,
+        maxSpeed: kAp.maxSpeed, maxAccel: kAp.maxAccel, vectors, arrowLen, duration: A.T,
+        period: A.T * scaleP, loop: false, hold: cycle - A.T * scaleP,
+        ...(forceChannels ? { forces: forceChannels, maxForce } : {}),
+        g: 9.81, label: 'Real air vs vacuum',
+        compare: { mode: 'air', labA: 'real air', labB: 'vacuum', ta: A.T, tb: B.T, unitLabel: 'lands', note: 'drag robs carry · spin bends it' } },
+      { group: 'body2', path: pathB, basePos: [0, 0, 0], vdir: kB.vdir, speed: kBp.speed, avec: kB.avec, accel: kBp.accel,
+        maxSpeed: kBp.maxSpeed, maxAccel: kBp.maxAccel, vectors, arrowLen, duration: B.T,
+        period: B.T * scaleP, loop: false, hold: cycle - B.T * scaleP },
+    ];
+  } else {
+    period = Math.max(2.5, Math.min(7, A.T));
+    movers = [{ group: 'body', path: pathA, basePos: [0, 0, 0], vdir: kA.vdir, speed: kAp.speed, avec: kA.avec, accel: kAp.accel,
+      ...(energy ? { energy: true, ke, pe, etotal, emax: Math.max(...etotal, 1e-6) } : {}),
+      ...(forceChannels ? { forces: forceChannels, maxForce } : {}),
+      maxSpeed: kAp.maxSpeed, maxAccel: kAp.maxAccel,
+      period, loop: false, hold: 1.2, vectors, arrowLen, duration: A.T, g: 9.81, label: 'Ball in flight (real air)' }];
+  }
+
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  const bump = (c) => { for (let i = 0; i < 3; i++) { if (c[i] < mn[i]) mn[i] = c[i]; if (c[i] > mx[i]) mx[i] = c[i]; } };
+  for (const f of faces) for (const c of f.corners) bump(c);
+  for (const c of allPts) bump(c);
+  const center = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
+  let radius = 0;
+  for (const c of [...allPts, ...faces.flatMap((f) => f.corners)]) radius = Math.max(radius, Math.hypot(c[0] - center[0], c[1] - center[1], c[2] - center[2]));
+
+  return { faces, picks, movers, planets, bounds: { center, radius: radius || span },
+    stats: { scenario: 'flight', g: 9.81, stage, samples: N_SAMPLES, period, loop: false, T: A.T,
+      range: +s.range.toFixed(2), apex: +s.apex.toFixed(2), curl: +s.peakLateral.toFixed(2) } };
 }
 
 const MACHINE_FILL = '#3a4150';     // beams / shafts / frames — cool steel set-dressing
@@ -1394,7 +1643,8 @@ export function assembleMechanicsScene(recipe = {}, { title } = {}) {
   // comparison mode separates the bodies in DEPTH (y), which the side camera looks straight down — so the
   // angled 3/4 view leads there; the inline engine's crank throws sweep in depth too, so it also leads
   // with the angled view; everything else reads best side-on.
-  const angleFirst = (recipe.compare && COMPARE_SCENARIOS.has(recipe.scenario)) || recipe.scenario === 'inline-four';
+  const angleFirst = (recipe.compare && COMPARE_SCENARIOS.has(recipe.scenario)) || recipe.scenario === 'inline-four'
+    || recipe.scenario === 'flight';   // the curl lives in depth — side-on it vanishes
   const cameras = angleFirst ? [angle, side] : [side, angle];
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#0b1020';
   return {

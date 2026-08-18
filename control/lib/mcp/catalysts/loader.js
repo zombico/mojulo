@@ -38,10 +38,9 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const CATALYST_DIR = dirname(fileURLToPath(import.meta.url));
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
+const CATALYST_DIR = moduleDir(import.meta.url, 'lib/mcp/catalysts');
 const TECHNIQUES_SUBDIR = 'techniques';
 
 // `valueHook` is required: it's the consultation-mode sentence we read aloud

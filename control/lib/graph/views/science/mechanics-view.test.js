@@ -293,8 +293,82 @@ describe('mechanics-view registration', () => {
   });
 
   it('exposes the dynamics scenarios, the machines, the engines, the motors, then the vehicles', () => {
-    expect(MECHANICS_SCENARIOS).toEqual(['projectile', 'free-fall', 'inclined-plane', 'pendulum', 'spring', 'circular', 'collision',
+    expect(MECHANICS_SCENARIOS).toEqual(['projectile', 'free-fall', 'inclined-plane', 'pendulum', 'spring', 'circular', 'collision', 'flight',
       'lever', 'wheel-axle', 'pulley', 'incline', 'wedge', 'screw', 'gear-train', 'screw-jack', 'crane', 'steam-engine', 'combustion', 'inline-four', 'dc-motor', 'ac-motor', 'drone', 'drone-flight', 'submarine']);
+  });
+});
+
+describe('flight — the real-air strike (F1, integration/0818/ball-flight.plan.md)', () => {
+  const kick = (over = {}) => planMechanicsScene({ kind: 'mechanics-view', scenario: 'flight', v0: 27, angle: 15, curl: 6, spin: 3, ...over });
+
+  it('is deterministic and single-mover by default, with the ball as the only pick', () => {
+    const a = kick(), b = kick();
+    expect(JSON.stringify(a.movers[0].path)).toBe(JSON.stringify(b.movers[0].path));
+    expect(a.movers.length).toBe(1);
+    expect(a.picks.map((p) => p.name)).toEqual(['body']);
+    expect(a.stats.scenario).toBe('flight');
+  });
+
+  it('the path genuinely leaves the x–z plane: +curl bends left (+y), no curl stays planar', () => {
+    const curled = kick().movers[0].path;
+    expect(Math.max(...curled.map((p) => p[1]))).toBeGreaterThan(0.5);
+    const straight = kick({ curl: 0 }).movers[0].path;
+    expect(Math.max(...straight.map((p) => Math.abs(p[1])))).toBeLessThan(1e-6);
+  });
+
+  it("compare:'air' races a vacuum twin from the same spot — it flies farther and never bends", () => {
+    const plan = kick({ compare: 'air' });
+    expect(plan.movers.length).toBe(2);
+    expect(plan.movers[0].compare.mode).toBe('air');
+    const real = plan.movers[0].path, vac = plan.movers[1].path;
+    expect(vac[vac.length - 1][0]).toBeGreaterThan(real[real.length - 1][0]);   // drag robs carry
+    expect(Math.max(...vac.map((p) => Math.abs(p[1])))).toBeLessThan(1e-6);     // no air, no bend
+    expect(plan.picks.map((p) => p.name)).toEqual(['body', 'body2']);
+  });
+
+  it("stage:'goal' plants the regulation goal at goalDist; 'range' stays a plain ground band", () => {
+    const goal = kick({ stage: 'goal', goalDist: 20 });
+    const xs = goal.faces.flatMap((f) => f.corners.map((c) => c[0]));
+    expect(Math.max(...xs)).toBeGreaterThan(20);                 // pitch runs past the goal
+    expect(goal.stats.stage).toBe('goal');
+    expect(goal.faces.length).toBeGreaterThan(kick().faces.length);   // posts + bar + mowing lines
+  });
+
+  it('the readout is honest: range shortens vs the vacuum twin and the curl lands in the free-kick band', () => {
+    const s = kick().stats;
+    expect(s.range).toBeGreaterThan(10);
+    expect(s.curl).toBeGreaterThan(0.5);
+    expect(s.curl).toBeLessThan(4.5);   // Goff & Carré envelope, same band the integrator test asserts
+  });
+
+  it('assemble leads with the angled camera (the curl lives in depth)', () => {
+    const scene = assembleMechanicsScene({ kind: 'mechanics-view', scenario: 'flight' }, {});
+    expect(scene.cameras[0].name).toBe('angle');
+  });
+
+  it('the ball is dialable: a heavier ball flies farther, a bigger one shorter, density derives mass', () => {
+    const base = kick().stats;
+    expect(kick({ mass: 2 }).stats.range).toBeGreaterThan(base.range);         // heavier fights drag
+    expect(kick({ diameter: 0.44 }).stats.range).toBeLessThan(base.range);     // bigger catches air
+    expect(kick({ density: 11000 }).stats.range).toBeGreaterThan(base.range);  // lead ball ≈ vacuum
+  });
+
+  it('the rendered ball scales with its physical size, and the strobe markers stay well under ball size', () => {
+    const plan = kick(), big = kick({ diameter: 0.44 });
+    expect(big.planets[0].radius).toBeGreaterThan(plan.planets[0].radius);
+    // isolate the strobe ghosts (the faces a strobe:false plan lacks) and measure each ghost
+    // sphere's vertical extent — it must stay well under the pickable ball's diameter.
+    const rBall = plan.planets[0].radius;
+    const bare = kick({ strobe: false });
+    // every face the bare plan lacks belongs to a ghost lathe; each ghost sphere's vertical
+    // span is bounded by its diameter (2 · 0.32 · rBall), comfortably under the ball's.
+    const bareSet = new Set(bare.faces.map((f) => JSON.stringify(f.corners)));
+    const ghosts = plan.faces.filter((f) => !bareSet.has(JSON.stringify(f.corners)));
+    expect(ghosts.length).toBeGreaterThan(0);
+    for (const f of ghosts) {
+      const zs = f.corners.map((c) => c[2]);
+      expect(Math.max(...zs) - Math.min(...zs)).toBeLessThanOrEqual(2 * 0.32 * rBall + 1e-9);
+    }
   });
 });
 

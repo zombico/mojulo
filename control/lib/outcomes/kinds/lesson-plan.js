@@ -35,8 +35,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
+import { moduleDir } from '../../module-dir.js';
 import { StashRepository } from '@/lib/db/repositories/stashes';
 
 import { renderMarkdown } from '../markdown.js';
@@ -46,7 +45,7 @@ import { resolveSketchItem } from '../resolvers/sketch.js';
 
 export const LESSON_PLAN_VERSION = 'lp-1';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = moduleDir(import.meta.url, 'lib/outcomes/kinds');
 const TEACHER_TEMPLATE_PATH = path.join(HERE, '..', 'template', 'lesson_plan.html');
 const HANDOUT_TEMPLATE_PATH = path.join(HERE, '..', 'template', 'lesson_handout.html');
 

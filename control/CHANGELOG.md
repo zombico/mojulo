@@ -8,6 +8,85 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Published dashboard works off the build machine (Windows field report)
+
+A 1.2.0 field report from Windows 11 exposed that the packaged `mojulo-ui`
+standalone bundle only ever worked on the machine that built it — every npm
+install, every platform:
+
+- **Bundler-baked absolute paths:** `next build --webpack` inlines
+  `import.meta.url` as a literal build-machine string, so ~40 lib modules that
+  located sibling resources (vocab cards, catalysts, adapters, outcome
+  templates, vendored fonts/three, the embedder cache fallback) resolved to
+  `file:///Users/<builder>/…` inside the standalone bundle — nonexistent paths
+  on macOS/Linux installs, an `ERR_INVALID_FILE_URL_PATH` module-scope throw
+  (→ route 500s) on Windows. New `lib/module-dir.js` resolves resource dirs
+  env-first from `MOJULO_CONTROL_DIR` (the installed package root, which ships
+  the complete `lib/` tree), exported by all four bins; the `import.meta.url`
+  fallback stays for repo-dev and is only parsed when the env var is absent.
+  Same treatment for the `process.cwd()`-anchored readers (composer protocols,
+  pixelizer game shells) whose dynamically-read siblings file tracing can't
+  see. `public/vendor/**` now ships at the package root so the three.js
+  vendor modes resolve there too.
+- **Build-platform-only native binaries:** the standalone `node_modules`
+  shipped `better-sqlite3` and sharp's `@img/*` as darwin-arm64 only
+  (`better_sqlite3.node is not a valid Win32 application` from every
+  DB-touching route). Both are now excluded from the tarball; Node module
+  resolution walks up from `.next/standalone/` to the host install's
+  `node_modules`, where npm already put the right platform build.
+  (`onnxruntime-node` / `node-web-audio-api` ship all platforms in-package
+  and are untouched.)
+- **`city` vocab card documented knobs the adapter never read:** the card
+  listed `time` / `anchor` / `landmark` / `civicAreas` as flat override keys,
+  but `cityThemeAdapter` reads theme slots (`context.time`, `asset.anchor`,
+  `asset.monument`, `asset.civic`) — flat keys silently produced a flat-lit
+  render. The card now documents the real slot paths (with an example), and
+  `region` / `viewBox` pass through the adapter top-level like `fog` / `audio`
+  (they had no reachable path since `create_fractal_city` retired).
+
+### Routing telemetry + retrieval hardening (routing context weaving)
+
+The tool-routing path — `forward_context` rows, routing cards behind
+`semantic_search({kinds:['routing']})`, vocab drawers — gets its measurement
+floor and a hardened retrieval hop (threads A/B/C/E of the 0818
+routing-context-weaving plan; thread D, multilingual intent surfaces, still
+open):
+
+- **First-hop attribution, no schema change:** `forward_context` emits a
+  mode-tagged telemetry signal (office vs studio reads become distinguishable),
+  and the orientation cut (`get_tool_telemetry({orientation:true})`) now
+  derives a first-hop histogram — per routing read, the next non-orientation
+  tool in the same session — plus routing-card coverage: cards whose entry
+  tool saw zero calls in the window render as "never routed". This is the
+  instrument for orientation-diet's parked question ("which routing rows never
+  route?"); pruning still waits on weeks of real-session data.
+- **Hybrid margin guard on routing-card retrieval:** routing-kind search
+  re-ranks with a small lexical tiebreaker (`cosine + 0.03 ×` query-term
+  overlap against the card's When line; case/diacritic folding, whole-phrase
+  substring fallback for non-segmenting scripts) — anchor quotes now do double
+  duty as retrieval signal. The collision fixture gates rank-0 AND
+  `top1 − top2 ≥ 0.01`, printing margins every run; the thinnest pre-guard
+  margin (~0.004) widened ~5×.
+- **Weak retrieval is actionable in-band:** zero-result or weak-scoring
+  searches append a `hint` (routing-specific: rephrase with the artifact's
+  FORM or open `forward_context({mode:'studio'})`; generic otherwise) behind
+  the shared `WEAK_SEARCH_TOP_SCORE` constant; query-embed failure returns
+  `{ results: [], degraded: true, hint }` instead of a bare `[]`, and the
+  telemetry signal records `degraded: true` — the agent can now tell "nothing
+  exists" from "index degraded" from "rephrase".
+- **Drawer-miss coverage completed:** every `get_*_vocab` /
+  `get_creative_toolset` miss is countable by the orientation cut (`unknown
+  card` / `unknown form` phrasing + hit/index signals), with a registry sweep
+  test pinning the convention for every future drawer.
+
+A broad routing simulation (178 authored multilingual paraphrases through the
+real embedder) validated the top-3 entry contract at 91% — including zh/es/ja —
+and its findings (the dead `WEAK_SEARCH_TOP_SCORE` threshold, the
+`diagram-chart` card weakness, thin non-English margins) are recorded in the
+plan as the next round of work.
+
 ## [1.2.0] — 2026-08-17
 
 Two threads: games gain a provenance surface (an about page plus an

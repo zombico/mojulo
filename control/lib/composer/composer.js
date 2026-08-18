@@ -1,8 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { buildResponseFormatSection } from './response-builder.js';
+import { moduleDir } from '../module-dir.js';
 
-const PROTOCOLS_DIR = path.join(process.cwd(), 'lib', 'composer', 'protocols');
+const PROTOCOLS_DIR = path.join(moduleDir(import.meta.url, 'lib/composer'), 'protocols');
 
 /**
  * Protocol files in deterministic order

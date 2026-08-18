@@ -15,12 +15,12 @@
  * attribution (fonts/LICENSES.md).
  */
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { moduleDir } from '../../../module-dir.js';
 import path from 'node:path';
 
 import { loadFont } from '../../../motion/glyph-carver.js';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = moduleDir(import.meta.url, 'lib/graph/image-outcomes/fonts');
 
 /**
  * key → { family, role, file, license, fallbacks }. `file` is the vendored OFL

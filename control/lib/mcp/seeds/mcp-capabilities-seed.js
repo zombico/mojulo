@@ -22,12 +22,11 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
 import { CapabilitiesRepository } from '@/lib/db/repositories/mcp-capabilities';
 
-const SEEDS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'mcp-capabilities');
+const SEEDS_DIR = join(moduleDir(import.meta.url, 'lib/mcp/seeds'), 'mcp-capabilities');
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 const SOURCES_BLOCK = /<!--\s*sources([\s\S]*?)-->/;
 const URL_LINE = /^\s*-\s*(\S+)/gm;

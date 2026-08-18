@@ -27,11 +27,11 @@ import {
   writeFileSync,
   appendFileSync,
 } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, relative } from 'node:path';
+import { moduleDir } from '../module-dir.js';
 import { randomBytes } from 'node:crypto';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __dirname = moduleDir(import.meta.url, 'lib/app-mcp-scaffold');
 const TEMPLATE_ROOT = join(__dirname, 'template');
 
 // Files whose contents the install helper substitutes placeholders into.

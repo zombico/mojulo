@@ -2793,5 +2793,10 @@ export function cityThemeAdapter(slots = {}) {
   // omitted ⇒ off — same default as every other opt-in here.
   if (slots.fog !== undefined) out.fog = slots.fog;
   if (slots.audio !== undefined) out.audio = slots.audio;
+  // Same top-level posture for the framing knobs — footprint + viewBox are camera/
+  // geometry extents, not theme roles, and were otherwise unreachable through
+  // compose_world after create_fractal_city retired. Mint owns their validation.
+  if (slots.region !== undefined) out.region = slots.region;
+  if (slots.viewBox !== undefined) out.viewBox = slots.viewBox;
   return out;
 }

@@ -33,6 +33,7 @@ if (v !== 'enabled') {
 resolveMojuloPaths();
 
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+process.env.MOJULO_CONTROL_DIR ??= CONTROL_DIR; // moduleDir anchor, see lib/module-dir.js
 process.chdir(CONTROL_DIR);
 
 process.on('uncaughtException', (err) => {

@@ -131,6 +131,14 @@ const COVERAGE_FIXTURE = [
 
 const TOP_K = 3;
 
+// Margin gate (routing-context-weaving.plan.md B2): rank-0 alone only fails at
+// the flip point — a margin that erodes from 0.02 to 0.001 stays green until
+// the day it flips. Collision rows must hold top1 − top2 by at least this much
+// (post-tiebreaker score, ROUTING_LEXICAL_LAMBDA included). If a legitimate
+// card edit shrinks a margin below the gate, add an anchor quote to the
+// expected card's `when` — same remedy as a rank miss.
+const COLLISION_MARGIN = 0.01;
+
 describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', () => {
   let EmbeddingsRepository;
   let catalog;
@@ -214,24 +222,36 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
   );
 
   it(
-    `every collision phrasing surfaces its entry tool at RANK 0 (top-1, not just top-${TOP_K})`,
+    `every collision phrasing surfaces its entry tool at RANK 0 with ≥${COLLISION_MARGIN} margin over rank 1`,
     async () => {
       const misses = [];
+      const margins = [];
       for (const [phrasing, expectedEntry] of COLLISION_FIXTURE) {
         const results = await EmbeddingsRepository.search(phrasing, {
           kinds: ['routing'],
           limit: TOP_K,
         });
         const topEntry = catalog.get(results[0]?.source_ref)?.entry;
+        const margin =
+          results.length > 1 ? results[0].score - results[1].score : Number.POSITIVE_INFINITY;
+        margins.push(`"${phrasing}" → ${results[0]?.source_ref} margin ${margin.toFixed(4)}`);
         if (topEntry !== expectedEntry) {
           misses.push(
             `"${phrasing}" → wanted ${expectedEntry} at rank 0, got [${results
               .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
               .join(', ')}]`,
           );
+        } else if (margin < COLLISION_MARGIN) {
+          misses.push(
+            `"${phrasing}" → right card at rank 0 but margin ${margin.toFixed(4)} < ${COLLISION_MARGIN} ` +
+              `(erosion warning — add an anchor quote to ${results[0].source_ref}'s \`when\`); ` +
+              `rank 1 is ${results[1].source_ref}:${results[1].score.toFixed(3)}`,
+          );
         }
       }
-      expect(misses, `collision (rank-0) misses:\n${misses.join('\n')}`).toEqual([]);
+      // Margins print on every run so erosion is visible before it fails.
+      console.log(`collision margins:\n${margins.join('\n')}`);
+      expect(misses, `collision (rank-0 + margin) misses:\n${misses.join('\n')}`).toEqual([]);
     },
     120_000,
   );

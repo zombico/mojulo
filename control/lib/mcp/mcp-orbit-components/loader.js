@@ -31,15 +31,14 @@
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
 import {
   MCPOrbitComponentRepository,
   _COMPONENT_KINDS_FOR_TESTS as COMPONENT_KINDS,
 } from '@/lib/db/repositories/mcp-orbit';
 
-const COMPONENT_DIR = dirname(fileURLToPath(import.meta.url));
+const COMPONENT_DIR = moduleDir(import.meta.url, 'lib/mcp/mcp-orbit-components');
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 const REQUIRED_FIELDS = ['ref', 'version', 'summary'];
 

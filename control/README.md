@@ -16,7 +16,7 @@ Both `mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you
 
 ## Quickstart
 
-Prerequisite: **Node.js 20+** (`node --version`). Everything below runs through
+Prerequisite: **Node.js 22.12+** (`node --version`). Everything below runs through
 `npx`, which ships with Node — if you don't have it, install it from
 [nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
 

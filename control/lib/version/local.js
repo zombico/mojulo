@@ -13,9 +13,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { moduleDir } from '../module-dir.js';
+const __dirname = moduleDir(import.meta.url, 'lib/version');
 
 // Mirror of the default in lib/deployers/docker.js — kept here so this module
 // doesn't import docker.js (which pulls in archiver / storage deps). When the

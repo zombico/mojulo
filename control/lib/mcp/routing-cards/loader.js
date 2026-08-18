@@ -19,11 +19,11 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
 import { CREATIVE_FORMS } from '../creative-forms.js';
 
-const CARDS_DIR = dirname(fileURLToPath(import.meta.url));
+const CARDS_DIR = moduleDir(import.meta.url, 'lib/mcp/routing-cards');
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'when', 'entry'];
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 

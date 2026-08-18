@@ -49,6 +49,7 @@ import { fetchLatestNpmVersion, fetchLatestGhcrTag, compareSemver } from '@/lib/
 import { getDb } from '@/lib/db/index';
 import { MetaNodeRepository } from '@/lib/db/repositories/meta-context';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
+import { getRoutingCardCatalog } from '@/lib/mcp/routing-cards/loader';
 import {
   VOCABULARY_REGISTERS,
   PROCEDURAL_DISCLOSURES,
@@ -999,7 +1000,11 @@ export async function forwardContextHandler(input, _ctx) {
     pulse: mode === 'studio' ? null : readWorkshopPulse(),
   });
   // Plain text content (not JSON-stringified) so the agent reads it as prose.
-  return { content: [{ type: 'text', text: body }] };
+  // The mode signal (routing-context-weaving.plan.md A1) is what lets the
+  // first-hop cut in orientationGaps tell office reads from studio reads;
+  // stripped from the wire by instrumentedInvoke.
+  const resolvedMode = FORWARD_CONTEXT_MODES.includes(mode) ? mode : DEFAULT_FORWARD_CONTEXT_MODE;
+  return { content: [{ type: 'text', text: body }], _telemetrySignal: { mode: resolvedMode } };
 }
 
 // Register kit — the isolated register-tuning surface. Returns just the active
@@ -1042,13 +1047,23 @@ export async function toolIndexHandler(_input, _ctx) {
 export async function creativeToolsetHandler(input, _ctx) {
   const form = input?.form;
   if (form === undefined || form === null || form === '') {
-    return { content: [{ type: 'text', text: buildCreativeToolsetMap() }] };
+    return {
+      content: [{ type: 'text', text: buildCreativeToolsetMap() }],
+      _telemetrySignal: { id_requested: false, found: true },
+    };
   }
   if (!CREATIVE_FORMS.includes(form)) {
-    throw new Error(`\`form\` must be one of: ${CREATIVE_FORMS.join(', ')} (got '${form}')`);
+    // "unknown form" keeps the miss visible to the orientation cut
+    // (DRAWER_MISS_ERROR_RE in mcpToolCalls.js).
+    throw new Error(
+      `get_creative_toolset: unknown form '${form}'. Known: ${CREATIVE_FORMS.join(', ')}`,
+    );
   }
   const t = FORM_TOOLSETS[form];
-  return { content: [{ type: 'text', text: `## ${t.title}\n\n${t.body}` }] };
+  return {
+    content: [{ type: 'text', text: `## ${t.title}\n\n${t.body}` }],
+    _telemetrySignal: { id_requested: true, found: true },
+  };
 }
 
 export async function deliberationOverviewHandler(_input, _ctx) {
@@ -1273,13 +1288,21 @@ const ORIENTATION_TOOLS = [
   'get_tool_telemetry',
 ];
 
-function renderOrientationGaps(gaps) {
-  const { sessions, lowScoreSearches, drawerMisses, sinceDays } = gaps;
+function renderOrientationGaps(gaps, coverage) {
+  const { sessions, lowScoreSearches, drawerMisses, firstHops = [], sinceDays } = gaps;
   const header = `## Orientation gaps — last ${sinceDays}d\n\nThe moments the ask-and-discover loop failed to reward the question.`;
   const abandonRate = sessions.oriented
     ? ` (${Math.round((sessions.abandoned / sessions.oriented) * 100)}%)`
     : '';
   const sessionBlock = `\n\n### Sessions\n- ${sessions.total} session(s) recorded · ${sessions.oriented} pulled orientation · **${sessions.abandoned} oriented then made no non-orientation call**${abandonRate}`;
+  const hopBlock = firstHops.length
+    ? `\n\n### First hops after a routing read (where the routing actually sent the agent)\n${firstHops
+        .map(
+          (h) =>
+            `- \`${h.after}\` → ${h.tool ? `\`${h.tool}\`` : '**(went nowhere)**'} · ${h.count}`,
+        )
+        .join('\n')}`
+    : '\n\n### First hops after a routing read\n- none recorded';
   const searchBlock = lowScoreSearches.length
     ? `\n\n### Weak searches (empty or top score < threshold)\n${lowScoreSearches
         .map(
@@ -1295,20 +1318,51 @@ function renderOrientationGaps(gaps) {
         .map((m) => `- \`${m.tool}\` (${fmtAgo(m.startedAt)})`)
         .join('\n')}`
     : '\n\n### Drawer misses\n- none recorded';
-  return `${header}${sessionBlock}${searchBlock}${missBlock}`;
+  const coverageBlock = coverage
+    ? coverage.neverRouted.length
+      ? `\n\n### Routing-card coverage — ${coverage.covered}/${coverage.total} cards' entry tools saw calls; never called:\n${coverage.neverRouted
+          .slice(0, 20)
+          .map((c) => `- \`${c.id}\` → \`${c.entry}\``)
+          .join('\n')}${coverage.neverRouted.length > 20 ? `\n- …and ${coverage.neverRouted.length - 20} more` : ''}`
+      : `\n\n### Routing-card coverage\n- every card's entry tool was called at least once (${coverage.total} cards)`
+    : '';
+  return `${header}${sessionBlock}${hopBlock}${searchBlock}${missBlock}${coverageBlock}`;
+}
+
+// Routing-card coverage (routing-context-weaving.plan.md A3): which cards'
+// entry tools saw ANY call in the window. A card whose entry tool was never
+// called at all definitely never routed — the honest floor under "rows that
+// never route", answerable without per-call attribution. Fail-soft: a loader
+// or aggregate failure just drops the section (same posture as the pulse).
+function readRoutingCardCoverage(sinceDays) {
+  try {
+    const cards = [...getRoutingCardCatalog().values()];
+    if (!cards.length) return null;
+    const called = new Set(
+      McpToolCallRepository.aggregates({ sinceDays }).map((a) => a.tool),
+    );
+    const neverRouted = cards
+      .filter((c) => !called.has(c.entry))
+      .map((c) => ({ id: c.id, entry: c.entry, wing: c.wing }));
+    return { total: cards.length, covered: cards.length - neverRouted.length, neverRouted };
+  } catch {
+    return null;
+  }
 }
 
 export async function getToolTelemetryHandler(input, _ctx) {
   const tool = typeof input?.tool === 'string' && input.tool.trim() ? input.tool.trim() : null;
   const sinceDays = Number.isFinite(input?.sinceDays) && input.sinceDays > 0 ? input.sinceDays : 7;
 
-  // { orientation: true } mode → the orientation-gap cut (orientation-ramp R4).
+  // { orientation: true } mode → the orientation-gap cut (orientation-ramp R4)
+  // + the first-hop/coverage cut (routing-context-weaving.plan.md A2/A3).
   if (input?.orientation === true) {
     const gaps = McpToolCallRepository.orientationGaps({
       sinceDays,
       orientationTools: ORIENTATION_TOOLS,
     });
-    return { content: [{ type: 'text', text: renderOrientationGaps(gaps) }] };
+    const coverage = readRoutingCardCoverage(sinceDays);
+    return { content: [{ type: 'text', text: renderOrientationGaps(gaps, coverage) }] };
   }
 
   // { tool } mode → that tool's recent calls, newest first.

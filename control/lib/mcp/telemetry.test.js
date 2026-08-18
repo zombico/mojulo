@@ -328,6 +328,63 @@ describe('McpToolCallRepository.orientationGaps — the dead-end-clue cut', () =
     expect(gaps.sessions).toEqual({ total: 3, oriented: 2, abandoned: 1 });
   });
 
+  it('first hops: each routing read attributes the next non-orientation call in its session', () => {
+    // s1: office read → routing search → mint. Two edges: the office read's
+    // first hop is the routing search; the routing search's first hop is the mint.
+    record({ tool: 'forward_context', sessionId: 's1', signal: { mode: 'office' } });
+    record({
+      tool: 'semantic_search',
+      sessionId: 's1',
+      signal: { result_count: 5, top_score: 0.8, kinds: ['routing'] },
+    });
+    record({ tool: 'create_sketch', sessionId: 's1' });
+    // s2: studio read that goes nowhere → tool: null.
+    record({ tool: 'forward_context', sessionId: 's2', signal: { mode: 'studio' } });
+    // s3: legacy signal-less forward_context row defaults to office.
+    record({ tool: 'forward_context', sessionId: 's3' });
+    record({ tool: 'start_new_bot', sessionId: 's3' });
+    // Non-routing semantic_search opens no pending read.
+    record({
+      tool: 'semantic_search',
+      sessionId: 's3',
+      signal: { result_count: 3, top_score: 0.7, kinds: ['view_vocab'] },
+    });
+
+    const gaps = McpToolCallRepository.orientationGaps({ orientationTools: ORIENT });
+    expect(gaps.firstHops).toContainEqual({
+      after: 'forward_context[office]',
+      tool: 'semantic_search',
+      count: 1,
+    });
+    expect(gaps.firstHops).toContainEqual({
+      after: 'semantic_search[routing]',
+      tool: 'create_sketch',
+      count: 1,
+    });
+    expect(gaps.firstHops).toContainEqual({
+      after: 'forward_context[studio]',
+      tool: null,
+      count: 1,
+    });
+    // s3's legacy signal-less read labels as office and hops to start_new_bot.
+    expect(gaps.firstHops).toContainEqual({
+      after: 'forward_context[office]',
+      tool: 'start_new_bot',
+      count: 1,
+    });
+  });
+
+  it('more orientation reads between a routing read and its hop do not settle it', () => {
+    record({ tool: 'forward_context', sessionId: 's1', signal: { mode: 'office' } });
+    record({ tool: 'get_tool_index', sessionId: 's1' }); // orientation — not a hop
+    record({ tool: 'compose_world', sessionId: 's1' });
+
+    const gaps = McpToolCallRepository.orientationGaps({ orientationTools: ORIENT });
+    expect(gaps.firstHops).toEqual([
+      { after: 'forward_context[office]', tool: 'compose_world', count: 1 },
+    ]);
+  });
+
   it('get_tool_telemetry { orientation: true } renders the cut', async () => {
     record({ tool: 'semantic_search', signal: { result_count: 0 }, sessionId: 's1' });
     record({ tool: 'forward_context', sessionId: 's1' });
@@ -336,5 +393,9 @@ describe('McpToolCallRepository.orientationGaps — the dead-end-clue cut', () =
     expect(text).toContain('Orientation gaps');
     expect(text).toContain('Weak searches');
     expect(text).toContain('oriented');
+    expect(text).toContain('First hops after a routing read');
+    // Routing-card coverage (A3): the loader reads the real card catalog; with
+    // no calls recorded for any entry tool, every card shows as never-routed.
+    expect(text).toContain('Routing-card coverage');
   });
 });

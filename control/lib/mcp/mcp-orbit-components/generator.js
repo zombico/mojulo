@@ -37,10 +37,9 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const PRIMITIVE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'primitive');
+import { join } from 'node:path';
+import { moduleDir } from '../../module-dir.js';
+const PRIMITIVE_DIR = join(moduleDir(import.meta.url, 'lib/mcp/mcp-orbit-components'), 'primitive');
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 const VALID_ROLES = ['source', 'destination'];
 

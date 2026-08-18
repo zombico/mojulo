@@ -115,11 +115,12 @@ export async function getBeatsVocabHandler(input) {
     if (!card) {
       throw new Error(`get_beats_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}`);
     }
-    return { ok: true, card };
+    return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
   return {
     ok: true,
     cards: [...catalog.values()].map(({ id: cid, name, summary, when }) => ({ id: cid, name, summary, when })),
+    _telemetrySignal: { id_requested: false, found: true },
   };
 }
 
