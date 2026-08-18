@@ -170,9 +170,25 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
   .screen .gametitle{font-size:34px;letter-spacing:3px;color:#eaf2ff;text-transform:uppercase;margin:0}
   .screen .tagline{color:var(--dim);font-size:14px;margin:0}
   button.big{font-size:17px;padding:11px 38px;letter-spacing:2px;text-transform:uppercase}
+  button.start-about{font-size:12px;padding:7px 26px;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
   .menu-entry{display:block;width:100%;max-width:440px;text-align:left;padding:14px 18px;font-size:16px;margin:0}
   .menu-entry .sub{display:block;font-size:12px;color:var(--dim);margin-top:3px;text-transform:none;letter-spacing:0}
   .menu-entry .soon-tag{float:right;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--accent2);border:1px solid var(--line);border-radius:3px;padding:1px 7px}
+  /* ---- the About screen (a kind:'about' menu entry): provenance card + link anchors ----
+     The card gets its own opaque dark overlay (the title art stays behind every menu screen,
+     and prose over it is unreadable on the translucent panel) and scrolls internally, so the
+     screen itself never grows past the viewport. body.hud .card would out-cascade a plain
+     .about-card background, hence the doubled selector. */
+  .screen.about{justify-content:flex-start;min-height:0;padding-top:4vh}
+  .about-card,body.hud .card.about-card{background:rgba(4,8,14,.88)}
+  .about-card{max-width:720px;width:100%;text-align:left;margin:0;max-height:66vh;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+  .about-card p{margin:0 0 12px;font-size:13.5px;line-height:1.55;color:var(--ink)}
+  .about-card p a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+  .about-card .about-foot{font-size:11px;color:var(--dim);margin:10px 0 0}
+  .about-links{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .about-links a{display:block;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--accent);text-decoration:none;font-size:14px;letter-spacing:1px;text-transform:uppercase}
+  .about-links a:hover{box-shadow:0 0 16px rgba(95,220,255,.18)}
+  .about-links a .sub{display:block;font-size:11px;color:var(--dim);margin-top:2px;text-transform:none;letter-spacing:0}
   #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(12,16,26,.95);border:1px solid #2a3b58;border-radius:8px;padding:10px 18px;display:none;max-width:80%;color:#dfe8f8;z-index:90}
   #toast.err{border-color:#8a3b3b;color:#f2c9c9}
   /* ---- setup presentation (opt-in manifest setup block): hangar single-pick + count pick ---- */
@@ -364,7 +380,7 @@ const MENU = ${JSON.stringify(menu)};   // resolved menu entries (Start → Menu
 const LEVELS_ENTRY = MENU && MENU.find((en) => en.kind === 'levels');
 const LEVEL_BY_REF = {};   // ref → level entry, so a menu 'mode' resolves its variant refs to launchable levels
 for (const l of LEVELS) LEVEL_BY_REF[l.ref] = l;
-const MUSIC = ${JSON.stringify(music)};   // resolved score { menu: src|null, battle: [src,…] } or null
+const MUSIC = ${JSON.stringify(music)};   // resolved score { menu: src|null, about: src|null, battle: [src,…] } or null
 const SETUP = ${JSON.stringify(setup)};   // resolved per-slice setup presentation (hangar/count) or null
 // the DIFFICULTY pick (manifest.difficulty): engine ai-tuning tiers named in the game's own
 // voice — rendered on the map step of piloted setups; the picked id rides params.difficulty.
@@ -377,7 +393,7 @@ try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s && ty
 function persistSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) {} }
 
 // ---- shell music: the menu track loops, the battle list rotates, world views are silent ----
-let screen = 'start';   // start | menu | levels | setup | world | level | score
+let screen = 'start';   // start | menu | levels | setup | world | level | score | about
 let musicOn = settings.musicOn, musicEl = null, battleIdx = 0, wantSrc = null;
 // battle music holds for 5s AFTER a match begins (operator, 2026-07-30): armed at the game-ready
 // handshake, cleared whenever we leave the level screen. During the delay the level plays on combat
@@ -440,6 +456,8 @@ function syncMusic() {
     if (battleReady && MUSIC.battle.length) playSrc(battleTrack(), MUSIC.battle.length === 1); else stopMusic();
     return;
   }
+  // a kind:'about' screen plays the score's own about track when declared (else the menu loop)
+  if (screen === 'about' && MUSIC.about) { playSrc(MUSIC.about, true); return; }
   if (MUSIC.menu) playSrc(MUSIC.menu, true); else stopMusic();
 }
 if (MUSIC && MUSIC.menu) prefetchTrack(MUSIC.menu);   // start the menu render at boot
@@ -825,6 +843,16 @@ function renderStart() {
   btn.textContent = 'start';
   btn.addEventListener('click', renderMenu);
   s.appendChild(btn);
+  // a ROOT-level kind:'about' entry lives on the title screen (Start / About), not in the
+  // main menu — renderMenu() filters it out of the root list. Its back returns here.
+  const aboutEn = MENU.find((en) => en.kind === 'about');
+  if (aboutEn) {
+    const ab = document.createElement('button');
+    ab.className = 'start-about';
+    ab.textContent = aboutEn.title;
+    ab.addEventListener('click', () => renderAbout(aboutEn, renderStart, 'back'));
+    s.appendChild(ab);
+  }
   main.appendChild(s);
 }
 
@@ -888,6 +916,7 @@ function renderMenuScreen(entries, opts) {
       if (en.kind === 'menu') renderMenuScreen(en.entries, { heading: en.title, back: backHere, backLabel: opts.back ? 'back' : 'back to home' });
       else if (en.kind === 'mode') renderModeSetup(en, backHere);
       else if (en.kind === 'levels') renderLevels(backHere);
+      else if (en.kind === 'about') renderAbout(en, backHere);
       else renderWorldView(en, backHere);
     });
     s.appendChild(btn);
@@ -901,7 +930,8 @@ function renderMenuScreen(entries, opts) {
   }
   main.appendChild(s);
 }
-function renderMenu() { renderMenuScreen(MENU, {}); }
+// root about entries render on the Start screen instead (see renderStart) — filtered here.
+function renderMenu() { renderMenuScreen(MENU.filter((en) => en.kind !== 'about'), {}); }
 
 // a kind:'mode' menu entry: open the setup screen for its level (or its SET of map-variant levels —
 // same picks, different world). Resolves the variant refs to launchable levels; setup adds the map
@@ -927,6 +957,72 @@ function renderWorldView(en, back) {
   showLoading('loading ' + en.title);
   frame.style.display = 'block';
   frame.src = en.src;
+}
+
+// a kind:'about' menu entry: the game's provenance page — the entry carries its own content
+// (body paragraphs, link anchors, footer lines); no frame, no store wire. The shell plays
+// MUSIC.about under it when the score declares one (else the menu loop keeps playing).
+function renderAbout(en, back, backLabel) {
+  session = null;
+  setScreen('about');
+  closeFrame();
+  main.innerHTML = '';
+  const s = document.createElement('div');
+  s.className = 'screen about';
+  const h = document.createElement('h2');
+  h.className = 'gametitle';
+  h.style.fontSize = '20px';
+  h.textContent = en.title;
+  s.appendChild(h);
+  const card = document.createElement('div');
+  card.className = 'card about-card';
+  // a paragraph is a string or an array of segments (string | { text, href }) — inline anchors
+  const para = (p, cls) => {
+    const el = document.createElement('p');
+    if (cls) el.className = cls;
+    for (const sg of (Array.isArray(p) ? p : [p])) {
+      if (typeof sg === 'string') { el.appendChild(document.createTextNode(sg)); continue; }
+      const a = document.createElement('a');
+      a.href = sg.href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = sg.text;
+      el.appendChild(a);
+    }
+    return el;
+  };
+  for (const p of (en.body || [])) card.appendChild(para(p));
+  if (en.links && en.links.length) {
+    const wrap = document.createElement('div');
+    wrap.className = 'about-links';
+    for (const ln of en.links) {
+      const a = document.createElement('a');
+      a.href = ln.href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = ln.label;
+      if (ln.sub) {
+        const sub = document.createElement('span');
+        sub.className = 'sub';
+        sub.textContent = ln.sub;
+        a.appendChild(sub);
+      }
+      wrap.appendChild(a);
+    }
+    card.appendChild(wrap);
+  }
+  if (en.footer) {
+    // footer: one paragraph or a list of them (dim closing lines — credits, disclaimer, ©)
+    const foots = Array.isArray(en.footer) && en.footer.every((p) => typeof p === 'string' || Array.isArray(p))
+      ? en.footer : [en.footer];
+    for (const p of foots) card.appendChild(para(p, 'about-foot'));
+  }
+  s.appendChild(card);
+  const b = document.createElement('button');
+  b.textContent = backLabel || 'back to menu';
+  b.addEventListener('click', back || renderMenu);
+  s.appendChild(b);
+  main.appendChild(s);
 }
 
 // the level list (+ store card). With a menu this lives behind the kind:'levels' entry;

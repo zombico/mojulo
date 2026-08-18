@@ -17,6 +17,28 @@ import { validateLevelContract, normalizeLevelContract } from './level-contract.
 import { synthesizeLevel } from './level-synth.js';
 import { isBeatsKind } from '../beats/beats-manifest.js';
 
+// The generated default about/credits page (menu.attribution; see game-manifest.js).
+// Plain data in the same shape an operator would author — nothing special downstream.
+function defaultAboutEntry(norm) {
+  const n = norm.levels.length;
+  return {
+    id: 'mojulo-about',
+    title: 'About',
+    subtitle: 'What this is — and what made it',
+    kind: 'about',
+    body: [
+      `${norm.title} is a playable artifact composed from deterministic recipes — ${n} level${n === 1 ? '' : 's'}, each a small manifest that regenerates its world byte-for-byte.`,
+      'It was made in conversation with a coding agent inside mojulo — a local, open-source workshop that keeps what an agent makes. Worlds, music, and rules are recipes: editable a line at a time, re-mintable on any machine running mojulo.',
+    ],
+    links: [
+      { label: 'mojulo — the workshop', href: 'https://github.com/zombico/mojulo', sub: 'github.com/zombico/mojulo · Apache-2.0' },
+      { label: 'mojulo on npm', href: 'https://www.npmjs.com/package/mojulo', sub: 'npx mojulo init — needs Claude Code or Codex' },
+      { label: 'mojulo.ai', href: 'https://mojulo.ai', sub: 'what else the workshop makes — worlds, music, bots, games' },
+    ],
+    footer: 'Generated with mojulo. This credit is the operator’s — kept, customized, or removed in the game’s own recipe.',
+  };
+}
+
 /**
  * @param {object} manifest        a game manifest (validated here)
  * @param {(ref:string)=>object|null} getSketch  ref → stored sketch ({ manifest, ... }) | null
@@ -30,7 +52,7 @@ import { isBeatsKind } from '../beats/beats-manifest.js';
  *                                               preview (defaults to /world?spin=1)
  * @returns {{ manifest, levels, menu, music, setup }}  normalized manifest + emitGameShell level
  *          entries + resolved menu entries (world entries carry src; null when the manifest has no
- *          menu) + resolved music { menu: src|null, battle: [src,…] } (null without music) +
+ *          menu) + resolved music { menu: src|null, about: src|null, battle: [src,…] } (null without music) +
  *          resolved setup presentation (card refs mapped to srcs; null without setup)
  * @throws  with a teaching message listing every fault (manifest, missing level, bad contract)
  */
@@ -76,6 +98,13 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
       return { ...en };
     };
     menu = norm.menu.entries.map(resolveEntry);
+    // ATTRIBUTION default (operator-owned; see game-manifest.js): a menu with no declared
+    // about entry gets a generated provenance/credits page — injected HERE so the served copy
+    // and the export carry the identical page while the stored recipe stays clean. Declaring
+    // any about entry replaces it wholesale; `menu.attribution: false` removes it. Never
+    // validated against, never required — a courtesy credit, not a lock.
+    const hasAbout = (ens) => ens.some((en) => en.kind === 'about' || (en.kind === 'menu' && hasAbout(en.entries || [])));
+    if (norm.menu.attribution !== false && !hasAbout(menu)) menu.push(defaultAboutEntry(norm));
   }
 
   // music refs (the shell's score): each must be a stored beats sketch; resolved to a
@@ -90,6 +119,7 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
     };
     music = {
       menu: norm.music.menu ? beat(norm.music.menu, 'music.menu') : null,
+      about: norm.music.about ? beat(norm.music.about, 'music.about') : null,
       battle: (norm.music.battle || []).map((r, i) => beat(r, `music.battle[${i}]`)).filter(Boolean),
     };
   }

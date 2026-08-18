@@ -15,8 +15,8 @@
  *   { kind: 'game', title,
  *     store:  { slices: [{ name, kind: character|inventory|party|progression|flags, init? }] },
  *     levels: [{ ref, title?, gate? }],    // order = play order; gate = declarative unlock
- *     menu?:  { tagline?, entries: [{ id, title, subtitle?, kind: 'levels'|'world'|'soon', ref? }] },
- *     music?: { menu?: <beatsRef>, battle?: [<beatsRef>, …] },
+ *     menu?:  { tagline?, attribution?, entries: [{ id, title, subtitle?, kind: 'levels'|'world'|'soon'|'about', ref? }] },
+ *     music?: { menu?: <beatsRef>, about?: <beatsRef>, battle?: [<beatsRef>, …] },
  *     setup?: { <sliceName>: <presentation> },
  *     difficulty?: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] } }
  *
@@ -41,10 +41,23 @@
  * main menu instead of straight into the level list. Exactly one entry is kind:'levels' (the
  * level list + setup flow lives behind it); kind:'world' entries iframe another stored world
  * by ref (e.g. a hangar/viewer world); kind:'soon' entries are inert coming-soon placeholders
- * (rendered disabled, no ref). Absent → the shell renders exactly as before.
+ * (rendered disabled, no ref); a kind:'about' entry is the game's provenance page — the entry
+ * itself carries the content ({ body?: [para,…], links?: [{ label, href, sub? }], footer?:
+ * para|[para,…] }), rendered by the shell as a static screen (no ref, no iframe). A para is a
+ * string or an array of segments (string | { text, href }) so prose can carry inline anchors.
+ * A ROOT-level about entry renders as the title screen's second option (Start / About) rather
+ * than a main-menu row; nested inside a kind:'menu' group it renders as a normal entry.
+ * Absent → the shell renders exactly as before.
+ *
+ * ATTRIBUTION (the trackback, operator-owned): a game with a menu but NO declared about entry
+ * gets a generated default about page at resolve time — provenance + links back to mojulo,
+ * identical in the served copy and the export. It is a courtesy credit, not a lock: declare
+ * your own about entry to replace it wholesale, or set `menu.attribution: false` to remove it.
+ * Free either way — the artifact is the operator's; the credit stays only if it earned its place.
  *
  * `music` is the shell's score, by beats ref (recipes stay sovereign; the shell streams each
- * ref's derived beats.wav render): `menu` loops on the menu screens, `battle` ROTATES while a
+ * ref's derived beats.wav render): `menu` loops on the menu screens, `about` loops on a
+ * kind:'about' menu screen (falls back to `menu` when absent), `battle` ROTATES while a
  * level session runs (track end → next). World-view menu entries silence the shell — a viewed
  * world (e.g. the hangar) carries its own score via its manifest `audio` channel. Optional
  * `volume` / `menuVolume` / `battleVolume` (0..1) set the BED LEVEL — the score plays under
@@ -124,6 +137,9 @@ export function validateGameManifest(manifest) {
     if (!menu || typeof menu !== 'object') errors.push("menu must be { tagline?, entries: [{ id, title, subtitle?, kind: 'levels'|'world', ref? }] }");
     else {
       if (menu.tagline !== undefined && typeof menu.tagline !== 'string') errors.push('menu.tagline must be a string');
+      if (menu.attribution !== undefined && typeof menu.attribution !== 'boolean') {
+        errors.push('menu.attribution must be a boolean (false removes the default mojulo about/credits page; declaring your own about entry also replaces it)');
+      }
       // art (pure presentation, opt-in): a full-bleed title-card image URL/path the shell
       // paints behind the game-frame screens (Start renders button-only over it — the art IS
       // the title card). Serve-side value is typically a bound render under /outcomes/…;
@@ -172,7 +188,32 @@ export function validateGameManifest(manifest) {
             else if (depth >= 3) errors.push(`${where}: menus nest at most 3 deep`);
             else en.entries.forEach((c, j) => validateEntry(c, `${where}.entries[${j}]`, depth + 1));
           }
-          else errors.push(`${where}.kind must be 'levels' (the level list), 'world' (iframe a stored world), 'soon' (a placeholder), 'menu' (a submenu group), or 'mode' (opens setup for a level or map-set)`);
+          else if (en.kind === 'about') {
+            if (en.ref !== undefined) errors.push(`${where}: an 'about' entry carries no ref (its content lives on the entry itself)`);
+            // a PARAGRAPH is a plain string, or an array of segments mixing strings with inline
+            // links ({ text, href }) — so prose can carry an anchor mid-sentence.
+            const validPara = (p) => (typeof p === 'string' && !!p)
+              || (Array.isArray(p) && p.length > 0 && p.every((sg) => (typeof sg === 'string' && !!sg)
+                || (sg && typeof sg === 'object' && typeof sg.text === 'string' && !!sg.text && typeof sg.href === 'string' && !!sg.href)));
+            const paraShape = "a non-empty string, or an array of segments (string | { text, href })";
+            if (en.body !== undefined && (!Array.isArray(en.body) || !en.body.every(validPara))) {
+              errors.push(`${where}.body must be an array of paragraphs — each ${paraShape}`);
+            }
+            if (en.links !== undefined) {
+              if (!Array.isArray(en.links)) errors.push(`${where}.links must be an array of { label, href, sub? }`);
+              else en.links.forEach((ln, j) => {
+                const lw = `${where}.links[${j}]`;
+                if (!ln || typeof ln !== 'object') { errors.push(`${lw} must be { label, href, sub? }`); return; }
+                if (!ln.label || typeof ln.label !== 'string') errors.push(`${lw}.label is required (string)`);
+                if (!ln.href || typeof ln.href !== 'string') errors.push(`${lw}.href is required (string)`);
+                if (ln.sub !== undefined && typeof ln.sub !== 'string') errors.push(`${lw}.sub must be a string`);
+              });
+            }
+            if (en.footer !== undefined && !(validPara(en.footer) || (Array.isArray(en.footer) && en.footer.length > 0 && en.footer.every(validPara)))) {
+              errors.push(`${where}.footer must be a paragraph (${paraShape}) or an array of them`);
+            }
+          }
+          else errors.push(`${where}.kind must be 'levels' (the level list), 'world' (iframe a stored world), 'soon' (a placeholder), 'menu' (a submenu group), 'mode' (opens setup for a level or map-set), or 'about' (the provenance page)`);
         };
         menu.entries.forEach((en, i) => validateEntry(en, `menu.entries[${i}]`, 0));
         if (levelsEntries > 1) errors.push(`menu has ${levelsEntries} kind:'levels' entries — at most one is allowed (the flat level list)`);
@@ -249,6 +290,7 @@ export function validateGameManifest(manifest) {
     if (!music || typeof music !== 'object') errors.push('music must be { menu?: <beatsRef>, battle?: [<beatsRef>, …], volume?, menuVolume?, battleVolume? }');
     else {
       if (music.menu !== undefined && (typeof music.menu !== 'string' || !music.menu)) errors.push('music.menu must be a beats sketch ref (string)');
+      if (music.about !== undefined && (typeof music.about !== 'string' || !music.about)) errors.push('music.about must be a beats sketch ref (string)');
       if (music.battle !== undefined) {
         if (!Array.isArray(music.battle) || !music.battle.length || !music.battle.every((r) => r && typeof r === 'string')) {
           errors.push('music.battle must be a non-empty array of beats sketch refs');

@@ -434,7 +434,7 @@ export async function exportGameHandler(input) {
   }
 
   // music — the shell's score as offline WAV renders (default opts match the served beats.wav)
-  const beatsRefs = [...new Set([norm.music?.menu, ...(norm.music?.battle || [])].filter(Boolean))];
+  const beatsRefs = [...new Set([norm.music?.menu, norm.music?.about, ...(norm.music?.battle || [])].filter(Boolean))];
   for (const br of beatsRefs) {
     const rendered = await renderBeatsOffline(getSketch(br).manifest, {});
     await write(BEATS_SRC(br), rendered.wav);
