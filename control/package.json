@@ -1,6 +1,6 @@
 {
   "name": "mojulo",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "license": "Apache-2.0",
   "description": "Mojulo — the agent's workshop: a local MCP server where you build repeatable things by talking to Claude Code or Codex — self-hosted chatbots, connected services, apps, worlds, music, and playable games — each a tiny deterministic recipe on your machine, editable a line at a time and composable into bigger works.",
   "author": "Franz Ombico",

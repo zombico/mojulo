@@ -8,7 +8,7 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
-## [Unreleased]
+## [1.2.1] — 2026-08-18
 
 ### Published dashboard works off the build machine (Windows field report)
 
@@ -86,6 +86,27 @@ real embedder) validated the top-3 entry contract at 91% — including zh/es/ja 
 and its findings (the dead `WEAK_SEARCH_TOP_SCORE` threshold, the
 `diagram-chart` card weakness, thin non-English margins) are recorded in the
 plan as the next round of work.
+
+### Mechanics view: real-air `flight` scenario (the physics/flight kernel)
+
+The spin-aware ballistic primitive is promoted from `vehicles/ball-flight.js`
+to `lib/graph/physics/flight.js` — gravity, drag with a speed-dependent C_d
+(the drag crisis), and Magnus lift with a spin-ratio-dependent C_l, constants
+from the soccer-ball aerodynamics literature (Goff & Carré; Asai). The
+projectile registry is closed vocabulary (the validated FIFA soccer preset),
+with a custom-sphere spec (`{ mass | density, radius | diameter |
+circumference, aero? }`) as the operator's own explicit dial; pure and
+deterministic (launch spec in → identical trajectory anywhere), zero imports
+so page emitters can inline the very source the server tests validate.
+
+`mechanics_view` gains the `flight` scenario on top of it: a ball in real air
+with `curl` (sidespin) and `spin` (back/topspin) dials so carry, dip and curl
+are physically faithful; `compare:'air'` races the identical launch against
+its vacuum twin from the same spot, and `stage:'goal'` dresses a pitch with a
+regulation goal at `goalDist` so the bend reads against something. The
+`mechanics` vocab card carries the new framing ("a free kick that curls /
+banana shot / knuckle-drop"). The interim `ball-kick-emit.js` spike is
+superseded and removed.
 
 ## [1.2.0] — 2026-08-17
 
