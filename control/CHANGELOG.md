@@ -8,6 +8,54 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.2.0] — 2026-08-17
+
+Two threads: games gain a provenance surface (an about page plus an
+operator-owned attribution default), and the npm package's stdio MCP server
+now actually boots on a clean install — the fix that came out of the first
+Windows install attempt.
+
+### Games: about page + attribution (operator-owned)
+
+- **`kind:'about'` menu entry** — the game's provenance page, content carried
+  on the entry itself (body paragraphs with inline anchors, link cards, footer
+  lines), rendered by the shell as a static screen. A root-level about lives on
+  the title screen (Start / About); nested inside a `kind:'menu'` group it
+  renders as a normal menu row.
+- **Attribution default:** a game with a menu but no declared about entry gets
+  a generated default about page at resolve time — provenance + links back to
+  mojulo, identical in the served copy and the export, injected at resolve so
+  the stored recipe stays clean. A courtesy credit, not a lock: declare your
+  own about entry to replace it wholesale, or set `menu.attribution: false` to
+  remove it.
+- **`music.about`** — the score's about-screen loop (falls back to the menu
+  track when absent); `export_game` bundles its WAV render alongside
+  menu/battle.
+
+### npm package: stdio MCP server boots on a clean install
+
+The published package could not start its stdio MCP server:
+`ensureToolsRegistered()` reaches `@/components/graph/CreationMap` (a JSX
+component) through `sketch-svg.js`, and that one import path was broken three
+independent ways — the process died with `ERR_MODULE_NOT_FOUND` before writing
+a single JSON-RPC frame.
+
+- **`components/graph/CreationMap.jsx` now ships** — it was missing from the
+  npm `files` list. It is the only component lib imports, and it pulls only
+  `lib/graph/scene/signage-chrome`, so nothing else in the UI tree rides along.
+- **The stdio loader resolves `.jsx` and extensionless relative imports**
+  (`./files`, `./exports-dir`, `./meta-context`, `./motion-comic-manifest`) —
+  specifiers Next resolves but Node rejects.
+- **A loader `load` hook compiles `.jsx` via `@swc/core`**, loaded lazily so
+  the native addon costs nothing on boots that never touch a `.jsx` file.
+  `@swc/core` is now a direct dependency (it was never actually installed
+  transitively — it sits in next's devDependencies); lockfile updated to match.
+- **Node floor corrected to `>=22.12`:** `lib/` ships ESM in `.js` files with
+  no `"type": "module"`, which only loads on runtimes where module-syntax
+  detection is on by default — on Node 20/21 the first lib import fails well
+  before the old `<20` guard could matter. Engines and the runtime check both
+  move to 22.12.
+
 ## [1.1.1] — 2026-08-16
 
 A first-contact release, shaped by a six-persona post-install simulation (0816
