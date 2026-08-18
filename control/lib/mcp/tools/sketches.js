@@ -546,7 +546,7 @@ export async function updateSketchHandler(input) {
 export async function getSketchVocabHandler(input) {
   const id = input && typeof input === 'object' ? input.id : undefined;
   if (id === undefined || id === null || id === '') {
-    return { cards: listSketchVocab() };
+    return { cards: listSketchVocab(), _telemetrySignal: { id_requested: false, found: true } };
   }
   if (typeof id !== 'string') {
     throw new Error('`id` must be a string (a sketch_vocab source_ref)');
@@ -554,11 +554,13 @@ export async function getSketchVocabHandler(input) {
   const card = getSketchVocabCard(id);
   if (!card) {
     const available = listSketchVocab().map((c) => c.id);
+    // "unknown card" keeps the miss visible to the orientation cut
+    // (DRAWER_MISS_ERROR_RE in mcpToolCalls.js).
     throw new Error(
-      `No sketch vocab card '${id}'. Available: ${available.join(', ') || '(none)'}`,
+      `get_sketch_vocab: unknown card '${id}'. Known: ${available.join(', ') || '(none)'}`,
     );
   }
-  return { card };
+  return { card, _telemetrySignal: { id_requested: true, found: true } };
 }
 
 const STYLE_AUTHOR_NOTE =
@@ -578,11 +580,14 @@ export async function getStyleVocabHandler(input) {
         style: STYLE_VOCAB[p].style,
         dials: Object.keys(STYLE_VOCAB[p].dials),
       })),
+      _telemetrySignal: { id_requested: false, found: true },
     };
   }
   if (typeof id !== 'string') throw new Error('`id` must be a style preset name (string)');
   if (!isStylePreset(id)) {
-    throw new Error(`No style preset '${id}'. Available: ${STYLE_PRESETS.join(', ')} (or author a custom style — see note).`);
+    // "unknown card" keeps the miss visible to the orientation cut
+    // (DRAWER_MISS_ERROR_RE in mcpToolCalls.js).
+    throw new Error(`get_style_vocab: unknown card '${id}'. Known: ${STYLE_PRESETS.join(', ')} (or author a custom style — see note).`);
   }
   const resolved = resolveStyle(id); // default dials
   return {
@@ -595,6 +600,7 @@ export async function getStyleVocabHandler(input) {
     negative: resolved.negative,
     dials: STYLE_VOCAB[id].dials, // full dial spec (kinds, poles/values, defaults, bands/phrases)
     fork: STYLE_AUTHOR_NOTE,
+    _telemetrySignal: { id_requested: true, found: true },
   };
 }
 

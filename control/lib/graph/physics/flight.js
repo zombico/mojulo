@@ -1,5 +1,6 @@
 /**
- * ball-flight — physically faithful trajectory of a kicked ball (see ball-flight.plan.md).
+ * flight — the spin-aware ballistic primitive (integration/0818/ball-flight.plan.md, F0).
+ * Promoted from vehicles/ball-flight.js: physically faithful trajectory of a struck ball.
  *
  * Three forces, with the coefficients that actually vary in reality:
  *   gravity · drag with a speed-dependent C_d (the DRAG CRISIS) · Magnus lift with a
@@ -9,9 +10,21 @@
  *   (Goff & Carré; Asai), not invented numbers.
  *
  * Pure & deterministic: launch conditions in → trajectory out. No persistent state, no
- * runtime authority — a re-bakeable readout, even though the north star is games.
+ * runtime authority — a re-bakeable readout. The ~40-byte LAUNCH SPEC is the recipe atom;
+ * consumers store the launch, never the samples, and re-integrate identically anywhere.
  *
- * Frame: z-up, metres, SI. Default travel is +x; sign conventions in ball-flight.plan.md.
+ * The registry is CLOSED vocabulary: a NAMED projectile ships with cited C_d/C_l curves
+ * and its own test band (soccer: Goff & Carré free-kick band in flight.test.js) or it
+ * doesn't ship. Beside the presets, a CUSTOM SPHERE spec ({ mass | density, radius |
+ * diameter | circumference, aero? }) is the operator's own explicit dial — same sphere
+ * model, the operator owns the constants. The model is sphere-only: a non-sphere (rugby
+ * ball, shuttlecock, discus) has categorically different aerodynamics, so "shape" enters
+ * only through the aero constants, never a geometry parameter.
+ *
+ * Zero imports on purpose: page emitters may inline this source (exports stripped) so
+ * browser-side consumers run byte-for-byte the physics the server tests validate.
+ *
+ * Frame: z-up, metres, SI. Default travel is +x.
  */
 
 export const G = 9.81;                 // m/s²
@@ -24,7 +37,48 @@ export const BALL = (() => {
 })();
 const NU_AIR = 1.48e-5;                // kinematic viscosity of air, m²/s (for Re)
 
+// The projectile registry. `aero` are that ball's C_d/C_l curve constants — the defaults
+// dragCoeff/liftCoeff fall back to are soccer's, so kickBall without a registry entry keeps
+// its historical behaviour. Other sports enter only with literature-cited curves + tests.
+export const PROJECTILES = {
+  soccer: {
+    label: 'soccer ball (FIFA size 5)',
+    ...BALL,
+    aero: { cdSup: 0.18, cdSub: 0.50, vCrit: 12.5, vWidth: 1.3, clMax: 0.25, s0: 0.25 },
+  },
+};
+
 export const rps = (revsPerSec) => revsPerSec * 2 * Math.PI;   // rev/s → rad/s helper
+
+/**
+ * Resolve a projectile spec — a registry KEY ('soccer') or a CUSTOM SPHERE object — into
+ * the full { mass, radius, area, diameter, circumference, aero } the integrator needs.
+ * Custom spheres compose over the soccer baseline: size from radius | diameter |
+ * circumference (else soccer's), mass from mass | density (ρ → m = ρ·⁴⁄₃πr³, else
+ * soccer's), aero constants merged over soccer's. Everything must come out positive
+ * and finite — a ball that doesn't exist refuses rather than integrating nonsense.
+ */
+export function resolveProjectile(spec = 'soccer') {
+  if (typeof spec === 'string') {
+    const p = PROJECTILES[spec];
+    if (!p) throw new Error(`resolveProjectile: unknown projectile '${spec}' — registry: ${Object.keys(PROJECTILES).join(', ')}; or pass a custom sphere { mass|density, radius|diameter|circumference }`);
+    return { key: spec, ...p };
+  }
+  if (!spec || typeof spec !== 'object') throw new Error('resolveProjectile: pass a registry key or a custom sphere spec object');
+  const base = PROJECTILES.soccer;
+  const radius = spec.radius ?? (spec.diameter != null ? spec.diameter / 2
+    : spec.circumference != null ? spec.circumference / (2 * Math.PI) : base.radius);
+  const mass = spec.mass ?? (spec.density != null ? spec.density * (4 / 3) * Math.PI * radius ** 3 : base.mass);
+  if (!Number.isFinite(radius) || radius <= 0 || !Number.isFinite(mass) || mass <= 0) {
+    throw new Error(`resolveProjectile: custom sphere needs positive finite size and mass (got radius ${radius}, mass ${mass})`);
+  }
+  return {
+    key: 'custom', label: spec.label ?? 'custom sphere',
+    mass, radius, diameter: 2 * radius, circumference: 2 * Math.PI * radius,
+    area: Math.PI * radius * radius,
+    aero: { ...base.aero, ...(spec.aero && typeof spec.aero === 'object' ? spec.aero : {}) },
+  };
+}
 
 // --- coefficients -----------------------------------------------------------------
 
@@ -48,7 +102,16 @@ export function liftCoeff(S, opts = {}) {
   return clMax * (1 - Math.exp(-S / s0));
 }
 
-export function reynolds(speed) { return (speed * BALL.diameter) / NU_AIR; }
+export function reynolds(speed, ball = BALL) { return (speed * ball.diameter) / NU_AIR; }
+
+// Friendly spin dials → an angular-velocity vector, relative to the launch HEADING:
+//   curlRev  sidespin rev/s — + curls LEFT of aim (vertical spin axis, heading-free)
+//   spinRev  rev/s — + backspin (floats/carries) · − topspin (dips)
+// At azimuth 0 this is { x:0, y:−rps(spinRev), z:rps(curlRev) } — the kick-page mapping.
+export function spinFromDials({ curlRev = 0, spinRev = 0, azimuthDeg = 0 } = {}) {
+  const az = azimuthDeg * Math.PI / 180;
+  return { x: rps(spinRev) * Math.sin(az), y: -rps(spinRev) * Math.cos(az), z: rps(curlRev) };
+}
 
 // --- dynamics ---------------------------------------------------------------------
 
@@ -56,10 +119,11 @@ const hypot3 = (a) => Math.hypot(a.x, a.y, a.z);
 
 // Acceleration (m/s²) on the ball at velocity v with spin ω, in air of density rho.
 function accel(v, omega, rho, opts) {
+  const ball = opts.ball ?? BALL;
   const speed = hypot3(v);
   const a = { x: 0, y: 0, z: -G };
   if (speed < 1e-6) return a;
-  const m = BALL.mass, A = BALL.area;
+  const m = ball.mass, A = ball.area;
 
   if (opts.drag !== false) {
     const Cd = dragCoeff(speed, opts);
@@ -74,7 +138,7 @@ function accel(v, omega, rho, opts) {
     const cmag = Math.hypot(cx, cy, cz);
     if (cmag > 1e-9) {
       const omegaPerp = cmag / speed;             // |ω×v|/|v| = component of ω ⟂ to v
-      const S = (BALL.radius * omegaPerp) / speed;
+      const S = (ball.radius * omegaPerp) / speed;
       const Cl = liftCoeff(S, opts);
       const fm = (0.5 * rho * A * Cl * speed * speed) / m;   // |F_m| = ½ρA C_l|v|²
       a.x += fm * cx / cmag; a.y += fm * cy / cmag; a.z += fm * cz / cmag;
@@ -104,7 +168,7 @@ function rk4(state, omega, rho, opts, dt) {
 }
 
 /**
- * Simulate a kicked ball's flight.
+ * Simulate a struck ball's flight.
  *
  * @param {object} launch
  *   speed        launch speed (m/s)   — "force" maps here via impulse/mass (v0 = J/m)
@@ -114,7 +178,7 @@ function rk4(state, omega, rho, opts, dt) {
  *   velocity     {x,y,z} explicit launch velocity (overrides speed/angles)
  *   position     {x,y,z} launch point (default origin, z = opts.z0 ?? 0)
  * @param {object} [opts]
- *   dt 0.002 · rho RHO_SEA_LEVEL · spinDecay 0.04 /s · groundZ 0 · maxT 15
+ *   dt 0.002 · rho RHO_SEA_LEVEL · spinDecay 0.04 /s · groundZ 0 · maxT 15 · ball BALL
  *   drag:false / spin:false / crisis:false to ablate a term · C_d/C_l constants pass through
  * @returns {{ samples: Array, summary: object }}
  */
@@ -178,4 +242,22 @@ export function kickBall(launch = {}, opts = {}) {
       maxSpeed,
     },
   };
+}
+
+/**
+ * The registry door — resolve a LAUNCH SPEC against a projectile and integrate. The spec
+ * is the storable recipe atom: `{ projectile, speed, elevationDeg, azimuthDeg?, spin? }`
+ * where `projectile` is a registry key OR a custom sphere spec (resolveProjectile), and
+ * spin is either the friendly dials `{ curlRev, spinRev }` or a raw `{x,y,z}` rad/s
+ * vector. The projectile's aero constants become the coefficient-curve defaults
+ * (explicit opts still win — the ablation dials keep working).
+ * @returns {{ samples, summary, projectile, ball }} — `ball` is the resolved sphere
+ * ({ mass, radius, diameter, … }), so consumers can label readouts without re-resolving.
+ */
+export function flightPath(launch = {}, opts = {}) {
+  const proj = resolveProjectile(launch.projectile ?? 'soccer');
+  const dials = launch.spin && (launch.spin.curlRev != null || launch.spin.spinRev != null);
+  const spin = dials ? spinFromDials({ ...launch.spin, azimuthDeg: launch.azimuthDeg ?? 0 }) : launch.spin;
+  const { samples, summary } = kickBall({ ...launch, spin }, { ...proj.aero, ...opts, ball: proj });
+  return { samples, summary, projectile: proj.key, ball: proj };
 }

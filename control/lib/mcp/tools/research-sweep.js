@@ -33,7 +33,7 @@ import { experimentsToChartManifest } from '@/lib/graph/sketch/sketch-derive';
 
 // the sweepable knobs — the numeric params the dynamics rules actually read (mirrors
 // sampleMechanicsPhysics's P). Sweeping anything else would mint N identical worlds.
-const SWEEPABLE_PARAMS = new Set(['v0', 'angle', 'g', 'mu', 'length', 'height', 'mass', 'k', 'amplitude', 'radius']);
+const SWEEPABLE_PARAMS = new Set(['v0', 'angle', 'g', 'mu', 'length', 'height', 'mass', 'k', 'amplitude', 'radius', 'curl', 'spin', 'diameter', 'density']);
 
 const MIN_POINTS = 2;
 const MAX_POINTS = 12;
@@ -48,8 +48,10 @@ const OUTCOMES = {
   },
   maxHeight: (m) => +Math.max(...m.samples.map((s) => s.pos[2])).toFixed(6),
   maxSpeed: (m) => +Math.max(...m.samples.map((s) => s.speed)).toFixed(6),
+  // lateral bend off the aim line (flight: the Magnus curl; planar scenarios read 0).
+  curl: (m) => +Math.max(...m.samples.map((s) => Math.abs(s.pos[1]))).toFixed(6),
 };
-const OUTCOME_UNITS = { flightTime: 's', range: 'm', maxHeight: 'm', maxSpeed: 'm/s' };
+const OUTCOME_UNITS = { flightTime: 's', range: 'm', maxHeight: 'm', maxSpeed: 'm/s', curl: 'm' };
 
 export async function runExperimentSweepHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
@@ -131,23 +133,23 @@ export function registerResearchSweepTools() {
     name: 'run_experiment_sweep',
     description:
       "Ring 9 — run a PARAMETER SWEEP as one deterministic call: 'what happens to X as I vary Y?'. "
-      + 'Per swept value it mints a mechanics-view world, derives SI outcomes from the measurement '
-      + 'channel (flightTime s, range m, maxHeight m, maxSpeed m/s), and binds one provenance-carrying '
-      + '`experiment` item ({ recipe, stats, series, outcomes } in metadata); then auto-plots '
-      + 'param-vs-outcome as a chart sketch and binds the figure. Returns the comparative table + all '
-      + 'refs. v0 sweeps mechanics-view DYNAMICS recipes only (projectile / free-fall / inclined-plane / '
-      + 'pendulum / spring / circular; sweepable params: v0, angle, g, mu, length, height, mass, k, '
-      + 'amplitude, radius; 2–12 points) — the same SI-honesty boundary measure_view enforces. Gates up '
-      + 'front, so a bad recipe never half-binds. Follow with a `summary` item for your analysis and '
+      + 'Per swept value it mints a mechanics-view world, derives SI outcomes (flightTime s, range m, '
+      + 'maxHeight m, maxSpeed m/s, curl m), and binds one provenance-carrying `experiment` item; then '
+      + 'auto-plots param-vs-outcome as a chart sketch and binds the figure. Returns the comparative '
+      + 'table + all refs. Dynamics scenarios only (projectile / free-fall / inclined-plane / pendulum / '
+      + 'spring / circular / flight; params: v0, angle, g, mu, length, height, mass, k, amplitude, '
+      + 'radius, curl, spin, diameter, density; 2–12 points) — the SI-honesty boundary measure_view '
+      + 'enforces; flight makes aerodynamics sweepable (curl vs curl = Magnus saturation). Gates up '
+      + 'front, so a bad recipe never half-binds. Follow with a `summary` item and '
       + 'synthesize_abstract({ review: true }).',
     inputSchema: {
       type: 'object',
       properties: {
         research_ref: { type: 'string', description: 'The research session (lab notebook) to bind the sweep into.' },
         base: { type: 'object', description: "The mechanics-view recipe held constant, e.g. { scenario: 'projectile', v0: 18, angle: 45 }. The swept param may be omitted here." },
-        param: { type: 'string', enum: ['v0', 'angle', 'g', 'mu', 'length', 'height', 'mass', 'k', 'amplitude', 'radius'], description: 'The knob to vary.' },
+        param: { type: 'string', enum: ['v0', 'angle', 'g', 'mu', 'length', 'height', 'mass', 'k', 'amplitude', 'radius', 'curl', 'spin', 'diameter', 'density'], description: 'The knob to vary.' },
         values: { type: 'array', items: { type: 'number' }, description: 'The 2–12 values to sweep (each mints one world + binds one experiment).' },
-        outcome: { type: 'string', enum: ['flightTime', 'range', 'maxHeight', 'maxSpeed'], description: "Which outcome the auto-plot charts (default 'flightTime'). The table always carries all four." },
+        outcome: { type: 'string', enum: ['flightTime', 'range', 'maxHeight', 'maxSpeed', 'curl'], description: "Which outcome the auto-plot charts (default 'flightTime'). The table always carries all five." },
       },
       required: ['research_ref', 'base', 'param', 'values'],
     },

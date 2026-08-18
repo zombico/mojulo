@@ -24,7 +24,7 @@ export function b64(typedArray) {
   return Buffer.from(typedArray.buffer, typedArray.byteOffset, typedArray.byteLength).toString('base64');
 }
 
-// ── three.js delivery modes (moved from scene-three.js; shared with ball-kick-emit) ──
+// ── three.js delivery modes (moved from scene-three.js) ──
 // default → the control server's /vendor; cdn:true → jsdelivr pinned to the vendored
 // revision; inline → the vendored modules embedded as data: URLs (self-contained page).
 

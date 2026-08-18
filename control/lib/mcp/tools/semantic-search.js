@@ -18,6 +18,39 @@ import {
   EmbeddingsRepository,
   SOURCE_KINDS,
 } from '@/lib/db/repositories/embeddings';
+import { WEAK_SEARCH_TOP_SCORE } from '@/lib/db/repositories/mcpToolCalls';
+
+// In-band recovery hints (routing-context-weaving.plan.md C1/C2). The weak
+// threshold is the SAME constant the orientation cut counts gaps by — the
+// telemetry and the agent-facing nudge never disagree about what "weak" means.
+// Before C1 a weak search returned undecorated and only telemetry noticed; the
+// hint turns the silent miss into a one-hop recovery. `degraded` separates
+// "the index answered nothing" from "the index couldn't answer" (embed
+// failure) — an empty result with no explanation reads as "nothing exists".
+function buildSearchHint({ degraded, results, routing }) {
+  if (degraded) {
+    return (
+      'Semantic index degraded — the query could not be embedded, so this empty result does NOT mean nothing matches. ' +
+      'Retry once; if it persists, the embedder model may be missing — run `node scripts/reindex-embeddings.js` on the control plane.'
+    );
+  }
+  const topScore = results.length ? results[0].score : null;
+  const weak = results.length === 0 || topScore < WEAK_SEARCH_TOP_SCORE;
+  if (!weak) return null;
+  const scored = topScore === null ? 'no results' : `top score ${topScore.toFixed(2)}`;
+  if (routing) {
+    return (
+      `Weak routing match (${scored}) — don't commit to a card on this. ` +
+      "Rephrase with the artifact's FORM (a picture / object / world / tune / game about …), " +
+      "or read the routing index directly: forward_context({mode:'studio'}) for creative asks, forward_context() for the office wing."
+    );
+  }
+  return (
+    `Weak match (${scored}) — treat these as leads, not answers. ` +
+    'Rephrase closer to the user\'s own framing, widen by dropping the `kinds` filter, ' +
+    'or route via forward_context / get_tool_index instead.'
+  );
+}
 
 export async function semanticSearchHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
@@ -30,7 +63,12 @@ export async function semanticSearchHandler(input, _ctx) {
   const opts = {};
   if (kinds !== undefined && kinds !== null) opts.kinds = kinds;
   if (limit !== undefined && limit !== null) opts.limit = limit;
-  const results = await EmbeddingsRepository.search(query, opts);
+  const { results, degraded } = await EmbeddingsRepository.search(query, {
+    ...opts,
+    withMeta: true,
+  });
+  const routing = opts.kinds ? [].concat(opts.kinds).includes('routing') : false;
+  const hint = buildSearchHint({ degraded, results, routing });
   // Outcome signal for the orientation-gap telemetry (numbers/enums only,
   // stripped from the wire by instrumentedInvoke). A zero-result or weak-top
   // search is a coined term that failed to reward the question — see
@@ -39,8 +77,14 @@ export async function semanticSearchHandler(input, _ctx) {
     result_count: results.length,
     ...(results.length ? { top_score: results[0].score } : {}),
     ...(opts.kinds ? { kinds: [].concat(opts.kinds) } : {}),
+    ...(degraded ? { degraded: true } : {}),
   };
-  return { results, _telemetrySignal: signal };
+  return {
+    results,
+    ...(degraded ? { degraded: true } : {}),
+    ...(hint ? { hint } : {}),
+    _telemetrySignal: signal,
+  };
 }
 
 export function registerSemanticSearchTools() {

@@ -10,6 +10,21 @@ import { getDb } from '../index.js';
  * single-operator, retention-capped scale of this table.
  */
 
+// Drawer-miss detection contract, shared with the convention sweep in
+// lib/mcp/tools/drawer-signals.test.js: a drawer tool that rejects an unknown
+// id must either attach a soft-miss signal ({ id_requested: true, found:
+// false }) or throw an error whose message matches DRAWER_MISS_ERROR_RE —
+// otherwise the miss is invisible to the orientation cut below.
+export const DRAWER_TOOL_RE = /^get_.*_vocab$|^get_creative_toolset$/;
+export const DRAWER_MISS_ERROR_RE = /unknown (card|id|form)/i;
+
+// One weak-search threshold for BOTH consumers (routing-context-weaving.plan.md
+// C1): the orientation cut counts a search below it as a gap, and the
+// semantic_search tool decorates the same searches with an in-band hint —
+// telemetry and the agent-facing nudge must never disagree about what "weak"
+// means.
+export const WEAK_SEARCH_TOP_SCORE = 0.35;
+
 function rowToCall(row) {
   if (!row) return null;
   return {
@@ -158,8 +173,9 @@ export const McpToolCallRepository = {
   },
 
   /**
-   * The orientation-gap cut (orientation-ramp.plan.md R4): the moments the
-   * ask-and-discover loop failed to reward the question. Three signals:
+   * The orientation-gap cut (orientation-ramp.plan.md R4; first-hop cut from
+   * routing-context-weaving.plan.md thread A): the moments the ask-and-discover
+   * loop failed to reward the question. Four signals:
    *
    *  - lowScoreSearches — semantic_search calls whose attached signal shows an
    *    empty result set or a weak top score (the coined term didn't retrieve).
@@ -168,11 +184,22 @@ export const McpToolCallRepository = {
    *  - abandonment — sessions that called an orientation tool and then made NO
    *    non-orientation call afterward (oriented, then went nowhere). Derived
    *    at read time from existing rows; nothing extra is captured for it.
+   *  - firstHops — for each routing read (forward_context, labeled by its
+   *    signal's mode, and semantic_search calls whose signal kinds include
+   *    'routing'), the NEXT non-orientation tool called in the same session.
+   *    A read the session never followed with a non-orientation call counts
+   *    with tool: null. Derived at read time, id-ordered; this is what makes
+   *    "routing rows that never route" answerable (orientation-diet's parked
+   *    pruning step).
    *
    * `orientationTools` is passed in by the caller — ring membership is Ring-0
    * knowledge (context.js), not a repository concern.
    */
-  orientationGaps({ sinceDays = 7, orientationTools = [], lowScoreThreshold = 0.35 } = {}) {
+  orientationGaps({
+    sinceDays = 7,
+    orientationTools = [],
+    lowScoreThreshold = WEAK_SEARCH_TOP_SCORE,
+  } = {}) {
     const db = getDb();
     const cutoff = Date.now() - sinceDays * 24 * 60 * 60 * 1000;
     const rows = db
@@ -188,6 +215,13 @@ export const McpToolCallRepository = {
     const lowScoreSearches = [];
     const drawerMisses = [];
     const sessions = new Map(); // session_id → { oriented: bool, followed: bool }
+    const pendingReads = new Map(); // session_id → [label, …] routing reads awaiting their first hop
+    const hopCounts = new Map(); // `${after}\n${tool}` → count (tool '' = never followed)
+
+    const bumpHop = (after, tool) => {
+      const key = `${after}\n${tool ?? ''}`;
+      hopCounts.set(key, (hopCounts.get(key) || 0) + 1);
+    };
 
     for (const r of rows) {
       const signal = r.signal_json ? safeParse(r.signal_json, null) : null;
@@ -202,13 +236,13 @@ export const McpToolCallRepository = {
       }
 
       // A drawer miss arrives two ways: a signal-carrying soft miss
-      // ({ id_requested, found: false }) or a vocab drawer that throws on an
-      // unknown id (error row whose message names the unknown card/id).
+      // ({ id_requested, found: false }) or a drawer that throws on an unknown
+      // id (error row whose message names the unknown card/id/form).
       if (
         (signal && signal.id_requested === true && signal.found === false) ||
         (r.status === 'error' &&
-          /^get_.*_vocab$/.test(r.tool) &&
-          /unknown (card|id)/i.test(r.error_message || ''))
+          DRAWER_TOOL_RE.test(r.tool) &&
+          DRAWER_MISS_ERROR_RE.test(r.error_message || ''))
       ) {
         drawerMisses.push({ tool: r.tool, startedAt: r.started_at, sessionId: r.session_id });
       }
@@ -221,8 +255,48 @@ export const McpToolCallRepository = {
         }
         if (orientationSet.has(r.tool)) s.oriented = true;
         else if (s.oriented) s.followed = true;
+
+        // First-hop attribution. A non-orientation call settles EVERY pending
+        // routing read in its session (settle BEFORE this row can open its own
+        // pending read, so forward_context → semantic_search[routing] → mint
+        // attributes both edges). Status is ignored on purpose: a failed hop
+        // still shows where the routing sent the agent.
+        const pending = pendingReads.get(r.session_id);
+        if (pending && pending.length && !orientationSet.has(r.tool)) {
+          for (const after of pending) bumpHop(after, r.tool);
+          pending.length = 0;
+        }
+        if (r.tool === 'forward_context') {
+          // Legacy rows predate the mode signal (A1) — default to office,
+          // matching the handler's own default.
+          const mode = signal && typeof signal.mode === 'string' ? signal.mode : 'office';
+          const list = pendingReads.get(r.session_id) || [];
+          list.push(`forward_context[${mode}]`);
+          pendingReads.set(r.session_id, list);
+        } else if (
+          r.tool === 'semantic_search' &&
+          signal &&
+          Array.isArray(signal.kinds) &&
+          signal.kinds.includes('routing')
+        ) {
+          const list = pendingReads.get(r.session_id) || [];
+          list.push('semantic_search[routing]');
+          pendingReads.set(r.session_id, list);
+        }
       }
     }
+
+    // Routing reads never followed by a non-orientation call → tool: null.
+    for (const pending of pendingReads.values()) {
+      for (const after of pending) bumpHop(after, null);
+    }
+    const firstHops = [...hopCounts.entries()]
+      .map(([key, count]) => {
+        const [after, tool] = key.split('\n');
+        return { after, tool: tool || null, count };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 40);
 
     const orientedSessions = [...sessions.values()].filter((s) => s.oriented);
     const abandonedSessions = orientedSessions.filter((s) => !s.followed);
@@ -231,6 +305,7 @@ export const McpToolCallRepository = {
       sinceDays,
       lowScoreSearches: lowScoreSearches.slice(-25),
       drawerMisses: drawerMisses.slice(-25),
+      firstHops,
       sessions: {
         total: sessions.size,
         oriented: orientedSessions.length,

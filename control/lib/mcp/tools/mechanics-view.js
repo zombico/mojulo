@@ -15,7 +15,7 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planMechanicsScene, MECHANICS_SCENARIOS } from '@/lib/graph/views/science/mechanics-view';
 
-export function mintMechanicsView({ title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folderRef } = {}) {
+export function mintMechanicsView({ title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, curl, spin, stage, goalDist, diameter, density, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {
     kind: 'mechanics-view',
     scenario: MECHANICS_SCENARIOS.includes(scenario) ? scenario : 'projectile',
@@ -34,7 +34,7 @@ export function mintMechanicsView({ title, scenario, v0, angle, g, mu, length, h
     ...(Number.isFinite(+u1) ? { u1: +u1 } : {}),
     ...(Number.isFinite(+u2) ? { u2: +u2 } : {}),
     ...(Number.isFinite(+e) ? { e: +e } : {}),
-    ...(compare === 'gravity' || compare === 'mass' ? { compare } : {}),
+    ...(compare === 'gravity' || compare === 'mass' || compare === 'air' ? { compare } : {}),
     ...(Number.isFinite(+g2) ? { g2: +g2 } : {}),
     ...(Number.isFinite(+mass2) ? { mass2: +mass2 } : {}),
     ...(Number.isFinite(+efficiency) ? { efficiency: +efficiency } : {}),   // simple-machine params
@@ -51,6 +51,12 @@ export function mintMechanicsView({ title, scenario, v0, angle, g, mu, length, h
     ...(Number.isFinite(+rodLength) ? { rodLength: +rodLength } : {}),
     ...(Number.isFinite(+flywheelR) ? { flywheelR: +flywheelR } : {}),
     ...(Number.isFinite(+rpm) ? { rpm: +rpm } : {}),
+    ...(Number.isFinite(+curl) ? { curl: +curl } : {}),                     // flight params
+    ...(Number.isFinite(+spin) ? { spin: +spin } : {}),
+    ...(stage === 'goal' || stage === 'range' ? { stage } : {}),
+    ...(Number.isFinite(+goalDist) ? { goalDist: +goalDist } : {}),
+    ...(Number.isFinite(+diameter) ? { diameter: +diameter } : {}),
+    ...(Number.isFinite(+density) ? { density: +density } : {}),
     ...(Number.isFinite(+scale) ? { scale: Math.max(0.2, +scale) } : {}),
     ...(vectors === false ? { vectors: false } : {}),
     ...(trace === false ? { trace: false } : {}),
@@ -94,6 +100,6 @@ export async function createMechanicsViewHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_mechanics_view requires a recipe object');
   }
-  const { title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folder_ref: folderRef } = input;
-  return mintMechanicsView({ title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folderRef });
+  const { title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, curl, spin, stage, goalDist, diameter, density, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folder_ref: folderRef } = input;
+  return mintMechanicsView({ title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, curl, spin, stage, goalDist, diameter, density, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folderRef });
 }

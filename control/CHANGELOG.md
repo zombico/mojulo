@@ -8,6 +8,49 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Routing telemetry + retrieval hardening (routing context weaving)
+
+The tool-routing path — `forward_context` rows, routing cards behind
+`semantic_search({kinds:['routing']})`, vocab drawers — gets its measurement
+floor and a hardened retrieval hop (threads A/B/C/E of the 0818
+routing-context-weaving plan; thread D, multilingual intent surfaces, still
+open):
+
+- **First-hop attribution, no schema change:** `forward_context` emits a
+  mode-tagged telemetry signal (office vs studio reads become distinguishable),
+  and the orientation cut (`get_tool_telemetry({orientation:true})`) now
+  derives a first-hop histogram — per routing read, the next non-orientation
+  tool in the same session — plus routing-card coverage: cards whose entry
+  tool saw zero calls in the window render as "never routed". This is the
+  instrument for orientation-diet's parked question ("which routing rows never
+  route?"); pruning still waits on weeks of real-session data.
+- **Hybrid margin guard on routing-card retrieval:** routing-kind search
+  re-ranks with a small lexical tiebreaker (`cosine + 0.03 ×` query-term
+  overlap against the card's When line; case/diacritic folding, whole-phrase
+  substring fallback for non-segmenting scripts) — anchor quotes now do double
+  duty as retrieval signal. The collision fixture gates rank-0 AND
+  `top1 − top2 ≥ 0.01`, printing margins every run; the thinnest pre-guard
+  margin (~0.004) widened ~5×.
+- **Weak retrieval is actionable in-band:** zero-result or weak-scoring
+  searches append a `hint` (routing-specific: rephrase with the artifact's
+  FORM or open `forward_context({mode:'studio'})`; generic otherwise) behind
+  the shared `WEAK_SEARCH_TOP_SCORE` constant; query-embed failure returns
+  `{ results: [], degraded: true, hint }` instead of a bare `[]`, and the
+  telemetry signal records `degraded: true` — the agent can now tell "nothing
+  exists" from "index degraded" from "rephrase".
+- **Drawer-miss coverage completed:** every `get_*_vocab` /
+  `get_creative_toolset` miss is countable by the orientation cut (`unknown
+  card` / `unknown form` phrasing + hit/index signals), with a registry sweep
+  test pinning the convention for every future drawer.
+
+A broad routing simulation (178 authored multilingual paraphrases through the
+real embedder) validated the top-3 entry contract at 91% — including zh/es/ja —
+and its findings (the dead `WEAK_SEARCH_TOP_SCORE` threshold, the
+`diagram-chart` card weakness, thin non-English margins) are recorded in the
+plan as the next round of work.
+
 ## [1.2.0] — 2026-08-17
 
 Two threads: games gain a provenance surface (an about page plus an

@@ -141,7 +141,7 @@ export async function getGameVocabHandler(input) {
     if (!card) {
       throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys()].join(', ')}`);
     }
-    return { ok: true, card };
+    return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
   const row = (cat, cardScope) => [...cat.values()].map(({ id: cid, name, summary, when }) => ({ id: cid, name, summary, when, scope: cardScope }));
   const cards = [
@@ -151,7 +151,7 @@ export async function getGameVocabHandler(input) {
     ...(scope && scope !== 'glyph' ? [] : row(glyphs, 'glyph')),
     ...(scope && scope !== 'sfx' ? [] : row(sfx, 'sfx')),
   ];
-  return { ok: true, cards };
+  return { ok: true, cards, _telemetrySignal: { id_requested: false, found: true } };
 }
 
 export function registerGameTools() {

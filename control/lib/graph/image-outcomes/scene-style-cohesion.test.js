@@ -171,6 +171,6 @@ describe('get_style_vocab reader', () => {
   });
 
   it('rejects an unknown preset with the available list', async () => {
-    await expect(getStyleVocabHandler({ id: 'nope' })).rejects.toThrow(/No style preset/);
+    await expect(getStyleVocabHandler({ id: 'nope' })).rejects.toThrow(/unknown card/);
   });
 });
