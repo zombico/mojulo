@@ -88,9 +88,9 @@ npx mojulo init
 *optionally* offers to set a provider key, and opens the dashboard at
 `http://localhost:3001` (or the next free port — the installer prints the URL).
 Nothing is sent anywhere; state lands in `~/.mojulo/`. The first install is the
-big one: npx pulls the package and its runtime (a few hundred MB), and the first
-launch fetches a ~113 MB embedding model in the background — after that, starts
-are instant.
+big one: npx pulls a ~26 MB package plus its native runtime deps (a few hundred
+MB on disk), and the first launch fetches a ~113 MB embedding model in the
+background — after that, starts are instant.
 
 On a slow connection, or if you'd rather your agent's first connect never wait on
 npx resolving the package, install globally instead and re-run `init` — it wires
