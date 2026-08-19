@@ -8,6 +8,27 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Consolidated tool packs (opt-in, `MOJULO_TOOL_PACKS=on`)
+
+The connect-time `tools/list` surface can now ship as a 10-tool SPINE plus 20
+stateless PACK dispatchers — 28,669 bytes measured, from ~250KB flat (89%
+cut). A pack called bare returns its orientation body (studio packs serve the
+FORM_TOOLSETS prose — one source with `get_creative_toolset`, which folds to
+unlisted in packs mode) plus a member manual with real schemas; called with
+`{ tool, args }` it dispatches to the member server-side through the
+single-writer queue with the MEMBER's own concurrency flag (long-polls
+bypass, writers stay FIFO). No session state, no `tools/list_changed` — works
+on hosts that never re-list (the P0 spike finding). Flat mode (default) is
+byte-identical to the previous surface. Partition (every listed tool: exactly
+one home pack, spine, or folded), pack-description 700-char ceiling, and a
+35KB packs-mode payload pin are all test-gated; the routing eval gains a
+DERIVED pack-level layer (fixtures lift entry-tool → home-pack via the
+partition; multi-vector max-pool proxy over recognizer anchors; collision
+rows hold rank-0 + margin). See `lib/mcp/tools/tool-packs.plan.md`
+(P1-R/P2-D) and `lib/mcp/packs.js`.
+
 ## [1.2.2] — 2026-08-18
 
 ### Windows dashboard boots again (re-land)
