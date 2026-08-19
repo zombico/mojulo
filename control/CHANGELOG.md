@@ -8,6 +8,55 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.2.2] — 2026-08-18
+
+### Windows dashboard boots again (re-land)
+
+The 1.2.1 rewrite of `scripts/mcp-ui.mjs` (module-dir anchor work) started
+from a copy predating e6e42e5 and dropped its two `pathToFileURL` wraps,
+regressing the published dashboard to fully unbootable on Windows: `await
+import(...)` was handed a raw `C:\...` path, which the ESM loader parses as
+URL protocol `c:` and rejects with `ERR_UNSUPPORTED_ESM_URL_SCHEME` before
+the server starts. POSIX was unaffected (a bare absolute path happens to
+parse as a URL), which is why it slipped through. Both wraps are re-landed —
+the fatal standalone-server import and the non-fatal embedder preload —
+field-verified on Windows 11 / Node 24.19.0 against the published 1.2.1
+layout: dashboard boots, the module-dir anchor resolves the formerly baked
+paths, and DB routes run on the per-platform native modules.
+
+### Install slimming: tarball 249MB → 115MB unpacked, host install −~430MB
+
+Two structural cuts to what a fresh `npx mojulo` pays, with no behavior
+change (full measurements, audits, and the verification record in
+`install-splitting.plan.md`):
+
+- **The double-shipped natives are gone from the tarball.**
+  `onnxruntime-node` (90MB) and `node-web-audio-api` (42MB) were shipped
+  inside the standalone dashboard bundle's private `node_modules` AND
+  installed again at the host root as runtime dependencies. They now join
+  `better-sqlite3` / `@img` in the standalone `files` excludes and resolve
+  via the same host walk-up — the mechanism the 1.2.1 Windows field report
+  confirmed works cross-platform with no hand-copying. Tarball: 249MB →
+  115.4MB unpacked (25.7MB download).
+- **`next` + `next-intl` move to `devDependencies` (host install −~287MB).**
+  A published install never executes host `next`: `mojulo-ui` boots the
+  prebuilt standalone `server.js`, which carries its own traced Next subset,
+  and the only `next` import outside `app/` is the app-route-only
+  `lib/auth/gate.js`. `next-intl` is forced along — it peers on `next`, and
+  npm auto-installs missing peers, which would silently pull `next` back
+  (a sweep found no other runtime dep peering on `next`). `sharp` stays
+  host-resolvable through the `@huggingface/transformers` edge, so the
+  1.2.1 `@img` platform-binary fix is unaffected. `react` / `react-dom`
+  stay: `sketch-svg` and `motion/deck` render JSX at runtime.
+
+Verified against a real `npm pack` + clean tarball install: natives load
+(not just resolve) from the standalone context via walk-up, the stdio MCP
+server answers `initialize` + `tools/list` (168 tools), and the standalone
+dashboard serves `/` and DB-backed API routes. The remaining 130MB of
+`onnxruntime-web` (transitive, dead weight on a Node host) is documented as
+not-fixable-from-here in the plan file: npm honors `overrides` only in the
+root package.json, which a published package never is.
+
 ## [1.2.1] — 2026-08-18
 
 ### Published dashboard works off the build machine (Windows field report)
