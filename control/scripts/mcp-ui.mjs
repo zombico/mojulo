@@ -19,7 +19,7 @@
 
 import net from 'node:net';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
@@ -143,7 +143,9 @@ const url = `http://127.0.0.1:${port}`;
 // genesis flow, and the embedder load (~113MB cold) is the longest single
 // step. Kick it off in background so the download overlaps with the user
 // scanning the dashboard. Failures surface at first use; don't crash the UI.
-import(path.join(CONTROL_DIR, 'lib', 'embedder', 'local.js'))
+// pathToFileURL, not the bare path: on Windows a raw `C:\...` specifier is
+// parsed as URL protocol `c:` and the ESM loader rejects it outright.
+import(pathToFileURL(path.join(CONTROL_DIR, 'lib', 'embedder', 'local.js')).href)
   .then(({ preloadModel }) => preloadModel?.())
   .catch((err) => {
     process.stderr.write(`[mojulo-ui] embedder preload failed: ${err.message || err}\n`);
@@ -162,4 +164,4 @@ if (args.open) {
 
 // Standalone server.js is CJS and does `process.chdir(__dirname)` at
 // evaluation time. All env vars must be set above this line.
-await import(STANDALONE_SERVER);
+await import(pathToFileURL(STANDALONE_SERVER).href);
