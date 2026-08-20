@@ -22,7 +22,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { exportsBaseDir } from './exports-dir.js';
-import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';

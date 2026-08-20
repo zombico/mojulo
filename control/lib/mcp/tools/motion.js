@@ -40,7 +40,7 @@ import { getMotionVocabCatalog } from '@/lib/graph/motion-vocab/loader';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { StashRepository } from '@/lib/db/repositories/stashes';
 import { OpsTagRepository } from '@/lib/db/repositories/ops-tags';
-import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import {
   renderMotion,
   renderDeckMotion,

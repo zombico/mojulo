@@ -35,7 +35,7 @@ import { StashRepository } from '@/lib/db/repositories/stashes';
 
 import { renderMarkdown } from '../markdown.js';
 import { renderTemplate } from '../render-template.js';
-import { outcomesBaseDir } from '../paths.js';
+import { outcomesBaseDir } from '@/lib/outcomes-paths';
 import { resolveImageItem } from '../resolvers/image.js';
 
 export const PHOTOJOURNAL_VERSION = 'pj-1';

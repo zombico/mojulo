@@ -15,7 +15,7 @@
  * text and removing only the outer <svg> wrapper.
  */
 
-import { renderSketchToSvg } from '../graph/sketch/sketch-svg.js';
+import { renderSketchToSvg } from '@/lib/sketch-svg';
 import { composeFlipbook } from './flipbook.js';
 import { stillFrameSvg } from './frame-render.js';
 import { expandSlide, hasReveals } from './reveal.js';

@@ -14,7 +14,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { renderCarvedSolidToSvg, renderCarvedSolidFrames, carvedSolidIsAnimated } from '@/lib/graph/effects/carved-solid';
 import { encodeGif } from '@/lib/motion';
-import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 
 export async function createCarvedSolidHandler(input) {
   if (!input || typeof input !== 'object') {

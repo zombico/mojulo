@@ -9,10 +9,31 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { renderSketchToSvg } from '@/lib/graph/sketch/sketch-svg';
-import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
-import { isImageOutcomesKind, KIND_CHARACTER_SHEET } from '@/lib/graph/image-outcomes/manifest';
-import { compositeFinalForSketch } from '@/lib/graph/image-outcomes/final-page';
+
+// The render engine (sketch/image → SVG/PNG) is the creative pack's job. This
+// resolver is the one true office→render bridge (install-capabilities.plan.md
+// P3b), so it loads the renderers LAZILY — lib/outcomes (office) carries no
+// static dependency on lib/graph, and an ops-only install degrades with an
+// advisory instead of failing to load.
+async function loadRenderers() {
+  try {
+    const [svg, stored, manifest, finalPage] = await Promise.all([
+      import('@/lib/sketch-svg'),
+      import('@/lib/graph/sketch/stored-sketch-svg'),
+      import('@/lib/graph/image-outcomes/manifest'),
+      import('@/lib/graph/image-outcomes/final-page'),
+    ]);
+    return {
+      renderSketchToSvg: svg.renderSketchToSvg,
+      renderStoredSketchSvg: stored.renderStoredSketchSvg,
+      isImageOutcomesKind: manifest.isImageOutcomesKind,
+      KIND_CHARACTER_SHEET: manifest.KIND_CHARACTER_SHEET,
+      compositeFinalForSketch: finalPage.compositeFinalForSketch,
+    };
+  } catch {
+    throw new Error('Embedding a rendered sketch/image in a cooked report needs the creative pack (render engine), which is not installed on this host.');
+  }
+}
 
 /**
  * Strip the `<?xml ?>` declaration so the SVG can be inlined into HTML.
@@ -48,6 +69,7 @@ export async function resolveSketchItem(item, { technical = false, surface = 'da
   if (!sketch || !sketch.manifest) {
     return { svgInline: null, svgStandalone: null, png: null, dangling: true };
   }
+  const { renderSketchToSvg, renderStoredSketchSvg, isImageOutcomesKind, KIND_CHARACTER_SHEET, compositeFinalForSketch } = await loadRenderers();
   // Image-outcomes kinds (AI-painted comic pages / directed shots) are not
   // CreationMap diagrams: their SVG form is the director scaffold, and —
   // once the render worker has bound every target — a composited FINAL page

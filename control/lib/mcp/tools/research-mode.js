@@ -46,7 +46,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { evaluateAbstract } from '@/lib/research/evaluate';
 import { mintSketch } from '@/lib/mcp/tools/sketches';
 import { recomputeViewStats, REVIEWABLE_VIEW_KINDS } from '@/lib/mcp/tools/measure-view';
-import { researchToSketchManifest } from '@/lib/graph/sketch/sketch-derive';
+import { researchToSketchManifest } from '@/lib/sketch-derive';
 
 function sketchUrl(ref) {
   return `/sketches/${encodeURIComponent(ref)}`;

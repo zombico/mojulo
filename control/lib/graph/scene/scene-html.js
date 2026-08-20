@@ -14,7 +14,7 @@
 
 import { renderRoomManifestToHtml, renderPaintedLandscapeToHtml, resolveSceneLighting } from '@/lib/graph/scene/scene-css3d';
 import { resolveWorldAudio, emitSceneSoundtrackScript } from '@/lib/graph/beats/beats-world';
-import { resolveSignage } from '@/lib/graph/scene/signage-chrome';
+import { resolveSignage } from '@/lib/signage-chrome';
 import { renderFractalCityToHtml } from '@/lib/graph/city/fractal-city';
 import { renderTransportationHubToHtml } from '@/lib/graph/architecture/transportation-hub';
 import { renderSolidTurntableToHtml } from '@/lib/graph/worlds/solid-turntable';

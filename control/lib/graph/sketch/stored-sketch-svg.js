@@ -6,7 +6,7 @@
  * same SVG the /svg endpoint serves.
  */
 
-import { renderSketchToSvg } from '@/lib/graph/sketch/sketch-svg';
+import { renderSketchToSvg } from '@/lib/sketch-svg';
 import { renderManjiTreeToSvg } from '@/lib/graph/polygonizer/manji-svg';
 import { renderPaintedLandscapeToSvg } from '@/lib/graph/polygonizer/painted-landscape';
 import { renderCarvedSolidToSvg } from '@/lib/graph/effects/carved-solid';

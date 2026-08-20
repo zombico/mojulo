@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveSignageChrome, inferMood, resolveSignage } from './signage-chrome.js';
+import { deriveSignageChrome, inferMood, resolveSignage } from '@/lib/signage-chrome';
 
 describe('inferMood', () => {
   it('honors an explicit mood', () => {

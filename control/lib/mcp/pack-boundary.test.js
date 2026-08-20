@@ -22,15 +22,25 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, posix } from 'node:path';
+import { PACKS } from '@/lib/mcp/packs';
 
 const CONTROL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 // Engine buckets (dir prefixes, repo-relative, trailing slash so `fleet/` ≠ `fleet-scene/`).
-const CREATIVE_ENGINE = ['lib/graph/', 'lib/motion/', 'lib/outcomes/', 'lib/visual-language/', 'lib/preview/'];
+// lib/visual-language is a single zero-import pure-config module (presentation-theme
+// CSS-var presets) shared by both wings (cook, figure, motion) — kernel-grade
+// vocabulary, not the render engine. Per the model/render principle it is NOT bucketed
+// as creative (install-capabilities.plan.md P3b).
+const CREATIVE_ENGINE = ['lib/graph/', 'lib/motion/', 'lib/preview/'];
+// lib/outcomes is the cook/gather/publish WRITER layer (pack_stash = office). Its
+// report-kind writers are render-free; its one render bridge (resolvers/sketch.js)
+// loads the creative renderers lazily, so it carries no static creative import.
+// Its pure path helper was relocated to the kernel (lib/outcomes-paths.js). See
+// install-capabilities.plan.md P3b.
 const OPS_ENGINE = [
   'lib/deployers/', 'lib/builder/', 'lib/composer/', 'lib/fleet/', 'lib/fleet-scene/',
   'lib/connected-services/', 'lib/triggers/', 'lib/apps/', 'lib/app-mcp-scaffold/',
-  'lib/runtime-adapters/', 'lib/form-schema-config/',
+  'lib/runtime-adapters/', 'lib/form-schema-config/', 'lib/outcomes/',
 ];
 
 const EXCLUDE = /(\.test\.|\.spike|\.gen\.|\.integration\.)/;
@@ -99,5 +109,62 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
 
   it('B: no single file imports both engines (the operator-world guard)', () => {
     expect(straddlers, `files importing BOTH engines:\n${straddlers.join('\n')}`).toEqual([]);
+  });
+
+  // C: the office deliberation surfaces (pack_plan / pack_research) must not
+  // statically import the creative engine, so an ops-only install can load them
+  // (install-capabilities.plan.md P3). The pure plan/research→sketch mapper now
+  // lives in the kernel (lib/sketch-derive). research-sweep is deliberately NOT
+  // here yet — run_experiment_sweep genuinely samples a creative physics view and
+  // needs the lazy+advisory bridge (P3b).
+  const DELIBERATION_SURFACES = [
+    'lib/mcp/tools/plan-mode.js',
+    'lib/mcp/tools/research-mode.js',
+    'lib/mcp/tools/research-sweep.js', // run_experiment_sweep loads its mechanics-view lazily (P3b)
+  ];
+  it('C: office deliberation surfaces stay off the creative engine', () => {
+    const offenders = [];
+    for (const rel of DELIBERATION_SURFACES) {
+      const code = readFileSync(join(CONTROL_ROOT, rel), 'utf8');
+      for (const spec of specifiers(code)) {
+        const t = resolveSpec(spec, rel);
+        if (t && bucketOf(t) === 'creative') offenders.push(`${rel}  →  ${t}`);
+      }
+    }
+    expect(offenders, `deliberation→creative imports:\n${offenders.join('\n')}`).toEqual([]);
+  });
+
+  // D: the general form of C — ops must be clean of the ENTIRE creative concern
+  // (both sim AND render). Every tool file that registers an office-pack tool must
+  // carry no static import of the creative engine; any creative touch an office
+  // capability needs (a rendered preview, a physics sample) rides a lazy `import()`
+  // + advisory, which the static-import scan (correctly) does not see. Wing is
+  // resolved from packs.js membership, so this generalizes beyond the C hardcode.
+  const WING_BY_TOOL = new Map();
+  for (const pack of PACKS) for (const name of pack.members) WING_BY_TOOL.set(name, pack.wing);
+  const TOOL_NAME_RE = /name:\s*['"]([a-z_]+)['"]/g;
+  it('D: no office tool file statically imports the creative engine (sim or render)', () => {
+    const toolsDir = join(CONTROL_ROOT, 'lib/mcp/tools');
+    const files = walk(toolsDir).map((abs) => posix.normalize(abs.slice(CONTROL_ROOT.length + 1)));
+    const offenders = [];
+    for (const rel of files) {
+      const code = readFileSync(join(CONTROL_ROOT, rel), 'utf8');
+      // wings this file serves, from the tool names it registers
+      const wings = new Set();
+      let m;
+      TOOL_NAME_RE.lastIndex = 0;
+      while ((m = TOOL_NAME_RE.exec(code))) {
+        const w = WING_BY_TOOL.get(m[1]);
+        if (w) wings.add(w);
+      }
+      if (!wings.has('office')) continue; // not an office file (or unclassifiable) — skip
+      for (const spec of specifiers(code)) {
+        const t = resolveSpec(spec, rel);
+        if (t && bucketOf(t) === 'creative') {
+          offenders.push(`${rel} (office${wings.has('studio') ? '+studio' : ''})  →  ${t}`);
+        }
+      }
+    }
+    expect(offenders, `office tool files importing creative:\n${offenders.join('\n')}`).toEqual([]);
   });
 });

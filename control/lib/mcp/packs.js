@@ -451,3 +451,53 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
   if (flag === 'on') return true;
   return !clientDefers;
 }
+
+// ── install axis (install-capabilities.plan.md P2) ────────────────────────────
+// packsModeEnabled above is the PRESENTATION axis — which schemas load into
+// context within a full install. THIS is the INSTALL axis — which capability
+// packs exist on the host at all. Two coarse install packs map onto the two
+// wings; everything not in a pack (SPINE / FOLDED / unpacked) is kernel and
+// always present. Read from MOJULO_PACKS (comma list of install-pack names).
+// Unset OR unrecognized ⇒ full install (both wings): the default is byte-
+// identical to today, and a typo never yields an empty workshop — an operator
+// narrows the install only by naming packs explicitly.
+const WING_BY_INSTALL_PACK = { ops: 'office', creative: 'studio' };
+const INSTALL_PACK_BY_WING = { office: 'ops', studio: 'creative' };
+const ALL_WINGS = ['office', 'studio'];
+
+export function installedWings(env = process.env) {
+  const raw = (env.MOJULO_PACKS || '').trim();
+  if (!raw) return new Set(ALL_WINGS);
+  const wings = new Set();
+  for (const tok of raw.split(',')) {
+    const wing = WING_BY_INSTALL_PACK[tok.trim().toLowerCase()];
+    if (wing) wings.add(wing);
+  }
+  return wings.size ? wings : new Set(ALL_WINGS);
+}
+
+export function isPackInstalled(pack, env = process.env) {
+  return installedWings(env).has(pack.wing);
+}
+
+export function installedPacks(env = process.env) {
+  return PACKS.filter((pack) => isPackInstalled(pack, env));
+}
+
+/** True unless `name` is a pack member whose wing isn't installed. SPINE / FOLDED
+ * / unpacked tools are kernel — always installed. Gates both listing and
+ * invocation, so an uninstalled pack's tools neither list nor run. Default full
+ * install ⇒ always true (no behavior change). */
+export function isToolInstalled(name, env = process.env) {
+  const pack = homePackForTool(name);
+  return pack ? isPackInstalled(pack, env) : true;
+}
+
+/** Advisory message for a tool whose pack isn't installed, or null if it is.
+ * Never a refusal of capability — a pointer to the install that enables it. */
+export function installNotice(name, env = process.env) {
+  const pack = homePackForTool(name);
+  if (!pack || isPackInstalled(pack, env)) return null;
+  const installPack = INSTALL_PACK_BY_WING[pack.wing] || pack.wing;
+  return `'${name}' belongs to the ${installPack} capability pack, which is not installed on this host (set MOJULO_PACKS to include '${installPack}').`;
+}

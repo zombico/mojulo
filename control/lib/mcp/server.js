@@ -22,7 +22,7 @@ import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, packsModeEnabled, packToolEntry } from '@/lib/mcp/packs';
+import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice } from '@/lib/mcp/packs';
 
 export const PROTOCOL_VERSION = '2024-11-05';
 export const SERVER_NAME = 'mojulo-control-plane';
@@ -115,13 +115,17 @@ export function listTools({ clientInfo } = {}) {
         description: t.description || '',
         inputSchema: t.inputSchema || { type: 'object', properties: {} },
       }));
-    return [...spine, ...PACKS.map((pack) => packToolEntry(pack))];
+    // installedPacks (install-capabilities.plan.md P2): an uninstalled wing's
+    // packs drop from the connect surface. Default full install ⇒ all PACKS.
+    return [...spine, ...installedPacks(process.env).map((pack) => packToolEntry(pack))];
   }
   // `listed: false` tools (deprecated aliases) resolve in tools/call and
   // invokeRegisteredTool but are omitted from tools/list — retired names keep
   // executing for compiled plans / skills without costing context.
+  // isToolInstalled additionally drops an uninstalled pack's members (no-op at
+  // full install).
   return Array.from(registeredTools.values())
-    .filter((t) => t.listed !== false)
+    .filter((t) => t.listed !== false && isToolInstalled(t.name))
     .map((t) => ({
       name: t.name,
       description: t.description || '',
@@ -199,6 +203,8 @@ export function runToolSerialized(tool, fn) {
 export async function invokeRegisteredTool(name, input, context) {
   const tool = registeredTools.get(name);
   if (!tool) throw new Error(`Unknown tool: ${name}`);
+  const notice = installNotice(name);
+  if (notice) throw new Error(notice);
   return await instrumentedInvoke(tool, input || {}, context || {}, {
     via: 'plan-executor',
     name,
@@ -303,6 +309,14 @@ async function handleToolCall(message, context) {
       ErrorCodes.METHOD_NOT_FOUND,
       `Unknown tool: ${toolName}`
     );
+  }
+
+  // Install gate (install-capabilities.plan.md P2): a registered tool whose
+  // capability pack isn't installed on this host is treated as absent. No-op at
+  // full install.
+  const notice = installNotice(toolName);
+  if (notice) {
+    return jsonRpcError(message.id, ErrorCodes.METHOD_NOT_FOUND, notice);
   }
 
   try {

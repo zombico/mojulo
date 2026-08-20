@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { writeOutcome, TEMPLATE_VERSION, _internals } from './essay.js';
-import { outcomeDirFor, outcomeUrlFor } from '../paths.js';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 
 const { validateVisual, headline, FILENAME_SAFE } = _internals;
 
