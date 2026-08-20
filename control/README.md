@@ -50,6 +50,7 @@ spot checks, cron jobs, and CI:
 
 ```bash
 npx mojulo tools                      # the connect surface: spine + packs
+npx mojulo tools pack_audio           # one pack's members
 npx mojulo packs                      # pack ids with their recognizers
 npx mojulo help create_beats          # full description + input schema
 npx mojulo call version               # invoke any tool
