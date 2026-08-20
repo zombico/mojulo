@@ -17,7 +17,8 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { rememberClientInfo } from '@/lib/mcp/client-bindings';
+import { rememberClientInfo, getClientInfo } from '@/lib/mcp/client-bindings';
+import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
@@ -87,14 +88,26 @@ export function registerTool(tool) {
   registeredTools.set(tool.name, tool);
 }
 
-export function listTools() {
-  // Packs mode (MOJULO_TOOL_PACKS=on, tool-packs.plan.md P1-R): the connect
-  // surface is the SPINE (full schemas) plus one dispatcher tool per pack.
-  // Everything else stays registered and callable — through its pack's
-  // dispatch, or directly for callers that already know the name — it just
-  // stops riding tools/list. Flat mode below is byte-identical to the
-  // pre-packs surface (pack tools register listed:false).
-  if (packsModeEnabled()) {
+/** True when the connecting host already defers MCP tool schemas client-side
+ * (names-only registry + on-demand load). Such hosts don't benefit from packs
+ * and lose per-tool permission grain under dispatch, so the packs DEFAULT flips
+ * off for them (an explicit MOJULO_TOOL_PACKS=on/off still overrides). Claude
+ * Code and the claude family are the known deferrers; detection reuses the host
+ * adapter resolver (clientInfo.name → adapter id) so there's one source of truth
+ * for "who is this client". Unknown/other hosts → opinionated packs. */
+export function clientDefersSchemas(clientInfo) {
+  if (!clientInfo?.name) return false;
+  return resolveAdapterId({ clientName: clientInfo.name }) === 'claude-code';
+}
+
+export function listTools({ clientInfo } = {}) {
+  // Packs mode (tool-packs.plan.md P1-R): the connect surface is the SPINE
+  // (full schemas) plus one dispatcher tool per pack. Everything else stays
+  // registered and callable — through its pack's dispatch, or directly for
+  // callers that already know the name — it just stops riding tools/list. Flat
+  // mode below is byte-identical to the pre-packs surface (pack tools register
+  // listed:false). Default resolves per-host: packs unless the host defers.
+  if (packsModeEnabled(process.env, { clientDefers: clientDefersSchemas(clientInfo) })) {
     const spine = SPINE.map((name) => registeredTools.get(name))
       .filter(Boolean)
       .map((t) => ({
@@ -236,7 +249,9 @@ export async function dispatchMcpRequest(message, context) {
                 tools: { listChanged: false },
               },
               serverInfo: { name: SERVER_NAME, version: getServerVersion() },
-              instructions: packsModeEnabled()
+              instructions: packsModeEnabled(process.env, {
+                clientDefers: clientDefersSchemas(clientInfo),
+              })
                 ? SERVER_INSTRUCTIONS + PACKS_INSTRUCTIONS_ADDENDUM
                 : SERVER_INSTRUCTIONS,
             });
@@ -250,7 +265,9 @@ export async function dispatchMcpRequest(message, context) {
         return isNotification ? null : jsonRpcResult(message.id, {});
 
       case 'tools/list':
-        return jsonRpcResult(message.id, { tools: listTools() });
+        return jsonRpcResult(message.id, {
+          tools: listTools({ clientInfo: getClientInfo(context?.mcpSessionId) }),
+        });
 
       case 'tools/call':
         return await handleToolCall(message, context);

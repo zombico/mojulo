@@ -187,7 +187,17 @@ const PAYLOAD_CEILING = 255_000;
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
   await ensureToolsRegistered();
-  return listTools();
+  // This file pins the FLAT connect surface (the 255KB payload + per-tool
+  // description ratchet). Packs mode (now the default) would shrink tools/list
+  // to spine + packs and let the ratchet go dark, so force flat here.
+  const prevPacks = process.env.MOJULO_TOOL_PACKS;
+  process.env.MOJULO_TOOL_PACKS = 'off';
+  try {
+    return listTools();
+  } finally {
+    if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prevPacks;
+  }
 }
 
 describe('tools/list description budget — the ratchet', () => {

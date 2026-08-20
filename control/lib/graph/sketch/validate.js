@@ -18,7 +18,7 @@
  * is populated; otherwise every tool reference will report as missing.
  */
 
-import { listTools } from '@/lib/mcp/server';
+import { listRegisteredToolNames } from '@/lib/mcp/server';
 import {
   META_NODE_KINDS,
   META_EDGE_KINDS,
@@ -29,7 +29,9 @@ export function validateCreationMap(manifest) {
   const problems = [];
   const validates = manifest?.validates || {};
 
-  const registeredToolNames = new Set(listTools().map((t) => t.name));
+  // Registration check — a manifest may reference any registered tool, whether
+  // or not it rides the connect surface (packs mode lists only spine + packs).
+  const registeredToolNames = new Set(listRegisteredToolNames());
   for (const toolName of validates.tools || []) {
     if (!registeredToolNames.has(toolName)) {
       problems.push({

@@ -400,9 +400,15 @@ describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
     for (const form of CREATIVE_FORMS) {
       corpus += (await creativeToolsetHandler({ form })).content[0].text;
     }
-    const missing = listTools()
-      .map((t) => t.name)
-      .filter((name) => !corpus.includes(`\`${name}\``));
+    // The sweep is about the flat CONNECT surface — every listed tool must be
+    // discoverable in the orientation corpus. Force flat so packs mode (now the
+    // default) doesn't shrink the surface to spine + pack dispatchers.
+    const prevPacks = process.env.MOJULO_TOOL_PACKS;
+    process.env.MOJULO_TOOL_PACKS = 'off';
+    const listed = listTools().map((t) => t.name);
+    if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prevPacks;
+    const missing = listed.filter((name) => !corpus.includes(`\`${name}\``));
     expect(missing).toEqual([]);
   });
 });
@@ -677,9 +683,11 @@ describe('studio containment (orientation-containment C1) — office pays no cre
       expect(studio, `studio body does not name form "${form}"`).toContain(form);
     }
     const entryTools = [...STUDIO_ENTRY_TOOLS, 'create_game', 'mint_stash', 'cook'];
-    const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
+    const { ensureToolsRegistered, listRegisteredToolNames } = await import('@/lib/mcp/server');
     await ensureToolsRegistered();
-    const registered = new Set(listTools().map((t) => t.name));
+    // Registration, not the connect surface: entry tools are packed members
+    // under packs mode (now the default) yet still registered and callable.
+    const registered = new Set(listRegisteredToolNames());
     for (const tool of entryTools) {
       expect(studio, `studio body does not name entry tool \`${tool}\``).toContain(tool);
       expect(registered.has(tool), `studio body names unregistered tool \`${tool}\``).toBe(true);
