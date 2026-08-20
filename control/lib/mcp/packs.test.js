@@ -20,6 +20,7 @@ import {
   FOLDED,
   PACK_DESCRIPTION_CEILING,
   PACK_INPUT_SCHEMA,
+  packsModeEnabled,
   homePackForTool,
   dispatchTargets,
 } from '@/lib/mcp/packs';
@@ -46,6 +47,19 @@ function withPacksMode(fn) {
     return fn();
   } finally {
     delete process.env.MOJULO_TOOL_PACKS;
+  }
+}
+
+// Packs are the default now (packsModeEnabled: on unless MOJULO_TOOL_PACKS=off),
+// so assertions about the FLAT connect surface must force it explicitly.
+function withFlatMode(fn) {
+  const prev = process.env.MOJULO_TOOL_PACKS;
+  process.env.MOJULO_TOOL_PACKS = 'off';
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prev;
   }
 }
 
@@ -96,7 +110,7 @@ describe('pack registry shape', () => {
 
 describe('partition sweep against the live registry', () => {
   it('every listed tool is in exactly one pack, the spine, or FOLDED', () => {
-    const listed = listTools().map((t) => t.name);
+    const listed = withFlatMode(() => listTools()).map((t) => t.name);
     const spine = new Set(SPINE);
     const folded = new Set(FOLDED);
 
@@ -138,7 +152,7 @@ describe('partition sweep against the live registry', () => {
   });
 
   it('spine and pack members reference LISTED tools (aliases stay out of packs)', () => {
-    const listed = new Set(listTools().map((t) => t.name));
+    const listed = new Set(withFlatMode(() => listTools()).map((t) => t.name));
     const unlisted = [];
     for (const pack of PACKS) {
       for (const name of pack.members) {
@@ -177,9 +191,23 @@ describe('listTools packs mode (MOJULO_TOOL_PACKS=on)', () => {
   });
 
   it('flat mode lists no pack tools (byte-identity with the pre-packs surface)', () => {
-    const names = listTools().map((t) => t.name);
+    const names = withFlatMode(() => listTools()).map((t) => t.name);
     expect(names.filter((n) => n.startsWith('pack_'))).toEqual([]);
     for (const name of FOLDED) expect(names).toContain(name);
+  });
+
+  it('packs are the DEFAULT — no env var yields the spine + packs surface', () => {
+    const prev = process.env.MOJULO_TOOL_PACKS;
+    delete process.env.MOJULO_TOOL_PACKS;
+    try {
+      const tools = listTools();
+      expect(tools.length).toBe(SPINE.length + PACKS.length);
+      expect(tools.some((t) => t.name.startsWith('pack_'))).toBe(true);
+      // a folded member is off the default connect surface
+      expect(tools.some((t) => t.name === 'create_beats')).toBe(false);
+    } finally {
+      if (prev !== undefined) process.env.MOJULO_TOOL_PACKS = prev;
+    }
   });
 
   it('initialize teaches the dispatch grammar only in packs mode', async () => {
@@ -188,11 +216,75 @@ describe('listTools packs mode (MOJULO_TOOL_PACKS=on)', () => {
         { jsonrpc: '2.0', id: 9, method: 'initialize', params: {} },
         { mcpSessionId: 'packs-test' }
       );
-    const flat = await init();
+    const flat = await withFlatMode(() => init());
     expect(flat.result.instructions).not.toContain('Tool packs are ON');
     const packs = await withPacksMode(() => init());
     expect(packs.result.instructions).toContain('Tool packs are ON');
     expect(packs.result.instructions).toContain(server.SERVER_INSTRUCTIONS);
+  });
+});
+
+describe('host-aware default (packs opinionated; flat for deferring hosts)', () => {
+  it('packsModeEnabled tri-state: explicit off/on override the host', () => {
+    // off wins over any client
+    expect(packsModeEnabled({ MOJULO_TOOL_PACKS: 'off' }, { clientDefers: false })).toBe(false);
+    expect(packsModeEnabled({ MOJULO_TOOL_PACKS: 'off' }, { clientDefers: true })).toBe(false);
+    // on wins over any client
+    expect(packsModeEnabled({ MOJULO_TOOL_PACKS: 'on' }, { clientDefers: true })).toBe(true);
+    expect(packsModeEnabled({ MOJULO_TOOL_PACKS: 'on' }, { clientDefers: false })).toBe(true);
+  });
+
+  it('packsModeEnabled default: packs unless the host defers', () => {
+    expect(packsModeEnabled({}, { clientDefers: false })).toBe(true);
+    expect(packsModeEnabled({}, { clientDefers: true })).toBe(false);
+    expect(packsModeEnabled({})).toBe(true); // no hint → opinionated packs
+  });
+
+  it('clientDefersSchemas: claude family defers; codex/unknown do not', () => {
+    expect(server.clientDefersSchemas({ name: 'claude-code' })).toBe(true);
+    expect(server.clientDefersSchemas({ name: 'claude-ai' })).toBe(true);
+    expect(server.clientDefersSchemas({ name: 'Claude Code 2.1.143' })).toBe(true);
+    expect(server.clientDefersSchemas({ name: 'codex' })).toBe(false);
+    expect(server.clientDefersSchemas({ name: 'some-random-host' })).toBe(false);
+    expect(server.clientDefersSchemas(null)).toBe(false);
+    expect(server.clientDefersSchemas({})).toBe(false);
+  });
+
+  async function connectAndList(clientName, sessionId) {
+    await server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { clientInfo: { name: clientName } } },
+      { mcpSessionId: sessionId },
+    );
+    const reply = await server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
+      { mcpSessionId: sessionId },
+    );
+    return reply.result.tools.map((t) => t.name);
+  }
+
+  it('Claude Code connect → flat surface over the wire (no pack tools)', async () => {
+    const names = await connectAndList('claude-code', 'host-cc');
+    expect(names.some((n) => n.startsWith('pack_'))).toBe(false);
+    expect(names).toContain('create_beats'); // folded member is listed flat
+  });
+
+  it('a non-deferring host (codex) → packs surface over the wire', async () => {
+    const names = await connectAndList('codex', 'host-codex');
+    expect(names.some((n) => n.startsWith('pack_'))).toBe(true);
+    expect(names).not.toContain('create_beats');
+  });
+
+  it('initialize addendum matches the resolved mode per host', async () => {
+    const cc = await server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 3, method: 'initialize', params: { clientInfo: { name: 'claude-code' } } },
+      { mcpSessionId: 'host-cc-init' },
+    );
+    expect(cc.result.instructions).not.toContain('Tool packs are ON');
+    const cx = await server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 4, method: 'initialize', params: { clientInfo: { name: 'codex' } } },
+      { mcpSessionId: 'host-codex-init' },
+    );
+    expect(cx.result.instructions).toContain('Tool packs are ON');
   });
 });
 

@@ -105,7 +105,13 @@ afterEach(async () => {
 
 describe('runner MCP — registered with the dispatcher', () => {
   it('tools/list includes the runner surface', async () => {
+    // Asserts the flat connect surface (packs mode, now the default, folds these
+    // into pack_runtime). listTools reads the env per call, so force flat here.
+    const prevPacks = process.env.MOJULO_TOOL_PACKS;
+    process.env.MOJULO_TOOL_PACKS = 'off';
     const reply = await rpc('tools/list', {});
+    if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prevPacks;
     const names = reply.result.tools.map((t) => t.name);
     expect(names).toContain('install_scaffold');
     expect(names).toContain('list_runners');

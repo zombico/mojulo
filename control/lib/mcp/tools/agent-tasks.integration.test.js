@@ -63,7 +63,13 @@ beforeEach(async () => {
 
 describe('Ring 7 inference tools — registered with the dispatcher', () => {
   it('tools/list includes the three inference tools after the runner tools', async () => {
+    // Flat connect surface — packs mode (now the default) folds these into
+    // pack_runtime; this test pins their presence and reading order in flat.
+    const prevPacks = process.env.MOJULO_TOOL_PACKS;
+    process.env.MOJULO_TOOL_PACKS = 'off';
     const reply = await rpc('tools/list', {});
+    if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prevPacks;
     const names = reply.result.tools.map((t) => t.name);
     expect(names).toContain('pull_agent_task');
     expect(names).toContain('submit_envelope_inference');
@@ -77,10 +83,16 @@ describe('Ring 7 inference tools — registered with the dispatcher', () => {
   });
 
   it('submit_envelope_inference schema rejects malformed envelope at protocol layer', async () => {
+    // Reads the member's inputSchema off the flat wire surface — force flat
+    // since packs mode (now the default) lists pack_runtime, not its members.
+    const prevPacks = process.env.MOJULO_TOOL_PACKS;
+    process.env.MOJULO_TOOL_PACKS = 'off';
     const reply = await rpc(
       'tools/list',
       {},
     );
+    if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prevPacks;
     const submitTool = reply.result.tools.find((t) => t.name === 'submit_envelope_inference');
     // Envelope schema is embedded — required field 'answer' must be in the
     // properties.envelope.required list.

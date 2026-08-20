@@ -63,7 +63,14 @@ describe('education module — MCP tool registration', () => {
     const { getViewVocabCatalog } = await import('@/lib/graph/views/view-vocab/loader.js');
     registerCreateViewTools();
 
+    // Force flat: this asserts BOTH that create_view is on the listed surface
+    // and that retired aliases are absent from it — packs mode (now the default)
+    // would fold create_view off tools/list. `listTools` reads the env per call.
+    const prevPacks = process.env.MOJULO_TOOL_PACKS;
+    process.env.MOJULO_TOOL_PACKS = 'off';
     const byName = new Map(listTools().map((t) => [t.name, t]));
+    if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prevPacks;
     const createView = byName.get('create_view');
     expect(createView, 'create_view not registered').toBeTruthy();
     const kindEnum = createView.inputSchema?.properties?.kind?.enum || [];

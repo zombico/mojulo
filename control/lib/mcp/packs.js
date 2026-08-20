@@ -435,7 +435,19 @@ export function dispatchTargets(pack) {
 }
 
 /** True when the connect surface should be spine + packs. Read per call so
- * tests can toggle; in a real process the env is fixed at start. */
-export function packsModeEnabled(env = process.env) {
-  return env.MOJULO_TOOL_PACKS === 'on';
+ * tests can toggle; in a real process the env is fixed at start. Tri-state:
+ *   MOJULO_TOOL_PACKS=off → flat everywhere (the operator escape hatch);
+ *   MOJULO_TOOL_PACKS=on  → packs everywhere (force — e.g. packs on a deferring host);
+ *   unset (default)       → packs UNLESS the connecting host already defers tool
+ *                           schemas client-side (`clientDefers`), in which case
+ *                           flat is better (finer per-tool permissions, no unveil
+ *                           round-trip, and the host already blunted the token tax).
+ * `clientDefers` is resolved by the caller from clientInfo (see server.js) so this
+ * stays pure data. Callers that need the whole registry regardless of connect mode
+ * use listRegisteredToolNames()/getRegisteredTool(), not listTools(). */
+export function packsModeEnabled(env = process.env, { clientDefers = false } = {}) {
+  const flag = env.MOJULO_TOOL_PACKS;
+  if (flag === 'off') return false;
+  if (flag === 'on') return true;
+  return !clientDefers;
 }

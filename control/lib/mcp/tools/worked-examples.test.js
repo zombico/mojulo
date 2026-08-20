@@ -38,9 +38,11 @@ describe('get_worked_example — the transcript drawer', () => {
     // is a real tool call is written backticked with parens — `tool_name({…})`
     // — and exactly that shape is swept here. Prose mentions without parens
     // are not checked.
-    const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
+    const { ensureToolsRegistered, listRegisteredToolNames } = await import('@/lib/mcp/server');
     await ensureToolsRegistered();
-    const registered = new Set(listTools().map((t) => t.name));
+    // Registration, not the connect surface: a trace may name any callable tool,
+    // and packs mode lists only spine + packs.
+    const registered = new Set(listRegisteredToolNames());
 
     const mentioned = new Set();
     const re = /`([a-z][a-z0-9_]+)\(/g;

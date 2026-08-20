@@ -82,9 +82,15 @@ describe('drawer-miss visibility convention — every vocab drawer is countable 
   it('every listed drawer tool has a fixture entry (or is an explicit no-id exemption)', async () => {
     const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
     await ensureToolsRegistered();
+    // The orientation cut counts LISTED drawer tools — force flat so packs mode
+    // (now the default) doesn't fold the vocab drawers off the connect surface.
+    const prevPacks = process.env.MOJULO_TOOL_PACKS;
+    process.env.MOJULO_TOOL_PACKS = 'off';
     const drawerTools = listTools()
       .map((t) => t.name)
       .filter((name) => DRAWER_TOOL_RE.test(name));
+    if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
+    else process.env.MOJULO_TOOL_PACKS = prevPacks;
     expect(drawerTools.length).toBeGreaterThan(0);
     const uncovered = drawerTools.filter(
       (name) => !(name in DRAWER_FIXTURES) && !NO_ID_DRAWERS.has(name),
