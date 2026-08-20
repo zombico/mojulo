@@ -314,3 +314,163 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
     expect(top.snippet).toContain('Entry: `');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pack-level eval (tool-packs.plan.md P4) — DERIVED, not authored.
+//
+// In packs mode the connect surface is ~20 pack descriptions and the first
+// routing hop is the model matching the ask against them in-context. The
+// embedder is the deterministic proxy for that hop: it can't simulate the
+// LLM's pick, but it catches the failure mode that matters — two recognizers
+// claiming the same ask. Fixtures lift from the rows above by pure lookup
+// (entry tool → home pack via the P2-D partition); spine entries (no pack
+// hop, e.g. get_substrate) drop out. A near-miss at this grain costs one
+// unveil, so the general gate is top-PACK_TOP_K membership; the derived
+// collision rows pin rank-0 with the B2-style margin.
+// ---------------------------------------------------------------------------
+
+const PACK_TOP_K = 2;
+const PACK_COLLISION_MARGIN = 0.01;
+
+describe.skipIf(!modelPresent)('pack routing eval (derived from the fixtures above)', () => {
+  let packs;
+  let packIds;
+  let packVectors; // id → Float32Array
+
+  // A phrasing routes CORRECTLY to any pack that can dispatch its entry tool
+  // — the home pack or a pack that `shared`-lists it ("lay out a comic page"
+  // → create_sketch is dispatchable from pack_illustration; opening it there
+  // is right, not a miss). Spine entries (no pack hop) return null.
+  const acceptSetFor = (entry, packsMod) => {
+    const home = packsMod.homePackForTool(entry);
+    if (!home) return null;
+    const ids = new Set([home.id]);
+    for (const p of packsMod.PACKS) {
+      if ((p.shared || []).includes(entry)) ids.add(p.id);
+    }
+    return ids;
+  };
+
+  // Documented judgment rows, not test-rigging: catalyst CONTENT ("is there a
+  // pixel-art recipe") can't ride pack_catalysts' generic recognizer — that
+  // routing legitimately goes through semantic_search (spine). At pack grain
+  // these intents are ALSO served by the sprite/pixelizer tools (pack_game)
+  // and the external-paint loop (pack_image_render), so those join the
+  // accept set.
+  const ACCEPT_OVERRIDES = new Map([
+    ['make a pixel-art cutscene of my hero character', ['pack_game', 'pack_image_render']],
+    ['pixelize this portrait into a 32-bit sprite', ['pack_game', 'pack_image_render']],
+  ]);
+
+  const deriveRows = (fixture, packsMod) =>
+    fixture
+      .map(([phrasing, entry]) => {
+        const accept = acceptSetFor(entry, packsMod);
+        if (!accept) return null;
+        for (const extra of ACCEPT_OVERRIDES.get(phrasing) || []) accept.add(extra);
+        return [phrasing, accept];
+      })
+      .filter(Boolean);
+
+  const dot = (a, b) => {
+    let s = 0;
+    for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+    return s; // vectors are L2-normalized — dot IS cosine
+  };
+
+  let rankPacks; // (queryVector) → [{ id, score }] sorted desc
+
+  // Multi-vector scoring: one long recognizer averages its many anchors into
+  // mush under e5-small (a query matching ONE quote gets diluted by the other
+  // topics), which is not how the real hop works — the model latches onto the
+  // matching example. So each pack embeds as its capability lead PLUS each
+  // authored 'anchor quote' separately, and scores by MAX over segments.
+  const segmentsFor = (pack) => {
+    const quoted = [...pack.description.matchAll(/'([^']{8,})'/g)].map((m) => m[1]);
+    const lead = pack.description.split(/Open for/i)[0];
+    return [`${pack.title}. ${lead}`, ...quoted];
+  };
+
+  beforeAll(async () => {
+    packs = await import('@/lib/mcp/packs');
+    const { generateEmbeddings } = await import('@/lib/embedder/local');
+    packIds = packs.PACKS.map((p) => p.id);
+    const flat = [];
+    const spans = []; // id → [start, end)
+    for (const pack of packs.PACKS) {
+      const segs = segmentsFor(pack);
+      spans.push([flat.length, flat.length + segs.length]);
+      flat.push(...segs);
+    }
+    const vectors = await generateEmbeddings(flat, { inputType: 'search_document' });
+    packVectors = new Map(packIds.map((id, i) => [id, vectors.slice(spans[i][0], spans[i][1])]));
+    rankPacks = (qv) =>
+      packIds
+        .map((id) => ({
+          id,
+          score: Math.max(...packVectors.get(id).map((v) => dot(qv, v))),
+        }))
+        .sort((a, b) => b.score - a.score);
+  }, 120_000);
+
+  it(
+    `every derived phrasing surfaces its home pack in the top-${PACK_TOP_K} of ${20} recognizers`,
+    async () => {
+      const { generateEmbeddings } = await import('@/lib/embedder/local');
+      const rows = deriveRows([...FIXTURE, ...OFFICE_FIXTURE], packs);
+      const queries = await generateEmbeddings(
+        rows.map(([phrasing]) => phrasing),
+        { inputType: 'search_query' },
+      );
+      const misses = [];
+      rows.forEach(([phrasing, acceptSet], i) => {
+        const ranked = rankPacks(queries[i]);
+        const top = ranked.slice(0, PACK_TOP_K).map((r) => r.id);
+        if (!top.some((id) => acceptSet.has(id))) {
+          misses.push(
+            `"${phrasing}" → wanted one of [${[...acceptSet].join(', ')}], got [${ranked
+              .slice(0, 3)
+              .map((r) => `${r.id}:${r.score.toFixed(3)}`)
+              .join(', ')}]`,
+          );
+        }
+      });
+      expect(misses, `pack routing misses:\n${misses.join('\n')}`).toEqual([]);
+    },
+    120_000,
+  );
+
+  it(
+    `derived collision phrasings hold rank-0 with ≥${PACK_COLLISION_MARGIN} margin`,
+    async () => {
+      const { generateEmbeddings } = await import('@/lib/embedder/local');
+      // Collision rows pin the HOME pack at strict rank-0 — no accept-set.
+      const rows = COLLISION_FIXTURE.map(([phrasing, entry]) => [
+        phrasing,
+        packs.homePackForTool(entry)?.id,
+      ]).filter(([, id]) => id);
+      const queries = await generateEmbeddings(
+        rows.map(([phrasing]) => phrasing),
+        { inputType: 'search_query' },
+      );
+      const failures = [];
+      rows.forEach(([phrasing, expectedPack], i) => {
+        const ranked = rankPacks(queries[i]);
+        const margin = ranked[0].score - ranked[1].score;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[pack-eval] "${phrasing}" → ${ranked[0].id} (margin ${margin.toFixed(4)}, want ${expectedPack})`,
+        );
+        if (ranked[0].id !== expectedPack) {
+          failures.push(`"${phrasing}" → rank-0 ${ranked[0].id}, wanted ${expectedPack}`);
+        } else if (margin < PACK_COLLISION_MARGIN) {
+          failures.push(
+            `"${phrasing}" → right pack but margin ${margin.toFixed(4)} < ${PACK_COLLISION_MARGIN} — add an anchor to the recognizer`,
+          );
+        }
+      });
+      expect(failures, `pack collision failures:\n${failures.join('\n')}`).toEqual([]);
+    },
+    120_000,
+  );
+});

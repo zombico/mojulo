@@ -54,6 +54,7 @@ npm run start               # next start -p 3001
 npm run build:bot           # docker build -t mojulo/bot:latest ../lite-template
 node scripts/cleanup-stale-artifacts.js [--dry-run]
 node scripts/reindex-embeddings.js [--verbose]
+node scripts/mcp-stdio.mjs tools|packs|help|call|pack_* …   # CLI front door over the tool registry (in-process, no dashboard needed); see scripts/mojulo-cli.plan.md
 ```
 
 There is no repo-wide lint/typecheck script. For simple JS smoke checks, use `node --check <file>`. For JSX, parse with `@babel/parser` from the `control` package. The control path alias is `@/*` -> `./*` in [control/jsconfig.json](control/jsconfig.json).

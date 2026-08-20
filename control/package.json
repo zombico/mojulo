@@ -50,6 +50,7 @@
     "bin/daemons.mjs",
     "scripts/mcp-stdio.mjs",
     "scripts/mcp-stdio-loader.mjs",
+    "scripts/mcp-cli.mjs",
     "scripts/mcp-config.mjs",
     "scripts/mcp-ui.mjs",
     "scripts/mojulo-paths.mjs",

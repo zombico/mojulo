@@ -42,6 +42,30 @@ npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 # 3. In an agent session, just ask.
 ```
 
+### CLI
+
+The same `mojulo` bin doubles as a command-line front door over the same
+engine and data — no agent, no dashboard, no API key required. Useful for
+spot checks, cron jobs, and CI:
+
+```bash
+npx mojulo tools                      # the connect surface: spine + packs
+npx mojulo packs                      # pack ids with their recognizers
+npx mojulo help create_beats          # full description + input schema
+npx mojulo call version               # invoke any tool
+npx mojulo call create_beats --json '{"intent":"calm loop"}'
+npx mojulo pack_audio                 # open a pack: orientation + member manual
+npx mojulo pack_audio create_beats --json '{"intent":"calm loop"}'
+```
+
+Arguments can be inline JSON (`--json '{…}'`, `@file.json`, or `-` for
+stdin) or per-property flags derived from the tool's schema
+(`--theme dungeon --seed 7`; flags win over `--json`). `--timeout <ms>`
+bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
+(0 success, 1 tool error, 2 usage). Results print to stdout as-is, so
+`npx mojulo call version | jq .` works; diagnostics go to stderr. Bare
+`npx mojulo` remains the stdio MCP server.
+
 ## What you can make
 
 - **"Build me a triage bot for my dental practice"** → a compiled, self-hosted chatbot artifact — its own Docker zip, its own SQLite, every turn hash-chained. Run it locally or deploy to Fly.

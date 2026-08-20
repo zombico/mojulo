@@ -8,6 +8,44 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Consolidated tool packs (opt-in, `MOJULO_TOOL_PACKS=on`)
+
+The connect-time `tools/list` surface can now ship as a 10-tool SPINE plus 20
+stateless PACK dispatchers — 28,669 bytes measured, from ~250KB flat (89%
+cut). A pack called bare returns its orientation body (studio packs serve the
+FORM_TOOLSETS prose — one source with `get_creative_toolset`, which folds to
+unlisted in packs mode) plus a member manual with real schemas; called with
+`{ tool, args }` it dispatches to the member server-side through the
+single-writer queue with the MEMBER's own concurrency flag (long-polls
+bypass, writers stay FIFO). No session state, no `tools/list_changed` — works
+on hosts that never re-list (the P0 spike finding). Flat mode (default) is
+byte-identical to the previous surface. Partition (every listed tool: exactly
+one home pack, spine, or folded), pack-description 700-char ceiling, and a
+35KB packs-mode payload pin are all test-gated; the routing eval gains a
+DERIVED pack-level layer (fixtures lift entry-tool → home-pack via the
+partition; multi-vector max-pool proxy over recognizer anchors; collision
+rows hold rank-0 + margin). See `lib/mcp/packs.js`.
+
+### CLI subcommands on the `mojulo` bin
+
+The `mojulo` bin now doubles as a command-line front door over the same
+registry: `npx mojulo tools|packs|help|call|pack_* …` (bare `npx mojulo`
+stays the stdio MCP server, byte-identical; the subcommand names and the
+`pack_` prefix become reserved words on the bin). Invocation is in-process —
+no HTTP, no bearer token, no running dashboard — dispatching through the
+same `tools/call` path with `mcpSessionId: 'cli'`, so serialization,
+telemetry, masking, and deprecated-alias resolution match the MCP surface.
+Listings and help are generated from the registry and pack partition (the
+CLI authors no prose). Arguments ride `--json` (inline / `@file` / stdin) or
+schema-derived per-property flags (flags win); `--timeout` (exit 124),
+`--quiet`, TTY-aware column output, exit codes 0/1/2. `mojulo <pack_id>`
+unveils a pack; `mojulo <pack_id> <tool>` dispatches through the pack
+dispatcher with server-side membership validation. Serves shell-driven
+agents, no-AI automation (cron/CI), and human spot checks. See
+`scripts/mcp-cli.mjs`.
+
 ## [1.2.2] — 2026-08-18
 
 ### Windows dashboard boots again (re-land)

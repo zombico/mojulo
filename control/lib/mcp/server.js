@@ -19,6 +19,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { rememberClientInfo } from '@/lib/mcp/client-bindings';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
+// Pure data, imports nothing — safe to import statically (tool modules must
+// stay dynamic; see ensureToolsRegistered).
+import { PACKS, SPINE, packsModeEnabled, packToolEntry } from '@/lib/mcp/packs';
 
 export const PROTOCOL_VERSION = '2024-11-05';
 export const SERVER_NAME = 'mojulo-control-plane';
@@ -65,6 +68,13 @@ Five things the agent can create:
 
 Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing — the office wing by default; \`forward_context({mode:'studio'})\` opens the creative wing's FORM routing when the ask is to MAKE something visual, audible, or playable. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural/non-bot surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (how mojulo compares to cloud).`;
 
+// Appended to SERVER_INSTRUCTIONS in packs mode only. The five-paradigm
+// preamble stays as-is (its entry-tool names remain accurate — they dispatch
+// through their pack); this teaches the one new mechanic.
+export const PACKS_INSTRUCTIONS_ADDENDUM = `
+
+**Tool packs are ON for this session.** tools/list carries a small spine plus one tool per PACK (\`pack_*\`) — a result-shaped bundle whose description says what it makes. Match the ask to a pack and call it with NO arguments to open it: you get its orientation plus a member manual (names, descriptions, input schemas). Then run members THROUGH the pack: \`pack_audio({ tool: 'create_beats', args: { … } })\`. Any tool named anywhere (the entries above, forward_context rows, drawers, catalysts) is called the same way via its home pack; spine tools are called directly. Packs are additive — open what the session needs, no more.`;
+
 const registeredTools = new Map();
 
 export function registerTool(tool) {
@@ -78,6 +88,22 @@ export function registerTool(tool) {
 }
 
 export function listTools() {
+  // Packs mode (MOJULO_TOOL_PACKS=on, tool-packs.plan.md P1-R): the connect
+  // surface is the SPINE (full schemas) plus one dispatcher tool per pack.
+  // Everything else stays registered and callable — through its pack's
+  // dispatch, or directly for callers that already know the name — it just
+  // stops riding tools/list. Flat mode below is byte-identical to the
+  // pre-packs surface (pack tools register listed:false).
+  if (packsModeEnabled()) {
+    const spine = SPINE.map((name) => registeredTools.get(name))
+      .filter(Boolean)
+      .map((t) => ({
+        name: t.name,
+        description: t.description || '',
+        inputSchema: t.inputSchema || { type: 'object', properties: {} },
+      }));
+    return [...spine, ...PACKS.map((pack) => packToolEntry(pack))];
+  }
   // `listed: false` tools (deprecated aliases) resolve in tools/call and
   // invokeRegisteredTool but are omitted from tools/list — retired names keep
   // executing for compiled plans / skills without costing context.
@@ -97,6 +123,12 @@ export function isToolListed(name) {
 
 export function hasRegisteredTool(name) {
   return registeredTools.has(name);
+}
+
+/** The registered tool object (or undefined) — used by the pack dispatcher
+ * (tools/packs-tools.js) to resolve members and serve their real schemas. */
+export function getRegisteredTool(name) {
+  return registeredTools.get(name);
 }
 
 export function listRegisteredToolNames() {
@@ -128,6 +160,19 @@ function runSerialized(tool, fn) {
   // Keep the chain alive past rejections without swallowing this call's error.
   toolCallChain = run.then(() => undefined, () => undefined);
   return run;
+}
+
+/**
+ * Member-level serialization for the pack dispatcher (tools/packs-tools.js).
+ * Pack tools register `concurrent: true` — they hold NO queue slot — so a
+ * dispatched member must re-enter the chain here with the MEMBER's own
+ * concurrency flag: a writer serializes as if called directly, a long-poll
+ * (pull_agent_task, request_chat_decision) bypasses and never starves the
+ * writes behind it. Without this, a pack dispatch either deadlocks on its own
+ * member (if the pack held a slot) or lets writers race (if nothing re-enters).
+ */
+export function runToolSerialized(tool, fn) {
+  return runSerialized(tool, fn);
 }
 
 /**
@@ -191,7 +236,9 @@ export async function dispatchMcpRequest(message, context) {
                 tools: { listChanged: false },
               },
               serverInfo: { name: SERVER_NAME, version: getServerVersion() },
-              instructions: SERVER_INSTRUCTIONS,
+              instructions: packsModeEnabled()
+                ? SERVER_INSTRUCTIONS + PACKS_INSTRUCTIONS_ADDENDUM
+                : SERVER_INSTRUCTIONS,
             });
       }
 
@@ -543,4 +590,12 @@ export async function ensureToolsRegistered() {
   // export_game — the self-contained-folder export beside the game mints
   // (game-publish.plan.md phase 2): the sharing seam for playable artifacts.
   registerExportGameTools();
+  // Pack dispatchers register LAST — resolution is call-time so order doesn't
+  // matter functionally, but registering after every member keeps the
+  // partition sweep's "member exists" assertion honest at this point in the
+  // sequence. Always registered (listed:false), so pack dispatch works even
+  // in flat mode; packs mode lists them via listTools() synthesis. See
+  // lib/mcp/packs.js and tool-packs.plan.md P1-R.
+  const { registerPackTools } = await import('@/lib/mcp/tools/packs-tools');
+  registerPackTools();
 }
