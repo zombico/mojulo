@@ -925,7 +925,7 @@ export const EDUCATION_VIEW_KINDS = [
 // 'controllable' carries no registry walk flag (locomotion is per-entity, from
 // the manifest's rules) but is a LIVE moved-through stage — action worlds and
 // game levels — so it belongs to the world concern.
-export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'operator-world', 'controllable'];
+export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'controllable'];
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).

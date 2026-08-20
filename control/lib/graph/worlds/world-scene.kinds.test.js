@@ -80,7 +80,6 @@ const FIXTURES = {
   assembler: { kind: 'assembler' },
   'painted-landscape': { kind: 'painted-landscape', heartbeat: 'chop', splatch: 'verdure-trio' },
   controllable: { kind: 'controllable' },
-  'operator-world': { kind: 'operator-world' },
   // the room FALLBACK arm (not a registry entry): any unrecognized kind falls through to
   // assembleRoomScene, which requires an eligible room manifest.
   room: { kind: 'room', cameraPrimitive: { kind: 'two-point' }, pureMandala: { room: {} } },
@@ -179,7 +178,7 @@ describe('world-scene kinds — side tables pinned as literals', () => {
   it('WALK_KINDS survives the derivation change bit-for-bit', () => {
     expect([...WALK_KINDS].sort()).toEqual([
       'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'koenigsberg', 'math-structure',
-      'operator-world', 'painted-landscape', 'restaurant', 'room', 'school-complex',
+      'painted-landscape', 'restaurant', 'room', 'school-complex',
       'subway-building', 'subway-station', 'transportation-hub',
     ]);
   });

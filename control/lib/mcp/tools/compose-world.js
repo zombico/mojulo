@@ -27,7 +27,6 @@ import { cityThemeAdapter } from '@/lib/graph/city/fractal-city';
 import { mintTransportationHub, createTransportationHubHandler } from '@/lib/mcp/tools/scene-transport-hub';
 import { mintControllableWorld, createControllableWorldHandler } from '@/lib/mcp/tools/scene-controllable';
 import { mintActionWorld, createActionWorldHandler } from '@/lib/mcp/tools/scene-action-world';
-import { mintOperatorWorld, createOperatorWorldHandler } from '@/lib/mcp/tools/scene-operator-world';
 import { mintPlanetary, createPlanetaryHandler } from '@/lib/mcp/tools/scene-planetary';
 import { mintPaintedLandscape, createPaintedLandscapeHandler } from '@/lib/mcp/tools/painted-landscape';
 import { mintMathStructure } from '@/lib/mcp/tools/scene-math-structure';
@@ -49,7 +48,6 @@ const BASES = {
   'transport-hub': { mint: mintTransportationHub, adapt: identityAdapter },
   controllable: { mint: mintControllableWorld, adapt: identityAdapter },
   action: { mint: mintActionWorld, adapt: identityAdapter },
-  operator: { mint: mintOperatorWorld, adapt: identityAdapter },
   planetary: { mint: mintPlanetary, adapt: identityAdapter },
   'painted-landscape': { mint: mintPaintedLandscape, adapt: identityAdapter },
   math: { mint: mintMathStructure, adapt: identityAdapter },
@@ -67,7 +65,6 @@ const RETIRED_WORLD_TOOLS = {
   create_transportation_hub: { base: 'transport-hub', handler: createTransportationHubHandler },
   create_controllable_world: { base: 'controllable', handler: createControllableWorldHandler },
   create_action_world: { base: 'action', handler: createActionWorldHandler },
-  create_operator_world: { base: 'operator', handler: createOperatorWorldHandler },
   create_planetary: { base: 'planetary', handler: createPlanetaryHandler },
   create_painted_landscape: { base: 'painted-landscape', handler: createPaintedLandscapeHandler },
 };
@@ -187,7 +184,7 @@ export function registerComposeWorldTools() {
       + "× per-call OVERRIDES (the base's own knobs). One tool, many worlds. Bases: 'city' (generated 3D cityscape / "
       + "skyline), 'transport-hub' (airport / train station / bus terminal / subway), 'controllable' (a LIVE world the "
       + "user DRIVES — walk a figure, fly a drone, a platformer), 'action' (a live world with RULES — a game with "
-      + "score/timer/spawns/pickups), 'operator' (mojulo's own connected-services state as a walkable world), "
+      + "score/timer/spawns/pickups), "
       + "'planetary' (a space-accurate body in a celestial sphere), 'painted-landscape' (painterly glyph-composed "
       + "terrain SVG), 'math' (a finite group as a walkable Cayley city — plazas are elements, generators are "
       + "street types, walking a relation returns you home), 'school' (a generated K-12 CAMPUS — classroom wings, "
@@ -204,7 +201,7 @@ export function registerComposeWorldTools() {
       properties: {
         base: {
           type: 'string',
-          enum: ['city', 'transport-hub', 'controllable', 'action', 'operator', 'planetary', 'painted-landscape', 'math', 'school', 'dungeon'],
+          enum: ['city', 'transport-hub', 'controllable', 'action', 'planetary', 'painted-landscape', 'math', 'school', 'dungeon'],
           description: "Which geometry generator (the world's SHAPE). Read the base's view-vocab card for its overrides manual.",
         },
         theme: { type: 'string', description: "A theme pack id (the world's FLAVOR). See list_world_themes. Defaults to 'earth-temperate' (identity)." },

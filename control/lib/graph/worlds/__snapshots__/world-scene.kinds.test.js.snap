@@ -130,10 +130,6 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "50ace3f1",
     "title": "mojulo ocean",
   },
-  "operator-world": {
-    "hash": "3f8a3894",
-    "title": "mojulo operator world",
-  },
   "orbit-view": {
     "hash": "87db9264",
     "title": "mojulo orbit",

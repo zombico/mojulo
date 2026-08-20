@@ -9,7 +9,7 @@
 }
 ---
 
-WORLD motions apply the SAME camera motions (turntable / orbit / push_in / dolly_zoom / flythrough) to a traversable three.js World instead of a manji-tree, baked through headless WebGL. This is the door for the rich, occlusion-correct, fully-lit 3D scenes that only exist on the WebGL backend — a fractal-city skyline, a transportation hub, a furnished room, painted-landscape terrain, a planetary body, a floorplan house, a workbench object study, the operator-world.
+WORLD motions apply the SAME camera motions (turntable / orbit / push_in / dolly_zoom / flythrough) to a traversable three.js World instead of a manji-tree, baked through headless WebGL. This is the door for the rich, occlusion-correct, fully-lit 3D scenes that only exist on the WebGL backend — a fractal-city skyline, a transportation hub, a furnished room, painted-landscape terrain, a planetary body, a floorplan house, a workbench object study.
 
 ## Subject
 

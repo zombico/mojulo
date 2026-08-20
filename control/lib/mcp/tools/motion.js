@@ -764,7 +764,7 @@ export function registerMotionTools() {
           properties: {
             sketch_ref: { type: 'string', description: 'CAMERA: a stored sketch ref (sk_…) whose manifest.kind is manji-tree.' },
             manji_tree: { type: 'object', description: 'CAMERA: an inline manji-tree manifest (tree/waveFields/camera/…). The kind field is added if missing.' },
-            world_ref: { type: 'string', description: 'WORLD: a stored sketch ref (sk_…) whose kind has a traversable three.js World form (fractal-city, transportation-hub, subway-station, painted-landscape, planetary, floorplan, workbench, room, operator-world). Animated by the same camera motions, baked via headless WebGL → .gif/.mp4 (no .svg).' },
+            world_ref: { type: 'string', description: 'WORLD: a stored sketch ref (sk_…) whose kind has a traversable three.js World form (fractal-city, transportation-hub, subway-station, painted-landscape, planetary, floorplan, workbench, room). Animated by the same camera motions, baked via headless WebGL → .gif/.mp4 (no .svg).' },
             carved_solid: { type: ['string', 'object'], description: 'EFFECT (materialize): a carved-solid ref (sk_…) or an inline { shape, style?, material? } — the subject that comes into being.' },
             from: { type: ['string', 'object'], description: 'EFFECT (transfigure): the START carved solid (ref or inline { shape, … }). Requires `to`.' },
             to: { type: ['string', 'object'], description: 'EFFECT (transfigure): the END carved solid the subject becomes (ref or inline { shape, … }). Lends the morph its material. Requires `from`.' },

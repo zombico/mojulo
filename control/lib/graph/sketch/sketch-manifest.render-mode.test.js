@@ -63,7 +63,6 @@ describe('classifyBucket', () => {
     expect(classifyBucket({ kind: 'transportation-hub' })).toBe('world');
     // walk-flagged kinds that used to fall through to the diagram bucket
     expect(classifyBucket({ kind: 'edifice' })).toBe('world');
-    expect(classifyBucket({ kind: 'operator-world' })).toBe('world');
     expect(classifyBucket({ kind: 'math-structure' })).toBe('world');
     expect(classifyBucket({ kind: 'koenigsberg' })).toBe('world');
   });

@@ -18,7 +18,6 @@ const WORLD_BASES = [
   'transport-hub',
   'controllable',
   'action',
-  'operator',
   'planetary',
   'painted-landscape',
   'math',
@@ -108,9 +107,9 @@ describe('get_view_vocab reader', () => {
 
   it('lists index rows, filterable by family', async () => {
     const all = await getViewVocabHandler({});
-    expect(all.cards.length).toBe(57);
+    expect(all.cards.length).toBe(56);
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(10);
+    expect(world.cards.length).toBe(9);
     expect(world.cards.every((c) => c.entry === 'compose_world')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();
@@ -166,7 +165,6 @@ describe('deprecated aliases', () => {
       'create_transportation_hub',
       'create_controllable_world',
       'create_action_world',
-      'create_operator_world',
       'create_planetary',
       'create_painted_landscape',
     ];

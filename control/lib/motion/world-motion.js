@@ -1,7 +1,6 @@
 /**
  * Motion — the three.js WORLD subject family. A stored, world-eligible sketch
- * (fractal-city, transportation-hub, room, painted-landscape, planetary,
- * operator-world, …) is
+ * (fractal-city, transportation-hub, room, painted-landscape, planetary, …) is
  * put under one of the same camera motions the manji-SVG path uses (turntable /
  * orbit / push_in / dolly_zoom / flythrough) and baked to raster frames via
  * headless WebGL.
@@ -81,7 +80,7 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
     throw new Error(
       `sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no traversable three.js World form. `
       + 'World motions animate world-eligible kinds (fractal-city, transportation-hub, subway-station, '
-      + 'painted-landscape, planetary, floorplan, workbench, room, operator-world). Other kinds animate as a manji-tree (sketch_ref) or deck.',
+      + 'painted-landscape, planetary, floorplan, workbench, room). Other kinds animate as a manji-tree (sketch_ref) or deck.',
     );
   }
 
