@@ -340,17 +340,6 @@ If you're using mojulo in a regulated industry, with restricted data, or in a sa
 
 ---
 
-## Why
-
-Software keeps drifting toward hosted services — tools you rent by the month, run in someone else's cloud, and pour your data into. Handy, until you notice you own none of it and none of it runs without them. Mojulo is the other bet: **computing you own, not computing you rent.** Your agent is the new interface; your machine is still the substrate; the things you make are still yours.
-
-- **Your subscription is the bill.** Mojulo doesn't host inference. Your Claude or ChatGPT subscription does the reasoning; mojulo just composes the outputs.
-- **Your machine is the substrate.** Everything runs on localhost. State lives in `~/.mojulo/`. No SaaS account to manage, no tenant boundary to leak across.
-- **Your agent is the interface.** The dashboard is a shelf, not a chat window. You drive mojulo by talking to Claude Code or Codex — the same agent you already use for everything else.
-- **Your artifacts are yours.** Compiled bots are zips. Cooks are documents. Apps are local processes. Sketches are SVGs. Nothing is locked to mojulo's runtime.
-
----
-
 ## Who builds with this
 
 A spectrum, all driving the same open-source, self-hosted stack from their own MCP-capable agent:
@@ -397,32 +386,7 @@ Concept docs (start with the first three):
 
 ## Contributing
 
-**One maintainer, no SLA.** Issues and PRs are read, but triage and review can take days or weeks depending on what's already in flight — a non-trivial PR may sit until I've had time to catch up on the surfaces it touches. Opening an issue first, even for a one-line PR, is the fastest path to a decision: it lets the scope conversation happen before the code does.
-
-The codebase is functionally modular but tightly integrated — a change to the envelope schema, the cartridge composer, a deployer, or the MCP tool surface touches multiple surfaces. That integration density is load-bearing for the artifact-portability and audit-chain guarantees, and it's also the reason contribution policy is channeled by surface rather than open across the board.
-
-**Always welcome — open an issue:**
-- Bug reports with a reproducer (especially RAG/locale/cartridge/MCP edge cases)
-- Translation quality issues (any locale, any string)
-- Documentation gaps or errors
-- Questions about whether something should be a PR
-
-**Accepted as PRs with the standard bar:**
-- Bug fixes with a clear reproducer (for non-obvious bugs, file an issue first)
-- Documentation fixes
-- Locale string fixes
-- Test additions that target the surfaces listed in [CONTRIBUTING.md](CONTRIBUTING.md#test-surface)
-
-**Forking & extending the platform:**
-- Custom protocols (your bot's specific behavior shape)
-- New provider adapters
-- Bespoke wizard flows or steps
-- Custom catalysts that don't merit promotion to the canonical library
-- Anything narrow to a client, vertical, or workflow
-
-These belong in forks — the upstream repo stays abstract so the artifact format and audit guarantees stay stable. See [docs/protocol-composition.md#adding-a-new-protocol](docs/protocol-composition.md#adding-a-new-protocol) and [docs/catalysts.md](docs/catalysts.md).
-
-Before opening a PR, read [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) and [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md), and see [CONTRIBUTING.md](CONTRIBUTING.md).
+One maintainer, no SLA — issues and PRs are read, but triage can take days or weeks. Opening an issue first, even for a one-line PR, is the fastest path to a decision. Bug reports (with a reproducer), translation and documentation fixes, and tests targeting the listed surfaces are always welcome; custom protocols, provider adapters, bespoke wizard flows, and client-specific catalysts belong in forks so the artifact format and audit guarantees stay stable. Before a non-trivial PR, read [docs/BOT-ARCHITECTURE.md](docs/BOT-ARCHITECTURE.md) and [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md); full detail in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
