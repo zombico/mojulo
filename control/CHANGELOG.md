@@ -26,8 +26,25 @@ one home pack, spine, or folded), pack-description 700-char ceiling, and a
 35KB packs-mode payload pin are all test-gated; the routing eval gains a
 DERIVED pack-level layer (fixtures lift entry-tool → home-pack via the
 partition; multi-vector max-pool proxy over recognizer anchors; collision
-rows hold rank-0 + margin). See `lib/mcp/tools/tool-packs.plan.md`
-(P1-R/P2-D) and `lib/mcp/packs.js`.
+rows hold rank-0 + margin). See `lib/mcp/packs.js`.
+
+### CLI subcommands on the `mojulo` bin
+
+The `mojulo` bin now doubles as a command-line front door over the same
+registry: `npx mojulo tools|packs|help|call|pack_* …` (bare `npx mojulo`
+stays the stdio MCP server, byte-identical; the subcommand names and the
+`pack_` prefix become reserved words on the bin). Invocation is in-process —
+no HTTP, no bearer token, no running dashboard — dispatching through the
+same `tools/call` path with `mcpSessionId: 'cli'`, so serialization,
+telemetry, masking, and deprecated-alias resolution match the MCP surface.
+Listings and help are generated from the registry and pack partition (the
+CLI authors no prose). Arguments ride `--json` (inline / `@file` / stdin) or
+schema-derived per-property flags (flags win); `--timeout` (exit 124),
+`--quiet`, TTY-aware column output, exit codes 0/1/2. `mojulo <pack_id>`
+unveils a pack; `mojulo <pack_id> <tool>` dispatches through the pack
+dispatcher with server-side membership validation. Serves shell-driven
+agents, no-AI automation (cron/CI), and human spot checks. See
+`scripts/mcp-cli.mjs`.
 
 ## [1.2.2] — 2026-08-18
 

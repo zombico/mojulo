@@ -22,6 +22,10 @@ headers = { Authorization = "Bearer <CONTROL_PLANE_MCP_KEY>" }
 
 Restart the Codex session. `forward_context` should appear in your tool surface — call it first to pull mojulo's routing index and drawer map, then call the specific drawer/tool the task needs.
 
+### Shell fallback (no MCP registration needed)
+
+If you have shell access but no MCP client, the same registry is reachable as a CLI: `node control/scripts/mcp-stdio.mjs tools|packs|help <tool>|call <tool> --json '{…}'`. It runs in-process against the same data (no control plane, no bearer token); results print to stdout, diagnostics to stderr, exit codes 0/1/2 (124 on `--timeout`).
+
 ### Cross-host reference
 
 For comparison, Claude Code uses `claude mcp add --transport http mojulo http://localhost:3001/api/mcp --header "Authorization: Bearer <CONTROL_PLANE_MCP_KEY>"`. The full install matrix (Claude Desktop, Claude Code, mcp-inspector) is in [docs/mcp-integration.md](docs/mcp-integration.md).

@@ -76,16 +76,16 @@ process.chdir(CONTROL_DIR);
 console.log = console.error;
 console.info = console.error;
 
-// `npx mojulo tools|packs|help|call …` — the CLI front door (P1 of
+// `npx mojulo tools|packs|help|call|pack_* …` — the CLI front door (P1+P2 of
 // [mojulo-cli.plan.md]). Branches AFTER the loader/paths/chdir/console pin
 // (the CLI reuses the same `@/` resolution and data layout, and wants stray
 // tool logs on stderr — its own output writes to process.stdout directly)
 // but BEFORE the embedder preload: a spot-check command must not kick off a
-// 113MB model fetch. Explicit allowlist only — any other argv falls through
-// to stdio-server mode exactly as before; these names are now reserved words
-// on the bin.
+// 113MB model fetch. Explicit allowlist plus the pack_ prefix — any other
+// argv falls through to stdio-server mode exactly as before; these names
+// (and the pack_ prefix) are now reserved words on the bin.
 const CLI_COMMANDS = new Set(['tools', 'packs', 'help', 'call']);
-if (CLI_COMMANDS.has(process.argv[2])) {
+if (CLI_COMMANDS.has(process.argv[2]) || process.argv[2]?.startsWith('pack_')) {
   const { runCli } = await import('./mcp-cli.mjs');
   process.exit(await runCli(process.argv.slice(2)));
 }
