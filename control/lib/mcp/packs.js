@@ -501,3 +501,15 @@ export function installNotice(name, env = process.env) {
   const installPack = INSTALL_PACK_BY_WING[pack.wing] || pack.wing;
   return `'${name}' belongs to the ${installPack} capability pack, which is not installed on this host (set MOJULO_PACKS to include '${installPack}').`;
 }
+
+/** Pack-level advisory used by the dispatcher when a whole pack is uninstalled.
+ * Wing-level + terminal on purpose: it tells the model the ENTIRE pack is
+ * unavailable and to STOP retrying its tools (anti-spin), while pointing at the
+ * install and the other wing. Knowing the pack exists is fine; running it is not.
+ * Returns null when the pack is installed. */
+export function packInstallNotice(pack, env = process.env) {
+  if (!pack || isPackInstalled(pack, env)) return null;
+  const installPack = INSTALL_PACK_BY_WING[pack.wing] || pack.wing;
+  const otherWing = pack.wing === 'studio' ? 'office' : 'studio';
+  return `The ${installPack} capability pack is not installed on this host, so ${pack.id} and its tools cannot run here. Install it (set MOJULO_PACKS to include '${installPack}') to enable them, or stay in the ${otherWing} wing. Do not retry ${installPack}-pack tools until it is installed.`;
+}

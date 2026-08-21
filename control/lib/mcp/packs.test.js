@@ -391,6 +391,36 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
   });
 });
 
+describe('iron wall — dispatcher cannot RUN an uninstalled pack tool', () => {
+  // async: hold MOJULO_PACKS for the WHOLE async dispatch (a real process fixes it
+  // at start; the deep dispatch path reads it well past the first await).
+  async function withInstall(csv, fn) {
+    const prev = process.env.MOJULO_PACKS;
+    process.env.MOJULO_PACKS = csv;
+    try { return await fn(); } finally {
+      if (prev === undefined) delete process.env.MOJULO_PACKS; else process.env.MOJULO_PACKS = prev;
+    }
+  }
+
+  it('ops install: pack_world({tool:compose_world}) is refused (wing-level, anti-spin), not executed', async () => {
+    const res = await withInstall('ops', () => server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 771, method: 'tools/call',
+        params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
+    const msg = res.error?.message || res.result?.content?.[0]?.text || '';
+    expect(msg).toMatch(/creative capability pack is not installed/i);
+    expect(msg).toMatch(/Do not retry/i);            // anti-spin: terminal, wing-level
+    expect(msg).not.toMatch(/worldUrl|"ref":\s*"sk_/); // proves it never minted a world
+  });
+
+  it('full install: the same dispatch is NOT gated', async () => {
+    const res = await withInstall('ops,creative', () => server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 772, method: 'tools/call',
+        params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
+    const msg = res.error?.message || res.result?.content?.[0]?.text || '';
+    expect(msg).not.toMatch(/capability pack is not installed/i);
+  });
+});
+
 describe('pack dispatcher', () => {
   it('bare call unveils: body + member manual with real schemas + grammar line', async () => {
     const res = await callTool('pack_audio', {});

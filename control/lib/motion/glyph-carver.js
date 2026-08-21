@@ -19,14 +19,20 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const opentype = require('opentype.js');   // resolved from control/node_modules
+// Lazy so the font lib is only pulled when a font is actually parsed. Keeping it
+// off module-load means an ops install that never carves text can shed
+// opentype.js (an optionalDependency) without breaking `next build`'s page-data
+// collection, which module-loads every route. Same deferral posture as
+// beats-render's node-web-audio-api import. require() is sync, so no async churn.
+let _opentype;
+const opentype = () => (_opentype ??= require('opentype.js'));   // resolved from control/node_modules
 
 /** Parse a font from a path or a Buffer/ArrayBuffer. The caller picks the font,
  *  so "different fonts for different looks" is just a different buffer. */
 export function loadFont(pathOrBuffer) {
   const buf = typeof pathOrBuffer === 'string' ? readFileSync(pathOrBuffer) : pathOrBuffer;
   const ab = buf instanceof ArrayBuffer ? buf : buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  return opentype.parse(ab);
+  return opentype().parse(ab);
 }
 
 const qbez = (p0, c, p1, t) => { const m = 1 - t; return [m * m * p0[0] + 2 * m * t * c[0] + t * t * p1[0], m * m * p0[1] + 2 * m * t * c[1] + t * t * p1[1]]; };

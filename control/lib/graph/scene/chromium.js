@@ -28,6 +28,8 @@ import path from 'node:path';
 
 import puppeteer from 'puppeteer-core';
 
+import { installedWings } from '@/lib/mcp/packs';
+
 // Pinned Chrome-for-Testing build fetched on first use. Cross-platform: the same
 // buildId resolves to the right per-platform asset via detectBrowserPlatform.
 // Override with $MOJULO_CHROMIUM_BUILD if this pin ever goes stale.
@@ -171,6 +173,21 @@ export async function resolveChromium({ allowFetch = true } = {}) {
   }
 
   if (!allowFetch) throw new Error(noChromiumMessage('auto-fetch disabled'));
+
+  // Never trigger the ~500 MB Chrome-for-Testing download in an install WITHOUT
+  // the creative pack. Scene-PNG baking is a creative capability; an ops install
+  // (MOJULO_PACKS=ops → no 'studio' wing) sheds that browser entirely. All the
+  // cheap detection above (override / cached fetch / system browser) still runs —
+  // only the heavy FETCH is gated — so a default full install (creative present)
+  // is byte-identical. See install-capabilities.plan.md P2b "don't download".
+  if (!installedWings().has('studio')) {
+    throw new Error(
+      'Scene-PNG rendering is a creative-pack capability and the creative pack is not installed here, '
+        + 'so no Chromium was auto-fetched (that download is ~500 MB). Install the creative pack '
+        + "(set MOJULO_PACKS to include 'creative'), or point $MOJULO_CHROMIUM at an existing "
+        + 'Chrome / Chromium / Edge binary.',
+    );
+  }
 
   let fetched;
   try {
