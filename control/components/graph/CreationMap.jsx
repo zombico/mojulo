@@ -36,7 +36,7 @@ const STATION_STYLES = {
     fill: 'rgba(168,85,247,0.08)',
     stroke: 'rgba(168,85,247,0.7)',
     strokeDasharray: null,
-    labelFill: 'rgb(216,180,254)',
+    labelFill: 'var(--entity-purple)',
   },
 };
 
@@ -350,15 +350,18 @@ function HeadMarker({ id, kind, color }) {
         </marker>
       );
     case 'triangle-open':
+      // Hollow interior uses the page ground (dark #111827 / light transparent),
+      // NOT a hardcoded white — else it reads as a solid white head on the dark
+      // default surface.
       return (
         <marker {...common} viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11">
-          <path d="M1 1 L11 6 L1 11 z" fill="#ffffff" stroke={color} strokeWidth="1.4" />
+          <path d="M1 1 L11 6 L1 11 z" fill="var(--background)" stroke={color} strokeWidth="1.4" />
         </marker>
       );
     case 'diamond':
       return (
         <marker {...common} viewBox="0 0 16 10" refX="15" refY="5" markerWidth="14" markerHeight="10">
-          <path d="M1 5 L8 1 L15 5 L8 9 z" fill="#ffffff" stroke={color} strokeWidth="1.3" />
+          <path d="M1 5 L8 1 L15 5 L8 9 z" fill="var(--background)" stroke={color} strokeWidth="1.3" />
         </marker>
       );
     case 'diamond-filled':

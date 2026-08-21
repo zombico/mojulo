@@ -112,7 +112,7 @@ export function registerDiagramTools() {
   registerTool({
     name: 'mint_diagram',
     description:
-      "Mint a flow-chart or data-chart → a /sketches/<ref> url. Kernel diagram maker (works without the creative pack). Manifest: { title, viewBox:{width,height}, plus stations[]+edges[] (boxes+arrows) and/or marks[] (rect/circle/wedge/line/text/…) — at least one }. Stations carry x/y/w/h; edges { from, to, label?, via?, head?, tail?, dashed? } — head/tail are typed markers (arrow/triangle-open/diamond[-filled]/crowsfoot-one|many/dot/none), from===to draws a self-loop; line/polyline marks take head/tail too. Optional grid {cols,rows}+per-node cell. Chart vocab: semantic_search({kinds:['sketch_vocab']}). Returns {ok,ref,url}. (Recipes/worlds/beats/constellation marks → create_sketch.)",
+      "Mint a flow-chart, data-chart, or standard diagram → a /sketches/<ref> url. Kernel diagram maker (no creative pack). Manifest: { title, viewBox:{width,height}, + stations[]+edges[] (boxes+arrows) and/or marks[] (rect/circle/wedge/line/text/…) }. Edges { from,to,label?,head?,tail?,dashed? }: head/tail typed markers (arrow/triangle-open/diamond[-filled]/crowsfoot-one|many/dot/none), from===to self-loops. Higher-level kinds auto-lower to marks: kind:'sequence' {actors,messages}, kind:'gantt' {scale,tasks}, lanes[] (swimlanes), boundaries[] (containment), station.divider (ERD). Vocab: semantic_search({kinds:['sketch_vocab']}). Returns {ok,ref,url}. (Illustration/worlds/beats → create_sketch.)",
     inputSchema: {
       type: 'object',
       properties: {

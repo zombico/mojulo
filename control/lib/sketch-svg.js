@@ -21,6 +21,7 @@ const CSS_VAR_RESOLUTIONS = {
   '--brand-teal': '#5eead4',
   '--brand-teal-hover': '#2dd4bf',
   '--brand-navy': '#0a2028',
+  '--entity-purple': '#d8b4fe',
   '--surface-primary': '#1f2937',
   '--surface-elevated': '#374151',
   '--border-color': '#374151',
@@ -49,6 +50,11 @@ const LIGHT_SURFACE_OVERRIDES = {
   '--background': 'transparent',
   '--surface-primary': 'transparent',
   '--surface-elevated': '#e9e6df',
+  // Accent inks are tuned for the dark backdrop (light/pastel) and fail WCAG on
+  // white — re-tint them darker on the light surface. teal-700 / violet-600 clear
+  // AA (5.47 / 5.70 on white); the dark surface keeps the light originals.
+  '--brand-teal': '#0f766e',
+  '--entity-purple': '#7c3aed',
 };
 
 // A named presentation theme (themes.js) resolves to a `surface` base plus a

@@ -1,9 +1,112 @@
 # Install capabilities — kernel + two install-gated packs (ops / creative)
 
-Status: PROPOSED (2026-08-20). Step 0 (operator-world removal) + P1 (boundary guard) + P2 (install
-manifest + gate) + P3a (deliberation decoupled) + P3b (office↔creative bridges lazified; office wing
-now statically render-free) + P3c-1/2 (diagram RENDERER → kernel) DONE. P3c-3 (diagram TOOLS → spine)
-and P2b (physical import-skipping) deferred.
+---
+
+## HANDOFF — start here (fresh agent, 2026-08-20)
+
+**The goal in one line.** Carve mojulo into a KERNEL + two install packs (**ops** | **creative**),
+gated by `MOJULO_PACKS`. The end state is an **iron wall**: an ops install (bots/services/apps) never
+*downloads* the creative render stack, and the model can never *run* — or *spin on* — a creative tool
+it doesn't have. Iron = EXECUTION integrity, NOT information hiding (shared context is fine;
+recommending "install creative" is fine; never hide the other wing).
+
+**Repo state.** Branch `installer-split`. HEAD `7f90ef2` ("install packs P2b: ops install sheds creative
+deps + skips Chromium") holds Step 0 + P1 + P2 + P3a + P3b + P3c-1/2 + iron-wall dispatcher + all of P2b
+"don't download" (externals-by-name matcher, lazy opentype, `optionalDependencies`, Chromium-fetch gate).
+**Uncommitted delta — "make the split real" (physical install detection + CLI):** `lib/mcp/packs.js`
+(per-wing `WING_INSTALL` signals + `installedWings` physical probe + advisory copy), `lib/mcp/packs.test.js`
+(4 detection tests), `scripts/mcp-install.mjs` (new — `mojulo install creative`), `scripts/mcp-stdio.mjs`
+(install branch), this doc, and `kernel-diagram-surface.plan.md` (untracked — the Job-2 briefing). Packs +
+pack-boundary suites green (47 tests).
+
+**DONE and how it behaves today:**
+- **Kernel + two-pack boundary**, enforced by a static-import guard `lib/mcp/pack-boundary.test.js`
+  (Checks A–D). Ops is provably clean of the whole creative concern (sim + render).
+- **Install gate (P2)** — `packs.js` install axis (`installedWings` / `isPackInstalled` /
+  `installedPacks` / `isToolInstalled` / `installNotice` / `packInstallNotice`), read from
+  `MOJULO_PACKS` (`ops` / `creative` / `ops,creative`); **unset or unknown ⇒ full install, byte-
+  identical to before**. `server.js` gates `tools/list` (both modes) and every tool-execution path:
+  `handleToolCall` (RPC), `invokeRegisteredTool` (plan-executor), and the **pack dispatcher**
+  (`packs-tools.js` `dispatch()` — the iron-wall fix this batch). Uninstalled tools neither list nor
+  run; refusal is a wing-level, terminal advisory ("…not installed … Do not retry …").
+- **Diagram RENDERER is kernel** (P3c-1/2) — a bare no-packs mojulo can *render* a diagram. Chain
+  `lib/sketch-svg → components/graph/CreationMap → lib/signage-chrome → lib/color`, provably
+  `lib/graph`-free (`lib/sketch-svg.nopacks.test.js`).
+
+**LEFT — P2b, the last phase (full spec below in "## P2b").** A second build spike (2026-08-20)
+DISSOLVED most of the phase — the feared "Part 1 funnel refactor + opaque-import + standalone-tracing
+crux" is CANCELLED. The webpack-compile layer is fixed CONFIG-ONLY by an **externals-by-request-string**
+matcher in `next.config.mjs` (externalizes the 5 creative-only deps by name without resolving disk;
+`serverExternalPackages` failed because it *resolves* to decide, and a missing pkg falls back to
+bundling → "Module not found"). Landed + proven non-regressive (full build green with all deps present;
+webpack-compile green with them absent). **DONE this batch (the "don't download" mechanism, spike-proven):**
+- (a) ✅ externals-by-request-string matcher (`next.config.mjs`).
+- (b) ✅ the "render-route page-data lazying" turned out to need only ONE leaf edit, not 11 route
+  edits. The reachability analyzer (scratch `reach.mjs`) flagged 11 routes, but: `three` was a FALSE
+  POSITIVE (its only `import * as THREE from 'three'` sites are inside template literals — browser-side
+  `<script>` that `scene-three.js` EMITS as HTML; the server never imports three); `node-web-audio-api`
+  was already lazy in `beats-render`; the real culprit reaching all 11 was ONE top-level
+  `require('opentype.js')` in `lib/motion/glyph-carver.js`. Made it a lazy sync getter (require stays
+  sync). The kernel MCP funnel needed nothing, as predicted.
+- (c) ✅ packaging — `three`, `node-web-audio-api`, `opentype.js` → `optionalDependencies`. `sharp`
+  STAYS (transitive via the kernel embedder; not even a direct dep). Default `npm install` gets all 3;
+  `npm install --omit=optional` sheds them.
+
+**LEFT (smaller now):**
+- **`puppeteer-core` (14 MB) shedding DEFERRED** — real top-level `import puppeteer` in `scene-png.js`
+  / `chromium.js` / `world-frames.js` (~6 launch sites); reached only by `png`/`play` routes. Needs the
+  same lazy conversion; small win, so it stays in `dependencies` for now.
+- ✅ **don't-fetch-Chromium in ops (DONE)** — `lib/graph/scene/chromium.js` `resolveChromium` now gates
+  the ~500 MB Chrome-for-Testing fetch on the creative wing being installed (`installedWings().has('studio')`).
+  Cheap detection (override / cached / system browser) still runs; only the heavy FETCH is skipped, with
+  a creative-install advisory. Default full install byte-identical (verified: fetch allowed unless
+  `MOJULO_PACKS=ops`). This is the single biggest disk win (~535 MB) and it never touched `package.json`.
+- ✅ **"make the split real" — install state = PHYSICAL presence, per wing (DONE, 2026-08-21).** The
+  packaging above made env and disk able to disagree (omit the deps but forget `MOJULO_PACKS=ops` ⇒
+  mojulo LISTS creative tools it can't fulfill). Fixed by making physical presence the source of truth:
+  - `packs.js` — each wing declares an install signal as DATA (`WING_INSTALL`: office `alwaysInstalled`;
+    studio `markerModule:'three'`). `installedWings()` folds over it with a memoized, import-free probe
+    (`process.getBuiltinModule('module')` → `require.resolve`), `MOJULO_PACKS` an explicit OVERRIDE on
+    top; typo/unknown falls through to detection. **A NEW install wing adds ONE `WING_INSTALL` entry —
+    it never touches the fold, the gates, or any caller** (the design that survives a 3rd pack). Test
+    seam `_setWingPresence`; 4 new tests.
+  - `mojulo install creative` CLI verb — `scripts/mcp-install.mjs` (spawns `npm install --include=optional`,
+    re-probes; `ops` is pure code = nothing to install; status/unknown-pack paths), wired in
+    `scripts/mcp-stdio.mjs` next to `init`.
+  - Advisory copy (`installNotice`/`packInstallNotice`) now points at `mojulo install creative` for the
+    physically-installable wing (setting `MOJULO_PACKS` alone would only LIST-then-fail), and at the flag
+    for ops.
+- **LEFT: diagram MINT tool (step 3A)** — the `kernel-diagram-surface.plan.md` moves (Move 0 confirmed:
+  CreationMap is render-light). This is the last capability piece: a no-creative install that can still
+  *mint* a flowchart/chart, not just render one.
+Part 1 (pack-partition `ensureToolsRegistered`) is NOT needed for the build; optional runtime-load nicety only.
+
+**Verify / run** (from `control/`):
+- Full suite: `npx vitest run` — baseline **461 files / 6569 tests green**.
+- Guard: `npx vitest run lib/mcp/pack-boundary.test.js` (Checks A–D, each negative-tested).
+- Gate E2E: `npx vitest run lib/mcp/packs.test.js` (install axis + the iron-wall dispatcher test).
+- No repo-wide lint/typecheck. `node --check <file>` for JS smoke checks. JSX parses with
+  `@babel/parser` from the `control` package.
+- **Test gotcha:** env-toggling tests MUST `await` INSIDE the `MOJULO_PACKS` window — a real process
+  fixes the env at start, but the deep dispatch path reads it well past the first `await`, so a sync
+  `try { return fn() } finally { restore }` restores too early and the gate reads the wrong value. See
+  the async `withInstall` in `packs.test.js`.
+
+**Locked decisions — do NOT relitigate:**
+- Exactly **two** install packs: Ops | Creative. Creative is **undivided** (sim + render together). A
+  sim/render install split (headless "Kernel+Sim") was explored and **rejected**.
+- The wall is **execution integrity, not information hiding**. Never make orientation install-aware to
+  *hide* the other wing (labeling install state to prevent doomed attempts is allowed but optional).
+- **Diagrams are a KERNEL capability** ("just SVGs"); heavy 3D/scene/image render stays creative.
+- Homes: `lib/outcomes` = **office**; kernel-relocated pure modules = `lib/sketch-derive`,
+  `lib/outcomes-paths`, `lib/color`, `lib/signage-chrome`, `lib/sketch-svg`, and `lib/visual-language`
+  (pure theme-config). `vexar` stays in creative (40 importers) — diagrams don't need it.
+- **Fail-open** on unset/unknown `MOJULO_PACKS` (a typo never empties the workshop).
+
+Below: the full rationale, the audit evidence, the P2b spec (incl. the packaging analysis), and the
+per-phase log. A fresh agent can act from the HANDOFF + "## P2b" sections alone; the rest is context.
+
+---
 
 ## P3c — diagrams are a KERNEL capability (a bare no-packs mojulo can render a diagram)
 
@@ -200,6 +303,174 @@ kernel — `sketch-derive`, `visual-language` — when doing so removes an ops�
 pack boundary. Enforced comprehensively by pack-boundary Check D (below). Ops is verified sim-free +
 render-free today.
 
+## The iron wall — execution integrity, NOT information hiding (2026-08-20)
+
+Operator's framing correction: the wall is about EXECUTION, not knowledge. Shared context is fine —
+the model may know the other wing exists, and recommending "install creative to do X" is fine. Two
+things are NOT ok: (1) **running a job with a tool you don't have** (executing creative logic in an
+ops install), and (2) **spinning in circles** (looping on an unavailable tool instead of a clean,
+terminal "not here — do this instead"). So do NOT make orientation install-aware to hide the other
+wing; instead make every EXECUTION path refuse cleanly.
+
+- **Can't-run — every tool-execution chokepoint gates (airtight at the logical level).** Audited: the
+  only paths that invoke a tool handler are `handleToolCall` (RPC), `invokeRegisteredTool` (plan
+  executor) — both gated in P2 — and the **pack dispatcher** (`packs-tools.js` `dispatch()`), which
+  was the one BREACH: it resolved a member and `instrumentedInvoke`d it with no install check, so
+  `pack_world({tool:'compose_world'})` would actually mint a world in an ops install. Now gated with
+  `packInstallNotice(pack)` (pack-level) + `installNotice(name)` (belt-and-suspenders for a shared
+  cross-pack member). Triggers/scheduler, app sidecars, and agent-tasks do not invoke tool handlers
+  directly (audited — no other path). Direct-dispatch tools (`create_view`, `compose_world` retired
+  aliases) are safe: reached only after their own creative tool passed the entry gate.
+- **No-spin — wing-level, terminal advisory.** `packInstallNotice` names the whole pack ("the creative
+  capability pack is not installed … Do not retry … until installed"), so the model stops trying
+  creative tools and pivots (recommend install / use the other wing) instead of looping tool-by-tool.
+- **Physical backstop = P2b.** The logical gate is airtight but bypass-able in principle (it's a code
+  check). P2b (uninstalled packs never registered / imported) makes "can't run what isn't there"
+  unbypassable, and is also the "ops users don't download creative" half. Still the remaining phase.
+- **Optional proactive no-spin:** `forward_context` MAY *label* install state ("studio: not installed —
+  install to enable") so the model routes correctly without a doomed attempt. Allowed (it informs,
+  doesn't hide) but not required — the terminal advisory already prevents spinning.
+
+Regression test: `packs.test.js` "iron wall — dispatcher cannot RUN an uninstalled pack tool".
+
+## P2b — physical "don't download / don't import" (the remaining phase)
+
+P2 gates the LOGICAL surface (tools don't list, don't run). P2b makes it PHYSICAL: an ops install
+neither imports creative code nor downloads its deps.
+
+**Build spike RESULT (2026-08-20) — the plan's core packaging premise was WRONG; parts are NOT
+independent.** Ran the faithful spike: added `three` to `serverExternalPackages`, physically removed
+the 6 creative dep dirs (`three`, `puppeteer-core`, `@puppeteer/browsers`, `node-web-audio-api`,
+`opentype.js`, `sharp`) from `node_modules`, ran `next build --webpack`. **It FAILED to compile** —
+`Module not found: Can't resolve 'sharp'` / `'node-web-audio-api'`, etc. Critically, `sharp` and
+`node-web-audio-api` were **already** in `serverExternalPackages` before this batch, so this is not a
+missing-external problem: **`serverExternalPackages` does NOT make `next build` tolerate an absent
+dep.** Webpack still *resolves* every static `import` edge reachable from a built entrypoint at compile
+time; externalization only changes bundle-vs-`require()` for edges that resolve. The failing import
+traces prove the two entrypoints that statically reach creative deps:
+- `app/api/mcp/route.js` → `lib/mcp/server.js` → `ensureToolsRegistered` static-imports every tool
+  module (`render-handoff`→keyframe-audit→sharp, `motion`→keyframe-composite→sharp, `sketches`→sharp);
+- the creative render routes (`app/api/sketches/[ref]/cover.png|final.png|scene|world|png`,
+  `app/api/beats/[ref]`) static-import the render stack directly.
+
+**SECOND SPIKE (2026-08-20) — the webpack-resolve problem is fixed CONFIG-ONLY; the crux dissolved.**
+Root cause of the first failure: `serverExternalPackages` *resolves* each package to decide whether to
+externalize, so a MISSING package falls back to bundling → "Module not found." Fix: a webpack
+`externals` matcher keyed on the **request string** (in `next.config.mjs`, server side only) that
+externalizes the creative deps as `commonjs <name>` WITHOUT touching disk. Result with the 6 deps
+absent: **webpack compile PASSES** (warnings only). Two further facts surfaced past the compile layer,
+at Next's *page-data collection* (Next LOADS each route/page module at build to read its exports):
+- **`sharp` is NOT creative-only.** It is a hard transitive import of `@huggingface/transformers`
+  (`transformers.node.mjs`) — the KERNEL embedder. An ops install keeps the embedder, so **`sharp`
+  stays.** Sheddable set drops to 5: `three`, `puppeteer-core`, `@puppeteer/browsers`,
+  `node-web-audio-api`, `opentype.js`.
+- **Page-data collection executes route module-load.** A route that TOP-LEVEL-imports a creative module
+  whose chain reaches an absent dep throws at load (`Cannot find module 'opentype.js'` via
+  `cover.png/route.js`). Fix = move that import INTO the handler (`await import()`): still externalized
+  by the same matcher (not resolved at build), and NOT executed at page-data collection (handler isn't
+  called). Bounded to the Class-A render routes. **The kernel MCP funnel needs NOTHING** — its creative
+  imports are dynamic AND only run at request time inside `ensureToolsRegistered`, so page-data
+  collection never trips them, and the externals matcher covers the compile.
+
+**Consequence — Part 1 (pack-partition `ensureToolsRegistered`) is CANCELLED as a build requirement.**
+The whole "opaque-import + standalone-tracing crux" is moot; externals-by-name sidesteps it. Part 1
+survives only as an optional runtime-load optimization (don't even `import()` creative in an ops
+process), not a correctness or packaging need. The config change is proven non-regressive: full build
+with all deps present is green.
+
+Sequencing now: **(1) render-route page-data lazying, (2) `package.json` optionalDependencies for the 5,
+(3) re-run the deps-absent spike to confirm a full green build, (4) don't-fetch-Chromium + CLI.** The
+externals matcher is already landed (`next.config.mjs`).
+
+### Part 2 — packaging (the "don't download" half). Analysis (2026-08-20)
+
+**Sheddable creative-only deps (verified 2026-08-20 — 5, NOT 6):** `three`, `puppeteer-core`,
+`@puppeteer/browsers`, `node-web-audio-api`, `opentype.js`. **`sharp` is NOT sheddable** — hard
+transitive dep of the kernel embedder (`@huggingface/transformers`); stays. **`image-size` is NOT
+sheddable** — imported by `app/api/stashes/[ref]/items/route.js` (kernel-side); stays. Measured disk
+win: ~96 MB of these 5 npm dirs + ~535 MB Chromium (already a separate lazy fetch, free to skip) ≈
+~630 MB; the kernel floor an ops install always carries is the embedder runtime+model (~340 MB).
+
+**Creative-only deps an ops install sheds** (verified: importers only in `lib/graph`/`lib/motion`):
+
+| dep | importers | weight | build status |
+|---|---|---|---|
+| `puppeteer-core` + `@puppeteer/browsers` | 5 (render bakes: `scene-png`, `chromium`, `scene-png-warm`, `world-frames`, `auto-audit-runner`) | **huge — pulls Chromium** | already external ✓ |
+| `three` | 1 (`lib/graph/scene/scene-three.js`) | ~few MB | **BUNDLED — the one gap** ✗ |
+| `node-web-audio-api` | 1 (`lib/graph/beats/beats-render.js`) | native | already external ✓ |
+| `opentype.js` | 1 (font render) | small | already external ✓ |
+
+**Stays (ops can't shed):** `better-sqlite3` (kernel DB), `@huggingface/transformers` + `onnxruntime-node`
+(the embedder — big, but RAG / `semantic_search` is kernel), `officeparser` / `pdf2json` (ops document
+processing), `archiver` (ops zips), `react`. `sharp` / `image-size` — verify importers to decide.
+
+**The steps (reordered after the spike — see the RESULT above):**
+1. ✅ DONE (this batch) — `next.config.mjs`: add `'three'` to `serverExternalPackages`. Inert until
+   steps below remove the static import edges.
+2. **BLOCKED on Part 1 + route lazy-load.** Move creative-only deps → `optionalDependencies` in
+   `package.json`. Default `npm install` gets everything (full workshop); ops uses
+   `npm install --omit=optional`. Do NOT do this until a re-run of the spike is green, or `--omit=optional`
+   ops installs fail to build.
+3. The creative **HTTP render routes** must **lazy-load the render stack via `await import()` inside the
+   handler** — a top-level `import` is a build edge that fails when the dep is absent (spike-proven).
+   Routes: `app/api/sketches/[ref]/{scene,world,png,cover.png,final.png}`, `app/api/beats/[ref]`. In an
+   ops install they're naturally cold (no world/scene/beats artifacts exist), so on a direct hit they
+   should catch the failed dynamic import and return a clean advisory rather than a raw 500.
+4. `mojulo install creative` CLI verb → `npm install` the optional deps on demand (mirrors the existing
+   lazy `scripts/fetch-embed-model` philosophy — "no postinstall 113 MB download").
+5. **Re-run the spike** (remove the 6 dep dirs, `next build --webpack`) — must be green before step 2 ships.
+
+**Build spike — DONE (2026-08-20), result folded into the RESULT block above.** It failed as run
+(static creative import edges reachable from `app/api/mcp/route.js` and the render routes), which is the
+signal that reordered this phase. The spike method that works in-place without a fresh install: move the
+6 creative dep dirs out of `node_modules`, `next build --webpack`, then move them back.
+
+### Part 1 — pack-partition registration (the "don't import" half) — CANCELLED as a build requirement
+
+**Superseded by the SECOND SPIKE (2026-08-20): the externals-by-name matcher makes the build tolerate
+absent creative deps WITHOUT partitioning registration.** The kernel MCP funnel needs no surgery (its
+imports are dynamic + request-time; page-data collection never runs them). Part 1 remains only as an
+OPTIONAL runtime-load optimization (an ops *process* never even `import()`s creative), which is a nice-
+to-have, not a correctness or packaging need. The analysis below is retained for that optional future.
+
+**Correction (2026-08-20 spike) — this is NOT "eager static import," and the naive fix is
+insufficient.** `ensureToolsRegistered` ALREADY uses `await import('@/lib/mcp/tools/…')` for every tool
+module (all dynamic). The build still failed with those modules in the trace, because **webpack
+resolves a dynamic `import()` whose specifier is a static string** — it compiles the async chunk and
+its transitive `sharp`/`three`/`node-web-audio-api` deps at build time regardless of any runtime
+`if (installed)` guard. So "make registration pack-aware by keying the dynamic import on
+`installedWings`" does NOT remove the module from the build graph; it only skips it at runtime.
+
+To actually exclude creative modules from an ops build's webpack graph, the import specifier must be
+**opaque to webpack's static analysis**. The candidate mechanisms (undecided — pick during
+implementation):
+- **`import(/* webpackIgnore: true */ specifier)`** — leaves it a native runtime import webpack never
+  bundles/resolves. BUT the tool modules are FIRST-PARTY (`lib/mcp/tools/*`), so `webpackIgnore` means
+  they're not in `.next`; `output: 'standalone'` tracing wouldn't include them → breaks standalone.
+  Viable only if the ignored import resolves to a real on-disk path at runtime (needs a resolved
+  absolute path, not the `@/` alias) AND those files ship alongside standalone. Non-trivial.
+- **A non-analyzable specifier** (variable/template webpack can't constant-fold) — same runtime-resolve
+  caveat as above.
+- **Two build entrypoints / conditional compilation** (e.g. a build-time flag that tree-shakes the
+  creative registration list) — heaviest, but keeps first-party modules bundled when present.
+
+**Open: the standalone-tracing interaction is the crux and is unresolved.** The next spike should test
+ONE mechanism end-to-end (build + `output:'standalone'` trace + boot the standalone server with deps
+absent) before committing. This is a genuine research task, not a mechanical refactor — the P2 runtime
+gate already delivers correctness; P2b Part 1 is purely about build-graph exclusion and its cost is now
+known to be higher than the plan assumed.
+
+### Part 3 — diagram MINT tool → kernel/spine (step 3A, folds P3c here)
+
+The diagram RENDERER is already kernel (P3c-1/2), but the MINT tool `create_sketch`
+(`lib/mcp/tools/sketches.js`, **2026-line creative mega-tool**, ~20 static creative imports) is not.
+For a no-packs mojulo to *make* a diagram: extract a minimal `mintDiagram` (diagram-kind validator —
+the `viewBox`/`marks`/`stations` slice of `sketch-manifest.js` — + `SketchRepository.create`) into the
+kernel, expose it as a small SPINE tool. Leave the mega-tool in `pack_diagram` (studio) for full multi-
+kind sketching. Cost: two ways to make a diagram; benefit: the mega-tool never needs untangling. (The
+rejected alternative was lazy-loading all ~20 heavy imports inside `create_sketch` — real surgery on
+2026 lines.)
+
 ## Enforcement — pack-boundary guard (`lib/mcp/pack-boundary.test.js`)
 
 A static-import scan, run in CI as a vitest test, so the orthogonality can't rot. Four checks (all
@@ -235,13 +506,16 @@ helpers relocated in P3a/P3b) are kernel — imported freely by both wings.
   pack's tools neither list nor run. SPINE / FOLDED / unpacked tools are kernel, always on. Covered by
   new tests in `packs.test.js` (unit + server-wiring E2E under `MOJULO_PACKS=ops`); full suite green
   (460 files / 6560 tests), proving the default is unchanged.
-- **P2b** (deferred) Physical import-skipping: today registration is still eager (`ensureToolsRegistered`
-  imports every tool module, so an ops-only install still *loads* creative code + deps — the gate hides
-  and refuses them but doesn't save the footprint). Make registration pack-partitioned so an absent
-  pack's modules are never imported. Larger, riskier refactor of `ensureToolsRegistered`; needs the
-  pack→module map and lazy/dynamic import. The gate landed in P2 makes this a pure optimization, not a
-  correctness change. Also handle the pack-dispatcher force-call edge (an uninstalled pack's dispatcher
-  called by name) if it survives P2b.
+- **Iron-wall dispatcher gate** (DONE, uncommitted) — the pack dispatcher (`packs-tools.js`
+  `dispatch()`) was the one execution path that ran a member with no install check; now gated
+  (`packInstallNotice` + `installNotice`). Regression test in `packs.test.js`. Full suite green
+  (461 / 6569). This closed the "pack-dispatcher force-call edge" noted earlier.
+- **P2b** (the remaining phase) — physical "don't download / don't import." **Full spec: see the
+  "## P2b" section above.** Three parts: (1) pack-partition `ensureToolsRegistered` (don't import
+  creative in an ops install); (2) packaging — creative-only deps → `optionalDependencies` + `three` →
+  `serverExternalPackages` (don't download); (3) diagram MINT tool → kernel/spine `mintDiagram` (step
+  3A). Do the **build spike first**. Subsumes the old P4 (packaging + `mojulo install <pack>` CLI +
+  advisory router copy).
 - **P3a** (DONE) Deliberation surfaces decoupled. A tool-handler-layer audit found the office
   deliberation tools' only creative-engine import was `sketch-derive` — a PURE, zero-dependency
   plan/research→sketch-manifest mapper that merely *lived* under `lib/graph/sketch/`. Relocated it to
@@ -265,9 +539,8 @@ helpers relocated in P3a/P3b) are kernel — imported freely by both wings.
      pure-config module (presentation-theme presets, shared by cook/figure/motion) — reclassified from
      creative to **kernel** (it's vocabulary, not render), which cleared cook.js's straddle correctly.
   Full suite green (460 / 6565); pack-boundary Checks A/B/C all green with the new buckets.
-- **P4** Package: two install targets (`ops`, `creative`) over the kernel; wire the CLI
-  (`mojulo install <pack>`); nest the worker bicycles under creative. Advisory router copy for absent
-  packs.
+- **P4** (subsumed into P2b Part 2) Packaging + `mojulo install <pack>` CLI + advisory router copy.
+  Still open within it: nest the worker bicycles (Blender/ComfyUI/Kokoro) under the creative pack.
 - **P5** Docs: fold into CLAUDE.md "Repo shape" + a `docs/install-capabilities.md`; note that the
   bot image is unaffected (it is already bot-agnostic and pack-agnostic — a deploy target, not an
   install of the workshop).

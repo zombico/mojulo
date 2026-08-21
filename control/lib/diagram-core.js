@@ -192,7 +192,10 @@ function validateSignage(signage, errors) {
   signage.forEach((s, i) => validateSignageItem(s, i, errors));
 }
 
-function isFiniteNumber(v) {
+// Exported because sketch-manifest.js imports it by name. Webpack/vitest tolerate
+// the missing export via namespace interop; strict Node ESM (the mcp-stdio CLI)
+// does not — without this the CLI front door fails to register the tool surface.
+export function isFiniteNumber(v) {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
