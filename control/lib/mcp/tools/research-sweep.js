@@ -26,10 +26,29 @@
 import { registerTool } from '@/lib/mcp/server';
 import { ResearchRepository } from '@/lib/db/repositories/research';
 import { bindResearchItemHandler } from '@/lib/mcp/tools/research-mode';
-import { mintMechanicsView } from '@/lib/mcp/tools/mechanics-view';
+// mintMechanicsView + the physics sampler are loaded lazily in the handler (see
+// loadMechanics below) so this office/research tool carries no static dependency
+// on the creative render engine — install-capabilities.plan.md P3b.
 import { mintSketch } from '@/lib/mcp/tools/sketches';
-import { sampleMechanicsPhysics, MEASURABLE_MECHANICS_SCENARIOS } from '@/lib/graph/views/science/mechanics-view';
-import { experimentsToChartManifest } from '@/lib/graph/sketch/sketch-derive';
+import { experimentsToChartManifest } from '@/lib/sketch-derive';
+
+// Lazy creative-side loader (P3b): mint + sample a mechanics-view. Absent creative
+// install → advisory, so run_experiment_sweep neither lists nor loads render code.
+async function loadMechanics() {
+  try {
+    const [tool, view] = await Promise.all([
+      import('@/lib/mcp/tools/mechanics-view'),
+      import('@/lib/graph/views/science/mechanics-view'),
+    ]);
+    return {
+      mintMechanicsView: tool.mintMechanicsView,
+      sampleMechanicsPhysics: view.sampleMechanicsPhysics,
+      MEASURABLE_MECHANICS_SCENARIOS: view.MEASURABLE_MECHANICS_SCENARIOS,
+    };
+  } catch {
+    throw new Error('run_experiment_sweep sweeps a creative mechanics-view (render engine), which is not installed on this host.');
+  }
+}
 
 // the sweepable knobs — the numeric params the dynamics rules actually read (mirrors
 // sampleMechanicsPhysics's P). Sweeping anything else would mint N identical worlds.
@@ -76,6 +95,8 @@ export async function runExperimentSweepHandler(input, _ctx) {
   if (!OUTCOMES[plotOutcome]) {
     throw new Error(`outcome '${outcome}' is unknown. Outcomes: ${Object.keys(OUTCOMES).join(', ')}.`);
   }
+
+  const { mintMechanicsView, sampleMechanicsPhysics, MEASURABLE_MECHANICS_SCENARIOS } = await loadMechanics();
 
   // dry gate: the base recipe must be measurable BEFORE anything binds (rejects machines /
   // engines / compare here, with the sampler's own message).

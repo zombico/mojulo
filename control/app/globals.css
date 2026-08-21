@@ -9,6 +9,9 @@
   --brand-teal: #5eead4;
   --brand-teal-hover: #2dd4bf;
   --brand-navy: #0a2028;
+  /* db_row / entity accent (diagram surface). Tuned for the dark backdrop; the
+     SVG export re-tints it darker on the light surface (see sketch-svg.js). */
+  --entity-purple: #d8b4fe;
 
   /* Surface colors */
   --surface-primary: #1f2937; /* gray-800 */

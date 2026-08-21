@@ -22,7 +22,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { exportsBaseDir } from './exports-dir.js';
-import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
@@ -34,6 +34,8 @@ import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
 import {
   validateSketchManifest,
   expandGridLayout,
+  expandBoundaries,
+  lowerDiagramKinds,
   STATION_KINDS,
   EDGE_VIA_VALUES,
   MARK_KINDS,
@@ -322,11 +324,21 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   } catch (err) {
     throw new Error(`Recipe lowering error: ${err.message}`);
   }
+  // Lower the diagram kinds (sequence / gantt / swimlanes) to plain marks before
+  // grid/Rendrant expansion. Each step no-ops unless its trigger is present. This
+  // is the SAME kernel lowering mint_diagram runs, so both stay bound.
+  try {
+    working = lowerDiagramKinds(working);
+  } catch (err) {
+    throw new Error(`Invalid manifest: ${err.message}`);
+  }
   // Resolve any grid `cell` placements to concrete x/y/w/h before validating
   // and storing, so the renderer only ever sees absolute coords.
   let expanded;
   try {
-    expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(working)));
+    // expandBoundaries runs after grid resolution (it wraps stations by their
+    // resolved coords) and before Rendrant (boundary marks are inert to it).
+    expanded = expandNeoRembrandt(withConstellationGrid(expandBoundaries(expandGridLayout(working))));
   } catch (err) {
     throw new Error(`Rendrant expansion error: ${err.message}`);
   }

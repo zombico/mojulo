@@ -51,6 +51,15 @@ if (process.argv[2] === 'init') {
   process.exit(0);
 }
 
+// `mojulo install <creative|ops>` — on-demand capability-pack installer. Branch
+// out here for the same reason as `init`: it runs `npm install` for the creative
+// optional deps and needs neither the @/ loader nor the tool registry. Self-
+// contained and exits itself; the guard exit is belt-and-suspenders.
+if (process.argv[2] === 'install') {
+  await import('./mcp-install.mjs');
+  process.exit(0);
+}
+
 // Resolve `@/...` like Next.js does, so the stdio entry can reuse the same
 // server.js + tool modules the Next.js route uses.
 register('./mcp-stdio-loader.mjs', import.meta.url);

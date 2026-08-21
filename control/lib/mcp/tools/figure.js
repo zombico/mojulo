@@ -23,7 +23,7 @@ import { validateFluffs, FLUFF_SHAPE_NAMES } from '@/lib/graph/polygonizer/figur
 import { normalizeDreamAudit } from '@/lib/graph/image-outcomes/dream-audit';
 import { articulate } from '@/lib/graph/polygonizer/figure-vajra';
 import { encodeGif } from '@/lib/motion';
-import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { FIGURE_SETUPS, FIGURE_SETUP_NAMES } from '@/lib/visual-language/themes';
 
 const GARMENT_KEYS = Object.keys(GARMENTS);

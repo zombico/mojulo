@@ -28,7 +28,7 @@ import { randomUUID } from 'node:crypto';
 import { registerTool } from '@/lib/mcp/server';
 import { CookRepository } from '@/lib/db/repositories/cooks';
 import { StashRepository } from '@/lib/db/repositories/stashes';
-import { outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeUrlFor } from '@/lib/outcomes-paths';
 import { writeOutcome } from '@/lib/outcomes/kinds/essay';
 import { writePictureBookOutcome } from '@/lib/outcomes/kinds/picture-book';
 import { writeSlideDeckOutcome } from '@/lib/outcomes/kinds/slide-deck';

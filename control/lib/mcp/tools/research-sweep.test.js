@@ -6,7 +6,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { runExperimentSweepHandler } from './research-sweep.js';
 import { startResearchHandler, getResearchHandler, synthesizeAbstractHandler } from './research-mode.js';
-import { experimentsToChartManifest } from '@/lib/graph/sketch/sketch-derive';
+import { experimentsToChartManifest } from '@/lib/sketch-derive';
 
 beforeEach(() => {
   closeDb();

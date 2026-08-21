@@ -1,7 +1,9 @@
 /**
  * Tool packs — the consolidated tools/list surface (tool-packs.plan.md P1-R/P2-D).
  *
- * Pure data, no imports: this module is the partition of the listed tool
+ * Pure data, no top-level imports (the install axis below does one local,
+ * import-free filesystem probe to detect physical pack presence — see
+ * `installedWings`): this module is the partition of the listed tool
  * registry into a small SPINE (always listed with full schemas) plus ~20
  * PACKS, each listed as ONE stateless dispatcher tool whose description is
  * its recognizer. In packs mode (MOJULO_TOOL_PACKS=on) connect-time
@@ -39,6 +41,11 @@ export const SPINE = [
   'get_tool_telemetry',
   'version',
   'check_for_updates',
+  // mint_diagram — the KERNEL diagram maker (kernel-diagram-surface.plan.md).
+  // Spine, not a pack: "a diagram is just SVG," so it stays available even in an
+  // install without the creative pack. create_sketch (pack_diagram, studio) is
+  // the creative superset; both delegate diagram validation to lib/diagram-core.
+  'mint_diagram',
 ];
 
 // Listed in flat mode; dropped from tools/list in packs mode (still callable).
@@ -450,4 +457,128 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
   if (flag === 'off') return false;
   if (flag === 'on') return true;
   return !clientDefers;
+}
+
+// ── install axis (install-capabilities.plan.md P2 / "make the split real") ────
+// packsModeEnabled above is the PRESENTATION axis — which schemas load into
+// context within a full install. THIS is the INSTALL axis — which capability
+// packs physically exist on the host. Two coarse install packs map onto the two
+// wings; everything not in a pack (SPINE / FOLDED / unpacked) is kernel and
+// always present.
+//
+// SOURCE OF TRUTH = physical presence, per wing — so `npm install --omit=optional`
+// self-describes and an env flag can't silently disagree with what's on disk.
+// Each wing declares its own install signal as DATA in WING_INSTALL; installedWings()
+// folds over it. A NEW install wing adds ONE entry here — it never touches the
+// fold, the gates, or any caller. MOJULO_PACKS is an explicit OVERRIDE on top (a
+// deliberate operator choice: dev/test, or gating a present wing's tools off); a
+// typo/unknown value falls through to physical detection, never an empty workshop.
+const WING_BY_INSTALL_PACK = { ops: 'office', creative: 'studio' };
+const INSTALL_PACK_BY_WING = { office: 'ops', studio: 'creative' };
+const ALL_WINGS = ['office', 'studio'];
+
+// Per-wing install signal (data — see above). `alwaysInstalled`: pure code that
+// always ships (office/ops has no optional deps to shed). `markerModule`:
+// installed iff that dep resolves on disk. Creative's optional deps
+// (three / opentype.js / node-web-audio-api) are omitted together by
+// `--omit=optional`, so the marquee `three` is a faithful marker for the whole
+// studio wing.
+const WING_INSTALL = {
+  office: { alwaysInstalled: true },
+  studio: { markerModule: 'three' },
+};
+
+let _wingPresence = null; // memoized: install state is fixed for a process's life.
+
+// The "pure data, no imports" rule holds at the top level; physical presence is
+// the one runtime fact that isn't static. process.getBuiltinModule (Node ≥22.12,
+// our engines floor) yields createRequire WITHOUT a top-level import, so the probe
+// stays local and the module stays import-free.
+function moduleResolves(specifier) {
+  try {
+    const { createRequire } = process.getBuiltinModule('module');
+    createRequire(import.meta.url).resolve(specifier);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function detectedWings() {
+  if (_wingPresence) return _wingPresence;
+  const present = new Set();
+  for (const wing of ALL_WINGS) {
+    const sig = WING_INSTALL[wing] || { alwaysInstalled: true };
+    if (sig.alwaysInstalled || (sig.markerModule && moduleResolves(sig.markerModule))) present.add(wing);
+  }
+  return (_wingPresence = present);
+}
+
+/** Test seam: force the memoized physical wing probe (pass null to reset). */
+export function _setWingPresence(wings) {
+  _wingPresence = wings ? new Set(wings) : null;
+}
+
+export function installedWings(env = process.env) {
+  const raw = (env.MOJULO_PACKS || '').trim();
+  if (raw) {
+    const wings = new Set();
+    for (const tok of raw.split(',')) {
+      const wing = WING_BY_INSTALL_PACK[tok.trim().toLowerCase()];
+      if (wing) wings.add(wing);
+    }
+    if (wings.size) return wings; // explicit override wins, even vs. disk
+    // typo/unknown → fall through to physical detection (never an empty workshop)
+  }
+  return new Set(detectedWings());
+}
+
+export function isPackInstalled(pack, env = process.env) {
+  return installedWings(env).has(pack.wing);
+}
+
+export function installedPacks(env = process.env) {
+  return PACKS.filter((pack) => isPackInstalled(pack, env));
+}
+
+/** True unless `name` is a pack member whose wing isn't installed. SPINE / FOLDED
+ * / unpacked tools are kernel — always installed. Gates both listing and
+ * invocation, so an uninstalled pack's tools neither list nor run. Default full
+ * install ⇒ always true (no behavior change). */
+export function isToolInstalled(name, env = process.env) {
+  const pack = homePackForTool(name);
+  return pack ? isPackInstalled(pack, env) : true;
+}
+
+// The action that actually enables an uninstalled pack. creative is a PHYSICAL
+// install (its optional deps), so `mojulo install creative` is what makes its
+// tools runnable — setting MOJULO_PACKS alone would only make them LIST while
+// still failing at runtime with the deps absent. ops is pure code that ships
+// with the base install and is only ever "off" via an explicit MOJULO_PACKS
+// override, so its fix is the flag, not an install.
+function installAction(installPack) {
+  return installPack === 'ops'
+    ? "include 'ops' in MOJULO_PACKS (ops ships with the base install; it is only gated by an explicit override)"
+    : `run \`mojulo install ${installPack}\` (or include '${installPack}' in MOJULO_PACKS if you manage the install manually)`;
+}
+
+/** Advisory message for a tool whose pack isn't installed, or null if it is.
+ * Never a refusal of capability — a pointer to the install that enables it. */
+export function installNotice(name, env = process.env) {
+  const pack = homePackForTool(name);
+  if (!pack || isPackInstalled(pack, env)) return null;
+  const installPack = INSTALL_PACK_BY_WING[pack.wing] || pack.wing;
+  return `'${name}' belongs to the ${installPack} capability pack, which is not installed on this host — ${installAction(installPack)}.`;
+}
+
+/** Pack-level advisory used by the dispatcher when a whole pack is uninstalled.
+ * Wing-level + terminal on purpose: it tells the model the ENTIRE pack is
+ * unavailable and to STOP retrying its tools (anti-spin), while pointing at the
+ * install and the other wing. Knowing the pack exists is fine; running it is not.
+ * Returns null when the pack is installed. */
+export function packInstallNotice(pack, env = process.env) {
+  if (!pack || isPackInstalled(pack, env)) return null;
+  const installPack = INSTALL_PACK_BY_WING[pack.wing] || pack.wing;
+  const otherWing = pack.wing === 'studio' ? 'office' : 'studio';
+  return `The ${installPack} capability pack is not installed on this host, so ${pack.id} and its tools cannot run here. To enable them, ${installAction(installPack)}; or stay in the ${otherWing} wing. Do not retry ${installPack}-pack tools until it is installed.`;
 }

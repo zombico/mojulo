@@ -3,7 +3,7 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Pack partition sweep (tool-packs.plan.md P1-R/P2-D).
@@ -23,6 +23,12 @@ import {
   packsModeEnabled,
   homePackForTool,
   dispatchTargets,
+  installedWings,
+  installedPacks,
+  isPackInstalled,
+  isToolInstalled,
+  installNotice,
+  _setWingPresence,
 } from '@/lib/mcp/packs';
 
 // Packs-mode connect payload pin — the plan's headline number (~35KB target
@@ -285,6 +291,164 @@ describe('host-aware default (packs opinionated; flat for deferring hosts)', () 
       { mcpSessionId: 'host-codex-init' },
     );
     expect(cx.result.instructions).toContain('Tool packs are ON');
+  });
+});
+
+describe('install axis (MOJULO_PACKS) — kernel + ops/creative', () => {
+  it('default (unset) is a full install: both wings, all packs, nothing gated', () => {
+    expect([...installedWings({})].sort()).toEqual(['office', 'studio']);
+    expect(installedPacks({}).length).toBe(PACKS.length);
+    // every listed tool + every spine tool is installed at full install
+    for (const pack of PACKS) for (const m of pack.members) expect(isToolInstalled(m, {})).toBe(true);
+    for (const s of SPINE) expect(isToolInstalled(s, {})).toBe(true);
+  });
+
+  it('unrecognized token fails open to full install (a typo never empties the workshop)', () => {
+    expect([...installedWings({ MOJULO_PACKS: 'nonsense' })].sort()).toEqual(['office', 'studio']);
+    expect([...installedWings({ MOJULO_PACKS: '' })].sort()).toEqual(['office', 'studio']);
+  });
+
+  it('MOJULO_PACKS=ops installs only the office wing (creative packs gated)', () => {
+    const env = { MOJULO_PACKS: 'ops' };
+    expect([...installedWings(env)]).toEqual(['office']);
+    const packs = installedPacks(env);
+    expect(packs.every((p) => p.wing === 'office')).toBe(true);
+    expect(packs.some((p) => p.wing === 'studio')).toBe(false);
+    // office member on, studio member off
+    expect(isToolInstalled('start_new_bot', env)).toBe(true);
+    expect(isToolInstalled('compose_world', env)).toBe(false);
+    // spine stays kernel regardless of install
+    for (const s of SPINE) expect(isToolInstalled(s, env)).toBe(true);
+  });
+
+  it('MOJULO_PACKS=creative installs only the studio wing', () => {
+    const env = { MOJULO_PACKS: 'creative' };
+    expect([...installedWings(env)]).toEqual(['studio']);
+    expect(isToolInstalled('compose_world', env)).toBe(true);
+    expect(isToolInstalled('start_new_bot', env)).toBe(false);
+  });
+
+  it('MOJULO_PACKS=ops,creative is the full install again', () => {
+    expect([...installedWings({ MOJULO_PACKS: 'ops,creative' })].sort()).toEqual(['office', 'studio']);
+    expect(installedPacks({ MOJULO_PACKS: 'ops,creative' }).length).toBe(PACKS.length);
+  });
+
+  it('installNotice: null when installed, advisory (not a refusal) when gated', () => {
+    expect(installNotice('compose_world', {})).toBeNull();
+    expect(installNotice('compose_world', { MOJULO_PACKS: 'ops' })).toMatch(/creative capability pack/);
+    expect(installNotice('start_new_bot', { MOJULO_PACKS: 'ops' })).toBeNull();
+    expect(installNotice('forward_context', { MOJULO_PACKS: 'ops' })).toBeNull(); // spine → kernel
+  });
+
+  it('isPackInstalled matches its pack wing', () => {
+    const world = PACKS.find((p) => p.id === 'pack_world');
+    const botOps = PACKS.find((p) => p.id === 'pack_bot_operate');
+    expect(isPackInstalled(world, { MOJULO_PACKS: 'ops' })).toBe(false);
+    expect(isPackInstalled(botOps, { MOJULO_PACKS: 'ops' })).toBe(true);
+  });
+});
+
+describe('install axis — physical detection is the source of truth (unset MOJULO_PACKS)', () => {
+  afterEach(() => _setWingPresence(null)); // clear the forced probe → back to real disk
+
+  it('unset env derives wings from physical presence, not a hardcoded default', () => {
+    _setWingPresence(['office']); // simulate creative optional deps omitted (--omit=optional)
+    expect([...installedWings({})]).toEqual(['office']);
+    expect(isPackInstalled(PACKS.find((p) => p.wing === 'studio'), {})).toBe(false);
+    expect(isPackInstalled(PACKS.find((p) => p.wing === 'office'), {})).toBe(true);
+    // and the studio tools cleanly gate off without any env flag set
+    expect(isToolInstalled('compose_world', {})).toBe(false);
+    expect(isToolInstalled('start_new_bot', {})).toBe(true);
+  });
+
+  it('explicit MOJULO_PACKS overrides physical detection (a deliberate operator wins)', () => {
+    _setWingPresence(['office']); // creative absent on disk...
+    // ...but the operator forcing both wings is honored (dev/test escape hatch)
+    expect([...installedWings({ MOJULO_PACKS: 'ops,creative' })].sort()).toEqual(['office', 'studio']);
+  });
+
+  it('typo falls through to physical detection, never an empty workshop', () => {
+    _setWingPresence(['office']);
+    expect([...installedWings({ MOJULO_PACKS: 'zzz' })]).toEqual(['office']);
+  });
+
+  it('office (ops) is alwaysInstalled — present under detection even with no marker deps', () => {
+    _setWingPresence(null); // real probe: office has no markerModule, so it is unconditionally present
+    expect(installedWings({}).has('office')).toBe(true);
+  });
+});
+
+describe('install gate — server wiring (listTools + tools/call)', () => {
+  function withInstall(packsCsv, fn) {
+    const prev = process.env.MOJULO_PACKS;
+    process.env.MOJULO_PACKS = packsCsv;
+    try { return fn(); } finally {
+      if (prev === undefined) delete process.env.MOJULO_PACKS; else process.env.MOJULO_PACKS = prev;
+    }
+  }
+
+  it('packs-mode list drops an uninstalled wing\'s pack dispatchers, keeps spine + installed wing', () => {
+    withInstall('ops', () => withPacksMode(() => {
+      const names = listTools({ clientInfo: { name: 'codex' } }).map((t) => t.name);
+      expect(names).toContain('pack_bot_build');   // office → installed
+      expect(names).toContain('forward_context');  // spine → kernel
+      for (const studio of ['pack_world', 'pack_audio', 'pack_object', 'pack_game', 'pack_view']) {
+        expect(names).not.toContain(studio);
+      }
+    }));
+  });
+
+  it('flat-mode list drops an uninstalled wing\'s member tools', () => {
+    withInstall('ops', () => withFlatMode(() => {
+      const names = listTools({}).map((t) => t.name);
+      expect(names).toContain('start_new_bot');    // office member
+      expect(names).not.toContain('compose_world'); // studio member gated
+    }));
+  });
+
+  it('tools/call on a gated tool returns the install advisory (METHOD_NOT_FOUND), not execution', async () => {
+    const res = await withInstall('ops', () => server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 991, method: 'tools/call', params: { name: 'compose_world', arguments: {} } }, {}));
+    expect(res.error).toBeTruthy();
+    expect(res.error.message).toMatch(/creative capability pack/);
+  });
+
+  it('tools/call on an installed tool is NOT gated (no install advisory)', async () => {
+    const res = await withInstall('ops', () => server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 992, method: 'tools/call', params: { name: 'list_deployments', arguments: {} } }, {}));
+    // may succeed or return a tool-level isError, but must never be the install notice
+    const msg = res.error?.message || res.result?.content?.[0]?.text || '';
+    expect(msg).not.toMatch(/capability pack/);
+  });
+});
+
+describe('iron wall — dispatcher cannot RUN an uninstalled pack tool', () => {
+  // async: hold MOJULO_PACKS for the WHOLE async dispatch (a real process fixes it
+  // at start; the deep dispatch path reads it well past the first await).
+  async function withInstall(csv, fn) {
+    const prev = process.env.MOJULO_PACKS;
+    process.env.MOJULO_PACKS = csv;
+    try { return await fn(); } finally {
+      if (prev === undefined) delete process.env.MOJULO_PACKS; else process.env.MOJULO_PACKS = prev;
+    }
+  }
+
+  it('ops install: pack_world({tool:compose_world}) is refused (wing-level, anti-spin), not executed', async () => {
+    const res = await withInstall('ops', () => server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 771, method: 'tools/call',
+        params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
+    const msg = res.error?.message || res.result?.content?.[0]?.text || '';
+    expect(msg).toMatch(/creative capability pack is not installed/i);
+    expect(msg).toMatch(/Do not retry/i);            // anti-spin: terminal, wing-level
+    expect(msg).not.toMatch(/worldUrl|"ref":\s*"sk_/); // proves it never minted a world
+  });
+
+  it('full install: the same dispatch is NOT gated', async () => {
+    const res = await withInstall('ops,creative', () => server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 772, method: 'tools/call',
+        params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
+    const msg = res.error?.message || res.result?.content?.[0]?.text || '';
+    expect(msg).not.toMatch(/capability pack is not installed/i);
   });
 });
 

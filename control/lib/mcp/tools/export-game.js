@@ -37,7 +37,7 @@ import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
-import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 
 // The recipe-hash style of image_render_requests.manifest_hash — short, stable,
 // enough to tie a published render back to the exact recipe that minted it.

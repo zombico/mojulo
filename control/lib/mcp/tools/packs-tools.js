@@ -19,7 +19,7 @@
 
 import { registerTool, getRegisteredTool, runToolSerialized } from '@/lib/mcp/server';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
-import { PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool } from '@/lib/mcp/packs';
+import { PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
 import { FORM_TOOLSETS } from '@/lib/mcp/tools/context';
 
 function packBody(pack) {
@@ -63,6 +63,12 @@ function unveil(pack) {
 }
 
 function dispatch(pack, input, context) {
+  // Install gate (install-capabilities.plan.md — the iron wall): never RUN a
+  // tool from an uninstalled pack, even when dispatched by name. Knowing the
+  // pack exists is fine; executing its jobs here is not. Wing-level + terminal
+  // so the model stops retrying instead of spinning.
+  const packNotice = packInstallNotice(pack);
+  if (packNotice) throw new Error(packNotice);
   const name = input.tool;
   const targets = new Set(dispatchTargets(pack));
   if (!targets.has(name)) {
@@ -81,6 +87,10 @@ function dispatch(pack, input, context) {
   }
   const member = getRegisteredTool(name);
   if (!member) throw new Error(`'${name}' is named in ${pack.id} but not registered — registry bug.`);
+  // Belt-and-suspenders: a shared member homed in an uninstalled pack must not run
+  // even when dispatched through an installed pack that merely lists it.
+  const memberNotice = installNotice(name);
+  if (memberNotice) throw new Error(memberNotice);
   return runToolSerialized(member, () =>
     instrumentedInvoke(member, input.args || {}, context, {
       via: `pack:${pack.id}`,

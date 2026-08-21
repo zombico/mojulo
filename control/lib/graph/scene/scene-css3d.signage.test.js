@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emitPreserve3dScene, projectWorldToScreen } from './scene-css3d.js';
-import { resolveSignage } from './signage-chrome.js';
+import { resolveSignage } from '@/lib/signage-chrome';
 
 const viewBox = { width: 800, height: 600 };
 const worldFraming = { cameraPosition: [0, -10, 3], lookAt: [0, 0, 3], horizontalFov: 60 };

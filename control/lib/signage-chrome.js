@@ -16,7 +16,7 @@
  * signs (chrome attached, anchors resolved) so the per-renderer code only emits.
  */
 
-import { hexToRgb, rgbToHex, scaleHex } from '../polygonizer/vexar.js';
+import { hexToRgb, rgbToHex, scaleHex } from '@/lib/color';
 
 // ── colour helpers ───────────────────────────────────────────────────────────
 const clamp01 = (v) => Math.max(0, Math.min(1, v));

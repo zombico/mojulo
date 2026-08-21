@@ -10,6 +10,56 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Install-gated capability packs (kernel + ops / creative)
+
+Mojulo now installs as a KERNEL + two install packs — ops (`wing: office`:
+bots / connected services / apps, pure code) and creative (`wing: studio`:
+the render / media / games stack). "Full install" is their union; ops-only and
+creative-only are both valid. Install state is PHYSICAL — `installedWings()`
+derives each wing from what's on disk (`WING_INSTALL`: office is
+`alwaysInstalled`, studio is present iff its optional deps resolve), with
+`MOJULO_PACKS` as an explicit override and a memoized, import-free probe; a
+future install wing is one `WING_INSTALL` entry. The creative render deps
+(`three` / `node-web-audio-api` / `opentype.js`, ~82 MB) move to
+`optionalDependencies` so `npm install --omit=optional` sheds them and
+`next build` still passes (a request-string `externals` matcher in
+`next.config.mjs` tolerates their absence); the ~535 MB Chrome-for-Testing
+fetch is gated on the creative wing. `sharp` stays (transitive via the kernel
+embedder). `mojulo install creative` (`scripts/mcp-install.mjs`) grows a lean
+install into the full workshop. Uninstalled tools neither list nor run — the
+refusal is a wing-level terminal advisory pointing at `mojulo install creative`
+(execution integrity, not information hiding), enforced at every tool
+chokepoint and kept orthogonal by the `pack-boundary` static guard (Checks
+A–E). The published bot image is unaffected (pack-agnostic). See
+`docs/install-capabilities.md`.
+
+**Upgrading from 1.2.x:** no action needed and nothing is lost. npm installs
+`optionalDependencies` by default, so a normal update (`npm i mojulo@latest`,
+`npx mojulo@latest`, `npm update`) keeps the full workshop — physical detection
+sees the creative deps on disk and every tool behaves exactly as before, plus
+the new `mint_diagram`. Going lean is strictly opt-in: only an install run with
+`--omit=optional` (or an npm config already carrying `omit=optional`) sheds the
+creative pack, and even then the loss self-describes — a creative tool answers
+with a terminal advisory to run `mojulo install creative`, which restores it.
+No schema/data migration; existing bots, sketches, and worlds are untouched.
+
+### Kernel diagram maker
+
+A creative-absent mojulo can now MINT a diagram, not just render one:
+`mint_diagram` (SPINE, always-on) validates + persists a diagram from the pure
+kernel `lib/diagram-core.js` (extracted verbatim from `sketch-manifest`, which
+now delegates to it) and returns a `/sketches/<ref>` URL. `create_sketch`
+(creative) is the superset; both share `diagram-core`, so they can't drift (a
+binding test asserts identical rendered SVG + byte-identical manifest;
+pack-boundary Check E keeps the kernel diagram surface off `lib/graph`).
+Coverage is flowcharts + common charts (bar / donut / KPI / line) plus the
+standard diagram patterns — sequence (lifelines + activation bars + self-
+messages), swimlane lanes, ERD entities, containment/C4 boundaries, Gantt
+schedules on a numeric scale, and richer edge notation (arrowhead styles,
+multiplicities, self-loops) — all validated in `lib/diagram-core.js` and
+covered by the `diagram-core.*` suites. See
+`lib/mcp/diagram-patterns-spike.plan.md`.
+
 ### Consolidated tool packs (opt-in, `MOJULO_TOOL_PACKS=on`)
 
 The connect-time `tools/list` surface can now ship as a 10-tool SPINE plus 20

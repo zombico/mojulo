@@ -32,6 +32,9 @@ const nextConfig = {
     'opentype.js',
     'puppeteer-core',
     '@puppeteer/browsers',
+    // three is creative-only (lib/graph, lib/motion). External so an ops
+    // install (npm install --omit=optional) can build without it present.
+    'three',
   ],
   turbopack: { root: __dirname },
   webpack: (config, { isServer }) => {
@@ -64,6 +67,22 @@ const nextConfig = {
         path: false,
         crypto: false,
       };
+    }
+    if (isServer) {
+      // Externalize creative-only heavy deps BY REQUEST STRING (no filesystem
+      // resolution), so an ops build (npm install --omit=optional) compiles even
+      // with these absent. serverExternalPackages resolves the package to decide
+      // whether to externalize, so a MISSING package falls back to bundling and
+      // fails "Module not found"; a request-string externals matcher never
+      // touches disk — it emits a runtime require() that the P2 install gate
+      // keeps ops code from ever reaching. See install-capabilities.plan.md P2b.
+      const CREATIVE_EXTERNAL = /^(three|sharp|node-web-audio-api|opentype\.js|puppeteer-core|@puppeteer\/browsers)(\/|$)/;
+      const prior = config.externals;
+      const priorList = Array.isArray(prior) ? prior : prior ? [prior] : [];
+      config.externals = [
+        ({ request }, cb) => (CREATIVE_EXTERNAL.test(request || '') ? cb(null, 'commonjs ' + request) : cb()),
+        ...priorList,
+      ];
     }
     return config;
   },

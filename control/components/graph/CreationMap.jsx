@@ -11,7 +11,7 @@
  *   db_row      — purple accent
  */
 
-import { resolveSignage } from '@/lib/graph/scene/signage-chrome';
+import { resolveSignage } from '@/lib/signage-chrome';
 
 const STATION_STYLES = {
   input: {
@@ -36,7 +36,7 @@ const STATION_STYLES = {
     fill: 'rgba(168,85,247,0.08)',
     stroke: 'rgba(168,85,247,0.7)',
     strokeDasharray: null,
-    labelFill: 'rgb(216,180,254)',
+    labelFill: 'var(--entity-purple)',
   },
 };
 
@@ -107,6 +107,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
       d: `M ${startX} ${startY} L ${channelX} ${startY} L ${channelX} ${endY} L ${endX} ${endY}`,
       midX: channelX,
       midY: (startY + endY) / 2,
+      sx: startX, sy: startY, ex: endX, ey: endY,
     };
   }
   if (via === 'left') {
@@ -119,6 +120,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
       d: `M ${startX} ${startY} L ${channelX} ${startY} L ${channelX} ${endY} L ${endX} ${endY}`,
       midX: channelX,
       midY: (startY + endY) / 2,
+      sx: startX, sy: startY, ex: endX, ey: endY,
     };
   }
   if (via === 'top') {
@@ -131,6 +133,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
       d: `M ${startX} ${startY} L ${startX} ${channelY} L ${endX} ${channelY} L ${endX} ${endY}`,
       midX: (startX + endX) / 2,
       midY: channelY,
+      sx: startX, sy: startY, ex: endX, ey: endY,
     };
   }
   if (via === 'bottom') {
@@ -143,6 +146,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
       d: `M ${startX} ${startY} L ${startX} ${channelY} L ${endX} ${channelY} L ${endX} ${endY}`,
       midX: (startX + endX) / 2,
       midY: channelY,
+      sx: startX, sy: startY, ex: endX, ey: endY,
     };
   }
 
@@ -163,6 +167,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
     d: `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`,
     midX: (startX + endX) / 2,
     midY: (startY + endY) / 2,
+    sx: startX, sy: startY, ex: endX, ey: endY,
   };
 }
 
@@ -315,6 +320,81 @@ function EdgePulse({ d, pulse }) {
   ));
 }
 
+// ── Typed endpoint markers (P0 edge-notation) ───────────────────────────────
+// A head/tail marker is lowered to an SVG <marker>. The def is keyed by
+// (kind, color) so a diagram using the same head in two colors gets two defs
+// and each end paints in its own ink. Legacy edges (no head/tail) never touch
+// this path — they keep `creation-map-arrow`, so their markup is byte-identical.
+const LINE_DEFAULT_STROKE = '#5f6b7a';
+
+function headMarkerId(kind, color) {
+  if (!kind || kind === 'none') return null;
+  return `moj-h-${kind}-${String(color).replace(/[^a-z0-9]/gi, '')}`;
+}
+
+function lineHeadColor(mark) {
+  return mark.stroke || LINE_DEFAULT_STROKE;
+}
+
+// One <marker> per head kind, parametric in color. `orient="auto-start-reverse"`
+// (matching the legacy arrow) means the SAME def works as a markerStart (tail,
+// auto-flipped to point outward) and a markerEnd (head). `markerUnits` defaults
+// to strokeWidth so heads scale with the line weight.
+function HeadMarker({ id, kind, color }) {
+  const common = { id, orient: 'auto-start-reverse', markerUnits: 'strokeWidth' };
+  switch (kind) {
+    case 'arrow':
+      return (
+        <marker {...common} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8">
+          <path d="M0 0 L10 5 L0 10 z" fill={color} />
+        </marker>
+      );
+    case 'triangle-open':
+      // Hollow interior uses the page ground (dark #111827 / light transparent),
+      // NOT a hardcoded white — else it reads as a solid white head on the dark
+      // default surface.
+      return (
+        <marker {...common} viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11">
+          <path d="M1 1 L11 6 L1 11 z" fill="var(--background)" stroke={color} strokeWidth="1.4" />
+        </marker>
+      );
+    case 'diamond':
+      return (
+        <marker {...common} viewBox="0 0 16 10" refX="15" refY="5" markerWidth="14" markerHeight="10">
+          <path d="M1 5 L8 1 L15 5 L8 9 z" fill="var(--background)" stroke={color} strokeWidth="1.3" />
+        </marker>
+      );
+    case 'diamond-filled':
+      return (
+        <marker {...common} viewBox="0 0 16 10" refX="15" refY="5" markerWidth="14" markerHeight="10">
+          <path d="M1 5 L8 1 L15 5 L8 9 z" fill={color} />
+        </marker>
+      );
+    case 'crowsfoot-many':
+      // Three prongs spread AT the endpoint (x=12), converging back along the line.
+      return (
+        <marker {...common} viewBox="0 0 12 12" refX="12" refY="6" markerWidth="12" markerHeight="12">
+          <path d="M0 6 L12 1 M0 6 L12 6 M0 6 L12 11" fill="none" stroke={color} strokeWidth="1.3" />
+        </marker>
+      );
+    case 'crowsfoot-one':
+      // A single crossbar set back from the endpoint.
+      return (
+        <marker {...common} viewBox="0 0 12 12" refX="12" refY="6" markerWidth="12" markerHeight="12">
+          <path d="M8 1 L8 11" fill="none" stroke={color} strokeWidth="1.3" />
+        </marker>
+      );
+    case 'dot':
+      return (
+        <marker {...common} viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7">
+          <circle cx="5" cy="5" r="4" fill={color} />
+        </marker>
+      );
+    default:
+      return null;
+  }
+}
+
 function markStyle(mark) {
   const p = {};
   if (mark.strokeWidth !== undefined) p.strokeWidth = mark.strokeWidth;
@@ -387,35 +467,45 @@ function MarkNode({ mark, mode = 'color' }) {
           {...common}
         />
       );
-    case 'line':
+    case 'line': {
+      const headId = headMarkerId(displayMark.head, lineHeadColor(displayMark));
+      const tailId = headMarkerId(displayMark.tail, lineHeadColor(displayMark));
       return (
         <line
           x1={displayMark.x1}
           y1={displayMark.y1}
           x2={displayMark.x2}
           y2={displayMark.y2}
-          stroke={displayMark.stroke || '#5f6b7a'}
+          stroke={displayMark.stroke || LINE_DEFAULT_STROKE}
           strokeWidth={displayMark.strokeWidth !== undefined ? displayMark.strokeWidth : 1}
           strokeLinecap="round"
           {...(displayMark.dash ? { strokeDasharray: displayMark.dash } : {})}
           {...(displayMark.opacity !== undefined ? { opacity: displayMark.opacity } : {})}
+          {...(headId ? { markerEnd: `url(#${headId})` } : {})}
+          {...(tailId ? { markerStart: `url(#${tailId})` } : {})}
           {...common}
         />
       );
-    case 'polyline':
+    }
+    case 'polyline': {
+      const headId = headMarkerId(displayMark.head, lineHeadColor(displayMark));
+      const tailId = headMarkerId(displayMark.tail, lineHeadColor(displayMark));
       return (
         <polyline
           points={displayMark.points.map((p) => `${p[0]},${p[1]}`).join(' ')}
           fill={displayMark.closed ? displayMark.fill || 'none' : 'none'}
-          stroke={displayMark.stroke || '#5f6b7a'}
+          stroke={displayMark.stroke || LINE_DEFAULT_STROKE}
           strokeWidth={displayMark.strokeWidth !== undefined ? displayMark.strokeWidth : 2}
           strokeLinecap="round"
           strokeLinejoin="round"
           {...(displayMark.dash ? { strokeDasharray: displayMark.dash } : {})}
           {...(displayMark.opacity !== undefined ? { opacity: displayMark.opacity } : {})}
+          {...(headId ? { markerEnd: `url(#${headId})` } : {})}
+          {...(tailId ? { markerStart: `url(#${tailId})` } : {})}
           {...common}
         />
       );
+    }
     case 'polygon':
       return (
         <polygon
@@ -462,6 +552,30 @@ export default function CreationMap({ manifest, technical = false, compact = fal
   const marks = Array.isArray(manifest.marks) ? manifest.marks : [];
   const stationById = new Map(stations.map((s) => [s.id, s]));
   const scale = compact ? TYPE_SCALES.compact : TYPE_SCALES.default;
+
+  // Collect the typed-endpoint markers actually used (P0 edge-notation). Keyed
+  // by (kind, color) so each end paints in its own ink. A legacy edge (neither
+  // head nor tail set) is NOT registered here — it keeps `creation-map-arrow`,
+  // so its emitted markup stays byte-identical to before this feature.
+  const markerDefs = new Map();
+  const registerHead = (kind, color) => {
+    const id = headMarkerId(kind, color);
+    if (id && !markerDefs.has(id)) markerDefs.set(id, { kind, color });
+    return id;
+  };
+  for (const e of edges) {
+    if (e.head !== undefined || e.tail !== undefined) {
+      registerHead(e.head ?? 'arrow', 'var(--text-muted)');
+      registerHead(e.tail ?? 'none', 'var(--text-muted)');
+    }
+  }
+  for (const m of marks) {
+    if (m.kind === 'line' || m.kind === 'polyline') {
+      const dm = mode === 'wireframe' ? wireframeMark(m) : m;
+      registerHead(dm.head, lineHeadColor(dm));
+      registerHead(dm.tail, lineHeadColor(dm));
+    }
+  }
 
   // Unified paint order across stations + marks, ascending z. The `seq`
   // tiebreak makes the sort stable regardless of engine, so when no node
@@ -519,6 +633,17 @@ export default function CreationMap({ manifest, technical = false, compact = fal
         >
           {label}
         </text>
+        {s.divider ? (
+          <line
+            x1={s.x + 8}
+            y1={s.y + scale.labelOffsetY + 8}
+            x2={s.x + s.w - 8}
+            y2={s.y + scale.labelOffsetY + 8}
+            stroke={style.stroke}
+            strokeWidth="1"
+            opacity="0.6"
+          />
+        ) : null}
         {sublabel ? (
           <text
             x={s.x + scale.labelOffsetX}
@@ -685,6 +810,11 @@ export default function CreationMap({ manifest, technical = false, compact = fal
         >
           <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
         </marker>
+        {/* Typed endpoint markers (P0). Only the head kinds actually used are
+            emitted; legacy edges keep `creation-map-arrow` above. */}
+        {[...markerDefs.entries()].map(([id, { kind, color }]) => (
+          <HeadMarker key={id} id={id} kind={kind} color={color} />
+        ))}
         {/* Subtle elevation under the edge-label pills so they read as
             chips lifted off the canvas rather than as inline gaps. Kept
             small (stdDeviation=1.4) so it doesn't compete with station
@@ -712,7 +842,36 @@ export default function CreationMap({ manifest, technical = false, compact = fal
         const from = stationById.get(e.from);
         const to = stationById.get(e.to);
         if (!from || !to) return null;
-        const { d, midX, midY } = edgePath(from, to, e.via, viewBox, e.curvature);
+        // A self-edge (from===to) is a real loopback off the top of the box, not
+        // the degenerate straight line the center-to-center router would draw.
+        let d, midX, midY, sx, sy, ex, ey;
+        if (e.from === e.to) {
+          const cx = from.x + from.w / 2;
+          const ty = from.y;
+          d = `M ${cx - 16} ${ty} C ${cx - 26} ${ty - 54}, ${cx + 26} ${ty - 54}, ${cx + 16} ${ty}`;
+          midX = cx;
+          midY = ty - 46;
+          sx = cx - 16; sy = ty; ex = cx + 16; ey = ty;
+        } else {
+          ({ d, midX, midY, sx, sy, ex, ey } = edgePath(from, to, e.via, viewBox, e.curvature));
+        }
+        // Endpoint labels (P3 multiplicities): pin a short string a little inside
+        // each end, nudged off the line. Only when the edge names them.
+        const endLabels = [];
+        if (e.fromLabel || e.toLabel) {
+          const dxu = ex - sx, dyu = ey - sy;
+          const len = Math.hypot(dxu, dyu) || 1;
+          const ux = dxu / len, uy = dyu / len;
+          if (e.fromLabel) endLabels.push({ key: 'from', x: sx + ux * 20, y: sy + uy * 20 - 6, value: e.fromLabel });
+          if (e.toLabel) endLabels.push({ key: 'to', x: ex - ux * 20, y: ey - uy * 20 - 6, value: e.toLabel });
+        }
+        // Typed heads (P0): an edge that names head/tail uses the registered
+        // markers in the edge ink; otherwise the legacy single filled arrow.
+        const custom = e.head !== undefined || e.tail !== undefined;
+        const headId = custom ? headMarkerId(e.head ?? 'arrow', 'var(--text-muted)') : null;
+        const tailId = custom ? headMarkerId(e.tail ?? 'none', 'var(--text-muted)') : null;
+        const markerEnd = custom ? (headId ? `url(#${headId})` : undefined) : 'url(#creation-map-arrow)';
+        const markerStart = custom && tailId ? `url(#${tailId})` : undefined;
         const label = pickLabel(e, technical);
         const labelWidth = estimateLabelWidth(label, technical, scale.edgeSize);
         // Keep the whole label pill (plus its drop shadow) inside the viewBox.
@@ -739,9 +898,24 @@ export default function CreationMap({ manifest, technical = false, compact = fal
               stroke="var(--text-muted)"
               strokeWidth="1.4"
               opacity="0.8"
-              markerEnd="url(#creation-map-arrow)"
+              {...(markerEnd ? { markerEnd } : {})}
+              {...(markerStart ? { markerStart } : {})}
+              {...(e.dashed ? { strokeDasharray: '6 5' } : {})}
             />
             {e.pulse ? <EdgePulse d={d} pulse={e.pulse} /> : null}
+            {endLabels.map((el) => (
+              <text
+                key={el.key}
+                x={el.x}
+                y={el.y}
+                textAnchor="middle"
+                fill="var(--text-secondary)"
+                fontSize={scale.edgeSize - 1}
+                fontFamily={technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'}
+              >
+                {el.value}
+              </text>
+            ))}
             {label ? (
               <g transform={`translate(${labelX} ${labelY})`}>
                 {/* Pill background — surface-elevated sits one step above

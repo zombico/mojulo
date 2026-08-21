@@ -20,7 +20,7 @@ import { StashRepository } from '@/lib/db/repositories/stashes';
 
 import { renderMarkdown } from '../markdown.js';
 import { renderTemplate } from '../render-template.js';
-import { outcomeDirFor } from '../paths.js';
+import { outcomeDirFor } from '@/lib/outcomes-paths';
 import { resolveSketchItem, stripXmlDecl } from '../resolvers/sketch.js';
 
 export const BRIEF_VERSION = 'br-1';

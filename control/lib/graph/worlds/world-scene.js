@@ -19,7 +19,7 @@
  */
 
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
-import { resolveSignage } from '@/lib/graph/scene/signage-chrome';
+import { resolveSignage } from '@/lib/signage-chrome';
 import { resolveSceneLighting } from '@/lib/graph/scene/scene-css3d';
 import { composeVolumeFog } from '@/lib/graph/effects/effects-fog';
 import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';

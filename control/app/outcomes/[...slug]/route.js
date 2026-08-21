@@ -17,7 +17,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 
-import { outcomeDirFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor } from '@/lib/outcomes-paths';
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 

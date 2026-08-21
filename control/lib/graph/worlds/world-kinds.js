@@ -35,7 +35,6 @@ import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/sc
 import { assembleFloorWorldScene } from '@/lib/graph/polygonizer/floorplan-structure';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
-import { assembleOperatorWorldScene } from '@/lib/graph/worlds/operator-world';
 import { assemblePlanetaryScene } from '@/lib/graph/scene/scene-planetary';
 import { assembleMoleculeScene } from '@/lib/graph/views/bio/molecule-view';
 import { assembleDnaScene } from '@/lib/graph/views/bio/dna-view';
@@ -422,9 +421,6 @@ export const WORLD_KINDS = {
         hx: (c.max[0] - c.min[0]) / 2, hy: (c.max[1] - c.min[1]) / 2, hz: (c.max[2] - c.min[2]) / 2,
       })),
   },
-  // the operator's own Connected Services state, projected to a walkable block-graph (ground + sky +
-  // blocks). Regenerated from the { nodes, edges } the mint tool snapshotted into the manifest.
-  'operator-world': { walk: true, ...view(assembleOperatorWorldScene, 'mojulo operator world') },
 };
 
 // Furnished two-point rooms: assembleRoomScene returns null for any non-room manifest, so this

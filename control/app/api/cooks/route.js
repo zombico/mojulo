@@ -19,7 +19,7 @@
 import { NextResponse } from 'next/server';
 import { CookRepository } from '@/lib/db/repositories/cooks';
 import { StashRepository } from '@/lib/db/repositories/stashes';
-import { outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomeUrlFor } from '@/lib/outcomes-paths';
 
 const PUBLICATION_KINDS = new Set([
   'essay', 'picture_book', 'slide_deck',

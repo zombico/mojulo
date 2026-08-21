@@ -25,7 +25,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { outcomeDirFor } from '@/lib/outcomes/paths';
+import { outcomeDirFor } from '@/lib/outcomes-paths';
 
 const K = buildGameStoreKernel();
 

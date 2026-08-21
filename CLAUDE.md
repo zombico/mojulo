@@ -9,6 +9,7 @@ Guidance for Claude Code (claude.ai/code) and other agent runtimes working in th
 - [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) is the source of truth for the headless control surface: transport, ring model, session binding, deliberation surfaces, catalysts, mcp-orbit, and primitive binding.
 - [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) is the source of truth for the polygonizer/manji-tree substrate as it stands today: the four wave primitives, structure-manji, the seven field kinds, shelf cards, and how they all couple. Supersedes the dozen integration plan files in `lite-template/integration/0605/`.
 - [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) is the deeper agent-facing map for MCP rings, data layout, runtime daemons, and release notes that are too dense for this file.
+- [docs/install-capabilities.md](docs/install-capabilities.md) is the source of truth for the install shape: the kernel + two install-gated packs (ops / creative), physical pack detection, `mojulo install creative`, and the kernel diagram maker.
 - [AGENTS.md](AGENTS.md) adds Codex-specific setup for connecting to the local MCP control plane.
 
 Read the relevant deeper doc before non-trivial work that crosses `control/` and `lite-template/`, changes deploy/build behavior, or touches the MCP tool registry.
@@ -16,6 +17,8 @@ Read the relevant deeper doc before non-trivial work that crosses `control/` and
 ## Repo shape
 
 Mojulo is the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing after the chat ends: running chatbots, connected services, apps, media (worlds, views, films, audio, publications — minted as tiny deterministic recipes), and playable games composed from the rest. The canonical self-description lives in the `get_substrate` drawer ([control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js)); keep user-facing copy consistent with it.
+
+Mojulo installs as a **kernel + two install-gated capability packs** — ops (bots / services / apps) and creative (the render / media / games stack) — keyed to what's physically present on the host. A lean ops-only install stays small and the heavy creative stack is optional (`mojulo install creative`); the kernel alone can still mint a diagram. Install state is derived from disk, with `MOJULO_PACKS` as an explicit override. See [docs/install-capabilities.md](docs/install-capabilities.md).
 
 Two-package monorepo. Both usually matter:
 

@@ -23,7 +23,7 @@ import path from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { renderMarkdown } from '../markdown.js';
 import { renderTemplate } from '../render-template.js';
-import { outcomeDirFor } from '../paths.js';
+import { outcomeDirFor } from '@/lib/outcomes-paths';
 
 export const TEMPLATE_VERSION = '1';
 

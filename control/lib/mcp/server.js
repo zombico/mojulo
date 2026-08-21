@@ -22,7 +22,7 @@ import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, packsModeEnabled, packToolEntry } from '@/lib/mcp/packs';
+import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice } from '@/lib/mcp/packs';
 
 export const PROTOCOL_VERSION = '2024-11-05';
 export const SERVER_NAME = 'mojulo-control-plane';
@@ -115,13 +115,17 @@ export function listTools({ clientInfo } = {}) {
         description: t.description || '',
         inputSchema: t.inputSchema || { type: 'object', properties: {} },
       }));
-    return [...spine, ...PACKS.map((pack) => packToolEntry(pack))];
+    // installedPacks (install-capabilities.plan.md P2): an uninstalled wing's
+    // packs drop from the connect surface. Default full install ⇒ all PACKS.
+    return [...spine, ...installedPacks(process.env).map((pack) => packToolEntry(pack))];
   }
   // `listed: false` tools (deprecated aliases) resolve in tools/call and
   // invokeRegisteredTool but are omitted from tools/list — retired names keep
   // executing for compiled plans / skills without costing context.
+  // isToolInstalled additionally drops an uninstalled pack's members (no-op at
+  // full install).
   return Array.from(registeredTools.values())
-    .filter((t) => t.listed !== false)
+    .filter((t) => t.listed !== false && isToolInstalled(t.name))
     .map((t) => ({
       name: t.name,
       description: t.description || '',
@@ -199,6 +203,8 @@ export function runToolSerialized(tool, fn) {
 export async function invokeRegisteredTool(name, input, context) {
   const tool = registeredTools.get(name);
   if (!tool) throw new Error(`Unknown tool: ${name}`);
+  const notice = installNotice(name);
+  if (notice) throw new Error(notice);
   return await instrumentedInvoke(tool, input || {}, context || {}, {
     via: 'plan-executor',
     name,
@@ -305,6 +311,14 @@ async function handleToolCall(message, context) {
     );
   }
 
+  // Install gate (install-capabilities.plan.md P2): a registered tool whose
+  // capability pack isn't installed on this host is treated as absent. No-op at
+  // full install.
+  const notice = installNotice(toolName);
+  if (notice) {
+    return jsonRpcError(message.id, ErrorCodes.METHOD_NOT_FOUND, notice);
+  }
+
   try {
     const result = await runSerialized(tool, () =>
       instrumentedInvoke(tool, toolInput, context, {
@@ -368,6 +382,7 @@ export async function ensureToolsRegistered() {
   const { registerCookTools } = await import('@/lib/mcp/tools/cook');
   const { registerVisualReferenceTools } = await import('@/lib/mcp/tools/visual-reference');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
+  const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
@@ -519,6 +534,10 @@ export async function ensureToolsRegistered() {
   // via tools/list. See lite-template/integration/app-system/0527/
   // SKETCHBOOK_PLAN.md.
   registerSketchTools();
+  // mint_diagram — the KERNEL diagram maker (SPINE), always-on so a creative-
+  // absent install can still mint a flowchart/chart. Shares lib/diagram-core with
+  // create_sketch. See kernel-diagram-surface.plan.md.
+  registerDiagramTools();
   // The render handoff (render-handoff.plan.md) — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).

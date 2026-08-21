@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emitThreeWorld } from './scene-three.js';
-import { resolveSignage } from './signage-chrome.js';
+import { resolveSignage } from '@/lib/signage-chrome';
 
 const wall = { corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill: '#888888' };
 

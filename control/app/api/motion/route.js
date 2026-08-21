@@ -18,7 +18,7 @@ import path from 'node:path';
 
 import { NextResponse } from 'next/server';
 
-import { outcomesBaseDir, outcomeUrlFor } from '@/lib/outcomes/paths';
+import { outcomesBaseDir, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { OpsTagRepository } from '@/lib/db/repositories/ops-tags';
 
 export async function GET(request) {
