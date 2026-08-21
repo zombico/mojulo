@@ -3,7 +3,7 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Pack partition sweep (tool-packs.plan.md P1-R/P2-D).
@@ -28,6 +28,7 @@ import {
   isPackInstalled,
   isToolInstalled,
   installNotice,
+  _setWingPresence,
 } from '@/lib/mcp/packs';
 
 // Packs-mode connect payload pin — the plan's headline number (~35KB target
@@ -344,6 +345,36 @@ describe('install axis (MOJULO_PACKS) — kernel + ops/creative', () => {
     const botOps = PACKS.find((p) => p.id === 'pack_bot_operate');
     expect(isPackInstalled(world, { MOJULO_PACKS: 'ops' })).toBe(false);
     expect(isPackInstalled(botOps, { MOJULO_PACKS: 'ops' })).toBe(true);
+  });
+});
+
+describe('install axis — physical detection is the source of truth (unset MOJULO_PACKS)', () => {
+  afterEach(() => _setWingPresence(null)); // clear the forced probe → back to real disk
+
+  it('unset env derives wings from physical presence, not a hardcoded default', () => {
+    _setWingPresence(['office']); // simulate creative optional deps omitted (--omit=optional)
+    expect([...installedWings({})]).toEqual(['office']);
+    expect(isPackInstalled(PACKS.find((p) => p.wing === 'studio'), {})).toBe(false);
+    expect(isPackInstalled(PACKS.find((p) => p.wing === 'office'), {})).toBe(true);
+    // and the studio tools cleanly gate off without any env flag set
+    expect(isToolInstalled('compose_world', {})).toBe(false);
+    expect(isToolInstalled('start_new_bot', {})).toBe(true);
+  });
+
+  it('explicit MOJULO_PACKS overrides physical detection (a deliberate operator wins)', () => {
+    _setWingPresence(['office']); // creative absent on disk...
+    // ...but the operator forcing both wings is honored (dev/test escape hatch)
+    expect([...installedWings({ MOJULO_PACKS: 'ops,creative' })].sort()).toEqual(['office', 'studio']);
+  });
+
+  it('typo falls through to physical detection, never an empty workshop', () => {
+    _setWingPresence(['office']);
+    expect([...installedWings({ MOJULO_PACKS: 'zzz' })]).toEqual(['office']);
+  });
+
+  it('office (ops) is alwaysInstalled — present under detection even with no marker deps', () => {
+    _setWingPresence(null); // real probe: office has no markerModule, so it is unconditionally present
+    expect(installedWings({}).has('office')).toBe(true);
   });
 });
 
