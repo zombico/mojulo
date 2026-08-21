@@ -382,6 +382,7 @@ export async function ensureToolsRegistered() {
   const { registerCookTools } = await import('@/lib/mcp/tools/cook');
   const { registerVisualReferenceTools } = await import('@/lib/mcp/tools/visual-reference');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
+  const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
@@ -533,6 +534,10 @@ export async function ensureToolsRegistered() {
   // via tools/list. See lite-template/integration/app-system/0527/
   // SKETCHBOOK_PLAN.md.
   registerSketchTools();
+  // mint_diagram — the KERNEL diagram maker (SPINE), always-on so a creative-
+  // absent install can still mint a flowchart/chart. Shares lib/diagram-core with
+  // create_sketch. See kernel-diagram-surface.plan.md.
+  registerDiagramTools();
   // The render handoff (render-handoff.plan.md) — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).

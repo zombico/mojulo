@@ -167,4 +167,28 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
     }
     expect(offenders, `office tool files importing creative:\n${offenders.join('\n')}`).toEqual([]);
   });
+
+  // E: the KERNEL diagram surface — the pure vocab/validator core, the mint tool,
+  // and the SVG renderer — must statically import nothing under the creative
+  // engine, so a creative-absent install can validate + mint + render a diagram
+  // (kernel-diagram-surface.plan.md). create_sketch (creative) and mint_diagram
+  // (kernel) both delegate diagram validation to lib/diagram-core, so the two
+  // can't drift — enforced FUNCTIONALLY by diagram-core.binding.test.js and
+  // STRUCTURALLY here.
+  const KERNEL_DIAGRAM_SURFACE = [
+    'lib/diagram-core.js',
+    'lib/mcp/tools/diagram.js',
+    'lib/sketch-svg.js',
+  ];
+  it('E: the kernel diagram surface imports nothing under the creative engine', () => {
+    const offenders = [];
+    for (const rel of KERNEL_DIAGRAM_SURFACE) {
+      const code = readFileSync(join(CONTROL_ROOT, rel), 'utf8');
+      for (const spec of specifiers(code)) {
+        const t = resolveSpec(spec, rel);
+        if (t && bucketOf(t) === 'creative') offenders.push(`${rel}  →  ${t}`);
+      }
+    }
+    expect(offenders, `kernel diagram surface → creative imports:\n${offenders.join('\n')}`).toEqual([]);
+  });
 });

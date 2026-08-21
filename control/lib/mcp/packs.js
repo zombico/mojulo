@@ -41,6 +41,11 @@ export const SPINE = [
   'get_tool_telemetry',
   'version',
   'check_for_updates',
+  // mint_diagram — the KERNEL diagram maker (kernel-diagram-surface.plan.md).
+  // Spine, not a pack: "a diagram is just SVG," so it stays available even in an
+  // install without the creative pack. create_sketch (pack_diagram, studio) is
+  // the creative superset; both delegate diagram validation to lib/diagram-core.
+  'mint_diagram',
 ];
 
 // Listed in flat mode; dropped from tools/list in packs mode (still callable).
