@@ -50,6 +50,11 @@ export {
   SIGNAGE_SLOTS,
   validateDiagramManifest,
   expandGridLayout,
+  expandSequence,
+  expandGantt,
+  expandSwimlanes,
+  expandBoundaries,
+  lowerDiagramKinds,
 } from '@/lib/diagram-core';
 
 export function validateSketchManifest(manifest) {

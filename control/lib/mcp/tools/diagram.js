@@ -19,7 +19,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
-import { expandGridLayout, validateDiagramManifest } from '@/lib/diagram-core';
+import { lowerDiagramKinds, expandGridLayout, expandBoundaries, validateDiagramManifest } from '@/lib/diagram-core';
 
 /**
  * Validate + persist a core diagram manifest. Mirrors the diagram path of
@@ -65,10 +65,13 @@ export function mintDiagram({ title, manifest, ref, folderRef } = {}) {
     }
   }
 
-  // Resolve grid `cell` placements to absolute x/y/w/h before validating +
-  // storing (so the renderer only ever sees concrete coords), then validate
-  // through the SAME kernel validator create_sketch delegates to.
-  const finalized = expandGridLayout(manifest);
+  // Lower the diagram kinds (sequence / gantt / swimlanes → plain marks; no-op
+  // for a plain diagram), then resolve grid `cell` placements to absolute
+  // x/y/w/h, before validating + storing (so the renderer only ever sees
+  // concrete coords). Both steps are the SAME kernel pre-expansion create_sketch
+  // delegates to.
+  // expandBoundaries runs LAST — it wraps stations by their RESOLVED coords.
+  const finalized = expandBoundaries(expandGridLayout(lowerDiagramKinds(manifest)));
   const { ok, errors } = validateDiagramManifest(finalized);
   if (!ok) {
     throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);
@@ -109,7 +112,7 @@ export function registerDiagramTools() {
   registerTool({
     name: 'mint_diagram',
     description:
-      "Mint a flow-chart or data-chart diagram → a viewable /sketches/<ref> url. The KERNEL diagram maker, available even without the creative pack (a diagram is just SVG). Manifest: { title, viewBox: { width, height }, and stations[]+edges[] (boxes+arrows) and/or marks[] (chart primitives: rect/circle/wedge/line/text/…) — at least one }. Stations carry x/y/w/h; edges are { from, to, label?, via? }; optional grid { cols, rows } + per-node cell. For chart layout math query semantic_search({ kinds: ['sketch_vocab'] }). Returns { ok, ref, url }. (Illustration recipes, worlds, beats, and constellation marks are creative-pack features — use create_sketch.)",
+      "Mint a flow-chart or data-chart → a /sketches/<ref> url. Kernel diagram maker (works without the creative pack). Manifest: { title, viewBox:{width,height}, plus stations[]+edges[] (boxes+arrows) and/or marks[] (rect/circle/wedge/line/text/…) — at least one }. Stations carry x/y/w/h; edges { from, to, label?, via?, head?, tail?, dashed? } — head/tail are typed markers (arrow/triangle-open/diamond[-filled]/crowsfoot-one|many/dot/none), from===to draws a self-loop; line/polyline marks take head/tail too. Optional grid {cols,rows}+per-node cell. Chart vocab: semantic_search({kinds:['sketch_vocab']}). Returns {ok,ref,url}. (Recipes/worlds/beats/constellation marks → create_sketch.)",
     inputSchema: {
       type: 'object',
       properties: {

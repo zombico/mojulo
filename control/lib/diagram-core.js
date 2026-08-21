@@ -23,6 +23,34 @@ export const PULSE_DIRS = ['forward', 'reverse', 'pingpong'];
 const PULSE_DIR_SET = new Set(PULSE_DIRS);
 const PULSE_MAX_COUNT = 12;
 
+// Typed endpoint notation (P0 — diagram-patterns-spike.plan.md). An edge, or a
+// `line`/`polyline` mark, may carry a `head` (the to-end) and/or `tail` (the
+// from-end) marker. `arrow` is the default flow head; the rest cover the
+// standard UML/ERD notations several patterns depend on. The renderer lowers
+// each distinct (kind, color) to an SVG <marker>; `none` draws nothing. Absent
+// on an edge ⇒ the legacy single filled-arrow head (byte-identical to before).
+export const EDGE_HEADS = [
+  'arrow',
+  'triangle-open',   // UML inheritance / generalization
+  'diamond',         // UML aggregation (hollow)
+  'diamond-filled',  // UML composition (filled)
+  'crowsfoot-one',   // ERD cardinality: one
+  'crowsfoot-many',  // ERD cardinality: many
+  'dot',             // state-machine pseudostate / bullet
+  'none',
+];
+const EDGE_HEAD_SET = new Set(EDGE_HEADS);
+
+// Shared head/tail validation for the head-capable marks (line/polyline) and
+// edges. Type-checked + enum-checked when present; never required.
+function validateHeads(node, path, errors) {
+  for (const k of ['head', 'tail']) {
+    if (node[k] !== undefined && !EDGE_HEAD_SET.has(node[k])) {
+      errors.push(`${path}.${k} must be one of: ${EDGE_HEADS.join(', ')} (got '${node[k]}')`);
+    }
+  }
+}
+
 export const MARK_KINDS = [
   'rect',
   'circle',
@@ -228,6 +256,11 @@ function validateStation(station, idx, errors) {
   if (station.sublabel !== undefined && typeof station.sublabel !== 'string') {
     errors.push(`${path}.sublabel must be a string if provided`);
   }
+  // Entity-box rule under the title (ERD/UML — P3). Advisory boolean; the
+  // renderer draws a divider line below the label when set.
+  if (station.divider !== undefined && typeof station.divider !== 'boolean') {
+    errors.push(`${path}.divider must be a boolean if provided`);
+  }
 }
 
 // Style fields shared across mark kinds. Validated loosely — type-checked when
@@ -301,6 +334,7 @@ function validateMark(mark, idx, errors) {
       for (const k of ['x1', 'y1', 'x2', 'y2']) {
         if (!isFiniteNumber(mark[k])) errors.push(`${path}.${k} must be a finite number`);
       }
+      validateHeads(mark, path, errors);
       break;
     case 'polyline':
       if (
@@ -313,6 +347,7 @@ function validateMark(mark, idx, errors) {
         errors.push(`${path}.points must be an array of >= 2 [x, y] number pairs`);
       }
       validateOptionalNumber(mark, 'curvature', path, errors);
+      validateHeads(mark, path, errors);
       break;
     case 'polygon':
       if (
@@ -529,6 +564,18 @@ function validateEdge(edge, idx, stationIds, errors) {
       `edges[${idx}].via must be one of: ${EDGE_VIA_VALUES.join(', ')} (got '${edge.via}')`,
     );
   }
+  validateHeads(edge, `edges[${idx}]`, errors);
+  if (edge.dashed !== undefined && typeof edge.dashed !== 'boolean') {
+    errors.push(`edges[${idx}].dashed must be a boolean if provided`);
+  }
+  // Endpoint labels (ERD/UML multiplicities — P3): a short string pinned near
+  // the from-/to-end of the edge, distinct from the centered `label`.
+  if (edge.fromLabel !== undefined && typeof edge.fromLabel !== 'string') {
+    errors.push(`edges[${idx}].fromLabel must be a string if provided`);
+  }
+  if (edge.toLabel !== undefined && typeof edge.toLabel !== 'string') {
+    errors.push(`edges[${idx}].toLabel must be a string if provided`);
+  }
   if (edge.curvature !== undefined) {
     if (!isFiniteNumber(edge.curvature)) {
       errors.push(`edges[${idx}].curvature must be a finite number if provided`);
@@ -724,4 +771,354 @@ export function expandGridLayout(manifest) {
     : manifest.marks;
 
   return { ...manifest, stations: nextStations, marks: nextMarks };
+}
+
+
+// ── Sequence lowering (P1 — diagram-patterns-spike.plan.md) ──────────────────
+//
+// A `kind:'sequence'` manifest is a compact { actors, messages } spec; this
+// lowers it to a plain diagram (viewBox + line/rect/text marks with P0 heads)
+// BEFORE validate + store, exactly like expandGridLayout. The renderer never
+// learns about sequences — it just draws the emitted marks. Deterministic: same
+// spec → byte-identical marks. No-op for every other kind.
+//
+// Auto-layout is the whole value: actors are evenly spaced across the top (a
+// header box + a dashed lifeline each); messages stack top→down by array order;
+// a message with `activate` opens an activation bar on its receiver that closes
+// at the receiver's next outgoing message; a self-message (from===to) draws a
+// loopback. The palette uses the same CSS vars the diagram renderer resolves, so
+// a lowered sequence themes + exports like any other diagram.
+const SEQUENCE_MSG_KINDS = new Set(['sync', 'async', 'return']);
+
+function validateSequenceSpec(manifest) {
+  const errors = [];
+  const actors = manifest.actors;
+  if (!Array.isArray(actors) || actors.length === 0) {
+    errors.push('sequence.actors must be a non-empty array of { id, label }');
+  } else {
+    const seen = new Set();
+    actors.forEach((a, i) => {
+      if (!a || typeof a !== 'object') { errors.push(`actors[${i}] must be an object`); return; }
+      if (!a.id || typeof a.id !== 'string') errors.push(`actors[${i}].id is required (string)`);
+      if (!a.label || typeof a.label !== 'string') errors.push(`actors[${i}].label is required (string)`);
+      if (typeof a.id === 'string') {
+        if (seen.has(a.id)) errors.push(`actors[${i}].id='${a.id}' is duplicated; ids must be unique`);
+        seen.add(a.id);
+      }
+    });
+  }
+  const ids = new Set(Array.isArray(actors) ? actors.map((a) => a?.id).filter((x) => typeof x === 'string') : []);
+  const messages = manifest.messages;
+  if (messages !== undefined && !Array.isArray(messages)) {
+    errors.push('sequence.messages must be an array if provided');
+  } else if (Array.isArray(messages)) {
+    messages.forEach((m, i) => {
+      if (!m || typeof m !== 'object') { errors.push(`messages[${i}] must be an object`); return; }
+      for (const k of ['from', 'to']) {
+        if (!m[k] || typeof m[k] !== 'string') errors.push(`messages[${i}].${k} is required (string)`);
+        else if (!ids.has(m[k])) errors.push(`messages[${i}].${k}='${m[k]}' does not match any actor id`);
+      }
+      if (m.label !== undefined && typeof m.label !== 'string') errors.push(`messages[${i}].label must be a string if provided`);
+      if (m.kind !== undefined && !SEQUENCE_MSG_KINDS.has(m.kind)) {
+        errors.push(`messages[${i}].kind must be one of: sync, async, return (got '${m.kind}')`);
+      }
+      if (m.activate !== undefined && typeof m.activate !== 'boolean') errors.push(`messages[${i}].activate must be a boolean if provided`);
+    });
+  }
+  return errors;
+}
+
+export function expandSequence(manifest) {
+  if (!manifest || typeof manifest !== 'object' || manifest.kind !== 'sequence') return manifest;
+
+  const errors = validateSequenceSpec(manifest);
+  if (errors.length) {
+    throw new Error(`Invalid sequence manifest:\n - ${errors.join('\n - ')}`);
+  }
+
+  const actors = manifest.actors;
+  const messages = Array.isArray(manifest.messages) ? manifest.messages : [];
+
+  // Layout metrics (px).
+  const marginX = 60, colStep = 170, headerW = 130, headerH = 30;
+  const top = 30, gapAfterHeader = 12, rowH = 42, bottomPad = 34;
+  const colX = actors.map((_, i) => marginX + headerW / 2 + i * colStep);
+  const idx = new Map(actors.map((a, i) => [a.id, i]));
+  const lifeTop = top + headerH;
+  const msgTop = lifeTop + gapAfterHeader + rowH;
+  const msgY = messages.map((_, k) => msgTop + k * rowH);
+  const lifeBottom = (messages.length ? msgY[msgY.length - 1] : msgTop) + Math.round(rowH * 0.6);
+  const width = (colX.length ? colX[colX.length - 1] : marginX) + headerW / 2 + marginX;
+  const height = lifeBottom + bottomPad;
+
+  const INK = 'var(--text-primary)';
+  const MUTED = 'var(--text-muted)';
+  const ACCENT = 'var(--brand-teal)';
+
+  const lifelines = [];
+  const headers = [];
+  actors.forEach((a, i) => {
+    lifelines.push({ kind: 'line', x1: colX[i], y1: lifeTop, x2: colX[i], y2: lifeBottom, stroke: MUTED, strokeWidth: 1, dash: '3 4' });
+    headers.push({ kind: 'rect', x: colX[i] - headerW / 2, y: top, w: headerW, h: headerH, rx: 6, fill: 'rgba(20,184,166,0.08)', stroke: ACCENT, strokeWidth: 1.3 });
+    headers.push({ kind: 'text', x: colX[i], y: top + 20, value: a.label, size: 12, anchor: 'middle', weight: 600, color: ACCENT });
+  });
+
+  // Activation bars: a message with `activate` opens a bar on its receiver that
+  // closes at that receiver's next OUTGOING message (its response), else at the
+  // lifeline bottom.
+  const activations = [];
+  messages.forEach((m, k) => {
+    if (!m.activate) return;
+    const actor = m.to;
+    let endY = lifeBottom;
+    for (let j = k + 1; j < messages.length; j++) {
+      if (messages[j].from === actor) { endY = msgY[j]; break; }
+    }
+    const i = idx.get(actor);
+    activations.push({ kind: 'rect', x: colX[i] - 5, y: msgY[k], w: 10, h: Math.max(6, endY - msgY[k]), fill: 'rgba(20,184,166,0.18)', stroke: ACCENT, strokeWidth: 0.8 });
+  });
+
+  const lines = [];
+  const labels = [];
+  messages.forEach((m, k) => {
+    const fi = idx.get(m.from), ti = idx.get(m.to);
+    const y = msgY[k];
+    const dashed = m.kind === 'return';
+    if (m.from === m.to) {
+      // Self-message: a loopback to the right of the lifeline.
+      const x = colX[fi];
+      lines.push({ kind: 'polyline', points: [[x, y - 6], [x + 34, y - 6], [x + 34, y + 12], [x, y + 12]], stroke: INK, strokeWidth: 1.4, head: 'arrow', ...(dashed ? { dash: '5 4' } : {}) });
+      if (m.label) labels.push({ kind: 'text', x: x + 40, y: y - 2, value: m.label, size: 11, anchor: 'start', color: INK });
+    } else {
+      lines.push({ kind: 'line', x1: colX[fi], y1: y, x2: colX[ti], y2: y, stroke: INK, strokeWidth: 1.4, head: 'arrow', ...(dashed ? { dash: '5 4' } : {}) });
+      if (m.label) labels.push({ kind: 'text', x: (colX[fi] + colX[ti]) / 2, y: y - 6, value: m.label, size: 11, anchor: 'middle', color: INK });
+    }
+  });
+
+  // Paint order: lifelines (back) → activation bars → message lines → headers →
+  // labels (front). Any author-supplied marks ride on top.
+  const lowered = [...lifelines, ...activations, ...lines, ...headers, ...labels];
+  const existing = Array.isArray(manifest.marks) ? manifest.marks : [];
+  return { ...manifest, viewBox: { width, height }, marks: [...lowered, ...existing] };
+}
+
+
+// ── Gantt lowering (P5 — diagram-patterns-spike.plan.md) ─────────────────────
+//
+// A `kind:'gantt'` manifest is a { scale, tasks } spec on a NUMERIC domain
+// (weeks/days/sprints — the author maps real dates to numbers; date-string
+// parsing is a documented follow-up). Lowered to rect bars on a hand-computed
+// value→x scale + a tick axis, all plain marks. No-op for every other kind.
+function validateGanttSpec(manifest) {
+  const errors = [];
+  const scale = manifest.scale;
+  if (!scale || typeof scale !== 'object' || Array.isArray(scale)) {
+    errors.push('gantt.scale must be an object { start, end, unit? }');
+  } else {
+    if (!isFiniteNumber(scale.start)) errors.push('gantt.scale.start must be a finite number');
+    if (!isFiniteNumber(scale.end)) errors.push('gantt.scale.end must be a finite number');
+    if (isFiniteNumber(scale.start) && isFiniteNumber(scale.end) && scale.end <= scale.start) {
+      errors.push('gantt.scale.end must be greater than scale.start');
+    }
+    if (scale.unit !== undefined && typeof scale.unit !== 'string') errors.push('gantt.scale.unit must be a string if provided');
+  }
+  const tasks = manifest.tasks;
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    errors.push('gantt.tasks must be a non-empty array of { label, start, end }');
+  } else {
+    tasks.forEach((t, i) => {
+      if (!t || typeof t !== 'object') { errors.push(`tasks[${i}] must be an object`); return; }
+      if (!t.label || typeof t.label !== 'string') errors.push(`tasks[${i}].label is required (string)`);
+      if (!isFiniteNumber(t.start)) errors.push(`tasks[${i}].start must be a finite number`);
+      if (!isFiniteNumber(t.end)) errors.push(`tasks[${i}].end must be a finite number`);
+      if (isFiniteNumber(t.start) && isFiniteNumber(t.end) && t.end < t.start) errors.push(`tasks[${i}].end must be >= start`);
+      if (t.lane !== undefined && typeof t.lane !== 'string') errors.push(`tasks[${i}].lane must be a string if provided`);
+    });
+  }
+  return errors;
+}
+
+export function expandGantt(manifest) {
+  if (!manifest || typeof manifest !== 'object' || manifest.kind !== 'gantt') return manifest;
+  const errors = validateGanttSpec(manifest);
+  if (errors.length) throw new Error(`Invalid gantt manifest:\n - ${errors.join('\n - ')}`);
+
+  const tasks = manifest.tasks;
+  const { start, end, unit } = manifest.scale;
+  const labelW = 170, gutter = 20, chartW = 560;
+  const x0 = labelW + gutter, x1 = x0 + chartW;
+  const top = 60, rowH = 40, barH = 22, barPad = (rowH - barH) / 2;
+  const width = x1 + 30;
+  const height = top + tasks.length * rowH + 24;
+  const wx = (v) => x0 + ((v - start) / (end - start)) * (x1 - x0);
+
+  const MUTED = 'var(--text-muted)';
+  const INK = 'var(--text-primary)';
+  const ACCENT = 'var(--brand-teal)';
+
+  // Axis: integer-ish ticks across the domain (coarser as the span grows).
+  const span = end - start;
+  const step = span <= 12 ? 1 : Math.ceil(span / 10);
+  const grid = [];
+  const axisBottom = top + tasks.length * rowH;
+  for (let t = Math.ceil(start); t <= end + 1e-9; t += step) {
+    grid.push({ kind: 'line', x1: wx(t), y1: top - 8, x2: wx(t), y2: axisBottom, stroke: MUTED, strokeWidth: 1, opacity: 0.3 });
+    grid.push({ kind: 'text', x: wx(t), y: top - 14, value: `${unit || ''}${t}`, size: 10, anchor: 'middle', color: MUTED });
+  }
+
+  const bars = [];
+  tasks.forEach((t, i) => {
+    const y = top + i * rowH;
+    bars.push({ kind: 'text', x: 24, y: y + barPad + 15, value: t.label, size: 12, anchor: 'start', color: INK });
+    bars.push({ kind: 'rect', x: wx(t.start), y: y + barPad, w: Math.max(2, wx(t.end) - wx(t.start)), h: barH, rx: 5, fill: ACCENT, opacity: 0.6, stroke: ACCENT, strokeWidth: 1 });
+  });
+
+  const existing = Array.isArray(manifest.marks) ? manifest.marks : [];
+  return { ...manifest, viewBox: { width, height }, marks: [...grid, ...bars, ...existing] };
+}
+
+
+// ── Swimlane lowering (P2 — diagram-patterns-spike.plan.md) ──────────────────
+//
+// A MODIFIER (not a kind): a diagram carrying `lanes:[{id,label}]` + `station.lane`
+// (+ optional `station.col`) is partitioned into labeled actor lanes. The lowering
+// emits a band rect per lane (behind, via z:-1) and PINS each laned station's
+// coordinates — cross-axis to its lane, along-axis by `col` — so the author never
+// hand-places boxes. Edges are left to the existing router. No-op with no lanes[].
+function validateSwimlaneSpec(manifest) {
+  const errors = [];
+  const lanes = manifest.lanes;
+  if (!Array.isArray(lanes) || lanes.length === 0) {
+    errors.push('lanes must be a non-empty array of { id, label }');
+    return { errors, laneIndex: new Map() };
+  }
+  const laneIndex = new Map();
+  lanes.forEach((l, i) => {
+    if (!l || typeof l !== 'object') { errors.push(`lanes[${i}] must be an object`); return; }
+    if (!l.id || typeof l.id !== 'string') errors.push(`lanes[${i}].id is required (string)`);
+    if (!l.label || typeof l.label !== 'string') errors.push(`lanes[${i}].label is required (string)`);
+    if (typeof l.id === 'string') {
+      if (laneIndex.has(l.id)) errors.push(`lanes[${i}].id='${l.id}' is duplicated; ids must be unique`);
+      laneIndex.set(l.id, i);
+    }
+  });
+  const stations = Array.isArray(manifest.stations) ? manifest.stations : [];
+  stations.forEach((s, i) => {
+    if (s && s.lane !== undefined) {
+      if (typeof s.lane !== 'string' || !laneIndex.has(s.lane)) errors.push(`stations[${i}].lane='${s?.lane}' does not match any lane id`);
+      if (s.col !== undefined && !isFiniteNumber(s.col)) errors.push(`stations[${i}].col must be a finite number if provided`);
+    } else if (s && !isFiniteNumber(s.x)) {
+      errors.push(`stations[${i}] must carry a lane (or explicit x/y) in a swimlane diagram`);
+    }
+  });
+  return { errors, laneIndex };
+}
+
+export function expandSwimlanes(manifest) {
+  if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.lanes) || manifest.lanes.length === 0) {
+    return manifest;
+  }
+  const { errors, laneIndex } = validateSwimlaneSpec(manifest);
+  if (errors.length) throw new Error(`Invalid swimlane manifest:\n - ${errors.join('\n - ')}`);
+
+  const lanes = manifest.lanes;
+  const stations = Array.isArray(manifest.stations) ? manifest.stations : [];
+  const marginX = 130, colStep = 180, stationW = 130, stationH = 52;
+  const laneTop = 50, laneH = 110;
+  const cols = stations.map((s) => (isFiniteNumber(s.col) ? Math.floor(s.col) : 0));
+  const maxCol = cols.length ? Math.max(...cols) : 0;
+  const width = marginX + maxCol * colStep + stationW + 40;
+  const height = laneTop + lanes.length * laneH + 20;
+
+  const MUTED = 'var(--text-muted)';
+  const INK = 'var(--text-primary)';
+
+  const bands = [];
+  lanes.forEach((l, i) => {
+    const y = laneTop + i * laneH;
+    bands.push({ kind: 'rect', x: 0, y, w: width, h: laneH, z: -1, fill: i % 2 ? 'rgba(99,102,120,0.10)' : 'rgba(99,102,120,0.04)', stroke: 'rgba(99,102,120,0.35)', strokeWidth: 1 });
+    bands.push({ kind: 'text', x: 12, y: y + 20, value: l.label, size: 12, anchor: 'start', weight: 600, color: INK, z: -1 });
+  });
+
+  const nextStations = stations.map((s, i) => {
+    if (s.lane === undefined) return s;
+    const li = laneIndex.get(s.lane);
+    const col = isFiniteNumber(s.col) ? Math.floor(s.col) : 0;
+    const { lane, col: _c, ...rest } = s;
+    return {
+      ...rest,
+      x: isFiniteNumber(s.x) ? s.x : marginX + col * colStep,
+      y: isFiniteNumber(s.y) ? s.y : laneTop + li * laneH + (laneH - stationH) / 2,
+      w: isFiniteNumber(s.w) ? s.w : stationW,
+      h: isFiniteNumber(s.h) ? s.h : stationH,
+    };
+  });
+
+  const existing = Array.isArray(manifest.marks) ? manifest.marks : [];
+  return { ...manifest, viewBox: { width, height }, stations: nextStations, marks: [...bands, ...existing] };
+}
+
+
+// The single diagram-kind lowering pass both mint paths run before grid
+// expansion. Each step no-ops unless its trigger is present, so ordering is
+// free; kept in ONE place so mint_diagram and create_sketch can't drift.
+export function lowerDiagramKinds(manifest) {
+  return expandSwimlanes(expandGantt(expandSequence(manifest)));
+}
+
+
+// ── Boundary lowering (P4 containment / C4 — diagram-patterns-spike.plan.md) ──
+//
+// A diagram carrying `boundaries:[{label?, contains:[stationIds], style?}]` gets
+// a labeled dashed box drawn BEHIND each group, auto-sized to wrap its members +
+// padding. Unlike the other lowerings this runs AFTER grid/swimlane expansion —
+// it reads the members' RESOLVED x/y/w/h to compute the bbox. No-op with no
+// boundaries[]. It only APPENDS marks (never moves a station), so it composes
+// with every other kind. Edge routing is unchanged — obstacle-avoiding routing
+// that respects a boundary is a separate, general router follow-up.
+export function expandBoundaries(manifest) {
+  if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.boundaries) || manifest.boundaries.length === 0) {
+    return manifest;
+  }
+  const stations = Array.isArray(manifest.stations) ? manifest.stations : [];
+  const byId = new Map(stations.map((s) => [s.id, s]));
+  const errors = [];
+  const boundaries = manifest.boundaries;
+  boundaries.forEach((b, i) => {
+    if (!b || typeof b !== 'object' || Array.isArray(b)) { errors.push(`boundaries[${i}] must be an object`); return; }
+    if (b.label !== undefined && typeof b.label !== 'string') errors.push(`boundaries[${i}].label must be a string if provided`);
+    if (!Array.isArray(b.contains) || b.contains.length === 0) {
+      errors.push(`boundaries[${i}].contains must be a non-empty array of station ids`);
+    } else {
+      b.contains.forEach((id) => {
+        const s = byId.get(id);
+        if (!s) errors.push(`boundaries[${i}].contains id '${id}' does not match any station`);
+        else if (![s.x, s.y, s.w, s.h].every(isFiniteNumber)) errors.push(`boundaries[${i}] member '${id}' has no resolved coordinates (place it, or give it a lane/cell)`);
+      });
+    }
+    if (b.style !== undefined && (!b.style || typeof b.style !== 'object' || Array.isArray(b.style))) {
+      errors.push(`boundaries[${i}].style must be an object if provided`);
+    }
+  });
+  if (errors.length) throw new Error(`Invalid boundaries:\n - ${errors.join('\n - ')}`);
+
+  const PAD = 16, LABEL_H = 22;
+  const bands = [];
+  boundaries.forEach((b) => {
+    const members = b.contains.map((id) => byId.get(id));
+    const minX = Math.min(...members.map((s) => s.x));
+    const minY = Math.min(...members.map((s) => s.y));
+    const maxX = Math.max(...members.map((s) => s.x + s.w));
+    const maxY = Math.max(...members.map((s) => s.y + s.h));
+    const style = b.style || {};
+    const labelH = b.label ? LABEL_H : 0;
+    const x = minX - PAD, y = minY - PAD - labelH;
+    const w = maxX - minX + 2 * PAD, h = maxY - minY + 2 * PAD + labelH;
+    // z:-2 sits behind swimlane bands (z:-1) and stations (0). Translucent so an
+    // edge (painted below all drawables) still reads through the fill.
+    bands.push({ kind: 'rect', x, y, w, h, rx: 12, z: -2, fill: style.fill || 'rgba(99,102,120,0.05)', stroke: style.stroke || 'var(--text-muted)', strokeWidth: 1.4, dash: style.dash || '7 5' });
+    if (b.label) bands.push({ kind: 'text', x: x + 12, y: y + 16, value: b.label, size: 12, anchor: 'start', weight: 600, color: 'var(--text-secondary)', z: -2 });
+  });
+  const existing = Array.isArray(manifest.marks) ? manifest.marks : [];
+  return { ...manifest, marks: [...bands, ...existing] };
 }
