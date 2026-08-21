@@ -33,6 +33,16 @@ chokepoint and kept orthogonal by the `pack-boundary` static guard (Checks
 A–E). The published bot image is unaffected (pack-agnostic). See
 `docs/install-capabilities.md`.
 
+**Upgrading from 1.2.x:** no action needed and nothing is lost. npm installs
+`optionalDependencies` by default, so a normal update (`npm i mojulo@latest`,
+`npx mojulo@latest`, `npm update`) keeps the full workshop — physical detection
+sees the creative deps on disk and every tool behaves exactly as before, plus
+the new `mint_diagram`. Going lean is strictly opt-in: only an install run with
+`--omit=optional` (or an npm config already carrying `omit=optional`) sheds the
+creative pack, and even then the loss self-describes — a creative tool answers
+with a terminal advisory to run `mojulo install creative`, which restores it.
+No schema/data migration; existing bots, sketches, and worlds are untouched.
+
 ### Kernel diagram maker
 
 A creative-absent mojulo can now MINT a diagram, not just render one:
@@ -42,9 +52,12 @@ now delegates to it) and returns a `/sketches/<ref>` URL. `create_sketch`
 (creative) is the superset; both share `diagram-core`, so they can't drift (a
 binding test asserts identical rendered SVG + byte-identical manifest;
 pack-boundary Check E keeps the kernel diagram surface off `lib/graph`).
-Coverage is flowcharts + common charts (bar / donut / KPI / line) today; richer
-chart marks and the missing standard diagram patterns (sequence / swimlane /
-ERD / containment / Gantt) are in progress — see
+Coverage is flowcharts + common charts (bar / donut / KPI / line) plus the
+standard diagram patterns — sequence (lifelines + activation bars + self-
+messages), swimlane lanes, ERD entities, containment/C4 boundaries, Gantt
+schedules on a numeric scale, and richer edge notation (arrowhead styles,
+multiplicities, self-loops) — all validated in `lib/diagram-core.js` and
+covered by the `diagram-core.*` suites. See
 `lib/mcp/diagram-patterns-spike.plan.md`.
 
 ### Consolidated tool packs (opt-in, `MOJULO_TOOL_PACKS=on`)

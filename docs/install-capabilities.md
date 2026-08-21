@@ -74,7 +74,7 @@ The orthogonality is kept honest by the static-import guard
 engines never import each other, no office tool imports the creative engine, and the kernel diagram
 surface imports nothing under `lib/graph`.
 
-## Diagram maker in the kernel (STUB — parallel work in progress)
+## Diagram maker in the kernel
 
 The kernel can *make*, not just render, a diagram: **`mint_diagram`** (a SPINE / always-on tool) mints a
 diagram from a manifest and returns a `/sketches/<ref>` URL, using only the pure kernel
@@ -83,14 +83,14 @@ store. `create_sketch` (creative pack) is the superset — recipes, worlds, illu
 delegate diagram validation to `diagram-core`, so they can't drift (enforced by
 `control/lib/diagram-core.binding.test.js`).
 
-**Current coverage is real but basic:** flowcharts (boxes + arrows) and common charts (stacked bar,
-donut/ring, KPI tiles, line) render identically through both paths. Richer chart marks (composite/layout
-kinds needing the "Rendrant" expander) and the missing **standard diagram patterns** — sequence,
-swimlane, ERD/UML, containment/C4, timeline/Gantt, richer edge notation — are **in progress on a parallel
-track**; see [control/lib/mcp/diagram-patterns-spike.plan.md](../control/lib/mcp/diagram-patterns-spike.plan.md)
+**Coverage:** flowcharts (boxes + arrows) and common charts (stacked bar, donut/ring, KPI tiles, line)
+render identically through both paths, plus the **standard diagram patterns** — sequence (lifelines,
+activation bars, self-messages), swimlane lanes, ERD/UML entities, containment/C4 boundaries,
+timeline/Gantt on a numeric scale, and richer edge notation (arrowhead styles, multiplicities,
+self-loops). These are validated in [control/lib/diagram-core.js](../control/lib/diagram-core.js) and
+covered by the `diagram-core.*` suites. Design history and the per-pattern rationale live in
+[control/lib/mcp/diagram-patterns-spike.plan.md](../control/lib/mcp/diagram-patterns-spike.plan.md)
 and [control/lib/mcp/kernel-diagram-surface.plan.md](../control/lib/mcp/kernel-diagram-surface.plan.md).
-Treat this section as a stub until that work lands; do not describe the kernel diagram maker as
-full-featured.
 
 ## The bot image is unaffected
 
