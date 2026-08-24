@@ -63,7 +63,7 @@ Five things the agent can create:
 - **Connected Service** — a workflow over the operator's installed MCPs, no chatbot. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
 - **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
 - **Media** — creative artifacts minted as tiny deterministic recipes, never renders. Entry: \`forward_context({mode:'studio'})\` — the studio routing index.
-- **Game** — composition over Media, playable standalone; a level is refused until proven completable. Entry: \`create_game\` (routing: the studio).
+- **Game** — composition over Media, playable standalone. Entry: \`create_game\` (routing: the studio).
 
 **Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped bot as user secrets. Use \`inspect_bot_env\`, never \`cat\` or \`Read\`.
 

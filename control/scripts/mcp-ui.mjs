@@ -152,6 +152,12 @@ import(pathToFileURL(path.join(CONTROL_DIR, 'lib', 'embedder', 'local.js')).href
   });
 
 process.stdout.write(`mojulo-ui: starting on ${url}\n`);
+// A fresh install always lands in English — the locale is a per-browser
+// NEXT_LOCALE cookie (no Accept-Language sniffing) — so tell the operator
+// here that the UI speaks their language and where to switch it.
+process.stdout.write(
+  'mojulo-ui: the dashboard ships in ~two dozen languages (incl. RTL) — switch in Settings → Language.\n'
+);
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => process.exit(0));

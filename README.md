@@ -4,11 +4,11 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.12-brightgreen)](package.json)
 
-**Mojulo is a workshop for coding agents** — local, yours, not a hosted service. You talk to the agent you already run (Claude Code, Codex); it does the generating and the reasoning. Mojulo catches that output and sets it in a standard, owned form — a deterministic **recipe** on your own disk that regenerates identically and outlives the chat.
+**Mojulo is a workshop for coding agents** — local, yours, not a hosted service. It turns the agent you already run (Claude Code, Codex) into a **chatbot factory**, a **services hub**, and a **3D & game studio**: you talk; the agent does the generating and the reasoning. Mojulo catches that output and sets it in a standard, owned form — a deterministic **recipe** on your own disk that regenerates identically and outlives the chat.
 
-**The core is where that pays off first.** Your agent builds a **chatbot** — compiled to a runnable process with hash-chained transcripts and offline RAG — but the chatbot isn't the end of it. Its conversations lead to **outcomes**: wired through the MCPs and connected tooling already on your substrate (Drive, Gmail, your CRM), a conversation can book the appointment, file the record, send the brief. The bot is the front door; the connected tooling is what makes it *do* something.
+**The core — the chatbot factory and the services hub — is where that pays off first.** Your agent builds a **chatbot** — compiled to a runnable process with hash-chained transcripts and offline RAG — but the chatbot isn't the end of it. Its conversations lead to **outcomes**: wired through the MCPs and connected tooling already on your substrate (Drive, Gmail, your CRM), a conversation can book the appointment, file the record, send the brief. The bot is the front door; the connected tooling is what makes it *do* something.
 
-**The creative wing is 3D.** Your agent writes a geometry spec and mojulo renders it — an **object**, a **level**, a whole walkable **world** (dependency-free CSS-3D, WebGL, or `.glb`). Because each is the same kind of recipe, they **compose upward** into a playable **game**. And **sound comes free**: SFX and background music synthesized from pure math and seeded dice — no samples, no key — dropped straight into the game.
+**The creative wing is the 3D & game studio.** Your agent writes a geometry spec and mojulo renders it — an **object**, a **level**, a whole walkable **world** (dependency-free CSS-3D, WebGL, or `.glb`). Because each is the same kind of recipe, they **compose upward** into a playable **game**. And **sound comes free**: SFX and background music synthesized from pure math and seeded dice — no samples, no key — dropped straight into the game.
 
 Underneath both wings is one move: mojulo pairs the coding agent's **generative capability** with a **standard file format**, and focuses it into an **artifact** you own. The agent writes the essay; mojulo pins it to clean HTML or Markdown. It designs a chart; mojulo emits SVG. It specs a world; mojulo bakes a `.glb`. What comes out is never a transcript to copy-paste — it's a standard file, in a format other tools already read, sitting on your disk. Apps, publications, research, diagrams — the rest of the shelf — all land the same way.
 
@@ -39,7 +39,7 @@ The dashboard at `localhost:3001` is a shelf of bays. Your agent fills them, gro
 **Creative — 3D that composes upward into a game.**
 
 - **Sketches & worlds** — the visual bay. Two-dimensional diagrams (flowcharts, stacked bars, donuts, KPI tiles, decision diamonds via `create_sketch`) *and* generative 3D: cities, posed figures, painted landscapes, carved wordmarks, transit hubs, everyday objects, and drivable worlds. One geometry spec renders as an SVG, a dependency-free CSS-3D scene, a traversable WebGL world, or a `.glb`. Minted by your agent, served under `/sketches/<ref>`. See [Worlds & 3D](#worlds--3d).
-- **Games & arcade** — playable artifacts. Arcade cabinets compile to a single HTML file (a pure reducer, the skin, and a score synthesized in-page); composed games bind worlds, music, and machines by ref — and a level can't mint unless a compiled traversal proves it completable. **Sound comes free**: Beats synthesizes ambient loops, grooves, SFX cues, and footsteps from pure math and seeded dice — never samples — exported as WAV or MIDI and dropped straight into the game.
+- **Games & arcade** — playable artifacts. Arcade cabinets compile to a single HTML file (a pure reducer, the skin, and a score synthesized in-page); composed games bind worlds, music, and machines by ref into a standalone playable artifact. **Sound comes free**: Beats synthesizes ambient loops, grooves, SFX cues, and footsteps from pure math and seeded dice — never samples — exported as WAV or MIDI and dropped straight into the game.
 - **Maker** — the visual workbench. Browse and compose the illustrations, worlds, and motion your agent mints — where the `create_*` visual family and `forge_motion` land.
 
 **Recipes, not renders.** All of it — plus **Cooks** (typed publications: briefs, essays, decks, resumes, newsletters, comics, picture books, whole static sites), **Research** (a searchable notebook of sources, snippets, screenshots, abstracts), **Plans** (goals framed, scoped, and tracked from draft to executed), and **Stashes** (typed buckets the agent files inputs into and cooks pull from) — lands as a plain file you diff, version, and regenerate. You review what the model made the way you review code: as a diff, kept or reverted a line at a time. Same seed, same file.
@@ -101,6 +101,10 @@ Nothing is sent anywhere; state lands in `~/.mojulo/`. The first install is the
 big one: npx pulls a ~26 MB package plus its native runtime deps (a few hundred
 MB on disk), and the first launch fetches a ~113 MB embedding model in the
 background — after that, starts are instant.
+
+The dashboard opens in English but ships fully translated in ~two dozen
+languages, including right-to-left scripts (Arabic, Farsi, Urdu) — switch
+anytime under **Settings → Language**.
 
 On a slow connection, or if you'd rather your agent's first connect never wait on
 npx resolving the package, install globally instead and re-run `init` — it wires
@@ -335,7 +339,6 @@ Because it's deterministic geometry, the first render costs nothing but the rend
 A game is the top of that progression: not a new kind of media beside the others, but a composition **of** them. `create_game` binds worlds, music, figures, and sprites by reference into a standalone playable artifact — a shell that owns a typed **store** and a set of **levels** (worlds minted with a `game:` contract). Improve a bound world or score and the game inherits it.
 
 - **Persistent state that carries between levels.** The store holds what survives a level — a character's level, an inventory or loadout, a customizable party, campaign flags and unlocks — across five slice kinds (`character` / `inventory` / `party` / `progression` / `flags`). The shell renders each level's pre-level setup screen, hosts it, and folds its one outcome back into the store.
-- **A level won't mint until it's proven beatable.** Every level passes a contract dry-run, and a composed level is refused unless a recorded `forge_motion` traversal actually reached its win condition (`allow_unaudited:true` to override). Completability is verified, not asserted.
 - **Two forms.** Composed games bind worlds, music, and machines by ref and play at `/sketches/<ref>`. **Arcade cabinets** compile to a single self-contained HTML file — a pure reducer, a skin, and an in-page synthesized score — for 2D reducer games.
 - **Yours to ship.** `export_game` writes a game to a plain folder (with deduped shared asset banks) that you can host anywhere — GitHub Pages, your own static host.
 

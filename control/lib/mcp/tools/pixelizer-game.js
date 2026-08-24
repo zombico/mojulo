@@ -66,7 +66,7 @@ export function registerPixelizerGameTools() {
       'Mint a self-contained 2D REDUCER game into the Arcade — the pixelizer register beside '
       + "`create_game`'s world/level games. A pure step(state,action) reducer + skin (brickster & kin), "
       + "landed as a `kind:'game'` sketch so it joins the Arcade (`/arcade`) + Maker gallery and plays at "
-      + '`/api/sketches/<ref>/game`. No world / store / completability gate. Pass `reducer` (a built reducer: '
+      + '`/api/sketches/<ref>/game`. No world / store / level audits. Pass `reducer` (a built reducer: '
       + PIXELIZER_REDUCER_IDS.join(' / ')
       + ') + optional title/tagline/theme/music/register; `project_ref` binds it to a game project. Reach for '
       + '"add brickster to the arcade", "mint the falling-blocks game".',
