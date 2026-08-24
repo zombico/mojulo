@@ -8,6 +8,42 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Connected-services drift audit + refresher (version control for one-time-created services)
+
+Connected services (Skills / mcp-orbit compositions sealed once via
+`meta_context_commit`) bind to installed MCP tools by name and then rot silently
+as vendors rename or remove tools — nothing re-checks a sealed binding until it
+fails. Two new surfaces close that loop, split by shape: detection is a
+deterministic join (a tool), remediation is a judgment call (a catalyst).
+
+- **`meta_context_analyze` (Ring 6, read-only)** — the deferred "stale-binding
+  audit lens." One lens ships: `stale-bindings` cross-references every sealed
+  `binds` edge against the current declared inventory (`meta_mcp_inventory`) and
+  the researched capability layer (`meta_mcp_capabilities`), classifying each
+  binding `missing` (bound tool gone — the service will fail at runtime),
+  `stale-capability` (tool present but vendor knowledge aged past the freshness
+  window), `no-capability`, `unknown` (inventory never declared — never a false
+  `missing`), or `ok`. Returns findings ranked most-actionable-first with
+  per-finding re-research recommendations, an `inventory` freshness block, and a
+  `summary` (severity counts + `providersToRefresh`). Scope `{kind:'fleet'}` or
+  `{kind:'artifact',ref}`. No LLM — the audit is a graph join, not a judgment.
+- **`refresh-connected-services` catalyst** — the remediation half. Materializes
+  a scheduled artifact that re-declares inventory, runs the audit, deltas against
+  the last run (anti alert-fatigue), optionally fans out the `research-mcp-vendor`
+  catalyst over drifted providers (`refreshPolicy: report-only` default, writes
+  nothing), and produces a dated report + operator action plan. Reports and
+  proposes — never auto-mutates a binding (the contextmap stays append-only,
+  cleanup operator-driven) and never spams the audit trail (its only writes are
+  capability-row supersessions).
+
+`meta_context_analyze` folds into `pack_connected_services`, so it stays off the
+default `tools/list` payload (behind the pack dispatcher) with its full detail in
+the forward_context deliberation drawer. Curation/patch write-side
+(`meta_context_propose_curation`) stays deferred until real hand-edited-artifact
+drift surfaces.
+
 ## [1.4.0] - 2026-08-22
 
 ### Install-gated capability packs (kernel + ops / creative)

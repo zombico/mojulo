@@ -16,6 +16,10 @@ It runs on your laptop and doesn't host inference — the reasoning bill stays o
 
 **Install:** `npx mojulo init` — detects Claude Code, Codex, or Claude Desktop, wires mojulo in, opens the dashboard. No API key needed for most of it. [Quickstart ↓](#quickstart)
 
+![A generative low-poly city with pedestrians crossing and traffic flowing, the camera drifting around the central intersection — minted by an agent as a deterministic recipe, no API key, no image model](docs/images/city-walkers-traffic.gif)
+
+<sub>One prompt: <i>"generate a 3D city with walkers and traffic."</i> Your agent mints a deterministic recipe (`kind: fractal-city, seed: 42` — that's most of it); mojulo renders it live with pedestrians and traffic simulated in-world. This clip is itself a recipe — a <code>forge_motion</code> camera shot over the stored world, re-bakeable frame-identically. The same ref serves a walkable WebGL world, a CSS-3D still, and a <code>.glb</code>. No key, no cloud render.</sub>
+
 ![The mojulo Workshop Home at localhost:3001 — Ideate, Operate, and Studio across the top, with Bots, Connected Services, Apps, and Sketches as the bays your agent fills](docs/images/workshop_home.png)
 
 <sub>The workshop at `localhost:3001` — the shelf of bays your agent fills. The core lives under **Operate** (Bots, Connected Services, Apps); the creative wing under **Studio**. You drive it from the agent you already run; the dashboard renders what accumulates.</sub>
