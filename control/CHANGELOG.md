@@ -8,7 +8,7 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
-## [Unreleased]
+## [1.4.1] - 2026-08-24
 
 ### Connected-services drift audit + refresher (version control for one-time-created services)
 
