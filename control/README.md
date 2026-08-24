@@ -73,7 +73,7 @@ bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
 - **"Every Monday, digest my form submissions into Drive"** → a connected service over the MCPs you already have installed, with an append-only record of *why* it's composed the way it is.
 - **"Give me a local app that extracts fields from these scans"** → a scaffolded local process + MCP sidecar; its inference queues back to *your agent* — no per-app API key.
 - **"Draw the architecture" / "a walkable city at dusk" / "an ambient loop for it"** → media: diagrams, worlds, figures, music, films, publications — minted as tiny deterministic recipes (a world is ~30 tokens, not megabytes of mesh), re-rendered byte-identically on demand, exportable (`.glb`, `.stl`, WAV/MIDI, self-contained HTML).
-- **"Make me a game"** → composition: media levels, music, and art bound to a typed store with rules — playable standalone, and a level is refused until proven completable. 2D reducer games land in the built-in Arcade.
+- **"Make me a game"** → composition: media levels, music, and art bound to a typed store with rules — playable standalone. 2D reducer games land in the built-in Arcade.
 
 On first connect your agent calls `forward_context` — a thin routing index that unfolds progressively, so a session spends tokens only on the tools it actually fires; the full tool surface stays behind drawers until needed. The optional `mojulo-orient` gallery gives consent-first guided tours that mint real starter artifacts.
 
@@ -82,7 +82,7 @@ On first connect your agent calls `forward_context` — a thin routing index tha
 - **Keyless.** Installed from npm, runs on your machine, nothing to sign up for. The MCP binds to localhost only.
 - **Recipes, not renders.** Creative artifacts are seeded deterministic recipes — diffable, replayable, re-mintable on any mojulo host. Painted images and audio renders are derived files with provenance, never the sovereign artifact.
 - **It remembers why.** Every artifact is minted beside an append-only record of intent (the contextmap), so a fresh session reconstructs prior decisions and improves the existing outcome instead of minting a stranger next to it.
-- **Verification gates.** Bots are hash-chain auditable (`verify_chain`), games are completability-gated, workflows dry-run before they promote.
+- **Verification gates.** Bots are hash-chain auditable (`verify_chain`), workflows dry-run before they promote.
 
 ## Dashboard
 
@@ -93,6 +93,8 @@ npx -y -p mojulo mojulo-ui --no-open      # skip browser launch
 ```
 
 Same primitives as the MCP, different face: browse conversations and fleet analytics, walk your worlds, play your games in the Arcade, review game projects at a glance. It renders state and hands authoring back to your agent — the workshop is driven from the conversation.
+
+The dashboard starts in English but ships fully translated in ~two dozen languages, including right-to-left scripts (Arabic, Farsi, Urdu) — switch anytime under **Settings → Language**; the choice is remembered per browser.
 
 ## 1.0
 

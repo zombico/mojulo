@@ -367,7 +367,7 @@ export const PACKS = [
     form: 'game',
     title: 'Game',
     description:
-      "GAMES — playable standalone artifacts composed over media: create_game (levels are worlds minted with a game contract — refused until proven completable), pixelizer 2D reducer games, sprite sheets (create + bake), game projects (create / get / update / bind / list), game-vocab cards, and export_game (self-contained folder). Open for 'a playable dungeon crawler I can actually walk around in', 'a roguelike where my gear persists across floors', 'a pixel-art game with sprites', 'a pixel-art cutscene of my hero', 'export my game so a friend can play it'.",
+      "GAMES — playable standalone artifacts composed over media: create_game (levels are worlds minted with a game contract), pixelizer 2D reducer games, sprite sheets (create + bake), game projects (create / get / update / bind / list), game-vocab cards, and export_game (self-contained folder). Open for 'a playable dungeon crawler I can actually walk around in', 'a roguelike where my gear persists across floors', 'a pixel-art game with sprites', 'a pixel-art cutscene of my hero', 'export my game so a friend can play it'.",
     members: [
       'create_game',
       'create_pixelizer_game',

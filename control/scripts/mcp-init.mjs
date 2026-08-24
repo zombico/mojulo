@@ -488,6 +488,7 @@ process.stdout.write(
     openUi
       ? `    Dashboard: opening at http://localhost:${uiPort}`
       : '    Dashboard: npx -y -p mojulo mojulo-ui',
+    '    Dashboard language:        ~two dozen to pick from — Settings → Language',
     '    Add a key later:           mojulo-config set anthropic sk-...',
     '',
   ].join('\n')
