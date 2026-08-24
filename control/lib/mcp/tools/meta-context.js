@@ -38,6 +38,7 @@ import {
   embedPrincipleBodies,
   upsertPrincipleEmbedding,
 } from '@/lib/mcp/meta-context/principle-embeddings';
+import { analyze, ANALYZE_LENSES } from '@/lib/mcp/meta-context/analyze';
 
 // ---------------------------------------------------------------------------
 // brief
@@ -56,6 +57,19 @@ export async function briefHandler(input, _ctx) {
     );
   }
   return MetaContextRepository.brief(scope);
+}
+
+// ---------------------------------------------------------------------------
+// analyze — read-only arbiter lenses over the contextmap
+// ---------------------------------------------------------------------------
+
+export async function analyzeHandler(input, _ctx) {
+  const scope = input?.scope;
+  const lens = input?.lens || 'stale-bindings';
+  if (!scope || typeof scope !== 'object') {
+    throw new Error("scope is required, e.g. { kind: 'fleet' } or { kind: 'artifact', ref }");
+  }
+  return analyze({ scope, lens });
 }
 
 // ---------------------------------------------------------------------------
@@ -1232,6 +1246,40 @@ export function registerMetaContextTools() {
       required: ['scope'],
     },
     handler: briefHandler,
+  });
+
+  registerTool({
+    name: 'meta_context_analyze',
+    description:
+      "Audit sealed connected-service bindings for drift — deterministic, read-only. Lens `stale-bindings` cross-references every `binds` edge against declared inventory + researched capabilities, classifying each `missing` (bound tool gone — service will fail), `stale-capability` (vendor knowledge aged out), `no-capability`, `unknown` (inventory not declared), or `ok`. Returns findings ranked most-actionable-first with recommendations, an `inventory` freshness block, and a `summary` (severity counts + `providersToRefresh` for the research-mcp-vendor catalyst). Re-declare inventory first. Scope `{kind:'fleet'}` or `{kind:'artifact',ref}`.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: {
+          type: 'object',
+          properties: {
+            kind: {
+              type: 'string',
+              enum: ['fleet', 'artifact'],
+              description:
+                "'fleet' audits every sealed binding; 'artifact' scopes to one connected service by its composite artifact ref.",
+            },
+            ref: {
+              type: 'string',
+              description: "Composite artifact ref — required when kind is 'artifact'.",
+            },
+          },
+          required: ['kind'],
+        },
+        lens: {
+          type: 'string',
+          enum: ANALYZE_LENSES,
+          description: "Analysis lens. Defaults to 'stale-bindings' (the only lens today).",
+        },
+      },
+      required: ['scope'],
+    },
+    handler: analyzeHandler,
   });
 
   registerTool({

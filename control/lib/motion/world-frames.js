@@ -76,6 +76,17 @@ export async function renderWorldFrames(html, specs, {
       for (const sel of hide) for (const el of document.querySelectorAll(sel)) el.style.display = 'none';
     }, WORLD_HIDE_SELECTORS);
 
+    // The world page pins #wrap to its authored studio pixel size; a capture owns the
+    // framing, so size the wrap to the requested canvas and let the page's own resize
+    // handler fix the renderer + camera aspect.
+    await page.evaluate((sel, w, h) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      el.style.width = `${w}px`; el.style.height = `${h}px`;
+      el.style.maxWidth = 'none'; el.style.aspectRatio = 'auto';
+      window.dispatchEvent(new Event('resize'));
+    }, WORLD_ROOT_SELECTOR, width, height);
+
     const pngs = [];
     for (const spec of specs) {
       // eslint-disable-next-line no-await-in-loop -- frames are ordered + share one context
@@ -154,6 +165,16 @@ export async function renderWorldTraversal(html, ticks, {
     await page.evaluate((hide) => {
       for (const sel of hide) for (const el of document.querySelectorAll(sel)) el.style.display = 'none';
     }, WORLD_HIDE_SELECTORS);
+
+    // Same wrap-resize as renderWorldFrames: the capture, not the authored studio
+    // size, owns the canvas dimensions.
+    await page.evaluate((sel, w, h) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      el.style.width = `${w}px`; el.style.height = `${h}px`;
+      el.style.maxWidth = 'none'; el.style.aspectRatio = 'auto';
+      window.dispatchEvent(new Event('resize'));
+    }, WORLD_ROOT_SELECTOR, width, height);
 
     const dt = 1 / Math.max(1, fps);
     const pngs = [];

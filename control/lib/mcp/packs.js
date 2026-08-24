@@ -125,6 +125,7 @@ export const PACKS = [
       'get_deliberation_overview',
       'meta_context_brief',
       'meta_context_commit',
+      'meta_context_analyze',
       'meta_context_declare_inventory',
       'declare_skills',
       'record_mcp_capabilities',
