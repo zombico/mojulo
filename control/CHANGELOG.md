@@ -8,6 +8,30 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [1.4.2] - 2026-08-24
+
+### Language picker surfaced on fresh install + game-copy reframe
+
+Copy-only release; no runtime, schema, or API changes.
+
+- **Fresh installs learn the dashboard speaks their language.** The dashboard
+  ships fully translated in ~two dozen languages (including RTL scripts —
+  Arabic, Farsi, Urdu), but a fresh install always lands in English: the locale
+  is a per-browser `NEXT_LOCALE` cookie with no `Accept-Language` sniffing, so
+  nothing ever told a non-English operator the picker exists. Now `mojulo init`'s
+  summary and `mojulo-ui`'s startup output both point at **Settings → Language**,
+  and the READMEs carry the same note (choice remembered per browser).
+- **Game completability copy reframed as level audits.** Mint behavior is
+  unchanged (every level still passes a contract dry-run, plus a `forge_motion`
+  traversal audit via `audits` / `auto_audit:true`, with `allow_unaudited:true`
+  recording a skip per level) — but the surface copy no longer leads with "a
+  level is refused until proven completable." The `forward_context` glossaries,
+  studio opener + routing index, game/pixelizer tool descriptions, packs,
+  routing cards, server self-description, and READMEs now frame it as level
+  audits recorded at mint.
+- **README lead sharpened**: the two wings are now named as what they make —
+  a chatbot factory + services hub (core) and a 3D & game studio (creative).
+
 ## [1.4.1] - 2026-08-24
 
 ### Connected-services drift audit + refresher (version control for one-time-created services)
