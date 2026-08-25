@@ -1,7 +1,7 @@
 ---
 {
   "id": "orbit",
-  "name": "Orbit",
+  "name": "Orbital Mechanics",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint an interactive ORBITAL-MECHANICS depictor — an orrery where bodies actually MOVE on real Kepler orbits around a central mass.",

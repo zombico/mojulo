@@ -1,7 +1,7 @@
 ---
 {
   "id": "fission",
-  "name": "Fission",
+  "name": "Nuclear Fission",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint a NUCLEAR FISSION event — a compound nucleus (U-236*) that elongates, NECKS, and CLEAVES into two fragments along the Bohr–Wheeler fission coordinate, ray-marched as a time-evolving VOLUME by a per-pixel shader.",

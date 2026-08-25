@@ -1,7 +1,7 @@
 ---
 {
   "id": "surface",
-  "name": "Surface",
+  "name": "3D Surface Plot",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive MULTIVARIABLE-CALCULUS explainer — the graph of z = f(x,y) rendered as a 3-D LANDSCAPE you can traverse, with a ball that ROLLS DOWNHILL (gradient descent) and traces its path as a live three.js World.",

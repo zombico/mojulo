@@ -1,7 +1,7 @@
 ---
 {
   "id": "gravity-wave",
-  "name": "Gravity Wave",
+  "name": "Gravitational Waves",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint an interactive GRAVITATIONAL-WAVE inspiral — a live spacetime MEMBRANE that ripples as two compact masses spiral together, rendered in the traversable three.js World.",

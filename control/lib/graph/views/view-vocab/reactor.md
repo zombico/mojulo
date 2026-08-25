@@ -1,7 +1,7 @@
 ---
 {
   "id": "reactor",
-  "name": "Reactor",
+  "name": "Nuclear Reactor",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint a CONTROLLED nuclear chain reaction — the branching cascade plus CONTROL RODS that absorb neutrons, telling the reactor-vs-bomb story (the heart of nuclear ENERGY): a supercritical core that WOULD run away is held in check by insertin…",

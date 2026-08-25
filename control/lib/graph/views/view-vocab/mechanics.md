@@ -1,7 +1,7 @@
 ---
 {
   "id": "mechanics",
-  "name": "Mechanics",
+  "name": "Newtonian Mechanics",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint an interactive classical-Newtonian MECHANICS depictor — a science/education viewer where a solid OBJECT actually MOVES along its real trajectory (not a static diagram).",

@@ -8,6 +8,70 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Hydro view — a multi-arc science explainer for hydroelectric power
+
+- **`create_view` kind `hydro` (`manifest.kind: 'hydro-view'`)** — one explainer told in
+  five arcs, each a scenario of the one kind: `dam` (hydrostatic P = ρgh on a gravity dam +
+  the Torricelli outlet jet — fluid-view's water-pressure principle scaled up), `penstock`
+  (PE → KE down the pipe, Bernoulli, equal-time tracers that visibly accelerate), `turbine`
+  (the machine principle — a Pelton runner spun live by the windmill's `spin` mover, jet
+  momentum → force → torque, u = v/2), `generator` (N/S pole drum sweeping copper stator
+  coils, Faraday's ε = −dΦ/dt drawn as a gold EMF wave with a riding pulse, f = p·n/60),
+  and `plant` (the whole chain in one world — water tracers ride reservoir → penstock →
+  runner → tailrace while a power pulse rides the transmission wire). Knobs `head` / `flow`.
+- **`physics/hydro.js`** — the pure hydro energy chain beside `physics/rocket.js`: one spec
+  resolves Torricelli, the Pelton match (u = v/2, ω, τ), stage-efficiency powers
+  (P = ηρgQH) and the synchronous-generator pole count, so every arc quotes the SAME
+  numbers — visual scale compressed, readouts honest.
+
+### Rocket mission view — a Falcon-9-class launch + return, integrated with real forces
+
+- **`create_view` kind `rocket` (48th kind, `manifest.kind: 'rocket-view'`)** — a full
+  booster mission flown live in the orbit-camera World: liftoff, pitch-kick into a true
+  gravity turn, Max-Q throttle bucket, MECO on the propellant return-reserve, stage
+  separation (stage 2 departs on its own pose mover), the 180° flip, RTLS boostback (cutoff
+  solved by deterministic iteration so the booster lands back at the pad) or the ASDS
+  downrange arc, the entry burn, tail-first descent, and the hoverslam landing burn —
+  forced, as in reality, by minimum thrust exceeding the near-dry booster's weight.
+  Scenarios `rtls` / `asds`; params `payload`, `vehicle` ('falcon9' or a custom spec),
+  `guidance` overrides, `playback`, plus the standard trace/strobe/scale knobs. Base-shape
+  vehicles in v1 (likeness + effects deferred; see rocket-view.plan.md).
+- **`physics/rocket.js`** — the launch-vehicle primitive beside `physics/flight.js`, same
+  doctrine: pure, deterministic, zero-import; US Standard Atmosphere 1976, altitude-
+  compensated thrust + mass flow, Mach-dependent ascent C_d, inverse-square gravity. The
+  honesty line is enforced and stated: real forces, SCRIPTED guidance (not closed-loop).
+  The `falcon9` preset ships source-commented public constants pinned by a webcast-telemetry
+  test band (Max-Q window, MECO state, apogee, soft touchdown with propellant remaining).
+- **`measure_view` learns `rocket-view`** — full-mission SI read-back ({ t, pos, speed,
+  accel, mass, thrust, drag, q, phase } + the event table) and stats recompute for the
+  research-mode reviewer.
+- **Mover channel**: a `rocket` mission HUD (phase, real clock, altitude, speed/Mach, the
+  draining mass, thrust, TWR, q, propellant bar) joins the pose-mover readouts; emission
+  fixtures re-pinned (movers / planets / kitchen-sink ×2).
+
+### Airplane flight view — the fixed-wing sibling, flown by the airport's own plane
+
+- **`create_view` kind `airplane` (49th kind, `manifest.kind: 'airplane-view'`)** — a
+  complete fixed-wing flight on the FOUR real forces: takeoff roll, rotation at Vr, climb,
+  a held cruise, the standard 3° descent, gear-and-flaps approach, a sink-proportional
+  flare to a soft touchdown, and the braked rollout (`mission:'hop'`) — or `'glide'`: the
+  engines quit at cruise and the ship rides best-L/D to a deadstick landing, the published
+  ~15-17:1 narrowbody glide ratio made visible. The BODY is the airport primitive's own
+  fixed-wing net (vehicleFaces: airliner / widebody / regional / bizjet), lowered to mesh
+  faces and pitched along the true-scale path by a pose mover, with a flight-deck HUD
+  (phase, altitude, airspeed, angle of attack, C_L, live L/D, thrust, flap/gear config).
+- **`physics/airplane.js`** — the atmospheric sibling of physics/rocket.js (shares its US76
+  atmosphere): C_L(α) linear-to-stall with flap-config shifts, parasite + induced drag with
+  gear/speedbrake penalties, jet thrust lapse, ground roll with rolling/braking friction.
+  Real forces, SCRIPTED pilot (rate-limited pitch laws, speed-hold throttle) — stated.
+  The `a320` preset ships public A320-class constants pinned by a performance test band
+  (rotation speed, ground roll, held cruise L≈W, 3° approach, sub-2.5 m/s touchdown sink,
+  the glide ratio, and the deadstick's honestly-steeper-than-3° path).
+- **`measure_view` learns `airplane-view`** — SI read-back ({ t, pos, speed, accel, alpha,
+  cl, lift, drag, thrust, phase } + the event table) and stats recompute.
+
 ## [1.4.2] - 2026-08-24
 
 ### Language picker surfaced on fresh install + game-copy reframe

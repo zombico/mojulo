@@ -1,7 +1,7 @@
 ---
 {
   "id": "field-flow",
-  "name": "Field Flow",
+  "name": "Vector Field Flow",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive VECTOR-CALCULUS explainer — a VECTOR FIELD on the plane, an arrow at every point showing which way a particle is PUSHED, rendered as a live traversable three.js World.",

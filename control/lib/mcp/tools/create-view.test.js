@@ -107,7 +107,7 @@ describe('get_view_vocab reader', () => {
 
   it('lists index rows, filterable by family', async () => {
     const all = await getViewVocabHandler({});
-    expect(all.cards.length).toBe(56);
+    expect(all.cards.length).toBe(61);
     const world = await getViewVocabHandler({ family: 'world' });
     expect(world.cards.length).toBe(9);
     expect(world.cards.every((c) => c.entry === 'compose_world')).toBe(true);

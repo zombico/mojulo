@@ -1,7 +1,7 @@
 ---
 {
   "id": "quadratic",
-  "name": "Quadratic",
+  "name": "Quadratic Function",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive ALGEBRA explainer — the PARABOLA y = ax²+bx+c, rendered as a live traversable three.js World.",

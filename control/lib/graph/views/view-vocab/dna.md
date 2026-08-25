@@ -1,7 +1,7 @@
 ---
 {
   "id": "dna",
-  "name": "Dna",
+  "name": "DNA Double Helix",
   "family": "bio",
   "entry": "create_view",
   "summary": "Mint an interactive 3D DNA DOUBLE HELIX — a science/education viewer built from a single chiral TAIJI primitive lowered to lit solids.",

@@ -1,7 +1,7 @@
 ---
 {
   "id": "field",
-  "name": "Field",
+  "name": "Electromagnetic Field",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint an interactive ELECTROMAGNETISM depictor — electromagnetic wave activity and magnetic fields, where the field actually MOVES / is shown as a lattice of vectors.",

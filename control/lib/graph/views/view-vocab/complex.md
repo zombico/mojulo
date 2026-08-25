@@ -1,7 +1,7 @@
 ---
 {
   "id": "complex",
-  "name": "Complex",
+  "name": "Complex Functions",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive COMPLEX-ANALYSIS explainer — a complex function f(z) rendered as an ANALYTIC LANDSCAPE (domain colouring lifted into 3-D), a live traversable three.js World.",

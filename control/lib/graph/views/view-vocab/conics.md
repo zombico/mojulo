@@ -1,7 +1,7 @@
 ---
 {
   "id": "conics",
-  "name": "Conics",
+  "name": "Conic Sections",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive GEOMETRY explainer — where the CONIC SECTIONS come from, rendered as a live traversable three.js World.",

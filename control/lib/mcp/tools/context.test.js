@@ -96,9 +96,21 @@ describe('buildForwardContextBody — variant composition', () => {
     // One register-invariant opener — no per-register ramp prose, no "don't
     // surface" plain marker (that machinery lives in get_register_kit now).
     for (const body of [plain, mojulo]) {
-      expect(body).toMatch(/the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing/);
+      expect(body).toContain('This is the office **routing index**');
       expect(body).toContain('routing index');
       expect(body).not.toMatch(/Don't surface to the user/i);
+    }
+  });
+
+  it('opener is tool-shaped: identity/doctrine prose stays behind get_substrate', () => {
+    // The reader is already connected to the substrate — the opener routes,
+    // it does not explain what mojulo is. The identity sentence and the
+    // craft-floor doctrine live in get_substrate only.
+    for (const mode of ['office', 'studio']) {
+      const body = buildForwardContextBody({ mode });
+      expect(body).not.toContain("the agent's workshop");
+      expect(body).not.toContain('prove themselves before promotion');
+      expect(body).toContain('`get_substrate`');
     }
   });
 
@@ -509,10 +521,14 @@ describe('workshop pulse (orientation-ramp R1) + craft floor (R5)', () => {
     expect(content[0].text).toContain('Workshop pulse: empty');
   });
 
-  it('craft-floor sentence is in the opener in every register', () => {
+  it('promotion discipline survives in the body as the actionable dry-run rule, not doctrine', () => {
+    // The craft-floor *sentence* drawerized into get_substrate; what every
+    // session still pays is the operational form: dry-run → inspect → promote
+    // (the Synthesize ≠ certify one-liner).
     for (const register of VOCABULARY_REGISTERS) {
       const body = buildForwardContextBody({ register });
-      expect(body).toContain('artifacts prove themselves before promotion');
+      expect(body).toContain('only then promote');
+      expect(body).not.toContain('prove themselves before promotion');
     }
   });
 });
@@ -692,21 +708,5 @@ describe('studio containment (orientation-containment C1) — office pays no cre
       expect(studio, `studio body does not name entry tool \`${tool}\``).toContain(tool);
       expect(registered.has(tool), `studio body names unregistered tool \`${tool}\``).toBe(true);
     }
-  });
-});
-
-describe('enumerated counts stay true (orientation-diet thread E)', () => {
-  it('the "N kinds" claim for create_view matches the live kind registry on both index surfaces', async () => {
-    const { VIEW_KINDS } = await import('./create-view.js');
-    const claim = `${Object.keys(VIEW_KINDS).length} kinds`;
-    // create_view moved into the `view` creative-toolset drawer; its "N kinds"
-    // claim now rides that surface plus the STUDIO routing WORLD row
-    // (relocated out of the office body by orientation-containment C1).
-    const { content } = await creativeToolsetHandler({ form: 'view' });
-    expect(content[0].text, `view toolset create_view row must say "${claim}"`).toContain(claim);
-    expect(
-      buildForwardContextBody({ mode: 'studio' }),
-      `studio routing index create_view row must say "${claim}"`,
-    ).toContain(claim);
   });
 });

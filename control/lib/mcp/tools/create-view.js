@@ -42,11 +42,14 @@ import { createFusionViewHandler } from '@/lib/mcp/tools/fusion-view';
 import { createGalaxyViewHandler } from '@/lib/mcp/tools/galaxy-view';
 import { createGravityWaveViewHandler } from '@/lib/mcp/tools/gravity-wave-view';
 import { createHeatSphereViewHandler } from '@/lib/mcp/tools/heat-sphere-view';
+import { createHydroViewHandler } from '@/lib/mcp/tools/hydro-view';
 import { createStarSurfaceViewHandler } from '@/lib/mcp/tools/star-surface-view';
 import { createLightningStormViewHandler } from '@/lib/mcp/tools/lightning-storm-view';
 import { createMechanicsViewHandler } from '@/lib/mcp/tools/mechanics-view';
 import { createMoleculeViewHandler } from '@/lib/mcp/tools/molecule-view';
 import { createOceanViewHandler } from '@/lib/mcp/tools/ocean-view';
+import { createBeachViewHandler } from '@/lib/mcp/tools/beach-view';
+import { createRiverViewHandler } from '@/lib/mcp/tools/river-view';
 import { createOrbitViewHandler } from '@/lib/mcp/tools/orbit-view';
 import { createParallelTransportViewHandler } from '@/lib/mcp/tools/parallel-transport-view';
 import { createPlasmaGlobeViewHandler } from '@/lib/mcp/tools/plasma-globe-view';
@@ -55,6 +58,8 @@ import { createPulsarViewHandler } from '@/lib/mcp/tools/pulsar-view';
 import { createPythagorasViewHandler } from '@/lib/mcp/tools/pythagoras-view';
 import { createQuadraticViewHandler } from '@/lib/mcp/tools/quadratic-view';
 import { createReactorViewHandler } from '@/lib/mcp/tools/reactor-view';
+import { createRocketViewHandler } from '@/lib/mcp/tools/rocket-view';
+import { createAirplaneViewHandler } from '@/lib/mcp/tools/airplane-view';
 import { createSaturnViewHandler } from '@/lib/mcp/tools/saturn-view';
 import { createSeriesViewHandler } from '@/lib/mcp/tools/series-view';
 import { createStarBirthViewHandler } from '@/lib/mcp/tools/star-birth-view';
@@ -75,6 +80,7 @@ import { createEnergyCycleHandler } from '@/lib/mcp/tools/energy-cycle';
 export const VIEW_KINDS = {
   'atmosphere': { family: 'science', retired: 'create_atmosphere_view', handler: createAtmosphereViewHandler },
   'atom': { family: 'science', retired: 'create_atom_view', handler: createAtomViewHandler },
+  'beach': { family: 'science', handler: createBeachViewHandler },   // born inside create_view — no retired alias
   'black-hole': { family: 'science', retired: 'create_black_hole_view', handler: createBlackHoleViewHandler },
   'cascade': { family: 'science', retired: 'create_cascade_view', handler: createCascadeViewHandler },
   'cellular': { family: 'bio', retired: 'create_cellular_view', handler: createCellularViewHandler },
@@ -92,6 +98,7 @@ export const VIEW_KINDS = {
   'fluid': { family: 'science', retired: 'create_fluid_view', handler: createFluidViewHandler },
   'ftc': { family: 'math', retired: 'create_ftc_view', handler: createFtcViewHandler },
   'heat-sphere': { family: 'math', retired: 'create_heat_sphere_view', handler: createHeatSphereViewHandler },
+  'hydro': { family: 'science', handler: createHydroViewHandler },   // born inside create_view — no retired alias
   'fusion': { family: 'science', retired: 'create_fusion_view', handler: createFusionViewHandler },
   'galaxy': { family: 'science', retired: 'create_galaxy_view', handler: createGalaxyViewHandler },
   'gravity-wave': { family: 'science', retired: 'create_gravity_wave_view', handler: createGravityWaveViewHandler },
@@ -107,6 +114,9 @@ export const VIEW_KINDS = {
   'pythagoras': { family: 'math', retired: 'create_pythagoras_view', handler: createPythagorasViewHandler },
   'quadratic': { family: 'math', retired: 'create_quadratic_view', handler: createQuadraticViewHandler },
   'reactor': { family: 'science', retired: 'create_reactor_view', handler: createReactorViewHandler },
+  'river': { family: 'science', handler: createRiverViewHandler },   // born inside create_view — no retired alias
+  'rocket': { family: 'science', handler: createRocketViewHandler },   // born inside create_view — no retired alias
+  'airplane': { family: 'science', handler: createAirplaneViewHandler },   // born inside create_view — no retired alias
   'saturn': { family: 'science', retired: 'create_saturn_view', handler: createSaturnViewHandler },
   'star-surface': { family: 'science', retired: 'create_star_surface_view', handler: createStarSurfaceViewHandler },
   'series': { family: 'math', retired: 'create_series_view', handler: createSeriesViewHandler },
@@ -229,7 +239,9 @@ export function registerCreateViewTools() {
   });
 
   // Deprecated per-kind creators — resolve in tools/call, hidden from tools/list.
+  // (kinds born inside create_view carry no `retired` alias and are skipped.)
   for (const [kind, entry] of Object.entries(VIEW_KINDS)) {
+    if (!entry.retired) continue;
     registerTool({
       name: entry.retired,
       listed: false,

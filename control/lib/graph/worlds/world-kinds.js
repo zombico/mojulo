@@ -43,14 +43,19 @@ import { assembleDnaProcessScene } from '@/lib/graph/views/bio/dna-process';
 import { assembleCellularScene } from '@/lib/graph/views/bio/cellular-view';
 import { assembleAtomScene } from '@/lib/graph/views/science/atom-view';
 import { assembleMechanicsScene } from '@/lib/graph/views/science/mechanics-view';
+import { assembleRocketScene } from '@/lib/graph/views/science/rocket-view';
+import { assembleAirplaneScene } from '@/lib/graph/views/science/airplane-view';
 import { assembleOrbitScene } from '@/lib/graph/views/science/orbit-view';
 import { assembleCometScene } from '@/lib/graph/views/science/comet-view';
 import { assembleFieldScene } from '@/lib/graph/views/science/field-view';
 import { assembleFluidScene } from '@/lib/graph/landscape/fluid-view';
 import { assembleOceanScene } from '@/lib/graph/landscape/ocean-view';
+import { assembleBeachScene } from '@/lib/graph/landscape/beach-view';
+import { assembleRiverScene } from '@/lib/graph/landscape/river-view';
 import { assembleGravityWaveScene } from '@/lib/graph/views/science/gravity-wave-view';
 import { assembleParallelTransportScene } from '@/lib/graph/views/science/parallel-transport-view';
 import { assembleWindmillScene } from '@/lib/graph/vehicles/windmill-view';
+import { assembleHydroScene } from '@/lib/graph/views/science/hydro-view';
 import { assembleDoubleSlitScene } from '@/lib/graph/views/science/double-slit-view';
 import { assembleBlackHoleScene } from '@/lib/graph/views/science/black-hole-view';
 import { assembleSaturnScene } from '@/lib/graph/views/science/saturn-view';
@@ -241,14 +246,19 @@ export const WORLD_KINDS = {
   'cellular-view': view(assembleCellularScene, 'mojulo cell'),
   'atom-view': view(assembleAtomScene, 'mojulo atom'),
   'mechanics-view': view(assembleMechanicsScene, 'mojulo mechanics'),
+  'rocket-view': view(assembleRocketScene, 'mojulo rocket'),
+  'airplane-view': view(assembleAirplaneScene, 'mojulo airplane'),
   'orbit-view': view(assembleOrbitScene, 'mojulo orbit'),
   'comet-view': view(assembleCometScene, 'mojulo comet'),
   'field-view': view(assembleFieldScene, 'mojulo field'),
   'fluid-view': view(assembleFluidScene, 'mojulo fluid'),
   'ocean-view': view(assembleOceanScene, 'mojulo ocean'),
+  'beach-view': view(assembleBeachScene, 'mojulo beach'),
+  'river-view': view(assembleRiverScene, 'mojulo river'),
   'gravity-wave-view': view(assembleGravityWaveScene, 'mojulo gravitational waves'),
   'parallel-transport-view': view(assembleParallelTransportScene, 'mojulo parallel transport'),
   'windmill-view': view(assembleWindmillScene, 'mojulo windmill'),
+  'hydro-view': view(assembleHydroScene, 'mojulo hydro'),
   'double-slit-view': view(assembleDoubleSlitScene, 'mojulo double-slit'),
   'black-hole-view': view(assembleBlackHoleScene, 'mojulo black hole'),
   'saturn-view': view(assembleSaturnScene, 'mojulo Saturn'),

@@ -1,7 +1,7 @@
 ---
 {
   "id": "series",
-  "name": "Series",
+  "name": "Series Approximation",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive ANALYSIS explainer — APPROXIMATION made visible, rendered as a live traversable three.js World.",

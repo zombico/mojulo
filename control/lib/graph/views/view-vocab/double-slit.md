@@ -1,7 +1,7 @@
 ---
 {
   "id": "double-slit",
-  "name": "Double Slit",
+  "name": "Double-Slit Experiment",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint the DOUBLE-SLIT EXPERIMENT as a live RIPPLE TANK in the traversable three.js World.",

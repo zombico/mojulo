@@ -57,7 +57,7 @@ const moverRigs = MOVERS.map((mv) => {
   return { mv, mesh, base: mv.basePos, vel, acc, tether, forces };
 });
 let _readout = null;
-if (moverRigs.length && (moverRigs[0].mv.vectors || moverRigs[0].mv.forces || moverRigs[0].mv.system || moverRigs[0].mv.compare || moverRigs[0].mv.cascade || moverRigs[0].mv.machine || moverRigs[0].mv.engine || moverRigs[0].mv.motor || moverRigs[0].mv.drone || moverRigs[0].mv.flight || moverRigs[0].mv.sub)) {   // hidden only when all off
+if (moverRigs.length && (moverRigs[0].mv.vectors || moverRigs[0].mv.forces || moverRigs[0].mv.system || moverRigs[0].mv.compare || moverRigs[0].mv.cascade || moverRigs[0].mv.machine || moverRigs[0].mv.engine || moverRigs[0].mv.motor || moverRigs[0].mv.drone || moverRigs[0].mv.flight || moverRigs[0].mv.sub || moverRigs[0].mv.rocket || moverRigs[0].mv.plane)) {   // hidden only when all off
   _readout = document.createElement('div'); _readout.className = 'moj-readout'; wrap.appendChild(_readout);
 }
 const _v3 = new THREE.Vector3(), _spinAxis = new THREE.Vector3(), _xUnit = new THREE.Vector3(1, 0, 0);
@@ -143,7 +143,7 @@ stepMovers = (t) => {
         rig.mesh.position.set(p[0] - rig.base[0], p[1] - rig.base[1], p[2] - rig.base[2]);
         rig.mesh.quaternion.setFromAxisAngle(_spinAxis.set(mv.tilt.axis[0], mv.tilt.axis[1], mv.tilt.axis[2]).normalize(), mv.tilt.angles[i]);
       }
-      if (_readout && rig === moverRigs[0] && mv.flight) _readout.innerHTML = '<b>' + mv.label + '</b>' + _flightHud(mv, i);
+      if (_readout && rig === moverRigs[0] && (mv.flight || mv.rocket || mv.plane)) _readout.innerHTML = '<b>' + mv.label + '</b>' + (mv.rocket ? _rocketHud(mv, i) : mv.plane ? _planeHud(mv, i) : _flightHud(mv, i));
       continue;
     }
     // PULSE mode: a scale-pop synced to a PHASE of the loop period — a combustion flash that fires once per

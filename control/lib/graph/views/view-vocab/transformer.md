@@ -1,7 +1,7 @@
 ---
 {
   "id": "transformer",
-  "name": "Transformer",
+  "name": "Transformer Attention",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint the TRANSFORMER's ATTENTION mechanic as a live, traversable three.js World — the AI-architecture science view.",

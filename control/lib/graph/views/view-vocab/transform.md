@@ -1,7 +1,7 @@
 ---
 {
   "id": "transform",
-  "name": "Transform",
+  "name": "Linear Transformation",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive LINEAR-ALGEBRA explainer — a 2×2 LINEAR MAP shown as the deformation of space itself, rendered as a live traversable three.js World.",

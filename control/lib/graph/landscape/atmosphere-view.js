@@ -38,7 +38,6 @@ const CAM_DIST = 16;
 
 // ── the atmospheric single-scattering transfer function (the per-view GLSL; the scaffold marches it) ──
 const ATMO_GLOBALS = `
-uniform float uRg; uniform float uRt; uniform vec3 uSunDir; uniform float uSunI;
 const float PI = 3.14159265;
 const vec3  bR = vec3(1.55, 3.64, 6.27);   // Rayleigh scattering coeff (λ⁻⁴: blue ≫ red), artistically scaled
 const float bM = 5.0;                       // Mie scattering coeff (aerosol haze, ~grey)

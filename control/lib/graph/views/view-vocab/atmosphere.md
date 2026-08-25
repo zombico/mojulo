@@ -1,7 +1,7 @@
 ---
 {
   "id": "atmosphere",
-  "name": "Atmosphere",
+  "name": "Atmospheric Scattering",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint ATMOSPHERIC SCATTERING — the textbook-correct reason the SKY IS BLUE and SUNSETS ARE RED — as a per-pixel VOLUME raymarcher that integrates sunlight scattering along each view ray (this is the honest physics, NOT a colour gradient or…",

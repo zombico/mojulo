@@ -1,7 +1,7 @@
 ---
 {
   "id": "pythagoras",
-  "name": "Pythagoras",
+  "name": "Pythagorean Theorem",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive GEOMETRY explainer — the iconic a² + b² = c² figure, rendered as a live traversable three.js World.",

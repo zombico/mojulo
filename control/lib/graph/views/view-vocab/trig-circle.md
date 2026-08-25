@@ -1,7 +1,7 @@
 ---
 {
   "id": "trig-circle",
-  "name": "Trig Circle",
+  "name": "Unit Circle",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive TRIGONOMETRY explainer — the UNIT CIRCLE, the one machine all of trig comes from, rendered as a live traversable three.js World.",

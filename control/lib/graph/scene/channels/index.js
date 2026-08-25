@@ -89,7 +89,7 @@ export const RUNTIME_CHANNELS = [
   { key: 'surfaces',
     comment: [`// surface channel (opt-in): stepSurfaces stays inert unless a surfaceBlock is emitted.`],
     lets: `let stepSurfaces = () => {};`, step: `stepSurfaces(t);`,
-    normalize: (v) => listOrNull(v, (sf) => sf && sf.grid && (Array.isArray(sf.waves) || Array.isArray(sf.sources) || (sf.gw && typeof sf.gw === 'object'))),
+    normalize: (v) => listOrNull(v, (sf) => sf && sf.grid && (Array.isArray(sf.waves) || Array.isArray(sf.sources) || (sf.gw && typeof sf.gw === 'object') || (sf.river && typeof sf.river === 'object') || (sf.spout && typeof sf.spout === 'object'))),
     script: surfaceChannelScript },
   { key: 'heatSpheres',
     comment: [`// heat-sphere channel (opt-in): stepHeatSpheres stays inert unless a heatSphereBlock is emitted.`],
