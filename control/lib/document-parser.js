@@ -5,11 +5,11 @@
  * - DOCX/PPTX/XLSX: Uses officeparser
  */
 
-const PDFParser = require('pdf2json');
-const officeParser = require('officeparser');
-const { writeFile, unlink } = require('fs/promises');
-const { join } = require('path');
-const { tmpdir } = require('os');
+import PDFParser from 'pdf2json';
+import officeParser from 'officeparser';
+import { writeFile, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 /**
  * Parse PDF using pdf2json (Node.js native parser)
@@ -142,7 +142,7 @@ function normalizeCharacterSpacing(text) {
  * @param {string} fileName - Original file name
  * @returns {Promise<string>} Extracted text
  */
-async function parseDocument(buffer, fileName) {
+export async function parseDocument(buffer, fileName) {
   try {
     const fileExtension = fileName.toLowerCase().split('.').pop();
 
@@ -171,5 +171,3 @@ async function parseDocument(buffer, fileName) {
     throw new Error(`Failed to parse ${fileName}: ${error.message}`);
   }
 }
-
-module.exports = { parseDocument };
