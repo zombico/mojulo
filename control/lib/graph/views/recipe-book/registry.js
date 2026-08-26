@@ -20,7 +20,8 @@ const EMPTY = () => ({
   worldKinds: new Map(),
   // stored manifest kinds that render as 'world' (sketchRenderMode)
   renderKinds: new Set(),
-  // parsed card objects (view-vocab card shape + { source: 'recipe-book' })
+  // parsed card objects, ALL families (book-card shape + { source, chapter,
+  // entryType }); each family's vocab loader merges its own slice by `entry`
   cards: [],
   // human-readable load warnings (skipped entries, version skew) — surfaced
   // to the operator/agent by the loader's consumers.

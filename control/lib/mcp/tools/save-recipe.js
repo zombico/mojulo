@@ -11,18 +11,23 @@
  * months later. Saves are ledgered with a local git commit in the cookbook
  * (no remote, ever — sharing is the operator's act).
  *
- * v1 scope: study-object recipes (create_view kinds — core AND attached-book
- * ones). Worlds / solids / beats join when the multi-family book lands
- * (plan Phase 4).
+ * Lanes (recipe-book.plan.md, Phase 4): study-object recipes (create_view
+ * kinds — core AND attached-book ones) and beats recipes (create_beats
+ * kinds). Both are pure self-contained params over a regenerating kernel.
+ * Solids / motion join by the same lane pattern once their extraction story
+ * is settled (solid specs ride per-kind authoring doors; motion recipes embed
+ * instance-local subject refs — each deserves its own care).
  */
 
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { VIEW_KINDS } from '@/lib/mcp/tools/create-view';
+import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { bookViewKinds } from '@/lib/graph/views/recipe-book/registry';
 import { saveRecipeEntry } from '@/lib/graph/views/recipe-book/cookbook';
 import { ensureBookLoaded, _resetBookLoader } from '@/lib/graph/views/recipe-book/loader';
 import { getViewVocabCatalog, _resetViewVocabCache } from '@/lib/graph/views/view-vocab/loader';
+import { getBeatsVocabCatalog, _resetBeatsVocabCache } from '@/lib/graph/beats/beats-vocab/loader';
 
 const ID_RE = /^[a-z][a-z0-9-]{1,47}$/;
 
@@ -39,13 +44,39 @@ export function deriveViewKind(manifestKind) {
   return null;
 }
 
+/**
+ * manifest.kind → the save LANE: which entry tool re-mints it, which chapter
+ * it files under, which vocab catalog guards id uniqueness and serves recall.
+ * `family` is the card's frontmatter family (null ⇒ omitted — beats cards
+ * don't carry one); `mint` is the card-body phrase for the re-mint path
+ * (cards never name entry tools in their bodies — `entry` carries that).
+ */
+export function deriveRecipeLane(manifestKind) {
+  if (isBeatsKind(manifestKind)) {
+    return {
+      entry: 'create_beats', kind: manifestKind, chapter: 'beats', family: null,
+      vocabKind: 'beats_vocab', reader: 'get_beats_vocab',
+      catalog: getBeatsVocabCatalog, mint: 'beats mint',
+    };
+  }
+  const v = deriveViewKind(manifestKind);
+  if (v) {
+    return {
+      entry: 'create_view', kind: v.kind, chapter: v.family, family: v.family,
+      vocabKind: 'view_vocab', reader: 'get_view_vocab',
+      catalog: getViewVocabCatalog, mint: 'study-object mint',
+    };
+  }
+  return null;
+}
+
 // The saved card mirrors the book format exactly — a cookbook IS a valid book.
-export function draftRecipeCard({ id, name, family, when, summary, notes, kind, recipe, ref }) {
+export function draftRecipeCard({ id, name, family, entry, mint, when, summary, notes, kind, recipe, ref }) {
   const front = {
     id,
     name,
-    family,
-    entry: 'create_view',
+    ...(family ? { family } : {}),
+    entry,
     summary: summary || `A saved recipe over the '${kind}' kind — ${name}.`,
     when,
   };
@@ -53,7 +84,7 @@ export function draftRecipeCard({ id, name, family, when, summary, notes, kind, 
     + `Saved from sketch \`${ref}\` — a kept setting of the \`${kind}\` kind.\n`
     + (notes ? `\n${notes}\n` : '')
     + `\n## Recipe\n\n\`\`\`json\n${JSON.stringify(recipe, null, 2)}\n\`\`\`\n\n`
-    + `Pass the \`kind\` and \`params\` above to the study-object mint. The\n`
+    + `Pass the \`kind\` and \`params\` above to the ${mint}. The\n`
     + `underlying kind's full manual is its own card (\`id: '${kind}'\`).\n`;
 }
 
@@ -74,33 +105,34 @@ export async function saveRecipeHandler(input) {
   if (!manifest || typeof manifest.kind !== 'string') throw new Error(`save_recipe: sketch '${ref}' has no manifest kind`);
 
   await ensureBookLoaded();   // book kinds must be resolvable before deriving
-  const derived = deriveViewKind(manifest.kind);
-  if (!derived) {
-    throw new Error(`save_recipe: '${manifest.kind}' is not a create_view kind — v1 saves study-object recipes only `
-      + '(worlds / solids / beats join with the multi-family book)');
+  const lane = deriveRecipeLane(manifest.kind);
+  if (!lane) {
+    throw new Error(`save_recipe: '${manifest.kind}' is not a keepable recipe kind — save_recipe covers `
+      + 'create_view and create_beats artifacts today (solids / motion join by the same lane pattern)');
   }
 
-  if (getViewVocabCatalog().has(id)) {
+  if (lane.catalog().has(id)) {
     throw new Error(`save_recipe: id '${id}' already exists in the catalog — pick another (e.g. '${id}-2')`);
   }
 
   const params = { ...manifest };
   delete params.kind;
   delete params.title;
-  const displayName = (typeof name === 'string' && name.trim()) || sketch.title || manifest.title || `${derived.kind} recipe`;
-  const recipe = { entry: 'create_view', kind: derived.kind, params, title: displayName };
+  const displayName = (typeof name === 'string' && name.trim()) || sketch.title || manifest.title || `${lane.kind} recipe`;
+  const recipe = { entry: lane.entry, kind: lane.kind, params, title: displayName };
   const cardText = draftRecipeCard({
-    id, name: displayName, family: derived.family, when: when.trim(),
-    summary, notes, kind: derived.kind, recipe, ref: sketch.ref,
+    id, name: displayName, family: lane.family, entry: lane.entry, mint: lane.mint,
+    when: when.trim(), summary, notes, kind: lane.kind, recipe, ref: sketch.ref,
   });
 
-  const saved = saveRecipeEntry({ id, chapter: derived.family, cardText, recipe });
+  const saved = saveRecipeEntry({ id, chapter: lane.chapter, cardText, recipe });
 
   // Make the save visible NOW: drop the card/catalog caches, reload the book
   // snapshot, and upsert the index (reindexAll is incremental — unchanged
   // rows are hash-skipped, so this is a single-card write in practice).
   _resetBookLoader();
   _resetViewVocabCache();
+  _resetBeatsVocabCache();
   await ensureBookLoaded();
   let indexed = false;
   try {
@@ -114,12 +146,12 @@ export async function saveRecipeHandler(input) {
   return {
     ok: true,
     id,
-    kind: derived.kind,
-    chapter: derived.family,
+    kind: lane.kind,
+    chapter: lane.chapter,
     cookbook: saved.dir,
     committed: saved.committed,
     indexed,
-    recall: { get_view_vocab: { id }, semantic_search: { kinds: ['view_vocab'], query: when.trim() } },
+    recall: { [lane.reader]: { id }, semantic_search: { kinds: [lane.vocabKind], query: when.trim() } },
   };
 }
 
@@ -127,13 +159,13 @@ export function registerSaveRecipeTools() {
   registerTool({
     name: 'save_recipe',
     description:
-      "KEEP a recipe: promote a minted-and-tuned study-object sketch into the operator's own COOKBOOK — a named, "
+      "KEEP a recipe: promote a minted-and-tuned artifact into the operator's own COOKBOOK — a named, "
       + 'intent-recallable catalog entry (card + params) beside the instance data, ledgered with a local git commit. '
       + 'The saved entry joins the same catalog as shipped kinds: recall it later via '
-      + "semantic_search({ kinds: ['view_vocab'] }) or get_view_vocab({ id }), and re-mint via create_view. "
-      + 'Write `when` from the CONVERSATION\'S intent — it is what makes the recipe findable by meaning later. '
-      + 'Reach for "save this / keep this setup / remember this view for my class". v1 saves create_view recipes '
-      + '(core and attached-book kinds).',
+      + "semantic_search over the family's vocab kind or its get_*_vocab reader, and re-mint via the family's entry "
+      + 'tool. Write `when` from the CONVERSATION\'S intent — it is what makes the recipe findable by meaning later. '
+      + 'Reach for "save this / keep this setup / remember this view for my class / keep that loop". Saves '
+      + 'create_view recipes (core and attached-book kinds) and create_beats recipes; solids / motion join later.',
     inputSchema: {
       type: 'object',
       properties: {

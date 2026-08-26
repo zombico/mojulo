@@ -87,11 +87,17 @@ export function getViewVocabCatalog() {
   }
   // Attached recipe-book cards (recipe-book.plan.md) — merged AFTER core so
   // discovery (semantic_search), the get_view_vocab reader, and the embeddings
-  // reindex all see one catalog. parseCard is injected so the book side never
-  // grows a second parser; malformed cards in the user-editable clone are
-  // skipped inside readBookCards, and on an id collision CORE WINS (a clone
-  // must not shadow a core manual). Absent a book ⇒ readBookCards returns [].
-  for (const card of readBookCards({ parse: parseCard })) {
+  // reindex all see one catalog. Book cards are routed here by their `entry`
+  // frontmatter (the Phase-4 multi-family rule — beats/solid/motion cards go
+  // to THEIR catalogs); family rules are enforced at merge time, tolerantly —
+  // the book is user-editable, so warn-and-skip, never throw. On an id
+  // collision CORE WINS (a clone must not shadow a core manual). Absent a
+  // book ⇒ readBookCards returns [].
+  for (const card of readBookCards({ entries: ['create_view', 'compose_world'] })) {
+    if (!VALID_FAMILIES.has(card.family)) {
+      console.warn(`view-vocab: book card '${card.id}' has family '${card.family}' — not a view family; skipped`);
+      continue;
+    }
     if (catalog.has(card.id)) {
       console.warn(`view-vocab: recipe-book card '${card.id}' collides with a core card — core wins`);
       continue;

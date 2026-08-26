@@ -2,11 +2,19 @@
   "book": "fixture-book",
   "bookVersion": "0.0.1",
   "requiresMojulo": ">=1.0.0",
-  "chapters": ["science"],
+  "chapters": ["science", "beats", "solids", "motion"],
   "entries": [
     { "type": "builder", "chapter": "science", "dir": "test-orb", "id": "test-orb" },
     { "type": "builder", "chapter": "science", "dir": "collide", "id": "collide" },
+    { "type": "builder", "chapter": "beats", "dir": "beats-builder", "id": "beats-builder", "entry": "create_beats" },
     { "type": "recipe", "chapter": "science", "dir": "saturn-clash", "id": "saturn" },
-    { "type": "recipe", "chapter": "science", "dir": "preset", "id": "fixture-preset" }
+    { "type": "recipe", "chapter": "science", "dir": "preset", "id": "fixture-preset" },
+    { "type": "recipe", "chapter": "science", "dir": "unroutable", "id": "fixture-unroutable" },
+    { "type": "recipe", "chapter": "beats", "dir": "fixture-loop", "id": "fixture-loop" },
+    { "type": "recipe", "chapter": "beats", "dir": "ambient-shadow", "id": "beats-ambient" },
+    { "type": "recipe", "chapter": "beats", "dir": "fixture-preset", "id": "fixture-preset" },
+    { "type": "recipe", "chapter": "solids", "dir": "fixture-gem", "id": "fixture-gem" },
+    { "type": "recipe", "chapter": "solids", "dir": "bad-family", "id": "fixture-bad-family" },
+    { "type": "recipe", "chapter": "motion", "dir": "fixture-spin", "id": "fixture-spin" }
   ]
 }

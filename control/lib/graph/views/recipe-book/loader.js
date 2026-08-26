@@ -59,8 +59,8 @@ function satisfiesMin(required, installed) {
  * Load every attached book's Door-2 builders and publish the full registry
  * snapshot. Memoized promise — every caller past the first awaits the same
  * load. Absent any book, publishes the empty (loaded) snapshot so callers
- * stop retrying. Overrides ({ dir, cookbook, cardParse }) are test seams;
- * `dir` names the upstream book dir.
+ * stop retrying. Overrides ({ dir, cookbook }) are test seams; `dir` names
+ * the upstream book dir.
  */
 let _loadPromise = null;
 export function ensureBookLoaded(opts = {}) {
@@ -69,7 +69,7 @@ export function ensureBookLoaded(opts = {}) {
   return _loadPromise;
 }
 
-async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride, cardParse } = {}) {
+async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } = {}) {
   const warnings = [];
   const warn = (msg) => { warnings.push(msg); console.warn(`recipe-book: ${msg}`); };
 
@@ -106,6 +106,14 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride, ca
         warn(`cookbook entry '${entry.id}' is a builder — the cookbook is Door-1 only (recipes); skipped`);
         continue;
       }
+      // Door-2 lanes are per-family and only the VIEW lane exists (Phase 4
+      // built Door-1 routing for the other families; their builder lanes come
+      // by demonstrated need). A builder entry declaring a non-view entry tool
+      // must not be mis-registered as a view kind.
+      if (entry.entry && entry.entry !== 'create_view') {
+        warn(`entry '${entry.id}' declares a builder for '${entry.entry}' — no Door-2 lane exists for that family yet (views only); skipped`);
+        continue;
+      }
       const file = join(dir, 'chapters', String(entry.chapter || ''), String(entry.dir || ''), 'builder.js');
       if (!existsSync(file)) { warn(`entry '${entry.id}' declares a builder but ${file} is missing — skipped`); continue; }
       let mod;
@@ -139,7 +147,7 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride, ca
     }
   }
 
-  const cards = cardParse ? readBookCards({ parse: cardParse, dirs }) : readBookCards({ dirs });
+  const cards = readBookCards({ dirs });
   setBookSnapshot({ kinds, worldKinds, renderKinds, cards, warnings });
   return { kinds: kinds.size, warnings };
 }

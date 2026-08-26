@@ -27,6 +27,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
+import { readBookCards } from '../views/recipe-book/cards.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 
 // `when` is required for the same reason as view-vocab: it's the intent-shaped
@@ -82,6 +83,22 @@ export function getSolidVocabCatalog() {
     const card = parseCard(join(VOCAB_DIR, file));
     if (catalog.has(card.id)) {
       throw new Error(`solid-vocab: duplicate card id '${card.id}' (${file})`);
+    }
+    catalog.set(card.id, card);
+  }
+  // Attached recipe-book / cookbook cards routed here by their
+  // `entry: 'mint_solid' | 'edit_solid'` frontmatter (recipe-book.plan.md,
+  // Phase 4) — merged after core so get_solid_vocab and the embeddings
+  // reindex see one catalog. The book is user-editable: warn-and-skip, never
+  // throw; on an id collision CORE WINS.
+  for (const card of readBookCards({ entries: ['mint_solid', 'edit_solid'] })) {
+    if (!VALID_FAMILIES.has(card.family)) {
+      console.warn(`solid-vocab: book card '${card.id}' has family '${card.family}' — not a solid family; skipped`);
+      continue;
+    }
+    if (catalog.has(card.id)) {
+      console.warn(`solid-vocab: book card '${card.id}' collides with a core card — core wins`);
+      continue;
     }
     catalog.set(card.id, card);
   }

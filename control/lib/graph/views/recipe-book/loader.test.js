@@ -7,27 +7,36 @@ import { ensureBookLoaded, _resetBookLoader } from './loader';
 import { bookViewKinds, bookWorldKind, isBookRenderKind, bookWarnings, bookLoaded, bookCards } from './registry';
 import { readBookCards, bookDirs } from './cards';
 import { ensureCookbook, saveRecipeEntry } from './cookbook';
-import { parseCard, getViewVocabCatalog, _resetViewVocabCache } from '../view-vocab/loader';
+import { getViewVocabCatalog, _resetViewVocabCache } from '../view-vocab/loader';
+import { getSolidVocabCatalog, _resetSolidVocabCache } from '../../solid-vocab/loader';
+import { getMotionVocabCatalog, _resetMotionVocabCache } from '../../motion-vocab/loader';
+import { getBeatsVocabCatalog, _resetBeatsVocabCache } from '../../beats/beats-vocab/loader';
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 const BOOK = join(FIX, 'book');
 const FUTURE = join(FIX, 'book-future');
+
+function resetCaches() {
+  _resetBookLoader();
+  _resetViewVocabCache();
+  _resetSolidVocabCache();
+  _resetMotionVocabCache();
+  _resetBeatsVocabCache();
+}
 
 const savedEnv = { book: process.env.MOJULO_RECIPE_BOOK, cookbook: process.env.MOJULO_COOKBOOK };
 beforeEach(() => {
   delete process.env.MOJULO_RECIPE_BOOK;
   // Isolate from any REAL cookbook beside the repo-dev data dir.
   process.env.MOJULO_COOKBOOK = '/nonexistent-cookbook';
-  _resetBookLoader();
-  _resetViewVocabCache();
+  resetCaches();
 });
 afterEach(() => {
   if (savedEnv.book === undefined) delete process.env.MOJULO_RECIPE_BOOK;
   else process.env.MOJULO_RECIPE_BOOK = savedEnv.book;
   if (savedEnv.cookbook === undefined) delete process.env.MOJULO_COOKBOOK;
   else process.env.MOJULO_COOKBOOK = savedEnv.cookbook;
-  _resetBookLoader();
-  _resetViewVocabCache();
+  resetCaches();
 });
 
 describe('recipe-book loader', () => {
@@ -46,7 +55,7 @@ describe('recipe-book loader', () => {
   });
 
   it('loads a Door-2 builder: kind registered, world row resolves, render kind set', async () => {
-    await ensureBookLoaded({ dir: BOOK, cardParse: parseCard });
+    await ensureBookLoaded({ dir: BOOK });
     const bk = bookViewKinds().get('test-orb');
     expect(bk).toBeTruthy();
     expect(bk.manifestKind).toBe('test-orb-view');
@@ -62,7 +71,7 @@ describe('recipe-book loader', () => {
   });
 
   it('a manifestKind colliding with a core world kind is skipped — core wins', async () => {
-    await ensureBookLoaded({ dir: BOOK, cardParse: parseCard });
+    await ensureBookLoaded({ dir: BOOK });
     expect(bookViewKinds().has('collide')).toBe(false);
     expect(bookWarnings().join(' ')).toMatch(/saturn-view.*core wins/);
     // the core saturn-view row is untouched (loader never mutates WORLD_KINDS)
@@ -76,7 +85,7 @@ describe('recipe-book loader', () => {
   });
 
   it('cards ride the snapshot and the sync reader', async () => {
-    await ensureBookLoaded({ dir: BOOK, cardParse: parseCard });
+    await ensureBookLoaded({ dir: BOOK });
     const ids = bookCards().map((c) => c.id);
     expect(ids).toContain('test-orb');
     expect(ids).toContain('fixture-preset');
@@ -109,6 +118,63 @@ describe('view-vocab catalog merge', () => {
     const core = getViewVocabCatalog();
     expect(core.has('test-orb')).toBe(false);
     expect(withBook).toBeGreaterThan(core.size);
+  });
+});
+
+describe('multi-family card routing (Phase 4)', () => {
+  it('beats / solid / motion book cards route to their own catalogs by `entry`', () => {
+    process.env.MOJULO_RECIPE_BOOK = BOOK;
+    const beats = getBeatsVocabCatalog();
+    expect(beats.get('fixture-loop')?.source).toBe('recipe-book');
+    expect(beats.get('fixture-loop')?.body).toMatch(/ambient-loop preset fixture/);
+    const solids = getSolidVocabCatalog();
+    expect(solids.get('fixture-gem')?.source).toBe('recipe-book');
+    expect(solids.get('fixture-gem')?.family).toBe('object');
+    const motion = getMotionVocabCatalog();
+    expect(motion.get('fixture-spin')?.source).toBe('recipe-book');
+    // family omitted on the card → defaulted
+    expect(motion.get('fixture-spin')?.family).toBe('motion');
+    // ...and none of them leak into the view catalog
+    const views = getViewVocabCatalog();
+    expect(views.has('fixture-loop')).toBe(false);
+    expect(views.has('fixture-gem')).toBe(false);
+    expect(views.has('fixture-spin')).toBe(false);
+  });
+
+  it('id collisions with a core card keep the CORE card, per family', () => {
+    process.env.MOJULO_RECIPE_BOOK = BOOK;
+    const ambient = getBeatsVocabCatalog().get('beats-ambient');
+    expect(ambient).toBeTruthy();
+    expect(ambient.source).toBeUndefined();
+    expect(ambient.body).not.toMatch(/core wins/i);
+  });
+
+  it('dedupe is scoped per catalog: a view card and a beats card may share an id', () => {
+    process.env.MOJULO_RECIPE_BOOK = BOOK;
+    const viewTwin = getViewVocabCatalog().get('fixture-preset');
+    const beatsTwin = getBeatsVocabCatalog().get('fixture-preset');
+    expect(viewTwin?.entry).toBe('create_view');
+    expect(beatsTwin?.entry).toBe('create_beats');
+    expect(beatsTwin?.body).toMatch(/beats twin/);
+  });
+
+  it('an unroutable `entry` reaches no catalog; a non-solid family is skipped by the solid merge', () => {
+    process.env.MOJULO_RECIPE_BOOK = BOOK;
+    expect(readBookCards().some((c) => c.id === 'fixture-unroutable')).toBe(false);
+    expect(getViewVocabCatalog().has('fixture-unroutable')).toBe(false);
+    expect(getSolidVocabCatalog().has('fixture-bad-family')).toBe(false);
+  });
+
+  it('absent a book the beats / solid / motion catalogs are exactly the core sets', () => {
+    expect(getBeatsVocabCatalog().has('fixture-loop')).toBe(false);
+    expect(getSolidVocabCatalog().has('fixture-gem')).toBe(false);
+    expect(getMotionVocabCatalog().has('fixture-spin')).toBe(false);
+  });
+
+  it('builder lane guard: a builder declaring a non-view entry tool is skipped with a warning', async () => {
+    const res = await ensureBookLoaded({ dir: BOOK });
+    expect(res.warnings.join(' ')).toMatch(/beats-builder.*no Door-2 lane/);
+    expect(bookViewKinds().has('beats-builder')).toBe(false);
   });
 });
 
@@ -153,7 +219,7 @@ describe('cookbook (Phase 5)', () => {
       cardText: '---\n{"id":"fixture-preset","name":"Cook version","family":"science","entry":"create_view","summary":"s","when":"w"}\n---\n\nCOOKBOOK BODY.\n',
       recipe: { entry: 'create_view', kind: 'saturn', params: {} },
     });
-    const cards = readBookCards({ parse: parseCard });
+    const cards = readBookCards({ entries: ['create_view'] });
     const hit = cards.find((c) => c.id === 'fixture-preset');
     expect(hit.source).toBe('cookbook');
     expect(hit.body).toMatch(/COOKBOOK BODY/);

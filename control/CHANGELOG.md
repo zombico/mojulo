@@ -42,6 +42,21 @@ exact per control-plane version.
   `create_view`. Attachment is now an ordered book list — core > cookbook >
   upstream clone, first-wins with warnings. The cookbook is Door-1 only
   (recipes, pure data); builder entries there are refused by design.
+- **Multi-family Door 1** — the book now carries recipes for MORE than views:
+  a card's `entry` frontmatter is its routing key, so `create_beats` cards
+  merge into the beats-vocab catalog, `mint_solid`/`edit_solid` into
+  solid-vocab, `forge_motion`/`stitch_motion` into motion-vocab (each with the
+  view merge's rules — core wins collisions, warn-and-skip on malformed or
+  unroutable cards, per-catalog id scoping). `get_*_vocab`, `semantic_search`,
+  and the reindex inherit book cards per family for free. Door-2 builder
+  lanes remain view-only: a builder entry declaring another family's entry
+  tool is skipped with a warning until that lane is built by demonstrated
+  need. `save_recipe` gained the beats lane: a minted-and-tuned
+  `create_beats` loop saves to the cookbook's `beats` chapter (card routed
+  by `entry`, recalled via `get_beats_vocab` / `semantic_search({ kinds:
+  ['beats_vocab'] })`, re-minted via `create_beats`) — the keep-loop for the
+  family where tuned params are hardest to rediscover. Solids / motion join
+  by the same lane pattern later.
 - **Pilot kinds (ship in the book, not in core):** `foucault-pendulum`
   (Tier-0 — a Foucault pendulum over a compass floor: latitude-driven
   precession Ω = 15.04°/h × sin lat, seamless-loop rosette trail, optional

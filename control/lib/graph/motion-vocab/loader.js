@@ -18,6 +18,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
+import { readBookCards } from '../views/recipe-book/cards.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/motion-vocab');
 
 const REQUIRED_FIELDS = ['id', 'name', 'family', 'entry', 'summary', 'when'];
@@ -71,6 +72,24 @@ export function getMotionVocabCatalog() {
       throw new Error(`motion-vocab: duplicate card id '${card.id}' (${file})`);
     }
     catalog.set(card.id, card);
+  }
+  // Attached recipe-book / cookbook cards routed here by their
+  // `entry: 'forge_motion' | 'stitch_motion'` frontmatter
+  // (recipe-book.plan.md, Phase 4) — merged after core so get_motion_vocab
+  // and the embeddings reindex see one catalog. Book cards may omit `family`
+  // (there is only one) — default it; the book is user-editable, so
+  // warn-and-skip, never throw; on an id collision CORE WINS.
+  for (const card of readBookCards({ entries: ['forge_motion', 'stitch_motion'] })) {
+    const family = card.family ?? 'motion';
+    if (!VALID_FAMILIES.has(family)) {
+      console.warn(`motion-vocab: book card '${card.id}' has family '${card.family}' — not a motion family; skipped`);
+      continue;
+    }
+    if (catalog.has(card.id)) {
+      console.warn(`motion-vocab: book card '${card.id}' collides with a core card — core wins`);
+      continue;
+    }
+    catalog.set(card.id, { ...card, family });
   }
   cache = catalog;
   return catalog;
