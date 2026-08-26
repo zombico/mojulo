@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ApiKeyRepository } from '@/lib/db/repositories/apiKeys';
 import { encryptApiKey } from '@/lib/deployment-auth';
+import { subscriptionCredentialNotice } from '@/lib/roles/credential-shape';
 
 function redact(key) {
   if (!key) return null;
@@ -32,6 +33,16 @@ export async function POST(request) {
       { error: 'name, provider, and apiKey are required' },
       { status: 400 }
     );
+  }
+
+  // Credential-shape guard (roles-pack.plan.md Phase 3): a subscription/OAuth
+  // token is never an API key. Ollama is exempt — its slot holds an endpoint
+  // URL, not a secret.
+  if (provider !== 'ollama') {
+    const shapeNotice = subscriptionCredentialNotice(apiKey);
+    if (shapeNotice) {
+      return NextResponse.json({ error: shapeNotice }, { status: 422 });
+    }
   }
 
   // The default key powers the chat builder, whose agentic tool-use loop

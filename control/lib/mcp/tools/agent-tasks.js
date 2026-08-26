@@ -68,13 +68,16 @@ function submitToolNameForKind(taskKind) {
   return 'submit_agent_task'; // generic fallback; future kinds ship their own.
 }
 
-export async function pullAgentTaskHandler(input = {}) {
+export async function pullAgentTaskHandler(input = {}, context = {}) {
   const waitMs = typeof input.wait_ms === 'number' ? input.wait_ms : undefined;
   // Optional kind filter so a specialized worker (e.g. the chat-builder worker)
   // claims only its kind and never cancels tasks meant for another worker.
   const kindsFilter =
     Array.isArray(input.kinds) && input.kinds.length > 0 ? input.kinds : undefined;
-  const entry = await pullNext({ waitMs, kindsFilter });
+  // Lane = the caller's account (roles-pack Phase 3): a delegate's connected
+  // agent pulls only its own user's tasks; the operator pulls 'local'. With
+  // roles off pullNext ignores lanes entirely.
+  const entry = await pullNext({ waitMs, kindsFilter, forUserId: context.userId });
   if (!entry) return { request: null };
 
   const payload = entry.payload || {};

@@ -10,7 +10,7 @@ exact per control-plane version.
 
 ## [Unreleased]
 
-### Roles pack — operator-owned delegation (opt-in), Phases 0–2
+### Roles pack — operator-owned delegation (opt-in), Phases 0–3
 
 Off by default: with `MOJULO_ROLES` unset a fresh install is byte-identical in
 behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
@@ -44,6 +44,22 @@ behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
   actions, default off). `tools/list` shows a delegate only their granted
   bays; admins with roles enabled additionally see the roles-admin tools.
   Spine orientation stays available to every key.
+- **The 1:1 inference rule (Phase 3).** Every unit of inference the substrate
+  mediates is attributable to exactly one account's own credential;
+  subscription credentials never enter the substrate. BYOK per account:
+  `api_keys.owner_user_id` (NULL = the operator's house key, so every
+  existing row is already correct) with scoping in the one key-resolution
+  funnel (`ApiKeyRepository.findByUserId`) — a delegate resolves only their
+  own keys, plus house keys under the admin-granted `house_keys` flag (team
+  API-key sharing, the provider-anticipated pattern). Side door 1 closed:
+  agent-task lanes — parked tasks carry their originating account, a puller
+  claims only its own lane (the in-process Node fulfiller claims 'local'
+  only), and starvation is loud: an unfulfilled delegate task expires naming
+  its lane instead of drifting to whoever else is online. Side door 2
+  closed: a credential-shape guard at the api_keys write path refuses
+  OAuth/subscription-shaped credentials (`sk-ant-oat…`, JWTs) — shape, not
+  policing. Local inference (Ollama) is exempt by design: the rule governs
+  credentials, not compute.
 
 ## [1.4.2] - 2026-08-24
 

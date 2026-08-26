@@ -28,6 +28,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { ENVELOPE_SCHEMA } from '@/lib/envelope-schema';
+import { rolesEnabled } from '@/lib/roles/keys';
 
 export class AgentTaskError extends Error {
   constructor(message, { code, status = 500 } = {}) {
@@ -76,7 +77,7 @@ function recordEvent(event) {
   }
 }
 
-function newEntry(payload, { noWorkerWindowMs, submitTimeoutMs }) {
+function newEntry(payload, { noWorkerWindowMs, submitTimeoutMs, userId }) {
   const id = randomUUID();
   const parkedAt = Date.now();
   let resolveFn;
@@ -92,6 +93,11 @@ function newEntry(payload, { noWorkerWindowMs, submitTimeoutMs }) {
     id,
     payload,
     parkedAt,
+    // Task lane (roles-pack.plan.md Phase 3, the 1:1 inference rule's side
+    // door 1): the originating account. With roles enabled, a puller claims
+    // only its own lane — a delegate's task NEVER drifts to whoever else is
+    // online, because that drift is the subscription multiplexer.
+    userId: userId || 'local',
     status: STATUS.PENDING,
     resolve: resolveFn,
     reject: rejectFn,
@@ -132,9 +138,15 @@ function expireParked(id) {
       reason: 'no_worker',
       durationMs: Date.now() - entry.parkedAt,
     });
+    // Loud starvation: a delegate-lane task names its lane so the expiry is
+    // diagnosable — it waited for THAT account's agent, by design.
+    const laneNote =
+      entry.userId && entry.userId !== 'local'
+        ? ` This task is in the '${entry.userId}' lane: only that key's connected agent can fulfill it — it never falls back to another account's agent (the 1:1 inference rule). That delegate's agent was not connected.`
+        : ' Run `/loop /run-inference-worker` in your Claude Code session, or set `MOJULO_AGENT_RUNTIME=claude-code-headless` to enable the Node fulfiller.';
     entry.reject(
       new AgentTaskError(
-        'No mojulo agent worker picked up the request before timeout. Run `/loop /run-inference-worker` in your Claude Code session, or set `MOJULO_AGENT_RUNTIME=claude-code-headless` to enable the Node fulfiller.',
+        `No mojulo agent worker picked up the request before timeout.${laneNote}`,
         { code: 'NO_AGENT_WORKER', status: 503 },
       ),
     );
@@ -164,7 +176,7 @@ function notifyWaitingPullers() {
   // skipped without losing their place in line.
   for (let i = 0; i < waitingPullers.length; ) {
     const puller = waitingPullers[i];
-    const next = nextPendingEntry(puller.kindsFilter);
+    const next = nextPendingEntry(puller.kindsFilter, puller.laneUserId);
     if (!next) {
       i += 1;
       continue;
@@ -176,10 +188,13 @@ function notifyWaitingPullers() {
   }
 }
 
-function nextPendingEntry(kindsFilter) {
+function nextPendingEntry(kindsFilter, laneUserId) {
   for (const entry of pending.values()) {
     if (entry.status !== STATUS.PENDING) continue;
     if (kindsFilter && !kindsFilter.includes(entryTaskKind(entry))) continue;
+    // Lane match (1:1 inference rule): a null lane means roles are off —
+    // single-operator, no lanes. Otherwise strict equality, no fallback.
+    if (laneUserId !== null && entry.userId !== laneUserId) continue;
     return entry;
   }
   return null;
@@ -210,7 +225,7 @@ function markPulled(entry) {
 export async function parkRequest(payload, opts = {}) {
   const noWorkerWindowMs = opts.noWorkerWindowMs ?? DEFAULT_NO_WORKER_WINDOW_MS;
   const submitTimeoutMs = opts.submitTimeoutMs ?? DEFAULT_SUBMIT_TIMEOUT_MS;
-  const entry = newEntry(payload, { noWorkerWindowMs, submitTimeoutMs });
+  const entry = newEntry(payload, { noWorkerWindowMs, submitTimeoutMs, userId: opts.userId });
   notifyWaitingPullers();
   return entry.promise;
 }
@@ -234,7 +249,9 @@ export async function parkRequest(payload, opts = {}) {
 export function parkRequestForTrigger(payload, opts = {}) {
   const noWorkerWindowMs = opts.noWorkerWindowMs ?? DEFAULT_NO_WORKER_WINDOW_MS;
   const submitTimeoutMs = opts.submitTimeoutMs ?? DEFAULT_SUBMIT_TIMEOUT_MS;
-  const entry = newEntry(payload, { noWorkerWindowMs, submitTimeoutMs });
+  // opts.userId: the trigger-artifact owner's lane. Today's triggers are all
+  // operator-bound ('local'); a delegate-bound trigger passes its owner here.
+  const entry = newEntry(payload, { noWorkerWindowMs, submitTimeoutMs, userId: opts.userId });
   // Consume the eventual rejection so an expired task (NO_AGENT_WORKER, etc.)
   // doesn't bubble up as an unhandled rejection. Outcomes are audited via
   // the fulfillment path; the trigger daemon doesn't need to react.
@@ -252,12 +269,17 @@ export function parkRequestForTrigger(payload, opts = {}) {
  * @param {string[]} [opts.kindsFilter] — restrict to specific task_kinds.
  *   Used by the Node fulfiller to claim only kinds its runtime adapter
  *   advertises support for; the MCP /loop puller doesn't pass this.
+ * @param {string} [opts.forUserId] — the puller's account lane. With the roles
+ *   pack enabled, a puller claims ONLY its own lane (default 'local'); with
+ *   roles off, lanes don't exist and every puller sees every task, exactly as
+ *   before.
  */
-export async function pullNext({ waitMs, kindsFilter } = {}) {
+export async function pullNext({ waitMs, kindsFilter, forUserId } = {}) {
   const ceiling = resolvePullCeiling();
   const wait = Math.max(0, Math.min(waitMs ?? DEFAULT_PULL_WAIT_MS, ceiling));
   const filter = Array.isArray(kindsFilter) && kindsFilter.length > 0 ? kindsFilter : null;
-  const immediate = nextPendingEntry(filter);
+  const lane = rolesEnabled() ? forUserId || 'local' : null;
+  const immediate = nextPendingEntry(filter, lane);
   if (immediate) {
     markPulled(immediate);
     return immediate;
@@ -267,6 +289,7 @@ export async function pullNext({ waitMs, kindsFilter } = {}) {
     const waiter = {
       resolve,
       kindsFilter: filter,
+      laneUserId: lane,
       timeoutHandle: setTimeout(() => {
         const idx = waitingPullers.indexOf(waiter);
         if (idx >= 0) waitingPullers.splice(idx, 1);

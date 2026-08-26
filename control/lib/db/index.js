@@ -17,12 +17,17 @@ function init(db) {
   db.pragma('foreign_keys = ON');
 
   db.exec(`
+    -- owner_user_id (roles-pack.plan.md Phase 3, the 1:1 inference rule):
+    -- NULL = the operator's house key (every pre-roles row is already
+    -- correct). A delegate's key rows carry their user id; the resolution
+    -- funnel (ApiKeyRepository.findByUserId) scopes to the caller.
     CREATE TABLE IF NOT EXISTS api_keys (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       provider TEXT NOT NULL,
       encrypted_key TEXT NOT NULL,
       is_default INTEGER NOT NULL DEFAULT 0,
+      owner_user_id TEXT,
       created_at INTEGER NOT NULL
     );
 
@@ -1036,12 +1041,19 @@ function migrateMcpToolCallColumns(db) {
 
 function migrateUserColumns(db) {
   // flags_json (roles-pack.plan.md Phase 2): the key's boundary flags —
-  // propose_only / outward / lifecycle (+ house_keys in Phase 3). Guarded for
-  // dev databases that created the Phase 1 users table without it.
+  // propose_only / outward / lifecycle / house_keys. Guarded for dev
+  // databases that created the Phase 1 users table without it.
   const cols = db.prepare('PRAGMA table_info(users)').all();
   const have = new Set(cols.map((c) => c.name));
   if (!have.has('flags_json')) {
     db.exec('ALTER TABLE users ADD COLUMN flags_json TEXT');
+  }
+  // api_keys.owner_user_id (Phase 3, the 1:1 inference rule): NULL = house
+  // key, so every existing row is already correct.
+  const keyCols = db.prepare('PRAGMA table_info(api_keys)').all();
+  const keyHave = new Set(keyCols.map((c) => c.name));
+  if (!keyHave.has('owner_user_id')) {
+    db.exec('ALTER TABLE api_keys ADD COLUMN owner_user_id TEXT');
   }
 }
 

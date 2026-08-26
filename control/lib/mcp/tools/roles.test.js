@@ -383,6 +383,105 @@ describe('mint with grants + flags', () => {
   });
 });
 
+// ── Phase 3: the 1:1 inference rule ─────────────────────────────────────────
+
+import { ApiKeyRepository } from '@/lib/db/repositories/apiKeys';
+import { subscriptionCredentialNotice } from '@/lib/roles/credential-shape';
+import {
+  parkRequest,
+  parkRequestForTrigger,
+  pullNext,
+  _internals as queueInternals,
+} from '@/lib/mcp/agent-tasks/queue';
+
+describe('BYOK per account — the key-resolution funnel', () => {
+  it('delegates resolve only their own keys; house_keys opens the house set', async () => {
+    const house = await ApiKeyRepository.create({
+      name: 'house-anthropic',
+      provider: 'anthropic',
+      encryptedKey: 'enc-house',
+    });
+    const byok = UserRepository.create({ name: 'byok-user', role: 'privileged', tokenHash: 'th1' });
+    const shared = UserRepository.create({
+      name: 'house-user',
+      role: 'privileged',
+      tokenHash: 'th2',
+      flags: { house_keys: true },
+    });
+    const own = await ApiKeyRepository.create({
+      name: 'byok-own',
+      provider: 'openai',
+      encryptedKey: 'enc-own',
+      ownerUserId: byok.id,
+    });
+
+    // roles off: unchanged — every caller sees every key
+    const offNames = (await ApiKeyRepository.findByUserId(byok.id)).map((k) => k.name);
+    expect(offNames).toContain('house-anthropic');
+
+    await withRoles(async () => {
+      // the operator sees everything
+      const local = (await ApiKeyRepository.findByUserId('local')).map((k) => k.name);
+      expect(local).toEqual(expect.arrayContaining(['house-anthropic', 'byok-own']));
+      // BYOK delegate: own keys only — a keyless delegate would hit the
+      // existing "no LLM key configured" refusal downstream
+      const scoped = (await ApiKeyRepository.findByUserId(byok.id)).map((k) => k.name);
+      expect(scoped).toEqual(['byok-own']);
+      // house_keys flag: own + the operator's house keys
+      const sharedKeys = (await ApiKeyRepository.findByUserId(shared.id)).map((k) => k.name);
+      expect(sharedKeys).toContain('house-anthropic');
+      expect(sharedKeys).not.toContain('byok-own'); // another delegate's key is never theirs
+    });
+
+    await ApiKeyRepository.delete(house.id);
+    await ApiKeyRepository.delete(own.id);
+  });
+});
+
+describe('credential-shape guard (subscriptions authenticate agents, not the control plane)', () => {
+  it('refuses OAuth/subscription-shaped credentials, passes real API keys', () => {
+    expect(subscriptionCredentialNotice('sk-ant-oat01-abcdef')).toMatch(/subscription/i);
+    expect(
+      subscriptionCredentialNotice('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.sig')
+    ).toMatch(/token/i);
+    expect(subscriptionCredentialNotice('sk-ant-api03-realkey')).toBeNull();
+    expect(subscriptionCredentialNotice('sk-proj-openai-key')).toBeNull();
+  });
+});
+
+describe('agent-task lanes (side door 1: no shared fulfiller)', () => {
+  afterEach(() => queueInternals._resetForTests());
+
+  it('roles on: a puller claims only its own lane, no fallback', async () => {
+    await withRoles(async () => {
+      parkRequestForTrigger({ inputs: { text: 'delegate work' } }, { userId: 'usr_lane' });
+      // the operator's puller (and the house fulfiller) never see it
+      expect(await pullNext({ waitMs: 0, forUserId: 'local' })).toBeNull();
+      expect(await pullNext({ waitMs: 0 })).toBeNull(); // default lane = local
+      // the delegate's own agent claims it
+      const entry = await pullNext({ waitMs: 0, forUserId: 'usr_lane' });
+      expect(entry?.userId).toBe('usr_lane');
+    });
+  });
+
+  it('roles off: lanes do not exist — any puller sees any task (byte-identical)', async () => {
+    parkRequestForTrigger({ inputs: { text: 'x' } }, { userId: 'usr_lane' });
+    const entry = await pullNext({ waitMs: 0, forUserId: 'local' });
+    expect(entry).not.toBeNull();
+  });
+
+  it('starvation is loud: an unfulfilled delegate task expires naming its lane', async () => {
+    await withRoles(async () => {
+      await expect(
+        parkRequest(
+          { inputs: { text: 'starved' } },
+          { userId: 'usr_lane', noWorkerWindowMs: 5, submitTimeoutMs: 5 }
+        )
+      ).rejects.toThrow(/'usr_lane' lane[\s\S]*1:1 inference rule/);
+    });
+  });
+});
+
 describe('attribution + secrets discipline at the telemetry seam', () => {
   it('tool calls persist the context userId; mint_role_key is capture-exempt', async () => {
     process.env.MOJULO_MCP_TELEMETRY_CAPTURE = 'full';

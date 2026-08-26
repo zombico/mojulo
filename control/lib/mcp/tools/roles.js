@@ -60,7 +60,7 @@ function presentUser(user) {
   };
 }
 
-const MINTABLE_FLAGS = ['propose_only', 'outward', 'lifecycle'];
+const MINTABLE_FLAGS = ['propose_only', 'outward', 'lifecycle', 'house_keys'];
 
 async function mintRoleKeyHandler(input, context) {
   requireRolesAdmin(context);
@@ -195,6 +195,11 @@ export function registerRolesTools() {
         lifecycle: {
           type: 'boolean',
           description: 'Allow actions that start/stop processes on this host (apps, bot builds). Default false.',
+        },
+        house_keys: {
+          type: 'boolean',
+          description:
+            "Let this key's sessions resolve the operator's own API keys (team API-key sharing — the provider-anticipated pattern). Default false: a delegate brings their own key (BYOK) or hits the no-key refusal. API keys only; never subscriptions.",
         },
         expires_in_days: {
           type: 'number',
