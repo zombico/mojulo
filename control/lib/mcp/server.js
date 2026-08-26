@@ -390,6 +390,12 @@ export async function ensureToolsRegistered() {
   const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
+  // Attached recipe book (recipe-book.plan.md): load the operator's cloned
+  // Door-2 builders BEFORE create_view registers, so its kind enum and
+  // dispatch include book kinds from the first tools/list. Absent
+  // MOJULO_RECIPE_BOOK this resolves the empty snapshot instantly.
+  const { ensureBookLoaded } = await import('@/lib/graph/views/recipe-book/loader');
+  await ensureBookLoaded();
   const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');

@@ -10,6 +10,36 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Recipe book — an attachable catalog of view recipes and builders
+
+- **`MOJULO_RECIPE_BOOK`** — point at a local clone of the new
+  `mojulo-recipe-book` repo (chapters of cards + recipes + builders; fully
+  text/JSON, no dependencies) and the control plane attaches it at boot.
+  Strictly additive: unset ⇒ byte-for-byte the shipped behavior; nothing is
+  ever fetched at runtime (the operator clones and pins the book themselves).
+- **Two doors.** Door 1 (data): the book's cards merge into the view-vocab
+  catalog, so `semantic_search`, `get_view_vocab`, and the embeddings reindex
+  surface them like shipped cards — a recipe entry is pure params over an
+  existing kind. Door 2 (code): `builder` entries are dynamically imported and
+  registered as additional `create_view` kinds — enum, mint (generic
+  `mintBookView` path), `/world` render dispatch, and `sketchRenderMode` all
+  inherit them. Core wins every id/kind collision; malformed entries are
+  skipped with warnings, never fatal; a book whose `requiresMojulo` is newer
+  than the installed control plane loads nothing and says the clone is ahead.
+- **Injected toolkit (Tier-2 builders).** Book builders stay import-free;
+  builders that need mojulo's shared GLSL primitives receive them as
+  `ctx.toolkit` on every `plan`/`assemble` call
+  (`lib/graph/views/recipe-book/toolkit.js` — versioned, frozen, append-only;
+  currently `effects: { buildVolumeFrag, SDF_GLSL }`).
+- **Pilot kinds (ship in the book, not in core):** `foucault-pendulum`
+  (Tier-0 — a Foucault pendulum over a compass floor: latitude-driven
+  precession Ω = 15.04°/h × sin lat, seamless-loop rosette trail, optional
+  finite-differenced v/a arrows) and `aurora` (Tier-2, first toolkit
+  consumer — volume-raymarched auroral-oval curtains over a night Earth:
+  green 557.7 nm / red 630.0 nm oxygen ladder, N₂ purple fringe, activity
+  presets quiet/active/storm). Design + seams:
+  `lib/graph/views/recipe-book.plan.md`.
+
 ### Hydro view — a multi-arc science explainer for hydroelectric power
 
 - **`create_view` kind `hydro` (`manifest.kind: 'hydro-view'`)** — one explainer told in

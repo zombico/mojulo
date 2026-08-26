@@ -1,4 +1,4 @@
-import { MOVER_HUD_JS } from '../../views/science/mover-huds.js';
+import { MOVER_HUD_JS } from './mover-huds.js';
 import { safeJson } from '../emit-util.js';
 
 // In-page script: the MOVER channel. Where the tracer moves a glowing additive SPRITE, a mover

@@ -6,6 +6,14 @@
  * splices this string into moverChannelScript's emitted block verbatim, so the page
  * bytes are identical to when these functions lived inline. Constraint: the text must
  * stay free of backtick and dollar-brace so it can ride inside the template literal.
+ *
+ * Moved from views/science/ into the channels layer (recipe-book.plan.md): the
+ * mover channel's stepMovers dispatch references these formatters by name
+ * (_rocketHud, _machineHud, …), so the coupling was always channel↔huds — a
+ * core channel importing from the views directory was the one inverted
+ * dependency in the tree. If a recipe-book kind ever needs a BESPOKE mover
+ * HUD, that becomes the moment to add a contribution point (a mover carrying
+ * its own formatter text) — by demonstrated need, not before.
  */
 
 export const MOVER_HUD_JS = `// energy bars (opt-in, mechanics): KE green, PE blue, total grey — widths are value/emax. Inline-styled

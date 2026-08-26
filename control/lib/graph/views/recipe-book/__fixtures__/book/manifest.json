@@ -1,0 +1,12 @@
+{
+  "book": "fixture-book",
+  "bookVersion": "0.0.1",
+  "requiresMojulo": ">=1.0.0",
+  "chapters": ["science"],
+  "entries": [
+    { "type": "builder", "chapter": "science", "dir": "test-orb", "id": "test-orb" },
+    { "type": "builder", "chapter": "science", "dir": "collide", "id": "collide" },
+    { "type": "recipe", "chapter": "science", "dir": "saturn-clash", "id": "saturn" },
+    { "type": "recipe", "chapter": "science", "dir": "preset", "id": "fixture-preset" }
+  ]
+}

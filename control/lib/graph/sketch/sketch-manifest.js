@@ -40,6 +40,7 @@ import {
 // the diagram surface so existing importers are unchanged. See
 // lib/mcp/kernel-diagram-surface.plan.md.
 import { isFiniteNumber, validateDiagramManifest } from '@/lib/diagram-core';
+import { isBookRenderKind } from '@/lib/graph/views/recipe-book/registry';
 
 export {
   STATION_KINDS,
@@ -268,6 +269,11 @@ const VOICE_RENDER_SET = new Set(VOICE_RENDER_KINDS);
 export function sketchRenderMode(manifest) {
   const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
   if (WORLD_RENDER_SET.has(kind)) return 'world';
+  // Attached recipe-book Door-2 kinds (recipe-book.plan.md) render as orbit
+  // Worlds. Reads the import-nothing registry snapshot (this fn is sync and
+  // widely imported); the snapshot is warm once MCP init or the /world route
+  // has run — before that, a book-kind row lists as 'diagram', harmlessly.
+  if (isBookRenderKind(kind)) return 'world';
   // A polygomer manji-tree is a turnable World (registered in world-kinds.js);
   // the structural 2D manji-tree stays an SVG still below.
   if (isPolygomerManjiTree(manifest)) return 'world';
