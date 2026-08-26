@@ -8,6 +8,29 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Roles pack — operator-owned delegation (opt-in), Phases 0–1
+
+Off by default: with `MOJULO_ROLES` unset a fresh install is byte-identical in
+behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
+
+- **Doctrine (Phase 0).** The posture docs reframe single-user as
+  single-operator: there is no user identity *by default*; the operator may
+  enable the roles pack to cut scoped, revocable keys for their own delegates —
+  operator-owned delegation, never multi-tenancy, and the maintainer still
+  gates nothing (responsibility-model, CLAUDE.md golden rule,
+  MCP-ARCHITECTURE §5, README, mcp-integration; TERMS.md unchanged).
+- **Identity (Phase 1).** Additive `users` table + `mcp_tool_calls.user_id`;
+  bearer keys minted as `mjr_…` tokens stored hash-only, resolved at the one
+  identity mint (`buildContext` in `api/mcp/route.js` — god-key first,
+  delegate keys only when enabled; revoked/expired keys are indistinguishable
+  from wrong keys). Admin-only `mint_role_key` / `list_role_keys` /
+  `revoke_role_key` tools (unlisted until Phase 2's grant enforcement lists
+  them as a pack). Every tool call is attributed to its caller's key in
+  telemetry, and the minting tool is capture-exempt so the plaintext token
+  never persists even under `MOJULO_MCP_TELEMETRY_CAPTURE=full`.
+
 ## [1.4.2] - 2026-08-24
 
 ### Language picker surfaced on fresh install + game-copy reframe

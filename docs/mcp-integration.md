@@ -359,7 +359,7 @@ Jobs are reaped on startup: anything left in `pending` / `running` is marked `er
 
 ## Security posture
 
-- One token, one user. The bearer token is god-mode for the control plane's build / read tools.
+- One token per user. By default there is a single operator token — god-mode for the control plane's build / read tools. With the opt-in roles pack, the operator can mint additional scoped bearer keys (pack-granted, revocable, expiring) for their own delegates; the operator's token remains god-mode.
 - Don't expose `/api/mcp` to the public internet. Same advice as `CONTROL_PLANE_USER` / `CONTROL_PLANE_PASSWORD`. Run locally, on a tailnet, or behind a reverse proxy you control.
 - Conversation data never lives in the control-plane DB. Read tools that surface conversations proxy through `bot-proxy.js` to the bot's own SQLite.
 - The bot runtime ([lite-template/](../lite-template/)) is untouched by MCP — there's no MCP path into runtime turn data that bypasses the existing proxy boundary.

@@ -74,8 +74,12 @@ function serializedBytes(value) {
   }
 }
 
-// Full-capture debug payloads — only computed when the flag is on.
-function captureJson(value) {
+// Full-capture debug payloads — only computed when the flag is on. Tools that
+// handle secrets (e.g. mint_role_key returns a bearer token once) register
+// `noCapture: true` and are exempt even under the debug flag: secret material
+// never persists to mcp_tool_calls.
+function captureJson(value, tool) {
+  if (tool?.noCapture) return null;
   if (!fullCaptureEnabled()) return null;
   try {
     return truncate(JSON.stringify(value ?? null), CAPTURE_JSON_MAX);
@@ -181,10 +185,13 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
     via: via || 'rpc',
     sessionId,
     client,
+    // Per-key attribution (roles-pack.plan.md Phase 1): 'local' for the
+    // operator; a delegate's user id when a roles-pack key made the call.
+    userId: context?.userId || null,
     startedAt,
     inputKeys: keys,
     inputBytes: bytes,
-    inputJson: captureJson(input),
+    inputJson: captureJson(input, tool),
   };
 
   // Race the handler against a soft timeout. The handler promise is retained so
@@ -205,7 +212,7 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
       durationMs,
       status: 'ok',
       resultBytes: serializedBytes(result),
-      resultJson: captureJson(result),
+      resultJson: captureJson(result, tool),
       signalJson,
     });
     logLine({ tool: calledName, durationMs, status: 'ok', via: base.via, sessionId });
@@ -229,7 +236,7 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
             durationMs: lateMs,
             status: 'late_settle',
             resultBytes: serializedBytes(lateResult),
-            resultJson: captureJson(lateResult),
+            resultJson: captureJson(lateResult, tool),
             signalJson: lateSignalJson,
           });
           logLine({ tool: calledName, durationMs: lateMs, status: 'late_settle', via: base.via, sessionId });

@@ -120,7 +120,8 @@ function init(db) {
       result_bytes INTEGER,
       input_json TEXT,
       result_json TEXT,
-      signal_json TEXT
+      signal_json TEXT,
+      user_id TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_tool ON mcp_tool_calls(tool, started_at);
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_status ON mcp_tool_calls(status, started_at);
@@ -775,6 +776,23 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_irq_status ON image_render_requests(status, created_at);
     CREATE INDEX IF NOT EXISTS idx_irq_ref ON image_render_requests(ref);
+
+    -- Roles pack (lib/mcp/roles-pack.plan.md) — operator-owned delegation, NOT
+    -- multi-tenancy. One row per key the operator cut: the operator is the
+    -- 'local' admin row; delegates (human or agent) are 'privileged' rows whose
+    -- bearer key is stored as a hash only. Off by default: with MOJULO_ROLES
+    -- unset this table stays empty and nothing reads it. token_epoch backs lazy
+    -- session revocation (bump it to kill all of a user's sessions).
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      role TEXT NOT NULL CHECK(role IN ('admin', 'privileged')),
+      token_hash TEXT UNIQUE,
+      token_epoch INTEGER NOT NULL DEFAULT 1,
+      expires_at INTEGER,
+      created_at INTEGER NOT NULL,
+      revoked_at INTEGER
+    );
   `);
 
   migrateDeploymentColumns(db);
@@ -993,6 +1011,13 @@ function migrateMcpToolCallColumns(db) {
   const have = new Set(cols.map((c) => c.name));
   if (!have.has('signal_json')) {
     db.exec('ALTER TABLE mcp_tool_calls ADD COLUMN signal_json TEXT');
+  }
+  // user_id (roles-pack.plan.md Phase 1): per-key call attribution at the
+  // telemetry seam. 'local' for the operator; a delegate key's user id when the
+  // roles pack is enabled. What makes the 1:1 inference rule demonstrable from
+  // telemetry rather than just asserted.
+  if (!have.has('user_id')) {
+    db.exec('ALTER TABLE mcp_tool_calls ADD COLUMN user_id TEXT');
   }
 }
 

@@ -162,7 +162,7 @@ sidecar. Adoption is "track for future kill", not "re-supervise".
 
 ## Security posture
 
-Single-user, self-hosted — same posture as the control plane itself.
+Single-operator, self-hosted — same posture as the control plane itself.
 
 - Binds **127.0.0.1 only**, never `0.0.0.0`.
 - **Bearer auth on every request**; the bearer file is `0600`.

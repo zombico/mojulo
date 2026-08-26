@@ -91,7 +91,7 @@ To be explicit, since negative claims often clarify positive ones:
 
 - **No content policy enforcement.** mojulo does not classify your prompts, your stashed documents, or your generated outputs against an acceptable-use list. The LLM provider you use has one; that one applies. The maintainer does not add a second layer.
 - **No intent inference.** mojulo's tools do not try to detect what category of work you are doing or refuse certain categories. `cook`, `start_new_bot`, `install_scaffold`, `bind_primitives` do not ask "what are you using this for?"
-- **No capability gating by user identity.** There is no user identity. There is no account. There is no tier. Every operator running the same release has the same capabilities.
+- **No capability gating by user identity.** There is no user identity by default. There is no account. There is no tier. The operator may enable the roles pack to delegate scoped access on their own control plane — but that is the operator's instrument pointed at the operator's own delegates: every key is operator-issued, operator-revocable, and the operator owns the consequences. The maintainer gates nothing. Every operator running the same release still has the same capabilities.
 - **No remote kill switch.** The maintainer cannot disable a running mojulo installation, a deployed bot, or a generated artifact. There is no command-and-control channel.
 - **No backchannel to the operator.** The maintainer is not notified when you do anything. There is no log shipped, no exception reported, no usage metric collected.
 - **No vetting of generated artifacts.** A bot you compiled is a bot you compiled. The maintainer did not review it, sign it, or certify it.

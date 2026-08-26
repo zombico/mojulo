@@ -12,7 +12,11 @@
  *
  * Execution context carries:
  *   - mcpSessionId — used by session-binding.js to attach a BuilderSession
- *   - userId — always 'local' (single-user posture, see auth/service.js)
+ *   - userId — 'local' by default (single-operator posture, see
+ *     auth/service.js). With the roles pack enabled (MOJULO_ROLES,
+ *     roles-pack.plan.md) a delegate key's context carries that user's id
+ *     plus userRole; identity is minted only in the transport layer
+ *     (buildContext in api/mcp/route.js).
  */
 
 import { readFileSync } from 'node:fs';
@@ -626,6 +630,13 @@ export async function ensureToolsRegistered() {
   // export_game — the self-contained-folder export beside the game mints
   // (game-publish.plan.md phase 2): the sharing seam for playable artifacts.
   registerExportGameTools();
+  // Roles-admin tools (roles-pack.plan.md Phase 1) — the operator's key mint
+  // for delegated access. Activation-gated (MOJULO_ROLES=enabled), admin-only,
+  // and listed:false for now: callable by name on every transport, off the
+  // connect surface until Phase 2 promotes them into a listed pack alongside
+  // grant enforcement.
+  const { registerRolesTools } = await import('@/lib/mcp/tools/roles');
+  registerRolesTools();
   // Pack dispatchers register LAST — resolution is call-time so order doesn't
   // matter functionally, but registering after every member keeps the
   // partition sweep's "member exists" assertion honest at this point in the
