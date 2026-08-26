@@ -1,24 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { ensureBookLoaded, _resetBookLoader } from './loader';
 import { bookViewKinds, bookWorldKind, isBookRenderKind, bookWarnings, bookLoaded, bookCards } from './registry';
-import { readBookCards } from './cards';
+import { readBookCards, bookDirs } from './cards';
+import { ensureCookbook, saveRecipeEntry } from './cookbook';
 import { parseCard, getViewVocabCatalog, _resetViewVocabCache } from '../view-vocab/loader';
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 const BOOK = join(FIX, 'book');
 const FUTURE = join(FIX, 'book-future');
 
-const savedEnv = process.env.MOJULO_RECIPE_BOOK;
+const savedEnv = { book: process.env.MOJULO_RECIPE_BOOK, cookbook: process.env.MOJULO_COOKBOOK };
 beforeEach(() => {
   delete process.env.MOJULO_RECIPE_BOOK;
+  // Isolate from any REAL cookbook beside the repo-dev data dir.
+  process.env.MOJULO_COOKBOOK = '/nonexistent-cookbook';
   _resetBookLoader();
   _resetViewVocabCache();
 });
 afterEach(() => {
-  if (savedEnv === undefined) delete process.env.MOJULO_RECIPE_BOOK;
-  else process.env.MOJULO_RECIPE_BOOK = savedEnv;
+  if (savedEnv.book === undefined) delete process.env.MOJULO_RECIPE_BOOK;
+  else process.env.MOJULO_RECIPE_BOOK = savedEnv.book;
+  if (savedEnv.cookbook === undefined) delete process.env.MOJULO_COOKBOOK;
+  else process.env.MOJULO_COOKBOOK = savedEnv.cookbook;
   _resetBookLoader();
   _resetViewVocabCache();
 });
@@ -74,7 +81,6 @@ describe('recipe-book loader', () => {
     expect(ids).toContain('test-orb');
     expect(ids).toContain('fixture-preset');
     expect(bookCards().every((c) => c.source === 'recipe-book')).toBe(true);
-    expect(readBookCards({ parse: parseCard, dir: BOOK }).length).toBe(bookCards().length);
   });
 });
 
@@ -103,5 +109,64 @@ describe('view-vocab catalog merge', () => {
     const core = getViewVocabCatalog();
     expect(core.has('test-orb')).toBe(false);
     expect(withBook).toBeGreaterThan(core.size);
+  });
+});
+
+describe('cookbook (Phase 5)', () => {
+  let tmp;
+  beforeEach(() => { tmp = mkdtempSync(join(tmpdir(), 'mojulo-cookbook-')); process.env.MOJULO_COOKBOOK = tmp; });
+  afterEach(() => { rmSync(tmp, { recursive: true, force: true }); });
+
+  it('ensureCookbook is idempotent and writes the manifest skeleton', () => {
+    const first = ensureCookbook();
+    expect(first.created).toBe(true);
+    const again = ensureCookbook();
+    expect(again.created).toBe(false);
+    const manifest = JSON.parse(readFileSync(join(tmp, 'manifest.json'), 'utf8'));
+    expect(manifest.book).toBe('cookbook');
+    expect(manifest.entries).toEqual([]);
+    expect(manifest.requiresMojulo).toMatch(/^>=\d+\.\d+\.\d+$/);
+  });
+
+  it('saveRecipeEntry writes card + recipe + manifest row and appears in the ordered dirs', () => {
+    saveRecipeEntry({
+      id: 'my-preset', chapter: 'science',
+      cardText: '---\n{"id":"my-preset","name":"Mine","family":"science","entry":"create_view","summary":"s","when":"w"}\n---\n\nBody.\n',
+      recipe: { entry: 'create_view', kind: 'saturn', params: {} },
+    });
+    const manifest = JSON.parse(readFileSync(join(tmp, 'manifest.json'), 'utf8'));
+    expect(manifest.entries).toHaveLength(1);
+    expect(manifest.chapters).toContain('science');
+    expect(JSON.parse(readFileSync(join(tmp, 'chapters/science/my-preset/recipe.json'), 'utf8')).kind).toBe('saturn');
+    expect(bookDirs()[0]).toEqual({ dir: tmp, source: 'cookbook' });
+    // duplicate id refuses
+    expect(() => saveRecipeEntry({ id: 'my-preset', chapter: 'science', cardText: 'x', recipe: {} }))
+      .toThrow(/already has an entry/);
+  });
+
+  it('cookbook cards take precedence over the upstream book on id collision', () => {
+    process.env.MOJULO_RECIPE_BOOK = BOOK;
+    ensureCookbook();
+    // same id as an upstream fixture card
+    saveRecipeEntry({
+      id: 'fixture-preset', chapter: 'science',
+      cardText: '---\n{"id":"fixture-preset","name":"Cook version","family":"science","entry":"create_view","summary":"s","when":"w"}\n---\n\nCOOKBOOK BODY.\n',
+      recipe: { entry: 'create_view', kind: 'saturn', params: {} },
+    });
+    const cards = readBookCards({ parse: parseCard });
+    const hit = cards.find((c) => c.id === 'fixture-preset');
+    expect(hit.source).toBe('cookbook');
+    expect(hit.body).toMatch(/COOKBOOK BODY/);
+  });
+
+  it('Door-1-only guard: a builder entry in the cookbook is skipped with a warning', async () => {
+    ensureCookbook();
+    const manifestPath = join(tmp, 'manifest.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.entries.push({ type: 'builder', chapter: 'science', dir: 'evil', id: 'evil' });
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    const res = await ensureBookLoaded();
+    expect(res.warnings.join(' ')).toMatch(/cookbook entry 'evil' is a builder.*Door-1 only/);
+    expect(bookViewKinds().has('evil')).toBe(false);
   });
 });

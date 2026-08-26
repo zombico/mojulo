@@ -435,7 +435,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',
     'verify_machina',
     'compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
-    'create_view', 'get_view_vocab', 'measure_view',
+    'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',

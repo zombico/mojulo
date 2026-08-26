@@ -1,38 +1,42 @@
 /**
- * recipe-book loader — attaches an operator-cloned mojulo-recipe-book folder
- * (recipe-book.plan.md). The book is a separate git repo of chapters; each
- * entry is either a Door-1 RECIPE (card.md + recipe.json — pure params over a
- * kind core already ships; nothing executed) or a Door-2 BUILDER (card.md +
- * builder.js — a new view kind whose pure `assemble(recipe, ctx)` is
- * dynamically imported here and registered for mint + render).
+ * recipe-book loader — attaches the operator's recipe BOOKS
+ * (recipe-book.plan.md). A book is a folder of chapters; each entry is either
+ * a Door-1 RECIPE (card.md + recipe.json — pure params over a kind core
+ * already ships; nothing executed) or a Door-2 BUILDER (card.md + builder.js —
+ * a new view kind whose pure `assemble(recipe, ctx)` is dynamically imported
+ * here and registered for mint + render).
  *
- * Attachment is strictly additive and loopback-honest: the operator clones the
- * repo and points MOJULO_RECIPE_BOOK at it; no env var (or no dir) ⇒ the empty
- * snapshot and byte-for-byte today's behavior. Nothing is ever fetched at
- * runtime. Module split: ./cards.js is the fs-only sync half (card reads for
- * the view-vocab merge), ./registry.js the import-nothing snapshot for sync
- * readers; THIS file owns dynamic import + the version handshake and is only
- * reached from async seams (MCP ensureToolsRegistered, the /world route's
- * kind-miss path).
+ * MULTI-BOOK (Phase 5): the attachment is the ordered list from
+ * cards.js/bookDirs() — the operator's COOKBOOK (save_recipe's write target)
+ * first, then the upstream clone ($MOJULO_RECIPE_BOOK). First-wins per kind;
+ * core wins over both. SCOPE GUARD: the cookbook is Door-1 ONLY — a `builder`
+ * entry there is skipped with a warning, because auto-loading code from a
+ * directory the agent writes into is a deliberate decision Phase 5 does not
+ * make (recipe-book.plan.md, Phase 5 scope guard).
  *
- * Handshake: manifest.json declares `requiresMojulo` (">=x.y.z"); a book newer
- * than the installed control plane loads NO entries and warns — knowledge
- * drift is tolerable, code drift is gated, never trusted (the plan's clone-of-
- * master posture). Builder manifestKinds colliding with core WORLD_KINDS are
- * skipped per-entry (core wins), as are malformed builders — a user-editable
- * clone must never take the substrate down.
+ * Attachment is strictly additive and loopback-honest: no env vars / no dirs
+ * ⇒ the empty snapshot and byte-for-byte prior behavior. Nothing is ever
+ * fetched at runtime. Module split: ./cards.js is the fs-only sync half
+ * (card reads for the view-vocab merge), ./registry.js the import-nothing
+ * snapshot for sync readers; THIS file owns dynamic import + the version
+ * handshake and is only reached from async seams (MCP ensureToolsRegistered,
+ * the /world route's kind-miss path, save_recipe's post-save refresh).
+ *
+ * Handshake: each book's manifest.json may declare `requiresMojulo`
+ * (">=x.y.z"); a book newer than the installed control plane loads NO entries
+ * and warns — knowledge drift is tolerable, code drift is gated, never
+ * trusted. Builder manifestKinds colliding with core WORLD_KINDS are skipped
+ * per-entry (core wins), as are malformed builders — a user-editable book
+ * must never take the substrate down.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { moduleDir } from '../../../module-dir.js';
 import { WORLD_KINDS } from '@/lib/graph/worlds/world-kinds';
-import { bookDir, readBookManifest, readBookCards, _resetBookCards } from './cards.js';
+import { bookDirs, readBookManifest, readBookCards, controlVersion, _resetBookCards } from './cards.js';
 import { setBookSnapshot, _resetBookRegistry } from './registry.js';
 import { buildBookToolkit } from './toolkit.js';
-
-const HERE = moduleDir(import.meta.url, 'lib/graph/views/recipe-book');
 
 // Bundler-proof dynamic import: the book's builder files live OUTSIDE the
 // repo at a path only known at runtime, so both bundlers must leave this
@@ -40,13 +44,6 @@ const HERE = moduleDir(import.meta.url, 'lib/graph/views/recipe-book');
 // @vite-ignore for vitest. (`new Function('return import(u)')` is the usual
 // third trick but vitest's VM rejects imports from evaluated code.)
 const importExternal = (u) => import(/* webpackIgnore: true */ /* @vite-ignore */ u);
-
-function controlVersion() {
-  try {
-    const pkg = JSON.parse(readFileSync(join(HERE, '..', '..', '..', '..', 'package.json'), 'utf8'));
-    return pkg.version || '0.0.0';
-  } catch { return '0.0.0'; }
-}
 
 // ">=1.4.2" / "1.4.2" → true when the installed control plane satisfies it.
 function satisfiesMin(required, installed) {
@@ -59,36 +56,35 @@ function satisfiesMin(required, installed) {
 }
 
 /**
- * Load the book's Door-2 builders and publish the full registry snapshot.
- * Memoized promise — every caller past the first awaits the same load. Absent
- * a book, publishes the empty (loaded) snapshot so callers stop retrying.
+ * Load every attached book's Door-2 builders and publish the full registry
+ * snapshot. Memoized promise — every caller past the first awaits the same
+ * load. Absent any book, publishes the empty (loaded) snapshot so callers
+ * stop retrying. Overrides ({ dir, cookbook, cardParse }) are test seams;
+ * `dir` names the upstream book dir.
  */
 let _loadPromise = null;
-export function ensureBookLoaded({ dir: dirOverride, cardParse } = {}) {
+export function ensureBookLoaded(opts = {}) {
   if (_loadPromise) return _loadPromise;
-  _loadPromise = loadBook(dirOverride, cardParse);
+  _loadPromise = loadBooks(opts);
   return _loadPromise;
 }
 
-async function loadBook(dirOverride, cardParse) {
+async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride, cardParse } = {}) {
   const warnings = [];
   const warn = (msg) => { warnings.push(msg); console.warn(`recipe-book: ${msg}`); };
-  const dir = bookDir(dirOverride);
-  const empty = () => { setBookSnapshot({ warnings }); return { kinds: 0, warnings }; };
-  if (!dir) return empty();
-  const manifest = readBookManifest(dir);
-  if (!manifest) {
-    if (!existsSync(join(dir, 'manifest.json'))) warn(`MOJULO_RECIPE_BOOK=${dir} has no manifest.json — book not loaded`);
-    else warn('unreadable manifest.json — book not loaded');
-    return empty();
+
+  const dirs = bookDirs({ cookbook: cookbookOverride, upstream: upstreamOverride });
+  // An explicitly-passed upstream dir that lacks a manifest still deserves a
+  // warning (the env-var misconfiguration case).
+  if (upstreamOverride !== undefined || process.env.MOJULO_RECIPE_BOOK) {
+    const up = (upstreamOverride ?? process.env.MOJULO_RECIPE_BOOK ?? '').trim();
+    if (up && !existsSync(join(up, 'manifest.json'))) {
+      warn(`MOJULO_RECIPE_BOOK=${up} has no manifest.json — book not loaded`);
+    }
   }
+  if (!dirs.length) { setBookSnapshot({ warnings }); return { kinds: 0, warnings }; }
 
   const installed = controlVersion();
-  if (manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed)) {
-    warn(`book requires mojulo ${manifest.requiresMojulo} but ${installed} is installed — the clone is ahead; update mojulo or check out an older book tag. No entries loaded.`);
-    return empty();
-  }
-
   const kinds = new Map();
   const worldKinds = new Map();
   const renderKinds = new Set();
@@ -96,46 +92,60 @@ async function loadBook(dirOverride, cardParse) {
   // ctx.toolkit. Built once; Tier-0 builders ignore it, Tier-2 builders
   // feature-check ctx.toolkit.version.
   const toolkit = buildBookToolkit();
-  for (const entry of Array.isArray(manifest.entries) ? manifest.entries : []) {
-    if (entry.type !== 'builder') continue;   // recipe entries are card-only (Door 1)
-    const file = join(dir, 'chapters', String(entry.chapter || ''), String(entry.dir || ''), 'builder.js');
-    if (!existsSync(file)) { warn(`entry '${entry.id}' declares a builder but ${file} is missing — skipped`); continue; }
-    let mod;
-    try {
-      mod = await importExternal(pathToFileURL(file).href);
-    } catch (err) {
-      warn(`entry '${entry.id}': builder failed to import — ${err.message} — skipped`);
+
+  for (const { dir, source } of dirs) {
+    const manifest = readBookManifest(dir);
+    if (!manifest) continue;
+    if (manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed)) {
+      warn(`${source} requires mojulo ${manifest.requiresMojulo} but ${installed} is installed — the clone is ahead; update mojulo or check out an older book tag. No entries loaded from it.`);
       continue;
     }
-    const meta = mod.kind;
-    if (!meta || typeof meta.id !== 'string' || typeof meta.manifestKind !== 'string' || typeof mod.assemble !== 'function') {
-      warn(`entry '${entry.id}': builder must export { kind: { id, manifestKind, family, title }, assemble } — skipped`);
-      continue;
+    for (const entry of Array.isArray(manifest.entries) ? manifest.entries : []) {
+      if (entry.type !== 'builder') continue;   // recipe entries are card-only (Door 1)
+      if (source === 'cookbook') {
+        warn(`cookbook entry '${entry.id}' is a builder — the cookbook is Door-1 only (recipes); skipped`);
+        continue;
+      }
+      const file = join(dir, 'chapters', String(entry.chapter || ''), String(entry.dir || ''), 'builder.js');
+      if (!existsSync(file)) { warn(`entry '${entry.id}' declares a builder but ${file} is missing — skipped`); continue; }
+      let mod;
+      try {
+        mod = await importExternal(pathToFileURL(file).href);
+      } catch (err) {
+        warn(`entry '${entry.id}': builder failed to import — ${err.message} — skipped`);
+        continue;
+      }
+      const meta = mod.kind;
+      if (!meta || typeof meta.id !== 'string' || typeof meta.manifestKind !== 'string' || typeof mod.assemble !== 'function') {
+        warn(`entry '${entry.id}': builder must export { kind: { id, manifestKind, family, title }, assemble } — skipped`);
+        continue;
+      }
+      if (meta.id !== entry.id) { warn(`entry '${entry.id}': builder kind.id '${meta.id}' does not match the manifest entry — skipped`); continue; }
+      if (WORLD_KINDS[meta.manifestKind]) { warn(`entry '${entry.id}': manifestKind '${meta.manifestKind}' collides with a core world kind — core wins, skipped`); continue; }
+      if (kinds.has(meta.id) || worldKinds.has(meta.manifestKind)) { warn(`entry '${entry.id}': duplicate kind across books — first book wins, skipped`); continue; }
+      kinds.set(meta.id, {
+        id: meta.id,
+        manifestKind: meta.manifestKind,
+        family: ['science', 'math', 'bio'].includes(meta.family) ? meta.family : 'science',
+        title: typeof meta.title === 'string' && meta.title ? meta.title : `mojulo ${meta.id}`,
+        plan: typeof mod.plan === 'function' ? mod.plan : null,
+        assemble: mod.assemble,
+        toolkit,
+      });
+      // the WORLD_KINDS row shape (world-kinds.js `view()` convention), so the
+      // /world route's resolveWorldScene dispatch treats a book kind like any other.
+      worldKinds.set(meta.manifestKind, { title: meta.title, resolve: (m, ctx) => mod.assemble(m, { title: ctx.title, toolkit }) });
+      renderKinds.add(meta.manifestKind);
     }
-    if (meta.id !== entry.id) { warn(`entry '${entry.id}': builder kind.id '${meta.id}' does not match the manifest entry — skipped`); continue; }
-    if (WORLD_KINDS[meta.manifestKind]) { warn(`entry '${entry.id}': manifestKind '${meta.manifestKind}' collides with a core world kind — core wins, skipped`); continue; }
-    if (kinds.has(meta.id)) { warn(`entry '${entry.id}': duplicate kind id — skipped`); continue; }
-    kinds.set(meta.id, {
-      id: meta.id,
-      manifestKind: meta.manifestKind,
-      family: ['science', 'math', 'bio'].includes(meta.family) ? meta.family : 'science',
-      title: typeof meta.title === 'string' && meta.title ? meta.title : `mojulo ${meta.id}`,
-      plan: typeof mod.plan === 'function' ? mod.plan : null,
-      assemble: mod.assemble,
-      toolkit,
-    });
-    // the WORLD_KINDS row shape (world-kinds.js `view()` convention), so the
-    // /world route's resolveWorldScene dispatch treats a book kind like any other.
-    worldKinds.set(meta.manifestKind, { title: meta.title, resolve: (m, ctx) => mod.assemble(m, { title: ctx.title, toolkit }) });
-    renderKinds.add(meta.manifestKind);
   }
 
-  const cards = cardParse ? readBookCards({ parse: cardParse, dir }) : readBookCards({ dir });
+  const cards = cardParse ? readBookCards({ parse: cardParse, dirs }) : readBookCards({ dirs });
   setBookSnapshot({ kinds, worldKinds, renderKinds, cards, warnings });
   return { kinds: kinds.size, warnings };
 }
 
 // Test seam — clears the memo, the card cache, and the published registry.
+// save_recipe also calls this so a fresh save becomes visible immediately.
 export function _resetBookLoader() {
   _loadPromise = null;
   _resetBookCards();

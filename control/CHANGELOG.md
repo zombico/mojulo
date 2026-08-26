@@ -31,6 +31,17 @@ exact per control-plane version.
   `ctx.toolkit` on every `plan`/`assemble` call
   (`lib/graph/views/recipe-book/toolkit.js` — versioned, frozen, append-only;
   currently `effects: { buildVolumeFrag, SDF_GLSL }`).
+- **The cookbook + `save_recipe`** — the operator's OWN recipe book, the
+  write path: `save_recipe({ ref, id, when })` promotes a minted-and-tuned
+  study object into a named catalog entry under `<data dir>/cookbook`
+  (`MOJULO_COOKBOOK` to override) — card + params, ledgered with a LOCAL git
+  commit (no remote, ever; sharing is the operator's act). Saved entries join
+  the same catalog as shipped kinds: recall by meaning via `semantic_search`
+  (the agent writes the card's `when` line from the conversation's intent;
+  the index upserts on save), read via `get_view_vocab`, re-mint via
+  `create_view`. Attachment is now an ordered book list — core > cookbook >
+  upstream clone, first-wins with warnings. The cookbook is Door-1 only
+  (recipes, pure data); builder entries there are refused by design.
 - **Pilot kinds (ship in the book, not in core):** `foucault-pendulum`
   (Tier-0 — a Foucault pendulum over a compass floor: latitude-driven
   precession Ω = 15.04°/h × sin lat, seamless-loop rosette trail, optional
