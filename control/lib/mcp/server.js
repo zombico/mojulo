@@ -27,6 +27,10 @@ import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
 import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice } from '@/lib/mcp/packs';
+// Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
+// and flags ride the execution context, minted in api/mcp/route.js.
+import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
+import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
 
 export const PROTOCOL_VERSION = '2024-11-05';
 export const SERVER_NAME = 'mojulo-control-plane';
@@ -104,7 +108,21 @@ export function clientDefersSchemas(clientInfo) {
   return resolveAdapterId({ clientName: clientInfo.name }) === 'claude-code';
 }
 
-export function listTools({ clientInfo } = {}) {
+export function listTools({ clientInfo, context } = {}) {
+  const toEntry = (t) => ({
+    name: t.name,
+    description: t.description || '',
+    inputSchema: t.inputSchema || { type: 'object', properties: {} },
+  });
+  // Roles pack (Phase 2): with roles enabled, ADMIN callers additionally see
+  // the roles-admin tools (registered listed:false so a roles-off install
+  // stays byte-identical); privileged callers see only their granted bays —
+  // filtered below per mode.
+  const rolesOn = rolesEnabled();
+  const adminExtras =
+    rolesOn && isAdminContext(context)
+      ? ROLES_ADMIN_TOOLS.map((name) => registeredTools.get(name)).filter(Boolean).map(toEntry)
+      : [];
   // Packs mode (tool-packs.plan.md P1-R): the connect surface is the SPINE
   // (full schemas) plus one dispatcher tool per pack. Everything else stays
   // registered and callable — through its pack's dispatch, or directly for
@@ -114,27 +132,28 @@ export function listTools({ clientInfo } = {}) {
   if (packsModeEnabled(process.env, { clientDefers: clientDefersSchemas(clientInfo) })) {
     const spine = SPINE.map((name) => registeredTools.get(name))
       .filter(Boolean)
-      .map((t) => ({
-        name: t.name,
-        description: t.description || '',
-        inputSchema: t.inputSchema || { type: 'object', properties: {} },
-      }));
+      .map(toEntry);
     // installedPacks (install-capabilities.plan.md P2): an uninstalled wing's
     // packs drop from the connect surface. Default full install ⇒ all PACKS.
-    return [...spine, ...installedPacks(process.env).map((pack) => packToolEntry(pack))];
+    // A privileged caller's list carries only their granted bays.
+    const packs = installedPacks(process.env).filter(
+      (pack) => !rolesOn || isAdminContext(context) || packGranted(pack, context)
+    );
+    return [...spine, ...packs.map((pack) => packToolEntry(pack)), ...adminExtras];
   }
   // `listed: false` tools (deprecated aliases) resolve in tools/call and
   // invokeRegisteredTool but are omitted from tools/list — retired names keep
   // executing for compiled plans / skills without costing context.
   // isToolInstalled additionally drops an uninstalled pack's members (no-op at
-  // full install).
-  return Array.from(registeredTools.values())
-    .filter((t) => t.listed !== false && isToolInstalled(t.name))
-    .map((t) => ({
-      name: t.name,
-      description: t.description || '',
-      inputSchema: t.inputSchema || { type: 'object', properties: {} },
-    }));
+  // full install). toolListedForContext drops ungranted bays' members and the
+  // deny-list for privileged callers (no-op for the operator / roles off).
+  return [
+    ...Array.from(registeredTools.values())
+      .filter((t) => t.listed !== false && isToolInstalled(t.name))
+      .filter((t) => toolListedForContext(t.name, context))
+      .map(toEntry),
+    ...adminExtras,
+  ];
 }
 
 export function isToolListed(name) {
@@ -209,6 +228,10 @@ export async function invokeRegisteredTool(name, input, context) {
   if (!tool) throw new Error(`Unknown tool: ${name}`);
   const notice = installNotice(name);
   if (notice) throw new Error(notice);
+  // Authorization gate — the plan-executor path runs under the CALLER's
+  // context, so a privileged key's compiled plan cannot execute past its bays.
+  const denial = authNotice(name, context);
+  if (denial) throw new Error(denial);
   return await instrumentedInvoke(tool, input || {}, context || {}, {
     via: 'plan-executor',
     name,
@@ -276,7 +299,7 @@ export async function dispatchMcpRequest(message, context) {
 
       case 'tools/list':
         return jsonRpcResult(message.id, {
-          tools: listTools({ clientInfo: getClientInfo(context?.mcpSessionId) }),
+          tools: listTools({ clientInfo: getClientInfo(context?.mcpSessionId), context }),
         });
 
       case 'tools/call':
@@ -321,6 +344,14 @@ async function handleToolCall(message, context) {
   const notice = installNotice(toolName);
   if (notice) {
     return jsonRpcError(message.id, ErrorCodes.METHOD_NOT_FOUND, notice);
+  }
+
+  // Authorization gate (roles-pack.plan.md Phase 2), beside the install gate
+  // and with its shape: a terminal advisory, METHOD_NOT_FOUND (the 404-not-403
+  // discipline). No-op with roles off or for the operator.
+  const denial = authNotice(toolName, context);
+  if (denial) {
+    return jsonRpcError(message.id, ErrorCodes.METHOD_NOT_FOUND, denial);
   }
 
   try {

@@ -20,6 +20,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { rolesEnabled, isAdminContext, mintToken, hashToken } from '@/lib/roles/keys';
 import { UserRepository, LOCAL_ADMIN_ID } from '@/lib/db/repositories/users';
+import { isPackId } from '@/lib/mcp/packs';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -51,15 +52,19 @@ function presentUser(user) {
     name: user.name,
     role: user.role,
     status: userStatus(user),
+    grants: user.role === 'admin' ? undefined : UserRepository.grantsFor(user.id),
+    flags: user.flags && Object.keys(user.flags).length ? user.flags : undefined,
     createdAt: user.createdAt,
     expiresAt: user.expiresAt,
     revokedAt: user.revokedAt,
   };
 }
 
+const MINTABLE_FLAGS = ['propose_only', 'outward', 'lifecycle'];
+
 async function mintRoleKeyHandler(input, context) {
   requireRolesAdmin(context);
-  const { name, expires_in_days } = input || {};
+  const { name, expires_in_days, grants } = input || {};
   if (typeof name !== 'string' || !name.trim()) {
     throw new Error('name is required — who is this key for (a collaborator, a cron agent)?');
   }
@@ -77,8 +82,33 @@ async function mintRoleKeyHandler(input, context) {
     expiresAt = Date.now() + Math.round(expires_in_days * MS_PER_DAY);
   }
 
+  // Pack grants — validated against the PACKS manifest at write time so a
+  // typo never mints a silently-inert grant.
+  const grantList = grants === undefined ? [] : grants;
+  if (!Array.isArray(grantList) || grantList.some((g) => typeof g !== 'string')) {
+    throw new Error('grants must be an array of pack ids (e.g. ["pack_fleet", "pack_diagram"]).');
+  }
+  const unknown = grantList.filter((g) => !isPackId(g));
+  if (unknown.length) {
+    throw new Error(
+      `Unknown pack id(s): ${unknown.join(', ')}. Grants are pack ids from the capability-bay manifest (lib/mcp/packs.js).`
+    );
+  }
+
+  // Boundary flags — a key is a bundle of boundaries; unset = the conservative
+  // default (no outward actions, no lifecycle actions, sealing allowed only
+  // because propose_only is off... set it for reviewable-output delegates).
+  const flags = {};
+  for (const flag of MINTABLE_FLAGS) {
+    const value = input?.[flag];
+    if (value !== undefined) {
+      if (typeof value !== 'boolean') throw new Error(`${flag} must be a boolean.`);
+      if (value) flags[flag] = true;
+    }
+  }
+
   // The operator's own admin row exists from the first mint on — the FK
-  // target for attribution and later grants.
+  // target for attribution and grants.
   UserRepository.ensureLocalAdmin();
 
   const token = mintToken();
@@ -87,6 +117,8 @@ async function mintRoleKeyHandler(input, context) {
     role: 'privileged',
     tokenHash: hashToken(token),
     expiresAt,
+    flags,
+    grants: [...new Set(grantList)],
   });
 
   return {
@@ -94,7 +126,8 @@ async function mintRoleKeyHandler(input, context) {
     token,
     message:
       'Key minted. The token is shown ONCE and stored only as a hash — hand it to the delegate now. ' +
-      'They connect with it as the MCP bearer in place of the operator key. Revoke any time with revoke_role_key.',
+      'They connect with it as the MCP bearer in place of the operator key; their tools/list shows only ' +
+      'the granted bays. To change grants or flags, revoke and re-mint. Revoke any time with revoke_role_key.',
   };
 }
 
@@ -136,13 +169,32 @@ export function registerRolesTools() {
   registerTool({
     name: 'mint_role_key',
     description:
-      "Cut a scoped bearer key for a delegate (a collaborator or an agent) on this control plane — the roles pack's mint. Admin-only; requires MOJULO_ROLES=enabled. Returns the plaintext token exactly once (stored as a hash). Optional expiry via expires_in_days — recommended for agent keys. Phase 1 keys carry identity + telemetry attribution; pack grants arrive with grant enforcement.",
+      "Cut a scoped bearer key for a delegate (a collaborator or an agent) on this control plane — the roles pack's mint. Admin-only; requires MOJULO_ROLES=enabled. A key is a bundle of boundaries: pack grants (which capability bays execute — spine orientation is always available), boundary flags (propose_only — plans and drafts but no sealing/executing/deploying; outward — actions that leave the host; lifecycle — starting/stopping processes; all default OFF), and optional expiry. Secrets/env, daemon control, and roles administration are never grantable (the hard deny-list). Returns the plaintext token exactly once (stored as a hash). To change a key's grants or flags, revoke and re-mint.",
     inputSchema: {
       type: 'object',
       properties: {
         name: {
           type: 'string',
           description: "Who the key is for — unique per delegate (e.g. 'ana', 'fleet-digest-cron').",
+        },
+        grants: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            "Pack ids the key may execute (e.g. ['pack_fleet'] for an analyst, ['pack_diagram','pack_bot_build'] for a builder). Validated against the capability-bay manifest. Default: none — spine orientation only.",
+        },
+        propose_only: {
+          type: 'boolean',
+          description:
+            'The key can forge plans and draft compositions but never seal reality (execute_plan, meta_context_commit, deploys stay with the operator). Its whole output is reviewable proposals.',
+        },
+        outward: {
+          type: 'boolean',
+          description: 'Allow actions that LEAVE the host (deploys, anything that spends or publishes). Default false.',
+        },
+        lifecycle: {
+          type: 'boolean',
+          description: 'Allow actions that start/stop processes on this host (apps, bot builds). Default false.',
         },
         expires_in_days: {
           type: 'number',
@@ -161,7 +213,7 @@ export function registerRolesTools() {
   registerTool({
     name: 'list_role_keys',
     description:
-      'List every key the operator has cut on this control plane (roles pack): name, role, status (active / expired / revoked), expiry. Admin-only; requires MOJULO_ROLES=enabled. Token hashes are never returned.',
+      'List every key the operator has cut on this control plane (roles pack): name, role, status (active / expired / revoked), granted bays, boundary flags, expiry. Admin-only; requires MOJULO_ROLES=enabled. Token hashes are never returned.',
     inputSchema: { type: 'object', properties: {} },
     listed: false,
     handler: listRoleKeysHandler,

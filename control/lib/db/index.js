@@ -789,9 +789,21 @@ function init(db) {
       role TEXT NOT NULL CHECK(role IN ('admin', 'privileged')),
       token_hash TEXT UNIQUE,
       token_epoch INTEGER NOT NULL DEFAULT 1,
+      flags_json TEXT,
       expires_at INTEGER,
       created_at INTEGER NOT NULL,
       revoked_at INTEGER
+    );
+
+    -- Pack grants (roles-pack.plan.md Phase 2) — the authorization axis on the
+    -- capability bays packs.js declares. One row per (key, pack) the operator
+    -- granted; pack ids are validated against the PACKS manifest at write time
+    -- (tool layer). Real FKs, never a free-text string — the ancestor lesson.
+    CREATE TABLE IF NOT EXISTS user_grants (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      pack_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, pack_id)
     );
   `);
 
@@ -810,6 +822,7 @@ function init(db) {
   migrateEmbeddingsSolidVocabKind(db);
   migrateEmbeddingsMotionVocabKind(db);
   migrateMcpToolCallColumns(db);
+  migrateUserColumns(db);
   reapStaleMcpJobs(db);
   pruneMcpToolCalls(db);
   maybeBackfillEmbeddings(db);
@@ -1018,6 +1031,17 @@ function migrateMcpToolCallColumns(db) {
   // telemetry rather than just asserted.
   if (!have.has('user_id')) {
     db.exec('ALTER TABLE mcp_tool_calls ADD COLUMN user_id TEXT');
+  }
+}
+
+function migrateUserColumns(db) {
+  // flags_json (roles-pack.plan.md Phase 2): the key's boundary flags —
+  // propose_only / outward / lifecycle (+ house_keys in Phase 3). Guarded for
+  // dev databases that created the Phase 1 users table without it.
+  const cols = db.prepare('PRAGMA table_info(users)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('flags_json')) {
+    db.exec('ALTER TABLE users ADD COLUMN flags_json TEXT');
   }
 }
 

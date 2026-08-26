@@ -13,6 +13,16 @@ import { newId } from '../ids.js';
 
 export const LOCAL_ADMIN_ID = 'local';
 
+function parseFlags(text) {
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function rowToUser(row) {
   if (!row) return null;
   return {
@@ -20,6 +30,9 @@ function rowToUser(row) {
     name: row.name,
     role: row.role,
     tokenEpoch: row.token_epoch,
+    // Boundary flags on the key (Phase 2): propose_only / outward / lifecycle
+    // (+ house_keys in Phase 3). Absent flag = false — the conservative default.
+    flags: parseFlags(row.flags_json),
     expiresAt: row.expires_at || null,
     createdAt: row.created_at,
     revokedAt: row.revoked_at || null,
@@ -76,14 +89,30 @@ export const UserRepository = {
     return this.findById(LOCAL_ADMIN_ID);
   },
 
-  create({ name, role, tokenHash, expiresAt = null }) {
+  create({ name, role, tokenHash, expiresAt = null, flags = null, grants = [] }) {
     const db = getDb();
     const id = newId('usr');
+    const now = Date.now();
+    const flagsJson = flags && Object.keys(flags).length ? JSON.stringify(flags) : null;
     db.prepare(
-      `INSERT INTO users (id, name, role, token_hash, expires_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(id, name, role, tokenHash, expiresAt, Date.now());
+      `INSERT INTO users (id, name, role, token_hash, flags_json, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, name, role, tokenHash, flagsJson, expiresAt, now);
+    const insertGrant = db.prepare(
+      'INSERT OR IGNORE INTO user_grants (user_id, pack_id, created_at) VALUES (?, ?, ?)'
+    );
+    for (const packId of grants) insertGrant.run(id, packId, now);
     return this.findById(id);
+  },
+
+  /** Pack ids granted to a key. The caller (buildContext) carries these on the
+   * execution context so enforcement (lib/roles/enforce.js) stays DB-free. */
+  grantsFor(userId) {
+    const db = getDb();
+    return db
+      .prepare('SELECT pack_id FROM user_grants WHERE user_id = ? ORDER BY pack_id ASC')
+      .all(userId)
+      .map((r) => r.pack_id);
   },
 
   /**

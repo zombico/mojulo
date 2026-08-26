@@ -10,7 +10,7 @@ exact per control-plane version.
 
 ## [Unreleased]
 
-### Roles pack — operator-owned delegation (opt-in), Phases 0–1
+### Roles pack — operator-owned delegation (opt-in), Phases 0–2
 
 Off by default: with `MOJULO_ROLES` unset a fresh install is byte-identical in
 behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
@@ -30,6 +30,20 @@ behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
   them as a pack). Every tool call is attributed to its caller's key in
   telemetry, and the minting tool is capture-exempt so the plaintext token
   never persists even under `MOJULO_MCP_TELEMETRY_CAPTURE=full`.
+- **Capability enforcement (Phase 2).** Authorization becomes the third axis
+  on the capability bays `packs.js` declares (install / presentation /
+  authorization), enforced with the install gate's advisory idiom at the same
+  three chokepoints (`handleToolCall`, `invokeRegisteredTool`, the pack
+  dispatcher) by one pure function (`lib/roles/enforce.js` — grants and flags
+  ride the execution context, loaded once at the identity mint). A privileged
+  key is a bundle of boundaries: pack grants (validated against the manifest
+  at mint), the hard deny-list (secrets/env, daemon control, roles admin —
+  never grantable), propose-vs-seal (`propose_only` keys forge plans but
+  never `execute_plan` / `meta_context_commit` / deploy), and
+  outward/lifecycle action flags (leave-the-host and start/stop-process
+  actions, default off). `tools/list` shows a delegate only their granted
+  bays; admins with roles enabled additionally see the roles-admin tools.
+  Spine orientation stays available to every key.
 
 ## [1.4.2] - 2026-08-24
 

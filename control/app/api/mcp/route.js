@@ -20,6 +20,7 @@
 
 import { dispatchMcpRequest, ensureToolsRegistered } from '@/lib/mcp/server';
 import { rolesEnabled, resolveBearerUser } from '@/lib/roles/keys';
+import { UserRepository } from '@/lib/db/repositories/users';
 
 function notFound() {
   return new Response('Not found', { status: 404 });
@@ -87,6 +88,10 @@ function buildContext(request, user) {
       userId: user.id,
       userRole: user.role,
       userName: user.name,
+      // Loaded once per request so enforcement (lib/roles/enforce.js) stays
+      // pure and DB-free at the chokepoints.
+      userGrants: UserRepository.grantsFor(user.id),
+      userFlags: user.flags || {},
     };
   }
   return {
