@@ -22,6 +22,7 @@
 import { performance } from 'node:perf_hooks';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
+import { runWithScope, scopeFromContext } from '@/lib/roles/scope';
 
 export const DEFAULT_TOOL_TIMEOUT_MS = 120_000;
 const ERROR_MESSAGE_MAX = 500;
@@ -165,10 +166,15 @@ function logLine({ tool, durationMs, status, via, sessionId }) {
 export async function instrumentedInvoke(tool, input, context, { via, name } = {}) {
   const calledName = name || tool?.name || 'unknown';
 
+  // Workshop-space scope (roles-pack.plan.md Phase 4): a delegate's handler
+  // runs under their space so the scoped repositories self-filter. Null for
+  // the operator / roles off — runs bare.
+  const scope = scopeFromContext(context);
+
   // Fast path: telemetry off ⇒ no timing, no timeout, no record. The signal
   // key is still stripped so it never leaks to the wire.
   if (!telemetryEnabled()) {
-    const result = await tool.handler(input || {}, context || {});
+    const result = await runWithScope(scope, () => tool.handler(input || {}, context || {}));
     takeSignal(result);
     return result;
   }
@@ -196,7 +202,9 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
 
   // Race the handler against a soft timeout. The handler promise is retained so
   // that on timeout we can watch it settle (late_settle) rather than orphan it.
-  const handlerPromise = Promise.resolve().then(() => tool.handler(input || {}, context || {}));
+  const handlerPromise = Promise.resolve().then(() =>
+    runWithScope(scope, () => tool.handler(input || {}, context || {}))
+  );
   let timer = null;
   const timeoutPromise = new Promise((_, reject) => {
     timer = setTimeout(() => reject(TIMEOUT), timeoutMs);

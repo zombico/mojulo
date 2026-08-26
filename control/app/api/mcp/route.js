@@ -21,6 +21,7 @@
 import { dispatchMcpRequest, ensureToolsRegistered } from '@/lib/mcp/server';
 import { rolesEnabled, resolveBearerUser } from '@/lib/roles/keys';
 import { UserRepository } from '@/lib/db/repositories/users';
+import { WorkshopSpaceRepository } from '@/lib/db/repositories/workshopSpaces';
 
 function notFound() {
   return new Response('Not found', { status: 404 });
@@ -92,6 +93,8 @@ function buildContext(request, user) {
       // pure and DB-free at the chokepoints.
       userGrants: UserRepository.grantsFor(user.id),
       userFlags: user.flags || {},
+      // Their workshop space (Phase 4) — the scope their handlers run under.
+      userSpaceId: WorkshopSpaceRepository.findByCreator(user.id)?.id || null,
     };
   }
   return {

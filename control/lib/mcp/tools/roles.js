@@ -20,6 +20,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { rolesEnabled, isAdminContext, mintToken, hashToken } from '@/lib/roles/keys';
 import { UserRepository, LOCAL_ADMIN_ID } from '@/lib/db/repositories/users';
+import { WorkshopSpaceRepository } from '@/lib/db/repositories/workshopSpaces';
 import { isPackId } from '@/lib/mcp/packs';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -121,8 +122,14 @@ async function mintRoleKeyHandler(input, context) {
     grants: [...new Set(grantList)],
   });
 
+  // Their room (Phase 4): one workshop space per privileged key, minted with
+  // it. Their deployments / documents / sketches / plans live here; the
+  // operator's default space is the NULL scope.
+  const space = WorkshopSpaceRepository.ensureForUser(user.id, trimmed);
+
   return {
     ...presentUser(user),
+    workshopSpaceId: space.id,
     token,
     message:
       'Key minted. The token is shown ONCE and stored only as a hash — hand it to the delegate now. ' +

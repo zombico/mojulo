@@ -810,6 +810,19 @@ function init(db) {
       created_at INTEGER NOT NULL,
       PRIMARY KEY (user_id, pack_id)
     );
+
+    -- Workshop spaces (roles-pack.plan.md Phase 4) — which room a delegate's
+    -- artifacts live in. A room divider, not a wall: keeps their sandbox out
+    -- of the production fleet and prevents accidental access. v1 is one space
+    -- per privileged user (auto-minted with their key); the admin's default
+    -- space is the NULL workshop_space_id on the scoped tables, so every
+    -- pre-roles row is already correct.
+    CREATE TABLE IF NOT EXISTS workshop_spaces (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_by TEXT NOT NULL REFERENCES users(id),
+      created_at INTEGER NOT NULL
+    );
   `);
 
   migrateDeploymentColumns(db);
@@ -1054,6 +1067,16 @@ function migrateUserColumns(db) {
   const keyHave = new Set(keyCols.map((c) => c.name));
   if (!keyHave.has('owner_user_id')) {
     db.exec('ALTER TABLE api_keys ADD COLUMN owner_user_id TEXT');
+  }
+  // workshop_space_id (Phase 4) on the four tables where delegates create
+  // things. NULL = the admin's default space — every existing row is already
+  // correct. The deny-first lever bounds the sweep to exactly these four;
+  // creative stores stay unscoped until a real delegate needs them.
+  for (const table of ['deployments', 'documents', 'sketches', 'plans']) {
+    const tCols = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!tCols.some((c) => c.name === 'workshop_space_id')) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN workshop_space_id TEXT`);
+    }
   }
 }
 

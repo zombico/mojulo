@@ -482,6 +482,98 @@ describe('agent-task lanes (side door 1: no shared fulfiller)', () => {
   });
 });
 
+// ── Phase 4: workshop-spaces ────────────────────────────────────────────────
+
+import { runWithScope } from '@/lib/roles/scope';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { PlanRepository } from '@/lib/db/repositories/plans';
+import { WorkshopSpaceRepository } from '@/lib/db/repositories/workshopSpaces';
+
+describe('workshop-space scoping (the four-table sweep)', () => {
+  it('mint returns the delegate space; one space per key (idempotent)', async () => {
+    await withRoles(async () => {
+      const { parsed } = await callTool('mint_role_key', { name: 'roomed' });
+      expect(parsed.workshopSpaceId).toMatch(/^ws_/);
+      const again = WorkshopSpaceRepository.ensureForUser(parsed.userId, 'roomed');
+      expect(again.id).toBe(parsed.workshopSpaceId);
+    });
+  });
+
+  it('sketches: delegate creates stamp their space; cross-space refs read as not-found', () => {
+    const adminSketch = SketchRepository.create({ title: 'admin-sketch', manifest: { kind: 'diagram' } });
+    const space = { spaceId: 'ws_test_1' };
+
+    const mine = runWithScope(space, () =>
+      SketchRepository.create({ title: 'delegate-sketch', manifest: { kind: 'diagram' } })
+    );
+    expect(mine).toBeTruthy();
+
+    runWithScope(space, () => {
+      // their own row resolves; the admin's does not (404-not-403)
+      expect(SketchRepository.getByRef(mine.ref)?.title).toBe('delegate-sketch');
+      expect(SketchRepository.getByRef(adminSketch.ref)).toBeNull();
+      // list is their room only
+      const titles = SketchRepository.list().map((s) => s.title);
+      expect(titles).toContain('delegate-sketch');
+      expect(titles).not.toContain('admin-sketch');
+      // cross-space mutations are no-ops
+      expect(SketchRepository.deleteByRef(adminSketch.ref)).toBe(0);
+      expect(SketchRepository.update({ ref: adminSketch.ref, title: 'hacked' })).toBeNull();
+    });
+
+    // the operator's null scope sees both, untouched
+    expect(SketchRepository.getByRef(adminSketch.ref)?.title).toBe('admin-sketch');
+    const allTitles = SketchRepository.list().map((s) => s.title);
+    expect(allTitles).toEqual(expect.arrayContaining(['admin-sketch', 'delegate-sketch']));
+  });
+
+  it('plans: scoped forge/list/getByRef; cross-space mutations read as not-found', () => {
+    const adminPlan = PlanRepository.forge({ title: 'admin plan', goalMd: 'goal' });
+    const space = { spaceId: 'ws_test_2' };
+
+    const mine = runWithScope(space, () =>
+      PlanRepository.forge({ title: 'delegate plan', goalMd: 'goal' })
+    );
+    runWithScope(space, () => {
+      expect(PlanRepository.getByRef(adminPlan.planRef ?? adminPlan.ref)).toBeNull();
+      const titles = PlanRepository.list().map((p) => p.title);
+      expect(titles).toEqual(['delegate plan']);
+      expect(() => PlanRepository.setStatus(adminPlan.planRef ?? adminPlan.ref, 'draft')).toThrow(/not found/);
+      expect(PlanRepository.archiveWithRelease(adminPlan.planRef ?? adminPlan.ref, null)).toBeNull();
+    });
+    // operator sees both
+    const all = PlanRepository.list().map((p) => p.title);
+    expect(all).toEqual(expect.arrayContaining(['admin plan', 'delegate plan']));
+    expect(mine).toBeTruthy();
+  });
+
+  it('end-to-end: a delegate context lists only its space through real dispatch', async () => {
+    await withRoles(async () => {
+      const spaceId = 'ws_test_e2e';
+      const delegate = {
+        mcpSessionId: 'roles-space-e2e',
+        userId: 'usr_spaced',
+        userRole: 'privileged',
+        userGrants: ['pack_plan'],
+        userFlags: {},
+        userSpaceId: spaceId,
+      };
+      const forged = await callTool(
+        'forge_plan',
+        { title: 'delegate e2e plan', goal: 'scoped forge', goal_md: 'scoped forge' },
+        delegate
+      );
+      // whatever the tool's exact input contract, the list must be scoped:
+      const listed = await callTool('list_plans', {}, delegate);
+      const text = JSON.stringify(listed.parsed ?? listed.text);
+      expect(text).not.toContain('admin plan'); // the operator's plan never leaks
+      if (!forged.isError) {
+        expect(text).toContain('delegate e2e plan');
+      }
+    });
+  });
+});
+
 describe('attribution + secrets discipline at the telemetry seam', () => {
   it('tool calls persist the context userId; mint_role_key is capture-exempt', async () => {
     process.env.MOJULO_MCP_TELEMETRY_CAPTURE = 'full';

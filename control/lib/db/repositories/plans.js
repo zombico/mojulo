@@ -26,6 +26,19 @@
 import { randomUUID } from 'node:crypto';
 
 import { getDb } from '../index.js';
+import { currentSpaceId } from '../../roles/scope.js';
+
+// Workshop-space scope helper (Phase 4): true when the ref is visible to the
+// active caller — always true for the operator's null scope.
+function planInScope(db, planRef) {
+  const space = currentSpaceId();
+  if (!space) return true;
+  return Boolean(
+    db
+      .prepare('SELECT id FROM plans WHERE plan_ref = ? AND workshop_space_id = ?')
+      .get(planRef, space)
+  );
+}
 
 const VALID_LENSES = new Set([
   'spike',
@@ -84,6 +97,10 @@ export const PlanRepository = {
    * optional — a plan can start as goal-only and accrete its shadow scratchpad
    * through revisions. Returns the inserted plan.
    */
+  // Workshop-space scope (roles-pack.plan.md Phase 4): delegate forges stamp
+  // their space; reads/lists/mutations see only rows in it (cross-space refs
+  // read as not-found — 404-not-403). Null scope = operator / roles off:
+  // unfiltered, byte-identical.
   forge({ title, goalMd, lens, frame, manifest, analysis, sketchRef }) {
     if (!title || typeof title !== 'string') {
       throw new Error('title is required');
@@ -105,8 +122,8 @@ export const PlanRepository = {
       .prepare(
         `INSERT INTO plans
            (plan_ref, title, goal_md, lens, frame_json, manifest_json, analysis_json,
-            sketch_ref, sketch_pinned)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sketch_ref, sketch_pinned, workshop_space_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         planRef,
@@ -118,6 +135,7 @@ export const PlanRepository = {
         analysis ? JSON.stringify(analysis) : null,
         sketchRef ?? null,
         pinned,
+        currentSpaceId(),
       );
     const row = db.prepare('SELECT * FROM plans WHERE id = ?').get(result.lastInsertRowid);
     return rowToPlan(row);
@@ -130,6 +148,7 @@ export const PlanRepository = {
   getByRef(planRef, { markSeen = false } = {}) {
     if (!planRef || typeof planRef !== 'string') return null;
     const db = getDb();
+    if (!planInScope(db, planRef)) return null;
     if (markSeen) {
       db.prepare('UPDATE plans SET seen = 1 WHERE plan_ref = ? AND seen = 0').run(planRef);
     }
@@ -144,6 +163,11 @@ export const PlanRepository = {
     if (status) {
       clauses.push('status = ?');
       params.push(status);
+    }
+    const space = currentSpaceId();
+    if (space) {
+      clauses.push('workshop_space_id = ?');
+      params.push(space);
     }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const rows = db
@@ -170,6 +194,7 @@ export const PlanRepository = {
       );
     }
     const db = getDb();
+    if (!planInScope(db, planRef)) return null;
     const existing = db.prepare('SELECT * FROM plans WHERE plan_ref = ?').get(planRef);
     if (!existing) return null;
 
@@ -232,6 +257,7 @@ export const PlanRepository = {
    */
   setStatus(planRef, status) {
     const db = getDb();
+    if (!planInScope(db, planRef)) throw new Error(`Plan '${planRef}' not found`);
     const existing = db.prepare('SELECT * FROM plans WHERE plan_ref = ?').get(planRef);
     if (!existing) throw new Error(`Plan '${planRef}' not found`);
     db.prepare('UPDATE plans SET status = ?, updated_at = unixepoch() WHERE plan_ref = ?').run(
@@ -249,6 +275,7 @@ export const PlanRepository = {
   setSketchRef(planRef, sketchRef, { pinned = false } = {}) {
     if (!planRef || typeof planRef !== 'string') return null;
     const db = getDb();
+    if (!planInScope(db, planRef)) return null;
     const existing = db.prepare('SELECT id FROM plans WHERE plan_ref = ?').get(planRef);
     if (!existing) return null;
     db.prepare(
@@ -263,6 +290,7 @@ export const PlanRepository = {
    */
   recordExecution(planRef, { executionLog, status }) {
     const db = getDb();
+    if (!planInScope(db, planRef)) return null;
     db.prepare(
       `UPDATE plans
          SET execution_log_json = ?, status = ?, updated_at = unixepoch()
@@ -282,6 +310,7 @@ export const PlanRepository = {
   archiveWithRelease(planRef, release) {
     if (!planRef || typeof planRef !== 'string') return null;
     const db = getDb();
+    if (!planInScope(db, planRef)) return null;
     const existing = db.prepare('SELECT id FROM plans WHERE plan_ref = ?').get(planRef);
     if (!existing) return null;
     const archivedAt = release?.archivedAt ?? Math.floor(Date.now() / 1000);

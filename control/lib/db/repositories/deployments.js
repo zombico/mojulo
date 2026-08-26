@@ -1,6 +1,12 @@
 import crypto from 'crypto';
 import { getDb } from '../index.js';
 import { newId } from '../ids.js';
+import { currentSpaceId } from '../../roles/scope.js';
+
+function spaceFilter() {
+  const space = currentSpaceId();
+  return space ? { sql: ' AND workshop_space_id = ?', params: [space] } : { sql: '', params: [] };
+}
 
 export const DEPLOYMENT_STATUS = {
   SAVED: 'saved',
@@ -84,9 +90,15 @@ function hashConfig(config, documentIds = []) {
 export const DeploymentRepository = {
   hashConfig,
 
+  // Workshop-space scope (roles-pack.plan.md Phase 4): delegate reads see
+  // only their space; the null scope (operator / roles off / background build
+  // pipeline steps, which mutate rows BY ID created in-scope) is unfiltered.
   async findById(id) {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM deployments WHERE id = ?').get(id);
+    const scope = spaceFilter();
+    const row = db
+      .prepare(`SELECT * FROM deployments WHERE id = ?${scope.sql}`)
+      .get(id, ...scope.params);
     return rowToDeployment(row);
   },
 
@@ -100,7 +112,10 @@ export const DeploymentRepository = {
 
   async list() {
     const db = getDb();
-    const rows = db.prepare('SELECT * FROM deployments ORDER BY created_at DESC').all();
+    const scope = spaceFilter();
+    const rows = db
+      .prepare(`SELECT * FROM deployments WHERE 1=1${scope.sql} ORDER BY created_at DESC`)
+      .all(...scope.params);
     return rows.map(rowToDeployment);
   },
 
@@ -118,8 +133,8 @@ export const DeploymentRepository = {
     const now = Date.now();
     const configHash = hashConfig(config, documentIds);
     db.prepare(
-      `INSERT INTO deployments (id, bot_name, flow_type, status, config, config_hash, last_built_hash, artifact_path, document_ids, api_key, error, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?)`
+      `INSERT INTO deployments (id, bot_name, flow_type, status, config, config_hash, last_built_hash, artifact_path, document_ids, api_key, error, workshop_space_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?)`
     ).run(
       id,
       botName,
@@ -130,6 +145,7 @@ export const DeploymentRepository = {
       artifactPath,
       JSON.stringify(documentIds),
       apiKey,
+      currentSpaceId(),
       now,
       now
     );
@@ -233,7 +249,8 @@ export const DeploymentRepository = {
 
   async delete(id) {
     const db = getDb();
-    db.prepare('DELETE FROM deployments WHERE id = ?').run(id);
+    const scope = spaceFilter();
+    db.prepare(`DELETE FROM deployments WHERE id = ?${scope.sql}`).run(id, ...scope.params);
   },
 
   async setUrl(id, url) {

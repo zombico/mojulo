@@ -10,7 +10,7 @@ exact per control-plane version.
 
 ## [Unreleased]
 
-### Roles pack — operator-owned delegation (opt-in), Phases 0–3
+### Roles pack — operator-owned delegation (opt-in), Phases 0–4
 
 Off by default: with `MOJULO_ROLES` unset a fresh install is byte-identical in
 behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
@@ -60,6 +60,21 @@ behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
   OAuth/subscription-shaped credentials (`sk-ant-oat…`, JWTs) — shape, not
   policing. Local inference (Ollama) is exempt by design: the rule governs
   credentials, not compute.
+- **Workshop-spaces (Phase 4).** A room divider, not a wall: each delegate
+  key mints one workshop space, and the four tables where delegates create
+  things (`deployments` / `documents` / `sketches` / `plans`) gain a nullable
+  `workshop_space_id` (NULL = the operator's default space — every existing
+  row already correct). Scope rides an AsyncLocalStorage entered at the one
+  handler-invocation seam, so the repositories self-scope with no per-call-site
+  threading: a delegate's creates stamp their space, reads/lists see only it,
+  and cross-space refs read as not-found (404-not-403, the ancestor lesson).
+  Dashboard sessions are per-user: session tokens now carry signed claims
+  (`userId` / `role` / `epoch` / expiry); the Edge layer still verifies
+  signature+expiry only, and revocation is checked lazily in the Node layer
+  against `users.token_epoch` (revoking a key kills its sessions). A delegate
+  logs in with their key name + bearer key; pre-claims session tokens fail
+  closed (one re-login on upgrade). Deferred, explicitly: per-space secrets,
+  scoped cross-cutting reads, space sharing, dashboard affordance filtering.
 
 ## [1.4.2] - 2026-08-24
 
