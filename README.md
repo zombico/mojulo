@@ -318,7 +318,7 @@ The same `create_*` family that draws a flowchart climbs the whole progression:
 - **Objects & marks** — `create_workbench` blocks out an everyday object at literal scale (candlestick, lamp, dumbbell); `create_carved_solid` extrudes a metal or beveled wordmark, logo, or badge.
 - **Landscapes** — `compose_world` (base `painted-landscape`) composes a painterly scene from sky / palette / geometry glyphs.
 - **Drivable worlds** — `compose_world` (base `controllable`) builds a world you can walk or fly through, with the camera and entities as first-class primitives.
-- **Study objects** — `create_view` mints an animated science / math / bio explainer (nuclear fission, the double-slit experiment, a derivative, DNA) from one `kind` + a few knobs — 45 kinds behind one tool.
+- **Study objects** — `create_view` mints an animated science / math / bio explainer (nuclear fission, the double-slit experiment, a derivative, DNA) from one `kind` + a few knobs — many kinds behind one tool, and the catalog is open: attach a cloned recipe book (`MOJULO_RECIPE_BOOK`) to add chapters of cards and builders, and keep a setup you've tuned with `save_recipe` — it lands in your own cookbook (view and beats recipes alike), recallable by intent in a later session.
 - **Directed images** — an `image-outcome` recipe stages a composition-locked scaffold that an external image model paints: your agent's own image capability, or an optional local ComfyUI + Qwen worker. The design stays sovereign; the painted render binds back with provenance. See [docs/local-image-worker.md](docs/local-image-worker.md).
 - **Motion** — `forge_motion` puts any of the above in motion: a turntable, an orbit, a fly-through, or a paced concept explainer, rendered to a shareable GIF (clips stitch into an MP4).
 - **Audio & voice** — `create_beats` synthesizes music from seeded math, never samples: ambient loops, grooves, full scores — a part can even *sing* — plus SFX cues; `create_voice` resolves a deterministic voice register for narration. Worlds opt in to soundtracks and footsteps; a score exports as WAV or MIDI.
@@ -348,10 +348,11 @@ Play data never enters mojulo. Like a bot, the artifact runs on its own; the sub
 
 ## Security & deployment posture
 
-The control plane is **single-operator, self-hosted, localhost-only by default** — no user identity unless the operator enables the opt-in roles pack to issue scoped, revocable keys to their own delegates (operator-owned delegation, not multi-tenancy). Two access-control affordances, both opt-in:
+The control plane is **single-operator, self-hosted, localhost-only by default** — no user identity unless the operator enables the opt-in roles pack to issue scoped, revocable keys to their own delegates (operator-owned delegation, not multi-tenancy). Three access-control affordances, all opt-in:
 
 - **HTTP login** (for the dashboard UI). Set `CONTROL_PLANE_USER` + `CONTROL_PLANE_PASSWORD` in `control/.env`. Sessions are HMAC-signed with the password itself, so rotating it invalidates every outstanding session. Intentionally minimal — no MFA, no lockout, no multi-user (per-delegate logins arrive only with the opt-in roles pack).
 - **MCP bearer token** (for HTTP MCP). Set `CONTROL_PLANE_MCP_KEY` to enable `/api/mcp`; with the key unset, the route 404s. The stdio transport (`npx -y mojulo`) is local-only and doesn't use this key.
+- **Roles pack** (operator-owned delegation). Set `MOJULO_ROLES=enabled` in `control/.env`, then cut scoped bearer keys for your own delegates with the admin-only `mint_role_key` / `list_role_keys` / `revoke_role_key` tools. A delegate key sees only its granted capability packs, uses only its own LLM credentials, and can never touch secrets, daemon control, or roles admin; revoking a key also kills its dashboard sessions (delegates log in with key name + key). `CONTROL_PLANE_MCP_KEY` remains the operator's admin key either way; with `MOJULO_ROLES` unset, behavior is byte-identical to a roles-less install.
 
 **Network posture:** don't expose the control plane to the public internet. Pick whichever fits:
 
