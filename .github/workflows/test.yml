@@ -12,18 +12,17 @@ concurrency:
 
 jobs:
   test:
-    name: tests / ${{ matrix.os }} / node 20
+    name: tests / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # Node 20 matches the bot's Dockerfile (node:20-bookworm-slim) so the
-        # test environment shadows the runtime environment. Add Node 22 to
-        # the matrix once the bot image moves.
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
+      # Node 20 matches the bot's Dockerfile (node:20-bookworm-slim) so the
+      # lite-template test environment shadows the runtime environment.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -39,6 +38,14 @@ jobs:
         working-directory: lite-template
         run: npm test
 
+      # Control requires Node >= 22.12: the mcp-stdio bin enforces that floor
+      # (scripts/mcp-stdio.mjs), and node-web-audio-api@2 declares
+      # engines >= 22 — as an optionalDependency, npm on Node 20 silently
+      # skips it and the beats tests fail with ERR_MODULE_NOT_FOUND.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install control
         working-directory: control
         run: npm install
@@ -53,9 +60,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 22: control's package.json declares "type": "module", so
+      # node --check parses its .js files as ESM — keep the checker on the
+      # same Node line the control plane actually requires (>= 22.12).
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       # Syntax floor — neither package has a typecheck script, so node --check
       # is the cheapest way to catch a syntax error sitting in main.
@@ -99,9 +109,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 22: the README install path requires it (mcp-stdio's Node floor),
+      # and the control build needs node-web-audio-api present — an
+      # optionalDependency npm skips on Node 20 (engines >= 22), which then
+      # fails `next build` at serverExternalPackages resolution.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Run smoke script
         run: bash scripts/smoke.sh

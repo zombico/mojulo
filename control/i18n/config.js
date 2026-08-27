@@ -52,5 +52,5 @@ export const localeNames = {
   sw: 'Kiswahili',
 };
 
-// Right-to-left scripts. Used by app/layout.js to set <html dir="rtl">.
+// Right-to-left scripts. Used by app/layout.jsx to set <html dir="rtl">.
 export const rtlLocales = new Set(['ar', 'he', 'fa', 'ur']);
