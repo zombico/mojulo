@@ -425,6 +425,13 @@ export async function ensureToolsRegistered() {
   const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
+  const { registerSaveRecipeTools } = await import('@/lib/mcp/tools/save-recipe');
+  // Attached recipe books (recipe-book.plan.md): load the operator's cookbook
+  // + cloned Door-2 builders BEFORE create_view registers, so its kind enum
+  // and dispatch include book kinds from the first tools/list. Absent any
+  // book this resolves the empty snapshot instantly.
+  const { ensureBookLoaded } = await import('@/lib/graph/views/recipe-book/loader');
+  await ensureBookLoaded();
   const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
@@ -611,6 +618,10 @@ export async function ensureToolsRegistered() {
   // the two consolidated visual entries read adjacently in tools/list. The
   // retired per-kind names remain callable as unlisted aliases.
   registerCreateViewTools();
+  // save_recipe — the cookbook write path (recipe-book.plan.md Phase 5):
+  // promote a minted study object into the operator's own recallable catalog
+  // entry. Registers beside create_view so mint and keep read adjacently.
+  registerSaveRecipeTools();
   // measure_view — the physical read-back channel for the SI-honest science views
   // (mechanics-view dynamics, orbit-view): re-plan from the stored recipe, return the
   // time-series in declared real units. Registers right after create_view so mint and

@@ -1,7 +1,7 @@
 ---
 {
   "id": "vector-match",
-  "name": "Vector Match",
+  "name": "Vector Search",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint VECTOR MATCHING (semantic nearest-neighbour search) as a live, traversable three.js World — the mechanic behind vector RAG / `semantic_search`, and one level down, attention's Q·K.",

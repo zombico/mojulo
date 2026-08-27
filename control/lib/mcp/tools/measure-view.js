@@ -25,6 +25,8 @@
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planMechanicsScene, sampleMechanicsPhysics } from '@/lib/graph/views/science/mechanics-view';
+import { planRocketScene, sampleRocketPhysics } from '@/lib/graph/views/science/rocket-view';
+import { planAirplaneScene, sampleAirplanePhysics } from '@/lib/graph/views/science/airplane-view';
 import { planOrbitScene, sampleOrbitPhysics } from '@/lib/graph/views/science/orbit-view';
 import { planDerivativeScene, sampleDerivativeExact } from '@/lib/graph/views/math/derivative-view';
 import { planSeriesScene, sampleSeriesExact } from '@/lib/graph/views/math/series-view';
@@ -33,12 +35,12 @@ import { planSeriesScene, sampleSeriesExact } from '@/lib/graph/views/math/serie
 // dynamics, orbits) and 'exact' (pure mathematics — no unit problem at all, every value
 // the true value of the implemented expression). Growing this set means writing a sampler
 // beside the kind's planner (pure, honest numbers) and dispatching it here.
-export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'orbit-view', 'derivative-view', 'series-view']);
+export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view']);
 
 // kinds whose mint-time stats digest can be recomputed byte-deterministically from the manifest.
 // Broader than MEASURABLE within mechanics (stats recompute works for machine/engine/collision
 // scenarios too, since planMechanicsScene covers every branch).
-export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'orbit-view', 'derivative-view', 'series-view']);
+export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view']);
 
 /**
  * Recompute the stats digest a create_* mint returned, from a stored manifest. Must reproduce the
@@ -51,6 +53,24 @@ export function recomputeViewStats(manifest) {
   if (kind === 'mechanics-view') {
     const plan = planMechanicsScene(manifest);
     return { scenario: plan.stats.scenario, g: plan.stats.g, flightTime: +plan.stats.T.toFixed(3), loop: plan.stats.loop, faces: plan.faces.length };
+  }
+  if (kind === 'rocket-view') {
+    const plan = planRocketScene(manifest);
+    return {
+      scenario: plan.stats.scenario, payload: plan.stats.payload, flightTime: plan.stats.T,
+      mecoV: plan.stats.mecoV, apogeeKm: plan.stats.apogeeKm,
+      touchdownV: plan.stats.touchdownV, touchdownX: plan.stats.touchdownX,
+      faces: plan.faces.length,
+    };
+  }
+  if (kind === 'airplane-view') {
+    const plan = planAirplaneScene(manifest);
+    return {
+      mission: plan.stats.mission, plane: plan.stats.plane, flightTime: plan.stats.T,
+      groundRoll: plan.stats.groundRoll, touchdownSink: plan.stats.touchdownSink,
+      rangeKm: plan.stats.rangeKm, glideRatio: plan.stats.glideRatio,
+      faces: plan.faces.length,
+    };
   }
   if (kind === 'orbit-view') {
     const plan = planOrbitScene(manifest);
@@ -76,6 +96,22 @@ export function measureViewSamples(manifest, { every = 1 } = {}) {
       kind, tier: 'si', scenario: m.scenario, units: m.units, dt: m.dt, T: m.T, loop: m.loop, static: m.static,
       facts: m.facts,
       series: [{ name: 'body', label: m.label, samples: m.samples, count: m.count }],
+    };
+  }
+  if (kind === 'rocket-view') {
+    const r = sampleRocketPhysics(manifest, { every });
+    return {
+      kind, tier: 'si', scenario: r.scenario, units: r.units, dt: r.dt, T: r.T, loop: r.loop, static: r.static,
+      facts: r.facts,
+      series: [{ name: 'booster', label: r.label, samples: r.samples, count: r.count }],
+    };
+  }
+  if (kind === 'airplane-view') {
+    const a = sampleAirplanePhysics(manifest, { every });
+    return {
+      kind, tier: 'si', scenario: a.scenario, units: a.units, dt: a.dt, T: a.T, loop: a.loop, static: a.static,
+      facts: a.facts,
+      series: [{ name: 'plane', label: a.label, samples: a.samples, count: a.count }],
     };
   }
   if (kind === 'orbit-view') {
@@ -118,7 +154,8 @@ export function registerMeasureViewTools() {
       + 'render never exposes. Re-plans deterministically from the stored recipe (same recipe → same '
       + 'numbers as the in-world readout) and returns per-sample data in DECLARED REAL UNITS: '
       + "mechanics-view dynamics (projectile / free-fall / inclined-plane / pendulum / spring / circular) "
-      + 'as { t, pos, speed, accel, ke, pe } in s / m / m·s⁻¹ / m·s⁻² / J; orbit-view bodies as '
+      + 'as { t, pos, speed, accel, ke, pe } in s / m / m·s⁻¹ / m·s⁻² / J; rocket-view missions add '
+      + 'mass/thrust/drag/q (kg / N / Pa) with the mission events in the facts; orbit-view bodies as '
       + '{ t, pos, r, speed, accel } in s / km / km·s⁻¹ (vis-viva) with positions recomputed at TRUE '
       + "scale (the rendered orrery is compressed; samples are not). Math views measure at tier 'exact' "
       + '(pure values, no unit problem): derivative-view returns { x, fx, dfx } samples plus the secant '

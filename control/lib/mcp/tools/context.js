@@ -119,12 +119,15 @@ function communicationSettingsNotice({ register, disclosure, source }) {
 
 // --- Lean opener (register-invariant) ---
 //
-// One paragraph. What mojulo is + a pointer into the routing index. The four
-// creatable paradigms (PARADIGMS above) and their entry tools were already
-// named in the `initialize` preamble; we don't re-enumerate them, we route
-// them below.
+// One paragraph, tool-shaped. The reader is an agent ALREADY CONNECTED to the
+// substrate — identity and doctrine (what mojulo is, the craft floor, the
+// PLAYful Cloud) are not re-explained here; they live behind get_substrate
+// and get pulled when the operator asks. The opener says only what this body
+// is (the office routing index), how to use it, and where the other wing and
+// the drawers are. The five paradigm names stay because the sweep test pins
+// them on every orientation surface.
 
-const LEAN_OPENER = `Mojulo is the agent's workshop — a local, stateful substrate that turns conversations into things that keep existing after the chat ends. Two wings, one discipline: the OFFICE — solutions composed over the operator's installed MCPs (CRM, calendar, drive, ticketing, warehouse) — and the STUDIO — creative artifacts minted as deterministic recipes (\`forward_context({mode:'studio'})\` for its routing index). Everything minted is a tiny deterministic recipe, and artifacts prove themselves before promotion — lean on that with a skeptical operator. Its tool calls mutate mojulo's own SQLite + graph state and supervise processes. The \`initialize\` preamble already named the five creatable artifacts (Bot/Connected Service/App/Media/Game) and their entry tools — this is the office **routing index** that maps a request onto the right entry point, plus a directory of drawers to pull when a task needs depth. Recognize the path from the user's framing, reach for the entry tool, and read a drawer only when you need it. When unsure whether the work needs a conversational surface, ask — that answer routes the session.`;
+const LEAN_OPENER = `This is the office **routing index** for the five creatable artifacts — Bot, Connected Service, App, Media, Game: user-framing → entry-tool rows, plus a directory of drawers to pull when a task needs depth. The office wing covers solutions composed over the operator's installed MCPs (CRM, calendar, drive, ticketing, warehouse) and operating what already exists; a creative ask (Media / Game) routes through \`forward_context({mode:'studio'})\`, the studio's own routing index. Match the user's framing to a row, reach for the entry tool, and read a drawer only when you need it. When unsure whether the work needs a conversational surface, ask — that answer routes the session. Substrate positioning and self-description (what mojulo is, posture, costs, uninstall) live behind \`get_substrate\` — pull them when the operator asks, not to orient.`;
 
 // --- Workshop pulse (R1, orientation-ramp.plan.md) ---
 //
@@ -297,14 +300,14 @@ const SAFETY_ONELINERS = `## Standing safety rules
 
 const STANDING_RULE_FLOOR = `## Commitment-level vocabulary (standing rule)
 
-Whatever register and disclosure cell you've been set to, these distinctions must stay legible — they track real state, and the user needs them to course-correct at each gate:
+Keep these distinctions legible in every register and disclosure cell — they track real state:
 
 - *proposed* vs *materialized* → candidate workflow under consideration vs workflow now wired up and running
 - *dry-run* vs *promoted* → trial pass against one real input vs live, recurring
 - *watched* vs *read-once* → ongoing observation going forward vs read right now
 - *recorded in the audit trail* vs *not recorded* → when you write to contextmap, say so plainly so the user knows the decision is sealed and durable
 
-Blur these and the user loses visibility into what's been committed versus what's still a suggestion. In \`plain\` register the right-hand-side phrasing is what the user hears; in \`mojulo\` register either side works. The distinction itself is preserved at every register.`;
+In \`plain\` register the right-hand-side phrasing is what the user hears; in \`mojulo\` register either side works.`;
 
 const DISCLOSURE_TERSE = `**Procedural disclosure: terse.** Act and report — one-line summary at the end. Do not narrate intermediate state unless the user asks. The four gates above still apply; when you cross one, name the gate in one short clause ("done, sealed in the audit trail" / "dry-run looks clean — going live now") and move on. Don't elaborate on what the gate means in the absence of a user question.`;
 
@@ -662,9 +665,10 @@ export const FORM_TOOLSETS = {
   'view': {
     title: "Views (science / math / bio study)",
     makes: "animated 3D study objects that teach a phenomenon",
-    body: `- \`create_view\` — mint an animated 3D STUDY OBJECT: one tool, 47 kinds across physics (\`fission\`, \`fusion\`, \`double-slit\`, \`black-hole\`, \`galaxy\`, \`orbit\`, \`mechanics\`, \`ocean\`, \`atmosphere\`, …), math explainers (\`derivative\`, \`conics\`, \`trig-circle\`, \`complex\`, \`series\`, …), and biology (\`dna\`, \`cellular\`, \`molecule\`). Pick \`kind\` from the enum; the kind's own knobs go in \`params\` — find a kind by intent via \`semantic_search({ kinds: ['view_vocab'] })\` and read its parameter manual via \`get_view_vocab\` before passing params. Orbit-camera Worlds at \`/api/sketches/<ref>/world\`; recipe-only, regenerate-on-render. Reach for "show/teach me <phenomenon> / an animated demo of X / a 3D explainer for my student".
+    body: `- \`create_view\` — mint an animated 3D STUDY OBJECT: one tool spanning physics (\`rocket\`, \`airplane\`, \`fission\`, \`fusion\`, \`double-slit\`, \`black-hole\`, \`galaxy\`, \`orbit\`, \`mechanics\`, \`ocean\`, \`atmosphere\`, …), math explainers (\`derivative\`, \`conics\`, \`trig-circle\`, \`complex\`, \`series\`, …), and biology (\`dna\`, \`cellular\`, \`molecule\`). Pick \`kind\` from the enum; the kind's own knobs go in \`params\` — find a kind by intent via \`semantic_search({ kinds: ['view_vocab'] })\` and read its parameter manual via \`get_view_vocab\` before passing params. Orbit-camera Worlds at \`/api/sketches/<ref>/world\`; recipe-only, regenerate-on-render. Reach for "show/teach me <phenomenon> / an animated demo of X / a 3D explainer for my student".
 - \`get_view_vocab\` — read a view-vocab card in full: the depiction prose + routing phrases + parameter manual for one \`create_view\` kind or \`compose_world\` base (family \`world\`). Omit \`id\` for the index rows; optional \`family\` filter (\`science\` / \`math\` / \`bio\` / \`world\`). Pair with \`semantic_search({ kinds: ['view_vocab'] })\`.
-- \`measure_view\` — read the physical TIME-SERIES back out of a science-view sketch in DECLARED REAL UNITS (the measurement channel the render never exposes). Re-plans deterministically from the stored recipe.`,
+- \`measure_view\` — read the physical TIME-SERIES back out of a science-view sketch in DECLARED REAL UNITS (the measurement channel the render never exposes). Re-plans deterministically from the stored recipe.
+- \`save_recipe\` — KEEP a tuned study object: promote a sketch into the operator's own COOKBOOK as a named, intent-recallable catalog entry (recalled later via \`semantic_search({kinds:['view_vocab']})\` / \`get_view_vocab\`, re-minted via \`create_view\`). Write \`when\` from the conversation's intent. Reach for "save this / keep this setup / remember this view".`,
   },
   'motion': {
     title: "Motion & film",
@@ -798,7 +802,7 @@ const DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 // agent that jumps straight here is never missing the standing rules — a
 // session that reads both bodies pays the spine (~1.5K) twice, accepted.
 
-const STUDIO_OPENER = `The studio — mojulo's creative wing. Media artifacts (pictures, objects, worlds, buildings, motion, audio, voice, publications) and Games composed over them, minted as tiny deterministic recipes: seeded, diffable, replayable — never stored renders. Artifacts prove themselves before promotion. The office wing — the Bot, Connected Service, and App paradigms, deliberation, operate-what-exists — orients at \`forward_context()\` (the default mode). Below: the studio **routing index** (match the user's framing to a FORM row, reach for the entry tool) and the studio drawers.`;
+const STUDIO_OPENER = `The studio **routing index** — mojulo's creative wing: Media artifacts (pictures, objects, worlds, buildings, motion, audio, voice, publications) and Games composed over them, each minted as a deterministic recipe (seeded, re-rendered on demand — never a stored render). The office wing — Bot, Connected Service, and App, deliberation, operate-what-exists — is \`forward_context()\` (the default mode). Match the user's framing to a FORM row, reach for the entry tool; the studio drawers follow.`;
 
 const STUDIO_ROUTING_INDEX = `## Studio routing index — recognize the FORM, reach for the entry tool
 
@@ -807,7 +811,7 @@ Match the user's framing to a row. When a form row isn't enough (families, forks
 - GAME (playable artifact; persistent typed store; levels are worlds carrying a game contract) → \`create_game\`; fastest start is a kit via \`semantic_search({kinds:['game_kit']})\`. Project home for its pieces → \`create_game_project\` (\`/games/<ref>\`).
 - PICTURE — diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\`; scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\`; posed figure / non-humanoid creature → \`mint_solid\`; build from a PHOTO you can see → \`reference_protocol\`; direct an AI-generated image / comic page → \`create_sketch\` kind \`'image-outcome'\`/\`'sequential-art'\` (read the sketch_vocab card).
 - OBJECT (3D at literal scale) — an everyday object / part, an assembly, a carved wordmark / logo, or a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable); paint or emote one → \`edit_solid\`.
-- WORLD (traversable) — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME); animated science / math / bio study object ("teach me nuclear fission") → \`create_view\` (47 kinds; find one via \`semantic_search({kinds:['view_vocab']})\`).
+- WORLD (traversable) — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME); animated science / math / bio study object ("teach me nuclear fission") → \`create_view\` (find one via \`semantic_search({kinds:['view_vocab']})\`).
 - BUILDING (bespoke, inhabitable) — a NEW one-off building / campus / connected complex the generators don't make ("design a bespoke building", "a custom <building type>") → \`mint_solid\` (kind edifice — MASSES + CONCOURSES placed by relation); dream it → the \`dream-edifice\` catalyst. (A generic seed-sampled city/school/hub is \`compose_world\`; a single object is \`mint_solid\`.)
 - MOTION (adds time) — animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (four families: camera / deck / traversal / waypoints — pull the routing card before your first motion); join clips into one film → \`stitch_motion\`.
 - MOTION COMIC (a comic presented CLICK BY CLICK — "the powerpoint of comics": each click reveals the next balloon / element / panel until the story is done) → \`create_sketch\` kind \`'motion-comic'\` (read the sketch_vocab card first): a fixed BOX (phone-upright / phone-wide / … + matte); NO pages — bound by PANELS (one panel crop per scene is the showcase); \`bubbles\` or movie-style \`subtitles\` lettering; plays at \`/play\`, exports as ONE self-contained HTML file. (An auto-playing video is \`forge_motion\`; a printed page is \`sequential-art\`.)

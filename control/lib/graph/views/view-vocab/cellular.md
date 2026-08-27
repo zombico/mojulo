@@ -1,7 +1,7 @@
 ---
 {
   "id": "cellular",
-  "name": "Cellular",
+  "name": "Cell Structure",
   "family": "bio",
   "entry": "create_view",
   "summary": "Mint an interactive 3D CELL — a science/education viewer for cell structure.",

@@ -1,7 +1,7 @@
 ---
 {
   "id": "ftc",
-  "name": "Ftc",
+  "name": "Fundamental Theorem of Calculus",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive CALCULUS explainer — the FUNDAMENTAL THEOREM OF CALCULUS, rendered as a live traversable three.js World in two stacked panels.",

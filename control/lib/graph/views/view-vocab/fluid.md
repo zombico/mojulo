@@ -1,7 +1,7 @@
 ---
 {
   "id": "fluid",
-  "name": "Fluid",
+  "name": "Fluid Dynamics",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint an interactive FLUID-DYNAMICS depictor — covering BOTH aerodynamics (flow) and hydrostatics (still liquids).",

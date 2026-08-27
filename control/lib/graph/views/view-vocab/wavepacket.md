@@ -1,7 +1,7 @@
 ---
 {
   "id": "wavepacket",
-  "name": "Wavepacket",
+  "name": "Quantum Wavepacket",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint a QUANTUM WAVEPACKET — a volumetric `|ψ(x,t)|²` probability cloud that EVOLVES IN TIME, ray-marched by a per-pixel VOLUME shader (the sibling of the static atom-view orbital cloud, but now the field MOVES).",

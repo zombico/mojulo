@@ -40,6 +40,7 @@ import {
 // the diagram surface so existing importers are unchanged. See
 // lib/mcp/kernel-diagram-surface.plan.md.
 import { isFiniteNumber, validateDiagramManifest } from '@/lib/diagram-core';
+import { isBookRenderKind } from '@/lib/graph/views/recipe-book/registry';
 
 export {
   STATION_KINDS,
@@ -247,7 +248,7 @@ export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-co
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).
-export const OBJECT_RENDER_KINDS = ['workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'windmill-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', 'transformer-view', 'vector-match-view', ...EDUCATION_VIEW_KINDS];
+export const OBJECT_RENDER_KINDS = ['workbench', 'assembler', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'beach-view', 'river-view', 'windmill-view', 'hydro-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', 'transformer-view', 'vector-match-view', ...EDUCATION_VIEW_KINDS];
 export const WORLD_RENDER_KINDS = [...WALKABLE_WORLD_KINDS, ...OBJECT_RENDER_KINDS];
 export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
 // Beats artifacts (beats.plan.md) — heard, not looked at. Rendered as a live
@@ -268,6 +269,11 @@ const VOICE_RENDER_SET = new Set(VOICE_RENDER_KINDS);
 export function sketchRenderMode(manifest) {
   const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
   if (WORLD_RENDER_SET.has(kind)) return 'world';
+  // Attached recipe-book Door-2 kinds (recipe-book.plan.md) render as orbit
+  // Worlds. Reads the import-nothing registry snapshot (this fn is sync and
+  // widely imported); the snapshot is warm once MCP init or the /world route
+  // has run — before that, a book-kind row lists as 'diagram', harmlessly.
+  if (isBookRenderKind(kind)) return 'world';
   // A polygomer manji-tree is a turnable World (registered in world-kinds.js);
   // the structural 2D manji-tree stays an SVG still below.
   if (isPolygomerManjiTree(manifest)) return 'world';

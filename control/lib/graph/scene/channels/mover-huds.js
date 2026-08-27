@@ -6,6 +6,14 @@
  * splices this string into moverChannelScript's emitted block verbatim, so the page
  * bytes are identical to when these functions lived inline. Constraint: the text must
  * stay free of backtick and dollar-brace so it can ride inside the template literal.
+ *
+ * Moved from views/science/ into the channels layer (recipe-book.plan.md): the
+ * mover channel's stepMovers dispatch references these formatters by name
+ * (_rocketHud, _machineHud, …), so the coupling was always channel↔huds — a
+ * core channel importing from the views directory was the one inverted
+ * dependency in the tree. If a recipe-book kind ever needs a BESPOKE mover
+ * HUD, that becomes the moment to add a contribution point (a mover carrying
+ * its own formatter text) — by demonstrated need, not before.
  */
 
 export const MOVER_HUD_JS = `// energy bars (opt-in, mechanics): KE green, PE blue, total grey — widths are value/emax. Inline-styled
@@ -171,4 +179,29 @@ function _machineHud(mv) {
     + '<span class="v">effort ' + m.effortForce.toFixed(0) + ' N → load ' + m.loadForce.toFixed(0) + ' N</span>'
     + '<span class="a">d_in ' + m.dIn.toFixed(1) + ' m → d_out ' + m.dOut.toFixed(1) + ' m</span>'
     + '<span style="opacity:.8">efficiency ' + (m.efficiency * 100).toFixed(0) + '% · work in = work out</span>';
+}
+// rocket readout (pose mover, rocket-view): the mission narration — phase, real clock, altitude,
+// speed (+Mach when it matters), the DRAINING mass with thrust and the live TWR, dynamic pressure,
+// and a propellant bar. All arrays are equal-dt with the path, in real SI from the integrator.
+function _rocketHud(mv, i) {
+  const r = mv.rocket, mach = r.mach[i];
+  const bar = '<div style="display:flex;align-items:center;gap:5px;margin-top:3px;width:188px">'
+    + '<span style="width:34px;color:#e0a05a">prop</span>'
+    + '<span style="flex:1;height:6px;background:rgba(255,255,255,.09);border-radius:2px;overflow:hidden">'
+    + '<span style="display:block;height:100%;width:' + (100 * Math.max(0, Math.min(1, r.prop[i]))) + '%;background:#e0a05a"></span></span>'
+    + '<span style="width:38px;text-align:right;opacity:.78">' + (100 * r.prop[i]).toFixed(0) + '%</span></div>';
+  return '<span style="color:#e0a05a">' + r.phase[i] + '</span>'
+    + '<span class="v">T+' + r.t[i].toFixed(0) + ' s · alt ' + r.alt[i].toFixed(1) + ' km · v ' + r.speed[i].toFixed(0) + ' m/s' + (mach > 0.4 ? ' · M ' + mach.toFixed(1) : '') + '</span>'
+    + '<span class="a">mass ' + (r.mass[i] / 1000).toFixed(1) + ' t · thrust ' + (r.thrust[i] / 1000).toFixed(0) + ' kN · TWR ' + r.twr[i].toFixed(2) + '</span>'
+    + '<span style="opacity:.8">q ' + (r.q[i] / 1000).toFixed(1) + ' kPa · real forces, scripted guidance</span>' + bar;
+}
+// airplane readout (pose mover, airplane-view): the flight-deck narration — phase, clock,
+// altitude, airspeed, and the WING numbers (angle of attack, C_L, live L/D) with thrust and
+// the flap/gear configuration. Equal-dt with the path, real SI from the integrator.
+function _planeHud(mv, i) {
+  const p = mv.plane;
+  return '<span style="color:#7fc8e0">' + p.phase[i] + '</span>'
+    + '<span class="v">T+' + p.t[i].toFixed(0) + ' s · alt ' + p.alt[i].toFixed(0) + ' m · v ' + p.speed[i].toFixed(0) + ' m/s</span>'
+    + '<span class="a">AoA ' + p.aoa[i].toFixed(1) + '° · C_L ' + p.cl[i].toFixed(2) + ' · L/D ' + p.ld[i].toFixed(1) + '</span>'
+    + '<span style="opacity:.8">thrust ' + (p.thrust[i] / 1000).toFixed(0) + ' kN · ' + p.cfg[i] + ' · four forces, scripted pilot</span>';
 }`;

@@ -1,7 +1,7 @@
 ---
 {
   "id": "complete-square",
-  "name": "Complete Square",
+  "name": "Completing the Square",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive ALGEBRA explainer — COMPLETING THE SQUARE, the geometric move behind the quadratic formula, rendered as a live traversable three.js World.",

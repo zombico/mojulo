@@ -321,8 +321,8 @@ export const PACKS = [
     form: 'view',
     title: 'Study views (science / math / bio)',
     description:
-      "STUDY VIEWS — animated 3D study objects that teach a phenomenon: create_view kinds across science / math / bio, view-vocab parameter manuals, and measure_view for SI-honest time-series read-back from the stored recipe. Open for 'help my kid understand black holes', 'animate how DNA copies itself', 'measure the orbit'.",
-    members: ['create_view', 'get_view_vocab', 'measure_view'],
+      "STUDY VIEWS — animated 3D study objects that teach a phenomenon: create_view kinds across science / math / bio, view-vocab parameter manuals, measure_view for SI-honest time-series read-back from the stored recipe, and save_recipe to KEEP a tuned setup in the operator's cookbook (view and beats recipes alike), recallable by intent later. Open for 'help my kid understand black holes', 'an animated science explainer for my kid', 'animate how DNA copies itself', 'measure the orbit', 'save this setup for my class'.",
+    members: ['create_view', 'get_view_vocab', 'measure_view', 'save_recipe'],
   },
   {
     id: 'pack_motion',

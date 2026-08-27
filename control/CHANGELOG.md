@@ -76,6 +76,124 @@ behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
   closed (one re-login on upgrade). Deferred, explicitly: per-space secrets,
   scoped cross-cutting reads, space sharing, dashboard affordance filtering.
 
+### Recipe book — an attachable catalog of view recipes and builders
+
+- **`MOJULO_RECIPE_BOOK`** — point at a local clone of the new
+  `mojulo-recipe-book` repo (chapters of cards + recipes + builders; fully
+  text/JSON, no dependencies) and the control plane attaches it at boot.
+  Strictly additive: unset ⇒ byte-for-byte the shipped behavior; nothing is
+  ever fetched at runtime (the operator clones and pins the book themselves).
+- **Two doors.** Door 1 (data): the book's cards merge into the view-vocab
+  catalog, so `semantic_search`, `get_view_vocab`, and the embeddings reindex
+  surface them like shipped cards — a recipe entry is pure params over an
+  existing kind. Door 2 (code): `builder` entries are dynamically imported and
+  registered as additional `create_view` kinds — enum, mint (generic
+  `mintBookView` path), `/world` render dispatch, and `sketchRenderMode` all
+  inherit them. Core wins every id/kind collision; malformed entries are
+  skipped with warnings, never fatal; a book whose `requiresMojulo` is newer
+  than the installed control plane loads nothing and says the clone is ahead.
+- **Injected toolkit (Tier-2 builders).** Book builders stay import-free;
+  builders that need mojulo's shared GLSL primitives receive them as
+  `ctx.toolkit` on every `plan`/`assemble` call
+  (`lib/graph/views/recipe-book/toolkit.js` — versioned, frozen, append-only;
+  currently `effects: { buildVolumeFrag, SDF_GLSL }`).
+- **The cookbook + `save_recipe`** — the operator's OWN recipe book, the
+  write path: `save_recipe({ ref, id, when })` promotes a minted-and-tuned
+  study object into a named catalog entry under `<data dir>/cookbook`
+  (`MOJULO_COOKBOOK` to override) — card + params, ledgered with a LOCAL git
+  commit (no remote, ever; sharing is the operator's act). Saved entries join
+  the same catalog as shipped kinds: recall by meaning via `semantic_search`
+  (the agent writes the card's `when` line from the conversation's intent;
+  the index upserts on save), read via `get_view_vocab`, re-mint via
+  `create_view`. Attachment is now an ordered book list — core > cookbook >
+  upstream clone, first-wins with warnings. The cookbook is Door-1 only
+  (recipes, pure data); builder entries there are refused by design.
+- **Multi-family Door 1** — the book now carries recipes for MORE than views:
+  a card's `entry` frontmatter is its routing key, so `create_beats` cards
+  merge into the beats-vocab catalog, `mint_solid`/`edit_solid` into
+  solid-vocab, `forge_motion`/`stitch_motion` into motion-vocab (each with the
+  view merge's rules — core wins collisions, warn-and-skip on malformed or
+  unroutable cards, per-catalog id scoping). `get_*_vocab`, `semantic_search`,
+  and the reindex inherit book cards per family for free. Door-2 builder
+  lanes remain view-only: a builder entry declaring another family's entry
+  tool is skipped with a warning until that lane is built by demonstrated
+  need. `save_recipe` gained the beats lane: a minted-and-tuned
+  `create_beats` loop saves to the cookbook's `beats` chapter (card routed
+  by `entry`, recalled via `get_beats_vocab` / `semantic_search({ kinds:
+  ['beats_vocab'] })`, re-minted via `create_beats`) — the keep-loop for the
+  family where tuned params are hardest to rediscover. Solids / motion join
+  by the same lane pattern later.
+- **Pilot kinds (ship in the book, not in core):** `foucault-pendulum`
+  (Tier-0 — a Foucault pendulum over a compass floor: latitude-driven
+  precession Ω = 15.04°/h × sin lat, seamless-loop rosette trail, optional
+  finite-differenced v/a arrows) and `aurora` (Tier-2, first toolkit
+  consumer — volume-raymarched auroral-oval curtains over a night Earth:
+  green 557.7 nm / red 630.0 nm oxygen ladder, N₂ purple fringe, activity
+  presets quiet/active/storm). Design + seams:
+  `lib/graph/views/recipe-book.plan.md`.
+
+### Hydro view — a multi-arc science explainer for hydroelectric power
+
+- **`create_view` kind `hydro` (`manifest.kind: 'hydro-view'`)** — one explainer told in
+  five arcs, each a scenario of the one kind: `dam` (hydrostatic P = ρgh on a gravity dam +
+  the Torricelli outlet jet — fluid-view's water-pressure principle scaled up), `penstock`
+  (PE → KE down the pipe, Bernoulli, equal-time tracers that visibly accelerate), `turbine`
+  (the machine principle — a Pelton runner spun live by the windmill's `spin` mover, jet
+  momentum → force → torque, u = v/2), `generator` (N/S pole drum sweeping copper stator
+  coils, Faraday's ε = −dΦ/dt drawn as a gold EMF wave with a riding pulse, f = p·n/60),
+  and `plant` (the whole chain in one world — water tracers ride reservoir → penstock →
+  runner → tailrace while a power pulse rides the transmission wire). Knobs `head` / `flow`.
+- **`physics/hydro.js`** — the pure hydro energy chain beside `physics/rocket.js`: one spec
+  resolves Torricelli, the Pelton match (u = v/2, ω, τ), stage-efficiency powers
+  (P = ηρgQH) and the synchronous-generator pole count, so every arc quotes the SAME
+  numbers — visual scale compressed, readouts honest.
+
+### Rocket mission view — a Falcon-9-class launch + return, integrated with real forces
+
+- **`create_view` kind `rocket` (48th kind, `manifest.kind: 'rocket-view'`)** — a full
+  booster mission flown live in the orbit-camera World: liftoff, pitch-kick into a true
+  gravity turn, Max-Q throttle bucket, MECO on the propellant return-reserve, stage
+  separation (stage 2 departs on its own pose mover), the 180° flip, RTLS boostback (cutoff
+  solved by deterministic iteration so the booster lands back at the pad) or the ASDS
+  downrange arc, the entry burn, tail-first descent, and the hoverslam landing burn —
+  forced, as in reality, by minimum thrust exceeding the near-dry booster's weight.
+  Scenarios `rtls` / `asds`; params `payload`, `vehicle` ('falcon9' or a custom spec),
+  `guidance` overrides, `playback`, plus the standard trace/strobe/scale knobs. Base-shape
+  vehicles in v1 (likeness + effects deferred; see rocket-view.plan.md).
+- **`physics/rocket.js`** — the launch-vehicle primitive beside `physics/flight.js`, same
+  doctrine: pure, deterministic, zero-import; US Standard Atmosphere 1976, altitude-
+  compensated thrust + mass flow, Mach-dependent ascent C_d, inverse-square gravity. The
+  honesty line is enforced and stated: real forces, SCRIPTED guidance (not closed-loop).
+  The `falcon9` preset ships source-commented public constants pinned by a webcast-telemetry
+  test band (Max-Q window, MECO state, apogee, soft touchdown with propellant remaining).
+- **`measure_view` learns `rocket-view`** — full-mission SI read-back ({ t, pos, speed,
+  accel, mass, thrust, drag, q, phase } + the event table) and stats recompute for the
+  research-mode reviewer.
+- **Mover channel**: a `rocket` mission HUD (phase, real clock, altitude, speed/Mach, the
+  draining mass, thrust, TWR, q, propellant bar) joins the pose-mover readouts; emission
+  fixtures re-pinned (movers / planets / kitchen-sink ×2).
+
+### Airplane flight view — the fixed-wing sibling, flown by the airport's own plane
+
+- **`create_view` kind `airplane` (49th kind, `manifest.kind: 'airplane-view'`)** — a
+  complete fixed-wing flight on the FOUR real forces: takeoff roll, rotation at Vr, climb,
+  a held cruise, the standard 3° descent, gear-and-flaps approach, a sink-proportional
+  flare to a soft touchdown, and the braked rollout (`mission:'hop'`) — or `'glide'`: the
+  engines quit at cruise and the ship rides best-L/D to a deadstick landing, the published
+  ~15-17:1 narrowbody glide ratio made visible. The BODY is the airport primitive's own
+  fixed-wing net (vehicleFaces: airliner / widebody / regional / bizjet), lowered to mesh
+  faces and pitched along the true-scale path by a pose mover, with a flight-deck HUD
+  (phase, altitude, airspeed, angle of attack, C_L, live L/D, thrust, flap/gear config).
+- **`physics/airplane.js`** — the atmospheric sibling of physics/rocket.js (shares its US76
+  atmosphere): C_L(α) linear-to-stall with flap-config shifts, parasite + induced drag with
+  gear/speedbrake penalties, jet thrust lapse, ground roll with rolling/braking friction.
+  Real forces, SCRIPTED pilot (rate-limited pitch laws, speed-hold throttle) — stated.
+  The `a320` preset ships public A320-class constants pinned by a performance test band
+  (rotation speed, ground roll, held cruise L≈W, 3° approach, sub-2.5 m/s touchdown sink,
+  the glide ratio, and the deadstick's honestly-steeper-than-3° path).
+- **`measure_view` learns `airplane-view`** — SI read-back ({ t, pos, speed, accel, alpha,
+  cl, lift, drag, thrust, phase } + the event table) and stats recompute.
+
 ## [1.4.2] - 2026-08-24
 
 ### Language picker surfaced on fresh install + game-copy reframe

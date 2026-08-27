@@ -17,6 +17,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../../module-dir.js';
+import { readBookCards } from '../../views/recipe-book/cards.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/beats/beats-vocab');
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'when'];
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
@@ -61,8 +62,28 @@ function loadCatalog() {
 }
 
 export function getBeatsVocabCatalog() {
-  if (!_catalog) _catalog = loadCatalog();
+  if (!_catalog) {
+    const cards = loadCatalog();
+    // Attached recipe-book / cookbook cards routed here by their
+    // `entry: 'create_beats'` frontmatter (recipe-book.plan.md, Phase 4) —
+    // merged after core so get_beats_vocab and the embeddings reindex see one
+    // catalog. The book is user-editable: warn-and-skip, never throw; on an
+    // id collision CORE WINS.
+    for (const card of readBookCards({ entries: ['create_beats'] })) {
+      if (cards.has(card.id)) {
+        console.warn(`beats-vocab: book card '${card.id}' collides with a core card — core wins`);
+        continue;
+      }
+      cards.set(card.id, card);
+    }
+    _catalog = cards;
+  }
   return _catalog;
+}
+
+// Test seam (also lets save_recipe make a fresh save visible).
+export function _resetBeatsVocabCache() {
+  _catalog = null;
 }
 
 export function getBeatsVocabCard(id) {

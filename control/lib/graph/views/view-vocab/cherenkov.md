@@ -1,7 +1,7 @@
 ---
 {
   "id": "cherenkov",
-  "name": "Cherenkov",
+  "name": "Cherenkov Radiation",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint CHERENKOV RADIATION — the eerie BLUE GLOW of a submerged reactor core, ray-marched as a time-evolving emission VOLUME.",

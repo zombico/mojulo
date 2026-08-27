@@ -25,11 +25,11 @@ import { resolveMojuloPaths } from './mojulo-paths.mjs';
 // missing-export error before this message could print. Stderr, not stdout:
 // in server mode stdout is the MCP protocol channel.
 //
-// The floor is 22.12, not 20: lib/ ships ESM in `.js` files while
-// package.json has no `"type": "module"`, so it only loads on runtimes where
-// module-syntax detection is on by default (Node >=22.12, >=23). On Node 20
-// or 21 the first lib import dies with `SyntaxError: Cannot use import
-// statement outside a module`, far below this check.
+// The floor stays 22.12 for a published-instance reason: package.json now
+// declares `"type": "module"` (so lib/'s ESM `.js` loads without Node's
+// module-syntax detection or its reparse warning), but installs that predate
+// that field rely on detection, which is only on by default from Node
+// >=22.12 / >=23. Keeping the floor means one supported matrix either way.
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
 if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 12)) {
   process.stderr.write(

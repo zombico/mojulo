@@ -1,7 +1,7 @@
 ---
 {
   "id": "cascade",
-  "name": "Cascade",
+  "name": "Nuclear Chain Reaction",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint a NUCLEAR CHAIN REACTION — a branching CASCADE of neutrons fissioning a lattice of fissile nuclei, rendered as discrete moving bodies (the mesh-based companion to create_fission_view, which ray-marches the SINGLE liquid-drop split).",

@@ -26,6 +26,8 @@ import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
 import { composeLandscapeRaymarch } from '@/lib/graph/landscape/painted-landscape-raymarch';
 import { renderFigureWorldFrames } from '@/lib/graph/polygonizer/figure-render';
 import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/worlds/world-kinds';
+import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
+import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT } from '@/lib/graph/polygonizer/vexar';
@@ -110,7 +112,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // weathering darkening passes below are additionally SKIPPED. Absent `viewOpts.unshaded`
   // (the universal case) ⇒ every guard below is inert and every output byte is identical.
   const unshaded = viewOpts.unshaded === true;
-  const desc = WORLD_KINDS[kind] ?? ROOM_FALLBACK;
+  // Registry miss → check the attached recipe book's Door-2 kinds
+  // (recipe-book.plan.md) before falling back to the room resolver. The await
+  // only runs on a core miss, so every core kind's path is untouched; a book
+  // kind's row carries the same { title, resolve } shape as a WORLD_KINDS row.
+  let desc = WORLD_KINDS[kind];
+  if (!desc) {
+    await ensureBookLoaded();
+    desc = bookWorldKind(kind) ?? undefined;
+  }
+  desc = desc ?? ROOM_FALLBACK;
   const ctx = {
     title: sketch.title || sketch.manifest.title || desc.title,
     time,

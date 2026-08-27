@@ -1,0 +1,9 @@
+{
+  "book": "fixture-book-future",
+  "bookVersion": "99.0.0",
+  "requiresMojulo": ">=99.0.0",
+  "chapters": ["science"],
+  "entries": [
+    { "type": "builder", "chapter": "science", "dir": "test-orb", "id": "test-orb" }
+  ]
+}

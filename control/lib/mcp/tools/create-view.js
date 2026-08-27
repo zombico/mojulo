@@ -20,6 +20,8 @@
 
 import { registerTool } from '@/lib/mcp/server';
 import { getViewVocabCatalog } from '@/lib/graph/views/view-vocab/loader';
+import { bookViewKinds } from '@/lib/graph/views/recipe-book/registry';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createAtmosphereViewHandler } from '@/lib/mcp/tools/atmosphere-view';
 import { createAtomViewHandler } from '@/lib/mcp/tools/atom-view';
 import { createBlackHoleViewHandler } from '@/lib/mcp/tools/black-hole-view';
@@ -42,11 +44,14 @@ import { createFusionViewHandler } from '@/lib/mcp/tools/fusion-view';
 import { createGalaxyViewHandler } from '@/lib/mcp/tools/galaxy-view';
 import { createGravityWaveViewHandler } from '@/lib/mcp/tools/gravity-wave-view';
 import { createHeatSphereViewHandler } from '@/lib/mcp/tools/heat-sphere-view';
+import { createHydroViewHandler } from '@/lib/mcp/tools/hydro-view';
 import { createStarSurfaceViewHandler } from '@/lib/mcp/tools/star-surface-view';
 import { createLightningStormViewHandler } from '@/lib/mcp/tools/lightning-storm-view';
 import { createMechanicsViewHandler } from '@/lib/mcp/tools/mechanics-view';
 import { createMoleculeViewHandler } from '@/lib/mcp/tools/molecule-view';
 import { createOceanViewHandler } from '@/lib/mcp/tools/ocean-view';
+import { createBeachViewHandler } from '@/lib/mcp/tools/beach-view';
+import { createRiverViewHandler } from '@/lib/mcp/tools/river-view';
 import { createOrbitViewHandler } from '@/lib/mcp/tools/orbit-view';
 import { createParallelTransportViewHandler } from '@/lib/mcp/tools/parallel-transport-view';
 import { createPlasmaGlobeViewHandler } from '@/lib/mcp/tools/plasma-globe-view';
@@ -55,6 +60,8 @@ import { createPulsarViewHandler } from '@/lib/mcp/tools/pulsar-view';
 import { createPythagorasViewHandler } from '@/lib/mcp/tools/pythagoras-view';
 import { createQuadraticViewHandler } from '@/lib/mcp/tools/quadratic-view';
 import { createReactorViewHandler } from '@/lib/mcp/tools/reactor-view';
+import { createRocketViewHandler } from '@/lib/mcp/tools/rocket-view';
+import { createAirplaneViewHandler } from '@/lib/mcp/tools/airplane-view';
 import { createSaturnViewHandler } from '@/lib/mcp/tools/saturn-view';
 import { createSeriesViewHandler } from '@/lib/mcp/tools/series-view';
 import { createStarBirthViewHandler } from '@/lib/mcp/tools/star-birth-view';
@@ -75,6 +82,7 @@ import { createEnergyCycleHandler } from '@/lib/mcp/tools/energy-cycle';
 export const VIEW_KINDS = {
   'atmosphere': { family: 'science', retired: 'create_atmosphere_view', handler: createAtmosphereViewHandler },
   'atom': { family: 'science', retired: 'create_atom_view', handler: createAtomViewHandler },
+  'beach': { family: 'science', handler: createBeachViewHandler },   // born inside create_view — no retired alias
   'black-hole': { family: 'science', retired: 'create_black_hole_view', handler: createBlackHoleViewHandler },
   'cascade': { family: 'science', retired: 'create_cascade_view', handler: createCascadeViewHandler },
   'cellular': { family: 'bio', retired: 'create_cellular_view', handler: createCellularViewHandler },
@@ -92,6 +100,7 @@ export const VIEW_KINDS = {
   'fluid': { family: 'science', retired: 'create_fluid_view', handler: createFluidViewHandler },
   'ftc': { family: 'math', retired: 'create_ftc_view', handler: createFtcViewHandler },
   'heat-sphere': { family: 'math', retired: 'create_heat_sphere_view', handler: createHeatSphereViewHandler },
+  'hydro': { family: 'science', handler: createHydroViewHandler },   // born inside create_view — no retired alias
   'fusion': { family: 'science', retired: 'create_fusion_view', handler: createFusionViewHandler },
   'galaxy': { family: 'science', retired: 'create_galaxy_view', handler: createGalaxyViewHandler },
   'gravity-wave': { family: 'science', retired: 'create_gravity_wave_view', handler: createGravityWaveViewHandler },
@@ -107,6 +116,9 @@ export const VIEW_KINDS = {
   'pythagoras': { family: 'math', retired: 'create_pythagoras_view', handler: createPythagorasViewHandler },
   'quadratic': { family: 'math', retired: 'create_quadratic_view', handler: createQuadraticViewHandler },
   'reactor': { family: 'science', retired: 'create_reactor_view', handler: createReactorViewHandler },
+  'river': { family: 'science', handler: createRiverViewHandler },   // born inside create_view — no retired alias
+  'rocket': { family: 'science', handler: createRocketViewHandler },   // born inside create_view — no retired alias
+  'airplane': { family: 'science', handler: createAirplaneViewHandler },   // born inside create_view — no retired alias
   'saturn': { family: 'science', retired: 'create_saturn_view', handler: createSaturnViewHandler },
   'star-surface': { family: 'science', retired: 'create_star_surface_view', handler: createStarSurfaceViewHandler },
   'series': { family: 'math', retired: 'create_series_view', handler: createSeriesViewHandler },
@@ -124,17 +136,60 @@ export const VIEW_KINDS = {
   'energy-cycle': { family: 'bio', retired: 'create_energy_cycle', handler: createEnergyCycleHandler },
 };
 
-const KIND_LIST = Object.keys(VIEW_KINDS);
+// Core kinds + any attached recipe-book Door-2 kinds (recipe-book.plan.md).
+// A FUNCTION, not a const: the book snapshot is published by ensureBookLoaded
+// during MCP init, before registerCreateViewTools() runs — but the empty-book
+// case must also stay correct if this module loads first. Core wins id
+// collisions (a clone must not shadow a shipped kind).
+function kindList() {
+  return [...Object.keys(VIEW_KINDS), ...[...bookViewKinds().keys()].filter((id) => !VIEW_KINDS[id])];
+}
+
+// Generic mint for a book kind — the per-kind mint file collapsed into one
+// path (mintSaturnView et al. keep their bespoke files; book kinds share
+// this). The builder's own plan() is the validator: it runs BEFORE the row is
+// stored, so a bad recipe fails the mint, not the render.
+function mintBookView(bk, merged) {
+  const { title, ref, folder_ref: folderRef, ...params } = merged;
+  const manifest = { kind: bk.manifestKind, ...params, ...(title ? { title } : {}) };
+  // ctx carries the injected toolkit (recipe-book/toolkit.js) — Tier-2
+  // builders need it to validate; Tier-0 builders ignore the argument.
+  const planned = (bk.plan ?? bk.assemble)(manifest, { title, toolkit: bk.toolkit });
+  let sketch;
+  try {
+    sketch = SketchRepository.create({ title: title || bk.title, manifest, ref, folderRef: folderRef ?? null });
+  } catch (err) {
+    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
+      throw new Error(`A sketch with ref '${ref}' already exists`);
+    }
+    throw err;
+  }
+  return {
+    ok: true,
+    ref: sketch.ref,
+    worldUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/world`,
+    url: `/sketches/${encodeURIComponent(sketch.ref)}`,
+    recipe: manifest,
+    stats: planned && typeof planned === 'object' && planned.stats ? planned.stats : {},
+  };
+}
+
+function resolveKindEntry(kind) {
+  if (VIEW_KINDS[kind]) return VIEW_KINDS[kind];
+  const bk = bookViewKinds().get(kind);
+  if (!bk) return null;
+  return { family: bk.family, book: true, handler: async (merged) => mintBookView(bk, merged) };
+}
 
 export async function createViewHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_view requires an object: { kind, params?, title?, ... }');
   }
   const { kind, params, title, viewBox, scene, ref, folder_ref: folderRef } = input;
-  const entry = VIEW_KINDS[kind];
+  const entry = resolveKindEntry(kind);
   if (!entry) {
     throw new Error(
-      `create_view: unknown kind '${kind}'. Known kinds: ${KIND_LIST.join(', ')}. ` +
+      `create_view: unknown kind '${kind}'. Known kinds: ${kindList().join(', ')}. ` +
         `Find one by intent via semantic_search({ kinds: ['view_vocab'] }), then read its ` +
         `parameter manual via get_view_vocab({ id: '<kind>' }).`,
     );
@@ -196,7 +251,7 @@ export function registerCreateViewTools() {
     inputSchema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: KIND_LIST, description: 'Which study object. Parameter manual: get_view_vocab({ id: kind }).' },
+        kind: { type: 'string', enum: kindList(), description: 'Which study object. Parameter manual: get_view_vocab({ id: kind }).' },
         params: { type: 'object', description: `The kind's own knobs (see its view-vocab card). Validated by the kind's mint; a failed mint returns the card pointer.` },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         viewBox: { type: 'object', description: 'Optional render size { width, height }.' },
@@ -229,7 +284,9 @@ export function registerCreateViewTools() {
   });
 
   // Deprecated per-kind creators — resolve in tools/call, hidden from tools/list.
+  // (kinds born inside create_view carry no `retired` alias and are skipped.)
   for (const [kind, entry] of Object.entries(VIEW_KINDS)) {
+    if (!entry.retired) continue;
     registerTool({
       name: entry.retired,
       listed: false,

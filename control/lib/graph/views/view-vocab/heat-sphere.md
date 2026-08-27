@@ -1,7 +1,7 @@
 ---
 {
   "id": "heat-sphere",
-  "name": "Heat Sphere",
+  "name": "Heat Equation on a Sphere",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive HEAT-EQUATION explainer — a sphere with a hot (red) top pole and a cold (blue) bottom pole, temperature DIFFUSING across the surface until the ball settles to one lukewarm shade, as a live three.js World.",

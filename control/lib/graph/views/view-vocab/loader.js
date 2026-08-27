@@ -27,6 +27,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../../module-dir.js';
+import { readBookCards } from '../recipe-book/cards.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/views/view-vocab');
 
 // `when` is required for the same reason as sketch-vocab: it's the
@@ -39,7 +40,7 @@ const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
 let cache = null;
 
-function parseCard(filePath) {
+export function parseCard(filePath) {
   const raw = readFileSync(filePath, 'utf8');
   const match = raw.match(FRONTMATTER_FENCE);
   if (!match) {
@@ -81,6 +82,25 @@ export function getViewVocabCatalog() {
     const card = parseCard(join(VOCAB_DIR, file));
     if (catalog.has(card.id)) {
       throw new Error(`view-vocab: duplicate card id '${card.id}' (${file})`);
+    }
+    catalog.set(card.id, card);
+  }
+  // Attached recipe-book cards (recipe-book.plan.md) — merged AFTER core so
+  // discovery (semantic_search), the get_view_vocab reader, and the embeddings
+  // reindex all see one catalog. Book cards are routed here by their `entry`
+  // frontmatter (the Phase-4 multi-family rule — beats/solid/motion cards go
+  // to THEIR catalogs); family rules are enforced at merge time, tolerantly —
+  // the book is user-editable, so warn-and-skip, never throw. On an id
+  // collision CORE WINS (a clone must not shadow a core manual). Absent a
+  // book ⇒ readBookCards returns [].
+  for (const card of readBookCards({ entries: ['create_view', 'compose_world'] })) {
+    if (!VALID_FAMILIES.has(card.family)) {
+      console.warn(`view-vocab: book card '${card.id}' has family '${card.family}' — not a view family; skipped`);
+      continue;
+    }
+    if (catalog.has(card.id)) {
+      console.warn(`view-vocab: recipe-book card '${card.id}' collides with a core card — core wins`);
+      continue;
     }
     catalog.set(card.id, card);
   }

@@ -1,7 +1,7 @@
 ---
 {
   "id": "probability",
-  "name": "Probability",
+  "name": "Galton Board",
   "family": "math",
   "entry": "create_view",
   "summary": "Mint an interactive PROBABILITY explainer — a GALTON BOARD (quincunx), rendered as a live traversable three.js World.",

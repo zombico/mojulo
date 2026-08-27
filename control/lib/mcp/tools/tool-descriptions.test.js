@@ -107,7 +107,10 @@ const DESCRIPTION_ALLOWLIST = {
   get_worked_example: 946,
   install_scaffold: 1317,
   list_catalysts: 833,
-  measure_view: 1327,
+  // measure_view re-pinned 2026-08-24: rocket-view landed as a measurable
+  // kind (full-mission SI telemetry) and the description gained its one-line
+  // column note. Shrink-only from here.
+  measure_view: 1423,
   meta_context_brief: 972,
   mint_catalyst: 850,
   meta_context_commit: 2635,

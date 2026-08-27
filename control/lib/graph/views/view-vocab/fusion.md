@@ -1,7 +1,7 @@
 ---
 {
   "id": "fusion",
-  "name": "Fusion",
+  "name": "Nuclear Fusion",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint a NUCLEAR FUSION event — deuterium (²H) and tritium (³H) overcoming the Coulomb barrier and MERGING into an excited ⁵He* compound nucleus, which ejects a fast 14 MeV neutron while the He-4 alpha recoils (²H + ³H → ⁴He + n + 17.6 MeV),…",

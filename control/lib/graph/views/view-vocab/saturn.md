@@ -1,7 +1,7 @@
 ---
 {
   "id": "saturn",
-  "name": "Saturn",
+  "name": "Planets of the Solar System",
   "family": "science",
   "entry": "create_view",
   "summary": "Mint a PLANET of the solar system — Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus or Neptune — OR a GALLERY stepper through all eight, rendered by a per-pixel ray-tracing fragment shader (the same shader path as the black hole).",
