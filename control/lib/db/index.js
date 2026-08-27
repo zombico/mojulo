@@ -17,12 +17,17 @@ function init(db) {
   db.pragma('foreign_keys = ON');
 
   db.exec(`
+    -- owner_user_id (roles-pack.plan.md Phase 3, the 1:1 inference rule):
+    -- NULL = the operator's house key (every pre-roles row is already
+    -- correct). A delegate's key rows carry their user id; the resolution
+    -- funnel (ApiKeyRepository.findByUserId) scopes to the caller.
     CREATE TABLE IF NOT EXISTS api_keys (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       provider TEXT NOT NULL,
       encrypted_key TEXT NOT NULL,
       is_default INTEGER NOT NULL DEFAULT 0,
+      owner_user_id TEXT,
       created_at INTEGER NOT NULL
     );
 
@@ -120,7 +125,8 @@ function init(db) {
       result_bytes INTEGER,
       input_json TEXT,
       result_json TEXT,
-      signal_json TEXT
+      signal_json TEXT,
+      user_id TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_tool ON mcp_tool_calls(tool, started_at);
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_status ON mcp_tool_calls(status, started_at);
@@ -775,6 +781,48 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_irq_status ON image_render_requests(status, created_at);
     CREATE INDEX IF NOT EXISTS idx_irq_ref ON image_render_requests(ref);
+
+    -- Roles pack (lib/mcp/roles-pack.plan.md) — operator-owned delegation, NOT
+    -- multi-tenancy. One row per key the operator cut: the operator is the
+    -- 'local' admin row; delegates (human or agent) are 'privileged' rows whose
+    -- bearer key is stored as a hash only. Off by default: with MOJULO_ROLES
+    -- unset this table stays empty and nothing reads it. token_epoch backs lazy
+    -- session revocation (bump it to kill all of a user's sessions).
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      role TEXT NOT NULL CHECK(role IN ('admin', 'privileged')),
+      token_hash TEXT UNIQUE,
+      token_epoch INTEGER NOT NULL DEFAULT 1,
+      flags_json TEXT,
+      expires_at INTEGER,
+      created_at INTEGER NOT NULL,
+      revoked_at INTEGER
+    );
+
+    -- Pack grants (roles-pack.plan.md Phase 2) — the authorization axis on the
+    -- capability bays packs.js declares. One row per (key, pack) the operator
+    -- granted; pack ids are validated against the PACKS manifest at write time
+    -- (tool layer). Real FKs, never a free-text string — the ancestor lesson.
+    CREATE TABLE IF NOT EXISTS user_grants (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      pack_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, pack_id)
+    );
+
+    -- Workshop spaces (roles-pack.plan.md Phase 4) — which room a delegate's
+    -- artifacts live in. A room divider, not a wall: keeps their sandbox out
+    -- of the production fleet and prevents accidental access. v1 is one space
+    -- per privileged user (auto-minted with their key); the admin's default
+    -- space is the NULL workshop_space_id on the scoped tables, so every
+    -- pre-roles row is already correct.
+    CREATE TABLE IF NOT EXISTS workshop_spaces (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_by TEXT NOT NULL REFERENCES users(id),
+      created_at INTEGER NOT NULL
+    );
   `);
 
   migrateDeploymentColumns(db);
@@ -792,6 +840,7 @@ function init(db) {
   migrateEmbeddingsSolidVocabKind(db);
   migrateEmbeddingsMotionVocabKind(db);
   migrateMcpToolCallColumns(db);
+  migrateUserColumns(db);
   reapStaleMcpJobs(db);
   pruneMcpToolCalls(db);
   maybeBackfillEmbeddings(db);
@@ -993,6 +1042,41 @@ function migrateMcpToolCallColumns(db) {
   const have = new Set(cols.map((c) => c.name));
   if (!have.has('signal_json')) {
     db.exec('ALTER TABLE mcp_tool_calls ADD COLUMN signal_json TEXT');
+  }
+  // user_id (roles-pack.plan.md Phase 1): per-key call attribution at the
+  // telemetry seam. 'local' for the operator; a delegate key's user id when the
+  // roles pack is enabled. What makes the 1:1 inference rule demonstrable from
+  // telemetry rather than just asserted.
+  if (!have.has('user_id')) {
+    db.exec('ALTER TABLE mcp_tool_calls ADD COLUMN user_id TEXT');
+  }
+}
+
+function migrateUserColumns(db) {
+  // flags_json (roles-pack.plan.md Phase 2): the key's boundary flags —
+  // propose_only / outward / lifecycle / house_keys. Guarded for dev
+  // databases that created the Phase 1 users table without it.
+  const cols = db.prepare('PRAGMA table_info(users)').all();
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('flags_json')) {
+    db.exec('ALTER TABLE users ADD COLUMN flags_json TEXT');
+  }
+  // api_keys.owner_user_id (Phase 3, the 1:1 inference rule): NULL = house
+  // key, so every existing row is already correct.
+  const keyCols = db.prepare('PRAGMA table_info(api_keys)').all();
+  const keyHave = new Set(keyCols.map((c) => c.name));
+  if (!keyHave.has('owner_user_id')) {
+    db.exec('ALTER TABLE api_keys ADD COLUMN owner_user_id TEXT');
+  }
+  // workshop_space_id (Phase 4) on the four tables where delegates create
+  // things. NULL = the admin's default space — every existing row is already
+  // correct. The deny-first lever bounds the sweep to exactly these four;
+  // creative stores stay unscoped until a real delegate needs them.
+  for (const table of ['deployments', 'documents', 'sketches', 'plans']) {
+    const tCols = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!tCols.some((c) => c.name === 'workshop_space_id')) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN workshop_space_id TEXT`);
+    }
   }
 }
 

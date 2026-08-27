@@ -22,6 +22,7 @@
 import { performance } from 'node:perf_hooks';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
+import { runWithScope, scopeFromContext } from '@/lib/roles/scope';
 
 export const DEFAULT_TOOL_TIMEOUT_MS = 120_000;
 const ERROR_MESSAGE_MAX = 500;
@@ -74,8 +75,12 @@ function serializedBytes(value) {
   }
 }
 
-// Full-capture debug payloads — only computed when the flag is on.
-function captureJson(value) {
+// Full-capture debug payloads — only computed when the flag is on. Tools that
+// handle secrets (e.g. mint_role_key returns a bearer token once) register
+// `noCapture: true` and are exempt even under the debug flag: secret material
+// never persists to mcp_tool_calls.
+function captureJson(value, tool) {
+  if (tool?.noCapture) return null;
   if (!fullCaptureEnabled()) return null;
   try {
     return truncate(JSON.stringify(value ?? null), CAPTURE_JSON_MAX);
@@ -161,10 +166,15 @@ function logLine({ tool, durationMs, status, via, sessionId }) {
 export async function instrumentedInvoke(tool, input, context, { via, name } = {}) {
   const calledName = name || tool?.name || 'unknown';
 
+  // Workshop-space scope (roles-pack.plan.md Phase 4): a delegate's handler
+  // runs under their space so the scoped repositories self-filter. Null for
+  // the operator / roles off — runs bare.
+  const scope = scopeFromContext(context);
+
   // Fast path: telemetry off ⇒ no timing, no timeout, no record. The signal
   // key is still stripped so it never leaks to the wire.
   if (!telemetryEnabled()) {
-    const result = await tool.handler(input || {}, context || {});
+    const result = await runWithScope(scope, () => tool.handler(input || {}, context || {}));
     takeSignal(result);
     return result;
   }
@@ -181,15 +191,20 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
     via: via || 'rpc',
     sessionId,
     client,
+    // Per-key attribution (roles-pack.plan.md Phase 1): 'local' for the
+    // operator; a delegate's user id when a roles-pack key made the call.
+    userId: context?.userId || null,
     startedAt,
     inputKeys: keys,
     inputBytes: bytes,
-    inputJson: captureJson(input),
+    inputJson: captureJson(input, tool),
   };
 
   // Race the handler against a soft timeout. The handler promise is retained so
   // that on timeout we can watch it settle (late_settle) rather than orphan it.
-  const handlerPromise = Promise.resolve().then(() => tool.handler(input || {}, context || {}));
+  const handlerPromise = Promise.resolve().then(() =>
+    runWithScope(scope, () => tool.handler(input || {}, context || {}))
+  );
   let timer = null;
   const timeoutPromise = new Promise((_, reject) => {
     timer = setTimeout(() => reject(TIMEOUT), timeoutMs);
@@ -205,7 +220,7 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
       durationMs,
       status: 'ok',
       resultBytes: serializedBytes(result),
-      resultJson: captureJson(result),
+      resultJson: captureJson(result, tool),
       signalJson,
     });
     logLine({ tool: calledName, durationMs, status: 'ok', via: base.via, sessionId });
@@ -229,7 +244,7 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
             durationMs: lateMs,
             status: 'late_settle',
             resultBytes: serializedBytes(lateResult),
-            resultJson: captureJson(lateResult),
+            resultJson: captureJson(lateResult, tool),
             signalJson: lateSignalJson,
           });
           logLine({ tool: calledName, durationMs: lateMs, status: 'late_settle', via: base.via, sessionId });

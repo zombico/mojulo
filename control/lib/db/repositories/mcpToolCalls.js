@@ -43,6 +43,7 @@ function rowToCall(row) {
     inputJson: row.input_json || null,
     resultJson: row.result_json || null,
     signal: row.signal_json ? safeParse(row.signal_json, null) : null,
+    userId: row.user_id || null,
   };
 }
 
@@ -77,8 +78,8 @@ export const McpToolCallRepository = {
       `INSERT INTO mcp_tool_calls
         (tool, via, session_id, client_name, client_version, started_at,
          duration_ms, status, error_message, input_keys, input_bytes,
-         result_bytes, input_json, result_json, signal_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         result_bytes, input_json, result_json, signal_json, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       row.tool,
       row.via,
@@ -94,7 +95,8 @@ export const McpToolCallRepository = {
       row.resultBytes ?? null,
       row.inputJson ?? null,
       row.resultJson ?? null,
-      row.signalJson ?? null
+      row.signalJson ?? null,
+      row.userId ?? null
     );
   },
 

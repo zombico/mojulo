@@ -57,6 +57,11 @@ async function loopOnce({ adapter, invokeTimeoutMs, pullWaitMs }) {
   const entry = await pullNext({
     waitMs: pullWaitMs,
     kindsFilter: adapter.supportedKinds,
+    // The in-process fulfiller runs on the OPERATOR's runtime — it claims the
+    // 'local' lane only. A delegate's tasks wait for that delegate's own
+    // agent; letting the house fulfiller absorb them would re-form the
+    // subscription multiplexer (roles-pack.plan.md, the 1:1 inference rule).
+    forUserId: 'local',
   });
   if (!entry) return;
   const payload = entry.payload || {};

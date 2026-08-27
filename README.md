@@ -348,9 +348,9 @@ Play data never enters mojulo. Like a bot, the artifact runs on its own; the sub
 
 ## Security & deployment posture
 
-The control plane is **single-user, self-hosted, localhost-only by default**. Two access-control affordances, both opt-in:
+The control plane is **single-operator, self-hosted, localhost-only by default** — no user identity unless the operator enables the opt-in roles pack to issue scoped, revocable keys to their own delegates (operator-owned delegation, not multi-tenancy). Two access-control affordances, both opt-in:
 
-- **HTTP login** (for the dashboard UI). Set `CONTROL_PLANE_USER` + `CONTROL_PLANE_PASSWORD` in `control/.env`. Sessions are HMAC-signed with the password itself, so rotating it invalidates every outstanding session. Intentionally minimal — no MFA, no lockout, no multi-user.
+- **HTTP login** (for the dashboard UI). Set `CONTROL_PLANE_USER` + `CONTROL_PLANE_PASSWORD` in `control/.env`. Sessions are HMAC-signed with the password itself, so rotating it invalidates every outstanding session. Intentionally minimal — no MFA, no lockout, no multi-user (per-delegate logins arrive only with the opt-in roles pack).
 - **MCP bearer token** (for HTTP MCP). Set `CONTROL_PLANE_MCP_KEY` to enable `/api/mcp`; with the key unset, the route 404s. The stdio transport (`npx -y mojulo`) is local-only and doesn't use this key.
 
 **Network posture:** don't expose the control plane to the public internet. Pick whichever fits:

@@ -20,6 +20,7 @@
 import { registerTool, getRegisteredTool, runToolSerialized } from '@/lib/mcp/server';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 import { PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
+import { authNotice } from '@/lib/roles/enforce';
 import { FORM_TOOLSETS } from '@/lib/mcp/tools/context';
 
 function packBody(pack) {
@@ -91,6 +92,11 @@ function dispatch(pack, input, context) {
   // even when dispatched through an installed pack that merely lists it.
   const memberNotice = installNotice(name);
   if (memberNotice) throw new Error(memberNotice);
+  // Authorization gate (roles-pack.plan.md Phase 2) — the third chokepoint.
+  // Checked per MEMBER (its home pack, the deny-list, the key's flags), so a
+  // shared member homed in an ungranted bay cannot run through a granted one.
+  const authDenial = authNotice(name, context);
+  if (authDenial) throw new Error(authDenial);
   return runToolSerialized(member, () =>
     instrumentedInvoke(member, input.args || {}, context, {
       via: `pack:${pack.id}`,

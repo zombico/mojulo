@@ -1,5 +1,7 @@
 import { getDb } from '../index.js';
 import { newId } from '../ids.js';
+import { rolesEnabled } from '../../roles/keys.js';
+import { UserRepository } from './users.js';
 
 function rowToApiKey(row) {
   if (!row) return null;
@@ -9,16 +11,35 @@ function rowToApiKey(row) {
     provider: row.provider,
     encryptedKey: row.encrypted_key,
     isDefault: row.is_default === 1,
+    ownerUserId: row.owner_user_id || null,
     createdAt: new Date(row.created_at),
   };
 }
 
 export const ApiKeyRepository = {
-  async findByUserId(_userId) {
-    // Single-user mode: ignore userId and return all keys
+  /**
+   * The key-resolution funnel (roles-pack.plan.md Phase 3 — BYOK per
+   * account). Roles off, or the operator: every key, exactly as before. A
+   * delegate resolves ONLY their own rows — plus the operator's house keys
+   * (owner NULL) when their key carries the admin-granted `house_keys` flag.
+   * A keyless delegate falls through to the existing "no LLM key configured"
+   * refusal at the call sites. Scoping lives HERE so every caller that
+   * threads userId (session-binding preload, builder executor,
+   * tool-executors) is covered by one funnel.
+   */
+  async findByUserId(userId) {
     const db = getDb();
-    const rows = db.prepare('SELECT * FROM api_keys ORDER BY is_default DESC, created_at ASC').all();
-    return rows.map(rowToApiKey);
+    const rows = db
+      .prepare('SELECT * FROM api_keys ORDER BY is_default DESC, created_at ASC')
+      .all()
+      .map(rowToApiKey);
+    if (!rolesEnabled() || !userId || userId === 'local') return rows;
+    const user = UserRepository.findById(userId);
+    if (!user || user.role === 'admin') return rows;
+    const houseAllowed = Boolean(user.flags?.house_keys);
+    return rows.filter(
+      (k) => k.ownerUserId === userId || (houseAllowed && !k.ownerUserId)
+    );
   },
 
   async findById(id) {
@@ -41,7 +62,7 @@ export const ApiKeyRepository = {
     return rowToApiKey(row);
   },
 
-  async create({ name, provider, encryptedKey, isDefault = false }) {
+  async create({ name, provider, encryptedKey, isDefault = false, ownerUserId = null }) {
     const db = getDb();
     const id = newId('ak');
     const now = Date.now();
@@ -51,9 +72,9 @@ export const ApiKeyRepository = {
     }
 
     db.prepare(
-      `INSERT INTO api_keys (id, name, provider, encrypted_key, is_default, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(id, name, provider, encryptedKey, isDefault ? 1 : 0, now);
+      `INSERT INTO api_keys (id, name, provider, encrypted_key, is_default, owner_user_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, name, provider, encryptedKey, isDefault ? 1 : 0, ownerUserId, now);
 
     return this.findById(id);
   },

@@ -45,7 +45,7 @@ The MCP surface is a single Next.js route ([api/mcp/route.js](../control/app/api
 
 Key invariants:
 
-- **Auth is opt-in.** With `CONTROL_PLANE_MCP_KEY` unset the route returns `404` (not `401`) so external probes can't fingerprint whether MCP is "off" vs "wrong key". Same single-user posture as the rest of the control plane — never expose `/api/mcp` to the public internet.
+- **Auth is opt-in.** With `CONTROL_PLANE_MCP_KEY` unset the route returns `404` (not `401`) so external probes can't fingerprint whether MCP is "off" vs "wrong key". Same single-operator posture as the rest of the control plane — never expose `/api/mcp` to the public internet.
 - **Tool execution failures return as MCP `tool_result` with `isError:true`**, not JSON-RPC errors — per spec, so the connecting model sees the failure and can react inside its loop.
 - **Lazy tool registration.** `ensureToolsRegistered()` (in [server.js](../control/lib/mcp/server.js)) fires on first request; the registration order is **deliberate** because most MCP clients surface `tools/list` to the model as a list — the natural reading order surfaces orientation → per-bot → fleet → outcome → deliberation. Don't reorder casually.
 - **GET on `/api/mcp` is reserved** by the Streamable HTTP spec for server-initiated SSE; we 405 it for now. The wire shape currently in use is "POST a JSON-RPC message, get one back" plus batch arrays.
@@ -323,7 +323,7 @@ Properties:
 - **Refresh on every call.** `getOrCreateBuilderSession` re-reads the session row from SQLite each time so handlers see writes from prior tool calls in the same connection.
 - **LLM key required.** Tool handlers refuse to start a session if no Anthropic/OpenAI/Ollama key is configured on the control plane — cloud-deploy tokens (Fly) don't count.
 
-Single-user posture: every call is scoped to `userId='local'`. There is no multi-tenant identity inside MCP (see [auth/service.js](../control/lib/auth/service.js)).
+Single-operator posture: by default every call is scoped to `userId='local'` — there is no user identity (see [auth/service.js](../control/lib/auth/service.js)). With the opt-in roles pack enabled, the presented bearer resolves to an operator-issued key with its own scoped identity; this is operator-owned delegation (the operator cutting keys to their own house), never multi-tenant identity — there is exactly one owner, and every key is operator-issued and operator-revocable.
 
 ---
 

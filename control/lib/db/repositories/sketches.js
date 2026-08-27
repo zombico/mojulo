@@ -1,5 +1,16 @@
 import { getDb } from '../index.js';
 import { classifyBucket } from '../../graph/sketch/sketch-manifest.js';
+import { currentSpaceId } from '../../roles/scope.js';
+
+// Workshop-space scope (roles-pack.plan.md Phase 4). A delegate's handlers
+// run under their space (lib/roles/scope.js): creates stamp it, reads and
+// mutations see only rows in it (a cross-space ref reads as not-found —
+// 404-not-403). The operator / roles off is the null scope: no clause, no
+// behavior change.
+function spaceFilter() {
+  const space = currentSpaceId();
+  return space ? { sql: ' AND workshop_space_id = ?', params: [space] } : { sql: '', params: [] };
+}
 
 function shortRef() {
   // Short collision-resistant slug: 10 chars of base36 from crypto entropy.
@@ -42,15 +53,18 @@ export const SketchRepository = {
     const db = getDb();
     const finalRef = ref || shortRef();
     db.prepare(
-      `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, created_at)
-       VALUES (?, ?, ?, ?, ?, unixepoch())`,
-    ).run(finalRef, title, JSON.stringify(manifest), folderRef || null, bucket || null);
+      `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, workshop_space_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, unixepoch())`,
+    ).run(finalRef, title, JSON.stringify(manifest), folderRef || null, bucket || null, currentSpaceId());
     return this.getByRef(finalRef);
   },
 
   getByRef(ref) {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM sketches WHERE ref = ?').get(ref);
+    const scope = spaceFilter();
+    const row = db
+      .prepare(`SELECT * FROM sketches WHERE ref = ?${scope.sql}`)
+      .get(ref, ...scope.params);
     return rowToSketch(row);
   },
 
@@ -74,11 +88,12 @@ export const SketchRepository = {
     // pinned value (null when derived).
     const nextBucket =
       bucket === undefined ? existing.bucketOverride : bucket || null;
+    const scope = spaceFilter();
     db.prepare(
       `UPDATE sketches
           SET title = ?, manifest_json = ?, folder_ref = ?, bucket = ?
-        WHERE ref = ?`,
-    ).run(nextTitle, JSON.stringify(nextManifest), nextFolderRef, nextBucket, ref);
+        WHERE ref = ?${scope.sql}`,
+    ).run(nextTitle, JSON.stringify(nextManifest), nextFolderRef, nextBucket, ref, ...scope.params);
     return this.getByRef(ref);
   },
 
@@ -88,29 +103,34 @@ export const SketchRepository = {
   moveMany({ refs, folderRef }) {
     if (!Array.isArray(refs) || refs.length === 0) return 0;
     const db = getDb();
+    const scope = spaceFilter();
     const placeholders = refs.map(() => '?').join(',');
     const result = db
       .prepare(
-        `UPDATE sketches SET folder_ref = ? WHERE ref IN (${placeholders})`,
+        `UPDATE sketches SET folder_ref = ? WHERE ref IN (${placeholders})${scope.sql}`,
       )
-      .run(folderRef || null, ...refs);
+      .run(folderRef || null, ...refs, ...scope.params);
     return result.changes;
   },
 
   deleteByRef(ref) {
     if (!ref) return 0;
     const db = getDb();
-    const result = db.prepare('DELETE FROM sketches WHERE ref = ?').run(ref);
+    const scope = spaceFilter();
+    const result = db
+      .prepare(`DELETE FROM sketches WHERE ref = ?${scope.sql}`)
+      .run(ref, ...scope.params);
     return result.changes;
   },
 
   deleteMany({ refs }) {
     if (!Array.isArray(refs) || refs.length === 0) return 0;
     const db = getDb();
+    const scope = spaceFilter();
     const placeholders = refs.map(() => '?').join(',');
     const result = db
-      .prepare(`DELETE FROM sketches WHERE ref IN (${placeholders})`)
-      .run(...refs);
+      .prepare(`DELETE FROM sketches WHERE ref IN (${placeholders})${scope.sql}`)
+      .run(...refs, ...scope.params);
     return result.changes;
   },
 
@@ -121,6 +141,16 @@ export const SketchRepository = {
   // an empty list just because root has crowded them past the cap.
   list({ rootLimit = 200, bucket = null } = {}) {
     const db = getDb();
+    // Delegate scope: their space is small — one flat scoped query, the root
+    // cap and bucket filter applied the same way.
+    const space = currentSpaceId();
+    if (space) {
+      const rows = db
+        .prepare('SELECT * FROM sketches WHERE workshop_space_id = ? ORDER BY created_at DESC')
+        .all(space);
+      const sketches = rows.map(rowToSketch);
+      return bucket ? sketches.filter((s) => s.bucket === bucket) : sketches;
+    }
     // Bucket-scoped queries (the Arcade, the Maker galleries) must see EVERY
     // sketch in the bucket, so the root cap must NOT pre-truncate the candidate
     // set — otherwise an older game/world silently drops out of its gallery once

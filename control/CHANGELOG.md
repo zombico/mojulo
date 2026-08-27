@@ -8,6 +8,74 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Roles pack — operator-owned delegation (opt-in), Phases 0–4
+
+Off by default: with `MOJULO_ROLES` unset a fresh install is byte-identical in
+behavior to 1.4.2. See `lib/mcp/roles-pack.plan.md` for the full design.
+
+- **Doctrine (Phase 0).** The posture docs reframe single-user as
+  single-operator: there is no user identity *by default*; the operator may
+  enable the roles pack to cut scoped, revocable keys for their own delegates —
+  operator-owned delegation, never multi-tenancy, and the maintainer still
+  gates nothing (responsibility-model, CLAUDE.md golden rule,
+  MCP-ARCHITECTURE §5, README, mcp-integration; TERMS.md unchanged).
+- **Identity (Phase 1).** Additive `users` table + `mcp_tool_calls.user_id`;
+  bearer keys minted as `mjr_…` tokens stored hash-only, resolved at the one
+  identity mint (`buildContext` in `api/mcp/route.js` — god-key first,
+  delegate keys only when enabled; revoked/expired keys are indistinguishable
+  from wrong keys). Admin-only `mint_role_key` / `list_role_keys` /
+  `revoke_role_key` tools (unlisted until Phase 2's grant enforcement lists
+  them as a pack). Every tool call is attributed to its caller's key in
+  telemetry, and the minting tool is capture-exempt so the plaintext token
+  never persists even under `MOJULO_MCP_TELEMETRY_CAPTURE=full`.
+- **Capability enforcement (Phase 2).** Authorization becomes the third axis
+  on the capability bays `packs.js` declares (install / presentation /
+  authorization), enforced with the install gate's advisory idiom at the same
+  three chokepoints (`handleToolCall`, `invokeRegisteredTool`, the pack
+  dispatcher) by one pure function (`lib/roles/enforce.js` — grants and flags
+  ride the execution context, loaded once at the identity mint). A privileged
+  key is a bundle of boundaries: pack grants (validated against the manifest
+  at mint), the hard deny-list (secrets/env, daemon control, roles admin —
+  never grantable), propose-vs-seal (`propose_only` keys forge plans but
+  never `execute_plan` / `meta_context_commit` / deploy), and
+  outward/lifecycle action flags (leave-the-host and start/stop-process
+  actions, default off). `tools/list` shows a delegate only their granted
+  bays; admins with roles enabled additionally see the roles-admin tools.
+  Spine orientation stays available to every key.
+- **The 1:1 inference rule (Phase 3).** Every unit of inference the substrate
+  mediates is attributable to exactly one account's own credential;
+  subscription credentials never enter the substrate. BYOK per account:
+  `api_keys.owner_user_id` (NULL = the operator's house key, so every
+  existing row is already correct) with scoping in the one key-resolution
+  funnel (`ApiKeyRepository.findByUserId`) — a delegate resolves only their
+  own keys, plus house keys under the admin-granted `house_keys` flag (team
+  API-key sharing, the provider-anticipated pattern). Side door 1 closed:
+  agent-task lanes — parked tasks carry their originating account, a puller
+  claims only its own lane (the in-process Node fulfiller claims 'local'
+  only), and starvation is loud: an unfulfilled delegate task expires naming
+  its lane instead of drifting to whoever else is online. Side door 2
+  closed: a credential-shape guard at the api_keys write path refuses
+  OAuth/subscription-shaped credentials (`sk-ant-oat…`, JWTs) — shape, not
+  policing. Local inference (Ollama) is exempt by design: the rule governs
+  credentials, not compute.
+- **Workshop-spaces (Phase 4).** A room divider, not a wall: each delegate
+  key mints one workshop space, and the four tables where delegates create
+  things (`deployments` / `documents` / `sketches` / `plans`) gain a nullable
+  `workshop_space_id` (NULL = the operator's default space — every existing
+  row already correct). Scope rides an AsyncLocalStorage entered at the one
+  handler-invocation seam, so the repositories self-scope with no per-call-site
+  threading: a delegate's creates stamp their space, reads/lists see only it,
+  and cross-space refs read as not-found (404-not-403, the ancestor lesson).
+  Dashboard sessions are per-user: session tokens now carry signed claims
+  (`userId` / `role` / `epoch` / expiry); the Edge layer still verifies
+  signature+expiry only, and revocation is checked lazily in the Node layer
+  against `users.token_epoch` (revoking a key kills its sessions). A delegate
+  logs in with their key name + bearer key; pre-claims session tokens fail
+  closed (one re-login on upgrade). Deferred, explicitly: per-space secrets,
+  scoped cross-cutting reads, space sharing, dashboard affordance filtering.
+
 ## [1.4.2] - 2026-08-24
 
 ### Language picker surfaced on fresh install + game-copy reframe
