@@ -69,6 +69,12 @@ export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.gl
   const unpromoted = (score.mechanics ?? []).filter((m) => m && m.kind !== 'reach-exit');
 
   const ledger = { ...score.ledger };
+  ledger.entity_markers = {
+    note: 'entities that baked no mesh (glyph/primitive bodies — export-side gap) render as gold placeholder markers; the web build is the reference look',
+  };
+  ledger.web_color_shift = {
+    note: 'web preset renders via GL Compatibility, which reads vertex colours as sRGB — linear COLOR_0 draws darker there; desktop uses Forward+ and is colour-true',
+  };
   if (score.ground != null) {
     ledger.promoted_ground = { note: 'implicit runtime ground plane (z=0) promoted as WorldBoundaryShape3D — the collider AABBs are obstacle hulls only, never the floor' };
   }
@@ -112,8 +118,7 @@ run/main_scene="res://level.tscn"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.web="gl_compatibility"
 `,
   });
 
@@ -192,6 +197,28 @@ ${conns.length ? `\n${conns.join('\n')}\n` : ''}`,
   });
 
   // ── level.gd ──
+  // glTF names sanitize on import (entity:hero → entity_hero) — match sanitized.
+  const playerHide = score.player ? `
+	var double := find_child("${gdName(`entity:${score.player}`)}", true, false)
+	if double is Node3D:
+		double.visible = false` : '';
+  // Entities that baked no mesh (glyph/primitive bodies — an export-side gap,
+  // same family as the G0 roster findings) get a visible placeholder so
+  // gameplay anchors aren't invisible; the web build is the reference look.
+  const markerSize = 0.7 * eyeScale;
+  const entityMarkers = `
+	for ent in find_children("entity_*", "Node3D", true, false):
+		if ent.visible and ent.find_children("*", "MeshInstance3D", true, false).is_empty():
+			var marker := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(${fmt(markerSize)}, ${fmt(markerSize)}, ${fmt(markerSize)})
+			var mm := StandardMaterial3D.new()
+			mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mm.albedo_color = Color(0.92, 0.76, 0.3)
+			box.material = mm
+			marker.mesh = box
+			marker.position = Vector3(0, ${fmt(markerSize / 2)}, 0)
+			ent.add_child(marker)`;
   const musicReady = audioFile ? `
 	var music: AudioStreamPlayer = get_node_or_null("Music")
 	if music != null:
@@ -243,7 +270,7 @@ func _ready() -> void:
 			var mat: Material = mi.get_active_material(s)
 			if mat is StandardMaterial3D:
 				mat.vertex_color_use_as_albedo = true
-				mat.vertex_color_is_srgb = false${musicReady}${camToggle}${exitHandler}
+				mat.vertex_color_is_srgb = false${playerHide}${entityMarkers}${musicReady}${camToggle}${exitHandler}
 `,
   });
 

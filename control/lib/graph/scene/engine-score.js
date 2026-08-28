@@ -49,6 +49,10 @@ export function extractEngineScore(sketch, payload) {
     cameras: levelCameras(payload) ?? [],
     entities: levelEntityNodes(payload) ?? [],
     mechanics: manifest.game?.mechanics ?? [],
+    // The runtime's player seat (level-synth deriveLevelPlayer): first entity
+    // with a walk/platform rule. Emitters hide its exported body — the
+    // operator IS the walker; leaving it renders a body double at spawn.
+    player: (payload.entities ?? []).find((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform')?.id ?? null,
     game: extras['moj:game'] ?? null,
     soundtrack: payload.audio?.soundtrack?.beatsRef ?? manifest.audio?.soundtrack?.beatsRef ?? null,
     ledger,
