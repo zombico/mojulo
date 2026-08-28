@@ -8,6 +8,57 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version.
 
+## [Unreleased]
+
+### Godot handoff — the engine leg of interchange (G0 → G6 kernel)
+
+A world or game authored as recipes now exports as a ready-to-open Godot 4
+project — playable when the gameplay is declarative, an honest asset handoff
+when it is not. Full design + build logs in
+`lib/graph/scene/godot-handoff.plan.md`; sibling plan alignment in
+`lib/graph/game/export-unreal.plan.md`.
+
+- **G0 verification gate (closed).** `scripts/godot-verify.mjs` + `.gd`
+  repeat the Blender I4 gate against Godot 4.7: clips, cameras, `moj:*`
+  extras, COLOR_0 + unlit all survive import. Load-bearing findings recorded:
+  Godot never sets `vertex_color_use_as_albedo` (worlds render white without
+  the fixup), clips resample at 30 fps, extras flatten to one meta dict.
+- **`export-godot` (G1 + game scope).** `scripts/export-godot.mjs` emits
+  `data/outcomes/<ref>/godot/` for a world ref (walkable level) or a game ref
+  (menu, `completed`-gated progression persisted to `user://progress.cfg`,
+  music beds with volumes). Machine gate built in: headless `--import` ×2
+  plus a one-frame run of every scene (import compiles no GDScript, and
+  Godot exits 0 on script-load failure — the gate greps the log); `--web`
+  attempts the web build. Deterministic packs: same rows → same bytes, no
+  timestamps, no uids.
+- **The mojulo-godot kernel 0.1.0 (G6).** Packs ship DATA performed by a
+  hand-authored, versioned kernel (`lib/graph/scene/godot-kernel/` — copied
+  verbatim, never generated): score.json/game.json are interpreted at
+  runtime for ground + colliders, cameras, the walker, material fixup, and
+  the FULL declarative mechanics vocabulary — reach-exit, collect (bag +
+  HUD), hazard-damage (HP + visible danger spheres), survive, fail-on-death.
+  One score, two instruments: game-shell.js performs it on the web, the
+  kernel performs it in Godot.
+- **Portable profile (advisory).** `lib/graph/scene/engine-portability.js`
+  assesses gameplay against the vocabulary at export; `portability.json`
+  ships in every pack. Crypt-of-the-rune-key: portable, zero flags; Mobile
+  Suit Arena: 47 named flags ("win condition lives in runtime code") — the
+  score travels, the combat performance is re-orchestration by doctrine.
+- **MCP surface.** `export_game { target: 'godot' }` emits the pack
+  in-process via the shared assembly engine (`lib/graph/scene/godot-pack.js`,
+  one code path behind both the CLI and the tool). One-sentence description
+  growth against the payload ceiling.
+- **Shared score extraction.** `lib/graph/scene/engine-score.js` — the
+  engine-agnostic resolved-payload digest (colliders, spawn, cameras,
+  entities, mechanics, audio, honest-loss ledger) that the planned Unreal
+  leg consumes as-is; `export-unreal.plan.md` gains the implicit-ground-plane
+  row the Godot spikes surfaced.
+- **Proven cargo.** MSA chunky run: 45 levels / 1.66 GB / 12,216 animations,
+  import + 46 one-frame runs clean, zero per-world code. Known export-side
+  debts unchanged and named in ledgers (glyph/primitive entities bake no
+  mesh — kernel draws placeholder markers; roster clump; per-level rig
+  duplication).
+
 ## [1.5.0] - 2026-08-26
 
 ### Roles pack — operator-owned delegation (opt-in), Phases 0–4

@@ -246,8 +246,27 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
 
 export async function exportGameHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
-  const { ref } = input;
+  const { ref, target } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
+
+  if (target === 'godot') {
+    const { buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
+    const outDir = path.join(outcomeDirFor(ref), 'godot');
+    const pack = await buildGodotGamePack({ ref, outDir });
+    return {
+      ok: true,
+      ref,
+      target: 'godot',
+      dir: outDir,
+      kernel: pack.kernelVersion,
+      files: pack.written.length,
+      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
+      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
+      ledger: pack.ledger,
+      note: 'Pack emitted (data + versioned kernel). Machine gate + web build live in the CLI: '
+        + `node scripts/export-godot.mjs --ref ${ref} — or open the folder in Godot ≥4.5 and run.`,
+    };
+  }
 
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
@@ -494,11 +513,15 @@ export function registerExportGameTools() {
       + 'to play + how to re-mint). Deterministic: same rows → same folder. The folder previews '
       + 'locally at `/outcomes/<ref>/game.html` — exactly what ships. '
       + "Slow for big games (each level is a full world bake). Reach for \"export this game\", "
-      + '"make the game shareable / playable outside mojulo", "publish the game to GitHub Pages".',
+      + '"make the game shareable / playable outside mojulo", "publish the game to GitHub Pages". '
+      + "`target:'godot'` instead emits a Godot 4 pack under `data/outcomes/<ref>/godot/` — data "
+      + '(per-level GLB + score.json + game.json + audio) performed by the versioned mojulo-godot '
+      + 'kernel, with a portability report.',
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
+        target: { type: 'string', enum: ['web', 'godot'], description: 'Optional. Default `web` (the self-contained folder). `godot` emits the engine pack instead.' },
       },
       required: ['ref'],
     },
