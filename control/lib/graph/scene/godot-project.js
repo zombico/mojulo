@@ -1,345 +1,42 @@
 /**
- * godot-project.js — the Godot 4 project emitter (godot-handoff.plan.md G1).
+ * godot-project.js — the Godot 4 pack emitter (godot-handoff.plan.md G1 +
+ * game scope, reshaped by G6: kernel architecture).
  *
- * Consumes the engine score (engine-score.js) and emits a ready-to-open,
- * text-only Godot project: project.godot, a level.tscn that instances the
- * exported GLB and PROMOTES the score to real nodes (StaticBody3D+BoxShape3D
- * per collider AABB, Marker3D at spawn, Camera3D per worldFraming, an Area3D
- * per reach-exit mechanic, AudioStreamPlayer for the soundtrack), a
- * CharacterBody3D walker so the level is playable on open, web + macOS export
- * presets, and the provenance README with the honest-loss ledger.
+ * Since kernel 0.1.0 the pack ships DATA and the versioned hand-authored
+ * kernel (lib/graph/scene/godot-kernel/, copied in by the driver) performs
+ * it: level.tscn is a three-line stub pointing kernel/level.gd at
+ * score.json; game packs add game.json + a menu stub + the Game autoload
+ * (kernel/game.gd). All promotion — ground, colliders, cameras, walker, the
+ * full mechanics vocabulary, material fixup — happens in the kernel at
+ * runtime. One score, two instruments: game-shell.js is the web kernel,
+ * godot-kernel/ is this one.
  *
- * The G0 vertex-colour contract (Finding 1) is applied by level.gd at _ready:
- * Godot's glTF import never sets vertex_color_use_as_albedo, so every
- * vertex-coloured face would render white. Chosen mechanism: runtime fixup on
- * the imported scene's materials — version-robust, zero .import hand-writing,
- * works identically in-editor-play and in exported builds.
- *
- * Frame: the score is z-up; Godot is y-up. Conversion here mirrors
- * scene-gltf's ZUP_TO_YUP root exactly: (x, y, z) → (x, z, -y); camera quats
- * are conjugated by the same rotation. Determinism: no dice, no timestamps,
- * stable ordering; ext_resource uids are deliberately omitted (path fallback
- * — the plan's uid note) so re-mints stay diff-clean.
+ * The emitter's remaining jobs: scene stubs, project.godot, export presets,
+ * .gitignore, and the provenance README with the honest-loss ledger (which
+ * shrank — the vocabulary is now interpreted, not ledgered).
+ * Everything emitted is deterministic text: no dice, no timestamps, stable
+ * ordering, no uids (path fallback, the plan's uid note).
  */
 
-const YUP = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2]; // -90° about X, matches scene-gltf ZUP_TO_YUP
-
-const toYup = ([x, y, z]) => [x, z, -y];
-
-function quatMul(a, b) {
-  const [ax, ay, az, aw] = a;
-  const [bx, by, bz, bw] = b;
-  return [
-    aw * bx + ax * bw + ay * bz - az * by,
-    aw * by - ax * bz + ay * bw + az * bx,
-    aw * bz + ax * by - ay * bx + az * bw,
-    aw * bw - ax * bx - ay * by - az * bz,
-  ];
-}
-
-// Quaternion [x,y,z,w] → rotation matrix rows (the .tscn Transform3D scalar order).
-function quatRows([x, y, z, w]) {
-  return [
-    1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y),
-    2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x),
-    2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y),
-  ];
-}
+const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
+const COMPLETION_KINDS = ['reach-exit', 'survive'];
 
 const fmt = (n) => {
   const v = Math.round(n * 1e6) / 1e6;
   return Object.is(v, -0) ? '0' : String(v);
 };
-const vec3 = (v) => `Vector3(${v.map(fmt).join(', ')})`;
-const t3d = (origin, quat = null) => {
-  const rows = quat ? quatRows(quat) : [1, 0, 0, 0, 1, 0, 0, 0, 1];
-  return `Transform3D(${[...rows, ...origin].map(fmt).join(', ')})`;
-};
 const gdName = (s) => String(s).replace(/[^A-Za-z0-9_]/g, '_');
+const gdStr = (s) => JSON.stringify(String(s));
+const GITIGNORE = '.godot/\nbuild/\n';
 
-/**
- * emitGodotProject({ ref, score, manifestHash, glbFile, audioFile, remint })
- * → { files: [{ file, text }], ledger } — the full project as text. `ledger`
- * is the score ledger extended with the mechanics-promotion accounting.
- */
-export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, remint = null }) {
-  const eyeScale = Math.max(0.5, (score.eye ?? 1.7) / 1.7);
-  const spawn = toYup(score.spawn ?? [0, 0, 2]);
-  const exits = (score.mechanics ?? []).filter((m) => m?.kind === 'reach-exit');
-  const unpromoted = (score.mechanics ?? []).filter((m) => m && m.kind !== 'reach-exit');
-
-  const ledger = { ...score.ledger };
-  ledger.entity_markers = {
-    note: 'entities that baked no mesh (glyph/primitive bodies — export-side gap) render as gold placeholder markers; the web build is the reference look',
-  };
-  ledger.web_color_shift = {
-    note: 'web preset renders via GL Compatibility, which reads vertex colours as sRGB — linear COLOR_0 draws darker there; desktop uses Forward+ and is colour-true',
-  };
-  if (score.ground != null) {
-    ledger.promoted_ground = { note: 'implicit runtime ground plane (z=0) promoted as WorldBoundaryShape3D — the collider AABBs are obstacle hulls only, never the floor' };
-  }
-  if (exits.length) {
-    ledger.promoted_reach_exit = { count: exits.length, note: 'Area3D triggers; planar zones approximated as upward volumes' };
-  }
-  if (unpromoted.length) {
-    ledger.unpromoted_mechanics = {
-      count: unpromoted.length,
-      kinds: [...new Set(unpromoted.map((m) => m.kind))],
-      note: 'ride the ledger until the game-scope leg lands (godot-handoff.plan.md G1)',
-    };
-  }
-
-  // Walker dimensions and physics scale with the world's eye height so both a
-  // human room and a mobile-suit map walk right (1 unit = 1 m at eye 1.7).
-  const capRadius = 0.3 * eyeScale;
-  const capHeight = Math.max(1.8 * eyeScale, 2.2 * capRadius);
-  const speed = 6 * eyeScale;
-  const jump = 4.5 * eyeScale;
-  const gravity = 9.8 * eyeScale;
-  const colliderMinY = score.colliders?.length
-    ? Math.min(...score.colliders.map((c) => c.min[2]))
-    : spawn[1];
-  const killY = colliderMinY - 100;
-
-  const files = [];
-  const title = score.title ?? ref;
-
-  // ── project.godot ── gl_compatibility so the web export and desktop draw the
-  // unlit vertex-colour look identically.
-  files.push({
-    file: 'project.godot',
-    text: `; generated by mojulo export-godot — do not hand-edit; re-mint from recipe/
-config_version=5
-
-[application]
-
-config/name=${JSON.stringify(title)}
-run/main_scene="res://level.tscn"
-
-[rendering]
-
-renderer/rendering_method.web="gl_compatibility"
-`,
-  });
-
-  // ── level.tscn ──
-  const ext = [
-    `[ext_resource type="PackedScene" path="res://${glbFile}" id="model"]`,
-    `[ext_resource type="Script" path="res://level.gd" id="level_gd"]`,
-    `[ext_resource type="Script" path="res://walker.gd" id="walker_gd"]`,
-  ];
-  if (audioFile) ext.push(`[ext_resource type="AudioStream" path="res://${audioFile}" id="music"]`);
-
-  const sub = [];
-  (score.colliders ?? []).forEach((c, i) => {
-    const size = [c.max[0] - c.min[0], c.max[2] - c.min[2], c.max[1] - c.min[1]]; // z-up extents → y-up
-    sub.push(`[sub_resource type="BoxShape3D" id="col${i}"]\nsize = ${vec3(size)}`);
-  });
-  if (score.ground != null) sub.push(`[sub_resource type="WorldBoundaryShape3D" id="ground"]`);
-  sub.push(`[sub_resource type="CapsuleShape3D" id="walker_cap"]\nradius = ${fmt(capRadius)}\nheight = ${fmt(capHeight)}`);
-  exits.forEach((m, i) => {
-    if (Array.isArray(m.half)) {
-      const size = [2 * m.half[0], Math.max(2 * m.half[2], 4 * eyeScale), 2 * m.half[1]];
-      sub.push(`[sub_resource type="BoxShape3D" id="exit${i}"]\nsize = ${vec3(size)}`);
-    } else {
-      const r = Number.isFinite(m.radius) ? m.radius : 2;
-      sub.push(`[sub_resource type="CylinderShape3D" id="exit${i}"]\nradius = ${fmt(r)}\nheight = ${fmt(4 * eyeScale)}`);
-    }
-  });
-
-  const nodes = [];
-  nodes.push(`[node name="Level" type="Node3D"]\nscript = ExtResource("level_gd")`);
-  nodes.push(`[node name="World" parent="." instance=ExtResource("model")]`);
-  if (score.colliders?.length || score.ground != null) {
-    nodes.push(`[node name="Colliders" type="StaticBody3D" parent="."]`);
-    if (score.ground != null) {
-      nodes.push(`[node name="Ground" type="CollisionShape3D" parent="Colliders"]\ntransform = ${t3d([0, score.ground, 0])}\nshape = SubResource("ground")`);
-    }
-    (score.colliders ?? []).forEach((c, i) => {
-      const center = toYup([(c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2, (c.min[2] + c.max[2]) / 2]);
-      nodes.push(`[node name="Col${i}" type="CollisionShape3D" parent="Colliders"]\ntransform = ${t3d(center)}\nshape = SubResource("col${i}")`);
-    });
-  }
-  nodes.push(`[node name="Spawn" type="Marker3D" parent="."]\ntransform = ${t3d(spawn)}`);
-  (score.cameras ?? []).forEach((cam, i) => {
-    const q = quatMul(YUP, cam.rotation);
-    const pos = toYup(cam.translation);
-    const fovDeg = (cam.yfov * 180) / Math.PI;
-    nodes.push(`[node name="View${i}" type="Camera3D" parent="."]\ntransform = ${t3d(pos, q)}\nfov = ${fmt(fovDeg)}\nnear = 0.1\nfar = 8000.0`);
-  });
-  // Drop-in spawn: lifted a step above the authored point so the capsule
-  // settles onto the floor instead of starting embedded in it.
-  const spawnDrop = [spawn[0], spawn[1] + 0.3 * eyeScale, spawn[2]];
-  nodes.push(`[node name="Walker" type="CharacterBody3D" parent="."]\ntransform = ${t3d(spawnDrop)}\nscript = ExtResource("walker_gd")`);
-  nodes.push(`[node name="Shape" type="CollisionShape3D" parent="Walker"]\ntransform = ${t3d([0, capHeight / 2, 0])}\nshape = SubResource("walker_cap")`);
-  nodes.push(`[node name="Head" type="Camera3D" parent="Walker"]\ntransform = ${t3d([0, score.eye ?? 1.7, 0])}\ncurrent = true\nfar = 8000.0`);
-  exits.forEach((m, i) => {
-    const at = toYup(Array.isArray(m.at) ? m.at : [0, 0, 0]);
-    const lift = Array.isArray(m.half) ? Math.max(2 * m.half[2], 4 * eyeScale) / 2 : 2 * eyeScale;
-    nodes.push(`[node name="Exit${i}" type="Area3D" parent="."]\ntransform = ${t3d([at[0], at[1] + lift, at[2]])}`);
-    nodes.push(`[node name="ExitShape${i}" type="CollisionShape3D" parent="Exit${i}"]\nshape = SubResource("exit${i}")`);
-  });
-  if (audioFile) nodes.push(`[node name="Music" type="AudioStreamPlayer" parent="."]\nstream = ExtResource("music")`);
-
-  const conns = exits.map((_, i) => `[connection signal="body_entered" from="Exit${i}" to="." method="_on_exit_entered"]`);
-
-  const loadSteps = ext.length + sub.length + 1;
-  files.push({
-    file: 'level.tscn',
-    text: `[gd_scene load_steps=${loadSteps} format=3]
-
-${ext.join('\n')}
-
-${sub.join('\n\n')}
-
-${nodes.join('\n\n')}
-${conns.length ? `\n${conns.join('\n')}\n` : ''}`,
-  });
-
-  // ── level.gd ──
-  // glTF names sanitize on import (entity:hero → entity_hero) — match sanitized.
-  const playerHide = score.player ? `
-	var double := find_child("${gdName(`entity:${score.player}`)}", true, false)
-	if double is Node3D:
-		double.visible = false` : '';
-  // Entities that baked no mesh (glyph/primitive bodies — an export-side gap,
-  // same family as the G0 roster findings) get a visible placeholder so
-  // gameplay anchors aren't invisible; the web build is the reference look.
-  const markerSize = 0.7 * eyeScale;
-  const entityMarkers = `
-	for ent in find_children("entity_*", "Node3D", true, false):
-		if ent.visible and ent.find_children("*", "MeshInstance3D", true, false).is_empty():
-			var marker := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = Vector3(${fmt(markerSize)}, ${fmt(markerSize)}, ${fmt(markerSize)})
-			var mm := StandardMaterial3D.new()
-			mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			mm.albedo_color = Color(0.92, 0.76, 0.3)
-			box.material = mm
-			marker.mesh = box
-			marker.position = Vector3(0, ${fmt(markerSize / 2)}, 0)
-			ent.add_child(marker)`;
-  const musicReady = audioFile ? `
-	var music: AudioStreamPlayer = get_node_or_null("Music")
-	if music != null:
-		if music.stream is AudioStreamWAV:
-			var s: AudioStreamWAV = music.stream
-			s.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			s.loop_end = int(s.get_length() * s.mix_rate)
-		music.play()` : '';
-  const camToggle = score.cameras?.length ? `
-
-func _unhandled_key_input(event: InputEvent) -> void:
-	# 0 toggles between the authored framing (cam:view 0) and the walker's eyes.
-	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_0:
-		var view: Camera3D = get_node("View0")
-		var head: Camera3D = get_node("Walker/Head")
-		if view.current:
-			head.make_current()
-		else:
-			view.make_current()` : '';
-  const exitHandler = exits.length ? `
-
-func _on_exit_entered(body: Node3D) -> void:
-	if body.name != "Walker":
-		return
-	print("moj: level complete (reach-exit)")
-	var layer := CanvasLayer.new()
-	var label := Label.new()
-	label.text = "LEVEL COMPLETE"
-	label.set_anchors_preset(Control.PRESET_CENTER)
-	label.add_theme_font_size_override("font_size", 48)
-	layer.add_child(label)
-	add_child(layer)` : '';
-
-  files.push({
-    file: 'level.gd',
-    text: `extends Node3D
-# generated by mojulo export-godot — do not hand-edit; re-mint from recipe/
-# G0 material contract (godot-handoff.plan.md, Finding 1): Godot's glTF import
-# does not set vertex_color_use_as_albedo, so every vertex-coloured face would
-# render white. Fixed here at ready. COLOR_0 is linear: is_srgb stays false.
-
-
-func _ready() -> void:
-	for mi in find_children("*", "MeshInstance3D", true, false):
-		var mesh: Mesh = mi.mesh
-		if mesh == null:
-			continue
-		for s in range(mesh.get_surface_count()):
-			var mat: Material = mi.get_active_material(s)
-			if mat is StandardMaterial3D:
-				mat.vertex_color_use_as_albedo = true
-				mat.vertex_color_is_srgb = false${playerHide}${entityMarkers}${musicReady}${camToggle}${exitHandler}
-`,
-  });
-
-  // ── walker.gd ──
-  files.push({
-    file: 'walker.gd',
-    text: `extends CharacterBody3D
-# generated by mojulo export-godot — WASD/arrows + mouse look, Space jumps,
-# Esc frees the mouse (click to recapture). Motion constants derive from the
-# world's eye height (${fmt(score.eye ?? 1.7)} units; ${score.units}).
-
-const SPEED := ${fmt(speed)}
-const JUMP := ${fmt(jump)}
-const GRAVITY := ${fmt(gravity)}
-const KILL_Y := ${fmt(killY)}
-const SPAWN := ${vec3([spawn[0], spawn[1] + 0.3 * eyeScale, spawn[2]])}
-const MOUSE_SENS := 0.002
-
-@onready var head: Camera3D = $Head
-
-
-func _ready() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * MOUSE_SENS)
-		head.rotate_x(-event.relative.y * MOUSE_SENS)
-		head.rotation.x = clampf(head.rotation.x, -1.5, 1.5)
-	elif event is InputEventMouseButton and event.pressed:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-
-
-func _physics_process(delta: float) -> void:
-	if not is_on_floor():
-		velocity.y -= GRAVITY * delta
-	elif Input.is_physical_key_pressed(KEY_SPACE):
-		velocity.y = JUMP
-	var dir := Vector3.ZERO
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
-		dir -= transform.basis.z
-	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
-		dir += transform.basis.z
-	if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
-		dir -= transform.basis.x
-	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
-		dir += transform.basis.x
-	dir = dir.normalized()
-	velocity.x = dir.x * SPEED
-	velocity.z = dir.z * SPEED
-	move_and_slide()
-	if global_position.y < KILL_Y:
-		global_position = SPAWN
-		velocity = Vector3.ZERO
-`,
-  });
-
-  // ── export_presets.cfg ── minimal; Godot fills absent options with defaults.
-  files.push({
-    file: 'export_presets.cfg',
-    text: `[preset.0]
+function buildPresets(ref) {
+  return `[preset.0]
 
 name="Web"
 platform="Web"
 runnable=true
 export_filter="all_resources"
+include_filter="*.json"
 export_path="build/web/index.html"
 
 [preset.0.options]
@@ -352,34 +49,116 @@ name="macOS"
 platform="macOS"
 runnable=true
 export_filter="all_resources"
+include_filter="*.json"
 export_path="build/mac/${gdName(ref)}.zip"
 
 [preset.1.options]
 
 application/bundle_identifier="com.mojulo.${gdName(ref)}"
-`,
-  });
+`;
+}
 
-  files.push({ file: '.gitignore', text: '.godot/\nbuild/\n' });
+function buildProjectGodot({ title, mainScene, autoloadGame = false }) {
+  return `; generated by mojulo export-godot — do not hand-edit; re-mint from recipe/
+config_version=5
 
-  // ── README ── provenance + honest loss. Deliberately date-free: the whole
-  // pack is byte-deterministic from the recipe rows.
-  const ledgerLines = Object.entries(ledger)
-    .map(([k, v]) => `- \`${k}\`${v.count != null ? ` ×${v.count}` : ''}${v.kinds ? ` (${v.kinds.join(', ')})` : ''} — ${v.note}`)
-    .join('\n');
-  files.push({
-    file: 'README.md',
-    text: `# ${title} — Godot handoff
+[application]
 
-A generated Godot 4 project (mojulo \`export-godot\`, godot-handoff.plan.md G1).
-The world's truth lives in \`recipe/\` — this whole folder is a derived
-artifact; re-mint it from the recipe rather than hand-editing.
+config/name=${gdStr(title)}
+run/main_scene="res://${mainScene}"
+${autoloadGame ? `
+[autoload]
+
+Game="*res://kernel/game.gd"
+` : ''}
+[rendering]
+
+renderer/rendering_method.web="gl_compatibility"
+`;
+}
+
+const ledgerLines = (ledger) => Object.entries(ledger)
+  .map(([k, v]) => `- \`${k}\`${v.count != null ? ` ×${v.count}` : ''}${v.kinds ? ` (${v.kinds.join(', ')})` : ''} — ${v.note}`)
+  .join('\n');
+
+/** The per-level scene stub: kernel/level.gd pointed at the level's data. */
+function levelStub({ resBase = '', glbFile = 'model.glb', musicPath = null, musicDb = null }) {
+  const props = [`score_path = "res://${resBase}score.json"`];
+  if (musicPath) props.push(`music_path = "res://${musicPath}"`);
+  if (musicDb != null) props.push(`music_db = ${fmt(musicDb)}`);
+  return `[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://${resBase}${glbFile}" id="model"]
+[ext_resource type="Script" path="res://kernel/level.gd" id="kernel"]
+
+[node name="Level" type="Node3D"]
+script = ExtResource("kernel")
+${props.join('\n')}
+
+[node name="World" parent="." instance=ExtResource("model")]
+`;
+}
+
+/** The honest-loss ledger for one level, post-kernel: the vocabulary is
+ * interpreted now; only out-of-vocabulary gameplay and non-geometry channels
+ * remain losses. */
+function levelLedger(score, { gameMode = false } = {}) {
+  const ledger = { ...score.ledger };
+  ledger.entity_markers = {
+    note: 'entities that baked no mesh (glyph/primitive bodies — export-side gap) render as gold placeholder markers; the web build is the reference look',
+  };
+  ledger.web_color_shift = {
+    note: 'web preset renders via GL Compatibility, which reads vertex colours as sRGB — linear COLOR_0 draws darker there; desktop uses Forward+ and is colour-true',
+  };
+  if (score.ground != null) {
+    ledger.promoted_ground = { note: 'implicit runtime ground plane promoted by the kernel — the collider AABBs are obstacle hulls only, never the floor' };
+  }
+  const kinds = (score.mechanics ?? []).map((m) => m?.kind).filter(Boolean);
+  const interpreted = kinds.filter((k) => MECHANICS_VOCAB.includes(k));
+  const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k));
+  if (interpreted.length) {
+    ledger.interpreted_mechanics = { count: interpreted.length, kinds: [...new Set(interpreted)], note: 'performed live by kernel/level.gd' };
+  }
+  if (unknown.length) {
+    ledger.unknown_mechanics = { count: unknown.length, kinds: [...new Set(unknown)], note: 'outside the kernel vocabulary — do not travel' };
+  }
+  if (gameMode && !kinds.some((k) => COMPLETION_KINDS.includes(k))) {
+    ledger.no_completion_path = {
+      note: 'no completion mechanic — the authored win condition lives in the runtime, which does not travel; the level is an explorable arena (M returns to the menu)',
+    };
+  }
+  return ledger;
+}
+
+/**
+ * emitGodotProject — a standalone world pack: stub + shell + README.
+ * The driver ships kernel/, model.glb, score.json, recipe/, audio/.
+ */
+export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, kernelVersion = '?', remint = null }) {
+  const title = score.title ?? ref;
+  const ledger = levelLedger(score);
+  const files = [
+    { file: 'project.godot', text: buildProjectGodot({ title, mainScene: 'level.tscn' }) },
+    { file: 'level.tscn', text: levelStub({ glbFile, musicPath: audioFile }) },
+    { file: 'export_presets.cfg', text: buildPresets(ref) },
+    { file: '.gitignore', text: GITIGNORE },
+    {
+      file: 'README.md',
+      text: `# ${title} — Godot handoff
+
+A generated Godot 4 pack (mojulo \`export-godot\`). The world's truth lives
+in \`recipe/\` — this whole folder is a derived artifact; re-mint it from the
+recipe rather than hand-editing. The pack is DATA (\`score.json\`, the GLB,
+audio) performed by the versioned mojulo-godot kernel in \`kernel/\`
+(v${kernelVersion}) — one score, two instruments; the web build is the
+reference performance.
 
 ## Provenance
 
 - source ref: \`${ref}\`
 - manifest sha256/16: \`${manifestHash}\`
-- units: ${score.units}; frame converted z-up → y-up, matching the GLB root
+- kernel: mojulo-godot ${kernelVersion}
+- units: ${score.units}; frame converted z-up → y-up by the kernel, matching the GLB root
 - re-mint: \`${remint ?? `node scripts/export-godot.mjs --ref ${ref}`}\` (from mojulo's \`control/\`)
 
 ## Open and play
@@ -387,17 +166,109 @@ artifact; re-mint it from the recipe rather than hand-editing.
 Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
 walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.
 
-Materials: \`level.gd\` sets \`vertex_color_use_as_albedo\` on every imported
-material at ready — without it the vertex-coloured world renders white
-(Godot's glTF import does not carry the flag; COLOR_0 is linear).
+## What travelled, what didn't
+
+${ledgerLines(ledger)}
+`,
+    },
+  ];
+  return { files, ledger };
+}
+
+/**
+ * emitGodotGame — a game pack: per-level stubs + menu stub + shell + README.
+ * The driver ships kernel/, game.json, per-level model.glb/score.json,
+ * recipe/, audio/. levels: [{ ref, title, gate, score, audioFile, audioDb }].
+ */
+export function emitGodotGame({ ref, title, manifestHash, levels, music = {}, shellExtras = [], kernelVersion = '?', remint = null }) {
+  const files = [];
+  const ledger = {
+    skipped_store: { note: 'store slices (character/inventory state) do not travel — only completion progression is kept (user://progress.cfg)' },
+    levels: {},
+  };
+  if (shellExtras.length) {
+    ledger.skipped_shell = {
+      kinds: shellExtras,
+      note: 'authored shell UI beyond the level list (menu structure, setup/hangar, difficulty, theme) does not travel — the kernel menu is a plain level table',
+    };
+  }
+  const oddGates = levels.filter((lv) => lv.gate && !lv.gate.completed);
+  if (oddGates.length) {
+    ledger.gate_approximated = {
+      count: oddGates.length,
+      note: 'non-completion gates (store flags) approximated as unlocked — flag state does not travel',
+    };
+  }
+
+  for (const lv of levels) {
+    files.push({
+      file: `levels/${lv.ref}/level.tscn`,
+      text: levelStub({ resBase: `levels/${lv.ref}/`, musicPath: lv.audioFile ?? null, musicDb: lv.audioDb ?? null }),
+    });
+    ledger.levels[lv.ref] = levelLedger(lv.score, { gameMode: true });
+  }
+
+  const menuExt = [`[ext_resource type="Script" path="res://kernel/menu.gd" id="menu_gd"]`];
+  if (music.menuFile) menuExt.push(`[ext_resource type="AudioStream" path="res://${music.menuFile}" id="music"]`);
+  files.push({
+    file: 'menu.tscn',
+    text: `[gd_scene load_steps=${menuExt.length + 1} format=3]
+
+${menuExt.join('\n')}
+
+[node name="Menu" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("menu_gd")
+${music.menuFile ? `
+[node name="Music" type="AudioStreamPlayer" parent="."]${music.menuDb != null ? `\nvolume_db = ${fmt(music.menuDb)}` : ''}\nstream = ExtResource("music")\n` : ''}`,
+  });
+
+  files.push({ file: 'project.godot', text: buildProjectGodot({ title, mainScene: 'menu.tscn', autoloadGame: true }) });
+  files.push({ file: 'export_presets.cfg', text: buildPresets(ref) });
+  files.push({ file: '.gitignore', text: GITIGNORE });
+
+  const levelList = levels
+    .map((lv, i) => `${i + 1}. ${lv.title ?? lv.ref} (\`${lv.ref}\`)${lv.gate?.completed ? ` — unlocks after \`${lv.gate.completed}\`` : ''}`)
+    .join('\n');
+  const perLevelLedgers = levels
+    .map((lv) => `### \`${lv.ref}\`\n\n${ledgerLines(ledger.levels[lv.ref])}`)
+    .join('\n\n');
+  files.push({
+    file: 'README.md',
+    text: `# ${title} — Godot handoff (game)
+
+A generated Godot 4 pack (mojulo \`export-godot\`, game scope). The game's
+truth lives in \`recipe/\` — this whole folder is a derived artifact; re-mint
+it from the recipe rather than hand-editing. The pack is DATA (\`game.json\`,
+per-level \`score.json\` + GLB, audio beds) performed by the versioned
+mojulo-godot kernel in \`kernel/\` (v${kernelVersion}) — one score, two
+instruments; the web build is the reference performance.
+
+## Provenance
+
+- source ref: \`${ref}\`
+- manifest sha256/16: \`${manifestHash}\`
+- kernel: mojulo-godot ${kernelVersion}
+- units: 1 mojulo unit = 1 meter; frames converted z-up → y-up by the kernel
+- re-mint: \`${remint ?? `node scripts/export-godot.mjs --ref ${ref}`}\` (from mojulo's \`control/\`)
+
+## Levels
+
+${levelList}
+
+## Play
+
+Open in Godot ≥4.5 (or \`godot --path .\`). The menu lists the levels;
+completing one returns you to the menu with the next gate unlocked.
+Progress persists in \`user://progress.cfg\`. In a level: WASD/arrows +
+mouse, Space jumps, Esc frees the mouse, M returns to the menu.
 
 ## What travelled, what didn't
 
-Geometry/rigs/clips ride \`${glbFile}\` (unlit, COLOR_0). Colliders, spawn,
-cameras${exits.length ? ', reach-exit triggers' : ''}${audioFile ? ', the soundtrack' : ''} are promoted to real nodes in \`level.tscn\`.
-\`score.json\` is the engine-agnostic sidecar the promotion was generated from.
+${ledgerLines({ skipped_store: ledger.skipped_store, ...(ledger.skipped_shell ? { skipped_shell: ledger.skipped_shell } : {}), ...(ledger.gate_approximated ? { gate_approximated: ledger.gate_approximated } : {}) })}
 
-${ledgerLines}
+${perLevelLedgers}
 `,
   });
 
