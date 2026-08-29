@@ -499,24 +499,21 @@ export function registerExportGameTools() {
   registerTool({
     name: 'export_game',
     description:
-      'Materialize a stored game as a SELF-CONTAINED folder the operator can share — the game '
+      'Materialize a stored game as a SELF-CONTAINED folder to share — the game '
       + 'sibling of export_model / export_beats, and the first leg of publishing a playable artifact '
-      + '(game-publish: the folder is `git init && gh repo create` away from a GitHub-Pages public URL). '
+      + '(game-publish: the folder is `git init && gh repo create` away from a GitHub-Pages URL). '
       + 'Pass the game `ref` (a create_game or create_pixelizer_game sketch). Writes '
-      + '`data/outcomes/<ref>/`: `game.html` (the shell, srcs resolved folder-relative), '
-      + '`levels/<ref>.html` (three.js + world geometry inlined; the heavy rigged-figure bank is '
-      + 'hoisted into shared deduped `assets/figures/*.json`, so the folder needs an HTTP server — '
-      + 'file:// does not load levels), '
-      + '`assets/<ref>.wav` (the shell score via the deterministic offline render), hangar setup '
-      + 'portraits/previews when declared, `recipe/*.json` (the SOVEREIGN game + level manifests — '
-      + 'anyone with mojulo re-mints from these), and a provenance README (refs + manifest hash + how '
-      + 'to play + how to re-mint). Deterministic: same rows → same folder. The folder previews '
-      + 'locally at `/outcomes/<ref>/game.html` — exactly what ships. '
-      + "Slow for big games (each level is a full world bake). Reach for \"export this game\", "
-      + '"make the game shareable / playable outside mojulo", "publish the game to GitHub Pages". '
-      + "`target:'godot'` instead emits a Godot 4 pack under `data/outcomes/<ref>/godot/` — data "
-      + '(per-level GLB + score.json + game.json + audio) performed by the versioned mojulo-godot '
-      + 'kernel, with a portability report.',
+      + '`data/outcomes/<ref>/`: `game.html` (the shell), `levels/<ref>.html` (three.js + world '
+      + 'geometry inlined; heavy figure/geometry banks hoisted into shared `assets/`, so the folder '
+      + 'needs an HTTP server — file:// does not load levels), `assets/<ref>.wav` (the shell score, '
+      + 'deterministic offline render), and `recipe/*.json` (the SOVEREIGN game + level manifests — '
+      + 'anyone with mojulo re-mints from these) beside a provenance README. '
+      + 'Deterministic: same rows → same folder; previews at `/outcomes/<ref>/game.html`, exactly '
+      + 'what ships. Slow for big games (each level is a full world bake). Reach for "export this '
+      + 'game", "make the game shareable / playable outside mojulo", "publish the game to GitHub '
+      + "Pages\". `target:'godot'` instead emits a Godot 4 pack under `data/outcomes/<ref>/godot/` "
+      + '— data (per-level GLB + score.json + game.json + audio) performed by the versioned '
+      + 'mojulo-godot kernel, with a portability report.',
     inputSchema: {
       type: 'object',
       properties: {
