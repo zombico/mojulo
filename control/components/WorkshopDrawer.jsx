@@ -1,16 +1,19 @@
 'use client';
 
 // Global Workshop navigation — a left slide-out that mirrors the home launcher's
-// three modes (Ideate / Operate / Studio). Opened from the AuthNav brand so the
+// three modes (Studio / Ideate / Operate), including its record-gating: a mode
+// with nothing in it is not rendered here either, so the drawer and the launcher
+// never disagree about what exists. Opened from the AuthNav brand so the
 // operator can jump anywhere without first returning home. Workshop Home itself
 // is the first link inside, so home stays reachable.
 
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
+import useSWR from 'swr';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { WORKSHOP_GROUPS, BrandMark, hueVars } from './workshop-nav';
+import { visibleWorkshopGroups, BrandMark, hueVars } from './workshop-nav';
 
 function CloseIcon({ className = 'h-5 w-5' }) {
   return (
@@ -21,8 +24,14 @@ function CloseIcon({ className = 'h-5 w-5' }) {
   );
 }
 
+const fetcher = (url) => fetch(url).then((r) => r.json());
+
 export default function WorkshopDrawer({ open, onClose }) {
   const t = useTranslations('home');
+  // `open` gates the fetch: the drawer is mounted on every page, and an unopened
+  // drawer has no reason to hit the API. SWR dedupes with the launcher's copy.
+  const { data: presence } = useSWR(open ? '/api/workshop/presence' : null, fetcher);
+  const groups = visibleWorkshopGroups(presence);
   const pathname = usePathname();
   const panelRef = useRef(null);
   const closeRef = useRef(null);
@@ -95,7 +104,7 @@ export default function WorkshopDrawer({ open, onClose }) {
         {/* Modes — mirror of the home launcher, stacked as sections. */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-6">
-            {WORKSHOP_GROUPS.map((g) => (
+            {groups.map((g) => (
               <li key={g.key} style={hueVars(g.hue)}>
                 <div className="flex items-center gap-2 px-2 pb-2">
                   <g.Icon className="ws-mode-label h-4 w-4" />

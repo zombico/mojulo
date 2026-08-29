@@ -23,12 +23,12 @@ import {
   packsModeEnabled,
   homePackForTool,
   dispatchTargets,
-  installedWings,
+  installedGroups,
   installedPacks,
   isPackInstalled,
   isToolInstalled,
   installNotice,
-  _setWingPresence,
+  _setGroupPresence,
 } from '@/lib/mcp/packs';
 
 // Packs-mode connect payload pin — the plan's headline number (~35KB target
@@ -294,87 +294,129 @@ describe('host-aware default (packs opinionated; flat for deferring hosts)', () 
   });
 });
 
-describe('install axis (MOJULO_PACKS) — kernel + ops/creative', () => {
-  it('default (unset) is a full install: both wings, all packs, nothing gated', () => {
-    expect([...installedWings({})].sort()).toEqual(['office', 'studio']);
+describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs + creative/chatbot', () => {
+  const world = () => PACKS.find((p) => p.id === 'pack_world');
+  const botOps = () => PACKS.find((p) => p.id === 'pack_bot_operate');
+  const catalysts = () => PACKS.find((p) => p.id === 'pack_catalysts');
+
+  it('default (unset) is a full install: both groups, all packs, nothing gated', () => {
+    expect([...installedGroups({})].sort()).toEqual(['chatbot', 'creative']);
     expect(installedPacks({}).length).toBe(PACKS.length);
-    // every listed tool + every spine tool is installed at full install
     for (const pack of PACKS) for (const m of pack.members) expect(isToolInstalled(m, {})).toBe(true);
     for (const s of SPINE) expect(isToolInstalled(s, {})).toBe(true);
   });
 
   it('unrecognized token fails open to full install (a typo never empties the workshop)', () => {
-    expect([...installedWings({ MOJULO_PACKS: 'nonsense' })].sort()).toEqual(['office', 'studio']);
-    expect([...installedWings({ MOJULO_PACKS: '' })].sort()).toEqual(['office', 'studio']);
+    expect([...installedGroups({ MOJULO_PACKS: 'nonsense' })].sort()).toEqual(['chatbot', 'creative']);
+    expect([...installedGroups({ MOJULO_PACKS: '' })].sort()).toEqual(['chatbot', 'creative']);
   });
 
-  it('MOJULO_PACKS=ops installs only the office wing (creative packs gated)', () => {
-    const env = { MOJULO_PACKS: 'ops' };
-    expect([...installedWings(env)]).toEqual(['office']);
-    const packs = installedPacks(env);
-    expect(packs.every((p) => p.wing === 'office')).toBe(true);
-    expect(packs.some((p) => p.wing === 'studio')).toBe(false);
-    // office member on, studio member off
-    expect(isToolInstalled('start_new_bot', env)).toBe(true);
-    expect(isToolInstalled('compose_world', env)).toBe(false);
-    // spine stays kernel regardless of install
+  // THE 2.0 semantics change. Under 1.5 this was wing-grain, so gating the studio
+  // wing off also gated the whole office wing's fate to the chatbot factory's.
+  // Now only packs that DECLARE a group are gatable; the orchestration plumbing
+  // declares none and is unconditional, exactly like the kernel.
+  it('packs declaring NO install group are always present — plumbing is not gatable', () => {
+    const ungrouped = PACKS.filter((p) => !p.installGroup);
+    expect(ungrouped.map((p) => p.id).sort()).toEqual([
+      'pack_catalysts', 'pack_connected_services', 'pack_plan',
+      'pack_research', 'pack_runtime', 'pack_stash',
+    ]);
+    for (const env of [{ MOJULO_PACKS: 'creative' }, { MOJULO_PACKS: 'chatbot' }]) {
+      for (const pack of ungrouped) expect(isPackInstalled(pack, env)).toBe(true);
+    }
+    // and their tools run under any override
+    expect(isToolInstalled('list_catalysts', { MOJULO_PACKS: 'creative' })).toBe(true);
+    expect(isToolInstalled('list_plans', { MOJULO_PACKS: 'creative' })).toBe(true);
+  });
+
+  it('MOJULO_PACKS=creative gates the chatbot factory off — and NOTHING else', () => {
+    const env = { MOJULO_PACKS: 'creative' };
+    expect([...installedGroups(env)]).toEqual(['creative']);
+    expect(isToolInstalled('compose_world', env)).toBe(true);
+    expect(isToolInstalled('start_new_bot', env)).toBe(false);   // chatbot group absent
+    expect(isToolInstalled('list_deployments', env)).toBe(false);
+    expect(isToolInstalled('list_catalysts', env)).toBe(true);   // plumbing unconditional
+    expect(isToolInstalled('start_app', env)).toBe(true);
     for (const s of SPINE) expect(isToolInstalled(s, env)).toBe(true);
   });
 
-  it('MOJULO_PACKS=creative installs only the studio wing', () => {
-    const env = { MOJULO_PACKS: 'creative' };
-    expect([...installedWings(env)]).toEqual(['studio']);
-    expect(isToolInstalled('compose_world', env)).toBe(true);
-    expect(isToolInstalled('start_new_bot', env)).toBe(false);
+  it('MOJULO_PACKS=chatbot gates the creative pack off, plumbing still on', () => {
+    const env = { MOJULO_PACKS: 'chatbot' };
+    expect([...installedGroups(env)]).toEqual(['chatbot']);
+    expect(isToolInstalled('start_new_bot', env)).toBe(true);
+    expect(isToolInstalled('compose_world', env)).toBe(false);
+    expect(isToolInstalled('list_catalysts', env)).toBe(true);
   });
 
-  it('MOJULO_PACKS=ops,creative is the full install again', () => {
-    expect([...installedWings({ MOJULO_PACKS: 'ops,creative' })].sort()).toEqual(['office', 'studio']);
-    expect(installedPacks({ MOJULO_PACKS: 'ops,creative' }).length).toBe(PACKS.length);
+  it("'ops' stays a deprecated alias for 'chatbot' so existing configs keep their bots", () => {
+    expect([...installedGroups({ MOJULO_PACKS: 'ops' })]).toEqual(['chatbot']);
+    expect(isToolInstalled('start_new_bot', { MOJULO_PACKS: 'ops' })).toBe(true);
+    expect(isToolInstalled('compose_world', { MOJULO_PACKS: 'ops' })).toBe(false);
+    // but it now grants strictly less than it used to: the plumbing it also covered
+    // is unconditional, not gated behind the token
+    expect(isToolInstalled('list_catalysts', { MOJULO_PACKS: 'ops' })).toBe(true);
+  });
+
+  it('MOJULO_PACKS=chatbot,creative is the full install again', () => {
+    const env = { MOJULO_PACKS: 'chatbot,creative' };
+    expect([...installedGroups(env)].sort()).toEqual(['chatbot', 'creative']);
+    expect(installedPacks(env).length).toBe(PACKS.length);
   });
 
   it('installNotice: null when installed, advisory (not a refusal) when gated', () => {
     expect(installNotice('compose_world', {})).toBeNull();
-    expect(installNotice('compose_world', { MOJULO_PACKS: 'ops' })).toMatch(/creative capability pack/);
-    expect(installNotice('start_new_bot', { MOJULO_PACKS: 'ops' })).toBeNull();
-    expect(installNotice('forward_context', { MOJULO_PACKS: 'ops' })).toBeNull(); // spine → kernel
+    expect(installNotice('compose_world', { MOJULO_PACKS: 'chatbot' })).toMatch(/creative capability pack/);
+    expect(installNotice('start_new_bot', { MOJULO_PACKS: 'chatbot' })).toBeNull();
+    expect(installNotice('forward_context', { MOJULO_PACKS: 'chatbot' })).toBeNull(); // spine → kernel
+    expect(installNotice('list_catalysts', { MOJULO_PACKS: 'chatbot' })).toBeNull(); // ungrouped → kernel-adjacent
   });
 
-  it('isPackInstalled matches its pack wing', () => {
-    const world = PACKS.find((p) => p.id === 'pack_world');
-    const botOps = PACKS.find((p) => p.id === 'pack_bot_operate');
-    expect(isPackInstalled(world, { MOJULO_PACKS: 'ops' })).toBe(false);
-    expect(isPackInstalled(botOps, { MOJULO_PACKS: 'ops' })).toBe(true);
+  it('isPackInstalled follows the pack install GROUP, not its wing', () => {
+    // pack_bot_operate and pack_catalysts share wing:'office' but no longer share a fate
+    expect(botOps().wing).toBe(catalysts().wing);
+    expect(isPackInstalled(botOps(), { MOJULO_PACKS: 'creative' })).toBe(false);
+    expect(isPackInstalled(catalysts(), { MOJULO_PACKS: 'creative' })).toBe(true);
+    expect(isPackInstalled(world(), { MOJULO_PACKS: 'creative' })).toBe(true);
+  });
+
+  it('every pack declares a known install group, or none', () => {
+    for (const pack of PACKS) {
+      if (pack.installGroup) expect(['creative', 'chatbot']).toContain(pack.installGroup);
+    }
+    // the carve set is exactly the three chatbot packs
+    expect(PACKS.filter((p) => p.installGroup === 'chatbot').map((p) => p.id).sort())
+      .toEqual(['pack_bot_build', 'pack_bot_operate', 'pack_fleet']);
   });
 });
 
 describe('install axis — physical detection is the source of truth (unset MOJULO_PACKS)', () => {
-  afterEach(() => _setWingPresence(null)); // clear the forced probe → back to real disk
+  afterEach(() => _setGroupPresence(null)); // clear the forced probe → back to real disk
 
-  it('unset env derives wings from physical presence, not a hardcoded default', () => {
-    _setWingPresence(['office']); // simulate creative optional deps omitted (--omit=optional)
-    expect([...installedWings({})]).toEqual(['office']);
-    expect(isPackInstalled(PACKS.find((p) => p.wing === 'studio'), {})).toBe(false);
-    expect(isPackInstalled(PACKS.find((p) => p.wing === 'office'), {})).toBe(true);
-    // and the studio tools cleanly gate off without any env flag set
+  it('unset env derives groups from physical presence, not a hardcoded default', () => {
+    _setGroupPresence(['chatbot']); // simulate creative optional deps omitted (--omit=optional)
+    expect([...installedGroups({})]).toEqual(['chatbot']);
+    expect(isPackInstalled(PACKS.find((p) => p.installGroup === 'creative'), {})).toBe(false);
+    expect(isPackInstalled(PACKS.find((p) => p.installGroup === 'chatbot'), {})).toBe(true);
     expect(isToolInstalled('compose_world', {})).toBe(false);
     expect(isToolInstalled('start_new_bot', {})).toBe(true);
+    // ungrouped packs survive a probe that found nothing
+    _setGroupPresence([]);
+    expect(isToolInstalled('list_catalysts', {})).toBe(true);
   });
 
   it('explicit MOJULO_PACKS overrides physical detection (a deliberate operator wins)', () => {
-    _setWingPresence(['office']); // creative absent on disk...
-    // ...but the operator forcing both wings is honored (dev/test escape hatch)
-    expect([...installedWings({ MOJULO_PACKS: 'ops,creative' })].sort()).toEqual(['office', 'studio']);
+    _setGroupPresence(['chatbot']); // creative absent on disk...
+    expect([...installedGroups({ MOJULO_PACKS: 'chatbot,creative' })].sort()).toEqual(['chatbot', 'creative']);
   });
 
   it('typo falls through to physical detection, never an empty workshop', () => {
-    _setWingPresence(['office']);
-    expect([...installedWings({ MOJULO_PACKS: 'zzz' })]).toEqual(['office']);
+    _setGroupPresence(['chatbot']);
+    expect([...installedGroups({ MOJULO_PACKS: 'zzz' })]).toEqual(['chatbot']);
   });
 
-  it('office (ops) is alwaysInstalled — present under detection even with no marker deps', () => {
-    _setWingPresence(null); // real probe: office has no markerModule, so it is unconditionally present
-    expect(installedWings({}).has('office')).toBe(true);
+  it('chatbot is alwaysInstalled in-tree — present under detection with no marker dep', () => {
+    _setGroupPresence(null); // real probe: chatbot has no markerModule → unconditionally present
+    expect(installedGroups({}).has('chatbot')).toBe(true);
   });
 });
 
@@ -387,10 +429,11 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
     }
   }
 
-  it('packs-mode list drops an uninstalled wing\'s pack dispatchers, keeps spine + installed wing', () => {
-    withInstall('ops', () => withPacksMode(() => {
+  it('packs-mode list drops an uninstalled group\'s pack dispatchers, keeps spine + the rest', () => {
+    withInstall('chatbot', () => withPacksMode(() => {
       const names = listTools({ clientInfo: { name: 'codex' } }).map((t) => t.name);
-      expect(names).toContain('pack_bot_build');   // office → installed
+      expect(names).toContain('pack_bot_build');   // chatbot → installed
+      expect(names).toContain('pack_catalysts');   // ungrouped → always present
       expect(names).toContain('forward_context');  // spine → kernel
       for (const studio of ['pack_world', 'pack_audio', 'pack_object', 'pack_game', 'pack_view']) {
         expect(names).not.toContain(studio);
@@ -398,23 +441,24 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
     }));
   });
 
-  it('flat-mode list drops an uninstalled wing\'s member tools', () => {
-    withInstall('ops', () => withFlatMode(() => {
+  it('flat-mode list drops an uninstalled group\'s member tools', () => {
+    withInstall('chatbot', () => withFlatMode(() => {
       const names = listTools({}).map((t) => t.name);
-      expect(names).toContain('start_new_bot');    // office member
-      expect(names).not.toContain('compose_world'); // studio member gated
+      expect(names).toContain('start_new_bot');     // chatbot member
+      expect(names).toContain('list_catalysts');    // ungrouped → always present
+      expect(names).not.toContain('compose_world'); // creative member gated
     }));
   });
 
   it('tools/call on a gated tool returns the install advisory (METHOD_NOT_FOUND), not execution', async () => {
-    const res = await withInstall('ops', () => server.dispatchMcpRequest(
+    const res = await withInstall('chatbot', () => server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 991, method: 'tools/call', params: { name: 'compose_world', arguments: {} } }, {}));
     expect(res.error).toBeTruthy();
     expect(res.error.message).toMatch(/creative capability pack/);
   });
 
   it('tools/call on an installed tool is NOT gated (no install advisory)', async () => {
-    const res = await withInstall('ops', () => server.dispatchMcpRequest(
+    const res = await withInstall('chatbot', () => server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 992, method: 'tools/call', params: { name: 'list_deployments', arguments: {} } }, {}));
     // may succeed or return a tool-level isError, but must never be the install notice
     const msg = res.error?.message || res.result?.content?.[0]?.text || '';
@@ -433,18 +477,18 @@ describe('iron wall — dispatcher cannot RUN an uninstalled pack tool', () => {
     }
   }
 
-  it('ops install: pack_world({tool:compose_world}) is refused (wing-level, anti-spin), not executed', async () => {
-    const res = await withInstall('ops', () => server.dispatchMcpRequest(
+  it('chatbot-only install: pack_world({tool:compose_world}) is refused (group-level, anti-spin), not executed', async () => {
+    const res = await withInstall('chatbot', () => server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 771, method: 'tools/call',
         params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
     const msg = res.error?.message || res.result?.content?.[0]?.text || '';
     expect(msg).toMatch(/creative capability pack is not installed/i);
-    expect(msg).toMatch(/Do not retry/i);            // anti-spin: terminal, wing-level
+    expect(msg).toMatch(/Do not retry/i);            // anti-spin: terminal, group-level
     expect(msg).not.toMatch(/worldUrl|"ref":\s*"sk_/); // proves it never minted a world
   });
 
   it('full install: the same dispatch is NOT gated', async () => {
-    const res = await withInstall('ops,creative', () => server.dispatchMcpRequest(
+    const res = await withInstall('chatbot,creative', () => server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 772, method: 'tools/call',
         params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
     const msg = res.error?.message || res.result?.content?.[0]?.text || '';

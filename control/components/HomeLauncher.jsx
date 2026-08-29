@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
 
-import { WORKSHOP_GROUPS, BrandMark, hueVars } from './workshop-nav';
+import { visibleWorkshopGroups, BrandMark, hueVars } from './workshop-nav';
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -89,9 +89,12 @@ function AgentStatus() {
 
 export default function HomeLauncher() {
   const t = useTranslations('home');
-  // Default to the Operate mode so the operator lands on their running fleet.
-  const [active, setActive] = useState('operate');
-  const group = WORKSHOP_GROUPS.find((g) => g.key === active) || WORKSHOP_GROUPS[0];
+  // Default to Studio: mojulo is a 3D factory, so the operator lands on the making
+  // surface. Operational modes are still one click away — when they have records.
+  const [active, setActive] = useState('studio');
+  const { data: presence } = useSWR('/api/workshop/presence', fetcher);
+  const groups = visibleWorkshopGroups(presence);
+  const group = groups.find((g) => g.key === active) || groups[0];
 
   return (
     <main className="relative min-h-screen">
@@ -105,8 +108,11 @@ export default function HomeLauncher() {
           </div>
 
           {/* Three top-level modes. Selecting one opens its drawer below. */}
-          <div className="mt-10 grid grid-cols-3 gap-4 sm:gap-5">
-            {WORKSHOP_GROUPS.map((g) => {
+          <div
+            className="mt-10 grid gap-4 sm:gap-5"
+            style={{ gridTemplateColumns: `repeat(${groups.length}, minmax(0, 1fr))` }}
+          >
+            {groups.map((g) => {
               const isActive = g.key === active;
               return (
                 <button
@@ -134,11 +140,11 @@ export default function HomeLauncher() {
             id="workshop-drawer"
             role="region"
             aria-live="polite"
-            style={hueVars(group.hue)}
+            style={hueVars(group?.hue)}
             className="mt-6 rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-6 sm:p-8"
           >
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-4 gap-y-6">
-              {group.tiles.map((tile) => (
+              {(group?.tiles || []).map((tile) => (
                 <Link
                   key={tile.href}
                   href={tile.href}

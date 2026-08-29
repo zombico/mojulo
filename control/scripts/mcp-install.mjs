@@ -7,13 +7,17 @@
  * install stays lean and the operator opts INTO heavy capability when they want
  * it. See lib/mcp/install-capabilities.plan.md.
  *
- * The install axis has exactly two packs (install-capabilities.plan.md):
- *   - ops       — bots / connected services / apps. PURE CODE, always shipped;
- *                 it has no optional deps, so there is nothing to install.
- *   - creative  — the render / media / games stack. Its footprint is the three
- *                 optionalDependencies (three / node-web-audio-api / opentype.js);
- *                 installing them flips physical detection (packs.js installedWings)
- *                 to "studio present" with no env flag needed.
+ * The install axis has two GROUPS (mojulo-2.0-pure-creative.plan.md, Phase 1a):
+ *   - creative  — the render / media / games stack, the flagship default pack. Its
+ *                 footprint is the three optionalDependencies (three /
+ *                 node-web-audio-api / opentype.js); installing them flips physical
+ *                 detection (packs.js installedGroups) with no env flag needed.
+ *   - chatbot   — the bot factory. In-tree code today, so there is nothing to
+ *                 install; it is gated only by an explicit MOJULO_PACKS override.
+ *                 When it ships as @mojulo/chatbot this verb installs it for real.
+ *
+ * Everything else — the kernel and the always-present orchestration packs — declares
+ * no group and is never gated. `ops` is a deprecated alias for `chatbot`.
  *
  * Imported (not spawned) by scripts/mcp-stdio.mjs BEFORE it configures itself as
  * an MCP server — this verb needs neither the @/ loader nor the tool registry.
@@ -28,7 +32,7 @@ import { createRequire } from 'node:module';
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-// The marker the whole studio wing is keyed on (kept in sync with WING_INSTALL
+// The marker the creative group is keyed on (kept in sync with INSTALL_GROUPS
 // in lib/mcp/packs.js — omitted/installed together with the other creative deps).
 const CREATIVE_MARKER = 'three';
 
@@ -56,10 +60,10 @@ function printStatus() {
   const creative = creativeInstalled();
   process.stdout.write(
     'mojulo install — on-demand capability packs\n\n'
-      + 'Usage: mojulo install <creative|ops>\n\n'
+      + 'Usage: mojulo install <creative|chatbot>\n\n'
       + 'Status:\n'
-      + '  ops        installed  (kernel + ops are pure code, always present)\n'
-      + `  creative   ${creative ? 'installed' : 'not installed'}  (render / media / games stack)\n\n`
+      + `  creative   ${creative ? 'installed' : 'not installed'}  (render / media / games stack)\n`
+      + '  chatbot    installed  (the bot factory is in-tree code; gate it off with MOJULO_PACKS)\n\n'
       + (creative
         ? 'Full install — nothing to add.\n'
         : 'Run `mojulo install creative` to add the render/media/games stack (~82 MB of deps;\n'
@@ -74,13 +78,17 @@ if (!pack || pack === 'status' || pack === '--help' || pack === '-h') {
   process.exit(0);
 }
 
-if (pack === 'ops') {
-  process.stdout.write('The ops pack is pure code and always present — nothing to install.\n');
+if (pack === 'chatbot' || pack === 'ops') {
+  process.stdout.write(
+    pack === 'ops'
+      ? "'ops' is a deprecated alias for 'chatbot'. The chatbot pack is in-tree code and always\npresent — nothing to install. Gate it off with MOJULO_PACKS if you want it absent.\n"
+      : 'The chatbot pack is in-tree code and always present — nothing to install.\nGate it off with MOJULO_PACKS if you want it absent.\n',
+  );
   process.exit(0);
 }
 
 if (pack !== 'creative') {
-  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, ops. Try \`mojulo install\` for status.\n`);
+  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, chatbot. Try \`mojulo install\` for status.\n`);
   process.exit(1);
 }
 

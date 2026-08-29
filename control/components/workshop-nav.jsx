@@ -1,8 +1,19 @@
 // Shared Workshop navigation model — the single source of truth for the three
-// modes (Ideate / Operate / Studio) and their destinations. Rendered two ways:
+// modes (Studio / Ideate / Operate) and their destinations. Rendered two ways:
 // the home launcher (HomeLauncher.jsx) and the global slide-out (WorkshopDrawer.jsx).
 // Each tile carries an i18n `key` (resolved as home.groups.<key> / home.tiles.<key>),
 // an href, and its line icon.
+//
+// STUDIO LEADS. Mojulo is a 3D factory; the making surface is the product, so it is
+// listed first, opened by default, and never gated — an empty studio is an
+// invitation, not clutter.
+//
+// The OPERATIONAL destinations are the opposite: a bots tile on a host with no bots
+// is noise. Those tiles declare a `presence` key and appear only once that key has
+// records (counts from /api/workshop/presence); a group whose every tile is gated
+// away disappears with them. Diagrams live in Studio, not Operate, because
+// `mint_diagram` is a kernel capability that is always present — it must not vanish
+// with the operational group.
 
 // --- Tile icons ---
 
@@ -287,6 +298,23 @@ export function hueVars(hue) {
 
 export const WORKSHOP_GROUPS = [
   {
+    key: 'studio',
+    Icon: StudioIcon,
+    hue: { base: 'var(--mode-studio)', strong: 'var(--mode-studio-strong)', idle: 'var(--mode-studio-idle)' },
+    tiles: [
+      { key: 'sketch', href: '/sketches', Icon: SketchIcon },
+      { key: 'illustrations', href: '/maker/illustrations', Icon: MakerIcon },
+      { key: 'worlds', href: '/maker/worlds', Icon: WorldIcon },
+      { key: 'objects', href: '/maker/objects', Icon: ObjectsIcon },
+      { key: 'motion', href: '/maker/motion', Icon: MotionIcon },
+      { key: 'beats', href: '/maker/beats', Icon: BeatsIcon },
+      { key: 'voice', href: '/maker/voice', Icon: VoiceIcon },
+      { key: 'games', href: '/maker/games', Icon: GameDevIcon },
+      { key: 'arcade', href: '/arcade', Icon: ArcadeIcon },
+      { key: 'outputs', href: '/outputs', Icon: CookIcon },
+    ],
+  },
+  {
     key: 'ideate',
     Icon: IdeateIcon,
     hue: { base: 'var(--mode-ideate)', strong: 'var(--mode-ideate-strong)', idle: 'var(--mode-ideate-idle)' },
@@ -301,26 +329,24 @@ export const WORKSHOP_GROUPS = [
     Icon: OperateIcon,
     hue: { base: 'var(--mode-operate)', strong: 'var(--mode-operate-strong)', idle: 'var(--mode-operate-idle)' },
     tiles: [
-      { key: 'bots', href: '/bots', Icon: BotIcon },
-      { key: 'mcpSkills', href: '/mcp-skills', Icon: ConnectedServicesIcon },
-      { key: 'apps', href: '/apps', Icon: AppsGridIcon },
-      { key: 'sketch', href: '/sketches', Icon: SketchIcon },
-    ],
-  },
-  {
-    key: 'studio',
-    Icon: StudioIcon,
-    hue: { base: 'var(--mode-studio)', strong: 'var(--mode-studio-strong)', idle: 'var(--mode-studio-idle)' },
-    tiles: [
-      { key: 'illustrations', href: '/maker/illustrations', Icon: MakerIcon },
-      { key: 'worlds', href: '/maker/worlds', Icon: WorldIcon },
-      { key: 'objects', href: '/maker/objects', Icon: ObjectsIcon },
-      { key: 'motion', href: '/maker/motion', Icon: MotionIcon },
-      { key: 'beats', href: '/maker/beats', Icon: BeatsIcon },
-      { key: 'voice', href: '/maker/voice', Icon: VoiceIcon },
-      { key: 'games', href: '/maker/games', Icon: GameDevIcon },
-      { key: 'arcade', href: '/arcade', Icon: ArcadeIcon },
-      { key: 'outputs', href: '/outputs', Icon: CookIcon },
+      { key: 'bots', href: '/bots', Icon: BotIcon, presence: 'bots' },
+      { key: 'mcpSkills', href: '/mcp-skills', Icon: ConnectedServicesIcon, presence: 'services' },
+      { key: 'apps', href: '/apps', Icon: AppsGridIcon, presence: 'apps' },
     ],
   },
 ];
+
+/**
+ * The nav for a given presence snapshot. A tile with no `presence` key is
+ * unconditional; a gated tile needs a positive count. `presence` undefined means
+ * "not loaded yet" and hides every gated tile — the bias is deliberate, so a host
+ * with no operational records never flashes tiles it will not keep.
+ */
+export function visibleWorkshopGroups(presence) {
+  return WORKSHOP_GROUPS
+    .map((group) => ({
+      ...group,
+      tiles: group.tiles.filter((tile) => !tile.presence || (presence?.[tile.presence] || 0) > 0),
+    }))
+    .filter((group) => group.tiles.length > 0);
+}

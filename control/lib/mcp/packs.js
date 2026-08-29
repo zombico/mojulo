@@ -3,7 +3,7 @@
  *
  * Pure data, no top-level imports (the install axis below does one local,
  * import-free filesystem probe to detect physical pack presence — see
- * `installedWings`): this module is the partition of the listed tool
+ * `installedGroups`): this module is the partition of the listed tool
  * registry into a small SPINE (always listed with full schemas) plus ~20
  * PACKS, each listed as ONE stateless dispatcher tool whose description is
  * its recognizer. In packs mode (MOJULO_TOOL_PACKS=on) connect-time
@@ -59,6 +59,7 @@ export const PACKS = [
   {
     id: 'pack_bot_build',
     wing: 'office',
+    installGroup: 'chatbot',
     title: 'Chatbot — build & deploy',
     description:
       "Deploy a CHATBOT — the bot factory: builder session → identity & protocol composition → typed config generators (forms, triage, appointments, optical-read) → documents/RAG → save & deploy → build-job polling. Open for 'make me a bot / chatbot / assistant for X', 'a bot that answers from my documents', 'intake / booking / support bot'. Operating an already-deployed bot is pack_bot_operate.",
@@ -84,6 +85,7 @@ export const PACKS = [
   {
     id: 'pack_bot_operate',
     wing: 'office',
+    installGroup: 'chatbot',
     title: 'Chatbot — operate deployed bots',
     description:
       "Run & read DEPLOYED bots: list deployments and running processes, read conversations and form submissions, export transcripts, summarize a bot, verify its turn hash-chain, inspect/set/delete bot env (secrets-safe), set suggested prompts. Open for 'what did people ask my bot', 'is my bot up', 'rotate its key', 'export the conversations'. Cross-bot analytics is pack_fleet.",
@@ -108,6 +110,7 @@ export const PACKS = [
   {
     id: 'pack_fleet',
     wing: 'office',
+    installGroup: 'chatbot',
     title: 'Fleet — cross-bot aggregation',
     description:
       "FLEET-level reads across ALL bots at once: scoped SQL over every bot's conversations, an aggregated analytics summary, and fleet-wide hash-chain verification. Open for 'across all my bots…', 'which bot is busiest', 'a weekly digest of every deployment'. Single-bot reads are pack_bot_operate.",
@@ -251,6 +254,7 @@ export const PACKS = [
   {
     id: 'pack_diagram',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'diagram',
     title: 'Diagrams & charts',
     description:
@@ -260,6 +264,7 @@ export const PACKS = [
   {
     id: 'pack_illustration',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'illustration',
     title: 'Scene & figure illustration',
     description:
@@ -270,6 +275,7 @@ export const PACKS = [
   {
     id: 'pack_reference',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'reference',
     title: 'Visual reference (from a photo)',
     description:
@@ -279,6 +285,7 @@ export const PACKS = [
   {
     id: 'pack_image_render',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'image-render',
     title: 'AI-image render pipeline',
     description:
@@ -300,6 +307,7 @@ export const PACKS = [
   {
     id: 'pack_object',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'object',
     title: '3D solids, figures & objects',
     description:
@@ -309,6 +317,7 @@ export const PACKS = [
   {
     id: 'pack_world',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'world',
     title: 'Worlds (traversable)',
     description:
@@ -318,6 +327,7 @@ export const PACKS = [
   {
     id: 'pack_view',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'view',
     title: 'Study views (science / math / bio)',
     description:
@@ -327,6 +337,7 @@ export const PACKS = [
   {
     id: 'pack_motion',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'motion',
     forms: ['motion', 'motion-comic'],
     title: 'Motion, film & motion-comic',
@@ -338,6 +349,7 @@ export const PACKS = [
   {
     id: 'pack_audio',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'audio',
     title: 'Audio — Mojulo Beats',
     description:
@@ -355,6 +367,7 @@ export const PACKS = [
   {
     id: 'pack_voice',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'voice',
     title: 'Voice — Mojulo Voice',
     description:
@@ -364,6 +377,7 @@ export const PACKS = [
   {
     id: 'pack_game',
     wing: 'studio',
+    installGroup: 'creative',
     form: 'game',
     title: 'Game',
     description:
@@ -460,36 +474,49 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
   return !clientDefers;
 }
 
-// ── install axis (install-capabilities.plan.md P2 / "make the split real") ────
+// ── install axis — PACK-GRAIN (mojulo-2.0-pure-creative.plan.md, Phase 1a) ────
 // packsModeEnabled above is the PRESENTATION axis — which schemas load into
 // context within a full install. THIS is the INSTALL axis — which capability
-// packs physically exist on the host. Two coarse install packs map onto the two
-// wings; everything not in a pack (SPINE / FOLDED / unpacked) is kernel and
-// always present.
+// packs physically exist on the host.
 //
-// SOURCE OF TRUTH = physical presence, per wing — so `npm install --omit=optional`
+// 2.0 moved this from WING-grain to PACK-grain. Under 1.5 a pack's install state
+// was a function of its wing, which forced the whole former office wing to share
+// the chatbot factory's fate. It no longer does: a pack declares its own
+// `installGroup`, and a pack that declares NONE is always present, like the
+// kernel. `wing` survives as the taxonomy/routing field only — install and wing
+// are now orthogonal, which is the generalization Phase 3's pack-host ABI needs
+// (a third-party pack declares a group; it does not join a wing).
+//
+// Two groups today:
+//   creative — the render / media / games stack (the flagship default pack).
+//   chatbot  — the bot factory. In-tree and always present for now, gated only by
+//              an explicit MOJULO_PACKS override; when @mojulo/chatbot publishes
+//              this becomes `{ markerModule: '@mojulo/chatbot' }` and nothing else
+//              in this file changes. That one-line flip is the point of the design.
+// The orchestration plumbing (connected-services / catalysts / triggers / runtime /
+// plan / research / stash) declares no group and is therefore ALWAYS present.
+//
+// SOURCE OF TRUTH = physical presence per group — so `npm install --omit=optional`
 // self-describes and an env flag can't silently disagree with what's on disk.
-// Each wing declares its own install signal as DATA in WING_INSTALL; installedWings()
-// folds over it. A NEW install wing adds ONE entry here — it never touches the
-// fold, the gates, or any caller. MOJULO_PACKS is an explicit OVERRIDE on top (a
-// deliberate operator choice: dev/test, or gating a present wing's tools off); a
-// typo/unknown value falls through to physical detection, never an empty workshop.
-const WING_BY_INSTALL_PACK = { ops: 'office', creative: 'studio' };
-const INSTALL_PACK_BY_WING = { office: 'ops', studio: 'creative' };
-const ALL_WINGS = ['office', 'studio'];
-
-// Per-wing install signal (data — see above). `alwaysInstalled`: pure code that
-// always ships (office/ops has no optional deps to shed). `markerModule`:
-// installed iff that dep resolves on disk. Creative's optional deps
-// (three / opentype.js / node-web-audio-api) are omitted together by
-// `--omit=optional`, so the marquee `three` is a faithful marker for the whole
-// studio wing.
-const WING_INSTALL = {
-  office: { alwaysInstalled: true },
-  studio: { markerModule: 'three' },
+// MOJULO_PACKS is an explicit OVERRIDE on top (a deliberate operator choice:
+// dev/test, or gating a present group's tools off); a typo/unknown value falls
+// through to physical detection, never an empty workshop.
+const INSTALL_GROUPS = {
+  // Creative's optional deps (three / opentype.js / node-web-audio-api) are omitted
+  // together by `--omit=optional`, so the marquee `three` is a faithful marker.
+  creative: { markerModule: 'three' },
+  chatbot: { alwaysInstalled: true },
 };
+const ALL_GROUPS = Object.keys(INSTALL_GROUPS);
 
-let _wingPresence = null; // memoized: install state is fixed for a process's life.
+// `ops` was the 1.5 install token for the whole office wing. In 2.0 the office
+// wing no longer installs as a unit — only the chatbot factory is gated — so the
+// token is kept as a DEPRECATED ALIAS so an existing MOJULO_PACKS=ops config keeps
+// its bots rather than silently changing meaning. It now grants strictly less than
+// it used to (the plumbing it also covered is unconditional now).
+const GROUP_ALIASES = { ops: 'chatbot' };
+
+let _groupPresence = null; // memoized: install state is fixed for a process's life.
 
 // The "pure data, no imports" rule holds at the top level; physical presence is
 // the one runtime fact that isn't static. process.getBuiltinModule (Node ≥22.12,
@@ -505,62 +532,68 @@ function moduleResolves(specifier) {
   }
 }
 
-function detectedWings() {
-  if (_wingPresence) return _wingPresence;
+function detectedGroups() {
+  if (_groupPresence) return _groupPresence;
   const present = new Set();
-  for (const wing of ALL_WINGS) {
-    const sig = WING_INSTALL[wing] || { alwaysInstalled: true };
-    if (sig.alwaysInstalled || (sig.markerModule && moduleResolves(sig.markerModule))) present.add(wing);
+  for (const group of ALL_GROUPS) {
+    const sig = INSTALL_GROUPS[group] || { alwaysInstalled: true };
+    if (sig.alwaysInstalled || (sig.markerModule && moduleResolves(sig.markerModule))) present.add(group);
   }
-  return (_wingPresence = present);
+  return (_groupPresence = present);
 }
 
-/** Test seam: force the memoized physical wing probe (pass null to reset). */
-export function _setWingPresence(wings) {
-  _wingPresence = wings ? new Set(wings) : null;
+/** Test seam: force the memoized physical group probe (pass null to reset). */
+export function _setGroupPresence(groups) {
+  _groupPresence = groups ? new Set(groups) : null;
 }
 
-export function installedWings(env = process.env) {
+/** The install groups present on this host. Packs declaring no group are always
+ * installed and are not represented here. */
+export function installedGroups(env = process.env) {
   const raw = (env.MOJULO_PACKS || '').trim();
   if (raw) {
-    const wings = new Set();
+    const groups = new Set();
     for (const tok of raw.split(',')) {
-      const wing = WING_BY_INSTALL_PACK[tok.trim().toLowerCase()];
-      if (wing) wings.add(wing);
+      const name = tok.trim().toLowerCase();
+      const group = INSTALL_GROUPS[name] ? name : GROUP_ALIASES[name];
+      if (group) groups.add(group);
     }
-    if (wings.size) return wings; // explicit override wins, even vs. disk
+    if (groups.size) return groups; // explicit override wins, even vs. disk
     // typo/unknown → fall through to physical detection (never an empty workshop)
   }
-  return new Set(detectedWings());
+  return new Set(detectedGroups());
 }
 
+/** A pack with no installGroup is kernel-adjacent: always present. */
 export function isPackInstalled(pack, env = process.env) {
-  return installedWings(env).has(pack.wing);
+  if (!pack?.installGroup) return true;
+  return installedGroups(env).has(pack.installGroup);
 }
 
 export function installedPacks(env = process.env) {
   return PACKS.filter((pack) => isPackInstalled(pack, env));
 }
 
-/** True unless `name` is a pack member whose wing isn't installed. SPINE / FOLDED
- * / unpacked tools are kernel — always installed. Gates both listing and
- * invocation, so an uninstalled pack's tools neither list nor run. Default full
- * install ⇒ always true (no behavior change). */
+/** True unless `name` is a pack member whose install group isn't present. SPINE /
+ * FOLDED / unpacked tools are kernel — always installed, as are packs declaring no
+ * group. Gates both listing and invocation, so an uninstalled pack's tools neither
+ * list nor run. Default full install ⇒ always true (no behavior change). */
 export function isToolInstalled(name, env = process.env) {
   const pack = homePackForTool(name);
   return pack ? isPackInstalled(pack, env) : true;
 }
 
-// The action that actually enables an uninstalled pack. creative is a PHYSICAL
-// install (its optional deps), so `mojulo install creative` is what makes its
-// tools runnable — setting MOJULO_PACKS alone would only make them LIST while
-// still failing at runtime with the deps absent. ops is pure code that ships
-// with the base install and is only ever "off" via an explicit MOJULO_PACKS
-// override, so its fix is the flag, not an install.
-function installAction(installPack) {
-  return installPack === 'ops'
-    ? "include 'ops' in MOJULO_PACKS (ops ships with the base install; it is only gated by an explicit override)"
-    : `run \`mojulo install ${installPack}\` (or include '${installPack}' in MOJULO_PACKS if you manage the install manually)`;
+// The action that actually enables an uninstalled group. creative is a PHYSICAL
+// install (its optional deps), so `mojulo install creative` is what makes its tools
+// runnable — setting MOJULO_PACKS alone would only make them LIST while still
+// failing at runtime with the deps absent. chatbot is in-tree code today and is
+// only ever "off" via an explicit MOJULO_PACKS override, so its fix is the flag,
+// not an install — until it ships as @mojulo/chatbot, when it becomes an install
+// like creative and this branch flips with the marker.
+function installAction(group) {
+  return INSTALL_GROUPS[group]?.alwaysInstalled
+    ? `include '${group}' in MOJULO_PACKS (${group} ships with the base install; it is only gated by an explicit override)`
+    : `run \`mojulo install ${group}\` (or include '${group}' in MOJULO_PACKS if you manage the install manually)`;
 }
 
 /** Advisory message for a tool whose pack isn't installed, or null if it is.
@@ -568,18 +601,17 @@ function installAction(installPack) {
 export function installNotice(name, env = process.env) {
   const pack = homePackForTool(name);
   if (!pack || isPackInstalled(pack, env)) return null;
-  const installPack = INSTALL_PACK_BY_WING[pack.wing] || pack.wing;
-  return `'${name}' belongs to the ${installPack} capability pack, which is not installed on this host — ${installAction(installPack)}.`;
+  const group = pack.installGroup;
+  return `'${name}' belongs to the ${group} capability pack, which is not installed on this host — ${installAction(group)}.`;
 }
 
 /** Pack-level advisory used by the dispatcher when a whole pack is uninstalled.
- * Wing-level + terminal on purpose: it tells the model the ENTIRE pack is
+ * Group-level + terminal on purpose: it tells the model the ENTIRE pack is
  * unavailable and to STOP retrying its tools (anti-spin), while pointing at the
- * install and the other wing. Knowing the pack exists is fine; running it is not.
+ * install. Knowing the pack exists is fine; running it is not.
  * Returns null when the pack is installed. */
 export function packInstallNotice(pack, env = process.env) {
   if (!pack || isPackInstalled(pack, env)) return null;
-  const installPack = INSTALL_PACK_BY_WING[pack.wing] || pack.wing;
-  const otherWing = pack.wing === 'studio' ? 'office' : 'studio';
-  return `The ${installPack} capability pack is not installed on this host, so ${pack.id} and its tools cannot run here. To enable them, ${installAction(installPack)}; or stay in the ${otherWing} wing. Do not retry ${installPack}-pack tools until it is installed.`;
+  const group = pack.installGroup;
+  return `The ${group} capability pack is not installed on this host, so ${pack.id} and its tools cannot run here. To enable them, ${installAction(group)}. Everything outside the ${group} pack — the kernel and the always-present packs — still works. Do not retry ${group}-pack tools until it is installed.`;
 }
