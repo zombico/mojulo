@@ -41,6 +41,16 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
     }
   });
 
+  it('the Render Bay is a studio door, and /outputs is deliberately still one too', () => {
+    // The Library fold collapsed four routes because they were one gallery with a
+    // different prop. /outputs is NOT that: it is a distinct inbox with real
+    // filters and an archive action, and the read-only bay cannot carry it. So
+    // the bay links into it and both doors stay. See 3d-factory-ui.plan.md §8p5.
+    const studio = tileKeys(WORKSHOP_GROUPS, 'studio');
+    expect(studio).toContain('renderBay');
+    expect(studio).toContain('outputs');
+  });
+
   it('a fresh host shows only the creative + ideate modes', () => {
     const groups = visibleWorkshopGroups({ bots: 0, apps: 0, services: 0 });
     expect(keysOf(groups)).toEqual(['studio', 'ideate']);

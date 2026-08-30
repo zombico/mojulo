@@ -87,6 +87,75 @@ describe('RenderRequestRepository', () => {
     expect(resubmitted.renderN).toBe(2);
   });
 
+  describe('the Render Bay reads', () => {
+    // The bay watches the whole queue, not one ref — and it must never print a
+    // cap as if it were a count (the Library's phase-3 lesson).
+    function seed() {
+      const rows = [];
+      for (let i = 0; i < 5; i += 1) {
+        rows.push(R.park({ ...PARK, target: `page-${i}`, manifestHash: `h${i}` }));
+      }
+      return rows;
+    }
+
+    it('lists newest-movement-first, not newest-created-first', () => {
+      // updated_at, because the bay is watching movement: a row that just moved
+      // is the news, and a long-parked pending row is not.
+      //
+      // The stamps are pushed apart by hand because `unixepoch()` has SECOND
+      // resolution: five rows parked in one tick all share an updated_at, and the
+      // order within that second falls back to rowid (newest insert first). That
+      // tie is fine on a real queue — movement is seconds apart — but a test that
+      // leaned on it would be asserting insertion order, not the ordering rule.
+      const rows = seed();
+      const db = getDb();
+      rows.forEach((r, i) => {
+        db.prepare('UPDATE image_render_requests SET created_at = ?, updated_at = ? WHERE id = ?')
+          .run(1_700_000_000 + i, 1_700_000_000 + i, r.id);
+      });
+      R.claimNext({});                                    // rows[0] -> in_flight
+      R.recordSubmit({ id: rows[0].id, renderN: 1 });     // ...and submitted, stamped now
+      const recent = R.listRecent({ limit: 10 });
+      expect(recent[0].id).toBe(rows[0].id);              // oldest created, newest moved
+      expect(recent[0].status).toBe('submitted');
+      expect(recent[1].id).toBe(rows[4].id);              // then the newest untouched row
+    });
+
+    it('narrows to a status set', () => {
+      const rows = seed();
+      R.claimNext({});
+      R.recordSubmit({ id: rows[0].id, renderN: 1 });
+      const gate = R.listRecent({ statuses: ['submitted'] });
+      expect(gate.map((r) => r.id)).toEqual([rows[0].id]);
+      expect(R.listRecent({ statuses: ['pending'] })).toHaveLength(4);
+    });
+
+    it('an empty status set asks for nothing and gets nothing', () => {
+      seed();
+      expect(R.listRecent({ statuses: [] })).toEqual([]);
+    });
+
+    it('caps the page but statusCounts stays the true denominator', () => {
+      seed();
+      expect(R.listRecent({ limit: 2 })).toHaveLength(2);
+      expect(R.statusCounts()).toEqual({ pending: 5 });
+    });
+
+    it('tallies every status the queue currently holds', () => {
+      const rows = seed();
+      R.claimNext({});
+      R.recordSubmit({ id: rows[0].id, renderN: 1 });
+      R.recordAccept({ id: rows[0].id, acceptAudit: { ok: true } });
+      R.cancel({ id: rows[1].id });
+      expect(R.statusCounts()).toEqual({ pending: 3, accepted: 1, cancelled: 1 });
+    });
+
+    it('an empty queue tallies to an empty object, not a throw', () => {
+      expect(R.statusCounts()).toEqual({});
+      expect(R.listRecent()).toEqual([]);
+    });
+  });
+
   // THE core proof: durability across a restart. mcp_jobs (in-memory long-poll)
   // cannot do this; the render handoff must.
   it('a parked request SURVIVES a control-plane restart (close + reopen the DB)', () => {

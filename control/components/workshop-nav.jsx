@@ -132,6 +132,22 @@ export function CookIcon({ className = 'h-10 w-10' }) {
   );
 }
 
+export function RenderBayIcon({ className = 'h-10 w-10' }) {
+  // Render Bay = a queue moving through a gate: three stacked jobs feeding one
+  // output, with the gate drawn as the notch they pass through.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M3 6h7" />
+      <path d="M3 12h7" />
+      <path d="M3 18h7" />
+      <path d="M13 4v16" strokeWidth="0.9" />
+      <path d="M10 6h3M10 12h3M10 18h3" strokeWidth="0.9" />
+      <path d="M13 12h3" />
+      <path d="M16 8h5v8h-5z" />
+    </svg>
+  );
+}
+
 export function MapIcon({ className = 'h-10 w-10' }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -314,6 +330,11 @@ export const WORKSHOP_GROUPS = [
       { key: 'voice', href: '/maker/voice', Icon: VoiceIcon },
       { key: 'games', href: '/maker/games', Icon: GameDevIcon },
       { key: 'arcade', href: '/arcade', Icon: ArcadeIcon },
+      // The Render Bay watches production; /outputs stays the publication inbox
+      // it has always been (its filters and its archive action are real, and the
+      // bay does not mutate). The bay links into it rather than folding it. See
+      // components/3d-factory-ui.plan.md §8 phase 5.
+      { key: 'renderBay', href: '/render-bay', Icon: RenderBayIcon },
       { key: 'outputs', href: '/outputs', Icon: CookIcon },
     ],
   },

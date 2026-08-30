@@ -1,6 +1,6 @@
-import HomeLauncher from '@/components/HomeLauncher';
+import ViewportHome from '@/components/ViewportHome';
 import { isAuthEnabled } from '@/lib/auth/session';
 
 export default function HomePage() {
-  return <HomeLauncher authEnabled={isAuthEnabled()} />;
+  return <ViewportHome authEnabled={isAuthEnabled()} />;
 }

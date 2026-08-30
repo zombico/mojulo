@@ -49,6 +49,40 @@ own process; it was never part of the workshop install.
   the chatbot factory may import it, plus two shrink-only ledgers over the
   dashboard routes and the retained code still reading bot tables.
 
+### 3D factory UI — the surface learns the vocabulary (phases 1-6)
+
+The dashboard now speaks the colloquial vocabulary of 3D work while the spine
+underneath is unchanged: no primitive renamed, no tool signature moved, no
+route deleted before its replacement carried the traffic. Design + per-phase
+build log: `components/3d-factory-ui.plan.md`.
+
+- **Tokens.** A bay/ink/signal/radius palette; the legacy names re-point at it,
+  and both gray ramps move at once so ~1,700 hardcoded literals migrate without
+  a component change. Every re-pointed step was contrast-measured first.
+- **Display modes.** Wire / Shaded / Baked / Painted on the detail page and both
+  gallery previews. Two of the four paths already existed and had simply never
+  been surfaced. Unavailable modes are disabled WITH their reason; `painted`
+  always carries its provenance badge.
+- **Library fold.** `/library` with shelf chips replaces four routes that were
+  one gallery with a different prop. A shelf is a FETCH SCOPE, not a client-side
+  filter — the first cut showed 200 of 2,111 artifacts and hid the rest.
+- **Turntable cards.** Grid cards turn through a baked 16-frame azimuth strip on
+  hover, minted on first hover behind a dedupe queue rather than on the mint
+  critical path. Closes a standing gap: orbit-only kinds had never had a
+  thumbnail at all.
+- **Render Bay.** `/render-bay` — the durable image-render queue, GI bakes, and
+  cooks/exports in one place. Four stages, not three: `submitted` IS the eyes
+  gate, and folding it into "in flight" would hide the one gate worth showing.
+  Bakes report the machine gate's measured numbers beside an eyes gate that is
+  honestly unrecorded. Queue rows fold by ref, matching `pull_image_render`'s
+  own grain — 66 rows became 14 on a real workshop.
+- **Viewport home.** `/` is a live artifact with an outliner, inspector, and
+  status bar. The outliner reads each recipe's OWN branches (there is no shared
+  scene spine to walk) and marks structure it has no word for rather than
+  hiding it. Two readouts the plan asked for were dropped as false: the STL
+  writer reads units as millimetres, not metres, and a triangle count costs a
+  full world resolve.
+
 ### Edit-in-place for 3D recipes — closing the mint-once gaps
 
 Recipes are STARTERS — the agent iterates them in place on the same ref. That

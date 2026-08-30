@@ -182,6 +182,38 @@ export const RenderRequestRepository = {
     return this.getById(id);
   },
 
+  /**
+   * Newest-first page of requests, optionally narrowed to a set of statuses.
+   * Feeds the Render Bay, which reads the queue as a whole rather than per-ref.
+   *
+   * Ordered on `updated_at` (not `created_at`) because the bay is watching
+   * MOVEMENT — a row that was just submitted or just accepted is the news, and a
+   * long-parked pending row is not. `limit` is a real cap, so callers that show a
+   * count must take it from `statusCounts()` rather than from the page length.
+   */
+  listRecent({ statuses, limit = 100 } = {}) {
+    const db = getDb();
+    const cap = Math.max(1, Math.min(500, Number(limit) || 100));
+    const list = Array.isArray(statuses) ? statuses.filter(Boolean) : null;
+    if (list && list.length === 0) return [];
+    const where = list ? `WHERE status IN (${list.map(() => '?').join(', ')})` : '';
+    return db
+      .prepare(
+        `SELECT * FROM image_render_requests ${where} ORDER BY updated_at DESC, rowid DESC LIMIT ?`,
+      )
+      .all(...(list || []), cap)
+      .map(rowToRequest);
+  },
+
+  /** Whole-table tally per status — the honest denominator for a capped page. */
+  statusCounts() {
+    const db = getDb();
+    const rows = db
+      .prepare('SELECT status, COUNT(*) AS n FROM image_render_requests GROUP BY status')
+      .all();
+    return Object.fromEntries(rows.map((r) => [r.status, r.n]));
+  },
+
   cancel({ id }) {
     const db = getDb();
     db.prepare(

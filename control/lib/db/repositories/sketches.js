@@ -179,6 +179,27 @@ export const SketchRepository = {
   },
 
   /**
+   * The newest N sketches, flat.
+   *
+   * `list()` cannot answer "what did I just make": its root query UNIONs in EVERY
+   * foldered sketch regardless of `rootLimit`, because a gallery must not lose an
+   * artifact to a folder. The viewport home wants the opposite — the head of the
+   * store and nothing else — so it gets its own read rather than paying for the
+   * whole gallery to find one row.
+   */
+  recent({ limit = 40 } = {}) {
+    const db = getDb();
+    const scope = spaceFilter();
+    const cap = Math.max(1, Math.min(500, Number(limit) || 40));
+    const where = scope.sql ? `WHERE 1=1${scope.sql}` : '';
+    return db
+      .prepare(`SELECT * FROM sketches ${where} ORDER BY created_at DESC, rowid DESC LIMIT ?`)
+      .all(...scope.params, cap)
+      .map(rowToSketch)
+      .filter(Boolean);
+  },
+
+  /**
    * Effective-bucket tallies over the WHOLE table, plus per-kind tallies for the
    * kinds a caller needs to sub-split a bucket (the Library's Characters shelf).
    * One scan, one parse per row, and a tiny payload — so a chip row can show true
@@ -200,6 +221,32 @@ export const SketchRepository = {
       if (kind) kinds[kind] = (kinds[kind] || 0) + 1;
     }
     return { total: rows.length, buckets, kinds };
+  },
+
+  /**
+   * Every sketch carrying a GI bake, newest bake first.
+   *
+   * `bake-world-gi.mjs` records its result in the manifest itself — an
+   * `inline-faces` bake stamps `giBake` on the world it recoloured, a
+   * `generated-mesh` bake stamps it on the `<ref>_gi` variant it minted — so the
+   * bake ledger IS the sketch store and needs no table of its own.
+   *
+   * Filtered in SQL rather than by scanning like `bucketCounts()`: bakes are a
+   * handful of rows in a store of thousands, and json_extract lets the whole-table
+   * read stay a whole-table read without parsing every manifest to find seven.
+   */
+  giBakes() {
+    const db = getDb();
+    const scope = spaceFilter();
+    return db
+      .prepare(
+        `SELECT * FROM sketches
+         WHERE json_extract(manifest_json, '$.giBake') IS NOT NULL${scope.sql}
+         ORDER BY json_extract(manifest_json, '$.giBake.bakedAt') DESC, created_at DESC`,
+      )
+      .all(...scope.params)
+      .map(rowToSketch)
+      .filter(Boolean);
   },
 
   // Pin (or clear) a sketch's Maker gallery without touching its content. Pass

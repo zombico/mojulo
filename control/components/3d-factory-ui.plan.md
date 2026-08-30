@@ -1,6 +1,6 @@
 # 3D Factory UI — revamp plan + style guide
 
-Status: **proposal** (2026-08-29). Nothing here is built yet.
+Status: **phases 1–6 shipped** (2026-08-30). The rollout in §8 is complete; each phase's entry there records what it actually cost and where the plan was wrong.
 
 Mojulo's positioning has narrowed to **"a 3D factory for agents."** The dashboard has not
 followed. This plan makes the *surface* speak the colloquial vocabulary of 3D work — viewport,
@@ -524,9 +524,129 @@ carries the traffic.
    view toggle. Making the grid the Library's landing surface belongs with the viewport home
    below, not smuggled in here — the full view is also the bulk move/delete surface, and that
    action bar should not become the first thing the Library shows.
-5. **Render Bay.** A real page over `image_render_requests` + bakes + cooks + exports.
-6. **Viewport home.** The largest change and deliberately last, once the pieces it composes —
-   outliner data, display modes, library counts, queue depth — all already exist.
+5. **Render Bay.** ✅ **Done.** `/render-bay` — three lanes over the four expressions of
+   "mojulo is producing something", none of which is a new data model and one of which had never
+   been drawn at all.
+
+   - `lib/render-bay/lanes.js` + 41 tests — the shared vocabulary: the status→stage→signal map,
+     the ref fold, the two gates, the output-file taxonomy, and the copy-prompt text. The page,
+     the route and the tests read the same module, so they cannot drift about what a state means.
+   - `lib/render-bay/outputs-scan.js` + 8 tests — the disk read, because exports have no ledger.
+   - `RenderRequestRepository.listRecent` / `.statusCounts`, `SketchRepository.giBakes` — the three
+     reads the lanes needed and the repositories didn't have.
+   - `app/api/render-bay/route.js`, `app/render-bay/page.jsx`, a studio tile, a crumb, and the
+     `get_ui_map` drawer.
+
+   **§5 named three stages and there are four, because three conflates the two gates.** "Queued /
+   in flight / done" has no room for `submitted` — which is *precisely* the state where the machine
+   has finished and nobody has looked. Folding it into "in flight" would hide the one gate the same
+   section asks to make visible. So `gate` is its own stage, and it is the only stage whose rows are
+   never folded (below), because `accept_image_render` takes exactly one `request_id` and every PNG
+   needs its own look.
+
+   The bakes lane makes the same distinction the other way. A `giBake` row EXISTS only because the
+   machine gate already passed — `bake-world-gi.mjs` fails before it binds anything — so the machine
+   gate is reported as passed **with its measured numbers** (corner match, dark-floor fraction
+   against the 25% limit) rather than re-derived. The eyes gate has no column: nothing anywhere
+   records that the operator looked. So it reports itself as unrecorded and stays theirs to make,
+   instead of borrowing the machine's verdict. Reading `docs/bicycles.md` and then rendering
+   "machine gate passed · 94% corner match · 1% dark floor" beside "eyes gate: yours — open it and
+   look" is the whole doctrine in one row.
+
+   **The defect the real workshop exposed, and the fold that answers it.** The first cut listed one
+   row per request, which is what the table holds. On this host that is 66 pending rows — and a
+   sequential-art page parks one request per panel while a keyframe clip parks one per mouth shape,
+   so 25 of those 66 were the same clip. The result pushed the eyes gate, both other lanes, and
+   everything the bay exists to show off the bottom of the screen. Twenty-five pending targets on
+   one clip is ONE artifact waiting, and that is what the operator is deciding about. So every stage
+   but the gate folds to one row per ref: 66 rows became 14, and `pull_image_render({ ref })` — which
+   drains exactly one sketch's requests — means the fold matches the tool's own grain rather than
+   merely tidying the page. Nothing is hidden: the group keeps every request, every target, the
+   newest movement, and the OLDEST pull, so a sibling claimed a moment ago cannot reset a stall
+   reading that six others have earned.
+
+   That fold is also why the queue lane reads the active statuses **whole** rather than capped. A
+   partial read would make the fold lie about how many targets an artifact is waiting on, and it is
+   affordable precisely because the active set is bounded by what the operator has parked, not by how
+   long the workshop has existed. The unbounded half — `accepted`, 279 rows here — stays capped, with
+   its true total from `statusCounts()` beside it.
+
+   **`/outputs` is deliberately NOT folded in**, though §2 lists it under this bay. The Library fold
+   collapsed four routes because they were one gallery with a different prop; `/outputs` is not that.
+   It is a distinct inbox with real filters and an archive action, and a read-only bay cannot carry a
+   mutating surface without demoting it. So the bay shows the newest publications and links out, both
+   doors stay, and a nav test pins the decision so it reads as a choice rather than an oversight. For
+   the same reason each outputs group caps at 12 rows and `?limit=` does not raise it — the bay
+   watches production, and a second forty-row inbox stacked under the queue would bury what is moving.
+
+   One thing measured on the way past: `unixepoch()` has **second** resolution, so rows parked in one
+   tick share an `updated_at` and order by rowid within that second. Real movement is seconds apart,
+   so the ordering rule holds — but a test that leaned on the tie would have been asserting insertion
+   order, and the one that nearly did now pushes its stamps apart by hand and says why.
+
+   Not done here: `data/outcomes/` is scanned per request (a readdir plus a stat per file, ~300
+   folders on this host). That is fine on local disk and honest — the disk cannot disagree with
+   itself — but it is the first thing to cache if the bay ever polls.
+6. **Viewport home.** ✅ **Done.** `/` is a workshop instead of a menu: a live artifact on the
+   landing surface, an outliner reading its recipe, an inspector, and a status bar — over pieces
+   phases 1–5 had already built, which is exactly why §8 put this last.
+
+   - `lib/graph/sketch/outliner.js` + 26 tests — the outliner tree, the HUD facts, the scale
+     statement, and the head pick. Import-light, so the client bundle carries it.
+   - `app/api/home/route.js` — one request for the whole home. Six waterfalled fetches is what the
+     drawer version felt like.
+   - `components/ViewportHome.jsx`, `app/page.jsx`, `SketchRepository.recent()`,
+     `scanOneOutcome()`, the `home3d` message block, and the `get_ui_map` drawer.
+
+   **The outliner reads the recipe's own shape, because there is no shared spine to walk.** §3 says
+   mojulo "genuinely has a tree (scene → parts → materials → bound audio → bakes)". It has trees,
+   plural, and they do not agree: a `workbench` is lathes + extrudes + sweeps + drapes, a
+   `fractal-city` is elements + civicAreas, a `controllable` is entities + camera + ground + audio.
+   Walking a fixed spine would have produced an outliner that was right for cities and empty for
+   everything else. So the rail reads the manifest's own top-level structure — named where mojulo
+   has a word for what it found, *italic and unlabelled where it doesn't*, never nothing. Running it
+   against the plan's own vocabulary diagram is the proof: `Stations 13 · Edges 6` named, `marks 17 ·
+   neoRembrandt 46` admitted as structure it has no word for. An outliner that hid what it could not
+   label would lie about the recipe.
+
+   **The view-cube already exists, and it is inside the frame.** §3 asks for front/side/top/¾ camera
+   presets in the viewport corner. `/world` already serves its own HUD strip — view cams, wireframe,
+   fly/walk — unless you pass `?hud=0`, and the camera lives in the world's own three.js context
+   where nothing outside the iframe can reach it without a postMessage protocol that does not exist.
+   So the camera control stays where it already works and the strip outside carries READOUTS instead.
+   Same shape of finding as phase 2's: the capability was there and simply never surfaced.
+
+   **Two things §3 asked for that would have been false on screen.**
+
+   - *"1 unit = 1 m · stl-ready"* is not true by default. `facesToStl` multiplies by `scale` and
+     slicers read STL units as **millimetres**, so the default export is 1 unit = 1 **mm**, and only
+     a handful of kinds (workbench) declare `units` at all. Print-at-true-scale is one of mojulo's
+     differentiators; a readout that gets it wrong is worse than no readout. So the strip says what
+     is true — the declared unit when there is one, plus the `scale` that would print it at true
+     size (`1 unit = 1 m · print true scale with scale: 1000`), and `units undeclared · stl reads
+     1 unit = 1 mm` when the recipe never said. Both readouts are hidden entirely on flat kinds: a
+     flowchart has no STL, and the first cut shipped one under a flowchart before the real data
+     caught it.
+   - *"tri count"* costs a full `resolveWorldScene` — tens of seconds for a big world. The home must
+     not pay that to draw a strip of text, and must not show a number it guessed. The strip says
+     where the number lives (`export_model`) instead.
+
+   **The shell is not pinned to the viewport height.** `h-screen` measures the whole window while
+   the home starts BELOW the app's nav + breadcrumb chrome, so the status bar fell off the bottom by
+   exactly the chrome's height — a height that varies by route. It grows and the page scrolls like
+   every other page; the viewport pane keeps a tall minimum so it is still the largest thing on
+   screen, which was the point.
+
+   **An empty workshop falls through to the old launcher.** §3 wants the orientation gallery
+   turntable here, and that is `mojulo-orient` — an MCP surface the AGENT drives, consent-first, that
+   mints a real artifact into the operator's store. A dashboard cannot take that consent on the
+   operator's behalf, so the honest version is the tile launcher, which is already the "here is what
+   is here" invitation. `HomeLauncher` is therefore kept rather than deleted, and it also catches a
+   failed read: a broken home should still open its doors.
+
+   Not done here: `?ref=` opens any artifact in the three panes, but nothing navigates INTO it yet —
+   the outliner branches don't select, and the Library doesn't link back. The revision list §3 puts
+   in the Inspector has no store to read: `beats_revisions` exists, the sketch equivalent does not.
 
 ## 9. Invariants this plan does not touch
 

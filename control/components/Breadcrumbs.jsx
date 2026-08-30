@@ -89,6 +89,7 @@ const ROUTES = [
     trail: [{ labelKey: 'stashes.title', href: '/stashes' }, { dynamic: 'ref' }],
   },
   { tpl: '/outputs', trail: [{ labelKey: 'home.tiles.outputs' }] },
+  { tpl: '/render-bay', trail: [{ labelKey: 'home.tiles.renderBay' }] },
   // Studio (the retired "Maker" wordmark) — the /maker hub lists these rails,
   // so the Studio crumb links up to it.
   { tpl: '/maker', trail: [{ labelKey: 'home.groups.studio' }] },

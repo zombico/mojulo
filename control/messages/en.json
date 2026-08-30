@@ -1597,7 +1597,8 @@
       "games": "Game Developer",
       "arcade": "Arcade",
       "settings": "Settings",
-      "library": "Library"
+      "library": "Library",
+      "renderBay": "Render Bay"
     },
     "agentStatus": {
       "title": "Agent Status",
@@ -2180,6 +2181,150 @@
       "via": "Via",
       "when": "When",
       "message": "Message"
+    }
+  },
+  "renderBay": {
+    "title": "Render Bay",
+    "subtitle": "Everything mojulo is producing, in one place: the durable image-render queue, GI bakes, and the cooks and exports on disk. Four ways of saying \"something is being made\" that used to have no shared home.",
+    "readOnly": "The bay renders state. Every action here is a prompt to copy into your agent — accepting a render, re-baking a world, and minting an export all happen through MCP tools, never through this page.",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "allLanes": "All lanes",
+    "copyPrompt": "Copy prompt",
+    "copied": "Copied",
+    "showing": "showing {shown} of {total}",
+    "queue": {
+      "title": "Render queue",
+      "note": "Durable render requests parked for an image-capable worker. A request survives a restart, so a parked row is a promise, not an in-memory job.",
+      "count": "{n} requests",
+      "empty": "Nothing parked. Ask the agent to request_image_render for a minted image-outcome or sequential-art sketch.",
+      "eyesGate": "← the eyes gate: the machine is done, nobody has looked",
+      "stalled": "stalled",
+      "stage": {
+        "queued": "Queued",
+        "inFlight": "In flight",
+        "gate": "Awaiting the eyes gate",
+        "done": "Settled"
+      },
+      "status": {
+        "pending": "pending",
+        "in_flight": "in flight",
+        "submitted": "submitted",
+        "accepted": "accepted",
+        "rejected": "rejected",
+        "expired": "expired",
+        "cancelled": "cancelled"
+      },
+      "targets": "{n} targets",
+      "folded": "folded onto {refs} artifacts"
+    },
+    "bakes": {
+      "title": "GI bakes",
+      "note": "Blender Cycles global illumination baked into a world's own vertex colours — soft AO and contact shadow at zero runtime cost. Needs a local Blender; the baked worlds ship to anyone.",
+      "empty": "No bakes yet. With Blender installed: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "machine gate passed · {match} corner match · {black} dark floor (limit {limit})",
+      "eyesGate": "eyes gate: yours — open it and look",
+      "samples": "{n} samples",
+      "from": "baked from {ref}"
+    },
+    "outputs": {
+      "title": "Cooks and exports",
+      "note": "What has been materialized onto disk: publications from cook, and the models, meshes, renders, skins, voices and scores bound into each artifact's outcome folder.",
+      "fullInbox": "Full publication inbox →",
+      "emptyCooks": "No open publications.",
+      "emptyArtifacts": "No exports on disk yet. Ask the agent to export_model a world, or bind a render.",
+      "emptyBeats": "No beats renders on disk yet.",
+      "group": {
+        "cooks": "Publications",
+        "artifacts": "Artifact outcome folders",
+        "beats": "Beats renders"
+      },
+      "kind": {
+        "model": "model",
+        "mesh": "bound mesh",
+        "render": "render",
+        "skin": "skin",
+        "voice": "voice",
+        "motion": "motion",
+        "game": "game",
+        "audio": "audio",
+        "score": "score",
+        "page": "page",
+        "recipe": "recipe",
+        "other": "file"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Open artifact →",
+    "copied": "Copied",
+    "shelves": "Library",
+    "bays": "Workshop",
+    "outliner": {
+      "title": "Outliner",
+      "flat": "A flat recipe — no parts to walk.",
+      "unnamed": "Structure mojulo has no word for yet. It is still in the recipe.",
+      "group": {
+        "geometry": "Geometry",
+        "staging": "Staging",
+        "sound": "Sound",
+        "provenance": "Provenance"
+      },
+      "branch": {
+        "lathes": "Lathes",
+        "extrudes": "Extrudes",
+        "sweeps": "Sweeps",
+        "drapes": "Drapes",
+        "faces": "Faces",
+        "figures": "Figures",
+        "characters": "Characters",
+        "entities": "Entities",
+        "elements": "Elements",
+        "civicAreas": "Civic areas",
+        "chambers": "Chambers",
+        "tunnels": "Tunnels",
+        "masses": "Masses",
+        "concourses": "Concourses",
+        "stations": "Stations",
+        "edges": "Edges",
+        "tree": "Tree",
+        "shape": "Shape",
+        "camera": "Camera",
+        "cameras": "Cameras",
+        "ground": "Ground",
+        "physics": "Physics",
+        "detail": "Detail",
+        "game": "Game",
+        "audio": "Audio",
+        "giBake": "GI bake"
+      }
+    },
+    "viewport": {
+      "noReading": "This artifact is heard, played, or read rather than looked at. Open it to experience it.",
+      "seed": "seed {seed}",
+      "parts": "{n} parts",
+      "scaleDeclared": "1 unit = 1 {unit} · print true scale with scale: {scale}",
+      "scaleUndeclared": "units undeclared · stl reads 1 unit = 1 mm",
+      "baked": "baked · {preset}",
+      "noBake": "no GI bake",
+      "triHint": "triangle count: export_model"
+    },
+    "inspector": {
+      "askTitle": "Ask the agent",
+      "askBody": "The dashboard renders state; it never mutates. Changing this recipe happens in your host agent.",
+      "askCopy": "Copy prompt",
+      "bound": "Bound artifacts",
+      "boundEmpty": "Nothing bound yet — no renders, meshes, or exports on disk for this recipe.",
+      "openFolder": "Open outcome folder · {size}",
+      "recipe": "Recipe"
+    },
+    "status": {
+      "packs": "packs: {packs}",
+      "kernelOnly": "kernel only",
+      "queue": "render queue {n}",
+      "gate": "{n} awaiting the eyes gate",
+      "library": "{n} artifacts",
+      "toolCalls": "{n} tool calls · 24h"
     }
   }
 }
