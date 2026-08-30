@@ -83,26 +83,33 @@ const HEADER = '# Mojulo, oriented';
 
 // --- Orientation wings (orientation-containment.plan.md C1) ---
 //
-// Two forward_context bodies behind one tool: the OFFICE (default — bots,
-// connected services, apps, deliberation, operate-what-exists) and the STUDIO
-// (the creative wing — the FORM recognizer rows + creative drawers). Office/
-// Studio is the user- and agent-facing vocabulary (it matches the Studio mode
-// on Workshop Home); do not resurrect "operations mode" (deprecated Ring 11
-// internal naming). `mode` is stateless per call — it selects which body
-// composes, never session state.
+// Two forward_context bodies behind one tool: the STUDIO (the DEFAULT — the
+// creative FORM recognizer rows + creative drawers) and the OFFICE (bots,
+// connected services, apps, deliberation, operate-what-exists), reached with
+// `mode:'office'`. Office/Studio is the user- and agent-facing vocabulary (it
+// matches the Studio mode on Workshop Home); do not resurrect "operations mode"
+// (deprecated Ring 11 internal naming). `mode` is stateless per call — it
+// selects which body composes, never session state.
+//
+// STUDIO IS THE DEFAULT (mojulo-2.0-pure-creative.plan.md, Phase 1f). Mojulo 2.0
+// is a 3D factory; an agent arriving with no mode should be told that first. The
+// office wing is retained in full as the workflow-automation backend — recessed,
+// not removed — which is a ROUTING posture, not a capability change.
 export const FORWARD_CONTEXT_MODES = ['office', 'studio'];
-const DEFAULT_FORWARD_CONTEXT_MODE = 'office';
-const STUDIO_HEADER = '# Mojulo studio, oriented';
+const DEFAULT_FORWARD_CONTEXT_MODE = 'studio';
+const OFFICE_HEADER = '# Mojulo office, oriented';
 
 // The five creatable artifact paradigms — THE single source for the sweep test
 // in context.test.js that asserts every orientation surface (initialize
 // preamble, lean opener, get_substrate, register-kit glossary) names all of
 // them. The "three vs four artifacts" drift class is caught by that sweep,
 // not by hand. Adding a paradigm: add it here and the sweep tells you
-// every surface that needs the mention. Order is doctrinal: Media (creative
-// artifacts as deterministic recipes) sits BEFORE Game because a game is
-// COMPOSITION — Media levels/music/art over a typed store with rules.
-export const PARADIGMS = ['Bot', 'Connected Service', 'App', 'Media', 'Game'];
+// every surface that needs the mention. Order is doctrinal twice over: Media
+// (creative artifacts as deterministic recipes) sits BEFORE Game because a game
+// is COMPOSITION — Media levels/music/art over a typed store with rules; and the
+// creative pair leads the whole list because 2.0 is a 3D factory (Bot /
+// Connected Service / App are the retained automation backend, not the headline).
+export const PARADIGMS = ['Media', 'Game', 'Bot', 'Connected Service', 'App'];
 
 // Communication settings notice — tells the agent which register/disclosure
 // cells are active for this session. Generated per call from operator anchor
@@ -127,7 +134,7 @@ function communicationSettingsNotice({ register, disclosure, source }) {
 // the drawers are. The five paradigm names stay because the sweep test pins
 // them on every orientation surface.
 
-const LEAN_OPENER = `This is the office **routing index** for the five creatable artifacts — Bot, Connected Service, App, Media, Game: user-framing → entry-tool rows, plus a directory of drawers to pull when a task needs depth. The office wing covers solutions composed over the operator's installed MCPs (CRM, calendar, drive, ticketing, warehouse) and operating what already exists; a creative ask (Media / Game) routes through \`forward_context({mode:'studio'})\`, the studio's own routing index. Match the user's framing to a row, reach for the entry tool, and read a drawer only when you need it. When unsure whether the work needs a conversational surface, ask — that answer routes the session. Substrate positioning and self-description (what mojulo is, posture, costs, uninstall) live behind \`get_substrate\` — pull them when the operator asks, not to orient.`;
+const LEAN_OPENER = `This is the office **routing index** — mojulo's automation backend, reached with \`forward_context({mode:'office'})\`: user-framing → entry-tool rows, plus a directory of drawers to pull when a task needs depth. It covers solutions composed over the operator's installed MCPs (CRM, calendar, drive, ticketing, warehouse) and operating what already exists — Connected Service and App — plus the Bot paradigm. **Bots are an optional capability pack**: if the chatbot pack is not installed on this host its tools will not list or run, and the install advisory says so — everything else in this wing is always present. The creative wing (Media / Game) is \`forward_context()\` with no mode, the DEFAULT. Match the user's framing to a row, reach for the entry tool, and read a drawer only when you need it. When unsure whether the work needs a conversational surface, ask — that answer routes the session. Substrate positioning and self-description (what mojulo is, posture, costs, uninstall) live behind \`get_substrate\` — pull them when the operator asks, not to orient.`;
 
 // --- Workshop pulse (R1, orientation-ramp.plan.md) ---
 //
@@ -220,7 +227,13 @@ function buildWorkshopPulseLine(pulse) {
 
 const PLAYFUL_CLOUD = `## PLAYful Cloud — what mojulo is at the substrate
 
-**The one-breath answer** (when the operator asks "what is mojulo?"): *a workshop the agent works in — a local, stateful substrate that turns conversations into things that keep existing after the chat ends: running chatbots, connected services, apps, media (worlds, views, films, audio, publications — deterministic recipes, never renders), and playable games composed from the rest.* The five paradigms look like different products until you see they are all **durable bindings minted from a conversation** — that is the category.
+**The one-breath answer** (when the operator asks "what is mojulo?"): *a **3D factory for agents** — an agent builds worlds, objects, and games by conversation, as editable recipes on your machine, that ship as a game or as a printed object.* Media (worlds, views, films, audio, publications — deterministic recipes, never renders) and Game (composed over the rest) are the headline. Behind them mojulo retains an automation backend — Connected Service and App, plus the Bot paradigm — for operators who want to wire the creative loop into their own MCPs. All five paradigms are the same category underneath: **durable bindings minted from a conversation**.
+
+**Two pipelines, one honesty rule.** DIGITAL: worlds / games / scenes feed Blender, Godot, Unreal — Godot is first-class today, Blender GI bake ships, Unreal is spec-only, so ladder honestly ("starting with Godot"), never "works across all three." PHYSICAL: solids / figures / vehicles / wordmarks export as print-purposed STL — mm scale, z-up, slicer-ready. Claim **"print-ready STL at true scale"**, NOT "guaranteed watertight manifold" (it emits honest triangle soup and relies on slicer repair, which is standard practice). The connective tissue is scale-honesty plus \`verify_machina\` mechanical feasibility.
+
+**"3D" is a PIPELINE-POSITION claim, never a fidelity claim.** Mojulo is the agent-driven upstream that FEEDS the tools professionals already use; it does not rival them on rendering. *Mojulo authors truth at home; the edge tool consumes it and never guesses at the seam.* Never enter a fidelity contest with a game engine — and never describe mojulo as "just an exporter" either: the recipe is where the thing is born and lives (and runs standalone in-browser); the engine or printer is where it is optionally *finished*.
+
+**Bots are an optional pack.** The chatbot factory is install-gated (\`chatbot\`); if it is absent on this host its tools neither list nor run, and the advisory points at the install. Everything else — the kernel, the creative studio, and the automation backend — is always present. Do not describe mojulo as a bot factory.
 
 **The inversion that makes it cohere:** the agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own — apps park inference back on the agent's queue, photo references are read by the agent's eyes, cooks are agent-authored, games are verified by agent-compiled traversals. Mojulo supplies what a stateless agent constitutionally lacks (persistence, runtime, memory); the agent supplies what mojulo deliberately refuses to embed (judgment, vision, language).
 
@@ -486,7 +499,7 @@ Aggregates and metadata only. For conversation content, use \`get_conversation\`
 - \`get_conversation\` — full turn list for one conversation. → returns \`{ conversationId, turnCount, turns, verification }\`. Turn fields: \`id, conversationId, turn, timestamp, userPrompt, llmResponse, machineState, ragContext, contentHash, chainHash, eventType, handoffHash\`.
 - \`export_conversations\` — bulk export full conversations and turns. → returns \`{ botName, conversations: [{ conversationId, startedAt, lastActivity, turnCount, turns }] }\`. Same turn shape as \`get_conversation\`.
 - \`query_submissions\` — list form-gathering submissions. → returns \`{ botName, submissions: [{ id, conversationId, formData, metadata, schemaFingerprint, isComplete, submittedAt, webhookStatus, webhookError }], count, total }\`. \`formData\` is an object keyed by form-field id — call \`get_deployment\` to read the field schema you'll be mapping from.
-- \`verify_chain\` — walk the tamper-evident hash chain for one conversation. → returns the bot's verification result (valid / invalid + per-turn details). See \`docs/turn-hashing.md\` for chain semantics.
+- \`verify_chain\` — walk the tamper-evident hash chain for one conversation. → returns the bot's verification result (valid / invalid + per-turn details). See \`docs/chatbot/turn-hashing.md\` for chain semantics.
 
 ### Designing a new protocol
 
@@ -616,7 +629,7 @@ export const FORM_TOOLSETS = {
     body: `- \`create_sketch\` — mint a flow-chart / data-chart / scene illustration the operator can view in the dashboard. Manifest accepts \`stations[]\` + \`edges[]\` (flow vocab), \`marks[]\` (chart primitives — stacked bars, donut/ring, KPI tile, polygon, blob, sphere, cylinder, plane, solid, partition, array, cubieLattice, form, text), and/or \`recipe: { kind, ...knobs }\` (deterministic family compilation — \`architecturalConstruction\` / \`portraitBust\` / others). Optional \`grid\`, \`depiction\`, \`scene.perspective\`. Before chart work: \`semantic_search({ kinds: ['sketch_vocab'] })\` then read the matched card via \`get_sketch_vocab\` for layout math. Returns \`{ ok, ref, url }\`.
 - \`update_sketch\` — revise an existing sketch in place (rename, replace manifest, move folder) so the Sketches index doesn't accumulate near-duplicate refs. Same validation as \`create_sketch\`.
 - \`get_sketch_vocab\` — read a sketch-vocab card in full (layout math + example marks for one paradigm: \`donut-ring\`, \`stacked-bar\`, \`stat-tile\`, \`grid-layout\`, \`z-layering\`, \`pipeline\`, …). Pair with \`semantic_search({ kinds: ['sketch_vocab'] })\`. Omit \`id\` to list available cards.
-- \`get_style_vocab\` — read the STYLE presets (drawing-discipline templates: \`steamboat\`, \`ukiyo-e\`, \`photo-realism\`, \`louvrijks\`, …) that \`renderBrief\` locks on image / keyframe-animation / scene-motion sketches. Omit \`id\` to list. Presets are TEMPLATES — fork via \`renderBrief.overrides\` or author a custom style inline. Applying one style to a scene's cast clips + plate is its cohesion (the plate inherits the cast style by default).
+- \`get_style_vocab\` — read the STYLE presets (drawing-discipline templates: \`steamboat\`, \`ukiyo-e\`, \`photo-realism\`, \`louvrijks\`, …, plus \`clay-render\` — the untextured grey-model register the dream/reconstruction loops default to) that \`renderBrief\` locks on image / keyframe-animation / scene-motion sketches. Omit \`id\` to list. Presets are TEMPLATES — fork via \`renderBrief.overrides\` or author a custom style inline. Applying one style to a scene's cast clips + plate is its cohesion (the plate inherits the cast style by default).
 - \`diff_sketches\` — scratch visual diff between two sketch refs. Matches stations/marks structurally; highlights green (added) / red (removed) / amber (changed) / blue (moved). Returns \`{ ok, ref, url, verdict, similarity, summary }\` or \`verdict: 'too_different'\` (refuses to mint without \`force: true\`).
 - Natural-language → sketch (the polygonizer, keyed or key-free) is now an authoring door of the 3D-solid mint in the "object" toolset (kind \`manji-tree\`, \`via:'prompt'\` or \`via:'packet'\`). for the marks turn.`,
   },
@@ -802,7 +815,7 @@ const DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 // agent that jumps straight here is never missing the standing rules — a
 // session that reads both bodies pays the spine (~1.5K) twice, accepted.
 
-const STUDIO_OPENER = `The studio **routing index** — mojulo's creative wing: Media artifacts (pictures, objects, worlds, buildings, motion, audio, voice, publications) and Games composed over them, each minted as a deterministic recipe (seeded, re-rendered on demand — never a stored render). The office wing — Bot, Connected Service, and App, deliberation, operate-what-exists — is \`forward_context()\` (the default mode). Match the user's framing to a FORM row, reach for the entry tool; the studio drawers follow.`;
+const STUDIO_OPENER = `The studio **routing index** — mojulo's creative wing and the DEFAULT read. Mojulo is a **3D factory for agents**: you build worlds, objects, and games by conversation, as editable recipes on the operator's machine, that ship as a game (Godot first-class today) or as a printed object (STL at true scale). Media artifacts (pictures, objects, worlds, buildings, motion, audio, voice, publications) and Games composed over them are each minted as a deterministic recipe — seeded, re-rendered on demand, never a stored render. The office wing — Bot, Connected Service, App, deliberation, operate-what-exists — is the retained automation backend at \`forward_context({mode:'office'})\`; reach for it when the ask is to wire or operate something rather than to make something. Match the user's framing to a FORM row, reach for the entry tool; the studio drawers follow.`;
 
 const STUDIO_ROUTING_INDEX = `## Studio routing index — recognize the FORM, reach for the entry tool
 
@@ -875,8 +888,8 @@ The dashboard is the human-shaped face of the same \`~/.mojulo/\` state this MCP
 - **\`/graph\`** — App Creation Map: how an app comes together, each box a piece and each arrow what causes what. Point here for "how does mojulo make apps?" or to see where the four bindings live.
 - **\`/plan\`** — Plan inbox (Ring 8): proposed work — sessions that became spikes. Read-only; New Plan opens a fresh host-agent session.
 - **\`/research\`** — Research (Ring 9): books — broad material gathered to assist, accreted from the host agent.
-- **\`/sketches\`** — the Sketches concern: diagrams, flows, charts, and scientific explanation. A tuned surface over the sketch primitive (\`create_sketch\` mints them); each is viewable at \`/sketches/<ref>\`.
-- **\`/maker/*\`** — the creative-recipe rails, surfaced on Workshop Home under the **Studio** mode (the "Maker" wordmark is retired; the routes stay). Six rails: **Illustrations** (\`/maker/illustrations\` — landscapes, figures, and complicated perspective/css3d/painterly renders), **Worlds** (\`/maker/worlds\` — walkable three.js cityscapes/buildings/hubs, the kinds you move through first-person), **Objects** (\`/maker/objects\` — orbit-only 3D artifacts & studies: workbench parts, assembler compositions, polygomers, vehicles, planets, science/math views — turned and looked at, not walked), **Motion** (\`/maker/motion\` — movies & gifs; \`/motion\` redirects here), and **Beats** (\`/maker/beats\` — the audio shelf: synthesized soundtracks / compositions / grooves / sound-effect cues from \`create_beats\`, previewed in a live player; each track opens its \`/beats/<ref>\` STUDIO — player + revisions + annotations + wav/midi export + copy-revision-prompt; browse / play / mark only — authoring stays with the host agent), **Voice** (\`/maker/voice\` — the voice-register shelf from \`create_voice\`: axes, resolved blend weights, and the worker handoff per register; recipes only, no audio in-plane — an external worker speaks them). An illustration is the SAME sketch primitive as a diagram, bucketed by \`manifest.kind\` — you can still stash, reference, and diff it. Studio also carries **Game Developer** (\`/maker/games\` — one card per game PROJECT, opening the \`/games/<ref>\` studio: the project's shelf — rules / levels / characters / audio / graphics / animation / references, each viewable live in a context pane; read-only, membership via \`create_game_project\` / \`bind_to_game_project\`), the **Arcade** (\`/arcade\` — the menu of playable standalone games from \`create_game\`, one cabinet per game, launched at \`/arcade/<ref>\`; browse / play only — minting stays with the host agent), and **Outputs** (\`/outputs\`), the materialized cooks.
+- **\`/library\`** — the LIBRARY: one browser over every artifact the agent has minted, with filter chips instead of separate routes — **All · Scenes · Models · Characters · Images · Diagrams · Materials** (\`?shelf=scenes\` deep-links a chip). Scenes are the walkable worlds, Models the orbit-only 3D artifacts, Characters the figure / character-sheet / sprite-sheet kinds, Images the flat illustrations, Diagrams the flows & charts from \`create_sketch\` / \`mint_diagram\`. Materials is the odd one out: the procedural-material preset registry (\`gradient-plate\`, \`brushed-steel\`, \`brushed-hull\`, \`weathered-hull\`, \`weathered-heavy\`), not sketch rows. Every artifact opens at \`/sketches/<ref>\`, which is unchanged. **Supersedes \`/sketches\`, \`/maker/illustrations\`, \`/maker/worlds\`, and \`/maker/objects\`** — those four index routes now redirect here with their shelf preselected, so point the user at \`/library\`, not at them. Every artifact page carries a **Wire / Shaded / Baked / Painted** display-mode control; modes the artifact lacks are shown disabled with the reason.
+- **\`/maker/*\`** — the creative-recipe rails, surfaced on Workshop Home under the **Studio** mode (the "Maker" wordmark is retired; the routes stay). Since the Library fold the still/3D rails live at \`/library\` (see above) and \`/maker/*\` keeps only the rails with their own player or shelf: **Motion** (\`/maker/motion\` — movies & gifs; \`/motion\` redirects here), and **Beats** (\`/maker/beats\` — the audio shelf: synthesized soundtracks / compositions / grooves / sound-effect cues from \`create_beats\`, previewed in a live player; each track opens its \`/beats/<ref>\` STUDIO — player + revisions + annotations + wav/midi export + copy-revision-prompt; browse / play / mark only — authoring stays with the host agent), **Voice** (\`/maker/voice\` — the voice-register shelf from \`create_voice\`: axes, resolved blend weights, and the worker handoff per register; recipes only, no audio in-plane — an external worker speaks them). An illustration is the SAME sketch primitive as a diagram, bucketed by \`manifest.kind\` — you can still stash, reference, and diff it, and the Library's chips are lenses on that one store, never separate collections. Studio also carries **Game Developer** (\`/maker/games\` — one card per game PROJECT, opening the \`/games/<ref>\` studio: the project's shelf — rules / levels / characters / audio / graphics / animation / references, each viewable live in a context pane; read-only, membership via \`create_game_project\` / \`bind_to_game_project\`), the **Arcade** (\`/arcade\` — the menu of playable standalone games from \`create_game\`, one cabinet per game, launched at \`/arcade/<ref>\`; browse / play only — minting stays with the host agent), and **Outputs** (\`/outputs\`), the materialized cooks.
 - **\`/mcp-skills\`** — MCP + Skills orchestration. **Coming soon** — don't over-promise this one to the user yet.
 - **\`/settings\`** — provider keys (encrypted via AES-GCM, not plaintext \`.env\`), the UI language picker (~two dozen locales, incl. RTL), and builder config.
 
@@ -900,14 +913,16 @@ export function buildForwardContextBody({ register, disclosure, source, pulse, m
   const d = PROCEDURAL_DISCLOSURES.includes(disclosure) ? disclosure : DEFAULT_PROCEDURAL_DISCLOSURE;
   const standingRulesSection = `${STANDING_RULE_FLOOR}\n\n${DISCLOSURE_DIRECTIVE_VARIANTS[d]}`;
   if (m === 'studio') {
-    // The studio body is pulseless by design: the pulse is workshop-wide
-    // onboarding state and belongs to the default (office) read.
+    // The pulse is workshop-wide onboarding state, so it rides the DEFAULT read
+    // — which is now the studio one.
+    const studioPulseLine = buildWorkshopPulseLine(pulse);
     return [
-      STUDIO_HEADER,
+      HEADER,
       '',
       communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
       '',
       STUDIO_OPENER,
+      ...(studioPulseLine ? ['', studioPulseLine] : []),
       SECTION_DIVIDER.trim(),
       STUDIO_ROUTING_INDEX,
       SECTION_DIVIDER.trim(),
@@ -919,14 +934,12 @@ export function buildForwardContextBody({ register, disclosure, source, pulse, m
       '',
     ].join('\n');
   }
-  const pulseLine = buildWorkshopPulseLine(pulse);
   return [
-    HEADER,
+    OFFICE_HEADER,
     '',
     communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
     '',
     LEAN_OPENER,
-    ...(pulseLine ? ['', pulseLine] : []),
     SECTION_DIVIDER.trim(),
     ROUTING_INDEX,
     SECTION_DIVIDER.trim(),
@@ -1003,7 +1016,7 @@ export async function forwardContextHandler(input, _ctx) {
     disclosure,
     source,
     mode,
-    pulse: mode === 'studio' ? null : readWorkshopPulse(),
+    pulse: mode === 'office' ? null : readWorkshopPulse(),
   });
   // Plain text content (not JSON-stringified) so the agent reads it as prose.
   // The mode signal (routing-context-weaving.plan.md A1) is what lets the
@@ -1093,7 +1106,7 @@ export const FORWARD_CONTEXT_BODY = buildForwardContextBody({
   source: 'defaults',
 });
 
-// Returned by `custom_protocol`. Synthesized from docs/protocol-composition.md
+// Returned by `custom_protocol`. Synthesized from docs/chatbot/protocol-composition.md
 // for the MCP audience — a Claude Code session connected to mojulo whose user
 // wants to think through a new bot capability that fires inside a turn. The
 // audience doesn't have the mojulo repo, the composer, or the existing

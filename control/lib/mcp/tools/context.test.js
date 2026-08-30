@@ -71,10 +71,16 @@ describe('buildForwardContextBody — variant composition', () => {
   it('is a thin routing index, not a manual: routing rows + drawer directory, heavy prose drawerized', () => {
     for (const register of VOCABULARY_REGISTERS) {
       for (const disclosure of PROCEDURAL_DISCLOSURES) {
-        const body = buildForwardContextBody({ register, disclosure });
+        // Checked per WING: no-mode is the studio read (the 2.0 default), and
+        // the office read is the explicit one. Both must stay thin.
+        for (const [mode, indexHeading, drawerHeading] of [
+          [undefined, 'Studio routing index', 'Studio drawers'],
+          ['office', 'Routing index', 'Drawers'],
+        ]) {
+        const body = buildForwardContextBody({ register, disclosure, mode });
         // The routing index and drawer directory are the spine.
-        expect(body).toContain('Routing index');
-        expect(body).toContain('Drawers');
+        expect(body).toContain(indexHeading);
+        expect(body).toContain(drawerHeading);
         // Drawer pointers, including the new substrate drawer.
         expect(body).toContain('`get_tool_index`');
         expect(body).toContain('`get_register_kit`');
@@ -86,19 +92,24 @@ describe('buildForwardContextBody — variant composition', () => {
         expect(body).not.toContain('## Concepts');
         // The substrate philosophy moved to get_substrate.
         expect(body).not.toContain('PLAYful Cloud — what mojulo is at the substrate');
+        }
       }
     }
   });
 
-  it('opener is register-invariant: same lean opener in every register', () => {
-    const plain = buildForwardContextBody({ register: 'plain', disclosure: 'reflective' });
-    const mojulo = buildForwardContextBody({ register: 'mojulo', disclosure: 'reflective' });
-    // One register-invariant opener — no per-register ramp prose, no "don't
-    // surface" plain marker (that machinery lives in get_register_kit now).
-    for (const body of [plain, mojulo]) {
-      expect(body).toContain('This is the office **routing index**');
-      expect(body).toContain('routing index');
-      expect(body).not.toMatch(/Don't surface to the user/i);
+  it('opener is register-invariant: same opener in every register, in both wings', () => {
+    // One register-invariant opener per wing — no per-register ramp prose, no
+    // "don't surface" plain marker (that machinery lives in get_register_kit).
+    for (const [mode, marker] of [
+      [undefined, 'The studio **routing index**'],
+      ['office', 'This is the office **routing index**'],
+    ]) {
+      for (const register of ['plain', 'mojulo']) {
+        const body = buildForwardContextBody({ register, disclosure: 'reflective', mode });
+        expect(body).toContain(marker);
+        expect(body).toContain('routing index');
+        expect(body).not.toMatch(/Don't surface to the user/i);
+      }
     }
   });
 
@@ -258,13 +269,18 @@ describe('forwardContextHandler — register resolution', () => {
     expect(text).toMatch(/procedural_disclosure: pedagogical/);
   });
 
-  it('mode selects the wing: default/office vs studio, and invalid mode is rejected', async () => {
-    const office = await forwardContextHandler({});
-    expect(office.content[0].text).toContain('# Mojulo, oriented');
+  it('mode selects the wing: STUDIO is the default, office is opt-in, invalid mode rejected', async () => {
+    // The 2.0 reposition: an agent arriving with no mode is told about the 3D
+    // factory, not the office. Phase 1f.
+    const byDefault = await forwardContextHandler({});
+    expect(byDefault.content[0].text).toContain('# Mojulo, oriented');
+    expect(byDefault.content[0].text).toContain('## Studio routing index');
+    expect(byDefault._telemetrySignal.mode).toBe('studio');
+    const explicitStudio = await forwardContextHandler({ mode: 'studio' });
+    expect(explicitStudio.content[0].text).toBe(byDefault.content[0].text);
+    const office = await forwardContextHandler({ mode: 'office' });
+    expect(office.content[0].text).toContain('# Mojulo office, oriented');
     expect(office.content[0].text).not.toContain('## Studio routing index');
-    const studio = await forwardContextHandler({ mode: 'studio' });
-    expect(studio.content[0].text).toContain('# Mojulo studio, oriented');
-    expect(studio.content[0].text).toContain('## Studio routing index');
     await expect(forwardContextHandler({ mode: 'atelier' })).rejects.toThrow(/mode/);
   });
 
@@ -589,7 +605,9 @@ describe('routing index row lint (orientation-diet thread B) — "index, not glo
 
   it(`no routing bullet exceeds ${ROUTING_ROW_CEILING} chars (both wings)`, () => {
     const sections = {
-      office: buildForwardContextBody({}).split('## Routing index')[1].split('## Drawers')[0],
+      office: buildForwardContextBody({ mode: 'office' })
+        .split('## Routing index')[1]
+        .split('## Drawers')[0],
       studio: buildForwardContextBody({ mode: 'studio' })
         .split('## Studio routing index')[1]
         .split('## Studio drawers')[0],
@@ -630,13 +648,35 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // single body), studio measured 7_169 (both at mojulo+pedagogical).
   // Grown 2026-08-08: the motion-comic FORM row (its own routing row per the
   // operator's call, motion-comic.plan.md) — studio measured 7_691.
-  const MODE_CEILINGS = { office: 9_600, studio: 7_750 };
+  //
+  // FLIPPED 2026-08-29 (mojulo-2.0-pure-creative.plan.md, Phase 1f): the STUDIO
+  // body is now the DEFAULT read, so it — not office — is the always-paid one,
+  // and the pulse line moved onto it with the default. Two consequences:
+  //   1. This pin previously measured a PULSELESS body, which was fine while the
+  //      pulse rode a body with ~750 chars of headroom. On the studio body that
+  //      under-measures the real always-paid cost, so the cells below now
+  //      include a representative pulse line.
+  //   2. Re-pinned studio 7_750 → 8_050 to cover the reposition opener (the 3D
+  //      factory framing + the two-pipelines sentence) plus that pulse line.
+  //      Measured widest cell 7_649 pulseless / ~7_780 with a typical pulse.
+  // The office pin is unchanged and now has slack, being the opt-in read.
+  // A new creative FORM still grows the STUDIO ceiling — and that budget is
+  // tighter than it was, because studio is what every session pays.
+  const MODE_CEILINGS = { office: 9_600, studio: 8_050 };
+
+  // A representative pulse: a workshop with something in every bucket. The
+  // empty-workshop variant is shorter, so this is the honest worst case.
+  const SAMPLE_PULSE = {
+    bots: 12, sketches: 340, stashes: 6, cooks: 4, unseenPlans: 3, triggers: 2,
+    lastActivityMs: Date.now() - 3 * 86_400_000,
+  };
 
   it('every mode × register × disclosure cell stays under its ceiling', () => {
     for (const [mode, ceiling] of Object.entries(MODE_CEILINGS)) {
       for (const register of VOCABULARY_REGISTERS) {
         for (const disclosure of PROCEDURAL_DISCLOSURES) {
-          const body = buildForwardContextBody({ mode, register, disclosure });
+          // pulse included: the default (studio) read carries it in the handler
+          const body = buildForwardContextBody({ mode, register, disclosure, pulse: SAMPLE_PULSE });
           expect(
             body.length,
             `cell ${mode}+${register}+${disclosure} is ${body.length} chars (> ${ceiling})`,
@@ -669,12 +709,20 @@ describe('studio containment (orientation-containment C1) — office pays no cre
   ];
 
   it('office body names no creative entry tool, but carries the studio hook row', () => {
-    const office = buildForwardContextBody({});
+    const office = buildForwardContextBody({ mode: 'office' });
     for (const tool of STUDIO_ENTRY_TOOLS) {
       expect(office, `office body leaks creative entry tool \`${tool}\``).not.toContain(tool);
     }
-    expect(office).toContain("forward_context({mode:'studio'})");
+    // The studio is the DEFAULT read now, so the office hook points at the
+    // no-mode call rather than at an explicit mode.
+    expect(office).toContain('forward_context()');
     expect(office).toContain('get_creative_toolset');
+  });
+
+  it('the office wing states that bots are an optional pack', () => {
+    // Routing honesty for the demoted chatbot factory (Phase 1f): an agent must
+    // not promise a bot on a host where the pack is not installed.
+    expect(buildForwardContextBody({ mode: 'office' })).toMatch(/optional capability pack/i);
   });
 
   it('studio body is standalone: spine (floor + safety) present in every cell', () => {
@@ -687,8 +735,8 @@ describe('studio containment (orientation-containment C1) — office pays no cre
           );
         }
         expect(body).toContain('## Standing safety rules');
-        // Pointer back to the office wing.
-        expect(body).toContain('forward_context()');
+        // Pointer across to the office wing (now the explicit-mode one).
+        expect(body).toContain("forward_context({mode:'office'})");
       }
     }
   });

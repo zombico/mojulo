@@ -1,6 +1,6 @@
 # Mojulo MCP Architecture
 
-The headless face of mojulo: the same control plane that compiles bots also exposes itself as a **remote MCP server** so a user's own MCP-capable agent (Claude Code, Claude Desktop, Codex CLI, any HTTP MCP client) can design, deploy, observe, and reason about the fleet without touching the Next.js UI. For the bot factory and artifact lifecycle, see [BOT-ARCHITECTURE.md](BOT-ARCHITECTURE.md).
+The headless face of mojulo: the same control plane that compiles bots also exposes itself as a **remote MCP server** so a user's own MCP-capable agent (Claude Code, Claude Desktop, Codex CLI, any HTTP MCP client) can design, deploy, observe, and reason about the fleet without touching the Next.js UI. For the bot factory and artifact lifecycle, see [BOT-ARCHITECTURE.md](chatbot/BOT-ARCHITECTURE.md).
 
 The Next.js UI (chat builder, wizard, `/data` pane) and the MCP tool registry are **two faces of the same primitives** — the same `BuilderSession` + tool-executor pair, the same proxy reads, the same fleet rollups. Don't add MCP-only or UI-only branches past the primitive layer.
 
@@ -471,9 +471,9 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 - [meta-context.md](meta-context.md) — full spec for the contextmap layer (the bright line, write triggers, the graph)
 - [mcp-orbit.md](mcp-orbit.md) — full spec for the vendor-shaped composer and the primitive-binding companion
 - [catalysts.md](catalysts.md) — what a catalyst is, the frontmatter contract, the author spec
-- [chat-builder.md](chat-builder.md) — the web-side counterpart to Ring 1 (same BuilderSession + tool executors)
-- [wizard-builder.md](wizard-builder.md) — the form-driven third entry point that also converges on `buildDeploymentConfig()`
-- [conversations-api.md](conversations-api.md) — the bot-side API that Ring 3 proxies through
-- [federated-routing.md](federated-routing.md) — cross-bot handoffs and how the tamper-evident chain extends through them
+- [chat-builder.md](chatbot/chat-builder.md) — the web-side counterpart to Ring 1 (same BuilderSession + tool executors)
+- [wizard-builder.md](chatbot/wizard-builder.md) — the form-driven third entry point that also converges on `buildDeploymentConfig()`
+- [conversations-api.md](chatbot/conversations-api.md) — the bot-side API that Ring 3 proxies through
+- [federated-routing.md](chatbot/federated-routing.md) — cross-bot handoffs and how the tamper-evident chain extends through them
 - [app-runtime.md](app-runtime.md) — Ring 7 app runner daemon: lifecycle, reconciliation, env CRUD, daemon posture
-- [BOT-ARCHITECTURE.md](BOT-ARCHITECTURE.md) — the bot-shaped face: how the artifact is compiled and what runs inside it
+- [BOT-ARCHITECTURE.md](chatbot/BOT-ARCHITECTURE.md) — the bot-shaped face: how the artifact is compiled and what runs inside it

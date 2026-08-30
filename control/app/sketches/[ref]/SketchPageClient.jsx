@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
+import DisplayModes from '@/components/DisplayModes';
 import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
+import { pickMode, resolveDisplayModes } from '@/lib/graph/sketch/display-modes';
 
 function printFilename(data, fallbackRef) {
   if (typeof window === 'undefined') return 'sketch.pdf';
@@ -20,14 +22,22 @@ function printFilename(data, fallbackRef) {
   return `${safe || 'sketch'}.pdf`;
 }
 
-export default function SketchPageClient({ refId, initialData = null, initialNotFound = false }) {
+export default function SketchPageClient({
+  refId,
+  initialData = null,
+  initialNotFound = false,
+  giVariantRef = null,
+  hasBoundRender = false,
+}) {
   const ref = refId;
   const router = useRouter();
   const t = useTranslations('sketches');
   const [data, setData] = useState(initialData);
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(initialNotFound);
-  const [mode, setMode] = useState('color');
+  // Which of Wire / Shaded / Baked / Painted is showing. null means "not chosen",
+  // which resolves to the artifact's own default.
+  const [displayMode, setDisplayMode] = useState(null);
   // per-format model export status: idle | preparing | unavailable | error
   const [modelStatus, setModelStatus] = useState({ glb: 'idle', stl: 'idle' });
   const [htmlStatus, setHtmlStatus] = useState('idle'); // idle | preparing | unavailable | error
@@ -68,7 +78,10 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const search = new URLSearchParams(window.location.search);
-    setMode(search.get('mode') === 'wireframe' ? 'wireframe' : 'color');
+    // `?display=` is the display-mode control's own param; `?mode=wireframe` is
+    // the older diagram-only flag, kept working because links to it exist.
+    const wanted = search.get('display') || (search.get('mode') === 'wireframe' ? 'wire' : null);
+    if (wanted) setDisplayMode(wanted);
   }, []);
 
   // Fetch a model export through the API (rather than a bare <a download>) so an ineligible
@@ -137,6 +150,16 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
 
   const manifest = data?.manifest;
 
+  // Which readings this artifact actually has, and which one is on screen.
+  // Availability lives in one pure module so this page and the gallery preview
+  // can never disagree about it.
+  const displayModes = useMemo(
+    () => resolveDisplayModes({ manifest, ref, giVariantRef, hasBoundRender }),
+    [manifest, ref, giVariantRef, hasBoundRender],
+  );
+  const activeMode = pickMode(displayModes, displayMode ?? displayModes?.defaultMode);
+  const view = activeMode?.view || null;
+
   useEffect(() => {
     if (!manifest) return undefined;
     if (typeof window === 'undefined') return undefined;
@@ -193,8 +216,16 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-7xl">
-        {canDownloadHtml && (
+        {(canDownloadHtml || displayModes) && (
           <div className="mb-3 flex items-center justify-end gap-3">
+            {/* The control leads the row: how you are looking at the artifact comes
+                before what you can do with it. */}
+            <DisplayModes
+              resolved={displayModes}
+              active={activeMode?.key}
+              onChange={setDisplayMode}
+              className="mr-auto"
+            />
             {modelStatus.glb === 'unavailable' && (
               <span className="text-xs text-[color:var(--text-muted)]">{t('downloadGlbUnavailable')}</span>
             )}
@@ -244,13 +275,33 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
             )}
           </div>
         )}
-        {renderMode === 'svg' ? (
+        {/* The chosen reading, when this kind carries a display-mode control. The
+            branch below is the fallback for the kinds that don't (beats, game,
+            play), which have exactly one way of being experienced. */}
+        {view?.kind === 'img' ? (
           <img
-            src={`/api/sketches/${encodeURIComponent(ref)}/svg?inline=1`}
+            key={view.src}
+            src={view.src}
             alt={data?.title || ref}
             className="w-full h-auto block"
           />
-        ) : renderMode === 'world' || renderMode === 'scene' || renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' ? (
+        ) : view?.kind === 'iframe' ? (
+          <iframe
+            // Keyed on src so switching mode remounts the frame rather than
+            // leaving the previous world's WebGL context running behind it.
+            key={view.src}
+            src={view.src}
+            title={data?.title || ref}
+            className="w-full block border-0"
+            style={{ aspectRatio: '1120 / 780' }}
+          />
+        ) : view?.kind === 'diagram' ? (
+          <CreationMap
+            manifest={manifest}
+            technical={false}
+            mode={view.wireframe ? 'wireframe' : 'color'}
+          />
+        ) : renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' ? (
           <iframe
             src={`/api/sketches/${encodeURIComponent(ref)}/${renderMode}`}
             title={data?.title || ref}
@@ -265,7 +316,9 @@ export default function SketchPageClient({ refId, initialData = null, initialNot
             }}
           />
         ) : (
-          <CreationMap manifest={manifest} technical={false} mode={mode} />
+          // Unreachable for controlled kinds (pickMode always falls back to a mode
+          // that has a view); kept as the safe floor for anything new.
+          <CreationMap manifest={manifest} technical={false} mode="color" />
         )}
       </div>
     </main>

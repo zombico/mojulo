@@ -215,6 +215,20 @@ let rpcId = 0;
  * (not module top) so the pure parsers above stay importable without the
  * `@/` loader or a database.
  */
+// Capability that EXISTS but is not installed here. The iron wall is about
+// execution, not information hiding — the operator should know the bot factory
+// is one command away, without it cluttering the surface as if it were live.
+function uninstalledNote(packs) {
+  const missing = packs.PACKS.filter((p) => !packs.isPackInstalled(p));
+  if (!missing.length) return [];
+  const groups = [...new Set(missing.map((p) => p.installGroup).filter(Boolean))];
+  return [
+    '',
+    `not installed: ${missing.map((p) => p.id).join(', ')}`,
+    `  add with: ${groups.map((g) => `mojulo install ${g}`).join(' / ')}`,
+  ];
+}
+
 export async function runCli(argv, io = {}) {
   const out = io.out ?? ((line) => process.stdout.write(line + '\n'));
   const err = io.err ?? ((line) => process.stderr.write(line + '\n'));
@@ -320,17 +334,22 @@ export async function runCli(argv, io = {}) {
         for (const line of listRow(rows)) out(line);
         return 0;
       }
+      // Only INSTALLED packs — the CLI must agree with tools/list, which gates
+      // on install state. Listing a pack whose every tool refuses to run is the
+      // worst of both worlds: it advertises a capability the host does not have.
       const rows = [
         ...packs.SPINE.map((name) => [name, firstLine(server.getRegisteredTool(name)?.description)]),
-        ...packs.PACKS.map((pack) => [pack.id, firstLine(pack.description)]),
+        ...packs.installedPacks().map((pack) => [pack.id, firstLine(pack.description)]),
       ];
       for (const line of listRow(rows)) out(line);
+      for (const line of uninstalledNote(packs)) out(line);
       return 0;
     }
 
     case 'packs': {
-      const rows = packs.PACKS.map((pack) => [pack.id, firstLine(pack.description)]);
+      const rows = packs.installedPacks().map((pack) => [pack.id, firstLine(pack.description)]);
       for (const line of listRow(rows)) out(line);
+      for (const line of uninstalledNote(packs)) out(line);
       return 0;
     }
 

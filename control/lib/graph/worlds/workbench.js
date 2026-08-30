@@ -31,6 +31,7 @@ import { extrudeToFaces, validateExtrudes } from '../polygonizer/extrude-faces.j
 import { sweepToFaces, validateSweeps } from '../polygonizer/sweep-faces.js';
 import { drapeToFaces, validateDrapes } from '../polygonizer/drape-faces.js';
 import { reliefToFaces, validateReliefs } from '../polygonizer/relief-faces.js';
+import { shellToFaces, validateShells } from '../polygonizer/shell-faces.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { validateMaterialRef } from '../polygonizer/materials.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
@@ -52,13 +53,14 @@ const wrapKeyed = (spec, i) => (spec && spec.wrap && typeof spec.wrap === 'objec
   ? { ...spec, wrap: { ...spec.wrap, texture: spec.wrap.texture || wrapKey(i) } }
   : spec);
 
-/** Lower a polygomer manifest (lathe + extrude + sweep + relief monomers) into one baked World face list. */
+/** Lower a polygomer manifest (lathe + extrude + sweep + drape + relief + shell monomers) into one baked World face list. */
 export function lowerObjectFaces(manifest, light) {
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
   const drapes = Array.isArray(manifest.drapes) ? manifest.drapes : [];
   const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
+  const shells = Array.isArray(manifest.shells) ? manifest.shells : [];
   // Per-monomer `material` (polygonizer/materials.js): a named finish on the spec rides into the
   // generator — response curve baked into the fills, plus `spec`/`pbr` face tags for the World's
   // live highlight and the .glb PBR export. Absent → byte-identical (material-response.plan.md P4).
@@ -68,6 +70,8 @@ export function lowerObjectFaces(manifest, light) {
     ...sweeps.flatMap((spec) => sweepToFaces(spec, { light, material: spec.material })),
     ...drapes.flatMap((spec) => drapeToFaces(spec, { light, material: spec.material })),
     ...reliefs.flatMap((spec) => reliefToFaces(spec, { light, material: spec.material })),
+    // `index` seeds the shell's stable per-face id (`<index>:<n>`), so a recipe can name a face.
+    ...shells.flatMap((spec, i) => shellToFaces(spec, { light, material: spec.material, index: i })),
   ];
 }
 
@@ -116,7 +120,8 @@ function monomerManifest(kind, spec) {
     : kind === 'extrude' ? { extrudes: [spec] }
       : kind === 'relief' ? { reliefs: [spec] }
         : kind === 'drape' ? { drapes: [spec] }
-          : { sweeps: [spec] };
+          : kind === 'shell' ? { shells: [spec] }
+            : { sweeps: [spec] };
 }
 
 /** Bake ONE monomer alone → its baked face list. */
@@ -141,6 +146,7 @@ function monomerIntendsClosed(kind, spec) {
     return shell ? spec.openFace === 'none' : true;         // a recessed shell is open unless openFace:'none'
   }
   if (kind === 'lathe') return spec && spec.caps === false ? false : true;
+  if (kind === 'shell') return !(spec && spec.open !== undefined); // `open` cuts a dome/cutaway on purpose
   return true;                                              // relief: always meant to be closed
 }
 
@@ -296,12 +302,13 @@ export function planWorkbench(manifest = {}) {
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
   const drapes = Array.isArray(manifest.drapes) ? manifest.drapes : [];
   const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
-  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length) {
-    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, and/or `reliefs` array.');
+  const shells = Array.isArray(manifest.shells) ? manifest.shells : [];
+  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length && !shells.length) {
+    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, `reliefs`, and/or `shells` array.');
   }
-  const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateDrapes(drapes, []), ...validateReliefs(reliefs, [])]; // endpoints are literal {x,y,z}
+  const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateDrapes(drapes, []), ...validateReliefs(reliefs, []), ...validateShells(shells, [])]; // endpoints are literal {x,y,z}
   // material refs fail LOUDLY at mint (resolveMaterial's fallback would silently steel a typo)
-  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['drapes', drapes], ['reliefs', reliefs]]) {
+  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['drapes', drapes], ['reliefs', reliefs], ['shells', shells]]) {
     arr.forEach((s, i) => { const e = validateMaterialRef(s && s.material); if (e) errors.push(`${k}[${i}].material: ${e}`); });
   }
   if (errors.length) {
@@ -324,6 +331,7 @@ export function planWorkbench(manifest = {}) {
     extrude: 'A solid prism should close on both ends — check the profile winding; if you meant a recessed tray/case, set `wallThickness` + `openFace` so the opening is intentional.',
     sweep: 'Ends are open — keep `caps:true` (default) unless both ends embed inside another monomer.',
     relief: 'The raised outline did not close — check the glyph/path tessellation (an unclosed contour or self-intersection).',
+    shell: 'A closed polyhedron should have no holes — if you meant a dome or a cutaway, set `open` so the opening is intentional.',
   };
   const closureWarnings = [];
 
@@ -354,6 +362,7 @@ export function planWorkbench(manifest = {}) {
     ...sweeps.map((s, i) => part('sweep', s, i)),
     ...drapes.map((s, i) => part('drape', s, i)),
     ...reliefs.map((s, i) => part('relief', s, i)),
+    ...shells.map((s, i) => part('shell', s, i)),
   ].filter(Boolean);
 
   // Grid-alignment lint — unambiguous, high-signal checks the measured vantage cares about.
@@ -367,7 +376,7 @@ export function planWorkbench(manifest = {}) {
     }
   }
 
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + drapes.length + reliefs.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, drapes: drapes.length, reliefs: reliefs.length, faces: faces.length, units, size, parts, ...(warnings.length ? { warnings } : {}) } };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

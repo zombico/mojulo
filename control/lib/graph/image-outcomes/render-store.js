@@ -66,6 +66,19 @@ export function nextRenderPath(ref, target) {
   return { n, path: path.join(renderDir(ref), `render-${slug}-${n}.png`) };
 }
 
+/**
+ * Does this ref have ANY bound render at all? Target-agnostic, so the display-mode
+ * control can offer `painted` without knowing a kind's render strategy or paying
+ * for the composite. A ref with some-but-not-all targets bound answers true here
+ * and gets the /final.png 404 that names what is still missing — which is the
+ * useful message, and the one the worker acts on.
+ */
+export function hasBoundRender(ref) {
+  const dir = renderDir(ref);
+  if (!existsSync(dir)) return false;
+  return readdirSync(dir).some((f) => /^render-.+-\d+\.png$/.test(f));
+}
+
 /** { target: { n, path } } for every target that has a binding. */
 export function boundRenderMap(ref, targets) {
   const out = {};

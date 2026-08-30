@@ -12,6 +12,7 @@ import { getDb } from '@/lib/db/index.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { isBucket } from '@/lib/graph/sketch/sketch-manifest';
+import { hasBoundRender } from '@/lib/graph/image-outcomes/render-store';
 
 function sketchAssociationMap() {
   const db = getDb();
@@ -72,6 +73,16 @@ function withAssociations(sketches) {
   });
 }
 
+/**
+ * Whether each row has an externally-painted render bound to it, so the gallery's
+ * display-mode control can offer `painted` without a round-trip per card. Cheap:
+ * one stat per ref, and a readdir only for the few refs that have an outcome
+ * folder at all.
+ */
+function withRenderState(sketches) {
+  return sketches.map((sketch) => ({ ...sketch, hasBoundRender: hasBoundRender(sketch.ref) }));
+}
+
 export async function GET(request) {
   try {
     // ?bucket=diagram|illustration|world narrows the list to one concern
@@ -81,7 +92,7 @@ export async function GET(request) {
     // isn't hand-maintained here.
     const bucketParam = new URL(request.url).searchParams.get('bucket');
     const bucket = isBucket(bucketParam) ? bucketParam : null;
-    const sketches = withAssociations(SketchRepository.list({ bucket }));
+    const sketches = withRenderState(withAssociations(SketchRepository.list({ bucket })));
     const folders = SketchFolderRepository.list();
     return NextResponse.json({ sketches, folders });
   } catch (err) {

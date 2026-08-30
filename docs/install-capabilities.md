@@ -30,10 +30,13 @@ carries — roughly ~340 MB, dominated by the embedder runtime + model.
 over the operator's other MCPs, catalysts, triggers, local apps/daemons, plan, research, stash. Pure code
 with no heavy optional deps to shed, so it ships in every install and is never gated.
 
-**Chatbot group.** The bot factory: chatbots built, deployed, and operated as their own processes. Pure
-code today, so like the plumbing it ships in every install and is only ever off via an explicit
-`MOJULO_PACKS` override — but unlike the plumbing it is *gatable*, and it becomes a real install when it
-ships as `@mojulo/chatbot`.
+**Chatbot group — OPT-IN since 2.0.** The bot factory: chatbots built, deployed, and operated as their
+own processes. **A fresh install does not have it.** `mojulo install chatbot` writes a marker file at
+`$MOJULO_HOME/packs/chatbot`, which flips physical detection on; `mojulo install chatbot --remove`
+deletes it. The code is still in-tree (the package split waits on the Phase 3 ABI), so this is a
+LOGICAL gate — but from the operator's side it behaves exactly like the eventual `@mojulo/chatbot`
+package: absent until asked for. Already-DEPLOYED bots are unaffected either way; they run as their own
+processes and were never part of the workshop install.
 
 **Creative group.** The heavy making stack: walkable 3D worlds, synthesized music (beats),
 image/illustration recipes, voice, and games composed from the rest. This is the large, optional part —
@@ -46,8 +49,9 @@ Mojulo derives what it is from **what's actually on disk**, so `npm install --om
 describes and an env flag can never silently disagree with reality. In
 [control/lib/mcp/packs.js](../control/lib/mcp/packs.js):
 
-- Each group declares an install signal as data (`INSTALL_GROUPS`): `chatbot` is `alwaysInstalled` (pure
-  in-tree code); `creative` has a `markerModule: 'three'` — installed iff that dep resolves on disk.
+- Each group declares an install signal as data (`INSTALL_GROUPS`): `creative` has a
+  `markerModule: 'three'` — installed iff that dep resolves on disk; `chatbot` has a
+  `markerFile: 'packs/chatbot'` — installed iff that file exists under `$MOJULO_HOME`.
 - Each pack declares its `installGroup`, or none. **A pack with no group is always installed**, so the
   plumbing and the kernel share one rule.
 - `installedGroups()` folds over that with a memoized, import-free probe (`process.getBuiltinModule`
@@ -67,8 +71,12 @@ describes and an env flag can never silently disagree with reality. In
   fetched — the fetch is gated on the creative group in
   [control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js)).
 - **Add the studio:** `mojulo install creative` ([control/scripts/mcp-install.mjs](../control/scripts/mcp-install.mjs))
-  runs `npm install --include=optional` and re-probes. `mojulo install` with no arg prints status;
-  `chatbot` is in-tree code and reports "nothing to install."
+  runs `npm install --include=optional` and re-probes. `mojulo install` with no arg prints status for
+  both groups. `mojulo install chatbot` writes the marker; `--remove` takes it away again.
+- **What a default `npx mojulo` gets:** kernel + creative + the always-present orchestration packs —
+  17 of the 20 packs. The three chatbot packs are listed by `mojulo tools` / `mojulo packs` as
+  "not installed" with the command that adds them, so the capability stays discoverable without
+  advertising tools that would refuse to run.
 - **Full workshop:** a plain `npm install` gets everything (the creative deps are `optionalDependencies`,
   installed by default).
 
@@ -116,4 +124,4 @@ Pack-splitting is about how the **workshop** is installed on the operator's host
 (`ghcr.io/zombico/mojulo-bot`) is bot-agnostic AND pack-agnostic — it is a deploy target, not an install
 of the workshop, and carries none of this. It is also *separately versioned* (tagged `bot-v*`, released on
 its own cadence), so it shares no version number with the workshop and cannot be broken by a workshop
-major bump. See [docs/BOT-ARCHITECTURE.md](BOT-ARCHITECTURE.md).
+major bump. See [docs/chatbot/BOT-ARCHITECTURE.md](chatbot/BOT-ARCHITECTURE.md).

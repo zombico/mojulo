@@ -40,13 +40,13 @@ Control panel (per-deployment, one-shot)        Bot deployment (per-conversation
 
 Form schemas are produced once, in the control panel, by the LLM-powered form builder. Locale is the load-bearing input: it picks the regex patterns, the field labels, the date/currency formats, and the GDPR hints that get injected into the generation prompt.
 
-Locale config lives in [control/lib/form-schema-config/](../control/lib/form-schema-config/):
+Locale config lives in [control/lib/form-schema-config/](../../control/lib/form-schema-config/):
 
 | File | Role |
 |------|------|
-| [index.js](../control/lib/form-schema-config/index.js) | Locale registry (`LOCALES`, `SUPPORTED_LOCALES`), `DEFAULT_LOCALE = 'en-US'`, `buildFormSchemaPrompt(locale)` |
-| [base.js](../control/lib/form-schema-config/base.js) | Locale-agnostic primitives: `PII_INDICATORS` (name, email, phone, ssn, dob, creditCard, …), shared archetypes |
-| [locales/*.js](../control/lib/form-schema-config/locales/) | 22 locale modules — each exports `LOCALE_INFO`, `PATTERNS`, `ARCHETYPES`, `FIELD_LABELS`, `GDPR_HINTS` |
+| [index.js](../../control/lib/form-schema-config/index.js) | Locale registry (`LOCALES`, `SUPPORTED_LOCALES`), `DEFAULT_LOCALE = 'en-US'`, `buildFormSchemaPrompt(locale)` |
+| [base.js](../../control/lib/form-schema-config/base.js) | Locale-agnostic primitives: `PII_INDICATORS` (name, email, phone, ssn, dob, creditCard, …), shared archetypes |
+| [locales/*.js](../../control/lib/form-schema-config/locales/) | 22 locale modules — each exports `LOCALE_INFO`, `PATTERNS`, `ARCHETYPES`, `FIELD_LABELS`, `GDPR_HINTS` |
 
 A locale module looks roughly like this — patterns and labels carry the locale-specific rules:
 
@@ -66,15 +66,15 @@ export const PATTERNS = {
 - Each PII-bearing field carries `"pii": true` (driven by `PII_INDICATORS`).
 - Validation patterns are taken from the locale, not invented.
 
-The wizard step that drives this is [control/components/wizard/modular/steps/FormGatheringConfig.jsx](../control/components/wizard/modular/steps/FormGatheringConfig.jsx); the API route is [control/app/api/generate-form/route.js](../control/app/api/generate-form/route.js), which validates the locale via `isLocaleSupported(locale)` and falls back to `DEFAULT_LOCALE` if missing or unknown.
+The wizard step that drives this is [control/components/wizard/modular/steps/FormGatheringConfig.jsx](../../control/components/wizard/modular/steps/FormGatheringConfig.jsx); the API route is [control/app/api/generate-form/route.js](../../control/app/api/generate-form/route.js), which validates the locale via `isLocaleSupported(locale)` and falls back to `DEFAULT_LOCALE` if missing or unknown.
 
 ---
 
 ## How fields get tagged — and what `pii: true` actually does
 
-Every entry in a generated form schema is one of the locale's `ARCHETYPES`, plus optional overrides. The archetypes in [base.js](../control/lib/form-schema-config/base.js) seed the `pii: true` flag on the obvious cases — `email`, `fullName`, `firstName`, `lastName`, `dateOfBirth` — and locale modules layer on region-specific PII (national IDs, postal codes where they're sensitive, etc.). When the schema-generation LLM picks an archetype for a user-described field, it inherits whichever flag the archetype carries.
+Every entry in a generated form schema is one of the locale's `ARCHETYPES`, plus optional overrides. The archetypes in [base.js](../../control/lib/form-schema-config/base.js) seed the `pii: true` flag on the obvious cases — `email`, `fullName`, `firstName`, `lastName`, `dateOfBirth` — and locale modules layer on region-specific PII (national IDs, postal codes where they're sensitive, etc.). When the schema-generation LLM picks an archetype for a user-described field, it inherits whichever flag the archetype carries.
 
-At runtime, the bot's `generateFormElement` reads `field.pii` once and does exactly one thing with it: writes `input.dataset.pii = 'true'` ([client/index.html:766-767](../lite-template/client/index.html#L766), [client/index.html:808-809](../lite-template/client/index.html#L808)). No other code in the bot or the control plane reads that attribute.
+At runtime, the bot's `generateFormElement` reads `field.pii` once and does exactly one thing with it: writes `input.dataset.pii = 'true'` ([client/index.html:766-767](../../lite-template/client/index.html#L766), [client/index.html:808-809](../../lite-template/client/index.html#L808)). No other code in the bot or the control plane reads that attribute.
 
 **The flag is a label, not a mechanism.** The thing that makes ghost forms ghosts is structural, not per-field:
 
@@ -109,7 +109,7 @@ That's it — no per-locale runtime switching. Each deployed bot is single-local
 
 ## Database schema
 
-The bot owns one form-specific table, [lite-template/server.js:260-275](../lite-template/server.js#L260-L275):
+The bot owns one form-specific table, [lite-template/server.js:260-275](../../lite-template/server.js#L260-L275):
 
 ```sql
 CREATE TABLE IF NOT EXISTS form_submissions (
@@ -125,9 +125,9 @@ CREATE TABLE IF NOT EXISTS form_submissions (
 );
 ```
 
-`metadata` was added later; an idempotent `ALTER TABLE` probe on startup adds it for older deployments ([server.js:280-285](../lite-template/server.js#L280-L285)).
+`metadata` was added later; an idempotent `ALTER TABLE` probe on startup adds it for older deployments ([server.js:280-285](../../lite-template/server.js#L280-L285)).
 
-`schema_fingerprint` is the first 16 hex chars of `SHA256(formFormat.json)`, computed once in `app.listen()` ([server.js:1476-1490](../lite-template/server.js#L1476-L1490)) and stamped onto every row. A schema change shows up in the database as a new fingerprint value, so post-hoc analysis can group submissions by schema version without consulting the deployment record.
+`schema_fingerprint` is the first 16 hex chars of `SHA256(formFormat.json)`, computed once in `app.listen()` ([server.js:1476-1490](../../lite-template/server.js#L1476-L1490)) and stamped onto every row. A schema change shows up in the database as a new fingerprint value, so post-hoc analysis can group submissions by schema version without consulting the deployment record.
 
 Form submissions are **a separate table from `turns`**. They do not share the per-conversation tamper-evident chain that chat turns and handoff events use (see [federated-routing.md](./federated-routing.md)). A submission row is linked to a conversation only by `conversation_id`.
 
@@ -137,7 +137,7 @@ Form submissions are **a separate table from `turns`**. They do not share the pe
 
 ### `GET /context` — exposes form schema to the client
 
-When `config.isForm` is set, the bot reads `config/formFormat.json` from disk and returns it as `formStructure` in the response body alongside the rest of the per-conversation context ([server.js:1299-1319](../lite-template/server.js#L1299-L1319)). The schema is not embedded in the LLM's system prompt — it is only sent to the client renderer.
+When `config.isForm` is set, the bot reads `config/formFormat.json` from disk and returns it as `formStructure` in the response body alongside the rest of the per-conversation context ([server.js:1299-1319](../../lite-template/server.js#L1299-L1319)). The schema is not embedded in the LLM's system prompt — it is only sent to the client renderer.
 
 ### `POST /api/submit-form` — captures filled form
 
@@ -149,7 +149,7 @@ When `config.isForm` is set, the bot reads `config/formFormat.json` from disk an
 }
 ```
 
-The handler ([server.js:1429-1465](../lite-template/server.js#L1429-L1465)):
+The handler ([server.js:1429-1465](../../lite-template/server.js#L1429-L1465)):
 
 1. Validates `conversationId` and `formData` are present.
 2. If `formSendHome` is configured for the deployment, calls `sendFormHome(conversationId, formData, metadata)` against the control plane URL and records `webhook_status` (`'sent' | 'failed'`).
@@ -159,27 +159,27 @@ The form-data row is the **only** place form values are persisted. The chat-turn
 
 ### `POST /chat` — sees only the marker
 
-The marker pattern `/{[a-zA-Z0-9_]+(filled|skipped)}/` is detected in [helper/prompt-assembler.js:9](../lite-template/helper/prompt-assembler.js#L9). When `userPrompt` matches it, RAG retrieval is skipped (the marker is not a meaningful query). The LLM sees the marker verbatim, so it knows the form was completed (or skipped) and can respond accordingly, but it never receives the field values themselves.
+The marker pattern `/{[a-zA-Z0-9_]+(filled|skipped)}/` is detected in [helper/prompt-assembler.js:9](../../lite-template/helper/prompt-assembler.js#L9). When `userPrompt` matches it, RAG retrieval is skipped (the marker is not a meaningful query). The LLM sees the marker verbatim, so it knows the form was completed (or skipped) and can respond accordingly, but it never receives the field values themselves.
 
 ---
 
 ## Client behavior — the ghost layer
 
-All form data is held in `FormInputRegistry`, defined in [client/index.html:160-374](../lite-template/client/index.html#L160). It is a single Map keyed by `fieldId` whose values are the live DOM input elements. Public methods include `register`, `getValue`, `getAllValues`, `getFilledValues`, `clear`, and `addChangeListener`. The registry is the authoritative store for in-flight form state.
+All form data is held in `FormInputRegistry`, defined in [client/index.html:160-374](../../lite-template/client/index.html#L160). It is a single Map keyed by `fieldId` whose values are the live DOM input elements. Public methods include `register`, `getValue`, `getAllValues`, `getFilledValues`, `clear`, and `addChangeListener`. The registry is the authoritative store for in-flight form state.
 
 ### Rendering
 
-`generateFormElement(fieldId)` ([client/index.html:638-880](../lite-template/client/index.html#L638-L880)) creates the DOM input for one field from the schema entry — input type, validation pattern, label, required flag, and a `data-pii="true"` attribute when `field.pii` is set. Each input registers itself with `FormInputRegistry.register(fieldId, input)` and emits `notifyChange` events on user input, so a single change-listener callback can re-evaluate completeness after every keystroke.
+`generateFormElement(fieldId)` ([client/index.html:638-880](../../lite-template/client/index.html#L638-L880)) creates the DOM input for one field from the schema entry — input type, validation pattern, label, required flag, and a `data-pii="true"` attribute when `field.pii` is set. Each input registers itself with `FormInputRegistry.register(fieldId, input)` and emits `notifyChange` events on user input, so a single change-listener callback can re-evaluate completeness after every keystroke.
 
 ### Submission
 
-When the user clicks the submit control, [client/index.html:932-967](../lite-template/client/index.html#L932-L967) reads `FormInputRegistry.getAllValues()` and posts it to `/api/submit-form` along with the conversation ID and lightweight metadata (form title, completion time, turn number). On success, the client may optionally also POST to a customer-configured webhook via the server-side proxy at `/api/send-webhook` ([client/index.html:969-1020](../lite-template/client/index.html#L969-L1020)) to avoid CORS exposure.
+When the user clicks the submit control, [client/index.html:932-967](../../lite-template/client/index.html#L932-L967) reads `FormInputRegistry.getAllValues()` and posts it to `/api/submit-form` along with the conversation ID and lightweight metadata (form title, completion time, turn number). On success, the client may optionally also POST to a customer-configured webhook via the server-side proxy at `/api/send-webhook` ([client/index.html:969-1020](../../lite-template/client/index.html#L969-L1020)) to avoid CORS exposure.
 
 The client then sends a normal chat message whose body is the marker string `{<form_name>_filled}` (or `_skipped`). That message — and only that message — appears in the LLM's view of the conversation.
 
 ### Cross-turn form progress
 
-Form *progress state* (which fields are filled, which the bot has already prompted for) lives in the `formTracker` field of `machine_state` on each chat turn ([server.js:411-425](../lite-template/server.js#L411-L425)). On every `/chat` call the server reads the previous turn's `formTracker` from `machine_state` and forwards it to the LLM so the bot doesn't re-ask for the same field. `formTracker` contains tracking metadata only — never field values — so the chat-turn rows stay PII-free.
+Form *progress state* (which fields are filled, which the bot has already prompted for) lives in the `formTracker` field of `machine_state` on each chat turn ([server.js:411-425](../../lite-template/server.js#L411-L425)). On every `/chat` call the server reads the previous turn's `formTracker` from `machine_state` and forwards it to the LLM so the bot doesn't re-ask for the same field. `formTracker` contains tracking metadata only — never field values — so the chat-turn rows stay PII-free.
 
 This is also what survives a federated handoff: see [federated-routing.md](./federated-routing.md) for how `lastFormTracker` lookups walk the same `event_type IS NULL` filtered history.
 
@@ -211,17 +211,17 @@ If a deployment needs cryptographic continuity for submissions (analogous to the
 
 | File | Role |
 |------|------|
-| [control/lib/form-schema-config/index.js](../control/lib/form-schema-config/index.js) | `LOCALES` registry, `buildFormSchemaPrompt`, `isLocaleSupported`, `DEFAULT_LOCALE` |
-| [control/lib/form-schema-config/base.js](../control/lib/form-schema-config/base.js) | `PII_INDICATORS`, shared archetypes |
-| [control/lib/form-schema-config/locales/](../control/lib/form-schema-config/locales/) | Per-locale `PATTERNS`, `FIELD_LABELS`, `ARCHETYPES`, `GDPR_HINTS` (22 locales) |
-| [control/components/wizard/modular/steps/FormGatheringConfig.jsx](../control/components/wizard/modular/steps/FormGatheringConfig.jsx) | Locale picker + natural-language input + Generate action |
-| [control/app/api/generate-form/route.js](../control/app/api/generate-form/route.js) | Validates locale, calls `buildFormGenerationPrompt`, dispatches to LLM |
-| [lite-template/server.js](../lite-template/server.js) §schema | `form_submissions` CREATE + idempotent `metadata` ADD COLUMN |
-| [lite-template/server.js](../lite-template/server.js) §`app.listen` | Computes `formSchemaFingerprint = SHA256(formFormat.json)[0:16]` |
-| [lite-template/server.js](../lite-template/server.js) §`GET /context` | Reads `formFormat.json` from disk, returns as `formStructure` |
-| [lite-template/server.js](../lite-template/server.js) §`POST /api/submit-form` | Persists row, optional webhook relay |
-| [lite-template/helper/form-submission.js](../lite-template/helper/form-submission.js) | `sendFormHome` — control-plane webhook with bearer auth |
-| [lite-template/helper/prompt-assembler.js](../lite-template/helper/prompt-assembler.js) | `FORM_SUBMISSION_MARKER` regex; skips RAG on marker turns |
-| [lite-template/client/index.html](../lite-template/client/index.html) §`FormInputRegistry` | Browser-side Map of `fieldId → DOM input`; sole holder of in-flight values |
-| [lite-template/client/index.html](../lite-template/client/index.html) §`generateFormElement` | Renders fields from schema; sets `data-pii` on PII inputs |
-| [lite-template/client/index.html](../lite-template/client/index.html) §`sendFormToControlPlane` | POSTs `getAllValues()` to `/api/submit-form` |
+| [control/lib/form-schema-config/index.js](../../control/lib/form-schema-config/index.js) | `LOCALES` registry, `buildFormSchemaPrompt`, `isLocaleSupported`, `DEFAULT_LOCALE` |
+| [control/lib/form-schema-config/base.js](../../control/lib/form-schema-config/base.js) | `PII_INDICATORS`, shared archetypes |
+| [control/lib/form-schema-config/locales/](../../control/lib/form-schema-config/locales/) | Per-locale `PATTERNS`, `FIELD_LABELS`, `ARCHETYPES`, `GDPR_HINTS` (22 locales) |
+| [control/components/wizard/modular/steps/FormGatheringConfig.jsx](../../control/components/wizard/modular/steps/FormGatheringConfig.jsx) | Locale picker + natural-language input + Generate action |
+| [control/app/api/generate-form/route.js](../../control/app/api/generate-form/route.js) | Validates locale, calls `buildFormGenerationPrompt`, dispatches to LLM |
+| [lite-template/server.js](../../lite-template/server.js) §schema | `form_submissions` CREATE + idempotent `metadata` ADD COLUMN |
+| [lite-template/server.js](../../lite-template/server.js) §`app.listen` | Computes `formSchemaFingerprint = SHA256(formFormat.json)[0:16]` |
+| [lite-template/server.js](../../lite-template/server.js) §`GET /context` | Reads `formFormat.json` from disk, returns as `formStructure` |
+| [lite-template/server.js](../../lite-template/server.js) §`POST /api/submit-form` | Persists row, optional webhook relay |
+| [lite-template/helper/form-submission.js](../../lite-template/helper/form-submission.js) | `sendFormHome` — control-plane webhook with bearer auth |
+| [lite-template/helper/prompt-assembler.js](../../lite-template/helper/prompt-assembler.js) | `FORM_SUBMISSION_MARKER` regex; skips RAG on marker turns |
+| [lite-template/client/index.html](../../lite-template/client/index.html) §`FormInputRegistry` | Browser-side Map of `fieldId → DOM input`; sole holder of in-flight values |
+| [lite-template/client/index.html](../../lite-template/client/index.html) §`generateFormElement` | Renders fields from schema; sets `data-pii` on PII inputs |
+| [lite-template/client/index.html](../../lite-template/client/index.html) §`sendFormToControlPlane` | POSTs `getAllValues()` to `/api/submit-form` |

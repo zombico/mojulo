@@ -489,10 +489,13 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 //
 // Two groups today:
 //   creative — the render / media / games stack (the flagship default pack).
-//   chatbot  — the bot factory. In-tree and always present for now, gated only by
-//              an explicit MOJULO_PACKS override; when @mojulo/chatbot publishes
-//              this becomes `{ markerModule: '@mojulo/chatbot' }` and nothing else
-//              in this file changes. That one-line flip is the point of the design.
+//   chatbot  — the bot factory. OPT-IN as of 2.0: a fresh install does not have it,
+//              and `mojulo install chatbot` turns it on by writing a marker file
+//              under $MOJULO_HOME. The code is still in-tree (the package split
+//              waits on the Phase 3 ABI), so this is a LOGICAL gate — but from the
+//              operator's side it behaves exactly like the eventual package: absent
+//              until asked for. When @mojulo/chatbot publishes, this entry becomes
+//              `{ markerModule: '@mojulo/chatbot' }` and nothing else changes.
 // The orchestration plumbing (connected-services / catalysts / triggers / runtime /
 // plan / research / stash) declares no group and is therefore ALWAYS present.
 //
@@ -505,7 +508,10 @@ const INSTALL_GROUPS = {
   // Creative's optional deps (three / opentype.js / node-web-audio-api) are omitted
   // together by `--omit=optional`, so the marquee `three` is a faithful marker.
   creative: { markerModule: 'three' },
-  chatbot: { alwaysInstalled: true },
+  // Marker path is relative to $MOJULO_HOME (default ~/.mojulo). Written by
+  // `mojulo install chatbot`; delete it (or drop 'chatbot' from MOJULO_PACKS)
+  // to put the factory away again.
+  chatbot: { markerFile: 'packs/chatbot' },
 };
 const ALL_GROUPS = Object.keys(INSTALL_GROUPS);
 
@@ -532,12 +538,34 @@ function moduleResolves(specifier) {
   }
 }
 
+// Marker-file probe, same import-free discipline as moduleResolves: the path is
+// resolved against $MOJULO_HOME (default ~/.mojulo) and the builtins are pulled
+// locally so this module keeps its no-top-level-imports rule.
+export function markerFilePath(rel) {
+  const path = process.getBuiltinModule('path');
+  const os = process.getBuiltinModule('os');
+  const home = process.env.MOJULO_HOME || path.join(os.homedir(), '.mojulo');
+  return path.join(home, rel);
+}
+
+function markerFileExists(rel) {
+  try {
+    return process.getBuiltinModule('fs').existsSync(markerFilePath(rel));
+  } catch {
+    return false;
+  }
+}
+
 function detectedGroups() {
   if (_groupPresence) return _groupPresence;
   const present = new Set();
   for (const group of ALL_GROUPS) {
     const sig = INSTALL_GROUPS[group] || { alwaysInstalled: true };
-    if (sig.alwaysInstalled || (sig.markerModule && moduleResolves(sig.markerModule))) present.add(group);
+    if (
+      sig.alwaysInstalled
+      || (sig.markerModule && moduleResolves(sig.markerModule))
+      || (sig.markerFile && markerFileExists(sig.markerFile))
+    ) present.add(group);
   }
   return (_groupPresence = present);
 }
@@ -595,6 +623,9 @@ function installAction(group) {
     ? `include '${group}' in MOJULO_PACKS (${group} ships with the base install; it is only gated by an explicit override)`
     : `run \`mojulo install ${group}\` (or include '${group}' in MOJULO_PACKS if you manage the install manually)`;
 }
+
+/** The install groups a DEFAULT install has, for copy that must not overclaim. */
+export const DEFAULT_ON_GROUPS = ALL_GROUPS.filter((g) => !INSTALL_GROUPS[g].markerFile);
 
 /** Advisory message for a tool whose pack isn't installed, or null if it is.
  * Never a refusal of capability — a pointer to the install that enables it. */

@@ -19,7 +19,7 @@ import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, assembly, units, viewBox, facing, ref, folderRef } = {}) {
+export function mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -34,8 +34,9 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs
   const hasSweeps = Array.isArray(sweeps) && sweeps.length > 0;
   const hasDrapes = Array.isArray(drapes) && drapes.length > 0;
   const hasReliefs = Array.isArray(reliefs) && reliefs.length > 0;
-  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasDrapes && !hasReliefs) {
-    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, `reliefs`, or `assembly` (the polygomer).');
+  const hasShells = Array.isArray(shells) && shells.length > 0;
+  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasDrapes && !hasReliefs && !hasShells) {
+    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, `reliefs`, `shells`, or `assembly` (the polygomer).');
   }
   const manifest = {
     kind: 'workbench',
@@ -44,6 +45,7 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs
     ...(hasSweeps ? { sweeps } : {}),
     ...(hasDrapes ? { drapes } : {}),
     ...(hasReliefs ? { reliefs } : {}),
+    ...(hasShells ? { shells } : {}),
     ...(typeof units === 'string' ? { units } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(typeof facing === 'string' || Number.isFinite(facing) ? { facing } : {}),
@@ -82,8 +84,8 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, drapes, reliefs, assembly, units, viewBox, facing, ref, folder_ref: folderRef } = input;
-  return mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, assembly, units, viewBox, facing, ref, folderRef });
+  const { title, lathes, extrudes, sweeps, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folder_ref: folderRef } = input;
+  return mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {
@@ -94,7 +96,7 @@ export function registerWorkbenchTools() {
       + "city/hub mints drop you INTO a traversable world at abstract scale, the workbench presents a "
       + "single everyday object on a measured grid at LITERAL real-world scale, for form accuracy "
       + "(neutral studio light, no mood). You build the object as a POLYGOMER — monomer primitives "
-      + "bonded by literal placement of their axes. Four monomer kinds:\n"
+      + "bonded by literal placement of their axes. Six monomer kinds:\n"
       + "• `lathes` — surfaces of REVOLUTION (axisFrom→axisTo + a radius `profile` of {t,radius}, "
       + "optional N-fold `harmonics` for fluting/threads): candlestick, bottle, dumbbell, vase, lamp, "
       + "wheel, plate, spindle.\n"
@@ -106,6 +108,14 @@ export function registerWorkbenchTools() {
       + "into bevelled geometry (additive emboss, never a cut): nameplates/plaques, wordmarks lifted "
       + "off a panel, a seal struck onto a lathe disc. Params in the schema; sink `anchor` ~0.1 into "
       + "the base to avoid coplanar z-fight.\n"
+      + "• `shells` — parametric POLYHEDRA (tetrahedron/cube/octahedron/dodecahedron/icosahedron/"
+      + "truncated_icosahedron/geodesic) by `solid` + `radius`, optionally with per-face `ops`. The one "
+      + "monomer whose identity is its face LAYOUT rather than a swept profile: a geodesic dome, a d20, "
+      + "a soccer-ball shell, a faceted housing with inset panels and ports. `ops` run in ORDER — "
+      + "inset/extrude/recolor/port — each selecting faces SEMANTICALLY (`{sides:6}`, `{facing:'+z'}`, "
+      + "`{ring:'equator'}`, `{group:'inset'}`, `{every:3}`) and tagging what it emits so the next op "
+      + "can select it. Surface ops, not booleans: `port` seats a cylinder ON a face, it does not drill "
+      + "through. Full vocabulary: get_solid_vocab('workbench').\n"
       + "STACKING (relative composition): for a vertical multi-part object (candlestick, lamp, vase, "
       + "dumbbell, spindle) prefer `assembly` over hand-placed axes — declare each part by `height` + "
       + "`profile` and it auto-stacks on the one below (running z computed for you; `on`/`gap`/`offset` "
@@ -230,6 +240,11 @@ export function registerWorkbenchTools() {
             },
             required: ['shape', 'anchor'],
           },
+        },
+        shells: {
+          type: 'array',
+          description: "Shell monomers: parametric POLYHEDRA. Each: `{ solid, radius, center?, orient?, frequency?, tint?, material?, group?, open?, ops? }`. `solid` (required) is one of tetrahedron | cube | octahedron | dodecahedron | icosahedron | truncated_icosahedron (soccer ball: 12 pentagons + 20 hexagons) | geodesic. `radius` (required) is the CIRCUMradius — the distance to a VERTEX, so the bounding box is SMALLER than 2×radius (an icosahedron spans 1.70×radius); seat it on the grid by its bbox, not by center.z=radius. `center` {x,y,z} places it (z up); `orient` [rx,ry,rz] degrees turns it; `frequency` (geodesic only, 1-8, default 1) sets subdivision — 20×frequency² faces, keep ≤4 for a live world. `group` (default 'shell') tags its faces. `open` is a face SELECTOR whose faces are cut away (a dome = a shell minus its lower band). `ops` is an ordered list of per-face operations: `{op:'inset', select, by|ratio}` (a smaller panel + a rim ring), `{op:'extrude', select, by}` (push the face along its normal, negative recesses), `{op:'recolor', select, tint?|material?|group?}`, `{op:'port', select, radius, depth, sides?}` (seat a cylinder on the face center — ADDITIVE, not a drilled hole). Every `select` is semantic — `{facing:'+z',within:30}` / `{ring:'equator',band:0.2}` / `{sides:5}` / `{group:'panel'}` / `{near:[0,0,1],count:1}` / `{every:3}` / `{not:…}` / `{and:…}` — never a hand-numbered index. A selector matching nothing is refused at mint. Prefer `{near,count}` over a `facing` cone when you mean 'the top one'.",
+          items: { type: 'object' },
         },
         assembly: {
           type: 'object',

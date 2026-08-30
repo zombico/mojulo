@@ -173,4 +173,24 @@ describe('get_style_vocab reader', () => {
   it('rejects an unknown preset with the available list', async () => {
     await expect(getStyleVocabHandler({ id: 'nope' })).rejects.toThrow(/unknown card/);
   });
+
+  // The reconstruction register: the dream loops (shape/character/mecha/edifice)
+  // default to it, so it has to stay readable AND stay untextured.
+  it('clay-render resolves to a primitive-legible, untextured discipline', async () => {
+    const out = await getStyleVocabHandler({ id: 'clay-render' });
+    expect(out.preset).toBe('clay-render');
+    expect(out.dials).toHaveProperty('construction');
+    expect(out.dials).toHaveProperty('finish');
+    const lock = out.lock.join(' | ');
+    expect(lock).toMatch(/PRIMITIVES/);
+    expect(lock).toMatch(/construction: assembled-model register/); // default dial phrasing
+    expect(out.negative.join(' | ')).toMatch(/no textures/i);
+  });
+
+  it('clay-render reaches the render brief as a Style Lock', () => {
+    const m = resolveStyleMaterial({ preset: 'clay-render', dials: { construction: 0.2, finish: 'ao' } }, DEFAULTS);
+    expect(m.styleId).toBe('clay-render#construction=0.2,finish=ao');
+    expect(m.lock.join(' | ')).toMatch(/primitive blockout/);
+    expect(m.lock.join(' | ')).toMatch(/ambient-occlusion pass/);
+  });
 });

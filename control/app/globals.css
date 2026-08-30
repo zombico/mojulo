@@ -1,40 +1,128 @@
 @import "tailwindcss";
 
-:root {
-  /* Dark mode default */
-  --background: #111827; /* gray-900 */
-  --foreground: #f3f4f6; /* gray-100 */
+/* ── Machine Shop tokens ─────────────────────────────────────────────────────
+   The 3D-factory surface: dark-native, near-black, one hot accent, technical
+   register. Design + rationale: components/3d-factory-ui.plan.md §7.
 
-  /* Brand colors */
-  --brand-teal: #5eead4;
-  --brand-teal-hover: #2dd4bf;
+   Two rules the whole surface reads by:
+     · teal  (--live)  = it exists and it runs
+     · amber (--forge) = the agent has to act
+   The dashboard never mutates anything itself, so every mutating affordance is
+   amber. That is the "not a conversational surface" golden rule made visible
+   instead of merely obeyed. */
+:root {
+  /* Bay surfaces — void (page) → floor (panel) → bench (card) → rail (hairline).
+     Cooler and darker than the Tailwind gray ramp they replace, so that a lit 3D
+     viewport sitting inside them reads as the light source in the room. */
+  --bay-void: #07090c;
+  --bay-floor: #0d1117;
+  --bay-bench: #151b23;
+  --bay-rail: #1e2530;
+  --bay-rail-lit: #2c3540;
+
+  /* Ink */
+  --ink-primary: #e8edf2;
+  --ink-secondary: #a3aebb;
+  --ink-muted: #6b7684;
+
+  /* Signal — hues carry STATE, not section. The three values are unchanged from
+     the old --mode-* trio; what changed is that they now mean the same thing
+     everywhere instead of only telling you which section you are already in. */
+  --live: #5eead4;          /* exists · runs · bound · sealed */
+  --live-strong: #2dd4bf;
+  --live-idle: #4a9d92;
+  --forge: #f4a86a;         /* making · queued · needs the agent */
+  --forge-strong: #ef8f4c;
+  --forge-idle: #b57c4f;
+  --think: #a5b4fc;         /* speculative · plan · wireframe */
+  --think-strong: #818cf8;
+  --think-idle: #7b83b8;
+  --seal: #d8b4fe;          /* durable record · entity */
+  --fault: #f87171;         /* error · rejected render */
+
+  /* Geometry. Hairlines are 1px, always. */
+  --radius-control: 4px;
+  --radius-card: 8px;
+  --radius-bay: 12px;
+
+  /* ── Legacy names, re-pointed ──────────────────────────────────────────────
+     Components already read these, so keeping the names moves the whole palette
+     without touching a single component. Each maps to the bay whose Tailwind
+     twin it used to hold (--surface-primary was gray-800, --border-color was
+     gray-700, and so on), which is why the elevation hierarchy survives. */
+  --background: var(--bay-void);
+  --foreground: var(--ink-primary);
+
+  --surface-primary: var(--bay-bench);
+  --surface-elevated: var(--bay-rail);
+  --border-color: var(--bay-rail);
+
+  --text-primary: var(--ink-primary);
+  --text-secondary: var(--ink-secondary);
+  --text-muted: var(--ink-muted);
+
+  --brand-teal: var(--live);
+  --brand-teal-hover: var(--live-strong);
   --brand-navy: #0a2028;
   /* db_row / entity accent (diagram surface). Tuned for the dark backdrop; the
      SVG export re-tints it darker on the light surface (see sketch-svg.js). */
-  --entity-purple: #d8b4fe;
+  --entity-purple: var(--seal);
 
-  /* Surface colors */
-  --surface-primary: #1f2937; /* gray-800 */
-  --surface-elevated: #374151; /* gray-700 */
-  --border-color: #374151; /* gray-700 */
+  /* Workshop nav mode hues, now ALIASES onto the signal hues. Studio's amber is
+     the forge signal, Operate's teal is the live signal, Ideate's indigo is the
+     think signal — so a hue means the same thing in the nav as it does on a card
+     or in the status bar. `idle` is the dimmed rest tint; `base`/`strong` are the
+     hover/active tints. */
+  --mode-ideate: var(--think);
+  --mode-ideate-strong: var(--think-strong);
+  --mode-ideate-idle: var(--think-idle);
+  --mode-operate: var(--live);
+  --mode-operate-strong: var(--live-strong);
+  --mode-operate-idle: var(--live-idle);
+  --mode-studio: var(--forge);
+  --mode-studio-strong: var(--forge-strong);
+  --mode-studio-idle: var(--forge-idle);
+}
 
-  /* Text colors */
-  --text-primary: #ffffff;
-  --text-secondary: #d1d5db; /* gray-300 */
-  --text-muted: #9ca3af; /* gray-400 */
+/* Re-point Tailwind's neutral ramps onto the bay surfaces and ink. The app
+   carries ~1,700 hardcoded `gray-*` / `neutral-*` literals; re-pointing the ramp
+   moves all of them at once, so phase 1 stays a token change rather than a
+   1,700-site edit. Shade → bay mapping follows how the app actually uses each
+   step (700 is the hairline, 800 the card, 500 the muted label), so no component
+   changes meaning. Literal hex rather than var() references, so Tailwind's
+   opacity modifiers (`bg-gray-800/40`) keep resolving cleanly.
 
-  /* Workshop nav mode hues. Teal stays the brand anchor; each mode carries one
-     signature hue (cool → warm mirrors upstream → running → output). `idle` is
-     the dimmed rest tint; `base`/`strong` are the hover/active tints. */
-  --mode-ideate: #a5b4fc;
-  --mode-ideate-strong: #818cf8;
-  --mode-ideate-idle: #7b83b8;
-  --mode-operate: #5eead4;
-  --mode-operate-strong: #2dd4bf;
-  --mode-operate-idle: #4a9d92;
-  --mode-studio: #f4a86a;
-  --mode-studio-strong: #ef8f4c;
-  --mode-studio-idle: #b57c4f;
+   Step 600 is the one shade NOT pulled onto a bay token: the app uses it as a
+   hover border (169 sites) AND as its dimmest text (25 sites — separator dots,
+   empty-state hints, disabled labels). Pulling it down to --bay-rail-lit made
+   those read at 1.9:1, below the 2.35:1 they had, so it keeps a value at parity
+   with the old ramp and --bay-rail-lit stays a separate token for new work.
+   Every other step holds or improves its old contrast; see the table in
+   components/3d-factory-ui.plan.md §8. */
+@theme {
+  --color-gray-50: #f4f7fa;
+  --color-gray-100: #e8edf2;  /* ink-primary   — headings, active labels */
+  --color-gray-200: #c9d1da;
+  --color-gray-300: #a3aebb;  /* ink-secondary — body copy */
+  --color-gray-400: #929cab;
+  --color-gray-500: #6b7684;  /* ink-muted     — captions, meta */
+  --color-gray-600: #47525f;  /* hover borders, buttons, AND the dimmest text */
+  --color-gray-700: #1e2530;  /* bay-rail      — hairlines */
+  --color-gray-800: #151b23;  /* bay-bench     — cards */
+  --color-gray-900: #0d1117;  /* bay-floor     — panels, page shells */
+  --color-gray-950: #07090c;  /* bay-void      — the page itself */
+
+  --color-neutral-50: #f4f7fa;
+  --color-neutral-100: #e8edf2;
+  --color-neutral-200: #c9d1da;
+  --color-neutral-300: #a3aebb;
+  --color-neutral-400: #929cab;
+  --color-neutral-500: #6b7684;
+  --color-neutral-600: #47525f;
+  --color-neutral-700: #1e2530;
+  --color-neutral-800: #151b23;
+  --color-neutral-900: #0d1117;
+  --color-neutral-950: #07090c;
 }
 
 /* Mode-hue nav system. A mode section/button sets --h (base), --h-strong, and
@@ -42,28 +130,28 @@
    mode color without per-instance utility soup. Used by the Workshop drawer
    (WorkshopDrawer.jsx) and the home launcher (HomeLauncher.jsx). */
 .ws-mode-label { color: var(--h); }
-.ws-mode-idle-ico { color: var(--h-idle); transition: color 0.15s; }
+.ws-mode-idle-ico { color: var(--h-idle); transition: color 0.12s; }
 
 /* Drawer destination rows */
-.ws-row { color: var(--text-secondary); transition: background-color 0.15s, color 0.15s; }
+.ws-row { color: var(--text-secondary); transition: background-color 0.12s, color 0.12s; }
 .ws-row .ws-row-box {
   color: var(--h-idle);
   border-color: var(--border-color);
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.12s, border-color 0.12s;
 }
 .ws-row:hover { background: color-mix(in srgb, var(--h) 9%, transparent); color: var(--text-primary); }
-.ws-row:hover .ws-row-box { color: var(--h); border-color: var(--h); }
 .ws-row.is-active {
   background: color-mix(in srgb, var(--h) 12%, transparent);
   color: var(--text-primary);
   box-shadow: inset 2px 0 0 var(--h);
 }
 .ws-row.is-active .ws-row-box { color: var(--h); border-color: var(--h); }
+.ws-row:hover .ws-row-box { color: var(--h); border-color: var(--h); }
 
 /* Home-launcher mode tiles (buttons) + the panel tiles below them */
-.ws-modebtn { transition: border-color 0.15s, background-color 0.15s, transform 0.15s; }
-.ws-modebtn-ico { color: var(--h-idle); transition: color 0.15s; }
-.ws-modebtn-label { color: var(--text-secondary); transition: color 0.15s; }
+.ws-modebtn { transition: border-color 0.12s, background-color 0.12s, transform 0.12s; }
+.ws-modebtn-ico { color: var(--h-idle); transition: color 0.12s; }
+.ws-modebtn-label { color: var(--text-secondary); transition: color 0.12s; }
 .ws-modebtn:hover { border-color: var(--h); transform: translateY(-2px); }
 .ws-modebtn:hover .ws-modebtn-ico { color: var(--h); }
 .ws-modebtn.is-active {
@@ -77,15 +165,54 @@
 .ws-tile .ws-tile-box {
   color: var(--h-idle);
   border-color: var(--border-color);
-  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+  transition: color 0.12s, border-color 0.12s, background-color 0.12s;
 }
 .ws-tile:hover .ws-tile-box {
   color: var(--h);
   border-color: var(--h);
   background: color-mix(in srgb, var(--surface-elevated) 30%, transparent);
 }
-.ws-tile .ws-tile-label { transition: color 0.15s; }
+.ws-tile .ws-tile-label { transition: color 0.12s; }
 .ws-tile:hover .ws-tile-label { color: var(--text-primary); }
+
+/* The workshop has two authors, so the typeface says which one wrote a line:
+   whatever the recipe stores or the agent typed renders mono, whatever a person
+   wrote renders sans. `.ref` is that rule for refs, seeds, kinds, and params. */
+.ref {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/* Turntable cards (3d-factory-ui.plan.md §6). One PNG of N azimuth frames laid
+   out in a row, stepped with steps(N) — no WebGL context per card, no live
+   iframe in the grid, one image request. The vars come from
+   lib/graph/sketch/turntable-strip.js (stripStyleVars), including the end
+   position: a percentage background-position aligns the image's p% point with
+   the box's p% point, so for an N-cell strip in a 1-cell box, ending at 100%
+   would land between cells — 100·N/(N−1) lands on whole frames. */
+.moj-turntable {
+  background-repeat: no-repeat;
+  background-size: calc(var(--turn-frames) * 100%) 100%;
+  background-position: 0% 50%;
+  /* Parked on frame 0 until the card is hovered, so the strip can own the card
+     from the moment it loads and the still-to-strip swap happens exactly once. */
+  animation: moj-turntable var(--turn-duration) steps(var(--turn-frames)) infinite paused;
+}
+.moj-turntable.is-turning { animation-play-state: running; }
+
+@keyframes moj-turntable {
+  from { background-position-x: 0%; }
+  to { background-position-x: var(--turn-end); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-modebtn:hover { transform: none; }
+  /* Frozen at frame 0 — which is the world's own authored camera framing (or a
+     ¾ of its bounds), so the still is the best single view and the fallback is
+     not a downgrade. The card also never requests a strip in this mode. */
+  .moj-turntable { animation: none; background-position-x: 0%; }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -97,5 +224,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Geist is loaded in layout.jsx and bridged above; the old Arial/Helvetica
+     stack silently overrode it on every page. */
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }

@@ -92,17 +92,12 @@ const ROUTES = [
   // Studio (the retired "Maker" wordmark) — the /maker hub lists these rails,
   // so the Studio crumb links up to it.
   { tpl: '/maker', trail: [{ labelKey: 'home.groups.studio' }] },
+  // The Library fold: the illustrations / worlds / objects rails and /sketches are
+  // one route now, so they share one crumb. The shelf lives in ?shelf=, which the
+  // crumb deliberately ignores — a chip is a filter, not a place.
   {
-    tpl: '/maker/illustrations',
-    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.illustrations' }],
-  },
-  {
-    tpl: '/maker/worlds',
-    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.worlds' }],
-  },
-  {
-    tpl: '/maker/objects',
-    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.objects' }],
+    tpl: '/library',
+    trail: [{ labelKey: 'home.groups.studio', href: '/maker' }, { labelKey: 'home.tiles.library' }],
   },
   {
     tpl: '/maker/motion',
@@ -156,7 +151,6 @@ const ROUTES = [
   },
   { tpl: '/plan', trail: [{ labelKey: 'plan.title' }] },
   { tpl: '/settings', trail: [{ labelKey: 'settings.title' }] },
-  { tpl: '/sketches', trail: [{ labelKey: 'sketchesIndex.title' }] },
 ];
 
 // Match a concrete pathname against the templates, capturing [param] segments

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { WORKSHOP_GROUPS, visibleWorkshopGroups } from '@/components/workshop-nav';
+import { LIBRARY_SHELVES, LEGACY_ROUTE_SHELVES } from '@/lib/graph/sketch/library-shelves';
 
 // The nav is where the 2.0 reposition is visible to a human: the making surface
 // leads and is unconditional, the operational surface earns its place by having
@@ -23,10 +24,21 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
   });
 
   it('diagrams sit in studio, so the kernel capability never vanishes with ops', () => {
-    expect(tileKeys(WORKSHOP_GROUPS, 'studio')).toContain('sketch');
-    expect(tileKeys(WORKSHOP_GROUPS, 'operate')).not.toContain('sketch');
+    // Post-Library-fold the door is `library` and diagrams are a shelf behind it,
+    // but the invariant is unchanged: mint_diagram is a kernel capability, so its
+    // surface must never be gated on the operational pack.
+    expect(tileKeys(WORKSHOP_GROUPS, 'studio')).toContain('library');
+    expect(tileKeys(WORKSHOP_GROUPS, 'operate')).not.toContain('library');
+    expect(LIBRARY_SHELVES.map((s) => s.key)).toContain('diagrams');
     // and it survives the empty-workshop case
-    expect(tileKeys(visibleWorkshopGroups({ bots: 0, apps: 0, services: 0 }), 'studio')).toContain('sketch');
+    expect(tileKeys(visibleWorkshopGroups({ bots: 0, apps: 0, services: 0 }), 'studio')).toContain('library');
+  });
+
+  it('every studio tile points at a route that still exists after the Library fold', () => {
+    const folded = Object.keys(LEGACY_ROUTE_SHELVES);
+    for (const tile of WORKSHOP_GROUPS.find((g) => g.key === 'studio').tiles) {
+      expect(folded, `${tile.key} → ${tile.href}`).not.toContain(tile.href);
+    }
   });
 
   it('a fresh host shows only the creative + ideate modes', () => {

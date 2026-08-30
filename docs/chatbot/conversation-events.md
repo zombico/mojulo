@@ -31,7 +31,7 @@ Three details that aren't obvious from the table:
 
 - **Optical-read sentinel.** `user_prompt` is set to `[optical_read image: <hash>]` so the chain locks over the source image bytes, not just the prose response. The actual prompt the model saw is preserved in the non-hashed `full_prompt` column for replay/debugging. See [optical-read.md](optical-read.md).
 - **Optical-read submission.** When the user submits the edited extracted fields, that submission is itself a normal chat turn — no new event type. The diff between the extraction row and the submission row *is* the audit trail.
-- **Handoff empty strings.** `user_prompt`/`llm_response` are stored as `''` because the legacy schema declared `user_prompt NOT NULL` before event rows were a thing, and SQLite cannot drop NOT NULL without rebuilding the table. The hash function takes those empty strings as input, so verification stays deterministic ([server.js](../lite-template/server.js)).
+- **Handoff empty strings.** `user_prompt`/`llm_response` are stored as `''` because the legacy schema declared `user_prompt NOT NULL` before event rows were a thing, and SQLite cannot drop NOT NULL without rebuilding the table. The hash function takes those empty strings as input, so verification stays deterministic ([server.js](../../lite-template/server.js)).
 
 ---
 
@@ -49,9 +49,9 @@ SELECT turn, user_prompt, llm_response
  ORDER BY turn ASC
 ```
 
-Handoff events are stripped — they have empty prompts and responses, so surfacing them as turns would inject empty exchanges into the model's context window. Form-fill markers and optical-read extractions are *not* stripped: the model is meant to see them. The protocol cartridges in [control/lib/composer/protocols/](../control/lib/composer/protocols/) tell it what `{<form_name>_filled}` and `[optical_read image: ...]` mean. See [protocol-composition.md](protocol-composition.md).
+Handoff events are stripped — they have empty prompts and responses, so surfacing them as turns would inject empty exchanges into the model's context window. Form-fill markers and optical-read extractions are *not* stripped: the model is meant to see them. The protocol cartridges in [control/lib/composer/protocols/](../../control/lib/composer/protocols/) tell it what `{<form_name>_filled}` and `[optical_read image: ...]` mean. See [protocol-composition.md](protocol-composition.md).
 
-`machine_state` is consulted only as a fallback for `formTracker` recovery if JSON extraction fails on the next turn ([server.js](../lite-template/server.js)).
+`machine_state` is consulted only as a fallback for `formTracker` recovery if JSON extraction fails on the next turn ([server.js](../../lite-template/server.js)).
 
 ### Integrity verifier — `verifyConversation()`
 

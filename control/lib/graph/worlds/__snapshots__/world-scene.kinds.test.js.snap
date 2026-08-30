@@ -95,7 +95,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fluid",
   },
   "fractal-city": {
-    "hash": "70acc231",
+    "hash": "22cde565",
     "title": "mojulo city",
   },
   "ftc-view": {
@@ -195,11 +195,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo star birth",
   },
   "subway-building": {
-    "hash": "95e21769",
+    "hash": "c2f33600",
     "title": "mojulo subway",
   },
   "subway-station": {
-    "hash": "5320babb",
+    "hash": "38d63d4c",
     "title": "mojulo subway station",
   },
   "surface-view": {
@@ -215,7 +215,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo transformer attention",
   },
   "transportation-hub": {
-    "hash": "69bb9163",
+    "hash": "22a2629f",
     "title": "mojulo transportation hub",
   },
   "trig-circle-view": {

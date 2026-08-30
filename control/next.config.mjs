@@ -18,7 +18,19 @@ const nextConfig = {
   // Motion folded into the Mojulo Maker concern. Sketches stays its own concern
   // at /sketches. See app/maker/ and control/app/maker/maker.plan.md.
   async redirects() {
-    return [{ source: '/motion', destination: '/maker/motion', permanent: false }];
+    return [
+      { source: '/motion', destination: '/maker/motion', permanent: false },
+      // The Library fold (components/3d-factory-ui.plan.md §2): four index routes
+      // that were the same gallery with a different bucket now land on the one
+      // browser with their shelf preselected. Detail routes (/sketches/<ref>) are
+      // NOT redirected — every minted URL create_sketch has ever returned still
+      // resolves. Kept non-permanent so the fold stays reversible without fighting
+      // browser redirect caches.
+      { source: '/sketches', destination: '/library?shelf=diagrams', permanent: false },
+      { source: '/maker/illustrations', destination: '/library?shelf=images', permanent: false },
+      { source: '/maker/worlds', destination: '/library?shelf=scenes', permanent: false },
+      { source: '/maker/objects', destination: '/library?shelf=models', permanent: false },
+    ];
   },
   serverExternalPackages: [
     'better-sqlite3',

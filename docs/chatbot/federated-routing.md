@@ -153,11 +153,11 @@ When the user clicks the triage card, the client fires a beacon to `POST /handof
 
 | File | Role |
 |------|------|
-| [lite-template/server.js](../lite-template/server.js) §schema | `ALTER TABLE` probes for `handoff_hash` and `event_type` |
-| [lite-template/server.js](../lite-template/server.js) §`POST /chat` | Accepts and validates `handoffHash`, persists on first turn, exposes `chainHash` in response |
-| [lite-template/server.js](../lite-template/server.js) §`POST /handoff` | Records triage click as chained handoff event row |
-| [lite-template/server.js](../lite-template/server.js) §`verifyConversation` | Falls back to `handoff_hash` for first-turn `prevHash` |
-| [lite-template/server.js](../lite-template/server.js) §`getConversationHistory` | Filters `event_type IS NULL` so handoff rows don't reach the LLM |
-| [lite-template/client/index.html](../lite-template/client/index.html) §`createTriageCard` | Appends `chainHash` to handoff URL; fires `sendBeacon` to `/handoff` |
-| [lite-template/client/index.html](../lite-template/client/index.html) §`getContext` | Adopts `?chainHash=` URL param into `pendingHandoffHash` |
-| [lite-template/client/index.html](../lite-template/client/index.html) §`sendMessage` | Forwards `pendingHandoffHash` on next `/chat` then clears it |
+| [lite-template/server.js](../../lite-template/server.js) §schema | `ALTER TABLE` probes for `handoff_hash` and `event_type` |
+| [lite-template/server.js](../../lite-template/server.js) §`POST /chat` | Accepts and validates `handoffHash`, persists on first turn, exposes `chainHash` in response |
+| [lite-template/server.js](../../lite-template/server.js) §`POST /handoff` | Records triage click as chained handoff event row |
+| [lite-template/server.js](../../lite-template/server.js) §`verifyConversation` | Falls back to `handoff_hash` for first-turn `prevHash` |
+| [lite-template/server.js](../../lite-template/server.js) §`getConversationHistory` | Filters `event_type IS NULL` so handoff rows don't reach the LLM |
+| [lite-template/client/index.html](../../lite-template/client/index.html) §`createTriageCard` | Appends `chainHash` to handoff URL; fires `sendBeacon` to `/handoff` |
+| [lite-template/client/index.html](../../lite-template/client/index.html) §`getContext` | Adopts `?chainHash=` URL param into `pendingHandoffHash` |
+| [lite-template/client/index.html](../../lite-template/client/index.html) §`sendMessage` | Forwards `pendingHandoffHash` on next `/chat` then clears it |

@@ -57,15 +57,17 @@ export function AppsGridIcon({ className = 'h-10 w-10' }) {
   );
 }
 
-export function SketchIcon({ className = 'h-10 w-10' }) {
+export function LibraryIcon({ className = 'h-10 w-10' }) {
+  // Asset shelf: a cube and a sphere standing on a rule — models on a shelf,
+  // which is what the Library now is (scenes, models, characters, materials,
+  // images, diagrams behind one door).
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      {/* Decision diamond — the recognizable flowchart element. */}
-      <path d="M 12 11 L 21 16.5 L 12 22 L 3 16.5 Z" strokeWidth="0.9" />
-      {/* Pencil hovering above, tip pointing down at the diamond. */}
-      <path d="M 20 3 L 14 9 L 11.5 9.5 L 12 7 L 18 1 Z" />
-      <path d="M 14 9 L 12 7" />
-      <path d="M 18.9 4 L 16.9 2" />
+      <path d="M3 19h18" />
+      <path d="M7 9 L10.5 7 L14 9 L10.5 11 Z" />
+      <path d="M7 9 V14 L10.5 16 V11 Z" />
+      <path d="M14 9 V14 L10.5 16 V11 Z" />
+      <circle cx="17.5" cy="13.5" r="3" strokeWidth="0.9" />
     </svg>
   );
 }
@@ -302,10 +304,11 @@ export const WORKSHOP_GROUPS = [
     Icon: StudioIcon,
     hue: { base: 'var(--mode-studio)', strong: 'var(--mode-studio-strong)', idle: 'var(--mode-studio-idle)' },
     tiles: [
-      { key: 'sketch', href: '/sketches', Icon: SketchIcon },
-      { key: 'illustrations', href: '/maker/illustrations', Icon: MakerIcon },
-      { key: 'worlds', href: '/maker/worlds', Icon: WorldIcon },
-      { key: 'objects', href: '/maker/objects', Icon: ObjectsIcon },
+      // One Library door replaces the four bucket rails (Sketches / Illustrations
+      // / Worlds / Objects). The vocabulary they carried did not vanish — it is
+      // the chip row inside, where it costs no navigation. See
+      // components/3d-factory-ui.plan.md §2.
+      { key: 'library', href: '/library', Icon: LibraryIcon },
       { key: 'motion', href: '/maker/motion', Icon: MotionIcon },
       { key: 'beats', href: '/maker/beats', Icon: BeatsIcon },
       { key: 'voice', href: '/maker/voice', Icon: VoiceIcon },

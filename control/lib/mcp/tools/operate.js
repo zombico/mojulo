@@ -451,7 +451,7 @@ export function registerOperateTools() {
   registerTool({
     name: 'verify_chain',
     description:
-      'Walk the tamper-evident hash chain for one conversation. Returns the verification result from the bot. See docs/turn-hashing.md for the chain semantics.',
+      'Walk the tamper-evident hash chain for one conversation. Returns the verification result from the bot. See docs/chatbot/turn-hashing.md for the chain semantics.',
     inputSchema: {
       type: 'object',
       properties: {

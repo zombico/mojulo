@@ -4,7 +4,7 @@
   "name": "Reconstruct a dreamed mech as an articulated hardware character",
   "summary": "Use an image worker as the model's EYES to design a MECHANICAL character — a mech, robot, worker bot, android, or power-armored figure — then rebuild it as a deterministic hardware assembly: NOT the organic figure protoform. Lock a ≤5-trait identity, dream and build each SUBSYSTEM (arm / leg / torso / head) as its own iterated segment sheet (whole-body-first is always mushy), compose them into ONE workbench with the right limb MIRRORED, then bake a prop skin (panel seams / bolts / lens glow) over the flat scaffold. Boxy industrial hardware is IMPLIED from rounded monomers (lathe/extrude/sweep/manji) via repetition, tint, scale contrast, and overlap. The dream sheets are discarded on lock; only the assembly recipe (optionally wearing a skin) persists, and it lowers to /world + .glb for free.",
   "valueHook": "Dream a mech or worker-bot and rebuild it as a real turnable hardware character — armored, articulated, skinnable, drops straight into a world — instead of a paragraph of description and a one-off picture.",
-  "version": 1,
+  "version": 2,
   "category": "substrate",
   "requires": {
     "protocols": [],
@@ -98,10 +98,15 @@ Dreaming the sheets needs an image worker (same ladder as
              limbs"). Restate it at the top of every subsystem pass.
 
 1. DREAM     PER SUBSYSTEM, not whole-body. For each of arm / leg / torso /
-   SHEETS    head, draw the DECOMPOSABLE REGISTER (flat, orthographic, labeled,
-             exploded — presets ukiyo-e / art-nouveau / flat silver-age /
-             ink-brush; NEVER photo-realism, which hides the seams). Mint
-             image-outcome sketches only to LOOK at (create_sketch →
+   SHEETS    head, dream a CLAY MODEL of that subsystem alone —
+             `renderBrief.preset:'clay-render'`, dials { construction: 0.7,
+             finish: 'clay' | 'ao' }: untextured grey, near-orthographic, seams
+             visible, no paint. A mech IS separable primitives, so the clay
+             read maps almost one-to-one onto lathe/extrude/sweep/manji. Flat
+             illustration presets (ukiyo-e / art-nouveau / flat silver-age /
+             ink-brush) are the alternate when you want the colour story or the
+             clay comes back mushy; NEVER photo-realism, which hides the seams.
+             Mint image-outcome sketches only to LOOK at (create_sketch →
              get_image_render_packet → your worker → READ the PNGs). Don't bind.
 
 2. SEE +     Count each subsystem's parts; name each part's buildable monomer

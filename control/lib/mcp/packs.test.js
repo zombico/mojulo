@@ -299,16 +299,37 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
   const botOps = () => PACKS.find((p) => p.id === 'pack_bot_operate');
   const catalysts = () => PACKS.find((p) => p.id === 'pack_catalysts');
 
-  it('default (unset) is a full install: both groups, all packs, nothing gated', () => {
-    expect([...installedGroups({})].sort()).toEqual(['chatbot', 'creative']);
-    expect(installedPacks({}).length).toBe(PACKS.length);
-    for (const pack of PACKS) for (const m of pack.members) expect(isToolInstalled(m, {})).toBe(true);
-    for (const s of SPINE) expect(isToolInstalled(s, {})).toBe(true);
+  // THE 2.0 DEFAULT: a fresh install is the 3D factory WITHOUT the bot factory.
+  // `_setGroupPresence` forces the physical probe so this asserts the shipped
+  // default rather than whatever the developer's own ~/.mojulo happens to hold.
+  it('default (unset) is creative + the always-on packs — the chatbot factory is ABSENT', () => {
+    _setGroupPresence(['creative']); // what a fresh `npx mojulo` detects
+    try {
+      expect([...installedGroups({})]).toEqual(['creative']);
+      // creative and the ungrouped plumbing are all there...
+      expect(isToolInstalled('compose_world', {})).toBe(true);
+      expect(isToolInstalled('list_catalysts', {})).toBe(true);
+      expect(isToolInstalled('start_app', {})).toBe(true);
+      for (const s of SPINE) expect(isToolInstalled(s, {})).toBe(true);
+      // ...and the bot factory is not.
+      for (const id of ['pack_bot_build', 'pack_bot_operate', 'pack_fleet']) {
+        expect(isPackInstalled(PACKS.find((p) => p.id === id), {})).toBe(false);
+      }
+      expect(isToolInstalled('start_new_bot', {})).toBe(false);
+      expect(installedPacks({}).length).toBe(PACKS.length - 3);
+    } finally {
+      _setGroupPresence(null);
+    }
   });
 
-  it('unrecognized token fails open to full install (a typo never empties the workshop)', () => {
-    expect([...installedGroups({ MOJULO_PACKS: 'nonsense' })].sort()).toEqual(['chatbot', 'creative']);
-    expect([...installedGroups({ MOJULO_PACKS: '' })].sort()).toEqual(['chatbot', 'creative']);
+  it('unrecognized token fails open to physical detection (a typo never empties the workshop)', () => {
+    _setGroupPresence(['creative']);
+    try {
+      expect([...installedGroups({ MOJULO_PACKS: 'nonsense' })]).toEqual(['creative']);
+      expect([...installedGroups({ MOJULO_PACKS: '' })]).toEqual(['creative']);
+    } finally {
+      _setGroupPresence(null);
+    }
   });
 
   // THE 2.0 semantics change. Under 1.5 this was wing-grain, so gating the studio
@@ -414,9 +435,18 @@ describe('install axis — physical detection is the source of truth (unset MOJU
     expect([...installedGroups({ MOJULO_PACKS: 'zzz' })]).toEqual(['chatbot']);
   });
 
-  it('chatbot is alwaysInstalled in-tree — present under detection with no marker dep', () => {
-    _setGroupPresence(null); // real probe: chatbot has no markerModule → unconditionally present
-    expect(installedGroups({}).has('chatbot')).toBe(true);
+  it('chatbot is marker-gated: absent unless `mojulo install chatbot` wrote its marker', () => {
+    // The marker path is derived from $MOJULO_HOME, so point HOME at a directory
+    // that certainly has no marker and assert the factory stays away.
+    const prev = process.env.MOJULO_HOME;
+    process.env.MOJULO_HOME = '/nonexistent-mojulo-home-for-this-test';
+    _setGroupPresence(null); // force the real probe
+    try {
+      expect(installedGroups({}).has('chatbot')).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.MOJULO_HOME; else process.env.MOJULO_HOME = prev;
+      _setGroupPresence(null);
+    }
   });
 });
 

@@ -1,0 +1,183 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`mint goldens — the default pipeline branch > stores chart identically 1`] = `
+{
+  "digest": "435c13605e1db5c1",
+  "shape": {
+    "edges": null,
+    "keys": "marks,neoRembrandt,title,viewBox",
+    "kind": null,
+    "marks": 3,
+    "stations": null,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores containment-boundary identically 1`] = `
+{
+  "digest": "e427c29a379dd39e",
+  "shape": {
+    "edges": 1,
+    "keys": "boundaries,edges,marks,neoRembrandt,stations,title,viewBox",
+    "kind": null,
+    "marks": 2,
+    "stations": 3,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores erd identically 1`] = `
+{
+  "digest": "8f1ffd0c375a1b6c",
+  "shape": {
+    "edges": 1,
+    "keys": "edges,stations,title,viewBox",
+    "kind": null,
+    "marks": null,
+    "stations": 2,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores floorplan-seeded identically 1`] = `
+{
+  "digest": "f9ee5ffa779debb2",
+  "shape": {
+    "edges": null,
+    "keys": "height,kind,quality,seed,title,viewBox,width,windows",
+    "kind": "floorplan",
+    "marks": null,
+    "stations": null,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores flowchart identically 1`] = `
+{
+  "digest": "401437aed0e4ad18",
+  "shape": {
+    "edges": 1,
+    "keys": "edges,stations,title,viewBox",
+    "kind": null,
+    "marks": null,
+    "stations": 2,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores gantt identically 1`] = `
+{
+  "digest": "913379553170da2d",
+  "shape": {
+    "edges": null,
+    "keys": "kind,marks,neoRembrandt,scale,tasks,title,viewBox",
+    "kind": "gantt",
+    "marks": 14,
+    "stations": null,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores grid-cell-placement identically 1`] = `
+{
+  "digest": "c009d92141121470",
+  "shape": {
+    "edges": 1,
+    "keys": "edges,grid,stations,title,viewBox",
+    "kind": null,
+    "marks": null,
+    "stations": 2,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores sequence identically 1`] = `
+{
+  "digest": "f19b0c59b441aa19",
+  "shape": {
+    "edges": null,
+    "keys": "actors,kind,marks,messages,neoRembrandt,title,viewBox",
+    "kind": "sequence",
+    "marks": 18,
+    "stations": null,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores sticker-blob identically 1`] = `
+{
+  "digest": "13508e49780ea976",
+  "shape": {
+    "edges": null,
+    "keys": "marks,neoRembrandt,scene,title,viewBox",
+    "kind": null,
+    "marks": 23,
+    "stations": null,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores sticker-polygon identically 1`] = `
+{
+  "digest": "e591d38861ec087a",
+  "shape": {
+    "edges": null,
+    "keys": "marks,neoRembrandt,scene,title,viewBox",
+    "kind": null,
+    "marks": 12,
+    "stations": null,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores swimlane identically 1`] = `
+{
+  "digest": "7151497f7b5e3ebd",
+  "shape": {
+    "edges": 1,
+    "keys": "edges,lanes,marks,neoRembrandt,stations,title,viewBox",
+    "kind": null,
+    "marks": 4,
+    "stations": 2,
+  },
+}
+`;
+
+exports[`mint goldens — the default pipeline branch > stores typed-edges identically 1`] = `
+{
+  "digest": "f36b714e34b920b3",
+  "shape": {
+    "edges": 3,
+    "keys": "edges,marks,neoRembrandt,stations,title,viewBox",
+    "kind": null,
+    "marks": 1,
+    "stations": 2,
+  },
+}
+`;
+
+exports[`mint goldens — the image-outcomes branch > stores a city blockout identically 1`] = `
+{
+  "digest": "a82a6c747b0f1b68",
+  "shape": {
+    "edges": null,
+    "keys": "camera,characters,contractVersion,figures,forms,horizonY,intent,kind,mode,overlayZones,protectedZones,renderBrief,source,title,vanishingPoint,viewBox",
+    "kind": "image-outcome",
+    "marks": null,
+    "stations": null,
+  },
+}
+`;
+
+exports[`mint goldens — the image-outcomes branch > stores a manga signal page identically 1`] = `
+{
+  "digest": "6e0aea19288df077",
+  "shape": {
+    "edges": null,
+    "keys": "characters,contractVersion,intent,kind,pageRecipe,panels,readingFlow,renderBrief,renderStrategy,title,viewBox",
+    "kind": "sequential-art",
+    "marks": null,
+    "stations": null,
+  },
+}
+`;

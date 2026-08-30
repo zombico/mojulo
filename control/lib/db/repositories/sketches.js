@@ -178,6 +178,30 @@ export const SketchRepository = {
     return rows.map(rowToSketch);
   },
 
+  /**
+   * Effective-bucket tallies over the WHOLE table, plus per-kind tallies for the
+   * kinds a caller needs to sub-split a bucket (the Library's Characters shelf).
+   * One scan, one parse per row, and a tiny payload — so a chip row can show true
+   * totals without shipping every manifest to the client.
+   */
+  bucketCounts() {
+    const db = getDb();
+    const space = currentSpaceId();
+    const rows = space
+      ? db.prepare('SELECT * FROM sketches WHERE workshop_space_id = ?').all(space)
+      : db.prepare('SELECT * FROM sketches').all();
+    const buckets = {};
+    const kinds = {};
+    for (const row of rows) {
+      const sketch = rowToSketch(row);
+      if (!sketch) continue;
+      buckets[sketch.bucket] = (buckets[sketch.bucket] || 0) + 1;
+      const kind = sketch.manifest?.kind;
+      if (kind) kinds[kind] = (kinds[kind] || 0) + 1;
+    }
+    return { total: rows.length, buckets, kinds };
+  },
+
   // Pin (or clear) a sketch's Maker gallery without touching its content. Pass
   // bucket=null to drop back to the derived bucket. Returns the refreshed row,
   // or null if no row matches `ref`.

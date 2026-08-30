@@ -64,8 +64,8 @@ These are known design constraints, not vulnerabilities:
 
 If you are reviewing or fuzzing these areas, your reports are especially welcome:
 
-- Turn-hashing helpers and the `/verify/:id` walker — see [docs/turn-hashing.md](docs/turn-hashing.md).
-- Federated routing and the cross-bot handoff flow — see [docs/federated-routing.md](docs/federated-routing.md).
+- Turn-hashing helpers and the `/verify/:id` walker — see [docs/chatbot/turn-hashing.md](docs/chatbot/turn-hashing.md).
+- Federated routing and the cross-bot handoff flow — see [docs/chatbot/federated-routing.md](docs/chatbot/federated-routing.md).
 - The bot proxy in [control/lib/deployers/bot-proxy.js](control/lib/deployers/bot-proxy.js) and the routes that forward through it.
 - API key encryption and decryption paths in the control plane.
 - The artifact build pipeline in [control/lib/deployers/docker.js](control/lib/deployers/docker.js).

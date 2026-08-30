@@ -2,7 +2,7 @@
 
 The chat builder is the conversational alternative to the [wizard](wizard-builder.md). The user types one message — "I want a triage bot for a dental clinic, here are some PDFs" — and Claude orchestrates the build by calling a fixed set of tools. Each tool is a deterministic handler: parse documents, infer intent, recommend protocols, generate a form schema, compose an identity, save the bot. Claude only decides the order and arguments. This doc explains those tool calls — what they do, when Claude calls them, and how their outputs feed each other.
 
-The wizard's internals are out of scope here, but the convergence point is the same: both builders write a deployment config of the same shape into the same SQLite table, and both feed [DockerDeployer](../control/lib/deployers/docker.js) downstream.
+The wizard's internals are out of scope here, but the convergence point is the same: both builders write a deployment config of the same shape into the same SQLite table, and both feed [DockerDeployer](../../control/lib/deployers/docker.js) downstream.
 
 ---
 
@@ -11,7 +11,7 @@ The wizard's internals are out of scope here, but the convergence point is the s
 Three properties drive the design:
 
 1. **Claude is the orchestrator, not the author.** Each step the user would manually click in the wizard becomes a tool. The handlers do the actual work — chunking documents, calling embedding models, generating form schemas, writing deployment rows. Claude picks which tools to call in what order, but never invents a config value from free-form text. This means a chat-builder bot's config is the typed output of the same handlers a wizard-builder bot would invoke; the two paradigms produce byte-equivalent artifacts because the work happens in the handlers, not in the LLM's prose.
-2. **Two-tier intent evaluation gates the system prompt.** Before the main builder runs, a separate cheap Claude call (the [evaluator](../control/lib/builder/evaluator.js)) classifies the user's message as either *high assistance* (vague request — guided flow) or *low assistance* (detailed spec — direct orchestration). Heuristics in [shouldSkipEvaluation](../control/lib/builder/evaluator.js#L144) short-circuit the obvious cases without an LLM call (≤10 words + docs = high; ≥100 words = low). The main builder gets a different system prompt depending on the result, so a power user with a 200-word spec doesn't get walked through "what's a knowledge base?"
+2. **Two-tier intent evaluation gates the system prompt.** Before the main builder runs, a separate cheap Claude call (the [evaluator](../../control/lib/builder/evaluator.js)) classifies the user's message as either *high assistance* (vague request — guided flow) or *low assistance* (detailed spec — direct orchestration). Heuristics in [shouldSkipEvaluation](../../control/lib/builder/evaluator.js#L144) short-circuit the obvious cases without an LLM call (≤10 words + docs = high; ≥100 words = low). The main builder gets a different system prompt depending on the result, so a power user with a 200-word spec doesn't get walked through "what's a knowledge base?"
 3. **Streaming with structured event overlays.** The route is Server-Sent Events end-to-end. On top of Claude's own SSE, the route emits 20+ custom event types — `tool_started`, `tool_completed`, `protocols_recommended`, `identity_composed`, `modulo_expression` — so the UI can react to specific milestones (advance a stepper, animate the Modulo avatar, surface a confirmation card) without re-parsing model text. The text channel and the event channel are independent.
 
 ---
@@ -68,13 +68,13 @@ Three properties drive the design:
                        → triggers buildArtifact
 ```
 
-The whole flow lives in [control/app/api/builder/stream/route.js](../control/app/api/builder/stream/route.js). The tool loop is capped at `MAX_TOOL_ITERATIONS = 10` with a 500 ms delay between iterations, and both the system prompt and the tool list use ephemeral prompt caching (`cache_control: { type: 'ephemeral' }`) so iterations after the first are cheap.
+The whole flow lives in [control/app/api/builder/stream/route.js](../../control/app/api/builder/stream/route.js). The tool loop is capped at `MAX_TOOL_ITERATIONS = 10` with a 500 ms delay between iterations, and both the system prompt and the tool list use ephemeral prompt caching (`cache_control: { type: 'ephemeral' }`) so iterations after the first are cheap.
 
 ---
 
 ## The tool catalog
 
-Ten tools, defined in [control/lib/builder/tools.js](../control/lib/builder/tools.js), implemented in [control/lib/builder/tool-executors.js](../control/lib/builder/tool-executors.js). Claude calls them in a canonical order spelled out in the system prompt:
+Ten tools, defined in [control/lib/builder/tools.js](../../control/lib/builder/tools.js), implemented in [control/lib/builder/tool-executors.js](../../control/lib/builder/tool-executors.js). Claude calls them in a canonical order spelled out in the system prompt:
 
 | # | Tool                          | When                              | Produces                                    |
 |---|-------------------------------|-----------------------------------|---------------------------------------------|
@@ -91,7 +91,7 @@ Ten tools, defined in [control/lib/builder/tools.js](../control/lib/builder/tool
 
 ### `process_documents`
 
-The first tool whenever documents are attached. It reads each `documentId`, parses (PDF/DOCX/TXT/etc. via [document-parser](../control/lib/document-parser.js)), chunks into 512-character windows with 50-character overlap, and embeds the chunks locally with the bundled `multilingual-e5-small` ONNX model — the same model + prefix convention the bot uses at runtime, so corpus and query vectors share one geometric space. See [vector-rag.md](vector-rag.md) for the embedding pipeline.
+The first tool whenever documents are attached. It reads each `documentId`, parses (PDF/DOCX/TXT/etc. via [document-parser](../../control/lib/document-parser.js)), chunks into 512-character windows with 50-character overlap, and embeds the chunks locally with the bundled `multilingual-e5-small` ONNX model — the same model + prefix convention the bot uses at runtime, so corpus and query vectors share one geometric space. See [vector-rag.md](vector-rag.md) for the embedding pipeline.
 
 Two outputs land on the session:
 - **Embeddings blob** — written to `embeddings/wizard-{token}.json` in storage, referenced by `storageKey` so the deploy step doesn't have to re-embed.
@@ -99,13 +99,13 @@ Two outputs land on the session:
 
 ### `infer_intent`
 
-Classifies the bot type — `support_bot`, `lead_gen`, `appointment_scheduler`, `triage_router`, etc. — from `userMessage` + `domainDigest`. Returns a confidence score and, critically, a `prepopulatedSettings` object extracted from the user's prose by [extractPrepopulatedSettings](../control/lib/builder/tool-executors.js#L253). Patterns it recognizes: *"called X"*, *"named X"*, *"for [Company]"*, *"start with '...'"*. These get honored by `compose_identity` later, so an explicit "name it Aria" overrides the LLM's auto-name.
+Classifies the bot type — `support_bot`, `lead_gen`, `appointment_scheduler`, `triage_router`, etc. — from `userMessage` + `domainDigest`. Returns a confidence score and, critically, a `prepopulatedSettings` object extracted from the user's prose by [extractPrepopulatedSettings](../../control/lib/builder/tool-executors.js#L253). Patterns it recognizes: *"called X"*, *"named X"*, *"for [Company]"*, *"start with '...'"*. These get honored by `compose_identity` later, so an explicit "name it Aria" overrides the LLM's auto-name.
 
 ### `recommend_protocols`
 
 Returns a recommendation map: `{ knowledge: bool, formGathering: bool, appointments: bool, triage: bool }`. The recommendation is *what should be enabled*, not *what is enabled* — the user confirms before `save_modular_bot` runs. The handler reasons from intent + digest + message, but the final say is the user's via the `confirmedProtocols` argument to `save_modular_bot`.
 
-The handler clamps its suggestions against the active provider/model's allowlist via [isProtocolAllowedForModel](../control/lib/llm-providers.js). On small Ollama models (qwen3, mistral-nemo) any non-`knowledge` slot comes back disabled with a "switch to llama3.3 for this" reason — the built bot inherits the builder's lane, so the recommendation has to match what the bot will actually be able to run. Cloud providers and llama3.3 are unrestricted. The same gate fires again at `save_modular_bot` time inside [buildDeploymentConfig](../control/lib/config-builder.js), so a `confirmedProtocols` payload that re-adds a disabled slot fails fast.
+The handler clamps its suggestions against the active provider/model's allowlist via [isProtocolAllowedForModel](../../control/lib/llm-providers.js). On small Ollama models (qwen3, mistral-nemo) any non-`knowledge` slot comes back disabled with a "switch to llama3.3 for this" reason — the built bot inherits the builder's lane, so the recommendation has to match what the bot will actually be able to run. Cloud providers and llama3.3 are unrestricted. The same gate fires again at `save_modular_bot` time inside [buildDeploymentConfig](../../control/lib/config-builder.js), so a `confirmedProtocols` payload that re-adds a disabled slot fails fast.
 
 ### `generate_form_schema`
 
@@ -136,16 +136,16 @@ Called in parallel with `set_suggested_prompts`. Takes no arguments — it reads
 The terminal tool. Only called after the user explicitly confirms — the system prompt forbids calling it preemptively. Takes `sessionId` + `confirmedProtocols` (the user's actual choices, which may differ from `recommend_protocols`'s suggestions). The handler:
 
 1. Marks the session `DEPLOYING`, persists the confirmed protocols, syncs generated configs to the legacy schema for compatibility.
-2. Calls [saveBuilderConfig](../control/lib/builder/executor.js#L32), which composes per-protocol instruction cartridges, runs `buildDeploymentConfig`, and writes a row to the deployments table tagged with `_modular: { paradigm, enabledProtocols, sessionId }`.
-3. Immediately calls [buildArtifact](../control/lib/deployers/build.js) to produce the ZIP — unlike the wizard, which surfaces "Build & Download" as a second user click, the chat builder builds in the same call. If the build fails, the row stays saved and the chat reports the error; the user can retry from the dashboard.
+2. Calls [saveBuilderConfig](../../control/lib/builder/executor.js#L32), which composes per-protocol instruction cartridges, runs `buildDeploymentConfig`, and writes a row to the deployments table tagged with `_modular: { paradigm, enabledProtocols, sessionId }`.
+3. Immediately calls [buildArtifact](../../control/lib/deployers/build.js) to produce the ZIP — unlike the wizard, which surfaces "Build & Download" as a second user click, the chat builder builds in the same call. If the build fails, the row stays saved and the chat reports the error; the user can retry from the dashboard.
 
-A back-compat alias `deploy_modular_bot` maps to this same handler ([tool-executors.js:1302](../control/lib/builder/tool-executors.js#L1302)) so chat sessions persisted before the rename still replay correctly.
+A back-compat alias `deploy_modular_bot` maps to this same handler ([tool-executors.js:1302](../../control/lib/builder/tool-executors.js#L1302)) so chat sessions persisted before the rename still replay correctly.
 
 ---
 
 ## The tool loop
 
-The loop in [route.js:568](../control/app/api/builder/stream/route.js#L568) is a fairly literal implementation of the Claude tool-use protocol:
+The loop in [route.js:568](../../control/app/api/builder/stream/route.js#L568) is a fairly literal implementation of the Claude tool-use protocol:
 
 ```
 for iteration in 1..10:
@@ -168,8 +168,8 @@ for iteration in 1..10:
 
 A few non-obvious details:
 
-- **The session is reloaded inside the loop.** Tool handlers mutate the session row in SQLite; the loop fetches a fresh session before each tool call ([route.js:678](../control/app/api/builder/stream/route.js#L678)) so the next handler sees the previous handler's writes.
-- **Prompt caching is on the system prompt and the last tool.** The system prompt has `cache_control: ephemeral`, and the *last* tool in the array is also marked cacheable ([route.js:561-566](../control/app/api/builder/stream/route.js#L561-L566)) — the Anthropic API caches the prefix up to the last cache breakpoint, so the entire tools list ends up in the cache. Iterations after the first only pay for the new messages.
+- **The session is reloaded inside the loop.** Tool handlers mutate the session row in SQLite; the loop fetches a fresh session before each tool call ([route.js:678](../../control/app/api/builder/stream/route.js#L678)) so the next handler sees the previous handler's writes.
+- **Prompt caching is on the system prompt and the last tool.** The system prompt has `cache_control: ephemeral`, and the *last* tool in the array is also marked cacheable ([route.js:561-566](../../control/app/api/builder/stream/route.js#L561-L566)) — the Anthropic API caches the prefix up to the last cache breakpoint, so the entire tools list ends up in the cache. Iterations after the first only pay for the new messages.
 - **Parallel tool calls work because the Claude protocol supports it.** When Claude returns multiple `tool_use` blocks in one turn (e.g., `set_suggested_prompts` + `generate_bot_summary`), the loop runs them sequentially in the route but feeds all the results back as a single user-message turn. Claude sees the parallel call complete atomically.
 - **Tool errors don't halt the loop.** A failed tool returns `is_error: true` in the tool_result; Claude reads that and decides whether to retry, route around, or report to the user. The loop only exits on an iteration where Claude emits no tool_use blocks (terminal text reply) or the iteration cap is hit.
 
@@ -179,23 +179,23 @@ A few non-obvious details:
 
 The main agentic loop (the `POST /v1/messages` call that drives tool orchestration) runs at the **reasoning** tier — the highest-capability model in the configured provider. Several tool handlers issue their own LLM calls for per-tool work and pick a cheaper tier appropriate to the workload, so document summarization and federation metadata aren't billed at reasoning-tier rates.
 
-Tier resolution lives in [getLLMConfigFromSession(session, userId, task)](../control/lib/builder/tool-executors.js#L36), backed by [MODEL_TIERS](../control/lib/llm-providers.js) and [getDefaultModelForTask](../control/lib/llm-providers.js). On Anthropic, for example, that resolves to Sonnet for `reasoning` and Haiku for `structured`/`summary`.
+Tier resolution lives in [getLLMConfigFromSession(session, userId, task)](../../control/lib/builder/tool-executors.js#L36), backed by [MODEL_TIERS](../../control/lib/llm-providers.js) and [getDefaultModelForTask](../../control/lib/llm-providers.js). On Anthropic, for example, that resolves to Sonnet for `reasoning` and Haiku for `structured`/`summary`.
 
 | Call site                                       | Tier         | Why                                              |
 |-------------------------------------------------|--------------|--------------------------------------------------|
-| Main builder loop ([route.js](../control/app/api/builder/stream/route.js)) | `reasoning`  | Agentic tool-use orchestration                   |
+| Main builder loop ([route.js](../../control/app/api/builder/stream/route.js)) | `reasoning`  | Agentic tool-use orchestration                   |
 | `process_documents` → domain digest             | `summary`    | Free-text per-document summarization             |
 | `compose_identity`                              | `structured` | Returns a JSON identity object                   |
 | `generate_form_schema` handler                  | `structured` | JSON bounded by `FORM_STRUCTURE_SCHEMA`          |
 | `generate_bot_summary`                          | `summary`    | Free-text federation metadata                    |
 
-The same tier system covers other control-plane LLM call sites — `generate-form/route.js` (structured) and `generate-rag/route.js` (summary) — see the LLM-provider section of [CLAUDE.md](../CLAUDE.md) for the project-wide picture. Wizard user-overrides still win: tier resolution only fires when no explicit model is passed in the session/preloaded context. The bot runtime stays single-model per artifact — tiers are control-plane only.
+The same tier system covers other control-plane LLM call sites — `generate-form/route.js` (structured) and `generate-rag/route.js` (summary) — see the LLM-provider section of [CLAUDE.md](../../CLAUDE.md) for the project-wide picture. Wizard user-overrides still win: tier resolution only fires when no explicit model is passed in the session/preloaded context. The bot runtime stays single-model per artifact — tiers are control-plane only.
 
 ---
 
 ## Streaming events
 
-The route emits ~20 custom event types on top of Claude's SSE — defined in [EventTypes](../control/app/api/builder/stream/route.js#L40). The UI consumes these to drive specific affordances:
+The route emits ~20 custom event types on top of Claude's SSE — defined in [EventTypes](../../control/app/api/builder/stream/route.js#L40). The UI consumes these to drive specific affordances:
 
 | Event                       | Triggered when                             | UI uses it for                          |
 |-----------------------------|--------------------------------------------|-----------------------------------------|
@@ -215,7 +215,7 @@ The route emits ~20 custom event types on top of Claude's SSE — defined in [Ev
 
 The split lets the UI render structured cards without parsing model text. When the model says "I'll enable Knowledge and Forms based on your docs", the chat shows that prose *and* the protocol-toggle card lights up in parallel — driven by two independent events.
 
-The avatar animation uses both channels: `[expression:thinking]` markers in the text stream ([system-prompt.js:60](../control/lib/builder/system-prompt.js#L60)) get parsed out and converted to `modulo_expression` events on the client side, while server-driven transitions (tool start = thinking, tool success = success, tool fail = concerned) come over the dedicated event channel.
+The avatar animation uses both channels: `[expression:thinking]` markers in the text stream ([system-prompt.js:60](../../control/lib/builder/system-prompt.js#L60)) get parsed out and converted to `modulo_expression` events on the client side, while server-driven transitions (tool start = thinking, tool success = success, tool fail = concerned) come over the dedicated event channel.
 
 ---
 
@@ -223,9 +223,9 @@ The avatar animation uses both channels: `[expression:thinking]` markers in the 
 
 The chat builder and the wizard build the *same artifact*. The convergence is structural:
 
-- **Same config row.** Both write to the deployments table via [DeploymentRepository](../control/lib/db/repositories/deployments.js), both tag with `_modular: { paradigm: 'modular', enabledProtocols, sessionId? }`. The chat builder's [buildDeploymentConfig](../control/lib/builder/executor.js#L171) is a sibling of the wizard's [buildDeploymentConfig](../control/lib/config-builder.js#L159) — different functions, same output shape, both leaning on the shared `buildLLMConfig` helper.
-- **Same downstream pipeline.** Both saved configs are picked up by the same [DockerDeployer](../control/lib/deployers/docker.js) when `buildArtifact` runs. The deployer doesn't read the paradigm marker — it just composes per-bot files (`config.json`, `instructions.txt`, `embeddings.json`, `formFormat.json`, `triageRoutes.json` as needed) and zips them.
-- **Round-trippable.** A chat-builder bot can be opened in the wizard for editing — [parseModularDeploymentConfig](../control/lib/config-builder.js#L333) reads the saved config and reconstructs wizard state regardless of which builder produced it. The reverse holds too: a wizard bot can be re-edited from the chat builder via [buildBuilderEditPrompt](../control/lib/builder/system-prompt.js#L293), which seeds Claude's context with the existing config.
+- **Same config row.** Both write to the deployments table via [DeploymentRepository](../../control/lib/db/repositories/deployments.js), both tag with `_modular: { paradigm: 'modular', enabledProtocols, sessionId? }`. The chat builder's [buildDeploymentConfig](../../control/lib/builder/executor.js#L171) is a sibling of the wizard's [buildDeploymentConfig](../../control/lib/config-builder.js#L159) — different functions, same output shape, both leaning on the shared `buildLLMConfig` helper.
+- **Same downstream pipeline.** Both saved configs are picked up by the same [DockerDeployer](../../control/lib/deployers/docker.js) when `buildArtifact` runs. The deployer doesn't read the paradigm marker — it just composes per-bot files (`config.json`, `instructions.txt`, `embeddings.json`, `formFormat.json`, `triageRoutes.json` as needed) and zips them.
+- **Round-trippable.** A chat-builder bot can be opened in the wizard for editing — [parseModularDeploymentConfig](../../control/lib/config-builder.js#L333) reads the saved config and reconstructs wizard state regardless of which builder produced it. The reverse holds too: a wizard bot can be re-edited from the chat builder via [buildBuilderEditPrompt](../../control/lib/builder/system-prompt.js#L293), which seeds Claude's context with the existing config.
 
 The one notable runtime difference: the chat builder calls `buildArtifact` inline inside `save_modular_bot`, while the wizard splits save and build into two API calls. That's the only place the two paths diverge meaningfully — and both paths can leave a deployment row in `status=saved` if the build fails, both surface a Build & Download CTA on the dashboard for that row.
 
@@ -235,23 +235,23 @@ The one notable runtime difference: the chat builder calls `buildArtifact` inlin
 
 | File | Role |
 |------|------|
-| [control/app/chat-builder/page.jsx](../control/app/chat-builder/page.jsx) | Route entry; mounts `InvertedModularChatPanel` |
-| [control/components/ModularChat/InvertedModularChatPanel.jsx](../control/components/ModularChat/) | The chat UI: input box, message list, status pills, confirmation cards |
-| [control/app/api/builder/stream/route.js](../control/app/api/builder/stream/route.js) | The SSE endpoint: evaluator call, system prompt, tool loop, event stream |
-| [control/lib/builder/tools.js](../control/lib/builder/tools.js) | The 10 tool definitions (JSON schemas) Claude sees |
-| [control/lib/builder/tool-executors.js](../control/lib/builder/tool-executors.js) | The handlers — one per tool, dispatched by `executeBuilderTool` |
-| [control/lib/builder/system-prompt.js](../control/lib/builder/system-prompt.js) | `buildBuilderSystemPrompt` + the high/low assistance branch + edit-mode prompt |
-| [control/lib/builder/evaluator.js](../control/lib/builder/evaluator.js) | The two-tier intent classifier (heuristic + LLM) |
-| [control/lib/builder/executor.js](../control/lib/builder/executor.js) | `saveBuilderConfig` — the chat builder's config-row writer |
-| [control/lib/builder/session.js](../control/lib/builder/session.js) | Session state, protocol toggling, instructions composition |
-| [control/lib/builder/index.js](../control/lib/builder/index.js) | Module entry point — re-exports the public surface |
+| [control/app/chat-builder/page.jsx](../../control/app/chat-builder/page.jsx) | Route entry; mounts `InvertedModularChatPanel` |
+| [control/components/ModularChat/InvertedModularChatPanel.jsx](../../control/components/ModularChat/) | The chat UI: input box, message list, status pills, confirmation cards |
+| [control/app/api/builder/stream/route.js](../../control/app/api/builder/stream/route.js) | The SSE endpoint: evaluator call, system prompt, tool loop, event stream |
+| [control/lib/builder/tools.js](../../control/lib/builder/tools.js) | The 10 tool definitions (JSON schemas) Claude sees |
+| [control/lib/builder/tool-executors.js](../../control/lib/builder/tool-executors.js) | The handlers — one per tool, dispatched by `executeBuilderTool` |
+| [control/lib/builder/system-prompt.js](../../control/lib/builder/system-prompt.js) | `buildBuilderSystemPrompt` + the high/low assistance branch + edit-mode prompt |
+| [control/lib/builder/evaluator.js](../../control/lib/builder/evaluator.js) | The two-tier intent classifier (heuristic + LLM) |
+| [control/lib/builder/executor.js](../../control/lib/builder/executor.js) | `saveBuilderConfig` — the chat builder's config-row writer |
+| [control/lib/builder/session.js](../../control/lib/builder/session.js) | Session state, protocol toggling, instructions composition |
+| [control/lib/builder/index.js](../../control/lib/builder/index.js) | Module entry point — re-exports the public surface |
 
 ---
 
 ## See also
 
-- [docs/wizard-builder.md](wizard-builder.md) — the structured alternative; same artifact, different driver
-- [docs/vector-rag.md](vector-rag.md) — what `process_documents` actually produces
-- [docs/form-collection.md](form-collection.md) — what `generate_form_schema` feeds into
-- [docs/federated-routing.md](federated-routing.md) — what `generate_triage_config` becomes at runtime, including chain-hash handoffs
-- [docs/bot-frontend.md](bot-frontend.md) — the bot client that consumes everything composed here
+- [docs/chatbot/wizard-builder.md](wizard-builder.md) — the structured alternative; same artifact, different driver
+- [docs/chatbot/vector-rag.md](vector-rag.md) — what `process_documents` actually produces
+- [docs/chatbot/form-collection.md](form-collection.md) — what `generate_form_schema` feeds into
+- [docs/chatbot/federated-routing.md](federated-routing.md) — what `generate_triage_config` becomes at runtime, including chain-hash handoffs
+- [docs/chatbot/bot-frontend.md](bot-frontend.md) — the bot client that consumes everything composed here

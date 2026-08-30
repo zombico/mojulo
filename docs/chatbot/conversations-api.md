@@ -21,11 +21,11 @@ Three properties drive the design:
 | Where the secret lives | When it gets there | Who sees it |
 |---|---|---|
 | `deployments.api_key` (control-plane DB) | Generated when the deployment row is created | Control plane |
-| `MOJULO_API_KEY` in the artifact's `.env` | Baked in at build time by [DockerDeployer](../control/lib/deployers/docker.js) | The bot's process |
+| `MOJULO_API_KEY` in the artifact's `.env` | Baked in at build time by [DockerDeployer](../../control/lib/deployers/docker.js) | The bot's process |
 
 The operator **never** copies the key. They only paste the bot's URL. Both sides agreeing on the key from build time is what makes connect a single-field action.
 
-The bot validates `x-mojulo-api-key` via [middleware/auth.js](../lite-template/middleware/auth.js): exact-string compare against `process.env.MOJULO_API_KEY`. Mismatch → 401. Missing header → 401. Every protected `/api/*` route on the bot gates through this middleware.
+The bot validates `x-mojulo-api-key` via [middleware/auth.js](../../lite-template/middleware/auth.js): exact-string compare against `process.env.MOJULO_API_KEY`. Mismatch → 401. Missing header → 401. Every protected `/api/*` route on the bot gates through this middleware.
 
 ---
 
@@ -68,7 +68,7 @@ The bot validates `x-mojulo-api-key` via [middleware/auth.js](../lite-template/m
    │◀─────────────────────────┤                                │
 ```
 
-**The probe hits `GET /api/conversations` with no query params** ([bot-proxy.js:51-72](../control/lib/deployers/bot-proxy.js#L51-L72)). This is deliberate — that route returns `200 OK` with a `total` count even when no search params are provided (see "guardrail" below). A successful probe response simultaneously validates:
+**The probe hits `GET /api/conversations` with no query params** ([bot-proxy.js:51-72](../../control/lib/deployers/bot-proxy.js#L51-L72)). This is deliberate — that route returns `200 OK` with a `total` count even when no search params are provided (see "guardrail" below). A successful probe response simultaneously validates:
 
 - The URL is reachable (network).
 - The bot is alive (200 from Express).
@@ -85,13 +85,13 @@ A failing probe maps the failure mode into a human-readable message:
 
 All probe failures return HTTP 502 from the connection endpoint — the URL is **not** persisted on a failed probe.
 
-**URL normalization** ([bot-proxy.js:13-26](../control/lib/deployers/bot-proxy.js#L13-L26)) accepts http(s) only, strips trailing slashes, drops a bare `/` pathname (so `https://bot.example/` and `https://bot.example` are equivalent). Anything else returns `null` and the connection endpoint fails with 400 before the probe is even attempted.
+**URL normalization** ([bot-proxy.js:13-26](../../control/lib/deployers/bot-proxy.js#L13-L26)) accepts http(s) only, strips trailing slashes, drops a bare `/` pathname (so `https://bot.example/` and `https://bot.example` are equivalent). Anything else returns `null` and the connection endpoint fails with 400 before the probe is even attempted.
 
 ---
 
 ## Disconnecting
 
-`DELETE /api/deployments/:id/connection` clears `url` and `last_seen_at` ([connection/route.js:46-53](../control/app/api/deployments/[id]/connection/route.js#L46-L53)). Three things stay untouched:
+`DELETE /api/deployments/:id/connection` clears `url` and `last_seen_at` ([connection/route.js:46-53](../../control/app/api/deployments/[id]/connection/route.js#L46-L53)). Three things stay untouched:
 
 - The deployment row itself (and its `api_key`).
 - The bot process (it doesn't even know it was disconnected).
@@ -111,7 +111,7 @@ Reconnecting later — same URL, different URL, doesn't matter — re-runs the p
 | `status = 'ready'`, has `url`, `last_seen_at` ≥ 5 min ago | **amber** "Running · stale" |
 | `status = 'ready'`, no `url`                  | **teal** "Ready"         |
 
-The 5-minute threshold lives in the dashboard ([dashboard/page.jsx](../control/app/dashboard/page.jsx#L10)) — it's a UI heuristic, not a server-side TTL. Nothing actually breaks at 5min + 1s; the dot just goes amber until the next proxied call refreshes `last_seen_at`.
+The 5-minute threshold lives in the dashboard ([dashboard/page.jsx](../../control/app/dashboard/page.jsx#L10)) — it's a UI heuristic, not a server-side TTL. Nothing actually breaks at 5min + 1s; the dot just goes amber until the next proxied call refreshes `last_seen_at`.
 
 If the bot becomes unreachable mid-session, the proxy returns 502 and the conversations page surfaces an "unreachable" banner with the underlying reason.
 
@@ -141,7 +141,7 @@ Every route below shares the same skeleton:
 
 ## Bot-side endpoints (what the proxy talks to)
 
-All gated by [validateApiKey](../lite-template/middleware/auth.js).
+All gated by [validateApiKey](../../lite-template/middleware/auth.js).
 
 ### `GET /api/conversations` (list)
 
@@ -186,7 +186,7 @@ Bulk export of all conversations matching `startDate` / `endDate`. Returns a JSO
 
 ### `GET /api/forms` and `GET /api/forms/export`
 
-Form submissions list and CSV export ([server.js:1085-1178](../lite-template/server.js#L1085-L1178)). The CSV's column order is stable: it follows the bot's `formStructure.json` field IDs, then any extra keys that appear in the data. UTF-8 BOM prepended so Excel renders non-Latin field values correctly.
+Form submissions list and CSV export ([server.js:1085-1178](../../lite-template/server.js#L1085-L1178)). The CSV's column order is stable: it follows the bot's `formStructure.json` field IDs, then any extra keys that appear in the data. UTF-8 BOM prepended so Excel renders non-Latin field values correctly.
 
 ### `GET /api/storage`
 
@@ -224,17 +224,17 @@ Route handlers decide what to do with that response — `await response.json()` 
 
 | File | Role |
 |------|------|
-| [control/lib/deployers/bot-proxy.js](../control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` — the entire proxy primitive set |
-| [control/app/api/deployments/[id]/connection/route.js](../control/app/api/deployments/[id]/connection/route.js) | `POST` (probe + save URL), `DELETE` (forget URL) |
-| [control/app/api/deployments/[id]/conversations/route.js](../control/app/api/deployments/[id]/conversations/route.js) | List proxy (filtered + paginated) |
-| [control/app/api/deployments/[id]/conversations/[conversationId]/route.js](../control/app/api/deployments/[id]/conversations/[conversationId]/route.js) | Single-conversation proxy (404 passthrough) |
-| [control/app/api/deployments/[id]/conversations/export/route.js](../control/app/api/deployments/[id]/conversations/export/route.js) | Bulk export passthrough (60s timeout, streams body) |
-| [control/app/api/deployments/[id]/submissions/route.js](../control/app/api/deployments/[id]/submissions/route.js) | Form submissions list proxy |
-| [control/app/api/deployments/[id]/submissions/export/route.js](../control/app/api/deployments/[id]/submissions/export/route.js) | CSV export proxy |
-| [control/app/api/deployments/[id]/storage/route.js](../control/app/api/deployments/[id]/storage/route.js) | Storage stats proxy |
-| [control/lib/db/repositories/deployments.js](../control/lib/db/repositories/deployments.js) | `setUrl`, `clearUrl`, `touchLastSeen` |
-| [control/app/dashboard/page.jsx](../control/app/dashboard/page.jsx) | `ConnectModal` UI + `STALE_THRESHOLD_MS = 5 min` heuristic + status pill rendering |
-| [control/app/dashboard/deployments/[id]/conversations/page.jsx](../control/app/dashboard/deployments/[id]/conversations/page.jsx) | Conversations browser that consumes the proxy |
-| [lite-template/middleware/auth.js](../lite-template/middleware/auth.js) | `validateApiKey` — the `x-mojulo-api-key` guard the proxy passes through |
-| [lite-template/server.js](../lite-template/server.js) `/api/conversations`, `/api/conversations/:id`, `/api/conversations/export`, `/api/forms`, `/api/forms/export`, `/api/storage` | Bot-side endpoints |
-| [lite-template/server.js](../lite-template/server.js) §`/api/conversations` guardrail | Returns 0 rows + total count when no filters provided (also makes the route a cheap reachability probe) |
+| [control/lib/deployers/bot-proxy.js](../../control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` — the entire proxy primitive set |
+| [control/app/api/deployments/[id]/connection/route.js](../../control/app/api/deployments/[id]/connection/route.js) | `POST` (probe + save URL), `DELETE` (forget URL) |
+| [control/app/api/deployments/[id]/conversations/route.js](../../control/app/api/deployments/[id]/conversations/route.js) | List proxy (filtered + paginated) |
+| [control/app/api/deployments/[id]/conversations/[conversationId]/route.js](../../control/app/api/deployments/[id]/conversations/[conversationId]/route.js) | Single-conversation proxy (404 passthrough) |
+| [control/app/api/deployments/[id]/conversations/export/route.js](../../control/app/api/deployments/[id]/conversations/export/route.js) | Bulk export passthrough (60s timeout, streams body) |
+| [control/app/api/deployments/[id]/submissions/route.js](../../control/app/api/deployments/[id]/submissions/route.js) | Form submissions list proxy |
+| [control/app/api/deployments/[id]/submissions/export/route.js](../../control/app/api/deployments/[id]/submissions/export/route.js) | CSV export proxy |
+| [control/app/api/deployments/[id]/storage/route.js](../../control/app/api/deployments/[id]/storage/route.js) | Storage stats proxy |
+| [control/lib/db/repositories/deployments.js](../../control/lib/db/repositories/deployments.js) | `setUrl`, `clearUrl`, `touchLastSeen` |
+| [control/app/dashboard/page.jsx](../../control/app/dashboard/page.jsx) | `ConnectModal` UI + `STALE_THRESHOLD_MS = 5 min` heuristic + status pill rendering |
+| [control/app/dashboard/deployments/[id]/conversations/page.jsx](../../control/app/dashboard/deployments/[id]/conversations/page.jsx) | Conversations browser that consumes the proxy |
+| [lite-template/middleware/auth.js](../../lite-template/middleware/auth.js) | `validateApiKey` — the `x-mojulo-api-key` guard the proxy passes through |
+| [lite-template/server.js](../../lite-template/server.js) `/api/conversations`, `/api/conversations/:id`, `/api/conversations/export`, `/api/forms`, `/api/forms/export`, `/api/storage` | Bot-side endpoints |
+| [lite-template/server.js](../../lite-template/server.js) §`/api/conversations` guardrail | Returns 0 rows + total count when no filters provided (also makes the route a cheap reachability probe) |

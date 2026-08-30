@@ -4,7 +4,7 @@
   "name": "Reconstruct a dreamed building as a bespoke walkable edifice",
   "summary": "Use an image worker as the model's EYES to design a NEW, bespoke building — a campus, a connected complex, a custom building type the frozen generators (fractal city/school/hub) don't make — then rebuild it as a deterministic edifice recipe: a GRAPH of MASSES (footprint + floors + facade + roof) connected by CONCOURSES (halls), placed by RELATION not coordinates. Dream the building flat + orthographic, read off the massing + facades + connections, mint with create_edifice, WALK it, compare, adjust one dial at a time. The dreamed reference is discarded; only the edifice recipe persists — and it walks, exports .glb, and enters a world. Livability/reachability are SURFACED but NEVER enforced: a user's building is theirs, and mojulo's vocabulary is suggested defaults, not fences.",
   "valueHook": "Turn a dreamed building into a real walkable edifice recipe — masses you can re-place, re-skin, re-roof, connect, walk, and export — instead of a paragraph of description and a one-off elevation.",
-  "version": 1,
+  "version": 2,
   "category": "substrate",
   "requires": {
     "protocols": [],
@@ -83,10 +83,14 @@ which one you resolved — then use it. The loop's value is the dream.
             MATERIAL story (glass commons → brick wings → one accent) · one iconic
             feature. This is what makes the build read as designed, not assembled.
 
-1. DREAM    Dream the building FLAT + ORTHOGRAPHIC — a massing diagram (the volumes
-            and how they sit) + a front elevation or two, clean contour, legible.
-            Flat image-outcome presets (architectural drawing / ink-line / ukiyo-e /
-            art-nouveau); NEVER photo-realism (a moody render hides the massing).
+1. DREAM    Dream the building as a MASSING MODEL — untextured grey volumes on a
+            plain backdrop, near-orthographic: `renderBrief.preset:'clay-render'`,
+            dials { construction: 0.3 } (blockout — volumes and how they sit),
+            plus a front elevation or two. Clay is the default because massing IS
+            the reading; facade paint only competes with it. Flat illustration
+            presets (ink-line / ukiyo-e / art-nouveau) are the alternate for the
+            elevation + material story once the massing is locked; NEVER
+            photo-realism (a moody render hides the massing).
             Mint an image-outcome sketch only to LOOK at (create_sketch →
             get_image_render_packet → your worker → READ the PNG), or read a supplied
             reference. Do NOT bind it.

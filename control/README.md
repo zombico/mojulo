@@ -1,6 +1,8 @@
 # Mojulo
 
-**Mojulo is a workshop for coding agents** — local, yours, not a hosted service. You talk to the agent you already run (Claude Code, Codex); it does the reasoning, and mojulo is the machine it works in, where what it builds accumulates on your own disk. And what it builds isn't a menu of separate features — it's a **ladder**: a chatbot becomes a connected service when you wire in your MCPs, apps and services become experiences, worlds and music become a game's assets, and a game composes the whole stack. Each rung is a tiny deterministic **recipe** — small enough to read, seeded to regenerate identically, never a render.
+**Mojulo is a 3D factory for agents** — local, yours, not a hosted service. You talk to the agent you already run (Claude Code, Codex); it does the reasoning, and mojulo is the machine it works in, where what it builds accumulates on your own disk. Build **worlds, objects, and games by conversation**, and ship them two ways: out to an engine (**Godot** as a real project, `.glb` for Blender) or out to atoms (**print-ready STL at true scale** — mm units, z-up, slicer-ready). What it builds is a **ladder**: an object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music and art fold in as assets. Each rung is a tiny deterministic **recipe** — small enough to read, seeded to regenerate identically, never a render.
+
+Mojulo is the agent-driven **upstream** that feeds the tools professionals already use. It does not try to out-render a game engine, and it is not merely an exporter: the recipe is where the thing is born, lives, and re-renders — the engine or the printer is where it is optionally *finished*.
 
 **Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own: apps park inference back on the agent's queue, photo references are read by the agent's eyes, publications are agent-authored, games are verified by agent-compiled traversals. Mojulo supplies what a stateless agent lacks — persistence, runtime, memory; the agent supplies what mojulo refuses to embed — judgment, vision, language. Optional local workers (Blender, image and audio models) add compositional capability.
 
@@ -35,7 +37,9 @@ npx mojulo init
 #      "mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
 #    Other MCP hosts: register the same `npx -y mojulo` stdio command.
 
-# 2. (Only needed for deployed bots — they bring their own LLM key.
+# 2. Optional packs. The chatbot factory is opt-in since 2.0:
+#      npx -y -p mojulo mojulo install chatbot
+#    (Only deployed bots need an LLM key — they bring their own.
 #    Everything else runs keyless.)
 npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 
@@ -69,20 +73,22 @@ bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
 
 ## What you can make
 
-- **"Build me a triage bot for my dental practice"** → a compiled, self-hosted chatbot artifact — its own Docker zip, its own SQLite, every turn hash-chained. Run it locally or deploy to Fly.
+- **"A walkable city at dusk" / "draw the architecture" / "an ambient loop for it"** → media: worlds, figures, diagrams, music, films, publications — minted as tiny deterministic recipes (a world is ~30 tokens, not megabytes of mesh), re-rendered byte-identically on demand, exportable (`.glb`, `.stl`, WAV/MIDI, self-contained HTML).
+- **"Make me a game"** → composition: media levels, music, and art bound to a typed store with rules — playable standalone, or exported as a real **Godot** project. 2D reducer games land in the built-in Arcade.
+- **"Model me a bracket that fits this shelf"** → a solid at true scale, exported as print-ready STL for your slicer — the conversation ends at the printer.
 - **"Every Monday, digest my form submissions into Drive"** → a connected service over the MCPs you already have installed, with an append-only record of *why* it's composed the way it is.
 - **"Give me a local app that extracts fields from these scans"** → a scaffolded local process + MCP sidecar; its inference queues back to *your agent* — no per-app API key.
-- **"Draw the architecture" / "a walkable city at dusk" / "an ambient loop for it"** → media: diagrams, worlds, figures, music, films, publications — minted as tiny deterministic recipes (a world is ~30 tokens, not megabytes of mesh), re-rendered byte-identically on demand, exportable (`.glb`, `.stl`, WAV/MIDI, self-contained HTML).
-- **"Make me a game"** → composition: media levels, music, and art bound to a typed store with rules — playable standalone. 2D reducer games land in the built-in Arcade.
+- **"Build me a triage bot for my dental practice"** → *(opt-in: `mojulo install chatbot`)* a compiled, self-hosted chatbot artifact — its own Docker zip, its own SQLite, every turn hash-chained. Run it locally or deploy to Fly.
 
-On first connect your agent calls `forward_context` — a thin routing index that unfolds progressively, so a session spends tokens only on the tools it actually fires; the full tool surface stays behind drawers until needed. The optional `mojulo-orient` gallery gives consent-first guided tours that mint real starter artifacts.
+On first connect your agent calls `forward_context` — a thin routing index onto the studio (the creative wing is the default read) that unfolds progressively, so a session spends tokens only on the tools it actually fires; the full tool surface stays behind drawers until needed. The optional `mojulo-orient` gallery gives consent-first guided tours that mint real starter artifacts.
 
 ## Why it's different
 
 - **Keyless.** Installed from npm, runs on your machine, nothing to sign up for. The MCP binds to localhost only.
 - **Recipes, not renders.** Creative artifacts are seeded deterministic recipes — diffable, replayable, re-mintable on any mojulo host. Painted images and audio renders are derived files with provenance, never the sovereign artifact.
 - **It remembers why.** Every artifact is minted beside an append-only record of intent (the contextmap), so a fresh session reconstructs prior decisions and improves the existing outcome instead of minting a stranger next to it.
-- **Verification gates.** Bots are hash-chain auditable (`verify_chain`), workflows dry-run before they promote.
+- **Verification gates.** Worlds probe-assert their own physics, workflows dry-run before they promote, and bots are hash-chain auditable (`verify_chain`).
+- **Pay for what you install.** The kernel plus the creative studio is the default; the chatbot factory is opt-in (`mojulo install chatbot`). Uninstalled packs neither list nor run, so your agent's context isn't spent on tools this host doesn't have.
 
 ## Dashboard
 
@@ -96,14 +102,14 @@ Same primitives as the MCP, different face: browse conversations and fleet analy
 
 The dashboard starts in English but ships fully translated in ~two dozen languages, including right-to-left scripts (Arabic, Farsi, Urdu) — switch anytime under **Settings → Language**; the choice is remembered per browser.
 
-## 1.0
+## Stability
 
-From `1.0.0` the five paradigm loops (bot · connected service · app · media · game) and the recipe format are the stable surface: additive-only DB migrations, deterministic re-render of stored recipes, loopback-only transport. The creative vocabularies keep growing in minor releases. See the [changelog](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md).
+The five paradigm loops (media · game · connected service · app · bot) and the recipe format are the stable surface: additive-only DB migrations, deterministic re-render of stored recipes, loopback-only transport. The creative vocabularies keep growing in minor releases. See the [changelog](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md).
 
 ## More
 
 - Full repo and docs: <https://github.com/zombico/mojulo>
-- Architecture: [docs/BOT-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (MCP control surface), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the visual substrate)
+- Architecture: [docs/chatbot/BOT-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/chatbot/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (MCP control surface), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the visual substrate)
 - MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md)
 - Catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)
 - Terms & responsibility model: [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md), [docs/responsibility-model.md](https://github.com/zombico/mojulo/blob/main/docs/responsibility-model.md)

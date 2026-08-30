@@ -334,6 +334,61 @@ export const STYLE_VOCAB = {
     },
   },
 
+  // The RECONSTRUCTION register — the dream loops' default (shape-from-dream,
+  // character-from-dream, mobile-suit, dream-edifice). Every other preset on
+  // this shelf tunes the DRAWING; this one asks for an untextured modeling-app
+  // viewport render, because the loops' output is geometry, not paint. Two
+  // reasons it lifts the hit rate: (a) an image model asked for a clay model
+  // paints CONSTRUCTION — separable primitives, visible seams, honest
+  // proportion — which is exactly what has to be read off into lathe /
+  // extrude / sweep / manji, and (b) with colour, texture, and mood absent,
+  // nothing in the reference is un-reconstructable, so the agent stops
+  // chasing paint the substrate never had. A flat illustration preset is the
+  // right ALTERNATE when the target's identity is a period/graphic style, or
+  // for a second colour-only pass after the form is locked.
+  'clay-render': {
+    name: 'clay render',
+    style:
+      'untextured clay render — one matte neutral-grey material over the whole subject, plain studio light, as a 3D modeling application viewport preview',
+    mood: 'neutral, diagnostic, workshop turntable',
+    lighting: 'plain studio setup — soft key, gentle fill, no coloured light and no atmosphere; form is stated by shading and the ground contact shadow alone',
+    lock: [
+      'ONE material everywhere — matte neutral-grey clay on every surface; colour, texture, decals, labels, and markings are absent BY DESIGN, not forgotten',
+      'the subject reads as a MODEL BUILT FROM PRIMITIVES — boxes, cylinders, spheres, cones, tubes, surfaces of revolution — with the seams where parts meet left visible, never one fused blob',
+      'proportion and joinery are the deliverable: every part boundary, joint, and axis stays legible, and the part count stays honest — if a part would be a separate mesh, it looks like one',
+      'the whole subject, centred, on a plain seamless backdrop, with only a soft ground contact shadow; near-orthographic framing, minimal perspective distortion',
+      'edges stay crisp — a light bevel highlight is fine, but no smoothing or gloss that hides where two parts meet',
+    ],
+    negative: [
+      'no textures, decals, labels, colour, or per-part material variation',
+      'no dramatic, coloured, or atmospheric lighting — no rim-light drama, fog, bloom, glow, or lens effects',
+      'no painterly, inked, or illustrative rendering — this is a render, not a drawing',
+      'no environment, props, scenery, or background objects beyond the plain backdrop',
+    ],
+    dials: {
+      construction: {
+        kind: 'scale',
+        default: 0.5,
+        poles: ['primitive blockout', 'sculpted detail'],
+        bands: [
+          [0.3, 'primitive blockout — the subject stated in a handful of clean separable primitives; big masses and their relations only, no small parts'],
+          [0.7, 'assembled-model register — primitive-derived parts with the secondary hardware present (fasteners, rails, handles, trim) and still separable'],
+          [1, 'sculpted register — subdivided, smoothed surfaces carrying fine form; reach for it only when the target genuinely is an organic single mass'],
+        ],
+      },
+      finish: {
+        kind: 'enum',
+        values: ['clay', 'matcap', 'ao'],
+        default: 'clay',
+        phrases: {
+          clay: 'matte grey clay shader — soft diffuse response only, no specular highlights or reflections',
+          matcap: 'neutral studio matcap — a grey-blue sphere-mapped shader with a soft sheen so curvature and cross-section read; still one material, still untextured',
+          ao: 'ambient-occlusion pass — white surfaces with occlusion darkening in every crevice and contact; the strongest read of HOW the parts meet, the weakest read of overall form',
+        },
+      },
+    },
+  },
+
   // Art nouveau (Mucha-to-Tiffany lineage): whiplash organic line, flat
   // decorative color, ornament as structure. The medium dial runs the
   // user's two poles — lithograph illustration <-> stained glass pane

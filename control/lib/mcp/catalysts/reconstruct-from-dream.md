@@ -4,7 +4,7 @@
   "name": "Reconstruct a dreamed object as a 3D assembly, segment by segment",
   "summary": "Use an image worker as the model's EYES: dream a complex real object in a flat, decomposable register, then rebuild it SEGMENT BY SEGMENT in the buildable monomer vocabulary (lathe / extrude / sweep / manji — everything that lowers to three.js faces). Simple targets fit one workbench; complex targets (a drafting lamp, a bicycle, an espresso machine, a typewriter) get per-segment dreams + per-segment workbench sketches iterated in isolation, composed with create_assembler, optionally finished with a skin bake. The dream images are discarded on lock; only the recipe persists, and it lowers to /world + .glb for free.",
   "valueHook": "Point the dream loop at a complex real object — dream it, decompose it along its natural seams, rebuild each segment as a workbench part, and assemble a real 3D model that drops straight into a world.",
-  "version": 2,
+  "version": 3,
   "category": "substrate",
   "requires": {
     "protocols": [],
@@ -108,8 +108,9 @@ Drawing the sheets needs an image worker (same ladder as
 ```
 1. INTEND   Fix the object in one clear sentence (the `intent` parameter).
 
-2. DREAM    In the DECOMPOSABLE REGISTER (see below): dream the WHOLE object
-            flat + simple (your assembly reference), and — for a complex
+2. DREAM    In the DECOMPOSABLE REGISTER (see below — `clay-render` by
+            default, an untextured grey model): dream the WHOLE object
+            simple (your assembly reference), and — for a complex
             target — each SEGMENT as its own single-subject image (your part
             sheets). NEVER prompt for an exploded sheet (see invariants).
             Mint image-outcome sketches only to LOOK at (create_sketch →
@@ -176,18 +177,32 @@ Drawing the sheets needs an image worker (same ladder as
 ## The decomposable register (step 2 — the load-bearing constraint)
 
 The scaffold-echo lesson RUN IN REVERSE. There, a wireframe leaking into art
-was the failure; here you *want* a construction-legible drawing, because you're
-going to rebuild it. A photoreal or moody dream is un-decomposable.
+was the failure; here you *want* a construction-legible reference, because
+you're going to rebuild it. A photoreal or moody dream is un-decomposable.
 
-Prompt every dream **flat, orthographic, one clean subject**:
-- Prefer presets `ukiyo-e`, `art-nouveau`, flat `silver-age`, `ink-brush` —
-  registered flat color, firm contour, legible separated forms.
-- AVOID `photo-realism` and any painterly/optical preset — they hide the seams
-  and part boundaries you need to see.
-- Ask for: one clean silhouette, orthographic framing, seams and joints
-  visible, flat registered color. A technical drawing, not a product
-  photograph. For a segment dream, frame the segment ALONE — one
-  single-subject image per part, never an exploded collage.
+**DEFAULT — dream a CLAY MODEL, not a picture:** `renderBrief.preset:
+'clay-render'` (dials `construction` 0–1 blockout→sculpt, `finish`
+clay|matcap|ao). It asks the worker for an untextured grey model on a plain
+backdrop — primitives with visible seams, honest proportion, no colour or
+texture. That is the same thing you are about to build out of lathe / extrude /
+sweep / manji, so the reading step is nearly mechanical: count the primitives,
+name each one's kind, read the connections. It also removes the paint you could
+never have reconstructed anyway. Use it unless the operator asks otherwise.
+- `construction` low (≤0.3) for the whole-object dream — masses and how they
+  connect; raise it for a segment dream that genuinely carries hardware.
+- `finish: 'ao'` when a joint is ambiguous — occlusion states contact best.
+
+**Alternate — a flat illustration register**, when the target's identity IS a
+graphic/period style, when you want a colour read after the form is locked, or
+when the clay dream comes back mushy: presets `ukiyo-e`, `art-nouveau`, flat
+`silver-age`, `ink-brush` — registered flat color, firm contour, legible
+separated forms. Say which register you used.
+
+Either way, AVOID `photo-realism` and any painterly/optical preset — they hide
+the seams and part boundaries you need to see. Ask for: one clean silhouette,
+near-orthographic framing, seams and joints visible. A model or a technical
+drawing, never a product photograph. For a segment dream, frame the segment
+ALONE — one single-subject image per part, never an exploded collage.
 
 ## What you DON'T do
 

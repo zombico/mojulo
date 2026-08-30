@@ -32,7 +32,7 @@ Each extraction field has three shape:
 
 The wizard validates that `idName` matches `^[a-z][a-z0-9_]*$` and that the list has no duplicates. The chat builder's `generate_optical_read_config` tool slugifies missing `idName`s from `label` and dedupes on collision.
 
-Field structure stripped to `{ idName, label, hint }` before it ships into the cartridge — same discipline as form-structure stripping in [composer.js](../control/lib/composer/composer.js). No leakage of widget-side metadata into the prompt.
+Field structure stripped to `{ idName, label, hint }` before it ships into the cartridge — same discipline as form-structure stripping in [composer.js](../../control/lib/composer/composer.js). No leakage of widget-side metadata into the prompt.
 
 ---
 
@@ -40,8 +40,8 @@ Field structure stripped to `{ idName, label, hint }` before it ships into the c
 
 Three new pieces inside the bot:
 
-1. **Boot loader** ([server.js](../lite-template/server.js)) reads `config/opticalReadFields.json` once at startup and caches it. Mirrors the `formFormat.json` pattern. Missing file = protocol silently disabled.
-2. **Vision adapter** ([llm-client.js](../lite-template/helper/llm-client.js)) — the Anthropic adapter accepts an optional `image` parameter and prepends a base64 `image` block to the user message. Other adapters reject it loudly. Wizard gating prevents the rejection in normal flows.
+1. **Boot loader** ([server.js](../../lite-template/server.js)) reads `config/opticalReadFields.json` once at startup and caches it. Mirrors the `formFormat.json` pattern. Missing file = protocol silently disabled.
+2. **Vision adapter** ([llm-client.js](../../lite-template/helper/llm-client.js)) — the Anthropic adapter accepts an optional `image` parameter and prepends a base64 `image` block to the user message. Other adapters reject it loudly. Wizard gating prevents the rejection in normal flows.
 3. **Extraction endpoint** (`POST /api/extract`) — accepts `{ conversationId?, fileName, mime, base64 }`, validates mime ∈ {png, jpeg, webp} and bytes ≤ 5MB, then:
    - composes a deterministic user prompt around the field list,
    - calls `llmClient.generate(...)` with the cached instructions, conversation history, and the image,
@@ -73,7 +73,7 @@ If the user uploads (Turn 1) and closes the tab without submitting, Turn 1 stand
 
 ## Frontend
 
-`createUploadCard()` in [index.html](../lite-template/client/index.html) renders a suggestion-card-styled button that opens a file picker. Click handler:
+`createUploadCard()` in [index.html](../../lite-template/client/index.html) renders a suggestion-card-styled button that opens a file picker. Click handler:
 
 1. Validate mime + size client-side.
 2. If oversized, downscale to ~3.5MP through `<canvas>` (re-encoded as JPEG q=0.9).
@@ -101,14 +101,14 @@ The card is shown when both `botContext.isOpticalRead` and `data.response.showUp
 
 | File | Role |
 |------|------|
-| [control/lib/composer/protocols/05_optical-read.txt](../control/lib/composer/protocols/05_optical-read.txt) | Behavioral cartridge — directional principle + required output shape |
-| [control/lib/composer/composer.js](../control/lib/composer/composer.js) | `buildOpticalReadSection()` — strips and ships the field list into the prompt |
-| [control/lib/composer/response-builder.js](../control/lib/composer/response-builder.js) | `OPTICAL_READ_ATTRIBUTES` — adds `extractedFields` + `showUploadButton` to the response template |
-| [control/components/wizard/modular/steps/OpticalReadConfig.jsx](../control/components/wizard/modular/steps/OpticalReadConfig.jsx) | Wizard step — row + add-button pattern; validates idName uniqueness and snake_case |
-| [control/lib/builder/tools.js](../control/lib/builder/tools.js) | `generate_optical_read_config` — chat-builder tool definition |
-| [control/lib/builder/tool-executors.js](../control/lib/builder/tool-executors.js) | Slugify, dedupe, persist on session |
-| [control/lib/config-builder.js](../control/lib/config-builder.js) | `buildDeploymentConfig()` — emits `isOpticalRead` + `opticalReadFields` path |
-| [control/lib/deployers/docker.js](../control/lib/deployers/docker.js) | Writes `config/opticalReadFields.json` into the artifact |
-| [lite-template/server.js](../lite-template/server.js) | Boot loader + `POST /api/extract` |
-| [lite-template/helper/llm-client.js](../lite-template/helper/llm-client.js) | Anthropic adapter accepts optional `image` block |
-| [lite-template/client/index.html](../lite-template/client/index.html) | `createUploadCard()` + `renderExtractedFields()` |
+| [control/lib/composer/protocols/05_optical-read.txt](../../control/lib/composer/protocols/05_optical-read.txt) | Behavioral cartridge — directional principle + required output shape |
+| [control/lib/composer/composer.js](../../control/lib/composer/composer.js) | `buildOpticalReadSection()` — strips and ships the field list into the prompt |
+| [control/lib/composer/response-builder.js](../../control/lib/composer/response-builder.js) | `OPTICAL_READ_ATTRIBUTES` — adds `extractedFields` + `showUploadButton` to the response template |
+| [control/components/wizard/modular/steps/OpticalReadConfig.jsx](../../control/components/wizard/modular/steps/OpticalReadConfig.jsx) | Wizard step — row + add-button pattern; validates idName uniqueness and snake_case |
+| [control/lib/builder/tools.js](../../control/lib/builder/tools.js) | `generate_optical_read_config` — chat-builder tool definition |
+| [control/lib/builder/tool-executors.js](../../control/lib/builder/tool-executors.js) | Slugify, dedupe, persist on session |
+| [control/lib/config-builder.js](../../control/lib/config-builder.js) | `buildDeploymentConfig()` — emits `isOpticalRead` + `opticalReadFields` path |
+| [control/lib/deployers/docker.js](../../control/lib/deployers/docker.js) | Writes `config/opticalReadFields.json` into the artifact |
+| [lite-template/server.js](../../lite-template/server.js) | Boot loader + `POST /api/extract` |
+| [lite-template/helper/llm-client.js](../../lite-template/helper/llm-client.js) | Anthropic adapter accepts optional `image` block |
+| [lite-template/client/index.html](../../lite-template/client/index.html) | `createUploadCard()` + `renderExtractedFields()` |

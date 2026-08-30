@@ -4,7 +4,7 @@
   "name": "Reconstruct a dreamed character as a tuned figure body + wardrobe",
   "summary": "Use an image worker as the model's EYES to design a HUMANOID character, then rebuild it as a deterministic figure recipe — a tuned protoform body (or fluff/mascot body) wearing a wardrobe spec — NOT prose + a painted sheet. Dream the character, read off the body dials and the wardrobe (instrument × mugen score × cuts/panels), preview, compare, adjust. Split into three GATED steps for quality control: draft_figure_spec writes a reviewable spec file (requires a dream_audit — was it dreamed?), the OPERATOR approves it (you must not self-approve), and build_figure_spec mints the figure only from an approved spec. The dream reference is discarded; only the figure recipe (optionally wearing a bound skin) persists, and it poses, animates, and enters worlds for free.",
   "valueHook": "Turn a dreamed character into a real posable figure recipe — a body you can re-pose, re-dress, animate, skin, and drop into a world — instead of a paragraph of description and a one-off picture.",
-  "version": 1,
+  "version": 2,
   "category": "substrate",
   "requires": {
     "protocols": [],
@@ -94,13 +94,16 @@ locked below without a valid `dream_audit` is not a character-from-dream artifac
             · one iconic garment hook · a material story (dark body → bright
             focus → accent). This is what makes the build read as designed.
 
-1. DREAM    Dream the character in a SIMPLE, FLAT, FULL-FIGURE register — a
-            front + a three-quarter, clean contour, legible silhouette (the
-            flat image-outcome presets: ukiyo-e / art-nouveau / flat silver-age
-            / ink-brush; never photo-realism — a moody render is un-readable).
-            Mint an image-outcome sketch only to LOOK at (create_sketch →
-            get_image_render_packet → your worker → READ the PNG), or read a
-            supplied photo. Do NOT bind it.
+1. DREAM    Dream the character as a CLAY MODEL, full figure, front + a
+            three-quarter — `renderBrief.preset:'clay-render'` (see the form
+            register below). Untextured grey, no paint to chase: exactly the
+            body volumes and garment silhouette you are about to dial in.
+            Optionally follow it with ONE flat colour pass (ukiyo-e /
+            art-nouveau / flat silver-age / ink-brush) for the material story
+            once the form is locked; never photo-realism — a moody render is
+            un-readable. Mint an image-outcome sketch only to LOOK at
+            (create_sketch → get_image_render_packet → your worker → READ the
+            PNG), or read a supplied photo. Do NOT bind it.
 
 2. READ     THE BODY. Pick the DIMORPH pole (sex) and set proto multipliers
    BODY     (height, stockiness, headScale, per-region: chestWidth, bicep,
@@ -155,6 +158,30 @@ locked below without a valid `dream_audit` is not a character-from-dream artifac
             It poses, animates (emote_figure / motion), and can enter a world —
             the character is done.
 ```
+
+## The form register (step 1) — dream clay, not paint
+
+The default dream register for this loop is `clay-render`: an untextured
+neutral-grey model on a plain backdrop, plain studio light, no colour and no
+texture. It is the default because it matches what you can actually build. Your
+output is ~20 monotone body numbers plus a closed wardrobe spec — a clay dream
+states exactly that (mass, proportion, silhouette, garment clearance, where a
+cuff or hem lands) and states nothing you would have to invent your way past.
+A painted dream hands you rendered fabric, hair, and lighting the dials do not
+reach, and the classic failure is chasing that paint with body dials.
+
+- `construction` dial: 0.3–0.5 for a person (the body is a mass study);
+  raise toward 1 only for an organic/sculpted creature-adjacent design.
+- `finish: 'matcap'` reads curvature best on a body; `'clay'` is the safe
+  default; `'ao'` reads how a garment sits over the form.
+- Then, optionally, ONE flat-illustration pass for colour and the material
+  story (dark body → bright focus → accent). Form first, palette second — do
+  not conflate the two dreams, and say which register produced which reading.
+- The mecha/action-figure register (`fluffs` bodies) is where clay pays most:
+  a clay mech reads as separable primitives, which IS the fluffs vocabulary.
+
+Whichever you used, name it in the spec `notes` — the operator's gate reads
+better when it knows what the dream was.
 
 ## Iteration is a feature — mint variants
 

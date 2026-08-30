@@ -89,13 +89,14 @@ describe('routing-card shelf — registry + body sweeps', () => {
   });
 
   it('every card entry tool is reachable from an orientation body (office, or studio via the hook row)', () => {
-    // Orientation-containment C1: creative entry tools moved out of the
-    // always-paid office body into the studio body, which the office hook row
-    // names (`forward_context({mode:'studio'})`) — one named hop, so the
-    // union of the two bodies is the reachability surface. A creative entry
-    // named in NEITHER body nor a card is dark.
+    // Orientation-containment C1: the two wings are separate bodies, each
+    // naming the other with one hook row — one named hop, so the UNION of the
+    // two is the reachability surface. An entry named in NEITHER body nor a
+    // card is dark. Both modes are passed explicitly: since Phase 1f the
+    // no-mode call is the STUDIO read, so `{}` alone would drop the office
+    // half of the union and darken every office entry.
     const bodies =
-      buildForwardContextBody({}) + buildForwardContextBody({ mode: 'studio' });
+      buildForwardContextBody({ mode: 'office' }) + buildForwardContextBody({ mode: 'studio' });
     const catalog = getRoutingCardCatalog();
     const dark = [...catalog.values()]
       .filter((c) => !bodies.includes(`\`${c.entry}\``))

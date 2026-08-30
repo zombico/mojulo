@@ -24,6 +24,7 @@ export default defineConfig({
     // re-boots the DB + tool registry, which crosses the 10s hook default
     // under full-suite load and cascades into "Unknown tool" failures.
     hookTimeout: 30000,
+    setupFiles: ['./vitest.setup.js'],
     include: ['{lib,app,components,middleware,scripts}/**/*.test.js', 'middleware.test.js'],
     exclude: [
       '**/node_modules/**',

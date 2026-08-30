@@ -304,7 +304,7 @@ function StashRow({
   }
 
   return (
-    <div className="relative group border border-gray-700 rounded-lg bg-gray-800 hover:border-gray-600 hover:bg-gray-750 transition">
+    <div className="relative group border border-gray-700 rounded-lg bg-gray-800 hover:border-gray-600 hover:bg-gray-700 transition">
       <Link
         href={`/stashes/${encodeURIComponent(stash.stashRef)}`}
         className="block p-4 hover:bg-gray-700/40 rounded-lg transition"

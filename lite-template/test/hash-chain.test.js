@@ -242,7 +242,7 @@ describe('verify — tamper detection (any-field mutation invalidates)', () => {
 
 // ---------------------------------------------------------------------------
 // Federated handoff — first turn seeds prevHash from handoff_hash.
-// docs/federated-routing.md.
+// docs/chatbot/federated-routing.md.
 // ---------------------------------------------------------------------------
 describe('verify — federated handoff', () => {
   test('first turn with handoff_hash chains off it, not off "0"', () => {

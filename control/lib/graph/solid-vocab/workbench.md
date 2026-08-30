@@ -4,24 +4,25 @@
   "name": "Workbench (object study)",
   "family": "object",
   "entry": "mint_solid",
-  "summary": "Mint a measured OBJECT study at literal scale — an everyday object built as a polygomer of lathes / extrudes / sweeps / reliefs on a measured studio grid.",
-  "when": "Reach for this on 'render an object / a mechanical part / an everyday object from primitives / a turntable of a <object> / block out a <object> in solids'."
+  "summary": "Mint a measured OBJECT study at literal scale — an everyday object built as a polygomer of lathes / extrudes / sweeps / drapes / reliefs / shells on a measured studio grid.",
+  "when": "Reach for this on 'render an object / a mechanical part / an everyday object from primitives / a turntable of a <object> / block out a <object> in solids / a geodesic dome / a soccer-ball or faceted shell / a d20 / panels and ports on each face'."
 }
 ---
 
-Mint a measured OBJECT study — the object-scale sibling of the traversable city/hub mints. Where those drop you INTO a world at abstract scale, the workbench presents a SINGLE everyday object on a measured grid at LITERAL real-world scale, for FORM accuracy (neutral studio light, no mood). You build the object as a POLYGOMER — monomer primitives bonded by literal placement of their axes: a candlestick = foot + stem + cup, a dumbbell = bar + two bells, a mug = a shell body + a swept handle. Four monomer kinds compose the whole vocabulary:
+Mint a measured OBJECT study — the object-scale sibling of the traversable city/hub mints. Where those drop you INTO a world at abstract scale, the workbench presents a SINGLE everyday object on a measured grid at LITERAL real-world scale, for FORM accuracy (neutral studio light, no mood). You build the object as a POLYGOMER — monomer primitives bonded by literal placement of their axes: a candlestick = foot + stem + cup, a dumbbell = bar + two bells, a mug = a shell body + a swept handle. Six monomer kinds compose the whole vocabulary:
 
 - `lathes` — surfaces of REVOLUTION (an axis plus a radius profile, optional N-fold harmonics for fluting/threads): candlestick, bottle, dumbbell, vase, lamp, wheel, plate, spindle.
 - `extrudes` — PRISMS from a 2D profile swept along an axis, OR recessed SHELLS when a wall thickness is set: box, slab, bracket, sign (solid) and tray, case, enclosure, drawer, bin (shell).
 - `sweeps` — a tube swept ALONG a 3D path: handles, frames, hooks, cables, coil springs.
 - `drapes` — a hanging cloth SHEET with real folds and sag (cape, robe, banner) — a two-sided open sheet, not a thin flat extrude.
 - `reliefs` — a 2D outline (an SVG path or font text) RAISED off a base into bevelled geometry (additive emboss, never a cut): nameplates, wordmarks, a seal struck onto a lathe disc.
+- `shells` — parametric POLYHEDRA (the five platonics, the truncated icosahedron, geodesics), optionally with per-face OPERATIONS: a geodesic dome, a d20, a soccer-ball shell, a faceted housing with inset panels and ports. The one monomer whose identity is its face LAYOUT rather than a swept profile.
 
 The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, no geometry) and regenerates the object deterministically on render: a traversable three.js World at `/api/sketches/<ref>/world` (free orbit) plus preset CSS-3D shots at `/scene`. A recipe with no monomers at all is refused at mint; an unknown material name is refused; an object floating off the measured grid is flagged in `stats.warnings` (advisory, never gated).
 
 ## Spec shape
 
-`title`, `ref`, `folder_ref` are top-level mint params. Everything below lives in `spec`. Provide at least one monomer (any of `lathes` / `extrudes` / `sweeps` / `drapes` / `reliefs` / `assembly`).
+`title`, `ref`, `folder_ref` are top-level mint params. Everything below lives in `spec`. Provide at least one monomer (any of `lathes` / `extrudes` / `sweeps` / `drapes` / `reliefs` / `shells` / `assembly`).
 
 ```
 {
@@ -33,6 +34,8 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
   drapes?:   [ { anchor, hang?, back?, drop?, flare?, hemZ?, spread?,
                  pinToFree?, tint?, material? } ],
   reliefs?:  [ { shape, size?, anchor, normal?, up?, style?, tint?, material? } ],
+  shells?:   [ { solid, radius, center?, orient?, frequency?, tint?, material?,
+                 group?, open?, ops? } ],
   assembly?: { parts: [ { kind, height, profile, id?, on?, gap?, offset?,
                           radial?, mirror?, ...passthrough } ] },
   units?:    'cm',
@@ -94,6 +97,72 @@ A 2D outline raised off a base plane into bevelled geometry — an ADDITIVE embo
 - `normal` ({x,y,z}, default {x:0,y:0,z:1}) — raise direction; point it at a lathe wall/cap normal to emboss onto a turned form. `up` ({x,y,z}, default {x:0,y:1,z:0}) — in-plane glyph vertical.
 - `style` — `{ depth, bevel, bevelSteps, weight, blocky, slant, tracking, curveSteps }` (depth/bevel in normalized outline units, scaled by `size`).
 - `tint` / `material` — a bronze plaque or gold seal is a relief + a metal material.
+
+## Shells — parametric polyhedra
+
+A POLYHEDRON, given by name and size. The other five monomers sweep a profile — they answer "what silhouette, swept where". A shell answers a different question: "what is the FACE LAYOUT". No sweep produces a geodesic dome, a d20 or a soccer ball, because the identity of those objects is their topology.
+
+- `solid` (required) — `tetrahedron` | `cube` | `octahedron` | `dodecahedron` | `icosahedron` | `truncated_icosahedron` (the soccer ball: 12 pentagons + 20 hexagons) | `geodesic`.
+- `radius` (required) — the CIRCUMradius: the distance from the center to a VERTEX, in manifest units. Faces sit closer than that, so a shell's bounding box is smaller than `2 × radius` — an icosahedron spans 1.70×radius, a dodecahedron 1.79×. Seat it on the grid by its bounding box, not by `center.z = radius`; the mint's float/sink warning will tell you if you missed.
+- `center` ({x,y,z}, default origin) — where the solid's center sits (z is up).
+- `orient` ([rx,ry,rz] degrees, applied Rz·Ry·Rx) — turn the solid, e.g. to put a pentagon on top.
+- `frequency` (int, `geodesic` only, default 1, max 8) — class-I subdivision. Face count is 20 × frequency²: freq 2 → 80, freq 4 → 320, freq 8 → 1280. Keep it ≤4 for a live orbitable world.
+- `tint` / `material` — same as every monomer (tint = albedo, material = finish).
+- `group` (default `'shell'`) — the tag every face of this shell carries, so ops and later shells can select it.
+- `open` — a face SELECTOR (below) whose faces are CUT AWAY: a dome is a shell minus its lower band, a cutaway is a shell minus one face.
+- `ops` — an ordered list of per-face OPERATIONS (below).
+
+### Selecting faces
+
+`open` and every op's `select` take the same selector object. Say WHICH faces you mean semantically — never by hand-numbered index, which changes meaning the moment anything else does. Keys AND together; omit them all (`{}`) to mean every face.
+
+- `facing` — `'+x'|'-x'|'+y'|'-y'|'+z'|'-z'` or `[x,y,z]`, with `within` (degrees, default 45) as the acceptance cone.
+- `ring` — `'equator'|'top'|'bottom'`, with `band` (fraction of the model's height, default 0.15) as the band's thickness.
+- `sides` — polygon corner count: `5` → the pentagons, `6` → the hexagons.
+- `group` — an existing face tag (including one an earlier op created).
+- `near` + `count` — the N faces whose centers most face a direction. **This is the reliable way to say "the top one".** A cone (`facing:'+z', within:20`) depends on the solid happening to have a face pointing that way — a default-oriented truncated icosahedron's nearest faces sit at 20.9°, so a 20° cone selects nothing and the mint refuses. `near` always returns your N. Narrow it FIRST when a later op has already added geometry — after an inset+extrude, `{ near:[0,0,1], count:1 }` alone can land on a rim quad that happens to sit higher than the panel it frames, so say `{ group:'panel', near:[0,0,1], count:1 }`.
+- `every` — keep every Nth of whatever survived (`{ sides: 5, every: 3 }` → every third pentagon).
+- `not` / `and` — a nested selector to exclude or intersect with.
+
+A selector that matches nothing is refused at mint (with a readout of the groups and polygons actually present), never silently skipped.
+
+### Ops — the panel-module language
+
+Ops run in ORDER, each seeing the previous one's output. That is the mechanism: each op TAGS what it emits, and the next op selects on that tag. Read an op list top-down and it describes the object.
+
+- `{ op:'inset', select, by | ratio, group?, rimGroup?, tint?, rimTint?, material? }` — shrink the face toward its own center, emitting a smaller panel (tagged `inset`) plus the rim ring connecting it to the original boundary (tagged `rim`). `by` is an absolute distance every edge moves inward; `ratio` is a size-independent fraction. The original face is replaced.
+- `{ op:'extrude', select, by, group?, sideGroup?, tint?, sideTint?, material?, sideMaterial? }` — push the face along its own normal, emitting the moved cap (tagged `panel`) plus its side walls (tagged `wall`). A negative `by` recesses it into a pocket.
+- `{ op:'recolor', select, tint?, material?, group? }` — change colour, finish, or tag with no change to geometry. Cheap, and it does most of the visual work.
+- `{ op:'port', select, radius, depth, sides?, group?, tint?, material? }` — seat a cylinder on the face center along its normal (tagged `port`). ADDITIVE: the host face survives. A negative `depth` sinks the port into the face.
+
+Ops are surface operations, not booleans — `port` seats a cylinder ON a face, it does not drill through the shell, and there is no boolean difference. If an object truly needs CSG, `export_model` it and cut it in Blender.
+
+### Worked example — a faceted sensor shell
+
+A soccer-ball shell whose hexagons become raised steel panels, with a scatter of cyan pentagons and a socket on the up-facing panel:
+
+```
+{
+  kind: 'workbench',
+  title: 'sensor shell',
+  spec: {
+    shells: [{
+      solid: 'truncated_icosahedron',
+      radius: 12,
+      center: { x: 0, y: 0, z: 12 },
+      tint: '#e8e6e0',
+      material: 'plaster',
+      ops: [
+        { op: 'inset',   select: { sides: 6 },              ratio: 0.2 },
+        { op: 'extrude', select: { group: 'inset' },        by: 0.8, material: 'steel' },
+        { op: 'recolor', select: { sides: 5, every: 3 },    tint: '#39c2d7', material: 'glass' },
+        { op: 'port',    select: { group: 'panel', near: [0, 0, 1], count: 1 }, radius: 1.2, depth: 1.6, material: 'gunmetal' }
+      ]
+    }],
+    units: 'cm'
+  }
+}
+```
 
 ## Assembly — relative stacking
 

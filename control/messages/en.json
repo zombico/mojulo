@@ -1545,6 +1545,29 @@
     "copied": "Copied",
     "close": "Close"
   },
+  "displayModes": {
+    "label": "Display mode",
+    "mode": {
+      "wire": "Wire",
+      "shaded": "Shaded",
+      "baked": "Baked",
+      "painted": "Painted"
+    },
+    "hint": {
+      "wire": "Construction lines only — the geometry undressed.",
+      "shaded": "Mojulo's own vertex colours and procedural materials.",
+      "baked": "Blender Cycles global illumination baked into the vertex colours.",
+      "painted": "Painted by an external image worker over mojulo's scaffold."
+    },
+    "reason": {
+      "noWireframe": "This kind has no construction reading.",
+      "bakedInPlace": "Baked in place — no unlit version was kept.",
+      "noBake": "No GI bake yet. Ask the agent to bake this world.",
+      "noPaintedRender": "No painted render bound yet. Ask the agent to request one.",
+      "notPaintable": "Mojulo draws every pixel of this one — nothing to paint."
+    },
+    "externalBadge": "not mojulo's paint"
+  },
   "home": {
     "title": "Workshop Home",
     "groups": {
@@ -1573,7 +1596,8 @@
       "voice": "Voice",
       "games": "Game Developer",
       "arcade": "Arcade",
-      "settings": "Settings"
+      "settings": "Settings",
+      "library": "Library"
     },
     "agentStatus": {
       "title": "Agent Status",
@@ -1711,6 +1735,24 @@
     "notFound": "That cabinet isn't on the floor — the game may have been removed.",
     "backToArcade": "Back to Arcade",
     "openStandalone": "Open standalone"
+  },
+  "library": {
+    "title": "Library",
+    "subtitle": "Every artifact the agent has minted — scenes, models, characters, materials, images, diagrams. One shelf per way of looking; the same recipe store underneath.",
+    "shelves": {
+      "recent": "Recent",
+      "scenes": "Scenes",
+      "models": "Models",
+      "characters": "Characters",
+      "images": "Images",
+      "diagrams": "Diagrams",
+      "materials": "Materials"
+    },
+    "materials": {
+      "blurb": "Procedural materials — texture-free vertex colour: a lambert base, a top-lit ramp, a brushed cloud, and weathering, all baked into per-corner fills. Each swatch is a real quad run through the real resolver, so what you see is what a face gets.",
+      "applyHint": "Materials are applied by asking the agent — set material on a mesh-world face, or pass a preset name."
+    },
+    "recentNote": "The most recent artifacts across the workshop. Pick a shelf to see all of one kind."
   },
   "maker": {
     "hub": {

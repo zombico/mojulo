@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
+import DisplayModes, { useDisplayModeState } from '@/components/DisplayModes';
+import MaterialShelf from '@/components/MaterialShelf';
+import TurntableThumb, { useTurntable } from '@/components/TurntableCard';
+import { LIBRARY_SHELVES, filterToShelf, shelfByKey, shelfFetchBucket } from '@/lib/graph/sketch/library-shelves';
 import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 
 // Preview body for one sketch, dispatched on its renderer mode so scene /
@@ -10,8 +14,36 @@ import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 // /svg endpoint and never fall through to <CreationMap> (which assumes a diagram
 // `viewBox` and throws on a scene manifest). Shared by the split-view preview and
 // the full-view modal so the dispatch lives in exactly one place.
-function SketchPreviewBody({ sketch, t, fit = false }) {
+function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
   if (!sketch?.manifest) return <p className="text-sm text-red-400">{t('invalidManifest')}</p>;
+  // When the artifact carries a display-mode control, the chosen mode decides what
+  // renders; the dispatch below is the fallback for the kinds that don't (beats,
+  // game), which have exactly one way of being experienced.
+  if (view?.kind === 'img') {
+    return (
+      <img key={view.src} src={view.src} alt={sketch.title || sketch.ref} className="max-w-full max-h-full block" />
+    );
+  }
+  if (view?.kind === 'iframe') {
+    return (
+      <iframe
+        key={view.src}
+        src={view.src}
+        title={sketch.title || sketch.ref}
+        className="w-full h-full border-0 block"
+      />
+    );
+  }
+  if (view?.kind === 'diagram') {
+    return (
+      <CreationMap
+        manifest={sketch.manifest}
+        technical={false}
+        mode={view.wireframe ? 'wireframe' : 'color'}
+        fit={fit}
+      />
+    );
+  }
   const ref = encodeURIComponent(sketch.ref);
   const mode = sketchRenderMode(sketch.manifest);
   if (mode === 'svg') {
@@ -46,6 +78,46 @@ function SketchPreviewBody({ sketch, t, fit = false }) {
 // the baked PNG is offered for those same still kinds. The 3D world/scene kinds
 // render live inline (see SketchPreviewBody) and are traversed in a new tab, so
 // they expose no still export here.
+/**
+ * The Library filter chips. Mojulo's buckets are load-bearing internally but are
+ * not what a person asks for, so the chip carries the colloquial word and the
+ * shelf model maps it back onto the bucket. A shelf with nothing on it still
+ * shows, greyed with its zero — a chip that appears and disappears as you mint
+ * things is a worse map of the workshop than one that admits it is empty.
+ */
+function ShelfChips({ shelf, counts, onChange }) {
+  const t = useTranslations('library.shelves');
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 px-8 pt-1 pb-3">
+      {LIBRARY_SHELVES.map((s) => {
+        const isActive = s.key === shelf;
+        const count = counts?.[s.key];
+        const empty = count === 0;
+        return (
+          <button
+            key={s.key}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => onChange(s.key)}
+            className={`px-2.5 py-1 text-xs rounded-[var(--radius-control)] border transition-colors duration-100 ${
+              isActive
+                ? 'border-[color:var(--live)] bg-[color:var(--live)]/10 text-[color:var(--live)]'
+                : empty
+                ? 'border-[color:var(--bay-rail)] text-[color:var(--ink-muted)]/50 hover:text-[color:var(--ink-muted)]'
+                : 'border-[color:var(--bay-rail)] text-[color:var(--ink-muted)] hover:border-[color:var(--bay-rail-lit)] hover:text-[color:var(--ink-secondary)]'
+            }`}
+          >
+            {t(s.key)}
+            {count != null && (
+              <span className="ml-1.5 font-mono text-[10px] opacity-60">{count}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SketchDownloads({ sketch, t }) {
   const ref = encodeURIComponent(sketch.ref);
   const mode = sketchRenderMode(sketch.manifest);
@@ -135,7 +207,7 @@ const BEATS_NOUN_KEYS = new Set([
   'exportWav', 'exportMidi',
 ]);
 
-export default function SketchGallery({ bucket = null, heading, subtitle } = {}) {
+export default function SketchGallery({ bucket = null, heading, subtitle, shelves = false, initialShelf = 'recent' } = {}) {
   const tBase = useTranslations('sketchesIndex');
   const tBeats = useTranslations('sketchesIndex.beatsNoun');
   const t = useCallback(
@@ -143,6 +215,7 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
     [bucket, tBase, tBeats],
   );
   const tFolder = useTranslations('sketchesIndex.folder');
+  const tLibrary = useTranslations('library');
   const tSelect = useTranslations('sketchesIndex.select');
   const [sketches, setSketches] = useState([]);
   const [folders, setFolders] = useState([]);
@@ -176,6 +249,9 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
   // pane, shows sketches as a selectable grid, surfaces bulk move/delete
   // in a sticky action bar, and pops a modal for preview-on-demand. Split
   // view (default) is the original two-pane UI.
+  // Library shelf (the filter chips). Only meaningful in `shelves` mode; the
+  // legacy bucket-per-route callers never leave 'recent'.
+  const [shelf, setShelf] = useState(initialShelf);
   const [viewMode, setViewMode] = useState('split');
   const fullView = viewMode === 'full';
   const [previewRef, setPreviewRef] = useState(null);
@@ -188,7 +264,11 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(bucket ? `/api/sketches?bucket=${bucket}` : '/api/sketches');
+      // Scope the read to the shelf's bucket. SketchRepository.list() caps an
+      // unscoped read at rootLimit but scans the whole table for a bucket-scoped
+      // one, so this is what keeps a shelf from silently truncating.
+      const scope = shelves ? shelfFetchBucket(shelf) : bucket;
+      const res = await fetch(scope ? `/api/sketches?bucket=${scope}` : '/api/sketches');
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${res.status}`);
@@ -205,7 +285,7 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
     } finally {
       setLoading(false);
     }
-  }, [bucket]);
+  }, [bucket, shelves, shelf]);
 
   useEffect(() => {
     load();
@@ -234,6 +314,24 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
   const trimmedQuery = query.trim();
   const searching = trimmedQuery.length > 0;
 
+  // The active shelf, applied before folder/search narrowing so a chip and a
+  // folder compose rather than fight. Outside `shelves` mode this is identity.
+  const shelvedSketches = useMemo(
+    () => (shelves ? filterToShelf(sketches, shelf) : sketches),
+    [shelves, sketches, shelf],
+  );
+  const [counts, setCounts] = useState(null);
+  useEffect(() => {
+    if (!shelves) return;
+    let live = true;
+    fetch('/api/sketches/counts')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live && d?.counts) setCounts(d.counts); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [shelves]);
+  const onRegistryShelf = shelves && shelfByKey(shelf).registry;
+
   // What appears in the left rail. When searching, results span all folders
   // (the user said: "Search sketch results is separate") so folder context
   // is bypassed and folder rows are hidden. Otherwise we render the sketches
@@ -241,14 +339,14 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
   const visibleSketches = useMemo(() => {
     if (searching) {
       const q = trimmedQuery.toLowerCase();
-      return sketches.filter(
+      return shelvedSketches.filter(
         (s) =>
           s.title?.toLowerCase().includes(q) ||
           s.ref?.toLowerCase().includes(q),
       );
     }
-    return sketches.filter((s) => (s.folderRef || null) === currentFolderRef);
-  }, [sketches, currentFolderRef, searching, trimmedQuery]);
+    return shelvedSketches.filter((s) => (s.folderRef || null) === currentFolderRef);
+  }, [shelvedSketches, currentFolderRef, searching, trimmedQuery]);
 
   // Folder rows only appear in the root view. Once you've entered a folder
   // (or you're searching), the sidebar is just sketches — no sibling-folder
@@ -303,6 +401,10 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
   }, []);
 
   const selected = sketches.find((s) => s.ref === selectedRef) || null;
+  // Every ref in view, so a `<ref>_gi` GI-bake variant is spotted without a
+  // round-trip. Memoized once for the whole list, shared by both preview surfaces.
+  const refSet = useMemo(() => new Set(sketches.map((s) => s.ref)), [sketches]);
+  const selectedModes = useDisplayModeState(selected, refSet);
 
   // Exit rename mode whenever the selected sketch changes, so we don't carry
   // a stale draft title across selections.
@@ -575,9 +677,12 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
           <p className="text-xs text-gray-400 mt-1">{subtitle || t('subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">
-            {t('total', { count: sketches.length })}
-          </span>
+          {/* A registry shelf holds no sketches, so a sketch total there is noise. */}
+          {!onRegistryShelf && (
+            <span className="text-sm text-gray-400">
+              {t('total', { count: shelves ? shelvedSketches.length : sketches.length })}
+            </span>
+          )}
           <div
             role="group"
             aria-label={t('viewToggle.full')}
@@ -617,6 +722,27 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
         </div>
       </div>
 
+      {shelves && shelfByKey(shelf).capped && (
+        <p className="px-8 pb-1 text-[11px] text-[color:var(--ink-muted)]">{tLibrary('recentNote')}</p>
+      )}
+      {shelves && (
+        <ShelfChips
+          shelf={shelf}
+          counts={counts}
+          onChange={(next) => {
+            setShelf(next);
+            // A ref that just left the shelf must not stay selected behind the chips.
+            setSelectedRef(null);
+            if (typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              if (next === 'recent') url.searchParams.delete('shelf');
+              else url.searchParams.set('shelf', next);
+              window.history.replaceState(null, '', url);
+            }
+          }}
+        />
+      )}
+
       {error && (
         <div className="mx-8 mt-4 bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded text-sm">
           {error}
@@ -628,7 +754,11 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
         </div>
       )}
 
-      {fullView ? (
+      {onRegistryShelf ? (
+        <div className="flex-1 overflow-y-auto px-8 pb-4">
+          <MaterialShelf />
+        </div>
+      ) : fullView ? (
         <FullFolderView
           t={t}
           tFolder={tFolder}
@@ -1021,7 +1151,14 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
                       <CloseIcon />
                     </button>
                   </div>
-                  <SketchDownloads sketch={selected} t={t} />
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <DisplayModes
+                      resolved={selectedModes.resolved}
+                      active={selectedModes.active}
+                      onChange={selectedModes.setMode}
+                    />
+                    <SketchDownloads sketch={selected} t={t} />
+                  </div>
                   {!selectMode && deleteError && (
                     <p className="text-xs text-red-400">{deleteError}</p>
                   )}
@@ -1029,7 +1166,7 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
               </div>
 
               <div className="flex-1 min-h-0 border border-gray-700 rounded-lg p-4 bg-gray-800 flex items-center justify-center overflow-hidden">
-                <SketchPreviewBody sketch={selected} t={t} fit />
+                <SketchPreviewBody sketch={selected} t={t} fit view={selectedModes.view} />
               </div>
             </div>
           ) : (
@@ -1067,6 +1204,7 @@ export default function SketchGallery({ bucket = null, heading, subtitle } = {})
         <SketchPreviewModal
           t={t}
           sketch={previewSketch}
+          refSet={refSet}
           onClose={() => setPreviewRef(null)}
         />
       )}
@@ -1290,6 +1428,13 @@ function FullFolderView({
   );
 }
 
+/**
+ * One grid card. The picture is the card (§6): a still at rest, turning through
+ * its baked azimuth strip while the pointer is on it — which is what makes a
+ * shelf of models read as 3D rather than as a file list. The hover handlers ride
+ * the card ROOT, so anywhere on the card turns the picture; everything the tile
+ * did before (select, tags, preview) is unchanged beneath it.
+ */
 function SketchTile({
   sketch,
   isChecked,
@@ -1300,69 +1445,77 @@ function SketchTile({
   t,
   tFolder,
 }) {
+  const { turntable, strip, turning, promote, handlers } = useTurntable(sketch);
   return (
     <div
       onClick={onToggle}
-      className={`group relative border rounded-lg cursor-pointer transition flex items-center gap-3 px-3 py-3 ${
+      {...handlers}
+      className={`group relative border rounded-[var(--radius-card)] cursor-pointer transition flex flex-col overflow-hidden ${
         isChecked
           ? 'border-teal-500 ring-1 ring-teal-500/40 bg-teal-950/30'
           : 'border-gray-700 hover:border-gray-500 bg-gray-800/40 hover:bg-gray-800/70'
       }`}
     >
-      <input
-        type="checkbox"
-        checked={isChecked}
-        onChange={onToggle}
-        onClick={(e) => e.stopPropagation()}
-        className="h-4 w-4 shrink-0 accent-teal-500 cursor-pointer"
-        aria-label={sketch.title}
+      <TurntableThumb
+        turntable={turntable}
+        strip={strip}
+        turning={turning}
+        promote={promote}
+        alt={sketch.title}
+        fallback={<FileIcon className="h-6 w-6" />}
       />
-      <FileIcon
-        className={`h-5 w-5 shrink-0 ${
-          isChecked ? 'text-teal-300' : 'text-gray-500 group-hover:text-gray-400'
-        }`}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-medium text-gray-100">
-          {sketch.title}
-        </div>
-        {(showSourceTag || (sketch.associations && sketch.associations.length > 0)) && (
-          <div className="mt-1 flex flex-wrap gap-1 items-center">
-            {showSourceTag && (
-              <span className="rounded border border-amber-500/25 bg-amber-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-200">
-                {sourceFolder
-                  ? tFolder('moveSourceFolder', { name: sourceFolder.name })
-                  : tFolder('moveSourceRoot')}
-              </span>
-            )}
-            {sketch.associations?.map((tag) => (
-              <span
-                key={`${sketch.ref}-${tag.kind}`}
-                className="rounded border border-teal-500/25 bg-teal-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-teal-200"
-              >
-                {associationTagLabel(tag, t)}
-              </span>
-            ))}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={onToggle}
+          onClick={(e) => e.stopPropagation()}
+          className="h-4 w-4 shrink-0 accent-teal-500 cursor-pointer"
+          aria-label={sketch.title}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-xs font-medium text-gray-100">
+            {sketch.title}
           </div>
-        )}
+          {(showSourceTag || (sketch.associations && sketch.associations.length > 0)) && (
+            <div className="mt-1 flex flex-wrap gap-1 items-center">
+              {showSourceTag && (
+                <span className="rounded border border-amber-500/25 bg-amber-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-200">
+                  {sourceFolder
+                    ? tFolder('moveSourceFolder', { name: sourceFolder.name })
+                    : tFolder('moveSourceRoot')}
+                </span>
+              )}
+              {sketch.associations?.map((tag) => (
+                <span
+                  key={`${sketch.ref}-${tag.kind}`}
+                  className="rounded border border-teal-500/25 bg-teal-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-teal-200"
+                >
+                  {associationTagLabel(tag, t)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPreview();
+          }}
+          aria-label={t('viewToggle.openPreview')}
+          title={t('viewToggle.openPreview')}
+          className="shrink-0 h-7 w-7 inline-flex items-center justify-center bg-gray-900/60 hover:bg-gray-700 border border-gray-700 rounded-[var(--radius-control)] text-gray-400 hover:text-teal-200"
+        >
+          <ZoomInIcon className="h-4 w-4" />
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onPreview();
-        }}
-        aria-label={t('viewToggle.openPreview')}
-        title={t('viewToggle.openPreview')}
-        className="shrink-0 h-7 w-7 inline-flex items-center justify-center bg-gray-900/60 hover:bg-gray-700 border border-gray-700 rounded-md text-gray-400 hover:text-teal-200"
-      >
-        <ZoomInIcon className="h-4 w-4" />
-      </button>
     </div>
   );
 }
 
-function SketchPreviewModal({ sketch, t, onClose }) {
+function SketchPreviewModal({ sketch, t, onClose, refSet }) {
+  const modes = useDisplayModeState(sketch, refSet);
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
@@ -1406,10 +1559,11 @@ function SketchPreviewModal({ sketch, t, onClose }) {
               <CloseIcon />
             </button>
             <SketchDownloads sketch={sketch} t={t} />
+            <DisplayModes resolved={modes.resolved} active={modes.active} onChange={modes.setMode} />
           </div>
         </div>
         <div className="flex-1 min-h-0 p-6 bg-gray-900 flex items-center justify-center overflow-hidden">
-          <SketchPreviewBody sketch={sketch} t={t} fit />
+          <SketchPreviewBody sketch={sketch} t={t} fit view={modes.view} />
         </div>
       </div>
     </div>

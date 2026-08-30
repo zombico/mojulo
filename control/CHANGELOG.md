@@ -10,6 +10,62 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Mojulo 2.0 — the pure-creative reposition (BREAKING)
+
+Mojulo is now a **3D factory for agents**. The reposition is by DEMOTION, not
+amputation: nothing was deleted, and the orchestration backend (connected
+services, catalysts, triggers, apps, plan/research/stash) is retained in full.
+
+**BREAKING — the chatbot factory is opt-in.** A default install no longer carries
+it: 17 of 20 packs, no bot tools listed, every bot tool refusing with an advisory
+naming the install. Add it back with `mojulo install chatbot` (writes a marker
+under `$MOJULO_HOME`; `--remove` takes it away). **Already-deployed bots are
+unaffected** — the bot image is separately versioned (`bot-v*`) and runs as its
+own process; it was never part of the workshop install.
+
+- **Install is PACK-grain, not wing-grain.** A pack declares an `installGroup`
+  (`creative` / `chatbot`) or none; a pack declaring none is unconditional, like
+  the kernel. `wing` is now taxonomy/routing only. `MOJULO_PACKS` takes
+  `creative` / `chatbot`, with `ops` kept as a deprecated alias for `chatbot`.
+- **Studio-first routing.** `forward_context` defaults to the creative wing;
+  the automation backend is `mode:'office'`. `get_substrate`, the MCP
+  `initialize` preamble, `PARADIGMS` order, both READMEs, and the package
+  description/keywords all lead with the factory.
+- **Dashboard.** Studio is the first mode and opens by default; operational
+  tiles appear only when they have records; diagrams moved to Studio.
+- **CLI honesty.** `mojulo tools` / `mojulo packs` now list only INSTALLED packs,
+  with a `not installed: … add with: …` footer — execution is walled, knowledge
+  is not.
+- **`tools/sketches.js` split by tool family** (2038 lines → a registration
+  surface + six focused modules), proven byte-identical by new mint goldens.
+- **Bot docs migrated to `docs/chatbot/`.** The thirteen bot-only docs (factory flow,
+  both builders, protocol composition, forms, optical read, bot frontend, conversations
+  API + event log, RAG, turn hashing, federated routing, orientation) moved out of the
+  main-line `docs/` into one directory with its own index, so they travel as a unit when
+  the factory becomes its own package. All inbound and outbound links rewritten; the
+  README's inline bot section collapsed to a pointer, and CLAUDE.md's "First read" no
+  longer leads with the bot architecture.
+- **Carve fence.** `pack-boundary.test.js` gained checks F/G/H: nothing outside
+  the chatbot factory may import it, plus two shrink-only ledgers over the
+  dashboard routes and the retained code still reading bot tables.
+
+### `clay-render` — the reconstruction style register
+
+The dream loops (shape-from-dream, character-from-dream, mobile-suit, edifice)
+used to prompt the image worker in a flat ILLUSTRATION register. They now
+default to a **clay model** instead: a new `clay-render` style preset asks for
+an untextured neutral-grey model on a plain backdrop — separable primitives,
+visible seams, honest proportion, no colour or texture. It matches what the
+loops actually build (lathe / extrude / sweep / manji, or ~20 body dials plus a
+wardrobe spec), so the read-off step is close to mechanical and there is no
+paint in the reference the substrate could never have carried.
+
+- Two dials: `construction` (primitive blockout ↔ sculpted detail) and
+  `finish` (`clay` / `matcap` / `ao` — occlusion states contact best).
+- The flat illustration presets stay as the named ALTERNATE — for a target
+  whose identity is a graphic/period style, or a second colour-only pass once
+  the form is locked. `photo-realism` stays out of all four loops.
+
 ### Godot handoff — the engine leg of interchange (G0 → G6 kernel)
 
 A world or game authored as recipes now exports as a ready-to-open Godot 4

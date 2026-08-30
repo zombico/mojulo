@@ -142,11 +142,11 @@ When a user is routed from one bot to another via a triage card, the chain exten
 
 | File | Role |
 |------|------|
-| [lite-template/server.js](../lite-template/server.js) §schema | `turns` table CREATE with `content_hash` / `chain_hash NOT NULL` |
-| [lite-template/server.js](../lite-template/server.js) §`hashTurnContent` | SHA-256 over `JSON.stringify({turn, userPrompt, llmResponse, machineState})` |
-| [lite-template/server.js](../lite-template/server.js) §`createChainHash` | SHA-256 of `contentHash + previousChainHash` (seed `'0'` when null) |
-| [lite-template/server.js](../lite-template/server.js) §`getLastChainHash` | Reads the previous row's `chain_hash` to use as the link target |
-| [lite-template/server.js](../lite-template/server.js) §`POST /chat` | Computes both hashes per turn, persists them, returns `chainHash` in the response |
-| [lite-template/server.js](../lite-template/server.js) §`verifyConversation` | Walks rows in turn order, recomputes both hashes, returns `{ valid, totalTurns, invalidTurns, conversationsVerified }` |
-| [lite-template/server.js](../lite-template/server.js) §`GET /verify`, `GET /verify/:conversationId` | Public read-only verify endpoints |
-| [lite-template/client/index.html](../lite-template/client/index.html) §`sendMessage` | Surfaces `hashMsg` in the log UI, tracks `currentChainHash` for downstream handoffs |
+| [lite-template/server.js](../../lite-template/server.js) §schema | `turns` table CREATE with `content_hash` / `chain_hash NOT NULL` |
+| [lite-template/server.js](../../lite-template/server.js) §`hashTurnContent` | SHA-256 over `JSON.stringify({turn, userPrompt, llmResponse, machineState})` |
+| [lite-template/server.js](../../lite-template/server.js) §`createChainHash` | SHA-256 of `contentHash + previousChainHash` (seed `'0'` when null) |
+| [lite-template/server.js](../../lite-template/server.js) §`getLastChainHash` | Reads the previous row's `chain_hash` to use as the link target |
+| [lite-template/server.js](../../lite-template/server.js) §`POST /chat` | Computes both hashes per turn, persists them, returns `chainHash` in the response |
+| [lite-template/server.js](../../lite-template/server.js) §`verifyConversation` | Walks rows in turn order, recomputes both hashes, returns `{ valid, totalTurns, invalidTurns, conversationsVerified }` |
+| [lite-template/server.js](../../lite-template/server.js) §`GET /verify`, `GET /verify/:conversationId` | Public read-only verify endpoints |
+| [lite-template/client/index.html](../../lite-template/client/index.html) §`sendMessage` | Surfaces `hashMsg` in the log UI, tracks `currentChainHash` for downstream handoffs |
