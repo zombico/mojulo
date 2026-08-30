@@ -445,7 +445,7 @@ export async function sketchPolygomerHandler(input) {
   return {
     ...result,
     parts: lathes.length,
-    next: `Open svgUrl and check the massing (re-mint to adjust). Then: get_skin_packet({ ref: "${result.ref}" }) → paint the scaffold → skin_polygomer → export_model → /model.glb (turnable 3D).`,
+    next: `Open svgUrl and check the massing (adjust in place: update_sketch({ ref: "${result.ref}", manifest }) — full replace, validated by the render contract). Then: get_skin_packet({ ref: "${result.ref}" }) → paint the scaffold → skin_polygomer → export_model → /model.glb (turnable 3D).`,
   };
 }
 

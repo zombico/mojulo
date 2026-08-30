@@ -15,6 +15,9 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
+import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
+import { resolveGame } from '@/lib/graph/game/game-resolve';
+import { auditLevel } from '@/lib/graph/game/game-audit';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { WORLD_KINDS } from '@/lib/graph/worlds/world-kinds';
 import {
@@ -442,7 +445,48 @@ export async function updateSketchHandler(input) {
   }
 
   let nextManifest;
-  if (manifest !== undefined && isMotionComicKind(manifest?.kind)) {
+  let gameNote;
+  if (manifest !== undefined && manifest?.kind === 'game') {
+    // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
+    // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
+    // tweaking a level list or difficulty meant re-minting + re-binding project
+    // membership. Pay the same STRUCTURAL gate as create_game: schema validation,
+    // then resolveGame (every level exists + carries a `game` channel + its
+    // contract fits THIS store), then the pure per-level contract dry-run.
+    // COMPLETABILITY stays mint-time promotion discipline — evidence rides
+    // create_game's audits/auto_audit params, which this generic surface doesn't
+    // carry; level refs newly added by the edit are recorded in the result as
+    // unaudited instead of silently passing the gate.
+    try {
+      const { ok, errors } = validateGameManifest(manifest);
+      if (!ok) throw new Error(errors.join('; '));
+      const levelSrc = (r) => `/api/sketches/${encodeURIComponent(r)}/world`;
+      const { manifest: finalized, levels: resolved } = resolveGame(manifest, (r) => SketchRepository.getByRef(r), levelSrc);
+      const reports = await Promise.all(resolved.map((lv) => auditLevel({
+        ref: lv.ref, store: finalized.store, contract: lv.contract, allowUnaudited: true,
+      })));
+      const blocked = reports.filter((a) => !a.promotable);
+      if (blocked.length) {
+        throw new Error(blocked.map((a) => `${a.ref}: ${!a.dryRun.ok ? a.dryRun.errors.join('; ') : a.reason}`).join('\n - '));
+      }
+      const priorRefs = new Set(
+        Array.isArray(existingSketch?.manifest?.levels)
+          ? existingSketch.manifest.levels.map((l) => l && l.ref).filter(Boolean)
+          : [],
+      );
+      const added = finalized.levels.map((l) => l.ref).filter((r) => !priorRefs.has(r));
+      if (added.length) {
+        gameNote = `level(s) added without completability evidence: ${added.join(', ')} — the mint-time gate `
+          + '(create_game audits/auto_audit) did not see them; prove each with a forge_motion traversal when it matters.';
+      }
+      nextManifest = normalizeGameManifest(finalized);
+    } catch (err) {
+      throw new Error(
+        `Invalid game manifest: ${err.message}\n— store-schema manuals: get_game_vocab() `
+        + '(slices: character | inventory | party | progression | flags; events: typed-events).',
+      );
+    }
+  } else if (manifest !== undefined && isMotionComicKind(manifest?.kind)) {
     // Same gate as mintSketch — update is the accrete-cheaply surface, so it
     // pays the same normalization + store checks.
     try {
@@ -517,5 +561,6 @@ export async function updateSketchHandler(input) {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
+    ...(gameNote ? { note: gameNote } : {}),
   };
 }

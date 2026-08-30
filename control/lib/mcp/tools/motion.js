@@ -417,9 +417,47 @@ function renderEffectShot(resolved, motion, shot) {
 
 export async function forgeMotionHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('forge_motion requires { title, subject, shot }');
+    throw new Error('forge_motion requires { title, subject, shot } — or { recipe } / { recipe_ref } to re-forge');
   }
-  const { title, subject, shot, export: exportFormat = 'both', tag_ref: existingTag } = input;
+  let { title, subject, shot } = input;
+  const { export: exportFormat = 'both', tag_ref: existingTag, recipe: recipeInput, recipe_ref: recipeRef } = input;
+
+  // Re-forge door (edit-3d-recipes.plan.md Phase 3): the stored recipe.json IS a
+  // legal input — "a traversal's ticks ARE its recipe" made round-trippable. Read
+  // a shot's recipe (from its outcome dir via recipe_ref, or pass the edited JSON
+  // as recipe), tweak, re-forge. subject round-trips because recipeSubject shapes
+  // mirror the subject input shapes by design. When a waypoint traversal carries
+  // BOTH compiled ticks and waypoints, the ticks win — exact replay; strip
+  // shot.ticks from the recipe yourself to recompile edited waypoints.
+  if (recipeInput !== undefined || recipeRef !== undefined) {
+    if (subject !== undefined || shot !== undefined) {
+      throw new Error('pass either { recipe / recipe_ref } or { subject, shot }, not both');
+    }
+    let recipe = recipeInput;
+    if (recipeRef !== undefined) {
+      if (typeof recipeRef !== 'string' || !recipeRef) throw new Error('`recipe_ref` must be a motion ref string (mo_…)');
+      const recipePath = path.join(outcomeDirFor(recipeRef), 'recipe.json');
+      try {
+        recipe = JSON.parse(await fs.readFile(recipePath, 'utf8'));
+      } catch {
+        throw new Error(`recipe_ref '${recipeRef}' has no readable recipe.json — is it a forged motion ref?`);
+      }
+    }
+    if (!recipe || typeof recipe !== 'object' || !recipe.shot || typeof recipe.shot !== 'object') {
+      throw new Error('`recipe` must be the stored recipe.json shape: { title, subject, shot: { motion, params, … } }');
+    }
+    title = title || recipe.title;
+    subject = recipe.subject;
+    const { motion: recipeMotion, params, frames, fps, loop, ticks, waypoints } = recipe.shot;
+    shot = {
+      ...(recipeMotion !== undefined ? { motion: recipeMotion } : {}),
+      ...(params !== undefined ? { params } : {}),
+      ...(frames !== undefined ? { frames } : {}),
+      ...(fps !== undefined ? { fps } : {}),
+      ...(loop !== undefined ? { loop } : {}),
+      ...(Array.isArray(ticks) && ticks.length ? { ticks } : Array.isArray(waypoints) && waypoints.length ? { waypoints } : {}),
+    };
+  }
   if (!title || typeof title !== 'string') throw new Error('title is required');
   if (!shot || typeof shot !== 'object') throw new Error('forge_motion requires a shot');
 
@@ -752,12 +790,14 @@ export function registerMotionTools() {
   registerTool({
     name: 'forge_motion',
     description:
-      `Put a mojulo subject in MOTION and render an animated artifact — a self-contained CSS flipbook SVG (plays anywhere an <img> goes) plus an animated GIF; opt into a downloadable MP4. Motion is an OUTPUT concern, the sibling of illustration and cook: it CONSUMES a static subject and adds TIME, filed as a deterministic "Motion Project" recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it", AND info-transfer framing "play these charts / a slideshow / a deck / an explainer / a report in motion". FOUR subject families behind one door — read the one you need via get_motion_vocab({ id }) (find it by intent via semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4). Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref) plus shot ({ motion, params, frames, fps }) and export. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
+      `Put a mojulo subject in MOTION and render an animated artifact — a self-contained CSS flipbook SVG (plays anywhere an <img> goes) plus an animated GIF; opt into a downloadable MP4. Motion is an OUTPUT concern, the sibling of illustration and cook: it CONSUMES a static subject and adds TIME, filed as a deterministic "Motion Project" recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it", AND info-transfer framing "play these charts / a slideshow / a deck / an explainer / a report in motion". FOUR subject families behind one door — read the one you need via get_motion_vocab({ id }) (find it by intent via semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4). Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
     inputSchema: {
       type: 'object',
-      required: ['title', 'subject', 'shot'],
+      required: [],
       properties: {
-        title: { type: 'string', description: 'Title for the motion project + artifact.' },
+        title: { type: 'string', description: 'Title for the motion project + artifact (defaults from the recipe when re-forging).' },
+        recipe: { type: 'object', description: 'RE-FORGE: a stored recipe.json, optionally edited — replaces subject+shot. Both ticks and waypoints present replays the ticks; delete shot.ticks to recompile edited waypoints.' },
+        recipe_ref: { type: 'string', description: 'RE-FORGE: an existing motion ref (mo_…) — re-renders its recipe.json as a NEW shot.' },
         subject: {
           type: 'object',
           description: 'What moves. CAMERA family: a single manji-tree (sketch_ref or inline manji_tree). WORLD family: a traversable three.js world (world_ref). DECK family: an ordered set of charts/sketches (deck or stash_ref) played as a slideshow. EFFECT family: a carved solid (carved_solid) for materialize, or a from→to pair for transfigure.',

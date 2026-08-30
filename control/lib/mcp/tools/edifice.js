@@ -96,8 +96,8 @@ export function registerEdificeTools() {
       + "placed by RELATION: a root mass `at:[x,y]`, the rest `on:{anchor,side,align,gap}` (mass B east "
       + "of mass A). A concourse `{from,to,width}` derives a hall between two facing masses and punches "
       + "doorways so they become ONE walkable building. Recipe-only, served walkable at /world + .glb. "
-      + "Livability is surfaced but NEVER enforced. Field manual: forward_context. Dream it: the "
-      + "`dream-edifice` catalyst.",
+      + "Livability is surfaced but NEVER enforced. Iterate the stored graph in place via "
+      + "`update_sketch`. Field manual: forward_context. Dream it: the `dream-edifice` catalyst.",
     inputSchema: {
       type: 'object',
       required: ['masses'],

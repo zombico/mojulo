@@ -49,6 +49,29 @@ own process; it was never part of the workshop install.
   the chatbot factory may import it, plus two shrink-only ledgers over the
   dashboard routes and the retained code still reading bot tables.
 
+### Edit-in-place for 3D recipes — closing the mint-once gaps
+
+Recipes are STARTERS — the agent iterates them in place on the same ref. That
+was already true for worlds but broken for three 3D families; all three closed
+(design + build log: `lib/mcp/tools/edit-3d-recipes.plan.md`).
+
+- **Games are editable.** `update_sketch` gained a `kind:'game'` branch paying
+  create_game's structural gate (schema + level resolution + per-level contract
+  dry-run). Completability stays mint-time promotion discipline: levels newly
+  added by an edit are named in the result `note` as unaudited, never silently
+  promoted.
+- **Solids and edifices say the quiet part.** Every `mint_solid` kind and
+  `edifice` was already editable through `update_sketch`'s world branch, but the
+  tool descriptions taught "re-mint" — they now teach iterate-in-place, and
+  regression tests pin the path (including the clamp contract: an out-of-range
+  figure dial is accepted because joint limits clamp at render).
+- **Motion round-trips.** `forge_motion` accepts `recipe_ref` (an existing
+  motion ref) or an edited `recipe` (its stored recipe.json) in place of
+  subject+shot — the stored recipe is now a legal input, so the read-tweak-
+  re-forge loop works. Compiled ticks win over waypoints for exact replay.
+- Description growth compressed to routing grade; `forge_motion`'s allowlist
+  and the tools/list payload ceiling consciously re-pinned.
+
 ### `clay-render` — the reconstruction style register
 
 The dream loops (shape-from-dream, character-from-dream, mobile-suit, edifice)

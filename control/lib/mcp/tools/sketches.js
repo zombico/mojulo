@@ -279,7 +279,7 @@ export function registerSketchTools() {
   registerTool({
     name: 'update_sketch',
     description:
-      "Revise an existing sketch in place — rename it, replace its manifest, or both — without minting a new ref. Use this to iterate on the same diagram during a back-and-forth with the operator (tweak a label, reroute an edge, swap a chart paradigm) so the Sketches index doesn't accumulate near-duplicate refs. Pass the existing `ref` plus whichever of `title` / `manifest` you're changing. The manifest, when provided, is validated and Rendrant-expanded exactly like `create_sketch`. Returns `{ ok, ref, url }`. If the operator wants to preserve the previous version too, mint a fresh sketch via `create_sketch` instead.",
+      "Revise an existing sketch in place — rename it, replace its manifest, or both — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, and kind:'game' manifests. Each kind pays its own gate — diagrams validate like `create_sketch`; world/solid kinds resolve through the world registry (the render contract itself); games pay create_game's structural gate (levels added by an edit are noted unaudited). Beats/voice refuse here and point at their domain tools. `manifest` is a FULL replacement: read the stored one, edit, write back. Returns `{ ok, ref, url, note? }`. Re-mint only for a side-by-side variant.",
     inputSchema: {
       type: 'object',
       properties: {

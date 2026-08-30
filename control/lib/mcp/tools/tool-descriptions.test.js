@@ -85,7 +85,11 @@ const DESCRIPTION_ALLOWLIST = {
   // (2228 → 2285) to bless the I2 eligibility widening: posed figures,
   // carved-solid wordmarks, and css3d-turntable solids export. Shrink-only.
   export_model: 2285,
-  forge_motion: 1409,
+  // forge_motion re-pinned 2026-08-29 (1409 → 1560) to bless the RE-FORGE
+  // door (edit-3d-recipes.plan.md Phase 3): recipe/recipe_ref make the stored
+  // recipe.json a legal input, closing the last mint-once 3D family.
+  // Shrink-only from here.
+  forge_motion: 1560,
   forge_plan: 1167,
   forge_publications: 955,
   forward_context: 1081,
@@ -185,7 +189,13 @@ const DESCRIPTION_ALLOWLIST = {
 // work of this session — the office paradigm cards (bot/app/connected-service)
 // live in meta_embeddings behind semantic_search, not in tools/list — so the
 // payload is byte-identical to the consolidation baseline.
-const PAYLOAD_CEILING = 255_000;
+// Re-pinned 2026-08-29 (was 255,000; measured 255,660) to bless the
+// iterate-surface batch (edit-3d-recipes.plan.md): update_sketch's game
+// branch + broadened routing prose, mint_solid/edit_solid/create_edifice
+// update_sketch pointers, and forge_motion's recipe/recipe_ref re-forge
+// inputs. All additions were compressed to routing grade first (teach in
+// the drawer); this blesses the ~660-byte residue.
+const PAYLOAD_CEILING = 256_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

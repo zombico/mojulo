@@ -204,7 +204,8 @@ export function registerMintSolidTools() {
       + 'recipe is stored, regenerated on render. Pick `kind` from the enum; per-kind parameters go '
       + 'in `spec`; `via` picks an authoring door for the manji-tree kind (ir / parts / prompt / '
       + "packet). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }) and read its "
-      + "parameter manual via get_solid_vocab({ id: '<kind>' }) before passing spec.",
+      + "parameter manual via get_solid_vocab({ id: '<kind>' }) before passing spec. Iterate the "
+      + 'stored recipe in place via `update_sketch`.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -227,7 +228,8 @@ export function registerMintSolidTools() {
       + 'assembler polygomer or a figure WEAR a painted skin (two-phase: spec.phase `packet` hands '
       + 'back the skin packet, then `apply` binds the painted result); `emote` — apply a named '
       + 'body-language emote to a stored figure and render a looping GIF. Pass the target `ref` and '
-      + "op params in `spec`. Parameter manual: get_solid_vocab({ id: '<op>' }).",
+      + "op params in `spec`. Parameter manual: get_solid_vocab({ id: '<op>' }). Recipe edits "
+      + '(dials/parts/spec) go through `update_sketch` instead.',
     inputSchema: {
       type: 'object',
       properties: {
