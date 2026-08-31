@@ -34,7 +34,7 @@ const TINT = '#8f96a0';      // the registry's own default base tint
  * laid out in x/z with a z-extent, because the top-lit ramp and the weathering
  * both read z — a flat x/y quad would show the mottle but not the gradient.
  */
-function Swatch({ kind }) {
+export function Swatch({ kind, max = SWATCH }) {
   const tiles = useMemo(() => {
     const face = {
       material: kind,
@@ -53,8 +53,9 @@ function Swatch({ kind }) {
       viewBox={`0 0 ${SWATCH} ${SWATCH}`}
       // Capped at its natural size: blown up to full card width, a grid-4 preset
       // reads as sixteen slabs rather than as a material. Small is also truer to
-      // how these are seen — per face, at modest screen size.
-      style={{ maxWidth: SWATCH }}
+      // how these are seen — per face, at modest screen size. Callers with less
+      // room (the floor's materials rail) cap it lower.
+      style={{ maxWidth: max }}
       className="w-full h-auto block mx-auto rounded-[var(--radius-control)]"
       aria-hidden="true"
     >

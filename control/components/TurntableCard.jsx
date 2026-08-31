@@ -20,7 +20,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 
-import { resolveTurntable, stripStyleVars } from '@/lib/graph/sketch/turntable-strip';
+import { resolveTurntable, resolveTurntableForMode, stripStyleVars } from '@/lib/graph/sketch/turntable-strip';
 
 /** Whether this viewer has asked not to be moved. Read at hover time, never at render (SSR-safe). */
 function prefersReducedMotion() {
@@ -41,6 +41,22 @@ export function useTurntable(sketch) {
     () => resolveTurntable({ manifest: sketch?.manifest, ref: sketch?.ref }),
     [sketch?.manifest, sketch?.ref],
   );
+  return useTurntableResolved(turntable);
+}
+
+/**
+ * The same state machine over a server-derived render mode — for light rows
+ * (the splayed floor's strips) that carry `renderMode` instead of a manifest.
+ */
+export function useTurntableMode(row) {
+  const turntable = useMemo(
+    () => resolveTurntableForMode({ renderMode: row?.renderMode, ref: row?.ref }),
+    [row?.renderMode, row?.ref],
+  );
+  return useTurntableResolved(turntable);
+}
+
+function useTurntableResolved(turntable) {
   const [strip, setStrip] = useState(null);
   const [awake, setAwake] = useState(false);
   // One request per card per mount, whether it succeeds or not — a card whose

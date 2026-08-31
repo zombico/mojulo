@@ -1622,6 +1622,9 @@
   "sketches": {
     "notFoundTitle": "Sketch not found",
     "notFoundBody": "This sketch ref does not exist or has not been minted yet.",
+    "backToLibrary": "← Back to the Library",
+    "retryLoad": "Retry",
+    "frameFailed": "This view didn’t load.",
     "downloadGlb": "Download .glb",
     "downloadGlbPreparing": "Preparing…",
     "downloadGlbUnavailable": "No 3D mesh to export for this sketch.",
@@ -1753,7 +1756,8 @@
       "blurb": "Procedural materials — texture-free vertex colour: a lambert base, a top-lit ramp, a brushed cloud, and weathering, all baked into per-corner fills. Each swatch is a real quad run through the real resolver, so what you see is what a face gets.",
       "applyHint": "Materials are applied by asking the agent — set material on a mesh-world face, or pass a preset name."
     },
-    "recentNote": "The most recent artifacts across the workshop. Pick a shelf to see all of one kind."
+    "recentNote": "The most recent artifacts across the workshop. Pick a shelf to see all of one kind.",
+    "roomToggle": "Room"
   },
   "maker": {
     "hub": {
@@ -2014,6 +2018,7 @@
     "downloadSvg": "Download SVG",
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
+    "frameFailed": "This view didn’t load.",
     "renameLabel": "Rename sketch",
     "renamePlaceholder": "Sketch title",
     "renameSave": "Save",
@@ -2192,6 +2197,7 @@
     "allLanes": "All lanes",
     "copyPrompt": "Copy prompt",
     "copied": "Copied",
+    "copyFailed": "Couldn’t copy — select the text and copy it manually",
     "showing": "showing {shown} of {total}",
     "queue": {
       "title": "Render queue",
@@ -2258,6 +2264,7 @@
   "home3d": {
     "openArtifact": "Open artifact →",
     "copied": "Copied",
+    "copyFailed": "Couldn’t copy — select the text and copy it manually",
     "shelves": "Library",
     "bays": "Workshop",
     "outliner": {
@@ -2301,6 +2308,7 @@
     },
     "viewport": {
       "noReading": "This artifact is heard, played, or read rather than looked at. Open it to experience it.",
+      "frameFailed": "This view didn’t load — open the artifact directly to try again.",
       "seed": "seed {seed}",
       "parts": "{n} parts",
       "scaleDeclared": "1 unit = 1 {unit} · print true scale with scale: {scale}",
@@ -2325,6 +2333,92 @@
       "gate": "{n} awaiting the eyes gate",
       "library": "{n} artifacts",
       "toolCalls": "{n} tool calls · 24h"
+    }
+  },
+  "floor": {
+    "bench": "On the bench",
+    "recentPicks": "Picked up recently",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} artifacts — walked, orbited, printed",
+      "d2": "{n} artifacts — pictures and maps"
+    },
+    "open": {
+      "scenes": "Open the location board →",
+      "models": "Open the turntable wall →",
+      "characters": "Open the cast board →",
+      "images": "Open the print wall →",
+      "diagrams": "Open the reading room →",
+      "materials": "Open the materials shelf →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} presets",
+    "kit": {
+      "figure": "figure",
+      "character-sheet": "sheet",
+      "sprite-sheet": "sprites"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "game",
+      "audio": "♪",
+      "painted": "painted"
+    },
+    "capNote": "strips show the freshest — headers open everything",
+    "warming": "warming the live view…",
+    "liveFailed": "live view didn’t load — showing the still",
+    "loadFailed": "Couldn’t load this shelf.",
+    "retry": "Retry",
+    "emptyStrip": "Nothing minted here yet.",
+    "materialsHint": "Applied by asking the agent — set a material on a mesh-world face, or pass a preset name."
+  },
+  "rooms": {
+    "search": "Search this room…",
+    "all": "All",
+    "empty": "Nothing matches this facet or search.",
+    "emptyShelf": "Nothing minted into {shelf} yet.",
+    "emptyShelfHint": "Ask your agent to make one — get_sketch_vocab has the vocabulary.",
+    "copied": "Copied",
+    "copyFailed": "Couldn’t copy — select manually",
+    "notExportable": "No mesh export — this artifact renders as a diagram, not a walkable model.",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "Iterations · {n}",
+    "open": "Open recipe →",
+    "openWorld": "Open world ↗",
+    "close": "Close",
+    "prev": "Previous",
+    "next": "Next",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "painted · external worker · scaffold recipe is sovereign",
+    "mintMissing": "Ask agent: mint {piece}",
+    "mintPrompt": "For the mojulo character \"{name}\" (see artifact {ref}), mint the missing {piece}. Use the matching tool (create_sprite_sheet / bind_character_sheet / figure tools) — read get_sketch_vocab first.",
+    "facets": {
+      "scenes": {
+        "walkable": "Walkable",
+        "cities": "Cities",
+        "hubs": "Hubs",
+        "interiors": "Interiors"
+      },
+      "models": {
+        "workbench": "Workbench",
+        "assembler": "Assembler",
+        "manji": "Manji-trees",
+        "science": "Science"
+      },
+      "images": {
+        "stills": "Stills",
+        "sequential": "Sequential art",
+        "painted": "Painted",
+        "carved": "Carved",
+        "other": "Other"
+      }
     }
   }
 }

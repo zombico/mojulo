@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
@@ -160,6 +161,32 @@ export default function SketchPageClient({
   const activeMode = pickMode(displayModes, displayMode ?? displayModes?.defaultMode);
   const view = activeMode?.view || null;
 
+  // Loading/error state for the one live frame this page can mount (a world/scene
+  // display mode, or the raw beats/game/play player) — an iframe otherwise shows
+  // nothing while it constructs its scene, with no signal it is even trying.
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [frameFailed, setFrameFailed] = useState(false);
+  const frameRef = useRef(null);
+  useEffect(() => {
+    setFrameLoaded(false);
+    setFrameFailed(false);
+    // The hydration race that kept every direct-opened artifact page on an
+    // eternal spinner: on a full page load the SSR'd iframe can finish loading
+    // BEFORE React hydrates and attaches onLoad, so the event is simply missed.
+    // The frame is same-origin, so peek at it once after mount — if it already
+    // holds a complete document (and not the initial about:blank), it loaded.
+    // A frame still in flight falls through to onLoad, which is attached by now.
+    const el = frameRef.current;
+    try {
+      const doc = el?.contentDocument;
+      if (doc && doc.readyState === 'complete' && doc.URL && doc.URL !== 'about:blank') {
+        setFrameLoaded(true);
+      }
+    } catch {
+      /* cross-origin frame (never ours) — leave it to onLoad */
+    }
+  }, [view?.src]);
+
   useEffect(() => {
     if (!manifest) return undefined;
     if (typeof window === 'undefined') return undefined;
@@ -181,6 +208,11 @@ export default function SketchPageClient({
         <div className="max-w-md text-center">
           <h2 className="text-lg font-semibold mb-2">{t('notFoundTitle')}</h2>
           <p className="text-sm text-[color:var(--text-muted)]">{t('notFoundBody')}</p>
+          {/* Breadcrumbs/nav chrome deliberately hide on this bare artifact route
+              (it doubles as a print/export view), so a 404 needs its own way out. */}
+          <Link href="/library" className="mt-4 inline-block text-sm text-[color:var(--live)] hover:underline">
+            {t('backToLibrary')}
+          </Link>
         </div>
       </main>
     );
@@ -189,7 +221,21 @@ export default function SketchPageClient({
   if (error) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8">
-        <p className="text-sm text-red-400">{error}</p>
+        <div className="max-w-md text-center">
+          <p className="text-sm text-red-400">{error}</p>
+          <div className="mt-4 flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={load}
+              className="text-sm text-[color:var(--live)] hover:underline"
+            >
+              {t('retryLoad')}
+            </button>
+            <Link href="/library" className="text-sm text-[color:var(--live)] hover:underline">
+              {t('backToLibrary')}
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
@@ -286,15 +332,29 @@ export default function SketchPageClient({
             className="w-full h-auto block"
           />
         ) : view?.kind === 'iframe' ? (
-          <iframe
-            // Keyed on src so switching mode remounts the frame rather than
-            // leaving the previous world's WebGL context running behind it.
-            key={view.src}
-            src={view.src}
-            title={data?.title || ref}
-            className="w-full block border-0"
-            style={{ aspectRatio: '1120 / 780' }}
-          />
+          <div className="relative w-full" style={{ aspectRatio: '1120 / 780' }}>
+            {/* Keyed on src so switching mode remounts the frame rather than
+                leaving the previous world's WebGL context running behind it. */}
+            <iframe
+              key={view.src}
+              ref={frameRef}
+              src={view.src}
+              title={data?.title || ref}
+              onLoad={() => setFrameLoaded(true)}
+              onError={() => setFrameFailed(true)}
+              className="absolute inset-0 h-full w-full border-0"
+            />
+            {!frameLoaded && !frameFailed && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+                <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[color:var(--text-muted)] border-t-transparent motion-reduce:animate-none" />
+              </div>
+            )}
+            {frameFailed && (
+              <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
+                <p className="text-sm text-[color:var(--text-muted)]">{t('frameFailed')}</p>
+              </div>
+            )}
+          </div>
         ) : view?.kind === 'diagram' ? (
           <CreationMap
             manifest={manifest}
@@ -302,10 +362,8 @@ export default function SketchPageClient({
             mode={view.wireframe ? 'wireframe' : 'color'}
           />
         ) : renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' ? (
-          <iframe
-            src={`/api/sketches/${encodeURIComponent(ref)}/${renderMode}`}
-            title={data?.title || ref}
-            className="w-full block border-0"
+          <div
+            className="relative w-full"
             style={{
               aspectRatio: renderMode === 'beats' ? '760 / 640'
                 : renderMode === 'game' ? '4 / 3'
@@ -314,7 +372,26 @@ export default function SketchPageClient({
                   ? `${manifest.box?.width || 4} / ${(manifest.box?.height || 3) + 46}`
                   : '1120 / 780',
             }}
-          />
+          >
+            <iframe
+              ref={frameRef}
+              src={`/api/sketches/${encodeURIComponent(ref)}/${renderMode}`}
+              title={data?.title || ref}
+              onLoad={() => setFrameLoaded(true)}
+              onError={() => setFrameFailed(true)}
+              className="absolute inset-0 h-full w-full border-0"
+            />
+            {!frameLoaded && !frameFailed && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+                <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[color:var(--text-muted)] border-t-transparent motion-reduce:animate-none" />
+              </div>
+            )}
+            {frameFailed && (
+              <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
+                <p className="text-sm text-[color:var(--text-muted)]">{t('frameFailed')}</p>
+              </div>
+            )}
+          </div>
         ) : (
           // Unreachable for controlled kinds (pickMode always falls back to a mode
           // that has a view); kept as the safe floor for anything new.

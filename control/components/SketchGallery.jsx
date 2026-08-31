@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
 import DisplayModes, { useDisplayModeState } from '@/components/DisplayModes';
 import MaterialShelf from '@/components/MaterialShelf';
+import LibraryRoom from '@/components/rooms/LibraryRooms';
 import TurntableThumb, { useTurntable } from '@/components/TurntableCard';
 import { LIBRARY_SHELVES, filterToShelf, shelfByKey, shelfFetchBucket } from '@/lib/graph/sketch/library-shelves';
 import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
@@ -15,7 +16,44 @@ import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 // `viewBox` and throws on a scene manifest). Shared by the split-view preview and
 // the full-view modal so the dispatch lives in exactly one place.
 function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
+  // Hooks run unconditionally, ahead of the early returns below. The live src
+  // (whichever kind supplies one) drives the spinner — an iframe otherwise shows
+  // nothing while its scene constructs, with no signal it is even trying.
+  const mode = sketch?.manifest ? sketchRenderMode(sketch.manifest) : null;
+  const liveKind = view?.kind === 'iframe' || ['world', 'scene', 'beats', 'game'].includes(mode);
+  const liveSrc = view?.kind === 'iframe'
+    ? view.src
+    : liveKind
+      ? `/api/sketches/${encodeURIComponent(sketch?.ref || '')}/${mode}`
+      : null;
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [frameFailed, setFrameFailed] = useState(false);
+  useEffect(() => {
+    setFrameLoaded(false);
+    setFrameFailed(false);
+  }, [liveSrc]);
+
   if (!sketch?.manifest) return <p className="text-sm text-red-400">{t('invalidManifest')}</p>;
+
+  const frameProps = {
+    onLoad: () => setFrameLoaded(true),
+    onError: () => setFrameFailed(true),
+  };
+  const frameOverlay = (
+    <>
+      {!frameLoaded && !frameFailed && (
+        <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
+          <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[color:var(--text-muted)] border-t-transparent motion-reduce:animate-none" />
+        </div>
+      )}
+      {frameFailed && (
+        <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+          <p className="text-sm text-[color:var(--text-muted)]">{t('frameFailed')}</p>
+        </div>
+      )}
+    </>
+  );
+
   // When the artifact carries a display-mode control, the chosen mode decides what
   // renders; the dispatch below is the fallback for the kinds that don't (beats,
   // game), which have exactly one way of being experienced.
@@ -26,12 +64,16 @@ function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
   }
   if (view?.kind === 'iframe') {
     return (
-      <iframe
-        key={view.src}
-        src={view.src}
-        title={sketch.title || sketch.ref}
-        className="w-full h-full border-0 block"
-      />
+      <div className="relative w-full h-full">
+        <iframe
+          key={view.src}
+          src={view.src}
+          title={sketch.title || sketch.ref}
+          {...frameProps}
+          className="absolute inset-0 w-full h-full border-0 block"
+        />
+        {frameOverlay}
+      </div>
     );
   }
   if (view?.kind === 'diagram') {
@@ -45,7 +87,6 @@ function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
     );
   }
   const ref = encodeURIComponent(sketch.ref);
-  const mode = sketchRenderMode(sketch.manifest);
   if (mode === 'svg') {
     return (
       <img
@@ -62,11 +103,15 @@ function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
     // the detail page uses. Only one is ever mounted at a time (the selected
     // sketch), so there's no per-card live-context cost here.
     return (
-      <iframe
-        src={`/api/sketches/${ref}/${mode}`}
-        title={sketch.title || sketch.ref}
-        className="w-full h-full border-0 block"
-      />
+      <div className="relative w-full h-full">
+        <iframe
+          src={liveSrc}
+          title={sketch.title || sketch.ref}
+          {...frameProps}
+          className="absolute inset-0 w-full h-full border-0 block"
+        />
+        {frameOverlay}
+      </div>
     );
   }
   return <CreationMap manifest={sketch.manifest} technical={false} fit={fit} />;
@@ -331,6 +376,11 @@ export default function SketchGallery({ bucket = null, heading, subtitle, shelve
     return () => { live = false; };
   }, [shelves]);
   const onRegistryShelf = shelves && shelfByKey(shelf).registry;
+  // The shelf's room — its contextual body (board / wall / cast / masonry /
+  // rows), dispatched the same way the registry shelf swaps in MaterialShelf.
+  // Full folder view still wins: the room is a reading, management is a
+  // capability, and the toggle moves between them.
+  const roomView = shelves && !fullView ? shelfByKey(shelf).view || null : null;
 
   // What appears in the left rail. When searching, results span all folders
   // (the user said: "Search sketch results is separate") so folder context
@@ -697,7 +747,7 @@ export default function SketchGallery({ bucket = null, heading, subtitle, shelve
                   : 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'
               }`}
             >
-              {t('viewToggle.split')}
+              {shelves && shelfByKey(shelf).view ? tLibrary('roomToggle') : t('viewToggle.split')}
             </button>
             <button
               type="button"
@@ -757,6 +807,10 @@ export default function SketchGallery({ bucket = null, heading, subtitle, shelve
       {onRegistryShelf ? (
         <div className="flex-1 overflow-y-auto px-8 pb-4">
           <MaterialShelf />
+        </div>
+      ) : roomView ? (
+        <div className="flex-1 overflow-y-auto px-8 pb-6">
+          <LibraryRoom view={roomView} sketches={shelvedSketches} loading={loading} />
         </div>
       ) : fullView ? (
         <FullFolderView

@@ -43,14 +43,21 @@ export const NON_LIBRARY_BUCKETS = ['beats', 'voice', 'game'];
  * is the common landing; it is the one capped view and says so. `materials` is
  * not backed by the sketch store at all — it lists the procedural material
  * registry — so it carries `registry: true` and the gallery swaps its body.
+ *
+ * `view` names the shelf's ROOM — the contextual body the gallery swaps in the
+ * way `registry` already swaps in the material shelf (a scene is scouted, a
+ * model is turned, a character is cast, an image is hung, a diagram is read).
+ * A shelf without one (`recent`) keeps the default gallery, and every room
+ * shelf still offers the full folder view for management (folders, bulk
+ * move/delete), so the room adds a reading without removing a capability.
  */
 export const LIBRARY_SHELVES = [
   { key: 'recent', capped: true },
-  { key: 'scenes', bucket: 'world' },
-  { key: 'models', bucket: 'object' },
-  { key: 'characters', bucket: 'illustration', kinds: CHARACTER_KINDS },
-  { key: 'images', bucket: 'illustration', excludeKinds: CHARACTER_KINDS },
-  { key: 'diagrams', bucket: 'diagram' },
+  { key: 'scenes', bucket: 'world', view: 'board' },
+  { key: 'models', bucket: 'object', view: 'wall' },
+  { key: 'characters', bucket: 'illustration', kinds: CHARACTER_KINDS, view: 'cast' },
+  { key: 'images', bucket: 'illustration', excludeKinds: CHARACTER_KINDS, view: 'masonry' },
+  { key: 'diagrams', bucket: 'diagram', view: 'rows' },
   { key: 'materials', registry: true },
 ];
 

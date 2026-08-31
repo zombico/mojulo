@@ -659,3 +659,90 @@ carries the traffic.
   creative-only install simply never grows them.
 - Install-group honesty: the status bar reports `installedGroups()` rather than the UI quietly
   having fewer tiles than a doc promised.
+
+## 10. The splayed floor — the library is the front door
+
+*(phase 7, 2026-08-30 — one level up from §3's viewport home, at the maintainer's direction:
+"the library needs to splay on the main UI … sort creative work to 3D and 2D.")*
+
+The viewport home put one artifact on the landing surface; the splayed floor puts the **library**
+there. `/` renders a bench band (the §3 viewport, kept, with its poster still painting first and
+the live iframe mounting only after browser idle) over two zones with real typographic weight:
+**3D** — scenes, models, characters, materials — then **2D** — images, diagrams. The zone split is
+DERIVED, not curated: it is `sketchRenderMode`'s walk-vs-orbit-vs-flat answer, summed from the
+same bucket tallies the shelf chips read. Sound / Build / Notes / Runtime demote to one presence-
+gated row. The outliner/inspector reading of a single artifact did not die: it is `/?ref=` now, the
+bench's deep view rather than the landing surface.
+
+Decisions worth recording:
+
+- **A strip is a storefront, not the store.** Each shelf shows its freshest few faces in its own
+  card register (turntable cards for models, cast cards with a figure/sheet/sprites kit line for
+  characters, reading-room rows for diagrams); the header opens the shelf's `/library` room, and
+  the status bar says the cap out loud. `lib/graph/sketch/library-zones.js` (pure, tested) is the
+  one place the floor's shape lives.
+- **Iteration chains fold.** Rows sharing a title stem collapse to one face with an `×N` chip;
+  characters fold by NAME (the segment before a spaced dash). Both are stated heuristics: a stem
+  that fails to match leaves a solo card, which is always correct, just less folded. The real
+  store proved the need — back-to-back 116-sibling QA chains were the whole illustration window.
+- **The wire stays light.** `/api/home/floor` is one request carrying ref / title / kind /
+  renderMode / badge facts — never a manifest (a city manifest is tens of KB and the floor draws
+  ~30 faces). `SketchRepository.newestByBucket()` feeds it in a single whole-table scan (the same
+  cost `bucketCounts()` already pays) instead of four bucket scans. `renderMode` rides along so
+  cards resolve stills via `resolveTurntableForMode` without manifests — `useTurntable` split into
+  a resolver + state machine for this, no behavior change on the gallery side.
+- **Lazy by default.** Below-fold strips are IntersectionObserver-gated skeletons (row-shaped for
+  diagrams, card-shaped elsewhere); every card image is `loading="lazy"`; the bench hero is the
+  ONLY live context and it waits for `requestIdleCallback` behind its poster, with a spinner that
+  clears on iframe load. Reduced motion: skeleton pulse and spinner are `motion-reduce`-frozen,
+  and the turntable cards already rest at their ¾ frame.
+- **Provenance on the wall.** Painted faces (bound external renders) badge in forge amber on the
+  strip itself, not just in a detail view — `docs/bicycles.md` posture.
+
+Not done here, deliberately: the `/library` rooms are still the round-1 gallery (the contextual
+room bodies — location board, turntable wall, cast board, print wall, reading room — are the next
+phase over the same `LIBRARY_SHELVES` dispatch the Materials shelf proved); scene cards keep the
+4:3 turntable cell rather than the wireframes' 16:9; and `/sync-locales` still owes the `floor`
+namespace to the non-English locales.
+
+## 11. The rooms — one contextual body per shelf
+
+*(phase 8, 2026-08-30 — the round-1 wireframes' shelf views, landed behind the floor's strips.)*
+
+Every `/library` shelf now opens as a room: scenes → the **location board**, models → the
+**turntable wall**, characters → the **cast board**, images → the **print wall**, diagrams → the
+**reading room**. The dispatch is a `view` field on `LIBRARY_SHELVES`, resolved in
+`SketchGallery` exactly where `registry: true` already swapped in the material shelf — §2's bet
+that the shelf model could carry per-shelf bodies paid off without touching fetch scopes, counts,
+folders, or the detail pages. `components/rooms/LibraryRooms.jsx` holds all five plus the shared
+chrome (facet chips from `ROOM_FACETS` in library-zones.js, room search, stack chips, badges).
+
+Decisions worth recording:
+
+- **The room is a reading; management is a capability.** The Split/Full toggle relabels to
+  Room / Full folder view on room shelves. Folders, bulk select, move and delete all stay in the
+  full view — the room never grew its own management affordances, so nothing was re-implemented
+  and nothing can disagree.
+- **Rooms read the fetch the gallery already made.** Full manifests were already on the wire for
+  every bucket-scoped list; the rooms spend them (outliner facts, CreationMap expands, seed
+  readouts) instead of re-fetching. The floor stays light; the room is where the manifest earns
+  its weight.
+- **Folding is universal.** `collapseStems` gained a `siblings` filmstrip (newest first, face
+  included) so the wall's drawer and the board's focus rail can walk a chain in place. The print
+  wall folds too — the same 135-sibling QA chains that swallowed the floor's window would have
+  hung two hundred identical prints.
+- **The one amber affordance.** The cast board's missing-kit chips are copy-prompts
+  ("Ask agent: mint sprites"), the §3 inspector pattern reused — state rendered, ask handed to
+  the host agent, dashboard never mutates.
+- **Live frames stay on demand.** The board's focus iframe is the only live context a room can
+  mount, and only after a scene is selected; everything else is stills, strips, and lazy images.
+- **Selection is a MODAL, not a panel.** The first cut put the wall's drawer and the board/cast
+  focus above or beside the grid — which teleported a selection made deep in a thousand-model
+  wall to the top of the page and made the operator scroll back up (maintainer caught it).
+  All three now open a shared `RoomModal` over the grid — esc, click-away, or ✕ dismisses —
+  the same dismissal grammar as the print wall's lightbox, so the four selection surfaces agree.
+
+Not done here: the board focus keeps the plain `/world` frame (no view-cube preset strip yet);
+the wall drawer shows recipe facts but not the full mono JSON (that stays on the detail page);
+`/sync-locales` still owes `floor` + `rooms` + `library.roomToggle` to the non-English locales
+(deliberately last, per the maintainer).

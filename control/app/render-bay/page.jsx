@@ -61,15 +61,17 @@ function isoStamp(value) {
 /** Agent-directed prompt text, handed over rather than executed. */
 function CopyPrompt({ value }) {
   const t = useTranslations('renderBay');
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState('idle'); // idle | copied | failed
   const onCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setState('copied');
     } catch {
-      /* clipboard unavailable — leave the button inert */
+      // Clipboard access can be blocked (insecure context, denied permission) —
+      // say so instead of leaving the button silently inert.
+      setState('failed');
     }
+    setTimeout(() => setState('idle'), 1500);
   }, [value]);
   if (!value) return null;
   return (
@@ -77,9 +79,13 @@ function CopyPrompt({ value }) {
       type="button"
       onClick={onCopy}
       title={value}
-      className="shrink-0 rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2 py-0.5 font-mono text-[10px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
+      className={`shrink-0 rounded-[var(--radius-control)] border px-2 py-0.5 font-mono text-[10px] transition-colors duration-100 ${
+        state === 'failed'
+          ? 'border-[color:var(--fault)] text-[color:var(--fault)]'
+          : 'border-[color:var(--forge-idle)] text-[color:var(--forge)] hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10'
+      }`}
     >
-      {copied ? t('copied') : t('copyPrompt')}
+      {state === 'copied' ? t('copied') : state === 'failed' ? t('copyFailed') : t('copyPrompt')}
     </button>
   );
 }
@@ -115,6 +121,29 @@ function Empty({ children }) {
   return <p className="px-4 py-6 text-[13px] text-[color:var(--ink-muted)]">{children}</p>;
 }
 
+/** Placeholder rows while the one big /api/render-bay fetch is in flight, so the
+ * three lanes don't sit blank under just a header for however long that takes. */
+function SkeletonBay({ title, rows = 3 }) {
+  return (
+    <section className="rounded-[var(--radius-bay)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)]">
+      <header className="border-b border-[color:var(--bay-rail)] px-4 py-3">
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.24em] text-[color:var(--ink-secondary)]">
+          {title}
+        </h2>
+      </header>
+      <div className="flex flex-col gap-2 p-4" aria-hidden>
+        {Array.from({ length: rows }, (_, i) => (
+          <div
+            key={i}
+            className="h-6 animate-pulse rounded-[3px] bg-[color:var(--bay-bench)] motion-reduce:animate-none"
+            style={{ width: `${70 - i * 12}%` }}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ── Lane 1: the render queue ─────────────────────────────────────────────── */
 
 function QueueRow({ request, now }) {
@@ -126,7 +155,8 @@ function QueueRow({ request, now }) {
       <Dot signal={meta.signal} />
       <Link
         href={`/sketches/${encodeURIComponent(request.ref)}`}
-        className="font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
+        title={request.ref}
+        className="max-w-[22ch] truncate font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
       >
         {request.ref}
       </Link>
@@ -169,7 +199,8 @@ function QueueGroupRow({ group, now }) {
       <Dot signal={meta.signal} />
       <Link
         href={`/sketches/${encodeURIComponent(group.ref)}`}
-        className="font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
+        title={group.ref}
+        className="max-w-[22ch] truncate font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
       >
         {group.ref}
       </Link>
@@ -269,11 +300,12 @@ function BakeRow({ bake }) {
         <Dot signal="live" />
         <Link
           href={gates.eyes.href || '#'}
-          className="font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
+          title={bake.ref}
+          className="max-w-[22ch] shrink-0 truncate font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
         >
           {bake.ref}
         </Link>
-        <span className="truncate text-[12px] text-[color:var(--ink-secondary)]">{bake.title}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-[color:var(--ink-secondary)]">{bake.title}</span>
         <span className="font-mono text-[11px] text-[color:var(--ink-muted)]">{bake.adapter}</span>
         <span className="font-mono text-[11px] text-[color:var(--think)]">{bake.preset}</span>
         <span className="ml-auto flex items-center gap-3">
@@ -343,12 +375,15 @@ function ExportRow({ row, href }) {
       {href ? (
         <a
           href={href}
-          className="font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
+          title={row.ref}
+          className="max-w-[22ch] truncate font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
         >
           {row.ref}
         </a>
       ) : (
-        <span className="font-mono text-[12px] text-[color:var(--ink-primary)]">{row.ref}</span>
+        <span title={row.ref} className="max-w-[22ch] truncate font-mono text-[12px] text-[color:var(--ink-primary)]">
+          {row.ref}
+        </span>
       )}
       <KindChips files={row.files} />
       <span className="ml-auto flex items-center gap-3 font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">
@@ -396,7 +431,8 @@ function OutputsLane({ outputs }) {
               <Dot signal="live" />
               <a
                 href={cook.url}
-                className="font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
+                title={cook.ref}
+                className="max-w-[22ch] shrink-0 truncate font-mono text-[12px] text-[color:var(--ink-primary)] hover:text-[color:var(--live)]"
               >
                 {cook.ref}
               </a>
@@ -502,9 +538,19 @@ function RenderBayBody() {
       )}
 
       <div className="flex flex-col gap-6">
-        <QueueLane queue={data?.queue} now={data?.now || 0} />
-        <BakesLane bakes={data?.bakes} />
-        <OutputsLane outputs={data?.outputs} />
+        {loading && !data ? (
+          <>
+            <SkeletonBay title={t('queue.title')} rows={4} />
+            <SkeletonBay title={t('bakes.title')} rows={2} />
+            <SkeletonBay title={t('outputs.title')} rows={3} />
+          </>
+        ) : (
+          <>
+            <QueueLane queue={data?.queue} now={data?.now || 0} />
+            <BakesLane bakes={data?.bakes} />
+            <OutputsLane outputs={data?.outputs} />
+          </>
+        )}
       </div>
     </main>
   );

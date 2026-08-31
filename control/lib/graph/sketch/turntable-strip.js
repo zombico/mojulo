@@ -26,8 +26,13 @@ import { sketchRenderMode } from './sketch-manifest';
 export const TURNTABLE_FRAMES = 16;
 /** Per-frame cell. 4:3, small — a 16-cell strip is ~4096px wide and a few hundred KB. */
 export const TURNTABLE_CELL = { width: 256, height: 192 };
-/** Playback rate. 16 frames at 24fps = a 667ms turn. */
-export const TURNTABLE_FPS = 24;
+/**
+ * Playback rate. 16 frames at 6fps = a ~2.7s turn. Originally 24fps (a 667ms
+ * whip), which read as a glitch rather than a turntable — a model on a real
+ * turntable revolves slowly enough to be inspected, and every card shares this
+ * one constant, so the whole surface turns at the same stately rate.
+ */
+export const TURNTABLE_FPS = 6;
 /**
  * The frame shown at rest — and under `prefers-reduced-motion`, where the card
  * never turns at all. Frame 0 of `orbitPath` IS the world's base shot, which
@@ -64,7 +69,17 @@ const VECTOR_STILL_MODES = new Set(['svg', 'diagram']);
  */
 export function resolveTurntable({ manifest, ref, frames = TURNTABLE_FRAMES } = {}) {
   if (!manifest || typeof manifest !== 'object' || !ref) return null;
-  const renderMode = sketchRenderMode(manifest);
+  return resolveTurntableForMode({ renderMode: sketchRenderMode(manifest), ref, frames });
+}
+
+/**
+ * Same resolution from an already-computed render mode — for surfaces fed light
+ * rows (the splayed floor), where the server derived `renderMode` and shipping
+ * every manifest just to re-derive it would defeat the light payload. The two
+ * entry points share one body so a card and the route can never disagree.
+ */
+export function resolveTurntableForMode({ renderMode, ref, frames = TURNTABLE_FRAMES } = {}) {
+  if (!renderMode || !ref) return null;
   const r = encodeURIComponent(ref);
   const turns = TURNABLE_RENDER_MODES.has(renderMode);
 

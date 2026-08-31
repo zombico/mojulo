@@ -82,6 +82,44 @@ build log: `components/3d-factory-ui.plan.md`.
   hiding it. Two readouts the plan asked for were dropped as false: the STL
   writer reads units as millimetres, not metres, and a triangle count costs a
   full world resolve.
+- **The splayed floor (phase 7).** `/` now splays the library across the
+  landing surface, sorted **3D** (scenes · models · characters · materials)
+  over **2D** (images · diagrams) — the walk-vs-orbit-vs-flat split the
+  substrate already draws, lifted to the surface. Each shelf is a strip
+  wearing its own card (turntable cards, cast cards with a figure/sheet/sprites
+  kit line, reading-room rows); strip headers open the `/library` shelf; the
+  viewport-home reading of one artifact remains at `/?ref=`. Iteration chains
+  fold by title stem into stacked faces (`×N`), characters fold by name
+  (`library-zones.js`, pure + tested). Fed by one light request —
+  `/api/home/floor` ships ref/title/kind/renderMode/badges and never a
+  manifest, over a single-scan `SketchRepository.newestByBucket()`. Loading
+  posture: poster still first and the one live iframe mounts after idle,
+  below-fold strips render skeletons until approached, every card image
+  lazy-loads, painted provenance badges ride the wall itself.
+- **The library rooms (phase 8).** Each `/library` shelf now opens as its own
+  contextual body, dispatched by a `view` field on `LIBRARY_SHELVES` exactly
+  the way `registry` already swapped in the material shelf: scenes are a
+  **location board** (kind facets, wide cards, a live focus modal
+  with an outliner facts rail and an iterations filmstrip), models a
+  **turntable wall** (dense §6 cards, version stacks, an inspector modal with
+  `.STL`/`.GLB` exports off the existing model routes), characters a **cast
+  board** (one card per character with a figure/sheet/sprites kit line; a
+  missing piece is an amber copy-prompt, not an empty slot), images a
+  **print wall** (natural-aspect masonry, always-on painted badges, a keyboard
+  lightbox), diagrams a **reading room** (document rows with inline accordion
+  expand and one-click SVG/PNG). All five fold iteration chains
+  (`collapseStems` now carries the sibling filmstrip) and read the same
+  bucket fetch the gallery already made — nothing new on the wire. The
+  toggle relabels to **Room / Full folder view**, so management (folders,
+  bulk move/delete) stays one click away and the Recent shelf keeps the
+  classic gallery.
+- **Fixed: artifact pages opened in their own tab were stuck on a spinner.**
+  On a full page load the SSR'd viewer iframe could finish loading before
+  React hydrated and attached `onLoad`, so the loading overlay never cleared
+  (and, being click-opaque, blocked orbiting). The detail page now peeks at
+  the same-origin frame once after mount and clears the overlay if the
+  document already completed; the overlay is also `pointer-events-none`, so
+  even a genuinely slow frame never traps the pointer.
 
 ### Edit-in-place for 3D recipes — closing the mint-once gaps
 

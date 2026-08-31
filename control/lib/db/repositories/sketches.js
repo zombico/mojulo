@@ -224,6 +224,40 @@ export const SketchRepository = {
   },
 
   /**
+   * The newest `perBucket` sketches of EACH effective bucket, plus the same
+   * whole-table tallies `bucketCounts()` computes — in one scan.
+   *
+   * The splayed-floor home draws a strip per shelf. Feeding it with one
+   * `list({ bucket })` call per shelf would re-scan and re-parse the whole table
+   * four times (bucket is JS-derived from manifest_json, so every bucket read is
+   * a full scan); this walks the table once, newest first, keeps the head of
+   * each bucket, and tallies as it goes. Rows come back as full sketch objects —
+   * the ROUTE decides what survives to the wire, because "light" is a payload
+   * concern, not a storage one.
+   */
+  newestByBucket({ perBucket = 48 } = {}) {
+    const db = getDb();
+    const scope = spaceFilter();
+    const where = scope.sql ? `WHERE 1=1${scope.sql}` : '';
+    const rows = db
+      .prepare(`SELECT * FROM sketches ${where} ORDER BY created_at DESC, rowid DESC`)
+      .all(...scope.params);
+    const byBucket = {};
+    const buckets = {};
+    const kinds = {};
+    for (const row of rows) {
+      const sketch = rowToSketch(row);
+      if (!sketch) continue;
+      buckets[sketch.bucket] = (buckets[sketch.bucket] || 0) + 1;
+      const kind = sketch.manifest?.kind;
+      if (kind) kinds[kind] = (kinds[kind] || 0) + 1;
+      const head = byBucket[sketch.bucket] || (byBucket[sketch.bucket] = []);
+      if (head.length < perBucket) head.push(sketch);
+    }
+    return { byBucket, tallies: { total: rows.length, buckets, kinds } };
+  },
+
+  /**
    * Every sketch carrying a GI bake, newest bake first.
    *
    * `bake-world-gi.mjs` records its result in the manifest itself — an

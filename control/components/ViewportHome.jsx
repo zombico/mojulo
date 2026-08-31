@@ -20,7 +20,7 @@
  */
 
 import Link from 'next/link';
-import { Suspense, useCallback, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
@@ -56,15 +56,17 @@ function SubEyebrow({ children }) {
 /** Agent-directed prompt text, handed over rather than executed. */
 function CopyPrompt({ value }) {
   const t = useTranslations('home3d');
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState('idle'); // idle | copied | failed
   const onCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setState('copied');
     } catch {
-      /* clipboard unavailable — leave the button inert */
+      // Clipboard access can be blocked (insecure context, denied permission) —
+      // say so instead of leaving the button silently inert.
+      setState('failed');
     }
+    setTimeout(() => setState('idle'), 1500);
   }, [value]);
   if (!value) return null;
   return (
@@ -72,9 +74,13 @@ function CopyPrompt({ value }) {
       type="button"
       onClick={onCopy}
       title={value}
-      className="w-full rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2 py-1.5 text-left font-mono text-[10px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
+      className={`w-full rounded-[var(--radius-control)] border px-2 py-1.5 text-left font-mono text-[10px] transition-colors duration-100 ${
+        state === 'failed'
+          ? 'border-[color:var(--fault)] text-[color:var(--fault)]'
+          : 'border-[color:var(--forge-idle)] text-[color:var(--forge)] hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10'
+      }`}
     >
-      {copied ? t('copied') : t('inspector.askCopy')}
+      {state === 'copied' ? t('copied') : state === 'failed' ? t('copyFailed') : t('inspector.askCopy')}
     </button>
   );
 }
@@ -198,10 +204,18 @@ function Viewport({ head, view }) {
     || (isViewportKind(head.renderMode)
       ? `/api/sketches/${encodeURIComponent(head.ref)}/${head.renderMode}`
       : null);
+  // Reset whenever the frame's own src changes, so switching artifact or display
+  // mode shows the spinner again instead of the previous frame's "loaded" state.
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [frameFailed, setFrameFailed] = useState(false);
+  useEffect(() => {
+    setFrameLoaded(false);
+    setFrameFailed(false);
+  }, [src]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden rounded-[var(--radius-bay)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)]">
-      <div className="min-h-0 flex-1 bg-[color:var(--bay-void)]">
+      <div className="relative min-h-0 flex-1 bg-[color:var(--bay-void)]">
         {view?.kind === 'img' ? (
           <img
             key={view.src}
@@ -216,9 +230,28 @@ function Viewport({ head, view }) {
             <CreationMap manifest={head.manifest} technical={false} mode={view.wireframe ? 'wireframe' : 'color'} fit />
           </div>
         ) : src ? (
-          // Keyed on src so switching display mode remounts the frame rather than
-          // leaving the previous world's WebGL context running behind it.
-          <iframe key={src} src={src} title={head.title || head.ref} className="h-full w-full border-0" />
+          <>
+            {/* Keyed on src so switching display mode remounts the frame rather
+                than leaving the previous world's WebGL context running behind it. */}
+            <iframe
+              key={src}
+              src={src}
+              title={head.title || head.ref}
+              onLoad={() => setFrameLoaded(true)}
+              onError={() => setFrameFailed(true)}
+              className="h-full w-full border-0"
+            />
+            {!frameLoaded && !frameFailed && (
+              <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
+                <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[color:var(--ink-muted)] border-t-transparent motion-reduce:animate-none" />
+              </div>
+            )}
+            {frameFailed && (
+              <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
+                <p className="text-[13px] text-[color:var(--ink-muted)]">{t('viewport.frameFailed')}</p>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex h-full items-center justify-center px-8 text-center">
             <p className="text-[13px] text-[color:var(--ink-muted)]">{t('viewport.noReading')}</p>
@@ -335,7 +368,7 @@ function Inspector({ head, outcome }) {
 
 /* ── bottom: the status bar ───────────────────────────────────────────────── */
 
-function StatusBar({ status, queue, library }) {
+export function StatusBar({ status, queue, library, note = null }) {
   const t = useTranslations('home3d');
   const waiting = (queue?.stages?.queued || 0) + (queue?.stages?.inFlight || 0);
   const gate = queue?.stages?.gate || 0;
@@ -358,6 +391,7 @@ function StatusBar({ status, queue, library }) {
       <Link href="/library" className="hover:text-[color:var(--ink-secondary)]">
         {t('status.library', { n: library?.total ?? 0 })}
       </Link>
+      {note && <span>{note}</span>}
       {status?.toolCalls != null && <span className="ml-auto">{t('status.toolCalls', { n: status.toolCalls })}</span>}
     </footer>
   );
