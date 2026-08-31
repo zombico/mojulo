@@ -2315,7 +2315,13 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
   const camHint = cameras[0]?.worldFraming?.cameraPosition || [-7, 31, 9];
   let faces = [];
   const sceneTextures = {};   // baked wall textures (curtainwall reveal) → returned for emitThreeWorld
-  for (const g of grounds) faces.push(groundFace({ x: g.x, y: g.y, w: g.w, d: g.d }, g.z ?? 0.02, g.fill || '#cdd3bb', L));
+  for (const g of grounds) {
+    const gf = groundFace({ x: g.x, y: g.y, w: g.w, d: g.d }, g.z ?? 0.02, g.fill || '#cdd3bb', L);
+    // studio furniture (the workbench's measured floor plate) keeps its tag so
+    // the STL print handoff can drop it; render paths ignore the flag.
+    if (g.studio) gf.studio = true;
+    faces.push(gf);
+  }
   for (const rb of ribbons) {
     // a ribbon may opt into a tiled surface (asphalt) — register its data URL once so
     // emitThreeWorld receives it (same path as the curtainwall reveal wallpaper).

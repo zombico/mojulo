@@ -10,8 +10,10 @@
  * lost — the printer's loaded filament is the colour.
  *
  * Print-oriented trades vs the .glb (each drops non-solid embellishment):
- *  - water, shadow/ink decals, and surface cards are OMITTED — zero-thickness
- *    translucent sheets and floating facade flakes are poison for slicers.
+ *  - water, shadow/ink decals, surface cards, and studio furniture (`studio:
+ *    true` faces — the workbench measuring grid) are OMITTED — zero-thickness
+ *    translucent sheets, floating facade flakes, and scale-cue props are
+ *    poison for slicers.
  *  - instanced repeats are EXPANDED: every transform bakes into real triangles
  *    (STL has no instancing), so a 500-tree block is 500 trees of geometry.
  *  - no z-fight de-collision — coincident faces don't flicker in a slicer, and
@@ -32,12 +34,19 @@ import { faceListToMesh } from '../figures/face-mesh.js';
 const HEADER_BYTES = 80;
 const TRI_BYTES = 50;
 
+// A face that belongs in the print: not a water sheet, not a ground decal, and
+// not studio furniture (the workbench's measuring grid + floor plate carry
+// `studio: true` — they are the scale cue for /world and the GLB, never part of
+// the object). Exported so export_model's closure audit sees the same set.
+export function isPrintableFace(f) {
+  return !!f && !f.water && f.decal !== 'shadow' && f.decal !== 'ink' && !f.studio;
+}
+
 // Collect every printable triangle from a face list into a flat position soup.
 // Textured faces contribute their geometry too (a label-wrapped table top is a
-// real surface); water and ground decals do not.
+// real surface); water, ground decals, and studio furniture do not.
 function solidPositions(faces) {
-  const printable = (Array.isArray(faces) ? faces : [])
-    .filter((f) => f && !f.water && f.decal !== 'shadow' && f.decal !== 'ink');
+  const printable = (Array.isArray(faces) ? faces : []).filter(isPrintableFace);
   const gm = faceListToMesh(printable, { decollide: false });
   const parts = [gm.positions];
   for (const grp of Object.values(gm.textureGroups || {})) parts.push(grp.positions);
@@ -68,12 +77,15 @@ function applyTransform(t, x, y, z) {
 }
 
 /**
- * facesToStl(payload, { scale, generator }) → { bytes, byteLength, triangleCount, vertexCount }
- * or null when the payload carries no printable geometry.
+ * facesToStl(payload, { scale, generator }) → { bytes, byteLength, triangleCount,
+ * vertexCount, bounds: { min, max, size } } or null when the payload carries no
+ * printable geometry.
  *
  * `payload` is the same object `emitThreeWorld` consumes: `{ faces, repeats? }`.
  * `scale` multiplies every coordinate — slicers read STL units as millimetres,
- * so it is the world-units → mm dial (default 1).
+ * so it is the world-units → mm dial (default 1). `bounds` is post-scale (the
+ * printed extent), computed in the same pass — export_model's fit-to-size
+ * measuring probe and size readout both ride it.
  */
 export function facesToStl(payload = {}, { scale = 1, generator = 'mojulo scene-stl' } = {}) {
   const { faces = [], repeats = [] } = payload || {};
@@ -96,8 +108,16 @@ export function facesToStl(payload = {}, { scale = 1, generator = 'mojulo scene-
   }
 
   // Filter to non-degenerate triangles, computing each face normal (right-hand
-  // rule over the vertex winding — matches the faces' outward CCW convention).
+  // rule over the vertex winding — matches the faces' outward CCW convention),
+  // and track the printed bounding box in the same pass.
   const tris = [];
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  const grow = (x, y, z) => {
+    if (x < min[0]) min[0] = x; if (x > max[0]) max[0] = x;
+    if (y < min[1]) min[1] = y; if (y > max[1]) max[1] = y;
+    if (z < min[2]) min[2] = z; if (z > max[2]) max[2] = z;
+  };
   for (const soup of soups) {
     for (let i = 0; i + 9 <= soup.length; i += 9) {
       const ax = soup[i] * scale, ay = soup[i + 1] * scale, az = soup[i + 2] * scale;
@@ -109,11 +129,13 @@ export function facesToStl(payload = {}, { scale = 1, generator = 'mojulo scene-
       const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
       if (!(len > 0)) continue; // zero-area sliver — nothing to print
       nx /= len; ny /= len; nz /= len;
+      grow(ax, ay, az); grow(bx, by, bz); grow(cx, cy, cz);
       tris.push(nx, ny, nz, ax, ay, az, bx, by, bz, cx, cy, cz);
     }
   }
   const triangleCount = tris.length / 12;
   if (!triangleCount) return null;
+  const bounds = { min, max, size: [max[0] - min[0], max[1] - min[1], max[2] - min[2]] };
 
   const bytes = Buffer.alloc(HEADER_BYTES + 4 + triangleCount * TRI_BYTES);
   bytes.write(String(generator).slice(0, HEADER_BYTES), 0, 'utf8');
@@ -124,5 +146,5 @@ export function facesToStl(payload = {}, { scale = 1, generator = 'mojulo scene-
     o = bytes.writeUInt16LE(0, o); // attribute byte count
   }
 
-  return { bytes, byteLength: bytes.length, triangleCount, vertexCount: triangleCount * 3 };
+  return { bytes, byteLength: bytes.length, triangleCount, vertexCount: triangleCount * 3, bounds };
 }

@@ -96,6 +96,19 @@ describe('facesToStl', () => {
     expect(facesToStl({ faces: [quad('#222', { decal: 'shadow' })] })).toBeNull();
   });
 
+  it('reports post-scale printed bounds', () => {
+    const out = facesToStl({ faces: [quad()] }, { scale: 10 });
+    expect(out.bounds.min).toEqual([0, 0, 0]);
+    expect(out.bounds.max).toEqual([10, 10, 0]);
+    expect(out.bounds.size).toEqual([10, 10, 0]);
+  });
+
+  it('omits studio furniture (the workbench measuring grid) from the print', () => {
+    const out = facesToStl({ faces: [quad(), quad('#33414c', { studio: true })] });
+    expect(parseStl(out.bytes).count).toBe(2); // only the object quad
+    expect(facesToStl({ faces: [quad('#20262e', { studio: true })] })).toBeNull();
+  });
+
   it('includes textured faces as bare geometry', () => {
     const f = quad('#808080', { texture: 'label', uv: [[0, 0], [1, 0], [1, 1], [0, 1]] });
     expect(parseStl(facesToStl({ faces: [f] }).bytes).count).toBe(2);

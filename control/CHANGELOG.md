@@ -121,6 +121,31 @@ build log: `components/3d-factory-ui.plan.md`.
   document already completed; the overlay is also `pointer-events-none`, so
   even a genuinely slow frame never traps the pointer.
 
+### CAD-grade STL export — the print handoff learns what it is printing
+
+The physical-object edge hardened (design + phase log:
+`lib/mcp/tools/cad-aid.plan.md`; phases 0–1 of five).
+
+- **Print profiles.** Every STL now knows what it IS. `literal` kinds
+  (workbench, assembler, carved-solid, turntable solids, vehicle instances)
+  print at true scale derived structurally from declared `units`
+  (mm/cm/m/in/ft) — never agent arithmetic; worlds and buildings print as
+  `maquette` miniatures fit to `target_mm` (default 120mm — a stray
+  `units:'ft'` on an edifice can no longer print a building at building
+  scale); figure/manji-tree are `study` surface shells, the science views
+  `ornament`. Precedence: explicit `scale` > `target_mm` fit > profile
+  default; results carry `print_profile` + `size_mm`.
+- **The studio stays home.** The workbench's measured floor plate and grid
+  are tagged studio furniture: the GLB keeps them as the scale cue for DCC
+  round-trips, the STL drops them — zero-thickness grid quads riding into a
+  slicer are mesh-repair poison.
+- **The machine gate travels with the artifact.** Every STL export runs an
+  advisory whole-object closure audit over the final printable soup
+  (post-repeat-expansion, post-floor-filter): hole count and widest gap in
+  declared units, stamped into the result, the in-band note, and a generated
+  README's Print notes. Advisory, never refusing — suitability belongs to
+  the operator.
+
 ### Edit-in-place for 3D recipes — closing the mint-once gaps
 
 Recipes are STARTERS — the agent iterates them in place on the same ref. That

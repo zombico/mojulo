@@ -261,7 +261,9 @@ read via `{ field: '<id>' }` references on their parameters.
 
 ### Field kinds
 
-Eight kinds in the closed enumerable set, seven scalar and one vector:
+Nine kinds in the closed enumerable set, eight scalar and one vector
+(the authoritative list is `FIELD_KINDS` in
+[fields.js](../control/lib/graph/polygonizer/fields.js)):
 
 | Kind | Returns | Use |
 |------|---------|-----|
@@ -273,6 +275,7 @@ Eight kinds in the closed enumerable set, seven scalar and one vector:
 | `sum` | scalar | weighted sum of other fields (composition) |
 | `curve-projection` | **vector** | closest point on a polyline (snap-to-curve) |
 | `curve-distance` | scalar | world-unit distance from query to a polyline (fade with proximity) |
+| `terrain-region` | scalar | compactly-supported landform bump/dip: a smootherstep window (1 at center, 0 at `radius`) scaling a peak + its own waves/noise, so ripples die at the border with no crease |
 
 Validators are uniform: numeric finite checks, enumerable
 `beyond: 'clamp' | 'extrapolate'` where it applies, endpoint-path

@@ -3,7 +3,7 @@
   "id": "design-object-workbench",
   "name": "Design a measured object with the workbench",
   "summary": "Compose a single everyday object (candlestick, bottle, mug, dumbbell, box, phone case, labeled can) by bonding primitive solids — lathe (revolution), extrude (prism/shell), sweep (bent tube) — on a measured grid at literal real-world scale, then mint it with create_workbench.",
-  "valueHook": "Turn 'a coffee mug' or 'a soda can with this label' into a real, orbitable 3D object study at literal scale — and a watertight, 3D-printable mesh.",
+  "valueHook": "Turn 'a coffee mug' or 'a soda can with this label' into a real, orbitable 3D object study at literal scale — and a print-ready STL the slicer's mesh repair finishes.",
   "version": 1,
   "category": "object-design",
   "requires": { "protocols": [] },

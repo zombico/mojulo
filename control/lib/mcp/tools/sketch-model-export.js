@@ -14,9 +14,10 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { facesToStl } from '@/lib/graph/scene/scene-stl';
+import { facesToStl, isPrintableFace } from '@/lib/graph/scene/scene-stl';
 import { glbToFaces } from '@/lib/graph/scene/scene-gltf-read';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
+import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
@@ -39,10 +40,79 @@ import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
  * it; bound artifacts in the same folder (mesh-<n>.glb etc.) stay append-only.
  */
 
+// Declared-unit label → millimetre factor, for deriving the STL `scale` when
+// the caller omits it. Only labels a manifest actually declares participate
+// (workbench `units`); an unknown/absent label falls back to scale 1 with an
+// in-band nudge — "true scale" should be structural, never agent arithmetic.
+const UNIT_TO_MM = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 };
+export function deriveStlScale(units) {
+  if (typeof units !== 'string') return null;
+  const mm = UNIT_TO_MM[units.trim().toLowerCase()];
+  return Number.isFinite(mm) ? mm : null;
+}
+
+// Print profiles — what an STL of each kind honestly IS, driving the scale
+// strategy and the in-band note. Advisory discrimination, never a gate: any
+// kind with geometry still exports (suitability belongs to the operator).
+//   literal  — a true-scale part: `units` derivation applies.
+//   maquette — a miniature of a world-scale artifact: fit-to-size, never units.
+//   study    — open surface shells by construction (figurine via a DCC
+//              solidify pass): fit-to-size, closure audit skipped.
+//   ornament — an abstract depiction as a desk object (the science/math
+//              views, the fallback for unknown kinds): fit-to-size; scale is
+//              MEANINGLESS, not merely unknown. Behaves like maquette except
+//              in the note, so a misclassified future kind is cosmetic only.
+const PRINT_PROFILES = {
+  literal: new Set(['workbench', 'assembler', 'carved-solid', 'css3d-turntable', 'vehicle-instance']),
+  study: new Set(['figure', 'manji-tree']),
+  maquette: new Set([
+    'fractal-city', 'condo-complex', 'school-complex', 'edifice', 'dungeon',
+    'transportation-hub', 'subway-station', 'subway-building', 'floorplan',
+    'restaurant', 'painted-landscape', 'planetary', 'controllable',
+    'koenigsberg', 'math-structure',
+  ]),
+};
+export function printProfileFor(kind) {
+  for (const [profile, kinds] of Object.entries(PRINT_PROFILES)) {
+    if (kinds.has(kind)) return profile;
+  }
+  return 'ornament';
+}
+
+// Fit-to-size default: when a non-literal export names no `scale` and no
+// `target_mm`, the longest printed dimension lands here — a palm-size print.
+const DEFAULT_TARGET_MM = 120;
+
+// The export-time machine gate (advisory, never refusing): whole-object
+// watertightness over the SAME printable set the STL ships — base faces plus
+// each repeat template (holes in a template repeat once per instance). The
+// mint-time lint (workbench.js) checks monomers one at a time and its verdict
+// evaporates; this one travels with the artifact, in the result and README.
+function auditStlClosure(payload) {
+  const base = (Array.isArray(payload.faces) ? payload.faces : []).filter(isPrintableFace);
+  let holes = [];
+  let boundaryEdges = 0;
+  if (base.length) {
+    const a = auditClosure(base);
+    holes = a.holes.map((h) => ({ diameter: h.diameter, center: h.center }));
+    boundaryEdges = a.boundaryEdgeCount;
+  }
+  for (const r of Array.isArray(payload.repeats) ? payload.repeats : []) {
+    const tpl = (Array.isArray(r.template) ? r.template : []).filter(isPrintableFace);
+    if (!tpl.length) continue;
+    const a = auditClosure(tpl);
+    const instances = Array.isArray(r.transforms) ? r.transforms.length : 0;
+    for (let i = 0; i < instances; i += 1) holes.push(...a.holes.map((h) => ({ diameter: h.diameter, center: h.center })));
+    boundaryEdges += a.boundaryEdgeCount * instances;
+  }
+  holes.sort((a, b) => b.diameter - a.diameter);
+  return { audited: true, closed: holes.length === 0, holes: holes.length, widest: holes[0] ? Math.round(holes[0].diameter * 10) / 10 : null, boundary_edges: boundaryEdges };
+}
+
 // The export folder's README — refs + manifest hash + how to re-mint + how to
 // import (axis convention, clip timing, extras namespace). Deliberately short:
 // the recipe is the artifact of record, the README is the courier's note.
-function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips }) {
+function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, print }) {
   const title = sketch.title || sketch.manifest?.title || ref;
   return [
     `# ${title}`,
@@ -57,6 +127,26 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips }) 
     `- manifest sha256/16: \`${hash}\``,
     `- format: ${format}${format === 'glb' && clips ? ` (animated — clips: ${clips === '_all' ? 'all' : clips.join(', ')})` : ''}`,
     `- exported: ${new Date().toISOString()}`,
+    ...(print
+      ? [
+        '',
+        '## Print notes',
+        '',
+        `- profile: ${print.profile} — ${{
+          literal: 'a true-scale part',
+          maquette: 'a miniature of a world-scale artifact, not true scale',
+          study: 'a surface study printed as a figurine (solidify in a DCC first)',
+          ornament: 'a desk object of an abstract depiction; scale has no physical meaning',
+        }[print.profile]}`,
+        `- scale: ×${print.scale} (${print.scaleNote}) — prints ${print.sizeMm.join(' × ')} mm`,
+        `- closure: ${print.closure.audited
+          ? (print.closure.closed
+            ? 'closed — no significant open rims in the printable set'
+            : `${print.closure.holes} open rim${print.closure.holes === 1 ? '' : 's'}, widest ≈${print.closure.widest}${print.units ? ` ${print.units}` : ' world units'} — the slicer's mesh repair must union these`)
+          : `not audited (${print.closure.reason})`}`,
+        '- the audit is advisory: intersecting shells still ship and slicers union them on import.',
+      ]
+      : []),
     '',
     '## How to re-mint',
     '',
@@ -77,7 +167,7 @@ export async function exportModelHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale = 1, clips = null } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
@@ -87,8 +177,11 @@ export async function exportModelHandler(input) {
   if (format !== 'glb' && format !== 'stl') {
     throw new Error("`format` must be 'glb' or 'stl' if provided");
   }
-  if (!Number.isFinite(scale) || scale <= 0) {
+  if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) {
     throw new Error('`scale` must be a positive number if provided');
+  }
+  if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) {
+    throw new Error('`target_mm` must be a positive number if provided');
   }
   // animated GLB (interchange.plan.md I1): opt-in clip selection. Absent ⇒ byte-identical
   // static export (the char-safety line). glb-only — STL is a shape handoff.
@@ -104,6 +197,45 @@ export async function exportModelHandler(input) {
   }
 
   const { payload, kind } = await resolveWorldScene(sketch);
+
+  // Scale strategy by print profile. Precedence: explicit `scale` > `target_mm`
+  // fit > the profile default (literal: `units` derivation — true scale is
+  // structural, not agent arithmetic; everything else: fit to DEFAULT_TARGET_MM,
+  // because a city or a galaxy has no true millimetre and deriving from a stray
+  // `units` label would print a building at building scale).
+  const profile = printProfileFor(kind ?? sketch.manifest.kind);
+  const units = typeof sketch.manifest.units === 'string' ? sketch.manifest.units : null;
+  let scale = 1;
+  let scaleNote = 'default 1 — coordinates read as millimetres';
+  if (format === 'stl' && payload) {
+    const fitTo = (target, why) => {
+      const probe = facesToStl(payload, { scale: 1 });
+      const longest = probe ? Math.max(...probe.bounds.size) : 0;
+      if (longest > 0) {
+        scale = target / longest;
+        scaleNote = `${why}: longest dimension ${Math.round(longest * 10) / 10} world units fit to ${target}mm (×${Math.round(scale * 1000) / 1000})`;
+      }
+    };
+    if (scaleInput != null) {
+      scale = scaleInput;
+      scaleNote = `explicit \`scale\` ${scaleInput}`;
+    } else if (targetMm != null) {
+      fitTo(targetMm, 'fit to `target_mm`');
+    } else if (profile === 'literal') {
+      const derived = deriveStlScale(units);
+      if (derived != null) {
+        scale = derived;
+        scaleNote = `derived from the manifest's units:'${units}' (1 ${units} = ${derived}mm)`;
+      } else if (units) {
+        scaleNote = `units:'${units}' has no known mm mapping — pass \`scale\` for a true-scale print`;
+      } else {
+        scaleNote = 'no units declared on the manifest — declare `units` or pass `scale` for a true-scale print';
+      }
+    } else {
+      fitTo(DEFAULT_TARGET_MM, `${profile} default (pass \`target_mm\` or \`scale\` to choose)`);
+    }
+  }
+
   const exported = payload
     ? (format === 'stl'
       ? facesToStl(payload, { scale, generator: `mojulo ${ref}` })
@@ -147,11 +279,29 @@ export async function exportModelHandler(input) {
       result.animated_figures = exported.animatedFigures ?? [];
     }
   } else {
-    // the print handoff is shape-only and unverified-manifold; say so in-band
+    // The print handoff: profile + scale + size + closure travel with the file.
+    result.print_profile = profile;
+    result.scale = scale;
+    result.size_mm = exported.bounds.size.map((v) => Math.round(v * 10) / 10);
+    result.closure = profile === 'study'
+      ? { audited: false, reason: `'${kind ?? sketch.manifest.kind}' is a surface study — open shells by construction; run a DCC solidify pass (Blender) for a printable figurine` }
+      : auditStlClosure(payload);
+    const closureLine = result.closure.audited
+      ? (result.closure.closed
+        ? 'Closure audit: closed — no significant open rims.'
+        : `Closure audit: ${result.closure.holes} open rim${result.closure.holes === 1 ? '' : 's'}, widest ≈${result.closure.widest}${units ? ` ${units}` : ' world units'} — the slicer's mesh repair must union these.`)
+      : `Closure audit skipped: ${result.closure.reason}.`;
+    const profileLine = {
+      literal: 'A true-scale part.',
+      maquette: 'A MINIATURE of a world-scale artifact — not true scale.',
+      study: 'A surface study printed as a figurine — not a solid part.',
+      ornament: 'A desk-object print of an abstract depiction — scale has no physical meaning.',
+    }[profile];
     result.note =
-      'STL is bare triangle soup for slicers: colour/groups dropped, water/decals omitted, '
-      + 'repeats expanded, z-up, units read as mm (use `scale`). Not guaranteed manifold — '
-      + "let the slicer's mesh repair union open shells on import.";
+      `${profileLine} STL is bare triangle soup for slicers: colour/groups dropped, water/decals/studio grid omitted, `
+      + `repeats expanded, z-up, units read as mm (scale ${scaleNote}; prints ${result.size_mm.join(' × ')} mm). Not guaranteed manifold — `
+      + "intersecting shells survive; let the slicer's mesh repair union them on import. "
+      + closureLine;
   }
   if (write) {
     // Provenance parity with export_game (interchange.plan.md I4): the model file lands in
@@ -167,7 +317,10 @@ export async function exportModelHandler(input) {
     await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
     await fs.writeFile(
       path.join(dir, 'README.md'),
-      buildModelReadme({ sketch, ref, kind: kind ?? sketch.manifest.kind, format, hash, exported, clips }),
+      buildModelReadme({
+        sketch, ref, kind: kind ?? sketch.manifest.kind, format, hash, exported, clips,
+        ...(format === 'stl' ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units } } : {}),
+      }),
     );
     result.path = file;
     result.dir = dir;
@@ -190,7 +343,7 @@ export async function exportModelHandler(input) {
  * worlds place it by ref via a figures-map `meshRef` entry (world-scene.js).
  */
 export async function bindMeshRenderHandler(input) {
-  const { ref, glb_path: glbPath, note } = input || {};
+  const { ref, glb_path: glbPath, note, source } = input || {};
   if (!ref || typeof ref !== 'string') throw new Error('bind_mesh_render requires { ref }');
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`Sketch '${ref}' not found`);
@@ -210,7 +363,9 @@ export async function bindMeshRenderHandler(input) {
   await fs.writeFile(
     slot.sidecarPath,
     JSON.stringify(
-      { source_path: glbPath, bound_at: new Date().toISOString(), sha256, bytes: bytes.length, note: note || null, n: slot.n },
+      // `source` is the structured which-tool tag (parity with the image seam's
+      // source column); `note` stays the free-text what-changed line.
+      { source_path: glbPath, source: typeof source === 'string' && source ? source : null, bound_at: new Date().toISOString(), sha256, bytes: bytes.length, note: note || null, n: slot.n },
       null,
       2,
     ),

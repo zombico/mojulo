@@ -182,11 +182,14 @@ function measuredFloor(bounds, step = GRID_STEP) {
   const cy = bounds.center[1];
   const nx = Math.ceil(halfX / step) * step;
   const ny = Math.ceil(halfY / step) * step;
-  const grounds = [{ x: cx - nx, y: cy - ny, w: nx * 2, d: ny * 2, z, fill: '#20262e' }];
+  // `studio: true` marks floor + grid as studio furniture — the scale cue for
+  // /world and the GLB, filtered OUT of the STL print handoff (scene-stl.js):
+  // zero-thickness grid quads riding into a slicer would be repair poison.
+  const grounds = [{ x: cx - nx, y: cy - ny, w: nx * 2, d: ny * 2, z, fill: '#20262e', studio: true }];
   const faces = [];
   const lw = Math.max(0.06, step * 0.02); // line half-width
   const lift = z + Math.max(0.02, step * 0.006);
-  const line = (corners, major) => faces.push({ corners, fill: major ? '#4a6a52' : '#33414c', doubleSided: true });
+  const line = (corners, major) => faces.push({ corners, fill: major ? '#4a6a52' : '#33414c', doubleSided: true, studio: true });
   for (let gx = -nx; gx <= nx + 1e-6; gx += step) {
     line([[cx + gx - lw, cy - ny, lift], [cx + gx + lw, cy - ny, lift], [cx + gx + lw, cy + ny, lift], [cx + gx - lw, cy + ny, lift]], Math.abs(gx) < 1e-6);
   }

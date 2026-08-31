@@ -469,7 +469,7 @@ export function registerSketchTools() {
   registerTool({
     name: 'export_model',
     description:
-      "Export a stored sketch's traversable 3D World as a binary glTF (.glb) the operator can open in Blender, Unreal, three.js, or macOS Quick Look — turning a depiction into a portable asset rather than a walled view. Pass the sketch `ref`. Works for the World kinds (fractal cities, transportation hubs, subway interiors, painted-landscape terrain, workbench/assembler object studies, **`manji-tree` polygomers** — a `create_manji_tree` object is a turnable 3D model with no conversion step: the SAME ref serves `/world` and exports here, its bonded lathes lowered to baked faces, plus a `skin_polygomer` skin baked into the vertex colours — vehicle instances, the science views — molecule/atom/cell/field/fluid/ocean/mechanics/orbit — furnished rooms, posed `figure` sketches, `carved-solid` wordmarks, and `css3d-turntable` solids); flat diagrams and charts have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: mojulo's lighting is BAKED into the geometry and the mesh is exported UNLIT (glTF KHR_materials_unlit + per-vertex colours), so it looks identical to the live World from any camera with no lighting setup downstream — the depiction is the asset, not a re-lightable PBR approximation. Camera-facing glow billboards and the sky dome are dropped (not geometry); gradient-painted faces collapse to a single colour; animated channels export at their static pose. Pass `format: 'stl'` for the 3D-PRINTING handoff instead: a binary STL for slicers (PrusaSlicer/Cura/Bambu) — shape only (colour/groups/textures deliberately dropped; water + ground decals omitted; instanced repeats expanded into real geometry; z-up as slicers expect), with `scale` mapping world units → millimetres. Honest triangle soup, not guaranteed-manifold — slicers repair open shells on import. Returns `{ ok, ref, kind, format, url, bytes, vertices, triangles }` (+ `nodes` for glb) plus, when `write` is true (the default), an on-disk `path` to the written file. The `url` (`/api/sketches/<ref>/model.glb` or `.stl`) regenerates the file deterministically on each request, so hand it to the operator for a browser download. Rig worlds: pass `clips` (names array or '_all') to bake figure/unit/vehicle rig clips into glTF animations (1s per cycle).",
+      "Export a stored sketch's traversable 3D World as a binary glTF (.glb) the operator can open in Blender, Unreal, three.js, or macOS Quick Look — turning a depiction into a portable asset rather than a walled view. Pass the sketch `ref`. Works for the World kinds (fractal cities, transportation hubs, subway interiors, painted-landscape terrain, workbench/assembler object studies, **`manji-tree` polygomers** (the SAME ref serves `/world` and exports here, bonded lathes lowered to baked faces, `skin_polygomer` skins baked into vertex colours), vehicle instances, the science views, furnished rooms, posed `figure` sketches, `carved-solid` wordmarks, and `css3d-turntable` solids); flat diagrams and charts have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: mojulo's lighting is BAKED into the geometry and the mesh is exported UNLIT (glTF KHR_materials_unlit + per-vertex colours), so it looks identical to the live World from any camera with no lighting setup downstream — the depiction is the asset, not a re-lightable PBR approximation. Camera-facing glow billboards and the sky dome are dropped (not geometry); gradient-painted faces collapse to a single colour; animated channels export at their static pose. Pass `format: 'stl'` for the 3D-PRINTING handoff instead: a binary STL for slicers — shape only (colour/textures dropped; water/decals/studio grid omitted; repeats expanded; z-up). Sizing is print-profile-aware: literal object kinds (workbench/assembler/carved-solid/turntable/vehicle) derive mm from `units`; worlds, views, and figures print as MINIATURES fit to `target_mm` (default 120). Honest triangle soup, not guaranteed-manifold — results report an advisory `closure` audit + printed size. Returns `{ ok, ref, kind, format, url, bytes, vertices, triangles }` (+ `nodes` for glb) plus, when `write` is true (the default), an on-disk `path` to the written file. The `url` (`/api/sketches/<ref>/model.glb` or `.stl`) regenerates the file deterministically on each request, so hand it to the operator for a browser download. Rig worlds: pass `clips` (names array or '_all') to bake figure/unit/vehicle rig clips into glTF animations (1s per cycle).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -490,9 +490,13 @@ export function registerSketchTools() {
         },
         scale: {
           type: 'number',
-          default: 1,
           description:
-            'STL only: multiply every coordinate on export. Slicers read STL units as millimetres, so this is the world-units → mm dial (e.g. 10 prints a 12-unit-tall figure at 120mm).',
+            "STL only: world-units → mm multiplier; overrides all derivation. Literal kinds derive it from declared `units` (mm/cm/m/in/ft) when omitted; other kinds fit to `target_mm`. Echoed in the result and README.",
+        },
+        target_mm: {
+          type: 'number',
+          description:
+            'STL only: fit the longest printed dimension to this many mm (non-literal kinds default to 120). Overrides `units` derivation; `scale` beats both.',
         },
         write: {
           type: 'boolean',
@@ -515,7 +519,8 @@ export function registerSketchTools() {
       properties: {
         ref: { type: 'string', description: 'The sketch ref this refined mesh belongs to.' },
         glb_path: { type: 'string', description: 'Absolute path to the refined .glb on this host.' },
-        note: { type: 'string', description: 'Optional provenance note (source tool / what changed).' },
+        source: { type: 'string', description: "Optional structured which-tool tag for the provenance sidecar (e.g. 'blender', 'freecad') — parity with the image seam's source field." },
+        note: { type: 'string', description: 'Optional free-text provenance note (what changed).' },
       },
       required: ['ref', 'glb_path'],
     },
