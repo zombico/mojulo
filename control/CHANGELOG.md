@@ -49,6 +49,28 @@ own process; it was never part of the workshop install.
   the chatbot factory may import it, plus two shrink-only ledgers over the
   dashboard routes and the retained code still reading bot tables.
 
+### `half: true` — halving as a modifier on the parts door
+
+- **Halving is now a modifier, not a shape name.** Every parts-door shape is a
+  lathe profile over `t ∈ [0,1]`; `half: true` clips that profile to its
+  `to`-side half and remaps it onto `[0,1]`, so the flat cut lands at `from` and
+  the shape's own free end stays at `to`. One rule across the whole set:
+  half-`ball` is a hemisphere, half-`barrel` a belly-cut cask, half-`cone` a
+  frustum, half-`drum` a plinth. Swap `from`/`to` to move the flat face to the
+  other end. Composes with `girth` / `taper` / `radial` / `mirror`.
+- **New base shape `egg`** — a blunter ovoid than `ball` (`radius =
+  girth·√(1 − |2t−1|³)`), rounder-shouldered than a sphere. Its halved form is
+  the FOOT/PAW shape: flat cut mating the ankle, rounded toe box forward — and
+  equally a boot toe, pad, hoof, thumb tip, acorn cap, or domed crown. Every
+  other shape in the set is open-ended at both poles; a halved one is the only
+  thing that reads flat-mounted. Routed as such in the tool description and the
+  `manji-tree` solid-vocab card. `half-egg` is accepted as a shape name and is
+  exactly `{ shape: 'egg', half: true }`.
+- The cut is AXIAL (perpendicular to the axis) — the only half a surface of
+  revolution can express, and the halved footprint stays circular in plan. A
+  LENGTHWISE half (half-pipe, trough, D-section, a flat sole under a foot) is a
+  clip plane parallel to the axis; no primitive does that today.
+
 ### The `object` reference target — reading a photo into a block-out
 
 `capture_reference` / `reference_protocol` know a fourth target. Where

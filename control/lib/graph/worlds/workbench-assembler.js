@@ -266,9 +266,12 @@ export function planAssembler(manifest = {}) {
   items.forEach((item, index) => {
     const src = item && item.source;
     const hasMonomer = src && typeof src === 'object'
-      && ((Array.isArray(src.lathes) && src.lathes.length) || (Array.isArray(src.extrudes) && src.extrudes.length) || (Array.isArray(src.sweeps) && src.sweeps.length) || (Array.isArray(src.reliefs) && src.reliefs.length));
+      // Every monomer family `lowerObjectFaces` renders must be listed here, or a
+      // legitimate part is rejected by the gate that is supposed to precede it —
+      // a shell-only part (a faceted rock) rendered fine and threw anyway.
+      && ['lathes', 'extrudes', 'sweeps', 'reliefs', 'shells', 'drapes'].some((k) => Array.isArray(src[k]) && src[k].length);
     if (!hasMonomer) {
-      throw new Error(`Item ${index} has no renderable part — \`source\` must be a workbench manifest with a non-empty lathes/extrudes/sweeps/reliefs (or a {ref} the mint tool froze into one).`);
+      throw new Error(`Item ${index} has no renderable part — \`source\` must be a workbench manifest with a non-empty lathes/extrudes/sweeps/reliefs/shells/drapes (or a {ref} the mint tool froze into one).`);
     }
     if (item.on != null && item.on !== 'ground' && !seen.has(item.on)) {
       throw new Error(`Item ${index}: on='${item.on}' must be 'ground' or the id/index of an EARLIER item (gravity seats in order).`);

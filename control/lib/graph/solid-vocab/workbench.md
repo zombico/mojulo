@@ -137,7 +137,54 @@ Ops run in ORDER, each seeing the previous one's output. That is the mechanism: 
 
 Ops are surface operations, not booleans — `port` seats a cylinder ON a face, it does not drill through the shell, and there is no boolean difference. If an object truly needs CSG, `export_model` it and cut it in Blender.
 
-### Worked example — a faceted sensor shell
+### Composition moves — how monomers relate
+
+Three moves. Pick per JUNCTION; a build that uses only one is usually wrong.
+
+- **stack** — seat B on A's top (`assembly` does this for you). Exact, cheap,
+  no z-fight risk. Right for coaxial masses: a column of coaxial discs, drums,
+  domes.
+- **jut(f)** — sink X into Y so only a fraction `f` protrudes. **`f` is a DIAL,
+  not a binary**: f≈0.25 a boss/rivet/recessed frame, f≈0.5 a sill or ledge,
+  f≈0.9 a shelf. This is how you get a recess without a boolean — a
+  dark-tinted mass sunk into a wall reads as an opening. It is also the only
+  way to express one mass entering another (a stair flight cut into a rock, a
+  plinth collaring a tower foot).
+- **composite outline** — union several primitives to author a SILHOUETTE no
+  single primitive has. Mandatory for irregular natural masses (rock, terrain,
+  foliage): one primitive always reads as a primitive.
+
+Do NOT demand clean separation between parts. Interpenetration is the method,
+not a defect.
+
+### The three rules that make these work
+
+1. **A superposed mass only reads if it BREAKS the host's silhouette.** A mass
+   fully inside the union contributes nothing — it costs budget and renders
+   invisibly. For an outcrop on a host of radius `R` at that height, push its
+   centre out until `dist + r_outcrop` exceeds `R` by roughly 20–25%. "Juts out
+   just enough" is a real lower bound. (Measured: five rock masses buried
+   inside a primary cone made the rock *smoother*, not more irregular.)
+2. **Jut, don't touch.** Two faces seated exactly flush are coplanar, and
+   coplanar faces z-fight — one of them wins arbitrarily and the other
+   disappears. A jut of ~0.1 units is enough to fix it. Under clean separation
+   *flush* and *coplanar* are the same number, which is its hidden cost.
+3. **The jut dial is RENDERER-DEPENDENT.** Unlit (`/world`, `/scene`) reads a
+   feature by its OUTLINE, so a shallow jut is legible. A lit DCC render reads
+   it by the SHADOW it casts, so the same jut dissolves into a smudge. Budget a
+   deeper `f` for anything whose destination is a lit render, and re-check the
+   feature after the first lit pass — a door that reads unlit can vanish lit.
+
+### Sizing from a reference
+
+Author z FROM the proportions you read, not by stacking numbers and checking
+afterwards. Fix the total height `H`, express each band as a fraction of it,
+and compute the running z. Stacking part heights and hoping the total lands
+right is over-constrained — `total = Σ heights` leaves no slack, so you cannot
+honour both the part proportions and the total. Jut overlaps are the free
+variable that absorbs the difference.
+
+## Worked example — a faceted sensor shell
 
 A soccer-ball shell whose hexagons become raised steel panels, with a scatter of cyan pentagons and a socket on the up-facing panel:
 
@@ -172,10 +219,67 @@ For a vertical multi-part object (candlestick, lamp, vase, dumbbell, spindle), p
 
 ## Materials, units, framing
 
+> **DCC handoff caveat.** `material` presets bake a shading response (ambient /
+> diffuse / specular / opacity) INTO the exported vertex colours, because the
+> runtime is unlit. Re-lighting that mesh in Blender or another DCC therefore
+> DOUBLE-SHADES it — a `glass` drum exports as a dark navy band rather than a
+> pale one, and no amount of scene lighting recovers it. If the destination is
+> a lit external render, use a plain `tint` and let the DCC supply the response.
+> Verified by A/B: identical geometry and lighting, `material:'glass'` removed,
+> dark navy → bright pale.
+
+
 - `material` (any monomer) — a named finish, a `'#hex'` (satin-tinted), or `{ preset, ...overrides }`. Named rows: gold / steel / chrome / bronze / silver / copper / gunmetal (metals — live specular in /world, real PBR metallic in the model export) · matte / plaster / stone / wood / rubber / plastic / satin (soft) · glass / neon / cel (stylized). Unknown names are rejected at mint.
 - `units` (default `'cm'`) — informational unit label surfaced in the size readout and grid (1 grid cell = 5 units).
 - `viewBox` (default 900×900) — render viewBox `{ width, height }`.
 - `facing` (default `'+y'`) — which way the model's FRONT points, so the preset 'front' shot and opening camera look it in the face: `'+y'` / `'-y'` / `'+x'` / `'-x'` / a raw azimuth offset in degrees. Camera-only; geometry is untouched.
+
+## Composition moves — how monomers relate
+
+Three moves. Pick per JUNCTION; a build that uses only one is usually wrong.
+
+- **stack** — seat B on A's top (`assembly` does this for you). Exact, cheap,
+  no z-fight risk. Right for coaxial masses: a column of coaxial discs, drums,
+  domes.
+- **jut(f)** — sink X into Y so only a fraction `f` protrudes. **`f` is a DIAL,
+  not a binary**: f≈0.25 a boss/rivet/recessed frame, f≈0.5 a sill or ledge,
+  f≈0.9 a shelf. This is how you get a recess without a boolean — a
+  dark-tinted mass sunk into a wall reads as an opening. It is also the only
+  way to express one mass entering another (a stair flight cut into a rock, a
+  plinth collaring a tower foot).
+- **composite outline** — union several primitives to author a SILHOUETTE no
+  single primitive has. Mandatory for irregular natural masses (rock, terrain,
+  foliage): one primitive always reads as a primitive.
+
+Do NOT demand clean separation between parts. Interpenetration is the method,
+not a defect.
+
+### The three rules that make these work
+
+1. **A superposed mass only reads if it BREAKS the host's silhouette.** A mass
+   fully inside the union contributes nothing — it costs budget and renders
+   invisibly. For an outcrop on a host of radius `R` at that height, push its
+   centre out until `dist + r_outcrop` exceeds `R` by roughly 20–25%. "Juts out
+   just enough" is a real lower bound. (Measured: five rock masses buried
+   inside a primary cone made the rock *smoother*, not more irregular.)
+2. **Jut, don't touch.** Two faces seated exactly flush are coplanar, and
+   coplanar faces z-fight — one of them wins arbitrarily and the other
+   disappears. A jut of ~0.1 units is enough to fix it. Under clean separation
+   *flush* and *coplanar* are the same number, which is its hidden cost.
+3. **The jut dial is RENDERER-DEPENDENT.** Unlit (`/world`, `/scene`) reads a
+   feature by its OUTLINE, so a shallow jut is legible. A lit DCC render reads
+   it by the SHADOW it casts, so the same jut dissolves into a smudge. Budget a
+   deeper `f` for anything whose destination is a lit render, and re-check the
+   feature after the first lit pass — a door that reads unlit can vanish lit.
+
+### Sizing from a reference
+
+Author z FROM the proportions you read, not by stacking numbers and checking
+afterwards. Fix the total height `H`, express each band as a fraction of it,
+and compute the running z. Stacking part heights and hoping the total lands
+right is over-constrained — `total = Σ heights` leaves no slack, so you cannot
+honour both the part proportions and the total. Jut overlaps are the free
+variable that absorbs the difference.
 
 ## Worked example
 

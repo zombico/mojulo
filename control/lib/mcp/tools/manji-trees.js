@@ -353,6 +353,21 @@ const POLY_SHAPES = {
     { t: 1, radius: g * 0.02 },
   ],
   bead: (g) => [{ t: 0, radius: g * 0.2 }, { t: 0.5, radius: g }, { t: 1, radius: g * 0.2 }],
+  // A full EGG — an ovoid, widest at mid-span, closing tangent to the axis at
+  // both poles: radius = g·√(1 − |2t−1|³). Rounder-shouldered than `ball` (a
+  // true sphere) and blunter than `sphere` (a slim bicone). Its `half: true`
+  // form is the FOOT/PAW shape — see the halving note below.
+  egg: (g) => [
+    { t: 0, radius: g * 0.02 }, { t: 0.01, radius: g * 0.243 }, { t: 0.025, radius: g * 0.378 },
+    { t: 0.045, radius: g * 0.496 }, { t: 0.07, radius: g * 0.603 }, { t: 0.105, radius: g * 0.712 },
+    { t: 0.15, radius: g * 0.811 }, { t: 0.20, radius: g * 0.885 }, { t: 0.26, radius: g * 0.943 },
+    { t: 0.32, radius: g * 0.976 }, { t: 0.38, radius: g * 0.993 }, { t: 0.44, radius: g * 0.999 },
+    { t: 0.5, radius: g }, { t: 0.56, radius: g * 0.999 }, { t: 0.62, radius: g * 0.993 },
+    { t: 0.68, radius: g * 0.976 }, { t: 0.74, radius: g * 0.943 }, { t: 0.80, radius: g * 0.885 },
+    { t: 0.85, radius: g * 0.811 }, { t: 0.895, radius: g * 0.712 }, { t: 0.93, radius: g * 0.603 },
+    { t: 0.955, radius: g * 0.496 }, { t: 0.975, radius: g * 0.378 }, { t: 0.99, radius: g * 0.243 },
+    { t: 1, radius: g * 0.02 },
+  ],
   cone: (g, taper) => [{ t: 0, radius: g }, { t: 1, radius: Math.max(0.02, g * taper) }],
   stalk: (g) => [{ t: 0, radius: g }, { t: 0.85, radius: g * 0.8 }, { t: 1, radius: g * 0.55 }],
   drum: (g) => [{ t: 0, radius: g * 0.85 }, { t: 0.5, radius: g }, { t: 1, radius: g * 0.85 }],
@@ -361,6 +376,46 @@ const POLY_SHAPES = {
   disc: (g) => [{ t: 0, radius: g }, { t: 1, radius: g * 0.95 }],
   tube: (g) => [{ t: 0.5, radius: g }],
 };
+
+// ─── `half: true` — halving as a MODIFIER, not a dozen `half-*` shape names ───
+//
+// Every parts-door shape is a lathe profile over t ∈ [0,1]. Halving clips that
+// profile to its `to`-side half and remaps it back onto [0,1], so the cut lands
+// at `from` and the shape's own free end stays at `to`. One rule, thirteen
+// shapes: half-ball is a hemisphere, half-barrel a belly-cut cask, half-cone a
+// frustum, half-egg the foot/paw. Flip which physical end is flat by swapping
+// `from`/`to` — the cut always follows `from`.
+//
+// Note this is an AXIAL half (the cut plane is perpendicular to the axis) — the
+// only half a surface of revolution can express. A LENGTHWISE half (half-pipe,
+// trough, D-section, a flat sole under a foot) is a clip plane PARALLEL to the
+// axis, which no primitive does today; it would be a change to `sampleLathe`.
+function radiusAt(profile, t) {
+  if (t <= profile[0].t) return profile[0].radius;
+  const last = profile[profile.length - 1];
+  if (t >= last.t) return last.radius;
+  for (let k = 0; k + 1 < profile.length; k += 1) {
+    const a = profile[k];
+    const b = profile[k + 1];
+    if (t >= a.t && t <= b.t) {
+      const span = b.t - a.t;
+      return span < 1e-12 ? a.radius : a.radius + ((t - a.t) / span) * (b.radius - a.radius);
+    }
+  }
+  return last.radius;
+}
+
+export function halveProfile(profile) {
+  const kept = profile
+    .filter((p) => p.t > 0.5)
+    .map((p) => ({ t: Number(((p.t - 0.5) * 2).toFixed(6)), radius: p.radius }));
+  return [{ t: 0, radius: radiusAt(profile, 0.5) }, ...kept];
+}
+
+// `half-egg` stays callable by name — it is the halved `egg`, and the shape an
+// agent reaches for when it wants a foot without thinking about the modifier.
+POLY_SHAPES['half-egg'] = (g) => halveProfile(POLY_SHAPES.egg(g));
+
 const POLY_SHAPE_NAMES = Object.keys(POLY_SHAPES);
 
 function rotXY(p, c, th) {
@@ -411,7 +466,10 @@ export async function sketchPolygomerHandler(input) {
     if (!isVec3(part.from) || !isVec3(part.to)) throw new Error(`parts[${i}] ('${part.shape}') needs from:[x,y,z] and to:[x,y,z]`);
     const g = Number.isFinite(part.girth) ? part.girth : 0.3;
     const taper = Number.isFinite(part.taper) ? part.taper : 0.15;
-    const profile = shape(g, taper);
+    if (part.half !== undefined && typeof part.half !== 'boolean') {
+      throw new Error(`parts[${i}].half: must be a boolean (true = the \`to\`-side half, flat cut at \`from\`)`);
+    }
+    const profile = part.half ? halveProfile(shape(g, taper)) : shape(g, taper);
     const stroke = typeof part.tint === 'string' ? part.tint : '#5a6b6a';
     for (const pl of expandPlacements(part)) {
       lathes.push({
@@ -931,14 +989,14 @@ export function registerManjiTreeTools() {
   registerTool({
     name: 'sketch_polygomer',
     description:
-      "Author a CREATURE or OBJECT as a turnable 3D polygomer by listing its PARTS — no slot bookkeeping. Each part is a named simple volume (a surface of revolution) bonded by explicit endpoints; the tool generates the manji-tree slots + lathes for you. This is the conversational, composable authoring door for non-humanoid 3D models (create_figure is humanoid-only). Input `{ title, parts: [{ shape, from:[x,y,z], to:[x,y,z], girth?, taper?, tint?, radial?{count,radius?,center?}, mirror?'x'|'y'|'xy' }] }`. Shapes: bulb | dome | sphere | ball | bead | cone | stalk | drum | barrel | bell | disc | tube (use `ball` for a TRUE ROUND ball — a round head / creature body / Kirby-style mascot; `sphere` is a slim bicone). `girth` (default 0.3) is the max radius; `taper` (cone, default 0.15) the tip fraction; `radial` rings N copies around the z-axis (tentacles/legs/petals); `mirror` reflects a pair. Rounded forms only (no boxes yet). Returns `{ ok, ref, url, svgUrl, parts, next }` — open svgUrl, adjust, then follow `next`: get_skin_packet → paint → skin_polygomer → export_model → a turnable .glb. Example tentacle ring: `{ shape:'cone', from:[0.4,0,1.6], to:[0.7,0,-1.2], girth:0.18, taper:0.1, radial:{count:6} }`.",
+      "Author a CREATURE or OBJECT as a turnable 3D polygomer by listing its PARTS — no slot bookkeeping. Each part is a named simple volume (a surface of revolution) bonded by explicit endpoints; the tool generates the manji-tree slots + lathes for you. This is the conversational, composable authoring door for non-humanoid 3D models (create_figure is humanoid-only). Input `{ title, parts: [{ shape, from:[x,y,z], to:[x,y,z], girth?, taper?, half?, tint?, radial?{count,radius?,center?}, mirror?'x'|'y'|'xy' }] }`. Shapes: bulb | dome | sphere | ball | egg | bead | cone | stalk | drum | barrel | bell | disc | tube (use `ball` for a TRUE ROUND ball — a round head / creature body / Kirby-style mascot; `sphere` is a slim bicone; `egg` is a blunter ovoid). `half: true` HALVES ANY shape: the profile is clipped to its `to`-side half and the flat cut lands at `from` — half-ball is a hemisphere, half-barrel a belly-cut cask, half-cone a frustum, half-`egg` the FOOT/PAW shape (flat cut mating the ankle, rounded toe box at `to`; also boot toes, pads, hooves, thumb tips, domed caps). Swap `from`/`to` to move the flat face to the other end. `half-egg` also works as a shape name. The cut is AXIAL (perpendicular to the axis) — a lengthwise half-pipe / trough / flat sole is not expressible. `girth` (default 0.3) is the max radius; `taper` (cone, default 0.15) the tip fraction; `radial` rings N copies around the z-axis (tentacles/legs/petals); `mirror` reflects a pair. Rounded forms only (no boxes yet). Returns `{ ok, ref, url, svgUrl, parts, next }` — open svgUrl, adjust, then follow `next`: get_skin_packet → paint → skin_polygomer → export_model → a turnable .glb. Example tentacle ring: `{ shape:'cone', from:[0.4,0,1.6], to:[0.7,0,-1.2], girth:0.18, taper:0.1, radial:{count:6} }`.",
     inputSchema: {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Name for the polygomer sketch.' },
         parts: {
           type: 'array',
-          description: 'The parts to bond. Each: { shape, from:[x,y,z], to:[x,y,z], girth?, taper?, tint?, radial?, mirror?, crossSections?, samples? }.',
+          description: 'The parts to bond. Each: { shape, from:[x,y,z], to:[x,y,z], girth?, taper?, half?, tint?, radial?, mirror?, crossSections?, samples? }. `half: true` clips any shape to its `to`-side half, flat cut at `from`.',
           items: { type: 'object' },
         },
         physics: { type: 'object', description: 'Optional scene physics (default: z-down gravity).' },

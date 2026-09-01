@@ -59,7 +59,9 @@ Note the whole scene is capped against a browser segment budget; a manifest too 
 
 The approachable, conversational door: a part-graph grammar that lowers to the `'ir'` door for you — you list PARTS, the substrate generates the slots and lathes, no slot bookkeeping. This is the everyday way to author a non-humanoid 3D model. Input `{ title, parts: [...] }`, each part:
 
-- `shape` — one of `bulb | dome | sphere | ball | bead | cone | stalk | drum | barrel | bell | disc | tube`. Use `ball` for a TRUE round ball (a round head / creature body / Kirby-style mascot); `sphere` is a slim bicone.
+- `shape` — one of `bulb | dome | sphere | ball | egg | bead | cone | stalk | drum | barrel | bell | disc | tube`. Use `ball` for a TRUE round ball (a round head / creature body / Kirby-style mascot); `sphere` is a slim bicone; `egg` is a blunter ovoid, rounder-shouldered than `ball`.
+- `half: true` — HALVES any shape. The profile is clipped to its `to`-side half and remapped, so the flat cut lands at `from` and the shape's own free end stays at `to`. One rule across the whole set: half-`ball` is a hemisphere, half-`barrel` a belly-cut cask, half-`cone` a frustum, half-`drum` a plinth, half-`egg` the FOOT/PAW shape (flat cut at the ankle, rounded toe box forward — also boot toes, pads, hooves, thumb tips, acorn caps, domed crowns). Swap `from`/`to` to put the flat face at the other end. `half-egg` is also accepted as a shape name, and is exactly `{ shape: 'egg', half: true }`.
+  The cut is AXIAL — perpendicular to the axis, the only half a surface of revolution can express, and the halved footprint stays CIRCULAR in plan. A LENGTHWISE half (half-pipe, trough, D-section, a flat sole under a foot) is a clip plane parallel to the axis and is not expressible by any primitive today. For a foot wider than it is tall, mass it as a pair of overlapping halves or reach for the `'ir'` door and add an `n: 2` lathe harmonic.
 - `from: [x,y,z]` / `to: [x,y,z]` — the two endpoints the part is bonded between (its axis).
 - `girth` (default 0.3) — max radius. `taper` (cone only, default 0.15) — tip fraction.
 - `tint` — stroke colour (default `#5a6b6a`).

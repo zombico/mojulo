@@ -4,7 +4,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { createManjiTreeHandler } from './manji-trees.js';
+import { createManjiTreeHandler, sketchPolygomerHandler, halveProfile } from './manji-trees.js';
 import { renderManjiTreeToSvg } from '@/lib/graph/polygonizer/manji-svg';
 
 beforeEach(() => {
@@ -496,5 +496,65 @@ describe('create_manji_tree drapes (a covering over any form)', () => {
       dimensions: '2d', ref: 'mt_drape_2d',
       drapes: [{ anchor: [{ x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 }] }],
     })).rejects.toThrow(/drapes.*3D only/);
+  });
+});
+
+describe('parts door — halving as a modifier', () => {
+  it('clips any shape to its `to`-side half, flat cut at `from`', () => {
+    const barrel = [{ t: 0, radius: 0.7 }, { t: 0.5, radius: 1 }, { t: 1, radius: 0.7 }];
+    expect(halveProfile(barrel)).toEqual([{ t: 0, radius: 1 }, { t: 1, radius: 0.7 }]);
+    // a cut that falls between authored control points is interpolated, not snapped
+    expect(halveProfile([{ t: 0, radius: 0 }, { t: 1, radius: 1 }])[0]).toEqual({ t: 0, radius: 0.5 });
+    // a single-point (constant-radius) profile survives as a constant-radius half
+    expect(halveProfile([{ t: 0.5, radius: 0.3 }])).toEqual([{ t: 0, radius: 0.3 }]);
+  });
+
+  it('`half: true` on egg reproduces the `half-egg` foot shape exactly', async () => {
+    await sketchPolygomerHandler({
+      title: 'a foot', ref: 'pg_halves',
+      parts: [
+        { shape: 'egg', half: true, from: [0, 0, 0.3], to: [0, 0.9, 0.1], girth: 0.34 },
+        { shape: 'half-egg', from: [1, 0, 0.3], to: [1, 0.9, 0.1], girth: 0.34 },
+      ],
+    });
+    const [viaModifier, viaAlias] = SketchRepository.getByRef('pg_halves').manifest.lathes;
+    expect(viaModifier.profile).toEqual(viaAlias.profile);
+
+    const p = viaModifier.profile;
+    expect(p[0]).toEqual({ t: 0, radius: 0.34 });                    // the flat cut mates the ankle
+    expect(p[p.length - 1].radius).toBeLessThan(0.34 * 0.05);        // rounded, closed pole
+    for (let i = 1; i < p.length; i += 1) {
+      expect(p[i].t).toBeGreaterThan(p[i - 1].t);
+      expect(p[i].radius).toBeLessThan(p[i - 1].radius);             // monotone falloff — no waist
+    }
+    // Egg, not hemisphere: the shoulder is held wider than sqrt(1 - t^2) past the cut.
+    const mid = p.find((q) => q.t === 0.6);
+    expect(mid.radius / 0.34).toBeGreaterThan(Math.sqrt(1 - 0.6 ** 2) + 0.05);
+  });
+
+  it('halving a ball gives a hemisphere — wider than the egg nowhere', async () => {
+    await sketchPolygomerHandler({
+      title: 'dome', ref: 'pg_dome',
+      parts: [{ shape: 'ball', half: true, from: [0, 0, 0], to: [0, 0, 1], girth: 1 }],
+    });
+    const p = SketchRepository.getByRef('pg_dome').manifest.lathes[0].profile;
+    expect(p[0]).toEqual({ t: 0, radius: 1 });
+    // tracks the circle (the authored `ball` table rounds to ~1e-3), nowhere the egg's held shoulder
+    for (const q of p.slice(1, -1)) expect(q.radius).toBeLessThanOrEqual(Math.sqrt(1 - q.t ** 2) + 0.01);
+    expect(p[p.length - 1]).toEqual({ t: 1, radius: 0.02 });   // `ball`'s non-degenerate pole cap
+  });
+
+  it('rejects a non-boolean `half`', async () => {
+    await expect(sketchPolygomerHandler({
+      title: 'bad', ref: 'pg_badhalf',
+      parts: [{ shape: 'barrel', half: 'yes', from: [0, 0, 0], to: [0, 0, 1] }],
+    })).rejects.toThrow(/half.*boolean/);
+  });
+
+  it('names the shapes in the unknown-shape error', async () => {
+    await expect(sketchPolygomerHandler({
+      title: 'bad', ref: 'pg_badshape',
+      parts: [{ shape: 'wedge', from: [0, 0, 0], to: [0, 0, 1] }],
+    })).rejects.toThrow(/egg/);
   });
 });
