@@ -36,6 +36,8 @@ import {
   validatePaintedLandscape,
 } from '@/lib/graph/polygonizer/painted-landscape.js';
 import { solvePoseFromXManji } from './pose-solve.js';
+import { OBJECT_PROTOCOL, lowerObjectCage, fuseObjectInsights, summarizeObject } from './object-lower.js';
+import { resolveSceneCamera, depthAtRow, rowAtDepth, equalAreaBands, foreshorteningRatio } from './scene-camera.js';
 
 // Named figure views → azimuth degrees (matches figure-render's view convention).
 const VIEW_AZ = { frontal: 0, 'three-quarter': 38, lateral: 90, left: -90, back: 180 };
@@ -67,11 +69,11 @@ export function resolvePoseDials(insights = {}) {
   return { dials, view: insights.view, solve: { source: 'dials' } };
 }
 
-export const REFERENCE_TARGETS = ['scene', 'pose', 'landscape'];
+export const REFERENCE_TARGETS = ['scene', 'pose', 'landscape', 'object'];
 
 // Per-target default fidelity. Every target leans THEMATIC/GESTURE — recover the
 // scaffold's attitude, let the substrate fill the rest; `faithful` is the opt-in.
-export const DEFAULT_FIDELITY = { scene: 'thematic', pose: 'gesture', landscape: 'thematic' };
+export const DEFAULT_FIDELITY = { scene: 'thematic', pose: 'gesture', landscape: 'thematic', object: 'blocky' };
 
 // ---------------------------------------------------------------------------
 // The extraction protocols (the heart — content, not plumbing). Each is the
@@ -84,17 +86,24 @@ export const DEFAULT_FIDELITY = { scene: 'thematic', pose: 'gesture', landscape:
 const SCENE_PROTOCOL = {
   target: 'scene',
   summary:
-    "Read a scene/room/building photo's PERSPECTIVE — not its texture. Recover the spatial scaffold (horizon, vanishing points, floor convergence, relative scale) and write it into a two-point camera the substrate builds inside. Throw away surface; keep the cage.",
+    "Read a scene/room/street photo's PERSPECTIVE — not its texture. A photograph is not a two-point drawing: it has a HORIZON and however many recession directions the scene contains. Recover the horizon, the PRINCIPAL recession, the near edge of the ground, and where your read stops — that maps every image row to a ground depth, which is what lets you place things by AREA instead of by eye. Throw away surface; keep the cage.",
   key_lines: [
-    'HORIZON: the eye-level line. Find where receding parallel edges would converge in Y; that band is the horizon. Report its pixel Y (`camera.horizonY`).',
-    'VANISHING POINTS: extend the two dominant sets of parallel horizontal edges (e.g. the two wall/floor directions). Where each set converges ON the horizon is a vanishing point. Report both as screen pixels (`camera.vanishingPoints.left` / `.right`); they are usually OUTSIDE the photo frame — that is expected.',
-    'FLOOR QUAD: the near edge of the ground plane. Report its left corner in pixels (`roomBasis.frontLeft`); the opposite corner (`roomBasis.frontRight`) if you can read it.',
-    'DEPTH FALLOFF: how fast things shrink with distance → `roomBasis.depthReach` (0.08–0.88, default 0.46) and `roomBasis.verticalUnit` (px per world-height unit).',
-    'RELATIVE SCALE: pick two recognizable objects and report a ratio ("the figure ≈ 0.4 × the door"). Do NOT invent absolute metres unless the operator names a known dimension → then set `roomBasis.worldExtent`.',
+    'HORIZON first: the eye-level row, where the ground plane\'s points at infinity land. In an outdoor photo the sea/land horizon IS it. Report its pixel Y (`camera.horizonY`).',
+    'PRINCIPAL RECESSION: follow the dominant set of parallel edges running AWAY from you (the street, the corridor, the room\'s long axis) to where they meet on the horizon. Report it as `camera.vanishingPoint: [x,y]`. Usually one point is all a photograph gives you — a frontal street canyon has BOTH façade rows converging on the same point, and that is ONE-POINT, not a defective two-point.',
+    'SECOND RECESSION only if it is really there — a second edge family running to its own point on the horizon (a corner-on building). Then `camera.form:"two-point"` + `camera.vanishingPoints.left/right`. Two-point is a DRAWING construction; it is optional here and strictly downstream of the depth mapping.',
+    'NEAR EDGE: the closest ground you can see, as `roomBasis.frontLeft` (and `frontRight` if readable). Every depth is measured from this row.',
+    'FAR ROW — where your read STOPS (`roomBasis.farRow`). The horizon is infinitely far, so a photograph never shows the whole plane; the last row whose ground you can honestly read is a DECLARATION. It sets every band width, so guessing it silently is how a read goes confidently wrong.',
+    'AREA, NOT COUNT: depth goes as 1/(row - horizon), so equal pixel bands are wildly unequal ground. The band beside the vanishing point can hold more street than the entire foreground. Set `roomBasis.bands` and read the cage\'s rulings BEFORE you count anything into the distance.',
+    'SCALE: relative by default and that is usually enough. Ground it only from something in the frame or named by the operator — `roomBasis.scaleAnchor: { kind:"width", pixels, world }` (a known across-frame width) or `{ kind:"depth", world }`. Never from a remembered typical value for the object class.',
   ],
   dial_schema: {
-    'camera.vanishingPoints.left/right': '[x, y] screen pixels on the horizon (may be off-frame).',
+    'camera.form': "'one-point' (DEFAULT for a photograph — one recession direction) | 'two-point' (a second edge family really is present).",
+    'camera.vanishingPoint': '[x, y] — the PRINCIPAL recession point, on the horizon. The one-point dial.',
+    'camera.vanishingPoints.left/right': '[x, y] screen pixels on the horizon (may be off-frame). Two-point only.',
     'camera.horizonY': 'number — horizon line Y in pixels.',
+    'roomBasis.farRow': 'number — the last image row whose ground you can honestly read. Required for the depth bands; never defaulted.',
+    'roomBasis.bands': 'number — how many EQUAL-AREA depth bands to rule onto the cage (default 5).',
+    'roomBasis.scaleAnchor': '{ kind:"width", pixels, world } | { kind:"depth", world } — optional grounding. Absent = relative, and honest.',
     'camera.verticalAxis': '[x, y] unit vector, default [0, -1] (up).',
     'roomBasis.frontLeft / frontRight': '[x, y] near floor corners in pixels.',
     'roomBasis.depthReach': '0.08–0.88, vanishing-point influence falloff (default 0.46).',
@@ -110,14 +119,17 @@ const SCENE_PROTOCOL = {
       'Measure the ACTUAL VP pixel positions and floor convergence and pin them. Then re-render the cage, Read it back, and check the convergence lines land where the photo\'s do; nudge depthReach/VP and repeat.',
   },
   ceiling: [
-    'AFFINE two-point only — no lens intrinsics, no focal length, no >2 vanishing points. Wide-angle / fisheye barrel curvature is FLATTENED (straight lines that bow in the photo go straight).',
-    'No bird\'s-eye / worm\'s-eye in the recipe path — VPs sit on the horizon (eye-level).',
-    'Scale is RELATIVE unless the operator names a real dimension; a single photo cannot recover absolute metres.',
+    'AFFINE — no lens intrinsics, no focal length. Wide-angle / fisheye barrel curvature is FLATTENED (straight lines that bow in the photo go straight). A stepped-back long-lens shot reads well; a close-up phone wide-angle is the worst case.',
+    'VPs sit ON the horizon (eye-level) — no bird\'s-eye / worm\'s-eye in the recipe path. A tilted camera puts the verticals\' own vanishing point off the horizon and this model does not represent it.',
+    'The GROUND PLANE is assumed flat and level. A hill, a camber, or a stepped street breaks the 1/(row-horizon) depth mapping and every area derived from it.',
+    'DEPTH BANDS assume a constant-width corridor. A widening plaza or a fork needs its width read per band, not once.',
+    'OCCLUSION is worse here than for an object: in a canyon you see FAÇADES, not footprints. Ground behind the first row of buildings is invisible, so far-band budgets are INFERRED, not read — say which bands you actually saw.',
+    'Scale is RELATIVE unless something in the frame or the operator grounds it; a single photo cannot recover absolute metres.',
   ],
   multipass_hint:
     'Single photo = affine cage with relative-scale guesses. A SECOND viewpoint of the same scene lets you triangulate true depth/scale — call capture_reference again with the same stash_ref to refine. Sanity check: render the cage from a different angle; if it looks wrong, the depth was guessed wrong → ask for another photo.',
   capture_call:
-    "capture_reference({ target:'scene', fidelity, insights:{ camera, roomBasis, viewBox?, scale, thematic, provenance, caveats }, stash_ref? })",
+    "capture_reference({ target:'scene', fidelity, insights:{ camera:{ form?, vanishingPoint | vanishingPoints, horizonY }, roomBasis:{ frontLeft, frontRight?, farRow, bands?, scaleAnchor?, verticalUnit? }, viewBox?, scale, thematic, caveats }, stash_ref? })",
 };
 
 const POSE_PROTOCOL = {
@@ -237,7 +249,7 @@ const LANDSCAPE_PROTOCOL = {
     "capture_reference({ target:'landscape', fidelity, insights:{ heartbeat, splatch, scene?, structures?, forest?, sky?, camera?, light?, bridges?, city?, cityDensity?, elevation?, renderStyle?, seed?, gesture?, caveats? }, stash_ref? })",
 };
 
-const PROTOCOLS = { scene: SCENE_PROTOCOL, pose: POSE_PROTOCOL, landscape: LANDSCAPE_PROTOCOL };
+const PROTOCOLS = { scene: SCENE_PROTOCOL, pose: POSE_PROTOCOL, landscape: LANDSCAPE_PROTOCOL, object: OBJECT_PROTOCOL };
 
 export function getReferenceProtocol(target) {
   const proto = PROTOCOLS[target];
@@ -257,6 +269,7 @@ function isPair(v) {
 function num(v, d) {
   return Number.isFinite(v) ? v : d;
 }
+const isNum = (v) => Number.isFinite(v);
 
 /**
  * SCENE cage → a plain sketch (default renderer) that draws the perspective
@@ -271,14 +284,26 @@ export function lowerSceneCage(insights = {}, title = 'Scene reference') {
   const cam = insights.camera || {};
   const rb = insights.roomBasis || {};
   const vp = cam.vanishingPoints || {};
+  const vpOne = isPair(cam.vanishingPoint) ? cam.vanishingPoint : null;
   const vpL = isPair(vp.left) ? vp.left : null;
   const vpR = isPair(vp.right) ? vp.right : null;
-  const horizonY = num(cam.horizonY, vpL ? vpL[1] : vpR ? vpR[1] : 245);
+  const horizonY = num(cam.horizonY, vpOne ? vpOne[1] : vpL ? vpL[1] : vpR ? vpR[1] : 245);
+  // ONE-POINT is the photographic default (see scene-camera.js): the camera axis
+  // runs down the street, both façade rows converge on a single point, and there
+  // is no second edge family to find. The old lowering had no such case — it
+  // mirrored `frontRight` about the midpoint of two VPs, which is undefined when
+  // they coincide, so the most common architectural photograph fell through to a
+  // 600px guess.
+  const onePoint = !!vpOne || cam.form === 'one-point' || (!vpL || !vpR);
 
   const frontLeft = isPair(rb.frontLeft) ? rb.frontLeft : [210, 510];
   let frontRight;
   if (isPair(rb.frontRight)) {
     frontRight = rb.frontRight;
+  } else if (onePoint && vpOne) {
+    // Mirror about the VP's own column — for a frontal view the recession point
+    // IS the station point, so this is the honest one-point equivalent.
+    frontRight = [2 * vpOne[0] - frontLeft[0], frontLeft[1]];
   } else if (vpL && vpR) {
     // mirror frontLeft about the station point (midway between the two VPs)
     const midX = (vpL[0] + vpR[0]) / 2;
@@ -289,6 +314,7 @@ export function lowerSceneCage(insights = {}, title = 'Scene reference') {
 
   // viewBox bbox over every reference point (+ y=0 so the horizon band reads).
   const pts = [frontLeft, frontRight, [0, horizonY]];
+  if (vpOne) pts.push(vpOne);
   if (vpL) pts.push(vpL);
   if (vpR) pts.push(vpR);
   const pad = 48;
@@ -324,6 +350,45 @@ export function lowerSceneCage(insights = {}, title = 'Scene reference') {
     marks.push({ kind: 'line', x1: fR[0], y1: fR[1], x2: v[0], y2: v[1], stroke: '#e67e22', strokeWidth: 1.5 });
     marks.push({ kind: 'circle', cx: v[0], cy: v[1], r: 6, fill: '#e74c3c' });
     marks.push({ kind: 'text', x: v[0] - 10, y: v[1], value: 'VP-R', size: 14, anchor: 'end' });
+  }
+  // ONE-POINT: both edges of the corridor run to the single recession point, and
+  // the cage carries the DEPTH RULINGS — equal-AREA bands drawn at their true
+  // image rows. Their wild unevenness is the whole point of the drawing: it shows
+  // the reader, before they count anything, that the sliver by the vanishing
+  // point is worth as much ground as the whole foreground.
+  if (vpOne) {
+    const v = T(vpOne);
+    marks.push({ kind: 'line', x1: fL[0], y1: fL[1], x2: v[0], y2: v[1], stroke: '#e67e22', strokeWidth: 1.5 });
+    marks.push({ kind: 'line', x1: fR[0], y1: fR[1], x2: v[0], y2: v[1], stroke: '#e67e22', strokeWidth: 1.5 });
+    marks.push({ kind: 'circle', cx: v[0], cy: v[1], r: 7, fill: '#e74c3c' });
+    marks.push({ kind: 'text', x: v[0] + 12, y: v[1] - 6, value: 'VP', size: 14, anchor: 'start' });
+
+    if (isNum(rb.farRow)) {
+      let bands = [];
+      try {
+        const scam = resolveSceneCamera(insights);
+        bands = equalAreaBands(scam, { count: num(rb.bands, 5), farRow: rb.farRow });
+      } catch { bands = []; }
+      for (const b of bands) {
+        // the corridor narrows toward the VP, so each ruling spans the two rays
+        const t = (b.rowTo - frontLeft[1]) / ((vpOne[1] - frontLeft[1]) || 1);
+        const lx = frontLeft[0] + (vpOne[0] - frontLeft[0]) * t;
+        const rx = frontRight[0] + (vpOne[0] - frontRight[0]) * t;
+        const a = T([lx, b.rowTo]); const c = T([rx, b.rowTo]);
+        marks.push({ kind: 'line', x1: a[0], y1: a[1], x2: c[0], y2: c[1], stroke: '#2980b9', strokeWidth: 1.2, dash: '4 3' });
+        marks.push({
+          kind: 'text', x: c[0] + 8, y: c[1] + 4, size: 11, anchor: 'start',
+          value: `d ${b.depthTo} · ${Math.round(b.areaShare * 100)}% area in ${Math.round(b.pixelShare * 100)}% px`,
+        });
+      }
+      const ratio = foreshorteningRatio(bands);
+      if (ratio) {
+        marks.push({
+          kind: 'text', x: T([frontLeft[0], frontLeft[1]])[0], y: T([0, horizonY])[1] - 14, size: 13, anchor: 'start',
+          value: `one-point · far band holds ${ratio}x the ground per pixel of the near band`,
+        });
+      }
+    }
   }
 
   const manifest = { title, viewBox: { width, height }, marks };
@@ -423,6 +488,9 @@ export function summarizeReference(target, insights = {}, fidelity, passes) {
   } else if (target === 'scene') {
     if (insights.scale?.relative) lines.push(`Scale: ${insights.scale.relative}${insights.scale.grounded ? ' (grounded)' : ' (relative)'}`);
     if (insights.thematic?.mood) lines.push(`Mood: ${insights.thematic.mood}`);
+  } else if (target === 'object') {
+    const extra = summarizeObject(insights, insights.__ledger || null);
+    if (extra) lines.push(extra);
   } else if (target === 'landscape') {
     const map = [
       insights.heartbeat ? `heartbeat \`${insights.heartbeat}\`` : null,
@@ -439,3 +507,6 @@ export function summarizeReference(target, insights = {}, fidelity, passes) {
   if (caveats.length) lines.push(`Caveats: ${caveats.join('; ')}`);
   return lines.join('\n\n');
 }
+
+export { lowerObjectCage, fuseObjectInsights, summarizeObject };
+export { resolveSceneCamera, depthAtRow, rowAtDepth, equalAreaBands, foreshorteningRatio };

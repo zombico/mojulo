@@ -195,7 +195,15 @@ const DESCRIPTION_ALLOWLIST = {
 // update_sketch pointers, and forge_motion's recipe/recipe_ref re-forge
 // inputs. All additions were compressed to routing grade first (teach in
 // the drawer); this blesses the ~660-byte residue.
-const PAYLOAD_CEILING = 256_000;
+//
+// Re-pinned 2026-08-31 (256_000 -> 256_500) for the object reference target's
+// routing surface: `object` in reference_protocol's target enum, the
+// parts-or-segments clause on capture_reference's `insights`, and the `replace`
+// fusion escape hatch. Both tool DESCRIPTIONS stayed under their allowlist
+// snapshots (the segment-first and fusion contracts are taught in
+// OBJECT_PROTOCOL, which rides the reference_protocol RESULT, not the list);
+// this blesses the ~300-byte input-schema residue.
+const PAYLOAD_CEILING = 256_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

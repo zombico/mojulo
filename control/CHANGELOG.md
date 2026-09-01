@@ -49,6 +49,44 @@ own process; it was never part of the workshop install.
   the chatbot factory may import it, plus two shrink-only ledgers over the
   dashboard routes and the retained code still reading bot tables.
 
+### The `object` reference target — reading a photo into a block-out
+
+`capture_reference` / `reference_protocol` know a fourth target. Where
+`scene` recovers a CAMERA and `pose` an ARMATURE, `object` recovers a
+PART-GRAPH: the agent reads one object and states it as workbench monomers
+(lathe / extrude / sweep / shell) bonded by a named junction move per part
+(`stack` / `jut` / `composite`); the substrate lowers that to a
+`kind:'workbench'` recipe and mints it like any other cage. Design + build
+log: `lib/reference/object-reference.plan.md` (rev 4); first proof subject
+run against a real photo.
+
+- **No absolute z, structurally.** Every part height is a FRACTION of the
+  object's `unitHeight` and the substrate multiplies — proportion drift from
+  stacking absolute heights is impossible by construction, not by review.
+- **Segment-first for complex subjects.** Three or more distinct seams (or
+  ~10+ parts) routes the read to `segments[]`: each segment a whole
+  sub-object at its own origin, minted as its own workbench recipe and
+  judged ALONE, composed into an assembler cage by gravity seating.
+  One-shotting a complex whole is the proven failure mode.
+- **Multi-pass refinement FUSES.** A refining pass merges onto the last
+  cage's insights (`fuseObjectInsights`) instead of replacing them, so a
+  second look sharpens rather than forgets; `replace: true` is the explicit
+  escape hatch, and a pass that could not fuse says so and keeps the
+  previous cage in the stash.
+- **The scene camera went photograph-first.** The `scene` target's taught
+  protocol dropped the two-point drawing construction as its frame: a
+  photograph has a HORIZON, one PRINCIPAL recession, and a scale anchor —
+  two-point is optional and strictly downstream (`lib/reference/scene-camera.js`,
+  pure functions). The depth mapping (depth ∝ 1/(row − horizon)) makes
+  ground AREA arithmetic instead of eyeballing, and the frontal street
+  canyon — where both façade rows converge on ONE point — stops being a
+  degenerate case. `object` reads on non-orthographic photos run `scene`
+  first and measure band heights in world units.
+- The `tools/list` payload ceiling consciously re-pinned 256,000 →
+  256,500 bytes for the target's routing surface; both tool descriptions
+  stayed under their allowlist snapshots (the contracts are taught in the
+  protocol RESULT, not the list).
+
 ### 3D factory UI — the surface learns the vocabulary (phases 1-6)
 
 The dashboard now speaks the colloquial vocabulary of 3D work while the spine
