@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Save",
-    "saving": "Saving…",
     "cancel": "Cancel",
     "servicesMap": "Services Map",
     "observability": "Observability",
     "delete": "Delete",
-    "deleting": "Deleting…",
-    "download": "Download",
-    "downloading": "Downloading…",
     "close": "Close",
     "back": "Back",
     "next": "Next",
@@ -1605,19 +1601,13 @@
       "dashboard": "Dashboard"
     },
     "agentStatus": {
-      "title": "Agent Status",
       "liveLabel": "Live",
       "staleLabel": "Last seen",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} harnesses",
       "serversLabel": "{count, plural, one {# server} other {# servers}}",
-      "toolsLabel": "{count, plural, one {# tool} other {# tools}}",
-      "declaredNow": "just now",
-      "declaredSeconds": "{seconds, plural, one {# second ago} other {# seconds ago}}",
-      "declaredMinutes": "{minutes, plural, one {# minute ago} other {# minutes ago}}",
-      "declaredHours": "{hours, plural, one {# hour ago} other {# hours ago}}",
-      "declaredDays": "{days, plural, one {# day ago} other {# days ago}}"
+      "toolsLabel": "{count, plural, one {# tool} other {# tools}}"
     },
     "crumb": "workshop",
     "packsPill": "{packs}",
@@ -1692,8 +1682,6 @@
     "noMembersYet": "No members yet",
     "notFound": "That project doesn't exist — it may have been archived or the ref is off.",
     "backToProjects": "Back to Game Developer",
-    "charter": "Charter",
-    "playInArcade": "Play in Arcade",
     "copyWorkPrompt": "Copy work prompt",
     "copyAddPrompt": "add",
     "copyMintPrompt": "mint the game",
@@ -1702,7 +1690,6 @@
     "missing": "Missing",
     "missingBody": "This member's artifact no longer exists. The project keeps the slot; rebind or remove it from your host agent.",
     "noRules": "No game minted yet — the project is pre-production.",
-    "fromManifest": "from manifest",
     "gated": "gated",
     "openNewTab": "Open in new tab",
     "closeViewer": "Close",
@@ -1750,10 +1737,7 @@
     "copied": "Copied",
     "play": "Play",
     "levelCount": "{count, plural, one {# level} other {# levels}}",
-    "shipped": "Shipped",
-    "notFound": "That cabinet isn't on the floor — the game may have been removed.",
-    "backToArcade": "Back to Arcade",
-    "openStandalone": "Open standalone"
+    "shipped": "Shipped"
   },
   "library": {
     "crumb": "library",
@@ -1780,37 +1764,13 @@
       "title": "Mojulo Maker",
       "subtitle": "The studio: illustrations, walkable worlds, 3D objects, motion, beats, voice, and finished outputs. A tuned creative surface, sibling to Sketches (tuned for diagrams). Every piece is the same sketch primitive — stash, reference, and diff it either way."
     },
-    "open": "Open",
-    "empty": "Nothing here yet",
-    "itemCount": "{count, plural, =0 {empty} one {# item} other {# items}}",
-    "illustrations": {
-      "title": "Illustrations",
-      "subtitle": "Landscapes, figures, and complicated perspective, CSS-3D, and painterly renders.",
-      "blurb": "Painted landscapes, posed figures, carved solids — the rich visual set you look at."
-    },
-    "worlds": {
-      "title": "Worlds",
-      "subtitle": "Walkable three.js worlds — cities, buildings, interiors, and hubs you move through first-person.",
-      "blurb": "Fractal cities, edifices, and interiors rendered as walkable 3D worlds, not flat pictures."
-    },
-    "objects": {
-      "title": "Objects",
-      "subtitle": "Single 3D artifacts and studies — workbench parts, assemblies, polygomers, planets, science and math views. Drag to orbit, scroll to zoom.",
-      "blurb": "Workbench parts, assemblies, polygomers, and orbit studies — 3D things you turn and look at."
-    },
-    "motion": {
-      "title": "Motion",
-      "blurb": "Movies and GIFs — camera paths and slideshows rendered to animated artifacts."
-    },
     "beats": {
       "title": "Beats",
-      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats.",
-      "blurb": "Ambient loops, scores, and foley cues — the audio artifacts you listen to. Everything synthesized, nothing sampled."
+      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
     },
     "voice": {
       "title": "Voice",
       "subtitle": "Voice registers — deterministic recipes for how a voice sounds: two axes over a calibrated bank of voices. Author new ones from your agent via create_voice; an external worker speaks them.",
-      "blurb": "Meek to authoritative, bright to deep — voices as tiny blend recipes, never recordings.",
       "axisConfidence": "Confidence",
       "axisDepth": "Depth",
       "poleMeek": "meek",
@@ -1843,7 +1803,6 @@
     "untitledProject": "Untitled project",
     "untagged": "Untagged",
     "shots": "{count} shots",
-    "openPlayer": "Open player",
     "noPreview": "No preview",
     "framesLabel": "{count} frames",
     "fpsLabel": "{fps} fps"
@@ -1885,9 +1844,7 @@
     "sourceLabel": "From",
     "sourceUnknown": "(stash removed)",
     "lensLabel": "Lens",
-    "createdAt": "Created {timestamp}",
     "viewOutcome": "View outcome",
-    "sliceCount": "{count, plural, =0 {no slices} =1 {1 slice} other {# slices}}",
     "untitledAim": "(no aim recorded)"
   },
   "stashes": {
@@ -1909,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Created {timestamp}",
     "updatedAt": "Updated {timestamp}",
-    "startFromAgent": "Start a stash from your agent",
     "actions": {
       "rename": "Rename",
       "edit": "Edit",
@@ -1926,7 +1882,6 @@
       "notFoundTitle": "Stash not found",
       "notFoundBody": "This stash ref does not exist or has not been minted yet.",
       "back": "Back to stashes",
-      "openInbox": "Open inbox",
       "rootDrawer": "Root",
       "drawerItemCount": "{count, plural, =0 {empty} =1 {1 item} other {# items}}",
       "noItemsInDrawer": "No items in this drawer yet.",
@@ -1959,7 +1914,6 @@
       "drawerSaveError": "Could not save drawer",
       "drawerRenameError": "Could not rename drawer",
       "renameDrawerLabel": "Rename drawer",
-      "moveTo": "Move to…",
       "moveError": "Could not move item",
       "archive": "Archive",
       "archiveError": "Could not archive item",
@@ -1967,7 +1921,6 @@
       "archiveProceed": "Archive anyway",
       "archiveCancel": "Cancel",
       "addItem": "+ Add",
-      "addItemHeading": "Add to {drawer}",
       "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
       "picker": {
         "text": "New text block",
@@ -2133,8 +2086,6 @@
     "refresh": "Refresh",
     "error": "Failed to load connected services",
     "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "graphTitle": "MCP structure",
-    "graphHint": "Click graph nodes to open available detail views.",
     "backToList": "Back to Connected Services",
     "backToService": "Back to connected service",
     "notFound": "Connected service not found.",

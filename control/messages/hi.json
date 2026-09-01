@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "सहेजें",
-    "saving": "सहेज रहे हैं…",
     "cancel": "रद्द करें",
     "servicesMap": "सेवाएं मानचित्र",
     "observability": "अवलोकनीयता",
     "delete": "हटाएं",
-    "deleting": "हटा रहे हैं…",
-    "download": "डाउनलोड",
-    "downloading": "डाउनलोड हो रहा है…",
     "close": "बंद करें",
     "back": "वापस",
     "next": "आगे",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "इस ऐप का निर्माण-मानचित्र — हर टूल कॉल जिसने इसे साकार किया, एक ही लाइन पर स्टेशनों की तरह।"
+      },
       "metadata": "मेटाडेटा",
       "artifactPath": "कलाकृति पथ",
       "materializationRef": "मूर्त संदर्भ",
@@ -1545,6 +1544,29 @@
     "copied": "Copied",
     "close": "बंद करें"
   },
+  "displayModes": {
+    "label": "डिस्प्ले मोड",
+    "mode": {
+      "wire": "वायर",
+      "shaded": "शेडेड",
+      "baked": "बेक्ड",
+      "painted": "पेंटेड"
+    },
+    "hint": {
+      "wire": "केवल निर्माण रेखाएँ — ज्यामिति बिना आवरण के।",
+      "shaded": "Mojulo के अपने वर्टेक्स रंग और प्रोसीजरल मटीरियल।",
+      "baked": "Blender Cycles ग्लोबल इल्युमिनेशन, वर्टेक्स रंगों में बेक किया हुआ।",
+      "painted": "mojulo के स्कैफ़ोल्ड पर किसी बाहरी इमेज वर्कर द्वारा पेंट किया गया।"
+    },
+    "reason": {
+      "noWireframe": "इस प्रकार का कोई निर्माण-पाठ नहीं है।",
+      "bakedInPlace": "यथास्थान बेक किया गया — कोई अनलिट संस्करण नहीं रखा गया।",
+      "noBake": "अभी कोई GI बेक नहीं। एजेंट से इस वर्ल्ड को बेक करने को कहें।",
+      "noPaintedRender": "अभी कोई पेंटेड रेंडर बाउंड नहीं। एजेंट से एक माँगने को कहें।",
+      "notPaintable": "इसका हर पिक्सेल Mojulo खुद बनाता है — पेंट करने को कुछ नहीं।"
+    },
+    "externalBadge": "mojulo की पेंट नहीं"
+  },
   "home": {
     "title": "Workshop Home",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Voice",
       "games": "गेम डेवलपर",
       "arcade": "आर्केड",
-      "settings": "सेटिंग्स"
+      "settings": "सेटिंग्स",
+      "library": "लाइब्रेरी",
+      "renderBay": "रेंडर बे",
+      "dashboard": "डैशबोर्ड"
     },
     "agentStatus": {
-      "title": "Agent Status",
       "liveLabel": "Live",
       "staleLabel": "Last seen",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} harnesses",
       "serversLabel": "{count, plural, one {# server} other {# servers}}",
-      "toolsLabel": "{count, plural, one {# tool} other {# tools}}",
-      "declaredNow": "just now",
-      "declaredSeconds": "{seconds, plural, one {# second ago} other {# seconds ago}}",
-      "declaredMinutes": "{minutes, plural, one {# minute ago} other {# minutes ago}}",
-      "declaredHours": "{hours, plural, one {# hour ago} other {# hours ago}}",
-      "declaredDays": "{days, plural, one {# day ago} other {# days ago}}"
+      "toolsLabel": "{count, plural, one {# tool} other {# tools}}"
+    },
+    "crumb": "वर्कशॉप",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} आर्टिफ़ैक्ट",
+    "dashboard": {
+      "title": "डैशबोर्ड",
+      "open": "फ़्लोर खोलें →"
+    },
+    "ask": {
+      "title": "एजेंट से कहें",
+      "body": "निर्माण आपके MCP एजेंट में होता है।"
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Sketch not found",
     "notFoundBody": "This sketch ref does not exist or has not been minted yet.",
+    "backToLibrary": "← लाइब्रेरी पर वापस",
+    "retryLoad": "फिर से कोशिश करें",
+    "frameFailed": "यह व्यू लोड नहीं हुआ।",
     "downloadGlb": "Download .glb",
     "downloadGlbPreparing": "Preparing…",
     "downloadGlbUnavailable": "No 3D mesh to export for this sketch.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "अभी तक कोई सदस्य नहीं",
     "notFound": "वह प्रोजेक्ट मौजूद नहीं है — यह आर्काइव किया गया हो सकता है या ref गलत है।",
     "backToProjects": "गेम डेवलपर पर वापस",
-    "charter": "चार्टर",
-    "playInArcade": "आर्केड में खेलें",
     "copyWorkPrompt": "वर्क प्रॉम्प्ट कॉपी करें",
     "copyAddPrompt": "जोड़ें",
     "copyMintPrompt": "गेम मिंट करें",
@@ -1659,7 +1690,6 @@
     "missing": "Missing",
     "missingBody": "इस सदस्य का आर्टिफ़ैक्ट अब मौजूद नहीं है। प्रोजेक्ट स्लॉट रखता है; अपने होस्ट एजेंट से इसे फिर से बाइंड करें या हटाएँ।",
     "noRules": "अभी तक कोई गेम मिंट नहीं हुआ — प्रोजेक्ट प्री-प्रोडक्शन में है।",
-    "fromManifest": "मैनिफ़ेस्ट से",
     "gated": "गेटेड",
     "openNewTab": "नए टैब में खोलें",
     "closeViewer": "बंद करें",
@@ -1707,47 +1737,40 @@
     "copied": "Copied",
     "play": "खेलें",
     "levelCount": "{count, plural, one {# लेवल} other {# लेवल}}",
-    "shipped": "शिप किया गया",
-    "notFound": "वह कैबिनेट फ़्लोर पर नहीं है — गेम हटाया गया हो सकता है।",
-    "backToArcade": "आर्केड पर वापस",
-    "openStandalone": "स्टैंडअलोन खोलें"
+    "shipped": "शिप किया गया"
+  },
+  "library": {
+    "crumb": "लाइब्रेरी",
+    "title": "लाइब्रेरी",
+    "subtitle": "एजेंट ने जो भी आर्टिफ़ैक्ट मिंट किए हैं — सीन, मॉडल, कैरेक्टर, मटीरियल, इमेज, डायग्राम। देखने के हर तरीके के लिए एक शेल्फ़; नीचे वही रेसिपी स्टोर।",
+    "shelves": {
+      "recent": "हाल के",
+      "scenes": "सीन",
+      "models": "मॉडल",
+      "characters": "किरदार",
+      "images": "इमेज",
+      "diagrams": "डायग्राम",
+      "materials": "मटीरियल"
+    },
+    "materials": {
+      "blurb": "प्रोसीजरल मटीरियल — टेक्सचर-रहित वर्टेक्स रंग: एक लैम्बर्ट बेस, एक टॉप-लिट रैम्प, एक ब्रश्ड क्लाउड, और वेदरिंग — सब प्रति-कोना फ़िल में बेक किए हुए। हर स्वैच एक असली क्वाड है जो असली रिज़ॉल्वर से गुज़रा है, यानी जो दिखता है वही किसी फ़ेस को मिलता है।",
+      "applyHint": "मटीरियल एजेंट से कहकर लगाए जाते हैं — किसी मेश-वर्ल्ड फ़ेस पर material सेट करें, या कोई प्रीसेट नाम दें।"
+    },
+    "recentNote": "वर्कशॉप भर के सबसे हाल के आर्टिफ़ैक्ट। एक ही प्रकार के सभी देखने के लिए कोई शेल्फ़ चुनें।",
+    "roomToggle": "रूम"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "स्टूडियो: चित्र, चलने योग्य दुनिया, 3D ऑब्जेक्ट, मोशन, बीट्स, वॉइस और तैयार आउटपुट। एक ट्यून किया गया रचनात्मक सतह, Sketches का सहोदर (डायग्राम के लिए ट्यून किया गया)। हर टुकड़ा वही sketch प्रिमिटिव है — किसी भी तरह इसे स्टैश, संदर्भित और diff करें।"
     },
-    "open": "Open",
-    "empty": "Nothing here yet",
-    "itemCount": "{count, plural, =0 {empty} one {# item} other {# items}}",
-    "illustrations": {
-      "title": "Illustrations",
-      "subtitle": "Landscapes, figures, and complicated perspective, CSS-3D, and painterly renders.",
-      "blurb": "Painted landscapes, posed figures, carved solids — the rich visual set you look at."
-    },
-    "worlds": {
-      "title": "Worlds",
-      "subtitle": "चलने योग्य three.js दुनिया — शहर, इमारतें, अंदरूनी हिस्से और हब जिनमें आप फर्स्ट-पर्सन घूमते हैं।",
-      "blurb": "फ़्रैक्टल शहर, इमारतें और अंदरूनी हिस्से चलने योग्य 3D दुनिया के रूप में रेंडर किए गए, न कि सपाट तस्वीरें।"
-    },
-    "objects": {
-      "title": "ऑब्जेक्ट",
-      "subtitle": "एकल 3D आर्टिफ़ैक्ट और अध्ययन — वर्कबेंच पार्ट्स, असेंबली, पॉलीगोमर, ग्रह, विज्ञान और गणित के दृश्य। ऑर्बिट के लिए ड्रैग करें, ज़ूम के लिए स्क्रॉल करें।",
-      "blurb": "वर्कबेंच पार्ट्स, असेंबली, पॉलीगोमर और ऑर्बिट अध्ययन — 3D चीज़ें जिन्हें आप घुमाकर देखते हैं।"
-    },
-    "motion": {
-      "title": "Motion",
-      "blurb": "Movies and GIFs — camera paths and slideshows rendered to animated artifacts."
-    },
     "beats": {
       "title": "Beats",
-      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats.",
-      "blurb": "Ambient loops, scores, and foley cues — the audio artifacts you listen to. Everything synthesized, nothing sampled."
+      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
     },
     "voice": {
       "title": "Voice",
       "subtitle": "Voice registers — deterministic recipes for how a voice sounds: two axes over a calibrated bank of voices. Author new ones from your agent via create_voice; an external worker speaks them.",
-      "blurb": "Meek to authoritative, bright to deep — voices as tiny blend recipes, never recordings.",
       "axisConfidence": "Confidence",
       "axisDepth": "Depth",
       "poleMeek": "meek",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Untitled project",
     "untagged": "Untagged",
     "shots": "{count} shots",
-    "openPlayer": "Open player",
     "noPreview": "No preview",
     "framesLabel": "{count} frames",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "से",
     "sourceUnknown": "(stash removed)",
     "lensLabel": "Lens",
-    "createdAt": "Created {timestamp}",
     "viewOutcome": "View outcome",
-    "sliceCount": "{count, plural, =0 {no slices} =1 {1 slice} other {# slices}}",
     "untitledAim": "(no aim recorded)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Created {timestamp}",
     "updatedAt": "{timestamp} को अपडेट किया गया",
-    "startFromAgent": "Start a stash from your agent",
     "actions": {
       "rename": "Rename",
       "edit": "संपादित करें",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Stash not found",
       "notFoundBody": "This stash ref does not exist or has not been minted yet.",
       "back": "Back to stashes",
-      "openInbox": "Open inbox",
       "rootDrawer": "Root",
       "drawerItemCount": "{count, plural, =0 {empty} =1 {1 item} other {# items}}",
       "noItemsInDrawer": "No items in this drawer yet.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Could not save drawer",
       "drawerRenameError": "Could not rename drawer",
       "renameDrawerLabel": "Rename drawer",
-      "moveTo": "Move to…",
       "moveError": "Could not move item",
       "archive": "Archive",
       "archiveError": "Could not archive item",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Archive anyway",
       "archiveCancel": "रद्द करें",
       "addItem": "+ Add",
-      "addItemHeading": "Add to {drawer}",
       "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
       "picker": {
         "text": "New text block",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Download SVG",
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
+    "frameFailed": "यह व्यू लोड नहीं हुआ।",
     "renameLabel": "Rename sketch",
     "renamePlaceholder": "Sketch title",
     "renameSave": "सहेजें",
@@ -2069,8 +2086,6 @@
     "refresh": "ताज़ा करें",
     "error": "Failed to load connected services",
     "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "graphTitle": "MCP structure",
-    "graphHint": "Click graph nodes to open available detail views.",
     "backToList": "Back to Connected Services",
     "backToService": "Back to connected service",
     "notFound": "Connected service not found.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "When",
       "message": "Message"
+    }
+  },
+  "renderBay": {
+    "title": "रेंडर बे",
+    "subtitle": "mojulo जो कुछ बना रहा है, सब एक जगह: टिकाऊ इमेज-रेंडर क्यू, GI बेक, और डिस्क पर मौजूद कुक और एक्सपोर्ट। \"कुछ बन रहा है\" कहने के चार तरीके, जिनका अब तक कोई साझा घर नहीं था।",
+    "readOnly": "बे सिर्फ़ स्थिति दिखाता है। यहाँ हर क्रिया एक प्रॉम्प्ट है जिसे अपने एजेंट में कॉपी करना है — रेंडर स्वीकारना, वर्ल्ड दोबारा बेक करना और एक्सपोर्ट मिंट करना, सब MCP टूल से होता है, इस पेज से कभी नहीं।",
+    "refresh": "ताज़ा करें",
+    "loading": "लोड हो रहा है…",
+    "allLanes": "सभी लेन",
+    "copyPrompt": "Copy prompt",
+    "copied": "Copied",
+    "copyFailed": "कॉपी नहीं हो सका — टेक्स्ट चुनकर मैन्युअली कॉपी करें",
+    "showing": "{total} में से {shown} दिख रहे",
+    "queue": {
+      "title": "रेंडर क्यू",
+      "note": "इमेज-सक्षम वर्कर के लिए पार्क किए गए टिकाऊ रेंडर अनुरोध। अनुरोध रीस्टार्ट के बाद भी बचा रहता है, इसलिए पार्क की गई पंक्ति एक वादा है, इन-मेमोरी जॉब नहीं।",
+      "count": "{n} अनुरोध",
+      "empty": "कुछ भी पार्क नहीं है। एजेंट से किसी मिंट किए image-outcome या sequential-art स्केच के लिए request_image_render कहने को कहें।",
+      "eyesGate": "← आइज़ गेट: मशीन का काम पूरा, अभी किसी ने देखा नहीं",
+      "stalled": "अटका हुआ",
+      "stage": {
+        "queued": "क्यू में",
+        "inFlight": "चल रहा",
+        "gate": "आइज़ गेट की प्रतीक्षा में",
+        "done": "निपटा"
+      },
+      "status": {
+        "pending": "लंबित",
+        "in_flight": "चल रहा है",
+        "submitted": "सबमिट किया",
+        "accepted": "स्वीकृत",
+        "rejected": "अस्वीकृत",
+        "expired": "समाप्त",
+        "cancelled": "रद्द"
+      },
+      "targets": "{n} टारगेट",
+      "folded": "{refs} आर्टिफ़ैक्ट पर फ़ोल्ड किया गया"
+    },
+    "bakes": {
+      "title": "GI बेक",
+      "note": "Blender Cycles ग्लोबल इल्युमिनेशन, वर्ल्ड के अपने वर्टेक्स रंगों में बेक किया हुआ — शून्य रनटाइम लागत पर सॉफ़्ट AO और कॉन्टैक्ट शैडो। लोकल Blender चाहिए; बेक किए गए वर्ल्ड किसी को भी भेजे जा सकते हैं।",
+      "empty": "अभी कोई बेक नहीं। Blender इंस्टॉल हो तो: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "मशीन गेट पास · {match} कोना मेल · {black} गहरा फ़र्श (सीमा {limit})",
+      "eyesGate": "आइज़ गेट: आपका — खोलिए और देखिए",
+      "samples": "{n} सैंपल",
+      "from": "{ref} से बेक किया गया"
+    },
+    "outputs": {
+      "title": "कुक और एक्सपोर्ट",
+      "note": "डिस्क पर क्या साकार हुआ है: cook से बनी पब्लिकेशन, और हर आर्टिफ़ैक्ट के outcome फ़ोल्डर में बंधे मॉडल, मेश, रेंडर, स्किन, वॉइस और स्कोर।",
+      "fullInbox": "पूरा पब्लिकेशन इनबॉक्स →",
+      "emptyCooks": "कोई खुली पब्लिकेशन नहीं।",
+      "emptyArtifacts": "डिस्क पर अभी कोई एक्सपोर्ट नहीं। एजेंट से किसी वर्ल्ड का export_model करने, या कोई रेंडर बाइंड करने को कहें।",
+      "emptyBeats": "डिस्क पर अभी कोई beats रेंडर नहीं।",
+      "group": {
+        "cooks": "पब्लिकेशन",
+        "artifacts": "आर्टिफ़ैक्ट outcome फ़ोल्डर",
+        "beats": "Beats रेंडर"
+      },
+      "kind": {
+        "model": "मॉडल",
+        "mesh": "बाउंड मेश",
+        "render": "रेंडर",
+        "skin": "स्किन",
+        "voice": "वॉइस",
+        "motion": "मोशन",
+        "game": "गेम",
+        "audio": "ऑडियो",
+        "score": "स्कोर",
+        "page": "पेज",
+        "recipe": "रेसिपी",
+        "other": "फ़ाइल"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "आर्टिफ़ैक्ट खोलें →",
+    "copied": "Copied",
+    "copyFailed": "कॉपी नहीं हो सका — टेक्स्ट चुनकर मैन्युअली कॉपी करें",
+    "shelves": "लाइब्रेरी",
+    "bays": "वर्कशॉप",
+    "outliner": {
+      "title": "आउटलाइनर",
+      "flat": "एक सपाट रेसिपी — चलने के लिए कोई हिस्से नहीं।",
+      "unnamed": "ऐसी संरचना जिसके लिए mojulo के पास अभी कोई शब्द नहीं है। यह अब भी रेसिपी में है।",
+      "group": {
+        "geometry": "ज्यामिति",
+        "staging": "स्टेजिंग",
+        "sound": "साउंड",
+        "provenance": "उदभव",
+        "renderGroups": "रेंडर समूह"
+      },
+      "isolate": "व्यूपोर्ट में अलग करें — साफ़ करने के लिए फिर क्लिक करें",
+      "branch": {
+        "lathes": "लेथ",
+        "extrudes": "एक्सट्रूड",
+        "sweeps": "स्वीप",
+        "drapes": "ड्रेप",
+        "faces": "फ़ेस",
+        "figures": "फ़िगर",
+        "characters": "किरदार",
+        "entities": "एंटिटी",
+        "elements": "एलिमेंट",
+        "civicAreas": "नागरिक क्षेत्र",
+        "chambers": "चेंबर",
+        "tunnels": "सुरंगें",
+        "masses": "मास",
+        "concourses": "कॉनकोर्स",
+        "stations": "स्टेशन",
+        "edges": "एज",
+        "tree": "ट्री",
+        "shape": "शेप",
+        "camera": "कैमरा",
+        "cameras": "कैमरे",
+        "ground": "Ground",
+        "physics": "फ़िज़िक्स",
+        "detail": "विवरण",
+        "game": "गेम",
+        "audio": "ऑडियो",
+        "giBake": "GI बेक"
+      }
+    },
+    "viewport": {
+      "noReading": "यह आर्टिफ़ैक्ट देखने के बजाय सुना, खेला या पढ़ा जाता है। अनुभव करने के लिए इसे खोलें।",
+      "frameFailed": "यह व्यू लोड नहीं हुआ — दोबारा कोशिश करने के लिए आर्टिफ़ैक्ट सीधे खोलें।",
+      "seed": "seed {seed}",
+      "parts": "{n} हिस्से",
+      "scaleDeclared": "1 यूनिट = 1 {unit} · सही स्केल पर प्रिंट करें, scale: {scale}",
+      "scaleUndeclared": "यूनिट घोषित नहीं · stl इसे 1 यूनिट = 1 mm पढ़ता है",
+      "baked": "बेक्ड · {preset}",
+      "noBake": "कोई GI बेक नहीं",
+      "triHint": "ट्रायंगल गिनती: export_model"
+    },
+    "inspector": {
+      "askTitle": "एजेंट से कहें",
+      "askBody": "डैशबोर्ड स्थिति दिखाता है; यह कभी बदलाव नहीं करता। इस रेसिपी को बदलना आपके होस्ट एजेंट में होता है।",
+      "askCopy": "Copy prompt",
+      "bound": "बाउंड आर्टिफ़ैक्ट",
+      "boundEmpty": "अभी कुछ बाउंड नहीं — इस रेसिपी के लिए डिस्क पर कोई रेंडर, मेश या एक्सपोर्ट नहीं।",
+      "openFolder": "outcome फ़ोल्डर खोलें · {size}",
+      "recipe": "रेसिपी"
+    },
+    "status": {
+      "packs": "पैक: {packs}",
+      "kernelOnly": "सिर्फ़ कर्नेल",
+      "queue": "रेंडर क्यू {n}",
+      "gate": "{n} आइज़ गेट की प्रतीक्षा में",
+      "library": "{n} आर्टिफ़ैक्ट",
+      "toolCalls": "{n} टूल कॉल · 24 घं"
+    }
+  },
+  "floor": {
+    "crumb": "डैशबोर्ड",
+    "bench": "बेंच पर",
+    "recentPicks": "हाल में उठाए गए",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} आर्टिफ़ैक्ट — चले, परिक्रमा किए, प्रिंट किए",
+      "d2": "{n} आर्टिफ़ैक्ट — तस्वीरें और नक्शे"
+    },
+    "open": {
+      "scenes": "लोकेशन बोर्ड खोलें →",
+      "models": "टर्नटेबल वॉल खोलें →",
+      "characters": "कास्ट बोर्ड खोलें →",
+      "images": "प्रिंट वॉल खोलें →",
+      "diagrams": "रीडिंग रूम खोलें →",
+      "materials": "मटीरियल शेल्फ़ खोलें →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} प्रीसेट",
+    "kit": {
+      "figure": "फ़िगर",
+      "character-sheet": "शीट",
+      "sprite-sheet": "स्प्राइट"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "गेम",
+      "audio": "♪",
+      "painted": "पेंटेड"
+    },
+    "capNote": "स्ट्रिप सबसे ताज़ा दिखाती हैं — हेडर सब कुछ खोलते हैं",
+    "warming": "लाइव व्यू तैयार हो रहा है…",
+    "liveFailed": "लाइव व्यू लोड नहीं हुआ — स्थिर छवि दिखा रहे हैं",
+    "loadFailed": "यह शेल्फ़ लोड नहीं हो सकी।",
+    "retry": "फिर से कोशिश करें",
+    "emptyStrip": "यहाँ अभी कुछ मिंट नहीं हुआ।",
+    "materialsHint": "एजेंट से कहकर लगाया जाता है — किसी मेश-वर्ल्ड फ़ेस पर material सेट करें, या कोई प्रीसेट नाम दें।"
+  },
+  "viewCube": {
+    "label": "व्यू प्रीसेट",
+    "threeQuarter": "¾",
+    "front": "सामने",
+    "side": "बगल",
+    "top": "ऊपर"
+  },
+  "rooms": {
+    "search": "इस रूम में खोजें…",
+    "all": "सभी",
+    "empty": "इस फ़ैसेट या खोज से कुछ मेल नहीं खाता।",
+    "emptyShelf": "{shelf} में अभी कुछ मिंट नहीं हुआ।",
+    "emptyShelfHint": "अपने एजेंट से एक बनाने को कहें — शब्दावली get_sketch_vocab में है।",
+    "copied": "Copied",
+    "copyFailed": "कॉपी नहीं हो सका — मैन्युअली चुनें",
+    "notExportable": "कोई मेश एक्सपोर्ट नहीं — यह आर्टिफ़ैक्ट डायग्राम की तरह रेंडर होता है, चलने योग्य मॉडल की तरह नहीं।",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "इटरेशन · {n}",
+    "open": "रेसिपी खोलें →",
+    "openBench": "बेंच पर खोलें ↗",
+    "openWorld": "वर्ल्ड खोलें ↗",
+    "close": "बंद करें",
+    "prev": "पिछला",
+    "next": "आगे",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "पेंटेड · बाहरी वर्कर · स्कैफ़ोल्ड रेसिपी संप्रभु है",
+    "mintMissing": "एजेंट से कहें: {piece} मिंट करें",
+    "mintPrompt": "mojulo कैरेक्टर \"{name}\" (आर्टिफ़ैक्ट {ref} देखें) के लिए गायब {piece} मिंट करें। मिलता-जुलता टूल इस्तेमाल करें (create_sprite_sheet / bind_character_sheet / figure टूल) — पहले get_sketch_vocab पढ़ें।",
+    "facets": {
+      "scenes": {
+        "walkable": "चलने योग्य",
+        "cities": "शहर",
+        "hubs": "हब",
+        "interiors": "इंटीरियर"
+      },
+      "models": {
+        "workbench": "वर्कबेंच",
+        "assembler": "असेंबलर",
+        "manji": "Manji-ट्री",
+        "science": "साइंस"
+      },
+      "images": {
+        "stills": "स्टिल",
+        "sequential": "क्रमिक कला",
+        "painted": "पेंटेड",
+        "carved": "उकेरा हुआ",
+        "other": "अन्य"
+      }
     }
   }
 }

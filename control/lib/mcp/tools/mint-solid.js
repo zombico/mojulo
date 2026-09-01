@@ -30,6 +30,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
 import { createFigureHandler, emoteFigureHandler } from '@/lib/mcp/tools/figure';
+import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
 import { createWorkbenchHandler } from '@/lib/mcp/tools/workbench';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
@@ -51,6 +52,10 @@ import {
 // routing. NOTE: 'vehicle' is folded in a later pass (see the plan); not here.
 export const SOLID_KINDS = {
   'figure': { family: 'figure', handler: createFigureHandler },
+  // The ANIMAL realm of the figure system — the human protoform's armature with the
+  // spine reoriented horizontal. A bare `archetype` is the cheap overlap body; a
+  // `species` is a dressed ZOO_BUILDS recipe on the welded-skin hero path.
+  'animal': { family: 'creature', handler: createAnimalHandler },
   'manji-tree': {
     family: 'creature',
     handler: createManjiTreeHandler,
@@ -198,14 +203,14 @@ export function registerMintSolidTools() {
   registerTool({
     name: 'mint_solid',
     description:
-      'Mint a 3D SOLID — a posed human figure, a part-graph creature/object, a measured object '
-      + 'study, a composed assembly, a carved metal wordmark/logo, a spinning single solid, a '
+      'Mint a 3D SOLID — a posed human figure, an ANIMAL (quadruped or biped), a part-graph creature/object, a measured object '
+      + 'study, a composed assembly, a carved metal wordmark/logo, a spinning solid, a '
       + 'bespoke building, or a vehicle-family instance. Served as an SVG still + orbitable World + `.glb`; a tiny deterministic '
-      + 'recipe is stored, regenerated on render. Pick `kind` from the enum; per-kind parameters go '
+      + 'recipe, regenerated on render. Pick `kind` from the enum; per-kind params go '
       + 'in `spec`; `via` picks an authoring door for the manji-tree kind (ir / parts / prompt / '
       + "packet). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }) and read its "
-      + "parameter manual via get_solid_vocab({ id: '<kind>' }) before passing spec. Iterate the "
-      + 'stored recipe in place via `update_sketch`.',
+      + "manual via get_solid_vocab({ id: '<kind>' }) before passing spec. Iterate the stored "
+      + 'recipe in place via `update_sketch`.',
     inputSchema: {
       type: 'object',
       properties: {

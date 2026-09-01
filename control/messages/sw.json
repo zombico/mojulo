@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Hifadhi",
-    "saving": "Inahifadhi…",
     "cancel": "Ghairi",
     "servicesMap": "Ramani ya Huduma",
     "observability": "Uona",
     "delete": "Futa",
-    "deleting": "Inafuta…",
-    "download": "Pakua",
-    "downloading": "Inapakua…",
     "close": "Funga",
     "back": "Rudi",
     "next": "Ijayo",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Ramani ya uumbaji wa programu hii — kila wito wa chombo ulioifanya iwepo, kama vituo kwenye njia moja."
+      },
       "metadata": "Metadata",
       "artifactPath": "Njia ya Kitu Kizuri",
       "materializationRef": "Marejeleo ya Kupangwa",
@@ -1545,6 +1544,29 @@
     "copied": "Kunakiliwa",
     "close": "Funga"
   },
+  "displayModes": {
+    "label": "Hali ya kuonyesha",
+    "mode": {
+      "wire": "Waya",
+      "shaded": "Yenye kivuli",
+      "baked": "Iliyookwa",
+      "painted": "Iliyopakwa rangi"
+    },
+    "hint": {
+      "wire": "Mistari ya ujenzi pekee — jiometri ikiwa uchi.",
+      "shaded": "Rangi za vertex na nyenzo za kiutaratibu za Mojulo yenyewe.",
+      "baked": "Mwangaza wa jumla wa Blender Cycles uliookwa katika rangi za vertex.",
+      "painted": "Ilipakwa rangi na mfanyakazi wa nje wa picha juu ya kiunzi cha mojulo."
+    },
+    "reason": {
+      "noWireframe": "Aina hii haina usomaji wa ujenzi.",
+      "bakedInPlace": "Ilioka pale pale — hakuna toleo lisilo na mwanga lililohifadhiwa.",
+      "noBake": "Hakuna uokaji wa GI bado. Muombe wakala aoke ulimwengu huu.",
+      "noPaintedRender": "Hakuna render iliyopakwa rangi iliyofungwa bado. Muombe wakala aombe moja.",
+      "notPaintable": "Mojulo huchora kila pikseli ya hii — hakuna cha kupaka rangi."
+    },
+    "externalBadge": "si rangi ya mojulo"
+  },
   "home": {
     "title": "Nyumba ya Warsha",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Sauti",
       "games": "Msanidi wa Michezo",
       "arcade": "Arcade",
-      "settings": "Mipangilio"
+      "settings": "Mipangilio",
+      "library": "Maktaba",
+      "renderBay": "Banda la Render",
+      "dashboard": "Irizi"
     },
     "agentStatus": {
-      "title": "Hali ya Wakala",
       "liveLabel": "Hai",
       "staleLabel": "Ikiwi sehemu ya mwisho",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} vifiti",
       "serversLabel": "{count, plural, one {# seva} other {# seva}}",
-      "toolsLabel": "{count, plural, one {# chombo} other {# chombo}}",
-      "declaredNow": "sasa tu",
-      "declaredSeconds": "{seconds, plural, one {kabla ya sekunde # } other {kabla ya sekunde #}}",
-      "declaredMinutes": "{minutes, plural, one {kabla ya dakika #} other {kabla ya dakika #}}",
-      "declaredHours": "{hours, plural, one {kabla ya saa #} other {kabla ya saa #}}",
-      "declaredDays": "{days, plural, one {kabla ya siku #} other {kabla ya siku #}}"
+      "toolsLabel": "{count, plural, one {# chombo} other {# chombo}}"
+    },
+    "crumb": "warsha",
+    "packsPill": "{packs}",
+    "artifactsPill": "kazi {n}",
+    "dashboard": {
+      "title": "Irizi",
+      "open": "Fungua sakafu →"
+    },
+    "ask": {
+      "title": "Muulize wakala",
+      "body": "Uundaji hufanyika ndani ya wakala wako wa MCP."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Muundo haujaweza kupatikana",
     "notFoundBody": "Muundo huu hauwezi kupatikana au haujaumbwa bado.",
+    "backToLibrary": "← Rudi kwenye Maktaba",
+    "retryLoad": "Jaribu tena",
+    "frameFailed": "Mwonekano huu haukupakia.",
     "downloadGlb": "Pakua .glb",
     "downloadGlbPreparing": "Inajitayarisha…",
     "downloadGlbUnavailable": "Hakuna mesh ya 3D ya kuhamisha kwa muundo huu.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Bado hakuna wanachama",
     "notFound": "Mradi huo haupo — huenda umehifadhiwa kwenye kumbukumbu au ref si sahihi.",
     "backToProjects": "Rudi kwa Msanidi wa Michezo",
-    "charter": "Hati ya Mradi",
-    "playInArcade": "Cheza kwenye Arcade",
     "copyWorkPrompt": "Nakili kidokezo cha kazi",
     "copyAddPrompt": "ongeza",
     "copyMintPrompt": "tengeneza mchezo",
@@ -1659,7 +1690,6 @@
     "missing": "Haipo",
     "missingBody": "Kifaa cha mwanachama huyu hakipo tena. Mradi unahifadhi nafasi; funga upya au kiondoe kutoka kwa wakala wako mwenyeji.",
     "noRules": "Bado hakuna mchezo uliotengenezwa — mradi uko katika hatua ya awali ya uzalishaji.",
-    "fromManifest": "kutoka kwa manifest",
     "gated": "imefungwa",
     "openNewTab": "Fungua kwenye kichupo kipya",
     "closeViewer": "Funga",
@@ -1707,47 +1737,40 @@
     "copied": "Kunakiliwa",
     "play": "Cheza",
     "levelCount": "{count, plural, one {# ngazi} other {# ngazi}}",
-    "shipped": "Imetolewa",
-    "notFound": "Kabati hilo halipo sakafuni — huenda mchezo umeondolewa.",
-    "backToArcade": "Rudi kwa Arcade",
-    "openStandalone": "Fungua kama huru"
+    "shipped": "Imetolewa"
+  },
+  "library": {
+    "crumb": "maktaba",
+    "title": "Maktaba",
+    "subtitle": "Kila kazi ambayo wakala ameunda — mandhari, modeli, wahusika, nyenzo, picha, michoro. Rafu moja kwa kila namna ya kuangalia; hifadhi ile ile ya resipi chini yake.",
+    "shelves": {
+      "recent": "Za hivi karibuni",
+      "scenes": "Mandhari",
+      "models": "Modeli",
+      "characters": "Wahusika",
+      "images": "Picha",
+      "diagrams": "Michoro",
+      "materials": "Nyenzo"
+    },
+    "materials": {
+      "blurb": "Nyenzo za kiutaratibu — rangi ya vertex bila texture: msingi wa lambert, mteremko wenye mwanga wa juu, wingu lililopigwa brashi, na uchakavu, vyote vimeokwa ndani ya majazo ya kila kona. Kila sampuli ni quad halisi iliyopitishwa kwenye kisuluhishi halisi, hivyo unachokiona ndicho uso unachopata.",
+      "applyHint": "Nyenzo hupakwa kwa kumuomba wakala — weka material kwenye uso wa ulimwengu wa meshi, au pitisha jina la mpangilio."
+    },
+    "recentNote": "Kazi za hivi karibuni zaidi katika warsha nzima. Chagua rafu kuona zote za aina moja.",
+    "roomToggle": "Chumba"
   },
   "maker": {
     "hub": {
       "title": "Mjumbe wa Mojulo",
       "subtitle": "Studio: michoro, ulimwengu unaotembeka, vitu vya 3D, mwendo, beats, sauti, na matokeo yaliyokamilika. Uso wa ubunifu uliorekebishwa, ndugu wa Sketches (uliorekebishwa kwa michoro-mchoro). Kila kipande ni primitive ile ile ya sketch — hifadhi, rejelea, na linganisha kwa vyovyote."
     },
-    "open": "Fungua",
-    "empty": "Hakuna kitu hapa bado",
-    "itemCount": "{count, plural, =0 {tupu} one {# kitu} other {# vitu}}",
-    "illustrations": {
-      "title": "Picha",
-      "subtitle": "Mandhari, takwimu, na mtazamo tata, CSS-3D, na matokeo ya rangi.",
-      "blurb": "Mandhari iliyochorwa, takwimu iliyowekwa, imara iliyokatwa — seti tajiri ya kielekezi unayoangalia."
-    },
-    "worlds": {
-      "title": "Ulimwengu",
-      "subtitle": "Ulimwengu wa three.js unaotembeka — miji, majengo, mambo ya ndani, na vituo unavyopita kwa mtazamo wa nafsi ya kwanza.",
-      "blurb": "Miji ya fractal, majengo makubwa, na mambo ya ndani yaliyotolewa kama ulimwengu wa 3D unaotembeka, si picha tambarare."
-    },
-    "objects": {
-      "title": "Vitu",
-      "subtitle": "Vifaa vya 3D pekee na masomo — sehemu za workbench, mikusanyiko, polygomers, sayari, mionekano ya sayansi na hisabati. Buruta kuzunguka, sogeza kukuza.",
-      "blurb": "Sehemu za workbench, mikusanyiko, polygomers, na masomo ya mzunguko — vitu vya 3D unavyozungusha na kutazama."
-    },
-    "motion": {
-      "title": "Mwendo",
-      "blurb": "Sinema na GIFs — njia za kamera na maonyesho ya slaidi yenye matokeo ya kielekezi."
-    },
     "beats": {
       "title": "Kupiga",
-      "subtitle": "Kufa kwa moyo, muundo, na matokeo ya sauti — chagua moja na bonyeza cheza. Muandishi mpya kutoka kwa wakala wako kupitia create_beats.",
-      "blurb": "Matanzi ya muangika, alama, na ishara za foley — vipengele vya sauti unavyosikiliza. Kila kitu kilichosanifiwa, hakuna kitu kilichotolewa."
+      "subtitle": "Kufa kwa moyo, muundo, na matokeo ya sauti — chagua moja na bonyeza cheza. Muandishi mpya kutoka kwa wakala wako kupitia create_beats."
     },
     "voice": {
       "title": "Sauti",
       "subtitle": "Registers za sauti — taratibu za kuamua jinsi sauti inavyosikika: shoka mbili juu ya benki iliyoboreswa ya sauti. Muandishi mpya kutoka kwa wakala wako kupitia create_voice; kazi ya nje inazisema.",
-      "blurb": "Meek hadi mamlaka, mwangaza hadi kina — sauti kama taratibu ndogo za muundo, kwa hakika si kurekodi.",
       "axisConfidence": "Ujasiri",
       "axisDepth": "Kina",
       "poleMeek": "meek",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Mradi bila kichwa",
     "untagged": "Kisiachoa",
     "shots": "{count} picha",
-    "openPlayer": "Fungua mchezaji",
     "noPreview": "Hakuna muonekano",
     "framesLabel": "{count} fremu",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Kutoka",
     "sourceUnknown": "(hazina ililondolewa)",
     "lensLabel": "Kielekezi",
-    "createdAt": "Iliumbwa {timestamp}",
     "viewOutcome": "Angalia matokeo",
-    "sliceCount": "{count, plural, =0 {hakuna sehemu} =1 {1 sehemu} other {# sehemu}}",
     "untitledAim": "(hakuna lengo lililoandikwa)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {hakuna droo} =1 {1 droo} other {# droo}}",
     "createdAt": "Iliumbwa {timestamp}",
     "updatedAt": "Ilisasishwa {timestamp}",
-    "startFromAgent": "Anza hazina kutoka kwa wakala wako",
     "actions": {
       "rename": "Badilisha jina",
       "edit": "Hariri",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Hazina haijaweza kupatikana",
       "notFoundBody": "Hazina hii haipo au haijajumbuwa bado.",
       "back": "Rudi kwenye hazina",
-      "openInbox": "Fungua inbox",
       "rootDrawer": "Mzizi",
       "drawerItemCount": "{count, plural, =0 {tupu} =1 {1 kitu} other {# vitu}}",
       "noItemsInDrawer": "Hakuna vipengele katika droo hii bado.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Haikuweza kuokoa droo",
       "drawerRenameError": "Haikuweza kubadilisha jina la droo",
       "renameDrawerLabel": "Badilisha jina la droo",
-      "moveTo": "Songe kwa…",
       "moveError": "Haikuweza kusonge kitu",
       "archive": "Hifadhi",
       "archiveError": "Haikuweza kuhifadhi kitu",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Hifadhi hata hivyo",
       "archiveCancel": "Ghairi",
       "addItem": "+ Ongeza",
-      "addItemHeading": "Ongeza kwa {drawer}",
       "agentTypesFooter": "Hati na kuelekezea kwa ramani ya muktadha kuongezwa na wakala wako.",
       "picker": {
         "text": "Kuzama kwa maandishi mapya",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Pakua SVG",
     "downloadPng": "Pakua PNG",
     "invalidManifest": "Rendrant haikuweza kuchambuza muundo huu.",
+    "frameFailed": "Mwonekano huu haukupakia.",
     "renameLabel": "Badilisha jina la muundo",
     "renamePlaceholder": "Kichwa cha muundo",
     "renameSave": "Hifadhi",
@@ -2069,8 +2086,6 @@
     "refresh": "Jibadilishe",
     "error": "Imefeli kulodia huduma zilizounganishwa",
     "empty": "Hakuna huduma zilizounganishwa bado. Tangaza ujuzi wa mwenyeji au jenga uzingaji wa MCP-orbit.",
-    "graphTitle": "Muundo wa MCP",
-    "graphHint": "Bonyeza nodi za grafu ili kufungua mifumo iliyopatikana ya maelezo.",
     "backToList": "Rudi kwenye Huduma zilizounganishwa",
     "backToService": "Rudi kwenye huduma iliyounganishwa",
     "notFound": "Huduma iliyounganishwa haipatikani.",
@@ -2138,6 +2153,250 @@
       "via": "Kupitia",
       "when": "Lini",
       "message": "Ujumbe"
+    }
+  },
+  "renderBay": {
+    "title": "Banda la Render",
+    "subtitle": "Kila kitu ambacho mojulo inazalisha, mahali pamoja: foleni ya kudumu ya render za picha, uokaji wa GI, na machapisho na hamishaji zilizopo diskini. Njia nne za kusema \"kitu kinatengenezwa\" ambazo zamani hazikuwa na nyumba ya pamoja.",
+    "readOnly": "Banda huonyesha hali tu. Kila kitendo hapa ni maandishi ya kunakili kwenda kwa wakala wako — kukubali render, kuoka upya ulimwengu, na kuunda hamisho vyote hufanyika kupitia zana za MCP, kamwe si kupitia ukurasa huu.",
+    "refresh": "Jibadilishe",
+    "loading": "Inapakia…",
+    "allLanes": "Njia zote",
+    "copyPrompt": "Nakili haraka",
+    "copied": "Kunakiliwa",
+    "copyFailed": "Haikuweza kunakili — chagua maandishi na uyanakili mwenyewe",
+    "showing": "inaonyesha {shown} kati ya {total}",
+    "queue": {
+      "title": "Foleni ya render",
+      "note": "Maombi ya render ya kudumu yaliyoegeshwa kwa mfanyakazi mwenye uwezo wa picha. Ombi hunusurika kuanzishwa upya, hivyo safu iliyoegeshwa ni ahadi, si kazi iliyo kwenye kumbukumbu.",
+      "count": "maombi {n}",
+      "empty": "Hakuna kilichoegeshwa. Muombe wakala aendeshe request_image_render kwa image-outcome au mchoro wa sequential-art uliokwisha undwa.",
+      "eyesGate": "← lango la macho: mashine imemaliza, hakuna aliyeangalia",
+      "stalled": "imekwama",
+      "stage": {
+        "queued": "Kwenye foleni",
+        "inFlight": "Inaendelea",
+        "gate": "Inasubiri lango la macho",
+        "done": "Imekamilika"
+      },
+      "status": {
+        "pending": "inasubiri",
+        "in_flight": "inaendelea",
+        "submitted": "imewasilishwa",
+        "accepted": "imekubaliwa",
+        "rejected": "imekataliwa",
+        "expired": "imeisha muda",
+        "cancelled": "imeghairiwa"
+      },
+      "targets": "malengo {n}",
+      "folded": "imekunjwa juu ya kazi {refs}"
+    },
+    "bakes": {
+      "title": "Uokaji wa GI",
+      "note": "Mwangaza wa jumla wa Blender Cycles uliookwa ndani ya rangi za vertex za ulimwengu wenyewe — AO laini na kivuli cha mgusano bila gharama yoyote wakati wa utekelezaji. Inahitaji Blender ya ndani; ulimwengu uliookwa husafirishwa kwa yeyote.",
+      "empty": "Hakuna uokaji bado. Ukiwa na Blender imesakinishwa: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "lango la mashine limepita · {match} ulinganifu wa kona · {black} sakafu nyeusi (kikomo {limit})",
+      "eyesGate": "lango la macho: ni lako — lifungue na uangalie",
+      "samples": "sampuli {n}",
+      "from": "imeokwa kutoka {ref}"
+    },
+    "outputs": {
+      "title": "Machapisho na hamishaji",
+      "note": "Kilichowekwa kwenye diski: machapisho kutoka cook, na modeli, meshi, render, ngozi, sauti na noti zilizofungwa katika folda ya matokeo ya kila kazi.",
+      "fullInbox": "Kikasha kamili cha machapisho →",
+      "emptyCooks": "Hakuna machapisho yaliyo wazi.",
+      "emptyArtifacts": "Hakuna hamishaji diskini bado. Muombe wakala afanye export_model kwa ulimwengu, au afunge render.",
+      "emptyBeats": "Hakuna render za beats diskini bado.",
+      "group": {
+        "cooks": "Machapisho",
+        "artifacts": "Folda za matokeo ya kazi",
+        "beats": "Render za beats"
+      },
+      "kind": {
+        "model": "modeli",
+        "mesh": "meshi iliyofungwa",
+        "render": "render",
+        "skin": "ngozi",
+        "voice": "sauti",
+        "motion": "mwendo",
+        "game": "mchezo",
+        "audio": "audio",
+        "score": "noti",
+        "page": "ukurasa",
+        "recipe": "resipi",
+        "other": "faili"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Fungua kazi →",
+    "copied": "Kunakiliwa",
+    "copyFailed": "Haikuweza kunakili — chagua maandishi na uyanakili mwenyewe",
+    "shelves": "Maktaba",
+    "bays": "Warsha",
+    "outliner": {
+      "title": "Muhtasari",
+      "flat": "Resipi tambarare — hakuna sehemu za kupitia.",
+      "unnamed": "Muundo ambao mojulo bado haina neno lake. Bado upo ndani ya resipi.",
+      "group": {
+        "geometry": "Jiometri",
+        "staging": "Uandaaji",
+        "sound": "Sauti",
+        "provenance": "Uzaliwa",
+        "renderGroups": "Vikundi vya render"
+      },
+      "isolate": "Tenga katika eneo la mwonekano — bofya tena kufuta",
+      "branch": {
+        "lathes": "Migeuzo",
+        "extrudes": "Misukumo",
+        "sweeps": "Mipito",
+        "drapes": "Mitandiko",
+        "faces": "Nyuso",
+        "figures": "Sanamu",
+        "characters": "Wahusika",
+        "entities": "Viumbe",
+        "elements": "Vipengele",
+        "civicAreas": "Maeneo ya kiraia",
+        "chambers": "Vyumba",
+        "tunnels": "Mahandaki",
+        "masses": "Mijengo",
+        "concourses": "Kumbi",
+        "stations": "Vituo",
+        "edges": "Kingo",
+        "tree": "Mti",
+        "shape": "Umbo",
+        "camera": "Kamera",
+        "cameras": "Kamera",
+        "ground": "Ardhi",
+        "physics": "Fizikia",
+        "detail": "Undani",
+        "game": "Mchezo",
+        "audio": "Sauti",
+        "giBake": "Uokaji wa GI"
+      }
+    },
+    "viewport": {
+      "noReading": "Kazi hii husikilizwa, huchezwa, au husomwa badala ya kutazamwa. Ifungue ili kuipitia.",
+      "frameFailed": "Mwonekano huu haukupakia — fungua kazi moja kwa moja kujaribu tena.",
+      "seed": "mbegu {seed}",
+      "parts": "sehemu {n}",
+      "scaleDeclared": "kipimo 1 = 1 {unit} · chapisha kwa ukubwa halisi kwa scale: {scale}",
+      "scaleUndeclared": "vipimo havijatajwa · stl husoma kipimo 1 = 1 mm",
+      "baked": "imeokwa · {preset}",
+      "noBake": "hakuna uokaji wa GI",
+      "triHint": "idadi ya pembetatu: export_model"
+    },
+    "inspector": {
+      "askTitle": "Muulize wakala",
+      "askBody": "Dashibodi huonyesha hali tu; haibadilishi kamwe. Kubadilisha resipi hii hufanyika ndani ya wakala wako mwenyeji.",
+      "askCopy": "Nakili haraka",
+      "bound": "Kazi zilizofungwa",
+      "boundEmpty": "Hakuna kilichofungwa bado — hakuna render, meshi, au hamishaji diskini kwa resipi hii.",
+      "openFolder": "Fungua folda ya matokeo · {size}",
+      "recipe": "Resipi"
+    },
+    "status": {
+      "packs": "pakiti: {packs}",
+      "kernelOnly": "kiini pekee",
+      "queue": "foleni ya render {n}",
+      "gate": "{n} zinasubiri lango la macho",
+      "library": "kazi {n}",
+      "toolCalls": "wito wa zana {n} · saa 24"
+    }
+  },
+  "floor": {
+    "crumb": "dashibodi",
+    "bench": "Kwenye meza ya kazi",
+    "recentPicks": "Zilizoshikwa hivi karibuni",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "kazi {n} — za kutembea, kuzunguka, kuchapisha",
+      "d2": "kazi {n} — picha na ramani"
+    },
+    "open": {
+      "scenes": "Fungua ubao wa maeneo →",
+      "models": "Fungua ukuta wa meza-zunguko →",
+      "characters": "Fungua ubao wa wahusika →",
+      "images": "Fungua ukuta wa machapisho →",
+      "diagrams": "Fungua chumba cha kusoma →",
+      "materials": "Fungua rafu ya nyenzo →"
+    },
+    "stack": "×{n}",
+    "presets": "mipangilio {n}",
+    "kit": {
+      "figure": "sanamu",
+      "character-sheet": "laha",
+      "sprite-sheet": "sprites"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "mchezo",
+      "audio": "♪",
+      "painted": "imepakwa rangi"
+    },
+    "capNote": "vipande huonyesha vipya zaidi — vichwa hufungua kila kitu",
+    "warming": "inapasha mwonekano hai…",
+    "liveFailed": "mwonekano hai haukupakia — inaonyesha picha tuli",
+    "loadFailed": "Haikuweza kupakia rafu hii.",
+    "retry": "Jaribu tena",
+    "emptyStrip": "Hakuna kilichoundwa hapa bado.",
+    "materialsHint": "Hupakwa kwa kumuomba wakala — weka material kwenye uso wa ulimwengu wa meshi, au pitisha jina la mpangilio."
+  },
+  "viewCube": {
+    "label": "Mipangilio ya mwonekano",
+    "threeQuarter": "¾",
+    "front": "Mbele",
+    "side": "Upande",
+    "top": "Juu"
+  },
+  "rooms": {
+    "search": "Tafuta katika chumba hiki…",
+    "all": "Zote",
+    "empty": "Hakuna kinacholingana na kichujio au utafutaji huu.",
+    "emptyShelf": "Hakuna kilichoundwa katika {shelf} bado.",
+    "emptyShelfHint": "Muombe wakala wako aunde moja — get_sketch_vocab ina msamiati.",
+    "copied": "Kunakiliwa",
+    "copyFailed": "Haikuweza kunakili — chagua mwenyewe",
+    "notExportable": "Hakuna hamisho la meshi — kazi hii huonyeshwa kama mchoro, si modeli ya kutembea.",
+    "stack": "×{n}",
+    "seed": "mbegu {seed}",
+    "versions": "Marudio · {n}",
+    "open": "Fungua resipi →",
+    "openBench": "Fungua kwenye meza ya kazi ↗",
+    "openWorld": "Fungua ulimwengu ↗",
+    "close": "Funga",
+    "prev": "Iliyotangulia",
+    "next": "Ijayo",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "imepakwa rangi · mfanyakazi wa nje · resipi ya kiunzi ndiyo huru",
+    "mintMissing": "Muombe wakala: unda {piece}",
+    "mintPrompt": "Kwa mhusika wa mojulo \"{name}\" (angalia kazi {ref}), unda {piece} inayokosekana. Tumia chombo kinacholingana (create_sprite_sheet / bind_character_sheet / zana za figure) — soma get_sketch_vocab kwanza.",
+    "facets": {
+      "scenes": {
+        "walkable": "Za kutembea",
+        "cities": "Miji",
+        "hubs": "Vitovu",
+        "interiors": "Ndani"
+      },
+      "models": {
+        "workbench": "Meza ya kazi",
+        "assembler": "Mkusanyaji",
+        "manji": "Manji-trees",
+        "science": "Sayansi"
+      },
+      "images": {
+        "stills": "Picha tuli",
+        "sequential": "Sanaa mfululizo",
+        "painted": "Iliyopakwa rangi",
+        "carved": "Zilizochongwa",
+        "other": "Nyingine"
+      }
     }
   }
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { MARK_COLS, MARK_ROWS, MARK_DOTS, MARK_STROKES, MARK_INK, MARK_GRADIENT } from './mark-dots.js';
-import { bakeDots, renderModule, COLS, ROWS } from '../../scripts/build-brand-mark.mjs';
+import { bakeDots, renderModule, renderIcon, COLS, ROWS } from '../../scripts/build-brand-mark.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -88,5 +88,60 @@ describe('the baked mark', () => {
     // real stem's coverage the letterform would lose an edge silently.
     const stemFloor = Math.min(...MARK_DOTS.filter(([, , v]) => v > 0.5).map(([, , v]) => v));
     expect(MARK_INK).toBeLessThan(stemFloor);
+  });
+});
+
+describe('the favicon', () => {
+  const icon = () => readFileSync(join(HERE, '..', '..', 'app', 'icon.svg'), 'utf8');
+
+  it('is not stale — the committed file IS the bake', () => {
+    // app/icon.svg is emitted from the SAME skeleton as the nav mark, so the tab
+    // can never disagree with the chrome. Hand-editing it fails here.
+    expect(icon()).toBe(renderIcon());
+  });
+
+  it('is the solid reading, not the relief', () => {
+    // A tab renders at 16px, which is the one size the halftone provably cannot
+    // hold (MARK_RELIEF_MIN is 28). Five stroked paths, no <circle> lattice.
+    const svg = renderIcon();
+    expect(svg.match(/<path /g)).toHaveLength(MARK_STROKES.length);
+    expect(svg).not.toContain('<circle');
+  });
+
+  it('carries literal ink, never currentColor', () => {
+    // A favicon inherits no colour, so `currentColor` resolves to black — the
+    // mark would vanish into its own plate. Everywhere else the mark takes
+    // currentColor; here it must not.
+    const svg = renderIcon();
+    expect(svg).not.toContain('currentColor');
+    expect(svg).toContain('#e8edf2');   // --ink-primary
+    expect(svg).toContain('#07090c');   // --bay-void, the plate
+  });
+
+  it('spends no signal hue on the mark', () => {
+    // Teal is --live and means "it exists and it runs"; amber is --forge. A hue
+    // is a state claim, and a logo makes no state claim. The retired three-card
+    // mark was a teal gradient, which is exactly the confusion 7c removed.
+    const svg = renderIcon().toLowerCase();
+    for (const hue of ['#5eead4', '#2dd4bf', '#f4a86a', 'lineargradient']) {
+      expect(svg).not.toContain(hue);
+    }
+  });
+
+  it('parses as XML — no double hyphen inside the banner comment', () => {
+    // Not pedantry: an XML comment containing `--` makes librsvg reject the
+    // WHOLE document, so an icon naming `--bay-void` in its banner does not
+    // render at all rather than rendering imperfectly. The first bake did this.
+    const svg = renderIcon();
+    for (const [, body] of svg.matchAll(/<!--([\s\S]*?)-->/g)) {
+      expect(body).not.toMatch(/--/);
+    }
+  });
+
+  it('keeps the mark square-fitted inside the plate, not squashed', () => {
+    // The mark is 18:15. Fitting the longer axis and centring the other is what
+    // keeps it from being stretched into a square plate; a non-uniform scale
+    // here would mean someone reached for scale(x, y).
+    expect(renderIcon()).toMatch(/scale\(\d+(\.\d+)?\)/);
   });
 });

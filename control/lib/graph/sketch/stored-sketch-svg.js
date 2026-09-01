@@ -10,7 +10,7 @@ import { renderSketchToSvg } from '@/lib/sketch-svg';
 import { renderManjiTreeToSvg } from '@/lib/graph/polygonizer/manji-svg';
 import { renderPaintedLandscapeToSvg } from '@/lib/graph/polygonizer/painted-landscape';
 import { renderCarvedSolidToSvg } from '@/lib/graph/effects/carved-solid';
-import { renderFigureToSvg } from '@/lib/graph/polygonizer/figure-render';
+import { renderFigureToSvg, renderAnimalToSvg } from '@/lib/graph/polygonizer/figure-render';
 import { renderScaffoldSvg } from '@/lib/graph/image-outcomes/scaffold';
 import { isImageOutcomesKind } from '@/lib/graph/image-outcomes/manifest';
 import { renderCoverSvg } from '@/lib/graph/image-outcomes/cover-preview';
@@ -66,6 +66,8 @@ export async function renderStoredSketchSvg(sketch, { panelId, control } = {}) {
   if (manifest.kind === 'cover') return renderCoverSvg(manifest);
   // A figure's control scaffold carries per-face data-shade (the skin seam).
   if (manifest.kind === 'figure') return renderFigureToSvg(manifest, null, control ? { control: true } : {});
+  // The animal realm rides the same figure mesher (litFaces → projectFaces → drawPolys).
+  if (manifest.kind === 'animal') return renderAnimalToSvg(manifest);
   // Image-outcomes kinds render their deterministic director scaffold —
   // the same SVG that conditions external image generation
   // (image-outcomes.plan.md).

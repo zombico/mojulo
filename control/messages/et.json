@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Salvesta",
-    "saving": "Salvestatakse…",
     "cancel": "Tühista",
     "servicesMap": "Teenuste kaart",
     "observability": "Jälgitavus",
     "delete": "Kustuta",
-    "deleting": "Kustutatakse…",
-    "download": "Laadi alla",
-    "downloading": "Laaditakse alla…",
     "close": "Sulge",
     "back": "Tagasi",
     "next": "Järgmine",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Selle rakenduse loomiskaart — iga tööriistakutse, mis selle materialiseeris, jaamadena ühel liinil."
+      },
       "metadata": "Metaandmed",
       "artifactPath": "Artefakti tee",
       "materializationRef": "Reaaliseerimise viide",
@@ -1545,6 +1544,29 @@
     "copied": "Kopeeritud",
     "close": "Sulge"
   },
+  "displayModes": {
+    "label": "Kuvarežiim",
+    "mode": {
+      "wire": "Traat",
+      "shaded": "Varjutatud",
+      "baked": "Küpsetatud",
+      "painted": "Maalitud"
+    },
+    "hint": {
+      "wire": "Ainult konstruktsioonijooned — geomeetria lahti riietatud.",
+      "shaded": "Mojulo enda tipuvärvid ja protseduurilised materjalid.",
+      "baked": "Blender Cyclesi globaalne valgustus küpsetatud tipuvärvidesse.",
+      "painted": "Maalitud välise pilditöölise poolt mojulo karkassile."
+    },
+    "reason": {
+      "noWireframe": "Sellel liigil pole konstruktsioonivaadet.",
+      "bakedInPlace": "Küpsetatud kohapeal — valgustamata versiooni ei säilitatud.",
+      "noBake": "GI-küpsetust veel pole. Palu agendil see maailm küpsetada.",
+      "noPaintedRender": "Maalitud renderdust pole veel seotud. Palu agendil see tellida.",
+      "notPaintable": "Mojulo joonistab siin iga piksli ise — pole midagi maalida."
+    },
+    "externalBadge": "mitte mojulo värv"
+  },
   "home": {
     "title": "[UNTRANSLATED]",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Hääl",
       "games": "Mänguarendaja",
       "arcade": "Arkaad",
-      "settings": "Seaded"
+      "settings": "Seaded",
+      "library": "Teek",
+      "renderBay": "Renderdusala",
+      "dashboard": "Juhtpaneel"
     },
     "agentStatus": {
-      "title": "Agendi olek",
       "liveLabel": "Otsesidemeis",
       "staleLabel": "Viimati nähtud",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} harnessi",
       "serversLabel": "{count, plural, one {# server} other {# serverit}}",
-      "toolsLabel": "{count, plural, one {# tööriist} other {# tööriista}}",
-      "declaredNow": "äsja",
-      "declaredSeconds": "{seconds, plural, one {# sekund tagasi} other {# sekundit tagasi}}",
-      "declaredMinutes": "{minutes, plural, one {# minut tagasi} other {# minutit tagasi}}",
-      "declaredHours": "{hours, plural, one {# tund tagasi} other {# tundi tagasi}}",
-      "declaredDays": "{days, plural, one {# päev tagasi} other {# päeva tagasi}}"
+      "toolsLabel": "{count, plural, one {# tööriist} other {# tööriista}}"
+    },
+    "crumb": "töökoda",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} artefakti",
+    "dashboard": {
+      "title": "Juhtpaneel",
+      "open": "Ava põrand →"
+    },
+    "ask": {
+      "title": "Küsi agendilt",
+      "body": "Tegemine toimub sinu MCP agendis."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Skitseri ei leitud",
     "notFoundBody": "See skitseri viit ei eksisteeri või pole veel loodud.",
+    "backToLibrary": "← Tagasi teeki",
+    "retryLoad": "Proovi uuesti",
+    "frameFailed": "See vaade ei laadinud.",
     "downloadGlb": "Laadi .glb",
     "downloadGlbPreparing": "Ettevalmistamine…",
     "downloadGlbUnavailable": "Selle skitseri jaoks pole 3D võrku eksportida.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Veel pole liikmeid",
     "notFound": "Seda projekti ei ole olemas — see võib olla arhiveeritud või viide on vale.",
     "backToProjects": "Tagasi Mänguarendajasse",
-    "charter": "Harta",
-    "playInArcade": "Mängi Arkaadis",
     "copyWorkPrompt": "Kopeeri tööviip",
     "copyAddPrompt": "lisa",
     "copyMintPrompt": "vermi mäng",
@@ -1659,7 +1690,6 @@
     "missing": "[UNTRANSLATED:Missing]",
     "missingBody": "Selle liikme artefakti enam ei ole. Projekt hoiab pesa alles; seo uuesti või eemalda see oma host-agendist.",
     "noRules": "Mängu pole veel vermitud — projekt on eeltootmises.",
-    "fromManifest": "manifestist",
     "gated": "piiratud",
     "openNewTab": "Ava uuel vahekaardil",
     "closeViewer": "Sulge",
@@ -1707,47 +1737,40 @@
     "copied": "Kopeeritud",
     "play": "Mängi",
     "levelCount": "{count, plural, one {# tase} other {# taset}}",
-    "shipped": "Tarnitud",
-    "notFound": "Seda kappi pole põrandal — mäng võib olla eemaldatud.",
-    "backToArcade": "Tagasi Arkaadi",
-    "openStandalone": "Ava iseseisvana"
+    "shipped": "Tarnitud"
+  },
+  "library": {
+    "crumb": "teek",
+    "title": "Teek",
+    "subtitle": "Iga artefakt, mille agent on verminud — stseenid, mudelid, tegelased, materjalid, pildid, diagrammid. Üks riiul iga vaatamisviisi kohta; all sama retseptihoidla.",
+    "shelves": {
+      "recent": "Hiljutised",
+      "scenes": "Stseenid",
+      "models": "Mudelid",
+      "characters": "Tegelased",
+      "images": "Pildid",
+      "diagrams": "Diagrammid",
+      "materials": "Materjalid"
+    },
+    "materials": {
+      "blurb": "Protseduurilised materjalid — tekstuurivaba tipuvärv: lamberti alus, ülalt valgustatud ramp, harjatud pilv ja kulumine, kõik küpsetatud nurgapõhistesse täidetesse. Iga näidis on päris nelinurk, mis on aetud läbi päris lahendaja — näed täpselt seda, mida tahk saab.",
+      "applyHint": "Materjale rakendatakse agendi kaudu — määra material võrkmaailma tahule või anna eelseade nimi."
+    },
+    "recentNote": "Kõige värskemad artefaktid üle kogu töökoja. Vali riiul, et näha kõiki ühe liigi omi.",
+    "roomToggle": "Ruum"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "Stuudio: illustratsioonid, läbitavad maailmad, 3D-objektid, liikumine, biidid, hääl ja valmis väljundid. Häälestatud loominguline pind, Visandite sõsar (häälestatud diagrammide jaoks). Iga tükk on sama visandi primitiiv — talleta, viita ja võrdle seda mõlemal juhul."
     },
-    "open": "Ava",
-    "empty": "Siia pole midagi",
-    "itemCount": "{count, plural, =0 {tühi} one {# kirje} other {# kirjet}}",
-    "illustrations": {
-      "title": "Illustratsioonid",
-      "subtitle": "Maastikud, figuurid ja keerulised perspektiiivid, CSS-3D ja maalikunstilikud renderdused.",
-      "blurb": "Maalitud maastikud, pausitud figuurid, kaubatud tahked kehad — rikas visuaalse hulk, millele sa vaatad."
-    },
-    "worlds": {
-      "title": "Maailmad",
-      "subtitle": "Läbitavad three.js maailmad — linnad, hooned, siseruumid ja sõlmed, mida läbid esimeses isikus.",
-      "blurb": "Fraktaallinnad, ehitised ja siseruumid renderdatud läbitavate 3D-maailmadena, mitte lamedate piltidena."
-    },
-    "objects": {
-      "title": "Objektid",
-      "subtitle": "Üksikud 3D-artefaktid ja uuringud — töölaua osad, koostud, polügomeerid, planeedid, teadus- ja matemaatikavaated. Lohista tiirlemiseks, keri suumimiseks.",
-      "blurb": "Töölaua osad, koostud, polügomeerid ja orbiidiuuringud — 3D-asjad, mida keerad ja vaatad."
-    },
-    "motion": {
-      "title": "Liikumine",
-      "blurb": "Filmid ja GIF-id — kaamerateed ja slaidiseanssid, mis on renderdatud animeeritud artefaktideks."
-    },
     "beats": {
       "title": "Rütmid",
-      "subtitle": "[UNTRANSLATED:Synthesized soundtracks, compositions, a]",
-      "blurb": "Ümbritsevad silmused, skoorid ja foley-tüüpilised märgid — heliartefaktid, millele te kuulate. Kõik sünteesitud, miski ei ole valimata."
+      "subtitle": "[UNTRANSLATED:Synthesized soundtracks, compositions, a]"
     },
     "voice": {
       "title": "Hääl",
       "subtitle": "[UNTRANSLATED:Voice registers — deterministic recipes ]",
-      "blurb": "Nõrk kuni autoriteetsele, heledalt sügavale — häälte väikeste segude retseptidena, kunagi salvestusena.",
       "axisConfidence": "Enesekindlus",
       "axisDepth": "Sügavus",
       "poleMeek": "nõrk",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Nimetamata projekt",
     "untagged": "Märgendita",
     "shots": "[UNTRANSLATED:{count} shots]",
-    "openPlayer": "Ava mängija",
     "noPreview": "Eelvaateid pole",
     "framesLabel": "{count} kaadrit",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Kellelt",
     "sourceUnknown": "(peitu eemaldatud)",
     "lensLabel": "Objektiiv",
-    "createdAt": "Loodud {timestamp}",
     "viewOutcome": "Vaata tulemust",
-    "sliceCount": "{count, plural, =0 {ühtegi viilu} =1 {1 viilumine} other {# viilu}}",
     "untitledAim": "(eesmärki pole salvestatud)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {ühtegi sahtlit} =1 {1 sahtel} other {# sahtlit}}",
     "createdAt": "Loodud {timestamp}",
     "updatedAt": "Uuendatud {timestamp}",
-    "startFromAgent": "Alustage peiut oma agendist",
     "actions": {
       "rename": "Nimeta ümber",
       "edit": "Edit",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "[UNTRANSLATED:Stash not found]",
       "notFoundBody": "[UNTRANSLATED:This stash ref does not exist or has not]",
       "back": "Tagasi peiudele",
-      "openInbox": "[UNTRANSLATED:Open inbox]",
       "rootDrawer": "[UNTRANSLATED:Root]",
       "drawerItemCount": "{count, plural, =0 {tühi} =1 {1 element} other {# elementi}}",
       "noItemsInDrawer": "[UNTRANSLATED:No items in this drawer yet.]",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "[UNTRANSLATED:Could not save drawer]",
       "drawerRenameError": "[UNTRANSLATED:Could not rename drawer]",
       "renameDrawerLabel": "[UNTRANSLATED:Rename drawer]",
-      "moveTo": "[UNTRANSLATED:Move to…]",
       "moveError": "[UNTRANSLATED:Could not move item]",
       "archive": "Arhiiv",
       "archiveError": "[UNTRANSLATED:Could not archive item]",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "[UNTRANSLATED:Archive anyway]",
       "archiveCancel": "Tühista",
       "addItem": "[UNTRANSLATED:+ Add]",
-      "addItemHeading": "[UNTRANSLATED:Add to {drawer}]",
       "agentTypesFooter": "[UNTRANSLATED:Scripts and contextmap pointers are adde]",
       "picker": {
         "text": "[UNTRANSLATED:New text block]",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "[UNTRANSLATED:Download SVG]",
     "downloadPng": "[UNTRANSLATED:Download PNG]",
     "invalidManifest": "[UNTRANSLATED:Rendrant could not parse this sketch.]",
+    "frameFailed": "See vaade ei laadinud.",
     "renameLabel": "[UNTRANSLATED:Rename sketch]",
     "renamePlaceholder": "[UNTRANSLATED:Sketch title]",
     "renameSave": "Salvesta",
@@ -2069,8 +2086,6 @@
     "refresh": "Värskenda",
     "error": "[UNTRANSLATED:Failed to load connected services]",
     "empty": "[UNTRANSLATED:No connected services yet. Declare host ]",
-    "graphTitle": "[UNTRANSLATED:MCP structure]",
-    "graphHint": "[UNTRANSLATED:Click graph nodes to open available deta]",
     "backToList": "[UNTRANSLATED:Back to Connected Services]",
     "backToService": "[UNTRANSLATED:Back to connected service]",
     "notFound": "[UNTRANSLATED:Connected service not found.]",
@@ -2138,6 +2153,250 @@
       "via": "[UNTRANSLATED:Via]",
       "when": "[UNTRANSLATED:When]",
       "message": "[UNTRANSLATED:Message]"
+    }
+  },
+  "renderBay": {
+    "title": "Renderdusala",
+    "subtitle": "Kõik, mida mojulo toodab, ühes kohas: püsiv pildirenderduse järjekord, GI-küpsetused ning kettal olevad cook'id ja eksportid. Neli viisi öelda „midagi tehakse“, millel varem polnud ühist kodu.",
+    "readOnly": "Ala renderdab olekut. Iga tegevus siin on kutse, mille kopeerid oma agenti — renderduse vastuvõtmine, maailma uuesti küpsetamine ja ekspordi vermimine käivad kõik MCP tööriistade kaudu, mitte selle lehe kaudu.",
+    "refresh": "Värskenda",
+    "loading": "Laaditakse…",
+    "allLanes": "Kõik rajad",
+    "copyPrompt": "Kopeeri kutsed",
+    "copied": "Kopeeritud",
+    "copyFailed": "Kopeerimine ebaõnnestus — vali tekst ja kopeeri käsitsi",
+    "showing": "kuvatud {shown} / {total}",
+    "queue": {
+      "title": "Renderdusjärjekord",
+      "note": "Püsivad renderduspäringud, mis ootavad pildivõimekat töölist. Päring elab taaskäivituse üle, seega pargitud rida on lubadus, mitte mälusisene töö.",
+      "count": "{n} päringut",
+      "empty": "Midagi pole pargitud. Palu agendil kutsuda request_image_render mõne vermitud image-outcome'i või sequential-art skitsi jaoks.",
+      "eyesGate": "← silmade värav: masin on valmis, keegi pole vaadanud",
+      "stalled": "seiskunud",
+      "stage": {
+        "queued": "Järjekorras",
+        "inFlight": "Töös",
+        "gate": "Ootab silmade väravat",
+        "done": "Lahendatud"
+      },
+      "status": {
+        "pending": "ootel",
+        "in_flight": "töös",
+        "submitted": "esitatud",
+        "accepted": "vastu võetud",
+        "rejected": "tagasi lükatud",
+        "expired": "aegunud",
+        "cancelled": "tühistatud"
+      },
+      "targets": "{n} sihtmärki",
+      "folded": "rakendatud {refs} artefaktile"
+    },
+    "bakes": {
+      "title": "GI-küpsetused",
+      "note": "Blender Cyclesi globaalne valgustus küpsetatud maailma enda tipuvärvidesse — pehme AO ja kontaktvari ilma igasuguse käitusaegse kuluta. Vajab kohalikku Blenderit; küpsetatud maailmad jõuavad kõigini.",
+      "empty": "Küpsetusi veel pole. Kui Blender on paigaldatud: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "masina värav läbitud · {match} nurkade kattuvus · {black} tume põrand (piir {limit})",
+      "eyesGate": "silmade värav: sinu oma — ava ja vaata",
+      "samples": "{n} proovi",
+      "from": "küpsetatud allikast {ref}"
+    },
+    "outputs": {
+      "title": "Cook'id ja eksportid",
+      "note": "Mis on kettale materialiseeritud: publikatsioonid cook'ist ning mudelid, võrgud, renderdused, nahad, hääled ja partituurid, mis on seotud iga artefakti tulemuste kausta.",
+      "fullInbox": "Täielik publikatsioonide postkast →",
+      "emptyCooks": "Avatud publikatsioone pole.",
+      "emptyArtifacts": "Kettal pole veel eksporte. Palu agendil kutsuda export_model mõnele maailmale või siduda renderdus.",
+      "emptyBeats": "Kettal pole veel rütmide renderdusi.",
+      "group": {
+        "cooks": "Publikatsioonid",
+        "artifacts": "Artefaktide tulemuste kaustad",
+        "beats": "Rütmide renderdused"
+      },
+      "kind": {
+        "model": "mudel",
+        "mesh": "seotud võrk",
+        "render": "renderdus",
+        "skin": "nahk",
+        "voice": "hääl",
+        "motion": "liikumine",
+        "game": "mäng",
+        "audio": "heli",
+        "score": "partituur",
+        "page": "leht",
+        "recipe": "retsept",
+        "other": "fail"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Ava artefakt →",
+    "copied": "Kopeeritud",
+    "copyFailed": "Kopeerimine ebaõnnestus — vali tekst ja kopeeri käsitsi",
+    "shelves": "Teek",
+    "bays": "Töökoda",
+    "outliner": {
+      "title": "Struktuur",
+      "flat": "Lame retsept — pole osi, mida läbida.",
+      "unnamed": "Struktuur, millele mojulol veel sõna pole. Retseptis on see ikkagi olemas.",
+      "group": {
+        "geometry": "Geomeetria",
+        "staging": "Lavastus",
+        "sound": "Heli",
+        "provenance": "Päritolu",
+        "renderGroups": "Renderdusrühmad"
+      },
+      "isolate": "Isoleeri vaateaknas — klõpsa uuesti, et tühistada",
+      "branch": {
+        "lathes": "Pöördkehad",
+        "extrudes": "Ekstrusioonid",
+        "sweeps": "Pühkimised",
+        "drapes": "Drapeeringud",
+        "faces": "Tahud",
+        "figures": "Figuurid",
+        "characters": "Tegelased",
+        "entities": "Olemid",
+        "elements": "Elemendid",
+        "civicAreas": "Linnaalad",
+        "chambers": "Kambrid",
+        "tunnels": "Tunnelid",
+        "masses": "Massid",
+        "concourses": "Ühenduskäigud",
+        "stations": "Jaamad",
+        "edges": "Servad",
+        "tree": "Puu",
+        "shape": "Kuju",
+        "camera": "Kaamera",
+        "cameras": "Kaamerad",
+        "ground": "Pinnas",
+        "physics": "Füüsika",
+        "detail": "Detail",
+        "game": "Mäng",
+        "audio": "Heli",
+        "giBake": "GI-küpsetus"
+      }
+    },
+    "viewport": {
+      "noReading": "Seda artefakti kuulatakse, mängitakse või loetakse, mitte ei vaadata. Ava see, et kogeda.",
+      "frameFailed": "See vaade ei laadinud — ava artefakt otse, et uuesti proovida.",
+      "seed": "seeme {seed}",
+      "parts": "{n} osa",
+      "scaleDeclared": "1 ühik = 1 {unit} · prindi tegelikus mõõtkavas väärtusega scale: {scale}",
+      "scaleUndeclared": "ühikud deklareerimata · stl loeb 1 ühik = 1 mm",
+      "baked": "küpsetatud · {preset}",
+      "noBake": "GI-küpsetust pole",
+      "triHint": "kolmnurkade arv: export_model"
+    },
+    "inspector": {
+      "askTitle": "Küsi agendilt",
+      "askBody": "Juhtpaneel renderdab olekut; see ei muuda kunagi midagi. Selle retsepti muutmine käib sinu host-agendis.",
+      "askCopy": "Kopeeri kutsed",
+      "bound": "Seotud artefaktid",
+      "boundEmpty": "Midagi pole veel seotud — selle retsepti jaoks pole kettal renderdusi, võrke ega eksporte.",
+      "openFolder": "Ava tulemuste kaust · {size}",
+      "recipe": "Retsept"
+    },
+    "status": {
+      "packs": "pakid: {packs}",
+      "kernelOnly": "ainult tuum",
+      "queue": "renderdusjärjekord {n}",
+      "gate": "{n} ootab silmade väravat",
+      "library": "{n} artefakti",
+      "toolCalls": "{n} tööriistakutset · 24 h"
+    }
+  },
+  "floor": {
+    "crumb": "juhtpaneel",
+    "bench": "Tööpingil",
+    "recentPicks": "Hiljuti kätte võetud",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} artefakti — kõnnitavad, orbiteeritavad, prinditavad",
+      "d2": "{n} artefakti — pildid ja kaardid"
+    },
+    "open": {
+      "scenes": "Ava asukohatahvel →",
+      "models": "Ava pöördlaua sein →",
+      "characters": "Ava tegelaste tahvel →",
+      "images": "Ava prindisein →",
+      "diagrams": "Ava lugemistuba →",
+      "materials": "Ava materjaliriiul →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} eelseadet",
+    "kit": {
+      "figure": "figuur",
+      "character-sheet": "leht",
+      "sprite-sheet": "spraidid"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "mäng",
+      "audio": "♪",
+      "painted": "maalitud"
+    },
+    "capNote": "ribad näitavad värskeimaid — päised avavad kõik",
+    "warming": "soojendan otsevaadet…",
+    "liveFailed": "otsevaade ei laadinud — näitan stoppkaadrit",
+    "loadFailed": "Seda riiulit ei õnnestunud laadida.",
+    "retry": "Proovi uuesti",
+    "emptyStrip": "Siia pole veel midagi vermitud.",
+    "materialsHint": "Rakendatakse agendi kaudu — määra materjal võrkmaailma tahule või anna eelseade nimi."
+  },
+  "viewCube": {
+    "label": "Vaate eelseaded",
+    "threeQuarter": "¾",
+    "front": "Eest",
+    "side": "Küljelt",
+    "top": "Pealt"
+  },
+  "rooms": {
+    "search": "Otsi selles ruumis…",
+    "all": "Kõik",
+    "empty": "Sellele tahule või otsingule ei vasta miski.",
+    "emptyShelf": "Riiulisse {shelf} pole veel midagi vermitud.",
+    "emptyShelfHint": "Palu oma agendil üks teha — sõnavara on get_sketch_vocab'is.",
+    "copied": "Kopeeritud",
+    "copyFailed": "Kopeerimine ebaõnnestus — vali käsitsi",
+    "notExportable": "Võrgu eksporti pole — see artefakt renderdub diagrammina, mitte läbitava mudelina.",
+    "stack": "×{n}",
+    "seed": "seeme {seed}",
+    "versions": "Iteratsioonid · {n}",
+    "open": "Ava retsept →",
+    "openBench": "Ava tööpingil ↗",
+    "openWorld": "Ava maailm ↗",
+    "close": "Sulge",
+    "prev": "Eelmine",
+    "next": "Järgmine",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "[UNTRANSLATED:SVG]",
+    "png": "PNG",
+    "paintedLine": "maalitud · väline tööline · karkassiretsept on suveräänne",
+    "mintMissing": "Palu agendil vermida {piece}",
+    "mintPrompt": "Mojulo tegelase „{name}“ jaoks (vt artefakt {ref}) vermi puuduv {piece}. Kasuta sobivat tööriista (create_sprite_sheet / bind_character_sheet / figure tools) — loe esmalt get_sketch_vocab.",
+    "facets": {
+      "scenes": {
+        "walkable": "Läbitavad",
+        "cities": "Linnad",
+        "hubs": "Sõlmed",
+        "interiors": "Interjöörid"
+      },
+      "models": {
+        "workbench": "Tööpink",
+        "assembler": "Koostaja",
+        "manji": "Manji-puud",
+        "science": "Teadus"
+      },
+      "images": {
+        "stills": "Üksikpildid",
+        "sequential": "Pildiseeriad",
+        "painted": "Maalitud",
+        "carved": "Nikerdatud",
+        "other": "Muu"
+      }
     }
   }
 }

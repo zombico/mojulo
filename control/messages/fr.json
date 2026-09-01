@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Enregistrer",
-    "saving": "Enregistrement…",
     "cancel": "Annuler",
     "servicesMap": "Carte des services",
     "observability": "Observabilité",
     "delete": "Supprimer",
-    "deleting": "Suppression…",
-    "download": "Télécharger",
-    "downloading": "Téléchargement…",
     "close": "Fermer",
     "back": "Retour",
     "next": "Suivant",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "La carte de création de cette app — chaque appel d'outil qui l'a matérialisée, en stations sur une seule ligne."
+      },
       "metadata": "Métadonnées",
       "artifactPath": "Chemin de l'artefact",
       "materializationRef": "Réf de matérialisation",
@@ -1545,6 +1544,29 @@
     "copied": "Copié",
     "close": "Fermer"
   },
+  "displayModes": {
+    "label": "Mode d'affichage",
+    "mode": {
+      "wire": "Filaire",
+      "shaded": "Ombré",
+      "baked": "Précalculé",
+      "painted": "Peint"
+    },
+    "hint": {
+      "wire": "Lignes de construction seules — la géométrie déshabillée.",
+      "shaded": "Les couleurs de sommets et les matériaux procéduraux propres à Mojulo.",
+      "baked": "Illumination globale Blender Cycles précalculée dans les couleurs de sommets.",
+      "painted": "Peint par un worker d'image externe par-dessus l'échafaudage de mojulo."
+    },
+    "reason": {
+      "noWireframe": "Ce type n'a pas de lecture de construction.",
+      "bakedInPlace": "Précalculé sur place — aucune version non éclairée n'a été conservée.",
+      "noBake": "Pas encore de précalcul GI. Demande à l'agent de précalculer ce monde.",
+      "noPaintedRender": "Aucun rendu peint lié pour l'instant. Demande à l'agent d'en réclamer un.",
+      "notPaintable": "Mojulo dessine chaque pixel de celui-ci — rien à peindre."
+    },
+    "externalBadge": "pas la peinture de mojulo"
+  },
   "home": {
     "title": "Accueil de l'atelier",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Voix",
       "games": "Développeur de jeux",
       "arcade": "Arcade",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "library": "Bibliothèque",
+      "renderBay": "Baie de rendu",
+      "dashboard": "Tableau de bord"
     },
     "agentStatus": {
-      "title": "État de l'agent",
       "liveLabel": "En direct",
       "staleLabel": "Vu pour la dernière fois",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} harnais",
       "serversLabel": "{count, plural, one {# serveur} other {# serveurs}}",
-      "toolsLabel": "{count, plural, one {# outil} other {# outils}}",
-      "declaredNow": "à l'instant",
-      "declaredSeconds": "{seconds, plural, one {il y a # seconde} other {il y a # secondes}}",
-      "declaredMinutes": "{minutes, plural, one {il y a # minute} other {il y a # minutes}}",
-      "declaredHours": "{hours, plural, one {il y a # heure} other {il y a # heures}}",
-      "declaredDays": "{days, plural, one {il y a # jour} other {il y a # jours}}"
+      "toolsLabel": "{count, plural, one {# outil} other {# outils}}"
+    },
+    "crumb": "atelier",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} artefacts",
+    "dashboard": {
+      "title": "Tableau de bord",
+      "open": "Ouvrir le plateau →"
+    },
+    "ask": {
+      "title": "Demander à l'agent",
+      "body": "La fabrication se passe dans ton agent MCP."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Croquis introuvable",
     "notFoundBody": "Cette réf de croquis n'existe pas ou n'a pas encore été frappée.",
+    "backToLibrary": "← Retour à la bibliothèque",
+    "retryLoad": "Réessayer",
+    "frameFailed": "Cette vue ne s'est pas chargée.",
     "downloadGlb": "Télécharger le .glb",
     "downloadGlbPreparing": "Préparation…",
     "downloadGlbUnavailable": "Aucun maillage 3D à exporter pour ce croquis.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Aucun membre pour l'instant",
     "notFound": "Ce projet n'existe pas — il a peut-être été archivé ou la réf est erronée.",
     "backToProjects": "Retour au Développeur de jeux",
-    "charter": "Charte",
-    "playInArcade": "Jouer dans l'Arcade",
     "copyWorkPrompt": "Copier le prompt de travail",
     "copyAddPrompt": "ajouter",
     "copyMintPrompt": "générer le jeu",
@@ -1659,7 +1690,6 @@
     "missing": "Manquant",
     "missingBody": "L'artefact de ce membre n'existe plus. Le projet conserve l'emplacement ; relie-le ou retire-le depuis ton agent hôte.",
     "noRules": "Aucun jeu généré pour l'instant — le projet est en pré-production.",
-    "fromManifest": "depuis le manifeste",
     "gated": "verrouillé",
     "openNewTab": "Ouvrir dans un nouvel onglet",
     "closeViewer": "Fermer",
@@ -1707,47 +1737,40 @@
     "copied": "Copié",
     "play": "Jouer",
     "levelCount": "{count, plural, one {# niveau} other {# niveaux}}",
-    "shipped": "Livré",
-    "notFound": "Cette borne n'est pas sur le plancher — le jeu a peut-être été retiré.",
-    "backToArcade": "Retour à l'Arcade",
-    "openStandalone": "Ouvrir en autonome"
+    "shipped": "Livré"
+  },
+  "library": {
+    "crumb": "bibliothèque",
+    "title": "Bibliothèque",
+    "subtitle": "Chaque artefact que l'agent a frappé — scènes, modèles, personnages, matériaux, images, diagrammes. Une étagère par façon de regarder ; le même dépôt de recettes en dessous.",
+    "shelves": {
+      "recent": "Récents",
+      "scenes": "Scènes",
+      "models": "Modèles",
+      "characters": "Personnages",
+      "images": "Images",
+      "diagrams": "Diagrammes",
+      "materials": "Matériaux"
+    },
+    "materials": {
+      "blurb": "Matériaux procéduraux — couleur de sommets sans texture : une base lambert, une rampe éclairée par le haut, un nuage brossé et l'usure, le tout précalculé dans les remplissages par coin. Chaque échantillon est un vrai quad passé par le vrai résolveur : ce que tu vois est ce que reçoit une face.",
+      "applyHint": "Les matériaux s'appliquent en le demandant à l'agent — définis material sur une face de monde-maillage, ou passe un nom de preset."
+    },
+    "recentNote": "Les artefacts les plus récents de tout l'atelier. Choisis une étagère pour voir tout un type.",
+    "roomToggle": "Salle"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "Le studio : illustrations, mondes explorables, objets 3D, mouvement, beats, voix et sorties finies. Une surface créative ajustée, sœur de Sketches (ajustée pour les diagrammes). Chaque pièce est la même primitive de croquis — stash, référence et diff dans les deux sens."
     },
-    "open": "Ouvrir",
-    "empty": "Rien ici pour l'instant",
-    "itemCount": "{count, plural, =0 {vide} one {# élément} other {# éléments}}",
-    "illustrations": {
-      "title": "Illustrations",
-      "subtitle": "Paysages, figures et perspectives complexes, CSS-3D et rendus picturaux.",
-      "blurb": "Paysages peints, figures posées, solides sculptés — l'ensemble visuel riche que tu regardes."
-    },
-    "worlds": {
-      "title": "Mondes",
-      "subtitle": "Mondes three.js explorables — villes, bâtiments, intérieurs et hubs que tu parcours à la première personne.",
-      "blurb": "Villes fractales, édifices et intérieurs rendus en mondes 3D explorables, pas en images plates."
-    },
-    "objects": {
-      "title": "Objets",
-      "subtitle": "Artefacts et études 3D uniques — pièces d'établi, assemblages, polygomers, planètes, vues scientifiques et mathématiques. Glisse pour orbiter, défile pour zoomer.",
-      "blurb": "Pièces d'établi, assemblages, polygomers et études d'orbite — des objets 3D que tu tournes et observes."
-    },
-    "motion": {
-      "title": "Motion",
-      "blurb": "Films et GIF — trajectoires de caméra et diaporamas rendus en artefacts animés."
-    },
     "beats": {
       "title": "Beats",
-      "subtitle": "Bandes-son, compositions et effets sonores synthétisés — sélectionnes-en un et appuie sur lecture. Crée-en de nouveaux depuis ton agent via create_beats.",
-      "blurb": "Boucles d'ambiance, partitions et bruitages — les artefacts audio que tu écoutes. Tout est synthétisé, rien n'est échantillonné."
+      "subtitle": "Bandes-son, compositions et effets sonores synthétisés — sélectionnes-en un et appuie sur lecture. Crée-en de nouveaux depuis ton agent via create_beats."
     },
     "voice": {
       "title": "Voix",
       "subtitle": "Registres de voix — des recettes déterministes de la sonorité d'une voix : deux axes sur une banque de voix calibrée. Crée-en de nouveaux depuis ton agent via create_voice ; un worker externe les prononce.",
-      "blurb": "De timide à autoritaire, de clair à profond — des voix comme de petites recettes de mélange, jamais des enregistrements.",
       "axisConfidence": "Assurance",
       "axisDepth": "Profondeur",
       "poleMeek": "timide",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Projet sans titre",
     "untagged": "Sans tag",
     "shots": "{count} plans",
-    "openPlayer": "Ouvrir le lecteur",
     "noPreview": "Pas d'aperçu",
     "framesLabel": "{count} images",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "De",
     "sourceUnknown": "(stash supprimé)",
     "lensLabel": "Lentille",
-    "createdAt": "Créé {timestamp}",
     "viewOutcome": "Voir le résultat",
-    "sliceCount": "{count, plural, =0 {aucune tranche} =1 {1 tranche} other {# tranches}}",
     "untitledAim": "(aucun objectif enregistré)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {aucun tiroir} =1 {1 tiroir} other {# tiroirs}}",
     "createdAt": "Créé {timestamp}",
     "updatedAt": "Mis à jour {timestamp}",
-    "startFromAgent": "Démarre un stash depuis ton agent",
     "actions": {
       "rename": "Renommer",
       "edit": "Modifier",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Stash introuvable",
       "notFoundBody": "Cette réf de stash n'existe pas ou n'a pas encore été frappée.",
       "back": "Retour aux stashes",
-      "openInbox": "Ouvrir la boîte de réception",
       "rootDrawer": "Racine",
       "drawerItemCount": "{count, plural, =0 {vide} =1 {1 élément} other {# éléments}}",
       "noItemsInDrawer": "Aucun élément dans ce tiroir pour l'instant.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Impossible d'enregistrer le tiroir",
       "drawerRenameError": "Impossible de renommer le tiroir",
       "renameDrawerLabel": "Renommer le tiroir",
-      "moveTo": "Déplacer vers…",
       "moveError": "Impossible de déplacer l'élément",
       "archive": "Archiver",
       "archiveError": "Impossible d'archiver l'élément",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Archiver quand même",
       "archiveCancel": "Annuler",
       "addItem": "+ Ajouter",
-      "addItemHeading": "Ajouter à {drawer}",
       "agentTypesFooter": "Les scripts et les pointeurs contextmap sont ajoutés par ton agent.",
       "picker": {
         "text": "Nouveau bloc de texte",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Télécharger le SVG",
     "downloadPng": "Télécharger le PNG",
     "invalidManifest": "Rendrant n'a pas pu parser ce croquis.",
+    "frameFailed": "Cette vue ne s'est pas chargée.",
     "renameLabel": "Renommer le croquis",
     "renamePlaceholder": "Titre du croquis",
     "renameSave": "Enregistrer",
@@ -2069,8 +2086,6 @@
     "refresh": "Actualiser",
     "error": "Échec du chargement des services connectés",
     "empty": "Aucun service connecté pour l'instant. Déclare des skills hôtes ou matérialise une composition MCP-orbit.",
-    "graphTitle": "Structure MCP",
-    "graphHint": "Clique sur les nœuds du graphe pour ouvrir les vues de détail disponibles.",
     "backToList": "Retour aux services connectés",
     "backToService": "Retour au service connecté",
     "notFound": "Service connecté introuvable.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "Quand",
       "message": "Message"
+    }
+  },
+  "renderBay": {
+    "title": "Baie de rendu",
+    "subtitle": "Tout ce que mojulo est en train de produire, au même endroit : la file de rendu d'images durable, les précalculs GI, et les cooks et exports sur le disque. Quatre façons de dire « quelque chose est en train d'être fabriqué » qui n'avaient jusqu'ici pas de maison commune.",
+    "readOnly": "La baie affiche l'état. Chaque action ici est un prompt à copier dans ton agent — accepter un rendu, refaire le précalcul d'un monde et frapper un export passent tous par les outils MCP, jamais par cette page.",
+    "refresh": "Actualiser",
+    "loading": "Chargement…",
+    "allLanes": "Toutes les voies",
+    "copyPrompt": "Copier le prompt",
+    "copied": "Copié",
+    "copyFailed": "Copie impossible — sélectionne le texte et copie-le manuellement",
+    "showing": "{shown} sur {total} affichés",
+    "queue": {
+      "title": "File de rendu",
+      "note": "Demandes de rendu durables mises en attente pour un worker capable de générer des images. Une demande survit à un redémarrage : une ligne en attente est une promesse, pas un job en mémoire.",
+      "count": "{n} demandes",
+      "empty": "Rien en attente. Demande à l'agent de faire request_image_render pour un image-outcome ou un croquis sequential-art déjà frappé.",
+      "eyesGate": "← le contrôle des yeux : la machine a fini, personne n'a regardé",
+      "stalled": "bloqué",
+      "stage": {
+        "queued": "En file",
+        "inFlight": "En cours",
+        "gate": "En attente du contrôle des yeux",
+        "done": "Réglé"
+      },
+      "status": {
+        "pending": "en attente",
+        "in_flight": "en cours",
+        "submitted": "soumis",
+        "accepted": "accepté",
+        "rejected": "rejeté",
+        "expired": "expiré",
+        "cancelled": "annulé"
+      },
+      "targets": "{n} cibles",
+      "folded": "replié sur {refs} artefacts"
+    },
+    "bakes": {
+      "title": "Précalculs GI",
+      "note": "Illumination globale Blender Cycles précalculée dans les propres couleurs de sommets d'un monde — AO douce et ombre de contact à coût nul à l'exécution. Nécessite un Blender local ; les mondes précalculés s'expédient à n'importe qui.",
+      "empty": "Pas encore de précalcul. Avec Blender installé : node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "contrôle machine passé · {match} correspondance de coins · {black} sol sombre (limite {limit})",
+      "eyesGate": "contrôle des yeux : à toi — ouvre et regarde",
+      "samples": "{n} échantillons",
+      "from": "précalculé depuis {ref}"
+    },
+    "outputs": {
+      "title": "Cooks et exports",
+      "note": "Ce qui a été matérialisé sur le disque : les publications issues de cook, et les modèles, maillages, rendus, skins, voix et partitions liés au dossier de résultat de chaque artefact.",
+      "fullInbox": "Boîte de réception complète des publications →",
+      "emptyCooks": "Aucune publication ouverte.",
+      "emptyArtifacts": "Aucun export sur le disque pour l'instant. Demande à l'agent de faire export_model sur un monde, ou de lier un rendu.",
+      "emptyBeats": "Aucun rendu beats sur le disque pour l'instant.",
+      "group": {
+        "cooks": "Publications",
+        "artifacts": "Dossiers de résultat d'artefact",
+        "beats": "Rendus beats"
+      },
+      "kind": {
+        "model": "modèle",
+        "mesh": "maillage lié",
+        "render": "rendu",
+        "skin": "skin",
+        "voice": "voix",
+        "motion": "motion",
+        "game": "jeu",
+        "audio": "audio",
+        "score": "partition",
+        "page": "page",
+        "recipe": "recette",
+        "other": "fichier"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Ouvrir l'artefact →",
+    "copied": "Copié",
+    "copyFailed": "Copie impossible — sélectionne le texte et copie-le manuellement",
+    "shelves": "Bibliothèque",
+    "bays": "Atelier",
+    "outliner": {
+      "title": "Arborescence",
+      "flat": "Une recette plate — aucune pièce à parcourir.",
+      "unnamed": "Une structure pour laquelle mojulo n'a pas encore de mot. Elle est tout de même dans la recette.",
+      "group": {
+        "geometry": "Géométrie",
+        "staging": "Mise en scène",
+        "sound": "Son",
+        "provenance": "Provenance",
+        "renderGroups": "Groupes de rendu"
+      },
+      "isolate": "Isoler dans la vue — clique à nouveau pour annuler",
+      "branch": {
+        "lathes": "Révolutions",
+        "extrudes": "Extrusions",
+        "sweeps": "Balayages",
+        "drapes": "Drapés",
+        "faces": "Faces",
+        "figures": "Figures",
+        "characters": "Personnages",
+        "entities": "Entités",
+        "elements": "Éléments",
+        "civicAreas": "Zones civiques",
+        "chambers": "Chambres",
+        "tunnels": "Tunnels",
+        "masses": "Masses",
+        "concourses": "Halls",
+        "stations": "Stations",
+        "edges": "Arêtes",
+        "tree": "Arbre",
+        "shape": "Forme",
+        "camera": "Caméra",
+        "cameras": "Caméras",
+        "ground": "Sol",
+        "physics": "Physique",
+        "detail": "Détail",
+        "game": "Jeu",
+        "audio": "Audio",
+        "giBake": "Précalcul GI"
+      }
+    },
+    "viewport": {
+      "noReading": "Cet artefact s'écoute, se joue ou se lit plutôt qu'il ne se regarde. Ouvre-le pour en faire l'expérience.",
+      "frameFailed": "Cette vue ne s'est pas chargée — ouvre l'artefact directement pour réessayer.",
+      "seed": "seed {seed}",
+      "parts": "{n} pièces",
+      "scaleDeclared": "1 unité = 1 {unit} · imprime à l'échelle réelle avec scale: {scale}",
+      "scaleUndeclared": "unités non déclarées · le stl lit 1 unité = 1 mm",
+      "baked": "précalculé · {preset}",
+      "noBake": "aucun précalcul GI",
+      "triHint": "nombre de triangles : export_model"
+    },
+    "inspector": {
+      "askTitle": "Demander à l'agent",
+      "askBody": "Le tableau de bord affiche l'état ; il ne modifie jamais rien. Modifier cette recette se fait dans ton agent hôte.",
+      "askCopy": "Copier le prompt",
+      "bound": "Artefacts liés",
+      "boundEmpty": "Rien de lié pour l'instant — aucun rendu, maillage ou export sur le disque pour cette recette.",
+      "openFolder": "Ouvrir le dossier de résultat · {size}",
+      "recipe": "Recette"
+    },
+    "status": {
+      "packs": "packs : {packs}",
+      "kernelOnly": "noyau seul",
+      "queue": "file de rendu {n}",
+      "gate": "{n} en attente du contrôle des yeux",
+      "library": "{n} artefacts",
+      "toolCalls": "{n} appels d'outils · 24 h"
+    }
+  },
+  "floor": {
+    "crumb": "tableau de bord",
+    "bench": "Sur l'établi",
+    "recentPicks": "Repris récemment",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} artefacts — parcourus, orbités, imprimés",
+      "d2": "{n} artefacts — images et cartes"
+    },
+    "open": {
+      "scenes": "Ouvrir le tableau des lieux →",
+      "models": "Ouvrir le mur des plateaux tournants →",
+      "characters": "Ouvrir le tableau du casting →",
+      "images": "Ouvrir le mur d'impressions →",
+      "diagrams": "Ouvrir la salle de lecture →",
+      "materials": "Ouvrir l'étagère des matériaux →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} presets",
+    "kit": {
+      "figure": "figure",
+      "character-sheet": "planche",
+      "sprite-sheet": "sprites"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "jeu",
+      "audio": "♪",
+      "painted": "peint"
+    },
+    "capNote": "les bandes montrent les plus récents — les en-têtes ouvrent tout",
+    "warming": "préchauffage de la vue en direct…",
+    "liveFailed": "la vue en direct ne s'est pas chargée — affichage de l'image fixe",
+    "loadFailed": "Impossible de charger cette étagère.",
+    "retry": "Réessayer",
+    "emptyStrip": "Rien de frappé ici pour l'instant.",
+    "materialsHint": "S'applique en le demandant à l'agent — définis un material sur une face de monde-maillage, ou passe un nom de preset."
+  },
+  "viewCube": {
+    "label": "Presets de vue",
+    "threeQuarter": "¾",
+    "front": "Face",
+    "side": "Profil",
+    "top": "Dessus"
+  },
+  "rooms": {
+    "search": "Rechercher dans cette salle…",
+    "all": "Tous",
+    "empty": "Rien ne correspond à cette facette ou à cette recherche.",
+    "emptyShelf": "Rien de frappé dans {shelf} pour l'instant.",
+    "emptyShelfHint": "Demande à ton agent d'en fabriquer un — get_sketch_vocab contient le vocabulaire.",
+    "copied": "Copié",
+    "copyFailed": "Copie impossible — sélectionne manuellement",
+    "notExportable": "Pas d'export de maillage — cet artefact se rend comme un diagramme, pas comme un modèle parcourable.",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "Itérations · {n}",
+    "open": "Ouvrir la recette →",
+    "openBench": "Ouvrir sur l'établi ↗",
+    "openWorld": "Ouvrir le monde ↗",
+    "close": "Fermer",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "peint · worker externe · la recette d'échafaudage reste souveraine",
+    "mintMissing": "Demander à l'agent : frapper {piece}",
+    "mintPrompt": "Pour le personnage mojulo « {name} » (voir l'artefact {ref}), frappe le {piece} manquant. Utilise l'outil correspondant (create_sprite_sheet / bind_character_sheet / outils figure) — lis d'abord get_sketch_vocab.",
+    "facets": {
+      "scenes": {
+        "walkable": "Parcourable",
+        "cities": "Villes",
+        "hubs": "Hubs",
+        "interiors": "Intérieurs"
+      },
+      "models": {
+        "workbench": "Établi",
+        "assembler": "Assembleur",
+        "manji": "Manji-trees",
+        "science": "Science"
+      },
+      "images": {
+        "stills": "Images fixes",
+        "sequential": "Art séquentiel",
+        "painted": "Peint",
+        "carved": "Gravé",
+        "other": "Autre"
+      }
     }
   }
 }

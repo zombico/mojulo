@@ -45,6 +45,12 @@ export const FIXTURE = [
   ['present the graphic novel like a slideshow I click through', 'create_sketch'],
   ['I want the narrator to sound deeper and more sure of herself', 'create_voice'],
   ['give my app a japanese female announcer voice', 'create_voice'],
+  // The animal realm of the figure system (figure-inception-quality.plan.md
+  // phase 4). The PICTURE row already routes a non-humanoid creature here, so
+  // these pin that a NAMED real animal lands on the solid family rather than
+  // drifting to the painted-picture or part-graph neighbours.
+  ['a wolf I can 3D print', 'mint_solid'],
+  ['a deer with antlers standing in profile', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

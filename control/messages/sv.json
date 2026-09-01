@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Spara",
-    "saving": "Sparar...",
     "cancel": "Avbryt",
     "servicesMap": "Tjänstkarta",
     "observability": "Observerbarhet",
     "delete": "Ta bort",
-    "deleting": "Tar bort...",
-    "download": "Ladda ned",
-    "downloading": "Laddar ned...",
     "close": "Stäng",
     "back": "Tillbaka",
     "next": "Nästa",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Skapelsekartan för den här appen — varje verktygsanrop som materialiserade den, som stationer på en linje."
+      },
       "metadata": "Metadata",
       "artifactPath": "Artefaktsökväg",
       "materializationRef": "Materialiseringsreferens",
@@ -1545,6 +1544,29 @@
     "copied": "Kopierad",
     "close": "Stäng"
   },
+  "displayModes": {
+    "label": "Visningsläge",
+    "mode": {
+      "wire": "Tråd",
+      "shaded": "Skuggad",
+      "baked": "Bakad",
+      "painted": "Målad"
+    },
+    "hint": {
+      "wire": "Bara konstruktionslinjer — geometrin avklädd.",
+      "shaded": "Mojulos egna vertexfärger och procedurella material.",
+      "baked": "Blender Cycles globala ljussättning inbakad i vertexfärgerna.",
+      "painted": "Målad av en extern bildarbetare ovanpå mojulos ställning."
+    },
+    "reason": {
+      "noWireframe": "Den här sorten har ingen konstruktionsavläsning.",
+      "bakedInPlace": "Bakad på plats — ingen obelyst version sparades.",
+      "noBake": "Ingen GI-bakning ännu. Be agenten baka den här världen.",
+      "noPaintedRender": "Ingen målad rendering bunden ännu. Be agenten begära en.",
+      "notPaintable": "Mojulo ritar varje pixel av den här — inget att måla."
+    },
+    "externalBadge": "inte mojulos färg"
+  },
   "home": {
     "title": "Verkstadshemmet",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Röst",
       "games": "Spelutvecklare",
       "arcade": "Arkad",
-      "settings": "Inställningar"
+      "settings": "Inställningar",
+      "library": "Bibliotek",
+      "renderBay": "Renderingsbås",
+      "dashboard": "Instrumentpanel"
     },
     "agentStatus": {
-      "title": "Agentstatus",
       "liveLabel": "Live",
       "staleLabel": "Senast sedd",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} sele",
       "serversLabel": "{count, plural, one {# server} other {# servrar}}",
-      "toolsLabel": "{count, plural, one {# verktyg} other {# verktyg}}",
-      "declaredNow": "nyss",
-      "declaredSeconds": "{seconds, plural, one {# sekund sedan} other {# sekunder sedan}}",
-      "declaredMinutes": "{minutes, plural, one {# minut sedan} other {# minuter sedan}}",
-      "declaredHours": "{hours, plural, one {# timme sedan} other {# timmar sedan}}",
-      "declaredDays": "{days, plural, one {# dag sedan} other {# dagar sedan}}"
+      "toolsLabel": "{count, plural, one {# verktyg} other {# verktyg}}"
+    },
+    "crumb": "verkstad",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} artefakter",
+    "dashboard": {
+      "title": "Instrumentpanel",
+      "open": "Öppna golvet →"
+    },
+    "ask": {
+      "title": "Fråga agenten",
+      "body": "Skapandet sker i din MCP-agent."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Skissen hittades inte",
     "notFoundBody": "Denna skissreferens finns inte eller har inte mynts ännu.",
+    "backToLibrary": "← Tillbaka till Biblioteket",
+    "retryLoad": "Försök igen",
+    "frameFailed": "Den här vyn laddades inte.",
     "downloadGlb": "Ladda ner .glb",
     "downloadGlbPreparing": "Förbereder…",
     "downloadGlbUnavailable": "Ingen 3D-nät att exportera för denna skiss.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Inga medlemmar än",
     "notFound": "Det projektet finns inte — det kan ha arkiverats eller så är referensen fel.",
     "backToProjects": "Tillbaka till Spelutvecklare",
-    "charter": "Stadga",
-    "playInArcade": "Spela i Arkaden",
     "copyWorkPrompt": "Kopiera arbetsprompt",
     "copyAddPrompt": "lägg till",
     "copyMintPrompt": "mynta spelet",
@@ -1659,7 +1690,6 @@
     "missing": "Saknad",
     "missingBody": "Den här medlemmens artefakt finns inte längre. Projektet behåller platsen; bind om eller ta bort den från din värdagent.",
     "noRules": "Inget spel myntat än — projektet är i förproduktion.",
-    "fromManifest": "från manifest",
     "gated": "spärrad",
     "openNewTab": "Öppna i ny flik",
     "closeViewer": "Stäng",
@@ -1707,47 +1737,40 @@
     "copied": "Kopierad",
     "play": "Spela",
     "levelCount": "{count, plural, one {# nivå} other {# nivåer}}",
-    "shipped": "Släppt",
-    "notFound": "Det spelskåpet finns inte på golvet — spelet kan ha tagits bort.",
-    "backToArcade": "Tillbaka till Arkaden",
-    "openStandalone": "Öppna fristående"
+    "shipped": "Släppt"
+  },
+  "library": {
+    "crumb": "bibliotek",
+    "title": "Bibliotek",
+    "subtitle": "Varje artefakt agenten har myntat — scener, modeller, karaktärer, material, bilder, diagram. En hylla per sätt att se; samma receptlager under.",
+    "shelves": {
+      "recent": "Senaste",
+      "scenes": "Scener",
+      "models": "Modeller",
+      "characters": "Karaktärer",
+      "images": "Bilder",
+      "diagrams": "Diagram",
+      "materials": "Material"
+    },
+    "materials": {
+      "blurb": "Procedurella material — texturfri vertexfärg: en lambertbas, en toppbelyst ramp, ett borstat moln och väderslitage, allt inbakat i fyllningar per hörn. Varje prov är en riktig quad körd genom den riktiga resolvern, så det du ser är vad en yta får.",
+      "applyHint": "Material appliceras genom att fråga agenten — sätt material på en yta i en mesh-värld, eller skicka ett förinställningsnamn."
+    },
+    "recentNote": "De senaste artefakterna i hela verkstaden. Välj en hylla för att se allt av en sort.",
+    "roomToggle": "Rum"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "Studion: illustrationer, gångbara världar, 3D-objekt, rörelse, beats, röst och färdiga resultat. En finjusterad kreativ yta, syskon till Skisser (finjusterad för diagram). Varje del är samma skiss-primitiv — spara, referera och diffa den hur som helst."
     },
-    "open": "Öppna",
-    "empty": "Ingenting här ännu",
-    "itemCount": "{count, plural, =0 {tom} one {# objekt} other {# objekt}}",
-    "illustrations": {
-      "title": "Illustrationer",
-      "subtitle": "Landskap, figurer och komplicerad perspektiv, CSS-3D och målerirendering.",
-      "blurb": "Målad landskap, poserade figurer, utskurna solider — den rika visuella uppsättningen du tittar på."
-    },
-    "worlds": {
-      "title": "Världar",
-      "subtitle": "Gångbara three.js-världar — städer, byggnader, interiörer och nav som du rör dig genom i förstaperson.",
-      "blurb": "Fraktalstäder, byggnadsverk och interiörer renderade som gångbara 3D-världar, inte platta bilder."
-    },
-    "objects": {
-      "title": "Objekt",
-      "subtitle": "Enskilda 3D-artefakter och studier — verkstadsdelar, sammansättningar, polygomerer, planeter, vetenskaps- och matematikvyer. Dra för att rotera, skrolla för att zooma.",
-      "blurb": "Verkstadsdelar, sammansättningar, polygomerer och orbitstudier — 3D-saker du vrider på och tittar på."
-    },
-    "motion": {
-      "title": "Motion",
-      "blurb": "Filmer och GIF:er — kamerasökvägar och bildspel renderade till animerade artefakter."
-    },
     "beats": {
       "title": "Beats",
-      "subtitle": "Syntetiserade soundtracks, kompositioner och ljudeffekter — välj en och tryck spela. Skapa nya från din agent via create_beats.",
-      "blurb": "Omgivande slingor, partiturerr och foley-ledtrådar — de ljudartefakter du lyssnar på. Allt syntetiserat, ingenting samplade."
+      "subtitle": "Syntetiserade soundtracks, kompositioner och ljudeffekter — välj en och tryck spela. Skapa nya från din agent via create_beats."
     },
     "voice": {
       "title": "Röst",
       "subtitle": "Röstregister — deterministiska recept för hur en röst låter: två axlar över en kalibrerad röstbank. Skapa nya från din agent via create_voice; en extern arbetare talar dem.",
-      "blurb": "Ödmjuk till auktoritativ, ljus till djup — röster som små blandningsrecept, aldrig inspelningar.",
       "axisConfidence": "Säkerhet",
       "axisDepth": "Djup",
       "poleMeek": "ödmjuk",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Namnlös projekt",
     "untagged": "Otaggad",
     "shots": "{count} tagningar",
-    "openPlayer": "Öppna spelare",
     "noPreview": "Ingen förhandsvisning",
     "framesLabel": "{count} ramar",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Från",
     "sourceUnknown": "(samling borttagen)",
     "lensLabel": "Lins",
-    "createdAt": "Skapad {timestamp}",
     "viewOutcome": "Visa resultat",
-    "sliceCount": "{count, plural, =0 {ingen skivor} =1 {1 skiva} other {# skivor}}",
     "untitledAim": "(inget syfte registrerat)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {inga lådor} =1 {1 låda} other {# lådor}}",
     "createdAt": "Skapad {timestamp}",
     "updatedAt": "Uppdaterad {timestamp}",
-    "startFromAgent": "Starta en samling från din agent",
     "actions": {
       "rename": "Byt namn",
       "edit": "Redigera",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Samling hittades inte",
       "notFoundBody": "Denna samlingsreferens finns inte eller har inte mynts ännu.",
       "back": "Tillbaka till samlingar",
-      "openInbox": "Öppna inkorg",
       "rootDrawer": "Rot",
       "drawerItemCount": "{count, plural, =0 {tom} =1 {1 objekt} other {# objekt}}",
       "noItemsInDrawer": "Inga objekt i denna låda ännu.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Kunde inte spara låda",
       "drawerRenameError": "Kunde inte byta namn på låda",
       "renameDrawerLabel": "Byt namn på låda",
-      "moveTo": "Flytta till…",
       "moveError": "Kunde inte flytta objekt",
       "archive": "Arkiv",
       "archiveError": "Kunde inte arkivera objekt",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Arkivera ändå",
       "archiveCancel": "Avbryt",
       "addItem": "+ Lägg till",
-      "addItemHeading": "Lägg till i {drawer}",
       "agentTypesFooter": "Skript och contextmap-pekare läggs till av din agent.",
       "picker": {
         "text": "Nytt textblock",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Ladda ner SVG",
     "downloadPng": "Ladda ner PNG",
     "invalidManifest": "Rendrant kunde inte tolka denna skiss.",
+    "frameFailed": "Den här vyn laddades inte.",
     "renameLabel": "Byt namn på skiss",
     "renamePlaceholder": "Skissbeteckning",
     "renameSave": "Spara",
@@ -2069,8 +2086,6 @@
     "refresh": "Uppdatera",
     "error": "Kunde inte ladda anslutna tjänster",
     "empty": "Inga anslutna tjänster ännu. Deklarera värdskickligheter eller materialisera en MCP-orbit-sammansättning.",
-    "graphTitle": "MCP-struktur",
-    "graphHint": "Klicka på grafnoder för att öppna tillgängliga detaljvyer.",
     "backToList": "Tillbaka till anslutna tjänster",
     "backToService": "Tillbaka till ansluten tjänst",
     "notFound": "Ansluten tjänst hittades inte.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "När",
       "message": "Meddelande"
+    }
+  },
+  "renderBay": {
+    "title": "Renderingsbås",
+    "subtitle": "Allt mojulo producerar, på ett ställe: den beständiga bildrenderingskön, GI-bakningarna samt publikationerna och exporterna på disk. Fyra sätt att säga \"något håller på att bli till\" som förut saknade ett gemensamt hem.",
+    "readOnly": "Båset renderar tillstånd. Varje åtgärd här är en prompt att kopiera in i din agent — att acceptera en rendering, baka om en värld och mynta en export sker alla genom MCP-verktyg, aldrig genom den här sidan.",
+    "refresh": "Uppdatera",
+    "loading": "Laddar...",
+    "allLanes": "Alla banor",
+    "copyPrompt": "Kopiera prompt",
+    "copied": "Kopierad",
+    "copyFailed": "Kunde inte kopiera — markera texten och kopiera den manuellt",
+    "showing": "visar {shown} av {total}",
+    "queue": {
+      "title": "Renderingskö",
+      "note": "Beständiga renderingsförfrågningar parkerade för en bildkapabel arbetare. En förfrågan överlever en omstart, så en parkerad rad är ett löfte, inte ett jobb i minnet.",
+      "count": "{n} förfrågningar",
+      "empty": "Inget parkerat. Be agenten köra request_image_render för ett myntat image-outcome eller en sequential-art-skiss.",
+      "eyesGate": "← ögongrinden: maskinen är klar, ingen har tittat",
+      "stalled": "avstannad",
+      "stage": {
+        "queued": "I kö",
+        "inFlight": "På väg",
+        "gate": "Väntar på ögongrinden",
+        "done": "Avgjord"
+      },
+      "status": {
+        "pending": "väntar",
+        "in_flight": "på väg",
+        "submitted": "inskickad",
+        "accepted": "accepterad",
+        "rejected": "avvisad",
+        "expired": "utgången",
+        "cancelled": "avbruten"
+      },
+      "targets": "{n} mål",
+      "folded": "infälld på {refs} artefakter"
+    },
+    "bakes": {
+      "title": "GI-bakningar",
+      "note": "Blender Cycles globala ljussättning inbakad i en världs egna vertexfärger — mjuk AO och kontaktskugga till noll körtidskostnad. Kräver ett lokalt Blender; de bakade världarna kan skickas till vem som helst.",
+      "empty": "Inga bakningar ännu. Med Blender installerat: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "maskingrinden klarad · {match} hörnmatchning · {black} mörkt golv (gräns {limit})",
+      "eyesGate": "ögongrinden: din — öppna och titta",
+      "samples": "{n} prover",
+      "from": "bakad från {ref}"
+    },
+    "outputs": {
+      "title": "Publikationer och exporter",
+      "note": "Vad som har materialiserats på disk: publikationer från cook, och de modeller, meshar, renderingar, skinn, röster och partitur som bundits in i varje artefakts resultatmapp.",
+      "fullInbox": "Fullständig publikationsinkorg →",
+      "emptyCooks": "Inga öppna publikationer.",
+      "emptyArtifacts": "Inga exporter på disk ännu. Be agenten köra export_model på en värld, eller binda en rendering.",
+      "emptyBeats": "Inga beats-renderingar på disk ännu.",
+      "group": {
+        "cooks": "Publikationer",
+        "artifacts": "Artefakternas resultatmappar",
+        "beats": "Beats-renderingar"
+      },
+      "kind": {
+        "model": "modell",
+        "mesh": "bunden mesh",
+        "render": "rendering",
+        "skin": "skinn",
+        "voice": "röst",
+        "motion": "motion",
+        "game": "spel",
+        "audio": "ljud",
+        "score": "partitur",
+        "page": "sida",
+        "recipe": "recept",
+        "other": "fil"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Öppna artefakt →",
+    "copied": "Kopierad",
+    "copyFailed": "Kunde inte kopiera — markera texten och kopiera den manuellt",
+    "shelves": "Bibliotek",
+    "bays": "Verkstad",
+    "outliner": {
+      "title": "Outliner",
+      "flat": "Ett platt recept — inga delar att vandra.",
+      "unnamed": "Struktur som mojulo ännu inte har något ord för. Den finns ändå i receptet.",
+      "group": {
+        "geometry": "Geometri",
+        "staging": "Iscensättning",
+        "sound": "Ljud",
+        "provenance": "Provenans",
+        "renderGroups": "Renderingsgrupper"
+      },
+      "isolate": "Isolera i vyn — klicka igen för att rensa",
+      "branch": {
+        "lathes": "Svarvar",
+        "extrudes": "Extruderingar",
+        "sweeps": "Svep",
+        "drapes": "Draperingar",
+        "faces": "Ytor",
+        "figures": "Figurer",
+        "characters": "Karaktärer",
+        "entities": "Entiteter",
+        "elements": "Element",
+        "civicAreas": "Samhällsområden",
+        "chambers": "Kammare",
+        "tunnels": "Tunnlar",
+        "masses": "Massor",
+        "concourses": "Gångstråk",
+        "stations": "Stationer",
+        "edges": "Kanter",
+        "tree": "Träd",
+        "shape": "Form",
+        "camera": "Kamera",
+        "cameras": "Kameror",
+        "ground": "Mark",
+        "physics": "Fysik",
+        "detail": "Detalj",
+        "game": "Spel",
+        "audio": "Ljud",
+        "giBake": "GI-bakning"
+      }
+    },
+    "viewport": {
+      "noReading": "Den här artefakten hörs, spelas eller läses snarare än betraktas. Öppna den för att uppleva den.",
+      "frameFailed": "Den här vyn laddades inte — öppna artefakten direkt för att försöka igen.",
+      "seed": "frö {seed}",
+      "parts": "{n} delar",
+      "scaleDeclared": "1 enhet = 1 {unit} · skriv ut i verklig skala med scale: {scale}",
+      "scaleUndeclared": "enheter odeklarerade · stl läser 1 enhet = 1 mm",
+      "baked": "bakad · {preset}",
+      "noBake": "ingen GI-bakning",
+      "triHint": "antal trianglar: export_model"
+    },
+    "inspector": {
+      "askTitle": "Fråga agenten",
+      "askBody": "Instrumentpanelen renderar tillstånd; den muterar aldrig. Att ändra det här receptet sker i din värdagent.",
+      "askCopy": "Kopiera prompt",
+      "bound": "Bundna artefakter",
+      "boundEmpty": "Inget bundet ännu — inga renderingar, meshar eller exporter på disk för det här receptet.",
+      "openFolder": "Öppna resultatmapp · {size}",
+      "recipe": "Recept"
+    },
+    "status": {
+      "packs": "paket: {packs}",
+      "kernelOnly": "endast kärna",
+      "queue": "renderingskö {n}",
+      "gate": "{n} väntar på ögongrinden",
+      "library": "{n} artefakter",
+      "toolCalls": "{n} verktygsanrop · 24 h"
+    }
+  },
+  "floor": {
+    "crumb": "instrumentpanel",
+    "bench": "På bänken",
+    "recentPicks": "Nyligen upplockat",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} artefakter — vandrade, kretsade, utskrivna",
+      "d2": "{n} artefakter — bilder och kartor"
+    },
+    "open": {
+      "scenes": "Öppna platstavlan →",
+      "models": "Öppna vridskivsväggen →",
+      "characters": "Öppna rolltavlan →",
+      "images": "Öppna utskriftsväggen →",
+      "diagrams": "Öppna läsrummet →",
+      "materials": "Öppna materialhyllan →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} förinställningar",
+    "kit": {
+      "figure": "figur",
+      "character-sheet": "ark",
+      "sprite-sheet": "sprites"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "spel",
+      "audio": "♪",
+      "painted": "målad"
+    },
+    "capNote": "remsorna visar det färskaste — rubrikerna öppnar allt",
+    "warming": "värmer upp livevyn…",
+    "liveFailed": "livevyn laddades inte — visar stillbilden",
+    "loadFailed": "Kunde inte ladda den här hyllan.",
+    "retry": "Försök igen",
+    "emptyStrip": "Inget myntat här ännu.",
+    "materialsHint": "Appliceras genom att fråga agenten — sätt ett material på en yta i en mesh-värld, eller skicka ett förinställningsnamn."
+  },
+  "viewCube": {
+    "label": "Vyförinställningar",
+    "threeQuarter": "¾",
+    "front": "Fram",
+    "side": "Sida",
+    "top": "Ovan"
+  },
+  "rooms": {
+    "search": "Sök i det här rummet…",
+    "all": "Alla",
+    "empty": "Inget matchar den här facetten eller sökningen.",
+    "emptyShelf": "Inget myntat till {shelf} ännu.",
+    "emptyShelfHint": "Be din agent att göra en — get_sketch_vocab har vokabulären.",
+    "copied": "Kopierad",
+    "copyFailed": "Kunde inte kopiera — markera manuellt",
+    "notExportable": "Ingen mesh-export — den här artefakten renderas som ett diagram, inte som en gångbar modell.",
+    "stack": "×{n}",
+    "seed": "frö {seed}",
+    "versions": "Iterationer · {n}",
+    "open": "Öppna recept →",
+    "openBench": "Öppna på bänken ↗",
+    "openWorld": "Öppna värld ↗",
+    "close": "Stäng",
+    "prev": "Föregående",
+    "next": "Nästa",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "målad · extern arbetare · ställningsreceptet är suveränt",
+    "mintMissing": "Be agenten: mynta {piece}",
+    "mintPrompt": "För mojulo-karaktären \"{name}\" (se artefakt {ref}), mynta den saknade {piece}. Använd det matchande verktyget (create_sprite_sheet / bind_character_sheet / figurverktygen) — läs get_sketch_vocab först.",
+    "facets": {
+      "scenes": {
+        "walkable": "Gångbara",
+        "cities": "Städer",
+        "hubs": "Nav",
+        "interiors": "Interiörer"
+      },
+      "models": {
+        "workbench": "Arbetsbänk",
+        "assembler": "Assembler",
+        "manji": "Manji-träd",
+        "science": "Vetenskap"
+      },
+      "images": {
+        "stills": "Stillbilder",
+        "sequential": "Sekventiell konst",
+        "painted": "Målad",
+        "carved": "Uthuggna",
+        "other": "Övrigt"
+      }
     }
   }
 }

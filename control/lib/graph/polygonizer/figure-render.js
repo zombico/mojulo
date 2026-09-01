@@ -651,6 +651,7 @@ export function renderFigureWithArmature(manifest = {}, fit = null) {
 const VB_WA = 760, VB_HA = 540, BG_A = '#eef1f4';
 // animal azimuths: head-on (front of the body) = 180°, lateral = 90°, three-quarter ≈ 130°.
 const ANIMAL_VIEW_AZ = { frontal: 180, 'three-quarter': 130, lateral: 90, left: -90, back: 0 };
+export const ANIMAL_VIEWS = Object.keys(ANIMAL_VIEW_AZ);
 
 // buildAnimal parts → litFaces stacks. STAND coords are lifted into PROTO_SCALE units so
 // worldVertex (÷PROTO_SCALE ×S) lands them in the same render world as the figure; each

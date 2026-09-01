@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import useSWR, { mutate } from 'swr';
 import EmbedScript from '@/components/shared/EmbedScript';
+import MojuloMark from '@/components/brand/MojuloMark';
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -541,11 +542,17 @@ function BotsPageInner() {
                 />
               ) : (
                 <div className="rounded-xl border border-dashed border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-12 text-center">
-                  <img
-                    src="/cards-icon.svg"
-                    alt=""
-                    className="mx-auto mb-4 h-16 w-16"
-                  />
+                  {/* The mark at rest — an empty plate IS the placeholder
+                      (3d-factory-ui.plan.md §7c), which is why this is the `m`
+                      and not a sad icon. The retired three-card teal mark lived
+                      here as its last consumer. Ink only: the plate owns the
+                      surface, the mark owns nothing but its own colour. */}
+                  <span aria-hidden className="mb-4 flex justify-center">
+                    <MojuloMark
+                      size={40}
+                      className="text-[color:var(--ink-secondary)]/60"
+                    />
+                  </span>
                   <p className="text-sm text-[color:var(--text-muted)]">
                     {t('emptyDetailHint')}
                   </p>

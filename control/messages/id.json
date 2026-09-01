@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Simpan",
-    "saving": "Menyimpan…",
     "cancel": "Batal",
     "servicesMap": "Peta Layanan",
     "observability": "Observabilitas",
     "delete": "Hapus",
-    "deleting": "Menghapus…",
-    "download": "Unduh",
-    "downloading": "Mengunduh…",
     "close": "Tutup",
     "back": "Kembali",
     "next": "Lanjut",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Peta penciptaan aplikasi ini — setiap panggilan alat yang mewujudkannya, sebagai stasiun pada satu jalur."
+      },
       "metadata": "Metadata",
       "artifactPath": "Jalur Artefak",
       "materializationRef": "Ref materisalisasi",
@@ -1545,6 +1544,29 @@
     "copied": "Disalin",
     "close": "Tutup"
   },
+  "displayModes": {
+    "label": "Mode tampilan",
+    "mode": {
+      "wire": "Rangka",
+      "shaded": "Berbayang",
+      "baked": "Dipanggang",
+      "painted": "Dilukis"
+    },
+    "hint": {
+      "wire": "Hanya garis konstruksi — geometri tanpa balutan.",
+      "shaded": "Warna verteks dan material prosedural milik Mojulo sendiri.",
+      "baked": "Iluminasi global Blender Cycles yang dipanggang ke dalam warna verteks.",
+      "painted": "Dilukis oleh pekerja gambar eksternal di atas perancah mojulo."
+    },
+    "reason": {
+      "noWireframe": "Jenis ini tidak punya pembacaan konstruksi.",
+      "bakedInPlace": "Dipanggang di tempat — tidak ada versi tanpa pencahayaan yang disimpan.",
+      "noBake": "Belum ada panggangan GI. Minta agen untuk memanggang dunia ini.",
+      "noPaintedRender": "Belum ada render lukisan yang terikat. Minta agen untuk memintanya.",
+      "notPaintable": "Mojulo menggambar setiap piksel yang satu ini — tidak ada yang perlu dilukis."
+    },
+    "externalBadge": "bukan lukisan mojulo"
+  },
   "home": {
     "title": "Rumah Workshop",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Suara",
       "games": "Pengembang Game",
       "arcade": "Arcade",
-      "settings": "Pengaturan"
+      "settings": "Pengaturan",
+      "library": "Perpustakaan",
+      "renderBay": "Bilik Render",
+      "dashboard": "Dashboard"
     },
     "agentStatus": {
-      "title": "Status Agen",
       "liveLabel": "Langsung",
       "staleLabel": "Terakhir dilihat",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} harness",
       "serversLabel": "{count, plural, one {# server} other {# server}}",
-      "toolsLabel": "{count, plural, one {# alat} other {# alat}}",
-      "declaredNow": "baru saja",
-      "declaredSeconds": "{seconds, plural, one {# detik lalu} other {# detik lalu}}",
-      "declaredMinutes": "{minutes, plural, one {# menit lalu} other {# menit lalu}}",
-      "declaredHours": "{hours, plural, one {# jam lalu} other {# jam lalu}}",
-      "declaredDays": "{days, plural, one {# hari lalu} other {# hari lalu}}"
+      "toolsLabel": "{count, plural, one {# alat} other {# alat}}"
+    },
+    "crumb": "workshop",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} artefak",
+    "dashboard": {
+      "title": "Dashboard",
+      "open": "Buka lantai →"
+    },
+    "ask": {
+      "title": "Minta agen",
+      "body": "Pembuatan terjadi di agen MCP Anda."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Sketsa tidak ditemukan",
     "notFoundBody": "Ref sketsa ini tidak ada atau belum dibuat.",
+    "backToLibrary": "← Kembali ke Perpustakaan",
+    "retryLoad": "Coba lagi",
+    "frameFailed": "Tampilan ini gagal dimuat.",
     "downloadGlb": "Unduh .glb",
     "downloadGlbPreparing": "Menyiapkan…",
     "downloadGlbUnavailable": "Tidak ada mesh 3D untuk diekspor untuk sketsa ini.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Belum ada anggota",
     "notFound": "Proyek itu tidak ada — mungkin sudah diarsipkan atau ref-nya salah.",
     "backToProjects": "Kembali ke Pengembang Game",
-    "charter": "Piagam",
-    "playInArcade": "Mainkan di Arcade",
     "copyWorkPrompt": "Salin prompt kerja",
     "copyAddPrompt": "tambahkan",
     "copyMintPrompt": "cetak game",
@@ -1659,7 +1690,6 @@
     "missing": "Hilang",
     "missingBody": "Artefak anggota ini sudah tidak ada. Proyek tetap menyimpan slotnya; ikat ulang atau hapus dari agen host Anda.",
     "noRules": "Belum ada game yang dicetak — proyek masih pra-produksi.",
-    "fromManifest": "dari manifest",
     "gated": "terkunci",
     "openNewTab": "Buka di tab baru",
     "closeViewer": "Tutup",
@@ -1707,47 +1737,40 @@
     "copied": "Disalin",
     "play": "Mainkan",
     "levelCount": "{count, plural, other {# level}}",
-    "shipped": "Dirilis",
-    "notFound": "Kabinet itu tidak ada di lantai — game mungkin sudah dihapus.",
-    "backToArcade": "Kembali ke Arcade",
-    "openStandalone": "Buka mandiri"
+    "shipped": "Dirilis"
+  },
+  "library": {
+    "crumb": "perpustakaan",
+    "title": "Perpustakaan",
+    "subtitle": "Setiap artefak yang telah dicetak agen — adegan, model, karakter, material, gambar, diagram. Satu rak per cara memandang; penyimpanan resep yang sama di baliknya.",
+    "shelves": {
+      "recent": "Terbaru",
+      "scenes": "Adegan",
+      "models": "Model",
+      "characters": "Karakter",
+      "images": "Gambar",
+      "diagrams": "Diagram",
+      "materials": "Material"
+    },
+    "materials": {
+      "blurb": "Material prosedural — warna verteks tanpa tekstur: basis lambert, ramp bercahaya dari atas, awan sapuan kuas, dan pelapukan, semuanya dipanggang ke dalam isian per sudut. Setiap swatch adalah quad nyata yang dijalankan melalui resolver nyata, jadi apa yang Anda lihat adalah apa yang didapat sebuah face.",
+      "applyHint": "Material diterapkan dengan meminta agen — setel material pada face mesh-world, atau berikan nama preset."
+    },
+    "recentNote": "Artefak terbaru di seluruh workshop. Pilih satu rak untuk melihat semua dari satu jenis.",
+    "roomToggle": "Ruang"
   },
   "maker": {
     "hub": {
       "title": "Pembuat Mojulo",
       "subtitle": "Studio: ilustrasi, dunia yang bisa dijelajahi, objek 3D, gerak, beat, suara, dan hasil akhir. Permukaan kreatif yang disetel, saudara dari Sketches (disetel untuk diagram). Setiap bagian adalah primitif sketsa yang sama — simpan, rujuk, dan diff dengan cara apa pun."
     },
-    "open": "Buka",
-    "empty": "Tidak ada apa-apa di sini",
-    "itemCount": "{count, plural, =0 {kosong} one {# item} other {# item}}",
-    "illustrations": {
-      "title": "Ilustrasi",
-      "subtitle": "Lanskap, figur, dan perspektif rumit, CSS-3D, dan render bertekstur.",
-      "blurb": "Lanskap yang dilukis, figur yang dipose, padatan yang diukir — kumpulan visual yang kaya yang Anda lihat."
-    },
-    "worlds": {
-      "title": "Dunia",
-      "subtitle": "Dunia three.js yang bisa dijelajahi — kota, bangunan, interior, dan hub yang Anda lalui secara first-person.",
-      "blurb": "Kota fraktal, bangunan, dan interior yang dirender sebagai dunia 3D yang bisa dijelajahi, bukan gambar datar."
-    },
-    "objects": {
-      "title": "Objek",
-      "subtitle": "Artefak dan studi 3D tunggal — bagian workbench, rakitan, polygomer, planet, tampilan sains dan matematika. Seret untuk mengorbit, gulir untuk memperbesar.",
-      "blurb": "Bagian workbench, rakitan, polygomer, dan studi orbit — objek 3D yang Anda putar dan amati."
-    },
-    "motion": {
-      "title": "Gerak",
-      "blurb": "Film dan GIF — jalur kamera dan slideshow yang dirender ke artefak animasi."
-    },
     "beats": {
       "title": "Ketukan",
-      "subtitle": "Soundtrack, komposisi, dan efek suara sintetis — pilih satu dan tekan putar. Tulis yang baru dari agen Anda melalui create_beats.",
-      "blurb": "Loop ambient, skor, dan isyarat foley — artefak audio yang Anda dengarkan. Semuanya disintesis, tidak ada yang disampel."
+      "subtitle": "Soundtrack, komposisi, dan efek suara sintetis — pilih satu dan tekan putar. Tulis yang baru dari agen Anda melalui create_beats."
     },
     "voice": {
       "title": "Suara",
       "subtitle": "Register suara — resep deterministik untuk bagaimana suara terdengar: dua sumbu di atas bank suara yang dikalibrasi. Tulis yang baru dari agen Anda melalui create_voice; pekerja eksternal mengucapkan mereka.",
-      "blurb": "Rendah hati hingga otoritatif, terang hingga dalam — suara sebagai resep blend kecil, tidak pernah rekaman.",
       "axisConfidence": "Kepercayaan diri",
       "axisDepth": "Kedalaman",
       "poleMeek": "rendah hati",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Proyek tanpa judul",
     "untagged": "Tidak diberi tag",
     "shots": "{count} bidikan",
-    "openPlayer": "Buka pemutar",
     "noPreview": "Tidak ada pratinjau",
     "framesLabel": "{count} bingkai",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Dari",
     "sourceUnknown": "(gudang dihapus)",
     "lensLabel": "Lensa",
-    "createdAt": "Dibuat {timestamp}",
     "viewOutcome": "Lihat hasil",
-    "sliceCount": "{count, plural, =0 {tidak ada irisan} =1 {1 irisan} other {# irisan}}",
     "untitledAim": "(tidak ada tujuan yang tercatat)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {tidak ada laci} =1 {1 laci} other {# laci}}",
     "createdAt": "Dibuat {timestamp}",
     "updatedAt": "Diperbarui {timestamp}",
-    "startFromAgent": "Mulai gudang dari agen Anda",
     "actions": {
       "rename": "Ubah nama",
       "edit": "Edit",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Gudang tidak ditemukan",
       "notFoundBody": "Ref gudang ini tidak ada atau belum dibuat.",
       "back": "Kembali ke gudang",
-      "openInbox": "Buka kotak masuk",
       "rootDrawer": "Root",
       "drawerItemCount": "{count, plural, =0 {kosong} =1 {1 item} other {# item}}",
       "noItemsInDrawer": "Belum ada item di laci ini.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Tidak dapat menyimpan laci",
       "drawerRenameError": "Tidak dapat mengubah nama laci",
       "renameDrawerLabel": "Ubah nama laci",
-      "moveTo": "Pindahkan ke…",
       "moveError": "Tidak dapat memindahkan item",
       "archive": "Arsip",
       "archiveError": "Tidak dapat mengarsipkan item",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Arsipkan bagaimanapun",
       "archiveCancel": "Batal",
       "addItem": "+ Tambah",
-      "addItemHeading": "Tambahkan ke {drawer}",
       "agentTypesFooter": "Skrip dan penunjuk peta konteks ditambahkan oleh agen Anda.",
       "picker": {
         "text": "Blok teks baru",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Unduh SVG",
     "downloadPng": "Unduh PNG",
     "invalidManifest": "Rendrant tidak dapat mem-parse sketsa ini.",
+    "frameFailed": "Tampilan ini gagal dimuat.",
     "renameLabel": "Ubah nama sketsa",
     "renamePlaceholder": "Judul sketsa",
     "renameSave": "Simpan",
@@ -2069,8 +2086,6 @@
     "refresh": "Segarkan",
     "error": "Gagal memuat layanan terhubung",
     "empty": "Belum ada layanan terhubung. Deklarasikan keterampilan host atau wujudkan komposisi MCP-orbit.",
-    "graphTitle": "Struktur MCP",
-    "graphHint": "Klik node grafik untuk membuka tampilan detail yang tersedia.",
     "backToList": "Kembali ke Layanan Terhubung",
     "backToService": "Kembali ke layanan terhubung",
     "notFound": "Layanan terhubung tidak ditemukan.",
@@ -2138,6 +2153,250 @@
       "via": "Melalui",
       "when": "Kapan",
       "message": "Pesan"
+    }
+  },
+  "renderBay": {
+    "title": "Bilik Render",
+    "subtitle": "Semua yang sedang diproduksi mojulo, dalam satu tempat: antrean render gambar yang tahan lama, panggangan GI, serta cook dan ekspor di disk. Empat cara mengatakan \"sesuatu sedang dibuat\" yang dulu tidak punya rumah bersama.",
+    "readOnly": "Bilik ini merender state. Setiap aksi di sini adalah prompt untuk disalin ke agen Anda — menerima render, memanggang ulang dunia, dan mencetak ekspor semuanya terjadi melalui alat MCP, tidak pernah melalui halaman ini.",
+    "refresh": "Segarkan",
+    "loading": "Memuat…",
+    "allLanes": "Semua jalur",
+    "copyPrompt": "Salin prompt",
+    "copied": "Disalin",
+    "copyFailed": "Gagal menyalin — pilih teksnya dan salin secara manual",
+    "showing": "menampilkan {shown} dari {total}",
+    "queue": {
+      "title": "Antrean render",
+      "note": "Permintaan render tahan lama yang diparkir untuk pekerja yang mampu menghasilkan gambar. Sebuah permintaan bertahan melewati restart, jadi baris yang terparkir adalah janji, bukan job di memori.",
+      "count": "{n} permintaan",
+      "empty": "Tidak ada yang terparkir. Minta agen untuk request_image_render pada sketsa image-outcome atau sequential-art yang sudah dicetak.",
+      "eyesGate": "← gerbang mata: mesin sudah selesai, belum ada yang melihat",
+      "stalled": "macet",
+      "stage": {
+        "queued": "Dalam antrean",
+        "inFlight": "Sedang berjalan",
+        "gate": "Menunggu gerbang mata",
+        "done": "Selesai"
+      },
+      "status": {
+        "pending": "tertunda",
+        "in_flight": "sedang berjalan",
+        "submitted": "dikirim",
+        "accepted": "diterima",
+        "rejected": "ditolak",
+        "expired": "kedaluwarsa",
+        "cancelled": "dibatalkan"
+      },
+      "targets": "{n} target",
+      "folded": "dilipat ke {refs} artefak"
+    },
+    "bakes": {
+      "title": "Panggangan GI",
+      "note": "Iluminasi global Blender Cycles yang dipanggang ke dalam warna verteks milik dunia itu sendiri — AO lembut dan bayangan kontak tanpa biaya runtime. Perlu Blender lokal; dunia yang sudah dipanggang bisa dikirim ke siapa pun.",
+      "empty": "Belum ada panggangan. Dengan Blender terpasang: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "gerbang mesin lolos · {match} kecocokan sudut · {black} lantai gelap (batas {limit})",
+      "eyesGate": "gerbang mata: milik Anda — buka dan lihat",
+      "samples": "{n} sampel",
+      "from": "dipanggang dari {ref}"
+    },
+    "outputs": {
+      "title": "Cook dan ekspor",
+      "note": "Apa yang telah diwujudkan ke disk: publikasi dari cook, serta model, mesh, render, skin, suara, dan skor yang terikat ke folder outcome tiap artefak.",
+      "fullInbox": "Kotak masuk publikasi lengkap →",
+      "emptyCooks": "Tidak ada publikasi terbuka.",
+      "emptyArtifacts": "Belum ada ekspor di disk. Minta agen untuk export_model sebuah dunia, atau mengikat sebuah render.",
+      "emptyBeats": "Belum ada render beats di disk.",
+      "group": {
+        "cooks": "Publikasi",
+        "artifacts": "Folder outcome artefak",
+        "beats": "Render beats"
+      },
+      "kind": {
+        "model": "model",
+        "mesh": "mesh terikat",
+        "render": "render",
+        "skin": "skin",
+        "voice": "suara",
+        "motion": "gerak",
+        "game": "game",
+        "audio": "audio",
+        "score": "skor",
+        "page": "halaman",
+        "recipe": "resep",
+        "other": "berkas"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Buka artefak →",
+    "copied": "Disalin",
+    "copyFailed": "Gagal menyalin — pilih teksnya dan salin secara manual",
+    "shelves": "Perpustakaan",
+    "bays": "Workshop",
+    "outliner": {
+      "title": "Outliner",
+      "flat": "Resep datar — tidak ada bagian untuk ditelusuri.",
+      "unnamed": "Struktur yang belum punya nama di mojulo. Ia tetap ada di dalam resep.",
+      "group": {
+        "geometry": "Geometri",
+        "staging": "Penataan",
+        "sound": "Suara",
+        "provenance": "Asal usul",
+        "renderGroups": "Grup render"
+      },
+      "isolate": "Isolasi di viewport — klik lagi untuk membersihkan",
+      "branch": {
+        "lathes": "Bubutan",
+        "extrudes": "Ekstrusi",
+        "sweeps": "Sapuan",
+        "drapes": "Draperi",
+        "faces": "Face",
+        "figures": "Figur",
+        "characters": "Karakter",
+        "entities": "Entitas",
+        "elements": "Elemen",
+        "civicAreas": "Area publik",
+        "chambers": "Ruang",
+        "tunnels": "Terowongan",
+        "masses": "Massa",
+        "concourses": "Selasar",
+        "stations": "Stasiun",
+        "edges": "Sisi",
+        "tree": "Pohon",
+        "shape": "Bentuk",
+        "camera": "Kamera",
+        "cameras": "Kamera",
+        "ground": "Tanah",
+        "physics": "Fisika",
+        "detail": "Detail",
+        "game": "Game",
+        "audio": "Audio",
+        "giBake": "Panggang GI"
+      }
+    },
+    "viewport": {
+      "noReading": "Artefak ini didengar, dimainkan, atau dibaca, bukan dilihat. Buka untuk mengalaminya.",
+      "frameFailed": "Tampilan ini gagal dimuat — buka artefaknya langsung untuk mencoba lagi.",
+      "seed": "seed {seed}",
+      "parts": "{n} bagian",
+      "scaleDeclared": "1 unit = 1 {unit} · cetak skala sebenarnya dengan scale: {scale}",
+      "scaleUndeclared": "unit tidak dideklarasikan · stl membaca 1 unit = 1 mm",
+      "baked": "dipanggang · {preset}",
+      "noBake": "tanpa panggangan GI",
+      "triHint": "jumlah segitiga: export_model"
+    },
+    "inspector": {
+      "askTitle": "Minta agen",
+      "askBody": "Dashboard merender state; ia tidak pernah mengubahnya. Mengubah resep ini terjadi di agen host Anda.",
+      "askCopy": "Salin prompt",
+      "bound": "Artefak terikat",
+      "boundEmpty": "Belum ada yang terikat — tidak ada render, mesh, atau ekspor di disk untuk resep ini.",
+      "openFolder": "Buka folder outcome · {size}",
+      "recipe": "Resep"
+    },
+    "status": {
+      "packs": "pack: {packs}",
+      "kernelOnly": "hanya kernel",
+      "queue": "antrean render {n}",
+      "gate": "{n} menunggu gerbang mata",
+      "library": "{n} artefak",
+      "toolCalls": "{n} panggilan alat · 24 jam"
+    }
+  },
+  "floor": {
+    "crumb": "dashboard",
+    "bench": "Di meja kerja",
+    "recentPicks": "Baru saja diambil",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} artefak — dijelajahi, diorbit, dicetak",
+      "d2": "{n} artefak — gambar dan peta"
+    },
+    "open": {
+      "scenes": "Buka papan lokasi →",
+      "models": "Buka dinding turntable →",
+      "characters": "Buka papan pemeran →",
+      "images": "Buka dinding cetak →",
+      "diagrams": "Buka ruang baca →",
+      "materials": "Buka rak material →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} preset",
+    "kit": {
+      "figure": "figur",
+      "character-sheet": "lembar",
+      "sprite-sheet": "sprite"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "game",
+      "audio": "♪",
+      "painted": "dilukis"
+    },
+    "capNote": "strip menampilkan yang paling baru — header membuka semuanya",
+    "warming": "memanaskan tampilan langsung…",
+    "liveFailed": "tampilan langsung gagal dimuat — menampilkan gambar diam",
+    "loadFailed": "Gagal memuat rak ini.",
+    "retry": "Coba lagi",
+    "emptyStrip": "Belum ada yang dicetak di sini.",
+    "materialsHint": "Diterapkan dengan meminta agen — setel material pada face mesh-world, atau berikan nama preset."
+  },
+  "viewCube": {
+    "label": "Preset tampilan",
+    "threeQuarter": "¾",
+    "front": "Depan",
+    "side": "Samping",
+    "top": "Atas"
+  },
+  "rooms": {
+    "search": "Cari di ruang ini…",
+    "all": "Semua",
+    "empty": "Tidak ada yang cocok dengan faset atau pencarian ini.",
+    "emptyShelf": "Belum ada yang dicetak ke {shelf}.",
+    "emptyShelfHint": "Minta agen Anda untuk membuat satu — get_sketch_vocab berisi kosakatanya.",
+    "copied": "Disalin",
+    "copyFailed": "Gagal menyalin — pilih secara manual",
+    "notExportable": "Tidak ada ekspor mesh — artefak ini dirender sebagai diagram, bukan model yang bisa dijelajahi.",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "Iterasi · {n}",
+    "open": "Buka resep →",
+    "openBench": "Buka di meja kerja ↗",
+    "openWorld": "Buka dunia ↗",
+    "close": "Tutup",
+    "prev": "Sebelumnya",
+    "next": "Lanjut",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "dilukis · pekerja eksternal · resep perancah tetap berdaulat",
+    "mintMissing": "Minta agen: cetak {piece}",
+    "mintPrompt": "Untuk karakter mojulo \"{name}\" (lihat artefak {ref}), cetak {piece} yang hilang. Gunakan alat yang sesuai (create_sprite_sheet / bind_character_sheet / alat figur) — baca get_sketch_vocab lebih dulu.",
+    "facets": {
+      "scenes": {
+        "walkable": "Bisa dijelajahi",
+        "cities": "Kota",
+        "hubs": "Hub",
+        "interiors": "Interior"
+      },
+      "models": {
+        "workbench": "Meja kerja",
+        "assembler": "Perakit",
+        "manji": "Manji-tree",
+        "science": "Sains"
+      },
+      "images": {
+        "stills": "Gambar diam",
+        "sequential": "Seni sekuensial",
+        "painted": "Dilukis",
+        "carved": "Terukir",
+        "other": "Lainnya"
+      }
     }
   }
 }

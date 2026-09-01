@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "ذخیره",
-    "saving": "در حال ذخیره...",
     "cancel": "لغو",
     "servicesMap": "نقشه سرویس‌ها",
     "observability": "قابل‌مشاهده‌سازی",
     "delete": "حذف",
-    "deleting": "در حال حذف...",
-    "download": "دانلود",
-    "downloading": "در حال دانلود...",
     "close": "بستن",
     "back": "بازگشت",
     "next": "بعدی",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "نقشهٔ ساختِ این اپ — هر فراخوانِ ابزار که آن را پدید آورد، همچون ایستگاه‌هایی روی یک خط."
+      },
       "metadata": "Metadata",
       "artifactPath": "Artifact path",
       "materializationRef": "Materialization ref",
@@ -1545,6 +1544,29 @@
     "copied": "کپی شد",
     "close": "بستن"
   },
+  "displayModes": {
+    "label": "حالت نمایش",
+    "mode": {
+      "wire": "سیمی",
+      "shaded": "سایه‌زده",
+      "baked": "پخته",
+      "painted": "نقاشی‌شده"
+    },
+    "hint": {
+      "wire": "فقط خطوط ساخت — هندسه بدون پوشش.",
+      "shaded": "رنگ‌های رأس و متریال‌های رویه‌ایِ خودِ Mojulo.",
+      "baked": "نورپردازی سراسری Blender Cycles، پخته‌شده در رنگ‌های رأس.",
+      "painted": "نقاشی‌شده به‌دست یک کارگرِ تصویرِ بیرونی، روی داربستِ Mojulo."
+    },
+    "reason": {
+      "noWireframe": "این گونه خوانشِ ساخت ندارد.",
+      "bakedInPlace": "در جا پخته شده — نسخهٔ بدون‌نوری نگه داشته نشد.",
+      "noBake": "هنوز پختِ GI ندارد. از عامل بخواهید این جهان را بپزد.",
+      "noPaintedRender": "هنوز رندرِ نقاشی‌شده‌ای پیوند نخورده. از عامل بخواهید یکی درخواست کند.",
+      "notPaintable": "Mojulo تک‌تک پیکسل‌های این یکی را می‌کشد — چیزی برای نقاشی نیست."
+    },
+    "externalBadge": "نقاشیِ Mojulo نیست"
+  },
   "home": {
     "title": "صفحه اصلی کارگاه",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "صدا",
       "games": "توسعه‌دهنده بازی",
       "arcade": "آرکید",
-      "settings": "Settings"
+      "settings": "Settings",
+      "library": "کتابخانه",
+      "renderBay": "ایستگاه رندر",
+      "dashboard": "داشبورد"
     },
     "agentStatus": {
-      "title": "وضعیت عامل",
       "liveLabel": "زنده",
       "staleLabel": "آخرین مشاهده",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} حافظه",
       "serversLabel": "{count, plural, one {# سرور} other {# سرور}}",
-      "toolsLabel": "{count, plural, one {# ابزار} other {# ابزار}}",
-      "declaredNow": "اکنون",
-      "declaredSeconds": "{seconds, plural, one {# ثانیه پیش} other {# ثانیه پیش}}",
-      "declaredMinutes": "{minutes, plural, one {# دقیقه پیش} other {# دقیقه پیش}}",
-      "declaredHours": "{hours, plural, one {# ساعت پیش} other {# ساعت پیش}}",
-      "declaredDays": "{days, plural, one {# روز پیش} other {# روز پیش}}"
+      "toolsLabel": "{count, plural, one {# ابزار} other {# ابزار}}"
+    },
+    "crumb": "کارگاه",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} ساخته",
+    "dashboard": {
+      "title": "داشبورد",
+      "open": "ورود به سالن ←"
+    },
+    "ask": {
+      "title": "از عامل بخواهید",
+      "body": "ساختن در عاملِ MCP شما رخ می‌دهد."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "طرح یافت نشد",
     "notFoundBody": "این مرجع طرح وجود ندارد یا هنوز ساخته نشده است.",
+    "backToLibrary": "→ بازگشت به کتابخانه",
+    "retryLoad": "تلاش دوباره",
+    "frameFailed": "این نما بارگذاری نشد.",
     "downloadGlb": "دانلود .glb",
     "downloadGlbPreparing": "در حال آماده‌سازی…",
     "downloadGlbUnavailable": "هیچ مش 3D برای صادرات برای این طرح وجود ندارد.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "هنوز عضوی وجود ندارد",
     "notFound": "آن پروژه وجود ندارد — ممکن است بایگانی شده باشد یا ارجاع نادرست باشد.",
     "backToProjects": "بازگشت به توسعه‌دهنده بازی",
-    "charter": "منشور",
-    "playInArcade": "بازی در آرکید",
     "copyWorkPrompt": "کپی درخواست کار",
     "copyAddPrompt": "افزودن",
     "copyMintPrompt": "ساخت بازی",
@@ -1659,7 +1690,6 @@
     "missing": "گمشده",
     "missingBody": "مصنوع این عضو دیگر وجود ندارد. پروژه جایگاه را حفظ می‌کند؛ آن را از عامل میزبان خود دوباره متصل یا حذف کنید.",
     "noRules": "هنوز بازی‌ای ساخته نشده — پروژه در مرحله پیش‌تولید است.",
-    "fromManifest": "از مانیفست",
     "gated": "محدودشده",
     "openNewTab": "باز کردن در برگه جدید",
     "closeViewer": "بستن",
@@ -1707,47 +1737,40 @@
     "copied": "کپی شد",
     "play": "بازی",
     "levelCount": "{count, plural, other {# مرحله}}",
-    "shipped": "منتشرشده",
-    "notFound": "آن دستگاه روی صحنه نیست — ممکن است بازی حذف شده باشد.",
-    "backToArcade": "بازگشت به آرکید",
-    "openStandalone": "باز کردن مستقل"
+    "shipped": "منتشرشده"
+  },
+  "library": {
+    "crumb": "کتابخانه",
+    "title": "کتابخانه",
+    "subtitle": "هر ساخته‌ای که عامل ضرب کرده — صحنه‌ها، مدل‌ها، شخصیت‌ها، متریال‌ها، تصویرها، نمودارها. یک قفسه برای هر شیوهٔ نگاه؛ زیرِ همه، همان انبارِ دستورهای ساخت.",
+    "shelves": {
+      "recent": "اخیر",
+      "scenes": "صحنه‌ها",
+      "models": "مدل‌ها",
+      "characters": "شخصیت‌ها",
+      "images": "تصویرها",
+      "diagrams": "نمودارها",
+      "materials": "متریال‌ها"
+    },
+    "materials": {
+      "blurb": "متریال‌های رویه‌ای — رنگِ رأسِ بدون بافت: یک پایهٔ لمبرت، یک شیبِ نورِ از بالا، یک ابرِ برس‌خورده و فرسودگی، همه پخته‌شده در پرکردگی‌های هر گوشه. هر نمونه یک چهارضلعیِ واقعی است که از حل‌کنندهٔ واقعی گذشته، پس آنچه می‌بینید همان است که یک وجه می‌گیرد.",
+      "applyHint": "متریال‌ها با درخواست از عامل اعمال می‌شوند — روی وجهِ یک جهانِ مش، material را تنظیم کنید یا نام یک پیش‌تنظیم را بدهید."
+    },
+    "recentNote": "تازه‌ترین ساخته‌ها در سراسر کارگاه. یک قفسه را انتخاب کنید تا همهٔ یک گونه را ببینید.",
+    "roomToggle": "اتاق"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "استودیو: تصویرسازی‌ها، جهان‌های قابل پیمایش، اشیای سه‌بعدی، حرکت، بیت‌ها، صدا و خروجی‌های نهایی. یک سطح خلاقانه تنظیم‌شده، هم‌خانواده با Sketches (تنظیم‌شده برای نمودارها). هر قطعه همان پریمیتیو sketch است — به هر حال می‌توانید آن را ذخیره، ارجاع و مقایسه کنید."
     },
-    "open": "باز کردن",
-    "empty": "هنوز چیزی اینجا نیست",
-    "itemCount": "{count, plural, =0 {خالی} one {# مورد} other {# مورد}}",
-    "illustrations": {
-      "title": "تصویرات",
-      "subtitle": "Landscapes, figures, and complicated perspective, CSS-3D, and painterly renders.",
-      "blurb": "Painted landscapes, posed figures, carved solids — the rich visual set you look at."
-    },
-    "worlds": {
-      "title": "دنیاها",
-      "subtitle": "جهان‌های قابل پیمایش three.js — شهرها، ساختمان‌ها، فضاهای داخلی و مرکزهایی که به‌صورت اول‌شخص در آن‌ها حرکت می‌کنید.",
-      "blurb": "شهرهای فراکتالی، بناها و فضاهای داخلی که به‌جای تصاویر تخت، به‌صورت جهان‌های سه‌بعدی قابل پیمایش رندر می‌شوند."
-    },
-    "objects": {
-      "title": "اشیا",
-      "subtitle": "مصنوعات و مطالعات سه‌بعدی مجزا — قطعات میزکار، مجموعه‌ها، پلیگومرها، سیارات، نماهای علمی و ریاضی. برای چرخش بکشید، برای بزرگ‌نمایی اسکرول کنید.",
-      "blurb": "قطعات میزکار، مجموعه‌ها، پلیگومرها و مطالعات مداری — چیزهای سه‌بعدی که می‌چرخانید و نگاه می‌کنید."
-    },
-    "motion": {
-      "title": "حرکت",
-      "blurb": "Movies and GIFs — camera paths and slideshows rendered to animated artifacts."
-    },
     "beats": {
       "title": "ضربات",
-      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats.",
-      "blurb": "Ambient loops, scores, and foley cues — the audio artifacts you listen to. Everything synthesized, nothing sampled."
+      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
     },
     "voice": {
       "title": "صدا",
       "subtitle": "Voice registers — deterministic recipes for how a voice sounds: two axes over a calibrated bank of voices. Author new ones from your agent via create_voice; an external worker speaks them.",
-      "blurb": "Meek to authoritative, bright to deep — voices as tiny blend recipes, never recordings.",
       "axisConfidence": "اطمینان",
       "axisDepth": "عمق",
       "poleMeek": "فروتن",
@@ -1780,7 +1803,6 @@
     "untitledProject": "پروژه بدون عنوان",
     "untagged": "بدون برچسب",
     "shots": "{count} فریم",
-    "openPlayer": "باز کردن پلیور",
     "noPreview": "بدون پیش‌نمایش",
     "framesLabel": "{count} فریم",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "From",
     "sourceUnknown": "(حافظه حذف شده)",
     "lensLabel": "عدسی",
-    "createdAt": "ایجاد شده {timestamp}",
     "viewOutcome": "مشاهده نتیجه",
-    "sliceCount": "{count, plural, =0 {بدون برش} =1 {1 برش} other {# برش}}",
     "untitledAim": "(هدفی ثبت نشده)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {بدون کشو} =1 {1 کشو} other {# کشو}}",
     "createdAt": "ایجاد شده {timestamp}",
     "updatedAt": "Updated {timestamp}",
-    "startFromAgent": "Start a stash from your agent",
     "actions": {
       "rename": "تغیر نام",
       "edit": "ویرایش",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "حافظه یافت نشد",
       "notFoundBody": "این مرجع حافظه وجود ندارد یا هنوز ساخته نشده است.",
       "back": "بازگشت به حافظه‌ها",
-      "openInbox": "باز کردن صندوق دریافت",
       "rootDrawer": "ریشه",
       "drawerItemCount": "{count, plural, =0 {خالی} =1 {1 مورد} other {# مورد}}",
       "noItemsInDrawer": "هنوز مورد در این کشو وجود ندارد.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "نتوانست کشو را ذخیره کند",
       "drawerRenameError": "نتوانست کشو را تغیر نام دهد",
       "renameDrawerLabel": "تغیر نام کشو",
-      "moveTo": "انتقال به…",
       "moveError": "نتوانست مورد را انتقال دهد",
       "archive": "بایگانی",
       "archiveError": "نتوانست مورد را بایگانی کند",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "بایگانی کردن به هر حال",
       "archiveCancel": "لغو",
       "addItem": "+ اضافه کردن",
-      "addItemHeading": "اضافه کردن به {drawer}",
       "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
       "picker": {
         "text": "بلوک متن جدید",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "دانلود SVG",
     "downloadPng": "دانلود PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
+    "frameFailed": "این نما بارگذاری نشد.",
     "renameLabel": "تغیر نام طرح",
     "renamePlaceholder": "عنوان طرح",
     "renameSave": "ذخیره",
@@ -2069,8 +2086,6 @@
     "refresh": "Refresh",
     "error": "بارگذاری خدمات متصل ناموفق بود",
     "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "graphTitle": "ساختار MCP",
-    "graphHint": "Click graph nodes to open available detail views.",
     "backToList": "بازگشت به خدمات متصل",
     "backToService": "بازگشت به خدمت متصل",
     "notFound": "خدمت متصل یافت نشد.",
@@ -2138,6 +2153,250 @@
       "via": "از طریق",
       "when": "چه زمانی",
       "message": "پیام"
+    }
+  },
+  "renderBay": {
+    "title": "ایستگاه رندر",
+    "subtitle": "هر آنچه Mojulo تولید می‌کند، در یک جا: صفِ ماندگارِ رندرِ تصویر، پخت‌های GI، و پخت‌های انتشار و برون‌بردهای روی دیسک. چهار راهِ گفتنِ «چیزی در حالِ ساخته‌شدن است» که تا امروز خانهٔ مشترکی نداشتند.",
+    "readOnly": "این ایستگاه فقط وضعیت را نمایش می‌دهد. هر کنشی اینجا پرامپتی است برای کپی‌کردن در عاملتان — پذیرفتنِ یک رندر، بازپختِ یک جهان و ضربِ یک برون‌برد همه از راه ابزارهای MCP رخ می‌دهند، هرگز از این صفحه.",
+    "refresh": "Refresh",
+    "loading": "در حال بارگذاری...",
+    "allLanes": "همهٔ خطوط",
+    "copyPrompt": "کپی نوع پرسش",
+    "copied": "کپی شد",
+    "copyFailed": "کپی نشد — متن را انتخاب و دستی کپی کنید",
+    "showing": "نمایش {shown} از {total}",
+    "queue": {
+      "title": "صف رندر",
+      "note": "درخواست‌های ماندگارِ رندر که برای یک کارگرِ توانا به تصویر پارک شده‌اند. درخواست از راه‌اندازی دوباره جان به در می‌برد، پس یک ردیفِ پارک‌شده یک وعده است، نه کاری در حافظه.",
+      "count": "{n} درخواست",
+      "empty": "چیزی پارک نشده. از عامل بخواهید برای یک image-outcome یا طرحِ sequential-art ضرب‌شده، request_image_render را صدا بزند.",
+      "eyesGate": "→ دروازهٔ چشم: ماشین کارش تمام شده، کسی نگاه نکرده",
+      "stalled": "گیرکرده",
+      "stage": {
+        "queued": "در صف",
+        "inFlight": "در جریان",
+        "gate": "در انتظار دروازهٔ چشم",
+        "done": "نهایی‌شده"
+      },
+      "status": {
+        "pending": "در انتظار",
+        "in_flight": "در جریان",
+        "submitted": "ارسال‌شده",
+        "accepted": "پذیرفته‌شده",
+        "rejected": "ردشده",
+        "expired": "منقضی‌شده",
+        "cancelled": "لغوشده"
+      },
+      "targets": "{n} هدف",
+      "folded": "تاشده روی {refs} ساخته"
+    },
+    "bakes": {
+      "title": "پخت‌های GI",
+      "note": "نورپردازی سراسری Blender Cycles، پخته‌شده در رنگ‌های رأسِ خودِ یک جهان — AO نرم و سایهٔ تماس با هزینهٔ اجراییِ صفر. به Blender محلی نیاز دارد؛ جهان‌های پخته‌شده برای هر کسی قابل ارسال‌اند.",
+      "empty": "هنوز پختی نیست. با نصب‌بودنِ Blender: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "دروازهٔ ماشین گذشت · {match} تطابقِ گوشه · {black} کفِ تاریک (حد {limit})",
+      "eyesGate": "دروازهٔ چشم: با شماست — بازش کنید و نگاه کنید",
+      "samples": "{n} نمونه",
+      "from": "پخته‌شده از {ref}"
+    },
+    "outputs": {
+      "title": "پخت‌های انتشار و برون‌بردها",
+      "note": "آنچه روی دیسک پدید آمده: انتشارهای حاصل از cook، و مدل‌ها، مش‌ها، رندرها، پوسته‌ها، صداها و پارتیتورهایی که به پوشهٔ خروجیِ هر ساخته پیوند خورده‌اند.",
+      "fullInbox": "صندوقِ کاملِ انتشارها ←",
+      "emptyCooks": "انتشارِ بازی نیست.",
+      "emptyArtifacts": "هنوز برون‌بردی روی دیسک نیست. از عامل بخواهید یک جهان را export_model کند، یا یک رندر را پیوند بزند.",
+      "emptyBeats": "هنوز رندرِ beats روی دیسک نیست.",
+      "group": {
+        "cooks": "انتشارها",
+        "artifacts": "پوشه‌های خروجیِ ساخته‌ها",
+        "beats": "رندرهای beats"
+      },
+      "kind": {
+        "model": "مدل",
+        "mesh": "مشِ پیوندخورده",
+        "render": "رندر",
+        "skin": "پوسته",
+        "voice": "صدا",
+        "motion": "حرکت",
+        "game": "بازی",
+        "audio": "صوت",
+        "score": "پارتیتور",
+        "page": "صفحه",
+        "recipe": "دستور ساخت",
+        "other": "فایل"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "گشودن ساخته ←",
+    "copied": "کپی شد",
+    "copyFailed": "کپی نشد — متن را انتخاب و دستی کپی کنید",
+    "shelves": "کتابخانه",
+    "bays": "کارگاه",
+    "outliner": {
+      "title": "فهرست ساختار",
+      "flat": "یک دستور ساختِ تخت — بخشی برای پیمودن نیست.",
+      "unnamed": "ساختاری که Mojulo هنوز واژه‌ای برایش ندارد. هنوز درون دستور ساخت است.",
+      "group": {
+        "geometry": "هندسه",
+        "staging": "صحنه‌آرایی",
+        "sound": "آوا",
+        "provenance": "Provenance",
+        "renderGroups": "گروه‌های رندر"
+      },
+      "isolate": "جداسازی در نمای دید — برای پاک‌کردن دوباره کلیک کنید",
+      "branch": {
+        "lathes": "تراش‌ها",
+        "extrudes": "اکسترودها",
+        "sweeps": "جاروب‌ها",
+        "drapes": "پرده‌ها",
+        "faces": "وجه‌ها",
+        "figures": "پیکره‌ها",
+        "characters": "شخصیت‌ها",
+        "entities": "موجودیت‌ها",
+        "elements": "عنصرها",
+        "civicAreas": "پهنه‌های شهری",
+        "chambers": "تالارها",
+        "tunnels": "تونل‌ها",
+        "masses": "توده‌ها",
+        "concourses": "گذرگاه‌ها",
+        "stations": "ایستگاه‌ها",
+        "edges": "یال‌ها",
+        "tree": "درخت",
+        "shape": "شکل",
+        "camera": "دوربین",
+        "cameras": "دوربین‌ها",
+        "ground": "زمین",
+        "physics": "فیزیک",
+        "detail": "جزئیات",
+        "game": "بازی",
+        "audio": "صدا",
+        "giBake": "پختِ GI"
+      }
+    },
+    "viewport": {
+      "noReading": "این ساخته به‌جای دیده‌شدن، شنیده، بازی یا خوانده می‌شود. برای تجربه‌اش بازش کنید.",
+      "frameFailed": "این نما بارگذاری نشد — برای تلاش دوباره، ساخته را مستقیم باز کنید.",
+      "seed": "بذر {seed}",
+      "parts": "{n} بخش",
+      "scaleDeclared": "۱ واحد = ۱ {unit} · چاپ در مقیاس واقعی با scale: {scale}",
+      "scaleUndeclared": "واحدها اعلام نشده · stl آن را ۱ واحد = ۱ mm می‌خواند",
+      "baked": "پخته · {preset}",
+      "noBake": "بدون پختِ GI",
+      "triHint": "شمار مثلث‌ها: export_model"
+    },
+    "inspector": {
+      "askTitle": "از عامل بخواهید",
+      "askBody": "داشبورد وضعیت را نمایش می‌دهد؛ هرگز تغییرش نمی‌دهد. تغییرِ این دستور ساخت در عاملِ میزبانِ شما رخ می‌دهد.",
+      "askCopy": "کپی نوع پرسش",
+      "bound": "ساخته‌های پیوندخورده",
+      "boundEmpty": "هنوز چیزی پیوند نخورده — هیچ رندر، مش یا برون‌بردی روی دیسک برای این دستور ساخت نیست.",
+      "openFolder": "گشودن پوشهٔ خروجی · {size}",
+      "recipe": "دستور ساخت"
+    },
+    "status": {
+      "packs": "پک‌ها: {packs}",
+      "kernelOnly": "فقط هسته",
+      "queue": "صف رندر {n}",
+      "gate": "{n} در انتظار دروازهٔ چشم",
+      "library": "{n} ساخته",
+      "toolCalls": "{n} فراخوانِ ابزار · ۲۴ ساعت"
+    }
+  },
+  "floor": {
+    "crumb": "داشبورد",
+    "bench": "روی میزِ کار",
+    "recentPicks": "اخیراً برداشته‌شده",
+    "zones": {
+      "d3": "سه‌بعدی",
+      "d2": "دوبعدی"
+    },
+    "zoneSub": {
+      "d3": "{n} ساخته — پیموده، چرخانده، چاپ‌شده",
+      "d2": "{n} ساخته — تصویرها و نقشه‌ها"
+    },
+    "open": {
+      "scenes": "گشودن تابلوی مکان‌ها ←",
+      "models": "گشودن دیوارِ گردان ←",
+      "characters": "گشودن تابلوی شخصیت‌ها ←",
+      "images": "گشودن دیوارِ چاپ ←",
+      "diagrams": "گشودن اتاق مطالعه ←",
+      "materials": "گشودن قفسهٔ متریال‌ها ←"
+    },
+    "stack": "×{n}",
+    "presets": "{n} پیش‌تنظیم",
+    "kit": {
+      "figure": "پیکره",
+      "character-sheet": "برگه",
+      "sprite-sheet": "اسپرایت‌ها"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "بازی",
+      "audio": "♪",
+      "painted": "نقاشی‌شده"
+    },
+    "capNote": "نوارها تازه‌ترین‌ها را نشان می‌دهند — سرتیترها همه را باز می‌کنند",
+    "warming": "در حالِ گرم‌کردنِ نمای زنده…",
+    "liveFailed": "نمای زنده بارگذاری نشد — تصویر ثابت نشان داده می‌شود",
+    "loadFailed": "این قفسه بارگذاری نشد.",
+    "retry": "تلاش دوباره",
+    "emptyStrip": "هنوز چیزی اینجا ضرب نشده.",
+    "materialsHint": "با درخواست از عامل اعمال می‌شود — روی وجهِ یک جهانِ مش یک material تنظیم کنید، یا نام یک پیش‌تنظیم را بدهید."
+  },
+  "viewCube": {
+    "label": "پیش‌تنظیم‌های نما",
+    "threeQuarter": "¾",
+    "front": "جلو",
+    "side": "کنار",
+    "top": "بالا"
+  },
+  "rooms": {
+    "search": "جست‌وجو در این اتاق…",
+    "all": "همه",
+    "empty": "چیزی با این دسته‌بندی یا جست‌وجو مطابقت ندارد.",
+    "emptyShelf": "هنوز چیزی در {shelf} ضرب نشده.",
+    "emptyShelfHint": "از عاملتان بخواهید یکی بسازد — واژگانش در get_sketch_vocab هست.",
+    "copied": "کپی شد",
+    "copyFailed": "کپی نشد — دستی انتخاب کنید",
+    "notExportable": "برون‌بردِ مش ندارد — این ساخته به‌صورت نمودار رندر می‌شود، نه مدلی پیمودنی.",
+    "stack": "×{n}",
+    "seed": "بذر {seed}",
+    "versions": "تکرارها · {n}",
+    "open": "گشودن دستور ساخت ←",
+    "openBench": "گشودن روی میزِ کار ↗",
+    "openWorld": "گشودن جهان ↗",
+    "close": "بستن",
+    "prev": "قبلی",
+    "next": "بعدی",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "نقاشی‌شده · کارگرِ بیرونی · دستور ساختِ داربست حاکم است",
+    "mintMissing": "از عامل بخواهید: {piece} را ضرب کند",
+    "mintPrompt": "برای شخصیتِ mojulo با نام «{name}» (ساختهٔ {ref} را ببینید)، {piece} گم‌شده را ضرب کن. از ابزار متناظر استفاده کن (create_sprite_sheet / bind_character_sheet / ابزارهای figure) — اول get_sketch_vocab را بخوان.",
+    "facets": {
+      "scenes": {
+        "walkable": "پیمودنی",
+        "cities": "شهرها",
+        "hubs": "هاب‌ها",
+        "interiors": "فضاهای داخلی"
+      },
+      "models": {
+        "workbench": "میز کار",
+        "assembler": "مونتاژگر",
+        "manji": "درخت‌های manji",
+        "science": "علمی"
+      },
+      "images": {
+        "stills": "تصاویر ثابت",
+        "sequential": "هنر دنباله‌ای",
+        "painted": "نقاشی‌شده",
+        "carved": "کنده‌کاری‌شده",
+        "other": "سایر"
+      }
     }
   }
 }

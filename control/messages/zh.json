@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "保存",
-    "saving": "保存中…",
     "cancel": "取消",
     "servicesMap": "服务地图",
     "observability": "可观测性",
     "delete": "删除",
-    "deleting": "删除中…",
-    "download": "下载",
-    "downloading": "下载中…",
     "close": "关闭",
     "back": "返回",
     "next": "下一步",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "这个 app 的创建地图 — 使它成形的每一次工具调用，如同一条线上的站点。"
+      },
       "metadata": "元数据",
       "artifactPath": "产物路径",
       "materializationRef": "实体化引用",
@@ -1545,6 +1544,29 @@
     "copied": "已复制",
     "close": "关闭"
   },
+  "displayModes": {
+    "label": "显示模式",
+    "mode": {
+      "wire": "线框",
+      "shaded": "着色",
+      "baked": "烘焙",
+      "painted": "绘制"
+    },
+    "hint": {
+      "wire": "仅构造线 — 几何体的裸态。",
+      "shaded": "Mojulo 自己的顶点色与程序化材质。",
+      "baked": "烘焙进顶点色的 Blender Cycles 全局光照。",
+      "painted": "由外部图像工作机在 mojulo 的脚手架上绘制。"
+    },
+    "reason": {
+      "noWireframe": "此类型没有构造读法。",
+      "bakedInPlace": "就地烘焙 — 未保留无光照版本。",
+      "noBake": "尚无 GI 烘焙。让 agent 烘焙这个世界。",
+      "noPaintedRender": "尚未绑定绘制渲染。让 agent 去请求一个。",
+      "notPaintable": "这一个的每个像素都由 Mojulo 绘制 — 无需上色。"
+    },
+    "externalBadge": "非 mojulo 绘制"
+  },
   "home": {
     "title": "研讨会主页",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "语音",
       "games": "游戏开发者",
       "arcade": "街机厅",
-      "settings": "设置"
+      "settings": "设置",
+      "library": "作品库",
+      "renderBay": "渲染区",
+      "dashboard": "仪表板"
     },
     "agentStatus": {
-      "title": "代理状态",
       "liveLabel": "实时",
       "staleLabel": "最后看到",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} 个挽具",
       "serversLabel": "{count, plural, one {# 个服务器} other {# 个服务器}}",
-      "toolsLabel": "{count, plural, one {# 个工具} other {# 个工具}}",
-      "declaredNow": "刚才",
-      "declaredSeconds": "{seconds, plural, one {# 秒前} other {# 秒前}}",
-      "declaredMinutes": "{minutes, plural, one {# 分钟前} other {# 分钟前}}",
-      "declaredHours": "{hours, plural, one {# 小时前} other {# 小时前}}",
-      "declaredDays": "{days, plural, one {# 天前} other {# 天前}}"
+      "toolsLabel": "{count, plural, one {# 个工具} other {# 个工具}}"
+    },
+    "crumb": "工坊",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} 件作品",
+    "dashboard": {
+      "title": "仪表板",
+      "open": "进入车间 →"
+    },
+    "ask": {
+      "title": "让 agent 来做",
+      "body": "创作发生在你的 MCP agent 里。"
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "未找到草图",
     "notFoundBody": "此草图引用不存在或尚未铸造。",
+    "backToLibrary": "← 返回作品库",
+    "retryLoad": "重试",
+    "frameFailed": "此视图未能加载。",
     "downloadGlb": "下载 .glb",
     "downloadGlbPreparing": "准备中…",
     "downloadGlbUnavailable": "此草图无 3D 网格可导出。",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "暂无成员",
     "notFound": "该项目不存在 — 它可能已被归档，或 ref 有误。",
     "backToProjects": "返回游戏开发者",
-    "charter": "章程",
-    "playInArcade": "在街机厅中游玩",
     "copyWorkPrompt": "复制工作提示词",
     "copyAddPrompt": "添加",
     "copyMintPrompt": "铸造游戏",
@@ -1659,7 +1690,6 @@
     "missing": "缺失",
     "missingBody": "该成员的产物已不存在。项目保留此槽位；请从你的主机代理重新绑定或移除它。",
     "noRules": "尚未铸造游戏 — 项目处于前期制作阶段。",
-    "fromManifest": "来自清单",
     "gated": "已门控",
     "openNewTab": "在新标签页中打开",
     "closeViewer": "关闭",
@@ -1707,47 +1737,40 @@
     "copied": "已复制",
     "play": "游玩",
     "levelCount": "{count, plural, other {# 个关卡}}",
-    "shipped": "已发布",
-    "notFound": "该机台不在场内 — 游戏可能已被移除。",
-    "backToArcade": "返回街机厅",
-    "openStandalone": "独立打开"
+    "shipped": "已发布"
+  },
+  "library": {
+    "crumb": "作品库",
+    "title": "作品库",
+    "subtitle": "agent 铸造的所有作品 — 场景、模型、角色、材质、图像、图表。每种观看方式一个货架；底下是同一个配方库。",
+    "shelves": {
+      "recent": "最近",
+      "scenes": "场景",
+      "models": "模型",
+      "characters": "角色",
+      "images": "图像",
+      "diagrams": "图表",
+      "materials": "材质"
+    },
+    "materials": {
+      "blurb": "程序化材质 — 无贴图的顶点色：lambert 底色、顶光渐变、拉丝云纹与做旧，全部烘焙进逐角填充。每个色板都是一个真实四边形，经过真实的解析器处理，所见即一个面所得。",
+      "applyHint": "材质通过让 agent 应用 — 在网格世界的面上设置 material，或传入一个预设名。"
+    },
+    "recentNote": "整个工坊最新的作品。选一个货架查看同一类型的全部。",
+    "roomToggle": "房间"
   },
   "maker": {
     "hub": {
       "title": "Mojulo 制作器",
       "subtitle": "工作室：插画、可行走世界、3D 物件、动态、节拍、语音和成品输出。一个经过调校的创作界面，与 Sketches（为图表调校）互为姊妹。每件作品都是同一个 sketch 原语 — 无论如何都可以暂存、引用和比对。"
     },
-    "open": "打开",
-    "empty": "这里还没有任何内容",
-    "itemCount": "{count, plural, =0 {空} one {# 个项目} other {# 个项目}}",
-    "illustrations": {
-      "title": "插图",
-      "subtitle": "景观、人物和复杂透视、CSS-3D 和绘画般的渲染。",
-      "blurb": "Painted landscapes, posed figures, carved solids — the rich visual set you look at."
-    },
-    "worlds": {
-      "title": "世界",
-      "subtitle": "可行走的 three.js 世界 — 你以第一人称穿行的城市、建筑、室内和枢纽。",
-      "blurb": "分形城市、大型建筑和室内被渲染为可行走的 3D 世界，而非平面图片。"
-    },
-    "objects": {
-      "title": "物件",
-      "subtitle": "单个 3D 产物与研究 — 工作台部件、装配体、polygomer、行星、科学与数学视图。拖动以环绕观察，滚动以缩放。",
-      "blurb": "工作台部件、装配体、polygomer 和环绕研究 — 你可以转动并观察的 3D 事物。"
-    },
-    "motion": {
-      "title": "动作",
-      "blurb": "电影和 GIF——摄像机路径和幻灯片显示呈现为动画工件。"
-    },
     "beats": {
       "title": "节拍",
-      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats.",
-      "blurb": "Ambient loops, scores, and foley cues — the audio artifacts you listen to. Everything synthesized, nothing sampled."
+      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
     },
     "voice": {
       "title": "语音",
       "subtitle": "Voice registers — deterministic recipes for how a voice sounds: two axes over a calibrated bank of voices. Author new ones from your agent via create_voice; an external worker speaks them.",
-      "blurb": "Meek to authoritative, bright to deep — voices as tiny blend recipes, never recordings.",
       "axisConfidence": "信心",
       "axisDepth": "深度",
       "poleMeek": "温顺",
@@ -1780,7 +1803,6 @@
     "untitledProject": "未命名项目",
     "untagged": "未标记",
     "shots": "{count} 个镜头",
-    "openPlayer": "打开播放器",
     "noPreview": "无预览",
     "framesLabel": "{count} 帧",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "从",
     "sourceUnknown": "（储存已移除）",
     "lensLabel": "透镜",
-    "createdAt": "创建 {timestamp}",
     "viewOutcome": "查看结果",
-    "sliceCount": "{count, plural, =0 {无切片} =1 {1 个切片} other {# 个切片}}",
     "untitledAim": "（未记录目的）"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {无抽屉} =1 {1 个抽屉} other {# 个抽屉}}",
     "createdAt": "创建 {timestamp}",
     "updatedAt": "更新于 {timestamp}",
-    "startFromAgent": "从代理启动储存",
     "actions": {
       "rename": "重命名",
       "edit": "编辑",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "未找到储存",
       "notFoundBody": "此储存引用不存在或尚未铸造。",
       "back": "返回储存",
-      "openInbox": "打开收件箱",
       "rootDrawer": "根",
       "drawerItemCount": "{count, plural, =0 {空} =1 {1 个项目} other {# 个项目}}",
       "noItemsInDrawer": "此抽屉中尚无项目。",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "无法保存抽屉",
       "drawerRenameError": "无法重命名抽屉",
       "renameDrawerLabel": "重命名抽屉",
-      "moveTo": "移动到…",
       "moveError": "无法移动项目",
       "archive": "存档",
       "archiveError": "无法存档项目",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "仍然存档",
       "archiveCancel": "取消",
       "addItem": "+ 添加",
-      "addItemHeading": "添加到 {drawer}",
       "agentTypesFooter": "脚本和上下文地图指针由代理添加。",
       "picker": {
         "text": "新文本块",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "下载 SVG",
     "downloadPng": "下载 PNG",
     "invalidManifest": "Rendrant 无法解析此草图。",
+    "frameFailed": "此视图未能加载。",
     "renameLabel": "重命名草图",
     "renamePlaceholder": "草图标题",
     "renameSave": "保存",
@@ -2069,8 +2086,6 @@
     "refresh": "刷新",
     "error": "加载连接的服务失败",
     "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "graphTitle": "MCP 结构",
-    "graphHint": "单击图表节点以打开可用的详细视图。",
     "backToList": "返回连接的服务",
     "backToService": "返回连接的服务",
     "notFound": "未找到连接的服务。",
@@ -2138,6 +2153,250 @@
       "via": "通过",
       "when": "何时",
       "message": "消息"
+    }
+  },
+  "renderBay": {
+    "title": "渲染区",
+    "subtitle": "mojulo 正在产出的一切，集中在一处：持久化的图像渲染队列、GI 烘焙，以及磁盘上的出品与导出。四种“有东西正在被制造”的说法，过去没有共同的家。",
+    "readOnly": "渲染区只渲染状态。这里的每个操作都是一段供你复制到 agent 的提示 — 接受渲染、重新烘焙世界、铸造导出，全都通过 MCP 工具完成，绝不通过本页面。",
+    "refresh": "刷新",
+    "loading": "加载中…",
+    "allLanes": "全部通道",
+    "copyPrompt": "复制提示",
+    "copied": "已复制",
+    "copyFailed": "无法复制 — 请选中文本手动复制",
+    "showing": "显示 {shown} / 共 {total}",
+    "queue": {
+      "title": "渲染队列",
+      "note": "为具备图像能力的工作机停放的持久化渲染请求。请求可在重启后存活，因此停放的一行是一个承诺，而不是内存中的任务。",
+      "count": "{n} 个请求",
+      "empty": "没有停放的请求。让 agent 对已铸造的 image-outcome 或 sequential-art 草图调用 request_image_render。",
+      "eyesGate": "← 人眼关卡：机器已完成，还没人看过",
+      "stalled": "停滞",
+      "stage": {
+        "queued": "排队中",
+        "inFlight": "进行中",
+        "gate": "等待人眼关卡",
+        "done": "已了结"
+      },
+      "status": {
+        "pending": "待处理",
+        "in_flight": "进行中",
+        "submitted": "已提交",
+        "accepted": "已接受",
+        "rejected": "已拒绝",
+        "expired": "已过期",
+        "cancelled": "已取消"
+      },
+      "targets": "{n} 个目标",
+      "folded": "已折叠到 {refs} 件作品上"
+    },
+    "bakes": {
+      "title": "GI 烘焙",
+      "note": "把 Blender Cycles 全局光照烘焙进世界自身的顶点色 — 柔和 AO 与接触阴影，运行时零开销。需要本地 Blender；烘焙后的世界可分发给任何人。",
+      "empty": "尚无烘焙。装好 Blender 后：node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "机器关卡通过 · {match} 角点匹配 · {black} 暗地面（上限 {limit}）",
+      "eyesGate": "人眼关卡：交给你 — 打开看一眼",
+      "samples": "{n} 个采样",
+      "from": "从 {ref} 烘焙"
+    },
+    "outputs": {
+      "title": "出品与导出",
+      "note": "已经落到磁盘上的东西：cook 产出的出版物，以及绑定到每件作品成果文件夹里的模型、网格、渲染、皮肤、语音和乐谱。",
+      "fullInbox": "完整出版物收件箱 →",
+      "emptyCooks": "没有进行中的出版物。",
+      "emptyArtifacts": "磁盘上尚无导出。让 agent 对一个世界调用 export_model，或绑定一个渲染。",
+      "emptyBeats": "磁盘上尚无 beats 渲染。",
+      "group": {
+        "cooks": "出版物",
+        "artifacts": "作品成果文件夹",
+        "beats": "Beats 渲染"
+      },
+      "kind": {
+        "model": "模型",
+        "mesh": "绑定网格",
+        "render": "渲染",
+        "skin": "皮肤",
+        "voice": "语音",
+        "motion": "动作",
+        "game": "游戏",
+        "audio": "音频",
+        "score": "乐谱",
+        "page": "页面",
+        "recipe": "配方",
+        "other": "文件"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "打开作品 →",
+    "copied": "已复制",
+    "copyFailed": "无法复制 — 请选中文本手动复制",
+    "shelves": "作品库",
+    "bays": "工坊",
+    "outliner": {
+      "title": "大纲",
+      "flat": "扁平配方 — 没有可展开的部件。",
+      "unnamed": "mojulo 尚未命名的结构。它仍在配方里。",
+      "group": {
+        "geometry": "几何",
+        "staging": "布景",
+        "sound": "声音",
+        "provenance": "溯源",
+        "renderGroups": "渲染组"
+      },
+      "isolate": "在视口中隔离 — 再次点击取消",
+      "branch": {
+        "lathes": "车削",
+        "extrudes": "挤出",
+        "sweeps": "扫掠",
+        "drapes": "垂布",
+        "faces": "面",
+        "figures": "形体",
+        "characters": "角色",
+        "entities": "实体",
+        "elements": "元素",
+        "civicAreas": "市政区",
+        "chambers": "洞室",
+        "tunnels": "隧道",
+        "masses": "体量",
+        "concourses": "廊道",
+        "stations": "站点",
+        "edges": "边",
+        "tree": "树",
+        "shape": "形状",
+        "camera": "相机",
+        "cameras": "相机",
+        "ground": "地面",
+        "physics": "物理",
+        "detail": "细节",
+        "game": "游戏",
+        "audio": "音频",
+        "giBake": "GI 烘焙"
+      }
+    },
+    "viewport": {
+      "noReading": "此作品是用来听、玩或读的，而不是看的。打开它去体验。",
+      "frameFailed": "此视图未能加载 — 直接打开该作品再试一次。",
+      "seed": "种子 {seed}",
+      "parts": "{n} 个部件",
+      "scaleDeclared": "1 单位 = 1 {unit} · 按真实比例打印使用 scale: {scale}",
+      "scaleUndeclared": "单位未声明 · stl 按 1 单位 = 1 mm 解读",
+      "baked": "已烘焙 · {preset}",
+      "noBake": "无 GI 烘焙",
+      "triHint": "三角面数：export_model"
+    },
+    "inspector": {
+      "askTitle": "让 agent 来做",
+      "askBody": "仪表盘只渲染状态，从不改动。修改这个配方要在你的宿主 agent 里进行。",
+      "askCopy": "复制提示",
+      "bound": "绑定的作品",
+      "boundEmpty": "尚无绑定 — 磁盘上没有这个配方的渲染、网格或导出。",
+      "openFolder": "打开成果文件夹 · {size}",
+      "recipe": "配方"
+    },
+    "status": {
+      "packs": "包：{packs}",
+      "kernelOnly": "仅内核",
+      "queue": "渲染队列 {n}",
+      "gate": "{n} 项等待人眼关卡",
+      "library": "{n} 件作品",
+      "toolCalls": "{n} 次工具调用 · 24 小时"
+    }
+  },
+  "floor": {
+    "crumb": "仪表盘",
+    "bench": "在工作台上",
+    "recentPicks": "最近取用",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} 件作品 — 可行走、可环视、可打印",
+      "d2": "{n} 件作品 — 图片与地图"
+    },
+    "open": {
+      "scenes": "打开场景板 →",
+      "models": "打开转台墙 →",
+      "characters": "打开角色板 →",
+      "images": "打开印品墙 →",
+      "diagrams": "打开阅览室 →",
+      "materials": "打开材质架 →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} 个预设",
+    "kit": {
+      "figure": "形体",
+      "character-sheet": "角色表",
+      "sprite-sheet": "精灵图"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "游戏",
+      "audio": "♪",
+      "painted": "已绘制"
+    },
+    "capNote": "条带显示最新的 — 点标题查看全部",
+    "warming": "正在预热实时视图…",
+    "liveFailed": "实时视图未能加载 — 显示静态图",
+    "loadFailed": "无法加载此货架。",
+    "retry": "重试",
+    "emptyStrip": "这里还没有铸造任何东西。",
+    "materialsHint": "通过让 agent 应用 — 在网格世界的面上设置材质，或传入一个预设名。"
+  },
+  "viewCube": {
+    "label": "视图预设",
+    "threeQuarter": "¾",
+    "front": "正面",
+    "side": "侧面",
+    "top": "顶部"
+  },
+  "rooms": {
+    "search": "搜索此房间…",
+    "all": "全部",
+    "empty": "没有匹配此分面或搜索的内容。",
+    "emptyShelf": "{shelf} 中还没有铸造任何内容。",
+    "emptyShelfHint": "让你的 agent 做一个 — get_sketch_vocab 里有词汇表。",
+    "copied": "已复制",
+    "copyFailed": "无法复制 — 请手动选择",
+    "notExportable": "无网格导出 — 此作品渲染为图表，而非可行走的模型。",
+    "stack": "×{n}",
+    "seed": "种子 {seed}",
+    "versions": "迭代 · {n}",
+    "open": "打开配方 →",
+    "openBench": "在工作台打开 ↗",
+    "openWorld": "打开世界 ↗",
+    "close": "关闭",
+    "prev": "上一个",
+    "next": "下一步",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "已绘制 · 外部工作机 · 脚手架配方仍是本体",
+    "mintMissing": "让 agent 铸造 {piece}",
+    "mintPrompt": "为 mojulo 角色“{name}”（见作品 {ref}）铸造缺失的 {piece}。使用对应的工具（create_sprite_sheet / bind_character_sheet / figure 工具）— 先读 get_sketch_vocab。",
+    "facets": {
+      "scenes": {
+        "walkable": "可行走",
+        "cities": "城市",
+        "hubs": "枢纽",
+        "interiors": "室内"
+      },
+      "models": {
+        "workbench": "工作台",
+        "assembler": "装配器",
+        "manji": "Manji 树",
+        "science": "科学"
+      },
+      "images": {
+        "stills": "静帧",
+        "sequential": "连续画",
+        "painted": "绘制",
+        "carved": "雕刻",
+        "other": "其他"
+      }
     }
   }
 }

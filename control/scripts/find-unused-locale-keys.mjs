@@ -49,10 +49,23 @@ const enPath = resolve(messagesDir, 'en.json');
 const APPLY = process.argv.includes('--apply');
 
 // Directories never worth scanning for translator usage.
+//
+// Two sets, and the split is load-bearing. `data` was originally in the flat
+// list and matched by BARE NAME at any depth — which skipped `control/data/`
+// (the database, artifacts and chromium dirs, correctly) but ALSO skipped
+// `control/app/data/`, the /data page itself. Six live components with
+// `useTranslations('data.sql' | 'data.analytics' | 'data.schema' | 'data.fleet')`
+// were never scanned, so all 49 of their keys reported as unused and `--apply`
+// would have deleted the entire page's catalog. The tool's whole promise is
+// zero false positives, and an unscanned source directory silently voids it.
+//
+// So: names that can never hold source are skipped anywhere, and names that are
+// only meaningful at the control root are anchored there. A future `app/public/`
+// or `app/messages/` route is protected by the same anchoring.
 const SKIP_DIRS = new Set([
-  'node_modules', '.next', '.git', 'out', 'dist', 'coverage',
-  'data', 'public', 'messages', '.turbo', '.vercel',
+  'node_modules', '.next', '.git', 'coverage', '.turbo', '.vercel',
 ]);
+const ROOT_SKIP_DIRS = new Set(['data', 'public', 'messages', 'out', 'dist']);
 const SOURCE_EXTS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx']);
 
 // next-intl translator member methods that also take a key as first arg.
@@ -78,11 +91,10 @@ function pluginsFor(file) {
 }
 
 function listSourceFiles(dir, acc) {
+  const atRoot = resolve(dir) === controlRoot;
   for (const name of readdirSync(dir)) {
-    if (name.startsWith('.') && name !== '.') {
-      if (SKIP_DIRS.has(name)) continue;
-    }
     if (SKIP_DIRS.has(name)) continue;
+    if (atRoot && ROOT_SKIP_DIRS.has(name)) continue;
     const full = pathJoin(dir, name);
     let st;
     try { st = statSync(full); } catch { continue; }

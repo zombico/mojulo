@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "I-save",
-    "saving": "Sinisave…",
     "cancel": "Kanselahin",
     "servicesMap": "Mapa ng Serbisyo",
     "observability": "Pagsusuri ng Gawain",
     "delete": "Burahin",
-    "deleting": "Binubura…",
-    "download": "I-download",
-    "downloading": "Dina-download…",
     "close": "Isara",
     "back": "Bumalik",
     "next": "Susunod",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Ang creation map ng app na ito — bawat tool call na bumuo nito, bilang mga station sa iisang linya."
+      },
       "metadata": "Metadata",
       "artifactPath": "Artifact path",
       "materializationRef": "Materialization ref",
@@ -1545,6 +1544,29 @@
     "copied": "Nakopya",
     "close": "Isara"
   },
+  "displayModes": {
+    "label": "Display mode",
+    "mode": {
+      "wire": "Wire",
+      "shaded": "Shaded",
+      "baked": "Baked",
+      "painted": "Painted"
+    },
+    "hint": {
+      "wire": "Mga construction line lang — hubad ang geometry.",
+      "shaded": "Sariling vertex colours at procedural materials ng Mojulo.",
+      "baked": "Blender Cycles global illumination na naka-bake sa vertex colours.",
+      "painted": "Pinintahan ng external image worker sa ibabaw ng scaffold ng mojulo."
+    },
+    "reason": {
+      "noWireframe": "Walang construction reading ang kind na ito.",
+      "bakedInPlace": "Naka-bake in place — walang unlit na bersyong itinago.",
+      "noBake": "Wala pang GI bake. Hilingin sa agent na i-bake ang mundong ito.",
+      "noPaintedRender": "Wala pang naka-bind na painted render. Hilingin sa agent na humiling ng isa.",
+      "notPaintable": "Iginuguhit ng Mojulo ang bawat pixel nito — walang ipipinta."
+    },
+    "externalBadge": "hindi pintura ng mojulo"
+  },
   "home": {
     "title": "Workshop Home",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Tunog",
       "games": "Developer ng Laro",
       "arcade": "Arcade",
-      "settings": "Mga Setting"
+      "settings": "Mga Setting",
+      "library": "Library",
+      "renderBay": "Render Bay",
+      "dashboard": "Pang-alahukan"
     },
     "agentStatus": {
-      "title": "Katayuan ng agent",
       "liveLabel": "Live",
       "staleLabel": "Huling nakita",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} na mga harnesses",
       "serversLabel": "{count, plural, one {# server} other {# servers}}",
-      "toolsLabel": "{count, plural, one {# tool} other {# tools}}",
-      "declaredNow": "ngayon lang",
-      "declaredSeconds": "{seconds, plural, one {# segundo na ang nakakaraan} other {# segundos na ang nakakaraan}}",
-      "declaredMinutes": "{minutes, plural, one {# minuto na ang nakakaraan} other {# minuto na ang nakakaraan}}",
-      "declaredHours": "{hours, plural, one {# oras na ang nakakaraan} other {# oras na ang nakakaraan}}",
-      "declaredDays": "{days, plural, one {# araw na ang nakakaraan} other {# araw na ang nakakaraan}}"
+      "toolsLabel": "{count, plural, one {# tool} other {# tools}}"
+    },
+    "crumb": "workshop",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} na artifacts",
+    "dashboard": {
+      "title": "Pang-alahukan",
+      "open": "Buksan ang floor →"
+    },
+    "ask": {
+      "title": "Hilingin sa agent",
+      "body": "Ang paggawa ay nangyayari sa iyong MCP agent."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Sketch na hindi makita",
     "notFoundBody": "Ang sketch ref na ito ay hindi umiiral o hindi pa na-mint.",
+    "backToLibrary": "← Balik sa Library",
+    "retryLoad": "Subukan muli",
+    "frameFailed": "Hindi na-load ang view na ito.",
     "downloadGlb": "I-download ang .glb",
     "downloadGlbPreparing": "Naghahanda…",
     "downloadGlbUnavailable": "Walang 3D mesh na i-export para sa sketch na ito.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Wala pang miyembro",
     "notFound": "Wala ang proyektong iyon — maaaring na-archive na ito o mali ang ref.",
     "backToProjects": "Bumalik sa Developer ng Laro",
-    "charter": "Charter",
-    "playInArcade": "Maglaro sa Arcade",
     "copyWorkPrompt": "Kopyahin ang work prompt",
     "copyAddPrompt": "idagdag",
     "copyMintPrompt": "i-mint ang laro",
@@ -1659,7 +1690,6 @@
     "missing": "Missing",
     "missingBody": "Wala na ang artifact ng miyembrong ito. Pinapanatili ng proyekto ang slot; i-rebind o alisin ito mula sa iyong host agent.",
     "noRules": "Wala pang na-mint na laro — nasa pre-production ang proyekto.",
-    "fromManifest": "mula sa manifest",
     "gated": "naka-gate",
     "openNewTab": "Buksan sa bagong tab",
     "closeViewer": "Isara",
@@ -1707,47 +1737,40 @@
     "copied": "Nakopya",
     "play": "Maglaro",
     "levelCount": "{count, plural, one {# level} other {# na level}}",
-    "shipped": "Nailabas na",
-    "notFound": "Wala sa floor ang cabinet na iyon — maaaring inalis na ang laro.",
-    "backToArcade": "Bumalik sa Arcade",
-    "openStandalone": "Buksan bilang standalone"
+    "shipped": "Nailabas na"
+  },
+  "library": {
+    "crumb": "library",
+    "title": "Library",
+    "subtitle": "Bawat artifact na na-mint ng agent — mga scene, model, karakter, material, larawan, diagram. Isang shelf bawat paraan ng pagtingin; iisang recipe store sa ilalim.",
+    "shelves": {
+      "recent": "Kamakailan",
+      "scenes": "Mga Scene",
+      "models": "Mga Model",
+      "characters": "Mga Karakter",
+      "images": "Mga Larawan",
+      "diagrams": "Mga Diagram",
+      "materials": "Mga Material"
+    },
+    "materials": {
+      "blurb": "Procedural materials — vertex colour na walang texture: isang lambert base, top-lit ramp, brushed cloud, at weathering, lahat naka-bake sa per-corner fills. Bawat swatch ay tunay na quad na dinaanan ng tunay na resolver, kaya ang nakikita mo ang siyang makukuha ng isang face.",
+      "applyHint": "Inilalapat ang materials sa pamamagitan ng paghiling sa agent — mag-set ng material sa isang mesh-world face, o magpasa ng preset name."
+    },
+    "recentNote": "Ang pinakabagong artifacts sa buong workshop. Pumili ng shelf para makita ang lahat ng isang kind.",
+    "roomToggle": "Silid"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "Ang studio: mga ilustrasyon, nalalakarang mundo, 3D na bagay, motion, beats, voice, at tapos nang output. Isang tuned na creative surface, kapatid ng Sketches (tuned para sa mga diagram). Bawat piraso ay iisang sketch primitive — i-stash, i-reference, at i-diff ito sa alinmang paraan."
     },
-    "open": "Buksan",
-    "empty": "Walang dito pa",
-    "itemCount": "{count, plural, =0 {walang laman} one {# item} other {# items}}",
-    "illustrations": {
-      "title": "Mga ilustrasyon",
-      "subtitle": "Mga landscape, figure, at komplikadong perspektibo, CSS-3D, at painterly renders.",
-      "blurb": "Mga paisahang-pinintahan, mga figure na napose, mga solid na hiningi — ang yamang visual na iyong tinitingnan."
-    },
-    "worlds": {
-      "title": "Mga mundo",
-      "subtitle": "Mga nalalakarang three.js na mundo — mga lungsod, gusali, interior, at hub na tatahakin mo nang first-person.",
-      "blurb": "Mga fractal na lungsod, edifice, at interior na na-render bilang nalalakarang 3D na mundo, hindi patag na larawan."
-    },
-    "objects": {
-      "title": "Mga Bagay",
-      "subtitle": "Mga solong 3D artifact at pag-aaral — mga workbench part, assembly, polygomer, planeta, science at math view. I-drag para umorbit, i-scroll para mag-zoom.",
-      "blurb": "Mga workbench part, assembly, polygomer, at orbit study — mga 3D na bagay na iniikot at tinitingnan mo."
-    },
-    "motion": {
-      "title": "Motion",
-      "blurb": "Mga pelikula at GIFs — mga camera paths at slideshows na ire-render sa animated artifacts."
-    },
     "beats": {
       "title": "Beats",
-      "subtitle": "Mga synthesized soundtrack, komposisyon, at sound effects — pumili ng isa at pindutin ang play. Sumulat ng mga bago mula sa iyong agent sa pamamagitan ng create_beats.",
-      "blurb": "Mga ambient loops, scores, at foley cues — ang audio artifacts na iyong pakinggan. Lahat ay synthesized, walang sampled."
+      "subtitle": "Mga synthesized soundtrack, komposisyon, at sound effects — pumili ng isa at pindutin ang play. Sumulat ng mga bago mula sa iyong agent sa pamamagitan ng create_beats."
     },
     "voice": {
       "title": "Tunog",
       "subtitle": "Mga voice registers — deterministic recipes kung paano tumutunog ang isang tunog: dalawang axes sa isang calibrated na bank ng mga tunog. Sumulat ng mga bago mula sa iyong agent sa pamamagitan ng create_voice; ang isang external worker ay nagsasalita ng mga ito.",
-      "blurb": "Mula sa meek hanggang authoritative, bright hanggang deep — mga tunog bilang maliit na blend recipes, hindi kailanman recordings.",
       "axisConfidence": "Kumpiyansa",
       "axisDepth": "Lalim",
       "poleMeek": "meek",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Walang pamagat na proyekto",
     "untagged": "Walang tag",
     "shots": "{count} na mga shot",
-    "openPlayer": "Buksan ang player",
     "noPreview": "Walang preview",
     "framesLabel": "{count} na mga frame",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Mula",
     "sourceUnknown": "(stash removed)",
     "lensLabel": "Lens",
-    "createdAt": "Created {timestamp}",
     "viewOutcome": "View outcome",
-    "sliceCount": "{count, plural, =0 {no slices} =1 {1 slice} other {# slices}}",
     "untitledAim": "(no aim recorded)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Created {timestamp}",
     "updatedAt": "Updated {timestamp}",
-    "startFromAgent": "Start a stash from your agent",
     "actions": {
       "rename": "Rename",
       "edit": "I-edit",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Stash not found",
       "notFoundBody": "This stash ref does not exist or has not been minted yet.",
       "back": "Back to stashes",
-      "openInbox": "Open inbox",
       "rootDrawer": "Root",
       "drawerItemCount": "{count, plural, =0 {empty} =1 {1 item} other {# items}}",
       "noItemsInDrawer": "No items in this drawer yet.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Could not save drawer",
       "drawerRenameError": "Could not rename drawer",
       "renameDrawerLabel": "Rename drawer",
-      "moveTo": "Move to…",
       "moveError": "Could not move item",
       "archive": "Archive",
       "archiveError": "Could not archive item",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Archive anyway",
       "archiveCancel": "Kanselahin",
       "addItem": "+ Add",
-      "addItemHeading": "Add to {drawer}",
       "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
       "picker": {
         "text": "New text block",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Download SVG",
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
+    "frameFailed": "Hindi na-load ang view na ito.",
     "renameLabel": "Rename sketch",
     "renamePlaceholder": "Sketch title",
     "renameSave": "I-save",
@@ -2069,8 +2086,6 @@
     "refresh": "Refresh",
     "error": "Failed to load connected services",
     "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "graphTitle": "MCP structure",
-    "graphHint": "Click graph nodes to open available detail views.",
     "backToList": "Back to Connected Services",
     "backToService": "Back to connected service",
     "notFound": "Connected service not found.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "When",
       "message": "Message"
+    }
+  },
+  "renderBay": {
+    "title": "Render Bay",
+    "subtitle": "Lahat ng ginagawa ng mojulo, sa iisang lugar: ang durable image-render queue, mga GI bake, at ang mga cook at export sa disk. Apat na paraan ng pagsasabing \"may ginagawa\" na dati ay walang iisang tahanan.",
+    "readOnly": "Nagre-render ng state ang bay. Bawat aksyon dito ay isang prompt na kokopyahin sa iyong agent — ang pagtanggap ng render, pag-bake muli ng mundo, at pag-mint ng export ay lahat nangyayari sa MCP tools, hindi sa page na ito.",
+    "refresh": "Refresh",
+    "loading": "Nag-load…",
+    "allLanes": "Lahat ng lane",
+    "copyPrompt": "Kopyahin ang prompt",
+    "copied": "Nakopya",
+    "copyFailed": "Hindi makopya — piliin ang teksto at kopyahin ito nang manu-mano",
+    "showing": "ipinapakita ang {shown} sa {total}",
+    "queue": {
+      "title": "Render queue",
+      "note": "Mga durable na render request na naka-park para sa image-capable na worker. Nakakaligtas sa restart ang isang request, kaya ang naka-park na hilera ay isang pangako, hindi in-memory na job.",
+      "count": "{n} na requests",
+      "empty": "Walang naka-park. Hilingin sa agent na mag-request_image_render para sa na-mint na image-outcome o sequential-art sketch.",
+      "eyesGate": "← ang eyes gate: tapos na ang makina, wala pang tumingin",
+      "stalled": "natigil",
+      "stage": {
+        "queued": "Naka-queue",
+        "inFlight": "Nasa proseso",
+        "gate": "Naghihintay sa eyes gate",
+        "done": "Tapos na"
+      },
+      "status": {
+        "pending": "nakabinbin",
+        "in_flight": "nasa proseso",
+        "submitted": "naisumite",
+        "accepted": "tinanggap",
+        "rejected": "tinanggihan",
+        "expired": "nag-expire",
+        "cancelled": "kinansela"
+      },
+      "targets": "{n} na target",
+      "folded": "isinama sa {refs} na artifacts"
+    },
+    "bakes": {
+      "title": "Mga GI bake",
+      "note": "Blender Cycles global illumination na naka-bake sa sariling vertex colours ng isang mundo — malambot na AO at contact shadow nang walang runtime cost. Kailangan ng lokal na Blender; ang mga baked na mundo ay maipapadala kahit kanino.",
+      "empty": "Wala pang bakes. Kapag naka-install ang Blender: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "pasado ang machine gate · {match} corner match · {black} madilim na floor (limit {limit})",
+      "eyesGate": "eyes gate: sa iyo — buksan mo at tingnan",
+      "samples": "{n} na sample",
+      "from": "na-bake mula sa {ref}"
+    },
+    "outputs": {
+      "title": "Mga cook at export",
+      "note": "Ang na-materialize sa disk: mga publication mula sa cook, at ang mga model, mesh, render, skin, voice at score na naka-bind sa outcome folder ng bawat artifact.",
+      "fullInbox": "Buong publication inbox →",
+      "emptyCooks": "Walang bukas na publication.",
+      "emptyArtifacts": "Wala pang export sa disk. Hilingin sa agent na mag-export_model ng mundo, o mag-bind ng render.",
+      "emptyBeats": "Wala pang beats renders sa disk.",
+      "group": {
+        "cooks": "Mga Publication",
+        "artifacts": "Mga artifact outcome folder",
+        "beats": "Mga beats render"
+      },
+      "kind": {
+        "model": "model",
+        "mesh": "naka-bind na mesh",
+        "render": "render",
+        "skin": "skin",
+        "voice": "voice",
+        "motion": "motion",
+        "game": "laro",
+        "audio": "audio",
+        "score": "score",
+        "page": "page",
+        "recipe": "recipe",
+        "other": "file"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Buksan ang artifact →",
+    "copied": "Nakopya",
+    "copyFailed": "Hindi makopya — piliin ang teksto at kopyahin ito nang manu-mano",
+    "shelves": "Library",
+    "bays": "Workshop",
+    "outliner": {
+      "title": "Outliner",
+      "flat": "Isang flat na recipe — walang parteng malalakaran.",
+      "unnamed": "Istrukturang wala pang pangalan sa mojulo. Nasa recipe pa rin ito.",
+      "group": {
+        "geometry": "Geometry",
+        "staging": "Staging",
+        "sound": "Tunog",
+        "provenance": "Provenance",
+        "renderGroups": "Mga render group"
+      },
+      "isolate": "I-isolate sa viewport — i-click muli para i-clear",
+      "branch": {
+        "lathes": "Mga Lathe",
+        "extrudes": "Mga Extrude",
+        "sweeps": "Mga Sweep",
+        "drapes": "Mga Drape",
+        "faces": "Mga Face",
+        "figures": "Mga Figure",
+        "characters": "Mga Karakter",
+        "entities": "Mga Entity",
+        "elements": "Mga Elemento",
+        "civicAreas": "Mga civic area",
+        "chambers": "Mga Chamber",
+        "tunnels": "Mga Tunnel",
+        "masses": "Mga Mass",
+        "concourses": "Mga Concourse",
+        "stations": "Mga Station",
+        "edges": "Mga Edge",
+        "tree": "Tree",
+        "shape": "Hugis",
+        "camera": "Camera",
+        "cameras": "Mga Camera",
+        "ground": "Ground",
+        "physics": "Physics",
+        "detail": "Detalye",
+        "game": "Laro",
+        "audio": "Audio",
+        "giBake": "GI bake"
+      }
+    },
+    "viewport": {
+      "noReading": "Ang artifact na ito ay pinakikinggan, nilalaro, o binabasa sa halip na tinitingnan. Buksan ito para maranasan.",
+      "frameFailed": "Hindi na-load ang view na ito — buksan ang artifact nang diretso para subukang muli.",
+      "seed": "seed {seed}",
+      "parts": "{n} na parte",
+      "scaleDeclared": "1 unit = 1 {unit} · i-print sa tunay na sukat gamit ang scale: {scale}",
+      "scaleUndeclared": "hindi deklarado ang units · binabasa ng stl ang 1 unit = 1 mm",
+      "baked": "naka-bake · {preset}",
+      "noBake": "walang GI bake",
+      "triHint": "bilang ng triangle: export_model"
+    },
+    "inspector": {
+      "askTitle": "Hilingin sa agent",
+      "askBody": "Nagre-render ng state ang dashboard; hindi ito nagbabago ng anuman. Ang pagbabago ng recipe na ito ay nangyayari sa iyong host agent.",
+      "askCopy": "Kopyahin ang prompt",
+      "bound": "Mga naka-bind na artifact",
+      "boundEmpty": "Wala pang naka-bind — walang render, mesh, o export sa disk para sa recipe na ito.",
+      "openFolder": "Buksan ang outcome folder · {size}",
+      "recipe": "Recipe"
+    },
+    "status": {
+      "packs": "packs: {packs}",
+      "kernelOnly": "kernel lang",
+      "queue": "render queue {n}",
+      "gate": "{n} ang naghihintay sa eyes gate",
+      "library": "{n} na artifacts",
+      "toolCalls": "{n} na tool calls · 24h"
+    }
+  },
+  "floor": {
+    "crumb": "dashboard",
+    "bench": "Nasa bench",
+    "recentPicks": "Kamakailang hinawakan",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} na artifacts — nalalakaran, naoorbit, naipi-print",
+      "d2": "{n} na artifacts — mga larawan at mapa"
+    },
+    "open": {
+      "scenes": "Buksan ang location board →",
+      "models": "Buksan ang turntable wall →",
+      "characters": "Buksan ang cast board →",
+      "images": "Buksan ang print wall →",
+      "diagrams": "Buksan ang silid-basahan →",
+      "materials": "Buksan ang materials shelf →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} na preset",
+    "kit": {
+      "figure": "figure",
+      "character-sheet": "sheet",
+      "sprite-sheet": "sprites"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "laro",
+      "audio": "♪",
+      "painted": "painted"
+    },
+    "capNote": "ipinapakita ng mga strip ang pinakabago — binubuksan ng mga header ang lahat",
+    "warming": "pinapainit ang live view…",
+    "liveFailed": "hindi na-load ang live view — ipinapakita ang still",
+    "loadFailed": "Hindi ma-load ang shelf na ito.",
+    "retry": "Subukan muli",
+    "emptyStrip": "Wala pang na-mint dito.",
+    "materialsHint": "Inilalapat sa pamamagitan ng paghiling sa agent — mag-set ng material sa isang mesh-world face, o magpasa ng preset name."
+  },
+  "viewCube": {
+    "label": "Mga view preset",
+    "threeQuarter": "¾",
+    "front": "Harap",
+    "side": "Gilid",
+    "top": "Itaas"
+  },
+  "rooms": {
+    "search": "Maghanap sa silid na ito…",
+    "all": "Lahat",
+    "empty": "Walang tumutugma sa facet o paghahanap na ito.",
+    "emptyShelf": "Wala pang na-mint sa {shelf}.",
+    "emptyShelfHint": "Hilingin sa iyong agent na gumawa ng isa — nasa get_sketch_vocab ang bokabularyo.",
+    "copied": "Nakopya",
+    "copyFailed": "Hindi makopya — piliin nang manu-mano",
+    "notExportable": "Walang mesh export — ang artifact na ito ay nire-render bilang diagram, hindi bilang nalalakarang model.",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "Mga Iteration · {n}",
+    "open": "Buksan ang recipe →",
+    "openBench": "Buksan sa bench ↗",
+    "openWorld": "Buksan ang mundo ↗",
+    "close": "Isara",
+    "prev": "Nakaraan",
+    "next": "Susunod",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "painted · external worker · nananatiling soberano ang scaffold recipe",
+    "mintMissing": "Hilingin sa agent: i-mint ang {piece}",
+    "mintPrompt": "Para sa mojulo character na \"{name}\" (tingnan ang artifact {ref}), i-mint ang nawawalang {piece}. Gamitin ang tamang tool (create_sprite_sheet / bind_character_sheet / figure tools) — basahin muna ang get_sketch_vocab.",
+    "facets": {
+      "scenes": {
+        "walkable": "Nalalakaran",
+        "cities": "Mga Lungsod",
+        "hubs": "Mga Hub",
+        "interiors": "Mga Interior"
+      },
+      "models": {
+        "workbench": "Workbench",
+        "assembler": "Assembler",
+        "manji": "Mga Manji-tree",
+        "science": "Agham"
+      },
+      "images": {
+        "stills": "Mga Still",
+        "sequential": "Sequential art",
+        "painted": "Painted",
+        "carved": "Inukit",
+        "other": "Iba pa"
+      }
     }
   }
 }

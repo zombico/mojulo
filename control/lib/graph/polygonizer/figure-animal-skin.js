@@ -281,7 +281,30 @@ function marchRadius(field, o, dir, bound) {
   return (lo + hi) / 2;
 }
 
-function marchAxis(field, a, b, c) {
+// The span of an axis that is actually INSIDE the field, as t ∈ [0,1] along a→b.
+// A ring whose CENTER sits outside the surface marches to radius ~0 in every
+// direction, so it collapses to a POINT and the strip mesher emits a whole ring of
+// zero-area quads (the machine gate's `degenerate_faces`; on screen, facet slashes).
+// It happens wherever an axis overshoots its own form — the welded skull's muzzle axis
+// ends at the skull tip while the nose has DROPPED below it, so the last rings hang in
+// empty space. Trimming to the inside span lands every ring on real surface. An axis
+// that is inside end-to-end (every body/limb axis, which is rooted in joints) returns
+// {lo:0, hi:1} and is left untouched.
+function insideSpan(field, a, b, probes = 64) {
+  let lo = -1, hi = -1;
+  for (let i = 0; i <= probes; i++) {
+    const t = i / probes;
+    if (field(lerp3(a, b, t)) <= 0) { if (lo < 0) lo = t; hi = t; }
+  }
+  return lo < 0 || hi - lo < 1e-6 ? null : { lo, hi };
+}
+
+function marchAxis(field, aIn, bIn, c) {
+  const t0 = sub3(bIn, aIn);
+  if (vlen(t0) < 1e-6) return null;
+  const span = insideSpan(field, aIn, bIn);
+  if (!span) return null;                                    // the axis never enters its own form
+  const a = lerp3(aIn, bIn, span.lo), b = lerp3(aIn, bIn, span.hi);
   const t = sub3(b, a);
   if (vlen(t) < 1e-6) return null;
   const T = normalize3(t), { side, up } = frameOf(T), rings = [];

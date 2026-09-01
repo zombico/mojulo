@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "保存",
-    "saving": "保存中…",
     "cancel": "キャンセル",
     "servicesMap": "サービスマップ",
     "observability": "可視性",
     "delete": "削除",
-    "deleting": "削除中…",
-    "download": "ダウンロード",
-    "downloading": "ダウンロード中…",
     "close": "閉じる",
     "back": "戻る",
     "next": "次へ",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "このアプリの生成マップ — これを形にしたすべてのツール呼び出しを、1本の路線上の駅として表示します。"
+      },
       "metadata": "メタデータ",
       "artifactPath": "アーティファクトパス",
       "materializationRef": "実装参照",
@@ -1545,6 +1544,29 @@
     "copied": "コピーしました",
     "close": "閉じる"
   },
+  "displayModes": {
+    "label": "表示モード",
+    "mode": {
+      "wire": "ワイヤー",
+      "shaded": "シェーディング",
+      "baked": "ベイク済み",
+      "painted": "ペイント済み"
+    },
+    "hint": {
+      "wire": "構造線のみ — ジオメトリを剥き出しにした状態です。",
+      "shaded": "Mojulo自身の頂点カラーとプロシージャルマテリアル。",
+      "baked": "Blender Cyclesのグローバルイルミネーションを頂点カラーにベイクしたもの。",
+      "painted": "mojuloのスキャフォールドの上に外部イメージワーカーがペイントしたもの。"
+    },
+    "reason": {
+      "noWireframe": "この種類には構造の読み取りがありません。",
+      "bakedInPlace": "その場でベイク済み — アンリット版は保持されていません。",
+      "noBake": "GIベイクはまだありません。このワールドをベイクするようエージェントに依頼してください。",
+      "noPaintedRender": "ペイント済みレンダーはまだバインドされていません。エージェントにリクエストを依頼してください。",
+      "notPaintable": "これはMojuloが全ピクセルを描画します — ペイントするものはありません。"
+    },
+    "externalBadge": "mojuloのペイントではありません"
+  },
   "home": {
     "title": "ワークショップホーム",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "ボイス",
       "games": "ゲーム開発者",
       "arcade": "アーケード",
-      "settings": "設定"
+      "settings": "設定",
+      "library": "ライブラリ",
+      "renderBay": "レンダーベイ",
+      "dashboard": "ダッシュボード"
     },
     "agentStatus": {
-      "title": "エージェントステータス",
       "liveLabel": "ライブ",
       "staleLabel": "最後に見た",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count}個のハーネス",
       "serversLabel": "{count, plural, one {#個のサーバー} other {#個のサーバー}}",
-      "toolsLabel": "{count, plural, one {#個のツール} other {#個のツール}}",
-      "declaredNow": "たった今",
-      "declaredSeconds": "{seconds, plural, one {#秒前} other {#秒前}}",
-      "declaredMinutes": "{minutes, plural, one {#分前} other {#分前}}",
-      "declaredHours": "{hours, plural, one {#時間前} other {#時間前}}",
-      "declaredDays": "{days, plural, one {#日前} other {#日前}}"
+      "toolsLabel": "{count, plural, one {#個のツール} other {#個のツール}}"
+    },
+    "crumb": "ワークショップ",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n}個のアーティファクト",
+    "dashboard": {
+      "title": "ダッシュボード",
+      "open": "フロアを開く →"
+    },
+    "ask": {
+      "title": "エージェントに依頼",
+      "body": "制作はMCPエージェントで行います。"
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "スケッチが見つかりません",
     "notFoundBody": "このスケッチrefは存在しないか、まだミントされていません。",
+    "backToLibrary": "← ライブラリに戻る",
+    "retryLoad": "再試行",
+    "frameFailed": "このビューは読み込めませんでした。",
     "downloadGlb": ".glbをダウンロード",
     "downloadGlbPreparing": "準備中…",
     "downloadGlbUnavailable": "このスケッチにエクスポートする3Dメッシュがありません。",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "まだメンバーがいません",
     "notFound": "そのプロジェクトは存在しません — アーカイブされたか、ref が間違っている可能性があります。",
     "backToProjects": "ゲーム開発者に戻る",
-    "charter": "憲章",
-    "playInArcade": "アーケードでプレイ",
     "copyWorkPrompt": "作業プロンプトをコピー",
     "copyAddPrompt": "追加",
     "copyMintPrompt": "ゲームを生成",
@@ -1659,7 +1690,6 @@
     "missing": "不足",
     "missingBody": "このメンバーのアーティファクトはもう存在しません。プロジェクトはスロットを保持します。ホストエージェントから再バインドまたは削除してください。",
     "noRules": "まだゲームは生成されていません — プロジェクトはプリプロダクション段階です。",
-    "fromManifest": "マニフェストから",
     "gated": "ゲート済み",
     "openNewTab": "新しいタブで開く",
     "closeViewer": "閉じる",
@@ -1707,47 +1737,40 @@
     "copied": "コピーしました",
     "play": "プレイ",
     "levelCount": "{count, plural, other {# レベル}}",
-    "shipped": "リリース済み",
-    "notFound": "その筐体はフロアにありません — ゲームが削除された可能性があります。",
-    "backToArcade": "アーケードに戻る",
-    "openStandalone": "スタンドアロンで開く"
+    "shipped": "リリース済み"
+  },
+  "library": {
+    "crumb": "ライブラリ",
+    "title": "ライブラリ",
+    "subtitle": "エージェントがミントしたすべてのアーティファクト — シーン、モデル、キャラクター、マテリアル、画像、ダイアグラム。見方ごとに1つの棚、その下にあるレシピストアは同じです。",
+    "shelves": {
+      "recent": "最近",
+      "scenes": "シーン",
+      "models": "モデル",
+      "characters": "キャラクター",
+      "images": "画像",
+      "diagrams": "ダイアグラム",
+      "materials": "マテリアル"
+    },
+    "materials": {
+      "blurb": "プロシージャルマテリアル — テクスチャなしの頂点カラー：ランバートのベース、上方光のランプ、ブラッシュのクラウド、そして風化を、すべてコーナーごとのフィルにベイクします。各スウォッチは実際のリゾルバを通した本物のクアッドなので、見えているものがそのままフェイスに適用されます。",
+      "applyHint": "マテリアルの適用はエージェントに依頼します — メッシュワールドのフェイスにmaterialを設定するか、プリセット名を渡してください。"
+    },
+    "recentNote": "ワークショップ全体で最も新しいアーティファクト。棚を選ぶと同じ種類をすべて表示します。",
+    "roomToggle": "ルーム"
   },
   "maker": {
     "hub": {
       "title": "Mojuloメーカー",
       "subtitle": "スタジオ：イラスト、歩けるワールド、3Dオブジェクト、モーション、ビート、ボイス、そして完成した出力。ダイアグラム向けに調整された Sketches の姉妹となる、調整済みのクリエイティブ面です。どの作品も同じスケッチプリミティブ — どちらの方法でもスタッシュ、参照、差分ができます。"
     },
-    "open": "開く",
-    "empty": "まだ何もありません",
-    "itemCount": "{count, plural, =0 {空} one {#個のアイテム} other {#個のアイテム}}",
-    "illustrations": {
-      "title": "イラスト",
-      "subtitle": "ランドスケープ、フィギュア、複雑な遠近法、CSS-3D、および絵画的なレンダリング。",
-      "blurb": "塗られたランドスケープ、ポーズされたフィギュア、彫られたソリッド — あなたが見ている豊かなビジュアルセット。"
-    },
-    "worlds": {
-      "title": "ワールド",
-      "subtitle": "歩ける three.js のワールド — 一人称で移動する都市、建物、インテリア、ハブ。",
-      "blurb": "フラクタル都市、建造物、インテリアを、平面の絵ではなく歩ける3Dワールドとしてレンダリングします。"
-    },
-    "objects": {
-      "title": "オブジェクト",
-      "subtitle": "単一の3Dアーティファクトとスタディ — ワークベンチのパーツ、アセンブリ、ポリゴマー、惑星、科学・数学のビュー。ドラッグで回転、スクロールでズームします。",
-      "blurb": "ワークベンチのパーツ、アセンブリ、ポリゴマー、オービットスタディ — 回して眺める3Dの物体。"
-    },
-    "motion": {
-      "title": "モーション",
-      "blurb": "映画とGIF — カメラパスとスライドショーはアニメーション化されたアーティファクトにレンダリングされます。"
-    },
     "beats": {
       "title": "ビート",
-      "subtitle": "合成されたサウンドトラック、コンポジション、サウンドエフェクト — 1つを選択して再生を押してください。create_beatsを介してエージェントから新しいものを作成者。",
-      "blurb": "アンビエントループ、スコア、フォーリーキュー — あなたが聴く音声アーティファクト。すべて合成、サンプルなし。"
+      "subtitle": "合成されたサウンドトラック、コンポジション、サウンドエフェクト — 1つを選択して再生を押してください。create_beatsを介してエージェントから新しいものを作成者。"
     },
     "voice": {
       "title": "ボイス",
       "subtitle": "ボイスレジスタ — ボイスの音の決定論的なレシピ: キャリブレートされたボイスバンク上の2つの軸。create_voiceを介してエージェントから新しいものを作成者。外部ワーカーがそれらを話します。",
-      "blurb": "穏やかから権威的、明るいから深い — ボイスは小さなブレンドレシピとして、記録されることはありません。",
       "axisConfidence": "自信",
       "axisDepth": "深さ",
       "poleMeek": "穏やか",
@@ -1780,7 +1803,6 @@
     "untitledProject": "無題のプロジェクト",
     "untagged": "タグなし",
     "shots": "{count}個のショット",
-    "openPlayer": "プレイヤーを開く",
     "noPreview": "プレビューなし",
     "framesLabel": "{count}フレーム",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "発信元",
     "sourceUnknown": "(スタッシュが削除されました)",
     "lensLabel": "レンズ",
-    "createdAt": "{timestamp}に作成されました",
     "viewOutcome": "結果を表示",
-    "sliceCount": "{count, plural, =0 {スライスなし} =1 {1個のスライス} other {#個のスライス}}",
     "untitledAim": "(目的が記録されていません)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {ドロワーなし} =1 {1個のドロワー} other {#個のドロワー}}",
     "createdAt": "{timestamp}に作成されました",
     "updatedAt": "{timestamp}に更新",
-    "startFromAgent": "エージェントからスタッシュを開始",
     "actions": {
       "rename": "名前変更",
       "edit": "編集",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "スタッシュが見つかりません",
       "notFoundBody": "このスタッシュrefは存在しないか、まだミントされていません。",
       "back": "スタッシュに戻る",
-      "openInbox": "インボックスを開く",
       "rootDrawer": "ルート",
       "drawerItemCount": "{count, plural, =0 {空} =1 {1個のアイテム} other {#個のアイテム}}",
       "noItemsInDrawer": "このドロワーにはまだアイテムがありません。",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "ドロワーを保存できませんでした",
       "drawerRenameError": "ドロワーの名前を変更できませんでした",
       "renameDrawerLabel": "ドロワーの名前を変更",
-      "moveTo": "移動…",
       "moveError": "アイテムを移動できませんでした",
       "archive": "アーカイブ",
       "archiveError": "アイテムをアーカイブできませんでした",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "とにかくアーカイブ",
       "archiveCancel": "キャンセル",
       "addItem": "+ 追加",
-      "addItemHeading": "{drawer}に追加",
       "agentTypesFooter": "スクリプトとcontextmapポインタはエージェントによって追加されます。",
       "picker": {
         "text": "新しいテキストブロック",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "SVGをダウンロード",
     "downloadPng": "PNGをダウンロード",
     "invalidManifest": "Rendrantはこのスケッチを解析できませんでした。",
+    "frameFailed": "このビューは読み込めませんでした。",
     "renameLabel": "スケッチの名前を変更",
     "renamePlaceholder": "スケッチタイトル",
     "renameSave": "保存",
@@ -2069,8 +2086,6 @@
     "refresh": "更新",
     "error": "接続されたサービスの読み込みに失敗しました",
     "empty": "まだ接続されたサービスがありません。ホストスキルを宣言するか、MCP-orbit合成を具体化してください。",
-    "graphTitle": "MCP構造",
-    "graphHint": "グラフノードをクリックして、利用可能な詳細ビューを開きます。",
     "backToList": "接続されたサービスに戻る",
     "backToService": "接続されたサービスに戻る",
     "notFound": "接続されたサービスが見つかりません。",
@@ -2138,6 +2153,250 @@
       "via": "経由",
       "when": "いつ",
       "message": "メッセージ"
+    }
+  },
+  "renderBay": {
+    "title": "レンダーベイ",
+    "subtitle": "mojuloが生成中のすべてを1か所に：永続的な画像レンダーキュー、GIベイク、そしてディスク上のcookとエクスポート。「何かが作られている」を表す4つの言い方に、これまで共通の置き場所はありませんでした。",
+    "readOnly": "ベイは状態を描画するだけです。ここでのアクションはすべてエージェントにコピーするプロンプトです — レンダーの受け入れ、ワールドの再ベイク、エクスポートのミントは、このページではなく必ずMCPツールを介して行われます。",
+    "refresh": "更新",
+    "loading": "読み込み中…",
+    "allLanes": "すべてのレーン",
+    "copyPrompt": "プロンプトをコピー",
+    "copied": "コピーしました",
+    "copyFailed": "コピーできませんでした — テキストを選択して手動でコピーしてください",
+    "showing": "{total}中{shown}を表示",
+    "queue": {
+      "title": "レンダーキュー",
+      "note": "画像処理が可能なワーカー向けにパークされた永続的なレンダーリクエスト。リクエストは再起動後も残るため、パークされた行はメモリ上のジョブではなく約束です。",
+      "count": "{n}件のリクエスト",
+      "empty": "パークされたものはありません。ミント済みのimage-outcomeまたはsequential-artスケッチに対してrequest_image_renderするようエージェントに依頼してください。",
+      "eyesGate": "← 目のゲート：機械の処理は完了、まだ誰も見ていません",
+      "stalled": "停滞",
+      "stage": {
+        "queued": "キュー待ち",
+        "inFlight": "実行中",
+        "gate": "目のゲート待ち",
+        "done": "決着済み"
+      },
+      "status": {
+        "pending": "保留中",
+        "in_flight": "実行中",
+        "submitted": "提出済み",
+        "accepted": "受理済み",
+        "rejected": "却下済み",
+        "expired": "期限切れ",
+        "cancelled": "キャンセル済み"
+      },
+      "targets": "{n}個のターゲット",
+      "folded": "{refs}個のアーティファクトに反映"
+    },
+    "bakes": {
+      "title": "GIベイク",
+      "note": "ワールド自身の頂点カラーにベイクされたBlender Cyclesのグローバルイルミネーション — ソフトAOと接地シャドウをランタイムコストゼロで実現します。ローカルのBlenderが必要ですが、ベイク済みのワールドは誰にでも配布できます。",
+      "empty": "ベイクはまだありません。Blenderがインストールされている場合: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "機械ゲート通過 · コーナー一致 {match} · 暗い床 {black}(上限 {limit})",
+      "eyesGate": "目のゲート：あなたの担当です — 開いて確認してください",
+      "samples": "{n}サンプル",
+      "from": "{ref}からベイク"
+    },
+    "outputs": {
+      "title": "cookとエクスポート",
+      "note": "ディスク上に実体化されたもの：cookによる公開物と、各アーティファクトのoutcomeフォルダにバインドされたモデル、メッシュ、レンダー、スキン、ボイス、スコア。",
+      "fullInbox": "公開物の受信トレイ全体 →",
+      "emptyCooks": "未処理の公開物はありません。",
+      "emptyArtifacts": "ディスク上にエクスポートはまだありません。ワールドをexport_modelするか、レンダーをバインドするようエージェントに依頼してください。",
+      "emptyBeats": "ディスク上にbeatsのレンダーはまだありません。",
+      "group": {
+        "cooks": "公開物",
+        "artifacts": "アーティファクトのoutcomeフォルダ",
+        "beats": "beatsレンダー"
+      },
+      "kind": {
+        "model": "モデル",
+        "mesh": "バインド済みメッシュ",
+        "render": "レンダー",
+        "skin": "スキン",
+        "voice": "ボイス",
+        "motion": "モーション",
+        "game": "ゲーム",
+        "audio": "オーディオ",
+        "score": "スコア",
+        "page": "ページ",
+        "recipe": "レシピ",
+        "other": "ファイル"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "アーティファクトを開く →",
+    "copied": "コピーしました",
+    "copyFailed": "コピーできませんでした — テキストを選択して手動でコピーしてください",
+    "shelves": "ライブラリ",
+    "bays": "ワークショップ",
+    "outliner": {
+      "title": "アウトライナー",
+      "flat": "フラットなレシピ — たどるパーツはありません。",
+      "unnamed": "mojuloにまだ名前のない構造。レシピの中には存在します。",
+      "group": {
+        "geometry": "ジオメトリ",
+        "staging": "ステージング",
+        "sound": "サウンド",
+        "provenance": "出所",
+        "renderGroups": "レンダーグループ"
+      },
+      "isolate": "ビューポートで分離表示 — もう一度クリックで解除",
+      "branch": {
+        "lathes": "回転体",
+        "extrudes": "押し出し",
+        "sweeps": "スイープ",
+        "drapes": "ドレープ",
+        "faces": "フェイス",
+        "figures": "フィギュア",
+        "characters": "キャラクター",
+        "entities": "エンティティ",
+        "elements": "エレメント",
+        "civicAreas": "市街エリア",
+        "chambers": "チャンバー",
+        "tunnels": "トンネル",
+        "masses": "マス",
+        "concourses": "コンコース",
+        "stations": "ステーション",
+        "edges": "エッジ",
+        "tree": "ツリー",
+        "shape": "シェイプ",
+        "camera": "カメラ",
+        "cameras": "カメラ",
+        "ground": "地上",
+        "physics": "物理",
+        "detail": "ディテール",
+        "game": "ゲーム",
+        "audio": "オーディオ",
+        "giBake": "GIベイク"
+      }
+    },
+    "viewport": {
+      "noReading": "このアーティファクトは見るものではなく、聴く・遊ぶ・読むものです。開いて体験してください。",
+      "frameFailed": "このビューは読み込めませんでした — アーティファクトを直接開いて再試行してください。",
+      "seed": "シード {seed}",
+      "parts": "{n}個のパーツ",
+      "scaleDeclared": "1ユニット = 1{unit} · 実寸で印刷するには scale: {scale}",
+      "scaleUndeclared": "単位未宣言 · stlは1ユニット = 1 mmとして読みます",
+      "baked": "ベイク済み · {preset}",
+      "noBake": "GIベイクなし",
+      "triHint": "三角形数: export_model"
+    },
+    "inspector": {
+      "askTitle": "エージェントに依頼",
+      "askBody": "ダッシュボードは状態を描画するだけで、変更は行いません。このレシピの変更はホストエージェントで行います。",
+      "askCopy": "プロンプトをコピー",
+      "bound": "バインド済みアーティファクト",
+      "boundEmpty": "まだ何もバインドされていません — このレシピのレンダー、メッシュ、エクスポートはディスク上にありません。",
+      "openFolder": "outcomeフォルダを開く · {size}",
+      "recipe": "レシピ"
+    },
+    "status": {
+      "packs": "パック: {packs}",
+      "kernelOnly": "カーネルのみ",
+      "queue": "レンダーキュー {n}",
+      "gate": "{n}件が目のゲート待ち",
+      "library": "{n}個のアーティファクト",
+      "toolCalls": "ツール呼び出し {n}件 · 24時間"
+    }
+  },
+  "floor": {
+    "crumb": "ダッシュボード",
+    "bench": "作業台の上",
+    "recentPicks": "最近手に取ったもの",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n}個のアーティファクト — 歩く、回す、印刷する",
+      "d2": "{n}個のアーティファクト — 絵と地図"
+    },
+    "open": {
+      "scenes": "ロケーションボードを開く →",
+      "models": "ターンテーブルウォールを開く →",
+      "characters": "キャストボードを開く →",
+      "images": "プリントウォールを開く →",
+      "diagrams": "リーディングルームを開く →",
+      "materials": "マテリアル棚を開く →"
+    },
+    "stack": "×{n}",
+    "presets": "{n}個のプリセット",
+    "kit": {
+      "figure": "フィギュア",
+      "character-sheet": "シート",
+      "sprite-sheet": "スプライト"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "ゲーム",
+      "audio": "♪",
+      "painted": "ペイント済み"
+    },
+    "capNote": "ストリップは最新のものを表示 — ヘッダーからすべてを開けます",
+    "warming": "ライブビューを準備中…",
+    "liveFailed": "ライブビューを読み込めませんでした — 静止画を表示します",
+    "loadFailed": "この棚を読み込めませんでした。",
+    "retry": "再試行",
+    "emptyStrip": "ここにはまだ何もミントされていません。",
+    "materialsHint": "適用はエージェントに依頼します — メッシュワールドのフェイスにマテリアルを設定するか、プリセット名を渡してください。"
+  },
+  "viewCube": {
+    "label": "ビュープリセット",
+    "threeQuarter": "¾",
+    "front": "正面",
+    "side": "側面",
+    "top": "上面"
+  },
+  "rooms": {
+    "search": "このルームを検索…",
+    "all": "すべて",
+    "empty": "このファセットまたは検索に一致するものはありません。",
+    "emptyShelf": "{shelf}にはまだ何もミントされていません。",
+    "emptyShelfHint": "エージェントに作成を依頼してください — 語彙はget_sketch_vocabにあります。",
+    "copied": "コピーしました",
+    "copyFailed": "コピーできませんでした — 手動で選択してください",
+    "notExportable": "メッシュエクスポートはありません — このアーティファクトは歩けるモデルではなくダイアグラムとして描画されます。",
+    "stack": "×{n}",
+    "seed": "シード {seed}",
+    "versions": "イテレーション · {n}",
+    "open": "レシピを開く →",
+    "openBench": "作業台で開く ↗",
+    "openWorld": "ワールドを開く ↗",
+    "close": "閉じる",
+    "prev": "前へ",
+    "next": "次へ",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "ペイント済み · 外部ワーカー · スキャフォールドのレシピが本体です",
+    "mintMissing": "エージェントに依頼: {piece}をミント",
+    "mintPrompt": "mojuloのキャラクター「{name}」(アーティファクト {ref} を参照)について、不足している{piece}をミントしてください。対応するツール(create_sprite_sheet / bind_character_sheet / figureツール)を使用し、まずget_sketch_vocabを読んでください。",
+    "facets": {
+      "scenes": {
+        "walkable": "歩行可能",
+        "cities": "都市",
+        "hubs": "ハブ",
+        "interiors": "インテリア"
+      },
+      "models": {
+        "workbench": "ワークベンチ",
+        "assembler": "アセンブラ",
+        "manji": "Manjiツリー",
+        "science": "サイエンス"
+      },
+      "images": {
+        "stills": "静止画",
+        "sequential": "シーケンシャルアート",
+        "painted": "ペイント済み",
+        "carved": "彫刻",
+        "other": "その他"
+      }
     }
   }
 }

@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Gem",
-    "saving": "Gemmer…",
     "cancel": "Annuller",
     "servicesMap": "Tjenestekort",
     "observability": "Observabilitet",
     "delete": "Slet",
-    "deleting": "Sletter…",
-    "download": "Download",
-    "downloading": "Downloader…",
     "close": "Luk",
     "back": "Tilbage",
     "next": "Næste",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Skabelseskortet for denne app — hvert værktøjskald der materialiserede den, som stationer på én linje."
+      },
       "metadata": "Metadata",
       "artifactPath": "Artefaktsti",
       "materializationRef": "Materialiseringsref",
@@ -1545,6 +1544,29 @@
     "copied": "Kopieret",
     "close": "Luk"
   },
+  "displayModes": {
+    "label": "Visningstilstand",
+    "mode": {
+      "wire": "Trådramme",
+      "shaded": "Skyggelagt",
+      "baked": "Bagt",
+      "painted": "Malet"
+    },
+    "hint": {
+      "wire": "Kun konstruktionslinjer — geometrien afklædt.",
+      "shaded": "Mojulos egne vertexfarver og procedurale materialer.",
+      "baked": "Blender Cycles global belysning bagt ind i vertexfarverne.",
+      "painted": "Malet af en ekstern billedarbejder oven på mojulos stillads."
+    },
+    "reason": {
+      "noWireframe": "Denne slags har ingen konstruktionslæsning.",
+      "bakedInPlace": "Bagt på stedet — ingen ubelyst version blev gemt.",
+      "noBake": "Ingen GI-bagning endnu. Bed agenten om at bage denne verden.",
+      "noPaintedRender": "Ingen malet render bundet endnu. Bed agenten om at anmode om en.",
+      "notPaintable": "Mojulo tegner hver eneste pixel af denne — intet at male."
+    },
+    "externalBadge": "ikke mojulos maling"
+  },
   "home": {
     "title": "Værksted Hjem",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Stemme",
       "games": "Spiludvikler",
       "arcade": "Arkade",
-      "settings": "Indstillinger"
+      "settings": "Indstillinger",
+      "library": "Bibliotek",
+      "renderBay": "Renderbås",
+      "dashboard": "Dashboard"
     },
     "agentStatus": {
-      "title": "Agent-status",
       "liveLabel": "Direkte",
       "staleLabel": "Senest set",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} seler",
       "serversLabel": "{count, plural, one {# server} other {# servere}}",
-      "toolsLabel": "{count, plural, one {# værktøj} other {# værktøjer}}",
-      "declaredNow": "lige nu",
-      "declaredSeconds": "{seconds, plural, one {# sekund siden} other {# sekunder siden}}",
-      "declaredMinutes": "{minutes, plural, one {# minut siden} other {# minutter siden}}",
-      "declaredHours": "{hours, plural, one {# time siden} other {# timer siden}}",
-      "declaredDays": "{days, plural, one {# dag siden} other {# dage siden}}"
+      "toolsLabel": "{count, plural, one {# værktøj} other {# værktøjer}}"
+    },
+    "crumb": "værksted",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} artefakter",
+    "dashboard": {
+      "title": "Dashboard",
+      "open": "Åbn gulvet →"
+    },
+    "ask": {
+      "title": "Spørg agenten",
+      "body": "Skabelsen sker i din MCP-agent."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Skitse ikke fundet",
     "notFoundBody": "Denne skitseref eksisterer ikke eller er ikke blevet møntet endnu.",
+    "backToLibrary": "← Tilbage til biblioteket",
+    "retryLoad": "Prøv igen",
+    "frameFailed": "Denne visning blev ikke indlæst.",
     "downloadGlb": "Download .glb",
     "downloadGlbPreparing": "Forbereder…",
     "downloadGlbUnavailable": "Intet 3D-net at eksportere for denne skitse.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Ingen medlemmer endnu",
     "notFound": "Det projekt findes ikke — det er måske arkiveret, eller ref'en er forkert.",
     "backToProjects": "Tilbage til Spiludvikler",
-    "charter": "Charter",
-    "playInArcade": "Spil i Arkade",
     "copyWorkPrompt": "Kopiér arbejdsprompt",
     "copyAddPrompt": "tilføj",
     "copyMintPrompt": "mint spillet",
@@ -1659,7 +1690,6 @@
     "missing": "Manglende",
     "missingBody": "Dette medlems artefakt findes ikke længere. Projektet beholder pladsen; genbind eller fjern den fra din host-agent.",
     "noRules": "Intet spil mintet endnu — projektet er i præproduktion.",
-    "fromManifest": "fra manifest",
     "gated": "spærret",
     "openNewTab": "Åbn i ny fane",
     "closeViewer": "Luk",
@@ -1707,47 +1737,40 @@
     "copied": "Kopieret",
     "play": "Spil",
     "levelCount": "{count, plural, one {# bane} other {# baner}}",
-    "shipped": "Udgivet",
-    "notFound": "Det kabinet er ikke på gulvet — spillet er måske fjernet.",
-    "backToArcade": "Tilbage til Arkade",
-    "openStandalone": "Åbn standalone"
+    "shipped": "Udgivet"
+  },
+  "library": {
+    "crumb": "bibliotek",
+    "title": "Bibliotek",
+    "subtitle": "Alle artefakter agenten har møntet — scener, modeller, karakterer, materialer, billeder, diagrammer. Én hylde per måde at se på; det samme opskriftslager nedenunder.",
+    "shelves": {
+      "recent": "Seneste",
+      "scenes": "Scener",
+      "models": "Modeller",
+      "characters": "Karakterer",
+      "images": "Billeder",
+      "diagrams": "Diagrammer",
+      "materials": "Materialer"
+    },
+    "materials": {
+      "blurb": "Procedurale materialer — teksturfri vertexfarve: en lambert-base, en toplyst rampe, en børstet sky og forvitring, alt sammen bagt ind i fyld per hjørne. Hver prøve er en rigtig quad kørt gennem den rigtige resolver, så det du ser, er det en flade får.",
+      "applyHint": "Materialer påføres ved at bede agenten — sæt material på en flade i en mesh-verden, eller angiv et preset-navn."
+    },
+    "recentNote": "De nyeste artefakter på tværs af værkstedet. Vælg en hylde for at se alle af én slags.",
+    "roomToggle": "Rum"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "Studiet: illustrationer, gåbare verdener, 3D-objekter, bevægelse, beats, stemme og færdige outputs. En tunet kreativ flade, søskende til Sketches (tunet til diagrammer). Hver del er den samme sketch-primitiv — stash, referér og diff den uanset hvad."
     },
-    "open": "Åbn",
-    "empty": "Intet her endnu",
-    "itemCount": "{count, plural, =0 {tom} one {# element} other {# elementer}}",
-    "illustrations": {
-      "title": "Illustrationer",
-      "subtitle": "Landskaber, figurer og kompliceret perspektiv, CSS-3D og malerisk rendering.",
-      "blurb": "Malede landskaber, poserede figurer, udskårne solider — det rigelige visuelt sæt du kigger på."
-    },
-    "worlds": {
-      "title": "Verdener",
-      "subtitle": "Gåbare three.js-verdener — byer, bygninger, interiører og hubs du bevæger dig gennem i førsteperson.",
-      "blurb": "Fraktale byer, bygningsværker og interiører gengivet som gåbare 3D-verdener, ikke flade billeder."
-    },
-    "objects": {
-      "title": "Objekter",
-      "subtitle": "Enkelte 3D-artefakter og studier — workbench-dele, samlinger, polygomers, planeter, videnskabs- og matematikvisninger. Træk for at kredse, scroll for at zoome.",
-      "blurb": "Workbench-dele, samlinger, polygomers og kredsløbsstudier — 3D-ting du drejer og kigger på."
-    },
-    "motion": {
-      "title": "Bevægelse",
-      "blurb": "Film og GIF'er — kameraer og diashow gengivet til animerede artefakter."
-    },
     "beats": {
       "title": "Beats",
-      "subtitle": "Syntetiserede soundtracks, kompositioner og lydeffekter — vælg en og tryk på afspil. Forfatter nye fra din agent via create_beats.",
-      "blurb": "Ambientsløjfer, partiturer og foley-signaler — audioartefakterne du lytter til. Alt syntetiseret, intet samlet."
+      "subtitle": "Syntetiserede soundtracks, kompositioner og lydeffekter — vælg en og tryk på afspil. Forfatter nye fra din agent via create_beats."
     },
     "voice": {
       "title": "Stemme",
       "subtitle": "Stemmeregistre — deterministiske opskrifter for hvordan en stemme lyder: to akser over en kalibreret bankstemstemme. Forfatter nye fra din agent via create_voice; en ekstern arbejder taler dem.",
-      "blurb": "Ydmyg til autoritær, lys til dyb — stemmer som små blandeopskrifter, aldrig optagelser.",
       "axisConfidence": "Tillidsfull",
       "axisDepth": "Dybde",
       "poleMeek": "ydmyg",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Unavngivet projekt",
     "untagged": "Uden mærker",
     "shots": "{count} optagelser",
-    "openPlayer": "Åbn afspiller",
     "noPreview": "Ingen forhåndsvisning",
     "framesLabel": "{count} rammer",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Fra",
     "sourceUnknown": "(gemmer fjernet)",
     "lensLabel": "Linse",
-    "createdAt": "Oprettet {timestamp}",
     "viewOutcome": "Se resultat",
-    "sliceCount": "{count, plural, =0 {ingen skiver} =1 {1 skive} other {# skiver}}",
     "untitledAim": "(intet formål registreret)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {ingen skuffer} =1 {1 skuffe} other {# skuffer}}",
     "createdAt": "Oprettet {timestamp}",
     "updatedAt": "Opdateret {timestamp}",
-    "startFromAgent": "Start en gemmer fra din agent",
     "actions": {
       "rename": "Omdøb",
       "edit": "[TODO: Edit...]",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Gemmer ikke fundet",
       "notFoundBody": "Denne gemmerref eksisterer ikke eller er ikke blevet møntet endnu.",
       "back": "Tilbage til gemmer",
-      "openInbox": "Åbn indbakke",
       "rootDrawer": "Rod",
       "drawerItemCount": "{count, plural, =0 {tom} =1 {1 element} other {# elementer}}",
       "noItemsInDrawer": "Ingen elementer i denne skuffe endnu.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Kunne ikke gemme skuffe",
       "drawerRenameError": "Kunne ikke omdøbe skuffe",
       "renameDrawerLabel": "Omdøb skuffe",
-      "moveTo": "Flyt til…",
       "moveError": "Kunne ikke flytte element",
       "archive": "Arkiv",
       "archiveError": "Kunne ikke arkivere element",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Arkiver alligevel",
       "archiveCancel": "Annuller",
       "addItem": "+ Tilføj",
-      "addItemHeading": "Tilføj til {drawer}",
       "agentTypesFooter": "Skripter og kontekstkort-pegepinde tilføjes af din agent.",
       "picker": {
         "text": "Nyt tekstblok",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Download SVG",
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant kunne ikke parse denne skitse.",
+    "frameFailed": "Denne visning blev ikke indlæst.",
     "renameLabel": "Omdøb skitse",
     "renamePlaceholder": "Skitsetitel",
     "renameSave": "Gem",
@@ -2069,8 +2086,6 @@
     "refresh": "Opdater",
     "error": "Kunne ikke indlæse tilsluttede tjenester",
     "empty": "Ingen tilsluttede tjenester endnu. Erklær værtskkompetencer eller materialiser en MCP-orbit-komposition.",
-    "graphTitle": "MCP-struktur",
-    "graphHint": "Klik på grafikudepunkter for at åbne tilgængelige detaljvisninger.",
     "backToList": "Tilbage til tilsluttede tjenester",
     "backToService": "Tilbage til tilsluttet tjeneste",
     "notFound": "Tilsluttet tjeneste ikke fundet.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "Hvornår",
       "message": "Besked"
+    }
+  },
+  "renderBay": {
+    "title": "Renderbås",
+    "subtitle": "Alt hvad mojulo producerer, ét sted: den holdbare billedrender-kø, GI-bagninger og de cooks og eksporter der ligger på disken. Fire måder at sige \"noget er ved at blive lavet\" på, som ikke havde et fælles hjem før.",
+    "readOnly": "Båsen viser tilstand. Hver handling her er en prompt du kopierer ind i din agent — at acceptere en render, gen-bage en verden og mønte en eksport sker alt sammen gennem MCP-værktøjer, aldrig gennem denne side.",
+    "refresh": "Opdater",
+    "loading": "Indlæser…",
+    "allLanes": "Alle baner",
+    "copyPrompt": "Kopier prompt",
+    "copied": "Kopieret",
+    "copyFailed": "Kunne ikke kopiere — markér teksten og kopiér den manuelt",
+    "showing": "viser {shown} af {total}",
+    "queue": {
+      "title": "Renderkø",
+      "note": "Holdbare renderanmodninger parkeret til en billedkyndig arbejder. En anmodning overlever en genstart, så en parkeret række er et løfte, ikke et job i hukommelsen.",
+      "count": "{n} anmodninger",
+      "empty": "Intet parkeret. Bed agenten om at køre request_image_render for en møntet image-outcome- eller sequential-art-skitse.",
+      "eyesGate": "← øjenporten: maskinen er færdig, ingen har kigget",
+      "stalled": "gået i stå",
+      "stage": {
+        "queued": "I kø",
+        "inFlight": "Undervejs",
+        "gate": "Afventer øjenporten",
+        "done": "Afgjort"
+      },
+      "status": {
+        "pending": "afventer",
+        "in_flight": "undervejs",
+        "submitted": "indsendt",
+        "accepted": "accepteret",
+        "rejected": "afvist",
+        "expired": "udløbet",
+        "cancelled": "annulleret"
+      },
+      "targets": "{n} mål",
+      "folded": "foldet ind på {refs} artefakter"
+    },
+    "bakes": {
+      "title": "GI-bagninger",
+      "note": "Blender Cycles global belysning bagt ind i en verdens egne vertexfarver — blød AO og kontaktskygge uden runtime-omkostning. Kræver en lokal Blender; de bagte verdener kan sendes til hvem som helst.",
+      "empty": "Ingen bagninger endnu. Med Blender installeret: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "maskinport bestået · {match} hjørnematch · {black} mørkt gulv (grænse {limit})",
+      "eyesGate": "øjenporten: din — åbn den og kig",
+      "samples": "{n} samples",
+      "from": "bagt fra {ref}"
+    },
+    "outputs": {
+      "title": "Cooks og eksporter",
+      "note": "Hvad der er materialiseret på disken: publikationer fra cook, og de modeller, meshes, renders, skins, stemmer og partiturer der er bundet ind i hvert artefakts outcome-mappe.",
+      "fullInbox": "Fuld publikationsindbakke →",
+      "emptyCooks": "Ingen åbne publikationer.",
+      "emptyArtifacts": "Ingen eksporter på disken endnu. Bed agenten om at køre export_model på en verden, eller binde en render.",
+      "emptyBeats": "Ingen beats-renders på disken endnu.",
+      "group": {
+        "cooks": "Publikationer",
+        "artifacts": "Artefakters outcome-mapper",
+        "beats": "Beats-renders"
+      },
+      "kind": {
+        "model": "model",
+        "mesh": "bundet mesh",
+        "render": "render",
+        "skin": "skin",
+        "voice": "stemme",
+        "motion": "bevægelse",
+        "game": "spil",
+        "audio": "lyd",
+        "score": "partitur",
+        "page": "side",
+        "recipe": "opskrift",
+        "other": "fil"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Åbn artefakt →",
+    "copied": "Kopieret",
+    "copyFailed": "Kunne ikke kopiere — markér teksten og kopiér den manuelt",
+    "shelves": "Bibliotek",
+    "bays": "Værksted",
+    "outliner": {
+      "title": "Outliner",
+      "flat": "En flad opskrift — ingen dele at gå igennem.",
+      "unnamed": "Struktur som mojulo endnu ikke har et ord for. Den er stadig i opskriften.",
+      "group": {
+        "geometry": "Geometri",
+        "staging": "Iscenesættelse",
+        "sound": "Lyd",
+        "provenance": "Provenance",
+        "renderGroups": "Rendergrupper"
+      },
+      "isolate": "Isolér i viewporten — klik igen for at rydde",
+      "branch": {
+        "lathes": "Drejninger",
+        "extrudes": "Ekstruderinger",
+        "sweeps": "Sweeps",
+        "drapes": "Draperinger",
+        "faces": "Flader",
+        "figures": "Figurer",
+        "characters": "Karakterer",
+        "entities": "Entiteter",
+        "elements": "Elementer",
+        "civicAreas": "Offentlige områder",
+        "chambers": "Kamre",
+        "tunnels": "Tunneler",
+        "masses": "Masser",
+        "concourses": "Passager",
+        "stations": "Stationer",
+        "edges": "Kanter",
+        "tree": "Træ",
+        "shape": "Form",
+        "camera": "Kamera",
+        "cameras": "Kameraer",
+        "ground": "Jord",
+        "physics": "Fysik",
+        "detail": "Detalje",
+        "game": "Spil",
+        "audio": "Lyd",
+        "giBake": "GI-bagning"
+      }
+    },
+    "viewport": {
+      "noReading": "Dette artefakt høres, spilles eller læses frem for at ses. Åbn det for at opleve det.",
+      "frameFailed": "Denne visning blev ikke indlæst — åbn artefaktet direkte for at prøve igen.",
+      "seed": "seed {seed}",
+      "parts": "{n} dele",
+      "scaleDeclared": "1 enhed = 1 {unit} · print i sand skala med scale: {scale}",
+      "scaleUndeclared": "enheder ikke angivet · stl læser 1 enhed = 1 mm",
+      "baked": "bagt · {preset}",
+      "noBake": "ingen GI-bagning",
+      "triHint": "trekantantal: export_model"
+    },
+    "inspector": {
+      "askTitle": "Spørg agenten",
+      "askBody": "Dashboardet viser tilstand; det ændrer aldrig noget. Ændring af denne opskrift sker i din host-agent.",
+      "askCopy": "Kopier prompt",
+      "bound": "Bundne artefakter",
+      "boundEmpty": "Intet bundet endnu — ingen renders, meshes eller eksporter på disken for denne opskrift.",
+      "openFolder": "Åbn outcome-mappe · {size}",
+      "recipe": "Opskrift"
+    },
+    "status": {
+      "packs": "pakker: {packs}",
+      "kernelOnly": "kun kerne",
+      "queue": "renderkø {n}",
+      "gate": "{n} afventer øjenporten",
+      "library": "{n} artefakter",
+      "toolCalls": "{n} værktøjskald · 24t"
+    }
+  },
+  "floor": {
+    "crumb": "dashboard",
+    "bench": "På bænken",
+    "recentPicks": "Taget op for nylig",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} artefakter — vandret, orbiteret, printet",
+      "d2": "{n} artefakter — billeder og kort"
+    },
+    "open": {
+      "scenes": "Åbn lokationstavlen →",
+      "models": "Åbn drejeskivevæggen →",
+      "characters": "Åbn rolletavlen →",
+      "images": "Åbn printvæggen →",
+      "diagrams": "Åbn læsesalen →",
+      "materials": "Åbn materialehylden →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} presets",
+    "kit": {
+      "figure": "figur",
+      "character-sheet": "ark",
+      "sprite-sheet": "sprites"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "spil",
+      "audio": "♪",
+      "painted": "malet"
+    },
+    "capNote": "striber viser de nyeste — overskrifter åbner alt",
+    "warming": "varmer den direkte visning op…",
+    "liveFailed": "direkte visning blev ikke indlæst — viser stillbilledet",
+    "loadFailed": "Kunne ikke indlæse denne hylde.",
+    "retry": "Prøv igen",
+    "emptyStrip": "Intet møntet her endnu.",
+    "materialsHint": "Påføres ved at bede agenten — sæt et materiale på en flade i en mesh-verden, eller angiv et preset-navn."
+  },
+  "viewCube": {
+    "label": "Visningspresets",
+    "threeQuarter": "¾",
+    "front": "Forfra",
+    "side": "Fra siden",
+    "top": "Oppefra"
+  },
+  "rooms": {
+    "search": "Søg i dette rum…",
+    "all": "Alt",
+    "empty": "Intet matcher denne facet eller søgning.",
+    "emptyShelf": "Intet møntet ind i {shelf} endnu.",
+    "emptyShelfHint": "Bed din agent om at lave en — get_sketch_vocab har vokabularet.",
+    "copied": "Kopieret",
+    "copyFailed": "Kunne ikke kopiere — markér manuelt",
+    "notExportable": "Ingen mesh-eksport — dette artefakt renderes som et diagram, ikke som en model man kan gå i.",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "Iterationer · {n}",
+    "open": "Åbn opskrift →",
+    "openBench": "Åbn på bænken ↗",
+    "openWorld": "Åbn verden ↗",
+    "close": "Luk",
+    "prev": "Forrige",
+    "next": "Næste",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "malet · ekstern arbejder · stilladsopskriften er suveræn",
+    "mintMissing": "Spørg agenten: mønt {piece}",
+    "mintPrompt": "For mojulo-karakteren \"{name}\" (se artefakt {ref}), mønt den manglende {piece}. Brug det matchende værktøj (create_sprite_sheet / bind_character_sheet / figure-værktøjer) — læs get_sketch_vocab først.",
+    "facets": {
+      "scenes": {
+        "walkable": "Gåbare",
+        "cities": "Byer",
+        "hubs": "Knudepunkter",
+        "interiors": "Interiører"
+      },
+      "models": {
+        "workbench": "Arbejdsbord",
+        "assembler": "Assembler",
+        "manji": "Manji-træer",
+        "science": "Videnskab"
+      },
+      "images": {
+        "stills": "Stillbilleder",
+        "sequential": "Sekventiel kunst",
+        "painted": "Malet",
+        "carved": "Udskåret",
+        "other": "Andet"
+      }
     }
   }
 }

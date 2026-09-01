@@ -138,6 +138,7 @@ export const ILLUSTRATION_KINDS = [
   'painted-landscape',
   'carved-solid',
   'figure',
+  'animal',
   'css3d-turntable',
   'room',
   'subway-station',

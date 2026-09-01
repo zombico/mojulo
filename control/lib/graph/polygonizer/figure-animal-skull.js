@@ -31,6 +31,7 @@ export const SKULL_DEFAULT = {
   jaw: 0.6,         // lower-jaw depth (0 = none)
   beak: 0,          // beak length (× length) past the snout (0 = none)
   boxy: 0,          // muzzle boxiness: 0 = conical/round, →1 = a broad squared-off block
+  cap: 1,           // front end-cap depth (× the opening's mean radius); 0 = leave the tube open
   N: 14, M: 20, stroke: '#c8836a',
 };
 
@@ -74,6 +75,27 @@ function sweep(stations, anchor, dir, side, up, L, width, dropL, c) {
   return { polylines: rings, stroke: c.stroke };
 }
 
+// END-CAP — `sweep` emits an OPEN tube (rings ⟂ the axis, no end faces). Head-on, the
+// muzzle's front opening shows the tube's dark INTERIOR, so the bare (overlap-path) face
+// reads hollow — the failure mode /skull-study exists to catch. Close the frontmost ring
+// with a rounded fan (front ring → forward apex, hemispherical profile), the same closure
+// the welded head does. `depth` scales the cap's reach by the opening's mean radius:
+// 1 = hemisphere, <1 = a flatter, squarer front. Mutates the part in place.
+function capFront(part, dir, depth, K = 4) {
+  if (!part || !(depth > 0) || !part.polylines.length) return part;
+  const front = part.polylines[part.polylines.length - 1], n = front.length || 1;
+  const ctr = front.reduce((m, q) => add(m, q), { x: 0, y: 0, z: 0 });
+  ctr.x /= n; ctr.y /= n; ctr.z /= n;
+  const rad = front.reduce((m, q) => m + vlen(sub3(q, ctr)), 0) / n;
+  if (rad < 1e-6) return part;
+  const fwd = mul(normalize3(dir), rad * depth);
+  for (let k = 1; k <= K; k++) {
+    const u = k / K, shrink = Math.cos((u * Math.PI) / 2), push = Math.sin((u * Math.PI) / 2);
+    part.polylines.push(front.map((q) => add(add(ctr, mul(sub3(q, ctr), shrink)), mul(fwd, push))));
+  }
+  return part;
+}
+
 /**
  * Build a proto-skull at `anchor` (back of the skull) pointing along `dir` (muzzle
  * direction). Returns STAND-space render parts.
@@ -94,7 +116,8 @@ export function protoSkull(anchor, dirIn, cfg = {}) {
     { s: 1 - c.muzzle * 0.4, rh: frontRh, rv: 0.52, dz: c.muzzleDrop * 0.55 },
     { s: 1.0, rh: tipRh, rv: tipRv, dz: c.muzzleDrop },
   ];
-  const parts = [sweep(main, anchor, dir, side, up, c.length, c.width, c.length, c)];
+  // cap the nose (unless a beak continues off the snout tip and closes it instead)
+  const parts = [capFront(sweep(main, anchor, dir, side, up, c.length, c.width, c.length, c), dir, c.beak > 0 ? 0 : c.cap * (1 - 0.35 * (c.boxy || 0)))];
   // lower jaw — a shorter, slimmer tube slung below the muzzle line
   if (c.jaw > 0) {
     const jaw = [
@@ -104,7 +127,7 @@ export function protoSkull(anchor, dirIn, cfg = {}) {
     ];
     const drop = c.width * (0.45 + 0.55 * c.jaw) + c.muzzleDrop * c.length * 0.5;
     const jawAnchor = add(anchor, add(mul(dir, c.length * 0.16), mul(up, -drop)));
-    parts.push(sweep(jaw, jawAnchor, dir, side, up, c.length * 0.8, c.width * Math.max(c.jaw, 0.4), c.length, c));
+    parts.push(capFront(sweep(jaw, jawAnchor, dir, side, up, c.length * 0.8, c.width * Math.max(c.jaw, 0.4), c.length, c), dir, c.cap * 0.7));   // chin
   }
   // beak (avian) — a cone from the snout tip narrowing to a point, with a slight hook
   if (c.beak > 0) {
@@ -114,7 +137,7 @@ export function protoSkull(anchor, dirIn, cfg = {}) {
       { s: 0.55, rh: c.snout * 0.6, rv: c.snout * 0.66, dz: 0.10 },
       { s: 1.0, rh: 0.07, rv: 0.07, dz: 0.22 },
     ];
-    parts.push(sweep(beak, tip, dir, side, up, c.length * c.beak, c.width, c.length, c));
+    parts.push(capFront(sweep(beak, tip, dir, side, up, c.length * c.beak, c.width, c.length, c), dir, c.cap * 0.5));   // beak point
   }
   return parts;
 }

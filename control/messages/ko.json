@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "저장",
-    "saving": "저장 중…",
     "cancel": "취소",
     "servicesMap": "서비스 맵",
     "observability": "관찰성",
     "delete": "삭제",
-    "deleting": "삭제 중…",
-    "download": "다운로드",
-    "downloading": "다운로드 중…",
     "close": "닫기",
     "back": "뒤로",
     "next": "다음",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "이 앱의 생성 지도 — 앱을 만들어낸 모든 도구 호출을 한 노선 위의 역으로 표시해요."
+      },
       "metadata": "메타데이터",
       "artifactPath": "아티팩트 경로",
       "materializationRef": "구현 참조",
@@ -1545,6 +1544,29 @@
     "copied": "복사됨",
     "close": "닫기"
   },
+  "displayModes": {
+    "label": "표시 모드",
+    "mode": {
+      "wire": "와이어",
+      "shaded": "셰이딩",
+      "baked": "베이크",
+      "painted": "페인팅"
+    },
+    "hint": {
+      "wire": "구성선만 — 벗겨낸 지오메트리예요.",
+      "shaded": "Mojulo 자체 버텍스 컬러와 절차적 머티리얼이에요.",
+      "baked": "Blender Cycles 전역 조명을 버텍스 컬러에 구워 넣었어요.",
+      "painted": "mojulo의 스캐폴드 위에 외부 이미지 워커가 그린 결과예요."
+    },
+    "reason": {
+      "noWireframe": "이 종류는 구성 판독이 없어요.",
+      "bakedInPlace": "제자리에서 베이크됨 — 조명 없는 버전은 보관하지 않았어요.",
+      "noBake": "아직 GI 베이크가 없어요. 에이전트에게 이 월드를 베이크해 달라고 하세요.",
+      "noPaintedRender": "아직 바인딩된 페인팅 렌더가 없어요. 에이전트에게 요청해 달라고 하세요.",
+      "notPaintable": "이건 Mojulo가 모든 픽셀을 직접 그려요 — 칠할 게 없어요."
+    },
+    "externalBadge": "mojulo가 칠한 게 아님"
+  },
   "home": {
     "title": "워크숍 홈",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "음성",
       "games": "게임 개발자",
       "arcade": "아케이드",
-      "settings": "설정"
+      "settings": "설정",
+      "library": "라이브러리",
+      "renderBay": "렌더 베이",
+      "dashboard": "대시보드"
     },
     "agentStatus": {
-      "title": "에이전트 상태",
       "liveLabel": "실시간",
       "staleLabel": "마지막 본 시간",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} harnesses",
       "serversLabel": "{count, plural, one {# server} other {# servers}}",
-      "toolsLabel": "{count, plural, one {# tool} other {# tools}}",
-      "declaredNow": "just now",
-      "declaredSeconds": "{seconds, plural, one {# second ago} other {# seconds ago}}",
-      "declaredMinutes": "{minutes, plural, one {# minute ago} other {# minutes ago}}",
-      "declaredHours": "{hours, plural, one {# hour ago} other {# hours ago}}",
-      "declaredDays": "{days, plural, one {# day ago} other {# days ago}}"
+      "toolsLabel": "{count, plural, one {# tool} other {# tools}}"
+    },
+    "crumb": "워크숍",
+    "packsPill": "{packs}",
+    "artifactsPill": "아티팩트 {n}개",
+    "dashboard": {
+      "title": "대시보드",
+      "open": "플로어 열기 →"
+    },
+    "ask": {
+      "title": "에이전트에게 요청하기",
+      "body": "만드는 일은 MCP 에이전트에서 일어나요."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "스케치를 찾을 수 없음",
     "notFoundBody": "이 스케치 참조가 존재하지 않거나 아직 생성되지 않았습니다.",
+    "backToLibrary": "← 라이브러리로 돌아가기",
+    "retryLoad": "다시 시도",
+    "frameFailed": "이 뷰가 로드되지 않았어요.",
     "downloadGlb": ".glb 다운로드",
     "downloadGlbPreparing": "준비 중…",
     "downloadGlbUnavailable": "이 스케치에 대해 내보낼 3D 메시가 없습니다.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "아직 멤버가 없어요",
     "notFound": "그 프로젝트가 없어요 — 보관됐거나 ref가 잘못됐을 수 있어요.",
     "backToProjects": "게임 개발자로 돌아가기",
-    "charter": "차터",
-    "playInArcade": "아케이드에서 플레이",
     "copyWorkPrompt": "작업 프롬프트 복사",
     "copyAddPrompt": "추가",
     "copyMintPrompt": "게임 발행",
@@ -1659,7 +1690,6 @@
     "missing": "Missing",
     "missingBody": "이 멤버의 아티팩트가 더 이상 없어요. 프로젝트는 슬롯을 유지해요; 호스트 에이전트에서 다시 바인딩하거나 제거하세요.",
     "noRules": "아직 발행된 게임이 없어요 — 프로젝트는 사전 제작 단계예요.",
-    "fromManifest": "매니페스트에서",
     "gated": "게이트됨",
     "openNewTab": "새 탭에서 열기",
     "closeViewer": "닫기",
@@ -1707,47 +1737,40 @@
     "copied": "복사됨",
     "play": "플레이",
     "levelCount": "{count, plural, other {레벨 #개}}",
-    "shipped": "출시됨",
-    "notFound": "그 캐비닛이 플로어에 없어요 — 게임이 제거됐을 수 있어요.",
-    "backToArcade": "아케이드로 돌아가기",
-    "openStandalone": "독립 실행으로 열기"
+    "shipped": "출시됨"
+  },
+  "library": {
+    "crumb": "라이브러리",
+    "title": "라이브러리",
+    "subtitle": "에이전트가 만든 모든 아티팩트 — 씬, 모델, 캐릭터, 머티리얼, 이미지, 다이어그램. 보는 방식마다 선반 하나씩이고, 그 아래 레시피 저장소는 하나예요.",
+    "shelves": {
+      "recent": "최근",
+      "scenes": "씬",
+      "models": "모델",
+      "characters": "캐릭터",
+      "images": "이미지",
+      "diagrams": "다이어그램",
+      "materials": "머티리얼"
+    },
+    "materials": {
+      "blurb": "절차적 머티리얼 — 텍스처 없는 버텍스 컬러: 램버트 베이스, 위에서 비추는 램프, 브러시드 클라우드, 웨더링을 모두 코너별 채움에 구워 넣어요. 각 견본은 실제 리졸버를 거친 실제 쿼드라서, 보이는 그대로가 면에 적용돼요.",
+      "applyHint": "머티리얼은 에이전트에게 요청해 적용해요 — 메시 월드의 면에 material을 설정하거나 프리셋 이름을 넘기세요."
+    },
+    "recentNote": "워크숍 전체에서 가장 최근 아티팩트예요. 선반을 골라 한 종류를 전부 보세요.",
+    "roomToggle": "룸"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "스튜디오: 일러스트, 걸어다닐 수 있는 월드, 3D 오브젝트, 모션, 비트, 보이스, 그리고 완성된 출력물. 다이어그램에 맞춰진 Sketches의 형제 격인, 창작에 맞춰진 작업 공간이에요. 모든 조각은 같은 sketch 프리미티브 — 어느 쪽이든 스태시하고, 참조하고, diff할 수 있어요."
     },
-    "open": "열기",
-    "empty": "아직 아무것도 없습니다.",
-    "itemCount": "{count, plural, =0 {비어있음} one {# 항목} other {# 항목}}",
-    "illustrations": {
-      "title": "삽화",
-      "subtitle": "Landscapes, figures, and complicated perspective, CSS-3D, and painterly renders.",
-      "blurb": "Painted landscapes, posed figures, carved solids — the rich visual set you look at."
-    },
-    "worlds": {
-      "title": "세계",
-      "subtitle": "걸어다닐 수 있는 three.js 월드 — 1인칭으로 이동하는 도시, 건물, 인테리어, 허브예요.",
-      "blurb": "평면 그림이 아니라 걸어다닐 수 있는 3D 월드로 렌더링된 프랙탈 도시, 건축물, 인테리어예요."
-    },
-    "objects": {
-      "title": "오브젝트",
-      "subtitle": "단일 3D 아티팩트와 스터디 — 워크벤치 부품, 어셈블리, 폴리고머, 행성, 과학·수학 뷰예요. 드래그로 궤도 회전, 스크롤로 줌해요.",
-      "blurb": "워크벤치 부품, 어셈블리, 폴리고머, 궤도 스터디 — 돌려보며 살펴보는 3D 오브젝트예요."
-    },
-    "motion": {
-      "title": "모션",
-      "blurb": "Movies and GIFs — camera paths and slideshows rendered to animated artifacts."
-    },
     "beats": {
       "title": "비트",
-      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats.",
-      "blurb": "Ambient loops, scores, and foley cues — the audio artifacts you listen to. Everything synthesized, nothing sampled."
+      "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
     },
     "voice": {
       "title": "음성",
       "subtitle": "Voice registers — deterministic recipes for how a voice sounds: two axes over a calibrated bank of voices. Author new ones from your agent via create_voice; an external worker speaks them.",
-      "blurb": "Meek to authoritative, bright to deep — voices as tiny blend recipes, never recordings.",
       "axisConfidence": "Confidence",
       "axisDepth": "Depth",
       "poleMeek": "meek",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Untitled project",
     "untagged": "Untagged",
     "shots": "{count} shots",
-    "openPlayer": "Open player",
     "noPreview": "No preview",
     "framesLabel": "{count} frames",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "시작",
     "sourceUnknown": "(stash removed)",
     "lensLabel": "Lens",
-    "createdAt": "Created {timestamp}",
     "viewOutcome": "View outcome",
-    "sliceCount": "{count, plural, =0 {no slices} =1 {1 slice} other {# slices}}",
     "untitledAim": "(no aim recorded)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Created {timestamp}",
     "updatedAt": "업데이트됨 {timestamp}",
-    "startFromAgent": "Start a stash from your agent",
     "actions": {
       "rename": "Rename",
       "edit": "[MISSING: Edit]",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Stash not found",
       "notFoundBody": "This stash ref does not exist or has not been minted yet.",
       "back": "Back to stashes",
-      "openInbox": "Open inbox",
       "rootDrawer": "Root",
       "drawerItemCount": "{count, plural, =0 {empty} =1 {1 item} other {# items}}",
       "noItemsInDrawer": "No items in this drawer yet.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Could not save drawer",
       "drawerRenameError": "Could not rename drawer",
       "renameDrawerLabel": "Rename drawer",
-      "moveTo": "Move to…",
       "moveError": "Could not move item",
       "archive": "Archive",
       "archiveError": "Could not archive item",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Archive anyway",
       "archiveCancel": "취소",
       "addItem": "+ Add",
-      "addItemHeading": "Add to {drawer}",
       "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
       "picker": {
         "text": "New text block",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Download SVG",
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
+    "frameFailed": "이 뷰가 로드되지 않았어요.",
     "renameLabel": "Rename sketch",
     "renamePlaceholder": "Sketch title",
     "renameSave": "저장",
@@ -2069,8 +2086,6 @@
     "refresh": "새로고침",
     "error": "Failed to load connected services",
     "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "graphTitle": "MCP structure",
-    "graphHint": "Click graph nodes to open available detail views.",
     "backToList": "Back to Connected Services",
     "backToService": "Back to connected service",
     "notFound": "Connected service not found.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "When",
       "message": "Message"
+    }
+  },
+  "renderBay": {
+    "title": "렌더 베이",
+    "subtitle": "mojulo가 만들고 있는 모든 것을 한곳에: 지속되는 이미지 렌더 큐, GI 베이크, 그리고 디스크에 있는 쿡과 내보내기. \"무언가 만들어지고 있다\"를 말하는 네 가지 방식이 이제야 한집에 모였어요.",
+    "readOnly": "베이는 상태를 렌더링해요. 여기 있는 모든 동작은 에이전트에 붙여 넣을 프롬프트예요 — 렌더 수락, 월드 재베이크, 내보내기 생성은 모두 MCP 도구로 일어나고, 이 페이지에서는 일어나지 않아요.",
+    "refresh": "새로고침",
+    "loading": "로드 중…",
+    "allLanes": "모든 레인",
+    "copyPrompt": "프롬프트 복사",
+    "copied": "복사됨",
+    "copyFailed": "복사하지 못했어요 — 텍스트를 선택해 직접 복사하세요",
+    "showing": "{total}개 중 {shown}개 표시",
+    "queue": {
+      "title": "렌더 큐",
+      "note": "이미지를 만들 수 있는 워커를 기다리며 대기 중인 지속 렌더 요청이에요. 요청은 재시작에도 살아남으니, 대기 중인 행은 메모리 상의 작업이 아니라 약속이에요.",
+      "count": "요청 {n}개",
+      "empty": "대기 중인 게 없어요. 에이전트에게 만들어 둔 image-outcome이나 sequential-art 스케치에 request_image_render를 실행해 달라고 하세요.",
+      "eyesGate": "← 육안 게이트: 기계는 끝났고, 아직 아무도 보지 않았어요",
+      "stalled": "정체됨",
+      "stage": {
+        "queued": "대기 중",
+        "inFlight": "진행 중",
+        "gate": "육안 게이트 대기",
+        "done": "완료됨"
+      },
+      "status": {
+        "pending": "보류 중",
+        "in_flight": "진행 중",
+        "submitted": "제출됨",
+        "accepted": "수락됨",
+        "rejected": "거부됨",
+        "expired": "만료됨",
+        "cancelled": "취소됨"
+      },
+      "targets": "대상 {n}개",
+      "folded": "아티팩트 {refs}개에 반영됨"
+    },
+    "bakes": {
+      "title": "GI 베이크",
+      "note": "Blender Cycles 전역 조명을 월드 자체 버텍스 컬러에 구워 넣어요 — 런타임 비용 없이 부드러운 AO와 접촉 그림자를 얻어요. 로컬 Blender가 필요하지만, 베이크된 월드는 누구에게나 배포돼요.",
+      "empty": "아직 베이크가 없어요. Blender가 설치돼 있다면: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "기계 게이트 통과 · 코너 일치 {match} · 어두운 바닥 {black} (한계 {limit})",
+      "eyesGate": "육안 게이트: 당신 몫이에요 — 열어서 확인하세요",
+      "samples": "샘플 {n}개",
+      "from": "{ref}에서 베이크됨"
+    },
+    "outputs": {
+      "title": "쿡과 내보내기",
+      "note": "디스크에 실제로 만들어진 것들: cook으로 낸 발행물, 그리고 각 아티팩트의 outcome 폴더에 바인딩된 모델, 메시, 렌더, 스킨, 음성, 악보예요.",
+      "fullInbox": "전체 발행물 수신함 →",
+      "emptyCooks": "열린 발행물이 없어요.",
+      "emptyArtifacts": "아직 디스크에 내보내기가 없어요. 에이전트에게 월드를 export_model 하거나 렌더를 바인딩해 달라고 하세요.",
+      "emptyBeats": "아직 디스크에 비트 렌더가 없어요.",
+      "group": {
+        "cooks": "발행물",
+        "artifacts": "아티팩트 outcome 폴더",
+        "beats": "비트 렌더"
+      },
+      "kind": {
+        "model": "모델",
+        "mesh": "바인딩된 메시",
+        "render": "렌더",
+        "skin": "스킨",
+        "voice": "음성",
+        "motion": "모션",
+        "game": "게임",
+        "audio": "오디오",
+        "score": "악보",
+        "page": "페이지",
+        "recipe": "레시피",
+        "other": "파일"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "아티팩트 열기 →",
+    "copied": "복사됨",
+    "copyFailed": "복사하지 못했어요 — 텍스트를 선택해 직접 복사하세요",
+    "shelves": "라이브러리",
+    "bays": "워크숍",
+    "outliner": {
+      "title": "아웃라이너",
+      "flat": "평면 레시피 — 훑어볼 파트가 없어요.",
+      "unnamed": "mojulo가 아직 이름 붙이지 못한 구조예요. 레시피 안에는 그대로 있어요.",
+      "group": {
+        "geometry": "지오메트리",
+        "staging": "스테이징",
+        "sound": "사운드",
+        "provenance": "출처",
+        "renderGroups": "렌더 그룹"
+      },
+      "isolate": "뷰포트에서 격리 — 다시 클릭하면 해제",
+      "branch": {
+        "lathes": "회전체",
+        "extrudes": "돌출",
+        "sweeps": "스윕",
+        "drapes": "드레이프",
+        "faces": "면",
+        "figures": "피규어",
+        "characters": "캐릭터",
+        "entities": "엔티티",
+        "elements": "요소",
+        "civicAreas": "공공 구역",
+        "chambers": "챔버",
+        "tunnels": "터널",
+        "masses": "매스",
+        "concourses": "콩코스",
+        "stations": "스테이션",
+        "edges": "엣지",
+        "tree": "트리",
+        "shape": "형태",
+        "camera": "카메라",
+        "cameras": "카메라",
+        "ground": "Ground",
+        "physics": "물리",
+        "detail": "디테일",
+        "game": "게임",
+        "audio": "오디오",
+        "giBake": "GI 베이크"
+      }
+    },
+    "viewport": {
+      "noReading": "이 아티팩트는 보는 게 아니라 듣거나 플레이하거나 읽는 거예요. 열어서 직접 경험하세요.",
+      "frameFailed": "이 뷰가 로드되지 않았어요 — 아티팩트를 직접 열어 다시 시도하세요.",
+      "seed": "시드 {seed}",
+      "parts": "파트 {n}개",
+      "scaleDeclared": "1 유닛 = 1 {unit} · 실제 스케일로 출력하려면 scale: {scale}",
+      "scaleUndeclared": "단위 미선언 · stl은 1 유닛 = 1 mm로 읽어요",
+      "baked": "베이크됨 · {preset}",
+      "noBake": "GI 베이크 없음",
+      "triHint": "삼각형 수: export_model"
+    },
+    "inspector": {
+      "askTitle": "에이전트에게 요청하기",
+      "askBody": "대시보드는 상태를 렌더링할 뿐 바꾸지 않아요. 이 레시피를 수정하는 건 호스트 에이전트에서 해요.",
+      "askCopy": "프롬프트 복사",
+      "bound": "바인딩된 아티팩트",
+      "boundEmpty": "아직 바인딩된 게 없어요 — 이 레시피에 대한 렌더, 메시, 내보내기가 디스크에 없어요.",
+      "openFolder": "outcome 폴더 열기 · {size}",
+      "recipe": "레시피"
+    },
+    "status": {
+      "packs": "팩: {packs}",
+      "kernelOnly": "커널만",
+      "queue": "렌더 큐 {n}",
+      "gate": "{n}개 육안 게이트 대기",
+      "library": "아티팩트 {n}개",
+      "toolCalls": "도구 호출 {n}회 · 24시간"
+    }
+  },
+  "floor": {
+    "crumb": "대시보드",
+    "bench": "작업대 위",
+    "recentPicks": "최근에 집어든 것",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "아티팩트 {n}개 — 걷고, 돌려보고, 출력해요",
+      "d2": "아티팩트 {n}개 — 그림과 맵"
+    },
+    "open": {
+      "scenes": "로케이션 보드 열기 →",
+      "models": "턴테이블 월 열기 →",
+      "characters": "캐스트 보드 열기 →",
+      "images": "프린트 월 열기 →",
+      "diagrams": "열람실 열기 →",
+      "materials": "머티리얼 선반 열기 →"
+    },
+    "stack": "×{n}",
+    "presets": "프리셋 {n}개",
+    "kit": {
+      "figure": "피규어",
+      "character-sheet": "시트",
+      "sprite-sheet": "스프라이트"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "게임",
+      "audio": "♪",
+      "painted": "페인팅"
+    },
+    "capNote": "스트립은 가장 최신만 보여줘요 — 헤더를 누르면 전부 열려요",
+    "warming": "라이브 뷰 준비 중…",
+    "liveFailed": "라이브 뷰가 로드되지 않았어요 — 스틸을 보여줄게요",
+    "loadFailed": "이 선반을 로드하지 못했어요.",
+    "retry": "다시 시도",
+    "emptyStrip": "아직 여기 만들어진 게 없어요.",
+    "materialsHint": "에이전트에게 요청해 적용해요 — 메시 월드의 면에 머티리얼을 설정하거나 프리셋 이름을 넘기세요."
+  },
+  "viewCube": {
+    "label": "뷰 프리셋",
+    "threeQuarter": "¾",
+    "front": "정면",
+    "side": "측면",
+    "top": "위"
+  },
+  "rooms": {
+    "search": "이 룸에서 검색…",
+    "all": "모두",
+    "empty": "이 패싯이나 검색에 맞는 게 없어요.",
+    "emptyShelf": "아직 {shelf}에 만들어진 게 없어요.",
+    "emptyShelfHint": "에이전트에게 하나 만들어 달라고 하세요 — 어휘는 get_sketch_vocab에 있어요.",
+    "copied": "복사됨",
+    "copyFailed": "복사하지 못했어요 — 직접 선택하세요",
+    "notExportable": "메시 내보내기 없음 — 이 아티팩트는 걸어다닐 수 있는 모델이 아니라 다이어그램으로 렌더링돼요.",
+    "stack": "×{n}",
+    "seed": "시드 {seed}",
+    "versions": "반복 · {n}",
+    "open": "레시피 열기 →",
+    "openBench": "작업대에서 열기 ↗",
+    "openWorld": "월드 열기 ↗",
+    "close": "닫기",
+    "prev": "이전",
+    "next": "다음",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "페인팅 · 외부 워커 · 스캐폴드 레시피가 원본",
+    "mintMissing": "에이전트에게 요청: {piece} 만들기",
+    "mintPrompt": "mojulo 캐릭터 \"{name}\"(아티팩트 {ref} 참고)에 대해 빠진 {piece}를 만들어 주세요. 맞는 도구(create_sprite_sheet / bind_character_sheet / figure 도구)를 쓰고, 먼저 get_sketch_vocab을 읽으세요.",
+    "facets": {
+      "scenes": {
+        "walkable": "걸어다닐 수 있음",
+        "cities": "도시",
+        "hubs": "허브",
+        "interiors": "실내"
+      },
+      "models": {
+        "workbench": "작업대",
+        "assembler": "어셈블러",
+        "manji": "만지 트리",
+        "science": "과학"
+      },
+      "images": {
+        "stills": "스틸",
+        "sequential": "시퀀셜 아트",
+        "painted": "페인팅",
+        "carved": "조각",
+        "other": "기타"
+      }
     }
   }
 }

@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Kaydet",
-    "saving": "Kaydediliyor…",
     "cancel": "İptal",
     "servicesMap": "Hizmetler Haritası",
     "observability": "Gözlemlenebilirlik",
     "delete": "Sil",
-    "deleting": "Siliniyor…",
-    "download": "İndir",
-    "downloading": "İndiriliyor…",
     "close": "Kapat",
     "back": "Geri",
     "next": "İleri",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Bu uygulamanın yaratılış haritası — onu var eden her araç çağrısı, tek bir hat üzerindeki duraklar olarak."
+      },
       "metadata": "[UNTRANSLATED] Metadata",
       "artifactPath": "Yapı yolu",
       "materializationRef": "[UNTRANSLATED] Materialization ref",
@@ -1545,6 +1544,29 @@
     "copied": "Kopyalandı",
     "close": "Kapat"
   },
+  "displayModes": {
+    "label": "Görüntüleme modu",
+    "mode": {
+      "wire": "Tel kafes",
+      "shaded": "Gölgeli",
+      "baked": "Pişirilmiş",
+      "painted": "Boyanmış"
+    },
+    "hint": {
+      "wire": "Yalnızca yapı çizgileri — geometrinin çıplak hâli.",
+      "shaded": "Mojulo'nun kendi köşe renkleri ve prosedürel materyalleri.",
+      "baked": "Köşe renklerine pişirilmiş Blender Cycles global aydınlatması.",
+      "painted": "Mojulo'nun iskeleti üzerine harici bir görsel işçisi tarafından boyandı."
+    },
+    "reason": {
+      "noWireframe": "Bu türün yapı okuması yok.",
+      "bakedInPlace": "Yerinde pişirildi — ışıksız sürüm saklanmadı.",
+      "noBake": "Henüz GI pişirmesi yok. Bu dünyayı pişirmesini ajandan iste.",
+      "noPaintedRender": "Henüz bağlı boyalı render yok. Ajandan bir tane talep etmesini iste.",
+      "notPaintable": "Bunun her pikselini mojulo çiziyor — boyanacak bir şey yok."
+    },
+    "externalBadge": "mojulo'nun boyası değil"
+  },
   "home": {
     "title": "Atölye Ana Sayfası",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Ses",
       "games": "Oyun Geliştirici",
       "arcade": "Oyun Salonu",
-      "settings": "Ayarlar"
+      "settings": "Ayarlar",
+      "library": "Kütüphane",
+      "renderBay": "Render Bölmesi",
+      "dashboard": "Pano"
     },
     "agentStatus": {
-      "title": "Ajan Durumu",
       "liveLabel": "Canlı",
       "staleLabel": "Son görülen",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} koşum",
       "serversLabel": "{count, plural, one {# sunucu} other {# sunucu}}",
-      "toolsLabel": "{count, plural, one {# araç} other {# araçlar}}",
-      "declaredNow": "az önce",
-      "declaredSeconds": "{seconds, plural, one {# saniye önce} other {# saniye önce}}",
-      "declaredMinutes": "{minutes, plural, one {# dakika önce} other {# dakika önce}}",
-      "declaredHours": "{hours, plural, one {# saat önce} other {# saat önce}}",
-      "declaredDays": "{days, plural, one {# gün önce} other {# gün önce}}"
+      "toolsLabel": "{count, plural, one {# araç} other {# araçlar}}"
+    },
+    "crumb": "atölye",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} yapıt",
+    "dashboard": {
+      "title": "Pano",
+      "open": "Zemini aç →"
+    },
+    "ask": {
+      "title": "Ajana sor",
+      "body": "Üretim senin MCP ajanında olur."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Taslak bulunamadı",
     "notFoundBody": "Bu taslak ref mevcut değil veya henüz oluşturulmadı.",
+    "backToLibrary": "← Kütüphaneye dön",
+    "retryLoad": "Yeniden dene",
+    "frameFailed": "Bu görünüm yüklenmedi.",
     "downloadGlb": ".glb İndir",
     "downloadGlbPreparing": "Hazırlanıyor…",
     "downloadGlbUnavailable": "Bu taslak için dışa aktarılacak 3D ağ yok.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Henüz üye yok",
     "notFound": "Bu proje mevcut değil — arşivlenmiş olabilir ya da referans hatalı.",
     "backToProjects": "Oyun Geliştirici'ye dön",
-    "charter": "Tüzük",
-    "playInArcade": "Oyun Salonunda oyna",
     "copyWorkPrompt": "Çalışma istemini kopyala",
     "copyAddPrompt": "ekle",
     "copyMintPrompt": "oyunu bas",
@@ -1659,7 +1690,6 @@
     "missing": "Eksik",
     "missingBody": "Bu üyenin yapıtı artık mevcut değil. Proje yuvayı koruyor; ana makine ajanından yeniden bağla ya da kaldır.",
     "noRules": "Henüz oyun basılmadı — proje ön yapım aşamasında.",
-    "fromManifest": "manifestten",
     "gated": "kapılı",
     "openNewTab": "Yeni sekmede aç",
     "closeViewer": "Kapat",
@@ -1707,47 +1737,40 @@
     "copied": "Kopyalandı",
     "play": "Oyna",
     "levelCount": "{count, plural, one {# seviye} other {# seviye}}",
-    "shipped": "Yayınlandı",
-    "notFound": "Bu kabin salonda değil — oyun kaldırılmış olabilir.",
-    "backToArcade": "Oyun Salonuna dön",
-    "openStandalone": "Bağımsız aç"
+    "shipped": "Yayınlandı"
+  },
+  "library": {
+    "crumb": "kütüphane",
+    "title": "Kütüphane",
+    "subtitle": "Ajanın bastığı her yapıt — sahneler, modeller, karakterler, materyaller, görseller, diyagramlar. Her bakış biçimi için bir raf; altta hep aynı tarif deposu.",
+    "shelves": {
+      "recent": "Son eklenenler",
+      "scenes": "Sahneler",
+      "models": "Modeller",
+      "characters": "Karakterler",
+      "images": "Görseller",
+      "diagrams": "Diyagramlar",
+      "materials": "Materyaller"
+    },
+    "materials": {
+      "blurb": "Prosedürel materyaller — dokusuz köşe rengi: bir lambert taban, tepeden ışıklı bir rampa, fırçalanmış bir bulut ve yıpranma; hepsi köşe başına dolgulara pişirilmiş. Her örnek, gerçek çözümleyiciden geçmiş gerçek bir dörtgen; yani gördüğün şey, bir yüzeyin aldığı şeydir.",
+      "applyHint": "Materyaller ajandan istenerek uygulanır — bir mesh-dünya yüzeyinde material ayarla ya da bir hazır ayar adı geç."
+    },
+    "recentNote": "Atölyedeki en yeni yapıtlar. Bir türün tamamını görmek için bir raf seç.",
+    "roomToggle": "Oda"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Yapımcı",
       "subtitle": "Stüdyo: illüstrasyonlar, gezilebilir dünyalar, 3D nesneler, hareket, beat'ler, ses ve bitmiş çıktılar. İnce ayarlı bir yaratıcı yüzey, Eskizler'in kardeşi (diyagramlar için ayarlı). Her parça aynı eskiz ilkeli — her iki şekilde de sakla, referansla ve karşılaştır."
     },
-    "open": "Aç",
-    "empty": "Henüz hiçbir şey yok",
-    "itemCount": "{count, plural, =0 {boş} one {# öğe} other {# öğeler}}",
-    "illustrations": {
-      "title": "İllüstrasyonlar",
-      "subtitle": "Peyzaj, figürler, karmaşık perspektif, CSS-3D ve resimsel renderlamalar.",
-      "blurb": "Boyalı peyzajlar, pozlu figürler, oymalar — baktığınız zengin görsel set."
-    },
-    "worlds": {
-      "title": "Dünyalar",
-      "subtitle": "Gezilebilir three.js dünyaları — birinci şahıs olarak içinde dolaştığın şehirler, binalar, iç mekânlar ve merkezler.",
-      "blurb": "Düz resimler değil, gezilebilir 3D dünyalar olarak işlenmiş fraktal şehirler, yapılar ve iç mekânlar."
-    },
-    "objects": {
-      "title": "Nesneler",
-      "subtitle": "Tekil 3D yapıtlar ve çalışmalar — tezgah parçaları, montajlar, polygomer'ler, gezegenler, bilim ve matematik görünümleri. Yörüngede döndürmek için sürükle, yakınlaştırmak için kaydır.",
-      "blurb": "Tezgah parçaları, montajlar, polygomer'ler ve yörünge çalışmaları — döndürüp baktığın 3D şeyler."
-    },
-    "motion": {
-      "title": "Hareket",
-      "blurb": "Filmler ve GIF'ler — kamera yolları ve slayt gösterileri animasyonlu yapıtlara işlenir."
-    },
     "beats": {
       "title": "Ritimler",
-      "subtitle": "Sentezlenmiş müzikler, besteler ve ses efektleri — birini seçin ve oynat'ı basın. Ajanınızdan create_beats aracılığıyla yenilerini yazın.",
-      "blurb": "Ortam döngüleri, notalar ve foley ipuçları — dinlediğiniz ses yapıtları. Her şey sentezlenmişse, hiçbir şey örneklenmemiş."
+      "subtitle": "Sentezlenmiş müzikler, besteler ve ses efektleri — birini seçin ve oynat'ı basın. Ajanınızdan create_beats aracılığıyla yenilerini yazın."
     },
     "voice": {
       "title": "Ses",
       "subtitle": "Ses kayıtları — bir sesin nasıl ses çıkaracağını söyleyen belirleyici tarifler: kalibre edilmiş bir ses bankası üzerinde iki eksen. Ajanınızdan create_voice aracılığıyla yenilerini yazın; harici bir işçi bunları konuşur.",
-      "blurb": "Alçakgönüllü'den otoriter, parlak'tan derin — sesler küçük karışım tarifleri olarak, hiçbir zaman kayıtlar değil.",
       "axisConfidence": "Güven",
       "axisDepth": "Derinlik",
       "poleMeek": "alçakgönüllü",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Başlıksız proje",
     "untagged": "Etiketlenmemiş",
     "shots": "{count} çekim",
-    "openPlayer": "Oynatıcıyı aç",
     "noPreview": "Önizleme yok",
     "framesLabel": "{count} kare",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "[UNTRANSLATED] From",
     "sourceUnknown": "(depolama alanı kaldırıldı)",
     "lensLabel": "Lens",
-    "createdAt": "{timestamp} tarihinde oluşturuldu",
     "viewOutcome": "Sonucu görüntüle",
-    "sliceCount": "{count, plural, =0 {dilim yok} =1 {1 dilim} other {# dilimler}}",
     "untitledAim": "(hedef kaydedilmedi)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {çekmece yok} =1 {1 çekmece} other {# çekmeceler}}",
     "createdAt": "{timestamp} tarihinde oluşturuldu",
     "updatedAt": "{timestamp} tarihinde güncellenmiş",
-    "startFromAgent": "Ajanınızdan bir depolama alanı başlatın",
     "actions": {
       "rename": "Yeniden adlandır",
       "edit": "Düzenle",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Depolama alanı bulunamadı",
       "notFoundBody": "Bu depolama alanı ref mevcut değil veya henüz oluşturulmadı.",
       "back": "Depolama alanlarına geri dön",
-      "openInbox": "Gelen kutusu aç",
       "rootDrawer": "Kök",
       "drawerItemCount": "{count, plural, =0 {boş} =1 {1 öğe} other {# öğeler}}",
       "noItemsInDrawer": "Bu çekmecede henüz öğe yok.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Çekmece kaydedilemedi",
       "drawerRenameError": "Çekmece yeniden adlandırılamadı",
       "renameDrawerLabel": "Çekmeci yeniden adlandır",
-      "moveTo": "Şuraya taşı…",
       "moveError": "Öğe taşınamadı",
       "archive": "Arşiv",
       "archiveError": "Öğe arşivlenemedi",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Yine de arşivle",
       "archiveCancel": "İptal",
       "addItem": "+ Ekle",
-      "addItemHeading": "{drawer}'a ekle",
       "agentTypesFooter": "Komut dosyaları ve contextmap işaretçileri ajanınız tarafından eklenir.",
       "picker": {
         "text": "Yeni metin bloğu",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "SVG İndir",
     "downloadPng": "PNG İndir",
     "invalidManifest": "Rendrant bu taslağı ayrıştıramadı.",
+    "frameFailed": "Bu görünüm yüklenmedi.",
     "renameLabel": "Taslağı yeniden adlandır",
     "renamePlaceholder": "Taslak başlığı",
     "renameSave": "Kaydet",
@@ -2069,8 +2086,6 @@
     "refresh": "Yenile",
     "error": "Bağlı hizmetler yüklenemedi",
     "empty": "Henüz bağlı hizmet yok. Barındırıcı beceriler bildirin veya MCP-orbit bileşimini gerçekleştirin.",
-    "graphTitle": "MCP yapısı",
-    "graphHint": "Kullanılabilir ayrıntı görünümlerini açmak için grafik düğümlerine tıklayın.",
     "backToList": "Bağlı Hizmetlere Geri Dön",
     "backToService": "Bağlı hizmete geri dön",
     "notFound": "Bağlı hizmet bulunamadı.",
@@ -2138,6 +2153,250 @@
       "via": "Aracılığıyla",
       "when": "Ne zaman",
       "message": "İleti"
+    }
+  },
+  "renderBay": {
+    "title": "Render Bölmesi",
+    "subtitle": "Mojulo'nun ürettiği her şey tek yerde: kalıcı görsel render kuyruğu, GI pişirmeleri ve diskteki cook çıktıları ile dışa aktarımlar. “Bir şey üretiliyor” demenin, daha önce ortak bir evi olmayan dört yolu.",
+    "readOnly": "Bölme yalnızca durumu gösterir. Buradaki her eylem, ajanına kopyalayacağın bir istemdir — bir render'ı kabul etmek, bir dünyayı yeniden pişirmek ve bir dışa aktarım basmak, bu sayfadan değil, hep MCP araçlarıyla olur.",
+    "refresh": "Yenile",
+    "loading": "Yükleniyor…",
+    "allLanes": "Tüm şeritler",
+    "copyPrompt": "İstemi kopyala",
+    "copied": "Kopyalandı",
+    "copyFailed": "Kopyalanamadı — metni seçip elle kopyala",
+    "showing": "{total} içinden {shown} gösteriliyor",
+    "queue": {
+      "title": "Render kuyruğu",
+      "note": "Görsel üretebilen bir işçi için park edilmiş kalıcı render talepleri. Bir talep yeniden başlatmadan sağ çıkar; yani park edilmiş bir satır, bellekteki bir iş değil, bir sözdür.",
+      "count": "{n} talep",
+      "empty": "Park edilmiş bir şey yok. Basılmış bir görsel-çıktı ya da ardışık-sanat taslağı için ajandan request_image_render çağırmasını iste.",
+      "eyesGate": "← göz kapısı: makine işini bitirdi, kimse bakmadı",
+      "stalled": "takıldı",
+      "stage": {
+        "queued": "Kuyrukta",
+        "inFlight": "Yolda",
+        "gate": "Göz kapısı bekliyor",
+        "done": "Sonuçlandı"
+      },
+      "status": {
+        "pending": "beklemede",
+        "in_flight": "yolda",
+        "submitted": "gönderildi",
+        "accepted": "kabul edildi",
+        "rejected": "reddedildi",
+        "expired": "süresi doldu",
+        "cancelled": "iptal edildi"
+      },
+      "targets": "{n} hedef",
+      "folded": "{refs} yapıta işlendi"
+    },
+    "bakes": {
+      "title": "GI pişirmeleri",
+      "note": "Bir dünyanın kendi köşe renklerine pişirilmiş Blender Cycles global aydınlatması — sıfır çalışma zamanı maliyetiyle yumuşak AO ve temas gölgesi. Yerel bir Blender gerekir; pişirilmiş dünyalar herkese gider.",
+      "empty": "Henüz pişirme yok. Blender kuruluysa: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "makine kapısı geçildi · {match} köşe eşleşmesi · {black} karanlık zemin (sınır {limit})",
+      "eyesGate": "göz kapısı: senin — aç ve bak",
+      "samples": "{n} örnek",
+      "from": "{ref} kaynağından pişirildi"
+    },
+    "outputs": {
+      "title": "Cook çıktıları ve dışa aktarımlar",
+      "note": "Diske ne materyalize edildiyse: cook'tan çıkan yayımlar ve her yapıtın çıktı klasörüne bağlanan modeller, mesh'ler, render'lar, kaplamalar, seslendirmeler ve partisyonlar.",
+      "fullInbox": "Tüm yayım gelen kutusu →",
+      "emptyCooks": "Açık yayım yok.",
+      "emptyArtifacts": "Diskte henüz dışa aktarım yok. Ajandan bir dünyayı export_model ile aktarmasını ya da bir render bağlamasını iste.",
+      "emptyBeats": "Diskte henüz beats render'ı yok.",
+      "group": {
+        "cooks": "Yayımlar",
+        "artifacts": "Yapıt çıktı klasörleri",
+        "beats": "Beats render'ları"
+      },
+      "kind": {
+        "model": "model",
+        "mesh": "bağlı mesh",
+        "render": "render",
+        "skin": "kaplama",
+        "voice": "seslendirme",
+        "motion": "hareket",
+        "game": "oyun",
+        "audio": "ses",
+        "score": "partisyon",
+        "page": "sayfa",
+        "recipe": "tarif",
+        "other": "dosya"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Yapıtı aç →",
+    "copied": "Kopyalandı",
+    "copyFailed": "Kopyalanamadı — metni seçip elle kopyala",
+    "shelves": "Kütüphane",
+    "bays": "Atölye",
+    "outliner": {
+      "title": "Yapı ağacı",
+      "flat": "Düz bir tarif — gezilecek parça yok.",
+      "unnamed": "Mojulo'nun henüz bir adı olmayan yapı. Yine de tarifin içinde.",
+      "group": {
+        "geometry": "Geometri",
+        "staging": "Sahneleme",
+        "sound": "Ses",
+        "provenance": "[UNTRANSLATED] Provenance",
+        "renderGroups": "Render grupları"
+      },
+      "isolate": "Görünümde yalıtla — temizlemek için tekrar tıkla",
+      "branch": {
+        "lathes": "Tornalar",
+        "extrudes": "Ekstrüzyonlar",
+        "sweeps": "Süpürmeler",
+        "drapes": "Örtüler",
+        "faces": "Yüzeyler",
+        "figures": "Figürler",
+        "characters": "Karakterler",
+        "entities": "Varlıklar",
+        "elements": "Öğeler",
+        "civicAreas": "Kamusal alanlar",
+        "chambers": "Odalar",
+        "tunnels": "Tüneller",
+        "masses": "Kütleler",
+        "concourses": "Geçiş alanları",
+        "stations": "Duraklar",
+        "edges": "Kenarlar",
+        "tree": "Ağaç",
+        "shape": "Şekil",
+        "camera": "Kamera",
+        "cameras": "Kameralar",
+        "ground": "Yer",
+        "physics": "Fizik",
+        "detail": "Detay",
+        "game": "Oyun",
+        "audio": "Ses",
+        "giBake": "GI pişirmesi"
+      }
+    },
+    "viewport": {
+      "noReading": "Bu yapıt bakılmaktan çok dinlenir, oynanır ya da okunur. Deneyimlemek için aç.",
+      "frameFailed": "Bu görünüm yüklenmedi — yeniden denemek için yapıtı doğrudan aç.",
+      "seed": "tohum {seed}",
+      "parts": "{n} parça",
+      "scaleDeclared": "1 birim = 1 {unit} · gerçek ölçekte basmak için scale: {scale}",
+      "scaleUndeclared": "birim bildirilmemiş · stl 1 birimi 1 mm okur",
+      "baked": "pişirildi · {preset}",
+      "noBake": "GI pişirmesi yok",
+      "triHint": "üçgen sayısı: export_model"
+    },
+    "inspector": {
+      "askTitle": "Ajana sor",
+      "askBody": "Panel yalnızca durumu gösterir, hiçbir şeyi değiştirmez. Bu tarifi değiştirmek host ajanında olur.",
+      "askCopy": "İstemi kopyala",
+      "bound": "Bağlı yapıtlar",
+      "boundEmpty": "Henüz bağlı bir şey yok — bu tarif için diskte render, mesh ya da dışa aktarım yok.",
+      "openFolder": "Çıktı klasörünü aç · {size}",
+      "recipe": "Tarif"
+    },
+    "status": {
+      "packs": "paketler: {packs}",
+      "kernelOnly": "yalnızca çekirdek",
+      "queue": "render kuyruğu {n}",
+      "gate": "{n} göz kapısı bekliyor",
+      "library": "{n} yapıt",
+      "toolCalls": "{n} araç çağrısı · 24s"
+    }
+  },
+  "floor": {
+    "crumb": "panel",
+    "bench": "Tezgâhta",
+    "recentPicks": "Son elden geçenler",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} yapıt — gezilir, çevresinde dönülür, basılır",
+      "d2": "{n} yapıt — resimler ve haritalar"
+    },
+    "open": {
+      "scenes": "Mekân panosunu aç →",
+      "models": "Döner tabla duvarını aç →",
+      "characters": "Kadro panosunu aç →",
+      "images": "Baskı duvarını aç →",
+      "diagrams": "Okuma odasını aç →",
+      "materials": "Materyal rafını aç →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} hazır ayar",
+    "kit": {
+      "figure": "figür",
+      "character-sheet": "sayfa",
+      "sprite-sheet": "sprite'lar"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "oyun",
+      "audio": "♪",
+      "painted": "boyanmış"
+    },
+    "capNote": "şeritler en tazeleri gösterir — başlıklar hepsini açar",
+    "warming": "canlı görünüm ısınıyor…",
+    "liveFailed": "canlı görünüm yüklenmedi — sabit görsel gösteriliyor",
+    "loadFailed": "Bu raf yüklenemedi.",
+    "retry": "Yeniden dene",
+    "emptyStrip": "Burada henüz bir şey basılmadı.",
+    "materialsHint": "Ajandan istenerek uygulanır — bir mesh-dünya yüzeyinde bir materyal ayarla ya da bir hazır ayar adı geç."
+  },
+  "viewCube": {
+    "label": "Görünüm hazır ayarları",
+    "threeQuarter": "¾",
+    "front": "Ön",
+    "side": "Yan",
+    "top": "Üst"
+  },
+  "rooms": {
+    "search": "Bu odada ara…",
+    "all": "Tümü",
+    "empty": "Bu kırılıma ya da aramaya uyan bir şey yok.",
+    "emptyShelf": "{shelf} rafına henüz bir şey basılmadı.",
+    "emptyShelfHint": "Ajandan bir tane yapmasını iste — sözcük dağarcığı get_sketch_vocab içinde.",
+    "copied": "Kopyalandı",
+    "copyFailed": "Kopyalanamadı — elle seç",
+    "notExportable": "Mesh dışa aktarımı yok — bu yapıt gezilebilir bir model değil, bir diyagram olarak render edilir.",
+    "stack": "×{n}",
+    "seed": "tohum {seed}",
+    "versions": "Yineleme · {n}",
+    "open": "Tarifi aç →",
+    "openBench": "Tezgâhta aç ↗",
+    "openWorld": "Dünyayı aç ↗",
+    "close": "Kapat",
+    "prev": "Önceki",
+    "next": "İleri",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "boyanmış · harici işçi · iskelet tarif egemendir",
+    "mintMissing": "Ajana sor: {piece} bas",
+    "mintPrompt": "Mojulo karakteri “{name}” için (bkz. yapıt {ref}), eksik {piece} parçasını bas. Uygun aracı kullan (create_sprite_sheet / bind_character_sheet / figure araçları) — önce get_sketch_vocab oku.",
+    "facets": {
+      "scenes": {
+        "walkable": "Gezilebilir",
+        "cities": "Şehirler",
+        "hubs": "Merkezler",
+        "interiors": "İç mekânlar"
+      },
+      "models": {
+        "workbench": "Tezgâh",
+        "assembler": "Birleştirici",
+        "manji": "Manji-ağaçları",
+        "science": "Bilim"
+      },
+      "images": {
+        "stills": "Sabit görseller",
+        "sequential": "Ardışık sanat",
+        "painted": "Boyanmış",
+        "carved": "Oyulmuş",
+        "other": "Diğer"
+      }
     }
   }
 }

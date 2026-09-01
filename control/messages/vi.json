@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Lưu",
-    "saving": "Đang lưu…",
     "cancel": "Hủy",
     "servicesMap": "Bản đồ Dịch vụ",
     "observability": "Khả năng Quan sát",
     "delete": "Xóa",
-    "deleting": "Đang xóa…",
-    "download": "Tải xuống",
-    "downloading": "Đang tải xuống…",
     "close": "Đóng",
     "back": "Quay lại",
     "next": "Tiếp theo",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "Bản đồ tạo dựng của ứng dụng này — mọi lệnh gọi công cụ đã hiện thực hóa nó, như các trạm trên cùng một tuyến."
+      },
       "metadata": "Siêu dữ liệu",
       "artifactPath": "Đường dẫn tạo phẩm",
       "materializationRef": "Tham chiếu vật hóa",
@@ -1545,6 +1544,29 @@
     "copied": "Đã sao chép",
     "close": "Đóng"
   },
+  "displayModes": {
+    "label": "Chế độ hiển thị",
+    "mode": {
+      "wire": "Khung dây",
+      "shaded": "Đổ bóng",
+      "baked": "Đã bake",
+      "painted": "Đã tô vẽ"
+    },
+    "hint": {
+      "wire": "Chỉ các đường dựng hình — hình học trần trụi.",
+      "shaded": "Màu đỉnh và vật liệu thủ tục của chính Mojulo.",
+      "baked": "Chiếu sáng toàn cục Blender Cycles được bake vào màu đỉnh.",
+      "painted": "Được tô vẽ bởi một worker ảnh bên ngoài trên khung dựng của mojulo."
+    },
+    "reason": {
+      "noWireframe": "Loại này không có cách đọc dựng hình.",
+      "bakedInPlace": "Bake tại chỗ — không giữ lại bản chưa chiếu sáng.",
+      "noBake": "Chưa có bản bake GI. Hãy nhờ agent bake thế giới này.",
+      "noPaintedRender": "Chưa gắn bản kết xuất tô vẽ nào. Hãy nhờ agent yêu cầu một bản.",
+      "notPaintable": "Mojulo tự vẽ từng pixel của cái này — không có gì để tô."
+    },
+    "externalBadge": "không phải nét vẽ của mojulo"
+  },
   "home": {
     "title": "Trang chủ Xưởng",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Giọng nói",
       "games": "Nhà phát triển game",
       "arcade": "Arcade",
-      "settings": "Cài đặt"
+      "settings": "Cài đặt",
+      "library": "Thư viện",
+      "renderBay": "Khoang kết xuất",
+      "dashboard": "Bảng điều khiển"
     },
     "agentStatus": {
-      "title": "Trạng thái Đại lý",
       "liveLabel": "Trực tiếp",
       "staleLabel": "Lần cuối nhìn thấy",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} dây đai",
       "serversLabel": "{count, plural, one {# máy chủ} other {# máy chủ}}",
-      "toolsLabel": "{count, plural, one {# công cụ} other {# công cụ}}",
-      "declaredNow": "vừa xong",
-      "declaredSeconds": "{seconds, plural, one {# giây trước} other {# giây trước}}",
-      "declaredMinutes": "{minutes, plural, one {# phút trước} other {# phút trước}}",
-      "declaredHours": "{hours, plural, one {# giờ trước} other {# giờ trước}}",
-      "declaredDays": "{days, plural, one {# ngày trước} other {# ngày trước}}"
+      "toolsLabel": "{count, plural, one {# công cụ} other {# công cụ}}"
+    },
+    "crumb": "xưởng",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} tạo tác",
+    "dashboard": {
+      "title": "Bảng điều khiển",
+      "open": "Mở sàn xưởng →"
+    },
+    "ask": {
+      "title": "Nhờ agent",
+      "body": "Việc tạo dựng diễn ra trong agent MCP của bạn."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Không tìm thấy phác thảo",
     "notFoundBody": "Tham chiếu phác thảo này không tồn tại hoặc chưa được tạo.",
+    "backToLibrary": "← Quay lại Thư viện",
+    "retryLoad": "Thử lại",
+    "frameFailed": "Khung xem này không tải được.",
     "downloadGlb": "Tải xuống .glb",
     "downloadGlbPreparing": "Đang chuẩn bị…",
     "downloadGlbUnavailable": "Không có mesh 3D để xuất cho phác thảo này.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Chưa có thành viên nào",
     "notFound": "Dự án đó không tồn tại — có thể đã bị lưu trữ hoặc ref sai.",
     "backToProjects": "Quay lại Nhà phát triển game",
-    "charter": "Điều lệ",
-    "playInArcade": "Chơi trong Arcade",
     "copyWorkPrompt": "Sao chép prompt công việc",
     "copyAddPrompt": "thêm",
     "copyMintPrompt": "tạo game",
@@ -1659,7 +1690,6 @@
     "missing": "Missing",
     "missingBody": "Artifact của thành viên này không còn tồn tại. Dự án vẫn giữ vị trí; hãy liên kết lại hoặc gỡ bỏ từ tác nhân máy chủ.",
     "noRules": "Chưa tạo game — dự án đang ở giai đoạn tiền sản xuất.",
-    "fromManifest": "từ manifest",
     "gated": "bị khóa",
     "openNewTab": "Mở trong tab mới",
     "closeViewer": "Đóng",
@@ -1707,47 +1737,40 @@
     "copied": "Đã sao chép",
     "play": "Chơi",
     "levelCount": "{count, plural, other {# màn chơi}}",
-    "shipped": "Đã phát hành",
-    "notFound": "Máy game đó không có trên sàn — game có thể đã bị gỡ bỏ.",
-    "backToArcade": "Quay lại Arcade",
-    "openStandalone": "Mở độc lập"
+    "shipped": "Đã phát hành"
+  },
+  "library": {
+    "crumb": "thư viện",
+    "title": "Thư viện",
+    "subtitle": "Mọi tạo tác agent đã tạo — cảnh, mô hình, nhân vật, vật liệu, hình ảnh, sơ đồ. Mỗi kệ là một cách nhìn; bên dưới vẫn là cùng một kho công thức.",
+    "shelves": {
+      "recent": "Gần đây",
+      "scenes": "Cảnh",
+      "models": "Mô hình",
+      "characters": "Nhân vật",
+      "images": "Hình ảnh",
+      "diagrams": "Sơ đồ",
+      "materials": "Vật liệu"
+    },
+    "materials": {
+      "blurb": "Vật liệu thủ tục — màu đỉnh không cần texture: nền lambert, dốc sáng từ trên, mây chải xước và hao mòn, tất cả bake vào phần tô theo từng góc. Mỗi mẫu là một quad thật chạy qua bộ giải thật, nên cái bạn thấy chính là cái một mặt sẽ nhận.",
+      "applyHint": "Vật liệu được áp dụng bằng cách nhờ agent — đặt material cho một mặt của mesh-world, hoặc truyền tên preset."
+    },
+    "recentNote": "Các tạo tác mới nhất trong toàn xưởng. Chọn một kệ để xem tất cả cùng loại.",
+    "roomToggle": "Phòng"
   },
   "maker": {
     "hub": {
       "title": "Xưởng Mojulo",
       "subtitle": "Studio: hình minh họa, thế giới đi lại được, đối tượng 3D, chuyển động, beats, giọng nói và các đầu ra hoàn thiện. Một bề mặt sáng tạo được tinh chỉnh, anh em với Sketches (tinh chỉnh cho sơ đồ). Mỗi thành phần đều là cùng một sketch primitive — cất giữ, tham chiếu và so sánh theo cách nào cũng được."
     },
-    "open": "Mở",
-    "empty": "Chưa có gì ở đây",
-    "itemCount": "{count, plural, =0 {trống} one {# mục} other {# mục}}",
-    "illustrations": {
-      "title": "Minh họa",
-      "subtitle": "Phong cảnh, nhân vật và quan điểm phức tạp, CSS-3D và hiển thị kiểu họa",
-      "blurb": "Phong cảnh được vẽ, nhân vật có tư thế, chất rắn chạm khắc — bộ hình ảnh phong phú bạn nhìn thấy."
-    },
-    "worlds": {
-      "title": "Thế giới",
-      "subtitle": "Thế giới three.js đi lại được — thành phố, tòa nhà, nội thất và trung tâm mà bạn di chuyển qua ở góc nhìn thứ nhất.",
-      "blurb": "Thành phố fractal, công trình và nội thất được kết xuất thành thế giới 3D đi lại được, không phải hình phẳng."
-    },
-    "objects": {
-      "title": "Đối tượng",
-      "subtitle": "Các artifact và nghiên cứu 3D đơn lẻ — bộ phận workbench, cụm lắp ráp, polygomer, hành tinh, các góc nhìn khoa học và toán học. Kéo để xoay quanh, cuộn để thu phóng.",
-      "blurb": "Bộ phận workbench, cụm lắp ráp, polygomer và nghiên cứu quỹ đạo — các vật thể 3D bạn xoay và ngắm nhìn."
-    },
-    "motion": {
-      "title": "Chuyển động",
-      "blurb": "Phim và GIF — đường dẫn máy ảnh và trình chiếu được hiển thị thành các artefact hoạt hình."
-    },
     "beats": {
       "title": "Nhịp",
-      "subtitle": "Âm thanh nền được tổng hợp, sáng tác và hiệu ứng âm thanh — chọn một và nhấn phát. Tác giả những cái mới từ đại lý của bạn thông qua create_beats.",
-      "blurb": "Vòng lặp xung quanh, điểm số và tín hiệu foley — các artefact âm thanh bạn nghe. Mọi thứ được tổng hợp, không có gì được lấy mẫu."
+      "subtitle": "Âm thanh nền được tổng hợp, sáng tác và hiệu ứng âm thanh — chọn một và nhấn phát. Tác giả những cái mới từ đại lý của bạn thông qua create_beats."
     },
     "voice": {
       "title": "Giọng nói",
       "subtitle": "Thanh ghi giọng — công thức xác định cách giọng nói nghe: hai trục trên một ngân hàng giọng đã được hiệu chuẩn. Tác giả những cái mới từ đại lý của bạn thông qua create_voice; một công nhân bên ngoài nói chúng.",
-      "blurb": "Nhẹ nhàng đến có thẩm quyền, sáng đến sâu — các giọng như công thức pha trộn nhỏ bé, không bao giờ ghi âm.",
       "axisConfidence": "Tự tin",
       "axisDepth": "Độ sâu",
       "poleMeek": "nhẹ nhàng",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Dự án không tên",
     "untagged": "Không được gắn thẻ",
     "shots": "{count} bức ảnh",
-    "openPlayer": "Mở trình phát",
     "noPreview": "Không xem trước",
     "framesLabel": "{count} khung",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Từ",
     "sourceUnknown": "(kho lưu trữ được xóa)",
     "lensLabel": "Ống kính",
-    "createdAt": "Tạo {timestamp}",
     "viewOutcome": "Xem kết quả",
-    "sliceCount": "{count, plural, =0 {không có lát} =1 {1 lát} other {# lát}}",
     "untitledAim": "(không ghi nhận mục đích)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Tạo {timestamp}",
     "updatedAt": "Cập nhật {timestamp}",
-    "startFromAgent": "Start a stash from your agent",
     "actions": {
       "rename": "Rename",
       "edit": "Chỉnh sửa",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Stash not found",
       "notFoundBody": "This stash ref does not exist or has not been minted yet.",
       "back": "Back to stashes",
-      "openInbox": "Open inbox",
       "rootDrawer": "Root",
       "drawerItemCount": "{count, plural, =0 {empty} =1 {1 item} other {# items}}",
       "noItemsInDrawer": "No items in this drawer yet.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Could not save drawer",
       "drawerRenameError": "Could not rename drawer",
       "renameDrawerLabel": "Rename drawer",
-      "moveTo": "Move to…",
       "moveError": "Could not move item",
       "archive": "Lưu trữ",
       "archiveError": "Could not archive item",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Archive anyway",
       "archiveCancel": "Hủy",
       "addItem": "+ Add",
-      "addItemHeading": "Add to {drawer}",
       "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
       "picker": {
         "text": "New text block",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "Download SVG",
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
+    "frameFailed": "Khung xem này không tải được.",
     "renameLabel": "Rename sketch",
     "renamePlaceholder": "Sketch title",
     "renameSave": "Lưu",
@@ -2069,8 +2086,6 @@
     "refresh": "Làm mới",
     "error": "Failed to load connected services",
     "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "graphTitle": "MCP structure",
-    "graphHint": "Click graph nodes to open available detail views.",
     "backToList": "Back to Connected Services",
     "backToService": "Back to connected service",
     "notFound": "Connected service not found.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "When",
       "message": "Message"
+    }
+  },
+  "renderBay": {
+    "title": "Khoang kết xuất",
+    "subtitle": "Mọi thứ mojulo đang sản xuất, ở một nơi: hàng đợi kết xuất ảnh bền bỉ, các bản bake GI, cùng các bản cook và bản xuất trên đĩa. Bốn cách nói \"có thứ gì đó đang được làm\" mà trước đây không có chung một mái nhà.",
+    "readOnly": "Khoang này chỉ hiển thị trạng thái. Mọi hành động ở đây là một lời nhắc để sao chép vào agent của bạn — chấp nhận một bản kết xuất, bake lại một thế giới, hay tạo một bản xuất đều diễn ra qua công cụ MCP, không bao giờ qua trang này.",
+    "refresh": "Làm mới",
+    "loading": "Đang tải…",
+    "allLanes": "Tất cả các làn",
+    "copyPrompt": "Sao chép lời nhắc",
+    "copied": "Đã sao chép",
+    "copyFailed": "Không sao chép được — hãy chọn văn bản và sao chép thủ công",
+    "showing": "hiển thị {shown} trên {total}",
+    "queue": {
+      "title": "Hàng đợi kết xuất",
+      "note": "Các yêu cầu kết xuất bền bỉ đang đỗ chờ một worker có khả năng xử lý ảnh. Một yêu cầu sống sót qua lần khởi động lại, nên một dòng đang đỗ là một lời hứa, không phải một tác vụ trong bộ nhớ.",
+      "count": "{n} yêu cầu",
+      "empty": "Không có gì đang đỗ. Hãy nhờ agent chạy request_image_render cho một image-outcome hoặc phác thảo sequential-art đã tạo.",
+      "eyesGate": "← cổng mắt người: máy đã xong, chưa ai nhìn",
+      "stalled": "đình trệ",
+      "stage": {
+        "queued": "Đang xếp hàng",
+        "inFlight": "Đang xử lý",
+        "gate": "Chờ cổng mắt người",
+        "done": "Đã chốt"
+      },
+      "status": {
+        "pending": "đang chờ",
+        "in_flight": "đang xử lý",
+        "submitted": "đã nộp",
+        "accepted": "đã chấp nhận",
+        "rejected": "đã từ chối",
+        "expired": "đã hết hạn",
+        "cancelled": "đã hủy"
+      },
+      "targets": "{n} mục tiêu",
+      "folded": "gộp vào {refs} tạo tác"
+    },
+    "bakes": {
+      "title": "Bản bake GI",
+      "note": "Chiếu sáng toàn cục Blender Cycles được bake vào chính màu đỉnh của một thế giới — AO mềm và bóng tiếp xúc với chi phí runtime bằng không. Cần Blender cục bộ; thế giới đã bake thì gửi được cho bất kỳ ai.",
+      "empty": "Chưa có bản bake nào. Khi đã cài Blender: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "đã qua cổng máy · {match} khớp góc · {black} sàn tối (giới hạn {limit})",
+      "eyesGate": "cổng mắt người: của bạn — hãy mở ra và nhìn",
+      "samples": "{n} mẫu",
+      "from": "bake từ {ref}"
+    },
+    "outputs": {
+      "title": "Bản cook và bản xuất",
+      "note": "Những gì đã được hiện thực hóa lên đĩa: các ấn phẩm từ cook, cùng các mô hình, mesh, bản kết xuất, skin, giọng nói và bản nhạc được gắn vào thư mục kết quả của từng tạo tác.",
+      "fullInbox": "Hộp thư ấn phẩm đầy đủ →",
+      "emptyCooks": "Không có ấn phẩm nào đang mở.",
+      "emptyArtifacts": "Chưa có bản xuất nào trên đĩa. Hãy nhờ agent export_model một thế giới, hoặc gắn một bản kết xuất.",
+      "emptyBeats": "Chưa có bản kết xuất beats nào trên đĩa.",
+      "group": {
+        "cooks": "Ấn phẩm",
+        "artifacts": "Thư mục kết quả của tạo tác",
+        "beats": "Bản kết xuất beats"
+      },
+      "kind": {
+        "model": "mô hình",
+        "mesh": "mesh đã gắn",
+        "render": "bản kết xuất",
+        "skin": "skin",
+        "voice": "giọng nói",
+        "motion": "chuyển động",
+        "game": "trò chơi",
+        "audio": "âm thanh",
+        "score": "bản nhạc",
+        "page": "trang",
+        "recipe": "công thức",
+        "other": "tệp"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Mở tạo tác →",
+    "copied": "Đã sao chép",
+    "copyFailed": "Không sao chép được — hãy chọn văn bản và sao chép thủ công",
+    "shelves": "Thư viện",
+    "bays": "Xưởng",
+    "outliner": {
+      "title": "Cây phân cấp",
+      "flat": "Một công thức phẳng — không có bộ phận để duyệt.",
+      "unnamed": "Cấu trúc mojulo chưa có tên gọi. Nó vẫn nằm trong công thức.",
+      "group": {
+        "geometry": "Hình học",
+        "staging": "Dàn cảnh",
+        "sound": "Âm thanh",
+        "provenance": "Nguồn gốc",
+        "renderGroups": "Nhóm kết xuất"
+      },
+      "isolate": "Tách riêng trong khung nhìn — nhấn lại để bỏ",
+      "branch": {
+        "lathes": "Khối tiện",
+        "extrudes": "Khối đùn",
+        "sweeps": "Khối quét",
+        "drapes": "Khối phủ",
+        "faces": "Mặt",
+        "figures": "Hình thể",
+        "characters": "Nhân vật",
+        "entities": "Thực thể",
+        "elements": "Phần tử",
+        "civicAreas": "Khu dân sinh",
+        "chambers": "Buồng",
+        "tunnels": "Đường hầm",
+        "masses": "Khối",
+        "concourses": "Sảnh nối",
+        "stations": "Trạm",
+        "edges": "Cạnh",
+        "tree": "Cây",
+        "shape": "Hình dạng",
+        "camera": "Máy quay",
+        "cameras": "Các máy quay",
+        "ground": "Ground",
+        "physics": "Vật lý",
+        "detail": "Chi tiết",
+        "game": "Trò chơi",
+        "audio": "Âm thanh",
+        "giBake": "Bake GI"
+      }
+    },
+    "viewport": {
+      "noReading": "Tạo tác này để nghe, chơi hoặc đọc chứ không phải để nhìn. Mở nó ra để trải nghiệm.",
+      "frameFailed": "Khung xem này không tải được — mở trực tiếp tạo tác để thử lại.",
+      "seed": "seed {seed}",
+      "parts": "{n} bộ phận",
+      "scaleDeclared": "1 đơn vị = 1 {unit} · in đúng tỉ lệ thật với scale: {scale}",
+      "scaleUndeclared": "chưa khai báo đơn vị · stl hiểu 1 đơn vị = 1 mm",
+      "baked": "đã bake · {preset}",
+      "noBake": "chưa bake GI",
+      "triHint": "số tam giác: export_model"
+    },
+    "inspector": {
+      "askTitle": "Nhờ agent",
+      "askBody": "Bảng điều khiển hiển thị trạng thái; nó không bao giờ thay đổi dữ liệu. Việc sửa công thức này diễn ra trong agent máy chủ của bạn.",
+      "askCopy": "Sao chép lời nhắc",
+      "bound": "Tạo tác đã gắn",
+      "boundEmpty": "Chưa gắn gì — không có bản kết xuất, mesh hay bản xuất nào trên đĩa cho công thức này.",
+      "openFolder": "Mở thư mục kết quả · {size}",
+      "recipe": "Công thức"
+    },
+    "status": {
+      "packs": "gói: {packs}",
+      "kernelOnly": "chỉ kernel",
+      "queue": "hàng đợi kết xuất {n}",
+      "gate": "{n} đang chờ cổng mắt người",
+      "library": "{n} tạo tác",
+      "toolCalls": "{n} lệnh gọi công cụ · 24h"
+    }
+  },
+  "floor": {
+    "crumb": "bảng điều khiển",
+    "bench": "Trên bàn làm việc",
+    "recentPicks": "Vừa dùng gần đây",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} tạo tác — đi bộ, xoay quanh, in ra",
+      "d2": "{n} tạo tác — tranh ảnh và bản đồ"
+    },
+    "open": {
+      "scenes": "Mở bảng địa điểm →",
+      "models": "Mở tường bàn xoay →",
+      "characters": "Mở bảng nhân vật →",
+      "images": "Mở tường in →",
+      "diagrams": "Mở phòng đọc →",
+      "materials": "Mở kệ vật liệu →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} preset",
+    "kit": {
+      "figure": "hình thể",
+      "character-sheet": "bảng",
+      "sprite-sheet": "sprite"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "trò chơi",
+      "audio": "♪",
+      "painted": "đã tô vẽ"
+    },
+    "capNote": "dải hiển thị cái mới nhất — tiêu đề mở tất cả",
+    "warming": "đang khởi động khung xem trực tiếp…",
+    "liveFailed": "khung xem trực tiếp không tải được — hiển thị ảnh tĩnh",
+    "loadFailed": "Không tải được kệ này.",
+    "retry": "Thử lại",
+    "emptyStrip": "Chưa tạo gì ở đây.",
+    "materialsHint": "Áp dụng bằng cách nhờ agent — đặt một vật liệu cho một mặt của mesh-world, hoặc truyền tên preset."
+  },
+  "viewCube": {
+    "label": "Góc nhìn dựng sẵn",
+    "threeQuarter": "¾",
+    "front": "Trước",
+    "side": "Bên",
+    "top": "Trên"
+  },
+  "rooms": {
+    "search": "Tìm trong phòng này…",
+    "all": "Tất cả",
+    "empty": "Không có gì khớp với khía cạnh hoặc tìm kiếm này.",
+    "emptyShelf": "Chưa tạo gì vào {shelf}.",
+    "emptyShelfHint": "Nhờ agent của bạn tạo một cái — get_sketch_vocab có sẵn từ vựng.",
+    "copied": "Đã sao chép",
+    "copyFailed": "Không sao chép được — hãy chọn thủ công",
+    "notExportable": "Không có bản xuất mesh — tạo tác này kết xuất dưới dạng sơ đồ, không phải mô hình đi bộ được.",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "Lần lặp · {n}",
+    "open": "Mở công thức →",
+    "openBench": "Mở trên bàn làm việc ↗",
+    "openWorld": "Mở thế giới ↗",
+    "close": "Đóng",
+    "prev": "Trước đó",
+    "next": "Tiếp theo",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "đã tô vẽ · worker bên ngoài · công thức khung dựng vẫn là gốc",
+    "mintMissing": "Nhờ agent: tạo {piece}",
+    "mintPrompt": "Với nhân vật mojulo \"{name}\" (xem tạo tác {ref}), hãy tạo {piece} còn thiếu. Dùng công cụ tương ứng (create_sprite_sheet / bind_character_sheet / công cụ figure) — đọc get_sketch_vocab trước.",
+    "facets": {
+      "scenes": {
+        "walkable": "Đi bộ được",
+        "cities": "Thành phố",
+        "hubs": "Trung tâm",
+        "interiors": "Nội thất"
+      },
+      "models": {
+        "workbench": "Bàn làm việc",
+        "assembler": "Bộ lắp ghép",
+        "manji": "Manji-tree",
+        "science": "Khoa học"
+      },
+      "images": {
+        "stills": "Ảnh tĩnh",
+        "sequential": "Tranh liên hoàn",
+        "painted": "Đã tô vẽ",
+        "carved": "Chạm khắc",
+        "other": "Khác"
+      }
     }
   }
 }

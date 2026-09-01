@@ -1,14 +1,10 @@
 {
   "common": {
     "save": "Opslaan",
-    "saving": "Bezig met opslaan…",
     "cancel": "Annuleren",
     "servicesMap": "Servicenkaart",
     "observability": "Waarneembaarheid",
     "delete": "Verwijderen",
-    "deleting": "Bezig met verwijderen…",
-    "download": "Downloaden",
-    "downloading": "Bezig met downloaden…",
     "close": "Sluiten",
     "back": "Terug",
     "next": "Volgende",
@@ -1289,6 +1285,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "De creatiekaart van deze app — elke tool-aanroep die haar heeft gerealiseerd, als stations op één lijn."
+      },
       "metadata": "Metagegevens",
       "artifactPath": "Artefactpad",
       "materializationRef": "Realiseringsreferentie",
@@ -1545,6 +1544,29 @@
     "copied": "Gekopieerd",
     "close": "Sluiten"
   },
+  "displayModes": {
+    "label": "Weergavemodus",
+    "mode": {
+      "wire": "Draadmodel",
+      "shaded": "Gearceerd",
+      "baked": "Gebakken",
+      "painted": "Geschilderd"
+    },
+    "hint": {
+      "wire": "Alleen constructielijnen — de geometrie ontkleed.",
+      "shaded": "Mojulo's eigen vertexkleuren en procedurele materialen.",
+      "baked": "Blender Cycles global illumination gebakken in de vertexkleuren.",
+      "painted": "Geschilderd door een externe image-worker over de scaffold van mojulo."
+    },
+    "reason": {
+      "noWireframe": "Deze soort heeft geen constructieweergave.",
+      "bakedInPlace": "Ter plaatse gebakken — er is geen unlit versie bewaard.",
+      "noBake": "Nog geen GI-bake. Vraag de agent om deze wereld te bakken.",
+      "noPaintedRender": "Nog geen geschilderde render gebonden. Vraag de agent er een aan te vragen.",
+      "notPaintable": "Mojulo tekent hier elke pixel — niets te schilderen."
+    },
+    "externalBadge": "niet mojulo's verf"
+  },
   "home": {
     "title": "Werkplaats Start",
     "groups": {
@@ -1573,22 +1595,30 @@
       "voice": "Stem",
       "games": "Gameontwikkelaar",
       "arcade": "Arcade",
-      "settings": "Instellingen"
+      "settings": "Instellingen",
+      "library": "Bibliotheek",
+      "renderBay": "Renderbay",
+      "dashboard": "Dashboard"
     },
     "agentStatus": {
-      "title": "Agent-status",
       "liveLabel": "Live",
       "staleLabel": "Laatst gezien",
       "harnessOne": "{name} v{version}",
       "harnessOneNoVersion": "{name}",
       "harnessMany": "{count} harnesses",
       "serversLabel": "{count, plural, one {# server} other {# servers}}",
-      "toolsLabel": "{count, plural, one {# tool} other {# tools}}",
-      "declaredNow": "zojuist",
-      "declaredSeconds": "{seconds, plural, one {# seconde geleden} other {# seconden geleden}}",
-      "declaredMinutes": "{minutes, plural, one {# minuut geleden} other {# minuten geleden}}",
-      "declaredHours": "{hours, plural, one {# uur geleden} other {# uur geleden}}",
-      "declaredDays": "{days, plural, one {# dag geleden} other {# dagen geleden}}"
+      "toolsLabel": "{count, plural, one {# tool} other {# tools}}"
+    },
+    "crumb": "werkplaats",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} artefacten",
+    "dashboard": {
+      "title": "Dashboard",
+      "open": "Open de vloer →"
+    },
+    "ask": {
+      "title": "Vraag de agent",
+      "body": "Maken gebeurt in je MCP-agent."
     }
   },
   "breadcrumbs": {
@@ -1597,6 +1627,9 @@
   "sketches": {
     "notFoundTitle": "Schets niet gevonden",
     "notFoundBody": "Deze schets-ref bestaat niet of is nog niet gemaakt.",
+    "backToLibrary": "← Terug naar de bibliotheek",
+    "retryLoad": "Opnieuw proberen",
+    "frameFailed": "Deze weergave is niet geladen.",
     "downloadGlb": ".glb downloaden",
     "downloadGlbPreparing": "Voorbereiding…",
     "downloadGlbUnavailable": "Geen 3D-netwerk om voor deze schets te exporteren.",
@@ -1649,8 +1682,6 @@
     "noMembersYet": "Nog geen leden",
     "notFound": "Dat project bestaat niet — het is mogelijk gearchiveerd of de ref klopt niet.",
     "backToProjects": "Terug naar Gameontwikkelaar",
-    "charter": "Handvest",
-    "playInArcade": "Speel in Arcade",
     "copyWorkPrompt": "Kopieer werk-prompt",
     "copyAddPrompt": "toevoegen",
     "copyMintPrompt": "de game minten",
@@ -1659,7 +1690,6 @@
     "missing": "Ontbrekend",
     "missingBody": "Het artefact van dit lid bestaat niet meer. Het project houdt de slot; herbind of verwijder het vanuit je host-agent.",
     "noRules": "Nog geen game gemint — het project is pre-productie.",
-    "fromManifest": "uit manifest",
     "gated": "afgeschermd",
     "openNewTab": "Open in nieuw tabblad",
     "closeViewer": "Sluiten",
@@ -1707,47 +1737,40 @@
     "copied": "Gekopieerd",
     "play": "Speel",
     "levelCount": "{count, plural, one {# level} other {# levels}}",
-    "shipped": "Uitgebracht",
-    "notFound": "Die kast staat niet op de vloer — de game is mogelijk verwijderd.",
-    "backToArcade": "Terug naar Arcade",
-    "openStandalone": "Open standalone"
+    "shipped": "Uitgebracht"
+  },
+  "library": {
+    "crumb": "bibliotheek",
+    "title": "Bibliotheek",
+    "subtitle": "Elk artefact dat de agent heeft gemint — scènes, modellen, personages, materialen, afbeeldingen, diagrammen. Eén plank per manier van kijken; dezelfde receptenopslag eronder.",
+    "shelves": {
+      "recent": "Recent",
+      "scenes": "Scènes",
+      "models": "Modellen",
+      "characters": "Personages",
+      "images": "Afbeeldingen",
+      "diagrams": "Diagrammen",
+      "materials": "Materialen"
+    },
+    "materials": {
+      "blurb": "Procedurele materialen — vertexkleur zonder textuur: een lambert-basis, een van boven belichte ramp, een geborstelde wolk en verwering, allemaal gebakken in vullingen per hoekpunt. Elke swatch is een echte quad door de echte resolver, dus wat je ziet is wat een vlak krijgt.",
+      "applyHint": "Materialen pas je toe door het aan de agent te vragen — zet material op een vlak van een mesh-wereld, of geef een presetnaam mee."
+    },
+    "recentNote": "De nieuwste artefacten uit de hele werkplaats. Kies een plank om alles van één soort te zien.",
+    "roomToggle": "Kamer"
   },
   "maker": {
     "hub": {
       "title": "Mojulo Maker",
       "subtitle": "De studio: illustraties, beloopbare werelden, 3D-objecten, motion, beats, voice en afgewerkte output. Een afgestemd creatief oppervlak, broer van Sketches (afgestemd op diagrammen). Elk stuk is dezelfde sketch-primitive — stash, refereer en diff het hoe dan ook."
     },
-    "open": "Openen",
-    "empty": "Nog niets hier",
-    "itemCount": "{count, plural, =0 {leeg} one {# item} other {# items}}",
-    "illustrations": {
-      "title": "Illustraties",
-      "subtitle": "Landschappen, figuren en ingewikkeld perspectief, CSS-3D en schilderachtige renders.",
-      "blurb": "Geschilderde landschappen, geposeerde figuren, gesneden vaste lichamen — de rijke visuele set die u bekijkt."
-    },
-    "worlds": {
-      "title": "Werelden",
-      "subtitle": "Beloopbare three.js-werelden — steden, gebouwen, interieurs en hubs waar je first-person doorheen beweegt.",
-      "blurb": "Fractale steden, edifices en interieurs gerenderd als beloopbare 3D-werelden, niet als platte plaatjes."
-    },
-    "objects": {
-      "title": "Objecten",
-      "subtitle": "Losse 3D-artefacten en studies — workbench-onderdelen, assemblies, polygomers, planeten, wetenschap- en wiskundeviews. Sleep om te draaien, scroll om te zoomen.",
-      "blurb": "Workbench-onderdelen, assemblies, polygomers en orbit-studies — 3D-dingen die je draait en bekijkt."
-    },
-    "motion": {
-      "title": "Beweging",
-      "blurb": "Films en GIF's — camerapadden en diavoorstellingen weergegeven als geanimeerde artefacten."
-    },
     "beats": {
       "title": "Beats",
-      "subtitle": "Gesynthetiseerde soundtracks, composities en geluidseffecten — selecteer er een en druk op afspelen. Maak er nieuwe van via uw agent via create_beats.",
-      "blurb": "Ambient loops, nummers en foley-cues — de audioaretefacten die u beluistert. Alles gesynthetiseerd, niets bemonsterd."
+      "subtitle": "Gesynthetiseerde soundtracks, composities en geluidseffecten — selecteer er een en druk op afspelen. Maak er nieuwe van via uw agent via create_beats."
     },
     "voice": {
       "title": "Stem",
       "subtitle": "Stemregisters — deterministische recepten voor hoe een stem klinkt: twee assen over een gekalibreerde bank van stemmen. Maak er nieuwe van via uw agent via create_voice; een externe arbeider spreekt ze uit.",
-      "blurb": "Mak tot gezaghebbend, helder tot diep — stemmen als kleine mengrecipes, nooit opnames.",
       "axisConfidence": "Zelfvertrouwen",
       "axisDepth": "Diepte",
       "poleMeek": "mak",
@@ -1780,7 +1803,6 @@
     "untitledProject": "Naamloos project",
     "untagged": "Zonder tag",
     "shots": "{count} shots",
-    "openPlayer": "Speler openen",
     "noPreview": "Geen preview",
     "framesLabel": "{count} frames",
     "fpsLabel": "{fps} fps"
@@ -1822,9 +1844,7 @@
     "sourceLabel": "Van",
     "sourceUnknown": "(stash verwijderd)",
     "lensLabel": "Lens",
-    "createdAt": "Gemaakt {timestamp}",
     "viewOutcome": "Uitkomst weergeven",
-    "sliceCount": "{count, plural, =0 {geen plakken} =1 {1 plak} other {# plakken}}",
     "untitledAim": "(geen doel opgenomen)"
   },
   "stashes": {
@@ -1846,7 +1866,6 @@
     "drawerCount": "{count, plural, =0 {geen laden} =1 {1 lade} other {# laden}}",
     "createdAt": "Gemaakt {timestamp}",
     "updatedAt": "Bijgewerkt {timestamp}",
-    "startFromAgent": "Start een stash van uw agent",
     "actions": {
       "rename": "Hernoemen",
       "edit": "Bewerken",
@@ -1863,7 +1882,6 @@
       "notFoundTitle": "Stash niet gevonden",
       "notFoundBody": "Deze stash-ref bestaat niet of is nog niet gemaakt.",
       "back": "Terug naar stashes",
-      "openInbox": "Inbox openen",
       "rootDrawer": "Basis",
       "drawerItemCount": "{count, plural, =0 {leeg} =1 {1 item} other {# items}}",
       "noItemsInDrawer": "Nog geen items in deze lade.",
@@ -1896,7 +1914,6 @@
       "drawerSaveError": "Kon lade niet opslaan",
       "drawerRenameError": "Kon lade niet hernoemen",
       "renameDrawerLabel": "Lade hernoemen",
-      "moveTo": "Verplaatsen naar…",
       "moveError": "Kon item niet verplaatsen",
       "archive": "Archiveren",
       "archiveError": "Kon item niet archiveren",
@@ -1904,7 +1921,6 @@
       "archiveProceed": "Toch archiveren",
       "archiveCancel": "Annuleren",
       "addItem": "+ Toevoegen",
-      "addItemHeading": "Toevoegen aan {drawer}",
       "agentTypesFooter": "Scripts en contextmap-pointers worden toegevoegd door uw agent.",
       "picker": {
         "text": "Nieuw tekstblok",
@@ -1971,6 +1987,7 @@
     "downloadSvg": "SVG downloaden",
     "downloadPng": "PNG downloaden",
     "invalidManifest": "Rendrant kon deze schets niet parseren.",
+    "frameFailed": "Deze weergave is niet geladen.",
     "renameLabel": "Schets hernoemen",
     "renamePlaceholder": "Schestitel",
     "renameSave": "Opslaan",
@@ -2069,8 +2086,6 @@
     "refresh": "Vernieuwen",
     "error": "Kon verbonden services niet laden",
     "empty": "Nog geen verbonden services. Declareer hostvaardigheden of realiseer een MCP-orbit samenstelling.",
-    "graphTitle": "MCP-structuur",
-    "graphHint": "Klik op graafknooppunten om beschikbare detailweergaven te openen.",
     "backToList": "Terug naar Verbonden Services",
     "backToService": "Terug naar verbonden service",
     "notFound": "Verbonden service niet gevonden.",
@@ -2138,6 +2153,250 @@
       "via": "Via",
       "when": "Wanneer",
       "message": "Bericht"
+    }
+  },
+  "renderBay": {
+    "title": "Renderbay",
+    "subtitle": "Alles wat mojulo produceert, op één plek: de duurzame image-renderwachtrij, GI-bakes, en de cooks en exports op schijf. Vier manieren om te zeggen \"er wordt iets gemaakt\" die tot nu toe geen gedeeld thuis hadden.",
+    "readOnly": "De bay rendert state. Elke actie hier is een prompt om naar je agent te kopiëren — een render accepteren, een wereld opnieuw bakken en een export minten gebeuren allemaal via MCP-tools, nooit via deze pagina.",
+    "refresh": "Vernieuwen",
+    "loading": "Laden…",
+    "allLanes": "Alle banen",
+    "copyPrompt": "Prompt kopiëren",
+    "copied": "Gekopieerd",
+    "copyFailed": "Kopiëren mislukt — selecteer de tekst en kopieer handmatig",
+    "showing": "{shown} van {total} getoond",
+    "queue": {
+      "title": "Renderwachtrij",
+      "note": "Duurzame renderverzoeken die geparkeerd staan voor een image-capabele worker. Een verzoek overleeft een herstart, dus een geparkeerde rij is een belofte, geen in-memory job.",
+      "count": "{n} verzoeken",
+      "empty": "Niets geparkeerd. Vraag de agent om request_image_render voor een geminte image-outcome of sequential-art-schets.",
+      "eyesGate": "← de ogenpoort: de machine is klaar, niemand heeft gekeken",
+      "stalled": "vastgelopen",
+      "stage": {
+        "queued": "In wachtrij",
+        "inFlight": "Onderweg",
+        "gate": "Wacht op de ogenpoort",
+        "done": "Afgehandeld"
+      },
+      "status": {
+        "pending": "in afwachting",
+        "in_flight": "onderweg",
+        "submitted": "ingediend",
+        "accepted": "geaccepteerd",
+        "rejected": "afgewezen",
+        "expired": "verlopen",
+        "cancelled": "geannuleerd"
+      },
+      "targets": "{n} doelen",
+      "folded": "gevouwen op {refs} artefacten"
+    },
+    "bakes": {
+      "title": "GI-bakes",
+      "note": "Blender Cycles global illumination gebakken in de eigen vertexkleuren van een wereld — zachte AO en contactschaduw zonder runtimekosten. Vereist een lokale Blender; de gebakken werelden werken voor iedereen.",
+      "empty": "Nog geen bakes. Met Blender geïnstalleerd: node scripts/bake-world-gi.mjs --ref <world> --preset interior-day --write",
+      "machineGate": "machinepoort gehaald · {match} hoekmatch · {black} donkere vloer (limiet {limit})",
+      "eyesGate": "ogenpoort: die van jou — open hem en kijk",
+      "samples": "{n} samples",
+      "from": "gebakken uit {ref}"
+    },
+    "outputs": {
+      "title": "Cooks en exports",
+      "note": "Wat er op schijf is gerealiseerd: publicaties uit cook, en de modellen, meshes, renders, skins, stemmen en scores die in de outcome-map van elk artefact zijn gebonden.",
+      "fullInbox": "Volledige publicatie-inbox →",
+      "emptyCooks": "Geen open publicaties.",
+      "emptyArtifacts": "Nog geen exports op schijf. Vraag de agent om export_model op een wereld, of om een render te binden.",
+      "emptyBeats": "Nog geen beats-renders op schijf.",
+      "group": {
+        "cooks": "Publicaties",
+        "artifacts": "Outcome-mappen van artefacten",
+        "beats": "Beats-renders"
+      },
+      "kind": {
+        "model": "model",
+        "mesh": "gebonden mesh",
+        "render": "render",
+        "skin": "skin",
+        "voice": "stem",
+        "motion": "beweging",
+        "game": "game",
+        "audio": "audio",
+        "score": "partituur",
+        "page": "pagina",
+        "recipe": "recept",
+        "other": "bestand"
+      }
+    }
+  },
+  "home3d": {
+    "openArtifact": "Artefact openen →",
+    "copied": "Gekopieerd",
+    "copyFailed": "Kopiëren mislukt — selecteer de tekst en kopieer handmatig",
+    "shelves": "Bibliotheek",
+    "bays": "Werkplaats",
+    "outliner": {
+      "title": "Outliner",
+      "flat": "Een plat recept — geen onderdelen om te doorlopen.",
+      "unnamed": "Structuur waar mojulo nog geen woord voor heeft. Ze zit wel in het recept.",
+      "group": {
+        "geometry": "Geometrie",
+        "staging": "Enscenering",
+        "sound": "Geluid",
+        "provenance": "Herkomst",
+        "renderGroups": "Rendergroepen"
+      },
+      "isolate": "Isoleer in de viewport — klik nogmaals om te wissen",
+      "branch": {
+        "lathes": "Draaivormen",
+        "extrudes": "Extrusies",
+        "sweeps": "Sweeps",
+        "drapes": "Draperingen",
+        "faces": "Vlakken",
+        "figures": "Figuren",
+        "characters": "Personages",
+        "entities": "Entiteiten",
+        "elements": "Elementen",
+        "civicAreas": "Openbare zones",
+        "chambers": "Kamers",
+        "tunnels": "Tunnels",
+        "masses": "Massa's",
+        "concourses": "Passages",
+        "stations": "Stations",
+        "edges": "Randen",
+        "tree": "Boom",
+        "shape": "Vorm",
+        "camera": "Camera",
+        "cameras": "Camera's",
+        "ground": "Grond",
+        "physics": "Fysica",
+        "detail": "Detail",
+        "game": "Game",
+        "audio": "Audio",
+        "giBake": "GI-bake"
+      }
+    },
+    "viewport": {
+      "noReading": "Dit artefact wordt gehoord, gespeeld of gelezen in plaats van bekeken. Open het om het te ervaren.",
+      "frameFailed": "Deze weergave is niet geladen — open het artefact rechtstreeks om het opnieuw te proberen.",
+      "seed": "seed {seed}",
+      "parts": "{n} onderdelen",
+      "scaleDeclared": "1 eenheid = 1 {unit} · print op ware schaal met scale: {scale}",
+      "scaleUndeclared": "eenheden niet gedeclareerd · stl leest 1 eenheid = 1 mm",
+      "baked": "gebakken · {preset}",
+      "noBake": "geen GI-bake",
+      "triHint": "aantal driehoeken: export_model"
+    },
+    "inspector": {
+      "askTitle": "Vraag de agent",
+      "askBody": "Het dashboard rendert state; het muteert nooit. Dit recept wijzig je in je host-agent.",
+      "askCopy": "Prompt kopiëren",
+      "bound": "Gebonden artefacten",
+      "boundEmpty": "Nog niets gebonden — geen renders, meshes of exports op schijf voor dit recept.",
+      "openFolder": "Outcome-map openen · {size}",
+      "recipe": "Recept"
+    },
+    "status": {
+      "packs": "packs: {packs}",
+      "kernelOnly": "alleen kernel",
+      "queue": "renderwachtrij {n}",
+      "gate": "{n} wachten op de ogenpoort",
+      "library": "{n} artefacten",
+      "toolCalls": "{n} tool-aanroepen · 24u"
+    }
+  },
+  "floor": {
+    "crumb": "dashboard",
+    "bench": "Op de werkbank",
+    "recentPicks": "Recent opgepakt",
+    "zones": {
+      "d3": "3D",
+      "d2": "2D"
+    },
+    "zoneSub": {
+      "d3": "{n} artefacten — belopen, rondgedraaid, geprint",
+      "d2": "{n} artefacten — beelden en kaarten"
+    },
+    "open": {
+      "scenes": "Open het locatiebord →",
+      "models": "Open de draaitafelwand →",
+      "characters": "Open het castbord →",
+      "images": "Open de printwand →",
+      "diagrams": "Open de leeszaal →",
+      "materials": "Open de materialenplank →"
+    },
+    "stack": "×{n}",
+    "presets": "{n} presets",
+    "kit": {
+      "figure": "figuur",
+      "character-sheet": "sheet",
+      "sprite-sheet": "sprites"
+    },
+    "badge": {
+      "gi": "GI ✓",
+      "game": "game",
+      "audio": "♪",
+      "painted": "geschilderd"
+    },
+    "capNote": "strips tonen het nieuwste — koppen openen alles",
+    "warming": "live weergave opwarmen…",
+    "liveFailed": "live weergave niet geladen — stilstaand beeld getoond",
+    "loadFailed": "Kon deze plank niet laden.",
+    "retry": "Opnieuw proberen",
+    "emptyStrip": "Hier nog niets gemint.",
+    "materialsHint": "Toe te passen door het aan de agent te vragen — zet een material op een vlak van een mesh-wereld, of geef een presetnaam mee."
+  },
+  "viewCube": {
+    "label": "Weergavepresets",
+    "threeQuarter": "¾",
+    "front": "Voor",
+    "side": "Zij",
+    "top": "Boven"
+  },
+  "rooms": {
+    "search": "Zoek in deze kamer…",
+    "all": "Alles",
+    "empty": "Niets komt overeen met dit facet of deze zoekopdracht.",
+    "emptyShelf": "Nog niets gemint in {shelf}.",
+    "emptyShelfHint": "Vraag je agent om er een te maken — get_sketch_vocab bevat het vocabulaire.",
+    "copied": "Gekopieerd",
+    "copyFailed": "Kopiëren mislukt — selecteer handmatig",
+    "notExportable": "Geen mesh-export — dit artefact rendert als diagram, niet als beloopbaar model.",
+    "stack": "×{n}",
+    "seed": "seed {seed}",
+    "versions": "Iteraties · {n}",
+    "open": "Recept openen →",
+    "openBench": "Openen op werkbank ↗",
+    "openWorld": "Wereld openen ↗",
+    "close": "Sluiten",
+    "prev": "Vorige",
+    "next": "Volgende",
+    "stl": ".STL",
+    "glb": ".GLB",
+    "svg": "SVG",
+    "png": "PNG",
+    "paintedLine": "geschilderd · externe worker · scaffold-recept blijft soeverein",
+    "mintMissing": "Vraag agent: mint {piece}",
+    "mintPrompt": "Voor het mojulo-personage \"{name}\" (zie artefact {ref}), mint het ontbrekende {piece}. Gebruik de bijbehorende tool (create_sprite_sheet / bind_character_sheet / figure tools) — lees eerst get_sketch_vocab.",
+    "facets": {
+      "scenes": {
+        "walkable": "Beloopbaar",
+        "cities": "Steden",
+        "hubs": "Hubs",
+        "interiors": "Interieurs"
+      },
+      "models": {
+        "workbench": "Werkbank",
+        "assembler": "Assembler",
+        "manji": "Manji-trees",
+        "science": "Wetenschap"
+      },
+      "images": {
+        "stills": "Stills",
+        "sequential": "Sequentiële kunst",
+        "painted": "Geschilderd",
+        "carved": "Gesneden",
+        "other": "Overig"
+      }
     }
   }
 }
