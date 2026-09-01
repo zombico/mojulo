@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * /library — the one asset browser.
  *
@@ -10,37 +8,16 @@
  * redirect here with their shelf preselected; `/sketches/<ref>` detail pages are
  * untouched.
  *
+ * The page wears the workshop shell (AuthNav and the breadcrumb bar stand down
+ * here), so the auth flag enters server-side the same way it does on `/` and
+ * `/dashboard`.
+ *
  * Design: components/3d-factory-ui.plan.md §2.
  */
 
-import { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-
-import SketchGallery from '@/components/SketchGallery';
-import { shelfByKey } from '@/lib/graph/sketch/library-shelves';
-
-function LibraryBody() {
-  const t = useTranslations('library');
-  const params = useSearchParams();
-  // shelfByKey falls back to `recent`, so a stale or hand-typed ?shelf= lands
-  // somewhere real instead of on an empty page.
-  const shelf = shelfByKey(params.get('shelf')).key;
-
-  return (
-    <SketchGallery
-      shelves
-      initialShelf={shelf}
-      heading={t('title')}
-      subtitle={t('subtitle')}
-    />
-  );
-}
+import LibraryBody from './library-body';
+import { isAuthEnabled } from '@/lib/auth/session';
 
 export default function LibraryPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen" aria-hidden />}>
-      <LibraryBody />
-    </Suspense>
-  );
+  return <LibraryBody authEnabled={isAuthEnabled()} />;
 }

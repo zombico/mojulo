@@ -252,7 +252,8 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
       finalized = resolveMotionComicLayout(finalized, (r) => SketchRepository.getByRef(r));
       validateMotionComicRefs(finalized, (r) => SketchRepository.getByRef(r));
     } catch (err) {
-      throw new Error(`Invalid manifest: ${err.message}`);
+      // Error-as-drawer: a failed mint points at the kind's manifest manual.
+      throw new Error(`Invalid manifest: ${err.message} — manifest manual: get_sketch_vocab({ id: 'motion-comic' }).`);
     }
   } else if (isImageOutcomesKind(manifest?.kind)) {
     // Image-outcomes kinds (director scaffolds for external image
@@ -262,7 +263,8 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     try {
       finalized = normalizeImageOutcomesManifest(resolveCharacterRefs(manifest));
     } catch (err) {
-      throw new Error(`Invalid manifest: ${err.message}`);
+      // Error-as-drawer: the card id IS the kind for the image-outcomes family.
+      throw new Error(`Invalid manifest: ${err.message} — manifest manual: get_sketch_vocab({ id: '${manifest?.kind}' }).`);
     }
     // Scene cohesion (load-bearing shared source): when a scene declares no
     // explicit plate style, the plate INHERITS the lead cast clip's style at
@@ -298,7 +300,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   try {
     working = lowerDiagramKinds(working);
   } catch (err) {
-    throw new Error(`Invalid manifest: ${err.message}`);
+    throw new Error(`Invalid manifest: ${err.message} — manifest manual: semantic_search({ kinds: ['sketch_vocab'], query: '<your kind or ask>' }); read a card in full via get_sketch_vocab({ id }).`);
   }
   // Resolve any grid `cell` placements to concrete x/y/w/h before validating
   // and storing, so the renderer only ever sees absolute coords.
@@ -323,7 +325,12 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
 
   const { ok, errors } = validateSketchManifest(finalized);
   if (!ok) {
-    throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);
+    // Error-as-drawer (pointer discipline): a bare validator string leaves the
+    // agent guessing which drawer resolves it — name the read explicitly.
+    throw new Error(
+      `Invalid manifest:\n - ${errors.join('\n - ')}\n`
+      + `— manifest manual: semantic_search({ kinds: ['sketch_vocab'], query: '<your kind or ask>' }); read a card in full via get_sketch_vocab({ id }).`,
+    );
   }
   }
 
@@ -332,7 +339,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
   } catch (err) {
     if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
+      throw new Error(`A sketch with ref '${ref}' already exists — iterate it in place with update_sketch({ ref, ... }), or omit \`ref\` to mint a new one`);
     }
     throw err;
   }
@@ -494,7 +501,8 @@ export async function updateSketchHandler(input) {
       nextManifest = resolveMotionComicLayout(nextManifest, (r) => SketchRepository.getByRef(r));
       validateMotionComicRefs(nextManifest, (r) => SketchRepository.getByRef(r));
     } catch (err) {
-      throw new Error(`Invalid manifest: ${err.message}`);
+      // Error-as-drawer: a failed update points at the kind's manifest manual.
+      throw new Error(`Invalid manifest: ${err.message} — manifest manual: get_sketch_vocab({ id: 'motion-comic' }).`);
     }
   } else if (manifest !== undefined && isImageOutcomesKind(manifest?.kind)) {
     // Image-outcomes kinds skip the diagram pipeline; store the normalized
@@ -502,7 +510,8 @@ export async function updateSketchHandler(input) {
     try {
       nextManifest = normalizeImageOutcomesManifest(resolveCharacterRefs(manifest));
     } catch (err) {
-      throw new Error(`Invalid manifest: ${err.message}`);
+      // Error-as-drawer: the card id IS the kind for the image-outcomes family.
+      throw new Error(`Invalid manifest: ${err.message} — manifest manual: get_sketch_vocab({ id: '${manifest?.kind}' }).`);
     }
   } else if (
     manifest !== undefined && typeof manifest?.kind === 'string' && WORLD_KINDS[manifest.kind]
@@ -536,7 +545,11 @@ export async function updateSketchHandler(input) {
     }
     const { ok, errors } = validateSketchManifest(finalized);
     if (!ok) {
-      throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);
+      // Error-as-drawer (pointer discipline): same as the mint path.
+      throw new Error(
+        `Invalid manifest:\n - ${errors.join('\n - ')}\n`
+        + `— manifest manual: semantic_search({ kinds: ['sketch_vocab'], query: '<your kind or ask>' }); read a card in full via get_sketch_vocab({ id }).`,
+      );
     }
     nextManifest = finalized;
   }

@@ -28,10 +28,10 @@ import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
 
 import WorkshopHome from '@/components/WorkshopHome';
+import WorkshopShell from '@/components/WorkshopShell';
 import { StatusBar } from '@/components/WorkshopChrome';
 import TurntableThumb, { useTurntableMode } from '@/components/TurntableCard';
 import { Swatch } from '@/components/MaterialShelf';
-import WorkshopDrawer from '@/components/WorkshopDrawer';
 import { DotRow } from '@/components/brand/DotRow';
 import { MATERIAL_PRESETS } from '@/lib/graph/materials/procedural-material';
 import { LIBRARY_ZONES, STRIP_LIMITS } from '@/lib/graph/sketch/library-zones';
@@ -259,50 +259,25 @@ const STRIP_GRID = {
   diagrams: 'grid-cols-1 md:grid-cols-2',
 };
 
-function Strip({ shelfKey, faces, count, zoneTotal, loading, failed, onRetry }) {
-  const shelf = useTranslations('library.shelves');
+function Strip({ shelfKey, faces, loading, failed, onRetry }) {
   const t = useTranslations('floor');
   const [ref, near] = useNearViewport();
   const ready = near && !loading;
   const skeletons = Math.min(STRIP_LIMITS[shelfKey] || 4, 6);
 
   return (
-    // A shelf is a REGION of the floor's frame (§7c): it meets its neighbours at
-    // a shared hairline instead of floating in a gutter, so the zone reads as one
-    // continuous surface with shelves partitioned across it.
-    <section ref={ref} className="moj-part-b px-4 py-4">
-      <div className="flex flex-wrap items-baseline gap-3">
-        <h3 className="flex min-w-0 items-center gap-2 truncate text-[14px] font-medium text-[color:var(--ink-primary)]">
-          {shelf(shelfKey)}
-          {count != null && (
-            // The dots read as this shelf's SHARE OF ITS ZONE, not as its raw
-            // count: on a real workshop every shelf is in the hundreds, so a
-            // one-dot-per-unit row would sit permanently full and say nothing.
-            // As a share it compares shelves at a glance, and the mono number
-            // beside it stays the thing you actually read — §7c's
-            // proportion-not-precision rule, kept honest by the pairing.
-            <>
-              <DotRow part={count} whole={zoneTotal || count} />
-              <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">{count}</span>
-            </>
-          )}
-        </h3>
-        <Link
-          href={`/library?shelf=${shelfKey}`}
-          className="ml-auto font-mono text-[11px] text-[color:var(--live)] hover:underline"
-        >
-          {t(`open.${shelfKey}`)}
-        </Link>
-      </div>
+    // The shelf's name, share and room link live on the zone's tab band now —
+    // the panel is just the faces.
+    <div ref={ref} role="tabpanel" className="px-4 py-4">
       {failed ? (
-        <p className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-[color:var(--fault)]">
+        <p className="flex flex-wrap items-center gap-2 text-[12px] text-[color:var(--fault)]">
           {t('loadFailed')}
           <button type="button" onClick={onRetry} className="font-mono text-[11px] text-[color:var(--live)] hover:underline">
             {t('retry')}
           </button>
         </p>
       ) : (
-        <div className={`mt-2 grid gap-3 ${STRIP_GRID[shelfKey]}`}>
+        <div className={`grid gap-3 ${STRIP_GRID[shelfKey]}`}>
           {!ready
             ? Array.from({ length: skeletons }, (_, i) => (
                 <SkeletonCard key={i} shape={shelfKey === 'diagrams' ? 'row' : shelfKey === 'scenes' ? 'wide' : 'card'} />
@@ -324,29 +299,17 @@ function Strip({ shelfKey, faces, count, zoneTotal, loading, failed, onRetry }) 
               )}
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
 /** The registry rail — five presets, always visible, unmistakably 3D. */
 function MaterialsRail() {
-  const shelf = useTranslations('library.shelves');
   const t = useTranslations('floor');
   const kinds = Object.keys(MATERIAL_PRESETS);
   return (
-    <section className="moj-part-b px-4 py-4">
-      <div className="flex items-baseline gap-3">
-        <h3 className="text-[14px] font-medium text-[color:var(--ink-primary)]">
-          {shelf('materials')}
-          <span className="ml-2 font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">
-            {t('presets', { n: kinds.length })}
-          </span>
-        </h3>
-        <Link href="/library?shelf=materials" className="ml-auto font-mono text-[11px] text-[color:var(--live)] hover:underline">
-          {t('open.materials')}
-        </Link>
-      </div>
-      <div className="mt-2 flex flex-wrap items-start gap-3">
+    <div role="tabpanel" className="px-4 py-4">
+      <div className="flex flex-wrap items-start gap-3">
         {kinds.map((kind) => (
           <div key={kind} className="w-[84px]">
             <Swatch kind={kind} max={84} />
@@ -359,7 +322,7 @@ function MaterialsRail() {
           {t('materialsHint')}
         </p>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -486,43 +449,6 @@ function RecentPick({ face }) {
   );
 }
 
-/* ── the bays, behind one drawer trigger ──────────────────────────────────── */
-
-function MenuIcon({ className = 'h-3 w-3' }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className} aria-hidden="true">
-      <path d="M3 6h18" />
-      <path d="M3 12h18" />
-      <path d="M3 18h18" />
-    </svg>
-  );
-}
-
-/**
- * The bays no longer splay across the dash — one trigger opens the global
- * Workshop drawer (the same slide-out the nav brand opens), so the floor keeps
- * a single nav model instead of an inline duplicate of it.
- */
-function BaysMenu() {
-  const t = useTranslations('home');
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className="flex items-center gap-1.5 font-mono text-[10px] text-[color:var(--ink-muted)] hover:text-[color:var(--live)]"
-      >
-        <MenuIcon />
-        {t('drawer.open')}
-      </button>
-      <WorkshopDrawer open={open} onClose={() => setOpen(false)} />
-    </>
-  );
-}
-
 /* ── the floor ────────────────────────────────────────────────────────────── */
 
 function ZoneHeader({ zoneKey, count }) {
@@ -542,7 +468,86 @@ function ZoneHeader({ zoneKey, count }) {
   );
 }
 
-export default function SplayedFloor() {
+/**
+ * One zone of the floor: its heavyweight header band, then its shelves behind
+ * tabs — one strip at a time, so a zone never asks the operator to scroll past
+ * every shelf it owns. A tab is the strip header it replaced, made selectable:
+ * the same 14px name, the same dot-row share of the zone beside its own number
+ * (§7c's proportion-not-precision rule — the dots compare shelves at a glance
+ * precisely BECAUSE all of them stay visible on the band while only one strip
+ * shows). Hue carries state: the resting tab is muted ink, the selected one is
+ * lit and wears the live hue as a 1px underline riding ON the band's own rail
+ * (`-mb-px`) — value swapped along a shared hairline, never a second border.
+ * The active shelf's room link keeps the band's right edge.
+ */
+function ZoneSection({ zone, zoneTotal, counts, strips, loading, failed, onRetry }) {
+  const shelf = useTranslations('library.shelves');
+  const t = useTranslations('floor');
+  const [active, setActive] = useState(zone.shelves[0]);
+  const presetCount = Object.keys(MATERIAL_PRESETS).length;
+
+  return (
+    <section className="moj-part-b">
+      <ZoneHeader zoneKey={zone.key} count={zoneTotal} />
+
+      <div
+        role="tablist"
+        aria-label={t(`zones.${zone.key}`)}
+        className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-[color:var(--bay-rail)] px-4 pt-3"
+      >
+        {zone.shelves.map((shelfKey) => {
+          const selected = shelfKey === active;
+          return (
+            <button
+              key={shelfKey}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setActive(shelfKey)}
+              className={`-mb-px flex items-center gap-2 border-b pb-2.5 text-[14px] font-medium transition-colors duration-100 ${
+                selected
+                  ? 'border-[color:var(--live)] text-[color:var(--ink-primary)]'
+                  : 'border-transparent text-[color:var(--ink-muted)] hover:text-[color:var(--ink-secondary)]'
+              }`}
+            >
+              {shelf(shelfKey)}
+              {shelfKey === 'materials' ? (
+                // The registry, not a share of the zone: presets aren't
+                // artifacts, so no dot row — just the count.
+                <span className="font-mono text-[11px] font-normal tabular-nums">{presetCount}</span>
+              ) : (
+                <>
+                  <DotRow part={counts[shelfKey] || 0} whole={zoneTotal || counts[shelfKey] || 0} />
+                  <span className="font-mono text-[11px] font-normal tabular-nums">{counts[shelfKey] ?? 0}</span>
+                </>
+              )}
+            </button>
+          );
+        })}
+        <Link
+          href={`/library?shelf=${active}`}
+          className="ml-auto pb-2.5 font-mono text-[11px] text-[color:var(--live)] hover:underline"
+        >
+          {t(`open.${active}`)}
+        </Link>
+      </div>
+
+      {active === 'materials' ? (
+        <MaterialsRail />
+      ) : (
+        <Strip
+          shelfKey={active}
+          faces={strips[active] || []}
+          loading={loading}
+          failed={failed}
+          onRetry={onRetry}
+        />
+      )}
+    </section>
+  );
+}
+
+export default function SplayedFloor({ authEnabled = false }) {
   const t = useTranslations('floor');
   const { data: home, error, isLoading } = useSWR('/api/home', fetcher, { revalidateOnFocus: false });
   const { data: floor, error: floorFetchError, mutate: retryFloor } = useSWR(
@@ -553,8 +558,9 @@ export default function SplayedFloor() {
 
   if (isLoading) return <main className="min-h-screen" aria-hidden />;
   // An empty workshop is an invitation, not an empty floor — same fall-through
-  // as the viewport home, and the same for a failed read.
-  if (error || home?.error || !home?.head) return <WorkshopHome />;
+  // as the viewport home, and the same for a failed read. The chrome stands
+  // down on the floor, so the fallback directory serves as the nav here.
+  if (error || home?.error || !home?.head) return <WorkshopHome asNav authEnabled={authEnabled} />;
 
   // A failed floor request must not read as "still loading" forever: the fetcher
   // resolves a 500 body as valid JSON (`{error: ...}`), so both the transport
@@ -567,53 +573,57 @@ export default function SplayedFloor() {
   const zones = floor?.zones || {};
 
   return (
-    <main className="flex min-h-screen flex-col">
-      {/* One frame for the whole floor; the bench band and each zone are its
-          regions, divided by hairlines they share (3d-factory-ui.plan.md §7c).
-          Padding lives on the regions, never between them. */}
-      <div className="flex-1 px-6 py-4">
-       <div className="moj-frame">
+    <main className="px-4 py-6 sm:px-8 sm:py-10">
+      {/* One SHELL for the whole floor — the same object the front door is: its
+          top strip is the page's only header (AuthNav and the breadcrumb bar
+          stand down on the floor), and the bench band, each zone and the status
+          bar are its regions, divided by hairlines they share
+          (3d-factory-ui.plan.md §7c). Padding lives on the regions, never
+          between them. */}
+      {/* Wider than the front door's 1040px shell: the directory is a page you
+          read and leave, the floor is a gallery — same object, more bench. The
+          shell carries its own nav rail, toggled from the brand mark. */}
+      <WorkshopShell
+        className="mx-auto w-full max-w-[1400px]"
+        authEnabled={authEnabled}
+        packs={home.status?.packs || []}
+        total={home.library?.total}
+        crumb={t('crumb')}
+      >
         <div className="moj-part-b px-4 py-3">
         {/* the bench — the one live frame, and what was just touched */}
-        <div className="flex items-baseline gap-4">
-          <h2 className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
-            {t('bench')}
-          </h2>
-          <div className="ml-auto">
-            <BaysMenu />
-          </div>
-        </div>
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+          {t('bench')}
+        </h2>
         <div className="mt-2 flex flex-col gap-4 lg:flex-row">
           <BenchHero head={home.head} />
           <RecentPicks faces={floor?.recent || []} loading={floorLoading} failed={floorFailed} onRetry={retryFloor} />
         </div>
         </div>
 
-        {/* the zones — every strip is a shelf, every header opens its room */}
+        {/* the zones — both stand as sections, each tabbing its OWN shelves;
+            every tab opens a strip, the band's room link opens everything. A
+            shelf's inactive strips unmount: they were lazy skeletons anyway,
+            and SWR holds the one floor payload every shelf reads, so switching
+            costs nothing. Selection is plain state, deliberately not a query
+            param — a tab is a filter on one surface, not a place (the
+            Breadcrumbs rule), and `?ref=` already owns this route's deep
+            reading. */}
         {LIBRARY_ZONES.map((zone) => (
-          <section key={zone.key} className="moj-part-b">
-            <ZoneHeader zoneKey={zone.key} count={zones[zone.key]} />
-            {zone.shelves.map((shelfKey) =>
-              shelfKey === 'materials' ? (
-                <MaterialsRail key={shelfKey} />
-              ) : (
-                <Strip
-                  key={shelfKey}
-                  shelfKey={shelfKey}
-                  faces={strips[shelfKey] || []}
-                  count={counts[shelfKey]}
-                  zoneTotal={zones[zone.key]}
-                  loading={floorLoading}
-                  failed={floorFailed}
-                  onRetry={retryFloor}
-                />
-              ),
-            )}
-          </section>
+          <ZoneSection
+            key={zone.key}
+            zone={zone}
+            zoneTotal={zones[zone.key]}
+            counts={counts}
+            strips={strips}
+            loading={floorLoading}
+            failed={floorFailed}
+            onRetry={retryFloor}
+          />
         ))}
-       </div>
-      </div>
-      <StatusBar status={home.status} queue={home.queue} library={home.library} note={t('capNote')} />
+
+        <StatusBar status={home.status} queue={home.queue} library={home.library} note={t('capNote')} />
+      </WorkshopShell>
     </main>
   );
 }

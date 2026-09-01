@@ -1753,6 +1753,7 @@
     "openStandalone": "Open standalone"
   },
   "library": {
+    "crumb": "library",
     "title": "Library",
     "subtitle": "Every artifact the agent has minted — scenes, models, characters, materials, images, diagrams. One shelf per way of looking; the same recipe store underneath.",
     "shelves": {
@@ -2350,6 +2351,7 @@
     }
   },
   "floor": {
+    "crumb": "dashboard",
     "bench": "On the bench",
     "recentPicks": "Picked up recently",
     "zones": {

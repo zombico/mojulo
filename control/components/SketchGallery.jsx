@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import useSWR from 'swr';
 import CreationMap from '@/components/graph/CreationMap';
+import WorkshopShell from '@/components/WorkshopShell';
 import DisplayModes, { useDisplayModeState } from '@/components/DisplayModes';
 import MaterialShelf from '@/components/MaterialShelf';
 import LibraryRoom from '@/components/rooms/LibraryRooms';
@@ -252,7 +254,11 @@ const BEATS_NOUN_KEYS = new Set([
   'exportWav', 'exportMidi',
 ]);
 
-export default function SketchGallery({ bucket = null, heading, subtitle, shelves = false, initialShelf = 'recent' } = {}) {
+// `shell` puts the gallery inside the workshop shell — the home/floor rounded
+// frame whose top strip is the page's ONLY nav (AuthNav and the breadcrumb bar
+// stand down on /library). Off (the beats rail), the gallery keeps its classic
+// full-bleed layout under the global chrome.
+export default function SketchGallery({ bucket = null, heading, subtitle, shelves = false, initialShelf = 'recent', shell = false, authEnabled = false } = {}) {
   const tBase = useTranslations('sketchesIndex');
   const tBeats = useTranslations('sketchesIndex.beatsNoun');
   const t = useCallback(
@@ -262,6 +268,11 @@ export default function SketchGallery({ bucket = null, heading, subtitle, shelve
   const tFolder = useTranslations('sketchesIndex.folder');
   const tLibrary = useTranslations('library');
   const tSelect = useTranslations('sketchesIndex.select');
+  // The shell's nav strip wears the same pills the home strip does; the shallow
+  // home read is counts-only and null-keyed away entirely when there is no shell.
+  const { data: shellHome } = useSWR(shell ? '/api/home?shallow=1' : null, (url) =>
+    fetch(url).then((r) => r.json()),
+  );
   const [sketches, setSketches] = useState([]);
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -719,8 +730,11 @@ export default function SketchGallery({ bucket = null, heading, subtitle, shelve
     [load, tFolder],
   );
 
-  return (
-    <div className="h-[calc(100vh-66px)] flex flex-col bg-gray-900">
+  // The gallery is a fixed-height instrument whose panes scroll internally. In
+  // shell mode the height comes from the shell (flex-1 of the viewport); classic
+  // mode keeps subtracting the 66px of global chrome it sits under.
+  const gallery = (
+    <div className={shell ? 'flex min-h-0 flex-1 flex-col' : 'h-[calc(100vh-66px)] flex flex-col bg-gray-900'}>
       <div className="flex justify-between items-center px-8 pt-6 pb-2">
         <div>
           <h1 className="text-2xl font-bold text-gray-100">{heading || t('title')}</h1>
@@ -1264,6 +1278,28 @@ export default function SketchGallery({ bucket = null, heading, subtitle, shelve
       )}
 
     </div>
+  );
+
+  if (!shell) return gallery;
+
+  return (
+    // The workshop shell, worn the library's way: the same rounded frame and
+    // single top strip as `/` and `/dashboard`, but pinned to the viewport
+    // (h-screen, min-h-0 chain) because the gallery scrolls inside its panes
+    // rather than down the page — and wider still than the floor's 1400px,
+    // since the rooms behind the shelf chips are walls of cards. The shell
+    // carries its own nav rail, toggled from the brand mark.
+    <main className="flex h-screen flex-col px-4 py-4 sm:px-6 sm:py-5">
+      <WorkshopShell
+        className="mx-auto min-h-0 w-full max-w-[1600px] flex-1"
+        authEnabled={authEnabled}
+        packs={shellHome?.status?.packs || []}
+        total={shellHome?.library?.total}
+        crumb={tLibrary('crumb')}
+      >
+        {gallery}
+      </WorkshopShell>
+    </main>
   );
 }
 

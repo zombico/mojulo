@@ -107,16 +107,21 @@ function SignOutIcon({ className = 'h-3.5 w-3.5' }) {
 /* ── the nav strip ────────────────────────────────────────────────────────── */
 
 /**
- * The shell's top edge. On `/` it is the app's ONLY nav, so it carries Settings
- * and the sign-out; anywhere else this component is the empty-workshop
- * fallback, AuthNav is overhead, and the strip stays purely informational
- * rather than duplicating it.
+ * The shell's top edge. Where the shell IS the page's nav (`/`, and the floor at
+ * `/dashboard` where AuthNav also stands down) it carries Settings and the
+ * sign-out; anywhere else this component is the empty-workshop fallback, AuthNav
+ * is overhead, and the strip stays purely informational rather than duplicating
+ * it. Exported so the splayed floor can wear the same strip on the same shell.
+ * `crumb` overrides the locator word. The brand is three things by context: at
+ * `/` it rests (the rack needs no trigger), given `onBrandToggle` it opens the
+ * shell's own nav rail (WorkshopShell), and otherwise it walks home.
  */
-function NavStrip({ isNav, authEnabled, packs, total }) {
+export function NavStrip({ isNav, authEnabled, packs, total, crumb, navOpen = false, onBrandToggle = null }) {
   const t = useTranslations('home');
   const tSettings = useTranslations('settings');
   const tLogin = useTranslations('login');
   const router = useRouter();
+  const atRoot = usePathname() === '/';
 
   async function onLogout() {
     try {
@@ -126,13 +131,34 @@ function NavStrip({ isNav, authEnabled, packs, total }) {
   }
 
   const chrome =
-    'inline-flex items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1 font-mono text-[10px] text-[color:var(--ink-muted)] transition-colors hover:bg-[color:var(--bay-bench)] hover:text-[color:var(--ink-primary)]';
+    'moj-hover-pop inline-flex items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1 font-mono text-[10px] text-[color:var(--ink-muted)] transition-colors hover:bg-[color:var(--bay-bench)] hover:text-[color:var(--ink-primary)]';
 
   return (
     <div className="flex items-center gap-3 border-b border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] px-4 py-2.5 sm:px-6">
-      <MojuloMark size={28} className="text-[color:var(--ink-primary)]" />
-      <h1 className="text-[13px] tracking-[0.06em] text-[color:var(--ink-primary)]">mojulo</h1>
-      <Micro className="hidden sm:inline">/ {t('crumb')}</Micro>
+      {onBrandToggle ? (
+        <button
+          type="button"
+          onClick={onBrandToggle}
+          aria-expanded={navOpen}
+          aria-controls="workshop-rail"
+          aria-label={navOpen ? t('drawer.close') : t('drawer.open')}
+          className="moj-hover-wave flex items-center gap-3 transition-opacity hover:opacity-80"
+        >
+          <MojuloMark size={28} className="text-[color:var(--ink-primary)]" />
+          <h1 className="text-[13px] tracking-[0.06em] text-[color:var(--ink-primary)]">mojulo</h1>
+        </button>
+      ) : atRoot ? (
+        <span className="flex items-center gap-3">
+          <MojuloMark size={28} className="text-[color:var(--ink-primary)]" />
+          <h1 className="text-[13px] tracking-[0.06em] text-[color:var(--ink-primary)]">mojulo</h1>
+        </span>
+      ) : (
+        <Link href="/" className="moj-hover-wave flex items-center gap-3 transition-opacity hover:opacity-80">
+          <MojuloMark size={28} className="text-[color:var(--ink-primary)]" />
+          <h1 className="text-[13px] tracking-[0.06em] text-[color:var(--ink-primary)]">mojulo</h1>
+        </Link>
+      )}
+      <Micro className="hidden sm:inline">/ {crumb ?? t('crumb')}</Micro>
 
       <span className="ml-auto flex items-center gap-2">
         {packs.length > 0 && <Pill live>{t('packsPill', { packs: packs.join(' · ') })}</Pill>}
@@ -175,7 +201,7 @@ function DashboardPlate({ library }) {
   return (
     <Link
       href="/dashboard"
-      className="group flex items-stretch gap-4 border-b border-[color:var(--bay-rail)] px-4 py-4 transition-colors hover:bg-[color:var(--bay-bench)]/40 sm:gap-6 sm:px-6"
+      className="moj-hover-wave moj-hover-pop group flex items-stretch gap-4 border-b border-[color:var(--bay-rail)] px-4 py-4 transition-colors hover:bg-[color:var(--bay-bench)]/40 sm:gap-6 sm:px-6"
     >
       <span
         aria-hidden
@@ -305,7 +331,7 @@ function useAgentNote() {
 
 /* ── the page ─────────────────────────────────────────────────────────────── */
 
-export default function WorkshopHome({ authEnabled = false }) {
+export default function WorkshopHome({ authEnabled = false, asNav = false }) {
   const t = useTranslations('home');
   // `shallow=1` skips the head artifact and its outcome scan — this page draws
   // counts, not a viewport, and has no reason to pay for either.
@@ -313,9 +339,10 @@ export default function WorkshopHome({ authEnabled = false }) {
   const { data: presence } = useSWR('/api/workshop/presence', fetcher);
   const groups = visibleWorkshopGroups(presence);
   const agentNote = useAgentNote();
-  // Only the real front door stands in for the app's nav; as the empty-workshop
-  // fallback on /dashboard this renders under AuthNav and must not double it.
-  const isNav = usePathname() === '/';
+  // The strip is the app's nav on the real front door, and wherever the caller
+  // says the chrome has stood down (`asNav` — the floor's empty-workshop
+  // fallback at /dashboard). Under AuthNav it must not double the chrome.
+  const isNav = usePathname() === '/' || asNav;
 
   return (
     <main className="px-4 py-6 sm:px-8 sm:py-10">

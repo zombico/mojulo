@@ -113,7 +113,7 @@ export async function getBeatsVocabHandler(input) {
   if (id) {
     const card = catalog.get(id);
     if (!card) {
-      throw new Error(`get_beats_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}`);
+      throw new Error(`get_beats_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['beats_vocab'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }

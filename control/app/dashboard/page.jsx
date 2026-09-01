@@ -1,5 +1,6 @@
 import SplayedFloor from '@/components/floor/SplayedFloor';
 import ViewportHome from '@/components/ViewportHome';
+import { isAuthEnabled } from '@/lib/auth/session';
 
 /**
  * The dashboard is the splayed floor — the library sorted 3D / 2D, per
@@ -18,5 +19,8 @@ import ViewportHome from '@/components/ViewportHome';
  */
 export default async function DashboardPage({ searchParams }) {
   const { ref } = await searchParams;
-  return ref ? <ViewportHome /> : <SplayedFloor />;
+  // The floor wears the home shell — its top strip is the page's only nav
+  // (AuthNav stands down here), so the auth flag enters the same way it does
+  // on `/`. The `?ref=` viewport reading keeps the global chrome instead.
+  return ref ? <ViewportHome /> : <SplayedFloor authEnabled={isAuthEnabled()} />;
 }

@@ -178,7 +178,7 @@ export async function getSolidVocabHandler(input) {
     const card = catalog.get(id);
     if (!card) {
       throw new Error(
-        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}`,
+        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
       );
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };

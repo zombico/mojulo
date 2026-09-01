@@ -27,7 +27,7 @@ export async function getSketchVocabHandler(input) {
     // "unknown card" keeps the miss visible to the orientation cut
     // (DRAWER_MISS_ERROR_RE in mcpToolCalls.js).
     throw new Error(
-      `get_sketch_vocab: unknown card '${id}'. Known: ${available.join(', ') || '(none)'}`,
+      `get_sketch_vocab: unknown card '${id}'. Known: ${available.join(', ') || '(none)'}. Find one by intent via semantic_search({ kinds: ['sketch_vocab'], query: '<your ask>' }).`,
     );
   }
   return { card, _telemetrySignal: { id_requested: true, found: true } };

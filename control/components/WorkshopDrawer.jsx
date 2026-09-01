@@ -98,7 +98,7 @@ export default function WorkshopDrawer({ open, onClose }) {
           <Link
             href="/"
             onClick={onClose}
-            className="group inline-flex items-center gap-2.5 text-[13px] tracking-[0.06em] text-[color:var(--ink-secondary)] transition-colors hover:text-[color:var(--ink-primary)]"
+            className="moj-hover-pop group inline-flex items-center gap-2.5 text-[13px] tracking-[0.06em] text-[color:var(--ink-secondary)] transition-colors hover:text-[color:var(--ink-primary)]"
           >
             <BrandMark className="h-6 w-6" idPrefix="wsdrawer" />
             {t('title')}
@@ -108,7 +108,7 @@ export default function WorkshopDrawer({ open, onClose }) {
             type="button"
             onClick={onClose}
             aria-label={t('drawer.close')}
-            className="ml-auto rounded-[var(--radius-control)] p-1 text-[color:var(--ink-muted)] transition-colors hover:bg-[color:var(--bay-bench)] hover:text-[color:var(--ink-primary)]"
+            className="moj-hover-pop ml-auto rounded-[var(--radius-control)] p-1 text-[color:var(--ink-muted)] transition-colors hover:bg-[color:var(--bay-bench)] hover:text-[color:var(--ink-primary)]"
           >
             <CloseIcon />
           </button>

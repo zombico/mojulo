@@ -245,7 +245,7 @@ function resolveSubject(subject) {
       recipeSubject: { cel_set: { ref: sketch.ref, ...overrides } },
     };
   }
-  throw new Error('forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, from+to, scene_ref, or cel_set');
+  throw new Error('forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, from+to, scene_ref, or cel_set — capability manual: get_motion_vocab().');
 }
 
 /**
@@ -276,7 +276,7 @@ export async function renderShot({ subject, shot }) {
   // camera motion. Validate the pairing so the model gets a clear error.
   const motion = shot.motion || (isDeck ? 'deck' : isScene ? 'scene' : isCels ? 'clip' : undefined);
   if (!motion) {
-    throw new Error('shot.motion is required, one of: ' + [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES].join(', '));
+    throw new Error('shot.motion is required, one of: ' + [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES].join(', ') + ' — capability manual: get_motion_vocab().');
   }
 
   let result;
@@ -325,7 +325,7 @@ export async function renderShot({ subject, shot }) {
       });
     } else {
       if (!WORLD_MOTION_NAMES.includes(motion)) {
-        throw new Error(`unknown world motion '${motion}'. One of: ${WORLD_MOTION_NAMES.join(', ')}, traversal.`);
+        throw new Error(`unknown world motion '${motion}'. One of: ${WORLD_MOTION_NAMES.join(', ')}, traversal. Capability manual: get_motion_vocab().`);
       }
       result = await renderWorldMotion({
         sketch: resolved.sketch,
@@ -357,7 +357,7 @@ export async function renderShot({ subject, shot }) {
       throw new Error("'deck' needs a deck subject — pass subject.deck (ordered sketch refs) or subject.stash_ref.");
     }
     if (!MOTION_NAMES.includes(motion)) {
-      throw new Error(`unknown camera motion '${motion}'. One of: ${MOTION_NAMES.join(', ')}.`);
+      throw new Error(`unknown camera motion '${motion}'. One of: ${MOTION_NAMES.join(', ')}. Capability manual: get_motion_vocab().`);
     }
     result = renderMotion({
       manifest: resolved.manifest,
@@ -770,7 +770,7 @@ export async function getMotionVocabHandler(input) {
     const card = catalog.get(id);
     if (!card) {
       throw new Error(
-        `get_motion_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}`,
+        `get_motion_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}. Call get_motion_vocab() with no id for the full catalog.`,
       );
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };

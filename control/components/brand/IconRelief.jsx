@@ -61,12 +61,14 @@ export default function IconRelief({ name, Icon, size = 64, className = '', titl
       viewBox={`0 0 ${ICON_CELLS} ${ICON_CELLS}`}
       width={size}
       height={size}
-      className={className}
+      className={`moj-relief ${className}`}
       role={title ? 'img' : undefined}
       aria-hidden={title ? undefined : true}
       xmlns="http://www.w3.org/2000/svg"
     >
       {title && <title>{title}</title>}
+      {/* `--dc` is the dot's column, read by the hover print-pass in globals.css
+          to stagger the swell left→right. The lattice itself stays static. */}
       {dots.map(([c, r, hits]) => (
         <circle
           key={`${c},${r}`}
@@ -74,6 +76,7 @@ export default function IconRelief({ name, Icon, size = 64, className = '', titl
           cy={r + 0.5}
           r={dotRadius(c, hits / ICON_QUANT)}
           fill="currentColor"
+          style={{ '--dc': c }}
         />
       ))}
     </svg>

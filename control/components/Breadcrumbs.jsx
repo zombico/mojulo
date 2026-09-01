@@ -7,8 +7,9 @@
 // height in sync with the calc(100vh-66px) sizing used across app/.
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { Suspense } from 'react';
 
 // Route templates → ordered trail. The trail is the ancestor chain *after* the
 // Home crumb (always prepended) up to and including the current page (the last
@@ -186,8 +187,9 @@ function truncate(value, max = 28) {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
-export default function Breadcrumbs() {
+function BreadcrumbsBody() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations();
 
   // Skip the home launcher, the login screen, and the bare sketch artifact
@@ -195,6 +197,11 @@ export default function Breadcrumbs() {
   if (!pathname) return null;
   if (pathname === '/' || pathname === '/login') return null;
   if (pathname.startsWith('/sketches/')) return null;
+  // The splayed floor's shell strip is the page's only header (mirrors
+  // AuthNav); the `?ref=` viewport reading keeps the trail. The library wears
+  // the shell on every shelf — `?shelf=` is a filter, not a reading.
+  if (pathname === '/dashboard' && !searchParams.get('ref')) return null;
+  if (pathname === '/library') return null;
 
   const matched = matchRoute(pathname);
   if (!matched) return null;
@@ -248,5 +255,15 @@ export default function Breadcrumbs() {
         ))}
       </ol>
     </nav>
+  );
+}
+
+// `useSearchParams` needs a Suspense boundary above it (the ViewportHome
+// pattern); the fallback is nothing because the trail is chrome, not content.
+export default function Breadcrumbs() {
+  return (
+    <Suspense fallback={null}>
+      <BreadcrumbsBody />
+    </Suspense>
   );
 }

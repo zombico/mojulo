@@ -217,7 +217,7 @@ export async function getViewVocabHandler(input) {
     const card = catalog.get(id);
     if (!card) {
       throw new Error(
-        `get_view_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}`,
+        `get_view_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['view_vocab'], query: '<your ask>' }).`,
       );
     }
     // _telemetrySignal: orientation-gap hit signal (stripped from the wire by

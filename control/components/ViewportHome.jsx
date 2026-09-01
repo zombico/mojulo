@@ -30,7 +30,7 @@ import DisplayModes, { useDisplayModeState } from './DisplayModes';
 import WorkshopHome from './WorkshopHome';
 import { CopyPrompt, StatusBar } from './WorkshopChrome';
 import WorldViewStrip, { useWorldViewProtocol } from './WorldViewStrip';
-import { visibleWorkshopGroups } from './workshop-nav';
+import { visibleWorkshopGroups, DOOR_ICONS } from './workshop-nav';
 import { LIBRARY_SHELVES } from '@/lib/graph/sketch/library-shelves';
 import { buildOutliner, groupOutliner, isViewportKind } from '@/lib/graph/sketch/outliner';
 import { formatBytes, tallyOutputKinds } from '@/lib/render-bay/lanes';
@@ -166,17 +166,22 @@ function Bays({ presence }) {
           <div key={group.key}>
             <SubEyebrow>{t(`groups.${group.key}`)}</SubEyebrow>
             <ul className="mt-1">
-              {group.tiles.map((tile) => (
-                <li key={tile.href}>
-                  <Link
-                    href={tile.href}
-                    className="flex items-center gap-2 py-0.5 text-[12px] text-[color:var(--ink-secondary)] hover:text-[color:var(--live)]"
-                  >
-                    <tile.Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{t(`tiles.${tile.key}`)}</span>
-                  </Link>
-                </li>
-              ))}
+              {group.tiles.map((tile) => {
+                // A tile NAMES its icon (see DOOR_ICONS) rather than carrying
+                // the component, so resolve through the registry here.
+                const Icon = DOOR_ICONS[tile.icon];
+                return (
+                  <li key={tile.href}>
+                    <Link
+                      href={tile.href}
+                      className="flex items-center gap-2 py-0.5 text-[12px] text-[color:var(--ink-secondary)] hover:text-[color:var(--live)]"
+                    >
+                      {Icon ? <Icon className="h-3.5 w-3.5 shrink-0" /> : null}
+                      <span className="truncate">{t(`tiles.${tile.key}`)}</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}

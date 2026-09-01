@@ -5,9 +5,9 @@
 // authEnabled=true and a logout link is rendered next to settings.
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import MojuloMark from '@/components/brand/MojuloMark';
 import WorkshopDrawer from '@/components/WorkshopDrawer';
 
@@ -62,12 +62,13 @@ function SignOutIcon({ className = 'h-4 w-4' }) {
   );
 }
 
-export default function AuthNav({ authEnabled = false }) {
+function AuthNavBody({ authEnabled = false }) {
   const tSettings = useTranslations('settings');
   const tLogin = useTranslations('login');
   const tHome = useTranslations('home');
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [navOpen, setNavOpen] = useState(false);
 
   // Bare-view routes: the agent launches the user directly into a single
@@ -78,6 +79,13 @@ export default function AuthNav({ authEnabled = false }) {
   // locator, the install pills, Settings and the sign-out (WorkshopHome's
   // NavStrip). Rendering this bar above it would describe the app twice.
   if (pathname === '/') return null;
+  // The splayed floor wears the same shell strip, so it stands the chrome down
+  // too — but only the floor reading: `/dashboard?ref=` is the viewport home,
+  // which lays itself out below this bar and keeps it.
+  if (pathname === '/dashboard' && !searchParams.get('ref')) return null;
+  // The library wears the shell as well (`?shelf=` is a filter chip, not a
+  // separate reading — every shelf shares the one shell surface).
+  if (pathname === '/library') return null;
 
   async function onLogout() {
     try {
@@ -96,14 +104,14 @@ export default function AuthNav({ authEnabled = false }) {
         aria-haspopup="dialog"
         aria-expanded={navOpen}
         aria-label={tHome('drawer.open')}
-        className="font-semibold tracking-tight inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:text-white hover:bg-[color:var(--surface-elevated)]/40 transition"
+        className="moj-hover-wave font-semibold tracking-tight inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:text-white hover:bg-[color:var(--surface-elevated)]/40 transition"
       >
         <HomeIcon />
         Mojulo
       </button>
       <WorkshopDrawer open={navOpen} onClose={() => setNavOpen(false)} />
       <div className="flex items-center gap-4 text-[color:var(--text-muted)]">
-        <Link href="/settings" className="inline-flex items-center gap-1.5 hover:text-white">
+        <Link href="/settings" className="moj-hover-pop inline-flex items-center gap-1.5 hover:text-white">
           <GearIcon />
           {tSettings('title')}
         </Link>
@@ -111,7 +119,7 @@ export default function AuthNav({ authEnabled = false }) {
           <button
             type="button"
             onClick={onLogout}
-            className="inline-flex items-center gap-1.5 hover:text-white"
+            className="moj-hover-pop inline-flex items-center gap-1.5 hover:text-white"
           >
             <SignOutIcon />
             {tLogin('signOut')}
@@ -119,5 +127,15 @@ export default function AuthNav({ authEnabled = false }) {
         ) : null}
       </div>
     </nav>
+  );
+}
+
+// `useSearchParams` needs a Suspense boundary above it (the ViewportHome
+// pattern); the fallback is nothing because the bar is chrome, not content.
+export default function AuthNav(props) {
+  return (
+    <Suspense fallback={null}>
+      <AuthNavBody {...props} />
+    </Suspense>
   );
 }

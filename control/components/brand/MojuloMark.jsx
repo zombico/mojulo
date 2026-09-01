@@ -95,12 +95,20 @@ export default function MojuloMark({
 
   // Ink cells only — see the rule above. `MARK_DOTS` already omits zero-coverage
   // cells, so this is a filter on the sub-ink tail rather than a grid walk.
+  // `--dc` is the cell's column, read by the hover print-pass in globals.css.
   const cells = MARK_DOTS.filter(([, , v]) => v > MARK_INK).map(([c, r, v]) => (
-    <circle key={`${c},${r}`} cx={c + 0.5} cy={r + 0.5} r={dotRadius(c, v)} fill="currentColor" />
+    <circle
+      key={`${c},${r}`}
+      cx={c + 0.5}
+      cy={r + 0.5}
+      r={dotRadius(c, v)}
+      fill="currentColor"
+      style={{ '--dc': c }}
+    />
   ));
 
   return (
-    <svg {...common}>
+    <svg {...common} className={`moj-relief ${className || ''}`}>
       {title && <title>{title}</title>}
       {cells}
     </svg>
