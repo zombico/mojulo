@@ -17,11 +17,18 @@ const SHELL_PATHS = new Set([
   '/',
   '/dashboard',
   '/library',
+  '/maker',
+  '/maker/motion',
+  '/maker/beats',
+  '/maker/voice',
+  '/maker/games',
+  '/arcade',
+  '/render-bay',
+  '/outputs',
 ]);
 
-// Detail readings of shell surfaces (refs and their sub-views). Empty until
-// the sweep converts a deep page (components/workshop-shell.plan.md).
-const SHELL_PREFIXES = [];
+// Detail readings of shell surfaces (refs and their sub-views).
+const SHELL_PREFIXES = ['/beats/', '/games/'];
 
 export function isShellPath(pathname) {
   if (!pathname) return false;
