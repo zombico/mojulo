@@ -28,6 +28,7 @@ import useSWR from 'swr';
 import CreationMap from './graph/CreationMap';
 import DisplayModes, { useDisplayModeState } from './DisplayModes';
 import WorkshopHome from './WorkshopHome';
+import WorkshopShell from './WorkshopShell';
 import { CopyPrompt, StatusBar } from './WorkshopChrome';
 import WorldViewStrip, { useWorldViewProtocol } from './WorldViewStrip';
 import { visibleWorkshopGroups, DOOR_ICONS } from './workshop-nav';
@@ -370,8 +371,9 @@ function Inspector({ head, outcome }) {
 
 /* ── the home ─────────────────────────────────────────────────────────────── */
 
-function ViewportHomeBody() {
+function ViewportHomeBody({ authEnabled = false }) {
   const t = useTranslations('home3d');
+  const tFloor = useTranslations('floor');
   // `?ref=` opens the home on a specific artifact instead of the head — the same
   // three panes, pointed somewhere else. Any link into the workshop can use it.
   const wantedRef = useSearchParams().get('ref');
@@ -406,16 +408,24 @@ function ViewportHomeBody() {
   // Same for a failed read: a broken bench should still open its doors. It has
   // to be the same surface `/` serves, or the two would disagree about what
   // exists on a host where one of them is the only thing the operator sees.
-  if (error || data?.error || !head) return <WorkshopHome />;
+  // The chrome stands down on all of /dashboard now, so the fallback directory
+  // serves as the nav here.
+  if (error || data?.error || !head) return <WorkshopHome asNav authEnabled={authEnabled} />;
 
   return (
-    // NOT pinned to the viewport height. `h-screen` here measures the whole
-    // window while this element starts BELOW the app's own nav + breadcrumb
-    // chrome, so the status bar falls off the bottom by exactly the chrome's
-    // height — and that height varies by route. The shell therefore grows and the
-    // page scrolls like every other page; the viewport pane keeps its own tall
+    // The workshop shell in scroll posture: the three panes are its one region
+    // and the shell grows with them — the viewport pane keeps its own tall
     // minimum so it is still the largest thing on screen, which is the point.
-    <main className="flex min-h-screen flex-col">
+    // (The old layout subtracted the global chrome's height; the shell's strip
+    // IS the chrome now.)
+    <WorkshopShell
+      posture="scroll"
+      width={1400}
+      authEnabled={authEnabled}
+      packs={data.status?.packs || []}
+      total={data.library?.total}
+      crumb={tFloor('crumb')}
+    >
       <div className="grid flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[minmax(180px,1fr)_minmax(0,3fr)_minmax(230px,1.2fr)]">
         {/* One rail replaces the entire old drawer: what this artifact is made
             of, what the Library holds, and every door — §3. */}
@@ -446,14 +456,14 @@ function ViewportHomeBody() {
         </aside>
       </div>
       <StatusBar status={data.status} queue={data.queue} library={data.library} />
-    </main>
+    </WorkshopShell>
   );
 }
 
-export default function ViewportHome() {
+export default function ViewportHome({ authEnabled = false }) {
   return (
     <Suspense fallback={<div className="min-h-screen" aria-hidden />}>
-      <ViewportHomeBody />
+      <ViewportHomeBody authEnabled={authEnabled} />
     </Suspense>
   );
 }

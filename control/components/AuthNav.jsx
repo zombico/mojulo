@@ -5,11 +5,12 @@
 // authEnabled=true and a logout link is rendered next to settings.
 
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense, useState } from 'react';
+import { useState } from 'react';
 import MojuloMark from '@/components/brand/MojuloMark';
 import WorkshopDrawer from '@/components/WorkshopDrawer';
+import { isShellPath } from '@/components/workshop-shell-routes';
 
 function HomeIcon() {
   // The 2.0 mark — the dot-relief `m` (3d-factory-ui.plan.md §7c), baked by
@@ -62,30 +63,23 @@ function SignOutIcon({ className = 'h-4 w-4' }) {
   );
 }
 
-function AuthNavBody({ authEnabled = false }) {
+export default function AuthNav({ authEnabled = false }) {
   const tSettings = useTranslations('settings');
   const tLogin = useTranslations('login');
   const tHome = useTranslations('home');
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [navOpen, setNavOpen] = useState(false);
 
   // Bare-view routes: the agent launches the user directly into a single
   // artifact (e.g. a minted sketch) and the surrounding nav would distract
   // from the thing they came to see. Skip rendering chrome on these paths.
   if (pathname && pathname.startsWith('/sketches/')) return null;
-  // The front door IS the nav: its shell's top strip carries the brand, the
-  // locator, the install pills, Settings and the sign-out (WorkshopHome's
-  // NavStrip). Rendering this bar above it would describe the app twice.
-  if (pathname === '/') return null;
-  // The splayed floor wears the same shell strip, so it stands the chrome down
-  // too — but only the floor reading: `/dashboard?ref=` is the viewport home,
-  // which lays itself out below this bar and keeps it.
-  if (pathname === '/dashboard' && !searchParams.get('ref')) return null;
-  // The library wears the shell as well (`?shelf=` is a filter chip, not a
-  // separate reading — every shelf shares the one shell surface).
-  if (pathname === '/library') return null;
+  // Shell routes carry their own top strip and nav rail (WorkshopShell.jsx);
+  // rendering this bar above one would describe the app twice. The registry is
+  // the one list (workshop-shell-routes.js) — converting a page adds it there,
+  // not here.
+  if (isShellPath(pathname)) return null;
 
   async function onLogout() {
     try {
@@ -127,15 +121,5 @@ function AuthNavBody({ authEnabled = false }) {
         ) : null}
       </div>
     </nav>
-  );
-}
-
-// `useSearchParams` needs a Suspense boundary above it (the ViewportHome
-// pattern); the fallback is nothing because the bar is chrome, not content.
-export default function AuthNav(props) {
-  return (
-    <Suspense fallback={null}>
-      <AuthNavBody {...props} />
-    </Suspense>
   );
 }

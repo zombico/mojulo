@@ -19,8 +19,9 @@ import { isAuthEnabled } from '@/lib/auth/session';
  */
 export default async function DashboardPage({ searchParams }) {
   const { ref } = await searchParams;
-  // The floor wears the home shell — its top strip is the page's only nav
-  // (AuthNav stands down here), so the auth flag enters the same way it does
-  // on `/`. The `?ref=` viewport reading keeps the global chrome instead.
-  return ref ? <ViewportHome /> : <SplayedFloor authEnabled={isAuthEnabled()} />;
+  // Both readings wear the workshop shell — the strip is the page's only nav
+  // (AuthNav stands down on all of /dashboard), so the auth flag enters the
+  // same way it does on `/`.
+  const authEnabled = isAuthEnabled();
+  return ref ? <ViewportHome authEnabled={authEnabled} /> : <SplayedFloor authEnabled={authEnabled} />;
 }

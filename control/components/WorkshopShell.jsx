@@ -138,20 +138,51 @@ export function WorkshopRail({ open, onClose }) {
   );
 }
 
+/** The width knob is an identity-free per-page choice (workshop-shell.plan.md):
+    1040 reads-and-leaves, 1400 is the content default, 1600 is a gallery wall. */
+const WIDTHS = {
+  1040: 'max-w-[1040px]',
+  1400: 'max-w-[1400px]',
+  1600: 'max-w-[1600px]',
+};
+
 /**
- * NavStrip + rail, wired: the strip's brand toggles the rail. Pages put their
- * regions in `children`; `className` carries the page's width/height posture
- * (the floor scrolls with the page, the library pins to the viewport).
+ * NavStrip + rail + the page's outer main, wired: the strip's brand toggles
+ * the rail, pages put their regions in `children`.
+ *
+ * `posture` picks the height model — 'scroll' lets the shell grow and the
+ * page scroll (the floor); 'pinned' makes the shell a viewport-height
+ * instrument whose panes scroll inside (the library) and REPLACES the old
+ * h-[calc(100vh-66px)] idiom, since there is no chrome above to subtract.
+ *
+ * The strip's pills come from `packs`/`total` when the page already holds
+ * them (the floor's /api/home read); left undefined, the shell makes the
+ * shallow counts-only read itself — SWR dedupes it across surfaces.
  */
-export default function WorkshopShell({ authEnabled = false, packs = [], total, crumb, className = '', children }) {
+export default function WorkshopShell({
+  authEnabled = false,
+  packs,
+  total,
+  crumb,
+  posture = 'scroll',
+  width = 1400,
+  children,
+}) {
   const [navOpen, setNavOpen] = useState(false);
-  return (
-    <div className={`moj-shell flex flex-col ${className}`}>
+  const needPills = packs === undefined && total === undefined;
+  const { data: shallow } = useSWR(needPills ? '/api/home?shallow=1' : null, fetcher);
+
+  const shell = (
+    <div
+      className={`moj-shell mx-auto flex w-full flex-col ${WIDTHS[width] || WIDTHS[1400]} ${
+        posture === 'pinned' ? 'min-h-0 flex-1' : ''
+      }`}
+    >
       <NavStrip
         isNav
         authEnabled={authEnabled}
-        packs={packs}
-        total={total}
+        packs={packs ?? shallow?.status?.packs ?? []}
+        total={total ?? shallow?.library?.total}
         crumb={crumb}
         navOpen={navOpen}
         onBrandToggle={() => setNavOpen((v) => !v)}
@@ -161,5 +192,11 @@ export default function WorkshopShell({ authEnabled = false, packs = [], total, 
         {children}
       </div>
     </div>
+  );
+
+  return posture === 'pinned' ? (
+    <main className="flex h-screen flex-col px-4 py-4 sm:px-6 sm:py-5">{shell}</main>
+  ) : (
+    <main className="px-4 py-6 sm:px-8 sm:py-10">{shell}</main>
   );
 }

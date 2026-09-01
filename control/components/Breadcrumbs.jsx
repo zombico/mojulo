@@ -7,9 +7,9 @@
 // height in sync with the calc(100vh-66px) sizing used across app/.
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense } from 'react';
+import { isShellPath } from '@/components/workshop-shell-routes';
 
 // Route templates → ordered trail. The trail is the ancestor chain *after* the
 // Home crumb (always prepended) up to and including the current page (the last
@@ -187,21 +187,18 @@ function truncate(value, max = 28) {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
-function BreadcrumbsBody() {
+export default function Breadcrumbs() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const t = useTranslations();
 
-  // Skip the home launcher, the login screen, and the bare sketch artifact
-  // views (mirrors AuthNav, which drops all chrome on /sketches/<ref>).
+  // Skip the login screen and the bare sketch artifact views (mirrors AuthNav,
+  // which drops all chrome on /sketches/<ref>), and every shell route — a
+  // shell page's strip is its only header (workshop-shell-routes.js is the one
+  // list; converting a page adds it there, not here).
   if (!pathname) return null;
-  if (pathname === '/' || pathname === '/login') return null;
+  if (pathname === '/login') return null;
   if (pathname.startsWith('/sketches/')) return null;
-  // The splayed floor's shell strip is the page's only header (mirrors
-  // AuthNav); the `?ref=` viewport reading keeps the trail. The library wears
-  // the shell on every shelf — `?shelf=` is a filter, not a reading.
-  if (pathname === '/dashboard' && !searchParams.get('ref')) return null;
-  if (pathname === '/library') return null;
+  if (isShellPath(pathname)) return null;
 
   const matched = matchRoute(pathname);
   if (!matched) return null;
@@ -255,15 +252,5 @@ function BreadcrumbsBody() {
         ))}
       </ol>
     </nav>
-  );
-}
-
-// `useSearchParams` needs a Suspense boundary above it (the ViewportHome
-// pattern); the fallback is nothing because the trail is chrome, not content.
-export default function Breadcrumbs() {
-  return (
-    <Suspense fallback={null}>
-      <BreadcrumbsBody />
-    </Suspense>
   );
 }

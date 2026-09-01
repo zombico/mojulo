@@ -32,7 +32,6 @@ import WorkshopShell from '@/components/WorkshopShell';
 import { StatusBar } from '@/components/WorkshopChrome';
 import TurntableThumb, { useTurntableMode } from '@/components/TurntableCard';
 import { Swatch } from '@/components/MaterialShelf';
-import { DotRow } from '@/components/brand/DotRow';
 import { MATERIAL_PRESETS } from '@/lib/graph/materials/procedural-material';
 import { LIBRARY_ZONES, STRIP_LIMITS } from '@/lib/graph/sketch/library-zones';
 import { isViewportKind } from '@/lib/graph/sketch/outliner';
@@ -472,11 +471,10 @@ function ZoneHeader({ zoneKey, count }) {
  * One zone of the floor: its heavyweight header band, then its shelves behind
  * tabs — one strip at a time, so a zone never asks the operator to scroll past
  * every shelf it owns. A tab is the strip header it replaced, made selectable:
- * the same 14px name, the same dot-row share of the zone beside its own number
- * (§7c's proportion-not-precision rule — the dots compare shelves at a glance
- * precisely BECAUSE all of them stay visible on the band while only one strip
- * shows). Hue carries state: the resting tab is muted ink, the selected one is
- * lit and wears the live hue as a 1px underline riding ON the band's own rail
+ * the same 14px name with its plain mono count beside it (dot-row meters were
+ * retired 2026-09-01 at the maintainer's direction — numbers are enough). Hue
+ * carries state: the resting tab is muted ink, the selected one is lit and
+ * wears the live hue as a 1px underline riding ON the band's own rail
  * (`-mb-px`) — value swapped along a shared hairline, never a second border.
  * The active shelf's room link keeps the band's right edge.
  */
@@ -511,16 +509,9 @@ function ZoneSection({ zone, zoneTotal, counts, strips, loading, failed, onRetry
               }`}
             >
               {shelf(shelfKey)}
-              {shelfKey === 'materials' ? (
-                // The registry, not a share of the zone: presets aren't
-                // artifacts, so no dot row — just the count.
-                <span className="font-mono text-[11px] font-normal tabular-nums">{presetCount}</span>
-              ) : (
-                <>
-                  <DotRow part={counts[shelfKey] || 0} whole={zoneTotal || counts[shelfKey] || 0} />
-                  <span className="font-mono text-[11px] font-normal tabular-nums">{counts[shelfKey] ?? 0}</span>
-                </>
-              )}
+              <span className="font-mono text-[11px] font-normal tabular-nums">
+                {shelfKey === 'materials' ? presetCount : counts[shelfKey] ?? 0}
+              </span>
             </button>
           );
         })}
@@ -573,23 +564,21 @@ export default function SplayedFloor({ authEnabled = false }) {
   const zones = floor?.zones || {};
 
   return (
-    <main className="px-4 py-6 sm:px-8 sm:py-10">
-      {/* One SHELL for the whole floor — the same object the front door is: its
-          top strip is the page's only header (AuthNav and the breadcrumb bar
-          stand down on the floor), and the bench band, each zone and the status
-          bar are its regions, divided by hairlines they share
-          (3d-factory-ui.plan.md §7c). Padding lives on the regions, never
-          between them. */}
-      {/* Wider than the front door's 1040px shell: the directory is a page you
-          read and leave, the floor is a gallery — same object, more bench. The
-          shell carries its own nav rail, toggled from the brand mark. */}
-      <WorkshopShell
-        className="mx-auto w-full max-w-[1400px]"
-        authEnabled={authEnabled}
-        packs={home.status?.packs || []}
-        total={home.library?.total}
-        crumb={t('crumb')}
-      >
+    /* One SHELL for the whole floor — the same object the front door is: its
+       top strip is the page's only header (AuthNav and the breadcrumb bar
+       stand down on the floor), and the bench band, each zone and the status
+       bar are its regions, divided by hairlines they share
+       (3d-factory-ui.plan.md §7c). Padding lives on the regions, never between
+       them. Wider than the front door's 1040px: the directory is a page you
+       read and leave, the floor is a gallery — same object, more bench. */
+    <WorkshopShell
+      posture="scroll"
+      width={1400}
+      authEnabled={authEnabled}
+      packs={home.status?.packs || []}
+      total={home.library?.total}
+      crumb={t('crumb')}
+    >
         <div className="moj-part-b px-4 py-3">
         {/* the bench — the one live frame, and what was just touched */}
         <h2 className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
@@ -622,8 +611,7 @@ export default function SplayedFloor({ authEnabled = false }) {
           />
         ))}
 
-        <StatusBar status={home.status} queue={home.queue} library={home.library} note={t('capNote')} />
-      </WorkshopShell>
-    </main>
+      <StatusBar status={home.status} queue={home.queue} library={home.library} note={t('capNote')} />
+    </WorkshopShell>
   );
 }

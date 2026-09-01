@@ -26,7 +26,8 @@
  *     and has not been. So it appears twice: behind the ghosted mark on the
  *     dashboard plate (the floor is where minted things land) and under the
  *     amber ask card. Never behind a door: a door is not latent space.
- *   · Dot rows are proportions paired with their number, never decoration.
+ *   · Counts are plain mono numbers. (Dot-row proportion meters were retired
+ *     2026-09-01 at the maintainer's direction — numbers are enough.)
  *   · Hue carries STATE. Doors are ink at rest and take their mode's hue on
  *     hover; the one thing wearing a lit hue at rest is the ask card, because
  *     it is the only affordance that needs the agent to act.
@@ -42,7 +43,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
 
-import { DotRow } from '@/components/brand/DotRow';
 import IconRelief from '@/components/brand/IconRelief';
 import MojuloMark from '@/components/brand/MojuloMark';
 import { CopyPrompt, StatusBar } from '@/components/WorkshopChrome';
@@ -188,14 +188,12 @@ export function NavStrip({ isNav, authEnabled, packs, total, crumb, navOpen = fa
 /**
  * The one card on the page, and the only place the field texture is earned: the
  * floor is where minted artifacts land, so the plate the link sits on is latent
- * space with the mark condensing out of it. The zone tallies are dot rows
- * against the library total — a proportion read beside its own number, and the
- * only description this door needs.
+ * space with the mark condensing out of it. The zone tallies are plain mono
+ * numbers — the only description this door needs.
  */
 function DashboardPlate({ library }) {
   const t = useTranslations('home');
   const tz = useTranslations('floor.zones');
-  const total = library?.total ?? 0;
   const zones = zoneCounts(library?.counts || {});
 
   return (
@@ -224,16 +222,11 @@ function DashboardPlate({ library }) {
           </Micro>
         </span>
 
-        {/* Each row is a part of the SAME whole (the library total), which is
-            what makes the two comparable at a glance. */}
         <span className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {LIBRARY_ZONES.map((zone) => (
-            <span key={zone.key} className="inline-flex items-center gap-2">
-              <DotRow part={zones[zone.key] || 0} whole={total} />
-              <span className="font-mono text-[10px] tabular-nums text-[color:var(--ink-muted)]">
-                <span className="text-[color:var(--ink-secondary)]">{zones[zone.key] || 0}</span>{' '}
-                {tz(zone.key)}
-              </span>
+            <span key={zone.key} className="font-mono text-[10px] tabular-nums text-[color:var(--ink-muted)]">
+              <span className="text-[color:var(--ink-secondary)]">{zones[zone.key] || 0}</span>{' '}
+              {tz(zone.key)}
             </span>
           ))}
         </span>
