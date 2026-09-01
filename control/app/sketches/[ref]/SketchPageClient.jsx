@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import CreationMap from '@/components/graph/CreationMap';
 import DisplayModes from '@/components/DisplayModes';
+import WorldViewStrip, { useWorldViewProtocol } from '@/components/WorldViewStrip';
 import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 import { pickMode, resolveDisplayModes } from '@/lib/graph/sketch/display-modes';
 
@@ -167,6 +168,10 @@ export default function SketchPageClient({
   const [frameLoaded, setFrameLoaded] = useState(false);
   const [frameFailed, setFrameFailed] = useState(false);
   const frameRef = useRef(null);
+  // The view-cube preset strip, protocol-gated: keyed on the display-mode frame
+  // only, so the beats/game/play frames (which share frameRef but never announce
+  // ready) can't enable it.
+  const world = useWorldViewProtocol(frameRef, view?.kind === 'iframe' ? view.src : null);
   useEffect(() => {
     setFrameLoaded(false);
     setFrameFailed(false);
@@ -344,6 +349,7 @@ export default function SketchPageClient({
               onError={() => setFrameFailed(true)}
               className="absolute inset-0 h-full w-full border-0"
             />
+            <WorldViewStrip ready={world.ready} send={world.send} />
             {!frameLoaded && !frameFailed && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
                 <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[color:var(--text-muted)] border-t-transparent motion-reduce:animate-none" />

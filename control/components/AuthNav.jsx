@@ -8,40 +8,19 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import MojuloMark from '@/components/brand/MojuloMark';
 import WorkshopDrawer from '@/components/WorkshopDrawer';
 
-function HomeIcon({ className = 'h-5 w-5' }) {
-  // Mojulo favicon (3-card stack with teal gradient) — keeps the brand
-  // visual identical to the tab favicon.
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="160 115 70 70"
-      className={className}
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="authNavCardBack" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#1d6f68" />
-          <stop offset="0.55" stopColor="#134e4a" />
-          <stop offset="1" stopColor="#0a2a28" />
-        </linearGradient>
-        <linearGradient id="authNavCardMid" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7af0dc" />
-          <stop offset="0.5" stopColor="#2dd4bf" />
-          <stop offset="1" stopColor="#138a78" />
-        </linearGradient>
-        <linearGradient id="authNavCardFront" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#b9f5e8" />
-          <stop offset="0.5" stopColor="#5eead4" />
-          <stop offset="1" stopColor="#26b8a0" />
-        </linearGradient>
-      </defs>
-      <rect x="-9.25" y="-19.55" width="11" height="40" rx="7.75" fill="url(#authNavCardBack)" transform="translate(183.8, 150) rotate(17)" />
-      <rect x="-6.45" y="-21.55" width="11" height="40" rx="7.75" fill="url(#authNavCardMid)" transform="translate(191, 150) rotate(340)" />
-      <rect x="-6.00" y="-21.55" width="11" height="40" rx="7.75" fill="url(#authNavCardFront)" transform="translate(206.3, 150) rotate(340)" />
-    </svg>
-  );
+function HomeIcon() {
+  // The 2.0 mark — the dot-relief `m` (3d-factory-ui.plan.md §7c), baked by
+  // scripts/build-brand-mark.mjs. 28px is the measured floor at which the
+  // halftone still resolves; below it MojuloMark switches to the solid reading
+  // of the same skeleton, so the nav can never show mush.
+  //
+  // Deliberately NO sizing class: the old icon took `h-5 w-5`, which would both
+  // shrink the lattice past its floor and squash a 18:15 mark into a square.
+  // The mark carries its own size and aspect.
+  return <MojuloMark size={28} className="text-[color:var(--ink-primary)]" />;
 }
 
 function GearIcon({ className = 'h-4 w-4' }) {
@@ -95,9 +74,10 @@ export default function AuthNav({ authEnabled = false }) {
   // artifact (e.g. a minted sketch) and the surrounding nav would distract
   // from the thing they came to see. Skip rendering chrome on these paths.
   if (pathname && pathname.startsWith('/sketches/')) return null;
-  // Home (Workshop Home) keeps the top bar: the launcher's own heading now
-  // reads "Workshop Home", so the nav brand is what carries the Mojulo
-  // wordmark, and its Settings/sign-out replace the launcher's old tile.
+  // The front door IS the nav: its shell's top strip carries the brand, the
+  // locator, the install pills, Settings and the sign-out (WorkshopHome's
+  // NavStrip). Rendering this bar above it would describe the app twice.
+  if (pathname === '/') return null;
 
   async function onLogout() {
     try {

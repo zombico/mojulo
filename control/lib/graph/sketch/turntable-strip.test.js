@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   resolveTurntable, isTurnable, stripSize, stripEndPercent, stripStyleVars,
-  TURNTABLE_FRAMES, TURNTABLE_CELL, TURNTABLE_REST_FRAME,
+  TURNTABLE_FRAMES, TURNTABLE_CELL, TURNTABLE_REST_FRAME, TURNTABLE_FPS,
 } from '@/lib/graph/sketch/turntable-strip';
 
 describe('resolveTurntable', () => {
@@ -63,11 +63,15 @@ describe('resolveTurntable', () => {
     expect(resolveTurntable()).toBeNull();
   });
 
-  it('carries the playback contract: 16 frames at 24fps is a 667ms turn', () => {
+  it('carries the playback contract: 16 frames at 6fps is a ~2.7s turn, not a 667ms whip', () => {
     const r = resolveTurntable({ manifest: { kind: 'fractal-city' }, ref: 'sk_h' });
+    expect(r.frames).toBe(TURNTABLE_FRAMES);
     expect(r.frames).toBe(16);
-    expect(r.fps).toBe(24);
-    expect(r.durationMs).toBe(667);
+    expect(r.fps).toBe(TURNTABLE_FPS);
+    expect(r.durationMs).toBe(Math.round((TURNTABLE_FRAMES / TURNTABLE_FPS) * 1000));
+    // A turntable is inspected, not flicked past: 6fps, ~2.7s per revolution.
+    expect(r.fps).toBe(6);
+    expect(r.durationMs).toBe(2667);
   });
 });
 

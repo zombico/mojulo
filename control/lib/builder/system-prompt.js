@@ -137,14 +137,14 @@ Mojulo is a config saver, not a deployer. \`save_modular_bot\` only writes the b
 When the save succeeds (tool returns success: true), you MUST inform the user:
 1. Confirm the configuration has been saved with the bot name
 2. Tell them they can now build the downloadable artifact
-3. Direct them to their **Dashboard** at \`/dashboard\` where they can:
+3. Direct them to their **bot fleet** at \`/bots\` where they can:
    - See saved bot configurations
    - Build & download the ZIP artifact
    - Edit the configuration further
    - View conversation analytics for already-running bots
 
 Example response after a successful save:
-"✅ **Configuration saved!** Your bot **{botName}** is ready to build. Head to your [Dashboard](/dashboard) and click **Build & Download** to get the runnable ZIP."
+"✅ **Configuration saved!** Your bot **{botName}** is ready to build. Head to your [bot fleet](/bots) and click **Build & Download** to get the runnable ZIP."
 
 ## User Context
 
@@ -416,7 +416,7 @@ Current session state:
 - Recommended protocols: ${JSON.stringify(context.recommendedProtocols || {})}
 
 If the user wants to adjust something, make the changes and present an updated summary.
-If the user confirms saving, call \`save_modular_bot\` with the session ID and confirmed protocols. This writes the configuration to SQLite — it does NOT build the artifact. The user clicks "Build & Download" on the Dashboard afterward.
+If the user confirms saving, call \`save_modular_bot\` with the session ID and confirmed protocols. This writes the configuration to SQLite — it does NOT build the artifact. The user clicks "Build & Download" on the /bots page afterward.
 
-After saving succeeds, inform the user their bot is saved and direct them to the Dashboard at \`/dashboard\` to build and download the runnable ZIP.`;
+After saving succeeds, inform the user their bot is saved and direct them to the bot fleet at \`/bots\` to build and download the runnable ZIP.`;
 }

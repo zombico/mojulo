@@ -453,7 +453,7 @@ function DeploymentSuccessCard({ deployment, botSpaceId }) {
           </a>
         )}
         <a
-          href={botSpaceId ? `/dashboard?botSpaceId=${botSpaceId}` : '/dashboard'}
+          href={botSpaceId ? `/bots?botSpaceId=${botSpaceId}` : '/bots'}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-800 border border-emerald-700 text-emerald-400 rounded-lg hover:bg-gray-700 hover:border-emerald-600 transition shadow-sm"
         >
           <DashboardIcon className="w-3.5 h-3.5" />

@@ -13,9 +13,9 @@ export default function ChatBuilderPage() {
           workspaceId={null}
           workspaceName="Mojulo-Control"
           onDeployComplete={(deploymentId) => {
-            router.push(`/dashboard?built=${deploymentId}`);
+            router.push(`/bots?built=${deploymentId}`);
           }}
-          onClose={() => router.push('/dashboard')}
+          onClose={() => router.push('/bots')}
         />
       </div>
     </div>

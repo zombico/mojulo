@@ -33,6 +33,7 @@ const ROUTES = [
     ],
   },
   { tpl: '/bots', trail: [{ labelKey: 'home.tiles.bots' }] },
+  { tpl: '/dashboard', trail: [{ labelKey: 'home.tiles.dashboard' }] },
   {
     tpl: '/bot-factory/modular',
     trail: [

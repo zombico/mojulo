@@ -98,7 +98,7 @@ export default function ModularBotCreationWizard() {
   // Set breadcrumbs
   useEffect(() => {
     const crumbs = [
-      { label: 'Dashboard', href: '/dashboard' },
+      { label: 'Dashboard', href: '/bots' },
     ];
 
     if (formData.botName) {

@@ -100,9 +100,17 @@ function Dot({ signal }) {
   );
 }
 
+/**
+ * One lane of the bay. Per the blocking rule (3d-factory-ui.plan.md §7c) a lane
+ * is a REGION inside the page's single frame, not a box of its own: it carries
+ * no radius, no side borders and no background, and it is divided from the next
+ * lane by one hairline it contributes (`moj-part-b`, dropped on the last child).
+ * That is what makes the three lanes read as one instrument rather than as three
+ * cards that happen to be stacked.
+ */
 function Bay({ title, note, count, children }) {
   return (
-    <section className="rounded-[var(--radius-bay)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)]">
+    <section className="moj-part-b">
       <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-[color:var(--bay-rail)] px-4 py-3">
         <h2 className="font-mono text-[11px] uppercase tracking-[0.24em] text-[color:var(--ink-secondary)]">
           {title}
@@ -125,7 +133,7 @@ function Empty({ children }) {
  * three lanes don't sit blank under just a header for however long that takes. */
 function SkeletonBay({ title, rows = 3 }) {
   return (
-    <section className="rounded-[var(--radius-bay)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)]">
+    <section className="moj-part-b">
       <header className="border-b border-[color:var(--bay-rail)] px-4 py-3">
         <h2 className="font-mono text-[11px] uppercase tracking-[0.24em] text-[color:var(--ink-secondary)]">
           {title}
@@ -537,7 +545,8 @@ function RenderBayBody() {
         </p>
       )}
 
-      <div className="flex flex-col gap-6">
+      {/* One frame; the lanes partition it. No gap — regions meet at the rule. */}
+      <div className="moj-frame">
         {loading && !data ? (
           <>
             <SkeletonBay title={t('queue.title')} rows={4} />

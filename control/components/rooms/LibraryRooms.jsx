@@ -20,11 +20,12 @@
  */
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import CreationMap from '@/components/graph/CreationMap';
 import TurntableThumb, { useTurntable } from '@/components/TurntableCard';
+import WorldViewStrip, { useWorldViewProtocol } from '@/components/WorldViewStrip';
 import { buildOutliner, groupOutliner } from '@/lib/graph/sketch/outliner';
 import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 import {
@@ -210,6 +211,26 @@ function OpenRecipeLink({ refId, className = '' }) {
 }
 
 /**
+ * The bench deep view — `/dashboard?ref=` opens the artifact in the floor's
+ * outliner/viewport/inspector panes (phase 6 said "the Library doesn't link
+ * back"; this is the link back). New tab for the same reason as the recipe
+ * link: the room's scroll position must survive the excursion.
+ */
+function OpenBenchLink({ refId, className = '' }) {
+  const t = useTranslations('rooms');
+  return (
+    <Link
+      href={`/dashboard?ref=${encodeURIComponent(refId)}`}
+      target="_blank"
+      rel="noreferrer"
+      className={`font-mono text-[11px] text-[color:var(--live)] hover:underline ${className}`}
+    >
+      {t('openBench')}
+    </Link>
+  );
+}
+
+/**
  * The room modal — selection opens OVER the grid, never above it. A card deep
  * in a thousand-model wall must not teleport its details to the top of the
  * page (the first cut did, and the operator had to scroll up to see them).
@@ -367,7 +388,8 @@ function WallRoom({ sketches }) {
                   </span>
                 </>
               )}
-              <OpenRecipeLink refId={active.ref} className="ml-auto" />
+              <OpenBenchLink refId={active.ref} className="ml-auto" />
+              <OpenRecipeLink refId={active.ref} />
             </div>
             {sel.siblings.length > 1 && (
               <div className="mt-3">
@@ -418,7 +440,12 @@ function BoardRoom({ sketches }) {
   );
   const mode = active ? sketchRenderMode(active.manifest) : null;
   const live = mode === 'world' || mode === 'scene';
+  const focusSrc = live ? `/api/sketches/${encodeURIComponent(active.ref)}/${mode}` : null;
   const [frameLoaded, setFrameLoaded] = useState(false);
+  const frameRef = useRef(null);
+  // The view-cube preset strip, protocol-gated: only a /world frame announces
+  // ready, so a CSS-3D scene keeps its plain frame (phase 8 left this seam open).
+  const { ready: viewReady, send: sendView } = useWorldViewProtocol(frameRef, focusSrc);
   useEffect(() => { setFrameLoaded(false); }, [active?.ref]);
 
   return (
@@ -433,12 +460,14 @@ function BoardRoom({ sketches }) {
             {live ? (
               <div className="relative min-h-0 flex-1">
                 <iframe
+                  ref={frameRef}
                   key={active.ref}
-                  src={`/api/sketches/${encodeURIComponent(active.ref)}/${mode}`}
+                  src={focusSrc}
                   title={active.title}
                   onLoad={() => setFrameLoaded(true)}
                   className="h-full w-full border-0"
                 />
+                <WorldViewStrip ready={viewReady} send={sendView} />
                 {!frameLoaded && (
                   <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
                     <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[color:var(--ink-muted)] border-t-transparent motion-reduce:animate-none" />
@@ -465,7 +494,8 @@ function BoardRoom({ sketches }) {
                   {t('openWorld')}
                 </a>
               )}
-              <OpenRecipeLink refId={active.ref} className={live ? '' : 'ml-auto'} />
+              <OpenBenchLink refId={active.ref} className={live ? '' : 'ml-auto'} />
+              <OpenRecipeLink refId={active.ref} />
             </div>
           </div>
           <aside className="w-full shrink-0 lg:w-[280px]">

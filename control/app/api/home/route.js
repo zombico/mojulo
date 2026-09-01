@@ -12,6 +12,8 @@
  *
  * Query params:
  *   - ref=<sketch ref>   open on a specific artifact instead of the head
+ *   - shallow=1          counts only — skip the head artifact and its outcome
+ *                        scan (what the Workshop Home directory reads)
  */
 
 import { NextResponse } from 'next/server';
@@ -71,8 +73,13 @@ function statusBar() {
 
 export async function GET(request) {
   try {
-    const wantedRef = new URL(request.url).searchParams.get('ref');
-    const head = headArtifact(wantedRef);
+    const params = new URL(request.url).searchParams;
+    const wantedRef = params.get('ref');
+    // `shallow=1` — counts only. The Workshop Home directory draws the status
+    // bar and the shelf tallies and never opens a viewport, so it has no reason
+    // to pay for head resolution or the outcome directory scan.
+    const shallow = params.get('shallow') === '1';
+    const head = shallow ? null : headArtifact(wantedRef);
     const tallies = SketchRepository.bucketCounts();
     const outcome = head ? await scanOneOutcome(head.ref) : null;
 

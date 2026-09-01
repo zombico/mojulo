@@ -401,7 +401,7 @@ export default function Deploy({ stepConfig, deploymentId = null, isEditMode = f
               )}
               <button
                 type="button"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/bots')}
                 className="flex-1 min-w-[120px] px-4 py-2 bg-gray-700 text-gray-100 text-sm font-semibold rounded-md hover:bg-gray-600 transition"
               >
                 {t('viewDeployments')}

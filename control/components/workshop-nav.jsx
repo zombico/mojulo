@@ -1,8 +1,9 @@
 // Shared Workshop navigation model — the single source of truth for the three
 // modes (Studio / Ideate / Operate) and their destinations. Rendered two ways:
-// the home launcher (HomeLauncher.jsx) and the global slide-out (WorkshopDrawer.jsx).
+// the home directory (WorkshopHome.jsx) and the global slide-out (WorkshopDrawer.jsx).
 // Each tile carries an i18n `key` (resolved as home.groups.<key> / home.tiles.<key>),
-// an href, and its line icon.
+// an href, and the NAME of its icon in DOOR_ICONS (see that registry for why a
+// name and not the component).
 //
 // STUDIO LEADS. Mojulo is a 3D factory; the making surface is the product, so it is
 // listed first, opened by default, and never gated — an empty studio is an
@@ -235,6 +236,19 @@ export function ArcadeIcon({ className = 'h-10 w-10' }) {
   );
 }
 
+export function FloorIcon({ className = 'h-10 w-10' }) {
+  // The splayed floor: shelf strips receding on a floor plane — the dashboard's
+  // own shape, so the row that opens it is drawn as the thing it opens.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M3 5h18" />
+      <path d="M4 9.5h16" />
+      <path d="M5 14h14" />
+      <path d="M6 18.5h12" />
+    </svg>
+  );
+}
+
 // --- Mode (group) icons ---
 
 export function IdeateIcon({ className = 'h-12 w-12' }) {
@@ -304,6 +318,34 @@ export function BrandMark({ className = 'w-8 h-8', idPrefix = 'wsnav' }) {
   );
 }
 
+/**
+ * The door icons by name. A tile NAMES its icon rather than holding the
+ * component, because a door is drawn two ways: as a dot-relief lattice on the
+ * home grid (baked per name by scripts/build-brand-icons.mjs) and as a line
+ * icon in dense chrome. A name is the only thing both readings can share — and
+ * carrying the name AND the component would be two fields free to drift.
+ *
+ * Group icons are NOT here: a mode header is drawn one way only, so it holds
+ * its component directly.
+ */
+export const DOOR_ICONS = {
+  AppsGridIcon,
+  ArcadeIcon,
+  BeatsIcon,
+  BotIcon,
+  ConnectedServicesIcon,
+  CookIcon,
+  FloorIcon,
+  GameDevIcon,
+  LibraryIcon,
+  MotionIcon,
+  NotebookIcon,
+  PlanIcon,
+  RenderBayIcon,
+  StashIcon,
+  VoiceIcon,
+};
+
 // The three modes. Settings is not here — it lives in the top nav (AuthNav) as
 // host chrome. See docs: Studio deep-links to the /maker/* routes (the "Maker"
 // wordmark is retired).
@@ -324,18 +366,18 @@ export const WORKSHOP_GROUPS = [
       // / Worlds / Objects). The vocabulary they carried did not vanish — it is
       // the chip row inside, where it costs no navigation. See
       // components/3d-factory-ui.plan.md §2.
-      { key: 'library', href: '/library', Icon: LibraryIcon },
-      { key: 'motion', href: '/maker/motion', Icon: MotionIcon },
-      { key: 'beats', href: '/maker/beats', Icon: BeatsIcon },
-      { key: 'voice', href: '/maker/voice', Icon: VoiceIcon },
-      { key: 'games', href: '/maker/games', Icon: GameDevIcon },
-      { key: 'arcade', href: '/arcade', Icon: ArcadeIcon },
+      { key: 'library', href: '/library', icon: 'LibraryIcon' },
+      { key: 'motion', href: '/maker/motion', icon: 'MotionIcon' },
+      { key: 'beats', href: '/maker/beats', icon: 'BeatsIcon' },
+      { key: 'voice', href: '/maker/voice', icon: 'VoiceIcon' },
+      { key: 'games', href: '/maker/games', icon: 'GameDevIcon' },
+      { key: 'arcade', href: '/arcade', icon: 'ArcadeIcon' },
       // The Render Bay watches production; /outputs stays the publication inbox
       // it has always been (its filters and its archive action are real, and the
       // bay does not mutate). The bay links into it rather than folding it. See
       // components/3d-factory-ui.plan.md §8 phase 5.
-      { key: 'renderBay', href: '/render-bay', Icon: RenderBayIcon },
-      { key: 'outputs', href: '/outputs', Icon: CookIcon },
+      { key: 'renderBay', href: '/render-bay', icon: 'RenderBayIcon' },
+      { key: 'outputs', href: '/outputs', icon: 'CookIcon' },
     ],
   },
   {
@@ -343,9 +385,9 @@ export const WORKSHOP_GROUPS = [
     Icon: IdeateIcon,
     hue: { base: 'var(--mode-ideate)', strong: 'var(--mode-ideate-strong)', idle: 'var(--mode-ideate-idle)' },
     tiles: [
-      { key: 'research', href: '/research', Icon: NotebookIcon },
-      { key: 'plan', href: '/plan', Icon: PlanIcon },
-      { key: 'stash', href: '/stashes', Icon: StashIcon },
+      { key: 'research', href: '/research', icon: 'NotebookIcon' },
+      { key: 'plan', href: '/plan', icon: 'PlanIcon' },
+      { key: 'stash', href: '/stashes', icon: 'StashIcon' },
     ],
   },
   {
@@ -353,9 +395,9 @@ export const WORKSHOP_GROUPS = [
     Icon: OperateIcon,
     hue: { base: 'var(--mode-operate)', strong: 'var(--mode-operate-strong)', idle: 'var(--mode-operate-idle)' },
     tiles: [
-      { key: 'bots', href: '/bots', Icon: BotIcon, presence: 'bots' },
-      { key: 'mcpSkills', href: '/mcp-skills', Icon: ConnectedServicesIcon, presence: 'services' },
-      { key: 'apps', href: '/apps', Icon: AppsGridIcon, presence: 'apps' },
+      { key: 'bots', href: '/bots', icon: 'BotIcon', presence: 'bots' },
+      { key: 'mcpSkills', href: '/mcp-skills', icon: 'ConnectedServicesIcon', presence: 'services' },
+      { key: 'apps', href: '/apps', icon: 'AppsGridIcon', presence: 'apps' },
     ],
   },
 ];

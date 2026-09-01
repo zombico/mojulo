@@ -168,7 +168,7 @@ run against a real photo.
   stayed under their allowlist snapshots (the contracts are taught in the
   protocol RESULT, not the list).
 
-### 3D factory UI — the surface learns the vocabulary (phases 1-6)
+### 3D factory UI — the surface learns the vocabulary (phases 1-9)
 
 The dashboard now speaks the colloquial vocabulary of 3D work while the spine
 underneath is unchanged: no primitive renamed, no tool signature moved, no
@@ -232,6 +232,78 @@ build log: `components/3d-factory-ui.plan.md`.
   toggle relabels to **Room / Full folder view**, so management (folders,
   bulk move/delete) stays one click away and the Recent shelf keeps the
   classic gallery.
+- **The floor moved to `/dashboard`; `/` is a directory (phase 9).** The floor is
+  what you open to SEE the workshop, which made it a poor thing to stand between
+  the operator and every other page. So `/` is now **Workshop Home**: one frame,
+  every door as a link row grouped by mode, an icon and a mono line saying what
+  is behind it, the route itself on the right edge, the library's 3D/2D tallies
+  on the plate that opens the floor, and one amber copy-prompt card. Drawn in
+  the brand system stated plainly — the Ben-Day field only where something can
+  be minted, dot rows only as proportions beside their own number, a lit hue
+  only as a state claim. `/dashboard` no longer redirects to `/bots` (everything
+  that meant "take me to the fleet" now says `/bots`, and the nested
+  `/dashboard/*` bot pages are unchanged); `/?ref=` moved with the floor to
+  `/dashboard?ref=`. `/api/home?shallow=1` serves counts without resolving a
+  head artifact or scanning outcomes. The old tile launcher (`HomeLauncher`) is
+  retired — the directory replaces it, including as the empty-workshop fallback,
+  so the two can no longer disagree about what exists.
+- **The mark is ink; the surface owns the field.** `MojuloMark` used to render
+  its latent cells as well, so the `m` carried a miniature dot field wherever it
+  went — a rectangular patch with a hard edge on a plain surface, and two
+  lattices at different pitches on a `.moj-field` plate. `--field-dot` means
+  "space that can be minted into", which is a fact about a surface; a logo
+  asserting it claims to be latent space, and the mark is the thing that already
+  exists. The `field` prop is gone: put `.moj-field` on the plate behind the
+  mark and get one lattice with the letterform condensed out of it.
+- **The doors are reliefs too, and the home is a grid.** The icons were 1.25px
+  hairlines that could have belonged to any dark dashboard, so the brand stopped
+  at the logo. `scripts/build-brand-icons.mjs` now bakes every icon in
+  workshop-nav.jsx into a 24-cell lattice with the mark's own radius ramp
+  (`lib/brand/icon-dots.js`), drawn by `IconRelief` — a door and the `m` are
+  samples of one instrument. The bake reads the React components rather than
+  keeping a second copy of the geometry, with a strict parser that throws on
+  anything it does not understand and a pinned re-bake test, so an icon that
+  changes shape without a re-bake fails in CI. A tile now NAMES its icon
+  (`DOOR_ICONS`) instead of holding the component, since a door is drawn two
+  ways and a name is the only thing both readings can share. Above the lattice's
+  floor the grid draws the relief; below it, the line icon unchanged — the same
+  two-readings rule `MojuloMark` already follows. The home's link rows became a
+  grid of plates with names and no descriptions: a door needs its face and its
+  name, and a list's spare width pulled in prose that made the front door a
+  document to read instead of a rack to scan.
+  - *Measured, then cut:* the first bake fattened strokes 2.1x to give the
+    lattice mass and turned every form into a lozenge; the mass moved into the
+    radius ramp instead (fatten 1.3, gamma 0.45), which is why the gamepad still
+    has a hollow. A dot-stroke reading for dense chrome was built and dropped —
+    at 18px it puts a 0.9px dot every 1.5px and aliases to a grey smear at 1x.
+- **The front door IS the nav, and the drawer is the same rack.** The whole home
+  is one curved shell (`--radius-shell`, `.moj-shell`) whose top strip carries
+  the brand, the locator, the install pills and **Settings** — so AuthNav stands
+  down at `/` rather than stacking a second bar over a page whose entire job is
+  "here are the doors". Settings stays chrome instead of becoming a thirteenth
+  door (a mode holds what the agent MAKES), and `/` has no drawer trigger at
+  all: on the rack itself the drawer would open a copy of the page behind it.
+  The drawer now renders the SAME `DoorGrid` component at three columns in its
+  own floating shell, so the two surfaces can no longer drift in shape the way
+  they already could not drift in contents.
+- **Fewer things counted at you.** The per-mode door counts are gone (a count of
+  doors beside a grid of doors is the page counting what you can already see),
+  the Dashboard plate's prose blurb is gone (its zone dot-rows say it better),
+  and the ask card is one line.
+- **The view-cube strip — a named not-done closes.** The camera lives inside
+  the `/world` iframe's own three.js context and nothing outside could reach
+  it; embedded frames now speak a three-message postMessage protocol
+  (`lib/graph/scene/view-cube-contract.js`, the same `{moj}` dialect as the
+  game shell's level contract): the frame announces `world-view-ready` with
+  its REAL render groups, the parent asks for ¾ / Front / Side / Top
+  (`world-view`) or isolates one render group (`world-focus`).
+  `WorldViewStrip` draws the strip on the viewport home, the location
+  board's focus modal, and the artifact detail page — protocol-gated, so a
+  CSS-3D frame, a plain image, or a frame that failed to boot never grows
+  buttons that do nothing. In the frame, focus outranks the cutaway (an
+  isolated wall holds full opacity from any angle; siblings dim to a floor
+  instead of auto-hiding), and the view fit separates the subject from the
+  studio floor the same way the `?spin=1` showcase fit does.
 - **Fixed: artifact pages opened in their own tab were stuck on a spinner.**
   On a full page load the SSR'd viewer iframe could finish loading before
   React hydrated and attached `onLoad`, so the loading overlay never cleared

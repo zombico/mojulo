@@ -40,10 +40,24 @@
   --seal: #d8b4fe;          /* durable record · entity */
   --fault: #f87171;         /* error · rejected render */
 
+  /* Brand layer — the latent field (3d-factory-ui.plan.md §7c). The Ben-Day dot
+     lattice means exactly ONE thing: space that can be minted into and has not
+     been yet. Two densities: `--field-dot` where the invitation is the point (an
+     empty viewport, an empty shelf, a thumbnail plate), `--field-dot-faint`
+     where it is a backdrop behind something live. Never on a deliberation
+     surface — plans are words, not artifacts, and nothing mints there. */
+  --field-dot: #2c3540;
+  --field-dot-faint: #1e2530;
+
   /* Geometry. Hairlines are 1px, always. */
   --radius-control: 4px;
   --radius-card: 8px;
   --radius-bay: 12px;
+  /* The outermost frame that holds a WHOLE surface — the front door and the nav
+     drawer. Curved enough to read as one object you opened rather than a panel
+     welded to the window, which is the distinction the inner radii cannot make
+     because they are all nested inside it. */
+  --radius-shell: 20px;
 
   /* ── Legacy names, re-pointed ──────────────────────────────────────────────
      Components already read these, so keeping the names moves the whole palette
@@ -128,7 +142,7 @@
 /* Mode-hue nav system. A mode section/button sets --h (base), --h-strong, and
    --h-idle inline; these classes read them so hover/active states pick up the
    mode color without per-instance utility soup. Used by the Workshop drawer
-   (WorkshopDrawer.jsx) and the home launcher (HomeLauncher.jsx). */
+   (WorkshopDrawer.jsx) and the home directory (WorkshopHome.jsx). */
 .ws-mode-label { color: var(--h); }
 .ws-mode-idle-ico { color: var(--h-idle); transition: color 0.12s; }
 
@@ -148,20 +162,25 @@
 .ws-row.is-active .ws-row-box { color: var(--h); border-color: var(--h); }
 .ws-row:hover .ws-row-box { color: var(--h); border-color: var(--h); }
 
-/* Home-launcher mode tiles (buttons) + the panel tiles below them */
-.ws-modebtn { transition: border-color 0.12s, background-color 0.12s, transform 0.12s; }
-.ws-modebtn-ico { color: var(--h-idle); transition: color 0.12s; }
-.ws-modebtn-label { color: var(--text-secondary); transition: color 0.12s; }
-.ws-modebtn:hover { border-color: var(--h); transform: translateY(-2px); }
-.ws-modebtn:hover .ws-modebtn-ico { color: var(--h); }
-.ws-modebtn.is-active {
-  border-color: var(--h);
-  background: color-mix(in srgb, var(--h) 6%, transparent);
-  box-shadow: inset 0 0 0 1px var(--h);
+/* Door plates — the home grid's cell. The plate is the surface, so it carries
+   the hairline and the hue; the relief inside takes currentColor and needs no
+   rule of its own. */
+.ws-door .ws-door-plate {
+  color: var(--ink-muted);
+  border-color: var(--border-color);
+  transition: color 0.12s, border-color 0.12s, background-color 0.12s;
 }
-.ws-modebtn.is-active .ws-modebtn-ico { color: var(--h); }
-.ws-modebtn.is-active .ws-modebtn-label { color: var(--text-primary); }
+.ws-door .ws-door-name { color: var(--text-secondary); transition: color 0.12s; }
+.ws-door:hover .ws-door-plate {
+  color: var(--h);
+  border-color: var(--h);
+  background: color-mix(in srgb, var(--h) 6%, var(--bay-void));
+}
+.ws-door:hover .ws-door-name { color: var(--text-primary); }
+.ws-door.is-active .ws-door-plate { color: var(--h); border-color: var(--h); }
+.ws-door.is-active .ws-door-name { color: var(--text-primary); }
 
+/* Tile boxes — the /maker hub and the /games studio's category picker. */
 .ws-tile .ws-tile-box {
   color: var(--h-idle);
   border-color: var(--border-color);
@@ -207,7 +226,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ws-modebtn:hover { transform: none; }
   /* Frozen at frame 0 — which is the world's own authored camera framing (or a
      ¾ of its bounds), so the still is the best single view and the fallback is
      not a downgrade. The card also never requests a strip in this mode. */
@@ -227,4 +245,72 @@ body {
   /* Geist is loaded in layout.jsx and bridged above; the old Arial/Helvetica
      stack silently overrode it on every page. */
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Brand layer (3d-factory-ui.plan.md §7c) ──────────────────────────────────
+
+   Three primitives: the frame (blocking), the field (latent space), and the dot
+   readouts (which live in components/brand/, since they carry data).
+
+   The blocking rule, in one line: a surface is ONE bordered frame divided into
+   regions by hairlines those regions SHARE. A region is defined by the rule
+   beside it, not by a border of its own plus a gap — which is what tells you two
+   regions are parts of one instrument rather than two documents sitting near
+   each other. Padding, never margin; one shadow, on the frame; elevation by
+   value (void → floor → bench), never by stacking shadows. */
+
+.moj-frame {
+  border: 1px solid var(--bay-rail-lit);
+  border-radius: var(--radius-bay);
+  overflow: hidden;
+  background: var(--bay-floor);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.35);
+}
+
+/* A frame that holds a whole surface: the same instrument at shell radius. Used
+   by the front door and by the nav drawer, which is that surface on its side. */
+.moj-shell {
+  border: 1px solid var(--bay-rail-lit);
+  border-radius: var(--radius-shell);
+  overflow: hidden;
+  background: var(--bay-floor);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
+}
+
+/* A partition inside a frame. ONE side contributes the rule, so two adjacent
+   regions never both draw a border and a division is never 2px. `:last-child`
+   drops it, which is what makes these safe to apply with a map(). */
+.moj-part-r { border-right: 1px solid var(--bay-rail); }
+.moj-part-r:last-child { border-right: 0; }
+.moj-part-b { border-bottom: 1px solid var(--bay-rail); }
+.moj-part-b:last-child { border-bottom: 0; }
+
+/* The latent field. 11px lattice, matching the mark's own dot pitch, so a plate
+   and the mark read as samples of one system.
+
+   The field is the SURFACE's, never a component's: the mark draws ink and only
+   ink (see components/brand/MojuloMark.jsx), so an `m` on a field plate is one
+   lattice with the letterform condensed out of it, not two grids at different
+   pitches overlapping. Put `.moj-field` on the plate; never inside the thing
+   standing on it. */
+.moj-field {
+  background-image: radial-gradient(circle, var(--field-dot) 1px, transparent 1.4px);
+  background-size: 11px 11px;
+}
+.moj-field-faint {
+  background-image: radial-gradient(circle, var(--field-dot-faint) 1px, transparent 1.4px);
+  background-size: 11px 11px;
+}
+
+/* The boot gesture: the field sweeps in, content pops over it. ONCE per session
+   on the home surface — a local dashboard is opened hundreds of times a day and
+   a per-navigation animation becomes a tax within the hour. */
+@keyframes moj-field-in {
+  from { opacity: 0; background-size: 22px 22px; }
+  to   { opacity: 1; background-size: 11px 11px; }
+}
+.moj-field-boot { animation: moj-field-in 420ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .moj-field-boot { animation: none; }
 }

@@ -41,6 +41,7 @@ import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, co
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
 import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO } from './capture-contract.js';
 import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
+import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS } from './view-cube-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
 import {
@@ -851,7 +852,11 @@ function updateCutaway() {
     const m = meshes[grp.name], n = grp.normal;
     const dx = camera.position.x - grp.center[0], dy = camera.position.y - grp.center[1], dz = camera.position.z - grp.center[2];
     const camOutside = -(dx * n[0] + dy * n[1] + dz * n[2]) > 0; // camera on the wall's outward side
-    const target = autoCut ? (camOutside ? 0 : 1) : (manualHidden.has(grp.name) ? 0 : 1);
+    // Focus outranks the cutaway: an isolated wall holds full opacity from any
+    // angle, its siblings dim to the focus floor rather than auto-hiding to zero.
+    const target = __focusGroup
+      ? (grp.name === __focusGroup ? 1 : 0.08)
+      : (autoCut ? (camOutside ? 0 : 1) : (manualHidden.has(grp.name) ? 0 : 1));
     m.material.opacity += (target - m.material.opacity) * 0.18;
     m.visible = !wireframeOn && m.material.opacity > 0.02;   // wireframe owns fill visibility
   }
@@ -866,6 +871,81 @@ window.addEventListener('resize', resize);
 resize();
 applyCam(0);
 if (WIREFRAME0) setWireframe(true);   // deep-link / baked still can open straight in wire
+
+// ---- view-cube protocol (view-cube-contract.js): a parent pane's preset strip ----
+// Same {moj} dialect as the game shell's pause sidecar below; inert for a world
+// that is never embedded. The subject is separated from the studio floor exactly
+// the way the ?spin=1 showcase fit does it: the floor hugs the lowest slice of
+// the z-range, so fit what stands above the cut and keep the full z for centring.
+function __viewBounds() {
+  let zMin = Infinity, zMax = -Infinity;
+  const geos = [];
+  for (const s of solids) {
+    const p = s.geometry && s.geometry.attributes && s.geometry.attributes.position;
+    if (!p || !p.array) continue;
+    geos.push(p.array);
+    for (let k = 2; k < p.array.length; k += 3) { const z = p.array[k]; if (z < zMin) zMin = z; if (z > zMax) zMax = z; }
+  }
+  if (!(zMax > zMin)) return null;
+  const zCut = zMin + (zMax - zMin) * 0.04;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, seen = false;
+  for (const a of geos) {
+    for (let k = 0; k < a.length; k += 3) {
+      if (a[k + 2] <= zCut) continue;
+      seen = true;
+      if (a[k] < x0) x0 = a[k]; if (a[k] > x1) x1 = a[k];
+      if (a[k + 1] < y0) y0 = a[k + 1]; if (a[k + 1] > y1) y1 = a[k + 1];
+    }
+  }
+  if (!seen) return null;
+  return {
+    ctr: new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (zMin + zMax) / 2),
+    rad: (Math.max(x1 - x0, y1 - y0, zMax - zMin) * 0.5) || 1,
+  };
+}
+const VIEW_DIRS = ${safeJson(VIEW_DIRS)};
+function applyView(name) {
+  const d = VIEW_DIRS[name];
+  if (!d) return;
+  if (typeof walkMode !== 'undefined' && walkMode) return;   // walk owns the camera; presets are an orbit affordance
+  const b = __viewBounds();
+  if (!b) return;
+  controls.autoRotate = false;   // a ?spin=1 showcase stops turning once a view is asked for
+  const dir = new THREE.Vector3(d[0], d[1], d[2]).normalize();
+  const vf = camera.fov * Math.PI / 180;
+  const hf = 2 * Math.atan(Math.tan(vf / 2) * (camera.aspect || 1));
+  const dist = Math.max(b.rad / Math.tan(vf / 2), b.rad / Math.tan(hf / 2)) * 1.15;
+  controls.target.copy(b.ctr);
+  camera.position.copy(b.ctr).add(dir.multiplyScalar(dist));
+  controls.update();
+  [...hud.children].slice(0, CAMS.length).forEach((btn) => btn.classList.remove('on'));   // no authored cam is active now
+}
+// Focus (the protocol's second verb): isolate one render group by dimming every
+// other group mesh. Hideable walls are driven per-frame by updateCutaway, which
+// reads __focusGroup itself; everything else is set once here and restored from
+// the captured originals on clear. Textured label sub-meshes and glow sprites
+// ride outside the group dict and stay lit — stated, not hidden.
+let __focusGroup = null; const __focusOrig = new Map();
+function applyFocus(name) {
+  __focusGroup = name && meshes[name] ? name : null;
+  for (const [gname, m] of Object.entries(meshes)) {
+    if (!__focusOrig.has(gname)) __focusOrig.set(gname, { transparent: m.material.transparent, opacity: m.material.opacity, depthWrite: m.material.depthWrite });
+    if (hideable.some((g) => g.name === gname)) continue;   // updateCutaway owns these every frame
+    const o = __focusOrig.get(gname);
+    if (!__focusGroup || gname === __focusGroup) {
+      m.material.transparent = o.transparent; m.material.opacity = o.opacity; m.material.depthWrite = o.depthWrite;
+    } else {
+      m.material.transparent = true; m.material.opacity = 0.08; m.material.depthWrite = false;
+    }
+  }
+}
+window.addEventListener('message', (e) => {
+  const d = e.data;
+  if (!d) return;
+  if (d.moj === '${MSG_VIEW}') applyView(d.view);
+  else if (d.moj === '${MSG_FOCUS}') applyFocus(d.group ?? null);
+});
+try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${channelSetupSection('pre-runtime', setupBlocks)}
 ${channelRuntimeSection(chBlocks)}${walkersBlock}${carsBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated

@@ -1,6 +1,6 @@
 # 3D Factory UI — revamp plan + style guide
 
-Status: **phases 1–6 shipped** (2026-08-30). The rollout in §8 is complete; each phase's entry there records what it actually cost and where the plan was wrong.
+Status: **phases 1–9 shipped** (2026-08-31). The rollout in §8 is complete; each phase's entry there records what it actually cost and where the plan was wrong. Phases 7–9 landed after it: the splayed floor (§10), the rooms (§11), and the view-cube protocol (§12). Light mode is PLANNED, not built: §13.
 
 Mojulo's positioning has narrowed to **"a 3D factory for agents."** The dashboard has not
 followed. This plan makes the *surface* speak the colloquial vocabulary of 3D work — viewport,
@@ -323,6 +323,219 @@ Two things to verify before committing to light:
 - **Sketch SVG export already re-tints for a light surface** (see the `--entity-purple` note in
   `globals.css` and `sketch-svg.js`). A light dashboard and the light SVG export would finally
   agree, which is a point in this direction's favour — today they don't.
+
+## 7c. The brand layer — blocking, the mark, the latent field
+
+*(drafted 2026-08-31, from the `mojulo-ui-treatments-v1` wireframes, for the 2.0 reposition.)*
+
+§7 is the **system**: what a hue means, what a typeface attributes, how big a radius is. This
+section is the **brand layer** that rides on it — how a page is blocked out, what the mark is, and
+the one texture that means something. It adds no token a component branches on and changes no
+meaning §7 fixed. Where the wireframes and §7 disagreed, §7 wins; the reconciliations are recorded
+at the end so the disagreement is not re-litigated later.
+
+The register the wireframes found, in one line: **an instrument has a case and internal partitions,
+not a tray of floating cards.**
+
+### The blocking rule — one frame, shared hairlines, no gutters
+
+This is the change with the widest reach and the least risk, and it is the reason to do the pivot
+at all.
+
+A surface is **one bordered frame** — `1px --bay-rail-lit`, `--radius-bay`, `overflow:hidden` —
+divided into regions by hairlines those regions **share**. A region is defined by the rule beside
+it, not by a border of its own and a gap. Concretely:
+
+- The frame owns the outer border and the only radius on the page.
+- Every internal division is a single `1px --bay-rail` edge, contributed by ONE side
+  (`border-r` on all but the last column; `border-b` on the nav; `border-t` on the status bar).
+  Two adjacent regions never both draw a border, so a division is never 2px.
+- Regions carry **padding, not margin**. There is no gutter between a viewport and its inspector —
+  they meet at the rule.
+- Inside a region, a card may still float (`--radius-card`, `1px --bay-rail`) — but it is then a
+  *thing on a bench*, and it must be an artifact, a queue item, or the amber prompt. Never a
+  layout device. Layout is done by the partitions.
+- Elevation is by VALUE, not by shadow: `--bay-void` page → `--bay-floor` panel →
+  `--bay-bench` card. One shadow on the page, on the frame itself. None inside it.
+
+Why it reads instrumental: the shared rule tells you the two regions are parts of one machine,
+where a gutter tells you they are two documents that happen to be near each other. It is also
+strictly cheaper — no gap math, no per-card border, no shadow stack.
+
+**What today does instead.** The tree carries **237 `rounded-lg` + 149 `rounded-md` +
+55 `rounded-xl` + 12 `rounded-2xl`** against only 43 uses of the `--radius-*` tokens, and
+**121 `border-t`/`border-b` against 14 `border-l`/`border-r`** — i.e. horizontal stacking by rule
+is already the habit, vertical partitioning is not, and almost every panel is a floating rounded
+box. Adoption is therefore mostly *subtraction*: drop the radius and the border from panel-level
+boxes, hand the border to the frame, convert gaps to a shared edge.
+
+Nav, status bar and eyebrows already agree with this — `ViewportHome`'s `Eyebrow` is the
+self-labelling device that makes a partition legible without a box around it. Keep it; it is the
+same idea §7b independently arrived at.
+
+### The mark — the dot-relief `m`
+
+The 2.0 mark is the lowercase `m` rendered as a **halftone relief**: a fixed 18×15 dot lattice
+where ink dots swell toward the letterform and latent dots hold the field, with a left-to-right
+size gradient so the mark has a light direction. It replaces the three-card teal gradient in
+`app/icon.svg`.
+
+It is the same grammar as the field and the dot rows below, which is the whole point: the mark is
+not a logo parked in the corner, it is a sample of the display system.
+
+**Bake it, do not sample it.** The wireframe derives the lattice at runtime by drawing the glyph
+to a canvas and running ~270 `getImageData` reads. That cannot server-render, repeats on every
+navigation, and is invisible to the theme. Ship instead a **precomputed dot map** (one small JSON
+or a static SVG of `<circle>`s, generated once by a script under `scripts/`) rendered as inline
+SVG with `fill="currentColor"` — then it SSRs, inherits ink colour, costs nothing per navigation,
+survives the §13 light flip for free, and can be CSS-animated.
+
+Sizes: 20px in the nav, 40px as an empty-shelf ghost at ~35% opacity, 120px as the boot mark. The
+empty state is the mark at rest, not a sad icon — the brand IS the placeholder.
+
+### The latent field — one meaning, enforced
+
+A Ben-Day dot field (`radial-gradient(circle, <dot> 1px, transparent 1.4px)` at `11px 11px`) means
+exactly one thing:
+
+> **Space that can be minted into, and has not been yet.**
+
+Two densities: `--field` (`--bay-rail-lit` dots) where the invitation is the point — an empty
+viewport, an empty shelf card, a library thumbnail plate — and `--field-faint` (`--bay-rail` dots)
+where it is a backdrop behind something live.
+
+That single meaning is the load-bearing constraint. The wireframes used it for three different
+things — mintable space, "still potential until a human looks" at the eyes gate, and the fleet
+map's ground plane — and a texture with three meanings is decoration, which is the failure mode
+§7 exists to prevent. So:
+
+- **Keep** it under empty viewports, empty shelves, and artifact thumbnails (the card then reads as
+  a thing that condensed out of the lattice, which is exactly what a recipe is).
+- **Drop** it from the fleet-map ground plane. Running processes are not latent space; a labelled
+  rule between the air and ground planes does that job.
+- **Drop** it from the render bay's eyes-gate column. That column is not unminted — the render
+  exists; what is missing is a human's verdict. Amber already says that, and it says it better.
+- **Never** on deliberation surfaces (`/plan`, `/research`). Plans are words, not artifacts.
+  The wireframes got this right and the rule stands: no field where nothing mints.
+
+### Dots as a data primitive
+
+The lattice's atom becomes a readout, so counts and progress are drawn in the mark's own grammar
+rather than in bars borrowed from a generic dashboard:
+
+- **Dot row** — N cells, filled in `--live` for present / `--live-idle` for partial /
+  `--bay-rail-lit` for absent. Used for shelf tallies (`scenes 4`), render progress, and the beats
+  scrubber. Always paired with a numeric label; the dots are the shape of the number, never a
+  replacement for it.
+- **Dot-column waveform** — audio drawn as halftone columns rather than a line, played region in
+  live teal, unplayed as latent dots. Seeded, never `Math.random`, same as everything else here.
+- **Node dots** on the map: `--live` running, `--think` speculative, `--bay-rail-lit` stopped.
+
+A dot row is a **presence** display, not a precision one. Anything the operator would compare or
+audit stays a mono number — the dots sit beside it.
+
+### Reconciliations — where the wireframes were overruled
+
+Recorded so these do not come back:
+
+- **Indigo stays `--think`.** The wireframes bound indigo to "orbit & connected services", which is
+  a hue meaning *section* — the exact thing §7 repudiated — and they then contradicted themselves
+  by using it correctly for a *proposed* plan. Orbit-vs-walkable is a **kind**, not a state: tag it
+  with a glyph or a label. `--think` keeps meaning speculative.
+- **Token VALUES are §7's.** The wireframes re-declared a neutral-gray, higher-saturation set
+  (`#0a0a0a` / `#00e5c0` / `#7c6dfa` / `#f5a623`). Keep the shipped bay/signal values: the
+  blue-tinted neutrals are what let a lit viewport read as the light source in the room, and
+  `#7c6dfa` is a saturated violet that walks straight back into the purple-gradient AI look §7 was
+  written to avoid. The treatments read the same in the shipped palette.
+- **Five signals, not three.** `--seal` and `--fault` appear nowhere in the wireframes, and the
+  eyes-gate column is precisely where a *rejected* render lives. A reject affordance uses
+  `--fault`; do not let the amber gate absorb the failure state.
+- **The sans/mono attribution rule survives.** The wireframes are globally mono, which is a
+  wireframe convention and not a proposal. §7's rule stands: mono is what the recipe stores or the
+  agent typed, sans is what a person wrote.
+- **11px is the floor.** The wireframes' label layer sits at 8–9px uppercase on `--ink-muted`.
+  Eyebrows are 11px mono / `.24em` (as `ViewportHome` already does); 10px is the absolute floor for
+  a dense readout, and nothing goes below it.
+- **The library keeps the splayed floor.** Wireframe 02 draws `/library` as a flat four-column chip
+  grid, which predates §10–§11. The floor, the zones and the rooms stand; the brand layer applies
+  *to* them — field under the empty and thumbnail plates, dot rows for the shelf tallies, shared
+  hairlines between zones instead of gutters.
+
+### Motion
+
+One boot gesture: the latent field sweeps in, content pops over it. Fire it **once per session on
+the home surface only** — a local dashboard gets hit hundreds of times a day and a per-navigation
+animation becomes a tax within an hour. The print-pass shimmer is the loading state for a rendering
+artifact; magnet-on-hover belongs to artifact cards only.
+
+All of it goes under the existing `prefers-reduced-motion` block in `globals.css`, which already
+freezes the turntables and the launcher lift.
+
+### Rollout — phase 1 shipped
+
+**B1. Primitives + the two anchor surfaces.** ✅ **Done** (2026-08-31).
+
+- `app/globals.css` — `--field-dot` / `--field-dot-faint`, and the utilities
+  `.moj-frame`, `.moj-part-r` / `.moj-part-b`, `.moj-field` / `.moj-field-faint`,
+  `.moj-field-boot`. The partition classes drop their rule on `:last-child`,
+  which is what makes them safe to apply from a `.map()` and is why a division
+  can never come out 2px.
+- `scripts/build-brand-mark.mjs` → `lib/brand/mark-dots.js` — the mark, baked.
+  No canvas: the glyph is five round-capped strokes, so coverage is a distance
+  test, which makes the bake dependency-free and exactly reproducible. Emits both
+  readings from one geometry — the 18×15 lattice and the plain strokes.
+- `components/brand/MojuloMark.jsx` — **the size floor is enforced in the
+  component, not left to call sites.** A contact sheet settled it: below ~28px a
+  cell is about 1px and the relief turns to mush, so asking for a smaller `size`
+  silently returns the solid reading of the same skeleton. That is what keeps the
+  favicon and dense chrome legible without anyone having to remember a rule.
+- `components/brand/DotRow.jsx` + tests — the readout.
+- `app/render-bay/page.jsx`, `components/floor/SplayedFloor.jsx` — the blocking
+  pass on the two anchor surfaces. Also fixes a standing §7 violation: the floor's
+  zone headers carried a `border-b-2`, and hairlines are 1px, always. The zone now
+  gets its weight from the *lit* rail value and a padded band instead.
+
+Two things this phase got wrong first, both worth keeping written down:
+
+- **The generator wrote on import.** The test that proves the committed lattice
+  re-bakes identically imports the generator — and a top-level `writeFileSync`
+  meant that test rewrote the very file it was checking, so it could never fail.
+  The bake is now pure and the CLI is behind an entry-point guard, with the
+  staleness check itself pinned as a test.
+- **The first dot row was decoration.** It filled one dot per unit and saturated
+  at seven, so on the real store — scenes 335, models 1144, characters 71 — every
+  shelf drew a full row and the readout said nothing. A dot row now renders a
+  PART against a WHOLE it can actually be a fraction of (a shelf's share of its
+  zone), and the cell count went 7 → 10 because seven could not separate a 4.6%
+  shelf from a 21.6% one once "never show a real quantity as empty" applied.
+  The rule that falls out, and that the tests pin: **a row that can sit
+  permanently full is the wrong component.**
+
+**B2. The rest of the surfaces.** Not started. Per-surface and independently
+shippable: `/library` rooms, `/beats/<ref>`, `/map`, `/plan` (frame and
+partitions only — no field, nothing mints there).
+
+**B3. The favicon.** Open. `app/icon.svg` still carries the three-card teal mark.
+The relief cannot survive 16px and `MojuloMark`'s solid reading is the honest
+replacement, but swapping the tab icon is a visible brand change with reach
+beyond the dashboard (npm, README, docs), so it wants the maintainer's eyes
+rather than a silent commit.
+
+### What it costs
+
+Cheaper than §7b, in three parts:
+
+1. **Two CSS utilities and two tokens** — `.moj-field` / `.moj-field-faint` plus `--field-dot` /
+   `--field-dot-faint`. Free, and they flip with the theme.
+2. **The mark** — one generator script, one baked asset, `app/icon.svg` replaced, plus the npm/README
+   and any doc using the card mark. Bounded and mechanical.
+3. **The blocking pass** — the real work, and it is per-surface, not global. Each surface is
+   independently convertible (frame the shell, hand borders to the partitions, delete the gaps), so
+   this lands one route at a time behind no flag. Start with the home floor and the render bay,
+   where the partition reading is strongest and both are new enough to have few callers.
+
+Nothing here blocks §13. The blocking rule is value-independent, the field takes its dot colour
+from a token, and a `currentColor` mark inherits the flip.
 
 ## 8. Rollout
 
@@ -705,6 +918,11 @@ phase over the same `LIBRARY_SHELVES` dispatch the Materials shelf proved); scen
 4:3 turntable cell rather than the wireframes' 16:9; and `/sync-locales` still owes the `floor`
 namespace to the non-English locales.
 
+*(Amendment, 2026-08-31, at the maintainer's direction: the floor's bays row is no longer an
+inline row — `BaysMenu` in `SplayedFloor.jsx` is one trigger that opens the global
+`WorkshopDrawer`, so the floor keeps a single nav model instead of an inline duplicate of it.
+The trigger reuses `home.drawer.open`, so no new locale debt.)*
+
 ## 11. The rooms — one contextual body per shelf
 
 *(phase 8, 2026-08-30 — the round-1 wireframes' shelf views, landed behind the floor's strips.)*
@@ -742,7 +960,195 @@ Decisions worth recording:
   All three now open a shared `RoomModal` over the grid — esc, click-away, or ✕ dismisses —
   the same dismissal grammar as the print wall's lightbox, so the four selection surfaces agree.
 
-Not done here: the board focus keeps the plain `/world` frame (no view-cube preset strip yet);
-the wall drawer shows recipe facts but not the full mono JSON (that stays on the detail page);
-`/sync-locales` still owes `floor` + `rooms` + `library.roomToggle` to the non-English locales
-(deliberately last, per the maintainer).
+Not done here: the board focus keeps the plain `/world` frame (no view-cube preset strip yet —
+closed by §12); the wall drawer shows recipe facts but not the full mono JSON (that stays on the
+detail page); `/sync-locales` still owes `floor` + `rooms` + `library.roomToggle` to the
+non-English locales (deliberately last, per the maintainer).
+
+## 12. The view-cube protocol — the parent finally gets to ask
+
+*(phase 9, 2026-08-31 — the seam phases 6 and 8 both recorded as missing: "a postMessage
+protocol that does not exist." Now it exists, and it is the smallest one that could.)*
+
+Two messages in [lib/graph/scene/view-cube-contract.js](../lib/graph/scene/view-cube-contract.js)
+(+ contract test), speaking the same `{ moj }` dialect as the game shell's level contract on the
+same wire: the world announces `world-view-ready` once on boot; the parent may then post
+`world-view` with a named preset — **¾ / front / side / top** — and the frame snaps to an axis
+reading of the subject's own bounds. The camera never leaves the frame's three.js context; the
+parent only ever asks.
+
+Decisions worth recording:
+
+- **Protocol-gated, not kind-guessed.** `WorldViewStrip` (components/WorldViewStrip.jsx) renders
+  only after ITS frame says ready — `useWorldViewProtocol` checks `e.source` against the mounted
+  iframe's `contentWindow`, because a page can hold several live worlds (bench hero + board
+  focus) and each strip must answer for its own. A CSS-3D `/scene` frame, a plain image, or a
+  frame that failed to boot never announces, so no dead buttons — the same shape as phase 4's
+  `?cached=1` posture: capability observed, never assumed.
+- **The fit is the showcase fit.** `applyView` separates the subject from the studio floor
+  exactly the way the `?spin=1` fit does (fit what stands above the lowest 4% z-slice, centre on
+  the full box), so a mug on a big studio floor fills the frame instead of shrinking to the
+  floor's extent. `top` carries an epsilon off-axis because a view direction parallel to
+  `camera.up` degenerates OrbitControls' orbit basis; front/side carry a small +z lift.
+- **Walk mode owns the camera.** A preset is an orbit affordance; `applyView` is a no-op while
+  walking, and a `?spin=1` showcase stops self-rotating the moment a view is asked for — same
+  rule as grabbing it.
+- **Consumers: the home viewport (§3 finally gets its view-cube, outside the frame) and the
+  board focus (§11's named leftover).** The frame's own HUD (authored cams, wireframe, fly/walk)
+  stays where it already works; the strip only adds what the parent could never do before.
+- **The Library links back to the bench.** `OpenBenchLink` (`rooms.openBench`) sits beside the
+  recipe link in the wall drawer and the board focus — `/?ref=` was reachable from nowhere, the
+  other half of phase 6's "the Library doesn't link back". The cast modal deliberately doesn't
+  carry it: it has no link footer, and its kit pieces already navigate.
+- **Emission changed for EVERY world, and the characterization net said so.** The view-cube
+  block is unconditional in `emitThreeWorld`, so all 46 fixture hashes in
+  `emit-channels.char.test.js` moved; snapshots refreshed in the same change, named here per
+  that test's own rule. `emit-parse` (49) and the full scene layer (317) run green. The ready
+  post is harmless in capture/bake contexts — headless frames have no listening parent.
+
+**Second pass, same day — the focus verb and the last strip.** The two capability leftovers
+above closed together, because the second is five lines once the first exists:
+
+- **`world-focus` is the protocol's second verb.** The ready handshake now carries `groups` —
+  the frame's REAL render-group names — and the parent may post `{ moj: 'world-focus', group }`
+  to isolate one (every other group mesh dims to 0.08 opacity; `null` clears). The emission
+  changed again for every fixture (ready payload + listener), snapshots refreshed, named here;
+  scene layer 319 green.
+- **Selection is offered over what EXISTS, not what the recipe implies.** The outliner's
+  manifest branches (`entities 5`, `elements 120`) have no render-side identity — most worlds
+  merge to one `static` mesh, and faces only carry a `group` where a kind authored one (shell
+  walls, instanced repeats). So the bench rail grows a **Render groups** band listing exactly
+  what the frame announced (`static` dropped via `selectableGroups` — isolating the whole world
+  means nothing), clickable to isolate, click-again to clear. A merged city shows no band at
+  all: absent, not disabled, because the absence is the truth about that world's render. Making
+  the RECIPE branches clickable would have been fake selection; this is the honest subset.
+- **Focus outranks the cutaway, and state lives with the protocol.** `updateCutaway` reads the
+  focus group per frame, so an isolated wall holds opacity from any angle instead of
+  auto-hiding; on the React side `focused` lives in `useWorldViewProtocol` (cleared when the
+  frame remounts — a stale isolation must not carry into a fresh world), and the wire write
+  rides an effect so the state updater stays Strict-Mode pure. In `ViewportHome` the hook
+  lifted from the viewport pane to the body, because two panes now read it (strip + rail).
+- **The detail page mounts the strip.** Keyed to the display-mode frame only — the beats /
+  game / play frames share the same `frameRef` but never announce ready, so the gate holds
+  by construction.
+- Stated, not hidden: textured label sub-meshes and glow sprites ride outside the group dict
+  and stay lit under focus; wireframe mode hides fills entirely, so isolation only reads in a
+  filled mode.
+
+Not done here: focus dims but doesn't outline — a highlighted edge cage on the focused group
+would read better in busy interiors; the rail's Render groups band shows raw group names
+(`shell:northWall`), the machine register being honest rather than translated; `/sync-locales`
+owes `viewCube`, `rooms.openBench`, and the new `outliner.renderGroups`/`isolate` keys on top
+of the standing `floor` + `rooms` debt.
+
+## 13. Light mode — the Bench Instrument flip (plan, not yet built)
+
+*(planned 2026-08-31. §7b holds the register; this section holds the engineering. The header
+warning — "no theme toggle until the token layer exists, because a toggle over two different
+signal palettes is a second design system" — is answered here by an invariant, not ignored.)*
+
+### The invariant that makes it a theme and not a second design system
+
+**Same tokens, same semantics, same geometry — values only.** Light mode re-declares the VALUES
+of the tokens phase 1 built; it never adds a token a component branches on, never changes what a
+hue means (teal = exists/runs, ochre = the agent must act, indigo = speculative/wireframe), and
+never touches radius/spacing/type. §7b's instrument radii (6/8/10) and its physical analogues
+(keys, recesses, engraved eyebrows) are a LATER, register-wide restyle that would apply to both
+themes or neither — deliberately out of this plan. What ships here is: the same dashboard, lit.
+
+### Why the flip is cheap now (and what phase 1 actually bought)
+
+Tailwind v4 utilities resolve through theme variables — `bg-gray-800` compiles to
+`var(--color-gray-800)` — and phase 1 re-pointed the whole gray/neutral ramp onto the bay/ink
+values in `@theme`. So the ~1,700 literal `gray-*`/`neutral-*` sites ride a `:root` variable
+flip for free: one `:root[data-theme="light"]` block re-declaring `--color-gray-*`,
+`--color-neutral-*`, the bay/ink/signal tokens, and the legacy aliases moves the entire surface.
+The ramp mapping is SEMANTIC, not luminance (100 = ink-primary, 800 = card, 950 = page), so the
+light block keeps the mapping and inverts the luminance: `gray-100` becomes dark ink `#33362f`
+on a light page, `gray-950` becomes the plastic. Verify early that opacity modifiers
+(`bg-gray-800/40` → `color-mix` over the var) resolve under the override — one throwaway page,
+five minutes, before anything else is built.
+
+### The palette (from §7b / ombi.co `instrument.css`)
+
+Surfaces: `--bay-void → #cfccc4` (plastic page) · `--bay-floor → #d5d2c9` · `--bay-bench →
+#c7c4ba` · `--bay-rail → rgba(40,42,34,.16)` · `--bay-rail-lit → rgba(40,42,34,.28)`.
+Ink: `#33362f / #5c5f55 / #7c7f74`. Signal: `--live #3a6b64` · `--forge #8a5f2e` ·
+`--think #4d5570`, with `-strong`/`-idle` variants and light `--seal`/`--fault` values still to
+be derived — same value band, desaturated, so the panel stays plastic. Note the elevation
+DIRECTION flips (dark: darker = further back; light: the card is *darker* than the page, a
+recess) — that is the instrument reading and it is correct, but it is why the light sheet must
+be derived by ROLE against §7b's table, not by numerically inverting the dark hexes.
+
+### The LCD split — the one new token, and the audit that earns it
+
+§7b's hard requirement: **the screen stays darker than the panel.** Every baked still,
+turntable strip, and world render assumes a dark backdrop; on a light page they must read as a
+lit instrument screen, not a hole. Today `--bay-void` serves two masters across 18 JSX sites:
+the page/chrome register (stack chips, modal scrims, code wells) and the RENDER WELL behind
+iframes and `object-contain` stills (bench hero, viewport pane, board focus, render-bay
+thumbs). Split them: a new `--lcd` token, dark register `= --bay-void` (byte-identical today),
+light register `#bcb9af` — and move only the well sites onto it. The artifact inside the well
+never themes: a world's sky is the world's own recipe, and repainting it would violate §9.
+
+### Stragglers the ramp flip cannot carry (measured on this tree)
+
+- **346 `teal-*` utility literals** (SketchGallery, wizard, legacy chrome): re-point
+  `--color-teal-*` in `@theme` onto the live/accent scale, the exact phase-1 trick — one block,
+  346 sites ride free, and the light override re-tunes the same ramp.
+- **101 `white`/`black` utility sites in 39 files**: these need per-site triage, not a ramp
+  re-point — `text-white` on a filled teal button is correct in BOTH themes, while
+  `hover:text-white` on chrome (AuthNav) is invisible on plastic. Rule of thumb: white-on-fill
+  stays, white-as-chrome becomes `--ink-primary`, `bg-black/50` scrims become a `--scrim` token.
+- **130 raw hexes in JSX**: mostly SVG icon gradients (the brand mark reads fine on both
+  surfaces — leave) and a handful of real offenders to move onto tokens as found.
+
+### The parts that must AGREE with light, and already know how
+
+`sketch-svg.js` has carried a `surface: 'light'` render since before this plan — dark-tuned
+accent inks re-tinted to clear AA on white (`#7c3aed` for the entity purple, teal-700), opaque
+background dropped. A light dashboard finally makes the dashboard and the SVG export agree; the
+integration is that inline diagram `<img>` fetches (`/svg?inline=1` in the reading room, floor
+rows, bench) pass the active surface so a diagram on plastic renders in its light ink rather
+than arriving as a dark card. Wireframe display mode already strokes in `--think`, which §7b
+tuned specifically so an indigo line drawing on grey LCD IS the wire reading — no work, just
+the payoff.
+
+### The switch
+
+Single-operator, no user table: a `mojulo_theme` cookie (`dark | light | system`), read in
+`layout.jsx` and stamped as `data-theme` on `<html>` at SSR — no flash, no hydration mismatch,
+no client-side theme library. `system` is the only state needing a pre-hydration inline script
+(match `prefers-color-scheme`, set the attribute before paint). The control is a three-way in
+/settings (host chrome, where AuthNav already points); **dark stays the default** — the Machine
+Shop is the shipped register and a fresh install should not surprise. All strings i18n-ready;
+they join the release-cut `/sync-locales` run.
+
+### Rollout — each phase shippable alone, dark byte-identical until L3
+
+- **L0 — verify + audit** (half a day): the opacity-modifier check; classify the 18 bay-void
+  sites; the white/black triage list; pin the current dark values in a token test.
+- **L1 — semantic seams** (small): introduce `--lcd` + `--scrim`, move their sites, re-point
+  `--color-teal-*`. Dark renders byte-identical — this is pure refactor, provable by eye and
+  by the L0 pin.
+- **L2 — the light sheet** (the design work): the full `[data-theme="light"]` block, including
+  derived `-strong`/`-idle`/`seal`/`fault` values, plus a **contrast machine gate** — a unit
+  test that parses `globals.css` and pins WCAG ratios for every text/surface pair in BOTH
+  sheets (phase 1 measured by hand; the light sheet gets the same table enforced in CI).
+  Nothing sets the attribute yet; still invisible.
+- **L3 — the switch**: cookie + SSR stamp + settings control + system script.
+- **L4 — the eyes gate**: page-by-page sweep in light (floor, rooms, bench, detail, render
+  bay, plan/research, bots, wizard, settings, login), fixing stragglers the triage list
+  predicts and the ones it missed. Machine gate ≠ eyes gate (docs/bicycles.md); this phase is
+  the second one and it is not optional.
+- **L5 — deferred, explicitly**: the instrument LANGUAGE (§7b's key rows, recess readouts,
+  engraved eyebrows, radius retune). A separate decision after the flip has lived a while.
+
+### Open decisions (maintainer's)
+
+1. Ship `system` in v1, or dark/light only? (Recommend: all three — the script is ten lines.)
+2. §7b's warm plastic vs a neutral cool light? (Recommend: the plastic. It carries the ombi.co
+   brand, it is already a proven sheet, and a generic cool gray forfeits the one conceptual
+   argument — the dashboard as instrument — that made light worth doing.)
+3. Does the floor's bench hero keep its dark poster on plastic, or gain a light-baked variant?
+   (Recommend: keep dark — it is a screen. Revisit only if L4's sweep says it reads wrong.)

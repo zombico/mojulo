@@ -1598,7 +1598,8 @@
       "arcade": "Arcade",
       "settings": "Settings",
       "library": "Library",
-      "renderBay": "Render Bay"
+      "renderBay": "Render Bay",
+      "dashboard": "Dashboard"
     },
     "agentStatus": {
       "title": "Agent Status",
@@ -1614,6 +1615,17 @@
       "declaredMinutes": "{minutes, plural, one {# minute ago} other {# minutes ago}}",
       "declaredHours": "{hours, plural, one {# hour ago} other {# hours ago}}",
       "declaredDays": "{days, plural, one {# day ago} other {# days ago}}"
+    },
+    "crumb": "workshop",
+    "packsPill": "{packs}",
+    "artifactsPill": "{n} artifacts",
+    "dashboard": {
+      "title": "Dashboard",
+      "open": "Open the floor →"
+    },
+    "ask": {
+      "title": "Ask the agent",
+      "body": "Making happens in your MCP agent."
     }
   },
   "breadcrumbs": {
@@ -2275,8 +2287,10 @@
         "geometry": "Geometry",
         "staging": "Staging",
         "sound": "Sound",
-        "provenance": "Provenance"
+        "provenance": "Provenance",
+        "renderGroups": "Render groups"
       },
+      "isolate": "Isolate in the viewport — click again to clear",
       "branch": {
         "lathes": "Lathes",
         "extrudes": "Extrudes",
@@ -2375,6 +2389,13 @@
     "emptyStrip": "Nothing minted here yet.",
     "materialsHint": "Applied by asking the agent — set a material on a mesh-world face, or pass a preset name."
   },
+  "viewCube": {
+    "label": "View presets",
+    "threeQuarter": "¾",
+    "front": "Front",
+    "side": "Side",
+    "top": "Top"
+  },
   "rooms": {
     "search": "Search this room…",
     "all": "All",
@@ -2388,6 +2409,7 @@
     "seed": "seed {seed}",
     "versions": "Iterations · {n}",
     "open": "Open recipe →",
+    "openBench": "Open on bench ↗",
     "openWorld": "Open world ↗",
     "close": "Close",
     "prev": "Previous",

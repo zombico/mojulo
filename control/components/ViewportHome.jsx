@@ -14,20 +14,22 @@
  *   · Nothing here is new data. Display modes, shelf counts, queue depth and the
  *     bake ledger all already existed; §8 put this phase last for that reason.
  *   · An empty workshop is an invitation, not an error — it falls through to the
- *     launcher rather than drawing an empty viewport.
+ *     home directory rather than drawing an empty viewport.
  *
  * Design: components/3d-factory-ui.plan.md §3.
  */
 
 import Link from 'next/link';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
 
 import CreationMap from './graph/CreationMap';
 import DisplayModes, { useDisplayModeState } from './DisplayModes';
-import HomeLauncher from './HomeLauncher';
+import WorkshopHome from './WorkshopHome';
+import { CopyPrompt, StatusBar } from './WorkshopChrome';
+import WorldViewStrip, { useWorldViewProtocol } from './WorldViewStrip';
 import { visibleWorkshopGroups } from './workshop-nav';
 import { LIBRARY_SHELVES } from '@/lib/graph/sketch/library-shelves';
 import { buildOutliner, groupOutliner, isViewportKind } from '@/lib/graph/sketch/outliner';
@@ -53,41 +55,9 @@ function SubEyebrow({ children }) {
   );
 }
 
-/** Agent-directed prompt text, handed over rather than executed. */
-function CopyPrompt({ value }) {
-  const t = useTranslations('home3d');
-  const [state, setState] = useState('idle'); // idle | copied | failed
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setState('copied');
-    } catch {
-      // Clipboard access can be blocked (insecure context, denied permission) —
-      // say so instead of leaving the button silently inert.
-      setState('failed');
-    }
-    setTimeout(() => setState('idle'), 1500);
-  }, [value]);
-  if (!value) return null;
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      title={value}
-      className={`w-full rounded-[var(--radius-control)] border px-2 py-1.5 text-left font-mono text-[10px] transition-colors duration-100 ${
-        state === 'failed'
-          ? 'border-[color:var(--fault)] text-[color:var(--fault)]'
-          : 'border-[color:var(--forge-idle)] text-[color:var(--forge)] hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10'
-      }`}
-    >
-      {state === 'copied' ? t('copied') : state === 'failed' ? t('copyFailed') : t('inspector.askCopy')}
-    </button>
-  );
-}
-
 /* ── left rail: the outliner ──────────────────────────────────────────────── */
 
-function Outliner({ head, library }) {
+function Outliner({ head, library, world }) {
   const t = useTranslations('home3d');
   const shelf = useTranslations('library.shelves');
   const branches = useMemo(() => groupOutliner(buildOutliner(head?.manifest)), [head]);
@@ -128,6 +98,35 @@ function Outliner({ head, library }) {
               </ul>
             </div>
           ))}
+          {/* The live frame's own render groups — the RENDER's structure beside
+              the recipe's. Only what the frame announced is offered (a merged
+              single-mesh world announces nothing selectable), and clicking
+              isolates the group in the viewport; clicking again clears. */}
+          {world?.groups?.length > 0 && (
+            <div className="mt-3">
+              <SubEyebrow>{t('outliner.group.renderGroups')}</SubEyebrow>
+              <ul className="mt-1">
+                {world.groups.map((g) => (
+                  <li key={g}>
+                    <button
+                      type="button"
+                      onClick={() => world.focus(g)}
+                      aria-pressed={world.focused === g}
+                      title={t('outliner.isolate')}
+                      className={`flex w-full items-baseline gap-2 py-0.5 text-left font-mono text-[11px] transition-colors duration-100 ${
+                        world.focused === g
+                          ? 'text-[color:var(--live)]'
+                          : 'text-[color:var(--ink-secondary)] hover:text-[color:var(--live)]'
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{g}</span>
+                      {world.focused === g && <span aria-hidden>●</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
 
@@ -191,19 +190,15 @@ function Bays({ presence }) {
 /**
  * The live artifact.
  *
- * §3 also asks for a view-cube here, and one already exists — INSIDE the frame.
- * `/world` serves its own HUD strip (view cams, wireframe, fly/walk) unless
- * `?hud=0`, and the camera lives in the world's own three.js context where
- * nothing outside the iframe can reach it without a postMessage protocol that
- * does not exist. So the camera control stays where it already works, and this
- * strip carries the readouts instead.
+ * §3 asks for a view-cube here. The camera lives in the world's own three.js
+ * context, so phase 6 shipped readouts only; the view-cube protocol
+ * (lib/graph/scene/view-cube-contract.js) is the postMessage seam that was
+ * missing, and the preset strip renders in the pane's corner once the frame
+ * announces it speaks it. The frame's own HUD (authored cams, wireframe,
+ * fly/walk) stays where it already works.
  */
-function Viewport({ head, view }) {
+function Viewport({ head, view, src, frameRef, world }) {
   const t = useTranslations('home3d');
-  const src = view?.src
-    || (isViewportKind(head.renderMode)
-      ? `/api/sketches/${encodeURIComponent(head.ref)}/${head.renderMode}`
-      : null);
   // Reset whenever the frame's own src changes, so switching artifact or display
   // mode shows the spinner again instead of the previous frame's "loaded" state.
   const [frameLoaded, setFrameLoaded] = useState(false);
@@ -234,6 +229,7 @@ function Viewport({ head, view }) {
             {/* Keyed on src so switching display mode remounts the frame rather
                 than leaving the previous world's WebGL context running behind it. */}
             <iframe
+              ref={frameRef}
               key={src}
               src={src}
               title={head.title || head.ref}
@@ -241,6 +237,7 @@ function Viewport({ head, view }) {
               onError={() => setFrameFailed(true)}
               className="h-full w-full border-0"
             />
+            <WorldViewStrip ready={world.ready} send={world.send} />
             {!frameLoaded && !frameFailed && (
               <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
                 <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[color:var(--ink-muted)] border-t-transparent motion-reduce:animate-none" />
@@ -366,40 +363,9 @@ function Inspector({ head, outcome }) {
   );
 }
 
-/* ── bottom: the status bar ───────────────────────────────────────────────── */
-
-export function StatusBar({ status, queue, library, note = null }) {
-  const t = useTranslations('home3d');
-  const waiting = (queue?.stages?.queued || 0) + (queue?.stages?.inFlight || 0);
-  const gate = queue?.stages?.gate || 0;
-  return (
-    <footer className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-[color:var(--bay-rail)] px-6 py-2 font-mono text-[10px] text-[color:var(--ink-muted)]">
-      {/* The machine-on light. Install state is DERIVED from disk, so a lean host
-          can read WHY it has fewer doors instead of just having fewer of them. */}
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--live)' }} aria-hidden />
-        {t('status.packs', { packs: status?.packs?.length ? status.packs.join(' · ') : t('status.kernelOnly') })}
-      </span>
-      <Link href="/render-bay" className="hover:text-[color:var(--ink-secondary)]">
-        {t('status.queue', { n: waiting })}
-      </Link>
-      {gate > 0 && (
-        <Link href="/render-bay" style={{ color: 'var(--forge)' }} className="hover:underline">
-          {t('status.gate', { n: gate })}
-        </Link>
-      )}
-      <Link href="/library" className="hover:text-[color:var(--ink-secondary)]">
-        {t('status.library', { n: library?.total ?? 0 })}
-      </Link>
-      {note && <span>{note}</span>}
-      {status?.toolCalls != null && <span className="ml-auto">{t('status.toolCalls', { n: status.toolCalls })}</span>}
-    </footer>
-  );
-}
-
 /* ── the home ─────────────────────────────────────────────────────────────── */
 
-function ViewportHomeBody({ authEnabled }) {
+function ViewportHomeBody() {
   const t = useTranslations('home3d');
   // `?ref=` opens the home on a specific artifact instead of the head — the same
   // three panes, pointed somewhere else. Any link into the workshop can use it.
@@ -417,11 +383,25 @@ function ViewportHomeBody({ authEnabled }) {
   const refSet = useMemo(() => new Set(head?.giVariantRef ? [head.giVariantRef] : []), [head]);
   const modeState = useDisplayModeState(head, refSet);
 
+  // The view-cube protocol state lives HERE, not in the viewport pane, because
+  // two panes read it: the viewport draws the preset strip, and the outliner
+  // offers the frame's announced render groups as selectable rows.
+  const frameRef = useRef(null);
+  const frameSrc = head
+    ? (modeState.view?.src
+      || (isViewportKind(head.renderMode)
+        ? `/api/sketches/${encodeURIComponent(head.ref)}/${head.renderMode}`
+        : null))
+    : null;
+  const world = useWorldViewProtocol(frameRef, frameSrc);
+
   if (isLoading) return <main className="min-h-screen" aria-hidden />;
   // An empty workshop is an invitation, not an empty viewport — so it falls
-  // through to the launcher, which IS the "here is what is here" surface. Same
-  // for a failed read: a broken home should still open its doors.
-  if (error || data?.error || !head) return <HomeLauncher authEnabled={authEnabled} />;
+  // through to the home DIRECTORY, which IS the "here is what is here" surface.
+  // Same for a failed read: a broken bench should still open its doors. It has
+  // to be the same surface `/` serves, or the two would disagree about what
+  // exists on a host where one of them is the only thing the operator sees.
+  if (error || data?.error || !head) return <WorkshopHome />;
 
   return (
     // NOT pinned to the viewport height. `h-screen` here measures the whole
@@ -435,7 +415,7 @@ function ViewportHomeBody({ authEnabled }) {
         {/* One rail replaces the entire old drawer: what this artifact is made
             of, what the Library holds, and every door — §3. */}
         <aside className="flex flex-col gap-6">
-          <Outliner head={head} library={data.library} />
+          <Outliner head={head} library={data.library} world={world} />
           <Bays presence={presence} />
         </aside>
 
@@ -453,7 +433,7 @@ function ViewportHomeBody({ authEnabled }) {
               {t('openArtifact')}
             </Link>
           </div>
-          <Viewport head={head} view={modeState.view} />
+          <Viewport head={head} view={modeState.view} src={frameSrc} frameRef={frameRef} world={world} />
         </div>
 
         <aside className="flex flex-col gap-6">
@@ -465,10 +445,10 @@ function ViewportHomeBody({ authEnabled }) {
   );
 }
 
-export default function ViewportHome({ authEnabled }) {
+export default function ViewportHome() {
   return (
     <Suspense fallback={<div className="min-h-screen" aria-hidden />}>
-      <ViewportHomeBody authEnabled={authEnabled} />
+      <ViewportHomeBody />
     </Suspense>
   );
 }
