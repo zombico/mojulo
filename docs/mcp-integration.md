@@ -1,10 +1,10 @@
 # MCP integration
 
-Expose the control plane as a remote MCP server so the user's own agent (Claude Code, Claude Desktop, Codex CLI, or any other MCP HTTP client) can build, operate, and audit mojulo bots through tool calls.
+How to connect your own agent (Claude Code, Claude Desktop, Codex CLI, or any other MCP HTTP client) to mojulo, what it can reach once connected, and how mojulo's tools compose with the other MCP servers already in your loop.
 
-The MCP route is **opt-in**. With `CONTROL_PLANE_MCP_KEY` unset (the default), `/api/mcp` returns 404 and the surface is invisible. Set the key and the route comes online with bearer auth.
+This is the primary way mojulo is driven. The `npx mojulo init` flow wires stdio automatically; the HTTP route below is for remote clients and is **opt-in** — with `CONTROL_PLANE_MCP_KEY` unset (the default), `/api/mcp` returns 404 and the surface is invisible. Set the key and it comes online with bearer auth.
 
-See [lite-template/integration/claude_mcp_plan.md](../lite-template/integration/claude_mcp_plan.md) for the design rationale.
+Architecture behind this surface: [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md). The **optional chatbot pack**'s tool surface and its own composition recipes live at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md).
 
 ---
 
@@ -85,39 +85,42 @@ npx @modelcontextprotocol/inspector http://localhost:3001/api/mcp \
 
 ## Tool surface
 
-### Build (always on)
+### Studio — make something (creative packs)
 
-| Tool                            | Synchronous / job | Notes                                                                                  |
-| ------------------------------- | ----------------- | -------------------------------------------------------------------------------------- |
-| `infer_intent`                  | sync              | Heuristic — fast.                                                                       |
-| `recommend_protocols`           | sync              |                                                                                        |
-| `generate_form_schema`          | sync              | LLM-backed; usually ≤2s.                                                                |
-| `generate_appointment_config`   | sync              |                                                                                        |
-| `generate_triage_config`        | sync              | Embeds route descriptions into the bot's vector store locally.                          |
-| `generate_optical_read_config`  | sync              |                                                                                        |
-| `compose_identity`              | sync              | LLM-backed when domain digest is present.                                              |
-| `set_suggested_prompts`         | sync              |                                                                                        |
-| `generate_bot_summary`          | sync              | LLM-backed.                                                                            |
-| `process_documents`             | **job**           | Parses + embeds documents. Returns `{ jobId }`; poll with `poll_job`.                   |
-| `save_modular_bot`              | **job**           | Persists the deployment row and builds the artifact. Returns `{ jobId }`.               |
-| `upload_document_from_url`      | sync              | MCP-native document ingestion. Accepts `url`, `base64 + fileName`, or `text + fileName` (use `text` when piping already-extracted content from another MCP server like Google Docs — skips the binary round-trip through the model). Returns a `documentId`. |
-| `poll_job`                      | sync              | Poll a job started by the job-based tools above.                                        |
-| `start_new_bot`                 | sync              | Reset the builder session — call when the user wants to build a second bot.             |
-| `get_builder_session`           | sync              | Inspect the current in-progress configuration.                                          |
+The mint tools are re-cut by FORM behind one reader rather than listed flat: call `get_creative_toolset` with no argument for the form map, or `{ form }` for that form's tools.
 
-### Operate
+| Form | Entry tool | Ships as |
+| --- | --- | --- |
+| diagram | `mint_diagram` (kernel) / `create_sketch` | SVG, PNG |
+| illustration | `create_sketch` | SVG, CSS-3D scene |
+| reference | `capture_reference` | a reusable visual reference from a photo |
+| image-render | `request_image_render` | a composition-locked scaffold an external model paints, bound back with provenance |
+| object | `mint_solid` / `edit_solid`, `edifice` | `.glb`, print-ready `.stl` at true scale |
+| world | `compose_world` | CSS-3D scene, traversable WebGL, `.glb`, Godot project |
+| view | `create_view` | animated science / math / bio study objects |
+| motion | `forge_motion` / `stitch_motion` | GIF, MP4 |
+| audio | `create_beats` | WAV, MIDI |
+| voice | `create_voice` | WAV narration |
+| game | `create_game` | a standalone playable artifact, or an exported folder |
 
-| Tool                  | Reads from                | Notes                                          |
-| --------------------- | -------------------------- | ---------------------------------------------- |
-| `list_deployments`    | control plane SQLite       | Filter by status / mode.                       |
-| `get_deployment`      | control plane SQLite       |                                                |
-| `query_conversations` | bot SQLite via bot-proxy   | Summaries only (id, timestamps, turn count). Optional since / until bounds.    |
-| `get_conversation`    | bot SQLite via bot-proxy   | Full turn list for one conversation.            |
-| `export_conversations`| bot SQLite via bot-proxy   | Full turn dump with optional date bounds. Heavy — bound by date on large bots. |
-| `query_submissions`   | bot SQLite via bot-proxy   |                                                |
-| `verify_chain`        | bot                        | Walks the tamper-evident hash chain.            |
+Every one of these mints a **recipe** — params plus a kind — into the `sketches` table and returns a `ref`. Iterate in place with `update_sketch` on the same ref rather than re-minting. Export with `export_model` (`.glb` / `.stl`), `export_game`, or `export_beats`. Keep a tuned setting with `save_recipe({ ref, id, when })` — it lands in your cookbook and becomes recallable by intent through `semantic_search`.
 
-Conversation- and submission-reading tools proxy through to the bot — they never copy transcript rows into the control-plane DB.
+Creative packs are install-gated (`mojulo install creative`, on by default); `mint_diagram` is kernel and always present.
+
+### Operate and deliberate
+
+| Tool | Notes |
+| --- | --- |
+| `meta_context_declare_inventory` | Cache the connecting agent's own MCP servers and tools — the input to composition. |
+| `recommend_mcp_orbit_compositions` / `bind_primitives` | The two composers (see recipe 5). |
+| `meta_context_brief` / `meta_context_commit` | The contextmap: durable structural decisions and the audit trail. |
+| `semantic_search` | Retrieve across vocab cards, routing cards, catalysts, and your own saved recipes. |
+| `install_scaffold` / `start_app` / `stop_app` / `status_app` | App lifecycle. |
+| `forge_plan` / `compile_plan` / `execute_plan` | Plan mode — proposed work that compiles against the live registry. |
+
+### Chatbot pack (opt-in)
+
+The bot builder and per-bot operate tables are **not** part of a default install. `mojulo install chatbot` adds them; their tool surface and the four bot-shaped composition recipes live at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md#mcp-tool-surface-pack).
 
 ### Catalysts
 
@@ -127,13 +130,13 @@ Conversation- and submission-reading tools proxy through to the bot — they nev
 | `get_catalyst`    | Full catalyst body for one `id` — the host-neutral prose recipe the agent reads at synthesis time. |
 | `get_adapter`     | Host adapter rules for the current client (`claude-code`, `codex`, or `generic`) — tells the agent where to write the materialized artifact and how to bake in the dry-run pattern. |
 
-Catalysts are curated workflow patterns (qualify-lead-to-crm, submission-to-ticket, appointment-to-calendar, weekly-submissions-digest, scan-conversations-for-signal, knowledge-gap-miner). The user's agent pulls a catalyst, reads the target bot's shape via `get_deployment`, picks a destination MCP from what's installed locally, and materializes a runnable artifact through the host adapter for its client — a Claude Code skill under `.claude/skills/`, a Codex automation, or a generic `workflow.md` + runner script. The "catalyst" name is literal — each file enables one phase transition from intent + bot shape + destination MCP into a structured artifact, without itself appearing in the result. The bare name (not "skill catalyst") is deliberate: catalysts **produce** runnable artifacts, they are not themselves artifacts. See [docs/catalysts.md](catalysts.md) for the author spec.
+Catalysts are curated workflow patterns. The user's agent pulls a catalyst, reads the shape of whatever it is operating on, picks a destination MCP from what's installed locally, and materializes a runnable artifact through the host adapter for its client — a Claude Code skill under `.claude/skills/`, a Codex automation, or a generic `workflow.md` + runner script. The "catalyst" name is literal — each file enables one phase transition from intent + subject shape + destination MCP into a structured artifact, without itself appearing in the result. The bare name (not "skill catalyst") is deliberate: catalysts **produce** runnable artifacts, they are not themselves artifacts. See [docs/catalysts.md](catalysts.md) for the author spec.
 
 The catalyst library is repo-only — there is no user-writable catalyst directory. Custom patterns are the agent's responsibility (synthesize from scratch, or maintain catalyst-shaped markdown locally). New patterns worth promoting to the canonical library are added by PR to [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/).
 
 ### Technique catalysts
 
-Technique catalysts (`kind: technique`) live under [control/lib/mcp/catalysts/techniques/](../control/lib/mcp/catalysts/techniques/) and are pulled with the same `get_catalyst` call as workflow catalysts. They differ in what they produce: a workflow catalyst materializes a runnable artifact through a host adapter; a technique catalyst binds a runtime substrate (filesystem, a future http-api, a future local-sql) to an artifact, with the binding recorded as a contextmap principle. `list_catalysts({ kind: 'technique' })` filters to just the technique shelf; `recommend_catalysts` returns only workflow catalysts (techniques don't recommend against a bot's protocol set).
+Technique catalysts (`kind: technique`) live under [control/lib/mcp/catalysts/techniques/](../control/lib/mcp/catalysts/techniques/) and are pulled with the same `get_catalyst` call as workflow catalysts. They differ in what they produce: a workflow catalyst materializes a runnable artifact through a host adapter; a technique catalyst binds a runtime substrate (filesystem, a future http-api, a future local-sql) to an artifact, with the binding recorded as a contextmap principle. `list_catalysts({ kind: 'technique' })` filters to just the technique shelf; `recommend_catalysts` returns only workflow catalysts (techniques don't recommend against a subject's shape).
 
 The first technique is **`local-storage`** — bind a folder on the operator's machine to an artifact as a `document-store` primitive against the filesystem MCP. It requires the filesystem MCP to be installed in the operator's agent.
 
@@ -159,66 +162,53 @@ After install, run a session against mojulo and the technique catalyst (`get_cat
 
 ## Recipes — composing mojulo tools with your other MCP servers
 
-The point of MCP exposure isn't a second way to drive the in-app chat-builder. It's that mojulo's tools sit in the same agent loop as your other MCP servers (Drive, Gmail, Linear, GitHub, Notion). None of the recipes below are reachable from the in-app chat-builder, because it can't see your other tools.
+The point of MCP exposure isn't a second way to drive the dashboard. It's that mojulo's tools sit in the same agent loop as your other MCP servers (Drive, Gmail, Linear, GitHub, Notion, filesystem). None of the recipes below are reachable from any in-app surface, because it can't see your other tools.
 
-### 1. Drive folder → bot knowledge base
+### 1. A reference photo → a world you can walk
 
-**You need:** the Google Drive MCP server connected alongside mojulo.
+**You need:** the filesystem MCP (or Drive) pointed at wherever your photos live.
 
-**Prompt:** *"Use every doc in my Drive folder 'Practice SOPs' as the knowledge base for a triage bot for my dental clinic."*
+**Prompt:** *"Read the site photos in `~/refs/warehouse/`, pull a visual reference off them, and build me a walkable interior in that palette and massing."*
 
-**Flow:** Drive lists + reads each doc → pipe the extracted text into `upload_document_from_url` with `text + fileName` (this mode is what skips the binary round-trip through the model when another MCP server already has parsed content) → `process_documents` returns a `jobId` → `poll_job` until done → `recommend_protocols` / `generate_triage_config` / `save_modular_bot`.
+**Flow:** the filesystem MCP lists + reads the images → `capture_reference` extracts a reusable reference (palette, massing, material read) → `compose_world` mints the world with that reference bound → open `/sketches/<ref>` and walk it → `update_sketch` to iterate in place on the same ref.
 
-### 2. Linear escalations → triage routes
+**Why it composes.** Mojulo never fetches anything at runtime; the photo arrives because another MCP in your loop handed it over. The reference becomes part of the recipe, so the world regenerates identically without the photo.
 
-**You need:** the Linear MCP server connected.
+### 2. Project state → a diagram that regenerates
 
-**Prompt:** *"Pull the top 10 escalation labels from Linear project SUPPORT for the last quarter and turn them into triage routes for a customer-service bot."*
+**You need:** Linear, GitHub, or any tracker MCP as the data source, plus a destination (Drive, Notion, Slack, or the filesystem).
 
-**Flow:** Linear queries issues by label/priority → your agent aggregates them into route descriptions → `generate_triage_config` embeds each route description into the bot's vector store → `save_modular_bot`.
+**Prompt:** *"Pull the open epics in SUPPORT with their blocking edges and draw me the dependency graph; refresh it every Monday."*
 
-### 3. Qualify submission → branch CRM workflow
+**Flow:** the tracker MCP queries issues + relations → your agent shapes them into stations and edges → `mint_diagram` (kernel — no creative pack needed) returns `/sketches/<ref>` → fetch the SVG from `/api/sketches/<ref>/svg` → the destination MCP posts or commits it.
 
-**You need:** a downstream MCP server for the action — CRM (Salesforce / HubSpot), email (Gmail), ticketing (Linear), or a generic webhook MCP for anything else.
+**Why it composes.** The diagram is a recipe, not an image. Next Monday's run is `update_sketch` on the same ref with fresh edges — the URL is stable, the diff is readable, and the old version is still in the row's history.
 
-**Example.** A dental clinic intake bot captures: name, DOB, insurance carrier, chief complaint, returning-patient Y/N. The skill pulls new submissions, classifies each on those fields plus the free-text, and branches:
+### 3. An exported game or model → a repo you host
 
-- New patient + accepted insurance → CRM `create_contact` + add to onboarding sequence + draft welcome email
-- Returning patient → CRM `update_contact_last_visit` + scheduling email
-- Chief complaint flagged urgent → Linear ticket for the on-call coordinator
+**You need:** the filesystem MCP, and GitHub if you want it pushed.
 
-**Prompt:** *"For new submissions since `2026-05-15` on deployment `<id>`, run the new-patient routing workflow."*
+**Prompt:** *"Export the harbour level as a Godot project and a `.glb`, check the portability flags first, and commit it to the `levels/` repo."*
 
-**Flow:** `query_submissions` with a `since` cursor → your agent classifies on the form fields → routes each submission to the right downstream MCP tool. Conversation rows never leave the bot — `query_submissions` proxies through [bot-proxy.js](../control/lib/deployers/bot-proxy.js).
+**Flow:** read the advisory portability assessment (which gameplay lives inside the shared mechanics vocabulary, and the honest ledger of what will *not* travel) → `export_game` writes a plain folder, or `export_model` writes `.glb` / print-ready `.stl` → the filesystem MCP places it → GitHub commits and, for a web build, publishes to Pages.
 
-**Package it as an artifact** (a Claude Code skill at `.claude/skills/route-intake/SKILL.md`, a Codex automation, or whatever your host adapter writes) once the classification rules stabilize. Take `deploymentId` and `since` as args; the cursor is what makes the artifact idempotent across invocations — re-running it won't double-register a patient because already-seen submissions are below the cursor.
+**Be deliberate about the ledger.** Movers, live physics, fx, and the game shell don't cross the seam. The export says so explicitly rather than silently dropping them — put that list in the commit message so whoever opens the project in Godot knows what to re-orchestrate.
 
-**Two things to be deliberate about:**
+### 4. A kept recipe → a set, on demand
 
-- **PII back through the LLM.** The form-gathering protocol's design point is that PII bypasses the LLM at *capture* time. This recipe deliberately reintroduces it at *routing* time, since classifying on insurance carrier or chief complaint requires reading those fields. Fine for many setups; worth thinking through against the data-handling posture you advertised to end users.
-- **Irreversible writes.** For CRM creates, welcome-email sends, anything you can't easily undo — design the skill to propose the routing decision and confirm before firing, rather than fire-and-forget. The MCP tool surface doesn't enforce this; the skill's prompt does.
+**You need:** nothing but mojulo — but a destination MCP (Drive, Notion, your LMS) makes it worth automating.
 
-**Not event-driven.** Skills are invoked, not subscribed — there's no MCP path that fires on a new submission. If you need true event delivery, point the bot's form webhook ([server.js](../lite-template/server.js)'s `/api/send-webhook` proxy) at a listener you control; the skill then becomes the "what to do with what arrived" half, invoked by you or the listener-side automation.
+**Example.** You tuned a study object once and saved it: `save_recipe({ ref, id: 'tuesday-pendulum', when: 'the pendulum setup for my Tuesday class' })`. Months later you want it at five latitudes, exported as GIFs, filed in a shared folder.
 
-### 4. Sampled mention scan → analytical handoff
+**Prompt:** *"Recall my Tuesday pendulum setup and mint it at 15°, 35°, 45°, 60° and 75° north, turntable each one, and drop the GIFs in the class Drive folder."*
 
-**You need:** an output target (Linear / Notion / Slack / Google Doc via the matching MCP).
+**Flow:** `semantic_search({ kinds: ['view_vocab'], query: 'the pendulum setup for my Tuesday class' })` recalls the saved card by *meaning*, not by filename → read its `recipe.json` → `create_view` once per latitude → `forge_motion` per ref → the destination MCP files the outputs.
 
-**Example.** A SaaS support bot. Take a recent sample — say, the last 30 conversations — and scan each for competitor mentions, churn-intent language, or recurring feature requests. Anything that fires: file a Linear ticket tagged `voice-of-customer` with the conversation id and the matching snippet.
+**Why the `when` line is the whole trick.** Paraphrased recall works because the agent wrote that line from the original conversation. This is the loop the cookbook exists for: mint → tweak → keep → recall. See [CONTRIBUTING.md](../CONTRIBUTING.md) for keeping and publishing your own book.
 
-**Prompt:** *"Sample the 30 most recent conversations from deployment `<id>` and flag any churn-intent signals as Linear tickets."*
+Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the artifact producer. Recipes 3 and 4 invert that: mojulo's own state is the source and the downstream MCPs are the actuators. In both directions your agent is the glue — and the ones worth promoting from ad-hoc prompts to versioned artifacts (a skill, an automation, a workflow file) are those whose inputs parameterize cleanly: a folder path, a project key, a recalled recipe id.
 
-**Flow:** `query_conversations` with a small limit → `get_conversation` per id → your agent scans the turn text → matches go to the downstream MCP.
-
-**Sampling is the point.** This recipe is a pattern proof, not a fleet sweep. A bounded sample keeps token cost predictable and lets you tune the signal prompt against real conversations before scaling up. Once the signal looks reliable, the same artifact takes a larger window — or runs on a cadence via your host's scheduler (Claude Code's `/schedule`, Codex automations, cron) for ongoing tuning, without keeping an interactive session open.
-
-**Package it as an artifact** (a Claude Code skill at `.claude/skills/scan-conversations/SKILL.md`, a Codex automation, or whatever your host adapter writes) taking `deploymentId`, `sampleSize`, and the signal definition. Different signals (competitor mentions, churn intent, accessibility complaints) become different invocations of the same artifact rather than separate ones.
-
----
-
-Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the artifact producer. Recipes 3 and 4 invert that: mojulo's read tools are the data source, and the downstream MCP servers are the actuators. In both directions, the user's agent is the glue — and 3 and 4 in particular are the ones worth promoting from ad-hoc prompts to versioned artifacts (skills, automations, workflow files), since the orchestration is reusable, the inputs are parameterizable, and the output feeds further automation.
-
-### 5. No-bot composition via mcp-orbit
+### 5. Wiring two of your own MCPs together, with no mojulo artifact at all
 
 **You need:** any pair of installed MCPs — one with read affordances (Linear, Gmail, GitHub, etc.), one with write affordances (Drive, Notion, Slack, etc.). No mojulo bot. Mojulo offers two composers under mcp-orbit; both end at the same `meta_context_commit` audit surface.
 
@@ -228,7 +218,7 @@ Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the ar
 
 **Vendor-shaped composer flow (seed-reasoning fallback).** When the agent doesn't have confident tool-schema knowledge yet, or wants curated vendor-specific pitfalls and intent baked into the body: `meta_context_declare_inventory` (thin-snapshot mode is fine) → `recommend_mcp_orbit_compositions({ intent: "weekly Linear digest into Drive..." })` (server returns 1–3 ranked candidate compositions from the typed component store — `mcp` × `trigger` × `pattern` × `idempotency` × `render`, each mcp entry carrying a `role: 'source' | 'destination'`) → `get_meta_catalyst` (composition rulebook, read once per session) → `get_mcp_orbit_component` per component the candidate uses → assemble + dry-run + promote → host-adapter materialization → `meta_context_commit({ type: 'artifact_materialization', ... })`.
 
-**Why this surface, not a catalyst.** Recipes 1–4 either feed a mojulo bot or read one. Recipe 5 doesn't touch a bot — it's MCP-to-MCP wiring with mojulo as the deliberation anchor (operator KYC, composition log, contextmap commit) rather than the conversational runtime. Both composers above add a new MCP to the library with O(1) marginal work, and combinations across triggers / patterns / idempotency strategies come for free.
+**Why this surface, not a catalyst.** Recipes 1–4 all end in a mojulo artifact. Recipe 5 produces none — it's MCP-to-MCP wiring with mojulo as the deliberation anchor (operator KYC, composition log, contextmap commit) rather than the conversational runtime. Both composers above add a new MCP to the library with O(1) marginal work, and combinations across triggers / patterns / idempotency strategies come for free.
 
 See [docs/mcp-orbit.md](mcp-orbit.md) for both composers' full specs, the five typed component kinds, the four primitives + their affordance vocabularies, the constraint table, and the authoring guide.
 

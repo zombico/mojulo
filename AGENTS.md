@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Orientation for non-Claude agents (Codex, OpenAI agent runtimes, future hosts) working in this repo. Claude Code reads [CLAUDE.md](CLAUDE.md) — the fast orientation and golden rules there are host-neutral and apply to you too; read it first. Use [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) when you need the deeper MCP/runtime/data map. This file only covers what Codex needs *before* mojulo's MCP tools are connected, plus pointers to the Codex-specific host adapter.
+Orientation for non-Claude agents (Codex, Grok Build, Hermes, other MCP hosts) working in this repo. Claude Code reads [CLAUDE.md](CLAUDE.md) — the fast orientation and golden rules there are host-neutral and apply to you too; read it first. Use [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) when you need the deeper MCP/runtime/data map. This file only covers what a non-Claude host needs *before* mojulo's MCP tools are connected, plus pointers to its own host adapter.
 
 ## Connecting to the dev control plane
 
@@ -22,6 +22,27 @@ headers = { Authorization = "Bearer <CONTROL_PLANE_MCP_KEY>" }
 
 Restart the Codex session. `forward_context` should appear in your tool surface — call it first to pull mojulo's routing index and drawer map, then call the specific drawer/tool the task needs.
 
+### Grok Build
+
+Add to `~/.grok/config.toml` (same stanza shape as Codex):
+
+```toml
+[mcp_servers.mojulo]
+url = "http://localhost:3001/api/mcp"
+headers = { Authorization = "Bearer <CONTROL_PLANE_MCP_KEY>" }
+startup_timeout_sec = 120
+```
+
+For a non-repo install, use the tokenless stdio form instead — `command = "npx"`, `args = ["-y", "mojulo"]`, same `startup_timeout_sec` (the first run fetches the package; a default timeout marks the server dead mid-download). Needs Node ≥22.12. `npx mojulo init` writes this stanza for you.
+
+**Two Grok-specific notes.** Your MCP output cap (~20k) is below several mojulo surfaces — never call `get_tool_index`; start at `forward_context` and pull one drawer at a time. And you carry `image_gen`/`image_edit`, so you are your own image worker: mint the scaffold, paint it yourself, bind it back with `bind_image_render`. Details in [control/lib/mcp/adapters/grok-build.md](control/lib/mcp/adapters/grok-build.md).
+
+### Hermes
+
+**Use stdio, not HTTP.** The stdio front door (`command = "npx"`, `args = ["-y", "mojulo"]`) is tokenless and host-spawned, so the interactive bearer-token prompt never fires and a dead control plane becomes a spawn failure at session start instead of a mid-task hang. Give it a ≥120s startup timeout; needs Node ≥22.12.
+
+`npx mojulo init` detects Hermes but does **not** write its config — the file path and format aren't verified, and writing to a guessed path would report success against a file Hermes never reads. It prints the snippet for you to paste. If you can confirm the real path and format from your own runtime, say so: it's a small edit to [control/lib/mcp/hosts/hermes.json](control/lib/mcp/hosts/hermes.json) and it moves Hermes onto the same footing as Claude Code and Codex. Adapter card: [control/lib/mcp/adapters/hermes.md](control/lib/mcp/adapters/hermes.md).
+
 ### Shell fallback (no MCP registration needed)
 
 If you have shell access but no MCP client, the same registry is reachable as a CLI: `node control/scripts/mcp-stdio.mjs tools|packs|help <tool>|call <tool> --json '{…}'`. It runs in-process against the same data (no control plane, no bearer token); results print to stdout, diagnostics to stderr, exit codes 0/1/2 (124 on `--timeout`).
@@ -34,8 +55,8 @@ For comparison, Claude Code uses `claude mcp add --transport http mojulo http://
 
 - Call `forward_context` once at session start. The `initialize` preamble is deliberately tiny, and `forward_context` stays intentionally lean; heavier orientation lives behind its sibling drawers.
 - When a mojulo tool **rejects an input the schema appears to permit** (a motion spec, a nested object, an enum-like string), isolate the constraint with a minimal probe before falling back — do not treat the first rejection as the tool's true limit. Most such rejections are a param that needs an explicit shape (author nested values as real JSON objects, not stringified) or an unknown name where a clear error lists the valid set. Read that error; it usually names the fix. Reach for a different family only once you've confirmed the surface actually can't express the request.
-- When materializing a catalyst, read the **Codex host adapter** at [control/lib/mcp/adapters/codex.md](control/lib/mcp/adapters/codex.md). It tells you which artifact target to pick (Codex automation, workspace workflow file, or inline one-shot), how to bake the dry-run pattern in, where to put cursors, and how to handle secrets.
-- The catalyst body itself ([control/lib/mcp/catalysts/](control/lib/mcp/catalysts/)) is host-neutral. Combine it with the Codex adapter rules to produce the runnable artifact — don't write `.claude/skills/` files; that's Claude-specific.
+- When materializing a catalyst, read **your own host adapter** — [codex.md](control/lib/mcp/adapters/codex.md), [grok-build.md](control/lib/mcp/adapters/grok-build.md), [hermes.md](control/lib/mcp/adapters/hermes.md), or [generic.md](control/lib/mcp/adapters/generic.md); `get_adapter` resolves yours from your `clientInfo`. It tells you which artifact target to pick (a Codex automation, a `~/.grok/skills/` skill, a workspace workflow file, an inline one-shot), how to bake the dry-run pattern in, where to put cursors, and how to handle secrets.
+- The catalyst body itself ([control/lib/mcp/catalysts/](control/lib/mcp/catalysts/)) is host-neutral. Combine it with your adapter's rules to produce the runnable artifact — don't write `.claude/skills/` files; that's Claude-specific, and a host that compat-scans it (Grok does) still deserves its own native layout.
 
 ## Secrets posture
 

@@ -341,7 +341,7 @@ The physical-object edge hardened (design + phase log:
 
 Recipes are STARTERS — the agent iterates them in place on the same ref. That
 was already true for worlds but broken for three 3D families; all three closed
-(design + build log: `lib/mcp/tools/edit-3d-recipes.plan.md`).
+(design + build log: `edit-3d-recipes.plan.md`, since archived).
 
 - **Games are editable.** `update_sketch` gained a `kind:'game'` branch paying
   create_game's structural gate (schema + level resolution + per-level contract

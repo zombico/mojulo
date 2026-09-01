@@ -109,7 +109,7 @@ The five paradigm loops (media · game · connected service · app · bot) and t
 ## More
 
 - Full repo and docs: <https://github.com/zombico/mojulo>
-- Architecture: [docs/chatbot/BOT-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/chatbot/BOT-ARCHITECTURE.md) (bot factory + artifact lifecycle), [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (MCP control surface), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the visual substrate)
+- Architecture: [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (the headless control surface — wings, packs, and the request lifecycle), [docs/AGENT-REFERENCE.md](https://github.com/zombico/mojulo/blob/main/docs/AGENT-REFERENCE.md) (the creative substrate, data layout), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the geometry substrate). Optional chatbot pack: [docs/chatbot/](https://github.com/zombico/mojulo/blob/main/docs/chatbot/).
 - MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md)
 - Catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)
 - Terms & responsibility model: [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md), [docs/responsibility-model.md](https://github.com/zombico/mojulo/blob/main/docs/responsibility-model.md)

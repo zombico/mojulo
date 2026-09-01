@@ -1,14 +1,16 @@
 # Mojulo MCP Architecture
 
-The headless face of mojulo: the same control plane that compiles bots also exposes itself as a **remote MCP server** so a user's own MCP-capable agent (Claude Code, Claude Desktop, Codex CLI, any HTTP MCP client) can design, deploy, observe, and reason about the fleet without touching the Next.js UI. For the bot factory and artifact lifecycle, see [BOT-ARCHITECTURE.md](chatbot/BOT-ARCHITECTURE.md).
+The headless face of mojulo: the control plane exposes itself as a **local MCP server** so the operator's own MCP-capable agent (Claude Code, Claude Desktop, Codex CLI, any HTTP MCP client) can make things, wire things, and reason about state without touching the Next.js UI. This is the primary way mojulo is driven — the dashboard renders what accumulates; the agent is what acts.
 
-The Next.js UI (chat builder, wizard, `/data` pane) and the MCP tool registry are **two faces of the same primitives** — the same `BuilderSession` + tool-executor pair, the same proxy reads, the same fleet rollups. Don't add MCP-only or UI-only branches past the primitive layer.
+The dashboard and the MCP tool registry are **two faces of the same primitives**. Don't add MCP-only or UI-only branches past the primitive layer.
+
+This doc covers the control surface: transport, gating, session binding, the deliberation surfaces, and the request lifecycle. The **creative substrate** those tools mint into — kinds, kernels, render and export emitters — is [POLYGONIZER-SYNTHESIS.md](POLYGONIZER-SYNTHESIS.md) and [AGENT-REFERENCE.md](AGENT-REFERENCE.md#the-creative-substrate). The **optional chatbot pack** is [docs/chatbot/](chatbot/).
 
 ---
 
 ## 1. Topology
 
-The MCP surface is a single Next.js route ([api/mcp/route.js](../control/app/api/mcp/route.js)) that owns transport + auth and forwards parsed JSON-RPC into [server.js](../control/lib/mcp/server.js), which owns protocol semantics + tool dispatch. Tools live in **rings** under [control/lib/mcp/tools/](../control/lib/mcp/tools/).
+The MCP surface is a single Next.js route ([api/mcp/route.js](../control/app/api/mcp/route.js)) that owns transport + auth and forwards parsed JSON-RPC into [server.js](../control/lib/mcp/server.js), which owns protocol semantics + tool dispatch. Tools live under [control/lib/mcp/tools/](../control/lib/mcp/tools/), grouped for the agent into **wings and packs** (§2).
 
 ```
    MCP client agent                Control plane (Next.js, port 3001)
@@ -47,95 +49,98 @@ Key invariants:
 
 - **Auth is opt-in.** With `CONTROL_PLANE_MCP_KEY` unset the route returns `404` (not `401`) so external probes can't fingerprint whether MCP is "off" vs "wrong key". Same single-operator posture as the rest of the control plane — never expose `/api/mcp` to the public internet.
 - **Tool execution failures return as MCP `tool_result` with `isError:true`**, not JSON-RPC errors — per spec, so the connecting model sees the failure and can react inside its loop.
-- **Lazy tool registration.** `ensureToolsRegistered()` (in [server.js](../control/lib/mcp/server.js)) fires on first request; the registration order is **deliberate** because most MCP clients surface `tools/list` to the model as a list — the natural reading order surfaces orientation → per-bot → fleet → outcome → deliberation. Don't reorder casually.
+- **Lazy tool registration.** `ensureToolsRegistered()` (in [server.js](../control/lib/mcp/server.js)) fires on first request; the registration order is **deliberate** because most MCP clients surface `tools/list` to the model as a list — the natural reading order surfaces orientation first, then the creative mints, then the automation backend. Don't reorder casually.
 - **GET on `/api/mcp` is reserved** by the Streamable HTTP spec for server-initiated SSE; we 405 it for now. The wire shape currently in use is "POST a JSON-RPC message, get one back" plus batch arrays.
 
 ---
 
-## 2. The ring model
+## 2. Wings, packs, and gating
 
-Every tool slots into one of seven rings. The rings carry meaning — they're how the connecting model orients itself, and how `get_tool_index` groups things.
+What the connecting agent actually sees is **two wings over twenty packs**, gated by what is installed on the host. (The ring numbering below predates this and survives as registration order — read it second, not first.)
+
+A **wing** is taxonomy and routing: `forward_context()` opens the STUDIO wing by default, `forward_context({mode:'office'})` opens the automation backend. A **pack** is the unit of install and the unit the agent opens. Each pack declares a `wing`, and either an `installGroup` (`creative` | `chatbot`) or none — a pack declaring none is unconditional, like the kernel.
 
 ```
-                    ┌───────────────────────────────────────────────────┐
-                    │  Ring 0 — orientation                             │
-                    │  forward_context, get_adapter                     │
-                    │  The agent calls these BEFORE acting.             │
-                    └────────────────────┬──────────────────────────────┘
-                                         │
-       ┌─────────────────────┬───────────┴───────────┬─────────────────────┐
-       ▼                     ▼                       ▼                     ▼
- ┌───────────┐         ┌───────────┐           ┌───────────┐         ┌───────────┐
- │  Ring 1   │         │  Ring 2   │           │  Ring 3   │         │  Ring 4   │
- │  build_*  │         │  jobs_*   │           │  operate_*│         │  fleet_*  │
- │ (design)  │         │ (async)   │           │ (per-bot) │         │(cross-bot)│
- │           │         │ deploy/   │           │ proxied   │         │ rollups + │
- │ wraps     │         │ rebuild   │           │ reads of  │         │ SQL       │
- │ Builder-  │         │ poll-able │           │ a single  │         │ Explorer  │
- │ Session   │         │ from MCP  │           │ deployment│         │ in-memory │
- └─────┬─────┘         └─────┬─────┘           └─────┬─────┘         └─────┬─────┘
-       │                     │                       │                     │
-       └─────────────────────┴───────────┬───────────┴─────────────────────┘
-                                         ▼
-                            ┌───────────────────────────┐
-                            │  Ring 5 — catalysts       │
-                            │  list/get/recommend       │
-                            │  curated MD recipes the   │
-                            │  agent synthesizes into a │
-                            │  local Claude Code skill. │
-                            └─────────────┬─────────────┘
-                                          ▼
-                ┌─────────────────────────────────────────────────────┐
-                │  Ring 6 — deliberation (seven surfaces, bot-indep.)│
-                │                                                     │
-                │  contextmap          meta_context_brief / commit    │
-                │  inventory           meta_context_declare_inventory │
-                │  capabilities        record_/get_mcp_capabilities   │
-                │  mcp-orbit composer  recommend_mcp_orbit_compositions
-                │  primitive binding   bind_primitives                │
-                │  trigger binding     bind_trigger / list_triggers   │
-                │  semantic recall     semantic_search                │
-                │                                                     │
-                │  Reasoning ABOUT structure, not reading content.    │
-                └─────────────────────────────────────────────────────┘
-                                          ▼
-                ┌─────────────────────────────────────────────────────┐
-                │  Ring 7 — runtime                                   │
-                │                                                     │
-                │  runner         start_app / stop_app / status_app   │
-                │  agent-tasks    pull_agent_task / submit / cancel   │
-                │                                                     │
-                │  App lifecycle + the agent-mediated work loop.      │
-                └─────────────────────────────────────────────────────┘
-                                          ▼
-        ┌──────────────────────────────────────────────────────────┐
-        │  Ring 8 — plan mode         Ring 9 — research mode       │
-        │                                                          │
-        │  Proposed/speculative.      Accretive/exploratory.       │
-        │  compile_plan validates     Upstream of plans;           │
-        │  manifest vs registry;      optional drawer not woven    │
-        │  execute_plan runs it.      into forward_context.        │
-        │  Graduates to contextmap    synthesize_abstract bridges  │
-        │  on materialization.        to plan forge.               │
-        └──────────────────────────────────────────────────────────┘
+                       ┌──────────────────────────────────────┐
+                       │  Ring 0 — orientation (always on)    │
+                       │  forward_context · get_adapter       │
+                       │  get_tool_index · get_substrate · …  │
+                       │  + the KERNEL: mint_diagram          │
+                       └──────────────┬───────────────────────┘
+                                      │
+        forward_context()  ◄──────────┴──────────►  forward_context({mode:'office'})
+        ┌───────────────────────────┐         ┌────────────────────────────────────┐
+        │  STUDIO — the 3D factory  │         │  OFFICE — automation backend       │
+        │  (the DEFAULT read)       │         │                                    │
+        │                           │         │  installGroup: none (always on)    │
+        │  installGroup: 'creative' │         │   pack_connected_services          │
+        │   pack_diagram            │         │   pack_runtime                     │
+        │   pack_illustration       │         │   pack_plan                        │
+        │   pack_reference          │         │   pack_research                    │
+        │   pack_image_render       │         │   pack_stash                       │
+        │   pack_object             │         │   pack_catalysts                   │
+        │   pack_world              │         │                                    │
+        │   pack_view               │         │  ╷ installGroup: 'chatbot' ╷        │
+        │   pack_motion             │         │  ╷ ABSENT unless installed ╷        │
+        │   pack_audio              │         │  ╷  pack_bot_build        ╷        │
+        │   pack_voice              │         │  ╷  pack_bot_operate      ╷        │
+        │   pack_game               │         │  ╷  pack_fleet            ╷        │
+        │                           │         │  ╵ mojulo install chatbot ╵        │
+        │  mojulo install creative  │         │                                    │
+        └───────────────────────────┘         └────────────────────────────────────┘
 ```
 
-| Ring | Purpose | What flows | Source |
+| Wing | Install group | Pack | What it makes |
 |---|---|---|---|
-| 0 | Orientation — load the full briefing on demand | Glossary, capability model, deploy/connect lifecycle, tool index | [context.js](../control/lib/mcp/tools/context.js), [adapters.js](../control/lib/mcp/tools/adapters.js) |
-| 1 | Bot design (parity with chat builder) | `BuilderSession` + tool-executor calls | [build.js](../control/lib/mcp/tools/build.js) |
-| 2 | Async deploy / rebuild jobs | Poll-able job state in `mcp_jobs` | [jobs-tools.js](../control/lib/mcp/tools/jobs-tools.js), [jobs.js](../control/lib/mcp/jobs.js) |
-| 3 | Per-bot reads | All forwarded through [bot-proxy.js](../control/lib/deployers/bot-proxy.js); never copied locally | [operate.js](../control/lib/mcp/tools/operate.js) |
-| 4 | Cross-bot rollups + ad-hoc SQL | Per-bot `/api/analytics/*` rollups composed into a fresh in-memory SQLite per query | [fleet.js](../control/lib/mcp/tools/fleet.js), [fleet/scoped-sql.js](../control/lib/fleet/scoped-sql.js) |
-| 5 | Curated workflow recipes | Markdown nuclei in [catalysts/](../control/lib/mcp/catalysts/); agent fuses with bot shape + local MCPs into `.claude/skills/<name>/SKILL.md` | [catalysts.js](../control/lib/mcp/tools/catalysts.js) |
-| 6 | Deliberation about structure | Contextmap, inventory, capabilities, mcp-orbit composer, primitive binding, trigger binding, semantic recall — all bot-independent | see §4 |
-| 7 | Runtime: app lifecycle and agent-task queue | App process daemon (`mojulo-app-runtime`) + in-memory FIFO fulfiller queue for the agent-mediated work loop | [runner.js](../control/lib/mcp/tools/runner.js), [agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) |
-| 8 | Plan mode: proposed/speculative layer | Executable plans (`plans` table) that compile against the live tool registry and graduate to contextmap on artifact materialization | [plan-mode.js](../control/lib/mcp/tools/plan-mode.js) |
-| 9 | Research mode: accretive exploratory drawer | Durable research sessions, items, and abstracts; `synthesize_abstract` bridges to plan forge via research→plan evaluator | [research-mode.js](../control/lib/mcp/tools/research-mode.js) |
+| studio | creative | `pack_diagram` | Diagrams & charts |
+| studio | creative | `pack_illustration` | Scene & figure illustration |
+| studio | creative | `pack_reference` | Visual reference (from a photo) |
+| studio | creative | `pack_image_render` | AI-image render pipeline (the director layer) |
+| studio | creative | `pack_object` | 3D solids, figures & objects |
+| studio | creative | `pack_world` | Worlds (traversable) |
+| studio | creative | `pack_view` | Study views (science / math / bio) |
+| studio | creative | `pack_motion` | Motion, film & motion-comic |
+| studio | creative | `pack_audio` | Audio — Mojulo Beats |
+| studio | creative | `pack_voice` | Voice — Mojulo Voice |
+| studio | creative | `pack_game` | Game |
+| office | *(none)* | `pack_connected_services` | MCP deliberation & binding |
+| office | *(none)* | `pack_runtime` | Apps, daemons & agent tasks |
+| office | *(none)* | `pack_plan` | Plan mode |
+| office | *(none)* | `pack_research` | Research mode |
+| office | *(none)* | `pack_stash` | Gather / stash / cook / publish |
+| office | *(none)* | `pack_catalysts` | Catalysts, adapters & extension |
+| office | **chatbot** | `pack_bot_build` | Chatbot — build & deploy |
+| office | **chatbot** | `pack_bot_operate` | Chatbot — operate deployed bots |
+| office | **chatbot** | `pack_fleet` | Fleet — cross-bot aggregation |
 
-**Why `forward_context` matters.** The `initialize` preamble surfaced to the connecting model is deliberately *tiny* — it names the four creatable artifacts with their entry tools, then points at `forward_context`. `forward_context` is itself a **thin routing index** (pinned by the body-ceiling test in `context.test.js`, ~2.5K tokens), not a full briefing: a lean opener, a `user-framing → entry-tool` table, a directory of drawers, and the standing safety + commitment rules. Its Create-things section is a **mini segmented index** — one row per FORM (picture / object / world / motion / audio / game / publication) naming recognizers + entry tool; the full per-family routing rows (recognizer quotes + fork sentences) live as **routing cards** under [lib/mcp/routing-cards/](../control/lib/mcp/routing-cards/), indexed as `routing` in semantic recall and returned *whole* by `semantic_search({kinds:['routing']})` (no follow-up reader). The rest of the heavy content drawerizes behind sibling Ring 0 tools the agent pulls only when a task needs depth — `get_register_kit` (concept glossary + narration register), `get_tool_index` (the full one-line-per-tool index), `get_deliberation_overview` (the Ring 6 structural model), `get_ui_map` (dashboard pages), `get_substrate` (PLAYful Cloud / cloud-comparison positioning). Most tool descriptions in `tools/list` self-route, so the agent often routes from the outer layers (preamble + tool descriptions + this index) without drilling further. **When you add a tool, the routing index and tool index in [context.js](../control/lib/mcp/tools/context.js) must be updated** — a missing entry leaves the connecting agent flying blind; the registry-sweep test in `context.test.js` enforces this (every listed tool name must appear in `TOOL_INDEX`; unlisted deprecated aliases are exempt). A new `create_view` kind or `compose_world` base is NOT a new tool — it needs a view-vocab card under [lib/graph/views/view-vocab/](../control/lib/graph/views/view-vocab/), not an index row. A new **creative capability** needs a routing card + fixture rows in the retrieval eval ([routing-eval.integration.test.js](../control/lib/mcp/routing-cards/routing-eval.integration.test.js) — paraphrased phrasings → expected entry tool against the real local embedder), NOT a new fat Create-things row. See [FORWARD_CONTEXT_INDEX_PLAN.md](../lite-template/integration/FORWARD_CONTEXT_INDEX_PLAN.md) and [tool-list-drawerization.plan.md](../control/lib/mcp/tools/tool-list-drawerization.plan.md).
+Roster and membership: [packs.js](../control/lib/mcp/packs.js).
 
-**Standing secrets rule.** The initialize preamble also tells the connecting agent: treat `.env` files under `$MOJULO_HOME` and inside any unzipped mojulo bot as user secrets. To inspect a bot's environment, call `inspect_bot_env` — it returns masked values. The agent must never `cat`, `Read`, or echo raw `.env` contents.
+**Install is PACK-grain, and derived from disk.** State comes from what is physically present on the host, with `MOJULO_PACKS` as an explicit override. The heavy creative stack is optional (`mojulo install creative`); the chatbot factory is opt-in since 2.0 (`mojulo install chatbot`, `--remove` to take it away) and is **absent from a default install** — 17 of 20 packs, no bot tools listed. The kernel alone can still mint a diagram: `mint_diagram` is spine, not pack. See [install-capabilities.md](install-capabilities.md).
+
+**The iron wall is execution, not information.** An uninstalled pack's tools do not list and do not run, and refuse with an advisory naming the install rather than pretending not to exist. `mojulo tools` / `mojulo packs` list only installed packs with a `not installed: … add with: …` footer. Knowledge is never hidden; only execution is walled.
+
+**Packs mode.** On hosts that do not already defer tool schemas client-side, `tools/list` carries a small spine plus **one tool per pack** — a result-shaped bundle whose description says what it makes. The agent calls a pack with no arguments to open it (orientation + a member manual with names, descriptions, and input schemas), then runs members through it: `pack_audio({ tool: 'create_beats', args: { … } })`. Packs are additive — open what the session needs, no more. Hosts that defer schemas natively get the flat registry instead ([server.js](../control/lib/mcp/server.js), `clientDefersSchemas`).
+
+### Rings — registration order (legacy vocabulary)
+
+Rings are the order tools register in, and the vocabulary much of the code and prose still uses. They are **not** how the agent orients — that is the wing/pack split above. Read them when you are working *inside* the server.
+
+| Ring | Purpose | Source |
+|---|---|---|
+| 0 | Orientation — routing index + drawers | [context.js](../control/lib/mcp/tools/context.js), [adapters.js](../control/lib/mcp/tools/adapters.js) |
+| 1–4 | **Chatbot pack only** — bot design, async deploy/rebuild jobs, per-bot proxied reads, cross-bot rollups + scoped SQL. Registered only when the pack is installed. | [build.js](../control/lib/mcp/tools/build.js), [jobs-tools.js](../control/lib/mcp/tools/jobs-tools.js), [operate.js](../control/lib/mcp/tools/operate.js), [fleet.js](../control/lib/mcp/tools/fleet.js) |
+| 5 | Curated workflow recipes (catalysts) | [catalysts.js](../control/lib/mcp/tools/catalysts.js) |
+| 6 | Deliberation about structure — seven surfaces, all paradigm-independent (see §4) | see §4 |
+| 7 | Runtime: app lifecycle + the agent-task queue | [runner.js](../control/lib/mcp/tools/runner.js), [agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) |
+| 8 | Plan mode — proposed/speculative, compiles against the live registry | [plan-mode.js](../control/lib/mcp/tools/plan-mode.js) |
+| 9 | Research mode — accretive exploratory drawer upstream of plans | [research-mode.js](../control/lib/mcp/tools/research-mode.js) |
+| 10 | **Creative mints — the whole studio.** Re-cut by FORM rather than listed flat: `get_creative_toolset` (no arg → the form map; `{ form }` → that form's tools) is the reader, and `get_tool_index` points at it instead of enumerating. | [creative-forms.js](../control/lib/mcp/creative-forms.js), [context.js](../control/lib/mcp/tools/context.js) |
+
+Ring number is a poor proxy for weight — Ring 10 carries eleven packs behind one folded reader, while Rings 1–4 may not exist on a given host at all. **Ring 11** ("operations view") is deprecated; it survives only as internal naming in [ops-tags.js](../control/lib/db/repositories/ops-tags.js).
+
+**Why `forward_context` matters.** The `initialize` preamble surfaced to the connecting model is deliberately *tiny* — it names the five paradigms with their entry tools — Media and Game leading, Bot flagged as an opt-in pack that may be absent — then points at `forward_context`. `forward_context` is itself a **thin routing index** (pinned by the body-ceiling test in `context.test.js`, ~2.5K tokens), not a full briefing: a lean opener, a `user-framing → entry-tool` table, a directory of drawers, and the standing safety + commitment rules. Its Create-things section is a **mini segmented index** — one row per FORM (picture / object / world / motion / audio / game / publication) naming recognizers + entry tool; the full per-family routing rows (recognizer quotes + fork sentences) live as **routing cards** under [lib/mcp/routing-cards/](../control/lib/mcp/routing-cards/), indexed as `routing` in semantic recall and returned *whole* by `semantic_search({kinds:['routing']})` (no follow-up reader). The rest of the heavy content drawerizes behind sibling Ring 0 tools the agent pulls only when a task needs depth — `get_register_kit` (concept glossary + narration register), `get_tool_index` (the full one-line-per-tool index), `get_deliberation_overview` (the Ring 6 structural model), `get_creative_toolset` (one creative FORM's tools), `get_ui_map` (dashboard pages), `get_substrate` (PLAYful Cloud / cloud-comparison positioning). Most tool descriptions in `tools/list` self-route, so the agent often routes from the outer layers (preamble + tool descriptions + this index) without drilling further. **When you add a tool, the routing index and tool index in [context.js](../control/lib/mcp/tools/context.js) must be updated** — a missing entry leaves the connecting agent flying blind; the registry-sweep test in `context.test.js` enforces this (every listed tool name must appear in `TOOL_INDEX`; unlisted deprecated aliases are exempt). A new `create_view` kind or `compose_world` base is NOT a new tool — it needs a view-vocab card under [lib/graph/views/view-vocab/](../control/lib/graph/views/view-vocab/), not an index row; a kind contributed by an attached recipe book needs neither, since its card travels with it. A new **creative capability** needs a routing card + fixture rows in the retrieval eval ([routing-eval.integration.test.js](../control/lib/mcp/routing-cards/routing-eval.integration.test.js) — paraphrased phrasings → expected entry tool against the real local embedder), NOT a new fat Create-things row. See [tool-list-drawerization.plan.md](../control/lib/mcp/tools/tool-list-drawerization.plan.md).
+
+**Standing secrets rule.** The initialize preamble also tells the connecting agent: treat `.env` files under `$MOJULO_HOME`, inside any generated app directory, and inside any unzipped mojulo bot as user secrets. Use the masking helpers or the purpose-built inspectors (`inspect_bot_env` returns masked values; `list_env` / `set_env` for app runtimes). The agent must never `cat`, `Read`, or echo raw `.env` contents.
 
 ---
 
@@ -207,7 +212,7 @@ Ring 6 is the deliberation layer. Where Rings 1–5 do work (design, deploy, rea
 
 ### 4a. Contextmap — `meta_context_brief` / `meta_context_commit`
 
-Writeable, durable, append-only. Records *why* this artifact was materialized via that adapter for this bot, what locked-in constraints the operator declared, what mapping decisions a specific binding encodes.
+Writeable, durable, append-only. Records *why* this artifact was materialized via that adapter for this subject, what locked-in constraints the operator declared, what mapping decisions a specific binding encodes.
 
 Six structural commit types:
 
@@ -232,7 +237,7 @@ Sits **alongside** the append-only contextmap on purpose: inventory is *present 
 
 A compact snapshot rides on `meta_context_brief({kind:'fleet'})` as `inventory.{servers, declaredAt, ageSeconds, toolCount}` so a single brief call yields both deliberation history and environment shape.
 
-Source: [mcp-inventory.js](../control/lib/mcp/tools/mcp-inventory.js). Full spec: [lite-template/integration/MCP_INVENTORY_PLAN.md](../lite-template/integration/MCP_INVENTORY_PLAN.md).
+Source: [mcp-inventory.js](../control/lib/mcp/tools/mcp-inventory.js).
 
 ### 4c. Capabilities — `record_mcp_capabilities` / `get_mcp_capabilities`
 
@@ -244,7 +249,7 @@ Source: [mcp-capabilities.js](../control/lib/mcp/tools/mcp-capabilities.js). See
 
 ### 4d. mcp-orbit composer — `list_mcp_orbit_components` / `get_mcp_orbit_component` / `get_meta_catalyst` / `recommend_mcp_orbit_compositions`
 
-Sits **on top of** contextmap + inventory + capabilities through a consolidated view (`CapabilitiesRepository.consolidatedView`). Decomposes the non-bot workflow space into five typed component kinds (`mcp` × `trigger` × `pattern` × `idempotency` × `render`) the agent composes under the meta-catalyst's discipline. The server provides components + constraint validation; the agent provides judgment.
+Sits **on top of** contextmap + inventory + capabilities through a consolidated view (`CapabilitiesRepository.consolidatedView`). Decomposes the connected-service workflow space into five typed component kinds (`mcp` × `trigger` × `pattern` × `idempotency` × `render`) the agent composes under the meta-catalyst's discipline. The server provides components + constraint validation; the agent provides judgment.
 
 `source` and `destination` are **composition roles** carried per-entry in `component_refs`, not kinds — each `mcp` component declares an `affordances` map (`read` / `write` / `watch`) and plays whichever role its affordances support, so the same Gmail MCP can play source in one composition and destination in another.
 
@@ -278,52 +283,19 @@ Source: [mcp-trigger-binding.js](../control/lib/mcp/tools/mcp-trigger-binding.js
 
 Covers seven source kinds: `principle`, `mcp_tool` (declared inventory), `mcp_capability` (current row only — supersession filter is load-bearing), `orbit_component`, `orbit_composition`, `orbit_artifact`, `catalyst`. Returns ranked `{ source_kind, source_ref, score, snippet }` rows — *retrieve, don't resolve*; the agent pairs results with the structured readers to pull full bodies.
 
-Embeddings use the **same in-process multilingual-e5-small ONNX** that powers bot-side RAG (no new dependency). First-boot backfill via `maybeBackfillEmbeddings` in [db/index.js](../control/lib/db/index.js); `MOJULO_SEMANTIC_INDEX_DISABLED=1` skips the auto-run, and [scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js) is the manual recovery / body-composition-change path.
+Embeddings use an in-process multilingual-e5-small ONNX model — the same one the optional bot runtime uses for its own RAG, so no new dependency either way. First-boot backfill via `maybeBackfillEmbeddings` in [db/index.js](../control/lib/db/index.js); `MOJULO_SEMANTIC_INDEX_DISABLED=1` skips the auto-run, and [scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js) is the manual recovery / body-composition-change path.
 
-Source: [semantic-search.js](../control/lib/mcp/tools/semantic-search.js). Full spec: [lite-template/integration/SEMANTIC_INDEX_PLAN.md](../lite-template/integration/SEMANTIC_INDEX_PLAN.md).
+Source: [semantic-search.js](../control/lib/mcp/tools/semantic-search.js).
 
 ---
 
-## 5. Session binding
+## 5. Session and identity
 
-The web chat-builder threads a `session_id` through every tool call. MCP has no equivalent first-class primitive that's load-bearing for our flow, so we bind one `BuilderSession` per `mcp-session-id` header value, lazily, on first build-tool invocation.
+**Single-operator posture.** By default every call is scoped to `userId='local'` — there is no user identity (see [auth/service.js](../control/lib/auth/service.js)). With the opt-in roles pack enabled, the presented bearer resolves to an operator-issued key with its own scoped identity; this is operator-owned delegation (the operator cutting keys to their own house), never multi-tenant identity — there is exactly one owner, and every key is operator-issued and operator-revocable.
 
-```
-   MCP request                  session-binding.js                  SQLite
-        │                              │                              │
-        │ tools/call build_*           │                              │
-        │  (mcpSessionId="abc")        │                              │
-        ├─────────────────────────────▶│                              │
-        │                              │ bindings.get("abc")?         │
-        │                              │   ── miss ──                 │
-        │                              │                              │
-        │                              │ buildPreloadedContext(user)  │
-        │                              │   load apiKeys, documents,   │
-        │                              │   existingBots, defaults     │
-        │                              │                              │
-        │                              │ BuilderSessionRepository     │
-        │                              │  .createWithContext(...)     │
-        │                              ├─────────────────────────────▶│
-        │                              │                              │ INSERT
-        │                              │◀─────────────────────────────┤ → session.id
-        │                              │                              │
-        │                              │ bindings.set("abc",          │
-        │                              │              session.id)     │
-        │                              │                              │
-        │                              │ tool-executor handler        │
-        │                              │   sees the same session      │
-        │                              │   the web chat builder       │
-        │                              │   would see                  │
-```
+**Creative tools are stateless per call.** Minting, editing, and exporting take a `ref` and return one; nothing is threaded through a session object. `forward_context`'s `mode` is likewise stateless per call. The state that matters lives in the row, not in the connection — which is what lets a session die mid-work and the next one pick the recipe up by `ref`.
 
-Properties:
-
-- **Mirror of web parity.** The same `builderToolHandlers` (in [tool-executors.js](../control/lib/builder/tool-executors.js)) run for both MCP and the in-app chat — the only difference is who's the loop. Mojulo's `start_new_bot` MCP tool calls `resetBuilderSession(mcpSessionId)` so the agent can build a second bot in the same MCP connection without restarting the client.
-- **In-memory binding map.** On process restart the map is lost; the connecting agent effectively starts a new bot — mirrors the web flow's "tab closed = session orphaned" behavior.
-- **Refresh on every call.** `getOrCreateBuilderSession` re-reads the session row from SQLite each time so handlers see writes from prior tool calls in the same connection.
-- **LLM key required.** Tool handlers refuse to start a session if no Anthropic/OpenAI/Ollama key is configured on the control plane — cloud-deploy tokens (Fly) don't count.
-
-Single-operator posture: by default every call is scoped to `userId='local'` — there is no user identity (see [auth/service.js](../control/lib/auth/service.js)). With the opt-in roles pack enabled, the presented bearer resolves to an operator-issued key with its own scoped identity; this is operator-owned delegation (the operator cutting keys to their own house), never multi-tenant identity — there is exactly one owner, and every key is operator-issued and operator-revocable.
+**Builder-session binding (chatbot pack).** The one flow that *does* bind per-connection state is the bot builder, which threads a `BuilderSession` per `mcp-session-id`. It ships with the optional pack; the mechanism, its in-memory binding map, and the LLM-key requirement are documented at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md#builder-session-binding).
 
 ---
 
@@ -386,7 +358,7 @@ Use **primitive-binding** when the operator wants the workflow grounded in their
 
 ## 7. Catalysts: nucleation, not artifact
 
-Catalysts (Ring 5) are curated workflow recipes shipped as markdown in [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/). The connecting agent pulls one via `get_catalyst`, combines it with a specific bot's shape (via Ring 3 tools) and the user's already-installed MCPs, and **synthesizes a local Claude Code skill** into `.claude/skills/<name>/SKILL.md`. The catalyst is the nucleation point, not the artifact — it persists in the library, the synthesized skill is what actually runs.
+Catalysts (Ring 5) are curated workflow recipes shipped as markdown in [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/). The connecting agent pulls one via `get_catalyst`, combines it with the shape of whatever it is operating on and the user's already-installed MCPs, and **synthesizes a runnable artifact** through the host adapter — a Claude Code skill at `.claude/skills/<name>/SKILL.md`, a Codex automation, or a generic `workflow.md`. The catalyst is the nucleation point, not the artifact — it persists in the library, the synthesized skill is what actually runs.
 
 Frontmatter is **JSON** (not YAML) and the loader requires `id`, `name`, `summary`, and `valueHook` (one-sentence outcome framing used by `recommend_catalysts` in consultation mode). Validation faults throw — the library is curated, not user input. Authoring is repo-side only; there is no user-writable catalyst directory. See [catalysts.md](catalysts.md) for the author spec, and use the [/write-catalyst](../.claude/skills/) skill to draft new ones.
 
@@ -421,19 +393,19 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 |------|------|
 | [control/app/api/mcp/route.js](../control/app/api/mcp/route.js) | HTTP transport + bearer auth; forwards JSON-RPC into server.js |
 | [control/lib/mcp/server.js](../control/lib/mcp/server.js) | Protocol dispatch, tool registry, initialize preamble |
-| [control/lib/mcp/session-binding.js](../control/lib/mcp/session-binding.js) | `mcpSessionId` → `BuilderSession` lazy binding |
+| [control/lib/mcp/session-binding.js](../control/lib/mcp/session-binding.js) | `mcpSessionId` → `BuilderSession` lazy binding *(chatbot pack)* |
 | [control/lib/mcp/client-bindings.js](../control/lib/mcp/client-bindings.js) | `clientInfo` capture for host-adapter auto-resolution |
-| [control/lib/mcp/jobs.js](../control/lib/mcp/jobs.js) | Async job state machine for Ring 2 (deploy/rebuild from short-lived MCP clients) |
+| [control/lib/mcp/jobs.js](../control/lib/mcp/jobs.js) | Async job state machine for Ring 2 (deploy/rebuild from short-lived MCP clients) *(chatbot pack)* |
 | [control/lib/mcp/tools/context.js](../control/lib/mcp/tools/context.js) | Ring 0 — `forward_context`. The tool index lives here; keep it in sync when adding tools |
 | [control/lib/mcp/tools/adapters.js](../control/lib/mcp/tools/adapters.js) | Ring 0 — `get_adapter` (host adapter binding) |
-| [control/lib/mcp/tools/build.js](../control/lib/mcp/tools/build.js) | Ring 1 — wraps `BuilderSession` + tool-executors |
-| [control/lib/builder/tool-executors.js](../control/lib/builder/tool-executors.js) | The shared builder handlers — same for MCP and web chat |
-| [control/lib/mcp/tools/jobs-tools.js](../control/lib/mcp/tools/jobs-tools.js) | Ring 2 — `create_job`, `get_job_status` |
-| [control/lib/mcp/tools/operate.js](../control/lib/mcp/tools/operate.js) | Ring 3 — per-bot reads (all through bot-proxy) |
-| [control/lib/deployers/bot-proxy.js](../control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` — used by Ring 3 |
-| [control/lib/mcp/tools/fleet.js](../control/lib/mcp/tools/fleet.js) | Ring 4 — cross-bot rollups + SQL Explorer |
-| [control/lib/fleet/scoped-sql.js](../control/lib/fleet/scoped-sql.js) | Builds a fresh in-memory SQLite per SQL Explorer query; SELECT/WITH only, single statement, row + duration caps |
-| [control/lib/deployers/bot-fleet.js](../control/lib/deployers/bot-fleet.js) | Fans the per-bot proxy across all connected deployments (timeout + concurrency capped) |
+| [control/lib/mcp/tools/build.js](../control/lib/mcp/tools/build.js) | Ring 1 — wraps `BuilderSession` + tool-executors *(chatbot pack)* |
+| [control/lib/builder/tool-executors.js](../control/lib/builder/tool-executors.js) | The shared builder handlers — same for MCP and web chat *(chatbot pack)* |
+| [control/lib/mcp/tools/jobs-tools.js](../control/lib/mcp/tools/jobs-tools.js) | Ring 2 — `create_job`, `get_job_status` *(chatbot pack)* |
+| [control/lib/mcp/tools/operate.js](../control/lib/mcp/tools/operate.js) | Ring 3 — per-bot reads (all through bot-proxy) *(chatbot pack)* |
+| [control/lib/deployers/bot-proxy.js](../control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` — used by Ring 3 *(chatbot pack)* |
+| [control/lib/mcp/tools/fleet.js](../control/lib/mcp/tools/fleet.js) | Ring 4 — cross-bot rollups + SQL Explorer *(chatbot pack)* |
+| [control/lib/fleet/scoped-sql.js](../control/lib/fleet/scoped-sql.js) | Fresh in-memory SQLite per SQL Explorer query; SELECT/WITH only, single statement, row + duration caps *(chatbot pack)* |
+| [control/lib/deployers/bot-fleet.js](../control/lib/deployers/bot-fleet.js) | Fans the per-bot proxy across all connected deployments (timeout + concurrency capped) *(chatbot pack)* |
 | [control/lib/mcp/tools/catalysts.js](../control/lib/mcp/tools/catalysts.js) | Ring 5 — `list/get/recommend_catalysts` |
 | [control/lib/mcp/catalysts/loader.js](../control/lib/mcp/catalysts/loader.js) | JSON frontmatter loader; requires `id`, `name`, `summary`, `valueHook` |
 | [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/) | The curated library |
@@ -453,6 +425,9 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 | [control/lib/db/repositories/embeddings.js](../control/lib/db/repositories/embeddings.js) | Split sync/async helpers that keep `meta_embeddings` in lockstep with source writes |
 | [control/scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js) | Manual recovery / body-composition-change path |
 | [control/lib/mcp/tools/runner.js](../control/lib/mcp/tools/runner.js) | Ring 7 — app lifecycle tools (`install_scaffold`, `start_app`, `stop_app`, `status_app`, `list_running`, env CRUD) |
+| [control/lib/mcp/packs.js](../control/lib/mcp/packs.js) | The 20-pack roster — wing, installGroup, members. The grouping the agent sees (§2) |
+| [control/lib/mcp/creative-forms.js](../control/lib/mcp/creative-forms.js) | The creative-mint FORM enum behind `get_creative_toolset` (Ring 10) |
+| [control/lib/mcp/routing-cards/](../control/lib/mcp/routing-cards/) | Per-capability routing cards, returned whole by `semantic_search({kinds:['routing']})` |
 | [control/lib/runners/local.js](../control/lib/runners/local.js) | Loopback HTTP client; lifecycle verbs proxy to the daemon, env CRUD stays local filesystem |
 | [control/lib/runners/engine.js](../control/lib/runners/engine.js) | App runtime engine inside the daemon |
 | [control/lib/mcp/tools/agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) | Ring 7 — `pull_agent_task`, `submit_envelope_inference`, `cancel_agent_task` |
@@ -467,13 +442,25 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 
 ## 10. Related docs
 
+**The substrate:**
+
+- [AGENT-REFERENCE.md](AGENT-REFERENCE.md) — the dense agent-facing map: the creative substrate, packs and gating, rings, data layout
+- [POLYGONIZER-SYNTHESIS.md](POLYGONIZER-SYNTHESIS.md) — the geometry substrate the studio tools mint into
+- [install-capabilities.md](install-capabilities.md) — kernel, always-on packs, and the two install groups (§2's source of truth)
+- [bicycles.md](bicycles.md) — the machine-gate / eyes-gate doctrine every handoff runs
+
+**The control surface:**
+
 - [mcp-integration.md](mcp-integration.md) — client setup (Claude Desktop, Claude Code, Codex), enabling `/api/mcp`, the bearer-key model
 - [meta-context.md](meta-context.md) — full spec for the contextmap layer (the bright line, write triggers, the graph)
 - [mcp-orbit.md](mcp-orbit.md) — full spec for the vendor-shaped composer and the primitive-binding companion
 - [catalysts.md](catalysts.md) — what a catalyst is, the frontmatter contract, the author spec
-- [chat-builder.md](chatbot/chat-builder.md) — the web-side counterpart to Ring 1 (same BuilderSession + tool executors)
-- [wizard-builder.md](chatbot/wizard-builder.md) — the form-driven third entry point that also converges on `buildDeploymentConfig()`
-- [conversations-api.md](chatbot/conversations-api.md) — the bot-side API that Ring 3 proxies through
-- [federated-routing.md](chatbot/federated-routing.md) — cross-bot handoffs and how the tamper-evident chain extends through them
 - [app-runtime.md](app-runtime.md) — Ring 7 app runner daemon: lifecycle, reconciliation, env CRUD, daemon posture
-- [BOT-ARCHITECTURE.md](chatbot/BOT-ARCHITECTURE.md) — the bot-shaped face: how the artifact is compiled and what runs inside it
+
+**Optional chatbot pack** — Rings 1–4, absent from a default install. Start at [docs/chatbot/](chatbot/):
+
+- [chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md) — the pack's dense reference, including builder-session binding
+- [chatbot/BOT-ARCHITECTURE.md](chatbot/BOT-ARCHITECTURE.md) — how the artifact is compiled and what runs inside it
+- [chatbot/chat-builder.md](chatbot/chat-builder.md), [chatbot/wizard-builder.md](chatbot/wizard-builder.md) — the other two entry points onto `buildDeploymentConfig()`
+- [chatbot/conversations-api.md](chatbot/conversations-api.md) — the bot-side API that Ring 3 proxies through
+- [chatbot/federated-routing.md](chatbot/federated-routing.md) — cross-bot handoffs and how the tamper-evident chain extends through them

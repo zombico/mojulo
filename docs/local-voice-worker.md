@@ -2,7 +2,7 @@
 
 An **optional** local text-to-speech backend for the voice-worker seam.
 Design + build log:
-[control/lib/graph/voice/voice-worker.plan.md](../control/lib/graph/voice/voice-worker.plan.md).
+[lite-template/integration/plan-archive/voice-worker.plan.md](../lite-template/integration/plan-archive/voice-worker.plan.md).
 
 **Who needs this:** nobody by default. The voice is a pluggable worker —
 if the operator's driving agent has native speech synthesis (a

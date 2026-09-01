@@ -1,5 +1,9 @@
 # mechanics-vocab.plan.md — growing the declarative mechanics vocabulary (the vocab-growth spike)
 
+Status: **V0 RUN 2026-08-31** — inventory complete, the four open questions answered
+from code, the word list marked in / out / deferred below. V1 not started; its
+recommended scope narrowed to `win-when` + `hp-pool` + `defeat-all`. See "V0 — findings".
+
 Lineage: `game-mechanics.plan.md` M0 shipped the five v1 words (`reach-exit` / `survive` /
 `collect` / `hazard-damage` / `fail-on-death`) and the mechanics-guide card deferred combat
 words "behind a combat world idiom." `godot-handoff.plan.md` G6 then proved the words travel:
@@ -97,6 +101,109 @@ combat vocabulary lowers to primitives that already exist.
 - **`checkpoint`** — wants the fall policy's respawn `to` to dereference a var, which the
   verb layer doesn't do today (`resolveRef` reads event paths only). Small bus extension,
   real but not combat-critical; parked until a level actually asks.
+
+## V0 — findings (run 2026-08-31)
+
+Read of MSA's stored manifests (`sk_ms_arena` + all 45 level refs) against
+`assessPortability`. **The four open questions are answered at the bottom; two findings
+change this plan's shape and one of them is a correctness warning.**
+
+### The 47 flags are 45 copies of one flag, plus two
+
+Recomputed exactly, and it reproduces:
+
+| count | flag |
+|---:|---|
+| 45 | `no completion mechanic (reach-exit / survive) — the win condition lives in runtime code` |
+| 1 | `'setup' shell UI does not travel` |
+| 2 | *(with)* `'difficulty' shell UI does not travel` |
+
+No `mechanics outside the vocabulary` flags, no gate flags, and — since the total is
+*exactly* 47 — no `skipped_movers` / `skipped_physics` ledger flags either. So "47 flags,
+dominated by the win condition" understates it: **the win condition is 96% of the number,
+and the other 4% is shell UI that is correctly non-travelling.** There is no long tail.
+
+### MSA declares ZERO mechanics — but its win condition is already data
+
+All 45 levels carry a `game` block of `{ consumes, levelRef, presets, produces }` — career
+and roster composition. None carries `mechanics`, `vars`, `reactions`, `events`, `sources`,
+`timers`, or `watches`.
+
+But 42 of the 45 carry a **`match` block whose `killTarget` is a plain integer**:
+
+| mode | levels | `killTarget` |
+|---|---:|---:|
+| solo / ffa / practice | 18 | 3 |
+| team | 6 | 6 |
+| watch (spectate) | 18 | 5 |
+| tutorial (`sk_ms_tutorial_*`) | 3 | *no `match` block* |
+
+So the win condition was never "lost in runtime code" in the sense the flag text implies —
+**it is declared, as a number, in a channel `engine-score.js` does not read.** `engine-score`
+carries `manifest.game.mechanics` verbatim; `match` is a sibling it ignores.
+
+### ⚠ The correctness warning: a terminal without a producer makes the report LIE
+
+The tempting one-line fix — lower `match.killTarget` into `win-when { var:'kills', gte: N }` —
+would clear all 42 flags and set `portable: true`. **It would also be false.** Nothing in
+any MSA level declaratively increments a `kills` var: there are no reactions, no emitters, no
+`enemy:down` producer. The exported game would assess portable and then never be winnable.
+
+That is a worse outcome than the honest flag we have today, and it cuts against this plan's
+own invariant ("every success terminal carries an audit, or its card says plainly that
+promotion stays manual"). **Flag-clearing and playability are different goals and V1 must not
+be allowed to blur them.** For MSA specifically, the terminal is worthless without the
+producer — which means `hp-pool` (Tier B) is not optional follow-on work, it is part of the
+minimum honest slice.
+
+### Recommended V1 scope (narrower than this plan assumed)
+
+`win-when` + `hp-pool` + `defeat-all` — terminal, producer, and counter together, so the
+first word that clears an MSA flag also makes the level winnable. `time-limit` and
+`collect-all` are cheap and correct but serve OTHER games (crypt-of-the-rune-key shapes);
+they can ride along or wait without affecting the MSA number. The 3 tutorial levels are out
+of scope for V1: with no `match` block their completion is tutorial-step state, which needs
+`tutorial-mode.plan.md`'s own notion of done.
+
+### The four open questions, answered
+
+1. **Can a zone source anchor to a moving entity today?** **No — and it is the one new bus
+   primitive.** `inZone(p, s)` in `worlds/event-bus.js:449` reads `const at = s.at || [0,0,0]`,
+   a static literal; `s.watch` globs which entities are *tested*, never where the zone *is*.
+   The change is small and the data is already in hand: `deriveZoneEvents(entities, prev,
+   sources)` receives every entity, so `at: { entity:'<id>' }` resolves in-function. Determinism
+   obligation: resolve all anchors from the tick's entity snapshot BEFORE any containment test,
+   so order-invariance holds exactly as it does today.
+2. **Does the inputs channel carry a bindable attack action on both instruments?** **No, on
+   either.** `channels/actions.js` has `{ on:'key', … }` but its verbs act on physics BODIES
+   via `window.__mojSim` and it is gated on the physics channel; the controllable walker reads
+   raw `e.code` into a fixed axis map (`controllable/index.js:776`), and the Godot kernel
+   hardcodes `Input.is_physical_key_pressed(KEY_W)` in `walker.gd`. There is no shared, score-
+   carried action binding. **`melee-strike` must therefore specify its own binding**, on both
+   instruments — that cost belongs in the word, not in a pre-existing channel.
+3. **`projectile` — in or out?** **Out, deferred.** MSA produces no `skipped_physics` flag,
+   meaning its levels do not use the physics channel at all; its projectiles are runtime/AI
+   code. A physics-lowered `projectile` would therefore not describe MSA's own combat, while
+   inheriting the one channel the ledger already says does not travel. Revisit when a level
+   actually declares physics-based shooting.
+4. **Does `win-when` need an all/both combinator?** **No.** Every one of the 42 match-carrying
+   levels declares exactly one predicate (`killTarget`); team mode scopes the count but does not
+   add a second condition. One predicate per word instance covers 100% of MSA. Defer the
+   combinator until a level asks.
+
+### Word list, marked
+
+- `win-when` — **IN (V1)**. Clears the flag class. Must ship with a producer; see the warning.
+- `hp-pool` — **IN (V1), promoted from Tier B.** It is the producer that makes `win-when`
+  honest for MSA. All-existing verbs; the open question is only per-entity var naming.
+- `defeat-all` — **IN (V1)**, paired with `hp-pool` as its `enemy:down` source.
+- `time-limit` — **IN, low priority.** Correct and cheap; no MSA level asks for it.
+- `collect-all` — **IN, low priority.** Serves collection-shaped games, not MSA.
+- `melee-strike` — **IN (V1-late / V3)**, gated on the entity-anchored zone landing in the bus
+  first (Q1) and on carrying its own input binding (Q2).
+- `projectile` — **DEFERRED**, reason in Q3.
+- AI / `party-battle`, movers / live physics, `checkpoint` — **unchanged, still deferred.**
+
 
 ## Phases
 

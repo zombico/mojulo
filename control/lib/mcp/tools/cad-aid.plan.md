@@ -2,7 +2,7 @@
 
 Status: analysis + roadmap (2026-08-30). Phases 0 + 1 and the
 housekeeping items LANDED same day (see the phase notes); phases 2–4
-open. Sibling of [edit-3d-recipes.plan.md](edit-3d-recipes.plan.md)
+open. Sibling of [edit-3d-recipes.plan.md](../../../../lite-template/integration/plan-archive/edit-3d-recipes.plan.md)
 (which owns the solids edit-path documentation gap; phase 3 here leans
 on it).
 
@@ -216,7 +216,7 @@ into sibling refs:
   profile changed, height +2cm"), the shape `diff_beats` already proves;
   `diff_sketches` stays the visual sibling.
 - Revisions ride on edit-in-place, which is
-  [edit-3d-recipes.plan.md](edit-3d-recipes.plan.md) phase 2's territory
+  [edit-3d-recipes.plan.md](../../../../lite-template/integration/plan-archive/edit-3d-recipes.plan.md) phase 2's territory
   (document the existing `update_sketch` path first); a
   `sketch_revisions` table mirroring `beats_revisions` is the natural
   landing, decided there, consumed here.
@@ -266,3 +266,114 @@ sketcher, constraint/mate solving, feature trees, GD&T/tolerances,
 dimensioned drawings, native STEP/IGES/3MF readers or writers, mesh
 repair. Every one of these is either the DCC's job across the seam or a
 fidelity claim the doctrine forbids.
+
+---
+
+## Corral — the open concern ledger (2026-08-31)
+
+Everything CAD-shaped that is still open, gathered from this plan, the code,
+and the sibling ledgers, so the reforge starts from one list instead of six.
+Verified against the tree at `283d5c2` + working tree.
+
+### Settled — do not re-litigate
+
+Phases 0, 0b, 1 and the housekeeping items landed. The doctrine holds:
+recipes sovereign, no CSG/B-rep/NURBS in-substrate, advisory-never-gating,
+"print-ready STL at true scale" and never "guaranteed watertight manifold"
+([scene-stl.js:24](../../graph/scene/scene-stl.js) states the honest claim
+in its own header). The non-goals list at the foot of this plan stands.
+
+**Residuals from the landed work:**
+
+- **R1.** Phase 0(a) recorded "one live export verification owed" — a real
+  `export_model({format:'stl'})` on a minted workbench, eyeballed in a
+  slicer. Unit tests cover the filter; no eyes gate is recorded.
+- **R2.** Field-kind drift is reconciled in the code (nine in
+  [fields.js:24](../../graph/polygonizer/fields.js)), in
+  POLYGONIZER-SYNTHESIS, and in the manji-tree card — but `CLAUDE.md:9`
+  still says "the seven field kinds". One-line fix, cosmetic.
+
+### C1 — The measurement gap (phase 2, unstarted)
+
+`measure_solid` does not exist; `measure_view`
+([measure-view.js:134](measure-view.js)) refuses solids by design. There is
+today **no way to read a number back off a solid** — no bbox, no per-part
+bounds as a channel, no feature-to-feature distance, no enclosed volume or
+centroid. `stats.parts[]` holds bounds but is not a read-back channel.
+
+Consequence: the agent cannot sanity-check a part before export, and
+`verify_machina` ([machina.js](machina.js)) still takes typed numbers rather
+than measured geometry — its supply-the-numbers gap is unclosed.
+
+### C2 — The sovereignty gap (phase 3, unstarted)
+
+Solids are second-class against beats on all three counts:
+
+- `save_recipe` refuses them by lane
+  ([save-recipe.js:108-112](save-recipe.js) — the refusal string names the
+  debt: "solids / motion join by the same lane pattern").
+- No structured parameter-level diff. `diff_sketches` is visual-only;
+  `diff_beats` proves the shape that is owed.
+- **No revision table.** `lib/db/index.js:648` has `beats_revisions` and no
+  sibling. Iteration on a solid therefore leaks state into sibling refs or
+  is destructive in place.
+
+Ordering dependency: revisions ride on edit-in-place, which belongs to
+`edit-3d-recipes.plan.md` phase 2 (document the `update_sketch` path first).
+
+### C3 — The seam gaps
+
+- **Inbound is GLB-only and lossy by design.** `bind_mesh_render` has no
+  STEP/STL/OBJ reader. FreeCAD reaches mojulo only via a glTF export. That
+  is doctrine-compatible (STEP/3MF enter as worker OUTPUTS, never native
+  readers) but it is also the whole inbound surface — worth naming as the
+  single point of contact.
+- **The durable queue is hardwired to PNGs.** `render-handoff.js` is
+  structurally generic (manifest-hash idempotency, atomic claim, two audit
+  blobs, no-self-accept) and semantically image-only. House precedent is
+  sibling-table-per-media, not generalization.
+- **No lease/expiry.** The image queue's `STALE_IN_FLIGHT_SECONDS` is "a
+  READING, never a transition" — correct for minute-long renders, wrong for
+  an hour-long CAM/FEA job. Design-time column, not a retrofit.
+- **Catalysts and geometry are disjoint.** A slicer MCP bound through
+  `bind_primitives` has no path into the export path, and `export_model`
+  never consults the meta-context inventory. No thread connects the two
+  seams today.
+
+### C4 — Where the gates are thin
+
+- The closure audit travels with the artifact now, but it is **advisory and
+  kind-skipping**: figure / manji-tree are exempted as surface studies. That
+  is correct posture and it means a study-profile STL ships with no machine
+  gate at all.
+- The **eyes gate is structurally unrecorded** on the mesh seam, exactly as
+  on the bake seam. Phase 4 would fix it by construction; until then nothing
+  captures "a human looked at this print."
+- Print profiles discriminate scale strategy but nothing verifies the
+  outcome — no test or check asserts that a maquette actually landed near
+  `target_mm` on a real export.
+
+### C5 — Gated, deliberately not built
+
+Phase 4 (the CAD bicycle) waits on an unattended geometry worker
+materializing. Do not build ahead of the trigger. `interchange.plan.md`
+pins it: "the durable queue graduates only if unattended workers ever show
+up."
+
+### Cheap bridges available before any of the above
+
+- A **`print-object` catalyst** walking `export_model` → the operator's
+  slicer MCP (composed via `bind_primitives`) → a bound report. This is the
+  first thread between the catalyst seam and the geometry seam, and it needs
+  no new table.
+- **R1 + R2** are hours, not phases.
+
+### The reforge questions
+
+1. Does `measure_solid` (C1) come before the revision lane (C2), or does the
+   `update_sketch` documentation debt in `edit-3d-recipes.plan.md` gate both?
+2. Is the `print-object` catalyst the right next artifact — a seam thread
+   with zero schema cost — or does it front-run the measurement channel that
+   would make its report worth reading?
+3. C4's thin gates: accept as posture, or does the study profile deserve
+   *some* machine gate (a stated open-shell verdict rather than a skip)?

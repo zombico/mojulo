@@ -2,14 +2,15 @@
 
 `meta_context` is mojulo's Ring 6 MCP surface: a writeable, durable layer that records *why* structural decisions were made. It answers questions like:
 
-- "Why does bot-3 route field X to tool Y?"
+- "Why is this Linear→Drive digest bound to *these* tools, and what did we decide about the schema mapping?"
 - "Why is this catalyst materialized as a Codex automation instead of a Claude Code skill?"
-- "What catalysts have I materialized across the fleet, and via which host adapter?"
-- "What constraints did the operator lock in for this fleet?"
+- "What catalysts have I materialized, and via which host adapter?"
+- "What constraints did the operator lock in?"
+- *(chatbot pack)* "Why does bot-3 route field X to tool Y?"
 
 The materialized artifact (a Claude Code `SKILL.md`, a Codex automation, a generic `workflow.md`) is the *execution* of an outcome. `meta_context` is the *codified reasoning* that led to it. Artifacts run; `meta_context` persists.
 
-For the design rationale see [lite-template/integration/META_CONTEXT_PLAN_v3.md](../lite-template/integration/META_CONTEXT_PLAN_v3.md); for the broader MCP control surface see [docs/mcp-integration.md](mcp-integration.md).
+For the broader MCP control surface see [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) §4 and [docs/mcp-integration.md](mcp-integration.md).
 
 ---
 
@@ -35,14 +36,14 @@ This asymmetry is what makes the layer auditable. Outcomes happen at run-rate (e
 
 **Contextmap (graph).** Typed graph of current bindings.
 
-- **Node kinds:** `bot`, `mcp_tool`, `catalyst`, `adapter`, `artifact`, `operator`. `operator` is a singleton — at most one node per fleet, ref `'self'`.
+- **Node kinds:** `mcp_tool`, `catalyst`, `adapter`, `artifact`, `operator`, and `bot`. `operator` is a singleton — at most one node, ref `'self'`. The `bot` kind and its `runs_for` edge are **chatbot-pack-scoped**: they are part of the schema's CHECK constraint and always valid, but a workshop without that pack simply never creates one. The primitive-binding flow below is the worked proof — a full contextmap with no `bot` node in it.
 - **Edge kinds:**
   - `catalyst —seeded→ artifact` (this artifact was materialized from that catalyst)
   - `artifact —materialized_by→ adapter` (this host adapter produced the artifact)
   - `artifact —runs_for→ bot` (the artifact operates on this bot's data)
   - `artifact —binds→ mcp_tool` (the artifact's runtime depends on this tool; payload carries `fields_bound`)
 
-The graph answers questions like "what artifacts bind to HubSpot?", "which catalysts have been materialized into Codex automations vs Claude Code skills?", "what artifacts run against bot-3 and why?".
+The graph answers questions like "what artifacts bind to HubSpot?", "which catalysts have been materialized into Codex automations vs Claude Code skills?", and — with the chatbot pack — "what artifacts run against bot-3 and why?".
 
 **Principles (rationale).** Markdown attached to a node or an edge, recording the *why* at materialization time. Format convention: lead with the decision, then a **Context:** line (what prompted it) and an **Applies to:** line (scope). The convention isn't enforced in v0 — the loader stores `body_md` verbatim.
 
@@ -177,8 +178,6 @@ Persistence + consumer:
 **Revise semantics for register fields are per-axis.** When a `revise: true` commit omits one or both register fields, the prior values on the operator node's payload are preserved for the omitted axes. A revise call that only updates `role` does not silently reset register prefs set in an earlier commit. To explicitly clear a setting, revise with an explicit value (e.g. set `vocabulary_register: 'mixed'` to return to the default).
 
 The floor rule is structurally enforced across every register × disclosure cell: the four commitment gates (*proposed* vs *materialized*, *dry-run* vs *promoted*, *watched* vs *read-once*, *recorded in the audit trail* vs *not*) stay legible regardless of register. A unit test fails if any cell drops any gate phrase — `plain` is "gate language in plain English," not "no gate language."
-
-See [lite-template/integration/REGISTER_TUNING_PLAN.md](../lite-template/integration/REGISTER_TUNING_PLAN.md) for the design rationale and the validation steps.
 
 #### `artifact_materialization`
 
@@ -364,7 +363,7 @@ Contextmap (append-only) and inventory (replace-semantic) are the two Ring 6 pri
 - **Capabilities** — `record_mcp_capabilities` / `get_mcp_capabilities` ([control/lib/mcp/tools/mcp-capabilities.js](../control/lib/mcp/tools/mcp-capabilities.js)). The research facet of a provider, sibling to inventory's introspection facet. Writes vendor knowledge bodies (frontmatter + prose + cited URLs) to `meta_mcp_capabilities` with transactional supersession preserving full history; reads the current row or walks the chain via `asOf`. Both write into the providers identity layer (`meta_mcp_providers`) so the same logical "Gmail" surfaces under one row regardless of which path arrived at it.
 - **mcp-orbit composer** — the vendor-shaped composer (`recommend_mcp_orbit_compositions` etc.) reads inventory to pre-filter what compositions are possible, reads capabilities + contextmap to pull operator KYC and prior materializations into ranking, and writes back into the contextmap via `meta_context_commit({type:'artifact_materialization', ...})` when a composition materializes. Composition itself is logged in `mcp_orbit_compositions`.
 - **Primitive binding** — `bind_primitives` ([control/lib/mcp/tools/mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js)). The runtime-introspected composer that composes MCP-to-MCP workflows from four vendor-agnostic primitives (`document-store`, `structured-record-store`, `messaging-channel`, `message-thread`) bound to runtime-introspected MCPs. Persists session-scoped provider artifacts in `mcp_orbit_provider_artifacts`; graduates via `meta_context_commit({type:'primitive_artifact_materialization', ...})`. The supported path for composing from typed primitives; the vendor-shaped composer above remains as the seed-reasoning surface for first-encounter scaffolding.
-- **Semantic recall** — `semantic_search` ([control/lib/mcp/tools/semantic-search.js](../control/lib/mcp/tools/semantic-search.js)). Fuzzy lookup over a unified embedding sidecar (`meta_embeddings`) covering seven source kinds: principles, declared MCP inventory tools, current capability bodies, mcp-orbit components / compositions / provider artifacts, and the shipped catalyst markdown. Complements the structured readers above — those answer "give me the full row at this ref"; semantic_search answers the other direction, "which refs are even relevant to this intent?" Returns ranked `{ source_kind, source_ref, score, snippet }` rows the agent then resolves through the typed readers. Capability rows that have been superseded never surface — the index quietly filters against the current row per provider. Backed by the same in-process multilingual-e5-small ONNX model that powers bot-side RAG; first call after a control-plane restart pays ~2–4s of model load, subsequent calls sub-50ms at expected corpus size. See [lite-template/integration/SEMANTIC_INDEX_PLAN.md](../lite-template/integration/SEMANTIC_INDEX_PLAN.md) for the full design.
+- **Semantic recall** — `semantic_search` ([control/lib/mcp/tools/semantic-search.js](../control/lib/mcp/tools/semantic-search.js)). Fuzzy lookup over a unified embedding sidecar (`meta_embeddings`) covering seven source kinds: principles, declared MCP inventory tools, current capability bodies, mcp-orbit components / compositions / provider artifacts, and the shipped catalyst markdown. Complements the structured readers above — those answer "give me the full row at this ref"; semantic_search answers the other direction, "which refs are even relevant to this intent?" Returns ranked `{ source_kind, source_ref, score, snippet }` rows the agent then resolves through the typed readers. Capability rows that have been superseded never surface — the index quietly filters against the current row per provider. Backed by an in-process multilingual-e5-small ONNX model — the same one the optional bot runtime uses for its own RAG, so no extra dependency either way; first call after a control-plane restart pays ~2–4s of model load, subsequent calls sub-50ms at expected corpus size.
 
 The reading order across all six is: contextmap → inventory → capabilities → composer → primitive-binding → semantic-recall. Reading anything on top of `meta_context` starts with knowing what's been sealed (contextmap), what materials the operator has right now (inventory), and what vendor knowledge has been recorded (capabilities); the two composers consume that triple; semantic recall sits across all five as a fuzzy retrieval layer for when the agent has intent but not yet refs. See [docs/mcp-orbit.md](mcp-orbit.md) for both composers' full specs.
 

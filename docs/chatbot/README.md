@@ -99,6 +99,10 @@ The deep-dives, grouped.
 ### Start here
 
 - [mojulo-bots.md](mojulo-bots.md) — short orientation to the whole system.
+- [AGENT-REFERENCE.md](AGENT-REFERENCE.md) — the dense agent-facing map for this pack
+  (pack membership, deploy path, fleet aggregation, the runtime's LLM adapter, invariants).
+  Sibling of the main-line [docs/AGENT-REFERENCE.md](../AGENT-REFERENCE.md), which no longer
+  carries bot internals.
 - [BOT-ARCHITECTURE.md](BOT-ARCHITECTURE.md) — source of truth for the factory flow:
   cartridge composition, vector baking, artifact layout, Fly deploy, Connect Bot proxy.
 

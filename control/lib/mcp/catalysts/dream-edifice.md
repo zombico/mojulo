@@ -30,7 +30,7 @@ placed by RELATION. **The dreamed reference is a reasoning aid, never the artifa
 The sovereign output is a pure `create_edifice` recipe; the reference is discarded
 once the walk reads as the building.
 
-Design + doctrine: `control/lib/graph/architecture/dream-architecture.plan.md`.
+Design + doctrine: `lite-template/integration/plan-archive/dream-architecture.plan.md` (archived).
 Substrate: the assembler `architecture/edifice.js`, the primitives it composes
 (`condo-entrance.js` boxes, `facade-card.js` skins, `roof.js` cappers).
 

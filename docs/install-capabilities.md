@@ -3,7 +3,7 @@
 Mojulo is a **kernel** plus **always-present packs** plus **two install-gated groups**. This doc is the
 source of truth for that shape: what's always present, what's optional, how mojulo knows which it is, and
 how an operator grows a lean install into the full workshop. The build log, rationale, and audit evidence
-live in [control/lib/mcp/install-capabilities.plan.md](../control/lib/mcp/install-capabilities.plan.md);
+live in [control/lib/mcp/install-capabilities.plan.md](../lite-template/integration/plan-archive/install-capabilities.plan.md);
 this is the orientation layer.
 
 ## The shape in one paragraph
@@ -115,8 +115,8 @@ activation bars, self-messages), swimlane lanes, ERD/UML entities, containment/C
 timeline/Gantt on a numeric scale, and richer edge notation (arrowhead styles, multiplicities,
 self-loops). These are validated in [control/lib/diagram-core.js](../control/lib/diagram-core.js) and
 covered by the `diagram-core.*` suites. Design history and the per-pattern rationale live in
-[control/lib/mcp/diagram-patterns-spike.plan.md](../control/lib/mcp/diagram-patterns-spike.plan.md)
-and [control/lib/mcp/kernel-diagram-surface.plan.md](../control/lib/mcp/kernel-diagram-surface.plan.md).
+[control/lib/mcp/diagram-patterns-spike.plan.md](../lite-template/integration/plan-archive/diagram-patterns-spike.plan.md)
+and [control/lib/mcp/kernel-diagram-surface.plan.md](../lite-template/integration/plan-archive/kernel-diagram-surface.plan.md).
 
 ## The bot image is unaffected
 
