@@ -57,11 +57,22 @@ describe('parseAdapterFile', () => {
 });
 
 describe('built-in adapter catalog', () => {
-  it('loads claude-code, codex, and generic', () => {
+  it('loads every shipped card', () => {
     const catalog = getAdapterCatalog();
-    expect(catalog.has('claude-code')).toBe(true);
-    expect(catalog.has('codex')).toBe(true);
-    expect(catalog.has('generic')).toBe(true);
+    for (const id of ['claude-code', 'codex', 'generic', 'grok-build', 'hermes']) {
+      expect(catalog.has(id)).toBe(true);
+    }
+  });
+
+  it('no card hint swallows another card', () => {
+    // Substring matching means a loose hint (e.g. bare "claude") can capture a
+    // sibling host's clientInfo. Assert each card still resolves to itself.
+    const catalog = getAdapterCatalog();
+    for (const [id, adapter] of catalog) {
+      for (const hint of adapter.supportsClientInfoHint) {
+        expect(resolveAdapterId({ clientName: hint })).toBe(id);
+      }
+    }
   });
 
   it('every shipped adapter has the documented contract', () => {

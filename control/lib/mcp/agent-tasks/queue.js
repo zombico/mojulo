@@ -143,7 +143,7 @@ function expireParked(id) {
     const laneNote =
       entry.userId && entry.userId !== 'local'
         ? ` This task is in the '${entry.userId}' lane: only that key's connected agent can fulfill it — it never falls back to another account's agent (the 1:1 inference rule). That delegate's agent was not connected.`
-        : ' Run `/loop /run-inference-worker` in your Claude Code session, or set `MOJULO_AGENT_RUNTIME=claude-code-headless` to enable the Node fulfiller.';
+        : ' No worker was listening. Drive the `run-inference-worker` catalyst with whatever repeat affordance your host has (in Claude Code: `/loop /run-inference-worker`; elsewhere a session loop or cron against a headless session), or set `MOJULO_AGENT_RUNTIME=claude-code-headless` for unattended fulfillment — that runtime adapter is Claude-Code-only today.';
     entry.reject(
       new AgentTaskError(
         `No mojulo agent worker picked up the request before timeout.${laneNote}`,

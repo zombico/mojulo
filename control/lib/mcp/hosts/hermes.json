@@ -1,0 +1,20 @@
+{
+  "id": "hermes",
+  "adapterId": "hermes",
+  "order": 5,
+  "name": "Hermes",
+  "detect": { "probe": ["hermes", "--version"] },
+  "wire": {
+    "format": "manual",
+    "verify": "Config file path + format are UNVERIFIED. Confirm against Hermes' own docs, then flip this profile to the matching writer (toml-append / json-patch) with configPath + serversTable/serversKey. Do not guess: a write to the wrong path prints a false success."
+  },
+  "manual": "mojulo speaks stdio — register it as: command \"npx\", args [\"-y\", \"mojulo\"], startup timeout >=120s.\nStdio needs no bearer token, so the interactive token prompt never fires (needs Node >=22.12).",
+  "capabilities": {
+    "defersToolSchemas": false,
+    "maxOutputBytes": null,
+    "nativeImageGen": false,
+    "scheduler": null,
+    "skillsDir": null,
+    "headlessRuntime": null
+  }
+}

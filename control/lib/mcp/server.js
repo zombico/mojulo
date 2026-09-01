@@ -23,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { rememberClientInfo, getClientInfo } from '@/lib/mcp/client-bindings';
 import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
+import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
@@ -99,13 +100,16 @@ export function registerTool(tool) {
 /** True when the connecting host already defers MCP tool schemas client-side
  * (names-only registry + on-demand load). Such hosts don't benefit from packs
  * and lose per-tool permission grain under dispatch, so the packs DEFAULT flips
- * off for them (an explicit MOJULO_TOOL_PACKS=on/off still overrides). Claude
- * Code and the claude family are the known deferrers; detection reuses the host
- * adapter resolver (clientInfo.name → adapter id) so there's one source of truth
- * for "who is this client". Unknown/other hosts → opinionated packs. */
+ * off for them (an explicit MOJULO_TOOL_PACKS=on/off still overrides).
+ *
+ * The trait is DECLARED, not inferred from a vendor name: the client's
+ * clientInfo.name resolves to a host adapter, and that adapter's host profile
+ * declares `capabilities.defersToolSchemas` ([hosts/registry.js](./hosts/registry.js)).
+ * Claude Code is the only declared deferrer today; a second one is a JSON edit,
+ * not a condition added here. Unknown/unmapped hosts → opinionated packs. */
 export function clientDefersSchemas(clientInfo) {
   if (!clientInfo?.name) return false;
-  return resolveAdapterId({ clientName: clientInfo.name }) === 'claude-code';
+  return hostCapabilities(resolveAdapterId({ clientName: clientInfo.name })).defersToolSchemas === true;
 }
 
 export function listTools({ clientInfo, context } = {}) {

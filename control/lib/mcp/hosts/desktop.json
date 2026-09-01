@@ -1,0 +1,39 @@
+{
+  "id": "desktop",
+  "adapterId": null,
+  "order": 3,
+  "name": "Claude Desktop",
+  "detect": {
+    "configPath": {
+      "darwin": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "win32": "%APPDATA%/Claude/claude_desktop_config.json",
+      "default": "~/.config/Claude/claude_desktop_config.json"
+    },
+    "appPaths": {
+      "darwin": ["/Applications/Claude.app"],
+      "win32": ["%LOCALAPPDATA%/AnthropicClaude"]
+    }
+  },
+  "wire": {
+    "format": "json-patch",
+    "configPath": {
+      "darwin": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "win32": "%APPDATA%/Claude/claude_desktop_config.json",
+      "default": "~/.config/Claude/claude_desktop_config.json"
+    },
+    "serversKey": "mcpServers",
+    "absoluteNpx": true,
+    "backupLabel": "desktop config",
+    "postWriteNote": "Restart Claude Desktop to load it.",
+    "stanza": { "command": "npx", "args": ["-y", "mojulo"] }
+  },
+  "manual": "\"mojulo\": { \"command\": \"npx\", \"args\": [\"-y\", \"mojulo\"] }   # add under mcpServers in the Desktop config",
+  "capabilities": {
+    "defersToolSchemas": false,
+    "maxOutputBytes": null,
+    "nativeImageGen": false,
+    "scheduler": null,
+    "skillsDir": null,
+    "headlessRuntime": null
+  }
+}

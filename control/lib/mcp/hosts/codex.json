@@ -1,0 +1,23 @@
+{
+  "id": "codex",
+  "adapterId": "codex",
+  "order": 2,
+  "name": "Codex CLI",
+  "detect": { "configPath": "~/.codex/config.toml", "probe": ["codex", "--version"] },
+  "wire": {
+    "format": "toml-append",
+    "configPath": "~/.codex/config.toml",
+    "serversTable": "mcp_servers",
+    "backupLabel": "config.toml",
+    "stanza": { "command": "npx", "args": ["-y", "mojulo"] }
+  },
+  "manual": "[mcp_servers.mojulo]\ncommand = \"npx\"\nargs = [\"-y\", \"mojulo\"]   # add to ~/.codex/config.toml",
+  "capabilities": {
+    "defersToolSchemas": false,
+    "maxOutputBytes": null,
+    "nativeImageGen": true,
+    "scheduler": "automation_update",
+    "skillsDir": null,
+    "headlessRuntime": null
+  }
+}

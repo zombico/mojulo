@@ -1,0 +1,26 @@
+{
+  "id": "claude-code",
+  "adapterId": "claude-code",
+  "order": 1,
+  "name": "Claude Code",
+  "detect": { "probe": ["claude", "--version"] },
+  "wire": {
+    "format": "cli-shellout",
+    "cli": {
+      "bin": "claude",
+      "listArgs": ["mcp", "list"],
+      "addArgs": ["mcp", "add", "--scope", "user", "mojulo", "--", "npx", "-y", "mojulo"],
+      "removeLocalArgs": ["mcp", "remove", "-s", "local", "mojulo"]
+    },
+    "userScope": { "file": "~/.claude.json", "key": "mcpServers" }
+  },
+  "manual": "claude mcp add --scope user mojulo -- npx -y mojulo",
+  "capabilities": {
+    "defersToolSchemas": true,
+    "maxOutputBytes": null,
+    "nativeImageGen": false,
+    "scheduler": "/schedule",
+    "skillsDir": "~/.claude/skills",
+    "headlessRuntime": "claude-code-headless"
+  }
+}

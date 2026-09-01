@@ -31,6 +31,14 @@ own process; it was never part of the workshop install.
   the automation backend is `mode:'office'`. `get_substrate`, the MCP
   `initialize` preamble, `PARADIGMS` order, both READMEs, and the package
   description/keywords all lead with the factory.
+- **Fixed: three connect-time strings still taught `mode:'office'` as the
+  default.** The code default has been the studio since the carve, but the
+  `forward_context` tool description (the always-in-context string in
+  `tools/list`), its `mode` parameter, and the `get_tool_index` row all
+  still said office-first — so an agent read the opposite of what the tool
+  did. All three corrected within the existing description ratchet budget,
+  and pinned to the now-exported `DEFAULT_FORWARD_CONTEXT_MODE` by a
+  mutation-checked test that fails on the old text.
 - **Dashboard.** Studio is the first mode and opens by default; operational
   tiles appear only when they have records; diagrams moved to Studio.
 - **CLI honesty.** `mojulo tools` / `mojulo packs` now list only INSTALLED packs,
@@ -48,6 +56,57 @@ own process; it was never part of the workshop install.
 - **Carve fence.** `pack-boundary.test.js` gained checks F/G/H: nothing outside
   the chatbot factory may import it, plus two shrink-only ledgers over the
   dashboard routes and the retained code still reading bot tables.
+
+### Host neutrality — hosts are declared profiles, not vendor special-cases
+
+Mojulo serves whichever MCP host the operator drives it from. The stance is
+best-effort host friendliness: whatever host support is in the tree ships,
+no host is promised parity, and none is treated as the assumed one. The
+Claude-isms scattered through the wiring and the taught surfaces are now
+one declared registry.
+
+- **`lib/mcp/hosts/` — one JSON profile per agent harness** (claude-code,
+  codex, desktop, grok-build, hermes): how to DETECT the host, how to WIRE
+  it (dispatched on `wire.format`, with `manual` — detect it, print its
+  snippet, write nothing — as the honest default for a config format not
+  verified), and what its runtime can do (`capabilities`). Deliberately a
+  SIBLING of the adapter cards, not merged into them: a card answers "where
+  do artifacts live on this host", a profile answers "how do we detect and
+  wire it" — and the two differ in cardinality (Desktop is wirable but
+  resolves the `claude-code` card; `generic` is a card with no host to
+  detect). Adding a host is a JSON file plus (usually) an adapter card — no
+  JS edit.
+- **`mcp-init` is registry-driven.** Detection order, config writers,
+  `--host <id>`, and the manual-snippet list all read the registry; the
+  script gained its own test file, and `mcp-init.mjs` / `mcp-install.mjs`
+  joined the published `files` list so the wiring path works from the
+  npm tarball.
+- **Two new adapter cards** — `grok-build` and `hermes` — plus an
+  orientation host-neutrality test pinning that no orientation surface
+  assumes the Claude family.
+- **`clientDefersSchemas` reads a declared trait.** The packs-off default
+  for schema-deferring hosts now keys on the profile's
+  `capabilities.defersToolSchemas` instead of comparing the client name to
+  a vendor id; a second deferrer is a JSON edit, not a new condition.
+- **The rules card — the honest read for output-capped hosts.** Some hosts
+  cap tool results (~20k on Grok) while `get_tool_index` is ~48k — a
+  truncated read that silently loses the tail. When the resolved host
+  profile declares `maxOutputBytes` under the index size (or the caller
+  passes `budget_bytes`), the index is served as a sub-budget substitute:
+  the standing rules, then one terse line per installed tool, fit by
+  stepped degradation (72 → 48 → 32 chars → names only) with the landing
+  step and anything dropped named in the footer. Mitigate, disclose, never
+  block — the card says what it is in its first lines, and
+  `get_tool_index({ full: true })` always returns the real thing.
+- **The taught surfaces stopped assuming one host.** The glossary and
+  drawer copy describe skills/adapters in per-host form ("`get_adapter`
+  names YOUR host's form; don't assume another host's"), the worked
+  examples seal with `adapter_id: '<your adapter id from get_adapter>'`
+  instead of `'claude-code'`, and the agent-tasks timeout note names the
+  `run-inference-worker` catalyst with whatever repeat affordance the host
+  has — `/loop` being the Claude Code instance, not the definition.
+  `MOJULO_AGENT_RUNTIME=claude-code-headless` is called what it is:
+  Claude-Code-only today.
 
 ### `half: true` — halving as a modifier on the parts door
 

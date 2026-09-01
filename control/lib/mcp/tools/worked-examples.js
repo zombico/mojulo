@@ -87,7 +87,7 @@ const TRACE_CONNECTED_SERVICE = `# Worked example — Connected Service (invento
 **5. Dry-run before promoting.** *(dry-run vs promoted — the standing rule)* Run the synthesized workflow once against one real week of files; read the output yourself. Only then schedule it.
 
 **6. Seal.** *(the audit gate — append-only, say so plainly)*
-\`meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id: 'claude-code', artifact: 'skill:invoice-digest', composition_intent: '…', provider_artifact_refs: ['prov_…'] })\`
+\`meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id: '<your adapter id from get_adapter>', artifact: 'skill:invoice-digest', composition_intent: '…', provider_artifact_refs: ['prov_…'] })\`
 → the artifact → bound-tools audit chain is now durable. Mirror the skill for observation: \`declare_skills({ skills: [{ name: 'invoice-digest', calls: ['google_drive'] }] })\`.
 
 **7. Cadence (optional).** \`bind_trigger({ component_ref: 'trigger/scheduled@0.1.0', binding_params: { cron: '0 8 * * FRI' }, payload_template: {…}, artifact_ref: '…' })\` → persists durably, **fires only when the scheduler daemon is enabled** — say that to the operator (watched vs read-once).`;
@@ -103,7 +103,7 @@ const TRACE_APP = `# Worked example — App (scaffold → commit → start → f
 **2. The refusal + recovery.** Committing BEFORE scaffolding fails: \`meta_context_commit({ type: 'app_materialization', … })\` runs adapter verification that requires \`<locator>/app-mcp/server.js\` to exist. The commit gate is ordered on purpose — scaffold first, then seal. Recovery: step 1, then re-commit.
 
 **3. Seal the materialization.** *(audit gate)*
-\`meta_context_commit({ type: 'app_materialization', adapter_id: 'claude-code', artifact: 'app:receipt-watcher', app_name: 'receipt-watcher', bindings: { runner: 'local', durability: '…', inference: 'agent-tasks', mcp_self: '…' } })\`
+\`meta_context_commit({ type: 'app_materialization', adapter_id: '<your adapter id from get_adapter>', artifact: 'app:receipt-watcher', app_name: 'receipt-watcher', bindings: { runner: 'local', durability: '…', inference: 'agent-tasks', mcp_self: '…' } })\`
 
 **4. Start.** *(now it's running — a watched thing, not a read)*
 \`start_app({ artifact_ref: 'app:receipt-watcher', app_name: 'receipt-watcher', materialization_ref: '…' })\`

@@ -6,9 +6,12 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
+import { getRegisteredTool } from '@/lib/mcp/server';
 import {
   PARADIGMS,
   FORWARD_CONTEXT_MODES,
+  DEFAULT_FORWARD_CONTEXT_MODE,
+  registerContextTools,
   buildForwardContextBody,
   FORWARD_CONTEXT_BODY,
   forwardContextHandler,
@@ -282,6 +285,38 @@ describe('forwardContextHandler — register resolution', () => {
     expect(office.content[0].text).toContain('# Mojulo office, oriented');
     expect(office.content[0].text).not.toContain('## Studio routing index');
     await expect(forwardContextHandler({ mode: 'atelier' })).rejects.toThrow(/mode/);
+  });
+
+  // The BEHAVIOUR default (studio) was pinned by the test above; its
+  // SELF-DESCRIPTION was not — and drifted. Long after 2.0 made studio the
+  // default read, the `forward_context` tool description, its `mode` parameter,
+  // and the get_tool_index row all still taught `mode:'office'` as the default.
+  // Those strings ARE the routing surface (tools/list is read at every connect,
+  // before any handler runs), so a stale one mis-routes every fresh session.
+  // Pin the prose to the constant so the two cannot disagree again.
+  it('self-description agrees with the code default: every surface names STUDIO, none teaches office as default', async () => {
+    expect(DEFAULT_FORWARD_CONTEXT_MODE).toBe('studio');
+    registerContextTools();
+    const tool = getRegisteredTool('forward_context');
+    const indexBody = (await toolIndexHandler({})).content[0].text;
+    const indexRow = indexBody
+      .split('\n')
+      .find((line) => line.startsWith('- `forward_context`'));
+    expect(indexRow, 'get_tool_index no longer carries a forward_context row').toBeTruthy();
+
+    const surfaces = [
+      ['tools/list description', tool.description],
+      ['mode parameter description', tool.inputSchema.properties.mode.description],
+      ['get_tool_index row', indexRow],
+    ];
+    // "default … office" in either order is the drift class this catches.
+    const teachesOfficeDefault = /default[^.]{0,60}office|office[^.]{0,25}\(\s*default/i;
+    const teachesStudioDefault = /default[^.]{0,90}studio|studio[^.]{0,90}default/i;
+    for (const [label, text] of surfaces) {
+      expect(text, `${label} still teaches office as the default`).not.toMatch(teachesOfficeDefault);
+      expect(text, `${label} does not name ${DEFAULT_FORWARD_CONTEXT_MODE} as the default`)
+        .toMatch(teachesStudioDefault);
+    }
   });
 
   it('rejects invalid register override', async () => {

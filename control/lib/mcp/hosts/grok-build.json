@@ -1,0 +1,24 @@
+{
+  "id": "grok",
+  "adapterId": "grok-build",
+  "order": 4,
+  "name": "Grok Build",
+  "detect": { "configPath": "~/.grok/config.toml", "probe": ["grok", "--version"] },
+  "wire": {
+    "format": "toml-append",
+    "configPath": "~/.grok/config.toml",
+    "serversTable": "mcp_servers",
+    "backupLabel": "config.toml",
+    "stanza": { "command": "npx", "args": ["-y", "mojulo"] },
+    "extras": { "startup_timeout_sec": 120 }
+  },
+  "manual": "[mcp_servers.mojulo]\ncommand = \"npx\"\nargs = [\"-y\", \"mojulo\"]\nstartup_timeout_sec = 120   # add to ~/.grok/config.toml (needs Node >=22.12)",
+  "capabilities": {
+    "defersToolSchemas": false,
+    "maxOutputBytes": 20000,
+    "nativeImageGen": true,
+    "scheduler": null,
+    "skillsDir": "~/.grok/skills",
+    "headlessRuntime": null
+  }
+}
