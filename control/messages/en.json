@@ -1289,6 +1289,9 @@
       }
     },
     "detail": {
+      "graph": {
+        "subtitle": "The creation map for this app — every tool call that materialized it, as stations on one line."
+      },
       "metadata": "Metadata",
       "artifactPath": "Artifact path",
       "materializationRef": "Materialization ref",

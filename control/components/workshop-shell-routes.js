@@ -28,10 +28,17 @@ const SHELL_PATHS = new Set([
   '/research',
   '/plan',
   '/stashes',
+  '/mcp-skills',
+  '/apps',
+  '/data',
+  '/graph',
+  '/map',
+  '/observability',
+  '/settings',
 ]);
 
 // Detail readings of shell surfaces (refs and their sub-views).
-const SHELL_PREFIXES = ['/stashes/', '/beats/', '/games/'];
+const SHELL_PREFIXES = ['/stashes/', '/mcp-skills/', '/apps/', '/beats/', '/games/'];
 
 export function isShellPath(pathname) {
   if (!pathname) return false;
