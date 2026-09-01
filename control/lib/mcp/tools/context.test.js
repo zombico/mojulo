@@ -104,7 +104,7 @@ describe('buildForwardContextBody — variant composition', () => {
     // One register-invariant opener per wing — no per-register ramp prose, no
     // "don't surface" plain marker (that machinery lives in get_register_kit).
     for (const [mode, marker] of [
-      [undefined, 'The studio **routing index**'],
+      [undefined, 'The studio **call grammar**'],
       ['office', 'This is the office **routing index**'],
     ]) {
       for (const register of ['plain', 'mojulo']) {
@@ -697,7 +697,20 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // The office pin is unchanged and now has slack, being the opt-in read.
   // A new creative FORM still grows the STUDIO ceiling — and that budget is
   // tighter than it was, because studio is what every session pays.
-  const MODE_CEILINGS = { office: 9_600, studio: 8_050 };
+  // Re-pinned 2026-09-01 (forward-context-grammar phase 1): the studio body is
+  // now the call grammar, at cost-parity with the FORM rows it replaced — the
+  // budget moved into verb/outcome/guard machinery, not savings. Iteration
+  // history is the warning label: the v3 draft's tight compression measured
+  // 7_382 but FAILED gate 2b (18/33 vs baseline 27/33 — recognizer quotes are
+  // load-bearing); v4–v6 restored the proven recognizers + two precision
+  // clauses and CLEARED the gate (28/33, behavioral 5/5) at 7_943 widest cell
+  // with pulse. Grown 2026-09-01: get_substrate promoted to its own studio
+  // drawer bullet with the meta-question trigger ("what is this really?" /
+  // phone home / pay / uninstall) — the office wing carried that trigger, the
+  // default read did not; measured 8_154. Do not re-compress recognizers to
+  // win chars back — score any body edit against gate 2b
+  // (body-routing-eval.integration.test.js) first.
+  const MODE_CEILINGS = { office: 9_600, studio: 8_250 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.
@@ -790,6 +803,65 @@ describe('studio containment (orientation-containment C1) — office pays no cre
     for (const tool of entryTools) {
       expect(studio, `studio body does not name entry tool \`${tool}\``).toContain(tool);
       expect(registered.has(tool), `studio body names unregistered tool \`${tool}\``).toBe(true);
+    }
+  });
+});
+
+describe('grammar reachability sweep (forward-context-grammar.plan.md, audit #1)', () => {
+  // The grammar must not lie: every tool-shaped name in the studio body must
+  // resolve to a REGISTERED tool (a verb drifting into a tool position, or a
+  // typo'd dispatch target, fails here — the proxy pilot caught a model
+  // answering the verb `recall` as if it were callable). Non-tool underscore
+  // tokens (semantic_search kinds) are whitelisted explicitly.
+  const NON_TOOL_TOKENS = new Set([
+    'game_kit', 'sketch_vocab', 'view_vocab', 'beats_vocab', 'game_vocab',
+    'game_mechanic', 'manji_program', 'solid_vocab',
+    // communication-settings notice field names (ride the body ahead of the grammar)
+    'vocabulary_register', 'procedural_disclosure',
+  ]);
+
+  it('every tool-shaped token in the studio body is a registered tool', async () => {
+    const { ensureToolsRegistered, listRegisteredToolNames } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    const registered = new Set(listRegisteredToolNames());
+    // Scan the studio-authored sections only (opener → drawers); the shared
+    // spine is covered by its own tests.
+    const body = buildForwardContextBody({ mode: 'studio' }).split(
+      '## Commitment-level vocabulary',
+    )[0];
+    const tokens = [...new Set(body.match(/[a-z][a-z0-9]*(?:_[a-z0-9]+)+/g) || [])];
+    const phantoms = tokens.filter((t) => !registered.has(t) && !NON_TOOL_TOKENS.has(t));
+    expect(phantoms, `tool-shaped tokens with no registered tool: ${phantoms.join(', ')}`).toEqual(
+      [],
+    );
+  });
+
+  it('form-enum integrity: the drawer line advertises exactly the get_creative_toolset forms, in order', () => {
+    // The dispatch FORM labels (GAME / PICTURE / OBJECT / …) are recognizers,
+    // deliberately NOT the argument enum. The drawer line must carry the real
+    // enum verbatim so an agent riding the grammar never guesses
+    // { form: 'picture' } — and this pin keeps it from drifting when
+    // CREATIVE_FORMS grows.
+    const studio = buildForwardContextBody({ mode: 'studio' });
+    expect(studio).toContain(`form ∈ ${CREATIVE_FORMS.join(' · ')}`);
+  });
+
+  it('every creative tool is reachable from the grammar in ≤2 hops', () => {
+    // Hop 1: the body names the two universal drawers. Hop 2: the clean
+    // FORM_TOOLSETS partition (pinned by its own test above) makes every
+    // Ring 10 tool reachable through get_creative_toolset({ form }) — so the
+    // sweep reduces to: hops present + every form drawer non-empty. `render`
+    // is deliberately toolless (a verb resolving to a URL, not a call).
+    const studio = buildForwardContextBody({ mode: 'studio' });
+    expect(studio).toContain('get_creative_toolset');
+    expect(studio).toContain('semantic_search');
+    for (const form of CREATIVE_FORMS) {
+      // Each drawer body is a bullet list of backticked tools — one backtick
+      // pair minimum means the drawer actually dispenses a tool.
+      expect(
+        FORM_TOOLSETS[form]?.body ?? '',
+        `form drawer '${form}' is empty — a dispatch row routes to a dead drawer`,
+      ).toMatch(/`[a-z][a-z0-9_]+`/);
     }
   });
 });

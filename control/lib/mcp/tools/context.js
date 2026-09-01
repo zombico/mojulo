@@ -766,13 +766,13 @@ function buildCreativeToolsetMap() {
 // carries the full ring-grouped list when this isn't specific enough.
 //
 // Create-things carries the operate paradigm rows + ONE studio hook row
-// (orientation-containment C1): the per-FORM recognizer rows relocated
-// verbatim into STUDIO_ROUTING_INDEX below, pulled via
+// (orientation-containment C1): creative recognition lives in the studio
+// call grammar (STUDIO_ROUTING_INDEX below), pulled via
 // forward_context({mode:'studio'}) only when a creative ask appears. The
 // full per-family routing rows (recognizer quotes + forks) stay retired in
 // routing cards under lib/mcp/routing-cards/, retrieved whole via
 // semantic_search({kinds:['routing']}). Adding a creative capability = a
-// routing card + a STUDIO_ROUTING_INDEX row — NEVER a new office-body row.
+// routing card + a grammar dispatch entry — NEVER a new office-body row.
 // The per-mode body-ceiling tests in context.test.js pin the aggregates; the
 // row lint pins each row in both bodies.
 
@@ -782,7 +782,7 @@ Match the user's framing to a row. The named tool is the starting point; pull \`
 
 **Create things** — the five paradigms. Match the framing → call the entry tool.
 - SOLUTION (Bot / App / Connected Service) — recognize the shape by WHO touches it: end-users hold a conversation → **Bot** (\`start_new_bot\`); a process runs locally and calls back for inference → **App** (\`install_scaffold\`); no chat and no resident process, just wiring installed MCPs once or on a schedule → **Connected Service** (\`meta_context_declare_inventory\`). Underdetermined ("triage support emails" — chat widget or silent inbox job?) → ask; that answer routes the session. Get the candidate set + each shape's build flow (the discriminating tell · deploy/materialize steps) → \`semantic_search({kinds:['routing'], query:'<the ask>'})\` (returns the \`bot\` / \`app\` / \`connected-service\` cards whole). First flight of a paradigm → \`get_worked_example({ paradigm })\`.
-- STUDIO — create something media-shaped: a Media artifact (picture / object / world / building / motion / audio / voice / publication) or a Game → \`forward_context({mode:'studio'})\`, the studio routing index (FORM recognizer rows + the creative drawers). Already know the form → \`get_creative_toolset({form})\`; fuzzy route → \`semantic_search({kinds:['routing'], query:'<the user's ask>'})\`.
+- STUDIO — create something media-shaped: a Media artifact (picture / object / world / building / motion / audio / voice / publication) or a Game → \`forward_context({mode:'studio'})\`, the studio call grammar (six verbs + the FORM mint dispatch + the creative drawers). Already know the form → \`get_creative_toolset({form})\`; fuzzy route → \`semantic_search({kinds:['routing'], query:'<the user's ask>'})\`.
 - Schedule / activate an existing artifact ("every morning", "on a cadence") → \`bind_trigger\` (binding persists; it only *fires* when the trigger runtime daemon is enabled).
 
 **Operate what exists**
@@ -810,39 +810,70 @@ const DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 - \`get_ui_map\` — the \`mojulo-ui\` dashboard page map; pull when the user wants to look / browse / click and you need to name the right page.
 - \`get_substrate\` — the PLAYful Cloud substrate positioning + the substrate facts (posture / costs / uninstall invariants); pull when the user compares mojulo to cloud primitives, asks "what is this really?", or asks a meta-question about mojulo itself (phone home? my data? pay? uninstall?).`;
 
-// --- Studio body (orientation-containment C1) ---
+// --- Studio body (forward-context-grammar.plan.md, phase 1) ---
 //
-// The creative wing's orientation, behind forward_context({mode:'studio'}).
-// The FORM recognizer rows below are RELOCATED VERBATIM from the office
-// routing index (recognition quality is preserved by relocation, not
-// re-derivation). Standalone, not a delta: the studio body re-carries the
-// shared spine (settings notice, standing rules, safety one-liners) so an
-// agent that jumps straight here is never missing the standing rules — a
-// session that reads both bodies pays the spine (~1.5K) twice, accepted.
+// The creative wing's orientation, the DEFAULT read. GRAMMAR, NOT NARRATION:
+// the body is a call grammar — six verbs over one store, a dispatch table for
+// `mint`, outcome classes, and guards. The doctrine is encoded as invariants
+// on the verbs (revise returns the SAME ref; export is advisory-only; keep/
+// recall exist), never narrated — editing rule: a new sentence of philosophy
+// here is a regression; put posture behind get_substrate and depth behind
+// routing cards / vocab drawers. Recognizer quotes ("draw me X", "teach me
+// fission", portrait/landscape) are the features the model routes on — do not
+// purity-strip them (a dropped "landscape" was a measured miss). The dispatch
+// FORM labels are recognizers; the get_creative_toolset enum in the drawers
+// is the argument — the reachability sweep in context.test.js pins both, and
+// gate 2b (body-routing-eval.integration.test.js) scores any edit against the
+// recorded baseline. Standalone, not a delta: the studio body re-carries the
+// shared spine so an agent that jumps straight here is never missing the
+// standing rules.
 
-const STUDIO_OPENER = `The studio **routing index** — mojulo's creative wing and the DEFAULT read. Mojulo is a **3D factory for agents**: you build worlds, objects, and games by conversation, as editable recipes on the operator's machine, that ship as a game (Godot first-class today) or as a printed object (STL at true scale). Media artifacts (pictures, objects, worlds, buildings, motion, audio, voice, publications) and Games composed over them are each minted as a deterministic recipe — seeded, re-rendered on demand, never a stored render. The office wing — Bot, Connected Service, App, deliberation, operate-what-exists — is the retained automation backend at \`forward_context({mode:'office'})\`; reach for it when the ask is to wire or operate something rather than to make something. Match the user's framing to a FORM row, reach for the entry tool; the studio drawers follow.`;
+const STUDIO_OPENER = `The studio **call grammar** — mojulo's creative wing and the DEFAULT read. A **3D factory for agents**: one store of refs, and a Media artifact or Game IS its seeded deterministic recipe — renders are derived, byte-identical per read — shipping as a game (Godot first-class today) or a printed object (STL at true scale). Inputs are words and images (a photo you can see → \`reference_protocol\`). Six verbs compose everything below; match the ask to a FORM in the mint dispatch and call the tool on that row.`;
 
-const STUDIO_ROUTING_INDEX = `## Studio routing index — recognize the FORM, reach for the entry tool
+const STUDIO_ROUTING_INDEX = `## Studio routing index — the call grammar
 
-Match the user's framing to a row. When a form row isn't enough (families, forks, flow), \`semantic_search({kinds:['routing'], query:'<the user's ask>'})\` returns that family's full routing card (complete body, no follow-up read); parameter manuals live behind the \`get_*_vocab\` readers.
+Verbs — a verb is the grammar; the TOOL on its row is what you call (verbs are never tool names):
 
-- GAME (playable artifact; persistent typed store; levels are worlds carrying a game contract) → \`create_game\`; fastest start is a kit via \`semantic_search({kinds:['game_kit']})\`. Project home for its pieces → \`create_game_project\` (\`/games/<ref>\`).
-- PICTURE — diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\`; scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\`; posed figure / non-humanoid creature → \`mint_solid\`; build from a PHOTO you can see → \`reference_protocol\`; direct an AI-generated image / comic page → \`create_sketch\` kind \`'image-outcome'\`/\`'sequential-art'\` (read the sketch_vocab card).
-- OBJECT (3D at literal scale) — an everyday object / part, an assembly, a carved wordmark / logo, or a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable); paint or emote one → \`edit_solid\`.
-- WORLD (traversable) — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME); animated science / math / bio study object ("teach me nuclear fission") → \`create_view\` (find one via \`semantic_search({kinds:['view_vocab']})\`).
-- BUILDING (bespoke, inhabitable) — a NEW one-off building / campus / connected complex the generators don't make ("design a bespoke building", "a custom <building type>") → \`mint_solid\` (kind edifice — MASSES + CONCOURSES placed by relation); dream it → the \`dream-edifice\` catalyst. (A generic seed-sampled city/school/hub is \`compose_world\`; a single object is \`mint_solid\`.)
-- MOTION (adds time) — animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (four families: camera / deck / traversal / waypoints — pull the routing card before your first motion); join clips into one film → \`stitch_motion\`.
-- MOTION COMIC (a comic presented CLICK BY CLICK — "the powerpoint of comics": each click reveals the next balloon / element / panel until the story is done) → \`create_sketch\` kind \`'motion-comic'\` (read the sketch_vocab card first): a fixed BOX (phone-upright / phone-wide / … + matte); NO pages — bound by PANELS (one panel crop per scene is the showcase); \`bubbles\` or movie-style \`subtitles\` lettering; plays at \`/play\`, exports as ONE self-contained HTML file. (An auto-playing video is \`forge_motion\`; a printed page is \`sequential-art\`.)
-- AUDIO — soundtrack / tune / beat / sound effect → \`create_beats\` (kinds via \`semantic_search({kinds:['beats_vocab']})\`); edit / revise a minted tune → \`get_beats\` → \`update_beats\`; notes → \`annotate_beats\`; "what changed" → \`diff_beats\`.
-- VOICE — make / tune HOW A VOICE SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (capabilities behind \`get_voice_vocab\`; an external worker speaks it).
-- PUBLICATION (essay / picture book / slide deck / brief / newsletter / comic from gathered material) → \`mint_stash\` → \`gather\` → \`cook\`; multi-kind preview → \`forge_publications\`.`;
+  mint    : intent → ref              dispatch below
+  render  : ref → url                 idempotent · /sketches/<ref> (audio: /beats/<ref>)
+  revise  : ref × delta → SAME ref    \`update_sketch\`
+  export  : ref → files × ledger      advisory — findings stamped, never blocked
+  recall  : query → refs · cards      \`semantic_search\`
+  keep    : ref → cookbook            \`save_recipe\` · recallable by intent next session
+
+Verb overrides (closed list): audio revises via \`update_beats\` · voice never revises — re-\`create_voice\` · motion appends — \`stitch_motion\` composes clips, never edits one.
+
+Outcomes — a call lands one of four ways (classes to recognize, not wire types): ok(ref, url) · advisory(ref, findings — stamped, shipped anyway) · needs-vocab(the reply names the \`get_*_vocab\` drawer to read) · no(reason + next move — \`get_register_kit\` legend).
+
+mint dispatch — match the ask to a FORM:
+  GAME     playable artifact, persistent typed store, levels are worlds → \`create_game\` · kits: \`semantic_search({kinds:['game_kit']})\` · project home → \`create_game_project\`
+  PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` · a posed person / figure / non-humanoid creature (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
+  OBJECT   3D at literal scale — an everyday object / part, an assembly, a carved wordmark / logo, a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable) · paint / emote one → \`edit_solid\` · mechanical feasibility of a minted object (joints, clearances, will-it-spin) → \`verify_machina\` (level completability is MOTION traversal, below)
+  WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · animated science / math / bio study object ("teach me nuclear fission") → \`create_view\`
+  BUILDING bespoke one-off, inhabitable → \`mint_solid\` kind edifice (masses + concourses)
+  MOTION   animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\`
+  MOTION COMIC  click-by-click reveal, one self-contained HTML file → \`create_sketch\` kind 'motion-comic'
+  AUDIO    soundtrack / tune / beat / sfx → \`create_beats\` · revise → \`update_beats\` · notes → \`annotate_beats\` · what changed → \`diff_beats\`
+  VOICE    how a voice SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (an external worker speaks it)
+  PUBLICATION  essay / picture book / deck / brief from gathered material → \`mint_stash\` → \`gather\` → \`cook\` · multi-kind preview → \`forge_publications\`
+
+export dispatch: object/figure → \`export_model\` (print-ready STL, mm, z-up | glTF) · game/world → \`export_game\` (Godot first-class) · audio → \`export_beats\` (WAV/MIDI) · sprites → \`bake_sprite_sheet\`
+
+Guards:
+  - revise the same ref — never re-mint to change a thing
+  - underdetermined form → ask one question; the answer routes
+  - speaks 3D-modeler ("retopo", "blockout", "kitbash") → \`translate_modeler_lingo\`
+  - fuzzy ask → \`semantic_search({kinds:['routing'], query:'<the ask>'})\` returns the family card whole
+
+Wire or operate something instead of making media (bot / app / connected service / schedule / fleet) → \`forward_context({mode:'office'})\`.`;
 
 const STUDIO_DRAWER_DIRECTORY = `## Studio drawers — pull on demand, don't front-load
 
-- \`get_creative_toolset({ form })\` — the per-FORM tool list; form ∈ diagram · illustration · reference · image-render · object · world · view · motion · motion-comic · audio · voice · game. No arg → the form map with a tool count each. The deterministic read once a routing row has named the family.
+- \`get_creative_toolset({ form })\` — the per-FORM tool list; form ∈ diagram · illustration · reference · image-render · object · world · view · motion · motion-comic · audio · voice · game (the dispatch FORMs above are recognizers; this enum is the argument). No arg → the form map with a tool count each.
 - \`semantic_search({ kinds: ['routing'] })\` — a creative family's full routing card (recognizer quotes + forks + flow). Vocab manuals ride the same tool: kinds \`sketch_vocab\` / \`view_vocab\` / \`beats_vocab\` / \`game_vocab\` / \`game_mechanic\` / \`game_kit\` / \`manji_program\`, read in full via the \`get_*_vocab\` readers.
-- \`get_worked_example({ paradigm: 'media' | 'game' })\` — an annotated end-to-end trace of one successful creative flight, the gate moments marked; pull before your FIRST mint of a paradigm.
-- The office drawers (\`get_tool_index\`, \`get_register_kit\`, \`get_deliberation_overview\`, \`get_ui_map\`, \`get_substrate\`) stay available from either mode.`;
+- \`get_worked_example({ paradigm: 'media' | 'game' })\` — an annotated end-to-end trace of one successful creative flight, the gate moments marked; pull before your FIRST mint of a paradigm (an orientation read — the ask itself still routes to its FORM entry tool above, never here).
+- The office drawers (\`get_tool_index\`, \`get_register_kit\`, \`get_deliberation_overview\`, \`get_ui_map\`) stay available from either mode.
+- \`get_substrate\` — mojulo's own positioning + the substrate facts. Pull for meta-questions about mojulo itself ("what is this really?", phone home? my data? pay? uninstall?) — answer those from its facts, never from guesswork.`;
 
 // --- Deliberation overview (Ring 6 deep block, promoted to its own tool) ---
 //

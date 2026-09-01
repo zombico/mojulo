@@ -108,17 +108,21 @@ const BEHAVIORAL = [
     id: 'advisory-not-failure',
     transcript: `The user asked you to make their minted wine glass (ref 'wine-glass') printable. You called export_model({ref:'wine-glass'}) and it replied: "Export complete with findings: wall thickness 0.4mm is below the 0.8mm recommended minimum for FDM printing; 2 non-manifold edges were auto-repaired. STL written to exports/wine-glass.stl (mm, z-up)."`,
     question: `What do you do next?`,
+    // Pass = report the shipped file + findings (offering a fix afterwards is
+    // fine); fail = LEAD with a repair call, treating the advisory as failure.
     grade: (out) =>
-      !/export_model|edit_solid|mint_solid|update_sketch/i.test(out) &&
-      /(stl|finding|wall|ready|written|print)/i.test(out),
+      !/^\s*`?(export_model|edit_solid|mint_solid|update_sketch)/i.test(out.trim()) &&
+      /(stl|finding|wall|ready|written|print|ship)/i.test(out),
     expects: 'ship the file + surface the findings — advisory is not failure',
   },
   {
     id: 'needs-vocab-hop',
-    transcript: `The user wants a tap-through motion comic. You called create_sketch({kind:'motion-comic', manifest:{panels_list:[/* ... */]}}) and it replied: "Error: invalid manifest for kind 'motion-comic': unknown field 'panels_list'."`,
+    // Reply text mirrors sketch-mint.js's REAL error copy since pointer
+    // discipline landed (2026-09-01) — the eval measures the shipped system.
+    transcript: `The user wants a tap-through motion comic. You called create_sketch({kind:'motion-comic', manifest:{panels_list:[/* ... */]}}) and it replied: "Invalid manifest: unknown field 'panels_list' — manifest manual: get_sketch_vocab({ id: 'motion-comic' })."`,
     question: `What is your next tool call?`,
     grade: (out) => /(get_sketch_vocab|sketch_vocab|semantic_search)/i.test(out),
-    expects: 'read the sketch vocab before retrying (EXPECTED to fail until pointer discipline lands)',
+    expects: 'read the sketch vocab before retrying (the reply now carries the pointer)',
   },
   {
     id: 'modeler-lingo-guard',
