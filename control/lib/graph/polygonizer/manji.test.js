@@ -904,11 +904,14 @@ describe('cardinality + line-pinning (manji-is-reality)', () => {
       expect(validateCardinalBar({ rotationDeg: 90, leftTailDeg: 180, rightTailDeg: 0 })).toEqual([]);
     });
 
-    it('validateCardinalBar rejects non-cardinal angles', () => {
+    it('validateCardinalBar rejects non-cardinal ORIENTATION but accepts continuous tails', () => {
+      // Since free-angle-modulation (0902 plan): tails are a continuous
+      // modulation (any finite degree); the cardinal-snap rule binds bar
+      // orientation only.
       const errs = validateCardinalBar({ rotationDeg: 45, leftTailDeg: 30, rightTailDeg: 0 });
-      expect(errs.length).toBe(2);
+      expect(errs.length).toBe(1);
       expect(errs[0]).toMatch(/rotationDeg/);
-      expect(errs[1]).toMatch(/leftTailDeg/);
+      expect(validateCardinalBar({ rotationDeg: 0, leftTailDeg: NaN, rightTailDeg: 0 }).length).toBe(1);
     });
 
     it('validateCardinalManji checks both bars', () => {

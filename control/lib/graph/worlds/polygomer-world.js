@@ -77,5 +77,5 @@ export function assembleManjiTreeWorld(manifest, opts = {}) {
       sampler, viewBox, camera: manifest.camera || {}, roomBasis: manifest.roomBasis || {}, light,
     });
   }
-  return studioSceneFromFaces(faces, { title: opts.title, units: manifest.units });
+  return studioSceneFromFaces(faces, { title: opts.title, units: manifest.units, facing: manifest.facing });
 }

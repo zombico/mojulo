@@ -76,38 +76,75 @@ function resolveAnchorComponents(rawAnchor, parentAnchor, parentScale, axisSigns
 }
 
 /**
- * Apply field-coupled `lengthScale` resolution to a spine spec before
- * passing it to cardinalManji3D. Each bar's `lengthScale` accepts either
- * a number or `{ field: '<id>' }`; field refs evaluate at the node's
- * worldAnchor position via the supplied resolver.
+ * Apply field-coupled scalar resolution to a spine spec before passing
+ * it to cardinalManji3D. Field-borne spine scalars (each accepting a
+ * number or `{ field: '<id>' }`, evaluated at the node's worldAnchor
+ * via the supplied resolver):
  *
- * Spine bars without lengthScale fall through unchanged. Same with
- * spines whose `bar*.lengthScale` is already a literal number — the
- * helper is a pure pass-through in the common case.
+ *   - `bar*.lengthScale`
+ *   - `bar*.cant.angle`            (free-angle-modulation, phase 3)
+ *   - `bar*.tails.<end>.angle`     (object-form tails only)
+ *
+ * Bars without field refs fall through unchanged — the helper is a
+ * pure pass-through in the common case. Like every walk-time structure
+ * scalar, these resolve against HOST-declared fields only (the v1
+ * restriction; card-emitted fields do not exist yet at walk time).
  */
-function resolveSpineLengthScales(spine, fieldResolver, worldAnchor) {
+function resolveSpineScalars(spine, fieldResolver, worldAnchor) {
   if (!spine || typeof spine !== 'object') return spine;
+  const isFieldRef = (v) => v !== null && typeof v === 'object' && typeof v.field === 'string';
   let mutated = null;
   for (const key of ['bar1', 'bar2', 'bar3']) {
     const bar = spine[key];
-    if (!bar || bar.lengthScale === undefined || bar.lengthScale === null) continue;
-    if (Number.isFinite(bar.lengthScale)) continue;
-    const resolved = evaluateScalarOrFieldRef(
-      bar.lengthScale, fieldResolver, worldAnchor, 1,
-    );
-    if (!mutated) mutated = { ...spine };
-    mutated[key] = { ...bar, lengthScale: resolved };
+    if (!bar || typeof bar !== 'object') continue;
+    let barPatch = null;
+    const patch = () => {
+      if (!barPatch) barPatch = { ...bar };
+      return barPatch;
+    };
+    // lengthScale keeps the pre-phase-3 rule (resolve anything
+    // non-finite, so non-ref garbage still collapses to the default)
+    if (bar.lengthScale !== undefined && bar.lengthScale !== null && !Number.isFinite(bar.lengthScale)) {
+      patch().lengthScale = evaluateScalarOrFieldRef(bar.lengthScale, fieldResolver, worldAnchor, 1);
+    }
+    if (bar.cant && typeof bar.cant === 'object' && isFieldRef(bar.cant.angle)) {
+      patch().cant = {
+        ...bar.cant,
+        angle: evaluateScalarOrFieldRef(bar.cant.angle, fieldResolver, worldAnchor, 0),
+      };
+    }
+    if (bar.tails && typeof bar.tails === 'object') {
+      let tailsPatch = null;
+      for (const end of Object.keys(bar.tails)) {
+        const target = bar.tails[end];
+        if (target && typeof target === 'object' && isFieldRef(target.angle)) {
+          if (!tailsPatch) tailsPatch = { ...bar.tails };
+          tailsPatch[end] = {
+            ...target,
+            angle: evaluateScalarOrFieldRef(target.angle, fieldResolver, worldAnchor, 0),
+          };
+        }
+      }
+      if (tailsPatch) patch().tails = tailsPatch;
+    }
+    if (barPatch) {
+      if (!mutated) mutated = { ...spine };
+      mutated[key] = barPatch;
+    }
   }
   return mutated || spine;
 }
 
 // ----- Subtree modifiers: replicate + reflect ---------------------------
 //
-// `replicate` and `reflect` are tree-IR modifiers the walker honors. They
-// preserve the cardinal-kernel invariant: replicate is pure positional
-// duplication (no per-instance rotation), and reflect mirrors a subtree
-// across a cardinal axis (cardinals map to cardinals — N↔S under N-S
-// reflection, E↔W under E-W, Zenith↔Nadir under Zenith-Nadir).
+// `replicate` and `reflect` are tree-IR modifiers the walker honors.
+// Replicate is positional duplication (offsets, axis 1) with optional
+// per-instance scale (`scaleStep`, axis 2) and — since
+// free-angle-modulation phase 4 — optional per-instance rigid rotation
+// about the group anchor (`angleStep`, axis 3; see the rotational-
+// replicate note below). Reflect mirrors a subtree across a cardinal
+// axis (cardinals map to cardinals — N↔S under N-S reflection, E↔W
+// under E-W, Zenith↔Nadir under Zenith-Nadir).
 //
 // Both modifiers stack with the regular node fields (anchor, scale,
 // children). A node carrying `replicate` is a transparent multiplier:
@@ -223,6 +260,148 @@ function instantiateReplicatedNode3D(innerSpec, offset, index) {
   const next = { ...innerSpec, anchor };
   if (innerSpec?.id) next.id = `${innerSpec.id}#${index}`;
   return next;
+}
+
+// ---- Rotational replicate (free-angle-modulation, phase 4) -------------
+//
+// `replicate.angleStep: { angle, axis? }` gives instance `i` a rigid-body
+// rotation of `i × angle` degrees about the GROUP ANCHOR (axis defaults
+// to 'Zenith-Nadir'; accepts the cardinal labels or a non-zero {x,y,z}
+// vector, same alphabet as node.rotation). This is a NEW walk path — the
+// rotation is applied to each instance's emitted records after its visit
+// (anchor, slot world positions, evaluated spine, and composed into
+// nodeRotation so limb-chain fold frames follow). Composes with offsets
+// (axis 1), scaleStep (axis 2) — angleStep is axis 3. It turns one child
+// spec into spokes, petal rings, and star polygons.
+//
+// v1 caveat: INLINE literal {x,y,z} coordinates inside a replicated
+// instance's leaf marks do not rotate (they are opaque numbers to the
+// walker) — bind leaf endpoints to slots instead; endpoint paths resolve
+// against the rotated slot positions.
+
+const ANGLE_STEP_CARDINAL_LABELS = ['N-S', 'E-W', 'Zenith-Nadir'];
+
+function resolveReplicateAngleStep3D(replicate) {
+  const step = replicate.angleStep;
+  if (step === undefined || step === null) return null;
+  if (typeof step !== 'object' || !Number.isFinite(step.angle)) {
+    throw new Error('replicate.angleStep must be { angle, axis? } with a finite angle in degrees');
+  }
+  const axis = step.axis ?? 'Zenith-Nadir';
+  const isLabel = typeof axis === 'string' && ANGLE_STEP_CARDINAL_LABELS.includes(axis);
+  const isVector = axis && typeof axis === 'object'
+    && Number.isFinite(axis.x) && Number.isFinite(axis.y) && Number.isFinite(axis.z)
+    && Math.hypot(axis.x, axis.y, axis.z) > 1e-12;
+  if (!isLabel && !isVector) {
+    throw new Error(
+      `replicate.angleStep.axis must be a cardinal label (${ANGLE_STEP_CARDINAL_LABELS.join(', ')}) or a non-zero {x,y,z} vector`,
+    );
+  }
+  if (step.angle === 0) return null;
+  return (i) => composeRotation([{ axis, angle: step.angle * i }]);
+}
+
+function rotateEvaluatedManji3DAroundPivot(manji, rotFn, pivot) {
+  const rp = (p) => rotateAroundPivot(rotFn, p, pivot);
+  const bars = manji.bars.map((b) => ({
+    ...b,
+    points: {
+      ...b.points,
+      center: rp(b.points.center),
+      negEnd: rp(b.points.negEnd),
+      posEnd: rp(b.points.posEnd),
+      negTip: rp(b.points.negTip),
+      posTip: rp(b.points.posTip),
+    },
+    segments: b.segments.map((s) => ({ from: rp(s.from), to: rp(s.to) })),
+  }));
+  const armTips = bars.flatMap((b) => [b.points.negTip, b.points.posTip]);
+  return {
+    ...manji,
+    center: rp(manji.center),
+    bars,
+    armTips,
+    bbox: bbox3DOf(armTips),
+  };
+}
+
+// Rigidly rotate every record emitted since `fromIndex` about `pivot`.
+// Mutates the records in place (they were freshly pushed by this
+// instance's visit and are not yet shared).
+function rotateEmittedRecords3D(out, fromIndex, rotFn, pivot) {
+  const rp = (p) => rotateAroundPivot(rotFn, p, pivot);
+  for (let i = fromIndex; i < out.length; i++) {
+    const rec = out[i];
+    if (rec.anchor) rec.anchor = rp(rec.anchor);
+    if (Array.isArray(rec.slots)) {
+      rec.slots = rec.slots.map((s) => ({ ...s, worldPosition: rp(s.worldPosition) }));
+    }
+    if (rec.spineManji) {
+      rec.spineManji = rotateEvaluatedManji3DAroundPivot(rec.spineManji, rotFn, pivot);
+    }
+    // Compose the instance rotation AFTER the node's own rotation so
+    // limb-chain fold vectors and rotation axes ride the same rigid
+    // transform as the slots they hang from.
+    const prev = rec.nodeRotation;
+    rec.nodeRotation = prev ? ((v) => rotFn(prev(v))) : rotFn;
+  }
+}
+
+// 2D sibling: angleStep = { angle } rotates in the picture plane about
+// the group anchor (no axis — there is only one).
+function resolveReplicateAngleStep2D(replicate) {
+  const step = replicate.angleStep;
+  if (step === undefined || step === null) return null;
+  if (typeof step !== 'object' || !Number.isFinite(step.angle)) {
+    throw new Error('replicate.angleStep must be { angle } with a finite angle in degrees');
+  }
+  if (step.axis !== undefined) {
+    throw new Error('replicate.angleStep.axis is 3D-only; 2D rotates in the picture plane');
+  }
+  if (step.angle === 0) return null;
+  return (i) => {
+    const rad = (step.angle * i * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    return (v) => ({ x: v.x * cos - v.y * sin, y: v.x * sin + v.y * cos });
+  };
+}
+
+function rotatePoint2DAroundPivot(rotFn, p, pivot) {
+  const rel = { x: p.x - pivot.x, y: p.y - pivot.y };
+  const rot = rotFn(rel);
+  return { x: rot.x + pivot.x, y: rot.y + pivot.y };
+}
+
+function rotateEmittedRecords2D(out, fromIndex, rotFn, pivot) {
+  const rp = (p) => rotatePoint2DAroundPivot(rotFn, p, pivot);
+  for (let i = fromIndex; i < out.length; i++) {
+    const rec = out[i];
+    if (rec.anchor) rec.anchor = rp(rec.anchor);
+    if (Array.isArray(rec.slots)) {
+      rec.slots = rec.slots.map((s) => ({ ...s, worldPosition: rp(s.worldPosition) }));
+    }
+    if (rec.spineManji) {
+      const bars = rec.spineManji.bars.map((b) => ({
+        ...b,
+        points: Object.fromEntries(
+          Object.entries(b.points).map(([k, p]) => [k, rp(p)]),
+        ),
+        segments: b.segments.map((s) => ({ from: rp(s.from), to: rp(s.to) })),
+      }));
+      const armTips = [
+        bars[0].points.leftTip, bars[0].points.rightTip,
+        bars[1].points.leftTip, bars[1].points.rightTip,
+      ];
+      rec.spineManji = {
+        ...rec.spineManji,
+        center: rp(rec.spineManji.center),
+        bars,
+        armTips,
+        bbox: bboxOf(bars.flatMap((b) => Object.values(b.points))),
+      };
+    }
+  }
 }
 
 function reflectPointAround2D(p, anchor, signs) {
@@ -500,9 +679,14 @@ export function walkManjiTree(root, resolveProgramRef = () => null, options = {}
         : { ...parentAnchor };
       const groupScale = parentScale * (node.scale ?? 1);
       const offsets = resolveReplicateOffsets2D(node.replicate);
+      const angleStep = resolveReplicateAngleStep2D(node.replicate);
       offsets.forEach((offset, i) => {
         const instanced = instantiateReplicatedNode2D(node.node, offset, i);
+        const before = out.length;
         visit(instanced, groupAnchor, groupScale, depth, [...slotPath, `replicate#${i}`], axisSigns);
+        if (angleStep && i > 0) {
+          rotateEmittedRecords2D(out, before, angleStep(i), groupAnchor);
+        }
       });
       return;
     }
@@ -619,6 +803,11 @@ export function validateManjiTree(root, resolveProgramRef = () => null) {
       }
       try {
         resolveReplicateOffsets2D(node.replicate);
+      } catch (err) {
+        errors.push(`${here}: ${err.message}`);
+      }
+      try {
+        resolveReplicateAngleStep2D(node.replicate);
       } catch (err) {
         errors.push(`${here}: ${err.message}`);
       }
@@ -742,13 +931,18 @@ export function walkManjiTree3D(root, resolveProgramRef = () => null, options = 
       // is axis 1 (pattern offsets), scaleStep is axis 2 (per-instance).
       // See lite-template/integration/0605/structure-manji-unlocks.plan.md.
       const scaleStep = Number.isFinite(node.scaleStep) ? node.scaleStep : 1;
+      const angleStep = resolveReplicateAngleStep3D(node.replicate);
       offsets.forEach((offset, i) => {
         const instanced = instantiateReplicatedNode3D(node.node, offset, i);
         const instanceScale = groupScale * Math.pow(scaleStep, i);
         // `instantiateReplicatedNode3D` rewrites `id` → `id#index` so each
         // replica becomes its own emitted node — `self` will resolve to
         // the replica's instance id, not the original spec's id.
+        const before = out.length;
         visit(instanced, groupAnchor, instanceScale, depth, [...slotPath, `replicate#${i}`], axisSigns, parentSelfId);
+        if (angleStep && i > 0) {
+          rotateEmittedRecords3D(out, before, angleStep(i), groupAnchor);
+        }
       });
       return;
     }
@@ -890,7 +1084,7 @@ export function walkManjiTree3D(root, resolveProgramRef = () => null, options = 
     // compiled into a spine program. Pre-resolution keeps manji.js
     // arithmetic-only — fields stay a polygonizer-layer concept.
     const nodeWithResolvedSpine = (node.spine && typeof node.spine === 'object')
-      ? { ...node, spine: resolveSpineLengthScales(node.spine, fieldResolver, worldAnchor) }
+      ? { ...node, spine: resolveSpineScalars(node.spine, fieldResolver, worldAnchor) }
       : node;
     const preset = resolveNode3DToPreset(nodeWithResolvedSpine, resolveProgramRef);
     let spineManji = preset.spineProgram
@@ -1105,8 +1299,22 @@ export function validateStructureManjiFieldRefs(tree, manifestFields) {
     if (node.spine && typeof node.spine === 'object') {
       for (const key of ['bar1', 'bar2', 'bar3']) {
         const bar = node.spine[key];
-        if (bar && bar.lengthScale !== undefined && bar.lengthScale !== null) {
+        if (!bar || typeof bar !== 'object') continue;
+        if (bar.lengthScale !== undefined && bar.lengthScale !== null) {
           checkRef(bar.lengthScale, `${here}.spine.${key}.lengthScale`);
+        }
+        // Field-borne angles (free-angle-modulation, phase 3): cant.angle
+        // and object-form tail angles are walk-time structure scalars.
+        if (bar.cant && typeof bar.cant === 'object' && bar.cant.angle !== undefined) {
+          checkRef(bar.cant.angle, `${here}.spine.${key}.cant.angle`);
+        }
+        if (bar.tails && typeof bar.tails === 'object') {
+          for (const end of Object.keys(bar.tails)) {
+            const target = bar.tails[end];
+            if (target && typeof target === 'object' && target.angle !== undefined) {
+              checkRef(target.angle, `${here}.spine.${key}.tails.${end}.angle`);
+            }
+          }
         }
       }
     }
@@ -1355,6 +1563,11 @@ export function validateManjiTree3D(root, resolveProgramRef = () => null) {
       }
       try {
         resolveReplicateOffsets3D(node.replicate);
+      } catch (err) {
+        errors.push(`${here}: ${err.message}`);
+      }
+      try {
+        resolveReplicateAngleStep3D(node.replicate);
       } catch (err) {
         errors.push(`${here}: ${err.message}`);
       }

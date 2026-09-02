@@ -828,13 +828,55 @@ const PERPENDICULAR_FOLD_ANGLES = {
   'E-W': { N: 90, S: -90 },
 };
 
+// ---- Continuous fold angles (free-angle-modulation) -------------------
+//
+// A tail target is either a cardinal-direction STRING (today's discrete
+// grammar — 'open' / 'closed' / a perpendicular name, resolved through
+// the exact lookup) or an OBJECT `{ target: '<perpendicular>', angle }`
+// — the continuous generalization. The named target stays a cardinal
+// perpendicular (the ADDRESSING stays cardinal); the angle is a
+// modulation along one continuum:
+//
+//   angle:   0  ≡ 'open'   (colinear out)
+//   angle:  90  ≡ the named perpendicular fold (today's behavior)
+//   angle: 180  ≡ 'closed' (collapse onto the interior)
+//   negative    = fold away from the named target (the opposite
+//                 perpendicular at +angle)
+//
+// Range: finite, -180 < angle <= 180. String targets never touch trig —
+// they remain the exact discrete path, byte-identical to the pre-angle
+// grammar. See lite-template/integration/0902/free-angle-modulation.plan.md.
+
+function assertFoldAngle(angle, where) {
+  if (!Number.isFinite(angle)) {
+    throw new Error(`${where}: fold angle must be a finite number (got ${angle})`);
+  }
+  if (angle <= -180 || angle > 180) {
+    throw new Error(`${where}: fold angle ${angle} is out of range (must be -180 < angle <= 180)`);
+  }
+}
+
+// Exact cos/sin for quarter-turn angles so the object form at 0/90/180
+// reproduces the string grammar's lookup vectors bit-for-bit.
+function cosSinDeg(deg) {
+  const n = ((deg % 360) + 360) % 360;
+  if (n === 0) return { cos: 1, sin: 0 };
+  if (n === 90) return { cos: 0, sin: 1 };
+  if (n === 180) return { cos: -1, sin: 0 };
+  if (n === 270) return { cos: 0, sin: -1 };
+  const rad = (deg * Math.PI) / 180;
+  return { cos: Math.cos(rad), sin: Math.sin(rad) };
+}
+
 /**
- * Resolve a (axis, end-cardinal, target-direction) triple into the tailDeg
- * value that evaluateBar consumes. Accepts the aliases 'open' (colinear
- * out, equivalent to naming the end's own cardinal) and 'closed' (180°
- * collapse, equivalent to naming the end's opposite cardinal).
+ * Resolve a (axis, end-cardinal, target) triple into the tailDeg value
+ * that evaluateBar consumes. The target is a cardinal direction name
+ * ('open' = colinear out, 'closed' = 180° collapse, or a perpendicular
+ * of the axis), or the continuous object form
+ * `{ target: '<perpendicular>', angle }` (see the fold-angle note above).
  *
- * Throws on non-cardinal targets — that's the line-pinning rule enforced.
+ * Throws on non-cardinal target names — the addressing stays cardinal
+ * even when the angle is free.
  */
 export function resolveCardinalTail(axis, endCardinal, target) {
   const spec = CARDINAL_AXES[axis];
@@ -844,13 +886,23 @@ export function resolveCardinalTail(axis, endCardinal, target) {
       `resolveCardinalTail: end '${endCardinal}' is not on axis '${axis}' (must be '${spec.ends.negative}' or '${spec.ends.positive}')`,
     );
   }
+  if (target && typeof target === 'object') {
+    const sign = PERPENDICULAR_FOLD_ANGLES[axis]?.[target.target];
+    if (sign === undefined) {
+      throw new Error(
+        `resolveCardinalTail: angled fold target '${target.target}' is not a perpendicular of axis '${axis}' (must be one of: ${spec.perpendiculars2D.join(', ')})`,
+      );
+    }
+    assertFoldAngle(target.angle, 'resolveCardinalTail');
+    return (sign / 90) * target.angle;
+  }
   if (target === 'open' || target === endCardinal) return 0;
   const opposite = endCardinal === spec.ends.negative ? spec.ends.positive : spec.ends.negative;
   if (target === 'closed' || target === opposite) return 180;
   const fold = PERPENDICULAR_FOLD_ANGLES[axis]?.[target];
   if (fold === undefined) {
     throw new Error(
-      `resolveCardinalTail: target '${target}' is not a valid fold for axis '${axis}' (must be one of: open, closed, ${spec.perpendiculars2D.join(', ')}, or a cardinal end of this axis)`,
+      `resolveCardinalTail: target '${target}' is not a valid fold for axis '${axis}' (must be one of: open, closed, ${spec.perpendiculars2D.join(', ')}, a cardinal end of this axis, or { target, angle })`,
     );
   }
   return fold;
@@ -876,19 +928,25 @@ export function resolveCardinalTail(axis, endCardinal, target) {
  * shape that evaluateBar consumes. Use this constructor in preference to
  * raw angles — it enforces line-pinning and cardinal fold semantics.
  */
-export function cardinalBar({ axis, tails = {}, lengthScale = 1 } = {}) {
+export function cardinalBar({ axis, tails = {}, lengthScale = 1, cant = 0 } = {}) {
   const spec = CARDINAL_AXES[axis];
   if (!spec) throw new Error(`cardinalBar: unknown axis '${axis}'`);
   if (spec.rotationDeg === null) {
     throw new Error(`cardinalBar: axis '${axis}' is 3D-only; use evaluateBar3D / evaluateManji3D instead`);
   }
+  // 2D cant (free-angle-modulation, phase 2): a signed-degree deviation
+  // from the named axis, |cant| < 90. Folded into rotationDeg for the
+  // evaluator and carried on the program (when nonzero) so the validator
+  // can subtract it back out of the cardinal-orientation check.
+  if (cant !== 0) assertCantAngle(cant, 'cardinalBar');
   const negTarget = tails[spec.ends.negative] ?? 'open';
   const posTarget = tails[spec.ends.positive] ?? 'open';
   return {
-    rotationDeg: spec.rotationDeg,
+    rotationDeg: spec.rotationDeg + cant,
     leftTailDeg: resolveCardinalTail(axis, spec.ends.negative, negTarget),
     rightTailDeg: resolveCardinalTail(axis, spec.ends.positive, posTarget),
     lengthScale,
+    ...(cant !== 0 ? { cant } : {}),
   };
 }
 
@@ -929,14 +987,26 @@ export function isCardinalAngle(deg, eps = 1e-9) {
  */
 export function validateCardinalBar(barSpec) {
   const errors = [];
-  if (!isCardinalAngle(barSpec.rotationDeg ?? 0)) {
-    errors.push(`rotationDeg ${barSpec.rotationDeg} is not a cardinal angle (must snap to 0, 90, 180, or 270)`);
+  // A declared cant is a sanctioned deviation from the cardinal
+  // orientation (free-angle-modulation, phase 2): the orientation check
+  // applies to rotationDeg MINUS the cant. Undeclared free rotation is
+  // still rejected.
+  const cant = Number.isFinite(barSpec.cant) ? barSpec.cant : 0;
+  if (cant !== 0 && Math.abs(cant) >= 90) {
+    errors.push(`cant ${barSpec.cant} is out of range (|cant| must be < 90)`);
   }
-  if (!isCardinalAngle(barSpec.leftTailDeg ?? 0)) {
-    errors.push(`leftTailDeg ${barSpec.leftTailDeg} is not a cardinal angle`);
+  if (!isCardinalAngle((barSpec.rotationDeg ?? 0) - cant)) {
+    errors.push(`rotationDeg ${barSpec.rotationDeg} is not a cardinal angle (must snap to 0, 90, 180, or 270, plus any declared cant)`);
   }
-  if (!isCardinalAngle(barSpec.rightTailDeg ?? 0)) {
-    errors.push(`rightTailDeg ${barSpec.rightTailDeg} is not a cardinal angle`);
+  // Tail degrees are continuous since free-angle-modulation (0902 plan):
+  // the cardinal-snap rule now applies to bar ORIENTATION only, while
+  // tails accept any finite fold angle (the constructors range-check
+  // the authoring form; compiled programs may carry any finite degree).
+  if (!Number.isFinite(barSpec.leftTailDeg ?? 0)) {
+    errors.push(`leftTailDeg ${barSpec.leftTailDeg} is not a finite angle`);
+  }
+  if (!Number.isFinite(barSpec.rightTailDeg ?? 0)) {
+    errors.push(`rightTailDeg ${barSpec.rightTailDeg} is not a finite angle`);
   }
   return errors;
 }
@@ -961,7 +1031,10 @@ export function validateCardinalManji(program) {
 //
 // The 3D evaluator is cardinal-by-design — there is no rotationDeg or
 // per-axis-angle representation. Each bar runs along its cardinal axis
-// and each tail extends in a named cardinal direction.
+// and each tail extends toward a named cardinal direction; since
+// free-angle-modulation (0902 plan) a tail may carry a continuous fold
+// angle toward that named perpendicular ({ target, angle }) — the
+// addressing stays cardinal, the angle is a modulation.
 
 export const CARDINAL_VECTORS_3D = {
   N: { x: -1, y: 0, z: 0 },
@@ -979,8 +1052,10 @@ function applyTransform3(p, anchor, scale) {
 }
 
 /**
- * Resolve a 3D tail target (cardinal name | 'open' | 'closed') into the
- * direction vector the tail extends from its end-dot.
+ * Resolve a 3D tail target (cardinal name | 'open' | 'closed' |
+ * { target: '<perpendicular>', angle }) into the unit direction vector
+ * the tail extends from its end-dot. See the fold-angle note above
+ * resolveCardinalTail for the continuous form's semantics.
  */
 export function resolveCardinalTail3D(axis, endCardinal, target) {
   const spec = CARDINAL_AXES[axis];
@@ -991,14 +1066,146 @@ export function resolveCardinalTail3D(axis, endCardinal, target) {
     );
   }
   const opposite = endCardinal === spec.ends.negative ? spec.ends.positive : spec.ends.negative;
+  if (target && typeof target === 'object') {
+    // Continuous form: dir(θ) = cos(θ)·openDir + sin(θ)·targetDir, where
+    // openDir is the end's own cardinal and targetDir the named
+    // perpendicular. θ=0 ≡ open, 90 ≡ the perpendicular fold, 180 ≡
+    // closed; quarter-turn angles use exact trig so those three are
+    // bit-for-bit the string grammar's vectors.
+    if (!spec.perpendiculars3D.includes(target.target)) {
+      throw new Error(
+        `resolveCardinalTail3D: angled fold target '${target.target}' is not a perpendicular of axis '${axis}' (must be one of: ${spec.perpendiculars3D.join(', ')})`,
+      );
+    }
+    assertFoldAngle(target.angle, 'resolveCardinalTail3D');
+    const openDir = CARDINAL_VECTORS_3D[endCardinal];
+    const towardDir = CARDINAL_VECTORS_3D[target.target];
+    const { cos, sin } = cosSinDeg(target.angle);
+    return {
+      x: cos * openDir.x + sin * towardDir.x,
+      y: cos * openDir.y + sin * towardDir.y,
+      z: cos * openDir.z + sin * towardDir.z,
+    };
+  }
   if (target === 'open' || target === endCardinal) return CARDINAL_VECTORS_3D[endCardinal];
   if (target === 'closed' || target === opposite) return CARDINAL_VECTORS_3D[opposite];
   if (!spec.perpendiculars3D.includes(target)) {
     throw new Error(
-      `resolveCardinalTail3D: target '${target}' is not a valid 3D fold for axis '${axis}' (must be one of: open, closed, ${spec.perpendiculars3D.join(', ')}, or a cardinal end of this axis)`,
+      `resolveCardinalTail3D: target '${target}' is not a valid 3D fold for axis '${axis}' (must be one of: open, closed, ${spec.perpendiculars3D.join(', ')}, a cardinal end of this axis, or { target, angle })`,
     );
   }
   return CARDINAL_VECTORS_3D[target];
+}
+
+// ---- Bar cant (free-angle-modulation, phase 2) ------------------------
+//
+// A bar may deviate from its named axis without losing the name:
+//   cant: { toward: '<perpendicular of the axis>', angle }   |angle| < 90
+// The bar's direction becomes cos(θ)·axisDir + sin(θ)·towardDir. The bar
+// is still NAMED on its axis — the distinct-axis rule, slot addressing,
+// card contracts, and reflection vocabulary are untouched. Tails resolve
+// in the CANTED frame: the open direction follows the canted axis, and
+// each perpendicular fold target is Gram-Schmidt re-orthogonalized
+// against the canted direction so folds keep their meaning as the bar
+// leans. cant.angle: 0 reduces exactly to the uncanted frame; a bar
+// canted ≥90° is a different axis (author that as the other axis, or
+// node rotation). See the 0902 plan.
+
+function assertCantAngle(angle, where) {
+  if (!Number.isFinite(angle)) {
+    throw new Error(`${where}: cant angle must be a finite number (got ${angle})`);
+  }
+  if (Math.abs(angle) >= 90) {
+    throw new Error(`${where}: cant angle ${angle} is out of range (|angle| must be < 90 — a bar canted 90° or more is a different axis)`);
+  }
+}
+
+/**
+ * Resolve a bar's canted positive-end direction. Exported for the
+ * validators; returns the exact positive-end cardinal vector when the
+ * cant angle is 0.
+ */
+export function cantedAxisDir3D(axis, cant) {
+  const spec = CARDINAL_AXES[axis];
+  if (!spec) throw new Error(`cantedAxisDir3D: unknown axis '${axis}'`);
+  if (!cant || typeof cant !== 'object') {
+    throw new Error(`cantedAxisDir3D: cant must be { toward, angle } (got ${JSON.stringify(cant)})`);
+  }
+  if (!spec.perpendiculars3D.includes(cant.toward)) {
+    throw new Error(
+      `cantedAxisDir3D: cant target '${cant.toward}' is not a perpendicular of axis '${axis}' (must be one of: ${spec.perpendiculars3D.join(', ')})`,
+    );
+  }
+  assertCantAngle(cant.angle, 'cantedAxisDir3D');
+  const axisDir = CARDINAL_VECTORS_3D[spec.ends.positive];
+  const towardDir = CARDINAL_VECTORS_3D[cant.toward];
+  const { cos, sin } = cosSinDeg(cant.angle);
+  return noNegZero3({
+    x: cos * axisDir.x + sin * towardDir.x,
+    y: cos * axisDir.y + sin * towardDir.y,
+    z: cos * axisDir.z + sin * towardDir.z,
+  });
+}
+
+// Normalize -0 components to 0 so the cant-angle-0 path is bit-for-bit
+// the uncanted cardinal lookup (which carries +0s).
+function noNegZero3(v) {
+  return {
+    x: v.x === 0 ? 0 : v.x,
+    y: v.y === 0 ? 0 : v.y,
+    z: v.z === 0 ? 0 : v.z,
+  };
+}
+
+// Component of `v` orthogonal to unit vector `axisDir`, normalized.
+// The canted-frame replacement for a cardinal perpendicular.
+function orthonormalAgainst(v, axisDir, where) {
+  const dot = v.x * axisDir.x + v.y * axisDir.y + v.z * axisDir.z;
+  const ox = v.x - dot * axisDir.x;
+  const oy = v.y - dot * axisDir.y;
+  const oz = v.z - dot * axisDir.z;
+  const len = Math.hypot(ox, oy, oz);
+  if (len < 1e-9) {
+    throw new Error(`${where}: fold target is parallel to the canted bar direction`);
+  }
+  return { x: ox / len, y: oy / len, z: oz / len };
+}
+
+// Resolve a tail target in a canted bar frame. Mirrors
+// resolveCardinalTail3D's grammar (string sugar + { target, angle })
+// but substitutes the canted open direction and the re-orthogonalized
+// perpendiculars. Only reached when the bar carries a cant — the
+// uncanted path stays on the exact cardinal lookup.
+function resolveTail3DInFrame(axis, endCardinal, target, posDir) {
+  const spec = CARDINAL_AXES[axis];
+  const opposite = endCardinal === spec.ends.negative ? spec.ends.positive : spec.ends.negative;
+  const openDir = endCardinal === spec.ends.positive ? posDir : noNegZero3(scale3(posDir, -1));
+  let towardName;
+  let angle;
+  if (target && typeof target === 'object') {
+    towardName = target.target;
+    angle = target.angle;
+    assertFoldAngle(angle, 'resolveCardinalTail3D');
+  } else if (target === 'open' || target === endCardinal) {
+    return { ...openDir };
+  } else if (target === 'closed' || target === opposite) {
+    return noNegZero3(scale3(openDir, -1));
+  } else {
+    towardName = target;
+    angle = 90;
+  }
+  if (!spec.perpendiculars3D.includes(towardName)) {
+    throw new Error(
+      `resolveCardinalTail3D: angled fold target '${towardName}' is not a perpendicular of axis '${axis}' (must be one of: ${spec.perpendiculars3D.join(', ')})`,
+    );
+  }
+  const towardDir = orthonormalAgainst(CARDINAL_VECTORS_3D[towardName], posDir, 'resolveCardinalTail3D');
+  const { cos, sin } = cosSinDeg(angle);
+  return noNegZero3({
+    x: cos * openDir.x + sin * towardDir.x,
+    y: cos * openDir.y + sin * towardDir.y,
+    z: cos * openDir.z + sin * towardDir.z,
+  });
 }
 
 /**
@@ -1010,27 +1217,43 @@ export function resolveCardinalTail3D(axis, endCardinal, target) {
  * Spec shape:
  *   { axis: 'N-S' | 'E-W' | 'Zenith-Nadir',
  *     tails: { [negCardinal]: target, [posCardinal]: target },
- *     lengthScale: number }
+ *     lengthScale: number,
+ *     cant?: { toward: '<perpendicular>', angle } }
  *
- * Tail target is a cardinal direction name, or 'open' (colinear out),
- * or 'closed' (180° collapse onto interior).
+ * Tail target is a cardinal direction name, 'open' (colinear out),
+ * 'closed' (180° collapse onto interior), or the continuous
+ * { target: '<perpendicular>', angle } form. With `cant`, the whole bar
+ * leans toward a named perpendicular and tails resolve in the canted
+ * frame (see the cant note above).
  */
-export function evaluateBar3D({ axis, tails = {}, lengthScale = 1 } = {}) {
+export function evaluateBar3D({ axis, tails = {}, lengthScale = 1, cant = null } = {}) {
   const spec = CARDINAL_AXES[axis];
   if (!spec) throw new Error(`evaluateBar3D: unknown axis '${axis}'`);
   const L = SEGMENT_LENGTH * lengthScale;
-  const negEndDir = CARDINAL_VECTORS_3D[spec.ends.negative];
-  const posEndDir = CARDINAL_VECTORS_3D[spec.ends.positive];
-
-  const center = { x: 0, y: 0, z: 0 };
-  const negEnd = scale3(negEndDir, L);
-  const posEnd = scale3(posEndDir, L);
 
   const negTarget = tails[spec.ends.negative] ?? 'open';
   const posTarget = tails[spec.ends.positive] ?? 'open';
 
-  const negTailDir = resolveCardinalTail3D(axis, spec.ends.negative, negTarget);
-  const posTailDir = resolveCardinalTail3D(axis, spec.ends.positive, posTarget);
+  let negEndDir;
+  let posEndDir;
+  let negTailDir;
+  let posTailDir;
+  if (cant !== null && cant !== undefined) {
+    const posDir = cantedAxisDir3D(axis, cant);
+    posEndDir = posDir;
+    negEndDir = noNegZero3(scale3(posDir, -1));
+    negTailDir = resolveTail3DInFrame(axis, spec.ends.negative, negTarget, posDir);
+    posTailDir = resolveTail3DInFrame(axis, spec.ends.positive, posTarget, posDir);
+  } else {
+    negEndDir = CARDINAL_VECTORS_3D[spec.ends.negative];
+    posEndDir = CARDINAL_VECTORS_3D[spec.ends.positive];
+    negTailDir = resolveCardinalTail3D(axis, spec.ends.negative, negTarget);
+    posTailDir = resolveCardinalTail3D(axis, spec.ends.positive, posTarget);
+  }
+
+  const center = { x: 0, y: 0, z: 0 };
+  const negEnd = scale3(negEndDir, L);
+  const posEnd = scale3(posEndDir, L);
 
   const negTip = add3(negEnd, scale3(negTailDir, L));
   const posTip = add3(posEnd, scale3(posTailDir, L));
@@ -1247,11 +1470,28 @@ export function validateCardinalManji3D(program) {
     if (seen.has(b.axis)) errors.push(`bar[${i}]: axis '${b.axis}' is already used by another bar`);
     seen.add(b.axis);
     const spec = CARDINAL_AXES[b.axis];
+    // Field-borne angles (`{ field: '<id>' }`) resolve at walk time —
+    // substitute a valid placeholder so target-name validation still
+    // runs at mint while the angle's numeric range is asserted after
+    // resolution (evaluateBar3D re-asserts on the resolved value).
+    const deferFieldAngle = (obj) => (
+      obj && typeof obj === 'object' && obj.angle && typeof obj.angle === 'object'
+        && typeof obj.angle.field === 'string'
+        ? { ...obj, angle: 45 }
+        : obj
+    );
+    if (b.cant !== undefined && b.cant !== null) {
+      try {
+        cantedAxisDir3D(b.axis, deferFieldAngle(b.cant));
+      } catch (e) {
+        errors.push(`bar[${i}]: ${e.message}`);
+      }
+    }
     for (const endCardinal of [spec.ends.negative, spec.ends.positive]) {
       const target = b.tails?.[endCardinal];
       if (target === undefined) continue;
       try {
-        resolveCardinalTail3D(b.axis, endCardinal, target);
+        resolveCardinalTail3D(b.axis, endCardinal, deferFieldAngle(target));
       } catch (e) {
         errors.push(`bar[${i}]: ${e.message}`);
       }

@@ -193,7 +193,9 @@ the renderer paints.
 ```js
 {
   // One of:
-  spine: { bar1: { axis, tails, lengthScale }, bar2: ..., bar3: ... },
+  spine: { bar1: { axis, tails, lengthScale, cant? }, bar2: ..., bar3: ... },
+  //   tails: { [end]: 'open' | 'closed' | <perpendicular> | { target, angle } }
+  //   cant:  { toward: <perpendicular>, angle }   — |angle| < 90, axis name kept
   slots: [{ id, position: { x, y, z } }],
   // OR
   programRef: 'card-id',
@@ -204,7 +206,7 @@ the renderer paints.
   anchor: { x: 0, y: 0, z: 0 },
   scale: 1,
   reflect: 'N-S' | 'E-W' | 'Zenith-Nadir',  // optional
-  replicate: { offsets: [...] | pattern: '...' },  // optional
+  replicate: { offsets: [...] | pattern: '...', angleStep?: { angle, axis? } },  // optional
   scaleStep: 0.85,  // optional per-instance modulation
   role: 'figure' | 'pillar' | 'detail' | 'arch-spine' | 'default',  // optional renderer hint
   children: [{ slot, slotScale, node }],
@@ -213,28 +215,66 @@ the renderer paints.
 
 ### Cardinal grammar discipline
 
-Every bar is line-pinned to a cardinal axis (N-S, E-W, Zenith-Nadir).
-Every fold is to a cardinal direction. No free angles. The validator
-runs `validateCardinalManji3D` on every program node — bad geometry
-fails at mint time, not at render.
+Every bar is *named* on a cardinal axis (N-S, E-W, Zenith-Nadir).
+Every fold is *addressed* to a cardinal direction. Since
+free-angle-modulation (0902 plan), angle is a continuous **modulation
+around the cardinal names** rather than a hard snap:
+
+- A tail target is a cardinal name (the discrete sugar: `'open'` = 0°,
+  a perpendicular = 90°, `'closed'` = 180°) or the continuous form
+  `{ target: '<perpendicular>', angle }` — one continuum, negative
+  angles folding away from the named target.
+- A bar accepts `cant: { toward: '<perpendicular>', angle }`
+  (|angle| < 90): the bar leans while keeping its axis NAME, so slot
+  addressing, the distinct-axis rule, card contracts, and reflection
+  vocabulary are untouched. Tails resolve in the canted frame
+  (perpendiculars Gram-Schmidt re-orthogonalized against the canted
+  direction).
+- Both angles are field-borne (`{ field: '<id>' }`, host-declared,
+  evaluated at the node's worldAnchor).
+
+What is still refused: non-cardinal target NAMES and undeclared free
+rotation. The addressing stays cardinal; the angle is free. The
+validator runs `validateCardinalManji3D` on every program node — bad
+geometry fails at mint time, not at render, and absent the new
+parameters output is byte-identical to the pre-angle grammar
+(characterization snapshots in
+`free-angle-characterization.test.js` enforce this).
 
 ### Replicate + reflect
 
 `replicate` instantiates the inner `node` at each offset (literal
-list, or a pattern-generated grid). With `scaleStep`, each instance
-`i` gets `scaleStep^i` applied — the per-instance modulation that
-turns a uniform ring into a spiral or a colonnade into a tapered row.
+list, or a pattern-generated grid). Three per-instance modulation
+axes:
+
+- **offsets** (axis 1) — where instance `i` sits.
+- **`scaleStep`** (axis 2) — instance `i` gets `scaleStep^i`; turns a
+  uniform ring into a spiral or a colonnade into a tapered row.
+- **`angleStep: { angle, axis? }`** (axis 3, free-angle-modulation) —
+  instance `i` gets a rigid rotation of `i × angle` degrees about the
+  group anchor (axis defaults to Zenith-Nadir; cardinal labels or a
+  non-zero vector; 2D takes `{ angle }` and rotates in the picture
+  plane). The rotation carries the spine, slots, and limb-chain
+  frames rigidly; endpoint paths resolve against the rotated slots.
+  Six identical offsets + `angleStep: { angle: 60 }` = a spoke ring
+  from one child spec — the radial-array family for *structure* that
+  wave-manji already had for loops. Caveat: inline literal {x,y,z}
+  coordinates in a replicated instance's leaf marks do not rotate —
+  bind leaf endpoints to slots.
 
 `reflect: '<cardinal-axis>'` mirrors the subtree across that axis.
 Cardinals map to cardinals (N↔S under N-S reflection, etc.), so the
-grammar discipline holds under reflection.
+grammar discipline holds under reflection — including canted bars and
+angled tails, since reflection operates on evaluated points.
 
 ### Field-coupled scalars
 
 Every scalar parameter on a structure node — `scale`, `slotScale`,
-`bar.lengthScale`, `anchor.{x,y,z}` — accepts either a literal number
-or `{ field: '<id>' }`. Field refs evaluate through the manifest's
-field resolver at the parameter's natural sample point:
+`bar.lengthScale`, `anchor.{x,y,z}`, and (free-angle-modulation)
+`bar.cant.angle` + object-form `bar.tails.<end>.angle` — accepts
+either a literal number or `{ field: '<id>' }`. Field refs evaluate
+through the manifest's field resolver at the parameter's natural
+sample point:
 
 - `scale` evaluates at the node's `worldAnchor`.
 - `slotScale` evaluates at the parent slot's `worldPosition`.
@@ -318,6 +358,8 @@ validator catches it at mint.
 | `node.scale` | node's world anchor | walk-time; host-declared only |
 | `binding.slotScale` | parent slot's world position | walk-time; host-declared only |
 | `node.spine.bar*.lengthScale` | node's world anchor | walk-time; host-declared only |
+| `node.spine.bar*.cant.angle` | node's world anchor | walk-time; host-declared only |
+| `node.spine.bar*.tails.<end>.angle` | node's world anchor | walk-time; host-declared only (object-form tails) |
 
 Module: [fields.js](../control/lib/graph/polygonizer/fields.js).
 

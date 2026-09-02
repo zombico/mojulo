@@ -1,0 +1,1947 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`characterization: 2D tail resolution > freezes the full (axis, end, target) → degrees matrix 1`] = `
+{
+  "E-W/E→E": 0,
+  "E-W/E→N": 90,
+  "E-W/E→S": -90,
+  "E-W/E→W": 180,
+  "E-W/E→closed": 180,
+  "E-W/E→open": 0,
+  "E-W/W→E": 180,
+  "E-W/W→N": 90,
+  "E-W/W→S": -90,
+  "E-W/W→W": 0,
+  "E-W/W→closed": 180,
+  "E-W/W→open": 0,
+  "N-S/N→E": 90,
+  "N-S/N→N": 0,
+  "N-S/N→S": 180,
+  "N-S/N→W": -90,
+  "N-S/N→closed": 180,
+  "N-S/N→open": 0,
+  "N-S/S→E": 90,
+  "N-S/S→N": 180,
+  "N-S/S→S": 0,
+  "N-S/S→W": -90,
+  "N-S/S→closed": 180,
+  "N-S/S→open": 0,
+}
+`;
+
+exports[`characterization: 3D bar and manji evaluation > freezes a 3-bar evaluateManji3D with anchor + scale transform 1`] = `
+{
+  "armTips": [
+    {
+      "x": -0.8,
+      "y": 3.8,
+      "z": 3,
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 3,
+    },
+    {
+      "x": 1,
+      "y": -1,
+      "z": 3,
+    },
+    {
+      "x": 1,
+      "y": 3.5,
+      "z": 4.5,
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 0.75,
+    },
+    {
+      "x": -0.125,
+      "y": 2,
+      "z": 4.125,
+    },
+  ],
+  "bars": [
+    {
+      "axis": "N-S",
+      "points": {
+        "center": {
+          "x": 1,
+          "y": 2,
+          "z": 3,
+        },
+        "negCardinal": "N",
+        "negEnd": {
+          "x": -0.8,
+          "y": 2,
+          "z": 3,
+        },
+        "negTip": {
+          "x": -0.8,
+          "y": 3.8,
+          "z": 3,
+        },
+        "posCardinal": "S",
+        "posEnd": {
+          "x": 2.8,
+          "y": 2,
+          "z": 3,
+        },
+        "posTip": {
+          "x": 1,
+          "y": 2,
+          "z": 3,
+        },
+      },
+      "segments": [
+        {
+          "from": {
+            "x": -0.8,
+            "y": 3.8,
+            "z": 3,
+          },
+          "to": {
+            "x": -0.8,
+            "y": 2,
+            "z": 3,
+          },
+        },
+        {
+          "from": {
+            "x": -0.8,
+            "y": 2,
+            "z": 3,
+          },
+          "to": {
+            "x": 1,
+            "y": 2,
+            "z": 3,
+          },
+        },
+        {
+          "from": {
+            "x": 1,
+            "y": 2,
+            "z": 3,
+          },
+          "to": {
+            "x": 2.8,
+            "y": 2,
+            "z": 3,
+          },
+        },
+        {
+          "from": {
+            "x": 2.8,
+            "y": 2,
+            "z": 3,
+          },
+          "to": {
+            "x": 1,
+            "y": 2,
+            "z": 3,
+          },
+        },
+      ],
+    },
+    {
+      "axis": "E-W",
+      "points": {
+        "center": {
+          "x": 1,
+          "y": 2,
+          "z": 3,
+        },
+        "negCardinal": "W",
+        "negEnd": {
+          "x": 1,
+          "y": 0.5,
+          "z": 3,
+        },
+        "negTip": {
+          "x": 1,
+          "y": -1,
+          "z": 3,
+        },
+        "posCardinal": "E",
+        "posEnd": {
+          "x": 1,
+          "y": 3.5,
+          "z": 3,
+        },
+        "posTip": {
+          "x": 1,
+          "y": 3.5,
+          "z": 4.5,
+        },
+      },
+      "segments": [
+        {
+          "from": {
+            "x": 1,
+            "y": -1,
+            "z": 3,
+          },
+          "to": {
+            "x": 1,
+            "y": 0.5,
+            "z": 3,
+          },
+        },
+        {
+          "from": {
+            "x": 1,
+            "y": 0.5,
+            "z": 3,
+          },
+          "to": {
+            "x": 1,
+            "y": 2,
+            "z": 3,
+          },
+        },
+        {
+          "from": {
+            "x": 1,
+            "y": 2,
+            "z": 3,
+          },
+          "to": {
+            "x": 1,
+            "y": 3.5,
+            "z": 3,
+          },
+        },
+        {
+          "from": {
+            "x": 1,
+            "y": 3.5,
+            "z": 3,
+          },
+          "to": {
+            "x": 1,
+            "y": 3.5,
+            "z": 4.5,
+          },
+        },
+      ],
+    },
+    {
+      "axis": "Zenith-Nadir",
+      "points": {
+        "center": {
+          "x": 1,
+          "y": 2,
+          "z": 3,
+        },
+        "negCardinal": "Nadir",
+        "negEnd": {
+          "x": 1,
+          "y": 2,
+          "z": 1.875,
+        },
+        "negTip": {
+          "x": 1,
+          "y": 2,
+          "z": 0.75,
+        },
+        "posCardinal": "Zenith",
+        "posEnd": {
+          "x": 1,
+          "y": 2,
+          "z": 4.125,
+        },
+        "posTip": {
+          "x": -0.125,
+          "y": 2,
+          "z": 4.125,
+        },
+      },
+      "segments": [
+        {
+          "from": {
+            "x": 1,
+            "y": 2,
+            "z": 0.75,
+          },
+          "to": {
+            "x": 1,
+            "y": 2,
+            "z": 1.875,
+          },
+        },
+        {
+          "from": {
+            "x": 1,
+            "y": 2,
+            "z": 1.875,
+          },
+          "to": {
+            "x": 1,
+            "y": 2,
+            "z": 3,
+          },
+        },
+        {
+          "from": {
+            "x": 1,
+            "y": 2,
+            "z": 3,
+          },
+          "to": {
+            "x": 1,
+            "y": 2,
+            "z": 4.125,
+          },
+        },
+        {
+          "from": {
+            "x": 1,
+            "y": 2,
+            "z": 4.125,
+          },
+          "to": {
+            "x": -0.125,
+            "y": 2,
+            "z": 4.125,
+          },
+        },
+      ],
+    },
+  ],
+  "bbox": {
+    "max": {
+      "x": 1,
+      "y": 3.8,
+      "z": 4.5,
+    },
+    "min": {
+      "x": -0.8,
+      "y": -1,
+      "z": 0.75,
+    },
+  },
+  "center": {
+    "x": 1,
+    "y": 2,
+    "z": 3,
+  },
+}
+`;
+
+exports[`characterization: 3D bar and manji evaluation > freezes evaluateBar3D per axis with mixed folds 1`] = `
+{
+  "E-W": {
+    "axis": "E-W",
+    "points": {
+      "center": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+      },
+      "negCardinal": "W",
+      "negEnd": {
+        "x": 0,
+        "y": -1,
+        "z": 0,
+      },
+      "negTip": {
+        "x": 0,
+        "y": -2,
+        "z": 0,
+      },
+      "posCardinal": "E",
+      "posEnd": {
+        "x": 0,
+        "y": 1,
+        "z": 0,
+      },
+      "posTip": {
+        "x": 0,
+        "y": 1,
+        "z": 1,
+      },
+    },
+    "segments": [
+      {
+        "from": {
+          "x": 0,
+          "y": -2,
+          "z": 0,
+        },
+        "to": {
+          "x": 0,
+          "y": -1,
+          "z": 0,
+        },
+      },
+      {
+        "from": {
+          "x": 0,
+          "y": -1,
+          "z": 0,
+        },
+        "to": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+        },
+      },
+      {
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+        },
+        "to": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+        },
+      },
+      {
+        "from": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+        },
+        "to": {
+          "x": 0,
+          "y": 1,
+          "z": 1,
+        },
+      },
+    ],
+  },
+  "N-S": {
+    "axis": "N-S",
+    "points": {
+      "center": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+      },
+      "negCardinal": "N",
+      "negEnd": {
+        "x": -1.2,
+        "y": 0,
+        "z": 0,
+      },
+      "negTip": {
+        "x": -1.2,
+        "y": 1.2,
+        "z": 0,
+      },
+      "posCardinal": "S",
+      "posEnd": {
+        "x": 1.2,
+        "y": 0,
+        "z": 0,
+      },
+      "posTip": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+      },
+    },
+    "segments": [
+      {
+        "from": {
+          "x": -1.2,
+          "y": 1.2,
+          "z": 0,
+        },
+        "to": {
+          "x": -1.2,
+          "y": 0,
+          "z": 0,
+        },
+      },
+      {
+        "from": {
+          "x": -1.2,
+          "y": 0,
+          "z": 0,
+        },
+        "to": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+        },
+      },
+      {
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+        },
+        "to": {
+          "x": 1.2,
+          "y": 0,
+          "z": 0,
+        },
+      },
+      {
+        "from": {
+          "x": 1.2,
+          "y": 0,
+          "z": 0,
+        },
+        "to": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+        },
+      },
+    ],
+  },
+  "Zenith-Nadir": {
+    "axis": "Zenith-Nadir",
+    "points": {
+      "center": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+      },
+      "negCardinal": "Nadir",
+      "negEnd": {
+        "x": 0,
+        "y": 0,
+        "z": -0.75,
+      },
+      "negTip": {
+        "x": 0,
+        "y": -0.75,
+        "z": -0.75,
+      },
+      "posCardinal": "Zenith",
+      "posEnd": {
+        "x": 0,
+        "y": 0,
+        "z": 0.75,
+      },
+      "posTip": {
+        "x": -0.75,
+        "y": 0,
+        "z": 0.75,
+      },
+    },
+    "segments": [
+      {
+        "from": {
+          "x": 0,
+          "y": -0.75,
+          "z": -0.75,
+        },
+        "to": {
+          "x": 0,
+          "y": 0,
+          "z": -0.75,
+        },
+      },
+      {
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": -0.75,
+        },
+        "to": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+        },
+      },
+      {
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+        },
+        "to": {
+          "x": 0,
+          "y": 0,
+          "z": 0.75,
+        },
+      },
+      {
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0.75,
+        },
+        "to": {
+          "x": -0.75,
+          "y": 0,
+          "z": 0.75,
+        },
+      },
+    ],
+  },
+}
+`;
+
+exports[`characterization: 3D tail resolution > freezes the full (axis, end, target) → direction-vector matrix 1`] = `
+{
+  "E-W/E→E": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "E-W/E→N": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "E-W/E→Nadir": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "E-W/E→S": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "E-W/E→W": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "E-W/E→Zenith": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+  "E-W/E→closed": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "E-W/E→open": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "E-W/W→E": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "E-W/W→N": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "E-W/W→Nadir": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "E-W/W→S": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "E-W/W→W": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "E-W/W→Zenith": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+  "E-W/W→closed": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "E-W/W→open": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "N-S/N→E": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "N-S/N→N": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "N-S/N→Nadir": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "N-S/N→S": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "N-S/N→W": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "N-S/N→Zenith": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+  "N-S/N→closed": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "N-S/N→open": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "N-S/S→E": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "N-S/S→N": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "N-S/S→Nadir": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "N-S/S→S": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "N-S/S→W": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "N-S/S→Zenith": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+  "N-S/S→closed": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "N-S/S→open": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "Zenith-Nadir/Nadir→E": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "Zenith-Nadir/Nadir→N": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "Zenith-Nadir/Nadir→Nadir": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "Zenith-Nadir/Nadir→S": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "Zenith-Nadir/Nadir→W": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "Zenith-Nadir/Nadir→Zenith": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+  "Zenith-Nadir/Nadir→closed": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+  "Zenith-Nadir/Nadir→open": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "Zenith-Nadir/Zenith→E": {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+  },
+  "Zenith-Nadir/Zenith→N": {
+    "x": -1,
+    "y": 0,
+    "z": 0,
+  },
+  "Zenith-Nadir/Zenith→Nadir": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "Zenith-Nadir/Zenith→S": {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+  },
+  "Zenith-Nadir/Zenith→W": {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+  },
+  "Zenith-Nadir/Zenith→Zenith": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+  "Zenith-Nadir/Zenith→closed": {
+    "x": 0,
+    "y": 0,
+    "z": -1,
+  },
+  "Zenith-Nadir/Zenith→open": {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+  },
+}
+`;
+
+exports[`characterization: cardinal constructors (2D) > freezes a full 2D manji evaluation through cardinalManji 1`] = `
+{
+  "armTips": [
+    {
+      "x": 0.6,
+      "y": 0.4,
+    },
+    {
+      "x": 3,
+      "y": -2,
+    },
+    {
+      "x": 3,
+      "y": -6,
+    },
+    {
+      "x": 1,
+      "y": 0,
+    },
+  ],
+  "bars": [
+    {
+      "points": {
+        "center": {
+          "x": 3,
+          "y": -2,
+        },
+        "leftEnd": {
+          "x": 0.6,
+          "y": -2,
+        },
+        "leftTip": {
+          "x": 0.6,
+          "y": 0.4,
+        },
+        "rightEnd": {
+          "x": 5.4,
+          "y": -2,
+        },
+        "rightTip": {
+          "x": 3,
+          "y": -2,
+        },
+      },
+      "segments": [
+        {
+          "from": {
+            "x": 0.6,
+            "y": 0.4,
+          },
+          "to": {
+            "x": 0.6,
+            "y": -2,
+          },
+        },
+        {
+          "from": {
+            "x": 0.6,
+            "y": -2,
+          },
+          "to": {
+            "x": 3,
+            "y": -2,
+          },
+        },
+        {
+          "from": {
+            "x": 3,
+            "y": -2,
+          },
+          "to": {
+            "x": 5.4,
+            "y": -2,
+          },
+        },
+        {
+          "from": {
+            "x": 5.4,
+            "y": -2,
+          },
+          "to": {
+            "x": 3,
+            "y": -2,
+          },
+        },
+      ],
+    },
+    {
+      "points": {
+        "center": {
+          "x": 3,
+          "y": -2,
+        },
+        "leftEnd": {
+          "x": 3,
+          "y": -4,
+        },
+        "leftTip": {
+          "x": 3,
+          "y": -6,
+        },
+        "rightEnd": {
+          "x": 3,
+          "y": 0,
+        },
+        "rightTip": {
+          "x": 1,
+          "y": 0,
+        },
+      },
+      "segments": [
+        {
+          "from": {
+            "x": 3,
+            "y": -6,
+          },
+          "to": {
+            "x": 3,
+            "y": -4,
+          },
+        },
+        {
+          "from": {
+            "x": 3,
+            "y": -4,
+          },
+          "to": {
+            "x": 3,
+            "y": -2,
+          },
+        },
+        {
+          "from": {
+            "x": 3,
+            "y": -2,
+          },
+          "to": {
+            "x": 3,
+            "y": 0,
+          },
+        },
+        {
+          "from": {
+            "x": 3,
+            "y": 0,
+          },
+          "to": {
+            "x": 1,
+            "y": 0,
+          },
+        },
+      ],
+    },
+  ],
+  "bbox": {
+    "max": {
+      "x": 5.4,
+      "y": 0.4,
+    },
+    "min": {
+      "x": 0.6,
+      "y": -6,
+    },
+  },
+  "center": {
+    "x": 3,
+    "y": -2,
+  },
+  "scale": 2,
+}
+`;
+
+exports[`characterization: cardinal constructors (2D) > freezes cardinalBar programs across fold shapes 1`] = `
+{
+  "E-W fold N / S, scaled": {
+    "leftTailDeg": -90,
+    "lengthScale": 1.5,
+    "rightTailDeg": 90,
+    "rotationDeg": 90,
+  },
+  "N-S both open": {
+    "leftTailDeg": 0,
+    "lengthScale": 1,
+    "rightTailDeg": 0,
+    "rotationDeg": 0,
+  },
+  "N-S fold E / closed": {
+    "leftTailDeg": 90,
+    "lengthScale": 1,
+    "rightTailDeg": 180,
+    "rotationDeg": 0,
+  },
+}
+`;
+
+exports[`characterization: end-to-end SVG > freezes a 2D manji-tree render 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="900" height="900">
+  <rect x="0.00" y="0.00" width="400.00" height="400.00" fill="#fafaf6" stroke="#aaa" stroke-width="0.6" />
+  <line x1="141.57" y1="163.48" x2="141.57" y2="200.00" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <line x1="141.57" y1="200.00" x2="178.09" y2="200.00" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <line x1="178.09" y1="200.00" x2="214.61" y2="200.00" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <line x1="214.61" y1="200.00" x2="178.09" y2="200.00" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <line x1="178.09" y1="273.04" x2="178.09" y2="236.52" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <line x1="178.09" y1="236.52" x2="178.09" y2="200.00" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <line x1="178.09" y1="200.00" x2="178.09" y2="163.48" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <line x1="178.09" y1="163.48" x2="141.57" y2="163.48" stroke="#222" stroke-width="0.7" stroke-linecap="round" />
+  <circle cx="178.09" cy="200.00" r="1" fill="#222" />
+  <circle cx="141.57" cy="200.00" r="1" fill="#222" />
+  <circle cx="214.61" cy="200.00" r="1" fill="#222" />
+  <circle cx="178.09" cy="236.52" r="1" fill="#222" />
+  <circle cx="178.09" cy="163.48" r="1" fill="#222" />
+  <line x1="324.17" y1="243.83" x2="324.17" y2="221.91" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <line x1="324.17" y1="221.91" x2="324.17" y2="200.00" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <line x1="324.17" y1="200.00" x2="324.17" y2="178.09" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <line x1="324.17" y1="178.09" x2="302.26" y2="178.09" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <line x1="368.00" y1="200.00" x2="346.09" y2="200.00" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <line x1="346.09" y1="200.00" x2="324.17" y2="200.00" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <line x1="324.17" y1="200.00" x2="302.26" y2="200.00" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <line x1="302.26" y1="200.00" x2="280.35" y2="200.00" stroke="#555" stroke-width="0.5" stroke-linecap="round" />
+  <circle cx="324.17" cy="200.00" r="0.7" fill="#555" />
+  <circle cx="324.17" cy="221.91" r="0.7" fill="#555" />
+  <circle cx="324.17" cy="178.09" r="0.7" fill="#555" />
+  <circle cx="346.09" cy="200.00" r="0.7" fill="#555" />
+  <circle cx="302.26" cy="200.00" r="0.7" fill="#555" />
+  <circle cx="178.09" cy="346.09" r="1.4" fill="#a05" opacity="0.45" />
+  <circle cx="324.17" cy="200.00" r="1.4" fill="#a05" opacity="0.45" />
+  <circle cx="178.09" cy="53.91" r="1.4" fill="#a05" opacity="0.45" />
+  <circle cx="32.00" cy="200.00" r="1.4" fill="#a05" opacity="0.45" />
+
+</svg>
+"
+`;
+
+exports[`characterization: end-to-end SVG > freezes a 3D manji-tree render 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="349 339 114 183" width="900" height="1441">
+  <rect x="349.39" y="338.75" width="114.10" height="182.69" fill="#fafaf6" stroke="#aaa" stroke-width="0.6" />
+  <rect x="381.39" y="390.43" width="35.97" height="99.01" fill="#a09080" stroke="#564a3a" stroke-width="0.6" />
+  <line x1="385.22" y1="418.97" x2="392.97" y2="421.20" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="392.97" y1="421.20" x2="400.72" y2="423.43" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="384.15" y1="427.22" x2="400.72" y2="423.43" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="400.72" y1="423.43" x2="417.36" y2="419.62" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="417.36" y1="419.62" x2="400.72" y2="423.43" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="400.72" y1="489.43" x2="400.72" y2="456.43" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="400.72" y1="456.43" x2="400.72" y2="423.43" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="400.72" y1="423.43" x2="400.72" y2="390.43" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="400.72" y1="390.43" x2="381.39" y2="394.85" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="400.72" y1="423.43" x2="408.46" y2="425.65" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="393.38" y1="430.01" x2="384.15" y2="427.22" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <line x1="408.46" y1="425.65" x2="408.46" y2="401.77" stroke="#222" stroke-width="1.4" stroke-linecap="round" />
+  <circle cx="400.72" cy="423.43" r="2.4" fill="#222" />
+  <circle cx="384.15" cy="427.22" r="2.4" fill="#222" />
+  <circle cx="417.36" cy="419.62" r="2.4" fill="#222" />
+  <circle cx="400.72" cy="423.43" r="2.4" fill="#222" />
+  <circle cx="392.97" cy="421.20" r="2.4" fill="#222" />
+  <circle cx="408.46" cy="425.65" r="2.4" fill="#222" />
+  <circle cx="400.72" cy="423.43" r="2.4" fill="#222" />
+  <circle cx="400.72" cy="456.43" r="2.4" fill="#222" />
+  <circle cx="400.72" cy="390.43" r="2.4" fill="#222" />
+  <line x1="396.85" y1="398.89" x2="392.97" y2="397.93" stroke="#555" stroke-width="1" stroke-linecap="round" />
+  <line x1="400.72" y1="399.85" x2="396.85" y2="398.89" stroke="#555" stroke-width="1" stroke-linecap="round" />
+  <line x1="404.59" y1="400.81" x2="400.72" y2="399.85" stroke="#555" stroke-width="1" stroke-linecap="round" />
+  <line x1="408.46" y1="401.77" x2="404.59" y2="400.81" stroke="#555" stroke-width="1" stroke-linecap="round" />
+  <circle cx="400.72" cy="399.85" r="1.8" fill="#555" />
+  <circle cx="404.59" cy="400.81" r="1.8" fill="#555" />
+  <circle cx="396.85" cy="398.89" r="1.8" fill="#555" />
+  <polygon points="412.81,370.75 420.40,370.75 420.40,465.65 412.81,465.65" fill="#c8a978" stroke="#5a4d3d" stroke-width="0.7" />
+  <line x1="416.61" y1="465.65" x2="416.61" y2="441.92" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="416.61" y1="441.92" x2="416.61" y2="418.20" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="416.61" y1="418.20" x2="416.61" y2="394.47" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="416.61" y1="394.47" x2="416.61" y2="370.75" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <circle cx="416.61" cy="418.20" r="0.8" fill="#3d3325" />
+  <circle cx="416.61" cy="441.92" r="0.8" fill="#3d3325" />
+  <circle cx="416.61" cy="394.47" r="0.8" fill="#3d3325" />
+  <polygon points="422.83,375.97 429.00,375.97 429.00,453.06 422.83,453.06" fill="#c8a978" stroke="#5a4d3d" stroke-width="0.7" />
+  <line x1="425.92" y1="453.06" x2="425.92" y2="433.78" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="425.92" y1="433.78" x2="425.92" y2="414.51" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="425.92" y1="414.51" x2="425.92" y2="395.24" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="425.92" y1="395.24" x2="425.92" y2="375.97" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <circle cx="425.92" cy="414.51" r="0.8" fill="#3d3325" />
+  <circle cx="425.92" cy="433.78" r="0.8" fill="#3d3325" />
+  <circle cx="425.92" cy="395.24" r="0.8" fill="#3d3325" />
+  <polygon points="428.99,383.48 433.99,383.48 433.99,445.71 428.99,445.71" fill="#c8a978" stroke="#5a4d3d" stroke-width="0.7" />
+  <line x1="431.49" y1="445.71" x2="431.49" y2="430.15" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="431.49" y1="430.15" x2="431.49" y2="414.59" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="431.49" y1="414.59" x2="431.49" y2="399.04" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <line x1="431.49" y1="399.04" x2="431.49" y2="383.48" stroke="#3d3325" stroke-width="0.4" stroke-linecap="round" />
+  <circle cx="431.49" cy="414.59" r="0.8" fill="#3d3325" />
+  <circle cx="431.49" cy="430.15" r="0.8" fill="#3d3325" />
+  <circle cx="431.49" cy="399.04" r="0.8" fill="#3d3325" />
+  <circle cx="400.72" cy="399.85" r="3" fill="#a05" opacity="0.5" />
+  <circle cx="416.61" cy="421.76" r="3" fill="#a05" opacity="0.5" />
+
+</svg>
+"
+`;
+
+exports[`characterization: tree walkers > freezes walkManjiTree (2D) emit list 1`] = `
+[
+  {
+    "anchor": {
+      "x": 0,
+      "y": 0,
+    },
+    "depth": 0,
+    "id": "root2d",
+    "manji": {
+      "segments": [
+        [
+          {
+            "from": {
+              "x": -1,
+              "y": 1,
+            },
+            "to": {
+              "x": -1,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": -1,
+              "y": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+            },
+            "to": {
+              "x": 1,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+            },
+          },
+        ],
+        [
+          {
+            "from": {
+              "x": 0,
+              "y": -2,
+            },
+            "to": {
+              "x": 0,
+              "y": -1,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": -1,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 1,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 1,
+            },
+            "to": {
+              "x": -1,
+              "y": 1,
+            },
+          },
+        ],
+      ],
+    },
+    "scale": 1,
+    "slotPath": [],
+    "slots": [
+      {
+        "id": "tip-n",
+        "localPosition": {
+          "x": 0,
+          "y": -4,
+        },
+        "radialAngleDeg": -90,
+        "worldPosition": {
+          "x": 0,
+          "y": -4,
+        },
+      },
+      {
+        "id": "tip-e",
+        "localPosition": {
+          "x": 4,
+          "y": 0,
+        },
+        "radialAngleDeg": 0,
+        "worldPosition": {
+          "x": 4,
+          "y": 0,
+        },
+      },
+      {
+        "id": "tip-s",
+        "localPosition": {
+          "x": 0,
+          "y": 4,
+        },
+        "radialAngleDeg": 90,
+        "worldPosition": {
+          "x": 0,
+          "y": 4,
+        },
+      },
+      {
+        "id": "tip-w",
+        "localPosition": {
+          "x": -4,
+          "y": 0,
+        },
+        "radialAngleDeg": 180,
+        "worldPosition": {
+          "x": -4,
+          "y": 0,
+        },
+      },
+    ],
+  },
+  {
+    "anchor": {
+      "x": 4,
+      "y": 0,
+    },
+    "depth": 1,
+    "id": "leaf",
+    "manji": {
+      "segments": [
+        [
+          {
+            "from": {
+              "x": 4,
+              "y": -1.2,
+            },
+            "to": {
+              "x": 4,
+              "y": -0.6,
+            },
+          },
+          {
+            "from": {
+              "x": 4,
+              "y": -0.6,
+            },
+            "to": {
+              "x": 4,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 4,
+              "y": 0,
+            },
+            "to": {
+              "x": 4,
+              "y": 0.6,
+            },
+          },
+          {
+            "from": {
+              "x": 4,
+              "y": 0.6,
+            },
+            "to": {
+              "x": 3.4,
+              "y": 0.6,
+            },
+          },
+        ],
+        [
+          {
+            "from": {
+              "x": 5.2,
+              "y": 0,
+            },
+            "to": {
+              "x": 4.6,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 4.6,
+              "y": 0,
+            },
+            "to": {
+              "x": 4,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 4,
+              "y": 0,
+            },
+            "to": {
+              "x": 3.4,
+              "y": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 3.4,
+              "y": 0,
+            },
+            "to": {
+              "x": 2.8,
+              "y": 0,
+            },
+          },
+        ],
+      ],
+    },
+    "scale": 0.6,
+    "slotPath": [
+      "tip-e",
+    ],
+    "slots": [],
+  },
+]
+`;
+
+exports[`characterization: tree walkers > freezes walkManjiTree3D emit list (spine + slots + replicate + reflect + rotation + fields) 1`] = `
+[
+  {
+    "anchor": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+    },
+    "armTips": [
+      {
+        "x": -1.2,
+        "y": 1.2,
+        "z": 0,
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+      },
+      {
+        "x": 0,
+        "y": -2,
+        "z": 0,
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 1,
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": -2.8,
+      },
+      {
+        "x": -1.4,
+        "y": 0,
+        "z": 1.4,
+      },
+    ],
+    "barSegments": [
+      {
+        "axis": "N-S",
+        "segments": [
+          {
+            "from": {
+              "x": -1.2,
+              "y": 1.2,
+              "z": 0,
+            },
+            "to": {
+              "x": -1.2,
+              "y": 0,
+              "z": 0,
+            },
+          },
+          {
+            "from": {
+              "x": -1.2,
+              "y": 0,
+              "z": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+            },
+            "to": {
+              "x": 1.2,
+              "y": 0,
+              "z": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 1.2,
+              "y": 0,
+              "z": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+            },
+          },
+        ],
+      },
+      {
+        "axis": "E-W",
+        "segments": [
+          {
+            "from": {
+              "x": 0,
+              "y": -2,
+              "z": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": -1,
+              "z": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": -1,
+              "z": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 1,
+              "z": 1,
+            },
+          },
+        ],
+      },
+      {
+        "axis": "Zenith-Nadir",
+        "segments": [
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": -2.8,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+              "z": -1.4,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": -1.4,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+              "z": 1.4,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": 1.4,
+            },
+            "to": {
+              "x": -1.4,
+              "y": 0,
+              "z": 1.4,
+            },
+          },
+        ],
+      },
+    ],
+    "depth": 0,
+    "id": "root",
+    "role": null,
+    "scale": 1,
+    "slotPath": [],
+    "slots": [
+      {
+        "id": "crown",
+        "localPosition": {
+          "x": 0,
+          "y": 0,
+          "z": 1,
+        },
+        "worldPosition": {
+          "x": 0,
+          "y": 0,
+          "z": 1,
+        },
+      },
+      {
+        "id": "east",
+        "localPosition": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+        },
+        "worldPosition": {
+          "x": 0.866025404,
+          "y": 0.5,
+          "z": 0,
+        },
+      },
+    ],
+  },
+  {
+    "anchor": {
+      "x": 0,
+      "y": 0,
+      "z": 1,
+    },
+    "armTips": [
+      {
+        "x": 0,
+        "y": 1,
+        "z": 1,
+      },
+      {
+        "x": 0,
+        "y": -1,
+        "z": 1,
+      },
+    ],
+    "barSegments": [
+      {
+        "axis": "E-W",
+        "segments": [
+          {
+            "from": {
+              "x": 0,
+              "y": 1,
+              "z": 1,
+            },
+            "to": {
+              "x": 0,
+              "y": 0.5,
+              "z": 1,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0.5,
+              "z": 1,
+            },
+            "to": {
+              "x": 0,
+              "y": 0,
+              "z": 1,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": 1,
+            },
+            "to": {
+              "x": 0,
+              "y": -0.5,
+              "z": 1,
+            },
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": -0.5,
+              "z": 1,
+            },
+            "to": {
+              "x": 0,
+              "y": -1,
+              "z": 1,
+            },
+          },
+        ],
+      },
+    ],
+    "depth": 1,
+    "id": "cap",
+    "role": null,
+    "scale": 0.5,
+    "slotPath": [
+      "crown",
+    ],
+    "slots": [],
+  },
+  {
+    "anchor": {
+      "x": 0.866025404,
+      "y": 0.5,
+      "z": 0.15,
+    },
+    "armTips": [
+      {
+        "x": 0.866025404,
+        "y": 0.5,
+        "z": -1.85,
+      },
+      {
+        "x": 0.866025404,
+        "y": 0.5,
+        "z": 2.15,
+      },
+    ],
+    "barSegments": [
+      {
+        "axis": "Zenith-Nadir",
+        "segments": [
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": -1.85,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": -0.85,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": -0.85,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": 0.15,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": 0.15,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": 1.15,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": 1.15,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 0.5,
+              "z": 2.15,
+            },
+          },
+        ],
+      },
+    ],
+    "depth": 1,
+    "id": "post#0",
+    "role": null,
+    "scale": 1,
+    "slotPath": [
+      "east",
+      "replicate#0",
+    ],
+    "slots": [],
+  },
+  {
+    "anchor": {
+      "x": 0.866025404,
+      "y": 1.7,
+      "z": 0.408,
+    },
+    "armTips": [
+      {
+        "x": 0.866025404,
+        "y": 1.7,
+        "z": -1.192,
+      },
+      {
+        "x": 0.866025404,
+        "y": 1.7,
+        "z": 2.008,
+      },
+    ],
+    "barSegments": [
+      {
+        "axis": "Zenith-Nadir",
+        "segments": [
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": -1.192,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": -0.392,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": -0.392,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": 0.408,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": 0.408,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": 1.208,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": 1.208,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 1.7,
+              "z": 2.008,
+            },
+          },
+        ],
+      },
+    ],
+    "depth": 1,
+    "id": "post#1",
+    "role": null,
+    "scale": 0.8,
+    "slotPath": [
+      "east",
+      "replicate#1",
+    ],
+    "slots": [],
+  },
+  {
+    "anchor": {
+      "x": 0.866025404,
+      "y": 2.42,
+      "z": 0.46464,
+    },
+    "armTips": [
+      {
+        "x": 0.866025404,
+        "y": 2.42,
+        "z": -0.81536,
+      },
+      {
+        "x": 0.866025404,
+        "y": 2.42,
+        "z": 1.74464,
+      },
+    ],
+    "barSegments": [
+      {
+        "axis": "Zenith-Nadir",
+        "segments": [
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": -0.81536,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": -0.17536,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": -0.17536,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": 0.46464,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": 0.46464,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": 1.10464,
+            },
+          },
+          {
+            "from": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": 1.10464,
+            },
+            "to": {
+              "x": 0.866025404,
+              "y": 2.42,
+              "z": 1.74464,
+            },
+          },
+        ],
+      },
+    ],
+    "depth": 1,
+    "id": "post#2",
+    "role": null,
+    "scale": 0.64,
+    "slotPath": [
+      "east",
+      "replicate#2",
+    ],
+    "slots": [],
+  },
+]
+`;
