@@ -24,7 +24,8 @@ Prerequisite: **Node.js 22.12+** (`node --version`). Everything below runs throu
 
 ```bash
 # 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
-#    Claude Code, Codex, and Claude Desktop, asks y/n per host, and opens the dashboard:
+#    the MCP hosts on this machine by declared profile (Claude Code, Codex,
+#    Claude Desktop, and others), asks y/n per host, and opens the dashboard:
 npx mojulo init
 #    Or wire manually —
 #    Claude Code:
@@ -73,7 +74,7 @@ bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
 
 ## What you can make
 
-- **"A walkable city at dusk" / "draw the architecture" / "an ambient loop for it"** → media: worlds, figures, diagrams, music, films, publications — minted as tiny deterministic recipes (a world is ~30 tokens, not megabytes of mesh), re-rendered byte-identically on demand, exportable (`.glb`, `.stl`, WAV/MIDI, self-contained HTML).
+- **"A walkable city at dusk" / "draw the architecture" / "an ambient loop for it"** → media: worlds, figures, animals, diagrams, music, films, publications — minted as tiny deterministic recipes (a world is ~30 tokens, not megabytes of mesh), re-rendered byte-identically on demand, exportable (`.glb`, `.stl`, WAV/MIDI, self-contained HTML).
 - **"Make me a game"** → composition: media levels, music, and art bound to a typed store with rules — playable standalone, or exported as a real **Godot** project. 2D reducer games land in the built-in Arcade.
 - **"Model me a bracket that fits this shelf"** → a solid at true scale, exported as print-ready STL for your slicer — the conversation ends at the printer.
 - **"Every Monday, digest my form submissions into Drive"** → a connected service over the MCPs you already have installed, with an append-only record of *why* it's composed the way it is.
@@ -87,7 +88,7 @@ On first connect your agent calls `forward_context` — a thin routing index ont
 - **Keyless.** Installed from npm, runs on your machine, nothing to sign up for. The MCP binds to localhost only.
 - **Recipes, not renders.** Creative artifacts are seeded deterministic recipes — diffable, replayable, re-mintable on any mojulo host. Painted images and audio renders are derived files with provenance, never the sovereign artifact.
 - **It remembers why.** Every artifact is minted beside an append-only record of intent (the contextmap), so a fresh session reconstructs prior decisions and improves the existing outcome instead of minting a stranger next to it.
-- **Verification gates.** Worlds probe-assert their own physics, workflows dry-run before they promote, and bots are hash-chain auditable (`verify_chain`).
+- **Verification gates.** Worlds probe-assert their own physics, workflows dry-run before they promote, and — with the chatbot pack — bots are hash-chain auditable (`verify_chain`).
 - **Pay for what you install.** The kernel plus the creative studio is the default; the chatbot factory is opt-in (`mojulo install chatbot`). Uninstalled packs neither list nor run, so your agent's context isn't spent on tools this host doesn't have.
 
 ## Dashboard
@@ -98,7 +99,7 @@ npx -y -p mojulo mojulo-ui --port 3999    # pin the port
 npx -y -p mojulo mojulo-ui --no-open      # skip browser launch
 ```
 
-Same primitives as the MCP, different face: browse conversations and fleet analytics, walk your worlds, play your games in the Arcade, review game projects at a glance. It renders state and hands authoring back to your agent — the workshop is driven from the conversation.
+Same primitives as the MCP, different face: **Studio** leads and opens by default — browse the Library, walk your worlds, play your games in the Arcade, review motion, beats, and voice at a glance — with **Ideate** (research, plans, stashes) beside it and **Operate** tiles appearing only once something actually runs there (bot conversations and fleet analytics arrive with the opt-in chatbot pack). It renders state and hands authoring back to your agent — the workshop is driven from the conversation.
 
 The dashboard starts in English but ships fully translated in ~two dozen languages, including right-to-left scripts (Arabic, Farsi, Urdu) — switch anytime under **Settings → Language**; the choice is remembered per browser.
 

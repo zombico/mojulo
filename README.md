@@ -16,13 +16,13 @@ It runs on your laptop and doesn't host inference, so the reasoning bill stays o
 
 **Optional packs.** Beyond the factory, mojulo carries an automation backend for wiring work into the MCPs you already have (Drive, Gmail, your CRM) — present by default, never in the way. The **chatbot factory** — compile a bot to a runnable process with hash-chained transcripts and offline RAG — is **opt-in since 2.0**: `mojulo install chatbot` adds it. Upgrading from 1.x? Your deployed bots are untouched; they always ran as their own processes, separate from the workshop.
 
-**Install:** `npx mojulo init` — detects Claude Code, Codex, or Claude Desktop, wires mojulo in, opens the dashboard. No API key needed for most of it. [Quickstart ↓](#quickstart)
+**Install:** `npx mojulo init` — detects the MCP hosts on your machine (Claude Code, Codex, Claude Desktop, and others by declared profile), wires mojulo in, opens the dashboard. No API key needed for most of it. [Quickstart ↓](#quickstart)
 
-![A generative low-poly city with pedestrians crossing and traffic flowing, the camera drifting around the central intersection — minted by an agent as a deterministic recipe, no API key, no image model](docs/images/city-walkers-traffic.gif)
+![A terminal prompt — "create a snowman with a top hat" — becomes a bonded part-graph recipe of 21 parts, then the shaded snowman in the dashboard viewer with turnable views and HTML / glb / STL downloads — no API key, no image model](docs/images/snowman-demo.gif)
 
-<sub>One prompt: <i>"generate a 3D city with walkers and traffic."</i> Your agent mints a deterministic recipe (`kind: fractal-city, seed: 42` — that's most of it); mojulo renders it live with pedestrians and traffic simulated in-world. This clip is itself a recipe — a <code>forge_motion</code> camera shot over the stored world, re-bakeable frame-identically. The same ref serves a walkable WebGL world, a CSS-3D still, and a <code>.glb</code>. No key, no cloud render.</sub>
+<sub>One prompt: <i>"Connect to mojulo and create a snowman with a top hat."</i> Your agent mints a bonded part-graph (`mint_solid` — three snowballs, a brimmed top hat, twig arms, a carrot nose, coal buttons, a scarf: 21 bonded parts) as an editable deterministic recipe, then iterates coloration in place on the same ref. The dashboard serves the shaded model with turnable views at `/sketches/top_hat_snowman`; the same ref downloads as a self-contained HTML viewer, a <code>.glb</code> for Blender or Godot, or a print-ready <code>.stl</code>. No key, no cloud render.</sub>
 
-![The mojulo Workshop Home at localhost:3001 — Studio, Ideate, and Operate across the top, with the making bays your agent fills](docs/images/workshop_home.png)
+![The mojulo Workshop Home at localhost:3001 — Studio, Ideate, and Operate as rows of dot-relief doors, with the making bays your agent fills](docs/images/workshop_home.png)
 
 <sub>The workshop at `localhost:3001` — the shelf of bays your agent fills. **Studio** leads and opens by default; **Operate** appears only once you have something running there. You drive it from the agent you already run; the dashboard renders what accumulates.</sub>
 
@@ -30,13 +30,13 @@ It runs on your laptop and doesn't host inference, so the reasoning bill stays o
 
 ## What you can build
 
-The dashboard at `localhost:3001` is a shelf of bays. Your agent fills them, grouped into two halves — the factory, and the automation backend behind it.
+The dashboard at `localhost:3001` is a shelf of bays your agent fills, worn as three postures: **Studio** (the factory — it leads and opens by default), **Ideate** (research, plans, stashes), and **Operate** (the automation backend — its tiles appear only once something actually runs there). Two halves underneath:
 
 **The 3D factory — geometry that composes upward into a game, or out to a printer.**
 
-- **Sketches & worlds** — the visual bay. Two-dimensional diagrams (flowcharts, stacked bars, donuts, KPI tiles, decision diamonds via `create_sketch`) *and* generative 3D: cities, posed figures, painted landscapes, carved wordmarks, transit hubs, everyday objects, and drivable worlds. One geometry spec renders as an SVG, a dependency-free CSS-3D scene, a traversable WebGL world, or a `.glb`. Minted by your agent, served under `/sketches/<ref>`. See [Worlds & 3D](#worlds--3d).
+- **The Library** — one door for everything visual. Two-dimensional diagrams (flowcharts, stacked bars, donuts, KPI tiles, decision diamonds via `create_sketch`) *and* generative 3D: cities, posed figures, animals with real skeletons' proportions, painted landscapes, carved wordmarks, transit hubs, everyday objects, and drivable worlds. One geometry spec renders as an SVG, a dependency-free CSS-3D scene, a traversable WebGL world, or a `.glb`. Minted by your agent, served under `/sketches/<ref>`. See [Worlds & 3D](#worlds--3d).
 - **Games & arcade** — playable artifacts. Arcade cabinets compile to a single HTML file (a pure reducer, the skin, and a score synthesized in-page); composed games bind worlds, music, and machines by ref into a standalone playable artifact. **Sound comes free**: Beats synthesizes ambient loops, grooves, SFX cues, and footsteps from pure math and seeded dice — never samples — exported as WAV or MIDI and dropped straight into the game.
-- **Maker** — the visual workbench. Browse and compose the illustrations, worlds, and motion your agent mints — where the `create_*` visual family and `forge_motion` land.
+- **Motion & the Render Bay** — any artifact set moving (a turntable, an orbit, a fly-through) baked to a shareable GIF via `forge_motion`; the Render Bay watches production land, and `/outputs` stays the inbox for finished publications.
 - **Your cookbook** — keep a recipe you've tuned (`save_recipe`) and recall it by intent a term later; attach a cloned [recipe book](https://github.com/zombico/mojulo-recipe-book) to add whole chapters, or new object kinds, without touching mojulo. See [Keeping what you make](#keeping-what-you-make).
 
 **The automation backend — wiring what you make into the tools you already run.**
@@ -216,7 +216,7 @@ The control plane is a Next.js app exposing two surfaces over the same encrypted
 
 Your agent calls mojulo's tools via MCP; the tools mutate state in `~/.mojulo/`; the dashboard renders that state. Long-running local processes — apps, and bots if you installed that pack — are supervised by a daemon the control plane manages.
 
-When your agent first connects, it calls `forward_context` to read mojulo's concept glossary, lifecycle, and tool index — so the session orients itself before doing anything destructive. Host adapters (`claude-code`, `codex`, `generic`) are auto-resolved from the connecting client; non-Claude agents should also read [AGENTS.md](AGENTS.md).
+When your agent first connects, it calls `forward_context` to read mojulo's concept glossary, lifecycle, and tool index — so the session orients itself before doing anything destructive. Hosts are declared profiles, not vendor special-cases: detection, wiring, and capabilities live in a per-host registry (`claude-code`, `codex`, `desktop`, `grok-build`, `hermes`), the matching adapter is auto-resolved from the connecting client, and no host is treated as the assumed one. Non-Claude agents should also read [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -230,16 +230,18 @@ The same family that draws a flowchart climbs the whole progression:
 
 - **Cities & structures** — recursive skylines, airports, stations and subways; structural illustration on a cardinal grammar.
 - **Figures** — a posed human body: male or female, stances, a reach, a walking gait.
+- **Animals** — the figure system's animal realm: the same armature with the spine reoriented horizontal. Sixteen dressed species (a wolf, a horse, a deer with antlers, a lion) and bare archetypes from rodent to theropod — each a recipe you pose, iterate in place, and print.
 - **Objects & marks** — everyday objects blocked out at literal scale (candlestick, lamp, dumbbell), and metal or beveled wordmarks, logos and badges.
 - **Landscapes** — painterly scenes composed from sky, palette and geometry glyphs.
 - **Drivable worlds** — places you walk or fly through, with the camera and entities as first-class primitives.
 - **Study objects** — animated science / math / bio explainers (nuclear fission, the double-slit experiment, a derivative, DNA) from one kind plus a few knobs. The catalog is open: attach a cloned recipe book to add chapters, and keep a setup you've tuned in your own cookbook, recallable by intent in a later session.
+- **From a photo** — your agent is the vision adapter: show it a picture and `reference_protocol` → `capture_reference` recover what it saw as a scaffold — a room's perspective, a figure's pose, a landscape's gesture and palette, or an object's part-graph. No vision key; no image is ever sent to mojulo.
 - **Directed images** — a composition-locked scaffold that an external image model paints: your agent's own image capability, or an optional local ComfyUI + Qwen worker. The design stays sovereign; the painted render binds back with provenance. See [docs/local-image-worker.md](docs/local-image-worker.md).
 - **Motion** — any of the above set moving: a turntable, an orbit, a fly-through, or a paced concept explainer, rendered to a shareable GIF (clips stitch into an MP4).
 - **Audio & voice** — music synthesized from seeded math, never samples: ambient loops, grooves, full scores — a part can even *sing* — plus SFX cues, and a deterministic voice register for narration. Worlds opt in to soundtracks and footsteps; a score exports as WAV or MIDI.
 - **Buildings & interiors** — bespoke walkable buildings authored as masses and concourses, and organic caves and dungeons grown procedurally — both traversable, both exportable.
 
-The distinctive part is the render pipeline: **one geometry spec, several targets.** The same world serves as a still (SVG, or a dependency-free CSS-3D `preserve-3d` scene — a real 3D view in a plain HTML file, no WebGL and no build step), a **traversable** WebGL world you walk with WASD, a `.glb` you export into Blender or Unreal, or a printable `.stl` you can slice and 3D-print — all off a single minted ref at `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl}`. The exported glTF carries animation clips; a mesh refined outside binds back with hash provenance; and with Blender installed, an optional pass bakes real traced global illumination into the geometry's own vertex colours, so the lit result runs anywhere at zero runtime cost. The chat ends; the city doesn't; it can leave the screen entirely.
+The distinctive part is the render pipeline: **one geometry spec, several targets.** The same world serves as a still (SVG, or a dependency-free CSS-3D `preserve-3d` scene — a real 3D view in a plain HTML file, no WebGL and no build step), a **traversable** WebGL world you walk with WASD, a `.glb` you export into Blender or Unreal, or a printable `.stl` you can slice and 3D-print (with print profiles and a travelling closure audit that reports its findings and never refuses the export) — all off a single minted ref at `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl}`. The exported glTF carries animation clips; a mesh refined outside binds back with hash provenance; and with Blender installed, an optional pass bakes real traced global illumination into the geometry's own vertex colours, so the lit result runs anywhere at zero runtime cost. The chat ends; the city doesn't; it can leave the screen entirely.
 
 ![A described mug — two lathes and a swept handle — gravity-seated on a table, shown as flat albedo on mojulo's measured studio grid under the default house light](docs/images/object-bake-before.jpg) ![The same object recipe after one optional trip through a local Blender Cycles bake — traced global illumination baked into the geometry's own vertex colours, grounded contact shadows, studio backdrop](docs/images/object-bake-after.jpg)
 
