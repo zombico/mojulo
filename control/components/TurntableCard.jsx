@@ -131,7 +131,11 @@ export default function TurntableThumb({ turntable, strip, turning, promote, alt
   const fit = turntable?.turns ? 'object-cover' : 'object-contain';
 
   return (
-    <div className={`relative w-full aspect-[4/3] overflow-hidden bg-[color:var(--bay-floor)] ${className}`}>
+    // The plate carries the faint field (3d-factory-ui.plan.md §7c): behind a
+    // loaded still it is invisible, and behind a baking or icon-only card the
+    // artifact reads as a thing condensing out of the lattice — which is what
+    // a recipe is.
+    <div className={`moj-field-faint relative w-full aspect-[4/3] overflow-hidden bg-[color:var(--bay-floor)] ${className}`}>
       {/* Under everything: the icon. It is what a beats track or a game shows
           permanently, and what any card shows while its still is still baking —
           a cold world PNG takes seconds, and an empty box reads as broken. */}

@@ -10,8 +10,12 @@
  * marks; authoring stays with the operator's host agent (get_beats →
  * update_beats). The copy-revision-prompt affordance is the bridge.
  *
- * Mounted inside the pinned workshop shell: the shell is the viewport-height
- * instrument, and the studio column scrolls inside it.
+ * Blocked per 3d-factory-ui.plan.md §7c: the pinned shell is the one frame —
+ * the header band, the player pane and the aside are its regions, meeting at
+ * shared hairlines instead of floating in gutters. The player pane is the
+ * instrument's screen (the well behind the iframe is `--bay-void`, the render
+ * register); the aside partitions into revisions and annotations. The one
+ * amber affordance is the copy-revision-prompt — the ask handed to the agent.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -37,6 +41,17 @@ function anchorPromptLabel(anchor) {
   if (anchor.step !== undefined) parts.push(`step ${anchor.step}`);
   if (anchor.track) parts.push(`track ${anchor.track}`);
   return parts.join(', ');
+}
+
+/** Aside section header — the eyebrow register, self-labelling the partition. */
+function AsideHeader({ children }) {
+  return (
+    <header className="flex items-baseline gap-2 border-b border-[color:var(--bay-rail)] px-4 py-3">
+      <h2 className="font-mono text-[11px] uppercase tracking-[0.24em] text-[color:var(--ink-secondary)]">
+        {children}
+      </h2>
+    </header>
+  );
 }
 
 export default function BeatsStudioBody({ sketchRef: ref, authEnabled = false }) {
@@ -124,50 +139,63 @@ export default function BeatsStudioBody({ sketchRef: ref, authEnabled = false })
   const midHref = `/api/beats/${encRef}.mid${rev ? `?rev=${rev}` : ''}`;
 
   const body = notFound ? (
-    <div className="max-w-3xl mx-auto px-6 py-16 text-gray-300">
-      <h1 className="text-xl font-semibold mb-2">{t('notFoundTitle')}</h1>
-      <p className="text-sm text-gray-400">{t('notFoundBody', { ref })}</p>
+    <div className="mx-auto max-w-3xl px-6 py-16">
+      <h1 className="mb-2 text-xl font-semibold text-[color:var(--ink-primary)]">{t('notFoundTitle')}</h1>
+      <p className="text-sm text-[color:var(--ink-secondary)]">{t('notFoundBody', { ref })}</p>
     </div>
   ) : (
-    <div className="max-w-6xl w-full mx-auto px-6 py-8 text-gray-200">
-      <header className="mb-5">
-        <p className="text-[11px] uppercase tracking-widest text-gray-500 font-mono">{t('eyebrow')}{meta ? ` · ${meta.kind}` : ''}</p>
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h1 className="text-2xl font-semibold text-gray-100">{meta?.title || ref}</h1>
-          <span className="text-xs text-gray-500 font-mono">
+    <>
+      <header className="moj-part-b px-5 py-4">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+          {t('eyebrow')}{meta ? ` · ${meta.kind}` : ''}
+        </p>
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h1 className="text-[22px] font-semibold tracking-tight text-[color:var(--ink-primary)]">
+            {meta?.title || ref}
+          </h1>
+          <span className="font-mono text-[11px] text-[color:var(--ink-muted)]">
             {ref}
             {meta?.bpm ? ` · ${meta.bpm} BPM` : ''}
             {meta?.headRev ? ` · ${t('headRev', { rev: meta.headRev })}` : ''}
           </span>
         </div>
       </header>
-      {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+      {error && (
+        <p className="moj-part-b px-5 py-2.5 text-[13px] text-[color:var(--fault)]">{error}</p>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-        <div>
-          <iframe
-            src={playerSrc}
-            title={meta?.title || ref}
-            className="w-full border border-gray-700 rounded-lg bg-[#131320]"
-            style={{ aspectRatio: '760 / 720' }}
-          />
-          <div className="flex flex-wrap items-center gap-2 mt-3">
+      {/* Below lg the whole column scrolls (the pre-shell reading); at lg the
+          shell is the pinned instrument and each pane scrolls on its own. */}
+      <div className="flex min-h-0 flex-1 flex-col max-lg:overflow-y-auto lg:flex-row">
+        {/* The screen — the player and its key row. One region; the division
+            against the aside is a single shared hairline, responsive to which
+            side the aside is on. */}
+        <div className="flex min-w-0 flex-col border-[color:var(--bay-rail)] max-lg:border-b lg:flex-1 lg:border-r">
+          <div className="bg-[color:var(--bay-void)] p-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+            <iframe
+              src={playerSrc}
+              title={meta?.title || ref}
+              className="mx-auto block w-full max-w-[860px] border-0"
+              style={{ aspectRatio: '760 / 720' }}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-[color:var(--bay-rail)] px-4 py-2.5">
             <button
               onClick={copyRevisionPrompt}
-              className="px-3 py-1.5 text-xs border border-amber-700 rounded-md text-amber-300 hover:bg-amber-950"
+              className="rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
             >
               {copied ? t('copied') : t('copyRevisionPrompt')}
             </button>
             <a
               href={wavHref}
-              className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-800 text-gray-200 hover:bg-gray-700"
+              className="rounded-[var(--radius-control)] border border-[color:var(--bay-rail-lit)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--ink-secondary)] transition-colors duration-100 hover:text-[color:var(--ink-primary)]"
             >
               {t('exportWav')}
             </a>
             {meta?.kind !== 'beats-sfx' && (
               <a
                 href={midHref}
-                className="px-3 py-1.5 text-xs border border-gray-600 rounded-md bg-gray-800 text-gray-200 hover:bg-gray-700"
+                className="rounded-[var(--radius-control)] border border-[color:var(--bay-rail-lit)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--ink-secondary)] transition-colors duration-100 hover:text-[color:var(--ink-primary)]"
               >
                 {t('exportMidi')}
               </a>
@@ -175,80 +203,98 @@ export default function BeatsStudioBody({ sketchRef: ref, authEnabled = false })
           </div>
         </div>
 
-        <aside className="space-y-6">
-          <section>
-            <h2 className="text-sm font-semibold text-gray-300 mb-2">{t('revisions')}</h2>
-            {meta?.revisions?.length ? (
-              <ol className="space-y-1.5">
-                {meta.revisions.map((r) => {
-                  const active = rev === r.rev || (rev === null && r.rev === meta.headRev);
-                  return (
-                    <li key={r.rev} className="text-xs">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setRev(r.rev === meta.headRev ? null : r.rev)}
-                          className={`px-2 py-1 rounded border font-mono ${active ? 'border-teal-500 text-teal-300' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
-                        >
-                          {t('revN', { rev: r.rev })}
-                        </button>
-                        <span className="text-gray-400 truncate">{r.note || '—'}</span>
-                        {r.rev > 1 && (
+        <aside className="flex w-full flex-col lg:w-[340px] lg:shrink-0 lg:overflow-y-auto">
+          <section className="moj-part-b">
+            <AsideHeader>{t('revisions')}</AsideHeader>
+            <div className="px-4 py-3">
+              {meta?.revisions?.length ? (
+                <ol className="space-y-1.5">
+                  {meta.revisions.map((r) => {
+                    const active = rev === r.rev || (rev === null && r.rev === meta.headRev);
+                    return (
+                      <li key={r.rev} className="text-xs">
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => showDiff(r.rev)}
-                            className="ml-auto text-[11px] text-gray-500 hover:text-gray-300 whitespace-nowrap"
+                            onClick={() => setRev(r.rev === meta.headRev ? null : r.rev)}
+                            className={`rounded-[var(--radius-control)] border px-2 py-1 font-mono transition-colors duration-100 ${
+                              active
+                                ? 'border-[color:var(--live)] text-[color:var(--live)]'
+                                : 'border-[color:var(--bay-rail)] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-secondary)]'
+                            }`}
                           >
-                            {t('whatChanged')}
+                            {t('revN', { rev: r.rev })}
                           </button>
+                          <span className="truncate text-[color:var(--ink-secondary)]">{r.note || '—'}</span>
+                          {r.rev > 1 && (
+                            <button
+                              onClick={() => showDiff(r.rev)}
+                              className="ml-auto whitespace-nowrap text-[11px] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-secondary)]"
+                            >
+                              {t('whatChanged')}
+                            </button>
+                          )}
+                        </div>
+                        {diffFor === r.rev && (
+                          <ul className="ml-2 mt-1 space-y-0.5 border-l border-[color:var(--bay-rail)] pl-3 text-[11px] text-[color:var(--ink-secondary)]">
+                            {(diff || [t('diffLoading')]).map((line, i) => <li key={i}>{line}</li>)}
+                          </ul>
                         )}
-                      </div>
-                      {diffFor === r.rev && (
-                        <ul className="mt-1 ml-2 pl-3 border-l border-gray-700 text-[11px] text-gray-400 space-y-0.5">
-                          {(diff || [t('diffLoading')]).map((line, i) => <li key={i}>{line}</li>)}
-                        </ul>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <p className="text-xs text-gray-500">{t('noRevisions')}</p>
-            )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : (
+                <p className="text-xs text-[color:var(--ink-muted)]">{t('noRevisions')}</p>
+              )}
+            </div>
           </section>
 
-          <section>
-            <div className="flex items-center gap-2 mb-2">
-              <h2 className="text-sm font-semibold text-gray-300">{t('annotations')}</h2>
-              <button onClick={load} className="text-[11px] text-gray-500 hover:text-gray-300">{t('refresh')}</button>
+          <section className="moj-part-b">
+            <header className="flex items-baseline gap-2 border-b border-[color:var(--bay-rail)] px-4 py-3">
+              <h2 className="font-mono text-[11px] uppercase tracking-[0.24em] text-[color:var(--ink-secondary)]">
+                {t('annotations')}
+              </h2>
+              <button onClick={load} className="font-mono text-[11px] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-secondary)]">
+                {t('refresh')}
+              </button>
+            </header>
+            <div className="px-4 py-3">
+              {meta?.annotations?.length ? (
+                <ul className="space-y-2">
+                  {meta.annotations.map((a) => (
+                    <li
+                      key={a.id}
+                      className={`rounded-[var(--radius-card)] border px-2.5 py-2 text-xs ${
+                        a.status === 'open'
+                          ? 'border-[color:var(--forge-idle)] bg-[color:var(--forge)]/10 text-[color:var(--ink-primary)]'
+                          : 'border-[color:var(--bay-rail)] text-[color:var(--ink-muted)]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider">
+                        <span>#{a.id}</span>
+                        <span>{anchorLabel(a.anchor, t)}</span>
+                        <span className={`ml-auto ${a.status === 'open' ? 'text-[color:var(--forge)]' : ''}`}>
+                          {a.status === 'open' ? t('statusOpen') : t('statusResolved', { rev: a.resolvedRev ?? '—' })}
+                        </span>
+                      </div>
+                      <p className="mt-1 leading-snug">{a.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-[color:var(--ink-muted)]">{t('noAnnotations')}</p>
+              )}
+              <p className="mt-2 text-[11px] text-[color:var(--ink-muted)]">{t('annotateHint')}</p>
             </div>
-            {meta?.annotations?.length ? (
-              <ul className="space-y-2">
-                {meta.annotations.map((a) => (
-                  <li
-                    key={a.id}
-                    className={`text-xs border rounded-md px-2.5 py-2 ${a.status === 'open' ? 'border-amber-800 bg-amber-950/30' : 'border-gray-800 text-gray-500'}`}
-                  >
-                    <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider">
-                      <span>#{a.id}</span>
-                      <span>{anchorLabel(a.anchor, t)}</span>
-                      <span className="ml-auto">{a.status === 'open' ? t('statusOpen') : t('statusResolved', { rev: a.resolvedRev ?? '—' })}</span>
-                    </div>
-                    <p className="mt-1 leading-snug">{a.body}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-gray-500">{t('noAnnotations')}</p>
-            )}
-            <p className="text-[11px] text-gray-600 mt-2">{t('annotateHint')}</p>
           </section>
         </aside>
       </div>
-    </div>
+    </>
   );
 
   return (
     <WorkshopShell posture="pinned" width={1600} crumb={t('eyebrow')} authEnabled={authEnabled}>
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{body}</div>
+      <div className="flex min-h-0 flex-1 flex-col">{body}</div>
     </WorkshopShell>
   );
 }

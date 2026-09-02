@@ -102,7 +102,9 @@ function RoomChrome({ shelfKey, filter, total }) {
   const t = useTranslations('rooms');
   const facets = ROOM_FACETS[shelfKey] || [];
   return (
-    <div className="flex flex-wrap items-center gap-2 pb-3">
+    // The chrome is a partition of the room, not a floating toolbar: it closes
+    // with the hairline the grid below shares (3d-factory-ui.plan.md §7c).
+    <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-[color:var(--bay-rail)] pb-3">
       {facets.length > 0 && (
         <>
           <button
@@ -151,8 +153,11 @@ function RoomEmpty({ shelfKey, totalEmpty = false }) {
   const t = useTranslations('rooms');
   const shelf = useTranslations('library.shelves');
   if (totalEmpty) {
+    // A never-minted shelf is latent space, and it wears the field (§7c) —
+    // the same plate the floor's empty strips carry. A facet/search that
+    // matched zero of the shelf's REAL rows is not latent, so it stays plain.
     return (
-      <div className="py-10 text-center">
+      <div className="moj-field rounded-[var(--radius-card)] border border-dashed border-[color:var(--bay-rail)] py-10 text-center">
         <p className="text-[12px] text-[color:var(--ink-muted)]">{t('emptyShelf', { shelf: shelf(shelfKey) })}</p>
         <p className="mt-1 font-mono text-[10px] text-[color:var(--ink-muted)]/70">{t('emptyShelfHint')}</p>
       </div>
@@ -833,7 +838,7 @@ export default function LibraryRoom({ view, sketches, loading }) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" aria-hidden>
         {Array.from({ length: 10 }, (_, i) => (
-          <div key={i} className="aspect-[4/3] animate-pulse rounded-[var(--radius-card)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-bench)] motion-reduce:animate-none" />
+          <div key={i} className="moj-field-faint aspect-[4/3] animate-pulse rounded-[var(--radius-card)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-bench)] motion-reduce:animate-none" />
         ))}
       </div>
     );

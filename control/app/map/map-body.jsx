@@ -4,7 +4,14 @@
  * /map's client body — the connected-services map inside the workshop shell.
  * page.jsx resolves the auth flag server-side and hands it down for the
  * strip's sign-out. Pinned posture: the shell is the viewport-height
- * instrument and this pane scrolls inside it (min-h-0 flex-1 chain).
+ * instrument and the map pane scrolls inside it (min-h-0 flex-1 chain).
+ *
+ * Blocked per 3d-factory-ui.plan.md §7c: the shell is the page's one frame,
+ * and the header, the readouts, the legend and the map pane are its regions,
+ * divided by hairlines they share (`moj-part-b`) — no floating boxes, padding
+ * on the regions rather than gutters between them. The ground plane carries
+ * NO latent field: running processes are not mintable space (§7c dropped it
+ * from the fleet map by name), so the empty state is plain words.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -16,15 +23,19 @@ import CreationMap from '@/components/graph/CreationMap';
 function CountStat({ label, value }) {
   return (
     <div className="flex flex-col">
-      <span className="text-2xl font-semibold tabular-nums">{value}</span>
-      <span className="text-xs uppercase tracking-wider text-[color:var(--text-muted)]">{label}</span>
+      <span className="font-mono text-[22px] font-semibold tabular-nums leading-none text-[color:var(--ink-primary)]">
+        {value}
+      </span>
+      <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+        {label}
+      </span>
     </div>
   );
 }
 
 function LegendChip({ swatchClass, label }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-[color:var(--text-muted)]">
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-[color:var(--ink-muted)]">
       <span className={`inline-block h-2.5 w-2.5 rounded-sm ${swatchClass}`} aria-hidden />
       {label}
     </span>
@@ -67,67 +78,71 @@ export default function MapBody({ authEnabled = false }) {
 
   return (
     <WorkshopShell posture="pinned" width={1400} crumb={t('title')} authEnabled={authEnabled}>
-      <div className="min-h-0 flex-1 overflow-y-auto p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">{t('title')}</h1>
-            <p className="text-sm text-[color:var(--text-secondary)] mt-1">{t('subtitle')}</p>
-          </div>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="rounded-lg px-3 py-2 border border-[color:var(--border-color)] text-sm disabled:opacity-50"
-          >
-            {loading ? t('loading') : t('refresh')}
-          </button>
-        </header>
-
-        {counts && (
-          <div className="flex flex-wrap gap-x-10 gap-y-4">
-            <CountStat label={t('counts.bots')} value={counts.bots} />
-            <CountStat label={t('counts.apps')} value={counts.apps} />
-            <CountStat label={t('counts.servers')} value={counts.servers} />
-            <CountStat label={t('counts.services')} value={counts.services} />
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="text-xs uppercase tracking-wider text-[color:var(--text-muted)]">
-            {t('legend.air')}
-          </span>
-          <LegendChip swatchClass="bg-[color:var(--brand-teal)]/40" label={t('legend.servers')} />
-          <LegendChip swatchClass="bg-transparent border border-dashed border-[color:var(--border-color)]" label={t('legend.services')} />
-          <span className="text-[color:var(--text-muted)]/40">·</span>
-          <span className="text-xs uppercase tracking-wider text-[color:var(--text-muted)]">
-            {t('legend.ground')}
-          </span>
-          <LegendChip swatchClass="bg-slate-400/40" label={t('legend.apps')} />
-          <LegendChip swatchClass="bg-purple-400/40" label={t('legend.bots')} />
+      <header className="moj-part-b flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-tight text-[color:var(--ink-primary)]">
+            {t('title')}
+          </h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ink-secondary)]">{t('subtitle')}</p>
         </div>
+        <button
+          type="button"
+          onClick={load}
+          disabled={loading}
+          className="rounded-[var(--radius-control)] border border-[color:var(--bay-rail-lit)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--ink-secondary)] transition-colors duration-100 hover:text-[color:var(--ink-primary)] disabled:opacity-50"
+        >
+          {loading ? t('loading') : t('refresh')}
+        </button>
+      </header>
 
-        {error && <p className="text-sm text-red-400">{t('error')}: {error}</p>}
-
-        {empty && !error && (
-          <div className="rounded-xl border border-dashed border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-12 text-center text-[color:var(--text-muted)]">
-            {t('empty')}
-          </div>
-        )}
-
-        {manifest && (
-          <div className="rounded-xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-4 overflow-x-auto">
-            <div style={{ width: `${manifest.viewBox.width}px` }}>
-              <CreationMap
-                manifest={manifest}
-                compact
-                onNodeClick={(s) => s.href && router.push(s.href)}
-              />
-            </div>
-          </div>
-        )}
+      {counts && (
+        <div className="moj-part-b flex flex-wrap gap-x-10 gap-y-4 px-5 py-4">
+          <CountStat label={t('counts.bots')} value={counts.bots} />
+          <CountStat label={t('counts.apps')} value={counts.apps} />
+          <CountStat label={t('counts.servers')} value={counts.servers} />
+          <CountStat label={t('counts.services')} value={counts.services} />
         </div>
+      )}
+
+      {/* The key — air and ground read as one labelled line, the rule §7c put
+          between the planes instead of a field under the ground. */}
+      <div className="moj-part-b flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5">
+        <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+          {t('legend.air')}
+        </span>
+        <LegendChip swatchClass="bg-[color:var(--brand-teal)]/40" label={t('legend.servers')} />
+        <LegendChip swatchClass="bg-transparent border border-dashed border-[color:var(--bay-rail-lit)]" label={t('legend.services')} />
+        <span className="text-[color:var(--ink-muted)]/40">·</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+          {t('legend.ground')}
+        </span>
+        <LegendChip swatchClass="bg-slate-400/40" label={t('legend.apps')} />
+        <LegendChip swatchClass="bg-purple-400/40" label={t('legend.bots')} />
       </div>
+
+      {error && (
+        <p className="moj-part-b px-5 py-2.5 text-[13px] text-[color:var(--fault)]">
+          {t('error')}: {error}
+        </p>
+      )}
+
+      {empty && !error && (
+        <div className="flex flex-1 items-center justify-center p-8 text-[13px] text-[color:var(--ink-muted)]">
+          {t('empty')}
+        </div>
+      )}
+
+      {manifest && (
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <div style={{ width: `${manifest.viewBox.width}px` }}>
+            <CreationMap
+              manifest={manifest}
+              compact
+              onNodeClick={(s) => s.href && router.push(s.href)}
+            />
+          </div>
+        </div>
+      )}
     </WorkshopShell>
   );
 }

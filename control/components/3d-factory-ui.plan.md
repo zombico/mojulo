@@ -511,15 +511,83 @@ Two things this phase got wrong first, both worth keeping written down:
   The rule that falls out, and that the tests pin: **a row that can sit
   permanently full is the wrong component.**
 
-**B2. The rest of the surfaces.** Not started. Per-surface and independently
-shippable: `/library` rooms, `/beats/<ref>`, `/map`, `/plan` (frame and
-partitions only — no field, nothing mints there).
+**B2. The rest of the surfaces.** ✅ **Done** (2026-09-02): `/library` rooms,
+`/beats/<ref>`, `/map`, `/plan`.
 
-**B3. The favicon.** Open. `app/icon.svg` still carries the three-card teal mark.
-The relief cannot survive 16px and `MojuloMark`'s solid reading is the honest
-replacement, but swapping the tab icon is a visible brand change with reach
-beyond the dashboard (npm, README, docs), so it wants the maintainer's eyes
-rather than a silent commit.
+The shape of the pass changed under it: the workshop shell landed between B1
+and B2, and `.moj-shell` **is** the one frame — so B2 partitions the shell's
+children directly (the floor's idiom) instead of nesting a `.moj-frame` the
+way `/render-bay` does. Render-bay's inner frame is left as shipped, but it is
+now a pre-shell reading — a frame inside the frame — and is the one B1 surface
+that would simplify under the same pass.
+
+- `/map` — header / count readouts / legend / map pane as `moj-part-b`
+  regions; the floating `rounded-xl` boxes are gone. The legend line IS §7c's
+  "labelled rule between the air and ground planes", and the empty state is
+  plain words — no field, running processes are not latent space.
+- `/beats/<ref>` — the last raw-gray surface here, rewritten to tokens. The
+  player pane is the instrument's screen (iframe on a `--bay-void` well), the
+  aside partitions into revisions | annotations, copy-revision-prompt joins
+  the forge register. Below `lg` the column scrolls whole (the old reading);
+  at `lg` the pinned shell holds and each pane scrolls alone.
+- `/plan` — frame and partitions only, and **no field anywhere**, per this
+  section's own rule. Inbox cards became rows on shared hairlines; detail
+  sections became `moj-part-b` regions whose lists are `divide-y` rows, not
+  floating boxes. One call made here that B2's brief did not force: status
+  chips re-bound from ad-hoc hues to the §7 signals — draft = `--think` (the
+  documented "plan" hue), actionable and executing = `--forge` (executing
+  carries the tint), executed = `--live`, failed = `--fault`, and the
+  archived badge = `--seal` (graduated to the contextmap is a durable
+  record). Actionable was teal and executed was emerald before; if the
+  remap reads wrong on the real inbox, it is one style map to revert.
+  New-plan and copy-prompt affordances are forge, because both only hand
+  the operator a prompt.
+- `/library` rooms — the rooms were already token-clean, so the pass here is
+  the field doctrine: a never-minted shelf wears `.moj-field` (the floor's
+  dashed plate), while a facet/search that matched zero REAL rows stays
+  plain — a filter miss is not latent space. Room chrome became a partition
+  band (shared hairline against the grid), skeletons take the faint field,
+  and `TurntableThumb`'s plate now carries `.moj-field-faint` globally —
+  floor, gallery and rooms at once — closing the "artifact thumbnails"
+  clause of the field rule that B1 left un-applied.
+
+No new strings, no locale debt: every surface reuses its existing keys.
+
+**B3. The favicon.** ✅ **Done** (on the maintainer's call — it was held open
+because swapping the tab icon is a visible brand change, not because the shape
+was unsettled). `app/icon.svg` is now the `m`, and it is BAKED by
+`scripts/build-brand-mark.mjs` alongside `mark-dots.js` rather than hand-drawn,
+so the tab and the nav are the same five strokes and a geometry change re-bakes
+both or fails `--check`. The relief cannot survive 16px, so the tab gets the
+solid reading — the same rule `MojuloMark` already enforces at its size floor,
+applied at the one size that lives outside the component.
+
+Three things the medium forced, all of them departures worth naming:
+
+- **It carries a plate.** Everywhere else the surface owns the field and the
+  mark is only ink; a favicon's only surface is the browser's tab strip, which
+  is light in one theme and dark in the other. So the plate IS the surface —
+  `--bay-void` under `--ink-primary`, checked against Chrome's real strip
+  values in both themes. That is the mark obeying the ink rule, not breaking it.
+- **The ink is literal, not `currentColor`.** A favicon inherits no colour, so
+  `currentColor` resolves to black and the mark vanishes into its own plate.
+- **No signal hue.** The retired mark was a teal gradient, and teal is `--live`
+  — "it exists and it runs". A logo makes no state claim, so the tab icon spends
+  no hue at all. Pinned as a test rather than left as a note.
+
+*Measured, then cut:* the first fit used a 6-unit inset (mark at 62.5% of the
+plate) and lost the `m`'s counters at 16px on a nearest-neighbour contact sheet;
+5 holds them. And the first bake put `--bay-void` in the SVG's banner comment —
+a double hyphen inside an XML comment makes librsvg reject the WHOLE document,
+so the icon did not render at all rather than rendering imperfectly. Both the
+inset and the comment are now pinned in `lib/brand/mark-dots.test.js`.
+
+The three-card mark is now GONE from the tree. `public/cards-icon.svg` is
+deleted; its one remaining consumer — the empty-detail plate on `/bots`, a
+chatbot-pack surface — takes the `m` at rest instead, which is what §7c says an
+empty plate should have been showing all along ("the brand IS the placeholder").
+Nothing else carried it: the README is screenshots, and `public/` is not in the
+npm `files` list except `public/vendor/**`, so the retired mark never shipped.
 
 ### What it costs
 

@@ -1,5 +1,22 @@
 'use client';
 
+/**
+ * /plan's client body — the plan inbox and its detail reading.
+ *
+ * Blocked per 3d-factory-ui.plan.md §7c, frame and partitions ONLY: plans are
+ * words, not artifacts — nothing mints here, so this surface carries no latent
+ * field anywhere. The pinned shell is the one frame; the header band, the
+ * inbox rail and the detail pane are its regions, meeting at shared hairlines.
+ * Inbox entries and detail lists are rows divided by rules, not floating
+ * cards.
+ *
+ * Status wears the §7 signal semantics — hue carries STATE: a draft is
+ * speculative (`--think`, the documented "plan" hue), actionable and executing
+ * both mean the agent is acting or must act (`--forge`, executing carries the
+ * tint), executed exists (`--live`), failed is `--fault`, and an archived plan
+ * has graduated to the contextmap — a durable record (`--seal`).
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -27,12 +44,14 @@ function timeAgo(value) {
 }
 
 const STATUS_STYLES = {
-  draft: 'border-gray-600 text-gray-300 bg-gray-700/40',
-  actionable: 'border-teal-500 text-teal-300 bg-teal-900/30',
-  executing: 'border-amber-500 text-amber-300 bg-amber-900/30',
-  executed: 'border-emerald-500 text-emerald-300 bg-emerald-900/30',
-  failed: 'border-red-500 text-red-300 bg-red-900/30',
+  draft: 'border-[color:var(--think-idle)] text-[color:var(--think)]',
+  actionable: 'border-[color:var(--forge-idle)] text-[color:var(--forge)]',
+  executing: 'border-[color:var(--forge)] text-[color:var(--forge)] bg-[color:var(--forge)]/10',
+  executed: 'border-[color:var(--live-idle)] text-[color:var(--live)]',
+  failed: 'border-[color:var(--fault)] text-[color:var(--fault)]',
 };
+
+const SEAL_CHIP = 'border-[color:var(--seal)]/50 text-[color:var(--seal)]';
 
 const STATUS_KEY = {
   draft: 'statusDraft',
@@ -129,59 +148,65 @@ export default function PlanBody({ authEnabled = false }) {
 
   return (
     <WorkshopShell posture="pinned" width={1400} authEnabled={authEnabled} crumb={t('title')}>
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex justify-between items-center px-8 pt-6 pb-2">
+      <header className="moj-part-b flex flex-wrap items-start justify-between gap-3 px-5 py-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-100">{t('title')}</h1>
-          <p className="text-xs text-gray-400 mt-1">{t('subtitle')}</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-[color:var(--ink-primary)]">
+            {t('title')}
+          </h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ink-secondary)]">{t('subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">{t('total', { count: plans.length })}</span>
+          <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">
+            {t('total', { count: plans.length })}
+          </span>
+          {/* The one amber affordance: forging a plan is the agent's act, and
+              this button only hands over the prompt. */}
           <button
             type="button"
             onClick={() => setShowNew(true)}
-            className="px-3 py-1.5 text-sm border border-teal-500 rounded-md bg-teal-700 text-white hover:bg-teal-600"
+            className="rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
           >
             {t('newPlan')}
           </button>
         </div>
-      </div>
+      </header>
 
       {error && (
-        <div className="mx-8 mt-4 bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded text-sm">
-          {error}
-        </div>
+        <p className="moj-part-b px-5 py-2.5 text-[13px] text-[color:var(--fault)]">{error}</p>
       )}
 
-      <div className="flex-1 grid gap-6 px-8 py-4 overflow-hidden grid-cols-4">
-        {/* Left: searchable inbox */}
-        <div className="col-span-1 border-r border-gray-700 pr-4 flex flex-col overflow-hidden">
-          <input
-            type="text"
-            placeholder={t('searchPlaceholder')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full px-3 py-2 mb-3 border border-gray-600 rounded-md text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-teal-500"
-          />
-          <p className="text-xs text-gray-400 mb-3">
-            {query
-              ? t('filteredCount', { count: filtered.length, total: plans.length })
-              : t('count', { count: filtered.length })}
-          </p>
-          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="flex min-h-0 flex-1">
+        {/* Left: the searchable inbox — a rail of rows, one shared rule against
+            the detail pane. */}
+        <div className="flex w-[320px] shrink-0 flex-col border-r border-[color:var(--bay-rail)]">
+          <div className="border-b border-[color:var(--bay-rail)] px-3 py-2.5">
+            <input
+              type="text"
+              placeholder={t('searchPlaceholder')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] px-2.5 py-1.5 text-[12px] text-[color:var(--ink-primary)] placeholder:text-[color:var(--ink-muted)] focus:border-[color:var(--live)] focus:outline-none"
+            />
+            <p className="mt-1.5 font-mono text-[10px] tabular-nums text-[color:var(--ink-muted)]">
+              {query
+                ? t('filteredCount', { count: filtered.length, total: plans.length })
+                : t('count', { count: filtered.length })}
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {loading && plans.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">{t('loading')}</div>
+              <p className="px-3 py-8 text-center text-[12px] text-[color:var(--ink-muted)]">{t('loading')}</p>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
+              <p className="px-3 py-8 text-center text-[12px] text-[color:var(--ink-muted)]">
                 {plans.length === 0 ? t('emptyState') : t('noMatch')}
-              </div>
+              </p>
             ) : (
               <>
                 {activeFiltered.length === 0 && archivedFiltered.length > 0 && (
-                  <div className="text-center py-6 text-gray-500 text-sm">{t('allArchived')}</div>
+                  <p className="px-3 py-6 text-center text-[12px] text-[color:var(--ink-muted)]">{t('allArchived')}</p>
                 )}
                 {activeFiltered.map((p) => (
-                  <PlanCard
+                  <PlanRow
                     key={p.planRef}
                     p={p}
                     isSelected={p.planRef === selectedRef}
@@ -193,20 +218,20 @@ export default function PlanBody({ authEnabled = false }) {
                 ))}
 
                 {archivedFiltered.length > 0 && (
-                  <div className="pt-2">
+                  <div>
                     <button
                       type="button"
                       onClick={() => setShowArchived((v) => !v)}
-                      className="w-full text-left text-xs text-gray-500 hover:text-gray-300 px-1 py-2 border-t border-gray-800"
+                      className="w-full border-b border-[color:var(--bay-rail)] px-3 py-2 text-left font-mono text-[11px] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-secondary)]"
                     >
                       {showArchived
                         ? t('hideArchived', { count: archivedFiltered.length })
                         : t('showArchived', { count: archivedFiltered.length })}
                     </button>
                     {showArchived && (
-                      <div className="space-y-2 mt-1 opacity-60">
+                      <div className="opacity-60">
                         {archivedFiltered.map((p) => (
-                          <PlanCard
+                          <PlanRow
                             key={p.planRef}
                             p={p}
                             isSelected={p.planRef === selectedRef}
@@ -226,13 +251,13 @@ export default function PlanBody({ authEnabled = false }) {
         </div>
 
         {/* Right: detail pane */}
-        <div className="col-span-3 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {!selectedRef ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex h-full items-center justify-center text-[color:var(--ink-muted)]">
               <p className="text-sm">{t('selectPrompt')}</p>
             </div>
           ) : detailLoading && !detail ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex h-full items-center justify-center text-[color:var(--ink-muted)]">
               <p className="text-sm">{t('loading')}</p>
             </div>
           ) : detail ? (
@@ -243,59 +268,61 @@ export default function PlanBody({ authEnabled = false }) {
               lensLabel={lensLabel}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex h-full items-center justify-center text-[color:var(--ink-muted)]">
               <p className="text-sm">{t('selectPrompt')}</p>
             </div>
           )}
         </div>
-
       </div>
 
       {showNew && <NewPlanModal t={t} onClose={() => setShowNew(false)} />}
-    </div>
     </WorkshopShell>
   );
 }
 
-function PlanCard({ p, isSelected, onSelect, t, statusLabel, lensLabel }) {
+function PlanRow({ p, isSelected, onSelect, t, statusLabel, lensLabel }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(p.planRef)}
-      className={`w-full text-left border rounded-lg p-3 cursor-pointer transition ${
-        isSelected
-          ? 'border-teal-500 bg-teal-900/30'
-          : 'border-gray-700 hover:border-gray-600 bg-gray-800 hover:bg-gray-700'
+      className={`block w-full border-b border-[color:var(--bay-rail)] px-3 py-2.5 text-left transition-colors duration-100 ${
+        isSelected ? 'bg-[color:var(--bay-bench)]' : 'hover:bg-[color:var(--bay-bench)]/50'
       }`}
     >
-      <div className="flex items-center justify-between mb-1 gap-2">
-        <span className="text-sm font-semibold text-gray-200 truncate flex items-center gap-1.5">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span
+          className={`flex min-w-0 items-center gap-1.5 truncate text-[13px] font-medium ${
+            isSelected ? 'text-[color:var(--live)]' : 'text-[color:var(--ink-primary)]'
+          }`}
+        >
           {!p.seen && (
             <span
-              className="inline-block w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0"
+              className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--live)]"
               aria-label={t('unread')}
             />
           )}
-          {p.title}
+          <span className="truncate">{p.title}</span>
         </span>
-        <span className="text-xs text-gray-500 shrink-0">{timeAgo(p.createdAt)}</span>
+        <span className="shrink-0 font-mono text-[10px] text-[color:var(--ink-muted)]">{timeAgo(p.createdAt)}</span>
       </div>
-      <div className="flex items-center gap-2 mt-1.5">
+      <div className="mt-1.5 flex items-center gap-2">
         <span
-          className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+          className={`rounded-[3px] border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide ${
             STATUS_STYLES[p.status] || STATUS_STYLES.draft
           }`}
         >
           {statusLabel(p.status)}
         </span>
         {p.archived && (
-          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border border-gray-600 text-gray-400 bg-gray-700/40">
+          <span className={`rounded-[3px] border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide ${SEAL_CHIP}`}>
             {t('archivedBadge')}
           </span>
         )}
-        <span className="text-[11px] text-gray-500">{lensLabel(p.lens)}</span>
+        <span className="truncate text-[11px] text-[color:var(--ink-muted)]">{lensLabel(p.lens)}</span>
         {p.steps > 0 && (
-          <span className="text-[11px] text-gray-600">{t('stepsCount', { count: p.steps })}</span>
+          <span className="shrink-0 font-mono text-[10px] tabular-nums text-[color:var(--ink-muted)]">
+            {t('stepsCount', { count: p.steps })}
+          </span>
         )}
       </div>
     </button>
@@ -312,42 +339,44 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
   const release = plan.release && Array.isArray(plan.release.artifacts) ? plan.release : null;
 
   return (
-    <div className="space-y-4">
-      <div className="border border-gray-700 rounded-lg p-6 bg-gray-800 sticky top-0 z-10">
+    <div>
+      {/* The masthead rides the scroll — sticky over its own surface, closed
+          by the same shared hairline as every other region. */}
+      <div className="sticky top-0 z-10 border-b border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)] px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-xl font-bold text-gray-100 truncate">{plan.title}</h2>
-            <p className="font-mono text-xs text-gray-500 mt-1">{plan.planRef}</p>
+            <h2 className="truncate text-[18px] font-semibold text-[color:var(--ink-primary)]">{plan.title}</h2>
+            <p className="mt-1 font-mono text-[11px] text-[color:var(--ink-muted)]">{plan.planRef}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
             <span
-              className={`text-xs uppercase tracking-wide px-2 py-1 rounded border ${
+              className={`rounded-[3px] border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${
                 STATUS_STYLES[plan.status] || STATUS_STYLES.draft
               }`}
             >
               {statusLabel(plan.status)}
             </span>
             {plan.archived && (
-              <span className="text-xs uppercase tracking-wide px-2 py-1 rounded border border-gray-600 text-gray-400 bg-gray-700/40">
+              <span className={`rounded-[3px] border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${SEAL_CHIP}`}>
                 {t('archivedBadge')}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[color:var(--ink-muted)]">
           <span>{lensLabel(plan.lens)}</span>
-          <span>{t('createdAt', { timestamp: formatTimestamp(plan.createdAt) })}</span>
-          <span>{t('updatedAt', { timestamp: formatTimestamp(plan.updatedAt) })}</span>
+          <span className="font-mono">{t('createdAt', { timestamp: formatTimestamp(plan.createdAt) })}</span>
+          <span className="font-mono">{t('updatedAt', { timestamp: formatTimestamp(plan.updatedAt) })}</span>
           {plan.sketchRef && (
             <a
               href={`/sketches/${encodeURIComponent(plan.sketchRef)}`}
               target="_blank"
               rel="noreferrer"
-              className="text-teal-400 hover:text-teal-300 inline-flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-[color:var(--live)] hover:underline"
             >
               {t('viewSketch')} ↗
               {plan.sketchPinned && (
-                <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                <span className="font-mono text-[10px] uppercase tracking-wide text-[color:var(--ink-muted)]">
                   ({t('sketchPinned')})
                 </span>
               )}
@@ -360,25 +389,22 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
       {release && (
         <Section title={t('releaseHeading')}>
           {plan.archivedAt && (
-            <p className="text-xs text-gray-400 mb-2">
+            <p className="mb-2 text-[11px] text-[color:var(--ink-muted)]">
               {t('archivedAt', { timestamp: formatTimestamp(plan.archivedAt) })}
             </p>
           )}
-          <ul className="space-y-2">
+          <ul className="divide-y divide-[color:var(--bay-rail)]">
             {release.artifacts.map((a, i) => {
               const label = a.artifactLabel || a.artifactRef;
               const isApp = a.commitType === 'app_materialization';
               return (
-                <li
-                  key={i}
-                  className="border border-gray-700 rounded-md p-3 bg-gray-900/60 flex items-start justify-between gap-3"
-                >
+                <li key={i} className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <div className="text-sm text-gray-200 truncate">
+                    <div className="truncate text-sm text-[color:var(--ink-primary)]">
                       {isApp ? (
                         <a
                           href={`/apps/${encodeURIComponent(a.artifactRef)}`}
-                          className="text-teal-300 hover:underline"
+                          className="text-[color:var(--live)] hover:underline"
                         >
                           {label}
                         </a>
@@ -386,12 +412,12 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
                         label
                       )}
                     </div>
-                    <p className="font-mono text-[11px] text-gray-500 mt-0.5 break-all">
+                    <p className="mt-0.5 break-all font-mono text-[11px] text-[color:var(--ink-muted)]">
                       {a.artifactRef}
                     </p>
                   </div>
                   {a.commitType && (
-                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border border-gray-600 text-gray-400 shrink-0">
+                    <span className={`shrink-0 rounded-[3px] border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide ${SEAL_CHIP}`}>
                       {a.commitType.replace(/_/g, ' ')}
                     </span>
                   )}
@@ -404,18 +430,18 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
 
       {/* Goal */}
       <Section title={t('goalHeading')}>
-        <p className="text-sm text-gray-300 whitespace-pre-wrap">{plan.goal}</p>
+        <p className="whitespace-pre-wrap text-sm text-[color:var(--ink-secondary)]">{plan.goal}</p>
       </Section>
 
       {/* Frame */}
       {frame && (
         <Section title={t('frameHeading')}>
           {frame.summary && (
-            <p className="text-sm text-gray-300 whitespace-pre-wrap mb-3">{frame.summary}</p>
+            <p className="mb-3 whitespace-pre-wrap text-sm text-[color:var(--ink-secondary)]">{frame.summary}</p>
           )}
           {discarded.length > 0 && (
-            <div className="text-xs text-gray-400">
-              <span className="text-gray-500">{t('discardedLenses')}: </span>
+            <div className="text-[11px] text-[color:var(--ink-secondary)]">
+              <span className="text-[color:var(--ink-muted)]">{t('discardedLenses')}: </span>
               {discarded.map((d) => lensLabel(d)).join(', ')}
             </div>
           )}
@@ -425,21 +451,18 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
       {/* Manifest */}
       <Section title={t('manifestHeading')}>
         {manifest.length === 0 ? (
-          <p className="text-sm text-gray-500">{t('manifestEmpty')}</p>
+          <p className="text-sm text-[color:var(--ink-muted)]">{t('manifestEmpty')}</p>
         ) : (
-          <ol className="space-y-2">
+          <ol className="divide-y divide-[color:var(--bay-rail)]">
             {manifest.map((call, i) => (
-              <li
-                key={i}
-                className="border border-gray-700 rounded-md p-3 bg-gray-900/60"
-              >
+              <li key={i} className="py-2.5 first:pt-0 last:pb-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 font-mono">{i + 1}.</span>
-                  <span className="text-sm font-mono text-teal-300">{call.tool}</span>
+                  <span className="font-mono text-[11px] text-[color:var(--ink-muted)]">{i + 1}.</span>
+                  <span className="font-mono text-sm text-[color:var(--live)]">{call.tool}</span>
                 </div>
-                {call.note && <p className="text-xs text-gray-400 mt-1 ml-6">{call.note}</p>}
+                {call.note && <p className="ml-6 mt-1 text-[11px] text-[color:var(--ink-secondary)]">{call.note}</p>}
                 {call.args && Object.keys(call.args).length > 0 && (
-                  <pre className="text-[11px] text-gray-500 mt-2 ml-6 overflow-x-auto">
+                  <pre className="ml-6 mt-2 overflow-x-auto font-mono text-[11px] text-[color:var(--ink-muted)]">
                     {JSON.stringify(call.args, null, 2)}
                   </pre>
                 )}
@@ -452,26 +475,26 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
       {/* Execution log */}
       <Section title={t('executionLogHeading')}>
         {!execLog || execLog.length === 0 ? (
-          <p className="text-sm text-gray-500">{t('executionEmpty')}</p>
+          <p className="text-sm text-[color:var(--ink-muted)]">{t('executionEmpty')}</p>
         ) : (
-          <ol className="space-y-2">
+          <ol className="divide-y divide-[color:var(--bay-rail)]">
             {execLog.map((step, i) => (
-              <li key={i} className="border border-gray-700 rounded-md p-3 bg-gray-900/60">
+              <li key={i} className="py-2.5 first:pt-0 last:pb-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono text-gray-300">{step.tool}</span>
+                  <span className="font-mono text-sm text-[color:var(--ink-primary)]">{step.tool}</span>
                   <span
-                    className={`text-[10px] uppercase px-1.5 py-0.5 rounded border ${
+                    className={`rounded-[3px] border px-1.5 py-0.5 font-mono text-[10px] uppercase ${
                       step.ok
-                        ? 'border-emerald-600 text-emerald-300'
-                        : 'border-red-600 text-red-300'
+                        ? 'border-[color:var(--live-idle)] text-[color:var(--live)]'
+                        : 'border-[color:var(--fault)] text-[color:var(--fault)]'
                     }`}
                   >
                     {step.ok ? t('stepOk') : t('stepFailed')}
                   </span>
                 </div>
-                {step.error && <p className="text-xs text-red-400 mt-1">{step.error}</p>}
+                {step.error && <p className="mt-1 text-[11px] text-[color:var(--fault)]">{step.error}</p>}
                 {step.result_snippet && (
-                  <pre className="text-[11px] text-gray-500 mt-2 overflow-x-auto">
+                  <pre className="mt-2 overflow-x-auto font-mono text-[11px] text-[color:var(--ink-muted)]">
                     {step.result_snippet}
                   </pre>
                 )}
@@ -484,12 +507,12 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
       {/* Revisions */}
       <Section title={t('revisionLogHeading')}>
         {revisions.length === 0 ? (
-          <p className="text-sm text-gray-500">{t('revisionEmpty')}</p>
+          <p className="text-sm text-[color:var(--ink-muted)]">{t('revisionEmpty')}</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-[color:var(--bay-rail)]">
             {revisions.map((r, i) => (
-              <li key={i} className="text-sm text-gray-300 flex gap-3">
-                <span className="text-xs text-gray-600 shrink-0 font-mono">
+              <li key={i} className="flex gap-3 py-2 text-sm text-[color:var(--ink-secondary)] first:pt-0 last:pb-0">
+                <span className="shrink-0 font-mono text-[11px] text-[color:var(--ink-muted)]">
                   {timeAgo(r.revised_at)}
                 </span>
                 <span className="whitespace-pre-wrap">{r.note}</span>
@@ -502,12 +525,15 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
   );
 }
 
+/** One region of the detail pane: eyebrow head, padded body, shared rule below. */
 function Section({ title, children }) {
   return (
-    <div className="border border-gray-700 rounded-lg p-4 bg-gray-800">
-      <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-2">{title}</h3>
+    <section className="moj-part-b px-5 py-4">
+      <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+        {title}
+      </h3>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -533,30 +559,30 @@ function NewPlanModal({ t, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--bay-void)]/85 p-6"
       role="dialog"
       aria-modal="true"
       aria-label={t('newPlanTitle')}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl bg-gray-800 border border-gray-700 rounded-lg p-6"
+        className="w-full max-w-xl rounded-[var(--radius-bay)] border border-[color:var(--bay-rail-lit)] bg-[color:var(--bay-bench)] p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <h2 className="text-lg font-semibold text-gray-100">{t('newPlanTitle')}</h2>
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <h2 className="text-lg font-semibold text-[color:var(--ink-primary)]">{t('newPlanTitle')}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-200 text-sm"
+            className="font-mono text-[12px] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]"
             aria-label={t('close')}
           >
             ✕
           </button>
         </div>
-        <p className="text-sm text-gray-400 mb-4">{t('newPlanIntro')}</p>
+        <p className="mb-4 text-sm text-[color:var(--ink-secondary)]">{t('newPlanIntro')}</p>
 
-        <label className="block text-xs uppercase tracking-wide text-gray-500 mb-1">
+        <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
           {t('intentLabel')}
         </label>
         <input
@@ -564,17 +590,17 @@ function NewPlanModal({ t, onClose }) {
           value={intent}
           onChange={(e) => setIntent(e.target.value)}
           placeholder={t('intentPlaceholder')}
-          className="w-full px-3 py-2 mb-4 border border-gray-600 rounded-md text-sm bg-gray-900 text-gray-100 placeholder-gray-600 focus:outline-none focus:border-teal-500"
+          className="mb-4 w-full rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] px-3 py-2 text-sm text-[color:var(--ink-primary)] placeholder:text-[color:var(--ink-muted)] focus:border-[color:var(--live)] focus:outline-none"
         />
 
-        <label className="block text-xs uppercase tracking-wide text-gray-500 mb-1">
+        <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
           {t('promptLabel')}
         </label>
         <textarea
           readOnly
           value={prompt}
           rows={5}
-          className="w-full px-3 py-2 mb-4 border border-gray-700 rounded-md text-xs font-mono bg-gray-900 text-gray-300 resize-none focus:outline-none"
+          className="mb-4 w-full resize-none rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] px-3 py-2 font-mono text-xs text-[color:var(--ink-secondary)] focus:outline-none"
           onFocus={(e) => e.target.select()}
         />
 
@@ -582,14 +608,14 @@ function NewPlanModal({ t, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-sm border border-gray-600 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600"
+            className="rounded-[var(--radius-control)] border border-[color:var(--bay-rail-lit)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--ink-secondary)] transition-colors duration-100 hover:text-[color:var(--ink-primary)]"
           >
             {t('close')}
           </button>
           <button
             type="button"
             onClick={copy}
-            className="px-3 py-1.5 text-sm border border-teal-500 rounded-md bg-teal-700 text-white hover:bg-teal-600"
+            className="rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
           >
             {copied ? t('copied') : t('copyPrompt')}
           </button>
