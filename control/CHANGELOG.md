@@ -108,6 +108,25 @@ one declared registry.
   `MOJULO_AGENT_RUNTIME=claude-code-headless` is called what it is:
   Claude-Code-only today.
 
+### Mechanics vocabulary V1 — the combat trio
+
+Three new declarative level mechanics (mechanics-vocab.plan.md V1, the first
+words grown since M0): **`win-when`** (the generic predicate terminal — any
+numeric truth crossing a threshold ends the level in success, with an optional
+hand-named audit), **`hp-pool`** (per-entity health as namespaced vars — a
+clamped decrement on `hit:<id>`, an edge-watch emitting `enemy:down` and
+toggling the entity off at zero), and **`defeat-all`** (counts `enemy:down` to
+a target — explicit, or inferred from a sibling `hp-pool`'s entity list). All
+three lower to existing bus verbs; no new runtime primitive.
+
+Compose enforces the V0 correctness warning: a `defeat-all` that nothing in the
+level declaratively produces `enemy:down` for is REFUSED with a hint —
+`producer:'runtime'` is the explicit acknowledgment that hand-authored world
+reactions emit it. Cards for all three (`get_game_vocab`), mechanics-guide
+updated. Engine portability is intentionally unchanged: the new words do not
+claim to travel until the Godot kernel performs them (V3) behind the
+performed-vocabulary registry (V2).
+
 ### `half: true` — halving as a modifier on the parts door
 
 - **Halving is now a modifier, not a shape name.** Every parts-door shape is a

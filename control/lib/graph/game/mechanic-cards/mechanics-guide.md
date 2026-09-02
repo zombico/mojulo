@@ -30,8 +30,9 @@ completability audit for verification.
 ## Roles + the one rule
 
 - **terminal** — ends the level (calls `end`). A level MUST have ≥1 terminal that can end in
-  `success` (`reach-exit`, `survive`), or it can never be won and is refused at resolve.
-  `fail-on-death` is a terminal too, but a fail-only one — it doesn't satisfy the rule alone.
+  `success` (`reach-exit`, `survive`, `win-when`, `defeat-all`), or it can never be won and is
+  refused at resolve. `fail-on-death` is a terminal too, but a fail-only one — it doesn't
+  satisfy the rule alone.
 - **emitter** — writes to the store / world during play (`collect` → grant, `hazard-damage` → hp).
 - **gate / policy** — in-level progression and the cross-cutting `fall` policy (see the fall card).
 
@@ -43,11 +44,13 @@ level is promoted into a game, `create_game` re-validates the synthesized contra
 game's actual store. Success-terminal mechanics carry an **audit** (walkto / idle), so a level
 built from mechanics is auto-verifiable by the completability gate without a hand-authored run.
 
-## v1 mechanics
+## The mechanics
 
-`reach-exit` · `survive` · `collect` · `hazard-damage` · `fail-on-death`, plus the `fall` policy.
-Read each card for its parameter manual. (Combat mechanics — `defeat-all`, `party-battle` — are
-deferred behind a combat world idiom.)
+`reach-exit` · `survive` · `collect` · `hazard-damage` · `fail-on-death`, plus the `fall` policy,
+plus the combat trio (mechanics-vocab V1): `win-when` (generic predicate win) · `hp-pool`
+(per-entity health, the `enemy:down` producer) · `defeat-all` (count downs to victory).
+Read each card for its parameter manual. (`melee-strike` — a declarative attack — is named
+future vocabulary, waiting on the entity-anchored zone; AI behavior stays runtime by doctrine.)
 
 ## Level variants over one map (`mapRef`)
 

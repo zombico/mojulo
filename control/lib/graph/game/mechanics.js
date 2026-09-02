@@ -40,6 +40,10 @@ function resolveSlice(storeSchema, kind, named, where) {
   return { name: first.name };
 }
 
+// comparator keys a watch `when` predicate understands (event-bus.js cmp) — win-when validates
+// its predicate against these so a typo'd comparator fails at compose, not silently at play.
+const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
+
 // ── the mechanic registry ───────────────────────────────────────────────────────────────────────
 // role: terminal | emitter | gate ; ends (terminals only): which results it can end in.
 // requires: store slice KINDS. lower(params, ctx) → { world, produces?, on?, consumes?, audit? }.
@@ -142,6 +146,83 @@ const MECHANICS = {
       };
     },
   },
+
+  // ── the mechanics-vocab V1 words (mechanics-vocab.plan.md) ────────────────────────────────────
+
+  // generic predicate terminal: any numeric truth reaching a threshold → success. Clears the
+  // "win condition lives in runtime code" flag class for every level whose victory is a number.
+  // A generic predicate cannot synthesize its own completability recipe — the optional `audit`
+  // param is HAND-NAMED (walkto / idle); absent it, promotion stays manual (see the card).
+  'win-when': {
+    role: 'terminal', ends: ['success'], requires: [],
+    lower(p, ctx) {
+      const w = p.when;
+      if (!w || typeof w.var !== 'string' || !CMP_KEYS.some((k) => w[k] !== undefined)) {
+        throw new Error(`win-when[${ctx.i}]: needs when: { var:'<name>', ${CMP_KEYS.join('|')}:<n> }`);
+      }
+      const event = typeof p.event === 'string' && p.event ? p.event : 'win:met';
+      const world = { watches: [{ type: event, when: { ...w } }] };
+      if (typeof p.hud === 'string' && p.hud) world.hud = [{ var: w.var, label: p.hud }];
+      const out = { world, on: { [event]: { end: 'success' } } };
+      if (p.audit) {
+        const a = p.audit;
+        const ok = (a.kind === 'walkto' && Array.isArray(a.target)) || (a.kind === 'idle' && Number.isFinite(a.seconds));
+        if (!ok) throw new Error(`win-when[${ctx.i}]: audit must be { kind:'walkto', target:[x,y,z] } or { kind:'idle', seconds:N }`);
+        out.audit = { ...a };
+      }
+      return out;
+    },
+  },
+
+  // per-entity health (emitter): namespaced `__hp_<id>` vars, a clamped decrement on `hit:<id>`,
+  // and an edge-watch that emits `enemy:down` (carrying the entity id) + toggles the entity off at
+  // zero. The declarative PRODUCER that makes win-when / defeat-all honest for combat levels.
+  'hp-pool': {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const ents = Array.isArray(p.entities) ? p.entities : [];
+      if (!ents.length) throw new Error(`hp-pool[${ctx.i}]: needs entities: [{ id, hp?, at? }]`);
+      const hpDefault = Number.isFinite(p.hp) ? p.hp : 3;
+      const perHit = Number.isFinite(p.perHit) ? p.perHit : 1;
+      const world = { vars: {}, reactions: [], watches: [], entities: [] };
+      for (const ent of ents) {
+        if (!ent || typeof ent.id !== 'string' || !ent.id) throw new Error(`hp-pool[${ctx.i}]: every entity needs an id`);
+        const v = `__hp_${ent.id}`;
+        world.vars[v] = Number.isFinite(ent.hp) ? ent.hp : hpDefault;
+        world.reactions.push({ on: `hit:${ent.id}`, do: 'inc', var: v, by: -perHit, min: 0 });
+        world.watches.push({ type: 'enemy:down', entity: ent.id, when: { var: v, lte: 0 } });
+        world.reactions.push({ on: 'enemy:down', match: { entity: ent.id }, do: 'toggle', target: ent.id, to: false });
+        if (Array.isArray(ent.at)) world.entities.push({ id: ent.id, type: ent.type || 'enemy', on: true, position: ent.at });
+      }
+      if (world.entities.length === 0) delete world.entities;
+      return { world, emits: ['enemy:down'] };
+    },
+  },
+
+  // success terminal: N `enemy:down` events → success. Deliberately split from HOW enemies go
+  // down; `count` is explicit, or inferred from sibling hp-pool entities at compose time. No
+  // auto-audit — nothing in the vocabulary can deal hits yet (melee-strike is V3), so promotion
+  // stays manual (allow_unaudited or a hand-authored motion_ref); the card says so plainly.
+  'defeat-all': {
+    role: 'terminal', ends: ['success'], requires: [],
+    lower(p, ctx) {
+      const count = Number.isFinite(p.count) ? p.count : (ctx.hints && ctx.hints.enemyCount);
+      if (!Number.isFinite(count) || count < 1) {
+        throw new Error(`defeat-all[${ctx.i}]: needs count:N — or compose with an hp-pool to infer it from the entity list`);
+      }
+      const v = `__downs_${ctx.i}`;
+      return {
+        world: {
+          vars: { [v]: 0 },
+          reactions: [{ on: 'enemy:down', do: 'inc', var: v, by: 1 }],
+          watches: [{ type: 'all:defeated', when: { var: v, gte: count } }],
+          hud: [{ var: v, label: typeof p.label === 'string' && p.label ? p.label : 'Defeated' }],
+        },
+        on: { 'all:defeated': { end: 'success' } },
+        needs: p.producer === 'runtime' ? [] : ['enemy:down'],
+      };
+    },
+  },
 };
 
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
@@ -156,6 +237,7 @@ export function lowerMechanic(kind, params, ctx) {
     player: (ctx && ctx.player) || 'player',
     spawn: (ctx && ctx.spawn) || [0, 0, 2],
     storeSchema: ctx && ctx.storeSchema,
+    hints: (ctx && ctx.hints) || {},
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -199,12 +281,22 @@ export function composeMechanics(mechanics, ctx = {}) {
   const player = ctx.player || 'player';
   const spawn = ctx.spawn || [0, 0, 2];
 
+  // compose-time hints, from a prepass over the RAW list (params are data): lets defeat-all
+  // infer its count from sibling hp-pool entities without coupling the lowering functions.
+  const enemyCount = list.reduce((n, m) => n + (m && m.kind === 'hp-pool' && Array.isArray(m.entities) ? m.entities.length : 0), 0);
+  const hints = enemyCount > 0 ? { enemyCount } : {};
+
+  const emitted = new Set();      // event types some mechanic declaratively produces (hp-pool → enemy:down)
+  const needed = [];              // { event, where } a mechanic requires a producer for (defeat-all)
+
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
+    (low.emits || []).forEach((e) => emitted.add(e));
+    (low.needs || []).forEach((e) => needed.push({ event: e, where: `mechanics[${i}] (${m.kind})` }));
     (low.requires || []).forEach((r) => requires.add(r));
     if (low.role === 'terminal' && low.ends && low.ends.includes('success')) successTerminals++;
     if (low.world) {
@@ -244,7 +336,16 @@ export function composeMechanics(mechanics, ctx = {}) {
   }
 
   if (!successTerminals) {
-    errors.push('a level needs at least one SUCCESS-capable terminal mechanic (reach-exit / survive) — as declared it can never be won');
+    const successKinds = MECHANIC_KINDS.filter((k) => MECHANICS[k].role === 'terminal' && (MECHANICS[k].ends || []).includes('success'));
+    errors.push(`a level needs at least one SUCCESS-capable terminal mechanic (${successKinds.join(' / ')}) — as declared it can never be won`);
+  }
+  // a terminal that counts events nothing produces would assess clean and never be winnable —
+  // the V0 correctness warning, enforced. `producer:'runtime'` is the explicit acknowledgment
+  // that hand-authored world reactions (outside this list) emit the event.
+  for (const n of needed) {
+    if (!emitted.has(n.event)) {
+      errors.push(`${n.where}: no mechanic in this level emits '${n.event}' — add an hp-pool, or declare producer:'runtime' if hand-authored reactions emit it`);
+    }
   }
   // every required slice kind must be present in the store — only when a store is in hand (at
   // level-resolve there's none; create_game re-checks the synthesized contract against the store).

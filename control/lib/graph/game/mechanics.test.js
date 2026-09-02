@@ -52,7 +52,7 @@ describe('lowerMechanic — individual verbs', () => {
 
   it('every registered mechanic lowers without throwing on a minimal call', () => {
     for (const k of MECHANIC_KINDS) {
-      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10 };
+      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1 };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });
@@ -114,6 +114,138 @@ describe('the fall policy', () => {
   it('fall:none omits the catch-zone entirely', () => {
     const out = composeMechanics([{ kind: 'reach-exit', at: [1, 0, 0] }], ctx({ fall: 'none' }));
     expect((out.events.sources || []).some((s) => s.zone === '__catch__')).toBe(false);
+  });
+});
+
+// ── mechanics-vocab V1: win-when + hp-pool + defeat-all (mechanics-vocab.plan.md) ───────────────
+
+describe('win-when — the generic predicate terminal', () => {
+  it('lowers to a var-predicate watch → end-success, with no audit unless hand-named', () => {
+    const m = lowerMechanic('win-when', { when: { var: 'kills', gte: 5 } }, { i: 0 });
+    expect(m.role).toBe('terminal');
+    expect(m.world.watches[0]).toEqual({ type: 'win:met', when: { var: 'kills', gte: 5 } });
+    expect(m.on).toEqual({ 'win:met': { end: 'success' } });
+    expect(m.audit).toBeUndefined();
+  });
+
+  it('passes a hand-named audit through, and refuses a malformed one', () => {
+    const m = lowerMechanic('win-when', { when: { var: 'score', gte: 10 }, audit: { kind: 'idle', seconds: 30 } }, { i: 0 });
+    expect(m.audit).toEqual({ kind: 'idle', seconds: 30 });
+    expect(() => lowerMechanic('win-when', { when: { var: 'score', gte: 10 }, audit: { kind: 'idle' } }, { i: 0 }))
+      .toThrow(/audit must be/);
+  });
+
+  it('refuses a predicate with no var or no comparator', () => {
+    expect(() => lowerMechanic('win-when', {}, { i: 0 })).toThrow(/needs when/);
+    expect(() => lowerMechanic('win-when', { when: { var: 'kills' } }, { i: 0 })).toThrow(/needs when/);
+    expect(() => lowerMechanic('win-when', { when: { gte: 5 } }, { i: 0 })).toThrow(/needs when/);
+  });
+
+  it('opt-in hud + custom event name', () => {
+    const m = lowerMechanic('win-when', { when: { var: 'kills', gte: 3 }, hud: 'Kills', event: 'target:met' }, { i: 1 });
+    expect(m.world.hud).toEqual([{ var: 'kills', label: 'Kills' }]);
+    expect(m.on).toEqual({ 'target:met': { end: 'success' } });
+  });
+
+  it('satisfies the success-terminal rule on its own', () => {
+    const out = composeMechanics([{ kind: 'win-when', when: { var: 'kills', gte: 3 } }], ctx({ fall: 'none' }));
+    expect(out.on['win:met']).toEqual({ end: 'success' });
+    expect(out.audits).toEqual([]);   // no hand-named audit → promotion stays manual
+  });
+});
+
+describe('hp-pool — the per-entity health producer', () => {
+  it('lowers each entity to a namespaced var + clamped hit decrement + enemy:down watch + toggle-off', () => {
+    const m = lowerMechanic('hp-pool', { entities: [{ id: 'foe_a', hp: 2 }, { id: 'foe_b', at: [4, 0, 0] }], hp: 3 }, { i: 0 });
+    expect(m.role).toBe('emitter');
+    expect(m.emits).toEqual(['enemy:down']);
+    expect(m.world.vars).toEqual({ __hp_foe_a: 2, __hp_foe_b: 3 });
+    expect(m.world.reactions).toContainEqual({ on: 'hit:foe_a', do: 'inc', var: '__hp_foe_a', by: -1, min: 0 });
+    expect(m.world.watches).toContainEqual({ type: 'enemy:down', entity: 'foe_a', when: { var: '__hp_foe_a', lte: 0 } });
+    expect(m.world.reactions).toContainEqual({ on: 'enemy:down', match: { entity: 'foe_b' }, do: 'toggle', target: 'foe_b', to: false });
+    expect(m.world.entities).toEqual([{ id: 'foe_b', type: 'enemy', on: true, position: [4, 0, 0] }]);   // only placed entities declared
+  });
+
+  it('refuses an empty entity list and an id-less entity', () => {
+    expect(() => lowerMechanic('hp-pool', {}, { i: 0 })).toThrow(/needs entities/);
+    expect(() => lowerMechanic('hp-pool', { entities: [{ hp: 2 }] }, { i: 0 })).toThrow(/needs an id/);
+  });
+});
+
+describe('defeat-all — the counter terminal + the producer rule', () => {
+  it('explicit count lowers to a counter var + gte watch → success', () => {
+    const m = lowerMechanic('defeat-all', { count: 3 }, { i: 2 });
+    expect(m.world.vars).toEqual({ __downs_2: 0 });
+    expect(m.world.reactions[0]).toEqual({ on: 'enemy:down', do: 'inc', var: '__downs_2', by: 1 });
+    expect(m.world.watches[0]).toEqual({ type: 'all:defeated', when: { var: '__downs_2', gte: 3 } });
+    expect(m.on).toEqual({ 'all:defeated': { end: 'success' } });
+  });
+
+  it('infers count from a sibling hp-pool at compose time', () => {
+    const out = composeMechanics([
+      { kind: 'hp-pool', entities: [{ id: 'a' }, { id: 'b' }] },
+      { kind: 'defeat-all' },
+    ], ctx({ fall: 'none' }));
+    expect(out.events.watches).toContainEqual({ type: 'all:defeated', when: { var: '__downs_1', gte: 2 } });
+  });
+
+  it('standalone with no count and no sibling refuses with the infer hint', () => {
+    expect(() => lowerMechanic('defeat-all', {}, { i: 0 })).toThrow(/needs count/);
+  });
+
+  it('REFUSES a level where nothing emits enemy:down (the V0 correctness warning)', () => {
+    expect(() => composeMechanics([{ kind: 'defeat-all', count: 3 }], ctx({ fall: 'none' })))
+      .toThrow(/no mechanic in this level emits 'enemy:down'/);
+  });
+
+  it("producer:'runtime' is the explicit acknowledgment that hand-authored reactions emit it", () => {
+    const out = composeMechanics([{ kind: 'defeat-all', count: 3, producer: 'runtime' }], ctx({ fall: 'none' }));
+    expect(out.on['all:defeated']).toEqual({ end: 'success' });
+  });
+});
+
+describe('the combat trio drives the real bus (end to end)', () => {
+  it('hit events drain hp-pools, enemy:down counts up, all:defeated ends in success', () => {
+    const out = composeMechanics([
+      { kind: 'hp-pool', entities: [{ id: 'foe_a', hp: 2, at: [4, 0, 0] }, { id: 'foe_b', hp: 1, at: [8, 0, 0] }] },
+      { kind: 'defeat-all' },
+      { kind: 'fail-on-death' },
+    ], ctx({ fall: 'none' }));
+    const B = buildBus();
+    const state = B.createBusState({ ...out.events, reactions: [...out.events.reactions, { on: 'all:defeated', do: 'set', var: 'won', to: 1 }] }, out.events.entities || []);
+    // drain reactions, then loop watches to a fixed point (the documented caller loop, depth-capped)
+    const tick = (events) => {
+      B.processEvents(state, events);
+      for (let g = 0; g < 8; g++) { const w = B.watchEvents(state); if (!w.length) break; B.processEvents(state, w); }
+    };
+    // one hit each: foe_b (hp 1) drops, foe_a (hp 2) survives
+    tick([{ type: 'hit:foe_a' }, { type: 'hit:foe_b' }]);
+    expect(state.vars.__hp_foe_a).toBe(1);
+    expect(state.vars.__downs_1).toBe(1);
+    expect(state.byId.foe_b.on).toBe(false);       // toggled off on the way down
+    expect(state.vars.won).toBeUndefined();
+    // second hit on foe_a → both down → all:defeated → won
+    tick([{ type: 'hit:foe_a' }]);
+    expect(state.vars.__downs_1).toBe(2);
+    expect(state.vars.won).toBe(1);
+    // over-hitting a downed foe: hp clamps at 0, the edge-fired watch does not refire
+    tick([{ type: 'hit:foe_b' }]);
+    expect(state.vars.__hp_foe_b).toBe(0);
+    expect(state.vars.__downs_1).toBe(2);
+  });
+
+  it('win-when over a runtime-produced var: incs cross the threshold → success', () => {
+    const out = composeMechanics([{ kind: 'win-when', when: { var: 'kills', gte: 2 }, hud: 'Kills' }], ctx({ fall: 'none' }));
+    const B = buildBus();
+    const state = B.createBusState({ ...out.events, reactions: [{ on: 'kill', do: 'inc', var: 'kills', by: 1 }, { on: 'win:met', do: 'set', var: 'won', to: 1 }] }, []);
+    const tick = (events) => {
+      B.processEvents(state, events);
+      for (let g = 0; g < 8; g++) { const w = B.watchEvents(state); if (!w.length) break; B.processEvents(state, w); }
+    };
+    tick([{ type: 'kill' }]);
+    expect(state.vars.won).toBeUndefined();
+    tick([{ type: 'kill' }]);
+    expect(state.vars.won).toBe(1);
   });
 });
 

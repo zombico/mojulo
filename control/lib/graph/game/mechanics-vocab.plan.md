@@ -1,8 +1,10 @@
 # mechanics-vocab.plan.md — growing the declarative mechanics vocabulary (the vocab-growth spike)
 
-Status: **V0 RUN 2026-08-31** — inventory complete, the four open questions answered
-from code, the word list marked in / out / deferred below. V1 not started; its
-recommended scope narrowed to `win-when` + `hp-pool` + `defeat-all`. See "V0 — findings".
+Status: **V1 RUN 2026-09-02** — the combat trio (`win-when` + `hp-pool` + `defeat-all`)
+shipped: lowerings + cards + tests + the producer-rule teaching error, all on existing bus
+verbs. See "V1 — run notes" below the V0 findings. `time-limit` / `collect-all` remain open
+(low priority); `melee-strike` stays gated on the entity-anchored zone (V3); V2–V4 not started.
+(V0 RUN 2026-08-31 — inventory complete, the four open questions answered from code.)
 
 Lineage: `game-mechanics.plan.md` M0 shipped the five v1 words (`reach-exit` / `survive` /
 `collect` / `hazard-damage` / `fail-on-death`) and the mechanics-guide card deferred combat
@@ -193,10 +195,10 @@ of scope for V1: with no `match` block their completion is tutorial-step state, 
 
 ### Word list, marked
 
-- `win-when` — **IN (V1)**. Clears the flag class. Must ship with a producer; see the warning.
-- `hp-pool` — **IN (V1), promoted from Tier B.** It is the producer that makes `win-when`
+- `win-when` — **IN (V1) — SHIPPED 2026-09-02.** Clears the flag class. Must ship with a producer; see the warning.
+- `hp-pool` — **IN (V1), promoted from Tier B — SHIPPED 2026-09-02.** It is the producer that makes `win-when`
   honest for MSA. All-existing verbs; the open question is only per-entity var naming.
-- `defeat-all` — **IN (V1)**, paired with `hp-pool` as its `enemy:down` source.
+- `defeat-all` — **IN (V1) — SHIPPED 2026-09-02**, paired with `hp-pool` as its `enemy:down` source.
 - `time-limit` — **IN, low priority.** Correct and cheap; no MSA level asks for it.
 - `collect-all` — **IN, low priority.** Serves collection-shaped games, not MSA.
 - `melee-strike` — **IN (V1-late / V3)**, gated on the entity-anchored zone landing in the bus
@@ -204,6 +206,32 @@ of scope for V1: with no `match` block their completion is tutorial-step state, 
 - `projectile` — **DEFERRED**, reason in Q3.
 - AI / `party-battle`, movers / live physics, `checkpoint` — **unchanged, still deferred.**
 
+
+## V1 — run notes (2026-09-02)
+
+The trio landed in `mechanics.js` + `mechanic-cards/` (win-when / hp-pool / defeat-all cards,
+mechanics-guide + the `get_game_vocab` drawer row updated), with lowering, compose-rule, and
+live-bus end-to-end tests in `mechanics.test.js`. Existing goldens byte-identical (game / worlds /
+scene suites + the tool-descriptions ceiling all green). Design decisions recorded:
+
+- **The producer rule is enforced generically.** A lowering may declare `emits:[…]` (hp-pool →
+  `enemy:down`) and `needs:[…]` (defeat-all); compose refuses an unmet need with a hint. The
+  escape is explicit: `defeat-all { producer:'runtime' }` acknowledges that hand-authored world
+  reactions emit `enemy:down` — the honest seam for MSA-shaped levels, named in the card.
+- **The V0 warning recurses one level down, accepted and documented.** `hp-pool` makes downs
+  declarative, but nothing in the vocabulary can DEAL hits until `melee-strike` (V3) — so
+  `hit:<id>` production is the same seam one layer lower. The hp-pool card says so plainly;
+  a combat level is fully declarative only after V3.
+- **`defeat-all` infers its count** from a sibling `hp-pool`'s entity list (compose-time hints
+  prepass over raw params); explicit `count` wins; standalone-with-neither is refused teaching
+  the inference. No auto-audit — nothing can drive a win yet, so its card states promotion
+  stays manual, per the invariant.
+- **`win-when`** validates its predicate against the bus comparator keys, defaults its event to
+  `win:met` (nameable via `event` for multiples), takes an opt-in `hud` label, and passes a
+  hand-named `walkto`/`idle` audit through after shape-checking it.
+- **`engine-portability.js` deliberately untouched.** A level using the new words still flags —
+  honest until the kernel performs them (V3) behind the performed-vocabulary registry (V2).
+  The success-terminal refusal message now derives its kind list from the registry.
 
 ## Phases
 
