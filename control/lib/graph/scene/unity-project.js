@@ -23,7 +23,7 @@
  */
 import { createHash } from 'node:crypto';
 
-export const UNITY_LEG_VERSION = '0.2.0';
+export const UNITY_LEG_VERSION = '0.3.0';
 export const UNITY_EDITOR_TARGET = 'Unity 6 (6000.2.x)';
 
 /** Deterministic 32-hex Unity GUID for a pack file. */
@@ -851,6 +851,35 @@ namespace Mojulo
             return FindDeep(world, "entity:" + id);
         }
 
+        /// <summary>Standalone player build: -executeMethod Mojulo.Import.BuildPlayer.
+        /// Builds the scene list the importer wrote (menu first for games) into
+        /// build/mojulo.app (macOS) / build/mojulo.exe (Windows) for the host
+        /// platform. Exit 0 iff the build report says Succeeded.</summary>
+        public static void BuildPlayer()
+        {
+            try
+            {
+                var scenes = new List<string>();
+                foreach (var s in EditorBuildSettings.scenes) if (s.enabled) scenes.Add(s.path);
+                if (scenes.Count == 0) throw new Exception("no scenes in build settings — run Mojulo.Import.Run first");
+                var target = EditorUserBuildSettings.activeBuildTarget;
+                var path = "build/mojulo";
+                if (target == BuildTarget.StandaloneOSX) path += ".app";
+                else if (target == BuildTarget.StandaloneWindows64 || target == BuildTarget.StandaloneWindows) path += ".exe";
+                var report = BuildPipeline.BuildPlayer(scenes.ToArray(), path, target, BuildOptions.None);
+                var ok = report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded;
+                Debug.Log("[mojulo] player build " + (ok ? "OK" : "FAILED") + " -> " + path
+                    + " (" + scenes.Count + " scenes, " + report.summary.totalErrors + " errors)");
+                if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
+                else if (!ok) throw new Exception("build failed — see console");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[mojulo] player build FAILED: " + e.Message);
+                if (Application.isBatchMode) EditorApplication.Exit(1); else throw;
+            }
+        }
+
         /// <summary>Machine-gate assertions: -executeMethod Mojulo.Import.Verify.
         /// Writes mojulo-gate.json at the project root; exit 0 iff all pass.</summary>
         public static void Verify()
@@ -911,6 +940,34 @@ namespace Mojulo
                             landmarked = true;
                             break;
                         }
+
+                    // Rig clips (Y2): count the GLB's AnimationClips and prove
+                    // the first one BINDS — sampling it must move at least one
+                    // transform in the instantiated hierarchy (glTFast rebinds
+                    // clips by node path; a mismatch animates nothing, silently).
+                    // Runs LAST in the loop: sampling poses the open scene.
+                    if (world != null)
+                    {
+                        var clips = new List<AnimationClip>();
+                        foreach (var a in AssetDatabase.LoadAllAssetsAtPath(resBase + "model.glb"))
+                            if (a is AnimationClip ac) clips.Add(ac);
+                        if (clips.Count > 0)
+                        {
+                            var beforePos = new Dictionary<Transform, Vector3>();
+                            var beforeRot = new Dictionary<Transform, Quaternion>();
+                            foreach (var t in world.GetComponentsInChildren<Transform>(true))
+                            {
+                                beforePos[t] = t.localPosition;
+                                beforeRot[t] = t.localRotation;
+                            }
+                            clips[0].SampleAnimation(world, clips[0].length * 0.5f);
+                            int moved = 0;
+                            foreach (var kv in beforePos)
+                                if (kv.Key != null && ((kv.Key.localPosition - kv.Value).magnitude > 1e-4f
+                                    || Quaternion.Angle(kv.Key.localRotation, beforeRot[kv.Key]) > 0.01f)) moved++;
+                            Check(sceneName + ":clips_bound", moved > 0, clips.Count + " clips; '" + clips[0].name + "' moved " + moved + " transforms");
+                        }
+                    }
                 }
             }
             catch (Exception e)
@@ -974,6 +1031,10 @@ T006 Project > Assets > MojuloPack > Scenes > \`mojulo-level.unity\` — open
 T007 Toolbar > [Play] — judge with your own eyes:
 ${eyes.join('\n')}
 
+## ⑥ Ship it (optional) — a standalone app
+
+T008 File > Build Profiles(older editors: Build Settings) > Build — pick an output folder; the scene list is already filled in by the importer
+
 ## What travelled, what didn't
 
 ${GUIDE_LEDGER(ledger)}
@@ -994,6 +1055,10 @@ T007 Toolbar > [Play] — the menu lists the levels; locked ones name their gate
 ${levelList}
 #020 click a level: WASD/arrows + mouse to walk, Space jumps, Esc frees the mouse, M returns to the menu
 #021 completing a level returns you to the menu with the next gate unlocked; progress persists between plays (PlayerPrefs)
+
+## ⑥ Ship it (optional) — a standalone app
+
+T008 File > Build Profiles(older editors: Build Settings) > Build — pick an output folder; the scene list (menu first, then every level) is already filled in by the importer
 
 ## What travelled, what didn't
 

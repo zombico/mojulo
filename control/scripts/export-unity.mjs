@@ -16,6 +16,7 @@
  *
  * Usage (from control/, repo-dev sets MOJULO_DATA_DIR/MOJULO_OUTCOMES_DIR):
  *   node scripts/export-unity.mjs --ref sk_ms_tutorial_rising
+ *   node scripts/export-unity.mjs --ref <ref> --build         # + standalone app
  *   node scripts/export-unity.mjs --ref <ref> --no-gate       # emit only
  *   node scripts/export-unity.mjs --ref <ref> --fresh-project # rebuild scratch
  * Env: MOJULO_UNITY (editor binary; else newest under
@@ -53,6 +54,7 @@ const { values: args } = parseArgs({ options: {
   ref: { type: 'string' },
   out: { type: 'string' },
   unity: { type: 'string' },
+  build: { type: 'boolean', default: false },
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
   'fresh-project': { type: 'boolean', default: false },
@@ -160,6 +162,21 @@ if (!args['no-gate'] && unityBin && existsSync(unityBin)) {
   gate.checks = gateJson ? JSON.parse(gateJson) : null;
   if (verify.timedOut || verify.code !== 0 || !gate.checks?.ok) {
     fail(`machine gate FAILED: verify ${verify.timedOut ? `hung past the ${WATCHDOG_MS / 60000}min watchdog` : `exit ${verify.code}`} — ${JSON.stringify(gate.checks)} (log: ${verifyLog})`);
+  }
+
+  // Y5: the standalone player build — the Godot leg's --web sibling. The
+  // .app lands INSIDE the scratch project (build/mojulo.app); the driver
+  // reports its path rather than copying it into the deterministic pack.
+  if (args.build) {
+    const buildLog = path.join(outcomes, args.ref, 'unity-build.log');
+    log('player build — BuildPipeline for the host platform (first build compiles shaders; may take minutes)');
+    const build = await runUnity([...batch, '-projectPath', scratch, '-executeMethod', 'Mojulo.Import.BuildPlayer', '-quit'], buildLog, { projectPath: scratch });
+    const appPath = ['build/mojulo.app', 'build/mojulo.exe', 'build/mojulo']
+      .map((p) => path.join(scratch, p)).find((p) => existsSync(p));
+    gate.player_build = { exit: build.code, app: appPath ?? null };
+    if (build.timedOut || build.code !== 0 || !appPath) {
+      fail(`player build FAILED: ${build.timedOut ? `hung past the ${WATCHDOG_MS / 60000}min watchdog` : `exit ${build.code}, app ${appPath ? 'present' : 'missing'}`} (log: ${buildLog})`);
+    }
   }
 } else if (!args['no-gate']) {
   log('Unity not found — capability ladder rung 0, emitting the pack + guide only');

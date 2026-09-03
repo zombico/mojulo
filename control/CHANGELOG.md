@@ -490,6 +490,22 @@ the field-tested one from a working studio's Unity agent doc). Design:
   in-process via the shared assembly engine — enum + one-sentence
   description growth against the payload ceiling, mirroring the Godot
   branch.
+- **Standalone player build (Y5).** `export-unity --build` runs
+  `Mojulo.Import.BuildPlayer` headless after the gate: BuildPipeline over the
+  importer's scene list for the host platform → `build/mojulo.app` /
+  `mojulo.exe` inside the scratch project (reported, not packed — the pack
+  stays deterministic). The guide grows a one-step "Ship it" chunk
+  (Build Profiles > Build — the scene list is already filled). Proven at
+  both ends of the scale: the crypt game as a 99 MB double-clickable macOS
+  app, and Mobile Suit Arena — 45 scenes / 1.65 GB of assets — as a 2.4 GB
+  app, both with zero gate failures.
+- **Proven cargo.** Machine gates closed on all three proving grounds:
+  `sk_ms_tutorial_rising` (86/86 colliders, frame landmark exact,
+  `clips_bound` — 324 clips, the sampled boost cycle moved all 17 rig
+  joints), `crypt-of-the-rune-key` (15/15, portable, zero flags, the full
+  mechanics loop live), and the MSA chunky run — 45 levels / 1.65 GB /
+  352 files imported headless with **318/318 checks passing**, portability
+  honestly flagging the 47 runtime win-conditions that do not travel.
 
 ## [1.5.0] - 2026-08-26
 

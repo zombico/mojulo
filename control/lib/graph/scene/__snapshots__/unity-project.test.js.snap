@@ -34,6 +34,10 @@ T007 Toolbar > [Play] — judge with your own eyes:
 #004 you can walk: WASD/arrows + mouse look, Space jumps, Esc frees the mouse — eye height 1.7 m
 #005 the soundtrack (\`bt_theme\`) is playing on loop
 
+## ⑥ Ship it (optional) — a standalone app
+
+T008 File > Build Profiles(older editors: Build Settings) > Build — pick an output folder; the scene list is already filled in by the importer
+
 ## What travelled, what didn't
 
 #101 skipped_fx ×2 — camera-facing/runtime fx (billboards, glows) — not geometry
