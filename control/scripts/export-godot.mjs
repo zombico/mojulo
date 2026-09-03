@@ -34,6 +34,7 @@ const { values: args } = parseArgs({ options: {
   ref: { type: 'string' },
   out: { type: 'string' },
   godot: { type: 'string' },
+  posture: { type: 'string' },   // greybox|final — operator-declared handoff posture (engine-score.js)
   web: { type: 'boolean', default: false },
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
@@ -61,8 +62,8 @@ const clips = args['no-clips'] ? null : '_all';
 let pack;
 try {
   pack = isGame
-    ? await buildGodotGamePack({ ref: args.ref, outDir, clips, log })
-    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, log });
+    ? await buildGodotGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log })
+    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

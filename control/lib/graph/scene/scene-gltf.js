@@ -130,7 +130,9 @@ function decodeRigPart(part, restHead) {
 // deterministic, no visible change; the World/SVG paths never call this (GLB-only).
 function weldSoup(positions, colors, cc, normals, uvs) {
   const triCount = (positions.length / 9) | 0;
-  const oP = [], oC = [], oN = normals && normals.length ? [] : null, oU = uvs && uvs.length ? [] : null;
+  // `colors` may be null — the unlit-sticker texture path (addNode via facesToGlb's
+  // textureGroups loop) welds on position+uv alone, no COLOR_0.
+  const oP = [], oC = colors ? [] : null, oN = normals && normals.length ? [] : null, oU = uvs && uvs.length ? [] : null;
   const indices = [];
   const map = new Map();
   const qp = (v) => Math.round(v * 1e5);           // position quantum (well under the 1.5e-3 decollide stagger)
@@ -143,7 +145,7 @@ function weldSoup(positions, colors, cc, normals, uvs) {
     for (let k = 0; k < 3; k++) {
       const v = t * 3 + k, pb = v * 3, cb = v * cc, nb = v * 3, ub = v * 2;
       let key = qp(positions[pb]) + ',' + qp(positions[pb + 1]) + ',' + qp(positions[pb + 2]);
-      for (let c = 0; c < cc; c++) key += '|' + qa(colors[cb + c]);
+      if (oC) for (let c = 0; c < cc; c++) key += '|' + qa(colors[cb + c]);
       if (oN) key += '|n' + qa(normals[nb]) + ',' + qa(normals[nb + 1]) + ',' + qa(normals[nb + 2]);
       if (oU) key += '|u' + qa(uvs[ub]) + ',' + qa(uvs[ub + 1]);
       let idx = map.get(key);
@@ -151,7 +153,7 @@ function weldSoup(positions, colors, cc, normals, uvs) {
         idx = oP.length / 3;
         map.set(key, idx);
         oP.push(positions[pb], positions[pb + 1], positions[pb + 2]);
-        for (let c = 0; c < cc; c++) oC.push(colors[cb + c]);
+        if (oC) for (let c = 0; c < cc; c++) oC.push(colors[cb + c]);
         if (oN) oN.push(normals[nb], normals[nb + 1], normals[nb + 2]);
         if (oU) oU.push(uvs[ub], uvs[ub + 1]);
       }
@@ -167,18 +169,18 @@ function weldSoup(positions, colors, cc, normals, uvs) {
   if (worthIndex) {
     const IndexArr = weldedVerts > 65535 ? Uint32Array : Uint16Array;
     return {
-      positions: Float32Array.from(oP), colors: Float32Array.from(oC),
+      positions: Float32Array.from(oP), colors: oC ? Float32Array.from(oC) : null,
       normals: oN ? Float32Array.from(oN) : null, uvs: oU ? Float32Array.from(oU) : null,
       indices: IndexArr.from(indices), origVerts, weldedVerts, dropped,
     };
   }
   // degenerate-free soup: expand the (unmerged) verts through the index list
-  const sP = new Float32Array(indices.length * 3), sC = new Float32Array(indices.length * cc);
+  const sP = new Float32Array(indices.length * 3), sC = oC ? new Float32Array(indices.length * cc) : null;
   const sN = oN ? new Float32Array(indices.length * 3) : null, sU = oU ? new Float32Array(indices.length * 2) : null;
   for (let i = 0; i < indices.length; i++) {
     const s = indices[i];
     sP[i * 3] = oP[s * 3]; sP[i * 3 + 1] = oP[s * 3 + 1]; sP[i * 3 + 2] = oP[s * 3 + 2];
-    for (let c = 0; c < cc; c++) sC[i * cc + c] = oC[s * cc + c];
+    if (sC) for (let c = 0; c < cc; c++) sC[i * cc + c] = oC[s * cc + c];
     if (sN) { sN[i * 3] = oN[s * 3]; sN[i * 3 + 1] = oN[s * 3 + 1]; sN[i * 3 + 2] = oN[s * 3 + 2]; }
     if (sU) { sU[i * 2] = oU[s * 2]; sU[i * 2 + 1] = oU[s * 2 + 1]; }
   }
@@ -397,6 +399,140 @@ class GlbBuilder {
     return { nodes: 1, animations, vertices, triangles };
   }
 
+  // JOINTS_0 companion to floatAccessor: uint16 VEC4 vertex attribute.
+  jointAccessor(arr) {
+    const buf = Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
+    const view = this.addView(buf, TARGET_ARRAY_BUFFER);
+    this.json.accessors.push({ bufferView: view, componentType: COMPONENT_USHORT, count: arr.length / 4, type: 'VEC4' });
+    return this.json.accessors.length - 1;
+  }
+
+  // Inverse-bind matrices: MAT4 float accessor, no buffer-view target (the
+  // validator flags targets on IBM data, same rule as animation samplers).
+  ibmAccessor(arr) {
+    const buf = Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
+    const view = this.addView(buf, null);
+    this.json.accessors.push({ bufferView: view, componentType: COMPONENT_FLOAT, count: arr.length / 16, type: 'MAT4' });
+    return this.json.accessors.length - 1;
+  }
+
+  /**
+   * SKINNED rig export (skin-over-mesh.plan.md phase 4) — the same packed rig
+   * as addRigFigure, exported as ONE SkinnedMesh + a glTF `skins` entry
+   * instead of N rigid part nodes. The engine does the deformation; mojulo's
+   * own runtime keeps rigid FK (the renderer-ladder decision stands — this is
+   * an EXPORT capability, the cost paid where the gain lives).
+   *
+   * Weights: when the packed bones carry rest `tail`s, each vertex weights
+   * across its part's own bone + the bones ADJACENT to it (sharing a rest
+   * endpoint — the joint the crease bends at), by inverse-square distance to
+   * the rest bone segments, top-2 normalized. Rigs without tails (armor,
+   * older bakes) bind hard [1,0,0,0] — a suit's plates SHOULD stay rigid.
+   *
+   * Frames: joint node TRS = T(head')·R(q) (the packed clips' world frames,
+   * flat joint list — no nesting, exactly like the rigid path) and
+   * IBM = T(-restHead), so J·IBM·v = head' + q·(v − restHead) — the runtime
+   * formula, now evaluated by the engine per-vertex. At rest J·IBM = I: a
+   * no-animation import shows the bake's rest pose byte-exactly.
+   */
+  addSkinnedRigFigure(name, fig, clipNames) {
+    const material = this.unlitMaterial({ name: `fig:${name}` });
+    const bones = fig.bones;
+    const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
+
+    // joint nodes (flat, rest pose)
+    const jointNodes = bones.map((bone, bi) =>
+      this.json.nodes.push({ name: `${name}:${bone.id}`, translation: [bone.head[0], bone.head[1], bone.head[2]] }) - 1);
+
+    // adjacency: bones sharing a rest endpoint (head/tail coincide) — the
+    // candidate set for soft weights, so a thigh never bleeds into a wrist.
+    const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 1e-4;
+    const adjacent = bones.map((a, ai) => bones
+      .map((b, bi) => bi)
+      .filter((bi) => bi !== ai && (
+        near(bones[ai].head, bones[bi].head) || (hasTails && (
+          near(bones[ai].head, bones[bi].tail) || near(bones[ai].tail, bones[bi].head) || near(bones[ai].tail, bones[bi].tail)
+        ))
+      )));
+    const segDist = (p, bi) => {
+      const h = bones[bi].head, t = hasTails ? bones[bi].tail : bones[bi].head;
+      const dx = t[0] - h[0], dy = t[1] - h[1], dz = t[2] - h[2];
+      const l2 = dx * dx + dy * dy + dz * dz;
+      let u = l2 ? ((p[0] - h[0]) * dx + (p[1] - h[1]) * dy + (p[2] - h[2]) * dz) / l2 : 0;
+      u = u < 0 ? 0 : u > 1 ? 1 : u;
+      return Math.hypot(p[0] - h[0] - dx * u, p[1] - h[1] - dy * u, p[2] - h[2] - dz * u);
+    };
+
+    // merge every part into one rest-space soup with per-vertex joints/weights
+    const pos = [], col = [], jnt = [], wgt = [], idx = [];
+    let vertices = 0, triangles = 0;
+    fig.bones.forEach((bone, bi) => {
+      const part = fig.parts[bi];
+      if (!part) return;
+      const d = decodeRigPart(part, bone.head);
+      const base = pos.length / 3;
+      for (let i = 0; i < d.positions.length; i += 3) {
+        // decodeRigPart is bone-local (pos − restHead); rest world re-adds it
+        const p = [d.positions[i] + bone.head[0], d.positions[i + 1] + bone.head[1], d.positions[i + 2] + bone.head[2]];
+        pos.push(p[0], p[1], p[2]);
+        if (hasTails) {
+          const cand = [bi, ...adjacent[bi]];
+          const scored = cand.map((ci) => ({ ci, d: segDist(p, ci) })).sort((a, b) => a.d - b.d).slice(0, 2);
+          const inv = scored.map((s) => 1 / (s.d * s.d + 1e-6));
+          const sum = inv.reduce((a, b) => a + b, 0);
+          jnt.push(scored[0].ci, scored[1] ? scored[1].ci : 0, 0, 0);
+          wgt.push(inv[0] / sum, scored[1] ? inv[1] / sum : 0, 0, 0);
+        } else {
+          jnt.push(bi, 0, 0, 0);
+          wgt.push(1, 0, 0, 0);
+        }
+      }
+      for (let i = 0; i < d.colors.length; i++) col.push(d.colors[i]);
+      if (d.indices) for (let i = 0; i < d.indices.length; i++) idx.push(base + d.indices[i]);
+      else for (let i = 0; i < d.vertexCount; i++) idx.push(base + i);
+      vertices += d.vertexCount;
+      triangles += d.triangleCount;
+    });
+    if (!vertices) return { nodes: 0, animations: 0, vertices: 0, triangles: 0, skinned: false };
+
+    const positions = Float32Array.from(pos);
+    const attributes = {
+      POSITION: this.floatAccessor(positions, 3, bounds3(positions)),
+      COLOR_0: this.floatAccessor(Float32Array.from(col), 3),
+      JOINTS_0: this.jointAccessor(Uint16Array.from(jnt)),
+      WEIGHTS_0: this.floatAccessor(Float32Array.from(wgt), 4),
+    };
+    const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
+    const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(idx)) };
+    const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: [prim] }) - 1;
+
+    // IBM: identity + translation(−restHead), column-major
+    const ibm = new Float32Array(bones.length * 16);
+    bones.forEach((bone, bi) => {
+      const o = bi * 16;
+      ibm[o] = 1; ibm[o + 5] = 1; ibm[o + 10] = 1; ibm[o + 15] = 1;
+      ibm[o + 12] = -bone.head[0]; ibm[o + 13] = -bone.head[1]; ibm[o + 14] = -bone.head[2];
+    });
+    if (!this.json.skins) this.json.skins = [];
+    const skinIdx = this.json.skins.push({
+      name: `${name}:skin`, joints: jointNodes, inverseBindMatrices: this.ibmAccessor(ibm),
+    }) - 1;
+
+    const meshNode = this.json.nodes.push({ name: `${name}:body`, mesh: meshIdx, skin: skinIdx }) - 1;
+    const wrapIdx = this.json.nodes.push({ name, children: [...jointNodes, meshNode] }) - 1;
+    this.children.push(wrapIdx);
+    this.rigWrappers.set(name, wrapIdx);
+
+    let animations = 0;
+    for (const clipName of clipNames) {
+      const clip = fig.clips && fig.clips[clipName];
+      if (!clip || !clip.k || !Array.isArray(clip.b)) continue;
+      this.addRigClip(name, fig, jointNodes, clipName, clip);
+      animations++;
+    }
+    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails };
+  }
+
   // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once? }) → one glTF
   // animation: per bone node a rotation channel + a translation channel, all samplers sharing
   // ONE input (times) accessor, LINEAR interpolation (glTF normalizes lerped quaternions —
@@ -516,7 +652,7 @@ class GlbBuilder {
  * excluded exactly as before. When present the result additionally carries
  * `animationCount` + `animatedFigures`.
  */
-export function facesToGlb(payload = {}, { generator, clips = null } = {}) {
+export function facesToGlb(payload = {}, { generator, clips = null, skinned = false } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
@@ -691,13 +827,18 @@ export function facesToGlb(payload = {}, { generator, clips = null } = {}) {
   // the static export (clips absent) contributes zero bytes here and stays byte-identical.
   let animationCount = 0;
   const animatedFigures = [];
+  const skinnedFigures = [];
   for (const [name, fig] of rigFigs) {
     const clipNames = clipSel === '_all'
       ? Object.keys(fig.clips || {})
       : clipSel.filter((c) => fig.clips && fig.clips[c]);
-    const added = b.addRigFigure(name, fig, clipNames);
+    // `skinned` (skin-over-mesh.plan.md phase 4): one SkinnedMesh + skins/IBM
+    // per figure instead of rigid part nodes — export-only; absent, the rigid
+    // path stays byte-identical.
+    const added = skinned ? b.addSkinnedRigFigure(name, fig, clipNames) : b.addRigFigure(name, fig, clipNames);
     if (!added.nodes) continue;
     animatedFigures.push(name);
+    if (added.skinned) skinnedFigures.push(name);
     animationCount += added.animations;
     vertexCount += added.vertices;
     triangleCount += added.triangles;
@@ -751,6 +892,7 @@ export function facesToGlb(payload = {}, { generator, clips = null } = {}) {
   if (clipSel) {
     out.animationCount = animationCount;
     out.animatedFigures = animatedFigures;
+    if (skinnedFigures.length) out.skinnedFigures = skinnedFigures;
   }
   if (camDefs.length) out.cameraCount = camDefs.length;
   if (entityDefs.length) out.entityCount = entityDefs.length;

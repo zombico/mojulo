@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`skin-over-mesh phase 0a — the no-skin baseline pins > faceListToMesh bakes the fixture byte-identically (export path, withNormals) 1`] = `"53bcc4f0a0b6f0a6aea2c7c225e40497c8a20579c2d0271f1929c7e4c411d2fd"`;
+
+exports[`skin-over-mesh phase 0a — the no-skin baseline pins > faceListToMesh bakes the fixture byte-identically (world-renderer path) 1`] = `
+{
+  "mesh": "4f338dd43120c3b3104cb0843f1f413adb50db05f6d9ddf74728a5aa7e8b3a42",
+  "textureGroups": {
+    "tile": {
+      "colors": "502fd0ea667a05505704b55de2db4fd5438a67cffbb69276b8aaaf84d415e72d",
+      "lit": true,
+      "positions": "455f145915bd2110bfbfee0ae9de21ab404f30a58860d29e7cbbb6b634ffea2e",
+      "uvs": "bd5a4e423537b1f3cd2888c09dd9b2d4e7645fdc2789d75483f6ab61de8d9ea1",
+    },
+  },
+  "vertexCount": 171,
+}
+`;
+
+exports[`skin-over-mesh phase 0a — the no-skin baseline pins > facesToGlb emits the fixture byte-identically (GLB transport) 1`] = `
+{
+  "bytes": 8752,
+  "nodes": 6,
+  "sha256": "41086840228b90d95cba6e4aa484920a8d61939b5c181579853cb855ad2bf240",
+  "triangles": 63,
+}
+`;
+
+exports[`skin-over-mesh phase 0a — the no-skin baseline pins > facesToGlb without textures still emits deterministically (fallback path) 1`] = `"70b3dd5b7a112a966051fd4e5e139d5184dd9c30a1091f5d302b8bc25fe5fc6f"`;

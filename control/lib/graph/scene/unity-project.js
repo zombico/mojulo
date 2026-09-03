@@ -22,6 +22,7 @@
  * entity node in the GLB (pinned Y0: landmark match to the centimeter).
  */
 import { createHash } from 'node:crypto';
+import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
 
 export const UNITY_LEG_VERSION = '0.3.0';
 export const UNITY_EDITOR_TARGET = 'Unity 6 (6000.2.x)';
@@ -43,6 +44,14 @@ const ledgerLines = (ledger) => Object.entries(ledger)
   .map(([k, v]) => `- \`${k}\`${v.count != null ? ` ×${v.count}` : ''}${v.kinds ? ` (${v.kinds.join(', ')})` : ''} — ${v.note}`)
   .join('\n');
 
+// The greybox seam (skin-over-mesh.plan.md): stamped packs carry the handoff
+// sentence as its own section; unstamped packs emit byte-identical text.
+const greyboxSection = (stamped) => (stamped ? `## Greybox handoff
+
+${GREYBOX_HANDOFF_SENTENCE}
+
+` : '');
+
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
 
@@ -51,6 +60,15 @@ const COMPLETION_KINDS = ['reach-exit', 'survive'];
  * gameplay and non-geometry channels remain losses. */
 export function unityLevelLedger(score, { gameMode = false } = {}) {
   const ledger = { ...score.ledger };
+  // skin-over-mesh phase 3: textures are a CARRIED line — glTFast imports the
+  // GLB's TEXCOORD_0 + embedded PNGs as albedo maps, no importer work needed.
+  if (Array.isArray(score.textures) && score.textures.length) {
+    ledger.textures_carried = {
+      count: score.textures.length,
+      kinds: score.textures,
+      note: 'surface/atlas textures travel inside the GLB (glTFast imports them as albedo maps) — the web build is the reference look',
+    };
+  }
   if (score.ground != null) {
     ledger.promoted_ground = { note: 'implicit runtime ground plane promoted by the importer — the collider AABBs are obstacle hulls only, never the floor' };
   }
@@ -1035,14 +1053,14 @@ ${eyes.join('\n')}
 
 T008 File > Build Profiles(older editors: Build Settings) > Build — pick an output folder; the scene list is already filled in by the importer
 
-## What travelled, what didn't
+${greyboxSection(score.posture === 'greybox')}## What travelled, what didn't
 
 ${GUIDE_LEDGER(ledger)}
 `;
 }
 
 /** Game-pack guide: menu-first eyes gate over the whole progression loop. */
-function importGuideGame({ title, levels, ledger }) {
+function importGuideGame({ title, levels, ledger, greybox = false }) {
   const levelList = levels
     .map((lv, i) => `#${String(10 + i).padStart(3, '0')} level ${i + 1}: ${lv.title ?? lv.ref} (\`${lv.ref}\`)${lv.gate?.completed ? ` — unlocks after \`${lv.gate.completed}\`` : ''}`)
     .join('\n');
@@ -1060,7 +1078,7 @@ ${levelList}
 
 T008 File > Build Profiles(older editors: Build Settings) > Build — pick an output folder; the scene list (menu first, then every level) is already filled in by the importer
 
-## What travelled, what didn't
+${greyboxSection(greybox)}## What travelled, what didn't
 
 ${GUIDE_LEDGER(ledger, 101)}
 `;
@@ -1110,7 +1128,7 @@ performs the walker + mechanics live) inside a stock ${UNITY_EDITOR_TARGET} proj
 follow \`IMPORT-GUIDE.md\`; the web build is the reference performance.
 
 ${readmeProvenance({ ref, manifestHash, remint })}
-## What travelled, what didn't
+${greyboxSection(score.posture === 'greybox')}## What travelled, what didn't
 
 ${ledgerLines(ledger)}
 `,
@@ -1156,9 +1174,10 @@ export function emitUnityGame({ ref, title, manifestHash, levels, shellExtras = 
     .map((lv, i) => `${i + 1}. ${lv.title ?? lv.ref} (\`${lv.ref}\`)${lv.gate?.completed ? ` — unlocks after \`${lv.gate.completed}\`` : ''}`)
     .join('\n');
 
+  const greybox = levels.some((lv) => lv.score?.posture === 'greybox');
   const files = [
     ...kernelFiles({ packFolder }),
-    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger: topLedger }) },
+    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger: topLedger, greybox }) },
     {
       file: 'README.md',
       text: `# ${title} — Unity handoff (game)
@@ -1173,7 +1192,7 @@ gated progression live) — follow \`IMPORT-GUIDE.md\`; the web build is the
 reference performance.
 
 ${readmeProvenance({ ref, manifestHash, remint })}
-## Levels
+${greyboxSection(greybox)}## Levels
 
 ${levelList}
 

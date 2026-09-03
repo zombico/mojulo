@@ -24,7 +24,7 @@ import { assembleTransportationHubScene } from '@/lib/graph/architecture/transpo
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
-import { assembleFigureScene } from '@/lib/graph/figures/figure-world';
+import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
 import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable';
 import { assembleManjiTreeWorld } from '@/lib/graph/worlds/polygomer-world';
@@ -407,7 +407,13 @@ export const WORLD_KINDS = {
   // vehicle-instance / manji-tree).
   figure: {
     title: 'mojulo figure',
-    resolve: (m, ctx) => assembleFigureScene(m, { title: ctx.title }),
+    resolve: (m, ctx) => assembleFigureScene(m, { title: ctx.title, ref: ctx.ref }),
+  },
+  // The animal study's World form (skin-over-mesh: figure-world
+  // assembleAnimalScene) — orbit/export object study, same posture as figure.
+  animal: {
+    title: 'mojulo animal',
+    resolve: (m, ctx) => assembleAnimalScene(m, { title: ctx.title, ref: ctx.ref }),
   },
   'carved-solid': {
     title: 'mojulo carved solid',

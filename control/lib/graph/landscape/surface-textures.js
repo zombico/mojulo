@@ -43,7 +43,9 @@ function chunk(type, data) {
   const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body), 0);
   return Buffer.concat([len, body, crc]);
 }
-function encodePng(rgb, W, H) {
+// Exported for skin-atlas.js (skin-over-mesh.plan.md phase 2) — the atlas page
+// rides the same dependency-free truecolour encoder as the procedural tiles.
+export function encodePng(rgb, W, H) {
   const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);

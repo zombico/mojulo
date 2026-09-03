@@ -54,6 +54,7 @@ const { values: args } = parseArgs({ options: {
   ref: { type: 'string' },
   out: { type: 'string' },
   unity: { type: 'string' },
+  posture: { type: 'string' },   // greybox|final — operator-declared handoff posture (engine-score.js)
   build: { type: 'boolean', default: false },
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
@@ -82,8 +83,8 @@ const clips = args['no-clips'] ? null : '_all';
 let pack;
 try {
   pack = isGame
-    ? await buildUnityGamePack({ ref: args.ref, outDir, clips, log })
-    : await buildUnityWorldPack({ ref: args.ref, outDir, clips, log });
+    ? await buildUnityGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log })
+    : await buildUnityWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

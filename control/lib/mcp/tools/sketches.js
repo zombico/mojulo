@@ -481,6 +481,11 @@ export function registerSketchTools() {
           anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string', enum: ['_all'] }],
           description: "glb only: rig-clip names to bake as glTF animations, or '_all'. Omit for the static export.",
         },
+        skinned: {
+          type: 'boolean',
+          default: false,
+          description: 'With `clips`: export each rig figure as ONE SkinnedMesh (JOINTS_0/WEIGHTS_0 + skins/IBM — soft weights across joints where the rig carries bone segments, hard-bound otherwise) so the engine deforms smooth flesh. Off (default): rigid part nodes, byte-identical to before.',
+        },
         format: {
           type: 'string',
           enum: ['glb', 'stl'],

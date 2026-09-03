@@ -14,7 +14,13 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import sharp from 'sharp';
 import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
 import { reskinManjiSvg, rasterSampler, analyzeSkin } from '@/lib/graph/polygonizer/skin-projection';
-import { nextSkinPath, skinInputPath, latestSkin } from '@/lib/graph/polygonizer/skin-store';
+import { nextSkinPath, skinInputPath, latestSkin, nextAtlasPath, latestAtlas } from '@/lib/graph/polygonizer/skin-store';
+import {
+  atlasLayout, auditAtlasCoverage, auditSeamContinuity, holeInpaintViews, paintAtlas,
+  projectorFromCamera, skinAtlasViewPlan,
+} from '@/lib/graph/polygonizer/skin-atlas';
+import { figureRigSamples, animalWorldFaces } from '@/lib/graph/polygonizer/figure-render';
+import { encodePng } from '@/lib/graph/landscape/surface-textures';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -358,6 +364,7 @@ export async function skinPolygomerHandler(input) {
   if (!ref || typeof ref !== 'string') throw new Error('skin_polygomer requires { ref }');
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`Sketch '${ref}' not found`);
+  if (input.mode === 'atlas') return skinAtlasModeHandler(input, sketch);
   if (!SKINNABLE_KINDS.has(sketch.manifest?.kind)) {
     throw new Error(
       `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — skin_polygomer wears a skin on a manji-tree/workbench/assembler polygomer or a figure`,
@@ -399,6 +406,122 @@ export async function skinPolygomerHandler(input) {
   };
 }
 
+
+/**
+ * skin_polygomer `mode: 'atlas'` — the UV-space sibling of the screen-space
+ * projection above (skin-over-mesh.plan.md phase 2b). The wrap loop's tool
+ * seam, three calls of one tool:
+ *
+ *   1. PLAN   — `{ ref, mode:'atlas' }` (no views): returns the deterministic
+ *      view plan (fixed deck over the body's own bbox) + how to paint each
+ *      view (the image worker's job — request_image_render with the world
+ *      render as the img2img base — or any painter, the loop doesn't care).
+ *   2. PAINT  — `{ ref, mode:'atlas', views:[{ image_path|image_base64,
+ *      camera:{pos,target,vfov} }] }`: reprojects the paintings into the
+ *      atlas (facing + depth registration), runs the coverage gate, writes
+ *      the append-only `atlas-<n>.png`, stamps `manifest.skin.atlas` so the
+ *      figure WEARS it at resolve (figure-world), and returns the audit —
+ *      holes come back as ready-made close-up inpaint cameras for round 2.
+ *   3. LOOP   — repeat 2 with the inpaint views until the audit runs dry.
+ *
+ * Scope: kinds 'figure' and 'animal' (the ring-stack bodies phase 1 tags with
+ * islands). The recipe stays sovereign; the atlas page is a numbered bound render.
+ */
+const ATLAS_KEY = 'skin-atlas';
+
+function bodyAtlasFaces(manifest) {
+  // atlas mode needs uv+island tags; a body with no phase-1 skin opt-in gets
+  // the default key synthesized — the atlas IS the skin.
+  const skinSpec = manifest.skin && typeof manifest.skin.texture === 'string'
+    ? manifest.skin : { ...(manifest.skin || {}), texture: ATLAS_KEY };
+  const skinned = { ...manifest, skin: skinSpec };
+  return manifest.kind === 'animal'
+    ? animalWorldFaces(skinned).faces
+    : figureRigSamples(skinned).restFaces;
+}
+
+async function skinAtlasModeHandler(input, sketch) {
+  const manifest = sketch.manifest || {};
+  if (manifest.kind !== 'figure' && manifest.kind !== 'animal') {
+    throw new Error(
+      `skin_polygomer mode:'atlas' covers kinds 'figure' and 'animal' today (ring-stack islands) — '${manifest.kind}' still uses the screen-space projection mode (omit \`mode\`)`,
+    );
+  }
+  const page = Number.isInteger(input.page) ? input.page : 1024;
+  const gutter = Number.isInteger(input.gutter) ? input.gutter : 8;
+  const faces = bodyAtlasFaces(manifest);
+  const layout = atlasLayout(faces, { page, gutter });
+
+  if (!Array.isArray(input.views) || !input.views.length) {
+    const plan = skinAtlasViewPlan(faces);
+    const bound = latestAtlas(sketch.ref);
+    return {
+      ref: sketch.ref,
+      mode: 'atlas',
+      islands: Object.keys(layout.islands).length,
+      page,
+      gutter,
+      viewPlan: plan.views,
+      paint: 'Paint each view as ONE coherent subject over a render of this figure from that exact camera '
+        + '(request_image_render img2img over the world render, or any painter). Keep the camera parameters '
+        + 'verbatim — they ARE the registration.',
+      submit: `skin_polygomer({ ref: "${sketch.ref}", mode: "atlas", views: [{ image_path, camera: { pos, target, vfov } }, …] })`,
+      ...(bound ? { alreadyBound: { n: bound.n, path: bound.path } } : {}),
+    };
+  }
+
+  // PAINT: decode each view, reproject, audit, bind.
+  const views = [];
+  for (const v of input.views) {
+    const cam = v && v.camera;
+    if (!cam || !Array.isArray(cam.pos) || !Array.isArray(cam.target)) {
+      throw new Error('each atlas view needs { image_path|image_base64, camera: { pos:[x,y,z], target:[x,y,z], vfov } } — the camera the painting was made from');
+    }
+    if ((v.image_path ? 1 : 0) + (v.image_base64 ? 1 : 0) !== 1) {
+      throw new Error('each atlas view needs exactly one of image_path | image_base64');
+    }
+    const bytes = v.image_path ? await fs.readFile(v.image_path) : Buffer.from(v.image_base64, 'base64');
+    if (bytes.length < 8 || !bytes.subarray(0, 4).equals(PNG_MAGIC)) {
+      throw new Error(`atlas view '${v.label || cam.pos}' must be a PNG`);
+    }
+    const { data, info } = await sharp(bytes).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    views.push({
+      projector: projectorFromCamera({
+        pos: cam.pos, target: cam.target, vfov: Number.isFinite(cam.vfov) ? cam.vfov : 40,
+        width: info.width, height: info.height,
+      }),
+      raster: { data, width: info.width, height: info.height, channels: info.channels },
+    });
+  }
+  const painted = paintAtlas(faces, layout, views, { size: page });
+  const audit = auditAtlasCoverage(faces, layout, painted);
+  const seams = auditSeamContinuity(faces, layout, painted);
+  const slot = nextAtlasPath(sketch.ref);
+  await fs.writeFile(slot.path, encodePng(painted.rgb, page, page));
+  // Bind: the manifest carries the slot; figure-world remaps + loads it at
+  // resolve. Advisory gate — the operator ships or reloops, never blocked.
+  SketchRepository.update({
+    ref: sketch.ref,
+    manifest: { ...manifest, skin: { ...(manifest.skin || {}), atlas: { n: slot.n, page, gutter } } },
+  });
+  return {
+    ok: true,
+    ref: sketch.ref,
+    mode: 'atlas',
+    n: slot.n,
+    path: slot.path,
+    coverage: Number(audit.coverage.toFixed(4)),
+    holes: audit.holes,
+    // advisory seam report (never a refusal — intentional transitions flag too)
+    seam_continuity: { overall: seams.overall, threshold: seams.threshold, flagged: seams.flagged },
+    // loop-until-dry: ready-made close-up cameras aimed at each hole island
+    ...(audit.holes.length ? {
+      inpaintViews: holeInpaintViews(faces, audit.holes),
+      next: 'Paint these close-up views and submit them the same way — each new atlas slot repaints from ALL views you pass, so include the originals or accept the close-ups as touch-ups over the bound page.',
+    } : {}),
+    world: `/api/sketches/${encodeURIComponent(sketch.ref)}/world`,
+  };
+}
 
 // Shared by create_polygonized_sketch and get_polygonizer_packet — the two
 // entry halves of the keyed and key-free polygonizer paths take identical

@@ -59,6 +59,14 @@ func _ready() -> void:
 # G0 material contract (Finding 1): Godot's glTF import does not set
 # vertex_color_use_as_albedo — without this every vertex-coloured face
 # renders white. COLOR_0 is linear: is_srgb stays false.
+#
+# Texture contract (skin-over-mesh phase 3): a textured surface arrives from
+# the GLB with albedo_texture already set (TEXCOORD_0 + embedded PNG). Setting
+# vertex_color_use_as_albedo on it MULTIPLIES texture x vertex colour — which
+# is exactly the web renderer's texel x baked-light contract for `textureLit`
+# groups; unlit stickers carry no COLOR_0 (vertex colour defaults to white),
+# so the texture shows as-is under KHR_materials_unlit's unshaded mode.
+# Nothing texture-specific to do here — the fixup composes correctly.
 func _fix_materials() -> void:
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = mi.mesh

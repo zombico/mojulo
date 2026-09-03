@@ -1,0 +1,60 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`extractEngineScore — the greybox seam (skin-over-mesh.plan.md phase 0) > unstamped: no posture key, no greybox ledger entry — byte-identical to pre-seam output 1`] = `
+{
+  "cameras": [],
+  "colliders": [
+    {
+      "max": [
+        1,
+        1,
+        1,
+      ],
+      "min": [
+        0,
+        0,
+        0,
+      ],
+    },
+  ],
+  "entities": [
+    {
+      "extras": {
+        "moj:entity": "walker",
+        "moj:rule": "walk",
+      },
+      "figure": null,
+      "heading": 0,
+      "id": "walker",
+      "name": "entity:walker",
+      "translation": [
+        0,
+        0,
+        0,
+      ],
+      "yawOffset": -1.5707963267948966,
+    },
+  ],
+  "eye": 1.6,
+  "frame": "z-up",
+  "game": null,
+  "ground": 0,
+  "kind": "floorplan-world",
+  "ledger": {
+    "skipped_runtime": {
+      "note": "game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build",
+    },
+  },
+  "mechanics": [],
+  "player": "walker",
+  "ref": "sk_score_fixture",
+  "soundtrack": null,
+  "spawn": [
+    0,
+    0,
+    2,
+  ],
+  "title": "fixture world",
+  "units": "1 mojulo unit = 1 meter",
+}
+`;

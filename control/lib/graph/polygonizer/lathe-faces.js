@@ -104,11 +104,20 @@ export function latheToFaces(spec = {}, opts = {}) {
   // carry `uv` (u = θ/2π + seam, monotonic; v = position within the band) + a `texture` key so the
   // World renderer draws them with a MeshBasicMaterial({ map }). u increases WITH θ (no mirror) and
   // is NOT wrapped to [0,1] — RepeatWrapping resolves u>1 so the seam never smears (proven 0616).
+  // skin-over-mesh.plan.md phase 1 widens the same wrap into a full SURFACE skin:
+  //   • `lit: true`   — multiply-lit (texel × the face's baked Lambert fill, the surface-textures
+  //     posture) instead of the unlit sticker; the vase keeps its form shading under the grain.
+  //   • `repeat: { u?, v? }` — uv multipliers for the 'repeat' texture family (tile asphalt/stone
+  //     SMALL around the surface; RepeatWrapping resolves the overflow). Default 1 — the seam
+  //     column stays the only discontinuity, and absent both keys output is byte-identical.
+  // Caps stay untextured (no natural uv on a fan; the wall is the skin surface).
   const wrap = spec.wrap && typeof spec.wrap === 'object' && typeof spec.wrap.texture === 'string' ? spec.wrap : null;
   const band = wrap && wrap.band && typeof wrap.band === 'object' ? wrap.band : {};
   const tFrom = Number.isFinite(band.tFrom) ? band.tFrom : 0;
   const tTo = Number.isFinite(band.tTo) ? band.tTo : 1;
   const seam = Number.isFinite(wrap && wrap.seam) ? wrap.seam : 0;
+  const wrapRu = Number.isFinite(wrap && wrap.repeat && wrap.repeat.u) ? wrap.repeat.u : 1;
+  const wrapRv = Number.isFinite(wrap && wrap.repeat && wrap.repeat.v) ? wrap.repeat.v : 1;
   const vAt = (t) => (tTo - tFrom > 1e-6 ? (t - tFrom) / (tTo - tFrom) : 0);
 
   // Sparse glow (spec.glowProxy): instead of tagging EVERY wall face (~cs×sm halos — a per-facet
@@ -145,9 +154,11 @@ export function latheToFaces(spec = {}, opts = {}) {
       const face = { corners, fill: shadeHexMat(tint, n, mat, { light }), doubleSided: true, outNormal: n };
       if (glowAt(i, j)) face.glow = spec.glow;   // emissive halo marker → object-glow sprite (three) / box-shadow bloom (css-3d)
       if (inBand) {
-        const uj = j / sm + seam, uj1 = (j + 1) / sm + seam;
-        face.uv = [[uj, vAt(ti)], [uj1, vAt(ti)], [uj1, vAt(ti1)], [uj, vAt(ti1)]];
+        const uj = (j / sm + seam) * wrapRu, uj1 = ((j + 1) / sm + seam) * wrapRu;
+        face.uv = [[uj, vAt(ti) * wrapRv], [uj1, vAt(ti) * wrapRv], [uj1, vAt(ti1) * wrapRv], [uj, vAt(ti1) * wrapRv]];
         face.texture = wrap.texture;
+        if (wrap.lit) face.textureLit = true;
+        face.island = 'wall';   // one uv island — the atlas packer's unit (skin-atlas.js)
       }
       faces.push(face);
       if (faces.length >= MAX_FACES_PER_LATHE) return faces;

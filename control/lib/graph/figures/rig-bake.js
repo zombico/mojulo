@@ -297,7 +297,11 @@ export function bakeRigFigure({ nodesAt, facesAt, clips = {}, keys = 8, targetH 
 
   return {
     rig: true,
-    bones: usable.map((b) => ({ id: b.id, head: restNodes[b.head].map(r4) })),
+    // `tail` (skin-over-mesh.plan.md phase 4): the rest bone SEGMENT, so the
+    // skinned glTF export can derive soft weights from capsule distances.
+    // Additive — every runtime consumer reads id/head only; rigs packed
+    // without tails (older bakes, unit-rig armor) export hard-bound instead.
+    bones: usable.map((b) => ({ id: b.id, head: restNodes[b.head].map(r4), tail: restNodes[b.tail].map(r4) })),
     parts,
     clips: packedClips,
     figH: r4((mxz - mnz) * s),

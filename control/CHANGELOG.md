@@ -507,6 +507,136 @@ the field-tested one from a working studio's Unity agent doc). Design:
   352 files imported headless with **318/318 checks passing**, portability
   honestly flagging the 47 runtime win-conditions that do not travel.
 
+### The greybox seam — operator-declared handoff posture (skin-over-mesh phase 0)
+
+Engine packs can now be stamped with a handoff posture: `greybox` declares a
+BLOCKOUT (geometry/scale/layout authoritative, surfaces placeholder), `final`
+the opposite. A **declaration, never an inference** — the vertex-colour look
+is a legitimate final style, and mojulo does not grade its own output's
+finishedness. Unstamped exports are byte-identical to before. Design:
+`lite-template/integration/0903/skin-over-mesh.plan.md`.
+
+- **The stamp.** `export_game { posture }` (godot/unity targets) and
+  `--posture` on both CLI drivers, with a manifest `posture` as the durable
+  per-recipe default (a game manifest defaults its whole pack). The score
+  carries `posture`; a greybox pack's honest-loss ledger leads with the
+  reframe (surfacing losses are *deferred to the downstream art pass, not
+  lost*), and the Godot/Unity READMEs + IMPORT-GUIDEs carry the one-sentence
+  handoff contract.
+- **Skin-baseline characterization net** (phase 0 of the skin plan): hash
+  pins over every face channel (face→mesh bake, GLB transport, the unstamped
+  engine score) plus texture-path edge-case tests — the guards the upcoming
+  recipe-emitted-UV work must keep green.
+- **Fixed: unlit textured faces crashed GLB export.** `weldSoup` dereferenced
+  the null colour buffer the unlit-sticker path (label wraps without
+  `textureLit`) hands it — found by the new texture tests; welding now keys
+  on position+uv alone when no COLOR_0 rides.
+
+### Recipe-emitted UVs — surface textures on organic bodies (skin-over-mesh phase 1)
+
+The ring-stack family now emits its own cylindrical UVs, so any
+surface-textures tile (marble, stone, wood, …) rides an ORGANIC body — not
+just slabs — end to end: live World, GLB, Unity via glTFast. No unwrap
+solver: the recipe knows its own (u,v) — ring index along the axis, angle
+around it; RepeatWrapping owns the one seam column. Opt-in, byte-identical
+absent (the phase-0 characterization net pins it).
+
+- **Lathe skins.** The label wrap widened into a full-surface skin:
+  `wrap.lit` multiply-lights the tile (texel × baked Lambert — the vase
+  keeps its form shading under the veining) and `wrap.repeat {u,v}` tiles
+  the isotropic-grain family small. Caps stay untextured.
+- **Figure skins.** `manifest.skin { texture, lit?, repeat? }` on a figure:
+  flesh ring-stacks (tagged at build) carry per-face uv through the shared
+  mesher; garments/hair/props keep their own paint. The packed FK rig keeps
+  vertex colours (animated-body texturing is the phase-4/5 track).
+- Eyes gate: front/¾/back spike shows independent texturing per side —
+  real UVs, not the screen-projection wraparound of the camera-registered
+  skin path.
+
+### The skin atlas — deterministic cuts, reprojection, and the coverage gate (skin-over-mesh phase 2a)
+
+The wrap loop's deterministic half: mojulo designs the CUTS, registers the
+paint, and audits the result; an image worker (or any painter) owns only
+pixels. `polygonizer/skin-atlas.js` packs a recipe's uv islands (one per
+ring stack / lathe wall, tagged at mint) into a gutter-separated page as a
+pure function of the face list; painted VIEWS from known cameras lower into
+the atlas per-texel — facing test + a scene-aware depth buffer (self- and
+prop-occlusion), best-facing view wins — and the machine gate reports
+per-island coverage with a hole list that GENERATES the next views rather
+than failing the job. The painted page binds through the existing texture
+channel (`remapFacesToAtlas` + `manifest.textures`) with zero new
+transport, and `atlas-<n>.png` joins the append-only skin store. Proven
+closed-loop: a figure's own 4-view renders reproject into an atlas the
+figure then WEARS correctly from a camera outside the view plan — the
+multi-view answer to the single-view camera-registration skin ("back faces
+wrap front colours" is retired where an atlas exists).
+
+### The wrap loop — skin_polygomer mode:'atlas' (skin-over-mesh phase 2b)
+
+The atlas core, wired as a tool seam — three calls of one (unlisted-alias)
+tool, zero tools/list cost. PLAN: `skin_polygomer({ ref, mode:'atlas' })`
+returns a deterministic 5-camera deck derived from the figure's own
+bounding box, ready to hand to any painter (`request_image_render` img2img
+or otherwise) — the camera parameters ARE the registration. PAINT: submit
+the painted views with their cameras; mojulo reprojects them into the
+atlas, runs the coverage gate, writes the append-only `atlas-<n>.png`, and
+stamps `manifest.skin.atlas` — the figure then WEARS the page at resolve
+(faces remapped into atlas space, the PNG riding `payload.textures`;
+missing page degrades cleanly). LOOP: holes come back as ready-made
+close-up inpaint cameras aimed down each hole island's outward normal —
+resubmit until the audit runs dry. Advisory throughout: the operator ships
+or reloops, never blocked.
+
+### Textures are a carried line — engine packs say so (skin-over-mesh phase 3)
+
+Surveying for the planned "Godot texture path" proved textures ALREADY
+travel: the GLB embeds TEXCOORD_0 + PNGs, Godot's importer maps them to
+`albedo_texture`, and the kernel fixup's vertex-colour albedo MULTIPLIES
+with them — exactly the web renderer's texel × baked-light contract
+(unlit stickers ride KHR_materials_unlit untinted). So phase 3 became
+verify-and-state-it: the engine score names the payload's texture keys,
+both Godot and Unity ledgers gain a `textures_carried` line (loss → carry,
+same data, honest framing), and the kernel documents the texture contract
+(mojulo-godot 0.1.1, doc-only).
+
+### Animals enter the World — and the whole skin pipeline follows (skin-over-mesh follow-through)
+
+`kind:'animal'` now resolves to a traversable World form (the same
+buildAnimal recipe the SVG study renders, meshed un-culled through the
+shared figure mesher — feet at z=0, countershading intact, self-framing
+camera). Because every downstream seam is generic, one registry row lights
+up everything at once: `/world` orbiting, `export_model` (.glb / printable
+.stl), the Godot/Unity packs, `manifest.skin` surface textures (the plan's
+ORIGINAL verify — a marble-coated canine beside its plain control — now
+renders), and the full atlas wrap loop (`skin_polygomer mode:'atlas'`
+accepts animals). Animals stay illustration-concern studies; the
+WORLD_KINDS row is their export door, same posture as figure. Gait (a rig
+half) is future work — animals pose statically in worlds today.
+
+Also: the atlas machine gate gains an ADVISORY `seam_continuity` report —
+each island's cylinder-seam columns (the same world ring painted twice)
+compared over covered texels, per-island mean ΔRGB against a threshold.
+A report line, never a refusal: intentional material transitions flag too,
+and the eyes gate owns the ship call.
+
+### Skinned glTF export — the engine deforms the flesh (skin-over-mesh phase 4)
+
+`export_model({ clips, skinned: true })` exports each rig figure as ONE
+SkinnedMesh + a glTF `skins` entry instead of rigid part nodes: per-vertex
+`JOINTS_0`/`WEIGHTS_0`, inverse-bind matrices `T(−restHead)`, joints
+driven by the same packed clips — `J·IBM·v` IS the runtime's rigid-FK
+formula, now evaluated per-vertex by the importing engine, so extreme
+bends crease smoothly instead of opening part seams. Weights derive from
+the rest bone SEGMENTS `bakeRigFigure` now packs (`tail` beside `head`):
+each vertex blends its part's bone with adjacent bones sharing the crease
+joint, inverse-square by capsule distance, top-2 normalized. Rigs packed
+without tails (mobile-suit armor, older bakes) bind hard — rigid plates
+SHOULD stay rigid. Export-only: mojulo's own runtime keeps rigid FK (the
+renderer-ladder decision stands — the cost is paid where the gain lives),
+and absent the flag the rigid export is byte-identical. The optional
+live-preview SkinnedMesh branch (plan phase 5) is deferred per its own
+severability note.
+
 ## [1.5.0] - 2026-08-26
 
 ### Roles pack — operator-owned delegation (opt-in), Phases 0–4

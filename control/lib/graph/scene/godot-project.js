@@ -18,8 +18,18 @@
  * ordering, no uids (path fallback, the plan's uid note).
  */
 
+import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
+
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
+
+// The greybox seam (skin-over-mesh.plan.md): stamped packs carry the handoff
+// sentence as its own README section; unstamped packs emit byte-identical text.
+const greyboxSection = (stamped) => (stamped ? `## Greybox handoff
+
+${GREYBOX_HANDOFF_SENTENCE}
+
+` : '');
 
 const fmt = (n) => {
   const v = Math.round(n * 1e6) / 1e6;
@@ -104,6 +114,17 @@ ${props.join('\n')}
  * remain losses. */
 function levelLedger(score, { gameMode = false } = {}) {
   const ledger = { ...score.ledger };
+  // skin-over-mesh phase 3: surface/atlas textures are a CARRIED line, not a
+  // loss — they ride the GLB (TEXCOORD_0 + embedded PNG); Godot's importer
+  // maps them to albedo_texture and the kernel fixup's vertex-colour albedo
+  // MULTIPLIES with them, matching the web renderer's texel × baked light.
+  if (Array.isArray(score.textures) && score.textures.length) {
+    ledger.textures_carried = {
+      count: score.textures.length,
+      kinds: score.textures,
+      note: 'surface/atlas textures travel inside the GLB and multiply with the baked vertex colours (kernel material fixup) — the web build is the reference look',
+    };
+  }
   ledger.entity_markers = {
     note: 'entities that baked no mesh (glyph/primitive bodies — export-side gap) render as gold placeholder markers; the web build is the reference look',
   };
@@ -161,7 +182,7 @@ reference performance.
 - units: ${score.units}; frame converted z-up → y-up by the kernel, matching the GLB root
 - re-mint: \`${remint ?? `node scripts/export-godot.mjs --ref ${ref}`}\` (from mojulo's \`control/\`)
 
-## Open and play
+${greyboxSection(score.posture === 'greybox')}## Open and play
 
 Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
 walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.
@@ -253,7 +274,7 @@ instruments; the web build is the reference performance.
 - units: 1 mojulo unit = 1 meter; frames converted z-up → y-up by the kernel
 - re-mint: \`${remint ?? `node scripts/export-godot.mjs --ref ${ref}`}\` (from mojulo's \`control/\`)
 
-## Levels
+${greyboxSection(levels.some((lv) => lv.score?.posture === 'greybox'))}## Levels
 
 ${levelList}
 

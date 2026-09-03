@@ -246,19 +246,20 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
 
 export async function exportGameHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
-  const { ref, target } = input;
+  const { ref, target, posture = null } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
 
   if (target === 'godot') {
     const { buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
     const outDir = path.join(outcomeDirFor(ref), 'godot');
-    const pack = await buildGodotGamePack({ ref, outDir });
+    const pack = await buildGodotGamePack({ ref, outDir, posture });
     return {
       ok: true,
       ref,
       target: 'godot',
       dir: outDir,
       kernel: pack.kernelVersion,
+      ...(posture ? { posture } : {}),
       files: pack.written.length,
       total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
       portability: { portable: pack.portability.portable, flags: pack.portability.flags },
@@ -271,13 +272,14 @@ export async function exportGameHandler(input) {
   if (target === 'unity') {
     const { buildUnityGamePack } = await import('@/lib/graph/scene/unity-pack.js');
     const outDir = path.join(outcomeDirFor(ref), 'unity');
-    const pack = await buildUnityGamePack({ ref, outDir });
+    const pack = await buildUnityGamePack({ ref, outDir, posture });
     return {
       ok: true,
       ref,
       target: 'unity',
       dir: outDir,
       leg: pack.legVersion,
+      ...(posture ? { posture } : {}),
       files: pack.written.length,
       total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
       portability: { portable: pack.portability.portable, flags: pack.portability.flags },
@@ -539,6 +541,7 @@ export function registerExportGameTools() {
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
         target: { type: 'string', enum: ['web', 'godot', 'unity'], description: 'Optional. Default `web` (the self-contained folder). `godot`/`unity` emit the engine pack instead.' },
+        posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
       },
       required: ['ref'],
     },

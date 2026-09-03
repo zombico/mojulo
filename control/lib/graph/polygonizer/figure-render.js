@@ -285,7 +285,9 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   // flesh falls back to FLESH_HEX (and thus tracks the setup material via recolorFlesh).
   // This is what lets a stylized fluff body be multi-coloured (a blue vest-bead, a
   // black hair-bead) from the recipe alone, without the skin-paint seam.
-  const stacks = body.map((s) => ({ id: s.id, rings: s.rings, hex: s.hex || FLESH_HEX }));
+  // `flesh: true` marks the body stacks for the manifest.skin uv pass (litFaces) —
+  // garments/hair/props appended below stay unmarked and keep their own paint.
+  const stacks = body.map((s) => ({ id: s.id, rings: s.rings, hex: s.hex || FLESH_HEX, flesh: true }));
   // Garments: build each cloth shell, then RESOLVE its spec's cuts + panels against the
   // body and attach them per-piece, so the shared mesher (litFaces) carves and recolours
   // the cloth — svgile-row's cutter, finally in the production renderer (SVG + World).
@@ -445,9 +447,21 @@ function emitSheetFaces(st, V, light, dist, faces) {
   }
 }
 
-function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = null } = {}) {
+function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = null, skin = null } = {}) {
   const V = worldVertex(stacks, groundZ);
   const dist = (cen) => Math.hypot(cen[0] - CAM[0], cen[1] - CAM[1], cen[2] - CAM[2]);
+  // RECIPE-EMITTED UVs (skin-over-mesh.plan.md phase 1): a ring stack already knows its own
+  // (u,v) — j around the ring, i along the axis — so a `skin: { texture, lit?, repeat? }` opt-in
+  // stamps each closed-tube cell with that cylindrical parameterization + the texture key. The
+  // seam column (j wraps m-1 → 0) is the one discontinuity, the standard cylinder unwrap.
+  // Scope: stacks tagged `flesh: true` (buildPosedFigure's body map) — garments, hair, open
+  // sheets, prebuilt faces, and seam ribbons keep their own paint. Default multiply-LIT
+  // (texel × baked Lambert, the surface-textures posture); `lit: false` opts back to the
+  // unlit sticker. Absent `skin`, every face record is byte-identical to before.
+  const skinTex = skin && typeof skin === 'object' && typeof skin.texture === 'string' ? skin : null;
+  const skinRu = Number.isFinite(skinTex && skinTex.repeat && skinTex.repeat.u) ? skinTex.repeat.u : 1;
+  const skinRv = Number.isFinite(skinTex && skinTex.repeat && skinTex.repeat.v) ? skinTex.repeat.v : 1;
+  let stackIdx = -1;
   const faces = [];
   for (const st of stacks) {
     if (st.sheet) { emitSheetFaces(st, V, light, dist, faces); continue; }  // open two-sided cloth (wave-drape)
@@ -459,6 +473,10 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
       continue;
     }
     const cut = st.cut, panels = st.panels;                                 // garment cutter + panel recolour (null for flesh)
+    stackIdx += 1;
+    const stSkin = skinTex && st.flesh ? skinTex : null;                    // tagged flesh stacks only
+    const stIsland = stSkin ? (st.id != null ? String(st.id) : `stack-${stackIdx}`) : null;
+    const nRings = st.rings.length;
     for (let i = 0; i < st.rings.length - 1; i++) {
       const a = st.rings[i].polyline, b = st.rings[i + 1].polyline, m = Math.min(a.length, b.length);
       const c0 = st.rings[i].center, c1 = st.rings[i + 1].center;
@@ -483,7 +501,17 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
         // `shade` = the raw Lambert factor, carried so the skin-projection seam can
         // multiply a sampled albedo by the deterministic form-shading (the control
         // scaffold emits it as data-shade — same contract as manji-svg lit faces).
-        faces.push({ wpts, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) });
+        const face = { wpts, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) };
+        if (stSkin) {
+          const u0 = (j / (m - 1)) * skinRu, u1 = ((j + 1) / (m - 1)) * skinRu;
+          const v0 = (i / (nRings - 1)) * skinRv, v1 = ((i + 1) / (nRings - 1)) * skinRv;
+          // corner order matches wpts: (i,j) (i,j+1) (i+1,j+1) (i+1,j)
+          face.uv = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+          face.texture = stSkin.texture;
+          if (stSkin.lit !== false) face.textureLit = true;
+          face.island = stIsland;   // per-stack uv island — the atlas packer's unit (skin-atlas.js)
+        }
+        faces.push(face);
       }
     }
   }
@@ -703,6 +731,64 @@ function cropToHead(parts) {
   });
 }
 
+// The normal-rule recolor (countershaded belly / dorsal stripe) shared by the
+// SVG study and the World form — built once from the animal opts.
+function animalRecolor(opts) {
+  const coatHex = opts?.coat?.color, underHex = opts?.underHex, underCut = opts?.underCut ?? -0.3;
+  const overHex = opts?.overHex, overCut = opts?.overCut ?? 0.3;
+  return (coatHex && (underHex || overHex)) ? (hex, n) => {
+    if (hex !== coatHex) return null;
+    if (underHex && n[2] < underCut) return underHex;
+    if (overHex && n[2] > overCut) return overHex;
+    return null;
+  } : null;
+}
+
+/**
+ * animalWorldFaces — the animal's World/export form (skin-over-mesh.plan.md
+ * phase 1's open item, closed): buildAnimal parts meshed through the SAME
+ * litFaces solve the SVG study uses, but un-projected and un-culled so the
+ * orbit camera can go behind it — the animal sibling of figureRigSamples'
+ * restFaces. Every stack is tagged `flesh: true` (the whole coat is the skin
+ * surface), so `manifest.skin` gives the body recipe-emitted cylindrical UVs
+ * + islands exactly like the figure — and the atlas wrap loop follows free.
+ * Feet land at z=0 (ground contact). Deterministic: pure math over the dials.
+ */
+export function animalWorldFaces(manifest = {}) {
+  const { archetype = 'canine', opts = {} } = manifest;
+  const built = buildAnimal(archetype, opts);
+  const stacks = animalStacks(built.parts).map((s) => ({ ...s, flesh: true }));
+  const groundZ = stackMinZ(stacks);
+  // CAM feeds only the painter's depth sort (irrelevant to an un-culled world
+  // bake) — any fixed point works; keep it deterministic.
+  const faces = litFaces(stacks, [0, -10, 3], LIGHT, groundZ, { cull: false, recolor: animalRecolor(opts), skin: manifest.skin || null })
+    .map((f) => ({
+      corners: f.wpts, fill: f.fill,
+      ...(f.texture ? { texture: f.texture, uv: f.uv, ...(f.textureLit ? { textureLit: true } : {}), ...(f.island != null ? { island: f.island } : {}) } : {}),
+    }));
+  return { faces };
+}
+
+/** Self-framing initial world camera over the animal's own bounding box. */
+export function animalWorldCamera(faces, view) {
+  let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (const f of faces) for (const p of f.corners) {
+    for (let k = 0; k < 3; k++) { if (p[k] < mn[k]) mn[k] = p[k]; if (p[k] > mx[k]) mx[k] = p[k]; }
+  }
+  const center = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
+  const R = Math.max(1.5, Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) * 1.6);
+  const a = ((typeof view === 'number' ? view : (ANIMAL_VIEW_AZ[view] ?? ANIMAL_VIEW_AZ['three-quarter'])) * Math.PI) / 180;
+  return {
+    name: 'paddock',
+    worldFraming: {
+      cameraPosition: [center[0] + R * Math.sin(a), center[1] - R * Math.cos(a), center[2] + R * 0.45],
+      lookAt: center,
+      horizontalFov: 30,
+      pictureCenter: [280, 380],
+    },
+  };
+}
+
 export function renderAnimalToSvg(manifest = {}) {
   const { archetype = 'canine', opts = {}, view, elev, crop } = manifest;
   const built = buildAnimal(archetype, opts);
@@ -718,14 +804,7 @@ export function renderAnimalToSvg(manifest = {}) {
   //   • `underHex` / `underCut` — DOWN-facing faces (n_z < cut) → countershaded belly (most mammals).
   //   • `overHex`  / `overCut`  — UP-facing faces   (n_z > cut) → a dorsal stripe down the back AND
   //     the tail-top (skunk / badger / dorsal-stripe). The tail must be SOLID coat for it to catch.
-  const coatHex = opts?.coat?.color, underHex = opts?.underHex, underCut = opts?.underCut ?? -0.3;
-  const overHex = opts?.overHex, overCut = opts?.overCut ?? 0.3;
-  const recolor = (coatHex && (underHex || overHex)) ? (hex, n) => {
-    if (hex !== coatHex) return null;
-    if (underHex && n[2] < underCut) return underHex;
-    if (overHex && n[2] > overCut) return overHex;
-    return null;
-  } : null;
+  const recolor = animalRecolor(opts);
   const { proj, bb } = projectFaces(litFaces(stacks, CAM, LIGHT, null, { cull: true, recolor }), project);
   const bg = manifest.background === false ? 'none' : BG_A;
   return [
@@ -902,8 +981,15 @@ export function figureRigSamples(manifest = {}, keys = 8) {
   const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
   const groundZ = stackMinZ(restStacks);
   const V = worldVertex(restStacks, groundZ);
-  const restFaces = litFaces(restStacks, CAM, setup.light, groundZ, { cull: false })
-    .map((f) => ({ corners: f.wpts, fill: f.fill }));
+  // manifest.skin (skin-over-mesh.plan.md phase 1): recipe-emitted cylindrical UVs on the
+  // flesh stacks — the World/GLB faces carry texture+uv (resolveWorldScene collects the
+  // data URL; emitThreeWorld/facesToGlb transport it). The packed FK rig keeps vertex
+  // colours — rig parts carry no uv (accepted phase-1 limit; the skinned export is phase 4).
+  const restFaces = litFaces(restStacks, CAM, setup.light, groundZ, { cull: false, skin: manifest.skin || null })
+    .map((f) => ({
+      corners: f.wpts, fill: f.fill,
+      ...(f.texture ? { texture: f.texture, uv: f.uv, ...(f.textureLit ? { textureLit: true } : {}), ...(f.island != null ? { island: f.island } : {}) } : {}),
+    }));
   // armature nodes (STAND units) → the same world space: scale up to stack units, then the
   // shared worldVertex transform.
   const mapNodes = (nodes) => Object.fromEntries(Object.entries(nodes).map(([k, n]) => {
@@ -936,8 +1022,11 @@ export function renderFigureWorldFrames(manifest = {}, frames = 30) {
   for (const stacks of built) { const mz = stackMinZ(stacks); if (mz < groundZ) groundZ = mz; }
   // Pass 2: mesh each frame to world faces — no projection, no cull → orbitable.
   const frameList = built.map((stacks) => ({
-    faces: litFaces(stacks, CAM, setup.light, groundZ, { cull: false })
-      .map((f) => ({ corners: f.wpts, fill: f.fill })),
+    faces: litFaces(stacks, CAM, setup.light, groundZ, { cull: false, skin: manifest.skin || null })
+      .map((f) => ({
+        corners: f.wpts, fill: f.fill,
+        ...(f.texture ? { texture: f.texture, uv: f.uv, ...(f.textureLit ? { textureLit: true } : {}), ...(f.island != null ? { island: f.island } : {}) } : {}),
+      })),
   }));
   return { frames: frameList, title: manifest.title || 'figure', bg: setup.bg === 'none' ? '#0e1014' : setup.bg };
 }

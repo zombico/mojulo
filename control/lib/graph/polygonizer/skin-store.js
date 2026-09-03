@@ -75,3 +75,36 @@ export function latestSkinInput(ref) {
   const n = numbers[numbers.length - 1];
   return { n, path: path.join(skinDir(ref), `skin-input-${n}.png`) };
 }
+
+// ── ATLAS pages (skin-over-mesh.plan.md phase 2) ─────────────────────────────
+// The uv-space sibling of the screen-space skins above: `atlas-<n>.png` is a
+// painted atlas page (paintAtlas output) the recipe's remapped faces sample by
+// uv. Same append-only posture — the recipe stays sovereign; a bound atlas is
+// a numbered, never-edited-in-place derived render.
+const ATLAS_FILE = /^atlas-(\d+)\.png$/;
+
+function atlasNumbers(ref) {
+  const dir = skinDir(ref);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .map((f) => f.match(ATLAS_FILE))
+    .filter(Boolean)
+    .map((m) => Number(m[1]))
+    .sort((a, b) => a - b);
+}
+
+/** Latest bound atlas page for a ref, or null if none yet. */
+export function latestAtlas(ref) {
+  const numbers = atlasNumbers(ref);
+  if (!numbers.length) return null;
+  const n = numbers[numbers.length - 1];
+  return { n, path: path.join(skinDir(ref), `atlas-${n}.png`) };
+}
+
+/** Reserve the next append-only atlas slot; creates the outcome folder. */
+export function nextAtlasPath(ref) {
+  const numbers = atlasNumbers(ref);
+  const n = numbers.length ? numbers[numbers.length - 1] + 1 : 1;
+  mkdirSync(skinDir(ref), { recursive: true });
+  return { n, path: path.join(skinDir(ref), `atlas-${n}.png`) };
+}

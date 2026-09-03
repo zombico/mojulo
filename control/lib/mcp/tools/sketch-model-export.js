@@ -167,7 +167,7 @@ export async function exportModelHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
@@ -187,6 +187,13 @@ export async function exportModelHandler(input) {
   // static export (the char-safety line). glb-only — STL is a shape handoff.
   if (clips != null && clips !== '_all' && !(Array.isArray(clips) && clips.every((c) => typeof c === 'string'))) {
     throw new Error("`clips` must be an array of clip names, or '_all', if provided");
+  }
+  // skinned export (skin-over-mesh.plan.md phase 4): one SkinnedMesh + skins/IBM
+  // per rig figure — the ENGINE deforms smooth flesh; mojulo's runtime keeps
+  // rigid FK. Rides the clips path (a skin without joints animating is inert).
+  if (skinned !== false && skinned !== true) throw new Error('`skinned` must be a boolean if provided');
+  if (skinned && (clips == null || format !== 'glb')) {
+    throw new Error("`skinned: true` needs `format: 'glb'` and a `clips` selection — the skin binds the animated joints");
   }
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) {
@@ -239,7 +246,7 @@ export async function exportModelHandler(input) {
   const exported = payload
     ? (format === 'stl'
       ? facesToStl(payload, { scale, generator: `mojulo ${ref}` })
-      : facesToGlb(payload, { generator: `mojulo ${ref}`, ...(clips != null ? { clips } : {}) }))
+      : facesToGlb(payload, { generator: `mojulo ${ref}`, ...(clips != null ? { clips } : {}), ...(skinned ? { skinned } : {}) }))
     : null;
   const url = `/api/sketches/${encodeURIComponent(ref)}/model.${format}`;
   if (!exported) {
@@ -277,6 +284,7 @@ export async function exportModelHandler(input) {
     if (clips != null) {
       result.animations = exported.animationCount ?? 0;
       result.animated_figures = exported.animatedFigures ?? [];
+      if (exported.skinnedFigures) result.skinned_figures = exported.skinnedFigures;
     }
   } else {
     // The print handoff: profile + scale + size + closure travel with the file.

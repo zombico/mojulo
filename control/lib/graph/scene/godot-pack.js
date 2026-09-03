@@ -35,13 +35,13 @@ function refuse(sketch, ref) {
   return manifest;
 }
 
-async function resolveLevel(levelSketch, { clips }) {
+async function resolveLevel(levelSketch, { clips, posture = null }) {
   const { payload, kind } = await resolveWorldScene(levelSketch);
   if (!payload) {
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
   }
   const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}) });
-  const score = extractEngineScore(levelSketch, payload);
+  const score = extractEngineScore(levelSketch, payload, { posture });
   return { kind, exported, score };
 }
 
@@ -70,14 +70,16 @@ export async function kernelVersion() {
   return (await fs.readFile(path.join(kernelDir(), 'VERSION'), 'utf8')).trim();
 }
 
-/** A standalone world → data + kernel pack at outDir. */
-export async function buildGodotWorldPack({ ref, outDir, clips = '_all', log = () => {} }) {
+/** A standalone world → data + kernel pack at outDir. `posture` is the
+ * per-handoff greybox/final declaration (engine-score.js); absent, the
+ * world manifest's own `posture` still applies as the durable default. */
+export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture = null, log = () => {} }) {
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`sketch '${ref}' not found`);
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score } = await resolveLevel(sketch, { clips });
+  const { kind, exported, score } = await resolveLevel(sketch, { clips, posture });
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
@@ -105,14 +107,18 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', log = (
   };
 }
 
-/** A game → menu + gated levels + music beds pack at outDir. */
-export async function buildGodotGamePack({ ref, outDir, clips = '_all', log = () => {} }) {
+/** A game → menu + gated levels + music beds pack at outDir. `posture`
+ * (or the game manifest's own) stamps every level pack-wide. */
+export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture = null, log = () => {} }) {
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`sketch '${ref}' not found`);
   const manifest = refuse(sketch, ref);
   if (manifest.kind !== 'game') throw new Error(`'${ref}' is not a game (kind '${manifest.kind ?? 'none'}')`);
   const levelSpecs = Array.isArray(manifest.levels) ? manifest.levels : [];
   if (!levelSpecs.length) throw new Error(`game '${ref}' declares no levels`);
+  // pack-wide declaration: explicit wins, else the GAME manifest's durable
+  // default; a level manifest's own posture still applies absent both.
+  const packPosture = posture ?? manifest.posture ?? null;
   const version = await kernelVersion();
 
   const music = manifest.music ?? {};
@@ -136,7 +142,7 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', log = ()
     const spec = levelSpecs[i];
     const lvSketch = SketchRepository.getByRef(spec.ref);
     if (!lvSketch) throw new Error(`level '${spec.ref}' not found`);
-    const { exported, score } = await resolveLevel(lvSketch, { clips });
+    const { exported, score } = await resolveLevel(lvSketch, { clips, posture: packPosture });
     log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}' — GLB ${exported.byteLength} bytes`);
     const own = score.soundtrack;
     const audioFile = await bed(own ?? battle[i % Math.max(battle.length, 1)]);

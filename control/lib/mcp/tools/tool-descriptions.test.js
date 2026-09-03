@@ -77,7 +77,11 @@ const DESCRIPTION_ALLOWLIST = {
   diff_sketches: 875,
   execute_plan: 1314,
   export_beats: 1124,
-  export_game: 1253,
+  // export_game re-pinned 2026-09-03 (1253 → 1378) to bless the Unity Y1
+  // clause that rode the third-engine-leg commit (`target:'unity'` routing —
+  // the growth predates the greybox seam, which added only input-schema
+  // bytes, not description). Shrink-only from here.
+  export_game: 1378,
   // export_model re-pinned 2026-07-17: the STL print-handoff format
   // (format:'glb'|'stl' + scale → mm) rides the same tool. Re-pinned
   // 2026-08-11 to bless the animated-GLB clause (interchange.plan.md I1:
@@ -203,7 +207,17 @@ const DESCRIPTION_ALLOWLIST = {
 // snapshots (the segment-first and fusion contracts are taught in
 // OBJECT_PROTOCOL, which rides the reference_protocol RESULT, not the list);
 // this blesses the ~300-byte input-schema residue.
-const PAYLOAD_CEILING = 256_500;
+//
+// Re-pinned 2026-09-03 (256_500 -> 257_000; measured 256,832) to bless the
+// greybox seam (skin-over-mesh.plan.md phase 0): export_game's `posture`
+// input-schema property (~330 bytes — the handoff-posture routing lives in
+// the schema, not the description, which stayed at its allowlist snapshot
+// aside from the pre-existing Unity Y1 growth blessed above).
+// Re-pinned 2026-09-03 (257_000 -> 257_500; measured 257,164) to bless the
+// skinned export seam (skin-over-mesh.plan.md phase 4): export_model's
+// `skinned` input-schema property. Same rule — schema routing only, the
+// description stayed at its allowlist snapshot.
+const PAYLOAD_CEILING = 257_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

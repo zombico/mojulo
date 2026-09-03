@@ -106,6 +106,10 @@ describe('bucket ↔ walk-flag alignment', () => {
     const OTHER_CONCERN = new Set([
       'painted-landscape', 'subway-station', 'manji-tree',
       'figure', 'carved-solid', 'css3d-turntable',
+      // animal joined WORLD_KINDS for export/atlas eligibility (skin-over-mesh:
+      // figure-world assembleAnimalScene) — same posture as figure: an
+      // illustration-concern study whose /world row is the export door.
+      'animal',
     ]);
     // In the world concern without a registry walk flag: locomotion comes from
     // the manifest's per-entity rules, not the kind descriptor.
