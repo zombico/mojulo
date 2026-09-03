@@ -1,0 +1,46 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`unity emitters > guide snapshot 1`] = `
+"# Test World — Unity import guide
+
+#001 This pack is a derived artifact of a mojulo recipe (\`recipe/sk_test_world.json\`); re-mint it from the recipe rather than hand-editing. Target editor: Unity 6 (6000.2.x).
+#002 Steps marked T are editor actions, one per line, in order. Everything not listed here is done by the importer script — do not set values by hand that the importer already sets.
+
+## ① Create the project
+
+T001 Unity Hub > Projects > New project > 3D (URP) template > Editor Version(currently pinned: 6000.2.x) > Create project
+T001.01 Unity 6 names this template "Universal 3D"(3D URP); on older 2022 LTS editors it appears as "3D (URP)" — either works, this pack assumes URP
+T002 Edit > Project Settings > Player > Other Settings > Active Input Handling(currently Input System Package (New) on new templates) > Both — the kernel's walker/HUD use classic Input + IMGUI; "Both" keeps the template's own systems working too
+
+## ② Install the glTF importer
+
+T003 Window > Package Manager > [+] > Install package by name… > \`com.unity.cloud.gltfast\` > Install
+
+## ③ Copy the pack in
+
+T004 Finder > copy this whole folder into the project's \`Assets/\` as \`MojuloPack\` (final path: \`Assets/MojuloPack\`)
+T004.01 Project > Assets > MojuloPack — wait for the import spinner to finish; each \`model.glb\` shows a prefab icon when glTFast has imported it
+
+## ④ Run the importer
+
+T005 Tools > Mojulo > Import Pack
+T005.01 Console — confirm one line: \`[mojulo] imported 'Test World' -> Assets/MojuloPack/Scenes/mojulo-level.unity\`
+
+## ⑤ Open and play — the eyes gate
+
+T006 Project > Assets > MojuloPack > Scenes > \`mojulo-level.unity\` — open
+T007 Toolbar > [Play] — judge with your own eyes:
+#003 the world mesh renders in its baked vertex colours (reference look: the mojulo web build)
+#004 you can walk: WASD/arrows + mouse look, Space jumps, Esc frees the mouse — eye height 1.7 m
+#005 the soundtrack (\`bt_theme\`) is playing on loop
+
+## What travelled, what didn't
+
+#101 skipped_fx ×2 — camera-facing/runtime fx (billboards, glows) — not geometry
+#102 promoted_ground — implicit runtime ground plane promoted by the importer — the collider AABBs are obstacle hulls only, never the floor
+#103 entity_markers — entities that baked no mesh (glyph/primitive bodies — export-side gap) render as gold placeholder markers; the web build is the reference look
+#104 interpreted_mechanics ×1 — performed live by Runtime/MojuloLevel.cs
+#105 cameras_data_only ×1 — authored camera framings ride score.json as data; the walker head camera is the play view
+#106 skipped_runtime — game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build
+"
+`;

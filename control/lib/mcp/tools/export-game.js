@@ -268,6 +268,25 @@ export async function exportGameHandler(input) {
     };
   }
 
+  if (target === 'unity') {
+    const { buildUnityGamePack } = await import('@/lib/graph/scene/unity-pack.js');
+    const outDir = path.join(outcomeDirFor(ref), 'unity');
+    const pack = await buildUnityGamePack({ ref, outDir });
+    return {
+      ok: true,
+      ref,
+      target: 'unity',
+      dir: outDir,
+      leg: pack.legVersion,
+      files: pack.written.length,
+      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
+      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
+      ledger: pack.ledger,
+      note: 'Pack emitted (data + mojulo-unity kernel). Machine gate lives in the CLI: '
+        + `node scripts/export-unity.mjs --ref ${ref} — or follow the pack's IMPORT-GUIDE.md in Unity 6.`,
+    };
+  }
+
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
   if (!sketch.manifest || sketch.manifest.kind !== 'game') {
@@ -513,12 +532,13 @@ export function registerExportGameTools() {
       + 'game", "make the game shareable / playable outside mojulo", "publish the game to GitHub '
       + "Pages\". `target:'godot'` instead emits a Godot 4 pack under `data/outcomes/<ref>/godot/` "
       + '— data (per-level GLB + score.json + game.json + audio) performed by the versioned '
-      + 'mojulo-godot kernel, with a portability report.',
+      + "mojulo-godot kernel, with a portability report. `target:'unity'` is the Unity 6 sibling "
+      + '(same data, mojulo-unity kernel + T-numbered import guide) under `data/outcomes/<ref>/unity/`.',
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        target: { type: 'string', enum: ['web', 'godot'], description: 'Optional. Default `web` (the self-contained folder). `godot` emits the engine pack instead.' },
+        target: { type: 'string', enum: ['web', 'godot', 'unity'], description: 'Optional. Default `web` (the self-contained folder). `godot`/`unity` emit the engine pack instead.' },
       },
       required: ['ref'],
     },

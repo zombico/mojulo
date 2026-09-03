@@ -445,6 +445,52 @@ when it is not. Full design + build logs in
   mesh — kernel draws placeholder markers; roster clump; per-level rig
   duplication).
 
+### Unity handoff — the third engine leg, Y0+Y1 (worlds, games, the operator guide)
+
+A world recipe now exports as a Unity 6 pack: the shared engine score + GLB
+realized inside a stock URP project by a dependency-free C# editor script,
+with a **T-numbered operator import guide** — the artifact this leg adds over
+its siblings (Unity import has irreducible human steps; the guide protocol is
+the field-tested one from a working studio's Unity agent doc). Design:
+`lite-template/integration/0902/export-unity.plan.md`.
+
+- **`export-unity` (Y0, world scope).** `scripts/export-unity.mjs` emits
+  `data/outcomes/<ref>/unity/`: `model.glb` + `score.json` + audio + recipe,
+  `Editor/MojuloImport.cs` (builds the scene: promoted ground, box colliders,
+  spawn + camera, soundtrack, player-seat body hidden; menu item and two
+  batchmode entries), `IMPORT-GUIDE.md`, provenance README, and a
+  deterministic `.meta` beside every file/folder (GUIDs minted from
+  `sha256(manifestHash + path)` — the Godot uid decision, transplanted).
+  Same rows → same pack bytes, tree-hash verified.
+- **Machine gate.** With `MOJULO_UNITY` set: a cached scratch project,
+  glTFast (`com.unity.cloud.gltfast`, pinned 6.9.1) injected into the package
+  manifest, headless `Mojulo.Import.Run` then `Mojulo.Import.Verify` —
+  collider counts, spawn, ground, and a **frame landmark** that pins the
+  z-up → Unity mapping against a named entity node (a mirrored import fails
+  loudly). License-wall and compile errors reported by name; no Unity ⇒
+  capability rung 0, pack + guide only.
+- **The mojulo-unity kernel 0.2.0 (Y1).** Packs ship DATA performed by
+  generated C# in two halves: `Editor/MojuloImport.cs` builds and saves the
+  scenes (menu + per-level, written into the build settings list), and
+  `Runtime/` performs the dynamic half live — the first-person walker
+  (eye-scaled speed/jump/gravity, kill-plane respawn), the FULL declarative
+  mechanics vocabulary (reach-exit, collect with bag + HUD, hazard-damage
+  with visible danger spheres, survive, fail-on-death), gold markers for
+  meshless entities, IMGUI HUD/banners/menu, music beds, and
+  `completed`-gated progression persisted to PlayerPrefs. One score, three
+  instruments: web, Godot kernel, this. Known wart, guide-stepped: new URP
+  templates default to Input System-only — T002 sets Active Input Handling
+  to Both (kernel uses classic Input + IMGUI, zero package dependencies).
+- **Emitters + tests.** `lib/graph/scene/unity-project.js` /
+  `unity-pack.js`, vitest coverage: determinism (world + game), guide T/`#`
+  protocol (one-line steps, two-digit substeps, ascending), no
+  wall-clock/dice, honest ledgers (interpreted vs unknown mechanics,
+  `no_completion_path`, per-level game ledgers), guide snapshot.
+- **MCP surface.** `export_game { target: 'unity' }` emits the game pack
+  in-process via the shared assembly engine — enum + one-sentence
+  description growth against the payload ceiling, mirroring the Godot
+  branch.
+
 ## [1.5.0] - 2026-08-26
 
 ### Roles pack — operator-owned delegation (opt-in), Phases 0–4
