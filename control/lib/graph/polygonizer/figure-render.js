@@ -501,7 +501,9 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
         // `shade` = the raw Lambert factor, carried so the skin-projection seam can
         // multiply a sampled albedo by the deterministic form-shading (the control
         // scaffold emits it as data-shade — same contract as manji-svg lit faces).
-        const face = { wpts, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) };
+        // `n` = the centre-oriented outward normal (pre-countershading flip), carried so
+        // export consumers can author it as `outNormal` (blender-worker Principle 1).
+        const face = { wpts, n, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) };
         if (stSkin) {
           const u0 = (j / (m - 1)) * skinRu, u1 = ((j + 1) / (m - 1)) * skinRu;
           const v0 = (i / (nRings - 1)) * skinRv, v1 = ((i + 1) / (nRings - 1)) * skinRv;
@@ -764,6 +766,10 @@ export function animalWorldFaces(manifest = {}) {
   const faces = litFaces(stacks, [0, -10, 3], LIGHT, groundZ, { cull: false, recolor: animalRecolor(opts), skin: manifest.skin || null })
     .map((f) => ({
       corners: f.wpts, fill: f.fill,
+      // Authored outward normal (blenderish-animals.plan.md quick win): the centre-oriented
+      // normal litFaces already solved, carried so the GLB export writes a NORMAL attribute
+      // (flat for now — phase 2 smooths it) and Blender bakes stop rebuilding from winding.
+      ...(f.n ? { outNormal: f.n } : {}),
       ...(f.texture ? { texture: f.texture, uv: f.uv, ...(f.textureLit ? { textureLit: true } : {}), ...(f.island != null ? { island: f.island } : {}) } : {}),
     }));
   return { faces };
