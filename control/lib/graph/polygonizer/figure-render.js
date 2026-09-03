@@ -383,7 +383,7 @@ const newell = (pts) => {
 function stackMinZ(stacks) {
   let minZ = Infinity;
   for (const st of stacks) {
-    if (st.faces) { for (const f of st.faces) for (const q of f.corners) { const z = q.z / PROTO_SCALE; if (z < minZ) minZ = z; } continue; }
+    if (st.faces || st.fieldFaces) { for (const f of (st.faces || st.fieldFaces)) for (const q of f.corners) { const z = q.z / PROTO_SCALE; if (z < minZ) minZ = z; } continue; }
     for (const rg of st.rings) for (const q of rg.polyline) { const z = q.z / PROTO_SCALE; if (z < minZ) minZ = z; }
   }
   return minZ;
@@ -469,6 +469,21 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
       for (const f of st.faces) {
         const wpts = f.corners.map(V);
         faces.push({ wpts, fill: f.fill, shade: 1, dist: dist(centroid(wpts)) });   // painter's-sort by depth; fill carries its own shading
+      }
+      continue;
+    }
+    if (st.fieldFaces) {   // watertight field mesh (field-mesh.js) — shaded HERE like flesh:
+      // same shade/recolor pipeline as the tube branch (coat paint via st.hex, countershading
+      // via the normal rule), but the normal is the field GRADIENT the extractor authored —
+      // no ring centre needed. No cylindrical UVs (a closed net has no seamless unwrap yet);
+      // `manifest.skin` textures stay a ring-stack feature until the atlas learns the net.
+      for (const f of st.fieldFaces) {
+        const wpts = f.corners.map(V);
+        const n = f.n, cen = centroid(wpts);
+        if (cull && dot3(n, sub3(CAM, cen)) <= 0) continue;                 // back-face cull
+        let hex = st.hex, shadeN = n;
+        if (recolor) { const rc = recolor(hex, n, cen); if (rc) { hex = rc; shadeN = [n[0], n[1], Math.abs(n[2])]; } }
+        faces.push({ wpts, n, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) });
       }
       continue;
     }
@@ -576,6 +591,7 @@ function projectWire(stacks, project, groundZ) {
   const lines = [];
   const bb = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   for (const st of stacks) {
+    if (!st.rings) continue;                        // field-mesh face stacks have no rings to stroke
     for (const rg of st.rings) {
       const pts = rg.polyline.map((q) => project(V(q)));
       lines.push(pts);
@@ -689,7 +705,11 @@ export const ANIMAL_VIEWS = Object.keys(ANIMAL_VIEW_AZ);
 function animalStacks(parts) {
   const lift = (q) => ({ x: q.x * PROTO_SCALE, y: q.y * PROTO_SCALE, z: q.z * PROTO_SCALE });
   const centroidOf = (poly) => { let x = 0, y = 0, z = 0; for (const q of poly) { x += q.x; y += q.y; z += q.z; } const n = poly.length || 1; return lift({ x: x / n, y: y / n, z: z / n }); };
-  return parts.map((p) => ({ hex: p.stroke, rings: p.polylines.map((poly) => ({ polyline: poly.map(lift), center: centroidOf(poly) })) }));
+  return parts.map((p) => p.faces
+    // watertight face part (field-mesh.js): lift the corners; the gradient normal is a
+    // direction, invariant under the uniform lift, so it rides through unchanged.
+    ? { hex: p.stroke, fieldFaces: p.faces.map((f) => ({ corners: f.corners.map(lift), n: f.n })) }
+    : { hex: p.stroke, rings: p.polylines.map((poly) => ({ polyline: poly.map(lift), center: centroidOf(poly) })) });
 }
 
 // A self-framing two-point camera orbiting the animal's world bounding box (so any
@@ -698,10 +718,14 @@ function animalStacks(parts) {
 function animalCamera(stacks, az, elevDeg) {
   const V = worldVertex(stacks, null);
   const bb = { mnx: Infinity, mny: Infinity, mnz: Infinity, mxx: -Infinity, mxy: -Infinity, mxz: -Infinity };
-  for (const st of stacks) for (const rg of st.rings) for (const q of rg.polyline) {
+  const eat = (q) => {
     const [x, y, z] = V(q);
     if (x < bb.mnx) bb.mnx = x; if (y < bb.mny) bb.mny = y; if (z < bb.mnz) bb.mnz = z;
     if (x > bb.mxx) bb.mxx = x; if (y > bb.mxy) bb.mxy = y; if (z > bb.mxz) bb.mxz = z;
+  };
+  for (const st of stacks) {
+    if (st.fieldFaces) { for (const f of st.fieldFaces) for (const q of f.corners) eat(q); continue; }
+    for (const rg of st.rings) for (const q of rg.polyline) eat(q);
   }
   const center = [(bb.mnx + bb.mxx) / 2, (bb.mny + bb.mxy) / 2, (bb.mnz + bb.mxz) / 2];
   const radius = 0.5 * Math.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
@@ -720,15 +744,18 @@ function animalCamera(stacks, az, elevDeg) {
 // rule as the spike's cropHead: a part is kept if its centroid is in the top of the z-range
 // AND the forward part of the y-range (the head sits high + forward on a quadruped).
 function cropToHead(parts) {
+  const pointsOf = (p) => p.faces ? p.faces.flatMap((f) => f.corners) : p.polylines.flat();
   let zmin = Infinity, zmax = -Infinity, ymin = Infinity, ymax = -Infinity;
-  for (const p of parts) for (const r of p.polylines) for (const q of r) {
+  for (const p of parts) for (const q of pointsOf(p)) {
     if (q.z < zmin) zmin = q.z; if (q.z > zmax) zmax = q.z;
     if (q.y < ymin) ymin = q.y; if (q.y > ymax) ymax = q.y;
   }
   return parts.filter((p) => {
     let cz = 0, cy = 0, n = 0;
-    for (const r of p.polylines) for (const q of r) { cz += q.z; cy += q.y; n++; }
+    for (const q of pointsOf(p)) { cz += q.z; cy += q.y; n++; }
     if (!n) return false; cz /= n; cy /= n;
+    // a whole-body watertight part spans the full range, so its centroid never lands in
+    // the head window — it drops out of the crop like the old body tubes do.
     return cz > zmin + 0.55 * (zmax - zmin) && cy > ymin + 0.62 * (ymax - ymin);
   });
 }

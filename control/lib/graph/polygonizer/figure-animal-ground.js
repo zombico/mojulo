@@ -58,11 +58,18 @@ export function balanceFeet(nodes, feetKeys, com) {
 }
 
 // ── Plant: translate STAND-space render parts so the lowest point sits on z = 0.
+// Handles both part shapes: ring stacks `{polylines}` and watertight face parts
+// `{faces:[{corners, n}]}` (normals are directions — the translate leaves them alone).
 export function plantParts(parts) {
   let minZ = Infinity;
-  for (const pt of parts) for (const poly of pt.polylines) for (const q of poly) if (q.z < minZ) minZ = q.z;
+  for (const pt of parts) {
+    if (pt.faces) { for (const f of pt.faces) for (const q of f.corners) if (q.z < minZ) minZ = q.z; continue; }
+    for (const poly of pt.polylines) for (const q of poly) if (q.z < minZ) minZ = q.z;
+  }
   if (!Number.isFinite(minZ) || Math.abs(minZ) < 1e-9) return parts;
-  return parts.map((pt) => ({ ...pt, polylines: pt.polylines.map((poly) => poly.map((q) => ({ x: q.x, y: q.y, z: q.z - minZ }))) }));
+  return parts.map((pt) => pt.faces
+    ? { ...pt, faces: pt.faces.map((f) => ({ ...f, corners: f.corners.map((q) => ({ x: q.x, y: q.y, z: q.z - minZ })) })) }
+    : { ...pt, polylines: pt.polylines.map((poly) => poly.map((q) => ({ x: q.x, y: q.y, z: q.z - minZ }))) });
 }
 
 // ── Where the skull sits + muzzle direction: the neck-chain tip, else the head bone.

@@ -21,7 +21,7 @@
  */
 import { quadrupedArmature, tailChain, neckChain, QUADRUPED_ARCHETYPES } from './figure-animal.js';
 import { animalBodyFlesh } from './figure-animal-flesh.js';
-import { animalSkin, weldedSkull } from './figure-animal-skin.js';
+import { animalSkin, animalSkinWatertight, weldedSkull } from './figure-animal-skin.js';
 import { protoSkull, SKULL_PRESETS } from './figure-animal-skull.js';
 import { protoFoot, FOOT_PRESETS, groundedFeet } from './figure-animal-foot.js';
 import { animalCOM, balanceFeet, plantParts, headFrameFrom } from './figure-animal-ground.js';
@@ -112,9 +112,14 @@ export function buildAnimal(name, { skin = false, fleshCfg = {}, skullCfg = {}, 
   // without drawing the head — protoSkull stays the visible head. Only for built-in-head archetypes
   // (a neckChain already roots its own tube in the field, so no bridge needed there).
   const headBridge = (skin && !neckCfg) ? { anchor: head.anchor, dir: head.dir, length: skullFull.length ?? 0.18, width: skullFull.width ?? 0.05 } : null;
-  const body = skin
-    ? animalSkin(nodes, radii, chains, null, fleshCfg, headBridge)
-    : animalBodyFlesh(nodes, radii, { ...fleshCfg, skull: true });
+  // `skin: 'watertight'` (blenderish-animals.plan.md phase 1) surfaces the SAME
+  // field with the surface-net polygonizer — one closed quad mesh, zero boundary
+  // edges — instead of the per-axis ray-march. Same knobs (fleshCfg) + `cells`.
+  const body = skin === 'watertight'
+    ? animalSkinWatertight(nodes, radii, chains, null, fleshCfg, headBridge)
+    : skin
+      ? animalSkin(nodes, radii, chains, null, fleshCfg, headBridge)
+      : animalBodyFlesh(nodes, radii, { ...fleshCfg, skull: true });
 
   // mane (a few bold locks around the neck) — included before planting
   const maneParts = mane ? lionMane(nodes, head, mane === true ? {} : mane) : [];

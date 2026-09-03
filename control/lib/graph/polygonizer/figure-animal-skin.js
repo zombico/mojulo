@@ -20,6 +20,7 @@
  */
 import { smin, sdRoundCone } from './vajra.js';
 import { normalize3, sub3, cross3, FIGURE_EDGES } from './figure-vajra.js';
+import { primBounds, surfaceNetFaces } from './field-mesh.js';
 
 const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
 const mul = (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
@@ -346,4 +347,27 @@ export function animalSkin(nodes, radii, chains = [], skull = null, cfg = {}, he
     ...axes.map((seg) => marchAxis(field, seg.a, seg.b, c)).filter(Boolean),
     ...patches.map((p) => spherePatch(p.c, p.r, c)),
   ];
+}
+
+/**
+ * WATERTIGHT single skin (blenderish-animals.plan.md phase 1) — the SAME field
+ * as animalSkin, surfaced by the surface-net polygonizer instead of per-axis
+ * ray-marching. One closed quad mesh: no open ring tubes, no bridge/patch
+ * axes (the extractor doesn't need them — every concavity, girdle, and
+ * junction surfaces from the field directly), zero boundary edges by
+ * construction. Returns ONE face part `{ faces:[{corners, n}], stroke }` in
+ * STAND space — the fieldFaces currency (figure-render meshes it alongside
+ * the ring-stack parts; countershading recolor + coat paint apply per face).
+ * `cells` (grid resolution along the longest side) is the one new dial.
+ * Heavier than the marched skin (samples the whole field volume) — the hero
+ * and EXPORT path; the marched skin stays for fast lineups.
+ */
+export function animalSkinWatertight(nodes, radii, chains = [], skull = null, cfg = {}, headBridge = null) {
+  const c = { ...SKIN_DEFAULT, cells: 72, ...cfg };
+  const { prims } = buildField(nodes, radii, chains, skull, c, headBridge);
+  const field = makeField(prims, c.blend);
+  // pad past the fillet reach + a cell so the surface never grazes the grid boundary
+  const bounds = primBounds(prims, c.blend * 4 + 0.03);
+  const faces = surfaceNetFaces(field, bounds, { cells: c.cells });
+  return faces.length ? [{ faces, stroke: c.stroke }] : [];
 }
