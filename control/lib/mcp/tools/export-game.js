@@ -289,6 +289,26 @@ export async function exportGameHandler(input) {
     };
   }
 
+  if (target === 'unreal') {
+    const { buildUnrealGamePack } = await import('@/lib/graph/scene/unreal-pack.js');
+    const outDir = path.join(outcomeDirFor(ref), 'unreal');
+    const pack = await buildUnrealGamePack({ ref, outDir, posture });
+    return {
+      ok: true,
+      ref,
+      target: 'unreal',
+      dir: outDir,
+      leg: pack.legVersion,
+      ...(posture ? { posture } : {}),
+      files: pack.written.length,
+      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
+      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
+      ledger: pack.ledger,
+      note: 'Pack emitted (data + the MojuloKernel C++ plugin). Machine gate lives in the CLI: '
+        + `node scripts/export-unreal.mjs --ref ${ref} — or follow the pack's IMPORT-GUIDE.md in UE 5.4+.`,
+    };
+  }
+
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
   if (!sketch.manifest || sketch.manifest.kind !== 'game') {
@@ -535,12 +555,13 @@ export function registerExportGameTools() {
       + "Pages\". `target:'godot'` instead emits a Godot 4 pack under `data/outcomes/<ref>/godot/` "
       + '— data (per-level GLB + score.json + game.json + audio) performed by the versioned '
       + "mojulo-godot kernel, with a portability report. `target:'unity'` is the Unity 6 sibling "
-      + '(same data, mojulo-unity kernel + T-numbered import guide) under `data/outcomes/<ref>/unity/`.',
+      + '(same data, mojulo-unity kernel + T-numbered import guide) under `data/outcomes/<ref>/unity/`; '
+      + "`target:'unreal'` the UE 5 sibling (data + the MojuloKernel C++ plugin the project compiles) under `data/outcomes/<ref>/unreal/`.",
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        target: { type: 'string', enum: ['web', 'godot', 'unity'], description: 'Optional. Default `web` (the self-contained folder). `godot`/`unity` emit the engine pack instead.' },
+        target: { type: 'string', enum: ['web', 'godot', 'unity', 'unreal'], description: 'Optional. Default `web` (the self-contained folder). `godot`/`unity`/`unreal` emit the engine pack instead.' },
         posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
       },
       required: ['ref'],

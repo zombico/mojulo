@@ -1,0 +1,95 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`unreal emitters > guide snapshot 1`] = `
+"# Test World — Unreal import guide
+
+#001 This pack is a derived artifact of a mojulo recipe (\`recipe/sk_test_world.json\`); re-mint it from the recipe rather than hand-editing. Target editor: Unreal Engine 5 (5.4+; proven against UE 5.8.0).
+#002 Steps marked T are editor actions, one per line, in order. Everything not listed here is done by the importer script — do not set values by hand that the importer already sets.
+
+## ① Create the project
+
+T001 Epic Games Launcher > Unreal Engine > Library > Launch(your installed 5.x) > Games > Third Person > Blueprint > Create
+T001.01 any 5.4+ editor works; proven against UE 5.8.0
+T001.02 macOS prerequisite: full Xcode must be installed and opened once (license accepted) — the editor cannot compile Metal shaders without it and any rendered run exits with "Xcode Not Found"
+T001.03 macOS, Xcode 26+: also run \`xcodebuild -downloadComponent MetalToolchain\` (Xcode ships without the Metal compiler; the editor dialogs "missing Metal Toolchain" until it is downloaded)
+
+## ② Enable Python
+
+T002 Edit > Plugins > search \`Python Editor Script Plugin\` > Enabled > Restart Now
+T002.01 while there, confirm \`Interchange glTF\`(glTF importer) shows Enabled — it is on by default in 5.3+
+
+## ③ Copy the pack in
+
+T003 Finder > copy this whole folder into the project root as \`MojuloPack\`, beside the \`.uproject\` (final path: \`<Project>/MojuloPack\`) — NOT into \`Content/\`; the importer writes the imported assets to \`Content/MojuloPack\` itself
+
+## ④ Run the importer
+
+T004 Window > Output Log > command bar dropdown(currently \`Cmd\`) > \`Python\` > run: \`py MojuloPack/import_mojulo.py\`
+T004.01 Output Log — confirm one line: \`[mojulo] level 'Test World' -> /Game/MojuloPack/Maps/mojulo-level\`
+
+## ⑤ Open and play — the eyes gate
+
+T005 Content Browser > Content > MojuloPack > Maps > \`mojulo-level\` — open
+T006 Toolbar > [Play] — judge with your own eyes:
+#003 the world mesh renders in its baked vertex colours (reference look: the mojulo web build)
+#004 you can walk the level as the template character — the floor holds (the promoted ground plane) and the obstacle colliders block
+#005 the soundtrack (\`bt_theme\`) is playing on loop
+#006 scale reads right at a 1.7 m eye height — doors, steps, cover
+
+## What travelled, what didn't
+
+#101 skipped_fx ×2 — camera-facing/runtime fx (billboards, glows) — not geometry
+#102 promoted_ground — implicit runtime ground plane promoted by the importer — the collider AABBs are obstacle hulls only, never the floor
+#103 entity_markers — entities that baked no mesh (glyph/primitive bodies — export-side gap) get placeholder markers; the web build is the reference look
+#104 mechanics_data_only ×1 — declarative mechanics ride score.json as data — the game-scope MojuloKernel performs them; a world pack is an explorable arena
+#105 cameras_data_only ×1 — authored camera framings ride score.json as data; the walker camera is the play view
+#106 skipped_runtime — game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build
+"
+`;
+
+exports[`unreal game emitters (U1) > game guide snapshot 1`] = `
+"# Test Game — Unreal import guide
+
+#001 This pack is a derived artifact of a mojulo recipe (\`recipe/game.json\` + \`recipe/<level>.json\`); re-mint it from the recipe rather than hand-editing. Target editor: Unreal Engine 5 (5.4+; proven against UE 5.8.0).
+#002 Steps marked T are editor actions, one per line, in order. Everything not listed here is done by the importer script — do not set values by hand that the importer already sets.
+
+## ① Create the project
+
+T001 Epic Games Launcher > Unreal Engine > Library > Launch(your installed 5.x) > Games > Third Person > Blueprint > Create
+T001.01 any 5.4+ editor works; proven against UE 5.8.0
+T001.02 macOS prerequisite: full Xcode must be installed and opened once (license accepted) — the editor cannot compile Metal shaders without it and any rendered run exits with "Xcode Not Found"
+T001.03 macOS, Xcode 26+: also run \`xcodebuild -downloadComponent MetalToolchain\` (Xcode ships without the Metal compiler; the editor dialogs "missing Metal Toolchain" until it is downloaded)
+
+## ② Enable Python
+
+T002 Edit > Plugins > search \`Python Editor Script Plugin\` > Enabled > Restart Now
+T002.01 while there, confirm \`Interchange glTF\`(glTF importer) shows Enabled — it is on by default in 5.3+
+
+## ③ Copy the pack + compile the kernel
+
+T003 Finder > copy this whole folder into the project root as \`MojuloPack\`, beside the \`.uproject\` (final path: \`<Project>/MojuloPack\`) — NOT into \`Content/\`
+T003.01 Finder > copy \`MojuloPack/MojuloKernel\` to \`<Project>/Plugins/MojuloKernel\` (create the \`Plugins\` folder if absent)
+T003.02 reopen the project — Unreal asks to rebuild the MojuloKernel module: Yes (compiles once; needs Xcode on macOS / Visual Studio on Windows)
+
+## ④ Run the importer
+
+T004 Window > Output Log > command bar dropdown(currently \`Cmd\`) > \`Python\` > run: \`py MojuloPack/import_mojulo.py\`
+T004.01 Output Log — confirm the last line: \`[mojulo] game 'Test Game' -> 2 levels + menu\`
+
+## ⑤ Open and play — the eyes gate
+
+T005 Content Browser > Content > MojuloPack > Maps > \`mojulo-menu\` — open
+T006 Toolbar > [Play] — menu first, then play a level start to finish:
+#003 the menu lists every level; gated levels show [locked] until their gate level is [done]
+#004 Enter starts the selected level — the kernel walker spawns at the score spawn (WASD + mouse, Space jumps, M returns to the menu)
+#005 each level renders in its baked vertex colours (reference look: the mojulo web build)
+#006 reaching an exit shows LEVEL COMPLETE and returns to the menu with the level marked [done]
+#007 level soundtracks and the menu bed play on loop where the game carries music
+
+## What travelled, what didn't
+
+#101 skipped_store — store slices beyond completion (character stats, inventory persistence) do not travel — the kernel keeps completion only
+#102 skipped_shell — the web game shell (setup screens, difficulty, HUD theme) does not travel; the kernel menu is the game's front door
+#103 gate_approximated — level gates travel as completed-ref checks in the kernel menu — richer gate logic does not
+"
+`;

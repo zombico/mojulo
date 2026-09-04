@@ -10,6 +10,61 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Unreal handoff — the fourth engine leg, U0+U1 (worlds, games, the MojuloKernel C++ plugin)
+
+A world or game recipe now exports as an Unreal Engine 5 pack (proven against
+UE 5.8): the shared engine score + GLB realized by a dependency-free editor
+Python script, and — for games — PERFORMED by a pack-carried C++ code plugin
+the operator's project compiles itself. One score, four instruments: web,
+Godot, Unity, this. Leg v0.3.0.
+
+- **`export-unreal` (U0, world scope).** `scripts/export-unreal.mjs` emits
+  `data/outcomes/<ref>/unreal/`: `model.glb` + `score.json` + audio + recipe,
+  `import_mojulo.py` (Interchange scene import; promoted ground, box
+  colliders, PlayerStart, player-seat body hidden; idempotent — imported
+  actors tagged and cleared on re-run), the T-numbered `IMPORT-GUIDE.md`, and
+  a provenance README. No `.meta` sidecars — UE idempotency rides
+  deterministic asset paths. Frame pinned by the machine gate:
+  `P(v) = (x·100, −y·100, z·100)` (meters → cm, y negated).
+- **The unlit vertex-colour material story.** Interchange imports glTF onto
+  lit default-grey materials that ignore `COLOR_0` (found at the first eyes
+  gate: black in Lit, flat grey in Unlit — invisible to the `-nullrhi`
+  machine gate by construction). The importer builds `M_MojuloUnlit`
+  (emissive = base texture × vertex colour) plus per-atlas-texture instances
+  and swaps every imported mesh slot; a `materials_unlit` gate check asserts
+  full coverage. Rendered screenshots confirm the web-build look.
+- **Machine gate.** `MOJULO_UNREAL` (or auto-found under
+  `/Users/Shared/Epic Games/`): a scratch project whose `.uproject` the
+  driver writes as plain JSON (no create step), serial watchdogged headless
+  launches (`-run=pythonscript -unattended -nullrhi`), log-grepped, verify →
+  `mojulo-gate.json` — scene, world instance, collider count, spawn, ground,
+  materials, and the frame landmark (off-axis entities preferred so a
+  mirrored world fails loudly). No UE ⇒ capability rung 0, pack + guide only.
+- **The MojuloKernel plugin (U1, game scope).** The kernel-language
+  decision: emitted C++ source as a code plugin (`MojuloKernel/` →
+  `<Project>/Plugins/`), never Python-built Blueprints (opaque,
+  non-deterministic). 13 deterministic source files: score/game.json readers
+  (engine JSON module), the first-person walker (ACharacter, polled input —
+  zero Enhanced-Input assets or config edits, eye-scaled), the full
+  mechanics vocabulary with Unity-identical semantics (reach-exit, collect
+  with bag + HUD, hazard-damage with visible markers + 0.8 s cooldown,
+  survive, fail-on-death), canvas HUD/banners, a keyboard menu with
+  `[done]`/`[locked]` gating, music beds, and progression persisted to
+  `Saved/mojulo.completed`. The driver compiles it headless
+  (`Build.sh UnrealEditor Mac Development -Project=…`) as a gate rung.
+- **Game pack assembly.** `game.json` + per-level
+  `levels/<ref>/{model.glb,score.json}` + audio beds with the battle
+  rotation stamped into sidecar data (the sibling behavior) — and the Unity
+  menu-bed dedupe bug fixed: `audio/menu.wav` is always written.
+- **MCP surface.** `export_game { target: 'unreal' }` — enum + one-sentence
+  description growth, mirroring the Unity branch.
+- **Proven.** `sk_ms_tutorial_rising` (45.6 MB GLB, 1.49 M triangles, 324
+  animations, 86 colliders) walked in the stock Third Person template;
+  `crypt-of-the-rune-key` 16/16 gate checks green and the loop played
+  start→finish — menu, level, exit banner, gated level unlocked. macOS
+  landmines pinned in the guide: full Xcode required for rendered runs, and
+  Xcode 26+ additionally needs `xcodebuild -downloadComponent MetalToolchain`.
+
 ### Mojulo 2.0 — the pure-creative reposition (BREAKING)
 
 Mojulo is now a **3D factory for agents**. The reposition is by DEMOTION, not
