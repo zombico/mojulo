@@ -52,7 +52,7 @@ public class MojuloKernel : ModuleRules
     public MojuloKernel(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json" });
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "AssetRegistry", "LevelSequence", "MovieScene" });
     }
 }
 `;
@@ -104,6 +104,12 @@ struct FMojuloEntity
     FString Figure;
     bool bHasTranslation = false;
     FVector Pos = FVector::ZeroVector;
+    // The locomotion row (score entities[].locomotion): GLB animation
+    // names for the clips a kernel plays to make the figure move. Empty =
+    // the entity has no travel clips (a statue is honest for it).
+    FString IdleClip;
+    FString WalkClip;
+    FString BoostClip;
 };
 
 struct FMojuloScoreData
@@ -245,6 +251,13 @@ namespace MojuloScore
                 E->TryGetStringField(TEXT("id"), Entity.Id);
                 E->TryGetStringField(TEXT("figure"), Entity.Figure);
                 Entity.bHasTranslation = ReadVec(E, TEXT("translation"), Entity.Pos);
+                const TSharedPtr<FJsonObject>* Loco = nullptr;
+                if (E->TryGetObjectField(TEXT("locomotion"), Loco) && Loco->IsValid())
+                {
+                    (*Loco)->TryGetStringField(TEXT("idle"), Entity.IdleClip);
+                    (*Loco)->TryGetStringField(TEXT("walk"), Entity.WalkClip);
+                    (*Loco)->TryGetStringField(TEXT("boost"), Entity.BoostClip);
+                }
                 Out.Entities.Add(Entity);
             }
 
@@ -398,10 +411,17 @@ public:
     void InitFromScore(float Eye, float EyeScale, const FVector& SpawnPos, float KillZ);
     void Respawn();
     float GetEyeMeters() const { return EyeMeters; }
+    // Third-person camera for the walking-suit rung: the operator sees the
+    // suit they drive. Arm length + socket height in cm (sized from the
+    // SUIT's bounds, not the pilot eye — a 6 m arm inside an 18 m suit shows
+    // only hull, pinned at the U3 slice). 0 arm restores first person.
+    void SetCameraRig(float ArmLength, float SocketHeight);
 
     virtual void Tick(float DeltaSeconds) override;
 
 private:
+    UPROPERTY()
+    class USpringArmComponent* CameraArm = nullptr;
     UPROPERTY()
     class UCameraComponent* Camera = nullptr;
 
@@ -409,6 +429,7 @@ private:
     float KillZValue = -100000.f;
     float EyeMeters = 1.7f;
     bool bConfigured = false;
+    bool bAutoWalk = false; // -MojuloAutoWalk: headless locomotion probe
 };
 `;
 
@@ -418,14 +439,26 @@ const walkerCpp = () => `${HEADER_CPP}#include "MojuloWalker.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/SpringArmComponent.h"
 
 AMojuloWalker::AMojuloWalker()
 {
     PrimaryActorTick.bCanEverTick = true;
     bUseControllerRotationYaw = true;
+    CameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("MojuloCameraArm"));
+    CameraArm->SetupAttachment(GetCapsuleComponent());
+    CameraArm->bUsePawnControlRotation = true;
+    CameraArm->TargetArmLength = 0.f; // first person by default
+    CameraArm->bDoCollisionTest = false;
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("MojuloEye"));
-    Camera->SetupAttachment(GetCapsuleComponent());
-    Camera->bUsePawnControlRotation = true;
+    Camera->SetupAttachment(CameraArm);
+    Camera->bUsePawnControlRotation = false;
+}
+
+void AMojuloWalker::SetCameraRig(float ArmLength, float SocketHeight)
+{
+    CameraArm->TargetArmLength = FMath::Max(0.f, ArmLength);
+    if (SocketHeight > 0.f) CameraArm->SetRelativeLocation(FVector(0.f, 0.f, SocketHeight));
 }
 
 void AMojuloWalker::InitFromScore(float Eye, float EyeScale, const FVector& SpawnPos, float KillZ)
@@ -439,7 +472,7 @@ void AMojuloWalker::InitFromScore(float Eye, float EyeScale, const FVector& Spaw
     const float HalfHeight = FMath::Max(30.f, EyeMeters * 50.f);
     const float Radius = FMath::Min(HalfHeight - 1.f, FMath::Max(20.f, 40.f * EyeScale));
     GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
-    Camera->SetRelativeLocation(FVector(0.f, 0.f, HalfHeight - 10.f * EyeScale));
+    CameraArm->SetRelativeLocation(FVector(0.f, 0.f, HalfHeight - 10.f * EyeScale));
 
     // Unity: speed 6 m/s, jump 4.5 m/s, gravity 9.8 m/s² — all ×eyeScale.
     UCharacterMovementComponent* Move = GetCharacterMovement();
@@ -449,6 +482,7 @@ void AMojuloWalker::InitFromScore(float Eye, float EyeScale, const FVector& Spaw
     Move->AirControl = 0.35f;
 
     SetActorLocation(SpawnLocation + FVector(0.f, 0.f, HalfHeight + 10.f), false, nullptr, ETeleportType::TeleportPhysics);
+    bAutoWalk = FParse::Param(FCommandLine::Get(), TEXT("MojuloAutoWalk"));
     bConfigured = true;
 }
 
@@ -479,6 +513,7 @@ void AMojuloWalker::Tick(float DeltaSeconds)
     if (PC->IsInputKeyDown(EKeys::S) || PC->IsInputKeyDown(EKeys::Down)) Dir -= FRotationMatrix(Yaw).GetUnitAxis(EAxis::X);
     if (PC->IsInputKeyDown(EKeys::D) || PC->IsInputKeyDown(EKeys::Right)) Dir += FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y);
     if (PC->IsInputKeyDown(EKeys::A) || PC->IsInputKeyDown(EKeys::Left)) Dir -= FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y);
+    if (bAutoWalk) Dir += FRotationMatrix(Yaw).GetUnitAxis(EAxis::X);
     if (!Dir.IsNearlyZero()) AddMovementInput(Dir.GetSafeNormal(), 1.f);
 
     if (PC->WasInputKeyJustPressed(EKeys::SpaceBar)) Jump();
@@ -548,12 +583,54 @@ protected:
     void ResetLevel();
     void ToMenu();
 
+    // Locomotion (the walking-suits rung): Interchange imports the GLB's
+    // rigid-hierarchy animations as LevelSequence assets (pinned at U2) —
+    // the kernel indexes them by sanitized clip name and plays them with
+    // ULevelSequencePlayer. Ambient entities loop their idle; the player's
+    // suit follows the walker and swaps walk/idle by speed (third person).
+    void BuildSequenceIndex();
+    class ULevelSequence* SequenceForClip(const FString& ClipName) const;
+    // Interchange's sequence transform tracks are PARENT-RELATIVE (pinned at
+    // U3: transform origins are ignored — the z-suit idled at 860 m, not
+    // 1720 m — and clips pose parts around their wrapper). So figures are
+    // placed by their WRAPPER actor, and the player suit follows the walker
+    // by wrapper SetActorLocation + a yaw delta composed on the imported
+    // base quat (never a raw rotator — that strips the frame correction).
+    class ULevelSequencePlayer* PlayClip(const FString& ClipName, bool bLoop);
+    void SetupLocomotion();
+    void TickPlayerSuit();
+    AActor* FindActorByCleanName(const FString& Wanted) const;
+    static void SetActorTreeHidden(AActor* Root, bool bHidden);
+    static void SetActorTreeMovable(AActor* Root);
+    static void SetActorTreeCollision(AActor* Root, bool bEnabled);
+
     FMojuloScoreData Score;
     FString LevelRef;
     bool bScoreLoaded = false;
     float EyeScale = 1.f;
     float PendingMenuAt = -1.f;
     float PendingResetAt = -1.f;
+
+    // -MojuloShot=<seconds>: take a HighResShot after N seconds of play —
+    // the machine-side eyes proxy (a frame-1 ExecCmds shot fires before the
+    // kernel's first tick and shows the un-posed world).
+    float ShotAt = -1.f;
+    bool bShotTaken = false;
+
+    TMap<FString, FSoftObjectPath> SequenceIndex;
+    UPROPERTY()
+    TArray<class ALevelSequenceActor*> SequenceActors; // keeps players alive
+    UPROPERTY()
+    AActor* PlayerSuit = nullptr;
+    UPROPERTY()
+    class ULevelSequencePlayer* SuitIdlePlayer = nullptr;
+    UPROPERTY()
+    class ULevelSequencePlayer* SuitWalkPlayer = nullptr;
+    UPROPERTY()
+    TArray<AActor*> DebugFigures; // -MojuloShot dumps their part positions
+    FQuat SuitBaseQuat = FQuat::Identity;
+    float BaseControlYaw = 0.f;
+    bool bSuitWalking = false;
 
     UPROPERTY()
     class AMojuloWalker* Walker = nullptr;
@@ -562,16 +639,34 @@ protected:
 
 const gameModeCpp = () => `${HEADER_CPP}#include "MojuloGameMode.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "LevelSequence.h"
+#include "LevelSequenceActor.h"
+#include "LevelSequencePlayer.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MojuloHUD.h"
 #include "MojuloWalker.h"
 #include "Sound/SoundWave.h"
+
+namespace
+{
+    // The same sanitization import_mojulo.py uses to survive Interchange's
+    // punctuation stripping ('entity:hero' -> 'entity_hero',
+    // 'gframe_mk2_multi:idle' -> 'gframe_mk2_multi_idle').
+    FString CleanName(const FString& S)
+    {
+        FString Out;
+        Out.Reserve(S.Len());
+        for (const TCHAR C : S) Out.AppendChar(FChar::IsAlnum(C) ? C : TEXT('_'));
+        return Out;
+    }
+}
 
 AMojuloMarker::AMojuloMarker()
 {
@@ -620,6 +715,8 @@ void AMojuloGameMode::BeginPlay()
     EyeScale = FMath::Max(0.5f, Score.Eye / 1.7f);
     SpawnMechanicMarkers();
     StartMusic();
+    float ShotSeconds = 0.f;
+    if (FParse::Value(FCommandLine::Get(), TEXT("MojuloShot="), ShotSeconds)) ShotAt = ShotSeconds;
 }
 
 void AMojuloGameMode::ConfigureWalker()
@@ -634,6 +731,206 @@ void AMojuloGameMode::ConfigureWalker()
     Walker = Pawn;
     Hp = Score.bHasHp ? Score.StartHp : -1.f;
     SurviveLeft = Score.SurviveSeconds;
+    SetupLocomotion();
+}
+
+AActor* AMojuloGameMode::FindActorByCleanName(const FString& Wanted) const
+{
+    const FString Want = CleanName(Wanted);
+    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    {
+#if WITH_EDITOR
+        const FString Label = It->GetActorLabel();
+#else
+        const FString Label = It->GetName();
+#endif
+        if (CleanName(Label) == Want) return *It;
+    }
+    return nullptr;
+}
+
+void AMojuloGameMode::SetActorTreeHidden(AActor* Root, bool bHidden)
+{
+    // Interchange imports one actor per GLB node — hiding the wrapper alone
+    // leaves the body visible (pinned at U2: the "hidden" player seat stood
+    // in every U0 screenshot). Walk the attachment tree.
+    if (Root == nullptr) return;
+    Root->SetActorHiddenInGame(bHidden);
+    TArray<AActor*> Children;
+    Root->GetAttachedActors(Children);
+    for (AActor* Child : Children) SetActorTreeHidden(Child, bHidden);
+}
+
+void AMojuloGameMode::SetActorTreeCollision(AActor* Root, bool bEnabled)
+{
+    // The player's suit is a cosmetic FOLLOWER — its imported part colliders
+    // wedge the pilot capsule at spawn (pinned at U3: WASD ran in place
+    // while a persistent auto-walk force squeezed free). Blocking is the
+    // score colliders' job, never the suit body's.
+    if (Root == nullptr) return;
+    Root->SetActorEnableCollision(bEnabled);
+    TArray<AActor*> Children;
+    Root->GetAttachedActors(Children);
+    for (AActor* Child : Children) SetActorTreeCollision(Child, bEnabled);
+}
+
+void AMojuloGameMode::SetActorTreeMovable(AActor* Root)
+{
+    // Interchange imports scene actors STATIC — SetActorLocation fails
+    // silently and sequences cannot pose parts (pinned at the U3 eyes gate:
+    // the suit stood frozen in rest pose). Movable, whole tree.
+    if (Root == nullptr) return;
+    if (USceneComponent* RootComp = Root->GetRootComponent())
+        RootComp->SetMobility(EComponentMobility::Movable);
+    TArray<AActor*> Children;
+    Root->GetAttachedActors(Children);
+    for (AActor* Child : Children) SetActorTreeMovable(Child);
+}
+
+void AMojuloGameMode::BuildSequenceIndex()
+{
+    // A game pack imports one asset subtree PER LEVEL
+    // (/Game/MojuloPack/Levels/<ref>/model/...), so a multi-level pack holds
+    // N copies of every shared figure's sequences under identical names.
+    // Indexing the whole pack let the LAST level imported win — sequences
+    // whose bindings point at another map's actors (pinned before U4; the
+    // one-level slice could not see it). Scope to THIS level's subtree; a
+    // world-scope pack (U0 shape, assets straight under the root) has no
+    // Levels/ subtree and takes the root.
+    const FAssetRegistryModule& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+    TArray<FAssetData> Assets;
+    Registry.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetClassPathName(), Assets, true);
+    const FString LevelRoot = FString(TEXT("/Game/MojuloPack/Levels/")) + LevelRef;
+    TMap<FString, FSoftObjectPath> Scoped, PackWide;
+    for (const FAssetData& Asset : Assets)
+    {
+        const FString Path = Asset.PackagePath.ToString();
+        if (!Path.StartsWith(TEXT("/Game/MojuloPack"))) continue;
+        const FString Key = CleanName(Asset.AssetName.ToString());
+        PackWide.Add(Key, Asset.ToSoftObjectPath());
+        if (Path == LevelRoot || Path.StartsWith(LevelRoot + TEXT("/"))) Scoped.Add(Key, Asset.ToSoftObjectPath());
+    }
+    SequenceIndex = Scoped.Num() > 0 ? Scoped : PackWide;
+}
+
+ULevelSequence* AMojuloGameMode::SequenceForClip(const FString& ClipName) const
+{
+    const FSoftObjectPath* Path = SequenceIndex.Find(CleanName(ClipName));
+    return Path != nullptr ? Cast<ULevelSequence>(Path->TryLoad()) : nullptr;
+}
+
+ULevelSequencePlayer* AMojuloGameMode::PlayClip(const FString& ClipName, bool bLoop)
+{
+    ULevelSequence* Sequence = SequenceForClip(ClipName);
+    if (Sequence == nullptr)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[mojulo] no LevelSequence for clip '%s'"), *ClipName);
+        return nullptr;
+    }
+    FMovieSceneSequencePlaybackSettings Settings;
+    if (bLoop) Settings.LoopCount.Value = -1;
+    ALevelSequenceActor* OutActor = nullptr;
+    ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(GetWorld(), Sequence, Settings, OutActor);
+    if (OutActor != nullptr) SequenceActors.Add(OutActor);
+    if (Player != nullptr) Player->Play();
+    return Player;
+}
+
+void AMojuloGameMode::SetupLocomotion()
+{
+    BuildSequenceIndex();
+
+    // Ambient entities: everything with an idle clip breathes instead of
+    // standing as a statue. First-claimant figures only — a figure bakes
+    // ONCE, later entities sharing it have no body of their own, and two
+    // players on one sequence fight.
+    TSet<FString> Claimed;
+    // The player's FIGURE is claimed by the player — a second entity sharing
+    // it must not play a competing idle on the one baked body (pinned by the
+    // U3 dump: the ring's en_unit idled the player's own suit).
+    for (const FMojuloEntity& Entity : Score.Entities)
+        if (Entity.Id == Score.Player && !Entity.Figure.IsEmpty()) Claimed.Add(Entity.Figure);
+    for (const FMojuloEntity& Entity : Score.Entities)
+    {
+        if (Entity.Id == Score.Player || Entity.IdleClip.IsEmpty()) continue;
+        if (!Entity.Figure.IsEmpty())
+        {
+            if (Claimed.Contains(Entity.Figure)) continue;
+            Claimed.Add(Entity.Figure);
+        }
+        AActor* Figure = FindActorByCleanName(!Entity.Figure.IsEmpty() ? Entity.Figure : TEXT("entity:") + Entity.Id);
+        SetActorTreeMovable(Figure);
+        if (Figure != nullptr) DebugFigures.Add(Figure);
+        PlayClip(Entity.IdleClip, true);
+    }
+
+    // The player's suit: visible, third person, following the walker —
+    // "walk the arena AS the suit". Frame/facing composition is UNPINNED
+    // until the U3 arena slice eyes it.
+    const FMojuloEntity* PlayerEntity = Score.Entities.FindByPredicate(
+        [this](const FMojuloEntity& E) { return E.Id == Score.Player; });
+    if (PlayerEntity == nullptr) return;
+    AActor* Seat = FindActorByCleanName(!PlayerEntity->Figure.IsEmpty() ? PlayerEntity->Figure : TEXT("entity:") + PlayerEntity->Id);
+    if (PlayerEntity->IdleClip.IsEmpty() && PlayerEntity->WalkClip.IsEmpty())
+    {
+        // First person: no travel clips — make sure the WHOLE seat body is
+        // hidden (the import-time hide misses attached child actors) and
+        // never collides with the pilot.
+        SetActorTreeHidden(Seat, true);
+        SetActorTreeCollision(Seat, false);
+        return;
+    }
+    PlayerSuit = Seat;
+    if (PlayerSuit == nullptr || Walker == nullptr) return;
+    SetActorTreeMovable(PlayerSuit);
+    SetActorTreeCollision(PlayerSuit, false);
+    SetActorTreeHidden(PlayerSuit, false);
+    SuitBaseQuat = PlayerSuit->GetActorQuat();
+    BaseControlYaw = Walker->GetControlRotation().Yaw;
+    // Frame the SUIT, not the pilot: bounds over the whole attachment tree
+    // (one actor per GLB node), arm back ~2 suit-heights, camera raised to
+    // the suit's chest line.
+    FBox Bounds(ForceInit);
+    TArray<AActor*> Tree;
+    Tree.Add(PlayerSuit);
+    for (int32 i = 0; i < Tree.Num(); i++)
+    {
+        FVector Origin = FVector::ZeroVector, Extent = FVector::ZeroVector;
+        Tree[i]->GetActorBounds(false, Origin, Extent);
+        if (!Extent.IsNearlyZero()) Bounds += FBox(Origin - Extent, Origin + Extent);
+        TArray<AActor*> Children;
+        Tree[i]->GetAttachedActors(Children);
+        Tree.Append(Children);
+    }
+    const float SuitHeight = Bounds.IsValid ? (Bounds.Max.Z - Bounds.Min.Z) : Score.Eye * 100.f;
+    Walker->SetCameraRig(FMath::Max(Score.Eye * 350.f, SuitHeight * 2.f), SuitHeight * 0.55f);
+    if (!PlayerEntity->IdleClip.IsEmpty()) SuitIdlePlayer = PlayClip(PlayerEntity->IdleClip, true);
+    if (!PlayerEntity->WalkClip.IsEmpty())
+    {
+        SuitWalkPlayer = PlayClip(PlayerEntity->WalkClip, true);
+        if (SuitWalkPlayer != nullptr) SuitWalkPlayer->Pause();
+    }
+}
+
+void AMojuloGameMode::TickPlayerSuit()
+{
+    if (PlayerSuit == nullptr || Walker == nullptr) return;
+    // Wrapper follow: sequences pose parts RELATIVE to the wrapper, so
+    // moving/turning the wrapper carries the animated suit. Yaw is a delta
+    // composed on the imported base quat (a raw rotator lays it face-down).
+    const FVector Feet = Walker->GetActorLocation() - FVector(0.f, 0.f, Walker->GetSimpleCollisionHalfHeight());
+    PlayerSuit->SetActorLocation(Feet);
+    const float DeltaYaw = Walker->GetControlRotation().Yaw - BaseControlYaw;
+    PlayerSuit->SetActorRotation(FQuat(FRotator(0.f, DeltaYaw, 0.f)) * SuitBaseQuat);
+
+    const bool bMoving = Walker->GetVelocity().Size2D() > 60.f * EyeScale;
+    if (bMoving == bSuitWalking) return;
+    bSuitWalking = bMoving;
+    if (SuitWalkPlayer != nullptr && SuitIdlePlayer != nullptr)
+    {
+        if (bMoving) { SuitIdlePlayer->Pause(); SuitWalkPlayer->Play(); }
+        else { SuitWalkPlayer->Pause(); SuitIdlePlayer->Play(); }
+    }
 }
 
 void AMojuloGameMode::SpawnMechanicMarkers()
@@ -691,6 +988,30 @@ void AMojuloGameMode::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     if (!bScoreLoaded) return;
     if (Walker == nullptr) { ConfigureWalker(); if (Walker == nullptr) return; }
+
+    TickPlayerSuit();
+
+    if (ShotAt >= 0.f && !bShotTaken && GetWorld()->GetTimeSeconds() >= ShotAt)
+    {
+        bShotTaken = true;
+        if (APlayerController* ShotPC = UGameplayStatics::GetPlayerController(this, 0))
+            ShotPC->ConsoleCommand(TEXT("HighResShot 1280x720"));
+        auto Dump = [](const TCHAR* Tag, AActor* Figure)
+        {
+            if (Figure == nullptr) return;
+            TArray<AActor*> Children;
+            Figure->GetAttachedActors(Children);
+            const FVector Part = Children.Num() ? Children[0]->GetActorLocation() : FVector::ZeroVector;
+            UE_LOG(LogTemp, Display, TEXT("[mojulo-dump] %s %s wrapper=(%.0f,%.0f,%.0f) part0=(%.0f,%.0f,%.0f) kids=%d"),
+                Tag, *Figure->GetName(), Figure->GetActorLocation().X, Figure->GetActorLocation().Y, Figure->GetActorLocation().Z,
+                Part.X, Part.Y, Part.Z, Children.Num());
+        };
+        for (AActor* Figure : DebugFigures) Dump(TEXT("ambient"), Figure);
+        Dump(TEXT("player"), PlayerSuit);
+        if (Walker != nullptr)
+            UE_LOG(LogTemp, Display, TEXT("[mojulo-dump] walker=(%.0f,%.0f,%.0f)"),
+                Walker->GetActorLocation().X, Walker->GetActorLocation().Y, Walker->GetActorLocation().Z);
+    }
 
     const float Now = GetWorld()->GetTimeSeconds();
     if (PendingMenuAt >= 0.f && Now >= PendingMenuAt) { ToMenu(); return; }

@@ -50,6 +50,31 @@ export function resolvePosture(explicit, manifest) {
 
 const countOf = (x) => (Array.isArray(x) ? x.length : x ? 1 : 0);
 
+// The locomotion row (export-unreal.plan.md, the walking-suits gap): per
+// entity, the GLB animation names a kernel needs to make the figure MOVE —
+// idle / walk / boost, derived from the figure's own clip vocabulary
+// (mojulo rigs name their travel cycle 'forward'; 'walk' is accepted as an
+// alias). Engine-agnostic: these are glTF animation names (`<figure>:<clip>`),
+// each engine kernel resolves them to its own imported-asset naming. Absent
+// clips ⇒ no row, byte-identical entity.
+function locomotionFor(figures, figKey) {
+  const clips = figKey != null ? figures?.[figKey]?.clips : null;
+  if (!clips || typeof clips !== 'object') return null;
+  const clip = (...names) => {
+    const hit = names.find((n) => clips[n]);
+    return hit ? `${figKey}:${hit}` : null;
+  };
+  const idle = clip('idle');
+  const walk = clip('forward', 'walk');
+  const boost = clip('boost');
+  if (!idle && !walk) return null;
+  return {
+    ...(idle ? { idle } : {}),
+    ...(walk ? { walk } : {}),
+    ...(boost ? { boost } : {}),
+  };
+}
+
 export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   const manifest = sketch?.manifest ?? {};
   const extras = levelSceneExtras(payload) ?? {};
@@ -92,7 +117,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
       ? { textures: Object.keys(payload.textures).sort() } : {}),
     colliders: payload.colliders ?? [],
     cameras: levelCameras(payload) ?? [],
-    entities: levelEntityNodes(payload) ?? [],
+    entities: (levelEntityNodes(payload) ?? []).map((e) => {
+      const locomotion = locomotionFor(payload.figures, e.figure);
+      return locomotion ? { ...e, locomotion } : e;
+    }),
     mechanics: manifest.game?.mechanics ?? [],
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity
     // with a walk/platform rule. Emitters hide its exported body — the

@@ -83,8 +83,9 @@ T006 Toolbar > [Play] — menu first, then play a level start to finish:
 #003 the menu lists every level; gated levels show [locked] until their gate level is [done]
 #004 Enter starts the selected level — the kernel walker spawns at the score spawn (WASD + mouse, Space jumps, M returns to the menu)
 #005 each level renders in its baked vertex colours (reference look: the mojulo web build)
-#006 reaching an exit shows LEVEL COMPLETE and returns to the menu with the level marked [done]
-#007 level soundtracks and the menu bed play on loop where the game carries music
+#006 entities with travel clips are ANIMATED — ambient figures loop their idle; when the score carries player locomotion, the suit is visible in third person and its walk cycle plays while you move
+#007 reaching an exit shows LEVEL COMPLETE and returns to the menu with the level marked [done]
+#008 level soundtracks and the menu bed play on loop where the game carries music
 
 ## What travelled, what didn't
 

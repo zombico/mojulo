@@ -65,6 +65,60 @@ Godot, Unity, this. Leg v0.3.0.
   landmines pinned in the guide: full Xcode required for rendered runs, and
   Xcode 26+ additionally needs `xcodebuild -downloadComponent MetalToolchain`.
 
+### Unreal handoff — U2+U3: locomotion, rigs, the walking suit (leg v0.4.1)
+
+Rigged figures MOVE in the Unreal pack: ambient entities loop their idle,
+and a game whose player seat is a rigged suit plays in third person — the
+suit follows the walker and swaps walk/idle with motion. Machine-closed on
+the `sk_ms_arena_u3_slice` game (one arena, three suit figures, one battle
+track: gate 11/11, `clips_bound` 21/21); the eyes gate (the suit follows
+AND animates under WASD) is the operator's and still open.
+
+- **The `locomotion` score row — engine-agnostic.** `extractEngineScore`
+  now stamps `entities[].locomotion = { idle, walk, boost }` from the
+  figure's own clip vocabulary (`<figure>:<clip>`; mojulo rigs name the
+  travel cycle `forward`, `walk` is accepted as an alias). Additive: an
+  entity without travel clips is byte-identical, so existing packs re-mint
+  unchanged EXCEPT that rigged entities in Unity/Godot scores now carry the
+  row too — it is the backport vehicle for teaching those kernels the same
+  two-state machine.
+- **Kernel v0.4 — sequences + the walking suit.** Interchange imports the
+  GLB's rigid-hierarchy animations as LevelSequence assets whose transform
+  tracks are PARENT-RELATIVE (they pose part actors around the figure's
+  wrapper). The kernel indexes them by sanitized name, loops first-claimant
+  ambient idles (a figure bakes once; the player's figure is pre-claimed),
+  and drives the player suit by wrapper follow: `SetActorLocation` at the
+  walker's feet + a yaw delta composed on the imported base quat. Camera rig
+  framed from the SUIT's attachment-tree bounds, not the pilot eye. Debug
+  rungs: `-MojuloShot=<s>` (HighResShot after N seconds of play + a
+  `[mojulo-dump]` position ledger) and `-MojuloAutoWalk` (headless
+  locomotion probe).
+- **Runtime landmines pinned (UE 5.8, all in the kernel).** Interchange
+  scene actors import STATIC (silent `SetActorLocation` no-ops, frozen
+  clips) → whole attachment tree set Movable before driving; the player
+  suit's imported part colliders wedge the pilot capsule at spawn (WASD runs
+  in place) → its tree is collision-off, blocking belongs to the score
+  colliders; a raw rotator strips the imported frame correction (suit
+  face-down) → yaw composed on the base quat; sequence transform-origins are
+  inert for these tracks (tried, removed). Verified: the auto-walk probe
+  covers 34 m straight from spawn with the wrapper at the walker's exact xy.
+- **Importer + gate.** `clips_bound` verify (every locomotion sequence the
+  scores name exists with live bindings); Interchange cannot RE-import
+  LevelSequences, so the GLB asset subtree is clean-deleted per run; the
+  player seat is hidden as a whole tree (one actor per GLB node); the frame
+  landmark prefers first-claimant entities (later claimants have no wrapper
+  of their own); all actor lookups compare in punctuation-sanitized space.
+- **Per-level sequence scope (found in review, before U4).** A game pack
+  imports one asset subtree per level, so a 45-level pack holds 45 copies of
+  a shared suit's sequences under identical names; a pack-wide index let the
+  LAST level imported win with bindings into another map's actors. The
+  kernel now scopes its index to `/Game/MojuloPack/Levels/<ref>` (root for
+  world packs) and `clips_bound` checks each level's own copy.
+- **Driver.** The plugin's `Binaries/` + `Intermediate/` are cleaned before
+  UBT: with a live editor holding the project, UBT hot-reloads a `-00NN`
+  dylib the `.modules` manifest never points at, so headless runs executed
+  a STALE kernel. Kill editors before gate runs.
+
 ### Mojulo 2.0 — the pure-creative reposition (BREAKING)
 
 Mojulo is now a **3D factory for agents**. The reposition is by DEMOTION, not

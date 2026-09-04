@@ -161,3 +161,34 @@ describe('unreal game emitters (U1)', () => {
     expect(emitGame().files.find((f) => f.file === 'IMPORT-GUIDE.md').text).toMatchSnapshot();
   });
 });
+
+describe('unreal locomotion + rigs (U2)', () => {
+  it('kernel indexes LevelSequences and drives idle/walk — the two-state machine', () => {
+    const files = emitGame().files;
+    const buildCs = files.find((f) => f.file.endsWith('MojuloKernel.Build.cs')).text;
+    expect(buildCs).toContain('"LevelSequence"');
+    const gm = files.find((f) => f.file.endsWith('MojuloGameMode.cpp')).text;
+    expect(gm).toContain('CreateLevelSequencePlayer');
+    expect(gm).toContain('TickPlayerSuit');
+    expect(gm).toContain('SetActorTreeHidden');
+  });
+
+  it('verify carries clips_bound; the importer hides the whole seat tree', () => {
+    const py = emitGame().files.find((f) => f.file === 'import_mojulo.py').text;
+    expect(py).toContain("check('clips_bound'");
+    expect(py).toContain('def hide_actor_tree');
+    expect(py).toContain('MovieSceneSequenceExtensions.get_bindings');
+  });
+
+  it('sequences resolve PER LEVEL — a multi-level pack holds one copy of a shared figure per level', () => {
+    // Pre-U4 landmine: pack-wide name lookup let the last level imported win.
+    const files = emitGame().files;
+    const gm = files.find((f) => f.file.endsWith('MojuloGameMode.cpp')).text;
+    expect(gm).toContain('"/Game/MojuloPack/Levels/")) + LevelRef');
+    expect(gm).toContain('SequenceIndex = Scoped.Num() > 0 ? Scoped : PackWide');
+    const py = files.find((f) => f.file === 'import_mojulo.py').text;
+    expect(py).toContain("scored.append((score, CONTENT_ROOT + '/Levels/' + ref))");
+    expect(py).toContain('verify_clips([(score, CONTENT_ROOT)])');
+    expect(py).toContain('list_assets(content_dir, recursive=True');
+  });
+});

@@ -26,7 +26,7 @@
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
 import { emitUnrealKernel } from './unreal-kernel.js';
 
-export const UNREAL_LEG_VERSION = '0.3.0';
+export const UNREAL_LEG_VERSION = '0.4.1';
 export const UNREAL_EDITOR_TARGET = 'Unreal Engine 5 (5.4+; proven against UE 5.8.0)';
 
 const fmt = (n) => {
@@ -237,6 +237,12 @@ def aabb_size_cm(b):
     return unreal.Vector((b['max'][0] - b['min'][0]) * M, (b['max'][1] - b['min'][1]) * M, (b['max'][2] - b['min'][2]) * M)
 
 
+def hide_actor_tree(actor):
+    actor.set_actor_hidden_in_game(True)
+    for child in actor.get_attached_actors():
+        hide_actor_tree(child)
+
+
 def clear_mojulo_actors():
     """Idempotency: drop everything a previous run put in the level — helper
     actors by label prefix, imported scene actors by the tag stamped after
@@ -251,7 +257,17 @@ def clear_mojulo_actors():
 def import_glb(glb_path, content_dir):
     """Import a pack GLB as a scene: assets under content_dir, actors into
     the open level (PINNED at the first machine gate:
-    InterchangeManager.import_scene works as written)."""
+    InterchangeManager.import_scene works as written).
+
+    Interchange cannot RE-import LevelSequences ('Re-import of
+    ULevelSequence not supported yet', UE 5.8, editor exit 1) — so the GLB's
+    asset subtree is clean-deleted first and every run is a fresh import.
+    Deterministic asset paths make this idempotent-by-reconstruction; the
+    Mojulo materials live outside the subtree and survive."""
+    stem = os.path.splitext(os.path.basename(glb_path))[0]
+    subtree = content_dir + '/' + stem
+    if unreal.EditorAssetLibrary.does_directory_exist(subtree):
+        unreal.EditorAssetLibrary.delete_directory(subtree)
     manager = unreal.InterchangeManager.get_interchange_manager_scripted()
     source = unreal.InterchangeManager.create_source_data(glb_path)
     params = unreal.ImportAssetParameters()
@@ -452,13 +468,18 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
             a.set_editor_property('tags', tags)
     apply_unlit_materials()
 
-    # Hide the player-seat body: the operator IS the walker.
+    # Hide the player-seat body: the operator IS the walker. The whole
+    # attachment tree — Interchange imports one actor per GLB node, so
+    # hiding the wrapper alone leaves the body standing (pinned at U2:
+    # the "hidden" seat was visible in every U0 screenshot). The kernel
+    # un-hides it at runtime when the score carries locomotion (the
+    # third-person walking suit).
     if score.get('player'):
         for e in score.get('entities') or []:
             if e.get('id') == score['player']:
                 seat = find_entity_actor(score, e)
                 if seat is not None:
-                    seat.set_actor_hidden_in_game(True)
+                    hide_actor_tree(seat)
                 break
 
     # Implicit ground plane at mojulo z = ground: obstacle colliders are
@@ -575,8 +596,22 @@ def verify():
         if not landmark_done:
             # Prefer an off-axis landmark: y is the negated axis, so only a
             # nonzero-y entity can catch a mirrored world — a y=0 landmark
-            # pins x/z/scale but leaves the mirror question open.
-            candidates = [e for e in score.get('entities') or [] if e.get('translation')]
+            # pins x/z/scale but leaves the mirror question open. Only
+            # FIRST-claimant entities qualify: the GLB gives a figure's
+            # wrapper node to the first entity sharing it (later claimants
+            # have no node of their own — pinned at the U3 slice, where the
+            # highest-|y| z-unit pointed at another unit's wrapper).
+            candidates = []
+            claimed = set()
+            for e in score.get('entities') or []:
+                if not e.get('translation'):
+                    continue
+                fig = e.get('figure')
+                if fig:
+                    if fig in claimed:
+                        continue
+                    claimed.add(fig)
+                candidates.append(e)
             candidates.sort(key=lambda e: -abs(e['translation'][1]))
             for e in candidates:
                 node = find_entity_actor(score, e)
@@ -599,6 +634,46 @@ def verify():
                         unlit_ok += 1
         check('materials_unlit', unlit_total > 0 and unlit_ok == unlit_total, str(unlit_ok) + ' of ' + str(unlit_total) + ' static-mesh slots')
 
+    def verify_clips(scored):
+        """U2: every locomotion clip the scores name must exist as an
+        imported LevelSequence (Interchange's representation of the GLB's
+        rigid-hierarchy animations — pinned at U2) with live bindings.
+        Per level: 'scored' is [(score, content_dir)] and each level's clips
+        are looked up in ITS OWN asset subtree — a multi-level pack holds
+        one copy of a shared figure's sequences per level, and a pack-wide
+        name lookup would silently vouch for one level's copy on behalf of
+        all (the kernel scopes its index the same way). No locomotion
+        entities => no check, byte-identical gate file."""
+        missing = []
+        bound, checked = 0, 0
+        for score, content_dir in scored:
+            clips = []
+            for e in score.get('entities') or []:
+                for c in (e.get('locomotion') or {}).values():
+                    clips.append(c)
+            if not clips:
+                continue
+            names = {}
+            for p in unreal.EditorAssetLibrary.list_assets(content_dir, recursive=True, include_folder=False):
+                names[p.split('/')[-1].split('.')[0]] = p
+            for clip in sorted(set(clips)):
+                want = clean_label(clip)
+                p = names.get(want)
+                if p is None:
+                    missing.append(want)
+                    continue
+                checked += 1
+                seq = unreal.EditorAssetLibrary.load_asset(p)
+                if isinstance(seq, unreal.LevelSequence) and len(list(unreal.MovieSceneSequenceExtensions.get_bindings(seq))) > 0:
+                    bound += 1
+        if not missing and checked == 0:
+            return
+        ok = not missing and checked > 0 and bound == checked
+        detail = str(bound) + ' of ' + str(checked) + ' locomotion sequences bind'
+        if missing:
+            detail += ' — missing: ' + ', '.join(missing[:5])
+        check('clips_bound', ok, detail)
+
     try:
         game = game_manifest()
         landmarked = False
@@ -608,12 +683,15 @@ def verify():
             if (score.get('entities') or []) and not landmarked:
                 check('frame_landmark', False, 'no entity node found by figure or entity:<id> label')
             verify_materials()
+            verify_clips([(score, CONTENT_ROOT)])
         else:
             levels = game.get('levels') or []
             any_entities = False
+            scored = []
             for spec in levels:
                 ref = spec['ref']
                 score = read_json(os.path.join(PACK, 'levels', ref, 'score.json'))
+                scored.append((score, CONTENT_ROOT + '/Levels/' + ref))
                 any_entities = any_entities or bool(score.get('entities'))
                 landmarked = verify_level(score, CONTENT_ROOT + '/Maps/' + ref, ref + ':', landmarked)
             if any_entities and not landmarked:
@@ -624,6 +702,7 @@ def verify():
                 subsystem(unreal.LevelEditorSubsystem).load_level(MENU_MAP)
                 check('menu:kernel_wired', 'MojuloMenuGameMode' in kernel_class_name(), kernel_class_name() or 'no override')
             verify_materials()
+            verify_clips(scored)
     except Exception as e:  # noqa: BLE001 — the gate must always write its file
         check('verify_ran', False, str(e))
 
@@ -717,6 +796,7 @@ function importGuideGame({ title, levels, ledger, posture }) {
     'the menu lists every level; gated levels show [locked] until their gate level is [done]',
     'Enter starts the selected level — the kernel walker spawns at the score spawn (WASD + mouse, Space jumps, M returns to the menu)',
     'each level renders in its baked vertex colours (reference look: the mojulo web build)',
+    'entities with travel clips are ANIMATED — ambient figures loop their idle; when the score carries player locomotion, the suit is visible in third person and its walk cycle plays while you move',
     'reaching an exit shows LEVEL COMPLETE and returns to the menu with the level marked [done]',
     'level soundtracks and the menu bed play on loop where the game carries music',
   ].map((line, i) => `#${String(3 + i).padStart(3, '0')} ${line}`);

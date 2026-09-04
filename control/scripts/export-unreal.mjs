@@ -146,6 +146,12 @@ if (!args['no-gate'] && unrealBin && existsSync(unrealBin)) {
   if (existsSync(kernelSrc)) {
     const pluginDest = path.join(scratch, 'Plugins', 'MojuloKernel');
     await fs.rm(path.join(pluginDest, 'Source'), { recursive: true, force: true });
+    // Clean Binaries too: with a live editor holding the project, UBT goes
+    // hot-reload — it writes a new -00NN dylib for THAT session but leaves
+    // the .modules manifest at the loaded version, so headless runs keep
+    // executing the stale kernel (pinned at U3: dumps never appeared).
+    await fs.rm(path.join(pluginDest, 'Binaries'), { recursive: true, force: true });
+    await fs.rm(path.join(pluginDest, 'Intermediate'), { recursive: true, force: true });
     await fs.mkdir(path.dirname(pluginDest), { recursive: true });
     await fs.cp(kernelSrc, pluginDest, { recursive: true });
     const engineDir = path.resolve(unrealBin, '..', '..', '..'); // …/Engine

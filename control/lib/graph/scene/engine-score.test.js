@@ -85,3 +85,37 @@ describe('extractEngineScore — the greybox seam (skin-over-mesh.plan.md phase 
     expect('posture' in score).toBe(false);
   });
 });
+
+describe('extractEngineScore — the locomotion row (export-unreal U2, the walking-suits gap)', () => {
+  const rigPayload = () => ({
+    ...payload(),
+    entities: [
+      { id: 'unit', body: { figure: 'suit_multi' }, rule: { type: 'walk' }, transform: { pos: [1, 2, 0] } },
+      { id: 'prop', body: { figure: 'crate' }, transform: { pos: [0, 0, 0] } },
+    ],
+    figures: {
+      suit_multi: { clips: { idle: {}, forward: {}, boost: {}, turn: {} } },
+      crate: {}, // no clips — a statue is honest for it
+    },
+  });
+
+  it('names idle/walk/boost from the figure clip vocabulary (forward IS the walk)', () => {
+    const score = extractEngineScore(sketch(), rigPayload());
+    expect(score.entities.find((e) => e.id === 'unit').locomotion)
+      .toEqual({ idle: 'suit_multi:idle', walk: 'suit_multi:forward', boost: 'suit_multi:boost' });
+  });
+
+  it('entities without travel clips get no row — byte-identical to pre-seam output', () => {
+    const score = extractEngineScore(sketch(), rigPayload());
+    expect(score.entities.find((e) => e.id === 'prop').locomotion).toBeUndefined();
+    const bare = extractEngineScore(sketch(), payload());
+    expect(bare.entities[0].locomotion).toBeUndefined();
+  });
+
+  it("accepts 'walk' as an alias when a figure names its cycle that way", () => {
+    const p = rigPayload();
+    p.figures.suit_multi = { clips: { idle: {}, walk: {} } };
+    expect(extractEngineScore(sketch(), p).entities[0].locomotion)
+      .toEqual({ idle: 'suit_multi:idle', walk: 'suit_multi:walk' });
+  });
+});
