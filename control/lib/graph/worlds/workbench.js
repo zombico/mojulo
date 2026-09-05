@@ -32,6 +32,8 @@ import { sweepToFaces, validateSweeps } from '../polygonizer/sweep-faces.js';
 import { drapeToFaces, validateDrapes } from '../polygonizer/drape-faces.js';
 import { reliefToFaces, validateReliefs } from '../polygonizer/relief-faces.js';
 import { shellToFaces, validateShells } from '../polygonizer/shell-faces.js';
+import { loftToFaces, validateLofts } from '../polygonizer/loft-faces.js';
+import { fieldToFaces, validateFields } from '../polygonizer/field-faces.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { validateMaterialRef } from '../polygonizer/materials.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
@@ -53,7 +55,7 @@ const wrapKeyed = (spec, i) => (spec && spec.wrap && typeof spec.wrap === 'objec
   ? { ...spec, wrap: { ...spec.wrap, texture: spec.wrap.texture || wrapKey(i) } }
   : spec);
 
-/** Lower a polygomer manifest (lathe + extrude + sweep + drape + relief + shell monomers) into one baked World face list. */
+/** Lower a polygomer manifest (lathe + extrude + sweep + loft + field + drape + relief + shell monomers) into one baked World face list. */
 export function lowerObjectFaces(manifest, light) {
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
@@ -61,6 +63,8 @@ export function lowerObjectFaces(manifest, light) {
   const drapes = Array.isArray(manifest.drapes) ? manifest.drapes : [];
   const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
   const shells = Array.isArray(manifest.shells) ? manifest.shells : [];
+  const lofts = Array.isArray(manifest.lofts) ? manifest.lofts : [];
+  const fields = Array.isArray(manifest.fields) ? manifest.fields : [];
   // Per-monomer `material` (polygonizer/materials.js): a named finish on the spec rides into the
   // generator — response curve baked into the fills, plus `spec`/`pbr` face tags for the World's
   // live highlight and the .glb PBR export. Absent → byte-identical (material-response.plan.md P4).
@@ -68,6 +72,9 @@ export function lowerObjectFaces(manifest, light) {
     ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps })),
     ...extrudes.flatMap((spec) => extrudeToFaces(spec, { light, material: spec.material })),
     ...sweeps.flatMap((spec) => sweepToFaces(spec, { light, material: spec.material })),
+    ...lofts.flatMap((spec) => loftToFaces(spec, { light, material: spec.material })),
+    // field solids (field-solids.plan.md F3): one closed surface-net shell per entry, cuts included
+    ...fields.flatMap((spec) => fieldToFaces(spec, { light, material: spec.material })),
     ...drapes.flatMap((spec) => drapeToFaces(spec, { light, material: spec.material })),
     ...reliefs.flatMap((spec) => reliefToFaces(spec, { light, material: spec.material })),
     // `index` seeds the shell's stable per-face id (`<index>:<n>`), so a recipe can name a face.
@@ -121,7 +128,9 @@ function monomerManifest(kind, spec) {
       : kind === 'relief' ? { reliefs: [spec] }
         : kind === 'drape' ? { drapes: [spec] }
           : kind === 'shell' ? { shells: [spec] }
-            : { sweeps: [spec] };
+            : kind === 'loft' ? { lofts: [spec] }
+              : kind === 'field' ? { fields: [spec] }
+                : { sweeps: [spec] };
 }
 
 /** Bake ONE monomer alone → its baked face list. */
@@ -141,6 +150,7 @@ function monomerBounds(kind, spec, light) {
 function monomerIntendsClosed(kind, spec) {
   if (kind === 'drape') return false;                       // a cloth sheet is open by nature
   if (kind === 'sweep') return spec && spec.caps === false ? false : true; // caps:false = embedded ends
+  if (kind === 'loft') return spec && spec.caps === false ? false : true;  // same rule as sweep
   if (kind === 'extrude') {
     const shell = spec && Number.isFinite(spec.wallThickness) && spec.wallThickness > 0;
     return shell ? spec.openFace === 'none' : true;         // a recessed shell is open unless openFace:'none'
@@ -306,12 +316,14 @@ export function planWorkbench(manifest = {}) {
   const drapes = Array.isArray(manifest.drapes) ? manifest.drapes : [];
   const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
   const shells = Array.isArray(manifest.shells) ? manifest.shells : [];
-  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length && !shells.length) {
-    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, `reliefs`, and/or `shells` array.');
+  const lofts = Array.isArray(manifest.lofts) ? manifest.lofts : [];
+  const fields = Array.isArray(manifest.fields) ? manifest.fields : [];
+  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length && !shells.length && !lofts.length && !fields.length) {
+    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, and/or `shells` array.');
   }
-  const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateDrapes(drapes, []), ...validateReliefs(reliefs, []), ...validateShells(shells, [])]; // endpoints are literal {x,y,z}
+  const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateLofts(lofts, []), ...validateFields(fields, []), ...validateDrapes(drapes, []), ...validateReliefs(reliefs, []), ...validateShells(shells, [])]; // endpoints are literal {x,y,z}
   // material refs fail LOUDLY at mint (resolveMaterial's fallback would silently steel a typo)
-  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['drapes', drapes], ['reliefs', reliefs], ['shells', shells]]) {
+  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['lofts', lofts], ['fields', fields], ['drapes', drapes], ['reliefs', reliefs], ['shells', shells]]) {
     arr.forEach((s, i) => { const e = validateMaterialRef(s && s.material); if (e) errors.push(`${k}[${i}].material: ${e}`); });
   }
   if (errors.length) {
@@ -333,6 +345,8 @@ export function planWorkbench(manifest = {}) {
     lathe: 'A constant-radius profile makes a hollow tube; taper an end to radius→0 for a rounded cap, or keep the end radius above ~0.08 so it gets a flat cap.',
     extrude: 'A solid prism should close on both ends — check the profile winding; if you meant a recessed tray/case, set `wallThickness` + `openFace` so the opening is intentional.',
     sweep: 'Ends are open — keep `caps:true` (default) unless both ends embed inside another monomer.',
+    loft: 'A loft should close at both stations — keep `caps:true` (default) unless the ends embed in another monomer; a zero-area end station drops its cap on purpose.',
+    field: 'A field solid is closed BY CONSTRUCTION — an open rim here is a polygonizer bug (the grid clipped the surface), not a recipe choice; please report the recipe.',
     relief: 'The raised outline did not close — check the glyph/path tessellation (an unclosed contour or self-intersection).',
     shell: 'A closed polyhedron should have no holes — if you meant a dome or a cutaway, set `open` so the opening is intentional.',
   };
@@ -363,6 +377,8 @@ export function planWorkbench(manifest = {}) {
     ...lathes.map((s, i) => part('lathe', s, i)),
     ...extrudes.map((s, i) => part('extrude', s, i)),
     ...sweeps.map((s, i) => part('sweep', s, i)),
+    ...lofts.map((s, i) => part('loft', s, i)),
+    ...fields.map((s, i) => part('field', s, i)),
     ...drapes.map((s, i) => part('drape', s, i)),
     ...reliefs.map((s, i) => part('relief', s, i)),
     ...shells.map((s, i) => part('shell', s, i)),
@@ -379,7 +395,7 @@ export function planWorkbench(manifest = {}) {
     }
   }
 
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(warnings.length ? { warnings } : {}) } };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

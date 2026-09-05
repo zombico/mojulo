@@ -10,6 +10,371 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Grok adapter — studio rider (host seam, not a kernel)
+
+- **`grok-build` adapter v2** — the card is how Grok *rides* the studio, not only how it materializes a catalyst skill. Standing moves: split native image (look) from the Mojulo recipe (pose/scale/world/proof/print); paint scaffolds in-session and `bind_image_render`; `forge_motion` vs native video as two systems; a refusal is a next move; `save_recipe` `when` is this conversation's intent. Output-cap notes unchanged.
+- **`forward_context` drawer pointer** — host-neutral: `get_adapter` once before making or synthesizing (studio office-drawers line + office drawer directory). Shared orientation still names no host; per-host guidance stays on the card.
+
+### Field solids — `lofts` and `fields` workbench monomers (field-solids F1–F4)
+
+- **`lofts`** — a profile that CHANGES along its path: ≥2 `stations` (`{ t, profile, roll? }`,
+  one shared point count; a round station is `{ radius, sides? }`) interpolated ring to ring,
+  `interp: 'linear' | 'smooth'` (Catmull-Rom through the stations, `segments` per gap on a
+  straight axis). A 2-point path / `axisFrom`+`axisTo` is a straight loft framed like an
+  extrude — a two-station straight loft is byte-identical to the matching `endProfile`
+  extrude (pinned). Longer paths bend with the sweep's parallel-transport frames, now shared
+  as `transportFrames` (`sweep-faces.js`, byte-identical extraction). Stacks in `assembly`
+  as `kind:'loft'` (straight up the stack axis; curved lofts stay in the explicit array).
+- **`fields`** — cuts, pockets, bores, blended masses and organic detail composed in FIELD
+  SPACE and polygonized once by the surface net (`field-faces.js`): a `terms` list read
+  top-down — `add` / `subtract` / `intersect` shapes (`sphere` / `ellipsoid` / `roundCone` /
+  `box` / `capsule` and the field twins `lathe` / `extrude` / `sweep`), with `blend` for the
+  smooth variants, plus the sculpt terms `stroke` (a dab in or out), `displace` (seeded 3D
+  fBm), `shell`, `round`. `cells` (16–128, default 64) is the resolution dial — cubic cost,
+  edges round to about one cell. Every face carries `group: <term id>` (nearest term at the
+  centroid) so `selectFaces({ group:'bore' })` works over field output. Closed by
+  construction (a bored flange is genus 1, pinned). `translate` places a whole solid;
+  `assembly` `kind:'field'` stacks one (terms authored with z from 0 up to `height`).
+- **`field-terms.js`** — the shared SDF term library (primitives with tight bounds,
+  union/subtract/intersect + smooth twins, `shell`, `round`, `stroke`, `displace`,
+  `composeFieldTerms`) the animal skins (blenderish phase 3) and the workbench compose from;
+  `smax` (the CPU twin of the GLSL `sdfSmax`) in `vajra.js`; `noise3` / `noise3Amplitude` in
+  `fields.js` (the open 3D-noise item in POLYGONIZER-SYNTHESIS).
+- **Export ledger** — `export_model` reports `field_solids: { count, cells, edge_rounding }`
+  (in mm on the print formats) so the handoff says in numbers what the recipe could not express
+  sharply. Field quads flow through STL / 3MF / GLB / USD like every other face.
+- **Doctrine (D0, decided 2026-09-05)** — cad-aid's "no CSG in-substrate" is narrowed to
+  mesh-on-mesh CSG kernels; field-space composition and the Manifold export pass are in.
+  `translate_modeler_lingo` gains `boolean-cut` (native, rounded) and `chamfer-fillet`
+  (round = native fillet; sharp chamfer = handoff), and `sculpt-detail` becomes partial
+  (form-level `stroke` / `displace` native; micro detail stays DCC). Absent the new
+  monomers every existing workbench re-renders byte-identical.
+
+### The lit handoff — from the PS2 frame to a lit frame (lit-handoff.plan.md)
+
+- **`export_model({ lit: true })`** / `GET /model.glb?lit=1` / `--lit` on export-godot,
+  export-unity and export-unreal: real `pbrMetallicRoughness` materials (metallic 0,
+  roughness 0.85, no `KHR_materials_unlit`) over the UNSHADED payload, NORMAL where
+  authored, so the importer's light is the only light. The Unreal pack gets a
+  `M_MojuloLit` master (default-lit, base = texture × vertex colour, a Roughness
+  parameter) beside the unlit one, selected by `LIT` in `import_mojulo.py`. The web
+  runtime stays unlit; default exports are byte-identical.
+- **`blender-bake.mjs --render`**: keep the Cycles FRAME instead of baking it — lit source,
+  a sun (elevation/azimuth) + sky or the preset's studio rig, camera/fov/resolution/samples/
+  exposure dials, `--open` for the dollhouse light — to `outcomes/<ref>/render-<light>.png`.
+  A derived outcome, never a recipe change.
+- **`floorTexture`** on the floorplan ('auto' for a one-cell furnished plan): the oak /
+  carrara surface tile on the floor finish, multiply-lit in the World and the lit albedo in
+  the GLB and the Cycles render; the bake tessellation now splits textured quads with uvs.
+- Room-realism leftovers: share mode snaps wall pieces to their wall; a `rim` contact-shadow
+  profile grounds furniture from standing height (one-cell default).
+
+### Floorplan — surfaces for the one-cell room (room-realism phase 4)
+
+A furnished one-cell plan now defaults `wallDecor: true` with `interiorWallStyle:
+'paint'` (the existing finish system: a 0.5 ft baseboard course + a painted swath per
+wall run, clipped around every opening; houses keep their geometry-hashed
+paint / wainscot / wallpaper mix), carries a new `plaster` procedural-material preset
+on the swath (`wallMaterial`, grid 3, a whisper of top-lit ramp + mottle; `lit:false`
+so the room's own shade is kept — the World tier expands it per vertex), and gets a
+ceiling in the WALK tier only (`assembleFloorWorldScene` marks the tier; the cutaway
+still looks down into the room; the World auto-hides the ceiling from an aerial
+camera). Explicit `wallDecor` /
+`interiorWallStyle` / `wallMaterial` / `ceilings` win; generated and multi-cell plans
+are untouched (the char pins hold). Door and window casings already existed. Tests
+in `floorplan-onecell.test.js`.
+
+### Floorplan — normals, contact shadows, and the first GI-baked room (room-realism phase 3)
+
+- **Every furniture face carries `outNormal`.** The box-net path in `extractRoomSceneFaces`
+  (card rects and lines, leg posts, the generic prop box, the plain top plane) stamps the
+  outward normal; a `local` asset's authored normals now TURN with the piece (a
+  side-facing chair used to export its front normal unturned); sweep tubes author theirs
+  too. Export-only (GLB NORMAL + the bake's facing) — shading never reads it. The two
+  lounge char pins re-based again (same face counts); the per-kind world snapshot
+  re-based for the furnished kinds (condo complex, restaurant, school complex).
+- **`contactShadows`** (default off; on for a one-cell furnished plan): the room
+  renderer's under-furniture AO decals reach the floorplan's faces and the World's
+  shadow-decal pass. Decals now sit on the footprint's OWN floor (an upper storey keeps
+  them upstairs) with a `lift` that clears the rug asset. The rug casts none. Honest
+  note: the existing radial profile fades to nothing before the footprint edge, so from
+  standing height the effect is subtle; a "rim" profile is the follow-up.
+- **The first floorplan GI bake shipped** — `sk_lkypzdim4y_gi`, 98% corner match, 1%
+  dark floor. The blocker was never the normals: a Cycles bake lands per VERTEX, and a
+  room-sized floor quad's four corners sit ON the wall planes, so the whole floor
+  interpolated black. The driver now (a) tessellates large plain quads for the
+  generated-mesh gear (`bake-prep.js`, `--cell`, default diag/32), (b) excludes floor
+  cells covered from above (a rug, a seat) from the coverage gate, (c) keeps shadow
+  decals out of the bake mesh, and (d) honours authored normals, probing only the faces
+  that lack one (`--remigrate` re-derives all). Tests: `floorplan-normals.test.js`,
+  `bake-prep.test.js`.
+
+### Floorplan — the pieces that make a room are meshes (room-realism phase 2)
+
+Ten workbench-authored furniture assets in `room-assets-makers.js`, registered
+`local: true` in `ROOM_FURNITURE_ASSETS`: club armchair, coffee table (with a book
+stack), media console (with its TV), bookcase (shelves + hashed rows of books),
+platform bed (frame, mattress, duvet, pillows, headboard), bedside table (with a
+lamp), low dresser, sideboard, plank dining table, and a bordered rug (a field
+inside a border with a medallion — `contact: false`, so no contact shadow under a
+floor skin). Their ids and aliases deliberately avoid the bare arranger type names;
+`furnishScale: 'share'` attaches them via `asset:` (`SHARE_ASSETS`), and a spun
+layout stamps the facing an unfaced asset needs so a north-door bedroom still puts
+the headboard against the wall. Eyes gate: the one-cell lounge now reads as a TV
+wall, a bookcase, two club chairs and a coffee table on a rug.
+
+**Compat note — a planner bug fixed, two char pins re-based.** `normalizeElement` in
+`room-scene-elements.js` dropped an element's `asset`, so only pieces whose TYPE was a
+registry id (the desks, the kitchen units) ever reached a mesh; a lounge's
+`asset: 'modern-couch'` sofa had always rendered as its box-net card. `asset` /
+`assetRef` now survive normalization. Consequence: every feet-mode plan with a lounge
+re-renders with the workbench couch its arranger has asked for since day one. The
+`floorplan-furnish.char.test.js` pins for the seed plan and the two-cell plan are
+re-based (the re-pin log in the file says why); the stacked-house pin is unchanged.
+Tests: `room-assets-makers.test.js`.
+
+### Floorplan — share-based furniture sizing (room-realism phase 1)
+
+The floorplan arrangers authored every piece in fixed feet (a 2.5 ft armchair, a
+3.2 ft-deep sofa) divided by the room, so the planner's `areaShare × aspect` sizing
+never ran for a floorplan: a user-sized 20×24 lounge read sparse and a 12×12 one
+overflowed. `furnishScale: 'share'` re-derives each arranged piece's SIZE from its
+preset share of the actual floor, clamped to a real-world band (`FURNITURE_BANDS`)
+so a couch never outgrows a couch nor shrinks to a stool, then drops the
+lowest-priority pieces (`FURNISH_PRIORITY`) when the packed floor passes 1.4× the
+archetype's packing target. The arrangers keep authoring placement and axis: they
+call a sizer with their legacy feet, and in the default `'feet'` mode it returns
+those feet untouched — every existing furnished recipe is byte-identical (the
+char pins). Anchors derived from sizes (bed → nightstand, table → chairs) stay
+consistent because the arranger sees the resolved feet. The kitchen run is exempt
+(a counter is 2.2 ft deep in any room). One-cell furnished plans default to
+`'share'`. Tests: `floorplan-share.test.js` (bands, preset-share tolerance,
+monotone growth, budget drops, in-room footprints, the knob).
+
+### Floorplan — one-cell furnished defaults (room-realism phase 0)
+
+"Make me a living room" is an explicit single furnished `floorplan` cell, and every
+wall of it is envelope. The opt-in posture tuned for generated houses (`windows`,
+`entryDoor` off; bare slab) left it a windowless, doorless box, and the exterior-door
+rule silently dropped the authored door because it did not say `entry: true`. A
+furnished plan with exactly one explicit cell and no halls now defaults
+`windows: true` and `floorStyle: 'auto'`, cuts its authored door as the front door
+(or auto-cuts one when none is authored), and takes command position against it.
+Keyed on the raw manifest keys, so explicit values still win and the stacked-house
+path is untouched. Generated and multi-cell plans are byte-identical — pinned by
+`floorplan-furnish.char.test.js`; the one-cell behaviour is `floorplan-onecell.test.js`.
+Design + the remaining phases (share-based sizing, meshes, normals + GI bake,
+surfaces): `lite-template/integration/0904/room-realism.plan.md`.
+
+### 3MF print export — the print leg's second format (interchange-seams seam 1a)
+
+`export_model({ format: '3mf' })` (and `GET /api/sketches/<ref>/model.3mf`)
+ships the SAME printable set as the STL — `isPrintableFace` over base faces +
+instanced repeats, water / decals / studio grid omitted, z-up — as a 3MF
+package, the format slicers prefer (PrusaSlicer, Bambu Studio, OrcaSlicer,
+Cura), carrying what STL structurally cannot:
+
+- **Units in the file** (`unit="millimeter"`): the true-scale promise travels
+  with the bytes instead of a README note. The scale strategy is the STL's,
+  unchanged — explicit `scale` > `target_mm` fit > `units` derivation for
+  literal kinds > palm-size fit for maquettes / ornaments.
+- **Colour** — the baked vertex colours the World draws, averaged per triangle
+  and quantized to a bounded `<basematerials>` palette (256 max; a big
+  AO-shaded world drops bits deterministically, reported as `color_bits`).
+  Multi-material printers map bases to filaments; single-filament printers
+  ignore them.
+- **Shell identity** — the base geometry is one `<object>`; every instanced
+  repeat is its OWN object placed once per instance by a `<build><item
+  transform>` (the STL's TRS as a row-vector 4×3 matrix), so a 500-tree block
+  is one tree mesh + 500 placeable items rather than 500 expanded copies.
+- The closure audit, print profile, printed size, and README print notes
+  ride both formats; the note says plainly that shells are separate objects,
+  not a boolean union (that is the Manifold seam, still open).
+- Substrate: `scene-3mf.js` (indexed vertices by exact-coordinate dedup,
+  slivers dropped) over the new `printableShells()` walk factored out of
+  `scene-stl.js` — the STL is byte-identical before and after (verified
+  against HEAD on a mixed fixture) — and `zip-writer.js`, a dependency-free
+  deterministic ZIP builder (fixed 1980 timestamp, optional 64-byte
+  alignment for the USDZ leg next) with a minimal reader for the tests and
+  the bind-back doors. Routing: the `export_model` TOOL_INDEX row + dispatch
+  line, the tool schema, and `translate_modeler_lingo`'s print entry now
+  name 3MF first.
+
+### Slicer machine gate — `scripts/slice-print.mjs` (interchange-seams seam 1b)
+
+The print bicycle's measured gate: export a sketch as 3MF (or take an existing
+one), run a local PrusaSlicer / SuperSlicer headless (`--info`, then
+`--export-gcode`, optional `--profile <bundle.ini>` / `--supports`), and stamp
+`mojulo-print-gate.json` beside the file — `sliced`, `size_agrees` (the
+slicer's bounding box vs mojulo's declared printed size, the unit-slip check
+the closure audit cannot see), `manifold` / `parts` / `volume_mm3`, estimated
+`print_time_s`, `filament_g`, `supports`, `layers`. Advisory, never a refusal.
+Operator-hosted like the Blender / image / voice workers (`MOJULO_SLICER`,
+PATH, or the macOS bundle); no slicer ⇒ rung 0, the 3MF + closure audit still
+ship and the gate says why it skipped. OrcaSlicer / Bambu Studio are detected
+with an honest "CLI not wired — open the 3MF in the app" reason. Pure half
+(`print-gate.js`: binary search order, `--info` + G-code ledger parsers, the
+summary) is unit-tested; the driver was smoke-run at rung 0 only (this host
+has no slicer). Doc: `docs/local-slicer-worker.md`.
+
+### WebXR on the walkable worlds — `xr: true` (interchange-seams seam 7)
+
+A headset walks any live `/world` with no engine: manifest `xr: true` (or
+`{ eye, speed, snap }`), or `?xr=1` on the URL, adds an immersive-vr entry to
+the emitted three.js page — a `vr` HUD button (shown only when the browser
+reports an immersive-vr device), the session handshake under `local-floor`, a
+RIG that carries the y-up XR reference space inside the z-up world
+(`Qz(yaw − π/2) · Qx(π/2)`), left-stick locomotion on the gaze heading,
+right-stick snap turn, and feet that snap to the walk channel's floor probe
+when one is emitted (typeof-guarded; orbit-only worlds ride the `eye`
+fallback). No `three/examples` import — the page stays self-contained. A
+bespoke block spliced after the runtime channels: absent `xr` the page is
+byte-identical (every char pin unchanged; two new fixtures pinned). Honest
+limits: no wall collision in VR yet; fog / effect overlays were tuned for
+the mono view. Documented beside `fog` in the `city` card.
+
+### OpenUSD export — `format: 'usda' | 'usdz'` (interchange-seams seam 2a+2b)
+
+The interchange sibling of the GLB for the DCC side converging on USD
+(Blender, Houdini, Unreal, Omniverse, Apple), and — as USDZ — AR Quick Look on
+iOS / visionOS at TRUE scale, an eyes gate the print leg never had. `export_model`
+(+ `GET /api/sketches/<ref>/model.usdz`) mirrors the GLB writer's preprocessing
+so both depict the same world (water split, surface cards, one global
+de-collide, the AO bake with instanced phantoms), then writes:
+
+- a z-up layer (`upAxis = "Z"` — coordinates land VERBATIM, no rotated root)
+  whose `metersPerUnit` rides the recipe's declared `units` (cm → 0.01; none →
+  1, the pinned MOJULO_UNITS);
+- one indexed `Mesh` per render group with per-vertex `displayColor` (the
+  AO-baked colours; untextured meshes bind NO material so every viewer shows
+  them directly), `:pbr` splits as UsdPreviewSurface with the displayColor
+  primvar as diffuse + constant metallic / roughness, textured groups as
+  UsdPreviewSurface + UsdUVTexture on a sidecar image (`textures/<key>.png`,
+  written beside `model.usda`, packed inside `model.usdz`), water and shadow
+  decals with `displayOpacity`;
+- instanced repeats as `PointInstancer` (one prototype, N positions /
+  quath orientations / scales); level cameras as `Camera` prims; entity
+  placements as `Xform`s carrying the `moj:` extras in customData; spawn /
+  colliders / game in the layer's customLayerData.
+- USDZ is `zip-writer`'s store-only, 64-byte-aligned package, `model.usda`
+  first — byte-identical per recipe.
+- Honest ledger in the note + README: USD viewers LIGHT the surface (the
+  baked colours read as albedo, not the unlit web look); rig figures / clips
+  are not in USD yet (UsdSkel is seam 2c, after the humanoid map);
+  per-instance tints are dropped as in the GLB. The eyes gate (Blender
+  import, Quick Look on a phone) is open — no USD toolchain on this host.
+
+### Quantized GLB — `export_model({ quantize: true })` (interchange-seams seam 6a)
+
+`KHR_mesh_quantization` on the static mesh paths, no dependency: POSITION as
+normalized int16 under a per-mesh dequantizing node TRS (centre +
+half-extents, so the int16 range spans each mesh's own box; instanced repeats
+put the shared mesh on a dequantizing CHILD under each instance's TRS),
+COLOR_0 as uint16, NORMAL as int8, TEXCOORD_0 as uint16 when the UVs sit in
+[0,1] (repeating tiles stay float). Vertex-attribute strides pad to multiples
+of 4 as the spec demands. 24 → 16 bytes per vertex before normals; the
+extension is declared REQUIRED, so the note says which readers take it
+(Blender, glTFast, Unreal, Godot, three.js) and to re-export plain for the
+rest. Off (default) ⇒ byte-identical float export; the bind-back reader now
+DECODES quantized positions instead of refusing them (the node walk applies
+the dequant TRS), so a quantized export round-trips within its step. Result
+carries `quantized` + `quantize_step` (coarsest step in world units). Rig
+figures keep their own packed form; `export_game` packs stay float until the
+engine gates are re-run with it.
+
+### Humanoid map — VRM bone names on the skinned figure (interchange-seams seam 3a)
+
+`figure-humanoid-map.js`: the packed biped rig's eleven bones (pelvis torso
+head, upper/lower arms and legs) ↔ the VRM 1.0 humanoid names, plus the
+17-joint FIGURE_NODES map for the ingest door, plus a resolver that adds
+WEIGHTLESS LEAF JOINTS at the wrist / ankle tails so the fifteen bones VRM
+REQUIRES (hands and feet included) all resolve — and reports what a
+non-biped rig cannot supply instead of pretending. `export_model({ clips,
+skinned: true, humanoid: true })` renames the skin joints to the VRM names,
+adds the leaves, and stamps the `VRMC_vrm` extension (specVersion 1.0, meta
+with the VRM licence URL, `humanoid.humanBones`) on the first humanoid
+figure, so VRM-aware tools (three-vrm, Blender's VRM add-on, retarget
+scripts, Unity's avatar builder) address the figure by name. Off ⇒ the
+skinned export is byte-identical. Honest limits, in the result note and
+the map's header: the skeleton is still FLAT (absolute rotations, no
+parent chain) and the rest is the stand pose, not a T-pose — a strict VRM
+validator or Unity Humanoid auto-config wants the parent-local hierarchy,
+which is seam 3a-ii; clip INGEST (Mixamo / VRMA → mojulo clips) is 3b.
+
+### Mesh handoff — the durable mesh-worker bicycle (interchange-seams seam 5)
+
+`request_mesh_render` → `pull_mesh_render` → `submit_mesh_render` →
+`accept_mesh_render` / `reject_mesh_render`: the MESH sibling of the image
+render handoff on the SAME durable table. `image_render_requests` gains a
+`medium` column ('image' | 'mesh', migrated with default 'image'); the
+repository's park / listPending / claimNext take a medium and the image
+tools default to 'image', so neither queue sees the other. The packet is
+the greybox — the PRINTABLE set (no water / decals / studio grid) as
+`data/outcomes/<ref>/greybox.glb`, the shape prior — plus the still /
+turntable / world URLs, the declared size + units, a triangle budget, and
+the instructions. Submit is the machine gate: GLB decoded at the door,
+bounds checked against the greybox (0.5×–2× per axis — a re-scaled or
+re-centred return fails loudly), closure audited, then stored through the
+same append-only `meshRef` slot + provenance sidecar `bind_mesh_render`
+uses (the shared `bindMeshBytes` door). Accept is the eyes gate: refuses a
+self-accept and a failed size gate (`accept_audit.override_size` to
+override). Registered beside the image handoff, listed in the image-render
+pack + form drawer + TOOL_INDEX; the tools/list budget re-pinned to bless
+the five tools. Worker posture in `docs/local-mesh-worker.md` (Hunyuan3D /
+TripoSR local, Meshy / Tripo / Rodin with the OPERATOR's key in the worker
+script — never in mojulo).
+
+### Manifold CSG union — `export_model({ union: true })` (interchange-seams seam 4a)
+
+The print leg's honest VOLUME gate. `manifold-3d` (Apache-2.0, WASM — the
+boolean kernel under OpenSCAD 2025) joins the creative group as an optional
+dependency (externalized like `three`; `next.config.mjs` + the install-
+capabilities doc updated). With `union: true` on `stl` / `3mf`, the printable
+shells (base + every repeat instance, transforms baked) are welded into
+Manifolds, DECOMPOSED into their closed components (a base set is usually
+several overlapping parts), unioned into ONE solid, and read back as the
+standard face list with per-corner colours (the vertex RGB rides Manifold's
+property channel through the boolean) — so the closure audit, 3MF colours,
+and STL all see the merged body. The result carries `union: { applied,
+unioned, non_manifold: [{ name, error }], volume_mm3, genus, triangles }`
+and the note says it; a shell that is not a closed manifold (an uncapped
+sweep) is named and left out, never fatal; no package ⇒ `applied: false`
+with the install line and the plain shells ship. Off (default) ⇒ untouched.
+Machine-checked: two overlapping unit boxes → volume 1.5 exactly, genus 0,
+both colours present; the two-cylinder workbench → one 3MF object, closed,
+volume between one and two cylinders. `translate_modeler_lingo`'s print
+entry now names the option.
+
+### USD verify gate — `scripts/verify-usd.mjs` (interchange-seams seam 2, the machine gate)
+
+The OpenUSD export's own machine gate, closed with the tools already on the
+host: `usdcat` (macOS ships it) parses the layer and, with `--usdc`, flattens
+it to binary USDC beside the text; Blender imports the file headless
+(`scripts/verify-usd.py`) and reports meshes / triangles / world box /
+vertex colours / textures / cameras / bones; `usd-gate.js` compares that to
+what `export_model` declared (which now returns `size_units`, the export's
+world-unit box) and stamps `mojulo-usd-gate.json`. `--glb` runs the same gate
+over a GLB export (`--quantize`, `--skinned --humanoid` add the VRM bone
+check). Results on this host: the lighthouse USDZ and the snowman USDZ both
+green (triangles equal, the box lands in metres at true scale, colours and
+five cameras present; USDC 30 KB → 17 KB and 3.7 MB → 1.4 MB); the humanoid
+figure GLB is green on bones / colours / cameras but the gate CAUGHT a
+declared-triangle mismatch on the skinned rig (declared 14,784, Blender
+built 14,864) — the export's count for skinned figures is under by the
+part-decode's triangle tally, not a geometry loss; tracked in the plan.
+
+### World thumbnails for three.js-only kinds + floor-plan manifest docs
+
+- **World thumbnails.** The PNG route used to 422 for kinds with no CSS-3D emitter
+  (`controllable` / `action` / `dungeon` / `floorplan`), leaving the gallery card blank;
+  it now bakes the navigable World itself through the software-GL path
+  (`renderWorldToPng`), disk-cached like every scene still.
+- **Docs.** The `floor-plan` sketch-vocab card now documents the MANIFEST fields
+  (`kind: 'floorplan'`, `furnish: true`, `view: 'cutaway'`, the `glyph` default of `S`)
+  instead of JavaScript functions. The `world` routing card, the worlds pack, and the
+  `forward_context` WORLD row list the shipping `compose_world` bases (stale `operator`
+  dropped; `school` / `dungeon` added).
+
 ### Unreal handoff — the fourth engine leg, U0+U1 (worlds, games, the MojuloKernel C++ plugin)
 
 A world or game recipe now exports as an Unreal Engine 5 pack (proven against

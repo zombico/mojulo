@@ -395,6 +395,16 @@ export function smin(a, b, k) {
   return Math.min(a, b) - h * h * k * 0.25;
 }
 
+/**
+ * Polynomial smooth-max — the CPU twin of sdf-glsl.js's `sdfSmax` (blenderish-animals
+ * phase 3 / field-solids F2). `smax(a, -b, k)` is a SMOOTH SUBTRACTION (a socket, a
+ * nostril, a filleted bore); `smax(a, b, k)` a smooth intersection. k<=0 degrades to a
+ * hard max. Always >= max(a, b): the blend only ever removes material.
+ */
+export function smax(a, b, k) {
+  return -smin(-a, -b, k);
+}
+
 // ─── Spine (quadratic Bézier through the center guideline) ─────────────
 
 function bezier3(p0, p1, p2, t) {

@@ -51,6 +51,7 @@ import {
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, spriteSfxChannelScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
 } from './channels/index.js';
+import { xrModeScript } from './channels/xr.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 
 
@@ -155,7 +156,7 @@ renderer.setAnimationLoop((t) => {
 }
 
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {} } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, xr = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -413,11 +414,21 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     bob: wk.bob && Array.isArray(wk.bob.curve) ? wk.bob : null,
   } : null;
   const walkBlock = walkCfg ? walkModeScript(walkCfg, mesh.center) : '';
+  // WebXR (opt-in, interchange-seams.plan.md seam 7): `xr: true` or { eye, speed, snap(deg) }. The
+  // headset supplies the real eye height under 'local-floor'; `eye` is only the fallback offset when
+  // no walk ground probe is emitted. Speed rides the walk speed when one exists. Absent ⇒ no block.
+  const xk = xr && typeof xr === 'object' ? xr : {};
+  const xrCfg = xr ? {
+    eye: Number.isFinite(xk.eye) ? xk.eye : 1.6,
+    speed: Number.isFinite(xk.speed) ? xk.speed : (walkCfg ? walkCfg.speed * 0.5 : 3),
+    snap: (Number.isFinite(xk.snap) ? xk.snap : 30) * Math.PI / 180,
+  } : null;
+  const xrBlock = xrCfg ? xrModeScript(xrCfg) : '';
   // Suppressed entirely on GAME LEVELS (payload carries `game`): a level teaches its controls
   // through the shell's pause menu, and the corner hint reads as dev chrome on a play screen.
-  const hintText = walkCfg
+  const hintText = (walkCfg
     ? 'drag to orbit · <b>walk</b> = gravity + walls · <b>fly</b> = free 6DOF'
-    : 'drag to orbit · scroll to zoom · right-drag to pan';
+    : 'drag to orbit · scroll to zoom · right-drag to pan') + (xrCfg ? ' · <b>vr</b> = headset' : '');
 
   // Pick channel (opt-in, additive): a name → metadata map keyed by group name, raised as a DOM
   // popup when the operator CLICKS the matching sub-mesh (an atom/bond, etc.). Empty `picks` →
@@ -947,7 +958,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${carsBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${carsBlock}${xrBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
@@ -1201,7 +1212,7 @@ if (_capture) {
   if (__mojPaused) { if (__pausedAt === null) __pausedAt = t; ${fogPre}renderer.render(scene, camera); return; }
   if (__pausedAt !== null) { __pauseOffset += t - __pausedAt; __pausedAt = null; walkPrevT = t; }
   const dt = walkPrevT ? Math.min((t - walkPrevT) / 1000, 0.05) : 0; walkPrevT = t;
-  if (walkOn) stepWalk(dt);
+  ${xrBlock ? 'if (__xrOn) __xrStep(dt);\n  else ' : ''}if (walkOn) stepWalk(dt);
   else {
     if (__ctrlActive) stepControllable(dt);                 // step entities (clock/walk/glide/follow)
     if (!__ctrlOwnsCamera) controls.update();               // OrbitControls unless a camera entity owns the view

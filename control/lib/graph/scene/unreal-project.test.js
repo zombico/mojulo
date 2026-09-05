@@ -192,3 +192,15 @@ describe('unreal locomotion + rigs (U2)', () => {
     expect(py).toContain('list_assets(content_dir, recursive=True');
   });
 });
+
+describe('lit handoff (lit-handoff.plan.md step 1)', () => {
+  it('the importer carries LIT and the M_MojuloLit master when asked; default is unlit', () => {
+    const py = (lit) => emitUnrealProject({ ref: 'sk_test_world', score, manifestHash: 'abcd1234abcd1234', lit }).files.find((f) => f.file === 'import_mojulo.py').text;
+    expect(py(true)).toContain('LIT = True');
+    expect(py(true)).toContain("create_asset('M_MojuloLit'");
+    expect(py(true)).toContain('MSM_DEFAULT_LIT');
+    expect(py(true)).toContain('MP_BASE_COLOR');
+    expect(py(false)).toContain('LIT = False');
+    expect(py(undefined)).toBe(py(false));
+  });
+});

@@ -6,7 +6,9 @@
  *     scene     turntables). Both render hard live, so the gallery shows a baked
  *               still instead. Rasterized from the CSS preserve-3d HTML emitter
  *               (scene-html.js, which covers all of city/hub/turntable) by headless
- *               Chromium (scene-png.js). EXPENSIVE, so the result is disk-cached
+ *               Chromium (scene-png.js); kinds with no CSS-3D emitter (controllable /
+ *               action / dungeon / floorplan …) bake their three.js World through the
+ *               software-GL path instead. EXPENSIVE, so the result is disk-cached
  *               under data/scene-png/, keyed by a manifest hash, so a gallery of 3D
  *               thumbnails doesn't relaunch a browser per card.
  *   • svg /   — a self-contained SVG (illustration kinds + CreationMap diagrams).
@@ -23,7 +25,7 @@ import sharp from 'sharp';
 import { isPolygomerManjiTree, sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
 import { renderSceneHtml } from '@/lib/graph/scene/scene-html';
-import { renderSceneToPng } from '@/lib/graph/scene/scene-png';
+import { renderSceneToPng, renderWorldToPng } from '@/lib/graph/scene/scene-png';
 
 // Bump when the scene rasterizer's output changes in a way that should invalidate
 // already-baked PNGs (new camera default, lighting model, screenshot crop, …).
@@ -89,14 +91,28 @@ async function bakeScenePng(sketch, scale) {
   // capture: bakes never carry the soundtrack script (byte-identical to a
   // soundtrack-less page; audio needs a user gesture anyway).
   const html = renderSceneHtml(sketch, { capture: true });
-  if (!html) {
+  if (html) return renderSceneToPng(html, { deviceScaleFactor: scale });
+  // three.js-ONLY kinds (controllable / action / dungeon / floorplan / edifice / …) have no
+  // CSS-3D emitter, so this used to 422 and the gallery card sat BLANK for a world that
+  // had content (a furnished walkable room showed as an empty tile). Bake the navigable
+  // World itself instead — the same resolve the /world route runs, emitted self-contained
+  // (inline three.js) and shot through the software-GL path. Deferred imports keep the
+  // world registry (DB-aware) out of this module's import graph until a bake needs it.
+  const [{ resolveWorldScene, WALK_KINDS }, { emitThreeWorld }] = await Promise.all([
+    import('@/lib/graph/worlds/world-scene'),
+    import('@/lib/graph/scene/scene-three'),
+  ]);
+  const { payload, kind } = await resolveWorldScene(sketch);
+  if (!payload) {
     const err = new Error(
-      'This scene kind has no live CSS-3D renderer to bake — use the /svg path instead.',
+      'This scene kind has no live CSS-3D renderer to bake and no traversable World form — use the /svg path instead.',
     );
     err.code = 'SCENE_INELIGIBLE';
     throw err;
   }
-  return renderSceneToPng(html, { deviceScaleFactor: scale });
+  const walk = Boolean(payload.walk || WALK_KINDS.has(kind));
+  const worldHtml = emitThreeWorld({ ...payload, walk, hud: false, inline: true, capture: true });
+  return renderWorldToPng(worldHtml, { deviceScaleFactor: scale });
 }
 
 /**

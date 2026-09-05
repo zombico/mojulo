@@ -754,6 +754,61 @@ function valueNoise2D(x, y, seed) {
   return top + fy * (bot - top);
 }
 
+// 3D sibling of hashCell — an (integer x, y, z, seed) lattice hash to [-1, 1].
+function hashCell3(ix, iy, iz, seed) {
+  let n = (ix * 374761393 + iy * 668265263 + iz * 1274126177 + seed * 2147483647) | 0;
+  n = (n ^ (n >>> 13)) | 0;
+  n = Math.imul(n, 1274126177) | 0;
+  n = (n ^ (n >>> 16)) | 0;
+  return n / 2147483648;
+}
+
+/** Single-octave 3D value noise in [-1, 1] (trilinear over a smoothstep-eased lattice). */
+export function valueNoise3D(x, y, z, seed) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  const fx = smoothstep(x - ix), fy = smoothstep(y - iy), fz = smoothstep(z - iz);
+  const lerp = (a, b, t) => a + t * (b - a);
+  const c00 = lerp(hashCell3(ix, iy, iz, seed), hashCell3(ix + 1, iy, iz, seed), fx);
+  const c10 = lerp(hashCell3(ix, iy + 1, iz, seed), hashCell3(ix + 1, iy + 1, iz, seed), fx);
+  const c01 = lerp(hashCell3(ix, iy, iz + 1, seed), hashCell3(ix + 1, iy, iz + 1, seed), fx);
+  const c11 = lerp(hashCell3(ix, iy + 1, iz + 1, seed), hashCell3(ix + 1, iy + 1, iz + 1, seed), fx);
+  return lerp(lerp(c00, c10, fy), lerp(c01, c11, fy), fz);
+}
+
+/**
+ * noise3 — seeded 3D fractional-Brownian value noise (field-solids.plan.md F2; the open
+ * item POLYGONIZER-SYNTHESIS lists beside the 2D `noise` field kind). Same mulberry-free,
+ * hash-lattice discipline as the 2D helpers above: pure in (position, params), so a
+ * displaced field solid re-renders byte-identical.
+ *
+ * @param {{x:number,y:number,z:number}} p
+ * @param {{ scale?: number, octaves?: number, persistence?: number, seed?: number|string }} [o]
+ * @returns {number} in about [-1, 1] × the octave sum (see `noise3Amplitude`)
+ */
+export function noise3(p, o = {}) {
+  const seed = hashSeedNoise(o.seed);
+  const scale = Number.isFinite(o.scale) && o.scale > 0 ? o.scale : 1;
+  const octaves = Number.isInteger(o.octaves) ? Math.max(1, Math.min(12, o.octaves)) : 4;
+  const persistence = Number.isFinite(o.persistence) ? o.persistence : 0.5;
+  let sum = 0, amp = 1, freq = 1 / scale;
+  for (let i = 0; i < octaves; i += 1) {
+    // per-octave seed offset so octaves decorrelate
+    sum += amp * valueNoise3D(p.x * freq, p.y * freq, p.z * freq, (seed + i * 7919) | 0);
+    amp *= persistence;
+    freq *= 2;
+  }
+  return sum;
+}
+
+/** The worst-case |noise3| for the same params — what a displaced surface can grow by. */
+export function noise3Amplitude(o = {}) {
+  const octaves = Number.isInteger(o.octaves) ? Math.max(1, Math.min(12, o.octaves)) : 4;
+  const persistence = Number.isFinite(o.persistence) ? o.persistence : 0.5;
+  let sum = 0, amp = 1;
+  for (let i = 0; i < octaves; i += 1) { sum += Math.abs(amp); amp *= persistence; }
+  return sum;
+}
+
 function clamp01(t) {
   return t < 0 ? 0 : t > 1 ? 1 : t;
 }

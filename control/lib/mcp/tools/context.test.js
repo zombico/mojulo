@@ -88,6 +88,7 @@ describe('buildForwardContextBody — variant composition', () => {
         expect(body).toContain('`get_tool_index`');
         expect(body).toContain('`get_register_kit`');
         expect(body).toContain('`get_substrate`');
+        expect(body).toContain('`get_adapter`');
         // The full one-line-per-tool index no longer lives inline.
         expect(body).not.toContain('the primitive-binding composer for MCP-to-MCP workflows');
         // The concept glossary moved to get_register_kit — its section header
@@ -484,6 +485,8 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'reference_protocol', 'capture_reference',
     'get_image_render_packet', 'bind_character_sheet', 'bind_image_render', 'request_image_render',
     'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',
+    // the mesh sibling (interchange-seams.plan.md seam 5) — same drawer, same table
+    'request_mesh_render', 'pull_mesh_render', 'submit_mesh_render', 'accept_mesh_render', 'reject_mesh_render',
     'verify_machina',
     'compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
     'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',

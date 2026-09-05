@@ -289,7 +289,7 @@ export const PACKS = [
     form: 'image-render',
     title: 'AI-image render pipeline',
     description:
-      "AI-IMAGE RENDER pipeline — direct, queue, and gate externally-painted images: render packets for image-outcome / comic / character-sheet sketches, the durable request → pull → submit → accept / reject worker loop, and binding finished PNGs and character sheets back onto their sketches. Open for 'have the image model paint this', 'an AI-painted portrait rendered by an image model', 'run the render queue', 'accept that render'.",
+      "AI-IMAGE + MESH RENDER pipeline — direct, queue, and gate externally-painted images and externally-sculpted meshes (the mesh quartet parks a greybox for Meshy / Tripo / Hunyuan3D…): render packets for image-outcome / comic / character-sheet sketches, the durable request → pull → submit → accept / reject worker loop, and binding finished PNGs and character sheets back onto their sketches. Open for 'have the image model paint this', 'an AI-painted portrait rendered by an image model', 'run the render queue', 'accept that render'.",
     members: [
       'get_image_render_packet',
       'request_image_render',
@@ -298,6 +298,11 @@ export const PACKS = [
       'accept_image_render',
       'reject_image_render',
       'bind_image_render',
+      'request_mesh_render',
+      'pull_mesh_render',
+      'submit_mesh_render',
+      'accept_mesh_render',
+      'reject_mesh_render',
       'bind_character_sheet',
     ],
     // The loop STARTS with a create_sketch mint (image-outcome / sequential-art
@@ -321,7 +326,7 @@ export const PACKS = [
     form: 'world',
     title: 'Worlds (traversable)',
     description:
-      "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, operator, planetary, painted-landscape, math), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'.",
+      "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, planetary, painted-landscape, math, school, dungeon), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'.",
     members: ['compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
   },
   {

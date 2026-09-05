@@ -58,6 +58,7 @@ const { values: args } = parseArgs({ options: {
   build: { type: 'boolean', default: false },
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
+  lit: { type: 'boolean', default: false },   // the LIT handoff: PBR materials over an unshaded base (lit-handoff.plan.md)
   'fresh-project': { type: 'boolean', default: false },
 } });
 
@@ -83,8 +84,8 @@ const clips = args['no-clips'] ? null : '_all';
 let pack;
 try {
   pack = isGame
-    ? await buildUnityGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log })
-    : await buildUnityWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log });
+    ? await buildUnityGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log })
+    : await buildUnityWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

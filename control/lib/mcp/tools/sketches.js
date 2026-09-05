@@ -484,30 +484,50 @@ export function registerSketchTools() {
         skinned: {
           type: 'boolean',
           default: false,
-          description: 'With `clips`: export each rig figure as ONE SkinnedMesh (JOINTS_0/WEIGHTS_0 + skins/IBM — soft weights across joints where the rig carries bone segments, hard-bound otherwise) so the engine deforms smooth flesh. Off (default): rigid part nodes, byte-identical to before.',
+          description: 'With `clips`: each rig figure as ONE SkinnedMesh (JOINTS_0/WEIGHTS_0 + skins/IBM, soft weights where bones carry segments) so the engine deforms smooth flesh. Off: rigid part nodes.',
+        },
+        humanoid: {
+          type: 'boolean',
+          default: false,
+          description: 'With `skinned`: VRM 1.0 bone names + VRMC_vrm extension (biped rigs).',
+        },
+        union: {
+          type: 'boolean',
+          default: false,
+          description: 'stl/3mf only: Manifold CSG union of the shells into ONE solid with a measured volume (optional dep; absent ⇒ ships plain, says why).',
+        },
+        quantize: {
+          type: 'boolean',
+          default: false,
+          description: 'glb only: KHR_mesh_quantization — smaller file; off = float export.',
+        },
+        lit: {
+          type: 'boolean',
+          default: false,
+          description: "glb only: the LIT handoff — real pbrMetallicRoughness materials (no unlit extension) over the UNSHADED payload, so Blender / Godot / Unity / Unreal (with the pack's M_MojuloLit master) light the geometry themselves. Off = the mojulo look (unlit vertex colour, light baked in). The web runtime is unaffected.",
         },
         format: {
           type: 'string',
-          enum: ['glb', 'stl'],
+          enum: ['glb', 'stl', '3mf', 'usda', 'usdz'],
           default: 'glb',
           description:
-            "'glb' (default): faithful depiction capture — vertex colours, named group nodes, unlit. 'stl': binary STL for 3D printing — bare triangles, no colour.",
+            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file.",
         },
         scale: {
           type: 'number',
           description:
-            "STL only: world-units → mm multiplier; overrides all derivation. Literal kinds derive it from declared `units` (mm/cm/m/in/ft) when omitted; other kinds fit to `target_mm`. Echoed in the result and README.",
+            "STL / 3MF only: world-units → mm multiplier; overrides derivation (literal kinds derive from `units`; others fit to `target_mm`).",
         },
         target_mm: {
           type: 'number',
           description:
-            'STL only: fit the longest printed dimension to this many mm (non-literal kinds default to 120). Overrides `units` derivation; `scale` beats both.',
+            'STL / 3MF only: fit the longest printed dimension to this many mm (non-literal kinds default to 120). Overrides `units` derivation; `scale` beats both.',
         },
         write: {
           type: 'boolean',
           default: true,
           description:
-            'When true (default), write the export into the sketch outcome folder (data/outcomes/<ref>/, beside recipe.json + a provenance README) and return its `path`. Set false to compute the export metadata + download URL without touching disk.',
+            'When true (default), write the export into data/outcomes/<ref>/ (beside recipe.json + a provenance README) and return its `path`. False: metadata + download URL only.',
         },
       },
       required: ['ref'],

@@ -38,6 +38,7 @@ const { values: args } = parseArgs({ options: {
   web: { type: 'boolean', default: false },
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
+  lit: { type: 'boolean', default: false },   // the LIT handoff: PBR materials over an unshaded base (lit-handoff.plan.md)
 } });
 
 function fail(msg) { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); }
@@ -62,8 +63,8 @@ const clips = args['no-clips'] ? null : '_all';
 let pack;
 try {
   pack = isGame
-    ? await buildGodotGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log })
-    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log });
+    ? await buildGodotGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log })
+    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

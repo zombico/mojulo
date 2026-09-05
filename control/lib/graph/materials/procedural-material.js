@@ -35,6 +35,9 @@ export const MATERIAL_PRESETS = {
   'brushed-hull': { grid: 4, ramp: 0.28, cloud: 0.36 },                       // heavier mottle
   'weathered-hull': { grid: 4, ramp: 0.28, cloud: 0.30, wear: 1.0 },          // + rust/grime weathering
   'weathered-heavy': { grid: 6, ramp: 0.26, cloud: 0.30, wear: 1.5 },         // grimy, offline-fidelity
+  // interior plaster — a whisper of top-lit ramp + fine mottle over a painted wall (room-realism phase 4);
+  // authored on the floorplan's paint swath with `lit:false` so the room's own light shade is kept
+  plaster: { grid: 3, ramp: 0.08, cloud: 0.05 },
 };
 export const MATERIAL_KINDS = Object.keys(MATERIAL_PRESETS);
 

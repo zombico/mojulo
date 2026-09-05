@@ -4,7 +4,7 @@
  * sketches.js hosted six unrelated tool families in one 2038-line file; each
  * now owns its own module and sketches.js is the registration surface.
  */
-// Model EXPORT (GLB / STL, print-purposed) and the mesh-render bind.
+// Model EXPORT (GLB, the print-purposed STL / 3MF, and OpenUSD usda / usdz) and the mesh-render bind.
 
 
 import path from 'node:path';
@@ -14,7 +14,11 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { facesToStl, isPrintableFace } from '@/lib/graph/scene/scene-stl';
+import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
+import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
+import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
+import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
+import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { glbToFaces } from '@/lib/graph/scene/scene-gltf-read';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
@@ -27,7 +31,13 @@ import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
  * (default) is the faithful depiction capture (vertex colours, named group nodes);
  * `format: 'stl'` is the 3D-printing handoff — bare binary triangle soup for
  * slicers, colour and grouping deliberately dropped, `scale` mapping world units
- * to millimetres. Returns the download URL plus, when `write` is true (default),
+ * to millimetres; `format: '3mf'` is the same printable set as a 3MF package —
+ * millimetres declared IN the file, baked colours as basematerials, instanced
+ * repeats as one object + build items (interchange-seams.plan.md seam 1);
+ * `format: 'usda' | 'usdz'` is the OpenUSD interchange (seam 2) — z-up verbatim,
+ * `metersPerUnit` from the recipe's declared units (true scale in AR Quick Look),
+ * displayColor + PointInstancer + cameras + entity Xforms; usda writes its texture
+ * sidecars beside it, usdz packs them into the one aligned file. Returns the download URL plus, when `write` is true (default),
  * an on-disk path the host agent can open or move. Sketches with no World form
  * return { ok:false, eligible:false }.
  *
@@ -125,7 +135,7 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     `- sketch ref: \`${ref}\``,
     `- kind: \`${kind}\``,
     `- manifest sha256/16: \`${hash}\``,
-    `- format: ${format}${format === 'glb' && clips ? ` (animated — clips: ${clips === '_all' ? 'all' : clips.join(', ')})` : ''}`,
+    `- format: ${format}${format === 'glb' && clips ? ` (animated — clips: ${clips === '_all' ? 'all' : clips.join(', ')})` : ''}${exported.quantized ? ' (KHR_mesh_quantization — int16 positions under dequantizing nodes; the extension is required)' : ''}${exported.lit ? ' (LIT — real pbrMetallicRoughness materials over an unshaded base; the importer\'s light is the only light)' : ''}`,
     `- exported: ${new Date().toISOString()}`,
     ...(print
       ? [
@@ -138,7 +148,7 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
           study: 'a surface study printed as a figurine (solidify in a DCC first)',
           ornament: 'a desk object of an abstract depiction; scale has no physical meaning',
         }[print.profile]}`,
-        `- scale: ×${print.scale} (${print.scaleNote}) — prints ${print.sizeMm.join(' × ')} mm`,
+        `- scale: ×${print.scale} (${print.scaleNote}) — prints ${print.sizeMm.join(' × ')} mm${format === '3mf' ? ' (millimetres are declared in the file)' : ' (STL carries no units; slicers assume mm)'}`,
         `- closure: ${print.closure.audited
           ? (print.closure.closed
             ? 'closed — no significant open rims in the printable set'
@@ -156,7 +166,9 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '',
     '## Importing this file (Blender / Godot)',
     '',
-    '- Axes: mojulo worlds are z-up; the GLB parents everything under a y-up-rotated `mojulo` root, so it imports upright with no axis settings. (STL stays raw z-up, units as millimetres.)',
+    '- Axes: mojulo worlds are z-up; the GLB parents everything under a y-up-rotated `mojulo` root, so it imports upright with no axis settings. (STL and 3MF stay raw z-up, units as millimetres — 3MF declares them, STL assumes them. USD declares `upAxis = "Z"` and `metersPerUnit` from the recipe, so it too imports upright at true scale.)',
+    ...(format === 'usda' || format === 'usdz' ? ['- USD: one Mesh per render group with per-vertex `displayColor` (untextured meshes bind no material — viewers show the colour directly); textured groups bind a UsdPreviewSurface + UsdUVTexture; repeats are PointInstancers; entities are Xforms whose `moj:` extras ride customData; spawn / colliders / game ride the layer customLayerData. Rig clips are not in USD yet (UsdSkel is roadmap).'] : []),
+    ...(format === '3mf' ? ['- 3MF: one object per shell (the base geometry, then each instanced repeat) placed by build items; baked colours ride `basematerials` — map them to filaments on a multi-material printer, ignore them otherwise.'] : []),
     '- Animations: rig clips are baked at 1 second per cycle (looping clips repeat key 0 as a wrap key) — retime freely in the NLA/AnimationPlayer.',
     '- Level semantics ride glTF `extras` under the `moj:` namespace: `entity:<id>` nodes carry `moj:entity`/`moj:rule`/`moj:body`; the scene carries `moj:spawn`, `moj:colliders` (AABB boxes), and `moj:game` (contract summary). Cameras are mojulo\'s own framings.',
     '- Colours are baked vertex colours on unlit materials — the depiction is the asset; no lighting setup needed.',
@@ -167,16 +179,20 @@ export async function exportModelHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  if (format !== 'glb' && format !== 'stl') {
-    throw new Error("`format` must be 'glb' or 'stl' if provided");
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz'];
+  if (!FORMATS.includes(format)) {
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz' if provided");
   }
+  const isUsd = format === 'usda' || format === 'usdz';
+  // The two print formats share every print seam (profile, scale, closure, README notes).
+  const isPrint = format === 'stl' || format === '3mf';
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) {
     throw new Error('`scale` must be a positive number if provided');
   }
@@ -195,6 +211,22 @@ export async function exportModelHandler(input) {
   if (skinned && (clips == null || format !== 'glb')) {
     throw new Error("`skinned: true` needs `format: 'glb'` and a `clips` selection — the skin binds the animated joints");
   }
+  // quantized GLB (interchange-seams.plan.md seam 6a): KHR_mesh_quantization on the static mesh
+  // paths — about half the geometry bytes, no dependency. Off ⇒ byte-identical float export.
+  if (quantize !== false && quantize !== true) throw new Error('`quantize` must be a boolean if provided');
+  if (quantize && format !== 'glb') throw new Error("`quantize: true` applies to `format: 'glb'` only");
+  // lit handoff (lit-handoff.plan.md step 1): real PBR materials over an UNSHADED base
+  if (lit !== false && lit !== true) throw new Error('`lit` must be a boolean if provided');
+  if (lit && format !== 'glb') throw new Error("`lit: true` applies to `format: 'glb'` only");
+  // humanoid (interchange-seams.plan.md seam 3a): VRM bone names on the skinned joints + the
+  // VRMC_vrm extension. Rides the skinned path (names belong to skin joints).
+  if (humanoid !== false && humanoid !== true) throw new Error('`humanoid` must be a boolean if provided');
+  if (humanoid && !skinned) throw new Error("`humanoid: true` needs `skinned: true` (and a `clips` selection) — the VRM names belong to the skin joints");
+  // union (interchange-seams.plan.md seam 4a): a true CSG union of the printable shells via
+  // Manifold before the print file is written — one solid with a measured volume instead of
+  // overlapping shells the slicer must repair. Opt-in; absent the package it reports and ships plain.
+  if (union !== false && union !== true) throw new Error('`union` must be a boolean if provided');
+  if (union && !isPrint) throw new Error("`union: true` applies to the print formats ('stl' | '3mf') only");
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) {
     throw new Error(`No sketch exists at ref '${ref}'`);
@@ -203,7 +235,24 @@ export async function exportModelHandler(input) {
     throw new Error(`Sketch '${ref}' has no manifest`);
   }
 
-  const { payload, kind } = await resolveWorldScene(sketch);
+  // a lit export sources the UNSHADED payload (flat albedo, no mojulo Lambert / AO / material
+  // darkening) so the importer's light is the only light on the geometry
+  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, lit ? { unshaded: true } : {});
+  let payload = resolvedPayload;
+  let unionResult = null;
+  if (union && payload) {
+    const shells = printableShells(payload);
+    if (shells) {
+      const r = await unionShells(shellsToInstances(shells, applyTransform));
+      if (r.faces) {
+        // the unioned solid replaces the printable set (already instanced; no repeats left)
+        payload = { faces: r.faces };
+        unionResult = { applied: true, ...r.stats };
+      } else {
+        unionResult = { applied: false, reason: r.reason, ...(r.stats || {}) };
+      }
+    }
+  }
 
   // Scale strategy by print profile. Precedence: explicit `scale` > `target_mm`
   // fit > the profile default (literal: `units` derivation — true scale is
@@ -214,7 +263,7 @@ export async function exportModelHandler(input) {
   const units = typeof sketch.manifest.units === 'string' ? sketch.manifest.units : null;
   let scale = 1;
   let scaleNote = 'default 1 — coordinates read as millimetres';
-  if (format === 'stl' && payload) {
+  if (isPrint && payload) {
     const fitTo = (target, why) => {
       const probe = facesToStl(payload, { scale: 1 });
       const longest = probe ? Math.max(...probe.bounds.size) : 0;
@@ -243,10 +292,21 @@ export async function exportModelHandler(input) {
     }
   }
 
+  // USD declares its scale IN the layer: the recipe's declared units → metersPerUnit (1 = the
+  // pinned MOJULO_UNITS when nothing is declared). Print-style fit/scale knobs do not apply.
+  const unitMm = deriveStlScale(units);
+  const metersPerUnit = unitMm != null ? unitMm / 1000 : 1;
+  const usdOpts = { generator: `mojulo ${ref}`, title: sketch.title || sketch.manifest.title || ref, metersPerUnit };
   const exported = payload
     ? (format === 'stl'
       ? facesToStl(payload, { scale, generator: `mojulo ${ref}` })
-      : facesToGlb(payload, { generator: `mojulo ${ref}`, ...(clips != null ? { clips } : {}), ...(skinned ? { skinned } : {}) }))
+      : format === '3mf'
+        ? facesTo3mf(payload, { scale, generator: `mojulo ${ref}`, title: sketch.title || sketch.manifest.title || ref })
+        : format === 'usda'
+          ? facesToUsda(payload, usdOpts)
+          : format === 'usdz'
+            ? facesToUsdz(payload, usdOpts)
+            : facesToGlb(payload, { generator: `mojulo ${ref}`, ...(clips != null ? { clips } : {}), ...(skinned ? { skinned } : {}), ...(quantize ? { quantize } : {}), ...(humanoid ? { humanoid } : {}), ...(lit ? { lit: true } : {}) }))
     : null;
   const url = `/api/sketches/${encodeURIComponent(ref)}/model.${format}`;
   if (!exported) {
@@ -276,6 +336,23 @@ export async function exportModelHandler(input) {
     vertices: exported.vertexCount,
     triangles: exported.triangleCount,
   };
+  // field solids (field-solids.plan.md F4): the honest ledger says in numbers what the recipe could
+  // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
+  const fieldSpecs = Array.isArray(sketch.manifest.fields) ? sketch.manifest.fields : [];
+  if (fieldSpecs.length) {
+    const grids = fieldSpecs.map((f) => { try { return fieldGrid(f); } catch { return null; } }).filter(Boolean);
+    const cellsList = grids.map((g) => g.cells);
+    const coarsest = grids.length ? Math.max(...grids.map((g) => g.cell)) : null;
+    result.field_solids = {
+      count: fieldSpecs.length,
+      cells: cellsList.length === 1 ? cellsList[0] : cellsList,
+      ...(coarsest != null ? {
+        edge_rounding: Math.round(coarsest * (isPrint ? scale : 1) * 1000) / 1000,
+        edge_rounding_unit: isPrint ? 'mm' : (units || 'world units'),
+      } : {}),
+      note: 'Field solids (the `fields` monomer) round every edge to about one grid cell — raise `cells` (≤128) for a finer edge; a machined sharp edge is `union: true` (Manifold, print formats) or the DCC.',
+    };
+  }
   if (format === 'glb') {
     result.nodes = exported.nodeCount;
     // level-as-layout semantics (I4) — reported when the payload carried them
@@ -285,11 +362,54 @@ export async function exportModelHandler(input) {
       result.animations = exported.animationCount ?? 0;
       result.animated_figures = exported.animatedFigures ?? [];
       if (exported.skinnedFigures) result.skinned_figures = exported.skinnedFigures;
+      if (exported.humanoidFigures) {
+        result.humanoid_figures = exported.humanoidFigures;
+        result.humanoid_note = 'VRM 1.0 bone names on the skin joints (hips / spine / head / left+rightUpperArm…Foot; weightless leaf joints at the wrists and ankles stand in for hands / feet) + the VRMC_vrm extension on the first figure. '
+          + 'Honest limits: the skeleton is FLAT (absolute rotations, no parent chain) and the rest pose is the figure\'s stand, not a T-pose — VRM-aware tools address the bones by name today; a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).';
+      }
     }
+    if (exported.lit) {
+      result.lit = true;
+      result.lit_note = 'Real pbrMetallicRoughness materials (metallic 0, roughness 0.85; no KHR_materials_unlit) over the UNSHADED payload — '
+        + 'Blender, Godot, Unity and three.js light it on import; the Unreal pack pairs it with the M_MojuloLit master (pass --lit to export-unreal). '
+        + 'The web runtime stays unlit; this is a handoff mode.';
+    }
+    if (exported.quantized) {
+      result.quantized = true;
+      result.quantize_step = Math.round(exported.quantizeStep * 1e6) / 1e6;
+      result.note = `KHR_mesh_quantization: positions as int16 under per-mesh dequantizing nodes (coarsest step ${result.quantize_step}${units ? ` ${units}` : ' world units'}), colours uint16, normals int8. `
+        + 'Importers that support the extension (Blender, glTFast/Unity, Unreal, Godot, three.js) read it; the extension is REQUIRED, so a reader without it refuses the file — re-export without `quantize` for those.';
+    }
+  } else if (isUsd) {
+    result.nodes = exported.nodeCount;
+    result.meters_per_unit = metersPerUnit;
+    if (exported.bounds) result.size_units = exported.bounds.size.map((v) => Math.round(v * 1000) / 1000);
+    if (exported.cameraCount) result.cameras = exported.cameraCount;
+    if (exported.entityCount) result.entity_nodes = exported.entityCount;
+    if (exported.instancerCount) result.instancers = exported.instancerCount;
+    if (exported.textureCount) result.textures = exported.textureCount;
+    if (format === 'usdz') result.files = exported.files;
+    result.note =
+      `OpenUSD ${format === 'usdz' ? 'package (uncompressed, 64-byte aligned — AR Quick Look opens it on iOS / visionOS)' : 'text layer'}: z-up verbatim (upAxis Z), `
+      + `metersPerUnit ${metersPerUnit}${unitMm != null ? ` (from units:'${units}')` : ' (no units declared — 1 unit = 1 m)'}, `
+      + 'baked colours as per-vertex displayColor (viewers LIGHT it — the depiction reads as albedo, not the unlit web look), '
+      + 'instanced repeats as PointInstancers, level cameras as Camera prims, entities as Xforms with moj: customData. '
+      + 'Not exported in v1: rig figures / clips (UsdSkel waits on the humanoid map), per-instance tints.'
+      + (format === 'usda' && exported.sidecars.length ? ` Texture sidecars: ${exported.sidecars.map((s) => s.name).join(', ')} (written beside the file).` : '');
   } else {
     // The print handoff: profile + scale + size + closure travel with the file.
+    if (format === '3mf') {
+      result.objects = exported.objectCount;
+      result.items = exported.itemCount;
+      result.colors = exported.colorCount;
+      if (exported.colorBits < 8) result.color_bits = exported.colorBits;
+    }
     result.print_profile = profile;
     result.scale = scale;
+    if (unionResult) {
+      result.union = unionResult;
+      if (unionResult.applied && Number.isFinite(unionResult.volume)) result.union.volume_mm3 = Math.round(unionResult.volume * scale * scale * scale * 100) / 100;
+    }
     result.size_mm = exported.bounds.size.map((v) => Math.round(v * 10) / 10);
     result.closure = profile === 'study'
       ? { audited: false, reason: `'${kind ?? sketch.manifest.kind}' is a surface study — open shells by construction; run a DCC solidify pass (Blender) for a printable figurine` }
@@ -305,11 +425,21 @@ export async function exportModelHandler(input) {
       study: 'A surface study printed as a figurine — not a solid part.',
       ornament: 'A desk-object print of an abstract depiction — scale has no physical meaning.',
     }[profile];
-    result.note =
-      `${profileLine} STL is bare triangle soup for slicers: colour/groups dropped, water/decals/studio grid omitted, `
-      + `repeats expanded, z-up, units read as mm (scale ${scaleNote}; prints ${result.size_mm.join(' × ')} mm). Not guaranteed manifold — `
-      + "intersecting shells survive; let the slicer's mesh repair union them on import. "
-      + closureLine;
+    const unionLine = !unionResult ? ''
+      : unionResult.applied
+        ? ` Manifold union: ${unionResult.unioned} shell${unionResult.unioned === 1 ? '' : 's'} → ONE solid, volume ${result.union.volume_mm3} mm³, genus ${unionResult.genus}${unionResult.non_manifold.length ? `; left out as non-manifold: ${unionResult.non_manifold.map((n) => n.name).join(', ')}` : ''}.`
+        : ` Union NOT applied: ${unionResult.reason}.`;
+    result.note = (format === '3mf'
+      ? `${profileLine} 3MF for slicers (PrusaSlicer / Bambu / Orca / Cura): millimetres declared in the file, baked colours as `
+        + `${result.colors} basematerial${result.colors === 1 ? '' : 's'}${result.color_bits ? ` (palette quantized to ${result.color_bits} bits/channel)` : ''}, `
+        + `${result.objects} object${result.objects === 1 ? '' : 's'} placed by ${result.items} build item${result.items === 1 ? '' : 's'} (repeats stay instanced), `
+        + `water/decals/studio grid omitted, z-up (scale ${scaleNote}; prints ${result.size_mm.join(' × ')} mm). Shells are separate objects, not a boolean union — `
+        + 'the slicer merges them on import. '
+        + closureLine
+      : `${profileLine} STL is bare triangle soup for slicers: colour/groups dropped, water/decals/studio grid omitted, `
+        + `repeats expanded, z-up, units read as mm (scale ${scaleNote}; prints ${result.size_mm.join(' × ')} mm). Not guaranteed manifold — `
+        + "intersecting shells survive; let the slicer's mesh repair union them on import. "
+        + closureLine) + unionLine;
   }
   if (write) {
     // Provenance parity with export_game (interchange.plan.md I4): the model file lands in
@@ -321,13 +451,19 @@ export async function exportModelHandler(input) {
     await fs.mkdir(dir, { recursive: true });
     const file = path.join(dir, `model.${format}`);
     await fs.writeFile(file, exported.bytes);
+    // usda references its textures by relative path — write them beside it (usdz carries them inside).
+    for (const sc of (format === 'usda' ? exported.sidecars : [])) {
+      const scPath = path.join(dir, sc.name);
+      await fs.mkdir(path.dirname(scPath), { recursive: true });
+      await fs.writeFile(scPath, sc.bytes);
+    }
     const hash = createHash('sha256').update(JSON.stringify(sketch.manifest)).digest('hex').slice(0, 16);
     await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
     await fs.writeFile(
       path.join(dir, 'README.md'),
       buildModelReadme({
         sketch, ref, kind: kind ?? sketch.manifest.kind, format, hash, exported, clips,
-        ...(format === 'stl' ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units } } : {}),
+        ...(isPrint ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units } } : {}),
       }),
     );
     result.path = file;
@@ -350,16 +486,14 @@ export async function exportModelHandler(input) {
  * The mesh is DERIVED, never the artifact: no geometry enters the manifest;
  * worlds place it by ref via a figures-map `meshRef` entry (world-scene.js).
  */
-export async function bindMeshRenderHandler(input) {
-  const { ref, glb_path: glbPath, note, source } = input || {};
-  if (!ref || typeof ref !== 'string') throw new Error('bind_mesh_render requires { ref }');
-  const sketch = SketchRepository.getByRef(ref);
-  if (!sketch) throw new Error(`Sketch '${ref}' not found`);
-  if (!glbPath || typeof glbPath !== 'string') throw new Error('bind_mesh_render requires { glb_path }');
-  const bytes = await fs.readFile(glbPath);
-  // The machine gate: strict container validation + a full geometry decode.
-  // glbToFaces throws descriptive errors on bad magic / chunk layout / JSON /
-  // compressed or quantized geometry — reject before writing anything.
+/**
+ * bindMeshBytes(sketch, bytes, { sourcePath, source, note }) → { slot, sha256, faces }
+ * — the shared bind-back door: strict GLB validation + a full decode (the
+ * machine gate, BEFORE anything lands on disk), then the append-only mesh slot
+ * + its provenance sidecar. bind_mesh_render (manual) and the mesh handoff's
+ * submit (durable, interchange-seams.plan.md seam 5) both go through here.
+ */
+export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source = null, note = null } = {}) {
   const faces = glbToFaces(bytes);
   if (!faces.length) {
     throw new Error('the submitted GLB carries no triangle geometry — bind the refined mesh, not an empty scene');
@@ -373,11 +507,22 @@ export async function bindMeshRenderHandler(input) {
     JSON.stringify(
       // `source` is the structured which-tool tag (parity with the image seam's
       // source column); `note` stays the free-text what-changed line.
-      { source_path: glbPath, source: typeof source === 'string' && source ? source : null, bound_at: new Date().toISOString(), sha256, bytes: bytes.length, note: note || null, n: slot.n },
+      { source_path: sourcePath, source: typeof source === 'string' && source ? source : null, bound_at: new Date().toISOString(), sha256, bytes: bytes.length, note: note || null, n: slot.n },
       null,
       2,
     ),
   );
+  return { slot, sha256, faces };
+}
+
+export async function bindMeshRenderHandler(input) {
+  const { ref, glb_path: glbPath, note, source } = input || {};
+  if (!ref || typeof ref !== 'string') throw new Error('bind_mesh_render requires { ref }');
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`Sketch '${ref}' not found`);
+  if (!glbPath || typeof glbPath !== 'string') throw new Error('bind_mesh_render requires { glb_path }');
+  const bytes = await fs.readFile(glbPath);
+  const { slot, sha256, faces } = await bindMeshBytes(sketch, bytes, { sourcePath: glbPath, source, note });
   return {
     ok: true,
     ref: sketch.ref,

@@ -36,7 +36,7 @@ import { doorApproaches } from '../worlds/movement-flow.js';
 import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { buildRoof } from '../architecture/roof.js';
-import { surfaceTexture } from '../landscape/surface-textures.js';
+import { surfaceTexture, collectFaceTextures } from '../landscape/surface-textures.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
 
 // ── structural glyph alphabet (the wall graph that relates rooms) ────────────
@@ -79,6 +79,11 @@ export const FLOORPLAN_DEFAULTS = {
   ceilings: false,         // opt-in ceiling planes (default: open-roof doll-house)
   xrayWalls: false,        // opt-in: render the outer envelope as a see-through wireframe cage
   furnish: false,          // opt-in: populate each registered room with its archetype furniture
+  furnishScale: 'feet',    // 'feet' (legacy: arrangers size pieces in fixed feet) | 'share' (preset share of the floor, banded + budgeted)
+  contactShadows: false,   // opt-in: a soft ambient-occlusion decal on the floor under each piece of furniture (the unbaked tier's grounding)
+  wallMaterial: null,      // opt-in: a procedural-material preset the interior paint swath carries into the World tier ('plaster'); needs wallDecor
+  floorTexture: null,      // opt-in: a surface-textures tile on the floor finish — 'auto' (oak boards / carrara marble by style) | a tile key | null. World + exports; the CSS still keeps its fill
+  floorTextureTile: 10,    // feet per wood-tile repeat ALONG the boards (3 ft across — the ring width)
   wallDecor: false,        // opt-in: dress interior wall faces (paint / wood wainscot / wallpaper)
   facadeDecor: false,      // opt-in: dress exterior wall faces (siding / corner boards / water table)
   entryDoor: false,        // opt-in: cut a perimeter front door + threshold into the envelope
@@ -445,18 +450,34 @@ function floorFinishFaces(rect, style, baseZ, o, holes = []) {
   let rects = [{ x0: rect.x, x1: rect.x + rect.w, y0: rect.y, y1: rect.y + rect.h }];
   for (const h of holes) rects = rects.flatMap((r) => subtractRect(r, h));
   const N = [0, 0, 1], faces = [];
-  const quad = (x0, x1, y0, y1, zz, tint) => { if (x1 - x0 > Q && y1 - y0 > Q) faces.push({ corners: [[x0, y0, zz], [x1, y0, zz], [x1, y1, zz], [x0, y1, zz]], fill: shadeHex(tint, N, o.light), outNormal: N, group: 'floor:skin' }); };
+  const quad = (x0, x1, y0, y1, zz, tint, extra = {}) => { if (x1 - x0 > Q && y1 - y0 > Q) faces.push({ corners: [[x0, y0, zz], [x1, y0, zz], [x1, y1, zz], [x0, y1, zz]], fill: shadeHex(tint, N, o.light), outNormal: N, group: 'floor:skin', ...extra }); };
+  // SURFACE TEXTURE on the base plane (lit-handoff.plan.md step 3): a surface-textures tile
+  // drawn multiply-lit over the finish's fill in the World, and as the lit albedo in the GLB
+  // export / Cycles render. 'auto' picks by style; the CSS still ignores it (keeps `fill`).
+  const texKey = o.floorTexture === 'auto' ? (style === 'marble' ? 'marble-carrara' : 'wood-oak') : (o.floorTexture || null);
+  // The World multiplies texel × the face's lit fill, so a textured base plane carries a LIGHT
+  // neutral fill (the tile brings the colour); marble's own tint is already pale.
+  const TEX_BASE = '#d9cdb8';
+  const texFor = (r, along) => {
+    if (!texKey) return {};
+    if (style === 'marble') return { texture: texKey, textureLit: true, uv: [[0, 0], [1, 0], [1, 1], [0, 1]] };   // 'slab': one veined tile per room
+    // the oak tile's ring bands run along its SECOND uv axis; stretch that axis along the
+    // boards (10 ft per repeat) and keep the ring width across them (3 ft per repeat)
+    const tAlong = o.floorTextureTile || FLOORPLAN_DEFAULTS.floorTextureTile, tAcross = 3;
+    const c = [[r.x0, r.y0], [r.x1, r.y0], [r.x1, r.y1], [r.x0, r.y1]];
+    return { texture: texKey, textureLit: true, uv: c.map(([x, y]) => (along ? [y / tAcross, x / tAlong] : [x / tAcross, y / tAlong])) };
+  };
   for (const r of rects) {
     if (style === 'marble') {
       const base = o.marbleTint || FLOORPLAN_DEFAULTS.marbleTint, seam = scaleHex(base, 0.88);
-      quad(r.x0, r.x1, r.y0, r.y1, z, base);
+      quad(r.x0, r.x1, r.y0, r.y1, z, base, texFor(r, true));
       const tile = 2.0, sw = 0.05;                                     // a tile grid both ways
       for (let x = Math.ceil(r.x0 / tile) * tile; x < r.x1 - Q; x += tile) quad(x - sw / 2, x + sw / 2, r.y0, r.y1, z + 0.004, seam);
       for (let y = Math.ceil(r.y0 / tile) * tile; y < r.y1 - Q; y += tile) quad(r.x0, r.x1, y - sw / 2, y + sw / 2, z + 0.004, seam);
     } else {                                                           // floorboards
       const base = o.floorboardTint || FLOORPLAN_DEFAULTS.floorboardTint, seam = scaleHex(base, 0.62);
-      quad(r.x0, r.x1, r.y0, r.y1, z, base);
       const along = (r.x1 - r.x0) >= (r.y1 - r.y0), board = 0.5, sw = 0.035;   // planks run along the longer axis
+      quad(r.x0, r.x1, r.y0, r.y1, z, texKey ? TEX_BASE : base, texFor(r, along));
       if (along) for (let y = Math.ceil(r.y0 / board) * board; y < r.y1 - Q; y += board) quad(r.x0, r.x1, y - sw / 2, y + sw / 2, z + 0.004, seam);
       else for (let x = Math.ceil(r.x0 / board) * board; x < r.x1 - Q; x += board) quad(x - sw / 2, x + sw / 2, r.y0, r.y1, z + 0.004, seam);
     }
@@ -500,11 +521,11 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
   if (x1 - x0 < 3 || y1 - y0 < 3) return [];
   const seed = (Math.round(rect.x * 131.1 + rect.y * 17.7 + baseZ * 7.3) >>> 0) || 1;
   const W = x1 - x0, H = y1 - y0;
-  let elements = furnishElements(glyph, seed, { w: W, h: H, wall })
+  let elements = furnishElements(glyph, seed, { w: W, h: H, wall, scale: o.furnishScale })
     .filter((e) => e.type !== 'window' && e.type !== 'door');
   // command position (movement-flow kernel #2): rotate the canonical layout so the anchor
   // piece backs a solid wall and faces the room's ACTUAL door, not the assumed front 'S'.
-  if (doorEdge) elements = orientElementsToDoor(elements, doorEdge, W, H);
+  if (doorEdge) elements = orientElementsToDoor(elements, doorEdge, W, H, { assetFacing: o.furnishScale === 'share' });
   // keep furniture OUT of circulation: drop any piece whose footprint overlaps a stair
   // exclusion rect (the flight rising through this room). Hall cells are already skipped.
   const exclude = o.furnishExclude || [];
@@ -547,7 +568,12 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
       xRange: [x0, x1], yRange: [y0, y1], zRange: [baseZ, baseZ + height],
       cameraHint: [(x0 + x1) / 2, (y0 + y1) / 2, baseZ + 5.5],
     },
-    light: o.light, includeShell: false, deferDiffusion: false,
+    // `contactShadows` asks the room renderer for its under-furniture AO decals (flat dark
+    // quads the World realizes in its shadow-decal pass); absent, the legacy positional
+    // `light` call is byte-identical.
+    // (lift 0.09: above the floorboards AND the rug asset, so a chair on the rug still grounds)
+    ...(o.contactShadows ? { lighting: { light: o.light, diffusion: { contact: true, contactStrength: o.contactStrength ?? 0.75, contactLift: 0.09, contactProfile: 'rim' } } } : { light: o.light }),
+    includeShell: false, deferDiffusion: false,
   });
   return out.faces || [];
 }
@@ -792,14 +818,17 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
   // the inside face of a brick building); otherwise the finish is chosen by geometry.
   const kind = o.interiorWallStyle || (kindRoll < 0.6 ? 'paint' : kindRoll < 0.8 ? 'wainscot' : 'wallpaper');
   const paint = palettePick(WALL_PAINTS, key, side, 7.1);
-  const rect = (a0, a1, lo, hi, color, lift) => {
+  // `swath` marks the painted field: with `wallMaterial` set it carries the procedural material
+  // (lit:false — the room's own shade is kept; the World adds the ramp + mottle per vertex)
+  const rect = (a0, a1, lo, hi, color, lift, swath = false) => {
     const A0 = Math.max(s0, a0), A1 = Math.min(s1, a1), L = Math.max(zb, lo), Hi = Math.min(zt, hi);
     if (A1 - A0 < 0.02 || Hi - L < 0.02) return;
     const off = side * (tHalf + lift);
     const corners = run.orientation === 'h'
       ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
       : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
-    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N });
+    const material = swath && o.wallMaterial ? { material: { kind: o.wallMaterial, lit: false } } : {};
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, ...material });
   };
   // EXPOSED BRICK — a brick field + a recessed running-bond mortar grid (coarser unit than
   // the facade so the interior face doesn't explode in count). Same material inside and out.
@@ -819,14 +848,14 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
   const baseTop = baseZ + 0.5;
   rect(s0, s1, baseZ, baseTop, WOOD_FINISH.base, 0.013);                 // baseboard (all finishes)
   if (kind === 'paint') {
-    rect(s0, s1, baseTop, baseZ + H, paint, 0.012);
+    rect(s0, s1, baseTop, baseZ + H, paint, 0.012, true);
   } else if (kind === 'wainscot') {
     const dadoTop = baseZ + 3.0, chairTop = baseZ + 3.2;
     rect(s0, s1, baseTop, dadoTop, WOOD_FINISH.panel, 0.012);            // paneled dado field
     const span = s1 - s0, nP = Math.max(1, Math.round(span / 2.2)), step = span / nP;
     for (let i = 0; i <= nP; i += 1) { const u = s0 + i * step; rect(u - 0.06, u + 0.06, baseTop, dadoTop, WOOD_FINISH.stile, 0.028); }  // stiles
     rect(s0, s1, dadoTop, chairTop, WOOD_FINISH.rail, 0.018);            // chair rail
-    rect(s0, s1, chairTop, baseZ + H, paint, 0.012);                     // paint above
+    rect(s0, s1, chairTop, baseZ + H, paint, 0.012, true);               // paint above
   } else {                                                              // wallpaper
     const base = palettePick(WALLPAPER_BASE, key, side, 3.3), ink = palettePick(WALLPAPER_INK, key, side, 9.7);
     rect(s0, s1, baseTop, baseZ + H, base, 0.012);
@@ -1107,6 +1136,36 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   const plan = Array.isArray(input.rooms)
     ? { rooms: input.rooms, halls: input.halls || [], doors: input.doors || [], width: input.width, height: input.height, seed: input.seed }
     : generatePlan(input.seed ?? 1, { width: input.width, height: input.height, maxDepth: input.maxDepth, corridors: input.corridors ?? false, minRoom: input.minRoom });
+  // ONE-CELL DEFAULTS (room-realism.plan.md phase 0). An explicit single furnished cell
+  // is "make me a living room": every wall is envelope, so the opt-in posture tuned for
+  // generated houses (windows/entry placed by structurizeHouse; bare slab) leaves it a
+  // windowless, doorless box — the authored door silently vanishes under the exterior-door
+  // rule. Flip the defaults for that case only, keyed on the RAW manifest keys so an
+  // explicit `windows` / `floorStyle` / `entryDoor` / door `entry` still wins, and so the
+  // stacked-house path (which passes resolved values) stays byte-identical. Generated
+  // plans and multi-cell plans never enter here.
+  const oneCell = Array.isArray(input.rooms) && plan.rooms.length === 1 && !(plan.halls || []).length;
+  if (oneCell && o.furnish) {
+    if (opts.windows === undefined) o.windows = true;
+    if (opts.floorStyle === undefined) o.floorStyle = 'auto';           // 'plain' opts out
+    if (opts.furnishScale === undefined) o.furnishScale = 'share';       // size pieces to THIS room (phase 1)
+    if (opts.contactShadows === undefined) o.contactShadows = true;      // ground the furniture (phase 3)
+    // surfaces (phase 4): baseboard + painted walls (the geometry-hashed finish mix stays
+    // for houses; a lone room reads calmer as plain paint), plaster mottle in the World,
+    // and a ceiling — in the WALK tier only (the cutaway still looks down into the room).
+    if (opts.wallDecor === undefined) o.wallDecor = true;
+    if (opts.interiorWallStyle === undefined) o.interiorWallStyle = 'paint';
+    if (opts.wallMaterial === undefined) o.wallMaterial = 'plaster';
+    if (opts.floorTexture === undefined) o.floorTexture = 'auto';         // oak grain on the boards (lit-handoff step 3)
+    if (o._worldTier && opts.ceilings === undefined) o.ceilings = true;
+    const promotable = (d) => !d.leadsTo && d.entry == null;             // authored, unqualified
+    if (plan.doors.some(promotable)) {
+      // the authored door is the room's front door: cut it as the entrance (never mutate the input)
+      plan.doors = plan.doors.map((d) => (promotable(d) ? { ...d, entry: true, exterior: true, leadsTo: 'entrance' } : d));
+    } else if (!plan.doors.length && opts.entryDoor === undefined) {
+      o.entryDoor = true;                                                // no door authored → auto-cut one
+    }
+  }
   const cells = [
     // carry `role` through (the true space-type the principle evaluator reads); `glyph` stays the
     // furniture/finish costume. Undefined role is fine — the evaluator defaults it from the glyph.
@@ -1163,7 +1222,14 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     // the edge a room is entered from (its interior access door) → command-position orient.
     const doorEdgeFor = (i) => {
       const d = (plan.doors || []).find((dr) => dr.room === i && !dr.exterior && !dr.entry);
-      return d ? d.edge : null;
+      if (d) return d.edge;
+      // a one-cell room is entered from its own front door — that IS its access door, so
+      // the layout takes command position against it (authored, or the auto-cut entry).
+      if (oneCell) {
+        const e = (plan.doors || []).find((dr) => dr.room === i && dr.entry) || wallGraph.entryDoor;
+        return e ? e.edge : null;
+      }
+      return null;
     };
     plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i))));
   }
@@ -1242,7 +1308,7 @@ export function renderFloorplanToHtml(input = {}, opts = {}) {
  * rasterization).
  */
 export function assembleFloorWorldScene(input = {}, opts = {}) {
-  const s = structurizeFloorplan(input, opts);
+  const s = structurizeFloorplan(input, { ...opts, _worldTier: true });   // the walk tier: a one-cell room gets its ceiling
   const exterior = opts.view === 'exterior';
   const viewBox = opts.viewBox || { width: 1120, height: 760 };
   const wallHeight = opts.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight;
@@ -1255,6 +1321,7 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
   // exterior view tiles the roof — resolve material keys → data-URL textures for the World.
   const textures = {};
   for (const k of s.roofTextureKeys || []) { const u = surfaceTexture(k); if (u) textures[k] = u; }
+  collectFaceTextures(s.faces, textures);                                 // floor tiles (lit-handoff step 3)
   return {
     faces: s.faces,
     cameras,
@@ -1988,6 +2055,7 @@ export function renderHouseToThreeWorld(input = {}, opts = {}) {
   const eyeZ = (ground.baseZ || 0) + ground.height * 0.42;
   const textures = {};
   for (const k of house.roofTextureKeys || []) { const u = surfaceTexture(k); if (u) textures[k] = u; }
+  collectFaceTextures(house.faces, textures);
   return emitThreeWorld({
     faces, cameras, viewBox,
     title: opts.title || 'mojulo house',

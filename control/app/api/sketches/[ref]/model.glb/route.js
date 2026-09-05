@@ -54,8 +54,10 @@ export async function GET(request, { params }) {
       });
     }
 
-    const { payload } = await resolveWorldScene(sketch);
-    const exported = payload ? facesToGlb(payload, { generator: `mojulo ${ref}` }) : null;
+    // ?lit=1 — the lit handoff: real PBR materials over the unshaded payload (lit-handoff.plan.md)
+    const lit = /^(1|true|yes)$/i.test(new URL(request.url).searchParams.get('lit') || '');
+    const { payload } = await resolveWorldScene(sketch, lit ? { unshaded: true } : {});
+    const exported = payload ? facesToGlb(payload, { generator: `mojulo ${ref}`, ...(lit ? { lit: true } : {}) }) : null;
     if (!exported) {
       return NextResponse.json({
         eligible: false,

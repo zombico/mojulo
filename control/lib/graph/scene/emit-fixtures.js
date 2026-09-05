@@ -115,6 +115,8 @@ export const EMIT_FIXTURES = [
 
   ['walk', { faces: [floor()], walk: true }],
   ['walk-tuned', { faces: [floor()], walk: { speed: 8, spawn: [1, 1, 1.6], radius: 0.4 } }],
+  ['xr', { faces: [floor()], xr: true }],
+  ['walk-xr', { faces: [floor()], walk: true, xr: { eye: 1.7, speed: 2, snap: 45 } }],
 
   ['picks', { faces: [quad()], picks: [{ name: 'static', label: 'Thing', fields: [{ k: 'mass', v: '3 kg' }] }] }],
   ['signs', { faces: [quad()], signs: SIGNS }],

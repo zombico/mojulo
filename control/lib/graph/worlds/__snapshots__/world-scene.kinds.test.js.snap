@@ -43,7 +43,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo complex function",
   },
   "condo-complex": {
-    "hash": "40439d51",
+    "hash": "ff16697b",
     "title": "mojulo condo complex",
   },
   "conics-view": {
@@ -171,7 +171,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo reactor",
   },
   "restaurant": {
-    "hash": "aba8a851",
+    "hash": "5928ddb1",
     "title": "mojulo restaurant",
   },
   "room": {
@@ -183,7 +183,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo Saturn",
   },
   "school-complex": {
-    "hash": "04e7604e",
+    "hash": "faf06226",
     "title": "mojulo school complex",
   },
   "series-view": {

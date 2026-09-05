@@ -145,7 +145,7 @@ describe('lowerAssembly — validation', () => {
   });
 
   it('rejects an unknown kind', () => {
-    expect(() => lowerAssembly({ parts: [{ kind: 'sweep', height: 2, profile: [] }] })).toThrow(/'lathe' or 'extrude'/);
+    expect(() => lowerAssembly({ parts: [{ kind: 'sweep', height: 2, profile: [] }] })).toThrow(/'lathe', 'extrude', 'loft', or 'field'/);
   });
 
   it('rejects a lathe with no radius profile', () => {
@@ -154,5 +154,42 @@ describe('lowerAssembly — validation', () => {
 
   it('rejects `on` pointing at a part not yet declared', () => {
     expect(() => lowerAssembly({ parts: [lathe({ on: 'missing' })] })).toThrow(/no earlier part/);
+  });
+});
+
+describe('lowerAssembly — loft parts (field-solids F1)', () => {
+  const stations = [{ t: 0, profile: { radius: 1, sides: 8 } }, { t: 1, profile: { radius: 0.4, sides: 8 } }];
+  it('routes a loft part to `lofts` as a straight axis up the stack, keeping its stations', () => {
+    const { lathes, lofts } = lowerAssembly({ parts: [lathe({ height: 2 }), { kind: 'loft', height: 3, stations, interp: 'smooth', material: 'steel' }] });
+    expect(lathes).toHaveLength(1);
+    expect(lofts).toHaveLength(1);
+    expect(lofts[0]).toEqual({ stations, interp: 'smooth', material: 'steel', axisFrom: { x: 0, y: 0, z: 2 }, axisTo: { x: 0, y: 0, z: 5 } });
+  });
+  it('always returns a `lofts` array (empty when no loft part)', () => {
+    expect(lowerAssembly({ parts: [lathe()] }).lofts).toEqual([]);
+  });
+  it('refuses a loft part without stations, or with its own path', () => {
+    expect(() => lowerAssembly({ parts: [{ kind: 'loft', height: 3 }] })).toThrow(/needs `stations`/);
+    expect(() => lowerAssembly({ parts: [{ kind: 'loft', height: 3, stations, path: [[0, 0, 0], [1, 1, 1]] }] })).toThrow(/no `path`/);
+  });
+  it("names 'loft' among the accepted kinds", () => {
+    expect(() => lowerAssembly({ parts: [{ kind: 'sweep', height: 1 }] })).toThrow(/'lathe', 'extrude', 'loft', or 'field'/);
+  });
+});
+
+describe('lowerAssembly — field parts (field-solids F3)', () => {
+  const terms = [{ op: 'add', shape: { kind: 'sphere', center: [0, 0, 1], radius: 1 } }];
+  it('routes a field part to `fields` as a translated solid (its own frame, z from 0)', () => {
+    const { fields } = lowerAssembly({ parts: [lathe({ height: 2 }), { kind: 'field', height: 2, terms, offset: [1, 0], cells: 32 }] });
+    expect(fields).toEqual([{ terms, cells: 32, translate: [1, 0, 2] }]);
+  });
+  it('replicates a field part like any other (radial copies share the stacked z)', () => {
+    const { fields } = lowerAssembly({ parts: [{ kind: 'field', height: 1, terms, radial: { count: 3, radius: 5 } }] });
+    expect(fields).toHaveLength(3);
+    expect(fields.every((f) => f.translate[2] === 0)).toBe(true);
+  });
+  it('refuses a field part without terms, or with its own translate', () => {
+    expect(() => lowerAssembly({ parts: [{ kind: 'field', height: 1 }] })).toThrow(/needs `terms`/);
+    expect(() => lowerAssembly({ parts: [{ kind: 'field', height: 1, terms, translate: [0, 0, 1] }] })).toThrow(/no `translate`/);
   });
 });

@@ -104,6 +104,22 @@ const { values: args } = parseArgs({
                                        // from decimation — detail-dense, camera-facing. e.g. 0.45.
     'neutral-light': { type: 'boolean', default: false }, // whiten the key/rim so cream reads white
     preview: { type: 'boolean', default: false },
+    // RENDER mode (lit-handoff.plan.md step 2): keep the Cycles FRAME instead of baking it.
+    // Source = the LIT unshaded export (real PBR materials, textures as albedo); a sun + sky
+    // (or the preset's studio rig with --light studio); a camera; a PNG under outcomes/<ref>/.
+    // A derived outcome with provenance — never a recipe change, never a bind.
+    render: { type: 'boolean', default: false },
+    camera: { type: 'string' },     // "x,y,z" in world units (z-up, the recipe's frame)
+    look: { type: 'string' },       // "x,y,z" the camera aims at
+    fov: { type: 'string' },        // horizontal field of view, degrees (default 60)
+    res: { type: 'string' },        // "WxH" pixels (default 1600x1000)
+    light: { type: 'string' },      // render light: 'sun' (default — sun + sky) | 'studio' (the preset's area rig)
+    out: { type: 'string' },        // output PNG path (default outcomes/<ref>/render-<light>.png)
+    roughness: { type: 'string' },  // lit export roughness (default 0.85)
+    sun: { type: 'string' },        // render sun "elevation,azimuth" in degrees (default 35,30 — low enough to come through the windows)
+    exposure: { type: 'string' },   // render film exposure in stops (default 1.2)
+    sky: { type: 'string' },        // render sky (world background) strength (default 3)
+    open: { type: 'boolean', default: false },   // render with the ceiling / roof faces dropped (the dollhouse light, like the bake's roof cut)
     'no-bind': { type: 'boolean', default: false },
     unshaded: { type: 'boolean', default: true }, // generate a flat-albedo source from --ref (clean GI base)
     shaded: { type: 'boolean', default: false }, // opt out: bake the sketch's own shaded export instead
@@ -123,8 +139,10 @@ function fail(msg) {
 const preset = PRESETS[args.preset];
 if (!preset) fail(`unknown --preset '${args.preset}' (have: ${Object.keys(PRESETS).join(', ')})`);
 
+const renderMode = !!args.render;
 const bindRef = args['bind-to'] || args.ref;
-if (!args['no-bind'] && !bindRef) fail('need --ref (or --bind-to with --glb) to bind the result; or pass --no-bind for a dry run');
+if (!renderMode && !args['no-bind'] && !bindRef) fail('need --ref (or --bind-to with --glb) to bind the result; or pass --no-bind for a dry run');
+if (renderMode && !args.ref && !args.glb) fail('--render needs --ref <sketch> (or --glb <path>)');
 
 const blenderBin = args.blender || BLENDER;
 if (!existsSync(blenderBin)) fail(`Blender not found at ${blenderBin} — install Blender or set MOJULO_BLENDER (see docs/local-blender-worker.md)`);
@@ -154,7 +172,12 @@ if (args.glb) {
   const { payload, kind } = await resolveWorldScene(sketch, { unshaded: true });
   if (!payload) fail(`sketch '${args.ref}' (kind '${kind}') has no exportable World geometry — nothing to bake`);
   if (payload.unshadedWarning) process.stderr.write(`[blender-bake] unshaded note: ${payload.unshadedWarning}\n`);
-  const { bytes } = facesToGlb(payload, { clips: '_all', generator: `mojulo ${args.ref} (unshaded)` });
+  // render mode exports LIT: real PBR materials (roughness dial) over the unshaded base, so
+  // the glTF importer hands Cycles a Principled BSDF with vertex colour × any texture as albedo
+  if (renderMode && args.open && Array.isArray(payload.faces)) {
+    payload.faces = payload.faces.filter((f) => !(typeof f.group === 'string' && (f.group === 'shell:ceiling' || f.group.startsWith('roof'))));
+  }
+  const { bytes } = facesToGlb(payload, { clips: '_all', generator: `mojulo ${args.ref} (unshaded${renderMode ? ', lit' : ''})`, ...(renderMode ? { lit: true, roughness: args.roughness ? Number(args.roughness) : 0.85 } : {}) });
   srcGlb = path.join(work, 'unshaded-src.glb');
   await fs.writeFile(srcGlb, bytes);
 } else if (args.ref) {
@@ -162,6 +185,36 @@ if (args.glb) {
   if (!existsSync(srcGlb)) fail(`source GLB not found: ${srcGlb} — run export_model on this ref first (or drop --shaded to generate an unshaded source)`);
 } else {
   fail('need --glb <path> or --ref <sketch>');
+}
+
+// ── RENDER mode: one Cycles frame, then out ──
+if (renderMode) {
+  const triple = (v, name) => { if (!v) return null; const a = v.split(',').map(Number); if (a.length !== 3 || a.some((x) => !Number.isFinite(x))) fail(`--${name} wants "x,y,z"`); return a; };
+  const res = (args.res || '1600x1000').split('x').map(Number);
+  if (res.length !== 2 || res.some((x) => !(x > 0))) fail('--res wants "WxH"');
+  const lightMode = args.light || 'sun';
+  if (!['sun', 'studio'].includes(lightMode)) fail("--light is 'sun' or 'studio'");
+  const outDir = args.ref ? path.join(OUTCOMES, args.ref) : work;
+  await fs.mkdir(outDir, { recursive: true });
+  const png = args.out ? path.resolve(args.out) : path.join(outDir, `render-${lightMode}${args.open ? '-open' : ''}.png`);
+  const rcfg = {
+    src_glb: srcGlb,
+    render: {
+      png, camera: triple(args.camera, 'camera'), look: triple(args.look, 'look'),
+      fov: args.fov ? Number(args.fov) : 60, res, samples: args.samples ? Number(args.samples) : 256,
+      light: lightMode, rig: lightMode === 'studio' ? preset.light : null,
+      sun: (args.sun || '35,30').split(',').map(Number), exposure: args.exposure ? Number(args.exposure) : 1.2, sky: args.sky ? Number(args.sky) : 3, open: !!args.open,
+    },
+  };
+  const rcfgPath = path.join(work, 'render-config.json');
+  await fs.writeFile(rcfgPath, JSON.stringify(rcfg, null, 2));
+  const rcode = await new Promise((resolve) => {
+    const proc = spawn(blenderBin, ['-b', '-P', path.join(here, 'blender-bake.py'), '--', rcfgPath], { stdio: ['ignore', 'inherit', 'inherit'] });
+    proc.on('close', resolve);
+  });
+  if (rcode !== 0 || !existsSync(png)) fail(`Blender render failed (exit ${rcode})`);
+  process.stdout.write(`${JSON.stringify({ ok: true, mode: 'render', ref: args.ref || null, png, source_glb: srcGlb, lit: true, light: lightMode, sun: rcfg.render.sun, exposure: rcfg.render.exposure, open: rcfg.render.open, samples: rcfg.render.samples, res, camera: rcfg.render.camera, look: rcfg.render.look, fov: rcfg.render.fov })}\n`);
+  process.exit(0);
 }
 
 const outGlb = path.join(work, 'baked.glb');

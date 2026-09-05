@@ -27,8 +27,9 @@
  * - animations, skins, morph targets are ignored (an imported mesh is scenery
  *   first, a body later if ever);
  * - PBR flattens to the baked colour (the substrate's unlit doctrine);
- * - compressed (Draco/meshopt), quantized-position, and sparse accessors are
- *   refused loudly — re-export from the DCC without compression.
+ * - compressed (Draco/meshopt) and sparse accessors are refused loudly — re-export
+ *   from the DCC without compression. (Quantized accessors — KHR_mesh_quantization —
+ *   decode fine: normalized ints + the mesh node's dequantizing TRS.)
  *
  * Pure Buffer work — no three.js, no deps; unit-testable in node.
  */
@@ -191,10 +192,9 @@ export function glbToFaces(buf, { group = 'mesh' } = {}) {
     }
     const posIdx = prim.attributes?.POSITION;
     if (posIdx == null) return;
-    const posAcc = json.accessors?.[posIdx];
-    if (posAcc?.componentType !== 5126) {
-      throw new Error('unsupported glTF: non-float POSITION (KHR_mesh_quantization?) — re-export unquantized');
-    }
+    // POSITION may be float, or a (normalized) integer accessor under KHR_mesh_quantization —
+    // readAccessor denormalizes, and the node walk applies the dequantizing TRS the writer put
+    // on the mesh node (interchange-seams.plan.md seam 6a).
     const pos = readAccessor(json, bin, posIdx);
     const colIdx = prim.attributes.COLOR_0;
     const col = colIdx != null ? readAccessor(json, bin, colIdx) : null;

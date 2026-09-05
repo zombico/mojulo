@@ -5,6 +5,15 @@ produces **bound derived artifacts** — the same posture as the [local image
 worker](local-image-worker.md) and [local voice worker](local-voice-worker.md).
 Mojulo holds no Blender, no keys, no state for this; it is a seam, not a dependency.
 
+## Three Blender paths
+
+- **Render (keep the frame)** — `scripts/blender-bake.mjs --ref <ref> --render`: the lit
+  unshaded export (real PBR materials, tiles as albedo) under a sun + sky (or the studio
+  rig), Cycles GPU, denoised, to `outcomes/<ref>/render-<light>.png`. Dials: `--camera x,y,z
+  --look x,y,z --fov --res WxH --samples --sun elev,az --exposure --sky --open --roughness
+  --out`. A derived outcome with provenance; the recipe is untouched. This is the "Astra
+  frame" path: the same room the World walks unlit, rendered per pixel with real light.
+
 ## Two Blender bake paths
 
 There are two GI-bake capabilities, both optional and Blender-gated, both producing
@@ -20,6 +29,26 @@ view):
   "blenderify a level/world."** Full design, presets, rollout, and the two gates:
   [../control/lib/graph/scene/map-gi-bake.plan.md](../control/lib/graph/scene/map-gi-bake.plan.md).
   Run: `node scripts/bake-world-gi.mjs --ref <world> --preset exterior --write`.
+
+## The USD / GLB verify gate (2026-09-05)
+
+Blender is also the READER that closes the OpenUSD export's machine gate
+(`lite-template/integration/0904/interchange-seams.plan.md` seam 2):
+
+```bash
+node scripts/verify-usd.mjs --ref <sketch> --usdc        # export usdz → usdcat parse + USDC → Blender import → compare
+node scripts/verify-usd.mjs --ref <sketch> --glb --quantize          # the same gate over a GLB export
+node scripts/verify-usd.mjs --ref <sketch> --glb --skinned --humanoid  # + the VRM bone names
+```
+
+`scripts/verify-usd.py` imports the file headless and reports what Blender built;
+`lib/graph/scene/usd-gate.js` compares it to what mojulo declared — triangles,
+the world box in METRES (via `metersPerUnit`), vertex colours, textures, cameras,
+and the humanoid bones — and stamps `mojulo-usd-gate.json` (or `-glb-`) beside
+the file. `usdcat` (ships with macOS at `/usr/bin/usdcat`) parses the layer first
+and, with `--usdc`, writes the binary `model.usdc` beside the text (the snowman:
+3.7 MB → 1.4 MB). No Blender / no usdcat ⇒ the reader is marked skipped with the
+reason. Advisory: it reports; the eyes gate (does it READ right) stays yours.
 
 ## What it is
 
@@ -87,6 +116,15 @@ figure, carved-solid, turntable, manji-tree — the export targets). Room/city/
 floorplan kinds use a different (traced-diffusion) lighting model that a flat
 Lambert light can't neutralise; `resolveWorldScene` flags those with a
 `payload.unshadedWarning` rather than half-flattening them.
+
+Per-vertex bakes need small faces. Cycles writes the result into vertex colours, so
+a face takes only its corners' light — and a floorplan's room-sized floor quad has its
+corners ON the wall planes, where a sample is self-occluded: the whole floor came back
+black. The world-GI driver's generated-mesh gear therefore tessellates large plain quads
+before export (`lib/graph/scene/bake-prep.js`, `--cell <units>`, default diag/32),
+keeps shadow decals out of the mesh, and ignores floor cells covered by a rug or a seat
+when it judges coverage. Authored `outNormal`s are honoured; only faces without one are
+probed (`--remigrate` re-derives all).
 
 Honest nuance: unshaded forces mojulo's `shade`/`contrast`/`material` passes off
 to reach the *rawest* base albedo. That is the correct GI base, but surfaces that

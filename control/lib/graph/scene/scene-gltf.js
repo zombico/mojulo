@@ -28,12 +28,15 @@ import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals }
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, zRotationQuat } from './scene-gltf-level.js';
+import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 
 const COMPONENT_FLOAT = 5126;
 const COMPONENT_USHORT = 5123;
 const COMPONENT_UINT = 5125;
 const TARGET_ARRAY_BUFFER = 34962;
 const TARGET_ELEMENT_ARRAY_BUFFER = 34963;
+const COMPONENT_BYTE = 5120;
+const COMPONENT_SHORT = 5122;
 const MODE_TRIANGLES = 4;
 // GLB chunk/header magic words (little-endian uint32).
 const GLB_MAGIC = 0x46546c67; // 'glTF'
@@ -192,7 +195,21 @@ function weldSoup(positions, colors, cc, normals, uvs) {
  * single binary buffer, then `build()` packs the JSON + BIN chunks into a .glb.
  */
 class GlbBuilder {
-  constructor(generator = 'mojulo scene-gltf') {
+  // `quantize` (interchange-seams.plan.md seam 6a): KHR_mesh_quantization on the static
+  // mesh paths — POSITION as normalized int16 under a per-mesh dequantizing node TRS
+  // (centre + half-extents), NORMAL as int8, COLOR_0 as uint16, TEXCOORD_0 as uint16 when in
+  // [0,1]. Roughly halves the geometry bytes with no dependency; every engine importer and
+  // Blender read it. Off (default) ⇒ byte-identical to the float export. Rig figures keep
+  // their own packed form either way.
+  constructor(generator = 'mojulo scene-gltf', { quantize = false, lit = false, litRoughness = 0.85 } = {}) {
+    this.quantize = !!quantize;
+    // LIT handoff (lit-handoff.plan.md step 1): every surface material is a real
+    // pbrMetallicRoughness (no unlit extension) so the importer's light shades the
+    // geometry; paired with an UNSHADED payload so that light is the only light.
+    this.lit = !!lit;
+    this.litRoughness = litRoughness;
+    this.quantizeDeclared = false;
+    this.quantizeStep = 0; // the coarsest position step (world units) any quantized mesh took
     this.bin = [];
     this.binLen = 0;
     this.children = []; // node indices parented under the y-up root
@@ -224,13 +241,14 @@ class GlbBuilder {
     }
   }
 
-  addView(buf, target) {
+  addView(buf, target, byteStride = null) {
     this.pad4();
     const byteOffset = this.binLen;
     this.bin.push(buf);
     this.binLen += buf.length;
     const view = { buffer: 0, byteOffset, byteLength: buf.length };
     if (target) view.target = target;
+    if (byteStride) view.byteStride = byteStride;
     this.json.bufferViews.push(view);
     return this.json.bufferViews.length - 1;
   }
@@ -246,6 +264,72 @@ class GlbBuilder {
     if (range && range.max) acc.max = range.max;
     this.json.accessors.push(acc);
     return this.json.accessors.length - 1;
+  }
+
+  // Normalized-integer vertex accessor (KHR_mesh_quantization / core COLOR_0 rules). glTF
+  // needs vertex-attribute strides to be multiples of 4, so VEC3 shorts pad to 8 bytes and
+  // VEC3 bytes to 4 — `stride` is the padded element size the caller packed.
+  intAccessor(buf, { componentType, components, count, stride, min = null, max = null }) {
+    const view = this.addView(buf, TARGET_ARRAY_BUFFER, stride);
+    const type = components === 4 ? 'VEC4' : components === 3 ? 'VEC3' : components === 2 ? 'VEC2' : 'SCALAR';
+    const acc = { bufferView: view, componentType, normalized: true, count, type };
+    if (min) acc.min = min;
+    if (max) acc.max = max;
+    this.json.accessors.push(acc);
+    return this.json.accessors.length - 1;
+  }
+
+  declareQuantization() {
+    if (this.quantizeDeclared) return;
+    this.json.extensionsUsed.push('KHR_mesh_quantization');
+    this.json.extensionsRequired = [...(this.json.extensionsRequired || []), 'KHR_mesh_quantization'];
+    this.quantizeDeclared = true;
+  }
+
+  // Quantized attribute set for one welded soup → { attributes, translation, scale }: the node
+  // carrying the mesh must apply `translation` + `scale` to dequantize POSITION (centre +
+  // half-extents, so int16 spans the mesh's own box — the step is half/32767 per axis).
+  quantizedAttributes(w, colorComponents) {
+    this.declareQuantization();
+    const n = w.positions.length / 3;
+    const b = bounds3(w.positions);
+    const center = [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2);
+    const half = [0, 1, 2].map((k) => Math.max((b.max[k] - b.min[k]) / 2, 1e-6));
+    this.quantizeStep = Math.max(this.quantizeStep, ...half.map((h) => h / 32767));
+    const pos = Buffer.alloc(n * 8);
+    const qmin = [32767, 32767, 32767], qmax = [-32767, -32767, -32767];
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < 3; k++) {
+        const q = Math.max(-32767, Math.min(32767, Math.round(((w.positions[i * 3 + k] - center[k]) / half[k]) * 32767)));
+        pos.writeInt16LE(q, i * 8 + k * 2);
+        if (q < qmin[k]) qmin[k] = q; if (q > qmax[k]) qmax[k] = q;
+      }
+    }
+    const attributes = { POSITION: this.intAccessor(pos, { componentType: COMPONENT_SHORT, components: 3, count: n, stride: 8, min: qmin, max: qmax }) };
+    if (w.colors && w.colors.length) {
+      const cc = colorComponents || 3;
+      const col = Buffer.alloc(n * 8);
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < cc; k++) col.writeUInt16LE(Math.max(0, Math.min(65535, Math.round(w.colors[i * cc + k] * 65535))), i * 8 + k * 2);
+        if (cc === 3) col.writeUInt16LE(0, i * 8 + 6);
+      }
+      attributes.COLOR_0 = this.intAccessor(col, { componentType: COMPONENT_USHORT, components: cc, count: n, stride: 8 });
+    }
+    if (w.uvs && w.uvs.length) {
+      let unit = true;
+      for (const v of w.uvs) if (!(v >= 0 && v <= 1)) { unit = false; break; }
+      if (unit) {
+        const uv = Buffer.alloc(n * 4);
+        for (let i = 0; i < n * 2; i++) uv.writeUInt16LE(Math.round(w.uvs[i] * 65535), i * 2);
+        attributes.TEXCOORD_0 = this.intAccessor(uv, { componentType: COMPONENT_USHORT, components: 2, count: n, stride: 4 });
+      } else attributes.TEXCOORD_0 = this.floatAccessor(w.uvs, 2); // repeating tiles exceed [0,1] — stay float
+    }
+    if (w.normals && w.normals.length) {
+      const nm = Buffer.alloc(n * 4);
+      for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) nm.writeInt8(Math.max(-127, Math.min(127, Math.round(w.normals[i * 3 + k] * 127))), i * 4 + k);
+      attributes.NORMAL = this.intAccessor(nm, { componentType: COMPONENT_BYTE, components: 3, count: n, stride: 4 });
+    }
+    return { attributes, translation: center, scale: half };
   }
 
   // Triangle-index accessor (SCALAR uint16/uint32, ELEMENT_ARRAY_BUFFER) — used by the
@@ -295,6 +379,12 @@ class GlbBuilder {
     return this.json.materials.length - 1;
   }
 
+  // The surface material for a plain group: unlit (the mojulo look, default) or — in the
+  // lit handoff — a real dielectric PBR at the export's roughness. One switch, every path.
+  surfaceMaterial(opts = {}) {
+    return this.lit ? this.pbrMaterial({ metallic: 0, roughness: this.litRoughness, ...opts }) : this.unlitMaterial(opts);
+  }
+
   // Only PNG/JPEG data URLs embed as glTF textures; SVG/other → null so the caller
   // falls back to baked vertex colour (geometry survives, the sticker image doesn't).
   imageFromDataUrl(dataUrl) {
@@ -315,19 +405,26 @@ class GlbBuilder {
     // index buffer only when merging actually shrinks the mesh (baked/smooth data), else a
     // degenerate-free soup (flat mojulo export). colorComponents drives the colour stride.
     const w = weldSoup(positions, colors, colorComponents || 3, normals, uvs);
-    const posAcc = this.floatAccessor(w.positions, 3, bounds3(w.positions));
-    const attributes = { POSITION: posAcc };
-    if (w.colors && w.colors.length) attributes.COLOR_0 = this.floatAccessor(w.colors, colorComponents);
-    if (w.uvs && w.uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(w.uvs, 2);
-    // Authored outward normals (export-normals.plan.md §3). No range needed (unit vectors).
-    // Absent ⇒ no NORMAL attribute, byte-identical to a normal-free export. The z-up→y-up root
-    // node rotation (ZUP_TO_YUP) rotates NORMAL along with POSITION at import — no hand-rotate.
-    if (w.normals && w.normals.length) attributes.NORMAL = this.floatAccessor(w.normals, 3);
+    let attributes, dequant = null;
+    if (this.quantize && w.positions.length) {
+      ({ attributes, ...dequant } = this.quantizedAttributes(w, colorComponents));
+    } else {
+      const posAcc = this.floatAccessor(w.positions, 3, bounds3(w.positions));
+      attributes = { POSITION: posAcc };
+      if (w.colors && w.colors.length) attributes.COLOR_0 = this.floatAccessor(w.colors, colorComponents);
+      if (w.uvs && w.uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(w.uvs, 2);
+      // Authored outward normals (export-normals.plan.md §3). No range needed (unit vectors).
+      // Absent ⇒ no NORMAL attribute, byte-identical to a normal-free export. The z-up→y-up root
+      // node rotation (ZUP_TO_YUP) rotates NORMAL along with POSITION at import — no hand-rotate.
+      if (w.normals && w.normals.length) attributes.NORMAL = this.floatAccessor(w.normals, 3);
+    }
     const prim = { attributes, mode: MODE_TRIANGLES, material: materialIndex };
     if (w.indices) prim.indices = this.indexAccessor(w.indices);
     this.json.meshes.push({ name, primitives: [prim] });
     const meshIdx = this.json.meshes.length - 1;
-    const nodeIdx = this.json.nodes.push({ name, mesh: meshIdx }) - 1;
+    const node = { name, mesh: meshIdx };
+    if (dequant) { node.translation = dequant.translation; node.scale = dequant.scale; }
+    const nodeIdx = this.json.nodes.push(node) - 1;
     this.children.push(nodeIdx);
     // Report the ACTUAL emitted geometry (post weld + degenerate-drop) so facesToGlb's
     // vertex/triangle totals and the reader round-trip count the real primitive, not the raw soup.
@@ -339,17 +436,28 @@ class GlbBuilder {
   // Rotation is about +Z — the nodes live in the pre-root z-up frame, exactly like addNode
   // geometry, so the y-up root conversion applies uniformly.
   addInstancedNodes(name, positions, colors, colorComponents, materialIndex, transforms) {
-    const posAcc = this.floatAccessor(positions, 3, bounds3(positions));
-    const attributes = { POSITION: posAcc };
-    if (colors && colors.length) attributes.COLOR_0 = this.floatAccessor(colors, colorComponents);
+    let attributes, dequant = null;
+    if (this.quantize && positions.length) {
+      ({ attributes, ...dequant } = this.quantizedAttributes({ positions, colors, uvs: null, normals: null }, colorComponents));
+    } else {
+      const posAcc = this.floatAccessor(positions, 3, bounds3(positions));
+      attributes = { POSITION: posAcc };
+      if (colors && colors.length) attributes.COLOR_0 = this.floatAccessor(colors, colorComponents);
+    }
     this.json.meshes.push({ name, primitives: [{ attributes, mode: MODE_TRIANGLES, material: materialIndex }] });
     const meshIdx = this.json.meshes.length - 1;
     transforms.forEach((t, i) => {
-      const node = { name: `${name}:${i}`, mesh: meshIdx };
+      const node = { name: `${name}:${i}` };
       if (Array.isArray(t.pos) && t.pos.some((v) => v)) node.translation = [t.pos[0], t.pos[1], t.pos[2]];
       const rz = t.rotZ || 0;
       if (rz) node.rotation = [0, 0, Math.sin(rz / 2), Math.cos(rz / 2)];
       if (Number.isFinite(t.scale) && t.scale !== 1) node.scale = [t.scale, t.scale, t.scale];
+      // quantized: the shared mesh sits on a dequantizing CHILD under each instance's TRS, so the
+      // instance transform stays exactly what the World applies and the child undoes the int16 box.
+      if (dequant) {
+        const child = this.json.nodes.push({ name: `${name}:${i}:q`, mesh: meshIdx, translation: dequant.translation, scale: dequant.scale }) - 1;
+        node.children = [child];
+      } else node.mesh = meshIdx;
       this.children.push(this.json.nodes.push(node) - 1);
     });
     return meshIdx;
@@ -364,7 +472,7 @@ class GlbBuilder {
   // thrusters, head-look-at) are live-channel behavior, not baked curves — dropped, same doctrine
   // as billboards/sky. Returns { nodes, animations, vertices, triangles }.
   addRigFigure(name, fig, clipNames) {
-    const material = this.unlitMaterial({ name: `fig:${name}` });
+    const material = this.surfaceMaterial({ name: `fig:${name}` });
     const boneNodes = []; // bone index → node index (null for part-less bones)
     const kids = [];
     let vertices = 0;
@@ -435,14 +543,21 @@ class GlbBuilder {
    * formula, now evaluated by the engine per-vertex. At rest J·IBM = I: a
    * no-animation import shows the bake's rest pose byte-exactly.
    */
-  addSkinnedRigFigure(name, fig, clipNames) {
-    const material = this.unlitMaterial({ name: `fig:${name}` });
+  addSkinnedRigFigure(name, fig, clipNames, { humanoid = false } = {}) {
+    const material = this.surfaceMaterial({ name: `fig:${name}` });
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
 
+    // humanoid (interchange-seams.plan.md seam 3a): joints take their VRM names, weightless leaf
+    // joints stand in for the hands / feet VRM requires, and the first humanoid figure carries the
+    // VRMC_vrm extension so VRM-aware tools address it by name. Skeleton stays flat (see the map).
+    const hb = humanoid ? humanoidBonesFor(bones) : null;
+    if (hb && hb.missing.length) throw new Error(`humanoid export: rig '${name}' cannot supply VRM bones ${hb.missing.join(', ')} — only the biped figure rig qualifies`);
+
     // joint nodes (flat, rest pose)
     const jointNodes = bones.map((bone, bi) =>
-      this.json.nodes.push({ name: `${name}:${bone.id}`, translation: [bone.head[0], bone.head[1], bone.head[2]] }) - 1);
+      this.json.nodes.push({ name: `${name}:${hb && hb.names.has(bi) ? hb.names.get(bi) : bone.id}`, translation: [bone.head[0], bone.head[1], bone.head[2]] }) - 1);
+    const leafNodes = hb ? hb.leaves.map((l) => this.json.nodes.push({ name: `${name}:${l.vrm}`, translation: l.at }) - 1) : [];
 
     // adjacency: bones sharing a rest endpoint (head/tail coincide) — the
     // candidate set for soft weights, so a thigh never bleeds into a wrist.
@@ -519,9 +634,22 @@ class GlbBuilder {
     }) - 1;
 
     const meshNode = this.json.nodes.push({ name: `${name}:body`, mesh: meshIdx, skin: skinIdx }) - 1;
-    const wrapIdx = this.json.nodes.push({ name, children: [...jointNodes, meshNode] }) - 1;
+    const wrapIdx = this.json.nodes.push({ name, children: [...jointNodes, ...leafNodes, meshNode] }) - 1;
     this.children.push(wrapIdx);
     this.rigWrappers.set(name, wrapIdx);
+    if (hb && !this.vrmDeclared) {
+      // one avatar per VRM file: the first humanoid figure owns the extension
+      const humanBones = {};
+      for (const [bi, vrm] of hb.names) humanBones[vrm] = { node: jointNodes[bi] };
+      hb.leaves.forEach((l, i) => { humanBones[l.vrm] = { node: leafNodes[i] }; });
+      this.json.extensionsUsed.push('VRMC_vrm');
+      this.json.extensions = { ...(this.json.extensions || {}), VRMC_vrm: {
+        specVersion: '1.0',
+        meta: { name, version: '1', authors: ['mojulo'], licenseUrl: 'https://vrm.dev/licenses/1.0/', avatarPermission: 'onlyAuthor', allowExcessivelyViolentUsage: false, allowExcessivelySexualUsage: false, commercialUsage: 'personalNonProfit', allowPoliticalOrReligiousUsage: false, allowAntisocialOrHateUsage: false, creditNotation: 'required', allowRedistribution: false, modification: 'prohibited' },
+        humanoid: { humanBones },
+      } };
+      this.vrmDeclared = true;
+    }
 
     let animations = 0;
     for (const clipName of clipNames) {
@@ -530,7 +658,7 @@ class GlbBuilder {
       this.addRigClip(name, fig, jointNodes, clipName, clip);
       animations++;
     }
-    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails };
+    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb };
   }
 
   // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once? }) → one glTF
@@ -652,7 +780,7 @@ class GlbBuilder {
  * excluded exactly as before. When present the result additionally carries
  * `animationCount` + `animatedFigures`.
  */
-export function facesToGlb(payload = {}, { generator, clips = null, skinned = false } = {}) {
+export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85 } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
@@ -671,7 +799,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const embodied = new Set(rigFigs.map(([, f]) => f.embodies).filter((g) => typeof g === 'string'));
   const faceList = embodied.size ? faces.filter((f) => !(f && embodied.has(f.group))) : faces;
 
-  const b = new GlbBuilder(generator);
+  const b = new GlbBuilder(generator, { quantize, lit, litRoughness: roughness });
   let vertexCount = 0;
   let triangleCount = 0;
 
@@ -733,7 +861,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     const af = fs.find((f) => typeof f.alpha === 'number' && f.alpha < 1);
     const groupAlpha = af ? af.alpha : null;
     if (gm.positions.length) {
-      const mat = b.unlitMaterial({ alpha: groupAlpha, name });
+      const mat = b.surfaceMaterial({ alpha: groupAlpha, name });
       tally(b.addNode(name, gm.positions, gm.colors, 3, mat, undefined, gm.normals));
     }
     let pbrIdx = 0;
@@ -757,13 +885,15 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       if (texIdx != null) {
         const mat = pbr
           ? b.pbrMaterial({ metallic: pbr[0], roughness: pbr[1], baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` })
-          : b.unlitMaterial({ baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` });
+          : b.surfaceMaterial({ baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` });
         // lit groups multiply texel × baked colour (COLOR_0); unlit stickers show the texel as-is.
-        tr = b.addNode(`${name}:${key}`, grp.positions, grp.lit ? grp.colors : null, 3, mat, grp.uvs);
+        // In the LIT handoff the tile IS the albedo — no COLOR_0 under it, so the engine's light
+        // is the only light on a textured surface (the fill was only the World's lit neutral).
+        tr = b.addNode(`${name}:${key}`, grp.positions, (grp.lit && !b.lit) ? grp.colors : null, 3, mat, grp.uvs);
       } else {
         const mat = pbr
           ? b.pbrMaterial({ metallic: pbr[0], roughness: pbr[1], alpha: groupAlpha, name: `${name}:${key}` })
-          : b.unlitMaterial({ alpha: groupAlpha, name: `${name}:${key}` });
+          : b.surfaceMaterial({ alpha: groupAlpha, name: `${name}:${key}` });
         tr = b.addNode(`${name}:${key}`, grp.positions, grp.colors, 3, mat);
       }
       tally(tr);
@@ -828,6 +958,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   let animationCount = 0;
   const animatedFigures = [];
   const skinnedFigures = [];
+  const humanoidFigures = [];
   for (const [name, fig] of rigFigs) {
     const clipNames = clipSel === '_all'
       ? Object.keys(fig.clips || {})
@@ -835,10 +966,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // `skinned` (skin-over-mesh.plan.md phase 4): one SkinnedMesh + skins/IBM
     // per figure instead of rigid part nodes — export-only; absent, the rigid
     // path stays byte-identical.
-    const added = skinned ? b.addSkinnedRigFigure(name, fig, clipNames) : b.addRigFigure(name, fig, clipNames);
+    const added = skinned ? b.addSkinnedRigFigure(name, fig, clipNames, { humanoid }) : b.addRigFigure(name, fig, clipNames);
     if (!added.nodes) continue;
     animatedFigures.push(name);
     if (added.skinned) skinnedFigures.push(name);
+    if (added.humanoid) humanoidFigures.push(name);
     animationCount += added.animations;
     vertexCount += added.vertices;
     triangleCount += added.triangles;
@@ -885,6 +1017,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const out = {
     bytes,
     byteLength: bytes.length,
+    lit: !!lit,
     nodeCount: b.children.length,
     vertexCount,
     triangleCount,
@@ -893,8 +1026,10 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     out.animationCount = animationCount;
     out.animatedFigures = animatedFigures;
     if (skinnedFigures.length) out.skinnedFigures = skinnedFigures;
+    if (humanoidFigures.length) out.humanoidFigures = humanoidFigures;
   }
   if (camDefs.length) out.cameraCount = camDefs.length;
   if (entityDefs.length) out.entityCount = entityDefs.length;
+  if (quantize) { out.quantized = true; out.quantizeStep = b.quantizeStep; }
   return out;
 }

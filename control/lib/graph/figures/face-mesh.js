@@ -100,7 +100,7 @@ export function collectShadowDecals(faces = []) {
   for (const f of faces) {
     if (!Array.isArray(f?.corners) || f.corners.length < 4) continue;
     if (f.decal === 'shadow') {
-      out.push({ quad: f.corners.slice(0, 4), alpha: f.shadowAlpha ?? 0.5, color: f.shadowColor || [0, 0, 0] });
+      out.push({ quad: f.corners.slice(0, 4), alpha: f.shadowAlpha ?? 0.5, color: f.shadowColor || [0, 0, 0], ...(f.shadowProfile ? { profile: f.shadowProfile } : {}) });
     } else if (f.shadowDecal && Array.isArray(f.shadowDecal.uv)) {
       const { uv, spread = 0.2, alpha = 0.4, color = [10, 8, 6] } = f.shadowDecal;
       const c = f.corners;

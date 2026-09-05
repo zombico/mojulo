@@ -326,6 +326,19 @@ function surfaceBandFromWorld(surfaceDef, corners) {
   return [clamp(u0, 0, 1), clamp(u1, 0, 1), clamp(v0, 0, 1), clamp(v1, 0, 1)];
 }
 
+// An authored `asset` / `assetRef` names the workbench mesh the renderer should
+// dispatch to instead of the type's box-net (room-assets.js reads it off the resolved
+// element). It has to survive normalization: until it did, only elements whose TYPE
+// happened to be a registry id (the desks, the kitchen units) ever reached a mesh,
+// and a lounge's `asset: 'modern-couch'` sofa quietly rendered as its card.
+function assetFields(source) {
+  const out = {};
+  if (source.asset != null) out.asset = source.asset;
+  if (source.assetRef != null) out.assetRef = source.assetRef;
+  if (source.instance != null) out.instance = source.instance;
+  return out;
+}
+
 function normalizeElement(source, index, surfaces, presetMap) {
   const type = String(source.type || source.kind || source.role || 'room-element');
   const preset = presetMap[type] || {};
@@ -355,6 +368,7 @@ function normalizeElement(source, index, surfaces, presetMap) {
       anchor: [(u0 + u1) * 0.5, (v0 + v1) * 0.5],
       zBias: finiteOr(Number(source.zBias), 0),
       tabletop: source.tabletop,
+      ...assetFields(source),
       provenance: { kind: 'roomSceneElement', id, type, surface: surfaceDef.id, motif, prebaked: true },
     };
     element.heightManji = buildHeightManji(element, surfaceDef, preset, {
@@ -392,6 +406,7 @@ function normalizeElement(source, index, surfaces, presetMap) {
     anchor: [(u0 + u1) * 0.5, (v0 + v1) * 0.5],
     zBias: finiteOr(Number(source.zBias), 0),
     tabletop: source.tabletop,
+    ...assetFields(source),
     provenance: {
       kind: 'roomSceneElement',
       id: String(source.id || `${type}-${index + 1}`),

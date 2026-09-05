@@ -423,6 +423,7 @@ export async function ensureToolsRegistered() {
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
+  const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
   const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
@@ -588,6 +589,8 @@ export async function ensureToolsRegistered() {
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).
   registerRenderHandoffTools();
+  // the mesh sibling (interchange-seams.plan.md seam 5): same table, medium 'mesh'
+  registerMeshHandoffTools();
   // translate_modeler_lingo — routes 3D-modeler vocabulary (blockout, retopo, kitbash,
   // bake, rig…) to mojulo execution + the export_model handoff, the modeler-facing
   // sibling of forward_context. Adjacent to registerSketchTools (its routes point at the

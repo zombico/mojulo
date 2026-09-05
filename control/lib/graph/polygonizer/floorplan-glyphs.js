@@ -19,6 +19,8 @@
  */
 
 // ── seeded RNG (mulberry32) — deterministic per seed ────────────────────────
+import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
+
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function next() {
@@ -306,6 +308,137 @@ export function fillRoom(room, seed = 1) {
   return arche.fill(mulberry32(seed));
 }
 
+// ── SHARE-BASED SIZING (room-realism.plan.md phase 1) ───────────────────────
+// The arrangers below author each piece in real FEET (a 2.5 ft armchair, a 3.2 ft-deep
+// sofa) and divide by the room, so the planner's preset `areaShare × aspect` sizing in
+// room-scene-elements.js never ran for a floorplan: a user-sized 20×24 lounge reads
+// sparse, a 12×12 one overflows. `furnishScale: 'share'` re-derives each piece's SIZE
+// from its preset share of the actual floor, clamped to a real-world band so a couch
+// never outgrows a couch in a ballroom nor shrinks to a stool in a closet, and then
+// drops the lowest-priority pieces when the floor budget passes the archetype's
+// packing target. The arranger keeps authoring PLACEMENT and AXIS: it calls the sizer
+// with its legacy feet, and the sizer returns either those feet unchanged ('feet', the
+// default — legacy recipes stay byte-identical) or the share-sized pair in the same
+// axis order. Anchors derived from sizes (bed → nightstand, table → chairs) therefore
+// stay consistent in both modes. The kitchen run is exempt: a counter is 2.2 ft deep in
+// any room, and its run is already budgeted per wall.
+//
+// Bands are [min, max] feet along the piece's LONGER plan axis, then its shorter one.
+// `share`/`aspect` fall back for types with no planner preset (the desk assets).
+export const FURNITURE_BANDS = {
+  sofa: { long: [5.5, 9], short: [2.8, 3.4] },
+  'modern-couch': { long: [5.5, 9], short: [2.8, 3.4] },
+  armchair: { long: [2.4, 3.4], short: [2.4, 3.4] },
+  table: { long: [3, 5], short: [1.6, 2.6] },
+  'media-unit': { long: [4, 8], short: [1.4, 1.9] },
+  bookshelf: { long: [2.5, 4], short: [1, 1.4] },
+  'rack-shelf': { long: [2.5, 4], short: [1, 1.5] },
+  rug: { long: [7, 12], short: [5, 9] },
+  'dining-table': { long: [4, 8], short: [3, 4] },
+  'ladder-chair': { long: [1.5, 1.9], short: [1.5, 1.9] },
+  sideboard: { long: [4, 7], short: [1.4, 2] },
+  bed: { long: [6.5, 7.2], short: [4.6, 6.4] },             // full … king; never a twin
+  nightstand: { long: [1.5, 2.2], short: [1.3, 1.8] },
+  dresser: { long: [3.5, 6], short: [1.5, 2] },
+  'study-table': { long: [4.5, 6], short: [2, 2.8], share: 0.065, aspect: 1.9 },
+  'computer-table': { long: [4.5, 6], short: [2, 2.8], share: 0.065, aspect: 1.9 },
+  'standing-desk': { long: [4.5, 6], short: [2, 2.8] },
+  'computer-chair': { long: [1.6, 2.2], short: [1.6, 2.2] },
+  'floor-lamp': { long: [0.8, 1.4], short: [0.8, 1.4] },
+};
+// Per-archetype keep order — the budget pass drops from the END (and, among equals,
+// the later-placed piece first), so a lounge loses its bookshelf before an armchair
+// and never its sofa. Types absent from a list rank below everything listed.
+export const FURNISH_PRIORITY = {
+  L: ['sofa', 'table', 'media-unit', 'armchair', 'bookshelf', 'floor-lamp'],
+  D: ['dining-table', 'ladder-chair', 'sideboard'],
+  B: ['bed', 'nightstand', 'dresser', 'study-table', 'computer-table', 'standing-desk', 'computer-chair'],
+  O: ['computer-table', 'study-table', 'standing-desk', 'computer-chair', 'bookshelf', 'rack-shelf'],
+};
+// PACKING was tuned as a room-SIZING target (furniture ÷ packing = the area a room
+// WANTS); a real room is legitimately tighter than what it wants, so pieces are only
+// dropped once the packed area passes 1.4× that target — a 12×12 lounge keeps both
+// armchairs, a 9×10 one gives up its bookshelf and one chair.
+const BUDGET_SLACK = 1.4;
+// Share mode also swaps the box-net pieces for the workbench meshes that make a room
+// (room-assets-makers.js, phase 2). Keyed by arranger TYPE → registry id; the ids are
+// distinct from the type names on purpose so a feet-mode plan never picks them up.
+export const SHARE_ASSETS = {
+  armchair: 'club-armchair', table: 'coffee-table', 'media-unit': 'media-console', bookshelf: 'bookcase',
+  'floor-lamp': 'floor-lamp',
+  rug: 'bordered-rug', bed: 'platform-bed', nightstand: 'bedside-table', dresser: 'low-dresser',
+  sideboard: 'sideboard-cabinet', 'dining-table': 'plank-dining-table', 'ladder-chair': 'chair',
+};
+const clampFt = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
+
+/** A sizer for the arrangers: `(type, wFt, dFt, longAxis?) → [wFt, dFt]`. 'feet' returns
+ *  the inputs untouched; 'share' re-derives the pair from the preset share of the floor,
+ *  clamped to the type's band, with the longer side along `longAxis` ('x' | 'y'; default:
+ *  whichever the arranger's feet made longer). Unbanded types pass through. */
+export function makeSizer({ w = 12, h = 12, scale = 'feet' } = {}) {
+  if (scale !== 'share') return (_type, wFt, dFt) => [wFt, dFt];
+  const floor = w * h;
+  return (type, wFt, dFt, longAxis = null) => {
+    const band = FURNITURE_BANDS[type];
+    if (!band) return [wFt, dFt];
+    const preset = ROOM_SCENE_ELEMENT_PRESETS[type] || {};
+    const share = preset.areaShare ?? band.share ?? 0.06;
+    const aspect = Math.max(preset.aspect ?? band.aspect ?? 1, 1e-3);
+    const w0 = Math.sqrt(share * floor * aspect);            // preset aspect = w / h in the room frame
+    const h0 = w0 / aspect;                                   // (below 1 for chairs / bookcases)
+    const long = clampFt(Math.max(w0, h0), band.long), short = clampFt(Math.min(w0, h0), band.short);
+    const longIsX = longAxis ? longAxis === 'x' : wFt >= dFt;
+    return longIsX ? [long, short] : [short, long];
+  };
+}
+
+// Pieces that live against a wall. In share mode their arranger anchor (authored for a
+// smaller legacy footprint) is snapped so the piece TOUCHES the nearest wall when it is
+// already within `WALL_SNAP` of it — a bookcase no longer stands a foot off the wall.
+const WALL_HUG = new Set(['media-unit', 'bookshelf', 'rack-shelf', 'bed', 'nightstand', 'sideboard', 'dresser', 'study-table', 'computer-table', 'standing-desk', 'l-table']);
+const WALL_SNAP = 0.22, WALL_GAP = 0.004;
+
+/** Share-mode post-pass: keep every footprint inside the room, snap wall pieces to
+ *  their wall, then drop the lowest-priority floor pieces while the packed area
+ *  exceeds the archetype's PACKING target (× slack). Floor skins (rugs) and
+ *  wall-hung pieces cost nothing. */
+export function applyFurnishBudget(elements, glyph, { w = 12, h = 12 } = {}) {
+  const order = FURNISH_PRIORITY[glyph];
+  const kept = elements.map((e0) => {
+    const e = (!e0.asset && SHARE_ASSETS[e0.type]) ? { ...e0, asset: SHARE_ASSETS[e0.type] } : e0;
+    if (!Array.isArray(e.anchor) || e.surface === 'backWall' || e.w == null || e.h == null) return e;
+    let u = Math.min(1 - e.w / 2, Math.max(e.w / 2, e.anchor[0]));
+    let v = Math.min(1 - e.h / 2, Math.max(e.h / 2, e.anchor[1]));
+    if (WALL_HUG.has(e.type)) {
+      const d = [u, 1 - u, v, 1 - v];                       // distance to W, E, N(back), S(front)
+      const k = d.indexOf(Math.min(...d));
+      if (d[k] < WALL_SNAP) {
+        if (k === 0) u = e.w / 2 + WALL_GAP; else if (k === 1) u = 1 - e.w / 2 - WALL_GAP;
+        else if (k === 2) v = e.h / 2 + WALL_GAP; else v = 1 - e.h / 2 - WALL_GAP;
+      }
+    }
+    return (u === e.anchor[0] && v === e.anchor[1]) ? e : { ...e, anchor: [u, v] };
+  });
+  if (!order) return kept;
+  const counts = (e) => (e.surface && e.surface !== 'floor') || e.type === 'rug' || e.type === 'runner' ? 0 : (e.w || 0) * w * (e.h || 0) * h;
+  const rank = (e) => { const i = order.indexOf(e.type); return i < 0 ? order.length : i; };
+  const cap = (PACKING[glyph] ?? 0.3) * w * h * BUDGET_SLACK;
+  let alive = kept.slice();
+  let packed = alive.reduce((s, e) => s + counts(e), 0);
+  while (packed > cap + 1e-9) {
+    // the droppable piece with the worst rank, latest-placed among equals — never the anchor piece
+    let victim = -1;
+    for (let i = 0; i < alive.length; i += 1) {
+      if (!counts(alive[i]) || rank(alive[i]) === 0) continue;
+      if (victim < 0 || rank(alive[i]) >= rank(alive[victim])) victim = i;
+    }
+    if (victim < 0) break;
+    packed -= counts(alive[victim]);
+    alive = alive.filter((_, i) => i !== victim);
+  }
+  return alive;
+}
+
 // ── geometry-aware ROOM ARRANGERS (richer than the flat archetype lists) ─────
 // These read the room's real feet dimensions and compose RELATED pieces — a kitchen
 // counter run (+ adaptive island), a living-room seating group facing a focal wall —
@@ -360,29 +493,41 @@ export function arrangeKitchen(rng = Math.random, { w = 12, h = 10, wall = null 
 
 /** Living room: a seating group facing the focal (back) wall — media unit + bookshelf
  *  on the wall, sofa across from it, coffee table between, armchairs flanking, rug under. */
-export function arrangeLiving(rng = Math.random, { w = 14, h = 14 } = {}) {
+export function arrangeLiving(rng = Math.random, { w = 14, h = 14, scale = 'feet' } = {}) {
   const j = (c, a) => c + (rng() * 2 - 1) * a;            // small seeded jitter
+  const sz = makeSizer({ w, h, scale });
+  const [mediaW, mediaD] = sz('media-unit', Math.min(7, w * 0.5), 1.6);
+  const [shelfW, shelfD] = sz('bookshelf', 1.2, 1.2, 'y');   // grows along the side wall, clear of the media unit
+  const [rugW, rugD] = sz('rug', Math.min(11, w * 0.72), Math.min(9, h * 0.6));
+  const [sofaW, sofaD] = sz('modern-couch', Math.min(8.5, w * 0.58), 3.2);
+  const [tableW, tableD] = sz('table', Math.min(4, w * 0.3), 2);
+  const [chairW, chairD] = sz('armchair', 2.5, 2.5);
+  const [lampW, lampD] = sz('floor-lamp', 1.1, 1.1);
   return [
-    { type: 'media-unit', anchor: [j(0.5, 0.04), 0.07], w: Math.min(7, w * 0.5) / w, h: 1.6 / h, heightWorld: 2.2 },
-    { type: 'bookshelf', anchor: [0.11, 0.13], w: 1.2 / w, h: 1.2 / h, heightWorld: 6.0 },
-    { type: 'rug', anchor: [0.5, 0.5], w: Math.min(11, w * 0.72) / w, h: Math.min(9, h * 0.6) / h, heightWorld: 0.06 },
-    // real couch asset across the room; armchairs (box-net) angled toward the centre
-    { type: 'sofa', asset: 'modern-couch', anchor: [j(0.5, 0.04), 0.72], w: Math.min(8.5, w * 0.58) / w, h: 3.2 / h, heightWorld: 2.6 },
-    { type: 'table', anchor: [0.5, 0.47], w: Math.min(4, w * 0.3) / w, h: 2 / h, heightWorld: 1.4 },
-    { type: 'armchair', anchor: [j(0.2, 0.03), 0.46], w: 2.5 / w, h: 2.5 / h, heightWorld: 2.6, facing: 'E' },
-    { type: 'armchair', anchor: [j(0.8, 0.03), 0.46], w: 2.5 / w, h: 2.5 / h, heightWorld: 2.6, facing: 'W' },
+    { type: 'media-unit', anchor: [j(0.5, 0.04), 0.07], w: mediaW / w, h: mediaD / h, heightWorld: 2.2 },
+    { type: 'bookshelf', anchor: [0.11, 0.13], w: shelfW / w, h: shelfD / h, heightWorld: 6.0 },
+    { type: 'rug', anchor: [0.5, 0.5], w: rugW / w, h: rugD / h, heightWorld: 0.06 },
+    // real couch + club chairs (share mode attaches the workbench meshes); lamp by the sofa
+    { type: 'sofa', asset: 'modern-couch', instance: 'main', anchor: [j(0.5, 0.04), 0.72], w: sofaW / w, h: sofaD / h, heightWorld: 2.6 },
+    { type: 'table', anchor: [0.5, 0.47], w: tableW / w, h: tableD / h, heightWorld: 1.4 },
+    { type: 'armchair', instance: 'west', anchor: [j(0.2, 0.03), 0.46], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'E' },
+    { type: 'armchair', instance: 'east', anchor: [j(0.8, 0.03), 0.46], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'W' },
+    { type: 'floor-lamp', instance: 'sofa', anchor: [j(0.18, 0.02), 0.78], w: lampW / w, h: lampD / h, heightWorld: 5.4 },
   ];
 }
 
 /** Dining: a table centred in the room, chairs arrayed around it and each ORIENTED
  *  to point at the table (via `facing`), a sideboard on the back wall. */
-export function arrangeDining(rng = Math.random, { w = 12, h = 12 } = {}) {
+export function arrangeDining(rng = Math.random, { w = 12, h = 12, scale = 'feet' } = {}) {
   const els = [];
-  const tWft = Math.min(6, w * 0.42), tHft = Math.min(4, h * 0.42);
+  const sz = makeSizer({ w, h, scale });
+  const [tWft, tHft] = sz('dining-table', Math.min(6, w * 0.42), Math.min(4, h * 0.42));
   const tw = tWft / w, th = tHft / h;
   els.push({ type: 'dining-table', anchor: [0.5, 0.5], w: tw, h: th, heightWorld: 2.4 });
-  els.push({ type: 'sideboard', anchor: [0.5, 0.09], w: Math.min(6, w * 0.4) / w, h: 1.4 / h, heightWorld: 3.0 });
-  const chW = 1.6 / w, chH = 1.6 / h;
+  const [sbW, sbD] = sz('sideboard', Math.min(6, w * 0.4), 1.4);
+  els.push({ type: 'sideboard', anchor: [0.5, 0.09], w: sbW / w, h: sbD / h, heightWorld: 3.0 });
+  const [chWft, chHft] = sz('ladder-chair', 1.6, 1.6);
+  const chW = chWft / w, chH = chHft / h;
   const offU = tw / 2 + 1.1 / w, offV = th / 2 + 1.1 / h;     // chair centres just past the table edge
   const chair = (u, v, facing) => els.push({ type: 'ladder-chair', anchor: [u, v], w: chW, h: chH, heightWorld: 2.9, supportRadius: 0.07, facing });
   const nSide = tWft >= 5 ? 2 : 1;                            // a longer table seats two per long side
@@ -398,18 +543,25 @@ export function arrangeDining(rng = Math.random, { w = 12, h = 12 } = {}) {
 
 /** Bedroom: bed against the back wall, nightstand beside it, dresser on the far wall,
  *  and — in larger rooms — a study desk with its chair facing the desk. Always ≥2 pieces. */
-export function arrangeBedroom(rng = Math.random, { w = 11, h = 11 } = {}) {
+export function arrangeBedroom(rng = Math.random, { w = 11, h = 11, scale = 'feet' } = {}) {
   const els = [];
   const area = w * h;
-  const bedW = Math.min(5, w * 0.46), bedD = Math.min(6.7, h * 0.5);
+  const sz = makeSizer({ w, h, scale });
+  const [bedW, bedD] = sz('bed', Math.min(5, w * 0.46), Math.min(6.7, h * 0.5));
   const bedU = Math.min(0.62, Math.max(0.32, bedW / w / 2 + 0.06));
   els.push({ type: 'bed', anchor: [bedU, (bedD / h) / 2 + 0.04], w: bedW / w, h: bedD / h, heightWorld: 1.8 });
-  els.push({ type: 'nightstand', anchor: [Math.min(0.9, bedU + bedW / w / 2 + 1.3 / w), 0.13], w: 1.6 / w, h: 1.6 / h, heightWorld: 2.2 });
-  if (area >= 90) els.push({ type: 'dresser', anchor: [0.84, 0.62], w: Math.min(4, w * 0.32) / w, h: 1.8 / h, heightWorld: 3.2 });
+  const [nsW, nsD] = sz('nightstand', 1.6, 1.6);
+  els.push({ type: 'nightstand', anchor: [Math.min(0.9, bedU + bedW / w / 2 + 1.3 / w), 0.13], w: nsW / w, h: nsD / h, heightWorld: 2.2 });
+  if (area >= 90) {
+    const [drW, drD] = sz('dresser', Math.min(4, w * 0.32), 1.8);
+    els.push({ type: 'dresser', anchor: [0.84, 0.62], w: drW / w, h: drD / h, heightWorld: 3.2 });
+  }
   if (area >= 130 && rng() < 0.6) {                          // study nook: desk asset + chair facing it
     const desk = pick(rng, ['study-table', 'computer-table', 'standing-desk']);   // deterministic by seed
-    els.push({ type: desk, asset: desk, anchor: [0.22, 0.9], w: Math.min(4, w * 0.34) / w, h: 1.8 / h, heightWorld: 2.5, facing: 'S' });
-    els.push({ type: 'computer-chair', anchor: [0.22, 0.75], w: 1.7 / w, h: 1.7 / h, heightWorld: 2.8, facing: 'N' });
+    const [dkW, dkD] = sz(desk, Math.min(4, w * 0.34), 1.8);
+    els.push({ type: desk, asset: desk, anchor: [0.22, 0.9], w: dkW / w, h: dkD / h, heightWorld: 2.5, facing: 'S' });
+    const [ccW, ccD] = sz('computer-chair', 1.7, 1.7);
+    els.push({ type: 'computer-chair', anchor: [0.22, 0.75], w: ccW / w, h: ccD / h, heightWorld: 2.8, facing: 'N' });
   }
   els.push({ type: 'picture', surface: 'backWall', anchor: [0.72, 0.6], w: 0.12, h: 0.26 });
   return els;
@@ -417,13 +569,20 @@ export function arrangeBedroom(rng = Math.random, { w = 11, h = 11 } = {}) {
 
 /** Office: a real desk asset against the back wall (working side into the room) with
  *  its chair facing it, plus shelving. The desk variant is seeded → deterministic. */
-export function arrangeOffice(rng = Math.random, { w = 11, h = 11 } = {}) {
+export function arrangeOffice(rng = Math.random, { w = 11, h = 11, scale = 'feet' } = {}) {
   const els = [];
+  const sz = makeSizer({ w, h, scale });
   const desk = pick(rng, ['computer-table', 'study-table', 'standing-desk']);
-  els.push({ type: desk, asset: desk, anchor: [0.4, 0.18], w: Math.min(5, w * 0.42) / w, h: 2.2 / h, heightWorld: 2.5, facing: 'N' });
-  els.push({ type: 'computer-chair', anchor: [0.4, 0.37], w: 1.8 / w, h: 1.8 / h, heightWorld: 2.8, facing: 'S' });
-  els.push({ type: 'bookshelf', anchor: [0.88, 0.42], w: 1.2 / w, h: Math.min(4, h * 0.3) / h, heightWorld: 6.0 });
-  if (w * h >= 120) els.push({ type: 'rack-shelf', anchor: [0.12, 0.72], w: 1.2 / w, h: Math.min(3, h * 0.24) / h, heightWorld: 5.0 });
+  const [dkW, dkD] = sz(desk, Math.min(5, w * 0.42), 2.2);
+  els.push({ type: desk, asset: desk, anchor: [0.4, 0.18], w: dkW / w, h: dkD / h, heightWorld: 2.5, facing: 'N' });
+  const [ccW, ccD] = sz('computer-chair', 1.8, 1.8);
+  els.push({ type: 'computer-chair', anchor: [0.4, 0.37], w: ccW / w, h: ccD / h, heightWorld: 2.8, facing: 'S' });
+  const [bsW, bsD] = sz('bookshelf', 1.2, Math.min(4, h * 0.3));
+  els.push({ type: 'bookshelf', anchor: [0.88, 0.42], w: bsW / w, h: bsD / h, heightWorld: 6.0 });
+  if (w * h >= 120) {
+    const [rkW, rkD] = sz('rack-shelf', 1.2, Math.min(3, h * 0.24));
+    els.push({ type: 'rack-shelf', anchor: [0.12, 0.72], w: rkW / w, h: rkD / h, heightWorld: 5.0 });
+  }
   return els;
 }
 
@@ -431,11 +590,14 @@ export function arrangeOffice(rng = Math.random, { w = 11, h = 11 } = {}) {
  *  the flat archetype list otherwise. `dims` are the room's interior feet {w, h}. */
 export function furnishElements(glyph, seed = 1, dims = {}) {
   const rng = mulberry32((seed >>> 0) || 1);
-  if (glyph === 'K') return arrangeKitchen(rng, dims);
-  if (glyph === 'L') return arrangeLiving(rng, dims);
-  if (glyph === 'D') return arrangeDining(rng, dims);
-  if (glyph === 'B') return arrangeBedroom(rng, dims);
-  if (glyph === 'O') return arrangeOffice(rng, dims);
+  if (glyph === 'K') return arrangeKitchen(rng, dims);      // feet in every mode (see makeSizer)
+  const share = dims.scale === 'share';
+  const post = (els) => (share ? applyFurnishBudget(els, glyph, dims) : els);
+  if (glyph === 'L') return post(arrangeLiving(rng, dims));
+  if (glyph === 'D') return post(arrangeDining(rng, dims));
+  if (glyph === 'B') return post(arrangeBedroom(rng, dims));
+  if (glyph === 'O') return post(arrangeOffice(rng, dims));
+  // the flat archetype lists author fractions of the room outright — already a share
   return (ARCHETYPES[glyph] || ARCHETYPES.S).fill(rng);
 }
 
@@ -452,7 +614,7 @@ const FACING_SPIN = { S: 0, E: 1, N: 2, W: 3 };       // CW quarter-turns from t
 const SPIN_FACING = ['S', 'E', 'N', 'W'];
 const SURFACE_EDGE = { backWall: 'N', rightWall: 'E', frontWall: 'S', leftWall: 'W' };
 const EDGE_SURFACE = { N: 'backWall', E: 'rightWall', S: 'frontWall', W: 'leftWall' };
-export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1) {
+export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1, { assetFacing = false } = {}) {
   const k = FACING_SPIN[doorEdge] ?? 0;               // door 'S' ⇒ already canonical
   if (!k) return elements;
   const rotUV = (u, v) => { let x = u, y = v; for (let i = 0; i < k; i += 1) { const nx = y, ny = 1 - x; x = nx; y = ny; } return [x, y]; };
@@ -464,6 +626,11 @@ export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1) {
     if (e.facing != null && FACING_SPIN[e.facing] != null) out.facing = spin(e.facing);
     if (e.surface && SURFACE_EDGE[e.surface]) out.surface = EDGE_SURFACE[spin(SURFACE_EDGE[e.surface])];
     if (odd && e.w != null && e.h != null) { out.w = (e.h * H) / W; out.h = (e.w * W) / H; }  // 90°: footprint swaps
+    // An unfaced LOCAL asset fronts +v (into the room off the canonical back wall); once the
+    // layout is spun that wall moves, so stamp the facing the spin implies — the planner
+    // turns a faced asset by FACING_SPIN+2, hence the +2 here. Share mode only (assets
+    // ride in via SHARE_ASSETS); a feet-mode plan carries no such pieces and stays as-is.
+    if (assetFacing && e.asset && e.facing == null && e.surface !== 'backWall') out.facing = SPIN_FACING[(k + 2) % 4];
     return out;
   });
 }

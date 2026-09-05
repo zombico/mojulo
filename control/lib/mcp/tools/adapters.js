@@ -45,7 +45,7 @@ export function registerAdapterTools() {
   registerTool({
     name: 'list_adapters',
     description:
-      'List host adapters mojulo ships. An adapter bridges between a portable catalyst recipe and the host-specific runnable artifact that catalyst materializes — e.g. a Claude Code skill at .claude/skills/<slug>/SKILL.md, a Codex automation created via automation_update, or a generic workflow.md + runner script. Returns id, name, summary, artifactTarget, schedulingMechanism, and secretsPosture per adapter. Pair with get_adapter to read the full binding instructions before synthesizing from a catalyst.',
+      "List host adapters mojulo ships. An adapter is the connecting agent's first-session card (how you ride this substrate) and the bridge from a portable catalyst recipe to a host-specific artifact — a skill file, a scheduled automation, or a workflow.md + runner. Returns id, name, summary, artifactTarget, schedulingMechanism, and secretsPosture. Pair with get_adapter; pull once before making or synthesizing.",
     inputSchema: { type: 'object', properties: {} },
     handler: listAdaptersHandler,
   });
@@ -53,7 +53,7 @@ export function registerAdapterTools() {
   registerTool({
     name: 'get_adapter',
     description:
-      "Get the full body of one host adapter. The body tells you (the connecting agent) how to materialize a catalyst on your specific substrate: artifact format and target path, parameter collection, tool discovery, dry-run enforcement as a concrete first step, scheduling, state storage, output reporting, and secrets posture. Resolution: explicit `id` wins; otherwise `clientInfoHint` wins; otherwise the server uses this session's captured clientInfo.name; otherwise falls back to 'generic'. Pass `clientInfoHint` to self-identify when you know your runtime but your client's clientInfo.name didn't match (e.g. your client reports itself as 'codex-cli-2.1' — pass `clientInfoHint: 'codex'`). Read this once per session; the binding instructions are stable across catalysts. When you later call `get_catalyst` with `host` set to the adapter's id, the server prepends this same adapter body to every catalyst response so the recipe and the host-specific materialization arrive together.",
+      "Get the full body of one host adapter — first-session card for how you ride this substrate. Pull once before making (studio) or synthesizing (catalyst): native capabilities, output cap, paint-and-bind, plus artifact path / dry-run / scheduling / secrets. Resolution: explicit `id` wins; else `clientInfoHint`; else this session's clientInfo.name; else 'generic'. Pass `clientInfoHint` when clientInfo.name missed (e.g. 'codex-cli-2.1' → `clientInfoHint: 'codex'`). `get_catalyst` with `host` prepends this same body so recipe and host materialization arrive together.",
     inputSchema: {
       type: 'object',
       properties: {

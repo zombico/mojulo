@@ -645,6 +645,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a laser range. Additive; absent ⇒ orbit only.
   if (payload && sketch.manifest.walk) payload.walk = sketch.manifest.walk;
 
+  // generic, opt-in WebXR (interchange-seams.plan.md seam 7): `xr: true` (or { eye, speed, snap })
+  // adds an immersive-vr entry to the live /world page — a headset walks the same scene, no engine.
+  // Additive; absent ⇒ the emitted page is byte-identical. Stills ignore it.
+  if (payload && sketch.manifest.xr) payload.xr = sketch.manifest.xr;
+
   // generic, opt-in volumetric FOG (effects-layer.plan.md / P3.5): an outdoor world may set
   // `fog: true` (or a tuning object: { density, height, color, maxDist, ... }) to composite a
   // ground-hugging volumetric fog over the rasterized mesh — a raymarched overlay that clips against

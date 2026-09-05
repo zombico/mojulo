@@ -4,6 +4,7 @@ import { safeJson } from '../emit-util.js';
 // depthWrite:false + a small z-lift avoid z-fighting the floor; normal-blended dark colour
 // with a radial alpha texture darkens the ground (the World twin of the CSS dark `bg` pool).
 export function shadowDecalScript(decals) {
+  const hasRim = decals.some((d) => d.profile === 'rim');
   return `
 // --- shadow decals (cast / contact) ---
 const SHADOWS = ${safeJson(decals)};
@@ -14,7 +15,18 @@ const shadowTex = (() => {
   grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.5, 'rgba(255,255,255,0.5)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
   x.fillStyle = grd; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill();
   return new THREE.CanvasTexture(cv);
-})();
+})();${hasRim ? `
+// 'rim' profile: holds alpha to the footprint edge (≈74 % of the expanded radius) and fades
+// beyond — the grounding halo a room asks for from standing height. Emitted only when a
+// decal asks for it, so every other scene's page stays byte-identical.
+const rimTex = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const x = cv.getContext('2d');
+  const grd = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.58, 'rgba(255,255,255,1)'); grd.addColorStop(0.74, 'rgba(255,255,255,0.5)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = grd; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill();
+  return new THREE.CanvasTexture(cv);
+})();` : ''}
 for (const d of SHADOWS) {
   const q = d.quad, Z = 0.03;
   const pos = new Float32Array([
@@ -24,7 +36,7 @@ for (const d of SHADOWS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  const mat = new THREE.MeshBasicMaterial({ map: shadowTex, color: new THREE.Color(d.color[0] / 255, d.color[1] / 255, d.color[2] / 255),
+  const mat = new THREE.MeshBasicMaterial({ map: ${hasRim ? "d.profile === 'rim' ? rimTex : shadowTex" : 'shadowTex'}, color: new THREE.Color(d.color[0] / 255, d.color[1] / 255, d.color[2] / 255),
     transparent: true, opacity: d.alpha, depthWrite: false, side: THREE.DoubleSide });
   const m = new THREE.Mesh(geo, mat); m.renderOrder = 0.5; // over the floor, under additive glow
   scene.add(m);

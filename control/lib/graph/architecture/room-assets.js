@@ -8,6 +8,12 @@
 
 import { workbenchAssetFaces } from '../worlds/workbench.js';
 import { buildLeg, buildSlab } from './room-parts.js';
+import {
+  buildBookcaseWorkbenchManifest, buildBorderedRugWorkbenchManifest, buildClubArmchairWorkbenchManifest,
+  buildCoffeeTableWorkbenchManifest, buildDiningTableWorkbenchManifest, buildFloorLampWorkbenchManifest,
+  buildLowDresserWorkbenchManifest, buildMediaConsoleWorkbenchManifest, buildNightstandWorkbenchManifest,
+  buildPlatformBedWorkbenchManifest, buildSideboardWorkbenchManifest,
+} from './room-assets-makers.js';
 
 const mix = (a, b, t) => a + (b - a) * t;
 
@@ -18,17 +24,20 @@ export function buildModernCouchWorkbenchManifest({ x = 0, y = 0, z = 0, w = 3.6
   const y1 = y + d / 2;
   const z0 = z;
   const cx = (x0 + x1) / 2;
-  const legH = Math.min(0.22, Math.max(0.14, h * 0.27));
-  const seatH = Math.max(0.20, h * 0.33);
-  const backH = Math.max(0.68, h * 0.98);
-  const armH = Math.max(seatH + 0.18, h * 0.72);
+  // Proportions of THIS piece — never metre-absolute caps. A lounge sofa is
+  // authored in feet (~2.6 high); a 0.22/0.26/0.28 cap there crushes arms and
+  // back into paper sheets. Legs are 8% of height (~6 cm on a 2.6 ft sofa).
+  const legH = h * 0.08;
+  const seatH = h * 0.33;
+  const backH = h * 0.98;
+  const armH = h * 0.72;
   const seatZ0 = z0 + legH;
   const seatZ1 = seatZ0 + seatH;
   const seatZTop = seatZ0 + seatH * 0.67;
   const pad = Math.min(w, d) * 0.045;
-  const cushionGap = Math.max(0.025, w * 0.012);
-  const armW = Math.min(w * 0.115, 0.28);
-  const backD = Math.min(d * 0.16, 0.26);
+  const cushionGap = Math.max(w * 0.012, d * 0.012);
+  const armW = w * 0.12;
+  const backD = d * 0.22;
   const seatD = Math.max(0.08, d - backD - pad * 1.8);
   const seatY = y0 + backD + seatD / 2 + pad * 0.35;
   const legTopR = Math.min(w, d) * 0.026;
@@ -99,9 +108,10 @@ export function buildModernCouchWorkbenchManifest({ x = 0, y = 0, z = 0, w = 3.6
     cornerSamples: 8,
   });
   const skirt = (x, y, w, h, tint = coverDark) => ({
-    axisFrom: { x, y, z: z0 + legH * 0.64 },
-    axisTo: { x, y, z: z0 + legH * 1.02 },
-    profile: { rect: { w, h, r: Math.min(0.018, Math.min(w, h) * 0.32) } },
+    // Valance at the seat lip only — do not drop toward the floor (legs stay a 4–8 cm gap).
+    axisFrom: { x, y, z: seatZ0 },
+    axisTo: { x, y, z: seatZ0 + legH * 0.35 },
+    profile: { rect: { w, h, r: Math.min(legH * 0.12, Math.min(w, h) * 0.32) } },
     tint,
     cornerSamples: 2,
   });
@@ -1051,6 +1061,76 @@ export const ROOM_FURNITURE_ASSETS = {
     },
     buildManifest: rectangularModernCouchManifest,
   },
+  // ── the pieces that MAKE a room (room-realism phase 2; room-assets-makers.js). Ids and
+  // aliases deliberately avoid the bare arranger type names (armchair / table / bed …):
+  // the dispatch falls back to `el.type`, and a legacy feet-mode plan must keep its
+  // box-nets byte-identical. Share mode attaches these via `asset:` (SHARE_ASSETS).
+  'club-armchair': {
+    id: 'club-armchair', class: 'room-furniture', local: true,
+    aliases: ['club-chair.upholstered', 'lounge-armchair'],
+    tags: { rooms: ['living-room', 'lounge', 'bedroom', 'office'], roles: ['seat', 'armchair'], planeRole: ['seat-plane'], placement: ['floor'], materials: ['fabric', 'wood'] },
+    buildManifest: (el) => buildClubArmchairWorkbenchManifest(footprintDims(el)),
+  },
+  'coffee-table': {
+    id: 'coffee-table', class: 'room-furniture', local: true,
+    aliases: ['low-table.plank', 'cocktail-table'],
+    tags: { rooms: ['living-room', 'lounge'], roles: ['table'], planeRole: ['table-plane'], placement: ['floor', 'center-safe'], materials: ['wood'] },
+    buildManifest: (el) => buildCoffeeTableWorkbenchManifest(footprintDims(el)),
+  },
+  'media-console': {
+    id: 'media-console', class: 'room-furniture', local: true,
+    aliases: ['tv-console', 'media-cabinet'],
+    tags: { rooms: ['living-room', 'lounge', 'bedroom'], roles: ['storage', 'media'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] },
+    buildManifest: (el) => buildMediaConsoleWorkbenchManifest(footprintDims(el)),
+  },
+  bookcase: {
+    id: 'bookcase', class: 'room-furniture', local: true,
+    aliases: ['book-case', 'shelved-bookcase'],
+    tags: { rooms: ['living-room', 'office', 'study', 'bedroom'], roles: ['storage', 'shelving'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood', 'paper'] },
+    buildManifest: (el) => buildBookcaseWorkbenchManifest(footprintDims(el)),
+  },
+  'platform-bed': {
+    id: 'platform-bed', class: 'room-furniture', local: true,
+    aliases: ['bed.platform', 'made-bed'],
+    tags: { rooms: ['bedroom'], roles: ['bed'], planeRole: ['table-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood', 'fabric'] },
+    buildManifest: (el) => buildPlatformBedWorkbenchManifest(footprintDims(el)),
+  },
+  'bedside-table': {
+    id: 'bedside-table', class: 'room-furniture', local: true,
+    aliases: ['nightstand.lamp', 'bedside-cabinet'],
+    tags: { rooms: ['bedroom'], roles: ['storage', 'table'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] },
+    buildManifest: (el) => buildNightstandWorkbenchManifest(footprintDims(el)),
+  },
+  'low-dresser': {
+    id: 'low-dresser', class: 'room-furniture', local: true,
+    aliases: ['chest-of-drawers', 'dresser.low'],
+    tags: { rooms: ['bedroom'], roles: ['storage'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] },
+    buildManifest: (el) => buildLowDresserWorkbenchManifest(footprintDims(el)),
+  },
+  'sideboard-cabinet': {
+    id: 'sideboard-cabinet', class: 'room-furniture', local: true,
+    aliases: ['credenza', 'buffet-cabinet'],
+    tags: { rooms: ['dining', 'living-room'], roles: ['storage'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] },
+    buildManifest: (el) => buildSideboardWorkbenchManifest(footprintDims(el)),
+  },
+  'plank-dining-table': {
+    id: 'plank-dining-table', class: 'room-furniture', local: true,
+    aliases: ['dining-table.plank', 'farmhouse-table'],
+    tags: { rooms: ['dining', 'kitchen'], roles: ['table'], planeRole: ['table-plane'], placement: ['floor', 'center-safe'], materials: ['wood'] },
+    buildManifest: (el) => buildDiningTableWorkbenchManifest(footprintDims(el)),
+  },
+  'floor-lamp': {
+    id: 'floor-lamp', class: 'room-furniture', local: true,
+    aliases: ['standing-lamp', 'torchere', 'floorlamp'],
+    tags: { rooms: ['living-room', 'lounge', 'bedroom', 'office'], roles: ['lamp', 'light'], placement: ['floor'], materials: ['metal', 'fabric'] },
+    buildManifest: (el) => buildFloorLampWorkbenchManifest(footprintDims(el)),
+  },
+  'bordered-rug': {
+    id: 'bordered-rug', class: 'room-furniture', local: true, contact: false,
+    aliases: ['area-rug', 'rug.bordered'],
+    tags: { rooms: ['living-room', 'bedroom', 'dining'], roles: ['floor-skin'], planeRole: ['floor-skin'], placement: ['floor', 'center-safe'], materials: ['wool'] },
+    buildManifest: (el) => buildBorderedRugWorkbenchManifest(footprintDims(el)),
+  },
   'study-table': {
     id: 'study-table', class: 'room-furniture', local: true,
     aliases: ['study-desk', 'writing-table', 'writing-desk'],
@@ -1249,7 +1329,11 @@ function localToFootprint(corners) {
   const cx = (corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]) / 4;
   const cy = (corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1]) / 4;
   const z0 = a[2];
-  return ([lx, ly, lz]) => [cx + lx * uhx + ly * vhx, cy + lx * uhy + ly * vhy, z0 + lz];
+  const place = ([lx, ly, lz]) => [cx + lx * uhx + ly * vhx, cy + lx * uhy + ly * vhy, z0 + lz];
+  // the same basis, linear part only — an authored `outNormal` must turn WITH the piece
+  // (room-realism phase 3: a side-facing chair used to export its front normal unturned)
+  place.rotate = ([nx, ny, nz]) => [nx * uhx + ny * vhx, nx * uhy + ny * vhy, nz];
+  return place;
 }
 
 export function roomFurnitureAssetFaces(element, { light } = {}) {
@@ -1258,11 +1342,19 @@ export function roomFurnitureAssetFaces(element, { light } = {}) {
   let faces = workbenchAssetFaces(asset.buildManifest(element), { light });
   if (asset.local) {
     const place = localToFootprint(element.heightManji.basePlane.corners);
-    faces = faces.map((face) => ({ ...face, corners: face.corners.map(place) }));
+    faces = faces.map((face) => ({
+      ...face,
+      corners: face.corners.map(place),
+      ...(Array.isArray(face.outNormal) ? { outNormal: place.rotate(face.outNormal) } : {}),
+    }));
   }
   return {
     asset,
-    faces: faces.map((face) => ({ ...face, group: `asset:${asset.id}` })),
-    contactFootprint: { corners: element.heightManji.basePlane.corners, height: element.heightManji.heightWorld },
+    faces: faces.map((face) => ({
+      ...face,
+      group: element.instance ? `asset:${asset.id}:${element.instance}` : `asset:${asset.id}`,
+    })),
+    // a floor skin (the rug) casts no contact shadow — nothing stands on legs there
+    contactFootprint: asset.contact === false ? null : { corners: element.heightManji.basePlane.corners, height: element.heightManji.heightWorld },
   };
 }

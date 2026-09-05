@@ -158,3 +158,92 @@ describe('planWorkbench — the shells vocab-card worked example', () => {
     expect(of('port')).toBeGreaterThan(0);
   });
 });
+
+describe('planWorkbench — loft monomers (field-solids F1)', () => {
+  const hull = {
+    path: [[0, 0, 0], [12, 0, 0]],
+    stations: [
+      { t: 0, profile: [[0, 0.2], [0.05, 0.05], [0, 0], [-0.05, 0.05]] },
+      { t: 0.5, profile: [[1.8, 1.7], [1.5, 0.1], [-1.5, 0.1], [-1.8, 1.7]] },
+      { t: 1, profile: [[1.2, 1.5], [1.1, 0.4], [-1.1, 0.4], [-1.2, 1.5]] },
+    ],
+  };
+  it('a loft alone is a valid workbench, counted and read out like any monomer, closed', () => {
+    const { stats } = planWorkbench({ lofts: [hull], units: 'm' });
+    expect(stats.monomers).toBe(1);
+    expect(stats.lofts).toBe(1);
+    expect(stats.parts).toHaveLength(1);
+    expect(stats.parts[0].kind).toBe('loft');
+    expect(stats.parts[0].size.w).toBe(12);
+    expect(stats.parts[0].open).toBeUndefined();
+    expect(stats.warnings).toBeUndefined();
+  });
+  it('a manifest with no `lofts` key reports no lofts stat (pre-F1 shape preserved)', () => {
+    const { stats } = planWorkbench({ lathes: [lathe()] });
+    expect('lofts' in stats).toBe(false);
+  });
+  it('rejects a station point-count mismatch at mint, naming the station', () => {
+    const bad = { ...hull, stations: [hull.stations[0], { t: 0.5, profile: [[0, 0], [1, 0], [1, 1]] }, hull.stations[2]] };
+    expect(() => planWorkbench({ lofts: [bad] })).toThrow(/stations\[1\]\.profile has 3 points but stations\[0\] has 4/);
+  });
+  it('rejects a loft material typo loudly', () => {
+    expect(() => planWorkbench({ lofts: [{ ...hull, material: 'brasss' }] })).toThrow(/lofts\[0\]\.material/);
+  });
+  it('an assembled loft part stacks straight up the z axis and bakes end-to-end', () => {
+    const lowered = lowerAssembly({ parts: [
+      { kind: 'lathe', height: 1, id: 'foot', profile: [{ t: 0, radius: 3 }, { t: 1, radius: 2 }] },
+      { kind: 'loft', height: 6, on: 'foot', stations: [{ t: 0, profile: { radius: 2, sides: 12 } }, { t: 1, profile: [[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1]] }] },
+    ] });
+    expect(lowered.lofts).toHaveLength(1);
+    expect(lowered.lofts[0].axisFrom).toEqual({ x: 0, y: 0, z: 1 });
+    expect(lowered.lofts[0].axisTo).toEqual({ x: 0, y: 0, z: 7 });
+    const { stats } = planWorkbench({ lathes: lowered.lathes, lofts: lowered.lofts });
+    const loft = stats.parts.find((p) => p.kind === 'loft');
+    expect(loft.base).toBe(1);
+    expect(loft.top).toBe(7);
+    expect(lowerObjectFaces({ lofts: lowered.lofts }).length).toBeGreaterThan(12);
+  });
+});
+
+describe('planWorkbench — field monomers (field-solids F3)', () => {
+  const flange = {
+    cells: 32,
+    terms: [
+      { id: 'disc', op: 'add', shape: { kind: 'lathe', axisFrom: [0, 0, 0], axisTo: [0, 0, 1], profile: [{ t: 0, radius: 3 }, { t: 1, radius: 3 }] } },
+      { id: 'bore', op: 'subtract', shape: { kind: 'sweep', path: [[0, 0, -1], [0, 0, 2]], radius: 1 } },
+    ],
+  };
+  it('a field alone is a valid workbench, counted, read out at its size, closed, seated on the grid', () => {
+    const { stats } = planWorkbench({ fields: [flange] });
+    expect(stats.monomers).toBe(1);
+    expect(stats.fields).toBe(1);
+    expect(stats.parts[0].kind).toBe('field');
+    expect(stats.parts[0].size.w).toBeGreaterThan(5.6);
+    expect(stats.parts[0].size.w).toBeLessThanOrEqual(6.1);
+    expect(stats.parts[0].open).toBeUndefined();
+    expect(stats.warnings).toBeUndefined();
+  });
+  it('a manifest with no `fields` key reports no fields stat (pre-F3 shape preserved)', () => {
+    expect('fields' in planWorkbench({ lathes: [lathe()] }).stats).toBe(false);
+  });
+  it('field faces carry `group` tags into the lowered face list', () => {
+    const faces = lowerObjectFaces({ fields: [flange] });
+    expect(new Set(faces.map((f) => f.group))).toEqual(new Set(['disc', 'bore']));
+  });
+  it('rejects a bad term list at mint with the path, and a material typo loudly', () => {
+    expect(() => planWorkbench({ fields: [{ terms: [{ op: 'subtract', shape: flange.terms[1].shape }] }] })).toThrow(/fields\[0\]\.terms\[0\]\.op: the first term must be 'add'/);
+    expect(() => planWorkbench({ fields: [{ ...flange, cells: 2 }] })).toThrow(/fields\[0\]\.cells/);
+    expect(() => planWorkbench({ fields: [{ ...flange, material: 'steeel' }] })).toThrow(/fields\[0\]\.material/);
+  });
+  it('an assembled field part stacks by translation and bakes end-to-end', () => {
+    const lowered = lowerAssembly({ parts: [
+      { kind: 'lathe', height: 2, id: 'foot', profile: [{ t: 0, radius: 4 }, { t: 1, radius: 4 }] },
+      { kind: 'field', height: 1, on: 'foot', cells: 24, terms: flange.terms },
+    ] });
+    expect(lowered.fields).toEqual([{ cells: 24, terms: flange.terms, translate: [0, 0, 2] }]);
+    const { stats } = planWorkbench({ lathes: lowered.lathes, fields: lowered.fields });
+    const field = stats.parts.find((p) => p.kind === 'field');
+    expect(field.base).toBeCloseTo(2, 0);
+    expect(field.top).toBeCloseTo(3, 0);
+  });
+});

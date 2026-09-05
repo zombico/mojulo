@@ -24,13 +24,82 @@ Config keys:
   light                      { ambient:{color,strength}, key:{...}, fill:{...}, rim:{...} }
                              each lamp: { energy, color:[r,g,b], size, dir:[dx,dy,dz] } (dir = offset from centre, ×span)
 """
-import bpy, sys, json, mathutils
+import bpy
+import math, sys, json, mathutils
 
 cfg = json.load(open(sys.argv[sys.argv.index("--") + 1:][0]))
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=cfg["src_glb"])
 objs = bpy.data.objects
+
+# ── RENDER mode (lit-handoff.plan.md step 2): keep the frame, skip the bake ──────────
+# The source is a LIT export, so the importer already built a Principled BSDF per material
+# with vertex colour (× texture) as base colour — keep those; light the scene; render.
+if cfg.get("render"):
+    r = cfg["render"]
+    sc = bpy.context.scene
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+    xs, ys, zs = [], [], []
+    dg = bpy.context.evaluated_depsgraph_get()
+    for m in meshes:
+        for corner in m.evaluated_get(dg).bound_box:
+            w = m.matrix_world @ mathutils.Vector(corner)
+            xs.append(w.x); ys.append(w.y); zs.append(w.z)
+    cx, cy, cz = (min(xs)+max(xs))/2, (min(ys)+max(ys))/2, (min(zs)+max(zs))/2
+    span = max(max(xs)-min(xs), max(ys)-min(ys), max(zs)-min(zs))
+    # light
+    world = bpy.data.worlds.new("render-world"); sc.world = world; world.use_nodes = True
+    bg = world.node_tree.nodes["Background"]
+    if r.get("light") == "studio" and r.get("rig"):
+        rig = r["rig"]
+        for key in ("key", "fill", "rim"):
+            if key in rig:
+                spec = rig[key]
+                d = bpy.data.lights.new(key, "AREA"); d.energy = spec["energy"]; d.color = spec["color"]; d.size = spec.get("size", span)
+                o = bpy.data.objects.new(key, d); sc.collection.objects.link(o)
+                dx, dy, dz = spec["dir"]; o.location = (cx + span*dx, cy + span*dy, cz + span*dz)
+                o.rotation_euler = (mathutils.Vector((cx, cy, cz)) - o.location).to_track_quat("-Z", "Y").to_euler()
+        amb = rig.get("ambient", {"color": [0.22, 0.24, 0.28], "strength": 1.0})
+        bg.inputs["Color"].default_value = (*amb["color"], 1.0); bg.inputs["Strength"].default_value = amb["strength"]
+    else:
+        # a sun by elevation / azimuth (degrees): low enough to come through the windows
+        elev, azim = (r.get("sun") or [35, 30])
+        sun = bpy.data.lights.new("sun", "SUN"); sun.energy = 5.0; sun.color = (1.0, 0.96, 0.9); sun.angle = 0.03
+        so = bpy.data.objects.new("MojuloSun", sun); sc.collection.objects.link(so)
+        d = mathutils.Vector((math.cos(math.radians(elev)) * math.sin(math.radians(azim)), math.cos(math.radians(elev)) * math.cos(math.radians(azim)), math.sin(math.radians(elev))))
+        so.rotation_euler = (-d).to_track_quat("-Z", "Y").to_euler()      # the sun shines along -Z of its own frame
+        bg.inputs["Color"].default_value = (0.6, 0.66, 0.78, 1.0); bg.inputs["Strength"].default_value = float(r.get("sky", 3.0))
+    # camera
+    cam_data = bpy.data.cameras.new("render"); cam = bpy.data.objects.new("render", cam_data)
+    sc.collection.objects.link(cam); sc.camera = cam
+    cam_data.sensor_fit = "HORIZONTAL"; cam_data.lens_unit = "FOV"; cam_data.angle = math.radians(float(r.get("fov") or 60))
+    cam_data.clip_start = 0.05; cam_data.clip_end = max(1000.0, span * 20)
+    pos = r.get("camera") or [cx + span*1.1, cy - span*1.4, cz + span*0.6]
+    look = r.get("look") or [cx, cy, cz]
+    cam.location = tuple(pos)
+    cam.rotation_euler = (mathutils.Vector(look) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    # render
+    sc.render.engine = "CYCLES"
+    try:
+        prefs = bpy.context.preferences.addons["cycles"].preferences
+        prefs.compute_device_type = "METAL"; prefs.get_devices()
+        for dv in prefs.devices: dv.use = True
+        sc.cycles.device = "GPU"
+    except Exception as e:
+        print("MOJ_GPU_FALLBACK", e)
+    sc.cycles.samples = int(r.get("samples", 256))
+    sc.cycles.use_denoising = True
+    sc.view_settings.exposure = float(r.get("exposure", 1.2))
+    sc.view_settings.view_transform = "Filmic" if "Filmic" in [i.identifier for i in sc.view_settings.bl_rna.properties["view_transform"].enum_items] else "AgX"
+    res = r.get("res") or [1600, 1000]
+    sc.render.resolution_x, sc.render.resolution_y = int(res[0]), int(res[1])
+    sc.render.resolution_percentage = 100
+    sc.render.image_settings.file_format = "PNG"
+    sc.render.filepath = r["png"]
+    bpy.ops.render.render(write_still=True)
+    print("MOJ_RENDER_DONE", r["png"])
+    sys.exit(0)
 
 # --- pose (before any deletion, so the animation still resolves) ---
 clip = cfg.get("clip")

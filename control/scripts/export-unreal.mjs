@@ -63,6 +63,7 @@ const { values: args } = parseArgs({ options: {
   posture: { type: 'string' },   // greybox|final — operator-declared handoff posture (engine-score.js)
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
+  lit: { type: 'boolean', default: false },   // the LIT handoff: PBR materials over an unshaded base (lit-handoff.plan.md)
   'fresh-project': { type: 'boolean', default: false },
 } });
 
@@ -88,7 +89,7 @@ const clips = args['no-clips'] ? null : '_all';
 let pack;
 try {
   const build = isGame ? buildUnrealGamePack : buildUnrealWorldPack;
-  pack = await build({ ref: args.ref, outDir, clips, posture: args.posture ?? null, log });
+  pack = await build({ lit: args.lit, ref: args.ref, outDir, clips, posture: args.posture ?? null, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

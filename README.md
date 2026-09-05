@@ -376,7 +376,7 @@ Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-boo
 - [docs/HTML-CSS-NATIVE-RENDERING.md](docs/HTML-CSS-NATIVE-RENDERING.md), [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md) — the dependency-free scene backend and its baked lighting model
 - [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md) — volumetric effects as an overlay over the mesh worlds
 - [docs/bicycles.md](docs/bicycles.md) — the two-gate doctrine (machine gate, eyes gate) every handoff runs
-- [docs/local-blender-worker.md](docs/local-blender-worker.md), [docs/local-image-worker.md](docs/local-image-worker.md), [docs/local-voice-worker.md](docs/local-voice-worker.md) — the optional operator-hosted workers
+- [docs/local-blender-worker.md](docs/local-blender-worker.md), [docs/local-image-worker.md](docs/local-image-worker.md), [docs/local-voice-worker.md](docs/local-voice-worker.md), [docs/local-slicer-worker.md](docs/local-slicer-worker.md) — the optional operator-hosted workers
 
 **Concept docs — the substrate and the backend:**
 

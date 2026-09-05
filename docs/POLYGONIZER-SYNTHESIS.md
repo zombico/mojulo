@@ -710,8 +710,11 @@ Honest list of substrate-level gaps:
 - **Non-axis-aligned quads for `wave-surface` fields.** The inverse-
   bilinear interpolation for a tilted quad needs a quadratic solve.
   Deferred until a card needs it.
-- **3D noise.** Today noise is 2D over the xy plane. Most use cases
-  don't need volumetric noise; some might.
+- ~~**3D noise.**~~ Landed 2026-09-05: `noise3` / `noise3Amplitude` in
+  `fields.js` (seeded 3D value fBm, the same hash-lattice discipline as the
+  2D helpers), consumed by the field-terms `displace` sculpt term. Not yet
+  a manji-tree `noise` field kind — a volumetric field decl is a small pass
+  when a card needs it.
 - **Perlin / simplex noise.** Value noise is the v1 shipped pick;
   gradient noise is the natural upgrade if visual quality at low
   octave counts isn't enough.
@@ -721,8 +724,10 @@ Honest list of substrate-level gaps:
   exists; widening the consumption sites is a small additional pass.
 - **Asymmetric chiseling beyond a single outline.** `carve` now covers
   direct outline -> solid paths, including materialize/transfigure
-  motion. Boolean cuts across already-composed 3D primitives are still
-  a separate future step.
+  motion. Boolean cuts across already-composed 3D primitives landed
+  2026-09-05 as the workbench `fields` monomer (field-space `subtract` /
+  `intersect` over `field-terms.js`, surfaced by `field-mesh.js`) — soft,
+  grid-rounded cuts; sharp booleans stay with Manifold / the DCC.
 - **Per-invocation namespacing for card-declared fields.** Today
   invoking a field-declaring card twice in one scene throws; an
   automatic namespace based on slot path would lift the restriction.

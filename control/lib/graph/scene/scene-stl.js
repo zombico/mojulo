@@ -42,26 +42,57 @@ export function isPrintableFace(f) {
   return !!f && !f.water && f.decal !== 'shadow' && f.decal !== 'ink' && !f.studio;
 }
 
-// Collect every printable triangle from a face list into a flat position soup.
-// Textured faces contribute their geometry too (a label-wrapped table top is a
-// real surface); water, ground decals, and studio furniture do not.
-function solidPositions(faces) {
+// Collect every printable triangle from a face list into a flat position soup,
+// with the matching per-vertex linear colours (AO-darkened, as the World draws
+// them). Textured faces contribute their geometry too (a label-wrapped table top
+// is a real surface); water, ground decals, and studio furniture do not.
+// Positions come first from the plain faces, then each texture group, in
+// face-mesh's own order — the STL byte contract rides this ordering.
+function solidMesh(faces) {
   const printable = (Array.isArray(faces) ? faces : []).filter(isPrintableFace);
   const gm = faceListToMesh(printable, { decollide: false });
-  const parts = [gm.positions];
-  for (const grp of Object.values(gm.textureGroups || {})) parts.push(grp.positions);
+  const posParts = [gm.positions];
+  const colParts = [gm.colors];
+  for (const grp of Object.values(gm.textureGroups || {})) { posParts.push(grp.positions); colParts.push(grp.colors); }
   let total = 0;
-  for (const p of parts) total += p.length;
-  const out = new Float32Array(total);
+  for (const p of posParts) total += p.length;
+  const positions = new Float32Array(total);
+  const colors = new Float32Array(total);
   let o = 0;
-  for (const p of parts) { out.set(p, o); o += p.length; }
+  for (let i = 0; i < posParts.length; i++) { positions.set(posParts[i], o); colors.set(colParts[i], o); o += posParts[i].length; }
+  return { positions, colors };
+}
+
+/**
+ * printableShells(payload) → { base: { positions, colors } | null,
+ * repeats: [{ group, positions, colors, transforms }] } | null — the printable
+ * SET of a face-list payload, un-instanced and un-scaled: the base faces as one
+ * shell plus each instanced repeat as its template shell + transforms. The one
+ * walk every print-purposed emitter shares (STL expands the transforms into
+ * triangles; 3MF keeps them as build items; the closure audit sees the same
+ * faces via isPrintableFace) — so "what ships to the printer" has ONE answer.
+ * Null when nothing printable remains.
+ */
+export function printableShells(payload = {}) {
+  const { faces = [], repeats = [] } = payload || {};
+  const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
+  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length) return null;
+  const base = solidMesh(faces);
+  const out = { base: base.positions.length ? base : null, repeats: [] };
+  for (const r of repeatList) {
+    const tpl = solidMesh(r.template);
+    if (!tpl.positions.length) continue;
+    out.repeats.push({ group: typeof r.group === 'string' ? r.group : null, positions: tpl.positions, colors: tpl.colors, transforms: r.transforms });
+  }
+  if (!out.base && !out.repeats.length) return null;
   return out;
 }
 
 // Bake one repeat transform ({ pos, rotZ, scale }) into a template vertex —
 // scale, then rotate about +Z, then translate: the same TRS `addInstancedNodes`
 // (scene-gltf.js) and emitThreeWorld's InstancedMesh apply as thin nodes.
-function applyTransform(t, x, y, z) {
+// Exported: the 3MF emitter writes the same TRS as a build-item matrix.
+export function applyTransform(t, x, y, z) {
   const s = Number.isFinite(t.scale) ? t.scale : 1;
   let px = x * s, py = y * s;
   const pz = z * s;
@@ -88,15 +119,13 @@ function applyTransform(t, x, y, z) {
  * measuring probe and size readout both ride it.
  */
 export function facesToStl(payload = {}, { scale = 1, generator = 'mojulo scene-stl' } = {}) {
-  const { faces = [], repeats = [] } = payload || {};
-  const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
-  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length) return null;
+  const shells = printableShells(payload);
+  if (!shells) return null;
 
   // One soup: base faces + every repeat instance expanded to real triangles.
-  const soups = [solidPositions(faces)];
-  for (const r of repeatList) {
-    const tpl = solidPositions(r.template);
-    if (!tpl.length) continue;
+  const soups = [shells.base ? shells.base.positions : new Float32Array(0)];
+  for (const r of shells.repeats) {
+    const tpl = r.positions;
     for (const t of r.transforms) {
       const inst = new Float32Array(tpl.length);
       for (let i = 0; i < tpl.length; i += 3) {

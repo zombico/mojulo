@@ -35,12 +35,13 @@ function refuse(sketch, ref) {
 
 // Same seam as the Godot leg: resolveWorldScene → facesToGlb → engine score.
 // One realizer — no parallel exporter math.
-async function resolveLevel(levelSketch, { clips, posture = null }) {
-  const { payload, kind } = await resolveWorldScene(levelSketch);
+async function resolveLevel(levelSketch, { clips, posture = null, lit = false }) {
+  // `lit` (lit-handoff.plan.md): the UNSHADED payload + real PBR materials, so the engine lights it
+  const { payload, kind } = await resolveWorldScene(levelSketch, lit ? { unshaded: true } : {});
   if (!payload) {
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
   }
-  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}) });
+  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture });
   return { kind, exported, score };
 }
@@ -80,12 +81,12 @@ async function writePack({ outDir, binaries, emitted, portability, manifestHash 
 /** A standalone world → Unity pack at outDir (Y0 scope). `posture` is the
  * per-handoff greybox/final declaration (engine-score.js); absent, the
  * world manifest's own `posture` still applies as the durable default. */
-export async function buildUnityWorldPack({ ref, outDir, clips = '_all', posture = null, log = () => {} }) {
+export async function buildUnityWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`sketch '${ref}' not found`);
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — game scope is the Y1 track (export-unity.plan.md)`);
-  const { kind, exported, score } = await resolveLevel(sketch, { clips, posture });
+  const { kind, exported, score } = await resolveLevel(sketch, { clips, posture, lit });
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
@@ -116,7 +117,7 @@ export async function buildUnityWorldPack({ ref, outDir, clips = '_all', posture
 
 /** A game → menu + gated levels + music beds pack at outDir (Y1 scope).
  * `posture` (or the game manifest's own) stamps every level pack-wide. */
-export async function buildUnityGamePack({ ref, outDir, clips = '_all', posture = null, log = () => {} }) {
+export async function buildUnityGamePack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`sketch '${ref}' not found`);
   const manifest = refuse(sketch, ref);
@@ -144,7 +145,7 @@ export async function buildUnityGamePack({ ref, outDir, clips = '_all', posture 
     const spec = levelSpecs[i];
     const lvSketch = SketchRepository.getByRef(spec.ref);
     if (!lvSketch) throw new Error(`level '${spec.ref}' not found`);
-    const { exported, score } = await resolveLevel(lvSketch, { clips, posture: packPosture });
+    const { exported, score } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit });
     log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}' — GLB ${exported.byteLength} bytes`);
     // The kernel plays each level's own soundtrack (score.soundtrack, wired
     // by the importer); absent one, fall back to the game's battle rotation

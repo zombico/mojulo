@@ -1,7 +1,7 @@
 /**
  * workbench-assembly — the relative composition layer for the workbench.
  *
- * The workbench's monomer arrays (`lathes` / `extrudes` / `sweeps`) take ABSOLUTE coordinates:
+ * The workbench's monomer arrays (`lathes` / `extrudes` / `lofts` / `fields` / `sweeps`) take ABSOLUTE coordinates:
  * every monomer carries its own `axisFrom`/`axisTo` in world space. Authoring a multi-part object
  * that way means the model hand-computes a running z so each part sits flush on the one below — the
  * cumulative bookkeeping is where stacks drift, parts float, and re-render loops get spent.
@@ -15,7 +15,7 @@
  *   ] } }
  *
  * lowerAssembly() walks the parts in order, threading a running top-of-stack z, and emits the SAME
- * flat `{ lathes, extrudes }` the renderer already consumes — pure input-side sugar, zero geometry
+ * flat `{ lathes, extrudes, lofts, fields }` the renderer already consumes — pure input-side sugar, zero geometry
  * change. The lowered monomers merge with any explicit arrays the caller also passes (so a mug is an
  * assembled lathe body + an explicit `sweep` handle).
  *
@@ -51,8 +51,26 @@ function assertProfile(part, i) {
     if (!part.profile || typeof part.profile !== 'object') {
       throw new Error(`assembly.parts[${i}] (extrude): needs a \`profile\` of { rect } or { points }.`);
     }
+  } else if (part.kind === 'loft') {
+    // a stacked loft runs STRAIGHT up the stack axis (its own `path` would not stack); curved lofts
+    // stay in the explicit `lofts` array, exactly as sweeps do.
+    if (!Array.isArray(part.stations) || part.stations.length < 2) {
+      throw new Error(`assembly.parts[${i}] (loft): needs \`stations\` (≥2 of { t, profile, roll? }); a curved-path loft belongs in the explicit \`lofts\` array.`);
+    }
+    if (part.path !== undefined) {
+      throw new Error(`assembly.parts[${i}] (loft): a stacked loft has no \`path\` — it runs straight up the stack axis; author a curved loft in the explicit \`lofts\` array.`);
+    }
+  } else if (part.kind === 'field') {
+    // a stacked field solid is authored in its OWN frame (terms with z from 0 up to `height`) and
+    // translated onto the stack: `translate` is the lowering's output, never the part's input.
+    if (!Array.isArray(part.terms) || part.terms.length < 1) {
+      throw new Error(`assembly.parts[${i}] (field): needs \`terms\` (a non-empty field term list, authored with z from 0 up to \`height\`).`);
+    }
+    if (part.translate !== undefined) {
+      throw new Error(`assembly.parts[${i}] (field): a stacked field has no \`translate\` of its own — the stack places it; author an absolutely placed field in the explicit \`fields\` array.`);
+    }
   } else {
-    throw new Error(`assembly.parts[${i}]: \`kind\` must be 'lathe' or 'extrude' (sweeps stay in the explicit \`sweeps\` array).`);
+    throw new Error(`assembly.parts[${i}]: \`kind\` must be 'lathe', 'extrude', 'loft', or 'field' (sweeps stay in the explicit \`sweeps\` array).`);
   }
 }
 
@@ -100,7 +118,7 @@ function placements(part, i) {
 /**
  * Lower an `assembly` recipe into flat absolute monomer arrays.
  * @param {object} assembly  { parts: [ { kind, height, profile, on?, gap?, offset?, radial?, mirror?, id?, …passthrough } ] }
- * @returns {{ lathes: object[], extrudes: object[] }}
+ * @returns {{ lathes: object[], extrudes: object[], lofts: object[], fields: object[] }}
  */
 export function lowerAssembly(assembly = {}) {
   const parts = Array.isArray(assembly.parts) ? assembly.parts : [];
@@ -110,6 +128,8 @@ export function lowerAssembly(assembly = {}) {
   const tops = new Map();   // key (index AND optional id) -> top-of-stack z
   const lathes = [];
   const extrudes = [];
+  const lofts = [];
+  const fields = [];
   let prevKey = null;
 
   parts.forEach((part, i) => {
@@ -137,9 +157,9 @@ export function lowerAssembly(assembly = {}) {
 
     // Strip assembly-only keys; what remains is the monomer spec, replicated across placements.
     const { kind, height: _h, on: _on, gap: _g, offset: _o, radial: _r, mirror: _m, id: _id, ...rest } = part;
-    const target = part.kind === 'lathe' ? lathes : extrudes;
     for (const [x, y] of placements(part, i)) {
-      target.push({ ...rest, axisFrom: { x, y, z: baseZ }, axisTo: { x, y, z: topZ } });
+      if (part.kind === 'field') fields.push({ ...rest, translate: [x, y, baseZ] });
+      else (part.kind === 'lathe' ? lathes : part.kind === 'extrude' ? extrudes : lofts).push({ ...rest, axisFrom: { x, y, z: baseZ }, axisTo: { x, y, z: topZ } });
     }
 
     tops.set(i, topZ);
@@ -147,5 +167,5 @@ export function lowerAssembly(assembly = {}) {
     prevKey = typeof part.id === 'string' && part.id ? part.id : i;
   });
 
-  return { lathes, extrudes };
+  return { lathes, extrudes, lofts, fields };
 }

@@ -777,6 +777,10 @@ function init(db) {
       pulled_at     INTEGER,
       created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+      -- medium (interchange-seams.plan.md seam 5): 'image' (the paint loop) or
+      -- 'mesh' (the sculpt loop) — one durable table, two workers, neither
+      -- queue sees the other.
+      medium        TEXT NOT NULL DEFAULT 'image' CHECK(medium IN ('image','mesh')),
       UNIQUE(ref, target, manifest_hash)
     );
     CREATE INDEX IF NOT EXISTS idx_irq_status ON image_render_requests(status, created_at);
@@ -841,6 +845,7 @@ function init(db) {
   migrateEmbeddingsMotionVocabKind(db);
   migrateMcpToolCallColumns(db);
   migrateUserColumns(db);
+  migrateRenderRequestMedium(db);
   reapStaleMcpJobs(db);
   pruneMcpToolCalls(db);
   maybeBackfillEmbeddings(db);
@@ -1030,6 +1035,17 @@ function migrateInventoryColumns(db) {
   db.exec(
     'CREATE INDEX IF NOT EXISTS idx_meta_mcp_inventory_running_ref ON meta_mcp_inventory(running_ref)'
   );
+}
+
+// Mesh handoff (interchange-seams.plan.md seam 5): the render-request table
+// gains a `medium` so mesh-worker rows share the durable bicycle without a
+// second table. Existing rows are image requests — the default says so.
+function migrateRenderRequestMedium(db) {
+  const cols = db.prepare('PRAGMA table_info(image_render_requests)').all();
+  if (!cols.some((c) => c.name === 'medium')) {
+    db.exec("ALTER TABLE image_render_requests ADD COLUMN medium TEXT NOT NULL DEFAULT 'image'");
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_irq_medium ON image_render_requests(medium, status, created_at)');
 }
 
 function migrateMcpToolCallColumns(db) {

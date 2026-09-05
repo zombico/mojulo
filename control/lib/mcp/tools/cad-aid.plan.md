@@ -261,7 +261,15 @@ the first thread connecting the catalyst seam to the geometry seam.
 
 ## Non-goals
 
-CSG/booleans in-substrate, B-rep/half-edge topology, NURBS, a 2D
+*Amended 2026-09-05 (field-solids.plan.md D0, decided by the maintainer):
+"CSG/booleans in-substrate" is narrowed to MESH-ON-MESH CSG kernels.
+Field-space composition (the workbench `fields` monomer — `subtract` /
+`intersect` / `stroke`, polygonized by the surface net, edges rounded to
+about a grid cell) and the Manifold export pass (`export_model union:true`,
+interchange-seams seam 4a) are IN. Sharp machined booleans in the recipe
+remain seam 4b's question.*
+
+Mesh-on-mesh CSG kernels in-substrate, B-rep/half-edge topology, NURBS, a 2D
 sketcher, constraint/mate solving, feature trees, GD&T/tolerances,
 dimensioned drawings, native STEP/IGES/3MF readers or writers, mesh
 repair. Every one of these is either the DCC's job across the seam or a
@@ -278,7 +286,8 @@ Verified against the tree at `283d5c2` + working tree.
 ### Settled — do not re-litigate
 
 Phases 0, 0b, 1 and the housekeeping items landed. The doctrine holds:
-recipes sovereign, no CSG/B-rep/NURBS in-substrate, advisory-never-gating,
+recipes sovereign, no mesh-CSG/B-rep/NURBS in-substrate (field-space
+composition excepted — D0, 2026-09-05), advisory-never-gating,
 "print-ready STL at true scale" and never "guaranteed watertight manifold"
 ([scene-stl.js:24](../../graph/scene/scene-stl.js) states the honest claim
 in its own header). The non-goals list at the foot of this plan stands.

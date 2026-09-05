@@ -19,30 +19,38 @@ import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folderRef } = {}) {
+export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
   let baseExtrudes = Array.isArray(extrudes) ? extrudes : [];
+  let baseLofts = Array.isArray(lofts) ? lofts : [];
+  let baseFields = Array.isArray(fields) ? fields : [];
   if (assembly && typeof assembly === 'object') {
     const lowered = lowerAssembly(assembly);
     baseLathes = [...lowered.lathes, ...baseLathes];
     baseExtrudes = [...lowered.extrudes, ...baseExtrudes];
+    baseLofts = [...lowered.lofts, ...baseLofts];
+    baseFields = [...lowered.fields, ...baseFields];
   }
   const hasLathes = baseLathes.length > 0;
   const hasExtrudes = baseExtrudes.length > 0;
+  const hasLofts = baseLofts.length > 0;
+  const hasFields = baseFields.length > 0;
   const hasSweeps = Array.isArray(sweeps) && sweeps.length > 0;
   const hasDrapes = Array.isArray(drapes) && drapes.length > 0;
   const hasReliefs = Array.isArray(reliefs) && reliefs.length > 0;
   const hasShells = Array.isArray(shells) && shells.length > 0;
-  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasDrapes && !hasReliefs && !hasShells) {
-    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `drapes`, `reliefs`, `shells`, or `assembly` (the polygomer).');
+  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasLofts && !hasFields && !hasDrapes && !hasReliefs && !hasShells) {
+    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells`, or `assembly` (the polygomer).');
   }
   const manifest = {
     kind: 'workbench',
     ...(hasLathes ? { lathes: baseLathes } : {}),
     ...(hasExtrudes ? { extrudes: baseExtrudes } : {}),
     ...(hasSweeps ? { sweeps } : {}),
+    ...(hasLofts ? { lofts: baseLofts } : {}),
+    ...(hasFields ? { fields: baseFields } : {}),
     ...(hasDrapes ? { drapes } : {}),
     ...(hasReliefs ? { reliefs } : {}),
     ...(hasShells ? { shells } : {}),
@@ -84,8 +92,8 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folder_ref: folderRef } = input;
-  return mintWorkbench({ title, lathes, extrudes, sweeps, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folderRef });
+  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folder_ref: folderRef } = input;
+  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, units, viewBox, facing, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {
@@ -96,7 +104,7 @@ export function registerWorkbenchTools() {
       + "city/hub mints drop you INTO a traversable world at abstract scale, the workbench presents a "
       + "single everyday object on a measured grid at LITERAL real-world scale, for form accuracy "
       + "(neutral studio light, no mood). You build the object as a POLYGOMER — monomer primitives "
-      + "bonded by literal placement of their axes. Six monomer kinds:\n"
+      + "bonded by literal placement of their axes. Eight monomer kinds:\n"
       + "• `lathes` — surfaces of REVOLUTION (axisFrom→axisTo + a radius `profile` of {t,radius}, "
       + "optional N-fold `harmonics` for fluting/threads): candlestick, bottle, dumbbell, vase, lamp, "
       + "wheel, plate, spindle.\n"
@@ -104,6 +112,15 @@ export function registerWorkbenchTools() {
       + "`wallThickness` is set: box, slab, bracket, sign (solid) and tray, case, enclosure, drawer, "
       + "bin (shell). Profile is { rect:{w,h,r?} } or { points:[[u,v]…] }.\n"
       + "• `sweeps` — a tube swept ALONG a 3D `path`: handles, frames, hooks, cables, coil springs.\n"
+      + "• `lofts` — a profile that CHANGES along its path: ≥2 `stations` ({t, profile, roll?}, one "
+      + "shared point count) interpolated ring to ring — a boat hull, a tapering handle, a bottle that "
+      + "squares off, a twisted fin. A 2-point path / axisFrom→axisTo is a straight loft.\n"
+      + "• `fields` — CUTS, pockets, bores, blended masses and organic detail composed in FIELD "
+      + "space and polygonized once: a `terms` list read top-down (`add`/`subtract`/`intersect` a "
+      + "shape — sphere/ellipsoid/roundCone/box/capsule or the field twins lathe/extrude/sweep — "
+      + "with `blend` for a filleted join; `stroke` dabs in/out; `displace` seeded noise; `shell`; "
+      + "`round`). `cells` (16–128, default 64) is the resolution dial: cubic cost, edges round to "
+      + "about one cell. To cut INTO a lathe, author it as a `fields` term, not a `lathes` entry.\n"
       + "• `reliefs` — a 2D outline (an SVG `path` or font `text`) RAISED off a base along its normal "
       + "into bevelled geometry (additive emboss, never a cut): nameplates/plaques, wordmarks lifted "
       + "off a panel, a seal struck onto a lathe disc. Params in the schema; sink `anchor` ~0.1 into "
@@ -119,7 +136,7 @@ export function registerWorkbenchTools() {
       + "STACKING (relative composition): for a vertical multi-part object (candlestick, lamp, vase, "
       + "dumbbell, spindle) prefer `assembly` over hand-placed axes — declare each part by `height` + "
       + "`profile` and it auto-stacks on the one below (running z computed for you; `on`/`gap`/`offset` "
-      + "to override). It lowers to `lathes`/`extrudes` and merges with explicit arrays, so a mug = an "
+      + "to override). It lowers to `lathes`/`extrudes`/`lofts`/`fields` and merges with explicit arrays, so a mug = an "
       + "assembled lathe body + an explicit swept handle. A part can REPLICATE itself at the same "
       + "stacked z: `radial:{count,radius}` rings copies around a circle (round-stool legs, bolt "
       + "circles, candelabra arms) and `mirror:'x'|'y'|'xy'` reflects the offset into corner copies "
@@ -191,6 +208,16 @@ export function registerWorkbenchTools() {
             required: ['profile', 'axisFrom', 'axisTo'],
           },
         },
+        lofts: {
+          type: 'array',
+          description: "Loft monomers: a profile that CHANGES along its path — the N-station generalisation of an extrude's `endProfile` taper and a sweep's tube. Each: `{ path:[[x,y,z],…] | axisFrom+axisTo, stations:[{ t:0..1, profile:[[u,v],…] | { radius, sides? }, roll?: deg }, …] (≥2), interp?: 'linear'|'smooth', segments?, caps?, tint?, material? }`. Every station shares ONE point count (a round station's `sides` counts; default 16) — the validator names the offending station. A 2-point path (or axisFrom/axisTo) is a straight axis using the extrude frame; a longer path bends with rotation-minimizing frames (the path points are the rings — put a path point where a station must land). `interp:'smooth'` runs a spline through the stations (subdivided `segments` per gap on a straight axis, default 6). Use for a boat hull (keel → midship → transom), a tapering handle, a bottle that squares off, an airfoil that twists.",
+          items: { type: 'object' },
+        },
+        fields: {
+          type: 'array',
+          description: "Field-solid monomers: composition in FIELD SPACE, polygonized once — the native answer for a hole, a pocket, a bore, a blended mass, a bump or a dent. Each: `{ terms:[…], cells?: 16..128, translate?: [x,y,z], tint?, material? }`. `terms` is read TOP-DOWN and is a description of the object: `{ id?, op:'add'|'subtract'|'intersect', shape:{ kind, … }, blend? }` (blend>0 = the smooth variant), `{ op:'stroke', at, radius, strength, blend? }` (strength>0 adds a dab, <0 carves one), `{ op:'displace', noise:{ amplitude, scale?, octaves?, persistence?, seed? } }`, `{ op:'shell', thickness }`, `{ op:'round', radius }`. The first term must be `add`. Shape kinds: `sphere {center,radius}` · `ellipsoid {center,radii}` · `roundCone {a,b,ra,rb}` · `box {center,size,round?}` · `capsule {a,b,radius}` · `lathe {profile,axisFrom,axisTo,harmonics?}` · `extrude {profile,axisFrom,axisTo}` · `sweep {path,radius}` (the last three are the field twins of the face-list monomers — to cut INTO a lathe, author it here, not in `lathes`). Every face is tagged `group:<term id>` (nearest term), so ops/selectors can address a bore by name. Edges round to about one grid cell (`cells`, default 64; cost is cubic — 96–128 for a hero render or export); a sharp machined edge is `export_model union:true` (Manifold) or the DCC. Closed by construction. Full vocabulary: get_solid_vocab('workbench').",
+          items: { type: 'object' },
+        },
         sweeps: {
           type: 'array',
           description: 'Sweep monomers: a circular tube swept along a 3D path (rotation-minimizing frames → no twist). Handles, frames, hooks, cables, coil springs.',
@@ -252,7 +279,7 @@ export function registerWorkbenchTools() {
           properties: {
             parts: {
               type: 'array', minItems: 1,
-              description: 'Ordered parts, stacked bottom→top. Each: { kind:"lathe"|"extrude", height (axis length along z, >0), profile (lathe: [{t,radius}]; extrude: {rect|points}), id? (name for `on`), on? ("ground" | an earlier part id/index; default = the previous part), gap? (lift above the support, default 0), offset? ([dx,dy] off the stack axis, default [0,0]), radial? ({ count, radius, startAngle?, center? } — ring N copies around a circle), mirror? ("x"|"y"|"xy" — reflect the offset into 2/4 corner copies; e.g. offset:[a,b],mirror:"xy" = 4 legs), + any monomer passthrough (tint, material, harmonics, wrap, wallThickness, openFace, …). Use radial OR mirror, not both.',
+              description: 'Ordered parts, stacked bottom→top. Each: { kind:"lathe"|"extrude"|"loft"|"field", height (axis length along z, >0), profile (lathe: [{t,radius}]; extrude: {rect|points}) or stations (loft: [{t,profile,roll?}], straight up the stack axis) or terms (field: authored with z from 0 up to height; the stack translates it), id? (name for `on`), on? ("ground" | an earlier part id/index; default = the previous part), gap? (lift above the support, default 0), offset? ([dx,dy] off the stack axis, default [0,0]), radial? ({ count, radius, startAngle?, center? } — ring N copies around a circle), mirror? ("x"|"y"|"xy" — reflect the offset into 2/4 corner copies; e.g. offset:[a,b],mirror:"xy" = 4 legs), + any monomer passthrough (tint, material, harmonics, wrap, wallThickness, openFace, …). Use radial OR mirror, not both.',
               items: { type: 'object' },
             },
           },

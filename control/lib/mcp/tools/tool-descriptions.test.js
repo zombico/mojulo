@@ -98,7 +98,6 @@ const DESCRIPTION_ALLOWLIST = {
   forge_publications: 955,
   forward_context: 1081,
   gather: 1181,
-  get_adapter: 981,
   get_game_vocab: 1297,
   get_image_render_packet: 708,
   get_mcp_capabilities: 890,
@@ -217,7 +216,13 @@ const DESCRIPTION_ALLOWLIST = {
 // skinned export seam (skin-over-mesh.plan.md phase 4): export_model's
 // `skinned` input-schema property. Same rule — schema routing only, the
 // description stayed at its allowlist snapshot.
-const PAYLOAD_CEILING = 257_500;
+// Re-pinned 2026-09-04 (was 257,500; measured ~260,150) to bless the mesh
+// handoff (interchange-seams.plan.md seam 5): request_/pull_/submit_/accept_/
+// reject_mesh_render — the durable mesh-worker bicycle on the render-request
+// table (medium 'mesh'). The export_model growth of the same day (3mf / usda /
+// usdz / quantize / humanoid) was trimmed to routing grade and fit under the
+// old pin; the five new tools are the blessed residue.
+const PAYLOAD_CEILING = 261_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

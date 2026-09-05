@@ -37,6 +37,32 @@ export function pickTint(spec) {
 }
 
 /**
+ * transportFrames(P) → { T, U, V } — a rotation-minimizing (parallel-transport) frame at each
+ * point of a 3D polyline: T the unit tangent (central difference, clamped at the ends), U ⟂ T
+ * seeded at P[0] and carried forward by each tangent-to-tangent Rodrigues turn, V = T × U.
+ * Shared by `sweep` (a round profile) and `loft` (any profile) — field-solids.plan.md F1.
+ * Byte-identical to the frame sweepToFaces computed inline before the extraction.
+ */
+export function transportFrames(P) {
+  const m = P.length;
+  // tangents (central difference; clamp at the ends)
+  const T = P.map((_, i) => norm3(sub3(P[Math.min(m - 1, i + 1)], P[Math.max(0, i - 1)])));
+  // parallel-transport frame: seed u ⟂ T0, rotate by each tangent turn, re-orthogonalize.
+  const ref = Math.abs(T[0][2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+  const U = [norm3(cross3(T[0], ref))];
+  for (let i = 1; i < m; i += 1) {
+    const ax = cross3(T[i - 1], T[i]);
+    const sMag = Math.hypot(ax[0], ax[1], ax[2]);
+    const c = Math.max(-1, Math.min(1, dot3(T[i - 1], T[i])));
+    let u = sMag < 1e-7 ? U[i - 1] : rodrigues(U[i - 1], scl3(ax, 1 / sMag), Math.atan2(sMag, c));
+    u = norm3(sub3(u, scl3(T[i], dot3(u, T[i]))));
+    U.push(u);
+  }
+  const V = U.map((u, i) => cross3(T[i], u));
+  return { T, U, V };
+}
+
+/**
  * sweepToFaces(spec, opts) → [{ corners, fill, doubleSided }]
  *
  * spec: { path:[[x,y,z],…] (≥2 pts), radius>0, sides?, tint?, caps? }.
@@ -55,20 +81,7 @@ export function sweepToFaces(spec = {}, opts = {}) {
   const m = P.length;
   if (m < 2) return [];
 
-  // tangents (central difference; clamp at the ends)
-  const T = P.map((_, i) => norm3(sub3(P[Math.min(m - 1, i + 1)], P[Math.max(0, i - 1)])));
-  // parallel-transport frame: seed u ⟂ T0, rotate by each tangent turn, re-orthogonalize.
-  const ref = Math.abs(T[0][2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
-  const U = [norm3(cross3(T[0], ref))];
-  for (let i = 1; i < m; i += 1) {
-    const ax = cross3(T[i - 1], T[i]);
-    const sMag = Math.hypot(ax[0], ax[1], ax[2]);
-    const c = Math.max(-1, Math.min(1, dot3(T[i - 1], T[i])));
-    let u = sMag < 1e-7 ? U[i - 1] : rodrigues(U[i - 1], scl3(ax, 1 / sMag), Math.atan2(sMag, c));
-    u = norm3(sub3(u, scl3(T[i], dot3(u, T[i]))));
-    U.push(u);
-  }
-  const V = U.map((u, i) => cross3(T[i], u));
+  const { T, U, V } = transportFrames(P);
 
   const rings = P.map((p, i) => {
     const ring = [];
@@ -87,12 +100,13 @@ export function sweepToFaces(spec = {}, opts = {}) {
       let no = newellNormal(corners);
       if (!Number.isFinite(no[0]) || !Number.isFinite(no[1]) || !Number.isFinite(no[2])) continue;
       if (dot3(no, sub3(centroid(corners), axisMid)) < 0) no = scl3(no, -1);
-      faces.push({ corners, fill: shade(tint, no), doubleSided: true });
+      // `outNormal` is export-only (GLB NORMAL + the Blender bake's facing); shading keeps `no`.
+      faces.push({ corners, fill: shade(tint, no), doubleSided: true, outNormal: no });
       if (faces.length >= MAX_FACES_PER_SWEEP) return tagFacesWithMaterial(faces, mat);
     }
   }
   if (caps) {
-    const fan = (ring, c, no) => { const o = []; for (let j = 0; j < sides; j += 1) o.push({ corners: [c, ring[j], ring[j + 1], c], fill: shade(tint, no), doubleSided: true }); return o; };
+    const fan = (ring, c, no) => { const o = []; for (let j = 0; j < sides; j += 1) o.push({ corners: [c, ring[j], ring[j + 1], c], fill: shade(tint, no), doubleSided: true, outNormal: no }); return o; };
     faces.push(...fan(rings[0], P[0], scl3(T[0], -1)));
     faces.push(...fan(rings[m - 1], P[m - 1], T[m - 1]));
   }

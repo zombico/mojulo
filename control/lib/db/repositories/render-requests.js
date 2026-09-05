@@ -43,6 +43,7 @@ function rowToRequest(row) {
     workerAudit: parseJson(row.worker_audit),
     acceptAudit: parseJson(row.accept_audit),
     source: row.source || null,
+    medium: row.medium || 'image',
     pulledAt: row.pulled_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -55,7 +56,7 @@ export const RenderRequestRepository = {
    * constraint — a re-request against the same head manifest returns the
    * existing row rather than duplicating it (or resurrecting a terminal one).
    */
-  park({ ref, target, kind, manifestHash }) {
+  park({ ref, target, kind, manifestHash, medium = 'image' }) {
     const db = getDb();
     const existing = db
       .prepare('SELECT * FROM image_render_requests WHERE ref = ? AND target = ? AND manifest_hash = ?')
@@ -63,9 +64,9 @@ export const RenderRequestRepository = {
     if (existing) return rowToRequest(existing);
     const id = renderRequestId();
     db.prepare(
-      `INSERT INTO image_render_requests (id, ref, target, kind, manifest_hash, status)
-       VALUES (?, ?, ?, ?, ?, 'pending')`,
-    ).run(id, ref, target, kind, manifestHash);
+      `INSERT INTO image_render_requests (id, ref, target, kind, manifest_hash, status, medium)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+    ).run(id, ref, target, kind, manifestHash, medium);
     return this.getById(id);
   },
 
@@ -84,19 +85,20 @@ export const RenderRequestRepository = {
       .map(rowToRequest);
   },
 
-  listPending({ ref } = {}) {
+  // `medium` scopes the queue: the image worker (default) never claims a mesh row and vice versa.
+  listPending({ ref, medium = 'image' } = {}) {
     const db = getDb();
     const rows = ref
       ? db
           .prepare(
-            "SELECT * FROM image_render_requests WHERE status = 'pending' AND ref = ? ORDER BY created_at ASC, rowid ASC",
+            "SELECT * FROM image_render_requests WHERE status = 'pending' AND medium = ? AND ref = ? ORDER BY created_at ASC, rowid ASC",
           )
-          .all(ref)
+          .all(medium, ref)
       : db
           .prepare(
-            "SELECT * FROM image_render_requests WHERE status = 'pending' ORDER BY created_at ASC, rowid ASC",
+            "SELECT * FROM image_render_requests WHERE status = 'pending' AND medium = ? ORDER BY created_at ASC, rowid ASC",
           )
-          .all();
+          .all(medium);
     return rows.map(rowToRequest);
   },
 
@@ -106,20 +108,20 @@ export const RenderRequestRepository = {
    * Returns the claimed request, or null when the queue is drained. The
    * SELECT+UPDATE runs in an IMMEDIATE transaction so the claim is atomic.
    */
-  claimNext({ ref } = {}) {
+  claimNext({ ref, medium = 'image' } = {}) {
     const db = getDb();
     const claim = db.transaction(() => {
       const next = ref
         ? db
             .prepare(
-              "SELECT * FROM image_render_requests WHERE status = 'pending' AND ref = ? ORDER BY created_at ASC, rowid ASC LIMIT 1",
+              "SELECT * FROM image_render_requests WHERE status = 'pending' AND medium = ? AND ref = ? ORDER BY created_at ASC, rowid ASC LIMIT 1",
             )
-            .get(ref)
+            .get(medium, ref)
         : db
             .prepare(
-              "SELECT * FROM image_render_requests WHERE status = 'pending' ORDER BY created_at ASC, rowid ASC LIMIT 1",
+              "SELECT * FROM image_render_requests WHERE status = 'pending' AND medium = ? ORDER BY created_at ASC, rowid ASC LIMIT 1",
             )
-            .get();
+            .get(medium);
       if (!next) return null;
       db.prepare(
         "UPDATE image_render_requests SET status = 'in_flight', pulled_at = unixepoch(), updated_at = unixepoch() WHERE id = ?",

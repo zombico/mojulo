@@ -8,6 +8,8 @@
  * performance-FRIENDLY way to have shadows — no runtime shadow map, no per-frame light.
  *
  * ── THE DRIVETRAIN (fixed for every world) ─────────────────────────────────────────
+ *   TESSELLATE (generated-mesh) → split room-sized quads so a per-vertex bake can
+ *             carry a gradient (bake-prep.js — the floorplan finding, room-realism phase 3)
  *   FACING  → stamp `outNormal` (probe + floor rule) so a Cycles bake knows the
  *             presented side (mojulo's double-sided unlit renderer never recorded it).
  *   EXPORT  → facesToGlb({ faces }) → raw-albedo GLB.
@@ -69,7 +71,7 @@ const rgbToHex = (c) => '#' + c.map((x) => Math.max(0, Math.min(255, Math.round(
 const bright = (rgb) => rgb ? (rgb[0] + rgb[1] + rgb[2]) / 3 : 0;
 
 // FACING — stamp outNormal (probe + floor rule). Mutates faces. Returns {up,down,bbox}.
-function stampFacing(faces) {
+function stampFacing(faces, { force = false } = {}) {
   const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
   for (const f of faces) for (const p of f.corners) for (let k = 0; k < 3; k++) { if (p[k] < mn[k]) mn[k] = p[k]; if (p[k] > mx[k]) mx[k] = p[k]; }
   const diag = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]);
@@ -83,7 +85,11 @@ function stampFacing(faces) {
   const clr = (c, d, s) => { for (let t = step; t <= maxT; t += step) { const p = [c[0] + d[0] * t, c[1] + d[1] * t, c[2] + d[2] * t]; if (occ(p, s)) return t; } return maxT; };
   const roofZ = mn[2] + (mx[2] - mn[2]) * 0.85;
   let up = 0, down = 0;
+  let kept = 0;
   faces.forEach((f, i) => {
+    // an AUTHORED normal wins (blender-worker Principle 1); the probe fills the gaps —
+    // unless --remigrate asks to re-derive everything.
+    if (!force && Array.isArray(f.outNormal)) { kept++; if (f.outNormal[2] > 0.5) up++; else if (f.outNormal[2] < -0.5) down++; return; }
     const n = norms[i], c = cents[i];
     let on;
     if (Math.abs(n[2]) > 0.7) on = c[2] > roofZ ? [0, 0, -1] : [0, 0, 1];
@@ -91,7 +97,7 @@ function stampFacing(faces) {
     if (on[2] > 0.5) up++; else if (on[2] < -0.5) down++;
     f.outNormal = on;
   });
-  return { up, down, bbox: { mn, mx } };
+  return { up, down, authored: kept, probed: faces.length - kept, bbox: { mn, mx } };
 }
 
 // RECOLOUR — position→colour map from baked faces onto source faces. Mutates sourceFaces
@@ -116,12 +122,14 @@ function recolourFromBaked(sourceFaces, bakedFaces) {
 }
 
 // MACHINE GATE (coverage) — an up-facing lit-paint face that baked near-zero is a
-// wrong-facing back-face (genuine AO shadow still catches ~4-10% of bounce).
+// wrong-facing back-face (genuine AO shadow still catches ~4-10% of bounce). Faces
+// covered from above are excluded (see coveredMask).
 function coverageBlackFrac(sourceFaces, origBright) {
+  const covered = coveredMask(sourceFaces);
   let n = 0, dark = 0;
   sourceFaces.forEach((f, i) => {
     if (!Array.isArray(f.outNormal) || f.outNormal[2] <= 0.5) return;
-    if (origBright[i] < 0.03) return;
+    if (origBright[i] < 0.03 || covered[i]) return;
     n++;
     if (bright(hexToRgb(f.fill)) / origBright[i] < 0.04) dark++;
   });
@@ -151,6 +159,7 @@ const ADAPTERS = [
     name: 'generated-mesh',
     match: (s) => GENERATED_KINDS.has(s.manifest.kind) && !(Array.isArray(s.manifest.faces) && s.manifest.faces.length >= 200),
     defaultPreset: 'exterior',
+    tessellate: true,          // generated shells carry room-sized quads — split them so the bake can carry a gradient
     async source(s, deps) {
       const { payload } = await deps.resolveWorldScene(s, { unshaded: true }); // raw albedo where supported
       return { faces: payload.faces || [], payload, unshadedWarning: payload.unshadedWarning };
@@ -187,6 +196,7 @@ const { values: args } = parseArgs({ options: {
   write: { type: 'boolean', default: false }, 'no-write': { type: 'boolean', default: false },
   preview: { type: 'boolean', default: false }, remigrate: { type: 'boolean', default: false },
   samples: { type: 'string' }, blender: { type: 'string' },
+  cell: { type: 'string' },     // tessellation cell (world units) for the generated-mesh gear; default diag/32
 } });
 function fail(msg) { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); }
 if (!args.ref) fail('need --ref <world sketch>');
@@ -201,6 +211,7 @@ const { facesToGlb } = await import('@/lib/graph/scene/scene-gltf');
 const { glbToFaces } = await import('@/lib/graph/scene/scene-gltf-read.js');
 const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
 const { nextMeshPath } = await import('@/lib/graph/scene/mesh-store.js');
+const { tessellateForBake, coveredMask } = await import('@/lib/graph/scene/bake-prep.js');
 const deps = { SketchRepository, resolveWorldScene, nextMeshPath, backup };
 
 const sketch = SketchRepository.getByRef(args.ref);
@@ -215,13 +226,24 @@ if (!preset) fail(`unknown --preset '${presetName}' (have: ${Object.keys(PRESETS
 
 // SOURCE (gear) → raw-albedo faces
 const src = await adapter.source(sketch, deps);
-const faces = src.faces;
+let faces = src.faces;
 if (!Array.isArray(faces) || faces.length < 50) fail(`adapter '${adapter.name}' produced no faces for '${args.ref}'`);
+// shadow decals are not geometry — in the mesh they would shade the floor they sit on
+faces = faces.filter((f) => f.decal !== 'shadow');
+let tessellated = null;
+if (adapter.tessellate) {
+  const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (const f of faces) for (const p of f.corners) for (let k = 0; k < 3; k++) { if (p[k] < mn[k]) mn[k] = p[k]; if (p[k] > mx[k]) mx[k] = p[k]; }
+  const cell = args.cell ? Number(args.cell) : Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 32;
+  const before = faces.length;
+  faces = tessellateForBake(faces, cell);
+  tessellated = { cell: +cell.toFixed(2), before, after: faces.length };
+}
 if (src.unshadedWarning) process.stderr.write(`[bake-world-gi] unshaded note: ${src.unshadedWarning}\n`);
 
 // FACING
-const alreadyStamped = faces.every((f) => Array.isArray(f.outNormal));
-const facing = (alreadyStamped && !args.remigrate) ? { up: '(cached)', down: '(cached)' } : stampFacing(faces);
+const alreadyStamped = faces.every((f) => Array.isArray(f.outNormal) || f.water);
+const facing = (alreadyStamped && !args.remigrate) ? { up: '(authored)', down: '(authored)' } : stampFacing(faces, { force: args.remigrate });
 const origBright = faces.map((f) => bright(hexToRgb(f.fill)));
 
 // EXPORT
@@ -259,7 +281,7 @@ if (blackFrac > 0.25) fail(`MACHINE GATE failed: ${(blackFrac * 100).toFixed(0)}
 const sha256 = createHash('sha256').update(bakedBytes).digest('hex');
 const bindResult = await adapter.bind({ sketch, sourceFaces: faces, bakedBytes, matchRate, blackFrac, sha256, preset: presetName, samples: config.samples, doWrite, deps, payload: src.payload || {}, originalJson });
 
-process.stdout.write(`${JSON.stringify({ ok: true, ref: args.ref, adapter: adapter.name, preset: presetName, faces: faces.length, facing, corner_match_rate: +matchRate.toFixed(3), floor_black_frac: +blackFrac.toFixed(3), preview_png: previewPng, ...bindResult }, null, 2)}\n`);
+process.stdout.write(`${JSON.stringify({ ok: true, ref: args.ref, adapter: adapter.name, preset: presetName, faces: faces.length, tessellated, facing, corner_match_rate: +matchRate.toFixed(3), floor_black_frac: +blackFrac.toFixed(3), preview_png: previewPng, ...bindResult }, null, 2)}\n`);
 
 async function backup(ref, json) {
   const dir = path.join(process.env.MOJULO_DATA_DIR || path.join(process.cwd(), 'data'), 'backups');

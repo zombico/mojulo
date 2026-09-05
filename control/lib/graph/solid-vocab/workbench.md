@@ -4,16 +4,18 @@
   "name": "Workbench (object study)",
   "family": "object",
   "entry": "mint_solid",
-  "summary": "Mint a measured OBJECT study at literal scale — an everyday object built as a polygomer of lathes / extrudes / sweeps / drapes / reliefs / shells on a measured studio grid.",
-  "when": "Reach for this on 'render an object / a mechanical part / an everyday object from primitives / a turntable of a <object> / block out a <object> in solids / a geodesic dome / a soccer-ball or faceted shell / a d20 / panels and ports on each face'."
+  "summary": "Mint a measured OBJECT study at literal scale — an everyday object built as a polygomer of lathes / extrudes / sweeps / lofts / fields / drapes / reliefs / shells on a measured studio grid — with fields for cuts, bores, pockets, blended masses, and sculpted bumps/dents.",
+  "when": "Reach for this on 'render an object / a mechanical part / an everyday object from primitives / a turntable of a <object> / block out a <object> in solids / a geodesic dome / a soccer-ball or faceted shell / a d20 / panels and ports on each face / a boat hull or tapering form (loft) / a hole, bore, pocket, boolean cut, blended mass, bump or dent (fields)'."
 }
 ---
 
-Mint a measured OBJECT study — the object-scale sibling of the traversable city/hub mints. Where those drop you INTO a world at abstract scale, the workbench presents a SINGLE everyday object on a measured grid at LITERAL real-world scale, for FORM accuracy (neutral studio light, no mood). You build the object as a POLYGOMER — monomer primitives bonded by literal placement of their axes: a candlestick = foot + stem + cup, a dumbbell = bar + two bells, a mug = a shell body + a swept handle. Six monomer kinds compose the whole vocabulary:
+Mint a measured OBJECT study — the object-scale sibling of the traversable city/hub mints. Where those drop you INTO a world at abstract scale, the workbench presents a SINGLE everyday object on a measured grid at LITERAL real-world scale, for FORM accuracy (neutral studio light, no mood). You build the object as a POLYGOMER — monomer primitives bonded by literal placement of their axes: a candlestick = foot + stem + cup, a dumbbell = bar + two bells, a mug = a shell body + a swept handle. Eight monomer kinds compose the whole vocabulary:
 
 - `lathes` — surfaces of REVOLUTION (an axis plus a radius profile, optional N-fold harmonics for fluting/threads): candlestick, bottle, dumbbell, vase, lamp, wheel, plate, spindle.
 - `extrudes` — PRISMS from a 2D profile swept along an axis, OR recessed SHELLS when a wall thickness is set: box, slab, bracket, sign (solid) and tray, case, enclosure, drawer, bin (shell).
 - `sweeps` — a tube swept ALONG a 3D path: handles, frames, hooks, cables, coil springs.
+- `lofts` — a profile that CHANGES along its path (≥2 stations interpolated ring to ring): a boat hull, a tapering handle, a bottle that squares off, a twisted fin.
+- `fields` — CUTS, pockets, bores, blended masses and organic detail, composed in FIELD SPACE (add / subtract / intersect / stroke / displace) and polygonized once: a flange with a bolt circle bored through it, a socket, a pebble. The one monomer that can take material AWAY.
 - `drapes` — a hanging cloth SHEET with real folds and sag (cape, robe, banner) — a two-sided open sheet, not a thin flat extrude.
 - `reliefs` — a 2D outline (an SVG path or font text) RAISED off a base into bevelled geometry (additive emboss, never a cut): nameplates, wordmarks, a seal struck onto a lathe disc.
 - `shells` — parametric POLYHEDRA (the five platonics, the truncated icosahedron, geodesics), optionally with per-face OPERATIONS: a geodesic dome, a d20, a soccer-ball shell, a faceted housing with inset panels and ports. The one monomer whose identity is its face LAYOUT rather than a swept profile.
@@ -22,7 +24,7 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
 
 ## Spec shape
 
-`title`, `ref`, `folder_ref` are top-level mint params. Everything below lives in `spec`. Provide at least one monomer (any of `lathes` / `extrudes` / `sweeps` / `drapes` / `reliefs` / `shells` / `assembly`).
+`title`, `ref`, `folder_ref` are top-level mint params. Everything below lives in `spec`. Provide at least one monomer (any of `lathes` / `extrudes` / `sweeps` / `lofts` / `fields` / `drapes` / `reliefs` / `shells` / `assembly`).
 
 ```
 {
@@ -31,12 +33,14 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
   extrudes?: [ { profile, axisFrom, axisTo, endProfile?, wallThickness?,
                  floorThickness?, openFace?, tint?, material?, innerTint?, cornerSamples? } ],
   sweeps?:   [ { path[], radius, sides?, tint?, material?, caps? } ],
+  lofts?:    [ { path[] | axisFrom+axisTo, stations[], interp?, segments?, caps?, tint?, material? } ],
+  fields?:   [ { terms[], cells?, translate?, tint?, material? } ],
   drapes?:   [ { anchor, hang?, back?, drop?, flare?, hemZ?, spread?,
                  pinToFree?, tint?, material? } ],
   reliefs?:  [ { shape, size?, anchor, normal?, up?, style?, tint?, material? } ],
   shells?:   [ { solid, radius, center?, orient?, frequency?, tint?, material?,
                  group?, open?, ops? } ],
-  assembly?: { parts: [ { kind, height, profile, id?, on?, gap?, offset?,
+  assembly?: { parts: [ { kind, height, profile | stations | terms, id?, on?, gap?, offset?,
                           radial?, mirror?, ...passthrough } ] },
   units?:    'cm',
   viewBox?:  { width, height },
@@ -77,6 +81,85 @@ A circular tube swept along a 3D path with rotation-minimizing frames (no twist)
 - `radius` — tube radius. `sides` (int, default 16, ≥3) — cross-section resolution.
 - `tint` (hex) / `material` — a chrome towel-rail or copper pipe is a sweep + a metal material.
 - `caps` (bool, default true) — close the two ends. Set false when both ends embed in another monomer (e.g. a handle into a mug wall).
+
+## Lofts — a profile that changes along its path
+
+The N-station generalisation of an extrude's `endProfile` taper and a sweep's tube: any number of closed 2D profiles (stations) placed along a path and interpolated ring to ring. A boat hull (keel → midship → transom), a tapering handle, a bottle that squares off, an airfoil that twists. A two-station straight loft is exactly the matching `endProfile` extrude.
+
+- `path` (array of ≥2 [x,y,z]) OR `axisFrom` / `axisTo` — a 2-point path (or the axis pair) is a STRAIGHT loft, framed like an extrude (profile u→x, v→y when the axis is vertical). A longer path bends the loft with rotation-minimizing frames, like a sweep; the path points ARE the rings, so put a path point where a station must land exactly.
+- `stations` (array, min 2) — `{ t, profile, roll? }`. `t` in [0,1] along the path (distinct per station). `profile` is `[[u,v], …]` (a closed polygon, CCW) or `{ radius, sides? }` (a circle, default 16 sides). EVERY station shares ONE point count — a circle's `sides` counts; the validator names the station that differs. Match corner to corner: the k-th point of each station is joined to the k-th of the next, so keep the same starting corner and winding, and repeat a vertex to pinch a face. `roll` (degrees) turns the station in its plane (a twisted fin).
+- `interp` — `'linear'` (default) lerps station to station (a faceted hull); `'smooth'` runs a spline through the stations (a fair hull). On a straight loft `segments` (default 6) subdivides each station gap so the spline shows.
+- `caps` (bool, default true) — close both end stations; a zero-area end station drops its cap on its own. `tint` / `material` — like any monomer.
+
+Worked example — a boat hull along x, five stations (all 4-point, bow pinched):
+
+```
+lofts: [{
+  path: [[0, 0, 0], [12, 0, 0]], interp: 'smooth',
+  stations: [
+    { t: 0,    profile: [[0, 0.2], [0.05, 0.05], [0, 0], [-0.05, 0.05]] },
+    { t: 0.25, profile: [[1.2, 1.6], [1.0, 0.2], [-1.0, 0.2], [-1.2, 1.6]] },
+    { t: 0.55, profile: [[1.8, 1.7], [1.5, 0.1], [-1.5, 0.1], [-1.8, 1.7]] },
+    { t: 0.8,  profile: [[1.6, 1.6], [1.4, 0.15], [-1.4, 0.15], [-1.6, 1.6]] },
+    { t: 1,    profile: [[1.2, 1.5], [1.1, 0.4], [-1.1, 0.4], [-1.2, 1.5]] }
+  ],
+  material: 'wood'
+}]
+```
+
+## Fields — composition in field space
+
+Every other monomer is a surface sweep that emits its own closed shell; they mix by sitting next to each other, and none can take material AWAY. A `fields` entry is one solid described as a list of TERMS over a signed-distance field — add a shape, subtract a shape, blend, dab, roughen — surfaced once by the surface-net polygonizer. It is the native answer for a hole, a bore, a pocket, a slot, a socket, a filleted junction, a bump, a dent, a pebble. Read the term list top-down and it is a description of the object (the same discipline as shell `ops`).
+
+**The one mixing rule.** Field solids mix with the other monomers by juxtaposition only, exactly as a mug body and its swept handle mix today. To cut INTO a lathe or an extrude, author it as a `fields` term (its field twin — `lathe` / `extrude` / `sweep` shapes take the same params as the monomers), not as a `lathes` / `extrudes` entry.
+
+**The edge caveat.** This is not a mesh CSG kernel: every edge and corner rounds to about ONE GRID CELL (the longest side ÷ `cells`), and the stamped face count grows with the square of `cells` while the cost grows with its cube. A machined sharp edge is not on offer here — `export_model union:true` (Manifold) unions shells sharply at export, and a chamfer is the DCC's.
+
+- `terms` (array, min 1; the first must be `add`) — evaluated top-down:
+  - `{ id?, op:'add', shape, blend? }` — union the shape in; `blend` (world units) makes it a SMOOTH union (a filleted join). `id` names the term so its faces can be selected (`group`).
+  - `{ id?, op:'subtract', shape, blend? }` — cut the shape out; `blend` fillets the cut's rim.
+  - `{ id?, op:'intersect', shape, blend? }` — keep only what is inside both.
+  - `{ op:'stroke', at, radius, strength, blend? }` — a brush dab: a sphere of `radius × |strength|`, added when `strength > 0` (a bump, a haunch, a jowl), carved when `< 0` (a dent, a socket, a nostril). `blend` (default half the dab) is the fillet. A list of strokes IS a recipe: deterministic, diffable, editable in place. Order matters where dabs overlap.
+  - `{ op:'displace', noise:{ amplitude, scale?, octaves?, persistence?, seed? } }` — seeded 3D noise moves the whole surface along itself by about `amplitude`: hide wrinkles, pebble skin, fur breakup. Same seed, same surface, forever.
+  - `{ op:'shell', thickness }` — hollow the solid so far into a wall this thick (a cup from a solid). `{ op:'round', radius }` — inflate by `radius`, rounding every edge.
+- `shape` — `{ kind, … }`: `sphere { center, radius }` · `ellipsoid { center, radii }` · `roundCone { a, b, ra, rb }` · `box { center, size (FULL extents), round? }` · `capsule { a, b, radius }` · `lathe { profile:[{t,radius}], axisFrom, axisTo, harmonics? }` · `extrude { profile:{rect|points}, axisFrom, axisTo }` · `sweep { path, radius }` (a tube with ROUND ends — the monomer's are flat). Points are `[x,y,z]` or `{x,y,z}`. sphere / box / capsule / roundCone / extrude / sweep / plain lathe are exact distances; ellipsoid and a harmonic lathe are bounds (right sign, vertices a hair off, closure unaffected).
+- `cells` (int 16–128, default 64) — grid cells along the solid's longest side. 64 for a live world; 96–128 for a hero render or an export. Cost is cubic.
+- `translate` (`[x,y,z]`) — move the whole solid (what `assembly` sets when a field part stacks).
+- `tint` / `material` — like any monomer. Every emitted face carries `group: <term id>` (the term nearest its centre; unnamed terms are `term0`, `term1`, …), so a later shell op or a skin can select `{ group: 'bore' }`.
+
+A field solid is closed by construction — the mint's closure audit expects zero open rims; if it ever reports one, that is a bug to report, not a recipe to fix.
+
+Worked example — a flange with a bolt circle bored through it (all in cm):
+
+```
+fields: [{
+  cells: 96,
+  terms: [
+    { id: 'disc', op: 'add',      shape: { kind: 'lathe', axisFrom: [0,0,0], axisTo: [0,0,1.2], profile: [{ t: 0, radius: 6 }, { t: 1, radius: 6 }] } },
+    { id: 'hub',  op: 'add',      shape: { kind: 'lathe', axisFrom: [0,0,0], axisTo: [0,0,3],   profile: [{ t: 0, radius: 2.4 }, { t: 1, radius: 2.4 }] }, blend: 0.4 },
+    { id: 'bore', op: 'subtract', shape: { kind: 'sweep', path: [[0,0,-1],[0,0,4]], radius: 1.2 } },
+    { id: 'bolt', op: 'subtract', shape: { kind: 'sweep', path: [[4.5,0,-1],[4.5,0,3]], radius: 0.45 } },
+    { id: 'bolt', op: 'subtract', shape: { kind: 'sweep', path: [[-4.5,0,-1],[-4.5,0,3]], radius: 0.45 } },
+    { id: 'bolt', op: 'subtract', shape: { kind: 'sweep', path: [[0,4.5,-1],[0,4.5,3]], radius: 0.45 } },
+    { id: 'bolt', op: 'subtract', shape: { kind: 'sweep', path: [[0,-4.5,-1],[0,-4.5,3]], radius: 0.45 } }
+  ],
+  material: 'steel'
+}]
+```
+
+Worked example — a pebble: an ellipsoid, two dabs, and a skin of noise:
+
+```
+fields: [{
+  terms: [
+    { id: 'body', op: 'add', shape: { kind: 'ellipsoid', center: [0,0,1.1], radii: [2.2, 1.5, 1.1] } },
+    { op: 'stroke', at: [1.6, 0.5, 1.6], radius: 0.7, strength: 1 },
+    { op: 'stroke', at: [-1.2, 0, 1.4], radius: 0.5, strength: -1 },
+    { op: 'displace', noise: { amplitude: 0.08, scale: 0.6, octaves: 3, seed: 'river' } }
+  ],
+  tint: '#8b8378', material: 'stone'
+}]
+```
 
 ## Drapes — hanging cloth
 
@@ -135,54 +218,7 @@ Ops run in ORDER, each seeing the previous one's output. That is the mechanism: 
 - `{ op:'recolor', select, tint?, material?, group? }` — change colour, finish, or tag with no change to geometry. Cheap, and it does most of the visual work.
 - `{ op:'port', select, radius, depth, sides?, group?, tint?, material? }` — seat a cylinder on the face center along its normal (tagged `port`). ADDITIVE: the host face survives. A negative `depth` sinks the port into the face.
 
-Ops are surface operations, not booleans — `port` seats a cylinder ON a face, it does not drill through the shell, and there is no boolean difference. If an object truly needs CSG, `export_model` it and cut it in Blender.
-
-### Composition moves — how monomers relate
-
-Three moves. Pick per JUNCTION; a build that uses only one is usually wrong.
-
-- **stack** — seat B on A's top (`assembly` does this for you). Exact, cheap,
-  no z-fight risk. Right for coaxial masses: a column of coaxial discs, drums,
-  domes.
-- **jut(f)** — sink X into Y so only a fraction `f` protrudes. **`f` is a DIAL,
-  not a binary**: f≈0.25 a boss/rivet/recessed frame, f≈0.5 a sill or ledge,
-  f≈0.9 a shelf. This is how you get a recess without a boolean — a
-  dark-tinted mass sunk into a wall reads as an opening. It is also the only
-  way to express one mass entering another (a stair flight cut into a rock, a
-  plinth collaring a tower foot).
-- **composite outline** — union several primitives to author a SILHOUETTE no
-  single primitive has. Mandatory for irregular natural masses (rock, terrain,
-  foliage): one primitive always reads as a primitive.
-
-Do NOT demand clean separation between parts. Interpenetration is the method,
-not a defect.
-
-### The three rules that make these work
-
-1. **A superposed mass only reads if it BREAKS the host's silhouette.** A mass
-   fully inside the union contributes nothing — it costs budget and renders
-   invisibly. For an outcrop on a host of radius `R` at that height, push its
-   centre out until `dist + r_outcrop` exceeds `R` by roughly 20–25%. "Juts out
-   just enough" is a real lower bound. (Measured: five rock masses buried
-   inside a primary cone made the rock *smoother*, not more irregular.)
-2. **Jut, don't touch.** Two faces seated exactly flush are coplanar, and
-   coplanar faces z-fight — one of them wins arbitrarily and the other
-   disappears. A jut of ~0.1 units is enough to fix it. Under clean separation
-   *flush* and *coplanar* are the same number, which is its hidden cost.
-3. **The jut dial is RENDERER-DEPENDENT.** Unlit (`/world`, `/scene`) reads a
-   feature by its OUTLINE, so a shallow jut is legible. A lit DCC render reads
-   it by the SHADOW it casts, so the same jut dissolves into a smudge. Budget a
-   deeper `f` for anything whose destination is a lit render, and re-check the
-   feature after the first lit pass — a door that reads unlit can vanish lit.
-
-### Sizing from a reference
-
-Author z FROM the proportions you read, not by stacking numbers and checking
-afterwards. Fix the total height `H`, express each band as a fraction of it,
-and compute the running z. Stacking part heights and hoping the total lands
-right is over-constrained — `total = Σ heights` leaves no slack, so you cannot
-honour both the part proportions and the total. Jut overlaps are the free
-variable that absorbs the difference.
+Ops are surface operations, not booleans — `port` seats a cylinder ON a face, it does not drill through the shell. To actually cut, pocket, or bore, author the part as a `fields` monomer (below): composition in field space, edges rounded to about a grid cell. For a sharp machined boolean, `export_model union:true` (Manifold) unions shells at export, and a Blender cut is the last resort.
 
 ## Worked example — a faceted sensor shell
 
@@ -213,9 +249,9 @@ A soccer-ball shell whose hexagons become raised steel panels, with a scatter of
 
 ## Assembly — relative stacking
 
-For a vertical multi-part object (candlestick, lamp, vase, dumbbell, spindle), prefer `assembly` over hand-placed axes. Declare each part by `height` + `profile` and the running z is computed so each part seats flush on the one below. It lowers to `lathes`/`extrudes` and merges with the explicit arrays, so a mug = an assembled lathe body + an explicit swept handle.
+For a vertical multi-part object (candlestick, lamp, vase, dumbbell, spindle), prefer `assembly` over hand-placed axes. Declare each part by `height` + `profile` and the running z is computed so each part seats flush on the one below. It lowers to `lathes`/`extrudes`/`lofts`/`fields` and merges with the explicit arrays, so a mug = an assembled lathe body + an explicit swept handle.
 
-- `parts` (array, min 1) — ordered bottom→top. Each: `{ kind: "lathe"|"extrude", height (axis length along z, >0), profile (lathe: [{t,radius}]; extrude: {rect|points}), id? (name for on), on? ("ground" | an earlier part id/index; default = previous part), gap? (lift above support, default 0), offset? ([dx,dy] off the stack axis, default [0,0]), radial? ({ count, radius, startAngle?, center? } — ring N copies around a circle), mirror? ("x"|"y"|"xy" — reflect the offset into corner copies), + any monomer passthrough (tint, material, harmonics, wrap, wallThickness, openFace, …) }`. Use `radial` OR `mirror`, not both; `offset:[a,b], mirror:"xy"` → 4 legs. A part `on` a replicated part still seats on its single top.
+- `parts` (array, min 1) — ordered bottom→top. Each: `{ kind: "lathe"|"extrude"|"loft"|"field", height (axis length along z, >0), profile (lathe: [{t,radius}]; extrude: {rect|points}) or stations (loft: [{t,profile,roll?}] — a stacked loft runs straight up the stack axis; curved lofts stay in the explicit array, like sweeps) or terms (field: author the terms with z from 0 up to `height`; the stack translates the whole solid), id? (name for on), on? ("ground" | an earlier part id/index; default = previous part), gap? (lift above support, default 0), offset? ([dx,dy] off the stack axis, default [0,0]), radial? ({ count, radius, startAngle?, center? } — ring N copies around a circle), mirror? ("x"|"y"|"xy" — reflect the offset into corner copies), + any monomer passthrough (tint, material, harmonics, wrap, wallThickness, openFace, …) }`. Use `radial` OR `mirror`, not both; `offset:[a,b], mirror:"xy"` → 4 legs. A part `on` a replicated part still seats on its single top.
 
 ## Materials, units, framing
 

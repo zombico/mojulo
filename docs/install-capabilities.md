@@ -78,7 +78,8 @@ describes and an env flag can never silently disagree with reality. In
   "not installed" with the command that adds them, so the capability stays discoverable without
   advertising tools that would refuse to run.
 - **Full workshop:** a plain `npm install` gets everything (the creative deps are `optionalDependencies`,
-  installed by default).
+  installed by default — `three`, `opentype.js`, `node-web-audio-api`, and `manifold-3d`, the WASM CSG
+  kernel behind `export_model({ union: true })`; absent, that option reports and ships the plain shells).
 
 `sharp` is NOT shed — it arrives transitively via the kernel embedder (`@huggingface/transformers`), so
 it's always present.

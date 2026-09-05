@@ -371,20 +371,28 @@ export function applyMoonlight(faces, { dir = [-0.4, -0.28, -0.85], color = [0.5
  * cast shadow (which lands beside/past the object).
  * @param {Array} footprints  [{ corners: <floor quad>, height }]
  */
-export function contactShadowDecals(footprints = [], { strength = 0.5, expand = 1.35, maxAlpha = 0.6, fade = true } = {}) {
+export function contactShadowDecals(footprints = [], { strength = 0.5, expand = 1.35, maxAlpha = 0.6, fade = true, lift = 0.02, profile = 'pool' } = {}) {
   return footprints.map(({ corners, height, offset, expand: ex }) => {
     const c = centroid(corners);
     const e = ex ?? expand;
     const [ox, oy] = offset || [0, 0];               // translate downstream of the light → directional cast feel
-    const quad = corners.map((p) => [c[0] + (p[0] - c[0]) * e + ox, c[1] + (p[1] - c[1]) * e + oy, 0.02]);
+    // lifted off the footprint's OWN floor (an upper-storey room keeps its decal upstairs);
+    // `lift` rises above a floor skin (a rug) so a chair standing on it still grounds.
+    const quad = corners.map((p) => [c[0] + (p[0] - c[0]) * e + ox, c[1] + (p[1] - c[1]) * e + oy, (p[2] || 0) + lift]);
     // `fade` (default) softens with height — right for low furniture, where a taller piece
     // lifts its ambient-occlusion blob off the floor. City buildings want the OPPOSITE
     // (a tall mass casts a strong shadow), so the city pass calls with fade:false.
     const a = Math.min(maxAlpha, fade ? strength / (1 + (height || 0) * 0.6) : strength);
-    const bg = `radial-gradient(ellipse at 50% 50%, rgba(0,0,0,${a.toFixed(3)}) 0%, rgba(0,0,0,${(a * 0.45).toFixed(3)}) 42%, rgba(0,0,0,0) 80%)`;
+    // 'pool' (default): a soft blob that is mostly UNDER the piece — reads from low angles
+    // through legs. 'rim': holds alpha out to the footprint edge (≈74 % of the expanded
+    // radius) and fades beyond it, so a piece standing on the floor shows a grounding halo
+    // from standing height too.
+    const bg = profile === 'rim'
+      ? `radial-gradient(ellipse at 50% 50%, rgba(0,0,0,${a.toFixed(3)}) 0%, rgba(0,0,0,${a.toFixed(3)}) 58%, rgba(0,0,0,${(a * 0.5).toFixed(3)}) 74%, rgba(0,0,0,0) 100%)`
+      : `radial-gradient(ellipse at 50% 50%, rgba(0,0,0,${a.toFixed(3)}) 0%, rgba(0,0,0,${(a * 0.45).toFixed(3)}) 42%, rgba(0,0,0,0) 80%)`;
     // `decal`/`shadowAlpha` let the World realize this as a flat dark ground quad
     // (collectShadowDecals); CSS-3D ignores them and renders the `bg` gradient as before.
-    return { corners: quad, bg, doubleSided: true, decal: 'shadow', shadowAlpha: a };
+    return { corners: quad, bg, doubleSided: true, decal: 'shadow', shadowAlpha: a, outNormal: [0, 0, 1], ...(profile === 'rim' ? { shadowProfile: 'rim' } : {}) };
   });
 }
 
@@ -513,7 +521,9 @@ function cardFaces(card, quad, outward, shade) {
   const W = (u, v) => add(bilerp(quad, u, v), scale(outward, baseLift + layer * layerDz));
   const sc = (hex, corners) => shade(hex, corners, outward);
   const uLen = len(sub(quad[1], quad[0])) || 1, vLen = len(sub(quad[3], quad[0])) || 1;
-  const rect = (u0, v0, u1, v1, fill, clip) => { const c = [W(u0, v0), W(u1, v0), W(u1, v1), W(u0, v1)]; out.push({ corners: c, fill: sc(fill, c), doubleSided: true, ...(clip ? { clip } : {}) }); layer += 1; };
+  // every card face carries the quad's outward normal as `outNormal` (export-only: the GLB
+  // NORMAL attribute + the Blender bake's facing; the CSS/World shading never reads it)
+  const rect = (u0, v0, u1, v1, fill, clip) => { const c = [W(u0, v0), W(u1, v0), W(u1, v1), W(u0, v1)]; out.push({ corners: c, fill: sc(fill, c), doubleSided: true, outNormal: outward, ...(clip ? { clip } : {}) }); layer += 1; };
   for (const part of card.parts) {
     const fill = part.fill || part.stroke;
     if (!fill) continue;
@@ -535,7 +545,7 @@ function cardFaces(card, quad, outward, shade) {
         const dx = part.u1 - part.u0, dy = part.v1 - part.v0, l = Math.hypot(dx, dy) || 1;
         const hw = (part.strokeWidth || 1) * 0.004, px = (-dy / l) * hw, py = (dx / l) * hw;
         const c = [W(part.u0 + px, part.v0 + py), W(part.u1 + px, part.v1 + py), W(part.u1 - px, part.v1 - py), W(part.u0 - px, part.v0 - py)];
-        out.push({ corners: c, fill: sc(part.stroke || fill, c), doubleSided: true }); layer += 1;
+        out.push({ corners: c, fill: sc(part.stroke || fill, c), doubleSided: true, outNormal: outward }); layer += 1;
         break;
       }
       case 'circle': {                            // bbox quad + elliptical clip
@@ -779,7 +789,8 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
     for (let i = 0; i < 4; i += 1) {
       const [ax, ay] = ring[i], [bx, by] = ring[(i + 1) % 4];
       const lc = [[ax,ay,b[2]],[bx,by,b[2]],[bx,by,t[2]],[ax,ay,t[2]]];
-      faces.push({ corners: windToward(lc, camHint), fill: shadeT(LEG_HEX, lc, [b[0],b[1],(b[2]+t[2])/2]) });
+      const mx = (ax + bx) / 2 - b[0], my = (ay + by) / 2 - b[1], ml = Math.hypot(mx, my) || 1;   // side faces away from the post axis
+      faces.push({ corners: windToward(lc, camHint), fill: shadeT(LEG_HEX, lc, [b[0],b[1],(b[2]+t[2])/2]), outNormal: [mx / ml, my / ml, 0] });
     }
   };
   const PROP_HEX = '#b9a884';                      // neutral tabletop-prop solid (props without a dedicated net)
@@ -796,13 +807,13 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
 
     if (assetHit) {                                // workbench-authored room asset
       faces.push(...assetHit.faces);
-      contactFootprints.push(assetHit.contactFootprint);
+      if (assetHit.contactFootprint) contactFootprints.push(assetHit.contactFootprint);
     } else if (onProp && elevated && !net) {       // tabletop prop without a dedicated net: generic shaded box
       const quads = boxFaceQuads(base, top);
       const boxC = centroid([...base, ...top]);
       for (const slot of ['front', 'right', 'back', 'left', 'center']) {
         const q = quads[slot];
-        faces.push({ corners: windToward(q, camHint), fill: shadeT(PROP_HEX, q, boxC) });
+        faces.push({ corners: windToward(q, camHint), fill: shadeT(PROP_HEX, q, boxC), outNormal: outwardNormal(q, boxC) });
       }
     } else if (net && elevated) {                  // full box-net: 5 card faces + legs
       const quads = boxFaceQuads(base, top);
@@ -820,7 +831,7 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
       const n = normalToward(base, roomCenter);
       faces.push(...cardFaces(card, base, n, shade));
     } else {                                        // no net: a plain shaded top plane
-      faces.push({ corners: windToward(top, roomCenter), fill: shadeT('#8a7a64', top, roomCenter) });
+      faces.push({ corners: windToward(top, roomCenter), fill: shadeT('#8a7a64', top, roomCenter), outNormal: normalToward(top, roomCenter) });
     }
   }
   // traced diffusion: bake locally for a standalone room; a larger scene (suite) sets
@@ -832,7 +843,7 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
   // emits them after its global bake, from the returned footprints.
   const wantContact = lit.diffusion.contact ?? lit.diffusion.shadows ?? false;
   if (wantContact && !deferDiffusion) {
-    faces.push(...contactShadowDecals(contactFootprints, { strength: lit.diffusion.contactStrength ?? 0.5 }));
+    faces.push(...contactShadowDecals(contactFootprints, { strength: lit.diffusion.contactStrength ?? 0.5, lift: lit.diffusion.contactLift ?? 0.02, profile: lit.diffusion.contactProfile ?? 'pool' }));
   }
   return { faces, roomCenter, faceCount: faces.length, sources: lit.sources, contactFootprints };
 }

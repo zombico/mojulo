@@ -112,6 +112,18 @@ const LEXICON = [
     note: 'This stays IN mojulo — it is a render, not geometry. Use the /world view for a live orbit, or forge_motion for a shareable clip. (mojulo lighting is baked/unlit, so it is presentation, not physical lookdev.)',
   },
   {
+    id: 'usd-interchange',
+    terms: ['usd', 'usda', 'usdz', 'openusd', 'universal scene description', 'quick look', 'ar quick look', 'omniverse', 'usd export'],
+    concept: 'Hand the scene to the USD-speaking side (Blender, Houdini, Unreal, Omniverse) or to AR Quick Look on a phone at true scale.',
+    support: NATIVE,
+    routes: [
+      { tool: 'export_model', when: 'OpenUSD — usdz is the one-file package Quick Look opens; usda is the text layer + texture sidecars', args: { ref: '<sk_ref>', format: 'usdz' } },
+    ],
+    then: [],
+    ceiling: 'Static geometry only in v1: displayColor per vertex, PointInstancers for repeats, cameras, entity Xforms with moj: customData. Rig clips are not in USD yet (UsdSkel is roadmap). USD viewers LIGHT the surface — the baked colours read as albedo, not the unlit web look.',
+    dcc: "Import the .usdz/.usda; upAxis is Z and metersPerUnit follows the recipe's units, so it lands upright at true scale. Textured groups arrive as UsdPreviewSurface + UsdUVTexture; everything else shows displayColor. Re-light and re-shade there.",
+  },
+  {
     id: 'low-poly',
     terms: ['low poly', 'low-poly', 'lowpoly', 'game res', 'game-res', 'real-time mesh', 'optimized mesh', 'poly count'],
     concept: 'Lean, game-ready geometry with a controlled triangle budget.',
@@ -166,14 +178,42 @@ const LEXICON = [
   },
   {
     id: 'sculpt-detail',
-    terms: ['high poly', 'high-poly', 'highpoly', 'sculpt', 'sculpting', 'zbrush', 'fine detail', 'micro detail', 'displacement detail'],
-    concept: 'Adding dense, high-frequency surface detail.',
-    support: HANDOFF,
+    terms: ['high poly', 'high-poly', 'highpoly', 'sculpt', 'sculpting', 'zbrush', 'fine detail', 'micro detail', 'displacement detail', 'inflate', 'crease', 'clay brush', 'dent', 'bump'],
+    concept: 'Adding surface detail by sculpting — form-level dabs and roughening, up to dense high-frequency micro detail.',
+    support: PARTIAL,
     routes: [
-      { tool: 'create_polygonized_sketch', when: 'generate the base form first', args: { prompt: '<subject>' } },
+      { tool: 'mint_solid', when: "FORM-level sculpting: the workbench `fields` monomer's `stroke` terms (strength > 0 adds a dab — a bump, a haunch, a jowl; < 0 carves one — a dent, a socket) and `displace` (seeded 3D noise for hide / pebble breakup). A list of strokes IS a recipe — deterministic, diffable, editable in place.", args: { kind: 'workbench', spec: { fields: [{ terms: [{ op: 'add', shape: { kind: 'ellipsoid', center: [0, 0, 1], radii: [2, 1.4, 1] } }, { op: 'stroke', at: [1.5, 0.4, 1.4], radius: 0.6, strength: 1 }, { op: 'displace', noise: { amplitude: 0.08, scale: 0.6, seed: 'skin' } }] }] } } },
+      { tool: 'create_polygonized_sketch', when: 'generate the base form first (figures, animals, props)', args: { prompt: '<subject>' } },
     ],
     then: [EXPORT],
-    dcc: 'Generate the base in mojulo, export, then sculpt the high-frequency detail in ZBrush/Blender. Mojulo controls form, not surface micro-detail.',
+    ceiling: 'Form-level only: a stroke is a smooth-blended sphere and displace is low-octave value noise on a 16–128 cell grid (edges round to about one cell). Pores, wrinkles, and brush-stroke micro detail are beyond the grid.',
+    dcc: 'Generate the form in mojulo (dabs and noise included), export, then sculpt the high-frequency detail in ZBrush/Blender.',
+  },
+  {
+    id: 'boolean-cut',
+    terms: ['boolean', 'booleans', 'boolean difference', 'boolean subtract', 'boolean union', 'boolean intersect', 'csg', 'cut hole', 'hole through', 'bore', 'drill', 'pocket', 'slot', 'carve out', 'hollow out'],
+    concept: 'Combining solids by union / difference / intersection — a hole through a part, a pocket, a slot, a socket.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'mint_solid', when: "the workbench `fields` monomer: a term list read top-down — `add` a shape, `subtract` a shape (a bore is a `sweep` term cut from a `lathe` term), `blend` for a filleted rim. To cut INTO a lathe/extrude, author it as a `fields` term (its field twin), not in `lathes`/`extrudes`.", args: { kind: 'workbench', spec: { units: 'cm', fields: [{ cells: 96, terms: [{ id: 'disc', op: 'add', shape: { kind: 'lathe', axisFrom: [0, 0, 0], axisTo: [0, 0, 1.2], profile: [{ t: 0, radius: 6 }, { t: 1, radius: 6 }] } }, { id: 'bore', op: 'subtract', shape: { kind: 'sweep', path: [[0, 0, -1], [0, 0, 3]], radius: 1.2 } }] }] } } },
+    ],
+    then: [
+      { tool: 'export_model', when: 'print it as ONE solid — `union: true` runs a Manifold CSG union of every shell (3MF or STL)', args: { ref: '<sk_ref>', format: '3mf', union: true } },
+    ],
+    ceiling: 'Field-space booleans: exact sign, closed by construction, genus-correct — but every edge rounds to about one grid cell (`cells` 16–128; cost is cubic). A machined sharp edge is not on offer in the recipe; Manifold `union: true` unions shells sharply at export.',
+    dcc: "For sharp booleans over an imported mesh, or a boolean between a mojulo part and your own geometry: export and use Blender's Boolean modifier (Exact solver) or OpenSCAD.",
+  },
+  {
+    id: 'chamfer-fillet',
+    terms: ['chamfer', 'fillet', 'bevel', 'round edges', 'rounded edges', 'edge bevel', 'bevel modifier', 'soften edges'],
+    concept: 'Softening or breaking an edge with a rounded (fillet) or angled (chamfer) transition.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'mint_solid', when: "a FILLET: the `fields` monomer's `round` term inflates a solid and rounds every edge and corner; `blend` on an `add`/`subtract` fillets that one junction; `box` takes its own `round`.", args: { kind: 'workbench', spec: { fields: [{ terms: [{ op: 'add', shape: { kind: 'box', center: [0, 0, 1], size: [4, 3, 2], round: 0.3 } }] }] } } },
+    ],
+    then: [EXPORT],
+    ceiling: 'Uniform fillets only (the whole solid, or one blended junction), rounded to the field grid. A sharp CHAMFER (a flat 45° break) and per-edge fillet selection are not on offer.',
+    dcc: "Chamfers and per-edge bevels: export and use Blender's Bevel modifier with edge weights / bevel segments.",
   },
   {
     id: 'baking',
@@ -228,10 +268,10 @@ const LEXICON = [
       { tool: 'create_figure', when: 'a posed human figure' },
     ],
     then: [
-      { tool: 'export_model', when: 'the print handoff — binary STL, z-up, scale maps world units → mm', args: { ref: '<sk_ref>', format: 'stl' } },
+      { tool: 'export_model', when: 'the print handoff — 3MF (slicer-preferred: mm declared in-file, colours, instanced repeats as objects) or binary STL; z-up, scale maps world units → mm', args: { ref: '<sk_ref>', format: '3mf' } },
     ],
-    ceiling: 'The STL is shape only (colour/groups dropped — the filament is the colour) and honest triangle soup, not guaranteed watertight/manifold: open shells and intersecting parts survive export.',
-    dcc: "Import into your slicer (PrusaSlicer/Cura/Bambu) and let its mesh repair union the shells; orient, hollow, and add supports there. Set `scale` at export so the print lands at real millimetres.",
+    ceiling: 'By default the print file is honest shells (the closure audit names open rims); `union: true` runs a Manifold CSG union so the parts arrive as ONE solid with a measured volume (optional dependency — absent, it ships plain and says why). STL is shape only (colour/groups dropped); 3MF keeps the baked colours as basematerials.',
+    dcc: "Import into your slicer (PrusaSlicer/Bambu/Orca/Cura) — 3MF arrives at true millimetres; with `union: true` it is one body already, otherwise let the slicer merge the shells. Orient, hollow, and add supports there. For STL, set `scale` at export so the print lands at real millimetres.",
   },
 ];
 

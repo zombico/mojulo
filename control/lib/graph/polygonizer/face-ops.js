@@ -25,7 +25,10 @@
  * there is no boolean difference here. Real CSG needs a half-edge mesh and this whole directory is
  * deliberately a face-list SURFACE modeler (see face-closure.js, which warns about holes rather
  * than preventing them). When an object genuinely needs booleans, that is the honest moment to
- * export and reach for Blender — not to grow a CSG kernel in here.
+ * export and reach for Blender — not to grow a CSG kernel in here. (Since field-solids F3 there IS a
+ * native answer for soft cuts: the workbench `fields` monomer composes in FIELD space — `subtract` /
+ * `intersect` / `stroke` — and polygonizes once, rounded to about a grid cell; see field-faces.js.
+ * That is a different representation, not a boolean over these face lists.)
  *
  * Pure: no three.js, no DOM, no dice. Deterministic — the same op list on the same faces re-renders
  * byte-identical.

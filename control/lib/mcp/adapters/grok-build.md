@@ -2,8 +2,8 @@
 {
   "id": "grok-build",
   "name": "Grok Build (xAI)",
-  "summary": "Materializes catalysts as user-owned skills under ~/.grok/skills/, scheduled out-of-band, state in a workspace file — and is its own image worker via native image_gen/image_edit.",
-  "version": 1,
+  "summary": "Studio rider + catalyst writer: native image_gen/image_edit is the paint worker (recipe stays sovereign); materializes catalysts as user-owned skills under ~/.grok/skills/.",
+  "version": 2,
   "artifactTarget": "~/.grok/skills/<slug>/SKILL.md",
   "schedulingMechanism": "system cron / launchd invoking a headless grok session (verify Grok's native scheduler before preferring it)",
   "secretsPosture": "Grok-config-held secrets + inspect_bot_env — never cat .env",
@@ -13,7 +13,9 @@
 
 # Grok Build adapter
 
-Your host is **Grok Build** (xAI's CLI agent). The runnable artifact this catalyst materializes is a **user-owned skill** at `~/.grok/skills/<slug>/SKILL.md`. Once written it belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not host, execute, or store skills.
+Your host is **Grok Build** (xAI's CLI agent). This card is how you ride mojulo from this host — **studio making first**, catalyst materialization second. Pull it once per session (`get_adapter`, no `id`) before the first mint or the first synthesized skill.
+
+When a catalyst does materialize a runnable artifact, it is a **user-owned skill** at `~/.grok/skills/<slug>/SKILL.md`. Once written it belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not host, execute, or store skills.
 
 **Write Grok's native layout, not Claude's.** Grok compat-scans `.claude/skills/`, so a skill authored there would appear to work. Don't do it: the compat scan is a migration courtesy, not this adapter's target. A skill materialized for a Grok operator lives under `~/.grok/skills/`.
 
@@ -27,15 +29,15 @@ Grok caps MCP tool results (~20k bytes), and several mojulo surfaces exceed that
 
 None of this is enforced — mojulo won't refuse a call because it might truncate, and it won't silently reshape a response you asked for. If you decide a truncated read is worth it, take it; just tell the operator what got cut so they can decide whether to narrow it or work from the fragment. This section is written for any capped host; you are the first card to carry it.
 
-## You are your own image worker
+## Studio rider — you are the judgment Mojulo refused to embed
 
-Mojulo's directed-images loop *designs* pictures — composition-locked scaffolds — but cannot paint them. Most hosts need an external worker (a local ComfyUI, an image-capable subscription). **You carry `image_gen` / `image_edit` natively**, so the loop closes inside your session:
+Mojulo holds recipes, units, refusals, and proof. You hold vision, form-split, and the `when` line. Filling `kind` / `spec` is table stakes; these standing moves are the ride:
 
-1. Mint the scaffold in mojulo (the recipe stays sovereign — it is the thing that re-renders).
-2. Paint it yourself from the scaffold + prompt packet.
-3. Bind the painted PNG back with `bind_image_render` so the render carries provenance.
-
-The painted PNG is a *derived render* bound to the recipe, never a replacement for it. The eyes gate — a human looking at the result before it counts as accepted — is the operator's, not yours; see `docs/bicycles.md` rather than inventing a gate here.
+1. **Split the ask.** Native image (`image_gen` / `image_edit`) is the look. Mojulo is the recipe — pose, scale, world, proof, print. One operator sentence is often several artifacts that must stay the same thing. Do not dump the whole ask into one mint or one picture.
+2. **You are the paint worker.** Mojulo designs composition-locked scaffolds; it cannot paint. Most hosts need ComfyUI or a subscription. You close the loop in-session: mint the scaffold → paint from the packet → bind with `bind_image_render` (skins: `edit_solid` / `get_skin_packet` then apply). The PNG is a derived render. The recipe stays sovereign. The eyes gate is the operator's — see `docs/bicycles.md`; do not invent a gate here.
+3. **Two motion systems.** `forge_motion` is deterministic (turntable, traversal that can prove a level). Native video (`image_to_video` / `reference_to_video`) is cinema. Do not substitute one for the other.
+4. **A no is a next move.** `needs-vocab` → read the named card. Traversal `stuck` → change the path. Unaudited game → walk it or say you skipped. Do not retry the same call louder.
+5. **Write the `when` line.** `save_recipe` is findable later only if `when` is this conversation's intent, not the ref.
 
 ## Artifact target
 

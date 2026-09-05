@@ -72,6 +72,17 @@ describe('getAdapterHandler — resolution order', () => {
     expect(out.body).toMatch(/Codex/);
   });
 
+  it('grok-build orients as a studio rider, not only a catalyst writer', async () => {
+    _resetClientBindingsForTests();
+    const out = await getAdapterHandler({ id: 'grok-build' }, { mcpSessionId: 'test-adapter-grok-rider' });
+    expect(out.version).toBe(2);
+    expect(out.body).toMatch(/bind_image_render/);
+    expect(out.body).toMatch(/save_recipe/);
+    expect(out.body).toMatch(/forge_motion/);
+    expect(out.body).toMatch(/get_tool_index/);
+    expect(out.body).toMatch(/when/);
+  });
+
   it('throws when an explicit id is unknown — does not silently fall back', async () => {
     // Explicit `id` is treated as the agent making a specific request; if
     // it doesn't exist, surfacing the error is more useful than silently

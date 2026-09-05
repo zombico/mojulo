@@ -38,7 +38,7 @@ export function pickTint(spec) {
 
 // A perpendicular basis for the extrusion plane. Axis ≈ ±z → the world xy basis (so a vertical box
 // extrudes w→x, h→y, the predictable common case); otherwise a stable horizontal-seeded frame.
-function perpBasis(d) {
+export function perpBasis(d) {
   if (Math.abs(d[2]) > 0.999) return [[1, 0, 0], [0, 1, 0]];
   const u = norm3(cross3([0, 0, 1], d));
   return [u, norm3(cross3(d, u))];
@@ -76,7 +76,7 @@ function roundedRectPath(w, h, r, nc) {
 
 // Per-vertex outward normal = average of the two adjacent edge normals. Assumes CCW winding
 // (outward = edge direction rotated −90°: (dy,−dx)). Degenerate edges are skipped.
-function withPolygonNormals(pts) {
+export function withPolygonNormals(pts) {
   const M = pts.length;
   const edgeN = pts.map((p, i) => {
     const q = pts[(i + 1) % M];
