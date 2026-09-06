@@ -430,6 +430,69 @@ Godot, Unity, this. Leg v0.3.0.
   landmines pinned in the guide: full Xcode required for rendered runs, and
   Xcode 26+ additionally needs `xcodebuild -downloadComponent MetalToolchain`.
 
+### The walking suit, backported — Unity leg v0.4.0 + Godot kernel 0.2.0 (walking-suit-backport.md)
+
+What Unreal U2+U3 taught, written into the two sibling kernels: rigged
+figures now MOVE in Unity and Godot packs too. Ambient rigged entities loop
+their idle (one baked body per figure ⇒ first claimant only, the player's
+figure pre-claimed), and a level whose player seat is a rigged suit plays in
+third person — the suit follows the walker (wrapper follow: feet on the
+walker origin, yaw composed on the imported base rotation, never a raw yaw)
+and swaps walk/idle by planar velocity. Absent locomotion rows ⇒ both packs
+byte-identical to before.
+
+- **Godot G-L0 — the visible double (bug fix, shipped packs).** `level.gd`'s
+  seat hide looked for `entity_<id>`, but a baked rig's node is the FIGURE
+  wrapper; the player's own body stayed visible at spawn. Entities are now
+  resolved figure-first (`_entity_node`, rule 8), names sanitized the way
+  the importer does (`gd_name`: invalid chars → `_`, case kept — verified
+  against the import cache: `gframe_mk2_multi:boost` → `gframe_mk2_multi_boost`).
+- **Godot kernel 0.2.0 — rigs + the suit + the probe.** One `AnimationPlayer`
+  per figure, added as a SIBLING of the imported player (same `root_node`,
+  shared libraries — track paths stay rooted where the importer put them);
+  clips looped `LOOP_LINEAR` once on the shared animation (BOTH cycles — a
+  walk left at loop none ends after one cycle, the probe's first catch).
+  The suit is one player, `play(walk|idle, 0.15)` — Godot blends, so no
+  paused twin. Camera: `SpringArm3D` behind a chest-line pivot (`0.55·h`,
+  `max(3.5·eye, 2·h)`), `h` from the wrapper subtree's global AABBs; mouse
+  pitch orbits the pivot; the walker's `head` stays the key-0 toggle target.
+  **G-P, the headless motion probe**: `godot --headless <level> -- --mojulo-autowalk --mojulo-frames=N`
+  holds forward input and prints a `[mojulo-dump]` ledger (walker, suit,
+  upright = the wrapper's local Z·up, current animation, per-figure idle)
+  at t=1 and t=N — the Unreal `-MojuloAutoWalk` rung without a window.
+- **Godot driver — `locomotion_probe` gate rung.** `export-godot.mjs` runs
+  the probe for every scene whose player carries a locomotion row and
+  asserts: walker travelled >1 m, suit planar-on-feet <5 cm, upright >0.9,
+  walk cycle current while moving. Green on `sk_ms_tutorial_rising`
+  (11.9 m in 120 frames, 24 m suit). Scores without a row: `skipped`.
+- **Unity leg v0.4.0 — Y-L0..Y-G.** `MojuloLevel.Entity.Locomotion`
+  (`Any()`, never a null test — JsonUtility builds a default instance);
+  clips captured at IMPORT into a per-level `List<AnimationClip>` on the
+  kernel from the level's own `model.glb` sub-assets (never
+  `AssetDatabase.FindAssets` — a pack-wide index makes the last level win).
+  Playback through one seam, `IRig`, chosen by the clips' own `legacy`
+  flag: **`LegacyRig`** (the shipped-`.meta` default — glTFast's serialized
+  importer setting is Legacy, so `World` carries an `Animation` component;
+  one `AnimationState` layer per figure, `WrapMode.Loop`, suit swap =
+  `CrossFade` same-layer) and **`MecanimRig`** (the operator flipped the
+  importer: `PlayableGraph` + `AnimationLayerMixerPlayable` on `World`'s
+  `Animator` — LAYERS, because a plain mixer fills un-animated properties
+  with defaults at each input's weight and over-blends N figures). The
+  seat is `SetActive(true)` again (the importer bakes it hidden); the
+  walker gains `SetCameraRig` (a `Pivot` boom, `pitchNode`) and `Velocity`.
+  Gate: `clips_bound` now means Unreal's — every clip named by
+  `entities[].locomotion` exists in THAT level's GLB and moves ≥1 transform
+  under the FIGURE'S wrapper (seat re-activated to sample, restored);
+  detail names the flavour. Green on the tutorial: compile clean, 6/6 bind,
+  legacy clips.
+- **Ledgers + guides.** `locomotion_performed` line in both packs' ledgers;
+  the Unity guide's eyes chunk gains `#006`/`#022` (the suit follows,
+  animates, upright, turns); the Godot README names the probe.
+- Tests: unity-project 9 (a locomotion-row case: kernel seam, importer
+  scoping, ledger + guide lines, no-row byte-identity); scene suite 476/476.
+- Sources: `lite-template/integration/0904/walking-suit-backport.md` (the
+  engine-neutral rules + the build log at its foot).
+
 ### Unreal handoff — U2+U3: locomotion, rigs, the walking suit (leg v0.4.1)
 
 Rigged figures MOVE in the Unreal pack: ambient entities loop their idle,

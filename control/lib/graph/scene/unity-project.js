@@ -24,7 +24,7 @@
 import { createHash } from 'node:crypto';
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
 
-export const UNITY_LEG_VERSION = '0.3.0';
+export const UNITY_LEG_VERSION = '0.4.0';
 export const UNITY_EDITOR_TARGET = 'Unity 6 (6000.2.x)';
 
 /** Deterministic 32-hex Unity GUID for a pack file. */
@@ -55,6 +55,13 @@ ${GREYBOX_HANDOFF_SENTENCE}
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
 
+/** The player entity's locomotion row, if the score has one — the seat is a
+ * walking suit (third-person boom) rather than a first-person walker. */
+const playerSuit = (score) => {
+  const e = (score?.entities ?? []).find((x) => x?.id === score?.player);
+  return e?.locomotion && (e.locomotion.idle || e.locomotion.walk) ? e.locomotion : null;
+};
+
 /** The honest-loss ledger for one level. Since 0.2.0 the mechanics vocabulary
  * is interpreted live by Runtime/MojuloLevel.cs — only out-of-vocabulary
  * gameplay and non-geometry channels remain losses. */
@@ -75,6 +82,16 @@ export function unityLevelLedger(score, { gameMode = false } = {}) {
   ledger.entity_markers = {
     note: 'entities that baked no mesh (glyph/primitive bodies — export-side gap) render as gold placeholder markers; the web build is the reference look',
   };
+  // walking-suit-backport.md Y-L2..Y-L5: the locomotion row is PERFORMED —
+  // first-claimant figures breathe their idle, the player's figure walks as
+  // a third-person suit. Absent rows ⇒ no line, byte-identical ledger.
+  const rows = (score.entities ?? []).filter((e) => e?.locomotion && (e.locomotion.idle || e.locomotion.walk));
+  if (rows.length) {
+    ledger.locomotion_performed = {
+      count: rows.length,
+      note: `idle/walk clips performed live by Runtime/MojuloLevel.cs (Playables over the GLB's own clips)${playerSuit(score) ? '; the player figure follows the walker as a third-person suit, framed from its own height' : ''}`,
+    };
+  }
   const kinds = (score.mechanics ?? []).map((m) => m?.kind).filter(Boolean);
   const interpreted = kinds.filter((k) => MECHANICS_VOCAB.includes(k));
   const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k));
@@ -125,9 +142,13 @@ namespace Mojulo
         public Vector3 spawnPos;
 
         [HideInInspector] public Camera head;
+        [HideInInspector] public Transform pitchNode; // Head itself (first person) or the boom pivot (suit)
         CharacterController cc;
         float pitch;
         float fallSpeed;
+
+        /// <summary>Last frame's CharacterController velocity (m/s, world).</summary>
+        public Vector3 Velocity { get { return cc != null ? cc.velocity : Vector3.zero; } }
 
         public void Build(float eyeHeight, float eyeScale)
         {
@@ -142,6 +163,23 @@ namespace Mojulo
             head = headGo.AddComponent<Camera>();
             head.farClipPlane = 8000f;
             headGo.AddComponent<AudioListener>();
+            pitchNode = headGo.transform;
+        }
+
+        /// <summary>Third-person boom (walking-suit-backport.md rule 7): the
+        /// Head hangs 'distance' behind a pivot at 'pivotHeight' (the suit's
+        /// chest line) and mouse pitch orbits the pivot. Frames the SUIT, not
+        /// the pilot eye — the first shot in Unreal was from inside the hull.</summary>
+        public void SetCameraRig(float distance, float pivotHeight)
+        {
+            if (head == null) return;
+            var pivot = new GameObject("Pivot");
+            pivot.transform.SetParent(transform, false);
+            pivot.transform.localPosition = new Vector3(0, pivotHeight, 0);
+            head.transform.SetParent(pivot.transform, false);
+            head.transform.localPosition = new Vector3(0, 0, -distance);
+            head.transform.localRotation = Quaternion.identity;
+            pitchNode = pivot.transform;
         }
 
         void Start() { Cursor.lockState = CursorLockMode.Locked; }
@@ -154,7 +192,7 @@ namespace Mojulo
             {
                 transform.Rotate(0, Input.GetAxis("Mouse X") * 2.2f, 0);
                 pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * 2.2f, -86f, 86f);
-                if (head != null) head.transform.localEulerAngles = new Vector3(pitch, 0, 0);
+                if (pitchNode != null) pitchNode.localEulerAngles = new Vector3(pitch, 0, 0);
             }
 
             if (cc == null) return;
@@ -196,13 +234,18 @@ function levelCs() {
 /// performs the dynamic half live: spawns the walker, marks meshless
 /// entities and hazards, interprets the declarative mechanics vocabulary
 /// (reach-exit / collect / hazard-damage / survive / fail-on-death), draws
-/// the IMGUI HUD and banners, loops the music bed. Static geometry (ground,
-/// colliders, spawn marker) is built at import time by Editor/MojuloImport.cs.
+/// the IMGUI HUD and banners, loops the music bed, and performs the score's
+/// locomotion rows (walking-suit-backport.md): first-claimant figures play
+/// their idle, the player's figure follows the walker as a third-person suit
+/// (idle/walk swapped by velocity). Static geometry (ground, colliders, spawn
+/// marker) is built at import time by Editor/MojuloImport.cs.
 /// One score, three instruments: web, Godot, this.
 /// </summary>
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
 namespace Mojulo
 {
@@ -210,9 +253,22 @@ namespace Mojulo
     {
         public TextAsset scoreJson;
         public AudioClip music;
+        /// <summary>This level's clips, captured by the importer from ITS OWN
+        /// model.glb sub-assets (Y-L1) — a scene reference, per level by
+        /// construction. Never rebuilt from a pack-wide asset search: a game
+        /// pack bakes a shared figure into every level's GLB under identical
+        /// clip names, and a pack-wide index makes the last level win.</summary>
+        public List<AnimationClip> clips = new List<AnimationClip>();
 
         [Serializable] public class Aabb { public float[] min; public float[] max; }
-        [Serializable] public class Entity { public string id; public string figure; public float[] translation; }
+        // JsonUtility builds a default instance for an absent nested object —
+        // "has a row" is Any(), never a null test.
+        [Serializable] public class Locomotion
+        {
+            public string idle; public string walk; public string boost;
+            public bool Any() { return !string.IsNullOrEmpty(idle) || !string.IsNullOrEmpty(walk); }
+        }
+        [Serializable] public class Entity { public string id; public string figure; public float[] translation; public Locomotion locomotion; }
         [Serializable] public class PickupSpec { public string item = "item"; public float[] at; public float radius = 1.4f; }
         [Serializable] public class HazardSpec { public float[] at; public float radius = 1.5f; public float damage = 20f; }
         [Serializable] public class Mechanic
@@ -267,12 +323,114 @@ namespace Mojulo
         float hp = -1f;
         float startHp = 100f;
 
+        // Rig playback (Y-L2). glTFast roots every clip's binding paths at
+        // the prefab root (World) and, per its import setting, delivers
+        // either LEGACY clips (the shipped-.meta default: an Animation
+        // component on World, clips not looping) or MECANIM clips (an
+        // Animator on World, loopTime set). The kernel plays both, chosen by
+        // the clips' own legacy flag, through one seam: one LAYER per
+        // playing clip, layers overriding only the properties they animate,
+        // so figures on disjoint node paths never fight.
+        IRig rig;
+        readonly Dictionary<string, AnimationClip> clipIndex = new Dictionary<string, AnimationClip>();
+        // The walking suit (Y-L4): the player's figure wrapper, driven by the walker.
+        Transform suit;
+        Quaternion suitBaseRot;
+        float suitBaseYaw;
+        bool suitMoving;
+        AnimationClip suitIdle, suitWalk;
+        int suitLayer = -1;
+
+        interface IRig
+        {
+            /// <summary>Play the clip looping on a layer at a weight (0 = parked, phase kept).</summary>
+            void Add(AnimationClip clip, int layer, float weight);
+            /// <summary>Rule 6: hand the layer from one cycle to the other — never a stop.</summary>
+            void Swap(AnimationClip from, AnimationClip to, float fade);
+            void Dispose();
+        }
+
+        /// <summary>Legacy clips — the Animation component glTFast already put on
+        /// World (or a fresh one). AnimationState per clip: layer, loop, weight.</summary>
+        class LegacyRig : IRig
+        {
+            readonly Animation anim;
+            public LegacyRig(GameObject world)
+            {
+                anim = world.GetComponent<Animation>();
+                if (anim == null) anim = world.AddComponent<Animation>();
+                anim.playAutomatically = false;
+                anim.cullingType = AnimationCullingType.AlwaysAnimate;
+            }
+            public void Add(AnimationClip clip, int layer, float weight)
+            {
+                if (anim.GetClip(clip.name) == null) anim.AddClip(clip, clip.name);
+                var st = anim[clip.name];
+                st.layer = layer;
+                st.wrapMode = WrapMode.Loop;
+                st.weight = weight;
+                st.speed = weight > 0f ? 1f : 0f;
+                st.enabled = true;
+            }
+            public void Swap(AnimationClip from, AnimationClip to, float fade)
+            {
+                anim[from.name].speed = 0f;
+                anim[to.name].speed = 1f;
+                anim.CrossFade(to.name, fade, PlayMode.StopSameLayer);
+            }
+            public void Dispose() { }
+        }
+
+        /// <summary>Mecanim clips — a Playables graph on World's Animator with an
+        /// AnimationLayerMixerPlayable (a plain mixer would fill every
+        /// un-animated property with defaults at each input's weight and
+        /// over-blend N figures). No AnimatorController involved.</summary>
+        class MecanimRig : IRig
+        {
+            PlayableGraph graph;
+            AnimationLayerMixerPlayable layers;
+            readonly Dictionary<AnimationClip, int> slot = new Dictionary<AnimationClip, int>();
+            readonly Dictionary<AnimationClip, AnimationClipPlayable> playable = new Dictionary<AnimationClip, AnimationClipPlayable>();
+            public MecanimRig(GameObject world)
+            {
+                var animator = world.GetComponent<Animator>();
+                if (animator == null) animator = world.AddComponent<Animator>();
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                graph = PlayableGraph.Create("MojuloRigs");
+                graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+                layers = AnimationLayerMixerPlayable.Create(graph, 0);
+                AnimationPlayableOutput.Create(graph, "MojuloRigs", animator).SetSourcePlayable(layers);
+            }
+            public void Add(AnimationClip clip, int layer, float weight)
+            {
+                if (slot.ContainsKey(clip)) return;
+                var p = AnimationClipPlayable.Create(graph, clip);
+                p.SetApplyFootIK(false);
+                var i = layers.GetInputCount();
+                layers.SetInputCount(i + 1);
+                graph.Connect(p, 0, layers, i);
+                layers.SetInputWeight(i, weight);
+                if (weight <= 0f) p.Pause();
+                slot[clip] = i; playable[clip] = p;
+                if (!graph.IsPlaying()) graph.Play();
+            }
+            public void Swap(AnimationClip from, AnimationClip to, float fade)
+            {
+                int a, b;
+                if (!slot.TryGetValue(from, out a) || !slot.TryGetValue(to, out b)) return;
+                playable[from].Pause(); playable[to].Play();
+                layers.SetInputWeight(a, 0f); layers.SetInputWeight(b, 1f);
+            }
+            public void Dispose() { if (graph.IsValid()) graph.Destroy(); }
+        }
+
         void Start()
         {
             if (scoreJson == null) { Debug.LogError("[mojulo] MojuloLevel has no score"); return; }
             score = JsonUtility.FromJson<Score>(scoreJson.text);
             eyeScale = Mathf.Max(0.5f, score.eye / 1.7f);
             SpawnWalker();
+            BuildRigs();
             MarkMeshlessEntities();
             BuildMechanics();
             StartMusic();
@@ -301,6 +459,117 @@ namespace Mojulo
             walker.killY = killY;
             walker.Build(score.eye > 0f ? score.eye : 1.7f, eyeScale);
         }
+
+        AnimationClip Clip(string name)
+        {
+            AnimationClip c;
+            return !string.IsNullOrEmpty(name) && clipIndex.TryGetValue(name, out c) ? c : null;
+        }
+
+        /// <summary>Entity node in the imported World, FIGURE-first (rule 8):
+        /// a baked rig's wrapper is named after the figure key — the placement
+        /// of the figure's FIRST claiming entity — and only later claimants
+        /// and static bodies get an "entity:&lt;id&gt;" node.</summary>
+        public static Transform FindEntityNode(Transform world, Entity[] entities, string id)
+        {
+            if (entities != null)
+                foreach (var e in entities)
+                    if (e.id == id && !string.IsNullOrEmpty(e.figure))
+                    {
+                        var byFigure = FindDeep(world, e.figure);
+                        if (byFigure != null) return byFigure;
+                    }
+            return FindDeep(world, "entity:" + id);
+        }
+
+        /// <summary>Y-L2 + Y-L3 + Y-L4: the Playables graph, ambient idles
+        /// (one baked body per figure ⇒ first claimant only, the player's
+        /// figure pre-claimed), and the walking suit.</summary>
+        void BuildRigs()
+        {
+            if (score.entities == null || clips == null || clips.Count == 0) return;
+            var world = GameObject.Find("World");
+            if (world == null) return;
+            AnimationClip any = null;
+            foreach (var c in clips) if (c != null && !clipIndex.ContainsKey(c.name)) { clipIndex[c.name] = c; if (any == null) any = c; }
+            if (any == null) return;
+            rig = any.legacy ? (IRig)new LegacyRig(world) : new MecanimRig(world);
+            Debug.Log("[mojulo] rigs: " + clipIndex.Count + " clips, " + (any.legacy ? "legacy" : "mecanim") + " playback");
+
+            var claimed = new HashSet<string>();
+            var layer = 1;
+            Entity player = null;
+            foreach (var e in score.entities) if (e.id == score.player) { player = e; break; }
+            if (player != null && !string.IsNullOrEmpty(player.figure)) claimed.Add(player.figure);
+            if (player != null && player.locomotion != null && player.locomotion.Any()) SpawnSuit(world.transform, player);
+
+            foreach (var e in score.entities)
+            {
+                if (e.locomotion == null || string.IsNullOrEmpty(e.locomotion.idle) || string.IsNullOrEmpty(e.figure)) continue;
+                if (!claimed.Add(e.figure)) continue; // one body per figure: first claimant idles
+                if (FindDeep(world.transform, e.figure) == null) continue;
+                var idle = Clip(e.locomotion.idle);
+                if (idle == null) continue;
+                rig.Add(idle, layer++, 1f);
+            }
+        }
+
+        /// <summary>The suit is a cosmetic follower (rule 3): its body never
+        /// collides (glTFast adds no colliders — keep the import defaults);
+        /// blocking is the score colliders' job. The importer baked the seat
+        /// hidden for the first-person double — re-activate it here.</summary>
+        void SpawnSuit(Transform world, Entity player)
+        {
+            var seat = FindEntityNode(world, score.entities, player.id);
+            if (seat == null) return;
+            seat.gameObject.SetActive(true);
+            suit = seat;
+            suitBaseRot = seat.rotation;
+            suitBaseYaw = walker.transform.eulerAngles.y;
+            suitIdle = Clip(player.locomotion.idle);
+            suitWalk = Clip(player.locomotion.walk);
+            suitLayer = 0; // the suit owns layer 0; ambient idles stack above on disjoint paths
+            if (suitIdle != null) rig.Add(suitIdle, suitLayer, 1f);
+            if (suitWalk != null) rig.Add(suitWalk, suitLayer, suitIdle == null ? 1f : 0f);
+
+            // Y-L5: frame the SUIT — union renderer bounds over the wrapper's
+            // subtree; pivot at the chest line, boom ~2 suit-heights back.
+            var h = SuitHeight(seat);
+            var eye = score.eye > 0f ? score.eye : 1.7f;
+            if (h > 0f) walker.SetCameraRig(Mathf.Max(3.5f * eye, 2f * h), 0.55f * h);
+            Debug.Log("[mojulo] suit '" + seat.name + "' follows the walker (height " + h.ToString("F1") + " m)");
+        }
+
+        static float SuitHeight(Transform root)
+        {
+            var any = false; var b = new Bounds();
+            foreach (var r in root.GetComponentsInChildren<Renderer>())
+            {
+                if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
+            }
+            return any ? b.size.y : 0f;
+        }
+
+        // Rule 1: placement = the wrapper's transform. Feet follow the walker
+        // origin (the CharacterController is centred at height/2, so its origin
+        // IS the feet); yaw is a delta composed ON the imported base rotation —
+        // never a raw yaw, which strips the frame correction (suit face-down).
+        void LateUpdate()
+        {
+            if (suit == null || walker == null) return;
+            suit.position = walker.transform.position;
+            suit.rotation = Quaternion.AngleAxis(walker.transform.eulerAngles.y - suitBaseYaw, Vector3.up) * suitBaseRot;
+            if (rig == null || suitWalk == null || suitIdle == null) return;
+            var v = walker.Velocity;
+            var moving = new Vector2(v.x, v.z).magnitude > 0.6f * eyeScale;
+            if (moving == suitMoving) return;
+            suitMoving = moving;
+            // Rule 6: the parked cycle keeps its phase — a hand-over, never a stop.
+            if (moving) rig.Swap(suitIdle, suitWalk, 0.15f);
+            else rig.Swap(suitWalk, suitIdle, 0.15f);
+        }
+
+        void OnDestroy() { if (rig != null) rig.Dispose(); }
 
         // Entities that baked no mesh get a gold placeholder marker so
         // gameplay anchors are not invisible (same doctrine as Godot).
@@ -810,6 +1079,11 @@ namespace Mojulo
             var kernel = new GameObject("MojuloKernel");
             var level = kernel.AddComponent<MojuloLevel>();
             level.scoreJson = AssetDatabase.LoadAssetAtPath<TextAsset>(resBase + "score.json");
+            // Y-L1: this level's clips as scene references, scoped to ITS OWN
+            // GLB's sub-assets (never AssetDatabase.FindAssets — pack-wide,
+            // last level wins). At play time the clips are not in AssetDatabase.
+            foreach (var a in AssetDatabase.LoadAllAssetsAtPath(glbPath))
+                if (a is AnimationClip ac) level.clips.Add(ac);
             if (!string.IsNullOrEmpty(score.soundtrack))
                 level.music = AssetDatabase.LoadAssetAtPath<AudioClip>(PackRoot + "/audio/" + score.soundtrack + ".wav");
 
@@ -859,14 +1133,31 @@ namespace Mojulo
 
         static Transform FindEntityNode(Transform world, MojuloLevel.Entity[] entities, string id)
         {
-            if (entities != null)
-                foreach (var e in entities)
-                    if (e.id == id && !string.IsNullOrEmpty(e.figure))
-                    {
-                        var byFigure = FindDeep(world, e.figure);
-                        if (byFigure != null) return byFigure;
-                    }
-            return FindDeep(world, "entity:" + id);
+            return MojuloLevel.FindEntityNode(world, entities, id);
+        }
+
+        /// <summary>Samples the clip on the world root at length/2 and counts the
+        /// transforms under 'root' that moved. The subtree is activated for the sample
+        /// (the player seat is saved inactive) and restored after.</summary>
+        static int MovedUnder(GameObject world, Transform root, AnimationClip clip)
+        {
+            var wasActive = root.gameObject.activeSelf;
+            root.gameObject.SetActive(true);
+            var beforePos = new Dictionary<Transform, Vector3>();
+            var beforeRot = new Dictionary<Transform, Quaternion>();
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                beforePos[t] = t.localPosition;
+                beforeRot[t] = t.localRotation;
+            }
+            clip.SampleAnimation(world, clip.length * 0.5f);
+            int moved = 0;
+            foreach (var kv in beforePos)
+                if (kv.Key != null && ((kv.Key.localPosition - kv.Value).magnitude > 1e-4f
+                    || Quaternion.Angle(kv.Key.localRotation, beforeRot[kv.Key]) > 0.01f)) moved++;
+            foreach (var kv in beforePos) if (kv.Key != null) { kv.Key.localPosition = kv.Value; kv.Key.localRotation = beforeRot[kv.Key]; }
+            root.gameObject.SetActive(wasActive);
+            return moved;
         }
 
         /// <summary>Standalone player build: -executeMethod Mojulo.Import.BuildPlayer.
@@ -959,31 +1250,47 @@ namespace Mojulo
                             break;
                         }
 
-                    // Rig clips (Y2): count the GLB's AnimationClips and prove
-                    // the first one BINDS — sampling it must move at least one
-                    // transform in the instantiated hierarchy (glTFast rebinds
-                    // clips by node path; a mismatch animates nothing, silently).
-                    // Runs LAST in the loop: sampling poses the open scene.
+                    // Rig clips (Y2, upgraded by walking-suit-backport Y-G):
+                    // every clip named by entities[].locomotion must exist
+                    // among THIS level's model.glb sub-assets AND bind —
+                    // sampling it at length/2 must move at least one transform
+                    // UNDER THE FIGURE'S WRAPPER (glTFast rebinds clips by node
+                    // path; a mismatch animates nothing, silently). Scores with
+                    // no locomotion rows keep the Y2 probe: the first clip
+                    // moves something, anywhere. Runs LAST: sampling poses the
+                    // open scene (the seat is re-activated to sample, unsaved).
                     if (world != null)
                     {
-                        var clips = new List<AnimationClip>();
+                        var clips = new Dictionary<string, AnimationClip>();
                         foreach (var a in AssetDatabase.LoadAllAssetsAtPath(resBase + "model.glb"))
-                            if (a is AnimationClip ac) clips.Add(ac);
-                        if (clips.Count > 0)
+                            if (a is AnimationClip ac && !clips.ContainsKey(ac.name)) clips[ac.name] = ac;
+                        var rows = new List<(string figure, string clip)>();
+                        if (score.entities != null)
+                            foreach (var e in score.entities)
+                                if (e.locomotion != null && !string.IsNullOrEmpty(e.figure))
+                                    foreach (var name in new[] { e.locomotion.idle, e.locomotion.walk, e.locomotion.boost })
+                                        if (!string.IsNullOrEmpty(name) && !rows.Contains((e.figure, name))) rows.Add((e.figure, name));
+                        if (rows.Count > 0)
                         {
-                            var beforePos = new Dictionary<Transform, Vector3>();
-                            var beforeRot = new Dictionary<Transform, Quaternion>();
-                            foreach (var t in world.GetComponentsInChildren<Transform>(true))
+                            int bound = 0; var bad = new List<string>();
+                            foreach (var (figure, name) in rows)
                             {
-                                beforePos[t] = t.localPosition;
-                                beforeRot[t] = t.localRotation;
+                                AnimationClip clip;
+                                if (!clips.TryGetValue(name, out clip)) { bad.Add(name + " (no clip)"); continue; }
+                                var wrapper = FindDeep(world.transform, figure);
+                                if (wrapper == null) { bad.Add(name + " (no wrapper '" + figure + "')"); continue; }
+                                int moved = MovedUnder(world, wrapper, clip);
+                                if (moved > 0) bound++; else bad.Add(name + " (moves nothing under '" + figure + "')");
                             }
-                            clips[0].SampleAnimation(world, clips[0].length * 0.5f);
-                            int moved = 0;
-                            foreach (var kv in beforePos)
-                                if (kv.Key != null && ((kv.Key.localPosition - kv.Value).magnitude > 1e-4f
-                                    || Quaternion.Angle(kv.Key.localRotation, beforeRot[kv.Key]) > 0.01f)) moved++;
-                            Check(sceneName + ":clips_bound", moved > 0, clips.Count + " clips; '" + clips[0].name + "' moved " + moved + " transforms");
+                            var first = clips.Count > 0 ? new List<AnimationClip>(clips.Values)[0] : null;
+                            var flavour = first == null ? "" : (first.legacy ? "; legacy clips (kernel loops them per AnimationState)" : "; mecanim clips" + (first.isLooping ? ", looping" : ", NOT looping — loopTime unset"));
+                            Check(sceneName + ":clips_bound", bad.Count == 0, bound + " of " + rows.Count + " locomotion clips bind" + flavour + (bad.Count > 0 ? " — " + string.Join(", ", bad) : ""));
+                        }
+                        else if (clips.Count > 0)
+                        {
+                            var first = new List<AnimationClip>(clips.Values)[0];
+                            int moved = MovedUnder(world, world.transform, first);
+                            Check(sceneName + ":clips_bound", moved > 0, clips.Count + " clips; '" + first.name + "' moved " + moved + " transforms");
                         }
                     }
                 }
@@ -1040,6 +1347,7 @@ function importGuideWorld({ title, refName, score, ledger }) {
     '#003 the world mesh renders in its baked vertex colours (reference look: the mojulo web build)',
     `#004 you can walk: WASD/arrows + mouse look, Space jumps, Esc frees the mouse — eye height ${fmt(score.eye ?? 1.7)} m`,
     ...(score.soundtrack ? [`#005 the soundtrack (\`${score.soundtrack}\`) is playing on loop`] : []),
+    ...(playerSuit(score) ? ['#006 the player suit is in view from a third-person boom and follows you: walk cycle while moving, idle when still, upright, turns with the mouse; other figures breathe their idle'] : []),
   ];
   return `${GUIDE_PREAMBLE(title, `\`recipe/${refName}.json\``)}T005.01 Console — confirm one line: \`[mojulo] imported '${title}' -> Assets/MojuloPack/Scenes/mojulo-level.unity\`
 
@@ -1073,7 +1381,7 @@ T007 Toolbar > [Play] — the menu lists the levels; locked ones name their gate
 ${levelList}
 #020 click a level: WASD/arrows + mouse to walk, Space jumps, Esc frees the mouse, M returns to the menu
 #021 completing a level returns you to the menu with the next gate unlocked; progress persists between plays (PlayerPrefs)
-
+${levels.some((lv) => playerSuit(lv.score)) ? '#022 levels whose player is a rigged figure show it as a third-person suit that follows you: walk cycle while moving, idle when still, upright, turns with the mouse; other figures breathe their idle\n' : ''}
 ## ⑥ Ship it (optional) — a standalone app
 
 T008 File > Build Profiles(older editors: Build Settings) > Build — pick an output folder; the scene list (menu first, then every level) is already filled in by the importer

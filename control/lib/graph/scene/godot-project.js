@@ -23,6 +23,13 @@ import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
 
+/** The player entity's locomotion row, if the score has one — the seat is a
+ * walking suit (third-person boom) rather than a first-person walker. */
+const playerSuit = (score) => {
+  const e = (score?.entities ?? []).find((x) => x?.id === score?.player);
+  return e?.locomotion && (e.locomotion.idle || e.locomotion.walk) ? e.locomotion : null;
+};
+
 // The greybox seam (skin-over-mesh.plan.md): stamped packs carry the handoff
 // sentence as its own README section; unstamped packs emit byte-identical text.
 const greyboxSection = (stamped) => (stamped ? `## Greybox handoff
@@ -134,6 +141,16 @@ function levelLedger(score, { gameMode = false } = {}) {
   if (score.ground != null) {
     ledger.promoted_ground = { note: 'implicit runtime ground plane promoted by the kernel — the collider AABBs are obstacle hulls only, never the floor' };
   }
+  // walking-suit-backport.md G-L1..G-L5: the locomotion row is PERFORMED —
+  // first-claimant figures play their idle, the player's figure walks as a
+  // third-person suit. Absent rows ⇒ no line, byte-identical ledger.
+  const rows = (score.entities ?? []).filter((e) => e?.locomotion && (e.locomotion.idle || e.locomotion.walk));
+  if (rows.length) {
+    ledger.locomotion_performed = {
+      count: rows.length,
+      note: `idle/walk clips performed live by kernel/level.gd (one AnimationPlayer per figure over the GLB's own clips)${playerSuit(score) ? '; the player figure follows the walker as a third-person suit on a SpringArm3D, framed from its own height' : ''}`,
+    };
+  }
   const kinds = (score.mechanics ?? []).map((m) => m?.kind).filter(Boolean);
   const interpreted = kinds.filter((k) => MECHANICS_VOCAB.includes(k));
   const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k));
@@ -185,7 +202,10 @@ reference performance.
 ${greyboxSection(score.posture === 'greybox')}## Open and play
 
 Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
-walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.
+walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.${playerSuit(score) ? `
+Your figure is a rigged body: it follows you as a third-person suit (walk
+cycle while moving, idle when still), and every other rigged figure breathes
+its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}
 
 ## What travelled, what didn't
 
@@ -283,7 +303,10 @@ ${levelList}
 Open in Godot ≥4.5 (or \`godot --path .\`). The menu lists the levels;
 completing one returns you to the menu with the next gate unlocked.
 Progress persists in \`user://progress.cfg\`. In a level: WASD/arrows +
-mouse, Space jumps, Esc frees the mouse, M returns to the menu.
+mouse, Space jumps, Esc frees the mouse, M returns to the menu.${levels.some((lv) => playerSuit(lv.score)) ? `
+Levels whose player is a rigged figure show it as a third-person suit that
+follows you (walk cycle while moving, idle when still); other rigged figures
+breathe their idle.` : ''}
 
 ## What travelled, what didn't
 

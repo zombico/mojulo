@@ -108,6 +108,53 @@ if (!args['no-gate'] && existsSync(godotBin)) {
       fail(`machine gate FAILED: one-frame '${label}' ${scriptErr ? `logged "${scriptErr[0]}"` : `exit ${frame.code}`}`);
     }
   }
+  // walking-suit-backport G-P: the headless locomotion probe — the one
+  // machine rung for MOTION that only Godot can run (physics without a
+  // window). Every scene whose player carries a locomotion row is run with
+  // the walker's forward input held for PROBE_FRAMES physics frames; the
+  // kernel prints a [mojulo-dump] ledger at t=1 and t=N. Asserted: the
+  // walker travelled, the suit sits on the walker's feet, it is upright,
+  // and the walk cycle is the current animation while moving (clips
+  // resolved ⇒ clips bound: an unresolved name leaves anim empty).
+  const PROBE_FRAMES = 120;
+  const probes = pack.scope === 'game'
+    ? pack.sceneChecks.map((scene) => ({ scene, scoreFile: path.join(outDir, scene.replace(/^res:\/\//, '').replace(/level\.tscn$/, 'score.json')) }))
+    : [{ scene: 'res://level.tscn', scoreFile: path.join(outDir, 'score.json') }];
+  gate.locomotion_probe = {};
+  for (const { scene, scoreFile } of probes) {
+    const score = JSON.parse(await fs.readFile(scoreFile, 'utf8').catch(() => 'null'));
+    const player = score?.entities?.find((e) => e?.id === score?.player);
+    const loco = player?.locomotion;
+    if (!loco || !(loco.idle || loco.walk)) continue;
+    log(`machine gate — locomotion probe: ${scene} (auto-walk ${PROBE_FRAMES} frames)`);
+    const run = await runGodot(['--headless', '--path', outDir, scene, '--', '--mojulo-autowalk', `--mojulo-frames=${PROBE_FRAMES}`]);
+    const text = run.out + run.err;
+    const dumps = text.split('\n').filter((l) => l.startsWith('[mojulo-dump] t='));
+    const parse = (l) => {
+      const num = (k) => { const m = new RegExp(`${k}=\\(([-\\d.]+),([-\\d.]+),([-\\d.]+)\\)`).exec(l); return m ? [+m[1], +m[2], +m[3]] : null; };
+      const str = (k) => { const m = new RegExp(`${k}=(\\S*)`).exec(l); return m ? m[1] : null; };
+      const suitM = /suit=([^(\s]+)\(([-\d.]+),([-\d.]+),([-\d.]+)\)/.exec(l);
+      return { walker: num('walker'), suit: suitM ? [+suitM[2], +suitM[3], +suitM[4]] : null, upright: +(str('upright') ?? 'NaN'), anim: str('anim') ?? '', moving: str('moving') === 'true' };
+    };
+    const first = dumps[0] ? parse(dumps[0]) : null;
+    const last = dumps[1] ? parse(dumps[1]) : null;
+    const planar = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
+    const wantWalk = loco.walk ? String(loco.walk).replace(/[:.@/"%]/g, '_') : null;
+    const checks = {
+      ran: run.code === 0 && !SCRIPT_ERR.test(text) && !!first && !!last,
+      walker_moved: !!(first && last) && planar(first.walker, last.walker) > 1.0,
+      suit_on_feet: !!(last?.suit) && planar(last.suit, last.walker) < 0.05,
+      suit_upright: !!last && last.upright > 0.9,
+      walk_playing: !!last && last.moving && (wantWalk ? last.anim === wantWalk : last.anim !== ''),
+    };
+    const ok = Object.values(checks).every(Boolean);
+    gate.locomotion_probe[scene] = { ok, ...checks, travelled_m: first && last ? +planar(first.walker, last.walker).toFixed(2) : null, dump: dumps };
+    if (!ok) {
+      process.stderr.write(text);
+      fail(`machine gate FAILED: locomotion probe '${scene}' — ${JSON.stringify(checks)}`);
+    }
+  }
+  if (!Object.keys(gate.locomotion_probe).length) gate.locomotion_probe = { skipped: 'no player locomotion row' };
   if (args.web) {
     log('web build — --export-release Web (needs export templates)');
     await fs.mkdir(path.join(outDir, 'build', 'web'), { recursive: true });
@@ -138,5 +185,5 @@ process.stdout.write(`${JSON.stringify({
   ledger: pack.ledger,
   gate,
   ...(webBuild ? { web_build: webBuild } : {}),
-  eyes_gate: `run: ${godotBin} --path ${outDir}${pack.scope === 'game' ? ' — pick a level from the menu; completing it unlocks the next' : ' — walk with WASD + mouse'}`,
+  eyes_gate: `run: ${godotBin} --path ${outDir}${pack.scope === 'game' ? ' — pick a level from the menu; completing it unlocks the next' : ' — walk with WASD + mouse'}${gate.locomotion_probe && !gate.locomotion_probe.skipped ? '; the player suit should follow you in third person, walk while moving, idle when still, upright, turning with the mouse' : ''}`,
 }, null, 2)}\n`);

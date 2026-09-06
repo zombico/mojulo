@@ -3,9 +3,16 @@ extends Node3D
 # Hand-authored and versioned (kernel/VERSION); packs ship DATA, this script
 # performs it. Reads the engine-agnostic score.json (z-up frame) and realizes
 # it with stock Godot nodes: ground + AABB colliders, cameras, the walker,
-# and the declarative mechanics vocabulary (reach-exit / collect /
-# hazard-damage / survive / fail-on-death). One score, two instruments —
-# game-shell.js is the web kernel, this is the Godot one.
+# the declarative mechanics vocabulary (reach-exit / collect /
+# hazard-damage / survive / fail-on-death), and the locomotion rows
+# (walking-suit-backport.md): first-claimant figures play their idle, the
+# player's figure follows the walker as a third-person suit. One score, two
+# instruments — game-shell.js is the web kernel, this is the Godot one.
+#
+# Headless probe (G-P), run by the export driver — no window needed:
+#   godot --headless --path <pack> <level.tscn> -- --mojulo-autowalk --mojulo-frames=120
+# prints a [mojulo-dump] ledger (walker, suit, figures) at frame 1 and at
+# --mojulo-frames, then quits.
 
 @export_file("*.json") var score_path: String = ""
 @export var music_path: String = ""
@@ -33,9 +40,27 @@ var bag: Dictionary = {}
 var hud: Label = null
 var banner_layer: CanvasLayer = null
 
+# rigs (walking-suit-backport G-L1..G-L5)
+var suit: Node3D = null              # the player's figure wrapper, driven by the walker
+var suit_player: AnimationPlayer = null
+var suit_idle := ""
+var suit_walk := ""
+var suit_base_basis := Basis.IDENTITY
+var suit_base_yaw := 0.0
+var suit_moving := false
+var figure_players: Array = []       # [{node, player, anim}] — ambient idles, for the dump
+var probe_frames := -1               # --mojulo-frames=N: dump at frame N and quit
+var probe_frame := 0
+
 
 static func to_yup(v: Array) -> Vector3:
 	return Vector3(float(v[0]), float(v[2]), -float(v[1]))
+
+
+# Score strings that may be JSON null (an entity with no figure, a level
+# with no player): String(null) is a GDScript error, so read through this.
+static func s_(v) -> String:
+	return String(v) if (v is String or v is StringName) else ""
 
 
 func _ready() -> void:
@@ -51,9 +76,11 @@ func _ready() -> void:
 	_build_colliders()
 	_build_cameras()
 	_spawn_walker()
+	_build_rigs()
 	_build_mechanics()
 	_start_music()
 	_build_hud()
+	_read_probe_args()
 
 
 # G0 material contract (Finding 1): Godot's glTF import does not set
@@ -79,14 +106,44 @@ func _fix_materials() -> void:
 				mat.vertex_color_is_srgb = false
 
 
+# Godot's glTF importer rewrites the characters a node/animation name may not
+# carry (":" among them) to "_", case preserved: "g_multi:forward" imports as
+# "g_multi_forward". Score names are compared in that space; nothing here
+# lowercases (the verifier's coarser _norm would alias boostR / boost_r).
+static func gd_name(s: String) -> String:
+	var out := s
+	for ch in [":", ".", "@", "/", "\"", "%"]:
+		out = out.replace(ch, "_")
+	return out
+
+
+# An entity's node in the imported world, FIGURE-first (walking-suit-backport
+# §2 rule 8): a baked rig's wrapper node is named after the figure key — it
+# is the placement of the figure's FIRST claiming entity — and only
+# non-first claimants and static bodies get an "entity:<id>" node.
+func _entity_node(id: String) -> Node3D:
+	for ent in score.get("entities", []):
+		if ent is Dictionary and s_(ent.get("id")) == id:
+			var fig := s_(ent.get("figure"))
+			if fig != "":
+				var by_fig := find_child(gd_name(fig), true, false)
+				if by_fig is Node3D:
+					return by_fig
+			break
+	var by_id := find_child(gd_name("entity:" + id), true, false)
+	return by_id if by_id is Node3D else null
+
+
 # The operator IS the walker — hide the player entity's exported body double.
+# The seat is usually a baked rig, so the node to hide is the figure wrapper,
+# not "entity_<id>" (the G-L0 bug: the double stayed visible at spawn).
+# `visible = false` on the wrapper propagates to the whole subtree.
 func _hide_player_double() -> void:
-	var player = score.get("player")
-	if player == null or String(player) == "":
+	var player := s_(score.get("player"))
+	if player == "":
 		return
-	var nm := ("entity:" + String(player)).replace(":", "_")
-	var double := find_child(nm, true, false)
-	if double is Node3D:
+	var double := _entity_node(player)
+	if double != null:
 		double.visible = false
 
 
@@ -106,6 +163,214 @@ func _mark_meshless_entities() -> void:
 			marker.mesh = box
 			marker.position = Vector3(0, size / 2, 0)
 			ent.add_child(marker)
+
+
+func _entity(id: String) -> Dictionary:
+	for ent in score.get("entities", []):
+		if ent is Dictionary and s_(ent.get("id")) == id:
+			return ent
+	return {}
+
+
+# The importer lands every clip on ONE AnimationPlayer under the imported
+# scene root, names sanitized (gd_name). Its track paths are relative to
+# that root — the path-rooting landmine (§3): a player that performs them
+# must resolve the SAME root.
+func _imported_player() -> AnimationPlayer:
+	var world := get_node_or_null("World")
+	var scope: Node = world if world != null else self
+	for p in scope.find_children("*", "AnimationPlayer", true, false):
+		return p
+	return null
+
+
+# One AnimationPlayer per figure that needs a clip (G-L1): a sibling of the
+# imported player sharing its libraries and its root. Players don't fight —
+# each figure's tracks live on disjoint paths. AnimationTree deliberately
+# not used.
+func _new_player(imported: AnimationPlayer, label: String) -> AnimationPlayer:
+	var p := AnimationPlayer.new()
+	p.name = "Rig_" + label
+	imported.get_parent().add_child(p)
+	p.root_node = p.get_path_to(imported.get_node(imported.root_node))
+	for lib_name in imported.get_animation_library_list():
+		p.add_animation_library(lib_name, imported.get_animation_library(lib_name))
+	return p
+
+
+# A score clip name (`<figure>:<clip>`, the GLB's) → the imported animation
+# name (G-L2): sanitized like Godot does, looked up with has_animation, case
+# preserved; "" when the level's GLB carries no such clip.
+func _anim_name(p: AnimationPlayer, glb_name: String) -> String:
+	if glb_name == "":
+		return ""
+	var want := gd_name(glb_name)
+	if p.has_animation(want):
+		return want
+	for lib_name in p.get_animation_library_list():
+		if lib_name != "" and p.has_animation(lib_name + "/" + want):
+			return lib_name + "/" + want
+	return ""
+
+
+# Imported loops default to none; mojulo clips carry the wrap key, so
+# LOOP_LINEAR is exact. Set once on the shared animation (both cycles of
+# the suit — a walk left at loop none ends after one cycle and the player
+# goes idle-with-no-animation, the probe's first catch).
+func _loop(p: AnimationPlayer, anim: String) -> void:
+	if anim == "":
+		return
+	var a := p.get_animation(anim)
+	if a != null:
+		a.loop_mode = Animation.LOOP_LINEAR
+
+
+func _play_loop(p: AnimationPlayer, anim: String) -> void:
+	_loop(p, anim)
+	p.play(anim)
+
+
+# G-L3 + G-L4: claim by figure (one baked body per figure ⇒ FIRST claimant
+# idles only), the player's figure pre-claimed so a ring entity sharing the
+# suit can't play a competing idle on the one body; then the suit itself.
+func _build_rigs() -> void:
+	var imported := _imported_player()
+	if imported == null:
+		return
+	var claimed := {}
+	var player_id := s_(score.get("player"))
+	var player_ent := _entity(player_id)
+	var player_fig := s_(player_ent.get("figure"))
+	if player_fig != "":
+		claimed[player_fig] = true
+	if player_ent.get("locomotion") is Dictionary:
+		_spawn_suit(imported, player_ent)
+	for ent in score.get("entities", []):
+		if not (ent is Dictionary and ent.get("locomotion") is Dictionary):
+			continue
+		var fig := s_(ent.get("figure"))
+		if fig == "" or claimed.has(fig):
+			continue
+		claimed[fig] = true
+		var node := find_child(gd_name(fig), true, false)
+		if not node is Node3D:
+			continue
+		var idle := _anim_name(imported, s_((ent["locomotion"] as Dictionary).get("idle")))
+		if idle == "":
+			continue
+		var p := _new_player(imported, gd_name(fig))
+		_play_loop(p, idle)
+		figure_players.append({"node": node, "player": p, "anim": idle})
+
+
+# The walking suit (G-L4 + G-L5). The suit is a cosmetic follower (rule 3):
+# the import generates no collision for it, blocking is the score
+# colliders' job. The seat was hidden as the first-person double — shown
+# again here. One player, idle ↔ walk handed over with a short blend
+# (pose continuity for free — Godot's play() blends; no pause needed).
+func _spawn_suit(imported: AnimationPlayer, ent: Dictionary) -> void:
+	var seat := _entity_node(s_(ent.get("id")))
+	if seat == null:
+		return
+	var loco: Dictionary = ent["locomotion"]
+	seat.visible = true
+	suit = seat
+	suit_base_basis = seat.global_transform.basis
+	suit_base_yaw = walker.rotation.y
+	suit_player = _new_player(imported, "suit")
+	suit_idle = _anim_name(suit_player, s_(loco.get("idle")))
+	suit_walk = _anim_name(suit_player, s_(loco.get("walk")))
+	_loop(suit_player, suit_idle)
+	_loop(suit_player, suit_walk)
+	if suit_idle != "":
+		_play_loop(suit_player, suit_idle)
+	elif suit_walk != "":
+		_play_loop(suit_player, suit_walk)
+	# Rule 7: frame the SUIT — union of the wrapper subtree's AABBs in global
+	# space; pivot at the chest line, boom ~2 suit-heights back.
+	var h := _subtree_height(seat)
+	if h > 0.0:
+		walker.set_camera_rig(maxf(3.5 * eye, 2.0 * h), 0.55 * h)
+	print("moj: suit '%s' follows the walker (height %.1f m, idle '%s', walk '%s')" % [seat.name, h, suit_idle, suit_walk])
+
+
+func _subtree_height(root: Node3D) -> float:
+	var any := false
+	var box := AABB()
+	for mi in root.find_children("*", "VisualInstance3D", true, false):
+		var b: AABB = (mi as VisualInstance3D).global_transform * (mi as VisualInstance3D).get_aabb()
+		box = b if not any else box.merge(b)
+		any = true
+	return box.size.y if any else 0.0
+
+
+# Rule 1: placement = the wrapper's transform. Feet follow the walker origin
+# (the capsule is offset up by height/2, so the origin IS the feet); yaw is
+# a delta composed ON the imported base basis — never a raw yaw, which
+# strips the frame correction (suit face-down). Rule 6: idle ↔ walk by
+# planar velocity.
+func _follow_suit() -> void:
+	if suit == null or walker == null:
+		return
+	suit.global_position = walker.global_position
+	suit.global_transform.basis = Basis(Vector3.UP, walker.rotation.y - suit_base_yaw) * suit_base_basis
+	if suit_idle == "" or suit_walk == "":
+		return
+	var moving := Vector2(walker.velocity.x, walker.velocity.z).length() > 0.6 * eye_scale
+	if moving == suit_moving:
+		return
+	suit_moving = moving
+	suit_player.play(suit_walk if moving else suit_idle, 0.15)
+
+
+# G-P: the headless locomotion probe. `--mojulo-autowalk` holds the walker's
+# forward input; `--mojulo-frames=N` dumps at physics frame 1 and N, then
+# quits. The dump is the Unreal [mojulo-dump] ledger: it separates "the
+# mechanism is broken" from "the capsule is wedged" without a window.
+func _read_probe_args() -> void:
+	for arg in OS.get_cmdline_user_args():
+		var a := String(arg)
+		if a == "--mojulo-autowalk" and walker != null:
+			walker.auto_walk = true
+		elif a.begins_with("--mojulo-frames="):
+			probe_frames = int(a.substr("--mojulo-frames=".length()))
+	if probe_frames > 0:
+		print("[mojulo-dump] level '%s' player '%s' suit=%s autowalk=%s frames=%d" % [
+			s_(score.get("title")), s_(score.get("player")),
+			suit.name if suit != null else "none", str(walker.auto_walk if walker != null else false), probe_frames])
+
+
+func _dump(tag: String) -> void:
+	var w := walker.global_position
+	var line := "[mojulo-dump] %s walker=(%.2f,%.2f,%.2f)" % [tag, w.x, w.y, w.z]
+	if suit != null:
+		var sp := suit.global_position
+		var part := suit.get_child(0) if suit.get_child_count() > 0 else null
+		# upright: a mojulo figure is z-up under the GLB's y-up root, so the
+		# wrapper's local Z is its up — 1.0 when standing, ~0 face-down.
+		line += " suit=%s(%.2f,%.2f,%.2f) upright=%.3f anim=%s moving=%s" % [
+			suit.name, sp.x, sp.y, sp.z, suit.global_transform.basis.z.y,
+			suit_player.current_animation if suit_player != null else "", str(suit_moving)]
+		if part is Node3D:
+			var pp: Vector3 = (part as Node3D).global_position
+			line += " part0=%s(%.2f,%.2f,%.2f)" % [part.name, pp.x, pp.y, pp.z]
+	for fp in figure_players:
+		var n: Node3D = fp["node"]
+		var np := n.global_position
+		line += " figure=%s(%.2f,%.2f,%.2f):%s" % [n.name, np.x, np.y, np.z, (fp["player"] as AnimationPlayer).current_animation]
+	print(line)
+
+
+func _physics_process(_delta: float) -> void:
+	if probe_frames <= 0 or walker == null:
+		return
+	probe_frame += 1
+	if probe_frame == 1:
+		_dump("t=1")
+	elif probe_frame >= probe_frames:
+		_dump("t=%d" % probe_frame)
+		probe_frames = -1
+		get_tree().quit()
 
 
 # Implicit ground plane (z=0 unless the score says otherwise) + AABB obstacle
@@ -302,6 +567,7 @@ func _zone_hit(zone: Dictionary, pos: Vector3) -> bool:
 
 
 func _process(delta: float) -> void:
+	_follow_suit()
 	if state != "playing" or walker == null:
 		return
 	var pos := walker.global_position

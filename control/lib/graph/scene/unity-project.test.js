@@ -113,6 +113,43 @@ describe('unity emitters', () => {
     expect(readme).toContain('### `lv-b`');
   });
 
+  it('locomotion row (walking-suit-backport): performed by the kernel, ledgered, gated, eyes-listed', () => {
+    const files = Object.fromEntries(emit().files.map((f) => [f.file, f.text]));
+    // the kernel always carries the machinery — it is the score row that switches it on
+    expect(files['Runtime/MojuloLevel.cs']).toContain('class LegacyRig');   // glTFast's shipped-.meta default: legacy clips
+    expect(files['Runtime/MojuloLevel.cs']).toContain('class MecanimRig');  // the operator flipped the importer: Playables
+    expect(files['Runtime/MojuloLevel.cs']).toContain('AnimationLayerMixerPlayable');
+    expect(files['Runtime/MojuloLevel.cs']).toContain('public List<AnimationClip> clips');
+    expect(files['Runtime/MojuloLevel.cs']).toContain('class Locomotion');
+    expect(files['Runtime/MojuloWalker.cs']).toContain('public void SetCameraRig(');
+    expect(files['Editor/MojuloImport.cs']).toContain('LoadAllAssetsAtPath(glbPath)');
+    expect(files['Editor/MojuloImport.cs']).not.toContain('AssetDatabase.FindAssets('); // a pack-wide index = last level wins
+    expect(files['Editor/MojuloImport.cs']).toContain('locomotion clips bind');
+    // no row ⇒ no ledger line, no eyes line (byte-identical to the pre-row pack)
+    expect(unityLevelLedger(score).locomotion_performed).toBeUndefined();
+    expect(files['IMPORT-GUIDE.md']).not.toContain('third-person');
+    // a row on the player ⇒ the suit line + the ledger line
+    const suitScore = {
+      ...score,
+      entities: [
+        { id: 'walker', figure: 'gframe_mk2_multi', translation: [-300, 0, 0], locomotion: { idle: 'gframe_mk2_multi:idle', walk: 'gframe_mk2_multi:forward' } },
+        { id: 'dummy', figure: 'z_multi', translation: [140, 0, 0], locomotion: { idle: 'z_multi:idle' } },
+      ],
+    };
+    const ledger = unityLevelLedger(suitScore);
+    expect(ledger.locomotion_performed).toMatchObject({ count: 2 });
+    expect(ledger.locomotion_performed.note).toContain('third-person suit');
+    const suitEmit = emitUnityProject({ ref: 'sk_test_world', score: suitScore, manifestHash: 'abcd1234abcd1234' });
+    const guide = suitEmit.files.find((f) => f.file === 'IMPORT-GUIDE.md').text;
+    expect(guide).toContain('#006 the player suit is in view from a third-person boom');
+    expect(guide).toContain('`locomotion_performed`'.replace(/`/g, '')); // ledger block names it
+    // a row on a non-player entity only ⇒ idles, no suit sentence
+    const ambientOnly = { ...score, entities: [{ id: 'dummy', figure: 'z_multi', translation: [140, 0, 0], locomotion: { idle: 'z_multi:idle' } }] };
+    expect(unityLevelLedger(ambientOnly).locomotion_performed.note).not.toContain('third-person');
+    const game = emitUnityGame({ ref: 'g', title: 'G', manifestHash: 'ffff0000ffff0000', levels: [{ ref: 'lv-a', title: 'A', gate: null, score: suitScore }] });
+    expect(game.files.find((f) => f.file === 'IMPORT-GUIDE.md').text).toContain('#022 levels whose player is a rigged figure');
+  });
+
   it('guide snapshot', () => {
     expect(emit().files.find((f) => f.file === 'IMPORT-GUIDE.md').text).toMatchSnapshot();
   });
