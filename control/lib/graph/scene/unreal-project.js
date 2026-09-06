@@ -23,29 +23,12 @@
  * (import-time actors) and C++ (runtime mechanics, MojuloScore.cpp). The
  * two MUST stay identical.
  */
-import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
+// Guide helpers are shared with the Unity + Blender legs (operator-guide.js, the D10 lift).
+import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble } from './operator-guide.js';
 import { emitUnrealKernel } from './unreal-kernel.js';
 
 export const UNREAL_LEG_VERSION = '0.4.1';
 export const UNREAL_EDITOR_TARGET = 'Unreal Engine 5 (5.4+; proven against UE 5.8.0)';
-
-const fmt = (n) => {
-  const v = Math.round(n * 1e6) / 1e6;
-  return Object.is(v, -0) ? '0' : String(v);
-};
-
-const ledgerLines = (ledger) => Object.entries(ledger)
-  .filter(([, v]) => v && typeof v === 'object' && 'note' in v)
-  .map(([k, v]) => `- \`${k}\`${v.count != null ? ` ×${v.count}` : ''}${v.kinds ? ` (${v.kinds.join(', ')})` : ''} — ${v.note}`)
-  .join('\n');
-
-// The greybox seam (skin-over-mesh.plan.md): stamped packs carry the handoff
-// sentence as its own section; unstamped packs emit byte-identical text.
-const greyboxSection = (stamped) => (stamped ? `## Greybox handoff
-
-${GREYBOX_HANDOFF_SENTENCE}
-
-` : '');
 
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
 
@@ -767,11 +750,7 @@ else:
 
 /* --------------------------------------------------------------- guide --- */
 
-const GUIDE_PREAMBLE = (title, recipeNote) => `# ${title} — Unreal import guide
-
-#001 This pack is a derived artifact of a mojulo recipe (${recipeNote}); re-mint it from the recipe rather than hand-editing. Target editor: ${UNREAL_EDITOR_TARGET}.
-#002 Steps marked T are editor actions, one per line, in order. Everything not listed here is done by the importer script — do not set values by hand that the importer already sets.
-
+const GUIDE_PREAMBLE = (title, recipeNote) => `${guidePreamble({ title, heading: 'Unreal import guide', recipeNote, target: UNREAL_EDITOR_TARGET })}
 ## ① Create the project
 
 T001 Epic Games Launcher > Unreal Engine > Library > Launch(your installed 5.x) > Games > Third Person > Blueprint > Create
@@ -799,14 +778,11 @@ T003.01 Finder > copy \`MojuloPack/MojuloKernel\` to \`<Project>/Plugins/MojuloK
 T003.02 reopen the project — Unreal asks to rebuild the MojuloKernel module: Yes (compiles once; needs Xcode on macOS / Visual Studio on Windows)
 `;
 
-const GUIDE_LEDGER = (ledger, startAt = 101) => Object.entries(ledger)
-  .filter(([, v]) => v && typeof v === 'object' && 'note' in v)
-  .map(([k, v], i) => `#${String(startAt + i).padStart(3, '0')} ${k}${v.count != null ? ` ×${v.count}` : ''} — ${v.note}`)
-  .join('\n');
+const GUIDE_LEDGER = guideLedger;
 
 /** World-pack guide (U0 shape): the stock Third Person character is the
  * walker — the importer places the PlayerStart; no kernel. */
-function importGuideWorld({ title, refName, score, ledger }) {
+function importGuideWorld({ title, refName, score, ledger, lit = false }) {
   const eyes = [
     'the world mesh renders in its baked vertex colours (reference look: the mojulo web build)',
     'you can walk the level as the template character — the floor holds (the promoted ground plane) and the obstacle colliders block',
@@ -832,7 +808,7 @@ ${GUIDE_LEDGER(ledger)}
 }
 
 /** Game-pack guide (U1 shape): menu-first eyes gate, the kernel walker. */
-function importGuideGame({ title, levels, ledger, posture }) {
+function importGuideGame({ title, levels, ledger, posture, lit = false }) {
   const eyes = [
     'the menu lists every level; gated levels show [locked] until their gate level is [done]',
     'Enter starts the selected level — the kernel walker spawns at the score spawn (WASD + mouse, Space jumps, M returns to the menu)',

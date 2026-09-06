@@ -22,8 +22,10 @@ import { FIELD_DOMAIN_OPS } from '@/lib/graph/polygonizer/field-terms';
 import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench-program';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
-import { glbToFaces } from '@/lib/graph/scene/scene-gltf-read';
+import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
+import { glbNodeInventory, compareReturnContract } from '@/lib/graph/scene/blender-gate';
+import { existsSync } from 'node:fs';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
 
 /**
@@ -525,17 +527,42 @@ export async function exportModelHandler(input) {
  * The mesh is DERIVED, never the artifact: no geometry enters the manifest;
  * worlds place it by ref via a figures-map `meshRef` entry (world-scene.js).
  */
+const manifestHashOf = (manifest) => createHash('sha256').update(JSON.stringify(manifest)).digest('hex').slice(0, 16);
+
 /**
- * bindMeshBytes(sketch, bytes, { sourcePath, source, note }) → { slot, sha256, faces }
+ * bindMeshBytes(sketch, bytes, { sourcePath, source, note }) → { slot, sha256, faces,
+ *   textures, ledger, manifestHash, contract }
  * — the shared bind-back door: strict GLB validation + a full decode (the
  * machine gate, BEFORE anything lands on disk), then the append-only mesh slot
  * + its provenance sidecar. bind_mesh_render (manual) and the mesh handoff's
  * submit (durable, interchange-seams.plan.md seam 5) both go through here.
+ *
+ * The sidecar carries the HEAD manifest hash at bind time (export-blender.plan.md
+ * D7 — `describeBoundMeshes` derives staleness from it later) and the decode
+ * ledger (seam 6b: albedo textures carried, other maps counted). When a Blender
+ * pack exists for the sketch (`<outcomes>/<ref>/blender/pack.json`), the return is
+ * measured against its greybox contract (compareReturnContract) and the
+ * `contract_drift` rows ride the sidecar + the result — advisory, never a refusal
+ * (D4: a HAND return's drift is a finding; the handoff's own size gate is where a
+ * WORKER return that came back re-scaled is refused at accept).
  */
 export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source = null, note = null } = {}) {
-  const faces = glbToFaces(bytes);
+  const scene = glbToScene(bytes);
+  const { faces, textures, ledger } = scene;
   if (!faces.length) {
     throw new Error('the submitted GLB carries no triangle geometry — bind the refined mesh, not an empty scene');
+  }
+  const manifestHash = manifestHashOf(sketch.manifest);
+  let contract = null;
+  const packPath = path.join(outcomeDirFor(sketch.ref), 'blender', 'pack.json');
+  if (existsSync(packPath)) {
+    try {
+      const pack = JSON.parse(await fs.readFile(packPath, 'utf8'));
+      const cmp = compareReturnContract({ pack, inventory: glbNodeInventory(bytes) });
+      contract = { pack_manifest_hash: pack.manifestHash ?? null, pack_stale: !!pack.manifestHash && pack.manifestHash !== manifestHash, ...cmp };
+    } catch (e) {
+      contract = { error: `pack.json unreadable — contract not measured (${e?.message ?? e})` };
+    }
   }
   const slot = nextMeshPath(sketch.ref);
   await fs.writeFile(slot.path, bytes);
@@ -546,12 +573,19 @@ export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source =
     JSON.stringify(
       // `source` is the structured which-tool tag (parity with the image seam's
       // source column); `note` stays the free-text what-changed line.
-      { source_path: sourcePath, source: typeof source === 'string' && source ? source : null, bound_at: new Date().toISOString(), sha256, bytes: bytes.length, note: note || null, n: slot.n },
+      {
+        source_path: sourcePath, source: typeof source === 'string' && source ? source : null, bound_at: new Date().toISOString(), sha256, bytes: bytes.length, note: note || null, n: slot.n,
+        manifest_hash: manifestHash,
+        textures: ledger.textures_carried.map((t) => t.key),
+        ...(ledger.textures_dropped.length ? { textures_dropped: ledger.textures_dropped } : {}),
+        ...(Object.values(ledger.maps_dropped).some(Boolean) ? { maps_dropped: ledger.maps_dropped } : {}),
+        ...(contract ? { contract } : {}),
+      },
       null,
       2,
     ),
   );
-  return { slot, sha256, faces };
+  return { slot, sha256, faces, textures, ledger, manifestHash, contract };
 }
 
 export async function bindMeshRenderHandler(input) {
@@ -561,7 +595,19 @@ export async function bindMeshRenderHandler(input) {
   if (!sketch) throw new Error(`Sketch '${ref}' not found`);
   if (!glbPath || typeof glbPath !== 'string') throw new Error('bind_mesh_render requires { glb_path }');
   const bytes = await fs.readFile(glbPath);
-  const { slot, sha256, faces } = await bindMeshBytes(sketch, bytes, { sourcePath: glbPath, source, note });
+  const { slot, sha256, faces, ledger, manifestHash, contract } = await bindMeshBytes(sketch, bytes, { sourcePath: glbPath, source, note });
+  const driftLine = contract?.contract_drift
+    ? (contract.contract_drift.length
+      ? ` CONTRACT DRIFT (advisory, measured against the Blender pack): ${contract.contract_drift.length} row${contract.contract_drift.length === 1 ? '' : 's'} — ${contract.contract_drift.slice(0, 4).map((d) => `${d.node} ${d.kind}`).join(', ')}${contract.contract_drift.length > 4 ? ', …' : ''}; form changes belong upstream in the recipe.`
+      : ' Contract check against the Blender pack: no drift — the form came back as shipped.')
+    + (contract.pack_stale ? ' The pack itself predates the current recipe (re-pack before the next pass).' : '')
+    : '';
+  const texLine = ledger.textures_carried.length
+    ? ` ${ledger.textures_carried.length} albedo texture${ledger.textures_carried.length === 1 ? '' : 's'} carried (${ledger.textures_carried.map((t) => t.key).join(', ')}).`
+    : '';
+  const dropLine = ledger.textures_dropped.length || Object.values(ledger.maps_dropped).some(Boolean)
+    ? ` Not carried: ${[...ledger.textures_dropped.map((t) => `${t.key} (${t.reason})`), ...Object.entries(ledger.maps_dropped).filter(([, n]) => n).map(([k, n]) => `${n} ${k} map${n === 1 ? '' : 's'}`)].join(', ')}.`
+    : '';
   return {
     ok: true,
     ref: sketch.ref,
@@ -570,10 +616,15 @@ export async function bindMeshRenderHandler(input) {
     bytes: bytes.length,
     sha256,
     triangles: faces.length,
+    manifest_hash: manifestHash,
+    textures: ledger.textures_carried.map((t) => t.key),
+    ...(ledger.textures_dropped.length ? { textures_dropped: ledger.textures_dropped } : {}),
+    ...(Object.values(ledger.maps_dropped).some(Boolean) ? { maps_dropped: ledger.maps_dropped } : {}),
+    ...(contract ? { contract } : {}),
     next:
-      `Mesh bound (append-only slot ${slot.n}; latest wins). Place it in any world as static scenery via a `
+      `Mesh bound (append-only slot ${slot.n}; latest wins).${driftLine}${texLine}${dropLine} Place it in any world as static scenery via a `
       + `figures-map entry: figures: { <name>: { meshRef: '${sketch.ref}', transform?: { pos:[x,y,z], rotZ, scale } } } — `
       + 'it is lowered server-side to the standard face list, so /world, the stills, and export_model all render it. '
-      + 'v1 decode keeps vertex colours / baseColor and node transforms; textures, animations, and skins are dropped.',
+      + 'The decode keeps vertex colours / baseColor, node transforms and albedo textures (TEXCOORD_0 + embedded PNG/JPEG); normal / roughness / metallic maps, animations and skins are dropped and counted.',
   };
 }

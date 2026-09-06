@@ -174,8 +174,20 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       if (!bound) {
         throw new Error(`figures.${name}: sketch '${rawSpec.meshRef}' has no bound mesh — bind one first via bind_mesh_render`);
       }
-      const { readBoundMeshFaces } = await import('@/lib/graph/scene/scene-gltf-read.js');
-      const meshFaces = readBoundMeshFaces(bound.path, { transform: rawSpec.transform, group: `mesh:${name}` });
+      const { readBoundMeshScene } = await import('@/lib/graph/scene/scene-gltf-read.js');
+      const { faces: meshFaces, textures: meshTextures } = readBoundMeshScene(bound.path, { transform: rawSpec.transform, group: `mesh:${name}` });
+      // Albedo textures the bound mesh brought home (seam 6b) join payload.textures under the
+      // mesh's own keys, so the texture channel below carries them like any other opt-in. A key
+      // the world already owns with a DIFFERENT image is re-keyed `<key>@mesh:<name>` on the
+      // mesh's faces — the art pass never repaints the world's tile by name collision.
+      for (const [k, url] of Object.entries(meshTextures)) {
+        const owned = payload.textures?.[k];
+        if (owned && owned !== url) {
+          const nk = `${k}@mesh:${name}`;
+          for (const f of meshFaces) if (f.texture === k) f.texture = nk;
+          (payload.textures ??= {})[nk] = url;
+        } else if (!owned) (payload.textures ??= {})[k] = url;
+      }
       // `singleSide: true` on the placement renders the bound mesh FRONT-faces-only in the live
       // World (scene-three) — a closed solid (a baked, interior-culled statue) shows the same
       // silhouette at half the fragment cost. Opt-in per placement: a bound mesh with inconsistent

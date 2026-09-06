@@ -22,7 +22,8 @@
  * entity node in the GLB (pinned Y0: landmark match to the centimeter).
  */
 import { createHash } from 'node:crypto';
-import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
+// Guide helpers are shared with the Unreal + Blender legs (operator-guide.js, the D10 lift).
+import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble } from './operator-guide.js';
 
 export const UNITY_LEG_VERSION = '0.4.0';
 export const UNITY_EDITOR_TARGET = 'Unity 6 (6000.2.x)';
@@ -34,23 +35,6 @@ export const unityGuid = (manifestHash, relPath) =>
 /** Minimal .meta body — Unity keeps the guid and backfills importer config. */
 export const unityMeta = (guid, { folder = false } = {}) =>
   `fileFormatVersion: 2\nguid: ${guid}\n${folder ? 'folderAsset: yes\n' : ''}`;
-
-const fmt = (n) => {
-  const v = Math.round(n * 1e6) / 1e6;
-  return Object.is(v, -0) ? '0' : String(v);
-};
-
-const ledgerLines = (ledger) => Object.entries(ledger)
-  .map(([k, v]) => `- \`${k}\`${v.count != null ? ` ×${v.count}` : ''}${v.kinds ? ` (${v.kinds.join(', ')})` : ''} — ${v.note}`)
-  .join('\n');
-
-// The greybox seam (skin-over-mesh.plan.md): stamped packs carry the handoff
-// sentence as its own section; unstamped packs emit byte-identical text.
-const greyboxSection = (stamped) => (stamped ? `## Greybox handoff
-
-${GREYBOX_HANDOFF_SENTENCE}
-
-` : '');
 
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
@@ -1312,11 +1296,7 @@ namespace Mojulo
 
 /* --------------------------------------------------------------- guide --- */
 
-const GUIDE_PREAMBLE = (title, recipeNote) => `# ${title} — Unity import guide
-
-#001 This pack is a derived artifact of a mojulo recipe (${recipeNote}); re-mint it from the recipe rather than hand-editing. Target editor: ${UNITY_EDITOR_TARGET}.
-#002 Steps marked T are editor actions, one per line, in order. Everything not listed here is done by the importer script — do not set values by hand that the importer already sets.
-
+const GUIDE_PREAMBLE = (title, recipeNote) => `${guidePreamble({ title, heading: 'Unity import guide', recipeNote, target: UNITY_EDITOR_TARGET })}
 ## ① Create the project
 
 T001 Unity Hub > Projects > New project > 3D (URP) template > Editor Version(currently pinned: 6000.2.x) > Create project
@@ -1337,9 +1317,7 @@ T004.01 Project > Assets > MojuloPack — wait for the import spinner to finish;
 T005 Tools > Mojulo > Import Pack
 `;
 
-const GUIDE_LEDGER = (ledger, startAt = 101) => Object.entries(ledger)
-  .map(([k, v], i) => `#${String(startAt + i).padStart(3, '0')} ${k}${v.count != null ? ` ×${v.count}` : ''} — ${v.note}`)
-  .join('\n');
+const GUIDE_LEDGER = guideLedger;
 
 /** World-pack guide (Y0 shape, upgraded: the kernel walker makes ⑤ playable). */
 function importGuideWorld({ title, refName, score, ledger }) {

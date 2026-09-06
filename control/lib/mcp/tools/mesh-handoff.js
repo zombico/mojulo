@@ -190,6 +190,9 @@ export async function submitMeshRenderHandler(input) {
     source: typeof source === 'string' && source ? source : null,
     note: note || `mesh handoff submit for request ${requestId}`,
   });
+  // seam 6b + the Blender pack's return contract ride the audit too (advisory rows)
+  machine.textures = bound.ledger.textures_carried.map((t) => t.key);
+  if (bound.contract) machine.contract = bound.contract;
   const updated = RenderRequestRepository.recordSubmit({
     id: requestId,
     renderN: bound.slot.n,

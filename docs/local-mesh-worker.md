@@ -57,8 +57,9 @@ distinguishable in the sidecar.
    (Hunyuan3D shape refinement, Tripo's "refine from mesh", a Blender shrink-wrap).
 3. Ask for a z-up mesh in the SAME units and centred where the greybox sits,
    uncompressed (no Draco / meshopt), triangles only. Vertex colours or a
-   baseColor texture are welcome; textures are dropped on ingest today (seam 6b
-   keeps them).
+   baseColor texture are welcome: albedo textures (TEXCOORD_0 + an embedded
+   PNG / JPEG) are carried on ingest (seam 6b); normal / roughness / metallic
+   maps are counted and dropped.
 4. `submit_mesh_render` with an honest `worker_audit` — `{ invoked_generator:
    true, generator: 'hunyuan3d', conditioned: 'greybox+images' }` — and your
    `source`. Read `machine.size_agrees`; a `false` means the generator

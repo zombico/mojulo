@@ -87,6 +87,88 @@ every existing workbench re-renders byte-for-byte.
   `array-pattern`, `procedural-part`); `mint_solid` and `save_recipe` descriptions
   re-tightened under the 700-char budget; the 261,000 tools/list pin stands.
 
+### Blender destination leg — B0 the art-pass pack, B1 the return door (export-blender.plan.md rev 3)
+
+The DESTINATION half of the Blender seam: where the worker legs (`blender-bake.mjs`,
+`bake-world-gi.mjs`) drive Blender headless and bind results back automatically, this
+leg hands the operator (or their artist) a pack that realizes a mojulo object inside a
+fresh `.blend` for a HAND surfacing pass, and names the door it comes home through
+(`bind_mesh_render`, a bound derived variant — never a recipe edit).
+
+- **`scripts/export-blender.mjs --ref <sketch> [--base lit|unlit|shaded] [--posture greybox]`**
+  emits `data/outcomes/<ref>/blender/`: `model.glb` (the printable set — water, decals,
+  studio furniture ledgered out — exported **`lit: true`** over the unshaded payload by
+  default, so Blender's importer builds a Principled material an artist surfaces on;
+  `unlit` / `shaded` are the taste dials), `pack.json` (ref, manifest hash, units +
+  metres-per-unit, the node inventory with z-up bounds, the node → collection map, the
+  frame landmark), `import_mojulo.py`, `export_return.py`, the T-numbered
+  `ARTPASS-GUIDE.md`, `README.md`, `recipe/<ref>.json`. Written IN PLACE — the operator's
+  `<ref>.blend`, `return-<n>.glb` and the gate stamp beside the pack survive a re-mint.
+  Deterministic: re-mint verified byte-identical on all seven files.
+- **`import_mojulo.py`** is transport-agnostic (`MOJULO_MODE=run|verify`, argv fallback):
+  headless, from Blender's Text editor, or over the OPERATOR's blender-mcp
+  (`execute_blender_code`) — no add-on, no socket, nothing of mojulo's inside Blender's
+  process. `run`: fresh scene → import → one collection per pack part → viewport shading
+  (Material Preview on Layout, Solid + vertex colour elsewhere) → unit DISPLAY scale from
+  the recipe's units (coordinates untouched, so the return lands in the same frame) →
+  framing camera → save `<ref>.blend`, REFUSING to overwrite an existing one (exit 3 —
+  a pass in progress is never clobbered; `--force`). `verify`: open the `.blend` and
+  report objects / bounds / collections / shading / units / camera → `mojulo-gate.json`.
+  **`export_return.py`** is the return re-export with the pinned settings (GLB, +Y up,
+  names kept, modifiers applied, vertex colours ACTIVE, images embedded, no Draco /
+  meshopt, no cameras / lights / clips), filtered against the running Blender's own
+  operator properties.
+- **Machine gate** (D2 — extends the verify-usd lineage, no parallel gate): the driver
+  runs the pack's OWN script twice headless (run → scratch `.blend`, verify → report),
+  compares with `usd-gate.js` (triangles, world box, vertex colours, textures) plus the
+  new `blender-gate.js` (`glbNodeInventory` reads what mojulo DECLARED off the POSITION
+  accessors through the reader's node walk; `compareBlenderPack` checks every node
+  present with its bounds inside epsilon, the collections, the SIGN-sensitive frame
+  landmark — a mirrored import fails it — shading, units, the framing camera), stamps
+  `mojulo-gate.json` and, on green, places the `.blend` beside the pack when none is
+  there. Advisory; no Blender ⇒ rung 0, pack + guide only. Results on this host
+  (Blender 5.2.0 LTS): the lighthouse (`cm`, 176 tris), the mk2 suit (101,100 tris,
+  landmark `static:pbr1`, asymmetry 0.37) and the top-hat snowman (20,330 tris) all
+  green; the lighthouse round trip `export_return.py` → `glbToFaces` returns 176
+  triangles, identical bounds, the node name kept, colours present.
+- **The operator-guide lift** (D10): `scene/operator-guide.js` now owns `fmt`,
+  `ledgerLines`, `greyboxSection`, the `#101…` guide ledger, the `#003…` fact lines and
+  the guide preamble; `unity-project.js` and `unreal-project.js` migrated onto it under
+  their snapshot tests (byte-identical). The reader's matrix helpers
+  (`IDENT` / `mul4` / `trsMatrix` / `xfPoint`) are exported from `scene-gltf-read.js`.
+- **Finding, ledgered as `single_collection`:** the assembler kind's static export
+  carries ONE render group (`static` + its pbr material buckets), so a three-part
+  lighthouse and a many-part suit each land in one collection — per-part collections
+  need per-part `group` tags upstream; the pbr buckets still make a usable landmark.
+- **B1 — the return door.** `glbToScene` (`scene-gltf-read.js`, interchange-seams
+  seam 6b): a primitive carrying `TEXCOORD_0` under a `baseColorTexture` lowers to the
+  currency's own `{ texture, uv }` faces (+ `textureLit` when COLOR_0 rides) with the
+  embedded PNG / JPEG re-hoisted byte-preserved under the writer's `<group>:<key>`
+  spelling — so a Blender repaint of the shipped tile comes home under the same key;
+  other maps are counted (`maps_dropped`), unsupported images and `TEXCOORD_1+` named
+  (`textures_dropped`). `world-scene.js` carries a bound mesh's textures into
+  `payload.textures` (collisions re-keyed `<key>@mesh:<name>`). The SHARED bind door
+  (`bindMeshBytes` — `bind_mesh_render` and `submit_mesh_render`) now stamps the head
+  `manifest_hash` on the sidecar, the texture ledger, and — when the sketch has a
+  Blender pack — the return contract (`compareReturnContract`: per-node `missing /
+  moved / resized / unexpected` rows, the sign-sensitive landmark, per-axis scale):
+  ADVISORY, the bind always proceeds; the handoff's own size gate is where a re-scaled
+  WORKER return is refused. `describeBoundMeshes(ref, { manifestHash })` derives
+  `stale` per slot. Real loop on this host: a headless hand pass on the lighthouse
+  (30 faces recoloured, one panel painted with a fresh image on a fresh unwrap) binds
+  with no drift and its `paint` texture rides a meshRef world's payload; the mk2 with a
+  part renamed and another moved binds with exactly three named drift rows. Deviation
+  from the seam-6b gate as written: texture DATA round-trips byte-identical, whole-file
+  bytes do not (the reader's padded-triangle form meets the writer's decollide lift —
+  pre-existing since I3; the quad-reassembly fix is deferred as a kernel-output change).
+- **Rev 3 of the plan** re-scoped the leg against the interchange commit (lit base,
+  gate lineage, the return door's durable half in the mesh handoff, W1 owned by seam 6b,
+  quantization tolerated on return) and DELETED rev 2's pack-carried listener add-on —
+  it rebuilt blender-mcp's transport layer and contradicted interchange-seams' non-seam,
+  which is rescoped to "no mojulo-SHIPPED add-on". blender-mcp, where the operator has
+  it, is the third transport. Open: the guide followed cold by a human (the emit-side
+  eyes gate), the live blender-mcp path (not installed here), B1's return contract check.
+
 ### Grok adapter — studio rider (host seam, not a kernel)
 
 - **`grok-build` adapter v2** — the card is how Grok *rides* the studio, not only how it materializes a catalyst skill. Standing moves: split native image (look) from the Mojulo recipe (pose/scale/world/proof/print); paint scaffolds in-session and `bind_image_render`; `forge_motion` vs native video as two systems; a refusal is a next move; `save_recipe` `when` is this conversation's intent. Output-cap notes unchanged.

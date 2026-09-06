@@ -10,7 +10,7 @@
  * Timeless module: `n` comes from what's on disk, never from the clock.
  */
 
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 function outcomesBaseDir() {
@@ -47,4 +47,30 @@ export function nextMeshPath(ref) {
   mkdirSync(meshDir(ref), { recursive: true });
   const p = path.join(meshDir(ref), `mesh-${n}.glb`);
   return { n, path: p, sidecarPath: `${p}.json` };
+}
+
+/**
+ * describeBoundMeshes(ref, { manifestHash }) → [{ n, path, source, bound_at, sha256, bytes,
+ *   note, manifest_hash, stale, textures, contract_ok, contract_drift }] — every slot with
+ * its sidecar read back, oldest first. `stale` (export-blender.plan.md D7): the recipe has
+ * re-minted past the manifest the binding was made against — surfaced, never
+ * auto-invalidated (hand work is not regenerable). null when either hash is unknown.
+ */
+export function describeBoundMeshes(ref, { manifestHash = null } = {}) {
+  const dir = meshDir(ref);
+  return boundNumbers(ref).map((n) => {
+    const p = path.join(dir, `mesh-${n}.glb`);
+    let sc = {};
+    try { sc = JSON.parse(readFileSync(`${p}.json`, 'utf8')); } catch { sc = {}; }
+    const boundHash = typeof sc.manifest_hash === 'string' ? sc.manifest_hash : null;
+    return {
+      n, path: p,
+      source: sc.source ?? null, bound_at: sc.bound_at ?? null, sha256: sc.sha256 ?? null, bytes: sc.bytes ?? null, note: sc.note ?? null,
+      manifest_hash: boundHash,
+      stale: manifestHash && boundHash ? boundHash !== manifestHash : null,
+      textures: Array.isArray(sc.textures) ? sc.textures : [],
+      contract_ok: sc.contract && typeof sc.contract.ok === 'boolean' ? sc.contract.ok : null,
+      contract_drift: Array.isArray(sc.contract?.contract_drift) ? sc.contract.contract_drift.length : null,
+    };
+  });
 }

@@ -22,11 +22,23 @@
  *   y-up → z-up conversion — the inverse of the writer's 'mojulo' root rotation
  *   (-90° about X), so a mojulo-exported GLB round-trips to identical coords.
  *
- * v1 limitations, deliberate (interchange.plan.md I3 — noted, not solved):
- * - textures are DROPPED (baseColor/vertex colour only);
+ * Textures (interchange-seams.plan.md seam 6b, 2026-09-06): a primitive carrying
+ * TEXCOORD_0 under a material with a baseColorTexture lowers to the currency's own
+ * texture-wrap form — faces get `{ texture: key, uv: [[u,v]×4] }` (+ `textureLit`
+ * when COLOR_0 rides too) and the embedded PNG / JPEG is re-hoisted, byte-preserved,
+ * into a `textures` map (data URL) — exactly the shape facesToGlb consumed, so a
+ * writer → reader → writer round trip is byte-identical (`glbToScene`). The key is
+ * the material's (else the node's) name after its last ':' — the writer's own
+ * `<group>:<key>` spelling — so a Blender pass that repaints the SHIPPED albedo
+ * comes home under the same key. UVs travel RAW (the writer's convention).
+ *
+ * Deliberate limits (noted, not solved):
+ * - normal / roughness-metallic / occlusion / emissive MAPS are dropped and COUNTED
+ *   (`ledger.maps_dropped`); non-PNG/JPEG images, external image URIs and
+ *   TEXCOORD_1+ bindings are dropped and NAMED (`ledger.textures_dropped`);
  * - animations, skins, morph targets are ignored (an imported mesh is scenery
  *   first, a body later if ever);
- * - PBR flattens to the baked colour (the substrate's unlit doctrine);
+ * - PBR factors flatten to the baked colour (the substrate's unlit doctrine);
  * - compressed (Draco/meshopt) and sparse accessors are refused loudly — re-export
  *   from the DCC without compression. (Quantized accessors — KHR_mesh_quantization —
  *   decode fine: normalized ints + the mesh node's dequantizing TRS.)
@@ -100,9 +112,9 @@ export function parseGlb(buf) {
 }
 
 // ── minimal column-major 4x4 math (glTF's matrix convention) ─────────────────
-const IDENT = Object.freeze([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+export const IDENT = Object.freeze([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
-function mul4(a, b) {
+export function mul4(a, b) {
   const out = new Array(16);
   for (let c = 0; c < 4; c++) {
     for (let r = 0; r < 4; r++) {
@@ -113,7 +125,7 @@ function mul4(a, b) {
 }
 
 // node TRS → column-major matrix (T · R · S, per glTF §5.25)
-function trsMatrix(node) {
+export function trsMatrix(node) {
   if (Array.isArray(node.matrix) && node.matrix.length === 16) return node.matrix;
   const [tx, ty, tz] = node.translation || [0, 0, 0];
   const [qx, qy, qz, qw] = node.rotation || [0, 0, 0, 1];
@@ -130,7 +142,7 @@ function trsMatrix(node) {
   ];
 }
 
-const xfPoint = (m, x, y, z) => [
+export const xfPoint = (m, x, y, z) => [
   m[0] * x + m[4] * y + m[8] * z + m[12],
   m[1] * x + m[5] * y + m[9] * z + m[13],
   m[2] * x + m[6] * y + m[10] * z + m[14],
@@ -171,21 +183,85 @@ function readAccessor(json, bin, idx) {
 }
 
 /**
- * glbToFaces(buf, { group }) → faces[] — the whole decode: parse, walk the scene
- * tree applying node transforms, lower every TRIANGLES primitive to padded
- * [a,b,c,c] quad faces in mojulo's z-up frame. Every face carries `fill` (and
- * `cornerFills` when its three corners differ) plus the render `group`.
+ * glbToScene(buf, { group }) → { faces, textures, ledger } — the whole decode: parse,
+ * walk the scene tree applying node transforms, lower every TRIANGLES primitive to
+ * padded [a,b,c,c] quad faces in mojulo's z-up frame. Every face carries `fill` (and
+ * `cornerFills` when its three corners differ) plus the render `group`; textured
+ * primitives add `texture` + per-corner `uv` (seam 6b) and their image lands in
+ * `textures`. `ledger` names what did not travel.
  */
-export function glbToFaces(buf, { group = 'mesh' } = {}) {
+export function glbToScene(buf, { group = 'mesh' } = {}) {
   const { json, bin } = parseGlb(buf);
   const faces = [];
+  const textures = {};
+  const ledger = { textures_carried: [], textures_dropped: [], maps_dropped: { normal: 0, occlusion: 0, emissive: 0, metallicRoughness: 0 } };
 
   const materialColor = (mi) => {
     const f = json.materials?.[mi]?.pbrMetallicRoughness?.baseColorFactor;
     return Array.isArray(f) ? f : [1, 1, 1, 1];
   };
 
-  const lowerPrimitive = (prim, m) => {
+  // ── textures (seam 6b) ────────────────────────────────────────────────────
+  const imageOf = (texIdx) => {
+    const tex = json.textures?.[texIdx];
+    const img = tex ? json.images?.[tex.source] : null;
+    if (!img) return { url: null, reason: 'texture points at no image' };
+    if (typeof img.uri === 'string') {
+      const m = /^data:(image\/(?:png|jpeg|jpg));base64,/i.exec(img.uri);
+      if (m) return { url: img.uri, mime: /jpe?g/i.test(m[1]) ? 'image/jpeg' : 'image/png', bytes: Math.floor((img.uri.length - m[0].length) * 3 / 4) };
+      return { url: null, reason: img.uri.startsWith('data:') ? `unsupported image type (${img.uri.slice(5, 40).split(';')[0]})` : 'external image uri — not carried' };
+    }
+    const mime = /jpe?g/i.test(img.mimeType || '') ? 'image/jpeg' : img.mimeType === 'image/png' ? 'image/png' : null;
+    if (!mime) return { url: null, reason: `unsupported image type (${img.mimeType || 'unknown'})` };
+    const view = json.bufferViews?.[img.bufferView];
+    if (!view || !bin) return { url: null, reason: 'image bufferView missing' };
+    const bytes = bin.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength);
+    return { url: `data:${mime};base64,${bytes.toString('base64')}`, mime, bytes: view.byteLength };
+  };
+  const keyOwner = new Map(); // key → texIdx (first claimant keeps the plain key)
+  const keyByTex = new Map(); // texIdx → key
+  const keyFor = (texIdx, mat, nodeName) => {
+    if (keyByTex.has(texIdx)) return keyByTex.get(texIdx);
+    const raw = (typeof mat?.name === 'string' && mat.name) || (typeof nodeName === 'string' && nodeName) || `tex${texIdx}`;
+    const base = raw.includes(':') ? raw.slice(raw.lastIndexOf(':') + 1) || raw : raw;
+    const key = keyOwner.has(base) && keyOwner.get(base) !== texIdx ? `${base}#${texIdx}` : base;
+    keyOwner.set(key, texIdx);
+    keyByTex.set(texIdx, key);
+    return key;
+  };
+  const mapsSeen = new Set();
+  const countMaps = (mi, mat) => {
+    if (mapsSeen.has(mi) || !mat) return;
+    mapsSeen.add(mi);
+    if (mat.normalTexture) ledger.maps_dropped.normal++;
+    if (mat.occlusionTexture) ledger.maps_dropped.occlusion++;
+    if (mat.emissiveTexture) ledger.maps_dropped.emissive++;
+    if (mat.pbrMetallicRoughness?.metallicRoughnessTexture) ledger.maps_dropped.metallicRoughness++;
+  };
+  // → { key, uvs, lit } when this primitive's albedo texture can travel, else null (reason ledgered)
+  const textureFor = (prim, nodeName) => {
+    const mi = prim.material;
+    const mat = json.materials?.[mi];
+    countMaps(mi, mat);
+    const bct = mat?.pbrMetallicRoughness?.baseColorTexture;
+    if (!bct || bct.index == null) return null;
+    const key = keyFor(bct.index, mat, nodeName);
+    const set = bct.texCoord ?? 0;
+    const uvIdx = prim.attributes?.[`TEXCOORD_${set}`];
+    if (set !== 0 || uvIdx == null) {
+      ledger.textures_dropped.push({ key, reason: set !== 0 ? `bound to TEXCOORD_${set} — only TEXCOORD_0 is carried` : 'primitive has no TEXCOORD_0' });
+      return null;
+    }
+    if (!(key in textures)) {
+      const img = imageOf(bct.index);
+      if (!img.url) { ledger.textures_dropped.push({ key, reason: img.reason }); return null; }
+      textures[key] = img.url;
+      ledger.textures_carried.push({ key, mime: img.mime, bytes: img.bytes });
+    }
+    return { key, uvs: readAccessor(json, bin, uvIdx) };
+  };
+
+  const lowerPrimitive = (prim, m, nodeName) => {
     if ((prim.mode ?? MODE_TRIANGLES) !== MODE_TRIANGLES) return; // points/lines have no face form
     if (prim.extensions && (prim.extensions.KHR_draco_mesh_compression || prim.extensions.EXT_meshopt_compression)) {
       throw new Error('unsupported glTF: compressed geometry (Draco/meshopt) — re-export without compression');
@@ -199,6 +275,7 @@ export function glbToFaces(buf, { group = 'mesh' } = {}) {
     const colIdx = prim.attributes.COLOR_0;
     const col = colIdx != null ? readAccessor(json, bin, colIdx) : null;
     const colW = colIdx != null ? TYPE_COMPONENTS[json.accessors[colIdx].type] : 0;
+    const tex = textureFor(prim, nodeName);
     const base = materialColor(prim.material);
     const baseHex = rgbHex(base[0], base[1], base[2]);
     const alpha = base[3] < 1 ? base[3] : null;
@@ -218,6 +295,12 @@ export function glbToFaces(buf, { group = 'mesh' } = {}) {
       const face = { corners: [c[0], c[1], c[2], [...c[2]]], fill: hexes[0], group };
       if (hexes[1] !== hexes[0] || hexes[2] !== hexes[0]) face.cornerFills = [hexes[0], hexes[1], hexes[2], hexes[2]];
       if (alpha != null) face.alpha = alpha;
+      if (tex) {
+        const uv = vis.map((vi) => [tex.uvs[vi * 2], tex.uvs[vi * 2 + 1]]);
+        face.texture = tex.key;
+        face.uv = [uv[0], uv[1], uv[2], [...uv[2]]];
+        if (col) face.textureLit = true; // texel × baked colour, the writer's COLOR_0 rule
+      }
       faces.push(face);
     }
   };
@@ -229,7 +312,7 @@ export function glbToFaces(buf, { group = 'mesh' } = {}) {
     if (!node) return;
     const m = mul4(parentM, trsMatrix(node));
     if (node.mesh != null) {
-      for (const prim of json.meshes?.[node.mesh]?.primitives || []) lowerPrimitive(prim, m);
+      for (const prim of json.meshes?.[node.mesh]?.primitives || []) lowerPrimitive(prim, m, node.name);
     }
     for (const child of node.children || []) walk(child, m, seen);
     seen.delete(nodeIdx);
@@ -238,7 +321,12 @@ export function glbToFaces(buf, { group = 'mesh' } = {}) {
   const roots = json.scenes?.[json.scene ?? 0]?.nodes
     ?? (json.nodes || []).map((_, i) => i).filter((i) => !(json.nodes || []).some((n) => n.children?.includes(i)));
   for (const r of roots) walk(r, IDENT, new Set());
-  return faces;
+  return { faces, textures, ledger };
+}
+
+/** glbToFaces(buf, { group }) → faces[] — the face-list view of glbToScene. */
+export function glbToFaces(buf, opts = {}) {
+  return glbToScene(buf, opts).faces;
 }
 
 // ── bound-mesh decode cache (the AO_CACHE discipline, effects/ao-bake.js) ────
@@ -253,11 +341,12 @@ const MESH_CACHE_MAX = 8;
 function cloneFace(f, group) {
   const out = { ...f, corners: f.corners.map((c) => [...c]), group };
   if (f.cornerFills) out.cornerFills = [...f.cornerFills];
+  if (f.uv) out.uv = f.uv.map((p) => [...p]);
   return out;
 }
 
 /**
- * readBoundMeshFaces(filePath, { transform, group }) → faces[]
+ * readBoundMeshScene(filePath, { transform, group }) → { faces, textures, ledger }
  *
  * Read + decode a bound .glb (LRU-memoized per file version) and bake the
  * placement transform into the corners, z-up frame:
@@ -265,7 +354,7 @@ function cloneFace(f, group) {
  * `transform` accepts { pos|position:[x,y,z], rotZ|rotation:<radians about +Z>,
  * scale:<number> } — the instanced-repeats convention.
  */
-export function readBoundMeshFaces(filePath, { transform = null, group = 'mesh' } = {}) {
+export function readBoundMeshScene(filePath, { transform = null, group = 'mesh' } = {}) {
   const st = statSync(filePath);
   const key = `${filePath}:${st.mtimeMs}:${st.size}`;
   let hit = MESH_CACHE.get(key);
@@ -273,7 +362,7 @@ export function readBoundMeshFaces(filePath, { transform = null, group = 'mesh' 
     MESH_CACHE.delete(key);
     MESH_CACHE.set(key, hit); // refresh LRU recency
   } else {
-    hit = glbToFaces(readFileSync(filePath), { group });
+    hit = glbToScene(readFileSync(filePath), { group });
     MESH_CACHE.set(key, hit);
     if (MESH_CACHE.size > MESH_CACHE_MAX) MESH_CACHE.delete(MESH_CACHE.keys().next().value);
   }
@@ -282,7 +371,7 @@ export function readBoundMeshFaces(filePath, { transform = null, group = 'mesh' 
   const rotZ = Number.isFinite(t.rotZ) ? t.rotZ : Number.isFinite(t.rotation) ? t.rotation : 0;
   const scale = Number.isFinite(t.scale) && t.scale > 0 ? t.scale : 1;
   const cos = Math.cos(rotZ), sin = Math.sin(rotZ);
-  return hit.map((f) => {
+  const faces = hit.faces.map((f) => {
     const out = cloneFace(f, group);
     for (const c of out.corners) {
       const x = c[0] * scale, y = c[1] * scale, z = c[2] * scale;
@@ -292,4 +381,10 @@ export function readBoundMeshFaces(filePath, { transform = null, group = 'mesh' 
     }
     return out;
   });
+  return { faces, textures: { ...hit.textures }, ledger: hit.ledger };
+}
+
+/** readBoundMeshFaces(filePath, opts) → faces[] — the face-list view of readBoundMeshScene. */
+export function readBoundMeshFaces(filePath, opts = {}) {
+  return readBoundMeshScene(filePath, opts).faces;
 }
