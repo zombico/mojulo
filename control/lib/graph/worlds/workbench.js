@@ -34,6 +34,7 @@ import { reliefToFaces, validateReliefs } from '../polygonizer/relief-faces.js';
 import { shellToFaces, validateShells } from '../polygonizer/shell-faces.js';
 import { loftToFaces, validateLofts } from '../polygonizer/loft-faces.js';
 import { fieldToFaces, validateFields } from '../polygonizer/field-faces.js';
+import { expandWorkbenchProgram, hasProgram, MONOMER_KEYS } from './workbench-program.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { validateMaterialRef } from '../polygonizer/materials.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
@@ -57,6 +58,12 @@ const wrapKeyed = (spec, i) => (spec && spec.wrap && typeof spec.wrap === 'objec
 
 /** Lower a polygomer manifest (lathe + extrude + sweep + loft + field + drape + relief + shell monomers) into one baked World face list. */
 export function lowerObjectFaces(manifest, light) {
+  // A `program` (the code kind, expressiveness.plan.md E3) expands to monomers and/or a face
+  // list first; absent one, `manifest` passes through untouched.
+  if (hasProgram(manifest)) {
+    const ex = expandWorkbenchProgram(manifest, { light });
+    return [...lowerObjectFaces(ex.manifest, light), ...ex.faces];
+  }
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
@@ -111,6 +118,7 @@ export function workbenchAssetFaces(manifest = {}, opts = {}) {
  * assembleWorkbenchScene. Keeping the heavy image OUT of the manifest preserves the tiny recipe.
  */
 export function collectWrapSources(manifest) {
+  if (hasProgram(manifest)) manifest = expandWorkbenchProgram(manifest).manifest;
   const lathes = Array.isArray(manifest && manifest.lathes) ? manifest.lathes : [];
   const out = [];
   lathes.forEach((spec, i) => {
@@ -310,6 +318,25 @@ export function renderWorkbenchToHtml(opts = {}) {
  * mint tool so a bad monomer surfaces as a clear 400, and the operator gets a size/face readout.
  */
 export function planWorkbench(manifest = {}) {
+  const t0 = performance.now();
+  // the mint LEDGER (expressiveness.plan.md E5): what the recipe cost to say vs what it made —
+  // recipe bytes (the honest proxy for the tokens the agent had to write), kernel wall-clock,
+  // faces, closure. "Structure carried, not re-derived" is a number here, not a claim.
+  const recipeBytes = Buffer.byteLength(JSON.stringify(manifest), 'utf8');
+  // The code kind: run the program ONCE here (memoised for the renders that follow). A
+  // program that throws fails the mint with its error and its captured log — that is the
+  // loop working. Its generated monomers then pay every gate below like hand-written ones.
+  let programReport = null;
+  let programFaces = [];
+  if (hasProgram(manifest)) {
+    const ex = expandWorkbenchProgram(manifest, { light: WORKBENCH_LIGHT });
+    programReport = ex.program;
+    programFaces = ex.faces;
+    manifest = ex.manifest;
+    if (!programFaces.length && !MONOMER_KEYS.some((k) => Array.isArray(manifest[k]) && manifest[k].length)) {
+      throw new Error('The program returned no monomers and no faces.');
+    }
+  }
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
@@ -318,8 +345,8 @@ export function planWorkbench(manifest = {}) {
   const shells = Array.isArray(manifest.shells) ? manifest.shells : [];
   const lofts = Array.isArray(manifest.lofts) ? manifest.lofts : [];
   const fields = Array.isArray(manifest.fields) ? manifest.fields : [];
-  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length && !shells.length && !lofts.length && !fields.length) {
-    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, and/or `shells` array.');
+  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length && !shells.length && !lofts.length && !fields.length && !programFaces.length) {
+    throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, and/or `shells` array (or a `program` that returns them).');
   }
   const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateLofts(lofts, []), ...validateFields(fields, []), ...validateDrapes(drapes, []), ...validateReliefs(reliefs, []), ...validateShells(shells, [])]; // endpoints are literal {x,y,z}
   // material refs fail LOUDLY at mint (resolveMaterial's fallback would silently steel a typo)
@@ -329,7 +356,7 @@ export function planWorkbench(manifest = {}) {
   if (errors.length) {
     throw new Error(`Invalid monomers:\n- ${errors.join('\n- ')}`);
   }
-  const faces = lowerObjectFaces(manifest, WORKBENCH_LIGHT);
+  const faces = [...lowerObjectFaces(manifest, WORKBENCH_LIGHT), ...programFaces];
   const bounds = boundsOf(faces);
   const units = typeof manifest.units === 'string' ? manifest.units : DEFAULT_UNITS;
   const round1 = (n) => Math.round(n * 10) / 10;
@@ -383,6 +410,18 @@ export function planWorkbench(manifest = {}) {
     ...reliefs.map((s, i) => part('relief', s, i)),
     ...shells.map((s, i) => part('shell', s, i)),
   ].filter(Boolean);
+  // A program's FACE-LIST return is one more part: the closure audit reports (advisory —
+  // the program may have meant an open sheet), never gates.
+  if (programFaces.length) {
+    const b = boundsOf(programFaces);
+    const closure = auditClosure(programFaces, { intendClosed: true });
+    const out = { kind: 'program', index: 0, size: { w: round1(b.max[0] - b.min[0]), d: round1(b.max[1] - b.min[1]), h: round1(b.max[2] - b.min[2]) }, base: round1(b.min[2]), top: round1(b.max[2]), faces: programFaces.length };
+    if (!closure.closed) {
+      out.open = { holes: closure.holes.length, widest: round1(closure.holes[0].diameter) };
+      closureWarnings.push(`program faces form an open shell — ${closure.holes.length} hole${closure.holes.length === 1 ? '' : 's'}, widest ≈${round1(closure.holes[0].diameter)} ${units} across. If the sheet is meant to be open that is fine; for a printable solid, return closed shells (or a spec the kernel closes for you).`);
+    }
+    parts.push(out);
+  }
 
   // Grid-alignment lint — unambiguous, high-signal checks the measured vantage cares about.
   const warnings = [...closureWarnings];
@@ -395,7 +434,14 @@ export function planWorkbench(manifest = {}) {
     }
   }
 
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(warnings.length ? { warnings } : {}) } };
+  const ledger = {
+    recipe_bytes: recipeBytes,
+    wall_ms: Math.round(performance.now() - t0),
+    faces: faces.length,
+    closed: closureWarnings.length === 0,
+    ...(programReport ? { program_ms: programReport.ms } : {}),
+  };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(programReport ? { program: programReport } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

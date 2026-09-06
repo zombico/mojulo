@@ -10,6 +10,83 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Expressiveness — from a term list to a grammar, from a grammar to programs (expressiveness.plan.md E1–E5)
+
+The polygonizer was never the ceiling (`surfaceNetFaces` takes any `(p) => number`); the
+shape list in front of it was. Two moves lift it, ordered by how little they disturb the
+promise — a grammar first, then a code door — plus the small lane and the harness that
+make both keepable and measurable. Absent an `expr` term, a domain op, or a `program`,
+every existing workbench re-renders byte-for-byte.
+
+- **`expr` — a distance expression as a field term (E1).** A `fields` shape may now be
+  `{ kind:'expr', d, vars?, bounds | reach }`: a signed-distance expression over `x y z`
+  in a small GLSL-like infix grammar (`let` statements, a ternary whose condition is a
+  comparison, `PI TAU E`, a frozen append-only whitelist of pure functions —
+  `abs min max sqrt hypot sin cos tan asin acos atan atan2 pow exp log floor ceil fract
+  mod clamp mix sign step smoothstep smin smax len2 len3 noise3`). `vars` are the dials
+  `update_sketch` turns; `bounds` is REQUIRED and is a CLIP (the term is the expression
+  intersected with its box, so a plane or a gyroid closes by construction instead of
+  losing quads at the grid). The mint gate parses (caret + whitelist in the error) and
+  SAMPLES a 9³ lattice plus corners: finite everywhere, both signs, else "no surface
+  inside bounds". Compiled to a closure tree (no source text executed); `mod` is floored
+  (GLSL), `%` truncated (JS). `EXPR_GRAMMAR_VERSION = 1` stamps the export ledger
+  (`field_solids.expr_terms` / `expr_grammar_version`). Grammar + five idioms on the
+  workbench card (a gyroid slab with the `/ k` normalisation so `t` is wall thickness in
+  world units — walls under about two cells pinch, pinned in a test; a wavy plate; a
+  bolt circle by polar `mod`; a twisted box; a fillet by `smin`).
+  - **E1b — one AST, two emissions.** `emitFieldExprGlsl(ast, { name, vars })` emits the
+    same program as a GLSL `float name(vec3 p)` (builtins direct, `hypot`/`len*` →
+    `length(vec*)`, `smin`/`smax` → sdf-glsl's `sdfSmin`/`sdfSmax`, `%` → `trunc`-mod);
+    `noise3` has no GLSL twin yet and refuses with a teaching note (CPU-only). Snapshot
+    pinned; no raymarch consumer wires it yet — the compile is the eyes gate in a view.
+- **Domain operators (E2).** `FIELD_OPS` gains six, append-only: `transform { translate,
+  rotate (deg, Rz·Ry·Rx like the assembler), scale, mirror }`, `repeat { spacing, count }`
+  (a COUNTED grid centred on the original — half-multiples for even counts) and
+  `repeat { polar: { axis, count, radius } }`, `twist { axis, turns }`, `bend { axis,
+  radius }`, `taper { axis, from, to }`, `elongate { by }`. Each is a point warp with
+  conservative bounds; each applies to the whole solid so far OR — with a nested `terms`
+  list — to a SUB-solid then `combine`d (`add | subtract | intersect`, `blend`), which is
+  how the bolt circle is ONE bore repeated. The warp is applied to the solid's PARTS too,
+  so group tags follow the geometry (every instance of the bore is `bore`; a transform
+  moves the group). Fixtures pin closure + genus per op (polar flange genus 6, 4×2 and
+  3×3 grilles, twist / bend / taper / elongate genus 0). The ledger lists `domain_ops` and
+  says a warped field is a bound, not an exact distance.
+- **The code door (E3, D2 "yolo mode").** `mint_solid({ kind:'code', spec:{ source,
+  params?, seed?, budgetMs?, units? } })`: `source` is the body of `(params, ctx)` and
+  RETURNS a workbench spec (monomer arrays / an `assembly`) or a face list; the return
+  shape is detected. It runs in `node:vm` with the language and nothing of the host — no
+  `process` / `require` / `fetch` / timers / `import()`; `Math.random` IS
+  `mulberry32(seed)`; `Date` throws "the realm has no clock"; `Intl` removed; `console.*`
+  captured onto `stats.program.log` (and onto a mint ERROR); the whole run including the
+  JSON hand-back sits under vm's `timeout` (`budgetMs` default 5,000, cap 60,000) so no
+  getter runs later; a Promise return is refused; `source` ≤ 64 KB. The recipe stores
+  `kind:'workbench'` + `program` — the program is a PARAM — and one expansion seam in
+  front of the kernel (`workbench-program.js`, memoised per source hash + params + seed)
+  hands every leg a plain workbench: World, studio shots, skin scaffold, assembler parts,
+  closure audit, `update_sketch`'s gate, `save_recipe`, `diff_sketches` (a text diff),
+  and the export ledger (`code: { source_hash, realm_version, budget_ms, returned,
+  monomers | faces }`). Toolkit v2 (`ctx.solids`: the field-terms constructors,
+  combinators and domain ops, `compose`, `surfaceNet`, `fieldFaces`, `expr.parse/compile`,
+  `noise3`, `mulberry32`, `transportFrames`, `vec`) reaches the program as `ctx`. Card
+  `solid-vocab/code.md` carries the realm API and three worked programs (bolt-circle
+  flange, parametric staircase, a train of parts from a parts table). E3b (promotion to a
+  named kind) stays deferred.
+- **The solids lane for `save_recipe` (E4).** A `workbench` sketch (program included) is
+  keepable: `entry: 'mint_solid'`, chapter `solids`, family `object`, recalled through
+  `get_solid_vocab` / `semantic_search({ kinds:['solid_vocab'] })`; the card says params
+  nest under `spec` on re-mint. Assembler / motion still wait (instance-local refs).
+- **Measure it (E5).** Every workbench mint now returns `stats.ledger = { recipe_bytes,
+  wall_ms, faces, closed, program_ms? }` — recipe bytes as the honest proxy for the tokens
+  the agent had to write. `roundtrip-eval.integration.test.js` (gated:
+  `MOJULO_ROUNDTRIP_EVAL=1` + the claude CLI) renders twelve fixtures across monomers /
+  fields / expr / domain ops / one program as three-yaw scaffold PNGs, hands a model only
+  the views and the cards, re-mints its reply, and scores bbox-IoU × face-ratio per idiom
+  (diff_sketches similarity reported beside it) into a tmpdir report.
+- **Vocabulary cost held.** One clause on the `fields` line, `code` in the `mint_solid`
+  enum plus one sentence, three `translate_modeler_lingo` entries (`sdf-expression`,
+  `array-pattern`, `procedural-part`); `mint_solid` and `save_recipe` descriptions
+  re-tightened under the 700-char budget; the 261,000 tools/list pin stands.
+
 ### Grok adapter — studio rider (host seam, not a kernel)
 
 - **`grok-build` adapter v2** — the card is how Grok *rides* the studio, not only how it materializes a catalyst skill. Standing moves: split native image (look) from the Mojulo recipe (pose/scale/world/proof/print); paint scaffolds in-session and `bind_image_render`; `forge_motion` vs native video as two systems; a refusal is a next move; `save_recipe` `when` is this conversation's intent. Output-cap notes unchanged.

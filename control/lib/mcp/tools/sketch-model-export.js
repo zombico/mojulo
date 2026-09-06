@@ -17,6 +17,9 @@ import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
+import { EXPR_GRAMMAR_VERSION } from '@/lib/graph/polygonizer/field-expr';
+import { FIELD_DOMAIN_OPS } from '@/lib/graph/polygonizer/field-terms';
+import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench-program';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { glbToFaces } from '@/lib/graph/scene/scene-gltf-read';
@@ -338,7 +341,23 @@ export async function exportModelHandler(input) {
   };
   // field solids (field-solids.plan.md F4): the honest ledger says in numbers what the recipe could
   // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
-  const fieldSpecs = Array.isArray(sketch.manifest.fields) ? sketch.manifest.fields : [];
+  // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
+  // program's monomers are the ones that shipped) and says what ran, in numbers
+  let ledgerManifest = sketch.manifest;
+  if (hasProgram(sketch.manifest)) {
+    const ex = expandWorkbenchProgram(sketch.manifest);
+    ledgerManifest = ex.manifest;
+    result.code = {
+      source_hash: ex.program.source_hash,
+      realm_version: ex.program.realm_version,
+      budget_ms: ex.program.budget_ms,
+      returned: ex.program.returned,
+      ...(ex.program.monomers ? { monomers: ex.program.monomers } : {}),
+      ...(ex.program.faces ? { faces: ex.program.faces } : {}),
+      note: 'A program generated this part; the recipe stores the source (a param), not the faces. Same source + params + seed → the same faces, on any host running the same realm version.',
+    };
+  }
+  const fieldSpecs = Array.isArray(ledgerManifest.fields) ? ledgerManifest.fields : [];
   if (fieldSpecs.length) {
     const grids = fieldSpecs.map((f) => { try { return fieldGrid(f); } catch { return null; } }).filter(Boolean);
     const cellsList = grids.map((g) => g.cells);
@@ -352,6 +371,26 @@ export async function exportModelHandler(input) {
       } : {}),
       note: 'Field solids (the `fields` monomer) round every edge to about one grid cell — raise `cells` (≤128) for a finer edge; a machined sharp edge is `union: true` (Manifold, print formats) or the DCC.',
     };
+    // expressiveness.plan.md E1/E2: expression terms ride a versioned grammar, warps make the
+    // field a bound rather than a distance — both are said here, in numbers.
+    const walk = (terms, acc) => {
+      for (const t of Array.isArray(terms) ? terms : []) {
+        if (t && t.shape && t.shape.kind === 'expr') acc.expr += 1;
+        if (t && FIELD_DOMAIN_OPS.includes(t.op)) { acc.ops.add(t.op); if (['twist', 'bend', 'taper'].includes(t.op)) acc.warps += 1; }
+        if (t && Array.isArray(t.terms)) walk(t.terms, acc);
+      }
+      return acc;
+    };
+    const tally = fieldSpecs.reduce((acc, f) => walk(f.terms, acc), { expr: 0, ops: new Set(), warps: 0 });
+    if (tally.expr) {
+      result.field_solids.expr_terms = tally.expr;
+      result.field_solids.expr_grammar_version = EXPR_GRAMMAR_VERSION;
+      result.field_solids.expr_note = 'An `expr` term is a field with the right sign, an exact distance only if authored as one — round / shell / blend over it are approximate by the same amount.';
+    }
+    if (tally.ops.size) {
+      result.field_solids.domain_ops = [...tally.ops];
+      if (tally.warps) result.field_solids.warp_note = 'After twist / bend / taper the field is a bound, not an exact distance — vertices sit a hair off; closure is unaffected.';
+    }
   }
   if (format === 'glb') {
     result.nodes = exported.nodeCount;

@@ -30,6 +30,7 @@
 
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { noise3, noise3Amplitude } from './fields.js';
+import { parseFieldExpr, compileFieldExpr, validateExprVars, sampleExprGate, FieldExprError } from './field-expr.js';
 
 // ─── small vector kit ({x,y,z} objects; recipe points may also be [x,y,z]) ─────────
 
@@ -246,6 +247,34 @@ export function latheField({ profile, axisFrom, axisTo, harmonics }) {
 
 // ─── combinators (term × term → term) ────────────────────────────────────────────
 
+// ─── expr — a distance expression (expressiveness.plan.md E1) ─────────────────────
+
+/** `{ bounds:{min,max} }` or `{ reach: r }` (a cube of half-size r about the origin) → bounds. */
+export function exprBounds(shape) {
+  if (shape.bounds && typeof shape.bounds === 'object' && shape.bounds.min !== undefined && shape.bounds.max !== undefined) {
+    return { min: vec(shape.bounds.min), max: vec(shape.bounds.max) };
+  }
+  const r = +shape.reach;
+  return { min: { x: -r, y: -r, z: -r }, max: { x: r, y: r, z: r } };
+}
+
+/**
+ * `{ d, vars?, bounds | reach }` — a signed-distance EXPRESSION over x y z (grammar in
+ * field-expr.js). `bounds` is REQUIRED and is a CLIP, not a hint: the term is the expression
+ * intersected with its bounds box, so an unbounded zero set (a plane, a gyroid) is closed by
+ * construction like every other term, instead of losing its quads where it grazes the grid.
+ * Distance honesty: a field with the right sign, exact only if the author made it one.
+ */
+export function exprField(shape) {
+  const ast = parseFieldExpr(shape.d);
+  const raw = compileFieldExpr(ast, shape.vars || {}, shape.d);
+  const b = exprBounds(shape);
+  const clip = box({ center: [(b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2], size: [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z] });
+  return term((p) => Math.max(raw(p), clip.d(p)), b);
+}
+
+// ─── combinators ──────────────────────────────────────────────────────────────────
+
 export function union(a, b) { return term((p) => Math.min(a.d(p), b.d(p)), unionBounds(a.bounds, b.bounds)); }
 export function intersect(a, b) { return term((p) => Math.max(a.d(p), b.d(p)), a.bounds); }
 export function subtract(a, b) { return term((p) => Math.max(a.d(p), -b.d(p)), a.bounds); }
@@ -288,8 +317,167 @@ export function displace(a, { noise }) {
 
 // ─── recipe-facing composition ───────────────────────────────────────────────────
 
-export const FIELD_SHAPE_KINDS = Object.freeze(['sphere', 'ellipsoid', 'roundCone', 'box', 'capsule', 'lathe', 'extrude', 'sweep']);
-export const FIELD_OPS = Object.freeze(['add', 'subtract', 'intersect', 'stroke', 'displace', 'shell', 'round']);
+
+// ─── domain operators (expressiveness.plan.md E2) ─────────────────────────────────
+// Ops, not shapes: they apply to whatever the term list has built so far — or, with a nested
+// `terms` list, to a SUB-SOLID that is then combined in (`combine: add | subtract | intersect`,
+// with `blend`). Every op is a point warp `d'(p) = d(warp(p)) · k` with conservative bounds,
+// and the warp is applied to the sub-solid's PARTS too, so group tagging (nearest part)
+// follows the geometry — every instance of a repeated bore is still `bore`.
+// Warps are about the ORIGIN / the axis line through it: author the sub-solid there, then
+// `transform` it into place. After a warp the field is a bound with the right sign, not an
+// exact distance (said on the card).
+
+const AXES = ['x', 'y', 'z'];
+const axisIndex = (a) => (a === undefined ? 2 : AXES.indexOf(a));
+const perpAxes = (ai) => AXES.filter((_, i) => i !== ai);
+const DEG = Math.PI / 180;
+
+const cornersOf = (b) => {
+  const out = [];
+  for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) out.push({ x, y, z });
+  return out;
+};
+
+// wrap a composed solid ({ d, bounds, parts }) with a point warp; parts get the same warp
+function warpSolid(sub, warp, boundsFn, scale = 1) {
+  const wrap = (t) => term((p) => t.d(warp(p)) * scale, boundsFn(t.bounds));
+  return { ...wrap(sub), parts: (sub.parts || []).map((pt) => ({ ...pt, term: wrap(pt.term) })) };
+}
+
+// Rz·Ry·Rx from degrees (shell-faces / assembler order) as a 3×3 row-major matrix.
+function rotMat([rx = 0, ry = 0, rz = 0]) {
+  const cx = Math.cos(rx * DEG), sx = Math.sin(rx * DEG);
+  const cy = Math.cos(ry * DEG), sy = Math.sin(ry * DEG);
+  const cz = Math.cos(rz * DEG), sz = Math.sin(rz * DEG);
+  return [
+    [cz * cy, cz * sy * sx - sz * cx, cz * sy * cx + sz * sx],
+    [sz * cy, sz * sy * sx + cz * cx, sz * sy * cx - cz * sx],
+    [-sy, cy * sx, cy * cx],
+  ];
+}
+const mulMat = (m, p) => ({ x: m[0][0] * p.x + m[0][1] * p.y + m[0][2] * p.z, y: m[1][0] * p.x + m[1][1] * p.y + m[1][2] * p.z, z: m[2][0] * p.x + m[2][1] * p.y + m[2][2] * p.z });
+const mulMatT = (m, p) => ({ x: m[0][0] * p.x + m[1][0] * p.y + m[2][0] * p.z, y: m[0][1] * p.x + m[1][1] * p.y + m[2][1] * p.z, z: m[0][2] * p.x + m[1][2] * p.y + m[2][2] * p.z });
+
+/** `{ translate?, rotate?:[rx,ry,rz] deg, scale?: s | [sx,sy,sz], mirror?: 'x'|'y'|'z' }` — applied scale → mirror → rotate → translate. */
+export function transformSolid(sub, { translate, rotate, scale, mirror } = {}) {
+  const t = translate !== undefined ? vec(translate) : { x: 0, y: 0, z: 0 };
+  const sc = scale === undefined ? { x: 1, y: 1, z: 1 } : Number.isFinite(scale) ? { x: scale, y: scale, z: scale } : vec(scale);
+  const R = rotMat(rotate ? vec(rotate).x !== undefined ? [vec(rotate).x, vec(rotate).y, vec(rotate).z] : [0, 0, 0] : [0, 0, 0]);
+  const mir = mirror ? { x: mirror === 'x' ? -1 : 1, y: mirror === 'y' ? -1 : 1, z: mirror === 'z' ? -1 : 1 } : { x: 1, y: 1, z: 1 };
+  const forward = (p) => { const q = { x: p.x * sc.x * mir.x, y: p.y * sc.y * mir.y, z: p.z * sc.z * mir.z }; const r = mulMat(R, q); return { x: r.x + t.x, y: r.y + t.y, z: r.z + t.z }; };
+  const inverse = (p) => { const r = mulMatT(R, { x: p.x - t.x, y: p.y - t.y, z: p.z - t.z }); return { x: r.x * mir.x / sc.x, y: r.y * mir.y / sc.y, z: r.z * mir.z / sc.z }; };
+  const k = Math.min(sc.x, sc.y, sc.z);   // a uniform scale keeps exactness; non-uniform is a bound (min factor)
+  return warpSolid(sub, inverse, (b) => boundsOfPoints(cornersOf(b).map(forward)), k);
+}
+
+/** `{ spacing:[sx,sy,sz], count:[nx,ny,nz] }` — a bounded grid of instances CENTERED on the original; `{ polar:{ axis?, count, radius? } }` — instances around an axis, the original pushed out by `radius` first. */
+export function repeatSolid(sub, spec) {
+  if (spec.polar) {
+    const { axis, count, radius = 0 } = spec.polar;
+    const ai = axisIndex(axis);
+    const [u, v] = perpAxes(ai);
+    const sector = (Math.PI * 2) / count;
+    const warp = (p) => {
+      const a = Math.atan2(p[v], p[u]);
+      const kk = Math.round(a / sector);
+      const c = Math.cos(-kk * sector), s = Math.sin(-kk * sector);
+      const q = { ...p };
+      q[u] = p[u] * c - p[v] * s - radius;
+      q[v] = p[u] * s + p[v] * c;
+      return q;
+    };
+    const boundsFn = (b) => {
+      const reach = Math.max(...cornersOf(b).map((c) => Math.hypot(c[u] + radius, c[v])));
+      const out = { min: { ...b.min }, max: { ...b.max } };
+      out.min[u] = -reach; out.max[u] = reach; out.min[v] = -reach; out.max[v] = reach;
+      return out;
+    };
+    return warpSolid(sub, warp, boundsFn);
+  }
+  const sp = vec(spec.spacing);
+  const n = vec(spec.count);
+  const half = { x: (n.x - 1) / 2, y: (n.y - 1) / 2, z: (n.z - 1) / 2 };
+  // instance centres sit at (i − (n−1)/2)·s: integer multiples for odd n, half-multiples for even
+  const rep = (val, s, h, off) => (h > 0 && s > 0 ? val - s * Math.max(-h, Math.min(h, Math.round(val / s + off) - off)) : val);
+  const off = { x: n.x % 2 === 0 ? 0.5 : 0, y: n.y % 2 === 0 ? 0.5 : 0, z: n.z % 2 === 0 ? 0.5 : 0 };
+  const warp = (p) => ({ x: rep(p.x, sp.x, half.x, off.x), y: rep(p.y, sp.y, half.y, off.y), z: rep(p.z, sp.z, half.z, off.z) });
+  const boundsFn = (b) => ({
+    min: { x: b.min.x - half.x * sp.x, y: b.min.y - half.y * sp.y, z: b.min.z - half.z * sp.z },
+    max: { x: b.max.x + half.x * sp.x, y: b.max.y + half.y * sp.y, z: b.max.z + half.z * sp.z },
+  });
+  return warpSolid(sub, warp, boundsFn);
+}
+
+// perpendicular reach of a box about an axis line through the origin
+const radialReach = (b, ai) => { const [u, v] = perpAxes(ai); return Math.max(...cornersOf(b).map((c) => Math.hypot(c[u], c[v]))); };
+const radialBounds = (b, ai, r) => { const [u, v] = perpAxes(ai); const out = { min: { ...b.min }, max: { ...b.max } }; out.min[u] = -r; out.max[u] = r; out.min[v] = -r; out.max[v] = r; return out; };
+
+/** `{ axis?, turns }` — `turns` full rotations across the solid's extent along `axis` (about the axis line through the origin). */
+export function twistSolid(sub, { axis, turns }) {
+  const ai = axisIndex(axis);
+  const a = AXES[ai];
+  const [u, v] = perpAxes(ai);
+  const lo = sub.bounds.min[a], L = Math.max(sub.bounds.max[a] - lo, 1e-9);
+  const rate = (turns * Math.PI * 2) / L;
+  const warp = (p) => {
+    const ang = -rate * (p[a] - lo);
+    const c = Math.cos(ang), s = Math.sin(ang);
+    const q = { ...p };
+    q[u] = p[u] * c - p[v] * s;
+    q[v] = p[u] * s + p[v] * c;
+    return q;
+  };
+  return warpSolid(sub, warp, (b) => radialBounds(b, ai, radialReach(b, ai)));
+}
+
+/** `{ axis?, radius }` — bend the solid along `axis` into an arc of `radius`, curving toward the next axis (x→y, y→z, z→x). */
+export function bendSolid(sub, { axis, radius }) {
+  const ai = axisIndex(axis);
+  const a = AXES[ai], up = AXES[(ai + 1) % 3];
+  const k = 1 / radius;
+  const warp = (p) => {
+    const ang = k * p[a];
+    const c = Math.cos(ang), s = Math.sin(ang);
+    const q = { ...p };
+    q[a] = c * p[a] - s * p[up];
+    q[up] = s * p[a] + c * p[up];
+    return q;
+  };
+  const boundsFn = (b) => {
+    const reach = Math.max(...cornersOf(b).map((c) => Math.hypot(c[a], c[up])));
+    const out = { min: { ...b.min }, max: { ...b.max } };
+    out.min[a] = Math.min(out.min[a], -reach); out.max[a] = Math.max(out.max[a], reach);
+    out.min[up] = Math.min(out.min[up], -reach); out.max[up] = Math.max(out.max[up], reach);
+    return out;
+  };
+  return warpSolid(sub, warp, boundsFn);
+}
+
+/** `{ axis?, from, to }` — scale the cross-section linearly from `from` at the solid's low end along `axis` to `to` at its high end. */
+export function taperSolid(sub, { axis, from, to }) {
+  const ai = axisIndex(axis);
+  const a = AXES[ai];
+  const [u, v] = perpAxes(ai);
+  const lo = sub.bounds.min[a], L = Math.max(sub.bounds.max[a] - lo, 1e-9);
+  const sAt = (val) => { const t = Math.max(0, Math.min(1, (val - lo) / L)); return from + (to - from) * t; };
+  const wrap = (t) => term((p) => { const sc = Math.max(sAt(p[a]), 1e-6); const q = { ...p }; q[u] = p[u] / sc; q[v] = p[v] / sc; return t.d(q) * Math.min(sc, 1); }, radialBounds(t.bounds, ai, radialReach(t.bounds, ai) * Math.max(from, to)));
+  return { ...wrap(sub), parts: (sub.parts || []).map((pt) => ({ ...pt, term: wrap(pt.term) })) };
+}
+
+/** `{ by:[ex,ey,ez] }` — stretch the solid's core by inserting a flat span of these half-lengths about the origin (iq's elongate). Exact. */
+export function elongateSolid(sub, { by }) {
+  const h = vec(by);
+  const warp = (p) => ({ x: p.x - Math.max(-h.x, Math.min(h.x, p.x)), y: p.y - Math.max(-h.y, Math.min(h.y, p.y)), z: p.z - Math.max(-h.z, Math.min(h.z, p.z)) });
+  return warpSolid(sub, warp, (b) => ({ min: { x: b.min.x - h.x, y: b.min.y - h.y, z: b.min.z - h.z }, max: { x: b.max.x + h.x, y: b.max.y + h.y, z: b.max.z + h.z } }));
+}
+
+export const FIELD_DOMAIN_OPS = Object.freeze(['transform', 'repeat', 'twist', 'bend', 'taper', 'elongate']);
+const DOMAIN_OP_FN = { transform: transformSolid, repeat: repeatSolid, twist: twistSolid, bend: bendSolid, taper: taperSolid, elongate: elongateSolid };
+const COMBINES = ['add', 'subtract', 'intersect'];
+
+export const FIELD_SHAPE_KINDS = Object.freeze(['sphere', 'ellipsoid', 'roundCone', 'box', 'capsule', 'lathe', 'extrude', 'sweep', 'expr']);
+export const FIELD_OPS = Object.freeze(['add', 'subtract', 'intersect', 'stroke', 'displace', 'shell', 'round', ...FIELD_DOMAIN_OPS]);
 
 /** Build a primitive term from a recipe `shape` (`{ kind, …params }`). Throws on an unknown kind. */
 export function shapeFromSpec(shape) {
@@ -302,6 +490,7 @@ export function shapeFromSpec(shape) {
     case 'lathe': return latheField(shape);
     case 'extrude': return extrudeField(shape);
     case 'sweep': return sweepField(shape);
+    case 'expr': return exprField(shape);
     default: throw new Error(`field shape kind must be one of ${FIELD_SHAPE_KINDS.join(' | ')}`);
   }
 }
@@ -339,8 +528,37 @@ function validateShape(shape, at) {
       if (shape.harmonics !== undefined && (!Array.isArray(shape.harmonics) || !shape.harmonics.every((h) => h && Number.isInteger(h.n) && h.n > 0 && Number.isFinite(h.amplitude) && (h.phase === undefined || Number.isFinite(h.phase))))) e.push(`${at}.harmonics: must be an array of { n:int>0, amplitude, phase? }`);
       break;
     }
+    case 'expr': e.push(...validateExprShape(shape, at)); break;
     default: break;
   }
+  return e;
+}
+
+// The expr gate: parse (teaching errors with a caret), vars, bounds, then SAMPLE — a 9³
+// lattice plus the corners must be finite and carry both signs, else there is no surface
+// inside bounds. Fails at mint instead of as an empty or exploded mesh.
+function validateExprShape(shape, at) {
+  const e = [];
+  if (typeof shape.d !== 'string' || !shape.d.trim()) { e.push(`${at}.d: must be a non-empty expression string over x y z (grammar on the workbench card)`); return e; }
+  e.push(...validateExprVars(shape.vars, `${at}.vars`));
+  const hasBounds = shape.bounds && typeof shape.bounds === 'object' && isVecLike(shape.bounds.min) && isVecLike(shape.bounds.max);
+  const hasReach = pos(shape.reach);
+  if (!hasBounds && !hasReach) e.push(`${at}.bounds: required — { min:[x,y,z], max:[x,y,z] } (or \`reach: r\`, a cube of half-size r about the origin). An expression's zero set cannot be bounded automatically; bounds are where it is clipped.`);
+  else if (hasBounds) {
+    const b = exprBounds(shape);
+    for (const k of ['x', 'y', 'z']) if (!(b.max[k] - b.min[k] > 0)) e.push(`${at}.bounds: max.${k} must exceed min.${k}`);
+  }
+  if (e.length) return e;
+  let raw;
+  try {
+    raw = compileFieldExpr(parseFieldExpr(shape.d), shape.vars || {}, shape.d);
+  } catch (err) {
+    e.push(`${at}.d: ${err instanceof FieldExprError ? err.message : err.message}`);
+    return e;
+  }
+  const gate = sampleExprGate(raw, exprBounds(shape));
+  if (!gate.finite) e.push(`${at}.d: evaluates to NaN or ±Infinity inside bounds — check for a division by zero, sqrt/log of a negative, or an unbounded pow`);
+  else if (!gate.negatives || !gate.positives) e.push(`${at}.d: no surface inside bounds — the expression is all ${gate.negatives ? 'inside (negative)' : 'outside (positive)'} on a 9³ sample; widen \`bounds\` or check the sign convention (negative inside, positive outside)`);
   return e;
 }
 
@@ -356,7 +574,7 @@ export function validateFieldTerms(terms, at = 'terms') {
     const here = `${at}[${i}]`;
     if (!t || typeof t !== 'object') { errors.push(`${here}: must be an object { op, … }`); return; }
     if (!FIELD_OPS.includes(t.op)) { errors.push(`${here}.op: must be one of ${FIELD_OPS.join(' | ')}`); return; }
-    if (i === 0 && t.op !== 'add') errors.push(`${here}.op: the first term must be 'add' (there is nothing to cut or sculpt yet)`);
+    if (i === 0 && t.op !== 'add' && !(FIELD_DOMAIN_OPS.includes(t.op) && Array.isArray(t.terms))) errors.push(`${here}.op: the first term must be 'add' (there is nothing to cut or sculpt yet) — or a domain op with a nested \`terms\` list`);
     if (t.id !== undefined && (typeof t.id !== 'string' || !t.id)) errors.push(`${here}.id: must be a non-empty string when provided`);
     switch (t.op) {
       case 'add': case 'subtract': case 'intersect':
@@ -381,10 +599,64 @@ export function validateFieldTerms(terms, at = 'terms') {
       }
       case 'shell': if (!pos(t.thickness)) errors.push(`${here}.thickness: must be a positive number`); break;
       case 'round': if (!pos(t.radius)) errors.push(`${here}.radius: must be a positive number`); break;
-      default: break;
+      default:
+        if (FIELD_DOMAIN_OPS.includes(t.op)) errors.push(...validateDomainOp(t, here));
+        break;
     }
   });
   return errors;
+}
+
+function validateDomainOp(t, here) {
+  const e = [];
+  if (t.terms !== undefined) {
+    e.push(...validateFieldTerms(t.terms, `${here}.terms`));
+    if (t.combine !== undefined && !COMBINES.includes(t.combine)) e.push(`${here}.combine: must be one of ${COMBINES.join(' | ')} (how the warped sub-solid joins what came before; default add)`);
+    if (t.blend !== undefined && !(Number.isFinite(t.blend) && t.blend >= 0)) e.push(`${here}.blend: must be a non-negative number when provided`);
+  } else if (t.combine !== undefined || t.blend !== undefined) {
+    e.push(`${here}: \`combine\` / \`blend\` only apply with a nested \`terms\` list (without one the op warps the whole solid so far)`);
+  }
+  const axisOk = (a) => a === undefined || AXES.includes(a);
+  switch (t.op) {
+    case 'transform':
+      if (t.translate !== undefined && !isVecLike(t.translate)) e.push(`${here}.translate: must be [x,y,z]`);
+      if (t.rotate !== undefined && !isVecLike(t.rotate)) e.push(`${here}.rotate: must be [rx,ry,rz] in degrees`);
+      if (t.scale !== undefined && !(pos(t.scale) || (isVecLike(t.scale) && Object.values(vec(t.scale)).every(pos)))) e.push(`${here}.scale: must be a positive number or [sx,sy,sz]`);
+      if (t.mirror !== undefined && !AXES.includes(t.mirror)) e.push(`${here}.mirror: must be 'x' | 'y' | 'z'`);
+      if (t.translate === undefined && t.rotate === undefined && t.scale === undefined && t.mirror === undefined) e.push(`${here}: give at least one of translate / rotate / scale / mirror`);
+      break;
+    case 'repeat':
+      if (t.polar !== undefined) {
+        if (!t.polar || typeof t.polar !== 'object' || !Number.isInteger(t.polar.count) || t.polar.count < 2) e.push(`${here}.polar: must be { axis?, count:int≥2, radius? }`);
+        else {
+          if (!axisOk(t.polar.axis)) e.push(`${here}.polar.axis: must be 'x' | 'y' | 'z'`);
+          if (t.polar.radius !== undefined && !(Number.isFinite(t.polar.radius) && t.polar.radius >= 0)) e.push(`${here}.polar.radius: must be a non-negative number`);
+        }
+      } else {
+        const cnt = isVecLike(t.count) ? vec(t.count) : null;
+        if (!cnt || !Object.values(cnt).every((n) => Number.isInteger(n) && n >= 1)) e.push(`${here}.count: must be [nx,ny,nz] integers ≥ 1 (or give \`polar\`)`);
+        if (!isVecLike(t.spacing) || !Object.values(vec(t.spacing)).every((v) => Number.isFinite(v) && v >= 0)) e.push(`${here}.spacing: must be [sx,sy,sz] ≥ 0`);
+        if (cnt && Object.values(cnt).every((n) => n === 1)) e.push(`${here}.count: every count is 1 — nothing to repeat`);
+      }
+      break;
+    case 'twist':
+      if (!axisOk(t.axis)) e.push(`${here}.axis: must be 'x' | 'y' | 'z'`);
+      if (!Number.isFinite(t.turns) || t.turns === 0) e.push(`${here}.turns: must be a non-zero number (full rotations across the solid's length)`);
+      break;
+    case 'bend':
+      if (!axisOk(t.axis)) e.push(`${here}.axis: must be 'x' | 'y' | 'z'`);
+      if (!pos(t.radius)) e.push(`${here}.radius: must be a positive number (the bend radius)`);
+      break;
+    case 'taper':
+      if (!axisOk(t.axis)) e.push(`${here}.axis: must be 'x' | 'y' | 'z'`);
+      if (!pos(t.from) || !pos(t.to)) e.push(`${here}.from/.to: must be positive scale factors`);
+      break;
+    case 'elongate':
+      if (!isVecLike(t.by) || !Object.values(vec(t.by)).every((v) => Number.isFinite(v) && v >= 0)) e.push(`${here}.by: must be [ex,ey,ez] half-lengths ≥ 0`);
+      break;
+    default: break;
+  }
+  return e;
 }
 
 /**
@@ -422,7 +694,27 @@ export function composeFieldTerms(terms) {
       case 'displace': acc = displace(acc, t); break;
       case 'shell': acc = shell(acc, t.thickness); break;
       case 'round': acc = round(acc, t.radius); break;
-      default: break;
+      default: {
+        const fn = DOMAIN_OP_FN[t.op];
+        if (!fn) break;
+        if (Array.isArray(t.terms)) {
+          // a warped SUB-solid, combined in; its parts (warped) join the outer list
+          const sub = fn(composeFieldTerms(t.terms), t);
+          parts.push(...sub.parts);
+          const s = term(sub.d, sub.bounds);
+          const how = t.combine || 'add';
+          if (acc === null) acc = s;
+          else if (how === 'add') acc = t.blend > 0 ? smoothUnion(acc, s, t.blend) : union(acc, s);
+          else if (how === 'subtract') acc = t.blend > 0 ? smoothSubtract(acc, s, t.blend) : subtract(acc, s);
+          else acc = t.blend > 0 ? smoothIntersect(acc, s, t.blend) : intersect(acc, s);
+        } else {
+          // warp everything so far — parts move with it
+          const w = fn({ d: acc.d, bounds: acc.bounds, parts }, t);
+          acc = term(w.d, w.bounds);
+          parts.splice(0, parts.length, ...w.parts);
+        }
+        break;
+      }
     }
   });
   return { d: acc.d, bounds: acc.bounds, parts };

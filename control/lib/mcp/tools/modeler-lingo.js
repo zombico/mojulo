@@ -273,6 +273,42 @@ const LEXICON = [
     ceiling: 'By default the print file is honest shells (the closure audit names open rims); `union: true` runs a Manifold CSG union so the parts arrive as ONE solid with a measured volume (optional dependency — absent, it ships plain and says why). STL is shape only (colour/groups dropped); 3MF keeps the baked colours as basematerials.',
     dcc: "Import into your slicer (PrusaSlicer/Bambu/Orca/Cura) — 3MF arrives at true millimetres; with `union: true` it is one body already, otherwise let the slicer merge the shells. Orient, hollow, and add supports there. For STL, set `scale` at export so the print lands at real millimetres.",
   },
+  {
+    id: 'sdf-expression',
+    terms: ['gyroid', 'tpms', 'triply periodic', 'lattice', 'infill', 'lattice infill', 'schwarz', 'signed distance', 'sdf', 'distance field', 'implicit surface', 'shader shape', 'math shape', 'procedural surface', 'wavy surface', 'ripple'],
+    concept: 'A shape written as MATH — a signed-distance expression over x y z (a gyroid, a lattice, a wavy plate, a twisted box) rather than picked from a primitive list.',
+    support: NATIVE,
+    routes: [
+      { tool: 'mint_solid', when: "the workbench `fields` monomer's `expr` shape: `{ kind:'expr', d:'<expression over x y z>', vars?, bounds }` — a GLSL-like infix expression with a whitelist of pure functions (abs min max sqrt sin cos mod clamp mix smoothstep smin smax len3 noise3 …), `vars` as the dials `update_sketch` turns, `bounds` REQUIRED (it clips). Use it under add / subtract / intersect like any shape; grammar and five idioms are on the workbench card.", args: { kind: 'workbench', spec: { fields: [{ cells: 64, terms: [{ id: 'block', op: 'add', shape: { kind: 'box', center: [0, 0, 1], size: [2, 2, 2] } }, { id: 'gyroid', op: 'intersect', shape: { kind: 'expr', d: 'let g = sin(x*k)*cos(y*k) + sin(y*k)*cos(z*k) + sin(z*k)*cos(x*k); abs(g) / k - t', vars: { k: 6.2832, t: 0.12 }, reach: 2 } }] }] } } },
+    ],
+    then: [EXPORT],
+    ceiling: 'An expression is a FIELD with the right sign; it is an exact distance only if you wrote one, so `round` / `shell` / `blend` over it are approximate by the same amount. Edges round to a grid cell like every field solid. No loops, no strings, no user functions — a shape that needs a program is the `code` kind.',
+    dcc: 'For a shader-driven displacement or a texture-driven lattice at art fidelity, export the base and do it in Blender (Geometry Nodes / a displacement modifier).',
+  },
+  {
+    id: 'array-pattern',
+    terms: ['array', 'array modifier', 'radial array', 'circular array', 'polar array', 'linear array', 'pattern', 'bolt circle', 'bolt pattern', 'hole pattern', 'grille', 'grid of holes', 'colonnade', 'instances', 'repeat', 'mirror modifier', 'symmetry', 'twist', 'bend', 'taper', 'deform', 'simple deform', 'lattice deform'],
+    concept: 'Repeating or deforming a piece of geometry — a linear/radial array of a feature, a mirror, a twist / bend / taper of a whole part.',
+    support: NATIVE,
+    routes: [
+      { tool: 'mint_solid', when: "the `fields` monomer's DOMAIN ops, applied to a nested `terms` sub-solid and combined in: `repeat { polar:{ count, radius } }` or `repeat { spacing, count }` (a COUNTED array — the bolt circle is ONE bore repeated; every instance keeps the bore's `group`), `transform { translate, rotate, scale, mirror }`, `twist { axis, turns }`, `bend { axis, radius }`, `taper { axis, from, to }`, `elongate { by }`. Without a nested list an op warps the whole solid so far.", args: { kind: 'workbench', spec: { units: 'cm', fields: [{ cells: 96, terms: [{ id: 'disc', op: 'add', shape: { kind: 'lathe', axisFrom: [0, 0, 0], axisTo: [0, 0, 1.2], profile: [{ t: 0, radius: 6 }, { t: 1, radius: 6 }] } }, { op: 'repeat', polar: { count: 6, radius: 4.5 }, combine: 'subtract', terms: [{ id: 'bolt', op: 'add', shape: { kind: 'capsule', a: [0, 0, -1], b: [0, 0, 3], radius: 0.45 } }] }] }] } } },
+    ],
+    then: [EXPORT],
+    ceiling: 'Arrays are bounded (a count, not an infinite tile) and warps act about the origin / the axis through it — author the piece there, then `transform` it into place. After a twist / bend / taper the field is a bound, not an exact distance (raise `cells` or `round` less). Many DIFFERENT instances from a parts table is the `code` kind.',
+    dcc: 'Instance-level variation, scattering over a surface, or an array following a curve: export and use Blender Geometry Nodes.',
+  },
+  {
+    id: 'procedural-part',
+    terms: ['script it', 'script', 'procedural', 'procedural part', 'procedural modeling', 'generate n parts', 'generate parts', 'parts table', 'parametric', 'parametric part', 'houdini', 'geometry nodes', 'openscad', 'code', 'program', 'python script', 'bpy script', 'for loop', 'many parts', 'kitbash generator'],
+    concept: 'A part described by a PROGRAM — a loop over a parts table, a parametric family, geometry that is easier to compute than to list.',
+    support: NATIVE,
+    routes: [
+      { tool: 'mint_solid', when: "the `code` kind: `spec.source` is the body of a function (params, ctx) that RETURNS a workbench spec (monomer arrays / an `assembly`) or a face list. It runs in a realm with no host reach (no fs / network / clock; Math.random is seeded by `seed`), `console.log` comes back on the result, `params` are the dials update_sketch turns, `budgetMs` is the one limit. Realm API + three worked programs: get_solid_vocab({ id: 'code' }).", args: { kind: 'code', spec: { units: 'mm', params: { n: 6, r: 40, pcd: 30, hole: 3, t: 6 }, source: "const bores = Array.from({ length: params.n }, (_, i) => { const a = i / params.n * Math.PI * 2; return { id: 'bore', op: 'subtract', shape: { kind: 'capsule', a: [params.pcd * Math.cos(a), params.pcd * Math.sin(a), -1], b: [params.pcd * Math.cos(a), params.pcd * Math.sin(a), params.t + 1], radius: params.hole } }; });\nreturn { fields: [{ cells: 96, terms: [{ id: 'disc', op: 'add', shape: { kind: 'lathe', profile: [{ t: 0, radius: params.r }, { t: 1, radius: params.r }], axisFrom: [0, 0, 0], axisTo: [0, 0, params.t] } }, ...bores] }] };" } } },
+    ],
+    then: [EXPORT],
+    ceiling: 'Plain JavaScript over the workbench vocabulary — no bpy, no mesh editing, no host reach. What the program returns still pays every workbench gate (closure audit, honest ledger) and rounds like every field solid. A program is a recipe: same source + params + seed → the same faces forever.',
+    dcc: 'For a script that drives a DCC (modifiers, simulation, render settings) the script belongs in the DCC; mint the part here and hand the .glb / .usd over.',
+  },
 ];
 
 // Normalise + tokenise for matching.

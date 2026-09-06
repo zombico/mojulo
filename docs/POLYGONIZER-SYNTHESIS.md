@@ -647,6 +647,36 @@ primitive — a handed coupling of two opposites about an axis; the
 rotating partition it sweeps is what reads as leaf venation and stem
 nodes.)
 
+## Field solids — expr, domain ops, the code door
+
+The workbench's `fields` monomer (field-solids.plan.md) composes signed-distance TERMS in
+field space and surfaces them once with the surface-net polygonizer. Three additions
+(expressiveness.plan.md, 2026-09) remove the ceiling the term LIST imposed, without
+touching the polygonizer:
+
+- **`expr`** — `{ kind:'expr', d, vars?, bounds | reach }`: a distance expression over
+  `x y z` in a small GLSL-like grammar with a frozen, append-only function whitelist
+  (`field-expr.js`, `EXPR_GRAMMAR_VERSION`). Compiled to a closure tree; `bounds` is a
+  CLIP, so any expression closes by construction; a 9³ sampling gate refuses an
+  expression with no surface inside its bounds at mint. The same AST emits GLSL
+  (`emitFieldExprGlsl`) — the one-table-two-emissions consolidation, arriving as a
+  by-product; `noise3` stays CPU-only until a GLSL twin lands.
+- **Domain operators** — `transform`, `repeat` (counted grid / polar), `twist`, `bend`,
+  `taper`, `elongate`: point warps with conservative bounds, applied to the whole solid so
+  far or to a nested `terms` sub-solid that is then combined in. Parts are warped with the
+  solid, so `group` tags follow geometry. The precedent is structure-manji's `replicate`.
+- **The code door** — `mint_solid kind:'code'`: a program (the body of `(params, ctx)`)
+  that RETURNS a workbench spec or a face list, run in a `node:vm` realm with no host reach
+  and `Math.random = mulberry32(seed)`. The program is a PARAM on a plain `kind:'workbench'`
+  manifest; one expansion seam (`worlds/workbench-program.js`) hands every leg a plain
+  workbench. Toolkit v2 (`ctx.solids`) exposes the term library and the polygonizer to
+  the program. Determinism comes from what the code cannot reach, not from a save-time
+  test.
+
+Invariants carried: recipes not renders (the manifest stores terms, expressions, and
+source — never faces); seeded dice only; absent all three, every existing solid re-renders
+byte-identical; gates advise, never refuse.
+
 ## Where to look for what
 
 ### Code

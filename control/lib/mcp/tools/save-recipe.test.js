@@ -9,7 +9,7 @@ vi.mock('@/lib/db/repositories/embeddings', () => ({ reindexAll: vi.fn(async () 
 
 let tmp, saveRecipeHandler, deriveViewKind, deriveRecipeLane, SketchRepository,
   _resetBookLoader, _resetViewVocabCache, getViewVocabCatalog,
-  _resetBeatsVocabCache, getBeatsVocabCatalog;
+  _resetBeatsVocabCache, getBeatsVocabCatalog, _resetSolidVocabCache, getSolidVocabCatalog;
 
 beforeAll(async () => {
   tmp = mkdtempSync(join(tmpdir(), 'mojulo-save-recipe-'));
@@ -21,9 +21,10 @@ beforeAll(async () => {
   ({ _resetBookLoader } = await import('@/lib/graph/views/recipe-book/loader'));
   ({ _resetViewVocabCache, getViewVocabCatalog } = await import('@/lib/graph/views/view-vocab/loader'));
   ({ _resetBeatsVocabCache, getBeatsVocabCatalog } = await import('@/lib/graph/beats/beats-vocab/loader'));
+  ({ _resetSolidVocabCache, getSolidVocabCatalog } = await import('@/lib/graph/solid-vocab/loader'));
 });
 afterAll(() => { rmSync(tmp, { recursive: true, force: true }); });
-beforeEach(() => { _resetBookLoader(); _resetViewVocabCache(); _resetBeatsVocabCache(); });
+beforeEach(() => { _resetBookLoader(); _resetViewVocabCache(); _resetBeatsVocabCache(); _resetSolidVocabCache(); });
 
 describe('deriveViewKind', () => {
   it('maps <kind>-view manifests, bare-kind manifests, and rejects the rest', () => {
@@ -41,6 +42,9 @@ describe('deriveRecipeLane', () => {
     expect(view).toMatchObject({ entry: 'create_view', kind: 'saturn', chapter: 'science', family: 'science', vocabKind: 'view_vocab', reader: 'get_view_vocab' });
     const beats = deriveRecipeLane('beats-ambient');
     expect(beats).toMatchObject({ entry: 'create_beats', kind: 'beats-ambient', chapter: 'beats', family: null, vocabKind: 'beats_vocab', reader: 'get_beats_vocab' });
+    const solid = deriveRecipeLane('workbench');
+    expect(solid).toMatchObject({ entry: 'mint_solid', kind: 'workbench', chapter: 'solids', family: 'object', vocabKind: 'solid_vocab', reader: 'get_solid_vocab' });
+    expect(deriveRecipeLane('assembler')).toBe(null);   // embeds refs to other sketches — not yet
     expect(deriveRecipeLane('fractal-city')).toBe(null);
   });
 });
@@ -56,7 +60,7 @@ describe('save_recipe handler', () => {
   it('refuses kinds outside the save lanes with the scope message', async () => {
     SketchRepository.create({ title: 'a city', manifest: { kind: 'fractal-city' }, ref: 'city-1' });
     await expect(saveRecipeHandler({ ref: 'city-1', id: 'my-city', when: 'w' }))
-      .rejects.toThrow(/not a keepable recipe kind.*create_view and create_beats/s);
+      .rejects.toThrow(/not a keepable recipe kind.*create_view, create_beats and mint_solid workbench/s);
   });
 
   it('refuses catalog id collisions', async () => {
@@ -134,5 +138,42 @@ describe('save_recipe handler', () => {
     expect(card.when).toMatch(/reading room/);
     expect(card.body).toMatch(/low swell under the narration/);
     expect(getViewVocabCatalog().has('dusk-loop')).toBe(false);
+  });
+
+  it('saves a workbench recipe through the solids lane: spec-as-params, family object, solid catalog', async () => {
+    const fields = [{ terms: [
+      { id: 'disc', op: 'add', shape: { kind: 'lathe', axisFrom: [0, 0, 0], axisTo: [0, 0, 1], profile: [{ t: 0, radius: 3 }, { t: 1, radius: 3 }] } },
+      { id: 'bore', op: 'subtract', shape: { kind: 'sweep', path: [[0, 0, -1], [0, 0, 2]], radius: 0.5 } },
+    ] }];
+    SketchRepository.create({
+      title: 'Bored disc',
+      manifest: { kind: 'workbench', units: 'cm', fields },
+      ref: 'wb-1',
+    });
+    const res = await saveRecipeHandler({
+      ref: 'wb-1', id: 'bored-disc', when: 'the little bored disc I keep for washer tests',
+      notes: 'A sweep bore through a lathe disc.',
+    });
+    expect(res.ok).toBe(true);
+    expect(res.kind).toBe('workbench');
+    expect(res.chapter).toBe('solids');
+    expect(res.recall.get_solid_vocab).toEqual({ id: 'bored-disc' });
+    expect(res.recall.semantic_search.kinds).toEqual(['solid_vocab']);
+
+    const entryDir = join(process.env.MOJULO_COOKBOOK, 'chapters/solids/bored-disc');
+    const recipe = JSON.parse(readFileSync(join(entryDir, 'recipe.json'), 'utf8'));
+    // params ARE the mint_solid `spec` — the manifest minus kind/title
+    expect(recipe).toEqual({ entry: 'mint_solid', kind: 'workbench', params: { units: 'cm', fields }, title: 'Bored disc' });
+    const cardRaw = readFileSync(join(entryDir, 'card.md'), 'utf8');
+    expect(cardRaw).toMatch(/"family": "object"/);
+    expect(cardRaw).toMatch(/"entry": "mint_solid"/);
+    expect(cardRaw).toMatch(/spec: params/);   // the card says params nest under `spec`
+
+    const card = getSolidVocabCatalog().get('bored-disc');
+    expect(card?.source).toBe('cookbook');
+    expect(card.family).toBe('object');
+    expect(card.when).toMatch(/washer tests/);
+    expect(getViewVocabCatalog().has('bored-disc')).toBe(false);
+    expect(getBeatsVocabCatalog().has('bored-disc')).toBe(false);
   });
 });

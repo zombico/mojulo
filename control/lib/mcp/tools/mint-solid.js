@@ -32,7 +32,7 @@ import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
 import { createFigureHandler, emoteFigureHandler } from '@/lib/mcp/tools/figure';
 import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
-import { createWorkbenchHandler } from '@/lib/mcp/tools/workbench';
+import { createWorkbenchHandler, createCodeSolidHandler } from '@/lib/mcp/tools/workbench';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
 import { createCarvedSolidHandler } from '@/lib/mcp/tools/carved-solid';
 import { createSolidTurntableHandler } from '@/lib/mcp/tools/solid-turntable-tool';
@@ -74,6 +74,9 @@ export const SOLID_KINDS = {
     },
   },
   'workbench': { family: 'object', handler: createWorkbenchHandler },
+  // The code door (expressiveness.plan.md E3): a program that RETURNS a workbench spec or a
+  // face list, run in a no-reach realm with seeded dice. Stores kind:'workbench' + `program`.
+  'code': { family: 'object', handler: createCodeSolidHandler },
   'assembler': { family: 'object', handler: createAssemblerHandler },
   'carved-solid': { family: 'object', handler: createCarvedSolidHandler },
   'solid-turntable': { family: 'object', handler: createSolidTurntableHandler },
@@ -203,8 +206,8 @@ export function registerMintSolidTools() {
   registerTool({
     name: 'mint_solid',
     description:
-      'Mint a 3D SOLID — a posed human figure, an ANIMAL (quadruped or biped), a part-graph creature/object, a measured object '
-      + 'study, a composed assembly, a carved metal wordmark/logo, a spinning solid, a '
+      'Mint a 3D SOLID — a posed human figure, an ANIMAL, a part-graph creature/object, a measured object '
+      + 'study, a `code` program returning one, an assembly, a carved metal wordmark/logo, a spinning solid, a '
       + 'bespoke building, or a vehicle-family instance. Served as an SVG still + orbitable World + `.glb`; a tiny deterministic '
       + 'recipe, regenerated on render. Pick `kind` from the enum; per-kind params go '
       + 'in `spec`; `via` picks an authoring door for the manji-tree kind (ir / parts / prompt / '

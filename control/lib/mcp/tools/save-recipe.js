@@ -12,11 +12,13 @@
  * (no remote, ever — sharing is the operator's act).
  *
  * Lanes (recipe-book.plan.md, Phase 4): study-object recipes (create_view
- * kinds — core AND attached-book ones) and beats recipes (create_beats
- * kinds). Both are pure self-contained params over a regenerating kernel.
- * Solids / motion join by the same lane pattern once their extraction story
- * is settled (solid specs ride per-kind authoring doors; motion recipes embed
- * instance-local subject refs — each deserves its own care).
+ * kinds — core AND attached-book ones), beats recipes (create_beats kinds),
+ * and workbench solids (expressiveness.plan.md E4 — `mint_solid` kind
+ * 'workbench': the spec is self-contained params over a regenerating kernel,
+ * exactly like a view; a `program` block (E3) is a param too, so a code
+ * sketch is kept through the same lane unchanged). Assembler / motion join
+ * by the same lane pattern once their extraction story is settled (both embed
+ * instance-local refs to OTHER sketches — each deserves its own care).
  */
 
 import { registerTool } from '@/lib/mcp/server';
@@ -28,8 +30,17 @@ import { saveRecipeEntry } from '@/lib/graph/views/recipe-book/cookbook';
 import { ensureBookLoaded, _resetBookLoader } from '@/lib/graph/views/recipe-book/loader';
 import { getViewVocabCatalog, _resetViewVocabCache } from '@/lib/graph/views/view-vocab/loader';
 import { getBeatsVocabCatalog, _resetBeatsVocabCache } from '@/lib/graph/beats/beats-vocab/loader';
+import { getSolidVocabCatalog, _resetSolidVocabCache } from '@/lib/graph/solid-vocab/loader';
 
 const ID_RE = /^[a-z][a-z0-9-]{1,47}$/;
+
+// The solids lane (E4): manifest.kind → the mint_solid kind + its card family.
+// Only self-contained kinds ride here — a workbench manifest IS the `spec` a
+// re-mint takes (`mint_solid({ kind, spec: params })`). Assembler embeds refs
+// to other sketches, so it waits with motion.
+const SOLID_LANES = Object.freeze({
+  workbench: { kind: 'workbench', family: 'object' },
+});
 
 // manifest.kind → { kind, family }: core kinds store either `<kind>-view`
 // (saturn-view) or the kind itself (dna-process); book kinds carry an explicit
@@ -65,6 +76,14 @@ export function deriveRecipeLane(manifestKind) {
       entry: 'create_view', kind: v.kind, chapter: v.family, family: v.family,
       vocabKind: 'view_vocab', reader: 'get_view_vocab',
       catalog: getViewVocabCatalog, mint: 'study-object mint',
+    };
+  }
+  const s = SOLID_LANES[manifestKind];
+  if (s) {
+    return {
+      entry: 'mint_solid', kind: s.kind, chapter: 'solids', family: s.family,
+      vocabKind: 'solid_vocab', reader: 'get_solid_vocab',
+      catalog: getSolidVocabCatalog, mint: 'solid mint as `{ kind, spec: params }` (params nest under `spec`)',
     };
   }
   return null;
@@ -108,7 +127,7 @@ export async function saveRecipeHandler(input) {
   const lane = deriveRecipeLane(manifest.kind);
   if (!lane) {
     throw new Error(`save_recipe: '${manifest.kind}' is not a keepable recipe kind — save_recipe covers `
-      + 'create_view and create_beats artifacts today (solids / motion join by the same lane pattern)');
+      + 'create_view, create_beats and mint_solid workbench artifacts today (assembler / motion join by the same lane pattern)');
   }
 
   if (lane.catalog().has(id)) {
@@ -133,6 +152,7 @@ export async function saveRecipeHandler(input) {
   _resetBookLoader();
   _resetViewVocabCache();
   _resetBeatsVocabCache();
+  _resetSolidVocabCache();
   await ensureBookLoaded();
   let indexed = false;
   try {
@@ -161,11 +181,11 @@ export function registerSaveRecipeTools() {
     description:
       "KEEP a recipe: promote a minted-and-tuned artifact into the operator's own COOKBOOK — a named, "
       + 'intent-recallable catalog entry (card + params) beside the instance data, ledgered with a local git commit. '
-      + 'The saved entry joins the same catalog as shipped kinds: recall it later via '
-      + "semantic_search over the family's vocab kind or its get_*_vocab reader, and re-mint via the family's entry "
-      + 'tool. Write `when` from the CONVERSATION\'S intent — it is what makes the recipe findable by meaning later. '
-      + 'Reach for "save this / keep this setup / remember this view for my class / keep that loop". Saves '
-      + 'create_view recipes (core and attached-book kinds) and create_beats recipes; solids / motion join later.',
+      + "It joins the same catalog as shipped kinds: recall via semantic_search over the family's vocab kind or its "
+      + "get_*_vocab reader; re-mint via the family's entry tool. Write `when` from the CONVERSATION'S intent — it is "
+      + 'what makes the recipe findable by meaning later. Reach for "save this / keep this setup / remember this view". '
+      + 'Saves create_view recipes (core + book kinds), create_beats recipes, and mint_solid workbench recipes '
+      + '(field / expr / code included); assembler / motion join later.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -41,7 +41,7 @@ describe('mint_solid consolidation', () => {
     const ids = list.cards.map((c) => c.id).sort();
     // one card per mint_solid kind + the two edit ops
     expect(ids).toEqual(
-      ['animal', 'assembler', 'carved-solid', 'edifice', 'emote', 'figure', 'manji-tree', 'skin', 'solid-turntable', 'vehicle', 'workbench'].sort(),
+      ['animal', 'assembler', 'carved-solid', 'code', 'edifice', 'emote', 'figure', 'manji-tree', 'skin', 'solid-turntable', 'vehicle', 'workbench'].sort(),
     );
     const one = await getSolidVocabHandler({ id: 'figure' });
     expect(one.ok).toBe(true);

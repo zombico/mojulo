@@ -161,6 +161,61 @@ fields: [{
 }]
 ```
 
+### Fields — expression terms
+
+When the shape is not on the list, write it as MATH. `{ kind:'expr', d, vars?, bounds | reach }` is a signed-distance EXPRESSION over `x y z`, usable under `add` / `subtract` / `intersect` (with `blend`) exactly like any shape. Anything you can write as a distance is in the vocabulary already.
+
+```
+{ id: 'gyroid', op: 'intersect',
+  shape: { kind: 'expr',
+           d: 'let g = sin(x*k)*cos(y*k) + sin(y*k)*cos(z*k) + sin(z*k)*cos(x*k); abs(g) / k - t',
+           vars: { k: 6.2832, t: 0.1 },
+           bounds: { min: [-1, -1, 0], max: [1, 1, 2] } } }
+```
+
+- `d` — the expression. Negative inside, positive outside, zero on the surface. Grammar (infix, GLSL-like): `let name = expr;` statements then one final expression; `+ - * / %`, unary `-`, parentheses, numbers, `x y z`, the constants `PI TAU E`, your `vars`, and a ternary `cond ? a : b` whose condition is a comparison (`< <= > >= == !=`, joined by `&& || !`). Comparisons are legal ONLY inside a ternary. No strings, no loops, no user functions.
+- Functions (the whole whitelist, append-only): `abs min max sqrt hypot sin cos tan asin acos atan atan2 pow exp log floor ceil fract mod clamp mix sign step smoothstep smin smax len2 len3 noise3`. `smin(a, b, k)` / `smax(a, b, k)` are the fillets. `mod(a, b)` is FLOORED (GLSL's) and `%` is truncated (JS's): they differ for negatives, and domain repetition wants `mod`. `noise3(x, y, z, seed, scale?, octaves?, persistence?)` is seeded value noise: the seed is a literal in the expression, so the same expression is the same field forever.
+- `vars` — named constants exposed as identifiers, so a dial is a number in the recipe (tunable by `update_sketch`), not a string edit. Names cannot shadow `x y z`, a constant, or a function.
+- `bounds` (`{ min:[x,y,z], max:[x,y,z] }`) or `reach: r` (a cube of half-size `r` about the origin) is REQUIRED, and it is a CLIP, not a hint: the term is the expression intersected with its bounds box. An arbitrary expression's zero set cannot be bounded automatically (a plane, a gyroid, a wave go on forever), and the clip is what keeps it closed instead of losing quads where it grazes the grid. Size bounds to the region you want kept.
+- Units are the workbench grid's, like every other term; `translate` on the enclosing `fields` entry moves the whole solid.
+
+The mint gate: the expression is parsed (errors point at the character, with the whitelist) and then SAMPLED on a 9³ lattice over `bounds` plus its corners: every value must be finite and both signs must occur, else "no surface inside bounds" (widen `bounds` or check the sign convention). This is the one place a wrong expression fails at mint instead of as an empty or exploded mesh.
+
+Distance honesty: an expression is a FIELD with the right sign; it is an exact distance only if you wrote one. The polygonizer needs a correct sign and a locally linear zero crossing (the same caveat the harmonic lathe carries); `round` / `shell` / `blend` on a non-distance field are approximate by the same amount. A field whose gradient is far from 1 (a `sin` product has gradient ≈ `k`) also mis-sizes any thickness written in it: divide by the gradient, as the gyroid does. Idioms:
+
+- **A gyroid slab (TPMS infill)** — the expression above under `intersect` with a `box` term: the box is the part, the gyroid is the lattice inside it. `k` = `TAU / period`; the `/ k` turns the raw field (whose gradient is about `k`) into world units, so `t` is the HALF wall thickness. Size `t` to the grid: a wall thinner than about two cells pinches (closed, but with non-manifold edges); at `cells: 64` over a 2-unit slab keep `2t ≥ 0.07`.
+- **A wavy plate** — `d: 'abs(z - a * sin(x * w) * cos(y * w)) - t'`, `vars: { a: 0.3, w: 3, t: 0.15 }`, `bounds` the plate's footprint: a sheet displaced by a wave, thickness `2t`.
+- **A bolt circle by polar `mod`** — `d: 'let a = atan2(y, x); let s = TAU / n; let r = len2(x, y); let q = mod(a + s/2, s) - s/2; len2(r * cos(q) - pcd, r * sin(q)) - hole'`, `vars: { n: 6, pcd: 4.5, hole: 0.45 }`, under `subtract` from the disc with `bounds` spanning the disc's thickness. (The `repeat` op below does the same with a count and keeps the group id; use the expression form when the pattern itself is a formula.)
+- **A twisted box** — `d: 'let a = tw * z; let u = x*cos(a) - y*sin(a); let v = x*sin(a) + y*cos(a); let qx = abs(u) - hx; let qy = abs(v) - hy; let qz = abs(z - hz) - hz; len3(max(qx,0), max(qy,0), max(qz,0)) + min(max(qx, max(qy, qz)), 0)'`, `vars: { tw: 0.8, hx: 0.5, hy: 0.5, hz: 2 }`, `reach: 3`.
+- **A fillet by `smin`** — `d: 'smin(len3(x, y, z - 1) - 1, len2(x, y) - 0.4, 0.3)'`: a sphere on a post, welded with a `0.3` fillet; `bounds` to the post's length.
+
+### Fields — domain operators
+
+Ops, not shapes: they apply to whatever the term list has built so far, or — with a nested `terms` list — to a SUB-SOLID that is then combined in (`combine: 'add' | 'subtract' | 'intersect'`, default `add`, with `blend`). That is how a feature is repeated without repeating the part: the bolt circle is ONE bore, repeated, subtracted. Group ids survive (every instance of the bore is still `bore`, and a `transform` moves the group with the geometry), so `{ group: 'bore' }` still selects every hole. Warps act about the ORIGIN / the axis line through it: author the sub-solid there, then `transform` it into place.
+
+- `{ op:'transform', translate?, rotate?:[rx,ry,rz], scale?: s | [sx,sy,sz], mirror?: 'x'|'y'|'z', terms?, combine?, blend? }` — a rigid move (rotation in degrees, Rz·Ry·Rx like the assembler; applied scale → mirror → rotate → translate). Exact under a uniform scale.
+- `{ op:'repeat', spacing:[sx,sy,sz], count:[nx,ny,nz], terms?, … }` — a COUNTED grid of instances centred on the original (a grille, a hole pattern, a colonnade), bounded, so bounds stay tight. `{ op:'repeat', polar:{ axis?:'z', count, radius? }, terms?, … }` — instances around an axis; `radius` pushes the original out along the first perpendicular axis first (the bolt circle's pitch radius). Exact while instances do not overlap.
+- `{ op:'twist', axis?:'z', turns }` — `turns` full rotations across the solid's extent along `axis`. `{ op:'bend', axis?:'x', radius }` — bend along `axis` into an arc of `radius`, curving toward the next axis (x→y, y→z, z→x). `{ op:'taper', axis?:'z', from, to }` — scale the cross-section linearly from `from` at the low end to `to` at the high end. After a warp the field is a bound with the right sign, not an exact distance: raise `cells` or `round` less.
+- `{ op:'elongate', by:[ex,ey,ez] }` — stretch the core by a flat span of these half-lengths (a sphere becomes a capsule, a torus a stadium ring). Exact.
+- A domain op with a nested `terms` list may open the list (the sub-solid is the first solid).
+
+Worked example — the flange again, six bolts as one repeated bore, a tapered hub:
+
+```
+fields: [{
+  cells: 96,
+  terms: [
+    { id: 'disc', op: 'add', shape: { kind: 'lathe', axisFrom: [0,0,0], axisTo: [0,0,1.2], profile: [{ t: 0, radius: 6 }, { t: 1, radius: 6 }] } },
+    { op: 'taper', axis: 'z', from: 1, to: 0.8, combine: 'add', blend: 0.4,
+      terms: [{ id: 'hub', op: 'add', shape: { kind: 'lathe', axisFrom: [0,0,0], axisTo: [0,0,3], profile: [{ t: 0, radius: 2.4 }, { t: 1, radius: 2.4 }] } }] },
+    { id: 'bore', op: 'subtract', shape: { kind: 'sweep', path: [[0,0,-1],[0,0,4]], radius: 1.2 } },
+    { op: 'repeat', polar: { count: 6, radius: 4.5 }, combine: 'subtract',
+      terms: [{ id: 'bolt', op: 'add', shape: { kind: 'capsule', a: [0,0,-1], b: [0,0,3], radius: 0.45 } }] }
+  ],
+  material: 'steel'
+}]
+```
+
 ## Drapes — hanging cloth
 
 An OPEN two-sided sheet with real folds, sag, and a pin→free billow (the wave-field specialized into cloth) — so cloth is never faked with thin flat extrudes. It drapes over ANY part of the object.
