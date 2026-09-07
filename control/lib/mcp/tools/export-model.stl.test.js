@@ -143,3 +143,82 @@ describe('export_model stl — scale + floor + closure', () => {
     expect(res.closure).toBeUndefined();
   });
 });
+
+// continuous-guardrails.plan.md G3 + G4: declared-feature print advisories travel with every
+// print export (advisory), and `strict: true` is the operator's opt-in hard stop.
+describe('export_model stl — print advisories (G3) and strict (G4)', () => {
+  it('a clean part reports no advisories, in the result, the note, and the README', async () => {
+    SketchRepository.create({ ref: 'sk_adv_clean', title: 'cylinder', manifest: { kind: 'workbench', units: 'cm', lathes: [CYLINDER] } });
+    const res = await exportModelHandler({ ref: 'sk_adv_clean', format: 'stl' });
+    expect(res.ok).toBe(true);
+    expect(res.print_advisories).toEqual([]);
+    expect(res.printer).toEqual({ nozzle_mm: 0.4, layer_mm: 0.2, min_wall_mm: 0.8, bed_mm: [220, 220, 250] });
+    expect(res.note).toContain('Print advisories: none');
+    const readme = readFileSync(path.join(res.dir, 'README.md'), 'utf8');
+    expect(readme).toContain('print advisories (profile: 0.4 mm nozzle, 0.8 mm min wall, 220 × 220 × 250 mm bed): none');
+  });
+
+  it('a declared wall under the floor AT THE RESOLVED SCALE is a thin_wall advisory — the file still ships', async () => {
+    // a 4×3 cm tray with a 0.03 cm (0.3 mm) wall: under the 0.8 mm two-perimeter floor at ×10
+    const TRAY = { profile: { rect: { w: 4, h: 3 } }, axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 2 }, wallThickness: 0.03 };
+    SketchRepository.create({ ref: 'sk_adv_thin', title: 'tray', manifest: { kind: 'workbench', units: 'cm', extrudes: [TRAY] } });
+    const res = await exportModelHandler({ ref: 'sk_adv_thin', format: 'stl' });
+    expect(res.ok).toBe(true); // advisory — the export still ships
+    expect(res.print_advisories.map((r) => r.kind)).toEqual(['thin_wall']);
+    expect(res.print_advisories[0].mm).toBeCloseTo(0.3, 5);
+    expect(res.note).toContain('Print advisories (1): thin_wall');
+    const readme = readFileSync(path.join(res.dir, 'README.md'), 'utf8');
+    expect(readme).toContain('  - thin_wall: extrudes[0].wallThickness prints 0.3 mm thick');
+    // a coarser printer profile words it differently; a finer one clears it
+    const coarse = await exportModelHandler({ ref: 'sk_adv_thin', format: 'stl', write: false, printer: { nozzle_mm: 0.6 } });
+    expect(coarse.print_advisories[0].detail).toContain('1.2 mm two-perimeter floor');
+    const fine = await exportModelHandler({ ref: 'sk_adv_thin', format: 'stl', write: false, printer: { nozzle_mm: 0.1 } });
+    expect(fine.print_advisories).toEqual([]);
+  });
+
+  it('over_bed fires on the exported size; a bigger declared bed clears it', async () => {
+    const res = await exportModelHandler({ ref: 'sk_adv_clean', format: 'stl', write: false, scale: 100 }); // 400 × 400 × 600 mm
+    expect(res.print_advisories.map((r) => r.kind)).toEqual(['over_bed']);
+    expect(res.print_advisories[0].detail).toContain('on x, y, z');
+    const big = await exportModelHandler({ ref: 'sk_adv_clean', format: 'stl', write: false, scale: 100, printer: { bed_mm: [500, 500, 700] } });
+    expect(big.print_advisories).toEqual([]);
+  });
+
+  it('strict refuses an open shell or an advisory and writes NOTHING; the default ships it', async () => {
+    const OPEN_TUBE = { ...CYLINDER, caps: false };
+    SketchRepository.create({ ref: 'sk_strict_open', title: 'tube', manifest: { kind: 'workbench', units: 'cm', lathes: [OPEN_TUBE] } });
+    const lax = await exportModelHandler({ ref: 'sk_strict_open', format: 'stl' });
+    expect(lax.ok).toBe(true);
+    expect(lax.closure.closed).toBe(false);
+    await expect(exportModelHandler({ ref: 'sk_strict_open', format: 'stl', strict: true })).rejects.toThrow(/strict: refusing to write model\.stl .*closure: 2 open rims/);
+    await expect(exportModelHandler({ ref: 'sk_adv_thin', format: 'stl', strict: true })).rejects.toThrow(/thin_wall/);
+    // a clean part passes strict and writes
+    const ok = await exportModelHandler({ ref: 'sk_adv_clean', format: 'stl', strict: true });
+    expect(ok.ok).toBe(true);
+  });
+
+  it('strict and printer are print-format knobs', async () => {
+    await expect(exportModelHandler({ ref: 'sk_adv_clean', format: 'glb', strict: true })).rejects.toThrow(/print formats/);
+    await expect(exportModelHandler({ ref: 'sk_adv_clean', format: 'glb', printer: { nozzle_mm: 0.6 } })).rejects.toThrow(/print formats/);
+    await expect(exportModelHandler({ ref: 'sk_adv_clean', format: 'stl', printer: { nozzle_mm: -1 } })).rejects.toThrow(/nozzle_mm/);
+  });
+});
+
+// continuous-guardrails.plan.md G6: the ledger the mint wrote travels into the export.
+import { createWorkbenchHandler } from './workbench.js';
+describe('export_model stl — the ledger travels (G6)', () => {
+  it('a minted workbench carries its ledger into the result and README; a declared-open lathe reads as lint-closed / audit-open', async () => {
+    await createWorkbenchHandler({ title: 'tube', ref: 'sk_ledger_tube', units: 'cm', lathes: [{ ...CYLINDER, caps: false }] });
+    const res = await exportModelHandler({ ref: 'sk_ledger_tube', format: 'stl' });
+    expect(res.ok).toBe(true);
+    expect(res.ledger).toEqual({ recipe_bytes: expect.any(Number), faces: expect.any(Number), closed: true }); // caps:false is a declared intent the lint excuses
+    expect(res.closure.closed).toBe(false);                                                                     // the whole-object audit does not
+    const readme = readFileSync(path.join(res.dir, 'README.md'), 'utf8');
+    expect(readme).toMatch(/- ledger at last mint\/edit: \d+ faces, recipe \d+ bytes, per-monomer lint closed — the whole-object audit above finds open rims the per-monomer lint excused/);
+  });
+  it('a hand-created manifest (no mint) carries no ledger line', async () => {
+    const res = await exportModelHandler({ ref: 'sk_stl_cyl', format: 'stl' });
+    expect(res.ledger).toBeUndefined();
+    expect(readFileSync(path.join(res.dir, 'README.md'), 'utf8')).not.toContain('ledger at last mint');
+  });
+});

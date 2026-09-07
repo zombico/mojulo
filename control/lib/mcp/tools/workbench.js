@@ -15,7 +15,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
-import { planWorkbench } from '@/lib/graph/worlds/workbench';
+import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
@@ -68,6 +68,9 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
   // For the code kind this is the program's first run: a throw fails the mint with the error AND the
   // captured log (the agent's loop is mint → read → update_sketch).
   const { stats } = planWorkbench(manifest);
+  // G6: the ledger travels with the recipe (recipe bytes, faces, closure) — export_model reads it
+  // back beside the whole-object audit, so "closed at mint, open after an edit" is legible.
+  manifest.ledger = persistedLedger(stats.ledger);
 
   let sketch;
   try {

@@ -317,12 +317,27 @@ export function renderWorkbenchToHtml(opts = {}) {
  * Validate the polygomer recipe + return a stat readout (no geometry persisted). Called by the
  * mint tool so a bad monomer surfaces as a clear 400, and the operator gets a size/face readout.
  */
+/**
+ * persistedLedger(ledger) → the DETERMINISTIC subset of planWorkbench's ledger that is stored on
+ * the manifest as `ledger` at mint and on every update_sketch edit (continuous-guardrails G6):
+ * recipe bytes, faces, per-monomer closure. Timings (wall_ms, program_ms) stay OUT — a stored
+ * manifest hashes into the export README's provenance line, and "same recipe, same bytes" must
+ * hold across two mints of the same recipe.
+ */
+export function persistedLedger(ledger) {
+  if (!ledger) return undefined;
+  return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed };
+}
+
 export function planWorkbench(manifest = {}) {
   const t0 = performance.now();
   // the mint LEDGER (expressiveness.plan.md E5): what the recipe cost to say vs what it made —
   // recipe bytes (the honest proxy for the tokens the agent had to write), kernel wall-clock,
   // faces, closure. "Structure carried, not re-derived" is a number here, not a claim.
-  const recipeBytes = Buffer.byteLength(JSON.stringify(manifest), 'utf8');
+  // G6 (continuous-guardrails.plan.md): the persisted ledger rides the manifest as `ledger`;
+  // measure the RECIPE, not the ledger's own bytes.
+  const { ledger: _priorLedger, ...recipeOnly } = manifest;
+  const recipeBytes = Buffer.byteLength(JSON.stringify(recipeOnly), 'utf8');
   // The code kind: run the program ONCE here (memoised for the renders that follow). A
   // program that throws fails the mint with its error and its captured log — that is the
   // loop working. Its generated monomers then pay every gate below like hand-written ones.

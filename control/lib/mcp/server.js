@@ -426,6 +426,7 @@ export async function ensureToolsRegistered() {
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
+  const { registerMeasureSolidTool } = await import('@/lib/mcp/tools/measure-solid');
   const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
   const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
@@ -604,6 +605,9 @@ export async function ensureToolsRegistered() {
   // SketchRepository unchanged — only the tools/list surface consolidated.
   // See mint-solid-consolidation.plan.md.
   registerMintSolidTools();
+  // measure_solid — read a number back off a solid (cad-aid C1 / continuous-guardrails G2):
+  // export_model's probe, closure audit, scale seam, and Manifold volume, without the file.
+  registerMeasureSolidTool();
   // create_cover — a publication COVER (illustration + title + subtext + metadata
   // composed under one art direction). Sits next to the other illustration mints;
   // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png

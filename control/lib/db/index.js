@@ -656,6 +656,22 @@ function init(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_beats_revisions_ref ON beats_revisions(ref, rev DESC);
 
+    -- Sketch revisions (continuous-guardrails.plan.md G5, cad-aid.plan.md C2):
+    -- the beats_revisions shape for the SOLID kinds. update_sketch archives
+    -- the PREVIOUS manifest before overwriting, so rev 1 is the mint manifest
+    -- (written lazily at the first edit — no mint site changes) and the
+    -- sketches row stays HEAD. note is the revision's commit message.
+    CREATE TABLE IF NOT EXISTS sketch_revisions (
+      id INTEGER PRIMARY KEY,
+      ref TEXT NOT NULL,
+      rev INTEGER NOT NULL,
+      manifest_json TEXT NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(ref, rev)
+    );
+    CREATE INDEX IF NOT EXISTS idx_sketch_revisions_ref ON sketch_revisions(ref, rev DESC);
+
     -- Beats annotations (B9.1): commentary anchored to a beats ref in MUSICAL
     -- terms — the mark-it half of the listen → mark → revise → compare loop.
     -- anchor_json is a small union: { scope:'artifact' } | { scope:'track',

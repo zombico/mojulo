@@ -301,6 +301,7 @@ export function registerSketchTools() {
           description:
             'Optional folder ref to move the sketch into. Pass an empty string or null to move it back to root. Omit to leave the folder unchanged.',
         },
+        note: { type: 'string', description: 'Revision note (solid kinds keep history).' },
         bucket: {
           type: 'string',
           enum: ['diagram', 'illustration'],

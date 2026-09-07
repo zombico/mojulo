@@ -482,6 +482,8 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches',
     'sketch_what_possible', 'create_cover',
     'mint_solid', 'edit_solid', 'get_solid_vocab',
+    // measure_solid (continuous-guardrails.plan.md G2) — the object drawer's read-back sibling
+    'measure_solid',
     'reference_protocol', 'capture_reference',
     'get_image_render_packet', 'bind_character_sheet', 'bind_image_render', 'request_image_render',
     'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',

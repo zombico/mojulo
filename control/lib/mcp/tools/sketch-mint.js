@@ -20,6 +20,8 @@ import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { WORLD_KINDS } from '@/lib/graph/worlds/world-kinds';
+import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
+import { SketchRevisionRepository, REVISIONED_KINDS } from '@/lib/db/repositories/sketch-revisions';
 import {
   validateSketchManifest,
   expandGridLayout,
@@ -406,9 +408,12 @@ export async function updateSketchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('update_sketch requires { ref, title?, manifest?, folder_ref? }');
   }
-  const { ref, title, manifest, folder_ref: folderRef, bucket } = input;
+  const { ref, title, manifest, folder_ref: folderRef, bucket, note } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
+  }
+  if (note !== undefined && (typeof note !== 'string' || !note.trim())) {
+    throw new Error('`note` must be a non-empty string if provided');
   }
   if (title === undefined && manifest === undefined && folderRef === undefined && bucket === undefined) {
     throw new Error('At least one of `title`, `manifest`, `folder_ref`, or `bucket` must be provided');
@@ -453,6 +458,7 @@ export async function updateSketchHandler(input) {
 
   let nextManifest;
   let gameNote;
+  let workbenchStats = null;
   if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
@@ -524,12 +530,25 @@ export async function updateSketchHandler(input) {
     // so an update can't store a world whose /world link then fails. floorplan/
     // restaurant stay on the diagram path: validateSketchManifest kind-dispatches
     // them and improveFloorplanManifest is their established update grader.
+    // continuous-guardrails.plan.md G1: the workbench kind (including the code door, which
+    // stores kind:'workbench' + program) pays the SAME gates on an edit it paid at mint — the
+    // monomer validators, the material whitelist, the closure lint (advisory, rides
+    // stats.warnings), the ledger. Before this the checks ran once: the edit path only asked
+    // "does it lower", so a bad material or a malformed spec slipped through on iteration.
+    if (manifest.kind === 'workbench') {
+      try {
+        workbenchStats = planWorkbench(manifest).stats;
+      } catch (err) {
+        throw new Error(`Invalid world manifest (kind 'workbench'): ${err.message}`);
+      }
+    }
     try {
       await resolveWorldScene({ ref, title: title ?? existingSketch?.title ?? 'world', manifest });
     } catch (err) {
       throw new Error(`Invalid world manifest (kind '${manifest.kind}'): ${err.message}`);
     }
-    nextManifest = manifest;
+    // G6: the ledger travels — re-stamped on every edit from THIS plan, never copied forward.
+    nextManifest = workbenchStats ? { ...manifest, ledger: persistedLedger(workbenchStats.ledger) } : manifest;
   } else if (manifest !== undefined) {
     let expanded;
     try {
@@ -554,6 +573,14 @@ export async function updateSketchHandler(input) {
     nextManifest = finalized;
   }
 
+  // G5 (cad-aid C2): the solid kinds keep a revision history. The PREVIOUS manifest is archived
+  // before the overwrite — rev 1 is the mint manifest, written lazily at the first edit (no mint
+  // site changes); the sketches row stays HEAD, the beats posture verbatim.
+  let revision = null;
+  if (nextManifest !== undefined && existingSketch?.manifest && REVISIONED_KINDS.has(existingSketch.manifest.kind)) {
+    const archived = SketchRevisionRepository.append({ ref, manifest: existingSketch.manifest, note: note ?? null });
+    revision = { archived_rev: archived.rev, head_rev: archived.rev + 1 };
+  }
   const updated = SketchRepository.update({
     ref,
     title: title !== undefined ? title.trim() : undefined,
@@ -575,5 +602,7 @@ export async function updateSketchHandler(input) {
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
     ...(gameNote ? { note: gameNote } : {}),
+    ...(workbenchStats ? { stats: workbenchStats } : {}),
+    ...(revision ? { revision } : {}),
   };
 }

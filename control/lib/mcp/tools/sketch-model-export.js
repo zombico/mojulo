@@ -27,6 +27,7 @@ import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
 import { glbNodeInventory, compareReturnContract } from '@/lib/graph/scene/blender-gate';
 import { existsSync } from 'node:fs';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
+import { printAdvisories, advisoryLines, resolvePrinter } from '@/lib/graph/scene/print-advisory';
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
@@ -103,7 +104,7 @@ const DEFAULT_TARGET_MM = 120;
 // each repeat template (holes in a template repeat once per instance). The
 // mint-time lint (workbench.js) checks monomers one at a time and its verdict
 // evaporates; this one travels with the artifact, in the result and README.
-function auditStlClosure(payload) {
+export function auditStlClosure(payload) {
   const base = (Array.isArray(payload.faces) ? payload.faces : []).filter(isPrintableFace);
   let holes = [];
   let boundaryEdges = 0;
@@ -160,6 +161,11 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
             : `${print.closure.holes} open rim${print.closure.holes === 1 ? '' : 's'}, widest ≈${print.closure.widest}${print.units ? ` ${print.units}` : ' world units'} — the slicer's mesh repair must union these`)
           : `not audited (${print.closure.reason})`}`,
         '- the audit is advisory: intersecting shells still ship and slicers union them on import.',
+        ...(print.ledger
+          ? [`- ledger at last mint/edit: ${print.ledger.faces} faces, recipe ${print.ledger.recipe_bytes} bytes, per-monomer lint ${print.ledger.closed ? 'closed' : 'open'}${print.ledger.closed && print.closure.audited && !print.closure.closed ? ' — the whole-object audit above finds open rims the per-monomer lint excused (a declared-open monomer: caps:false / openFace, or an overlap seam)' : ''}`]
+          : []),
+        ...advisoryLines(print.advisories, print.printer).map((l, i) => (i === 0 ? `- ${l}` : l)),
+        '- advisories are declared-feature arithmetic (walls, tube and neck diameters the recipe states) against the printer profile — the slicer measures the rest.',
       ]
       : []),
     '',
@@ -180,11 +186,54 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '',
   ].join('\n');
 }
+/**
+ * resolvePrintScale({ payload, profile, units, scaleInput, targetMm }) → { scale, scaleNote } —
+ * the world-units → mm dial, ONE answer shared by export_model and measure_solid
+ * (continuous-guardrails.plan.md G2: the number the agent reads is the number the print would
+ * be). Precedence: explicit `scale` > `target_mm` fit > the profile default (literal: `units`
+ * derivation — true scale is structural, not agent arithmetic; everything else: fit to
+ * DEFAULT_TARGET_MM, because a city or a galaxy has no true millimetre and deriving from a stray
+ * `units` label would print a building at building scale).
+ */
+export function resolvePrintScale({ payload, profile, units, scaleInput = null, targetMm = null } = {}) {
+  let scale = 1;
+  let scaleNote = 'default 1 — coordinates read as millimetres';
+  if (payload) {
+    const fitTo = (target, why) => {
+      const probe = facesToStl(payload, { scale: 1 });
+      const longest = probe ? Math.max(...probe.bounds.size) : 0;
+      if (longest > 0) {
+        scale = target / longest;
+        scaleNote = `${why}: longest dimension ${Math.round(longest * 10) / 10} world units fit to ${target}mm (×${Math.round(scale * 1000) / 1000})`;
+      }
+    };
+    if (scaleInput != null) {
+      scale = scaleInput;
+      scaleNote = `explicit \`scale\` ${scaleInput}`;
+    } else if (targetMm != null) {
+      fitTo(targetMm, 'fit to `target_mm`');
+    } else if (profile === 'literal') {
+      const derived = deriveStlScale(units);
+      if (derived != null) {
+        scale = derived;
+        scaleNote = `derived from the manifest's units:'${units}' (1 ${units} = ${derived}mm)`;
+      } else if (units) {
+        scaleNote = `units:'${units}' has no known mm mapping — pass \`scale\` for a true-scale print`;
+      } else {
+        scaleNote = 'no units declared on the manifest — declare `units` or pass `scale` for a true-scale print';
+      }
+    } else {
+      fitTo(DEFAULT_TARGET_MM, `${profile} default (pass \`target_mm\` or \`scale\` to choose)`);
+    }
+  }
+  return { scale, scaleNote };
+}
+
 export async function exportModelHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
@@ -232,6 +281,12 @@ export async function exportModelHandler(input) {
   // overlapping shells the slicer must repair. Opt-in; absent the package it reports and ships plain.
   if (union !== false && union !== true) throw new Error('`union` must be a boolean if provided');
   if (union && !isPrint) throw new Error("`union: true` applies to the print formats ('stl' | '3mf') only");
+  // continuous-guardrails.plan.md G3/G4: the printer profile words the advisories; `strict` is
+  // the operator ASKING for a hard stop (opt-in — the default stays advisory, cad-aid doctrine).
+  if (strict !== false && strict !== true) throw new Error('`strict` must be a boolean if provided');
+  if (strict && !isPrint) throw new Error("`strict: true` applies to the print formats ('stl' | '3mf') only");
+  const printer = resolvePrinter(printerInput);
+  if (printerInput != null && !isPrint) throw new Error("`printer` applies to the print formats ('stl' | '3mf') only");
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) {
     throw new Error(`No sketch exists at ref '${ref}'`);
@@ -259,43 +314,12 @@ export async function exportModelHandler(input) {
     }
   }
 
-  // Scale strategy by print profile. Precedence: explicit `scale` > `target_mm`
-  // fit > the profile default (literal: `units` derivation — true scale is
-  // structural, not agent arithmetic; everything else: fit to DEFAULT_TARGET_MM,
-  // because a city or a galaxy has no true millimetre and deriving from a stray
-  // `units` label would print a building at building scale).
+  // Scale strategy by print profile — see resolvePrintScale (shared with measure_solid).
   const profile = printProfileFor(kind ?? sketch.manifest.kind);
   const units = typeof sketch.manifest.units === 'string' ? sketch.manifest.units : null;
   let scale = 1;
   let scaleNote = 'default 1 — coordinates read as millimetres';
-  if (isPrint && payload) {
-    const fitTo = (target, why) => {
-      const probe = facesToStl(payload, { scale: 1 });
-      const longest = probe ? Math.max(...probe.bounds.size) : 0;
-      if (longest > 0) {
-        scale = target / longest;
-        scaleNote = `${why}: longest dimension ${Math.round(longest * 10) / 10} world units fit to ${target}mm (×${Math.round(scale * 1000) / 1000})`;
-      }
-    };
-    if (scaleInput != null) {
-      scale = scaleInput;
-      scaleNote = `explicit \`scale\` ${scaleInput}`;
-    } else if (targetMm != null) {
-      fitTo(targetMm, 'fit to `target_mm`');
-    } else if (profile === 'literal') {
-      const derived = deriveStlScale(units);
-      if (derived != null) {
-        scale = derived;
-        scaleNote = `derived from the manifest's units:'${units}' (1 ${units} = ${derived}mm)`;
-      } else if (units) {
-        scaleNote = `units:'${units}' has no known mm mapping — pass \`scale\` for a true-scale print`;
-      } else {
-        scaleNote = 'no units declared on the manifest — declare `units` or pass `scale` for a true-scale print';
-      }
-    } else {
-      fitTo(DEFAULT_TARGET_MM, `${profile} default (pass \`target_mm\` or \`scale\` to choose)`);
-    }
-  }
+  if (isPrint && payload) ({ scale, scaleNote } = resolvePrintScale({ payload, profile, units, scaleInput, targetMm }));
 
   // USD declares its scale IN the layer: the recipe's declared units → metersPerUnit (1 = the
   // pinned MOJULO_UNITS when nothing is declared). Print-style fit/scale knobs do not apply.
@@ -470,6 +494,12 @@ export async function exportModelHandler(input) {
       : unionResult.applied
         ? ` Manifold union: ${unionResult.unioned} shell${unionResult.unioned === 1 ? '' : 's'} → ONE solid, volume ${result.union.volume_mm3} mm³, genus ${unionResult.genus}${unionResult.non_manifold.length ? `; left out as non-manifold: ${unionResult.non_manifold.map((n) => n.name).join(', ')}` : ''}.`
         : ` Union NOT applied: ${unionResult.reason}.`;
+    result.printer = printer;
+    if (sketch.manifest.ledger && typeof sketch.manifest.ledger === 'object') result.ledger = sketch.manifest.ledger; // G6: what the last mint/edit measured
+    result.print_advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm: result.size_mm, printer });
+    const advisoryNote = result.print_advisories.length
+      ? ` Print advisories (${result.print_advisories.length}): ${result.print_advisories.map((r) => `${r.kind} — ${r.detail}`).join('; ')}.`
+      : ' Print advisories: none — declared features clear the wall floor and the part fits the bed.';
     result.note = (format === '3mf'
       ? `${profileLine} 3MF for slicers (PrusaSlicer / Bambu / Orca / Cura): millimetres declared in the file, baked colours as `
         + `${result.colors} basematerial${result.colors === 1 ? '' : 's'}${result.color_bits ? ` (palette quantized to ${result.color_bits} bits/channel)` : ''}, `
@@ -480,7 +510,16 @@ export async function exportModelHandler(input) {
       : `${profileLine} STL is bare triangle soup for slicers: colour/groups dropped, water/decals/studio grid omitted, `
         + `repeats expanded, z-up, units read as mm (scale ${scaleNote}; prints ${result.size_mm.join(' × ')} mm). Not guaranteed manifold — `
         + "intersecting shells survive; let the slicer's mesh repair union them on import. "
-        + closureLine) + unionLine;
+        + closureLine) + unionLine + advisoryNote;
+    if (strict) {
+      const reasons = [];
+      if (result.closure.audited && !result.closure.closed) reasons.push(`closure: ${result.closure.holes} open rim${result.closure.holes === 1 ? '' : 's'}, widest ≈${result.closure.widest}`);
+      if (unionResult && !unionResult.applied) reasons.push(`union not applied: ${unionResult.reason}`);
+      for (const r of result.print_advisories) reasons.push(`${r.kind}: ${r.detail}`);
+      if (reasons.length) {
+        throw new Error(`strict: refusing to write model.${format} for '${ref}' — ${reasons.join('; ')}. Re-run without \`strict\` to ship anyway (the default is advisory; suitability is yours).`);
+      }
+    }
   }
   if (write) {
     // Provenance parity with export_game (interchange.plan.md I4): the model file lands in
@@ -504,7 +543,7 @@ export async function exportModelHandler(input) {
       path.join(dir, 'README.md'),
       buildModelReadme({
         sketch, ref, kind: kind ?? sketch.manifest.kind, format, hash, exported, clips,
-        ...(isPrint ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units } } : {}),
+        ...(isPrint ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units, advisories: result.print_advisories, printer, ledger: result.ledger ?? null } } : {}),
       }),
     );
     result.path = file;
