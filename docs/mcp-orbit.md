@@ -202,7 +202,7 @@ Sections that pay rent:
 
 ## MCP surface
 
-Vendor-shaped composer — four Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context, inventory, and capabilities so the natural reading order is contextmap → inventory → capabilities → composer → primitive-binding → semantic-search:
+Vendor-shaped composer — the Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context, inventory, and capabilities so the natural reading order is contextmap → inventory → capabilities → composer → primitive-binding → semantic-search:
 
 - `list_mcp_orbit_components({ kind?, ref_pattern? })` — discovery. Returns kind / ref / version / summary; bodies omitted (fetched separately).
 - `get_mcp_orbit_component({ kind, ref, version? })` — fetch one row with full body and structured payload.

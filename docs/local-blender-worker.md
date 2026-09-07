@@ -27,13 +27,13 @@ view):
   (MS arena maps, fractal city, dungeons, floorplans) GI-lit in place, at zero
   runtime cost. A drivetrain + per-world-kind gear adapters. **This is the path for
   "blenderify a level/world."** Full design, presets, rollout, and the two gates:
-  [../control/lib/graph/scene/map-gi-bake.plan.md](../control/lib/graph/scene/map-gi-bake.plan.md).
+  map-gi-bake.plan.md.
   Run: `node scripts/bake-world-gi.mjs --ref <world> --preset exterior --write`.
 
 ## The USD / GLB verify gate (2026-09-05)
 
 Blender is also the READER that closes the OpenUSD export's machine gate
-(`lite-template/integration/0904/interchange-seams.plan.md` seam 2):
+(`interchange-seams.plan.md` seam 2):
 
 ```bash
 node scripts/verify-usd.mjs --ref <sketch> --usdc        # export usdz → usdcat parse + USDC → Blender import → compare
@@ -158,13 +158,13 @@ set `MOJULO_DATA_DIR="$(pwd)/data" MOJULO_OUTCOMES_DIR="$(pwd)/data/outcomes"`.
   camera-dependent; baked vertex colours can't carry them (they stay Blender-render-
   only). Per-vertex shading is a touch chunkier than per-pixel.
 - **GI-baked walkable LEVELS are BUILT** — the map-GI bake bicycle
-  ([../control/lib/graph/scene/map-gi-bake.plan.md](../control/lib/graph/scene/map-gi-bake.plan.md),
+  (map-gi-bake.plan.md,
   Depot promoted). What remains is the FIGURE half: a *moving* `unitRef` suit that
   carries baked GI, and its coherence with a GI-baked map. Orientation — including
   the key realization that it is a colour-buffer swap, not a lighting engine
   (mojulo's runtime is already unlit vertex-colour, rig parts included), and that
   it REUSES the map bicycle's position→colour recolour — is in
-  [../control/lib/graph/worlds/prelit-figure.plan.md](../control/lib/graph/worlds/prelit-figure.plan.md).
+  prelit-figure.plan.md.
 
 ## Output hygiene — the lean GLB (2026-08-11)
 

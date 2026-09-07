@@ -3,7 +3,7 @@
 An **optional** external sculptor for the mesh handoff
 (`request_mesh_render` → `pull_mesh_render` → `submit_mesh_render` →
 `accept_mesh_render` / `reject_mesh_render`), seam 5 of
-[interchange-seams.plan.md](../lite-template/integration/0904/interchange-seams.plan.md).
+interchange-seams.plan.md.
 Same posture as the [local image worker](local-image-worker.md), the [local
 Blender worker](local-blender-worker.md), and the [local slicer
 worker](local-slicer-worker.md): operator-hosted, never a dependency, produces

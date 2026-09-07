@@ -1,6 +1,6 @@
 # Local slicer worker — the print handoff's machine gate
 
-Status: seam 1b of `lite-template/integration/0904/interchange-seams.plan.md`,
+Status: seam 1b of `interchange-seams.plan.md`,
 landed 2026-09-04. Optional, operator-hosted, produces a **measured stamp**
 beside the print file — the same posture as the [local Blender
 worker](local-blender-worker.md), the [local image worker](local-image-worker.md),

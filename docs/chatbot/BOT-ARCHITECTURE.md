@@ -475,7 +475,7 @@ Key files:
 | [control/lib/deployers/bot-proxy.js](../../control/lib/deployers/bot-proxy.js) | `normalizeBotUrl`, `probeBotConnection`, `fetchFromBot` (Connect Bot proxy) |
 | [control/lib/embedder/chunker.js](../../control/lib/embedder/chunker.js) | `chunkDocuments` + `chunkTriageRoutes` — 512-char window, 50-char overlap |
 | [control/app/api/vectorize-rag/route.js](../../control/app/api/vectorize-rag/route.js) | Wizard-side embedding endpoint (also called by chat builder via tool) |
-| [.github/workflows/publish-bot-image.yml](../.github/workflows/publish-bot-image.yml) | Builds + publishes `ghcr.io/zombico/mojulo-bot:X` |
+| [.github/workflows/publish-bot-image.yml](../../.github/workflows/publish-bot-image.yml) | Builds + publishes `ghcr.io/zombico/mojulo-bot:X` |
 | [lite-template/server.js:~1340-1420](../../lite-template/server.js) | Runtime bootstrap (LLM init, instructions cache, VectorRAG init + warmup) |
 | [lite-template/helper/llm-client.js](../../lite-template/helper/llm-client.js) | Provider abstraction (Anthropic, OpenAI, Ollama + adapters) |
 | [lite-template/helper/llm-client.js](../../lite-template/helper/llm-client.js) | OpenAI adapter (Responses API, prompt caching automatic ≥1024 tok, prompt-side envelope guidance + runtime extractJSON/fallback) |

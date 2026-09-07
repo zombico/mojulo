@@ -1,7 +1,7 @@
 # CSS-3D lighting & atmosphere
 
 Source of truth for how light, shadow, and sky behave in the CSS-3D scene backend
-([scene-css3d.js](../control/lib/graph/scene-css3d.js)). All terms are **baked per
+([scene-css3d.js](../control/lib/graph/scene/scene-css3d.js)). All terms are **baked per
 face from world geometry only → camera-independent**, which is what lets the scene
 keep a movable camera (the SVG path cannot). A face's final fill is the composition
 of the layers below.
@@ -91,7 +91,7 @@ narrowing its `spread` makes a downward pendant: the cone only lights below, the
 ceiling/upper walls fall to ambient + attenuated bounce, the pool below sharpens.
 `stem` (a ceiling z) draws a cord so a lowered source reads as a hanging lamp.
 
-These behaviours are pinned in [light-diffusion-3d.test.js](../control/lib/graph/light-diffusion-3d.test.js).
+These behaviours are pinned in [light-diffusion-3d.test.js](../control/lib/graph/effects/light-diffusion-3d.test.js).
 
 ### Hard vs. soft render
 
@@ -145,8 +145,8 @@ shared, not duplicated.
 
 `bakeSceneDiffusion(faces, sources, diffusion)` is **face-based and generic** — it
 doesn't care whether the faces are room walls or building facades. So the city
-renderer ([renderBoxCityToHtml](../control/lib/graph/scene-css3d.js), used by
-[fractal-city.js](../control/lib/graph/fractal-city.js)) takes the same `sources` +
+renderer ([renderBoxCityToHtml](../control/lib/graph/scene/scene-css3d.js), used by
+[fractal-city.js](../control/lib/graph/city/fractal-city.js)) takes the same `sources` +
 `diffusion` and runs the bake before emitting. Two enablers made the lift complete:
 the soft renderer lights a face with a hex `fill` **or** a CSS `bg` (city facades use
 `bg`), and the city renderer threads `sources`/`moonlight`/`sky` through.
@@ -182,7 +182,7 @@ consistent.
 ## Sky (`skyCss`)
 
 The painted-landscape **sky** concept, rendered as a CSS backdrop rather than SVG.
-[sky-css.js](../control/lib/graph/sky-css.js)'s `skyCss(spec)` reuses the landscape's
+[sky-css.js](../control/lib/graph/scene/sky-css.js)'s `skyCss(spec)` reuses the landscape's
 own `deriveSky` (exported from [painted-landscape.js](../control/lib/graph/polygonizer/painted-landscape.js))
 for the horizon→zenith gradient, then layers the rest as CSS: a radial **sun** glow at
 the derived sun position (day/dusk), a glowing **moon** disc (night), and deterministic
@@ -227,14 +227,14 @@ directional light, and the ray bake is brute-force (a spatial grid is the scalin
 
 ## Map
 
-- Model + composition: [scene-css3d.js](../control/lib/graph/scene-css3d.js) —
+- Model + composition: [scene-css3d.js](../control/lib/graph/scene/scene-css3d.js) —
   `resolveLighting`, `makeShade`, `bakeSceneDiffusion`, `applyMoonlight`,
   `contactShadowDecals`, `extractRoomSceneFaces`, `buildRoomShellFaces`,
   `renderBoxCityToHtml`, `emitPreserve3dScene` (the `sky` field).
-- Ray tracer: [light-diffusion-3d.js](../control/lib/graph/light-diffusion-3d.js).
-- Suite composition: [suite-layout.js](../control/lib/graph/suite-layout.js).
-- City + streetlamp sources: [fractal-city.js](../control/lib/graph/fractal-city.js).
-- Sky: [sky-css.js](../control/lib/graph/sky-css.js) (+ `deriveSky` in painted-landscape).
-- Tests: [light-diffusion-3d.test.js](../control/lib/graph/light-diffusion-3d.test.js),
+- Ray tracer: [light-diffusion-3d.js](../control/lib/graph/effects/light-diffusion-3d.js).
+- Suite composition: [suite-layout.js](../control/lib/graph/architecture/suite-layout.js).
+- City + streetlamp sources: [fractal-city.js](../control/lib/graph/city/fractal-city.js).
+- Sky: [sky-css.js](../control/lib/graph/scene/sky-css.js) (+ `deriveSky` in painted-landscape).
+- Tests: [light-diffusion-3d.test.js](../control/lib/graph/effects/light-diffusion-3d.test.js),
   [scene-css3d-lighting.test.js](../control/lib/graph/scene-css3d-lighting.test.js),
-  [sky-css.test.js](../control/lib/graph/sky-css.test.js).
+  [sky-css.test.js](../control/lib/graph/scene/sky-css.test.js).

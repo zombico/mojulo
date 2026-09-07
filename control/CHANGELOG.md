@@ -10,6 +10,33 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Orientation reset — CLAUDE.md from a blind read, docs unlinked from plans, counts unpinned
+
+Repo-facing only; nothing here changes the published package or a running install.
+
+- **CLAUDE.md rewritten.** Produced from a fresh-eyes assessment with the file absent, then
+  diffed against the old one. Golden rules kept; the "no auth layer" claim corrected to
+  loopback + bearer; the architecture map collapsed to pointers. Added what the blind run
+  stumbled on: the test command, the `tools/list` budgets and the tests that enforce them,
+  the new-tool checklist, the plan lifecycle (plan → Unreleased section → code →
+  `plan-archive/` on merge), the two data-path resolvers, `--webpack`, the three meanings
+  of "graph", and the no-commit line. 29 KB → 9 KB.
+- **Plans are not citable.** Docs, root markdown, and `.claude/skills/` no longer link to
+  `*.plan.md` or `lite-template/integration/` paths — plans are working documents that
+  move to `plan-archive/` on merge, and the tree is gitignored. Links reduced to bare
+  names; full paths shortened. The rule is in CLAUDE.md. JS comment citations are left
+  as-is: orientation debt, not runtime.
+- **Links.** Every broken relative link across `docs/`, README, and the skills fixed —
+  almost all `lib/graph` files that moved into `scene/`, `city/`, `effects/`,
+  `architecture/`, `worlds/`; skill links were repo-root-relative and never resolved.
+  The CHANGELOG's own historical links are left as provenance.
+- **Counts unpinned.** Enumerable numbers in docs (kinds, packs, tools, locales, cards,
+  test files) replaced with pointers to the list that defines them, so the docs cannot
+  drift on a count again; rule added to CLAUDE.md.
+- **bicycles.md** marks the render-handoff section shipped and links its narrative
+  companion, which nothing linked before. Removed `page.html` (a committed dev-server
+  dump) and `control/mojulo-0.2.2.tgz` (a stale tarball).
+
 ### Expressiveness — from a term list to a grammar, from a grammar to programs (expressiveness.plan.md E1–E5)
 
 The polygonizer was never the ceiling (`surfaceNetFaces` takes any `(p) => number`); the

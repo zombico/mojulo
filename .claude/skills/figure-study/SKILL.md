@@ -45,7 +45,7 @@ each a 3-view contact sheet (frontal · three-quarter · lateral) unless noted.
 ## Two study modes
 
 The figure is `litFigureFaces(cam, positions, {stitched})` in the spike
-([figure-readable-envelope.spike.gen.test.js](../../../control/lib/graph/polygonizer/figure-readable-envelope.spike.gen.test.js)),
+(figure-readable-envelope.spike.gen.test.js),
 posed neutral, rendered through the orbit camera. **Front is `az = Math.PI`** (the
 `az=0` camera looks at the back — always label/aim from `Math.PI`).
 
@@ -79,6 +79,6 @@ To study a new region (e.g. a shoulder, glute, knee) the way the bust was done:
 `DIM = DIMORPH.male | .female` (set before a render) drives the dimorphic pole;
 `GIRTH` (stockiness), `PROTO.height`, and `PROTO.headScale` (skull size — the
 child↔adult lever) are the global knobs. See
-[figure-proto-params.plan.md](../../../lite-template/integration/0610/figure-proto-params.plan.md)
-and [figure-dimorphism.plan.md](../../../lite-template/integration/0610/figure-dimorphism.plan.md).
+figure-proto-params.plan.md
+and figure-dimorphism.plan.md.
 The rig/metadata is [figure-rig.js](../../../control/lib/graph/polygonizer/figure-rig.js).

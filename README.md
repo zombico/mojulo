@@ -105,8 +105,8 @@ big one: npx pulls a ~26 MB package plus its native runtime deps (a few hundred
 MB on disk), and the first launch fetches a ~113 MB embedding model in the
 background — after that, starts are instant.
 
-The dashboard opens in English but ships fully translated in ~two dozen
-languages, including right-to-left scripts (Arabic, Farsi, Urdu) — switch
+The dashboard opens in English but ships fully translated in every locale under `control/messages/`,
+including right-to-left scripts (Arabic, Farsi, Urdu) — switch
 anytime under **Settings → Language**.
 
 On a slow connection, or if you'd rather your agent's first connect never wait on

@@ -340,16 +340,16 @@ the code paths are the join into the source.
 
 **Render targets & lighting**
 - **Still render** *(prose: "still render", "flat surface")* — two-point projection of world geometry to vector paths. → `projectTwoPoint` in [polygonizer/pure-mandala.js](../control/lib/graph/polygonizer/pure-mandala.js); [polygonizer/manji-svg.js](../control/lib/graph/polygonizer/manji-svg.js).
-- **Real-time scene** *(prose: "real-time scene", "scene surface")* — depth-preserving emission of world geometry as transform-carrying CSS-3D elements, composited back-to-front. → `renderBoxCityToHtml` in [scene-css3d.js](../control/lib/graph/scene-css3d.js).
+- **Real-time scene** *(prose: "real-time scene", "scene surface")* — depth-preserving emission of world geometry as transform-carrying CSS-3D elements, composited back-to-front. → `renderBoxCityToHtml` in [scene-css3d.js](../control/lib/graph/scene/scene-css3d.js).
 - **View-independent shading** *(Lambertian diffuse)* — directional diffuse shading, baked per face, camera-independent. → `makeLight` in [polygonizer/vexar.js](../control/lib/graph/polygonizer/vexar.js).
-- **Light rig + time of day** *(the baked lighting stack)* — sun, soft ambient-occlusion pools, traced diffusion, cast and contact shadows, moonlight, sky; baked from world geometry only. → [scene-css3d.js](../control/lib/graph/scene-css3d.js) and [docs/scene-css3d-lighting.md](scene-css3d-lighting.md).
+- **Light rig + time of day** *(the baked lighting stack)* — sun, soft ambient-occlusion pools, traced diffusion, cast and contact shadows, moonlight, sky; baked from world geometry only. → [scene-css3d.js](../control/lib/graph/scene/scene-css3d.js) and [docs/scene-css3d-lighting.md](scene-css3d-lighting.md).
 
 **Geometry**
-- **Lofted solid / closed manifold** *(prose: "lofted/swept solid")* — a solid lofted from a capped profile swept along a path. → [polygonizer/vehicle-swept-net.js](../control/lib/graph/polygonizer/vehicle-swept-net.js), [polygonizer/vehicle-smooth-box-net.js](../control/lib/graph/polygonizer/vehicle-smooth-box-net.js), [vehicles-swept.js](../control/lib/graph/vehicles-swept.js).
+- **Lofted solid / closed manifold** *(prose: "lofted/swept solid")* — a solid lofted from a capped profile swept along a path. → [polygonizer/vehicle-swept-net.js](../control/lib/graph/polygonizer/vehicle-swept-net.js), [polygonizer/vehicle-smooth-box-net.js](../control/lib/graph/polygonizer/vehicle-smooth-box-net.js), [vehicles-swept.js](../control/lib/graph/vehicles/vehicles-swept.js).
 - **Displaced parametric surface** *(the wave families)* — open and closed displacement waves at 1D and 2D over a parametric grid. → [polygonizer/line-between.js](../control/lib/graph/polygonizer/line-between.js), [polygonizer/wave-field.js](../control/lib/graph/polygonizer/wave-field.js), [polygonizer/wave-manji.js](../control/lib/graph/polygonizer/wave-manji.js), [polygonizer/lathe.js](../control/lib/graph/polygonizer/lathe.js); model in [docs/POLYGONIZER-SYNTHESIS.md](POLYGONIZER-SYNTHESIS.md).
 - **Scene graph** *(prose: "scene graph", "named tree")* — the composite-geometry IR, validated at build time. → [polygonizer/manji-program.js](../control/lib/graph/polygonizer/manji-program.js), [polygonizer/manji-svg.js](../control/lib/graph/polygonizer/manji-svg.js).
 - **Expansion pipeline** — resolving a composition into paint-ordered marks (cameras, light scenes, construction, gesture, shadow, paint order). → [neo-rembrandt/index.js](../control/lib/graph/neo-rembrandt/index.js).
-- **Still-render manifest vocabulary** — what the still render validates and rasterizes (stations/edges + marks). → [sketch-manifest.js](../control/lib/graph/sketch-manifest.js).
+- **Still-render manifest vocabulary** — what the still render validates and rasterizes (stations/edges + marks). → [sketch-manifest.js](../control/lib/graph/sketch/sketch-manifest.js).
 
 **Figure**
 - **Skeletal rig** *(prose: "rig", "armature")* — the jointed skeleton and its symmetry/chains/ground frame. → [polygonizer/figure-rig.js](../control/lib/graph/polygonizer/figure-rig.js); clamped forward kinematics in [polygonizer/figure-vajra.js](../control/lib/graph/polygonizer/figure-vajra.js).
@@ -358,10 +358,10 @@ the code paths are the join into the source.
 - **Skinned mesh** *(prose: "skin", "flesh")* — musculature, limb volume, naturalized hands/feet, garments. → [polygonizer/figure-musculature.js](../control/lib/graph/polygonizer/figure-musculature.js), [polygonizer/figure-proto.js](../control/lib/graph/polygonizer/figure-proto.js), [polygonizer/figure-garments.js](../control/lib/graph/polygonizer/figure-garments.js).
 
 **Scenes & procedural generation**
-- **Scene director / procedural world** *(prose: "procedurally generated")* — the procedural city: anchors, quadrants, street grid, opt-in elements, deterministic from a seed. → [fractal-city.js](../control/lib/graph/fractal-city.js).
-- **Interior layout** — connected rooms and hallways with derived doorways. → [suite-layout.js](../control/lib/graph/suite-layout.js).
-- **Vehicle family** — the parameterized swept-net vehicles, the streetcar corridor, roads. → [vehicles-css3d.js](../control/lib/graph/vehicles-css3d.js), [roads.js](../control/lib/graph/roads.js), [transportation-hub.js](../control/lib/graph/transportation-hub.js).
-- **Carved solid / turntable** — wordmarks and single spinning solids. → [carved-solid.js](../control/lib/graph/carved-solid.js), [solid-turntable.js](../control/lib/graph/solid-turntable.js).
+- **Scene director / procedural world** *(prose: "procedurally generated")* — the procedural city: anchors, quadrants, street grid, opt-in elements, deterministic from a seed. → [fractal-city.js](../control/lib/graph/city/fractal-city.js).
+- **Interior layout** — connected rooms and hallways with derived doorways. → [suite-layout.js](../control/lib/graph/architecture/suite-layout.js).
+- **Vehicle family** — the parameterized swept-net vehicles, the streetcar corridor, roads. → [vehicles-css3d.js](../control/lib/graph/vehicles/vehicles-css3d.js), [roads.js](../control/lib/graph/city/roads.js), [transportation-hub.js](../control/lib/graph/architecture/transportation-hub.js).
+- **Carved solid / turntable** — wordmarks and single spinning solids. → [carved-solid.js](../control/lib/graph/effects/carved-solid.js), [solid-turntable.js](../control/lib/graph/worlds/solid-turntable.js).
 - **Curated recipe cards** — token-small briefs for landscapes, charts, palettes. → [painted-landscape-cards/](../control/lib/graph/painted-landscape-cards/), [sketch-vocab/](../control/lib/graph/sketch-vocab/), [geo/palette.js](../control/lib/graph/geo/palette.js).
 - **Placer glyphs & apocrypha** — façade glyphs, furniture cards, room-scene elements, the architecture planner. → [polygonizer/architecture-glyph-registry.js](../control/lib/graph/polygonizer/architecture-glyph-registry.js), [polygonizer/furniture-cards.js](../control/lib/graph/polygonizer/furniture-cards.js), [polygonizer/room-scene-elements.js](../control/lib/graph/polygonizer/room-scene-elements.js), [polygonizer/architecture-mandala-planner.js](../control/lib/graph/polygonizer/architecture-mandala-planner.js).
 - **Map illustrator** — place queries to polygon marks. → [geo/](../control/lib/graph/geo/).
@@ -434,5 +434,5 @@ them, it does not absorb them.
 
 | Date | Spike | What it imported here |
 |------|-------|-----------------------|
-| 2026-06-15 | [0615/figure-walk.plan.md](../lite-template/integration/0615/figure-walk.plan.md) | Principles VI–VII, X (figure as rig + skinned mesh, animation as a parametric cycle, parametric variation); `create_figure`, `forge_motion`/`stitch_motion` entries; figure glossary block; in-place / sagittal-only / figure-meets-world frontier seams. |
+| 2026-06-15 | 0615/figure-walk.plan.md | Principles VI–VII, X (figure as rig + skinned mesh, animation as a parametric cycle, parametric variation); `create_figure`, `forge_motion`/`stitch_motion` entries; figure glossary block; in-place / sagittal-only / figure-meets-world frontier seams. |
 | 2026-06-15 | 0615/vehicles-css3d, 0615/streetcar | Principle X (parametric models) evidence; vehicle-family glossary; procedural element opt-in (IX). |

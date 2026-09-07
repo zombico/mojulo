@@ -5,7 +5,7 @@ description: Draft a new mojulo catalyst (a curated workflow recipe shipped via 
 
 # /write-catalyst
 
-Draft a new catalyst file in [control/lib/mcp/catalysts/](control/lib/mcp/catalysts/) following the format, body principles, and section template documented in [docs/catalysts.md](docs/catalysts.md). Validate it parses, update the loader test, and hand back to the user for PR.
+Draft a new catalyst file in [control/lib/mcp/catalysts/](../../../control/lib/mcp/catalysts) following the format, body principles, and section template documented in [docs/catalysts.md](../../../docs/catalysts.md). Validate it parses, update the loader test, and hand back to the user for PR.
 
 The catalyst paradigm: a `.md` file with JSON frontmatter that mojulo ships through MCP so a user's Claude Code can read it once and *catalyze* the synthesis of a concrete `.claude/skills/<name>/SKILL.md` for that user's bot. The catalyst is not a skill; it produces a skill. Keep this distinction sharp throughout — if you blur it, the body you draft will be wrong.
 
@@ -13,10 +13,10 @@ The catalyst paradigm: a `.md` file with JSON frontmatter that mojulo ships thro
 
 Always pull these into context before drafting anything:
 
-- [docs/catalysts.md](docs/catalysts.md) — the author spec. Format, validation, body principles, the six-section template, the checklist for adding a new one.
-- [control/lib/mcp/tools/catalysts.js](control/lib/mcp/tools/catalysts.js) — read `SYNTHESIZER_BRIEFING`. The body you draft is read by a future Claude *after* that briefing is prepended, so don't repeat what the briefing already says.
-- [control/lib/mcp/catalysts/loader.js](control/lib/mcp/catalysts/loader.js) — exact validation rules. Your draft must pass `parseCatalystFile`.
-- All existing `.md` files in [control/lib/mcp/catalysts/](control/lib/mcp/catalysts/) — these are the exemplars. Bias toward the one closest in category to the user's intent and study its mapping intent, idempotency, and pitfalls sections specifically. The value-add of those sections is what separates a real catalyst from a hollow one.
+- [docs/catalysts.md](../../../docs/catalysts.md) — the author spec. Format, validation, body principles, the six-section template, the checklist for adding a new one.
+- [control/lib/mcp/tools/catalysts.js](../../../control/lib/mcp/tools/catalysts.js) — read `SYNTHESIZER_BRIEFING`. The body you draft is read by a future Claude *after* that briefing is prepended, so don't repeat what the briefing already says.
+- [control/lib/mcp/catalysts/loader.js](../../../control/lib/mcp/catalysts/loader.js) — exact validation rules. Your draft must pass `parseCatalystFile`.
+- All existing `.md` files in [control/lib/mcp/catalysts/](../../../control/lib/mcp/catalysts) — these are the exemplars. Bias toward the one closest in category to the user's intent and study its mapping intent, idempotency, and pitfalls sections specifically. The value-add of those sections is what separates a real catalyst from a hollow one.
 
 Don't skim. The body you write is a prompt that has to teach a future Claude how to synthesize a working skill on first try. The exemplars show the bar.
 
@@ -24,9 +24,9 @@ Don't skim. The body you write is a prompt that has to teach a future Claude how
 
 A catalyst is the **wrong tool** in these cases. If any apply, stop and tell the user — don't try to force the request into a catalyst shape.
 
-1. **The request changes what the bot *does* during a conversation.** That's a mojulo protocol, not a catalyst. Point the user at [docs/chatbot/protocol-composition.md](docs/chatbot/protocol-composition.md) ("Before adding a protocol — could a catalyst do this?"). Short version of the rubric: protocols change what the bot does *inside* a conversation; catalysts change what happens with the bot's data *afterward*.
-2. **The workflow writes back to the bot's corpus or config.** Explicitly forbidden by body principle 4 in [docs/catalysts.md](docs/catalysts.md). Catalysts read from mojulo and write to *destinations* only.
-3. **The request is bot-specific or one-off.** Catalysts are shipped library entries — they have to be reusable across bots and users. If it's bespoke, the user should just have Claude synthesize a `.claude/skills/` skill directly with no catalyst — that's already a supported path (see [docs/catalysts.md:35](docs/catalysts.md#L35)).
+1. **The request changes what the bot *does* during a conversation.** That's a mojulo protocol, not a catalyst. Point the user at [docs/chatbot/protocol-composition.md](../../../docs/chatbot/protocol-composition.md) ("Before adding a protocol — could a catalyst do this?"). Short version of the rubric: protocols change what the bot does *inside* a conversation; catalysts change what happens with the bot's data *afterward*.
+2. **The workflow writes back to the bot's corpus or config.** Explicitly forbidden by body principle 4 in [docs/catalysts.md](../../../docs/catalysts.md). Catalysts read from mojulo and write to *destinations* only.
+3. **The request is bot-specific or one-off.** Catalysts are shipped library entries — they have to be reusable across bots and users. If it's bespoke, the user should just have Claude synthesize a `.claude/skills/` skill directly with no catalyst — that's already a supported path (see [docs/catalysts.md:35](../../../docs/catalysts.md#L35)).
 4. **The destination is one specific MCP, not a category.** A catalyst's value is destination-agnostic mapping intent (`crm-like`, `calendar-like`, `actuator-like`, etc.). "Sync to my specific Notion database with this exact schema" is a skill, not a catalyst.
 5. **The "mapping intent" is generic.** If the user can't articulate at least one non-obvious, opinionated decision the catalyst makes (a specific field-mapping choice, a default behavior, a calibration heuristic), the catalyst won't pay rent. Don't ship a body that just recites the universal principles — those already live in `SYNTHESIZER_BRIEFING`.
 6. **No clear idempotency story.** Without a cursor field or a dedupe key, the Idempotency section becomes hand-waving. Push back and surface the missing decision rather than papering over it.
@@ -38,7 +38,7 @@ When pushing back, name the specific failure and suggest the right alternative (
 If posture-check passes, ask the user the following in one message. Don't drip questions out one at a time. Skip questions the user already answered in their invocation line.
 
 1. **Workflow intent in one paragraph.** What mojulo data → what destination concept, and the user's motivation.
-2. **Mojulo source surface.** Which existing mojulo MCP tools (see [control/lib/mcp/tools/operate.js](control/lib/mcp/tools/operate.js)) does the synthesized skill call? Common shapes: `query_submissions` + `get_deployment` (form-side), `query_conversations` + `get_conversation` + `get_deployment` (conversation-side), or both.
+2. **Mojulo source surface.** Which existing mojulo MCP tools (see [control/lib/mcp/tools/operate.js](../../../control/lib/mcp/tools/operate.js)) does the synthesized skill call? Common shapes: `query_submissions` + `get_deployment` (form-side), `query_conversations` + `get_conversation` + `get_deployment` (conversation-side), or both.
 3. **Required protocols.** Does the target bot need `formGathering`, `appointments`, `triage`, `opticalRead`, `knowledge`, or none? Separate required from optional (`requires.optionalProtocols`).
 4. **Destination MCP category.** Pick from existing categories where possible: `crm-like`, `calendar-like`, `ticketing-like`, `actuator-like`, `doc-or-channel-like`, `data-store-like`. If proposing a new category, the user must justify why none of the existing ones fit — don't proliferate categories.
 5. **Catalyst category (the `category` frontmatter field).** Existing categories: `crm-sync`, `itsm`, `calendar`, `digest`, `analysis`, `rag-curation`, `extraction-pipeline`. Same discipline as above — six-ish is enough; ask before adding a new one.
@@ -53,7 +53,7 @@ The `id` is the file slug and frontmatter `id`. Conventions from the existing li
 
 - kebab-case, descriptive, ≤ ~40 chars
 - shape: `<source>-to-<destination>` (e.g. `qualify-lead-to-crm`, `appointment-to-calendar`) or `<verb>-<source>-<modifier>` (e.g. `scan-conversations-for-signal`, `knowledge-gap-miner`)
-- must not collide with an existing id in [control/lib/mcp/catalysts/](control/lib/mcp/catalysts/) — the loader throws on duplicates
+- must not collide with an existing id in [control/lib/mcp/catalysts/](../../../control/lib/mcp/catalysts) — the loader throws on duplicates
 
 Check `ls control/lib/mcp/catalysts/*.md` before committing to a slug.
 
@@ -79,7 +79,7 @@ The `mcpTools.destination.description` field is *abstract* — describe the shap
 
 ### Body — the six-section template
 
-Follow the structure in [docs/catalysts.md:121-127](docs/catalysts.md#L121-L127). Every existing catalyst follows it. Don't deviate without reason.
+Follow the structure in [docs/catalysts.md:121-127](../../../docs/catalysts.md#L121-L127). Every existing catalyst follows it. Don't deviate without reason.
 
 1. **Opening paragraph** — what this catalyst does, plain English, ~2-3 sentences. Frame the source protocol or data shape it operates on.
 2. **How to synthesize the skill** — numbered steps. First step is almost always `get_deployment(deploymentId)` to read the bot's shape. Then "ask the user the N `parameters` questions" (batched). Then "inspect the bound destination MCP" to discover its concrete surface. Last step: where to write the file (`.claude/skills/<bot-slug>-<purpose>/SKILL.md`) — name the slug pattern.
@@ -88,7 +88,7 @@ Follow the structure in [docs/catalysts.md:121-127](docs/catalysts.md#L121-L127)
 5. **Pitfalls** — bullets, each with a specific mitigation (not just the risk). At minimum touch on: PII exposure (especially anything where the LLM reads form/conversation content), irreversible writes (default `dryRun: true`, opt-in to live), rate limits, calibration drift. Add domain-specific pitfalls the user surfaced.
 6. **Skill behavior contract** — bullets for `Inputs:`, `Outputs:`, `Side effects (live mode):`. Inputs always include `deploymentId` (required), `since` (optional ISO), `dryRun` (default true).
 
-### Body principles to enforce (from [docs/catalysts.md:129-135](docs/catalysts.md#L129-L135))
+### Body principles to enforce (from [docs/catalysts.md:129-135](../../../docs/catalysts.md#L129-L135))
 
 - Default `dryRun: true` in the contract. Live mode is per-run opt-in.
 - Always require mojulo trace (submission id, conversation id, deployment id, captured-at) in destination payloads.
@@ -121,8 +121,8 @@ The loader test enumerates structural properties of the catalog (every catalyst 
 Tell the user:
 
 - Where the file is (`control/lib/mcp/catalysts/<id>.md`)
-- That the next step is to **PR the catalyst** per the checklist in [docs/catalysts.md:151-157](docs/catalysts.md#L151-L157)
-- If the new catalyst's category surfaces a discoverability gap (e.g. it's the first `itsm` catalyst, or you proposed a new category), mention that [docs/mcp-integration.md](docs/mcp-integration.md) recipes section may want a mention — but don't auto-edit it, that's a user call.
+- That the next step is to **PR the catalyst** per the checklist in [docs/catalysts.md:151-157](../../../docs/catalysts.md#L151-L157)
+- If the new catalyst's category surfaces a discoverability gap (e.g. it's the first `itsm` catalyst, or you proposed a new category), mention that [docs/mcp-integration.md](../../../docs/mcp-integration.md) recipes section may want a mention — but don't auto-edit it, that's a user call.
 
 ## Final reminders
 

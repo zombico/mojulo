@@ -3,7 +3,7 @@
 Mojulo is a **kernel** plus **always-present packs** plus **two install-gated groups**. This doc is the
 source of truth for that shape: what's always present, what's optional, how mojulo knows which it is, and
 how an operator grows a lean install into the full workshop. The build log, rationale, and audit evidence
-live in [control/lib/mcp/install-capabilities.plan.md](../lite-template/integration/plan-archive/install-capabilities.plan.md);
+live in install-capabilities.plan.md;
 this is the orientation layer.
 
 ## The shape in one paragraph
@@ -17,7 +17,7 @@ no group and is always present. The kernel alone can already mint a diagram.
 > **Install is PACK-grain, not wing-grain (2.0).** Until 2.0 a pack's install state was a function of its
 > `wing`, which tied the whole office wing's fate to the chatbot factory's. `wing` is now the
 > taxonomy/routing field only; install is orthogonal. See
-> `lite-template/integration/_0828/mojulo-2.0-pure-creative.plan.md` (Phase 1a).
+> `mojulo-2.0-pure-creative.plan.md` (Phase 1a).
 
 ## What lives where
 
@@ -74,7 +74,7 @@ describes and an env flag can never silently disagree with reality. In
   runs `npm install --include=optional` and re-probes. `mojulo install` with no arg prints status for
   both groups. `mojulo install chatbot` writes the marker; `--remove` takes it away again.
 - **What a default `npx mojulo` gets:** kernel + creative + the always-present orchestration packs —
-  17 of the 20 packs. The three chatbot packs are listed by `mojulo tools` / `mojulo packs` as
+  every pack outside the chatbot group. The chatbot packs are listed by `mojulo tools` / `mojulo packs` as
   "not installed" with the command that adds them, so the capability stays discoverable without
   advertising tools that would refuse to run.
 - **Full workshop:** a plain `npm install` gets everything (the creative deps are `optionalDependencies`,
@@ -116,8 +116,8 @@ activation bars, self-messages), swimlane lanes, ERD/UML entities, containment/C
 timeline/Gantt on a numeric scale, and richer edge notation (arrowhead styles, multiplicities,
 self-loops). These are validated in [control/lib/diagram-core.js](../control/lib/diagram-core.js) and
 covered by the `diagram-core.*` suites. Design history and the per-pattern rationale live in
-[control/lib/mcp/diagram-patterns-spike.plan.md](../lite-template/integration/plan-archive/diagram-patterns-spike.plan.md)
-and [control/lib/mcp/kernel-diagram-surface.plan.md](../lite-template/integration/plan-archive/kernel-diagram-surface.plan.md).
+diagram-patterns-spike.plan.md
+and kernel-diagram-surface.plan.md.
 
 ## The bot image is unaffected
 

@@ -1,141 +1,134 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) and other agent runtimes working in this repository. Keep this file as the fast orientation layer: commands, invariants, and pointers to deeper docs. If a detail needs a paragraph of caveats, it probably belongs in `docs/` or an integration plan, then linked here.
+Fast orientation for agents working in this repo. Rules and pointers only. If a line needs a paragraph of
+caveats it belongs in `docs/` with a pointer here. Do not cite `*.plan.md` files from this file, code
+comments, docs, or the changelog: plans are working documents that move to
+`lite-template/integration/plan-archive/` once merged, and the whole `integration/` tree is gitignored.
 
-## First read
+## What this is
 
-- The current-state snapshot of unreleased branch work is the **Unreleased** section of [control/CHANGELOG.md](control/CHANGELOG.md). (The maintainer keeps a denser private working-tree ledger at `docs/STATUS.md`, gitignored — not present on a clean clone, not part of repo-dev orientation.)
-- [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) is the source of truth for the headless control surface: transport, ring model, session binding, deliberation surfaces, catalysts, mcp-orbit, and primitive binding.
-- [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) is the source of truth for the polygonizer/manji-tree substrate as it stands today: the four wave primitives, structure-manji, the seven field kinds, shelf cards, and how they all couple. Supersedes the dozen integration plan files in `lite-template/integration/0605/`.
-- [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) is the deeper agent-facing map for MCP rings, data layout, runtime daemons, and release notes that are too dense for this file.
-- [docs/install-capabilities.md](docs/install-capabilities.md) is the source of truth for the install shape: the kernel + always-on packs + two install-gated groups (creative / chatbot), physical pack detection, `mojulo install creative`, and the kernel diagram maker.
-- [docs/chatbot/](docs/chatbot/) holds everything about the **chatbot factory**, an OPTIONAL pack since 2.0 (`mojulo install chatbot`) — start at [docs/chatbot/README.md](docs/chatbot/README.md), which indexes the factory flow, both builders, protocol composition, forms, RAG, and turn hashing. Read it only when the work IS bot-factory work; it sits outside the main-line docs so the default surface reads pure-creative.
-- [AGENTS.md](AGENTS.md) adds Codex-specific setup for connecting to the local MCP control plane.
+A local MCP server with a dashboard. The agent builds worlds, objects, games, audio, and publications by
+conversation; each one is a tiny deterministic recipe (a `sketches` row) that regenerates on every read and
+exports to Godot, Unity, Unreal, Blender, GLB, STL, 3MF, USD. Mojulo is the agent-driven upstream that feeds
+those tools, never a fidelity rival and never "just an exporter." The canonical self-description is the
+`get_substrate` drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js); keep
+user-facing copy consistent with it.
 
-Read the relevant deeper doc before non-trivial work that crosses `control/` and `lite-template/`, changes deploy/build behavior, or touches the MCP tool registry.
+Two packages. [control/](control/) is the product (Next.js 16 on 3001, ESM, vitest); almost all work happens
+here. [lite-template/](lite-template/) is the runtime for the opt-in chatbot pack; read
+[docs/chatbot/](docs/chatbot/) only when the work is bot-factory work.
 
-## Repo shape
+## Where truth lives
 
-Mojulo is a **3D factory for agents** — a local, stateful substrate where an agent builds worlds, objects, and games by conversation, as editable deterministic recipes on the operator's machine, that ship as a game (Godot first-class) or a printed object (print-ready STL at true scale). Media and Game lead; behind them a retained automation backend (connected services, apps, plan/research/stash) turns conversations into outcomes over the operator's own MCPs, and the **chatbot factory is opt-in** (`mojulo install chatbot`) rather than part of a default install. Positioning rule: "3D" is a PIPELINE-POSITION claim — mojulo is the agent-driven upstream that FEEDS Blender/Godot/Unreal and the 3D printer, never a fidelity rival, and never "just an exporter" (the recipe is where the thing lives). The canonical self-description lives in the `get_substrate` drawer ([control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js)); keep user-facing copy consistent with it.
-
-Mojulo installs as a **kernel + always-present packs + two install-gated groups** — creative (the render / media / games stack, on by default) and chatbot (the bot factory, **OPT-IN since 2.0** — a fresh install does not have it; `mojulo install chatbot` writes a marker under `$MOJULO_HOME` to add it) — keyed to what's physically present on the host. Install is PACK-grain: a pack declares an `installGroup` and is gatable, or declares none and is unconditional like the kernel; the orchestration plumbing (connected services, catalysts, triggers, apps, plan/research/stash) declares none. The heavy creative stack is optional (`mojulo install creative`); the kernel alone can still mint a diagram. Install state is derived from disk, with `MOJULO_PACKS` as an explicit override. See [docs/install-capabilities.md](docs/install-capabilities.md).
-
-Two-package monorepo. Both usually matter:
-
-- [control/](control/) - Next.js 16 control plane on port 3001. Everything mojulo is: the MCP server, the geometry/audio/publication kernels and their render + export emitters, the dashboard, and the runtime supervisor. **Almost all work happens here.**
-- [lite-template/](lite-template/) - Express 5 runtime for the OPTIONAL chatbot pack, on port 3000. Only relevant when the work IS bot-factory work; see [docs/chatbot/](docs/chatbot/).
-
-The control plane is headless-first: the MCP tools are the primary surface and the dashboard renders what accumulates. A change to a kernel, emitter, or app-runtime path should be checked against both call paths.
-
-*Chatbot-pack maintenance note:* the control plane stages `lite-template/` into a per-bot zip, and the same runtime publishes as `ghcr.io/zombico/mojulo-bot:X.Y.Z` via [.github/workflows/publish-bot-image.yml](.github/workflows/publish-bot-image.yml). When changing `lite-template/`, check whether [control/.env.example](control/.env.example)'s `BOT_IMAGE` and the matching constant in [control/lib/deployers/docker.js](control/lib/deployers/docker.js) need a bot tag bump.
+- Current state of the branch: the Unreleased section of [control/CHANGELOG.md](control/CHANGELOG.md).
+  `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
+- Version: `package.json` says 1.5.0. Unreleased carries the 2.0 BREAKING reposition. 2.0 has not shipped.
+- Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
+  [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
+  [docs/install-capabilities.md](docs/install-capabilities.md) (kernel + packs + install groups),
+  [CONTRIBUTING.md](CONTRIBUTING.md) (recipe book vs core), [AGENTS.md](AGENTS.md) (non-Claude hosts).
+- Never hardcode an enumerable count in docs (kinds, packs, tools, locales, test files). Point at the
+  list that defines it; counts drift the day after they are written.
+- "graph" means three things: `control/lib/graph/` is the geometry library; the contextmap is the
+  `meta_*` tables in the same SQLite file; `/graph` is a static pipeline SVG.
 
 ## Golden rules
 
-- **Recipes, not renders.** Every creative artifact is params + a `kind` in the `sketches` table, regenerated by a kernel on every read. Seeded dice only (`mulberry32`) — never `Math.random` or `Date.now` in a builder. Once a kind has minted artifacts, its output for given params is a compatibility promise: a byte-identical re-render is the baseline test for any kernel change.
-- **Recipes are starters, not one-shots.** Iterate in place via `update_sketch` on the same ref; don't teach re-minting as the way to change something.
-- **Advise, never refuse, at a handoff.** Export gates (engine portability, STL closure audit, edifice livability) report and stamp their findings; suitability is the operator's call. Every handoff also carries an honest ledger of what did NOT travel — never silently drop.
-- **Two gates, never conflated** — a machine gate (measured, automated) and an eyes gate (a human looks). See [docs/bicycles.md](docs/bicycles.md).
-- **Core is capability, the book is repertoire.** A new study-object kind is normally a recipe-book Door-2 builder, not a core addition; book builders import nothing and receive `ctx.toolkit`, which is append-only. Absent an attached book, behavior is byte-for-byte unchanged. See [CONTRIBUTING.md](CONTRIBUTING.md).
-- `forward_context` is a thin routing index, not a glossary. Keep heavy orientation behind Ring 0 drawers and update `TOOL_INDEX` / `ROUTING_INDEX` when adding main-flow MCP tools.
-- The control plane is single-operator and self-hosted; there is no user identity by default. The opt-in roles pack lets the operator issue scoped, revocable keys to their own delegates — operator-owned delegation, not multi-tenancy. Do not introduce multi-tenant assumptions (mutually-distrusting tenants, platform-as-referee isolation); hostile-tenant isolation is out of scope.
-- The MCP transport binds to localhost. Do not expose it publicly or add a tunnel path — the substrate has no auth layer and assumes loopback-only reachability. Remote agents reach mojulo by being run on the same host, not by the substrate reaching out to them.
-- The dashboard is not a conversational surface. The operator drives mojulo from their host MCP agent (Claude Code / Codex / etc.); dashboard pages render state and offer "copy starter prompt" affordances that direct the operator to drive work from that agent. The bot builder chat is the deliberate exception (it is the bot's own chat, not a chat with the substrate). Do not add `HomeAgentChat`/`useAgentChatStream` consumers to deliberation surfaces.
-- Do not read or echo `.env` secrets from generated app or bot directories. Use masking helpers or the MCP tools designed for env inspection.
-- Optional local workers (Blender, ComfyUI, Kokoro, a slicer, Godot) are operator-hosted and never dependencies. The substrate holds no binaries, keys, or worker state; absence degrades a loop, never breaks one.
-- UI strings should be i18n-ready in the English source messages.
-- Capability, intent, and suitability assessments belong to the operator, not to mojulo or the maintainer. When drafting user-facing copy, marketing material, dashboard affordances, or refusal/gating logic, default to the posture in [TERMS.md](TERMS.md) and [docs/responsibility-model.md](docs/responsibility-model.md): the substrate composes primitives, the operator owns the consequences. Do not introduce intent-classification, use-case gating, or content-policy enforcement layers on top of what the operator's LLM provider already enforces.
+- **Recipes, not renders.** The manifest is the artifact; kernels regenerate on every read, so a kernel's
+  output for given params is a compatibility promise over already-minted rows. Byte-identical re-render is
+  the baseline test for any kernel change. Seeded dice only (`mulberry32`); never `Math.random`, `Date`,
+  `Intl` in a builder. An absent opt-in channel must contribute zero bytes.
+- **Two gates, never conflated.** Machine gate (measured, automated) and eyes gate (a human looks). Never
+  claim the eyes gate passed. All gates advise and stamp; none refuse. Say which gate ran and what was seen.
+  [docs/bicycles.md](docs/bicycles.md), [docs/responsibility-model.md](docs/responsibility-model.md).
+- **Recipes are starters.** Iterate in place with `update_sketch` / `edit_solid`; don't re-mint.
+- **Core is capability, the book is repertoire.** A new study-object kind is normally a recipe-book Door-2
+  builder, not a core addition.
+- **Single operator, loopback only.** No user identity by default; the roles pack is operator-owned
+  delegation, not multi-tenancy. Do not add tenant isolation, tunnels, or public exposure. The MCP route is
+  bearer-gated and 404s without a key; that is the whole auth surface, by design.
+- **The dashboard is not a conversational surface.** The operator drives from their host agent. Do not add
+  `HomeAgentChat` / `useAgentChatStream` consumers to deliberation surfaces (the bot builder chat is the
+  one exception).
+- **Suitability is the operator's.** Do not add intent classification, use-case gating, or content-policy
+  layers over what the operator's LLM provider already enforces. Posture: [TERMS.md](TERMS.md).
+- Never read or echo `.env` secrets from generated app or bot directories.
+- UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
+- Optional workers (Blender, ComfyUI, Kokoro, slicer, Godot, Unity, Unreal) are never dependencies.
+  Absence degrades a loop, never breaks one.
+- Do not commit unless asked. Never touch `control/.next/`, `control/data/`, `.claude/worktrees/`.
 
-**Chatbot pack only** — these bind when the work IS bot-factory work; the pack is absent from a default install ([docs/chatbot/](docs/chatbot/)):
+## MCP tool surface (the tests that bite)
 
-- Conversation data never moves into the control-plane DB. Per-bot conversation and submission reads must go through [control/lib/deployers/bot-proxy.js](control/lib/deployers/bot-proxy.js).
-- The chat builder, modular wizard, and MCP build tools converge on [buildDeploymentConfig()](control/lib/config-builder.js). Do not add paradigm-specific branches downstream of config composition.
-- Bot turn rows must go through the hashing helpers. Do not insert turns that bypass `content_hash` / `chain_hash`; see [docs/chatbot/turn-hashing.md](docs/chatbot/turn-hashing.md).
-- The bot image is bot-agnostic. Fly deploy injects per-bot config as files; do not rebuild images per bot.
-- Nothing outside the pack may import it — enforced by `pack-boundary.test.js` checks F/G/H.
+`tools/list` cannot be drawerized, so it is budgeted. The per-description ceiling and the flat payload pin
+live in `tool-descriptions.test.js`; the packs payload pin lives in `packs.test.js`. If a legitimate
+addition crosses a pin, re-pin it in the same commit with a comment saying why. New tool checklist: register in ring order in
+`server.js`; exactly one pack home in `packs.js`; a `TOOL_INDEX` row or one `FORM_TOOLSETS` bullet in
+`context.js`; a routing card (ceiling in `routing-cards/loader.js`) plus a `routing-eval.fixture.js` row if creative; the
+`RING10_TOOLS` list in `context.test.js`. `forward_context` is a routing index, not a glossary; its bodies
+have their own byte ceilings. Full map: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#mcp-control-surface).
 
 ## Commands
 
-### Control plane
-
 ```bash
 cd control
-cp .env.example .env        # first-time only
+cp .env.example .env         # first time
 npm install
-npm run dev                 # Next.js on http://localhost:3001
-npm run build               # next build
-npm run start               # next start -p 3001
-node scripts/cleanup-stale-artifacts.js [--dry-run]
-node scripts/reindex-embeddings.js [--verbose]
-node scripts/mcp-stdio.mjs tools|packs|help|call|pack_* …   # CLI front door over the tool registry (in-process, no dashboard needed); see scripts/mojulo-cli.plan.md
-npm run build:bot           # chatbot pack only — docker build -t mojulo/bot:latest ../lite-template
+npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
+npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
+node scripts/mcp-stdio.mjs tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry
+node scripts/reindex-embeddings.js
 ```
 
-There is no repo-wide lint/typecheck script. For simple JS smoke checks, use `node --check <file>`. For JSX, parse with `@babel/parser` from the `control` package. The control path alias is `@/*` -> `./*` in [control/jsconfig.json](control/jsconfig.json).
+No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
+entry points `chdir` there and `getServerVersion` reads `package.json` from cwd. macOS has no `timeout`.
 
-### Bot runtime (chatbot pack only)
+Byte-pin conventions: `*.char.test.js` and `*.trace.test.js` are characterization pins; `__snapshots__/`
+hashes are structural on purpose. A pin change is legitimate only when the step says emission changes.
 
-```bash
-cd lite-template
-npm install                 # fetches multilingual-e5-small q8 ONNX into models/
-npm start                   # node server.js on port 3000
-docker compose up           # Debian slim Node 20 runtime
-```
+## Plans and changelog
 
-The `.onnx` weights are gitignored and larger than 100MB. They are fetched by [lite-template/scripts/fetch-embed-model.mjs](lite-template/scripts/fetch-embed-model.mjs) during bot install/build. Do not commit model weights.
+Design happens in `*.plan.md` under `lite-template/integration/<MMDD>/` (gitignored). Skeleton: status
+line, "what exists (reuse, don't design)", numbered phases, Gates split machine/eyes, out of scope, open
+questions, a Log appended as built. Write the plan and its Unreleased `###` section (one per theme, named
+for the plan) before the code. A leftover "remaining" section is a recorded stopping point, not a backlog.
+On merge the plan moves to `plan-archive/`. Nothing tracked may cite a plan path.
 
-## Release notes
+## Release
 
-### Bot image
+Control plane: add `## [X.Y.Z] - YYYY-MM-DD` to the changelog, commit, tag `vX.Y.Z`; the workflow slices
+that section. Bot image: tag `bot-vX.Y.Z`; control pins exact bot tags, never `:latest`. `bot-v*` tags do
+not release the control plane.
 
-Tag a bot runtime release as `bot-vX.Y.Z` and push it. The publish workflow builds multi-arch images and pushes `ghcr.io/zombico/mojulo-bot:X.Y.Z` plus `:latest` on the default branch. The control plane pins exact bot tags; never use `:latest` from control-plane deploy code.
+## Data and native landmines
 
-### Control plane
-
-Add a `## [X.Y.Z] - YYYY-MM-DD` section to [control/CHANGELOG.md](control/CHANGELOG.md), commit, then tag `vX.Y.Z`. The release workflow slices that changelog section. `bot-v*` tags do not trigger control-plane releases.
+- Two path resolvers. Bins use `~/.mojulo` via `scripts/mojulo-paths.mjs`; `next dev` uses `control/.env`
+  (`SQLITE_PATH=./data/…`). Repo-dev exports `MOJULO_DATA_DIR="$(pwd)/data"
+  MOJULO_OUTCOMES_DIR="$(pwd)/data/outcomes"` before any script. Quote them.
+- Schema and migrations are hand-written, idempotent, and ordered in `control/lib/db/index.js`. No version
+  ledger. `getDb()` has side effects (backfill, daemons).
+- `better-sqlite3` compiles per arch; new native server deps go in `next.config.mjs` `serverExternalPackages`.
+  No `postinstall` model download; `fetch-embed-model.js` is explicit so `npx mojulo` stays fast.
+- Chatbot pack: Debian slim Node 20, never Alpine (`onnxruntime-node` is glibc-only).
 
 ## Architecture map
 
-- MCP server: [control/lib/mcp/server.js](control/lib/mcp/server.js), tools in [control/lib/mcp/tools/](control/lib/mcp/tools/), full model in [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md).
-- Recipe substrate: one `sketches` row per recipe; render dispatch in [control/lib/graph/sketch/sketch-manifest.js](control/lib/graph/sketch/sketch-manifest.js), world resolution in [control/lib/graph/worlds/world-scene.js](control/lib/graph/worlds/world-scene.js). Emitters: SVG/PNG, CSS-3D, WebGL, glTF, STL, Godot — all under [control/lib/graph/scene/](control/lib/graph/scene/).
-- Engine handoff: the engine-agnostic score + honest-loss ledger in [control/lib/graph/scene/engine-score.js](control/lib/graph/scene/engine-score.js), advisory portability in [control/lib/graph/scene/engine-portability.js](control/lib/graph/scene/engine-portability.js), Godot emitters + the hand-authored GDScript kernel in [control/lib/graph/scene/godot-project.js](control/lib/graph/scene/godot-project.js) / [godot-kernel/](control/lib/graph/scene/godot-kernel/) (CLI `scripts/export-godot.mjs`; its gate includes the headless `locomotion_probe` auto-walk rung), Unity 6 emitters + kernel in [control/lib/graph/scene/unity-project.js](control/lib/graph/scene/unity-project.js) / [unity-pack.js](control/lib/graph/scene/unity-pack.js) (CLI `scripts/export-unity.mjs`, machine gate needs `MOJULO_UNITY`; each pack ships a T-numbered IMPORT-GUIDE.md), Unreal 5 emitters + the pack-carried C++ kernel plugin in [control/lib/graph/scene/unreal-project.js](control/lib/graph/scene/unreal-project.js) / [unreal-kernel.js](control/lib/graph/scene/unreal-kernel.js) / [unreal-pack.js](control/lib/graph/scene/unreal-pack.js) (CLI `scripts/export-unreal.mjs`, machine gate needs `MOJULO_UNREAL` or a UE install auto-found under `/Users/Shared/Epic Games/`; the operator's project compiles the plugin; design + forensic build log in `lite-template/integration/0903/export-unreal.plan.md`, fast resume layer in `lite-template/integration/0904/export-unreal-handoff.md`). The walking-suit mechanism (locomotion row → idle/walk playback, wrapper follow, camera from suit bounds) is shared by all three kernels; the engine-neutral rules + landmine ledger are `lite-template/integration/0904/walking-suit-backport.md`.
-- Field solids (the workbench's `lofts` + `fields` monomers — a profile that changes along its path; cuts / pockets / bores / blended masses / sculpt dabs composed in FIELD space and surfaced once by the surface-net polygonizer, edges rounded to about a grid cell; NOT a mesh CSG kernel — sharp booleans are Manifold's `export_model union:true` or the DCC): term library [control/lib/graph/polygonizer/field-terms.js](control/lib/graph/polygonizer/field-terms.js) (shared with the animal skins; includes the six domain ops `transform`/`repeat`/`twist`/`bend`/`taper`/`elongate`), the `expr` distance-expression grammar + its GLSL emitter [field-expr.js](control/lib/graph/polygonizer/field-expr.js) (versioned, append-only whitelist; bounds clip), lowering [field-faces.js](control/lib/graph/polygonizer/field-faces.js) / [loft-faces.js](control/lib/graph/polygonizer/loft-faces.js), polygonizer [field-mesh.js](control/lib/graph/polygonizer/field-mesh.js); manual in the workbench solid-vocab card. The **code door** (`mint_solid kind:'code'` — a program that RETURNS a workbench spec or faces, run in a no-reach seeded `node:vm` realm; the program is a param on a plain `kind:'workbench'` manifest): realm [code-realm.js](control/lib/graph/polygonizer/code-realm.js), expansion seam [worlds/workbench-program.js](control/lib/graph/worlds/workbench-program.js), card `solid-vocab/code.md`. Design: `lite-template/integration/0905/expressiveness.plan.md`. Design: `lite-template/integration/0904/field-solids.plan.md` (D0 decided 2026-09-05 — see the amended non-goals in [control/lib/mcp/tools/cad-aid.plan.md](control/lib/mcp/tools/cad-aid.plan.md)).
-- Recipe book + cookbook: [control/lib/graph/views/recipe-book/](control/lib/graph/views/recipe-book/) (loader / cards / registry / toolkit), write path [control/lib/mcp/tools/save-recipe.js](control/lib/mcp/tools/save-recipe.js). Contribution stance in [CONTRIBUTING.md](CONTRIBUTING.md).
-- Fleet aggregation and scoped SQL (chatbot pack): [control/lib/deployers/bot-fleet.js](control/lib/deployers/bot-fleet.js), [control/lib/fleet/scoped-sql.js](control/lib/fleet/scoped-sql.js), and [docs/chatbot/AGENT-REFERENCE.md](docs/chatbot/AGENT-REFERENCE.md#fleet-aggregation).
-- Catalysts: [control/lib/mcp/catalysts/](control/lib/mcp/catalysts/), [docs/catalysts.md](docs/catalysts.md). Catalyst frontmatter is JSON, not YAML.
-- App runtime: [control/lib/runners/](control/lib/runners/), [docs/app-runtime.md](docs/app-runtime.md).
-- Vector RAG: [docs/chatbot/vector-rag.md](docs/chatbot/vector-rag.md), [lite-template/helper/embedder-local.js](lite-template/helper/embedder-local.js).
-- Protocol and LLM behavior: [lite-template/helper/llm-client.js](lite-template/helper/llm-client.js), [control/lib/llm-providers.js](control/lib/llm-providers.js), [docs/chatbot/protocol-composition.md](docs/chatbot/protocol-composition.md).
-- CSS-3D scene backend (a live, dependency-free `preserve-3d` second renderer beside the SVG path — rooms, suites, cities from the same world geometry): [control/lib/graph/scene-css3d.js](control/lib/graph/scene/scene-css3d.js), suites [control/lib/graph/suite-layout.js](control/lib/graph/architecture/suite-layout.js), cities [control/lib/graph/fractal-city.js](control/lib/graph/city/fractal-city.js). The baked, camera-independent lighting/atmosphere model (vexar + traced diffusion + soft pools + cast/contact shadows + moonlight + sky) is in [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md).
-- Dungeon-designer (the fantasy-interior primitive — organic, not-flat caves/dungeons, as opposed to the flat generative houses/rooms of suite-layout; invariant: there is a ceiling and a floor, but no surface is assumed flat): [control/lib/graph/dungeon-designer.js](control/lib/graph/architecture/dungeon-designer.js), design + roadmap (texture tiles, airsealed corridors, castle interiors) in [control/lib/graph/dungeon-designer.plan.md](lite-template/integration/plan-archive/dungeon-designer.plan.md). A `{chambers, tunnels}` graph spec → walkable World or ant-farm section; composes the round-chamber + golden-relief + carved-mouth + traced-fire kernels in scene-css3d.js.
-- Raymarch effects layer (volumetric effects — fog first — raymarched as a transparent overlay that composites OVER the three.js mesh worlds, occluding against the world's own solids via a grid-culled scene SDF; NOT a world-replacement raymarch): primitives in [control/lib/graph/volume-raymarch.js](control/lib/graph/effects/volume-raymarch.js) (`buildVolumeFrag`, `overlay:true`), [control/lib/graph/effects-occluder.js](control/lib/graph/effects/effects-occluder.js) (grid-culled box-field SDF), [control/lib/graph/effects-fog.js](control/lib/graph/effects/effects-fog.js) (`composeVolumeFog`); hosted by `emitThreeWorld({ fog })` in scene-three.js and exposed as an opt-in `fog` manifest setting in [control/lib/graph/world-scene.js](control/lib/graph/worlds/world-scene.js). Read [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md) (principles + primitive inventory + how to add a new effect layer) before building another raymarch visual layer; build log in [control/lib/graph/effects-layer.plan.md](lite-template/integration/plan-archive/effects-layer.plan.md).
-- Procedural materials (the texture-free vertex-colour material system — the Wii/PS2-era metal look: lambert base + top-lit ramp + brushed cloud + weathering, all baked into per-corner `cornerFills`, NOT textures or shaders; peer to `surface-textures.js`): registry + layers + `resolveFaceMaterials` in [control/lib/graph/materials/procedural-material.js](control/lib/graph/materials/procedural-material.js), exposed as a generic opt-in — any mesh-world face carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed?, lit? }`) is tessellated + vertex-coloured by `resolveFaceMaterials` in [control/lib/graph/worlds/world-scene.js](control/lib/graph/worlds/world-scene.js) (runs before the AO bake; composes with `vao`/`spec`). Presets: `gradient-plate`/`brushed-steel`/`brushed-hull`/`weathered-hull`/`weathered-heavy`. The render primitive underneath is per-corner `cornerFills` in [control/lib/graph/figures/face-mesh.js](control/lib/graph/figures/face-mesh.js). Invariants: seeded noise only (deterministic, byte-identical re-render); absent `material` ⇒ face list untouched; grid² tessellation cost → grid ≤4 for live worlds, grid 8 + AO for offline hero renders. Design + usage: [control/lib/graph/materials/procedural-material.plan.md](control/lib/graph/materials/procedural-material.plan.md).
-- Beats (the audio primitive family — synthesized-never-sampled musical artifacts as tiny seeded recipes; kinds: ambient loop / composition score / pattern groove / sfx cues): kernel + patches + instruments + manifests + player + offline WAV render in [control/lib/graph/beats/](control/lib/graph/beats/), MCP tools (create / get / update / annotate / diff / export + vocab) in [control/lib/mcp/tools/beats.js](control/lib/mcp/tools/beats.js), the studio at [control/app/beats/](control/app/beats/) over the `control/app/api/beats/[ref]/` routes (revisions + annotations ride `beats_revisions` / `beats_annotations`; rows stay in `sketches` — the domain layer is the sovereignty). Worlds opt in via the manifest `audio` channel (soundtrack / SFX cues / footsteps / wind / macro `bindings`), resolved by [control/lib/graph/beats/beats-world.js](control/lib/graph/beats/beats-world.js). Design + build log: [control/lib/graph/beats/beats.plan.md](control/lib/graph/beats/beats.plan.md). Invariants: recipes not renders; seeded dice only (mulberry32, never `Math.random`); audio reads sim state and never writes back; muted capture stays byte-identical. A composition can *sing*: a `patch:'voice'` part is realized by the in-process parametric formant synth ([control/lib/graph/beats/beats-song-voice-parametric.js](control/lib/graph/beats/beats-song-voice-parametric.js) + the beats-song-* siblings) — no external worker, no new tool or route; design + engine decision in [control/lib/graph/beats/beats-song.plan.md](control/lib/graph/beats/beats-song.plan.md).
-- Image outcomes (the director layer for external image generation — mojulo designs pictures but cannot paint them; scaffold recipes stay sovereign, painted PNGs are bound derived renders with provenance): [control/lib/graph/image-outcomes/](control/lib/graph/image-outcomes/), durable worker handoff (`request/pull/submit/accept/reject_image_render` over the `image_render_requests` table) in [control/lib/mcp/tools/render-handoff.js](control/lib/mcp/tools/render-handoff.js), optional local ComfyUI+SDXL worker in [docs/local-image-worker.md](docs/local-image-worker.md). The seam doctrine ("bicycles": self-documenting loops with a machine gate and an eyes gate, never conflated) is [docs/bicycles.md](docs/bicycles.md).
-- Voice (deterministic voice-register recipes — confidence × depth resolved to Kokoro blend weights, pure math, no dice; WAVs are disposable derived renders via the optional local Kokoro worker): [control/lib/graph/voice/](control/lib/graph/voice/), MCP tools in [control/lib/mcp/tools/voice.js](control/lib/mcp/tools/voice.js), worker doc [docs/local-voice-worker.md](docs/local-voice-worker.md). Scope: voiceovers and narration; character acting is out of scope.
-- World GI bake — the "blenderification" bicycle (an OPTIONAL, operator-hosted capability that bakes Blender Cycles global illumination into a world's OWN vertex colours, which mojulo's unlit runtime draws at ZERO runtime cost — soft AO + contact shadow with no runtime shadow map; same posture as the image/voice workers — needs a local Blender, substrate holds no Blender/keys/state). **If the user has Blender installed, this path is available; if not, skip it — nothing else depends on it.** Driver [control/scripts/bake-world-gi.mjs](control/scripts/bake-world-gi.mjs) + headless worker [control/scripts/bake-world-gi.py](control/scripts/bake-world-gi.py). A fixed DRIVETRAIN (FACING→EXPORT→BAKE→machine-gate→BIND→eyes-gate) with swappable GEAR ADAPTERS per world kind: `inline-faces` (frozen `manifest.faces` maps — recolours faces in place, so `mapRef` mode-variants inherit) and `generated-mesh` (fractal-city / dungeon / floorplan — `resolveWorldScene`→bake→a `<ref>_gi` meshRef variant). Run: `node scripts/bake-world-gi.mjs --ref <world> --preset interior-day|exterior|space|interior-lit --write` (repo-dev exports `MOJULO_DATA_DIR="$(pwd)/data" MOJULO_OUTCOMES_DIR="$(pwd)/data/outcomes"`; `--preview` for a dry run). Prereq: authored face normals — the migration stamps `outNormal` per face, else a bake blackens back-faces ([control/lib/graph/scene/export-normals.plan.md](lite-template/integration/plan-archive/export-normals.plan.md)). The baked WORLDS are ungated — they ship to any player/bot/deploy as plain vertex colours, no Blender. Design + rollout + presets + the two gates: [control/lib/graph/scene/map-gi-bake.plan.md](lite-template/integration/plan-archive/map-gi-bake.plan.md); worker posture + hero-object bake sibling: [docs/local-blender-worker.md](docs/local-blender-worker.md); the "bicycle" doctrine (machine gate + eyes gate, never conflated): [docs/bicycles.md](docs/bicycles.md).
-- Edifice (the workbench for buildings — a bespoke walkable building authored as a graph of masses + concourses with doorway punches, vs. the frozen generators of compose_world; advisory livability checks, never gated): [control/lib/graph/architecture/edifice.js](control/lib/graph/architecture/edifice.js), tool in [control/lib/mcp/tools/edifice.js](control/lib/mcp/tools/edifice.js), design + roadmap in [lite-template/integration/plan-archive/dream-architecture.plan.md](lite-template/integration/plan-archive/dream-architecture.plan.md).
-- Plan mode (Ring 8): [control/lib/mcp/tools/plan-mode.js](control/lib/mcp/tools/plan-mode.js), dashboard at [control/app/plan/](control/app/plan/). Plans are the proposed speculative layer; contextmap is sealed reality. See [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#plan-and-research-modes).
-- Research mode (Ring 9): [control/lib/mcp/tools/research-mode.js](control/lib/mcp/tools/research-mode.js). Accretive optional drawer upstream of plans; deliberately not woven into `forward_context`. See [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#plan-and-research-modes).
+Pointers only; each target carries its own design notes.
 
-**Chatbot pack** (only when the work IS bot-factory work — see [docs/chatbot/](docs/chatbot/) and its [AGENT-REFERENCE.md](docs/chatbot/AGENT-REFERENCE.md)):
-
-- Bot build pipeline: [control/lib/deployers/docker.js](control/lib/deployers/docker.js), [control/lib/composer/](control/lib/composer/), [docs/chatbot/BOT-ARCHITECTURE.md](docs/chatbot/BOT-ARCHITECTURE.md).
-- Cloud deploy: [control/lib/deployers/cloud-deploy.js](control/lib/deployers/cloud-deploy.js), [control/lib/deployers/fly.js](control/lib/deployers/fly.js). Read the top comments in `fly.js` before changing lifecycle behavior.
-- Builder/wizard convergence: [control/lib/builder/](control/lib/builder/), [control/components/wizard/modular/](control/components/wizard/modular/), [docs/chatbot/chat-builder.md](docs/chatbot/chat-builder.md), [docs/chatbot/wizard-builder.md](docs/chatbot/wizard-builder.md).
-
-## Native dependency landmines
-
-- `better-sqlite3` compiles per architecture.
-- *(chatbot pack)* `onnxruntime-node` is glibc-only — keep the bot Dockerfile on Debian slim Node 20, never Alpine. The GHCR bot image is multi-arch for the same `better-sqlite3` reason.
-- The control plane intentionally has no `postinstall` model download. `control/scripts/fetch-embed-model.js` is explicit/lazy so `npx mojulo` does not immediately fetch 113MB.
-- When adding native server dependencies to control, check [control/next.config.mjs](control/next.config.mjs)'s `serverExternalPackages`.
-
-## Data layout
-
-- Control SQLite: [control/data/mojulo-lite.db](control/data/), schema and migrations in [control/lib/db/index.js](control/lib/db/index.js), repositories in [control/lib/db/repositories/](control/lib/db/repositories/).
-- Recipes: the `sketches` table (`ref`, `title`, `manifest_json`) — one row per creative artifact, every family.
-- The operator's cookbook: plain `card.md` + `recipe.json` folders under `<data dir>/cookbook` (`MOJULO_COOKBOOK`), its own git repo with no remote. Not a table.
-- Derived outcomes: `MOJULO_OUTCOMES_DIR`, default `<data dir>/outcomes`.
-- *(chatbot pack)* generated zips [control/data/artifacts/](control/data/artifacts/), uploaded documents [control/data/storage/](control/data/storage/), and per-bot SQLite at `data/conversation.db` inside each bot's `./data/` mount.
-
-For table-level orientation, see [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#data-layout).
+- MCP: [server.js](control/lib/mcp/server.js), [tools/](control/lib/mcp/tools/), [packs.js](control/lib/mcp/packs.js).
+- Recipe dispatch: [sketch-manifest.js](control/lib/graph/sketch/sketch-manifest.js) (render mode + bucket),
+  [world-scene.js](control/lib/graph/worlds/world-scene.js) (world resolution and opt-in channels),
+  [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
+- Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
+  ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
+  Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`; CLIs in
+  `control/scripts/export-*.mjs`; gates are advisory and need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL`.
+- Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`),
+  [worlds/workbench.js](control/lib/graph/worlds/workbench.js); manuals are the `solid-vocab/` cards.
+- Recipe book: [views/recipe-book/](control/lib/graph/views/recipe-book/). Vocab cards: `*-vocab/` dirs.
+- Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
+  outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
+  [architecture/edifice.js](control/lib/graph/architecture/edifice.js).
+- Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
+  [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).
+- Chatbot pack rules and map: [docs/chatbot/AGENT-REFERENCE.md](docs/chatbot/AGENT-REFERENCE.md).

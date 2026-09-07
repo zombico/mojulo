@@ -3,7 +3,7 @@
 How mojulo composites **raymarched volumetric effects** (volumetric fog being the first) over the
 rasterized three.js mesh worlds — and how to build new ones. The first vertical (fog over
 `fractal-city`) is documented blow-by-blow in
-[control/lib/graph/effects-layer.plan.md](../control/lib/graph/effects-layer.plan.md); this file is
+effects-layer.plan.md; this file is
 the durable **principles + primitive inventory + extension recipe**. Read this before adding a new
 raymarch visual layer so you extend the spine instead of rebuilding it.
 
@@ -44,12 +44,12 @@ Build new effects by composing/extending these — do not start from scratch.
 
 | Primitive | File | What it is |
 |---|---|---|
-| `buildVolumeFrag({ … })` | [volume-raymarch.js](../control/lib/graph/volume-raymarch.js) | The reusable emission/absorption march. You supply a `volSample(p[,rd], out emis, out ext)` transfer function via `globals`. `overlay:true` → premultiplied layer output (composites over a mesh); default → opaque image (bounding sphere + background + tonemap). `occluder:{ sdfFn, … }` clips the march at the first solid via sphere-tracing. |
-| `SDF_GLSL` | [sdf-glsl.js](../control/lib/graph/sdf-glsl.js) | GLSL SDF primitives: `sdfSphere/sdfBox/sdfEllipsoid` + set ops `opU/sdfSmin/sdfSmax`. Concatenate BEFORE any consumer GLSL. |
-| `bakeBoxField` / `boxFieldGLSL` / `boxFromFootprint` | [effects-occluder.js](../control/lib/graph/effects-occluder.js) | The grid-culled **scene-SDF occluder**: bake a box set + a coarse uniform grid (cell→box-index table) into Float32 data textures, and the matching GLSL that decodes them so the SDF tests only the boxes in each ray-point's cell. `up:'y'|'z'` selects the vertical axis. `boxFromFootprint` adapts fractal-city's z-up footprint boxes. |
-| `composeVolumeFog(boxes, opts)` | [effects-fog.js](../control/lib/graph/effects-fog.js) | The productized fog effect: bakes the box field, composes occluder + fog transfer fn + overlay shader, returns `{ frag, customUniforms, dataTextures }` ready for `emitThreeWorld`'s `fog`. |
-| `emitThreeWorld({ …, fog })` | [scene-three.js](../control/lib/graph/scene-three.js) | The mesh-world host. The `fog` param adds the effect as the transparent fullscreen quad (premultiplied blend, depthTest off, `onBeforeRender` camera feed). `dataTextures` builds Float32 `DataTexture`s in-page. |
-| `emitRaymarchWorld({ …, dataTextures })` | [scene-three.js](../control/lib/graph/scene-three.js) | The standalone raymarch host (no mesh) — for opaque, full-frame raymarch worlds and for isolating an effect's SDF/transfer fn before composing it over a mesh. |
+| `buildVolumeFrag({ … })` | [volume-raymarch.js](../control/lib/graph/effects/volume-raymarch.js) | The reusable emission/absorption march. You supply a `volSample(p[,rd], out emis, out ext)` transfer function via `globals`. `overlay:true` → premultiplied layer output (composites over a mesh); default → opaque image (bounding sphere + background + tonemap). `occluder:{ sdfFn, … }` clips the march at the first solid via sphere-tracing. |
+| `SDF_GLSL` | [sdf-glsl.js](../control/lib/graph/effects/sdf-glsl.js) | GLSL SDF primitives: `sdfSphere/sdfBox/sdfEllipsoid` + set ops `opU/sdfSmin/sdfSmax`. Concatenate BEFORE any consumer GLSL. |
+| `bakeBoxField` / `boxFieldGLSL` / `boxFromFootprint` | [effects-occluder.js](../control/lib/graph/effects/effects-occluder.js) | The grid-culled **scene-SDF occluder**: bake a box set + a coarse uniform grid (cell→box-index table) into Float32 data textures, and the matching GLSL that decodes them so the SDF tests only the boxes in each ray-point's cell. `up:'y'|'z'` selects the vertical axis. `boxFromFootprint` adapts fractal-city's z-up footprint boxes. |
+| `composeVolumeFog(boxes, opts)` | [effects-fog.js](../control/lib/graph/effects/effects-fog.js) | The productized fog effect: bakes the box field, composes occluder + fog transfer fn + overlay shader, returns `{ frag, customUniforms, dataTextures }` ready for `emitThreeWorld`'s `fog`. |
+| `emitThreeWorld({ …, fog })` | [scene-three.js](../control/lib/graph/scene/scene-three.js) | The mesh-world host. The `fog` param adds the effect as the transparent fullscreen quad (premultiplied blend, depthTest off, `onBeforeRender` camera feed). `dataTextures` builds Float32 `DataTexture`s in-page. |
+| `emitRaymarchWorld({ …, dataTextures })` | [scene-three.js](../control/lib/graph/scene/scene-three.js) | The standalone raymarch host (no mesh) — for opaque, full-frame raymarch worlds and for isolating an effect's SDF/transfer fn before composing it over a mesh. |
 | `resolveWorldScene` `fog` setting | [world-scene.js](../control/lib/graph/worlds/world-scene.js) | The opt-in wiring: a manifest `fog: true \| {tuning}` on a kind whose registry descriptor ([world-kinds.js](../control/lib/graph/worlds/world-kinds.js)) declares a `fogBoxes` extractor attaches `payload.fog = composeVolumeFog(...)`. Renders only on the live `/world` path. |
 
 ## Recipe — add a new raymarch effect layer

@@ -7,7 +7,7 @@ scheduler, with the existing `start_app` / `stop_app` MCP tools becoming thin
 RPC clients over its loopback HTTP API. Operators don't compose with it; they
 materialize an App and the runtime just *is there*.
 
-> Implements `lite-template/integration/app-system/0527/app-runtime-daemon.md`,
+> Implements `app-runtime-daemon.md`,
 > Phase 1 (substrate + reconcile). Phase 2 (OS-level supervision) is the
 > launchd / systemd recipes at the end of this doc.
 

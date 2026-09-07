@@ -1,5 +1,7 @@
 # Bicycles — self-drivable tool loops
 
+*Narrative introduction: [bicycles-for-your-agents-mind.md](bicycles-for-your-agents-mind.md). This file is the mechanism.*
+
 Status: doctrine note (2026-07-12). Names a pattern that already exists in
 the substrate so new work can aim at it deliberately. NOT a claim that
 everything is or should be a bicycle — most tools are one-shot, and that
@@ -52,7 +54,7 @@ piece redoes, and the state names which gate it failed.
 ## Instances already in the substrate
 
 - **The keyframe bicycle** —
-  [control/lib/graph/image-outcomes/keyframe-spike/bicycle.mjs](../control/lib/graph/image-outcomes/keyframe-spike/bicycle.mjs).
+  control/lib/graph/image-outcomes/keyframe-spike/bicycle.mjs.
   `init → paint cels → audit → fix retries → done`, over meru guides and a
   `status.json`. The first thing named a bicycle here; this note
   generalizes from it.
@@ -64,10 +66,9 @@ piece redoes, and the state names which gate it failed.
 - **Plan / research modes** — accretive drawers with their own re-readable
   state driving a deliberation loop.
 
-## The next bicycle: the render handoff
+## The render handoff bicycle (shipped)
 
-The durable render handoff — [render-handoff.plan.md](../control/lib/graph/image-outcomes/render-handoff.plan.md)
-— is the render-worker seam built as a bicycle: `request_image_render`
+The durable render handoff is the render-worker seam built as a bicycle: `request_image_render`
 parks durable rows, a worker pulls a self-documenting packet, paints,
 submits, and an audit gate accepts. It replaces three improvised handoffs
 (stills out-of-band, comics via bind, cels via the file-based keyframe

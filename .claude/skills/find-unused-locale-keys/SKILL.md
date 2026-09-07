@@ -46,7 +46,7 @@ It's often most useful to roll the unused set up by top-level namespace so the u
 
 ### 3. Surface blind spots before any deletion
 
-For each entry in `blindSpots`, the analysis could not see which key is used. Read those `file:line` sites and confirm the keys they resolve to are stored as full-path string literals somewhere (so the corpus already protected them). The known case is [Breadcrumbs.jsx](control/components/Breadcrumbs.jsx) — `t(crumb.labelKey)` over a static `ROUTES` array of full-path `labelKey` strings, which the corpus catches. If a blind spot resolves to keys NOT present as literals, stop and flag it — deleting under it could be unsafe.
+For each entry in `blindSpots`, the analysis could not see which key is used. Read those `file:line` sites and confirm the keys they resolve to are stored as full-path string literals somewhere (so the corpus already protected them). The known case is [Breadcrumbs.jsx](../../../control/components/Breadcrumbs.jsx) — `t(crumb.labelKey)` over a static `ROUTES` array of full-path `labelKey` strings, which the corpus catches. If a blind spot resolves to keys NOT present as literals, stop and flag it — deleting under it could be unsafe.
 
 ### 4. Get explicit confirmation
 

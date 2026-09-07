@@ -6,7 +6,7 @@ description: Sync or regenerate control/messages/<locale>.json from en.json via 
 # /sync-locales
 
 Bring `control/messages/<locale>.json` files in line with `control/messages/en.json`
-using [control/scripts/locale-sync.mjs](control/scripts/locale-sync.mjs). The model's
+using [control/scripts/locale-sync.mjs](../../../control/scripts/locale-sync.mjs). The model's
 only job is translating a flat list of unique strings; all file assembly, dedup,
 resume bookkeeping, and validation are deterministic script code.
 
@@ -27,7 +27,7 @@ No codes → **stop and ask** which locales. `--fresh` (or the user asking to
 ### 0. Sanity checks (once, before any locale)
 
 - Reject codes not matching `^[a-z]{2,3}(-[A-Z]{2})?$`, and reject `en`.
-- Every code must be in `localeNames` in [control/i18n/config.js](control/i18n/config.js).
+- Every code must be in `localeNames` in [control/i18n/config.js](../../../control/i18n/config.js).
   If missing, ask the user for the autonym, add it, and add the code to `rtlLocales`
   if the script is RTL.
 - `cd control && node scripts/validate-locale.mjs en en` must print `en.json: ok`.

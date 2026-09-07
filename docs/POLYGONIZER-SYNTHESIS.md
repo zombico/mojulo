@@ -2,7 +2,7 @@
 
 Status: living reference for where the polygonizer ended up after the
 2026-06-04 / 06-05 substrate sprint. Supersedes the dozen integration
-plan files in `lite-template/integration/0605/*.plan.md` as the
+0605 plan files (archived) as the
 authoritative orientation. The plan files remain the source of
 *historical* design rationale (why each move landed in the order it
 did); this document is the source of *current* shape.
@@ -22,7 +22,7 @@ small number of named field declarations + a tree of leaf invocations.
 ## Mental model
 
 The substrate's design rule (from
-[waveform-physics-design.md](../control/lib/graph/polygonizer/waveform-physics-design.md))
+waveform-physics-design.md)
 organizes every primitive along two axes:
 
 ```
@@ -161,7 +161,7 @@ The division of labor is deliberate. The primitives in
 [materialize.js](../control/lib/graph/polygonizer/materialize.js) and
 [transfigure.js](../control/lib/graph/polygonizer/transfigure.js) are
 pure geometry/state: `(contours, class, phase) -> phase-state`.
-[carved-motion.js](../control/lib/graph/carved-motion.js) is the
+[carved-motion.js](../control/lib/graph/effects/carved-motion.js) is the
 consumer: it reuses the carved-solid camera, extrusion, bevel, and
 vexar shading stack, then draws wire/skin crossfades, scan-plane clips,
 or particle clouds. [forge_motion](../control/lib/mcp/tools/motion.js)
@@ -408,7 +408,7 @@ optional `extraction: 'sweep'` mode and the underlying bent-lathe atom
 (`lathe`'s `normalFrom`/`normalTo`) provide a cheap approximation; the
 default `'field'` march is the primary path. Design + the still-deferred
 in-tree-leaf authoring, bead-center slot emission, and field export:
-[vajra-primitive.plan.md](../lite-template/integration/0608/vajra-primitive.plan.md).
+vajra-primitive.plan.md.
 
 ### The three representation spaces
 
@@ -434,7 +434,7 @@ is prototyped in the form's own **sub-space** (rBrush), then printed
 deterministically to pixels, with the browser budget living in the print, not
 the form. The plant macro and a unified print pass are the proof the framing
 generalizes beyond the vajra. See
-[wave-to-world-paint.plan.md](../lite-template/integration/0609/wave-to-world-paint.plan.md).
+wave-to-world-paint.plan.md.
 
 ## The shelf card layer
 
@@ -708,29 +708,29 @@ grouped by subsystem:
 
 ### Plans (historical rationale)
 
-- [waveform-physics-design.md](../control/lib/graph/polygonizer/waveform-physics-design.md)
+- waveform-physics-design.md
   — the wave/structure framing + named-archetype design
-- [wave-and-line-in-tree.plan.md](../lite-template/integration/0605/wave-and-line-in-tree.plan.md)
+- wave-and-line-in-tree.plan.md
   — folding open primitives into the tree-IR
-- [wave-manji-as-leaf.plan.md](../lite-template/integration/0605/wave-manji-as-leaf.plan.md)
+- wave-manji-as-leaf.plan.md
   — wave-manji becomes a tree-leaf
-- [cross-primitive-fields.plan.md](../lite-template/integration/0605/cross-primitive-fields.plan.md)
+- cross-primitive-fields.plan.md
   — fields as substrate-level coupling
-- [shelf-cards-declare-fields.plan.md](../lite-template/integration/0605/shelf-cards-declare-fields.plan.md)
+- shelf-cards-declare-fields.plan.md
   — fields on the shelf
-- [structure-manji-unlocks.plan.md](../lite-template/integration/0605/structure-manji-unlocks.plan.md)
+- structure-manji-unlocks.plan.md
   — wave-side discoveries ported back to structure
-- [lathe-primitive.plan.md](../lite-template/integration/0605/lathe-primitive.plan.md)
+- lathe-primitive.plan.md
   — completing the n=2 closed slot
-- [landscape-substrate.plan.md](../lite-template/integration/0605/landscape-substrate.plan.md)
+- landscape-substrate.plan.md
   — wave-surface field + anchor widening
-- [landscape-followups.plan.md](../lite-template/integration/0605/landscape-followups.plan.md)
+- landscape-followups.plan.md
   — noise + sum + inline corners
-- [wave-field-heightfield.plan.md](../lite-template/integration/0605/wave-field-heightfield.plan.md)
+- wave-field-heightfield.plan.md
   — wave-field consumes a field
-- [curve-projection-field.plan.md](../lite-template/integration/0605/curve-projection-field.plan.md)
+- curve-projection-field.plan.md
   — the first vector field kind + component extraction
-- [materialize-transfigure-motion.plan.md](../lite-template/integration/0611/materialize-transfigure-motion.plan.md)
+- materialize-transfigure-motion.plan.md
   — carve's temporal peers wired into `forge_motion`
 
 ## What's still open
@@ -761,7 +761,7 @@ Honest list of substrate-level gaps:
 - **Per-invocation namespacing for card-declared fields.** Today
   invoking a field-declaring card twice in one scene throws; an
   automatic namespace based on slot path would lift the restriction.
-- **Substrate library expansion.** The shelf is ~28 cards. Wave 2
+- **Substrate library expansion.** The shelf is the set of cards under `sketch-vocab/`. Wave 2
   (cameras, architecture, body postures) shipped sub-waves 2.1–2.3
   for 15 cards across those three axes; the remaining gap is
   classical compositions and still-life arrangements.

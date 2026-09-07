@@ -2,7 +2,7 @@
 
 An **optional** local image backend for the image-outcomes render seam
 (`get_image_render_packet` → `bind_image_render` / `bind_character_sheet`).
-Design + build log: [control/lib/graph/image-outcomes/local-render-worker.plan.md](../control/lib/graph/image-outcomes/local-render-worker.plan.md).
+Design + build log: local-render-worker.plan.md.
 
 **Who needs this:** nobody by default. The renderer is a pluggable worker —
 if the operator's driving agent has native image generation (Codex, an
@@ -110,7 +110,7 @@ fallback and for the surfaces not yet re-proven on Qwen:
   figure rig emits directly, plus IP-Adapter identity (the
   compile/edit template
   [comfyui-workflow-compile.template.json](../control/lib/graph/image-outcomes/comfyui-workflow-compile.template.json),
-  [animation-cheats.plan.md](../control/lib/graph/image-outcomes/animation-cheats.plan.md)).
+  animation-cheats.plan.md).
   `localParams` still emits `controlnet` + `negative` for this rung, and
   the old workflow template
   ([comfyui-workflow.template.json](../control/lib/graph/image-outcomes/comfyui-workflow.template.json))

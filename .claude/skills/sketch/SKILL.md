@@ -16,13 +16,13 @@ The control plane must be running at `http://localhost:3001` (or wherever the us
 
 ## Read these first
 
-- [control/lib/mcp/tools/sketches.js](control/lib/mcp/tools/sketches.js) — the tool's schema (`create_sketch` + `get_sketch_vocab`). The description block names what each station kind is for and how `marks`/`grid`/`z` work; don't drift from it.
-- [control/lib/graph/sketch-manifest.js](control/lib/graph/sketch-manifest.js) — the validator + `expandGridLayout`. Your manifest must pass validation; if you violate it the call errors with field-specific feedback.
-- [control/components/graph/CreationMap.jsx](control/components/graph/CreationMap.jsx) — the renderer. Read `STATION_STYLES` for station looks; `edgePath` for `via` routing; `MarkNode` + `wedgePath` for how the chart primitives render.
-- [control/lib/graph/sketch-vocab/](control/lib/graph/sketch-vocab/) — the chart vocabulary cards (the source of truth for chart layout). You normally reach these via `semantic_search` + `get_sketch_vocab`, not by reading the dir — but the files are here if you want the full catalog.
-- [control/lib/graph/creation-map.js](control/lib/graph/creation-map.js) — the curated reference sketch. Study its positioning, lane structure, label voice. Flow output should feel of-a-piece with this one.
+- [control/lib/mcp/tools/sketches.js](../../../control/lib/mcp/tools/sketches.js) — the tool's schema (`create_sketch` + `get_sketch_vocab`). The description block names what each station kind is for and how `marks`/`grid`/`z` work; don't drift from it.
+- [control/lib/graph/sketch-manifest.js](../../../control/lib/graph/sketch/sketch-manifest.js) — the validator + `expandGridLayout`. Your manifest must pass validation; if you violate it the call errors with field-specific feedback.
+- [control/components/graph/CreationMap.jsx](../../../control/components/graph/CreationMap.jsx) — the renderer. Read `STATION_STYLES` for station looks; `edgePath` for `via` routing; `MarkNode` + `wedgePath` for how the chart primitives render.
+- [control/lib/graph/sketch-vocab/](../../../control/lib/graph/sketch-vocab) — the chart vocabulary cards (the source of truth for chart layout). You normally reach these via `semantic_search` + `get_sketch_vocab`, not by reading the dir — but the files are here if you want the full catalog.
+- [control/lib/graph/creation-map.js](../../../control/lib/graph/creation-map.js) — the curated reference sketch. Study its positioning, lane structure, label voice. Flow output should feel of-a-piece with this one.
 
-The plan that established this surface: [lite-template/integration/app-system/0527/SKETCHBOOK_PLAN.md](lite-template/integration/app-system/0527/SKETCHBOOK_PLAN.md).
+The plan that established this surface: SKETCHBOOK_PLAN.md.
 
 ## Step 1 — Posture-check (push back before drafting)
 
@@ -198,7 +198,7 @@ Size heuristics:
 
 Before you call `create_sketch`, walk through:
 
-1. **Validator parity.** Every `from`/`to` resolves to a station id. Station ids are unique. Every station's `kind` is in `{input, mcp_tool, filesystem, db_row}`; every mark's `kind` is in `{rect, circle, wedge, line, polyline, text}`. Every required coord is a finite number (or the box uses a `cell` with a top-level `grid`). `wedge` `start`/`end` are fractions in `[0,1]` with `end ≥ start`. ViewBox width/height positive. (See [sketch-manifest.js](control/lib/graph/sketch-manifest.js) — these are the rules the server enforces.)
+1. **Validator parity.** Every `from`/`to` resolves to a station id. Station ids are unique. Every station's `kind` is in `{input, mcp_tool, filesystem, db_row}`; every mark's `kind` is in `{rect, circle, wedge, line, polyline, text}`. Every required coord is a finite number (or the box uses a `cell` with a top-level `grid`). `wedge` `start`/`end` are fractions in `[0,1]` with `end ≥ start`. ViewBox width/height positive. (See [sketch-manifest.js](../../../control/lib/graph/sketch/sketch-manifest.js) — these are the rules the server enforces.)
 2. **Layout sanity.** No two stations overlap. Everything is inside the viewBox (`x + w ≤ viewBox.width`, etc.). For charts, the marks sit inside their intended panel/zone.
 3. **Edge clarity.** No edge crosses through a station that isn't its endpoint without a `via` route around it. If the path is close-but-not-piercing, a `curvature > 1` is the lighter fix.
 4. **Fidelity to the card.** For charts: the marks match the retrieved `sketch_vocab` card's layout math (cumulative wedge fractions sum to 1, stacked-segment heights computed from a consistent scale, etc.). You didn't freehand a paradigm.

@@ -18,7 +18,7 @@ mandala-space / wave-space / world-space split:
 
 A renderer owns scale, the view rotation, projection, shading, and
 layout. The orthographic three-panel spike
-([figure-mandala-vajra-shoulder.spike.gen.test.js](../control/lib/graph/polygonizer/figure-mandala-vajra-shoulder.spike.gen.test.js))
+(figure-mandala-vajra-shoulder.spike.gen.test.js)
 is one such renderer.
 
 ## The graph
