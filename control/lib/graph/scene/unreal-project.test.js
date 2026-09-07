@@ -203,4 +203,15 @@ describe('lit handoff (lit-handoff.plan.md step 1)', () => {
     expect(py(false)).toContain('LIT = False');
     expect(py(undefined)).toBe(py(false));
   });
+
+  it('the light rig is movable sun + sky atmosphere + sky light; pot lights spawn from score.lights and are verified', () => {
+    const py = emitUnrealProject({ ref: 'sk_test_world', score, manifestHash: 'abcd1234abcd1234', lit: true }).files.find((f) => f.file === 'import_mojulo.py').text;
+    expect(py).toContain('def light_rig');
+    expect(py).toContain('unreal.SkyAtmosphere');
+    expect(py).toContain("set_editor_property('real_time_capture', True)");
+    expect(py).toContain('unreal.Rotator(roll=0.0, pitch=-35.0, yaw=-30.0)');
+    expect(py).toContain('def ensure_pot_lights');
+    expect(py).toContain('def settle_local_lights');
+    expect(py).toContain("check(prefix + 'lights_carried'");
+  });
 });

@@ -25,6 +25,12 @@
  *     shading reads it), and a local asset's authored normals turn with the
  *     piece; sweep tubes (the couch's wrinkle lines) author theirs too. Same face
  *     counts, new JSON. A and B re-based; C unchanged.
+ *   - couch facing (2026-09-06, lit-handoff.plan.md log): the lounge sofa faces the
+ *     television — the L arranger stamps `facing: 'S'` and `modern-couch` becomes a
+ *     `local: true` maker (built centred / front +y, mapped through localToFootprint)
+ *     so the planner's spin reaches it. Unspun placement is the same geometry to
+ *     ~1e-15 (the builder now adds the centre last), so the JSON differs by float
+ *     ordering as well as by the turned sofa. A and B re-based; C unchanged.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -37,7 +43,7 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
   it('generated seed plan, furnish:true', () => {
     const s = structurizeFloorplan({ seed: 7, width: 46, height: 34 }, { furnish: true });
     expect(s.faces.length).toBe(4166);
-    expect(sha(s.faces)).toBe('e4016aa1b1a63755cb179eaaa0729ef39191d6cb242d6f1bca504b7e31563fa8');
+    expect(sha(s.faces)).toBe('d7dd6ca9214f236e0c7f39472d5e5da7411bd03349c9448a73ddd944d20f68c5');
   });
 
   it('explicit two-cell plan with an interior door, furnish:true', () => {
@@ -47,7 +53,7 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
       doors: [{ x: 15, y: 6, room: 1, edge: 'W' }],
     }, { furnish: true });
     expect(s.faces.length).toBe(3134);
-    expect(sha(s.faces)).toBe('34768be30bc3e18f9dc3e070d0658c050cf01908404e34b43b9494239690574c');
+    expect(sha(s.faces)).toBe('ad59160c14afa350cf4d6747e8c473daa1d945358b9ccd3aa4a69f5013a864c1');
   });
 
   it('stacked house, cutaway (furnish defaults on)', () => {

@@ -364,7 +364,7 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1 } = {}) {
     const pbr = {
       baseColorFactor: [1, 1, 1, alpha == null ? 1 : alpha],
       metallicFactor: metallic,
@@ -375,6 +375,16 @@ class GlbBuilder {
     const mat = { doubleSided: true, pbrMetallicRoughness: pbr };
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
+    // A glowing surface (a pot-light lens): core emissiveFactor, plus KHR_materials_emissive_strength
+    // above 1 so a lit importer (Blender / Godot / Unity / Interchange) renders it as a light source
+    // in its own right — not a lit albedo that reads dark under a ceiling nothing lights.
+    if (Array.isArray(emissive) && emissive.length >= 3) {
+      mat.emissiveFactor = emissive.slice(0, 3);
+      if (emissiveStrength > 1) {
+        if (!this.emissiveStrengthDeclared) { this.json.extensionsUsed.push('KHR_materials_emissive_strength'); this.emissiveStrengthDeclared = true; }
+        mat.extensions = { ...(mat.extensions || {}), KHR_materials_emissive_strength: { emissiveStrength } };
+      }
+    }
     this.json.materials.push(mat);
     return this.json.materials.length - 1;
   }
@@ -725,9 +735,32 @@ class GlbBuilder {
     return nodeIdx;
   }
 
+  // KHR_lights_punctual (lit-handoff.plan.md, pot lights): a positioned light node in the
+  // pre-root z-up frame like every other child. A spot shines down its node's -Z, which under
+  // the y-up root IS mojulo's -Z (down) — a ceiling downlight needs no rotation. Intensity is
+  // candela for point/spot per the extension; Blender / Godot / Unreal convert on import.
+  addLightNode({ name, type = 'point', translation, color = [1, 1, 1], intensity = 1, innerCone, outerCone, range, rotation }) {
+    if (!this.lightsDeclared) {
+      this.json.extensionsUsed.push('KHR_lights_punctual');
+      this.json.extensions = { ...(this.json.extensions || {}), KHR_lights_punctual: { lights: [] } };
+      this.lightsDeclared = true;
+    }
+    const light = { name, type, color, intensity };
+    if (range > 0) light.range = range;
+    if (type === 'spot') light.spot = { innerConeAngle: innerCone ?? 0, outerConeAngle: outerCone ?? Math.PI / 4 };
+    const lightIdx = this.json.extensions.KHR_lights_punctual.lights.push(light) - 1;
+    const node = { name: `light:${name}`, translation, extensions: { KHR_lights_punctual: { light: lightIdx } } };
+    if (rotation) node.rotation = rotation;
+    const nodeIdx = this.json.nodes.push(node) - 1;
+    this.children.push(nodeIdx);
+    return nodeIdx;
+  }
+
   build() {
-    // y-up root: parent every geometry node under one rotated node.
-    const rootIdx = this.json.nodes.push({ name: 'mojulo', rotation: ZUP_TO_YUP, children: this.children }) - 1;
+    // y-up root: parent every geometry node under one rotated node. `rootScale` (a kind's
+    // metersPerUnit — the floorplan is authored in feet) rides here as a uniform scale, so
+    // every importer receives metres with no per-engine code.
+    const rootIdx = this.json.nodes.push({ name: 'mojulo', rotation: ZUP_TO_YUP, ...(this.rootScale ? { scale: this.rootScale, extras: { 'moj:metersPerUnit': this.rootScale[0] } } : {}), children: this.children }) - 1;
     this.json.scenes[0].nodes = [rootIdx];
 
     // Drop empty optional arrays so the glTF validates cleanly.
@@ -850,7 +883,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     for (const f of fs) {
       // textured faces stay on the texture path (a label wrap outranks its material)
       if (f && Array.isArray(f.pbr) && f.pbr.length >= 2 && typeof f.texture !== 'string') {
-        const k = `${f.pbr[0]},${f.pbr[1]}`;
+        // an emissive face (`emissive: [r,g,b]`, `emissiveStrength`) is its own bucket + material
+        const k = `${f.pbr[0]},${f.pbr[1]}` + (Array.isArray(f.emissive) ? `|e${f.emissive.join(',')}|${f.emissiveStrength ?? 1}` : '');
         if (!pbrBuckets.has(k)) pbrBuckets.set(k, []);
         pbrBuckets.get(k).push(f);
       } else plain.push(f);
@@ -864,13 +898,18 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       const mat = b.surfaceMaterial({ alpha: groupAlpha, name });
       tally(b.addNode(name, gm.positions, gm.colors, 3, mat, undefined, gm.normals));
     }
-    let pbrIdx = 0;
+    let pbrIdx = 0, emIdx = 0;
     for (const [, bucket] of pbrBuckets) {
       const bm = faceListToMesh(bucket, { decollide: false, withNormals: true });
       if (!bm.positions.length) continue;
       const [metallic, roughness] = bucket[0].pbr;
-      const nodeName = pbrBuckets.size > 1 ? `${name}:pbr${pbrIdx++}` : `${name}:pbr`;
-      const mat = b.pbrMaterial({ metallic, roughness, alpha: groupAlpha, name: nodeName });
+      const emissive = Array.isArray(bucket[0].emissive) ? bucket[0].emissive : null;
+      // emissive nodes are named `<group>:emissive` — the Unreal importer keeps that slot's own
+      // (Interchange) material instead of swapping it onto the mojulo master
+      const nodeName = emissive
+        ? `${name}:emissive${emIdx++ ? emIdx - 1 : ''}`
+        : (pbrBuckets.size > 1 ? `${name}:pbr${pbrIdx++}` : `${name}:pbr`);
+      const mat = b.pbrMaterial({ metallic, roughness, alpha: groupAlpha, name: nodeName, ...(emissive ? { emissive, emissiveStrength: bucket[0].emissiveStrength ?? 1 } : {}) });
       tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));
     }
     // texture × material: a textured face that ALSO carries `pbr` exports its tile as the
@@ -985,6 +1024,14 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // touches an emitted world PAGE.
   const camDefs = levelCameras(payload);
   for (const c of camDefs) b.addCameraNode(c);
+  // Positioned lights (`payload.lights`: pot lights today) — KHR_lights_punctual nodes.
+  const lightDefs = Array.isArray(payload.lights) ? payload.lights.filter((l) => l && Array.isArray(l.position)) : [];
+  for (const l of lightDefs) b.addLightNode({ ...l, translation: l.position });
+  // Units: a kind authored in other-than-metres declares `metersPerUnit`; the root scales.
+  // Scene extras are plain data outside the node tree, so they are pre-scaled below.
+  const mpu = Number(payload.metersPerUnit);
+  const unitScale = Number.isFinite(mpu) && mpu > 0 && mpu !== 1 ? mpu : null;
+  if (unitScale) b.rootScale = [unitScale, unitScale, unitScale];
   // One identifiable node per entity placement. Where the entity's body is a rig this export
   // actually baked (the clips path), the I1 wrapper node IS the placement — it gains the
   // entity's TRS (translation = spawn pos, rotation = heading + the runtime's yawOffset facing
@@ -1011,6 +1058,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   }
   // Scene-level extras: spawn point, collider boxes, game-contract summary.
   const sceneExtras = levelSceneExtras(payload);
+  if (sceneExtras && unitScale) {
+    const sv = (v) => v.map((x) => x * unitScale);
+    if (sceneExtras['moj:spawn']) sceneExtras['moj:spawn'] = sv(sceneExtras['moj:spawn']);
+    if (sceneExtras['moj:colliders']) sceneExtras['moj:colliders'] = sceneExtras['moj:colliders'].map((c) => ({ min: sv(c.min), max: sv(c.max) }));
+  }
   if (sceneExtras) b.json.scenes[0].extras = sceneExtras;
 
   const bytes = b.build();
@@ -1029,6 +1081,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (humanoidFigures.length) out.humanoidFigures = humanoidFigures;
   }
   if (camDefs.length) out.cameraCount = camDefs.length;
+  if (lightDefs.length) out.lightCount = lightDefs.length;
+  if (unitScale) out.metersPerUnit = unitScale;
   if (entityDefs.length) out.entityCount = entityDefs.length;
   if (quantize) { out.quantized = true; out.quantizeStep = b.quantizeStep; }
   return out;

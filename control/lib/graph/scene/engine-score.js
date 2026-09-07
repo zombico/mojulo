@@ -95,6 +95,21 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   ledger.skipped_runtime = {
     note: 'game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build',
   };
+  // Units: a kind authored in other-than-metres (the floorplan: feet) declares
+  // `metersPerUnit`; the GLB root scales by it, so every positional field here scales
+  // too — the score and the mesh agree in metres. Absent ⇒ every field byte-identical.
+  const mpu = Number(payload.metersPerUnit);
+  const unitScale = Number.isFinite(mpu) && mpu > 0 && mpu !== 1 ? mpu : null;
+  const sv = (v) => (unitScale && Array.isArray(v) ? v.map((x) => (Number.isFinite(x) ? x * unitScale : x)) : v);
+  const sn = (x) => (unitScale && Number.isFinite(x) ? x * unitScale : x);
+  // Positioned lights (pot lights) ride the GLB as KHR_lights_punctual; the score carries
+  // them too so an importer that brings none in (Interchange) can spawn them itself.
+  const lights = (Array.isArray(payload.lights) ? payload.lights : [])
+    .filter((l) => l && Array.isArray(l.position))
+    .map((l) => ({ ...l, position: sv(l.position) }));
+  if (lights.length) {
+    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela); Blender / Godot import them, the Unreal importer spawns SpotLights from score.json when Interchange brings none' };
+  }
 
   return {
     ref: sketch?.ref ?? null,
@@ -102,10 +117,11 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     kind: manifest.kind ?? null,
     frame: 'z-up',
     units: MOJULO_UNITS,
+    ...(unitScale ? { metersPerUnit: unitScale } : {}),
     // present only when declared — an unstamped score is byte-identical to pre-seam output
     ...(declared ? { posture: declared } : {}),
-    spawn: extras['moj:spawn'] ?? [0, 0, 2],
-    eye: payload.walk?.eye ?? 1.7,
+    spawn: sv(extras['moj:spawn'] ?? [0, 0, 2]),
+    eye: sn(payload.walk?.eye ?? 1.7),
     // The runtime's walk/controllable engines ground-snap on an IMPLICIT plane
     // at z=0 — the collider AABBs are obstacle hulls only, never the floor
     // (G1 finding: a promoted world without this plane is an infinite fall).
@@ -115,11 +131,13 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // them — the ledger states it. Absent textures ⇒ no key, byte-identical.
     ...(payload.textures && Object.keys(payload.textures).length
       ? { textures: Object.keys(payload.textures).sort() } : {}),
-    colliders: payload.colliders ?? [],
-    cameras: levelCameras(payload) ?? [],
+    colliders: (payload.colliders ?? []).map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
+    cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),
+    ...(lights.length ? { lights } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure);
-      return locomotion ? { ...e, locomotion } : e;
+      const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;
+      return locomotion ? { ...scaled, locomotion } : scaled;
     }),
     mechanics: manifest.game?.mechanics ?? [],
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity

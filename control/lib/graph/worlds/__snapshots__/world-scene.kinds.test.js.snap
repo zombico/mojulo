@@ -87,7 +87,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fission",
   },
   "floorplan": {
-    "hash": "9bbc2737",
+    "hash": "0671e5d9",
     "title": "mojulo house",
   },
   "fluid-view": {
@@ -247,7 +247,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
 
 exports[`world-scene kinds — per-arm characterization > viewOpts.view forwards into the floorplan arm (pinned: forwarding must survive the refactor) 1`] = `
 {
-  "base": "9bbc2737",
-  "dollhouse": "9bbc2737",
+  "base": "0671e5d9",
+  "dollhouse": "0671e5d9",
 }
 `;

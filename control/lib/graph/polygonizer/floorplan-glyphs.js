@@ -508,7 +508,10 @@ export function arrangeLiving(rng = Math.random, { w = 14, h = 14, scale = 'feet
     { type: 'bookshelf', anchor: [0.11, 0.13], w: shelfW / w, h: shelfD / h, heightWorld: 6.0 },
     { type: 'rug', anchor: [0.5, 0.5], w: rugW / w, h: rugD / h, heightWorld: 0.06 },
     // real couch + club chairs (share mode attaches the workbench meshes); lamp by the sofa
-    { type: 'sofa', asset: 'modern-couch', instance: 'main', anchor: [j(0.5, 0.04), 0.72], w: sofaW / w, h: sofaD / h, heightWorld: 2.6 },
+    // the sofa faces the media wall. An unfaced asset fronts +v (the door, its back to the
+    // television); a placed asset turns by FACING_SPIN[facing] + 2 quarter-turns (see
+    // orientElementsToDoor), so 'S' is the half turn that points it at the screen.
+    { type: 'sofa', asset: 'modern-couch', instance: 'main', anchor: [j(0.5, 0.04), 0.72], w: sofaW / w, h: sofaD / h, heightWorld: 2.6, facing: 'S' },
     { type: 'table', anchor: [0.5, 0.47], w: tableW / w, h: tableD / h, heightWorld: 1.4 },
     { type: 'armchair', instance: 'west', anchor: [j(0.2, 0.03), 0.46], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'E' },
     { type: 'armchair', instance: 'east', anchor: [j(0.8, 0.03), 0.46], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'W' },

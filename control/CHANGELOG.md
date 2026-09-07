@@ -225,6 +225,28 @@ fresh `.blend` for a HAND surfacing pass, and names the door it comes home throu
 - **`floorTexture`** on the floorplan ('auto' for a one-cell furnished plan): the oak /
   carrara surface tile on the floor finish, multiply-lit in the World and the lit albedo in
   the GLB and the Cycles render; the bake tessellation now splits textured quads with uvs.
+- **Pot lights** (`potLights: true` on a floorplan): recessed cans laid per room in the
+  ceiling — baked pools on the floor finish (per-corner, the boards multiply them) and on the
+  furniture (the furnish bake's `lamps`) for the unlit World, and a real
+  `KHR_lights_punctual` spot per can in the GLB (`facesToGlb` `addLightNode`), carried on
+  the engine score (`score.lights`, ledger `lights_carried`). The lens is an emissive PBR
+  surface of its own (`KHR_materials_emissive_strength`), kept by the Unreal swap. Unreal: Interchange imports
+  them itself (pinned at the gate: 9 of 9), the importer settles every local light Movable
+  and would spawn SpotLights from the score if none came in; `lights_carried` is a verify
+  check. The importer's rig is now sun + SkyAtmosphere + sky light, all Movable (the first
+  lit eyes gate was a black-sky box: no atmosphere, stationary lights, no Lumen config —
+  the driver writes the template's Lumen lines into the scratch project).
+- **Couch facing** — the lounge sofa faces the television: the living arranger stamps
+  `facing: 'S'` on the sofa, and `modern-couch` is now a `local: true` room-furniture asset
+  (built centred / front +y and mapped through the footprint frame like its siblings), so the
+  planner's facing spin reaches it. Unfaced placement is numerically unchanged.
+- **`metersPerUnit`** — the floorplan is authored in FEET; the lounge landed in Unreal at
+  3.28× with a 10 m ceiling. The floorplan payload now declares `metersPerUnit: 0.3048`;
+  the GLB root carries it as a uniform scale (+ a `moj:metersPerUnit` extra), the engine
+  score scales spawn / eye / cameras / colliders / entities / lights, and the GLB reader
+  undoes a uniform scale on a `mojulo` root so bakes, mesh handoffs and Blender round trips
+  decode to recipe units. `blender-bake.mjs` bakes in recipe units and renders in metres
+  (`--camera`/`--look` stay recipe units). Metre-authored kinds are byte-identical.
 - Room-realism leftovers: share mode snaps wall pieces to their wall; a `rim` contact-shadow
   profile grounds furniture from standing height (one-cell default).
 

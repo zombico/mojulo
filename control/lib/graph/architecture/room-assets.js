@@ -1016,20 +1016,16 @@ function rectangularChairManifest(el) {
   });
 }
 
+// The couch is built in its LOCAL frame (centred, front +y) and mapped onto the footprint
+// like every other room-furniture maker, so a `facing` (and the door spin) turns it. It
+// used to build at the base plane's centroid in world space, which ignored the corner
+// order — the lounge sofa sat with its back to the television whatever the arranger said.
+// Unspun, localToFootprint's basis is exactly (+x, +y), so the placement is unchanged.
 function rectangularModernCouchManifest(el) {
   const base = el.heightManji.basePlane.corners;
   const w = Math.hypot(base[1][0] - base[0][0], base[1][1] - base[0][1], base[1][2] - base[0][2]);
   const d = Math.hypot(base[3][0] - base[0][0], base[3][1] - base[0][1], base[3][2] - base[0][2]);
-  const cx = base.reduce((sum, p) => sum + p[0], 0) / base.length;
-  const cy = base.reduce((sum, p) => sum + p[1], 0) / base.length;
-  return buildModernCouchWorkbenchManifest({
-    x: cx,
-    y: cy,
-    z: base[0][2],
-    w,
-    d,
-    h: el.heightManji.heightWorld,
-  });
+  return buildModernCouchWorkbenchManifest({ x: 0, y: 0, z: 0, w, d, h: el.heightManji.heightWorld });
 }
 
 export const ROOM_FURNITURE_ASSETS = {
@@ -1050,6 +1046,7 @@ export const ROOM_FURNITURE_ASSETS = {
   'modern-couch': {
     id: 'modern-couch',
     class: 'room-furniture',
+    local: true,
     aliases: ['rectangular-modern-couch', 'modern-sofa', 'sofa.modern-rectangular'],
     tags: {
       rooms: ['living-room', 'lounge', 'office', 'bedroom'],

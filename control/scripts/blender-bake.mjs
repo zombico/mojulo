@@ -155,6 +155,7 @@ const work = await fs.mkdtemp(path.join(os.tmpdir(), 'moj-bake-'));
 //                        sketch's recipe — the clean GI base. NOT the shaded data/outcomes export.
 //   --ref + --shaded     read the sketch's own shaded export at data/outcomes/<ref>/model.glb.
 let srcGlb;
+let unitScale = 1;   // the kind's metersPerUnit (the floorplan: feet) — render mode keeps it, so --camera/--look (recipe units) scale below
 if (args.glb) {
   srcGlb = path.resolve(args.glb);
   if (!existsSync(srcGlb)) fail(`source GLB not found: ${srcGlb}`);
@@ -174,8 +175,12 @@ if (args.glb) {
   if (payload.unshadedWarning) process.stderr.write(`[blender-bake] unshaded note: ${payload.unshadedWarning}\n`);
   // render mode exports LIT: real PBR materials (roughness dial) over the unshaded base, so
   // the glTF importer hands Cycles a Principled BSDF with vertex colour × any texture as albedo
+  // Units: a bake ROUND-TRIPS (the baked GLB is bound back into the world), so it stays in
+  // recipe units; a render is a Cycles frame with physical lights, so it goes out in metres.
+  if (renderMode) unitScale = Number(payload.metersPerUnit) > 0 ? Number(payload.metersPerUnit) : 1;
+  else delete payload.metersPerUnit;
   if (renderMode && args.open && Array.isArray(payload.faces)) {
-    payload.faces = payload.faces.filter((f) => !(typeof f.group === 'string' && (f.group === 'shell:ceiling' || f.group.startsWith('roof'))));
+    payload.faces = payload.faces.filter((f) => !(typeof f.group === 'string' && (f.group.startsWith('shell:ceiling') || f.group.startsWith('roof'))));
   }
   const { bytes } = facesToGlb(payload, { clips: '_all', generator: `mojulo ${args.ref} (unshaded${renderMode ? ', lit' : ''})`, ...(renderMode ? { lit: true, roughness: args.roughness ? Number(args.roughness) : 0.85 } : {}) });
   srcGlb = path.join(work, 'unshaded-src.glb');
@@ -189,6 +194,7 @@ if (args.glb) {
 
 // ── RENDER mode: one Cycles frame, then out ──
 if (renderMode) {
+  const toMetres = (v) => (v && unitScale !== 1 ? v.map((x) => x * unitScale) : v);   // the operator authors in recipe units
   const triple = (v, name) => { if (!v) return null; const a = v.split(',').map(Number); if (a.length !== 3 || a.some((x) => !Number.isFinite(x))) fail(`--${name} wants "x,y,z"`); return a; };
   const res = (args.res || '1600x1000').split('x').map(Number);
   if (res.length !== 2 || res.some((x) => !(x > 0))) fail('--res wants "WxH"');
@@ -200,7 +206,7 @@ if (renderMode) {
   const rcfg = {
     src_glb: srcGlb,
     render: {
-      png, camera: triple(args.camera, 'camera'), look: triple(args.look, 'look'),
+      png, camera: toMetres(triple(args.camera, 'camera')), look: toMetres(triple(args.look, 'look')),
       fov: args.fov ? Number(args.fov) : 60, res, samples: args.samples ? Number(args.samples) : 256,
       light: lightMode, rig: lightMode === 'studio' ? preset.light : null,
       sun: (args.sun || '35,30').split(',').map(Number), exposure: args.exposure ? Number(args.exposure) : 1.2, sky: args.sky ? Number(args.sky) : 3, open: !!args.open,
@@ -213,7 +219,7 @@ if (renderMode) {
     proc.on('close', resolve);
   });
   if (rcode !== 0 || !existsSync(png)) fail(`Blender render failed (exit ${rcode})`);
-  process.stdout.write(`${JSON.stringify({ ok: true, mode: 'render', ref: args.ref || null, png, source_glb: srcGlb, lit: true, light: lightMode, sun: rcfg.render.sun, exposure: rcfg.render.exposure, open: rcfg.render.open, samples: rcfg.render.samples, res, camera: rcfg.render.camera, look: rcfg.render.look, fov: rcfg.render.fov })}\n`);
+  process.stdout.write(`${JSON.stringify({ ok: true, mode: 'render', ref: args.ref || null, png, source_glb: srcGlb, lit: true, units_scale: unitScale, light: lightMode, sun: rcfg.render.sun, exposure: rcfg.render.exposure, open: rcfg.render.open, samples: rcfg.render.samples, res, camera: rcfg.render.camera, look: rcfg.render.look, fov: rcfg.render.fov })}\n`);
   process.exit(0);
 }
 

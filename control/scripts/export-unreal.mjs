@@ -135,6 +135,20 @@ if (!args['no-gate'] && unrealBin && existsSync(unrealBin)) {
     }, null, 2));
   }
 
+  // Lumen + virtual shadow maps — the Third Person template's own
+  // DefaultEngine.ini lines. A bare .uproject has none, so a LIT pack rendered
+  // direct light only (the first lit eyes gate, 2026-09-06). Idempotent: the
+  // editor appends its own sections to this file; we add ours once.
+  const cfgDir = path.join(scratch, 'Config');
+  const cfgIni = path.join(cfgDir, 'DefaultEngine.ini');
+  const ini = await fs.readFile(cfgIni, 'utf8').catch(() => '');
+  if (!/r\.DynamicGlobalIlluminationMethod/.test(ini)) {
+    await fs.mkdir(cfgDir, { recursive: true });
+    const sep = ini && !ini.endsWith('\n') ? '\n' : '';
+    await fs.writeFile(cfgIni, `${ini}${sep}\n[/Script/Engine.RendererSettings]\nr.DynamicGlobalIlluminationMethod=1\nr.ReflectionMethod=1\nr.GenerateMeshDistanceFields=True\nr.Shadow.Virtual.Enable=1\n`);
+    log('machine gate — Lumen renderer settings written to Config/DefaultEngine.ini');
+  }
+
   log('machine gate — copying pack into MojuloPack/');
   const packDest = path.join(scratch, 'MojuloPack');
   await fs.rm(packDest, { recursive: true, force: true });

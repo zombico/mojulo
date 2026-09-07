@@ -125,6 +125,7 @@ Headless (the machine gate):  MOJULO_MODE=run|verify with -run=pythonscript.
 'verify' writes mojulo-gate.json at the project root.
 """
 import json
+import math
 import os
 
 import unreal
@@ -199,6 +200,96 @@ def spawn(cls, location, label):
     actor = subsystem(unreal.EditorActorSubsystem).spawn_actor_from_class(cls, location, unreal.Rotator(0, 0, 0))
     actor.set_actor_label(label)
     return actor
+
+
+def light_rig():
+    """Sun + sky atmosphere + sky light, all MOVABLE. Movable = no Lightmass
+    build, so no 'Preview'-stamped shadows; the SkyAtmosphere gives the sky
+    light a real sky to capture (without it the world is black and the sky
+    light contributes nothing — the first lit eyes gate was a black-sky box
+    lit by sun patches alone). The sun is LOW (pitch -35): the
+    walk tier's ceiling seals a room, so the sun must come through the panes
+    (blender-bake.mjs --render's finding). NOTE unreal.Rotator's Python
+    constructor is (roll, pitch, yaw) — keyword args, so the pitch IS the
+    pitch. Unlit packs get the same rig: the unlit master ignores it, the
+    sky still fills the windows (ledger: sky_approximated)."""
+    movable = unreal.ComponentMobility.MOVABLE
+    sun = spawn(unreal.DirectionalLight, unreal.Vector(0, 0, 500.0), 'MojuloSun')
+    sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-35.0, yaw=-30.0), False)
+    try:
+        sun.light_component.set_editor_property('mobility', movable)
+        sun.light_component.set_editor_property('atmosphere_sun_light', True)
+    except Exception as e:
+        unreal.log_warning('[mojulo] sun setup: ' + str(e))
+    try:
+        spawn(unreal.SkyAtmosphere, unreal.Vector(0, 0, 0), 'MojuloSkyAtmosphere')
+    except Exception as e:
+        unreal.log_warning('[mojulo] sky atmosphere: ' + str(e))
+    sky = spawn(unreal.SkyLight, unreal.Vector(0, 0, 500.0), 'MojuloSkyLight')
+    try:
+        sky.light_component.set_editor_property('mobility', movable)
+        sky.light_component.set_editor_property('real_time_capture', True)
+    except Exception as e:
+        unreal.log_warning('[mojulo] sky light setup: ' + str(e))
+
+
+def count_local_lights():
+    """Point + spot lights in the level (Interchange-imported or ours); the rig's sun and
+    sky light are not local lights, so they never count."""
+    n = 0
+    for a in all_actors():
+        try:
+            if a.get_components_by_class(unreal.LocalLightComponent):
+                n += 1
+        except Exception:
+            pass
+    return n
+
+
+def settle_local_lights():
+    """Every point / spot light in the level — Interchange-imported (the GLB's
+    KHR_lights_punctual: pinned at the pot-light gate, Interchange brings them in
+    itself) or ours — goes Movable like the rig: no Lightmass build, no 'Preview'
+    stamp on their shadows."""
+    for a in all_actors():
+        try:
+            for comp in a.get_components_by_class(unreal.LocalLightComponent):
+                comp.set_editor_property('mobility', unreal.ComponentMobility.MOVABLE)
+        except Exception:
+            pass
+
+
+def ensure_pot_lights(score):
+    """score.lights (recessed pot lights, lit-handoff.plan.md): the GLB carries them as
+    KHR_lights_punctual. When Interchange brought none into the level, spawn them from
+    the score: candela, cones in radians -> degrees, pointing DOWN (a UE spot shines along
+    its +X, so pitch -90), Movable like the rig. UNPINNED: the count is the verify check."""
+    lights = score.get('lights') or []
+    if not lights:
+        return 0
+    have = count_local_lights()
+    if have >= len(lights):
+        settle_local_lights()
+        return have
+    for i, l in enumerate(lights):
+        pos = l.get('position') or [0.0, 0.0, 0.0]
+        cls = unreal.SpotLight if l.get('type') == 'spot' else unreal.PointLight
+        actor = spawn(cls, P(pos), 'MojuloPot_' + str(i))
+        actor.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-90.0, yaw=0.0), False)
+        try:
+            comp = actor.light_component
+            comp.set_editor_property('mobility', unreal.ComponentMobility.MOVABLE)
+            comp.set_editor_property('intensity_units', unreal.LightUnits.CANDELAS)
+            comp.set_editor_property('intensity', float(l.get('intensity', 400.0)))
+            col = l.get('color') or [1.0, 1.0, 1.0]
+            comp.set_editor_property('light_color', unreal.Color(r=int(col[0] * 255), g=int(col[1] * 255), b=int(col[2] * 255), a=255))
+            if l.get('type') == 'spot':
+                comp.set_editor_property('inner_cone_angle', math.degrees(float(l.get('innerCone', 0.5))))
+                comp.set_editor_property('outer_cone_angle', math.degrees(float(l.get('outerCone', 0.8))))
+        except Exception as e:
+            unreal.log_warning('[mojulo] pot light ' + str(i) + ': ' + str(e))
+    settle_local_lights()
+    return len(lights)
 
 
 def spawn_block(label, center, size_cm, visible=False):
@@ -366,6 +457,13 @@ def is_mojulo_material(mat_iface):
     return mat_iface is not None and mat_iface.get_path_name().startswith(MAT_ROOT)
 
 
+def is_emissive_slot(mat_iface):
+    """A GLB material named '<group>:emissive' (a pot-light lens): Interchange's own
+    import of it carries the emissive factor + strength, which the mojulo masters
+    do not — so the swap leaves it alone and the verify pass counts it as kept."""
+    return mat_iface is not None and 'emissive' in mat_iface.get_name().lower()
+
+
 def apply_unlit_materials():
     """Swap every imported mesh slot onto the mojulo look — unlit vertex colour,
     or the lit twin when LIT. Idempotent: slots already on a Mojulo material
@@ -378,7 +476,7 @@ def apply_unlit_materials():
         if isinstance(asset, unreal.StaticMesh):
             for i, slot in enumerate(asset.get_editor_property('static_materials')):
                 cur = slot.get_editor_property('material_interface')
-                if is_mojulo_material(cur):
+                if is_mojulo_material(cur) or is_emissive_slot(cur):
                     continue
                 asset.set_material(i, unlit_instance(master, first_texture(cur), cache))
                 swapped += 1
@@ -491,6 +589,7 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
             tags.append(IMPORT_TAG)
             a.set_editor_property('tags', tags)
     apply_unlit_materials()
+    ensure_pot_lights(score)
 
     # Hide the player-seat body: the operator IS the walker. The whole
     # attachment tree — Interchange imports one actor per GLB node, so
@@ -536,8 +635,7 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
     start = spawn(unreal.PlayerStart, P(spawn_v), 'MojuloPlayerStart')
     start.set_actor_location(P(spawn_v), False, False)
 
-    spawn(unreal.DirectionalLight, unreal.Vector(0, 0, 500.0), 'MojuloSun').set_actor_rotation(unreal.Rotator(-50.0, -30.0, 0.0), False)
-    spawn(unreal.SkyLight, unreal.Vector(0, 0, 500.0), 'MojuloSkyLight')
+    light_rig()
 
     if bed_wave is not None:
         bed = spawn(unreal.AmbientSound, P(spawn_v), 'MojuloSoundtrack')
@@ -614,6 +712,10 @@ def verify():
         spawn_ok = start is not None and (start.get_actor_location() - want_spawn).length() < 1.0
         check(prefix + 'spawn_marker', spawn_ok, str(start.get_actor_location()) if start else 'missing')
         check(prefix + 'ground_plane', find_actor_by_label('MojuloGround') is not None)
+        want_lights = len(score.get('lights') or [])
+        if want_lights:
+            have_lights = count_local_lights()
+            check(prefix + 'lights_carried', have_lights >= want_lights, str(have_lights) + ' local lights vs ' + str(want_lights) + ' in the score')
         if prefix:
             check(prefix + 'kernel_wired', 'MojuloGameMode' in kernel_class_name(), kernel_class_name() or 'no override')
 
@@ -654,7 +756,8 @@ def verify():
             if isinstance(a, unreal.StaticMesh):
                 for slot in a.get_editor_property('static_materials'):
                     unlit_total += 1
-                    if is_mojulo_material(slot.get_editor_property('material_interface')):
+                    mi = slot.get_editor_property('material_interface')
+                    if is_mojulo_material(mi) or is_emissive_slot(mi):
                         unlit_ok += 1
         check('materials_unlit', unlit_total > 0 and unlit_ok == unlit_total, str(unlit_ok) + ' of ' + str(unlit_total) + ' static-mesh slots')
 
@@ -784,7 +887,8 @@ const GUIDE_LEDGER = guideLedger;
  * walker — the importer places the PlayerStart; no kernel. */
 function importGuideWorld({ title, refName, score, ledger, lit = false }) {
   const eyes = [
-    'the world mesh renders in its baked vertex colours (reference look: the mojulo web build)',
+    lit ? 'the world mesh is LIT by MojuloSun + the sky atmosphere through M_MojuloLit — sun patches through the panes, a blue sky in the windows, no "Preview" stamp on the shadows (reference look: blender-bake.mjs --render)'
+      : 'the world mesh renders in its baked vertex colours (reference look: the mojulo web build)',
     'you can walk the level as the template character — the floor holds (the promoted ground plane) and the obstacle colliders block',
     ...(score.soundtrack ? [`the soundtrack (\`${score.soundtrack}\`) is playing on loop`] : []),
     `scale reads right at a ${fmt(score.eye ?? 1.7)} m eye height — doors, steps, cover`,
@@ -812,7 +916,8 @@ function importGuideGame({ title, levels, ledger, posture, lit = false }) {
   const eyes = [
     'the menu lists every level; gated levels show [locked] until their gate level is [done]',
     'Enter starts the selected level — the kernel walker spawns at the score spawn (WASD + mouse, Space jumps, M returns to the menu)',
-    'each level renders in its baked vertex colours (reference look: the mojulo web build)',
+    lit ? 'each level is LIT by MojuloSun + the sky atmosphere through M_MojuloLit (reference look: blender-bake.mjs --render)'
+      : 'each level renders in its baked vertex colours (reference look: the mojulo web build)',
     'entities with travel clips are ANIMATED — ambient figures loop their idle; when the score carries player locomotion, the suit is visible in third person and its walk cycle plays while you move',
     'reaching an exit shows LEVEL COMPLETE and returns to the menu with the level marked [done]',
     'level soundtracks and the menu bed play on loop where the game carries music',
@@ -857,7 +962,7 @@ export function emitUnrealProject({ ref, score, manifestHash, audioFile = null, 
   const ledger = unrealLevelLedger(score);
   const files = [
     { file: 'import_mojulo.py', text: importerPy({ lit }) },
-    { file: 'IMPORT-GUIDE.md', text: importGuideWorld({ title, refName: ref, score, ledger }) },
+    { file: 'IMPORT-GUIDE.md', text: importGuideWorld({ title, refName: ref, score, ledger, lit }) },
     {
       file: 'README.md',
       text: `# ${title} — Unreal handoff
@@ -900,7 +1005,7 @@ export function emitUnrealGame({ ref, manifest, levels, manifestHash, remint = n
   const files = [
     { file: 'import_mojulo.py', text: importerPy({ lit }) },
     ...emitUnrealKernel(),
-    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger, posture: manifest.posture }) },
+    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger, posture: manifest.posture, lit }) },
     {
       file: 'README.md',
       text: `# ${title} — Unreal handoff (game)

@@ -107,7 +107,13 @@ painted swath per wall; houses keep the geometry-hashed paint / wainscot / wallp
 `wallMaterial: 'plaster'` (a whisper of top-lit ramp + mottle the World tier adds per
 vertex; `null` keeps flat paint), and a ceiling in the WALK tier only (the still stays a
 cutaway; `ceilings: false` removes it), plus `floorTexture: 'auto'` (oak grain on the boards,
-carrara on marble — in the World and the exports; `null` keeps the flat finish). For real light,
+carrara on marble — in the World and the exports; `null` keeps the flat finish). Recessed
+ceiling lights are opt-in: `potLights: true` (or `{ spacing: 6, inset: 2.5, candela: 400, color, innerCone,
+outerCone, pool, k }`) lays a grid of cans per room in the ceiling — pools on the floor and furniture
+in the World (baked, unlit), and a real `KHR_lights_punctual` spot per can in the GLB, so Blender,
+Godot, and Unreal light the room themselves (the Unreal importer spawns them from score.json when
+Interchange brings none). The plan is authored in FEET; the GLB root and the engine score scale by
+`metersPerUnit` 0.3048 so an engine walker reads the room at life size. For real light,
 bake it: `node scripts/bake-world-gi.mjs --ref <ref> --preset interior-day --write`
 mints a `<ref>_gi` variant with Cycles GI in its vertex colours (needs a local Blender) — or
 render the frame itself: `node scripts/blender-bake.mjs --ref <ref> --render --camera x,y,z

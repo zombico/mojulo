@@ -37,11 +37,15 @@ import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { buildRoof } from '../architecture/roof.js';
 import { surfaceTexture, collectFaceTextures } from '../landscape/surface-textures.js';
+import { tessellateForBake } from '../scene/bake-prep.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
 
 // ── structural glyph alphabet (the wall graph that relates rooms) ────────────
 // The sibling of floorplan-glyphs' ARCHETYPES: those say what's IN a room, these
 // describe the walls BETWEEN and AROUND rooms. Each resolves to extruded mass.
+/** The floorplan's authoring unit: feet (1 ft = 0.3048 m). Exports + engine scores scale by it. */
+export const FLOORPLAN_METERS_PER_UNIT = 0.3048;
+
 export const STRUCTURAL_GLYPHS = {
   '▓': { id: 'perimeter', role: 'exterior-wall', desc: 'envelope wall — interior face + outward exterior skin' },
   '═': { id: 'partition-h', role: 'interior-wall', desc: 'horizontal shared partition between two cells' },
@@ -84,6 +88,7 @@ export const FLOORPLAN_DEFAULTS = {
   wallMaterial: null,      // opt-in: a procedural-material preset the interior paint swath carries into the World tier ('plaster'); needs wallDecor
   floorTexture: null,      // opt-in: a surface-textures tile on the floor finish — 'auto' (oak boards / carrara marble by style) | a tile key | null. World + exports; the CSS still keeps its fill
   floorTextureTile: 10,    // feet per wood-tile repeat ALONG the boards (3 ft across — the ring width)
+  potLights: null,         // opt-in recessed ceiling downlights: true | { spacing, inset, candela, color, innerCone, outerCone, pool, k } — cans in the ceiling, pools on the floor + furniture (the unlit World bakes them), a KHR_lights_punctual spot per can in the GLB (Blender / Godot / Unreal light them for real)
   wallDecor: false,        // opt-in: dress interior wall faces (paint / wood wainscot / wallpaper)
   facadeDecor: false,      // opt-in: dress exterior wall faces (siding / corner boards / water table)
   entryDoor: false,        // opt-in: cut a perimeter front door + threshold into the envelope
@@ -510,6 +515,96 @@ function ceilingFaces(fp, z, tint, light, holes = []) {
   }));
 }
 
+// ── POT LIGHTS: recessed ceiling downlights, authored in the recipe ──────────
+// One fixture travels to every tier: a can (trim ring + lens) in the ceiling plane for
+// the World; positioned lamps for the furnish bake + per-corner pools on the floor finish
+// (the unlit runtime's light IS baked colour); and a KHR_lights_punctual spot per can in
+// the GLB (scene-gltf.js addLightNode), so Blender / Godot / Unreal light the room
+// themselves. Absent `potLights` every path is byte-identical.
+const POT_DEFAULTS = {
+  spacing: 6,      // ft between cans along each axis (≈ ceiling height × 0.6 — the residential rule)
+  inset: 2.5,      // ft off the walls
+  trim: 0.27, lens: 0.2, drop: 0.02,   // can radii (ft) + how far the can sits below the ceiling plane
+  candela: 400, color: [1, 0.93, 0.82], innerCone: 0.52, outerCone: 0.87,   // the real light (a warm ~800 lm downlight, cones in radians)
+  pool: 1.5, k: 0.05,                  // the baked pool: Lambert · cone / (1 + k·d²), intensity as a fraction of the base fill
+  glow: 3,                             // the lens as an emissive surface in the GLB (KHR_materials_emissive_strength) — it reads switched ON in Blender / an engine
+};
+const potLightOpts = (o) => (o.potLights ? { ...POT_DEFAULTS, ...(typeof o.potLights === 'object' ? o.potLights : {}) } : null);
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgbHex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+
+/** A grid per cell: `spacing` ft apart, `inset` ft off the walls (a cell too small for
+ *  two gets one at its centre); a can under a ceiling hole (a stairwell) is skipped. */
+function potLightLayout(cells, holes, z, p) {
+  const inHole = (x, y) => holes.some((h) => h && x >= h.x0 && x <= h.x1 && y >= h.y0 && y <= h.y1);
+  const axis = (a, len) => {
+    const usable = len - 2 * p.inset;
+    if (usable <= p.spacing * 0.5) return [a + len / 2];
+    const n = Math.max(1, Math.round(usable / p.spacing));
+    return Array.from({ length: n }, (_, i) => a + p.inset + usable * ((i + 0.5) / n));
+  };
+  const pots = [];
+  for (const c of cells) for (const y of axis(c.y, c.h)) for (const x of axis(c.x, c.w)) if (!inHole(x, y)) pots.push([x, y, z]);
+  return pots;
+}
+const potLampZ = (z, p) => z - p.drop - 0.08;   // the emitter sits just under the lens, never inside the ceiling plane
+
+/** The can: an 8-gon trim ring (8 quads) + lens (4 fan quads), face-down, a hair below the
+ *  ceiling so it draws over it. Group `shell:ceiling:potlight` — hideable with the shell
+ *  from an above camera, dropped with the ceiling by blender-bake's --open. */
+function potLightFaces(pots, p, light) {
+  const N = [0, 0, -1];
+  const trimFill = shadeHex('#cfc8ba', N, light);
+  const lensFill = '#fff3d6';                 // unshaded: the lit lens reads as glowing in the unlit tier
+  const ring = (cx, cy, z, r) => Array.from({ length: 8 }, (_, k) => { const a = -k * Math.PI / 4; return [cx + r * Math.cos(a), cy + r * Math.sin(a), z]; });
+  const common = { doubleSided: true, group: 'shell:ceiling:potlight', normal: N, outNormal: N };
+  const faces = [];
+  for (const [x, y, z0] of pots) {
+    const z = z0 - p.drop;
+    const outer = ring(x, y, z, p.trim), inner = ring(x, y, z, p.lens);
+    for (let k = 0; k < 8; k += 1) faces.push({ corners: [outer[k], outer[(k + 1) % 8], inner[(k + 1) % 8], inner[k]], fill: trimFill, ...common });
+    // the lens: bright in the unlit World; a real emissive PBR surface in the GLB (its own material bucket)
+    for (let k = 0; k < 8; k += 2) faces.push({ corners: [[x, y, z], inner[k], inner[k + 1], inner[(k + 2) % 8]], fill: lensFill, ...common, pbr: [0, 0.35], emissive: p.color, emissiveStrength: p.glow });
+  }
+  return faces;
+}
+/** The real lights, for the GLB (KHR_lights_punctual) and the engine score. */
+const potLightDefs = (pots, p) => pots.map(([x, y, z], i) => ({ name: `pot:${i}`, type: 'spot', position: [x, y, potLampZ(z, p)], color: p.color, intensity: p.candela, innerCone: p.innerCone, outerCone: p.outerCone }));
+/** The furnish bake's lamps (scene-css3d makeShade: Lambert · inverse-square, scoped to the room). */
+const potLightLamps = (pots, p) => pots.map(([x, y, z]) => ({ pos: [x, y, potLampZ(z, p)], color: p.color, intensity: p.pool, k: p.k }));
+
+/** Pools on the floor finish: split its quads to `cell` (the bake tessellator — textured
+ *  boards keep their uvs) and add every can's Lambert · cone / (1 + k·d²) term per corner
+ *  as `cornerFills`, so the unlit World shows the pools as baked colour and the textured
+ *  boards multiply them. Face order is kept; nothing else is touched. */
+function applyPotLightPools(faces, pots, p, { cell = 1.5 } = {}) {
+  const cosIn = Math.cos(p.innerCone), cosOut = Math.cos(p.outerCone);
+  const smooth = (t) => { const u = Math.max(0, Math.min(1, t)); return u * u * (3 - 2 * u); };
+  const lamps = pots.map(([x, y, z]) => [x, y, potLampZ(z, p)]);
+  const isFloor = (f) => f && f.group === 'floor:skin' && typeof f.fill === 'string' && f.fill[0] === '#' && f.fill.length === 7 && !f.cornerFills;
+  const out = [];
+  for (const f of faces) {
+    if (!isFloor(f)) { out.push(f); continue; }
+    for (const q of tessellateForBake([f], cell)) {
+      const n = Array.isArray(q.outNormal) ? q.outNormal : [0, 0, 1];
+      const base = hexRgb(q.fill);
+      q.cornerFills = q.corners.map((c) => {
+        let r = 0, g = 0, b = 0;
+        for (const [lx, ly, lz] of lamps) {
+          const dx = lx - c[0], dy = ly - c[1], dz = lz - c[2];
+          const d2 = dx * dx + dy * dy + dz * dz || 1e-6, d = Math.sqrt(d2);
+          const cosN = Math.max(0, (n[0] * dx + n[1] * dy + n[2] * dz) / d);
+          const at = p.pool * cosN * smooth((dz / d - cosOut) / (cosIn - cosOut)) / (1 + p.k * d2);
+          r += at * p.color[0]; g += at * p.color[1]; b += at * p.color[2];
+        }
+        return rgbHex([base[0] * (1 + r), base[1] * (1 + g), base[2] * (1 + b)]);
+      });
+      out.push(q);
+    }
+  }
+  return out;
+}
+
 // ── FURNISH: a registered room's archetype furniture → baked world faces ──────
 // Reuses the room-spike furniture pipeline: the generated cell IS the room basis, so
 // `extractRoomSceneFaces` returns furniture already in world coords, ready to merge.
@@ -572,7 +667,9 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
     // quads the World realizes in its shadow-decal pass); absent, the legacy positional
     // `light` call is byte-identical.
     // (lift 0.09: above the floorboards AND the rug asset, so a chair on the rug still grounds)
-    ...(o.contactShadows ? { lighting: { light: o.light, diffusion: { contact: true, contactStrength: o.contactStrength ?? 0.75, contactLift: 0.09, contactProfile: 'rim' } } } : { light: o.light }),
+    ...(o.contactShadows || o._lamps
+      ? { lighting: { light: o.light, ...(o.contactShadows ? { diffusion: { contact: true, contactStrength: o.contactStrength ?? 0.75, contactLift: 0.09, contactProfile: 'rim' } } : {}), ...(o._lamps ? { lamps: o._lamps } : {}) } }
+      : { light: o.light }),
     includeShell: false, deferDiffusion: false,
   });
   return out.faces || [];
@@ -1178,6 +1275,11 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   const faces = [];
   const fp = wallGraph.footprint;
   const baseZ = o.baseZ || 0;
+  // pot lights (opt-in): the can grid per cell at the storey head; the furnish bake sees
+  // them as lamps, the floor finish gets per-corner pools, the World tier gets the cans.
+  const potCfg = potLightOpts(o);
+  const pots = potCfg ? potLightLayout(cells, o.ceilingHoles || [], baseZ + o.wallHeight, potCfg) : [];
+  if (pots.length) o._lamps = potLightLamps(pots, potCfg);
   const slabHoles = o.slabHoles || [];
   // floor slab over the footprint (gives the level a base), sitting just below
   // this level's floor height so floors stack flush along the meru. Stair voids
@@ -1190,6 +1292,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   // interior isn't seen from outside, under the roof).
   if (o.ceilings || o.view === 'exterior') {
     faces.push(...ceilingFaces(fp, baseZ + o.wallHeight, o.ceilingTint || '#d8d2c4', o.light, o.ceilingHoles || []));
+    if (pots.length && o.view !== 'exterior') faces.push(...potLightFaces(pots, potCfg, o.light));
   }
   // FLOOR FINISH over the slab (floorboards / marble / auto), per room + halls, minus the
   // stair voids. 'auto' tiles wet rooms (kitchen/bath/laundry) in marble, the rest in boards.
@@ -1262,7 +1365,8 @@ export function structurizeFloorplan(input = {}, opts = {}) {
       faces.push(...groundPlaneFaces(fp, baseZ, o));
     }
   }
-  return { plan, cells, wallGraph, faces, footprint: fp, baseZ, slabHoles, roofTextureKeys, lot };
+  if (pots.length) faces.splice(0, faces.length, ...applyPotLightPools(faces, pots, potCfg));
+  return { plan, cells, wallGraph, faces, footprint: fp, baseZ, slabHoles, roofTextureKeys, lot, ...(pots.length ? { lights: potLightDefs(pots, potCfg) } : {}) };
 }
 
 /** Slight-overhead cameras that read the exterior skin and the open-roof interior. */
@@ -1333,6 +1437,12 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
     // exterior is a massing read — orbit it; cutaway is walked through.
     walk: exterior ? false : floorplanWalk(opts.walk, s.footprint, (s.baseZ || 0) + wallHeight * 0.42),
     ...(Object.keys(textures).length ? { textures } : {}),
+    // pot lights (KHR_lights_punctual in the GLB; the engine score carries them too)
+    ...(s.lights ? { lights: s.lights } : {}),
+    // The floorplan is authored in FEET. The World runtime is unit-free, but the GLB root
+    // and the engine score scale by this so every importer receives metres (the engine-leg
+    // finding: the lounge landed in Unreal at 3.28× with a 10 m ceiling).
+    metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
   };
 }
 
