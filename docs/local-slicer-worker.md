@@ -1,7 +1,7 @@
 # Local slicer worker — the print handoff's machine gate
 
 Status: seam 1b of `interchange-seams.plan.md`,
-landed 2026-09-04. Optional, operator-hosted, produces a **measured stamp**
+landed 2026-09-04; first real slice 2026-09-07 (PrusaSlicer 2.9.6, the brew cask). Optional, operator-hosted, produces a **measured stamp**
 beside the print file — the same posture as the [local Blender
 worker](local-blender-worker.md), the [local image worker](local-image-worker.md),
 and the [local voice worker](local-voice-worker.md). Mojulo holds no slicer, no
@@ -54,6 +54,11 @@ node scripts/slice-print.mjs --ref sk_foo --scale 25.4
 node scripts/slice-print.mjs --ref sk_foo --profile ~/prusa/mk4-pla-0.2.ini
 #   (or export MOJULO_SLICER_PROFILE=… once)
 
+# Where on the bed: a mojulo 3MF sits around ITS OWN origin, which the CLI reads
+# literally ("All objects are outside of the print volume"). The gate centres it —
+# your profile's bed_shape centre, else PrusaSlicer's default 200 × 200 bed (100,100):
+node scripts/slice-print.mjs --ref sk_foo --center 125,105
+
 # Ask for support material, or slice an existing 3MF without a sketch:
 node scripts/slice-print.mjs --ref sk_foo --supports
 node scripts/slice-print.mjs --3mf data/outcomes/sk_foo/model.3mf
@@ -73,8 +78,9 @@ Logs go to stderr; the slicer's own output lands in `slice.log` beside the file.
   "declared": { "size_mm": [40, 40, 60], "scale": 10, "print_profile": "literal",
                 "closure": { "audited": true, "closed": true, "holes": 0 }, "objects": 1, "items": 1, "colors": 3 },
   "gate": {
-    "skipped": false, "slicer": "prusa", "profile": "slicer defaults",
+    "skipped": false, "slicer": "prusa", "profile": "slicer defaults", "center_mm": [100, 100],
     "sliced": true,            // a G-code came out
+    "reason": null,            // else a NAMED failure: outside_print_volume | file_not_read | timeout | null (read slice.log)
     "size_agrees": true,       // the slicer's bounding box == mojulo's declared size (±0.5 mm)
     "manifold": true, "parts": 1, "volume_mm3": 75398.2,   // from --info
     "print_time_s": 5025, "filament_g": 3.68, "filament_mm": 1234.5,
@@ -87,6 +93,31 @@ Logs go to stderr; the slicer's own output lands in `slice.log` beside the file.
 slip between world units and millimetres is invisible to the closure audit and
 obvious here. `sliced: false` with the tail of `slice.log` is the loud failure.
 Every field the slicer did not print is `null`, never a guess.
+
+## The first real slice (2026-09-07, this host)
+
+```
+brew install --cask prusaslicer                          # 2.9.6
+node scripts/slice-print.mjs --ref sk_5732vu2va0          # the lighthouse, literal scale
+node scripts/slice-print.mjs --ref sk_5732vu2va0 --target-mm 180
+```
+
+Exact CLI the gate ran, from `slice.log`:
+
+```
+PrusaSlicer --info model.3mf
+PrusaSlicer --export-gcode --center 100,100 --output model.gcode model.3mf
+```
+
+- Literal scale (394 × 423 × 1000 mm): `--info` agrees on size and says manifold,
+  11 parts; `--export-gcode` produces nothing with `reason: outside_print_volume`.
+  That is the correct answer for a metre-tall lighthouse on a 200 mm default bed,
+  and the gate now says so by name instead of "no G-code".
+- Fitted to 180 mm: `sliced: true`, `size_agrees: true`, 600 layers at 0.3 mm,
+  a print-time and filament-length estimate. `filament_g` reads 0 under the
+  slicer's built-in defaults (no filament density) — grams need a real profile.
+- The app bundle CLI ran without `--datadir`; it did not touch the GUI config on
+  this host. Field names in 2.9.6 `--info` match the parser as written.
 
 ## Limits (honest)
 

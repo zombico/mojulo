@@ -28,7 +28,14 @@ elif ext in ('glb', 'gltf'):
 else:
     raise SystemExit(f'unsupported extension: {ext}')
 
-objs = list(bpy.data.objects)
+# The glTF importer parks its own helpers — the armature's custom bone-shape Icosphere
+# (80 faces) — in a `glTF_not_exported` collection. They are Blender's, not the file's:
+# skipped before every tally and named in the report (interchange-next.plan.md N1).
+IMPORTER_ONLY = 'glTF_not_exported'
+def importer_only(o):
+    return any(c.name == IMPORTER_ONLY for c in o.users_collection)
+all_objs = list(bpy.data.objects)
+objs = [o for o in all_objs if not importer_only(o)]
 meshes = [o for o in objs if o.type == 'MESH']
 tris = 0
 xs, ys, zs = [], [], []
@@ -58,6 +65,7 @@ report = {
     'actions': len(bpy.data.actions),
     'cameras': sum(1 for o in objs if o.type == 'CAMERA'),
     'empties': sum(1 for o in objs if o.type == 'EMPTY'),
+    'importer_only': [o.name for o in all_objs if importer_only(o)],
 }
 with open(out, 'w') as f:
     json.dump(report, f, indent=2)

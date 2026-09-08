@@ -49,6 +49,38 @@ export function findSlicer({ env = {}, exists = () => false, which = () => null 
 const num = (s) => { const v = Number.parseFloat(String(s).replace(',', '.')); return Number.isFinite(v) ? v : null; };
 
 /**
+ * bedCenterFromProfile(iniText) → [x, y] | null — the centre of the profile's
+ * `bed_shape` (`bed_shape = 0x0,250x0,250x210,0x210`). A mojulo 3MF places its
+ * objects around THEIR origin (min_x ≈ −size/2), which the CLI reads literally —
+ * "All objects are outside of the print volume" — so the driver hands the slicer
+ * `--center` at the bed's centre. null when the key is absent or unreadable.
+ */
+export function bedCenterFromProfile(text) {
+  const m = /^\s*bed_shape\s*=\s*(.+)$/m.exec(String(text || ''));
+  if (!m) return null;
+  const pts = m[1].split(',').map((pt) => pt.trim().split('x').map(num)).filter((pt) => pt.length === 2 && pt.every((v) => v != null));
+  if (!pts.length) return null;
+  const xs = pts.map((pt) => pt[0]); const ys = pts.map((pt) => pt[1]);
+  return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+}
+
+/** PrusaSlicer's built-in bed when no profile is loaded: 200 × 200 mm, centre (100, 100). */
+export const DEFAULT_BED_CENTER = [100, 100];
+
+/**
+ * sliceFailureReason(text) → a NAMED reason for a slice that produced no G-code,
+ * or null when the slicer's output carries none the parser knows. A name, not a
+ * grade: `outside_print_volume` is the honest answer for a literal-scale 1 m
+ * lighthouse on a 200 mm bed — the fix is `--target-mm` or the operator's profile.
+ */
+export function sliceFailureReason(text) {
+  const t = String(text || '');
+  if (/outside of the print volume/i.test(t)) return 'outside_print_volume';
+  if (/no such file|cannot open|failed to load|unable to load/i.test(t)) return 'file_not_read';
+  return null;
+}
+
+/**
  * parseSlicerInfo(text) → { size_mm:[x,y,z]|null, volume_mm3, facets, parts,
  * manifold: true|false|null } — PrusaSlicer `--info` output (one block per file).
  */

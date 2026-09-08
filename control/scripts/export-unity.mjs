@@ -71,6 +71,7 @@ const unityBin = args.unity || findUnity();
 register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 resolveMojuloPaths();
 const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+const { compareShading, declaredShading, sumDeclared } = await import('@/lib/graph/scene/materials-gate.js');
 const { buildUnityWorldPack, buildUnityGamePack } = await import('@/lib/graph/scene/unity-pack.js');
 
 const sketch = SketchRepository.getByRef(args.ref);
@@ -114,6 +115,65 @@ function runUnity(uargs, logFile, { projectPath = null } = {}) {
 }
 const LICENSE_ERR = /No valid Unity Editor license|License is not active|User cancelled|Token not found in cache/i;
 const COMPILE_ERR = /error CS\d+|Scripts have compiler errors|CompilationFailedException/;
+
+// The materials probe (interchange-next N5). Scratch-side only; see the gate below.
+const UNITY_MATERIALS_PROBE = `using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+namespace Mojulo
+{
+    /// <summary>Machine-gate MATERIALS probe: -executeMethod Mojulo.GateProbe.Materials.
+    /// Reads what glTFast built for every model.glb under Assets/MojuloPack and writes
+    /// mojulo-materials.json at the project root. Gate-only; not part of the pack.</summary>
+    public static class GateProbe
+    {
+        public static void Materials()
+        {
+            var byShader = new SortedDictionary<string, int>();
+            int materials = 0, unlit = 0, lit = 0, other = 0, lights = 0, files = 0;
+            foreach (var abs in Directory.GetFiles("Assets/MojuloPack", "model.glb", SearchOption.AllDirectories))
+            {
+                var rel = abs.Replace('\\\\', '/');
+                files++;
+                foreach (var a in AssetDatabase.LoadAllAssetsAtPath(rel))
+                {
+                    if (!(a is Material m)) continue;
+                    materials++;
+                    var n = m.shader != null ? m.shader.name : "(null)";
+                    byShader[n] = byShader.TryGetValue(n, out var c) ? c + 1 : 1;
+                    if (n.IndexOf("unlit", System.StringComparison.OrdinalIgnoreCase) >= 0) unlit++;
+                    else if (n.IndexOf("gltf", System.StringComparison.OrdinalIgnoreCase) >= 0) lit++;
+                    else other++;
+                }
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(rel);
+                if (prefab != null) lights += prefab.GetComponentsInChildren<Light>(true).Length;
+            }
+            var sb = new StringBuilder();
+            sb.Append("{\\"files\\":").Append(files)
+              .Append(",\\"materials\\":").Append(materials)
+              .Append(",\\"unlit\\":").Append(unlit)
+              .Append(",\\"lit\\":").Append(lit)
+              .Append(",\\"other\\":").Append(other)
+              .Append(",\\"lights\\":").Append(lights)
+              .Append(",\\"by_shader\\":{");
+            bool first = true;
+            foreach (var kv in byShader)
+            {
+                if (!first) sb.Append(',');
+                first = false;
+                sb.Append('"').Append(kv.Key.Replace("\\"", "'")).Append("\\":").Append(kv.Value);
+            }
+            sb.Append("}}");
+            File.WriteAllText("mojulo-materials.json", sb.ToString());
+            Debug.Log("[mojulo] materials probe: " + sb);
+            EditorApplication.Exit(0);
+        }
+    }
+}
+`;
 
 let gate = { skipped: true };
 if (!args['no-gate'] && unityBin && existsSync(unityBin)) {
@@ -164,6 +224,32 @@ if (!args['no-gate'] && unityBin && existsSync(unityBin)) {
   gate.checks = gateJson ? JSON.parse(gateJson) : null;
   if (verify.timedOut || verify.code !== 0 || !gate.checks?.ok) {
     fail(`machine gate FAILED: verify ${verify.timedOut ? `hung past the ${WATCHDOG_MS / 60000}min watchdog` : `exit ${verify.code}`} — ${JSON.stringify(gate.checks)} (log: ${verifyLog})`);
+  }
+
+  // interchange-next.plan.md N5: the MATERIALS probe — a scratch-side Editor
+  // script (never in the pack) that reads the materials glTFast built for every
+  // model.glb under the pack and the Light components its prefab carries, compared
+  // with what those GLBs DECLARE (glTFast builds one Material per glTF material:
+  // KHR_materials_unlit ⇒ glTF/Unlit, else the PBR shader). --lit only labels the
+  // run. Written fresh each run; Assets/MojuloGate sits outside Assets/MojuloPack, so
+  // the pack's byte pins are untouched.
+  {
+    const glbFiles = pack.written.map((w) => w.path ?? w.file ?? w.name ?? w).filter((f) => typeof f === 'string' && /(^|\/)model\.glb$/.test(f));
+    const declared = sumDeclared(await Promise.all(glbFiles.map(async (f) => declaredShading(await fs.readFile(path.isAbsolute(f) ? f : path.join(outDir, f))))));
+    const probeDir = path.join(scratch, 'Assets', 'MojuloGate', 'Editor');
+    await fs.mkdir(probeDir, { recursive: true });
+    await fs.writeFile(path.join(probeDir, 'MojuloGateProbe.cs'), UNITY_MATERIALS_PROBE);
+    const probeLog = path.join(outcomes, args.ref, 'unity-materials.log');
+    log(`machine gate — materials probe (${args.lit ? 'lit' : 'unlit'} export; ${glbFiles.length} GLB(s) declare ${declared.pbr_materials} PBR + ${declared.unlit_materials} unlit materials, ${declared.lights} lights)`);
+    await fs.rm(path.join(scratch, 'mojulo-materials.json'), { force: true });
+    const probe = await runUnity([...batch, '-projectPath', scratch, '-executeMethod', 'Mojulo.GateProbe.Materials', '-quit'], probeLog, { projectPath: scratch });
+    const raw = await fs.readFile(path.join(scratch, 'mojulo-materials.json'), 'utf8').catch(() => null);
+    const built = raw ? JSON.parse(raw) : {};
+    const cmp = compareShading({ declared, built, unit: 'materials' });
+    const ran = !probe.timedOut && probe.code === 0 && !!raw;
+    gate.materials = { ok: ran && cmp.ok, ran, mode: args.lit ? 'lit' : 'unlit', declared, built, checks: cmp.checks };
+    for (const [k, c] of Object.entries(cmp.checks)) log(`  ${c.ok === null ? '·' : c.ok ? '✓' : '✗'} ${k}: expected ${c.expected} got ${c.got}`);
+    if (!gate.materials.ok) fail(`machine gate FAILED: materials probe — ${JSON.stringify(gate.materials)} (log: ${probeLog})`);
   }
 
   // Y5: the standalone player build — the Godot leg's --web sibling. The

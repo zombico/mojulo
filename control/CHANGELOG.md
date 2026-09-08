@@ -10,6 +10,102 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### The mesh handoff meets a generator (interchange-next N4)
+
+Seam 5 shipped tested against a fake sculptor. First contact with a real one — TripoSR
+on this M1 Max, no key, CPU — on the lighthouse, driven cold from the packet.
+
+- **Generators normalise; the door now says so.** TripoSR returned a ~0.9-unit z-up
+  mesh in its own frame; submitted raw it failed `size_agrees` as designed (0.016× /
+  0.022× / 0.005×). `pull_mesh_render` now carries `greybox_box` ({ min, max }) beside
+  `size_world_units`, and the instructions tell the worker to re-frame onto it before
+  submitting. **`scripts/fit-mesh-to-greybox.mjs`** (pure half
+  `lib/graph/scene/mesh-fit.js`: `fitFacesToBox(faces, { box, up })`) is that step in the
+  face-list currency — stand it up (`--up triposr` for a z-up file, which the reader
+  lands on −y), uniform scale on the height, base on the greybox floor, XY centred;
+  vertex colours and albedo textures ride through `facesToGlb`. Tests: `mesh-fit.test.js`.
+- **The 0.5×–2× band held**: fitted on height, the return sat at 1.72× / 1.28× in XY (a
+  single view guesses girth) — inside, and the right shape of band. Slot 1 (raw, refused)
+  and slot 2 (fitted, `size_agrees: true`, closure clean, 82,408 tris, vertex colours,
+  no textures) are the record; slot 2 accepted by a different source after a Blender
+  Workbench look (reads as the lighthouse, leans a few degrees, back is a guess), placed
+  in a controllable world via `figures.<name>.meshRef` and exported (84,208 tris).
+- Findings ledgered in `docs/local-mesh-worker.md`: the submit `contract` block is the
+  Blender return's check and fails for any generator return (informational there);
+  textured returns remain untested by a generator (TripoSR's texture bake needs `xatlas`,
+  which does not build here); the host shims TripoSR needed (PyMCubes for `torchmcubes`,
+  lazy `xatlas`, `rembg[cpu]`, `trimesh` unpinned for numpy 2).
+
+### The engine gates learn to read materials (interchange-next N5)
+
+The lit handoff shipped with "Godot / Unity import a lit GLB as lit on their own (not
+verified in-engine)". Now it is verified, by a machine gate that asks the narrow
+question: did the importer build the shading the GLB DECLARES?
+
+- **`lib/graph/scene/materials-gate.js`** — `declaredShading(glb)` reads the file's own
+  declaration two ways (per primitive, which is Godot's surface; per material, which
+  is glTFast's Material) plus its `KHR_lights_punctual` count; `compareShading` returns
+  named checks with both numbers. `--lit` only labels the run: an unlit export may
+  carry a PBR primitive (the lounge's emissive pot-light disc) and a lit export keeps
+  its unlit stickers (water, shadows); both are right when the importer built what the
+  file says. Tests: `materials-gate.test.js`.
+- **Godot** — `scripts/godot-materials-probe.gd`, a gate-only `--script` (nothing of it
+  rides the pack) that instantiates each level's `model.glb` as imported and counts
+  `BaseMaterial3D.shading_mode` per surface and `Light3D` nodes; `export-godot.mjs`
+  runs it after the one-frame runs and stamps `gate.materials`. Measured on this host:
+  the lit lounge 14 shaded + 2 unshaded of 16 surfaces, 9 lights of 9; the unlit lounge
+  15 + 1, 9 lights; a two-level game pack 2 + 0. The kernel's `_fix_materials` only
+  sets `vertex_color_use_as_albedo` — it does not touch shading, so the split survives.
+- **Unity** — `export-unity.mjs` writes a scratch-side Editor script
+  (`Assets/MojuloGate/Editor/MojuloGateProbe.cs`, outside `Assets/MojuloPack`, so the
+  pack's byte pins are untouched) and runs `Mojulo.GateProbe.Materials`: the shader
+  name of every Material glTFast built under the pack (`glTF/Unlit` vs
+  `glTF/PbrMetallicRoughness`) and the prefab's `Light` components →
+  `mojulo-materials.json` → `gate.materials`. Measured (glTFast 6.9.1, Unity
+  6000.2.13f1): the lit lounge 14 PBR + 2 unlit of 16 materials, 9 lights of 9; the
+  unlit lounge 1 + 15, 9 lights. glTFast imports the punctual lights on its own.
+- The pot lights ride `KHR_lights_punctual` and both importers build them; the Unreal
+  importer still spawns its SpotLights from `score.json` (unchanged).
+
+### The slicer gate meets a slicer (interchange-next N2)
+
+PrusaSlicer 2.9.6 on this host, the first real slice since seam 1b shipped against no
+slicer. Two things the smoke run could not know:
+
+- **Placement.** A mojulo 3MF places its objects around their own origin; the CLI reads
+  that literally and refuses every model ("All objects are outside of the print
+  volume"). `slice-print.mjs` now hands the slicer `--center` — the operator's
+  `--center X,Y`, else the loaded profile's `bed_shape` centre
+  (`bedCenterFromProfile`), else PrusaSlicer's built-in 200 × 200 bed — and stamps
+  `center_mm`.
+- **Named failures.** A slice that yields no G-code carries `reason` —
+  `outside_print_volume`, `file_not_read`, `timeout`, or null with the log — instead
+  of one generic line; the driver says what to do (`--target-mm`, or a profile whose
+  bed is larger). The literal-scale lighthouse (1 m tall) is the honest first case.
+- Measured: the lighthouse fitted to 180 mm slices under the defaults (`size_agrees`,
+  manifold, 11 parts, 600 layers at 0.3 mm, a time and filament-length estimate;
+  grams read 0 without a filament profile). Exact CLI and findings in
+  `docs/local-slicer-worker.md`. Tests: `print-gate.test.js`.
+
+### The USD verify gate reads its own numbers right (interchange-next N1)
+
+The skinned-humanoid GLB gate's +80 triangles were never the export's. Blender's glTF
+importer creates a custom bone-shape `Icosphere` (80 faces) for every armature and parks
+it in a `glTF_not_exported` collection; `scripts/verify-usd.py` iterated
+`bpy.data.objects` and counted it — and fed it into the world box, so the reported y
+extent of exactly 2.0 on the figure was the unit icosphere. `facesToGlb`'s
+`triangleCount` equals the file's index accessors in rigid, skinned and humanoid modes
+(reproduced from the skinned test fixture and the stamped `sk_sprk_hero_3` export).
+
+- `verify-usd.py` now drops anything in `glTF_not_exported` before every tally
+  (triangles, box, meshes, objects, empties) and names what it dropped as
+  `importer_only` in the report. `import_mojulo.py`'s verify counts the same way but only
+  meets the static art-pass GLB (no armature, no shape); left under its byte pins.
+- The USD verify gate entry below that blamed the writer is corrected in place.
+- Re-run on this host: the skinned-humanoid figure gate is green (14,784 = 14,784, the
+  box is the figure's own, `importer_only: ["Icosphere"]`); the lighthouse USDZ gate is
+  unchanged and reports `importer_only: []`.
+
 ### Substrate drift — the self-description caught up to the code
 
 An audit of `get_substrate`, the rules card, and the README against the tree found the
@@ -602,8 +698,8 @@ green (triangles equal, the box lands in metres at true scale, colours and
 five cameras present; USDC 30 KB → 17 KB and 3.7 MB → 1.4 MB); the humanoid
 figure GLB is green on bones / colours / cameras but the gate CAUGHT a
 declared-triangle mismatch on the skinned rig (declared 14,784, Blender
-built 14,864) — the export's count for skinned figures is under by the
-part-decode's triangle tally, not a geometry loss; tracked in the plan.
+built 14,864) — first read as a writer tally bug; it was the gate's own reader
+counting the importer's bone-shape helper (see the interchange-next N1 entry above).
 
 ### World thumbnails for three.js-only kinds + floor-plan manifest docs
 

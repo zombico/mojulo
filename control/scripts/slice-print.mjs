@@ -20,6 +20,7 @@
  *   node scripts/slice-print.mjs --ref sk_foo --no-gate        # export only
  *   node scripts/slice-print.mjs --ref sk_foo --profile my.ini # PrusaSlicer config bundle
  *   node scripts/slice-print.mjs --ref sk_foo --supports       # ask for support material
+ *   node scripts/slice-print.mjs --ref sk_foo --center 125,105 # place on the bed here (default: the profile's bed centre, else 100,100)
  * Env: MOJULO_SLICER (binary; else PATH `prusa-slicer` / `superslicer`, then
  *      the /Applications bundles), MOJULO_SLICER_PROFILE (default --profile),
  *      MOJULO_SLICER_TIMEOUT_MS (watchdog, default 10 min).
@@ -44,6 +45,7 @@ const { values: args } = parseArgs({ options: {
   supports: { type: 'boolean', default: false },
   'no-gate': { type: 'boolean', default: false },
   slicer: { type: 'string' },
+  center: { type: 'string' },     // X,Y on the bed; a mojulo 3MF sits around its own origin, so the slicer must be told where the bed is
 } });
 
 function fail(msg) { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); }
@@ -53,7 +55,7 @@ if (!args.ref && !args['3mf']) fail('need --ref <sketch> or --3mf <file>');
 
 register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 resolveMojuloPaths();
-const { findSlicer, parseGcodeHeader, parseSlicerInfo, summarizePrintGate } = await import('@/lib/graph/scene/print-gate.js');
+const { findSlicer, parseGcodeHeader, parseSlicerInfo, summarizePrintGate, bedCenterFromProfile, sliceFailureReason, DEFAULT_BED_CENTER } = await import('@/lib/graph/scene/print-gate.js');
 
 // ── 1. the file: export via the same handler the MCP tool uses, or take one ──
 let file; let exported = null;
@@ -106,6 +108,14 @@ if (args['no-gate']) {
   const profile = args.profile || process.env.MOJULO_SLICER_PROFILE || null;
   const load = profile ? ['--load', path.resolve(profile)] : [];
   const supports = args.supports ? ['--support-material'] : [];
+  // Placement: the 3MF's objects sit around their own origin; PrusaSlicer reads that
+  // literally and refuses ("outside of the print volume"). Centre on the bed — the
+  // operator's --center, else the profile's bed_shape centre, else the CLI default bed.
+  let center = null;
+  if (args.center) { const c = args.center.split(',').map(Number); if (c.length !== 2 || c.some((n) => !Number.isFinite(n))) fail('--center wants X,Y in mm'); center = c; }
+  else if (profile) center = bedCenterFromProfile(await fs.readFile(path.resolve(profile), 'utf8').catch(() => ''));
+  if (!center) center = DEFAULT_BED_CENTER;
+  const place = ['--center', `${center[0]},${center[1]}`];
 
   log(`machine gate — ${slicer.id} --info`);
   const info = await run(slicer.bin, ['--info', file]);
@@ -114,10 +124,10 @@ if (args['no-gate']) {
 
   const gcodePath = path.join(dir, 'model.gcode');
   await fs.rm(gcodePath, { force: true });
-  log(`machine gate — ${slicer.id} --export-gcode${profile ? ` (--load ${profile})` : ' (slicer defaults)'}`);
-  const slice = await run(slicer.bin, ['--export-gcode', ...load, ...supports, '--output', gcodePath, file]);
+  log(`machine gate — ${slicer.id} --export-gcode${profile ? ` (--load ${profile})` : ' (slicer defaults)'} --center ${center.join(',')}`);
+  const slice = await run(slicer.bin, ['--export-gcode', ...load, ...supports, ...place, '--output', gcodePath, file]);
   const sliceLog = path.join(dir, 'slice.log');
-  await fs.writeFile(sliceLog, `$ ${slicer.bin} --export-gcode ${load.join(' ')} ${supports.join(' ')} --output ${gcodePath} ${file}\n\n${slice.out}\n${slice.err}`);
+  await fs.writeFile(sliceLog, `$ ${slicer.bin} --export-gcode ${load.join(' ')} ${supports.join(' ')} ${place.join(' ')} --output ${gcodePath} ${file}\n\n${slice.out}\n${slice.err}`);
   let gcodeParsed = null;
   if (!slice.timedOut && slice.code === 0 && existsSync(gcodePath)) {
     const g = await fs.readFile(gcodePath, 'utf8');
@@ -133,11 +143,14 @@ if (args['no-gate']) {
     slice_exit: slice.timedOut ? 'timeout' : slice.code,
     gcode: gcodeParsed ? gcodePath : null,
     log: sliceLog,
+    center_mm: center,
+    reason: summary.sliced ? null : (slice.timedOut ? 'timeout' : sliceFailureReason(slice.out + slice.err)),
     ...summary,
   };
   if (!summary.sliced) {
     process.stderr.write((slice.err || slice.out).trim().split('\n').slice(-8).join('\n') + '\n');
-    log(`machine gate FAILED: the slicer produced no G-code (${slice.timedOut ? `hung past the ${WATCHDOG_MS / 60000}min watchdog` : `exit ${slice.code}`}) — see ${sliceLog}`);
+    log(`machine gate FAILED: the slicer produced no G-code (${slice.timedOut ? `hung past the ${WATCHDOG_MS / 60000}min watchdog` : `exit ${slice.code}`}${gate.reason ? `, reason ${gate.reason}` : ''}) — see ${sliceLog}`);
+    if (gate.reason === 'outside_print_volume') log(`the model (${exported?.size_mm ? exported.size_mm.join(' × ') + ' mm' : 'as exported'}) does not fit the ${profile ? 'profile' : 'default 200 mm'} bed/height — re-run with --target-mm <mm>, or --profile <your printer .ini> if the bed is larger`);
   } else if (summary.size_agrees === false) {
     log(`machine gate WARNING: slicer size ${infoParsed.size_mm.join(' × ')} mm ≠ declared ${exported.size_mm.join(' × ')} mm — a unit slip; check \`scale\` / \`units\``);
   }

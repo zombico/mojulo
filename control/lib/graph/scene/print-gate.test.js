@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { findSlicer, parseDuration, parseGcodeHeader, parseSlicerInfo, summarizePrintGate } from './print-gate.js';
+import { DEFAULT_BED_CENTER, bedCenterFromProfile, findSlicer, parseDuration, parseGcodeHeader, parseSlicerInfo, sliceFailureReason, summarizePrintGate } from './print-gate.js';
 
 describe('findSlicer', () => {
   it('honours MOJULO_SLICER and guesses the family from the path', () => {
@@ -70,5 +70,21 @@ G1 X1
     expect(slip.sliced).toBe(false);
     expect(slip.size_agrees).toBe(false);
     expect(summarizePrintGate({}).size_agrees).toBeNull();
+  });
+});
+
+describe('placement + failure reasons (interchange-next N2)', () => {
+  it('reads the bed centre from a profile, else null', () => {
+    expect(bedCenterFromProfile('layer_height = 0.2\nbed_shape = 0x0,250x0,250x210,0x210\n')).toEqual([125, 105]);
+    expect(bedCenterFromProfile('bed_shape = -50x-50,50x-50,50x50,-50x50')).toEqual([0, 0]);
+    expect(bedCenterFromProfile('layer_height = 0.2')).toBeNull();
+    expect(bedCenterFromProfile('bed_shape = garbage')).toBeNull();
+    expect(DEFAULT_BED_CENTER).toEqual([100, 100]);
+  });
+  it('names the failures it knows and stays null otherwise', () => {
+    expect(sliceFailureReason('All objects are outside of the print volume.')).toBe('outside_print_volume');
+    expect(sliceFailureReason('Error: failed to load model.3mf')).toBe('file_not_read');
+    expect(sliceFailureReason('89 => Calculating overhanging perimeters')).toBeNull();
+    expect(sliceFailureReason('')).toBeNull();
   });
 });

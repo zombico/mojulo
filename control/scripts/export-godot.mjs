@@ -51,6 +51,7 @@ register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 resolveMojuloPaths();
 const { SketchRepository } = await import('@/lib/db/repositories/sketches');
 const { buildGodotWorldPack, buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
+const { compareShading, declaredShading, sumDeclared } = await import('@/lib/graph/scene/materials-gate.js');
 
 const sketch = SketchRepository.getByRef(args.ref);
 if (!sketch) fail(`sketch '${args.ref}' not found`);
@@ -106,6 +107,31 @@ if (!args['no-gate'] && existsSync(godotBin)) {
     if (frame.code !== 0 || scriptErr) {
       process.stderr.write(frameLog);
       fail(`machine gate FAILED: one-frame '${label}' ${scriptErr ? `logged "${scriptErr[0]}"` : `exit ${frame.code}`}`);
+    }
+  }
+  // interchange-next.plan.md N5: the MATERIALS probe — did the importer build the
+  // shading the GLB DECLARES? KHR_materials_unlit on a primitive ⇒ an UNSHADED
+  // surface, a real pbrMetallicRoughness ⇒ a shaded one, KHR_lights_punctual ⇒
+  // Light3D nodes. --lit only labels the run (an unlit export may carry a PBR
+  // emissive disc; a lit one keeps its unlit stickers). Gate-only script
+  // (scripts/godot-materials-probe.gd); nothing of it rides the pack.
+  {
+    const glbs = pack.scope === 'game'
+      ? pack.sceneChecks.map((scene) => scene.replace(/level\.tscn$/, 'model.glb'))
+      : ['res://model.glb'];
+    const declared = sumDeclared(await Promise.all(glbs.map(async (g) => declaredShading(await fs.readFile(path.join(outDir, g.replace(/^res:\/\//, '')))))));
+    log(`machine gate — materials probe (${args.lit ? 'lit' : 'unlit'} export; file declares ${declared.pbr_primitives} shaded + ${declared.unlit_primitives} unlit primitives, ${declared.lights} lights)`);
+    const probe = await runGodot(['--headless', '--path', outDir, '--script', path.join(here, 'godot-materials-probe.gd'), '--', ...glbs]);
+    const line = /\[mojulo-materials\] (.*)/.exec(probe.out + probe.err);
+    const built = {};
+    if (line) for (const kv of line[1].trim().split(/\s+/)) { const [k, v] = kv.split('='); built[k] = Number.isFinite(+v) ? +v : v; }
+    const cmp = compareShading({ declared, built, unit: 'primitives' });
+    const ran = probe.code === 0 && !!line && !built.error;
+    gate.materials = { ok: ran && cmp.ok, ran, mode: args.lit ? 'lit' : 'unlit', declared, built, checks: cmp.checks };
+    for (const [k, c] of Object.entries(cmp.checks)) log(`  ${c.ok === null ? '·' : c.ok ? '✓' : '✗'} ${k}: expected ${c.expected} got ${c.got}`);
+    if (!gate.materials.ok) {
+      process.stderr.write(probe.out + probe.err);
+      fail(`machine gate FAILED: materials probe — ${JSON.stringify(gate.materials)}`);
     }
   }
   // walking-suit-backport G-P: the headless locomotion probe — the one

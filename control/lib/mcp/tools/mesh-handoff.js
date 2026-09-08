@@ -125,6 +125,7 @@ export async function pullMeshRenderHandler(input) {
     title: sketch.title || sketch.manifest.title || request.ref,
     greybox: { path: greybox.path, url: greybox.url, triangles: greybox.triangles, vertices: greybox.vertices },
     size_world_units: size ? size.size.map((v) => Math.round(v * 1000) / 1000) : null,
+    greybox_box: size ? { min: size.min.map((v) => Math.round(v * 1000) / 1000), max: size.max.map((v) => Math.round(v * 1000) / 1000) } : null,
     units,
     print_profile: profile,
     reference_urls: {
@@ -137,7 +138,8 @@ export async function pullMeshRenderHandler(input) {
     instructions:
       'Generate a refined mesh of this object conditioned on the greybox GLB and the still/turntable renders: keep the silhouette, proportions, and z-up frame; '
       + `deliver ONE .glb in the same world units (bounding box ≈ ${size ? size.size.map((v) => Math.round(v * 100) / 100).join(' × ') : '?'}${units ? ` ${units}` : ' world units'}, centred where the greybox sits), `
-      + 'uncompressed (no Draco/meshopt), triangles only, vertex colours or a baseColor texture. Then hand it back with '
+      + 'uncompressed (no Draco/meshopt), triangles only, vertex colours or a baseColor texture. '
+      + 'Image-to-mesh generators normalise to their own unit box in their own frame (TripoSR: z-up in the file, ~1 unit tall): re-frame the return onto `greybox_box` before submitting — z-up, base at min z, XY centred — `node scripts/fit-mesh-to-greybox.mjs --ref <ref> --in raw.glb --out fitted.glb [--up triposr]` does exactly that. Then hand it back with '
       + `submit_mesh_render({ request_id: '${request.id}', glb_path, worker_audit: { invoked_generator: true, generator: '<name>', conditioned: 'greybox+images' | 'greybox' | 'prompt-only' }, source: '<worker id>' }).`,
     next: `Sculpt, then submit_mesh_render({ request_id: '${request.id}', glb_path, worker_audit, source }).`,
   };
