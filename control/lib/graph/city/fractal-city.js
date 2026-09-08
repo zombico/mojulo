@@ -1197,7 +1197,7 @@ function pickTownRoof(apartment, rng) {
   if (rng() < 0.16) return rng() < 0.5 ? 'tofu-deck' : 'modern-shed';   // occasional flat/modern house among the pitched
   return TOWN_ROOFS_PITCHED[Math.floor(rng() * TOWN_ROOFS_PITCHED.length)];
 }
-const STOREY_H = 0.82;                                                          // one residential storey, town scale
+export const STOREY_H = 0.82;                                                          // one residential storey, town scale
 function placeTownDwelling(boxes, rect, size, rng, minDim, front, cladding) {
   const apartment = size === 'large' && minDim >= 1.3 && rng() < 0.55;          // a corner walk-up, occasionally
   let storeys, h;
@@ -2440,7 +2440,56 @@ export function carLaneToPath(L) {
 // an explicit anchor:'tower'|'freeway'. This keeps the generator default aligned with the mint default
 // (mintFractalCity) + the theme adapter's intent, so a recipe that merely OMITS `anchor` can never
 // silently grow a tower in the middle of the streets (the default-drift bug, city/walkers.plan.md).
-export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null } = {}) {
+// ── inset lot placement (city-insets.js) ─────────────────────────────────────────────────
+// Try every generated mass as an anchor for the plot (both orientations, all four corners):
+// the plot must sit on BLOCK cells only (never road / verge / corridor / plaza) and inside the
+// region; the candidate evicting the fewest masses, then props, wins. Deterministic (box order).
+const INSET_MASS_KINDS = new Set(['building', 'anchor', 'midtower', 'townhouse', 'house', 'garage']);
+const INSET_BLOCK_CLAIMS = new Set([CLAIM.EMPTY, CLAIM.BUILDING, CLAIM.ANCHOR, CLAIM.LOT, CLAIM.ALLEY, CLAIM.VERGE]);   // ANCHOR = a generated tower's own ring (evicted with it); verge = the sidewalk strip: allowed, penalised
+function countClaim(g, rect, code) {
+  const { c0, c1, r0, r1 } = gridCells(g, rect);
+  let n = 0;
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (g.data[r * g.cols + c] === code) n += 1;
+  return n;
+}
+function placeInsetOnLot(plot, { grid, boxes, region }) {
+  let best = null;
+  const eps = 1e-6;
+  for (const b of boxes) {
+    if (!INSET_MASS_KINDS.has(b.kind)) continue;
+    for (const yaw of [0, 90]) {
+      const pw = yaw ? plot.d : plot.w, pd = yaw ? plot.w : plot.d;
+      for (const [x, y] of [[b.x, b.y], [b.x + b.w - pw, b.y], [b.x, b.y + b.d - pd], [b.x + b.w - pw, b.y + b.d - pd]]) {
+        const R = { x, y, w: pw, d: pd };
+        if (R.x < region.x - eps || R.y < region.y - eps || R.x + R.w > region.x + region.w + eps || R.y + R.d > region.y + region.d + eps) continue;
+        if (!rectAllIn(grid, R, INSET_BLOCK_CLAIMS)) continue;
+        let masses = 0, props = 0;
+        for (const o of boxes) if (rectsOverlap(o, R)) { if (INSET_MASS_KINDS.has(o.kind)) masses += 1; else props += 1; }
+        // a plot larger than any parcel may stand on the sidewalk strip (fronting the kerb), never
+        // the road; every verge cell it takes costs, so a parcel that holds it whole always wins
+        const verge = countClaim(grid, R, CLAIM.VERGE);
+        const score = masses * 10 + props + verge * 0.25;
+        if (!best || score < best.score) best = { rect: R, yaw, replaced: masses, kerb: verge > 0, score };
+      }
+    }
+  }
+  return best;
+}
+// Move inset faces from their authored plot onto the chosen parcel, turning 90° when asked
+// (a CCW quarter turn about the plot origin; roof normals turn with it).
+function reseatInsetFaces(faces, plot, R, yaw) {
+  return faces.map((face) => {
+    const corners = face.corners.map(([x, y, z]) => {
+      const u = x - plot.x, v = y - plot.y;
+      return yaw ? [R.x + (plot.d - v), R.y + u, z] : [R.x + u, R.y + v, z];
+    });
+    const out = { ...face, corners };
+    if (yaw && Array.isArray(face.normal) && face.normal.length === 3) out.normal = [-face.normal[1], face.normal[0], face.normal[2]];
+    return out;
+  });
+}
+
+export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null } = {}) {
   const rng = mulberry32(seed >>> 0 || 1);
   // baseScale (<1) SHRINKS every object while the frame stays fixed → proportionally MORE, smaller
   // blocks in the same scene. Implemented as a similarity transform: generate in an ENLARGED region
@@ -2504,6 +2553,31 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     stampRect(grid, a.footprint, CLAIM.ANCHOR);
     placedRootAnchor = true;
   }
+  // INSET EDIFICES (city-insets.js): a MINTED building placed by the operator, reserved exactly
+  // like a landmark — plot + sidewalk ring claimed before the road glyph runs, its own faces
+  // appended in gen-space so they ride the baseScale scale-down with everything else. Advisory:
+  // an inset that overlaps a reserved plaza or leaves the region is placed anyway and named.
+  const placedInsets = [];
+  const insetList = Array.isArray(insets) ? insets.filter((i) => i && i.footprint && Array.isArray(i.faces)) : [];
+  const genRect = (r) => (bs === 1 ? { ...r } : { x: frameOrigin.x + (r.x - frameOrigin.x) / bs, y: frameOrigin.y + (r.y - frameOrigin.y) / bs, w: r.w / bs, d: r.d / bs });
+  const frameRect = (r) => (bs === 1 ? { ...r } : { x: frameOrigin.x + (r.x - frameOrigin.x) * bs, y: frameOrigin.y + (r.y - frameOrigin.y) * bs, w: r.w * bs, d: r.d * bs });
+  const genFaces = (fs) => (bs === 1 ? fs : fs.map((face) => ({ ...face, corners: face.corners.map(([x, y, z]) => [frameOrigin.x + (x - frameOrigin.x) / bs, frameOrigin.y + (y - frameOrigin.y) / bs, z / bs]) })));
+  const lotInsets = [];
+  for (const inset of insetList) {
+    if (inset.mode !== 'plaza') { lotInsets.push(inset); continue; }   // default: take a parcel after the roads run (below)
+    const fp = genRect(inset.footprint), plot = genRect(inset.plot || inset.footprint);
+    const inside = fp.x >= region.x && fp.y >= region.y && fp.x + fp.w <= region.x + region.w && fp.y + fp.d <= region.y + region.d;
+    const overlapsReserved = seedReserved.some((r) => rectsOverlap(fp, r));
+    seedReserved.push({ ...fp, hard: true });
+    stampRect(grid, fp, CLAIM.PLAZA);
+    stampRect(grid, plot, CLAIM.ANCHOR, [CLAIM.PLAZA]);
+    grounds.push({ kind: 'inset-plaza', x: fp.x, y: fp.y, w: fp.w, d: fp.d, z: 0.02, fill: '#bdbcae' });
+    const tag = inset.ref || `inset:${placedInsets.length}`;
+    const f = genFaces(inset.faces).map((face) => ({ ...face, inset: tag }));
+    faces.push(...f);
+    const z1 = Math.max(0, ...f.flatMap((face) => face.corners.map((c) => c[2])));
+    placedInsets.push({ ref: inset.ref || null, title: inset.title || null, placement: 'plaza', yaw: 0, replaced: 0, plot: inset.plot || inset.footprint, envelope: { ...(inset.plot || inset.footprint), z0: 0, z1: z1 * bs }, faces: f.length, floors: inset.floors ?? null, inside, overlapsReserved });
+  }
   // CIVIC AREAS, RESERVED BEFORE ROADS too. Each requested district (town-square / school /
   // strip-mall) claims a distinct slice — far from the centre so it composes WITH a centred
   // landmark — and joins seedReserved, so roads / sidewalks / power / trees route around it
@@ -2517,6 +2591,35 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const recurseRoot = (placedRootAnchor || corridor) ? null : (anchor || null);
   recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: landmarkZone ? [landmarkZone] : [], baseScale: bs, profile, traffic }, grid, cars);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
+  // LOT INSETS (city-insets.js, the default): with the roads and blocks laid, each minted
+  // building takes over a generated PARCEL — the candidate that evicts the fewest neighbours,
+  // on block cells only, fronting the sidewalk like the building it replaces. No parcel fits ⇒
+  // the plaza fallback above's sibling here: reserve at the centre and say so.
+  for (const inset of lotInsets) {
+    const tag = inset.ref || `inset:${placedInsets.length}`;
+    const plot = genRect(inset.plot || inset.footprint);
+    const hit = placeInsetOnLot(plot, { grid, boxes, region });
+    let f, R, yaw = 0, replaced = 0, placement;
+    if (hit) {
+      ({ rect: R, yaw, replaced } = hit); placement = hit.kerb ? 'lot-kerb' : 'lot';
+      // evict everything on the plot: masses, props, lot/lawn tiles, alley stickers
+      for (let i = boxes.length - 1; i >= 0; i--) if (rectsOverlap(boxes[i], R)) boxes.splice(i, 1);
+      for (let i = grounds.length - 1; i >= 1; i--) if (rectsOverlap(grounds[i], R)) grounds.splice(i, 1);
+      for (let i = faces.length - 1; i >= 0; i--) if (!faces[i].inset && faces[i].corners.some(([x, y]) => x > R.x && x < R.x + R.w && y > R.y && y < R.y + R.d)) faces.splice(i, 1);
+      stampRect(grid, R, CLAIM.ANCHOR, [CLAIM.EMPTY, CLAIM.VERGE, CLAIM.BUILDING, CLAIM.ANCHOR, CLAIM.LOT, CLAIM.ALLEY]);
+      f = reseatInsetFaces(genFaces(inset.faces), plot, R, yaw).map((face) => ({ ...face, inset: tag }));
+    } else {
+      placement = 'plaza-fallback'; R = plot;
+      seedReserved.push({ ...R, hard: true });
+      stampRect(grid, R, CLAIM.ANCHOR, [CLAIM.EMPTY, CLAIM.VERGE, CLAIM.BUILDING, CLAIM.LOT, CLAIM.ALLEY]);
+      for (let i = boxes.length - 1; i >= 0; i--) if (rectsOverlap(boxes[i], R)) boxes.splice(i, 1);
+      f = genFaces(inset.faces).map((face) => ({ ...face, inset: tag }));
+    }
+    faces.push(...f);
+    const z1 = Math.max(0, ...f.flatMap((face) => face.corners.map((c) => c[2])));
+    const inside = R.x >= region.x && R.y >= region.y && R.x + R.w <= region.x + region.w && R.y + R.d <= region.y + region.d;
+    placedInsets.push({ ref: inset.ref || null, title: inset.title || null, placement, yaw, replaced, plot: frameRect(R), envelope: { ...frameRect(R), z0: 0, z1: z1 * bs }, faces: f.length, floors: inset.floors ?? null, inside, overlapsReserved: false });
+  }
   // FINAL CAR PASS: emit each deferred vehicle only if its lane/stall cell is actually
   // the right surface — ROAD for street ants, LOT for parked ants. This is what makes the
   // recursion ORDER not matter: a car decided at the root survives only if no anchor /
@@ -2595,8 +2698,9 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     leftover: leftover.filter((c) => c.area >= 0.5).length,
     leftoverArea: Math.round(leftover.reduce((a, c) => a + c.area, 0) * bs * bs * 100) / 100,   // gen-space area → frame-space (×baseScale²)
     parkDoodads: boxes.filter((b) => b.kind === 'park-bin' || b.kind === 'park-bench' || (b.kind && b.kind.startsWith('play-'))).length,
+    ...(placedInsets.length ? { insets: placedInsets } : {}),   // minted edifices placed in the fabric (city-insets.js)
   };
-  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}) };
+  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}) };
 }
 
 // Derive light SOURCES from the warm lamp HEADS the generator already places — each
@@ -2753,6 +2857,8 @@ export function assembleFractalCityScene(opts = {}) {
   }
   // carry the planned walker loops (paths + style, city units) onto the payload; the world resolve
   // bakes the rig + finalizes `walkers` (figure + scale). Absent when `walkers` isn't requested.
+  // inset edifices carry their own roof/facade textures (surface-textures keys → data URLs)
+  if (Array.isArray(opts.insets)) for (const i of opts.insets) if (i && i.textures && Object.keys(i.textures).length) scene.textures = { ...(scene.textures || {}), ...i.textures };
   if (plan.walkerLoops && plan.walkerLoops.length) scene.walkerLoops = plan.walkerLoops;
   if (plan.carLanes && plan.carLanes.length) scene.carLanes = plan.carLanes;
   return scene;
@@ -2786,6 +2892,7 @@ export function cityThemeAdapter(slots = {}) {
   if (asset.anchor === 'tower' || asset.anchor === 'freeway') out.anchor = asset.anchor;
   if (asset.monument) out.landmark = asset.monument;
   if (Array.isArray(asset.civic) && asset.civic.length) out.civicAreas = asset.civic;
+  if (Array.isArray(asset.edifices) && asset.edifices.length) out.edifices = asset.edifices;   // minted edifice insets (city-insets.js); the mint validates each ref
   if (asset.elements && typeof asset.elements === 'object') out.elements = { ...asset.elements };
   // Effect channels ride the top level of the slot bag (they are render toggles, not
   // theme roles): opt-in volumetric fog + the audio channel pass through to the mint,

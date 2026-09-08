@@ -15,6 +15,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
+import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
@@ -296,12 +297,20 @@ export const WORLD_KINDS = {
   'fractal-city': {
     title: 'mojulo city',
     walk: true,
-    fogBoxes: (m) => planFractalCity(m).boxes
-      .filter((b) => FRACTAL_CITY_FOG_KINDS.has(b.kind) && b.z1 > (b.z0 || 0) && b.w > 0 && b.d > 0)
-      .map((b) => boxFromFootprint(b, { up: 'z' })),
+    // inset edifices (worlds/city-insets.js): minted buildings the recipe names in `edifices`,
+    // resolved here (DB) and handed to the DB-free planner; their envelopes clip the fog too.
+    fogBoxes: (m) => {
+      const plan = planFractalCity({ ...m, insets: resolveCityInsets(m) });
+      return [
+        ...plan.boxes
+          .filter((b) => FRACTAL_CITY_FOG_KINDS.has(b.kind) && b.z1 > (b.z0 || 0) && b.w > 0 && b.d > 0)
+          .map((b) => boxFromFootprint(b, { up: 'z' })),
+        ...(plan.insets || []).map((i) => boxFromFootprint(i.envelope, { up: 'z' })),   // where the planner actually seated each inset
+      ];
+    },
     // `unshaded` (GI-bake raw-albedo export) forces plain lighting + FLAT_LIGHT inside the
     // assembler; absent it, every field is byte-identical to before.
-    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded }))),
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, insets: resolveCityInsets(m), time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).

@@ -10,6 +10,43 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### A minted building in the generated city — `edifices` on the fractal city (print-loop-demo)
+
+Until now the city planner could reserve a plot only for a NAMED landmark (a pyramid, a
+stadium). A building the operator designed as an edifice had nowhere to go but its own lawn.
+The city recipe now takes `edifices: [{ ref, at? }]` — minted edifice refs placed by their
+footprint corner in city units (default: the region centre) — and treats each like a landmark:
+the plot plus a sidewalk ring is claimed before the road glyph runs, so streets, blocks and
+props route around it; the edifice's own faces (walls, roof, slab, textures) are scaled from
+feet into city units (one storey = 0.82 units, `STOREY_H / FLOOR_FT`) and appended to the scene.
+`compose_world({ base: 'city', overrides: { edifices: [...] } })` and `update_sketch` on a
+stored city both carry it; the building stays the edifice's own recipe, so editing the
+edifice re-renders the city.
+
+- **`lib/graph/city/city-insets.js`** — `insetFromEdifice(manifest, { at, margin })`: the pure
+  half (plan → faces → city units, footprint + plaza ring + fog envelopes).
+  **`lib/graph/worlds/city-insets.js`** — `resolveCityInsets(cityManifest)`: the DB half
+  (ref → stored edifice → inset; a ref that is not an edifice throws at mint with the kind it
+  found). `planFractalCity` takes resolved `insets`, stays DB-free, and is byte-identical
+  without them. `STOREY_H` is exported for the unit conversion.
+- **Lot placement is the default.** The first cut reserved the region centre before the roads
+  ran, so the building sat on the intersection like a monument. Now, unless `at` is given
+  (`mode: 'plaza'`), the roads and blocks are laid first and the inset TAKES A PARCEL: every
+  generated building's lot is tried as an anchor, both orientations, the plot must sit on
+  block cells only (no road, verge, corridor or plaza) and the candidate that evicts the fewest
+  neighbours wins; the evicted building, its lot and any prop on the plot are removed, the plot
+  is claimed so later passes (cars, people, trees) stay off it, and the building fronts the
+  sidewalk like the one it replaced. `stats.insets[i]` says `placement`, `yaw` and `replaced`.
+  A city with no parcel that fits falls back to the plaza and says so.
+- Gen-space aware: under `baseScale` the inset is placed in the enlarged region and rides the
+  same output scale-down as everything else.
+- Advisory, never a refusal: an inset that lands on a landmark plaza or off the region is
+  placed anyway and named in `stats.insets`.
+- Tests: `city-insets.test.js` — the conversion (units, footprint, face count, textures), the
+  theme adapter, and the planner: a parcel taken with every road kept, the 90° seat, a
+  parcel-sized building seated inside its lot, plaza mode with nothing on the plot, the same
+  seed unchanged without insets, and the plot landing where `at` says under `baseScale`.
+
 ### The lounge review — recipe identity, eye height, and four small defects
 
 A review of the assembled lounge handoff repository found the room carrying two manifest hashes

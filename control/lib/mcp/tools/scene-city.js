@@ -18,6 +18,7 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { normalizeEdificeEntries, resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { planFractalCity, normalizeCivicAreas } from '@/lib/graph/city/fractal-city';
 import { isLandmarkShape } from '@/lib/graph/landmarks/index.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
@@ -32,7 +33,7 @@ function normalizeLandmarkInput(landmark) {
   return isLandmarkShape(landmark) ? landmark : null;
 }
 
-export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, ref, folderRef } = {}) {
+export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, edifices, ref, folderRef } = {}) {
   const manifest = {
     kind: 'fractal-city',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
@@ -67,12 +68,17 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
     ...(fog === true || (fog && typeof fog === 'object' && !Array.isArray(fog)) ? { fog } : {}),
     // opt-in audio channel (beats.plan.md) — soundtrack / wind / sfx cues; /world only.
     ...(audio && typeof audio === 'object' && !Array.isArray(audio) ? { audio } : {}),
+    // minted EDIFICE sketches placed in the fabric (worlds/city-insets.js): [{ ref, at?: [x, y] }] in
+    // city units; the plot + a sidewalk ring is reserved before roads. Validated here — a ref that is
+    // missing or not an edifice refuses the mint by name.
+    ...((() => { const ed = normalizeEdificeEntries(edifices); return ed.length ? { edifices: ed } : {}; })()),
     ...(title ? { title } : {}),
   };
 
   // Expand once to validate the recipe is renderable + return a stat readout (no
-  // geometry is persisted — only the recipe above is stored).
-  const { stats } = planFractalCity(manifest);
+  // geometry is persisted — only the recipe above is stored). Insets resolve through the DB
+  // here so a bad edifice ref fails the mint, not the stored world link.
+  const { stats } = planFractalCity({ ...manifest, insets: resolveCityInsets(manifest) });
 
   let sketch;
   try {
