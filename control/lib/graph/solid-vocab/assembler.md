@@ -46,6 +46,18 @@ Each item drops one frozen workbench part into the shared worldspace at a positi
 - `scale` (number, default 1) — uniform scale nudge within the shared scale.
 - `repeat` — linear array: `{ count: N, step: [dx,dy,dz] }` replicates the part at stepped positions (one spindle → a banister); copy k sits at `at + k·step`.
 
+## Placement principles — what holds beyond any one object
+
+These are the rules the assembler's own doctrine object (a chariot, built twice) taught. They are about JOINTS, and they apply to every composed thing.
+
+- **Seating measures the whole part, not its joint.** `on` rests the part's LOWEST point on the support's HIGHEST point. A part whose lowest points are not where it connects — a yoke with saddle dips, an arch, a hoop rail on posts, a bracket with a lip — seats on those dips and its hub hangs in air above the tip it was meant to meet. Stats report a clean placement because every number is true; only the eyes gate sees the air.
+- **A joint that must MEET a tip is a bridge: superpose it, with a jut.** Put the part's connecting point on the support's connecting point by absolute `at` z, and overlap by a few tenths of a unit so the two do not merely touch (touching faces are coplanar and z-fight). A collar or knuckle lathed around the junction makes the joint READ as a joint. The same move places an axle at wheel-centre height and a bed between its wheels.
+- **Author every part with its lowest z = 0 in its own frame.** The workbench warns when a part sinks below the grid; the assembler re-seats it anyway, but by the lowest-point rule above, so a part authored about its own centreline seats differently than you pictured. Zero the base first; then `rotate` (a wheel authored flat stands up with `rotate:[0,90,0]` and seats at its own radius).
+- **`repeat` copies are identical, caps and all.** A part that is arrayed left and right must be symmetric in its own frame — cap a hub on both faces rather than one, or use two items with `flip`.
+- **Every monomer family the workbench renders survives the freeze** — lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells — and so does a `code` part's **program**, copied inline and expanded on every render. A curved panel lofted along a path enters the assembly whole; a crankshaft written as a loop enters as itself.
+- **Mirror a bank, never re-author it.** A part authored for one side is placed again with `flip` for the other; `repeat` translates, `flip` mirrors, and neither reaches inside the part.
+- **Only the eyes gate checks contact.** `stats.warnings` says whether the assembly floats or sinks as a whole; it does not say whether any two parts touch. Read the turntable for every joint you meant to close.
+
 ## Units, framing, and the biped model
 
 - `units` (default `'cm'`) — informational unit label surfaced in the size readout and grid (1 grid cell = 5 units).

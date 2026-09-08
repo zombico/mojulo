@@ -75,6 +75,7 @@ export const OBJECT_PROTOCOL = {
   ceiling: [
     'NO BOOLEAN SUBTRACTION. There are no cuts — a recess is a dark-tinted mass sunk into the wall (junction:"jut" with a small jut fraction). This reads well; it is not a workaround to apologise for.',
     'SEGMENTS COMPOSE BY GRAVITY, so a segment that BRIDGES (a chariot bed between its wheels) has no support to rest on. Seat it on the segment it spans and lift it with `gap` — there is no absolute z at the segment altitude.',
+    'GRAVITY SEATS THE LOWEST POINT, not the joint. A segment whose lowest points are not where it connects (a yoke with saddle dips, an arch, a rail on posts) seats on its dips and its hub hangs above the tip it should meet. Author such a segment so its connecting point IS its lowest point, or expect to move it after the eyes gate.',
     'SINGLE VIEW sees one side. The back, the interior, and the underside are invented or omitted — put them in caveats. Rotational monomers are exempt (a lathe\'s back is implied by revolution).',
     'PERSPECTIVE is not corrected here. Without a scene pass on a non-orthographic photo, proportions are foreshortened and the ledger will not notice.',
     'The jut dial is RENDERER-DEPENDENT: unlit reads a feature by its outline, a lit DCC render reads it by the shadow it casts. A jut tuned unlit can dissolve when lit — budget deeper for a lit destination.',

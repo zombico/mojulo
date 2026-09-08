@@ -43,6 +43,95 @@ fixes land here; the packs re-mint on top.
   reads the spots' candela at a sane brightness, which only eyes can say. The shared
   `lights_carried` ledger note no longer describes Unity in Unreal's words.
 
+### The chariot — a brief in the orientation gallery
+
+"Assembler makes a chariot; workbench makes chariot parts" has been the assembler's doctrine
+sentence since the ring was built. The orientation gallery (`scripts/orient-mcp.mjs`, 0.4.0) now
+carries it as an exercise any host agent can drive cold: build a two-wheeled chariot from named
+workbench parts, assemble it by relation, take it apart, hand the recipe on. One object touches
+every load-bearing concept, so an agent that builds and deconstructs one has met the substrate
+without reading it.
+
+- **Brief works.** A gallery work may carry `brief` instead of `recipe`. `get_work` on a brief
+  returns the brief (intent only, never a solution), five phases each with a machine exit and an
+  eyes exit, the rules (pull the vocab yourself, read errors as the manual, never claim the eyes
+  gate from stats), and the filing convention. The consent beat changes shape: an exercise mints
+  several real rows, and says so.
+- **Signatures.** `add_work` gains `answersBrief`; `list_works` groups signatures under the brief
+  they answer. `get_work` on a brief lists the signatures already filed; touring a signature ends
+  by running the brief's deconstruction phase on that recipe, so a different host's agent proves
+  every piece of a stranger's chariot is knowable. That cross-agent step is the agent-agnostic
+  claim, tested rather than asserted.
+- Zero substrate changes. No chariot kind: composition is the lesson. The mesh handoff and the
+  engine legs are the hand-on rungs; absence of a sculptor or a binary degrades a rung, never the
+  exercise. Two frictions the exercise exposes stay separate work: no MCP tool reads a stored
+  manifest back (the gallery carrying the recipe is the host-neutral path), and the "part touches
+  nothing" advisory proposed in July is still unbuilt, so a pole meeting no bed is an eyes-gate
+  catch.
+- Gates: the server's stdio round-trip was exercised by hand (initialize, get_work on the brief,
+  list_works, a refused `answersBrief`). The first signature is Claude's own run, filed as
+  `chariot-claude-20260908` over `sk_chariot_claude`: six named parts, seven placements, no
+  warnings; one eyes-gate flaw named in numbers and fixed in place; exploded and subtracted
+  variants minted; `.glb`, `.stl` and a Godot pack whose machine gate ran clean on an assembler
+  ref. The upscaler rung was skipped (no sculptor resolved). The cold run from a non-Claude host
+  then happened: Grok Build drove the brief with nothing but `get_work` and filed
+  `chariot-grok-20260908` over `sk_chariot_grok` (seven named parts, its own overhang flaw found
+  and fixed at the eyes gate, minus-pole and minus-wheels subtractions, glb and stl). Its story
+  reports one friction not fixed here: `update_sketch` on an assembler whose items carry `{ ref }`
+  sources stores the refs live instead of freezing them, and the still goes empty; the freeze
+  happens only in the mint tool.
+- **The assembler freezes every monomer family.** A second signature, a Roman biga with a curved
+  breastwork lofted along its D-shaped floor, entered the assembly as nothing: `monomersOf` in
+  the assembler tool kept only lathes / extrudes / sweeps / reliefs and silently dropped `lofts`,
+  `fields`, `shells` and `drapes` from a mixed part, and the planner's renderable check carried a
+  second, shorter list. Both now read the workbench's `MONOMER_KEYS`. Existing assemblies carry
+  only the kept kinds, so their bytes do not move. Filed as `chariot-claude-roman-20260908`.
+- **The principles that outlive the chariot moved onto the cards.** What two builds taught about
+  joints and frames is now where every object builder reads it, not in the brief: the assembler
+  card gains "Placement principles" (seating measures the whole part's lowest point, not its
+  joint; a joint that must meet a tip is a bridge, superposed with a jut and a collar; author
+  every part with lowest z = 0; `repeat` copies are identical; only the eyes gate checks
+  contact), the workbench card gains "Frames and arrays" (a horizontal path frames its profile
+  sideways and down, so a rising wall runs `v` from `-h` to 0; arrayed copies translate and never
+  tilt, so spokes are explicit sweeps or a `code` loop), and the object-lowering reference gains
+  the lowest-point line. The brief now says the cards are the whole doctrine and drops its one
+  hint about spokes, so signatures stay blind and comparable while the floor rises for everyone.
+- **The brief names the style and frees the rest.** Deconstructing Grok's signature cold showed
+  what the brief had left unsaid. Its exploded and subtracted variants carry a flat panel, a
+  plain hub and an earlier yoke while the filed chariot carries a D-panel loft and a Roman nave:
+  Grok revised the chariot after minting the variants, so the C3 exit ("differs only in at /
+  gap") failed on a run that was otherwise sound, and the exploded rail, still `on` its bed but
+  moved 120 cm away, hovered 24 cm over nothing because `on` seats z alone. None of that is a
+  parity failure between agents; the brief was asking for something it did not need. It now
+  names the target (a Roman racing biga, with the three things that make it read Roman), splits
+  FIXED (pieces, relations, scale, the reading) from YOURS (proportion, spokes, materials,
+  ornament, how the breastwork is built), says signatures are compared on structure and never
+  on geometry, has the variants minted last from the recipe that is filed and re-minted after
+  any change, and asks the `shows` line for the style choices, since that is the part meant to
+  differ. Touring a signature now compares it with its siblings on structure alone.
+- **A second brief: the V8.** The same exercise with the dial turned up — parts that repeat
+  (eight of everything), mirror (two banks) and meet on tilted faces (bolted, not stacked). It
+  asks for the `code` kind for the repeated pieces, field-space cuts for the block, `flip` for
+  the second bank, superposition as the rule, a blow-apart variant, and a lit Blender frame as
+  the hand-on rung. First signature `v8-claude-20260908`: ten parts, thirteen placements, no
+  warnings; the block one field solid; crank and pistons two programs; Blender pack gate green;
+  Cycles frames of the assembled and blown-apart engine. The Roman chariot also gained its
+  blow-apart variant (`sk_chariot_roman_x`).
+- **The assembler freezes a `code` part's program.** The first V8 assembly refused the crankshaft
+  because the freeze kept only monomer arrays and a code part stores a program. `monomersOf`
+  and the planner's renderable check now carry `program` inline; the assembler's lowering
+  already expanded programs, so the code card's promise that the assembler slot is inherited is
+  now true. Assembler tests pass unchanged.
+- **The V8 assembles itself and runs, as a derived clip.** A script in the integration folder
+  (not core) renders the blown-apart recipe flying together, then lifts the heads, covers and
+  manifold to show the pistons pumping through two revolutions, then closes. Every frame is the
+  same assembler recipe with placement fields interpolated and one program dial turned: the
+  crank and pistons became one `code` part with a `params.angle`. Frames come from the
+  substrate's own capture seams (`resolveWorldScene` → `emitThreeWorld` capture →
+  `renderWorldFrames` → `encodeGifBuffers`); nothing is minted. Recorded because it names the
+  gap: no kernel knob interpolates placements and no motion subject sweeps a dial. If the clip
+  earns its place, an assembler `explode` dial and a `dial` motion subject are the promotion.
+
 ### The concave cap — an extrude's lid no longer spills across its own slot (print-loop-demo)
 
 Found by the print loop's machine gate on the first object it tried: a desk-edge headphone

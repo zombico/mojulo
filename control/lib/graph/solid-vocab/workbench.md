@@ -363,6 +363,13 @@ not a defect.
    deeper `f` for anything whose destination is a lit render, and re-check the
    feature after the first lit pass — a door that reads unlit can vanish lit.
 
+### Frames and arrays — what the geometry will and will not do for you
+
+- **Author with the lowest z = 0.** The measured grid is the floor; the mint warns when a part sinks below it or floats above it. A part meant for an assembly is authored alone and seated later by its LOWEST point, so zero its base in its own frame before anything else.
+- **A horizontal sweep or loft path frames its profile sideways and DOWN.** For a path running in the xy plane, the profile's `u` axis points across the path (tangent × z) and `v` points toward −z. A wall profile that should rise `h` above the path is therefore `[[-t,0],[-t,-h],[t,-h],[t,0]]` — `v` from `-h` to 0 — not from 0 to `h`. A vertical path frames `u`/`v` in the horizontal plane instead. Mint the panel alone and look before you place it.
+- **Arrayed copies translate; they never tilt.** `assembly.radial` and `mirror` copy a part to new positions with its axis unchanged, so legs stay vertical and a "radial" spoke is still a vertical post. Spokes, splayed legs, ribs that lean, and anything else that must point in a different direction per copy are explicit monomers with their own axes — a sweep per spoke, or a `code` program that loops the geometry.
+- **A part is one subject.** A wheel is a hub lathe, a felloe swept around a circle, a tyre swept around a slightly larger one, and eight spoke sweeps — one workbench. The chariot it belongs to is the assembler's.
+
 ### Sizing from a reference
 
 Author z FROM the proportions you read, not by stacking numbers and checking

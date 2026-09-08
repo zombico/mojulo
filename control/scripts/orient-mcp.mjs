@@ -17,6 +17,15 @@
  *   add_work    → the gallery grows from real sessions (operator-blessed).
  *   list_works  → the whole gallery + toured state.
  *
+ * Two kinds of work. An EXHIBIT carries `recipe` (a finished thing, minted on
+ * consent). A BRIEF carries `brief` instead (chariot.plan.md, 2026-09-08): an
+ * exercise the host agent drives cold — intent, phases with a machine exit
+ * and an eyes exit each, the rules, and a filing convention. What a brief
+ * produces is a SIGNATURE: an added work whose `answersBrief` names the brief,
+ * so signatures from different agents and hosts group under it, and touring a
+ * signature ends by deconstructing a stranger's recipe. Briefs mint nothing
+ * themselves either; the substrate is untouched.
+ *
  * The tour's first beat is EXPLICIT CONSENT: orientation creates a real
  * artifact to show the loop — a tiny recipe row minted into the operator's
  * own sketches DB, live, by the host agent through the real mojulo MCP.
@@ -220,6 +229,170 @@ const WORKS = [
   },
 ];
 
+// Briefs: exercises, not exhibits. The first is the assembler's own doctrine sentence made
+// literal — "assembler makes a chariot; workbench makes chariot parts". The brief withholds the
+// vocabulary on purpose: the agent pulls the cards and reads mint errors as the manual, which is
+// the retrieval loop being practised. Nothing here is a solution.
+const BRIEFS = [
+  {
+    id: 'the-chariot',
+    title: 'The Chariot',
+    kind: 'brief',
+    shows:
+      'The whole substrate in one object. A chariot is a composition of named parts: building one meets part-vs-whole, ' +
+      'relations over coordinates, superposition as the honest exception, arraying, the two gates and iterate-in-place; ' +
+      'taking it apart proves every piece was known; handing it on meets the persistence ladder and the borrowed-hands seam.',
+    madeWith: [
+      'mint_solid kind workbench — one mint per part (or one kind code program for repeated pieces)',
+      'mint_solid kind assembler — the chariot, every item carrying an id',
+      'update_sketch — the one fix, the exploded variant, the subtractions',
+      'export_model — .glb and .stl',
+      'optional rungs: scripts/export-godot.mjs (engine), request_mesh_render → pull → submit → accept (upscaler)',
+    ],
+    brief: [
+      'A Roman racing biga at real scale a person could stand in. units: cm. What makes it read Roman: a D-shaped floor ' +
+        'and breastwork open at the back, a rear-set axle, a draft pole ending in a two-horse yoke.',
+      'Minimum pieces, each its own named part: two wheels, an axle, a bed, a breastwork or rail, a draft pole, a yoke. ' +
+        'Hubs, spokes, felloes, tyre bands, a floor lattice are yours to add.',
+      'Wheels seated on the ground by gravity. The bed bridges by superposition or seats on the axle — you decide, and say which.',
+      'The chariot stands on the grid with stats.warnings empty.',
+      'FIXED: the named pieces, the relations between them, real scale, and the Roman reading above.',
+      'YOURS: proportion, spoke count, materials and tints, ornament, how the breastwork is built (loft, sweep, extrude), ' +
+        'what bridges by superposition and what seats. Two signatures are MEANT to differ here; the expressiveness is the model\'s.',
+    ],
+    rules: [
+      'Pull the vocabulary yourself: get_solid_vocab({ id: "workbench" }) and get_solid_vocab({ id: "assembler" }). This brief carries no solution. ' +
+        'The composition principles live on those cards (the workbench\'s "Composition moves" and "Frames and arrays", the assembler\'s "Placement principles") — they are the whole doctrine, and the brief adds nothing to them.',
+      'Read mint errors as the manual. A loud refusal is one call of cost; a silent guess is never corrected.',
+      'stats is the MACHINE gate; the turntable (/api/sketches/<ref>/turntable.png or /world) is the EYES gate. Never claim the eyes gate from stats.',
+      'The recipe is the artifact. Every render derives from it and can be thrown away.',
+      'Signatures are compared on STRUCTURE, never on geometry: the same pieces present and named, wheels at base zero, ' +
+        'the bed\'s placement mode declared, no warnings, a closed union, one flaw named in numbers and fixed in place. ' +
+        'Nothing byte-for-byte; a different loft or a different ornament is a different model, not a different answer.',
+      'One run-log line per phase: what you did, what the gate said, what you changed.',
+    ],
+    phases: [
+      {
+        id: 'C1', title: 'Parts on the bench',
+        do: 'One mint_solid kind workbench per part, or one kind code program for the repeated pieces. A part is one subject; the chariot is not a part.',
+        machine: 'Each part mints; its stats.warnings is empty.',
+        eyes: 'None yet. Parts are not judged alone.',
+      },
+      {
+        id: 'C2', title: 'Assemble',
+        do: 'One mint_solid kind assembler with an id on EVERY item. Seat by relation (on / gap); superpose only what bridges.',
+        machine: 'stats.parts[] names every brief piece; the wheels report baseZ 0; the bed reports its placement mode; stats.warnings is empty.',
+        eyes: 'Look at the turntable. Name ONE flaw in numbers. Fix it with one update_sketch on the same ref.',
+      },
+      {
+        id: 'C3', title: 'Deconstruct',
+        do: '(a) Narrate the bill of materials from the recipe and stats.parts[]: id, monomer kind, size, support. ' +
+          '(b) Mint an EXPLODED side-by-side variant LAST, from the recipe you will file, changing only placement fields (at / gap). ' +
+          'If you touch the chariot afterwards, re-mint the variants: a variant of an earlier chariot deconstructs nothing. ' +
+          '(c) Subtract: remove the pole and re-render, then the wheels; say what each remainder is.',
+        machine: 'Every variant\'s item sources match the filed recipe by id; only at / gap differ (list the changed fields; ' +
+          'diff_sketches reads assembler manifests as too_different by design, so compare the rows). An `on` relation seats z only — ' +
+          'an exploded part still `on` its support but moved away in x hovers; give it its own ground.',
+        eyes: 'The exploded view reads as the same pieces, separated.',
+      },
+      {
+        id: 'C4', title: 'Hand it on',
+        do: 'export_model as glb and as stl. Optional rung: an engine pack (scripts/export-godot.mjs --ref). Optional rung: the mesh upscaler ' +
+          '(request_mesh_render → pull_mesh_render → an external sculptor → submit_mesh_render → accept_mesh_render by a DIFFERENT source). ' +
+          'A missing binary or sculptor degrades the rung, never the exercise — say which rungs ran.',
+        machine: 'Bytes and triangle count; the closure advisory; the size gate on any sculpted mesh.',
+        eyes: 'The sculpted mesh keeps the silhouette and the wheel count.',
+      },
+      {
+        id: 'C5', title: 'File the signature',
+        do: 'add_work with answersBrief "the-chariot", id chariot-<host>-<YYYYMMDD>, the recipe { tool: "mint_solid", input: { kind: "assembler", ref, title, spec } } ' +
+          'with the ref pinned, the story (the flaw you named and the fix), a `shows` line that names the STYLE CHOICES you made ' +
+          '(how the breastwork is built, the ornament, the materials) since that is the part meant to differ between signatures, ' +
+          'and 2-3 asks an operator could say tomorrow.',
+        machine: 'The filed recipe re-mints under its pinned ref on any mojulo host.',
+        eyes: 'A different host\'s agent tours your signature and names every piece cold. That is the agent-agnostic proof.',
+      },
+    ],
+    filing: { idPattern: 'chariot-<host>-<YYYYMMDD>', answersBrief: 'the-chariot' },
+    sampleAsks: [
+      'build me a chariot from parts and then take it apart',
+      'assemble a <complex thing> from workbench parts, every piece named',
+      'explode this assembly so I can see every piece on its own',
+    ],
+  },
+  {
+    id: 'the-v8',
+    title: 'The V8',
+    kind: 'brief',
+    shows:
+      'The chariot brief with the dial turned up: a machine whose parts REPEAT (eight of everything), MIRROR (two banks), and ' +
+      'meet on TILTED faces (bolted, not stacked). Building one meets the code kind, field-space cuts, flip, and superposition ' +
+      'as the rule rather than the exception; blowing it apart proves every piece; the hand-on rung is a lit Blender frame with real metals.',
+    madeWith: [
+      'mint_solid kind workbench — the block as a field solid (banks by transform, bores by repeat + subtract), pan, manifold, damper, flywheel',
+      'mint_solid kind code — one program for the pistons and rods, one for the crankshaft (a loop, not a list)',
+      'mint_solid kind assembler — one bank authored, the second placed with flip; every item carrying an id',
+      'update_sketch — the fix, the blow-apart variant',
+      'export_model glb; scripts/export-blender.mjs (pack + gate); scripts/blender-bake.mjs --render (a Cycles frame with the named metals)',
+    ],
+    brief: [
+      'A V8 engine at real scale — a small block, roughly 10 cm bore, 9 cm stroke, 90-degree banks. units: cm.',
+      'Minimum pieces, each its own named part: block, crankshaft, pistons, connecting rods, two cylinder heads, two valve covers, intake manifold, ' +
+        'two exhaust headers, oil pan, a front damper, a flywheel. Pistons and rods may share one part when a program makes them.',
+      'Repeated pieces come from a PROGRAM (kind code) or a field repeat, never from a list typed eight times.',
+      'The banks are mirror images: author one bank, place it twice — the second with flip. Never re-author a bank.',
+      'Bolted, not stacked: most engine joints meet tilted faces. Superpose those with a jut, and say which joints you seated by gravity.',
+      'Give every part a named metal (steel, gunmetal, chrome, aluminium-toned tint …) so the lit frame can tell them apart.',
+      'The engine stands on the grid with stats.warnings empty.',
+    ],
+    rules: [
+      'Pull the vocabulary yourself: get_solid_vocab({ id: "workbench" }), { id: "code" }, { id: "assembler" }. The composition principles on those cards are the whole doctrine; this brief adds nothing to them.',
+      'Read mint errors as the manual; read a code program\'s captured log the same way.',
+      'stats is the MACHINE gate; the turntable is the EYES gate. Never claim the eyes gate from stats. Only the eyes gate checks contact at a joint.',
+      'The recipe is the artifact. Every render derives from it and can be thrown away.',
+      'One run-log line per phase: what you did, what the gate said, what you changed.',
+    ],
+    phases: [
+      {
+        id: 'V1', title: 'Parts on the bench',
+        do: 'One workbench per part. The block as a field solid. A code program for the pistons and rods (position each piston from its crank angle), another for the crankshaft (journals and webs from one loop).',
+        machine: 'Each part mints with warnings empty; each program\'s log reads clean.',
+        eyes: 'Look at the block and the crank alone before assembling — a program that returns nonsense renders nonsense.',
+      },
+      {
+        id: 'V2', title: 'Assemble',
+        do: 'One assembler with an id on EVERY item. One bank of heads, covers and headers placed twice, the second with flip.',
+        machine: 'stats.parts[] names every brief piece; the pan reports baseZ 0; superposed items say so; warnings empty.',
+        eyes: 'Turntable. Name ONE flaw in numbers (a head not meeting its deck, a rod missing its journal). Fix it with one update_sketch.',
+      },
+      {
+        id: 'V3', title: 'Blow it apart',
+        do: 'Mint a side-by-side variant whose only differences are placement fields: heads and covers out along their bank axes, the pan down, the crank out the front. Then subtract: remove the heads and re-render; remove the crank.',
+        machine: 'The blown-apart variant differs only in at / gap; list the changed fields.',
+        eyes: 'The blown-apart view reads as the same pieces, separated, each still named.',
+      },
+      {
+        id: 'V4', title: 'Hand it on, lit',
+        do: 'export_model glb. Then the Blender rung: scripts/export-blender.mjs --ref (pack + machine gate), and scripts/blender-bake.mjs --ref --render for a Cycles frame of the assembled engine and one of the blown-apart variant. No Blender resolves → the pack and the guide are the product; say so.',
+        machine: 'glb bytes and triangles; the Blender gate report; a frame written under outcomes/<ref>/.',
+        eyes: 'In the lit frame every named metal is distinguishable and every joint reads as a joint.',
+      },
+      {
+        id: 'V5', title: 'File the signature',
+        do: 'add_work with answersBrief "the-v8", id v8-<host>-<YYYYMMDD>, the recipe { tool: "mint_solid", input: { kind: "assembler", ref, title, spec } } with the ref pinned, the story (the flaw and the fix), and 2-3 asks.',
+        machine: 'The filed recipe re-mints under its pinned ref on any mojulo host.',
+        eyes: 'A different host\'s agent tours your signature and names every piece cold.',
+      },
+    ],
+    filing: { idPattern: 'v8-<host>-<YYYYMMDD>', answersBrief: 'the-v8' },
+    sampleAsks: [
+      'build me a V8 from parts, then blow it apart',
+      'script the pistons and rods instead of listing them eight times',
+      'render this assembly in Blender with real metals',
+    ],
+  },
+];
+
 function loadState() {
   try {
     return JSON.parse(readFileSync(STATE_PATH, 'utf8'));
@@ -234,7 +407,38 @@ function saveState(state) {
 }
 
 function allWorks(state) {
-  return [...WORKS, ...(state.addedWorks || [])];
+  return [...WORKS, ...BRIEFS, ...(state.addedWorks || [])];
+}
+
+const isBrief = (work) => work && work.kind === 'brief';
+const signaturesOf = (works, briefId) => works.filter((w) => w.answersBrief === briefId);
+
+function briefSteps(work, signatures) {
+  const asks = work.sampleAsks.map((a) => `"${a}"`).join(', ');
+  const phaseLines = work.phases.map(
+    (p) => `   ${p.id} — ${p.title}. DO: ${p.do} MACHINE EXIT: ${p.machine} EYES EXIT: ${p.eyes}`
+  );
+  const filed = signatures.length
+    ? `Signatures already filed: ${signatures.map((s) => `${s.id} (${s.title})`).join(', ')}. ` +
+      `To run the cross-agent proof on one, get_work with its id and perform C3 on THAT recipe.`
+    : 'No signatures filed yet — yours would be the first.';
+  return [
+    `Run this brief for the operator — consent, then build, deconstruct, hand on, file:`,
+    ``,
+    `1. CONSENT FIRST — be explicit: "This is an exercise, not an exhibit. It mints SEVERAL real rows into YOUR sketches DB — ` +
+      `each part, the chariot, an exploded variant — yours to keep or delete. The recipes are the point; every render is disposable. OK to begin?" ` +
+      `Respect the answer; do not re-ask. IF DECLINED — mint nothing; hand over the asks (step 5) and stop. It is the operator's workshop from there.`,
+    `2. THE BRIEF — intent only, never a solution:`,
+    ...work.brief.map((b) => `   • ${b}`),
+    `3. THE RULES:`,
+    ...work.rules.map((r) => `   • ${r}`),
+    `4. THE PHASES, in order — each borrows a hand the previous one earned. Say which gate ran and what it saw; never claim the eyes gate passed on the operator's behalf.`,
+    ...phaseLines,
+    `5. THE ASKS THAT MAKE THIS — hand over the request patterns, e.g. ${asks} — phrased so the operator could say one tomorrow with no context.`,
+    `6. FILE — ${work.phases[work.phases.length - 1].do} ${filed}`,
+    ``,
+    `Then call mark_toured with outcome 'minted' (the exercise ran) or 'declined'. A brief run without the teach-back oriented nobody.`,
+  ].join('\n');
 }
 
 function tourSteps(work) {
@@ -257,6 +461,15 @@ function tourSteps(work) {
     `5. THE ASKS THAT MAKE THIS — hand over the request patterns, e.g. ${asks} — phrased so the operator could say one tomorrow with no context. How it was made, one line each, no internals: ${work.madeWith.join('; ')}.${work.story ? ` If the story helps, use it: ${work.story}` : ''}`,
     `6. OFFER (accepted path only) — ask if they want one of these made from something of THEIRS, right now. If yes, do that with the real mojulo tools; that artifact is theirs, not an exercise.`,
     ...(work.paintNote ? [``, `Paint seam: ${work.paintNote}`] : []),
+    ...(work.answersBrief
+      ? [
+          ``,
+          `Signature: this work answers the brief '${work.answersBrief}'. After showing it, run that brief's DECONSTRUCT phase on THIS recipe — ` +
+            `name every piece from the recipe and stats.parts[] (id, monomer kind, size, support), then say what an exploded variant would move. ` +
+            `A piece you cannot name is the finding. That is the cross-agent proof: the recipe travelled, and every part of a stranger's chariot was knowable. ` +
+            `Set it beside its sibling signatures on STRUCTURE alone (the pieces, the relations, the gates), never on geometry: the expressiveness is each model's own.`,
+        ]
+      : []),
     ``,
     `Then call mark_toured with outcome 'minted' or 'declined'. A work toured without the asks handed over oriented nobody.`,
   ].join('\n');
@@ -266,11 +479,12 @@ const TOOLS = [
   {
     name: 'get_work',
     description:
-      'Get the next untoured work from the orientation gallery (or a specific one by id). Each work is carried as the ' +
+      'Get the next untoured work from the orientation gallery (or a specific one by id). An EXHIBIT is carried as the ' +
       'RECIPE that mints it (pinned stable ref, deterministic on any mojulo host) plus what it shows is possible and the ' +
-      'one-line asks that make that kind of thing. The tour is consent-first: orientation CREATES a real artifact to show ' +
-      'the loop — the operator may accept (mint it live, then show the render) or reject (mint nothing; explain what would ' +
-      'happen, hand over the asks, and stop — it is their workshop from there).',
+      'one-line asks that make that kind of thing. A BRIEF (e.g. "the-chariot") is an exercise instead: intent, phases with ' +
+      'machine and eyes exits, rules, and how to file the resulting SIGNATURE. Both are consent-first: orientation CREATES ' +
+      'real artifacts to show the loop — the operator may accept (mint live, show the render) or reject (mint nothing; ' +
+      'explain what would happen, hand over the asks, and stop — it is their workshop from there).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -311,6 +525,7 @@ const TOOLS = [
         story: { type: 'string', description: 'One line of make-of, including any instructive failure.' },
         sampleAsks: { type: 'array', items: { type: 'string' }, description: '2-3 operator-phrased asks.' },
         recipe: { type: 'object', description: 'Optional { tool, input } — the exact mint call, input carrying the pinned ref, so the work re-mints deterministically.' },
+        answersBrief: { type: 'string', description: "Optional: the brief this work is a SIGNATURE of (e.g. 'the-chariot'). Signatures group under their brief and are toured with its deconstruction phase." },
       },
       required: ['id', 'title', 'ref', 'shows', 'madeWith', 'sampleAsks'],
     },
@@ -338,9 +553,12 @@ function callTool(name, args = {}) {
       return (
         'Gallery fully toured. list_works has the record; add_work grows the corpus when a new piece earns a place.' + note
       );
-    return (
-      JSON.stringify({ work, progress: `${touredIds.size}/${works.length} toured`, tour: tourSteps(work) }, null, 2) + note
-    );
+    const progress = `${touredIds.size}/${works.length} toured`;
+    if (isBrief(work)) {
+      const signatures = signaturesOf(works, work.id).map((s) => ({ id: s.id, title: s.title, ref: s.ref, story: s.story }));
+      return JSON.stringify({ work, signatures, progress, tour: briefSteps(work, signatures) }, null, 2) + note;
+    }
+    return JSON.stringify({ work, progress, tour: tourSteps(work) }, null, 2) + note;
   }
 
   if (name === 'mark_toured') {
@@ -354,21 +572,32 @@ function callTool(name, args = {}) {
 
   if (name === 'add_work') {
     if (works.some((w) => w.id === args.id)) return `A work with id "${args.id}" already exists.` + note;
+    if (args.answersBrief && !BRIEFS.some((b) => b.id === args.answersBrief)) {
+      return `No brief "${args.answersBrief}". Briefs: ${BRIEFS.map((b) => b.id).join(', ')}` + note;
+    }
     const work = {
       id: args.id, title: args.title, ref: args.ref, urls: args.urls || { page: `/sketches/${args.ref}` },
       shows: args.shows, madeWith: args.madeWith, story: args.story || '', sampleAsks: args.sampleAsks,
       ...(args.recipe && typeof args.recipe === 'object' ? { recipe: args.recipe } : {}),
+      ...(args.answersBrief ? { answersBrief: args.answersBrief } : {}),
     };
     state.addedWorks = [...(state.addedWorks || []), work];
     saveState(state);
-    return `Added "${args.title}" to the gallery (${allWorks(state).length} works). Future sessions will tour it.` + note;
+    const signed = args.answersBrief
+      ? ` Filed as a signature answering '${args.answersBrief}' (${signaturesOf(allWorks(state), args.answersBrief).length} so far).`
+      : '';
+    return `Added "${args.title}" to the gallery (${allWorks(state).length} works). Future sessions will tour it.${signed}` + note;
   }
 
   if (name === 'list_works') {
     return (
       JSON.stringify(
         {
-          works: works.map((w) => ({ id: w.id, title: w.title, ref: w.ref, shows: w.shows, remintable: !!w.recipe, toured: touredIds.has(w.id) })),
+          works: works.map((w) => ({
+            id: w.id, title: w.title, kind: isBrief(w) ? 'brief' : 'exhibit', ...(w.ref ? { ref: w.ref } : {}), shows: w.shows,
+            remintable: !!w.recipe, ...(w.answersBrief ? { answersBrief: w.answersBrief } : {}), toured: touredIds.has(w.id),
+          })),
+          signatures: Object.fromEntries(BRIEFS.map((b) => [b.id, signaturesOf(works, b.id).map((s) => s.id)])),
           toured: state.toured,
         },
         null,
@@ -414,7 +643,7 @@ function handle(msg) {
     respond(id, {
       protocolVersion: params?.protocolVersion || '2024-11-05',
       capabilities: { tools: {} },
-      serverInfo: { name: 'mojulo-orient', version: '0.3.0' },
+      serverInfo: { name: 'mojulo-orient', version: '0.4.0' },
       instructions:
         'The mojulo orientation gallery — practical orientation by exhibit, the doing-sibling of forward_context. ' +
         'A curated catalog of founding works, each carried as the RECIPE that mints it deterministically on any host. ' +
