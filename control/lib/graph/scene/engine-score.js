@@ -11,6 +11,7 @@
  * the y-up root. NOT an engine adapter: no engine names in here.
  */
 import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
+import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -122,6 +123,11 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (lights.length) {
     ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel), the Unreal importer spawns SpotLights from score.json when Interchange brings none' };
   }
+  // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
+  // tier would need — one ledger row every pack carries, so a missing declaration is read in
+  // lib/ instead of found at the most expensive gate that happens to be open.
+  const walkable = Boolean(payload.walk) || (payload.entities ?? []).some((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform');
+  ledger.contract = contractLedgerEntry(assessWorldTier(payload, { walkable }));
 
   return {
     ref: sketch?.ref ?? null,

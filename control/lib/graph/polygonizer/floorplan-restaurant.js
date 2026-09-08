@@ -174,7 +174,7 @@ export function buildRestaurant(input = {}, opts = {}) {
   // WALL ART — framed pieces on the back wall, above the bar (clear of the BOH doors).
   if (o.wallArt) for (const f of diningWallArt(diningRect, backY, baseZ, o, [kitchenDoorX, restroomDoorX])) faces.push(f);
 
-  return { faces, footprint: s.footprint, rooms: { dining, kitchen, restroom }, program: dr.report, baseZ, height: o.wallHeight };
+  return { faces, footprint: s.footprint, rooms: { dining, kitchen, restroom }, program: dr.report, baseZ, height: o.wallHeight, units: s.units, metersPerUnit: s.metersPerUnit, ...(s.lights ? { lights: s.lights } : {}) };
 }
 
 /** A styled ceiling over the dining room — WOOD SLAT (parallel boards echoing the floor) or
@@ -432,6 +432,10 @@ export function assembleRestaurantWorldScene(input = {}, opts = {}) {
     title: opts.title || 'mojulo restaurant',
     bg: opts.bg || '#10131a', inline: opts.inline ?? false, light: opts.light,
     walk: opts.walk === false ? false : { eye: r.baseZ + 5.4, spawn: [(fp.x0 + fp.x1) / 2, (fp.y0 + fp.y1) / 2] },
+    // authored in feet like the floor (world-contract-tiers W2): the GLB root and the score
+    // scale by this; the pot lights ride as KHR_lights_punctual. Both used to be dropped here.
+    metersPerUnit: r.metersPerUnit,
+    ...(r.lights ? { lights: r.lights } : {}),
     restaurant: r,
   };
 }

@@ -39,12 +39,14 @@ import { buildRoof } from '../architecture/roof.js';
 import { surfaceTexture, collectFaceTextures } from '../landscape/surface-textures.js';
 import { tessellateForBake } from '../scene/bake-prep.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
+import { AUTHORING_UNITS, metersPerUnitFor } from '../scene/world-units.js';
 
 // ── structural glyph alphabet (the wall graph that relates rooms) ────────────
 // The sibling of floorplan-glyphs' ARCHETYPES: those say what's IN a room, these
 // describe the walls BETWEEN and AROUND rooms. Each resolves to extruded mass.
 /** The floorplan's authoring unit: feet (1 ft = 0.3048 m). Exports + engine scores scale by it. */
-export const FLOORPLAN_METERS_PER_UNIT = 0.3048;
+export const FLOORPLAN_UNITS = AUTHORING_UNITS.floorplan;                    // 'ft' — declared once, in scene/world-units.js
+export const FLOORPLAN_METERS_PER_UNIT = metersPerUnitFor(FLOORPLAN_UNITS);   // every leg derives the factor from that one table
 
 export const STRUCTURAL_GLYPHS = {
   '▓': { id: 'perimeter', role: 'exterior-wall', desc: 'envelope wall — interior face + outward exterior skin' },
@@ -1366,7 +1368,9 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     }
   }
   if (pots.length) faces.splice(0, faces.length, ...applyPotLightPools(faces, pots, potCfg));
-  return { plan, cells, wallGraph, faces, footprint: fp, baseZ, slabHoles, roofTextureKeys, lot, ...(pots.length ? { lights: potLightDefs(pots, potCfg) } : {}) };
+  // The T0 declarations ride the structure itself (world-contract-tiers W2): the unit the
+  // family is authored in and its metre factor, so every assembler forwards ONE answer.
+  return { plan, cells, wallGraph, faces, footprint: fp, baseZ, slabHoles, roofTextureKeys, lot, units: FLOORPLAN_UNITS, metersPerUnit: FLOORPLAN_METERS_PER_UNIT, ...(pots.length ? { lights: potLightDefs(pots, potCfg) } : {}) };
 }
 
 /** Slight-overhead cameras that read the exterior skin and the open-roof interior. */
@@ -1442,7 +1446,7 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
     // The floorplan is authored in FEET. The World runtime is unit-free, but the GLB root
     // and the engine score scale by this so every importer receives metres (the engine-leg
     // finding: the lounge landed in Unreal at 3.28× with a 10 m ceiling).
-    metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
+    metersPerUnit: s.metersPerUnit,
   };
 }
 

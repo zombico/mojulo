@@ -28,6 +28,9 @@ import { glbNodeInventory, compareReturnContract } from '@/lib/graph/scene/blend
 import { existsSync } from 'node:fs';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
 import { printAdvisories, advisoryLines, resolvePrinter } from '@/lib/graph/scene/print-advisory';
+import { unitMillimetres, declaredUnits } from '@/lib/graph/scene/world-units';
+import { assessWorldTier } from '@/lib/graph/worlds/world-contract';
+import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
@@ -60,11 +63,8 @@ import { printAdvisories, advisoryLines, resolvePrinter } from '@/lib/graph/scen
 // the caller omits it. Only labels a manifest actually declares participate
 // (workbench `units`); an unknown/absent label falls back to scale 1 with an
 // in-band nudge — "true scale" should be structural, never agent arithmetic.
-const UNIT_TO_MM = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 };
 export function deriveStlScale(units) {
-  if (typeof units !== 'string') return null;
-  const mm = UNIT_TO_MM[units.trim().toLowerCase()];
-  return Number.isFinite(mm) ? mm : null;
+  return unitMillimetres(units);   // ONE table: scene/world-units.js (world-contract-tiers D1)
 }
 
 // Print profiles — what an STL of each kind honestly IS, driving the scale
@@ -316,7 +316,10 @@ export async function exportModelHandler(input) {
 
   // Scale strategy by print profile — see resolvePrintScale (shared with measure_solid).
   const profile = printProfileFor(kind ?? sketch.manifest.kind);
-  const units = typeof sketch.manifest.units === 'string' ? sketch.manifest.units : null;
+  // The label the manifest carries, else the kind family's authoring unit (the floorplan family
+  // is feet and never says so itself) — world-units.js, the one table every leg reads.
+  const declared = declaredUnits(sketch.manifest);
+  const units = declared ? declared.units : null;
   let scale = 1;
   let scaleNote = 'default 1 — coordinates read as millimetres';
   if (isPrint && payload) ({ scale, scaleNote } = resolvePrintScale({ payload, profile, units, scaleInput, targetMm }));
@@ -456,7 +459,7 @@ export async function exportModelHandler(input) {
     if (format === 'usdz') result.files = exported.files;
     result.note =
       `OpenUSD ${format === 'usdz' ? 'package (uncompressed, 64-byte aligned — AR Quick Look opens it on iOS / visionOS)' : 'text layer'}: z-up verbatim (upAxis Z), `
-      + `metersPerUnit ${metersPerUnit}${unitMm != null ? ` (from units:'${units}')` : ' (no units declared — 1 unit = 1 m)'}, `
+      + `metersPerUnit ${metersPerUnit}${unitMm != null ? ` (from ${declared.source === 'kind' ? `the ${sketch.manifest.kind} family's authoring unit '${units}'` : `units:'${units}'`})` : ' (no units declared — 1 unit = 1 m)'}, `
       + 'baked colours as per-vertex displayColor (viewers LIGHT it — the depiction reads as albedo, not the unlit web look), '
       + 'instanced repeats as PointInstancers, level cameras as Camera prims, entities as Xforms with moj: customData. '
       + 'Not exported in v1: rig figures / clips (UsdSkel waits on the humanoid map), per-instance tints.'
@@ -549,6 +552,12 @@ export async function exportModelHandler(input) {
     result.path = file;
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}model.${format}`;
+  }
+  // The world contract (world-contract-tiers W1): a walkable world's export echoes the tier its
+  // payload declares and what the next tier needs — the same row the engine packs carry.
+  if (payload && WALKABLE_WORLD_KINDS.includes(kind ?? sketch.manifest.kind)) {
+    const a = assessWorldTier(payload, { walkable: true });
+    result.contract = { tier: a.tier, next: a.next, missing_for_next: a.missing_for_next, ...(a.advisories.length ? { advisories: a.advisories } : {}) };
   }
   return result;
 }

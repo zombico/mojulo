@@ -17,6 +17,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { deriveStlScale } from '@/lib/mcp/tools/sketch-model-export';
+import { unitsLabel } from '@/lib/graph/scene/world-units';
 
 function filenameFor(sketch, ref) {
   const base = (sketch.title || sketch.manifest?.title || ref || 'model')
@@ -37,7 +38,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: `Sketch '${ref}' has no manifest` }, { status: 400 });
     }
     const { payload } = await resolveWorldScene(sketch);
-    const unitMm = deriveStlScale(typeof sketch.manifest.units === 'string' ? sketch.manifest.units : null);
+    const unitMm = deriveStlScale(unitsLabel(sketch.manifest));   // the manifest's label, else the kind family's authoring unit (world-units.js)
     const exported = payload
       ? facesToUsdz(payload, { generator: `mojulo ${ref}`, title: sketch.title || sketch.manifest?.title || ref, metersPerUnit: unitMm != null ? unitMm / 1000 : 1 })
       : null;

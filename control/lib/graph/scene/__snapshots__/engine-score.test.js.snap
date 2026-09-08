@@ -41,6 +41,15 @@ exports[`extractEngineScore — the greybox seam (skin-over-mesh.plan.md phase 0
   "ground": 0,
   "kind": "floorplan-world",
   "ledger": {
+    "contract": {
+      "missing_for_next": [
+        "faces — none",
+        "walk_seat — walk carries no spawn",
+      ],
+      "next": "T0",
+      "note": "declares below T0; for T0 (coherent): faces — none; walk_seat — walk carries no spawn",
+      "tier": null,
+    },
     "skipped_runtime": {
       "note": "game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build",
     },

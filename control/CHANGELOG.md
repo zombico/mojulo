@@ -10,6 +10,65 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### World contract tiers — every pack says what it declares (world-contract-tiers W0–W2, W5)
+
+Every finding the lit handoff produced last week was a property the base runtime never
+needed and a downstream reader could not do without: back-faces bake black (`outNormal`),
+the lounge lands at 3.28× (`metersPerUnit`), a sealed room imports black (`lights`), the sun
+has to come through the panes (openings). Each arrived one at a time, at the most expensive
+gate that happened to be open. The fix for the class is to say what the base must carry and
+what each extension demands, and to measure it per kind in `lib/`.
+
+- **`worlds/world-contract.js`** — `WORLD_TIERS`, plain data: T0 coherent (faces, fills, a
+  walk seat, a floor under the spawn, valid units), T1 baked (`outNormal` on every face, lights
+  in the `KHR_lights_punctual` shape), T2 transported (a walker's eye between 1.0 and 2.2 m
+  after `metersPerUnit`, lights inside the world, a locomotion row where rigs exist), T3
+  materialized (every face names a material or texture; every texture key resolves), T4
+  physical (physical intensity and cones on every light; units declared, not inferred). Each
+  tier names its gate and its witness engine. `assessWorldTier(payload)` measures the
+  declarations only and returns the tier declared, the next tier, and what it is missing,
+  `declaration — reason` per line. Monotonic, advisory, per kind; the gates stamp attainment.
+- **The ledger row.** `extractEngineScore` carries `ledger.contract = { tier, next,
+  missing_for_next, note }`, so every Godot, Unity and Unreal pack states what its level
+  declares and what the next tier would need, in the README and the T-numbered guide.
+- **The pin.** `world-scene.kinds.test.js` snapshots a `tier` beside the hash for every
+  walkable kind. A dropped `metersPerUnit`, a lost walk seat or a light channel that stops
+  riding the payload moves that cell here, not in an engine.
+- **One unit table (D1).** `scene/world-units.js` is the only place a unit label becomes a
+  number: `UNIT_TO_M`, `metersPerUnitFor`, `unitMillimetres`, and `AUTHORING_UNITS`, the
+  kinds whose recipes are authored in a unit they never state (the floorplan family: feet).
+  `declaredUnits(manifest)` reads the manifest's label first, then the family's. The print
+  leg, the USD leg and the Blender pack read it; `structurizeFloorplan` returns `units` and
+  `metersPerUnit` and both floorplan assemblers forward them. Consequence: a floorplan's
+  USDZ now declares `metersPerUnit 0.3048` where it declared 1, so it lands at true scale in
+  Quick Look; the restaurant forwards its pot lights and its unit, both dropped before.
+- **The inverse door.** `glbToFaces` now undoes the uniform scale on a `mojulo` root that
+  carries `moj:metersPerUnit` (the changelog already claimed this; it was not in the tree —
+  a 10 ft edge read back as 3.048), and reports the factor as `ledger.metersPerUnit`. The
+  mesh handoff and the Blender return compare in recipe units again.
+- **`imports_dark` (W5).** `assessPortability` gains one advisory: a ceiling over the spawn,
+  no lights, no openings — the check that would have caught the black-sky box in `lib/`.
+  Reported, never gated.
+- **W4, recorded.** The no-skip rule was applied this week before it was written down: the
+  Godot lit gate found the candela clip (kernel 0.2.1), the Unity materials probe measured the
+  lit lounge, and the Unreal light pin held at 9 of 9. Godot's is headless and cheapest; it
+  runs first from here on.
+- **What the first measurement said.** The lounge with pot lights declares T2 (every face
+  carries `outNormal`, four lights in shape, the eye at 1.62 m); its T3 gap is honest: no face
+  names a material, so the PBR Unity built is the exporter's default, not the recipe's. The
+  bare fixtures of `condo-complex`, `school-complex`, `subway-building`, `edifice`, `dungeon`,
+  `math-structure`, `koenigsberg`, `controllable`, `floorplan` and `restaurant` declare T0.
+  Five walkable kinds declare no walk seat at all and ride the runtime's 1.6 default:
+  `fractal-city` (where a storey is 0.82 units, so the default walker stands two storeys
+  tall), `transportation-hub`, `subway-station`, `painted-landscape` and `room` — below T0,
+  and pinned so. Four kinds walk in feet with no unit declared (`edifice` at 5.6, `condo` and
+  `subway-building` at 5.4, `school` at 5.2): each is a one-row `AUTHORING_UNITS` entry once
+  its builder is read, and the T2 eye check names them until then. `outNormal` coverage
+  outside the floorplan is 0–83% (the restaurant's asset furniture, the condo's shells), which
+  is why no other kind reaches T1 yet. The dungeon's fires are baked colour, not declared
+  lights, so it advises `imports_dark` alongside the condo and the school. Signage cards and
+  shadow decals carry `bg` or `card` and no `fill`; the contract counts them as coloured.
+
 ### A minted building in the generated city — `edifices` on the fractal city (print-loop-demo)
 
 Until now the city planner could reserve a plot only for a NAMED landmark (a pyramid, a

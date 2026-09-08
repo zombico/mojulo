@@ -320,7 +320,22 @@ export function glbToScene(buf, { group = 'mesh' } = {}) {
 
   const roots = json.scenes?.[json.scene ?? 0]?.nodes
     ?? (json.nodes || []).map((_, i) => i).filter((i) => !(json.nodes || []).some((n) => n.children?.includes(i)));
-  for (const r of roots) walk(r, IDENT, new Set());
+  // A `mojulo` root carrying `moj:metersPerUnit` was scaled by the WRITER so importers receive
+  // metres (the floorplan is authored in feet). Reading back is the inverse door: faces return
+  // in the recipe's own units — a 10 ft edge reads as 10 — and the factor rides the ledger
+  // (world-contract-tiers W2). A uniform scale commutes with the root rotation, so walking from
+  // the inverse scale is exact. Without the extra (a foreign GLB, a metre kind) nothing changes.
+  const rootUnitScale = (node) => {
+    const mpu = Number(node?.extras?.['moj:metersPerUnit']);
+    if (!(Number.isFinite(mpu) && mpu > 0 && mpu !== 1) || !Array.isArray(node.scale)) return null;
+    return node.scale.every((s) => Math.abs(s - mpu) < 1e-9) ? mpu : null;
+  };
+  for (const r of roots) {
+    const mpu = rootUnitScale(json.nodes?.[r]);
+    if (mpu) ledger.metersPerUnit = mpu;
+    const inv = mpu ? 1 / mpu : 1;
+    walk(r, mpu ? [inv, 0, 0, 0, 0, inv, 0, 0, 0, 0, inv, 0, 0, 0, 0, 1] : IDENT, new Set());
+  }
   return { faces, textures, ledger };
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { resolveWorldScene, WALK_KINDS } from './world-scene.js';
+import { assessWorldTier } from './world-contract.js';
 
 /**
  * Characterization net for the kind → assemble*Scene dispatch (world-scene-registry.plan.md).
@@ -142,7 +143,11 @@ describe('world-scene kinds — per-arm characterization', () => {
     for (const [kind, manifest] of Object.entries(FIXTURES)) {
       const { payload } = await resolveWorldScene(sketch(manifest));
       expect(payload, `fixture for '${kind}' produced no payload`).toBeTruthy();
-      rows[kind] = { title: payload.title ?? null, hash: payloadHash(payload) };
+      // walkable kinds also pin the contract tier they DECLARE (world-contract-tiers W1): a
+      // dropped `metersPerUnit`, a lost walk seat or a light channel that stops riding the
+      // payload moves this cell in lib/, not an engine's eyes gate.
+      const tier = WALK_KINDS.has(kind) ? assessWorldTier(payload, { walkable: true }).tier : undefined;
+      rows[kind] = { title: payload.title ?? null, hash: payloadHash(payload), ...(tier !== undefined ? { tier } : {}) };
     }
     expect(rows).toMatchSnapshot();
   }, 120000);

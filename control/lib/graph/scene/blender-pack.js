@@ -28,20 +28,16 @@ import { isPrintableFace } from '@/lib/graph/scene/scene-stl';
 import { resolvePosture } from './engine-score.js';
 import { glbNodeInventory, pickLandmark } from './blender-gate.js';
 import { emitBlenderPack, BLENDER_LEG_VERSION } from './blender-project.js';
+import { metersPerUnitFor, unitsLabel } from './world-units.js';
 
 export const BLENDER_BASES = ['lit', 'unlit', 'shaded'];
 
 const hashOf = (m) => createHash('sha256').update(JSON.stringify(m)).digest('hex').slice(0, 16);
 const r4 = (v) => Math.round(v * 10000) / 10000;
 
-// Declared-unit label → metres per unit. Mirrors UNIT_TO_MM in tools/sketch-model-export.js
-// (the source of truth for the print + USD legs); kept local so lib/ never imports a tool.
-const UNIT_TO_M = { mm: 0.001, cm: 0.01, m: 1, in: 0.0254, ft: 0.3048 };
-export function metersPerUnitFor(units) {
-  if (typeof units !== 'string') return 1;
-  const m = UNIT_TO_M[units.trim().toLowerCase()];
-  return Number.isFinite(m) ? m : 1;
-}
+// Declared-unit label → metres per unit: ONE table, world-units.js (world-contract-tiers D1).
+// Re-exported so the pack's callers keep their import.
+export { metersPerUnitFor };
 
 function refuse(sketch, ref) {
   const manifest = sketch?.manifest ?? {};
@@ -105,7 +101,7 @@ export async function buildBlenderPack({ ref, outDir, base = 'lit', posture = nu
   for (const r of Array.isArray(payload.repeats) ? payload.repeats : []) if (typeof r?.name === 'string') groups.add(r.name);
   const collections = collectionsFor(inventory, groups);
   const landmark = pickLandmark(inventory);
-  const units = typeof manifest.units === 'string' ? manifest.units : null;
+  const units = unitsLabel(manifest);   // the manifest's own label, else the kind family's authoring unit (world-units.js)
   const metersPerUnit = metersPerUnitFor(units);
   const longest = Math.max(...inventory.bounds.size, 1e-9);
   const textures = payload.textures && typeof payload.textures === 'object' ? Object.keys(payload.textures).length : 0;

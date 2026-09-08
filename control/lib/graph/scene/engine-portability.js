@@ -24,6 +24,11 @@ export function assessPortability({ manifest, levels }) {
     }
     if (score.ledger?.skipped_movers) lf.push('mover/platform integrator channels do not travel');
     if (score.ledger?.skipped_physics) lf.push('live physics channels do not travel');
+    // world-contract-tiers W5: the T1 advisory — an enclosed volume with nothing to light it.
+    // Reported, never gated: the operator adds fixtures, opens the roof, or exports unlit.
+    if (score.ledger?.contract?.advisories?.includes('imports_dark')) {
+      lf.push('imports_dark — a ceiling over the spawn, no lights, no openings: any renderer that does transport imports this dark. Add fixtures (potLights), open the roof, or export unlit');
+    }
     perLevel[ref] = { portable: lf.length === 0, flags: lf };
     for (const f of lf) flags.push(`${ref}: ${f}`);
   }

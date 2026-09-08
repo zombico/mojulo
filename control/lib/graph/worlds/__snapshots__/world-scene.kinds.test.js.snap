@@ -44,6 +44,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   },
   "condo-complex": {
     "hash": "ff16697b",
+    "tier": "T0",
     "title": "mojulo condo complex",
   },
   "conics-view": {
@@ -88,6 +89,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   },
   "floorplan": {
     "hash": "0671e5d9",
+    "tier": "T0",
     "title": "mojulo house",
   },
   "fluid-view": {
@@ -96,6 +98,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   },
   "fractal-city": {
     "hash": "22cde565",
+    "tier": null,
     "title": "mojulo city",
   },
   "ftc-view": {
@@ -136,6 +139,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   },
   "painted-landscape": {
     "hash": "51a7b999",
+    "tier": null,
     "title": "mojulo terrain",
   },
   "parallel-transport-view": {
@@ -171,11 +175,13 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo reactor",
   },
   "restaurant": {
-    "hash": "9424b5b1",
+    "hash": "486b8c4b",
+    "tier": "T0",
     "title": "mojulo restaurant",
   },
   "room": {
     "hash": "f003627e",
+    "tier": null,
     "title": "mojulo room",
   },
   "saturn-view": {
@@ -184,6 +190,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   },
   "school-complex": {
     "hash": "faf06226",
+    "tier": "T0",
     "title": "mojulo school complex",
   },
   "series-view": {
@@ -196,10 +203,12 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   },
   "subway-building": {
     "hash": "c2f33600",
+    "tier": "T0",
     "title": "mojulo subway",
   },
   "subway-station": {
     "hash": "38d63d4c",
+    "tier": null,
     "title": "mojulo subway station",
   },
   "surface-view": {
@@ -216,6 +225,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   },
   "transportation-hub": {
     "hash": "22a2629f",
+    "tier": null,
     "title": "mojulo transportation hub",
   },
   "trig-circle-view": {
