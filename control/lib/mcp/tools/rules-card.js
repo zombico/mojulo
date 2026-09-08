@@ -32,7 +32,7 @@ const RULES = [
   'Never read `.env` — use `inspect_bot_env`. No path may log raw secrets, including error paths.',
   'Dry-run before live writes. The operator flips it, not you.',
   'Seal with `meta_context_commit` AFTER the artifact exists, never to declare intent.',
-  'Loopback only — mojulo binds to localhost and has no auth layer. No tunnels, no public exposure.',
+  'Loopback only — stdio is local; HTTP MCP is bearer-gated (404 without `CONTROL_PLANE_MCP_KEY`). No tunnels, no public exposure.',
   'Packs can be absent from an install. A refusal names the install command; execution is walled, knowledge is not.',
   'Ask before destructive or outward-facing acts. Approval in one context does not carry to the next.',
   'Capability and intent judgments are the operator\'s. Do not gate on use case.',

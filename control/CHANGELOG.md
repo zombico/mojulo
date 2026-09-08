@@ -10,6 +10,40 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Substrate drift — the self-description caught up to the code
+
+An audit of `get_substrate`, the rules card, and the README against the tree found the
+positioning text lagging the engine legs and overstating a few invariants. Text-only; no
+tool behaviour changed.
+
+- **Unreal was "spec-only".** The substrate drawer and the README said so; the Unreal leg
+  (data pack, importer, `MojuloKernel` C++ plugin, gated `export-unreal.mjs`) had shipped,
+  and the README never mentioned the gated Unity leg at all. Both now ladder as Godot
+  first-class, Unity and Unreal as gated legs, Blender as the art-pass pack.
+- **"True scale" is the literal profile.** Workbench / assembler / carved wordmark /
+  turntable / vehicle export at true scale; figures, worlds and views are maquettes fit
+  to a target size. The README's "objects, figures" row said figures; corrected.
+- **"No auth layer" was wrong for HTTP.** Substrate fact 1 and the rules-card one-liner
+  now say stdio is local and the HTTP route is bearer-gated on `CONTROL_PLANE_MCP_KEY`,
+  which is what `app/api/mcp/route.js` has done all along.
+- **"Every artifact is minted beside a contextmap record" held only for the office wing.**
+  Creative mints deliberately do not write `meta_*` rows; the drawer now says a studio
+  artifact is recalled by ref, `semantic_search`, and the cookbook card, and is sealed
+  only by an explicit `meta_context_commit`.
+- **"The one LLM flow that leaves the machine"** now names the chatbot pack's own
+  builder and config generators alongside the running bot, and records that the
+  polygonizer's listed path is the key-free packet/submit pair.
+- **Persistent** now says bindings execute only while the daemon host or the in-process
+  trigger runtime is up and a fulfiller polls the agent-tasks queue — no launch agent
+  ships. **Primitives** lists the real `bind_primitives` vocabulary (document-store,
+  structured-record-store, messaging-channel, message-thread); `local-storage` is a
+  technique catalyst. **Credentials** names `API_KEY_ENCRYPTION_KEY` and the fixed
+  development fallback. **Network** adds the first-render Chrome-for-Testing fetch and
+  the disk-cached geo pulls. The craft floor now says the skill dry-run is a discipline
+  asked of the agent, not a code gate, and that `verify_machina` is statics over a
+  mechanism chain, not collision or joint-limit checking.
+
+
 ### Orientation reset — CLAUDE.md from a blind read, docs unlinked from plans, counts unpinned
 
 Repo-facing only; nothing here changes the published package or a running install.
