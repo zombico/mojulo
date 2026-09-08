@@ -16,6 +16,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { manifestIdentity } from './engine-score.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
@@ -23,7 +24,7 @@ import { extractEngineScore } from './engine-score.js';
 import { assessPortability } from './engine-portability.js';
 import { emitUnityProject, emitUnityGame, unityGuid, unityMeta, UNITY_LEG_VERSION } from './unity-project.js';
 
-const hashOf = (m) => createHash('sha256').update(JSON.stringify(m)).digest('hex').slice(0, 16);
+const hashOf = (m) => createHash('sha256').update(JSON.stringify(manifestIdentity(m))).digest('hex').slice(0, 16);
 
 function refuse(sketch, ref) {
   const manifest = sketch?.manifest ?? {};

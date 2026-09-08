@@ -554,7 +554,7 @@ public:
     class UStaticMeshComponent* Mesh = nullptr;
 };
 
-UCLASS()
+UCLASS(Config=Game)
 class MOJULOKERNEL_API AMojuloGameMode : public AGameModeBase
 {
     GENERATED_BODY()
@@ -562,8 +562,13 @@ class MOJULOKERNEL_API AMojuloGameMode : public AGameModeBase
 public:
     AMojuloGameMode();
 
+    virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
+
+    // Optional project asset path in [/Script/MojuloKernel.MojuloGameMode].
+    UPROPERTY(Config, EditDefaultsOnly, Category="Mojulo")
+    FSoftClassPath MojuloPawnClass;
 
     // Read by AMojuloHUD.
     FString State = TEXT("playing"); // playing | complete | failed
@@ -574,6 +579,8 @@ public:
 
 protected:
     void ConfigureWalker();
+    FVector PlayerFeet() const;
+    void ResetPlayer();
     void SpawnMechanicMarkers();
     void StartMusic();
     float BodyDistance(const FVector& Target) const;
@@ -634,11 +641,16 @@ protected:
 
     UPROPERTY()
     class AMojuloWalker* Walker = nullptr;
+    UPROPERTY()
+    class APawn* PlayerPawn = nullptr;
+    FTransform PlayerSpawn;
+    float PlayerKillZ = -30000.f;
 };
 `;
 
 const gameModeCpp = () => `${HEADER_CPP}#include "MojuloGameMode.h"
 
+#include "GameFramework/PawnMovementComponent.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -700,6 +712,17 @@ AMojuloGameMode::AMojuloGameMode()
     HUDClass = AMojuloHUD::StaticClass();
 }
 
+void AMojuloGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+    Super::InitGame(MapName, Options, ErrorMessage);
+    if (!MojuloPawnClass.IsNull())
+    {
+        UClass* ProjectPawn = MojuloPawnClass.TryLoadClass<APawn>();
+        if (ProjectPawn != nullptr && !ProjectPawn->HasAnyClassFlags(CLASS_Abstract)) DefaultPawnClass = ProjectPawn;
+        else UE_LOG(LogTemp, Warning, TEXT("[mojulo] invalid MojuloPawnClass: %s; retaining default pawn"), *MojuloPawnClass.ToString());
+    }
+}
+
 void AMojuloGameMode::BeginPlay()
 {
     Super::BeginPlay();
@@ -721,17 +744,34 @@ void AMojuloGameMode::BeginPlay()
 
 void AMojuloGameMode::ConfigureWalker()
 {
-    AMojuloWalker* Pawn = Cast<AMojuloWalker>(UGameplayStatics::GetPlayerPawn(this, 0));
+    APawn* Pawn = UGameplayStatics::GetPlayerPawn(this, 0);
     if (Pawn == nullptr) return;
-    // Kill-Z: 100 m under the lowest collider, or 300 m under spawn — the
-    // Unity walker's killY, in centimeters.
-    float KillZ = Score.Spawn.Z - 30000.f;
-    if (Score.bHasColliders) KillZ = Score.MinColliderZ * 100.f - 10000.f;
-    Pawn->InitFromScore(Score.Eye, EyeScale, Score.Spawn, KillZ);
-    Walker = Pawn;
+    PlayerPawn = Pawn;
+    Walker = Cast<AMojuloWalker>(Pawn);
+    PlayerKillZ = Score.Spawn.Z - 30000.f;
+    if (Score.bHasColliders) PlayerKillZ = Score.MinColliderZ * 100.f - 10000.f;
+    if (Walker != nullptr) Walker->InitFromScore(Score.Eye, EyeScale, Score.Spawn, PlayerKillZ);
+    // Foreign pawns keep their PlayerStart placement, dimensions, input and camera.
+    PlayerSpawn = Pawn->GetActorTransform();
+    UE_LOG(LogTemp, Display, TEXT("[mojulo] pawn_class=%s kernel_walker=%d"), *Pawn->GetClass()->GetPathName(), Walker != nullptr);
     Hp = Score.bHasHp ? Score.StartHp : -1.f;
     SurviveLeft = Score.SurviveSeconds;
     SetupLocomotion();
+}
+
+FVector AMojuloGameMode::PlayerFeet() const
+{
+    return PlayerPawn->GetActorLocation() - FVector(0.f, 0.f, PlayerPawn->GetSimpleCollisionHalfHeight());
+}
+
+void AMojuloGameMode::ResetPlayer()
+{
+    if (Walker != nullptr) Walker->Respawn();
+    else if (PlayerPawn != nullptr)
+    {
+        if (UPawnMovementComponent* Movement = PlayerPawn->GetMovementComponent()) Movement->StopMovementImmediately();
+        PlayerPawn->SetActorTransform(PlayerSpawn, false, nullptr, ETeleportType::TeleportPhysics);
+    }
 }
 
 AActor* AMojuloGameMode::FindActorByCleanName(const FString& Wanted) const
@@ -871,7 +911,7 @@ void AMojuloGameMode::SetupLocomotion()
         [this](const FMojuloEntity& E) { return E.Id == Score.Player; });
     if (PlayerEntity == nullptr) return;
     AActor* Seat = FindActorByCleanName(!PlayerEntity->Figure.IsEmpty() ? PlayerEntity->Figure : TEXT("entity:") + PlayerEntity->Id);
-    if (PlayerEntity->IdleClip.IsEmpty() && PlayerEntity->WalkClip.IsEmpty())
+    if (Walker == nullptr || (PlayerEntity->IdleClip.IsEmpty() && PlayerEntity->WalkClip.IsEmpty()))
     {
         // First person: no travel clips — make sure the WHOLE seat body is
         // hidden (the import-time hide misses attached child actors) and
@@ -962,10 +1002,10 @@ void AMojuloGameMode::StartMusic()
 
 float AMojuloGameMode::BodyDistance(const FVector& Target) const
 {
-    // Distance to the walker BODY (feet -> head segment), mirror of Unity's
-    // BodyDistance — a chest-height hazard must still connect.
-    const FVector Feet = Walker->GetActorLocation() - FVector(0.f, 0.f, Walker->GetSimpleCollisionHalfHeight());
-    const float Z = FMath::Clamp(Target.Z, Feet.Z, Feet.Z + Walker->GetEyeMeters() * 100.f);
+    // Preserve the walker segment; foreign pawns use their collision body.
+    const FVector Feet = PlayerFeet();
+    const float Height = Walker != nullptr ? Walker->GetEyeMeters() * 100.f : PlayerPawn->GetSimpleCollisionHalfHeight() * 2.f;
+    const float Z = FMath::Clamp(Target.Z, Feet.Z, Feet.Z + Height);
     return FVector::Dist(Target, FVector(Feet.X, Feet.Y, Z));
 }
 
@@ -987,7 +1027,12 @@ void AMojuloGameMode::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     if (!bScoreLoaded) return;
-    if (Walker == nullptr) { ConfigureWalker(); if (Walker == nullptr) return; }
+    if (!IsValid(PlayerPawn) || PlayerPawn != UGameplayStatics::GetPlayerPawn(this, 0))
+    {
+        ConfigureWalker();
+        if (!IsValid(PlayerPawn) || PlayerPawn != UGameplayStatics::GetPlayerPawn(this, 0)) return;
+    }
+    if (Walker == nullptr && PlayerPawn->GetActorLocation().Z < PlayerKillZ) ResetPlayer();
 
     TickPlayerSuit();
 
@@ -1021,7 +1066,7 @@ void AMojuloGameMode::Tick(float DeltaSeconds)
     APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
     if (PC != nullptr && PC->WasInputKeyJustPressed(EKeys::M) && MojuloScore::HasMenuMap()) { ToMenu(); return; }
 
-    const FVector Pos = Walker->GetActorLocation() - FVector(0.f, 0.f, Walker->GetSimpleCollisionHalfHeight());
+    const FVector Pos = PlayerFeet();
     for (const FMojuloZone& Zone : Score.Exits)
         if (ZoneHit(Zone, Pos)) { Complete(); return; }
 
@@ -1082,7 +1127,7 @@ void AMojuloGameMode::ResetLevel()
         if (Pickup.Marker != nullptr) Pickup.Marker->SetActorHiddenInGame(false);
     }
     SurviveLeft = Score.SurviveSeconds;
-    if (Walker != nullptr) Walker->Respawn();
+    ResetPlayer();
     State = TEXT("playing");
 }
 

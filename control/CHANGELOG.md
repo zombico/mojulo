@@ -10,6 +10,111 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### The lounge review — recipe identity, eye height, and four small defects
+
+A review of the assembled lounge handoff repository found the room carrying two manifest hashes
+across three packs, a viewer's eye at a child's height, and a handful of importer defects. The
+fixes land here; the packs re-mint on top.
+
+- **The grade is no longer stored.** `sketch-mint.js` still selects the best seed and repairs a
+  stranded room at mint and update, but the `quality` block that `improveFloorplanManifest`
+  returns is discarded rather than written into the manifest. It is derived
+  (`gradeFloorplanManifest` recomputes it from the recipe), nothing outside the grader read it,
+  and storing it made the hash of a room move when its geometry had not. `manifestIdentity()`
+  in `engine-score.js` strips a leftover grade from rows that still carry one, and the three
+  pack hashes go through it, so old and new rows hash alike. The mint golden snapshot loses its
+  `quality` key; re-pinned.
+- **Eye and feet.** The floorplan walk eye was 42% of the storey, 4.2 ft under a 10 ft ceiling.
+  It is now an adult's 5.3 ft, kept two feet under a low ceiling (`floorplan-structure.js`).
+  A 2-D walk spawn used to take the eye height as its z, so `moj:spawn` and `eye` were the same
+  number and a walker stood an eye above eye height; the spawn is now the feet on the floor
+  (`scene-gltf-level.js`). Godot and Unity already lift and settle; the Unreal importer now lifts
+  its PlayerStart by a capsule half-height so the pawn does not spawn buried.
+- **Units, said plainly.** A scaled score carries `unitsNote` beside `metersPerUnit`: the
+  numbers are already metres, the field is provenance, never a second scale.
+- **Importer defects.** Unity: the level-complete path invoked `Go` on the level, which has no
+  such method (the bridge already hosts the delayed call), and two importer errors cited guide
+  steps off by one (T002→T003, T003→T004). Unreal: a null locomotion clip reached the sort;
+  local lights were counted per actor, now per component.
+- **Unity, re-gated.** The review read a September 6 probe log showing 15 of 16 materials unlit
+  on the lit pack. Re-run today, the Unity gate builds 14 shaded, 2 unlit and 9 lights, exactly
+  as the GLB declares: the lit-handoff work since the 6th had already fixed it, and the
+  declared-versus-built comparison now judges it. Still open for Unity: whether its importer
+  reads the spots' candela at a sane brightness, which only eyes can say. The shared
+  `lights_carried` ledger note no longer describes Unity in Unreal's words.
+
+### The concave cap — an extrude's lid no longer spills across its own slot (print-loop-demo)
+
+Found by the print loop's machine gate on the first object it tried: a desk-edge headphone
+hook, whose clamp is a C-shaped `points` profile extruded along the desk edge. The walls were
+right and the closure audit said closed, yet Manifold called the shell NotManifold and
+PrusaSlicer counted three parts. The end caps are a fan from the profile's CENTROID, and for a
+C the centroid sits in the open slot, so every cap triangle crosses the void and overlaps its
+neighbours — the web tier drew a wedge notch where the slot should be. A star-shaped
+assumption, never stated.
+
+- **`polygonizer/ring-cap.js`** — `isConvexRing` and `earClipRing` (ear clipping over a simple
+  polygon, either winding, degenerate ears skipped). `extrude-faces.js` and `loft-faces.js`
+  keep the centroid fan for a CONVEX ring — every existing rect, rounded-rect, circle, and
+  convex points profile is byte-identical — and switch to ear-clipped triangles only when the
+  ring is concave, emitted in the same closed-quad `[a, b, c, a]` convention with the same
+  `outNormal`.
+- Machine gate: the C extrude now audits closed AND unions as one manifold with the volume of
+  its profile area × length; PrusaSlicer's `--info` agrees. The recipe did not change.
+- **The sweep's inside-out lid.** With the clamp closed, Manifold still refused the hook: the
+  swept arm. An edge audit found every edge shared by two triangles, but one ring's worth run
+  the same way twice — both end caps of a sweep shared one winding, so the START cap was
+  inside-out. The unlit, double-sided web tier never showed it; a CSG union, a slicer's
+  manifold check, and an engine's backface culling all see it. `sweep-faces.js` now flips
+  the start cap exactly as the extrude does. This changes the corner order of every sweep's
+  start cap, so the emitted bytes move wherever a sweep is capped: the floorplan furnish
+  characterization (the lamp) and the per-kind world hash for `restaurant` are re-pinned with
+  this note. Tests: a straight sweep unions to the 24-gon prism volume; the hook's bent arm
+  unions as one manifold.
+- Machine gate on the hook after both fixes (`measure_solid`, `slice-print.mjs`, PrusaSlicer
+  2.9.6): closed, union applied, 15,244 mm³, genus 0; sliced, size agrees, manifold, 90 layers
+  at 0.3 mm, 45 min, no supports. The recipe did not change.
+- Leftover: a `fields` extrude twin does not cap (it is a distance field), and the shell
+  (`wallThickness`) branch is rect-only, so neither had the cap bug. The lathe's seam
+  duplicates its 2π vertex (eight edges at count one under exact comparison); Manifold's
+  merge tolerance absorbs it today, noted rather than changed.
+
+### Unreal demo — project-owned player
+
+The Unreal game kernel accepts a project-owned pawn class through `MojuloPawnClass`
+in `Config/DefaultGame.ini`. Pickups, hazards, exits and survival objectives follow
+the possessed pawn; its input, camera and movement stay project-owned. The existing
+walker remains the default, and invalid class paths fall back with a warning.
+The generated import guide documents the setting.
+
+Machine checks: the emitted plugin compiled against Unreal 5.8; isolated engine
+runs verified stock `DefaultPawn` pickup, hazard, timed completion and exit, plus
+legacy walker and invalid-class fallback. The Unreal emitter and handoff posture
+suites passed. GASP, visual quality, movement feel and performance remain unverified.
+
+### The Godot leg reads candela — kernel 0.2.1
+
+The first time the lit lounge was opened in Godot, every surface clipped to white. The GLB carries
+its pot lights as `KHR_lights_punctual` spots in candela; Unreal reads candela through exposure and
+Blender converts to watts, but Godot's importer copies the number straight into `light_energy`, a
+unitless multiplier where 1.0 is a lamp, and leaves range at its 4096 m default. A 400 cd downlight
+landed at 400×, with no environment or tonemapper in the pack to catch it. Eyes-gate finding, not a
+recipe knob.
+
+- **`kernel/level.gd` — `_fix_lights()`.** After the material fixup, every imported non-directional
+  light is scaled by `CANDELA_PER_ENERGY` (50, calibrated against the Cycles frame of the same
+  room) and the importer's default range is replaced with 12 m; an authored range is kept.
+  Directional lights carry lux and are left alone.
+- **`_build_environment()`.** When the world carries lights, the kernel adds a `WorldEnvironment`
+  with a sky-toned clear colour, a little ambient, and the AgX tonemapper — the ledger's
+  `sky_approximated` promise, kept. Unlit packs get no environment: a tonemapper also remaps
+  unshaded surfaces, and their reference look is the web build. A hand-authored environment in the
+  scene wins.
+- Kernel version 0.2.0 → 0.2.1; the pack copies it verbatim, nothing in the emitters changed.
+- Gates: machine gate (import ×2, one-frame run, materials probe) reran clean on
+  `sk_lkypzdim4y`; a frame captured from inside the room was looked at and reads like the Cycles
+  night render. That is one room and one pair of eyes.
+
 ### The mesh handoff meets a generator (interchange-next N4)
 
 Seam 5 shipped tested against a fake sculptor. First contact with a real one — TripoSR
@@ -421,6 +526,15 @@ camera). Explicit `wallDecor` /
 `interiorWallStyle` / `wallMaterial` / `ceilings` win; generated and multi-cell plans
 are untouched (the char pins hold). Door and window casings already existed. Tests
 in `floorplan-onecell.test.js`.
+
+### Floorplan — the bake variant's stage centres on the room
+
+- `controllable` worlds: the bare-stage checkerboard takes `ground.center` (`[x, y]`, default the
+  origin). Absent, every existing manifest renders byte-identical.
+- `scripts/bake-world-gi.mjs` (generated-mesh gear): a minted `<ref>_gi` variant now carries a
+  `ground` centred on the source footprint and sized to clear it by whole cells, so a floorplan
+  (which spans `0..w × 0..h`) no longer hangs off the corner of an origin-centred stage. Variants
+  minted before this carry no `ground`; re-bake or add one by `update_sketch`.
 
 ### Floorplan — normals, contact shadows, and the first GI-baked room (room-realism phase 3)
 

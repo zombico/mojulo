@@ -179,6 +179,7 @@ const ADAPTERS = [
         kind: 'controllable',
         title: `${sketch.title} — GI baked`,
         figures: { _gi: { meshRef: sketch.ref } },
+        ground: stageGroundFor(payload.faces || []),
         bg: payload.bg || '#0c1017',
         ...(cam && cam.worldFraming ? { worldFraming: cam.worldFraming } : {}),
         giBake: { adapter: 'generated-mesh', from: sketch.ref, preset, migration: MIGRATION_ID, bakedAt: new Date().toISOString(), sha256, samples, matchRate: +matchRate.toFixed(3), floorBlackFrac: +blackFrac.toFixed(3), meshN: slot.n },
@@ -189,6 +190,24 @@ const ADAPTERS = [
     },
   },
 ];
+
+/**
+ * The controllable stage's checkerboard is origin-centred by default; a generated world (a
+ * floorplan spans 0..w × 0..h) is not. Centre the stage on the source footprint and size it
+ * to clear the footprint with a margin, snapped to whole cells. Empty faces ⇒ the default stage.
+ */
+export function stageGroundFor(faces, cell = 4, margin = 1.6) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const f of faces) for (const c of f.corners || []) {
+    if (c[0] < minX) minX = c[0]; if (c[0] > maxX) maxX = c[0];
+    if (c[1] < minY) minY = c[1]; if (c[1] > maxY) maxY = c[1];
+  }
+  if (!Number.isFinite(minX) || !Number.isFinite(minY)) return {};
+  const extent = Math.max(maxX - minX, maxY - minY);
+  const size = Math.max(40, Math.ceil((extent * margin) / cell) * cell);
+  const round = (v) => Math.round(v * 1000) / 1000;
+  return { center: [round((minX + maxX) / 2), round((minY + maxY) / 2)], size, cell };
+}
 
 // ── the drivetrain ──
 const { values: args } = parseArgs({ options: {

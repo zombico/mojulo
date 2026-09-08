@@ -24,6 +24,7 @@
  */
 
 import { norm3, dot3, newellNormal, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
+import { isConvexRing, earClipRing } from './ring-cap.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import { perpBasis, withPolygonNormals } from './extrude-faces.js';
 import { transportFrames } from './sweep-faces.js';
@@ -155,10 +156,18 @@ export function loftToFaces(spec = {}, opts = {}) {
   const pt = (Q, k) => [C[k][0] + U[k][0] * Q.u + V[k][0] * Q.v, C[k][1] + U[k][1] * Q.u + V[k][1] * Q.v, C[k][2] + U[k][2] * Q.u + V[k][2] * Q.v];
   const out3 = (Q, k) => norm3([U[k][0] * Q.nu + V[k][0] * Q.nv, U[k][1] * Q.nu + V[k][1] * Q.nv, U[k][2] * Q.nu + V[k][2] * Q.nv]);
   const fanCap = (ring, k, normal, flip) => {
-    let cu = 0, cv = 0; for (const q of ring) { cu += q.u; cv += q.v; }
-    const c = pt({ u: cu / ring.length, v: cv / ring.length }, k);
     const fill = shade(tint, normal);
     const o = [];
+    // Concave station → ear-clipped cap (ring-cap.js); convex keeps the centroid fan, byte-identical.
+    if (!isConvexRing(ring)) {
+      for (const [i, j, l] of earClipRing(ring)) {
+        const a = pt(ring[i], k), b = pt(ring[j], k), c = pt(ring[l], k);
+        o.push({ corners: flip ? [a, c, b, a] : [a, b, c, a], fill, doubleSided: true, outNormal: normal });
+      }
+      return o;
+    }
+    let cu = 0, cv = 0; for (const q of ring) { cu += q.u; cv += q.v; }
+    const c = pt({ u: cu / ring.length, v: cv / ring.length }, k);
     for (let i = 0; i < ring.length; i += 1) {
       const a = pt(ring[i], k), b = pt(ring[(i + 1) % ring.length], k);
       o.push({ corners: flip ? [c, b, a, c] : [c, a, b, c], fill, doubleSided: true, outNormal: normal });

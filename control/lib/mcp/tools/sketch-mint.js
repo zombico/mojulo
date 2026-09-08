@@ -315,12 +315,15 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     throw new Error(`Rendrant expansion error: ${err.message}`);
   }
   // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
-  // pick the best-scoring seed / cut a door into a stranded room, and stamp a `quality` grade so
-  // the stored manifest carries its own quality signal. The render path stays pure (it just
-  // regenerates this manifest). Grading must never block minting, so fall back on any error.
+  // pick the best-scoring seed / cut a door into a stranded room. The grade itself is NOT
+  // stored: it is derived, `gradeFloorplanManifest` recomputes it from the recipe on demand,
+  // and storing it made the manifest hash move when the grader did (the lounge carried two
+  // hashes for one room, 2026-09-08). The render path stays pure (it just regenerates this
+  // manifest). Grading must never block minting, so fall back on any error.
   finalized = expanded;
   try {
-    finalized = improveFloorplanManifest(expanded);
+    const { quality: _grade, ...improved } = improveFloorplanManifest(expanded);   // grade computed for selection, never stored
+    finalized = improved;
   } catch {
     finalized = expanded;
   }
@@ -558,7 +561,8 @@ export async function updateSketchHandler(input) {
     }
     let finalized = expanded;
     try {
-      finalized = improveFloorplanManifest(expanded);   // grade + auto-improve floorplans; no-op otherwise
+      const { quality: _grade, ...improved } = improveFloorplanManifest(expanded);   // auto-improve floorplans, grade not stored; no-op otherwise
+      finalized = improved;
     } catch {
       finalized = expanded;
     }

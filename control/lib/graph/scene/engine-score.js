@@ -14,6 +14,18 @@ import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-l
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
+/**
+ * The recipe's identity for provenance hashes: the stored manifest minus any derived
+ * block. The floorplan mint used to stamp a `quality` grade into the manifest, and a
+ * re-grade then changed the hash of a room whose geometry had not changed (the lounge
+ * carried two hashes across three packs, 2026-09-08). Mint no longer stores it; this
+ * strips it from rows that still carry one so old and new rows hash alike.
+ */
+export const manifestIdentity = (manifest = {}) => {
+  const { quality, ...rest } = manifest ?? {};
+  return rest;
+};
+
 // Handoff posture (skin-over-mesh.plan.md, the greybox seam): an ADVISORY,
 // operator-DECLARED stamp — never inferred from the absence of textures or
 // materials (the vertex-colour look is a legitimate final style; mojulo does
@@ -108,7 +120,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     .filter((l) => l && Array.isArray(l.position))
     .map((l) => ({ ...l, position: sv(l.position) }));
   if (lights.length) {
-    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela); Blender / Godot import them, the Unreal importer spawns SpotLights from score.json when Interchange brings none' };
+    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel), the Unreal importer spawns SpotLights from score.json when Interchange brings none' };
   }
 
   return {
@@ -117,7 +129,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     kind: manifest.kind ?? null,
     frame: 'z-up',
     units: MOJULO_UNITS,
-    ...(unitScale ? { metersPerUnit: unitScale } : {}),
+    // Both fields are true at once: the recipe was authored in another unit (feet), the GLB
+    // root and every number on this score have ALREADY been scaled by metersPerUnit, and a
+    // kernel must not scale again. The note says so where the next kernel author will read it.
+    ...(unitScale ? { metersPerUnit: unitScale, unitsNote: `score and GLB are in metres already: recipe units × ${unitScale} applied by the exporter; metersPerUnit is provenance, never a second scale` } : {}),
     // present only when declared — an unstamped score is byte-identical to pre-seam output
     ...(declared ? { posture: declared } : {}),
     spawn: sv(extras['moj:spawn'] ?? [0, 0, 2]),

@@ -87,6 +87,21 @@ T006 Toolbar > [Play] — menu first, then play a level start to finish:
 #007 reaching an exit shows LEVEL COMPLETE and returns to the menu with the level marked [done]
 #008 level soundtracks and the menu bed play on loop where the game carries music
 
+## Optional project character
+
+Set \`MojuloPawnClass\` in your project's \`Config/DefaultGame.ini\` under
+\`[/Script/MojuloKernel.MojuloGameMode]\` to your pawn's generated class path
+(for a Blueprint, its path ends in \`_C\`). Restart the play session after editing.
+The pawn must be concrete and spawnable; invalid paths retain the default pawn.
+The kernel logs \`pawn_class\` and \`kernel_walker\` when the player is possessed.
+
+The character uses the imported PlayerStart and keeps its own input, dimensions,
+movement and camera. Its collision body drives pickups, hazards and exits.
+Ambient imported figures still animate; the imported player figure is hidden.
+Without this setting, the existing Mojulo walker and suit-follow behavior remain.
+A character's controls, animation assets and collision fit must be tested in the
+receiving project; selecting a class does not establish traversal compatibility.
+
 ## What travelled, what didn't
 
 #101 skipped_store — store slices beyond completion (character stats, inventory persistence) do not travel — the kernel keeps completion only

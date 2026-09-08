@@ -71,6 +71,8 @@ func _ready() -> void:
 	eye = float(score.get("eye", 1.7))
 	eye_scale = maxf(0.5, eye / 1.7)
 	_fix_materials()
+	if _fix_lights() > 0:
+		_build_environment()
 	_hide_player_double()
 	_mark_meshless_entities()
 	_build_colliders()
@@ -104,6 +106,57 @@ func _fix_materials() -> void:
 			if mat is StandardMaterial3D:
 				mat.vertex_color_use_as_albedo = true
 				mat.vertex_color_is_srgb = false
+
+
+# Light contract (the Godot leg of the lit handoff, kernel 0.2.1): the GLB
+# carries KHR_lights_punctual spots in CANDELA. Unreal reads candela through
+# its exposure and Blender converts to watts, but Godot's importer copies the
+# number straight into Light3D.light_energy — a unitless multiplier where 1.0
+# is a household lamp — and leaves range at its 4096 m default. A 400 cd
+# downlight therefore lands at 400x and the room clips to white (the lounge
+# sk_lkypzdim4y, eyes gate 2026-09-08). CANDELA_PER_ENERGY is the
+# calibration, read against the Cycles frame of the same room; the range
+# cap only replaces the importer's default, an authored range is kept.
+# DirectionalLight3D carries lux, not candela, and is left alone.
+const CANDELA_PER_ENERGY := 50.0
+const LIGHT_RANGE_M := 12.0
+
+
+func _fix_lights() -> int:
+	var n := 0
+	for l in find_children("*", "Light3D", true, false):
+		if l is DirectionalLight3D:
+			continue
+		n += 1
+		l.light_energy = l.light_energy / CANDELA_PER_ENERGY
+		if l is SpotLight3D and l.spot_range > 1000.0:
+			l.spot_range = LIGHT_RANGE_M
+		elif l is OmniLight3D and l.omni_range > 1000.0:
+			l.omni_range = LIGHT_RANGE_M
+	return n
+
+
+# The ledger's `sky_approximated` promise, kept for LIT worlds: the pack drops
+# the sky mesh and the engine supplies one. With no WorldEnvironment Godot
+# draws linear light with no tonemapper over a flat grey clear colour, so the
+# candela-driven pools clip. Only built when the world carries lights — a
+# tonemapper also remaps UNSHADED surfaces, and an unlit pack's reference
+# look is the web build, which it must keep matching. A hand-authored
+# environment in the scene wins.
+func _build_environment() -> void:
+	if get_viewport().world_3d.environment != null:
+		return
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.55, 0.62, 0.72)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.9, 0.9, 1.0)
+	env.ambient_light_energy = 0.25
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	var we := WorldEnvironment.new()
+	we.name = "Environment"
+	we.environment = env
+	add_child(we)
 
 
 # Godot's glTF importer rewrites the characters a node/animation name may not

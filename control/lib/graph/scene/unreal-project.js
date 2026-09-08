@@ -140,6 +140,7 @@ MAT_ROOT = CONTENT_ROOT + '/Materials'
 # False = the mojulo look (unlit vertex colour, light baked into the recipe).
 LIT = ${lit ? 'True' : 'False'}
 M = 100.0  # 1 mojulo unit = 1 meter; UE works in centimeters
+START_LIFT_CM = 96.0  # the score's spawn is the walker's FEET; a PlayerStart is the capsule's centre (default half-height 88 cm + margin)
 IMPORT_TAG = 'MojuloImported'
 
 
@@ -239,8 +240,7 @@ def count_local_lights():
     n = 0
     for a in all_actors():
         try:
-            if a.get_components_by_class(unreal.LocalLightComponent):
-                n += 1
+            n += len(list(a.get_components_by_class(unreal.LocalLightComponent)))   # components, not actors: one imported actor may host several lights
         except Exception:
             pass
     return n
@@ -632,8 +632,12 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
         at = P(e['translation'])
         spawn_block('MojuloEntityMarker_' + e['id'], unreal.Vector(at.x, at.y, at.z + 35.0), unreal.Vector(70.0, 70.0, 70.0), visible=True)
 
-    start = spawn(unreal.PlayerStart, P(spawn_v), 'MojuloPlayerStart')
-    start.set_actor_location(P(spawn_v), False, False)
+    # the score's spawn is the walker's FEET on the floor; lift the PlayerStart to the capsule's
+    # centre or the pawn spawns buried (the verify pass expects the same lift)
+    start_at = P(spawn_v)
+    start_at.z += START_LIFT_CM
+    start = spawn(unreal.PlayerStart, start_at, 'MojuloPlayerStart')
+    start.set_actor_location(start_at, False, False)
 
     light_rig()
 
@@ -709,6 +713,7 @@ def verify():
         check(prefix + 'collider_count', n == want, str(n) + ' vs ' + str(want))
         start = find_actor_by_label('MojuloPlayerStart')
         want_spawn = P(score.get('spawn') or [0.0, 0.0, 0.0])
+        want_spawn.z += START_LIFT_CM   # the importer lifts the start off the feet; expect the same
         spawn_ok = start is not None and (start.get_actor_location() - want_spawn).length() < 1.0
         check(prefix + 'spawn_marker', spawn_ok, str(start.get_actor_location()) if start else 'missing')
         check(prefix + 'ground_plane', find_actor_by_label('MojuloGround') is not None)
@@ -777,7 +782,8 @@ def verify():
             clips = []
             for e in score.get('entities') or []:
                 for c in (e.get('locomotion') or {}).values():
-                    clips.append(c)
+                    if c:   # a null clip (no walk cycle bound) must not reach the sort
+                        clips.append(c)
             if not clips:
                 continue
             names = {}
@@ -933,6 +939,21 @@ T004.01 Output Log — confirm the last line: \`[mojulo] game '${title}' -> ${le
 T005 Content Browser > Content > MojuloPack > Maps > \`mojulo-menu\` — open
 T006 Toolbar > [Play] — menu first, then play a level start to finish:
 ${eyes.join('\n')}
+
+## Optional project character
+
+Set \`MojuloPawnClass\` in your project's \`Config/DefaultGame.ini\` under
+\`[/Script/MojuloKernel.MojuloGameMode]\` to your pawn's generated class path
+(for a Blueprint, its path ends in \`_C\`). Restart the play session after editing.
+The pawn must be concrete and spawnable; invalid paths retain the default pawn.
+The kernel logs \`pawn_class\` and \`kernel_walker\` when the player is possessed.
+
+The character uses the imported PlayerStart and keeps its own input, dimensions,
+movement and camera. Its collision body drives pickups, hazards and exits.
+Ambient imported figures still animate; the imported player figure is hidden.
+Without this setting, the existing Mojulo walker and suit-follow behavior remain.
+A character's controls, animation assets and collision fit must be tested in the
+receiving project; selecting a class does not establish traversal compatibility.
 
 ${greyboxSection(posture === 'greybox')}## What travelled, what didn't
 

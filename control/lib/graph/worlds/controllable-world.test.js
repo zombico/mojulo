@@ -4099,3 +4099,24 @@ describe('space clash break (2026-08-04 — cross blades, roll out, reengage; no
     expect(bladeAgain).toBe(true);                  // and REENGAGED the melee once the window expired
   });
 });
+
+describe('assembleControllableScene — the bare stage', () => {
+  const bounds = (faces) => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const f of faces) for (const [x, y] of f.corners) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+    return { minX, maxX, minY, maxY };
+  };
+  it('defaults to a 40-unit checkerboard centred on the origin', () => {
+    const { faces } = assembleControllableScene({});
+    expect(faces).toHaveLength(100);
+    expect(bounds(faces)).toEqual({ minX: -20, maxX: 20, minY: -20, maxY: 20 });
+  });
+  it('ground.center slides the stage under content that does not sit on the origin', () => {
+    const { faces } = assembleControllableScene({ ground: { center: [12, 14], size: 48, cell: 4 } });
+    expect(faces).toHaveLength(144);
+    expect(bounds(faces)).toEqual({ minX: -12, maxX: 36, minY: -10, maxY: 38 });
+    // same fill pattern as the origin stage — only the placement moved
+    const origin = assembleControllableScene({ ground: { size: 48, cell: 4 } }).faces;
+    expect(faces.map((f) => f.fill)).toEqual(origin.map((f) => f.fill));
+  });
+});

@@ -160,9 +160,14 @@ function spawnPoint(payload) {
   const wk = payload.walk;
   if (wk && typeof wk === 'object' && Array.isArray(wk.spawn)
     && wk.spawn.length >= 2 && wk.spawn.every(Number.isFinite)) {
+    // A 2-D walk spawn is a point on the FLOOR: the runtime's walk engine ground-snaps on
+    // its implicit z=0 plane, and every engine kernel treats `moj:spawn` as the walker's
+    // feet (Godot and Unity lift it by a fraction of the eye and let gravity settle it).
+    // It used to carry the eye height as z, so spawn and eye were the same number and a
+    // walker stood at eye height plus an eye (lounge review, 2026-09-08).
     return wk.spawn.length >= 3
       ? [wk.spawn[0], wk.spawn[1], wk.spawn[2]]
-      : [wk.spawn[0], wk.spawn[1], Number.isFinite(wk.eye) ? wk.eye : 0];
+      : [wk.spawn[0], wk.spawn[1], 0];
   }
   const ents = (Array.isArray(payload.entities) ? payload.entities : [])
     .filter((e) => e && e.transform && Array.isArray(e.transform.pos) && e.transform.pos.length >= 3);

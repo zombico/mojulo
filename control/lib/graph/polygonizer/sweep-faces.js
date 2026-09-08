@@ -106,9 +106,13 @@ export function sweepToFaces(spec = {}, opts = {}) {
     }
   }
   if (caps) {
-    const fan = (ring, c, no) => { const o = []; for (let j = 0; j < sides; j += 1) o.push({ corners: [c, ring[j], ring[j + 1], c], fill: shade(tint, no), doubleSided: true, outNormal: no }); return o; };
-    faces.push(...fan(rings[0], P[0], scl3(T[0], -1)));
-    faces.push(...fan(rings[m - 1], P[m - 1], T[m - 1]));
+    // The walls run a[j] → a[j+1] along the START ring, so the start cap must traverse that edge the
+    // other way for a consistently outward-wound shell (`flip`, as the extrude's start cap does).
+    // Both caps used to share one winding: the start lid was inside-out — invisible to the unlit
+    // double-sided web tier, NotManifold to a CSG union, culled by an engine (print-loop demo, 2026-09-08).
+    const fan = (ring, c, no, flip) => { const o = []; for (let j = 0; j < sides; j += 1) o.push({ corners: flip ? [c, ring[j + 1], ring[j], c] : [c, ring[j], ring[j + 1], c], fill: shade(tint, no), doubleSided: true, outNormal: no }); return o; };
+    faces.push(...fan(rings[0], P[0], scl3(T[0], -1), true));
+    faces.push(...fan(rings[m - 1], P[m - 1], T[m - 1], false));
   }
   return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_SWEEP), mat);
 }

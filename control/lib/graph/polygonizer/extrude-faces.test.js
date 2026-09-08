@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { extrudeToFaces, validateExtrudes, DEFAULT_CORNER_SAMPLES } from './extrude-faces.js';
 import { faceListToMesh } from '../figures/face-mesh.js';
+import { auditClosure } from './face-closure.js';
+import { unionShells, shellsToInstances } from '../scene/manifold-union.js';
+import { printableShells, applyTransform } from '../scene/scene-stl.js';
 
 const isHex = (s) => /^#[0-9a-f]{6}$/i.test(s);
 const finiteVec = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
@@ -31,6 +34,32 @@ describe('extrudeToFaces — solid prism', () => {
 
   it('caps:false drops the end caps', () => {
     expect(extrudeToFaces(vbox(), { caps: false }).length).toBe(4);
+  });
+});
+
+describe('extrudeToFaces — concave profile caps (print-loop demo, 2026-09-08)', () => {
+  // The desk-edge headphone hook's clamp: a C whose centroid sits in the open slot. The centroid fan
+  // used to spill across the slot (a wedge in the web tier, NotManifold at export).
+  const C = [[-6, 0], [25, 0], [25, 4], [0, 4], [0, 23], [25, 23], [25, 27], [-6, 27]];
+  const clamp = () => extrudeToFaces({ profile: { points: C }, axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 30, z: 0 } });
+
+  it('caps a C with n−2 ear triangles per end, closed, and unions as ONE manifold of area × length', async () => {
+    const faces = clamp();
+    expect(faces.length).toBe(8 /* walls */ + 6 + 6);
+    expect(allWellFormed(faces)).toBe(true);
+    expect(auditClosure(faces).holes).toEqual([]);
+    const r = await unionShells(shellsToInstances(printableShells({ faces }), applyTransform));
+    expect(r.stats.non_manifold).toEqual([]);
+    expect(r.stats.unioned).toBe(1);
+    expect(r.stats.genus).toBe(0);
+    expect(r.stats.volume).toBeCloseTo(362 * 30, 3);
+  });
+
+  it('a convex profile keeps the centroid fan — first corner of every cap face is the centroid', () => {
+    const faces = extrudeToFaces(vbox({ profile: { points: [[-2, -1], [2, -1], [0, 2]] } }));
+    const caps = faces.slice(3);
+    expect(caps.length).toBe(6);
+    for (const f of caps) { expect(f.corners[0][0]).toBeCloseTo(0, 9); expect(f.corners[0][1]).toBeCloseTo(0, 9); }
   });
 });
 

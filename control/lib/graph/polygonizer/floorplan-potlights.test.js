@@ -80,7 +80,8 @@ describe('pot lights', () => {
     expect(root.scale).toEqual([0.3048, 0.3048, 0.3048]);
     expect(root.children).toContain(j.nodes.indexOf(node));
     const spawn = j.scenes[0].extras['moj:spawn'];
-    expect(spawn[2]).toBeCloseTo(w.walk.eye * 0.3048, 6);              // extras are plain data: pre-scaled
+    expect(spawn[2]).toBe(0);                                          // the FEET on the floor; the eye rides separately on the score (lounge review 2026-09-08)
+    expect(w.walk.eye).toBeCloseTo(5.3, 6);                            // an adult's eye in feet, not 42% of the storey
     // the lens is an emissive PBR material of its own (the can reads switched on in a lit importer)
     const lens = j.materials.find((m) => m.name === 'shell:ceiling:potlight:emissive');
     expect(lens.emissiveFactor).toEqual([1, 0.93, 0.82]);

@@ -1435,7 +1435,7 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
     inline: opts.inline ?? false,
     light: opts.light,
     // exterior is a massing read — orbit it; cutaway is walked through.
-    walk: exterior ? false : floorplanWalk(opts.walk, s.footprint, (s.baseZ || 0) + wallHeight * 0.42),
+    walk: exterior ? false : floorplanWalk(opts.walk, s.footprint, floorplanEyeZ(s.baseZ, wallHeight)),
     ...(Object.keys(textures).length ? { textures } : {}),
     // pot lights (KHR_lights_punctual in the GLB; the engine score carries them too)
     ...(s.lights ? { lights: s.lights } : {}),
@@ -1456,10 +1456,17 @@ export function renderFloorToThreeWorld(input = {}, opts = {}) {
 
 /**
  * Resolve a first-person `walk` option for the floorplan Worlds into the
- * `emitThreeWorld({ walk })` shape. Spawns at the footprint centre, eye height
- * inside the storey (≈ chest level of an 8ft wall). `walk:true` takes the
+ * `emitThreeWorld({ walk })` shape. Spawns at the footprint centre at an adult's
+ * eye height (FLOORPLAN_EYE_FT). `walk:true` takes the
  * derived defaults; an object overrides them (e.g. `{ speed }`). Falsy → orbit-only.
  */
+const FLOORPLAN_EYE_FT = 5.3;
+
+// The walker's eye above a storey's floor, in feet: an adult's, kept two feet under a low ceiling.
+function floorplanEyeZ(baseZ, height) {
+  return (baseZ || 0) + Math.min(FLOORPLAN_EYE_FT, Math.max(3, (height || 8) - 2));
+}
+
 function floorplanWalk(walk, footprint, eyeZ) {
   if (!walk) return false;
   const base = walk === true ? {} : walk;
@@ -2159,10 +2166,13 @@ export function renderHouseToThreeWorld(input = {}, opts = {}) {
   }
   const zs = faces.flatMap((f) => f.corners.map((c) => c[2]));
   const cameras = opts.cameras || camerasForBounds(house.footprint, Math.min(...zs), Math.max(...zs), viewBox);
-  // First-person spawn: stand at the footprint centre, eye height on the ground
-  // storey (index 0 is unshifted even when exploded). Fly to other floors with Space/Shift.
+  // First-person spawn: stand at the footprint centre on the ground storey (index 0 is
+  // unshifted even when exploded). Fly to other floors with Space/Shift. Eye height is an
+  // adult's, 5.3 ft (1.62 m), kept two feet under a low ceiling; it was 42% of the storey,
+  // which under a 10 ft ceiling put the viewer's eye at 4.2 ft, a child's (lounge review,
+  // 2026-09-08). Feet, like every floorplan number; the exports scale by metersPerUnit.
   const ground = house.levels.find((l) => l.index === 0) || house.levels[0];
-  const eyeZ = (ground.baseZ || 0) + ground.height * 0.42;
+  const eyeZ = floorplanEyeZ(ground.baseZ, ground.height);
   const textures = {};
   for (const k of house.roofTextureKeys || []) { const u = surfaceTexture(k); if (u) textures[k] = u; }
   collectFaceTextures(house.faces, textures);

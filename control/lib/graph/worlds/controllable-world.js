@@ -35,12 +35,16 @@ let applyArenaAtmosphere = () => null;
 try {
   ({ applyArenaAtmosphere } = await import('../mobile-suit/arena-atmosphere.js'));
 } catch (err) { console.error('mobile-suit pack absent — atmosphere keying disabled:', err?.message); }
+// `spec.center` ([x, y], default the origin) slides the checkerboard under content that does not
+// sit on the origin — a floorplan spans (0..w, 0..h), so its bake variant centres the stage on
+// the room. Absent ⇒ byte-identical to the origin-centred stage every existing manifest gets.
 function defaultGround(spec = {}) {
   const size = spec.size || 40, cell = spec.cell || 4, n = Math.max(2, Math.round(size / cell));
   const a = spec.colorA || '#2f3b50', b = spec.colorB || '#3b4a64';
+  const [cx, cy] = Array.isArray(spec.center) && spec.center.length >= 2 ? spec.center : [0, 0];
   const faces = [];
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-    const x = -size / 2 + i * cell, y = -size / 2 + j * cell;
+    const x = cx - size / 2 + i * cell, y = cy - size / 2 + j * cell;
     faces.push({ corners: [[x, y, 0], [x + cell, y, 0], [x + cell, y + cell, 0], [x, y + cell, 0]], fill: (i + j) % 2 ? a : b, doubleSided: true });
   }
   return faces;

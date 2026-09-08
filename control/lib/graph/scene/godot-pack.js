@@ -13,6 +13,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { manifestIdentity } from './engine-score.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
@@ -24,7 +25,7 @@ import { assessPortability } from './engine-portability.js';
 // lib files may be bundled, so import.meta-relative paths are not reliable.
 const kernelDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
 
-const hashOf = (m) => createHash('sha256').update(JSON.stringify(m)).digest('hex').slice(0, 16);
+const hashOf = (m) => createHash('sha256').update(JSON.stringify(manifestIdentity(m))).digest('hex').slice(0, 16);
 const toDb = (v) => (Number.isFinite(v) && v > 0 ? 20 * Math.log10(v) : null);
 
 function refuse(sketch, ref) {

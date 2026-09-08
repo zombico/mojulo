@@ -31,6 +31,11 @@
  *     so the planner's spin reaches it. Unspun placement is the same geometry to
  *     ~1e-15 (the builder now adds the centre last), so the JSON differs by float
  *     ordering as well as by the turned sofa. A and B re-based; C unchanged.
+ *   - sweep start cap (2026-09-08, print-loop-demo): a sweep's START cap was wound
+ *     inside-out (both lids shared one winding); `sweep-faces.js` now flips it like
+ *     the extrude does. Same face counts, the cap corners of every capped sweep
+ *     (the lamp, the couch's wrinkle lines) in the corrected order. A and B re-based;
+ *     C unchanged.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -43,7 +48,7 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
   it('generated seed plan, furnish:true', () => {
     const s = structurizeFloorplan({ seed: 7, width: 46, height: 34 }, { furnish: true });
     expect(s.faces.length).toBe(4166);
-    expect(sha(s.faces)).toBe('d7dd6ca9214f236e0c7f39472d5e5da7411bd03349c9448a73ddd944d20f68c5');
+    expect(sha(s.faces)).toBe('556dd37c41d9e8f996b8839ba5d34a204e3ac6d82dd7e8fdad2b2121034bffb3');
   });
 
   it('explicit two-cell plan with an interior door, furnish:true', () => {
@@ -53,7 +58,7 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
       doors: [{ x: 15, y: 6, room: 1, edge: 'W' }],
     }, { furnish: true });
     expect(s.faces.length).toBe(3134);
-    expect(sha(s.faces)).toBe('ad59160c14afa350cf4d6747e8c473daa1d945358b9ccd3aa4a69f5013a864c1');
+    expect(sha(s.faces)).toBe('5a81b3793079b782b944ca07c2e6494231cce367b62439e79cee7f47ed915859');
   });
 
   it('stacked house, cutaway (furnish defaults on)', () => {

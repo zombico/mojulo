@@ -817,8 +817,7 @@ namespace Mojulo
                 PlayerPrefs.SetString(SaveKey, string.Join("|", done));
                 PlayerPrefs.Save();
             }
-            if (HasMenu()) level.Invoke(nameof(ToMenuBridge.Go), 0f);
-            ToMenuBridge.Arm(level, 1.5f);
+            ToMenuBridge.Arm(level, 1.5f);   // the bridge hosts the delayed Go; MojuloLevel has no such method
         }
 
         public static void LevelFailed(MojuloLevel level) { ToMenuBridge.Arm(level, 1.5f); }
@@ -968,7 +967,7 @@ namespace Mojulo
         static MojuloLevel.Score ReadScore(string resBase)
         {
             var p = resBase + "score.json";
-            if (!File.Exists(p)) throw new Exception("score.json not found at " + p + " — copy the pack to " + PackRoot + " (IMPORT-GUIDE.md T003)");
+            if (!File.Exists(p)) throw new Exception("score.json not found at " + p + " — copy the pack to " + PackRoot + " (IMPORT-GUIDE.md T004)");
             return JsonUtility.FromJson<MojuloLevel.Score>(File.ReadAllText(p));
         }
 
@@ -1009,7 +1008,7 @@ namespace Mojulo
             var glbPath = resBase + "model.glb";
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(glbPath);
             if (prefab == null)
-                throw new Exception(glbPath + " produced no prefab — is com.unity.cloud.gltfast installed? (IMPORT-GUIDE.md T002)");
+                throw new Exception(glbPath + " produced no prefab — is com.unity.cloud.gltfast installed? (IMPORT-GUIDE.md T003)");
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 

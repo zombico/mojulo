@@ -23,6 +23,7 @@
  */
 
 import { norm3, dot3, sub3, centroid, newellNormal, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
+import { isConvexRing, earClipRing } from './ring-cap.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -130,10 +131,19 @@ export function extrudeToFaces(spec = {}, opts = {}) {
 
   // centroid (uv) → fan-fill a profile ring at param s with a uniform-normal cap
   const fanCap = (path, s, normal, fillTint, flip) => {
-    let cu = 0, cv = 0; for (const p of path) { cu += p.u; cv += p.v; }
-    const c = pt({ u: cu / path.length, v: cv / path.length }, s);
     const fill = shade(fillTint, normal);
     const o = [];
+    // A concave ring (a C-clamp, an L) has its centroid outside the material: ear-clip it
+    // (ring-cap.js). Convex rings keep the centroid fan below, byte-identical.
+    if (!isConvexRing(path)) {
+      for (const [i, j, k] of earClipRing(path)) {
+        const a = pt(path[i], s), b = pt(path[j], s), c = pt(path[k], s);
+        o.push({ corners: flip ? [a, c, b, a] : [a, b, c, a], fill, doubleSided: true, outNormal: normal });
+      }
+      return o;
+    }
+    let cu = 0, cv = 0; for (const p of path) { cu += p.u; cv += p.v; }
+    const c = pt({ u: cu / path.length, v: cv / path.length }, s);
     for (let i = 0; i < path.length; i += 1) {
       const a = pt(path[i], s), b = pt(path[(i + 1) % path.length], s);
       // Authored outward normal = the cap's uniform axis-direction `normal` (export-normals.plan.md

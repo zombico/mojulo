@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { sweepToFaces, validateSweeps, DEFAULT_SIDES } from './sweep-faces.js';
 import { faceListToMesh } from '../figures/face-mesh.js';
+import { unionShells, shellsToInstances } from '../scene/manifold-union.js';
+import { printableShells, applyTransform } from '../scene/scene-stl.js';
 
 const isHex = (s) => /^#[0-9a-f]{6}$/i.test(s);
 const finiteVec = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
@@ -54,6 +56,29 @@ describe('sweepToFaces', () => {
     expect(mesh.vertexCount).toBeGreaterThan(0);
     expect(mesh.positions.every(Number.isFinite)).toBe(true);
     expect(mesh.radius).toBeGreaterThan(0);
+  });
+});
+
+describe('sweepToFaces — a consistently outward-wound shell (print-loop demo, 2026-09-08)', () => {
+  // Both end caps used to share one winding, so the start lid was inside-out: every edge had two
+  // triangles but one ring's worth ran the same way twice. Invisible unlit and double-sided;
+  // NotManifold to Manifold; culled by an engine.
+  it('a straight sweep unions as ONE manifold with the volume of a 24-gon prism', async () => {
+    const faces = sweepToFaces({ path: [[3, 15, 8], [46, 15, 8]], radius: 5, sides: 24 });
+    const r = await unionShells(shellsToInstances(printableShells({ faces }), applyTransform));
+    expect(r.stats.non_manifold).toEqual([]);
+    expect(r.stats.unioned).toBe(1);
+    expect(r.stats.genus).toBe(0);
+    const polygonArea = 0.5 * 24 * 5 * 5 * Math.sin((2 * Math.PI) / 24);
+    expect(r.stats.volume).toBeCloseTo(polygonArea * 43, 3);
+  });
+
+  it('a bent sweep (the headphone hook arm) is one manifold too', async () => {
+    const faces = sweepToFaces({ path: [[3, 15, 8], [46, 15, 8], [48.5, 15, 8.7], [50.3, 15, 10.6], [51, 15, 13], [51, 15, 22]], radius: 5, sides: 24 });
+    const r = await unionShells(shellsToInstances(printableShells({ faces }), applyTransform));
+    expect(r.stats.non_manifold).toEqual([]);
+    expect(r.stats.unioned).toBe(1);
+    expect(r.stats.volume).toBeGreaterThan(0);
   });
 });
 
