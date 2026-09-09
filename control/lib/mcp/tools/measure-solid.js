@@ -20,6 +20,7 @@ import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { facesToStl, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
+import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
 import { printProfileFor, auditStlClosure, resolvePrintScale } from '@/lib/mcp/tools/sketch-model-export';
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -79,7 +80,11 @@ export async function measureSolidHandler(input) {
   }
 
   const sizeMm = probe.bounds.size.map((v) => r1(v * scale));
-  const advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm, printer });
+  // Rung 2 (text-to-cad-seam T2): overhang / support / sampled walls over the mm soup the
+  // export would write — the same numbers export_model stamps beside the file.
+  const soup = printSoup(payload, { scale });
+  const measure = soup ? measurePrintability({ positions: soup, printer }) : null;
+  const advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm, printer, measure });
   const closureLine = closure.audited
     ? (closure.closed ? 'closed' : `${closure.holes} open rim${closure.holes === 1 ? '' : 's'}, widest ≈${closure.widest}${units ? ` ${units}` : ' world units'}`)
     : `not audited (${closure.reason})`;
@@ -98,10 +103,12 @@ export async function measureSolidHandler(input) {
     closure,
     volume: vol,
     printer,
+    print_measure: measure,
     print_advisories: advisories,
     ...(warnings && warnings.length ? { warnings } : {}),
     note: `${probe.bounds.size.map(r3).join(' × ')}${units ? ` ${units}` : ' world units'} → prints ${sizeMm.join(' × ')} mm at ×${r3(scale)} (${scaleNote}). Closure: ${closureLine}. `
       + (vol.applied ? `Volume ${vol.volume_mm3} mm³ (Manifold union of ${vol.unioned} shell${vol.unioned === 1 ? '' : 's'}, genus ${vol.genus}). ` : `Volume not measured: ${vol.reason}. `)
+      + `${measureLine(measure)[0].toUpperCase()}${measureLine(measure).slice(1)}. `
       + (advisories.length ? `Print advisories (${advisories.length}): ${advisories.map((a) => `${a.kind} — ${a.detail}`).join('; ')}.` : 'Print advisories: none.')
       + ' Advisory throughout — export_model({ ref, format: \'stl\' }) ships the same numbers beside the file.',
   };
@@ -111,17 +118,17 @@ export function registerMeasureSolidTool() {
   registerTool({
     name: 'measure_solid',
     description:
-      'Read numbers off a stored solid without exporting: bounds, printed mm size (export_model '
-      + 'scale precedence), per-monomer sizes, closure audit, Manifold '
-      + 'volume + genus, print advisories (thin wall / tiny feature / over bed).',
+      'Read numbers off a stored solid without exporting: bounds, printed mm size, '
+      + 'per-monomer sizes, closure audit, Manifold '
+      + 'volume + genus, measured overhang + sampled walls, print advisories.',
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Solid / world sketch ref.' },
         scale: { type: 'number', description: 'World units → mm.' },
         target_mm: { type: 'number', description: 'Fit longest dimension to mm.' },
-        printer: { type: 'object', description: '{ nozzle_mm?, min_wall_mm?, bed_mm?:[x,y,z] }.' },
-        volume: { type: 'boolean', description: 'Volume/genus via Manifold (default true).' },
+        printer: { type: 'object', description: '{ process?: fdm|sla|sls|mjf, nozzle_mm?, min_wall_mm?, bed_mm? }.' },
+        volume: { type: 'boolean', description: 'Manifold volume/genus (default true).' },
       },
       required: ['ref'],
     },

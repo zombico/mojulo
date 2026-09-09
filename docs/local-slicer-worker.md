@@ -34,9 +34,14 @@ G-code and the gate stamp are disposable measurements, regenerable any time.
   (same CLI). Found automatically on PATH (`prusa-slicer`, `superslicer`) or at the
   macOS bundle `/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer`; set
   `MOJULO_SLICER` otherwise.
-- **OrcaSlicer / Bambu Studio** are detected so you get a real message, but their
-  CLI is not wired yet — the gate skips with the reason and the 3MF opens in the
-  app directly (it is the format they prefer).
+- **OrcaSlicer / Bambu Studio** (the `orca` family, text-to-cad-seam.plan.md T6) are
+  driven with the flags Bambu Studio's CLI wiki documents — but this family has NO
+  defaults: pass `--profile "machine.json;process.json[;filament.json]"` (or a
+  directory holding them, matched by name). Without one the gate skips with the
+  reason and the 3MF opens in the app directly (it is the format they prefer).
+  There is no `--info` twin, so `size_agrees` is `null` there. **Unverified on a
+  real install** — the stamp carries `verified: false` until someone runs it; read
+  `slice.log` and file what you see.
 - No slicer at all ⇒ capability rung 0: the 3MF + closure audit still ship; the
   gate says why it skipped. Nothing else depends on this worker.
 
@@ -76,7 +81,15 @@ Logs go to stderr; the slicer's own output lands in `slice.log` beside the file.
 {
   "file": ".../data/outcomes/sk_foo/model.3mf",
   "declared": { "size_mm": [40, 40, 60], "scale": 10, "print_profile": "literal",
-                "closure": { "audited": true, "closed": true, "holes": 0 }, "objects": 1, "items": 1, "colors": 3 },
+                "closure": { "audited": true, "closed": true, "holes": 0 },
+                "measure": {            // mojulo's OWN measurement over the same triangles (print-measure.js)
+                  "overhang": { "limit_deg": 45, "worst_deg": 90, "area_mm2": 1125.7, "fraction": 0.138, "faces": 26 },
+                  "support": { "footprint_mm2": 1088.3, "volume_mm3_upper": 22951.7 },   // volume is a column-to-bed BOUND
+                  "walls": { "measured": true, "min_mm": 4, "p05_mm": 9.68, "median_mm": 9.91, "sampled": 316, "buried": 25, "coincident": 2 },
+                  "orientation": { "best": "y+", "footprint_mm2_by_axis": { "x+": 815.7, "x-": 577, "y+": 420.5, "y-": 420.5, "z+": 1088.3, "z-": 1132.9 } }
+                },
+                "advisories": [{ "kind": "overhang", "detail": "1125.71 mm² of faces … least support if built along y+" }],
+                "objects": 1, "items": 1, "colors": 3 },
   "gate": {
     "skipped": false, "slicer": "prusa", "profile": "slicer defaults", "center_mm": [100, 100],
     "sliced": true,            // a G-code came out
@@ -93,6 +106,16 @@ Logs go to stderr; the slicer's own output lands in `slice.log` beside the file.
 slip between world units and millimetres is invisible to the closure audit and
 obvious here. `sliced: false` with the tail of `slice.log` is the loud failure.
 Every field the slicer did not print is `null`, never a guess.
+
+The two blocks answer different questions and should be read together. The
+slicer's `supports: false` means "I was not asked to add supports"; mojulo's
+`declared.measure.overhang` means "these faces exceed the process's self-support
+angle" — on the hook the slicer said `false` and the measurement named 1,126 mm²
+under the J arm and the better axis (`y+`, on its side). Walls are SAMPLED by
+inward ray (thinnest, 5th percentile), not a true medial thickness; faces buried
+inside another shell and flush joints are set aside and counted. `printer:
+{ process: 'sla' | 'sls' | 'mjf' }` on the export words both blocks for a resin or
+powder machine (powder judges no overhang and states the trapped-volume caveat).
 
 ## The first real slice (2026-09-07, this host)
 
@@ -130,5 +153,10 @@ PrusaSlicer --export-gcode --center 100,100 --output model.gcode model.3mf
 - Multi-material colour: the 3MF carries `basematerials`; whether the CLI slice
   honours them depends on the loaded profile's extruder setup. The eyes gate in
   the app is where filament mapping happens.
-- The PrusaSlicer CLI is what is wired. OrcaSlicer and Bambu Studio take the same
-  3MF in their GUI today; their CLI flags differ and are not driven yet.
+- The PrusaSlicer CLI is what is VERIFIED. OrcaSlicer / Bambu Studio are driven
+  (machine + process JSON profiles required, arranged onto the bed, the plate
+  G-code parsed by its own ledger keys) but have not been run against a real
+  install; the stamp says so (`verified: false`). Their GUI takes the same 3MF today.
+- A second opinion is one file away: any printability skill on the host (e.g.
+  text-to-cad's `dfam-check` / `gcode` / `bambu-labs`) takes the same 3MF. The
+  `print-object` catalyst walks both routes.

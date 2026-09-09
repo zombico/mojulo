@@ -69,6 +69,7 @@ export function describeBoundMeshes(ref, { manifestHash = null } = {}) {
       manifest_hash: boundHash,
       stale: manifestHash && boundHash ? boundHash !== manifestHash : null,
       textures: Array.isArray(sc.textures) ? sc.textures : [],
+      ...(Number.isFinite(sc.scale_applied) ? { source_units: sc.source_units ?? null, scale_applied: sc.scale_applied } : {}),
       contract_ok: sc.contract && typeof sc.contract.ok === 'boolean' ? sc.contract.ok : null,
       contract_drift: Array.isArray(sc.contract?.contract_drift) ? sc.contract.contract_drift.length : null,
     };

@@ -152,10 +152,32 @@ describe('export_model stl — print advisories (G3) and strict (G4)', () => {
     const res = await exportModelHandler({ ref: 'sk_adv_clean', format: 'stl' });
     expect(res.ok).toBe(true);
     expect(res.print_advisories).toEqual([]);
-    expect(res.printer).toEqual({ nozzle_mm: 0.4, layer_mm: 0.2, min_wall_mm: 0.8, bed_mm: [220, 220, 250] });
+    expect(res.printer).toEqual({ process: 'fdm', nozzle_mm: 0.4, layer_mm: 0.2, min_wall_mm: 0.8, self_support_deg: 45, bed_mm: [220, 220, 250], trapped_volume: false });
     expect(res.note).toContain('Print advisories: none');
+    // text-to-cad-seam T2: the measured rung rides the result, the note, and the README
+    expect(res.print_measure.overhang.area_mm2).toBe(0); // a capped cylinder standing up: caps flat, walls vertical
+    expect(res.print_measure.bed_contact_mm2).toBeGreaterThan(1000); // the 40 mm disc on the bed (faceted, so a little under π·20²)
+    expect(res.print_measure.walls.measured).toBe(true);
+    expect(res.print_measure.walls.min_mm).toBeGreaterThan(38); // across the 40 mm diameter
+    expect(res.print_measure.walls.min_mm).toBeLessThanOrEqual(40);
+    expect(res.print_measure.orientation.best).toBe('z+');
+    expect(res.note).toContain('Measured printability: no overhang past 45°');
     const readme = readFileSync(path.join(res.dir, 'README.md'), 'utf8');
-    expect(readme).toContain('print advisories (profile: 0.4 mm nozzle, 0.8 mm min wall, 220 × 220 × 250 mm bed): none');
+    expect(readme).toContain('print advisories (profile: FDM, 0.4 mm nozzle, 0.8 mm min wall, 45° self-support, 220 × 220 × 250 mm bed): none');
+    expect(readme).toContain('- measured printability: no overhang past 45°');
+  });
+
+  it('a process profile words the advisories: SLA tightens the wall floor and the self-support angle, powder judges no overhang', async () => {
+    const sla = await exportModelHandler({ ref: 'sk_adv_clean', format: 'stl', write: false, printer: { process: 'sla' } });
+    expect(sla.printer.process).toBe('sla');
+    expect(sla.printer.self_support_deg).toBe(30);
+    expect(sla.print_measure.overhang.limit_deg).toBe(30);
+    expect(sla.print_advisories.map((r) => r.kind)).toEqual(['trapped_volume']); // resin traps; stated, not measured
+    const sls = await exportModelHandler({ ref: 'sk_adv_clean', format: 'stl', write: false, printer: { process: 'sls' } });
+    expect(sls.print_measure.overhang).toBeNull();
+    expect(sls.print_measure.orientation).toBeNull();
+    expect(sls.note).toContain('overhang not judged');
+    await expect(exportModelHandler({ ref: 'sk_adv_clean', format: 'stl', write: false, printer: { process: 'laser' } })).rejects.toThrow(/printer\.process/);
   });
 
   it('a declared wall under the floor AT THE RESOLVED SCALE is a thin_wall advisory — the file still ships', async () => {
@@ -164,16 +186,21 @@ describe('export_model stl — print advisories (G3) and strict (G4)', () => {
     SketchRepository.create({ ref: 'sk_adv_thin', title: 'tray', manifest: { kind: 'workbench', units: 'cm', extrudes: [TRAY] } });
     const res = await exportModelHandler({ ref: 'sk_adv_thin', format: 'stl' });
     expect(res.ok).toBe(true); // advisory — the export still ships
-    expect(res.print_advisories.map((r) => r.kind)).toEqual(['thin_wall']);
+    // rung 1 (declared) and rung 2 (sampled) both see the 0.3 mm wall; the closed shell's
+    // cavity ceiling is a real bridge, reported as the overhang it is
+    expect(res.print_advisories.map((r) => r.kind)).toEqual(['thin_wall', 'thin_wall_measured', 'overhang']);
     expect(res.print_advisories[0].mm).toBeCloseTo(0.3, 5);
-    expect(res.note).toContain('Print advisories (1): thin_wall');
+    expect(res.print_advisories[1].mm).toBeCloseTo(0.3, 1);
+    expect(res.print_measure.walls.measured).toBe(true);
+    expect(res.print_measure.overhang.worst_deg).toBe(90);
+    expect(res.note).toContain('Print advisories (3): thin_wall');
     const readme = readFileSync(path.join(res.dir, 'README.md'), 'utf8');
     expect(readme).toContain('  - thin_wall: extrudes[0].wallThickness prints 0.3 mm thick');
     // a coarser printer profile words it differently; a finer one clears it
     const coarse = await exportModelHandler({ ref: 'sk_adv_thin', format: 'stl', write: false, printer: { nozzle_mm: 0.6 } });
     expect(coarse.print_advisories[0].detail).toContain('1.2 mm two-perimeter floor');
     const fine = await exportModelHandler({ ref: 'sk_adv_thin', format: 'stl', write: false, printer: { nozzle_mm: 0.1 } });
-    expect(fine.print_advisories).toEqual([]);
+    expect(fine.print_advisories.map((r) => r.kind)).toEqual(['overhang']); // the walls clear a 0.2 mm floor; the ceiling is still a bridge
   });
 
   it('over_bed fires on the exported size; a bigger declared bed clears it', async () => {

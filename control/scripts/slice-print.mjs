@@ -27,7 +27,7 @@
  */
 import { parseArgs } from 'node:util';
 import { promises as fs } from 'node:fs';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
@@ -55,7 +55,7 @@ if (!args.ref && !args['3mf']) fail('need --ref <sketch> or --3mf <file>');
 
 register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 resolveMojuloPaths();
-const { findSlicer, parseGcodeHeader, parseSlicerInfo, summarizePrintGate, bedCenterFromProfile, sliceFailureReason, DEFAULT_BED_CENTER } = await import('@/lib/graph/scene/print-gate.js');
+const { findSlicer, parseGcodeHeader, parseSlicerInfo, summarizePrintGate, bedCenterFromProfile, sliceFailureReason, DEFAULT_BED_CENTER, orcaProfileFiles, orcaSliceArgs, parseOrcaGcodeHeader } = await import('@/lib/graph/scene/print-gate.js');
 
 // ── 1. the file: export via the same handler the MCP tool uses, or take one ──
 let file; let exported = null;
@@ -100,10 +100,55 @@ if (args['no-gate']) {
   gate = { skipped: true, reason: '--no-gate' };
 } else if (!slicer) {
   log('no slicer found — capability rung 0, 3MF + closure audit only');
-  gate = { skipped: true, reason: 'no slicer found (set MOJULO_SLICER, or install PrusaSlicer / SuperSlicer; OrcaSlicer and Bambu Studio are detected but their CLI is not wired — open the 3MF in the app)' };
+  gate = { skipped: true, reason: 'no slicer found (set MOJULO_SLICER, or install PrusaSlicer / SuperSlicer — verified; OrcaSlicer / Bambu Studio are driven with a machine+process --profile, unverified) — open the 3MF in the app' };
+} else if (slicer.family === 'orca') {
+  // OrcaSlicer / Bambu Studio (text-to-cad-seam T6): JSON profiles, no defaults, no --info.
+  const profile = args.profile || process.env.MOJULO_SLICER_PROFILE || null;
+  const listDir = (d) => { try { return statSync(d).isDirectory() ? readdirSync(d) : null; } catch { return null; } };
+  const profiles = orcaProfileFiles(profile, { listDir });
+  if (!profiles) {
+    log(`${slicer.id} found at ${slicer.bin} — its CLI needs a machine + process profile; skipping the slice`);
+    gate = { skipped: true, slicer: slicer.id, bin: slicer.bin, reason: `${slicer.id} needs --profile "machine.json;process.json[;filament.json]" (or a directory of them) — this family slices with no defaults; open ${file} in the app meanwhile` };
+  } else {
+    const sliceDir = path.join(dir, 'slicedata');
+    await fs.rm(sliceDir, { recursive: true, force: true });
+    await fs.rm(path.join(dir, 'sliced.3mf'), { force: true });
+    const sargs = orcaSliceArgs({ file, outDir: dir, profiles, supports: !!args.supports });
+    log(`machine gate — ${slicer.id} ${sargs.slice(0, 6).join(' ')} … (arranged onto the bed; flags per the Bambu Studio CLI wiki — unverified on this host)`);
+    const slice = await run(slicer.bin, sargs);
+    const sliceLog = path.join(dir, 'slice.log');
+    await fs.writeFile(sliceLog, `$ ${slicer.bin} ${sargs.join(' ')}\n\n${slice.out}\n${slice.err}`);
+    // the plate G-code lands under slicedata/ (plate_1.gcode); read the first one found
+    let gcodePath = null; let gcodeParsed = null;
+    try {
+      const walk = (d) => { for (const n of readdirSync(d)) { const p = path.join(d, n); if (statSync(p).isDirectory()) { const r = walk(p); if (r) return r; } else if (/\.gcode$/i.test(n)) return p; } return null; };
+      gcodePath = existsSync(sliceDir) ? walk(sliceDir) : null;
+    } catch { gcodePath = null; }
+    if (!slice.timedOut && slice.code === 0 && gcodePath) gcodeParsed = parseOrcaGcodeHeader(await fs.readFile(gcodePath, 'utf8'));
+    const summary = summarizePrintGate({ info: null, gcode: gcodeParsed, exportSizeMm: exported?.size_mm ?? null });
+    gate = {
+      skipped: false,
+      slicer: slicer.id,
+      bin: slicer.bin,
+      family: 'orca',
+      verified: false,
+      verify_note: 'orca-family flags follow the Bambu Studio CLI wiki (2026-09-08) and have not been run against a real install here; size_agrees is null (no --info twin) — read slice.log if anything looks off',
+      profile: profile,
+      slice_exit: slice.timedOut ? 'timeout' : slice.code,
+      gcode: gcodePath,
+      sliced_3mf: existsSync(path.join(dir, 'sliced.3mf')) ? path.join(dir, 'sliced.3mf') : null,
+      log: sliceLog,
+      reason: summary.sliced ? null : (slice.timedOut ? 'timeout' : sliceFailureReason(slice.out + slice.err)),
+      ...summary,
+    };
+    if (!summary.sliced) {
+      process.stderr.write((slice.err || slice.out).trim().split('\n').slice(-8).join('\n') + '\n');
+      log(`machine gate FAILED: no plate G-code came out (${slice.timedOut ? `hung past the ${WATCHDOG_MS / 60000}min watchdog` : `exit ${slice.code}`}${gate.reason ? `, reason ${gate.reason}` : ''}) — see ${sliceLog}`);
+    }
+  }
 } else if (slicer.family !== 'prusa') {
   log(`${slicer.id} found at ${slicer.bin} — its CLI is not wired; open the 3MF in the app for the eyes gate`);
-  gate = { skipped: true, slicer: slicer.id, bin: slicer.bin, reason: `${slicer.id} CLI not wired (PrusaSlicer-family only today) — open ${file} in the app` };
+  gate = { skipped: true, slicer: slicer.id, bin: slicer.bin, reason: `${slicer.id} CLI not wired — open ${file} in the app` };
 } else {
   const profile = args.profile || process.env.MOJULO_SLICER_PROFILE || null;
   const load = profile ? ['--load', path.resolve(profile)] : [];
@@ -161,7 +206,7 @@ const stamp = {
   file,
   ref: args.ref ?? null,
   measured_at: new Date().toISOString(),
-  declared: exported ? { size_mm: exported.size_mm, scale: exported.scale, print_profile: exported.print_profile, closure: exported.closure, objects: exported.objects, items: exported.items, colors: exported.colors } : null,
+  declared: exported ? { size_mm: exported.size_mm, scale: exported.scale, print_profile: exported.print_profile, closure: exported.closure, measure: exported.print_measure ?? null, advisories: exported.print_advisories ?? null, objects: exported.objects, items: exported.items, colors: exported.colors } : null,
   gate,
 };
 await fs.writeFile(gatePath, `${JSON.stringify(stamp, null, 2)}\n`);

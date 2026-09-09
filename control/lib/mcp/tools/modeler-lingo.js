@@ -213,7 +213,23 @@ const LEXICON = [
     ],
     then: [EXPORT],
     ceiling: 'Uniform fillets only (the whole solid, or one blended junction), rounded to the field grid. A sharp CHAMFER (a flat 45° break) and per-edge fillet selection are not on offer.',
-    dcc: "Chamfers and per-edge bevels: export and use Blender's Bevel modifier with edge weights / bevel segments.",
+    dcc: "Chamfers and per-edge bevels: export and use Blender's Bevel modifier with edge weights / bevel segments — or, for a machined edge on a toleranced part, a B-rep CAD tool (see `precision cad`).",
+  },
+  {
+    // text-to-cad-seam.plan.md T3 — the one honest sentence about where mojulo stops on a
+    // mechanical part, and how the part comes back. A HANDOFF, not a capability.
+    id: 'precision-cad',
+    terms: ['tolerance', 'tolerances', 'toleranced', 'press fit', 'clearance fit', 'interference fit', 'thread', 'threads', 'threaded', 'tapped hole', 'gear', 'gear teeth', 'bearing seat', 'mating parts', 'mates', 'datum', 'sharp chamfer', 'step file', 'b-rep', 'brep', 'cad', 'precision cad', 'parametric cad', 'mechanical cad', 'snap fit', 'enclosure lid', 'lid that fits', 'bracket with bolt holes', 'machined part', 'engineering part'],
+    concept: 'A part whose value is in its FIT — tolerances, threads, gear teeth, mating faces, machined edges — rather than its form.',
+    support: HANDOFF,
+    routes: [
+      { tool: 'mint_solid', when: 'the FORM of the part (a bracket, a housing, a bolt circle) is native — author it here for the world, the game, and a form-accurate print; the FIT is not', args: { kind: 'workbench', spec: { units: 'mm' } } },
+    ],
+    then: [
+      { tool: 'bind_mesh_render', when: 'bring the CAD part home: its tessellated .glb, `units` naming the file\'s unit (a CAD GLB is mm), `expected_box` = the tool\'s own bbox, `source` = the tool', args: { ref: '<sk_ref>', glb_path: '<file.glb>', units: 'mm', source: 'text-to-cad/cadgen@x.y.z' } },
+    ],
+    ceiling: 'Field solids round every edge to about one grid cell and there is no constraint solver, no thread, no gear profile, no GD&T — the workbench gets the form right, not the fit. A toleranced bore is a handoff even after `cuts` lands (parts-booleans.plan.md): `cuts` is for the hole, not the fit.',
+    dcc: 'Author a toleranced or threaded part in a B-rep CAD tool — text-to-cad (build123d over OpenCascade; STEP-first, with its own printability and slicer skills), FreeCAD, Onshape, Fusion — and bring the tessellated GLB home with `bind_mesh_render`. Mojulo then places it in a world, ships it to an engine, or prints it beside its own parts; the .step stays the source of the part, the recipe the source of everything around it.',
   },
   {
     id: 'baking',
@@ -271,7 +287,7 @@ const LEXICON = [
       { tool: 'export_model', when: 'the print handoff — 3MF (slicer-preferred: mm declared in-file, colours, instanced repeats as objects) or binary STL; z-up, scale maps world units → mm', args: { ref: '<sk_ref>', format: '3mf' } },
     ],
     ceiling: 'By default the print file is honest shells (the closure audit names open rims); `union: true` runs a Manifold CSG union so the parts arrive as ONE solid with a measured volume (optional dependency — absent, it ships plain and says why). STL is shape only (colour/groups dropped); 3MF keeps the baked colours as basematerials.',
-    dcc: "Import into your slicer (PrusaSlicer/Bambu/Orca/Cura) — 3MF arrives at true millimetres; with `union: true` it is one body already, otherwise let the slicer merge the shells. Orient, hollow, and add supports there. For STL, set `scale` at export so the print lands at real millimetres.",
+    dcc: "Import into your slicer (PrusaSlicer/Bambu/Orca/Cura) — 3MF arrives at true millimetres; with `union: true` it is one body already, otherwise let the slicer merge the shells. Orient, hollow, and add supports there (the export's `print_measure` names the overhang area and the least-support axis; `measure_solid` reads the same numbers without a file). For STL, set `scale` at export so the print lands at real millimetres. The same 3MF also takes a second opinion from any printability skill on your host — text-to-cad's `dfam-check` / `gcode` / `bambu-labs`, or `scripts/slice-print.mjs` for a PrusaSlicer-family stamp; the operator's choice of gate.",
   },
   {
     id: 'sdf-expression',

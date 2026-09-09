@@ -10,6 +10,62 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### The print leg measures — process limits, overhang and sampled walls, the CAD return door (text-to-cad-seam T1–T6)
+
+Reading `earthtojake/text-to-cad` (the mechanical-CAD neighbour: build123d over OpenCascade,
+the same recipe-is-truth / advisory / look-before-handoff doctrine, no kernel overlap) turned up
+three things its print leg does that ours did not, and one honest sentence ours owed. The hook
+demo made the case concrete: PrusaSlicer's stamp said `supports: false` and a human found the
+J arm's overhang; Grok's chariot signature reports the same catch at the eyes gate. Now the
+stamp says it. Design + the neighbour survey: `lite-template/integration/0907/text-to-cad-seam.plan.md`.
+
+- **Process limits (T1).** `printer.process: 'fdm' | 'sla' | 'sls' | 'mjf'` picks a row of
+  `PROCESS_LIMITS` (`print-advisory.js`): wall floor, `self_support_deg` (null = powder supports
+  everything), layer, a typical bed, and whether the process traps material. Explicit fields
+  still override; a resolved profile round-trips. Resin / powder get a stated `trapped_volume`
+  advisory (cavities need an escape hole; not measured). The advisory head names the process.
+  Numbers are design-guide defaults with their sources in the table's comment.
+- **Measured printability (T2) — `scene/print-measure.js`.** Over the very millimetre soup the
+  STL / 3MF carry (post-union when `union: true`): `overhang` (area past the process's
+  self-support angle, steepest angle, faces), `support` (footprint; a column-to-bed volume
+  BOUND), `walls` (SAMPLED by one inward ray per triangle — up to 20,000 — counting shell depth
+  so overlapping un-unioned shells read the union's depth; faces buried inside another shell and
+  flush joints are set aside and counted), and an `orientation` hint (the axis of six with the
+  least support footprint). No distance field, nothing in the recipe, deterministic. Rides
+  `export_model` and `measure_solid` as `print_measure`, two new advisory kinds
+  (`thin_wall_measured` at the 5th percentile, `overhang` with the better axis), the note, the
+  README, and the slicer stamp's `declared.measure`. On the hook: 1,126 mm² of 90° overhang,
+  best axis `y+` (on its side — what the demo plan guessed), walls thinnest 4 mm (the jaw).
+  A closed cavity's ceiling is a bridge and is reported as one. Tests: `print-measure.test.js`
+  (cube, T, inverted pyramid at 45°, hollow box, overlapping shells, flush joint, double wall,
+  sample stride), and the export / measure suites re-pinned on the new profile shape.
+- **The honesty sentence (T3).** `translate_modeler_lingo` gains `precision-cad` (tolerances,
+  threads, gears, press fits, mates, STEP, B-rep): a HANDOFF — the workbench gets the FORM, a
+  B-rep tool (text-to-cad, FreeCAD, Onshape) gets the FIT — with `bind_mesh_render` as the
+  return door; `3d-print` names the measured rung and the second worker roster (a host's
+  printability skills); `chamfer-fillet` points at it; the workbench routing card forks to it.
+- **The return door (T4).** `bind_mesh_render { units: 'mm' | 'cm' | 'm' | 'in' | 'ft' }`
+  (or a bare `scale`) converts a CAD GLB's unit into the sketch's declared unit — recorded on the
+  SIDECAR as `source_units` / `scale_applied`, bytes untouched; the meshRef lowering composes it
+  with the placement's `transform.scale`, so a 40 mm bracket lands as 4 cm in a cm workbench.
+  `expected_box` (the CAD tool's own bbox, in file units) runs the worker path's 0.5×–2× size
+  gate on a manual bind. A CAD-tagged `source` gets the not-travelled ledger (B-rep exactness,
+  mates, materials; the .step stays the source). Absent `units`, byte-identical behaviour.
+  `describeBoundMeshes` surfaces both fields. Tests: `bind-mesh-render.units.test.js`.
+- **`print-object` catalyst (T5)** — the print bicycle written from the hook run: measure →
+  export → the machine gate by what the host has (PrusaSlicer family via `slice-print.mjs`, or a
+  printability skill over the same 3MF, or rung 0) → the eyes gate with the measured faces to
+  look at → the read filed as a revision note.
+- **Orca / Bambu Studio CLI (T6) — UNVERIFIED.** `slice-print.mjs` drives the `orca` family
+  with the flags Bambu Studio's CLI wiki documents (`--load-settings machine;process`,
+  `--load-filaments`, `--slice 0 --arrange 1`, `--export-3mf`, `--export-slicedata`): JSON
+  profiles are REQUIRED (no defaults — absent, it skips with the reason), there is no `--info`
+  twin (`size_agrees` null), the plate G-code is parsed by `parseOrcaGcodeHeader` (its own
+  ledger keys). No Orca on this host: the stamp carries `verified: false` and a note until a
+  real run lands. Pure halves (`orcaProfileFiles`, `orcaSliceArgs`, the parser) are unit-tested.
+- Registry: no new listed tool; `measure_solid` and `export_model` descriptions trimmed to
+  routing grade to fit `bind_mesh_render`'s three new properties under the unchanged 261,000 pin.
+
 ### Unreal demo — connected project levels
 
 - In progress: optional project map routing lets the game menu open persistent levels

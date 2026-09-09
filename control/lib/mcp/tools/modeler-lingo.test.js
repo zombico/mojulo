@@ -66,4 +66,27 @@ describe('translate_modeler_lingo', () => {
     expect(out.unmatched.suggestion).toMatch(/create_polygonized_sketch/);
     expect(Array.isArray(out.unmatched.known_terms)).toBe(true);
   });
+
+  // text-to-cad-seam.plan.md T3 — the precision-CAD handoff and the way back in
+  it('a toleranced mechanical part is a HANDOFF to a B-rep tool, with bind_mesh_render as the return door', async () => {
+    const out = await translateModelerLingoHandler({ lingo: 'press fit bearing seat with a tapped hole' });
+    const top = out.matches[0];
+    expect(top.id).toBe('precision-cad');
+    expect(top.support).toBe('handoff');
+    expect(top.do_in_dcc).toMatch(/B-rep|text-to-cad|FreeCAD/);
+    expect(top.then.some((r) => r.tool === 'bind_mesh_render' && r.args?.units === 'mm')).toBe(true);
+    expect(top.ceiling).toMatch(/fit/);
+    // the form route is still offered — the FORM is native, the FIT is not
+    expect(top.mojulo_routes.some((r) => r.tool === 'mint_solid')).toBe(true);
+  });
+
+  it('a bolt circle is still native (array-pattern first); "precision cad" resolves directly', async () => {
+    const bolts = await translateModelerLingoHandler({ lingo: 'bolt circle' });
+    expect(bolts.matches[0].id).toBe('array-pattern');
+    const direct = await translateModelerLingoHandler({ lingo: 'precision cad' });
+    expect(direct.matches[0].id).toBe('precision-cad');
+    const print = await translateModelerLingoHandler({ lingo: '3d print this' });
+    expect(print.matches[0].id).toBe('3d-print');
+    expect(print.matches[0].do_in_dcc).toMatch(/dfam-check|slice-print/);
+  });
 });

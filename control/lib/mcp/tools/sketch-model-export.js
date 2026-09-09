@@ -23,11 +23,13 @@ import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
+import { facesBox } from '@/lib/graph/scene/mesh-fit';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
 import { glbNodeInventory, compareReturnContract } from '@/lib/graph/scene/blender-gate';
 import { existsSync } from 'node:fs';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
 import { printAdvisories, advisoryLines, resolvePrinter } from '@/lib/graph/scene/print-advisory';
+import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
 import { unitMillimetres, declaredUnits } from '@/lib/graph/scene/world-units';
 import { assessWorldTier } from '@/lib/graph/worlds/world-contract';
 import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
@@ -164,8 +166,9 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
         ...(print.ledger
           ? [`- ledger at last mint/edit: ${print.ledger.faces} faces, recipe ${print.ledger.recipe_bytes} bytes, per-monomer lint ${print.ledger.closed ? 'closed' : 'open'}${print.ledger.closed && print.closure.audited && !print.closure.closed ? ' — the whole-object audit above finds open rims the per-monomer lint excused (a declared-open monomer: caps:false / openFace, or an overlap seam)' : ''}`]
           : []),
+        `- ${measureLine(print.measure)}`,
         ...advisoryLines(print.advisories, print.printer).map((l, i) => (i === 0 ? `- ${l}` : l)),
-        '- advisories are declared-feature arithmetic (walls, tube and neck diameters the recipe states) against the printer profile — the slicer measures the rest.',
+        '- advisories are two rungs against the printer profile: declared-feature arithmetic (walls, tube and neck diameters the recipe states) and the measurement above (overhang vs the self-support angle; walls SAMPLED by inward ray, not a true medial thickness; support volume is a column-to-bed bound) — the slicer measures the rest.',
       ]
       : []),
     '',
@@ -499,10 +502,15 @@ export async function exportModelHandler(input) {
         : ` Union NOT applied: ${unionResult.reason}.`;
     result.printer = printer;
     if (sketch.manifest.ledger && typeof sketch.manifest.ledger === 'object') result.ledger = sketch.manifest.ledger; // G6: what the last mint/edit measured
-    result.print_advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm: result.size_mm, printer });
-    const advisoryNote = result.print_advisories.length
+    // Rung 2 (text-to-cad-seam T2): overhang / support / sampled walls over the very soup the
+    // file carries (post-union when `union: true`), at the printed scale.
+    const soup = printSoup(payload, { scale });
+    result.print_measure = soup ? measurePrintability({ positions: soup, printer }) : null;
+    result.print_advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm: result.size_mm, printer, measure: result.print_measure });
+    const measureNote = ` ${measureLine(result.print_measure)[0].toUpperCase()}${measureLine(result.print_measure).slice(1)}.`;
+    const advisoryNote = measureNote + (result.print_advisories.length
       ? ` Print advisories (${result.print_advisories.length}): ${result.print_advisories.map((r) => `${r.kind} — ${r.detail}`).join('; ')}.`
-      : ' Print advisories: none — declared features clear the wall floor and the part fits the bed.';
+      : ' Print advisories: none — declared features clear the wall floor, the sampled walls and overhang clear the profile, and the part fits the bed.');
     result.note = (format === '3mf'
       ? `${profileLine} 3MF for slicers (PrusaSlicer / Bambu / Orca / Cura): millimetres declared in the file, baked colours as `
         + `${result.colors} basematerial${result.colors === 1 ? '' : 's'}${result.color_bits ? ` (palette quantized to ${result.color_bits} bits/channel)` : ''}, `
@@ -546,7 +554,7 @@ export async function exportModelHandler(input) {
       path.join(dir, 'README.md'),
       buildModelReadme({
         sketch, ref, kind: kind ?? sketch.manifest.kind, format, hash, exported, clips,
-        ...(isPrint ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units, advisories: result.print_advisories, printer, ledger: result.ledger ?? null } } : {}),
+        ...(isPrint ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units, advisories: result.print_advisories, measure: result.print_measure, printer, ledger: result.ledger ?? null } } : {}),
       }),
     );
     result.path = file;
@@ -594,12 +602,16 @@ const manifestHashOf = (manifest) => createHash('sha256').update(JSON.stringify(
  * (D4: a HAND return's drift is a finding; the handoff's own size gate is where a
  * WORKER return that came back re-scaled is refused at accept).
  */
-export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source = null, note = null } = {}) {
+export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source = null, note = null, scale = null, sourceUnits = null } = {}) {
   const scene = glbToScene(bytes);
   const { faces, textures, ledger } = scene;
   if (!faces.length) {
     throw new Error('the submitted GLB carries no triangle geometry — bind the refined mesh, not an empty scene');
   }
+  // text-to-cad-seam.plan.md T4: a CAD tool's GLB is exactly right in ITS unit (millimetres, by
+  // construction); the conversion into the sketch's world units rides the SIDECAR, never the
+  // bytes — the meshRef lowering composes `scale_applied` into the placement transform.
+  const scaleApplied = Number.isFinite(scale) && scale > 0 && scale !== 1 ? scale : null;
   const manifestHash = manifestHashOf(sketch.manifest);
   let contract = null;
   const packPath = path.join(outcomeDirFor(sketch.ref), 'blender', 'pack.json');
@@ -624,6 +636,7 @@ export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source =
       {
         source_path: sourcePath, source: typeof source === 'string' && source ? source : null, bound_at: new Date().toISOString(), sha256, bytes: bytes.length, note: note || null, n: slot.n,
         manifest_hash: manifestHash,
+        ...(scaleApplied ? { source_units: sourceUnits || null, scale_applied: scaleApplied } : {}),
         textures: ledger.textures_carried.map((t) => t.key),
         ...(ledger.textures_dropped.length ? { textures_dropped: ledger.textures_dropped } : {}),
         ...(Object.values(ledger.maps_dropped).some(Boolean) ? { maps_dropped: ledger.maps_dropped } : {}),
@@ -633,17 +646,50 @@ export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source =
       2,
     ),
   );
-  return { slot, sha256, faces, textures, ledger, manifestHash, contract };
+  return { slot, sha256, faces, textures, ledger, manifestHash, contract, scaleApplied };
+}
+
+// The unit → world-units factor for a bound GLB (T4). `units` names the FILE's unit; the sketch's
+// own declared unit (manifest `units`, else the kind's authoring unit) is the target. A bare
+// numeric `scale` wins. Null when nothing was asked (world units assumed, as always).
+function boundMeshScale(sketch, { units = null, scale = null } = {}) {
+  if (scale != null) {
+    if (!(Number.isFinite(scale) && scale > 0)) throw new Error('`scale` must be a positive number (file units → world units)');
+    return { scale, sourceUnits: units || null };
+  }
+  if (units == null) return { scale: null, sourceUnits: null };
+  const fileMm = unitMillimetres(units);
+  if (fileMm == null) throw new Error(`\`units\` must be one of mm | cm | m | in | ft (got '${units}')`);
+  const declared = declaredUnits(sketch.manifest);
+  const worldMm = declared ? unitMillimetres(declared.units) : null;
+  if (worldMm == null) {
+    throw new Error(`sketch '${sketch.ref}' declares no unit (no manifest \`units\` and its kind has no authoring unit), so \`units: '${units}'\` has nothing to convert into — pass a numeric \`scale\` instead`);
+  }
+  return { scale: fileMm / worldMm, sourceUnits: units };
 }
 
 export async function bindMeshRenderHandler(input) {
-  const { ref, glb_path: glbPath, note, source } = input || {};
+  const { ref, glb_path: glbPath, note, source, units = null, scale: scaleInput = null, expected_box: expectedBox = null } = input || {};
   if (!ref || typeof ref !== 'string') throw new Error('bind_mesh_render requires { ref }');
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`Sketch '${ref}' not found`);
   if (!glbPath || typeof glbPath !== 'string') throw new Error('bind_mesh_render requires { glb_path }');
+  const { scale, sourceUnits } = boundMeshScale(sketch, { units, scale: scaleInput });
+  if (expectedBox != null && !(expectedBox && Array.isArray(expectedBox.min) && Array.isArray(expectedBox.max) && expectedBox.min.length === 3 && expectedBox.max.length === 3)) {
+    throw new Error('`expected_box` must be { min: [x,y,z], max: [x,y,z] } in the FILE\'s units');
+  }
   const bytes = await fs.readFile(glbPath);
-  const { slot, sha256, faces, ledger, manifestHash, contract } = await bindMeshBytes(sketch, bytes, { sourcePath: glbPath, source, note });
+  const { slot, sha256, faces, ledger, manifestHash, contract, scaleApplied } = await bindMeshBytes(sketch, bytes, { sourcePath: glbPath, source, note, scale, sourceUnits });
+  // The size gate the worker path runs against the greybox, here against the CAD tool's OWN box
+  // (both in file units, before the scale): 0.5×–2× per axis catches a ×10 / ×25.4 slip.
+  let machine = null;
+  if (expectedBox) {
+    const got = facesBox(faces);
+    const gotSize = [0, 1, 2].map((k) => got.max[k] - got.min[k]);
+    const expSize = [0, 1, 2].map((k) => Number(expectedBox.max[k]) - Number(expectedBox.min[k]));
+    const sizeAgrees = [0, 1, 2].every((k) => (expSize[k] < 1e-6 ? true : gotSize[k] >= expSize[k] * 0.5 && gotSize[k] <= expSize[k] * 2));
+    machine = { size_file_units: gotSize.map((v) => Math.round(v * 1000) / 1000), expected_size: expSize.map((v) => Math.round(v * 1000) / 1000), size_agrees: sizeAgrees };
+  }
   const driftLine = contract?.contract_drift
     ? (contract.contract_drift.length
       ? ` CONTRACT DRIFT (advisory, measured against the Blender pack): ${contract.contract_drift.length} row${contract.contract_drift.length === 1 ? '' : 's'} — ${contract.contract_drift.slice(0, 4).map((d) => `${d.node} ${d.kind}`).join(', ')}${contract.contract_drift.length > 4 ? ', …' : ''}; form changes belong upstream in the recipe.`
@@ -669,8 +715,14 @@ export async function bindMeshRenderHandler(input) {
     ...(ledger.textures_dropped.length ? { textures_dropped: ledger.textures_dropped } : {}),
     ...(Object.values(ledger.maps_dropped).some(Boolean) ? { maps_dropped: ledger.maps_dropped } : {}),
     ...(contract ? { contract } : {}),
+    ...(scaleApplied ? { source_units: sourceUnits, scale_applied: Math.round(scaleApplied * 1e6) / 1e6 } : {}),
+    ...(machine ? { machine } : {}),
     next:
-      `Mesh bound (append-only slot ${slot.n}; latest wins).${driftLine}${texLine}${dropLine} Place it in any world as static scenery via a `
+      `Mesh bound (append-only slot ${slot.n}; latest wins).${driftLine}${texLine}${dropLine}`
+      + (scaleApplied ? ` Units: the file's ${sourceUnits || 'declared'} units land in the sketch's world units at ×${Math.round(scaleApplied * 1e6) / 1e6} (recorded on the sidecar; the bytes are untouched; every meshRef placement inherits it).` : '')
+      + (machine ? (machine.size_agrees ? ` Size gate: the decoded box agrees with expected_box (${machine.size_file_units.join(' × ')} vs ${machine.expected_size.join(' × ')}).` : ` SIZE GATE FAILED: decoded ${machine.size_file_units.join(' × ')} vs expected ${machine.expected_size.join(' × ')} — a unit slip or a re-centred export; check \`units\` before placing it.`) : '')
+      + (source && /cad|freecad|onshape|fusion|step/i.test(String(source)) ? ' Ledger for a CAD-born part: B-rep exactness does not travel (this is a tessellation at the tool\'s deflection), nor do assembly joints / mates or materials beyond a base colour; keep the .step beside your recipe — it is the source there. The Blender `contract` block, if present, is the art-pass return\'s check and reads informational for any other producer.' : '')
+      + ' Place it in any world as static scenery via a '
       + `figures-map entry: figures: { <name>: { meshRef: '${sketch.ref}', transform?: { pos:[x,y,z], rotZ, scale } } } — `
       + 'it is lowered server-side to the standard face list, so /world, the stills, and export_model all render it. '
       + 'The decode keeps vertex colours / baseColor, node transforms and albedo textures (TEXCOORD_0 + embedded PNG/JPEG); normal / roughness / metallic maps, animations and skins are dropped and counted.',

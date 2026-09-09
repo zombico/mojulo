@@ -33,6 +33,8 @@ describe('measure_solid', () => {
     expect(m.volume.volume_mm3).toBeLessThan(75500);
     expect(m.volume.genus).toBe(0);
     expect(m.print_advisories).toEqual([]);
+    expect(m.print_measure.walls.measured).toBe(true); // T2 rides measure_solid too
+    expect(m.print_measure.overhang.area_mm2).toBe(0);
     expect(m.note).toContain('prints 40 × 40 × 60 mm');
   });
 
@@ -60,10 +62,11 @@ describe('measure_solid', () => {
     const TRAY = { profile: { rect: { w: 4, h: 3 } }, axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 2 }, wallThickness: 0.03 };
     SketchRepository.create({ ref: 'ms_tray', title: 'tray', manifest: { kind: 'workbench', units: 'cm', extrudes: [TRAY] } });
     const m = await measureSolidHandler({ ref: 'ms_tray', volume: false });
-    expect(m.print_advisories.map((r) => r.kind)).toEqual(['thin_wall']);
+    // declared + sampled wall, and the closed shell's cavity ceiling is a bridge (overhang)
+    expect(m.print_advisories.map((r) => r.kind)).toEqual(['thin_wall', 'thin_wall_measured', 'overhang']);
     expect(m.volume).toEqual({ skipped: true, reason: 'volume: false' });
     const fine = await measureSolidHandler({ ref: 'ms_tray', volume: false, printer: { nozzle_mm: 0.1 } });
-    expect(fine.print_advisories).toEqual([]);
+    expect(fine.print_advisories.map((r) => r.kind)).toEqual(['overhang']); // the walls clear a 0.2 mm floor; the ceiling is still a bridge
   });
 
   it('a flat diagram is not measurable; a missing ref throws', async () => {

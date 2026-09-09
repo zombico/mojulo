@@ -175,7 +175,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         throw new Error(`figures.${name}: sketch '${rawSpec.meshRef}' has no bound mesh — bind one first via bind_mesh_render`);
       }
       const { readBoundMeshScene } = await import('@/lib/graph/scene/scene-gltf-read.js');
-      const { faces: meshFaces, textures: meshTextures } = readBoundMeshScene(bound.path, { transform: rawSpec.transform, group: `mesh:${name}` });
+      // A bind made with `units` / `scale` (text-to-cad-seam T4) records `scale_applied` on the
+      // sidecar — the file's unit into this sketch's world units. It composes with the placement's
+      // own `transform.scale`; absent (every bind before T4), the factor is 1 and nothing moves.
+      let unitScale = 1;
+      try {
+        const { readFileSync } = await import('node:fs');
+        const sc = JSON.parse(readFileSync(bound.sidecarPath, 'utf8'));
+        if (Number.isFinite(sc.scale_applied) && sc.scale_applied > 0) unitScale = sc.scale_applied;
+      } catch { /* no sidecar or unreadable — world units assumed */ }
+      const placement = rawSpec.transform && typeof rawSpec.transform === 'object' ? rawSpec.transform : {};
+      const transform = unitScale === 1 ? rawSpec.transform : { ...placement, scale: (Number.isFinite(placement.scale) && placement.scale > 0 ? placement.scale : 1) * unitScale };
+      const { faces: meshFaces, textures: meshTextures } = readBoundMeshScene(bound.path, { transform, group: `mesh:${name}` });
       // Albedo textures the bound mesh brought home (seam 6b) join payload.textures under the
       // mesh's own keys, so the texture channel below carries them like any other opt-in. A key
       // the world already owns with a DIFFERENT image is re-keyed `<key>@mesh:<name>` on the

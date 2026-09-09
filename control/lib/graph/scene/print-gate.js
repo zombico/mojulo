@@ -11,10 +11,17 @@
  * a field the slicer did not print is `null`, never a throw — because the
  * gate is ADVISORY: it reports and stamps, suitability is the operator's call.
  *
- * Supported CLI family: PrusaSlicer and its fork SuperSlicer (identical
- * flags). OrcaSlicer / Bambu Studio are DETECTED so the operator gets a real
- * message, but their CLI is not wired — the gate skips with the reason and the
- * 3MF opens in the app for the eyes gate.
+ * Supported CLI families:
+ *  - `prusa` — PrusaSlicer and its fork SuperSlicer (identical flags). Verified
+ *    on this host against 2.9.6 (interchange-next N2).
+ *  - `orca` — OrcaSlicer and Bambu Studio (text-to-cad-seam.plan.md T6). Flags
+ *    per Bambu Studio's "Command Line Usage" wiki as read 2026-09-08
+ *    (`--load-settings "machine.json;process.json" --load-filaments f.json
+ *    --slice 0 --arrange 1 --export-3mf out.3mf --export-slicedata dir
+ *    --outputdir dir --debug n`); OrcaSlicer is the same CLI family. This family
+ *    has NO defaults — a machine + process profile is REQUIRED — and no `--info`
+ *    twin we can parse, so `size_agrees` is null there. UNVERIFIED on a real
+ *    install (none on this host): the stamp says `verified: false` until one runs.
  */
 
 // Search order for the slicer binary: explicit env, then PATH names, then the
@@ -131,6 +138,74 @@ export function parseGcodeHeader(text) {
     layer_height_mm: num(grab(/^;\s*layer_height\s*=\s*([\d.,]+)/m)),
     supports: supportsRaw == null ? null : supportsRaw === '1',
     layers: (() => { const m = t.match(/^;LAYER_CHANGE/gm); return m ? m.length : null; })(),
+  };
+}
+
+/**
+ * orcaProfileFiles(profile, { listDir }) → { machine, process, filaments[] } | null.
+ * The orca family loads JSON profiles, not a Prusa .ini bundle. `profile` is a
+ * `;`-joined list of files, or a directory whose files are matched by name
+ * (`*machine*.json`, `*process*.json`, `*filament*.json`); `listDir(dir)` returns
+ * the directory's file names or null when it is not a directory. Null when the
+ * required machine + process pair is not there.
+ */
+export function orcaProfileFiles(profile, { listDir = () => null } = {}) {
+  if (!profile) return null;
+  const parts = String(profile).split(';').map((s) => s.trim()).filter(Boolean);
+  let files = parts;
+  if (parts.length === 1) {
+    const names = listDir(parts[0]);
+    if (Array.isArray(names)) files = names.filter((n) => /\.json$/i.test(n)).map((n) => `${parts[0].replace(/\/$/, '')}/${n}`);
+  }
+  const pick = (re) => files.filter((f) => re.test(f.split('/').pop()));
+  const machine = pick(/machine/i)[0] ?? null;
+  const proc = pick(/process/i)[0] ?? null;
+  const filaments = pick(/filament/i);
+  if (!machine || !proc) return null;
+  return { machine, process: proc, filaments };
+}
+
+/**
+ * orcaSliceArgs({ file, outDir, profiles, supports, orient, debug }) → the argv for
+ * an OrcaSlicer / Bambu Studio headless slice of `file` into `outDir`: the whole
+ * plate (`--slice 0`), auto-arranged so the model lands on the bed (the placement
+ * lesson N2 paid for), the sliced project as `sliced.3mf` and the slice data
+ * (G-code per plate) under `outDir/slicedata`. Pure — the driver spawns it.
+ */
+export function orcaSliceArgs({ file, outDir, profiles, supports = false, orient = false, debug = 2 } = {}) {
+  if (!profiles || !profiles.machine || !profiles.process) throw new Error('orcaSliceArgs: machine + process profiles are required');
+  const args = ['--load-settings', `${profiles.machine};${profiles.process}`];
+  if (profiles.filaments && profiles.filaments.length) args.push('--load-filaments', profiles.filaments.join(';'));
+  args.push('--slice', '0', '--arrange', '1');
+  if (orient) args.push('--orient');
+  if (supports) args.push('--enable-support'); // per-process setting name in the JSON family; harmless if the build ignores it
+  args.push('--debug', String(debug), '--export-3mf', 'sliced.3mf', '--export-slicedata', `${outDir}/slicedata`, '--outputdir', outDir, file);
+  return args;
+}
+
+/**
+ * parseOrcaGcodeHeader(text) → the same shape as parseGcodeHeader, from the `;`
+ * ledger Bambu Studio / OrcaSlicer write at the head of a plate G-code. Their
+ * keys differ from Prusa's (`model printing time`, `total estimated time`,
+ * `total filament used [g]`, `total filament length [mm]`, `total layer number`);
+ * every regex is tolerant and a missing field is null, never a throw.
+ */
+export function parseOrcaGcodeHeader(text) {
+  const t = String(text || '');
+  const grab = (re) => { const m = re.exec(t); return m ? m[1].trim() : null; };
+  // Bambu writes both on ONE line: "; model printing time: 45m 12s; total estimated time: 50m 3s" — total wins
+  const time = grab(/total estimated time:\s*([^;\n]+)/) ?? grab(/^;\s*model printing time:\s*([^;\n]+)/m) ?? grab(/^;\s*estimated printing time[^=:\n]*[=:]\s*(.+)$/m);
+  const supportRaw = grab(/^;\s*(?:enable_)?support(?:_material)?\s*=\s*(\d)/m);
+  const layersRaw = grab(/^;\s*total layer number:\s*(\d+)/m);
+  return {
+    print_time_s: parseDuration(time),
+    filament_mm: num(grab(/^;\s*total filament (?:length|used) \[mm\][^=:\n]*[=:]\s*([\d.,]+)/m) ?? grab(/^;\s*filament used \[mm\]\s*=\s*([\d.,]+)/m)),
+    filament_cm3: num(grab(/^;\s*total filament (?:volume|used) \[cm3\][^=:\n]*[=:]\s*([\d.,]+)/m)),
+    filament_g: num(grab(/^;\s*total filament (?:weight|used) \[g\][^=:\n]*[=:]\s*([\d.,]+)/m)),
+    filament_cost: num(grab(/^;\s*(?:total )?filament cost[^=:\n]*[=:]\s*([\d.,]+)/m)),
+    layer_height_mm: num(grab(/^;\s*layer_height\s*=\s*([\d.,]+)/m)),
+    supports: supportRaw == null ? null : supportRaw === '1',
+    layers: layersRaw != null ? Number(layersRaw) : (() => { const m = t.match(/^;\s*LAYER_CHANGE/gmi); return m ? m.length : null; })(),
   };
 }
 

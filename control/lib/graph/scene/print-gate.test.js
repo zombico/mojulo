@@ -1,6 +1,45 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_BED_CENTER, bedCenterFromProfile, findSlicer, parseDuration, parseGcodeHeader, parseSlicerInfo, sliceFailureReason, summarizePrintGate } from './print-gate.js';
+import { DEFAULT_BED_CENTER, bedCenterFromProfile, findSlicer, parseDuration, parseGcodeHeader, parseSlicerInfo, sliceFailureReason, summarizePrintGate, orcaProfileFiles, orcaSliceArgs, parseOrcaGcodeHeader } from './print-gate.js';
+
+// text-to-cad-seam.plan.md T6 — the orca family (OrcaSlicer / Bambu Studio): JSON profiles,
+// no defaults, arranged onto the bed, its own G-code ledger keys. Flags per the Bambu Studio
+// CLI wiki; unverified against a real install here, so these pin the SHAPE, not a run.
+describe('orca family', () => {
+  it('orcaProfileFiles wants a machine + process pair, from a ;-list or a directory', () => {
+    expect(orcaProfileFiles('m/machine.json;m/process.json;m/filament_pla.json')).toEqual({ machine: 'm/machine.json', process: 'm/process.json', filaments: ['m/filament_pla.json'] });
+    expect(orcaProfileFiles('m/machine.json')).toBeNull();
+    const listDir = (d) => (d === '/p' ? ['X1C machine.json', 'standard process.json', 'filament A.json', 'filament B.json', 'notes.txt'] : null);
+    expect(orcaProfileFiles('/p', { listDir })).toEqual({ machine: '/p/X1C machine.json', process: '/p/standard process.json', filaments: ['/p/filament A.json', '/p/filament B.json'] });
+    expect(orcaProfileFiles(null)).toBeNull();
+  });
+
+  it('orcaSliceArgs arranges the whole plate and exports the project + slice data into the outcome dir', () => {
+    const a = orcaSliceArgs({ file: '/o/model.3mf', outDir: '/o', profiles: { machine: 'm.json', process: 'p.json', filaments: ['f.json'] }, supports: true });
+    expect(a).toEqual(['--load-settings', 'm.json;p.json', '--load-filaments', 'f.json', '--slice', '0', '--arrange', '1', '--enable-support', '--debug', '2', '--export-3mf', 'sliced.3mf', '--export-slicedata', '/o/slicedata', '--outputdir', '/o', '/o/model.3mf']);
+    expect(() => orcaSliceArgs({ file: 'x', outDir: 'y', profiles: { machine: 'm.json' } })).toThrow(/machine \+ process/);
+  });
+
+  it('parseOrcaGcodeHeader reads the Bambu / Orca ledger keys, nulls for the rest', () => {
+    const g = parseOrcaGcodeHeader(`; HEADER_BLOCK_START
+; BambuStudio 01.09.00.70
+; model printing time: 45m 12s; total estimated time: 50m 3s
+; total layer number: 110
+; total filament length [mm] : 4114.68
+; total filament weight [g] : 12.27
+; filament_density: 1.24
+; layer_height = 0.2
+; enable_support = 0
+`);
+    expect(g).toEqual({ print_time_s: 3003, filament_mm: 4114.68, filament_cm3: null, filament_g: 12.27, filament_cost: null, layer_height_mm: 0.2, supports: false, layers: 110 });
+    expect(parseOrcaGcodeHeader('').print_time_s).toBeNull();
+    // summarizePrintGate treats it like any G-code ledger; no --info twin ⇒ size_agrees null
+    const s = summarizePrintGate({ info: null, gcode: g, exportSizeMm: [81, 30, 33] });
+    expect(s.sliced).toBe(true);
+    expect(s.size_agrees).toBeNull();
+    expect(s.print_time_s).toBe(3003);
+  });
+});
 
 describe('findSlicer', () => {
   it('honours MOJULO_SLICER and guesses the family from the path', () => {
