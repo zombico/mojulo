@@ -69,6 +69,12 @@ The slicer answers what no measurement can: does it slice, how long, how much fi
   the profile's bed is odd). It stamps `mojulo-print-gate.json` beside the 3MF: `sliced`,
   `size_agrees` (the ×10 / ×25.4 check), `manifold`, `parts`, time, filament, `supports`,
   `layers`, and the `declared` block carrying the measurement above.
+- **Bambu Studio on this host** (verified 02.08): the same script finds it under `/Applications`
+  and needs its JSON profiles named by role — the app's own live under
+  `BambuStudio.app/Contents/Resources/profiles/BBL/`:
+  `--profile "machine=<…/machine/Bambu Lab A1 0.4 nozzle.json>;process=<…/process/0.20mm Standard @BBL A1.json>;filament=<…/filament/Bambu PLA Basic @BBL A1.json>"`.
+  Same stamp (`--info` gives the size check); grams read 0 unless the filament profile carries a
+  density. OrcaSlicer shares the CLI and is unrun.
 - **A printability skill on this host** (text-to-cad's `dfam-check` / `gcode` / `bambu-labs`,
   or any other): hand it the SAME 3MF. It is a second opinion on the same numbers and the
   operator's route to an Orca / Bambu slice and a (dry-run) print.
@@ -103,5 +109,7 @@ the operator's sentence are the record; the recipe stays sovereign.
 - Un-unioned overlapping shells leave buried faces; the measurement skips the ones it can prove
   buried and says how many (`buried`). `union: true` removes the question.
 - `filament_g` reads 0 under the slicer's defaults; a filament profile is where grams come from.
-- OrcaSlicer / Bambu Studio are detected by `slice-print.mjs` but their CLI is not driven; the
-  3MF opens in the app directly, or a host skill takes it (step 3).
+- Bambu Studio slices headless only with explicit machine + process profiles (step 3); without
+  `--profile` the stamp says so and skips. OrcaSlicer is the same CLI, not yet run.
+- A hole in a monomer-built part is a `cuts` line on the recipe (the workbench card's `cuts`
+  section), not a rewrite into `fields`; the measurement then reads the hole's diameter as a bore.

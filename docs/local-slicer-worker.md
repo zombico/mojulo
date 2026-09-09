@@ -34,14 +34,19 @@ G-code and the gate stamp are disposable measurements, regenerable any time.
   (same CLI). Found automatically on PATH (`prusa-slicer`, `superslicer`) or at the
   macOS bundle `/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer`; set
   `MOJULO_SLICER` otherwise.
-- **OrcaSlicer / Bambu Studio** (the `orca` family, text-to-cad-seam.plan.md T6) are
-  driven with the flags Bambu Studio's CLI wiki documents — but this family has NO
-  defaults: pass `--profile "machine.json;process.json[;filament.json]"` (or a
-  directory holding them, matched by name). Without one the gate skips with the
-  reason and the 3MF opens in the app directly (it is the format they prefer).
-  There is no `--info` twin, so `size_agrees` is `null` there. **Unverified on a
-  real install** — the stamp carries `verified: false` until someone runs it; read
-  `slice.log` and file what you see.
+- **Bambu Studio** (the `orca` family, text-to-cad-seam.plan.md T6) — **verified
+  against 02.08.02 on macOS.** Found at `/Applications/BambuStudio.app`. This family
+  has NO defaults: pass its JSON profiles by role, and the app's own system profiles
+  work as-is (the CLI resolves their `inherits`):
+  `--profile "machine=/Applications/BambuStudio.app/Contents/Resources/profiles/BBL/machine/Bambu Lab A1 0.4 nozzle.json;process=…/process/0.20mm Standard @BBL A1.json;filament=…/filament/Bambu PLA Basic @BBL A1.json"`
+  (a bare `;`-list or a directory also works when the file names say `machine` /
+  `process` / `filament`). Without a profile the gate skips with the reason and the
+  3MF opens in the app directly. `--info` exists here and prints PrusaSlicer's block,
+  so `size_agrees` is real; the plate G-code lands as `plate_1.gcode` in the outcome
+  dir; grams read 0 unless the filament profile carries a density. A scratch
+  `--datadir` under the OS temp dir keeps the run out of your GUI settings.
+- **OrcaSlicer** shares that CLI and is detected at `/Applications/OrcaSlicer.app`,
+  but has not itself been run; its stamp says so. Read `slice.log` and file what you see.
 - No slicer at all ⇒ capability rung 0: the 3MF + closure audit still ship; the
   gate says why it skipped. Nothing else depends on this worker.
 
@@ -153,10 +158,9 @@ PrusaSlicer --export-gcode --center 100,100 --output model.gcode model.3mf
 - Multi-material colour: the 3MF carries `basematerials`; whether the CLI slice
   honours them depends on the loaded profile's extruder setup. The eyes gate in
   the app is where filament mapping happens.
-- The PrusaSlicer CLI is what is VERIFIED. OrcaSlicer / Bambu Studio are driven
-  (machine + process JSON profiles required, arranged onto the bed, the plate
-  G-code parsed by its own ledger keys) but have not been run against a real
-  install; the stamp says so (`verified: false`). Their GUI takes the same 3MF today.
+- PrusaSlicer and Bambu Studio are VERIFIED (the hook, 2026-09-08: Bambu sliced it
+  in 165 layers at 0.2 mm, 1 h 15 min, 3,311 mm of PLA, no supports, size agreeing
+  with the export). OrcaSlicer is driven the same way but unrun; its stamp says so.
 - A second opinion is one file away: any printability skill on the host (e.g.
   text-to-cad's `dfam-check` / `gcode` / `bambu-labs`) takes the same 3MF. The
   `print-object` catalyst walks both routes.

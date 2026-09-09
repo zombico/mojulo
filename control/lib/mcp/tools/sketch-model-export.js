@@ -20,6 +20,7 @@ import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
 import { EXPR_GRAMMAR_VERSION } from '@/lib/graph/polygonizer/field-expr';
 import { FIELD_DOMAIN_OPS } from '@/lib/graph/polygonizer/field-terms';
 import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench-program';
+import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
@@ -389,11 +390,15 @@ export async function exportModelHandler(input) {
       note: 'A program generated this part; the recipe stores the source (a param), not the faces. Same source + params + seed → the same faces, on any host running the same realm version.',
     };
   }
+  // parts-booleans B1: a `cuts[]` recipe ships as the field it lowers to — the ledger reads the
+  // lowered manifest, so the cut part is counted, and names each cut (`field_solids.cuts`).
+  ledgerManifest = lowerCuts(ledgerManifest);
   const fieldSpecs = Array.isArray(ledgerManifest.fields) ? ledgerManifest.fields : [];
   if (fieldSpecs.length) {
     const grids = fieldSpecs.map((f) => { try { return fieldGrid(f); } catch { return null; } }).filter(Boolean);
     const cellsList = grids.map((g) => g.cells);
     const coarsest = grids.length ? Math.max(...grids.map((g) => g.cell)) : null;
+    const cutRows = fieldSpecs.map((f, i) => (f && f.cut ? { ...f.cut, ...(grids[i] ? { edge_rounding: Math.round(grids[i].cell * (isPrint ? scale : 1) * 1000) / 1000 } : {}) } : null)).filter(Boolean);
     result.field_solids = {
       count: fieldSpecs.length,
       cells: cellsList.length === 1 ? cellsList[0] : cellsList,
@@ -401,6 +406,7 @@ export async function exportModelHandler(input) {
         edge_rounding: Math.round(coarsest * (isPrint ? scale : 1) * 1000) / 1000,
         edge_rounding_unit: isPrint ? 'mm' : (units || 'world units'),
       } : {}),
+      ...(cutRows.length ? { cuts: cutRows } : {}),
       note: 'Field solids (the `fields` monomer) round every edge to about one grid cell — raise `cells` (≤128) for a finer edge; a machined sharp edge is `union: true` (Manifold, print formats) or the DCC.',
     };
     // expressiveness.plan.md E1/E2: expression terms ride a versioned grammar, warps make the

@@ -112,7 +112,7 @@ lofts: [{
 
 Every other monomer is a surface sweep that emits its own closed shell; they mix by sitting next to each other, and none can take material AWAY. A `fields` entry is one solid described as a list of TERMS over a signed-distance field — add a shape, subtract a shape, blend, dab, roughen — surfaced once by the surface-net polygonizer. It is the native answer for a hole, a bore, a pocket, a slot, a socket, a filleted junction, a bump, a dent, a pebble. Read the term list top-down and it is a description of the object (the same discipline as shell `ops`).
 
-**The one mixing rule.** Field solids mix with the other monomers by juxtaposition only, exactly as a mug body and its swept handle mix today. To cut INTO a lathe or an extrude, author it as a `fields` term (its field twin — `lathe` / `extrude` / `sweep` shapes take the same params as the monomers), not as a `lathes` / `extrudes` entry.
+**The one mixing rule.** Field solids mix with the other monomers by juxtaposition only, exactly as a mug body and its swept handle mix today. To cut INTO a lathe or an extrude, author it as a `fields` term (its field twin — `lathe` / `extrude` / `sweep` shapes take the same params as the monomers), not as a `lathes` / `extrudes` entry — or give the monomers an `id` and name them in `cuts` (below), and the workbench does that rewrite for you.
 
 **The edge caveat.** This is not a mesh CSG kernel: every edge and corner rounds to about ONE GRID CELL (the longest side ÷ `cells`), and the stamped face count grows with the square of `cells` while the cost grows with its cube. A machined sharp edge is not on offer here — `export_model union:true` (Manifold) unions shells sharply at export, and a chamfer is the DCC's.
 
@@ -274,7 +274,7 @@ Ops run in ORDER, each seeing the previous one's output. That is the mechanism: 
 - `{ op:'recolor', select, tint?, material?, group? }` — change colour, finish, or tag with no change to geometry. Cheap, and it does most of the visual work.
 - `{ op:'port', select, radius, depth, sides?, group?, tint?, material? }` — seat a cylinder on the face center along its normal (tagged `port`). ADDITIVE: the host face survives. A negative `depth` sinks the port into the face.
 
-Ops are surface operations, not booleans — `port` seats a cylinder ON a face, it does not drill through the shell. To actually cut, pocket, or bore, author the part as a `fields` monomer (below): composition in field space, edges rounded to about a grid cell. For a sharp machined boolean, `export_model union:true` (Manifold) unions shells at export, and a Blender cut is the last resort.
+Ops are surface operations, not booleans — `port` seats a cylinder ON a face, it does not drill through the shell. To actually cut, pocket, or bore, author the part as a `fields` monomer (below), or name the parts in `cuts` and the workbench does the rewrite for you; either way it is composition in field space, edges rounded to about a grid cell. For a sharp machined boolean, `export_model union:true` (Manifold) unions shells at export, and a Blender cut is the last resort.
 
 ## Worked example — a faceted sensor shell
 
@@ -308,6 +308,26 @@ A soccer-ball shell whose hexagons become raised steel panels, with a scatter of
 For a vertical multi-part object (candlestick, lamp, vase, dumbbell, spindle), prefer `assembly` over hand-placed axes. Declare each part by `height` + `profile` and the running z is computed so each part seats flush on the one below. It lowers to `lathes`/`extrudes`/`lofts`/`fields` and merges with the explicit arrays, so a mug = an assembled lathe body + an explicit swept handle.
 
 - `parts` (array, min 1) — ordered bottom→top. Each: `{ kind: "lathe"|"extrude"|"loft"|"field", height (axis length along z, >0), profile (lathe: [{t,radius}]; extrude: {rect|points}) or stations (loft: [{t,profile,roll?}] — a stacked loft runs straight up the stack axis; curved lofts stay in the explicit array, like sweeps) or terms (field: author the terms with z from 0 up to `height`; the stack translates the whole solid), id? (name for on), on? ("ground" | an earlier part id/index; default = previous part), gap? (lift above support, default 0), offset? ([dx,dy] off the stack axis, default [0,0]), radial? ({ count, radius, startAngle?, center? } — ring N copies around a circle), mirror? ("x"|"y"|"xy" — reflect the offset into corner copies), + any monomer passthrough (tint, material, harmonics, wrap, wallThickness, openFace, …) }`. Use `radial` OR `mirror`, not both; `offset:[a,b], mirror:"xy"` → 4 legs. A part `on` a replicated part still seats on its single top.
+
+## Cuts — booleans between named monomers
+
+`assembly` says how parts STACK; `cuts` says which parts take material AWAY from which. Give the monomers an `id`, then name them — a flange composed as a lathe, its bolt circle as sweeps, and one line that bores the holes:
+
+```
+lathes: [{ id: 'flange', axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 1.2 }, profile: [{ t: 0, radius: 6 }, { t: 1, radius: 6 }], material: 'steel' }],
+sweeps: [{ id: 'bore', path: [[0, 0, -1], [0, 0, 3]], radius: 1.2 },
+         { id: 'b1', path: [[4.5, 0, -1], [4.5, 0, 3]], radius: 0.45 },
+         { id: 'b2', path: [[-4.5, 0, -1], [-4.5, 0, 3]], radius: 0.45 }],
+cuts:   [{ id: 'bolts', from: 'flange', subtract: ['bore', 'b1', 'b2'], cells: 96 }]
+```
+
+- `cuts` (array) — each `{ id?, from, subtract | intersect: [ids], cells?, blend? }`. `from` is the body; `subtract` takes each operand out of it; `intersect` keeps only what is inside both. Exactly one verb per cut.
+- **What happens.** The named monomers LEAVE their arrays and come back as ONE `fields` entry — `add` the body, then `subtract` / `intersect` each operand — keeping the body's `tint` / `material`. The recipe stores the cut, not the rewrite: move a bore with `update_sketch` and the part re-cuts. The readout shows the cut as one field part (`cut`, `from`) because the flange with holes IS one part now; `stats.cuts[]` lists what each cut consumed.
+- **Reach.** Lathes, solid extrudes, sweeps (a subtracted sweep is a round-ended bore — run its path a little past both faces), and fields (nested whole, their inner groups kept). No field twin, so refused by name at mint: lofts, shells, drapes, reliefs, a shelled (`wallThickness`) or tapered (`endProfile`) extrude, a wrapped lathe / extrude.
+- `id` (default `cut:<from>`) names the cut part. Its faces carry `group: <operand id>`, and a LATER cut can name it as `from` or as an operand — a cut of a cut. A monomer joins one cut; to go further, cut the cut's id.
+- `cells` (16–128, default 64) and **the ceiling**: this is the field solid's boolean, so every cut edge rounds to about one grid cell (the cut part's longest side ÷ `cells`). `stats.cuts[].edge_round` says the number in units and the mint warns with it. A 3 mm hole at true scale wants 96–128. A sharp machined edge is `export_model union:true` (Manifold) or the DCC; a toleranced fit is a B-rep tool's (`translate_modeler_lingo` → `precision cad`).
+- `blend` (units) fillets the cut rims.
+- **The advisory sees it.** A subtracted sweep's or lathe's diameter is a BORE: a hole under the printer's floor is a `tiny_feature` that will close up, not a strut that prints as a thread.
 
 ## Materials, units, framing
 

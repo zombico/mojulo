@@ -110,12 +110,21 @@ function floorPhrase(p) {
  * declaredFeatures(manifest) → [{ at, role, value }] in WORLD units — every
  * thickness the recipe states outright. `role`: 'wall' (extrude wallThickness),
  * 'floor' (extrude floorThickness), 'section' (a sweep's tube diameter, a
- * lathe's narrowest real-radius station as a diameter). Only the workbench
- * monomer arrays declare these; other kinds return [].
+ * lathe's narrowest real-radius station as a diameter), 'bore' (the same
+ * numbers on a monomer a `cuts[]` entry SUBTRACTS — a hole's diameter, not a
+ * strut's; parts-booleans.plan.md B4). Only the workbench monomer arrays
+ * declare these; other kinds return [].
  */
 export function declaredFeatures(manifest) {
   const out = [];
   if (!manifest || typeof manifest !== 'object') return out;
+  // ids a cut subtracts: their diameters are HOLES (a bore too fine closes up), never sections
+  const bores = new Set();
+  for (const c of Array.isArray(manifest.cuts) ? manifest.cuts : []) {
+    for (const id of Array.isArray(c && c.subtract) ? c.subtract : []) if (typeof id === 'string') bores.add(id);
+  }
+  const sectionRole = (s) => (s && typeof s.id === 'string' && bores.has(s.id) ? 'bore' : 'section');
+  const boreTag = (s) => (sectionRole(s) === 'bore' ? ` (bore '${s.id}')` : '');
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   extrudes.forEach((s, i) => {
     if (!s || typeof s !== 'object') return;
@@ -124,7 +133,7 @@ export function declaredFeatures(manifest) {
   });
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
   sweeps.forEach((s, i) => {
-    if (s && posNum(s.radius)) out.push({ at: `sweeps[${i}].radius`, role: 'section', value: 2 * s.radius });
+    if (s && posNum(s.radius)) out.push({ at: `sweeps[${i}].radius${boreTag(s)}`, role: sectionRole(s), value: 2 * s.radius });
   });
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   lathes.forEach((s, i) => {
@@ -132,7 +141,7 @@ export function declaredFeatures(manifest) {
     // The narrowest station with a REAL radius — a taper to 0 is a pole, not a neck.
     let min = Infinity;
     for (const st of s.profile) if (st && posNum(st.radius) && st.radius < min) min = st.radius;
-    if (Number.isFinite(min)) out.push({ at: `lathes[${i}].profile (narrowest station)`, role: 'section', value: 2 * min });
+    if (Number.isFinite(min)) out.push({ at: `lathes[${i}].profile (narrowest station)${boreTag(s)}`, role: sectionRole(s), value: 2 * min });
   });
   return out;
 }
@@ -142,7 +151,8 @@ const r2 = (v) => Math.round(v * 100) / 100;
 /**
  * printAdvisories({ manifest, scale, sizeMm, printer, measure }) → [{ kind, detail, at?, mm? }]
  *   thin_wall           — a declared wall/floor × scale is under `min_wall_mm`
- *   tiny_feature        — a declared cross-section × scale is under `min_wall_mm`
+ *   tiny_feature        — a declared cross-section × scale is under `min_wall_mm`;
+ *                         or a `cuts[]` bore that fine (worded as a hole that closes up)
  *   over_bed            — the printed size exceeds `bed_mm` on an axis (as
  *                         exported; the slicer may still rotate it to fit)
  *   thin_wall_measured  — (rung 2) the sampled p05 wall thickness is under the floor
@@ -161,7 +171,9 @@ export function printAdvisories({ manifest = null, scale = 1, sizeMm = null, pri
   for (const f of declaredFeatures(manifest)) {
     const mm = f.value * k;
     if (mm >= p.min_wall_mm) continue;
-    if (f.role === 'section') {
+    if (f.role === 'bore') {
+      rows.push({ kind: 'tiny_feature', at: f.at, mm: r2(mm), detail: `${f.at} is a hole ${r2(mm)} mm across — under the ${floorPhrase(p)}; it will close up or print as a pinhole; widen the bore or raise \`scale\`` });
+    } else if (f.role === 'section') {
       rows.push({ kind: 'tiny_feature', at: f.at, mm: r2(mm), detail: `${f.at} prints ${r2(mm)} mm across — under the ${floorPhrase(p)}; it will print as a thread or not at all` });
     } else {
       rows.push({ kind: 'thin_wall', at: f.at, mm: r2(mm), detail: `${f.at} prints ${r2(mm)} mm thick — under the ${floorPhrase(p)}; thicken it or raise \`scale\`` });

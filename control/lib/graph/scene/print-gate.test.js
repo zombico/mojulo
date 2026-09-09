@@ -127,3 +127,61 @@ describe('placement + failure reasons (interchange-next N2)', () => {
     expect(sliceFailureReason('')).toBeNull();
   });
 });
+
+// text-to-cad-seam.plan.md T6, run 2026-09-08: Bambu Studio 02.08.02 on the hook 3MF with the
+// app-bundle A1 system profiles. The header below is the real plate_1.gcode head.
+describe('orca family — as Bambu Studio actually writes it', () => {
+  const HEAD = `; HEADER_BLOCK_START
+; BambuStudio 02.08.02.61
+; model printing time: 1h 15m 18s; total estimated time: 1h 15m 19s
+; total layer number: 165
+; total filament length [mm] : 3311.14
+; total filament volume [cm^3] : 7964.23
+; total filament weight [g] : 0.00
+; filament_density: 0
+; filament_diameter: 1.75
+; max_z_height: 33.00
+; filament: 1
+; support_material_on_wipe_tower: 0
+; HEADER_BLOCK_END
+
+; CONFIG_BLOCK_START
+; accel_to_decel_enable = 0
+; enable_support = 0
+; enable_support_ironing = 0
+; layer_height = 0.2
+; nozzle_diameter = 0.4
+; printer_model = Bambu Lab A1
+; support_air_filtration = 0
+; support_angle = 0
+; CONFIG_BLOCK_END
+`;
+  it('parseOrcaGcodeHeader reads the real Bambu header (time, layers, mm, cm^3, g, supports, layer height)', () => {
+    expect(parseOrcaGcodeHeader(HEAD)).toEqual({
+      print_time_s: 3600 + 15 * 60 + 19, filament_mm: 3311.14, filament_cm3: 7964.23, filament_g: 0, filament_cost: null, layer_height_mm: 0.2, supports: false, layers: 165,
+    });
+  });
+  it('Bambu --info prints the PrusaSlicer block, so the size check is real for this family', () => {
+    const info = parseSlicerInfo('[2026-09-08 22:17:19] [trace] Initializing StaticPrintConfigs\nsize_x = 81.000000\nsize_y = 30.000000\nsize_z = 33.000000\nmin_x = -40.500000\nnumber_of_facets = 316\nmanifold = yes\nnumber_of_parts =  2\nvolume = 16557.009766\n');
+    expect(info).toEqual({ size_mm: [81, 30, 33], volume_mm3: 16557.009766, facets: 316, parts: 2, manifold: true });
+    expect(summarizePrintGate({ info, gcode: parseOrcaGcodeHeader(HEAD), exportSizeMm: [81, 30, 33] })).toMatchObject({ sliced: true, size_agrees: true, manifold: true, parts: 2, layers: 165, print_time_s: 4519, supports: false });
+  });
+  it("orcaProfileFiles takes role=file entries, since Bambu's own profile names say the printer, not the role", () => {
+    const p = orcaProfileFiles('machine=/A/Bambu Lab A1 0.4 nozzle.json;process=/A/0.20mm Standard @BBL A1.json;filament=/A/Bambu PLA Basic @BBL A1.json');
+    expect(p).toEqual({ machine: '/A/Bambu Lab A1 0.4 nozzle.json', process: '/A/0.20mm Standard @BBL A1.json', filaments: ['/A/Bambu PLA Basic @BBL A1.json'] });
+    expect(orcaProfileFiles('machine=/A/m.json')).toBeNull();
+    expect(orcaProfileFiles('process=/A/p.json;machine=/A/m.json;filament=/A/f1.json;filament=/A/f2.json').filaments).toEqual(['/A/f1.json', '/A/f2.json']);
+    // the bare list is unchanged
+    expect(orcaProfileFiles('m/machine.json;m/process.json')).toEqual({ machine: 'm/machine.json', process: 'm/process.json', filaments: [] });
+  });
+  it('orcaSliceArgs puts a scratch --datadir first when the driver hands one', () => {
+    const a = orcaSliceArgs({ file: '/o/model.3mf', outDir: '/o', profiles: { machine: 'm.json', process: 'p.json', filaments: [] }, datadir: '/tmp/dd', debug: 1 });
+    expect(a.slice(0, 4)).toEqual(['--datadir', '/tmp/dd', '--load-settings', 'm.json;p.json']);
+    expect(a).toContain('--debug');
+    expect(a[a.indexOf('--debug') + 1]).toBe('1');
+    expect(orcaSliceArgs({ file: 'x', outDir: 'y', profiles: { machine: 'm', process: 'p' } })[0]).toBe('--load-settings');
+  });
+  it('findSlicer names Bambu Studio from an explicit path, the way the driver reads --slicer', () => {
+    expect(findSlicer({ env: { MOJULO_SLICER: '/Applications/BambuStudio.app/Contents/MacOS/BambuStudio' } })).toEqual({ id: 'bambu', family: 'orca', bin: '/Applications/BambuStudio.app/Contents/MacOS/BambuStudio' });
+  });
+});

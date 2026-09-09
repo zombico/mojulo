@@ -10,6 +10,56 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Cuts — a hole is a line in the recipe (parts-booleans B1, B2, B4) + the Bambu Studio slice (text-to-cad-seam T6)
+
+The workbench could cut only inside a `fields` monomer; a flange authored as a lathe and a bolt
+circle authored as sweeps had to be REWRITTEN as one field term list to bore the holes. Now the
+recipe says it in a line, and the slicer gate has met the slicer most hobby printers actually run.
+
+- **`cuts[]` — booleans between NAMED monomers (B1).** A workbench recipe may carry
+  `cuts: [{ id?, from, subtract | intersect: [ids], cells?, blend? }]`. Monomers gain an optional
+  `id`; a cut names its body and its operands by id, and the workbench does the rewrite: each
+  named lathe / solid extrude / sweep / field is taken OUT of its array and re-expressed as its
+  field twin, and ONE `fields` entry is emitted (`add` the body, then `subtract` or `intersect`
+  each operand; `blend` fillets the rims), keeping the body's `tint` / `material`. The emitted
+  field's `id` is the cut's (default `cut:<from>`), so a later cut can consume it — a cut of a
+  cut. Kinds with no field twin (lofts, shells, drapes, reliefs, a shelled or tapered extrude, a
+  wrapped monomer) refuse by name at mint; so do an unknown id, a duplicate id, an operand used
+  twice, or an operand that is its own body. The lowering is a RENDER-TIME seam
+  (`polygonizer/workbench-cuts.js`) in front of every consumer — the World, the stills, the
+  export, `measure_solid`, the wrap collector — so the recipe stores the monomers and the cut,
+  never the rewrite, and `update_sketch` moving a bore re-cuts. Absent `cuts`, the manifest
+  passes through by identity: every existing workbench re-renders byte-for-byte. The stills
+  depict the hole because they consume the same faces. Kernel ceiling unchanged and said in the
+  result: every cut edge rounds to about one grid cell (`cells`, default 64) — `stats.cuts`
+  lists each cut with its rounding in units, a `cut_rounds_edges` warning names it, and the
+  per-part readout shows the cut part as ONE field part (`cut`, `from`) because the flange with
+  holes IS one part now. Sharp edges stay the export's business (Manifold `union: true`);
+  B3 (a Manifold `cut` at export) is not built.
+- **The manuals and the router (B2).** The workbench card gains a `cuts` section beside
+  `assembly`, and the two sentences that said "author the part as a `fields` monomer" now say
+  "or name the parts in `cuts`". `translate_modeler_lingo`'s `boolean-cut` entry routes to the
+  `cuts` form first, the hand-written term list second; `support` stays PARTIAL. The export
+  ledger's `field_solids` block lists the cuts (`field_solids.cuts`), and `measure_solid` returns
+  `cuts` beside `parts`.
+- **The advisory sees the hole (B4).** `declaredFeatures` reads `cuts`: a sweep or lathe named as a
+  `subtract` operand is a BORE, not a strut — its diameter is reported with role `bore`, and a bore
+  under the process floor is a `tiny_feature` worded as a hole that will close up, instead of the
+  old "prints as a thread" line that described a hole as a rod.
+- **Bambu Studio in the slicer gate (T6, now run).** Bambu Studio 02.08.02 installed on this
+  host and driven headless on the hook's 3MF with the A1 0.4 nozzle system profiles straight from
+  the app bundle. Four things the wiki read did not say, each now in the driver and pinned by a
+  test on the real output: the CLI HAS `--info` and prints PrusaSlicer's block (`size_x`,
+  `manifold`, `number_of_parts`, `volume`), so `size_agrees` is real for this family (81 × 30 ×
+  33 mm, agrees); the system profiles `inherits` from common presets and the CLI resolves them
+  itself; Bambu's profile names say the printer, not the role, so `--profile` also takes
+  `machine=…;process=…;filament=…`; and the plate G-code lands as `plate_1.gcode` in
+  `--outputdir`, not under `--export-slicedata`. The header parser learns `[cm^3]`. The hook:
+  165 layers at 0.2 mm, 1 h 15 min, 3,311 mm of filament, no supports, grams 0 because the
+  profile carries no density. A scratch `--datadir` keeps the run out of the operator's GUI
+  settings. The stamp says `verified: true` for `bambu`; OrcaSlicer shares the CLI and stays
+  marked unrun. Eyes gate (the sliced project opened in the GUI) still open — no printer here.
+
 ### The print leg measures — process limits, overhang and sampled walls, the CAD return door (text-to-cad-seam T1–T6)
 
 Reading `earthtojake/text-to-cad` (the mechanical-CAD neighbour: build123d over OpenCascade,

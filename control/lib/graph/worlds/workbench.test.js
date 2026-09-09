@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { lowerObjectFaces, planWorkbench } from './workbench.js';
+import { lowerObjectFaces, planWorkbench, collectWrapSources } from './workbench.js';
 import { lowerAssembly } from '../polygonizer/workbench-assembly.js';
 
 const lathe = (extra = {}) => ({ axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 2 }, profile: [{ t: 0, radius: 1 }, { t: 1, radius: 1 }], ...extra });
@@ -245,5 +245,53 @@ describe('planWorkbench — field monomers (field-solids F3)', () => {
     const field = stats.parts.find((p) => p.kind === 'field');
     expect(field.base).toBeCloseTo(2, 0);
     expect(field.top).toBeCloseTo(3, 0);
+  });
+});
+
+describe('planWorkbench — cuts between named monomers (parts-booleans B1)', () => {
+  const flange = { id: 'flange', axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 1 }, profile: [{ t: 0, radius: 3 }, { t: 1, radius: 3 }], tint: '#a0a0a0' };
+  const bore = { id: 'bore', path: [[0, 0, -1], [0, 0, 2]], radius: 1 };
+  it('a lathe + a sweep under `cuts` read out as ONE closed field part, with the cut named and its rounding warned', () => {
+    const { stats } = planWorkbench({ lathes: [flange], sweeps: [bore], cuts: [{ from: 'flange', subtract: ['bore'], cells: 32 }] });
+    expect(stats.monomers).toBe(1);
+    expect(stats.lathes).toBe(0);
+    expect(stats.sweeps).toBe(0);
+    expect(stats.fields).toBe(1);
+    expect(stats.parts).toHaveLength(1);
+    expect(stats.parts[0]).toMatchObject({ kind: 'field', index: 0, cut: 'cut:flange', from: 'flange' });
+    expect(stats.parts[0].open).toBeUndefined();
+    expect(stats.cuts).toEqual([{ id: 'cut:flange', from: 'flange', subtract: ['bore'], cells: 32, edge_round: expect.any(Number) }]);
+    expect(stats.warnings).toHaveLength(1);
+    expect(stats.warnings[0]).toMatch(/^cut 'cut:flange' \(flange subtract bore\) rounds every edge to about 0\.188 cm \(32 cells\)/);
+    const faces = lowerObjectFaces({ lathes: [flange], sweeps: [bore], cuts: [{ from: 'flange', subtract: ['bore'], cells: 32 }] });
+    expect(new Set(faces.map((f) => f.group))).toEqual(new Set(['flange', 'bore']));
+    // the hole is real: no face centre sits inside the bore's radius near the disc's mid-height
+    const inside = faces.filter((f) => { const c = f.corners; const x = c.reduce((s, p) => s + p[0], 0) / 4; const y = c.reduce((s, p) => s + p[1], 0) / 4; const z = c.reduce((s, p) => s + p[2], 0) / 4; return Math.hypot(x, y) < 0.8 && z > 0.3 && z < 0.7; });
+    expect(inside).toHaveLength(0);
+  });
+  it('absent `cuts` the faces are byte-identical, and an empty list is the same as none (the promise)', () => {
+    const plain = { lathes: [flange], sweeps: [bore] };
+    expect(JSON.stringify(lowerObjectFaces({ ...plain, cuts: [] }))).toBe(JSON.stringify(lowerObjectFaces(plain)));
+    const { stats } = planWorkbench(plain);
+    expect('cuts' in stats).toBe(false);
+    expect(stats.monomers).toBe(2);
+    // the uncut bore runs below the grid — the ordinary seat warning, and no cut warning
+    expect(stats.warnings).toEqual([expect.stringMatching(/^Object sinks 1 cm below the grid/)]);
+  });
+  it('a bad monomer is reported as ITSELF, and a bad cut by its id, in the same 400', () => {
+    expect(() => planWorkbench({ lathes: [{ ...flange, material: 'steeel' }], sweeps: [bore], cuts: [{ from: 'flange', subtract: ['bore'] }] })).toThrow(/lathes\[0\]\.material/);
+    expect(() => planWorkbench({ lathes: [flange], sweeps: [bore], cuts: [{ from: 'flange', subtract: ['nope'] }] })).toThrow(/Invalid monomers:\n- cuts\[0\]\.subtract 'nope': no monomer carries that `id` \(known: flange, bore\)/);
+    expect(() => planWorkbench({ lathes: [flange], sweeps: [bore], cuts: [{ from: 'flange', subtract: ['bore'] }, { from: 'flange', subtract: ['bore'] }] })).toThrow(/cuts\[1\]/);
+    expect(() => planWorkbench({ lathes: [flange], cuts: 'x' })).toThrow(/cuts: must be an array/);
+  });
+  it('collectWrapSources lowers the same way, so wrap keys by index agree with the faces', () => {
+    const can = { axisFrom: { x: 10, y: 0, z: 0 }, axisTo: { x: 10, y: 0, z: 4 }, profile: [{ t: 0, radius: 1 }, { t: 1, radius: 1 }], wrap: { source: { svg: '<svg xmlns="http://www.w3.org/2000/svg"/>' } } };
+    const m = { lathes: [flange, can], sweeps: [bore], cuts: [{ from: 'flange', subtract: ['bore'], cells: 16 }] };
+    const src = collectWrapSources(m);
+    expect(src).toHaveLength(1);
+    expect(src[0].key).toBe('wrap_0');   // the can is lathes[0] once the flange has left the array
+    const wrapped = lowerObjectFaces(m).filter((f) => f.texture);
+    expect(wrapped.length).toBeGreaterThan(0);
+    expect(new Set(wrapped.map((f) => f.texture))).toEqual(new Set(['wrap_0']));
   });
 });

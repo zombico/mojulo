@@ -57,10 +57,12 @@ export async function measureSolidHandler(input) {
   // top, and an `open` block per part. Other kinds have no monomer table; parts is null.
   let parts = null;
   let warnings;
+  let cuts;
   if (sketch.manifest.kind === 'workbench') {
     const { stats } = planWorkbench(sketch.manifest);
     parts = stats.parts;
     warnings = stats.warnings;
+    cuts = stats.cuts;   // parts-booleans B2: what each cut consumed and what the grid rounded its edges to
   }
 
   const closure = profile === 'study'
@@ -100,6 +102,7 @@ export async function measureSolidHandler(input) {
     size_mm: sizeMm,
     triangles: probe.triangleCount,
     parts,
+    ...(cuts && cuts.length ? { cuts } : {}),
     closure,
     volume: vol,
     printer,

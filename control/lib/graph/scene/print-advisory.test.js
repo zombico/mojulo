@@ -97,3 +97,33 @@ describe('printAdvisories', () => {
     expect(fdm[0].detail).toContain('least support if built along x+');
   });
 });
+
+// parts-booleans.plan.md B4 — a monomer a `cuts[]` entry subtracts is a HOLE, not a strut.
+describe('declaredFeatures / printAdvisories — cuts (B4)', () => {
+  const m = {
+    units: 'mm',
+    lathes: [{ id: 'flange', profile: [{ t: 0, radius: 20 }, { t: 1, radius: 20 }] }, { id: 'pin', profile: [{ t: 0, radius: 0.3 }, { t: 1, radius: 0.3 }] }],
+    sweeps: [{ id: 'bore', radius: 3 }, { id: 'tiny', radius: 0.25 }, { radius: 0.25 }],
+    cuts: [{ from: 'flange', subtract: ['bore', 'tiny', 'pin'] }],
+  };
+  it('a subtracted sweep or lathe is role `bore`, named with its id; an unnamed sweep stays a section', () => {
+    const f = declaredFeatures(m);
+    expect(f).toEqual([
+      { at: "sweeps[0].radius (bore 'bore')", role: 'bore', value: 6 },
+      { at: "sweeps[1].radius (bore 'tiny')", role: 'bore', value: 0.5 },
+      { at: 'sweeps[2].radius', role: 'section', value: 0.5 },
+      { at: 'lathes[0].profile (narrowest station)', role: 'section', value: 40 },
+      { at: "lathes[1].profile (narrowest station) (bore 'pin')", role: 'bore', value: 0.6 },
+    ]);
+    // an intersect operand is not a hole
+    expect(declaredFeatures({ ...m, cuts: [{ from: 'flange', intersect: ['bore'] }] })[0]).toEqual({ at: 'sweeps[0].radius', role: 'section', value: 6 });
+  });
+  it('a bore under the floor is a tiny_feature worded as a hole that closes up; a 6 mm bore is silent', () => {
+    const rows = printAdvisories({ manifest: m, scale: 1 });
+    const tiny = rows.filter((r) => r.kind === 'tiny_feature');
+    expect(tiny.map((r) => r.at)).toEqual(["sweeps[1].radius (bore 'tiny')", 'sweeps[2].radius', "lathes[1].profile (narrowest station) (bore 'pin')"]);
+    expect(tiny[0].detail).toMatch(/is a hole 0\.5 mm across — under the 0\.8 mm two-perimeter floor for a 0\.4 mm nozzle; it will close up or print as a pinhole/);
+    expect(tiny[1].detail).toMatch(/will print as a thread or not at all/);
+    expect(rows.some((r) => /bore 'bore'/.test(r.at || ''))).toBe(false);
+  });
+});

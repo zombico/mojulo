@@ -19,7 +19,7 @@ import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, program, units, viewBox, facing, ref, folderRef } = {}) {
+export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -58,6 +58,9 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     ...(hasDrapes ? { drapes } : {}),
     ...(hasReliefs ? { reliefs } : {}),
     ...(hasShells ? { shells } : {}),
+    // parts-booleans B1: the cut is stored AS a cut (the monomers stay in their arrays); the
+    // rewrite to a field happens on every render, so an edit to a bore re-cuts
+    ...(Array.isArray(cuts) && cuts.length ? { cuts } : {}),
     ...(typeof units === 'string' ? { units } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(typeof facing === 'string' || Number.isFinite(facing) ? { facing } : {}),
@@ -108,9 +111,9 @@ export async function createCodeSolidHandler(input) {
   if (!input || typeof input !== 'object' || typeof input.source !== 'string') {
     throw new Error("The code kind needs `source` — the body of a function (params, ctx) that returns a workbench spec ({ lathes | extrudes | sweeps | lofts | fields | drapes | reliefs | shells | assembly }) or a face list ([{ corners, fill?, group? }]). Read get_solid_vocab({ id: 'code' }) for the realm API and worked programs.");
   }
-  const { title, source, params, seed, budgetMs, units, viewBox, facing, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells } = input;
+  const { title, source, params, seed, budgetMs, units, viewBox, facing, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts } = input;
   return mintWorkbench({
-    title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells,
+    title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts,
     program: { source, params, seed, budgetMs },
     units, viewBox, facing, ref, folderRef,
   });
@@ -120,8 +123,8 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, program, units, viewBox, facing, ref, folder_ref: folderRef } = input;
-  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, program, units, viewBox, facing, ref, folderRef });
+  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, ref, folder_ref: folderRef } = input;
+  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {

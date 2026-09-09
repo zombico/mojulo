@@ -33,7 +33,8 @@ import { drapeToFaces, validateDrapes } from '../polygonizer/drape-faces.js';
 import { reliefToFaces, validateReliefs } from '../polygonizer/relief-faces.js';
 import { shellToFaces, validateShells } from '../polygonizer/shell-faces.js';
 import { loftToFaces, validateLofts } from '../polygonizer/loft-faces.js';
-import { fieldToFaces, validateFields } from '../polygonizer/field-faces.js';
+import { fieldToFaces, validateFields, fieldGrid } from '../polygonizer/field-faces.js';
+import { lowerCuts, validateCuts } from '../polygonizer/workbench-cuts.js';
 import { expandWorkbenchProgram, hasProgram, MONOMER_KEYS } from './workbench-program.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { validateMaterialRef } from '../polygonizer/materials.js';
@@ -66,6 +67,9 @@ export function lowerObjectFaces(manifest, light) {
     const ex = expandWorkbenchProgram(manifest, { light });
     return [...lowerObjectFaces(ex.manifest, light), ...ex.faces];
   }
+  // `cuts` (parts-booleans.plan.md B1): the named monomers leave their arrays and come back as
+  // one `fields` entry per cut. Absent cuts, `manifest` passes through by identity.
+  manifest = lowerCuts(manifest);
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
@@ -122,6 +126,8 @@ export function workbenchAssetFaces(manifest = {}, opts = {}) {
  */
 export function collectWrapSources(manifest) {
   if (hasProgram(manifest)) manifest = expandWorkbenchProgram(manifest).manifest;
+  // the same lowering lowerObjectFaces applies, so wrap keys (by index) agree on both sides
+  manifest = lowerCuts(manifest);
   const lathes = Array.isArray(manifest && manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest && manifest.extrudes) ? manifest.extrudes : [];
   const out = [];
@@ -361,26 +367,35 @@ export function planWorkbench(manifest = {}) {
       throw new Error('The program returned no monomers and no faces.');
     }
   }
-  const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
-  const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
-  const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
-  const drapes = Array.isArray(manifest.drapes) ? manifest.drapes : [];
-  const reliefs = Array.isArray(manifest.reliefs) ? manifest.reliefs : [];
-  const shells = Array.isArray(manifest.shells) ? manifest.shells : [];
-  const lofts = Array.isArray(manifest.lofts) ? manifest.lofts : [];
-  const fields = Array.isArray(manifest.fields) ? manifest.fields : [];
-  if (!lathes.length && !extrudes.length && !sweeps.length && !drapes.length && !reliefs.length && !shells.length && !lofts.length && !fields.length && !programFaces.length) {
+  const arraysOf = (m) => ({
+    lathes: Array.isArray(m.lathes) ? m.lathes : [],
+    extrudes: Array.isArray(m.extrudes) ? m.extrudes : [],
+    sweeps: Array.isArray(m.sweeps) ? m.sweeps : [],
+    drapes: Array.isArray(m.drapes) ? m.drapes : [],
+    reliefs: Array.isArray(m.reliefs) ? m.reliefs : [],
+    shells: Array.isArray(m.shells) ? m.shells : [],
+    lofts: Array.isArray(m.lofts) ? m.lofts : [],
+    fields: Array.isArray(m.fields) ? m.fields : [],
+  });
+  // The monomers as AUTHORED are what the validators read, so a bad lathe surfaces as a lathe
+  // error, not as its field twin's; the readout below is over the CUT-LOWERED arrays, because
+  // a flange with holes IS one part now (parts-booleans.plan.md B1).
+  const src = arraysOf(manifest);
+  if (!src.lathes.length && !src.extrudes.length && !src.sweeps.length && !src.drapes.length && !src.reliefs.length && !src.shells.length && !src.lofts.length && !src.fields.length && !programFaces.length) {
     throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, and/or `shells` array (or a `program` that returns them).');
   }
-  const errors = [...validateLathes(lathes, []), ...validateExtrudes(extrudes, []), ...validateSweeps(sweeps, []), ...validateLofts(lofts, []), ...validateFields(fields, []), ...validateDrapes(drapes, []), ...validateReliefs(reliefs, []), ...validateShells(shells, [])]; // endpoints are literal {x,y,z}
+  const errors = [...validateLathes(src.lathes, []), ...validateExtrudes(src.extrudes, []), ...validateSweeps(src.sweeps, []), ...validateLofts(src.lofts, []), ...validateFields(src.fields, []), ...validateDrapes(src.drapes, []), ...validateReliefs(src.reliefs, []), ...validateShells(src.shells, [])]; // endpoints are literal {x,y,z}
   // material refs fail LOUDLY at mint (resolveMaterial's fallback would silently steel a typo)
-  for (const [k, arr] of [['lathes', lathes], ['extrudes', extrudes], ['sweeps', sweeps], ['lofts', lofts], ['fields', fields], ['drapes', drapes], ['reliefs', reliefs], ['shells', shells]]) {
-    arr.forEach((s, i) => { const e = validateMaterialRef(s && s.material); if (e) errors.push(`${k}[${i}].material: ${e}`); });
+  for (const k of ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields', 'drapes', 'reliefs', 'shells']) {
+    src[k].forEach((s, i) => { const e = validateMaterialRef(s && s.material); if (e) errors.push(`${k}[${i}].material: ${e}`); });
   }
+  if (manifest.cuts !== undefined) errors.push(...validateCuts(manifest));
   if (errors.length) {
     throw new Error(`Invalid monomers:\n- ${errors.join('\n- ')}`);
   }
-  const faces = [...lowerObjectFaces(manifest, WORKBENCH_LIGHT), ...programFaces];
+  const lowered = lowerCuts(manifest);
+  const { lathes, extrudes, sweeps, drapes, reliefs, shells, lofts, fields } = arraysOf(lowered);
+  const faces = [...lowerObjectFaces(lowered, WORKBENCH_LIGHT), ...programFaces];
   const bounds = boundsOf(faces);
   const units = typeof manifest.units === 'string' ? manifest.units : DEFAULT_UNITS;
   const round1 = (n) => Math.round(n * 10) / 10;
@@ -415,6 +430,8 @@ export function planWorkbench(manifest = {}) {
       size: { w: round1(b.max[0] - b.min[0]), d: round1(b.max[1] - b.min[1]), h: round1(b.max[2] - b.min[2]) },
       base: round1(b.min[2]), top: round1(b.max[2]),
     };
+    // a cut's emitted field reads out as the ONE part it is, with its provenance
+    if (kind === 'field' && spec && spec.cut) { out.cut = spec.cut.id; out.from = spec.cut.from; }
     if (!closure.closed) {
       const widest = round1(closure.holes[0].diameter);
       out.open = { holes: closure.holes.length, widest };
@@ -457,6 +474,14 @@ export function planWorkbench(manifest = {}) {
       warnings.push(`Object sinks ${round1(-bounds.min[2])} ${units} below the grid (lowest point z=${round1(bounds.min[2])}). Raise the base monomer so its lowest z = 0.`);
     }
   }
+  // parts-booleans B1: each cut's readout — what it consumed and what the field grid rounds its
+  // edges to, in units. An advisory (never a refusal): the ceiling is the field solid's.
+  const round3 = (n) => Math.round(n * 1000) / 1000;
+  const cuts = fields.filter((f) => f && f.cut).map((f) => ({ ...f.cut, edge_round: round3(fieldGrid(f).cell) }));
+  for (const c of cuts) {
+    const op = c.subtract ? `subtract ${c.subtract.join(', ')}` : `intersect ${c.intersect.join(', ')}`;
+    warnings.push(`cut '${c.id}' (${c.from} ${op}) rounds every edge to about ${c.edge_round} ${units} (${c.cells} cells) — raise \`cells\` (≤128) for a finer edge; a sharp edge is export_model union:true or the DCC.`);
+  }
 
   const ledger = {
     recipe_bytes: recipeBytes,
@@ -465,7 +490,7 @@ export function planWorkbench(manifest = {}) {
     closed: closureWarnings.length === 0,
     ...(programReport ? { program_ms: programReport.ms } : {}),
   };
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(programReport ? { program: programReport } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(cuts.length ? { cuts } : {}), ...(programReport ? { program: programReport } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

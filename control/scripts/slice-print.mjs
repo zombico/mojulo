@@ -26,6 +26,7 @@
  *      MOJULO_SLICER_TIMEOUT_MS (watchdog, default 10 min).
  */
 import { parseArgs } from 'node:util';
+import os from 'node:os';
 import { promises as fs } from 'node:fs';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
@@ -80,7 +81,10 @@ const which = (name) => {
   const r = spawnSync('which', [name], { encoding: 'utf8' });
   return r.status === 0 ? r.stdout.trim() : null;
 };
-const slicer = args.slicer ? { id: 'custom', family: 'prusa', bin: args.slicer } : findSlicer({ env: process.env, exists: existsSync, which });
+// an explicit --slicer path is read like MOJULO_SLICER: the family comes from the path's name
+const slicer = args.slicer ? findSlicer({ env: { MOJULO_SLICER: args.slicer } }) : findSlicer({ env: process.env, exists: existsSync, which });
+// a scratch settings dir for the orca family, so a headless run never touches the operator's GUI config
+const orcaDatadir = path.join(os.tmpdir(), 'mojulo-slicer-datadir');
 
 const WATCHDOG_MS = Number(process.env.MOJULO_SLICER_TIMEOUT_MS || 10 * 60 * 1000);
 function run(bin, sargs) {
@@ -100,40 +104,55 @@ if (args['no-gate']) {
   gate = { skipped: true, reason: '--no-gate' };
 } else if (!slicer) {
   log('no slicer found — capability rung 0, 3MF + closure audit only');
-  gate = { skipped: true, reason: 'no slicer found (set MOJULO_SLICER, or install PrusaSlicer / SuperSlicer — verified; OrcaSlicer / Bambu Studio are driven with a machine+process --profile, unverified) — open the 3MF in the app' };
+  gate = { skipped: true, reason: 'no slicer found (set MOJULO_SLICER, or install PrusaSlicer / SuperSlicer / Bambu Studio — verified; OrcaSlicer is the same CLI family, unrun) — open the 3MF in the app' };
 } else if (slicer.family === 'orca') {
-  // OrcaSlicer / Bambu Studio (text-to-cad-seam T6): JSON profiles, no defaults, no --info.
+  // OrcaSlicer / Bambu Studio (text-to-cad-seam T6): JSON profiles, no defaults. Verified
+  // against Bambu Studio 02.08 on 2026-09-08 — the app-bundle system profiles load as-is
+  // (`/Applications/BambuStudio.app/Contents/Resources/profiles/BBL/{machine,process,filament}/`).
   const profile = args.profile || process.env.MOJULO_SLICER_PROFILE || null;
   const listDir = (d) => { try { return statSync(d).isDirectory() ? readdirSync(d) : null; } catch { return null; } };
   const profiles = orcaProfileFiles(profile, { listDir });
   if (!profiles) {
     log(`${slicer.id} found at ${slicer.bin} — its CLI needs a machine + process profile; skipping the slice`);
-    gate = { skipped: true, slicer: slicer.id, bin: slicer.bin, reason: `${slicer.id} needs --profile "machine.json;process.json[;filament.json]" (or a directory of them) — this family slices with no defaults; open ${file} in the app meanwhile` };
+    gate = { skipped: true, slicer: slicer.id, bin: slicer.bin, reason: `${slicer.id} needs --profile "machine=<machine.json>;process=<process.json>[;filament=<filament.json>]" (a bare ;-list or a directory works when the file names say machine / process / filament) — this family slices with no defaults; Bambu Studio's own profiles sit under its app bundle at Contents/Resources/profiles/BBL/; open ${file} in the app meanwhile` };
   } else {
+    // --info exists in this family too (contrary to the wiki read): the same size / manifold /
+    // parts / volume block as PrusaSlicer's, so the unit-slip check is real here
+    log(`machine gate — ${slicer.id} --info`);
+    const info = await run(slicer.bin, ['--debug', '1', '--datadir', orcaDatadir, '--outputdir', dir, '--info', file]);
+    const infoParsed = info.code === 0 ? parseSlicerInfo(info.out + info.err) : null;
+    if (info.code !== 0) log(`--info exit ${info.code}: ${(info.err || info.out).trim().split('\n').slice(-3).join(' | ')}`);
     const sliceDir = path.join(dir, 'slicedata');
     await fs.rm(sliceDir, { recursive: true, force: true });
     await fs.rm(path.join(dir, 'sliced.3mf'), { force: true });
-    const sargs = orcaSliceArgs({ file, outDir: dir, profiles, supports: !!args.supports });
-    log(`machine gate — ${slicer.id} ${sargs.slice(0, 6).join(' ')} … (arranged onto the bed; flags per the Bambu Studio CLI wiki — unverified on this host)`);
+    for (const n of readdirSync(dir)) if (/^plate_\d+\.gcode$/i.test(n)) await fs.rm(path.join(dir, n), { force: true });
+    const sargs = orcaSliceArgs({ file, outDir: dir, profiles, supports: !!args.supports, datadir: orcaDatadir, debug: 1 });
+    log(`machine gate — ${slicer.id} --load-settings … --slice 0 --arrange 1 (arranged onto the bed)`);
     const slice = await run(slicer.bin, sargs);
     const sliceLog = path.join(dir, 'slice.log');
     await fs.writeFile(sliceLog, `$ ${slicer.bin} ${sargs.join(' ')}\n\n${slice.out}\n${slice.err}`);
-    // the plate G-code lands under slicedata/ (plate_1.gcode); read the first one found
+    // the plate G-code: Bambu Studio 02.08 writes `plate_<n>.gcode` straight into --outputdir
+    // (the --export-slicedata directory was not even created on the verified run); older
+    // builds / the wiki put it under slicedata/. Look in both, plates first.
     let gcodePath = null; let gcodeParsed = null;
     try {
       const walk = (d) => { for (const n of readdirSync(d)) { const p = path.join(d, n); if (statSync(p).isDirectory()) { const r = walk(p); if (r) return r; } else if (/\.gcode$/i.test(n)) return p; } return null; };
-      gcodePath = existsSync(sliceDir) ? walk(sliceDir) : null;
+      const plates = readdirSync(dir).filter((n) => /^plate_\d+\.gcode$/i.test(n)).sort();
+      gcodePath = plates.length ? path.join(dir, plates[0]) : (existsSync(sliceDir) ? walk(sliceDir) : null);
     } catch { gcodePath = null; }
     if (!slice.timedOut && slice.code === 0 && gcodePath) gcodeParsed = parseOrcaGcodeHeader(await fs.readFile(gcodePath, 'utf8'));
-    const summary = summarizePrintGate({ info: null, gcode: gcodeParsed, exportSizeMm: exported?.size_mm ?? null });
+    const summary = summarizePrintGate({ info: infoParsed, gcode: gcodeParsed, exportSizeMm: exported?.size_mm ?? null });
     gate = {
       skipped: false,
       slicer: slicer.id,
       bin: slicer.bin,
       family: 'orca',
-      verified: false,
-      verify_note: 'orca-family flags follow the Bambu Studio CLI wiki (2026-09-08) and have not been run against a real install here; size_agrees is null (no --info twin) — read slice.log if anything looks off',
+      verified: slicer.id === 'bambu',
+      verify_note: slicer.id === 'bambu'
+        ? 'Bambu Studio CLI verified 2026-09-08 (02.08.02, macOS): --info parsed, plate G-code header parsed; filament grams read 0 under a profile that carries no density'
+        : 'OrcaSlicer shares Bambu Studio\'s CLI (verified 2026-09-08) but has not itself been run here — read slice.log if anything looks off',
       profile: profile,
+      info_exit: info.code,
       slice_exit: slice.timedOut ? 'timeout' : slice.code,
       gcode: gcodePath,
       sliced_3mf: existsSync(path.join(dir, 'sliced.3mf')) ? path.join(dir, 'sliced.3mf') : null,
