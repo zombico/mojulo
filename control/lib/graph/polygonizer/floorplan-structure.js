@@ -119,6 +119,9 @@ export const FLOORPLAN_DEFAULTS = {
   deckTint: '#90785a',        // wood deck boards
   railTint: '#e3dccc',        // deck/balcony railing (posts, balusters, top rail)
   balconySlabTint: '#bdb4a4',  // cantilevered balcony slab + corbels
+  terraceTint: '#9a958c',      // set-back terrace deck (the upper slab continued over the storey below)
+  terraceRailTint: '#4a4a4a',  // balustrade along a terrace's open edges
+  terraceRailHeight: 3.3,
   thresholdTint: '#9a8b72',
   glassTint: 'rgba(176,206,225,0.32)', // tinted, translucent (renders via the water pass)
   ceilingTint: '#d8d2c4',  // off-white ceiling plane
@@ -2037,7 +2040,10 @@ export function structurizeHouse(input = {}, opts = {}) {
     // by construction), running along the spine where there's length for the run.
     // anchor the flight at the corner the run + width grow FROM, per direction, so the well
     // stays inside the reserved zone (the run extends +dir along, the width +perp across).
-    const stairAnchor = stairDir === '-x' ? [stairZone.x1 - 0.2, stairZone.y1 - 0.2]
+    // Only a PROGRAM-generated ground plan reserves a stair zone; explicit per-level rooms
+    // never set one, so guard the deref (an authored stack with `stairs[]` used to throw here).
+    const stairAnchor = !stairZone ? null
+      : stairDir === '-x' ? [stairZone.x1 - 0.2, stairZone.y1 - 0.2]
       : stairDir === '+y' ? [stairZone.x1 - 0.2, stairZone.y0 + 0.2]
       : stairDir === '-y' ? [stairZone.x0 + 0.2, stairZone.y1 - 0.2]
       : [stairZone.x0 + 0.2, stairZone.y0 + 0.2];   // '+x'
@@ -2086,6 +2092,34 @@ export function structurizeHouse(input = {}, opts = {}) {
     faces.push(...s.faces);
     levels.push({ index, role: r.role || (index === 0 ? 'ground' : index > 0 ? 'upper' : 'basement'), baseZ: r.floorZ, height: r.height, structure: s });
     footprint = s.footprint;            // shared footprint across the stack
+  }
+  // SET-BACK TERRACES. Where a storey's footprint reaches past the one above it (a penthouse
+  // pulled back from the street), the upper floor slab CONTINUES over the uncovered strip as a
+  // solid deck with a balustrade on its open edges — so the storey below is roofed by real
+  // mass, not by a ceiling plane the World fades for an overhead camera. Identical footprints
+  // subtract to nothing, so a straight stack adds zero faces. The deck rides the UPPER level
+  // (it is that level's slab), so an exploded read lifts it with the floor it belongs to.
+  for (let i = 1; i < levels.length; i += 1) {
+    const lower = levels[i - 1], upper = levels[i];
+    if (upper.index !== lower.index + 1) continue;
+    const lf = lower.structure.footprint, uf = upper.structure.footprint;
+    const strips = subtractRect({ x0: lf.x0, x1: lf.x1, y0: lf.y0, y1: lf.y1 }, uf);
+    if (!strips.length) continue;
+    const z1 = upper.baseZ, z0 = z1 - o.floorDrop, rh = o.terraceRailHeight, inset = 0.12;
+    const deck = [];
+    // world-space box for the deck/balcony rail builders (posts + top rail + balusters)
+    const wbox = (x0, x1, y0, y1, za, zb, tint) => deck.push(...boxFaces(Math.min(x0, x1), Math.max(x0, x1), Math.min(y0, y1), Math.max(y0, y1), za, zb, tint, o.light));
+    for (const r of strips) {
+      deck.push(...boxFaces(r.x0, r.x1, r.y0, r.y1, z0, z1, o.terraceTint, o.light, { top: true, bottom: true }));
+      // balustrade on every edge of the strip that lies on the lower storey's outer boundary
+      if (Math.abs(r.y0 - lf.y0) < Q) railAlong(wbox, r.x0, r.x1, r.y0 + inset, z1, rh, o.terraceRailTint);
+      if (Math.abs(r.y1 - lf.y1) < Q) railAlong(wbox, r.x0, r.x1, r.y1 - inset, z1, rh, o.terraceRailTint);
+      if (Math.abs(r.x0 - lf.x0) < Q) railPerp(wbox, r.y0, r.y1, r.x0 + inset, z1, rh, o.terraceRailTint);
+      if (Math.abs(r.x1 - lf.x1) < Q) railPerp(wbox, r.y0, r.y1, r.x1 - inset, z1, rh, o.terraceRailTint);
+    }
+    for (const f of deck) f.group = 'terrace';
+    upper.structure.faces.push(...deck);
+    faces.push(...deck);
   }
   meru.footprint = footprint;
   meru.core = stairs[0]?.core || null;   // the meru is now a placed feature of the plan
@@ -2144,12 +2178,14 @@ function camerasForBounds(fp, zMin, zMax, viewBox) {
 }
 
 /**
- * Render a multi-level house as a navigable three.js World. `opts.explode` (feet)
- * pulls the storeys apart vertically so each open-top level is readable — a basement
- * stacked flush under a solid ground slab would otherwise be fully hidden. explode:0
- * keeps the true flush stack.
+ * Assemble a multi-level house as the World scene object — the same shape
+ * assembleFloorWorldScene returns — so the `floorplan` world kind can route a `levels[]`
+ * manifest here and the still / World / export legs consume one payload. `opts.explode`
+ * (feet) pulls the storeys apart vertically so each open-top level is readable — a
+ * basement stacked flush under a solid ground slab would otherwise be fully hidden.
+ * explode:0 keeps the true flush stack; exterior is a solid massing and is never exploded.
  */
-export function renderHouseToThreeWorld(input = {}, opts = {}) {
+export function assembleHouseWorldScene(input = {}, opts = {}) {
   const house = structurizeHouse(input, opts);
   const exterior = opts.view === 'exterior';
   const viewBox = opts.viewBox || { width: 1120, height: 840 };
@@ -2168,8 +2204,11 @@ export function renderHouseToThreeWorld(input = {}, opts = {}) {
   } else {
     faces = house.faces.filter((f) => !f.helper);   // building mass only, no datum helpers
   }
-  const zs = faces.flatMap((f) => f.corners.map((c) => c[2]));
-  const cameras = opts.cameras || camerasForBounds(house.footprint, Math.min(...zs), Math.max(...zs), viewBox);
+  // z-range by loop: a furnished six-storey stack carries millions of corners, and spreading
+  // them into Math.min/max overflowed the call stack (same numbers for every smaller house).
+  let zLo = Infinity, zHi = -Infinity;
+  for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
+  const cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);
   // First-person spawn: stand at the footprint centre on the ground storey (index 0 is
   // unshifted even when exploded). Fly to other floors with Space/Shift. Eye height is an
   // adult's, 5.3 ft (1.62 m), kept two feet under a low ceiling; it was 42% of the storey,
@@ -2180,13 +2219,20 @@ export function renderHouseToThreeWorld(input = {}, opts = {}) {
   const textures = {};
   for (const k of house.roofTextureKeys || []) { const u = surfaceTexture(k); if (u) textures[k] = u; }
   collectFaceTextures(house.faces, textures);
-  return emitThreeWorld({
+  return {
     faces, cameras, viewBox,
     title: opts.title || 'mojulo house',
     bg: opts.bg || '#10131a', inline: opts.inline ?? false, light: opts.light,
     walk: exterior ? false : floorplanWalk(opts.walk, house.footprint, eyeZ),
     ...(Object.keys(textures).length ? { textures } : {}),
-  });
+    // authored in FEET like the single floor; the GLB root and engine score scale by this.
+    metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
+  };
+}
+
+/** Render a multi-level house as a navigable three.js World (see assembleHouseWorldScene). */
+export function renderHouseToThreeWorld(input = {}, opts = {}) {
+  return emitThreeWorld(assembleHouseWorldScene(input, opts));
 }
 
 /** A face-on concept board of WINDOW STYLES: a flat wall (cut around each opening) with one
@@ -2226,17 +2272,36 @@ export function renderWindowSampler(opts = {}) {
   return emitThreeWorld({ faces, cameras: [cam], viewBox: { width: 1500, height: 480 }, title: opts.title || 'window concepts', bg: opts.bg || '#10131a', inline: opts.inline ?? true, light: o.light });
 }
 
-/** Multi-level house → self-contained preserve-3d HTML scene. */
+/** Multi-level house → self-contained preserve-3d HTML scene (the STILL path the `floorplan`
+ *  kind's `levels[]` manifests bake through). `opts.explode` (feet) pulls the storeys apart like
+ *  the World does, framed over the pulled-apart z-range; absent, the flush stack and its cameras
+ *  are exactly what they were. */
 export function renderHouseToHtml(input = {}, opts = {}) {
   const house = structurizeHouse(input, opts);
+  const viewBox = opts.viewBox || { width: 1120, height: 820 };
+  const gap = opts.view === 'exterior' ? 0 : (opts.explode || 0);
+  let faces = house.faces, cameras = opts.cameras || houseCameras(house, opts);
+  if (gap) {
+    faces = house.levels.flatMap((lvl) => lvl.structure.faces.map((f) => ({
+      ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + lvl.index * gap]),
+    })));
+    for (const st of house.stairs || []) {
+      const dz = Math.min(st.fromIndex, st.toIndex) * gap;
+      for (const f of st.faces) faces.push({ ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + dz]) });
+    }
+    let zLo = Infinity, zHi = -Infinity;
+    for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
+    cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);
+  }
   return emitPreserve3dScene({
-    faces: house.faces,
-    cameras: opts.cameras || houseCameras(house, opts),
-    viewBox: opts.viewBox || { width: 1120, height: 820 },
+    faces,
+    cameras,
+    viewBox,
     unitScale: opts.unitScale || 7,
     title: opts.title || 'mojulo house',
     bg: opts.bg || '#10131a',
     inflate: opts.inflate ?? 1.012,
+    signs: opts.signs,
   });
 }
 

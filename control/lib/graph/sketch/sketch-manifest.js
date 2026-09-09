@@ -80,9 +80,10 @@ export function validateSketchManifest(manifest) {
     if (!manifest.title || typeof manifest.title !== 'string') {
       errors.push('manifest.title is required (string)');
     }
-    const hasSeedForm = isFiniteNumber(manifest.seed) || Array.isArray(manifest.rooms);
+    const hasStack = manifest.kind === 'floorplan' && Array.isArray(manifest.levels) && manifest.levels.length > 0;
+    const hasSeedForm = isFiniteNumber(manifest.seed) || Array.isArray(manifest.rooms) || hasStack;
     if (!hasSeedForm) {
-      errors.push(`kind '${manifest.kind}' needs a seed (integer) or an explicit rooms[] plan`);
+      errors.push(`kind '${manifest.kind}' needs a seed (integer) or an explicit rooms[] plan (a floorplan may carry a levels[] stack instead)`);
     }
     return { ok: errors.length === 0, errors };
   }

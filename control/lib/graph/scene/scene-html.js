@@ -20,7 +20,7 @@ import { renderTransportationHubToHtml } from '@/lib/graph/architecture/transpor
 import { renderSolidTurntableToHtml } from '@/lib/graph/worlds/solid-turntable';
 import { renderSubwayStationToHtml } from '@/lib/graph/architecture/subway-station';
 import { renderWorkbenchToHtml } from '@/lib/graph/worlds/workbench';
-import { renderFloorplanToHtml } from '@/lib/graph/polygonizer/floorplan-structure';
+import { renderFloorplanToHtml, renderHouseToHtml } from '@/lib/graph/polygonizer/floorplan-structure';
 import { renderRestaurantToHtml } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { renderAssemblerToHtml } from '@/lib/graph/worlds/workbench-assembler';
 
@@ -105,7 +105,9 @@ function dispatchSceneHtml(sketch, sceneOpts = {}) {
     return renderPaintedLandscapeToHtml(manifest, { title: title || 'mojulo terrain', signs });
   }
   if (manifest.kind === 'floorplan') {
-    return renderFloorplanToHtml(manifest, { ...manifest, view: sceneOpts.view ?? manifest.view, signs, title: title || 'mojulo house' });
+    const o = { ...manifest, view: sceneOpts.view ?? manifest.view, signs, title: title || 'mojulo house' };
+    // a `levels[]` STACK bakes through the house renderer (same split as the world kind).
+    return (Array.isArray(manifest.levels) && manifest.levels.length) ? renderHouseToHtml(manifest, o) : renderFloorplanToHtml(manifest, o);
   }
   if (manifest.kind === 'restaurant') {
     return renderRestaurantToHtml(manifest, { ...manifest, view: sceneOpts.view ?? manifest.view, signs, title: title || 'mojulo restaurant' });

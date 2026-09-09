@@ -10,6 +10,41 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### The building stacks — `levels[]` on the floorplan kind (paris-t4-stack)
+
+A `floorplan` sketch was one storey. The multi-level kernel (`structurizeHouse`: one meru, per-level
+plans and heights, stairs through the slabs, one roof on the top footprint) existed but no sketch
+kind reached it, so a six-storey building could only be minted as six unrelated floors.
+
+- **`levels[]` on the `floorplan` kind.** A floorplan manifest may carry
+  `levels: [{ index, height, rooms, halls, doors, windows?, ceilings? }]` plus the house knobs
+  (`stairs[]` with anchors, `explode`, `roof`, `view: 'exterior'`). The world kind routes such a
+  manifest through the new `assembleHouseWorldScene` (the assemble-shaped sibling of
+  `renderHouseToThreeWorld`, which now emits from it); the STILL path (`scene-html`) bakes the same
+  manifest through `renderHouseToHtml`, which now honours `explode` like the World. A manifest
+  without `levels` resolves exactly as before — byte-identical, pinned by the existing kinds snapshot. Each level extrudes its own
+  footprint, so a set-back penthouse stacks on full-width floors and the roof caps the top one.
+- **Validation and the mint-time improver know a stack.** `validateSketchManifest` accepts a
+  floorplan with `levels[]` (no top-level `seed` / `rooms` needed); `improveFloorplanManifest`
+  passes a stack through untouched instead of grading a seed-generated single floor and possibly
+  writing top-level `rooms` into the recipe. Multi-level grading is not built.
+- **Set-back terraces are real decks.** Where a storey's footprint reaches past the one above
+  (a penthouse pulled back from the street), the upper floor slab now continues over the uncovered
+  strip as a solid deck with a balustrade on its open edges (`terraceTint`, `terraceRailTint`,
+  `terraceRailHeight`), tagged `group: 'terrace'` and riding the upper level so an exploded read
+  lifts it with its floor. Before, the storey below was open to the sky there — the only cap was
+  a ceiling plane, which the World fades for an overhead camera. Identical footprints subtract to
+  nothing: a straight stack adds zero faces.
+- **Fixed: an authored stack with `stairs[]` threw.** `structurizeHouse` read the program
+  generator's reserved stair zone unconditionally; explicit per-level `rooms` never set one, so any
+  hand-authored multi-level house with a stair crashed on a null deref. The anchor now derives only
+  when a zone exists; an explicit `anchor` on the stair spec seats the flight, as documented.
+- **Fixed: a furnished stack overflowed the call stack at camera framing.** The house scene's
+  z-range spread every face corner into one `Math.min` / `Math.max` call; a furnished six-storey
+  stack has millions. It is a loop now, same numbers for every house that framed before.
+- **Not built:** per-side window control (party walls still take windows), a lot around a stack
+  whose levels differ in footprint, per-level door heights.
+
 ### Cuts — a hole is a line in the recipe (parts-booleans B1, B2, B4) + the Bambu Studio slice (text-to-cad-seam T6)
 
 The workbench could cut only inside a `fields` monomer; a flange authored as a lathe and a bolt

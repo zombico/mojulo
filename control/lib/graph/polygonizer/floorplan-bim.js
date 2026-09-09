@@ -516,6 +516,10 @@ export function repairFloorplan(plan = {}, opts = {}) {
  */
 export function improveFloorplanManifest(manifest = {}, opts = {}) {
   if (!manifest || manifest.kind !== 'floorplan') return manifest;
+  // A `levels[]` stack renders through structurizeHouse. The single-floor grader would score a
+  // seed-generated plan that is not the stored recipe, and repair could write top-level `rooms`
+  // into it. Multi-level grading is not built — the stack passes through untouched.
+  if (Array.isArray(manifest.levels) && manifest.levels.length) return manifest;
   const grade = (m) => scoreHouse(floorModel(m, m), opts.scoreOpts);
   const hard = (g) => g.breakdown.reachability < 1 || g.breakdown.egress < 1;
 

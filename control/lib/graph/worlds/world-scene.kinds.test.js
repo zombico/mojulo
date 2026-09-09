@@ -196,3 +196,24 @@ describe('world-scene kinds — side tables pinned as literals', () => {
     expect(notFog.payload.fog).toBeUndefined();
   });
 });
+
+describe('world-scene kinds — floorplan `levels[]` routes to the house arm (paris-t4-stack)', () => {
+  const STACK = {
+    kind: 'floorplan', title: 'stack', width: 30, height: 20,
+    levels: [
+      { index: 0, height: 12, rooms: [{ x: 0, y: 0, w: 30, h: 20, glyph: 'L' }], doors: [] },
+      { index: 1, height: 8, rooms: [{ x: 0, y: 0, w: 30, h: 20, glyph: 'B' }], doors: [] },
+    ],
+  };
+
+  it('a levels[] manifest resolves to a multi-storey payload; the single floor keeps its arm', async () => {
+    const stack = await resolveWorldScene(sketch(STACK));
+    const single = await resolveWorldScene(sketch({ ...FIXTURES.floorplan, seed: 1 }));
+    expect(stack.kind).toBe('floorplan');
+    const top = (p) => Math.max(...p.faces.flatMap((f) => f.corners.map((c) => c[2])));
+    // 12 ft ground + 1.1 slab + 8 ft upper ≈ 21.1; a single floor never reaches that
+    expect(top(stack.payload)).toBeGreaterThan(20);
+    expect(top(single.payload)).toBeLessThan(15);
+    expect(stack.payload.metersPerUnit).toBe(single.payload.metersPerUnit);
+  });
+});

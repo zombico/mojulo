@@ -175,6 +175,14 @@ describe('floorplan-bim: manifest-level grade, repair, and the mint-time improve
     expect(out.seed).toBe(manifest.seed);   // already good → seed not swapped
   });
 
+  it('passes a levels[] stack through untouched (multi-level grading is not built)', () => {
+    const stack = {
+      kind: 'floorplan', title: 'stack', viewBox: { width: 1120, height: 760 }, width: 30, height: 20,
+      levels: [{ index: 0, height: 12, rooms: [{ x: 0, y: 0, w: 30, h: 20, glyph: 'L' }] }],
+    };
+    expect(improveFloorplanManifest(stack)).toBe(stack);   // same reference: no grade, no repaired rooms
+  });
+
   it('is a strict no-op for non-floorplan kinds', () => {
     const other = { kind: 'fractal-city', title: 'city', viewBox: { width: 100, height: 100 }, marks: [] };
     expect(improveFloorplanManifest(other)).toBe(other);   // same reference, untouched

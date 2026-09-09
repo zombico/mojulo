@@ -4,7 +4,7 @@ import {
   buildWallGraph, placeOpenings, wallRunFaces, extrudeWalls,
   structurizeFloorplan, STRUCTURAL_GLYPHS,
   houseMeru, structurizeHouse, groundDatumFaces, LEVEL_ROLES,
-  buildStairFlight, placeStairs, STAIR_DEFAULTS,
+  buildStairFlight, placeStairs, STAIR_DEFAULTS, assembleHouseWorldScene, FLOORPLAN_METERS_PER_UNIT,
 } from './floorplan-structure.js';
 
 // A minimal hand-built footprint: two rooms separated by a hall, tiling a
@@ -272,4 +272,71 @@ test('ground datum is a z=0 helper line, not terrain', () => {
       && Math.abs(f.corners[0][2] - house.meru.groundZ) < 1e-6;
   });
   assert.ok(!coversInterior, 'no filled ground plane — only a helper outline');
+});
+
+// ── assembleHouseWorldScene: the stack as ONE World scene (paris-t4-stack) ───────────────
+// The `floorplan` kind routes a `levels[]` manifest here. Two explicit levels of different
+// footprint (a set-back upper floor) must land at their own floor z, share one payload shape
+// with the single-floor scene, and pull apart under `explode`.
+const STACK = {
+  width: 30, height: 20,
+  levels: [
+    { index: 0, height: 12, rooms: [{ x: 0, y: 0, w: 30, h: 20, glyph: 'L' }], doors: [] },
+    { index: 1, height: 8, rooms: [{ x: 2, y: 4, w: 26, h: 16, glyph: 'B' }], doors: [] },
+  ],
+};
+
+test('assembleHouseWorldScene returns the floor-scene shape with every level at its own z', () => {
+  const scene = assembleHouseWorldScene(STACK, { ...STACK, view: 'cutaway', walk: true });   // the kind passes walk
+  assert.ok(Array.isArray(scene.faces) && scene.faces.length > 0, 'faces');
+  assert.ok(scene.cameras.length >= 2, 'cameras framed over the stack');
+  assert.ok(scene.walk, 'cutaway is walkable');
+  assert.equal(scene.metersPerUnit, FLOORPLAN_METERS_PER_UNIT, 'feet, like the single floor');
+  const zs = scene.faces.flatMap((f) => f.corners.map((c) => c[2]));
+  // ground storey 12 ft + slab 1.1 → the upper floor's walls top out at 13.1 + 8 = 21.1
+  assert.ok(Math.max(...zs) > 21 && Math.max(...zs) < 22.5, `stack top ${Math.max(...zs)}`);
+  // the upper level's set-back envelope leaves faces at x=2 above the ground storey
+  const upperWest = scene.faces.some((f) => f.corners.every((c) => Math.abs(c[0] - 2) < 0.6 && c[2] > 13));
+  assert.ok(upperWest, 'set-back upper footprint extrudes its own envelope');
+});
+
+test('assembleHouseWorldScene: explode lifts the upper level, exterior never explodes', () => {
+  const flush = assembleHouseWorldScene(STACK, { ...STACK, view: 'cutaway' });
+  const apart = assembleHouseWorldScene(STACK, { ...STACK, view: 'cutaway', explode: 6 });
+  const top = (sc) => Math.max(...sc.faces.flatMap((f) => f.corners.map((c) => c[2])));
+  assert.ok(Math.abs(top(apart) - top(flush) - 6) < 1e-6, 'upper level shifted by the gap');
+  const ext = assembleHouseWorldScene(STACK, { ...STACK, view: 'exterior', explode: 6 });
+  assert.equal(ext.walk, false, 'exterior is an orbit, not a walk');
+  // exterior adds a roof over the top footprint, so its top is above the flush cutaway's walls
+  assert.ok(top(ext) > top(flush), 'exterior is capped, not exploded');
+});
+
+test('structurizeHouse: explicit per-level rooms with anchored stairs (no program stair zone) build and cut the slab', () => {
+  const house = structurizeHouse({
+    width: 30, height: 20,
+    stairs: [{ from: 0, to: 1, anchor: [3, 3], direction: '+x', switchback: true, width: 3 }],
+    levels: [
+      { index: 0, height: 12, rooms: [{ x: 0, y: 0, w: 30, h: 20, glyph: 'L' }], doors: [] },
+      { index: 1, height: 8, rooms: [{ x: 0, y: 0, w: 30, h: 20, glyph: 'B' }], doors: [] },
+    ],
+  });
+  assert.equal(house.stairs.length, 1, 'the anchored flight was placed');
+  assert.deepEqual(house.stairs[0].anchor, [3, 3], 'explicit anchor honoured (no program zone to seat in)');
+  const upper = house.levels.find((l) => l.index === 1);
+  assert.equal(upper.structure.slabHoles.length, 1, 'the upper slab opens for the stair');
+});
+
+test('structurizeHouse: a set-back upper storey gets a terrace deck over the storey below; a straight stack adds none', () => {
+  const lvl = (index, height, x, y, w, h, glyph) => ({ index, height, rooms: [{ x, y, w, h, glyph }], doors: [] });
+  const setBack = structurizeHouse({ width: 30, height: 20, levels: [lvl(0, 12, 0, 0, 30, 20, 'L'), lvl(1, 8, 2, 6, 26, 14, 'B')] });
+  const terrace = setBack.faces.filter((f) => f.group === 'terrace');
+  assert.ok(terrace.length > 0, 'deck + rail faces exist');
+  const upper = setBack.levels.find((l) => l.index === 1);
+  // the deck is the upper slab continued: it spans floorDrop below the upper floor z
+  const deckTop = terrace.filter((f) => f.corners.every((c) => Math.abs(c[2] - upper.baseZ) < 1e-6));
+  assert.ok(deckTop.length > 0, 'deck top at the upper floor level');
+  assert.ok(deckTop.some((f) => f.corners.every((c) => c[1] <= 6 + 1e-6)), 'the street strip (y < 6) is decked');
+  assert.ok(upper.structure.faces.includes(terrace[0]), 'the deck rides the upper level (exploded reads lift it)');
+  const straight = structurizeHouse({ width: 30, height: 20, levels: [lvl(0, 12, 0, 0, 30, 20, 'L'), lvl(1, 8, 0, 0, 30, 20, 'B')] });
+  assert.equal(straight.faces.filter((f) => f.group === 'terrace').length, 0, 'identical footprints add nothing');
 });

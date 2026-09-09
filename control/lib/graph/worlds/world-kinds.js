@@ -33,7 +33,7 @@ import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
 import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph/worlds/workbench-assembler';
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
-import { assembleFloorWorldScene } from '@/lib/graph/polygonizer/floorplan-structure';
+import { assembleFloorWorldScene, assembleHouseWorldScene } from '@/lib/graph/polygonizer/floorplan-structure';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
 import { assemblePlanetaryScene } from '@/lib/graph/scene/scene-planetary';
@@ -383,7 +383,12 @@ export const WORLD_KINDS = {
     title: 'mojulo house',
     walk: true,
     ao: true,
-    resolve: (m, ctx) => assembleFloorWorldScene(m, { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title }),
+    // A `levels[]` manifest is a STACK (structurizeHouse: one meru, per-level plans and heights,
+    // stairs through the slabs, one roof on the top footprint); without `levels` the manifest is
+    // the single floor it always was — absent ⇒ byte-identical.
+    resolve: (m, ctx) => (Array.isArray(m.levels) && m.levels.length
+      ? assembleHouseWorldScene(m, { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title })
+      : assembleFloorWorldScene(m, { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title })),
   },
   restaurant: {
     title: 'mojulo restaurant',
