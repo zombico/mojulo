@@ -119,3 +119,22 @@ describe('extractEngineScore — the locomotion row (export-unreal U2, the walki
       .toEqual({ idle: 'suit_multi:idle', walk: 'suit_multi:walk' });
   });
 });
+
+describe('mechanics scale with the unit declaration', () => {
+  const mech = [
+    { kind: 'reach-exit', at: [1, 2, 3], radius: 0.5 },
+    { kind: 'collect', into: 'bag', pickups: [{ item: 'cell', at: [2, 0, 1], radius: 0.25 }] },
+    { kind: 'hazard-damage', hazards: [{ at: [0, 1, 0], radius: 0.7, damage: 30 }] },
+    { kind: 'fail-on-death' },
+  ];
+  it('is the identity without a unit', () => {
+    expect(extractEngineScore(sketch({ game: { mechanics: mech } }), payload()).mechanics).toEqual(mech);
+  });
+  it('scales at + radius on zones, pickups and hazards; everything else passes through', () => {
+    const out = extractEngineScore(sketch({ game: { mechanics: mech } }), { ...payload(), metersPerUnit: 2 }).mechanics;
+    expect(out[0]).toEqual({ kind: 'reach-exit', at: [2, 4, 6], radius: 1 });
+    expect(out[1]).toEqual({ kind: 'collect', into: 'bag', pickups: [{ item: 'cell', at: [4, 0, 2], radius: 0.5 }] });
+    expect(out[2]).toEqual({ kind: 'hazard-damage', hazards: [{ at: [0, 2, 0], radius: 1.4, damage: 30 }] });
+    expect(out[3]).toEqual({ kind: 'fail-on-death' });
+  });
+});

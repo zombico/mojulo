@@ -156,6 +156,16 @@ stamp says it. Design + the neighbour survey: `lite-template/integration/0907/te
 - In progress: optional project map routing lets the game menu open persistent levels
   containing generated sublevels, retaining project-owned characters and dressing.
   Default pack map paths remain the fallback.
+- **BREAKING (exports only) — the city says what a unit is.** The fractal city is authored at
+  a town scale (a storey is 0.82 units), so every city export at 1 unit = 1 m read as a toy
+  beside an engine character. The kind now declares `metersPerUnit` 3.66 (`CITY_METERS_PER_UNIT`,
+  a storey read as 3.0 m — the value the operator's eyes gate passed), so every city GLB, USD,
+  Godot, Unity, Unreal and Blender pack re-exports 3.66× larger, in metres, with the score in
+  step. The web render is untouched. A recipe may override with its own `metersPerUnit`, and any
+  world recipe may declare one: `resolveWorldScene` puts it on the payload when the kind has not
+  declared its own (the floorplan's feet still win). New in the same change: the `at` / `radius`
+  of every declarative mechanic (zone, pickup, hazard) scale too — a kernel reads them as
+  metres, and the floorplan's feet had silently left them unscaled.
 
 ### Package design — the carton takes a wrap, the assembler keeps the labels (soda-product-shot)
 

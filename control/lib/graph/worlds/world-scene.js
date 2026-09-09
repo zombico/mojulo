@@ -744,6 +744,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.unshadedWarning = `kind '${kind}' does not shade through the vexar FLAT_LIGHT seam (it bakes environment/self lighting), so unshaded export did not flatten it — the exported base still carries baked lighting.`;
   }
 
+  // A recipe-level unit declaration (`manifest.metersPerUnit`): a kind authored at another
+  // scale (the fractal city's storey is 0.82 units — a town scale, not metres) says so on the
+  // recipe, and the exporters' root scale + the engine score follow (scene-gltf, engine-score),
+  // so a level reads at human scale beside an engine character. A kind that declares its own
+  // (the floorplan: feet) wins; absent both ⇒ unset, byte-identical. Web render: untouched.
+  if (payload && payload.metersPerUnit == null) {
+    const mpu = Number(manifest?.metersPerUnit);
+    if (Number.isFinite(mpu) && mpu > 0) payload.metersPerUnit = mpu;
+  }
+
   return { payload, kind };
 }
 

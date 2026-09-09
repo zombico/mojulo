@@ -1198,6 +1198,12 @@ function pickTownRoof(apartment, rng) {
   return TOWN_ROOFS_PITCHED[Math.floor(rng() * TOWN_ROOFS_PITCHED.length)];
 }
 export const STOREY_H = 0.82;                                                          // one residential storey, town scale
+// What a city unit IS in metres: a 0.82-unit storey read as 3.0 m — the value the operator's
+// eyes gate passed beside an engine character (unreal-demo). Every exporter's root scale and
+// the engine score follow it (`payload.metersPerUnit`); the web render never reads it. A recipe
+// may override with its own `metersPerUnit`. Known tension: the edifice inset converts a storey
+// at 11 ft (city-insets.js), i.e. 4.09 m per unit — 12% apart, left as is.
+export const CITY_METERS_PER_UNIT = 3.66;
 function placeTownDwelling(boxes, rect, size, rng, minDim, front, cladding) {
   const apartment = size === 'large' && minDim >= 1.3 && rng() < 0.55;          // a corner walk-up, occasionally
   let storeys, h;
@@ -2861,6 +2867,9 @@ export function assembleFractalCityScene(opts = {}) {
   if (Array.isArray(opts.insets)) for (const i of opts.insets) if (i && i.textures && Object.keys(i.textures).length) scene.textures = { ...(scene.textures || {}), ...i.textures };
   if (plan.walkerLoops && plan.walkerLoops.length) scene.walkerLoops = plan.walkerLoops;
   if (plan.carLanes && plan.carLanes.length) scene.carLanes = plan.carLanes;
+  // the unit declaration (see CITY_METERS_PER_UNIT): recipe override, else the kind's own
+  const mpu = Number(opts.metersPerUnit);
+  scene.metersPerUnit = Number.isFinite(mpu) && mpu > 0 ? mpu : CITY_METERS_PER_UNIT;
   return scene;
 }
 

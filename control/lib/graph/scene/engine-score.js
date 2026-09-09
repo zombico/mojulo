@@ -63,6 +63,21 @@ export function resolvePosture(explicit, manifest) {
 
 const countOf = (x) => (Array.isArray(x) ? x.length : x ? 1 : 0);
 
+// Scale the positional fields of one declarative mechanic by the unit scale (identity when the
+// score has none): the `at` / `radius` a kernel reads on the mechanic itself and on each of its
+// `pickups` / `hazards`. Every other field (kind, item, damage, seconds) passes through.
+function scaleMechanic(m, sv, sn) {
+  if (!m || typeof m !== 'object') return m;
+  const one = (o) => (o && typeof o === 'object'
+    ? { ...o, ...(Array.isArray(o.at) ? { at: sv(o.at) } : {}), ...(Number.isFinite(o.radius) ? { radius: sn(o.radius) } : {}) }
+    : o);
+  return {
+    ...one(m),
+    ...(Array.isArray(m.pickups) ? { pickups: m.pickups.map(one) } : {}),
+    ...(Array.isArray(m.hazards) ? { hazards: m.hazards.map(one) } : {}),
+  };
+}
+
 // The locomotion row (export-unreal.plan.md, the walking-suits gap): per
 // entity, the GLB animation names a kernel needs to make the figure MOVE —
 // idle / walk / boost, derived from the figure's own clip vocabulary
@@ -160,7 +175,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
       const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;
       return locomotion ? { ...scaled, locomotion } : scaled;
     }),
-    mechanics: manifest.game?.mechanics ?? [],
+    // declarative mechanics: `at` + `radius` on a zone, a pickup, a hazard are RECIPE units, so
+    // they scale with the mesh (a kernel reads them as metres × 100). Absent a unit ⇒ untouched.
+    mechanics: (manifest.game?.mechanics ?? []).map((m) => scaleMechanic(m, sv, sn)),
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity
     // with a walk/platform rule. Emitters hide its exported body — the
     // operator IS the walker; leaving it renders a body double at spawn.
