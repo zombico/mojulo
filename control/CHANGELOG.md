@@ -10,6 +10,12 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Unreal demo — connected project levels
+
+- In progress: optional project map routing lets the game menu open persistent levels
+  containing generated sublevels, retaining project-owned characters and dressing.
+  Default pack map paths remain the fallback.
+
 ### Package design — the carton takes a wrap, the assembler keeps the labels (soda-product-shot)
 
 Building a six-pack for a Cycles product shot found two gaps at the texture seam. Only a

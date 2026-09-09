@@ -153,6 +153,7 @@ namespace MojuloScore
     // the kernel's spawn/zone/pickup positions ride the same mapping.
     MOJULOKERNEL_API FVector P(double X, double Y, double Z);
 
+    MOJULOKERNEL_API FString MapPath(const FString& MapName);
     MOJULOKERNEL_API FString PackDir();                       // <Project>/MojuloPack
     MOJULOKERNEL_API FString ScorePathForMap(const FString& MapName);
     MOJULOKERNEL_API bool LoadScore(const FString& JsonPath, FMojuloScoreData& Out);
@@ -171,6 +172,7 @@ const scoreCpp = () => `${HEADER_CPP}#include "MojuloScore.h"
 
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
@@ -204,6 +206,19 @@ namespace MojuloScore
     FVector P(double X, double Y, double Z)
     {
         return FVector(X * 100.0, -Y * 100.0, Z * 100.0);
+    }
+
+    FString MapPath(const FString& MapName)
+    {
+        FString Root;
+        if (GConfig) GConfig->GetString(TEXT("Mojulo"), TEXT("MapRoot"), Root, GGameIni);
+        Root.RemoveFromEnd(TEXT("/"));
+        if (Root.StartsWith(TEXT("/Game/")))
+        {
+            const FString ProjectMap = Root / MapName;
+            if (FPackageName::DoesPackageExist(ProjectMap)) return ProjectMap;
+        }
+        return FString(TEXT("/Game/MojuloPack/Maps/")) + MapName;
     }
 
     FString PackDir() { return FPaths::ProjectDir() / TEXT("MojuloPack"); }
@@ -361,7 +376,7 @@ namespace MojuloScore
 
     bool HasMenuMap()
     {
-        return FPackageName::DoesPackageExist(TEXT("/Game/MojuloPack/Maps/mojulo-menu"));
+        return FPackageName::DoesPackageExist(MapPath(TEXT("mojulo-menu")));
     }
 
     TSet<FString> ReadCompleted()
@@ -1133,7 +1148,7 @@ void AMojuloGameMode::ResetLevel()
 
 void AMojuloGameMode::ToMenu()
 {
-    UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/MojuloPack/Maps/mojulo-menu")));
+    UGameplayStatics::OpenLevel(this, FName(*MojuloScore::MapPath(TEXT("mojulo-menu"))));
 }
 `;
 
@@ -1278,7 +1293,7 @@ void AMojuloMenuGameMode::Tick(float DeltaSeconds)
     {
         const FMojuloGameLevel& Level = Game.Levels[Selected];
         if (!IsLocked(Level))
-            UGameplayStatics::OpenLevel(this, FName(*(FString(TEXT("/Game/MojuloPack/Maps/")) + Level.Ref)));
+            UGameplayStatics::OpenLevel(this, FName(*MojuloScore::MapPath(Level.Ref)));
     }
 }
 
