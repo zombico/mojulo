@@ -806,7 +806,7 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
     const assetHit = (el.surface === 'floor' && elevated) ? roomFurnitureAssetFaces(el, { light: L }) : null;
 
     if (assetHit) {                                // workbench-authored room asset
-      faces.push(...assetHit.faces);
+      for (const f of assetHit.faces) faces.push(f);   // a dense asset: no spread (see extraFaces below)
       if (assetHit.contactFootprint) contactFootprints.push(assetHit.contactFootprint);
     } else if (onProp && elevated && !net) {       // tabletop prop without a dedicated net: generic shaded box
       const quads = boxFaceQuads(base, top);
@@ -2406,7 +2406,10 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       faces.push(...cityBox(r, b.z0, b.z1, { top: scaleHex(tint, 1.1), side: tint }, L, camHint));
     }
   }
-  faces.push(...extraFaces);
+  // A polygomer's whole face list rides in here — a six-pack of field-solid cans is ~185k
+  // faces, and a spread of that many arguments overflows the call stack (soda-product-shot,
+  // 2026-09-08). Loop; byte-identical output.
+  for (const f of extraFaces) faces.push(f);
   // moonlight (cool directional base), then streetlamp diffusion (warm pools + cast
   // shadows) on top — same primitives as the room, the faces are just facades.
   if (moonlight) faces = applyMoonlight(faces, moonlight === true ? {} : moonlight);

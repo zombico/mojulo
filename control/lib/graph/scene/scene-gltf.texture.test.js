@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { facesToGlb } from './scene-gltf.js';
+import { parseGlb as parseGlbFull } from './scene-gltf-read.js';
 
 // 1×1 PNG (the emit-fixtures label pixel) and a non-embeddable SVG data URL.
 const PNG_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -27,7 +28,27 @@ const texPrim = (json, key = 'tex') => {
   return mesh ? mesh.primitives[0] : null;
 };
 
+// Float values of an accessor (the TEXCOORD_0 pairs), straight from the binary chunk.
+const accessorFloats = (g, idx) => {
+  const acc = g.json.accessors[idx]; const bv = g.json.bufferViews[acc.bufferView];
+  const off = g.bin.byteOffset + (bv.byteOffset || 0) + (acc.byteOffset || 0);
+  return Array.from(new Float32Array(g.bin.buffer.slice(off, off + acc.count * 2 * 4)));
+};
+
 describe('facesToGlb — texture transport', () => {
+  it("TEXCOORD_0 is written in glTF's TOP-left origin: mojulo's v (up from the bottom) exports as 1 − v", () => {
+    // an asymmetric uv so the flip is visible: v 0.2 / 0.9 in → 0.8 / 0.1 in the file
+    const g = parseGlbFull(facesToGlb({
+      faces: [quad({ texture: 'tex', uv: [[0, 0.2], [1, 0.2], [1, 0.9], [0, 0.9]] })],
+      textures: { tex: PNG_URL },
+    }).bytes);
+    const vals = accessorFloats(g, texPrim(g.json).attributes.TEXCOORD_0);
+    const vs = [...new Set(vals.filter((_, i) => i % 2).map((v) => Number(v.toFixed(3))))].sort();
+    expect(vs).toEqual([0.1, 0.8]);
+    const us = [...new Set(vals.filter((_, i) => !(i % 2)).map((u) => Number(u.toFixed(3))))].sort();
+    expect(us).toEqual([0, 1]);
+  });
+
   it('a textured face exports TEXCOORD_0 + an embedded PNG baseColorTexture', () => {
     const json = parseGlb(facesToGlb({
       faces: [quad({ texture: 'tex', uv: UV })],

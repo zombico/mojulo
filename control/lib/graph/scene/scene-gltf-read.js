@@ -296,7 +296,10 @@ export function glbToScene(buf, { group = 'mesh' } = {}) {
       if (hexes[1] !== hexes[0] || hexes[2] !== hexes[0]) face.cornerFills = [hexes[0], hexes[1], hexes[2], hexes[2]];
       if (alpha != null) face.alpha = alpha;
       if (tex) {
-        const uv = vis.map((vi) => [tex.uvs[vi * 2], tex.uvs[vi * 2 + 1]]);
+        // glTF's v grows down from the image's top; mojulo's v grows up from its bottom (the
+        // writer flips on export — scene-gltf.js addNode). Flip back so a bound mesh's texture
+        // reads right way up in /world and export → read → export stays identity.
+        const uv = vis.map((vi) => [tex.uvs[vi * 2], 1 - tex.uvs[vi * 2 + 1]]);
         face.texture = tex.key;
         face.uv = [uv[0], uv[1], uv[2], [...uv[2]]];
         if (col) face.textureLit = true; // texel × baked colour, the writer's COLOR_0 rule

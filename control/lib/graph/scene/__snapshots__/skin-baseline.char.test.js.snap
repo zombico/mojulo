@@ -21,7 +21,7 @@ exports[`skin-over-mesh phase 0a — the no-skin baseline pins > facesToGlb emit
 {
   "bytes": 8752,
   "nodes": 6,
-  "sha256": "41086840228b90d95cba6e4aa484920a8d61939b5c181579853cb855ad2bf240",
+  "sha256": "c0337fb918822b1e62ad064833e41abf1d402427ad1f7fb2a110634f3d913099",
   "triangles": 63,
 }
 `;

@@ -40,7 +40,7 @@
  * Design: control/lib/graph/workbench-assembler.plan.md.
  */
 
-import { lowerObjectFaces, studioSceneFromFaces, WORKBENCH_LIGHT, bakeBoundSkinFaces } from './workbench.js';
+import { lowerObjectFaces, studioSceneFromFaces, WORKBENCH_LIGHT, bakeBoundSkinFaces, collectWrapSources } from './workbench.js';
 import { MONOMER_KEYS, hasProgram } from './workbench-program.js';
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { makeLight } from '../polygonizer/vexar.js';
@@ -87,8 +87,13 @@ function orientationMatrix(item) {
  * every face lit exactly as WORKBENCH_LIGHT would light it in the final orientation. (Faces are
  * doubleSided, so a mirror's winding flip needs no special handling.)
  */
-function bakeOriented(item, baseLight = WORKBENCH_LIGHT) {
+function bakeOriented(item, baseLight = WORKBENCH_LIGHT, index = null) {
   const source = item && item.source && typeof item.source === 'object' ? item.source : {};
+  // A frozen part's label wraps keep their texture keys (`wrap_0`, `xwrap_0`) per PART; two parts
+  // wearing labels would collide on `wrap_0`, so the key is scoped to the item: `p<index>:wrap_0`.
+  // collectAssemblerWrapSources (below) scopes the sources the same way, so the /world route's
+  // texture map and the faces agree. Absent a texture on the face, byte-identical.
+  const scopeKey = (key) => (Number.isInteger(index) ? `p${index}:${key}` : key);
   const A = orientationMatrix(item);
   const isIdentity = A === IDENT;
   // `baseLight` defaults to WORKBENCH_LIGHT (byte-identical); it is FLAT_LIGHT under unshaded
@@ -113,8 +118,26 @@ function bakeOriented(item, baseLight = WORKBENCH_LIGHT) {
     // moved corners but not the normal is exactly the black-bake bug this fixes. `outNormal` is
     // the export-only field (distinct from scene-three's inward `.normal`); absent it, byte-identical.
     if (!isIdentity && Array.isArray(f.outNormal)) out.outNormal = matVec(A, f.outNormal);
+    if (typeof f.texture === 'string') out.texture = scopeKey(f.texture);
     return out;
   });
+}
+
+/**
+ * Label-wrap sources across an assembler's frozen parts → [{ key, source }], keys scoped per item
+ * (`p<index>:wrap_<i>` / `p<index>:xwrap_<i>`) to match the faces bakeOriented emits. The /world
+ * route resolves them to a data-URL texture map (resolveAssemblerWrapTextures) so a labelled can
+ * and a printed carton keep their prints when placed together (soda-product-shot, 2026-09-08).
+ */
+export function collectAssemblerWrapSources(manifest = {}) {
+  const items = Array.isArray(manifest.items) ? manifest.items : [];
+  const out = [];
+  items.forEach((item, index) => {
+    const src = item && item.source && typeof item.source === 'object' ? item.source : null;
+    if (!src) return;
+    for (const { key, source } of collectWrapSources(src)) out.push({ key: `p${index}:${key}`, source });
+  });
+  return out;
 }
 
 /** Post-orientation z-extent of a baked part (the seating math needs only z). */
@@ -151,7 +174,7 @@ function walkAssembler(manifest = {}, { light = WORKBENCH_LIGHT } = {}) {
 
   items.forEach((item, index) => {
     const faceStart = faces.length;
-    const oriented = bakeOriented(item, light);
+    const oriented = bakeOriented(item, light, index);
     const { min: zmin, max: zmax } = zExtent(oriented);
     const at = Array.isArray(item.at) ? item.at : [0, 0, 0];
     const gap = Number.isFinite(item.gap) ? item.gap : 0;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { planAssembler, lowerAssemblerFaces, assembleAssemblerScene } from './workbench-assembler.js';
+import { studioSceneFromFaces } from './workbench.js';
 
 // one spindle = a narrow lathe, authored standing at the origin (z 0..6).
 const spindle = () => ({
@@ -163,5 +164,16 @@ describe('assembleAssemblerScene — rides the workbench studio vantage', () => 
     expect(scene.faces.length).toBeGreaterThan(0);
     expect(scene.cameras.length).toBeGreaterThan(0);   // turntable shots
     expect(scene.title).toBe('mojulo assembler');
+  });
+});
+
+describe('dense polygomers (soda six-pack, 2026-09-08)', () => {
+  it('stages 200k faces without overflowing the call stack', () => {
+    const faces = Array.from({ length: 200000 }, (_, i) => {
+      const x = (i % 500) * 0.01, y = Math.floor(i / 500) * 0.01;
+      return { corners: [[x, y, 0], [x + 0.005, y, 0], [x + 0.005, y + 0.005, 0], [x, y + 0.005, 0]], fill: '#808080', doubleSided: true };
+    });
+    const scene = studioSceneFromFaces(faces, { title: 'dense' });
+    expect(scene.faces.length).toBeGreaterThanOrEqual(200000);
   });
 });

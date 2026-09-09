@@ -11,6 +11,9 @@
  *                         end and the cross-section lerps along the axis — wedges, pyramidal frusta,
  *                         tapered fins/keels. Repeat a vertex to pinch a face; a zero-area end ring
  *                         drops its cap. Points profiles only; no tapered shells.
+ *   - + wrap            → a PRINT around the side walls (a carton, a box label, a signboard): the
+ *                         lathe's `wrap` contract on a prism — a prism's side is developable exactly
+ *                         like a cylinder's. Side faces carry `uv` + a `texture` key; caps stay bare.
  *
  * Proven in the 0616 spikes (workbench-box, workbench-case). Emits the engine-agnostic baked face
  * list (`{ corners, fill, doubleSided }`) the World renderers consume, vexar-shaded (camera-
@@ -101,7 +104,7 @@ function offsetRect(profile, t, nc) {
  * extrudeToFaces(spec, opts) → [{ corners, fill, doubleSided }]
  *
  * spec: { profile, axisFrom, axisTo, wallThickness?, floorThickness?, openFace?, tint?, innerTint?,
- *         cornerSamples? }. Solid when wallThickness is absent; recessed shell (rect only) when set.
+ *         cornerSamples?, wrap? }. Solid when wallThickness is absent; recessed shell (rect only) when set.
  */
 export function extrudeToFaces(spec = {}, opts = {}) {
   const light = opts.light || DEFAULT_LIGHT;
@@ -128,6 +131,43 @@ export function extrudeToFaces(spec = {}, opts = {}) {
   const prof = buildProfile(spec.profile, nc);
   const M = prof.length;
   const faces = [];
+
+  // Optional LABEL WRAP (soda-product-shot, 2026-09-08): the lathe's contract on a prism. A prism's
+  // side is developable exactly like a cylinder's, so the same seam maps a print around it — u runs
+  // along the profile's PERIMETER (each wall's span is its edge's share of the total, so a carton's
+  // four panels take their true widths, in the profile's winding order), v runs along the axis
+  // 0 → 1. Side walls (the OUTER walls of a shell) carry `uv` + a `texture` key (+ `island`); caps,
+  // rims and cavity walls stay untextured like the lathe's caps. `seam` rotates the print around
+  // the perimeter, `repeat` tiles it, `lit` multiplies texel × baked fill. No band: a carton is
+  // printed edge to edge. Absent `wrap`, every emitted face is byte-identical.
+  const wrap = spec.wrap && typeof spec.wrap === 'object' && typeof spec.wrap.texture === 'string' ? spec.wrap : null;
+  const seam = Number.isFinite(wrap && wrap.seam) ? wrap.seam : 0;
+  const wrapRu = Number.isFinite(wrap && wrap.repeat && wrap.repeat.u) ? wrap.repeat.u : 1;
+  const wrapRv = Number.isFinite(wrap && wrap.repeat && wrap.repeat.v) ? wrap.repeat.v : 1;
+  let perimU = null;   // cumulative perimeter fraction at each profile point, closing point included
+  let uBase = 0;       // where u = 0 sits on the perimeter (a fraction), so a rect's panel order is stable
+  if (wrap) {
+    const cum = [0];
+    for (let i = 0; i < M; i += 1) { const p = prof[i], q = prof[(i + 1) % M]; cum.push(cum[i] + Math.hypot(q.u - p.u, q.v - p.v)); }
+    const total = cum[M] || 1;
+    perimU = cum.map((c) => c / total);
+    // A sharp rect's path starts at its (+w/2, −h/2) corner, so its walls run +u side, +v front,
+    // −u side, −v back; a ROUNDED rect's path starts on the (+w/2, +h/2) corner arc and closes
+    // with the +u wall as its LAST edge. Anchor u = 0 at the start of the +u wall either way, so
+    // the print's panel order does not depend on the corner radius. Points profiles keep the
+    // author's first point as u = 0.
+    if (spec.profile && spec.profile.rect && M > 4) uBase = perimU[M - 1];
+  }
+  const wrapWall = (face, i) => {
+    if (!perimU) return face;
+    const u0 = perimU[i] - uBase, ui = ((u0 < 0 ? u0 + 1 : u0) + seam) * wrapRu;
+    const uj = ui + (perimU[i + 1] - perimU[i]) * wrapRu;
+    face.uv = [[ui, 0], [uj, 0], [uj, wrapRv], [ui, wrapRv]];
+    face.texture = wrap.texture;
+    if (wrap.lit) face.textureLit = true;
+    face.island = 'wall';   // one uv island — the atlas packer's unit (skin-atlas.js)
+    return face;
+  };
 
   // centroid (uv) → fan-fill a profile ring at param s with a uniform-normal cap
   const fanCap = (path, s, normal, fillTint, flip) => {
@@ -195,7 +235,7 @@ export function extrudeToFaces(spec = {}, opts = {}) {
       // export-only `outNormal` so the assembler mirror (§2) carries it and the GLB bake lights this
       // flat panel from the right side. Dominant mk2 generator (263 extrudes — chest/arm/foot panels).
       const outNormal = outSign > 0 ? no : [-no[0], -no[1], -no[2]];
-      faces.push({ corners, fill: shade(tint, no), doubleSided: true, outNormal });
+      faces.push(wrapWall({ corners, fill: shade(tint, no), doubleSided: true, outNormal }, i));
       if (faces.length >= MAX_FACES_PER_EXTRUDE) return faces;
     }
     if (caps) {
@@ -217,7 +257,7 @@ export function extrudeToFaces(spec = {}, opts = {}) {
     const no = norm3(add3(out3(prof[i]), out3(prof[j])));
     const ino = [-no[0], -no[1], -no[2]];
     // outer wall (full length) — authored outward `no` (export-normals.plan.md P2)
-    faces.push({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shade(tint, no), doubleSided: true, outNormal: no });
+    faces.push(wrapWall({ corners: [pt(prof[i], 0), pt(prof[j], 0), pt(prof[j], 1), pt(prof[i], 1)], fill: shade(tint, no), doubleSided: true, outNormal: no }, i));
     // inner cavity wall (floor → open), faces inward — `ino` (the cavity surface's true outward)
     faces.push({ corners: [pt(inner[i], sFloor), pt(inner[i], sOpen), pt(inner[j], sOpen), pt(inner[j], sFloor)], fill: shade(innerTint, ino), doubleSided: true, outNormal: ino });
     // rim at the open end, between outer & inner

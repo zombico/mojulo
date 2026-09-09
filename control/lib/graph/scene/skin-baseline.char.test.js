@@ -75,6 +75,9 @@ describe('skin-over-mesh phase 0a — the no-skin baseline pins', () => {
     expect(hashMesh(faceListToMesh(FACES, { decollide: false, withNormals: true }))).toMatchSnapshot();
   });
 
+  // Re-pinned 2026-09-08 (soda-product-shot): TEXCOORD_0 is now written in glTF's top-left
+  // origin (v → 1 − v), so the textured fixture's GLB bytes changed on purpose; geometry,
+  // node and triangle counts did not.
   it('facesToGlb emits the fixture byte-identically (GLB transport)', () => {
     const out = facesToGlb({ faces: FACES, textures: { tile: PNG_URL } });
     expect({

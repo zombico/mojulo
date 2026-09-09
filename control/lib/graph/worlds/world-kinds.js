@@ -30,7 +30,7 @@ import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world
 import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable';
 import { assembleManjiTreeWorld } from '@/lib/graph/worlds/polygomer-world';
 import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
-import { assembleAssemblerScene } from '@/lib/graph/worlds/workbench-assembler';
+import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph/worlds/workbench-assembler';
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
 import { assembleFloorWorldScene } from '@/lib/graph/polygonizer/floorplan-structure';
@@ -112,8 +112,17 @@ const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg)
 // seam's artifact — becomes the label; PNG sources also survive .glb export as real textures).
 // External stash IMAGE items (mediaRef → file) are a documented follow-on.
 export async function resolveWrapTextures(manifest) {
+  return resolveWrapSourceList(collectWrapSources(manifest));
+}
+
+// The assembler's frozen parts keep their labels: the same resolver over item-scoped keys
+// (`p<index>:wrap_<i>`, see collectAssemblerWrapSources). Absent any wrap, `{}` — byte-identical.
+export async function resolveAssemblerWrapTextures(manifest) {
+  return resolveWrapSourceList(collectAssemblerWrapSources(manifest));
+}
+
+async function resolveWrapSourceList(sources) {
   const textures = {};
-  const sources = collectWrapSources(manifest);
   // Lazy so the eager import graph stays plain-Node-safe (see the import note above); only a
   // manifest carrying a `sketchRef` wrap source actually needs the SVG renderer.
   let renderStoredSketchSvg = null;
@@ -408,7 +417,9 @@ export const WORLD_KINDS = {
   },
   assembler: {
     title: 'mojulo assembler',
-    resolve: async (m, ctx) => assembleAssemblerScene({ ...m, title: ctx.title, skin: await loadBoundSkin(ctx.ref), light: ctx.light }),
+    resolve: async (m, ctx) => assembleAssemblerScene({
+      ...m, title: ctx.title, textures: await resolveAssemblerWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light,
+    }),
   },
   // ── interchange.plan.md I2: sketch kinds widened into the World/export form ──
   // A lone figure / wordmark / solid is an OBJECT STUDY (orbit, export), not a

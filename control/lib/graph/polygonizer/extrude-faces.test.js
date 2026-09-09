@@ -133,3 +133,62 @@ describe('validateExtrudes', () => {
     expect(validateExtrudes([vbox({ profile: { points: [[0, 0], [1, 0], [0, 1]] }, wallThickness: 0.2 })]).some((e) => /only for a rect/.test(e))).toBe(true);
   });
 });
+
+describe('extrudeToFaces — print wrap (soda-product-shot, 2026-09-08)', () => {
+  const wrapped = (extra = {}) => vbox({ wrap: { texture: 'xwrap_0', ...extra } });
+  const walls = (faces) => faces.filter((f) => typeof f.texture === 'string');
+
+  it('absent a wrap, no face carries uv / texture (byte-identical)', () => {
+    const faces = extrudeToFaces(vbox());
+    expect(faces.some((f) => f.uv || f.texture || f.island)).toBe(false);
+    expect(JSON.stringify(extrudeToFaces(vbox({ wrap: null })))).toBe(JSON.stringify(faces));
+  });
+
+  it('a 4 × 6 box: the four walls carry uv spans proportional to their edge lengths; caps stay bare', () => {
+    const faces = extrudeToFaces(wrapped());
+    const w = walls(faces);
+    expect(w.length).toBe(4);
+    expect(faces.length - w.length).toBe(8);               // two 4-quad fans, untextured
+    // perimeter 20: edges 6, 4, 6, 4 from the (+2, −3) corner → u breaks 0, .3, .5, .8, 1
+    const spans = w.map((f) => [f.uv[0][0], f.uv[1][0]]);
+    expect(spans.map((s) => s.map((x) => Number(x.toFixed(3))))).toEqual([[0, 0.3], [0.3, 0.5], [0.5, 0.8], [0.8, 1]]);
+    for (const f of w) {
+      expect(f.texture).toBe('xwrap_0');
+      expect(f.island).toBe('wall');
+      expect(f.uv.map((p) => p[1])).toEqual([0, 0, 1, 1]);   // v runs axisFrom → axisTo
+      expect(f.textureLit).toBeUndefined();
+    }
+  });
+
+  it('seam rotates u, repeat tiles it, lit marks the multiply-lit path', () => {
+    const w = walls(extrudeToFaces(wrapped({ seam: 0.25, repeat: { u: 2, v: 3 }, lit: true })));
+    expect(w[0].uv[0][0]).toBeCloseTo(0.5);                 // (0 + 0.25) × 2
+    expect(w[0].uv[2][1]).toBe(3);
+    expect(w[0].textureLit).toBe(true);
+  });
+
+  it('a rounded rect anchors u = 0 on the +x wall like a sharp one (panel order does not depend on r)', () => {
+    const faces = extrudeToFaces(vbox({ profile: { rect: { w: 4, h: 6, r: 0.5 } }, wrap: { texture: 'xwrap_0' } }));
+    const w = walls(faces);
+    // the print starts (u = 0) on the +x FLAT wall — the profile's closing edge (last arc point →
+    // point 0): every corner on the +x side, spanning the rect's straight run in y.
+    const first = w.find((f) => Math.abs(f.uv[0][0]) < 1e-9);
+    expect(first).toBeDefined();
+    expect(first.corners.every((c) => c[0] > 1.9)).toBe(true);
+    const ys = first.corners.map((c) => c[1]);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(4.5);
+    // every wall's u span is monotonic and the spans tile [0, 1] once
+    const spans = w.map((f) => [f.uv[0][0], f.uv[1][0]]).sort((a, b) => a[0] - b[0]);
+    for (const [a, b] of spans) expect(b).toBeGreaterThan(a);
+    expect(spans[0][0]).toBeCloseTo(0, 9);
+    expect(spans[spans.length - 1][1]).toBeCloseTo(1, 9);
+    for (let i = 1; i < spans.length; i += 1) expect(spans[i][0]).toBeCloseTo(spans[i - 1][1], 9);
+  });
+
+  it('a shell wraps its OUTER walls only', () => {
+    const w = walls(extrudeToFaces(wrapped({ wallThickness: 0.5 })));
+    expect(w.length).toBe(4);
+    const u = w.map((f) => f.uv[0][0]);
+    expect(u).toEqual([...u].sort((a, b) => a - b));       // monotonic around the perimeter
+  });
+});

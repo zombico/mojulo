@@ -50,10 +50,12 @@ const DEFAULT_UNITS = 'cm';
 
 const latheTint = (spec) => spec.tint || (spec.style && spec.style.fill) || undefined;
 
-// A wrapped lathe's stable texture key (by index) — shared by face tagging and source resolution.
+// A wrapped monomer's stable texture key (by index) — shared by face tagging and source resolution.
+// Lathes key `wrap_<i>`; extrudes (the carton print, soda-product-shot 2026-09-08) key `xwrap_<i>`.
 const wrapKey = (i) => `wrap_${i}`;
-const wrapKeyed = (spec, i) => (spec && spec.wrap && typeof spec.wrap === 'object'
-  ? { ...spec, wrap: { ...spec.wrap, texture: spec.wrap.texture || wrapKey(i) } }
+const xwrapKey = (i) => `xwrap_${i}`;
+const wrapKeyed = (spec, i, keyOf = wrapKey) => (spec && spec.wrap && typeof spec.wrap === 'object'
+  ? { ...spec, wrap: { ...spec.wrap, texture: spec.wrap.texture || keyOf(i) } }
   : spec);
 
 /** Lower a polygomer manifest (lathe + extrude + sweep + loft + field + drape + relief + shell monomers) into one baked World face list. */
@@ -77,7 +79,7 @@ export function lowerObjectFaces(manifest, light) {
   // live highlight and the .glb PBR export. Absent → byte-identical (material-response.plan.md P4).
   return [
     ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps })),
-    ...extrudes.flatMap((spec) => extrudeToFaces(spec, { light, material: spec.material })),
+    ...extrudes.flatMap((spec, i) => extrudeToFaces(wrapKeyed(spec, i, xwrapKey), { light, material: spec.material })),
     ...sweeps.flatMap((spec) => sweepToFaces(spec, { light, material: spec.material })),
     ...lofts.flatMap((spec) => loftToFaces(spec, { light, material: spec.material })),
     // field solids (field-solids.plan.md F3): one closed surface-net shell per entry, cuts included
@@ -112,18 +114,25 @@ export function workbenchAssetFaces(manifest = {}, opts = {}) {
 }
 
 /**
- * Label-wrap sources to resolve for a manifest → [{ key, source }]. A `lathe.wrap.source` is a
- * label image reference (an inline `svg`, a `dataUrl`, or a `sketchRef`); the caller (the /world
- * route — the DB-aware layer) resolves each to a data-URL `textures` map and passes it back into
- * assembleWorkbenchScene. Keeping the heavy image OUT of the manifest preserves the tiny recipe.
+ * Label-wrap sources to resolve for a manifest → [{ key, source }]. A `lathe.wrap.source` (a can)
+ * or an `extrude.wrap.source` (a carton) is a label image reference (an inline `svg`, a `dataUrl`,
+ * a `sketchRef`, or an `outcomeRef`); the caller (the /world route — the DB-aware layer) resolves
+ * each to a data-URL `textures` map and passes it back into assembleWorkbenchScene. Keeping the
+ * heavy image OUT of the manifest preserves the tiny recipe.
  */
 export function collectWrapSources(manifest) {
   if (hasProgram(manifest)) manifest = expandWorkbenchProgram(manifest).manifest;
   const lathes = Array.isArray(manifest && manifest.lathes) ? manifest.lathes : [];
+  const extrudes = Array.isArray(manifest && manifest.extrudes) ? manifest.extrudes : [];
   const out = [];
   lathes.forEach((spec, i) => {
     if (spec && spec.wrap && typeof spec.wrap === 'object' && spec.wrap.source) {
       out.push({ key: spec.wrap.texture || wrapKey(i), source: spec.wrap.source });
+    }
+  });
+  extrudes.forEach((spec, i) => {
+    if (spec && spec.wrap && typeof spec.wrap === 'object' && spec.wrap.source) {
+      out.push({ key: spec.wrap.texture || xwrapKey(i), source: spec.wrap.source });
     }
   });
   return out;

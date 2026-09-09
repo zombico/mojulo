@@ -411,10 +411,18 @@ class GlbBuilder {
   // One mesh + one node from a position/colour soup. `colorComponents` is 3 (RGB) or
   // 4 (RGBA, per-vertex alpha). `uvs` (optional) adds a TEXCOORD_0 attribute.
   addNode(name, positions, colors, colorComponents, materialIndex, uvs, normals) {
+    // glTF's texture origin is the image's TOP-left (v grows downward); mojulo's faces — and the
+    // three.js viewer, which flips images on upload — put v = 0 at the image's BOTTOM. Flip on
+    // the way out so a label wrap lands right way up in Blender / Godot / Unity / Unreal
+    // (soda-product-shot, 2026-09-08: both labels arrived upside down); scene-gltf-read.js
+    // flips back on the way in, so export → read is identity. A repeating tile (v outside
+    // [0, 1]) flips the same way — a wrapping sampler resolves 1 − v as it resolved v. Absent
+    // uvs, byte-identical.
+    const gltfUvs = uvs && uvs.length ? uvs.map((x, i) => (i % 2 ? 1 - x : x)) : uvs;
     // Weld + degenerate-drop the soup before emitting (GLB export hygiene). Adaptive: returns an
     // index buffer only when merging actually shrinks the mesh (baked/smooth data), else a
     // degenerate-free soup (flat mojulo export). colorComponents drives the colour stride.
-    const w = weldSoup(positions, colors, colorComponents || 3, normals, uvs);
+    const w = weldSoup(positions, colors, colorComponents || 3, normals, gltfUvs);
     let attributes, dequant = null;
     if (this.quantize && w.positions.length) {
       ({ attributes, ...dequant } = this.quantizedAttributes(w, colorComponents));

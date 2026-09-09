@@ -31,6 +31,13 @@ function rebuild(bytes, patch) {
 }
 
 describe('seam 6b — textures on ingest', () => {
+  it('the reader flips v back: a textured face returns with its OWN uv (glTF top-left ↔ mojulo bottom-left)', () => {
+    const uv = [[0, 0.2], [1, 0.2], [1, 0.9], [0, 0.9]];
+    const scene = glbToScene(facesToGlb({ faces: [quad(5, { texture: 'tex', uv })], textures: { tex: PNG_URL } }, { generator: 't' }).bytes);
+    const seen = new Set(scene.faces.filter((f) => f.texture).flatMap((f) => f.uv.map(([u, v]) => `${u.toFixed(3)},${v.toFixed(3)}`)));
+    expect([...seen].sort()).toEqual(uv.map(([u, v]) => `${u.toFixed(3)},${v.toFixed(3)}`).sort());
+  });
+
   it('export textured → read → export again is BYTE-IDENTICAL (the writer\'s own output)', () => {
     const payload = { faces: [quad(0), quad(5, { texture: 'tex', uv: UV })], textures: { tex: PNG_URL } };
     const a = facesToGlb(payload, { generator: 't' });

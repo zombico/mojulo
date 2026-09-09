@@ -176,9 +176,9 @@ export function registerWorkbenchTools() {
       + "opening /world.\n"
       + "MATERIALS: any monomer takes `material` — a named finish (gold, chrome, wood, glass, …): "
       + "live metal gleam in /world, real PBR in .glb. Full shelf in the lathes[].material schema.\n"
-      + "PACKAGE DESIGN: a lathe can carry a `wrap` — a label image (inline svg, a data URL, a "
+      + "PACKAGE DESIGN: a lathe or an extrude can carry a `wrap` — a label image (inline svg, a data URL, a "
       + "stored `sketchRef`, or an `outcomeRef` — a generated image-outcome render as the skin) "
-      + "mapped around the wall → a labeled can/bottle/cup (shown in /world). "
+      + "mapped around the wall → a labeled can/bottle/cup, or around a prism's side panels → a printed carton/box (shown in /world; PNG sources export as real .glb textures). "
       + "Compose them: a mug = a shell lathe + a swept handle; a labeled can = one lathe + a wrap. "
       + "Fractal-generation path — the substrate stores ONLY the recipe and regenerates the object "
       + "deterministically, served as a traversable three.js World at `/api/sketches/<ref>/world` "
@@ -234,6 +234,10 @@ export function registerWorkbenchTools() {
               material: { description: "Optional surface finish from the material shelf (same vocabulary as lathes[].material): a named row (gold/steel/chrome/…/wood/stone/glass), a '#hex', or { preset, ...overrides }." },
               innerTint: { type: 'string', description: 'Optional shell cavity albedo (default = tint; a darker value reads more sunken).' },
               cornerSamples: { type: 'integer', description: 'Optional rounded-corner resolution (default 6).' },
+              wrap: {
+                type: 'object',
+                description: "Optional PRINT WRAP — the lathe's label contract on a prism (a carton, a box label, a signboard): { source: { svg | dataUrl | sketchRef | outcomeRef }, seam?: number (0..1, rotate the print around the perimeter), repeat?: { u, v }, lit?: boolean }. u runs along the profile's perimeter in its winding order (a rect, rounded or not: the +u side first, then the +v front, the −u side, the −v back — each panel takes its edge's share of the width; a points profile starts at its first point), v runs along the axis 0→1; no band — the print covers the whole wall. Side walls only (the outer walls of a shell); caps and cavities stay bare. Lay a carton's wrap as [side | front | side | back] at the panels' true proportions.",
+              },
             },
             required: ['profile', 'axisFrom', 'axisTo'],
           },

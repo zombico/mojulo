@@ -10,6 +10,49 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### Package design — the carton takes a wrap, the assembler keeps the labels (soda-product-shot)
+
+Building a six-pack for a Cycles product shot found two gaps at the texture seam. Only a
+lathe took a `wrap`, so the printed carton — an extrude — had no way to wear its art; and the
+assembler lowered each frozen part with its own `wrap_0` key and never resolved a texture map,
+so a labelled can lost its label the moment it was placed beside anything.
+
+- **`extrudes[].wrap`** — the lathe's label contract on a prism (`extrude-faces.js`). A prism's
+  side is developable exactly like a cylinder's: u runs along the profile's perimeter in its
+  winding order, each wall taking its edge's share, v runs along the axis; `seam`, `repeat` and
+  `lit` as on the lathe; no band (a carton is printed edge to edge). Side walls only — a shell's
+  outer walls — caps, rims and cavities stay bare. `workbench.js` keys them `xwrap_<i>` and
+  `collectWrapSources` lists them after the lathes, so every source kind (`svg`, `dataUrl`,
+  `sketchRef`, `outcomeRef`) and the `.glb` texture export work unchanged. Absent a `wrap`, every
+  face is byte-identical (pinned).
+- **Assembler labels.** `bakeOriented` scopes a part's texture keys per item
+  (`p<index>:wrap_0`), `collectAssemblerWrapSources` lists the sources under the same keys, and
+  the `assembler` world kind resolves them (`resolveAssemblerWrapTextures`) into the payload's
+  texture map — so the can and the carton keep their prints in the assembly, in `/world`, and in
+  the lit export. Absent any wrap, `{}` and byte-identical.
+- **A rect's panel order does not depend on its corner radius.** A sharp rect's profile starts
+  at its (+w/2, −h/2) corner; a rounded one starts on the (+w/2, +h/2) arc and closes with the
+  +x wall — so the same print landed one face off between the two. The wrap's u origin is
+  anchored at the start of the +x wall for rect profiles either way (points profiles keep the
+  author's first point). Tested on a rounded rect.
+- **GLB textures were upside down in every reader.** `facesToGlb` wrote TEXCOORD_0 in the
+  viewer's bottom-left convention (three.js flips images on upload); glTF's origin is the top-
+  left, so Blender, Godot, Unity and Unreal showed every label wrap and skin atlas inverted.
+  The writer now emits `1 − v` and `glbToFaces` flips it back on ingest, so export → read is
+  identity and a bound external mesh's texture reads right way up in `/world`. Repeating tiles
+  flip the same way (a wrapping sampler resolves `1 − v` as it resolved `v`). Found by the
+  first Cycles frame of the six-pack. Tests: `scene-gltf.texture.test.js` (the file is
+  top-left), `scene-gltf-read.texture.test.js` (round trip is identity). One byte pin moved
+  with it, on purpose: `skin-baseline.char.test.js` (GLB transport sha) re-pinned with a dated
+  note; bytes, nodes and triangles unchanged.
+- The tool schema and the workbench card document the extrude wrap and the `[side | front |
+  side | back]` layout a carton's wrap takes. Tests: `extrude-faces.test.js`,
+  `wrap-textures.test.js`.
+- **Dense polygomers stage.** `assembleBoxCityScene` spread a polygomer's whole face list into
+  `push` (`faces.push(...extraFaces)`); three field-solid cans beside a carton — ~185k faces —
+  overflowed the call stack and the assembler refused the manifest. Looped (and the same for a
+  world asset's faces); output byte-identical. Test: 200k faces through `studioSceneFromFaces`.
+
 ### World contract tiers — every pack says what it declares (world-contract-tiers W0–W2, W5)
 
 Every finding the lit handoff produced last week was a property the base runtime never

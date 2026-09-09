@@ -31,7 +31,7 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
   lathes?:   [ { axisFrom, axisTo, profile[], tint?, material?, harmonics?,
                  normalFrom?, normalTo?, crossSections?, samples?, wrap? } ],
   extrudes?: [ { profile, axisFrom, axisTo, endProfile?, wallThickness?,
-                 floorThickness?, openFace?, tint?, material?, innerTint?, cornerSamples? } ],
+                 floorThickness?, openFace?, tint?, material?, innerTint?, cornerSamples?, wrap? } ],
   sweeps?:   [ { path[], radius, sides?, tint?, material?, caps? } ],
   lofts?:    [ { path[] | axisFrom+axisTo, stations[], interp?, segments?, caps?, tint?, material? } ],
   fields?:   [ { terms[], cells?, translate?, tint?, material? } ],
@@ -72,6 +72,7 @@ A 2D profile swept along an axis into a solid prism, or hollowed into a recessed
 - `floorThickness` (shell) — thickness of the closed back/floor (default = wallThickness).
 - `openFace` (shell) — `'to'` (the axisTo end, default), `'from'`, or `'none'`.
 - `tint` (hex) — base albedo. `material` — surface finish (same vocabulary as lathes). `innerTint` (shell) — cavity albedo (default = tint; darker reads more sunken). `cornerSamples` (int, default 6) — rounded-corner resolution.
+- `wrap` — a PRINT around the side walls (a carton, a box label, a signboard): the lathe's label contract on a prism, because a prism's side is developable too. `{ source: { svg | dataUrl | sketchRef | outcomeRef }, seam?, repeat?, lit? }`. u runs along the profile's perimeter in its winding order (a rect, rounded or not: the +u side first, then the +v front, the −u side, the −v back — each panel takes its edge's share of the width; a points profile starts at its first point), v runs along the axis; no band — the print covers the whole wall. Side walls only (a shell's OUTER walls); caps and cavities stay bare. Lay a carton's wrap as `[side | front | side | back]` at the panels' true proportions; PNG sources export as real `.glb` textures.
 
 ## Sweeps — tubes along a path
 
