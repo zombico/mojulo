@@ -2804,8 +2804,14 @@ export function assembleFractalCityScene(opts = {}) {
   // and skip every baked-lighting pass, so Blender's GI is the ONLY lighting. Fixed material
   // tints (glass 0.62 etc.) stay — those are albedo, not directional shading.
   const unshaded = opts.unshaded === true;
-  const time = unshaded ? null : (opts.time || (opts.night ? 'night' : opts.day ? 'day' : null));
+  const declaredTime = opts.time || (opts.night ? 'night' : opts.day ? 'day' : null);
+  const time = unshaded ? null : declaredTime;
   const night = time === 'night', day = time === 'day';
+  // The lit handoff (unreal-demo D2): every bake below stands down under `unshaded`, but the
+  // DECLARATION travels — the sky preset rides `sky`, and each lamp head rides `lights` as a
+  // point emitter (sampled by the same `maxLamps` cap as the night bake), so the engine's own
+  // sun, sky and local lights perform what the recipe said. Shaded path: skyTime === time.
+  const skyTime = unshaded ? declaredTime : time;
   const region = opts.region || DEFAULT_REGION;
   let sources = unshaded ? [] : (night ? (opts.sources || plan.sources) : day ? [daySun(region)] : (opts.sources || []));
   const cap = opts.maxLamps ?? 20;                              // sample lamps down so the night bake stays bounded
@@ -2837,8 +2843,13 @@ export function assembleFractalCityScene(opts = {}) {
     // sun (sources[0]) → directional cast; for night the downward lamps give grounding blobs.
     groundShadows: unshaded ? false : (opts.groundShadows ?? false),
     creaseSeams: opts.creaseSeams ?? false,            // opt-in vgl concave contact-shadow feather
-    ...(opts.sky ? { sky: opts.sky } : night ? { sky: { preset: 'night', stars: true, moon: true, seed: opts.seed ?? 7 } } : day ? { sky: { preset: 'day' } } : {}),
+    ...(opts.sky ? { sky: opts.sky } : skyTime === 'night' ? { sky: { preset: 'night', stars: true, moon: true, seed: opts.seed ?? 7 } } : skyTime === 'day' ? { sky: { preset: 'day' } } : {}),
   });
+  if (unshaded && declaredTime === 'night') {
+    let heads = opts.sources || plan.sources;
+    if (heads.length > cap) heads = Array.from({ length: cap }, (_, i) => heads[Math.floor(i * (heads.length / cap))]);
+    if (heads.length) scene.lights = heads.map((s, i) => ({ name: `lamp-${i}`, type: 'point', position: s.pos, color: s.color, intensity: s.intensity * 150 }));
+  }
   if (furniture) {
     // each template realizes through the SAME assembler (one box, no grounds) so its faces are
     // byte-identical to what the expanded path would have produced at the template's position.

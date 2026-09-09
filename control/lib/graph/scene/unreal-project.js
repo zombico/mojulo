@@ -27,7 +27,7 @@
 import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble } from './operator-guide.js';
 import { emitUnrealKernel } from './unreal-kernel.js';
 
-export const UNREAL_LEG_VERSION = '0.4.1';
+export const UNREAL_LEG_VERSION = '0.4.2';
 export const UNREAL_EDITOR_TARGET = 'Unreal Engine 5 (5.4+; proven against UE 5.8.0)';
 
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
@@ -127,6 +127,8 @@ Headless (the machine gate):  MOJULO_MODE=run|verify with -run=pythonscript.
 import json
 import math
 import os
+import re
+import struct
 
 import unreal
 
@@ -203,8 +205,8 @@ def spawn(cls, location, label):
     return actor
 
 
-def light_rig():
-    """Sun + sky atmosphere + sky light, all MOVABLE. Movable = no Lightmass
+def light_rig(score=None):
+    """Sun + sky atmosphere + sky light (+ height fog when the score names a sky), all MOVABLE. Movable = no Lightmass
     build, so no 'Preview'-stamped shadows; the SkyAtmosphere gives the sky
     light a real sky to capture (without it the world is black and the sky
     light contributes nothing — the first lit eyes gate was a black-sky box
@@ -213,15 +215,54 @@ def light_rig():
     (blender-bake.mjs --render's finding). NOTE unreal.Rotator's Python
     constructor is (roll, pitch, yaw) — keyword args, so the pitch IS the
     pitch. Unlit packs get the same rig: the unlit master ignores it, the
-    sky still fills the windows (ledger: sky_approximated)."""
+    sky still fills the windows (ledger: sky_approximated).
+    score.sky.preset (the recipe's declaration, unreal-demo D2): 'night' turns the sun into a
+    dim cool MOON (0.5 lux, pitch -40) so the atmosphere goes dark and the score's lamp
+    lights carry the scene; 'dawn' / 'dusk' set a low warm sun; 'day' keeps the default.
+    Any outdoor preset also spawns an ExponentialHeightFog (dense + blue at night, thin by
+    day). 'interior' (an enclosed kind — the cave) keeps the sun OUT: intensity 0, a faint sky
+    light, no fog, so the score's own lights carry the level. No preset: the pre-D2 rig."""
     movable = unreal.ComponentMobility.MOVABLE
+    preset = ((score or {}).get('sky') or {}).get('preset') if isinstance(score, dict) else None
     sun = spawn(unreal.DirectionalLight, unreal.Vector(0, 0, 500.0), 'MojuloSun')
-    sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-35.0, yaw=-30.0), False)
+    pitch = -40.0 if preset == 'night' else -12.0 if preset in ('dawn', 'dusk') else -35.0
+    sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=pitch, yaw=-30.0), False)
     try:
         sun.light_component.set_editor_property('mobility', movable)
         sun.light_component.set_editor_property('atmosphere_sun_light', True)
+        if preset == 'interior':
+            sun.light_component.set_editor_property('intensity', 0.0)
+        elif preset == 'night':
+            sun.light_component.set_editor_property('intensity', 0.5)
+            sun.light_component.set_editor_property('light_color', unreal.Color(r=170, g=190, b=255, a=255))
+        elif preset in ('dawn', 'dusk'):
+            sun.light_component.set_editor_property('intensity', 4.0)
+            sun.light_component.set_editor_property('light_color', unreal.Color(r=255, g=190, b=140, a=255))
     except Exception as e:
         unreal.log_warning('[mojulo] sun setup: ' + str(e))
+    if preset and preset != 'interior':
+        try:
+            fog = spawn(unreal.ExponentialHeightFog, unreal.Vector(0, 0, 0), 'MojuloFog')
+            comp = fog.get_editor_property('component')
+            comp.set_editor_property('fog_density', 0.008 if preset == 'night' else 0.004)
+            comp.set_editor_property('fog_height_falloff', 0.2)
+            if preset == 'night':
+                comp.set_editor_property('fog_inscattering_luminance', unreal.LinearColor(0.004, 0.006, 0.014, 1.0))
+            unreal.log('[mojulo] sky preset ' + str(preset) + ': sun pitch ' + str(pitch) + ', height fog')
+        except Exception as e:
+            unreal.log_warning('[mojulo] height fog: ' + str(e))
+    if preset in ('night', 'interior'):
+        # auto-exposure would lift a moonlit street or a fire-lit cave to daylight; an unbound post
+        # volume biases it down so dark READS as dark (the one documented default; the operator dials it)
+        try:
+            post = spawn(unreal.PostProcessVolume, unreal.Vector(0, 0, 0), 'MojuloPost')
+            post.set_editor_property('unbound', True)
+            pps = post.get_editor_property('settings')
+            pps.set_editor_property('override_auto_exposure_bias', True)
+            pps.set_editor_property('auto_exposure_bias', -2.0 if preset == 'night' else -1.5)
+            post.set_editor_property('settings', pps)
+        except Exception as e:
+            unreal.log_warning('[mojulo] post volume: ' + str(e))
     try:
         spawn(unreal.SkyAtmosphere, unreal.Vector(0, 0, 0), 'MojuloSkyAtmosphere')
     except Exception as e:
@@ -230,6 +271,9 @@ def light_rig():
     try:
         sky.light_component.set_editor_property('mobility', movable)
         sky.light_component.set_editor_property('real_time_capture', True)
+        if preset == 'interior':
+            sky.light_component.set_editor_property('intensity', 0.05)
+            unreal.log('[mojulo] sky preset interior: sun off, faint sky light, no fog')
     except Exception as e:
         unreal.log_warning('[mojulo] sky light setup: ' + str(e))
 
@@ -414,6 +458,89 @@ def ensure_lit_master():
     return mat
 
 
+def sticker_material_names(glb_path):
+    """The GLB materials declared KHR_materials_unlit AND alphaMode BLEND: the web
+    tier's stickers (contact shadows under the furniture, window panes), whose
+    darkness and transparency ride COLOR_0's alpha. Read straight off the GLB's
+    JSON chunk (stdlib only), names rewritten the way Interchange names the
+    assets it makes from them (':' and friends -> '_'). [] when unreadable."""
+    try:
+        with open(glb_path, 'rb') as f:
+            head = f.read(20)
+            length = struct.unpack_from('<I', head, 12)[0]
+            doc = json.loads(f.read(length))
+    except Exception as e:  # noqa: BLE001 — a scan, never a gate
+        unreal.log_warning('[mojulo] sticker scan: ' + str(e))
+        return []
+    names = []
+    for m in doc.get('materials', []):
+        if 'KHR_materials_unlit' in (m.get('extensions') or {}) and m.get('alphaMode') == 'BLEND':
+            names.append(re.sub('[^A-Za-z0-9_-]', '_', str(m.get('name', ''))).lower())
+    return [n for n in names if n]
+
+
+def ensure_sticker_master():
+    """The stickers' own master, mode-free (lit and unlit packs alike): UNLIT +
+    TRANSLUCENT, two-sided, emissive = base texture x vertex colour, opacity =
+    vertex alpha x texture alpha — the web tier's contract for a
+    KHR_materials_unlit BLEND material. Before this the swap put them on the
+    opaque master and the contact shadows drew as solid grey slabs under every
+    piece (lounge sk_lkypzdim4y, the Unreal eyes gate; the machine gate
+    counted the slots and could not see it)."""
+    path = MAT_ROOT + '/M_MojuloSticker'
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        return unreal.EditorAssetLibrary.load_asset(path)
+    unreal.EditorAssetLibrary.make_directory(MAT_ROOT)
+    tools = unreal.AssetToolsHelpers.get_asset_tools()
+    mat = tools.create_asset('M_MojuloSticker', MAT_ROOT, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('two_sided', True)
+    ml = unreal.MaterialEditingLibrary
+    tex = ml.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -600, -200)
+    tex.set_editor_property('parameter_name', 'BaseTex')
+    white = unreal.EditorAssetLibrary.load_asset('/Engine/EngineResources/WhiteSquareTexture')
+    if white is not None:
+        tex.set_editor_property('texture', white)
+    vc = ml.create_material_expression(mat, unreal.MaterialExpressionVertexColor, -600, 100)
+    mul = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -300, -50)
+    ml.connect_material_expressions(tex, 'RGB', mul, 'A')
+    ml.connect_material_expressions(vc, '', mul, 'B')
+    ml.connect_material_property(mul, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    op = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -300, 200)
+    ml.connect_material_expressions(tex, 'A', op, 'A')
+    ml.connect_material_expressions(vc, 'A', op, 'B')
+    ml.connect_material_property(op, '', unreal.MaterialProperty.MP_OPACITY)
+    ml.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(path)
+    return mat
+
+
+def ensure_ground_material():
+    """The LIT fallback ground: DEFAULT-LIT, a constant neutral base colour (BaseColor
+    vector parameter, a dark warm grey), roughness 0.95 — a greybox floor to the horizon.
+    Hidden, the plane showed the atmosphere's void below the horizon as BLACK."""
+    path = MAT_ROOT + '/M_MojuloGround'
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        return unreal.EditorAssetLibrary.load_asset(path)
+    unreal.EditorAssetLibrary.make_directory(MAT_ROOT)
+    tools = unreal.AssetToolsHelpers.get_asset_tools()
+    mat = tools.create_asset('M_MojuloGround', MAT_ROOT, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    ml = unreal.MaterialEditingLibrary
+    base = ml.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -400, -100)
+    base.set_editor_property('parameter_name', 'BaseColor')
+    base.set_editor_property('default_value', unreal.LinearColor(0.16, 0.15, 0.14, 1.0))
+    ml.connect_material_property(base, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -400, 150)
+    rough.set_editor_property('parameter_name', 'Roughness')
+    rough.set_editor_property('default_value', 0.95)
+    ml.connect_material_property(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    ml.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(path)
+    return mat
+
+
 def ensure_master():
     return ensure_lit_master() if LIT else ensure_unlit_master()
 
@@ -434,11 +561,11 @@ def first_texture(mat_iface):
     return None
 
 
-def unlit_instance(master, tex, cache):
+def unlit_instance(master, tex, cache, prefix=None):
     key = tex.get_path_name() if tex is not None else '__white__'
     if key in cache:
         return cache[key]
-    name = ('MI_MojuloLit_' if LIT else 'MI_Mojulo_') + (tex.get_name() if tex is not None else 'White')
+    name = (prefix or ('MI_MojuloLit_' if LIT else 'MI_Mojulo_')) + (tex.get_name() if tex is not None else 'White')
     path = MAT_ROOT + '/' + name
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         mic = unreal.EditorAssetLibrary.load_asset(path)
@@ -464,18 +591,39 @@ def is_emissive_slot(mat_iface):
     return mat_iface is not None and 'emissive' in mat_iface.get_name().lower()
 
 
-def apply_unlit_materials():
+def is_sticker_slot(mat_iface, mesh, names):
+    """A slot whose Interchange material, or whose one-slot mesh, carries a
+    sticker material's name — the mesh name catches a re-run over a project
+    whose slots already sit on a mojulo material."""
+    if not names:
+        return False
+    if mat_iface is not None and mat_iface.get_name().lower() in names:
+        return True
+    return mesh.get_name().lower() in names and len(mesh.get_editor_property('static_materials')) == 1
+
+
+def apply_unlit_materials(glb_path=None):
     """Swap every imported mesh slot onto the mojulo look — unlit vertex colour,
-    or the lit twin when LIT. Idempotent: slots already on a Mojulo material
-    are left alone."""
+    or the lit twin when LIT — except the GLB's unlit BLEND stickers, which go
+    onto the translucent sticker master. Idempotent: slots already on the right
+    Mojulo material are left alone."""
     master = ensure_master()
+    stickers = sticker_material_names(glb_path) if glb_path else []
+    sticker_master = ensure_sticker_master() if stickers else None
     cache = {}
+    sticker_cache = {}
     swapped = 0
+    kept = 0
     for path in unreal.EditorAssetLibrary.list_assets(CONTENT_ROOT, recursive=True, include_folder=False):
         asset = unreal.EditorAssetLibrary.load_asset(path)
         if isinstance(asset, unreal.StaticMesh):
             for i, slot in enumerate(asset.get_editor_property('static_materials')):
                 cur = slot.get_editor_property('material_interface')
+                if sticker_master is not None and is_sticker_slot(cur, asset, stickers):
+                    if cur is None or not cur.get_name().startswith('MI_MojuloSticker_'):
+                        asset.set_material(i, unlit_instance(sticker_master, first_texture(cur), sticker_cache, 'MI_MojuloSticker_'))
+                        kept += 1
+                    continue
                 if is_mojulo_material(cur) or is_emissive_slot(cur):
                     continue
                 asset.set_material(i, unlit_instance(master, first_texture(cur), cache))
@@ -496,6 +644,8 @@ def apply_unlit_materials():
                     asset.set_editor_property('materials', slots)
             except Exception as e:  # noqa: BLE001 — UNPINNED property shape
                 unreal.log_warning('[mojulo] skeletal material swap failed on ' + path + ': ' + str(e))
+    if stickers:
+        unreal.log('[mojulo] ' + str(kept) + ' sticker slots kept translucent (unlit + blend in the GLB: ' + ', '.join(stickers) + ')')
     unreal.EditorAssetLibrary.save_directory(CONTENT_ROOT, only_if_is_dirty=True)
     unreal.log('[mojulo] ' + ('lit' if LIT else 'unlit') + ' vertex-colour materials on ' + str(swapped) + ' slots')
 
@@ -588,7 +738,7 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
             tags = list(a.get_editor_property('tags'))
             tags.append(IMPORT_TAG)
             a.set_editor_property('tags', tags)
-    apply_unlit_materials()
+    apply_unlit_materials(glb_path)
     ensure_pot_lights(score)
 
     # Hide the player-seat body: the operator IS the walker. The whole
@@ -616,7 +766,13 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
         ys = [c['min'][1] for c in colliders] + [c['max'][1] for c in colliders]
         center = P([(min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, 0.0])
     ground_z = (score.get('ground') or 0.0) * M - 50.0
-    spawn_block('MojuloGround', unreal.Vector(center.x, center.y, ground_z), unreal.Vector(800.0 * M, 800.0 * M, M))
+    if LIT:
+        # lit: the plane is VISIBLE in a neutral matte (hidden, the void below the horizon read as
+        # black), its top 2 cm under mojulo z = ground so the recipe's own floor faces win the depth
+        ground = spawn_block('MojuloGround', unreal.Vector(center.x, center.y, ground_z - 2.0), unreal.Vector(800.0 * M, 800.0 * M, M), visible=True)
+        ground.static_mesh_component.set_material(0, ensure_ground_material())
+    else:
+        spawn_block('MojuloGround', unreal.Vector(center.x, center.y, ground_z), unreal.Vector(800.0 * M, 800.0 * M, M))
 
     for i, b in enumerate(colliders):
         spawn_block('MojuloCollider_' + str(i), aabb_center(b), aabb_size_cm(b))
@@ -638,8 +794,12 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
     start_at.z += START_LIFT_CM
     start = spawn(unreal.PlayerStart, start_at, 'MojuloPlayerStart')
     start.set_actor_location(start_at, False, False)
+    if score.get('yaw') is not None:
+        # the seat's facing: mojulo yaw is counter-clockwise from +x seen from above; UE mirrors y
+        # (P above), so the same heading is the NEGATED yaw
+        start.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=-float(score['yaw'])), False)
 
-    light_rig()
+    light_rig(score)
 
     if bed_wave is not None:
         bed = spawn(unreal.AmbientSound, P(spawn_v), 'MojuloSoundtrack')
@@ -893,7 +1053,7 @@ const GUIDE_LEDGER = guideLedger;
  * walker — the importer places the PlayerStart; no kernel. */
 function importGuideWorld({ title, refName, score, ledger, lit = false }) {
   const eyes = [
-    lit ? 'the world mesh is LIT by MojuloSun + the sky atmosphere through M_MojuloLit — sun patches through the panes, a blue sky in the windows, no "Preview" stamp on the shadows (reference look: blender-bake.mjs --render)'
+    lit ? 'the world mesh is LIT by MojuloSun + the sky atmosphere through M_MojuloLit — sun patches through the panes, a blue sky in the windows, no "Preview" stamp on the shadows (reference look: blender-bake.mjs --render); a score `sky` preset sets the rig (night: a dim cool moon, a dark atmosphere, height fog, the lamp lights carrying the scene) and the fallback ground is a visible matte plane, never a black void'
       : 'the world mesh renders in its baked vertex colours (reference look: the mojulo web build)',
     'you can walk the level as the template character — the floor holds (the promoted ground plane) and the obstacle colliders block',
     ...(score.soundtrack ? [`the soundtrack (\`${score.soundtrack}\`) is playing on loop`] : []),
@@ -922,7 +1082,7 @@ function importGuideGame({ title, levels, ledger, posture, lit = false }) {
   const eyes = [
     'the menu lists every level; gated levels show [locked] until their gate level is [done]',
     'Enter starts the selected level — the kernel walker spawns at the score spawn (WASD + mouse, Space jumps, M returns to the menu)',
-    lit ? 'each level is LIT by MojuloSun + the sky atmosphere through M_MojuloLit (reference look: blender-bake.mjs --render)'
+    lit ? 'each level is LIT by MojuloSun + the sky atmosphere through M_MojuloLit (reference look: blender-bake.mjs --render); a level whose score names a `sky` preset gets that rig (night: moon, dark atmosphere, fog, lamp lights) and a visible matte fallback ground'
       : 'each level renders in its baked vertex colours (reference look: the mojulo web build)',
     'entities with travel clips are ANIMATED — ambient figures loop their idle; when the score carries player locomotion, the suit is visible in third person and its walk cycle plays while you move',
     'reaching an exit shows LEVEL COMPLETE and returns to the menu with the level marked [done]',
@@ -954,6 +1114,20 @@ Ambient imported figures still animate; the imported player figure is hidden.
 Without this setting, the existing Mojulo walker and suit-follow behavior remain.
 A character's controls, animation assets and collision fit must be tested in the
 receiving project; selecting a class does not establish traversal compatibility.
+
+For project-owned persistent levels, set \`MapRoot=/Game/MyProject/Maps\` in the
+\`[Mojulo]\` section of \`Config/DefaultGame.ini\`. Name each wrapper map after
+its level ref, and load the corresponding generated map as an always-loaded sublevel.
+The menu opens the wrapper when it exists, otherwise the generated map.
+
+\`-MojuloAutoWalk -MojuloShot=10\` sends held W input to a foreign pawn's
+player controller and logs actual horizontal displacement at the shot. Its project
+input mapping must bind W; this is a movement probe, not a traversal-completion gate.
+Add \`-MojuloAutoJump=<seconds>\` to tap Space at that time (the project must bind it):
+the log names where the jump began and, at the shot, where the pawn stands, so a
+gap the recipe narrowed can be checked by the pawn's height at the shot. The score's
+\`yaw\` (from the recipe's \`walk.yaw\`) turns the PlayerStart so held W heads where
+the level intends.
 
 ${greyboxSection(posture === 'greybox')}## What travelled, what didn't
 

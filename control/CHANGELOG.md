@@ -153,9 +153,46 @@ stamp says it. Design + the neighbour survey: `lite-template/integration/0907/te
 
 ### Unreal demo — connected project levels
 
+- **Stickers keep their blend (leg 0.4.2).** The importer swapped every mesh slot onto the opaque
+  mojulo master, so the GLB's two `KHR_materials_unlit` + `alphaMode: BLEND` materials — the
+  contact-shadow stickers under the furniture and the window panes — drew as solid grey slabs in
+  every rendered Unreal frame of the lounge (eyes gate 2026-09-09; `materials_unlit` counted the
+  slots and could not see it). `import_mojulo.py` now reads the GLB's JSON chunk for those
+  materials and puts their slots on a third master, `M_MojuloSticker` (unlit, translucent,
+  two-sided, emissive = texture × vertex colour, opacity = vertex alpha × texture alpha), by
+  material name or, on a re-run over a swapped project, by one-slot mesh name. The verify count
+  is unchanged: the sticker instances live under `Materials/` like the rest.
+- Still open from the same frames: no engine pack shows the oak grain. The lounge GLB carries the
+  floor as `floor:skin` (untextured plank coat, z 0.019 ft) over `floor:skin:wood-oak` (the
+  texture, z 0.015 ft); Godot and Unreal both draw the coat, tan in one and white under Unreal's
+  sun and auto-exposure, and only the Cycles frames show the grain. Which layer should win is a
+  bake question, not an importer one. Beware the fresh-project first render: with seventeen
+  Nanite meshes still building it drew the oak because the coat was not there yet.
+
+- **The worked example ships.** `docs/examples/unreal-night-run/` carries the eight Night Run
+  recipes, a one-command mint, and the project-side scripts and config lines that turn a copy of
+  Epic's Game Animation Sample into the playable three-level game — so the demo is reproducible
+  from a checkout, not from one machine's database.
+- Optional project-side Niagara depiction paths decorate pickups, hazards and exits;
+  missing assets retain marker behavior and do not block play.
+
+- Foreign-pawn auto-walk sends forward input through the player controller and
+  reports actual displacement at screenshot time. `-MojuloAutoJump=<seconds>` taps Space at
+  that time and logs where the jump began, so a narrowed gap is checkable by the pawn's
+  height at the shot. A recipe's `walk.yaw` (degrees, counter-clockwise from +x) rides the
+  score as `yaw` and turns the PlayerStart, so held W heads where the level intends.
+- The iteration beat is machine-proven: `update_sketch` moved a rooftop platform, the lit
+  pack re-exported, the project re-imported, and the persistent dressing (light GUID, transform,
+  intensity), game mode and depiction asset survived while the imported platform moved by the
+  edit. Eyes gate not run; traversal of the narrowed gap unverified.
+
 - In progress: optional project map routing lets the game menu open persistent levels
   containing generated sublevels, retaining project-owned characters and dressing.
   Default pack map paths remain the fallback.
+- Cave lit exports now bypass traced lighting and carry chamber/tunnel sources as
+  native point lights. The ordinary baked world path remains unchanged.
+- Optional `walk.ground` positions the fallback plane below descending levels;
+  absent it, the existing zero-height plane remains.
 - **BREAKING (exports only) — the city says what a unit is.** The fractal city is authored at
   a town scale (a storey is 0.82 units), so every city export at 1 unit = 1 m read as a toy
   beside an engine character. The kind now declares `metersPerUnit` 3.66 (`CITY_METERS_PER_UNIT`,
@@ -166,6 +203,20 @@ stamp says it. Design + the neighbour survey: `lite-template/integration/0907/te
   declared its own (the floorplan's feet still win). New in the same change: the `at` / `radius`
   of every declarative mechanic (zone, pickup, hazard) scale too — a kernel reads them as
   metres, and the floorplan's feet had silently left them unscaled.
+- **The sky travels (D2).** Under the lit export the city's bakes stand down but the recipe's
+  declaration now rides the payload: the `sky` preset, and each streetlamp head as a `lights`
+  point emitter (sampled by the same `maxLamps` cap as the night bake). The engine score gains a
+  `sky: { preset }` row whenever a payload names one (any kind, any pack; absent ⇒ no row). The
+  Unreal importer's light rig reads it: `night` turns the sun into a dim cool moon so the
+  atmosphere goes dark and the lamp lights carry the scene, `dawn`/`dusk` set a low warm sun,
+  and any outdoor preset spawns an ExponentialHeightFog. The dungeon's lit export declares
+  `interior`: sun off, faint sky light, no fog, an exposure bias, the traced fires carry the
+  cave (the first lit cave shot was auto-exposed to white). No preset ⇒ the pre-D2 rig, unchanged.
+- **The lit fallback ground is a floor, not a void.** Hidden, the promoted ground plane showed the
+  atmosphere below the horizon as black in every lit shot. Under `--lit` it is now visible in a
+  neutral matte (`M_MojuloGround`), its top 2 cm under mojulo ground so the recipe's own floor
+  faces win. Unlit packs keep the hidden plane. `unreal-project` snapshot re-pinned for the
+  importer text (rig + ground + guide sentences).
 
 ### Package design — the carton takes a wrap, the assembler keeps the labels (soda-product-shot)
 

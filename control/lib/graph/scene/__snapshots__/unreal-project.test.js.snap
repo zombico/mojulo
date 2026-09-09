@@ -102,6 +102,20 @@ Without this setting, the existing Mojulo walker and suit-follow behavior remain
 A character's controls, animation assets and collision fit must be tested in the
 receiving project; selecting a class does not establish traversal compatibility.
 
+For project-owned persistent levels, set \`MapRoot=/Game/MyProject/Maps\` in the
+\`[Mojulo]\` section of \`Config/DefaultGame.ini\`. Name each wrapper map after
+its level ref, and load the corresponding generated map as an always-loaded sublevel.
+The menu opens the wrapper when it exists, otherwise the generated map.
+
+\`-MojuloAutoWalk -MojuloShot=10\` sends held W input to a foreign pawn's
+player controller and logs actual horizontal displacement at the shot. Its project
+input mapping must bind W; this is a movement probe, not a traversal-completion gate.
+Add \`-MojuloAutoJump=<seconds>\` to tap Space at that time (the project must bind it):
+the log names where the jump began and, at the shot, where the pawn stands, so a
+gap the recipe narrowed can be checked by the pawn's height at the shot. The score's
+\`yaw\` (from the recipe's \`walk.yaw\`) turns the PlayerStart so held W heads where
+the level intends.
+
 ## What travelled, what didn't
 
 #101 skipped_store — store slices beyond completion (character stats, inventory persistence) do not travel — the kernel keeps completion only

@@ -39,6 +39,7 @@ const uplugin = () => `${'{'}
   "Category": "Mojulo",
   "CanContainContent": false,
   "EnabledByDefault": true,
+  "Plugins": [{ "Name": "Niagara", "Enabled": true }],
   "Modules": [
     { "Name": "MojuloKernel", "Type": "Runtime", "LoadingPhase": "Default" }
   ]
@@ -52,7 +53,7 @@ public class MojuloKernel : ModuleRules
     public MojuloKernel(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "AssetRegistry", "LevelSequence", "MovieScene" });
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "AssetRegistry", "LevelSequence", "MovieScene", "Niagara" });
     }
 }
 `;
@@ -597,6 +598,7 @@ protected:
     FVector PlayerFeet() const;
     void ResetPlayer();
     void SpawnMechanicMarkers();
+    bool AttachDepiction(AMojuloMarker* Marker, const FString& Kind);
     void StartMusic();
     float BodyDistance(const FVector& Target) const;
     bool ZoneHit(const FMojuloZone& Zone, const FVector& Pos) const;
@@ -660,12 +662,27 @@ protected:
     class APawn* PlayerPawn = nullptr;
     FTransform PlayerSpawn;
     float PlayerKillZ = -30000.f;
+    bool bForeignAutoWalk = false;
+    bool bProbePressed = false;
+    FVector ProbeStart = FVector::ZeroVector;
+    float JumpAt = -1.f;              // -MojuloAutoJump=<seconds>: tap Space at that time (probe)
+    bool bJumpPressed = false;
+    bool bJumpReleased = false;
+    FVector JumpFrom = FVector::ZeroVector;
 };
 `;
 
 const gameModeCpp = () => `${HEADER_CPP}#include "MojuloGameMode.h"
 
 #include "GameFramework/PawnMovementComponent.h"
+#include "InputKeyEventArgs.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -755,6 +772,8 @@ void AMojuloGameMode::BeginPlay()
     StartMusic();
     float ShotSeconds = 0.f;
     if (FParse::Value(FCommandLine::Get(), TEXT("MojuloShot="), ShotSeconds)) ShotAt = ShotSeconds;
+    float JumpSeconds = 0.f;
+    if (FParse::Value(FCommandLine::Get(), TEXT("MojuloAutoJump="), JumpSeconds)) JumpAt = JumpSeconds;
 }
 
 void AMojuloGameMode::ConfigureWalker()
@@ -768,6 +787,9 @@ void AMojuloGameMode::ConfigureWalker()
     if (Walker != nullptr) Walker->InitFromScore(Score.Eye, EyeScale, Score.Spawn, PlayerKillZ);
     // Foreign pawns keep their PlayerStart placement, dimensions, input and camera.
     PlayerSpawn = Pawn->GetActorTransform();
+    bForeignAutoWalk = Walker == nullptr && FParse::Param(FCommandLine::Get(), TEXT("MojuloAutoWalk"));
+    bProbePressed = false;
+    ProbeStart = Pawn->GetActorLocation();
     UE_LOG(LogTemp, Display, TEXT("[mojulo] pawn_class=%s kernel_walker=%d"), *Pawn->GetClass()->GetPathName(), Walker != nullptr);
     Hp = Score.bHasHp ? Score.StartHp : -1.f;
     SurviveLeft = Score.SurviveSeconds;
@@ -988,6 +1010,32 @@ void AMojuloGameMode::TickPlayerSuit()
     }
 }
 
+bool AMojuloGameMode::AttachDepiction(AMojuloMarker* Marker, const FString& Kind)
+{
+    FString Text;
+    if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectConfigDir() / TEXT("MojuloDepiction.json")))) return false;
+    TSharedPtr<FJsonObject> Table;
+    const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Text);
+    if (!FJsonSerializer::Deserialize(Reader, Table) || !Table.IsValid()) return false;
+    FString Path;
+    if (!Table->TryGetStringField(Kind, Path) || Path.IsEmpty()) return false;
+    UNiagaraSystem* System = LoadObject<UNiagaraSystem>(nullptr, *Path);
+    if (System == nullptr)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[mojulo] depiction missing: %s"), *Path);
+        return false;
+    }
+    UNiagaraComponent* FX = NewObject<UNiagaraComponent>(Marker);
+    FX->SetupAttachment(Marker->GetRootComponent());
+    FX->SetUsingAbsoluteScale(true);
+    FX->SetRelativeScale3D(FVector(0.25f));
+    FX->SetAsset(System);
+    FX->RegisterComponent();
+    FX->Activate(true);
+    UE_LOG(LogTemp, Display, TEXT("[mojulo] depiction=%s system=%s"), *Kind, *Path);
+    return true;
+}
+
 void AMojuloGameMode::SpawnMechanicMarkers()
 {
     UWorld* World = GetWorld();
@@ -996,6 +1044,7 @@ void AMojuloGameMode::SpawnMechanicMarkers()
         AMojuloMarker* Marker = World->SpawnActor<AMojuloMarker>(Pickup.Pos + FVector(0.f, 0.f, 60.f * EyeScale), FRotator::ZeroRotator);
         const float S = 0.5f * EyeScale;
         Marker->SetShape(true, FVector(S), FLinearColor(0.98f, 0.85f, 0.25f));
+        AttachDepiction(Marker, TEXT("pickup"));
         Pickup.Marker = Marker;
     }
     for (const FMojuloHazard& Hazard : Score.Hazards)
@@ -1003,6 +1052,13 @@ void AMojuloGameMode::SpawnMechanicMarkers()
         AMojuloMarker* Marker = World->SpawnActor<AMojuloMarker>(Hazard.Pos, FRotator::ZeroRotator);
         const float S = Hazard.Radius * 2.f / 100.f;
         Marker->SetShape(true, FVector(S), FLinearColor(0.95f, 0.25f, 0.2f));
+        AttachDepiction(Marker, TEXT("hazard"));
+    }
+    for (const FMojuloZone& Exit : Score.Exits)
+    {
+        AMojuloMarker* Marker = World->SpawnActor<AMojuloMarker>(Exit.Pos, FRotator::ZeroRotator);
+        Marker->SetShape(false, FVector(0.35f, 0.35f, 1.2f), FLinearColor(0.2f, 0.9f, 0.8f));
+        if (!AttachDepiction(Marker, TEXT("exit"))) Marker->Destroy();
     }
 }
 
@@ -1049,11 +1105,55 @@ void AMojuloGameMode::Tick(float DeltaSeconds)
     }
     if (Walker == nullptr && PlayerPawn->GetActorLocation().Z < PlayerKillZ) ResetPlayer();
 
+    if (bForeignAutoWalk && !bProbePressed && GetWorld()->GetTimeSeconds() >= 2.f)
+    {
+        if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+        {
+            // aim the probe at the seat's facing (the PlayerStart's yaw = the score's walk.yaw), level pitch
+            PC->SetControlRotation(FRotator(0.f, PlayerSpawn.Rotator().Yaw, 0.f));
+            PC->InputKey(FInputKeyEventArgs(nullptr, FInputDeviceId::CreateFromInternalId(0), EKeys::W, IE_Pressed, FPlatformTime::Cycles64()));
+            bProbePressed = true;
+            ProbeStart = PlayerPawn->GetActorLocation();
+            const FString Cam = PC->PlayerCameraManager ? PC->PlayerCameraManager->GetCameraRotation().ToString() : FString(TEXT("-"));
+            UE_LOG(LogTemp, Display, TEXT("[mojulo-probe] walk pressed: control=%s camera=%s pawn_yaw=%.1f"), *PC->GetControlRotation().ToString(), *Cam, PlayerPawn->GetActorRotation().Yaw);
+        }
+    }
+    if (JumpAt >= 0.f && !bJumpReleased && GetWorld()->GetTimeSeconds() >= JumpAt)
+    {
+        if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+        {
+            if (!bJumpPressed)
+            {
+                PC->InputKey(FInputKeyEventArgs(nullptr, FInputDeviceId::CreateFromInternalId(0), EKeys::SpaceBar, IE_Pressed, FPlatformTime::Cycles64()));
+                bJumpPressed = true;
+                JumpFrom = PlayerPawn->GetActorLocation();
+                UE_LOG(LogTemp, Display, TEXT("[mojulo-probe] jump pressed at (%.2f,%.2f,%.2f)"), JumpFrom.X, JumpFrom.Y, JumpFrom.Z);
+            }
+            else
+            {
+                PC->InputKey(FInputKeyEventArgs(nullptr, FInputDeviceId::CreateFromInternalId(0), EKeys::SpaceBar, IE_Released, FPlatformTime::Cycles64()));
+                bJumpReleased = true;
+            }
+        }
+    }
     TickPlayerSuit();
 
     if (ShotAt >= 0.f && !bShotTaken && GetWorld()->GetTimeSeconds() >= ShotAt)
     {
         bShotTaken = true;
+        const FVector ProbeEnd = PlayerPawn->GetActorLocation();
+        UE_LOG(LogTemp, Display, TEXT("[mojulo-probe] pawn_class=%s auto_walk=%d jump=%d displacement_cm=%.2f position=(%.2f,%.2f,%.2f)"),
+            *PlayerPawn->GetClass()->GetPathName(), bForeignAutoWalk, bJumpPressed, FVector::Dist2D(ProbeStart, ProbeEnd), ProbeEnd.X, ProbeEnd.Y, ProbeEnd.Z);
+        if (APlayerController* ProbePC = UGameplayStatics::GetPlayerController(this, 0))
+        {
+            const FString Cam = ProbePC->PlayerCameraManager ? ProbePC->PlayerCameraManager->GetCameraRotation().ToString() : FString(TEXT("-"));
+            UE_LOG(LogTemp, Display, TEXT("[mojulo-probe] at shot: control=%s camera=%s"), *ProbePC->GetControlRotation().ToString(), *Cam);
+        }
+        if (bProbePressed)
+        {
+            if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+                PC->InputKey(FInputKeyEventArgs(nullptr, FInputDeviceId::CreateFromInternalId(0), EKeys::W, IE_Released, FPlatformTime::Cycles64()));
+        }
         if (APlayerController* ShotPC = UGameplayStatics::GetPlayerController(this, 0))
             ShotPC->ConsoleCommand(TEXT("HighResShot 1280x720"));
         auto Dump = [](const TCHAR* Tag, AActor* Figure)

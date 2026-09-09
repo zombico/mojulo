@@ -1,0 +1,69 @@
+{
+  "ref": "night-run-lounge",
+  "title": "Night Run — Relay Lounge",
+  "manifest": {
+    "title": "Night Run — Relay Lounge",
+    "kind": "floorplan",
+    "width": 24,
+    "height": 28,
+    "rooms": [
+      {
+        "x": 2,
+        "y": 2,
+        "w": 20,
+        "h": 24,
+        "glyph": "L"
+      }
+    ],
+    "doors": [
+      {
+        "x": 12,
+        "y": 26,
+        "room": 0,
+        "edge": "S"
+      }
+    ],
+    "furnish": true,
+    "view": "cutaway",
+    "seed": 7,
+    "potLights": true,
+    "walk": {
+      "spawn": [
+        18,
+        22,
+        0.2
+      ],
+      "eye": 5.3
+    },
+    "game": {
+      "levelRef": "night-run-lounge",
+      "decorate": false,
+      "mechanics": [
+        {
+          "kind": "survive",
+          "seconds": 20
+        },
+        {
+          "kind": "collect",
+          "into": "bag",
+          "pickups": [
+            {
+              "item": "relay-core",
+              "at": [
+                18,
+                10,
+                0.4
+              ],
+              "radius": 2
+            }
+          ]
+        }
+      ]
+    },
+    "audio": {
+      "soundtrack": {
+        "beatsRef": "night-run-music-lounge"
+      }
+    }
+  }
+}

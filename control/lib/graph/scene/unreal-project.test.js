@@ -209,9 +209,23 @@ describe('lit handoff (lit-handoff.plan.md step 1)', () => {
     expect(py).toContain('def light_rig');
     expect(py).toContain('unreal.SkyAtmosphere');
     expect(py).toContain("set_editor_property('real_time_capture', True)");
-    expect(py).toContain('unreal.Rotator(roll=0.0, pitch=-35.0, yaw=-30.0)');
+    expect(py).toContain("pitch = -40.0 if preset == 'night' else -12.0 if preset in ('dawn', 'dusk') else -35.0");
+    expect(py).toContain('unreal.Rotator(roll=0.0, pitch=pitch, yaw=-30.0)');
     expect(py).toContain('def ensure_pot_lights');
     expect(py).toContain('def settle_local_lights');
+    // the score's sky preset drives the rig (unreal-demo D2): night = moon + fog; the lit ground is visible
+    expect(py).toContain('def light_rig(score=None)');
+    expect(py).toContain('light_rig(score)');
+    expect(py).toContain('unreal.ExponentialHeightFog');
+    expect(py).toContain("if preset == 'night':");
+    expect(py).toContain("if preset == 'interior':");
+    expect(py).toContain("if preset and preset != 'interior':");
+    expect(py).toContain('unreal.PostProcessVolume');
+    expect(py).toContain("if score.get('yaw') is not None:");
+    expect(py).toContain("yaw=-float(score['yaw'])");
+    expect(py).toContain("set_editor_property('auto_exposure_bias', -2.0 if preset == 'night' else -1.5)");
+    expect(py).toContain('def ensure_ground_material');
+    expect(py).toContain("spawn_block('MojuloGround', unreal.Vector(center.x, center.y, ground_z - 2.0), unreal.Vector(800.0 * M, 800.0 * M, M), visible=True)");
     expect(py).toContain("check(prefix + 'lights_carried'");
   });
 });

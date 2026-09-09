@@ -32,7 +32,7 @@ Pass everything via `compose_world`'s `overrides` (identity base — overrides A
   ],
   style?:    { palette?, material?, tunnel?: { base?, material? } },
   lighting?: { ambient?, tint?, fireColor?, fireIntensity?, gain?, reflectivity? },
-  walk?:     { speed?, minEye?, gravity?, radius? } | false,
+  walk?:     { speed?, minEye?, gravity?, radius?, spawn?, ground?, yaw? } | false,
   viewBox?:  { width, height }
 }
 ```
@@ -104,3 +104,9 @@ compose_world({
 ```
 
 Returns `{ ok, ref, worldUrl, url, recipe, stats: { chambers, tunnels, faces, spawn }, advisory }` — `advisory` is the movement-flow readout (`{ impairment, necessary, preferential, ok }`; a sealed chamber is flagged, never refused). Themes: no theme lowering yet — use `overrides` (the mars-colony pack's material axis lands here later).
+
+For engine handoff, `walk.spawn` is the feet position and `walk.ground` sets the
+height of the fallback ground plane. Set it below the lowest chamber in a descending
+cave so the fallback does not block the sloping passages. Geometry remains the floor.
+`walk.yaw` (degrees, counter-clockwise from +x seen from above) is the seat's facing;
+an engine spawns the player looking that way. Any walkable kind accepts these three.

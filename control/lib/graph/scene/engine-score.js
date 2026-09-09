@@ -158,10 +158,14 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     ...(declared ? { posture: declared } : {}),
     spawn: sv(extras['moj:spawn'] ?? [0, 0, 2]),
     eye: sn(payload.walk?.eye ?? 1.7),
+    // the seat's FACING (`walk.yaw`, degrees, counter-clockwise from +x seen from above — the
+    // recipe's own frame): an engine spawns the pawn looking that way, so a "walk forward" probe
+    // and a player's first step head where the level intends. Absent ⇒ no row.
+    ...(Number.isFinite(payload.walk?.yaw) ? { yaw: payload.walk.yaw } : {}),
     // The runtime's walk/controllable engines ground-snap on an IMPLICIT plane
     // at z=0 — the collider AABBs are obstacle hulls only, never the floor
     // (G1 finding: a promoted world without this plane is an infinite fall).
-    ground: 0,
+    ground: Number.isFinite(payload.walk?.ground) ? sn(payload.walk.ground) : 0,
     // surface/atlas texture keys riding the payload (skin-over-mesh.plan.md
     // phase 3): the GLB embeds them (TEXCOORD_0 + PNG), so engine packs CARRY
     // them — the ledger states it. Absent textures ⇒ no key, byte-identical.
@@ -170,6 +174,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     colliders: (payload.colliders ?? []).map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
     cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),
     ...(lights.length ? { lights } : {}),
+    // the sky DECLARATION (a preset name: day / night / dawn / dusk) so an engine rig can set its
+    // sun, sky and fog to what the recipe said — the mesh never carried the backdrop
+    // (sky_approximated). Absent a preset ⇒ no row, byte-identical.
+    ...(typeof payload.sky?.preset === 'string' ? { sky: { preset: payload.sky.preset } } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure);
       const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;

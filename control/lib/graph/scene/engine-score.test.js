@@ -120,6 +120,32 @@ describe('extractEngineScore — the locomotion row (export-unreal U2, the walki
   });
 });
 
+describe('fallback ground elevation', () => {
+  it('keeps zero by default and converts an explicit floor to the mesh unit scale', () => {
+    expect(extractEngineScore(sketch(), payload()).ground).toBe(0);
+    const p = { ...payload(), metersPerUnit: 0.3048, walk: { eye: 5.3, ground: -20 } };
+    expect(extractEngineScore(sketch(), p).ground).toBeCloseTo(-6.096);
+    expect(extractEngineScore(sketch(), { ...p, walk: { ground: NaN } }).ground).toBe(0);
+  });
+});
+
+describe('the seat facing (walk.yaw)', () => {
+  it('rides as a degrees row when finite; absent ⇒ no row', () => {
+    expect(extractEngineScore(sketch(), payload()).yaw).toBeUndefined();
+    expect(extractEngineScore(sketch(), { ...payload(), walk: { eye: 1.6, yaw: 90 } }).yaw).toBe(90);
+    expect(extractEngineScore(sketch(), { ...payload(), walk: { eye: 1.6, yaw: 'east' } }).yaw).toBeUndefined();
+  });
+});
+
+describe('the sky row (unreal-demo D2 — the declaration travels)', () => {
+  it('carries the payload sky preset by name and nothing else; absent ⇒ no row', () => {
+    expect(extractEngineScore(sketch(), payload()).sky).toBeUndefined();
+    const p = { ...payload(), sky: { preset: 'night', stars: true, moon: true, seed: 7 } };
+    expect(extractEngineScore(sketch(), p).sky).toEqual({ preset: 'night' });
+    expect(extractEngineScore(sketch(), { ...payload(), sky: { stars: true } }).sky).toBeUndefined();
+  });
+});
+
 describe('mechanics scale with the unit declaration', () => {
   const mech = [
     { kind: 'reach-exit', at: [1, 2, 3], radius: 0.5 },

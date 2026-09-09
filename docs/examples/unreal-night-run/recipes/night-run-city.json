@@ -1,0 +1,502 @@
+{
+  "ref": "night-run-city",
+  "title": "Night Run — Relay District",
+  "manifest": {
+    "kind": "fractal-city",
+    "seed": 19,
+    "anchor": "tower",
+    "depth": 2,
+    "density": 0.45,
+    "time": "night",
+    "region": {
+      "x": -12,
+      "y": -10,
+      "w": 24,
+      "d": 20
+    },
+    "elements": {
+      "civicDomes": true,
+      "cityTrees": false,
+      "parkDoodads": false,
+      "religiousPlaces": false,
+      "powerLines": false,
+      "cars": false,
+      "pedestrians": false
+    },
+    "title": "Night Run — Relay District",
+    "walk": {
+      "spawn": [
+        -5.35,
+        -7.45,
+        2.1199999999999997
+      ],
+      "eye": 0.46,
+      "yaw": 0
+    },
+    "game": {
+      "levelRef": "night-run-city",
+      "decorate": false,
+      "mechanics": [
+        {
+          "kind": "reach-exit",
+          "at": [
+            -3.2,
+            -7.45,
+            2.11
+          ],
+          "radius": 0.3,
+          "planar": false
+        },
+        {
+          "kind": "collect",
+          "into": "bag",
+          "pickups": [
+            {
+              "item": "relay-cell",
+              "at": [
+                -4.95,
+                -7.45,
+                2.22
+              ],
+              "radius": 0.2
+            },
+            {
+              "item": "relay-cell",
+              "at": [
+                -3.4,
+                -7.45,
+                2.21
+              ],
+              "radius": 0.2
+            }
+          ]
+        },
+        {
+          "kind": "hazard-damage",
+          "hazards": [
+            {
+              "at": [
+                -4.3,
+                -7.45,
+                0
+              ],
+              "radius": 0.7,
+              "damage": 30
+            }
+          ]
+        },
+        {
+          "kind": "fail-on-death"
+        }
+      ]
+    },
+    "audio": {
+      "soundtrack": {
+        "beatsRef": "night-run-music-city"
+      }
+    },
+    "repeats": [
+      {
+        "group": "relay-rooftop-route-0",
+        "template": [
+          {
+            "corners": [
+              [
+                -0.5,
+                -0.4,
+                0.06
+              ],
+              [
+                0.5,
+                -0.4,
+                0.06
+              ],
+              [
+                0.5,
+                0.4,
+                0.06
+              ],
+              [
+                -0.5,
+                0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              0,
+              1
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                -0.5,
+                0.4,
+                -0.06
+              ],
+              [
+                0.5,
+                0.4,
+                -0.06
+              ],
+              [
+                0.5,
+                -0.4,
+                -0.06
+              ],
+              [
+                -0.5,
+                -0.4,
+                -0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              0,
+              -1
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                -0.5,
+                -0.4,
+                -0.06
+              ],
+              [
+                0.5,
+                -0.4,
+                -0.06
+              ],
+              [
+                0.5,
+                -0.4,
+                0.06
+              ],
+              [
+                -0.5,
+                -0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              -1,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                0.5,
+                -0.4,
+                -0.06
+              ],
+              [
+                0.5,
+                0.4,
+                -0.06
+              ],
+              [
+                0.5,
+                0.4,
+                0.06
+              ],
+              [
+                0.5,
+                -0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              1,
+              0,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                0.5,
+                0.4,
+                -0.06
+              ],
+              [
+                -0.5,
+                0.4,
+                -0.06
+              ],
+              [
+                -0.5,
+                0.4,
+                0.06
+              ],
+              [
+                0.5,
+                0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              1,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                -0.5,
+                0.4,
+                -0.06
+              ],
+              [
+                -0.5,
+                -0.4,
+                -0.06
+              ],
+              [
+                -0.5,
+                -0.4,
+                0.06
+              ],
+              [
+                -0.5,
+                0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              -1,
+              0,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          }
+        ],
+        "transforms": [
+          {
+            "pos": [
+              -5.35,
+              -7.45,
+              2.05
+            ]
+          }
+        ]
+      },
+      {
+        "group": "relay-rooftop-route-1",
+        "template": [
+          {
+            "corners": [
+              [
+                -0.7,
+                -0.4,
+                0.06
+              ],
+              [
+                0.7,
+                -0.4,
+                0.06
+              ],
+              [
+                0.7,
+                0.4,
+                0.06
+              ],
+              [
+                -0.7,
+                0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              0,
+              1
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                -0.7,
+                0.4,
+                -0.06
+              ],
+              [
+                0.7,
+                0.4,
+                -0.06
+              ],
+              [
+                0.7,
+                -0.4,
+                -0.06
+              ],
+              [
+                -0.7,
+                -0.4,
+                -0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              0,
+              -1
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                -0.7,
+                -0.4,
+                -0.06
+              ],
+              [
+                0.7,
+                -0.4,
+                -0.06
+              ],
+              [
+                0.7,
+                -0.4,
+                0.06
+              ],
+              [
+                -0.7,
+                -0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              -1,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                0.7,
+                -0.4,
+                -0.06
+              ],
+              [
+                0.7,
+                0.4,
+                -0.06
+              ],
+              [
+                0.7,
+                0.4,
+                0.06
+              ],
+              [
+                0.7,
+                -0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              1,
+              0,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                0.7,
+                0.4,
+                -0.06
+              ],
+              [
+                -0.7,
+                0.4,
+                -0.06
+              ],
+              [
+                -0.7,
+                0.4,
+                0.06
+              ],
+              [
+                0.7,
+                0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              0,
+              1,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          },
+          {
+            "corners": [
+              [
+                -0.7,
+                0.4,
+                -0.06
+              ],
+              [
+                -0.7,
+                -0.4,
+                -0.06
+              ],
+              [
+                -0.7,
+                -0.4,
+                0.06
+              ],
+              [
+                -0.7,
+                0.4,
+                0.06
+              ]
+            ],
+            "outNormal": [
+              -1,
+              0,
+              0
+            ],
+            "fill": "#42616b",
+            "doubleSided": false
+          }
+        ],
+        "transforms": [
+          {
+            "pos": [
+              -3.7,
+              -7.45,
+              2.05
+            ]
+          }
+        ]
+      }
+    ],
+    "metersPerUnit": 3.66
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "ref": "night-run-cave",
+  "title": "Night Run — Ember Descent",
+  "manifest": {
+    "kind": "dungeon",
+    "chambers": [
+      {
+        "id": "entry",
+        "at": [
+          0,
+          0
+        ],
+        "elevation": 0,
+        "radius": 6,
+        "height": 6,
+        "floorAmp": 0.12
+      },
+      {
+        "id": "embers",
+        "at": [
+          16,
+          0
+        ],
+        "elevation": -2,
+        "radius": 6,
+        "height": 7,
+        "floorAmp": 0.15
+      },
+      {
+        "id": "relay",
+        "at": [
+          30,
+          8
+        ],
+        "elevation": -4,
+        "radius": 5,
+        "height": 6,
+        "floorAmp": 0.1
+      }
+    ],
+    "tunnels": [
+      {
+        "from": "entry",
+        "to": "embers",
+        "style": "corridor",
+        "width": 4,
+        "height": 4
+      },
+      {
+        "from": "embers",
+        "to": "relay",
+        "style": "corridor",
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "style": {
+      "palette": {
+        "floor": "#37424b",
+        "wall": "#4b5363",
+        "ceiling": "#303a4a"
+      },
+      "material": "stone"
+    },
+    "lighting": {
+      "ambient": 0.15,
+      "fireIntensity": 2,
+      "gain": 1.4
+    },
+    "seed": 23,
+    "title": "Night Run — Ember Descent",
+    "walk": {
+      "spawn": [
+        0,
+        -1.8,
+        0.2
+      ],
+      "minEye": 1.7,
+      "speed": 5,
+      "radius": 0.4,
+      "ground": -6
+    },
+    "game": {
+      "levelRef": "night-run-cave",
+      "decorate": false,
+      "mechanics": [
+        {
+          "kind": "reach-exit",
+          "at": [
+            30,
+            8,
+            -3.8
+          ],
+          "radius": 1.5
+        },
+        {
+          "kind": "collect",
+          "into": "bag",
+          "pickups": [
+            {
+              "item": "ember-cell",
+              "at": [
+                5,
+                0,
+                0.2
+              ],
+              "radius": 1
+            },
+            {
+              "item": "ember-cell",
+              "at": [
+                17,
+                1,
+                -1.8
+              ],
+              "radius": 1
+            }
+          ]
+        },
+        {
+          "kind": "hazard-damage",
+          "hazards": [
+            {
+              "at": [
+                15,
+                -2,
+                -1.8
+              ],
+              "radius": 1,
+              "damage": 15
+            }
+          ]
+        },
+        {
+          "kind": "fail-on-death"
+        }
+      ]
+    },
+    "audio": {
+      "soundtrack": {
+        "beatsRef": "night-run-music-cave"
+      }
+    }
+  }
+}

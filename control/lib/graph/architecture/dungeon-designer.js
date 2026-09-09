@@ -24,7 +24,7 @@
 
 import { buildRoundRoomShellFaces, bakeSceneDiffusion } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
-import { scaleHex } from '../polygonizer/vexar.js';
+import { scaleHex, FLAT_LIGHT } from '../polygonizer/vexar.js';
 import { resolveMaterial, tagFacesWithMaterial, validateMaterialRef } from '../polygonizer/materials.js';
 
 export const WALL_STYLES = ['cave', 'flat'];
@@ -92,7 +92,7 @@ const TUBE_LDIR = nrm([0.3, 0.5, -0.4]);
 const tubeLamb = (n) => 0.28 + 0.5 * Math.max(0, n[0] * TUBE_LDIR[0] + n[1] * TUBE_LDIR[1] + n[2] * TUBE_LDIR[2]);
 /** Straight enclosed rock tube p0→p1 (radius r), shaded by a warm directional key.
  *  Slopes freely, so it reads as a ramp between chambers at different elevations. */
-export function tubeFaces(p0, p1, r, { base = '#5a4836', seg = 24, rings = 10, group = 'static' } = {}) {
+export function tubeFaces(p0, p1, r, { base = '#5a4836', seg = 24, rings = 10, group = 'static', unshaded = false } = {}) {
   const axis = nrm(sub(p1, p0));
   let u = cross(axis, [0, 0, 1]); if (Math.hypot(...u) < 1e-3) u = cross(axis, [1, 0, 0]); u = nrm(u);
   const v = nrm(cross(axis, u));
@@ -103,7 +103,7 @@ export function tubeFaces(p0, p1, r, { base = '#5a4836', seg = 24, rings = 10, g
     for (let k = 0; k < seg; k += 1) {
       const A = ring(a0, k), B = ring(a0, k + 1), C = ring(a1, k + 1), D = ring(a1, k);
       const n = nrm(add(add(A.n, B.n), add(C.n, D.n)));
-      faces.push({ corners: [A.p, B.p, C.p, D.p], fill: scaleHex(base, tubeLamb(scl(n, -1))), doubleSided: true, group });
+      faces.push({ corners: [A.p, B.p, C.p, D.p], fill: unshaded ? base : scaleHex(base, tubeLamb(scl(n, -1))), doubleSided: true, group });
     }
   }
   return faces;
@@ -114,13 +114,13 @@ export function tubeFaces(p0, p1, r, { base = '#5a4836', seg = 24, rings = 10, g
  *  in the floor material. Open at both ends (it plugs into the chamber mouths). Not
  *  mitered to the curved wall — it just overshoots the carved hole so the chamber stays
  *  sealed (the overshoot pokes outside the rock, which is fine). */
-export function corridorFaces(p0, p1, { width = 4.4, height = 5.2, base = FLOOR_MATERIAL, rings = 8 } = {}) {
+export function corridorFaces(p0, p1, { width = 4.4, height = 5.2, base = FLOOR_MATERIAL, rings = 8, unshaded = false } = {}) {
   const A = sub(p1, p0);
   let r = cross(A, [0, 0, 1]); if (Math.hypot(...r) < 1e-3) r = [1, 0, 0]; r = nrm(r);   // horizontal width axis
   const up = [0, 0, 1], hw = width / 2;
   const sample = (a) => { const c = lerp(p0, p1, a); const fl = add(c, scl(r, -hw)), fr = add(c, scl(r, hw)); return { fl, fr, cl: add(fl, scl(up, height)), cr: add(fr, scl(up, height)) }; };
   const faces = [];
-  const quad = (a, b, c, d, n) => faces.push({ corners: [a, b, c, d], fill: scaleHex(base, tubeLamb(n)), doubleSided: true, group: 'static', normal: n });
+  const quad = (a, b, c, d, n) => faces.push({ corners: [a, b, c, d], fill: unshaded ? base : scaleHex(base, tubeLamb(n)), doubleSided: true, group: 'static', normal: n });
   for (let i = 0; i < rings; i += 1) {
     const s0 = sample(i / rings), s1 = sample((i + 1) / rings);
     quad(s0.fl, s0.fr, s1.fr, s1.fl, [0, 0, 1]);       // floor (flat across width)
@@ -217,7 +217,7 @@ export function assessDungeonFlow(plan) {
   return { impairment: necessary.length * 10 + preferential.length * 3, necessary, preferential, ok: necessary.length === 0 };
 }
 
-export function buildDungeonFaces(plan, { lighting = {}, section = false } = {}) {
+export function buildDungeonFaces(plan, { lighting = {}, section = false, unshaded = false } = {}) {
   const base = {
     vexar: lighting.vexar || { direction: [0.4, 0.3, -0.45], ambient: lighting.ambient ?? 0.2, diffuse: lighting.diffuse ?? 0.15 },
     tint: lighting.tint || [1.05, 0.9, 0.74],
@@ -238,15 +238,15 @@ export function buildDungeonFaces(plan, { lighting = {}, section = false } = {})
       ceilingOptions: { amp: c.ceilingAmp ?? c.radius * 0.13 },
       wallOmitArcs: plan.mouths.get(c.id),
       palette: toShellPalette(c.palette),
-      lighting: base,
+      lighting: unshaded ? { light: FLAT_LIGHT, tint: [1, 1, 1], gravity: false } : base,
     });
     applyChamberMaterial(shell, c.material);   // L1: per-surface Blinn-Phong finish
     raw.push(...translateZ(shell, c.elevation));
   }
   for (const t of plan.tunnels) {
     const tf = t.style === 'corridor'
-      ? corridorFaces(t.p0, t.p1, { width: t.width, height: t.height, base: t.base })
-      : tubeFaces(t.p0, t.p1, t.radius, { base: t.base });
+      ? corridorFaces(t.p0, t.p1, { width: t.width, height: t.height, base: t.base, unshaded })
+      : tubeFaces(t.p0, t.p1, t.radius, { base: t.base, unshaded });
     if (t.material) tagFacesWithMaterial(tf, resolveMaterial(t.material));
     raw.push(...tf);
   }
@@ -272,7 +272,7 @@ export function buildDungeonFaces(plan, { lighting = {}, section = false } = {})
   });
   const glows = plan.tunnels.flatMap((t) => { const zUp = t.style === 'corridor' ? (t.height || 5) * 0.45 : 0; return [0.35, 0.65].map((a) => ({ pos: add(lerp(t.p0, t.p1, a), [0, 0, zUp]), color: [1, 0.62, 0.3], intensity: 1.9, rays: 40, bounces: 1, dir: [0, 0, 1], spread: 175, fixtureR: 0.16, glowBlur: 18, glowSpread: 7 })); });
   const sources = [...fires, ...glows];
-  const faces = bakeSceneDiffusion(raw, sources, { gain: lighting.gain ?? 1.55, reflectivity: lighting.reflectivity ?? 0.6 });
+  const faces = unshaded ? raw : bakeSceneDiffusion(raw, sources, { gain: lighting.gain ?? 1.55, reflectivity: lighting.reflectivity ?? 0.6 });
   return { faces, sources };
 }
 
@@ -323,8 +323,12 @@ export function assembleDungeonScene(manifest = {}, ctx = {}) {
   if (!plan.chambers.length) {
     throw new Error('dungeon-designer: spec needs at least one chamber ({ chambers: [{ id, at, radius, … }] })');
   }
-  const { faces } = buildDungeonFaces(plan, { lighting: manifest.lighting || {}, section: false });
+  const { faces, sources } = buildDungeonFaces(plan, { lighting: manifest.lighting || {}, section: false, unshaded: ctx.unshaded === true });
   return {
+    // the lit handoff: the traced fires ride as point lights, and the cave DECLARES itself an
+    // interior (`sky.preset 'interior'`) so an engine rig keeps its sun out of the shell — the
+    // first lit cave shot was sun-bleached white through the mouths (unreal-demo D2).
+    ...(ctx.unshaded ? { lights: sources.map((s, i) => ({ name: `cave-light-${i}`, type: 'point', position: s.pos, color: s.color, intensity: s.intensity * 150 })), sky: { preset: 'interior' } } : {}),
     faces: padTrianglesForWorld(faces),
     cameras: [manifest.camera || defaultHubCamera(plan)],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },

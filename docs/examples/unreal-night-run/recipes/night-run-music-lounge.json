@@ -1,0 +1,95 @@
+{
+  "ref": "night-run-music-lounge",
+  "title": "Night Run — lounge signal",
+  "manifest": {
+    "seed": 908,
+    "bpm": 78,
+    "progression": [
+      {
+        "chord": [
+          "D3",
+          "F3",
+          "A3",
+          "E4"
+        ],
+        "root": "D2"
+      },
+      {
+        "chord": [
+          "Bb2",
+          "D3",
+          "F3",
+          "A3"
+        ],
+        "root": "Bb1"
+      },
+      {
+        "chord": [
+          "G3",
+          "A3",
+          "D4"
+        ],
+        "root": "G2"
+      },
+      {
+        "chord": [
+          "A2",
+          "E3",
+          "G3",
+          "B3"
+        ],
+        "root": "A1"
+      }
+    ],
+    "channels": [
+      {
+        "level": 0,
+        "name": "signal",
+        "role": "melody",
+        "patch": "sinePluck",
+        "tone": 0.7,
+        "sequence": {
+          "table": [
+            "D4",
+            "A4",
+            "E5",
+            "F4",
+            "A4",
+            "D5"
+          ],
+          "gate": 0.45
+        },
+        "chain": [
+          {
+            "type": "pingpong",
+            "time": 0.4,
+            "feedback": 0.25,
+            "mix": 0.22
+          },
+          {
+            "type": "reverb",
+            "decay": 4,
+            "wet": 0.25
+          }
+        ]
+      },
+      {
+        "level": 0,
+        "name": "bed",
+        "role": "harmony",
+        "patch": "pad",
+        "tone": 0.4
+      },
+      {
+        "level": 0,
+        "name": "pulse",
+        "role": "roots",
+        "patch": "bassMono",
+        "tone": 0.5
+      }
+    ],
+    "kind": "beats-ambient",
+    "title": "Night Run — lounge signal",
+    "swing": 0
+  }
+}

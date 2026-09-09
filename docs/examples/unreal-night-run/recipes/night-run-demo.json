@@ -1,0 +1,69 @@
+{
+  "ref": "night-run-demo",
+  "title": "Night Run",
+  "manifest": {
+    "kind": "game",
+    "title": "Night Run",
+    "store": {
+      "slices": [
+        {
+          "name": "bag",
+          "kind": "inventory"
+        },
+        {
+          "name": "campaign",
+          "kind": "progression"
+        },
+        {
+          "name": "hero",
+          "kind": "character"
+        }
+      ]
+    },
+    "levels": [
+      {
+        "title": "01 — Relay District",
+        "ref": "night-run-city"
+      },
+      {
+        "title": "02 — Ember Descent",
+        "ref": "night-run-cave",
+        "gate": {
+          "completed": "night-run-city"
+        }
+      },
+      {
+        "title": "03 — Relay Lounge",
+        "ref": "night-run-lounge",
+        "gate": {
+          "completed": "night-run-cave"
+        }
+      }
+    ],
+    "menu": {
+      "tagline": "Restore the relay. Descend beneath the city. Bring the signal home.",
+      "entries": [
+        {
+          "id": "campaign",
+          "title": "Begin the run",
+          "kind": "levels"
+        }
+      ]
+    },
+    "theme": {
+      "accent": "#66ded5",
+      "accent2": "#edac64",
+      "style": "hud"
+    },
+    "contractVersion": 1,
+    "music": {
+      "menu": "night-run-music-menu",
+      "battle": [
+        "night-run-music-city",
+        "night-run-music-cave",
+        "night-run-music-lounge"
+      ],
+      "volume": 0.28
+    }
+  }
+}

@@ -351,7 +351,7 @@ export const WORLD_KINDS = {
   dungeon: {
     title: 'mojulo dungeon',
     walk: true,
-    resolve: (m, ctx) => assembleDungeonScene(m, { title: ctx.title }),
+    resolve: (m, ctx) => assembleDungeonScene(m, { title: ctx.title, unshaded: ctx.unshaded }),
   },
   'transportation-hub': {
     title: 'mojulo transportation hub',
