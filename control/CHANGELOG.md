@@ -10,6 +10,24 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### The substrate drawer says what it does (substrate-effectiveness)
+
+`get_substrate` opened with the "PLAYful Cloud" framing: a PLAY acronym, the agent as "the grip in
+the middle of the staff", a tri-staff, an essay on which cloud verbs mojulo borrows. None of it
+changed what a connecting agent said or did next, and it cost every meta-question read.
+
+- **The drawer now carries operating facts only.** What mojulo is (the one-breath answer and the
+  five paradigms), the digital and physical pipeline claims and their honesty rule, "3D" as a
+  pipeline-position claim, bots as an optional pack, inference running on the connecting agent,
+  recipes as source with the promotion gates, what always-on requires, what the contextmap does and
+  does not record, office routing by ask shape, and the cloud properties mojulo does not have
+  (auto-scaling, multi-region, multi-tenancy, IAM, per-call billing). The substrate facts are
+  unchanged. The framing devices, the acronym and the metaphors are gone from the drawer, its
+  tools/list description, the `forward_context` pointers, the preamble comment and the architecture
+  doc.
+- **Description budget.** The `get_substrate` description now fits the 700-char ceiling on its own,
+  so its allowlist entry in `tool-descriptions.test.js` is deleted per that test's shrink-only rule.
+
 ### The building stacks — `levels[]` on the floorplan kind (paris-t4-stack)
 
 A `floorplan` sketch was one storey. The multi-level kernel (`structurizeHouse`: one meru, per-level

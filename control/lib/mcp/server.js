@@ -58,7 +58,7 @@ export function getServerVersion() {
 // primitives (stateful MCP server + process supervisor) and name the four
 // creatable artifacts with their entry tools, then point at `forward_context`
 // as a cheap routing index. The heavy lifting (concept glossary + register,
-// deliberation surfaces, full tool index, dashboard map, substrate philosophy)
+// deliberation surfaces, full tool index, dashboard map, self-description)
 // lives behind the sibling drawers (`get_register_kit`, `get_tool_index`,
 // `get_deliberation_overview`, `get_ui_map`, `get_substrate`) so the agent only
 // pays each context cost when a task actually needs it.

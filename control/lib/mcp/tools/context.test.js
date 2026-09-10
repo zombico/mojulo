@@ -94,8 +94,8 @@ describe('buildForwardContextBody — variant composition', () => {
         // The concept glossary moved to get_register_kit — its section header
         // and the "don't surface" plain-register marker are both gone.
         expect(body).not.toContain('## Concepts');
-        // The substrate philosophy moved to get_substrate.
-        expect(body).not.toContain('PLAYful Cloud — what mojulo is at the substrate');
+        // The substrate description moved to get_substrate.
+        expect(body).not.toContain('## What mojulo is — the working description');
         }
       }
     }
@@ -409,18 +409,21 @@ describe('get_ui_map — dashboard page map', () => {
   });
 });
 
-describe('get_substrate — PLAYful Cloud positioning', () => {
-  it('returns the substrate framing and stays out of the always-paid body', async () => {
+describe('get_substrate — the working description', () => {
+  it('returns operating facts and stays out of the always-paid body', async () => {
     const { content } = await substrateHandler({});
     const text = content[0].text;
-    expect(text).toMatch(/PLAYful Cloud/);
-    expect(text).toMatch(/Persistent/);
-    expect(text).toMatch(/Agent-Yoked/);
-    // The cloud shape-mapping survived the move out of quick-orientation rules.
-    expect(text).toMatch(/Temporal/);
-    // The substrate philosophy is reached on demand, not in forward_context.
+    expect(text).toMatch(/## What mojulo is — the working description/);
+    // Every section is something the agent acts on: claims, inference, always-on, cloud gaps.
+    expect(text).toMatch(/Two pipelines, one honesty rule/);
+    expect(text).toMatch(/Inference runs on you/);
+    expect(text).toMatch(/Always-on means a runtime is up/);
+    expect(text).toMatch(/does NOT have auto-scaling, multi-region, multi-tenancy, IAM, or per-call billing/);
+    // The framing devices are gone — no acronym, no staff/grip metaphor, no borrowed-verbs essay.
+    expect(text).not.toMatch(/PLAYful|Agent-Yoked|tri-staff|grip|verbs that travel/);
+    // The description is reached on demand, not in forward_context.
     const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
-    expect(body).not.toContain('PLAYful Cloud — what mojulo is at the substrate');
+    expect(body).not.toContain('## What mojulo is — the working description');
     expect(body).toContain('`get_substrate`');
   });
 
