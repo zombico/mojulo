@@ -58,6 +58,33 @@ changed what a connecting agent said or did next, and it cost every meta-questio
 - **Description budget.** The `get_substrate` description now fits the 700-char ceiling on its own,
   so its allowlist entry in `tool-descriptions.test.js` is deleted per that test's shrink-only rule.
 
+### README reposition — 3D asset generation leads (docs)
+
+- **`README.md` refactored around the factory.** The opener states the ladder (object → world →
+  level → game) and the two pipelines out; "What you can make" is organised by 3D kind (objects at
+  literal scale with `cuts[]` and `measure_solid`, figures and animals, stacked floorplans, cities,
+  drivable worlds, games, the assets that fold in); a new "Where it goes" table lists every target
+  with what it emits and which gate runs, laddered as `get_substrate` says (Godot first-class,
+  Unity and Unreal gated legs, Blender an art pass, STL/3MF with the slicer gate); "Recipes, not
+  renders" carries iteration, the cookbook and the recipe book. Publications, research, directed
+  images, connected services, apps and the chatbot pack fold into one "Also in the box" section.
+  The quickstart's first look is a mug → city → walkable world → game → Godot sequence, and the
+  export CLIs and 3D workers get their own subsections. Stale figures fixed against
+  `docs/tech-requirements.md` (install size, embedding model size, the "nothing is fetched at
+  runtime" claim now lists the lazy downloads); the enumerable counts (species, protocols, docs,
+  slice kinds) are gone. `control/README.md` (the npm page) is untouched.
+
+### Tech requirements orientation (docs)
+
+- **`docs/tech-requirements.md`.** One page of full disclosure for the site and for anyone confused
+  later: Node floor, measured package and dependency footprint (dated, with the per-dependency
+  breakdown), the lazy first-use downloads and where they cache, network posture, what each engine
+  leg emits versus what the operator must install (Godot, Unity, Unreal, Blender, slicers), the
+  optional workers, the chatbot pack, platform notes, and a "what the site must not claim" list.
+  Records the discrepancies found while measuring (understated size figures, browser/ffmpeg caches
+  outside `$MOJULO_HOME`, a floating AWS SDK range that broke a fresh install on 2026-09-09) without
+  fixing them. README quickstart links to it.
+
 ### The building stacks — `levels[]` on the floorplan kind (paris-t4-stack)
 
 A `floorplan` sketch was one storey. The multi-level kernel (`structurizeHouse`: one meru, per-level

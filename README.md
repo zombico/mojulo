@@ -103,7 +103,8 @@ npx mojulo init
 Nothing is sent anywhere; state lands in `~/.mojulo/`. The first install is the
 big one: npx pulls a ~26 MB package plus its native runtime deps (a few hundred
 MB on disk), and the first launch fetches a ~113 MB embedding model in the
-background — after that, starts are instant.
+background — after that, starts are instant. Measured sizes, lazy downloads,
+and what each engine extension needs: [docs/tech-requirements.md](docs/tech-requirements.md).
 
 The dashboard opens in English but ships fully translated in every locale under `control/messages/`,
 including right-to-left scripts (Arabic, Farsi, Urdu) — switch
