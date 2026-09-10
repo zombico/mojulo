@@ -539,9 +539,26 @@ describe('pack dispatcher', () => {
     expect(text).toContain("{ tool: '<name>', args:");
   });
 
-  it('studio unveil serves the FORM body; multi-form packs serve both', async () => {
+  it('studio unveil serves a one-line member index, not the full FORM body', async () => {
+    const { FORM_TOOLSETS } = await import('@/lib/mcp/tools/context');
     const world = (await callTool('pack_world', {})).result.content[0].text;
-    expect(world).toContain('compose_world'); // form body names its tools
+    expect(world).toContain(FORM_TOOLSETS.world.makes);
+    // Every member is indexed on one line, and that line is the row's first
+    // sentence — the full row (with its recognizer tail) is not repeated.
+    for (const m of FORM_TOOLSETS.world.body.matchAll(/^- `([a-z_]+)` — /gm)) {
+      const line = world.split('\n').find((l) => l.startsWith(`- \`${m[1]}\` — `));
+      expect(line, `${m[1]} has no index line`).toBeTruthy();
+      expect(line.length).toBeLessThanOrEqual(260);
+    }
+    expect(world).not.toContain(FORM_TOOLSETS.world.body);
+    // The authoritative description appears exactly once: in the manual entry.
+    const desc = server.getRegisteredTool('compose_world').description;
+    expect(world.split(desc).length - 1).toBe(1);
+  });
+
+  it('studio unveil names every member; multi-form packs serve both forms', async () => {
+    const world = (await callTool('pack_world', {})).result.content[0].text;
+    expect(world).toContain('compose_world'); // index names its tools
     const motion = (await callTool('pack_motion', {})).result.content[0].text;
     // pack_motion carries motion + motion-comic; shared tools flagged with home
     expect(motion).toContain('homed in pack_diagram');

@@ -23,17 +23,45 @@ import { PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInst
 import { authNotice } from '@/lib/roles/enforce';
 import { FORM_TOOLSETS } from '@/lib/mcp/tools/context';
 
+// One line per member for the unveil's index: the FORM_TOOLSETS row cut at
+// its first sentence. The full row is the flat-mode drawer's business
+// (get_creative_toolset); here the authoritative text per tool is the member
+// manual entry below, so the index only has to say which member is which.
+const INDEX_LINE_MAX = 220;
+function firstSentence(text) {
+  const m = /(?<!\b(?:e\.g|i\.e|vs|etc|cf))\. (?=[A-Z`"'(])/.exec(text);
+  let out = m ? text.slice(0, m.index + 1) : text;
+  if (out.length > INDEX_LINE_MAX) {
+    const cut = out.lastIndexOf(' ', INDEX_LINE_MAX);
+    out = `${out.slice(0, cut > 80 ? cut : INDEX_LINE_MAX)}…`;
+  }
+  return out;
+}
+
+function memberIndex(body) {
+  return body
+    .split('\n')
+    .map((line) => {
+      const m = /^- `([a-z_]+)` — (.*)$/.exec(line);
+      return m ? `- \`${m[1]}\` — ${firstSentence(m[2])}` : null;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
 function packBody(pack) {
   if (pack.wing !== 'studio') return pack.body || '';
   // Studio bodies come from the FORM_TOOLSETS prose — one source with
   // get_creative_toolset. `forms` covers a pack serving several forms
-  // (pack_motion carries motion + motion-comic).
+  // (pack_motion carries motion + motion-comic). The unveil carries the form's
+  // one-line `makes` plus a one-line member index; each member's full
+  // description appears exactly once, in the manual.
   const forms = pack.forms || [pack.form];
   return forms
     .map((key) => {
       const form = FORM_TOOLSETS[key];
       if (!form) return `(missing form body: ${key})`;
-      return forms.length > 1 ? `**${form.title}** — ${form.makes}\n\n${form.body}` : form.body;
+      return `**${form.title}** — ${form.makes}\n\n${memberIndex(form.body)}`;
     })
     .join('\n\n');
 }
@@ -55,7 +83,7 @@ function unveil(pack) {
   return [
     `# ${pack.title} (${pack.id})`,
     packBody(pack),
-    `## Member manual — dispatch THROUGH this pack`,
+    `## Member manual — dispatch THROUGH this pack (one authoritative entry per member)`,
     `Call \`${pack.id}({ tool: '<name>', args: { … } })\`. Spine tools (${SPINE.join(', ')}) are called directly, not through a pack.`,
     manual,
   ]

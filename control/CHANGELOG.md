@@ -10,6 +10,18 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### An opened pack describes each member once (pack-unveil-dedupe)
+
+Opening a studio pack returned the FORM body (one full paragraph per member, with its recognizer
+tail) and then the member manual (the same tool's full description again, beside its schema).
+The world pack cost about 13.8K characters for five tools.
+
+- **One-line member index over one authoritative manual entry.** The unveil now carries the
+  form's `makes` line and each member's FORM row cut at its first sentence; the tools/list
+  description appears exactly once, in the manual. `get_creative_toolset` still serves the full
+  FORM body for flat mode. Office packs, whose bodies are short prose, are unchanged. Pinned in
+  `packs.test.js`.
+
 ### A no that carries its next move — `REF_EXISTS` (tool-refusal)
 
 Minting with a ref that was already taken threw a bare "already exists" sentence from each of
