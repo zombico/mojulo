@@ -19,6 +19,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { getViewVocabCatalog } from '@/lib/graph/views/view-vocab/loader';
 import { bookViewKinds } from '@/lib/graph/views/recipe-book/registry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -155,15 +156,7 @@ function mintBookView(bk, merged) {
   // ctx carries the injected toolkit (recipe-book/toolkit.js) — Tier-2
   // builders need it to validate; Tier-0 builders ignore the argument.
   const planned = (bk.plan ?? bk.assemble)(manifest, { title, toolkit: bk.toolkit });
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || bk.title, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || bk.title, manifest, ref, folderRef: folderRef ?? null });
   return {
     ok: true,
     ref: sketch.ref,
@@ -203,6 +196,7 @@ export async function createViewHandler(input) {
   try {
     return await entry.handler(merged);
   } catch (err) {
+    if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the kind's parameter manual.
     throw new Error(
       `${err.message} — parameter manual: get_view_vocab({ id: '${kind}' }).`,

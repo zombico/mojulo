@@ -43,18 +43,10 @@ export function mintMoleculeView({ title, library, atoms, bonds, bondStyle, orie
   // persisted — only the recipe above is stored). Throws on bad atoms/bonds → surfaced to caller.
   const plan = planMoleculeScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `molecule · ${plan.atoms.length} atoms`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

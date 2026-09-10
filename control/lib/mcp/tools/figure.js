@@ -115,13 +115,7 @@ export async function createFigureHandler(input) {
   try { renderFigureToSvg(manifest); }
   catch (err) { throw new Error(`figure render failed: ${err.message}`); }
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null });
 
   // Motion: a `motion` (walk) renders a looping GIF into the sketch's outcome
   // folder. Auto when the manifest animates; `animate:false` skips it.

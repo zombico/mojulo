@@ -1,6 +1,7 @@
 import { getDb } from '../index.js';
 import { classifyBucket } from '../../graph/sketch/sketch-manifest.js';
 import { currentSpaceId } from '../../roles/scope.js';
+import { refExistsRefusal } from '../../errors/tool-refusal.js';
 
 // Workshop-space scope (roles-pack.plan.md Phase 4). A delegate's handlers
 // run under their space (lib/roles/scope.js): creates stamp it, reads and
@@ -52,10 +53,19 @@ export const SketchRepository = {
   create({ title, manifest, ref, folderRef, bucket }) {
     const db = getDb();
     const finalRef = ref || shortRef();
-    db.prepare(
-      `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, workshop_space_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, unixepoch())`,
-    ).run(finalRef, title, JSON.stringify(manifest), folderRef || null, bucket || null, currentSpaceId());
+    try {
+      db.prepare(
+        `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, workshop_space_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, unixepoch())`,
+      ).run(finalRef, title, JSON.stringify(manifest), folderRef || null, bucket || null, currentSpaceId());
+    } catch (err) {
+      // One refusal for every mint: code + the ref + the revision tool to call
+      // next, instead of a bare UNIQUE-constraint message per call site.
+      if (err && /UNIQUE constraint failed: sketches\.ref/.test(err.message || '')) {
+        throw refExistsRefusal({ ref: finalRef, kind: manifest && manifest.kind });
+      }
+      throw err;
+    }
     return this.getByRef(finalRef);
   },
 

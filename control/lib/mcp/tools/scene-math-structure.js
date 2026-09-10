@@ -39,13 +39,7 @@ export function mintMathStructure({ title, structure, seed, ref, folderRef } = {
   assembleMathStructureScene(manifest, { title });
   const built = planMathStructure(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || `${built.group.title} — Cayley city`, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || `${built.group.title} — Cayley city`, manifest, ref, folderRef: folderRef ?? null });
 
   const enc = encodeURIComponent(sketch.ref);
   return {
@@ -75,13 +69,7 @@ function mintKoenigsberg({ title, structure, ref, folderRef }) {
   const status = eulerTrailStatus(built.bridges);
   const search = searchAllTrails(built.bridges);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || built.title, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || built.title, manifest, ref, folderRef: folderRef ?? null });
 
   const enc = encodeURIComponent(sketch.ref);
   return {

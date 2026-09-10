@@ -19,6 +19,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/repositories/game-projects';
@@ -87,13 +88,7 @@ export async function mintGame({ title, store, levels, menu, music, theme, setup
     throw new Error(`cannot promote ${blocked.length} level(s) into '${title}' — verification gate:\n${lines.join('\n')}\nnext: prove each blocked level completable — a forge_motion traversal that reaches its win condition passed via audits:{<ref>:{motion_ref}}, or auto_audit:true for mechanic-declared levels; allow_unaudited:true records the skip per level.`);
   }
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title, manifest: normalizeGameManifest(finalized), ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title, manifest: normalizeGameManifest(finalized), ref, folderRef: folderRef ?? null });
 
   // Project claim: the minted game becomes the project's ACTIVE rules member
   // (newest bind wins; a prior rules member stays as history). Levels/music
@@ -124,6 +119,7 @@ export async function createGameHandler(input) {
   try {
     return await mintGame({ title, store, levels, menu, music, theme, setup, difficulty, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
   } catch (err) {
+    if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the store-schema manuals.
     throw new Error(`${err.message}\n— store-schema manuals: get_game_vocab() (slices: character | inventory | party | progression | flags; events: typed-events).`);
   }

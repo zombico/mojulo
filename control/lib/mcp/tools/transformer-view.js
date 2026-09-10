@@ -27,18 +27,10 @@ export function mintTransformerView({ title, scenario, sequence, pattern, focus,
 
   const plan = planTransformerScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `attention: ${manifest.sequence || 'the cat sat on the mat'}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

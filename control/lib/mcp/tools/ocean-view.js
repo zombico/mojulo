@@ -24,18 +24,10 @@ export function mintOceanView({ title, scenario, amplitude, scale, viewBox, scen
 
   const plan = planOceanScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${manifest.scenario} ocean`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

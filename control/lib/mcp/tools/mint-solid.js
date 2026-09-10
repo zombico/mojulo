@@ -28,6 +28,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
 import { createFigureHandler, emoteFigureHandler } from '@/lib/mcp/tools/figure';
 import { createAnimalHandler } from '@/lib/mcp/tools/animal';
@@ -154,6 +155,7 @@ export async function mintSolidHandler(input) {
   try {
     return await handler(merged);
   } catch (err) {
+    if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the kind's parameter manual.
     throw new Error(`${err.message} — parameter manual: get_solid_vocab({ id: '${kind}' }).`);
   }

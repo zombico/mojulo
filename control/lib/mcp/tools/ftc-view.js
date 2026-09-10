@@ -27,13 +27,7 @@ export function mintFtcView({ title, scenario, at, animate, scale, viewBox, scen
 
   const plan = planFtcScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || `Fundamental theorem of calculus (${manifest.scenario})`, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || `Fundamental theorem of calculus (${manifest.scenario})`, manifest, ref, folderRef: folderRef ?? null });
 
   return {
     ok: true,

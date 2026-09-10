@@ -26,18 +26,10 @@ export function mintBlackHoleView({ title, scenario, inclination, diskOuter, bet
 
   const plan = planBlackHoleScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${manifest.scenario} black hole`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

@@ -27,13 +27,7 @@ export function mintTransformView({ title, scenario, matrix, dim, animate, scale
 
   const plan = planTransformScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || `Linear transform (${manifest.scenario})`, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || `Linear transform (${manifest.scenario})`, manifest, ref, folderRef: folderRef ?? null });
 
   return {
     ok: true,

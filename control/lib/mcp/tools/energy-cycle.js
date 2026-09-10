@@ -22,13 +22,7 @@ export function mintEnergyCycle({ title, speed, scene, viewBox, ref, folderRef }
   };
   const plan = planEnergyCycle(manifest);   // validate + count
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || 'energy cycle · photosynthesis ⇄ respiration', manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || 'energy cycle · photosynthesis ⇄ respiration', manifest, ref, folderRef: folderRef ?? null });
   return {
     ok: true,
     ref: sketch.ref,

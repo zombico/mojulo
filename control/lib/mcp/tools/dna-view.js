@@ -40,18 +40,10 @@ export function mintDnaView({ title, sequence, basePairs, bpPerTurn, radius, ris
   // recipe (e.g. < 2 base pairs) → surfaced to the caller.
   const plan = planDnaScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `DNA · ${plan.basePairs} bp`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

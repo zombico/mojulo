@@ -339,15 +339,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   }
   }
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists — iterate it in place with update_sketch({ ref, ... }), or omit \`ref\` to mint a new one`);
-    }
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
 
   // Most sketches minted here are diagrams/illustrations (cheap on-demand SVG),
   // but a world/scene-kind manifest can arrive via create_sketch / the POST API

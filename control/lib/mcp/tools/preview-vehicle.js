@@ -32,18 +32,10 @@ export function mintVehicleInstance({ title, type, decoration, pose, viewBox, re
   // Validate the instance is buildable + return a face/family readout (no geometry stored).
   const { stats } = planInstance(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${stats.type} · ${stats.family}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

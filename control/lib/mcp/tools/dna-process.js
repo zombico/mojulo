@@ -30,13 +30,7 @@ export function mintDnaProcess({ title, process, scene, viewBox, ref, folderRef 
   };
   const plan = planDnaProcess(manifest);   // validate + count
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || `DNA · ${TITLE[proc]}`, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || `DNA · ${TITLE[proc]}`, manifest, ref, folderRef: folderRef ?? null });
   return {
     ok: true,
     ref: sketch.ref,

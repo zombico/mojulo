@@ -93,18 +93,10 @@ export function mintAssembler({ title, items, units, viewBox, facing, model, rig
   // Lower once to validate every part renders + return a placement/size readout (no geometry stored).
   const { stats } = planAssembler(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `assembler · ${stats.items} part${stats.items === 1 ? '' : 's'}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   warmScenePng(sketch);
 

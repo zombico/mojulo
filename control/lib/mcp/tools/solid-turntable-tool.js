@@ -34,18 +34,10 @@ export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSec
   // geometry is persisted — only the recipe above is stored).
   const plan = planSolidTurntable(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${manifest.shape} turntable`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   warmScenePng(sketch);   // background pre-bake of the gallery preview PNG
 

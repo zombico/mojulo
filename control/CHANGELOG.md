@@ -10,6 +10,24 @@ exact per control-plane version.
 
 ## [Unreleased]
 
+### A no that carries its next move — `REF_EXISTS` (tool-refusal)
+
+Minting with a ref that was already taken threw a bare "already exists" sentence from each of
+some eighty call sites (every view, world, solid, beats and voice mint wrapped the same SQLite
+UNIQUE failure by hand). An agent hitting it had to go back to the manuals to find the revision
+tool, and the audio mints did not even name it.
+
+- **`ToolRefusal`** in [lib/errors/tool-refusal.js](lib/errors/tool-refusal.js): an Error that
+  renders itself as a JSON tool result (`isError: true`) with a stable `code`, the offending value,
+  a `next_action` naming the tool to call, and `read_first` where a reader exists. `message` stays
+  readable so the CLI, plan-step records and logs still say what to do. `dispatchMcpRequest`
+  renders it on every call path (rpc, HTTP, stdio, pack dispatch).
+- **`REF_EXISTS`** is thrown once, from `SketchRepository.create`, for every sketch-backed mint:
+  beats refs point at `update_beats` (read `get_beats` first), a voice register points at
+  `create_voice` under a new ref (voice never revises), everything else at `update_sketch`, plus
+  the render URL and the omit-ref alternative. The per-tool UNIQUE catch wrappers are deleted;
+  the mints call the repository directly.
+
 ### The substrate drawer says what it does (substrate-effectiveness)
 
 `get_substrate` opened with the "PLAYful Cloud" framing: a PLAY acronym, the agent as "the grip in

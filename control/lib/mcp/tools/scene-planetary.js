@@ -67,18 +67,10 @@ export function mintPlanetary({ title, subject, seed, stars, sunU, sunH, sun, su
   // no datetime — it re-resolves to 'now' on every /world load).
   const plan = planPlanetaryScene(isLive ? { ...manifest, datetime: new Date().toISOString() } : manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${plan.label} · planetary`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

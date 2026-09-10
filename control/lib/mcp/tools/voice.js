@@ -18,6 +18,7 @@
  */
 
 import { promises as fs } from 'node:fs';
+import { isToolRefusal } from '@/lib/errors/tool-refusal';
 
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -68,15 +69,7 @@ export function mintVoice({ title, params, ref, folderRef } = {}) {
   const resolved = resolveVoiceRegister(manifest);
   const { weights, voiceArg, ...normalized } = resolved;
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title, manifest: normalized, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title, manifest: normalized, ref, folderRef: folderRef ?? null });
   return {
     ok: true,
     ref: sketch.ref,
@@ -94,6 +87,7 @@ export async function createVoiceHandler(input) {
   try {
     return mintVoice({ title, params, ref, folderRef });
   } catch (err) {
+    if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the capability manual.
     throw new Error(`${err.message} — capability manual: get_voice_vocab({}).`);
   }

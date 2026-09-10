@@ -36,18 +36,10 @@ export function mintRocketView({ title, scenario, payload, vehicle, guidance, pl
   // is persisted — only the recipe above is stored; the flight is regenerated on render).
   const plan = planRocketScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${manifest.scenario} — rocket mission`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

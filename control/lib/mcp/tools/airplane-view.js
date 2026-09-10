@@ -34,18 +34,10 @@ export function mintAirplaneView({ title, mission, plane, aircraft, guidance, pl
   // Resolve once to validate the recipe flies + return the flight digest (no geometry stored).
   const plan = planAirplaneScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${manifest.mission} — airplane flight`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

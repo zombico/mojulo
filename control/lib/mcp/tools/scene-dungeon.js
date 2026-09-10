@@ -38,18 +38,10 @@ export function mintDungeon({ title, chambers, tunnels, style, lighting, seed, v
   const scene = assembleDungeonScene(manifest);
   const flow = assessDungeonFlow(plan);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `dungeon · ${plan.chambers.length} chamber${plan.chambers.length === 1 ? '' : 's'}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   const defects = [...flow.necessary, ...flow.preferential];
   return {

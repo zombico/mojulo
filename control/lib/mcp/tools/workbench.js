@@ -75,18 +75,10 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
   // back beside the whole-object audit, so "closed at mint, open after an edit" is legible.
   manifest.ledger = persistedLedger(stats.ledger);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `workbench · ${stats.monomers} monomer${stats.monomers === 1 ? '' : 's'}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   warmScenePng(sketch);   // background pre-bake of the gallery preview PNG
 

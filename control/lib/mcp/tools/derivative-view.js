@@ -27,13 +27,7 @@ export function mintDerivativeView({ title, scenario, at, animate, scale, viewBo
 
   const plan = planDerivativeScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || `Derivative as a limit (${manifest.scenario})`, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || `Derivative as a limit (${manifest.scenario})`, manifest, ref, folderRef: folderRef ?? null });
 
   return {
     ok: true,

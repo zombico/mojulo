@@ -77,21 +77,13 @@ export function mintDiagram({ title, manifest, ref, folderRef } = {}) {
     throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);
   }
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title,
       manifest: finalized,
       ref,
       folderRef: folderRef ?? null,
       bucket: null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

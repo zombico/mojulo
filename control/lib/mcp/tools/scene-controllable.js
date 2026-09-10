@@ -119,13 +119,7 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
     throw new Error(`camera target '${camera.target}' is not an entity id`);
   }
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || manifest.title || 'controllable world', manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || manifest.title || 'controllable world', manifest, ref, folderRef: folderRef ?? null });
 
   const enc = encodeURIComponent(sketch.ref);
   return {

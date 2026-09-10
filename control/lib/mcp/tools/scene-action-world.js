@@ -80,13 +80,7 @@ export function mintActionWorld({ title, entities, idioms, events, faces, ground
   // validate the stage is renderable (no geometry persisted beyond the recipe itself).
   assembleControllableScene(manifest, {});   // throws if the stage is malformed
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || 'action world', manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || 'action world', manifest, ref, folderRef: folderRef ?? null });
 
   const enc = encodeURIComponent(sketch.ref);
   return {

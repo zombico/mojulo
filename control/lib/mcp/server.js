@@ -20,6 +20,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import path from 'node:path';
 import { rememberClientInfo, getClientInfo } from '@/lib/mcp/client-bindings';
 import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
@@ -368,7 +369,9 @@ async function handleToolCall(message, context) {
   } catch (err) {
     // Per MCP spec, tool execution failures are returned as a tool_result
     // with isError: true rather than a JSON-RPC error — so the client model
-    // can see the failure and react.
+    // can see the failure and react. A ToolRefusal renders itself: a JSON
+    // body with a code and the next action, not a sentence.
+    if (isToolRefusal(err)) return jsonRpcResult(message.id, err.toToolResult());
     return jsonRpcResult(message.id, {
       content: [{ type: 'text', text: err.message || 'Tool execution failed' }],
       isError: true,

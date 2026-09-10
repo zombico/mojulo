@@ -554,6 +554,22 @@ describe('pack dispatcher', () => {
     expect(packed.result.content[0].text).toBe(direct.result.content[0].text);
   });
 
+  it('a taken ref refuses with REF_EXISTS and the revision tool as next_action', async () => {
+    const args = {
+      kind: 'beats-composition', title: 'menu', ref: 'pack-ref-exists-beats',
+      params: { bpm: 120, parts: [{ name: 'lead', patch: 'fmBell', events: [['0:0:0', 'C4', '0:0:2', 0.8]] }] },
+    };
+    const first = await callTool('pack_audio', { tool: 'create_beats', args });
+    expect(first.result.isError, first.result.content?.[0]?.text).toBeFalsy();
+    const second = await callTool('pack_audio', { tool: 'create_beats', args });
+    expect(second.result.isError).toBe(true);
+    const body = JSON.parse(second.result.content[0].text);
+    expect(body.code).toBe('REF_EXISTS');
+    expect(body.ref).toBe('pack-ref-exists-beats');
+    expect(body.next_action.tool).toBe('update_beats');
+    expect(body.read_first.tool).toBe('get_beats');
+  });
+
   it('rejects cross-pack dispatch naming the home pack', async () => {
     const res = await callTool('pack_audio', { tool: 'create_sketch', args: {} });
     expect(res.result.isError).toBe(true);

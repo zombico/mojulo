@@ -30,18 +30,10 @@ export function mintAtomView({ title, element, Z, mode, style, orbital, viewBox,
   // scientific (volumetric, ray-marched) view is a single orbital — no mesh geometry to validate.
   const plan = scientific ? null : planAtomScene(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || (scientific ? `hydrogen ${manifest.orbital || '3dz2'} orbital` : `${plan.stats.element} atom`),
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   return {
     ok: true,

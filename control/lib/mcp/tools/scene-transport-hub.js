@@ -32,13 +32,7 @@ const TRANSPORT_MODES = [...HUB_MODES, 'subway'];
 
 // Shared persist + return for both subway shapes.
 function persistSubway(manifest, { title, ref, folderRef, fallbackTitle }) {
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title: title || fallbackTitle, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title: title || fallbackTitle, manifest, ref, folderRef: folderRef ?? null });
   warmScenePng(sketch);   // background pre-bake of the gallery preview PNG
   return {
     ok: true,
@@ -129,18 +123,10 @@ export function mintTransportationHub({ title, mode, seed, density, depth, glyph
   // geometry is persisted — only the recipe above is stored).
   const { stats } = planTransportationHub(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `${manifest.mode} ${manifest.seed}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   warmScenePng(sketch);   // background pre-bake of the gallery preview PNG
 

@@ -106,15 +106,7 @@ export function mintPaintedLandscape({
     throw new Error(`Invalid painted-landscape manifest:\n - ${errors.join('\n - ')}`);
   }
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null });
 
   const enc = encodeURIComponent(sketch.ref);
   return {

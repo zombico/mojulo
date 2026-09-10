@@ -77,15 +77,37 @@ describe('create_view dispatch', () => {
   });
 
   it('a failed mint appends the card pointer (error-as-drawer)', async () => {
-    // fission rejects a non-object input inside its own handler when params
-    // produce an invalid recipe; force a failure via a bad viewBox shape that
-    // the mint tolerates — instead use a duplicate ref, which every mint
-    // rejects through SketchRepository.
+    // The view handlers normalize rather than reject bad params, so force the
+    // failure at the handler seam: a kind whose handler throws a plain Error.
+    const original = VIEW_KINDS.fission.handler;
+    VIEW_KINDS.fission.handler = async () => {
+      throw new Error('boom');
+    };
+    try {
+      await expect(createViewHandler({ kind: 'fission' })).rejects.toThrow(
+        /boom — parameter manual: get_view_vocab\(\{ id: 'fission' \}\)/,
+      );
+    } finally {
+      VIEW_KINDS.fission.handler = original;
+    }
+  });
+
+  it('a duplicate ref is a REF_EXISTS refusal, not a card pointer', async () => {
+    // A refusal carries its own next move (update_sketch); the error-as-drawer
+    // wrapper must pass it through untouched instead of re-wrapping it.
     const first = await createViewHandler({ kind: 'fission', ref: 'dup-ref-test' });
     expect(first.ok).toBe(true);
-    await expect(createViewHandler({ kind: 'fission', ref: 'dup-ref-test' })).rejects.toThrow(
-      /get_view_vocab\(\{ id: 'fission' \}\)/,
+    let caught;
+    try {
+      await createViewHandler({ kind: 'fission', ref: 'dup-ref-test' });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught?.code).toBe('REF_EXISTS');
+    expect(caught.payload.next_action).toEqual(
+      expect.objectContaining({ tool: 'update_sketch', args: { ref: 'dup-ref-test' } }),
     );
+    expect(caught.message).not.toMatch(/get_view_vocab/);
   });
 
   it('top-level title/ref ride over params', async () => {

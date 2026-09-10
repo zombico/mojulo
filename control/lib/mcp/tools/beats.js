@@ -15,6 +15,7 @@
  */
 
 import fs from 'node:fs/promises';
+import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import path from 'node:path';
 
 import { registerTool } from '@/lib/mcp/server';
@@ -67,15 +68,7 @@ export function mintBeats({ kind, title, params, ref, folderRef } = {}) {
   }
   const finalized = normalizeBeatsManifest(manifest);
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null });
   // B9: every beats artifact carries a revision history from birth.
   BeatsRevisionRepository.append({ ref: sketch.ref, manifest: finalized, note: 'minted' });
 
@@ -102,6 +95,8 @@ export async function createBeatsHandler(input) {
   try {
     return mintBeats({ kind, title, params, ref, folderRef });
   } catch (err) {
+    // A refusal already carries its next move (REF_EXISTS → update_beats); pass it through.
+    if (isToolRefusal(err)) throw err;
     // Error-as-drawer: a failed mint points at the kind's parameter manual.
     throw new Error(`${err.message} — parameter manual: get_beats_vocab({ id: '${kind}' }).`);
   }

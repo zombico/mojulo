@@ -111,13 +111,7 @@ export async function createAnimalHandler(input) {
   try { renderAnimalToSvg(manifest); }
   catch (err) { throw new Error(`animal render failed: ${err.message}`); }
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) throw new Error(`A sketch with ref '${ref}' already exists`);
-    throw err;
-  }
+  const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null });
 
   // Advisory only, never a gate: animals are RENDER-ONLY geometry (open ring-strip
   // tubes, overlap assembly), so an STL closure audit will flag one. Say so at the

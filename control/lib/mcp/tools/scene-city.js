@@ -80,18 +80,10 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
   // here so a bad edifice ref fails the mint, not the stored world link.
   const { stats } = planFractalCity({ ...manifest, insets: resolveCityInsets(manifest) });
 
-  let sketch;
-  try {
-    sketch = SketchRepository.create({
+  const sketch = SketchRepository.create({
       title: title || `city ${manifest.seed}${manifest.anchor ? ' · ' + manifest.anchor : ''}`,
       manifest, ref, folderRef: folderRef ?? null,
     });
-  } catch (err) {
-    if (err && /UNIQUE constraint failed/.test(err.message || '')) {
-      throw new Error(`A sketch with ref '${ref}' already exists`);
-    }
-    throw err;
-  }
 
   // Pre-bake the gallery preview PNG in the background so the Maker card is a
   // warm disk-cache hit instead of a first-view headless render.
