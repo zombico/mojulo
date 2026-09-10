@@ -4,49 +4,93 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.12-brightgreen)](control/package.json)
 
-**Mojulo is a 3D factory for agents** — local, yours, not a hosted service. Point the agent you already run (Claude Code, Codex) at it and build **worlds, objects, and games by conversation**: you talk; the agent does the generating and the reasoning. Mojulo catches that output as a deterministic **recipe** on your own disk — a few kilobytes of parameters that regenerate identically, are editable a line at a time, and outlive the chat.
+**Mojulo is a 3D factory for agents** — local, yours, not a hosted service. Point the agent you already run (Claude Code, Codex) at it and build **objects, worlds, and games by conversation**: you talk; the agent does the generating and the reasoning. Mojulo catches that output as a deterministic **recipe** on your own disk — a few kilobytes of parameters that regenerate identically, are editable a line at a time, and outlive the chat.
 
-**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser (CSS-3D, WebGL) and export to **Godot** as a real project, to **Unity** and **Unreal** as a data pack plus importer (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and USD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready — so a conversation ends at your 3D printer; figures and worlds print as maquettes fit to a size you choose. Because everything is the same kind of recipe, pieces **compose upward** into a playable **game**. And **sound comes free**: SFX and music synthesized from pure math and seeded dice — no samples, no key — dropped straight in.
+**One ladder.** An **object** blocks out at literal scale. A **world** is a place you can walk. A **level** is a world minted under a game contract. A **game** composes the levels. Every rung is the same kind of recipe — deterministic geometry built from primitives on your machine, no image model, no cloud render, **no provider key** — so pieces compose upward, and **sound comes free**: SFX and music synthesized from pure math and seeded dice, no samples.
+
+**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser (CSS-3D, WebGL) and export to **Godot** as a real project, to **Unity** and **Unreal** as a data pack plus importer (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured — so a conversation ends at your 3D printer; figures and worlds print as maquettes fit to a size you choose.
 
 **Mojulo feeds the tools you already use; it does not compete with them.** It is the agent-driven upstream — it authors the truth at home, and the edge tool consumes it without guessing at the seam. It is not a renderer trying to out-render Unreal, and it is not merely an exporter: the recipe is where the thing is born, lives, and re-renders. The engine or the printer is where it is optionally *finished*.
 
-Underneath is one move: mojulo pairs the coding agent's **generative capability** with a **standard file format** and focuses it into an **artifact you own**. It specs a world; mojulo bakes a `.glb`. It designs a chart; mojulo emits SVG. It writes the essay; mojulo pins it to clean HTML or Markdown. What comes out is never a transcript to copy-paste — it's a standard file other tools already read, sitting on your disk. Publications, research, diagrams — the rest of the shelf — land the same way.
+**Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own: photo references are read by the agent's eyes, games are verified by agent-compiled traversals, and the reasoning bill stays on your existing Claude or ChatGPT subscription.
 
-It runs on your laptop and doesn't host inference, so the reasoning bill stays on your existing Claude or ChatGPT subscription.
-
-**Optional packs.** Beyond the factory, mojulo carries an automation backend for wiring work into the MCPs you already have (Drive, Gmail, your CRM) — present by default, never in the way. The **chatbot factory** — compile a bot to a runnable process with hash-chained transcripts and offline RAG — is **opt-in since 2.0**: `mojulo install chatbot` adds it. Upgrading from 1.x? Your deployed bots are untouched; they always ran as their own processes, separate from the workshop.
-
-**Install:** `npx mojulo init` — detects the MCP hosts on your machine (Claude Code, Codex, Claude Desktop, and others by declared profile), wires mojulo in, opens the dashboard. No API key needed for most of it. [Quickstart ↓](#quickstart)
+**Install:** `npx mojulo init` — detects the MCP hosts on your machine (Claude Code, Codex, Claude Desktop, and others by declared profile), wires mojulo in, opens the dashboard. No API key needed. [Quickstart ↓](#quickstart)
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
 
 <sub>One conversation, one recipe. <i>"Build a 20 by 24 ft living room with a door on the south wall"</i> mints a twelve-line floorplan recipe (`create_sketch`, kind <code>floorplan</code>) — walls, windows, sofa, two chairs, rug, lamp — served shaded and turnable at <code>/sketches/&lt;ref&gt;</code>. <i>"Add pot lights"</i> flips one field on the stored recipe (`update_sketch`); nothing is re-minted. <i>"The couch has its back to the TV"</i> is not the recipe's fault: a two-line kernel fix turns the sofa, and every lounge in every floorplan re-renders seated toward the screen while this recipe stays the same twelve lines, same seed. The handoff is the same file rendered in Blender Cycles, before and after, same camera. No key, no cloud render.</sub>
 
-![The mojulo Workshop Home at localhost:3001 — Studio, Ideate, and Operate as rows of dot-relief doors, with the making bays your agent fills](docs/images/workshop_home.png)
+---
 
-<sub>The workshop at `localhost:3001` — the shelf of bays your agent fills. **Studio** leads and opens by default; **Operate** appears only once you have something running there. You drive it from the agent you already run; the dashboard renders what accumulates.</sub>
+## What you can make
+
+Every kind below is a recipe your agent mints from a sentence, iterates in place, and hands off through the same doors ([Where it goes](#where-it-goes)). Find a kind by intent with `sketch_what_possible` or `semantic_search`; read its manual with `get_solid_vocab` / `get_view_vocab` before passing a spec.
+
+**Objects, at literal scale.**
+
+- **Parts and mechanisms** — `mint_solid` on the workbench: lathes, sweeps, extrudes, lofts and field solids in real millimetres; **booleans are a line in the recipe** (`cuts[]` names a body and the parts that bore or intersect it); assemblies seat parts by declared relation ("the mug on the table"), not coordinates. `measure_solid` reads bounds, printed size, closure, Manifold volume and genus, overhang and wall thickness off the stored recipe without exporting.
+- **Figures and animals** — a posed human body (stances, a reach, a walking gait, named emotes) and the same armature reoriented horizontal for dressed species and bare archetypes from rodent to theropod. Rigs export as glTF clips, as skinned meshes, or with VRM humanoid bone names.
+- **Vehicles, wordmarks, everyday things** — vehicle-family instances, carved metal or bevelled wordmarks and badges, turntable solids, and blocked-out objects (a candlestick, a lamp, a snowman with a top hat).
+- **Machina** — `verify_machina` checks a mechanism chain (levers, pulleys, screws, inclines) against a load: work conservation, force capacity, rate and storage margins. A verdict, not a picture.
+
+**Places, walkable.**
+
+- **Buildings and interiors** — furnished floorplans that stack (`levels[]` gives a building storeys, stairs through the slabs, set-back terraces as real decks), bespoke buildings authored as masses and concourses, and caves and dungeons grown procedurally. All traversable, all exportable.
+- **Cities, hubs and campuses** — `compose_world` picks a base (a recursive skyline, an airport or station, a K-12 campus, a planetary body, a walkable Cayley graph) and a theme, then takes the base's own knobs. A city declares what one unit is in metres, so mechanics and exports scale with it.
+- **Landscapes** — painterly terrain composed from sky, palette and geometry glyphs, or map-backed from real geo data.
+- **Drivable worlds** — a live world you walk, fly or platform through, with the camera and entities as first-class primitives; an `action` base adds rules (score, timer, spawns, pickups). Opt-in WebXR on walkable worlds. A volumetric effects layer rides over the mesh.
+- **Study objects** — animated science and math explainers (fission, the double slit, a derivative, DNA) from one kind plus a few knobs. The catalog is open: an attached recipe book adds chapters and whole new kinds.
+
+**Games, composed.**
+
+- `create_game` binds levels, music, figures and sprites by ref into a standalone playable artifact: a shell that owns a typed store (character, inventory, party, progression, flags) and a list of levels minted under a `game:` contract. Improve a bound world or score and the game inherits it. Arcade cabinets compile 2D reducer games to a single HTML file.
+- `export_game` writes the game to a plain folder you host anywhere, or emits a Godot, Unity or Unreal pack instead. Play data never enters mojulo.
+
+**Assets that fold in.**
+
+- **Sound** — Beats synthesizes ambient loops, grooves, SFX cues, footsteps and full scores from seeded math, never samples; a part can sing; a deterministic voice register narrates. Worlds opt in to soundtracks; a score exports as WAV or MIDI.
+- **From a photo** — your agent is the vision adapter: show it a picture and `reference_protocol` → `capture_reference` recover a room's perspective, a figure's pose, a landscape's gesture, or an object's part-graph as a scaffold. No vision key; the image never reaches mojulo.
+- **Skins and surface detail** — a polygomer or figure can wear a painted skin; a mesh sculpted outside (TripoSR, Hunyuan3D, a cloud API, a hand pass in Blender) binds back to its recipe with hash provenance.
+- **Motion** — any of the above set moving: a turntable, an orbit, a fly-through, baked to a GIF with `forge_motion`; clips stitch into an MP4.
+
+![A terminal prompt — "create a snowman with a top hat" — becomes a bonded part-graph recipe, then the shaded snowman in the dashboard viewer with turnable views and HTML / glb / STL downloads — no API key, no image model](docs/images/snowman-demo.gif)
+
+<sub>One prompt: <i>"Connect to mojulo and create a snowman with a top hat."</i> Your agent mints a bonded part-graph (`mint_solid` — three snowballs, a brimmed top hat, twig arms, a carrot nose, coal buttons, a scarf) as an editable deterministic recipe, then iterates coloration in place on the same ref. The dashboard serves the shaded model with turnable views at `/sketches/top_hat_snowman`; the same ref downloads as a self-contained HTML viewer, a <code>.glb</code> for Blender or Godot, or a print-ready <code>.stl</code>. No key, no cloud render.</sub>
 
 ---
 
-## What you can build
+## Where it goes
 
-The dashboard at `localhost:3001` is a shelf of bays your agent fills, worn as three postures: **Studio** (the factory — it leads and opens by default), **Ideate** (research, plans, stashes), and **Operate** (the automation backend — its tiles appear only once something actually runs there). Two halves underneath:
+**One geometry spec, several targets, all off a single minted ref:** `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl,model.3mf,model.usdz}`. Each URL regenerates the file deterministically on request. Each emitter owns its own frame and unit conversion from mojulo's native z-up metres, and every handoff carries an **honest-loss ledger** naming what did not travel.
 
-**The 3D factory — geometry that composes upward into a game, or out to a printer.**
+| Target | What you get | The gate |
+|---|---|---|
+| **Browser** | A still SVG; a dependency-free CSS-3D `preserve-3d` scene (real 3D in a plain HTML file, no WebGL, no build step); a traversable WebGL world you walk with WASD. | Your eyes. |
+| **`.glb`** | glTF with mojulo's lighting baked into vertex colours and exported unlit, so it looks identical from any camera with no setup downstream — or `lit` for real PBR materials the engine lights itself. Rig clips as animations, skinned meshes, VRM humanoid names, optional quantization. Opens in Blender, three.js, Quick Look. | The USD/GLB verify gate, when Blender is installed. |
+| **OpenUSD** | `usda` / `usdz` for DCC interchange and AR Quick Look at true scale. | `usdcat` and Blender, both optional. |
+| **Godot** (first-class) | A real Godot 4 project: `project.godot`, the versioned `mojulo-godot` kernel scripts, the GLB, `score.json`, export presets. Playable when the gameplay is declarative. | Headless import and a one-frame run of every scene, when `MOJULO_GODOT` names the binary. |
+| **Unity** (gated leg) | A data pack — GLB, `score.json`, audio, recipe — plus a C# editor importer, runtime scripts (walker, mechanics, menu), deterministic `.meta` files and a T-numbered import guide. | A scratch project imported headless, when `MOJULO_UNITY` names the editor. |
+| **Unreal** (gated leg) | The same data pack plus a dependency-free editor Python importer; game packs add the `MojuloKernel` C++ plugin your project compiles. Worked example: [Night Run](docs/examples/unreal-night-run/), three levels minted by conversation under Epic's own animated character. | A scratch project imported headless, when `MOJULO_UNREAL` names the editor. |
+| **Blender** (art pass) | An art-pass pack — GLB, `pack.json`, two Python scripts, a guide — and, in the other direction, a Cycles bake of traced global illumination back into the geometry's own vertex colours, so the lit result runs anywhere at zero runtime cost. | The pack's own importer run headless, when `MOJULO_BLENDER` names the binary. |
+| **STL / 3MF** | Print-ready at true scale: mm, z-up, slicer-ready. 3MF declares its units in-file and carries colours and instanced repeats; `union: true` fuses the shells into one measured solid through Manifold. Print advisories know the process (FDM, SLA, SLS, MJF): wall floors, self-support angle, overhang area, bores that will close up. Figures, worlds and views print as maquettes fit to a target size. | A local slicer run headless over the 3MF, stamping layers, time, filament and supports beside it. PrusaSlicer and Bambu Studio verified. |
 
-- **The Library** — one door for everything visual. Two-dimensional diagrams (flowcharts, stacked bars, donuts, KPI tiles, decision diamonds via `create_sketch`) *and* generative 3D: cities, posed figures, animals with real skeletons' proportions, painted landscapes, carved wordmarks, transit hubs, everyday objects, and drivable worlds. One geometry spec renders as an SVG, a dependency-free CSS-3D scene, a traversable WebGL world, or a `.glb`. Minted by your agent, served under `/sketches/<ref>`. See [Worlds & 3D](#worlds--3d).
-- **Games & arcade** — playable artifacts. Arcade cabinets compile to a single HTML file (a pure reducer, the skin, and a score synthesized in-page); composed games bind worlds, music, and machines by ref into a standalone playable artifact. **Sound comes free**: Beats synthesizes ambient loops, grooves, SFX cues, and footsteps from pure math and seeded dice — never samples — exported as WAV or MIDI and dropped straight into the game.
-- **Motion & the Render Bay** — any artifact set moving (a turntable, an orbit, a fly-through) baked to a shareable GIF via `forge_motion`; the Render Bay watches production land, and `/outputs` stays the inbox for finished publications.
-- **Your cookbook** — keep a recipe you've tuned (`save_recipe`) and recall it by intent a term later; attach a cloned [recipe book](https://github.com/zombico/mojulo-recipe-book) to add whole chapters, or new object kinds, without touching mojulo. See [Keeping what you make](#keeping-what-you-make).
+The ladder is honest on purpose: **Godot first-class, Unity and Unreal as gated legs, Blender as an art pass.** Never "identical across all four." Every export works with nothing installed — the pack and its import guide are written and the gate reports "skipped" with the reason. Installing the engine adds the machine gate. Gates advise and stamp; none refuse. A human looking at the result in the engine or in the slicer is the eyes gate, and no gate ever claims that one passed. Doctrine: [docs/bicycles.md](docs/bicycles.md). Engine versions, what each leg needs, and platform notes: [docs/tech-requirements.md](docs/tech-requirements.md).
 
-**The automation backend — wiring what you make into the tools you already run.**
+Speak modeler? `translate_modeler_lingo` maps pipeline vocabulary (blockout, kitbash, set dressing, base mesh, LOD, lookdev turntable) to the right entry tool and the `.glb` handoff, and says plainly which steps — retopo, UV unwrap, normal bakes, PBR authoring — belong in your DCC, not here.
 
-- **Connected Services** — workflows over the MCPs you already have (Drive, Gmail, Linear, your CRM). Either as agent-side skills synthesized from catalysts, or as composed mcp-orbit chains.
-- **Optional packs** — the **chatbot factory** installs separately (`mojulo install chatbot`); everything about it lives in [docs/chatbot/](docs/chatbot/).
+![A described mug — two lathes and a swept handle — gravity-seated on a table, shown as flat albedo on mojulo's measured studio grid under the default house light](docs/images/object-bake-before.jpg) ![The same object recipe after one optional trip through a local Blender Cycles bake — traced global illumination baked into the geometry's own vertex colours, grounded contact shadows, studio backdrop](docs/images/object-bake-after.jpg)
 
-**Recipes, not renders.** All of it — plus **Cooks** (typed publications: briefs, essays, decks, resumes, newsletters, comics, picture books, whole static sites), **Research** (a searchable notebook of sources, snippets, screenshots, abstracts), **Plans** (goals framed, scoped, and tracked from draft to executed), and **Stashes** (typed buckets the agent files inputs into and cooks pull from) — lands as a plain file you diff, version, and regenerate. You review what the model made the way you review code: as a diff, kept or reverted a line at a time. Same seed, same file.
+<sub>The same described object — a mug (two lathes + a swept handle) seated on a table by declared relation, not coordinates. <b>Left:</b> mojulo's house light, on the workbench's measured grid. <b>Right:</b> the same recipe after one optional pass through a local Blender Cycles bake — the traced light lands in the mesh's own vertex colours, so the lit result runs anywhere with no Blender and zero runtime cost. Every frame is from one real run. See <a href="docs/local-blender-worker.md">docs/local-blender-worker.md</a>.</sub>
 
-Plus **Settings** for host config. The reasoning happens in your agent; mojulo persists state, supervises processes, and renders the shelf.
+---
+
+## Recipes, not renders
+
+Everything above is a few kilobytes of parameters plus a `kind`. A kernel regenerates it on every read, so nothing is a stored render, and a kernel's output for given params is a compatibility promise: same seed, same file, byte for byte. Renders under `data/outcomes/` are derived and disposable.
+
+- **Iterate in place.** `update_sketch` changes a field on the stored recipe; `edit_solid` dresses or emotes a minted solid; `diff_sketches` shows what moved. You review what the model made the way you review code: as a diff, kept or reverted a line at a time. Don't re-mint what you can edit.
+- **Keep what you tuned.** `save_recipe` promotes a recipe into your **cookbook** at `~/.mojulo/data/cookbook` — plain `card.md` + `recipe.json` folders in a local git repo with **no remote**. Your agent writes the card's `when` line from the conversation, so months later a paraphrase recalls it through `semantic_search` and it re-mints exactly.
+- **Extend the catalog from disk.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a public catalog you clone and point `MOJULO_RECIPE_BOOK` at — chapters of solids, worlds, loops, shots and study objects. Some entries are params over kinds mojulo already has; others are builders that add a whole new kind without touching core. Strictly additive, never fetched at runtime. A cookbook **is** a book, same format, so a friend can clone yours as their upstream. Precedence is first-wins: core kinds > your cookbook > any attached book.
 
 ---
 
@@ -57,7 +101,7 @@ agent you already run (Claude Code, Codex) and let it drive — it checks the
 machine first, reports what it found, and asks before installing anything:
 
 ```text
-Help me install mojulo — a free, local workshop you'll drive over MCP.
+Help me install mojulo — a free, local 3D factory you'll drive over MCP.
 Orientation, if you can fetch it: https://mojulo.ai/llms.txt
 (mirror if the site is down: https://github.com/zombico/mojulo)
 
@@ -78,42 +122,35 @@ Driving it yourself instead? You need two things installed first:
 
 1. **Node.js 22.12 or newer** — mojulo is installed and run through `npx`, which ships
    with Node. Check with `node --version`; if you don't have it (or it's older than
-   22.12), install it from [nodejs.org](https://nodejs.org) — or just ask your coding
-   agent to install it for you ("install Node 22 with brew/winget and verify
-   `node --version`").
+   22.12), install it from [nodejs.org](https://nodejs.org) — or ask your coding
+   agent to install it for you.
 2. A **desktop coding agent** (Claude Code/Codex) or a high-end local model —
    mojulo is model-agnostic and runs on whatever model your harness provides.
    (Claude Desktop works too — `init` detects and wires it — but a coding agent
    gets more out of the workshop.)
 
-You don't give mojulo its own provider key for most of it — your agent is the
-reasoning loop, so sketches, worlds, objects, games, scores, cooks, research, and
-apps all run keyless. A key only enters when something has to *paint*: a directed
-image needs either your agent's own image capability or a local worker. (If you
-install the optional chatbot pack, a compiled bot also needs one — it calls an LLM
-on its own, because it runs without you.)
+No provider key. Your agent is the reasoning loop, so objects, worlds, games,
+scores and exports all run keyless. A key enters only when something has to
+*paint* a directed image, or if you install the optional chatbot pack.
 
 ```bash
 npx mojulo init
 ```
 
 `init` detects your MCP host(s), wires mojulo into each (one yes/no per host),
-*optionally* offers to set a provider key, and opens the dashboard at
-`http://localhost:3001` (or the next free port — the installer prints the URL).
-Nothing is sent anywhere; state lands in `~/.mojulo/`. The first install is the
-big one: npx pulls a ~26 MB package plus its native runtime deps (a few hundred
-MB on disk), and the first launch fetches a ~113 MB embedding model in the
-background — after that, starts are instant. Measured sizes, lazy downloads,
-and what each engine extension needs: [docs/tech-requirements.md](docs/tech-requirements.md).
+and opens the dashboard at `http://localhost:3001` (or the next free port — the
+installer prints the URL). Nothing is sent anywhere; state lands in `~/.mojulo/`.
+The first install is the big one: npx pulls a ~26 MB package plus its native
+dependencies (measured at about 850 MB on disk before any model), and the first
+launch fetches a ~130 MB embedding model in the background — after that, starts
+are instant. Measured sizes, lazy first-use downloads, and what each engine leg
+needs: [docs/tech-requirements.md](docs/tech-requirements.md).
 
 The dashboard opens in English but ships fully translated in every locale under `control/messages/`,
-including right-to-left scripts (Arabic, Farsi, Urdu) — switch
-anytime under **Settings → Language**.
+including right-to-left scripts — switch anytime under **Settings → Language**.
 
 On a slow connection, or if you'd rather your agent's first connect never wait on
-npx resolving the package, install globally instead and re-run `init` — it wires
-whatever `npx -y mojulo` resolves to, and a global install makes that resolution
-local and instant:
+npx resolving the package, install globally instead and re-run `init`:
 
 ```bash
 npm install -g mojulo && mojulo init     # update later with: npm update -g mojulo
@@ -121,44 +158,47 @@ npm install -g mojulo && mojulo init     # update later with: npm update -g moju
 
 ### First look — no key required
 
-Back in your agent, try these in order. They render locally and hand you a URL:
+Back in your agent, try these in order. Each renders locally and hands you a URL:
 
 ```
-what is this?                  → forward_context: mojulo orients itself, out loud
-generate a 3D city             → compose_world (base: city) → open the /scene URL
-make me a walkable world       → compose_world (base: controllable) → drive it at /world
+what is this?                        → forward_context: mojulo orients itself, out loud
+make me a coffee mug, 90 mm tall     → mint_solid (workbench) → open /sketches/<ref>, download the .stl
+generate a 3D city at night          → compose_world (base: city) → open the /scene URL
+make me a walkable world             → compose_world (base: controllable) → drive it at /world
+turn those into a game               → create_game → play at /sketches/<ref>
+export it for Godot                  → export_game { target: 'godot' } → open the project
 ```
 
 The first prompt is the one to watch: your agent reads mojulo's own routing
 index (`forward_context`) to decide what to do. That's the substrate explaining
 itself — no key, no cloud call, nothing deployed.
 
-### Everything else, keyless
+### Handing off from the command line
 
-Because your agent is the reasoning loop, most of mojulo needs no provider key —
-your agent authors the content and mojulo materializes it:
-
-```
-draft a one-page brief on X          → a cook (your agent writes it)
-research W and synthesize what I find → the research notebook
-spin up a local app for Z            → app inference parks back on your agent
-```
-
-### When you want painted images
-
-Mojulo's directed-images loop *designs* pictures — composition-locked scaffolds — but painting one takes an image model, and **Claude doesn't generate images**: Claude Code has no native image capability, so with Claude alone the loop stops at the scaffold. Two ways to add the painter:
-
-- **An image-capable agent.** Codex or an image-capable ChatGPT plan paints the scaffold directly — nothing to install.
-- **The local image worker.** A self-hosted ComfyUI + Qwen backend, installed from a checkout of this repo (the models are ~31 GB and are not part of the npm package):
+The MCP tools cover every export. The CLIs add the machine gate and are what
+you run when the engine is installed. Always from `control/`:
 
 ```bash
-control/scripts/install-local-imagegen.sh          # ComfyUI + Qwen-Image-Edit + Lightning LoRA (~31GB)
-control/scripts/install-local-imagegen.sh --gguf   # + the Q6_K quant — use this on Apple Silicon / lower RAM
-cd ~/mojulo-imagegen/ComfyUI && source venv/bin/activate
-python main.py --listen 127.0.0.1 --port 8188      # loopback only — ComfyUI has no auth layer
+node scripts/export-godot.mjs   --ref <ref>          # Godot project + headless gate (MOJULO_GODOT)
+node scripts/export-unity.mjs   --ref <ref>          # Unity pack + gate (MOJULO_UNITY)
+node scripts/export-unreal.mjs  --ref <ref> --lit    # Unreal pack + gate (MOJULO_UNREAL); --lit lets the engine light it
+node scripts/export-blender.mjs --ref <ref>          # Blender art-pass pack + gate (MOJULO_BLENDER)
+node scripts/slice-print.mjs    --ref <ref>          # export the 3MF and slice it; stamps mojulo-print-gate.json (MOJULO_SLICER)
 ```
 
-On Apple Silicon, run with the GGUF quant — the fp8 checkpoint hits an MPS dtype error. Everything else in mojulo works without any of this, and the scaffold recipes stay sovereign either way: install the painter later and every staged picture becomes paintable retroactively. See [docs/local-image-worker.md](docs/local-image-worker.md).
+Every leg takes `--out <dir>` to write somewhere other than `data/outcomes/<ref>/`, `--no-gate` to
+emit without the engine, and `--lit` for the PBR handoff. The slicer also takes `--3mf <file>` for a
+file you already have and `--target-mm` to fit a maquette first.
+
+### Optional workers for the 3D loop
+
+Each is a separate install you host yourself; mojulo never starts or depends on
+them, your agent is the bridge, and absence degrades one loop without breaking any.
+
+- **Blender** — the GI bake into vertex colours, premium stills, and the USD/GLB verify gate. [docs/local-blender-worker.md](docs/local-blender-worker.md)
+- **A slicer** — PrusaSlicer, Bambu Studio (OrcaSlicer is detected but not yet run) for the print gate. [docs/local-slicer-worker.md](docs/local-slicer-worker.md)
+- **A mesh sculptor** — TripoSR, Hunyuan3D or a cloud API for high-frequency surface detail over mojulo's greybox; the result binds back with provenance. [docs/local-mesh-worker.md](docs/local-mesh-worker.md)
+- **An image painter** — for directed images only: an image-capable agent, or a self-hosted ComfyUI + Qwen worker (large models, loopback only). [docs/local-image-worker.md](docs/local-image-worker.md)
 
 ### Manual wiring (if you prefer)
 
@@ -198,131 +238,50 @@ Open the dashboard separately anytime with `npx -y -p mojulo mojulo-ui`.
 
 ## What stays on your machine
 
-- **Recipes.** Every world, object, game, score, and publication is a few kilobytes of parameters in SQLite at `~/.mojulo/mojulo-lite.db` — alongside plans, research, stashes, and cooks. Renders are derived and disposable; the recipe is the thing you own.
-- **Your cookbook.** Recipes you `save_recipe` land in `~/.mojulo/data/cookbook` as plain `card.md` + `recipe.json` folders, in its own git repo with **no remote** — a local ledger of what you kept. Sharing it is your act, with your git.
-- **Derived outputs.** Exported `.glb` / `.stl` / `.wav` / game folders and painted PNGs write to plain files you can open in anything.
-- **Encryption / keys.** Provider keys AES-256-GCM encrypted at rest.
-- **Chatbot transcripts** (optional pack). Every bot you compile has its *own* SQLite. The control plane stores only `url` + `last_seen_at`; transcripts are read live through a bearer-authenticated proxy, never replicated.
+- **Recipes.** Every object, world, game and score is a few kilobytes of parameters in SQLite at `~/.mojulo/mojulo-lite.db`. Renders are derived and disposable; the recipe is the thing you own.
+- **Your cookbook.** Recipes you `save_recipe` land in `~/.mojulo/data/cookbook` as plain folders in their own git repo with **no remote**. Sharing is your act, with your git.
+- **Derived outputs.** Exported `.glb` / `.usdz` / `.stl` / `.3mf` / `.wav` files, engine packs and game folders write to plain files you can open in anything. Nothing is locked to the runtime.
+- **Encryption / keys.** Provider keys, if you save any, are AES-256-GCM encrypted at rest.
 
-No telemetry. No phone-home. Nothing is fetched at runtime — an attached recipe book is a folder you cloned. The only outbound traffic is what your agent, and anything you explicitly deploy, initiates.
+No telemetry. No phone-home. Outbound traffic is explicit and listed: npm at install; a handful of one-time lazy downloads on first use (the embedding model, a pinned browser for scene bakes if you have none, ffmpeg for MP4 stitching, geo data for map-backed landscapes); an update check when your agent asks for one; and whatever your agent and anything you deploy yourself initiate. Full list, with where each cache lands: [docs/tech-requirements.md](docs/tech-requirements.md#network-posture).
 
 ---
 
 ## How it works
 
-The control plane is a Next.js app exposing two surfaces over the same encrypted state:
+The control plane is a Next.js app exposing two surfaces over the same state:
 
 - **MCP** (stdio for the npm package, HTTP for remote clients) — what your agent calls.
-- **Dashboard** at `localhost:3001` — what you look at.
+- **Dashboard** at `localhost:3001` — what you look at. **Studio** leads and opens by default; **Ideate** holds research, plans and stashes; **Operate** appears only once something is running there. You drive from the agent; the dashboard renders what accumulates.
 
-Your agent calls mojulo's tools via MCP; the tools mutate state in `~/.mojulo/`; the dashboard renders that state. Long-running local processes — apps, and bots if you installed that pack — are supervised by a daemon the control plane manages.
+Your agent calls mojulo's tools via MCP; the tools mutate state in `~/.mojulo/`; the dashboard renders that state. When your agent first connects it calls `forward_context` to read mojulo's routing index, so the session orients itself before doing anything. The tool surface unfolds progressively behind that thin index, so a session spends tokens only on the tools it actually fires. Hosts are declared profiles, not vendor special-cases; the matching adapter is auto-resolved from the connecting client. Non-Claude agents should also read [AGENTS.md](AGENTS.md).
 
-When your agent first connects, it calls `forward_context` to read mojulo's concept glossary, lifecycle, and tool index — so the session orients itself before doing anything destructive. Hosts are declared profiles, not vendor special-cases: detection, wiring, and capabilities live in a per-host registry (`claude-code`, `codex`, `desktop`, `grok-build`, `hermes`), the matching adapter is auto-resolved from the connecting client, and no host is treated as the assumed one. Non-Claude agents should also read [AGENTS.md](AGENTS.md).
-
----
-
-## Creative
-
-The creative half reads as one progression: an **object** blocks out at literal scale, a **world** is a place you can walk, a **level** is a world minted under a game contract, and a **game** composes the levels. All of it is deterministic geometry — recipes, not renders — built from primitives on your machine: no image model, no cloud render, **no provider key**. Sound comes free.
-
-### Worlds & 3D
-
-The same family that draws a flowchart climbs the whole progression:
-
-- **Cities & structures** — recursive skylines, airports, stations and subways; structural illustration on a cardinal grammar.
-- **Figures** — a posed human body: male or female, stances, a reach, a walking gait.
-- **Animals** — the figure system's animal realm: the same armature with the spine reoriented horizontal. Sixteen dressed species (a wolf, a horse, a deer with antlers, a lion) and bare archetypes from rodent to theropod — each a recipe you pose, iterate in place, and print.
-- **Objects & marks** — everyday objects blocked out at literal scale (candlestick, lamp, dumbbell), and metal or beveled wordmarks, logos and badges.
-- **Landscapes** — painterly scenes composed from sky, palette and geometry glyphs.
-- **Drivable worlds** — places you walk or fly through, with the camera and entities as first-class primitives.
-- **Study objects** — animated science / math / bio explainers (nuclear fission, the double-slit experiment, a derivative, DNA) from one kind plus a few knobs. The catalog is open: attach a cloned recipe book to add chapters, and keep a setup you've tuned in your own cookbook, recallable by intent in a later session.
-- **From a photo** — your agent is the vision adapter: show it a picture and `reference_protocol` → `capture_reference` recover what it saw as a scaffold — a room's perspective, a figure's pose, a landscape's gesture and palette, or an object's part-graph. No vision key; no image is ever sent to mojulo.
-- **Directed images** — a composition-locked scaffold that an external image model paints: your agent's own image capability, or an optional local ComfyUI + Qwen worker. The design stays sovereign; the painted render binds back with provenance. See [docs/local-image-worker.md](docs/local-image-worker.md).
-- **Motion** — any of the above set moving: a turntable, an orbit, a fly-through, or a paced concept explainer, rendered to a shareable GIF (clips stitch into an MP4).
-- **Audio & voice** — music synthesized from seeded math, never samples: ambient loops, grooves, full scores — a part can even *sing* — plus SFX cues, and a deterministic voice register for narration. Worlds opt in to soundtracks and footsteps; a score exports as WAV or MIDI.
-- **Buildings & interiors** — bespoke walkable buildings authored as masses and concourses, and organic caves and dungeons grown procedurally — both traversable, both exportable.
-
-The distinctive part is the render pipeline: **one geometry spec, several targets.** The same world serves as a still (SVG, or a dependency-free CSS-3D `preserve-3d` scene — a real 3D view in a plain HTML file, no WebGL and no build step), a **traversable** WebGL world you walk with WASD, a `.glb` you export into Blender or Unreal, or a printable `.stl` you can slice and 3D-print (with print profiles and a travelling closure audit that reports its findings and never refuses the export) — all off a single minted ref at `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl}`. The exported glTF carries animation clips; a mesh refined outside binds back with hash provenance; and with Blender installed, an optional pass bakes real traced global illumination into the geometry's own vertex colours, so the lit result runs anywhere at zero runtime cost. The chat ends; the city doesn't; it can leave the screen entirely.
-
-![A terminal prompt — "create a snowman with a top hat" — becomes a bonded part-graph recipe of 21 parts, then the shaded snowman in the dashboard viewer with turnable views and HTML / glb / STL downloads — no API key, no image model](docs/images/snowman-demo.gif)
-
-<sub>One prompt: <i>"Connect to mojulo and create a snowman with a top hat."</i> Your agent mints a bonded part-graph (`mint_solid` — three snowballs, a brimmed top hat, twig arms, a carrot nose, coal buttons, a scarf: 21 bonded parts) as an editable deterministic recipe, then iterates coloration in place on the same ref. The dashboard serves the shaded model with turnable views at `/sketches/top_hat_snowman`; the same ref downloads as a self-contained HTML viewer, a <code>.glb</code> for Blender or Godot, or a print-ready <code>.stl</code>. No key, no cloud render.</sub>
-
-![A described mug — two lathes and a swept handle — gravity-seated on a table, shown as flat albedo on mojulo's measured studio grid under the default house light](docs/images/object-bake-before.jpg) ![The same object recipe after one optional trip through a local Blender Cycles bake — traced global illumination baked into the geometry's own vertex colours, grounded contact shadows, studio backdrop](docs/images/object-bake-after.jpg)
-
-<sub>The same described object — a mug (two lathes + a swept handle) seated on a table by declared relation, not coordinates. <b>Left:</b> mojulo's house light, on the workbench's measured grid. <b>Right:</b> the same recipe after one optional pass through a local Blender Cycles bake — the traced light lands in the mesh's own vertex colours, so the lit result runs anywhere with no Blender and zero runtime cost. Every frame is from one real run. See <a href="docs/local-blender-worker.md">docs/local-blender-worker.md</a>.</sub>
-
-Because it's deterministic geometry, the first render costs nothing but the render — this is the keyless first look in the [Quickstart](#quickstart). And live *rule-driven* worlds are no longer a further layer — the same geometry becomes a game's level — the composition the next subsection, **Games**, walks through.
+![The mojulo Workshop Home at localhost:3001 — Studio, Ideate, and Operate as rows of dot-relief doors, with the making bays your agent fills](docs/images/workshop_home.png)
 
 ---
 
-### Games
+## Also in the box
 
-A game is the top of that progression: not a new kind of media beside the others, but a composition **of** them. `create_game` binds worlds, music, figures, and sprites by reference into a standalone playable artifact — a shell that owns a typed **store** and a set of **levels** (worlds minted with a `game:` contract). Improve a bound world or score and the game inherits it.
+The factory is the point. The same recipe discipline covers a wider shelf, present by default and never in the way:
 
-- **Persistent state that carries between levels.** The store holds what survives a level — a character's level, an inventory or loadout, a customizable party, campaign flags and unlocks — across five slice kinds (`character` / `inventory` / `party` / `progression` / `flags`). The shell renders each level's pre-level setup screen, hosts it, and folds its one outcome back into the store.
-- **Two forms.** Composed games bind worlds, music, and machines by ref and play at `/sketches/<ref>`. **Arcade cabinets** compile to a single self-contained HTML file — a pure reducer, a skin, and an in-page synthesized score — for 2D reducer games.
-- **Yours to ship.** `export_game` writes a game to a plain folder (with deduped shared asset banks) that you can host anywhere — GitHub Pages, your own static host.
-
-Play data never enters mojulo. The artifact runs on its own; the substrate keeps the recipe, not the playthrough.
-
----
-
-### Keeping what you make
-
-A recipe you tuned for twenty minutes shouldn't die with the session.
-
-**`save_recipe`** promotes it into your **cookbook** — a folder beside your instance data (`~/.mojulo/data/cookbook`) holding plain `card.md` + `recipe.json`, in its own git repo with **no remote**. Mojulo makes local commits only; an inspectable ledger of what you kept. Pushing is your act, with your git.
-
-The point is *recall by meaning*. Your agent writes the card's `when` line from the conversation — "the pendulum setup for my Tuesday class" — so months later a paraphrase finds it, and the recipe re-mints exactly as it was.
-
-```
-create_view / create_beats  →  tune it  →  save_recipe({ ref, id, when })  →  recall, re-mint, adjust
-```
-
-**The kind catalog is open, too.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a public catalog you clone and point `MOJULO_RECIPE_BOOK` at — chapters of study objects, worlds, loops, solids, and shots. Some entries are pure params over kinds mojulo already has; others are *builders* that add an entirely new kind without touching mojulo core. Strictly additive: without the clone, behavior is byte-for-byte identical, and nothing is ever fetched at runtime — you cloned it, mojulo reads local disk.
-
-A cookbook **is** a book — same format, exactly. So a friend can clone yours as *their* upstream, and contributing to the public catalog is copying a folder into a PR. Precedence is first-wins: core kinds > your cookbook > any attached book. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Diagrams and charts** — flowcharts, stacked bars, donuts, KPI tiles via `create_sketch`; one geometry family draws a flowchart and climbs the whole 3D ladder.
+- **Directed images** — a composition-locked scaffold that an external image model paints (your agent's own image capability, or the local worker). The design stays sovereign; the painted render binds back with provenance.
+- **Publications, research, plans, stashes** — cooks (briefs, decks, comics, picture books, whole static sites), a searchable research notebook, plans tracked from draft to executed, and typed buckets the agent files inputs into. All land as plain files you diff and regenerate.
+- **Connected services** — workflows over the MCPs you already run (Drive, Gmail, Linear, your CRM), synthesized by your agent from a **catalyst** into a runnable artifact you own, with the wiring recorded in a durable contextmap. Mojulo ships no native integrations by design. [docs/catalysts.md](docs/catalysts.md), [docs/meta-context.md](docs/meta-context.md)
+- **Local apps** — a local process plus MCP sidecar whose inference parks back on your agent, so no per-app LLM key. [docs/app-runtime.md](docs/app-runtime.md)
+- **The chatbot factory (opt-in)** — not part of a default install since 2.0. `mojulo install chatbot` adds compiled bots with hash-chained transcripts and offline RAG; `--remove` puts it away. A compiled bot is the one artifact that needs an LLM key of its own, because it runs without you. Already-deployed bots are unaffected either way. Everything about it: [docs/chatbot/](docs/chatbot/).
 
 ---
-
-## Optional: the chatbot factory
-
-Not part of a default install since 2.0. `mojulo install chatbot` adds it; `--remove` puts it away. Compiled bots, hash-chained transcripts, offline multilingual RAG, five stackable protocols, cloud or air-gapped deploy — all of it, including setup and deploy options, is documented in **[docs/chatbot/](docs/chatbot/)**.
-
-Already-deployed bots are unaffected either way: they run as their own processes, from a separately versioned image.
-
----
-
-## Connected services
-
-Beyond the factory, mojulo carries an automation backend: workflows over the MCPs you already run, so the things you make can be wired into the rest of your work. It is present by default and never in the way.
-
-Mojulo ships **no native integrations** — no built-in Gmail node, no bundled CRM connector, no directory of plugins to enable. That's deliberate. A connected service is a workflow over the MCPs *you* already run (Drive, Gmail, Linear, your calendar), and the thing that builds it is your host agent, not a mojulo adapter someone at mojulo had to write first.
-
-The mechanism is a **catalyst**: a host-neutral workflow recipe mojulo hands your agent via `get_catalyst`. The agent reads the recipe, introspects a bot's shape (or whatever data you're wiring), picks a destination from the MCPs installed on your machine, and materializes a **runnable artifact you own** — a Claude Code skill under `.claude/skills/`, a Codex automation, or a plain `workflow.md` + runner. The catalyst is spent at synthesis and can catalyze again for the next bot; mojulo never sees the artifact it produced.
-
-What mojulo keeps is the **memory of the wiring**, not the runtime. You declare your installed MCPs once (`meta_context_declare_inventory`), and every service the agent composes is sealed into the **contextmap** via `meta_context_commit` — a durable, auditable record of what was wired, to which MCP, and why. So months later the substrate can still tell you how a service was built, even though it never held a token for your CRM or proxied a single call. See [docs/catalysts.md](docs/catalysts.md) and [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md).
-
----
-
 
 ## Security & deployment posture
 
-The control plane is **single-operator, self-hosted, localhost-only by default** — no user identity unless the operator enables the opt-in roles pack to issue scoped, revocable keys to their own delegates (operator-owned delegation, not multi-tenancy). Three access-control affordances, all opt-in:
+The control plane is **single-operator, self-hosted, localhost-only by default** — no user identity unless you enable the opt-in roles pack to issue scoped, revocable keys to your own delegates (operator-owned delegation, not multi-tenancy). Three access-control affordances, all opt-in:
 
-- **HTTP login** (for the dashboard UI). Set `CONTROL_PLANE_USER` + `CONTROL_PLANE_PASSWORD` in `control/.env`. Sessions are HMAC-signed with the password itself, so rotating it invalidates every outstanding session. Intentionally minimal — no MFA, no lockout, no multi-user (per-delegate logins arrive only with the opt-in roles pack).
+- **HTTP login** (for the dashboard UI). Set `CONTROL_PLANE_USER` + `CONTROL_PLANE_PASSWORD` in `control/.env`. Sessions are HMAC-signed with the password itself, so rotating it invalidates every outstanding session. Intentionally minimal — no MFA, no lockout, no multi-user.
 - **MCP bearer token** (for HTTP MCP). Set `CONTROL_PLANE_MCP_KEY` to enable `/api/mcp`; with the key unset, the route 404s. The stdio transport (`npx -y mojulo`) is local-only and doesn't use this key.
-- **Roles pack** (operator-owned delegation). Set `MOJULO_ROLES=enabled` in `control/.env`, then cut scoped bearer keys for your own delegates with the admin-only `mint_role_key` / `list_role_keys` / `revoke_role_key` tools. A delegate key sees only its granted capability packs, uses only its own LLM credentials, and can never touch secrets, daemon control, or roles admin; revoking a key also kills its dashboard sessions (delegates log in with key name + key). `CONTROL_PLANE_MCP_KEY` remains the operator's admin key either way; with `MOJULO_ROLES` unset, behavior is byte-identical to a roles-less install.
+- **Roles pack** (operator-owned delegation). Set `MOJULO_ROLES=enabled`, then cut scoped bearer keys for your own delegates with the admin-only `mint_role_key` / `list_role_keys` / `revoke_role_key` tools. A delegate key sees only its granted capability packs and can never touch secrets, daemon control, or roles admin. With `MOJULO_ROLES` unset, behavior is byte-identical to a roles-less install.
 
-**Network posture:** don't expose the control plane to the public internet. Pick whichever fits:
-
-- **localhost** (the default).
-- **Tailscale / WireGuard / VPN.**
-- **SSH tunnel.** `ssh -L 3001:localhost:3001 your-host`.
-- **Reverse proxy with auth.** Caddy, nginx, Traefik with basic auth — or OAuth2 Proxy, Cloudflare Access, Authelia, Tailscale Funnel.
-
-**The bots it compiles have a different posture** — they're designed to face end users. The control plane → bot proxy is authenticated by a shared `MOJULO_API_KEY` baked into the artifact at build time. See [SECURITY.md](SECURITY.md) for the threat model.
+**Network posture:** don't expose the control plane to the public internet. Use localhost (the default), Tailscale / WireGuard, an SSH tunnel (`ssh -L 3001:localhost:3001 your-host`), or a reverse proxy with auth. Bots compiled by the optional pack face end users and have their own posture. Threat model: [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -341,21 +300,19 @@ If you're using mojulo in a regulated industry, with restricted data, or in a sa
 
 A spectrum, all driving the same open-source, self-hosted stack from their own MCP-capable agent:
 
-- **Makers, worldbuilders & educators** — a walkable world, a playable game, a synthesized score, an animated STEM explainer, a picture book. Each kept as a recipe they re-render and edit, not a render they'd have to redo.
-- **Game developers & technical artists** wanting an agent-driven *upstream*: blockouts, levels, and assets authored by conversation, handed to Godot as a real project, to Unity or Unreal as a gated data pack, or to Blender as `.glb`, with an honest ledger of what didn't travel.
-- **People who print things** — objects, vehicles and wordmarks exported as print-ready STL or 3MF at true scale, in mm, z-up, slicer-ready; figures and worlds as sized maquettes. The conversation ends at the printer.
+- **Game developers & technical artists** wanting an agent-driven *upstream*: blockouts, levels and assets authored by conversation, handed to Godot as a real project, to Unity or Unreal as a gated data pack, or to Blender as an art pass, with an honest ledger of what didn't travel.
+- **People who print things** — objects, parts, vehicles and wordmarks exported as print-ready STL or 3MF at true scale, in mm, z-up, slicer-ready, with the slicer's own stamp beside the file; figures and worlds as sized maquettes. The conversation ends at the printer.
+- **Makers, worldbuilders & educators** — a walkable world, a playable game, a synthesized score, an animated STEM explainer. Each kept as a recipe they re-render and edit, not a render they'd have to redo.
 - **Teachers and course builders** who tune a study object once, keep it in their cookbook, and recall it by intent a term later.
-- **Indie makers** vibe-coding side projects without a SaaS bill — a weekly newsletter cook, a local app for a personal workflow, a small game to hand a friend.
-- **Teams with a pile of MCPs** — Drive, Linear, a CRM — who want them wired together once, with the reasoning recorded and the artifact theirs to keep.
-- **Anyone with a Claude/ChatGPT subscription** who wants their agent to ship more than chat transcripts.
+- **Anyone with a Claude/ChatGPT subscription** who wants their agent to ship files other tools already read, not chat transcripts.
 
-With the optional chatbot pack (`mojulo install chatbot`), three more: **agencies** building per-client bots as deliverables the client keeps; **internal IT** rolling out air-gapped helpers inside firewalled networks, where offline RAG means no embedding API to allow-list; and **regulated SMBs** — clinics, law offices, financial pre-screen — where the tamper-evident transcript is an internal audit trail.
+The wider shelf reaches further: indie makers vibe-coding side projects without a SaaS bill, teams with a pile of MCPs who want them wired together once with the reasoning recorded, and, with the optional chatbot pack, agencies, internal IT and regulated SMBs who need a bot the client keeps.
 
 ---
 
 ## Architecture in one paragraph
 
-The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, `.stl`, a Godot project — each emitter owning its own frame and unit conversion, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: an attached [recipe book](https://github.com/zombico/mojulo-recipe-book) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps — and bots, if that pack is installed — run as separate processes supervised by a daemon.
+The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, OpenUSD, STL and 3MF, and the Godot, Unity, Unreal and Blender packs — each emitter owning its own frame and unit conversion from the native z-up metre frame, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: an attached [recipe book](https://github.com/zombico/mojulo-recipe-book) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps — and bots, if that pack is installed — run as separate processes supervised by a daemon.
 
 Full diagrams: [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (the headless control surface), [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) (the geometry substrate), [docs/chatbot/BOT-ARCHITECTURE.md](docs/chatbot/BOT-ARCHITECTURE.md) (the optional bot factory).
 
@@ -381,7 +338,9 @@ Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-boo
 - [docs/HTML-CSS-NATIVE-RENDERING.md](docs/HTML-CSS-NATIVE-RENDERING.md), [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md) — the dependency-free scene backend and its baked lighting model
 - [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md) — volumetric effects as an overlay over the mesh worlds
 - [docs/bicycles.md](docs/bicycles.md) — the two-gate doctrine (machine gate, eyes gate) every handoff runs
-- [docs/local-blender-worker.md](docs/local-blender-worker.md), [docs/local-image-worker.md](docs/local-image-worker.md), [docs/local-voice-worker.md](docs/local-voice-worker.md), [docs/local-slicer-worker.md](docs/local-slicer-worker.md) — the optional operator-hosted workers
+- [docs/tech-requirements.md](docs/tech-requirements.md) — measured footprint, engine legs, slicers, workers, platform notes
+- [docs/examples/unreal-night-run/](docs/examples/unreal-night-run/) — the Unreal worked example: recipes, mint script, project-side wiring
+- [docs/local-blender-worker.md](docs/local-blender-worker.md), [docs/local-slicer-worker.md](docs/local-slicer-worker.md), [docs/local-mesh-worker.md](docs/local-mesh-worker.md), [docs/local-image-worker.md](docs/local-image-worker.md), [docs/local-voice-worker.md](docs/local-voice-worker.md) — the optional operator-hosted workers
 
 **Concept docs — the substrate and the backend:**
 
@@ -393,7 +352,7 @@ Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-boo
 - [docs/app-runtime.md](docs/app-runtime.md) — the app runner daemon
 - [docs/responsibility-model.md](docs/responsibility-model.md) — the operator-owns-consequences posture
 
-**Optional pack:** the chatbot factory's thirteen docs live together under **[docs/chatbot/](docs/chatbot/)** — start at its [README](docs/chatbot/README.md).
+**Optional pack:** the chatbot factory's docs live together under **[docs/chatbot/](docs/chatbot/)** — start at its [README](docs/chatbot/README.md).
 
 ---
 
@@ -401,9 +360,9 @@ Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-boo
 
 One maintainer, no SLA — issues and PRs are read, but triage can take days or weeks.
 
-**The widest door is the recipe book, not this repo.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a separate public catalog of mintable recipes that mojulo reads off local disk — clone it, point `MOJULO_RECIPE_BOOK` at it, and it attaches. Adding an entry there is a folder (`card.md` + `recipe.json`, or a pure `builder.js` for a whole new study-object kind) and needs no change to the substrate. You can also just **keep your own book**: `save_recipe` writes a cookbook beside your instance data, in the identical format, as its own local git repo with no remote — publish it yourself, or copy a folder into a PR.
+**The widest door is the recipe book, not this repo.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a separate public catalog of mintable recipes that mojulo reads off local disk — clone it, point `MOJULO_RECIPE_BOOK` at it, and it attaches. Adding an entry there is a folder (`card.md` + `recipe.json`, or a pure `builder.js` for a whole new kind) and needs no change to the substrate. You can also just **keep your own book**: `save_recipe` writes a cookbook beside your instance data, in the identical format, as its own local git repo with no remote — publish it yourself, or copy a folder into a PR.
 
-Here in core, bug reports (with a reproducer — recipes are deterministic, so a pasted manifest reproduces your bug exactly), correctness fixes to shipped kinds, translation and documentation fixes, and tests targeting the listed surfaces are always welcome. Concept PRs that change *how* mojulo works will likely sit; forks are the open door and Apache 2.0 is why. There are also four standing open requests — math and science views, native WebGL, Unreal/Godot handoff idioms, and reproducers.
+Here in core, bug reports (with a reproducer — recipes are deterministic, so a pasted manifest reproduces your bug exactly), correctness fixes to shipped kinds, translation and documentation fixes, and tests targeting the listed surfaces are always welcome. Concept PRs that change *how* mojulo works will likely sit; forks are the open door and Apache 2.0 is why. There are also standing open requests — math and science views, native WebGL, engine handoff idioms, and reproducers.
 
 Full stance, both doors, and the open requests: [CONTRIBUTING.md](CONTRIBUTING.md).
 

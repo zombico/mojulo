@@ -72,7 +72,13 @@ changed what a connecting agent said or did next, and it cost every meta-questio
   export CLIs and 3D workers get their own subsections. Stale figures fixed against
   `docs/tech-requirements.md` (install size, embedding model size, the "nothing is fetched at
   runtime" claim now lists the lazy downloads); the enumerable counts (species, protocols, docs,
-  slice kinds) are gone. `control/README.md` (the npm page) is untouched.
+  slice kinds) are gone.
+- **`control/README.md` (the npm page) follows.** Same shape at npm length: the ladder and both
+  pipelines in the opener, a 3D-first "What you can make", the two-gate rule in "Why it's
+  different". Fixed a false claim that every artifact writes the contextmap (studio mints do not;
+  only office-wing bindings do), the "Godot + glb only" handoff line, the locale and binary counts,
+  and the quickstart step that set an Anthropic key under a chatbot comment. Links added for
+  tech-requirements, bicycles, the Night Run example, and every worker doc.
 
 ### Launch fall-shorts — the glTF root carries the recipe's units, forgiving workbench specs, one truth about manifoldness (launch-falls-short)
 
