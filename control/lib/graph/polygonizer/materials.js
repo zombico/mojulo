@@ -42,11 +42,28 @@ export const MATERIALS = {
 };
 export const MATERIAL_NAMES = Object.keys(MATERIALS);
 
+// Plain words an agent reaches for that name a shelf row it does not know the name of
+// (launch-falls-short.plan.md P2: 'ceramic' was the first cold mug's refusal). An alias resolves
+// to its row; it is never a new row, and no stored recipe can carry one (they were refused).
+export const MATERIAL_ALIASES = Object.freeze({
+  ceramic: 'satin', porcelain: 'satin', glazed: 'satin', enamel: 'satin',
+  iron: 'gunmetal', 'cast-iron': 'gunmetal', aluminium: 'steel', aluminum: 'steel', brass: 'bronze', tin: 'silver',
+  marble: 'stone', concrete: 'stone', granite: 'stone', clay: 'plaster',
+  fabric: 'matte', cloth: 'matte', paper: 'matte', cardboard: 'matte', leather: 'rubber', felt: 'matte',
+});
+/** materialName(m) → the shelf row a string names (aliases resolved), or null. */
+export function materialName(m) {
+  if (typeof m !== 'string') return null;
+  if (MATERIALS[m]) return m;
+  const a = MATERIAL_ALIASES[m.trim().toLowerCase()];
+  return a && MATERIALS[a] ? a : null;
+}
+
 /** Resolve a name, a #hex (→ satin tint), or an object { preset?, base?, … overrides }. */
 export function resolveMaterial(m) {
   if (!m) return MATERIALS.steel;
-  if (typeof m === 'string') return MATERIALS[m] || (m.startsWith('#') ? { ...MATERIALS.satin, base: m } : MATERIALS.steel);
-  return { ...(MATERIALS[m.preset] || MATERIALS.satin), ...m };
+  if (typeof m === 'string') return MATERIALS[materialName(m)] || (m.startsWith('#') ? { ...MATERIALS.satin, base: m } : MATERIALS.steel);
+  return { ...(MATERIALS[materialName(m.preset)] || MATERIALS.satin), ...m };
 }
 
 /**
@@ -57,11 +74,11 @@ export function resolveMaterial(m) {
 export function validateMaterialRef(m) {
   if (m == null) return null;
   if (typeof m === 'string') {
-    if (m.startsWith('#') || MATERIALS[m]) return null;
-    return `unknown material '${m}' — use one of: ${MATERIAL_NAMES.join(', ')} (or a '#hex' tint, or { preset, …overrides })`;
+    if (m.startsWith('#') || materialName(m)) return null;
+    return `unknown material '${m}' — use one of: ${MATERIAL_NAMES.join(', ')} (or a '#hex' tint, or { preset, …overrides }; plain words like ${Object.keys(MATERIAL_ALIASES).slice(0, 4).join(' / ')} resolve to a row)`;
   }
   if (typeof m === 'object') {
-    if (m.preset != null && !MATERIALS[m.preset]) return `unknown material preset '${m.preset}' — use one of: ${MATERIAL_NAMES.join(', ')}`;
+    if (m.preset != null && !materialName(m.preset)) return `unknown material preset '${m.preset}' — use one of: ${MATERIAL_NAMES.join(', ')}`;
     return null;
   }
   return `material must be a shelf name, a '#hex' tint, or an object — got ${typeof m}`;

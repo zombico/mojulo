@@ -49,6 +49,42 @@ const WORKBENCH_LIGHT = makeLight({ direction: [0.4, -0.5, 0.74], ambient: 0.5, 
 const GRID_STEP = 5;        // measured-grid spacing, in the manifest's `units` (informational today)
 const DEFAULT_UNITS = 'cm';
 
+// Point-shape tolerance (launch-falls-short.plan.md P2). The manuals write a lathe axis as
+// `{x,y,z}` and a sweep path as `[[x,y,z]…]`, and a first-session agent mixes them — the two
+// refusals a cold mug run paid (2026-09-09). Canonicalize before validation and before every
+// lowering, copying ONLY what changes: a recipe already in canonical shape keeps its object
+// identity, so nothing minted before this renders a byte differently.
+const isObjPt = (p) => p && typeof p === 'object' && !Array.isArray(p) && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z);
+const isArrPt = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
+const toArrPt = (p) => (isObjPt(p) ? [p.x, p.y, p.z] : p);
+const toObjPt = (p) => (isArrPt(p) ? { x: p[0], y: p[1], z: p[2] } : p);
+function canonicalizeMonomers(manifest) {
+  if (!manifest || typeof manifest !== 'object') return manifest;
+  let out = manifest;
+  const set = (k, v) => { if (out === manifest) out = { ...manifest }; out[k] = v; };
+  if (Array.isArray(manifest.sweeps)) {
+    let changed = false;
+    const sweeps = manifest.sweeps.map((sp) => {
+      if (!sp || !Array.isArray(sp.path) || !sp.path.some(isObjPt)) return sp;
+      changed = true;
+      return { ...sp, path: sp.path.map(toArrPt) };
+    });
+    if (changed) set('sweeps', sweeps);
+  }
+  for (const k of ['lathes', 'extrudes']) {
+    if (!Array.isArray(manifest[k])) continue;
+    let changed = false;
+    const rows = manifest[k].map((sp) => {
+      if (!sp || typeof sp !== 'object' || !(isArrPt(sp.axisFrom) || isArrPt(sp.axisTo))) return sp;
+      changed = true;
+      return { ...sp, axisFrom: toObjPt(sp.axisFrom), axisTo: toObjPt(sp.axisTo) };
+    });
+    if (changed) set(k, rows);
+  }
+  return out;
+}
+export { canonicalizeMonomers };
+
 const latheTint = (spec) => spec.tint || (spec.style && spec.style.fill) || undefined;
 
 // A wrapped monomer's stable texture key (by index) — shared by face tagging and source resolution.
@@ -69,7 +105,7 @@ export function lowerObjectFaces(manifest, light) {
   }
   // `cuts` (parts-booleans.plan.md B1): the named monomers leave their arrays and come back as
   // one `fields` entry per cut. Absent cuts, `manifest` passes through by identity.
-  manifest = lowerCuts(manifest);
+  manifest = lowerCuts(canonicalizeMonomers(manifest));
   const lathes = Array.isArray(manifest.lathes) ? manifest.lathes : [];
   const extrudes = Array.isArray(manifest.extrudes) ? manifest.extrudes : [];
   const sweeps = Array.isArray(manifest.sweeps) ? manifest.sweeps : [];
@@ -380,6 +416,7 @@ export function planWorkbench(manifest = {}) {
   // The monomers as AUTHORED are what the validators read, so a bad lathe surfaces as a lathe
   // error, not as its field twin's; the readout below is over the CUT-LOWERED arrays, because
   // a flange with holes IS one part now (parts-booleans.plan.md B1).
+  manifest = canonicalizeMonomers(manifest);
   const src = arraysOf(manifest);
   if (!src.lathes.length && !src.extrudes.length && !src.sweeps.length && !src.drapes.length && !src.reliefs.length && !src.shells.length && !src.lofts.length && !src.fields.length && !programFaces.length) {
     throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, and/or `shells` array (or a `program` that returns them).');

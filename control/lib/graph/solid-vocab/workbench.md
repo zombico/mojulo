@@ -48,6 +48,28 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
 }
 ```
 
+### Quick start — a mug in twelve lines
+
+The shapes that trip a first mint, in one working spec: a lathe axis is an **object** `{x,y,z}`,
+a sweep path is an **array of arrays** `[[x,y,z], …]`, `material` is a shelf name (plain words
+like `ceramic` resolve to one), and `units:'cm'` is what makes the print, USD and glTF exports
+land at true size. Mint this as-is with `mint_solid({ kind: 'workbench', spec })`, then edit it
+in place with `update_sketch`.
+
+```json
+{ "units": "cm",
+  "lathes": [ { "axisFrom": { "x": 0, "y": 0, "z": 0 }, "axisTo": { "x": 0, "y": 0, "z": 9 },
+                "profile": [ { "t": 0, "radius": 3.6 }, { "t": 0.15, "radius": 4 }, { "t": 1, "radius": 4 } ],
+                "tint": "#b8342c", "material": "satin" } ],
+  "sweeps": [ { "path": [ [3.8, 0, 2.2], [6.2, 0, 3.2], [6.6, 0, 5.2], [5.4, 0, 7.0], [3.8, 0, 7.4] ],
+                "radius": 0.6, "tint": "#b8342c", "material": "satin" } ] }
+```
+
+That is a solid mug (a lathe is a body of revolution); a cup that holds coffee is an `extrudes`
+shell with `wallThickness` (see Extrudes) or a lathe with a `fields` subtract for the bore.
+Both point spellings are accepted everywhere (`{x,y,z}` or `[x,y,z]`); the canonical form above
+is what the recipe stores.
+
 ## Lathes — surfaces of revolution
 
 Each lathe renders a vexar-shaded, capped solid swept around an axis.
@@ -341,8 +363,8 @@ cuts:   [{ id: 'bolts', from: 'flange', subtract: ['bore', 'b1', 'b2'], cells: 9
 > dark navy → bright pale.
 
 
-- `material` (any monomer) — a named finish, a `'#hex'` (satin-tinted), or `{ preset, ...overrides }`. Named rows: gold / steel / chrome / bronze / silver / copper / gunmetal (metals — live specular in /world, real PBR metallic in the model export) · matte / plaster / stone / wood / rubber / plastic / satin (soft) · glass / neon / cel (stylized). Unknown names are rejected at mint.
-- `units` (default `'cm'`) — informational unit label surfaced in the size readout and grid (1 grid cell = 5 units).
+- `material` (any monomer) — a named finish, a `'#hex'` (satin-tinted), or `{ preset, ...overrides }`. Named rows: gold / steel / chrome / bronze / silver / copper / gunmetal (metals — live specular in /world, real PBR metallic in the model export) · matte / plaster / stone / wood / rubber / plastic / satin (soft) · glass / neon / cel (stylized). Plain words resolve to a row (ceramic / porcelain / glazed → satin, iron → gunmetal, aluminium → steel, brass → bronze, marble / concrete → stone, clay → plaster, fabric / cloth / paper → matte, leather → rubber); anything else is rejected at mint.
+- `units` (`'mm'` / `'cm'` / `'m'` / `'in'` / `'ft'`; the readout assumes `'cm'` when absent) — the recipe's authoring unit. **Declare it**: it sets the print scale (STL / 3MF land in true millimetres), the USD `metersPerUnit`, and the glTF root scale (`moj:metersPerUnit`), so a 9 cm mug imports 9 cm tall in Blender, Godot, Unity and Unreal. Without a label the print path refuses to assume and the glTF ships 1 unit = 1 m. Also the grid spacing (1 grid cell = 5 units).
 - `viewBox` (default 900×900) — render viewBox `{ width, height }`.
 - `facing` (default `'+y'`) — which way the model's FRONT points, so the preset 'front' shot and opening camera look it in the face: `'+y'` / `'-y'` / `'+x'` / `'-x'` / a raw azimuth offset in degrees. Camera-only; geometry is untouched.
 
