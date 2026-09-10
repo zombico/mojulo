@@ -6,9 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
-exact per control-plane version.
+exact per control-plane version. From `2.0.0` the chatbot factory is an opt-in
+pack (`mojulo install chatbot`) and the studio is the default read; the five
+loops and the recipe format are unchanged.
 
 ## [Unreleased]
+
+## [2.0.0] - 2026-09-10
+
+**Mojulo 2.0 is the 3D-factory reposition.** An agent builds objects, worlds and games by
+conversation as deterministic recipes, and hands them to Godot (a real project), Unity and Unreal
+(data pack + importer, gated), Blender (art pass), OpenUSD, or a printer (STL / 3MF at true scale with
+a slicer gate). Nothing was deleted; the automation backend is retained and demoted. The full
+record follows, newest theme first; the three breaking changes are:
+
+- **The chatbot factory is opt-in.** A default install no longer carries it. `mojulo install chatbot`
+  adds it back; already-deployed bots are unaffected (they run from the separately versioned
+  `bot-v*` image). See "Mojulo 2.0 — the pure-creative reposition".
+- **The plain `.glb` lands at true size.** A unit-labelled recipe's glTF root now carries its scale,
+  so a 9 cm mug imports 9 cm tall instead of 9 m. The glTF bytes of unit-labelled recipes change;
+  label-less recipes are byte-identical. See "Launch fall-shorts".
+- **The fractal city declares metres per unit (exports only).** Every city GLB, USD and engine pack
+  re-exports 3.66× larger, in metres, with the score in step; the web render is untouched. See
+  "A minted building in the generated city".
+
+Also new since 1.5.0, in brief: the Unity and Unreal legs, the Blender destination leg and the
+Cycles GI bake, OpenUSD and 3MF export, the slicer machine gate (PrusaSlicer, Bambu Studio), Manifold
+union, skinned and VRM glTF, the mesh-worker handoff, field solids and `cuts[]` booleans on the
+workbench, `levels[]` on the floorplan kind, the print advisory (process limits, overhang, walls),
+`translate_modeler_lingo`, host neutrality (hosts as declared profiles), and the two READMEs and
+`get_substrate` rewritten around the factory.
 
 ### An opened pack describes each member once (pack-unveil-dedupe)
 

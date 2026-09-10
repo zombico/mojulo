@@ -248,8 +248,8 @@ Recorded so nobody rediscovers them. None are fixed by this page.
    chatbot pack, would remove the exposure.
 2. **The install-capabilities size figures are understated.** Measured install is ~850 MB before
    models, not "a few hundred MB"; the "~340 MB kernel" predates `onnxruntime-node` shipping three
-   platforms' binaries in one package. The README was corrected to the measured figures the same
-   day; `install-capabilities.md` still carries the old ones.
+   platforms' binaries in one package. Both the README and `install-capabilities.md` now point at
+   the measured table above.
 3. **Browser and ffmpeg caches land outside `$MOJULO_HOME`** (see the note above), which
    contradicts substrate fact 11's "delete `$MOJULO_HOME`, that is the whole footprint."
 4. **Substrate fact 8** lists exports as "zip, HTML, glb, stl, WAV, MIDI, a Godot project" and

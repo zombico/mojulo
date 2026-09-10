@@ -24,7 +24,7 @@ no group and is always present. The kernel alone can already mint a diagram.
 **Kernel (always present).** The MCP server + tool registry + transport, the SQLite + graph store, the
 event/daemon supervisor, the CLI front door (`scripts/mcp-stdio.mjs`), RAG / `semantic_search` (the
 text-embedding model), and a **diagram maker** (see the stub below). This is the floor every install
-carries — roughly ~340 MB, dominated by the embedder runtime + model.
+carries; its measured size is in [tech-requirements.md](tech-requirements.md#package-size-and-disk-footprint).
 
 **Always-present packs (no `installGroup`).** The orchestration plumbing: connected-service workflows
 over the operator's other MCPs, catalysts, triggers, local apps/daemons, plan, research, stash. Pure code

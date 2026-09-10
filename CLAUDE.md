@@ -22,7 +22,8 @@ here. [lite-template/](lite-template/) is the runtime for the opt-in chatbot pac
 
 - Current state of the branch: the Unreleased section of [control/CHANGELOG.md](control/CHANGELOG.md).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
-- Version: `package.json` says 1.5.0. Unreleased carries the 2.0 BREAKING reposition. 2.0 has not shipped.
+- Version: `package.json` says 2.0.0 (released 2026-09-10; the chatbot pack is opt-in since then).
+  Unreleased is empty at the tag; new work goes under it as `###` themes.
 - Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
   [docs/install-capabilities.md](docs/install-capabilities.md) (kernel + packs + install groups),

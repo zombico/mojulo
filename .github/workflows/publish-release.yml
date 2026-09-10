@@ -32,6 +32,17 @@ jobs:
             echo "::error::No changelog section found for [$version] in control/CHANGELOG.md"
             exit 1
           fi
+          # GitHub caps a release body at 125,000 characters. A big release
+          # (2.0.0 carried ~157 KB) must be cut at a line boundary and pointed
+          # at the full section; the changelog stays the source of truth.
+          limit=118000
+          if [ "$(wc -c < /tmp/notes.md)" -gt "$limit" ]; then
+            head -c "$limit" /tmp/notes.md | sed '$d' > /tmp/notes.cut
+            printf '\n\n---\n\n*Release notes truncated at %s characters. Full notes: https://github.com/%s/blob/%s/control/CHANGELOG.md*\n' \
+              "$limit" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" >> /tmp/notes.cut
+            mv /tmp/notes.cut /tmp/notes.md
+            echo "notes truncated to $limit bytes"
+          fi
 
       - name: Create release
         env:
