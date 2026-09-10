@@ -12,6 +12,16 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### The Data page reaches the repo (gitignore anchor)
+
+- **Fixed: `control/.gitignore` ignored every directory named `data`.** The rule `data/` was meant
+  for the SQLite home at `control/data/`, but unanchored it also swallowed the dashboard's Data
+  page (`app/data/`, six components) and its four API routes (`app/api/data/`), so they existed
+  only on the maintainer's disk: a fresh clone built a dashboard whose bots page linked to a
+  `/data` that was not there, and CI's carve-fence ledger (`pack-boundary.test.js` check G)
+  disagreed with the local run on every push. The rule is now `/data/` and the ten files are
+  tracked. The published npm package was never affected — it is built from the local tree.
+
 ## [2.0.0] - 2026-09-10
 
 **Mojulo 2.0 is the 3D-factory reposition.** An agent builds objects, worlds and games by

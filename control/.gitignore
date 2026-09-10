@@ -2,7 +2,7 @@ node_modules/
 .next/
 .env
 .env.local
-data/
+/data/
 *.log
 .DS_Store
 lib/embedder/models/
