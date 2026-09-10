@@ -66,6 +66,20 @@ import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
 // the caller omits it. Only labels a manifest actually declares participate
 // (workbench `units`); an unknown/absent label falls back to scale 1 with an
 // in-band nudge — "true scale" should be structural, never agent arithmetic.
+/** facesBounds(payload) → [w, d, h] over every face corner the GLB will carry, or null. */
+export function facesBounds(payload = {}) {
+  const faces = Array.isArray(payload.faces) ? payload.faces : [];
+  let lo = [Infinity, Infinity, Infinity]; let hi = [-Infinity, -Infinity, -Infinity];
+  for (const f of faces) {
+    const corners = f && Array.isArray(f.corners) ? f.corners : [];
+    for (const c of corners) {
+      if (!Array.isArray(c) || c.length < 3) continue;
+      for (let i = 0; i < 3; i += 1) { if (c[i] < lo[i]) lo[i] = c[i]; if (c[i] > hi[i]) hi[i] = c[i]; }
+    }
+  }
+  return Number.isFinite(lo[0]) ? hi.map((h, i) => h - lo[i]) : null;
+}
+
 export function deriveStlScale(units) {
   return unitMillimetres(units);   // ONE table: scene/world-units.js (world-contract-tiers D1)
 }
@@ -181,7 +195,7 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '',
     '## Importing this file (Blender / Godot)',
     '',
-    '- Axes: mojulo worlds are z-up; the GLB parents everything under a y-up-rotated `mojulo` root, so it imports upright with no axis settings. (STL and 3MF stay raw z-up, units as millimetres — 3MF declares them, STL assumes them. USD declares `upAxis = "Z"` and `metersPerUnit` from the recipe, so it too imports upright at true scale.)',
+    '- Axes and scale: mojulo worlds are z-up; the GLB parents everything under a y-up-rotated `mojulo` root, so it imports upright with no axis settings, and when the recipe declares a unit (`units:\'cm\'`, or a kind\'s own authoring unit) the root is scaled by it (`moj:metersPerUnit`) so importers receive metres at true size. (STL and 3MF stay raw z-up, units as millimetres — 3MF declares them, STL assumes them. USD declares `upAxis = "Z"` and `metersPerUnit` from the recipe, so it too imports upright at true scale.)',
     ...(format === 'usda' || format === 'usdz' ? ['- USD: one Mesh per render group with per-vertex `displayColor` (untextured meshes bind no material — viewers show the colour directly); textured groups bind a UsdPreviewSurface + UsdUVTexture; repeats are PointInstancers; entities are Xforms whose `moj:` extras ride customData; spawn / colliders / game ride the layer customLayerData. Rig clips are not in USD yet (UsdSkel is roadmap).'] : []),
     ...(format === '3mf' ? ['- 3MF: one object per shell (the base geometry, then each instanced repeat) placed by build items; baked colours ride `basematerials` — map them to filaments on a multi-material printer, ignore them otherwise.'] : []),
     '- Animations: rig clips are baked at 1 second per cycle (looping clips repeat key 0 as a wrap key) — retime freely in the NLA/AnimationPlayer.',
@@ -432,6 +446,18 @@ export async function exportModelHandler(input) {
   }
   if (format === 'glb') {
     result.nodes = exported.nodeCount;
+    // The root carries the recipe's unit (scene-gltf rootScale, from resolveWorldScene's
+    // metersPerUnit): report it, with the world-unit bounds, so the Blender verify gate
+    // (usd-gate.js compareUsdGate) can check the imported size in metres — it read `null`
+    // here and passed a 9 m mug (launch-falls-short.plan.md P1). Absent a unit ⇒ no fields.
+    if (Number.isFinite(exported.metersPerUnit) && exported.metersPerUnit > 0) {
+      result.meters_per_unit = exported.metersPerUnit;
+      // bounds of what the GLB actually carries (every face, studio grid included — the reader
+      // measures the whole file), not the printable set the STL probe filters to
+      const fb = facesBounds(payload);
+      if (fb) result.size_units = fb.map((v) => Math.round(v * 1000) / 1000);
+      result.units_note = `the \`mojulo\` root is scaled ×${exported.metersPerUnit} (moj:metersPerUnit, from ${declared ? (declared.source === 'kind' ? `the ${sketch.manifest.kind} family's authoring unit '${units}'` : `units:'${units}'`) : 'the recipe'}) so importers receive metres — a ${units ?? 'unit'}-authored part lands at true size in Blender, Godot, Unity and Unreal.`;
+    }
     // level-as-layout semantics (I4) — reported when the payload carried them
     if (exported.cameraCount) result.cameras = exported.cameraCount;
     if (exported.entityCount) result.entity_nodes = exported.entityCount;

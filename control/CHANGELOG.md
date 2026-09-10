@@ -74,6 +74,27 @@ changed what a connecting agent said or did next, and it cost every meta-questio
   runtime" claim now lists the lazy downloads); the enumerable counts (species, protocols, docs,
   slice kinds) are gone. `control/README.md` (the npm page) is untouched.
 
+### Launch fall-shorts — the glTF root carries the recipe's units, forgiving workbench specs, one truth about manifoldness (launch-falls-short)
+
+A first-session loop run cold on 2026-09-09 (mug → measure → edit → export → slicer gate → Blender
+verify) found three things the site's floor example promised and the tree did not quite keep.
+
+- **The plain `.glb` lands at true size (BREAKING for the glTF bytes of unit-labelled recipes).**
+  `resolveWorldScene` now derives `payload.metersPerUnit` from a recipe's own `units` label
+  (`declaredUnits`, source `manifest`) when neither the kind nor the recipe set one, so the
+  workbench family's glTF root is scaled like its USD already was: a 9 cm mug imports 9 cm tall in
+  Blender, Godot, Unity and Unreal instead of 9 m. Kinds that declare their own unit keep winning;
+  a label-less recipe is byte-identical. The glb result reports `meters_per_unit` + `size_units`,
+  so `verify-usd.mjs --glb` gets a real `size_m` check (it was `null` and passed the 9 m mug).
+- **Workbench specs take both point shapes.** Sweeps accept `{x,y,z}` path points and lathes /
+  extrudes accept `[x,y,z]` endpoints (`canonicalizeMonomers`, identity for canonical recipes);
+  the material shelf resolves plain-word aliases (ceramic → satin, iron → gunmetal, brass →
+  bronze, …) and the refusal says so. The workbench card gains a twelve-line quick start and
+  stops calling `units` informational.
+- **The slicer gate unions by default.** `slice-print.mjs` exports with `union: true`
+  (`--no-union` opts out), stamps `union` under `declared`, and explains a slicer `manifold:
+  false` with `manifold_note` instead of leaving it beside `measure_solid`'s "one solid".
+
 ### Tech requirements orientation (docs)
 
 - **`docs/tech-requirements.md`.** One page of full disclosure for the site and for anyone confused

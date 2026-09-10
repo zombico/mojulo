@@ -33,6 +33,7 @@ import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/pro
 import { FLAT_LIGHT } from '@/lib/graph/polygonizer/vexar';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
+import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 
 export { resolveWrapTextures };
 
@@ -752,6 +753,20 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && payload.metersPerUnit == null) {
     const mpu = Number(manifest?.metersPerUnit);
     if (Number.isFinite(mpu) && mpu > 0) payload.metersPerUnit = mpu;
+  }
+  // A recipe that carries its own `units` label (the workbench family: `units:'cm'`) is the
+  // same declaration in a different spelling — the print scale, USD and the Blender pack already
+  // read it through world-units.js; the glTF root and every engine leg now do too, so a 9 cm mug
+  // imports 9 cm tall, not 9 m (launch-falls-short.plan.md P1). Only the recipe's OWN label
+  // counts here (source 'manifest'): a kind's authoring unit (the floorplan's feet) is the kind's
+  // to declare on its payload, and a label-less recipe stays byte-identical — one rule with the
+  // print path, which refuses to assume centimetres. Metres (mpu 1) leaves the key unset.
+  if (payload && payload.metersPerUnit == null) {
+    const declared = declaredUnits(manifest);
+    if (declared && declared.source === 'manifest') {
+      const mpu = metersPerUnitFor(declared.units);
+      if (Number.isFinite(mpu) && mpu > 0 && mpu !== 1) payload.metersPerUnit = mpu;
+    }
   }
 
   return { payload, kind };

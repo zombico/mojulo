@@ -84,7 +84,25 @@ export function glbNodeInventory(bytes) {
   };
   const roots = json.scenes?.[json.scene ?? 0]?.nodes
     ?? (json.nodes || []).map((_, i) => i).filter((i) => !(json.nodes || []).some((n) => n.children?.includes(i)));
-  for (const r of roots) visit(r, IDENT, null, new Set());
+  // A `mojulo` root carrying `moj:metersPerUnit` was scaled by the WRITER so importers receive
+  // metres (the recipe's `units`, or a kind's authoring unit). The inventory is the contract
+  // half of the pack, and the contract is written in the RECIPE's units — so invert that scale
+  // here exactly as glbToScene does, and a hand return that kept the root (Blender's exporter
+  // keeps the empty, its scale and its extras) or dropped it (a foreign file in recipe units)
+  // both measure in the same numbers. A return in bare metres with no extra shows as the
+  // 0.01× `scale` check, loudly, which is the right answer (launch-falls-short.plan.md P1).
+  let metersPerUnit = null;
+  const rootUnitScale = (node) => {
+    const mpu = Number(node?.extras?.['moj:metersPerUnit']);
+    if (!(Number.isFinite(mpu) && mpu > 0 && mpu !== 1) || !Array.isArray(node.scale)) return null;
+    return node.scale.every((sc) => Math.abs(sc - mpu) < 1e-9) ? mpu : null;
+  };
+  for (const r of roots) {
+    const mpu = rootUnitScale(json.nodes?.[r]);
+    if (mpu) metersPerUnit = mpu;
+    const inv = mpu ? 1 / mpu : 1;
+    visit(r, mpu ? [inv, 0, 0, 0, 0, inv, 0, 0, 0, 0, inv, 0, 0, 0, 0, 1] : IDENT, null, new Set());
+  }
   nodes.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const bounds = nodes.length ? nodes.slice(1).reduce((acc, n) => merge(acc, n), { min: [...nodes[0].min], max: [...nodes[0].max] }) : { min: [0, 0, 0], max: [0, 0, 0] };
   return {
@@ -92,6 +110,7 @@ export function glbNodeInventory(bytes) {
     bounds: { min: bounds.min.map(r4), max: bounds.max.map(r4), size: sizeOf(bounds).map(r4) },
     triangles: nodes.reduce((s, n) => s + n.triangles, 0),
     meshNodes: nodes.length,
+    ...(metersPerUnit ? { metersPerUnit } : {}),
   };
 }
 
