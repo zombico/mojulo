@@ -45,6 +45,7 @@ const { values: args } = parseArgs({ options: {
   profile: { type: 'string' },
   supports: { type: 'boolean', default: false },
   'no-gate': { type: 'boolean', default: false },
+  'no-union': { type: 'boolean', default: false },   // the gate unions the shells into one solid by default (Manifold; absent ⇒ ships plain, says why)
   slicer: { type: 'string' },
   center: { type: 'string' },     // X,Y on the bed; a mojulo 3MF sits around its own origin, so the slicer must be told where the bed is
 } });
@@ -56,19 +57,21 @@ if (!args.ref && !args['3mf']) fail('need --ref <sketch> or --3mf <file>');
 
 register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 resolveMojuloPaths();
-const { findSlicer, parseGcodeHeader, parseSlicerInfo, summarizePrintGate, bedCenterFromProfile, sliceFailureReason, DEFAULT_BED_CENTER, orcaProfileFiles, orcaSliceArgs, parseOrcaGcodeHeader } = await import('@/lib/graph/scene/print-gate.js');
+const { findSlicer, parseGcodeHeader, parseSlicerInfo, summarizePrintGate, manifoldNote, bedCenterFromProfile, sliceFailureReason, DEFAULT_BED_CENTER, orcaProfileFiles, orcaSliceArgs, parseOrcaGcodeHeader } = await import('@/lib/graph/scene/print-gate.js');
 
 // ── 1. the file: export via the same handler the MCP tool uses, or take one ──
 let file; let exported = null;
 if (args.ref) {
   const { exportModelHandler } = await import('@/lib/mcp/tools/sketch-model-export.js');
-  const input = { ref: args.ref, format: '3mf' };
+  // One truth about manifoldness (launch-falls-short.plan.md P3): the gate answers "does it
+  // slice as one part", so it ships the Manifold union by default; --no-union keeps the shells.
+  const input = { ref: args.ref, format: '3mf', union: !args['no-union'] };
   if (args.scale) input.scale = Number(args.scale);
   if (args['target-mm']) input.target_mm = Number(args['target-mm']);
   try { exported = await exportModelHandler(input); } catch (e) { fail(e?.message ?? String(e)); }
   if (!exported.ok) fail(exported.reason || 'sketch has no printable geometry');
   file = exported.path;
-  log(`exported ${file} — ${exported.size_mm.join(' × ')} mm, profile ${exported.print_profile}, closure ${exported.closure.audited ? (exported.closure.closed ? 'closed' : `${exported.closure.holes} open rim(s)`) : 'not audited'}`);
+  log(`exported ${file} — ${exported.size_mm.join(' × ')} mm, profile ${exported.print_profile}, closure ${exported.closure.audited ? (exported.closure.closed ? 'closed' : `${exported.closure.holes} open rim(s)`) : 'not audited'}${exported.union ? (exported.union.applied ? `, union → 1 solid (genus ${exported.union.genus})` : `, union not applied (${exported.union.reason})`) : ''}`);
 } else {
   file = path.resolve(args['3mf']);
   if (!existsSync(file)) fail(`no such file: ${file}`);
@@ -211,6 +214,8 @@ if (args['no-gate']) {
     reason: summary.sliced ? null : (slice.timedOut ? 'timeout' : sliceFailureReason(slice.out + slice.err)),
     ...summary,
   };
+  const mnote = manifoldNote({ manifold: summary.manifold, parts: summary.parts, union: exported?.union ?? null });
+  if (mnote) gate.manifold_note = mnote;
   if (!summary.sliced) {
     process.stderr.write((slice.err || slice.out).trim().split('\n').slice(-8).join('\n') + '\n');
     log(`machine gate FAILED: the slicer produced no G-code (${slice.timedOut ? `hung past the ${WATCHDOG_MS / 60000}min watchdog` : `exit ${slice.code}`}${gate.reason ? `, reason ${gate.reason}` : ''}) — see ${sliceLog}`);
@@ -225,7 +230,7 @@ const stamp = {
   file,
   ref: args.ref ?? null,
   measured_at: new Date().toISOString(),
-  declared: exported ? { size_mm: exported.size_mm, scale: exported.scale, print_profile: exported.print_profile, closure: exported.closure, measure: exported.print_measure ?? null, advisories: exported.print_advisories ?? null, objects: exported.objects, items: exported.items, colors: exported.colors } : null,
+  declared: exported ? { size_mm: exported.size_mm, scale: exported.scale, print_profile: exported.print_profile, closure: exported.closure, union: exported.union ?? null, measure: exported.print_measure ?? null, advisories: exported.print_advisories ?? null, objects: exported.objects, items: exported.items, colors: exported.colors } : null,
   gate,
 };
 await fs.writeFile(gatePath, `${JSON.stringify(stamp, null, 2)}\n`);
@@ -237,5 +242,5 @@ process.stdout.write(`${JSON.stringify({
   gate_path: gatePath,
   declared: stamp.declared,
   gate,
-  eyes_gate: `open ${file} in your slicer: the shells land at ${exported ? exported.size_mm.join(' × ') + ' mm' : 'the declared size'} as separate objects; merge, orient, hollow, and add supports there — fitness to print is yours to judge`,
+  eyes_gate: `open ${file} in your slicer: ${exported?.union?.applied ? 'one solid lands' : 'the shells land'} at ${exported ? exported.size_mm.join(' × ') + ' mm' : 'the declared size'}${exported?.union?.applied ? '' : ' as separate objects; merge'}, orient, hollow, and add supports there — fitness to print is yours to judge`,
 }, null, 2)}\n`);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_BED_CENTER, bedCenterFromProfile, findSlicer, parseDuration, parseGcodeHeader, parseSlicerInfo, sliceFailureReason, summarizePrintGate, orcaProfileFiles, orcaSliceArgs, parseOrcaGcodeHeader } from './print-gate.js';
+import { DEFAULT_BED_CENTER, bedCenterFromProfile, findSlicer, manifoldNote, parseDuration, parseGcodeHeader, parseSlicerInfo, sliceFailureReason, summarizePrintGate, orcaProfileFiles, orcaSliceArgs, parseOrcaGcodeHeader } from './print-gate.js';
 
 // text-to-cad-seam.plan.md T6 — the orca family (OrcaSlicer / Bambu Studio): JSON profiles,
 // no defaults, arranged onto the bed, its own G-code ledger keys. Flags per the Bambu Studio
@@ -183,5 +183,21 @@ describe('orca family — as Bambu Studio actually writes it', () => {
   });
   it('findSlicer names Bambu Studio from an explicit path, the way the driver reads --slicer', () => {
     expect(findSlicer({ env: { MOJULO_SLICER: '/Applications/BambuStudio.app/Contents/MacOS/BambuStudio' } })).toEqual({ id: 'bambu', family: 'orca', bin: '/Applications/BambuStudio.app/Contents/MacOS/BambuStudio' });
+  });
+});
+
+// launch-falls-short.plan.md P3 — one truth about manifoldness: the stamp explains a slicer
+// `manifold: false` by what actually shipped.
+describe('manifoldNote', () => {
+  it('is silent unless the slicer said false', () => {
+    expect(manifoldNote({ manifold: true, parts: 1 })).toBeNull();
+    expect(manifoldNote({ manifold: null })).toBeNull();
+  });
+  it('names the multi-shell case when no union shipped', () => {
+    expect(manifoldNote({ manifold: false, parts: 2, union: null })).toMatch(/2 separate closed shells.*union not requested.*union: true/);
+    expect(manifoldNote({ manifold: false, parts: 2, union: { applied: false, reason: 'manifold-3d not installed' } })).toMatch(/union not applied: manifold-3d not installed/);
+  });
+  it('points at a real open edge when the union did ship', () => {
+    expect(manifoldNote({ manifold: false, parts: 1, union: { applied: true } })).toMatch(/unioned solid \(1 part\).*real open edge/);
   });
 });

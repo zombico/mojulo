@@ -239,6 +239,23 @@ export function parseOrcaGcodeHeader(text) {
  * slicer's own bounding box vs mojulo's declared printed size, the check that
  * catches a unit mix-up (a ×10 / ×25.4 slip shows up here loudly).
  */
+/**
+ * manifoldNote({ manifold, parts, union }) → one sentence reconciling the slicer's `manifold`
+ * with what mojulo shipped, or null when there is nothing to reconcile. PrusaSlicer says
+ * `manifold: false` for ANY multi-shell file even when every shell is closed, while
+ * measure_solid's Manifold union calls the same part "one solid" — two truths a first reader
+ * saw side by side (launch-falls-short.plan.md P3). The note names which one applies.
+ */
+export function manifoldNote({ manifold = null, parts = null, union = null } = {}) {
+  if (manifold !== false) return null;
+  const applied = !!(union && union.applied);
+  if (applied) {
+    return `the slicer reports manifold: false on the unioned solid${Number.isFinite(parts) ? ` (${parts} part${parts === 1 ? '' : 's'})` : ''} — read closure and the union's non_manifold list; this is a real open edge, not the multi-shell case`;
+  }
+  const why = union && union.reason ? ` (union not applied: ${union.reason})` : ' (union not requested)';
+  return `the slicer reports manifold: false because the file ships ${Number.isFinite(parts) ? `${parts} separate closed shells` : 'separate closed shells'}, not one solid${why} — the slicer merges them on import; export with union: true for one measured solid`;
+}
+
 export function summarizePrintGate({ info = null, gcode = null, exportSizeMm = null, tolerance = 0.5 } = {}) {
   const sizeAgrees = info?.size_mm && exportSizeMm
     ? info.size_mm.every((v, i) => Math.abs(v - exportSizeMm[i]) <= tolerance)
