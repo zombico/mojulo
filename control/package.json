@@ -1,10 +1,10 @@
 {
   "name": "mojulo",
   "mcpName": "io.github.zombico/mojulo",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "license": "Apache-2.0",
   "type": "module",
-  "description": "Mojulo \u2014 a 3D factory for agents: a local MCP server where you build worlds, objects, and games by talking to the coding agent you already run (Claude Code, Codex, or any MCP host), as editable deterministic recipes on your own machine that ship as a game (Godot) or a printed object (STL). Feeds the tools you already use; the recipe stays yours.",
+  "description": "Mojulo — a 3D factory for agents: a local MCP server where you build worlds, objects, and games by talking to the coding agent you already run (Claude Code, Codex, or any MCP host), as editable deterministic recipes on your own machine that ship as a game (Godot) or a printed object (STL). Feeds the tools you already use; the recipe stays yours.",
   "author": "Franz Ombico",
   "homepage": "https://mojulo.ai",
   "repository": {

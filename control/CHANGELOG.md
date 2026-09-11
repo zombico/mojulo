@@ -39,6 +39,8 @@ loops and the recipe format are unchanged.
   requires a different `source` than the submit, so a mojulo that invoked the generator would be
   the submitter with nobody left to be the eyes gate.
 
+## [2.0.2] - 2026-09-11
+
 ### openscad-leg — emit the recipe as an OpenSCAD program, not the mesh as a polyhedron
 
 - **Added: `export_model({ format: 'scad' })` + `GET /api/sketches/<ref>/model.scad`.** The one
@@ -86,7 +88,7 @@ loops and the recipe format are unchanged.
 
 ### field-normals — ask the field for its normal at every corner
 
-- **Added (in progress): `smooth` on `surfaceNetFaces`.** The surface net computed ONE normal per
+- **Added: `smooth` on `surfaceNetFaces`.** The surface net computed ONE normal per
   quad, at the quad's centre, and `litFaces` turned that into one flat fill — so an analytically
   smooth surface (a smooth-union of exact SDF primitives) arrived on screen as a field of visible
   flat facets. The gradient was always available at any point; it was simply asked 1,288 times
@@ -96,7 +98,7 @@ loops and the recipe format are unchanged.
   a fill, and two builders already produce it. The only missing piece was a producer of per-corner
   NORMALS. This is the "flat for now — phase 2 smooths it" the figure-render comment has been
   waiting on.
-- **Added (in progress): `cornerFills` from the animal's watertight skin.** Carried through
+- **Added: `cornerFills` from the animal's watertight skin.** Carried through
   `animalSkinWatertight` -> `animalStacks` -> `litFaces`; the zone decision (which colour a face
   wears, countershading included) stays per face, and only the shading of that colour varies per
   corner. Stripping `cornerFills` off a smooth payload recovers the flat payload byte for byte.
@@ -114,7 +116,7 @@ loops and the recipe format are unchanged.
 
 ### field-splats — a second emission off the polygonizer's SDF
 
-- **Added (in progress): `surfaceSplats` in `lib/graph/polygonizer/field-splats.js`.** The sibling
+- **Added: `surfaceSplats` in `lib/graph/polygonizer/field-splats.js`.** The sibling
   of `surfaceNetFaces`: same `(field, bounds, opts)` contract, same uniform-grid walk of the zero
   set, same central-difference gradient — but it emits oriented gaussians instead of quads. Pure and
   deterministic; the coat is placed from the known field, never trained from images.
@@ -124,12 +126,12 @@ loops and the recipe format are unchanged.
   No shipped species wears it on the body; the raccoon picks painted `tailBands` over fur outright.
   A quad can only be a surface, so every strand minted to fake volume costs ~36 faces that ship to
   every engine, threaten the closure audit, and are unprintable at hair scale.
-- **Added (in progress): the `splats` channel.** A `SETUP_CHANNELS` row rendering the coat as
+- **Added: the `splats` channel.** A `SETUP_CHANNELS` row rendering the coat as
   sorted surfels — quads spanned by the emission's own tangent axes, so they lie in the surface's
   tangent plane instead of facing the camera (which is why this cannot reuse the glow channel's
   sprites). Packed base64 through the page's existing decoders; zero bytes when absent, with every
   pre-existing fixture hash in the char net untouched.
-- **Added (in progress): `coat: { fur }` on an animal.** `opts.coat.fur` grows the coat off the
+- **Added: `coat: { fur }` on an animal.** `opts.coat.fur` grows the coat off the
   animal's own resolved body faces — which came from the skin field via the surface net, so the
   coat is field-derived while still inheriting planting, lighting, and the body's final colour.
   That last part is load-bearing: a coat over a differently-coloured body reads as a halo,
@@ -145,6 +147,14 @@ loops and the recipe format are unchanged.
   audit. A coat cannot break a print or move a tier by construction. Rooms and the box worlds are
   explicitly out: measured at 200x-2500x the primitives for a visually identical result, with
   crenellated edges where a quad had an exact straight one.
+
+### Docs and registry metadata
+
+- **Changed: Windows is described as verified natively, and the READMEs say what still is not.**
+  Both READMEs and `docs/tech-requirements.md` now separate what has been run on Windows from what
+  has not, rather than implying parity.
+- **Fixed: the registry listing fits the hundred characters it allows.** `server.json`'s description
+  was over the limit the registry enforces.
 
 ## [2.0.1] - 2026-09-10
 
