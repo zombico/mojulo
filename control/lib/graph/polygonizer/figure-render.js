@@ -481,9 +481,17 @@ function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = 
         const wpts = f.corners.map(V);
         const n = f.n, cen = centroid(wpts);
         if (cull && dot3(n, sub3(CAM, cen)) <= 0) continue;                 // back-face cull
-        let hex = st.hex, shadeN = n;
-        if (recolor) { const rc = recolor(hex, n, cen); if (rc) { hex = rc; shadeN = [n[0], n[1], Math.abs(n[2])]; } }
-        faces.push({ wpts, n, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) });
+        let hex = st.hex, shadeN = n, recolored = false;
+        if (recolor) { const rc = recolor(hex, n, cen); if (rc) { hex = rc; shadeN = [n[0], n[1], Math.abs(n[2])]; recolored = true; } }
+        // SMOOTH SHADING (field-normals.plan.md phase 2): the zone decision — which colour this
+        // face wears, countershading included — stays PER FACE, because it is a decision about
+        // the region. Only the shading of that colour varies per corner. Mixing the two would
+        // let a countershading boundary wander inside a single quad.
+        const cornerFills = f.cornerNormals && f.cornerNormals.length === wpts.length
+          ? f.cornerNormals.map((cn) => shadeHex(hex, recolored ? [cn[0], cn[1], Math.abs(cn[2])] : cn, light))
+          : null;
+        faces.push({ wpts, n, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen),
+          ...(cornerFills ? { cornerFills } : {}) });
       }
       continue;
     }
@@ -708,7 +716,9 @@ function animalStacks(parts) {
   return parts.map((p) => p.faces
     // watertight face part (field-mesh.js): lift the corners; the gradient normal is a
     // direction, invariant under the uniform lift, so it rides through unchanged.
-    ? { hex: p.stroke, fieldFaces: p.faces.map((f) => ({ corners: f.corners.map(lift), n: f.n })) }
+    ? { hex: p.stroke, fieldFaces: p.faces.map((f) => ({ corners: f.corners.map(lift), n: f.n,
+        // corner normals are directions too — invariant under the uniform lift, same as `n`
+        ...(f.cornerNormals ? { cornerNormals: f.cornerNormals } : {}) })) }
     : { hex: p.stroke, rings: p.polylines.map((poly) => ({ polyline: poly.map(lift), center: centroidOf(poly) })) });
 }
 
@@ -795,8 +805,13 @@ export function animalWorldFaces(manifest = {}) {
       corners: f.wpts, fill: f.fill,
       // Authored outward normal (blenderish-animals.plan.md quick win): the centre-oriented
       // normal litFaces already solved, carried so the GLB export writes a NORMAL attribute
-      // (flat for now — phase 2 smooths it) and Blender bakes stop rebuilding from winding.
+      // and Blender bakes stop rebuilding from winding. Still the FLAT normal in the export —
+      // the smooth half of that old "phase 2 smooths it" note is field-normals.plan.md phase 4.
       ...(f.n ? { outNormal: f.n } : {}),
+      // Per-vertex shading (field-normals.plan.md phase 2): present only when the skin was
+      // surfaced with `smooth`. `fill` stays beside it as the flat fallback, so a consumer
+      // that does not read cornerFills renders exactly what it rendered before.
+      ...(f.cornerFills ? { cornerFills: f.cornerFills } : {}),
       ...(f.texture ? { texture: f.texture, uv: f.uv, ...(f.textureLit ? { textureLit: true } : {}), ...(f.island != null ? { island: f.island } : {}) } : {}),
     }));
   return { faces };

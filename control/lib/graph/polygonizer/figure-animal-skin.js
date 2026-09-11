@@ -368,6 +368,9 @@ export function animalSkinWatertight(nodes, radii, chains = [], skull = null, cf
   const field = makeField(prims, c.blend);
   // pad past the fillet reach + a cell so the surface never grazes the grid boundary
   const bounds = primBounds(prims, c.blend * 4 + 0.03);
-  const faces = surfaceNetFaces(field, bounds, { cells: c.cells });
+  // `smooth` (field-normals.plan.md) asks the gradient at every CORNER as well as the centre,
+  // so litFaces can shade per-vertex instead of per-quad. Off by default: absent it, every
+  // face record — and every pin downstream of it — is byte-identical to before.
+  const faces = surfaceNetFaces(field, bounds, { cells: c.cells, smooth: !!c.smooth });
   return faces.length ? [{ faces, stroke: c.stroke }] : [];
 }

@@ -67,12 +67,17 @@ Bipeds (`theropod` / `raptor` / `avian`) stand on the two hind feet and have the
 
 Merged one level deep over the species' own, so `{ skullCfg: { length: 0.3 } }` retunes ONE knob instead of replacing the species' whole skull.
 
-- `skin` (boolean) — the welded single skin + welded skull (the hero path). A `species` already sets this; pass it with a bare `archetype` to weld one.
+- `skin` — the welded single skin + welded skull (the hero path). Three values, and the choice decides whether the animal can PRINT:
+  - `true` — the MARCHED skin: the field ray-marched per axis into open ring tubes. Fast, and what a `species` sets by default. Render-only (see Honest limits).
+  - `'watertight'` — the SAME field surfaced by the surface-net polygonizer instead: one closed quad mesh, zero boundary edges by construction. Heavier to build (it samples the whole field volume) and the one to pass when the animal is headed for a printer or an engine. `fleshCfg.cells` sets its grid resolution (default 72).
+  - omitted — no weld: each bone and the skull stay separate shells, and the jaw reads loose.
 - `armatureCfg` — proportions, scaled or biased off the archetype without minting a new one: `backHeight`, `trunkLength`, `neckLength`, `neckAngle`, `girthBody` / `girthFore` / `girthHind` / `girthHead`, `foreMode` (`ground` | `tuck` | `wing`).
 - `skullCfg` — the family tell: `length` (back→snout), `width` (cranium breadth), `dome` (forehead height), `muzzle` (snout fraction of length), `snout` (nose-tip thinness), `muzzleDrop` (how the snout dips), `jaw` (lower-jaw depth, 0 = none), `beak` (beak length, avian), `boxy` (0 conical → 1 squared-off block), `pad` (whisker pads — a wide squared cat snout), `bridge` (a raised nasal ridge), `capDepth` (front-cap roundness; <1 = flatter, squarer nose).
-- `fleshCfg` — the body mass: `thorax`, `belly`, `bellyDrop`, `rump`, `haunch` (the hindquarter "ham"), `taper`, `blend` (joint fillet softness), `N` / `M` (skin resolution).
+- `fleshCfg` — the body mass: `thorax`, `belly`, `bellyDrop`, `rump`, `haunch` (the hindquarter "ham"), `taper`, `blend` (joint fillet softness), `N` / `M` (skin resolution). Two knobs apply to `skin: 'watertight'` only:
+  - `cells` — surface-net grid resolution along the longest side (default 72). Raises the polygon count, and is what smooths the SILHOUETTE.
+  - `smooth` (boolean, default off) — shade per VERTEX instead of per face. The body field is analytic, so each corner gets its exact normal rather than an average — the faceting inside the form goes away at the SAME polygon count. Free to ask for, changes no geometry, and the print file is byte-identical either way. It does not touch the outline: only `cells` does that.
 - `footCfg` — `kind` (`paw` | `hoof` | `pad` | `talon`), `cloven`, plus per-kind sizes (`topR`, `width`, `fwd`, `padH`, `toeR`, `hoofR`, `padR`, `ankleH`, `spread`).
-- `coat` — fur blades over the body (`color`, density, length); `underHex` + `underCut` countershade the DOWN-facing faces (a pale belly); `overHex` + `overCut` do the same for UP-facing faces (a dorsal stripe, skunk/badger).
+- `coat` — the coat COLOUR, painted onto the body and head (`color`). Not per-strand geometry: strand fur exists only on the banded ringtail (`tailRings`). `underHex` + `underCut` countershade the DOWN-facing faces (a pale belly); `overHex` + `overCut` do the same for UP-facing faces (a dorsal stripe, skunk/badger).
 - `face` — eyes / nose / ear decor off a preset; `facePaint` — a muzzle mask; `plateMuzzle` — a projecting four-plate snout off a small cranium.
 - `mane` (lion), `antlers` (deer/buck), `tailCfg` / `tailTip` / `tailRings` / `tailBands` (a brush, a dark tip, a banded ringtail), `fluffs`, `forepaws`.
 
@@ -84,6 +89,6 @@ A silhouette reads truest at `lateral`; the face reads truest at `frontal` or `t
 
 ## Honest limits
 
-- **Print lane:** the mesh is RENDER-ONLY geometry — open ring-strip tubes assembled by overlap, hidden by painter's sort and back-face culling. An STL closure audit (`export_model`) will report every animal as not closed. That is advisory, never a refusal: suitability is the operator's call, and a print lane needs a welding/capping pass first.
-- **Coat surface:** the countershade and marking rules are per-face normal tests, so a coat can read as flat hard-edged patches rather than blended fur. Structure is the strong half; surface is the developing one.
+- **Print lane — depends on `skin`.** With `skin: true` (or omitted) the mesh is RENDER-ONLY geometry: open ring-strip tubes assembled by overlap, hidden by painter's sort and back-face culling, and an STL closure audit (`export_model`) reports it not closed (a canine: 864 boundary edges). With `skin: 'watertight'` the audit passes — zero significant holes — though a small number of sub-threshold rims remain at self-closing pole tips, which the audit does not count as defects. Either verdict is advisory, never a refusal: suitability is the operator's call.
+- **Coat surface:** the countershade and marking rules are per-face normal tests, so a coat can read as flat hard-edged patches rather than blended fur. `skin: 'watertight'` + `fleshCfg.smooth` softens the shading within each zone; the ZONE BOUNDARIES stay hard-edged either way, because they are decided per face on purpose. Structure is the strong half; surface is the developing one.
 - The bare (`archetype`-only) path draws its lower jaw as a separate part, which can read as detached from some angles. Pass `skin: true` — or a `species` — for a welded head.

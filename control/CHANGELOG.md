@@ -12,6 +12,34 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### field-normals — ask the field for its normal at every corner
+
+- **Added (in progress): `smooth` on `surfaceNetFaces`.** The surface net computed ONE normal per
+  quad, at the quad's centre, and `litFaces` turned that into one flat fill — so an analytically
+  smooth surface (a smooth-union of exact SDF primitives) arrived on screen as a field of visible
+  flat facets. The gradient was always available at any point; it was simply asked 1,288 times
+  instead of 5,152. `smooth` samples it per CORNER and the face carries `cornerNormals`.
+- **Why it is nearly free: per-vertex colour is already plumbed end to end.** `faceListToMesh`
+  already reads `cornerFills` and uploads per-vertex colour, `world-contract` already counts it as
+  a fill, and two builders already produce it. The only missing piece was a producer of per-corner
+  NORMALS. This is the "flat for now — phase 2 smooths it" the figure-render comment has been
+  waiting on.
+- **Added (in progress): `cornerFills` from the animal's watertight skin.** Carried through
+  `animalSkinWatertight` -> `animalStacks` -> `litFaces`; the zone decision (which colour a face
+  wears, countershading included) stays per face, and only the shading of that colour varies per
+  corner. Stripping `cornerFills` off a smooth payload recovers the flat payload byte for byte.
+- **Fixed: the animal vocab card never mentioned `skin: 'watertight'`.** It documented `skin` as
+  a boolean, so the surface-net path — the closed mesh, the print path, and the only mode `smooth`
+  applies to — was undiscoverable to any agent reading the card. Its "Print lane" limit was wrong
+  as a result, stating that a closure audit reports EVERY animal as not closed; measured, the
+  marched skin gives `closed: false` (864 boundary edges) and the watertight skin PASSES with zero
+  significant holes. Both verdicts are now stated. `coat` was also described as "fur blades over
+  the body" when it is paint — strand fur is reachable only through the ringtail.
+- **Opt-in, hard.** `smooth` defaults false, so every existing pin, snapshot and export stays
+  byte-identical until a kind deliberately asks; turning it on per kind is its own step and its own
+  re-pin. What this does NOT change: the geometry, the polygon count, or the silhouette — smooth
+  shading fixes the interior of a form, never its outline.
+
 ### field-splats — a second emission off the polygonizer's SDF
 
 - **Added (in progress): `surfaceSplats` in `lib/graph/polygonizer/field-splats.js`.** The sibling

@@ -42,10 +42,12 @@ export function primBounds(prims, pad = 0) {
  *
  * @param {(p:{x,y,z}) => number} field   signed distance (negative inside)
  * @param {{min:{x,y,z}, max:{x,y,z}}} bounds   must contain the surface with margin
- * @param {{cells?:number}} [opts]   grid cells along the LONGEST side (default 64)
+ * @param {{cells?:number, smooth?:boolean}} [opts]   grid cells along the LONGEST side
+ *        (default 64); `smooth` additionally samples the gradient at every CORNER and
+ *        carries it as `cornerNormals` (see below)
  * @returns {{corners:{x,y,z}[], n:number[]}[]}   outward-wound quads + unit gradient normal
  */
-export function surfaceNetFaces(field, bounds, { cells = 64 } = {}) {
+export function surfaceNetFaces(field, bounds, { cells = 64, smooth = false } = {}) {
   const ex = bounds.max.x - bounds.min.x, ey = bounds.max.y - bounds.min.y, ez = bounds.max.z - bounds.min.z;
   const longest = Math.max(ex, ey, ez);
   if (!(longest > 0)) return [];
@@ -99,7 +101,8 @@ export function surfaceNetFaces(field, bounds, { cells = 64 } = {}) {
   //    confirmed against the field gradient at the quad centre (the authored normal).
   const faces = [];
   const eps = h * 0.5;
-  const gradAt = (p) => {
+  const gradAt = (p0) => {
+    const p = Array.isArray(p0) ? { x: p0[0], y: p0[1], z: p0[2] } : p0;
     const nvx = field({ x: p.x + eps, y: p.y, z: p.z }) - field({ x: p.x - eps, y: p.y, z: p.z });
     const nvy = field({ x: p.x, y: p.y + eps, z: p.z }) - field({ x: p.x, y: p.y - eps, z: p.z });
     const nvz = field({ x: p.x, y: p.y, z: p.z + eps }) - field({ x: p.x, y: p.y, z: p.z - eps });
@@ -125,6 +128,15 @@ export function surfaceNetFaces(field, bounds, { cells = 64 } = {}) {
       wx += (a.y - b.y) * (a.z + b.z); wy += (a.z - b.z) * (a.x + b.x); wz += (a.x - b.x) * (a.y + b.y);
     }
     if (wx * n[0] + wy * n[1] + wz * n[2] < 0) corners = [corners[0], corners[3], corners[2], corners[1]];
+    // SMOOTH (field-normals.plan.md phase 1): the same gradient, asked at every corner rather
+    // than once at the centre. The field is analytic, so a corner normal is EXACT, not an
+    // average of neighbouring face normals — no vertex-adjacency pass, no smoothing groups,
+    // and no dependence on face order. `n` (the centre sample) is kept unchanged, so the flat
+    // path stays byte-identical and a consumer that does not read cornerNormals loses nothing.
+    if (smooth) {
+      faces.push({ corners, n, cornerNormals: corners.map((q) => gradAt([q.x, q.y, q.z])) });
+      return;
+    }
     faces.push({ corners, n });
   };
   // x-directed edges: shared by cells (i, j-1..j, k-1..k)
