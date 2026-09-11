@@ -144,6 +144,12 @@ an honest-loss ledger naming what did not travel.
   literal object kinds; figures, worlds and views print as maquettes fit to a target size. Do not
   say "guaranteed watertight": it is honest triangle soup with a closure audit, and slicer repair is
   standard practice.
+- **`.scad`** — the odd one out: a **program**, not a mesh. The recipe is transpiled term by term
+  into OpenSCAD solids and booleans, so OpenSCAD's exact kernel gives the sharp edges a sampled
+  field cannot (every field edge rounds to about one grid cell). Needs no dependency at all, since
+  it is text. A term with no OpenSCAD equivalent arrives as a frozen `polyhedron()` and the result's
+  coverage ledger names it. Say "mojulo speaks OpenSCAD", never "mojulo replaces it" — and note the
+  round trip ends there, because OpenSCAD writes no format `bind_mesh_render` accepts.
 
 ### The print gate: slicers
 
@@ -157,6 +163,26 @@ the exported 3MF and stamps `mojulo-print-gate.json` beside it.
 | OrcaSlicer | Detected, **not** run; its stamp says so | `/Applications/OrcaSlicer.app` | `MOJULO_SLICER` |
 
 Details: [local-slicer-worker.md](local-slicer-worker.md).
+
+### The sharp-edge gate: OpenSCAD
+
+Optional, same posture. `scripts/scad-gate.mjs` renders the exported `.scad` headless and stamps
+`mojulo-scad-gate.json` beside it: did it render, and does the solid OpenSCAD computed match the
+size (and volume, when one was declared) that mojulo said it would.
+
+| Tool | Status | Found at | Env |
+|---|---|---|---|
+| OpenSCAD | Verified (snapshot **2026.09.10**, macOS) | PATH or `/Applications/OpenSCAD.app` | `MOJULO_OPENSCAD`, `MOJULO_OPENSCAD_TIMEOUT_MS` |
+
+Install note: the stable `openscad` Homebrew cask has been **disabled since 2026-09-01** for failing
+the macOS Gatekeeper check — use `brew install --cask openscad@snapshot`.
+
+Two things this gate deliberately does. It never compares triangle counts (OpenSCAD tessellates
+exact solids by `$fn` while mojulo marched a grid, so agreement would be coincidence), and it
+expects a sub-cell size disagreement on a field part: mojulo declares its marched MESH and OpenSCAD
+renders the IDEAL solid, so a 40 mm disc declares 79.9 mm and renders 80.
+
+Details: [local-openscad-worker.md](local-openscad-worker.md).
 
 ---
 

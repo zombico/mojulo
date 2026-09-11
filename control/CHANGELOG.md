@@ -12,6 +12,78 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### sculpt-brief — brief the external sculptor properly, and measure what it hands back
+
+- **Planned: the mesh handoff's brief becomes named views instead of a contact sheet.** The packet
+  hands an image-conditioned generator `reference_urls.turntable` — which is the gallery card's
+  strip: sixteen 256×192 cells glued into one ~4096×192 PNG for CSS `steps(16)`. No generator gets
+  a usable view of the object from that. A brief plate bakes the named shots
+  (`front` / `three-quarter` / `side` / `back` / `top`, `facing`-corrected) individually at
+  generator resolution, over the printable set only, so the studio's measuring grid and floor plate
+  stop being traced into the sculpt.
+- **Planned: a part becomes its own sketch, so one part can be sculpted.** Hero detail belongs to
+  one part; today the handoff is whole-object, so getting a detailed helmet resculpts the whole
+  figure and throws away every deterministic part. `extract_part` splits at the RECIPE level — the
+  named monomers copied into a new workbench sketch, nothing baked — and the host places the result
+  back through the `figures.<name>.meshRef` entry that already exists. No new placement machinery.
+- **Planned: the return is trimmed to a budget, and the trim is measured.** `budget.triangles_max`
+  is a constant in the packet that the submit path gates nothing against, so a 400k-triangle return
+  binds silently. The budget comes from the kind and print profile; `simplify: true` on the submit
+  trims through Manifold's `simplify(tolerance)` with a measured maximum deviation, and the sidecar
+  records what it was trimmed from. Advisory, opt-in, and it degrades to a stated skip when
+  `manifold-3d` is absent or the return is not manifold.
+- **Planned: the vendor knowledge goes on the catalyst shelf, not into core.** A
+  `sculpt-object-externally` catalyst (the mesh sibling of `render-image-outcome-locally`) carries
+  the capability ladder and the per-generator notes; `mesh-fit.js`'s up-axis switch becomes a named
+  return-profile table. Mojulo still calls no generator and holds no key: `accept_mesh_render`
+  requires a different `source` than the submit, so a mojulo that invoked the generator would be
+  the submitter with nobody left to be the eyes gate.
+
+### openscad-leg — emit the recipe as an OpenSCAD program, not the mesh as a polyhedron
+
+- **Added: `export_model({ format: 'scad' })` + `GET /api/sketches/<ref>/model.scad`.** The one
+  ceiling the print leg cannot lift from inside is the field boolean's rounded edge — `union: true`
+  unions SHELLS sharply, but an edge the recipe expressed as a sampled field stays rounded to about
+  one grid cell, and the honest answer used to be "export and reach for Blender or OpenSCAD." This
+  leg hands over the same part as editable exact solids: OpenSCAD's `difference()` computes the
+  intersection curve, so the bore arrives with a sharp lip. The BOOLEAN is what is exact — curved
+  primitives are still faceted by `$fn` at the head of the file.
+- **It transpiles the MANIFEST, not the face payload — and coverage is measured, never claimed.**
+  Every other emitter consumes `payload.faces`; one that did the same here would write a baked
+  `polyhedron()` with no sharp edges and no dials. This reads the workbench spec after `lowerCuts`
+  and lowers each TERM: the nine field shapes, the three booleans, the transforms and both arrays
+  map exactly. A term with no equivalent (a `blend`, `stroke`, `displace`, `expr`, a warp, a
+  harmonic lathe) is polygonized and frozen with a comment naming what forced it, and the result's
+  ledger says how many went each way. A number becomes a named variable only where it provably
+  drives the emitted geometry, so a frozen polyhedron carries literals and says it ignores the
+  dials. No kind refuses: a world or figure transpiles fully baked with a note naming `stl` as the
+  better file. Details, including the full coverage table: [docs/local-openscad-worker.md](../docs/local-openscad-worker.md).
+- **Added: `scripts/scad-gate.mjs` + `scad-gate.js`, an optional worker in the settled shape.**
+  `MOJULO_OPENSCAD`, then PATH, then the macOS bundle, in `findSlicer`'s pure and unit-tested form;
+  render, measure the STL, compare against what `export_model` declared, stamp
+  `mojulo-scad-gate.json`. It compares bounding box always and volume when one was declared, and
+  **never triangle count** — OpenSCAD tessellates exact solids by `$fn` while mojulo marched a grid,
+  so agreement would be coincidence; the stamp says so in-band. Absent the binary it skips with the
+  install line. OpenSCAD never enters the render path: a recipe regenerates byte-identically with no
+  binary installed, forever.
+- **Both gates RUN and GREEN against OpenSCAD 2026.09.10, and the machine gate found a real bug on
+  its first run.** Five fixtures rendered, all exit 0 with `Status: NoError`, including a fully
+  baked figure whose 34,464-triangle `polyhedron` survived CGAL at an exact size match. Where mojulo
+  declared 79.9 mm and OpenSCAD rendered 80, that 0.1 mm IS the prediction — the marched mesh sits
+  about half a grid cell inside the ideal solid. The bug: `size_mm` read `facesBounds` over every
+  face, so a workbench's studio grid was in the number and a 120 mm disc declared 302 mm; it now
+  reads `printSoup`, the printable set the STL writes. Eyes gate: the same recipe emitted as exact
+  solids and as mojulo's own field surface and rendered by the same renderer — the exact bore lip is
+  a crisp ellipse, the field one carries a visible chamfer all the way round. (Install note: the
+  stable `openscad` cask has been disabled since 2026-09-01 for Gatekeeper; use `openscad@snapshot`.)
+- **Doctrine fit, stated so it is not re-litigated.** Not a CSG kernel in-substrate and not a native
+  mesh reader — a text emitter, which D0 already permits and `scene-usd.js` already proves.
+  OpenSCAD's boolean kernel since 2025 IS Manifold, which `union: true` already runs: same math,
+  different author, not a rival kernel. The round trip ends there, because OpenSCAD writes no format
+  `bind_mesh_render` accepts. `translate_modeler_lingo` (`boolean-cut`, `precision-cad`,
+  `procedural-part`), the workbench card and `get_substrate` all name the new exit. Additive
+  throughout: every existing format stays byte-identical and no existing pin moved.
+
 ### field-normals — ask the field for its normal at every corner
 
 - **Added (in progress): `smooth` on `surfaceNetFaces`.** The surface net computed ONE normal per

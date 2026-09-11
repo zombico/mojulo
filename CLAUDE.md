@@ -55,7 +55,7 @@ here. [lite-template/](lite-template/) is the runtime for the opt-in chatbot pac
   layers over what the operator's LLM provider already enforces. Posture: [TERMS.md](TERMS.md).
 - Never read or echo `.env` secrets from generated app or bot directories.
 - UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
-- Optional workers (Blender, ComfyUI, Kokoro, slicer, Godot, Unity, Unreal) are never dependencies.
+- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies.
   Absence degrades a loop, never breaks one.
 - Do not commit unless asked. Never touch `control/.next/`, `control/data/`, `.claude/worktrees/`.
 

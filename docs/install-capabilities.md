@@ -80,6 +80,11 @@ describes and an env flag can never silently disagree with reality. In
 - **Full workshop:** a plain `npm install` gets everything (the creative deps are `optionalDependencies`,
   installed by default — `three`, `opentype.js`, `node-web-audio-api`, and `manifold-3d`, the WASM CSG
   kernel behind `export_model({ union: true })`; absent, that option reports and ships the plain shells).
+- **Host binaries are a separate axis from install groups.** Blender, the slicers, the engines and
+  OpenSCAD are operator-hosted workers probed at call time, not npm dependencies — no install group
+  contains them, and every one of them degrades to a stamped "skipped" with its env var named. Worth
+  saying because it cuts the other way too: `export_model({ format: 'scad' })` is pure text and needs
+  NO optional dependency, so the sharp-edge exit works in a lean install where `union: true` cannot.
 
 `sharp` is NOT shed — it arrives transitively via the kernel embedder (`@huggingface/transformers`), so
 it's always present.

@@ -201,9 +201,10 @@ const LEXICON = [
     ],
     then: [
       { tool: 'export_model', when: 'print it as ONE solid — `union: true` runs a Manifold CSG union of every shell (3MF or STL)', args: { ref: '<sk_ref>', format: '3mf', union: true } },
+      { tool: 'export_model', when: "the SHARP EDGE the recipe cannot express: `format: 'scad'` transpiles the recipe into an OpenSCAD program — the same solids and booleans as code, recomputed by OpenSCAD's EXACT kernel, so the bore arrives with a sharp lip instead of a one-cell round. The result's coverage ledger says which terms transpiled and which arrived frozen; `node scripts/scad-gate.mjs --ref <sk_ref>` renders it and checks the size against what mojulo declared.", args: { ref: '<sk_ref>', format: 'scad' } },
     ],
-    ceiling: 'Field-space booleans: exact sign, closed by construction, genus-correct — but every edge rounds to about one grid cell (`cells` 16–128; cost is cubic). A machined sharp edge is not on offer in the recipe; Manifold `union: true` unions shells sharply at export.',
-    dcc: "For sharp booleans over an imported mesh, or a boolean between a mojulo part and your own geometry: export and use Blender's Boolean modifier (Exact solver) or OpenSCAD.",
+    ceiling: "Field-space booleans: exact sign, closed by construction, genus-correct — but every edge rounds to about one grid cell (`cells` 16–128; cost is cubic). A machined sharp edge is not on offer IN the recipe; two exits give you one: `union: true` unions shells sharply at export (Manifold), and `format: 'scad'` hands the whole recipe to OpenSCAD as editable exact solids. A blend, a stroke, noise or a warp has no OpenSCAD equivalent and arrives frozen — the ledger names each one.",
+    dcc: "For sharp booleans over an imported mesh, or a boolean between a mojulo part and your own geometry: export and use Blender's Boolean modifier (Exact solver), or take the `scad` export into OpenSCAD and add your own geometry there.",
   },
   {
     id: 'chamfer-fillet',
@@ -228,9 +229,10 @@ const LEXICON = [
       { tool: 'mint_solid', when: 'the FORM of the part (a bracket, a housing, a bolt circle) is native — author it here for the world, the game, and a form-accurate print; the FIT is not', args: { kind: 'workbench', spec: { units: 'mm' } } },
     ],
     then: [
+      { tool: 'export_model', when: "meet the CAD tool HALFWAY: `format: 'scad'` hands the form over as an OpenSCAD program — exact solids and booleans with the recipe's numbers as variables at the head of the file — so the fit is added in a tool that can express it, over geometry you did not have to re-model. Still not a B-rep: no threads, no constraints, no GD&T.", args: { ref: '<sk_ref>', format: 'scad' } },
       { tool: 'bind_mesh_render', when: 'bring the CAD part home: its tessellated .glb, `units` naming the file\'s unit (a CAD GLB is mm), `expected_box` = the tool\'s own bbox, `source` = the tool', args: { ref: '<sk_ref>', glb_path: '<file.glb>', units: 'mm', source: 'text-to-cad/cadgen@x.y.z' } },
     ],
-    ceiling: 'Field solids round every edge to about one grid cell and there is no constraint solver, no thread, no gear profile, no GD&T — the workbench gets the form right, not the fit. A toleranced bore is a handoff even after `cuts` lands (parts-booleans.plan.md): `cuts` is for the hole, not the fit.',
+    ceiling: "Field solids round every edge to about one grid cell and there is no constraint solver, no thread, no gear profile, no GD&T — the workbench gets the form right, not the fit. A toleranced bore is a handoff even after `cuts` lands (parts-booleans.plan.md): `cuts` is for the hole, not the fit. The `scad` export removes the ROUNDING from that handoff but not the missing fit: OpenSCAD is a mesh CSG tool, not a B-rep kernel.",
     dcc: 'Author a toleranced or threaded part in a B-rep CAD tool — text-to-cad (build123d over OpenCascade; STEP-first, with its own printability and slicer skills), FreeCAD, Onshape, Fusion — and bring the tessellated GLB home with `bind_mesh_render`. Mojulo then places it in a world, ships it to an engine, or prints it beside its own parts; the .step stays the source of the part, the recipe the source of everything around it.',
   },
   {
@@ -323,8 +325,11 @@ const LEXICON = [
     routes: [
       { tool: 'mint_solid', when: "the `code` kind: `spec.source` is the body of a function (params, ctx) that RETURNS a workbench spec (monomer arrays / an `assembly`) or a face list. It runs in a realm with no host reach (no fs / network / clock; Math.random is seeded by `seed`), `console.log` comes back on the result, `params` are the dials update_sketch turns, `budgetMs` is the one limit. Realm API + three worked programs: get_solid_vocab({ id: 'code' }).", args: { kind: 'code', spec: { units: 'mm', params: { n: 6, r: 40, pcd: 30, hole: 3, t: 6 }, source: "const bores = Array.from({ length: params.n }, (_, i) => { const a = i / params.n * Math.PI * 2; return { id: 'bore', op: 'subtract', shape: { kind: 'capsule', a: [params.pcd * Math.cos(a), params.pcd * Math.sin(a), -1], b: [params.pcd * Math.cos(a), params.pcd * Math.sin(a), params.t + 1], radius: params.hole } }; });\nreturn { fields: [{ cells: 96, terms: [{ id: 'disc', op: 'add', shape: { kind: 'lathe', profile: [{ t: 0, radius: params.r }, { t: 1, radius: params.r }], axisFrom: [0, 0, 0], axisTo: [0, 0, params.t] } }, ...bores] }] };" } } },
     ],
-    then: [EXPORT],
-    ceiling: 'Plain JavaScript over the workbench vocabulary — no bpy, no mesh editing, no host reach. What the program returns still pays every workbench gate (closure audit, honest ledger) and rounds like every field solid. A program is a recipe: same source + params + seed → the same faces forever.',
+    then: [
+      EXPORT,
+      { tool: 'export_model', when: "you wanted OpenSCAD specifically: `format: 'scad'` transpiles what the program RETURNED (the monomers, not the JavaScript) into an OpenSCAD program with exact booleans — so the loop is mint in mojulo, iterate on params, and leave with a .scad whenever you want the sharp edges or the other tool.", args: { ref: '<sk_ref>', format: 'scad' } },
+    ],
+    ceiling: "Plain JavaScript over the workbench vocabulary — no bpy, no mesh editing, no host reach. What the program returns still pays every workbench gate (closure audit, honest ledger) and rounds like every field solid. A program is a recipe: same source + params + seed → the same faces forever. The `scad` export carries the RESULT, not the program: resolved solids, with dials for the exactly-transpiled ones — mojulo does not read .scad back.",
     dcc: 'For a script that drives a DCC (modifiers, simulation, render settings) the script belongs in the DCC; mint the part here and hand the .glb / .usd over.',
   },
 ];
