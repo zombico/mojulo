@@ -1661,7 +1661,7 @@ export function registerContextTools() {
   registerTool({
     name: 'get_substrate',
     description:
-      "Return what mojulo is and what it can honestly claim — the five paradigms (Media, Game, Bot, Connected Service, App), the digital and physical pipeline claims, where inference runs, what always-on requires, which cloud properties it lacks — PLUS its SELF-DESCRIPTION: a dozen architecture facts (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE meta-answers from. Call when the user compares mojulo to cloud primitives, asks 'what is this really?', or asks about mojulo ITSELF: 'does it phone home?', 'where does my data live?', 'is my patients' data safe?', 'do I have to pay?', 'how do I uninstall?'. Read-only, no inputs, idempotent.",
+      "Return what mojulo is and what it can honestly claim — a 3D factory for agents: Media (objects, worlds, views, audio) and Game as re-runnable recipes on the operator's machine; the digital (Godot, Unity, Unreal, Blender) and physical (STL / 3MF) pipelines; where inference runs; what the retained automation backend (Bot, Connected Service, App) adds — PLUS a dozen SELF-DESCRIPTION facts (process, state, network posture, credentials, costs, uninstall, source) to DERIVE meta-answers from. Call for 'what is this really?' or questions about mojulo ITSELF: 'does it phone home?', 'where does my data live?', 'do I have to pay?', 'how do I uninstall?'. Read-only, no inputs, idempotent.",
     inputSchema: { type: 'object', properties: {} },
     handler: substrateHandler,
   });
