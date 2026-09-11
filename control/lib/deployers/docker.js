@@ -1,7 +1,7 @@
 import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import { composeInstructions } from '../composer/composer.js';
 import { downloadToBuffer } from '../storage/index.js';
 
@@ -221,7 +221,7 @@ function writeJson(file, data) {
 function zipDirectory(sourceDir, outPath) {
   return new Promise((resolve, reject) => {
     const output = fs.createWriteStream(outPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } }); // archiver ≥8: class exports, no default factory
     output.on('close', () => resolve({ bytes: archive.pointer() }));
     archive.on('error', reject);
     archive.pipe(output);
