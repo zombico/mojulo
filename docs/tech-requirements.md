@@ -39,24 +39,27 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 
 ## Package size and disk footprint
 
-Measured **2026-09-09** against the published `mojulo@1.5.0` (npm registry metadata) and the
-repository lockfile installed on macOS arm64. The Unreleased 2.0 branch has not shipped; re-measure
-at release.
+Measured **2026-09-10** against the `mojulo@2.0.1` tarball (`npm pack` of the release tree; 6,449
+files) cold-installed into an empty directory on macOS arm64. The 1.5.0 figures it replaces were
+26.2 MB / 117 MB / ~740 MB / ~850 MB; the jump is the 2.0 dashboard and kernels in the package
+itself (117 → 240 MB unpacked) plus `onnxruntime-web` (130 MB) arriving as a transitive
+dependency of the embedder.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **26.2 MB** | `registry.npmjs.org/mojulo/-/mojulo-1.5.0.tgz` |
-| Unpacked package | **117 MB** | Includes the prebuilt Next.js dashboard (`.next/standalone`), translations, and the bot-runtime template. |
-| Production dependencies npm installs | **~740 MB** | Measured from the repo lockfile on macOS arm64. Breakdown below. |
-| **Total after `npx mojulo init`** | **~850 MB** | Before any model or browser download. |
+| npm tarball (what `npx` downloads) | **35.4 MB** | `mojulo-2.0.1.tgz` |
+| Unpacked package | **240 MB** | Includes the prebuilt Next.js dashboard (`.next/standalone`), translations, and the bot-runtime template. |
+| Production dependencies npm installs | **~730 MB** | Measured from a cold install of the tarball on macOS arm64. Breakdown below. |
+| **Total after `npx mojulo init`** | **~970 MB** | Before any model or browser download. |
 | Embedding model (first launch) | **~130 MB** on disk | `Xenova/multilingual-e5-small`, q8 ONNX, fetched once into `~/.mojulo/models/`. Powers `semantic_search`; runs in-process. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 
-**Why the dependencies are ~740 MB.** The largest pieces, all runtime deps of the kernel unless noted:
+**Why the dependencies are ~730 MB.** The largest pieces, all runtime deps of the kernel unless noted:
 
 | Dependency | Size | Why it's there |
 |---|---|---|
 | `onnxruntime-node` | 211 MB | Runs the embedding model. Ships binaries for macOS, Linux, **and** Windows in one package; only ~35 MB is used on macOS. This one line is most of the gap between the older "~340 MB kernel" figure and today's measurement. |
+| `onnxruntime-web` | 130 MB | Pulled in by `@huggingface/transformers` alongside the node runtime; the WASM builds are not used by mojulo but ship in the package. |
 | `node-web-audio-api` | 41 MB | Audio synthesis (beats, SFX). Creative group, optional. |
 | `three` | 38 MB | WebGL worlds. Creative group, optional. |
 | `better-sqlite3` | 27 MB | The database. |
@@ -198,8 +201,11 @@ Full requirements and deploy options: [chatbot/README.md](chatbot/README.md).
 - **Windows**: the installer handles `.cmd` shims and writes an absolute `npx` path for hosts that
   cannot see it; Chrome and Edge are detected under Program Files. `better-sqlite3`, `sharp`, and
   `onnxruntime-node` ship prebuilt binaries for Windows x64. Engine gates need the env vars set by
-  hand and are **not verified** on Windows.
-- **Linux**: Chrome and Chromium are detected at the usual `/usr/bin` and snap paths; the
+  hand and are **not verified** on Windows. No verification run to date has included a Windows
+  machine at all — `npx mojulo init` on Windows is untested by the project.
+- **Linux**: the test suite runs on Ubuntu in CI, and a cold install of the 2.0.1 tarball was
+  checked on 2026-09-10 in `node:22` containers on x64 and arm64 (install exits clean, the
+  `better-sqlite3` prebuilt loads, `mojulo tools` lists). Chrome and Chromium are detected at the usual `/usr/bin` and snap paths; the
   app-runtime daemon has a systemd user-unit recipe in [app-runtime.md](app-runtime.md). Same
   env-var story for engines; not verified.
 - **Native modules**: `better-sqlite3` uses a prebuilt binary when one exists for your OS, CPU, and
@@ -245,7 +251,9 @@ Recorded so nobody rediscovers them. None are fixed by this page.
    packages per release and its metadata can lead its tarballs by hours, so this is most likely
    transient. The durable point: an npm package ships no lockfile, so every fresh install floats to
    whatever the AWS SDK published that day. Pinning exact, or moving that dependency behind the
-   chatbot pack, would remove the exposure.
+   chatbot pack, would remove the exposure. **Resolved in 2.0.1:** the Bedrock provider and
+   `@aws-sdk/client-bedrock-runtime` were removed from the package; there is no AWS SDK in the
+   tree.
 2. **The install-capabilities size figures are understated.** Measured install is ~850 MB before
    models, not "a few hundred MB"; the "~340 MB kernel" predates `onnxruntime-node` shipping three
    platforms' binaries in one package. Both the README and `install-capabilities.md` now point at

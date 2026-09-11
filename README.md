@@ -4,6 +4,14 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.12-brightgreen)](control/package.json)
 
+![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
+
+<sub>One conversation, one recipe. <i>"Build a 20 by 24 ft living room with a door on the south wall"</i> mints a twelve-line floorplan recipe (`create_sketch`, kind <code>floorplan</code>) — walls, windows, sofa, two chairs, rug, lamp — served shaded and turnable at <code>/sketches/&lt;ref&gt;</code>. <i>"Add pot lights"</i> flips one field on the stored recipe (`update_sketch`); nothing is re-minted. <i>"The couch has its back to the TV"</i> is not the recipe's fault: a two-line kernel fix turns the sofa, and every lounge in every floorplan re-renders seated toward the screen while this recipe stays the same twelve lines, same seed. The handoff is the same file rendered in Blender Cycles, before and after, same camera. No key, no cloud render.</sub>
+
+Mojulo is a 3D factory for agents: a local MCP server where everything your coding agent makes is a small recipe it can re-run identically.
+
+**Install:** `npx mojulo init` — detects the MCP hosts on your machine (Claude Code, Codex, Claude Desktop, and others by declared profile), wires mojulo in, opens the dashboard. No API key needed. [Quickstart ↓](#quickstart)
+
 **Mojulo is a 3D factory for agents** — local, yours, not a hosted service. Point the agent you already run (Claude Code, Codex) at it and build **objects, worlds, and games by conversation**: you talk; the agent does the generating and the reasoning. Mojulo catches that output as a deterministic **recipe** on your own disk — a few kilobytes of parameters that regenerate identically, are editable a line at a time, and outlive the chat.
 
 **One ladder.** An **object** blocks out at literal scale. A **world** is a place you can walk. A **level** is a world minted under a game contract. A **game** composes the levels. Every rung is the same kind of recipe — deterministic geometry built from primitives on your machine, no image model, no cloud render, **no provider key** — so pieces compose upward, and **sound comes free**: SFX and music synthesized from pure math and seeded dice, no samples.
@@ -13,12 +21,6 @@
 **Mojulo feeds the tools you already use; it does not compete with them.** It is the agent-driven upstream — it authors the truth at home, and the edge tool consumes it without guessing at the seam. It is not a renderer trying to out-render Unreal, and it is not merely an exporter: the recipe is where the thing is born, lives, and re-renders. The engine or the printer is where it is optionally *finished*.
 
 **Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own: photo references are read by the agent's eyes, games are verified by agent-compiled traversals, and the reasoning bill stays on your existing Claude or ChatGPT subscription.
-
-**Install:** `npx mojulo init` — detects the MCP hosts on your machine (Claude Code, Codex, Claude Desktop, and others by declared profile), wires mojulo in, opens the dashboard. No API key needed. [Quickstart ↓](#quickstart)
-
-![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
-
-<sub>One conversation, one recipe. <i>"Build a 20 by 24 ft living room with a door on the south wall"</i> mints a twelve-line floorplan recipe (`create_sketch`, kind <code>floorplan</code>) — walls, windows, sofa, two chairs, rug, lamp — served shaded and turnable at <code>/sketches/&lt;ref&gt;</code>. <i>"Add pot lights"</i> flips one field on the stored recipe (`update_sketch`); nothing is re-minted. <i>"The couch has its back to the TV"</i> is not the recipe's fault: a two-line kernel fix turns the sofa, and every lounge in every floorplan re-renders seated toward the screen while this recipe stays the same twelve lines, same seed. The handoff is the same file rendered in Blender Cycles, before and after, same camera. No key, no cloud render.</sub>
 
 ---
 
@@ -129,6 +131,12 @@ Driving it yourself instead? You need two things installed first:
    (Claude Desktop works too — `init` detects and wires it — but a coding agent
    gets more out of the workshop.)
 
+Platforms, honestly: built and verified on macOS (Apple Silicon). Linux runs the test
+suite in CI and a cold install of 2.0.1 was checked on x64 and arm64 containers. Windows
+has not been part of any verification run — the installer carries Windows paths, but
+nothing here has been checked on a Windows machine. If you run it there, open an issue
+with what you saw.
+
 No provider key. Your agent is the reasoning loop, so objects, worlds, games,
 scores and exports all run keyless. A key enters only when something has to
 *paint* a directed image, or if you install the optional chatbot pack.
@@ -140,11 +148,19 @@ npx mojulo init
 `init` detects your MCP host(s), wires mojulo into each (one yes/no per host),
 and opens the dashboard at `http://localhost:3001` (or the next free port — the
 installer prints the URL). Nothing is sent anywhere; state lands in `~/.mojulo/`.
-The first install is the big one: npx pulls a ~26 MB package plus its native
-dependencies (measured at about 850 MB on disk before any model), and the first
+The first install is the big one: npx pulls a ~35 MB package plus its native
+dependencies (measured at about 970 MB on disk before any model), and the first
 launch fetches a ~130 MB embedding model in the background — after that, starts
 are instant. Measured sizes, lazy first-use downloads, and what each engine leg
 needs: [docs/tech-requirements.md](docs/tech-requirements.md).
+
+**Why these dependencies.** The install is mostly three things, and all of them run on your machine.
+`onnxruntime-node` and `@huggingface/transformers` run the *local* search model behind
+`semantic_search` — the runtime ships binaries for every platform in one package, which is most
+of the size. `puppeteer-core` drives a *local* headless Chrome for stills and bakes; the browser
+itself is fetched on first use, or skipped if you already have Chrome. `better-sqlite3` is the one
+database file under `~/.mojulo/`. Nothing in that list reaches the network on its own. The
+per-dependency sheet, with sizes, is in the same tech-requirements page.
 
 The dashboard opens in English but ships fully translated in every locale under `control/messages/`,
 including right-to-left scripts — switch anytime under **Settings → Language**.
@@ -256,7 +272,6 @@ The control plane is a Next.js app exposing two surfaces over the same state:
 
 Your agent calls mojulo's tools via MCP; the tools mutate state in `~/.mojulo/`; the dashboard renders that state. When your agent first connects it calls `forward_context` to read mojulo's routing index, so the session orients itself before doing anything. The tool surface unfolds progressively behind that thin index, so a session spends tokens only on the tools it actually fires. Hosts are declared profiles, not vendor special-cases; the matching adapter is auto-resolved from the connecting client. Non-Claude agents should also read [AGENTS.md](AGENTS.md).
 
-![The mojulo Workshop Home at localhost:3001 — Studio, Ideate, and Operate as rows of dot-relief doors, with the making bays your agent fills](docs/images/workshop_home.png)
 
 ---
 

@@ -1,29 +1,39 @@
 # Mojulo
 
-**Mojulo is a 3D factory for agents** — local, yours, not a hosted service. You talk to the agent you already run (Claude Code, Codex); it does the reasoning, and mojulo is the machine it works in, where what it builds accumulates on your own disk. Build **objects, worlds, and games by conversation.** What it builds is a **ladder**: an object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples and no key. Each rung is a tiny deterministic **recipe** — small enough to read, seeded to regenerate identically, never a render.
+![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/lounge-handoff-demo.gif)
 
-**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser and export to **Godot** as a real project, to **Unity** and **Unreal** as a data pack plus importer (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured; figures and worlds print as maquettes fit to a size you choose.
+Mojulo is a 3D factory for agents: a local MCP server where everything your coding agent makes is a small recipe it can re-run identically.
 
-Mojulo is the agent-driven **upstream** that feeds the tools professionals already use. It does not try to out-render a game engine, and it is not merely an exporter: the recipe is where the thing is born, lives, and re-renders — the engine or the printer is where it is optionally *finished*. The ladder is honest on purpose: Godot first-class, Unity and Unreal as gated legs, Blender as an art pass, and every handoff carries a ledger of what did not travel.
+```bash
+npx mojulo init
+```
 
-**Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own: photo references are read by the agent's eyes, games are verified by agent-compiled traversals, and the reasoning bill stays on your existing subscription. Optional local workers — Blender, a slicer, a mesh sculptor, an image or voice model — are yours to host and never dependencies.
+That wires mojulo into the coding agents on this machine (Claude Code, Codex, Claude Desktop — one yes/no each) and opens the dashboard. Node 22.12+. No API key; your agent is the reasoning loop.
 
-**Built for fresh context.** The tool surface unfolds progressively behind a thin routing index, so a session spends tokens only on what it fires. And because every artifact is anchored by a recipe, a later session iterates it with a parameter change instead of a rebuild.
+You talk to the agent you already run; it does the reasoning, and mojulo is the machine it works in. Build **objects, worlds, and games by conversation.** An object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples. Each rung is a small deterministic **recipe**: readable, seeded to regenerate identically, never a render.
 
-The user-facing bins, one install:
+**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser and export to **Godot** as a real project, to **Unity** and **Unreal** as a data pack plus importer (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured.
+
+Mojulo is the **upstream** that feeds the tools you already use. It does not try to out-render a game engine, and it is not just an exporter: the recipe is where the thing is born and re-renders; the engine or the printer is where it is optionally finished. Every handoff carries a ledger of what did not travel.
+
+**Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own. Optional local workers — Blender, a slicer, a mesh sculptor — are yours to host and never dependencies.
+
+The bins, one install:
 
 - `mojulo` — stdio MCP server (`npx -y mojulo`, wired into Claude Code, Codex, or any other MCP host); also the installer and a CLI front door (below).
-- `mojulo-ui` — local dashboard for visual operation (`npx -y -p mojulo mojulo-ui`).
+- `mojulo-ui` — local dashboard (`npx -y -p mojulo mojulo-ui`).
 - `mojulo-config` — provider key CLI, only needed for directed images or the optional chatbot pack.
 
-`mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint from your agent shows up in the dashboard immediately, and vice versa.
+`mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint from your agent shows up in the dashboard immediately.
 
 ## Quickstart
 
 Prerequisite: **Node.js 22.12+** (`node --version`). Everything below runs through
 `npx`, which ships with Node — if you don't have it, install it from
 [nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
-No provider key: your agent is the reasoning loop.
+No provider key: your agent is the reasoning loop. Verified on macOS (Apple Silicon)
+and, for a cold install, on Linux x64 and arm64; Windows has not been part of any
+verification run.
 
 ```bash
 # 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
@@ -53,10 +63,18 @@ npx mojulo init
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
-First install is the big one: npx pulls a ~26 MB package plus its native dependencies
-(measured at about 850 MB on disk), and the first launch fetches a ~130 MB embedding
+First install is the big one: npx pulls a ~35 MB package plus its native dependencies
+(measured at about 970 MB on disk), and the first launch fetches a ~130 MB embedding
 model in the background. Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
+
+**Why these dependencies.** The install is mostly three things, and all of them run on your machine.
+`onnxruntime-node` and `@huggingface/transformers` run the *local* search model behind
+`semantic_search` — the runtime ships binaries for every platform in one package, which is most
+of the size. `puppeteer-core` drives a *local* headless Chrome for stills and bakes; the browser
+itself is fetched on first use, or skipped if you already have Chrome. `better-sqlite3` is the one
+database file under `~/.mojulo/`. Nothing in that list reaches the network on its own. The
+per-dependency sheet, with sizes, is in the same tech-requirements page.
 
 ### CLI
 
