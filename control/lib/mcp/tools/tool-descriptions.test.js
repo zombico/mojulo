@@ -102,7 +102,7 @@ const DESCRIPTION_ALLOWLIST = {
   get_image_render_packet: 708,
   get_mcp_capabilities: 890,
   get_register_kit: 731,
-  get_tool_telemetry: 906,
+  get_tool_ledger: 937,
   get_worked_example: 946,
   install_scaffold: 1317,
   list_catalysts: 833,

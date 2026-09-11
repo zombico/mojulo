@@ -188,7 +188,7 @@ describe('McpToolCallRepository — aggregates + recent', () => {
   });
 });
 
-describe('get_tool_telemetry — drawer handler shape', () => {
+describe('get_tool_ledger — drawer handler shape', () => {
   it('no-args → aggregate summary text with the per-tool table + recent errors', async () => {
     const now = Date.now();
     McpToolCallRepository.record({ tool: 'create_view', via: 'rpc', startedAt: now, durationMs: 12, status: 'ok' });
@@ -385,7 +385,7 @@ describe('McpToolCallRepository.orientationGaps — the dead-end-clue cut', () =
     ]);
   });
 
-  it('get_tool_telemetry { orientation: true } renders the cut', async () => {
+  it('get_tool_ledger { orientation: true } renders the cut', async () => {
     record({ tool: 'semantic_search', signal: { result_count: 0 }, sessionId: 's1' });
     record({ tool: 'forward_context', sessionId: 's1' });
     const { content } = await getToolTelemetryHandler({ orientation: true });

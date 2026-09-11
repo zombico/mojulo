@@ -12,6 +12,46 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-09-15
+
+### `--help` answers, the ledger tool is named for what it is, and the registry fields
+
+- **Added: `mojulo --help`, `-h`, bare `help`, `--version`, `-v`.** A bare `npx mojulo --help` used
+  to fall through to stdio-server mode and, with nothing on stdin, exit with no output at all — the
+  first thing a stranger types printed nothing. The flags are answered before the loader, paths and
+  console pin, so usage prints at once; `help <tool|pack>` still goes to the CLI.
+- **Renamed: `get_tool_telemetry` → `get_tool_ledger`.** The tool reads the ledger the substrate
+  keeps of its own MCP tool calls — shapes and timings, never values, never leaving the machine —
+  and its old name sat in `npx mojulo tools` output beside the no-telemetry promise. Its
+  description now leads with what it is. No alias: nothing shipped had wired the old name.
+- **Changed: the first-connect surface leads with the factory.** `PACKS` is reordered so
+  `tools/list` and `npx mojulo tools` show the studio packs first — `pack_object`, `pack_world`,
+  `pack_game`, then views, motion, audio, voice, illustration, reference, image render, diagram —
+  and the office packs after, with the three install-gated chatbot packs last. Nothing is hidden
+  or removed; only the order changed. `get_substrate`'s description now opens on the 2.0 pitch
+  (Media and Game as recipes, the two pipelines, the retained backend) instead of "the five
+  paradigms".
+- **Changed: `archiver` 7 → 8 and `better-sqlite3` 12 → 13.** The two dependencies that carried
+  npm's deprecation warnings on a cold install: `archiver@7` pulled `glob@10` ("widely publicized
+  security vulnerabilities"), `better-sqlite3@12` pulled `prebuild-install` ("no longer
+  maintained"). `archiver@8` drops its default export, so the bot stager now imports `ZipArchive`;
+  `better-sqlite3@13` is N-API and ships its prebuilt binaries in the package. Two benign warnings
+  remain upstream of what this package can pin: `boolean` (via `onnxruntime-node`) and
+  `node-domexception` (via `node-web-audio-api` → `node-fetch`).
+- **Removed: the AWS Bedrock provider.** Bedrock was wired end-to-end (settings, wizard branch,
+  `generateSummary` / `generateStructured`, the builder stream, the deployers) but hidden from
+  the provider picker since 1.x, and it pulled the whole `@aws-sdk/client-bedrock-runtime` tree
+  into every install. The provider entry, the four region/model-id helpers, the two Bedrock
+  generators, the builder-stream branch, the wizard credential form, the deployer env lines and
+  the five locale strings are gone, and so is the dependency. Providers are now Anthropic,
+  OpenAI and Ollama. A saved `bedrock` row in `api_keys` from an older install is ignored.
+- **Docs: why these dependencies.** Both READMEs and the trust page now say what the heavy
+  dependencies do on the operator's machine.
+- **Changed: `package.json` metadata.** `mcpName: io.github.zombico/mojulo` (required by the
+  official MCP Registry's npm validation), `homepage` now `https://mojulo.ai`,
+  `repository.directory: control` so npm resolves the README's relative paths, and keywords
+  `gltf` and `blender`.
+
 ### The Data page reaches the repo (gitignore anchor)
 
 - **Fixed: `control/.gitignore` ignored every directory named `data`.** The rule `data/` was meant

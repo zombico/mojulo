@@ -40,6 +40,8 @@ export const USAGE = `Usage:
                      (bare --<prop> for booleans; JSON literal for nested)
     --timeout <ms>   give up waiting after <ms> (exit 124; long-poll tools)
     --quiet          suppress result output; exit code only
+  mojulo --help | -h           this text
+  mojulo --version | -v        print the package version
   (no subcommand)              run as a stdio MCP server`;
 
 const RESERVED_FLAGS = new Set(['--json', '--timeout', '--quiet']);

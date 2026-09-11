@@ -454,7 +454,7 @@ const TOOL_INDEX = `## Tool index (one line each)
 - \`get_substrate\` — what mojulo is and what it can honestly claim (pipelines, inference posture, always-on, bots as an optional pack, cloud properties it lacks) plus the substrate facts: a dozen architecture invariants (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE self-description answers from. Call when the user compares mojulo to cloud primitives, asks "what is this really?", or asks about mojulo itself — "does it phone home?", "where does my data live?", "do I have to pay?", "how do I uninstall?".
 - \`version\` — runtime versions: server, MCP protocol, Node, platform, pinned bot image tag, offline-build flag, MOJULO_HOME. Use to diagnose version mismatches.
 - \`check_for_updates\` — compare the running control-plane package (\`mojulo\` on npm) and the pinned bot image (\`ghcr.io/zombico/mojulo-bot\`) against their latest published versions. Returns \`{ controlPlane, botImage, warnings }\` with current, latest, \`updateAvailable\`, and a one-line install hint per surface. Read-only; never performs the upgrade. Call when the user asks "am I up to date?" or after a long gap between sessions.
-- \`get_tool_telemetry\` — the substrate's own tool-call telemetry. No args → per-tool aggregate table (calls, error rate, p50/p95, last-called) over the last N days + recent errors/timeouts; \`{ tool }\` → that tool's recent calls; \`{ orientation: true }\` → the orientation-gap cut (weak searches, drawer misses, oriented-then-abandoned sessions — "is the lexicon working?"). Records shapes only, never values. Mirrors the \`/observability\` page.
+- \`get_tool_ledger\` — the substrate's own tool-call telemetry. No args → per-tool aggregate table (calls, error rate, p50/p95, last-called) over the last N days + recent errors/timeouts; \`{ tool }\` → that tool's recent calls; \`{ orientation: true }\` → the orientation-gap cut (weak searches, drawer misses, oriented-then-abandoned sessions — "is the lexicon working?"). Records shapes only, never values. Mirrors the \`/observability\` page.
 - \`list_adapters\` — list the host adapters mojulo ships, whatever they are on this version (the roster grows; \`generic\` is always there as the fallback). An adapter is the host's first-session card (studio ride + catalyst materialization). Read \`get_adapter\` once before making or synthesizing.
 - \`get_adapter\` — full body of one adapter: how you ride this substrate, plus artifact target, dry-run, scheduling, state, secrets. Pull once before making or synthesizing. Pass \`id\` or auto-resolve from clientInfo.
 
@@ -916,7 +916,7 @@ The dashboard is the human-shaped face of the same \`~/.mojulo/\` state this MCP
 - **\`/chat-builder\`** — the conversational bot builder (Claude tool-use over SSE). The chat face of the same build tools this MCP exposes in Ring 1.
 - **\`/apps\`** — the Apps pane. App-paradigm processes the agent materialized: lifecycle, per-app env vars, live MCP-sidecar introspection — read from the contextmap + local runner. Point here when the user asks "what apps are running?"
 - **\`/data\`** — Fleet Data: Explorer / Analytics / SQL Explorer tabs over the fleet's rollups (conversation content never leaves each bot). Point here for "let me browse/scan the data" or ad-hoc SQL.
-- **\`/observability\`** — MCP tool-layer telemetry: per-tool aggregates (calls, error rate, p50/p95), a recent-errors feed, and a recent-calls tail over the substrate's own tool invocations. Records shapes + timings only, never input values or conversation content. Point here for "which tool broke / what's slow?"; the in-session equivalent is the \`get_tool_telemetry\` tool.
+- **\`/observability\`** — MCP tool-layer telemetry: per-tool aggregates (calls, error rate, p50/p95), a recent-errors feed, and a recent-calls tail over the substrate's own tool invocations. Records shapes + timings only, never input values or conversation content. Point here for "which tool broke / what's slow?"; the in-session equivalent is the \`get_tool_ledger\` tool.
 - **\`/map\`** — the whole fleet on two planes: apps + bots on the ground, MCP servers + connected services in the air. The big-picture "what do I have" view.
 - **\`/graph\`** — App Creation Map: how an app comes together, each box a piece and each arrow what causes what. Point here for "how does mojulo make apps?" or to see where the four bindings live.
 - **\`/plan\`** — Plan inbox (Ring 8): proposed work — sessions that became spikes. Read-only; New Plan opens a fresh host-agent session.
@@ -1360,7 +1360,7 @@ const ORIENTATION_TOOLS = [
   'get_worked_example',
   'version',
   'check_for_updates',
-  'get_tool_telemetry',
+  'get_tool_ledger',
 ];
 
 function renderOrientationGaps(gaps, coverage) {
@@ -1683,9 +1683,9 @@ export function registerContextTools() {
   });
 
   registerTool({
-    name: 'get_tool_telemetry',
+    name: 'get_tool_ledger',
     description:
-      "Read the MCP tool-layer telemetry the substrate records for its own tool calls (one row per handler invocation across both call paths — rpc + plan-executor). Three modes: no args → a per-tool aggregate table (calls, error rate, p50/p95 latency, last-called) over the last `sinceDays` (default 7) plus the most recent errors and timeouts; `{ tool }` → that tool's recent calls newest-first with status + duration; `{ orientation: true }` → the orientation-gap cut (weak semantic searches, vocab-drawer misses, sessions that oriented then made no non-orientation call) — the measurement of whether the ask-and-discover loop is rewarding the question. This is the in-session answer to \"which tool broke?\" / \"what's slow?\" / \"is the lexicon working?\" without leaving the chat. Records SHAPES only — never input values or conversation content. Read-only, idempotent. Mirrors the `/observability` dashboard page.",
+      "Read the ledger the substrate keeps of its own MCP tool calls — shapes and timings, one row per handler invocation across both call paths (rpc + plan-executor); nothing leaves the machine. Three modes: no args → a per-tool aggregate table (calls, error rate, p50/p95 latency, last-called) over the last `sinceDays` (default 7) plus the most recent errors and timeouts; `{ tool }` → that tool's recent calls newest-first with status + duration; `{ orientation: true }` → the orientation-gap cut (weak semantic searches, vocab-drawer misses, sessions that oriented then made no non-orientation call) — the measurement of whether the ask-and-discover loop is rewarding the question. This is the in-session answer to \"which tool broke?\" / \"what's slow?\" / \"is the lexicon working?\" without leaving the chat. Records SHAPES only — never input values or conversation content. Read-only, idempotent. Mirrors the `/observability` dashboard page.",
     inputSchema: {
       type: 'object',
       properties: {

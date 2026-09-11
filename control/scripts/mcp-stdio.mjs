@@ -60,6 +60,26 @@ if (process.argv[2] === 'install') {
   process.exit(0);
 }
 
+// `mojulo --help|-h|help` and `mojulo --version|-v` — answered here, before
+// the loader, paths, chdir and console pin, so a stranger's first
+// `npx mojulo --help` prints usage at once and never falls through to
+// stdio-server mode (which waits on stdin and, when it closes, exits with no
+// output at all). Bare `help` with no tool name means the same thing; `help
+// <tool|pack>` still goes to the CLI below. mcp-cli.mjs has no static
+// imports, so USAGE is safe to read before `register()`.
+const firstArg = process.argv[2];
+if (firstArg === '--help' || firstArg === '-h' || (firstArg === 'help' && process.argv.length === 3)) {
+  const { USAGE } = await import('./mcp-cli.mjs');
+  process.stdout.write(`${USAGE}\n`);
+  process.exit(0);
+}
+if (firstArg === '--version' || firstArg === '-v') {
+  const { readFileSync } = await import('node:fs');
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  process.stdout.write(`mojulo ${version}\n`);
+  process.exit(0);
+}
+
 // Resolve `@/...` like Next.js does, so the stdio entry can reuse the same
 // server.js + tool modules the Next.js route uses.
 register('./mcp-stdio-loader.mjs', import.meta.url);
@@ -85,7 +105,7 @@ process.chdir(CONTROL_DIR);
 console.log = console.error;
 console.info = console.error;
 
-// `npx mojulo tools|packs|help|call|pack_* …` — the CLI front door (P1+P2 of
+// `npx mojulo tools|packs|help <name>|call|pack_* …` — the CLI front door (P1+P2 of
 // [mojulo-cli.plan.md]). Branches AFTER the loader/paths/chdir/console pin
 // (the CLI reuses the same `@/` resolution and data layout, and wants stray
 // tool logs on stderr — its own output writes to process.stdout directly)

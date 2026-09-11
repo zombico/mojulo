@@ -155,7 +155,7 @@ function logLine({ tool, durationMs, status, via, sessionId }) {
  * Preserves each caller's existing control flow: returns the raw handler result
  * on success, and THROWS on error or timeout (handleToolCall maps a throw to an
  * isError result; the plan executor records it as a failed step). The timeout
- * message names /observability and get_tool_telemetry so the operator can find
+ * message names /observability and get_tool_ledger so the operator can find
  * the flagged call.
  *
  * @param {object} tool - the registered tool ({ name, handler, timeoutMs? }).
@@ -263,7 +263,7 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
 
       throw new Error(
         `${calledName} exceeded its ${timeoutMs}ms budget; the work may still be running. ` +
-          `Check /observability or get_tool_telemetry.`
+          `Check /observability or get_tool_ledger.`
       );
     }
 

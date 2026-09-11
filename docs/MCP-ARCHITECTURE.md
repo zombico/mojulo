@@ -202,7 +202,7 @@ The `tool.handler(input, ctx)` step above is wrapped by a single instrumentation
 
 **Retention:** `pruneMcpToolCalls` keeps ≤30 days and ≤50k rows (whichever bounds tighter), run on startup init and piggybacked on `scripts/cleanup-stale-artifacts.js`.
 
-**Read surfaces:** the `get_tool_telemetry` tool (in-session: aggregates + recent errors, or one tool's recent calls), the `/observability` dashboard page, and `GET /api/mcp-telemetry`. Flags: `MOJULO_MCP_TELEMETRY=off` disables recording entirely.
+**Read surfaces:** the `get_tool_ledger` tool (in-session: aggregates + recent errors, or one tool's recent calls), the `/observability` dashboard page, and `GET /api/mcp-telemetry`. Flags: `MOJULO_MCP_TELEMETRY=off` disables recording entirely.
 
 ---
 
