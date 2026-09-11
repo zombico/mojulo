@@ -238,6 +238,7 @@ Recipe determinism is a fourth, quieter case of #2: a builder whose output shift
 
 - `control/lib/foo.js` → `control/lib/foo.test.js` (co-located).
 - `lite-template/test/*.test.js` (the bot's runner uses native CommonJS, kept under `test/` to match `node --test test/**/*.test.js`).
+- `.mcp.json` at the repo root is for contributors, not users: it wires `mojulo-orient` (`control/scripts/orient-mcp.mjs`), a tiny stdio MCP that tours the founding works as recipes, into any agent that reads project MCP config. It is not part of the published package.
 
 New tests should follow the existing pattern in the package they cover.
 

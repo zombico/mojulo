@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or launch-day help
+    url: https://github.com/zombico/mojulo/discussions
+    about: Questions that are not bugs belong in Discussions.
+  - name: Security report
+    url: https://github.com/zombico/mojulo/security/policy
+    about: Please use private vulnerability reporting, never a public issue.
