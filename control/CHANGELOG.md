@@ -12,7 +12,7 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
-## [2.0.1] - 2026-09-15
+## [2.0.1] - 2026-09-10
 
 ### `--help` answers, the ledger tool is named for what it is, and the registry fields
 
