@@ -55,10 +55,6 @@ async function resolveCredential({ provider, apiKey, apiKeyId, editDeploymentId 
     const existing = await DeploymentRepository.findById(editDeploymentId);
     const block = existing?.config?.llm?.[provider];
     if (!block) return null;
-    if (provider === 'bedrock') {
-      const hasCreds = block.useIamRole || (block.accessKeyId && block.secretAccessKey);
-      return hasCreds ? JSON.stringify(block) : null;
-    }
     if (provider === 'ollama') {
       // Ollama config carries `host` instead of `apiKey`. Encode it in the
       // JSON shape that resolveOllamaHost expects downstream so the same
@@ -162,7 +158,7 @@ export async function POST(request) {
     }
 
     // Validate provider
-    const validProviders = ['openai', 'anthropic', 'bedrock', 'ollama'];
+    const validProviders = ['openai', 'anthropic', 'ollama'];
     if (!validProviders.includes(provider)) {
       return NextResponse.json(
         { error: `Invalid provider: ${provider}. Must be one of: ${validProviders.join(', ')}` },
@@ -185,28 +181,7 @@ export async function POST(request) {
       );
     }
 
-    if (provider === 'bedrock') {
-      if (!resolvedApiKey) {
-        return NextResponse.json(
-          { error: 'AWS credentials are required for Bedrock.' },
-          { status: 400 }
-        );
-      }
-      try {
-        const creds = JSON.parse(resolvedApiKey);
-        if (!creds.useIamRole && (!creds.accessKeyId || !creds.secretAccessKey)) {
-          return NextResponse.json(
-            { error: 'AWS Access Key ID and Secret Access Key are required (or enable IAM Role).' },
-            { status: 400 }
-          );
-        }
-      } catch {
-        return NextResponse.json(
-          { error: 'Invalid Bedrock credentials format.' },
-          { status: 400 }
-        );
-      }
-    } else if (provider === 'ollama') {
+    if (provider === 'ollama') {
       // Ollama needs no credential — when resolvedApiKey is null the
       // adapter falls back to LLM_PROVIDERS.ollama.defaultHost. When it's
       // set, it carries the host URL (either JSON {host} or bare URL),

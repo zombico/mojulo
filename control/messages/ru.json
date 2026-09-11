@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Конечная точка, которую будет нажимать ваш бот. Оставьте пусто, чтобы использовать значение по умолчанию http://localhost:11434. Если ваш бот работает в Docker, а Ollama работает на хосте, используйте http://host.docker.internal:11434 (Mac/Windows) или LAN IP вашего хоста (Linux). Облачные развертывания требуют общедоступную конечную точку Ollama. Требуется Ollama ≥ 0.5.0 для гарантий действительности конверта — более старые демоны работают, но переходят к анализу JSON с лучшими усилиями.",
       "ollamaHostSavedPlaceholder": "Используя сохраненный хост — очистить для ввода свежего URL",
       "ollamaHostUsingSaved": "Используя сохраненный хост Ollama:",
-      "ollamaHostOrUseSaved": "Или используйте сохраненный хост Ollama:",
-      "awsCredentialsUsing": "Используя сохраненные учетные данные AWS:",
-      "awsCredentialsExisting": "Настроены существующие учетные данные AWS — будут повторно использованы, если вы не введете новые ниже",
-      "awsUseIamRole": "Использовать роль IAM (рекомендуется для EKS/EC2)",
-      "awsUseIamRoleHelper": "Использует роль IAM экземпляра/пода вместо явных учетных данных",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Регион Bedrock",
-      "bedrockRegionOption": "{name} ({geoPrefix} кросс-регион)",
-      "bedrockCrossRegion": "Кросс-региональный вывод маршрутизирует запросы на доступную емкость в регионе {regionName}",
-      "regionUS": "США",
-      "regionEU": "ЕС",
-      "regionAPAC": "АПАК",
-      "awsUsingIamRoleStatus": "Использование роли IAM",
-      "awsCredentialsConfigured": "Учетные данные AWS настроены",
-      "awsLoadingCredentials": "Загрузка сохраненных учетных данных...",
-      "awsOrUseSaved": "Или используйте сохраненные учетные данные AWS:"
+      "ollamaHostOrUseSaved": "Или используйте сохраненный хост Ollama:"
     },
     "knowledge": {
       "loadingDocuments": "Загрузка документов...",
@@ -962,12 +944,10 @@
         "description": "Питает конструктор ботов и встраивается в каждого созданного вами бота.",
         "defaultName": "По умолчанию",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (вставьте учетные данные JSON)",
           "ollama": "Ollama (локально — вставьте URL хоста)"
         }
       },

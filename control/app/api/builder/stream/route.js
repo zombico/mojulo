@@ -27,7 +27,7 @@ import { parseModularDeploymentConfig } from '@/lib/config-builder';
 import { auditLog } from '@/lib/audit-logger-new';
 import { checkRateLimit, RateLimitPresets } from '@/lib/rate-limiter';
 import { parseDocument } from '@/lib/document-parser';
-import { buildBedrockModelId, getDefaultModelForTask, resolveOllamaHost } from '@/lib/llm-providers';
+import { getDefaultModelForTask, resolveOllamaHost } from '@/lib/llm-providers';
 import { uploadFile } from '@/lib/storage';
 import { decryptApiKey } from '@/lib/deployment-auth';
 import { relayAgentTurn } from '@/lib/agent-chat/relay';
@@ -88,7 +88,7 @@ async function getLLMConfigForBuilder(session, userId) {
     // Local-only inference (ollama) sits last so a user with both cloud
     // and Ollama keys doesn't get silently routed to the slower lane —
     // ollama selection happens via isDefault, not by accident.
-    const fallbackOrder = ['anthropic', 'bedrock', 'openai', 'ollama'];
+    const fallbackOrder = ['anthropic', 'openai', 'ollama'];
     for (const provider of fallbackOrder) {
       apiKeyRecord = apiKeys.find((k) => k.provider === provider);
       if (apiKeyRecord) break;
@@ -601,17 +601,6 @@ async function streamModularWithTools(
 ) {
   const { provider, apiKey, model } = llmConfig;
 
-  if (provider === 'bedrock') {
-    return streamModularWithBedrockTools(
-      systemPrompt,
-      messages,
-      executionContext,
-      controller,
-      encoder,
-      llmConfig
-    );
-  }
-
   if (provider === 'openai') {
     return streamModularWithOpenAITools(
       systemPrompt,
@@ -636,7 +625,7 @@ async function streamModularWithTools(
 
   if (provider !== 'anthropic') {
     throw new Error(
-      `Lite chat builder streaming supports Anthropic, OpenAI, Ollama, or Bedrock. Got: ${provider}.`
+      `Lite chat builder streaming supports Anthropic, OpenAI, or Ollama. Got: ${provider}.`
     );
   }
 
@@ -847,209 +836,6 @@ async function streamModularWithTools(
 
     toolUseBlocks = [];
     currentText = '';
-  }
-
-  return { fullResponse, toolResults };
-}
-
-async function streamModularWithBedrockTools(
-  systemPrompt,
-  messages,
-  executionContext,
-  controller,
-  encoder,
-  llmConfig
-) {
-  const { BedrockRuntimeClient, ConverseStreamCommand } = await import(
-    '@aws-sdk/client-bedrock-runtime'
-  );
-
-  let credentials;
-  try {
-    credentials = JSON.parse(llmConfig.apiKey);
-  } catch {
-    throw new Error('Invalid Bedrock credentials format');
-  }
-
-  const { region, useIamRole, accessKeyId, secretAccessKey } = credentials;
-  const clientConfig = { region: region || 'us-east-1' };
-  if (!useIamRole && accessKeyId && secretAccessKey) {
-    clientConfig.credentials = { accessKeyId, secretAccessKey };
-  }
-  const client = new BedrockRuntimeClient(clientConfig);
-  const modelId = buildBedrockModelId(llmConfig.model, region);
-
-  const bedrockTools = BUILDER_TOOLS.map((tool) => ({
-    toolSpec: {
-      name: tool.name,
-      description: tool.description,
-      inputSchema: { json: tool.input_schema },
-    },
-  }));
-
-  const convertMessagesToBedrock = (msgs) =>
-    msgs.map((msg) => {
-      if (typeof msg.content === 'string') {
-        return { role: msg.role, content: [{ text: msg.content }] };
-      }
-      const bedrockContent = msg.content.map((block) => {
-        if (block.type === 'text') return { text: block.text };
-        if (block.type === 'tool_use') {
-          return {
-            toolUse: {
-              toolUseId: block.id,
-              name: block.name,
-              input: block.input,
-            },
-          };
-        }
-        if (block.type === 'tool_result') {
-          return {
-            toolResult: {
-              toolUseId: block.tool_use_id,
-              content: [{ text: block.content }],
-              status: block.is_error ? 'error' : 'success',
-            },
-          };
-        }
-        return { text: JSON.stringify(block) };
-      });
-      return { role: msg.role, content: bedrockContent };
-    });
-
-  const toolResults = [];
-  let currentMessages = [...messages];
-  let iterations = 0;
-  let fullResponse = '';
-
-  while (iterations < MAX_TOOL_ITERATIONS) {
-    iterations++;
-    if (iterations > 1) {
-      await new Promise((r) => setTimeout(r, TOOL_LOOP_DELAY_MS));
-    }
-
-    const bedrockMessages = convertMessagesToBedrock(currentMessages);
-    const command = new ConverseStreamCommand({
-      modelId,
-      system: [{ text: systemPrompt }],
-      messages: bedrockMessages,
-      toolConfig: { tools: bedrockTools },
-      inferenceConfig: { maxTokens: MAX_TOKENS },
-    });
-
-    const response = await client.send(command);
-
-    let currentText = '';
-    let toolUseBlocks = [];
-    let currentToolUse = null;
-    let sentSpeakingState = false;
-
-    for await (const event of response.stream) {
-      if (event.contentBlockStart) {
-        const block = event.contentBlockStart.start;
-        if (block?.toolUse) {
-          currentToolUse = {
-            id: block.toolUse.toolUseId,
-            name: block.toolUse.name,
-            input: '',
-          };
-        }
-      } else if (event.contentBlockDelta) {
-        const delta = event.contentBlockDelta.delta;
-        if (delta?.text) {
-          if (!sentSpeakingState) {
-            sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'speaking' });
-            sentSpeakingState = true;
-          }
-          currentText += delta.text;
-          sendEvent(controller, encoder, EventTypes.TEXT, { text: delta.text });
-        } else if (delta?.toolUse && currentToolUse) {
-          currentToolUse.input += delta.toolUse.input || '';
-        }
-      } else if (event.contentBlockStop) {
-        if (currentToolUse) {
-          try {
-            currentToolUse.input = JSON.parse(currentToolUse.input || '{}');
-          } catch {
-            currentToolUse.input = {};
-          }
-          toolUseBlocks.push(currentToolUse);
-          currentToolUse = null;
-        }
-      }
-    }
-
-    fullResponse += currentText;
-
-    if (toolUseBlocks.length === 0) {
-      return { fullResponse, toolResults };
-    }
-
-    const toolResultContents = [];
-    for (const toolUse of toolUseBlocks) {
-      sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'thinking' });
-      sendEvent(controller, encoder, EventTypes.TOOL_STARTED, {
-        tool: toolUse.name,
-        toolDisplayName: TOOL_LABELS[toolUse.name] || toolUse.name,
-        input: toolUse.input,
-      });
-
-      const updatedSession = await BuilderSessionRepository.findById(
-        executionContext.session.id
-      );
-      executionContext.session = updatedSession;
-
-      const result = await executeBuilderTool(toolUse.name, toolUse.input, executionContext);
-      toolResults.push({
-        tool: toolUse.name,
-        toolDisplayName: TOOL_LABELS[toolUse.name] || toolUse.name,
-        success: result.success,
-        result: result.success ? result.result : undefined,
-        error: result.error,
-      });
-
-      if (result.success) {
-        sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'success' });
-        sendEvent(controller, encoder, EventTypes.TOOL_COMPLETED, {
-          tool: toolUse.name,
-          toolDisplayName: TOOL_LABELS[toolUse.name] || toolUse.name,
-          result: result.result,
-        });
-      } else {
-        sendEvent(controller, encoder, EventTypes.MODULO_EXPRESSION, { state: 'concerned' });
-        sendEvent(controller, encoder, EventTypes.TOOL_FAILED, {
-          tool: toolUse.name,
-          toolDisplayName: TOOL_LABELS[toolUse.name] || toolUse.name,
-          error: result.error,
-        });
-      }
-
-      toolResultContents.push({
-        type: 'tool_result',
-        tool_use_id: toolUse.id,
-        content: result.success
-          ? JSON.stringify(result.result, null, 2)
-          : `Error: ${result.error}`,
-        is_error: !result.success,
-      });
-    }
-
-    currentMessages.push({
-      role: 'assistant',
-      content: [
-        ...(currentText ? [{ type: 'text', text: currentText }] : []),
-        ...toolUseBlocks.map((tu) => ({
-          type: 'tool_use',
-          id: tu.id,
-          name: tu.name,
-          input: tu.input,
-        })),
-      ],
-    });
-
-    currentMessages.push({ role: 'user', content: toolResultContents });
-
-    toolUseBlocks = [];
   }
 
   return { fullResponse, toolResults };

@@ -667,25 +667,7 @@
       "ollamaHostHelper": "نقطة النهاية التي سيصل إليها روبوتك. اترك الحقل فارغاً للافتراضي http://localhost:11434. إذا كان روبوتك يعمل في Docker وOllama يعمل على المضيف، استخدم http://host.docker.internal:11434 (Mac/Windows) أو عنوان IP للشبكة المحلية على المضيف (Linux). تحتاج النشر على السحابة إلى نقطة نهاية Ollama يمكن الوصول إليها علناً. يتطلب Ollama ≥ 0.5.0 لضمانات صحة الظرف — تعمل الخيوط الأقدم ولكن تعود إلى محاولة تحليل JSON الأفضل.",
       "ollamaHostSavedPlaceholder": "استخدام المضيف المحفوظ — امسح لكتابة عنوان URL جديد",
       "ollamaHostUsingSaved": "استخدام مضيف Ollama المحفوظ:",
-      "ollamaHostOrUseSaved": "أو استخدم مضيف Ollama محفوظاً:",
-      "awsCredentialsUsing": "استخدام بيانات اعتماد AWS المحفوظة:",
-      "awsCredentialsExisting": "تم تكوين بيانات اعتماد AWS الموجودة — سيتم إعادة استخدامها ما لم تدخل واحدة جديدة أدناه",
-      "awsUseIamRole": "استخدم دور IAM (موصى به لـ EKS/EC2)",
-      "awsUseIamRoleHelper": "يستخدم دور IAM للمثيل/Pod بدلاً من بيانات الاعتماد الصريحة",
-      "awsAccessKeyId": "معرف مفتاح الوصول إلى AWS",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "مفتاح الوصول السري إلى AWS",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "منطقة Bedrock",
-      "bedrockRegionOption": "{name} (متعدد المناطق {geoPrefix})",
-      "bedrockCrossRegion": "توجيه الاستدلال عبر المناطق الطلبات إلى السعة المتاحة عبر منطقة {regionName}",
-      "regionUS": "الولايات المتحدة",
-      "regionEU": "الاتحاد الأوروبي",
-      "regionAPAC": "آسيا والمحيط الهادئ",
-      "awsUsingIamRoleStatus": "استخدام دور IAM",
-      "awsCredentialsConfigured": "تم تكوين بيانات اعتماد AWS",
-      "awsLoadingCredentials": "جاري تحميل بيانات الاعتماد المحفوظة...",
-      "awsOrUseSaved": "أو استخدم بيانات اعتماد AWS المحفوظة:"
+      "ollamaHostOrUseSaved": "أو استخدم مضيف Ollama محفوظاً:"
     },
     "knowledge": {
       "loadingDocuments": "جاري تحميل المستندات...",
@@ -962,12 +944,10 @@
         "description": "يشغل منشئ البوت ويتم دمجه في كل بوت تقوم بتجميعه.",
         "defaultName": "افتراضي",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (الصق بيانات اعتماد JSON)",
           "ollama": "Ollama (محلي — الصق عنوان المضيف)"
         }
       },

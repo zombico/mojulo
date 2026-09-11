@@ -667,25 +667,7 @@
       "ollamaHostHelper": "[MISSING: The endpoint your bot will hit. Leave blank to default to http://localhost:11434. If your bot runs in Docker and Ollama runs on the host, use http://host.docker.internal:11434 (Mac/Windows) or your host's LAN IP (Linux). Cloud deploys need a publicly reachable Ollama endpoint. Requires Ollama ≥ 0.5.0 for envelope-validity guarantees — older daemons work but fall back to best-effort JSON parsing.]",
       "ollamaHostSavedPlaceholder": "[MISSING: Using saved host — clear to type a fresh URL]",
       "ollamaHostUsingSaved": "[MISSING: Using saved Ollama host:]",
-      "ollamaHostOrUseSaved": "[MISSING: Or use a saved Ollama host:]",
-      "awsCredentialsUsing": "[MISSING: Using saved AWS credentials:]",
-      "awsCredentialsExisting": "[MISSING: Existing AWS credentials configured — will be reused unless you enter new ones below]",
-      "awsUseIamRole": "[MISSING: Use IAM Role (recommended for EKS/EC2)]",
-      "awsUseIamRoleHelper": "[MISSING: Uses the instance/pod IAM role instead of explicit credentials]",
-      "awsAccessKeyId": "[MISSING: AWS Access Key ID]",
-      "awsAccessKeyIdPlaceholder": "[MISSING: AKIAIOSFODNN7EXAMPLE]",
-      "awsSecretAccessKey": "[MISSING: AWS Secret Access Key]",
-      "awsSecretAccessKeyPlaceholder": "[MISSING: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY]",
-      "bedrockRegion": "[MISSING: Bedrock Region]",
-      "bedrockRegionOption": "[MISSING: {name} ({geoPrefix} cross-region)]",
-      "bedrockCrossRegion": "[MISSING: Cross-region inference routes requests to available capacity across the {regionName} region]",
-      "regionUS": "[MISSING: US]",
-      "regionEU": "[MISSING: EU]",
-      "regionAPAC": "[MISSING: APAC]",
-      "awsUsingIamRoleStatus": "[MISSING: Using IAM Role]",
-      "awsCredentialsConfigured": "[MISSING: AWS credentials configured]",
-      "awsLoadingCredentials": "[MISSING: Loading saved credentials...]",
-      "awsOrUseSaved": "[MISSING: Or use saved AWS credentials:]"
+      "ollamaHostOrUseSaved": "[MISSING: Or use a saved Ollama host:]"
     },
     "knowledge": {
       "loadingDocuments": "[MISSING: Loading documents...]",
@@ -962,12 +944,10 @@
         "description": "봇 빌더를 구동하고 컴파일하는 모든 봇에 내장돼요",
         "defaultName": "기본값",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (JSON 자격증명 붙여넣기)",
           "ollama": "Ollama (로컬 — 호스트 URL 붙여넣기)"
         }
       },

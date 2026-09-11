@@ -62,7 +62,7 @@ export async function POST(request) {
     }
 
     // Validate provider
-    const validProviders = ['openai', 'anthropic', 'bedrock'];
+    const validProviders = ['openai', 'anthropic'];
     if (!validProviders.includes(provider)) {
       return NextResponse.json(
         { error: `Invalid provider: ${provider}. Must be one of: ${validProviders.join(', ')}` },
@@ -70,31 +70,8 @@ export async function POST(request) {
       );
     }
 
-    // Validate API key/credentials based on provider
-    if (provider === 'bedrock') {
-      // Bedrock uses JSON credentials
-      if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
-        return NextResponse.json(
-          { error: 'AWS credentials are required for Bedrock.' },
-          { status: 400 }
-        );
-      }
-      try {
-        const creds = JSON.parse(apiKey);
-        if (!creds.useIamRole && (!creds.accessKeyId || !creds.secretAccessKey)) {
-          return NextResponse.json(
-            { error: 'AWS Access Key ID and Secret Access Key are required (or enable IAM Role).' },
-            { status: 400 }
-          );
-        }
-      } catch {
-        return NextResponse.json(
-          { error: 'Invalid Bedrock credentials format.' },
-          { status: 400 }
-        );
-      }
-    } else {
-      // Standard API key validation for other providers
+    // Validate the API key
+    {
       if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
         return NextResponse.json(
           { error: 'API key is required. Please provide your API key for the selected provider.' },

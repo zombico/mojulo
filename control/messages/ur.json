@@ -667,25 +667,7 @@
       "ollamaHostHelper": "اختتام جو آپ کا بوٹ ہٹایا جائے گا۔ http://localhost:11434 کو ڈیفالٹ کرنے کے لیے خالی چھوڑیں۔ اگر آپ کا بوٹ Docker میں چلتا ہے اور Ollama ہوسٹ پر چلتا ہے، تو http://host.docker.internal:11434 استعمال کریں (Mac/Windows) یا آپ کے ہوسٹ کا LAN IP (Linux)۔ کلاؤڈ تعینات کو عوامی طور پر رسائی والے Ollama اختتام کی ضرورت ہے۔ Ollama ≥ 0.5.0 کی ضرورت ہے لفافے کی درستگی کی ضمانت کے لیے — پرانے daemons کام کرتے ہیں لیکن بہترین کوشش JSON تجزیہ میں واپس آتے ہیں۔",
       "ollamaHostSavedPlaceholder": "محفوظ ہوسٹ استعمال کریں — نیا URL درج کرنے کے لیے صاف کریں",
       "ollamaHostUsingSaved": "محفوظ Ollama ہوسٹ استعمال کریں:",
-      "ollamaHostOrUseSaved": "یا محفوظ Ollama ہوسٹ استعمال کریں:",
-      "awsCredentialsUsing": "محفوظ AWS اعتماد نامہ استعمال کریں:",
-      "awsCredentialsExisting": "موجودہ AWS اعتماد نامہ ترتیب شدہ — دوبارہ استعمال ہوگا جب تک آپ نیچے نئے داخل نہ کریں",
-      "awsUseIamRole": "IAM کردار استعمال کریں (EKS/EC2 کے لیے سفارش شدہ)",
-      "awsUseIamRoleHelper": "واضح اعتماد نامہ کی بجائے instance/pod IAM کردار استعمال کریں",
-      "awsAccessKeyId": "AWS رسائی کلید ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS خفیہ رسائی کلید",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock علاقہ",
-      "bedrockRegionOption": "{name} ({geoPrefix} cross-region)",
-      "bedrockCrossRegion": "Cross-region inference تقاضوں کو دستیاب صلاحیت میں {regionName} علاقے میں روٹ کرتا ہے",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "IAM کردار استعمال کریں",
-      "awsCredentialsConfigured": "AWS اعتماد نامہ ترتیب شدہ",
-      "awsLoadingCredentials": "محفوظ اعتماد نامہ لوڈ ہو رہے ہیں...",
-      "awsOrUseSaved": "یا محفوظ AWS اعتماد نامہ استعمال کریں:"
+      "ollamaHostOrUseSaved": "یا محفوظ Ollama ہوسٹ استعمال کریں:"
     },
     "knowledge": {
       "loadingDocuments": "دستاویزات لوڈ ہو رہے ہیں...",
@@ -962,12 +944,10 @@
         "description": "بوٹ بنانے والے کو طاقت دیتا ہے اور ہر بوٹ میں جو آپ تیار کرتے ہیں شامل ہو جاتا ہے۔",
         "defaultName": "ڈیفالٹ",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (JSON اعتبارات پیسٹ کریں)",
           "ollama": "Ollama (مقامی — میزبان URL پیسٹ کریں)"
         }
       },

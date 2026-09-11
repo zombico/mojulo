@@ -96,35 +96,6 @@ export const LLM_PROVIDERS = {
     baseURL: 'https://api.anthropic.com/v1',
     endpoint: '/messages'
   },
-  bedrock: {
-    name: 'AWS Bedrock (Claude)',
-    // Not surfaced in the UI yet. The provider is wired end-to-end (settings,
-    // wizard branch, generateSummary/generateStructured, deployer) but stays
-    // hidden until we're ready to support it publicly. Consumers that render
-    // a provider picker should filter on this flag; code paths keyed on
-    // `provider === 'bedrock'` continue to work for anyone driving the API
-    // directly.
-    hidden: true,
-    // Base model IDs without geographic prefix - prefix is added dynamically based on region
-    models: [
-      { id: 'anthropic.claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
-      { id: 'anthropic.claude-opus-4-6', name: 'Claude Opus 4.6' },
-      { id: 'anthropic.claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
-      { id: 'anthropic.claude-opus-4-5', name: 'Claude Opus 4.5' },
-      { id: 'anthropic.claude-haiku-4-5', name: 'Claude Haiku 4.5' },
-    ],
-    defaultModel: 'anthropic.claude-sonnet-4-6',
-    // Regions grouped by geographic prefix for cross-region inference
-    regions: [
-      { id: 'us-east-1', name: 'US East (N. Virginia)', geoPrefix: 'us' },
-      { id: 'us-west-2', name: 'US West (Oregon)', geoPrefix: 'us' },
-      { id: 'eu-west-1', name: 'Europe (Ireland)', geoPrefix: 'eu' },
-      { id: 'eu-central-1', name: 'Europe (Frankfurt)', geoPrefix: 'eu' },
-      { id: 'ap-northeast-1', name: 'Asia Pacific (Tokyo)', geoPrefix: 'apac' },
-      { id: 'ap-southeast-1', name: 'Asia Pacific (Singapore)', geoPrefix: 'apac' },
-    ],
-    authModes: ['credentials', 'iam-role'],
-  },
   ollama: {
     name: 'Ollama (local)',
     // Opinionated short list: all three are tool-capable in Ollama and have
@@ -156,8 +127,6 @@ export const LLM_PROVIDERS = {
  *   structured  — single-shot calls bounded by a JSON schema (form gen)
  *   summary     — single-shot free-text generation (RAG / bot summary)
  *
- * Bedrock uses base model IDs without the geographic prefix — buildBedrockModelId
- * adds the prefix at the wire.
  */
 export const MODEL_TIERS = {
   openai: {
@@ -169,11 +138,6 @@ export const MODEL_TIERS = {
     reasoning: 'claude-sonnet-4-6',
     structured: 'claude-haiku-4-5',
     summary: 'claude-haiku-4-5',
-  },
-  bedrock: {
-    reasoning: 'anthropic.claude-sonnet-4-6',
-    structured: 'anthropic.claude-haiku-4-5',
-    summary: 'anthropic.claude-haiku-4-5',
   },
   ollama: {
     // Single model across tiers — Ollama is local/free, so the cost-driven
@@ -194,71 +158,12 @@ export const MODEL_TIERS = {
  * Pick the default model for a (provider, task) pair. Falls back to the
  * provider's flat `defaultModel` if the tier is missing — never throws.
  *
- * @param {string} provider — openai | anthropic | bedrock
+ * @param {string} provider — openai | anthropic | ollama
  * @param {string} task     — reasoning | structured | summary
  * @returns {string | undefined}
  */
 export function getDefaultModelForTask(provider, task) {
   return MODEL_TIERS[provider]?.[task] || LLM_PROVIDERS[provider]?.defaultModel;
-}
-
-/**
- * Get default Bedrock region from environment or fallback
- * @returns {string} Default AWS region for Bedrock
- */
-export function getDefaultBedrockRegion() {
-  return process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1';
-}
-
-/**
- * Get geographic prefix for cross-region inference based on AWS region
- * @param {string} region - AWS region ID (e.g., 'us-east-1')
- * @returns {string} Geographic prefix (e.g., 'us', 'eu', 'apac')
- */
-export function getBedrockGeoPrefix(region) {
-  // Handle undefined/null region - default to 'us'
-  if (!region) {
-    return 'us';
-  }
-
-  const regionConfig = LLM_PROVIDERS.bedrock.regions.find(r => r.id === region);
-  if (regionConfig?.geoPrefix) {
-    return regionConfig.geoPrefix;
-  }
-
-  // Fallback mapping for regions not in the list
-  if (region.startsWith('us-') || region.startsWith('ca-')) return 'us';
-  if (region.startsWith('eu-') || region.startsWith('il-')) return 'eu';
-  if (region.startsWith('ap-') || region.startsWith('me-')) return 'apac';
-
-  // Default to 'us' if unknown
-  return 'us';
-}
-
-/**
- * Build the full Bedrock model ID with geographic prefix for cross-region inference
- * @param {string} baseModelId - Base model ID without prefix (e.g., 'anthropic.claude-sonnet-4-6')
- * @param {string} region - AWS region ID (e.g., 'us-east-1')
- * @returns {string} Full model ID with prefix (e.g., 'us.anthropic.claude-sonnet-4-6')
- */
-export function buildBedrockModelId(baseModelId, region) {
-  // If already prefixed (starts with us., eu., apac.), return as-is
-  if (/^(us|eu|apac)\./.test(baseModelId)) {
-    return baseModelId;
-  }
-  const geoPrefix = getBedrockGeoPrefix(region);
-  return `${geoPrefix}.${baseModelId}`;
-}
-
-/**
- * Strip the geographic prefix from a Bedrock model ID
- * @param {string} modelId - Full model ID (e.g., 'us.anthropic.claude-sonnet-4-6')
- * @returns {string} Base model ID without prefix (e.g., 'anthropic.claude-sonnet-4-6')
- */
-export function stripBedrockModelPrefix(modelId) {
-  if (!modelId) return modelId;
-  // Remove geographic prefix (us., eu., apac.) if present
-  return modelId.replace(/^(us|eu|apac)\./, '');
 }
 
 /**
@@ -269,8 +174,8 @@ export function stripBedrockModelPrefix(modelId) {
  *   - bare URL string `http://...` — direct caller without saved key
  *   - empty / null              — fall back to LLM_PROVIDERS.ollama.defaultHost
  *
- * Same pattern as Bedrock's `JSON.parse(apiKey)` discriminator; keeps the
- * outer function signatures stable across providers.
+ * The JSON discriminator keeps the outer function signatures stable across
+ * providers.
  *
  * The host stored in deployment configs is intended for the bot artifact,
  * which runs in Docker and reaches the host via `host.docker.internal`. The
@@ -311,7 +216,7 @@ export function resolveOllamaHost(apiKey) {
 
 /**
  * Generate summary using specified LLM provider
- * @param {string} provider - The LLM provider (openai, anthropic, bedrock, ollama)
+ * @param {string} provider - The LLM provider (openai, anthropic, ollama)
  * @param {string} content - The content to summarize
  * @param {string} apiKey - The API key for the provider
  * @param {string} customPrompt - Optional custom prompt
@@ -346,20 +251,6 @@ Keep the summary clear, structured, and focused on what information is available
 
     case 'anthropic':
       return await generateSummaryWithAnthropic(content, apiKey, systemInstruction, selectedModel, providerConfig);
-
-    case 'bedrock': {
-      // For Bedrock, apiKey is actually JSON credentials
-      let credentials;
-      try {
-        credentials = JSON.parse(apiKey);
-      } catch (e) {
-        throw new Error('Invalid Bedrock credentials format. Please reconfigure your AWS credentials.');
-      }
-      if (!credentials.region) {
-        credentials.region = 'us-east-1'; // Fallback region
-      }
-      return await generateSummaryWithBedrock(content, credentials, systemInstruction, selectedModel);
-    }
 
     case 'ollama': {
       const host = resolveOllamaHost(apiKey);
@@ -454,59 +345,6 @@ async function generateSummaryWithAnthropic(content, apiKey, systemInstruction, 
 }
 
 /**
- * Generate summary using AWS Bedrock API
- */
-async function generateSummaryWithBedrock(content, credentials, systemInstruction, model) {
-  const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime');
-
-  const clientConfig = { region: credentials.region };
-
-  // Only set explicit credentials if not using IAM role
-  if (!credentials.useIamRole && credentials.accessKeyId) {
-    clientConfig.credentials = {
-      accessKeyId: credentials.accessKeyId,
-      secretAccessKey: credentials.secretAccessKey,
-    };
-  }
-
-  const client = new BedrockRuntimeClient(clientConfig);
-
-  // Build the full model ID with geographic prefix for cross-region inference
-  const fullModelId = buildBedrockModelId(model, credentials.region);
-
-  // If content is empty, use systemInstruction as the user message
-  const hasContent = content && content.trim().length > 0;
-
-  const command = new ConverseCommand({
-    modelId: fullModelId,
-    system: hasContent ? [{ text: systemInstruction }] : undefined,
-    messages: [{ role: 'user', content: [{ text: hasContent ? content : systemInstruction }] }],
-    inferenceConfig: { maxTokens: 4096 },
-  });
-
-  try {
-    const response = await client.send(command);
-    const textBlock = response.output?.message?.content?.find(b => b.text);
-    return textBlock?.text || 'No summary generated';
-  } catch (error) {
-    // Provide more helpful error messages for common Bedrock errors
-    if (error.name === 'AccessDeniedException') {
-      throw new Error(`Bedrock access denied: ${error.message}. Check your AWS credentials and model access permissions.`);
-    }
-    if (error.name === 'ValidationException') {
-      throw new Error(`Bedrock validation error: ${error.message}. Model ID: ${fullModelId}`);
-    }
-    if (error.name === 'ResourceNotFoundException') {
-      throw new Error(`Bedrock model not found: ${fullModelId}. Ensure the model is available in region ${credentials.region}.`);
-    }
-    if (error.name === 'ThrottlingException') {
-      throw new Error('Bedrock rate limit exceeded. Please try again in a few moments.');
-    }
-    throw new Error(`Bedrock API error: ${error.message}`);
-  }
-}
-
-/**
  * Strip hybrid-reasoning scratchpad tags from Ollama model output. qwen3
  * (and other hybrid-thinking models) emit `<think>...</think>` blocks before
  * their actual answer; downstream call sites want clean prose. We pass
@@ -579,11 +417,10 @@ async function generateSummaryWithOllama(content, host, systemInstruction, model
  *
  *   openai    — Chat Completions response_format: json_schema (strict)
  *   anthropic — tool_choice forcing a specific tool whose input_schema = schema
- *   bedrock   — Converse toolConfig with toolChoice forcing the same shape
  *
- * @param {string} provider          One of: openai, anthropic, bedrock
+ * @param {string} provider          One of: openai, anthropic, ollama
  * @param {string} content           User-role content (the NL request)
- * @param {string} apiKey            API key or JSON-encoded Bedrock credentials
+ * @param {string} apiKey            API key (or JSON-encoded Ollama host)
  * @param {string} systemInstruction System prompt
  * @param {object} schema            JSON schema describing the expected object
  * @param {string} [model]           Optional model override
@@ -602,19 +439,6 @@ export async function generateStructured(provider, content, apiKey, systemInstru
 
     case 'anthropic':
       return await generateStructuredWithAnthropic(content, apiKey, systemInstruction, selectedModel, providerConfig, schema);
-
-    case 'bedrock': {
-      let credentials;
-      try {
-        credentials = JSON.parse(apiKey);
-      } catch (e) {
-        throw new Error('Invalid Bedrock credentials format. Please reconfigure your AWS credentials.');
-      }
-      if (!credentials.region) {
-        credentials.region = 'us-east-1';
-      }
-      return await generateStructuredWithBedrock(content, credentials, systemInstruction, selectedModel, schema);
-    }
 
     case 'ollama': {
       const host = resolveOllamaHost(apiKey);
@@ -719,70 +543,6 @@ async function generateStructuredWithAnthropic(content, apiKey, systemInstructio
     throw new Error('Anthropic response contained no generate_form tool_use block');
   }
   return block.input;
-}
-
-/**
- * Generate a structured object via Bedrock Converse tool use. Mirrors the
- * error-mapping behavior of generateSummaryWithBedrock so credential and
- * model-access failures surface the same way across both code paths.
- */
-async function generateStructuredWithBedrock(content, credentials, systemInstruction, model, schema) {
-  const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime');
-
-  const clientConfig = { region: credentials.region };
-  if (!credentials.useIamRole && credentials.accessKeyId) {
-    clientConfig.credentials = {
-      accessKeyId: credentials.accessKeyId,
-      secretAccessKey: credentials.secretAccessKey,
-    };
-  }
-
-  const client = new BedrockRuntimeClient(clientConfig);
-  const fullModelId = buildBedrockModelId(model, credentials.region);
-
-  const command = new ConverseCommand({
-    modelId: fullModelId,
-    system: [{ text: systemInstruction }],
-    messages: [{ role: 'user', content: [{ text: content }] }],
-    inferenceConfig: { maxTokens: 4096 },
-    toolConfig: {
-      tools: [{
-        toolSpec: {
-          name: 'generate_form',
-          description: 'Return the generated form structure as a structured object.',
-          inputSchema: { json: schema },
-        },
-      }],
-      toolChoice: { tool: { name: 'generate_form' } },
-    },
-  });
-
-  try {
-    const result = await client.send(command);
-
-    if (result.stopReason === 'max_tokens') {
-      throw new Error('Bedrock hit max_tokens before completing tool use');
-    }
-    const block = result.output?.message?.content?.find((c) => c.toolUse?.name === 'generate_form');
-    if (!block) {
-      throw new Error('Bedrock response contained no generate_form toolUse block');
-    }
-    return block.toolUse.input;
-  } catch (error) {
-    if (error.name === 'AccessDeniedException') {
-      throw new Error(`Bedrock access denied: ${error.message}. Check your AWS credentials and model access permissions.`);
-    }
-    if (error.name === 'ValidationException') {
-      throw new Error(`Bedrock validation error: ${error.message}. Model ID: ${fullModelId}`);
-    }
-    if (error.name === 'ResourceNotFoundException') {
-      throw new Error(`Bedrock model not found: ${fullModelId}. Ensure the model is available in region ${credentials.region}.`);
-    }
-    if (error.name === 'ThrottlingException') {
-      throw new Error('Bedrock rate limit exceeded. Please try again in a few moments.');
-    }
-    throw error;
-  }
 }
 
 /**

@@ -667,25 +667,7 @@
       "ollamaHostHelper": "वह एंडपॉइंट जो आपका बॉट हिट करेगा। http://localhost:11434 पर डिफ़ॉल्ट के लिए खाली छोड़ें। यदि आपका बॉट Docker में चलता है और Ollama होस्ट पर चलता है, तो http://host.docker.internal:11434 (Mac/Windows) या आपके होस्ट का LAN IP (Linux) का उपयोग करें। क्लाउड परिनियोजनों को सार्वजनिक रूप से पहुंचने योग्य Ollama एंडपॉइंट की आवश्यकता होती है। लिफाफा-वैधता गारंटी के लिए Ollama ≥ 0.5.0 की आवश्यकता होती है — पुराने डेमन काम करते हैं लेकिन सर्वश्रेष्ठ प्रयास JSON पार्सिंग में वापस जाते हैं।",
       "ollamaHostSavedPlaceholder": "सहेजा गया होस्ट उपयोग करके — ताजा URL टाइप करने के लिए स्पष्ट करें",
       "ollamaHostUsingSaved": "सहेजे गए Ollama होस्ट का उपयोग करके:",
-      "ollamaHostOrUseSaved": "या सहेजा गया Ollama होस्ट उपयोग करें:",
-      "awsCredentialsUsing": "सहेजे गए AWS क्रेडेंशियल का उपयोग करके:",
-      "awsCredentialsExisting": "मौजूदा AWS क्रेडेंशियल कॉन्फ़िगर की गई — नई क्रेडेंशियल दर्ज न करने तक पुन: उपयोग की जाएगी",
-      "awsUseIamRole": "IAM भूमिका का उपयोग करें (EKS/EC2 के लिए अनुशंसित)",
-      "awsUseIamRoleHelper": "स्पष्ट क्रेडेंशियल के बजाय इंस्टेंस/पॉड IAM भूमिका का उपयोग करता है",
-      "awsAccessKeyId": "AWS एक्सेस कुंजी ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS गोपनीय एक्सेस कुंजी",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock क्षेत्र",
-      "bedrockRegionOption": "{name} ({geoPrefix} क्रॉस-क्षेत्र)",
-      "bedrockCrossRegion": "क्रॉस-क्षेत्र अनुमान {regionName} क्षेत्र में उपलब्ध क्षमता के लिए अनुरोध रूट करता है",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "IAM भूमिका का उपयोग करके",
-      "awsCredentialsConfigured": "AWS क्रेडेंशियल कॉन्फ़िगर की गई",
-      "awsLoadingCredentials": "सहेजी गई क्रेडेंशियल लोड हो रही है...",
-      "awsOrUseSaved": "या सहेजी गई AWS क्रेडेंशियल का उपयोग करें:"
+      "ollamaHostOrUseSaved": "या सहेजा गया Ollama होस्ट उपयोग करें:"
     },
     "knowledge": {
       "loadingDocuments": "दस्तावेज़ लोड हो रहे हैं...",
@@ -962,12 +944,10 @@
         "description": "बॉट बिल्डर को शक्ति देता है और आप जो भी बॉट संकलित करते हैं उसमें बेक किया जाता है।",
         "defaultName": "डिफ़ॉल्ट",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (JSON क्रेडेंशियल पेस्ट करें)",
           "ollama": "Ollama (स्थानीय — होस्ट URL पेस्ट करें)"
         }
       },

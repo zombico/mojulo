@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Botunuzun çarpacağı bitiş noktası. Varsayılan olarak http://localhost:11434'e ayarlamak için boş bırakın. Botunuz Docker'da çalışıyorsa ve Ollama ana bilgisayarda çalışıyorsa, http://host.docker.internal:11434 (Mac/Windows) kullanın veya ana bilgisayarınızın LAN IP'si (Linux). Bulut dağıtımları genel olarak erişilebilir bir Ollama bitiş noktası gerektirir. Zarf geçerliliği garantileri için Ollama ≥ 0.5.0 gereklidir — eski daemon'lar çalışır ancak en iyi çaba JSON ayrıştırmasına dönerler.",
       "ollamaHostSavedPlaceholder": "Kaydedilmiş ana bilgisayar kullanılıyor — yeni bir URL yazmak için temizle",
       "ollamaHostUsingSaved": "Kaydedilmiş Ollama ana bilgisayarı kullanılıyor:",
-      "ollamaHostOrUseSaved": "Veya kaydedilmiş bir Ollama ana bilgisayarı kullanın:",
-      "awsCredentialsUsing": "Kaydedilmiş AWS kimlik bilgileri kullanılıyor:",
-      "awsCredentialsExisting": "Mevcut AWS kimlik bilgileri yapılandırıldı — aşağıda yenisini girmediğiniz sürece yeniden kullanılacak",
-      "awsUseIamRole": "IAM Rolü Kullanın (EKS/EC2 için önerilir)",
-      "awsUseIamRoleHelper": "Açık kimlik bilgileri yerine örnek/pod IAM rolünü kullanır",
-      "awsAccessKeyId": "AWS Erişim Anahtarı ID'si",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Gizli Erişim Anahtarı",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock Bölgesi",
-      "bedrockRegionOption": "{name} ({geoPrefix} bölgeler arası)",
-      "bedrockCrossRegion": "Bölgeler arası çıkarım, istekleri {regionName} bölgesindeki kullanılabilir kapasiteye yönlendirir",
-      "regionUS": "ABD",
-      "regionEU": "AB",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "IAM Rolü Kullanılıyor",
-      "awsCredentialsConfigured": "AWS kimlik bilgileri yapılandırıldı",
-      "awsLoadingCredentials": "Kaydedilmiş kimlik bilgileri yükleniyor...",
-      "awsOrUseSaved": "Veya kaydedilmiş AWS kimlik bilgilerini kullanın:"
+      "ollamaHostOrUseSaved": "Veya kaydedilmiş bir Ollama ana bilgisayarı kullanın:"
     },
     "knowledge": {
       "loadingDocuments": "Belgeler yükleniyor...",
@@ -962,12 +944,10 @@
         "description": "Bot oluşturucuyu destekler ve derleyeceğiniz her bota yerleştirilir.",
         "defaultName": "Varsayılan",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (JSON kimlik bilgilerini yapıştırın)",
           "ollama": "Ollama (yerel — ana bilgisayar URL'sini yapıştırın)"
         }
       },

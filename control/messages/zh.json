@@ -667,25 +667,7 @@
       "ollamaHostHelper": "你的 Bot 将访问的端点。留空则默认为 http://localhost:11434。如果你的 Bot 在 Docker 中运行而 Ollama 在主机上运行，使用 http://host.docker.internal:11434（Mac/Windows）或主机的 LAN IP（Linux）。云部署需要公开可达的 Ollama 端点。需要 Ollama ≥ 0.5.0 以获得信封有效性保证——较旧的守护程序可用但回退到尽力而为的 JSON 解析。",
       "ollamaHostSavedPlaceholder": "使用已保存主机——清除以输入新 URL",
       "ollamaHostUsingSaved": "使用已保存的 Ollama 主机：",
-      "ollamaHostOrUseSaved": "或使用已保存的 Ollama 主机：",
-      "awsCredentialsUsing": "使用已保存的 AWS 凭证：",
-      "awsCredentialsExisting": "已配置现有 AWS 凭证——除非你在下面输入新凭证，否则将重复使用",
-      "awsUseIamRole": "使用 IAM 角色（推荐用于 EKS/EC2）",
-      "awsUseIamRoleHelper": "使用实例/Pod IAM 角色而不是显式凭证",
-      "awsAccessKeyId": "AWS 访问密钥 ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS 秘密访问密钥",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock 区域",
-      "bedrockRegionOption": "{name}（{geoPrefix} 跨区域）",
-      "bedrockCrossRegion": "跨区域推理将请求路由到 {regionName} 区域的可用容量",
-      "regionUS": "美国",
-      "regionEU": "欧盟",
-      "regionAPAC": "亚太",
-      "awsUsingIamRoleStatus": "使用 IAM 角色",
-      "awsCredentialsConfigured": "AWS 凭证已配置",
-      "awsLoadingCredentials": "正在加载已保存的凭证...",
-      "awsOrUseSaved": "或使用已保存的 AWS 凭证："
+      "ollamaHostOrUseSaved": "或使用已保存的 Ollama 主机："
     },
     "knowledge": {
       "loadingDocuments": "正在加载文档...",
@@ -962,12 +944,10 @@
         "description": "为机器人构建器提供动力，并融入您编译的每个机器人。",
         "defaultName": "默认",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (粘贴 JSON 凭证)",
           "ollama": "Ollama (本地 — 粘贴主机 URL)"
         }
       },

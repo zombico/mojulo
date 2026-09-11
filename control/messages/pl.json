@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Punkt końcowy, który będzie osiągać Twój bot. Zostaw puste, aby domyślnie ustawić http://localhost:11434. Jeśli Twój bot działa w Dockerze, a Ollama działa na hoście, użyj http://host.docker.internal:11434 (Mac/Windows) lub IP LAN hosta (Linux). Wdrożenia w chmurze wymagają publicznie dostępnego punktu końcowego Ollama. Wymaga Ollama ≥ 0.5.0 dla gwarancji ważności koperty — starsze demony działają, ale wracają do optymalnego parsowania JSON.",
       "ollamaHostSavedPlaceholder": "Używanie zapisanego hosta — wyczyść, aby wpisać nowy adres URL",
       "ollamaHostUsingSaved": "Używanie zapisanego hosta Ollama:",
-      "ollamaHostOrUseSaved": "Lub użyj zapisanego hosta Ollama:",
-      "awsCredentialsUsing": "Używanie zapisanych danych uwierzytelniających AWS:",
-      "awsCredentialsExisting": "Istniejące dane uwierzytelniające AWS skonfigurowane — będą ponownie używane, chyba że wpiszesz nowe poniżej",
-      "awsUseIamRole": "Użyj roli IAM (rekomendowane dla EKS/EC2)",
-      "awsUseIamRoleHelper": "Używa roli IAM instancji/poda zamiast jawnych poświadczeń",
-      "awsAccessKeyId": "Identyfikator klucza dostępu AWS",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "Tajny klucz dostępu AWS",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Region Bedrock",
-      "bedrockRegionOption": "{name} ({geoPrefix} wieloregionowy)",
-      "bedrockCrossRegion": "Wnioskowanie wieloregionowe kieruje żądania do dostępnych pojemności w obrębie regionu {regionName}",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Użycie roli IAM",
-      "awsCredentialsConfigured": "Dane uwierzytelniające AWS skonfigurowane",
-      "awsLoadingCredentials": "Ładowanie zapisanych danych uwierzytelniających...",
-      "awsOrUseSaved": "Lub użyj zapisanych danych uwierzytelniających AWS:"
+      "ollamaHostOrUseSaved": "Lub użyj zapisanego hosta Ollama:"
     },
     "knowledge": {
       "loadingDocuments": "Ładowanie dokumentów...",
@@ -962,12 +944,10 @@
         "description": "Zasilacza konstruktora botów i jest wbudowywany w każdego bota, który kompilujesz.",
         "defaultName": "Domyślny",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (wklej poświadczenia JSON)",
           "ollama": "Ollama (lokalnie — wklej adres URL hosta)"
         }
       },

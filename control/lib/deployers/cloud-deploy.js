@@ -93,10 +93,6 @@ async function harvestConfigFiles(deployment) {
  * Resolve the LLM API key env var for the bot's selected provider, sourced
  * from the encrypted api_keys store — the same key the operator already
  * configured (and that the local-artifact path uses to build/run the bot).
- *
- * Bedrock is a special case: its encrypted_key holds a JSON blob
- * ({ region, accessKeyId, secretAccessKey }) which expands into the three
- * standard AWS env vars on the container.
  */
 async function resolveLlmEnv(deployment) {
   const provider = deployment.config?.llm?.provider || 'anthropic';
@@ -119,20 +115,6 @@ async function resolveLlmEnv(deployment) {
     );
   }
 
-  if (provider === 'bedrock') {
-    let creds;
-    try {
-      creds = JSON.parse(plaintext);
-    } catch {
-      throw new Error(
-        'Saved Bedrock credentials are not valid JSON. Reconfigure them in Settings.'
-      );
-    }
-    env.AWS_REGION = creds.region || 'us-east-1';
-    env.AWS_ACCESS_KEY_ID = creds.accessKeyId || '';
-    env.AWS_SECRET_ACCESS_KEY = creds.secretAccessKey || '';
-    return env;
-  }
 
   const envVarByProvider = {
     anthropic: 'ANTHROPIC_API_KEY',

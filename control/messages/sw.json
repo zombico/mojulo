@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Endpoint ambayo bot yako itapiga. Acha tupu kubadili kwa http://localhost:11434. Ikiwa bot yako inaendesha katika Docker na Ollama inaendesha kwenye hostela, tumia http://host.docker.internal:11434 (Mac/Windows) au IP ya LAN ya hostela yako (Linux). Cloud deploys zinazohitaji endpoint ya Ollama inayopatikana hadharani. Inahitaji Ollama ≥ 0.5.0 kwa dhamana za uhalali wa envelope — daemons za zamani inafanya kazi lakini kumya ndani kwa kuchanganua JSON kwa bidii.",
       "ollamaHostSavedPlaceholder": "Kutumia hostela iliyohifadhiwa — futa kuandika URL mpya",
       "ollamaHostUsingSaved": "Kutumia hostela ya Ollama iliyohifadhiwa:",
-      "ollamaHostOrUseSaved": "Au tumia hostela ya Ollama iliyohifadhiwa:",
-      "awsCredentialsUsing": "Kutumia akaunti za AWS zilizohifadhiwa:",
-      "awsCredentialsExisting": "Akaunti za AWS zilizooyo zimetumiwa — zitarudiwa isipokuwa uingizaji mpya chini",
-      "awsUseIamRole": "Tumia Jukumu la IAM (linatafsiri kwa EKS/EC2)",
-      "awsUseIamRoleHelper": "Inatumia jukumu la IAM la kichwa/pod badala ya akaunti wazi",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Eneo la Bedrock",
-      "bedrockRegionOption": "{name} ({geoPrefix} kanda nyingi)",
-      "bedrockCrossRegion": "Uelekezaji wa dhana katika kanda nyingi huelekezaji maombi kwa uwezo unaopatikana katika kanda ya {regionName}",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Kutumia Jukumu la IAM",
-      "awsCredentialsConfigured": "AWS credentials configured",
-      "awsLoadingCredentials": "Inapakia akaunti zilizohifadhiwa...",
-      "awsOrUseSaved": "Au tumia akaunti za AWS zilizohifadhiwa:"
+      "ollamaHostOrUseSaved": "Au tumia hostela ya Ollama iliyohifadhiwa:"
     },
     "knowledge": {
       "loadingDocuments": "Inapakia nyaraka...",
@@ -962,12 +944,10 @@
         "description": "Inawezesha mjenzi wa bot na inaingizwa katika kila bot unayokusanya.",
         "defaultName": "Chaguo-msingi",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (bandika idhini za JSON)",
           "ollama": "Ollama (ndani — bandika URL ya nyumba)"
         }
       },

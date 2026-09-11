@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 import { useModularWizard } from '../ModularWizardContext';
 import WizardStep from '../WizardStep';
 import { buildDeploymentConfig } from '@/lib/config-builder';
-import { buildBedrockModelId } from '@/lib/llm-providers';
 import PreviewBot from '../stepsPreview/PreviewBot';
 
 /**
@@ -238,16 +237,7 @@ export default function Deploy({ stepConfig, deploymentId = null, isEditMode = f
             <div className="flex justify-between">
               <dt className="text-gray-400">{t('model')}</dt>
               <dd className="font-medium text-gray-100">
-                {formData.provider === 'bedrock' && formData.apiKey
-                  ? (() => {
-                      try {
-                        const creds = JSON.parse(formData.apiKey);
-                        return buildBedrockModelId(formData.model, creds.region);
-                      } catch {
-                        return formData.model;
-                      }
-                    })()
-                  : formData.model}
+                {formData.model}
               </dd>
             </div>
             <div className="flex justify-between">

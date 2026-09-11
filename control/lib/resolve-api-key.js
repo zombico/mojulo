@@ -1,6 +1,5 @@
 import { ApiKeyRepository } from './db/repositories/apiKeys.js';
 import { decryptApiKey } from './deployment-auth.js';
-import { buildBedrockModelId } from './llm-providers.js';
 
 /**
  * Inject a saved (encrypted) provider credential into a deployment config so
@@ -27,19 +26,7 @@ export async function resolveSavedApiKeyIntoConfig(config, apiKeyId) {
 
   const plaintext = decryptApiKey(record.encryptedKey);
 
-  if (provider === 'bedrock') {
-    const credentials = JSON.parse(plaintext);
-    const region = credentials.region || 'us-east-1';
-    const baseModel = config.llm.bedrock?.model || '';
-    config.llm.bedrock = {
-      ...config.llm.bedrock,
-      region,
-      useIamRole: credentials.useIamRole || false,
-      accessKeyId: credentials.accessKeyId || null,
-      secretAccessKey: credentials.secretAccessKey || null,
-      model: buildBedrockModelId(baseModel, region),
-    };
-  } else if (provider === 'ollama') {
+  if (provider === 'ollama') {
     // Ollama's "credential" row stores {"host": "..."} JSON. The host stamps
     // onto config.llm.ollama just like buildLLMConfig would have done from
     // the wizard's ollamaHost field — saved-host references and pasted
@@ -70,9 +57,6 @@ export function configHasStoredApiKey(config) {
   if (!provider) return false;
   const block = config.llm[provider];
   if (!block) return false;
-  if (provider === 'bedrock') {
-    return !!(block.useIamRole || (block.accessKeyId && block.secretAccessKey));
-  }
   if (provider === 'ollama') {
     // Host is the only transport field. Empty host means the wizard will
     // fall back to LLM_PROVIDERS.ollama.defaultHost at build time, which is
@@ -98,8 +82,6 @@ export function redactApiKeysFromConfig(config) {
     const block = clone.llm[key];
     if (!block || typeof block !== 'object') continue;
     if ('apiKey' in block) block.apiKey = '';
-    if ('accessKeyId' in block) block.accessKeyId = null;
-    if ('secretAccessKey' in block) block.secretAccessKey = null;
   }
   return clone;
 }
@@ -120,15 +102,7 @@ export function preserveExistingCredentials(newConfig, oldConfig) {
   const oldBlock = oldConfig.llm[provider];
   if (!newBlock || !oldBlock) return newConfig;
 
-  if (provider === 'bedrock') {
-    const newHasCreds = newBlock.useIamRole || (newBlock.accessKeyId && newBlock.secretAccessKey);
-    if (!newHasCreds) {
-      newBlock.useIamRole = oldBlock.useIamRole;
-      newBlock.accessKeyId = oldBlock.accessKeyId;
-      newBlock.secretAccessKey = oldBlock.secretAccessKey;
-      newBlock.region = newBlock.region || oldBlock.region;
-    }
-  } else if (provider === 'ollama') {
+  if (provider === 'ollama') {
     // Ollama carries host instead of a credential. Edit mode that doesn't
     // re-submit a host should keep the previously stored one.
     if (!newBlock.host) {

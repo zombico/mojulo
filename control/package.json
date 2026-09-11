@@ -97,7 +97,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.1011.0",
     "@huggingface/transformers": "^4.2.0",
     "@puppeteer/browsers": "^2.13.2",
     "@swc/core": "^1.15.47",

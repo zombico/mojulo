@@ -1,11 +1,11 @@
 // Canonical form-structure shape for the AI-powered form generator.
 // Consumed by generateStructured() in control/lib/llm-providers.js — the
-// OpenAI / Anthropic / Bedrock adapters all key off this artifact.
+// OpenAI / Anthropic / Ollama adapters all key off this artifact.
 //
 // Two variants:
 //   FORM_STRUCTURE_SCHEMA          — canonical; used by Anthropic tool_use
-//                                    and Bedrock Converse toolSpec, whose
-//                                    JSON-schema validators are permissive
+//                                    and Ollama's grammar-constrained format,
+//                                    whose JSON-schema validators are permissive
 //   toStrictFormStructureSchema()  — OpenAI strict-mode-compatible derivative:
 //                                    every property in `required`, no
 //                                    `additionalProperties: true`, optional

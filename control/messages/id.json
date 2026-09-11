@@ -667,25 +667,7 @@
       "ollamaHostHelper": "The endpoint your bot will hit. Leave blank to default to http://localhost:11434. If your bot runs in Docker and Ollama runs on the host, use http://host.docker.internal:11434 (Mac/Windows) or your host's LAN IP (Linux). Cloud deploys need a publicly reachable Ollama endpoint. Requires Ollama ≥ 0.5.0 for envelope-validity guarantees — older daemons work but fall back to best-effort JSON parsing.",
       "ollamaHostSavedPlaceholder": "Using saved host — clear to type a fresh URL",
       "ollamaHostUsingSaved": "Using saved Ollama host:",
-      "ollamaHostOrUseSaved": "Or use a saved Ollama host:",
-      "awsCredentialsUsing": "Using saved AWS credentials:",
-      "awsCredentialsExisting": "Existing AWS credentials configured — will be reused unless you enter new ones below",
-      "awsUseIamRole": "Use IAM Role (recommended for EKS/EC2)",
-      "awsUseIamRoleHelper": "Uses the instance/pod IAM role instead of explicit credentials",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock Region",
-      "bedrockRegionOption": "{name} ({geoPrefix} cross-region)",
-      "bedrockCrossRegion": "Cross-region inference routes requests to available capacity across the {regionName} region",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Using IAM Role",
-      "awsCredentialsConfigured": "AWS credentials configured",
-      "awsLoadingCredentials": "Loading saved credentials...",
-      "awsOrUseSaved": "Or use saved AWS credentials:"
+      "ollamaHostOrUseSaved": "Or use a saved Ollama host:"
     },
     "knowledge": {
       "loadingDocuments": "Loading documents...",
@@ -962,12 +944,10 @@
         "description": "Menggerakkan pembangun bot dan tertanam di setiap bot yang Anda kompilasi.",
         "defaultName": "Default",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (tempel kredensial JSON)",
           "ollama": "Ollama (lokal — tempel URL host)"
         }
       },

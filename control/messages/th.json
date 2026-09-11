@@ -667,25 +667,7 @@
       "ollamaHostHelper": "จุดปลายทางที่ Bot ของคุณจะกระทบ ปล่อยว่างเพื่อค่าเริ่มต้น http://localhost:11434 หากตัว Bot ของคุณทำงานใน Docker และ Ollama ทำงานบนโฮสต์ ให้ใช้ http://host.docker.internal:11434 (Mac/Windows) หรือ LAN IP ของโฮสต์ของคุณ (Linux) การปรับใช้ในระบบคลาวด์ต้องการจุดปลายทาง Ollama ที่สามารถเข้าถึงได้โดยสาธารณะ ต้องใช้ Ollama ≥ 0.5.0 เพื่อการรับประกัน ความถูกต้องของซอง — daemon ที่เก่ากว่าทำงาน แต่ใช้การแยกวิเคราะห์ JSON ที่ดีที่สุด",
       "ollamaHostSavedPlaceholder": "ใช้โฮสต์ที่บันทึกไว้ — ล้างเพื่อพิมพ์ URL ใหม่",
       "ollamaHostUsingSaved": "ใช้ Ollama host ที่บันทึกไว้:",
-      "ollamaHostOrUseSaved": "หรือใช้ Ollama host ที่บันทึกไว้:",
-      "awsCredentialsUsing": "ใช้ข้อมูลประจำตัว AWS ที่บันทึกไว้:",
-      "awsCredentialsExisting": "ตั้งค่าข้อมูลประจำตัว AWS ที่มีอยู่แล้ว — จะนำมาใช้ซ้ำเว้นแต่คุณจะป้อนใหม่ด้านล่าง",
-      "awsUseIamRole": "ใช้ IAM Role (แนะนำสำหรับ EKS/EC2)",
-      "awsUseIamRoleHelper": "ใช้บทบาท IAM ของอินสแตนซ์/พอด แทนข้อมูลประจำตัวที่ชัดแจ้ง",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock Region",
-      "bedrockRegionOption": "{name} ({geoPrefix} cross-region)",
-      "bedrockCrossRegion": "Cross-region inference นำเสนอขอให้ความจุที่ใช้ได้ทั่วภูมิภาค {regionName}",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "ใช้ IAM Role",
-      "awsCredentialsConfigured": "ตั้งค่าข้อมูลประจำตัว AWS แล้ว",
-      "awsLoadingCredentials": "กำลังโหลดข้อมูลประจำตัวที่บันทึกไว้...",
-      "awsOrUseSaved": "หรือใช้ข้อมูลประจำตัว AWS ที่บันทึกไว้:"
+      "ollamaHostOrUseSaved": "หรือใช้ Ollama host ที่บันทึกไว้:"
     },
     "knowledge": {
       "loadingDocuments": "กำลังโหลดเอกสาร...",
@@ -962,12 +944,10 @@
         "description": "ขับเคลื่อนตัวสร้างแบ็ตและถูกฝังลงในทุกแบ็ตที่คุณรวบรวม",
         "defaultName": "เริ่มต้น",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (วางข้อมูลประจำตัว JSON)",
           "ollama": "Ollama (ท้องถิ่น — วาง URL โฮสต์)"
         }
       },

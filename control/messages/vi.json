@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Điểm cuối mà bot của bạn sẽ truy cập. Để trống để mặc định thành http://localhost:11434. Nếu bot của bạn chạy trong Docker và Ollama chạy trên máy chủ, hãy sử dụng http://host.docker.internal:11434 (Mac/Windows) hoặc IP LAN của máy chủ (Linux). Các triển khai đám mây cần điểm cuối Ollama có thể truy cập công khai. Yêu cầu Ollama ≥ 0.5.0 để đảm bảo tính hợp lệ bao nhưng các daemon cũ hơn hoạt động nhưng quay lại phân tích JSON tốt nhất.",
       "ollamaHostSavedPlaceholder": "Sử dụng máy chủ đã lưu — xóa để nhập URL mới",
       "ollamaHostUsingSaved": "Sử dụng máy chủ Ollama đã lưu:",
-      "ollamaHostOrUseSaved": "Hoặc sử dụng máy chủ Ollama đã lưu:",
-      "awsCredentialsUsing": "Sử dụng thông tin xác thực AWS đã lưu:",
-      "awsCredentialsExisting": "Thông tin xác thực AWS hiện có được cấu hình — sẽ được sử dụng lại trừ khi bạn nhập những cái mới dưới đây",
-      "awsUseIamRole": "Sử dụng Vai trò IAM (được đề xuất cho EKS/EC2)",
-      "awsUseIamRoleHelper": "Sử dụng vai trò IAM của instance/pod thay vì thông tin xác thực rõ ràng",
-      "awsAccessKeyId": "ID Khóa truy cập AWS",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "Khóa truy cập bí mật AWS",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Vùng Bedrock",
-      "bedrockRegionOption": "{name} ({geoPrefix} cross-region)",
-      "bedrockCrossRegion": "Tuyến suy luận cross-region định tuyến các yêu cầu đến dung lượng có sẵn trên toàn bộ vùng {regionName}",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Sử dụng Vai trò IAM",
-      "awsCredentialsConfigured": "Thông tin xác thực AWS được cấu hình",
-      "awsLoadingCredentials": "Đang tải thông tin xác thực đã lưu...",
-      "awsOrUseSaved": "Hoặc sử dụng thông tin xác thực AWS đã lưu:"
+      "ollamaHostOrUseSaved": "Hoặc sử dụng máy chủ Ollama đã lưu:"
     },
     "knowledge": {
       "loadingDocuments": "Đang tải tài liệu...",
@@ -962,12 +944,10 @@
         "description": "Cung cấp năng lượng cho trình xây dựng bot và được baked vào mỗi bot bạn biên dịch.",
         "defaultName": "Mặc định",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (dán thông tin xác thực JSON)",
           "ollama": "Ollama (cục bộ — dán URL máy chủ)"
         }
       },

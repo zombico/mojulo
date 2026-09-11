@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Het eindpunt dat uw bot bereikt. Laat leeg voor standaard http://localhost:11434. Als uw bot in Docker wordt uitgevoerd en Ollama op de host, gebruik http://host.docker.internal:11434 (Mac/Windows) of het LAN-IP van uw host (Linux). Cloud-implementaties hebben een openbaar bereikbaar Ollama-eindpunt nodig. Vereist Ollama ≥ 0.5.0 voor garanties voor envelop-geldigheid — oudere daemons werken maar vallen terug op best-effort JSON-parsing.",
       "ollamaHostSavedPlaceholder": "Opgeslagen host gebruiken — wissen om een frisse URL in te voeren",
       "ollamaHostUsingSaved": "Opgeslagen Ollama-host gebruiken:",
-      "ollamaHostOrUseSaved": "Of gebruik een opgeslagen Ollama-host:",
-      "awsCredentialsUsing": "Opgeslagen AWS-inloggegevens gebruiken:",
-      "awsCredentialsExisting": "Bestaande AWS-inloggegevens geconfigureerd — wordt opnieuw gebruikt tenzij u hieronder nieuwe invoert",
-      "awsUseIamRole": "IAM-rol gebruiken (aanbevolen voor EKS/EC2)",
-      "awsUseIamRoleHelper": "Gebruikt de exemplaar/pod IAM-rol in plaats van expliciete inloggegevens",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock-regio",
-      "bedrockRegionOption": "{name} ({geoPrefix} cross-region)",
-      "bedrockCrossRegion": "Cross-region inferentie routeert verzoeken naar beschikbare capaciteit in de {regionName} regio",
-      "regionUS": "VS",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "IAM-rol gebruiken",
-      "awsCredentialsConfigured": "AWS-inloggegevens geconfigureerd",
-      "awsLoadingCredentials": "Opgeslagen inloggegevens laden...",
-      "awsOrUseSaved": "Of gebruik opgeslagen AWS-inloggegevens:"
+      "ollamaHostOrUseSaved": "Of gebruik een opgeslagen Ollama-host:"
     },
     "knowledge": {
       "loadingDocuments": "Documenten laden...",
@@ -962,12 +944,10 @@
         "description": "Voorziet de botbuilder van stroom en wordt ingesloten in elke bot die u compileert.",
         "defaultName": "Standaard",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (plak JSON-gegevens)",
           "ollama": "Ollama (lokaal — plak host-URL)"
         }
       },

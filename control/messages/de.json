@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Der Endpunkt, den Ihr Bot treffen wird. Lassen Sie das Feld leer, um standardmäßig auf http://localhost:11434 zu setzen. Wenn Ihr Bot in Docker ausgeführt wird und Ollama auf dem Host ausgeführt wird, verwenden Sie http://host.docker.internal:11434 (Mac/Windows) oder die LAN-IP Ihres Hosts (Linux). Cloud-Bereitstellungen benötigen einen öffentlich erreichbaren Ollama-Endpunkt. Erfordert Ollama ≥ 0.5.0 für Umschlags-Validitätsgarantien – ältere Daemons funktionieren, fallen aber auf beste Bemühungen beim JSON-Parsing zurück.",
       "ollamaHostSavedPlaceholder": "Gespeicherten Host verwenden – Feld löschen, um eine neue URL einzugeben",
       "ollamaHostUsingSaved": "Gespeicherten Ollama-Host verwenden:",
-      "ollamaHostOrUseSaved": "Oder verwenden Sie einen gespeicherten Ollama-Host:",
-      "awsCredentialsUsing": "Gespeicherte AWS-Anmeldedaten verwenden:",
-      "awsCredentialsExisting": "Vorhandene AWS-Anmeldedaten konfiguriert – werden wiederverwendet, es sei denn, Sie geben neue ein",
-      "awsUseIamRole": "IAM-Rolle verwenden (empfohlen für EKS/EC2)",
-      "awsUseIamRoleHelper": "Verwendet die Instance/Pod-IAM-Rolle anstelle expliziter Anmeldedaten",
-      "awsAccessKeyId": "AWS-Zugriffsschlüssel-ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS-Geheimschlüssel",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock-Region",
-      "bedrockRegionOption": "{name} ({geoPrefix} regionsübergreifend)",
-      "bedrockCrossRegion": "Die regionsübergreifende Inferenz leitet Anfragen zur verfügbaren Kapazität in der Region {regionName}",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "IAM-Rolle verwenden",
-      "awsCredentialsConfigured": "AWS-Anmeldedaten konfiguriert",
-      "awsLoadingCredentials": "Gespeicherte Anmeldedaten werden geladen...",
-      "awsOrUseSaved": "Oder verwenden Sie gespeicherte AWS-Anmeldedaten:"
+      "ollamaHostOrUseSaved": "Oder verwenden Sie einen gespeicherten Ollama-Host:"
     },
     "knowledge": {
       "loadingDocuments": "Dokumente werden geladen...",
@@ -962,12 +944,10 @@
         "description": "Treibt den Bot-Builder an und wird in jeden kompilierten Bot eingebacken.",
         "defaultName": "Standard",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (JSON-Anmeldedaten einfügen)",
           "ollama": "Ollama (lokal – Host-URL einfügen)"
         }
       },

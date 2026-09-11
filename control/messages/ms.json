@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Titik akhir yang akan diakses bot Anda. Biarkan kosong untuk default ke http://localhost:11434. Jika bot Anda berjalan di Docker dan Ollama berjalan di host, gunakan http://host.docker.internal:11434 (Mac/Windows) atau IP LAN host Anda (Linux). Penyebaran cloud memerlukan titik akhir Ollama yang dapat diakses secara publik. Memerlukan Ollama ≥ 0.5.0 untuk jaminan validitas amplop — daemon yang lebih lama bekerja tetapi kembali ke penguraian JSON terbaik.",
       "ollamaHostSavedPlaceholder": "Menggunakan host yang disimpan — hapus untuk mengetik URL baru",
       "ollamaHostUsingSaved": "Menggunakan host Ollama yang disimpan:",
-      "ollamaHostOrUseSaved": "Atau gunakan host Ollama yang disimpan:",
-      "awsCredentialsUsing": "Menggunakan kredensial AWS yang disimpan:",
-      "awsCredentialsExisting": "Kredensial AWS yang ada dikonfigurasi — akan digunakan kembali kecuali Anda memasukkan yang baru di bawah",
-      "awsUseIamRole": "Gunakan Peran IAM (direkomendasikan untuk EKS/EC2)",
-      "awsUseIamRoleHelper": "Menggunakan peran IAM instance/pod alih-alih kredensial eksplisit",
-      "awsAccessKeyId": "ID Kunci Akses AWS",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "Kunci Akses Rahasia AWS",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Wilayah Bedrock",
-      "bedrockRegionOption": "{name} ({geoPrefix} lintas wilayah)",
-      "bedrockCrossRegion": "Inferensi lintas wilayah merutekan permintaan ke kapasitas yang tersedia di seluruh wilayah {regionName}",
-      "regionUS": "AS",
-      "regionEU": "UE",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Menggunakan Peran IAM",
-      "awsCredentialsConfigured": "Kredensial AWS dikonfigurasi",
-      "awsLoadingCredentials": "Memuat kredensial yang disimpan...",
-      "awsOrUseSaved": "Atau gunakan kredensial AWS yang disimpan:"
+      "ollamaHostOrUseSaved": "Atau gunakan host Ollama yang disimpan:"
     },
     "knowledge": {
       "loadingDocuments": "Memuat dokumen...",
@@ -962,12 +944,10 @@
         "description": "Memberdayakan pembina bot dan tertanam dalam setiap bot yang anda karang.",
         "defaultName": "Lalai",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (tempel kredensial JSON)",
           "ollama": "Ollama (lokal — tempel URL hos)"
         }
       },

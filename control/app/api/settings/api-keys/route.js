@@ -53,9 +53,8 @@ export async function POST(request) {
   const effectiveMakeDefault = provider === 'ollama' ? false : makeDefault;
 
   // Ollama doesn't have a secret — the "credential" slot holds the endpoint
-  // URL. We serialize it as JSON {"host": "..."} so the on-disk shape mirrors
-  // Bedrock's encrypted-JSON pattern and resolveSavedApiKeyIntoConfig can
-  // discriminate cleanly. Running a non-secret through encryptApiKey is
+  // URL. We serialize it as JSON {"host": "..."} so resolveSavedApiKeyIntoConfig
+  // can discriminate it from a bare key cleanly. Running a non-secret through encryptApiKey is
   // semantically odd but reuses the existing row contract (encryptedKey NOT
   // NULL) without a schema change.
   const storedSecret = provider === 'ollama'

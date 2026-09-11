@@ -467,19 +467,6 @@ export function ModularWizardProvider({ children, initialData = null, botSpaceId
           // left blank. Nothing to validate at the wizard layer.
         } else if (state.core.apiKeyId || state.core.hasStoredApiKey) {
           // Saved key picked or existing key on file — no fresh paste needed.
-        } else if (state.core.provider === 'bedrock') {
-          if (!state.core.apiKey) {
-            newErrors.apiKey = 'AWS credentials are required';
-          } else {
-            try {
-              const creds = JSON.parse(state.core.apiKey);
-              if (!creds.useIamRole && (!creds.accessKeyId || !creds.secretAccessKey)) {
-                newErrors.apiKey = 'AWS Access Key ID and Secret Access Key are required';
-              }
-            } catch {
-              newErrors.apiKey = 'Invalid AWS credentials format';
-            }
-          }
         } else if (!state.core.apiKey) {
           newErrors.apiKey = 'API Key is required';
         }

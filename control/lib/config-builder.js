@@ -3,12 +3,7 @@
  * Transforms simple form data into the config.json structure expected by dragbot-factory
  */
 
-import {
-  LLM_PROVIDERS,
-  buildBedrockModelId,
-  stripBedrockModelPrefix,
-  getAllowedProtocolsForModel,
-} from './llm-providers.js';
+import { LLM_PROVIDERS, getAllowedProtocolsForModel } from './llm-providers.js';
 
 /**
  * Extract terms and conditions text from formStructure's consentToTC field
@@ -97,42 +92,6 @@ export function buildLLMConfig(provider, apiKey, model, additionalSettings = {})
           timeout: 300000,
         };
       }
-    } else if (key === 'bedrock') {
-      // Bedrock uses different config structure (credentials stored as JSON in apiKey)
-      if (key === provider && !usingSavedKey) {
-        // Parse credentials from apiKey JSON
-        const credentials = JSON.parse(apiKey);
-        // Ensure region is always set (fallback to us-east-1)
-        const region = credentials.region || 'us-east-1';
-        // Apply geographic prefix to model ID for cross-region inference
-        const prefixedModel = buildBedrockModelId(model, region);
-        llmConfig[key] = {
-          region,
-          useIamRole: credentials.useIamRole,
-          accessKeyId: credentials.accessKeyId,
-          secretAccessKey: credentials.secretAccessKey,
-          model: prefixedModel,
-        };
-      } else if (key === provider && usingSavedKey) {
-        // Saved-key path: emit user's model unprefixed; server will decrypt
-        // the saved credentials, set the region, and apply the geo prefix.
-        llmConfig[key] = {
-          region: 'us-east-1',
-          useIamRole: false,
-          accessKeyId: null,
-          secretAccessKey: null,
-          model,
-        };
-      } else {
-        // Empty Bedrock config
-        llmConfig[key] = {
-          region: 'us-east-1',
-          useIamRole: true,
-          accessKeyId: null,
-          secretAccessKey: null,
-          model: keyConfig.defaultModel,
-        };
-      }
     } else {
       // Standard providers with baseURL/endpoint
       if (key === provider) {
@@ -186,7 +145,7 @@ export function buildLLMConfig(provider, apiKey, model, additionalSettings = {})
  * @param {string} formData.botName - Bot name
  * @param {string} formData.objective - Bot objective (MANDATORY)
  * @param {string} formData.firstMessage - Welcome message
- * @param {string} formData.provider - LLM provider (openai|anthropic|bedrock)
+ * @param {string} formData.provider - LLM provider (openai|anthropic|ollama)
  * @param {string} formData.apiKey - API key for selected provider
  * @param {string} formData.model - Model name
  * @param {Array} formData.suggestedPrompts - Optional suggested prompts
@@ -362,22 +321,12 @@ export function parseDeploymentConfig(config) {
   const provider = config.llm.provider;
   const providerConfig = config.llm[provider];
 
-  // For Bedrock, apiKey is JSON credentials; for others it's the key itself.
   // Ollama has no credentials — just a host URL that round-trips into the
-  // wizard's ollamaHost field.
+  // wizard's ollamaHost field. Every other provider carries an API key.
   let apiKey = '';
   let ollamaHost = '';
-  let model = providerConfig.model;
-  if (provider === 'bedrock') {
-    apiKey = JSON.stringify({
-      region: providerConfig.region,
-      useIamRole: providerConfig.useIamRole,
-      accessKeyId: providerConfig.accessKeyId,
-      secretAccessKey: providerConfig.secretAccessKey,
-    });
-    // Strip geographic prefix from model ID so it matches dropdown options
-    model = stripBedrockModelPrefix(model);
-  } else if (provider === 'ollama') {
+  const model = providerConfig.model;
+  if (provider === 'ollama') {
     ollamaHost = providerConfig.host || '';
   } else {
     apiKey = providerConfig.apiKey || '';
@@ -449,23 +398,13 @@ export function parseModularDeploymentConfig(config, options = {}) {
     opticalRead: (config.opticalReadFields?.length > 0) || !!config.config?.isOpticalRead,
   };
 
-  // Compute core fields (handles Bedrock vs standard providers; Ollama
-  // carries a host instead of a key)
+  // Compute core fields (Ollama carries a host instead of a key)
   const coreProvider = config.llm?.provider || 'anthropic';
   const coreProviderConfig = config.llm?.[coreProvider] || {};
   let coreApiKey = '';
   let coreOllamaHost = '';
-  let coreModel = coreProviderConfig.model || '';
-  if (coreProvider === 'bedrock') {
-    coreApiKey = JSON.stringify({
-      region: coreProviderConfig.region,
-      useIamRole: coreProviderConfig.useIamRole,
-      accessKeyId: coreProviderConfig.accessKeyId,
-      secretAccessKey: coreProviderConfig.secretAccessKey,
-    });
-    // Strip geographic prefix from model ID so it matches dropdown options
-    coreModel = stripBedrockModelPrefix(coreModel);
-  } else if (coreProvider === 'ollama') {
+  const coreModel = coreProviderConfig.model || '';
+  if (coreProvider === 'ollama') {
     coreOllamaHost = coreProviderConfig.host || '';
   } else {
     coreApiKey = coreProviderConfig.apiKey || '';
@@ -617,12 +556,7 @@ export function validateDeploymentConfig(config) {
   // Validate credentials based on provider
   const provider = config.llm?.provider;
   const providerConfig = config.llm?.[provider];
-  if (provider === 'bedrock') {
-    // Bedrock stores credentials as separate fields (accessKeyId, secretAccessKey, useIamRole)
-    if (!providerConfig?.useIamRole && (!providerConfig?.accessKeyId || !providerConfig?.secretAccessKey)) {
-      errors.push('AWS Access Key ID and Secret Access Key are required (or enable IAM Role)');
-    }
-  } else if (provider === 'ollama') {
+  if (provider === 'ollama') {
     // Ollama is credential-less; host is the only required transport field.
     // buildLLMConfig falls back to defaultHost when the wizard leaves it
     // blank, so this should only fail if someone hand-constructs a config.

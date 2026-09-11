@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Slutpunkten som din bot kommer att träffa. Lämna tomt för att standardisera till http://localhost:11434. Om din bot körs i Docker och Ollama körs på värden, använd http://host.docker.internal:11434 (Mac/Windows) eller värdöns LAN-IP (Linux). Molndistributioner behöver en offentligt nåbar Ollama-slutpunkt. Kräver Ollama ≥ 0.5.0 för omfattningsgiltighetsgarantier — äldre demoner fungerar men faller tillbaka till best-effort JSON-tolkning.",
       "ollamaHostSavedPlaceholder": "Använder sparad värd — rensa för att skriva en ny URL",
       "ollamaHostUsingSaved": "Använder sparad Ollama-värd:",
-      "ollamaHostOrUseSaved": "Eller använd en sparad Ollama-värd:",
-      "awsCredentialsUsing": "Använder sparade AWS-uppgifter:",
-      "awsCredentialsExisting": "Befintliga AWS-uppgifter konfigurerade — kommer att återanvändas om du inte anger nya nedan",
-      "awsUseIamRole": "Använd IAM-roll (rekommenderas för EKS/EC2)",
-      "awsUseIamRoleHelper": "Använder instans-/pod-IAM-rollen istället för explicita uppgifter",
-      "awsAccessKeyId": "AWS-åtkomstnyckel-ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock-region",
-      "bedrockRegionOption": "{name} ({geoPrefix} tvärregionalt)",
-      "bedrockCrossRegion": "Tvärregional slutledning dirigerar begäranden till tillgänglig kapacitet över {regionName}-regionen",
-      "regionUS": "USA",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Använder IAM-roll",
-      "awsCredentialsConfigured": "AWS-uppgifter konfigurerade",
-      "awsLoadingCredentials": "Laddar sparade uppgifter...",
-      "awsOrUseSaved": "Eller använd sparade AWS-uppgifter:"
+      "ollamaHostOrUseSaved": "Eller använd en sparad Ollama-värd:"
     },
     "knowledge": {
       "loadingDocuments": "Laddar dokument...",
@@ -962,12 +944,10 @@
         "description": "Driver botbyggaren och baks in i varje bot du kompilerar.",
         "defaultName": "Standard",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (klistra in JSON-autentiseringsuppgifter)",
           "ollama": "Ollama (lokal — klistra in värd-URL)"
         }
       },

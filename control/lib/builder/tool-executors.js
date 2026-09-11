@@ -58,7 +58,7 @@ async function getLLMConfigFromSession(session, userId, task = 'reasoning') {
   // silently routed to the slower lane — they pick Ollama by marking it
   // default, not by accident.
   if (!apiKeyRecord) {
-    const fallbackOrder = ['anthropic', 'bedrock', 'openai', 'ollama'];
+    const fallbackOrder = ['anthropic', 'openai', 'ollama'];
     for (const provider of fallbackOrder) {
       apiKeyRecord = apiKeys.find((k) => k.provider === provider);
       if (apiKeyRecord) break;
@@ -137,7 +137,7 @@ function getStaticPromptsForIntent(intent) {
  * @returns {Promise<{ firstMessage: string, objective: string } | null>}
  */
 async function generateContextualIdentity(domainDigest, userMessage, intent, organizationName, session, userId) {
-  // Get LLM config from session (supports Anthropic, Bedrock, etc.)
+  // Get LLM config from session (supports Anthropic, OpenAI, Ollama)
   // Structured tier: response is a JSON object parsed via jsonMatch.
   let llmConfig;
   try {
@@ -881,7 +881,7 @@ const builderToolHandlers = {
     const { description, formType = 'custom', locale = 'en', afterSubmitChatMessage } = input;
     const { session, userId } = context;
 
-    // Get LLM config from session (supports Anthropic, Bedrock, etc.)
+    // Get LLM config from session (supports Anthropic, OpenAI, Ollama)
     // Structured tier: model returns a JSON schema parsed downstream.
     const llmConfig = await getLLMConfigFromSession(session, userId, 'structured');
     const { provider, apiKey, model } = llmConfig;
@@ -1356,7 +1356,7 @@ The afterSubmitMessage should be friendly, contextual to the form purpose, and i
   async generate_bot_summary(input, context) {
     const { session, userId } = context;
 
-    // Get LLM config from session (supports Anthropic, Bedrock, etc.)
+    // Get LLM config from session (supports Anthropic, OpenAI, Ollama)
     // Summary tier: prose generation for multi-bot orchestration metadata.
     const llmConfig = await getLLMConfigFromSession(session, userId, 'summary');
     const { provider, apiKey, model } = llmConfig;

@@ -667,25 +667,7 @@
       "ollamaHostHelper": "ボットがヒットするエンドポイント。http://localhost:11434 にデフォルト設定する場合は空白のままにしてください。ボットが Docker で実行され、Ollama がホストで実行されている場合は、http://host.docker.internal:11434 (Mac/Windows) またはホストの LAN IP (Linux) を使用します。クラウドデプロイには公開でアクセス可能な Ollama エンドポイントが必要です。エンベロープの有効性保証には Ollama ≥ 0.5.0 が必要です — 古いデーモンは機能しますが、ベストエフォート JSON 解析にフォールバックします。",
       "ollamaHostSavedPlaceholder": "保存されたホストを使用 — クリアして新しい URL を入力",
       "ollamaHostUsingSaved": "保存された Ollama ホストを使用中:",
-      "ollamaHostOrUseSaved": "または、保存された Ollama ホストを使用:",
-      "awsCredentialsUsing": "保存された AWS 認証情報を使用中:",
-      "awsCredentialsExisting": "既存の AWS 認証情報が構成されています — 以下に新しい認証情報を入力しない限り、再利用されます",
-      "awsUseIamRole": "IAM ロールを使用 (EKS/EC2 の場合は推奨)",
-      "awsUseIamRoleHelper": "明示的な認証情報の代わりに、インスタンス/ポッド IAM ロールを使用します",
-      "awsAccessKeyId": "AWS アクセスキー ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS シークレットアクセスキー",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock リージョン",
-      "bedrockRegionOption": "{name} ({geoPrefix} クロスリージョン)",
-      "bedrockCrossRegion": "クロスリージョン推論は、{regionName} リージョン全体の利用可能な容量にリクエストをルーティングします",
-      "regionUS": "米国",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "IAM ロールを使用中",
-      "awsCredentialsConfigured": "AWS 認証情報が構成されています",
-      "awsLoadingCredentials": "保存された認証情報を読み込み中...",
-      "awsOrUseSaved": "または、保存された AWS 認証情報を使用:"
+      "ollamaHostOrUseSaved": "または、保存された Ollama ホストを使用:"
     },
     "knowledge": {
       "loadingDocuments": "ドキュメントを読み込み中...",
@@ -962,12 +944,10 @@
         "description": "ボットビルダーを駆動し、コンパイルするすべてのボットに組み込まれます。",
         "defaultName": "デフォルト",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock（JSONクレデンシャルを貼り付け）",
           "ollama": "Ollama（ローカル-ホストURLを貼り付け）"
         }
       },

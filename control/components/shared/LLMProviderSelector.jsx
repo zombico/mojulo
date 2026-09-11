@@ -102,7 +102,7 @@ export default function LLMProviderSelector({
           />
           <datalist id="model-suggestions">
             {availableModels.map((modelItem) => {
-              // Handle both string models and object models (like Bedrock)
+              // Handle both string models and { id, name } object models
               const modelId = typeof modelItem === 'string' ? modelItem : modelItem.id;
               const modelName = typeof modelItem === 'string' ? modelItem : modelItem.name;
               return (

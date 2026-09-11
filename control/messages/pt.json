@@ -667,25 +667,7 @@
       "ollamaHostHelper": "O endpoint que seu bot atingirá. Deixe em branco para usar como padrão http://localhost:11434. Se seu bot é executado no Docker e Ollama é executado no host, use http://host.docker.internal:11434 (Mac/Windows) ou o IP LAN do seu host (Linux). As implantações em nuvem precisam de um endpoint Ollama acessível publicamente. Requer Ollama ≥ 0.5.0 para garantias de validade de envelope — daemons mais antigos funcionam mas caem para análise JSON de melhor esforço.",
       "ollamaHostSavedPlaceholder": "Usando host salvo — limpe para digitar uma nova URL",
       "ollamaHostUsingSaved": "Usando host Ollama salvo:",
-      "ollamaHostOrUseSaved": "Ou use um host Ollama salvo:",
-      "awsCredentialsUsing": "Usando credenciais AWS salvas:",
-      "awsCredentialsExisting": "Credenciais AWS existentes configuradas — serão reutilizadas a menos que você digite novas abaixo",
-      "awsUseIamRole": "Usar Função IAM (recomendado para EKS/EC2)",
-      "awsUseIamRoleHelper": "Usa a função IAM da instância/pod em vez de credenciais explícitas",
-      "awsAccessKeyId": "ID de Chave de Acesso AWS",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "Chave de Acesso Secreto AWS",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Região do Bedrock",
-      "bedrockRegionOption": "{name} (cross-region {geoPrefix})",
-      "bedrockCrossRegion": "Inferência entre regiões roteia solicitações para capacidade disponível em toda a região {regionName}",
-      "regionUS": "EUA",
-      "regionEU": "UE",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Usando Função IAM",
-      "awsCredentialsConfigured": "Credenciais AWS configuradas",
-      "awsLoadingCredentials": "Carregando credenciais salvas...",
-      "awsOrUseSaved": "Ou use credenciais AWS salvas:"
+      "ollamaHostOrUseSaved": "Ou use um host Ollama salvo:"
     },
     "knowledge": {
       "loadingDocuments": "Carregando documentos...",
@@ -962,12 +944,10 @@
         "description": "Alimenta o construtor de bot e é incorporado em cada bot que você compila.",
         "defaultName": "Padrão",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (colar credenciais JSON)",
           "ollama": "Ollama (local — colar URL do host)"
         }
       },

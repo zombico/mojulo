@@ -667,25 +667,7 @@
       "ollamaHostHelper": "نقطه پایانی که ربات شما به آن می‌رسد. برای پیش‌فرض http://localhost:11434 خالی بگذارید. اگر ربات شما در Docker اجرا می‌شود و Ollama در میزبان اجرا می‌شود، از http://host.docker.internal:11434 (Mac/Windows) یا IP LAN میزبان خود (Linux) استفاده کنید. استقرار ابری به نقطه پایانی Ollama قابل دسترسی عمومی نیاز دارد. Ollama ≥ 0.5.0 برای گارانتی‌های معتبر پاکت مورد نیاز است — دیمون‌های قدیمی‌تر کار می‌کنند اما به تجزیه JSON بهترین تلاش بازمی‌گردند.",
       "ollamaHostSavedPlaceholder": "استفاده از میزبان ذخیره شده — برای تایپ URL جدید پاک کنید",
       "ollamaHostUsingSaved": "استفاده از میزبان Ollama ذخیره شده:",
-      "ollamaHostOrUseSaved": "یا از میزبان Ollama ذخیره شده استفاده کنید:",
-      "awsCredentialsUsing": "استفاده از اعتبارات AWS ذخیره شده:",
-      "awsCredentialsExisting": "اعتبارات AWS موجود پیکربندی شده — مگر اینکه موارد جدید زیر وارد کنید مجدداً استفاده می‌شود",
-      "awsUseIamRole": "استفاده از نقش IAM (توصیه شده برای EKS/EC2)",
-      "awsUseIamRoleHelper": "از نقش IAM نمونه/pod استفاده می‌کند به جای اعتبارات صریح",
-      "awsAccessKeyId": "شناسه کلید دسترسی AWS",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "کلید دسترسی خصوصی AWS",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "منطقه Bedrock",
-      "bedrockRegionOption": "{name} ({geoPrefix} درمیان‌منطقه‌ای)",
-      "bedrockCrossRegion": "استنتاج درمیان‌منطقه‌ای درخواست‌ها را به ظرفیت موجود در سراسر منطقه {regionName} مسیریابی می‌کند",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "استفاده از نقش IAM",
-      "awsCredentialsConfigured": "اعتبارات AWS پیکربندی شده",
-      "awsLoadingCredentials": "بارگذاری اعتبارات ذخیره شده...",
-      "awsOrUseSaved": "یا از اعتبارات AWS ذخیره شده استفاده کنید:"
+      "ollamaHostOrUseSaved": "یا از میزبان Ollama ذخیره شده استفاده کنید:"
     },
     "knowledge": {
       "loadingDocuments": "بارگذاری اسناد...",
@@ -962,12 +944,10 @@
         "description": "Powers the bot builder and gets baked into every bot you compile.",
         "defaultName": "Default",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (paste JSON credentials)",
           "ollama": "Ollama (local — paste host URL)"
         }
       },

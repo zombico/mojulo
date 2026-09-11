@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Det endepunkt din bot rammer. Lad være blank for at standardisere http://localhost:11434. Hvis din bot kører i Docker og Ollama kører på værten, brug http://host.docker.internal:11434 (Mac/Windows) eller værtsens LAN-IP (Linux). Cloud-implementeringer kræver et offentligt tilgængeligt Ollama-endepunkt. Kræver Ollama ≥ 0.5.0 for envelope-gyldigheds garantier — ældre dæmoner virker men falder tilbage til best-effort JSON-parsing.",
       "ollamaHostSavedPlaceholder": "Brug gemt vært — ryd for at skrive en frisk URL",
       "ollamaHostUsingSaved": "Ved hjælp af gemt Ollama-vært:",
-      "ollamaHostOrUseSaved": "Eller brug en gemt Ollama-vært:",
-      "awsCredentialsUsing": "Ved hjælp af gemte AWS-legitimationsoplysninger:",
-      "awsCredentialsExisting": "Eksisterende AWS-legitimationsoplysninger konfigureret — genbruges medmindre du indtaster nye herunder",
-      "awsUseIamRole": "Brug IAM-rolle (anbefalet til EKS/EC2)",
-      "awsUseIamRoleHelper": "Bruger instansen/pod IAM-rollen i stedet for eksplicitte legitimationsoplysninger",
-      "awsAccessKeyId": "AWS-adgangsnotøgle-id",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS-hemmelig adgangsnotøgle",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock-region",
-      "bedrockRegionOption": "{name} ({geoPrefix} cross-region)",
-      "bedrockCrossRegion": "Cross-region inferens ruter anmodninger til tilgængelig kapacitet på tværs af {regionName}-regionen",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Brug af IAM-rolle",
-      "awsCredentialsConfigured": "AWS-legitimationsoplysninger konfigureret",
-      "awsLoadingCredentials": "Indlæser gemte legitimationsoplysninger...",
-      "awsOrUseSaved": "Eller brug gemte AWS-legitimationsoplysninger:"
+      "ollamaHostOrUseSaved": "Eller brug en gemt Ollama-vært:"
     },
     "knowledge": {
       "loadingDocuments": "Indlæser dokumenter...",
@@ -962,12 +944,10 @@
         "description": "Driver botbygeren og indlysende i hver bot du kompilerer.",
         "defaultName": "Standard",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (indsæt JSON-legitimationsoplysninger)",
           "ollama": "Ollama (lokal — indsæt host URL)"
         }
       },

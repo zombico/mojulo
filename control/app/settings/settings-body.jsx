@@ -361,7 +361,6 @@ function SettingsPageInner() {
   }));
 
   function llmPlaceholder(provider) {
-    if (provider === 'bedrock') return t('llm.bedrockPlaceholder');
     if (provider === 'ollama') return t('llm.ollamaPlaceholder');
     return t('llm.placeholder');
   }

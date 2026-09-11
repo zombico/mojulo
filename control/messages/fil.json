@@ -667,25 +667,7 @@
       "ollamaHostHelper": "Ang endpoint na papatahin ng inyong bot. Iwanan nang blangko upang mag-default sa http://localhost:11434. Kung ang inyong bot ay tumatakbo sa Docker at ang Ollama ay tumatakbo sa host, gamitin ang http://host.docker.internal:11434 (Mac/Windows) o ang LAN IP ng inyong host (Linux). Ang mga cloud deploy ay nangangailangan ng isang publiko na maaabot na Ollama endpoint. Nangangailangan ng Ollama ≥ 0.5.0 para sa mga guarantees ng envelope-validity — ang mas lumang daemon ay gumagana ngunit bumabalik sa best-effort JSON parsing.",
       "ollamaHostSavedPlaceholder": "Gumagamit ng nai-save na host — i-clear upang mag-type ng bagong URL",
       "ollamaHostUsingSaved": "Gumagamit ng nai-save na Ollama host:",
-      "ollamaHostOrUseSaved": "O gumamit ng isang nai-save na Ollama host:",
-      "awsCredentialsUsing": "Gumagamit ng mga nai-save na AWS credentials:",
-      "awsCredentialsExisting": "Umiiral na AWS credentials na na-configure — magagamit muli maliban kung magpasok kayo ng mga bagong isa sa ibaba",
-      "awsUseIamRole": "Gamitin ang IAM Role (inirerekomenda para sa EKS/EC2)",
-      "awsUseIamRoleHelper": "Gumagamit ng instance/pod IAM role sa halip na explicit credentials",
-      "awsAccessKeyId": "AWS Access Key ID",
-      "awsAccessKeyIdPlaceholder": "AKIAIOSFODNN7EXAMPLE",
-      "awsSecretAccessKey": "AWS Secret Access Key",
-      "awsSecretAccessKeyPlaceholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "bedrockRegion": "Bedrock Region",
-      "bedrockRegionOption": "{name} ({geoPrefix} cross-region)",
-      "bedrockCrossRegion": "Ang cross-region inference ay nag-route ng mga requests sa available na kapasidad sa {regionName} region",
-      "regionUS": "US",
-      "regionEU": "EU",
-      "regionAPAC": "APAC",
-      "awsUsingIamRoleStatus": "Gumagamit ng IAM Role",
-      "awsCredentialsConfigured": "Naka-configure na ang AWS credentials",
-      "awsLoadingCredentials": "Ginagawa ang load ng mga nai-save na credentials...",
-      "awsOrUseSaved": "O gumamit ng mga nai-save na AWS credentials:"
+      "ollamaHostOrUseSaved": "O gumamit ng isang nai-save na Ollama host:"
     },
     "knowledge": {
       "loadingDocuments": "Ginagawa ang load ng mga dokumento...",
@@ -962,12 +944,10 @@
         "description": "Nagpapalakas sa bot builder at nagiging bahagi ng bawat bot na iyong i-compile.",
         "defaultName": "Default",
         "placeholder": "sk-…",
-        "bedrockPlaceholder": "{\"region\":\"us-east-1\",\"accessKeyId\":\"…\",\"secretAccessKey\":\"…\"}",
         "ollamaPlaceholder": "http://localhost:11434",
         "providers": {
           "anthropic": "Anthropic",
           "openai": "OpenAI",
-          "bedrock": "AWS Bedrock (i-paste ang JSON credentials)",
           "ollama": "Ollama (local — i-paste ang host URL)"
         }
       },
