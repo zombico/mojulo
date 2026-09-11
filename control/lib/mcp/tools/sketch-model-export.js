@@ -23,6 +23,7 @@ import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench
 import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
+import { scadExport } from '@/lib/graph/scene/scene-scad';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
@@ -198,6 +199,12 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '- Axes and scale: mojulo worlds are z-up; the GLB parents everything under a y-up-rotated `mojulo` root, so it imports upright with no axis settings, and when the recipe declares a unit (`units:\'cm\'`, or a kind\'s own authoring unit) the root is scaled by it (`moj:metersPerUnit`) so importers receive metres at true size. (STL and 3MF stay raw z-up, units as millimetres — 3MF declares them, STL assumes them. USD declares `upAxis = "Z"` and `metersPerUnit` from the recipe, so it too imports upright at true scale.)',
     ...(format === 'usda' || format === 'usdz' ? ['- USD: one Mesh per render group with per-vertex `displayColor` (untextured meshes bind no material — viewers show the colour directly); textured groups bind a UsdPreviewSurface + UsdUVTexture; repeats are PointInstancers; entities are Xforms whose `moj:` extras ride customData; spawn / colliders / game ride the layer customLayerData. Rig clips are not in USD yet (UsdSkel is roadmap).'] : []),
     ...(format === '3mf' ? ['- 3MF: one object per shell (the base geometry, then each instanced repeat) placed by build items; baked colours ride `basematerials` — map them to filaments on a multi-material printer, ignore them otherwise.'] : []),
+    ...(format === 'scad' ? [
+      '- OpenSCAD: this one is a PROGRAM, not a mesh. Open it in OpenSCAD, press F5 to preview and F6 to render, then export STL from there. Its booleans are EXACT, so a bore has a sharp lip the recipe itself cannot express — that is the whole reason this format exists.',
+      '- The variables at the head of the file are live dials for the exactly-transpiled geometry (OpenSCAD\'s Customizer will show them). A `polyhedron()` block is a FROZEN bake of a term with no OpenSCAD equivalent and ignores them; the comment above each one names the term that forced it.',
+      '- `$fn` sets the facet count for curved primitives — raise it for a smoother print. `mm_per_unit` wraps the assembly so the part lands at real millimetres.',
+      '- Round-trip warning: mojulo does NOT read `.scad` back. This is a derived snapshot; edit the recipe with `update_sketch`, or take this file as a starting point and own it from there. `color()` is preview-only and will not appear in an STL OpenSCAD renders.',
+    ] : []),
     '- Animations: rig clips are baked at 1 second per cycle (looping clips repeat key 0 as a wrap key) — retime freely in the NLA/AnimationPlayer.',
     '- Level semantics ride glTF `extras` under the `moj:` namespace: `entity:<id>` nodes carry `moj:entity`/`moj:rule`/`moj:body`; the scene carries `moj:spawn`, `moj:colliders` (AABB boxes), and `moj:game` (contract summary). Cameras are mojulo\'s own framings.',
     '- Colours are baked vertex colours on unlit materials — the depiction is the asset; no lighting setup needed.',
@@ -258,13 +265,17 @@ export async function exportModelHandler(input) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad' if provided");
   }
   const isUsd = format === 'usda' || format === 'usdz';
   // The two print formats share every print seam (profile, scale, closure, README notes).
   const isPrint = format === 'stl' || format === '3mf';
+  // scad is a PROGRAM, not a mesh: it shares the print leg's SCALE strategy (it becomes a
+  // physical part) and none of its mesh seams — no closure audit, no Manifold union, no
+  // printer advisories, because OpenSCAD computes all of that itself from exact solids.
+  const isScad = format === 'scad';
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) {
     throw new Error('`scale` must be a positive number if provided');
   }
@@ -340,7 +351,7 @@ export async function exportModelHandler(input) {
   const units = declared ? declared.units : null;
   let scale = 1;
   let scaleNote = 'default 1 — coordinates read as millimetres';
-  if (isPrint && payload) ({ scale, scaleNote } = resolvePrintScale({ payload, profile, units, scaleInput, targetMm }));
+  if ((isPrint || isScad) && payload) ({ scale, scaleNote } = resolvePrintScale({ payload, profile, units, scaleInput, targetMm }));
 
   // USD declares its scale IN the layer: the recipe's declared units → metersPerUnit (1 = the
   // pinned MOJULO_UNITS when nothing is declared). Print-style fit/scale knobs do not apply.
@@ -356,6 +367,22 @@ export async function exportModelHandler(input) {
           ? facesToUsda(payload, usdOpts)
           : format === 'usdz'
             ? facesToUsdz(payload, usdOpts)
+            : format === 'scad'
+              // the RECIPE is the input here, not the payload — a `code` kind hands over the
+              // monomers its program returned (the ones that actually shipped), and `cuts`
+              // lower inside the transpiler. The payload is the fallback for a kind that has
+              // no workbench manifest to read (decision 6: nothing refuses the format).
+              ? scadExport({
+                manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : sketch.manifest,
+                payload,
+                title: sketch.title || sketch.manifest.title || ref,
+                ref,
+                kind: kind ?? sketch.manifest.kind,
+                units,
+                mmPerUnit: scale,
+                scaleNote,
+                why: `'${kind ?? sketch.manifest.kind}' carries no workbench manifest to transpile term by term`,
+              })
             : facesToGlb(payload, { generator: `mojulo ${ref}`, ...(clips != null ? { clips } : {}), ...(skinned ? { skinned } : {}), ...(quantize ? { quantize } : {}), ...(humanoid ? { humanoid } : {}), ...(lit ? { lit: true } : {}) }))
     : null;
   const url = `/api/sketches/${encodeURIComponent(ref)}/model.${format}`;
@@ -499,6 +526,60 @@ export async function exportModelHandler(input) {
       + 'instanced repeats as PointInstancers, level cameras as Camera prims, entities as Xforms with moj: customData. '
       + 'Not exported in v1: rig figures / clips (UsdSkel waits on the humanoid map), per-instance tints.'
       + (format === 'usda' && exported.sidecars.length ? ` Texture sidecars: ${exported.sidecars.map((s) => s.name).join(', ')} (written beside the file).` : '');
+  } else if (isScad) {
+    // openscad-leg.plan.md phase 2. The ledger is the whole honesty surface here: the file
+    // claims sharp edges only for the terms that actually transpiled, and names every term
+    // that did not. Nothing refuses the format (decision 6) — a kind with no manifest to
+    // read arrives fully baked and the note says `stl` is the better file.
+    const cov = exported.coverage;
+    result.print_profile = profile;
+    result.scale = scale;
+    // What the part should measure once OpenSCAD has rendered it — the number
+    // `scripts/scad-gate.mjs` checks its render against. It reads the PRINTABLE soup, not
+    // every face: a workbench payload carries the studio floor and measuring grid, which are
+    // not monomers and so never reach the .scad at all. (Measured, before this used
+    // printSoup: a 120 mm disc declared 302 mm, which is the grid.) Still mojulo's MESH
+    // bounds, so a field-composed part reads up to about half a grid cell under the ideal
+    // solid OpenSCAD computes — that is what the gate's `tolerance_mm` is for.
+    const soupForSize = printSoup(payload, { scale });
+    if (soupForSize && soupForSize.length >= 3) {
+      const mn = [Infinity, Infinity, Infinity];
+      const mx = [-Infinity, -Infinity, -Infinity];
+      for (let i = 0; i < soupForSize.length; i += 3) {
+        for (let k = 0; k < 3; k += 1) {
+          const v = soupForSize[i + k];
+          if (v < mn[k]) mn[k] = v;
+          if (v > mx[k]) mx[k] = v;
+        }
+      }
+      if (Number.isFinite(mn[0])) result.size_mm = [0, 1, 2].map((k) => Math.round((mx[k] - mn[k]) * 10) / 10);
+    }
+    result.scad = {
+      exact: cov.exact,
+      baked: cov.baked,
+      terms: cov.terms,
+      variables: exported.variables,
+      parts: exported.parts,
+      mm_per_unit: exported.mmPerUnit,
+      frozen: { points: exported.vertexCount, faces: exported.triangleCount },
+    };
+    const allExact = cov.baked === 0 && cov.terms.length > 0;
+    const noneExact = cov.exact === 0;
+    result.note = 'An OpenSCAD PROGRAM, not a mesh — the recipe transpiled term by term, so OpenSCAD recomputes the solids and '
+      + 'its booleans are EXACT: a bore arrives with a sharp lip, where the recipe itself rounds every edge to about one grid cell. '
+      + '(Curved primitives are still faceted by `$fn` at the top of the file; it is the boolean that is exact, not the sphere.) '
+      + `Coverage: ${cov.exact} term${cov.exact === 1 ? '' : 's'} exact, ${cov.baked} baked`
+      + (cov.baked
+        ? ` — ${cov.terms.filter((t) => t.status !== 'exact').map((t) => `${t.at} (${t.what})`).join(', ')} had no OpenSCAD equivalent and ${cov.baked === 1 ? 'is' : 'are'} frozen as polyhedron() that does NOT respond to the file's variables. `
+        : '. ')
+      + (allExact ? 'Nothing in this file is a frozen mesh, so `vertices` / `triangles` read 0 by construction — OpenSCAD tessellates it. ' : '')
+      + (noneExact
+        ? `This kind has no workbench manifest to transpile, so the whole part is ONE frozen polyhedron — \`format: 'stl'\` is the better file for it, and \`mint_solid\` a workbench if you want editable solids. `
+        : `${exported.variables} variable${exported.variables === 1 ? '' : 's'} at the head of the file drive the exact geometry; a baked polyhedron ignores them. `)
+      + `Scale: the assembly is wrapped in \`mm_per_unit = ${exported.mmPerUnit}\` (${scaleNote})`
+      + (result.size_mm ? `; mojulo's mesh measures ${result.size_mm.join(' × ')} mm, and OpenSCAD's exact solid should land within about half a grid cell of that. ` : '. ')
+      + 'Not carried across: `color()` is preview-only and OpenSCAD drops it from any STL it renders, and label `wrap` images have no OpenSCAD counterpart. '
+      + 'Mojulo never reads this file back — it is a derived snapshot; `update_sketch` is the sovereign dial.';
   } else {
     // The print handoff: profile + scale + size + closure travel with the file.
     if (format === '3mf') {

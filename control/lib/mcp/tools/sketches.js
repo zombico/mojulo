@@ -509,10 +509,10 @@ export function registerSketchTools() {
         },
         format: {
           type: 'string',
-          enum: ['glb', 'stl', '3mf', 'usda', 'usdz'],
+          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad'],
           default: 'glb',
           description:
-            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file.",
+            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — the recipe transpiled term by term so OpenSCAD's EXACT booleans give the sharp edges a sampled field cannot; a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it.",
         },
         scale: {
           type: 'number',
