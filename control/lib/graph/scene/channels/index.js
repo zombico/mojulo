@@ -24,6 +24,7 @@ import { signageChannelScript } from './signage.js';
 import { skyDomeScript } from './sky-dome.js';
 import { specularChannelScript } from './specular.js';
 import { sphereRigPreamble } from './sphere-rig.js';
+import { splatChannelScript } from './splats.js';
 import { spriteSfxChannelScript } from './sprite-sfx.js';
 import { starSurfaceChannelScript } from './star-surface.js';
 import { surfaceChannelScript } from './surface.js';
@@ -184,6 +185,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // toLight resolved off the payload's baked light
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojCast'] },         // controllable steers the follow box; walkers flag casters
+  { key: 'splats', anchor: 'pre-runtime', script: splatChannelScript,
+    normalizeIn: 'emitThreeWorld',     // gated on a non-empty payload.splats (field-splats.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojSplats'] },       // the coat's visibility handle + count, for probes
   { key: 'fx', anchor: 'post-step', script: fxChannelScript,
     normalizeIn: 'emitThreeWorld',     // presence decides controllable's exposeBodies
     requiresOptional: ['__BUS', '__mojCtrl'] },   // assigns the scene-three-emitted `let stepFx`
@@ -275,6 +280,7 @@ export function mojStepCalls() {
 
 // re-export the per-channel generators: the public surface of the pre-split channels.js.
 export { glowSpriteScript } from './glow.js';
+export { splatChannelScript } from './splats.js';
 export { spriteSfxChannelScript } from './sprite-sfx.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';

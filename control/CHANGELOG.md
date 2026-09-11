@@ -12,6 +12,40 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### field-splats — a second emission off the polygonizer's SDF
+
+- **Added (in progress): `surfaceSplats` in `lib/graph/polygonizer/field-splats.js`.** The sibling
+  of `surfaceNetFaces`: same `(field, bounds, opts)` contract, same uniform-grid walk of the zero
+  set, same central-difference gradient — but it emits oriented gaussians instead of quads. Pure and
+  deterministic; the coat is placed from the known field, never trained from images.
+- **Why: fur is not a surface, and mojulo has the scars to prove it.** `figure-animal-pelage.js`
+  is a complete coat builder, rewritten at least twice (its header records flat blades reading as
+  "angular spikes"), and `coatBlades` is reachable from exactly one line in the repo — a tail plume.
+  No shipped species wears it on the body; the raccoon picks painted `tailBands` over fur outright.
+  A quad can only be a surface, so every strand minted to fake volume costs ~36 faces that ship to
+  every engine, threaten the closure audit, and are unprintable at hair scale.
+- **Added (in progress): the `splats` channel.** A `SETUP_CHANNELS` row rendering the coat as
+  sorted surfels — quads spanned by the emission's own tangent axes, so they lie in the surface's
+  tangent plane instead of facing the camera (which is why this cannot reuse the glow channel's
+  sprites). Packed base64 through the page's existing decoders; zero bytes when absent, with every
+  pre-existing fixture hash in the char net untouched.
+- **Added (in progress): `coat: { fur }` on an animal.** `opts.coat.fur` grows the coat off the
+  animal's own resolved body faces — which came from the skin field via the surface net, so the
+  coat is field-derived while still inheriting planting, lighting, and the body's final colour.
+  That last part is load-bearing: a coat over a differently-coloured body reads as a halo,
+  because the opaque body eats the dense inner shells and only the silhouette survives. The body
+  is the innermost shell. Fur grows only where the coat PAINT already is, so paw pads and nose
+  leather stay bare. No shipped build is re-pointed yet.
+- **Proof, not intention: a coat changes nothing mojulo fabricates.** With a coat present the
+  faces, the STL printable set, the GLB, and the world-contract tier are byte-identical to the
+  uncoated animal, and `splats` is the only payload key added — asserted, so a later change that
+  leaks splats into the printable set or the tier ladder fails loudly.
+- **Scope: the soft register only.** Splats never declare a surface — they contribute nothing to the
+  T0-T4 world contract, are ignored by the STL/3MF printable set, and are skipped by the closure
+  audit. A coat cannot break a print or move a tier by construction. Rooms and the box worlds are
+  explicitly out: measured at 200x-2500x the primitives for a visually identical result, with
+  crenellated edges where a quad had an exact straight one.
+
 ## [2.0.1] - 2026-09-10
 
 ### `--help` answers, the ledger tool is named for what it is, and the registry fields

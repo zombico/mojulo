@@ -120,6 +120,14 @@ export const EMIT_FIXTURES = [
 
   ['picks', { faces: [quad()], picks: [{ name: 'static', label: 'Thing', fields: [{ k: 'mass', v: '3 kg' }] }] }],
   ['signs', { faces: [quad()], signs: SIGNS }],
+  // A COAT (field-splats.plan.md phase 2): gaussians off a polygonizer field. Its own
+  // fixture rather than folded into kitchen-sink, so the coat's emission is pinned in
+  // isolation and every OTHER fixture keeps proving the zero-bytes-when-absent rule.
+  ['coat-splats', { faces: [floor()], splats: [
+    { c: [0, 0, 1], n: [0, 0, 1], t1: [1, 0, 0], t2: [0, 1, 0], scale: [0.2, 0.2, 0.04], alpha: 1, color: '#c69772', shell: 0 },
+    { c: [0.3, 0, 1.05], n: [0, 0, 1], t1: [1, 0, 0], t2: [0, 1, 0], scale: [0.3, 0.3, 0.09], alpha: 0.45, color: '#8f6038', shell: 1 },
+    { c: [-0.3, 0.2, 1.1], n: [0, 0.3, 0.95], t1: [1, 0, 0], t2: [0, 0.95, -0.3], scale: [0.4, 0.4, 0.12], alpha: 0.18, color: '#6b4a2c', shell: 2 },
+  ] }],
 
   ['tracers', { faces: [quad()], tracers: [{ path: [[0, 0, 0], [1, 0, 1], [2, 0, 0]], color: '#88ddff', size: 0.3, period: 2 }] }],
   ['movers', { faces: [floor()], movers: [{ label: 'cart', path: [[0, 0, 0.5], [1, 0, 0.5], [2, 0, 0.5], [3, 0, 0.5]], dt: 0.1, size: 0.4 }] }],

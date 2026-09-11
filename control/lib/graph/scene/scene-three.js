@@ -49,7 +49,7 @@ import {
   controllableChannelScript, eventsChannelScript, fxChannelScript, gameChannelScript,
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
-  specularChannelScript, spriteSfxChannelScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
+  specularChannelScript, splatChannelScript, spriteSfxChannelScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
@@ -156,7 +156,7 @@ renderer.setAnimationLoop((t) => {
 }
 
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, figures = {}, events = null, fog = null, ao = null, repeats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, xr = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, xr = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -594,9 +594,19 @@ scene.add(__eQuad${i});
   // the setup/post blocks hand theirs into the SETUP_CHANNELS-ordered sections (S3):
   // the registry owns splice order per anchor; the template interpolates one section call
   // per anchor instead of a hand-wired run of block variables.
+  // Coat splats (field-splats.plan.md phase 2): the gaussians surfaceSplats grows off a
+  // polygonizer field. Purely additive presentation — a coat declares no surface, so it
+  // never reaches the printable set, the closure audit, or the world-contract tiers. An
+  // empty list emits ZERO bytes (the row carries sep:'' and the char net pins it).
+  const splatList = Array.isArray(splats)
+    ? splats.filter((sp) => sp && Array.isArray(sp.c) && Array.isArray(sp.t1) && Array.isArray(sp.t2) && Array.isArray(sp.scale))
+    : [];
+  const splatBlock = splatList.length ? splatChannelScript(splatList) : '';
+
   const setupBlocks = {
     sky: skyBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
+    splats: splatBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
   };
 

@@ -32,6 +32,7 @@ import path from 'node:path';
 
 import { figureRigSamples, figureWorldCamera, animalWorldFaces, animalWorldCamera } from '../polygonizer/figure-render.js';
 import { atlasLayout, remapFacesToAtlas } from '../polygonizer/skin-atlas.js';
+import { facesToSplats } from '../polygonizer/field-splats.js';
 import { skinDir } from '../polygonizer/skin-store.js';
 import { bakeRigFigure } from './rig-bake.js';
 import { resolveFigureSetup } from '../../visual-language/themes.js';
@@ -118,12 +119,43 @@ export function assembleAnimalScene(manifest = {}, ctx = {}) {
   manifest = atlasAwareManifest(manifest);
   const { faces } = animalWorldFaces(manifest);
   const worn = wearAtlas(manifest, ctx.ref, faces);
+  const bodyFaces = worn.faces.map((f) => ({ ...f, group: 'body' }));
   return {
-    faces: worn.faces.map((f) => ({ ...f, group: 'body' })),
+    faces: bodyFaces,
+    ...(resolveCoatSplats(manifest, bodyFaces) || {}),
     cameras: [animalWorldCamera(faces, manifest.view)],
     viewBox: { width: 560, height: 760 },
     title: ctx.title || manifest.title || 'mojulo animal',
     bg: manifest.background === false ? '#0e1014' : '#eef1f4',
     ...(worn.textures ? { textures: worn.textures } : {}),
   };
+}
+
+/**
+ * FUR (field-splats.plan.md phase 3): `opts.coat.fur` grows a gaussian coat off the
+ * animal's own body faces. Those faces came from the skin FIELD via the surface net
+ * (figure-animal-skin.js animalSkinWatertight), so their centroids are a uniform
+ * sampling of the iso-surface and their `outNormal` is the field gradient — the coat
+ * is field-derived even though it is grown here, downstream of planting and lighting.
+ * Growing it here rather than at the field is what lets it inherit the body's FINAL
+ * colour, which is load-bearing: a coat over a body painted a different colour reads as
+ * a halo, because the opaque body eats the dense inner shells and only the silhouette
+ * accumulation survives. The body IS the innermost shell.
+ *
+ * Absent `coat.fur`, this contributes nothing — no `splats` key, and the payload is the
+ * one every existing animal already resolved to.
+ */
+function resolveCoatSplats(manifest, bodyFaces) {
+  const coat = manifest && manifest.opts && manifest.opts.coat;
+  const fur = coat && coat !== true && coat.fur;
+  if (!fur) return null;
+  const spec = fur === true ? {} : fur;
+  const splats = facesToSplats(bodyFaces, {
+    // the coat's own colour defaults to the paint coat's, so `fur: true` is a
+    // one-word ask that still lands in the right family — and the same colour
+    // marks WHERE the fur grows, so paw pads, nose and eyes stay bare
+    ...(typeof coat.color === 'string' ? { color: coat.color, likeColor: coat.color } : {}),
+    ...spec,
+  });
+  return splats.length ? { splats } : null;
 }
