@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.zombico/mojulo",
+  "description": "A 3D factory for agents: a local MCP server where objects, walkable worlds and games are small re-runnable recipes, exported to HTML, Godot, Blender, STL/3MF. No account, no telemetry.",
+  "repository": {
+    "url": "https://github.com/zombico/mojulo",
+    "source": "github"
+  },
+  "version": "2.0.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "mojulo",
+      "version": "2.0.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
