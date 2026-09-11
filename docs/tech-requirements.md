@@ -201,8 +201,9 @@ Full requirements and deploy options: [chatbot/README.md](chatbot/README.md).
 - **Windows**: the installer handles `.cmd` shims and writes an absolute `npx` path for hosts that
   cannot see it; Chrome and Edge are detected under Program Files. `better-sqlite3`, `sharp`, and
   `onnxruntime-node` ship prebuilt binaries for Windows x64. Engine gates need the env vars set by
-  hand and are **not verified** on Windows. No verification run to date has included a Windows
-  machine at all — `npx mojulo init` on Windows is untested by the project.
+  hand and are **not verified** on Windows. Verified on a native Windows machine on 2026-09-11:
+  `npx mojulo init` completed under Claude Code and a first render landed. Codex on Windows, the
+  engine gates and the export legs are still unverified there.
 - **Linux**: the test suite runs on Ubuntu in CI, and a cold install of the 2.0.1 tarball was
   checked on 2026-09-10 in `node:22` containers on x64 and arm64 (install exits clean, the
   `better-sqlite3` prebuilt loads, `mojulo tools` lists). Chrome and Chromium are detected at the usual `/usr/bin` and snap paths; the

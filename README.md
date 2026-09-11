@@ -133,9 +133,9 @@ Driving it yourself instead? You need two things installed first:
 
 Platforms, honestly: built and verified on macOS (Apple Silicon). Linux runs the test
 suite in CI and a cold install of 2.0.1 was checked on x64 and arm64 containers. Windows
-has not been part of any verification run — the installer carries Windows paths, but
-nothing here has been checked on a Windows machine. If you run it there, open an issue
-with what you saw.
+was verified natively with Claude Code — `npx mojulo init` completed and a first render
+landed — but Codex there, and the engine gates on any platform but macOS, have not been.
+If you run it somewhere we haven't, open an issue with what you saw.
 
 No provider key. Your agent is the reasoning loop, so objects, worlds, games,
 scores and exports all run keyless. A key enters only when something has to

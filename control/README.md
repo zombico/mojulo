@@ -31,9 +31,9 @@ The bins, one install:
 Prerequisite: **Node.js 22.12+** (`node --version`). Everything below runs through
 `npx`, which ships with Node — if you don't have it, install it from
 [nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
-No provider key: your agent is the reasoning loop. Verified on macOS (Apple Silicon)
-and, for a cold install, on Linux x64 and arm64; Windows has not been part of any
-verification run.
+No provider key: your agent is the reasoning loop. Verified on macOS (Apple Silicon),
+on native Windows (`init` and a first render, under Claude Code), and, for a cold
+install, on Linux x64 and arm64.
 
 ```bash
 # 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
