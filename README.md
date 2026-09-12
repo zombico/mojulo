@@ -148,8 +148,8 @@ npx mojulo init
 `init` detects your MCP host(s), wires mojulo into each (one yes/no per host),
 and opens the dashboard at `http://localhost:3001` (or the next free port — the
 installer prints the URL). Nothing is sent anywhere; state lands in `~/.mojulo/`.
-The first install is the big one: npx pulls a ~35 MB package plus its native
-dependencies (measured at about 970 MB on disk before any model), and the first
+The first install is the big one: npx pulls a ~36 MB tarball plus its native
+dependencies (measured at about 985 MB on disk before any model), and the first
 launch fetches a ~130 MB embedding model in the background — after that, starts
 are instant. Measured sizes, lazy first-use downloads, and what each engine leg
 needs: [docs/tech-requirements.md](docs/tech-requirements.md).
