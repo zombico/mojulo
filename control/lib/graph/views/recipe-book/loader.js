@@ -30,13 +30,15 @@
  * must never take the substrate down.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { WORLD_KINDS } from '@/lib/graph/worlds/world-kinds';
 import { bookDirs, readBookManifest, readBookCards, controlVersion, _resetBookCards } from './cards.js';
 import { setBookSnapshot, _resetBookRegistry } from './registry.js';
 import { buildBookToolkit } from './toolkit.js';
+import { GARMENTS, validateGarmentSpec } from '@/lib/graph/polygonizer/figure-garments';
+import { validateOutfit } from '@/lib/graph/polygonizer/figure-outfit';
 
 // Bundler-proof dynamic import: the book's builder files live OUTSIDE the
 // repo at a path only known at runtime, so both bundlers must leave this
@@ -147,9 +149,35 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } =
     }
   }
 
+  // THE WARDROBE LANE (outfit.plan.md P5): `garment` / `outfit` entries are DATA — garment.json is
+  // a wardrobe spec, outfit.json is { fit?, layers } — so the cookbook may carry them too. Garments
+  // load first (an outfit may name them), core wardrobe keys win on a collision, the first book
+  // wins across books, and a malformed entry is warned and skipped, never thrown.
+  const wardrobe = new Map();
+  for (const pass of ['garment', 'outfit']) {
+    for (const { dir, source } of dirs) {
+      const manifest = readBookManifest(dir);
+      if (!manifest || (manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed))) continue;
+      for (const entry of Array.isArray(manifest.entries) ? manifest.entries : []) {
+        if (entry.type !== pass) continue;
+        const id = String(entry.id || '');
+        const file = join(dir, 'chapters', String(entry.chapter || ''), String(entry.dir || ''), `${pass}.json`);
+        if (!existsSync(file)) { warn(`wardrobe entry '${id}' declares a ${pass} but ${file} is missing — skipped`); continue; }
+        if (pass === 'garment' && GARMENTS[id]) { warn(`wardrobe entry '${id}' collides with a core wardrobe key — core wins, skipped`); continue; }
+        if (wardrobe.has(id)) { warn(`wardrobe entry '${id}' in ${source} shadowed by a higher-precedence book — skipped`); continue; }
+        let spec;
+        try { spec = JSON.parse(readFileSync(file, 'utf8')); } catch (err) { warn(`wardrobe entry '${id}': ${pass}.json is not valid JSON — ${err.message} — skipped`); continue; }
+        const errs = pass === 'garment' ? validateGarmentSpec(spec, id) : validateOutfit(spec, id, { wardrobe });
+        if (errs.length) { warn(`wardrobe entry '${id}' is invalid — ${errs[0]}${errs.length > 1 ? ` (+${errs.length - 1} more)` : ''} — skipped`); continue; }
+        if (pass === 'outfit' && typeof spec === 'string') { warn(`wardrobe entry '${id}': an outfit.json must be { fit?, layers } — skipped`); continue; }
+        wardrobe.set(id, { kind: pass, spec, source, chapter: entry.chapter });
+      }
+    }
+  }
+
   const cards = readBookCards({ dirs });
-  setBookSnapshot({ kinds, worldKinds, renderKinds, cards, warnings });
-  return { kinds: kinds.size, warnings };
+  setBookSnapshot({ kinds, worldKinds, renderKinds, cards, wardrobe, warnings });
+  return { kinds: kinds.size, wardrobe: wardrobe.size, warnings };
 }
 
 // Test seam — clears the memo, the card cache, and the published registry.

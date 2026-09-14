@@ -23,6 +23,9 @@ const EMPTY = () => ({
   // parsed card objects, ALL families (book-card shape + { source, chapter,
   // entryType }); each family's vocab loader merges its own slice by `entry`
   cards: [],
+  // the WARDROBE lane (outfit.plan.md P5): id → { kind: 'garment' | 'outfit', spec, source }.
+  // Data only (garment.json / outfit.json); create_figure resolves names by value at mint.
+  wardrobe: new Map(),
   // human-readable load warnings (skipped entries, version skew) — surfaced
   // to the operator/agent by the loader's consumers.
   warnings: [],
@@ -39,6 +42,7 @@ export function bookViewKinds() { return state.kinds; }
 export function bookWorldKind(manifestKind) { return state.worldKinds.get(manifestKind) ?? null; }
 export function isBookRenderKind(manifestKind) { return state.renderKinds.has(manifestKind); }
 export function bookCards() { return state.cards; }
+export function bookWardrobe() { return state.wardrobe; }
 export function bookWarnings() { return state.warnings; }
 
 // Test seam.

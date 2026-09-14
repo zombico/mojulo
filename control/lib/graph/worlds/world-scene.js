@@ -18,6 +18,7 @@
  * with no traversable form (the caller then points the user back at /scene or /svg).
  */
 
+import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
 import { resolveSceneLighting } from '@/lib/graph/scene/scene-css3d';
@@ -564,7 +565,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           spec = {
             ...(m.pose ? { pose: m.pose } : {}),
             ...(m.proto ? { proto: m.proto } : {}),
-            ...(m.garment ? { garment: m.garment } : {}),
+            ...(m.garment ? { garment: m.garment } : m.outfit ? { garment: manifestGarment(m) } : {}),   // an `outfit` figure hands the world its lowered garments
             ...(m.motion ? { motion: m.motion } : {}),
             ...own,
           };

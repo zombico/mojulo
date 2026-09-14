@@ -16,9 +16,11 @@ import path from 'node:path';
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
-import { renderFigureToSvg, renderFigureFrames, figureIsAnimated, FIGURE_VIEWS } from '@/lib/graph/polygonizer/figure-render';
+import { renderFigureToSvg, renderFigureFrames, figureIsAnimated, figurePatternReport, FIGURE_VIEWS } from '@/lib/graph/polygonizer/figure-render';
 import { EMOTE_NAMES } from '@/lib/graph/polygonizer/figure-emotes';
 import { GARMENTS, validateGarmentSpec } from '@/lib/graph/polygonizer/figure-garments';
+import { validateOutfit, resolveOutfitNames, OUTFIT_FIT_NAMES } from '@/lib/graph/polygonizer/figure-outfit';
+import { bookWardrobe } from '@/lib/graph/views/recipe-book/registry';
 import { validateFluffs, FLUFF_SHAPE_NAMES } from '@/lib/graph/polygonizer/figure-fluff';
 import { normalizeDreamAudit } from '@/lib/graph/image-outcomes/dream-audit';
 import { articulate } from '@/lib/graph/polygonizer/figure-vajra';
@@ -31,6 +33,8 @@ const GARMENT_KEYS = Object.keys(GARMENTS);
 export async function createFigureHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_figure requires { title }');
   const { title, pose, proto, garment, fluffs, view, background, setup, ref, folder_ref: folderRef } = input;
+  let { outfit } = input;
+  if (typeof outfit === 'string' && /^\s*[{[]/.test(outfit)) { try { outfit = JSON.parse(outfit); } catch { /* a bare name stays a name */ } }
   // Defensive transport parse: object-valued params whose inputSchema declares a
   // permissive/union type can arrive JSON-stringified from some MCP clients. Parse
   // an object/array that came across as a string so the validators below see the
@@ -48,6 +52,18 @@ export async function createFigureHandler(input) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {
     throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
+  }
+  // `outfit` (outfit.plan.md): the tiered authoring form — a named outfit from the book, or
+  // { fit?, layers } inner → outer. Book names are resolved BY VALUE here, once, so the stored
+  // recipe never depends on the book again; core lowers it to `garment` at every render.
+  if (outfit !== undefined && outfit !== null && garment !== undefined && garment !== null) {
+    throw new Error('`outfit` and `garment` are one or the other: `outfit` is the tiered form that lowers to `garment`');
+  }
+  if (outfit !== undefined && outfit !== null) {
+    const wardrobe = bookWardrobe();
+    const errs = validateOutfit(outfit, 'outfit', { wardrobe });
+    if (errs.length) throw new Error(`Invalid outfit:\n - ${errs.join('\n - ')}`);
+    outfit = resolveOutfitNames(outfit, wardrobe);
   }
   if (garment !== undefined && garment !== null) {
     // A single entry OR an array (layering: e.g. ['trousers','jacket'] worn
@@ -103,6 +119,7 @@ export async function createFigureHandler(input) {
     ...(proto !== undefined && proto !== null ? { proto } : {}),
     ...(fluffs !== undefined && fluffs !== null ? { fluffs } : {}),
     ...(garment !== undefined && garment !== null ? { garment } : {}),
+    ...(outfit !== undefined && outfit !== null ? { outfit } : {}),
     ...(view !== undefined && view !== null ? { view } : {}),
     ...(motion !== undefined && motion !== null ? { motion } : {}),
     ...(background !== undefined ? { background } : {}),
@@ -135,6 +152,12 @@ export async function createFigureHandler(input) {
     } catch (err) { gifUrl = null; }   // GIF is a bonus; the still SVG already succeeded
   }
 
+  // A cut-and-sewn garment (fit:'pattern') hands back the tailor's readout — girths, per-seam
+  // ease and gap, per-piece strain, warnings — so the agent can re-dial before looking. Absent
+  // a pattern garment the key is absent.
+  let pattern = null;
+  try { pattern = figurePatternReport(manifest); } catch (err) { pattern = null; }
+
   return {
     ok: true,
     ref: sketch.ref,
@@ -142,6 +165,12 @@ export async function createFigureHandler(input) {
     svgUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/svg?inline=1`,
     ...(gifUrl ? { gifUrl } : {}),
     ...(provenance ? { provenance: provenance.kind, dreamedBy: provenance.source } : {}),
+    ...(pattern ? { patternSvgUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/pattern.svg?inline=1` } : {}),
+    ...(pattern ? { pattern: pattern.map(({ id, stature_cm, girths, pieces, seams, hang, warnings }) => ({
+      id, stature_cm, girths: girths.trunk ?? girths,
+      pieces: pieces.map((p) => ({ id: p.id, chart: p.chart, ...(p.sloper ? { sloper: p.sloper } : {}), area_cm2: p.area_cm2, strain_max: p.strain.max, clipped: p.clipped })),
+      seams: seams.map(({ line, ...s }) => s), hang, warnings,
+    })) } : {}),
   };
 }
 
@@ -185,7 +214,7 @@ export async function emoteFigureHandler(input) {
     // create_figure path so validation + GIF behavior stay in one place.
     return createFigureHandler({
       title: (typeof mint === 'object' && mint.title) || `${src.title} — ${emote}`,
-      pose: m.pose, proto: m.proto, garment: m.garment,
+      pose: m.pose, proto: m.proto, ...(m.outfit != null ? { outfit: m.outfit } : { garment: m.garment }),
       view: view ?? m.view, setup: m.setup, background: m.background,
       motion, animate,
       ...(typeof mint === 'object' && mint.ref ? { ref: mint.ref } : {}),
@@ -255,6 +284,7 @@ export function registerFigureTools() {
           items: { type: 'object' },
         },
         garment: { type: ['string', 'object', 'array', 'null'], description: `Clothing over the body (tracks pose + build, body-relative cuts/panels/seams carve to fit any form): a wardrobe key (${GARMENT_KEYS.join(' | ')}), an INLINE wardrobe-piece spec ({ id, color?{cloth,under}, pieces:[{ fit: hug|hull|drape|radial|pelvis|torso|shoulders|sleeve|sash, coverage?, clearance?, thickness?, basin?, anchor? }], cuts?:[{kind: wedge|band|capsule|hole|halfspace|neck|armhole, …}], panels? }) — the piece's mugen clearance IS its looseness (slim vs baggy is only the number), an ARRAY mixing keys and specs to LAYER them (e.g. ['tank', {…dreamPants}, 'jacketCut']), or null = bare.` },
+        outfit: { type: ['string', 'object', 'null'], description: `Dress by TIERS instead of \`garment\` (one or the other; \`garment\` stays the lowered form): a named outfit from the attached recipe book, or { fit?: ${OUTFIT_FIT_NAMES.join(' | ')}, layers: [...] } inner → outer where a layer is a wardrobe key, { garment: <key | book garment | inline spec>, dials?, cloth?, ease_cm? } (dials need a fit:'pattern' garment: hem, length, ease_bust_cm…), or an inline spec. Book names resolve by value at mint. See the wardrobe-construction card §7.` },
         view: { description: "Camera: 'frontal' | 'three-quarter' | 'lateral' | 'left' | 'back', or a number (azimuth degrees, 0 = front)." },
         motion: { type: ['string', 'object'], description: "Optional motion → looping GIF. One vocabulary (the phase→dof analog of `pose`): 'walk' = the default parameterized walk cycle (a real weight-shifting gait: the stance foot plants, the COM transfers); 'sprint' (alias 'run') = a sprinter's stride — a flight phase (both feet airborne), single-foot contact, hard forward lean, high knee drive, 90° arm pump; 'wave' = a tilt then a right-hand wave; { walk: { strideLength, cross, stepFlare, stepRoll, pelvisRot, shoulderRot, stanceKnee, swingLift, armSwing, elbowBase, elbowSwing, handCurl, wristGive, hipSway, spineTwist, weightShift, headLevel, lean, headTilt, cadence } } = tune the walk dials (handCurl = relaxed finger curl so the hands aren't flat boards; wristGive = the wrist flexes with the arm swing; (pelvisRot = transverse pelvic rotation, the swing-side hip leads each step — a determinant of natural gait, on by default; shoulderRot = the upper mirror, the shoulder girdle contra-rotates against the pelvis; weightShift = how much the body lists onto the bearing leg; lean = forward trunk slouch; headTilt = forward head — e.g. lean+headTilt+loose limbs reads as a 'shaggy' amble; cross = lateral crossover, the stepping foot swings toward/over the midline as it plants — 0 = normal hip-width sagittal walk, ≈0.10 lands the foot on the centerline, >0.10 scissors it past for a catwalk/runway crossover; stepFlare/stepRoll = crossover CLEARANCE, the swinging back foot circumducts — flares the hip out (stepFlare, ratio of the abduction to the crossover) and rolls the knee out (stepRoll, deg) — to maneuver AROUND the planted ankle instead of colliding with it, auto-gated so a plain walk is untouched; omit any → its default); { sprint: { strideLength, hipDrive, swingTuck, armSwing, armBack, elbowBend, lean, dutyFactor, flightLift, ... } } = tune the run (hipDrive = thigh/high-knee lift, armBack = backward arm drive, dutyFactor < 0.5 → longer flight, flightLift = airborne rise); { keyframes: [pose, …], loop } = author a CUSTOM motion as a list of poses — each `pose` is exactly a `pose` spec (same dials), eased between in order. Also accepts a named EMOTE (nod / headshake / bow / shrug / cheer / point / clap / think, or { emote, intensity }) — see emote_figure. Any form may add { perform: { exaggerate, anticipation, followThrough, idle } } to overlay the animation principles (limb lag, wind-up, breathing)." },
         setup: {

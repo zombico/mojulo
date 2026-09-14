@@ -12,6 +12,92 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### outfit — apparel in the tailor's terms, translated downward to a named outfit on a turntable
+
+- **The designer's rule.** A pattern garment is drafted on the STAND and worn on the pose: slopers
+  read the stand body's charts, so the printable sheet is pose-invariant, while placement and
+  seams run on the posed charts and the residual per pose is reported, not fought. Two pattern
+  garments on one figure lay out as one SVG document; `create_figure` returns `patternSvgUrl`.
+- **Added: the layering rule.** An outer pattern layer is placed on the inner layer's hang, not
+  on the skin: every worn stack before it (shells included) lifts the chart rows it covers by its
+  stand-off ratio, and the hang rule runs over that. A bodice over a skirt no longer interleaves
+  at the hip.
+- **Added: joined pieces and the trouser blocks.** A pattern piece may `join` a second chart below
+  a piece height, its two placements blended across the join; `trouser-front` / `trouser-back`
+  draft one leg on the trunk above the crotch and the leg below it, with a fork, a straight centre
+  line sewn to the other leg, and a hem that clears the ankle. Cloth below its widest row hangs
+  straight down from it (a skirt no longer dives between the thighs where the trunk's rows shrink),
+  a leg chart is capped above its thigh (cloth cannot enter the pelvis), the trunk hull is never
+  inside the raw flesh envelope, and a cut-and-sewn sheet gets a depth tie-break against the flesh
+  it sits an ease off. Existing charts and shells are untouched.
+- **Added: `outfit`.** A figure may be dressed by `outfit` instead of `garment`: a named outfit,
+  or `{ fit: slim|regular|relaxed, layers: [...] }` inner → outer, where a layer is a garment
+  name, `{ garment, dials, cloth }`, or an inline spec. Core lowers it to the `garment` array at
+  render (pure, core tables only); `garment` is unchanged and remains the lowered form.
+- **Added: the book's wardrobe lane.** Recipe-book (and cookbook) entries of type `garment` /
+  `outfit` — data only — are readable by name from `create_figure`; a book name is resolved by
+  value at mint and stamped `from: 'book:<id>'`, so book drift never changes a minted figure.
+  Their cards join the sketch-vocab catalog. Named pattern garments leave core for the book:
+  `PATTERN_GARMENTS` is gone; `shift-dress`, `a-line-skirt`, `trousers` and the outfit
+  `shift-and-trousers` ship as fixture-book entries in the publishable format.
+- **Fixed (pattern placement, pre-release).** Cloth centimetres now map onto the ease ring
+  (girth + 2π·ease) instead of the skin's arc, so a piece as wide as the ring closes on itself
+  instead of wrapping past; blocks draft to the ring. A hull chart's axis is vertical (the band
+  centroids drift sideways and had been tilting the ease direction at the bust). Tube-chart
+  landmarks are arc fractions, as every reader assumed. The sleeve's arm-length override no
+  longer leaks into other blocks.
+- **Added: the shoulder line.** The trunk chart gains a CAP: rows over the top of the yoke that
+  close to the crest, the line from the neck base to the acromion measured off the flesh, so a
+  bodice's shoulder seam is stitched ON the shoulder and cloth there rests a centimetre off it
+  instead of standing an ease out sideways. The bodice block reads its shoulder width and slope
+  from that crest and its neck opening from the neck's base, and an `over` seam can no longer
+  pass through the yoke whatever outline it is given. Before this every bodice began below the
+  shoulder with a ragged yoke and a boat neck. Every other chart is untouched. Two readings
+  corrected on the way: trunk landmarks are along-arc fractions (they were height fractions read
+  against an arc table, so every landmark sat a little off its row), and the hip is the fullest
+  row between the waist and the crotch — the tailor's tape, not the glute's centre. The layering
+  read now uses the radius ratio to choose the CHART a worn vertex lifts and lifts every row of
+  that chart the vertex is level with; choosing the row by ratio handed a skirt's seat to the
+  wider belly row above it and left the hip row bare at the front.
+- **Absent, byte-identical.** Three pre-branch render hashes are pinned
+  (`figure-absent.char.test.js`): a figure without a pattern garment or an `outfit` renders
+  exactly as on 2.0.2.
+
+### pattern-garment — a garment cut and sewn from flat pieces, on the existing garment dial
+
+- **Added: `fit: 'pattern'` garment pieces.** A wardrobe piece can now be a flat pattern piece in
+  centimetres — an outline, named edges, a body chart to sit on, and an anchor — instead of an
+  offset shell. The body supplies a CHART (`body-chart.js`): every named region's posed rings as
+  rows with arc-length tables, so a piece lands on the body by arc length (no stretch along its
+  own axes) and stands off by `ease_cm`. Pieces mesh as a Coons patch over their outline and emit
+  as the open two-sided sheets the renderer already draws; nothing in the mesher changed.
+- **Added: seams.** `seams: [{ a:{piece,edge}, b:{piece,edge} }]` pull two placed edges together
+  in closed form (average, or eased onto one side) and report each seam's flat lengths and
+  `ease_cm` with the tailor's label (`flat | eased | gathered`). No solver: quadrature, not
+  relaxation, as everywhere else in the tree.
+- **Added: girths.** `bodyGirths(body, { stature_cm })` reads bust / waist / hip / thigh /
+  upper-arm circumferences in cm off any figure — the first measured girth in the substrate, a
+  perimeter sum over rings that already exist.
+- **Added: slopers.** A piece may name a block instead of an outline — `bodice-front`,
+  `bodice-back`, `sleeve`, `skirt-front`, `skirt-back` (`pattern-slopers.js`) — drafted at build
+  time from the chart's own girths and drops, so one recipe re-drafts on every body. Two whole
+  garments ride as dials over blocks (`PATTERN_GARMENTS.shiftDress`, `.aLineSkirt`). A shoulder
+  seam is an `over: true` seam stitched across the top of the yoke, the one place a cylindrical
+  chart has no row. `create_figure` answers with a `pattern` readout (girths, per-seam ease and
+  gap, per-piece strain, warnings) whenever the figure wears one.
+- **Added: the sheet.** `GET /api/sketches/<ref>/pattern.svg` lays the figure's pattern pieces
+  flat at true scale (1 cm = 1 cm at 100 %, `?page=<cm>` for the page width): outline, seam
+  allowance, grain line, notches at every seam end, cut counts (a mirrored piece is drawn once),
+  a datum grid and a scale bar. The same rows the body wears, as the 2D face of the recipe
+  (`pattern-sheet.js`); a mirrored page is not a second recipe.
+- **The hang rule.** Cloth wider than the body cannot compress: it stands off by the ratio and
+  keeps hanging below its widest row with a slow taper (the suspension `hullStacks` already
+  uses), and below a chart's last row it hangs straight on — a knee-length skirt past the crotch
+  row. Cloth narrower than the body is never stretched silently: it reads as strain and as a
+  seam gap.
+- **Absent, byte-identical.** A figure without a `pattern` piece renders exactly as before; the
+  fit list grows by one entry at the end.
+
 ### sculpt-brief — brief the external sculptor properly, and measure what it hands back
 
 - **Planned: the mesh handoff's brief becomes named views instead of a contact sheet.** The packet

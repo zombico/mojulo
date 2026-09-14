@@ -42,6 +42,7 @@ export const CARD_CATALOGS = {
   edit_solid: 'solid',
   forge_motion: 'motion',
   stitch_motion: 'motion',
+  create_figure: 'wardrobe',   // garment / outfit entries (outfit.plan.md P5) — cards join the sketch-vocab catalog
 };
 
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;

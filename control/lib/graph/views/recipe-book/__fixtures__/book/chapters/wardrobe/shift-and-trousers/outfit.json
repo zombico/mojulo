@@ -1,0 +1,12 @@
+{
+  "fit": "regular",
+  "layers": [
+    "straight-trousers",
+    {
+      "garment": "shift-dress",
+      "dials": {
+        "hem": "hip"
+      }
+    }
+  ]
+}
