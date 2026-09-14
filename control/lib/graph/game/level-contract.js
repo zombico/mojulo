@@ -17,6 +17,8 @@
  *                                       //   its 'default' preset — playable standalone in dev
  *     on?: { '<busEventPattern>': { emit: <typed event> } | { end: 'success'|'fail' } }
  *                                       // declarative bus → game mapping (mirrors audio.on)
+ *     complete?: false | { text? }      // the in-level RESULT CARD (hud-widgets.js language):
+ *                                       //   false hides it, text retitles it; absent → "level complete"
  *   }
  *
  * Envelope validation lives in the STORE KERNEL (one validator, shipped in the artifact and
@@ -107,6 +109,12 @@ export function validateLevelContract(game, schema) {
     if (!game.presets || typeof game.presets !== 'object' || Array.isArray(game.presets)) errors.push('game.presets must be { <name>: params } — a level with no shell runs its "default" preset');
     else for (const [name, p] of Object.entries(game.presets)) {
       if (!p || typeof p !== 'object') errors.push(`game.presets.${name} must be a params object`);
+    }
+  }
+
+  if (game.complete !== undefined && game.complete !== false) {
+    if (!game.complete || typeof game.complete !== 'object' || Array.isArray(game.complete) || (game.complete.text !== undefined && typeof game.complete.text !== 'string')) {
+      errors.push("game.complete must be false (no result card) or { text? } (the result card's title)");
     }
   }
 

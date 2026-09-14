@@ -12,6 +12,7 @@
  */
 import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
+import { normalizeHud } from '@/lib/graph/game/hud-widgets';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -123,6 +124,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   ledger.skipped_runtime = {
     note: 'game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build',
   };
+  const hudWidgets = normalizeHud(payload.events?.hud).widgets;
+  if (hudWidgets.length) {
+    ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; the pack kernels paint their own default readout from `mechanics` until an engine arm reads the widget list' };
+  }
   // Units: a kind authored in other-than-metres (the floorplan: feet) declares
   // `metersPerUnit`; the GLB root scales by it, so every positional field here scales
   // too — the score and the mesh agree in metres. Absent ⇒ every field byte-identical.
@@ -186,6 +191,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // declarative mechanics: `at` + `radius` on a zone, a pickup, a hazard are RECIPE units, so
     // they scale with the mesh (a kernel reads them as metres × 100). Absent a unit ⇒ untouched.
     mechanics: (manifest.game?.mechanics ?? []).map((m) => scaleMechanic(m, sv, sn)),
+    // the HUD widget list (hud-widgets.js): slots / kinds / banners / legends as DATA, so an
+    // engine arm can lay the readout out as authored. Absent rows ⇒ no key, byte-identical.
+    ...(hudWidgets.length ? { hud: hudWidgets } : {}),
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity
     // with a walk/platform rule. Emitters hide its exported body — the
     // operator IS the walker; leaving it renders a body double at spawn.

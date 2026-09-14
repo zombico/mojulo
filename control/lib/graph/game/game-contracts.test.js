@@ -156,3 +156,20 @@ describe('slice cards', () => {
     for (const type of K.EVENT_TYPES) expect(body).toContain(`\`${type}\``);
   });
 });
+
+describe('level contract — the result card (game.complete) + the hud card family', () => {
+  it('complete: false and { text } validate; other shapes teach', () => {
+    const base = { levelRef: 'l1', produces: { events: [] } };
+    expect(validateLevelContract({ ...base, complete: false }).ok).toBe(true);
+    expect(validateLevelContract({ ...base, complete: { text: 'CLEARED' } }).ok).toBe(true);
+    expect(validateLevelContract({ ...base, complete: true }).errors.join()).toMatch(/game\.complete must be false/);
+    expect(validateLevelContract({ ...base, complete: { text: 3 } }).errors.join()).toMatch(/game\.complete/);
+  });
+
+  it('the hud cards load with the same discipline as the other families', async () => {
+    const { getHudVocabCatalog } = await import('./hud-cards/loader.js');
+    const cards = getHudVocabCatalog();
+    expect([...cards.keys()].sort()).toEqual(['hud-banner', 'hud-guide', 'hud-readout', 'hud-style']);
+    for (const c of cards.values()) { expect(c.when.length).toBeGreaterThan(20); expect(c.body).toMatch(/slot|token/); }
+  });
+});

@@ -98,7 +98,10 @@ const DESCRIPTION_ALLOWLIST = {
   forge_publications: 955,
   forward_context: 1081,
   gather: 1181,
-  get_game_vocab: 1297,
+  // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
+  // the screen-space UI language of hud-widgets.js: readouts / banners / legends in
+  // slots + the style tokens). Shrink-only from here.
+  get_game_vocab: 1625,
   get_image_render_packet: 708,
   get_mcp_capabilities: 890,
   get_register_kit: 731,
@@ -214,7 +217,9 @@ const DESCRIPTION_ALLOWLIST = {
 // table (medium 'mesh'). The export_model growth of the same day (3mf / usda /
 // usdz / quantize / humanoid) was trimmed to routing grade and fit under the
 // old pin; the five new tools are the blessed residue.
-const PAYLOAD_CEILING = 261_000;
+// re-pinned 2026-09-14 (measured 261,472) for the get_game_vocab hud-family clause and the
+// create_game theme token description (game-ui-primitives). Shrink-only from here.
+const PAYLOAD_CEILING = 262_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

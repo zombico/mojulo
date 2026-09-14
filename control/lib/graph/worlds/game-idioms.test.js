@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createBusState, processEvents, stepTime, tickTimers, watchEvents, hashState, deriveEvents, linkPhysics, syncFromBodies, syncToBodies } from './event-bus.js';
 import { createState, step } from './physics-sim.js';
-import { compose, scoreCounter, countdownClock, gameOverFreeze, spawnOnHeartbeat, deed, onContact, pickup, onRest, hitConfirm, ephemeralTarget } from './game-idioms.js';
+import { compose, scoreCounter, countdownClock, gameOverFreeze, spawnOnHeartbeat, deed, onContact, pickup, onRest, hitConfirm, ephemeralTarget, banner, legend } from './game-idioms.js';
 import { buildWhackAMole } from './games/whack-a-mole.js';
 import { buildCradles } from './games/newton-cradles.js';
 import { resolveWorldScene } from './world-scene.js';
@@ -362,5 +362,23 @@ describe('newton-cradles clack policy recomposed from onContact', () => {
     const clacks = (scope) => bus.log.filter((r) => r.type === 'clack' && r.scope === scope).length;
     expect(clacks('A')).toBeGreaterThan(0);
     expect(clacks('B')).toBeGreaterThan(0);
+  });
+});
+
+describe('screen-space presentation rides the idioms (hud-widgets.js)', () => {
+  it('scoreCounter / countdownClock pass slot, kind and color through — and emit nothing extra without them', () => {
+    expect(scoreCounter('score', { label: 'Score', slot: 'top-right', as: 'counter', color: 'value' }).hud)
+      .toEqual([{ var: 'score', label: 'Score', slot: 'top-right', as: 'counter', color: 'value' }]);
+    expect(countdownClock({ from: 10, slot: 'top', as: 'clock' }).hud).toEqual([{ var: 'time', label: 'Time', slot: 'top', as: 'clock' }]);
+    expect(countdownClock({ from: 10 }).hud).toEqual([{ var: 'time', label: 'Time' }]);
+  });
+
+  it('banner / legend are hud-only fragments (no state, no verbs) and compose beside the rest', () => {
+    expect(banner({ text: 'TIME! {score}', ttl: 3 })).toEqual({ hud: [{ on: 'game-over', text: 'TIME! {score}', ttl: 3 }] });
+    expect(legend({ text: 'click to whack', slot: 'bottom' })).toEqual({ hud: [{ text: 'click to whack', slot: 'bottom' }] });
+    expect(() => banner({})).toThrow(/needs text/);
+    const ev = compose(scoreCounter('score'), banner({ text: 'TIME! {score}' }), legend({ text: 'hi' }));
+    expect(ev.hud).toEqual([{ var: 'score', label: 'score' }, { on: 'game-over', text: 'TIME! {score}' }, { text: 'hi' }]);
+    expect(ev.vars).toEqual({ score: 0 });
   });
 });

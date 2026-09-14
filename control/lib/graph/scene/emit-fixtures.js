@@ -147,6 +147,19 @@ export const EMIT_FIXTURES = [
   ['physics', { faces: [floor()], physics: PHYSICS }],
   ['physics-actions', { faces: [floor()], physics: PHYSICS, actions: [{ do: 'impulse', on: 'key:Space', body: 'ball', impulse: [0, 0, 4] }] }],
   ['events', { faces: [floor()], physics: PHYSICS, events: EVENTS }],
+  // the HUD widget layer (hud-widgets.js): readouts of every kind in their slots, a banner on a bus
+  // event, a legend, and a world-side style. Its own fixture so the layer is pinned in isolation and
+  // every OTHER events fixture keeps proving the layer contributes nothing without hud rows.
+  ['events-hud', { faces: [floor()], physics: PHYSICS, events: { ...EVENTS, vars: { score: 0, hp: 100, time: 30 },
+    hud: [
+      { var: 'score', label: 'Score', as: 'counter', slot: 'top-right', color: 'value' },
+      { var: 'hp', label: 'HP', as: 'bar', max: 100, slot: 'bottom-left', color: 'harm' },
+      { var: 'time', as: 'clock', slot: 'top' },
+      { var: 'hp' },
+      { on: 'game-over', text: 'TIME! {score}', ttl: 3 },
+      { text: 'click to whack', ttl: 5 },
+    ],
+    style: { accent: '#5fe6d6', font: 'mono' } } }],
 
   ['controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA }],
   // suit contact shadows: the opt-in blob-decal block interpolated into the controllable channel.

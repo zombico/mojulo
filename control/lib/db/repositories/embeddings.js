@@ -111,6 +111,10 @@ export const SOURCE_KINDS = [
   // ward / kokusen / …). Discovered by intent ("a magic shimmer", "a heal
   // effect"); read via `get_game_vocab`.
   'game_sfx',
+  // hud cards — the screen-space UI language (lib/graph/game/hud-cards/): readouts /
+  // banners / legends in slots + the style tokens. Discovered by intent ("a health
+  // bar", "show TIME! at the end", "theme the game"); read via `get_game_vocab`.
+  'game_hud',
   // game-project charters (game-developer.plan.md) — one row per game project
   // (gp_ ref), body = the charter (premise / register / scope). Discovered by
   // intent ("my platformer project", "the game with the mono-eye suits");
@@ -711,6 +715,16 @@ export const BodyComposition = {
     if (card.body) lines.push('', '---', '', card.body);
     return lines.join('\n');
   },
+  gameHud(card) {
+    // Same shape: lead with intent phrases so "a health bar" / "game over text" / "theme the
+    // game" match the hud card before its parameter manual.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
   routingCard(card) {
     // Lead with name / entry / summary / when so an intent-phrased query
     // ("walk to the exit", "a portrait") matches before the fork prose. The
@@ -1297,6 +1311,20 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`game_sfx: ${sfxVocab.size}`);
+
+  // 18b. HUD cards — the screen-space UI language (hud-widgets.js): readouts / banners /
+  // legends in slots + style tokens, hand-written under lib/graph/game/hud-cards/, so "a health
+  // bar" / "show TIME! at the end" / "theme the game" surfaces the right card.
+  const { getHudVocabCatalog } = await import('../../graph/game/hud-cards/loader.js');
+  const hudVocab = getHudVocabCatalog();
+  for (const card of hudVocab.values()) {
+    items.push({
+      sourceKind: 'game_hud',
+      sourceRef: card.id,
+      bodyText: BodyComposition.gameHud(card),
+    });
+  }
+  log(`game_hud: ${hudVocab.size}`);
 
   // 19. Routing cards — one *.md per creative-mint routing row retired from
   // forward_context's Create-things section (lib/mcp/routing-cards/). The

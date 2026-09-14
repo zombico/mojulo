@@ -287,3 +287,35 @@ describe('emitGameShell setup presentation + score screen', () => {
     expect(() => new Function(script)).not.toThrow();
   });
 });
+
+// ── the style token set (hud-widgets.js): one declaration skins the shell AND rides to levels ──
+describe('emitGameShell style tokens', () => {
+  it('the wider token set validates; a bad token / font teaches', () => {
+    const themed = normalizeGameManifest({ ...GAME, theme: { accent: '#5fe6d6', ink: '#fff', bg: '#000', panel: '#101820', line: '#334', font: 'mono', style: 'hud' } });
+    expect(validateGameManifest(themed)).toEqual({ ok: true, errors: [] });
+    expect(validateGameManifest({ ...GAME, theme: { panel: 'dark' } }).errors.join()).toMatch(/theme\.panel must be a hex color/);
+    expect(validateGameManifest({ ...GAME, theme: { font: 'comic' } }).errors.join()).toMatch(/theme\.font must be one of: system, mono, serif, display/);
+  });
+
+  it('tokens reach :root, the font is appended after the hud skin, and the level sidecar carries only valid tokens', () => {
+    const themed = normalizeGameManifest({ ...GAME, theme: { accent: '#5fe6d6', ink: '#fff', bg: '#000', panel: '#101820', line: '#334', font: 'mono', style: 'hud' } });
+    const html = emitGameShell(themed, LEVELS);
+    const style = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+    expect(style).toContain('--bg:#000;--ink:#fff;--dim:#8fa5c8;--line:#334;--panel:rgba(16,24,32,0.6)');
+    expect(style.lastIndexOf('body,body.hud{font-family:ui-monospace')).toBeGreaterThan(style.lastIndexOf('body.hud #loadPct'));
+    expect(html).toContain('const THEME = {"accent":"#5fe6d6","ink":"#fff","bg":"#000","panel":"#101820","line":"#334","font":"mono"};');
+    expect(html).toContain('seed: session.seed, theme: THEME }');
+  });
+
+  it('an un-themed shell keeps its defaults and posts a null sidecar; an injected token never reaches CSS', () => {
+    const plain = emitGameShell(GAME, LEVELS);
+    expect(plain).toContain('--bg:#0b1220;--ink:#cfe3ff;--dim:#8fa5c8;--line:#1c2942;--panel:rgba(13,19,33,.6)');
+    expect(plain).toContain('const THEME = null;');
+    expect(plain).not.toContain('body,body.hud{font-family:');   // the hud skin's own mono stays; no token-driven family
+    const evil = emitGameShell({ ...GAME, theme: { ink: 'red;} body{display:none', font: 'x' } }, LEVELS);
+    const style = evil.match(/<style>([\s\S]*?)<\/style>/)[1];
+    expect(style).not.toContain('body{display:none');
+    expect(style).toContain('--ink:#cfe3ff');
+    expect(evil).toContain('const THEME = null;');
+  });
+});

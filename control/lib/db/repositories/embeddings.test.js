@@ -537,6 +537,7 @@ describe('SOURCE_KINDS', () => {
       'game_kit',
       'game_glyph',
       'game_sfx',
+      'game_hud',
       'game_project',
       'routing',
     ]);

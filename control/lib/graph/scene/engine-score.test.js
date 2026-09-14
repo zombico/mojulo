@@ -164,3 +164,18 @@ describe('mechanics scale with the unit declaration', () => {
     expect(out[3]).toEqual({ kind: 'fail-on-death' });
   });
 });
+
+describe('the HUD widget list rides the score as data (hud-widgets.js)', () => {
+  it('normalized widgets land under `hud` with a hud_declared ledger row; absent rows ⇒ no key, no row', () => {
+    const payload = { faces: [], events: { reactions: [{ on: 'x', do: 'emit', type: 'y' }], hud: [{ var: 'hp', as: 'bar', max: 100, slot: 'bottom-left' }, { on: 'game-over', text: 'TIME!' }] } };
+    const score = extractEngineScore(sketch(), payload);
+    expect(score.hud).toEqual([
+      { kind: 'readout', var: 'hp', label: 'hp', slot: 'bottom-left', as: 'bar', max: 100 },
+      { kind: 'banner', on: 'game-over', text: 'TIME!', slot: 'center', ttl: 2 },
+    ]);
+    expect(score.ledger.hud_declared.count).toBe(2);
+    const bare = extractEngineScore(sketch(), { faces: [] });
+    expect(bare.hud).toBeUndefined();
+    expect(bare.ledger.hud_declared).toBeUndefined();
+  });
+});

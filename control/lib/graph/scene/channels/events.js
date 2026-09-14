@@ -1,5 +1,112 @@
 import { buildBus } from '../../worlds/event-bus.js';
+import { colorCss, normalizeHud, styleVars } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
+
+// The HUD widget layer's stylesheet (hud-widgets.js): one absolutely-positioned column per slot
+// over #wrap (the corners + the centre line), a widget per row, kinds styled by class. Every
+// color and family is a `--moj-*` token so the game shell's theme (game-init sidecar) or the
+// world's own `events.style` skins it; the fallbacks are today's look. Emitted ONLY when the
+// world carries hud rows — a hud-less events world is byte-identical.
+const HUD_CSS = [
+  '.moj-hud{position:absolute;inset:0;pointer-events:none;z-index:12;font-family:var(--moj-font);color:var(--moj-ink)}',
+  '.moj-hud-col{position:absolute;display:flex;flex-direction:column;gap:8px;max-width:46%}',
+  '.moj-hud-top-left{left:12px;top:12px}.moj-hud-top-right{right:12px;top:12px;align-items:flex-end}',
+  '.moj-hud-top{left:50%;top:12px;transform:translateX(-50%);align-items:center}',
+  '.moj-hud-center{left:50%;top:50%;transform:translate(-50%,-50%);align-items:center}',
+  '.moj-hud-bottom-left{left:12px;bottom:12px}.moj-hud-bottom-right{right:12px;bottom:12px;align-items:flex-end}',
+  '.moj-hud-bottom{left:50%;bottom:12px;transform:translateX(-50%);align-items:center}',
+  '.moj-w{background:var(--moj-panel-a);border:1px solid var(--moj-line);border-radius:8px;padding:6px 12px;font:600 16px/1.3 var(--moj-font);letter-spacing:.5px;white-space:nowrap;transition:opacity .18s ease}',
+  '.moj-w-text .moj-lbl{opacity:.75;margin-right:.5em}.moj-w-text .moj-lbl:empty{display:none}',
+  '.moj-w-clock .moj-val{font-variant-numeric:tabular-nums}',
+  '.moj-w-counter{display:flex;flex-direction:column;align-items:center;min-width:72px;padding:6px 14px}',
+  '.moj-w-counter .moj-val{font-size:30px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}',
+  '.moj-w-counter .moj-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.7}',
+  '.moj-w-bar{display:flex;align-items:center;gap:8px;min-width:180px}',
+  '.moj-w-bar .moj-lbl,.moj-w-bar .moj-val{color:var(--moj-ink);font-size:12px;letter-spacing:1px;text-transform:uppercase}',
+  '.moj-w-bar .moj-val{opacity:.8;font-variant-numeric:tabular-nums;text-transform:none}',
+  '.moj-w-bar .moj-track{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}',
+  '.moj-w-bar .moj-fill{display:block;height:100%;width:0;background:currentColor;transition:width .12s linear}',
+  '.moj-w-banner{font-size:34px;font-weight:800;letter-spacing:3px;text-transform:uppercase;padding:10px 26px;text-shadow:0 0 18px currentColor}',
+  '.moj-w-legend{font-size:12px;font-weight:500;opacity:.85;letter-spacing:.3px}',
+  '.moj-hidden{opacity:0}',
+].join('');
+
+// the in-page widget block. Widgets arrive normalized (kind / slot / as filled); each carries a
+// pre-resolved `css` color so the page never interprets an author string as CSS. Banners watch
+// the bus LOG delta each step (the same read-only observation the game channel makes) and hide
+// on the frame clock `t` — real time never enters the bus, so a capture run stays deterministic.
+function hudScript(widgets, style) {
+  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, w.kind === 'banner' || (w.kind === 'readout' && w.as === 'bar') ? 'var(--moj-accent)' : '') }));
+  return `// HUD: the screen-space widget layer (hud-widgets.js) — a column per slot, a widget per row.
+const __HUD = ${safeJson(rows)};
+const __hudEls = [], __hudBanners = [], __hudTimed = [];
+(function () {
+  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}`)}; document.head.appendChild(st);
+  const layer = document.createElement('div'); layer.className = 'moj-hud';
+  const cols = {};
+  const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };
+  const span = (cls) => { const s = document.createElement('span'); s.className = cls; return s; };
+  __HUD.forEach((w) => {
+    const el = document.createElement('div');
+    el.className = 'moj-w moj-w-' + w.kind + (w.kind === 'readout' ? ' moj-w-' + w.as : '');
+    if (w.css) el.style.color = w.css;
+    if (w.kind === 'readout') {
+      const lbl = span('moj-lbl'), val = span('moj-val'); lbl.textContent = w.label;
+      let fill = null;
+      if (w.as === 'bar') { const track = span('moj-track'); fill = span('moj-fill'); track.appendChild(fill); el.appendChild(lbl); el.appendChild(track); el.appendChild(val); }
+      else if (w.as === 'counter') { el.appendChild(val); el.appendChild(lbl); }
+      else { el.appendChild(lbl); el.appendChild(val); }
+      __hudEls.push({ w: w, val: val, fill: fill });
+    } else if (w.kind === 'banner') { el.textContent = w.text; el.classList.add('moj-hidden'); __hudBanners.push({ w: w, el: el, until: 0 }); }
+    else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
+    col(w.slot).appendChild(el);
+  });
+  wrap.appendChild(layer);
+})();
+function __hudClock(n) { const s = Math.max(0, Math.ceil(n)); const m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+function __hudSubst(text) {   // "{name}" reads a bus var — "TIME! {score}" at game over
+  let out = '', i = 0;
+  while (i < text.length) {
+    const a = text.indexOf('{', i); if (a < 0) { out += text.slice(i); break; }
+    const b = text.indexOf('}', a); if (b < 0) { out += text.slice(i); break; }
+    const v = __busState.vars[text.slice(a + 1, b)];
+    out += text.slice(i, a) + (v != null ? v : text.slice(a, b + 1)); i = b + 1;
+  }
+  return out;
+}
+function __hudGlob(str, pat) {   // the game.on / fx.on glob: '*' spans, literals anchor at both ends
+  str = String(str); if (pat === '*') return true;
+  const parts = pat.split('*'); if (parts.length === 1) return str === pat;
+  let pos = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i]; if (!p) continue;
+    const at = str.indexOf(p, pos); if (at < 0 || (i === 0 && at !== 0)) return false;
+    pos = at + p.length;
+  }
+  return !parts[parts.length - 1] || pos === str.length;
+}
+let __hudLogN = __busState.log ? __busState.log.length : 0, __hudT0 = -1;
+function __syncHud(t) {
+  if (__hudT0 < 0) __hudT0 = t || 0;
+  for (const h of __hudEls) {
+    const raw = __busState.vars[h.w.var], n = raw != null ? raw : 0;
+    if (h.fill) {
+      const mx = typeof h.w.max === 'string' ? (__busState.vars[h.w.max] || 0) : h.w.max;
+      const pct = mx > 0 ? Math.max(0, Math.min(1, n / mx)) : 0;
+      h.fill.style.width = (pct * 100).toFixed(1) + '%'; h.val.textContent = Math.ceil(n) + '/' + Math.ceil(mx);
+    } else h.val.textContent = h.w.as === 'clock' ? __hudClock(n) : String(n);
+  }
+  const log = __busState.log || [];
+  if (log.length < __hudLogN) __hudLogN = 0;
+  for (let i = __hudLogN; i < log.length; i++) {
+    const ev = log[i]; if (!ev || !ev.type) continue;
+    for (const b of __hudBanners) if (__hudGlob(ev.type, b.w.on)) { b.el.textContent = __hudSubst(b.w.text); b.el.classList.remove('moj-hidden'); b.until = (t || 0) + b.w.ttl * 1000; }
+  }
+  __hudLogN = log.length;
+  for (const b of __hudBanners) if (b.until && (t || 0) >= b.until) { b.el.classList.add('moj-hidden'); b.until = 0; }
+  for (const l of __hudTimed) if (l.until >= 0 && (t || 0) - __hudT0 >= l.until) { l.el.classList.add('moj-hidden'); l.until = -1; }
+}`;
+}
 
 // In-page script: the EVENTS channel — the in-world bus (event-bus.plan.md). This is the MEMBRANE
 // between mechanism and policy: the physics step emits physical FACTS (contact / rest), the bus
@@ -14,6 +121,8 @@ import { safeJson } from '../emit-util.js';
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
 export function eventsChannelScript(events) {
+  const { widgets } = normalizeHud(events.hud);
+  const hudBlock = widgets.length ? hudScript(widgets, events.style) : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};
 const __BUS = (${buildBus.toString()})();
@@ -119,14 +228,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-// optional HUD: bind vars → an on-screen readout (so the score/timer is visible while you play).
-let __hud = null;
-if (Array.isArray(EVENTS.hud) && EVENTS.hud.length) {
-  __hud = document.createElement('div');
-  __hud.style.cssText = 'position:fixed;top:12px;left:12px;font:600 18px system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:8px 14px;border-radius:8px;z-index:10;letter-spacing:.5px';
-  document.body.appendChild(__hud);
-}
-function __syncHud() { if (__hud) __hud.textContent = EVENTS.hud.map((h) => (h.label ? h.label + ': ' : '') + (__busState.vars[h.var] != null ? __busState.vars[h.var] : 0)).join(' '); }
+${hudBlock}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -167,7 +269,7 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
   if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities); // apply respawn/teleport warps
-  __syncBus(); __syncHud(); __updateAim();
+  __syncBus(); __syncHud(t); __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { const w = __BUS.watchEvents(__busState); if (!w.length) break; __BUS.processEvents(__busState, w); } }

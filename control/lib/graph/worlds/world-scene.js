@@ -32,6 +32,7 @@ import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT } from '@/lib/graph/polygonizer/vexar';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
+import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 
@@ -659,6 +660,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // Mechanics-lowered events (mechEvents) merge in here so the one bus runs both.
   const ev = payload && mergeEventManifests(sketch.manifest.events, mechEvents);
   if (ev && ((Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length))) {
+    // the HUD widget language (hud-widgets.js): rows are validated here so a bad slot / kind /
+    // token fails the compose_world resolve gate with a teaching message instead of painting
+    // wrong; the events channel normalizes again at emit (idempotent), so fixtures stay raw.
+    if (Array.isArray(ev.hud) && ev.hud.length) {
+      const h = normalizeHud(ev.hud);
+      if (h.errors.length) throw new Error(`events.hud is invalid — see get_game_vocab({ id: 'hud-guide' }):\n- ${h.errors.join('\n- ')}`);
+    }
+    if (ev.style !== undefined) {
+      const se = validateHudStyle(ev.style, 'events.style');
+      if (se.length) throw new Error(`events.style is invalid — see get_game_vocab({ id: 'hud-style' }):\n- ${se.join('\n- ')}`);
+    }
     payload.events = ev;
     payload.nonBakeable = true;
   }

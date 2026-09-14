@@ -1,9 +1,12 @@
 /**
  * game-manifest — validate + normalize the game manifest (game-metacontext.plan.md).
  *
- * `theme?` is the optional PRESENTATION skin the shell reads (game-shell.js): an accent-color
- * pair + an opt-in `style: 'hud'` that turns on the stylized loading/menu treatment (mono type,
- * cold accents, corner brackets). Absent → the shell keeps its default clean look. Pure
+ * `theme?` is the optional PRESENTATION skin the shell reads (game-shell.js): the style TOKENS
+ * of hud-widgets.js (`accent`, `accent2`, `ink`, `bg`, `panel`, `line` as hex colors, `font` from
+ * system | mono | serif | display) + an opt-in `style: 'hud'` that turns on the stylized
+ * loading/menu treatment (mono type, cold accents, corner brackets). The same tokens ride
+ * `game-init` to every level, so one declaration skins the menu, the setup screen, the score
+ * screen AND each level's HUD widgets. Absent → the shell keeps its default clean look. Pure
  * presentation — never resolved, never gates play; the loading overlay + progress bar are
  * universal, only their FLAVOR (accent color, corner brackets) is themed.
  *
@@ -69,6 +72,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
+import { validateHudStyle } from './hud-widgets.js';
 
 const K = buildGameStoreKernel();
 
@@ -224,12 +228,9 @@ export function validateGameManifest(manifest) {
 
   if (manifest.theme !== undefined) {
     const theme = manifest.theme;
-    const COLOR = /^#[0-9a-fA-F]{3,8}$/;
-    if (!theme || typeof theme !== 'object') errors.push("theme must be { accent?, accent2?, style?: 'hud'|'clean' }");
+    if (!theme || typeof theme !== 'object') errors.push("theme must be { accent?, accent2?, ink?, bg?, panel?, line? (hex colors), font?: 'system'|'mono'|'serif'|'display', style?: 'hud'|'clean' }");
     else {
-      for (const k of ['accent', 'accent2']) {
-        if (theme[k] !== undefined && (typeof theme[k] !== 'string' || !COLOR.test(theme[k]))) errors.push(`theme.${k} must be a hex color like '#5fe6d6'`);
-      }
+      validateHudStyle(theme, 'theme').forEach((e) => errors.push(e));
       if (theme.style !== undefined && theme.style !== 'hud' && theme.style !== 'clean') errors.push("theme.style must be 'hud' or 'clean'");
     }
   }

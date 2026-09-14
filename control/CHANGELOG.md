@@ -39,6 +39,32 @@ loops and the recipe format are unchanged.
   requires a different `source` than the submit, so a mojulo that invoked the generator would be
   the submitter with nobody left to be the eyes gate.
 
+### game-ui-primitives — the screen composes like the world does
+
+- **Added: HUD widgets.** A row of a world's `events.hud` is now a widget in one of seven slots
+  (four corners, top, center, bottom — the signage slot names): a readout of a bus var as `text`,
+  `counter`, `bar` (value over a max, numeric or a var) or `clock` (m:ss); a banner that shows text
+  when the bus emits a matching event, with `{var}` substitution and a `ttl`; a static legend for
+  hints and prompts. A legacy `{ var, label }` row is a text readout at top-left, so every existing
+  world means what it meant; two rows naming one var merge, first declared winning per field, so a
+  hand row restyles a mechanic's default readout. Rows are validated at the compose_world resolve
+  gate; the events channel paints the layer only when rows exist. Idioms `scoreCounter` and
+  `countdownClock` pass slot / kind / color through; `banner()` and `legend()` join the catalog.
+- **Added: one style token set for the shell and every level.** A game's `theme` grows from two
+  accents to `accent, accent2, ink, bg, panel, line` (hex) + `font` (system / mono / serif /
+  display); the shell maps them onto its own vars and posts them beside `game-init`, so the
+  menu, the setup screen, the score screen and each level's HUD are one look. A world's
+  `events.style` carries the same tokens for a shell-less game; the shell's theme wins. Hex only,
+  re-guarded at emit — a token can never reach a CSS context.
+- **Added: the result card is authorable.** A level's `game.complete` hides (`false`) or retitles
+  (`{ text }`) the in-level result card, which reads the same tokens.
+- **Added: hud cards.** `get_game_vocab` gains a sixth family (`scope: 'hud'`: hud-guide /
+  hud-readout / hud-banner / hud-style) indexed as `game_hud`; the tool description pin is
+  re-pinned for the family clause.
+- **Engine packs.** score.json carries the widget list as `hud` with a `hud_declared` ledger row;
+  the Godot / Unity / Unreal kernels still paint their own default readout from `mechanics`. The
+  piloted-world match HUD is not yet in the vocabulary. Both are recorded stopping points.
+
 ## [2.0.2] - 2026-09-11
 
 ### openscad-leg — emit the recipe as an OpenSCAD program, not the mesh as a polyhedron

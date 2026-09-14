@@ -49,6 +49,7 @@
 
 import { buildGameStoreKernel } from './store-kernel.js';
 import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI } from './level-contract.js';
+import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -80,6 +81,22 @@ export function emitGameShell(manifest, levels = [], menu = null, music = null, 
   const accent = safeColor(theme.accent, '#5fb0ff');
   const accent2 = safeColor(theme.accent2, '#e8b96a');
   const hud = theme.style === 'hud';
+  // the wider token set (hud-widgets.js): each var keeps the shell's own default unless the
+  // token is set, so an un-themed shell is byte-identical; `panel` becomes the translucent
+  // panel tint; `font` is appended after the hud skin so an explicit family wins the cascade.
+  const bg = safeColor(theme.bg, '#0b1220');
+  const ink = safeColor(theme.ink, '#cfe3ff');
+  const line = safeColor(theme.line, '#1c2942');
+  const panel = safeColor(theme.panel, null);
+  const panelCss = panel ? hexToRgba(panel, 0.6) : 'rgba(13,19,33,.6)';
+  const font = FONT_IDS.includes(theme.font) ? theme.font : null;
+  const fontCss = font ? `
+  body,body.hud{font-family:${FONTS[font]}}` : '';
+  // the tokens a LEVEL receives on game-init (presentation sidecar): only valid values travel.
+  const levelTheme = {};
+  for (const k of STYLE_TOKENS) { const v = safeColor(theme[k], null); if (v) levelTheme[k] = v; }
+  if (font) levelTheme.font = font;
+  const themeForLevel = Object.keys(levelTheme).length ? levelTheme : null;
 
   // menu.art (pure presentation, opt-in): a full-bleed title-card image behind the game-frame
   // screens, under a legibility scrim. Re-guarded here so a hand-poked row can never break out
@@ -107,7 +124,7 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
 <title>${esc(manifest.title)}</title>
 <style>
   :root{color-scheme:dark;--accent:${accent};--accent2:${accent2};
-    --bg:#0b1220;--ink:#cfe3ff;--dim:#8fa5c8;--line:#1c2942;--panel:rgba(13,19,33,.6)}
+    --bg:${bg};--ink:${ink};--dim:#8fa5c8;--line:${line};--panel:${panelCss}}
   body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif}
   button{color:#9cc4ff;background:rgba(11,18,32,.6);border:1px solid #24324a;border-radius:6px;padding:5px 12px;cursor:pointer;font:inherit}
   /* settings: a floating gear (the only standing chrome — the header bar is gone so the
@@ -297,7 +314,7 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
   body.hud .load-panel::before,body.hud .load-panel::after{content:"";position:absolute;width:18px;height:18px;border:1px solid var(--accent)}
   body.hud .load-panel::before{left:0;top:0;border-right:0;border-bottom:0}
   body.hud .load-panel::after{right:0;bottom:0;border-left:0;border-top:0}
-  body.hud #loadPct{text-shadow:0 0 22px var(--accent)}${artCss}
+  body.hud #loadPct{text-shadow:0 0 22px var(--accent)}${artCss}${fontCss}
 </style></head><body class="${hud ? 'hud' : ''}">
 <button id="gearBtn" title="settings" aria-label="settings">⚙</button>
 <button id="menuBtn" title="menu" aria-label="pause menu" style="display:none">☰</button>
@@ -382,6 +399,7 @@ const LEVEL_BY_REF = {};   // ref → level entry, so a menu 'mode' resolves its
 for (const l of LEVELS) LEVEL_BY_REF[l.ref] = l;
 const MUSIC = ${JSON.stringify(music)};   // resolved score { menu: src|null, about: src|null, battle: [src,…] } or null
 const SETUP = ${JSON.stringify(setup)};   // resolved per-slice setup presentation (hangar/count) or null
+const THEME = ${JSON.stringify(themeForLevel)};   // the style tokens every level receives on game-init (presentation sidecar) or null
 // the DIFFICULTY pick (manifest.difficulty): engine ai-tuning tiers named in the game's own
 // voice — rendered on the map step of piloted setups; the picked id rides params.difficulty.
 const DIFFICULTY = MANIFEST.difficulty || null;
@@ -1613,7 +1631,7 @@ window.addEventListener('message', (e) => {
       toast('level "' + session.level.ref + '" speaks contract v' + d.contractVersion + ' but this shell is v' + K.CONTRACT_VERSION + ' — re-stage the artifact.', true);
       return;
     }
-    frame.contentWindow.postMessage({ moj: ${JSON.stringify(MSG_INIT)}, contractVersion: K.CONTRACT_VERSION, params: session.params, seed: session.seed }, '*');
+    frame.contentWindow.postMessage({ moj: ${JSON.stringify(MSG_INIT)}, contractVersion: K.CONTRACT_VERSION, params: session.params, seed: session.seed, theme: THEME }, '*');
     pushSfx();
     // the match has BEGUN — hold the battle score for 5s so the opening seconds play on combat SFX
     // alone (operator, 2026-07-30); warm the track blob now so it starts clean at the 5s mark.

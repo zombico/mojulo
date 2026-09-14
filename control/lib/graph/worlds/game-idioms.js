@@ -46,21 +46,39 @@ export function compose(...fragments) {
 
 // scoreCounter — a tracker var, shown on the HUD. The matching `inc` is attached to a deed's
 // effects (the deed is where scoring is wired to an actual action).
-export function scoreCounter(name = 'score', { label } = {}) {
-  return { vars: { [name]: 0 }, hud: [{ var: name, label: label || name }] };
+// Presentation rides the row (hud-widgets.js): `slot` (a corner or the centre line), `as`
+// (text | counter | bar | clock), `color`. Omitted → the defaults every existing world has.
+export function scoreCounter(name = 'score', { label, slot, as, color } = {}) {
+  return { vars: { [name]: 0 }, hud: [{ var: name, label: label || name, ...defined({ slot, as, color }) }] };
 }
 
 // countdownClock — a var counting down 1/sec, GATED by `gate` (so it stops at game-over), firing
 // `onZero` the tick it reaches <= 0. `tick` is the internal event type; leave it default for a
 // single clock, pass a distinct one per clock if a world has several.
-export function countdownClock({ var: timeVar = 'time', from, gate = 'over', onZero = 'game-over', tick = 'tick', label = 'Time' } = {}) {
+export function countdownClock({ var: timeVar = 'time', from, gate = 'over', onZero = 'game-over', tick = 'tick', label = 'Time', slot, as, color } = {}) {
   return {
     vars: { [timeVar]: from },
     timers: [{ every: 1, emit: { type: tick }, while: { var: gate, eq: 0 } }],
     reactions: [{ on: tick, do: 'inc', var: timeVar, by: -1 }],
     watches: [{ type: onZero, when: { var: timeVar, lte: 0 } }],
-    hud: [{ var: timeVar, label }],
+    hud: [{ var: timeVar, label, ...defined({ slot, as, color }) }],
   };
+}
+
+// banner — a TEXT moment on the centre line: when the bus emits `on` (a glob, as game.on / fx.on
+// match), `text` shows for `ttl` seconds; `{name}` in the text reads a var ("TIME! {score}").
+// The screen-space sibling of gameOverFreeze's entity banner (the gold sphere): a game says
+// what happened in words, where the player is looking. Pure presentation — no state, no verbs.
+export function banner({ on = 'game-over', text, slot, ttl, color } = {}) {
+  if (typeof text !== 'string' || !text) throw new Error('game-idioms: banner needs text');
+  return { hud: [{ on, text, ...defined({ slot, ttl, color }) }] };
+}
+
+// legend — static text in a slot: the controls hint, the "press E" prompt. `ttl` makes it a
+// one-shot that fades after the opening seconds.
+export function legend({ text, slot, ttl, color } = {}) {
+  if (typeof text !== 'string' || !text) throw new Error('game-idioms: legend needs text');
+  return { hud: [{ text, ...defined({ slot, ttl, color }) }] };
 }
 
 // gameOverFreeze — on `signal`: raise the freeze `gate` (which halts every gated timer in one move),

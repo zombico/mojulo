@@ -1,4 +1,5 @@
 import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY } from '../../game/level-contract.js';
+import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
 // game channel (game-metacontext.plan.md): the level-contract bridge. Emitted when the payload
@@ -16,6 +17,20 @@ export function gameChannelScript(game) {
 const __GAME = ${safeJson(game)};
 (function () {
   const __CV = ${GAME_CONTRACT_VERSION};
+  // the style tokens (hud-widgets.js) a hosting shell sends beside game-init: set as --moj-* vars
+  // on the root so the HUD widgets and the result card adopt the game's skin. Hex-only, re-guarded
+  // here so a shell (or a hand-poked frame) can never inject into a CSS context.
+  const __FONTS = ${safeJson(FONTS)};
+  const __HEX = /^#[0-9a-fA-F]{3,8}$/;
+  function __rgba(hex) { let h = hex.slice(1); if (h.length < 6) h = h.split('').map((c) => c + c).join(''); return 'rgba(' + parseInt(h.slice(0, 2), 16) + ',' + parseInt(h.slice(2, 4), 16) + ',' + parseInt(h.slice(4, 6), 16) + ',.72)'; }
+  function __applyStyle(tk) {
+    if (!tk || typeof tk !== 'object') return;
+    const rs = document.documentElement.style;
+    for (const k of ['accent', 'accent2', 'ink', 'bg', 'panel', 'line']) {
+      if (typeof tk[k] === 'string' && __HEX.test(tk[k])) { rs.setProperty('--moj-' + k, tk[k]); if (k === 'panel') rs.setProperty('--moj-panel-a', __rgba(tk[k])); }
+    }
+    if (typeof tk.font === 'string' && __FONTS[tk.font]) rs.setProperty('--moj-font', __FONTS[tk.font]);
+  }
   const hosted = (function () { try { return window.parent && window.parent !== window; } catch (e) { return false; } })();
   const capture = _capture;
   const st = { params: null, seed: 1, started: false, ended: false, events: [], envelope: null, onStart: [] };
@@ -35,10 +50,14 @@ const __GAME = ${safeJson(game)};
     // screen simply never read it): { pilot, rows: [{ id, name, kills, deaths, dmg, shots, hits }] }.
     if (stats && typeof stats === 'object') { try { st.envelope.stats = JSON.parse(JSON.stringify(stats)); } catch (e) { /* non-serializable stats are dropped, never fatal */ } }
     if (hosted && !capture) { try { window.parent.postMessage({ moj: '${GAME_MSG_OUTCOME}', envelope: st.envelope }, '*'); } catch (e) { console.error('game outcome post', e); } }
-    if (!capture) {
+    // the RESULT CARD (game.complete: false hides it; { text } retitles it) — themed by the
+    // --moj-* tokens, the literals are the fallbacks so an un-themed level looks as before.
+    if (!capture && __GAME.complete !== false) {
+      const title = __GAME.complete && typeof __GAME.complete.text === 'string' && __GAME.complete.text ? __GAME.complete.text : ('level ' + (st.envelope.result === 'success' ? 'complete' : st.envelope.result));
       const o = document.createElement('div');
       o.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,10,16,.55);z-index:40;pointer-events:none';
-      o.innerHTML = '<div style="background:rgba(12,16,26,.92);border:1px solid #2a3b58;border-radius:10px;padding:18px 28px;color:#dfe8f8;font:15px system-ui;text-align:center">level ' + (st.envelope.result === 'success' ? 'complete' : st.envelope.result) + '<br><span style="font-size:12px;color:#8fa5c8">' + st.events.length + ' event' + (st.events.length === 1 ? '' : 's') + ' → store</span></div>';
+      o.innerHTML = '<div style="background:var(--moj-panel-a,rgba(12,16,26,.92));border:1px solid var(--moj-line,#2a3b58);border-radius:10px;padding:18px 28px;color:var(--moj-ink,#dfe8f8);font:15px var(--moj-font,system-ui);text-align:center"><span class="moj-complete"></span><br><span style="font-size:12px;color:var(--moj-accent,#8fa5c8)">' + st.events.length + ' event' + (st.events.length === 1 ? '' : 's') + ' → store</span></div>';
+      o.querySelector('.moj-complete').textContent = title;
       document.body.appendChild(o);
     }
     return st.envelope;
@@ -92,6 +111,7 @@ const __GAME = ${safeJson(game)};
       const d = e.data;
       if (!d || d.moj !== '${GAME_MSG_INIT}') return;
       if (d.contractVersion !== __CV) { console.error('game: shell contract v' + d.contractVersion + ' ≠ level v' + __CV + ' — running presets'); fallback(); return; }
+      __applyStyle(d.theme);   // presentation sidecar (unversioned): the shell's skin reaches the level
       start(d.params, d.seed);
     });
     try { window.parent.postMessage({ moj: '${GAME_MSG_READY}', contractVersion: __CV, levelRef: __GAME.levelRef }, '*'); } catch (e) { /* opaque parent */ }
