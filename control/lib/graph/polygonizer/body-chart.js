@@ -552,6 +552,73 @@ export function scaleChartRows(chart, scales) {
  * over the narrowing groin rows must not lift the hip rows a hem sits on.
  * Returns { chartId: scales[] }, 1 = on the skin.
  */
+/**
+ * THE PADDED FORM'S TAPE (wardrobe-variety P1): per chart, per row, the circumference of the
+ * widest layer already worn at that row's height — a shell ring's perimeter, or a pattern
+ * garment's placed piece widths summed — so a block worn over other layers drafts to the layers'
+ * OWN girth. The layering read below is a clearance envelope for placement (a maximum per
+ * sector, smoothed outward); read as a tape it calls a tee half again the body. Zero where no
+ * layer reaches a row. A pattern ring names its chart; a shell ring goes to the chart whose row
+ * at its height is nearest its centre. Open sheets that are not pattern pieces (a cloak) are
+ * not a form to draft over and are skipped.
+ * @returns {Object<string, number[]>}  chart id → per-row circumference in world units
+ */
+export function layerGirthRows(charts, stacks) {
+  const ids = Object.keys(charts);
+  const out = Object.fromEntries(ids.map((id) => [id, charts[id].rows.map(() => 0)]));
+  if (!Array.isArray(stacks) || !stacks.length || !ids.length) return out;
+  const len = (pl, closed) => { let L = 0; for (let i = 0; i < pl.length - (closed ? 0 : 1); i++) { const a = pl[i], b = pl[(i + 1) % pl.length]; L += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); } return L; };
+  // a stack's chart: the one whose row at the height of the stack's middle ring is nearest its centre
+  const nearestChart = (c) => {
+    let best = null, bd = Infinity;
+    for (const id of ids) {
+      let ri = null, rd = Infinity;
+      charts[id].rows.forEach((row, i) => { if (row.cap) return; const d = Math.abs(row.center.z - c.z); if (d < rd) { rd = d; ri = i; } });
+      if (ri == null) continue;
+      const rc = charts[id].rows[ri].center, d = Math.hypot(rc.x - c.x, rc.y - c.y) + rd;   // off-axis distance, plus the height miss
+      if (d < bd) { bd = d; best = id; }
+    }
+    return best;
+  };
+  // a stack's profile: its rings sorted by height with their length (closed perimeter, or a
+  // piece row's open width); read at a row's height by linear interpolation between rings
+  const profile = (st, closed) => st.rings.map((rg) => ({ z: rg.center.z, L: len(rg.polyline, closed), chart: rg.chart })).sort((a, b) => a.z - b.z);
+  const at = (prof, z) => {
+    if (!prof.length) return 0;
+    if (prof.length === 1) return Math.abs(prof[0].z - z) <= 1e-9 ? prof[0].L : 0;
+    const pad = Math.abs(prof[1].z - prof[0].z) / 2, padEnd = Math.abs(prof[prof.length - 1].z - prof[prof.length - 2].z) / 2;
+    if (z < prof[0].z - pad || z > prof[prof.length - 1].z + padEnd) return 0;   // the stack does not reach this row
+    if (z <= prof[0].z) return prof[0].L;
+    if (z >= prof[prof.length - 1].z) return prof[prof.length - 1].L;
+    let k = 0; while (k < prof.length - 2 && prof[k + 1].z < z) k++;
+    const a = prof[k], b = prof[k + 1], t = b.z > a.z ? (z - a.z) / (b.z - a.z) : 0;
+    return a.L + (b.L - a.L) * t;
+  };
+  const contrib = new Map();   // garment → chart → row → circumference (pieces summed, shells the widest)
+  const cell = (g, id) => { if (!contrib.has(g)) contrib.set(g, {}); const byChart = contrib.get(g); if (!byChart[id]) byChart[id] = charts[id].rows.map(() => 0); return byChart[id]; };
+  for (const st of stacks) {
+    if (!st || !Array.isArray(st.rings) || st.rings.length < 2) continue;
+    const garment = String(st.id ?? '').split(':')[0] || '?';
+    if (st.sheet && !st.pattern) continue;   // an open hanging sheet (a cloak) is not a form to draft over
+    if (st.sheet) {
+      // a pattern piece: its rows may cross charts (a trouser leg); group the rows by their chart
+      const byChart = new Map();
+      for (const rg of st.rings) { const cid = (typeof rg.chart === 'string' && charts[rg.chart]) ? rg.chart : (st.pattern.chart && charts[st.pattern.chart] ? st.pattern.chart : null); if (!cid) continue; if (!byChart.has(cid)) byChart.set(cid, []); byChart.get(cid).push(rg); }
+      for (const [cid, rings] of byChart) {
+        const prof = profile({ rings }, false), c = cell(garment, cid);
+        charts[cid].rows.forEach((row, i) => { if (row.cap) return; c[i] += at(prof, row.center.z); });
+      }
+      continue;
+    }
+    const mid = st.rings[Math.floor(st.rings.length / 2)].center;
+    const cid = nearestChart(mid); if (!cid) continue;
+    const prof = profile(st, true), c = cell(garment, cid);
+    charts[cid].rows.forEach((row, i) => { if (row.cap) return; const L = at(prof, row.center.z); if (L > c[i]) c[i] = L; });
+  }
+  for (const byChart of contrib.values()) for (const [id, rows] of Object.entries(byChart)) for (let i = 0; i < rows.length; i++) if (rows[i] > out[id][i]) out[id][i] = rows[i];
+  return out;
+}
+
 export function standoffScalesByChart(charts, stacks, { cap = 2.5, tie = 1.15 } = {}) {
   const ids = Object.keys(charts);
   // per row, a scale PER POINT of the row polygon (directional: a belly's hanging front lifts the

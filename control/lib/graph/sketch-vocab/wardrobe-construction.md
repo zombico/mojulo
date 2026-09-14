@@ -229,12 +229,30 @@ the crest's end — the acromion — with the crest's measured slope, the neck o
 the neck's base girth where it rises through the crest, the sleeve cap no taller than the room above the armscye), so the same
 recipe re-drafts on every body. Explicit fields (`outline`, `anchor`, `edges`,
 `corners`) override the block's. Named edges a block gives you: bodice `hem · sideR ·
-armholeR · shoulderR · neck · shoulderL · armholeL · sideL`; sleeve `hem · underarmR · cap ·
-underarmL`; skirt `hem · sideR · waist · sideL`. Dials: bodice `hem` (`waist | hip | crotch |
-knee | <cm>`), `ease_bust_cm` (6), `ease_waist_cm`, `ease_hip_cm`, `neck_drop_cm`,
-`neck_width_cm`, `shoulder_cm`, `shoulder_drop_cm` (the crest's own slope), `flare_cm`; sleeve `length` (`short | three-quarter | long |
+armholeR · shoulderR · neck · shoulderL · armholeL · sideL` (a split front: `hem · sideR · armholeR ·
+shoulderR · neck · cf`, mirrored); sleeve `hem · underarmR · capFront · capBack · underarmL`; skirt
+`hem · sideR · waist · sideL`. Dials: bodice `hem` (`waist | hip | crotch |
+knee | <cm>`), `ease_bust_cm` (6), `ease_waist_cm`, `ease_hip_cm`, `neck` (`crew | scoop | v |
+square | boat`, the front's neckline; the back keeps a shallow crew), `neck_drop_cm`,
+`neck_width_cm`, `shoulder_cm`, `shoulder_drop_cm` (the crest's own slope), `flare_cm`, `split`
+(`'cf'`: the front drafts as its right half with a `cf` edge and mirrors into `<id>L` — name the
+mirror yourself to be explicit — for a shirt, vest, jacket or coat) with `overlap_cm` (the button
+stand, each half past the centre line by half of it); sleeve `length` (`short | three-quarter | long |
 <cm>`), `ease_cm` (4), `ease_wrist_cm` (6), `cap_height_cm`; skirt `length` (`mini | knee |
 midi | <cm>`), `ease_waist_cm` (2), `ease_hip_cm` (4), `flare_cm` (4).
+
+**The set-in sleeve.** The sleeve block puts its cap's apex on the SHOULDER POINT (the arm
+chart's outer side) so the underarm seam falls under the arm, and names the cap's two halves so
+each of a bodice's armhole edges takes a seam, the bodice as `a`: `front.armholeR ↔
+sleeveR.capFront`, `back.armholeL ↔ sleeveR.capBack` (and the mirror for `sleeveL`), `ease_to:
+'a'`. Without those four seams the sleeve sits on the arm as a tube and the shoulder reads as a
+shelf. Their `gap_cm` is a cross-chart residual (the cap on the arm, the armhole on the trunk)
+and reads larger than a side seam's before the stitch closes it.
+
+**A partial seam** runs over a `from`–`to` span of its edges (fractions of the walk, top →
+bottom): `{ a: { piece: 'front', edge: 'cf' }, b: { piece: 'frontL', edge: 'cf' }, from: 0.6 }`
+sews a jacket's front below the button only; a side seam with `to: 0.85` leaves a vent. The
+readout's lengths, ease and gap cover the span.
 
 A **shoulder seam** is an `over: true` seam: it lies OVER the body between its two edges. The
 trunk chart is closed over the top by a CAP — rows over the yoke up to the CREST, the line from
@@ -252,8 +270,8 @@ layer more `ease_cm`.
 
 Whole pattern garments are REPERTOIRE and live in the recipe book's `wardrobe` chapter (see §7),
 not in core: core carries the blocks (`bodice-front/back · sleeve · skirt-front/back ·
-trouser-front/back`), the book carries `shift-dress`, `a-line-skirt`, `straight-trousers` and the
-outfit `shift-and-trousers` as `garment.json` / `outfit.json` — dials over blocks, data only.
+trouser-front/back`), the book's `wardrobe` chapter carries the garments and outfits (dresses,
+skirts, trousers, shirts, suits…) as `garment.json` / `outfit.json` — dials over blocks, data only.
 
 **Trousers** are one piece on TWO charts: above the crotch a trouser block lies on the trunk (a
 quarter of the trunk from the centre line to the side, its `cf` / `cb` edge straight on the body's
@@ -303,6 +321,12 @@ below with fewer decisions made. Pass ONE of the two to `create_figure`:
   inner layer's hang, not on the skin: every stack already worn (shells included) lifts the chart
   rows it covers by its stand-off, and the hang rule runs over that. A bodice over a skirt no longer
   interleaves; the readout's `under` per chart says how much the inner layers lifted it.
+- **The padded form.** An outer layer's blocks are DRAFTED on the stand wearing the layers beneath
+  (the stand chart lifted by their stand-off), the way a tailor pads the form, so a jacket over a
+  shirt closes at the side seam instead of reporting the shirt as a gap; its sheet is drafted the
+  same way. The readout's `drafted_on` per chart is the ratio each block drafted to (1 = the skin).
+  Ease dials sit ON TOP of that: a suit jacket over a shirt and a waistband wants a small
+  `ease_hip_cm`, or its hem flares over the trousers.
 - **The designer's rule.** A pattern is drafted on the STAND and worn on the pose: the sheet never
   changes because the figure moved; strain and seam gaps are the posed body's.
 

@@ -12,7 +12,7 @@
  */
 
 import { buildPatternGarment } from './pattern-garment.js';
-import { GARMENTS } from './figure-garments.js';
+import { GARMENTS, buildGarment } from './figure-garments.js';
 import { buildPosedFigure } from './figure-render.js';
 import { manifestGarment } from './figure-outfit.js';
 
@@ -132,17 +132,24 @@ export function patternSheetSvg(layout, { title = 'pattern sheet', stature_cm = 
 export function figurePatternSheetSvg(manifest = {}, opts = {}) {
   const worn = manifestGarment(manifest);
   const list = worn == null ? [] : (Array.isArray(worn) ? worn : [worn]);
-  const specs = list.map((g) => (g && typeof g === 'object' ? g : GARMENTS[g])).filter((s) => s && Array.isArray(s.pieces) && s.pieces.some((p) => p && p.fit === 'pattern'));
-  if (!specs.length) return null;
+  const all = list.map((g) => (g && typeof g === 'object' ? g : GARMENTS[g])).filter(Boolean);
+  const isPattern = (s) => Array.isArray(s.pieces) && s.pieces.some((p) => p && p.fit === 'pattern');
+  if (!all.some(isPattern)) return null;
   // The designer's rule: the sheet is drafted on the STAND, whatever pose the figure holds —
   // the pattern does not change because the figure moved. Pose-invariant by construction.
   const stacks = buildPosedFigure({}, manifest.proto || {}, null, manifest.fluffs || null, null, null, manifest.proportions || null, 1, manifest.weld || null);
   const body = stacks.filter((s) => s.flesh);
-  const pages = specs.map((spec) => {
-    const { report } = buildPatternGarment(body, spec, { cloth: spec.color?.cloth ?? '#3f6f93' });
+  // The padded form: every layer is worn on the stand in order, so a garment's sheet is drafted
+  // over what it is worn over (a jacket's over the shirt's) — the same draft the figure wears.
+  const wornStacks = [], pages = [];
+  for (const spec of all) {
+    const cloth = spec.color?.cloth ?? '#3f6f93';
+    if (!isPattern(spec)) { wornStacks.push(...buildGarment(body, spec).filter((g) => !g.id.includes(':under:'))); continue; }
+    const { stacks, report } = buildPatternGarment(body, spec, { cloth, under: wornStacks, standUnder: wornStacks });
+    wornStacks.push(...stacks);
     const layout = patternSheetLayout(report, opts);
-    return { layout, svg: patternSheetSvg(layout, { title: `${manifest.title ? manifest.title + ' — ' : ''}${spec.id}`, stature_cm: report.stature_cm, ...opts }) };
-  });
+    pages.push({ layout, svg: patternSheetSvg(layout, { title: `${manifest.title ? manifest.title + ' — ' : ''}${spec.id}`, stature_cm: report.stature_cm, ...opts }) });
+  }
   if (pages.length === 1) return pages[0].svg;
   // Several garments: ONE document, the pages stacked as nested <svg> at cm offsets (a browser
   // renders only the first root of a concatenation).

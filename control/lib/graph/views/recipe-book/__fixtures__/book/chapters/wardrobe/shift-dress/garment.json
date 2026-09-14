@@ -96,6 +96,50 @@
         "piece": "sleeveR",
         "edge": "underarmL"
       }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "armholeR"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "capFront"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "armholeL"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "capBack"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "armholeL"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "capFront"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "armholeR"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "capBack"
+      },
+      "ease_to": "a"
     }
   ]
 }

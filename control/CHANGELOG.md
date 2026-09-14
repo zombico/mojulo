@@ -12,6 +12,27 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### wardrobe-variety — the dials a pattern book lists, so the wardrobe chapter can grow without core
+
+- **Added: draft on the padded form.** A block worn over other layers drafts to the layers' own
+  girth per chart row (a shell ring's perimeter, a pattern garment's placed widths), the way a
+  tailor pads the form, so a jacket over a shirt closes at the side seam instead of reporting the
+  shirt as a gap; the sheet drafts the same way. The placement lift is pinned to that tape per row
+  (direction kept, magnitude no more than the layer's circumference), which retires the bell-shaped
+  hem every layered garment had. The readout says what each chart was drafted on and to.
+- **Added: the sleeve cap is sewn to the armhole.** The sleeve block puts its cap's apex on the
+  shoulder point and names the cap's front and back halves, so a bodice's two armhole edges each
+  take a seam; the square shelf at the shoulder goes with it.
+- **Added: the open front and partial seams.** `split: 'cf'` drafts a bodice front as two
+  mirrored halves with an `overlap_cm` button stand and a `cf` edge; a seam may run over a
+  `from`–`to` span of its edges (a vent, a jacket sewn only below the button). Shirts, vests,
+  jackets and suits follow as book entries.
+- **Added: necklines.** `neck` on the bodice: crew, scoop, v, square, boat.
+- **Fixed: the trouser hem reads its own height.** Knee-length trousers draft their hem to the
+  knee's girth, not the ankle's.
+- **Planned:** dress lengths (`midi` / `ankle` / `floor`), `taper` and `cuff_cm`, a `band`
+  block, the gathered skirt, darts as sugar, and a `save_recipe` figure lane.
+
 ### outfit — apparel in the tailor's terms, translated downward to a named outfit on a turntable
 
 - **The designer's rule.** A pattern garment is drafted on the STAND and worn on the pose: slopers

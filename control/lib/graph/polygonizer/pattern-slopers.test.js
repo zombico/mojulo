@@ -76,15 +76,21 @@ describe('the book\'s pattern garments (fixtures) — whole garments as dials ov
       const { stacks, report } = buildPatternGarment(b, { ...PATTERN_GARMENTS.shiftDress, stature_cm: stature });
       expect(stacks.map((s) => s.id)).toEqual(['shiftDress:front', 'shiftDress:back', 'shiftDress:sleeveL', 'shiftDress:sleeveR']);
       expect(report.warnings, sex).toEqual([]);
-      expect(report.seams.length).toBe(6);
-      for (const s of report.seams) { if (!s.over) expect(s.gap_cm, `${sex} ${s.a.edge}`).toBeLessThan(6); expect(['flat', 'eased', 'gathered']).toContain(s.label); }
+      expect(report.seams.length).toBe(10);
+      // a cap seam is a CROSS-CHART seam (the cap on the arm, the armhole on the trunk, which tops
+      // out at the acromion above the arm chart's reach): its pre-stitch gap is larger than a side seam's
+      for (const s of report.seams) { if (!s.over) expect(s.gap_cm, `${sex} ${s.a.edge}`).toBeLessThan(/^cap/.test(s.b.edge) ? 16 : 6); expect(['flat', 'eased', 'gathered']).toContain(s.label); }
       expect(report.seams[0].over).toBe(true);
       // side seams: the front and back side edges have the same flat length → flat
       expect(report.seams[2].label).toBe('flat');
       // the bodice top row folds over the yoke to the shoulder seam (an `over` seam), so its max strain is
       // that fold; the mean stays small and the sleeves stay under 1
       for (const p of report.pieces) { expect(p.strain.mean, `${sex} ${p.id}`).toBeLessThan(0.3); expect(p.clipped).toBe(0); expect(p.sloper).toBeTruthy(); }
-      for (const p of report.pieces.slice(2)) expect(p.strain.max, `${sex} ${p.id}`).toBeLessThan(1.2);
+      // the sleeves' max strain is the cap seam's pull (the cap boundary lands on the armhole, a
+      // cross-chart residual); the mean above bounds the cloth as a whole
+      for (const p of report.pieces.slice(2)) expect(p.strain.max, `${sex} ${p.id}`).toBeLessThan(6);
+      // the cap seams: sewn, all four, the bodice as `a`
+      expect(report.seams.filter((x) => /^cap/.test(x.b.edge)).length).toBe(4);
       // the drafted front differs between the poles (it is the body's own tape)
       expect(report.pieces[0].area_cm2).toBeGreaterThan(500);
     }
@@ -255,6 +261,149 @@ describe('the shoulder line — a bodice drafts to the crest and its seam is sti
         const rb = Math.hypot(near.x - row.center.x, near.y - row.center.y);
         expect(Math.hypot(p.x - row.center.x, p.y - row.center.y), `${sex} ${st.id}`).toBeGreaterThan(rb - 1e-6);
       }
+    }
+  });
+});
+
+// wardrobe-variety: the dials a pattern book lists (padded form, set-in sleeve, split front,
+// partial seams, necklines, the trouser hem at its own height)
+import { layerGirthRows } from './body-chart.js';
+import { GARMENTS } from './figure-garments.js';
+
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const dialled = (g, id, common, per = {}) => { const s = clone(g); s.id = id; for (const p of s.pieces) if (p.sloper) p.dials = { ...(p.dials ?? {}), ...common, ...(per[p.id] ?? {}) }; return s; };
+const CAP = [
+  { a: { piece: 'front', edge: 'armholeR' }, b: { piece: 'sleeveR', edge: 'capFront' }, ease_to: 'a' },
+  { a: { piece: 'back', edge: 'armholeL' }, b: { piece: 'sleeveR', edge: 'capBack' }, ease_to: 'a' },
+  { a: { piece: 'frontL', edge: 'armholeR' }, b: { piece: 'sleeveL', edge: 'capFront' }, ease_to: 'a' },
+  { a: { piece: 'back', edge: 'armholeR' }, b: { piece: 'sleeveL', edge: 'capBack' }, ease_to: 'a' },
+];
+// a split-front jacket over the shift blocks: the front is its right half, `frontL` its mirror
+const splitJacket = (id, dials, cf = null) => {
+  const s = dialled(PATTERN_GARMENTS.shiftDress, id, { hem: 'hip', ease_bust_cm: 10, split: undefined, ...dials }, { sleeveL: { length: 'long', ease_cm: 6 } });
+  const front = s.pieces.find((p) => p.id === 'front'); front.dials.split = 'cf'; delete front.dials.undefined;
+  for (const p of s.pieces) if (p.dials && 'split' in p.dials && p.dials.split === undefined) delete p.dials.split;
+  s.seams = [
+    { a: { piece: 'front', edge: 'shoulderR' }, b: { piece: 'back', edge: 'shoulderL' }, over: true },
+    { a: { piece: 'frontL', edge: 'shoulderR' }, b: { piece: 'back', edge: 'shoulderR' }, over: true },
+    { a: { piece: 'front', edge: 'sideR' }, b: { piece: 'back', edge: 'sideL' } },
+    { a: { piece: 'frontL', edge: 'sideR' }, b: { piece: 'back', edge: 'sideR' } },
+    { a: { piece: 'sleeveL', edge: 'underarmR' }, b: { piece: 'sleeveL', edge: 'underarmL' } },
+    { a: { piece: 'sleeveR', edge: 'underarmR' }, b: { piece: 'sleeveR', edge: 'underarmL' } },
+    ...CAP,
+    ...(cf ? [{ a: { piece: 'front', edge: 'cf' }, b: { piece: 'frontL', edge: 'cf' }, ...cf }] : []),
+  ];
+  return s;
+};
+
+describe('wardrobe-variety — the padded form, the set-in sleeve, the split front, partial seams, necklines, the hem', () => {
+  it('P1: an outer layer drafts on the padded form — a jacket over a tee closes at the side on both poles', () => {
+    const jacket = dialled(PATTERN_GARMENTS.shiftDress, 'jacket', { hem: 'hip', ease_bust_cm: 10 }, { sleeveL: { length: 'long', ease_cm: 6 } });
+    for (const sex of ['female', 'male']) {
+      const alone = figurePatternReport({ kind: 'figure', proto: { sex }, garment: [jacket] })[0];
+      const over = figurePatternReport({ kind: 'figure', proto: { sex }, garment: ['tee', jacket] })[0];
+      const side = (r) => r.seams.find((s) => s.a.edge === 'sideR').gap_cm;
+      expect(alone.drafted_on, sex).toBeNull();
+      expect(over.drafted_on.trunk, sex).toBeGreaterThan(1);
+      expect(over.drafted_girths.trunk.waist, sex).toBeGreaterThan(alone.girths.trunk.waist);   // the tee hangs off the waist; the block reads it
+      expect(side(over), `${sex} over a tee`).toBeLessThan(3);
+      expect(side(alone), `${sex} alone`).toBeLessThan(4);
+      expect(over.pieces[0].area_cm2).toBeGreaterThan(alone.pieces[0].area_cm2);
+    }
+  });
+
+  it('P1: the tape reads a layer\'s own circumference, not the clearance envelope', () => {
+    const b = body({ sex: 'male' });
+    const { charts, worldPerCm } = buildBodyCharts(b, { stature_cm: 170 });
+    const tee = buildGarment(b, GARMENTS.tee).filter((g) => !g.id.includes(':under:'));
+    const tape = layerGirthRows(charts, tee).trunk;
+    const at = (lm) => { const i = Math.round(charts.trunk.landmarks[lm] * (charts.trunk.rows.length - 1)); return { skin: charts.trunk.rows[i].girth / worldPerCm, tape: tape[i] / worldPerCm }; };
+    const bust = at('bust'), waist = at('waist'), hip = at('hip');
+    expect(bust.tape).toBeGreaterThan(bust.skin); expect(bust.tape).toBeLessThan(bust.skin + 15);   // a tee, not half a body more
+    expect(waist.tape).toBeGreaterThan(waist.skin + 5);                                              // the hull does not cinch at the waist
+    expect(hip.tape).toBe(0);                                                                        // the tee ends above the hip
+    expect(layerGirthRows(charts, []).trunk.every((v) => v === 0)).toBe(true);
+  });
+
+  it('P2: the sleeve block puts its apex on the shoulder point and names the cap\'s halves; the shift sews all four', () => {
+    const { charts, worldPerCm } = buildBodyCharts(body({ sex: 'female' }), { stature_cm: 165 });
+    const arm = chartMeasures(charts.armL, worldPerCm); arm.girth.upperArm = arm.girth.shoulder; arm.girth.wrist = arm.girth.wrist ?? arm.girth.bottom;
+    const s = draftSloper('sleeve', arm, {});
+    expect(s.anchor.chart.u).toBe('sideL');
+    expect(Object.keys(s.edges)).toEqual(['hem', 'underarmR', 'capFront', 'capBack', 'underarmL']);
+    expect(s.edges.capFront[1]).toBe(s.edges.capBack[0]);   // they meet at the apex
+    const apex = s.outline[s.edges.capFront[1]];
+    expect(apex[0]).toBeCloseTo(0, 6); expect(apex[1]).toBeGreaterThan(Math.max(...s.outline.map(([, y]) => y)) - 1);   // the cap curve peaks a hair above its end point
+    const { report } = buildPatternGarment(body({ sex: 'female' }), PATTERN_GARMENTS.shiftDress);
+    const caps = report.seams.filter((x) => /^cap/.test(x.b.edge));
+    expect(caps.length).toBe(4);
+    for (const c of caps) { expect(c.ease_to).toBe('a'); expect(c.gap_cm).toBeLessThan(16); }
+  });
+
+  it('P5: `split: \'cf\'` drafts the front as its right half with a `cf` edge, mirrored into `frontL`; a partial cf seam sews the front below the button only', () => {
+    const open = splitJacket('open', { overlap_cm: 4, neck: 'v', neck_drop_cm: 20 });
+    expect(validateGarmentSpec(open)).toEqual([]);   // `frontL` is accepted without an explicit mirror
+    const b = body({ sex: 'male' });
+    const { stacks, report } = buildPatternGarment(b, open, { under: buildGarment(b, GARMENTS.tee) });
+    expect(stacks.map((s) => s.id)).toEqual(['open:front', 'open:frontL', 'open:back', 'open:sleeveL', 'open:sleeveR']);
+    expect(report.warnings).toEqual([]);
+    const front = report.pieces.find((p) => p.id === 'front');
+    expect(Object.keys(front.edges).filter((k) => !['top', 'right', 'bottom', 'left'].includes(k))).toEqual(['hem', 'sideR', 'armholeR', 'shoulderR', 'neck', 'cf']);
+    expect(front.outline.every(([x]) => x >= -2 - 1e-6)).toBe(true);   // the right half, past the centre line by half the overlap
+    // the right half lies on the figure's right (+x), its mirror on the left
+    const meanX = (st) => st.rings.flatMap((r) => r.polyline).reduce((a, p) => a + p.x, 0) / st.rings.flatMap((r) => r.polyline).length;
+    expect(meanX(stacks[0])).toBeGreaterThan(0); expect(meanX(stacks[1])).toBeLessThan(0);
+    expect(report.seams.length).toBe(10);
+    // buttoned below the bust: the cf seam runs over the lower span only
+    const buttoned = splitJacket('buttoned', { overlap_cm: 4, neck: 'v', neck_drop_cm: 20 }, { from: 0.6 });
+    expect(validateGarmentSpec(buttoned)).toEqual([]);
+    const rb = buildPatternGarment(b, buttoned, { under: buildGarment(b, GARMENTS.tee) }).report;
+    const cf = rb.seams.find((x) => x.a.edge === 'cf');
+    expect(cf.from).toBe(0.6); expect(cf.to).toBe(1); expect(cf.gap_cm).toBeLessThan(6);
+    expect(cf.len_a_cm).toBeCloseTo(rb.pieces[0].outline.length ? cf.len_a_cm : 0, 6);
+    // the door refuses a bad span
+    const bad = clone(buttoned); bad.seams[bad.seams.length - 1].from = 0.9; bad.seams[bad.seams.length - 1].to = 0.2;
+    expect(validateGarmentSpec(bad).join('\n')).toMatch(/`from` must be less than `to`/);
+    // an explicit mirror name still wins
+    const named = clone(open); named.id = 'named'; named.pieces[0].mirror = 'leftFront'; named.seams = named.seams.map((x) => JSON.parse(JSON.stringify(x).replace(/"frontL"/g, '"leftFront"')));
+    expect(validateGarmentSpec(named)).toEqual([]);
+    expect(buildPatternGarment(b, named).stacks.map((s) => s.id)).toContain('named:leftFront');
+  });
+
+  it('P4: every neckline drafts a counter-clockwise outline whose edges cover it once; a V is straight, a boat is wide', () => {
+    const { charts, worldPerCm } = buildBodyCharts(body({ sex: 'female' }), { stature_cm: 165 });
+    const m = chartMeasures(charts.trunk, worldPerCm, 'top'); m.girth.neck = 36;
+    const walk = (p) => { const names = Object.keys(p.edges); let cursor = p.edges[names[0]][0], visited = 0; for (const name of names) { const [i0, i1] = p.edges[name]; expect(i0).toBe(cursor); let i = i0; while (i !== i1) { i = (i + 1) % p.outline.length; visited++; } cursor = i1; } expect(visited).toBe(p.outline.length); };
+    const neckPts = (p) => { const [i0, i1] = p.edges.neck; let i = i0, n = 0; while (i !== i1) { i = (i + 1) % p.outline.length; n++; } return n; };
+    const crew = draftSloper('bodice-front', m, {});
+    walk(crew);
+    for (const neck of ['crew', 'scoop', 'v', 'square', 'boat']) {
+      const p = draftSloper('bodice-front', m, { neck });
+      expect(area(p.outline), neck).toBeGreaterThan(50);
+      walk(p);
+      // the split variant walks too
+      walk(draftSloper('bodice-front', m, { neck, split: 'cf', overlap_cm: 3 }));
+    }
+    expect(neckPts(draftSloper('bodice-front', m, { neck: 'v' }))).toBe(2);   // shoulder end → centre: one straight run each side
+    expect(neckPts(draftSloper('bodice-front', m, { neck: 'square' }))).toBe(4);
+    const neckHalf = (p) => p.outline[p.edges.shoulderR[1]][0];
+    expect(neckHalf(draftSloper('bodice-front', m, { neck: 'boat' }))).toBeGreaterThan(neckHalf(crew) * 1.4);
+    const drop = (p) => Math.max(...p.outline.map(([, y]) => y)) - p.outline[p.edges.neck[0] + neckPts(p) / 2][1];
+    expect(drop(draftSloper('bodice-front', m, { neck: 'v' }))).toBeGreaterThan(drop(crew));
+    // the back keeps its crew whatever the front wears
+    expect(draftSloper('bodice-back', m, { neck: 'v' }).outline).toEqual(draftSloper('bodice-back', m, {}).outline);
+  });
+
+  it('P3: knee-length trousers draft their hem to the knee, not the ankle', () => {
+    const shorts = dialled(PATTERN_GARMENTS.straightTrousers, 'shorts', { length: 'knee', ease_hem_cm: 12 });
+    const long = dialled(PATTERN_GARMENTS.straightTrousers, 'long', { length: 'ankle', ease_hem_cm: 12 });
+    for (const sex of ['female', 'male']) {
+      const b = body({ sex });
+      const s = buildPatternGarment(b, shorts).report, l = buildPatternGarment(b, long).report;
+      expect(s.warnings, sex).toEqual([]);
+      const hemW = (r) => { const o = r.pieces[0].outline; return Math.abs(o[1][0] - o[0][0]); };
+      expect(hemW(s), sex).toBeGreaterThan(hemW(l));   // the knee is wider than the ankle
+      for (const seam of s.seams) if (seam.a.edge === 'outseam') expect(seam.gap_cm, `${sex} outseam`).toBeLessThan(5);
     }
   });
 });

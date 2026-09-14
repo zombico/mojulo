@@ -26,7 +26,7 @@
  * top); outlines are counter-clockwise; `u` lines and `v` landmarks are body-chart.js's.
  */
 
-import { buildBodyCharts, chartPointAtArc, chartGirthAt, chartVAtZ, scaleChartRows, standoffScalesByChart, liftChartCap, crestZAt, rowRing, pushOutsideTube, resolveU, resolveV, CHART_IDS, U_LINES } from './body-chart.js';
+import { buildBodyCharts, chartPointAtArc, chartGirthAt, chartVAtZ, scaleChartRows, standoffScalesByChart, layerGirthRows, liftChartCap, crestZAt, rowRing, pushOutsideTube, resolveU, resolveV, CHART_IDS, U_LINES } from './body-chart.js';
 import { draftSloper, sloperChart, SLOPER_KINDS } from './pattern-slopers.js';
 
 export const PATTERN_DEFAULTS = Object.freeze({
@@ -359,7 +359,32 @@ function resolveSloperPiece(piece, charts, worldPerCm, warnings, defaults = PATT
   if (!piece.anchor) out.anchor = drafted.anchor;
   if (!piece.corners) out.corners = drafted.corners;
   if (!piece.join && drafted.join) out.join = drafted.join;
+  // a split block drafts its right half; the left is its mirror (`<id>L` unless the author named it)
+  if (drafted.split) { if (typeof out.mirror !== 'string') out.mirror = `${piece.id}L`; delete out.split; }
   return out;
+}
+
+// THE LIFT IS PINNED TO THE TAPE (wardrobe-variety P1). The layering read is a clearance
+// envelope — per sector, a maximum, smoothed outward — and read around a row it overstates the
+// layer beneath (a tee 4 % wider than the body reads half again at the bust, its sleeves lift the
+// trunk's sides). Cloth placed on that ring hangs wider than the layer it covers and a block
+// drafted to the layer's own girth cannot close over it. So each row's sector lifts keep their
+// DIRECTION (the belly's front lifts the front) but are scaled down until the lifted row's
+// circumference is the widest layer's actual circumference at that height (`layerGirthRows`),
+// with a small slack. Rows no layer reaches keep the read as it is.
+function pinLiftToTape(chart, scales, tape, slack = 1.04) {
+  return scales.map((sc, i) => {
+    const row = chart.rows[i];
+    if (row.cap || !Array.isArray(sc) || !(tape?.[i] > 0)) return sc;
+    const skin = row.girth; if (!(skin > 1e-9)) return sc;
+    const c = row.center, n = row.pts.length;
+    const P = (j) => { const p = row.pts[j % n], f = Number.isFinite(sc[j % n]) ? sc[j % n] : 1; return { x: c.x + (p.x - c.x) * f, y: c.y + (p.y - c.y) * f, z: c.z + (p.z - c.z) * f }; };
+    let G = 0; for (let j = 0; j < n; j++) { const a = P(j), b = P(j + 1); G += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); }
+    const target = tape[i] * slack;
+    if (G <= target || G <= skin) return sc;
+    const k = Math.max(0, Math.min(1, (target - skin) / (G - skin)));
+    return sc.map((f) => 1 + ((Number.isFinite(f) ? f : 1) - 1) * k);
+  });
 }
 
 // -- seams --------------------------------------------------------------------
@@ -387,7 +412,7 @@ function seamLabel(easeCm) {
  * @returns {{ stacks, report, underRanges }} — stacks are `sheet:true` ring-stacks;
  *   underRanges lists { stackIds, zLo, zHi } per chart for the caller's under-shell pass.
  */
-export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody = null, under = null } = {}) {
+export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody = null, under = null, standUnder = null } = {}) {
   const defaults = {
     ...PATTERN_DEFAULTS,
     ...(Number.isFinite(spec.stature_cm) ? { stature_cm: spec.stature_cm } : {}),
@@ -401,11 +426,24 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
   // per pose is reported, not fought. Absent a stand body (or at rest) the two are one.
   const stand = standBody && standBody !== body ? buildBodyCharts(standBody, { stature_cm: defaults.stature_cm }) : { charts, worldPerCm };
   const warnings = [];
+  // THE PADDED FORM (wardrobe-variety P1): a block worn over other layers is drafted on the stand
+  // WEARING them — the stand's charts lifted by those layers' stand-off, the same read the layering
+  // rule makes on the pose below — so a jacket closes over a shirt instead of reporting the shirt
+  // as a side-seam gap. `standUnder` is the layers built on the stand body; absent (at rest) the
+  // posed ones are the same stacks.
+  const padding = standUnder ?? under;
+  const layerG = padding && padding.length ? layerGirthRows(stand.charts, padding) : null;
+  // per row, the isotropic scale that brings the skin row to the widest layer's circumference
+  // (the tape), never below 1; the cap is lifted by the layers' height, as for placement
+  const padded = layerG ? Object.fromEntries(Object.entries(stand.charts).map(([id, ch]) => [id, ch.rows.map((row, i) => (row.cap || !(row.girth > 1e-9)) ? 1 : Math.max(1, layerG[id][i] / row.girth))])) : null;
+  const draftCharts = padded
+    ? Object.fromEntries(Object.entries(stand.charts).map(([id, ch]) => [id, liftChartCap(scaleChartRows(ch, padded[id]), padding)]))
+    : stand.charts;
   // expand mirrors, then compile
   const raw = [];
   for (const p0 of spec.pieces) {
     if ((p0.fit ?? 'hug') !== 'pattern') continue;
-    const piece = resolveSloperPiece(p0, stand.charts, stand.worldPerCm, warnings, defaults);
+    const piece = resolveSloperPiece(p0, draftCharts, stand.worldPerCm, warnings, defaults);
     if (!piece) continue;
     raw.push(piece);
     if (typeof piece.mirror === 'string') raw.push(mirrorPiece(piece, piece.mirror));
@@ -443,7 +481,9 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
   // THE LAYERING RULE: the layers already worn (`under`, shells and pattern pieces alike) lift
   // each chart's rows by their stand-off, so this garment is placed on the inner layer's hang,
   // not on the skin. Then the hang rule per chart over THAT, then the world grid of every piece.
-  const layered = under && under.length ? standoffScalesByChart(charts, under) : null;
+  const layered0 = under && under.length ? standoffScalesByChart(charts, under) : null;
+  const tapePosed = layered0 ? layerGirthRows(charts, under) : null;
+  const layered = layered0 ? Object.fromEntries(Object.entries(layered0).map(([id, sc]) => [id, pinLiftToTape(charts[id], sc, tapePosed[id])])) : null;
   const hung = {};
   for (const chartId of new Set(parts.map((pt) => pt.chartId))) {
     const cps = parts.filter((pt) => pt.chartId === chartId);
@@ -499,6 +539,12 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
     const ob = edgeOrientation(B, seam.b.edge) * (seam.b.reverse ? -1 : 1);
     const lenA = A.edgeRuns[seam.a.edge].length, lenB = B.edgeRuns[seam.b.edge].length;
     const easeTo = SEAM_EASE_KINDS.includes(seam.ease_to) ? seam.ease_to : 'split';
+    // A PARTIAL seam (wardrobe-variety P5) runs over the `from`–`to` span of its edges (fractions
+    // of the walk, top → bottom); vertices outside the span take no delta — a vent, a slit, a
+    // jacket front sewn only below the button.
+    const from = Number.isFinite(seam.from) ? Math.max(0, Math.min(1, seam.from)) : 0;
+    const to = Number.isFinite(seam.to) ? Math.max(from, Math.min(1, seam.to)) : 1;
+    const partial = from > 0 || to < 1;
     const both = (t) => {
       const fa = edgeFlatAt(A, seam.a.edge, t, oa), fb = edgeFlatAt(B, seam.b.edge, t, ob);
       return [A.at(fa.x, fa.y), B.at(fb.x, fb.y)];
@@ -518,7 +564,7 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
     // too narrow (or too wide) for this body and the stitch had to pull cloth to close it.
     let gap = 0;
     const GAP_SAMPLES = 9;
-    for (let k = 0; k < GAP_SAMPLES; k++) { const [pa, pb] = both(k / (GAP_SAMPLES - 1)); gap += dist3(pa, pb); }
+    for (let k = 0; k < GAP_SAMPLES; k++) { const [pa, pb] = both(from + (to - from) * k / (GAP_SAMPLES - 1)); gap += dist3(pa, pb); }
     gap /= GAP_SAMPLES * worldPerCm;
     // boundary deltas on both sides
     const line = [];
@@ -529,6 +575,7 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
           const te = edgeParam(cp, edge, b.seg, b.t);
           if (te == null) continue;
           const t = orient > 0 ? te : 1 - te;
+          if (t < from - 1e-9 || t > to + 1e-9) continue;   // outside a partial seam's span: unsewn
           const target = stitched(t), here = cp.world[i][j];
           const cell = dd[i][j];
           cell.x += target.x - here.x; cell.y += target.y - here.y; cell.z += target.z - here.z; cell.n++;
@@ -539,8 +586,9 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
     line.sort((p, q) => p.t - q.t);
     seams.push({
       a: { piece: A.id, edge: seam.a.edge }, b: { piece: B.id, edge: seam.b.edge }, ease_to: easeTo,
-      len_a_cm: r2(lenA), len_b_cm: r2(lenB), ease_cm: r2(lenA - lenB), label: seamLabel(lenA - lenB), gap_cm: r2(gap),
-      ...(seam.over ? { over: true } : {}),   // the seam lies OVER the body between its two edges (a shoulder) and is stitched on the crest
+      len_a_cm: r2(lenA * (to - from)), len_b_cm: r2(lenB * (to - from)), ease_cm: r2((lenA - lenB) * (to - from)), label: seamLabel((lenA - lenB) * (to - from)), gap_cm: r2(gap),
+      ...(seam.over ? { over: true } : {}),
+      ...(partial ? { from: r3(from), to: r3(to) } : {}),   // the seam lies OVER the body between its two edges (a shoulder) and is stitched on the crest
       line: line.map((q) => q.p),
     });
   }
@@ -614,6 +662,8 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
     hang: Object.fromEntries(Object.entries(hung).map(([k, v]) => [k, v.standoff])),   // max radial stand-off ratio per chart (1 = the cloth lies on the ease ring)
     hang_rows: Object.fromEntries(Object.entries(hung).map(([k, v]) => [k, v.rows])),  // the ratio per chart row, top → bottom
     under: Object.fromEntries(Object.entries(hung).map(([k, v]) => [k, v.under])),     // the inner layers' max stand-off per chart (1 = worn on the skin)
+    drafted_on: padded ? Object.fromEntries(Object.entries(padded).map(([k, rows]) => [k, r3(Math.max(1, ...rows))])) : null,   // the padded form each block drafted to: the widest layer's girth over the skin's (1 = the skin)
+    drafted_girths: padded ? Object.fromEntries(Object.entries(draftCharts).map(([id, ch]) => [id, Object.fromEntries(Object.entries(ch.landmarks).map(([k, v]) => [k, r2(chartGirthAt(ch, v) / stand.worldPerCm)]))])) : null,   // the padded tape (cm) the blocks drafted from
     warnings,
   };
   return { stacks, report, underRanges };
@@ -705,7 +755,11 @@ export function validatePatternSpec(spec, label = 'garment') {
   if (spec.stitch_cm !== undefined && !isNum(spec.stitch_cm, 0.5, 10)) errors.push(`${label}.stitch_cm: a number in [0.5, 10]`);
   const ids = new Map();
   for (const p of patternPieces) {
-    if (typeof p.id === 'string') { ids.set(p.id, p); if (typeof p.mirror === 'string') ids.set(p.mirror, p); }
+    if (typeof p.id === 'string') {
+      ids.set(p.id, p);
+      if (typeof p.mirror === 'string') ids.set(p.mirror, p);
+      else if (p.dials && p.dials.split === 'cf') ids.set(`${p.id}L`, p);   // a split block mirrors itself
+    }
   }
   if (spec.seams !== undefined) {
     if (!Array.isArray(spec.seams)) errors.push(`${label}.seams: must be an array of { a:{piece, edge}, b:{piece, edge}, ease_to? }`);
@@ -719,6 +773,8 @@ export function validatePatternSpec(spec, label = 'garment') {
       }
       if (s?.ease_to !== undefined && !SEAM_EASE_KINDS.includes(s.ease_to)) errors.push(`${label}.seams[${i}].ease_to: one of ${SEAM_EASE_KINDS.join(' | ')}`);
       if (s?.over !== undefined && typeof s.over !== 'boolean') errors.push(`${label}.seams[${i}].over: boolean`);
+      for (const k of ['from', 'to']) if (s?.[k] !== undefined && !isNum(s[k], 0, 1)) errors.push(`${label}.seams[${i}].${k}: a fraction in [0, 1] of the edge's walk (top → bottom)`);
+      if (isNum(s?.from, 0, 1) && isNum(s?.to, 0, 1) && s.from >= s.to) errors.push(`${label}.seams[${i}]: \`from\` must be less than \`to\``);
     });
   }
   return errors;

@@ -305,9 +305,12 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
     : body;
   // THE LAYERING RULE: every stack already worn (shells and pattern pieces alike) is handed to the
   // next garment as `under`, so an outer pattern layer is placed on the inner layer's hang.
-  const worn = [];
+  // THE PADDED FORM: off rest, the same layers are built on the stand body too, so a block drafts
+  // on the stand wearing what it is worn over; at rest the posed layers are the stand's.
+  const worn = [], standWorn = standBody === body ? worn : [];
   for (const spec of specs) {
-    const gpieces = buildGarment(body, spec, { standBody, under: worn });
+    const gpieces = buildGarment(body, spec, { standBody, under: worn, standUnder: standWorn });
+    if (standWorn !== worn) standWorn.push(...buildGarment(standBody, spec, { standBody, under: standWorn, standUnder: standWorn }).filter((g) => !g.id.includes(':under:')));
     const cuts = resolveCuts(spec.cuts, gpieces, body);
     const pregions = resolveCuts((spec.panels || []).map((p) => p.region), gpieces, body);
     const panels = (spec.panels || []).map((p, i) => ({ region: pregions[i], color: p.color, on: p.on }));
@@ -1113,14 +1116,18 @@ export function figurePatternReport(manifest = {}) {
   const standBody = Object.keys(manifest.pose || {}).length ? bare({}) : body;   // drafted on the stand, worn on the pose
   // the layers are worn in order, as the render wears them: every layer (shells included) is
   // handed to the next as `under`, so the readout's `under` and `hang` are the render's numbers
-  const worn = [], reports = [];
+  const worn = [], standWorn = standBody === body ? worn : [], reports = [];
+  const outer = (g) => !g.id.includes(':under:');
   for (const spec of specs) {
+    const cloth = spec.color?.cloth ?? '#3f6f93';
     if (isPattern(spec)) {
-      const { stacks, report } = buildPatternGarment(body, spec, { cloth: spec.color?.cloth ?? '#3f6f93', standBody, under: worn });
+      const { stacks, report } = buildPatternGarment(body, spec, { cloth, standBody, under: worn, standUnder: standWorn });
       reports.push({ id: spec.id, ...report });
       worn.push(...stacks);
+      if (standWorn !== worn) standWorn.push(...buildPatternGarment(standBody, spec, { cloth, standBody, under: standWorn, standUnder: standWorn }).stacks);
     } else {
-      worn.push(...buildGarment(body, spec).filter((g) => !g.id.includes(':under:')));
+      worn.push(...buildGarment(body, spec).filter(outer));
+      if (standWorn !== worn) standWorn.push(...buildGarment(standBody, spec).filter(outer));
     }
   }
   return reports;

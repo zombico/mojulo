@@ -634,7 +634,7 @@ export function buildGarment(body, spec, opts = {}) {
       // rides the same rule as the shells: the chart's stacks, thin-inflated, over the
       // z range the pieces cover (`under: false` on the spec skips it).
       if (!patternDone) {
-        const { stacks, underRanges } = buildPatternGarment(body, spec, { cloth, standBody: opts.standBody ?? null, under: opts.under ?? null });
+        const { stacks, underRanges } = buildPatternGarment(body, spec, { cloth, standBody: opts.standBody ?? null, under: opts.under ?? null, standUnder: opts.standUnder ?? null });
         if (spec.under !== false) for (const ur of underRanges) for (const id of ur.stackIds) {
           const st = find(id); if (!st) continue;
           const rr = st.rings.filter((rg) => rg.center.z <= ur.zHi && rg.center.z >= ur.zLo);

@@ -22,6 +22,18 @@ const HEM_LANDMARK = { waist: 'waist', hip: 'hip', crotch: 'crotch' };
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
+// NECKLINES (wardrobe-variety P4). The front's neckline shape; the back keeps a shallow crew
+// whatever the front wears. Each kind is a default drop and width scale plus the run of points
+// from the neck's shoulder end to the centre (exclusive of both): a curve, a corner, or nothing.
+export const NECK_KINDS = ['crew', 'scoop', 'v', 'square', 'boat'];
+const NECK_DROP = { crew: 7, scoop: 12, v: 12, square: 9, boat: 2 };
+const NECK_WIDTH = { crew: 1, scoop: 1.3, v: 1, square: 1.1, boat: 1.6 };
+function neckline(kind, neckHalf, L, neckDrop) {
+  if (kind === 'v') return [];                                   // a straight line to the centre drop
+  if (kind === 'square') return [[r2(neckHalf), r2(L - neckDrop)]];   // straight down, then across
+  return curve([neckHalf, L], [neckHalf * 0.5, L - neckDrop * 0.95], [0, L - neckDrop], 5);
+}
+
 // A quadratic bezier sampled into `n` points (the block's curves: armhole, neck, sleeve cap).
 function curve(p0, p1, p2, n = 6) {
   const out = [];
@@ -51,6 +63,9 @@ function hemDrop(m, hem, fallbackCm) {
 // 2π·ease_cm, set by pattern-garment.js; 0 when a block is drafted straight from a tape)
 const atRing = (m, girth) => (Number.isFinite(girth) ? girth + (m.standoff ?? 0) : girth);
 
+// outline index of the bust point on the right half (hem, then the optional hip and waist points)
+const iBustOf = (yHip, yWaist) => 1 + (yHip > 0 ? 1 : 0) + (yWaist > yHip + 0.5 ? 1 : 0) + 1;
+
 function bodice(side, m, d = {}) {
   const g = Object.fromEntries(Object.entries(m.girth).map(([k, v]) => [k, atRing(m, v)])), drop = m.drop;
   const easeB = d.ease_bust_cm ?? 6, easeW = d.ease_waist_cm ?? easeB, easeH = d.ease_hip_cm ?? easeB;
@@ -63,8 +78,15 @@ function bodice(side, m, d = {}) {
   // the neck opening is the NECK'S BASE: a quarter of its girth where it rises through the crest
   // (measured, `m.crest.neck_cm`), else the tailor's neck girth over five — never the ring's:
   // the ease rises off the crest, it does not widen the neckline into a boat neck
-  const neckHalf = d.neck_width_cm != null ? d.neck_width_cm / 2 : Number.isFinite(m.crest?.neck_cm) ? m.crest.neck_cm / 4 : Math.max(5, Number.isFinite(m.girth.neck) ? m.girth.neck / 5 : 7);
-  const neckDrop = d.neck_drop_cm ?? (back ? 2 : 7);
+  const neckKind = back ? 'crew' : (NECK_KINDS.includes(d.neck) ? d.neck : 'crew');
+  const neckBase = Number.isFinite(m.crest?.neck_cm) ? m.crest.neck_cm / 4 : Math.max(5, Number.isFinite(m.girth.neck) ? m.girth.neck / 5 : 7);
+  const neckHalf = d.neck_width_cm != null ? d.neck_width_cm / 2 : neckBase * NECK_WIDTH[neckKind];
+  const neckDrop = d.neck_drop_cm ?? (back ? 2 : NECK_DROP[neckKind]);
+  // THE OPEN FRONT (wardrobe-variety P5): `split: 'cf'` drafts the front as its RIGHT half only,
+  // with a `cf` edge on the centre line (extended past it by half the `overlap_cm` button stand);
+  // the caller mirrors it into the left half. A shirt, a vest, a jacket, a coat.
+  const split = !back && d.split === 'cf';
+  const ov = split ? Math.max(0, d.overlap_cm ?? 0) / 2 : 0;
   // THE SHOULDER LINE: the tip sits at the crest's end (the acromion, `m.crest.half_cm` from
   // the neck centre) and drops by the crest's measured slope — the chart's cap is the body's
   // own shoulder, and the block drafts to it. Without a cap (a chart with no crest) the old
@@ -82,19 +104,27 @@ function bodice(side, m, d = {}) {
     ...curve([bustHalf, yBust], [bustHalf - 1, yBust + armholeDepth * 0.6], [shoulderHalf, L - shoulderDrop], 6),
     [shoulderHalf, L - shoulderDrop],
     [neckHalf, L],
-    ...curve([neckHalf, L], [neckHalf * 0.5, L - neckDrop * 0.95], [0, L - neckDrop], 5),
+    ...neckline(neckKind, neckHalf, L, neckDrop),
   ];
-  const pts = [[-r2(hemHalf), 0]];
+  const nNeck = right.length - (iBustOf(yHip, yWaist) + 8);   // points on the neck run after [neckHalf, L]
+  const pts = [[-r2(split ? ov : hemHalf), 0]];
   for (const p of right) pts.push([r2(p[0]), r2(p[1])]);
   pts.push([0, r2(L - neckDrop)]);
-  for (let i = right.length - 1; i >= 1; i--) pts.push([-r2(right[i][0]), r2(right[i][1])]);
+  if (split) { if (ov > 0) pts.push([-r2(ov), r2(L - neckDrop)]); }
+  else for (let i = right.length - 1; i >= 1; i--) pts.push([-r2(right[i][0]), r2(right[i][1])]);
   // dedupe the centre-front point the two halves share
   const out = [];
   for (const p of pts) { const q = out[out.length - 1]; if (!q || Math.hypot(q[0] - p[0], q[1] - p[1]) > 1e-6) out.push(p); }
   // named edges by outline index (the right half runs bottom → top from index 1)
-  const iHemR = 1, iBust = 1 + (yHip > 0 ? 1 : 0) + (yWaist > yHip + 0.5 ? 1 : 0) + 1;
-  const iTip = iBust + 6, iNeckR = iTip + 1, iCF = iNeckR + 5;
+  const iHemR = 1, iBust = iBustOf(yHip, yWaist);
+  const iTip = iBust + 6, iNeckR = iTip + 1, iCF = iNeckR + nNeck + 1;   // iCF = the centre point at the neck's drop
   const n = out.length;
+  if (split) {
+    // the right half: hem · sideR · armholeR · shoulderR · neck · cf, chained from the hem
+    const iCFtop = n - 1;   // the last point: the centre-top, or the overlap's corner beside it
+    const edges = { hem: [0, iHemR], sideR: [iHemR, iBust], armholeR: [iBust, iTip], shoulderR: [iTip, iNeckR], neck: [iNeckR, iCFtop], cf: [iCFtop, 0] };
+    return { outline: out, edges, corners: [iCFtop, iTip, iHemR, 0], chart: 'trunk', split: true, anchor: { piece: [0, r2(L)], chart: { u: 'cf', v: 'top' } } };
+  }
   // the left half mirrors the right: outline index j on the right is n - j + 1 on the left
   const M = (j) => n - j + 1;
   const edges = {
@@ -127,12 +157,15 @@ function sleeve(m, d = {}) {
   for (let i = right.length - 1; i >= 1; i--) pts.push([-r2(right[i][0]), r2(right[i][1])]);
   const out = [];
   for (const p of pts) { const q = out[out.length - 1]; if (!q || Math.hypot(q[0] - p[0], q[1] - p[1]) > 1e-6) out.push(p); }
-  const n = out.length, iBicep = 2, iTop = iBicep + 5, iBicepL = n - iBicep + 1;
+  const n = out.length, iBicep = 2, iTop = iBicep + 6, iBicepL = n - iBicep + 1;   // the apex: hem, bicep, five cap points, then [0, L]
+  // THE SET-IN SLEEVE (wardrobe-variety P2): the cap's apex sits on the SHOULDER POINT — the
+  // arm chart's outer side (`sideL` on the left arm; the mirror swaps it) — so the underarm seam
+  // falls under the arm, and the cap is two named halves, `capFront` and `capBack`, so each of a
+  // bodice's two armhole edges (the front's and the back's) can take its seam.
   return {
-    outline: out, edges: { hem: [0, 1], underarmR: [1, iBicep], cap: [iBicep, iBicepL], underarmL: [iBicepL, 0] },
+    outline: out, edges: { hem: [0, 1], underarmR: [1, iBicep], capFront: [iBicep, iTop], capBack: [iTop, iBicepL], underarmL: [iBicepL, 0] },
     corners: [iBicepL, iBicep, 1, 0], chart: 'armL',
-    anchor: { piece: [0, r2(len)], chart: { u: 'cf', v: 'shoulder' } },
-    _iTop: iTop,
+    anchor: { piece: [0, r2(len)], chart: { u: 'sideL', v: 'shoulder' } },
   };
 }
 
@@ -178,7 +211,14 @@ function trouser(side, m, d = {}) {
   // the leg's front half sits about the piece column xc (the middle of the crotch-level trunk span)
   const xc = -oCrotch / 2;
   const half = (girth, e) => (Number.isFinite(girth) ? girth / 4 + e / 4 : oCrotch / 2);
-  const hKnee = half(lg.knee ?? lg.thigh, ease), hHem = half(lg.ankle ?? lg.knee, easeHem);
+  // the hem is drafted to the leg's girth AT THE HEM (wardrobe-variety P3): the knee's for knee
+  // length, the ankle's for ankle length, interpolated between thigh, knee and ankle for a cm length
+  const gThigh = lg.thigh ?? lg.knee, gKnee = lg.knee ?? gThigh, gAnkle = lg.ankle ?? gKnee;
+  const dKnee = leg.drop?.knee ?? legLen * 0.5, dAnkle = leg.drop?.ankle ?? legLen;
+  const hemGirth = d.length === 'knee' ? gKnee
+    : typeof d.length === 'number' ? (legLen <= dKnee ? gThigh + (gKnee - gThigh) * (dKnee > 0 ? legLen / dKnee : 1) : gKnee + (gAnkle - gKnee) * (dAnkle > dKnee ? Math.min(1, (legLen - dKnee) / (dAnkle - dKnee)) : 1))
+    : gAnkle;
+  const hKnee = half(gKnee, ease), hHem = half(hemGirth, easeHem);
   const hasKnee = yKnee > 0.5 && yKnee < yCrotch - 0.5;
   // CCW from the bottom-left, front orientation; the back mirrors x (and reverses to stay CCW)
   const pts = [
@@ -222,7 +262,7 @@ export function draftSloper(kind, measures, dials = {}) {
   switch (kind) {
     case 'bodice-front': return bodice('front', measures, dials);
     case 'bodice-back': return bodice('back', measures, dials);
-    case 'sleeve': { const s = sleeve(measures, dials); delete s._iTop; return s; }
+    case 'sleeve': return sleeve(measures, dials);
     case 'skirt-front': return skirt('front', measures, dials);
     case 'skirt-back': return skirt('back', measures, dials);
     case 'trouser-front': return trouser('front', measures, dials);
