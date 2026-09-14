@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createBusState, processEvents, stepTime, tickTimers, watchEvents, hashState, deriveEvents, linkPhysics, syncFromBodies, syncToBodies } from './event-bus.js';
 import { createState, step } from './physics-sim.js';
-import { compose, scoreCounter, countdownClock, gameOverFreeze, spawnOnHeartbeat, deed, onContact, pickup, onRest, hitConfirm, ephemeralTarget, banner, legend } from './game-idioms.js';
+import { compose, scoreCounter, countdownClock, gameOverFreeze, spawnOnHeartbeat, deed, onContact, pickup, onRest, hitConfirm, ephemeralTarget, banner, legend, toast } from './game-idioms.js';
 import { buildWhackAMole } from './games/whack-a-mole.js';
 import { buildCradles } from './games/newton-cradles.js';
 import { resolveWorldScene } from './world-scene.js';
@@ -371,6 +371,17 @@ describe('screen-space presentation rides the idioms (hud-widgets.js)', () => {
       .toEqual([{ var: 'score', label: 'Score', slot: 'top-right', as: 'counter', color: 'value' }]);
     expect(countdownClock({ from: 10, slot: 'top', as: 'clock' }).hud).toEqual([{ var: 'time', label: 'Time', slot: 'top', as: 'clock' }]);
     expect(countdownClock({ from: 10 }).hud).toEqual([{ var: 'time', label: 'Time' }]);
+  });
+
+  it('toast: exactly one of on / var; an event toast needs text, a var toast defaults to {delta}; hitConfirm({ damage }) stamps the field', () => {
+    expect(toast({ on: 'shot', text: '-{event.damage}', slot: 'top' })).toEqual({ hud: [{ on: 'shot', as: 'toast', text: '-{event.damage}', slot: 'top' }] });
+    expect(toast({ var: 'hp', slot: 'bottom-left', ttl: 1 })).toEqual({ hud: [{ var: 'hp', as: 'toast', slot: 'bottom-left', ttl: 1 }] });
+    expect(() => toast({})).toThrow(/exactly one of on/);
+    expect(() => toast({ on: 'shot', var: 'hp', text: 'x' })).toThrow(/exactly one of on/);
+    expect(() => toast({ on: 'shot' })).toThrow(/needs text/);
+    expect(hitConfirm({ damage: 12 }).inputs[0].emit).toEqual({ type: 'shot', damage: 12 });
+    expect(hitConfirm({ damage: 'lots' }).inputs[0].emit).toEqual({ type: 'shot' });   // a non-number never rides
+    expect(hitConfirm({}).inputs[0].emit).toEqual({ type: 'shot' });                   // absent ⇒ unchanged shape
   });
 
   it('banner / legend are hud-only fragments (no state, no verbs) and compose beside the rest', () => {

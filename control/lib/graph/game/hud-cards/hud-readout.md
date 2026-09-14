@@ -17,6 +17,8 @@
   - `bar` — a filled track `value / max` with the numbers beside it. **Needs `max`**: a number, or the NAME of a var (`"max": "hpMax"`) so the ceiling can move. The fill takes the widget color (accent by default).
   - `clock` — seconds → `m:ss`, tabular digits. Countdowns and survive timers.
 - `max` — for `bar`. Ignored by other kinds.
+- `as: 'toast'` on a `var` row is NOT a readout: it is the change popup ("-20" when hp drops),
+  its own widget beside the var's readout — see card `hud-banner`.
 - `color` — a hex (`#ffd700`) or a semantic name: `harm` (red), `value` (gold), `goal` (green), `accent`, `accent2` (the theme's).
 
 ## Examples

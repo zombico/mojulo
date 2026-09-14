@@ -23,8 +23,15 @@ describe('events channel — the HUD widget layer', () => {
       ['readout', 'bottom-left', 'bar'],
       ['readout', 'top', 'clock'],
       ['banner', 'center', 'game-over'],
+      ['toast', 'top', 'shot'],
+      ['toast', 'bottom-left', '{delta}'],
       ['legend', 'bottom', 'click to whack'],
     ]);
+    expect(widgets[4]).toMatchObject({ on: 'shot', text: '-{event.damage}', ttl: 0.8, css: 'var(--moj-accent)' });   // event toast: accent
+    expect(widgets[5]).toMatchObject({ var: 'hp', ttl: 0.8, css: '' });                                                // var toast: sign picks harm / goal in-page
+    expect(html).toContain('.moj-w-toast{');
+    expect(html).toContain('function hudSubst(text, vars, ctx)');   // the shared rule, shipped verbatim
+    expect(html).toContain('__syncHud(t, incoming)');               // the frame's incoming list carries event fields
     expect(widgets[1]).toMatchObject({ var: 'hp', label: 'HP', max: 100, color: 'harm', css: 'var(--moj-harm)' });   // the duplicate { var:'hp' } merged in
     expect(html).toContain('.moj-hud-col{position:absolute');
     expect(html).toContain('--moj-accent:#5fe6d6');                 // the world's own events.style
@@ -37,6 +44,7 @@ describe('events channel — the HUD widget layer', () => {
     expect(html).not.toContain('moj-hud');
     expect(html).not.toContain('const __HUD');
     expect(html).toContain('function __syncHud() {}');
+    expect(html).not.toContain('hudSubst');
   });
 
   it('the emitted page scripts parse standalone (hud world + a themed game level)', () => {
@@ -54,6 +62,74 @@ describe('events channel — the HUD widget layer', () => {
     expect(html).toContain('var(--moj-panel-a,rgba(12,16,26,.92))');
     expect(html).toContain('__applyStyle(d.theme)');
     expect(html).toContain("__GAME.complete !== false");
+  });
+});
+
+// ── the toast at runtime: the emitted HUD block against a DOM shim, driven by frames ──
+// The block is page code (no imports; the events channel's own globals), so it runs under
+// `new Function` with `document` / `wrap` / `__busState` supplied — the same bytes a browser gets.
+function domShim() {
+  const mk = (tag) => {
+    const el = {
+      tag, children: [], style: {}, cls: new Set(), textContent: '', parent: null,
+      get className() { return [...this.cls].join(' '); },
+      set className(v) { this.cls = new Set(v.split(' ').filter(Boolean)); },
+      appendChild(c) { c.parent = el; el.children.push(c); return c; },
+      remove() { if (el.parent) el.parent.children.splice(el.parent.children.indexOf(el), 1); el.parent = null; },
+    };
+    el.classList = { add: (c) => el.cls.add(c), remove: (c) => el.cls.delete(c), contains: (c) => el.cls.has(c) };
+    return el;
+  };
+  return { document: { head: mk('head'), createElement: mk, documentElement: mk('html') }, wrap: mk('wrap') };
+}
+function mountHud(vars) {
+  const html = emitThreeWorld(fixture('events-hud'));
+  const a = html.indexOf('// HUD: the screen-space widget layer'), b = html.indexOf('\n// Read-only projection of bus ENTITY state', a);
+  const { document, wrap } = domShim();
+  const bus = { vars, log: [] };
+  const h = new Function('document', 'wrap', '__busState', html.slice(a, b) + '\nreturn { sync: __syncHud, live: () => __hudLive, cols: __hudCols };')(document, wrap, bus);
+  const toasts = (slot) => h.cols[slot].children.filter((c) => c.cls.has('moj-w-toast')).map((c) => c.textContent);
+  return { ...h, bus, toasts };
+}
+
+describe('the toast at runtime (frame-clock driven, deterministic)', () => {
+  it('an event toast reads the firing event\'s fields from the frame\'s incoming list and STACKS per firing', () => {
+    const h = mountHud({ score: 0, hp: 100, time: 30 });
+    h.sync(0, []);
+    expect(h.toasts('top')).toEqual([]);
+    h.bus.log.push({ type: 'shot' }); h.sync(16, [{ type: 'shot', damage: 12, target: 'mole-3' }]);
+    h.bus.log.push({ type: 'shot' }); h.sync(32, [{ type: 'shot', damage: 7, target: 'mole-1' }]);
+    expect(h.toasts('top')).toEqual(['-12', '-7']);                       // two elements, not one replaced
+    expect(h.live().map((l) => l.el.style.color)).toEqual(['var(--moj-accent)', 'var(--moj-accent)']);
+    h.bus.log.push({ type: 'shot' }); h.sync(40, []);                     // a cascaded shot: type only ⇒ empty field
+    expect(h.toasts('top')).toEqual(['-12', '-7', '-']);
+    h.bus.log.push({ type: 'game-over' }); h.sync(41, []);                // a banner event never spawns a toast
+    expect(h.toasts('top').length).toBe(3);
+  });
+
+  it('a var toast seeds silently, fires on change with a signed delta, and picks harm / goal by sign when uncolored', () => {
+    const h = mountHud({ score: 0, hp: 100, time: 30 });
+    h.sync(0, []); h.sync(16, []);
+    expect(h.toasts('bottom-left')).toEqual([]);                          // hp=100 at seed is not a "+100"
+    h.bus.vars.hp = 80; h.sync(32, []);
+    h.bus.vars.hp = 85; h.sync(48, []);
+    h.bus.vars.hp = 85; h.sync(64, []);                                   // no change ⇒ no toast
+    expect(h.toasts('bottom-left')).toEqual(['-20', '+5']);
+    expect(h.live().map((l) => l.el.style.color)).toEqual(['var(--moj-harm)', 'var(--moj-goal)']);
+  });
+
+  it('rises + fades on the frame clock, reaps past ttl, and the oldest goes past the per-row cap', () => {
+    const h = mountHud({ score: 0, hp: 100, time: 30 });
+    h.sync(0, []);
+    h.bus.log.push({ type: 'shot' }); h.sync(100, [{ type: 'shot', damage: 12 }]);
+    h.sync(500, []);                                                       // half of ttl 0.8s
+    const l = h.live()[0];
+    expect(Number(l.el.style.opacity)).toBeCloseTo(0.75, 2);                // 1 - p² at p=.5
+    expect(l.el.style.transform).toBe('translateY(-14.0px)');              // 28px rise × .5
+    h.sync(901, []);
+    expect(h.toasts('top')).toEqual([]); expect(h.live().length).toBe(0);  // reaped, DOM clean
+    for (let i = 0; i < 12; i++) { h.bus.log.push({ type: 'shot' }); h.sync(1000 + i, [{ type: 'shot', damage: i }]); }
+    expect(h.toasts('top')).toEqual(['-4', '-5', '-6', '-7', '-8', '-9', '-10', '-11']);   // cap 8: the first four went
   });
 });
 

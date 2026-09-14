@@ -157,6 +157,8 @@ export const EMIT_FIXTURES = [
       { var: 'time', as: 'clock', slot: 'top' },
       { var: 'hp' },
       { on: 'game-over', text: 'TIME! {score}', ttl: 3 },
+      { on: 'shot', text: '-{event.damage}', as: 'toast', slot: 'top' },   // the damage-dealt toast (event fields)
+      { var: 'hp', as: 'toast', slot: 'bottom-left' },                     // the damage-taken toast (var delta)
       { text: 'click to whack', ttl: 5 },
     ],
     style: { accent: '#5fe6d6', font: 'mono' } } }],

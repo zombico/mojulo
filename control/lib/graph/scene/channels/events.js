@@ -1,5 +1,5 @@
 import { buildBus } from '../../worlds/event-bus.js';
-import { colorCss, normalizeHud, styleVars } from '../../game/hud-widgets.js';
+import { colorCss, fmtDelta, hudSubst, normalizeHud, styleVars } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
 // The HUD widget layer's stylesheet (hud-widgets.js): one absolutely-positioned column per slot
@@ -27,6 +27,7 @@ const HUD_CSS = [
   '.moj-w-bar .moj-track{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}',
   '.moj-w-bar .moj-fill{display:block;height:100%;width:0;background:currentColor;transition:width .12s linear}',
   '.moj-w-banner{font-size:34px;font-weight:800;letter-spacing:3px;text-transform:uppercase;padding:10px 26px;text-shadow:0 0 18px currentColor}',
+  '.moj-w-toast{font-size:22px;font-weight:800;padding:2px 10px;background:none;border:0;text-shadow:0 0 12px currentColor;will-change:transform,opacity}',
   '.moj-w-legend{font-size:12px;font-weight:500;opacity:.85;letter-spacing:.3px}',
   '.moj-hidden{opacity:0}',
 ].join('');
@@ -35,15 +36,22 @@ const HUD_CSS = [
 // pre-resolved `css` color so the page never interprets an author string as CSS. Banners watch
 // the bus LOG delta each step (the same read-only observation the game channel makes) and hide
 // on the frame clock `t` — real time never enters the bus, so a capture run stays deterministic.
+// Toasts spawn one element per firing (capped per widget) that rises + fades on the same clock;
+// an event toast reads its `{event.*}` fields from the frame's INCOMING list (the log keeps type
+// only), a var toast from the var's change since the last frame (first frame seeds, never fires).
 function hudScript(widgets, style) {
-  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, w.kind === 'banner' || (w.kind === 'readout' && w.as === 'bar') ? 'var(--moj-accent)' : '') }));
+  // default colors: banners, event toasts and bars take the accent; a var toast with no color
+  // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
+  const accentDefault = (w) => w.kind === 'banner' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
+  const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : '') }));
   return `// HUD: the screen-space widget layer (hud-widgets.js) — a column per slot, a widget per row.
 const __HUD = ${safeJson(rows)};
-const __hudEls = [], __hudBanners = [], __hudTimed = [];
+const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hudLive = [], __hudCols = {};
+const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
   const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}`)}; document.head.appendChild(st);
   const layer = document.createElement('div'); layer.className = 'moj-hud';
-  const cols = {};
+  const cols = __hudCols;
   const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };
   const span = (cls) => { const s = document.createElement('span'); s.className = cls; return s; };
   __HUD.forEach((w) => {
@@ -58,21 +66,23 @@ const __hudEls = [], __hudBanners = [], __hudTimed = [];
       else { el.appendChild(lbl); el.appendChild(val); }
       __hudEls.push({ w: w, val: val, fill: fill });
     } else if (w.kind === 'banner') { el.textContent = w.text; el.classList.add('moj-hidden'); __hudBanners.push({ w: w, el: el, until: 0 }); }
+    else if (w.kind === 'toast') { col(w.slot); __hudToasts.push({ w: w, prev: null, n: 0 }); return; }   // spawns per firing; no standing element
     else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
     col(w.slot).appendChild(el);
   });
   wrap.appendChild(layer);
 })();
 function __hudClock(n) { const s = Math.max(0, Math.ceil(n)); const m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
-function __hudSubst(text) {   // "{name}" reads a bus var — "TIME! {score}" at game over
-  let out = '', i = 0;
-  while (i < text.length) {
-    const a = text.indexOf('{', i); if (a < 0) { out += text.slice(i); break; }
-    const b = text.indexOf('}', a); if (b < 0) { out += text.slice(i); break; }
-    const v = __busState.vars[text.slice(a + 1, b)];
-    out += text.slice(i, a) + (v != null ? v : text.slice(a, b + 1)); i = b + 1;
-  }
-  return out;
+${hudSubst.toString()}
+${fmtDelta.toString()}
+function __hudSubst(text, ctx) { return hudSubst(text, __busState.vars, ctx); }   // "{name}" reads a bus var — "TIME! {score}" at game over
+function __hudToast(tw, text, t, sign) {   // one rising, fading element per firing; the oldest goes past the cap
+  const el = document.createElement('div');
+  el.className = 'moj-w moj-w-toast'; el.textContent = text;
+  el.style.color = tw.w.css || (sign < 0 ? 'var(--moj-harm)' : sign > 0 ? 'var(--moj-goal)' : 'var(--moj-accent)');
+  __hudCols[tw.w.slot].appendChild(el);
+  tw.n++; if (tw.n > __TOAST_CAP) { for (let i = 0; i < __hudLive.length; i++) if (__hudLive[i].tw === tw) { __hudLive[i].el.remove(); __hudLive.splice(i, 1); tw.n--; break; } }
+  __hudLive.push({ tw: tw, el: el, born: t || 0, until: (t || 0) + tw.w.ttl * 1000 });
 }
 function __hudGlob(str, pat) {   // the game.on / fx.on glob: '*' spans, literals anchor at both ends
   str = String(str); if (pat === '*') return true;
@@ -86,7 +96,7 @@ function __hudGlob(str, pat) {   // the game.on / fx.on glob: '*' spans, literal
   return !parts[parts.length - 1] || pos === str.length;
 }
 let __hudLogN = __busState.log ? __busState.log.length : 0, __hudT0 = -1;
-function __syncHud(t) {
+function __syncHud(t, incoming) {
   if (__hudT0 < 0) __hudT0 = t || 0;
   for (const h of __hudEls) {
     const raw = __busState.vars[h.w.var], n = raw != null ? raw : 0;
@@ -101,8 +111,23 @@ function __syncHud(t) {
   for (let i = __hudLogN; i < log.length; i++) {
     const ev = log[i]; if (!ev || !ev.type) continue;
     for (const b of __hudBanners) if (__hudGlob(ev.type, b.w.on)) { b.el.textContent = __hudSubst(b.w.text); b.el.classList.remove('moj-hidden'); b.until = (t || 0) + b.w.ttl * 1000; }
+    for (const tw of __hudToasts) if (tw.w.on && __hudGlob(ev.type, tw.w.on)) {
+      let src = null; const inc = incoming || [];   // the firing event's fields: the last incoming of that type this frame
+      for (let k = inc.length - 1; k >= 0; k--) if (inc[k] && inc[k].type === ev.type) { src = inc[k]; break; }
+      __hudToast(tw, __hudSubst(tw.w.text, { event: src || {} }), t, 0);
+    }
   }
   __hudLogN = log.length;
+  for (const tw of __hudToasts) if (tw.w.var) {   // the var toast: fires on change, seeds silently on the first frame
+    const raw = __busState.vars[tw.w.var], v = typeof raw === 'number' ? raw : 0;
+    if (tw.prev === null) tw.prev = v;
+    else if (v !== tw.prev) { const d = v - tw.prev; tw.prev = v; __hudToast(tw, __hudSubst(tw.w.text, { delta: fmtDelta(d), value: v }), t, d < 0 ? -1 : 1); }
+  }
+  for (let i = __hudLive.length - 1; i >= 0; i--) {   // rise + fade on the frame clock, reap past ttl
+    const l = __hudLive[i], p = Math.min(1, ((t || 0) - l.born) / (l.until - l.born || 1));
+    if (p >= 1) { l.el.remove(); l.tw.n--; __hudLive.splice(i, 1); continue; }
+    l.el.style.opacity = String(1 - p * p); l.el.style.transform = 'translateY(' + (-__TOAST_RISE * p).toFixed(1) + 'px)';
+  }
   for (const b of __hudBanners) if (b.until && (t || 0) >= b.until) { b.el.classList.add('moj-hidden'); b.until = 0; }
   for (const l of __hudTimed) if (l.until >= 0 && (t || 0) - __hudT0 >= l.until) { l.el.classList.add('moj-hidden'); l.until = -1; }
 }`;
@@ -269,7 +294,7 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
   if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities); // apply respawn/teleport warps
-  __syncBus(); __syncHud(t); __updateAim();
+  __syncBus(); __syncHud(t, incoming); __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { const w = __BUS.watchEvents(__busState); if (!w.length) break; __BUS.processEvents(__busState, w); } }

@@ -1,5 +1,5 @@
 ---
-{ "id": "hud-guide", "name": "Game UI widgets (overview)", "summary": "How a composed game gets its SCREEN: readouts, banners and legends placed in seven slots (four corners + top / center / bottom), styled by one token set the game shell and every level share. A row of a world's `events.hud` is a widget; every idiom and mechanic already emits one; a hand row restyles a mechanic's default by naming its var.", "when": "style the game UI, HUD layout, put the score in a corner, health bar, countdown clock, show a banner when the level ends, game over text, controls hint on screen, press E prompt, theme the game, change the HUD font, game colors, where UI elements go, composable HUD" }
+{ "id": "hud-guide", "name": "Game UI widgets (overview)", "summary": "How a composed game gets its SCREEN: readouts, banners and legends placed in seven slots (four corners + top / center / bottom), styled by one token set the game shell and every level share. A row of a world's `events.hud` is a widget; every idiom and mechanic already emits one; a hand row restyles a mechanic's default by naming its var.", "when": "style the game UI, HUD layout, put the score in a corner, health bar, countdown clock, show a banner when the level ends, game over text, controls hint on screen, press E prompt, theme the game, change the HUD font, game colors, where UI elements go, composable HUD, damage numbers, damage dealt toast, floating damage popup, show -12 when hit" }
 ---
 
 ## The idea
@@ -14,16 +14,20 @@ top-left        top         top-right
 bottom-left    bottom       bottom-right
 ```
 
-A row of a world's `events.hud` is a **widget** in one slot. Three kinds:
+A row of a world's `events.hud` is a **widget** in one slot. Four kinds:
 
 ```json
 { "var": "score", "label": "Score", "slot": "top-right", "as": "counter" }
 { "on": "game-over", "text": "TIME! {score}", "slot": "center", "ttl": 3 }
+{ "on": "shot", "text": "-{event.damage}", "as": "toast", "slot": "top" }
 { "text": "WASD to move · click to whack", "slot": "bottom" }
 ```
 
 - **readout** (`var`) projects a bus var — `as: text | counter | bar | clock` (card `hud-readout`).
 - **banner** (`on`) shows `text` when the bus emits a matching event, for `ttl` seconds (card `hud-banner`).
+- **toast** (`as: 'toast'`) is the damage number: a banner that STACKS, one rising element per
+  firing — off an event (`on`, reading `{event.damage}`) or off a var's change (`var`, reading
+  `{delta}`) (card `hud-banner`).
 - **legend** (`text`) is static: the controls hint, the "press E" prompt (card `hud-banner`).
 
 Widgets in one slot stack in declaration order. A legacy `{ var, label }` row (what
@@ -56,7 +60,8 @@ A level's `game.complete` (level contract) shapes the in-level result card: `fal
 ## Idioms
 
 `scoreCounter(name, { label, slot, as, color })`, `countdownClock({ …, slot, as: 'clock' })`,
-`banner({ on, text, slot, ttl })`, `legend({ text, slot, ttl })` — `worlds/game-idioms.js`.
+`banner({ on, text, slot, ttl })`, `toast({ on | var, text, slot, ttl })`, `legend({ text, slot, ttl })`
+— `worlds/game-idioms.js`. `hitConfirm({ damage })` stamps the number a shot toast reads.
 
 ## What does not travel yet
 

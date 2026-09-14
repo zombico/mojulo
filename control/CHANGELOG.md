@@ -61,6 +61,16 @@ loops and the recipe format are unchanged.
 - **Added: hud cards.** `get_game_vocab` gains a sixth family (`scope: 'hud'`: hud-guide /
   hud-readout / hud-banner / hud-style) indexed as `game_hud`; the tool description pin is
   re-pinned for the family clause.
+- **Added: the damage toast.** `as: 'toast'` on a hud row is a banner that STACKS — one rising,
+  fading element per firing, capped per row, on the frame clock. Two forms: an event toast
+  (`{ on: 'shot', text: '-{event.damage}' }`) reads the firing event's fields, which the bus log
+  does not keep, so the events channel hands the frame's incoming list to the HUD sync; a var
+  toast (`{ var: 'hp', as: 'toast' }`) fires when the var changes and reads `{delta}` / `{value}`,
+  never merging with the var's readout, so an HP bar and its "-20" coexist, colored by sign when
+  uncolored. `hitConfirm({ damage })` stamps the number on its shot; `toast()` joins the idioms;
+  the substitution rule is one exported function shipped into the page by toString. Emission
+  changes for every world with an events channel (the sync call gains the incoming argument);
+  re-pinned.
 - **Engine packs.** score.json carries the widget list as `hud` with a `hud_declared` ledger row;
   the Godot / Unity / Unreal kernels still paint their own default readout from `mechanics`. The
   piloted-world match HUD is not yet in the vocabulary. Both are recorded stopping points.

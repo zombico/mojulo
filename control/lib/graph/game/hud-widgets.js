@@ -7,7 +7,15 @@
  *
  *   readout  { var, label?, slot?, as?: 'text'|'counter'|'bar'|'clock', max?, color? }
  *   banner   { on: '<busEventPattern>', text, slot?: 'center', ttl?: 2, color? }
+ *   toast    { on, text, as: 'toast', slot?: 'center', ttl?: 0.8, color? }   — a banner that STACKS
+ *            { var, as: 'toast', text?: '{delta}', slot?, ttl?, color? }     — fires when the var changes
  *   legend   { text, slot?: 'bottom', ttl? }
+ *
+ * A toast is the damage number: each firing is its own rising, fading element (banners replace,
+ * toasts queue). The event form substitutes `{event.<field>}` from the firing event (a
+ * `hitConfirm({ damage })` shot carries `damage` + `target`); the var form substitutes `{delta}`
+ * (signed) and `{value}`, and never merges with the var's readout — an HP bar and its "-20"
+ * coexist. Substitution is `hudSubst` below, shipped verbatim into the page.
  *
  * A legacy `{ var, label }` row (every idiom / mechanic emits one) normalizes to a `text`
  * readout at `top-left` — so every existing world means what it meant. Two rows naming the same
@@ -23,6 +31,8 @@
 
 export const HUD_SLOTS = ['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right'];
 export const HUD_KINDS = ['text', 'counter', 'bar', 'clock'];
+export const MOMENT_KINDS = ['banner', 'toast'];   // what an `on` row may be `as`
+export const TOAST_TTL = 0.8;                        // seconds a damage number lives (default)
 export const STYLE_TOKENS = ['accent', 'accent2', 'ink', 'bg', 'panel', 'line'];
 export const FONTS = {
   system: 'system-ui,sans-serif',
@@ -94,6 +104,32 @@ export function colorCss(v, fallback = 'var(--moj-ink)') {
 }
 
 /**
+ * hudSubst(text, vars, ctx?) → the text with `{…}` filled. `{name}` reads a bus var (unknown ⇒ the
+ * literal brace stays, as before); `{event.<field>}` reads the firing event, `{delta}` / `{value}`
+ * a var toast's change — those three read '' when absent (a number never shows as "{delta}").
+ * Emitted into the page by toString(): no closures, ES5-safe, one copy of the rule.
+ */
+export function hudSubst(text, vars, ctx) {
+  var out = '', i = 0, t = String(text);
+  while (i < t.length) {
+    var a = t.indexOf('{', i); if (a < 0) { out += t.slice(i); break; }
+    var b = t.indexOf('}', a); if (b < 0) { out += t.slice(i); break; }
+    var key = t.slice(a + 1, b), v;
+    if (key.indexOf('event.') === 0) { v = ctx && ctx.event ? ctx.event[key.slice(6)] : undefined; out += t.slice(i, a) + (v != null ? v : ''); }
+    else if (key === 'delta' || key === 'value') { v = ctx ? ctx[key] : undefined; out += t.slice(i, a) + (v != null ? v : ''); }
+    else { v = vars ? vars[key] : undefined; out += t.slice(i, a) + (v != null ? v : t.slice(a, b + 1)); }
+    i = b + 1;
+  }
+  return out;
+}
+
+/** fmtDelta(n) → a signed number string: +5, -12, 0. Rounded to 2 places so a float tick reads. */
+export function fmtDelta(n) {
+  var r = Math.round(n * 100) / 100;
+  return (r > 0 ? '+' : '') + r;
+}
+
+/**
  * normalizeHud(rows) → { widgets, errors }. Widgets are complete (every optional filled) and in
  * declaration order (a merged var keeps its FIRST position). Errors teach; a caller that needs
  * a gate throws on them, a renderer that already passed the gate takes the widgets.
@@ -110,10 +146,18 @@ export function normalizeHud(rows) {
     if (slotGiven && !HUD_SLOTS.includes(r.slot)) errors.push(`${where}.slot must be one of: ${HUD_SLOTS.join(', ')}`);
     if (r.color !== undefined && !isHudColor(r.color)) errors.push(`${where}.color must be a hex color or one of: harm, value, goal, accent, accent2`);
     const slot = slotGiven && HUD_SLOTS.includes(r.slot) ? r.slot : null;
+    const ttlBad = r.ttl !== undefined && !(Number.isFinite(r.ttl) && r.ttl > 0);
+    const ttl = (dflt) => (Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : dflt);
 
+    if (isStr(r.var) && r.as === 'toast') {   // the var toast: its own widget, never merged with the readout
+      if (r.text !== undefined && !isStr(r.text)) errors.push(`${where}.text must be a string (default '{delta}')`);
+      if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
+      widgets.push({ kind: 'toast', var: r.var, text: isStr(r.text) ? r.text : '{delta}', slot: slot || 'center', ttl: ttl(TOAST_TTL), color: isHudColor(r.color) ? r.color : undefined });
+      return;
+    }
     if (isStr(r.var)) {
       const kind = r.as !== undefined ? r.as : null;
-      if (kind !== null && !HUD_KINDS.includes(kind)) errors.push(`${where}.as must be one of: ${HUD_KINDS.join(', ')}`);
+      if (kind !== null && !HUD_KINDS.includes(kind)) errors.push(`${where}.as must be one of: ${HUD_KINDS.join(', ')} (or 'toast' for a change popup)`);
       if (kind === 'bar' && !(Number.isFinite(r.max) || isStr(r.max))) errors.push(`${where}: as:'bar' needs max (a number, or the name of a var)`);
       if (r.max !== undefined && !(Number.isFinite(r.max) || isStr(r.max))) errors.push(`${where}.max must be a number or a var name`);
       if (r.label !== undefined && typeof r.label !== 'string') errors.push(`${where}.label must be a string`);
@@ -136,14 +180,17 @@ export function normalizeHud(rows) {
       return;
     }
     if (isStr(r.on)) {
-      if (!isStr(r.text)) errors.push(`${where}: a banner needs text (shown when the bus emits '${r.on}')`);
-      if (r.ttl !== undefined && !(Number.isFinite(r.ttl) && r.ttl > 0)) errors.push(`${where}.ttl must be a positive number of seconds`);
-      widgets.push({ kind: 'banner', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : 2, color: isHudColor(r.color) ? r.color : undefined });
+      const kind = r.as !== undefined ? r.as : 'banner';
+      if (!MOMENT_KINDS.includes(kind)) errors.push(`${where}.as must be one of: ${MOMENT_KINDS.join(', ')} (an 'on' row)`);
+      if (!isStr(r.text)) errors.push(`${where}: a ${kind === 'toast' ? 'toast' : 'banner'} needs text (shown when the bus emits '${r.on}')`);
+      if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
+      const k = MOMENT_KINDS.includes(kind) ? kind : 'banner';
+      widgets.push({ kind: k, on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(k === 'toast' ? TOAST_TTL : 2), color: isHudColor(r.color) ? r.color : undefined });
       return;
     }
     if (isStr(r.text)) {
-      if (r.ttl !== undefined && !(Number.isFinite(r.ttl) && r.ttl > 0)) errors.push(`${where}.ttl must be a positive number of seconds`);
-      widgets.push({ kind: 'legend', text: r.text, slot: slot || 'bottom', ttl: Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : null, color: isHudColor(r.color) ? r.color : undefined });
+      if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
+      widgets.push({ kind: 'legend', text: r.text, slot: slot || 'bottom', ttl: ttl(null), color: isHudColor(r.color) ? r.color : undefined });
       return;
     }
     errors.push(`${where} must be a readout { var, label? }, a banner { on, text } or a legend { text }`);

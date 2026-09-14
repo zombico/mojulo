@@ -81,6 +81,19 @@ export function legend({ text, slot, ttl, color } = {}) {
   return { hud: [{ text, ...defined({ slot, ttl, color }) }] };
 }
 
+// toast — the damage number: a banner that STACKS, one rising + fading element per firing. Two
+// forms, exactly one of `on` / `var`: `on` fires on a bus event and `text` may read the event's
+// fields (`-{event.damage}` off hitConfirm({ damage })); `var` fires when a bus var CHANGES and
+// `text` (default '{delta}') may read `{delta}` (signed) and `{value}` — damage taken off the
+// hazard mechanic's own `inc hp`, no new event. Pure presentation, like banner / legend.
+export function toast({ on, var: v, text, slot, ttl, color } = {}) {
+  const hasOn = typeof on === 'string' && on.length > 0, hasVar = typeof v === 'string' && v.length > 0;
+  if (hasOn === hasVar) throw new Error('game-idioms: toast needs exactly one of on (an event) or var (a bus var)');
+  if (on && (typeof text !== 'string' || !text)) throw new Error('game-idioms: an event toast needs text');
+  if (text !== undefined && typeof text !== 'string') throw new Error('game-idioms: toast text must be a string');
+  return { hud: [{ ...(on ? { on } : { var: v }), as: 'toast', ...defined({ text, slot, ttl, color }) }] };
+}
+
 // gameOverFreeze — on `signal`: raise the freeze `gate` (which halts every gated timer in one move),
 // optionally show a `banner` entity, and lower (toggle off) the `clear` entities. The gate var is
 // the shared freeze flag every timer idiom references — so a single freeze stops them all and no
@@ -189,9 +202,12 @@ export function ephemeralTarget({ on = 'pop', ttl = 2.0, field = 'target' } = {}
 // as a hitmarker. The raycast + occlusion live in scene-three.js, not here. `from` aims the ray from a
 // CONTROLLABLE entity's own line of sight (third-person — head at `eye` height, along its heading)
 // instead of camera-forward (first-person); pass the shooter entity's id.
-export function hitConfirm({ on = 'fire', emit = 'shot', score = 'score', drop = true, marker, from, eye, level } = {}) {
+// `damage` rides the emitted event as a field (`{ type: 'shot', damage: 12, target }`) so a
+// `toast({ on: 'shot', text: '-{event.damage}' })` can show the number; it is DATA on the event,
+// no reaction reads it — a world that wants hp arithmetic wires its own `inc` off the same event.
+export function hitConfirm({ on = 'fire', emit = 'shot', score = 'score', drop = true, marker, from, eye, level, damage } = {}) {
   return {
-    inputs: [{ on, emit: { type: emit }, ...(from ? { from } : {}), ...(eye != null ? { eye } : {}), ...(level ? { level: true } : {}) }],
+    inputs: [{ on, emit: { type: emit, ...(Number.isFinite(damage) ? { damage } : {}) }, ...(from ? { from } : {}), ...(eye != null ? { eye } : {}), ...(level ? { level: true } : {}) }],
     reactions: [
       ...(drop ? [{ on: emit, do: 'toggle', target: 'event.target', to: false }] : []),  // the hit target drops
       { on: emit, do: 'inc', var: score },                                                // score the confirmed hit

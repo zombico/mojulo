@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HUD_SLOTS, HUD_KINDS, FONTS, colorCss, hudSlotsUsed, normalizeHud, styleTokens, styleVars, validateHudStyle } from './hud-widgets.js';
+import { HUD_SLOTS, HUD_KINDS, FONTS, colorCss, hudSlotsUsed, normalizeHud, styleTokens, styleVars, validateHudStyle, MOMENT_KINDS, TOAST_TTL, hudSubst, fmtDelta } from './hud-widgets.js';
 
 describe('normalizeHud — the widget language over events.hud', () => {
   it('a legacy { var, label } row is a text readout at top-left (every existing world means what it meant)', () => {
@@ -54,6 +54,42 @@ describe('normalizeHud — the widget language over events.hud', () => {
     expect(normalizeHud([{ text: 'hi', ttl: -1 }]).errors.join()).toMatch(/ttl/);
   });
 
+  it('toasts: an on-row as:toast stacks per firing; a var-row as:toast is the change popup, never merged with the readout', () => {
+    const { widgets, errors } = normalizeHud([
+      { var: 'hp', label: 'HP', as: 'bar', max: 100, slot: 'bottom-left' },
+      { on: 'shot', text: '-{event.damage}', as: 'toast' },
+      { var: 'hp', as: 'toast', slot: 'bottom-left', ttl: 1.2, color: 'harm' },
+      { var: 'score', as: 'toast', text: '{delta} pts' },
+      { var: 'hp' },   // merges into the BAR (the first var row), not the toast
+    ]);
+    expect(errors).toEqual([]);
+    expect(widgets).toEqual([
+      { kind: 'readout', var: 'hp', label: 'HP', slot: 'bottom-left', as: 'bar', max: 100 },
+      { kind: 'toast', on: 'shot', text: '-{event.damage}', slot: 'center', ttl: TOAST_TTL },
+      { kind: 'toast', var: 'hp', text: '{delta}', slot: 'bottom-left', ttl: 1.2, color: 'harm' },
+      { kind: 'toast', var: 'score', text: '{delta} pts', slot: 'center', ttl: TOAST_TTL },
+    ]);
+    expect(normalizeHud([{ on: 'shot', as: 'toast' }]).errors.join()).toMatch(/a toast needs text/);
+    expect(normalizeHud([{ on: 'shot', text: 'x', as: 'popup' }]).errors.join()).toMatch(/as must be one of: banner, toast/);
+    expect(normalizeHud([{ var: 'hp', as: 'toast', text: 3 }]).errors.join()).toMatch(/text must be a string/);
+    expect(normalizeHud([{ var: 'hp', as: 'toast', ttl: 0 }]).errors.join()).toMatch(/ttl/);
+  });
+
+  it('hudSubst: {var} reads the bus (unknown stays literal, as before); {event.*} / {delta} / {value} read the firing context or empty', () => {
+    const vars = { score: 12, hp: 80 };
+    expect(hudSubst('TIME! {score}', vars)).toBe('TIME! 12');
+    expect(hudSubst('{nope}', vars)).toBe('{nope}');
+    expect(hudSubst('-{event.damage} on {event.target}', vars, { event: { type: 'shot', damage: 12, target: 'mole-3' } })).toBe('-12 on mole-3');
+    expect(hudSubst('-{event.damage}', vars, { event: {} })).toBe('-');
+    expect(hudSubst('{delta} → {value}', vars, { delta: '-20', value: 80 })).toBe('-20 → 80');
+    expect(hudSubst('{delta}', vars)).toBe('');
+    expect(hudSubst('open {brace', vars)).toBe('open {brace');
+    expect(fmtDelta(-20)).toBe('-20'); expect(fmtDelta(5)).toBe('+5'); expect(fmtDelta(0)).toBe('0'); expect(fmtDelta(-0.333)).toBe('-0.33');
+    // the page ships these verbatim: no closures over module scope, so toString() is the whole rule
+    expect(hudSubst.toString()).not.toMatch(/HEX|isStr|SEMANTIC/);
+    expect(fmtDelta.toString()).not.toMatch(/HEX|isStr/);
+  });
+
   it('teaches on a bad slot / kind / color / shape, naming the row', () => {
     const { errors } = normalizeHud([{ var: 'a', slot: 'left' }, { var: 'b', as: 'gauge' }, { var: 'c', color: 'red' }, { nope: 1 }, null]);
     expect(errors.length).toBe(5);
@@ -66,6 +102,7 @@ describe('normalizeHud — the widget language over events.hud', () => {
   it('the closed lists are what the cards say', () => {
     expect(HUD_SLOTS).toEqual(['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right']);
     expect(HUD_KINDS).toEqual(['text', 'counter', 'bar', 'clock']);
+    expect(MOMENT_KINDS).toEqual(['banner', 'toast']);
     expect(hudSlotsUsed(normalizeHud([{ var: 'a', slot: 'bottom' }, { var: 'b' }, { on: 'x', text: 'y' }]).widgets)).toEqual(['top-left', 'center', 'bottom']);
   });
 });

@@ -243,7 +243,7 @@ export function registerGameTools() {
       + "entity uses via body:{type:'glyph', form}. SFX cards (scope:sfx): one raymarch \"juice\" verb "
       + '(sfx-sparkle / heal / ward / enchant / kokusen / …) a world\'s `sfx` channel composes as a glowing '
       + 'overlay anchored at an entity or point. HUD cards (scope:hud): the SCREEN-space UI language — '
-      + 'readouts (text / counter / bar / clock), banners + legends, placed in seven slots (corners + '
+      + 'readouts (text / counter / bar / clock), banners, toasts (damage numbers) + legends, placed in seven slots (corners + '
       + 'top / center / bottom) via `events.hud` rows, and the style tokens a game `theme` shares with every '
       + 'level (hud-guide / hud-readout / hud-banner / hud-style). Pass `id` for one card (any family); omit for index rows '
       + '{ id, name, summary, when, scope }; `scope` filters the list. Discover by intent via '

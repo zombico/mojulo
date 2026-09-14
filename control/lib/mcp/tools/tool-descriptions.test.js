@@ -100,8 +100,9 @@ const DESCRIPTION_ALLOWLIST = {
   gather: 1181,
   // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
   // the screen-space UI language of hud-widgets.js: readouts / banners / legends in
-  // slots + the style tokens). Shrink-only from here.
-  get_game_vocab: 1625,
+  // slots + the style tokens), then again the same day for the toast (damage numbers)
+  // naming in that clause. Shrink-only from here.
+  get_game_vocab: 1650,
   get_image_render_packet: 708,
   get_mcp_capabilities: 890,
   get_register_kit: 731,
