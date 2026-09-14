@@ -225,6 +225,7 @@ function hangScales(chart, parts, worldPerCm, sag) {
   const rows = chart.rows;
   const scales = new Array(rows.length).fill(1), hanging = new Array(rows.length).fill(false), ring = new Array(rows.length).fill(0), covered = new Array(rows.length).fill(false);
   const ease = Math.max(0, ...parts.map((pt) => pt.cp.ease)) * worldPerCm;   // the chart's ease ring — the same on every row, covered or not
+  const sewn = chart.mode === 'hull' && parts.every((pt) => !pt.cp.join);   // a bodice or a skirt on the trunk follows its own seams
   let prev = 0, started = false;   // the hung circumference of the row above (world units); cloth begins at the first covered row
   for (let i = 0; i < rows.length; i++) {
     const s = chart.vArc[i];
@@ -238,8 +239,19 @@ function hangScales(chart, parts, worldPerCm, sag) {
     const avail = rowRing(rows[i], ease);   // a cap row's ring shrinks with its upward stand-off
     if (need > 0) { started = true; covered[i] = true; }
     const dz = i > 0 ? chart.vArc[i] - chart.vArc[i - 1] : 0;
+    // A SEWN piece on the TRUNK follows its own seams: where the pieces have a width at this row
+    // (`need`), the cloth's circumference is that width or the ring, whichever is larger — a fitted
+    // bodice suppresses its waist, a straight shift bags out because its width IS the bust's. The
+    // carried-down `hung` term (the suspension, `hang_sag`) applies there only where no piece has a
+    // width of its own (a row past a hem inside the chart). Carrying it through covered rows forbade
+    // any garment from narrowing faster than the sag and stretched every shaped block by a fifth at
+    // the waist, and each layer then drafted over the last one's inflated hang (wardrobe-variety).
+    // On a LIMB, and for a piece that crosses a JOIN (a trouser leg on the trunk and the leg), the
+    // suspension stays: without it the rows across the crotch flip between cloth-shaped and
+    // body-shaped from one row to the next and tear (strain 12 at the fork). The trunk of a bodice
+    // or a skirt is where a waist is suppressed, a shirt tucked, a jacket fitted.
     const hung = started ? prev - sag * dz : 0;   // nothing hangs from rows the garment never reached (trousers start at the waist, not the shoulders)
-    const C = Math.max(avail, need, hung);
+    const C = Math.max(avail, need, (sewn && need > 0) ? 0 : hung);
     // scale the SKIN row so the ease ring (skin + 2π·ease) reaches C — scaling the ring's ratio
     // onto the skin would leave a small row (the groin) short of C by most of the ring
     scales[i] = (C - (avail - rows[i].girth)) / rows[i].girth;
@@ -347,7 +359,7 @@ function resolveSloperPiece(piece, charts, worldPerCm, warnings, defaults = PATT
   }
   // every block sees the whole tape: the neck's girth for a neckline, the arm's for a sleeve
   if (charts.neck) m.girth.neck = r2(chartGirthAt(charts.neck, 0.5) / worldPerCm);
-  if (charts.armL || charts.armR) { const a = chartMeasures(charts.armL ?? charts.armR, worldPerCm, 'shoulder'); m.girth.upperArm = a.girth.shoulder; m.girth.wrist = a.girth.wrist ?? a.girth.bottom; if (chart.mode === 'tube') m.length = a.length; }   // a sleeve's length is the arm's below the armscye
+  if (charts.armL || charts.armR) { const a = chartMeasures(charts.armL ?? charts.armR, worldPerCm, 'shoulder'); m.girth.upperArm = a.girth.shoulder; m.girth.bicep = a.girth.bicep ?? a.girth.shoulder; m.girth.wrist = a.girth.wrist ?? a.girth.bottom; if (chart.mode === 'tube') m.length = a.length; }   // a sleeve's length is the arm's below the armscye; its width the bicep's
   if (charts.trunk && chartId !== 'trunk') { const t = chartMeasures(charts.trunk, worldPerCm, 'shoulder'); for (const k of ['bust', 'waist', 'hip']) if (m.girth[k] == null) m.girth[k] = t.girth[k]; }
   // the cloth sits on the EASE RING, `ease_cm` off the skin: its circumference there is the girth
   // plus 2π·ease, and a block drafts to that — otherwise two halves overlap by the ring at every seam
@@ -364,27 +376,71 @@ function resolveSloperPiece(piece, charts, worldPerCm, warnings, defaults = PATT
   return out;
 }
 
-// THE LIFT IS PINNED TO THE TAPE (wardrobe-variety P1). The layering read is a clearance
-// envelope — per sector, a maximum, smoothed outward — and read around a row it overstates the
-// layer beneath (a tee 4 % wider than the body reads half again at the bust, its sleeves lift the
-// trunk's sides). Cloth placed on that ring hangs wider than the layer it covers and a block
-// drafted to the layer's own girth cannot close over it. So each row's sector lifts keep their
-// DIRECTION (the belly's front lifts the front) but are scaled down until the lifted row's
-// circumference is the widest layer's actual circumference at that height (`layerGirthRows`),
-// with a small slack. Rows no layer reaches keep the read as it is.
-function pinLiftToTape(chart, scales, tape, slack = 1.04) {
-  return scales.map((sc, i) => {
-    const row = chart.rows[i];
-    if (row.cap || !Array.isArray(sc) || !(tape?.[i] > 0)) return sc;
-    const skin = row.girth; if (!(skin > 1e-9)) return sc;
-    const c = row.center, n = row.pts.length;
-    const P = (j) => { const p = row.pts[j % n], f = Number.isFinite(sc[j % n]) ? sc[j % n] : 1; return { x: c.x + (p.x - c.x) * f, y: c.y + (p.y - c.y) * f, z: c.z + (p.z - c.z) * f }; };
-    let G = 0; for (let j = 0; j < n; j++) { const a = P(j), b = P(j + 1); G += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); }
-    const target = tape[i] * slack;
-    if (G <= target || G <= skin) return sc;
-    const k = Math.max(0, Math.min(1, (target - skin) / (G - skin)));
-    return sc.map((f) => 1 + ((Number.isFinite(f) ? f : 1) - 1) * k);
-  });
+
+// THE CLEARANCE PASS (wardrobe-variety). The envelope the placement lifts by is mean-smoothed —
+// its perimeter is the layers' own, so a block cut to the tape closes over them — which leaves
+// the odd vertex under a bump the mean flattened: a sleeve cap pulled up to its armhole, the
+// fold under the arm, the shoulder cloth over the yoke. There the layer beneath showed through
+// the garment. So, once, after placement, seams and propagation: every vertex is checked against
+// the UNSMOOTHED layers in its own cell (a height band × an angle sector about its chart's axis,
+// and the eight cells around it) and pushed out radially to their radius plus the ease; over the
+// shoulder cap, where a radius means nothing, it is pushed UP to the layers' height plus the
+// rest. A projection, not a solver; the strain it adds is measured like any other. Returns the
+// count of vertices moved.
+function clearLayers(pieces, under, charts, worldPerCm, easeCm, restCm) {
+  if (!Array.isArray(under) || !under.length) return 0;
+  const S = 48, ZB = 2 * worldPerCm, HB = 2.5 * worldPerCm;
+  const info = {};
+  for (const [id, ch] of Object.entries(charts)) {
+    const rows = ch.rows.filter((r) => !r.cap);
+    if (!rows.length) continue;
+    info[id] = { rows, zTop: rows[0].center.z, zBot: rows[rows.length - 1].center.z, cells: new Map() };
+  }
+  const centreAt = (id, z) => { const rows = info[id].rows; let b = rows[0]; for (const r of rows) if (Math.abs(r.center.z - z) < Math.abs(b.center.z - z)) b = r; return b.center; };
+  const polar = (id, p) => { const c = centreAt(id, p.z); const dx = p.x - c.x, dy = p.y - c.y; return { c, dx, dy, r: Math.hypot(dx, dy), zi: Math.round((p.z - info[id].zBot) / ZB), s: (((Math.round((Math.PI / 2 - Math.atan2(dy, dx)) / TAU * S)) % S) + S) % S }; };
+  const heights = new Map();   // (x, y) bin → the layers' highest point there, above their chart's top row
+  const hk = (x, y) => `${Math.round(x / HB)},${Math.round(y / HB)}`;
+  for (const st of under) {
+    if (!st || !Array.isArray(st.rings)) continue;
+    for (const rg of st.rings) {
+      const tagged = typeof rg.chart === 'string' && info[rg.chart] ? rg.chart : null;
+      for (const p of rg.polyline) {
+        let id = tagged;
+        if (!id) { let bd = Infinity; for (const cid of Object.keys(info)) { if (p.z < info[cid].zBot - ZB || p.z > info[cid].zTop + 6 * ZB) continue; const c = centreAt(cid, p.z); const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < bd) { bd = d; id = cid; } } }
+        if (!id) continue;
+        if (p.z > info[id].zTop) { if (id !== 'neck') { const k = hk(p.x, p.y); if (!(heights.get(k) >= p.z)) heights.set(k, p.z); } continue; }
+        const q = polar(id, p), key = `${q.zi},${q.s}`, m = info[id].cells;
+        if (!(m.get(key) >= q.r)) m.set(key, q.r);
+      }
+    }
+  }
+  const ease = easeCm * worldPerCm, rest = Math.min(easeCm, restCm) * worldPerCm;
+  let moved = 0;
+  for (const cp of pieces) {
+    const blendY = cp.join ? cp.join.y + (Number.isFinite(cp.join.blend_cm) ? cp.join.blend_cm : 4) : -Infinity;
+    for (let i = 0; i < cp.rows; i++) {
+      const yMean = cp.flat[i].reduce((a, q) => a + q[1], 0) / cp.flat[i].length;
+      const id = cp.join && yMean < blendY ? cp.join.chart : cp.chart;
+      if (!info[id]) continue;
+      for (let j = 0; j < cp.cols; j++) {
+        const p = cp.world[i][j];
+        if (p.z > info[id].zTop) {
+          // the cap zone: a height floor over the layers' shoulder cloth in this footprint
+          let H = -Infinity;
+          const bx = Math.round(p.x / HB), by = Math.round(p.y / HB);
+          for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const h = heights.get(`${bx + a},${by + b}`); if (h != null && h > H) H = h; }
+          if (H > -Infinity && p.z < H + rest) { p.z = H + rest; moved++; }
+          continue;
+        }
+        const q = polar(id, p);
+        if (q.r < 1e-9) continue;
+        let R = 0;
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const v = info[id].cells.get(`${q.zi + a},${((q.s + b) % S + S) % S}`); if (v != null && v > R) R = v; }
+        if (R > 0 && q.r < R + ease) { const f = (R + ease) / q.r; p.x = q.c.x + q.dx * f; p.y = q.c.y + q.dy * f; moved++; }
+      }
+    }
+  }
+  return moved;
 }
 
 // -- seams --------------------------------------------------------------------
@@ -481,9 +537,8 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
   // THE LAYERING RULE: the layers already worn (`under`, shells and pattern pieces alike) lift
   // each chart's rows by their stand-off, so this garment is placed on the inner layer's hang,
   // not on the skin. Then the hang rule per chart over THAT, then the world grid of every piece.
-  const layered0 = under && under.length ? standoffScalesByChart(charts, under) : null;
-  const tapePosed = layered0 ? layerGirthRows(charts, under) : null;
-  const layered = layered0 ? Object.fromEntries(Object.entries(layered0).map(([id, sc]) => [id, pinLiftToTape(charts[id], sc, tapePosed[id])])) : null;
+  // the layers' envelope, mean-smoothed so its perimeter is the layers' own (see body-chart.js)
+  const layered = under && under.length ? standoffScalesByChart(charts, under, { smooth: 'mean' }) : null;
   const hung = {};
   for (const chartId of new Set(parts.map((pt) => pt.chartId))) {
     const cps = parts.filter((pt) => pt.chartId === chartId);
@@ -615,6 +670,9 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
     cp.world = out;
   }
 
+  // THE CLEARANCE PASS: nothing of this garment lies inside the layers beneath
+  const cleared = clearLayers(pieces, under, charts, worldPerCm, defaults.ease_cm, defaults.crest_rest_cm);
+
   // strain readout (placed grid-edge length vs flat cm) + emission
   const stacks = [], pieceReports = [];
   for (const cp of pieces) {
@@ -664,6 +722,7 @@ export function buildPatternGarment(body, spec, { cloth = '#3f6f93', standBody =
     under: Object.fromEntries(Object.entries(hung).map(([k, v]) => [k, v.under])),     // the inner layers' max stand-off per chart (1 = worn on the skin)
     drafted_on: padded ? Object.fromEntries(Object.entries(padded).map(([k, rows]) => [k, r3(Math.max(1, ...rows))])) : null,   // the padded form each block drafted to: the widest layer's girth over the skin's (1 = the skin)
     drafted_girths: padded ? Object.fromEntries(Object.entries(draftCharts).map(([id, ch]) => [id, Object.fromEntries(Object.entries(ch.landmarks).map(([k, v]) => [k, r2(chartGirthAt(ch, v) / stand.worldPerCm)]))])) : null,   // the padded tape (cm) the blocks drafted from
+    cleared,   // vertices the clearance pass pushed out of the layers beneath
     warnings,
   };
   return { stacks, report, underRanges };

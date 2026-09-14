@@ -236,7 +236,9 @@ describe('the layering rule', () => {
     expect(Math.max(...rowMax(sc.armL))).toBeGreaterThan(1.02);
     // the tee's hem hangs over the top of the thigh (true, and small); below that the leg is bare
     expect(rowMax(sc.legL).slice(4).every((v) => v === 1)).toBe(true);
-    expect(Math.max(...rowMax(sc.legL))).toBeLessThan(2);   // the hem flares past the top of the thigh
+    // the tee's hem ring wraps both thighs' tops and lifts them to its own radius (a closed ring lifts
+    // the charts whose axis it encloses), never past the cap
+    expect(Math.max(...rowMax(sc.legL))).toBeLessThanOrEqual(2.5);
     // directional: a row lifted at the front is not lifted at the back by the same amount everywhere
     expect(sc.trunk.some((row) => Math.max(...row) - Math.min(...row) > 0.05)).toBe(true);
     // deterministic
@@ -291,7 +293,9 @@ describe('the layering rule', () => {
     const top = (r) => Math.max(...r.stacks[0].rings[0].polyline.map((p) => p.z));
     // the tip (the grid's first column) lies exactly on the crest, so it carries the whole lift; a vertex a hair
     // down the neck curve sits between the crest and the next cap row and carries lift·t
-    expect(over.stacks[0].rings[0].polyline[0].z - alone.stacks[0].rings[0].polyline[0].z).toBeCloseTo(2 * worldPerCm, 6);
+    // at least the pad's height; the clearance pass then rests the tip up to a centimetre above the pad
+    const lift = over.stacks[0].rings[0].polyline[0].z - alone.stacks[0].rings[0].polyline[0].z;
+    expect(lift).toBeGreaterThanOrEqual(2 * worldPerCm - 1e-9); expect(lift).toBeLessThan(3.2 * worldPerCm);
     expect(top(over) - top(alone)).toBeGreaterThan(1.5 * worldPerCm);
     // and the crest cloth clears the pad at its own x: the tip rests a centimetre above the pad there
     const tip = over.stacks[0].rings[0].polyline[0];

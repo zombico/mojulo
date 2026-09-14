@@ -47,9 +47,12 @@ describe('draftSloper', () => {
     expect(() => draftSloper('cape', trunk)).toThrow(/cape/);
   });
 
-  it('a bodice is quarter-bust plus half the ease wide at the bust line, and the back neck is shallower', () => {
+  it('a bodice is a quarter of the bust plus the TOTAL ease wide at the bust line (never less than the ring), and the back neck is shallower', () => {
     const f = draftSloper('bodice-front', trunk, { ease_bust_cm: 8 }), b = draftSloper('bodice-back', trunk, { ease_bust_cm: 8 });
-    const bust = trunk.girth.bust / 4 + 4;
+    const bust = (trunk.girth.bust + 8) / 4;   // front + back, each mirrored: the tape plus the ease over four
+    // on a ring wider than the dial the ring wins (the cloth sits on the stand-off)
+    const ringed = draftSloper('bodice-front', { ...trunk, standoff: 12 }, { ease_bust_cm: 8 });
+    expect(ringed.outline.some(([x]) => Math.abs(x - (trunk.girth.bust + 12) / 4) < 0.02)).toBe(true);
     expect(f.outline.some(([x]) => Math.abs(x - bust) < 0.02)).toBe(true);
     const top = (p) => Math.max(...p.outline.map(([, y]) => y));
     const cfDrop = (p) => top(p) - p.outline.find(([x]) => Math.abs(x) < 1e-6)[1];
@@ -58,10 +61,15 @@ describe('draftSloper', () => {
     expect(b.anchor.chart.u).toBe('cb');
   });
 
-  it('a sleeve is bicep plus ease wide, its cap no taller than the arm chart allows, hem = wrist plus ease', () => {
+  it('a sleeve is the fullest upper arm plus ease wide at the underarm, tapered to the bicep below, its cap no taller than the arm chart allows, hem = wrist plus ease', () => {
     const s = draftSloper('sleeve', arm, { ease_cm: 4, length: 'short' });
     const xs = s.outline.map(([x]) => x);
-    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(arm.girth.upperArm + 4, 1);
+    expect(arm.girth.bicep).toBeLessThan(arm.girth.upperArm);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(arm.girth.upperArm + 4, 1);   // widest at the underarm level, the fullest upper arm
+    // tapered to the bicep below the armscye
+    const atBicep = s.outline.filter(([, y]) => Math.abs(y - (22 - arm.drop.bicep)) < 1e-6).map(([x]) => x);
+    expect(atBicep.length).toBe(2);
+    expect(Math.max(...atBicep) - Math.min(...atBicep)).toBeCloseTo(arm.girth.bicep + 4, 1);
     const hem = s.outline.filter(([, y]) => y === 0).map(([x]) => x);
     expect(Math.max(...hem) - Math.min(...hem)).toBeCloseTo(arm.girth.wrist + 6, 1);
     expect(s.anchor.piece[1]).toBe(22);

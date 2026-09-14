@@ -205,10 +205,12 @@ placement, stitching and hang are closed-form, like every other garment here.
   clones a piece across the midline (chart and `u` swap L/R); `under: false` skips the
   under-colour shells; `cloth` per piece recolours it.
 - **The hang rule.** Cloth wider than the body's girth cannot compress: it stands off by the
-  ratio and keeps hanging below its widest row (`hang_sag`, cm of circumference per cm of
-  drop, default 0.5). A straight shift bags out at the waist and hangs from the bust line.
-  Cloth NARROWER than the girth is not stretched silently: it reads as **strain** and as a
-  **seam gap**.
+  ratio. A SEWN piece on the trunk (a bodice, a skirt) then follows its own seams: its
+  circumference at a row is its own width there or the ring, whichever is larger, so a fitted
+  block suppresses its waist and a straight shift bags out because its width IS the bust's. On a
+  limb, and for a piece that crosses a join (trousers), cloth keeps hanging below its widest row
+  (`hang_sag`, cm of circumference per cm of drop, default 0.5). Cloth NARROWER than the girth is
+  not stretched silently: it reads as **strain** and as a **seam gap**.
 - **The readout** (`buildPatternGarment(body, spec).report`): the body's girths per chart
   landmark in cm; per piece `rows × cols`, `area_cm2`, `strain { max, mean }` (placed
   grid-edge length vs flat, the dart-need signal), `clipped`; per seam `len_a_cm`, `len_b_cm`,
@@ -224,21 +226,27 @@ placement, stitching and hang are closed-form, like every other garment here.
 
 Instead of an `outline`, a piece can name a **`sloper`** (`bodice-front` · `bodice-back` ·
 `sleeve` · `skirt-front` · `skirt-back`) and `dials`; the block is drafted at BUILD time from
-the chart it sits on (quarter bust plus half the ease at the bust line, the shoulder tip at
+the chart it sits on (a quarter of the bust plus the ease at the bust line, the shoulder tip at
 the crest's end — the acromion — with the crest's measured slope, the neck opening a quarter of
 the neck's base girth where it rises through the crest, the sleeve cap no taller than the room above the armscye), so the same
 recipe re-drafts on every body. Explicit fields (`outline`, `anchor`, `edges`,
 `corners`) override the block's. Named edges a block gives you: bodice `hem · sideR ·
 armholeR · shoulderR · neck · shoulderL · armholeL · sideL` (a split front: `hem · sideR · armholeR ·
 shoulderR · neck · cf`, mirrored); sleeve `hem · underarmR · capFront · capBack · underarmL`; skirt
-`hem · sideR · waist · sideL`. Dials: bodice `hem` (`waist | hip | crotch |
+`hem · sideR · waist · sideL`. **Ease is the tailor's total.** Every `ease_*_cm` dial is the whole circumference the cloth has
+over the tape at that line — the number a pattern book prints (a shirt +10 at the chest, a jacket
++5 over the shirt, trousers +6 through the seat) — and never less than the ease ring the piece is
+placed on (`ease_cm`, the stand-off: 2π × 1.5 cm = 9.4 cm at the default). A jacket over a shirt
+is drafted on the padded form, so its ease is what it adds to the layers beneath: `ease_cm` 0.75
+and `ease_bust_cm` 5 make a suit jacket; the defaults make a loose shift. Dials: bodice `hem` (`waist | hip | crotch |
 knee | <cm>`), `ease_bust_cm` (6), `ease_waist_cm`, `ease_hip_cm`, `neck` (`crew | scoop | v |
 square | boat`, the front's neckline; the back keeps a shallow crew), `neck_drop_cm`,
 `neck_width_cm`, `shoulder_cm`, `shoulder_drop_cm` (the crest's own slope), `flare_cm`, `split`
 (`'cf'`: the front drafts as its right half with a `cf` edge and mirrors into `<id>L` — name the
 mirror yourself to be explicit — for a shirt, vest, jacket or coat) with `overlap_cm` (the button
 stand, each half past the centre line by half of it); sleeve `length` (`short | three-quarter | long |
-<cm>`), `ease_cm` (4), `ease_wrist_cm` (6), `cap_height_cm`; skirt `length` (`mini | knee |
+<cm>`), `ease_cm` (4, over the fullest upper arm at the underarm level; the sleeve tapers to the bicep
+below), `ease_wrist_cm` (6), `cap_height_cm`; skirt `length` (`mini | knee |
 midi | <cm>`), `ease_waist_cm` (2), `ease_hip_cm` (4), `flare_cm` (4).
 
 **The set-in sleeve.** The sleeve block puts its cap's apex on the SHOULDER POINT (the arm
@@ -322,11 +330,15 @@ below with fewer decisions made. Pass ONE of the two to `create_figure`:
   rows it covers by its stand-off, and the hang rule runs over that. A bodice over a skirt no longer
   interleaves; the readout's `under` per chart says how much the inner layers lifted it.
 - **The padded form.** An outer layer's blocks are DRAFTED on the stand wearing the layers beneath
-  (the stand chart lifted by their stand-off), the way a tailor pads the form, so a jacket over a
-  shirt closes at the side seam instead of reporting the shirt as a gap; its sheet is drafted the
-  same way. The readout's `drafted_on` per chart is the ratio each block drafted to (1 = the skin).
-  Ease dials sit ON TOP of that: a suit jacket over a shirt and a waistband wants a small
-  `ease_hip_cm`, or its hem flares over the trousers.
+  — the layers' own circumference per chart row, the tape a tailor reads off the padded form — so
+  a jacket over a shirt closes at the side seam instead of reporting the shirt as a gap; its sheet
+  is drafted the same way. The readout's `drafted_on` per chart is the ratio each block drafted to
+  (1 = the skin) and `drafted_girths` the tape in cm. Placement lifts by the layers' envelope
+  (mean-smoothed, so its perimeter is the layers' own; a closed shell ring lifts the charts whose
+  axis it encloses, a sleeve the arm alone), and a final CLEARANCE pass pushes any vertex still
+  inside a layer beneath out to it (`cleared` in the readout). A tucked shirt is a shirt hemmed
+  at the `waist`: the layer over it starts where it ends; a hip-length shirt under trousers lifts
+  them and everything above balloons. A tie goes over the trousers' waistband, where its tip ends.
 - **The designer's rule.** A pattern is drafted on the STAND and worn on the pose: the sheet never
   changes because the figure moved; strain and seam gaps are the posed body's.
 

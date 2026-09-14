@@ -28,6 +28,18 @@ loops and the recipe format are unchanged.
   `from`–`to` span of its edges (a vent, a jacket sewn only below the button). Shirts, vests,
   jackets and suits follow as book entries.
 - **Added: necklines.** `neck` on the bodice: crew, scoop, v, square, boat.
+- **Changed: ease is the tailor's total.** A block's `ease_*_cm` dial is now the whole
+  circumference the cloth has over the tape at that line, never less than the stand-off ring;
+  before, it was doubled and added on top of the ring, and a suit jacket over a shirt measured
+  186 cm around a 102 cm chest. The sleeve is cut to the fullest upper arm at the underarm and
+  tapers to a new `bicep` landmark below it.
+- **Changed: a sewn piece follows its seams.** On the trunk, a bodice or a skirt hangs at its own
+  width per row (or the ring), so a fitted block suppresses its waist; the suspension that carried
+  the widest row down stays on the limbs and across a join.
+- **Changed: the layering read is honest.** A closed shell ring lifts the charts whose axis it
+  encloses (a sleeve the arm alone), the envelope is mean-smoothed so its perimeter is the layers'
+  own, the padded form's tape is a horizontal slice of the placed cloth, and a final clearance pass
+  pushes any vertex still inside a layer beneath out of it (`cleared` in the readout).
 - **Fixed: the trouser hem reads its own height.** Knee-length trousers draft their hem to the
   knee's girth, not the ankle's.
 - **Planned:** dress lengths (`midi` / `ankle` / `floor`), `taper` and `cuff_cm`, a `band`

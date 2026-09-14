@@ -363,6 +363,7 @@ function tubeLandmarks(stacks, rows) {
     const n0 = stacks[0].rings.length;
     lm.shoulder = widest(0, 0.35);
     lm.elbow = av[Math.min(rows.length - 1, n0)];
+    lm.bicep = (lm.shoulder + lm.elbow) / 2;   // mid upper arm: where a sleeve's width is measured
     lm.wrist = 1;
   }
   if (stacks.length === 1 && /^leg/.test(stacks[0].id)) { lm.thigh = widest(0, 0.35); lm.knee = 0.5; lm.ankle = 1; }
@@ -601,13 +602,32 @@ export function layerGirthRows(charts, stacks) {
     const garment = String(st.id ?? '').split(':')[0] || '?';
     if (st.sheet && !st.pattern) continue;   // an open hanging sheet (a cloak) is not a form to draft over
     if (st.sheet) {
-      // a pattern piece: its rows may cross charts (a trouser leg); group the rows by their chart
-      const byChart = new Map();
-      for (const rg of st.rings) { const cid = (typeof rg.chart === 'string' && charts[rg.chart]) ? rg.chart : (st.pattern.chart && charts[st.pattern.chart] ? st.pattern.chart : null); if (!cid) continue; if (!byChart.has(cid)) byChart.set(cid, []); byChart.get(cid).push(rg); }
-      for (const [cid, rings] of byChart) {
-        const prof = profile({ rings }, false), c = cell(garment, cid);
-        charts[cid].rows.forEach((row, i) => { if (row.cap) return; c[i] += at(prof, row.center.z); });
-      }
+      // a pattern piece: its width at a row's height is a HORIZONTAL SLICE of the placed surface —
+      // down each grid column, the point where the cloth crosses the row's z, joined across the
+      // columns — not a grid row's length: a V-neck front's rows run diagonally from the shoulder
+      // to the centre and their length is no circumference. The slice belongs to the chart the
+      // crossing row was placed on (a trouser leg crosses from the trunk to the leg).
+      const rows = st.rings, R = rows.length, cols = Math.min(...rows.map((rg) => rg.polyline.length));
+      if (R < 2 || cols < 2) continue;
+      const chartOf = (i) => ((typeof rows[i].chart === 'string' && charts[rows[i].chart]) ? rows[i].chart : (st.pattern.chart && charts[st.pattern.chart] ? st.pattern.chart : null));
+      const slice = (cid, z) => {
+        let L = 0, prev = null;
+        for (let j = 0; j < cols; j++) {
+          let hit = null;
+          for (let i = 0; i < R - 1; i++) {
+            const a = rows[i].polyline[j], b = rows[i + 1].polyline[j];
+            if ((a.z - z) * (b.z - z) > 0) continue;
+            if (chartOf(i) !== cid && chartOf(i + 1) !== cid) continue;
+            const t = Math.abs(b.z - a.z) > 1e-12 ? (z - a.z) / (b.z - a.z) : 0;
+            hit = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; break;   // the first crossing down the column
+          }
+          if (hit && prev) L += Math.hypot(hit.x - prev.x, hit.y - prev.y);
+          prev = hit;
+        }
+        return L;
+      };
+      const cids = new Set(); for (let i = 0; i < R; i++) { const c = chartOf(i); if (c) cids.add(c); }
+      for (const cid of cids) { const c = cell(garment, cid); charts[cid].rows.forEach((row, i) => { if (row.cap) return; c[i] += slice(cid, row.center.z); }); }
       continue;
     }
     const mid = st.rings[Math.floor(st.rings.length / 2)].center;
@@ -619,7 +639,7 @@ export function layerGirthRows(charts, stacks) {
   return out;
 }
 
-export function standoffScalesByChart(charts, stacks, { cap = 2.5, tie = 1.15 } = {}) {
+export function standoffScalesByChart(charts, stacks, { cap = 2.5, tie = 1.15, smooth = 'max' } = {}) {
   const ids = Object.keys(charts);
   // per row, a scale PER POINT of the row polygon (directional: a belly's hanging front lifts the
   // front, not the sides and back) — 1 = on the skin
@@ -676,26 +696,46 @@ export function standoffScalesByChart(charts, stacks, { cap = 2.5, tie = 1.15 } 
   // (1.2 vs 2.4) still lifts the trunk alone. On a winning chart the vertex lifts EVERY row whose
   // band it is in, each by its own ratio: the rows it is level with. Choosing the row by ratio
   // handed a skirt's seat to the wider belly row above it and left the hip row bare at the front.
+  // A CLOSED ring lifts the charts whose axis it ENCLOSES (wardrobe-variety): a waistband at the
+  // hip wraps the trunk and both legs and lifts all three; a tee's sleeve wraps the arm alone and
+  // lifts the arm alone — beside the trunk, not around it, its vertices were nearly as close to
+  // the trunk as to the arm and the tie rule handed the trunk's sides a lift a jacket's body never
+  // has to clear (a tee 4 % wider than the body read a third wider at the bust). A ring that
+  // encloses no axis (an accessory) and an open sheet keep the per-vertex read below.
+  const inside = (pl, x, y) => { let c = false; for (let i = 0, j = pl.length - 1; i < pl.length; j = i++) { const a = pl[i], b = pl[j]; if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) c = !c; } return c; };
+  const axisAt = (id, z) => { let best = null, bd = Infinity; for (const row of charts[id].rows) { if (row.cap) continue; const d = Math.abs(row.center.z - z); if (d < bd) { bd = d; best = row.center; } } return best; };
+  const enclosedBy = (rg) => { const e = []; for (const id of ids) { const c = axisAt(id, rg.center?.z ?? rg.polyline[0].z); if (c && inside(rg.polyline, c.x, c.y)) e.push(id); } return e; };
   const cand = [], bestBy = new Map();
   for (const st of stacks) {
     if (!st || !Array.isArray(st.rings)) continue;
-    for (const rg of st.rings) for (const p of rg.polyline) {
+    for (const rg of st.rings) {
+      const tagged = typeof rg.chart === 'string' && charts[rg.chart] ? rg.chart : null;   // a pattern ring names the chart it was placed on
+      const encl = !tagged && !st.sheet && rg.polyline.length > 2 ? enclosedBy(rg) : [];
+      for (const p of rg.polyline) {
       cand.length = 0; bestBy.clear();
       let br = Infinity;
-      const only = typeof rg.chart === 'string' && charts[rg.chart] ? rg.chart : null;   // a pattern ring names the chart it was placed on
+      const only = tagged;
       for (const r of rowsAll) {
         if (only && r.id !== only) continue;
+        if (encl.length && !encl.includes(r.id)) continue;
         const h = ratioOn(r, p); if (h == null) continue;
         cand.push([r, h.q, h.j]);
         if (h.q < br) br = h.q;
         const bb = bestBy.get(r.id); if (bb == null || h.q < bb) bestBy.set(r.id, h.q);
       }
       if (!(br > 1) || br > cap) continue;
-      for (const [r, q, j] of cand) if (q <= cap && bestBy.get(r.id) <= br * tie && q > out[r.id][r.i][j]) out[r.id][r.i][j] = q;
+      // an enclosing ring lifts every enclosed chart's rows it is level with; otherwise the tie rule
+      for (const [r, q, j] of cand) if (q <= cap && (encl.length || bestBy.get(r.id) <= br * tie) && q > out[r.id][r.i][j]) out[r.id][r.i][j] = q;
+      }
     }
   }
-  // smooth each row's scales over ±2 points (a max, so a lifted sector never dips between samples)
-  for (const id of ids) out[id] = out[id].map((sc) => { const n = sc.length; return sc.map((_v, j) => { let m = 1; for (let k = -2; k <= 2; k++) m = Math.max(m, sc[((j + k) % n + n) % n]); return m; }); });
+  // smooth each row's scales over ±2 points. `'max'`: a lifted sector never dips between samples,
+  // but a varying surface is pushed out to its local maxima everywhere and the row's perimeter
+  // overstates the layer by a tenth or more. `'mean'`: the mean of the LIFTED sectors in the window
+  // (an unlifted sector between lifted ones is filled, a lifted one is not inflated by its
+  // neighbours), so the lifted row's perimeter is the layer's own. `0`: none.
+  if (smooth === 'max') for (const id of ids) out[id] = out[id].map((sc) => { const n = sc.length; return sc.map((_v, j) => { let m = 1; for (let k = -2; k <= 2; k++) m = Math.max(m, sc[((j + k) % n + n) % n]); return m; }); });
+  else if (smooth === 'mean') for (const id of ids) out[id] = out[id].map((sc) => { const n = sc.length; return sc.map((v, j) => { let sum = 0, cnt = 0; for (let k = -2; k <= 2; k++) { const q = sc[((j + k) % n + n) % n]; if (q > 1 + 1e-9) { sum += q; cnt++; } } return cnt ? Math.max(v > 1 + 1e-9 ? v : 1, sum / cnt) * 0 + (v > 1 + 1e-9 ? (v + sum / cnt) / 2 : sum / cnt) : 1; }); });
   return out;
 }
 

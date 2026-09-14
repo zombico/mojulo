@@ -59,22 +59,28 @@ function hemDrop(m, hem, fallbackCm) {
   return fallbackCm;
 }
 
-// the girth the cloth actually sits at: the body's plus the ease ring's circumference (m.standoff,
-// 2π·ease_cm, set by pattern-garment.js; 0 when a block is drafted straight from a tape)
-const atRing = (m, girth) => (Number.isFinite(girth) ? girth + (m.standoff ?? 0) : girth);
+// THE TAILOR'S EASE (wardrobe-variety): a block's `ease_*_cm` dial is the TOTAL circumference the
+// cloth has over the tape — the number a pattern book prints (a shirt +10 at the chest, a jacket
+// +5 over the shirt) — and never less than the ease ring the piece is placed on (m.standoff =
+// 2π·ease_cm, the stand-off's own circumference, set by pattern-garment.js; 0 when a block is
+// drafted straight from a tape). Before this the dial was doubled (a half-piece took half of it)
+// and added ON TOP of the ring, so the default shift carried 21 cm at the bust and a suit jacket
+// over a shirt read 186 cm around on a 102 cm chest.
+const total = (m, girth, ease) => (Number.isFinite(girth) ? girth + Math.max(ease ?? 0, m.standoff ?? 0) : girth);
 
 // outline index of the bust point on the right half (hem, then the optional hip and waist points)
 const iBustOf = (yHip, yWaist) => 1 + (yHip > 0 ? 1 : 0) + (yWaist > yHip + 0.5 ? 1 : 0) + 1;
 
 function bodice(side, m, d = {}) {
-  const g = Object.fromEntries(Object.entries(m.girth).map(([k, v]) => [k, atRing(m, v)])), drop = m.drop;
+  const g = m.girth, drop = m.drop;
   const easeB = d.ease_bust_cm ?? 6, easeW = d.ease_waist_cm ?? easeB, easeH = d.ease_hip_cm ?? easeB;
   const back = side === 'back';
   const L = hemDrop(m, d.hem ?? 'hip', (drop.hip ?? 45));          // shoulder row → hem
   const yBust = Math.max(4, L - (drop.bust ?? L * 0.3));
   const yWaist = Math.max(2, L - (drop.waist ?? L * 0.55));
   const yHip = Math.max(0, L - (drop.hip ?? L));
-  const bustHalf = g.bust / 4 + easeB / 2, waistHalf = g.waist / 4 + easeW / 2, hipHalf = g.hip / 4 + easeH / 2;
+  // a quarter of the total (front + back, each mirrored): the tape plus the ease, or the ring
+  const bustHalf = total(m, g.bust, easeB) / 4, waistHalf = total(m, g.waist, easeW) / 4, hipHalf = total(m, g.hip, easeH) / 4;
   // the neck opening is the NECK'S BASE: a quarter of its girth where it rises through the crest
   // (measured, `m.crest.neck_cm`), else the tailor's neck girth over five — never the ring's:
   // the ease rises off the crest, it does not widen the neckline into a boat neck
@@ -91,7 +97,7 @@ function bodice(side, m, d = {}) {
   // the neck centre) and drops by the crest's measured slope — the chart's cap is the body's
   // own shoulder, and the block drafts to it. Without a cap (a chart with no crest) the old
   // reading stands: a quarter of the top row, 4 cm down.
-  const shoulderHalf = d.shoulder_cm != null ? d.shoulder_cm / 2 : m.crest ? Math.max(neckHalf + 4, m.crest.half_cm) : Math.max(neckHalf + 6, Number.isFinite(g.top) ? g.top / 4 - 1 : g.bust * 0.22);
+  const shoulderHalf = d.shoulder_cm != null ? d.shoulder_cm / 2 : m.crest ? Math.max(neckHalf + 4, m.crest.half_cm) : Math.max(neckHalf + 6, Number.isFinite(g.top) ? total(m, g.top, 0) / 4 - 1 : total(m, g.bust, easeB) * 0.22);
   const shoulderDrop = d.shoulder_drop_cm ?? (m.crest ? m.crest.drop_cm : 4);
   const armholeDepth = L - shoulderDrop - yBust;                        // shoulder tip → bust line
   const hemHalf = yHip > 0 ? hipHalf + (d.flare_cm ?? 0) : (L <= (drop.waist ?? Infinity) + 0.5 ? waistHalf : hipHalf) + (d.flare_cm ?? 0);
@@ -142,22 +148,29 @@ function bodice(side, m, d = {}) {
 }
 
 function sleeve(m, d = {}) {
-  const g = Object.fromEntries(Object.entries(m.girth).map(([k, v]) => [k, atRing(m, v)]));
-  const bicep = (g.upperArm ?? 30) + (d.ease_cm ?? 4);
-  const wrist = (g.wrist ?? 17) + (d.ease_wrist_cm ?? 6);
+  const g = m.girth;
+  // THE TAILOR'S SLEEVE: widest at the underarm level — the armscye row, the fullest row of the
+  // upper arm, where the cap sets — then tapered to the BICEP (mid upper arm) below it, then to
+  // the wrist. Cut to the bicep alone it cannot close around the deltoid and the underarm seam
+  // gapes; cut to the deltoid alone it hangs as a tube.
+  const arm = total(m, g.upperArm ?? g.bicep ?? 30, d.ease_cm ?? 4);
+  const bicep = Number.isFinite(g.bicep) && g.bicep < (g.upperArm ?? Infinity) ? total(m, g.bicep, d.ease_cm ?? 4) : arm;
+  const dBicep = Number.isFinite(m.drop?.bicep) && m.drop.bicep > 1 ? m.drop.bicep : null;   // cm below the armscye row
+  const wrist = total(m, g.wrist ?? 17, d.ease_wrist_cm ?? 6);
   const lengths = { short: 22, 'three-quarter': Math.max(30, (m.length ?? 58) * 0.7), long: (m.length ?? 58) };
   const len = typeof d.length === 'number' ? d.length : (lengths[d.length ?? 'long'] ?? lengths.long);
-  const capH = Math.min(d.cap_height_cm ?? Math.max(8, bicep / 3), Math.max(4, (m.above ?? 10) - 0.5));   // never taller than the room above the anchor row
-  const L = len + capH, bh = bicep / 2, wh = wrist / 2;
+  const capH = Math.min(d.cap_height_cm ?? Math.max(8, arm / 3), Math.max(4, (m.above ?? 10) - 0.5));   // never taller than the room above the anchor row
+  const L = len + capH, bh = arm / 2, bb = bicep / 2, wh = wrist / 2;
+  const taper = dBicep != null && bicep < arm - 0.5 && len - dBicep > 2;   // a bicep point on the underarm edge, below the armscye
   const cap = curve([bh, len], [bh * 0.55, L + capH * 0.25], [0, L], 6);
-  const right = [[wh, 0], [bh, len], ...cap];
+  const right = [[wh, 0], ...(taper ? [[bb, len - dBicep]] : []), [bh, len], ...cap];
   const pts = [[-r2(wh), 0]];
   for (const p of right) pts.push([r2(p[0]), r2(p[1])]);
   pts.push([0, r2(L)]);
   for (let i = right.length - 1; i >= 1; i--) pts.push([-r2(right[i][0]), r2(right[i][1])]);
   const out = [];
   for (const p of pts) { const q = out[out.length - 1]; if (!q || Math.hypot(q[0] - p[0], q[1] - p[1]) > 1e-6) out.push(p); }
-  const n = out.length, iBicep = 2, iTop = iBicep + 6, iBicepL = n - iBicep + 1;   // the apex: hem, bicep, five cap points, then [0, L]
+  const n = out.length, iBicep = taper ? 3 : 2, iTop = iBicep + 6, iBicepL = n - iBicep + 1;   // the apex: hem, (bicep,) the armscye point, five cap points, then [0, L]
   // THE SET-IN SLEEVE (wardrobe-variety P2): the cap's apex sits on the SHOULDER POINT — the
   // arm chart's outer side (`sideL` on the left arm; the mirror swaps it) — so the underarm seam
   // falls under the arm, and the cap is two named halves, `capFront` and `capBack`, so each of a
@@ -170,11 +183,11 @@ function sleeve(m, d = {}) {
 }
 
 function skirt(side, m, d = {}) {
-  const g = Object.fromEntries(Object.entries(m.girth).map(([k, v]) => [k, atRing(m, v)])), drop = m.drop;
+  const g = m.girth, drop = m.drop;
   const easeW = d.ease_waist_cm ?? 2, easeH = d.ease_hip_cm ?? 4;
   const waistToHip = Math.max(8, (drop.hip ?? 0) - (drop.waist ?? 0));
   const L = typeof d.length === 'number' ? d.length : (d.length === 'mini' ? waistToHip + 20 : d.length === 'midi' ? waistToHip + 45 : waistToHip + 32);
-  const waistHalf = g.waist / 4 + easeW / 2, hipHalf = g.hip / 4 + easeH / 2, hemHalf = hipHalf + (d.flare_cm ?? 4);
+  const waistHalf = total(m, g.waist, easeW) / 4, hipHalf = total(m, g.hip, easeH) / 4, hemHalf = hipHalf + (d.flare_cm ?? 4);
   const yHip = L - waistToHip;
   const out = [[-r2(hemHalf), 0], [r2(hemHalf), 0], [r2(hipHalf), r2(yHip)], [r2(waistHalf), r2(L)], [-r2(waistHalf), r2(L)], [-r2(hipHalf), r2(yHip)]];
   return {
@@ -196,11 +209,11 @@ function skirt(side, m, d = {}) {
 // front.outseam ↔ back.outseam sew at the side and front.inseam ↔ back.inseam inside the leg,
 // front.cf ↔ frontR.cf and back.cb ↔ backR.cb on the centre lines.
 function trouser(side, m, d = {}) {
-  const g = Object.fromEntries(Object.entries(m.girth).map(([k, v]) => [k, atRing(m, v)])), drop = m.drop, leg = m.leg ?? { girth: {}, drop: {} };
-  const lg = Object.fromEntries(Object.entries(leg.girth ?? {}).map(([k, v]) => [k, atRing(m, v)]));
+  const g = m.girth, drop = m.drop, leg = m.leg ?? { girth: {}, drop: {} };
+  const lg = leg.girth ?? {};
   const back = side === 'back';
   const ease = d.ease_cm ?? 6, easeHem = d.ease_hem_cm ?? 16, easeW = d.ease_waist_cm ?? 2;
-  const q = (girth, e) => (Number.isFinite(girth) ? girth / 4 + e / 4 : 20);
+  const q = (girth, e) => (Number.isFinite(girth) ? total(m, girth, e) / 4 : 20);   // a quarter of the total: the tape plus the ease, or the ring
   const oWaist = q(g.waist ?? g.top, easeW), oHip = q(g.hip ?? g.waist, ease), oCrotch = q(g.crotch ?? g.hip, ease);
   const hipRaw = m.girth.hip ?? m.girth.waist ?? 90;
   const fork = d.fork_cm ?? (back ? hipRaw / 8 + 1 : hipRaw / 16 + 0.5);
@@ -210,7 +223,7 @@ function trouser(side, m, d = {}) {
   const yCrotch = legLen, yHip = L - dHip, yKnee = Math.max(0, yCrotch - (leg.drop?.knee ?? legLen * 0.5));
   // the leg's front half sits about the piece column xc (the middle of the crotch-level trunk span)
   const xc = -oCrotch / 2;
-  const half = (girth, e) => (Number.isFinite(girth) ? girth / 4 + e / 4 : oCrotch / 2);
+  const half = (girth, e) => (Number.isFinite(girth) ? total(m, girth, e) / 4 : oCrotch / 2);
   // the hem is drafted to the leg's girth AT THE HEM (wardrobe-variety P3): the knee's for knee
   // length, the ankle's for ankle length, interpolated between thigh, knee and ankle for a cm length
   const gThigh = lg.thigh ?? lg.knee, gKnee = lg.knee ?? gThigh, gAnkle = lg.ankle ?? gKnee;
