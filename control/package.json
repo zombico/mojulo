@@ -93,7 +93,7 @@
     "stage-standalone": "node scripts/stage-standalone.mjs",
     "fetch-models": "node scripts/fetch-embed-model.js",
     "gen-app": "node scripts/gen-app.js",
-    "prepack": "node scripts/stage-lite-template.mjs && next build --webpack && node scripts/stage-standalone.mjs",
+    "prepack": "node scripts/stage-lite-template.mjs && NODE_OPTIONS=--max-old-space-size=8192 next build --webpack && node scripts/stage-standalone.mjs",
     "test": "vitest run"
   },
   "dependencies": {

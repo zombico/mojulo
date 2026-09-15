@@ -12,6 +12,13 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### prepack-heap — the publish build gets an 8 GB heap
+
+- **Fixed: `npm publish` aborted with `JavaScript heap out of memory`.** The webpack production
+  build now needs more than V8's default ~4 GB old space; `prepack` sets
+  `NODE_OPTIONS=--max-old-space-size=8192` for the `next build --webpack` step. Dev and the
+  standalone runtime are untouched.
+
 ## [2.0.3] - 2026-09-15
 
 ### combo-hitstun — hitstun, juggle state and damage scaling, composed in the recipe
