@@ -183,6 +183,7 @@ generate a 3D city at night          → compose_world (base: city) → open the
 make me a walkable world             → compose_world (base: controllable) → drive it at /world
 turn those into a game               → create_game → play at /sketches/<ref>
 export it for Godot                  → export_game { target: 'godot' } → open the project
+mint brickster, export it for Godot  → create_pixelizer_game → export_game { target: 'godot' } → the arcade pack
 ```
 
 The first prompt is the one to watch: your agent reads mojulo's own routing
