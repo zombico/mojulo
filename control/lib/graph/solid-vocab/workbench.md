@@ -450,3 +450,13 @@ A candlestick as a stacked assembly (foot → stem → cup) with a brass finish 
 ```
 
 Returns `{ ok, ref, worldUrl, sceneUrl, url, stats }` — `stats.parts[]` reports each part's size + base/top z, and `stats.warnings` flags a part floating off the grid. Read the warnings before opening /world.
+
+## Groups, a hinge, and a bare studio
+
+- `group` (any lathe / extrude / sweep / loft / drape / relief) — names the RENDER GROUP the monomer's faces join. The World meshes each group on its own, so a channel can move it; exports keep a node per group. Fields and shells name their own groups.
+- `movers` (top level, beside the monomers) — the World's mover channel on those groups. A hinge is a `turn` about `axis` through `center`, in radians; `absolute: true` keeps the group's authored world coordinates (the recipe, the still and every export show the authored pose; only the live World swings it). Two ways to drive it:
+  - a **toggle** — `{ group: 'lid', label: 'lid', basePos: [0,0,0], turn: { center, axis, absolute: true }, states: [0, -1.83], key: 'o', transition: 0.7 }`. `states` lists the resting angles: two by default (closed, open), add a third for a half stop or as many as the part has detents. Clicking the part or pressing `key` steps to the next state (shift+key steps back; `window.__mojToggle(group, dir)` from script); `transition` eases the swing. State 0 holds until an input arrives, so captures and turntables stay deterministic. `click: false` leaves only the key.
+  - a **timed table** — `angles: [rad, …]` with `period`, `hold`, `loop` (play, hold at the end, replay; `loop: true` wraps), for a part that should move on its own.
+  - a **slide** — `{ group: 'clasp', parent: 'lid', basePos: [0,0,0], slide: { axis: [0,0,1] }, states: [0, -6], key: 'c' }` translates the group along `axis` by the state's distance (units), the same toggle rules as a turn. `parent` names another group whose mesh this one rides (its move is local to the parent), so a clasp slides along a door that is itself swinging.
+- `grid: false` (top level) — drop the measured floor and grid for a bare product shot. The scale cue is the default.
+

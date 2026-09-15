@@ -117,15 +117,19 @@ export function lowerObjectFaces(manifest, light) {
   // Per-monomer `material` (polygonizer/materials.js): a named finish on the spec rides into the
   // generator — response curve baked into the fills, plus `spec`/`pbr` face tags for the World's
   // live highlight and the .glb PBR export. Absent → byte-identical (material-response.plan.md P4).
+  // A monomer's `group` names the RENDER GROUP its faces join (the World meshes each group on its own, so
+  // a mover / deform channel can move it — a hinged lid). Fields and shells tag their own groups; the
+  // sweep monomers below take the spec's. Absent `group` → faces untouched, byte-identical.
+  const grouped = (faces, spec) => (typeof spec.group === 'string' && spec.group ? faces.map((f) => (f.group ? f : { ...f, group: spec.group })) : faces);
   return [
-    ...lathes.flatMap((spec, i) => latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps })),
-    ...extrudes.flatMap((spec, i) => extrudeToFaces(wrapKeyed(spec, i, xwrapKey), { light, material: spec.material })),
-    ...sweeps.flatMap((spec) => sweepToFaces(spec, { light, material: spec.material })),
-    ...lofts.flatMap((spec) => loftToFaces(spec, { light, material: spec.material })),
+    ...lathes.flatMap((spec, i) => grouped(latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps }), spec)),
+    ...extrudes.flatMap((spec, i) => grouped(extrudeToFaces(wrapKeyed(spec, i, xwrapKey), { light, material: spec.material }), spec)),
+    ...sweeps.flatMap((spec) => grouped(sweepToFaces(spec, { light, material: spec.material }), spec)),
+    ...lofts.flatMap((spec) => grouped(loftToFaces(spec, { light, material: spec.material }), spec)),
     // field solids (field-solids.plan.md F3): one closed surface-net shell per entry, cuts included
     ...fields.flatMap((spec) => fieldToFaces(spec, { light, material: spec.material })),
-    ...drapes.flatMap((spec) => drapeToFaces(spec, { light, material: spec.material })),
-    ...reliefs.flatMap((spec) => reliefToFaces(spec, { light, material: spec.material })),
+    ...drapes.flatMap((spec) => grouped(drapeToFaces(spec, { light, material: spec.material }), spec)),
+    ...reliefs.flatMap((spec) => grouped(reliefToFaces(spec, { light, material: spec.material }), spec)),
     // `index` seeds the shell's stable per-face id (`<index>:<n>`), so a recipe can name a face.
     ...shells.flatMap((spec, i) => shellToFaces(spec, { light, material: spec.material, index: i })),
   ];
@@ -309,7 +313,8 @@ const STUDIO_PANEL_INFLATE = 1.05;
 
 export function studioSceneFromFaces(objectFaces = [], opts = {}) {
   const bounds = boundsOf(objectFaces) || { min: [-5, -5, 0], max: [5, 5, 5], center: [0, 0, 2.5], radius: 7 };
-  const floor = measuredFloor(bounds);
+  // `grid: false` drops the measured floor + grid (a bare studio for a product shot); default keeps the scale cue.
+  const floor = opts.grid === false ? { faces: [], grounds: [] } : measuredFloor(bounds);
   const viewBox = opts.viewBox && typeof opts.viewBox === 'object' ? opts.viewBox : { width: 900, height: 900 };
   const payload = assembleBoxCityScene({
     faces: [...objectFaces, ...floor.faces],
@@ -323,6 +328,8 @@ export function studioSceneFromFaces(objectFaces = [], opts = {}) {
     light: opts.light || WORKBENCH_LIGHT,
   });
   payload.inflate = Number.isFinite(opts.inflate) ? opts.inflate : STUDIO_PANEL_INFLATE;
+  // `movers` (the World's mover channel, e.g. a `turn` hinge on a named group) ride the payload as authored.
+  if (Array.isArray(opts.movers) && opts.movers.length) payload.movers = opts.movers;
   // label-wrap textures (key → data-URL), pre-resolved by the caller; emitThreeWorld reads them.
   return opts.textures && typeof opts.textures === 'object' ? { ...payload, textures: opts.textures } : payload;
 }

@@ -12,6 +12,22 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### workbench: named groups, a hinge mover, and a bare studio
+
+- A monomer `group` (lathe / extrude / sweep / loft / drape / relief) tags its faces with a render group, so
+  the World meshes it on its own and a channel can move it. Absent `group` → byte-identical faces.
+- A workbench manifest's `movers` ride the World payload; the mover channel's `turn` mode gains
+  `absolute: true`, which pivots a group about `center` while its geometry keeps world coordinates
+  (`position = center − R·center`), so a hinged lid stays closed in the recipe, the still and every export
+  and swings only in the live World.
+- A `turn` mover can be a composable TOGGLE: `states` lists its resting angles (two by default, closed / open,
+  any count), a click on the part or its `key` steps to the next (shift+key back, `window.__mojToggle`
+  from script), `transition` eases the swing. State 0 holds until an input arrives, so captures stay
+  deterministic. A `slide` mover is the translating twin (states are distances along `axis`), and `parent`
+  lets a group ride another group's mesh, so a clasp slides along a door that is itself swinging. The channel script text changes, so the emit-channels pins for the fixtures that emit
+  the mover channel re-pin: movers, planets, kitchen-sink, kitchen-sink-capture.
+- `grid: false` on a workbench manifest drops the measured floor + grid (a bare product shot).
+
 ### reliefs keep their caps in the World
 
 - `faceListToMesh` (the World / GLB packer) bakes a 3-corner face as one triangle instead of skipping it.

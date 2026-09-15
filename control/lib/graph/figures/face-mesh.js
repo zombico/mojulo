@@ -122,6 +122,8 @@ export function collectShadowDecals(faces = []) {
 
 const TRIS = [[0, 1, 2], [0, 2, 3]]; // quad → two triangles
 const TRIS_REV = [[0, 2, 1], [0, 3, 2]]; // reversed winding (both tris flipped)
+const TRI = [[0, 1, 2]]; // a 3-corner face → one triangle
+const TRI_REV = [[0, 2, 1]];
 
 // Raw winding normal of the FIRST emitted triangle (corners 0,1,2) — sign follows winding,
 // NOT canonicalized like faceNormal. Export-path only: used to decide whether a face's triangle
@@ -293,8 +295,9 @@ function roundedRectOutline(radii, seg = 8) {
 // Geometric unit normal of a (planar) quad from its first three corners. Returns [0,0,0]
 // for a degenerate zero-area quad — its lift is then a no-op, the safe thing to do.
 function faceNormal(c) {
+  const k = c.length > 3 ? 3 : 2; // a triangle spans corners 0-1-2
   const ux = c[1][0] - c[0][0], uy = c[1][1] - c[0][1], uz = c[1][2] - c[0][2];
-  const vx = c[3][0] - c[0][0], vy = c[3][1] - c[0][1], vz = c[3][2] - c[0][2];
+  const vx = c[k][0] - c[0][0], vy = c[k][1] - c[0][1], vz = c[k][2] - c[0][2];
   let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
   const L = Math.hypot(nx, ny, nz);
   if (L < 1e-12) return [0, 0, 0];
@@ -447,7 +450,11 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
   const normals = anyNormal ? [] : null;
   for (const f of src) {
     const c = f && f.corners;
-    if (!c || c.length < 4) continue;
+    // A 3-corner face is a TRIANGLE and bakes as one (relief caps are ear-clipped triangles; before this
+    // they were dropped here, so every emboss rendered as bevel walls around a hole). Quads and the
+    // textured / clip-mapped paths below keep their four-corner contract.
+    if (!c || c.length < 3) continue;
+    const isTri = c.length === 3;
     // Baked per-corner ambient occlusion (effects/ao-bake.js): `vao` multiplies the face's
     // baked colour per corner, and the GPU interpolates the gradient across the face. Absent
     // (every pre-AO scene) → factor 1 everywhere, byte-identical output.
@@ -460,7 +467,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     const cornerCols = Array.isArray(f.cornerFills) && f.cornerFills.length >= 4
       ? f.cornerFills.map((h) => faceColorLinear({ fill: h }))
       : null;
-    if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= 4) {
+    if (!isTri && typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= 4) {
       const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false });
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
       // colour rides into the group so emitThreeWorld can do texel × bakedLight (vertexColors).
@@ -488,8 +495,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     // aligned with `positions`). Textured faces `continue` above, so they never reach here.
     const fn = normals ? (Array.isArray(f.outNormal) ? f.outNormal : faceNormal(c)) : null;
     const pushNormal = (count) => { if (!normals) return; for (let i = 0; i < count; i++) normals.push(fn[0], fn[1], fn[2]); };
-    const clipPts = parseClipPolygon(f.clip);
-    const radPts = clipPts ? null : parseBorderRadius(f.radius);
+    const clipPts = isTri ? null : parseClipPolygon(f.clip);
+    const radPts = clipPts || isTri ? null : parseBorderRadius(f.radius);
     if (clipPts || radPts) {
       const mapped0 = (clipPts || roundedRectOutline(radPts));
       const mapped = mapped0.map(([u, v]) => bilerp(c, u, v));
@@ -512,7 +519,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       // per-face normal is unchanged.
       const wn = fn ? windingNormal(c) : null;
       const rev = wn && (wn[0] * fn[0] + wn[1] * fn[1] + wn[2] * fn[2]) < 0;
-      for (const tri of (rev ? TRIS_REV : TRIS)) {
+      const tris = isTri ? (rev ? TRI_REV : TRI) : (rev ? TRIS_REV : TRIS);
+      for (const tri of tris) {
         for (const idx of tri) {
           const p = c[idx], a = vao ? vao[idx] : 1;
           const cc = cornerCols ? cornerCols[idx] : [lr, lg, lb];
@@ -520,10 +528,10 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
           colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
         }
       }
-      pushSpec(f, 6);
-      pushNormal(6);
+      pushSpec(f, tris.length * 3);
+      pushNormal(tris.length * 3);
     }
-    for (let i = 0; i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
+    for (let i = 0; i < c.length && i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
   }
   const center = n ? [cx / n, cy / n, cz / n] : [0, 0, 0];
   let radius = 0;
