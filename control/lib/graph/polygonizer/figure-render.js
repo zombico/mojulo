@@ -27,6 +27,8 @@ import { groundBalance, groundVault } from './figure-balance.js';
 import { gait, WALK_DEFAULTS, resolveMotion } from './figure-posing.js';
 import { emoteMotion, isEmoteSpec } from './figure-emotes.js';
 import { buildGarment, GARMENTS, resolveCuts, cutPredicate, cutHits, cutBoundary } from './figure-garments.js';
+import { buildPatternGarment } from './pattern-garment.js';
+import { manifestGarment } from './figure-outfit.js';
 import { buildWig, WIGS } from './wig.js';
 import { resolveFigureSetup } from '../../visual-language/themes.js';
 import { buildAnimal } from './figure-animal-build.js';
@@ -214,10 +216,17 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   const restPos = articulate(limbs);
   const legPos = { ...restPos };
   for (const k of GROUNDED_NODES) legPos[k] = { ...balanced[k] };
-  // `plant` pins the foot to the floor (position); `footFlat` (default → plant) flattens the
-  // sole to the ground (orientation). The walk does both; the sprint pins without flattening
-  // (forefoot strike), so it passes footFlat = 0.
-  const flatOf = (s) => (footFlat ? footFlat[s] || 0 : plant ? plant[s] || 0 : 0);
+  // `plant` pins the foot to the floor (position); `footFlat` (default → plant, and 1 when
+  // neither is given) flattens the sole to the ground (orientation). The walk does both; the
+  // sprint pins without flattening (forefoot strike), so it passes footFlat = 0.
+  //
+  // THE FLAT STAND (footwear P0): a figure that says nothing about its feet is STANDING,
+  // and a standing sole is on the floor. Before this the fallback was 0 — the foot was built ⊥ to
+  // the shank, and the rest shank tilts 11° back, so the default figure balanced on its toe tip
+  // with the heel ≈ 3.8 cm in the air (sole pitch 11.3°, one of seven stations touching). Bare
+  // that read as a slight point; under a 26 cm sole it is a ski. A pose that wants a pointed foot
+  // still says so — `footFlat: { L: 0 }`, as the sprint does.
+  const flatOf = (s) => (footFlat ? footFlat[s] || 0 : plant ? plant[s] || 0 : 1);
   // wrist articulation (the hand's mirror of footFlex): wristL/R = { flex, deviation } (a bare
   // number is treated as flex), fingersL/R = the knuckle curl. Threaded into the hand builder.
   const wf = (w) => (typeof w === 'number' ? { flex: w } : (w || {}));
@@ -292,9 +301,23 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   // body and attach them per-piece, so the shared mesher (litFaces) carves and recolours
   // the cloth — svgile-row's cutter, finally in the production renderer (SVG + World).
   // `garment` is a single spec KEY, an inline spec OBJECT, or an array (layering: shirt + trousers + jacket).
-  for (const garm of garmentList(garment)) {
-    const spec = (garm && typeof garm === 'object') ? garm : GARMENTS[garm]; if (!spec) continue;
-    const gpieces = buildGarment(body, spec);
+  const specs = garmentList(garment).map((garm) => ((garm && typeof garm === 'object') ? garm : GARMENTS[garm])).filter(Boolean);
+  // THE DESIGNER'S RULE (pattern-garment.js): a cut-and-sewn garment is drafted on the STAND and
+  // worn on the pose. When any spec carries pattern pieces and the figure is off its rest pose,
+  // build the stand body once (this same builder at rest, bare) and hand it to every garment;
+  // at rest the posed body IS the stand body. Shells never read it — nothing changes for them.
+  const wearsPattern = specs.some((s) => Array.isArray(s.pieces) && s.pieces.some((p) => p && p.fit === 'pattern'));
+  const standBody = wearsPattern && Object.keys(pose || {}).length
+    ? buildPosedFigure({}, proto, null, fluffs, null, null, proportions, fluffQuality, weld).filter((s) => s.flesh)
+    : body;
+  // THE LAYERING RULE: every stack already worn (shells and pattern pieces alike) is handed to the
+  // next garment as `under`, so an outer pattern layer is placed on the inner layer's hang.
+  // THE PADDED FORM: off rest, the same layers are built on the stand body too, so a block drafts
+  // on the stand wearing what it is worn over; at rest the posed layers are the stand's.
+  const worn = [], standWorn = standBody === body ? worn : [];
+  for (const spec of specs) {
+    const gpieces = buildGarment(body, spec, { standBody, under: worn, standUnder: standWorn });
+    if (standWorn !== worn) standWorn.push(...buildGarment(standBody, spec, { standBody, under: standWorn, standUnder: standWorn }).filter((g) => !g.id.includes(':under:')));
     const cuts = resolveCuts(spec.cuts, gpieces, body);
     const pregions = resolveCuts((spec.panels || []).map((p) => p.region), gpieces, body);
     const panels = (spec.panels || []).map((p, i) => ({ region: pregions[i], color: p.color, on: p.on }));
@@ -309,6 +332,7 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
         panels: pp.length ? pp : null,
         seamCuts: outer && ap.length ? ap : null,
       });
+      if (outer) worn.push(g);
     }
   }
   // HAIR (wig.js): a scalp-anchored shell read off the posed head (needs `headEgg`),
@@ -442,10 +466,15 @@ function emitSheetFaces(st, V, light, dist, faces) {
       let hex = st.hex;
       if (panels) for (const p of panels) if (cutHits(praw, p.region)) hex = p.color;
       const cen = centroid(wpts);
-      faces.push({ wpts, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) });
+      // a cut-and-sewn piece sits an ease off the flesh it covers (1.5 cm by default): thinner than
+      // the depth spread of a big flesh face, so the painter's sort by centroid loses it in bands.
+      // Tie-break the cloth toward the camera by about that ease — never enough to pull it over a
+      // limb that is really in front. Pattern stacks only: a wave-drape sheet keeps its bytes.
+      faces.push({ wpts, fill: shadeHex(hex, shadeN, light), shade: litFactor(shadeN, light), dist: dist(cen) - (st.pattern ? PATTERN_DEPTH_BIAS : 0) });
     }
   }
 }
+const PATTERN_DEPTH_BIAS = 0.25;   // render-world units ≈ 1.5 cm at 170 cm stature
 
 function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = null, skin = null } = {}) {
   const V = worldVertex(stacks, groundZ);
@@ -656,7 +685,7 @@ function recolorFlesh(stacks, fleshHex) {
  */
 export function renderFigureToSvg(manifest = {}, fit = null, { control = false } = {}) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
   // The control scaffold (skin seam) is ALWAYS the filled lit render — a wire
   // setup would fragment a diffusion skin (the polygomer-skin lesson).
@@ -679,7 +708,7 @@ export function renderFigureToSvg(manifest = {}, fit = null, { control = false }
  */
 export function renderFigureWithArmature(manifest = {}, fit = null) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
   const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
   const F = fit || fitFor(bb, VB_W, VB_H, PAD);
@@ -982,7 +1011,7 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
   let groundZ = Infinity;
   for (let i = 0; i < frames; i++) {
     const pose = { ...(manifest.pose || {}), ...move(i / frames) };
-    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
+    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
     built.push(stacks);
     const mz = stackMinZ(stacks);
     if (mz < groundZ) groundZ = mz;
@@ -1026,7 +1055,7 @@ export function figureRigSamples(manifest = {}, keys = 8) {
   const { CAM } = makeCamera(manifest.view);
   const move = motionFn(manifest.motion || 'walk', keys);
   const restPose = manifest.pose || {};
-  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
+  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
   const groundZ = stackMinZ(restStacks);
   const V = worldVertex(restStacks, groundZ);
   // manifest.skin (skin-over-mesh.plan.md phase 1): recipe-emitted cylindrical UVs on the
@@ -1065,7 +1094,7 @@ export function renderFigureWorldFrames(manifest = {}, frames = 30) {
     ? Array.from({ length: frames }, (_, i) => ({ ...(manifest.pose || {}), ...move(i / frames) }))
     : [manifest.pose || {}];
   // Pass 1: build every frame; share the lowest ground contact across the motion.
-  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifest.garment, manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex));
+  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex));
   let groundZ = Infinity;
   for (const stacks of built) { const mz = stackMinZ(stacks); if (mz < groundZ) groundZ = mz; }
   // Pass 2: mesh each frame to world faces — no projection, no cull → orbitable.
@@ -1077,4 +1106,36 @@ export function renderFigureWorldFrames(manifest = {}, frames = 30) {
       })),
   }));
   return { frames: frameList, title: manifest.title || 'figure', bg: setup.bg === 'none' ? '#0e1014' : setup.bg };
+}
+
+/**
+ * The pattern readout for a figure manifest whose garment carries `fit:'pattern'` pieces:
+ * one report per such garment spec (girths, per-piece strain, per-seam ease and gap,
+ * warnings). Null when the figure wears no pattern garment. Pure: the same body build
+ * the SVG uses, no garment layer, so the numbers are the numbers the render used.
+ */
+export function figurePatternReport(manifest = {}) {
+  const specs = garmentList(manifestGarment(manifest)).map((g) => (g && typeof g === 'object' ? g : GARMENTS[g])).filter(Boolean);
+  const isPattern = (s) => Array.isArray(s.pieces) && s.pieces.some((p) => p && p.fit === 'pattern');
+  if (!specs.some(isPattern)) return null;
+  const bare = (pose) => buildPosedFigure(pose, manifest.proto || {}, null, manifest.fluffs || null, null, null, manifest.proportions || null, 1, manifest.weld || null).filter((s) => s.flesh);
+  const body = bare(manifest.pose || {});
+  const standBody = Object.keys(manifest.pose || {}).length ? bare({}) : body;   // drafted on the stand, worn on the pose
+  // the layers are worn in order, as the render wears them: every layer (shells included) is
+  // handed to the next as `under`, so the readout's `under` and `hang` are the render's numbers
+  const worn = [], standWorn = standBody === body ? worn : [], reports = [];
+  const outer = (g) => !g.id.includes(':under:');
+  for (const spec of specs) {
+    const cloth = spec.color?.cloth ?? '#3f6f93';
+    if (isPattern(spec)) {
+      const { stacks, report } = buildPatternGarment(body, spec, { cloth, standBody, under: worn, standUnder: standWorn });
+      reports.push({ id: spec.id, ...report });
+      worn.push(...stacks);
+      if (standWorn !== worn) standWorn.push(...buildPatternGarment(standBody, spec, { cloth, standBody, under: standWorn, standUnder: standWorn }).stacks);
+    } else {
+      worn.push(...buildGarment(body, spec).filter(outer));
+      if (standWorn !== worn) standWorn.push(...buildGarment(standBody, spec).filter(outer));
+    }
+  }
+  return reports;
 }

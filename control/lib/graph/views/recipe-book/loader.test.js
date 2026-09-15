@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { ensureBookLoaded, _resetBookLoader } from './loader';
-import { bookViewKinds, bookWorldKind, isBookRenderKind, bookWarnings, bookLoaded, bookCards } from './registry';
+import { bookViewKinds, bookWorldKind, isBookRenderKind, bookWarnings, bookLoaded, bookCards, bookWardrobe } from './registry';
+import { getSketchVocabCatalog, getRenderPrimitiveCards, _resetSketchVocabForTests } from '../../sketch-vocab/loader';
 import { readBookCards, bookDirs } from './cards';
 import { ensureCookbook, saveRecipeEntry } from './cookbook';
 import { getViewVocabCatalog, _resetViewVocabCache } from '../view-vocab/loader';
@@ -18,6 +19,7 @@ const FUTURE = join(FIX, 'book-future');
 
 function resetCaches() {
   _resetBookLoader();
+  _resetSketchVocabForTests();
   _resetViewVocabCache();
   _resetSolidVocabCache();
   _resetMotionVocabCache();
@@ -234,5 +236,69 @@ describe('cookbook (Phase 5)', () => {
     const res = await ensureBookLoaded();
     expect(res.warnings.join(' ')).toMatch(/cookbook entry 'evil' is a builder.*Door-1 only/);
     expect(bookViewKinds().has('evil')).toBe(false);
+  });
+});
+
+describe('the wardrobe lane (outfit.plan.md P5) — garment / outfit entries as data', () => {
+  it('loads garments then outfits into the registry, validates, core wins on a key collision, malformed is skipped', async () => {
+    const res = await ensureBookLoaded({ dir: BOOK });
+    const w = bookWardrobe();
+    expect([...w.keys()].sort()).toEqual(['a-line-skirt', 'shift-and-trousers', 'shift-dress', 'straight-trousers']);
+    expect(w.get('shift-dress').kind).toBe('garment');
+    expect(w.get('shift-dress').spec.id).toBe('shiftDress');
+    expect(w.get('shift-dress').source).toBe('recipe-book');
+    expect(w.get('shift-and-trousers').kind).toBe('outfit');
+    expect(w.get('shift-and-trousers').spec.layers[0]).toBe('straight-trousers');
+    expect(res.wardrobe).toBe(4);
+    const warns = res.warnings.join('\n');
+    expect(warns).toMatch(/wardrobe entry 'bad-garment' is invalid/);
+    expect(warns).toMatch(/wardrobe entry 'tee' collides with a core wardrobe key — core wins/);
+    expect(w.has('tee')).toBe(false);
+    expect(w.has('bad-garment')).toBe(false);
+  });
+
+  it('absent a book the wardrobe is empty', async () => {
+    await ensureBookLoaded({ dir: '/nonexistent-book' });
+    expect(bookWardrobe().size).toBe(0);
+  });
+
+  it('wardrobe cards join the sketch-vocab catalog as recipe-tier cards, and stay out of the polygonizer\'s prompt', () => {
+    process.env.MOJULO_RECIPE_BOOK = BOOK;
+    const catalog = getSketchVocabCatalog();
+    const card = catalog.get('shift-and-trousers');
+    expect(card).toBeTruthy();
+    expect(card.source).toBe('recipe-book');
+    expect(card.tier).toBe('recipe');
+    expect(card.entry).toBe('create_figure');
+    expect(card.when).toMatch(/head to toe/);
+    expect(catalog.get('wardrobe-construction').source).toBeUndefined();   // core card untouched
+    expect(getRenderPrimitiveCards('all').some((c) => c.id === 'shift-and-trousers')).toBe(false);
+    expect(getRenderPrimitiveCards('all').some((c) => c.id === 'wardrobe-construction')).toBe(true);
+  });
+
+  it('the cookbook may carry wardrobe entries (data only) and takes precedence over the upstream book', async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'mojulo-cookbook-'));
+    try {
+      process.env.MOJULO_COOKBOOK = tmp;
+      process.env.MOJULO_RECIPE_BOOK = BOOK;
+      ensureCookbook();
+      const manifestPath = join(tmp, 'manifest.json');
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+      manifest.chapters = ['wardrobe'];
+      manifest.entries.push({ type: 'garment', chapter: 'wardrobe', dir: 'a-line-skirt', id: 'a-line-skirt' });
+      writeFileSync(manifestPath, JSON.stringify(manifest));
+      const { mkdirSync } = await import('node:fs');
+      mkdirSync(join(tmp, 'chapters/wardrobe/a-line-skirt'), { recursive: true });
+      writeFileSync(join(tmp, 'chapters/wardrobe/a-line-skirt/garment.json'), JSON.stringify({ id: 'mySkirt', pieces: [{ id: 'front', fit: 'pattern', sloper: 'skirt-front' }, { id: 'back', fit: 'pattern', sloper: 'skirt-back' }] }));
+      writeFileSync(join(tmp, 'chapters/wardrobe/a-line-skirt/card.md'), '---\n{"id":"a-line-skirt","name":"Mine","entry":"create_figure","summary":"s","when":"w"}\n---\n\nMine.\n');
+      resetCaches();
+      const res = await ensureBookLoaded();
+      const w = bookWardrobe();
+      expect(w.get('a-line-skirt').source).toBe('cookbook');
+      expect(w.get('a-line-skirt').spec.id).toBe('mySkirt');
+      expect(res.warnings.join(' ')).toMatch(/wardrobe entry 'a-line-skirt' in recipe-book shadowed/);
+      // the outfit that names it still resolves (against the cookbook's version)
+      expect(w.get('shift-and-trousers')).toBeTruthy();
+    } finally { rmSync(tmp, { recursive: true, force: true }); }
   });
 });

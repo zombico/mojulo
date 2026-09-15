@@ -75,7 +75,7 @@ export const RUNTIME_CHANNELS = [
   { key: 'movers',
     comment: [`// mover channel (opt-in): stepMovers stays inert unless a moverBlock is emitted.`],
     lets: `let stepMovers = () => {};`, step: `stepMovers(t);`,
-    normalize: (v) => listOrNull(v, (mv) => mv && (mv.spin || mv.turn || mv.link || mv.pose || mv.fill || mv.pulse || mv.flash || mv.cascade || (Array.isArray(mv.path) && mv.path.length > 1))),
+    normalize: (v) => listOrNull(v, (mv) => mv && (mv.spin || mv.turn || mv.slide || mv.link || mv.pose || mv.fill || mv.pulse || mv.flash || mv.cascade || (Array.isArray(mv.path) && mv.path.length > 1))),
     script: moverChannelScript },
   { key: 'comets',
     comment: [`// comet channel (opt-in): stepComets stays inert unless a cometBlock is emitted.`],

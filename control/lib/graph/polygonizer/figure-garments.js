@@ -28,6 +28,7 @@
  */
 
 import { drapeSheet } from './wave-field.js';
+import { buildPatternGarment, validatePatternPiece, validatePatternSpec } from './pattern-garment.js';
 
 // cloth colors (vexar-lit like flesh — Lambert over these base hexes)
 const TEE_HEX = '#3f6f93';     // shirt
@@ -617,14 +618,33 @@ export function buildWaveDrape(body, piece, cloth) {
  * @param {{ id, color:{cloth,under?}, pieces: Array<{coverage:string[], fit:'hug'|'hull'|'drape', clearance?, thickness?, sag?, taperEnds?, taper?, cloth?}> }} spec
  * @returns {Array<{id, rings, hex}>}  renderer-ready cloth stacks
  */
-export function buildGarment(body, spec) {
+export function buildGarment(body, spec, opts = {}) {
   const out = [];
   const cloth = spec.color?.cloth ?? TEE_HEX;
   const under = spec.color?.under ?? darkenHex(cloth);
   const find = (id) => body.find((p) => p.id === id);
+  let patternDone = false;
   for (const piece of spec.pieces) {
     const pieceCloth = piece.cloth ?? cloth;
     const fit = piece.fit ?? 'hug';
+    if (fit === 'pattern') {
+      // CUT AND SEWN (pattern-garment.js): every pattern piece of the spec is meshed,
+      // placed on its body chart, and stitched in ONE pass (seams span pieces), so the
+      // first pattern piece builds them all and the rest are already done. Under-colour
+      // rides the same rule as the shells: the chart's stacks, thin-inflated, over the
+      // z range the pieces cover (`under: false` on the spec skips it).
+      if (!patternDone) {
+        const { stacks, underRanges } = buildPatternGarment(body, spec, { cloth, standBody: opts.standBody ?? null, under: opts.under ?? null, standUnder: opts.standUnder ?? null });
+        if (spec.under !== false) for (const ur of underRanges) for (const id of ur.stackIds) {
+          const st = find(id); if (!st) continue;
+          const rr = st.rings.filter((rg) => rg.center.z <= ur.zHi && rg.center.z >= ur.zLo);
+          if (rr.length > 1) out.push({ id: `${spec.id}:under:${id}`, rings: inflateRings(rr, 0.012), hex: under, panel: ur.chart });
+        }
+        out.push(...stacks);
+        patternDone = true;
+      }
+      continue;
+    }
     if (fit === 'wave-drape') {
       // a hanging SHEET (cape/cloak/tabard) as a wave-field — an OPEN two-sided
       // panel (sheet:true), not a closed shell. Composes with other pieces.
@@ -1497,7 +1517,7 @@ export function cutBoundary(rings, cuts) {
 // while keeping the closed-vocabulary discipline: unknown fit/cut kinds are
 // refused at mint, not discovered as silent no-ops at render.
 
-export const GARMENT_FIT_KINDS = ['hug', 'hull', 'drape', 'wave-drape', 'radial', 'pelvis', 'torso', 'shoulders', 'sleeve', 'sash'];
+export const GARMENT_FIT_KINDS = ['hug', 'hull', 'drape', 'wave-drape', 'radial', 'pelvis', 'torso', 'shoulders', 'sleeve', 'sash', 'pattern'];
 export const GARMENT_CUT_KINDS = ['wedge', 'band', 'capsule', 'hole', 'halfspace', 'all', 'neck', 'armhole'];
 
 /**
@@ -1531,7 +1551,9 @@ export function validateGarmentSpec(spec, label = 'garment') {
       if (piece.coverage !== undefined && (!Array.isArray(piece.coverage) || piece.coverage.some((c) => typeof c !== 'string'))) {
         errors.push(`${label}.pieces[${i}].coverage: must be an array of region/stack names`);
       }
+      if (fit === 'pattern') errors.push(...validatePatternPiece(piece, `${label}.pieces[${i}]`));
     });
+    errors.push(...validatePatternSpec(spec, label));
   }
   for (const [field, decls] of [['cuts', spec.cuts], ['panels', (spec.panels || []).map((p) => p?.region)]]) {
     if (spec[field] === undefined) continue;

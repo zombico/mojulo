@@ -1,0 +1,12 @@
+{
+  "id": "teeBook",
+  "pieces": [
+    {
+      "coverage": [
+        "torso"
+      ],
+      "fit": "hull",
+      "clearance": 0.3
+    }
+  ]
+}

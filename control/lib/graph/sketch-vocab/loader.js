@@ -44,6 +44,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { readBookCards } from '../views/recipe-book/cards.js';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/sketch-vocab');
@@ -130,6 +131,14 @@ function loadCatalog() {
       addCard(join(packVocab, file), join(entry.name, 'vocab', file));
     }
   }
+  // Attached recipe-book / cookbook WARDROBE cards (entry: 'create_figure' — a garment or an
+  // outfit, outfit.plan.md P5) join this catalog as `recipe`-tier cards so get_sketch_vocab and
+  // semantic_search recall them by their `when`. Book cards are tolerant (warn-and-skip) and
+  // CORE WINS on an id collision. They never enter the polygonizer's prompt (`source` set).
+  for (const card of readBookCards({ entries: ['create_figure'] })) {
+    if (cards.has(card.id)) { console.warn(`sketch-vocab: book card '${card.id}' collides with a core card — core wins`); continue; }
+    cards.set(card.id, { id: card.id, name: card.name, summary: card.summary, when: card.when, tier: 'recipe', marks: [], phase: 'p1', body: card.body, entry: card.entry, source: card.source, entryType: card.entryType, chapter: card.chapter, _file: `${card.source}:${card.chapter}/${card.id}` });
+  }
   return cards;
 }
 
@@ -177,7 +186,7 @@ export function getRenderPrimitiveCards(ids) {
   const catalog = getSketchVocabCatalog();
   if (ids === 'all') {
     return Array.from(catalog.values())
-      .filter((c) => POLYGONIZER_TIERS.has(c.tier))
+      .filter((c) => POLYGONIZER_TIERS.has(c.tier) && !c.source)   // core grammar only — book wardrobe cards are repertoire, not the polygonizer's
       .map(stripInternal);
   }
   if (!Array.isArray(ids)) {

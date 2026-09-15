@@ -1,0 +1,145 @@
+{
+  "id": "shiftDress",
+  "color": {
+    "cloth": "#b23a48"
+  },
+  "ease_cm": 1.5,
+  "pieces": [
+    {
+      "id": "front",
+      "fit": "pattern",
+      "sloper": "bodice-front",
+      "dials": {
+        "hem": "hip",
+        "ease_bust_cm": 6
+      }
+    },
+    {
+      "id": "back",
+      "fit": "pattern",
+      "sloper": "bodice-back",
+      "dials": {
+        "hem": "hip",
+        "ease_bust_cm": 6
+      }
+    },
+    {
+      "id": "sleeveL",
+      "fit": "pattern",
+      "sloper": "sleeve",
+      "dials": {
+        "length": "short",
+        "ease_cm": 4
+      },
+      "mirror": "sleeveR"
+    }
+  ],
+  "seams": [
+    {
+      "a": {
+        "piece": "front",
+        "edge": "shoulderR"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "shoulderL"
+      },
+      "over": true
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "shoulderL"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "shoulderR"
+      },
+      "over": true
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "sideR"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "sideL"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "sideL"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "sideR"
+      }
+    },
+    {
+      "a": {
+        "piece": "sleeveL",
+        "edge": "underarmR"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "underarmL"
+      }
+    },
+    {
+      "a": {
+        "piece": "sleeveR",
+        "edge": "underarmR"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "underarmL"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "armholeR"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "capFront"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "armholeL"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "capBack"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "armholeL"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "capFront"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "armholeR"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "capBack"
+      },
+      "ease_to": "a"
+    }
+  ]
+}

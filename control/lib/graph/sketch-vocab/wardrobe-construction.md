@@ -1,5 +1,5 @@
 ---
-{ "id": "wardrobe-construction", "name": "wardrobe construction — dressing a figure body (instrument × mugen score × tailoring)", "summary": "author an outfit on a create_figure / character-sheet body from a CLOSED vocabulary. TWO garment families: (1) TAILORED SHELLS — an offset shell over the body's own flesh: pick an INSTRUMENT (tee/tank/dress/jacket/trousers/…), set its MUGEN SCORE (clearance = slim↔baggy, the ONLY looseness dial), then TAILOR with svgile-row cuts (wedge/band/neck/armhole) + recolour panels + color{cloth,under}. (2) HANGING SHEETS — a cape/cloak/tabard/cowl as a wave-field (fit:'wave-drape'): an open sheet pinned to a body anchor (shoulders/waist/neck) that sags + folds. Both auto-track any proto/dimorph/fluff tuning — the same spec re-fits every body. Keys OR an inline { id, pieces, cuts, panels } spec; arrays LAYER (a cloak over a tee).", "when": "dress a character / figure body, design an outfit or wardrobe row, put clothes on a create_figure or character-sheet, make something 'oversized'/'cropped'/'open-front'/'baggy'/'fitted', add a cape / cloak / tabard / mantle / cowl / hanging drape, reconstruct a dreamed outfit as a garment spec, or layer garments (jacket over tank, cloak over tee). NOT textile prints (that is garment-pattern) and NOT the body itself (that is proto / figure-fluff).", "tier": "recipe", "marks": [], "phase": "p1" }
+{ "id": "wardrobe-construction", "name": "wardrobe construction — dressing a figure body (instrument × mugen score × tailoring)", "summary": "author an outfit on a create_figure / character-sheet body from a CLOSED vocabulary. THREE garment families: (1) TAILORED SHELLS — an offset shell over the body's own flesh: pick an INSTRUMENT (tee/tank/dress/jacket/trousers/…), set its MUGEN SCORE (clearance = slim↔baggy, the ONLY looseness dial), then TAILOR with svgile-row cuts (wedge/band/neck/armhole) + recolour panels + color{cloth,under}. (2) HANGING SHEETS — a cape/cloak/tabard/cowl as a wave-field (fit:'wave-drape'): an open sheet pinned to a body anchor (shoulders/waist/neck) that sags + folds. (3) CUT-AND-SEWN PATTERNS (fit:'pattern'): flat pieces in cm with named edges, placed on a body CHART by anchor and sewn by SEAMS — the tailor's construction, with girths, seam ease and a printable sheet. All auto-track any proto/dimorph/fluff tuning — the same spec re-fits every body. Keys OR an inline { id, pieces, cuts, panels } spec; arrays LAYER (a cloak over a tee).", "when": "dress a character / figure body, design an outfit or wardrobe row, put clothes on a create_figure or character-sheet, make something 'oversized'/'cropped'/'open-front'/'baggy'/'fitted', add a cape / cloak / tabard / mantle / cowl / hanging drape, reconstruct a dreamed outfit as a garment spec, or layer garments (jacket over tank, cloak over tee), draft a garment from pattern pieces / a sewing pattern / measurements (bust, waist, hip), sew seams between pieces, read a body's girths. NOT textile prints (that is garment-pattern) and NOT the body itself (that is proto / figure-fluff).", "tier": "recipe", "marks": [], "phase": "p1" }
 ---
 
 A wardrobe is authored in three layers, each a closed vocabulary an LLM can
@@ -163,3 +163,241 @@ instrument — grow the instrument table only when a character proves a piece th
 cuts+panels can't already tailor. For a DRAPE, that proof is mechanical: the
 `fitWaveDrape` gate either reaches the dreamed folds (and hands you the waves) or
 names the gap.
+
+## 6. Cut and sewn — `fit: 'pattern'` (pieces in cm, seams, girths)
+
+The third family is the tailor's own: a garment is FLAT PIECES in centimetres sewn together
+on the body. The body supplies a **chart** per region (`trunk`, `armL/R`, `legL/R`, `neck`):
+its posed rings as rows with arc-length tables, so a piece lands by arc length (no stretch
+along its own axes) and the seams close where a tailor would put them. Nothing is simulated —
+placement, stitching and hang are closed-form, like every other garment here.
+
+```jsonc
+{ "id": "shift", "color": { "cloth": "#b23a48" }, "stature_cm": 168, "ease_cm": 2,
+  "pieces": [
+    { "id": "front",   "fit": "pattern", "chart": "trunk",
+      "outline": [[-24, 0], [24, 0], [24, 40], [-24, 40]],            // cm, counter-clockwise, +x = wearer's right, +y up
+      "anchor": { "piece": [0, 40], "chart": { "u": "cf", "v": "collar" } } },
+    { "id": "back",    "fit": "pattern", "chart": "trunk", "outline": [[-24, 0], [24, 0], [24, 40], [-24, 40]],
+      "anchor": { "piece": [0, 40], "chart": { "u": "cb", "v": "collar" } } },
+    { "id": "sleeveL", "fit": "pattern", "chart": "armL", "outline": [[-18, 0], [18, 0], [18, 25], [-18, 25]],
+      "anchor": { "piece": [0, 25], "chart": { "u": "cf", "v": "shoulder" } }, "mirror": "sleeveR" } ],
+  "seams": [
+    { "a": { "piece": "front", "edge": "right" }, "b": { "piece": "back", "edge": "left" } },
+    { "a": { "piece": "front", "edge": "left" },  "b": { "piece": "back", "edge": "right" } } ] }
+```
+
+- **`outline`** — a closed polyline in cm. Every piece has four runs, `top` / `right` /
+  `bottom` / `left`, found at the outline's diagonal extremes (override with `corners:
+  [tl, tr, br, bl]` vertex indices on a shaped piece); name finer edges with
+  `edges: { shoulder: [i0, i1], armhole: [i1, i2] }` (outline vertex indices, in outline order).
+- **`chart` + `anchor`** — where the piece sits: `anchor.piece` is the cm point on the
+  piece that lands at `anchor.chart`, whose `u` is a girth fraction from centre-front
+  clockwise from above (`cf` 0 · `sideR` 0.25 · `cb` 0.5 · `sideL` 0.75) and whose `v` is a
+  landmark (`collar` / `bust` / `waist` / `hip` / `crotch` on the trunk; `shoulder` /
+  `elbow` / `wrist` on an arm; `thigh` / `knee` / `ankle` on a leg) or a 0–1 fraction from the top.
+- **`seams`** — pairs of `{ piece, edge }`. Each side is walked top → bottom by default
+  (`reverse: true` flips one); `ease_to: 'a' | 'b' | 'split'` says which side the other is
+  eased onto (the sleeve cap onto the armhole: `ease_to: 'a'` with the bodice as `a`).
+  A dart is a seam whose two edges belong to the same piece.
+- **`stature_cm`** (default 170) converts the figure to cm; **`ease_cm`** (default 1.5) is
+  the stand-off from the skin; **`stitch_cm`** (default 2) the mesh cell; `mirror: '<id>'`
+  clones a piece across the midline (chart and `u` swap L/R); `under: false` skips the
+  under-colour shells; `cloth` per piece recolours it.
+- **The hang rule.** Cloth wider than the body's girth cannot compress: it stands off by the
+  ratio. A SEWN piece on the trunk (a bodice, a skirt) then follows its own seams: its
+  circumference at a row is its own width there or the ring, whichever is larger, so a fitted
+  block suppresses its waist and a straight shift bags out because its width IS the bust's. On a
+  limb, and for a piece that crosses a join (trousers), cloth keeps hanging below its widest row
+  (`hang_sag`, cm of circumference per cm of drop, default 0.5). Cloth NARROWER than the girth is
+  not stretched silently: it reads as **strain** and as a **seam gap**.
+- **The readout** (`buildPatternGarment(body, spec).report`): the body's girths per chart
+  landmark in cm; per piece `rows × cols`, `area_cm2`, `strain { max, mean }` (placed
+  grid-edge length vs flat, the dart-need signal), `clipped`; per seam `len_a_cm`, `len_b_cm`,
+  `ease_cm` with the tailor's label (`flat` ≤ 0.5 · `eased` ≤ 3 · `gathered`), and `gap_cm`
+  (how far apart the two edges sat before the stitch closed them); `hang` per chart. All
+  advisory — nothing refuses.
+- **Girths without a garment:** `bodyGirths(body, { stature_cm })` reads bust / waist /
+  hip / neck / upperArm / wrist / thigh / ankle, nape-to-waist, arm length and inseam off
+  any figure. The natural waist is the smallest row between bust and hip and the hip the
+  fullest row between waist and crotch — the tailor's rules, not a bone's centre.
+
+### Slopers — blocks drafted from the body's own tape
+
+Instead of an `outline`, a piece can name a **`sloper`** (`bodice-front` · `bodice-back` ·
+`sleeve` · `skirt-front` · `skirt-back`) and `dials`; the block is drafted at BUILD time from
+the chart it sits on (a quarter of the bust plus the ease at the bust line, the shoulder tip at
+the crest's end — the acromion — with the crest's measured slope, the neck opening a quarter of
+the neck's base girth where it rises through the crest, the sleeve cap no taller than the room above the armscye), so the same
+recipe re-drafts on every body. Explicit fields (`outline`, `anchor`, `edges`,
+`corners`) override the block's. Named edges a block gives you: bodice `hem · sideR ·
+armholeR · shoulderR · neck · shoulderL · armholeL · sideL` (a split front: `hem · sideR · armholeR ·
+shoulderR · neck · cf`, mirrored); sleeve `hem · underarmR · capFront · capBack · underarmL`; skirt
+`hem · sideR · waist · sideL`. **Ease is the tailor's total.** Every `ease_*_cm` dial is the whole circumference the cloth has
+over the tape at that line — the number a pattern book prints (a shirt +10 at the chest, a jacket
++5 over the shirt, trousers +6 through the seat) — and never less than the ease ring the piece is
+placed on (`ease_cm`, the stand-off: 2π × 1.5 cm = 9.4 cm at the default). A jacket over a shirt
+is drafted on the padded form, so its ease is what it adds to the layers beneath: `ease_cm` 0.75
+and `ease_bust_cm` 5 make a suit jacket; the defaults make a loose shift. Dials: bodice `hem` (`waist | hip | crotch |
+knee | <cm>`), `ease_bust_cm` (6), `ease_waist_cm`, `ease_hip_cm`, `neck` (`crew | scoop | v |
+square | boat`, the front's neckline; the back keeps a shallow crew), `neck_drop_cm`,
+`neck_width_cm`, `shoulder_cm`, `shoulder_drop_cm` (the crest's own slope), `flare_cm`, `split`
+(`'cf'`: the front drafts as its right half with a `cf` edge and mirrors into `<id>L` — name the
+mirror yourself to be explicit — for a shirt, vest, jacket or coat) with `overlap_cm` (the button
+stand, each half past the centre line by half of it); sleeve `length` (`short | three-quarter | long |
+<cm>`), `ease_cm` (4, over the fullest upper arm at the underarm level; the sleeve tapers to the bicep
+below), `ease_wrist_cm` (6), `cap_height_cm`; skirt `length` (`mini | knee |
+midi | <cm>`), `ease_waist_cm` (2), `ease_hip_cm` (4), `flare_cm` (4).
+
+**The set-in sleeve.** The sleeve block puts its cap's apex on the SHOULDER POINT (the arm
+chart's outer side) so the underarm seam falls under the arm, and names the cap's two halves so
+each of a bodice's armhole edges takes a seam, the bodice as `a`: `front.armholeR ↔
+sleeveR.capFront`, `back.armholeL ↔ sleeveR.capBack` (and the mirror for `sleeveL`), `ease_to:
+'a'`. Without those four seams the sleeve sits on the arm as a tube and the shoulder reads as a
+shelf. Their `gap_cm` is a cross-chart residual (the cap on the arm, the armhole on the trunk)
+and reads larger than a side seam's before the stitch closes it.
+
+**A partial seam** runs over a `from`–`to` span of its edges (fractions of the walk, top →
+bottom): `{ a: { piece: 'front', edge: 'cf' }, b: { piece: 'frontL', edge: 'cf' }, from: 0.6 }`
+sews a jacket's front below the button only; a side seam with `to: 0.85` leaves a vent. The
+readout's lengths, ease and gap cover the span.
+
+A **shoulder seam** is an `over: true` seam: it lies OVER the body between its two edges. The
+trunk chart is closed over the top by a CAP — rows over the yoke up to the CREST, the line from
+the neck base to the acromion measured off the flesh, every row carrying the neck's base so cloth
+near the centre lands around the neck by arc — so both shoulder edges lie on that line,
+the stitched seam IS the crest, and cloth there rests a centimetre off the shoulder
+(`crest_rest_cm`, never more than the ease) instead of standing an ease out sideways. An `over`
+seam is never allowed through the flesh: whatever outline it is given, its stitched point is
+raised to the crest. Its `gap_cm` is the true residual (≈ 0 for a block).
+
+Pairing fact (deterministic, learned): a bodice whose hem reaches the hip **over** an
+`aLineSkirt` interleaves with the skirt's waistband at the hip — two pattern layers at the same
+stand-off, the same tear as `vest` + `tank`. Hem the bodice at the waist, or give the outer
+layer more `ease_cm`.
+
+Whole pattern garments are REPERTOIRE and live in the recipe book's `wardrobe` chapter (see §7),
+not in core: core carries the blocks (`bodice-front/back · sleeve · skirt-front/back ·
+trouser-front/back`), the book's `wardrobe` chapter carries the garments and outfits (dresses,
+skirts, trousers, shirts, suits…) as `garment.json` / `outfit.json` — dials over blocks, data only.
+
+**Trousers** are one piece on TWO charts: above the crotch a trouser block lies on the trunk (a
+quarter of the trunk from the centre line to the side, its `cf` / `cb` edge straight on the body's
+centre line where it is sewn to the other leg's piece), below the crotch on the leg (the front or
+back half of the leg's tube), joined at the crotch with a FORK (the jut that carries the cloth
+under the body, hip/16 in front and hip/8 behind). Any piece may declare `join: { chart, y,
+anchor? }`: below piece height `y` it continues on `chart`, anchored there at the matching height
+(or a named `v`), the two placements blended over `join.blend_cm` (8) so the piece crosses without a
+step. Edges: `hem · inseam · fork · cf|cb · waist · outseam`; seams `front.inseam ↔ back.inseam`,
+`front.outseam ↔ back.outseam`, `front.cf ↔ frontR.cf`, `back.cb ↔ backR.cb`. A MIRRORED piece keeps
+its edge names on the same physical edge, so the right leg's seams read exactly like the left's.
+Trouser dials: `length` (`ankle | knee | <cm>`), `ease_cm` (6), `ease_hem_cm` (16), `ease_waist_cm`
+(2), `fork_cm`.
+
+`create_figure` returns a **`pattern`** readout for a figure wearing one: the girths, every
+seam's ease and gap, every piece's strain — read it before you look at the render.
+
+The printable sheet is `GET /api/sketches/<ref>/pattern.svg` (`create_figure` returns it as
+`patternSvgUrl`): the pieces flat at true scale with seam allowance, grain, notches and cut counts,
+drafted on the STAND whatever pose the figure holds — the designer's rule: a pattern is drafted on
+the dress form and worn on the pose, so the sheet never changes because the figure moved, while the
+readout's strain and seam gaps are the posed body's. An outline authored in cm — from a drawing, a
+book, or a dream read as pieces — is the door that stays open beside the blocks.
+
+## 7. Outfits — the tiers, and the book's wardrobe
+
+`garment` is the LOWERED form (and the compatibility promise: a minted row keeps rendering
+byte-identical). `outfit` is the authoring form above it — a ladder where every rung is the rung
+below with fewer decisions made. Pass ONE of the two to `create_figure`:
+
+```jsonc
+"outfit": "shift-and-trousers"                       // tier 1: a named outfit from the attached book
+"outfit": { "fit": "relaxed",                        // tier 2: layers inner → outer, one global ease dial
+  "layers": [
+    "tee",                                            //   a garment NAME — a core shell, or a book garment
+    { "garment": "a-line-skirt", "dials": { "length": "midi" }, "cloth": "#2f4a6d" },   // tier 3: name + dials
+    { "id": "cape", "pieces": [ … ], "seams": [ … ] } //   tier 5: the craft tier, an inline spec
+  ] }
+```
+
+- **`fit`** — `slim | regular | relaxed`: the stand-off of every pattern layer (`ease_cm` 0.75 /
+  1.5 / 3) and a clearance scale on every shell (× 0.75 / 1 / 1.4). A layer's own `ease_cm` wins.
+- **`dials`** merge into every `sloper` piece of that garment; a key that names a piece (`back`,
+  `sleeveL`) scopes its object to that piece. Dials need a cut-and-sewn garment — on a shell they
+  are refused at the door. `cloth` recolours the layer.
+- **The layering rule.** Layers are worn inner → outer and an outer PATTERN layer is placed on the
+  inner layer's hang, not on the skin: every stack already worn (shells included) lifts the chart
+  rows it covers by its stand-off, and the hang rule runs over that. A bodice over a skirt no longer
+  interleaves; the readout's `under` per chart says how much the inner layers lifted it.
+- **The padded form.** An outer layer's blocks are DRAFTED on the stand wearing the layers beneath
+  — the layers' own circumference per chart row, the tape a tailor reads off the padded form — so
+  a jacket over a shirt closes at the side seam instead of reporting the shirt as a gap; its sheet
+  is drafted the same way. The readout's `drafted_on` per chart is the ratio each block drafted to
+  (1 = the skin) and `drafted_girths` the tape in cm. Placement lifts by the layers' envelope
+  (mean-smoothed, so its perimeter is the layers' own; a closed shell ring lifts the charts whose
+  axis it encloses, a sleeve the arm alone), and a final CLEARANCE pass pushes any vertex still
+  inside a layer beneath out to it (`cleared` in the readout). A tucked shirt is a shirt hemmed
+  at the `waist`: the layer over it starts where it ends; a hip-length shirt under trousers lifts
+  them and everything above balloons. A tie goes over the trousers' waistband, where its tip ends.
+- **The designer's rule.** A pattern is drafted on the STAND and worn on the pose: the sheet never
+  changes because the figure moved; strain and seam gaps are the posed body's.
+
+**The book's wardrobe.** Named garments and outfits are repertoire and live in the recipe book (or
+the operator's cookbook) as data-only entries — `chapters/wardrobe/<id>/card.md` + `garment.json`
+(a wardrobe spec) or `outfit.json` (`{ fit?, layers }`), rows `{ type: "garment" | "outfit",
+chapter, dir, id }` in `manifest.json`. A book name is resolved BY VALUE at mint and stamped
+`from: "book:<id>"` in the stored recipe, so the recipe never depends on the book again and book
+drift never changes a minted figure; core names stay names. A core wardrobe key wins over a book
+garment of the same id. Their cards join this catalog by their `when`, so an ask like "dress her
+head to toe" recalls the outfit. Draft once in centimetres, `save_recipe` it to the cookbook, and
+from then on "put my red shift on this figure" is a name.
+
+`create_figure` answers with `patternSvgUrl` (the sheet) and the `pattern` readout whenever a
+pattern layer is worn.
+
+## 8. Footwear — the foot is a chart too
+
+`footL` / `footR` join the trunk, arms, legs and neck as charts a pattern piece can sit on. They
+are **tube charts laid across gravity**, so read them differently from a limb:
+
+- **`v` runs HEEL (0) to TOE (1)** — the foot's length, not a drop.
+- **`u` = 0 is the INSTEP** (the top of the foot) and **`u` = 0.5 is the SOLE**. `cf`/`cb` still
+  resolve, but on a foot they mean instep and sole, so prefer the numbers.
+- Landmarks are read off the tape the way the trunk's waist is: `heel`, `instep` (the fullest row
+  behind the middle — the dome under the ankle, about v 0.29), `arch` (the narrowest row between,
+  about 0.45), `ball` (the fullest ahead — about 0.59), `toe`.
+- **The end rows are the tube's closing caps** — around 8 cm of girth at the heel and 1 cm at the
+  toe tip, against 24 cm at the ball. A piece wider than the ring it sits on smears. Every
+  footwear block lives between roughly v 0.13 and 0.92; an outline piece should too.
+- **Nothing hangs along a level chart.** The hang rule's suspension is switched off there, so a
+  piece follows its own width and its seams — a shoe is lasted, not hung. For the same reason a
+  level chart is not lifted by the layers beneath it and not cleared against them: draft footwear
+  on the skin.
+- The tailor's tape gains `ball`, `instep` and `foot_length`, and a block drafting on a level
+  chart is handed `width`, `depth` and `sections` (every row, with its girth, breadth and
+  along-distance) — a girth alone cannot say how broad a foot is.
+
+**Blocks.** `shoe-sole` (a footprint; its `ease_cm` IS the sole's thickness and is what holds the
+foot off the ground — `dials: thickness_cm, margin_cm, from, to`), `shoe-upper` (one wrap anchored
+on the SOLE line: ahead of its `throat` the half-width is half the ring so the two sides meet over
+the instep and the shoe closes, behind it they fall to the sole's breadth plus `collar_cm` — the
+quarters), and `boot-shaft` (`dials: height` = `ankle` | `mid-calf` | `knee` or centimetres; it
+rides the LEG chart, so it layers over a trouser hem instead of fighting it).
+
+**The `throat` is the shoe.** Lower means the vamp closes further back, so more of the foot is
+covered: a loafer 0.36, an oxford 0.42, a sneaker 0.44, a boot 0.40 with a tall collar. Above
+about 0.5 only the toe box closes and the midfoot reads bare.
+
+### Footwear facts (deterministic, learned)
+
+- **A shoe wants the under-shell; a sandal does not.** Leave `under` alone for a shoe — cloth
+  sitting a small ease off flesh is lost in bands by the painter's depth sort, and the coverage
+  rule is what fills it. Set `under: false` only when seeing the foot IS the point (a sandal).
+- **Sandals and boot shafts need no block.** They are outline pieces: a footbed at `u` 0.5 with
+  its `ease_cm` as the sole's thickness, straps as rectangles at `u` 0 anchored to `ball` and
+  `instep`, an ankle band on the leg chart at `ankle`.
+- **A sole's strain rises with its thickness** and cannot be tuned away: a piece here maps a
+  centimetre of flat arc onto a centimetre of SKIN arc and then pushes it out, so a section of
+  radius r offset by e stretches by (r + e) / r. Keep soles near 1.2–1.7 cm, which is what a real
+  sole is. The same arithmetic is why there is no heel block — a heel is an ease of 3–5 cm on the
+  foot's smallest rings, and it smears rather than lifts.

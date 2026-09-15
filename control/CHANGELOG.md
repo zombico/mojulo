@@ -12,33 +12,6 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
-### sculpt-brief — brief the external sculptor properly, and measure what it hands back
-
-- **Planned: the mesh handoff's brief becomes named views instead of a contact sheet.** The packet
-  hands an image-conditioned generator `reference_urls.turntable` — which is the gallery card's
-  strip: sixteen 256×192 cells glued into one ~4096×192 PNG for CSS `steps(16)`. No generator gets
-  a usable view of the object from that. A brief plate bakes the named shots
-  (`front` / `three-quarter` / `side` / `back` / `top`, `facing`-corrected) individually at
-  generator resolution, over the printable set only, so the studio's measuring grid and floor plate
-  stop being traced into the sculpt.
-- **Planned: a part becomes its own sketch, so one part can be sculpted.** Hero detail belongs to
-  one part; today the handoff is whole-object, so getting a detailed helmet resculpts the whole
-  figure and throws away every deterministic part. `extract_part` splits at the RECIPE level — the
-  named monomers copied into a new workbench sketch, nothing baked — and the host places the result
-  back through the `figures.<name>.meshRef` entry that already exists. No new placement machinery.
-- **Planned: the return is trimmed to a budget, and the trim is measured.** `budget.triangles_max`
-  is a constant in the packet that the submit path gates nothing against, so a 400k-triangle return
-  binds silently. The budget comes from the kind and print profile; `simplify: true` on the submit
-  trims through Manifold's `simplify(tolerance)` with a measured maximum deviation, and the sidecar
-  records what it was trimmed from. Advisory, opt-in, and it degrades to a stated skip when
-  `manifold-3d` is absent or the return is not manifold.
-- **Planned: the vendor knowledge goes on the catalyst shelf, not into core.** A
-  `sculpt-object-externally` catalyst (the mesh sibling of `render-image-outcome-locally`) carries
-  the capability ladder and the per-generator notes; `mesh-fit.js`'s up-axis switch becomes a named
-  return-profile table. Mojulo still calls no generator and holds no key: `accept_mesh_render`
-  requires a different `source` than the submit, so a mojulo that invoked the generator would be
-  the submitter with nobody left to be the eyes gate.
-
 ### combo-hitstun — hitstun, juggle state and damage scaling, composed in the recipe
 
 - **Added: `combo` on a controllable world** (`true` or `{ hitstun, juggle, scaling, reset }`,
@@ -107,6 +80,242 @@ loops and the recipe format are unchanged.
 - **Engine packs.** score.json carries the widget list as `hud` with a `hud_declared` ledger row;
   the Godot / Unity / Unreal kernels still paint their own default readout from `mechanics`. The
   piloted-world match HUD is not yet in the vocabulary. Both are recorded stopping points.
+
+### workbench: named groups, a hinge mover, and a bare studio
+
+- A monomer `group` (lathe / extrude / sweep / loft / drape / relief) tags its faces with a render group, so
+  the World meshes it on its own and a channel can move it. Absent `group` → byte-identical faces.
+- A workbench manifest's `movers` ride the World payload; the mover channel's `turn` mode gains
+  `absolute: true`, which pivots a group about `center` while its geometry keeps world coordinates
+  (`position = center − R·center`), so a hinged lid stays closed in the recipe, the still and every export
+  and swings only in the live World.
+- A `turn` mover can be a composable TOGGLE: `states` lists its resting angles (two by default, closed / open,
+  any count), a click on the part or its `key` steps to the next (shift+key back, `window.__mojToggle`
+  from script), `transition` eases the swing. State 0 holds until an input arrives, so captures stay
+  deterministic. A `slide` mover is the translating twin (states are distances along `axis`), and `parent`
+  lets a group ride another group's mesh, so a clasp slides along a door that is itself swinging. The channel script text changes, so the emit-channels pins for the fixtures that emit
+  the mover channel re-pin: movers, planets, kitchen-sink, kitchen-sink-capture.
+- `grid: false` on a workbench manifest drops the measured floor + grid (a bare product shot).
+
+### reliefs keep their caps in the World
+
+- `faceListToMesh` (the World / GLB packer) bakes a 3-corner face as one triangle instead of skipping it.
+  Relief caps are ear-clipped triangles, so every embossed wordmark, label and glyph rendered as bevel
+  walls around a hole in the World and in `.glb` exports; the STL path was unaffected. Quads, textured
+  and clip-mapped faces keep their four-corner contract byte for byte.
+
+### footwear — shoes, boots and sandals, and the figure that stands on them
+
+- **Fixed: the figure stands flat.** A figure that says nothing about its feet is standing, and a
+  standing sole is on the floor. Before this the sole-flattening weight fell back to zero, the foot
+  was built perpendicular to the shank, and the rest shank tilts 11° back — so every standing
+  figure balanced on its toe tip with the heel about 3.8 cm in the air (sole pitch 11.3°, one of
+  seven sole stations touching the ground). Bare that read as a slight point; under a shoe's sole
+  it would read as a ski. A pose that wants a pointed foot still says so, and the walk and the
+  sprint — which set their feet explicitly — are byte-identical. Re-pins the three figure
+  absent-channel hashes and the two world kinds that place figures (`subway-building`,
+  `subway-station`); nothing else in the suite moves.
+- **Added: the foot is a body chart.** `footL` / `footR` join the trunk, arms, legs and neck as
+  charts a pattern piece can sit on — a tube laid across gravity, its rows running heel to toe,
+  its `u` = 0 the instep and `u` = 0.5 the sole. Its landmarks are read off the tape the way the
+  trunk's waist is: the instep is the fullest row behind the middle, the ball the fullest ahead of
+  it, the arch the narrowest row between them. The tailor's tape gains `ball`, `instep` and
+  `foot_length`. Every existing garment's readout is unchanged.
+- **Changed: the big toe leads, and the feet are a pair.** The forefoot was a symmetric spearhead
+  tapering to a point on the midline — the same shape on both feet, with no handedness at all.
+  The hallux now leads: the toe line slants back from the big toe to the little one, the foot's
+  point sits on its inner edge, and the two feet are exact mirrors, so a shoe last has a side to
+  be drafted for.
+- **Changed: the toe box is rounded.** The forefoot past 86 % of the foot used to be a single
+  tapering cap — 8 % as wide as the ball and 0.7 cm deep near the tip, a knife edge that a medial
+  point only sharpened. It now rolls: the box holds about two-thirds of the ball's width and
+  2.7 cm of depth almost to the end, closed by a small tip ring. (A ring stack is an open tube —
+  the renderer caps neither end — so the foot has always had a hole at the toe; the blunter box
+  would have shown it, and the tip ring shuts it.)
+- **Changed: the foot is in proportion.** It was 18 % of the figure's height — a EU 47 on a
+  170 cm body, and the size a pattern sheet would have printed a sole at. It is now about 15 %,
+  the human ratio, with length, breadth and depth scaled together so the shape is unchanged: 26 cm
+  long and 10 cm broad on a 170 cm figure, holding at every stature and on both poles. `footLength`
+  still means what it did, an extra multiplier on forward reach.
+- **Added: a chart that lies across gravity carries no suspension.** The hang rule gives cloth the
+  circumference of the widest row above it, tapering as it falls — but "down" a foot chart means
+  "toward the toe", where a shoe would have flared to the heel's width. A foot chart is now marked
+  level: cloth on it follows its own width and its seams, the way a shoe is lasted rather than
+  hung. Every existing garment is unchanged.
+- **Added: sandals and boot shafts need no new block.** With the foot chart and the level rule in
+  place, a sandal (a footbed between the foot's two end rows, straps over the instep, a band at the
+  ankle) and a boot shaft are ordinary outline pieces — the same move the book's tie makes on the
+  trunk. They mirror per foot, lay out on the printable sheet, and a shod figure stands on its
+  soles: the sole holds the foot off the ground on its own, with no ground-plane special case.
+- **Added: shoe blocks, and shoes.** Three new blocks — `shoe-sole` (a footprint under the foot),
+  `shoe-upper` (one wrap anchored on the sole line, closing over the instep ahead of its `throat`
+  and falling to a collar behind it) and `boot-shaft` (the leg above the ankle, drafted to the
+  leg's own girth at the calf, so it layers over a trouser hem instead of fighting it). Where the
+  throat sits is the whole difference between a loafer, an oxford, a sneaker and a boot. The
+  recipe book's wardrobe chapter gains six: `sneaker`, `loafer`, `oxford`, `ankle-boot`,
+  `knee-boot` and `sandal`.
+- **Added: a level chart measures its breadth.** A girth cannot say how broad a foot is — the
+  instep is 25 cm around and 8 broad, the ball 24 and 10, because one is deep and the other flat.
+  A shoe block is handed each of the chart's own rows with its breadth, depth and distance along,
+  so a sole drafts to the rings that exist rather than to the foot's silhouette.
+- **Added: the book's outfits are shod.** All eight named outfits gain a footwear layer, outermost,
+  so a boot's shaft lands on the trouser's hang rather than under it.
+- **Fixed: a level chart is not padded or cleared by the layers beneath it.** Two passes that read
+  a stand-off as a radius about a vertical axis were mauling footwear worn over trousers — a
+  trouser hem near the ankle counted as enclosing the foot and lifted the whole foot by more than
+  twice, and the clearance pass shoved a hundred and seventy-five foot vertices. Footwear now
+  drafts on the skin, as the hang rule already had it. Nothing else changes.
+- **Not built: the heel.** A heel has to stand off further than the sole under it, and the only
+  lever is the piece's own ease — which stretches a flat pattern by (r + e) / r around a section of
+  radius r. On the foot's smallest rings that is a smear, not a lift, and it looked like one. It
+  needs the sole placed in the ground plane instead of on the chart's radial. A shoe's lift today
+  is its sole's own thickness.
+
+### wardrobe-variety — the dials a pattern book lists, so the wardrobe chapter can grow without core
+
+- **Added: draft on the padded form.** A block worn over other layers drafts to the layers' own
+  girth per chart row (a shell ring's perimeter, a pattern garment's placed widths), the way a
+  tailor pads the form, so a jacket over a shirt closes at the side seam instead of reporting the
+  shirt as a gap; the sheet drafts the same way. The placement lift is pinned to that tape per row
+  (direction kept, magnitude no more than the layer's circumference), which retires the bell-shaped
+  hem every layered garment had. The readout says what each chart was drafted on and to.
+- **Added: the sleeve cap is sewn to the armhole.** The sleeve block puts its cap's apex on the
+  shoulder point and names the cap's front and back halves, so a bodice's two armhole edges each
+  take a seam; the square shelf at the shoulder goes with it.
+- **Added: the open front and partial seams.** `split: 'cf'` drafts a bodice front as two
+  mirrored halves with an `overlap_cm` button stand and a `cf` edge; a seam may run over a
+  `from`–`to` span of its edges (a vent, a jacket sewn only below the button). Shirts, vests,
+  jackets and suits follow as book entries.
+- **Added: necklines.** `neck` on the bodice: crew, scoop, v, square, boat.
+- **Changed: ease is the tailor's total.** A block's `ease_*_cm` dial is now the whole
+  circumference the cloth has over the tape at that line, never less than the stand-off ring;
+  before, it was doubled and added on top of the ring, and a suit jacket over a shirt measured
+  186 cm around a 102 cm chest. The sleeve is cut to the fullest upper arm at the underarm and
+  tapers to a new `bicep` landmark below it.
+- **Changed: a sewn piece follows its seams.** On the trunk, a bodice or a skirt hangs at its own
+  width per row (or the ring), so a fitted block suppresses its waist; the suspension that carried
+  the widest row down stays on the limbs and across a join.
+- **Changed: the layering read is honest.** A closed shell ring lifts the charts whose axis it
+  encloses (a sleeve the arm alone), the envelope is mean-smoothed so its perimeter is the layers'
+  own, the padded form's tape is a horizontal slice of the placed cloth, and a final clearance pass
+  pushes any vertex still inside a layer beneath out of it (`cleared` in the readout).
+- **Fixed: the trouser hem reads its own height.** Knee-length trousers draft their hem to the
+  knee's girth, not the ankle's.
+- **Planned:** dress lengths (`midi` / `ankle` / `floor`), `taper` and `cuff_cm`, a `band`
+  block, the gathered skirt, darts as sugar, and a `save_recipe` figure lane.
+
+### outfit — apparel in the tailor's terms, translated downward to a named outfit on a turntable
+
+- **The designer's rule.** A pattern garment is drafted on the STAND and worn on the pose: slopers
+  read the stand body's charts, so the printable sheet is pose-invariant, while placement and
+  seams run on the posed charts and the residual per pose is reported, not fought. Two pattern
+  garments on one figure lay out as one SVG document; `create_figure` returns `patternSvgUrl`.
+- **Added: the layering rule.** An outer pattern layer is placed on the inner layer's hang, not
+  on the skin: every worn stack before it (shells included) lifts the chart rows it covers by its
+  stand-off ratio, and the hang rule runs over that. A bodice over a skirt no longer interleaves
+  at the hip.
+- **Added: joined pieces and the trouser blocks.** A pattern piece may `join` a second chart below
+  a piece height, its two placements blended across the join; `trouser-front` / `trouser-back`
+  draft one leg on the trunk above the crotch and the leg below it, with a fork, a straight centre
+  line sewn to the other leg, and a hem that clears the ankle. Cloth below its widest row hangs
+  straight down from it (a skirt no longer dives between the thighs where the trunk's rows shrink),
+  a leg chart is capped above its thigh (cloth cannot enter the pelvis), the trunk hull is never
+  inside the raw flesh envelope, and a cut-and-sewn sheet gets a depth tie-break against the flesh
+  it sits an ease off. Existing charts and shells are untouched.
+- **Added: `outfit`.** A figure may be dressed by `outfit` instead of `garment`: a named outfit,
+  or `{ fit: slim|regular|relaxed, layers: [...] }` inner → outer, where a layer is a garment
+  name, `{ garment, dials, cloth }`, or an inline spec. Core lowers it to the `garment` array at
+  render (pure, core tables only); `garment` is unchanged and remains the lowered form.
+- **Added: the book's wardrobe lane.** Recipe-book (and cookbook) entries of type `garment` /
+  `outfit` — data only — are readable by name from `create_figure`; a book name is resolved by
+  value at mint and stamped `from: 'book:<id>'`, so book drift never changes a minted figure.
+  Their cards join the sketch-vocab catalog. Named pattern garments leave core for the book:
+  `PATTERN_GARMENTS` is gone; `shift-dress`, `a-line-skirt`, `trousers` and the outfit
+  `shift-and-trousers` ship as fixture-book entries in the publishable format.
+- **Fixed (pattern placement, pre-release).** Cloth centimetres now map onto the ease ring
+  (girth + 2π·ease) instead of the skin's arc, so a piece as wide as the ring closes on itself
+  instead of wrapping past; blocks draft to the ring. A hull chart's axis is vertical (the band
+  centroids drift sideways and had been tilting the ease direction at the bust). Tube-chart
+  landmarks are arc fractions, as every reader assumed. The sleeve's arm-length override no
+  longer leaks into other blocks.
+- **Added: the shoulder line.** The trunk chart gains a CAP: rows over the top of the yoke that
+  close to the crest, the line from the neck base to the acromion measured off the flesh, so a
+  bodice's shoulder seam is stitched ON the shoulder and cloth there rests a centimetre off it
+  instead of standing an ease out sideways. The bodice block reads its shoulder width and slope
+  from that crest and its neck opening from the neck's base, and an `over` seam can no longer
+  pass through the yoke whatever outline it is given. Before this every bodice began below the
+  shoulder with a ragged yoke and a boat neck. Every other chart is untouched. Two readings
+  corrected on the way: trunk landmarks are along-arc fractions (they were height fractions read
+  against an arc table, so every landmark sat a little off its row), and the hip is the fullest
+  row between the waist and the crotch — the tailor's tape, not the glute's centre. The layering
+  read now uses the radius ratio to choose the CHART a worn vertex lifts and lifts every row of
+  that chart the vertex is level with; choosing the row by ratio handed a skirt's seat to the
+  wider belly row above it and left the hip row bare at the front.
+- **Absent, byte-identical.** Three pre-branch render hashes are pinned
+  (`figure-absent.char.test.js`): a figure without a pattern garment or an `outfit` renders
+  exactly as on 2.0.2.
+
+### pattern-garment — a garment cut and sewn from flat pieces, on the existing garment dial
+
+- **Added: `fit: 'pattern'` garment pieces.** A wardrobe piece can now be a flat pattern piece in
+  centimetres — an outline, named edges, a body chart to sit on, and an anchor — instead of an
+  offset shell. The body supplies a CHART (`body-chart.js`): every named region's posed rings as
+  rows with arc-length tables, so a piece lands on the body by arc length (no stretch along its
+  own axes) and stands off by `ease_cm`. Pieces mesh as a Coons patch over their outline and emit
+  as the open two-sided sheets the renderer already draws; nothing in the mesher changed.
+- **Added: seams.** `seams: [{ a:{piece,edge}, b:{piece,edge} }]` pull two placed edges together
+  in closed form (average, or eased onto one side) and report each seam's flat lengths and
+  `ease_cm` with the tailor's label (`flat | eased | gathered`). No solver: quadrature, not
+  relaxation, as everywhere else in the tree.
+- **Added: girths.** `bodyGirths(body, { stature_cm })` reads bust / waist / hip / thigh /
+  upper-arm circumferences in cm off any figure — the first measured girth in the substrate, a
+  perimeter sum over rings that already exist.
+- **Added: slopers.** A piece may name a block instead of an outline — `bodice-front`,
+  `bodice-back`, `sleeve`, `skirt-front`, `skirt-back` (`pattern-slopers.js`) — drafted at build
+  time from the chart's own girths and drops, so one recipe re-drafts on every body. Two whole
+  garments ride as dials over blocks (`PATTERN_GARMENTS.shiftDress`, `.aLineSkirt`). A shoulder
+  seam is an `over: true` seam stitched across the top of the yoke, the one place a cylindrical
+  chart has no row. `create_figure` answers with a `pattern` readout (girths, per-seam ease and
+  gap, per-piece strain, warnings) whenever the figure wears one.
+- **Added: the sheet.** `GET /api/sketches/<ref>/pattern.svg` lays the figure's pattern pieces
+  flat at true scale (1 cm = 1 cm at 100 %, `?page=<cm>` for the page width): outline, seam
+  allowance, grain line, notches at every seam end, cut counts (a mirrored piece is drawn once),
+  a datum grid and a scale bar. The same rows the body wears, as the 2D face of the recipe
+  (`pattern-sheet.js`); a mirrored page is not a second recipe.
+- **The hang rule.** Cloth wider than the body cannot compress: it stands off by the ratio and
+  keeps hanging below its widest row with a slow taper (the suspension `hullStacks` already
+  uses), and below a chart's last row it hangs straight on — a knee-length skirt past the crotch
+  row. Cloth narrower than the body is never stretched silently: it reads as strain and as a
+  seam gap.
+- **Absent, byte-identical.** A figure without a `pattern` piece renders exactly as before; the
+  fit list grows by one entry at the end.
+
+### sculpt-brief — brief the external sculptor properly, and measure what it hands back
+
+- **Planned: the mesh handoff's brief becomes named views instead of a contact sheet.** The packet
+  hands an image-conditioned generator `reference_urls.turntable` — which is the gallery card's
+  strip: sixteen 256×192 cells glued into one ~4096×192 PNG for CSS `steps(16)`. No generator gets
+  a usable view of the object from that. A brief plate bakes the named shots
+  (`front` / `three-quarter` / `side` / `back` / `top`, `facing`-corrected) individually at
+  generator resolution, over the printable set only, so the studio's measuring grid and floor plate
+  stop being traced into the sculpt.
+- **Planned: a part becomes its own sketch, so one part can be sculpted.** Hero detail belongs to
+  one part; today the handoff is whole-object, so getting a detailed helmet resculpts the whole
+  figure and throws away every deterministic part. `extract_part` splits at the RECIPE level — the
+  named monomers copied into a new workbench sketch, nothing baked — and the host places the result
+  back through the `figures.<name>.meshRef` entry that already exists. No new placement machinery.
+- **Planned: the return is trimmed to a budget, and the trim is measured.** `budget.triangles_max`
+  is a constant in the packet that the submit path gates nothing against, so a 400k-triangle return
+  binds silently. The budget comes from the kind and print profile; `simplify: true` on the submit
+  trims through Manifold's `simplify(tolerance)` with a measured maximum deviation, and the sidecar
+  records what it was trimmed from. Advisory, opt-in, and it degrades to a stated skip when
+  `manifold-3d` is absent or the return is not manifold.
+- **Planned: the vendor knowledge goes on the catalyst shelf, not into core.** A
+  `sculpt-object-externally` catalyst (the mesh sibling of `render-image-outcome-locally`) carries
+  the capability ladder and the per-generator notes; `mesh-fit.js`'s up-axis switch becomes a named
+  return-profile table. Mojulo still calls no generator and holds no key: `accept_mesh_render`
+  requires a different `source` than the submit, so a mojulo that invoked the generator would be
+  the submitter with nobody left to be the eyes gate.
 
 ## [2.0.2] - 2026-09-11
 

@@ -1,0 +1,49 @@
+{
+  "id": "aLineSkirt",
+  "color": {
+    "cloth": "#2f4a6d"
+  },
+  "ease_cm": 1.5,
+  "pieces": [
+    {
+      "id": "front",
+      "fit": "pattern",
+      "sloper": "skirt-front",
+      "dials": {
+        "length": "knee",
+        "flare_cm": 6
+      }
+    },
+    {
+      "id": "back",
+      "fit": "pattern",
+      "sloper": "skirt-back",
+      "dials": {
+        "length": "knee",
+        "flare_cm": 6
+      }
+    }
+  ],
+  "seams": [
+    {
+      "a": {
+        "piece": "front",
+        "edge": "sideR"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "sideL"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "sideL"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "sideR"
+      }
+    }
+  ]
+}
