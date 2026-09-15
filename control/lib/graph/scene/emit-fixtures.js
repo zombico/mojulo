@@ -164,6 +164,13 @@ export const EMIT_FIXTURES = [
     style: { accent: '#5fe6d6', font: 'mono' } } }],
 
   ['controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA }],
+  // target lock (target-lock.plan.md): the opt-in lock block (input edge + bracket) over a piloted
+  // suit facing a hittable foe, the follow camera tracking the pair. Every other controllable
+  // fixture omits `lock` ⇒ no bracket bytes (the opt-in pin; the engine source is shared).
+  ['controllable-lock', { faces: [floor()], camera: { rule: 'follow', target: 'me', lockTrack: true }, lock: { range: 80, cone: 45 }, entities: [
+    { id: 'me', pilotable: true, ambient: { type: 'clock' }, rule: { type: 'platform', turnMode: 'look' }, transform: { pos: [0, 0, 0], heading: 0 }, body: { type: 'figure-rig', hittable: true, radius: 1, hp: 100 } },
+    { id: 'foe', rule: { type: 'static' }, transform: { pos: [12, 2, 0] }, body: { type: 'figure-rig', hittable: true, radius: 1, hp: 100 } },
+  ] }],
   // suit contact shadows: the opt-in blob-decal block interpolated into the controllable channel.
   // Every other controllable fixture omits `shadows` ⇒ their bytes are untouched (the opt-in pin).
   ['controllable-shadows', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: true }],

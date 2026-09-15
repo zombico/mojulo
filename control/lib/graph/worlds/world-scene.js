@@ -375,6 +375,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // match (mobile-suit-arena.plan.md M1): the scored-bout layer — kills credited, respawns, first
     // to killTarget wins (scoreboard + result HUD in the emitted runtime). Opt-in; absent ⇒ byte-identical.
     if (sketch.manifest.match && typeof sketch.manifest.match === 'object') payload.match = sketch.manifest.match;
+    // target lock (target-lock.plan.md): `lock: true | { range, cone, release, aimRate, los, pitch }`
+    // — the pilot locks onto a hittable and is steered to face it; `camera.lockTrack` frames the
+    // pair. Opt-in; absent ⇒ byte-identical.
+    if (sketch.manifest.lock === true || (sketch.manifest.lock && typeof sketch.manifest.lock === 'object')) payload.lock = sketch.manifest.lock;
     // projectile smoke: pooled billow-sprite puffs on the bazooka/grenade fire trail + a seeded
     // rolling cloud at each detonation, read off the engine's projectiles/bursts records. `true`
     // or a tuning object { max, spacing, alpha, burstCount, trailTint, burstTint }. Opt-in;

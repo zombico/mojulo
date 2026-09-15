@@ -39,6 +39,23 @@ loops and the recipe format are unchanged.
   requires a different `source` than the submit, so a mojulo that invoked the generator would be
   the submitter with nobody left to be the eyes gate.
 
+### target-lock — a lock-on that turns the pilot toward its target, and a camera that can follow the lock
+
+- **Added: target lock.** A controllable world may declare `lock: true | { range, cone, release,
+  aimRate, los, pitch }`. On the press (C / middle mouse / pad R3) the piloted entity locks onto the
+  hittable nearest its aim axis — never self, an ally, or a vanished wreck; within range and the
+  cone; line of sight unless `los:false` — and is eased to face it (heading on the shortest arc,
+  pitch too). Pressed again it cycles to the next candidate by angle, or releases when none is
+  left; a dead / vanished / out-of-range target, a downed pilot or a pilot swap release it. Mouse
+  look stands down while locked, so strafing orbits. Positions only, no dice: replay-safe.
+- **Added: the camera follows the lock.** `camera.lockTrack: true | { mix, dist, rate }` on a
+  follow camera eases the look point toward the target and pulls the chase back so the pair stays
+  framed; it eases back out when the lock drops. Off, the chase arithmetic is unchanged.
+- **Emitter.** A diamond bracket with a LOCK caption projects over the target; bracket and input
+  listeners are emitted only with `lock`. The engine source is one toString for every controllable
+  world, so every controllable fixture hash moves; re-pinned, plus the new `controllable-lock`
+  fixture. `create_controllable_world` accepts `lock`.
+
 ### game-ui-primitives — the screen composes like the world does
 
 - **Added: HUD widgets.** A row of a world's `events.hud` is now a widget in one of seven slots

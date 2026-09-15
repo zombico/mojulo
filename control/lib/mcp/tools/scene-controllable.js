@@ -26,7 +26,7 @@ import { validateLevelContract } from '@/lib/graph/game/level-contract';
 // match-mode builders author it and an operator may hand-place one beside their pilotable bodies.
 const KNOWN_RULES = new Set(['glide', 'walk', 'platform', 'drive', 'fly', 'follow', 'clock', 'static', 'ai']);
 
-export function mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef, match, ref, folderRef } = {}) {
+export function mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef, match, lock, ref, folderRef } = {}) {
   if (match == null && (!Array.isArray(entities) || entities.length === 0)) {
     throw new Error('create_controllable_world requires a non-empty `entities` array (or a `match` channel, which authors the seats)');
   }
@@ -73,6 +73,9 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
       ...(mapManifest ? { mapRef } : {}),
       entities,
       ...(camera && typeof camera === 'object' && camera.rule ? { camera } : {}),
+      // target lock (target-lock.plan.md): `lock: true | { range, cone, release, aimRate, los, pitch }`;
+      // pair with `camera.lockTrack` so the follow camera frames pilot + target.
+      ...(lock === true || (lock && typeof lock === 'object' && !Array.isArray(lock)) ? { lock } : {}),
       ...(figures && typeof figures === 'object' ? { figures } : {}),
       ...(Array.isArray(faces) && faces.length ? { faces } : {}),
       // custom face-texture atlas ({ key: dataURL }) that pairs with faces carrying `texture:'<key>'` + `uv`.
@@ -142,6 +145,6 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
 
 export async function createControllableWorldHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_controllable_world requires a recipe object');
-  const { title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef, map_ref, match, ref, folder_ref: folderRef } = input;
-  return mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef: mapRef ?? map_ref, match, ref, folderRef });
+  const { title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef, map_ref, match, lock, ref, folder_ref: folderRef } = input;
+  return mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef: mapRef ?? map_ref, match, lock, ref, folderRef });
 }

@@ -94,7 +94,23 @@ export function buildRulesBasic(E) {
     }
     const tgt = world.byId[r.target];
     if (!tgt) return;
-    const dist = r.dist ?? 6, height = r.height ?? 3, shoulder = r.shoulder ?? 0, lead = r.lead ?? 4, lookH = r.lookH ?? 1.5, lerp = r.lerp ?? 8;
+    // TARGET LOCK tracking (lock.js, opt-in `lockTrack: true | { mix, dist, rate }`): while the
+    // followed pilot holds a lock, `lockMix` eases 0→1 at `rate`/s; the chase distance scales by
+    // `1 + (dist − 1)·lockMix` (pull back, default ×1.2) and the look point blends `mix·lockMix`
+    // (default 0.5) toward the target, so the frame holds both. Off (or unlocked) ⇒ lockMix 0 and
+    // every number below is the plain chase — worlds without lockTrack never touch this branch.
+    let lkTgt = null, lkMix = 0;
+    if (r.lockTrack) {
+      const lk = world.lock, lo = r.lockTrack === true ? {} : r.lockTrack;
+      const on = lk && lk.target && lk.pilot === r.target && world.byId[lk.target] ? world.byId[lk.target] : null;
+      if (e.lockMix == null) e.lockMix = 0;
+      e.lockMix += ((on ? 1 : 0) - e.lockMix) * smooth(lo.rate ?? 4, dt);
+      if (on) e.lockTgt = on.id;
+      lkTgt = e.lockMix > 1e-3 ? world.byId[e.lockTgt] : null;
+      lkMix = lkTgt ? e.lockMix : 0;
+      e._lkLook = lo.mix ?? 0.5; e._lkDist = lo.dist ?? 1.2;
+    }
+    const dist = (r.dist ?? 6) * (lkMix ? 1 + (e._lkDist - 1) * lkMix : 1), height = r.height ?? 3, shoulder = r.shoulder ?? 0, lead = r.lead ?? 4, lookH = r.lookH ?? 1.5, lerp = r.lerp ?? 8;
     const wantFlip = r.reverse ? 1 : 0;
     if (e.flipMix == null) e.flipMix = wantFlip;   // start settled (no swing on load)
     e.flipMix += (wantFlip - e.flipMix) * smooth(r.flipRate ?? 3, dt);
@@ -117,6 +133,10 @@ export function buildRulesBasic(E) {
       tgt.transform.pos[1] + f[1] * lead * cp,
       tgt.transform.pos[2] + lookH + lead * sp,
     ];
+    if (lkMix) {   // blend the look point toward the locked target (its own lookH above its pos)
+      const m = e._lkLook * lkMix, tp = lkTgt.transform.pos;
+      e.lookAt = [e.lookAt[0] + (tp[0] - e.lookAt[0]) * m, e.lookAt[1] + (tp[1] - e.lookAt[1]) * m, e.lookAt[2] + (tp[2] + lookH - e.lookAt[2]) * m];
+    }
   }
 
   // clock — autonomous frame playback: advance the gait/anim phase by time, no input. Turns a

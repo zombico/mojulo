@@ -262,7 +262,7 @@ export function buildCore(E) {
   // on entities whose rule carries a `loadout` (mobile-suit weapon switching); `swap` (T press
   // edge) transfers the pilot between `pilotable` entities (the suit switcher); `aiToggle`
   // (G press edge) flips the world-level AI-attack switch (the ai ambients stand down / wake up).
-  const ZERO_INPUT = { forward: 0, strafe: 0, turn: 0, lift: 0, lookDX: 0, lookDY: 0, buttons: 0, jump: 0, jumpHeld: 0, fire: 0, cycle: 0, slot: 0, swap: 0, aiToggle: 0, tackle: 0 };
+  const ZERO_INPUT = { forward: 0, strafe: 0, turn: 0, lift: 0, lookDX: 0, lookDY: 0, buttons: 0, jump: 0, jumpHeld: 0, fire: 0, cycle: 0, slot: 0, swap: 0, aiToggle: 0, tackle: 0, lock: 0 };
   const readInput = (i) => ({ ...ZERO_INPUT, ...(i || {}) });
 
   // ── world construction ──
@@ -404,7 +404,7 @@ export function buildCore(E) {
     hooks = hooks || {};
     if (hooks.physics) hooks.physics(dt);
     for (const p of PRE_STEPS) { const ov = p.fn(state, input, dt, hooks); if (ov) input = ov; }
-    const world = { byId: state.byId, ground: hooks.ground || null, colliders: state.colliders || null, pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get cinematic() { return state.cinematic; } };
+    const world = { byId: state.byId, ground: hooks.ground || null, colliders: state.colliders || null, pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
     for (const e of state.entities) {
       if (e.isCamera) continue;
       for (const t of ENTITY_TIMERS) t.fn(e, dt, state);

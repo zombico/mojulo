@@ -32,6 +32,21 @@ describe('emitThreeWorld controllable channel', () => {
     expect(html).toContain(JSON.stringify(camera));
   });
 
+  it('target lock (lock.js): the bracket, the C / middle-mouse / R3 edge and the spec key ride only with `lock`', () => {
+    const ents = [{ id: 'me', pilotable: true, rule: { type: 'platform' }, body: { type: 'figure-rig', hittable: true } }, { id: 'foe', rule: { type: 'static' }, body: { type: 'figure-rig', hittable: true } }];
+    const plain = emitThreeWorld({ faces: [floor], entities: ents, camera: { rule: 'follow', target: 'me' } });
+    expect(plain).not.toContain('__updateLock');
+    expect(plain).not.toContain('__midDown');
+    expect(plain).not.toContain(', lock: {'); expect(plain).not.toContain(', lock: true');
+    expect(plain).toContain('const lk = false;');            // the edge exists in the input snapshot, never armed
+    const locked = emitThreeWorld({ faces: [floor], entities: ents, camera: { rule: 'follow', target: 'me', lockTrack: true }, lock: { range: 80 } });
+    expect(locked).toContain(', lock: {"range":80}');
+    expect(locked).toContain("__held['KeyC'] || __midDown || !!(__pad && __pad.lock)");
+    expect(locked).toContain('function __updateLock()');
+    expect(locked).toContain('__updateRadar();\n  __updateLock();');
+    expect(locked).toContain('"lockTrack":true');
+  });
+
   it('leaves worlds without entities untouched (OrbitControls stays)', () => {
     const html = emitThreeWorld({ faces: [floor] });
     expect(html).toContain('let __ctrlActive = false;');

@@ -1123,13 +1123,13 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // sequence changed — that is a behavior change and must be a deliberate plan step.
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
-      preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot'],
+      preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
       bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
       entityActions: ['weapon', 'melee', 'tackle'],
-      worldPasses: ['body-collisions', 'carry', 'projectiles', 'death-burst', 'match', 'tutorial'],
+      worldPasses: ['body-collisions', 'carry', 'projectiles', 'death-burst', 'match', 'lock', 'tutorial'],
     });
   });
 

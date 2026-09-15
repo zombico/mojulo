@@ -43,7 +43,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, key = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, key = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -129,7 +129,7 @@ const __rimPatch = (m, rim) => {
   const hangarHook = hangar ? '  window.__mojHangar.sync();\n  if (inputOverride) { if (inputOverride.hangarStep) window.__mojHangar.step(inputOverride.hangarStep); if (inputOverride.liverySet != null) window.__mojHangar.livery(inputOverride.liverySet); if (inputOverride.equipSlot != null) window.__mojHangar.equip(inputOverride.equipSlot); }\n' : '';
   return `
 const __CW = ${emissionSource()};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''} });
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
 ${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -793,7 +793,12 @@ if (__MOUSELOOK) {
   window.addEventListener('pointerup', () => { __drag = false; });
   __canvas.addEventListener('pointermove', (e) => { if (__drag) { __lookDX += e.movementX || 0; __lookDY += e.movementY || 0; } });
 }
-const __ax = (a, b) => (__held[a] ? 1 : 0) - (__held[b] ? 1 : 0);
+${lock ? `// TARGET LOCK (lock.js): middle mouse is the lock press beside C and pad R3 — a held flag the
+// input read turns into an edge. preventDefault keeps the browser's autoscroll off the canvas.
+let __midDown = false;
+__canvas.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); __midDown = true; } });
+window.addEventListener('mouseup', (e) => { if (e.button === 1) __midDown = false; });
+` : ''}const __ax = (a, b) => (__held[a] ? 1 : 0) - (__held[b] ? 1 : 0);
 // gamepad (standard-mapping): polled once per input read and MERGED into the same normalized
 // snapshot the keyboard/mouse build — the engine never learns which device spoke. Keyboard wins
 // an axis it is actively pressing; pad buttons OR into the shared held/edge chains so dodge
@@ -926,6 +931,7 @@ function __pollPad() {
     jump: b(0) && !rb,                         // A / PS cross — ascend in space
     cycle, slot,                               // RB tap / RB chord (the selector)
     swap: b(12), ai: b(8),                     // D-pad up = switch suit · select = AI toggle
+    lock: b(11),                               // R3 (right stick click) = target lock (lock.js)
   };
 }
 let __prevJump = false;             // for the jump PRESS edge (platform rule) vs held (variable height)
@@ -933,6 +939,7 @@ let __prevCycle = false, __prevSlot = 0;   // weapon-cycling press edges (R / 1-
 let __prevSwap = false;                    // suit-switcher press edge (T)
 let __prevTackle = false;                  // tackle press edge (Shift) — platform rule, opt-in r.tackle
 let __prevAi = false;                      // AI-attack toggle press edge (G / HUD button)
+let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js
 let __aiBtnPress = false;                  // HUD button click injects one toggle edge
 // shell AI switch (practice mode): the pause menu posts a DESIRED state over the game-ai sidecar;
 // the world converges through the same input edge the G key uses (one deterministic path — the
@@ -972,6 +979,10 @@ function __readInput() {
   const aiToggle = ai && !__prevAi ? 1 : 0;
   __prevAi = ai;
   __aiBtnPress = false;
+  // TARGET LOCK press edge (lock.js): C / middle mouse / pad R3 — acquire, cycle, release
+  const lk = ${lock ? "!!__held['KeyC'] || __midDown || !!(__pad && __pad.lock)" : 'false'};
+  const lock = lk && !__prevLock ? 1 : 0;
+  __prevLock = lk;
   // pad right stick → the SAME look accumulators the mouse feeds, per-frame at lookScale px
   // equivalents; signs follow each mouse branch's convention (mouselook negates so stick-right
   // looks right, drag worlds keep the drag sign). Stick look never needs pointer capture — a
@@ -1006,6 +1017,7 @@ function __readInput() {
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
     aiToggle,                        // AI attack switch (G): ai-ambient suits stand down / wake up
+    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge
     lookDX: __lookDX, lookDY: __lookDY,
   };
   __lookDX = 0; __lookDY = 0;
@@ -1433,7 +1445,27 @@ if (__boostEnt && !__world.spectate) {   // SPECTATE: boost is a pilot resource 
 // STYLE: an enemy ABOVE the suit is a THICK ring, one BELOW is a DOTTED ring, one roughly level is a
 // filled dot. Rival SUITS (pilotable) are red; plain targets are blue. Built only for a controllable
 // world that has a controlled shooter (pilot / armed) + at least one hittable other; re-resolves to
-// the PILOTED suit each frame (T swaps it). Absent otherwise (byte-identical).
+${lock ? `// TARGET LOCK bracket (lock.js): a diamond projected over the locked target's body centre with a
+// LOCK caption; hidden when nothing is locked or the target sits behind the camera. Opt-in bytes.
+const __lockEl = document.createElement('div');
+__lockEl.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:9;display:none';
+__lockEl.innerHTML = '<div style="width:40px;height:40px;margin:-20px 0 0 -20px;border:2px solid #ffe000;border-radius:5px;transform:rotate(45deg);box-shadow:0 0 14px rgba(255,224,0,.55),inset 0 0 8px rgba(255,224,0,.25)"></div>'
+  + '<div style="position:absolute;left:26px;top:-8px;font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:2px;color:#ffe000;text-shadow:0 0 8px rgba(255,224,0,.7)">LOCK</div>';
+wrap.appendChild(__lockEl);
+const __lockV = new THREE.Vector3();
+function __updateLock() {
+  const L = __world.lock, tg = L && L.target ? __world.byId[L.target] : null;
+  if (!tg) { __lockEl.style.display = 'none'; return; }
+  const p = tg.transform.pos, lift = tg.body && tg.body.egg ? (tg.body.egg.b || 0) : ((tg.body && tg.body.radius) || 0);
+  camera.updateMatrixWorld();
+  __lockV.set(p[0], p[1], p[2] + lift).project(camera);
+  if (__lockV.z >= 1) { __lockEl.style.display = 'none'; return; }
+  const cw = renderer.domElement.clientWidth, ch = renderer.domElement.clientHeight;
+  __lockEl.style.display = '';
+  __lockEl.style.left = ((__lockV.x * 0.5 + 0.5) * cw) + 'px';
+  __lockEl.style.top = ((-__lockV.y * 0.5 + 0.5) * ch) + 'px';
+}
+` : ''}// the PILOTED suit each frame (T swaps it). Absent otherwise (byte-identical).
 let __radar = null;
 const __radarSelf = () => __world.spectate ? __specWatchEnt() : ((__world.pilotId && __world.byId[__world.pilotId]) || __armed || null);
 if (__radarSelf() && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
@@ -2312,7 +2344,7 @@ ${hangarHook}  __msHookParams();
   if (__ctrlOwnsCamera) __driveCamera(dt);
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
   __updateBoostHud();
-  __updateRadar();
+  __updateRadar();${lock ? '\n  __updateLock();' : ''}
   __updateHpHud();
   __updateEnemyHp();
   __updateMatchHud();
