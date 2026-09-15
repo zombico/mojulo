@@ -14,7 +14,7 @@
  */
 
 export function buildCombatMelee(E) {
-  const { sub, fwdXY, armReaction, matchStat, latR, hullZ, registerBodyOwner, breakGuards } = E;
+  const { sub, fwdXY, armReaction, comboDamage, matchStat, latR, hullZ, registerBodyOwner, breakGuards } = E;
 
   const SIDE_STRIKE_YAW = 50 * Math.PI / 180;   // a left/right melee cut yaws its hitbox this far to its side
   // meleeSwingSpec(sc, r, swingDir, comboEquipped) — the swing CLIP name + the `strikeParams` block that
@@ -33,6 +33,9 @@ export function buildCombatMelee(E) {
         reach: sv.strikeReach ?? sc.strikeReach ?? r.strikeReach ?? (r.speed ?? 6),
         damage: sv.strikeDamage ?? sc.strikeDamage ?? r.strikeDamage ?? 0,
         impact: sv.strikeImpact ?? sc.strikeImpact ?? r.strikeImpact ?? 0,
+        // LAUNCHER (combo-hitstun): u/s the target is thrown UP on connect (a combo world's juggle);
+        // `true` takes the world config's launch speed. 0 / absent ⇒ a grounded hit.
+        launch: sv.strikeLaunch ?? sc.strikeLaunch ?? r.strikeLaunch ?? 0,
         eye: sc.strikeEye ?? r.eye ?? 0,
         cosCone: Math.cos((sv.strikeCone ?? sc.strikeCone ?? r.strikeCone ?? 70) * Math.PI / 180),
         combo: comboEquipped,
@@ -183,7 +186,7 @@ export function buildCombatMelee(E) {
       const mst = matchStat(state, e.id);
       if (tg.body && Number.isFinite(tg.body.hp)) {
         const hp0 = tg.body.hp;
-        tg.body.hp = Math.max(0, tg.body.hp - P.damage);
+        tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, P.damage));   // scaled + counted by the combo seam (a no-op without one)
         if (mst) mst.dmg += hp0 - tg.body.hp;   // melee hull damage counts toward the score; accuracy stays ranged-only
       }
       // melee ALWAYS breaks poise on connect (operator: a melee hit is a
@@ -199,7 +202,7 @@ export function buildCombatMelee(E) {
       // opener — the combo's payoff. A killing blow floors it either way
       // (armReaction's kill override).
       const topples = (P.topple != null ? !!P.topple : e.swingClip === 'swing_back') && (P.combo ? !!e.swingCombo : true);
-      armReaction(tg, topples ? 'topple' : 'stagger', topples);
+      armReaction(tg, topples ? 'topple' : 'stagger', topples, { launch: P.launch });
     }
   }
 
@@ -266,7 +269,7 @@ export function buildCombatMelee(E) {
       const mst = matchStat(state, e.id);
       if (Number.isFinite(tg.body.hp)) {
         const hp0 = tg.body.hp;
-        tg.body.hp = Math.max(0, tg.body.hp - dmg);
+        tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, dmg));
         if (mst) mst.dmg += hp0 - tg.body.hp;
       }
       armReaction(tg, 'stagger');   // staggers on hit (a kill still floors it — armReaction's kill override)
@@ -295,7 +298,7 @@ export function buildCombatMelee(E) {
     const dmg = (tackler.rule && tackler.rule.counterDamage) || 0;
     if (dmg > 0 && victim.body && Number.isFinite(victim.body.hp)) {
       const hp0 = victim.body.hp;
-      victim.body.hp = Math.max(0, victim.body.hp - dmg);
+      victim.body.hp = Math.max(0, victim.body.hp - comboDamage(victim, dmg));
       const mst = matchStat(state, tackler.id); if (mst) mst.dmg += hp0 - victim.body.hp;
       if (victim.body.hp <= 0) { if (victim.noDestroy && Number.isFinite(victim.hpMax)) victim.body.hp = victim.hpMax; else victim.downed = true; }   // a lethal stuff still floors it (getup skipped by stepReaction); practice refills instead
     }

@@ -13,7 +13,7 @@
  */
 
 export function buildCombatHit(E) {
-  const { sub, scl, clamp, fwdXY, rightXY, registerNormalize, registerBodyOwner } = E;
+  const { sub, scl, clamp, fwdXY, rightXY, registerNormalize, registerBodyOwner, registerStateInit } = E;
 
   // ── R19: the EGG hitbox — a tall narrow spheroid (lateral radius `a`, semi-length `c`)
   // about a long axis that TILTS with the boost lean. Replaces the old fat isotropic
@@ -139,7 +139,63 @@ export function buildCombatHit(E) {
     return Math.pow(0.5, tg.boostArmor);
   }
 
-  // armReaction(tg, kind, force) — arm a hit-reaction on a poise-bearing target. Refill
+  // ── COMBOS (combo-hitstun.plan.md): hitstun, juggle state, damage scaling ─────────────────────
+  // Opt-in at the WORLD level (`combo: true | { hitstun, juggle, scaling, reset }`), overridable
+  // per body (`body.combo: false | { … }` merged over the world's). Absent ⇒ no entity carries
+  // `comboCfg` and every seam below is a no-op: armReaction's fixed stagger, no scaling, no
+  // juggle — stepping (and the replay hash) is byte-identical.
+  //   hitstun { base, decay, min } — sec of stun per hit: hit n lasts max(min, base·decay^(n−1)).
+  //       decay 1 (default) = static; < 1 = the stun shortens the longer the combo runs. A hit
+  //       landing MID-STAGGER re-arms the stun (the combo's whole point; the legacy path ignores it).
+  //   juggle { launch, lift, hitLift, gravity, g, max, land } — a launching strike (`strikeLaunch`
+  //       on the verb / slot / rule, or the config's `launch` when the verb says true) throws the
+  //       target UP at `launch` u/s into the AIRBORNE juggle state: the reaction pass integrates z
+  //       with g·gravity^(n−1) (gravity > 1 ⇒ less air time per hit), hits while airborne add lift
+  //       (`lift`× the hit's launch, else `hitLift`) — until `max` hits, after which nothing lifts.
+  //       Landing: `land` 'knockdown' (default — the topple → getup → wake guard, which ENDS the
+  //       combo) or 'stand' (the target simply recovers). A toppling hit mid-air knocks down on landing.
+  //   scaling { perHit, floor } — a hit's damage × max(floor, perHit^k), k = stunning hits already
+  //       in the combo. Un-stunned chip (ranged fire on an upright suit) never chains: k stays 0.
+  //   reset — sec after recovery inside which the next hit still LINKS (a combo continues across a
+  //       short gap); past it the count drops to 0 and scaling forgets.
+  function normalizeCombo(raw) {
+    if (!raw) return null;
+    const o = raw === true ? {} : (typeof raw === 'object' ? raw : {});
+    const num = (v, d) => (Number.isFinite(v) && v >= 0 ? v : d);
+    const sect = (v) => (v === false ? null : (v && typeof v === 'object' ? v : {}));
+    const hs = sect(o.hitstun), jg = sect(o.juggle), sc = sect(o.scaling);
+    return {
+      hitstun: hs ? { base: num(hs.base, 0.5), decay: num(hs.decay, 1), min: num(hs.min, 0.12) } : null,
+      juggle: jg ? { launch: num(jg.launch, 8), lift: num(jg.lift, 0.7), hitLift: num(jg.hitLift, 3), gravity: num(jg.gravity, 1), g: num(jg.g, 20), max: num(jg.max, 5), land: jg.land === 'stand' ? 'stand' : 'knockdown' } : null,
+      scaling: sc ? { perHit: num(sc.perHit, 0.9), floor: num(sc.floor, 0.3) } : null,
+      reset: num(o.reset, 0.3),
+    };
+  }
+  // comboDamage(tg, dmg) — the ONE seam every damage site passes its number through: counts the
+  // hit into the target's combo (it CONTINUES while the target is stunned / airborne, or links
+  // inside `reset` after a stunning hit; else it is a fresh count of 1) and returns the scaled
+  // damage. A target with no combo config gets its number straight back.
+  function comboDamage(tg, dmg) {
+    const C = tg.comboCfg; if (!C) return dmg;
+    const cont = tg.staggerT != null || !!tg.juggle || (!!tg.comboLive && tg.comboT <= C.reset);
+    const k = cont ? (tg.comboHits || 0) : 0;
+    tg.comboHits = k + 1; tg.comboT = 0;
+    if (!C.scaling) return dmg;
+    tg.comboScale = Math.max(C.scaling.floor, Math.pow(C.scaling.perHit, k));
+    return dmg * tg.comboScale;
+  }
+  registerStateInit((state, spec) => {
+    const raw = spec && (spec.combo === true || (spec.combo && typeof spec.combo === 'object')) ? spec.combo : null;
+    state.combo = normalizeCombo(raw);
+    for (const e of state.entities) {
+      const b = e.body && e.body.combo;
+      const cfg = b === false ? null : (b && typeof b === 'object') ? normalizeCombo(Object.assign({}, raw === true ? {} : (raw || {}), b)) : state.combo;
+      // fields land ONLY on combo-bearing entities (the replay hash serializes every field)
+      if (cfg && Number.isFinite(e.poise)) { e.comboCfg = cfg; e.comboHits = 0; e.comboT = 1e9; e.comboLive = false; e.comboScale = 1; e.juggle = null; }
+    }
+  });
+
+  // armReaction(tg, kind, force, hit?) — arm a hit-reaction on a poise-bearing target. Refill
   // poise (the break is a THRESHOLD, not a drain) and start the reaction timer
   // with the clip + duration for this KIND: 'stagger' is the light lurch every
   // connect gives; 'topple' is the heavy KNOCKDOWN (the `back` great-cleave, or a
@@ -150,11 +206,30 @@ export function buildCombatHit(E) {
   // (R20.4): a toppling melee connect UPGRADES a mid-STAGGER target into the knockdown
   // (the combo's whole point — hit 2 lands while hit 1's lurch still runs). A force
   // never interrupts an in-progress fall/getup (you can't re-floor the floored).
-  function armReaction(tg, kind, force) {
+  function armReaction(tg, kind, force, hit) {
     if (!Number.isFinite(tg.poise)) return;
     const dead = tg.body && Number.isFinite(tg.body.hp) && tg.body.hp <= 0;
     if (dead) kind = 'topple';
     const inKnockdown = tg.staggerT != null && (tg.reactClip === 'topple' || tg.reactClip === 'downpause' || tg.reactClip === 'getup');
+    // COMBO path (comboCfg): a non-toppling hit on an upright / reeling / airborne target RE-ARMS
+    // the stun at the combo's decayed length and feeds the juggle. A toppling hit on an airborne
+    // target lets the fall finish and knocks down on landing. Dead / floored ⇒ the legacy path.
+    const C = tg.comboCfg;
+    if (C && !dead && !inKnockdown) {
+      const n = Math.max(1, tg.comboHits || 1);
+      const launch = hit && Number.isFinite(hit.launch) && hit.launch > 0 ? hit.launch : (hit && hit.launch === true && C.juggle ? C.juggle.launch : 0);
+      if (kind === 'topple' && tg.juggle) { tg.juggle.knock = true; return; }
+      if (kind !== 'topple' && (C.hitstun || tg.juggle || (C.juggle && launch > 0))) {
+        if (tg.staggerT == null) tg.staggerReturn = tg.locomotion;
+        tg.poise = tg.poiseMax; tg.downPauseT = null; tg.reactClip = 'stagger'; tg.staggerT = 0; tg.comboLive = true;
+        tg.reactDur = C.hitstun ? Math.max(C.hitstun.min, C.hitstun.base * Math.pow(C.hitstun.decay, n - 1)) : (tg.staggerDur || 1.3);
+        if (C.juggle) {
+          if (tg.juggle) { if (n <= C.juggle.max) tg.juggle.vz = Math.max(tg.juggle.vz, launch > 0 ? launch * C.juggle.lift : C.juggle.hitLift); }
+          else if (launch > 0 && n <= C.juggle.max) tg.juggle = { vz: launch, z0: tg.transform.pos[2], knock: false };
+        }
+        return;
+      }
+    }
     if (tg.staggerT != null && !dead && !(force && !inKnockdown)) return;   // mid-reaction: kill or a forced knockdown overrides a stagger
     if (tg.staggerT == null) tg.staggerReturn = tg.locomotion;   // an upgrade keeps the ORIGINAL return locomotion (never 'stagger')
     tg.poise = tg.poiseMax; tg.staggerT = 0; tg.downPauseT = null;
@@ -214,6 +289,26 @@ export function buildCombatHit(E) {
       e.wakeGuardT = Math.max(0, e.wakeGuardT - dt);
       e.invincible = e.wakeGuardT > 0;
     }
+    const C = e.comboCfg;
+    if (C) {
+      if (e.juggle) {   // AIRBORNE (juggle state): this pass owns z — the rule is suppressed, gravity is ours
+        const J = e.juggle, n = Math.max(1, e.comboHits || 1);
+        const g = C.juggle ? C.juggle.g * Math.pow(C.juggle.gravity, n - 1) : 20;
+        J.vz -= g * dt; e.transform.pos[2] += J.vz * dt;
+        if (e.transform.pos[2] <= J.z0 && J.vz <= 0) {
+          e.transform.pos[2] = J.z0; e.juggle = null;
+          if (e.downed || J.knock || !C.juggle || C.juggle.land !== 'stand') {   // the landing IS the knockdown
+            e.poise = e.poiseMax; e.staggerT = 0; e.downPauseT = null; e.reactClip = 'topple';
+            e.reactDur = e.toppleDur || (e.staggerDur || 1.3) * 1.3;
+          } else {   // 'stand': the target lands on its feet and the combo may link inside `reset`
+            e.staggerT = null; e.downPauseT = null; e.locomotion = e.staggerReturn || 'forward'; e.reactionEnded = true; e.invincible = false; e.comboT = 0;
+            return false;
+          }
+        } else { e.locomotion = 'topple'; e.moving = true; e.gaitPhase = 0.35; e.invincible = false; return true; }   // mid-air: the stun holds until landing
+      }
+      e.comboT += dt;
+      if (e.staggerT == null && e.comboLive && e.comboT > C.reset) { e.comboLive = false; e.comboHits = 0; e.comboScale = 1; }
+    }
     if (e.staggerT == null) {
       if (e.poise < e.poiseMax) e.poise = Math.min(e.poiseMax, e.poise + (e.poiseRegen || 0) * dt);
       return false;
@@ -272,6 +367,7 @@ export function buildCombatHit(E) {
       // seconds of invincibility so the floored suit can't be chain-juggled off the ground.
       const rose = e.reactClip === 'getup';
       e.staggerT = null; e.downPauseT = null; e.locomotion = e.staggerReturn || 'forward'; e.reactionEnded = true;
+      if (C) { e.comboT = 0; if (rose) { e.comboLive = false; e.comboHits = 0; e.comboScale = 1; } }   // a knockdown ENDS the combo; a stagger may still link
       if (rose && e.wakeGuard > 0) { e.wakeGuardT = e.wakeGuard; e.invincible = true; }
       else e.invincible = false;
       return false;
@@ -331,5 +427,6 @@ export function buildCombatHit(E) {
   Object.assign(E, {
     isFlatToppled, latR, eggLean, eggAxis, hitEgg, pointInEgg, hullZ,
     shieldCovers, absorbShield, breakGuards, boostStunFactor, armReaction, beginDodge, stepReaction,
+    normalizeCombo, comboDamage,
   });
 }

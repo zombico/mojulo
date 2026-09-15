@@ -16,7 +16,7 @@ export function buildCombatRanged(E) {
   const {
     sub, clamp, lerp3, fwdXY, rightXY, fwd3,
     sightBlocked, nearestWallT, hitEgg, pointInEgg, latR,
-    armReaction, absorbShield, boostStunFactor, breakGuards, matchStat,
+    armReaction, comboDamage, absorbShield, boostStunFactor, breakGuards, matchStat,
     registerEntityAssert, registerWorldPass,
   } = E;
 
@@ -340,7 +340,7 @@ export function buildCombatRanged(E) {
           // damage is just numbers: chip hp (floored at 0; the target survives at 0 for this spike).
           if (tg.body && Number.isFinite(tg.body.hp)) {
             const hp0 = tg.body.hp;
-            tg.body.hp = Math.max(0, tg.body.hp - shotDamage);
+            tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, shotDamage));
             if (mst) mst.dmg += hp0 - tg.body.hp;   // hull damage actually dealt (overkill clamped away)
           }
           // poise is the mechanic: chip it, and when it BREAKS (<=0) the target STAGGERS — a rooted
@@ -465,7 +465,7 @@ export function buildCombatRanged(E) {
       if (absorbShield(tg, p.pos, p.damage || 0, state)) continue;
       if (tg.body && Number.isFinite(tg.body.hp)) {
         const hp0 = tg.body.hp;
-        tg.body.hp = Math.max(0, tg.body.hp - (p.damage || 0));
+        tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, p.damage || 0));
         if (mst) mst.dmg += hp0 - tg.body.hp;   // splash hull damage per caught target
       }
       // R23 BOOST ARMOR: a splash is a 100%-stun (worth a full poise bar) — normally an

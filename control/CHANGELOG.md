@@ -39,6 +39,22 @@ loops and the recipe format are unchanged.
   requires a different `source` than the submit, so a mojulo that invoked the generator would be
   the submitter with nobody left to be the eyes gate.
 
+### combo-hitstun — hitstun, juggle state and damage scaling, composed in the recipe
+
+- **Added: `combo` on a controllable world** (`true` or `{ hitstun, juggle, scaling, reset }`,
+  per-body `body.combo: false | {…}`). Hitstun: every hit re-arms the stun at `base·decay^(n−1)`
+  seconds — static at decay 1, shrinking below it, floored at `min`; the legacy path ignored a
+  hit mid-stagger. Juggle: a melee verb with `strikeLaunch` throws its target into an airborne
+  state the reaction pass integrates itself (gravity `g·gravity^(n−1)`), follow-ups lift it until
+  `max` hits, and the landing is the knockdown (the wake guard ends the combo) unless
+  `land:'stand'`; a toppling hit mid-air knocks down on landing. Scaling: hit k deals `perHit^k`
+  of its damage, floored. `reset` is the link window after recovery; a getup zeroes the count.
+- **One damage seam.** All five damage sites (melee connect, tackle, stuffed counter, hitscan,
+  projectile) pass their number through `comboDamage`, which counts and scales; without a combo
+  config it hands the number straight back. Un-stunned chip never chains.
+- **Replay-safe.** Combo fields land only on opted-in bodies, so the replay hash of every existing
+  world is unchanged (trace pins hold); the engine source moves, so char pins are re-pinned.
+
 ### target-lock — a lock-on that turns the pilot toward its target, and a camera that can follow the lock
 
 - **Added: target lock.** A controllable world may declare `lock: true | { range, cone, release,
