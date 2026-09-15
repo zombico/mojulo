@@ -220,7 +220,11 @@ const DESCRIPTION_ALLOWLIST = {
 // old pin; the five new tools are the blessed residue.
 // re-pinned 2026-09-14 (measured 261,472) for the get_game_vocab hud-family clause and the
 // create_game theme token description (game-ui-primitives). Shrink-only from here.
-const PAYLOAD_CEILING = 262_000;
+// Re-pinned 2026-09-15 (262_000 -> 263_500; measured 263,309) to bless the update_sketch
+// `patch` + `readout` input-schema properties (update-sketch-patch). Same rule as the greybox
+// and skinned seams: the op grammar is taught in the schema, and the description itself was
+// re-cut to stay under its 700-char ceiling (it is NOT on the allowlist).
+const PAYLOAD_CEILING = 263_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -185,3 +185,165 @@ describe('update_sketch on solid kinds archives the previous manifest (G5) and r
     expect(SketchRevisionRepository.list('wb-note')).toEqual([]);
   });
 });
+
+// update-sketch-patch: iterate a recipe by naming the part. A patch is a cheaper way to author the
+// next manifest — it pays the same gates, stores the same row, archives the same revision (with the
+// ops as its diff) — and the `changed` readout answers "what moved" without the whole parts list.
+import { MZ_NE410 } from './update-sketch.mz-ne410.fixture.js';
+import { planWorkbench } from '@/lib/graph/worlds/workbench';
+
+// create_workbench takes the monomer arrays, not `grid` / `movers`; store the fixture verbatim
+// after the mint so every test starts from the recipe as the session left it (ledger re-stamped
+// by the first edit, as G6 promises).
+async function mintNe410(ref) {
+  await createWorkbenchHandler({ title: 'MZ-NE410', ref, ...MZ_NE410 });
+  SketchRepository.update({ ref, manifest: structuredClone(MZ_NE410) });
+}
+
+describe('update_sketch { patch } — the same row a full replacement stores (Phase 2)', () => {
+  const CYL = { axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 6 }, profile: [{ t: 0, radius: 2 }, { t: 1, radius: 2 }] };
+
+  it('a patch edit updates in place with head_rev advancing; the archived revision carries the ops', async () => {
+    await createWorkbenchHandler({ title: 'cyl', ref: 'wb-patch', lathes: [{ ...CYL, id: 'post' }] });
+    const ops = [{ op: 'set', id: 'post', axisTo: { x: 0, y: 0, z: 8 } }];
+    const r = await updateSketchHandler({ ref: 'wb-patch', patch: ops, note: 'taller' });
+    expect(r.ok).toBe(true);
+    expect(r.revision).toEqual({ archived_rev: 1, head_rev: 2 });
+    expect(SketchRepository.getByRef('wb-patch').manifest.lathes[0].axisTo.z).toBe(8);
+    const rev1 = SketchRevisionRepository.get('wb-patch', 1);
+    expect(rev1.note).toBe('taller');
+    expect(rev1.patch).toEqual(ops);                       // history reads as a diff
+    expect(rev1.manifest.lathes[0].axisTo.z).toBe(6);      // the archived row is the PREVIOUS manifest
+    expect(SketchRevisionRepository.list('wb-patch')[0]).toMatchObject({ rev: 1, note: 'taller', patch: ops });
+  });
+
+  it('byte-identical row: a patch and a full replacement with the same edit store the same manifest (MZ-NE410)', async () => {
+    await mintNe410('ne410-a');
+    await mintNe410('ne410-b');
+    const stored = SketchRepository.getByRef('ne410-a').manifest;
+    const full = structuredClone(stored);
+    full.lathes.find((l) => l.id === 'dial').material = 'chrome';
+    full.movers[0].states = [0, 0.27];
+    full.grid = true;
+    full.extrudes.splice(full.extrudes.findIndex((e) => e.id === 'holdknob'), 1);
+    full.lathes.push({ id: 'usbcap2', axisFrom: { x: 3, y: 0, z: 2 }, axisTo: { x: 3.6, y: 0, z: 2 }, profile: [{ t: 0, radius: 0.5 }, { t: 1, radius: 0.5 }], material: 'rubber' });
+    await updateSketchHandler({ ref: 'ne410-a', manifest: full });
+    await updateSketchHandler({ ref: 'ne410-b', patch: [
+      { op: 'set', id: 'dial', material: 'chrome' },
+      { op: 'set', path: '/movers/0/states', value: [0, 0.27] },
+      { op: 'set', path: '/grid', value: true },
+      { op: 'remove', id: 'holdknob' },
+      { op: 'add', into: 'lathes', entry: { id: 'usbcap2', axisFrom: { x: 3, y: 0, z: 2 }, axisTo: { x: 3.6, y: 0, z: 2 }, profile: [{ t: 0, radius: 0.5 }, { t: 1, radius: 0.5 }], material: 'rubber' } },
+    ] });
+    const a = SketchRepository.getByRef('ne410-a').manifest;
+    const b = SketchRepository.getByRef('ne410-b').manifest;
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+    expect(b.ledger).toEqual(a.ledger);                    // G6 re-stamped identically
+  });
+
+  it('a refused patch (bad material via set) leaves the row and the revision table untouched', async () => {
+    await createWorkbenchHandler({ title: 'cyl', ref: 'wb-patch-bad', lathes: [{ ...CYL, id: 'post' }] });
+    await expect(updateSketchHandler({ ref: 'wb-patch-bad', patch: [{ op: 'set', id: 'post', material: 'unobtainium' }] }))
+      .rejects.toThrow(/material/);
+    expect(SketchRepository.getByRef('wb-patch-bad').manifest.lathes[0].material).toBeUndefined();
+    expect(SketchRevisionRepository.list('wb-patch-bad')).toEqual([]);
+    // an op the applier refuses is named by index, before any gate runs
+    await expect(updateSketchHandler({ ref: 'wb-patch-bad', patch: [{ op: 'set', id: 'nope', material: 'steel' }] }))
+      .rejects.toThrow(/Invalid patch: patch\[0\]: no monomer carries id 'nope'/);
+    expect(SketchRevisionRepository.list('wb-patch-bad')).toEqual([]);
+  });
+
+  it('patch + manifest together, an empty patch, and a bad readout are refused up front', async () => {
+    await createWorkbenchHandler({ title: 'cyl', ref: 'wb-patch-x', lathes: [{ ...CYL, id: 'post' }] });
+    const m = SketchRepository.getByRef('wb-patch-x').manifest;
+    await expect(updateSketchHandler({ ref: 'wb-patch-x', manifest: m, patch: [{ op: 'set', path: '/grid', value: false }] })).rejects.toThrow(/exclusive/);
+    await expect(updateSketchHandler({ ref: 'wb-patch-x', patch: [] })).rejects.toThrow(/non-empty array/);
+    await expect(updateSketchHandler({ ref: 'wb-patch-x', patch: [{ op: 'set', path: '/grid', value: false }], readout: 'all' })).rejects.toThrow(/readout/);
+    await expect(updateSketchHandler({ ref: 'no-such', patch: [{ op: 'set', path: '/grid', value: false }] })).rejects.toThrow(/No sketch exists/);
+    expect(SketchRevisionRepository.list('wb-patch-x')).toEqual([]);
+  });
+
+  it('a patch on an edifice mass edits in place (no kind-specific patch logic)', async () => {
+    await createEdificeHandler({ ...CAMPUS, title: 'Campus', ref: 'ed-patch' });
+    const r = await updateSketchHandler({ ref: 'ed-patch', patch: [{ op: 'set', path: '/masses/1/floors', value: 4 }] });
+    expect(r.ok).toBe(true);
+    expect(r.stats).toBeUndefined();                       // readout is a workbench thing; nothing else changes
+    expect(SketchRepository.getByRef('ed-patch').manifest.masses.find((m) => m.id === 'wing').floors).toBe(4);
+    expect(SketchRevisionRepository.get('ed-patch', 1).patch).toEqual([{ op: 'set', path: '/masses/1/floors', value: 4 }]);
+  });
+});
+
+describe('update_sketch { readout } — what an edit hands back (Phase 3)', () => {
+  const CYL = (id, x = 0, z = 6) => ({ id, axisFrom: { x, y: 0, z: 0 }, axisTo: { x, y: 0, z }, profile: [{ t: 0, radius: 2 }, { t: 1, radius: 2 }] });
+
+  it('parts[] rows carry the monomer id (additive)', () => {
+    const { stats } = planWorkbench({ kind: 'workbench', lathes: [CYL('post'), { ...CYL('x'), id: undefined }] });
+    expect(stats.parts[0]).toMatchObject({ kind: 'lathe', index: 0, id: 'post' });
+    expect('id' in stats.parts[1]).toBe(false);
+  });
+
+  it("'full' on a manifest replacement is the block the pre-plan handler returned (default unchanged)", async () => {
+    await createWorkbenchHandler({ title: 'two', ref: 'wb-ro-full', lathes: [CYL('a'), CYL('b', 6)] });
+    const stored = SketchRepository.getByRef('wb-ro-full').manifest;
+    const edited = { ...stored, lathes: [CYL('a'), CYL('b', 6, 8)] };
+    const r = await updateSketchHandler({ ref: 'wb-ro-full', manifest: edited });
+    const { ledger: _l, ...expected } = planWorkbench(edited).stats;
+    const { ledger: _r, ...got } = r.stats;
+    expect(got).toEqual(expected);                          // no readout key, every part, verbatim
+    expect(got.readout).toBeUndefined();
+  });
+
+  it("'changed' on a one-part set returns exactly that part; 'summary' drops parts", async () => {
+    await createWorkbenchHandler({ title: 'two', ref: 'wb-ro-one', lathes: [CYL('a'), CYL('b', 6)] });
+    const r = await updateSketchHandler({ ref: 'wb-ro-one', patch: [{ op: 'set', id: 'b', axisTo: { x: 6, y: 0, z: 9 } }] });
+    expect(r.stats.readout).toBe('changed');
+    expect(r.stats.parts.map((p) => p.id)).toEqual(['b']);
+    expect(r.stats.parts[0].top).toBe(9);
+    expect(r.stats.parts_total).toBe(2);
+    expect(r.stats).toMatchObject({ monomers: 2, faces: expect.any(Number), size: expect.any(Object), ledger: expect.any(Object) });
+    expect(r.stats.warnings).toBeUndefined();
+    const s = await updateSketchHandler({ ref: 'wb-ro-one', patch: [{ op: 'set', id: 'a', material: 'steel' }], readout: 'summary' });
+    expect(s.stats.readout).toBe('summary');
+    expect(s.stats.parts).toBeUndefined();
+    expect(s.stats.monomers).toBe(2);
+  });
+
+  it('a touched part whose geometry did not move is reported; so is an untouched part a neighbour re-cut; a removed part is named', async () => {
+    await mintNe410('ne410-ro');
+    const r = await updateSketchHandler({ ref: 'ne410-ro', patch: [
+      // the dial is consumed by the 'dialglyphs' cut: widening it moves the CUT part, which the patch never named
+      { op: 'set', id: 'dial', profile: [{ t: 0, radius: 1.4 }, { t: 0.75, radius: 1.4 }, { t: 1, radius: 1.3 }] },
+      { op: 'set', id: 'menu', material: 'chrome' },       // touched, geometry unchanged
+      { op: 'remove', id: 'holdknob' },                     // a standalone part, gone
+    ] });
+    const ids = r.stats.parts.map((p) => p.id);
+    expect(ids).toContain('menu');
+    expect(ids).toContain('dialglyphs');
+    expect(ids).not.toContain('lid');
+    expect(r.stats.removed).toEqual(['holdknob']);
+    expect(r.stats.parts_total).toBe(27);
+    expect(r.stats.parts.length).toBe(2);
+  });
+
+  it('touching a monomer a cut consumes surfaces the CUT part (its own id is not a part)', async () => {
+    await mintNe410('ne410-cut');
+    // the g_stop glyph is subtracted from the dial: nudging its profile changes nothing measurable
+    // on the dial's bounds, yet the edit was to that part — the MZ-NE410 rev 5→6 case
+    const stop = MZ_NE410.extrudes.find((e) => e.id === 'g_stop');
+    const r = await updateSketchHandler({ ref: 'ne410-cut', patch: [{ op: 'set', id: 'g_stop', axisTo: { ...stop.axisTo, y: stop.axisTo.y - 0.01 } }] });
+    expect(r.stats.parts.map((p) => p.id)).toEqual(['dialglyphs']);
+    expect(r.stats.parts[0]).toMatchObject({ kind: 'field', cut: 'dialglyphs', from: 'dial' });
+  });
+
+  it('warnings already on the previous revision collapse to one counted line; a new one is spelled out', async () => {
+    await mintNe410('ne410-warn');
+    // MZ-NE410 carries two standing advisories (an open relief, the cut's edge rounding)
+    const r1 = await updateSketchHandler({ ref: 'ne410-warn', patch: [{ op: 'set', id: 'menu', material: 'chrome' }] });
+    expect(r1.stats.warnings).toEqual(['2 warnings unchanged from rev 1']);
+    // a coarser cut re-words its edge-rounding advisory: a NEW line beside the collapsed count
+    const r2 = await updateSketchHandler({ ref: 'ne410-warn', patch: [{ op: 'set', path: '/cuts/0/cells', value: 32 }] });
+    expect(r2.stats.warnings.at(-1)).toBe('1 warning unchanged from rev 2');
+    expect(r2.stats.warnings.length).toBe(2);
+    expect(r2.stats.warnings[0]).toMatch(/cut 'dialglyphs'/);
+  });
+});
