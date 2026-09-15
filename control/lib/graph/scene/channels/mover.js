@@ -54,15 +54,47 @@ const moverRigs = MOVERS.map((mv) => {
     const tg = new THREE.BufferGeometry().setFromPoints(mv.path.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
     scene.add(new THREE.Line(tg, new THREE.LineBasicMaterial({ color: mv.trackColor || 0x42577f, transparent: true, opacity: 0.5 })));
   }
-  return { mv, mesh, base: mv.basePos, vel, acc, tether, forces };
+  // 'states' (a composable toggle): the resting angles this turn steps between on input; state 0 at load.
+  const st = Array.isArray(mv.states) && mv.states.length >= 2 ? { i: 0, from: mv.states[0], to: mv.states[0], t0: -1e9 } : null;
+  return { mv, mesh, base: mv.basePos, vel, acc, tether, forces, st };
 });
 let _readout = null;
 if (moverRigs.length && (moverRigs[0].mv.vectors || moverRigs[0].mv.forces || moverRigs[0].mv.system || moverRigs[0].mv.compare || moverRigs[0].mv.cascade || moverRigs[0].mv.machine || moverRigs[0].mv.engine || moverRigs[0].mv.motor || moverRigs[0].mv.drone || moverRigs[0].mv.flight || moverRigs[0].mv.sub || moverRigs[0].mv.rocket || moverRigs[0].mv.plane)) {   // hidden only when all off
   _readout = document.createElement('div'); _readout.className = 'moj-readout'; wrap.appendChild(_readout);
 }
 const _v3 = new THREE.Vector3(), _spinAxis = new THREE.Vector3(), _xUnit = new THREE.Vector3(1, 0, 0);
+// STATES (turn movers): a composable toggle. 'states' lists resting angles (two by default, closed / open;
+// any count), an input steps to the next one, and the angle eases there over 'transition' seconds. No
+// input ever arrives in a capture, so state 0 holds and baked frames stay deterministic.
+let _moverSec = 0;
+function _moverStateAngle(rig, sec) { const st = rig.st, tr = Math.max(0.01, rig.mv.transition || 0.6); const k = Math.min(1, Math.max(0, (sec - st.t0) / tr)), e = k * k * (3 - 2 * k); return st.from + (st.to - st.from) * e; }
+function _moverToggle(rig, dir) { const st = rig.st; if (!st) return; if (_moverSec - (st.last == null ? -1 : st.last) < 0.35) return; st.last = _moverSec; const n = rig.mv.states.length; st.from = _moverStateAngle(rig, _moverSec); st.i = ((st.i + (dir || 1)) % n + n) % n; st.to = rig.mv.states[st.i]; st.t0 = _moverSec; }
+window.__mojToggle = (group, dir) => { for (const rig of moverRigs) if (rig.st && (group == null || rig.mv.group === group)) _moverToggle(rig, dir); };
+// read-only inspector for probes and tests: each toggling rig's group, state index and current eased value
+window.__mojMoverState = () => moverRigs.filter((r) => r.st).map((r) => ({ group: r.mv.group, state: r.st.i, value: _moverStateAngle(r, _moverSec), sec: _moverSec, mesh: !!r.mesh, parent: r.mesh && r.mesh.parent ? (r.mesh.parent.type === 'Scene' ? 'scene' : 'mesh') : null, q: r.mesh ? r.mesh.quaternion.toArray().map((v) => +v.toFixed(3)) : null, pos: r.mesh ? r.mesh.position.toArray().map((v) => +v.toFixed(2)) : null, visible: r.mesh ? r.mesh.visible : null, draw: r.mesh && r.mesh.geometry ? (r.mesh.geometry.getAttribute('position') || {}).count : null }));
+// 'parent': the group's mesh becomes a CHILD of another group's mesh, so its own move (a slide, a turn) is
+// local to the parent and rides along with it — a sliding clasp on a swinging door.
+for (const rig of moverRigs) if (rig.mv.parent && rig.mesh && meshes[rig.mv.parent]) meshes[rig.mv.parent].add(rig.mesh);
+if (moverRigs.some((r) => r.st)) {
+  // key: the mover's 'key' steps forward, shift+key steps back
+  window.addEventListener('keydown', (e) => { if (e.repeat) return; const k = (e.key || '').toLowerCase(); for (const rig of moverRigs) if (rig.st && rig.mv.key && k === String(rig.mv.key).toLowerCase()) _moverToggle(rig, e.shiftKey ? -1 : 1); });
+  // click ON the part: a raycast pick against the toggling group's mesh (an orbit drag is not a click)
+  const _tgRay = new THREE.Raycaster(), _tgNdc = new THREE.Vector2(); let _tgDown = null;
+  canvas.addEventListener('pointerdown', (e) => { _tgDown = e.button === 0 ? [e.clientX, e.clientY] : null; });
+  canvas.addEventListener('pointerup', (e) => {
+    const down = _tgDown; _tgDown = null;
+    if (!down || e.button !== 0 || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+    const r = canvas.getBoundingClientRect(); _tgNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    _tgRay.setFromCamera(_tgNdc, camera);
+    let best = null, bestD = Infinity;
+    for (const rig of moverRigs) { if (!rig.st || rig.mv.click === false || !rig.mesh) continue; const hit = _tgRay.intersectObject(rig.mesh, false)[0]; if (hit && hit.distance < bestD) { best = rig; bestD = hit.distance; } }
+    if (best) _moverToggle(best, 1);
+  });
+  const _tgHint = document.querySelector('.hint');
+  if (_tgHint) _tgHint.textContent += [...new Set(moverRigs.filter((r) => r.st).map((r) => ' · ' + (r.mv.label || r.mv.group) + ': click' + (r.mv.key ? ' or ' + String(r.mv.key).toUpperCase() : '')))].join('');
+}
 stepMovers = (t) => {
-  const sec = t / 1000;
+  const sec = t / 1000; _moverSec = sec;
   for (const rig of moverRigs) {
     const mv = rig.mv;
     // CASCADE carrier: a meshless mover that only drives the population readout, counting live from the
@@ -97,11 +129,26 @@ stepMovers = (t) => {
     // thread turns and a wheel spins exactly in step with their load (unlike spin's constant ω). The group
     // geometry is authored RELATIVE to 'center' (corner − center), so placing it at center + rotating about
     // the axis pivots it in place.
+    // SLIDE mode: a states toggle that translates the group along 'axis' — states are distances, eased like a turn.
+    if (mv.slide && rig.st) {
+      const d = _moverStateAngle(rig, sec);
+      if (rig.mesh) rig.mesh.position.set(mv.slide.axis[0] * d, mv.slide.axis[1] * d, mv.slide.axis[2] * d);
+      continue;
+    }
     if (mv.turn) {
-      const u = moverU(mv, sec), i = Math.max(0, Math.min(mv.turn.angles.length - 1, Math.round(u * (mv.turn.angles.length - 1))));
+      // a states rig reads its eased toggle angle; otherwise the angle table plays on the period clock
+      const ang = rig.st ? _moverStateAngle(rig, sec) : mv.turn.angles[Math.max(0, Math.min(mv.turn.angles.length - 1, Math.round(moverU(mv, sec) * (mv.turn.angles.length - 1))))];
       if (rig.mesh) {
-        rig.mesh.position.set(mv.turn.center[0] - rig.base[0], mv.turn.center[1] - rig.base[1], mv.turn.center[2] - rig.base[2]);
-        rig.mesh.quaternion.setFromAxisAngle(_spinAxis.set(mv.turn.axis[0], mv.turn.axis[1], mv.turn.axis[2]).normalize(), mv.turn.angles[i]);
+        rig.mesh.quaternion.setFromAxisAngle(_spinAxis.set(mv.turn.axis[0], mv.turn.axis[1], mv.turn.axis[2]).normalize(), ang);
+        if (mv.turn.absolute) {
+          // absolute: the group keeps its authored WORLD coordinates (a hinged lid on a workbench part, whose
+          // exports must stay in place). Pivot about 'center' by placing the mesh at center - R*center, since
+          // v' = R(v - c) + c = R*v + (c - R*c).
+          _v3.set(mv.turn.center[0], mv.turn.center[1], mv.turn.center[2]).applyQuaternion(rig.mesh.quaternion);
+          rig.mesh.position.set(mv.turn.center[0] - _v3.x, mv.turn.center[1] - _v3.y, mv.turn.center[2] - _v3.z);
+        } else {
+          rig.mesh.position.set(mv.turn.center[0] - rig.base[0], mv.turn.center[1] - rig.base[1], mv.turn.center[2] - rig.base[2]);
+        }
       }
       // an electric motor's armature is a turn mover — drive its (static) readout from here
       if (_readout && rig === moverRigs[0] && mv.motor) _readout.innerHTML = '<b>' + mv.label + '</b>' + _motorHud(mv);
