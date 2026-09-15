@@ -12,6 +12,29 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### pixelizer-godot — the 2D reducer games get a Godot leg, and the 3D leg learns to measure
+
+- **Added: `export_game { target: 'godot' }` on a pixelizer game** (and `scripts/export-godot.mjs
+  --ref <ref>`) emits a Godot 4 arcade pack instead of refusing. The pack is DATA — `game.json`,
+  `skin.json` (the bank tiles, legend and palette), `probe/replay.json`, the groove and SFX WAVs when
+  `music` is on — performed by a separate versioned kernel (`godot-arcade-kernel/`, 0.1.0):
+  `brickster.gd` is a hand-authored port of the JS reducer (mulberry32 7-bag, SRS kicks, guideline
+  hold, the same scoring), `arcade.gd` the shell (the web shell's key map, gravity timer, start
+  gate, HUD, game-over card, music loop, SFX cues). One reducer, two instruments; the web build
+  stays the reference. `philosophers-stone` is not ported yet and refuses with a teaching error.
+- **Added: the replay probe, a machine-gate rung.** The pack carries a seeded action script and
+  the JS reducer's expected outcome; the gate runs `godot --headless … -- --mojulo-replay` and
+  compares board, score, lines, hold, queue and game-over flag field by field. A port that drifts
+  from the reducer fails the gate, not the eyes.
+- **Added: `[mojulo-perf]` on both headless probes.** Process and physics time plus node and object
+  counts at the probe's last frame, stamped advisory under the gate result; the arcade probe adds
+  `replay_ms`, the reducer port's wall time for the whole script. Headless has no renderer, so no
+  render time is claimed. `--mojulo-shot=<png>` on a windowed arcade run saves the drawn viewport
+  after the replay, so the eyes gate has a picture without opening the editor.
+- **Changed: 3D kernel 0.2.2.** The HUD label is assigned only when its text changes; hazard and
+  meshless-entity markers share one material and one unit mesh per kind instead of allocating
+  their own. No visible change; fewer draw states, nothing allocated per frame.
+
 ### prepack-heap — the publish build gets an 8 GB heap
 
 - **Fixed: `npm publish` aborted with `JavaScript heap out of memory`.** The webpack production

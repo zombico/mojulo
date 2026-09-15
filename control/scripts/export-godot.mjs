@@ -5,8 +5,9 @@
  * (lib/graph/scene/godot-pack.js — also behind export_game
  * { target: 'godot' }); this script adds the MACHINE GATE: headless import
  * ×2, a one-frame run of every scene (import compiles no GDScript, and Godot
- * exits 0 even on script load failure — the gate greps the log), and the
- * optional --web build. Mirrors the local-worker posture of
+ * exits 0 even on script load failure — the gate greps the log), the
+ * materials + locomotion probes (scene packs) or the replay probe (arcade
+ * packs: pixelizer games, godot-arcade.js), and the optional --web build. Mirrors the local-worker posture of
  * bake-world-gi.mjs: env-located binary, stdout-JSON handback, stderr logs.
  *
  * Capability ladder rung 0 (no Godot binary): emit-only, gate skipped.
@@ -52,6 +53,7 @@ resolveMojuloPaths();
 const { SketchRepository } = await import('@/lib/db/repositories/sketches');
 const { buildGodotWorldPack, buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
 const { compareShading, declaredShading, sumDeclared } = await import('@/lib/graph/scene/materials-gate.js');
+const { parseReplayLine, compareReplay, parsePerfLine } = await import('@/lib/graph/pixelizer/brickster-replay.js');
 
 const sketch = SketchRepository.getByRef(args.ref);
 if (!sketch) fail(`sketch '${args.ref}' not found`);
@@ -109,13 +111,33 @@ if (!args['no-gate'] && existsSync(godotBin)) {
       fail(`machine gate FAILED: one-frame '${label}' ${scriptErr ? `logged "${scriptErr[0]}"` : `exit ${frame.code}`}`);
     }
   }
+  // ARCADE scope (godot-arcade.js): no GLB, no walker — the one rung that
+  // matters is the REPLAY probe. The kernel replays the pack's seeded action
+  // script through its reducer port and prints a [mojulo-replay] digest; the
+  // JS reducer's outcome rides the pack as probe/replay.json.expected. Every
+  // field must match. [mojulo-perf] is stamped advisory (CPU-side only:
+  // headless has no renderer).
+  if (pack.scope === 'arcade') {
+    log(`machine gate — replay probe (${pack.replay.steps} actions through kernel/${pack.reducer}.gd)`);
+    const run = await runGodot(['--headless', '--path', outDir, '--', `--mojulo-replay=res://${pack.replay.file}`]);
+    const text = run.out + run.err;
+    const got = parseReplayLine(text);
+    const cmp = compareReplay(pack.replay.expected, got);
+    const ran = run.code === 0 && !SCRIPT_ERR.test(text) && !!got;
+    gate.replay_probe = { ok: ran && cmp.ok, ran, steps: pack.replay.steps, checks: cmp.checks, perf: parsePerfLine(text) };
+    for (const [k, c] of Object.entries(cmp.checks)) log(`  ${c.ok ? '✓' : '✗'} ${k}: ${c.ok ? String(c.expected).slice(0, 40) : `expected ${c.expected} got ${c.got}`}`);
+    if (!gate.replay_probe.ok) {
+      process.stderr.write(text);
+      fail(`machine gate FAILED: replay probe — ${JSON.stringify({ ran, checks: cmp.checks })}`);
+    }
+  }
   // interchange-next.plan.md N5: the MATERIALS probe — did the importer build the
   // shading the GLB DECLARES? KHR_materials_unlit on a primitive ⇒ an UNSHADED
   // surface, a real pbrMetallicRoughness ⇒ a shaded one, KHR_lights_punctual ⇒
   // Light3D nodes. --lit only labels the run (an unlit export may carry a PBR
   // emissive disc; a lit one keeps its unlit stickers). Gate-only script
   // (scripts/godot-materials-probe.gd); nothing of it rides the pack.
-  {
+  if (pack.scope !== 'arcade') {
     const glbs = pack.scope === 'game'
       ? pack.sceneChecks.map((scene) => scene.replace(/level\.tscn$/, 'model.glb'))
       : ['res://model.glb'];
@@ -143,9 +165,10 @@ if (!args['no-gate'] && existsSync(godotBin)) {
   // and the walk cycle is the current animation while moving (clips
   // resolved ⇒ clips bound: an unresolved name leaves anim empty).
   const PROBE_FRAMES = 120;
-  const probes = pack.scope === 'game'
-    ? pack.sceneChecks.map((scene) => ({ scene, scoreFile: path.join(outDir, scene.replace(/^res:\/\//, '').replace(/level\.tscn$/, 'score.json')) }))
-    : [{ scene: 'res://level.tscn', scoreFile: path.join(outDir, 'score.json') }];
+  const probes = pack.scope === 'arcade' ? []
+    : pack.scope === 'game'
+      ? pack.sceneChecks.map((scene) => ({ scene, scoreFile: path.join(outDir, scene.replace(/^res:\/\//, '').replace(/level\.tscn$/, 'score.json')) }))
+      : [{ scene: 'res://level.tscn', scoreFile: path.join(outDir, 'score.json') }];
   gate.locomotion_probe = {};
   for (const { scene, scoreFile } of probes) {
     const score = JSON.parse(await fs.readFile(scoreFile, 'utf8').catch(() => 'null'));
@@ -174,13 +197,13 @@ if (!args['no-gate'] && existsSync(godotBin)) {
       walk_playing: !!last && last.moving && (wantWalk ? last.anim === wantWalk : last.anim !== ''),
     };
     const ok = Object.values(checks).every(Boolean);
-    gate.locomotion_probe[scene] = { ok, ...checks, travelled_m: first && last ? +planar(first.walker, last.walker).toFixed(2) : null, dump: dumps };
+    gate.locomotion_probe[scene] = { ok, ...checks, travelled_m: first && last ? +planar(first.walker, last.walker).toFixed(2) : null, perf: parsePerfLine(text), dump: dumps };
     if (!ok) {
       process.stderr.write(text);
       fail(`machine gate FAILED: locomotion probe '${scene}' — ${JSON.stringify(checks)}`);
     }
   }
-  if (!Object.keys(gate.locomotion_probe).length) gate.locomotion_probe = { skipped: 'no player locomotion row' };
+  if (!Object.keys(gate.locomotion_probe).length) gate.locomotion_probe = { skipped: pack.scope === 'arcade' ? 'arcade scope — the replay probe is the rung' : 'no player locomotion row' };
   if (args.web) {
     log('web build — --export-release Web (needs export templates)');
     await fs.mkdir(path.join(outDir, 'build', 'web'), { recursive: true });
@@ -211,5 +234,6 @@ process.stdout.write(`${JSON.stringify({
   ledger: pack.ledger,
   gate,
   ...(webBuild ? { web_build: webBuild } : {}),
-  eyes_gate: `run: ${godotBin} --path ${outDir}${pack.scope === 'game' ? ' — pick a level from the menu; completing it unlocks the next' : ' — walk with WASD + mouse'}${gate.locomotion_probe && !gate.locomotion_probe.skipped ? '; the player suit should follow you in third person, walk while moving, idle when still, upright, turning with the mouse' : ''}`,
+  ...(pack.scope === 'arcade' ? { reducer: pack.reducer } : {}),
+  eyes_gate: `run: ${godotBin} --path ${outDir}${pack.scope === 'arcade' ? ' — Enter starts; arrows move, Space hard-drops, C holds; the groove should loop and SFX fire on lock/rotate/clear/game over' : pack.scope === 'game' ? ' — pick a level from the menu; completing it unlocks the next' : ' — walk with WASD + mouse'}${gate.locomotion_probe && !gate.locomotion_probe.skipped ? '; the player suit should follow you in third person, walk while moving, idle when still, upright, turning with the mouse' : ''}`,
 }, null, 2)}\n`);

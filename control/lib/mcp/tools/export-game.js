@@ -264,6 +264,7 @@ export async function exportGameHandler(input) {
       total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
       portability: { portable: pack.portability.portable, flags: pack.portability.flags },
       ledger: pack.ledger,
+      ...(pack.scope === 'arcade' ? { arcade: { reducer: pack.reducer, replay: pack.replay.file, replay_steps: pack.replay.steps } } : {}),
       note: 'Pack emitted (data + versioned kernel). Machine gate + web build live in the CLI: '
         + `node scripts/export-godot.mjs --ref ${ref} — or open the folder in Godot ≥4.5 and run.`,
     };

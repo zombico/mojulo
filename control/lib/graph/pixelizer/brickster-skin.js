@@ -61,7 +61,7 @@ export const BANK = {
   },
 };
 
-const LEGEND = {
+export const LEGEND = {
   i: 'block-i',
   j: 'block-j',
   l: 'block-l',

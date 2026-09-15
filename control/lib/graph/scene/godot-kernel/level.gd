@@ -12,7 +12,7 @@ extends Node3D
 # Headless probe (G-P), run by the export driver — no window needed:
 #   godot --headless --path <pack> <level.tscn> -- --mojulo-autowalk --mojulo-frames=120
 # prints a [mojulo-dump] ledger (walker, suit, figures) at frame 1 and at
-# --mojulo-frames, then quits.
+# --mojulo-frames, plus a [mojulo-perf] line (CPU-side monitors), then quits.
 
 @export_file("*.json") var score_path: String = ""
 @export var music_path: String = ""
@@ -51,6 +51,7 @@ var suit_moving := false
 var figure_players: Array = []       # [{node, player, anim}] — ambient idles, for the dump
 var probe_frames := -1               # --mojulo-frames=N: dump at frame N and quit
 var probe_frame := 0
+var _marker_res: Dictionary = {}     # marker kind -> the one shared Mesh (material on it)
 
 
 static func to_yup(v: Array) -> Vector3:
@@ -207,15 +208,37 @@ func _mark_meshless_entities() -> void:
 	for ent in find_children("entity_*", "Node3D", true, false):
 		if ent.visible and ent.find_children("*", "MeshInstance3D", true, false).is_empty():
 			var marker := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = Vector3(size, size, size)
-			var mm := StandardMaterial3D.new()
-			mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			mm.albedo_color = Color(0.92, 0.76, 0.3)
-			box.material = mm
-			marker.mesh = box
+			marker.mesh = _marker_mesh("entity")
+			marker.scale = Vector3(size, size, size)
 			marker.position = Vector3(0, size / 2, 0)
 			ent.add_child(marker)
+
+
+# One unit mesh + one material per marker KIND, built on first use and shared
+# by every instance — the instance's scale carries the size. Markers used to
+# allocate their own mesh and material each, one draw state per marker for
+# no visible gain (kernel 0.2.2).
+func _marker_mesh(kind: String) -> Mesh:
+	if _marker_res.has(kind):
+		return _marker_res[kind]
+	var mm := StandardMaterial3D.new()
+	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var mesh: Mesh
+	if kind == "hazard":
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.5
+		sphere.height = 1.0
+		mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mm.albedo_color = Color(0.95, 0.25, 0.2, 0.35)
+		mesh = sphere
+	else:
+		var box := BoxMesh.new()
+		box.size = Vector3.ONE
+		mm.albedo_color = Color(0.92, 0.76, 0.3)
+		mesh = box
+	mesh.material = mm
+	_marker_res[kind] = mesh
+	return mesh
 
 
 func _entity(id: String) -> Dictionary:
@@ -422,8 +445,20 @@ func _physics_process(_delta: float) -> void:
 		_dump("t=1")
 	elif probe_frame >= probe_frames:
 		_dump("t=%d" % probe_frame)
+		print(perf_line())
 		probe_frames = -1
 		get_tree().quit()
+
+
+# CPU-side numbers at the probe's last frame, stamped advisory by the driver.
+# Headless has no renderer, so no render time is claimed.
+static func perf_line() -> String:
+	return "[mojulo-perf] process_ms=%.3f physics_ms=%.3f nodes=%d objects=%d static_kb=%d" % [
+		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		int(Performance.get_monitor(Performance.OBJECT_COUNT)),
+		int(Performance.get_monitor(Performance.MEMORY_STATIC) / 1024.0)]
 
 
 # Implicit ground plane (z=0 unless the score says otherwise) + AABB obstacle
@@ -543,15 +578,8 @@ func _build_mechanics() -> void:
 # as the gold entity markers; the web build is the reference look.
 func _hazard_marker(pos: Vector3, radius: float) -> void:
 	var marker := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = radius
-	sphere.height = radius * 2.0
-	var mm := StandardMaterial3D.new()
-	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mm.albedo_color = Color(0.95, 0.25, 0.2, 0.35)
-	sphere.material = mm
-	marker.mesh = sphere
+	marker.mesh = _marker_mesh("hazard")
+	marker.scale = Vector3.ONE * (radius * 2.0)
 	marker.position = pos
 	add_child(marker)
 
@@ -603,7 +631,10 @@ func _update_hud() -> void:
 		parts.append("SURVIVE %d" % int(ceil(survive_left)))
 	for item in bag:
 		parts.append("%s ×%d" % [String(item).to_upper(), int(bag[item])])
-	hud.text = "   ".join(parts)
+	# assigned only on change: Label.text triggers a relayout even when equal
+	var text := "   ".join(parts)
+	if hud.text != text:
+		hud.text = text
 
 
 func _zone_hit(zone: Dictionary, pos: Vector3) -> bool:

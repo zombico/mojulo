@@ -31,7 +31,7 @@ const toDb = (v) => (Number.isFinite(v) && v > 0 ? 20 * Math.log10(v) : null);
 function refuse(sketch, ref) {
   const manifest = sketch?.manifest ?? {};
   if (manifest.engine === 'pixelizer' || manifest.kind === 'pixelizer') {
-    throw new Error(`refused: '${ref}' is a pixelizer game — a 2D reducer is not a scene (godot-handoff.plan.md)`);
+    throw new Error(`refused: '${ref}' is a pixelizer game — a 2D reducer is not a scene; it takes the arcade leg (export_game { target: 'godot' } on the game row)`);
   }
   return manifest;
 }
@@ -47,7 +47,10 @@ async function resolveLevel(levelSketch, { clips, posture = null, lit = false })
   return { kind, exported, score };
 }
 
-async function writePack({ outDir, binaries, emitted, portability }) {
+/** Clean-emit a pack folder: binaries + emitted text + (optional) portability
+ * + a kernel dir copied verbatim. Shared with the arcade leg (godot-arcade.js),
+ * which brings its own kernel and no engine-score portability. */
+export async function writePack({ outDir, binaries, emitted, portability = null, kernelSrc = kernelDir() }) {
   await fs.rm(outDir, { recursive: true, force: true });
   await fs.mkdir(outDir, { recursive: true });
   const written = [];
@@ -59,8 +62,8 @@ async function writePack({ outDir, binaries, emitted, portability }) {
   };
   for (const b of binaries) await writeOut(b.rel, b.bytes);
   for (const f of emitted.files) await writeOut(f.file, f.text);
-  await writeOut('portability.json', JSON.stringify(portability, null, 2));
-  const src = kernelDir();
+  if (portability) await writeOut('portability.json', JSON.stringify(portability, null, 2));
+  const src = kernelSrc;
   await fs.cp(src, path.join(outDir, 'kernel'), { recursive: true });
   for (const k of await fs.readdir(src)) {
     written.push({ file: `kernel/${k}`, bytes: (await fs.stat(path.join(src, k))).size });
@@ -114,6 +117,12 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
 export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`sketch '${ref}' not found`);
+  // A pixelizer game is a reducer, not a scene: it takes the arcade leg
+  // (its own kernel, no GLB, a replay probe instead of the scene gates).
+  if (sketch.manifest?.engine === 'pixelizer' && sketch.manifest?.kind === 'game') {
+    const { buildGodotArcadePack } = await import('./godot-arcade.js');
+    return buildGodotArcadePack({ ref, outDir, log });
+  }
   const manifest = refuse(sketch, ref);
   if (manifest.kind !== 'game') throw new Error(`'${ref}' is not a game (kind '${manifest.kind ?? 'none'}')`);
   const levelSpecs = Array.isArray(manifest.levels) ? manifest.levels : [];

@@ -24,6 +24,7 @@ export const PIXELIZER_REDUCERS = {
     register: '8bit',
     theme: { accent: '#e8b040', accent2: '#00b8c8', style: 'hud' },
     emit: emitBricksterShell,
+    godot: true,   // has a GDScript port in lib/graph/scene/godot-arcade-kernel/ (godot-arcade.js)
   },
   'philosophers-stone': {
     title: "Philosopher's Stone",
