@@ -587,8 +587,17 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     // medial ARCH → the ball (widest, on the floor) → tapered toes. The TOE (MTP) JOINT
     // dorsiflexes the forefoot past the ball — the foot "breaks" at the ball as the heel
     // lifts (toe-off). `toe` ∈ 0..55° (+ = toes up). Sole `s`, instep `t`, half-width `hw`.
-    const toeOff = 0.150 * P.footLength, heelOff = -0.050;
-    const ballT = 0.60, ballAlong = lerp(heelOff, toeOff, ballT), ballSole = -0.026;
+    // FOOT SCALE (footwear). The station numbers below are the foot's SHAPE; this is its size.
+    // The canonical foot measured 18.1 % of stature — a EU 47 on a 170 cm figure, where a human
+    // foot is about 15 % (and a shoe drafted from that tape would print at that size). `FOOT`
+    // scales length, breadth and depth TOGETHER, so the foot keeps its proportions and only its
+    // size changes; `footLength` stays what it was, an extra multiplier on forward reach alone.
+    // `BREADTH` then trims the width alone: at a uniform scale the foot came out 42 % as broad as
+    // it is long, against a human 37–40 %. Length is the dominant error and `FOOT` fixes it;
+    // this is the second-order one.
+    const FOOT = 0.82, BREADTH = 0.93;
+    const toeOff = 0.150 * P.footLength * FOOT, heelOff = -0.050 * FOOT;
+    const ballT = 0.60, ballAlong = lerp(heelOff, toeOff, ballT), ballSole = -0.026 * FOOT;
     const toeRad = Math.max(0, Math.min(55, ff ? ff.toe || 0 : 0)) * Math.PI / 180;
     const ct = Math.cos(toeRad), stt = Math.sin(toeRad);
     const bend = (along, lift) => {                          // rotate the forefoot up about the ball
@@ -599,30 +608,71 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const out = [];
     // One continuous rounded foot heel→toe: heel cap → heel body + instep DOME → a lifted
     // medial ARCH → the BALL (widest, on the floor) → tapered toes → toe cap.
+    //
+    // THE BIG TOE LEADS (footwear). A real forefoot is not a symmetric spearhead. The hallux is
+    // the longest toe and sits MEDIALLY, and the toe line slants BACK from it to the fifth toe —
+    // so the foot's point is on its inner edge, and the two feet are mirror images. Two per-
+    // station dials say it:
+    //   `lead` — how far the LATERAL half of this station falls back, as a fraction of TOE_LEAD.
+    //            The medial edge keeps `toeOff`, so the foot's LENGTH (measured to the big toe,
+    //            as a shoemaker measures it) is unchanged; only the outer side retreats.
+    //   `med`  — how far this station's centre walks toward the big-toe side, as a fraction of
+    //            the ball's half-width. At the cap this is what puts the tip on the inner edge.
+    // MEDIAL IS `sgn`: the foot frame's `side` axis points along −x for both feet, the left foot
+    // sits at −x and the right at +x, so "toward the body's midline" is −side on the left and
+    // +side on the right — which is exactly sgn (−1 left, +1 right). The mirroring is therefore
+    // free: one set of numbers, each foot pointing inward.
+    // A station with neither dial is bit-identical to before, vertices and centre alike.
+    //
+    // The toe box moved with the dials, and had to. Off a symmetric spearhead the cap was a
+    // 3.9 cm-wide wedge jutting 6 cm past the toes ring — blunt enough to read as a rounded toe
+    // while it sat on the midline. Walk that same narrow cap medially and it reads as a BLADE.
+    // So the forefoot gained two stations instead: a `roll` that keeps the box's width and depth
+    // out to 90 % of the foot, and a blunt `box` at 97 % still 64 % as wide as the ball and
+    // 2.7 cm deep — where the single old cap had collapsed to 8 % and 0.7 cm, a knife edge.
+    //
+    // THE CLOSURE. `litFaces` strips quads BETWEEN consecutive rings and caps neither end, so a
+    // ring stack is an open tube — the foot always had a hole at the toe, small enough at the old
+    // cap's width to pass as a shadow. Widening the box makes that hole a window. The `tip` ring
+    // shuts it: tiny in every direction, which means NO `lead` — a slanted ring is spread ~2 cm
+    // along the foot and closes nothing however narrow it is cut. Its radius is ≈ 0.2 cm against
+    // the box's 3 cm. Not zero, deliberately: a degenerate ring has girth 0, and the foot chart
+    // divides by a row's girth.
+    // Measured on the leading edge (forward-most point per lateral bin, little toe → big toe):
+    // 7.0 14.8 17.0 17.9 18.5 19.7 19.7 19.7 19.7 cm — it never steps back toward the hallux.
+    const TOE_LEAD = 0.022 * P.footLength * FOOT, MED_REF = 0.042 * FOOT * BREADTH;   // MED_REF = the ball's half-width
     const stations = [
       { t: 0.00, s: -0.006, t2: 0.008, hw: 0.012 },         // heel cap (rounded back)
       { t: 0.14, s: -0.024, t2: 0.026, hw: 0.030 },         // heel body, instep rising
       { t: 0.30, s: -0.026, t2: 0.030, hw: 0.033 },         // under the ankle: instep dome
       { t: 0.46, s: -0.015, t2: 0.020, hw: 0.031 },         // ARCH: the medial sole lifts off the floor
-      { t: 0.60, s: -0.026, t2: 0.006, hw: 0.042 },         // BALL: widest, back on the floor  ← toe hinge
-      { t: 0.80, s: -0.024, t2: -0.004, hw: 0.034 },        // toes
-      { t: 1.00, s: -0.018, t2: -0.013, hw: 0.013 },        // toe cap (tapered, rounded)
-    ];
+      { t: 0.60, s: -0.026, t2: 0.006, hw: 0.042, lead: 0.20 },                 // BALL: widest, back on the floor  ← toe hinge; the 1st MTP leads the 5th a little
+      { t: 0.80, s: -0.025, t2: -0.001, hw: 0.035, lead: 0.38, med: 0.06 },     // toes: the line starts slanting back toward the little toe
+      { t: 0.90, s: -0.024, t2: -0.006, hw: 0.032, lead: 0.60, med: 0.16 },     // toe ROLL: the box keeps its width and its depth this far out
+      { t: 0.97, s: -0.023, t2: -0.010, hw: 0.026, lead: 0.78, med: 0.26 },     // toe BOX: the blunt end, still 64 % of the ball's width
+      { t: 1.00, s: -0.0195, t2: -0.0175, hw: 0.0015, med: 0.38 },              // toe TIP: tiny and UNSLANTED — see the closure note below
+    ].map((st) => ({ ...st, s: st.s * FOOT, t2: st.t2 * FOOT, hw: st.hw * FOOT * BREADTH }));   // shape above, size here
     const M = 24, round = 0.62, raw = [];
     let soleZ = Infinity;
     for (const st of stations) {
       const along0 = lerp(heelOff, toeOff, st.t), cUp0 = (st.s + st.t2) / 2, hUp = (st.t2 - st.s) / 2;
+      const lead = st.lead ?? 0, medOff = (st.med ?? 0) * MED_REF * sgn;
       const poly = [];
+      let aSum = 0;
       for (let j = 0; j <= M; j++) {
         const a = (j / M) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
         const lift0 = cUp0 + hUp * Math.sign(sa) * Math.pow(Math.abs(sa), round);
-        const b = bend(along0, lift0);
-        const P = ptS(b.along, b.lift, st.hw * Math.sign(ca) * Math.pow(Math.abs(ca), round));
+        const widef = Math.sign(ca) * Math.pow(Math.abs(ca), round);        // −1 … +1 across the foot
+        const along1 = along0 - TOE_LEAD * lead * Math.max(0, -widef * sgn);   // the LATERAL half falls back
+        if (j < M) aSum += along1;
+        const b = bend(along1, lift0);
+        const P = ptS(b.along, b.lift, st.hw * widef + medOff);
         if (P.z < soleZ) soleZ = P.z;
         poly.push(P);
       }
-      const bc = bend(along0, cUp0);
-      raw.push({ polyline: poly, center: ptS(bc.along, bc.lift, 0) });
+      // the ring's centre follows its own mean reach, so the chart's axis tracks the slanted toe
+      const bc = bend(lead ? aSum / M : along0, cUp0);
+      raw.push({ polyline: poly, center: ptS(bc.along, bc.lift, medOff) });
     }
     // Pin a PLANTED foot's sole to the constant floor (blended by plantedness), so it stays
     // on the ground through stance instead of riding up/down with the leg-column bottom.

@@ -12,6 +12,80 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### reliefs keep their caps in the World
+
+- `faceListToMesh` (the World / GLB packer) bakes a 3-corner face as one triangle instead of skipping it.
+  Relief caps are ear-clipped triangles, so every embossed wordmark, label and glyph rendered as bevel
+  walls around a hole in the World and in `.glb` exports; the STL path was unaffected. Quads, textured
+  and clip-mapped faces keep their four-corner contract byte for byte.
+
+### footwear — shoes, boots and sandals, and the figure that stands on them
+
+- **Fixed: the figure stands flat.** A figure that says nothing about its feet is standing, and a
+  standing sole is on the floor. Before this the sole-flattening weight fell back to zero, the foot
+  was built perpendicular to the shank, and the rest shank tilts 11° back — so every standing
+  figure balanced on its toe tip with the heel about 3.8 cm in the air (sole pitch 11.3°, one of
+  seven sole stations touching the ground). Bare that read as a slight point; under a shoe's sole
+  it would read as a ski. A pose that wants a pointed foot still says so, and the walk and the
+  sprint — which set their feet explicitly — are byte-identical. Re-pins the three figure
+  absent-channel hashes and the two world kinds that place figures (`subway-building`,
+  `subway-station`); nothing else in the suite moves.
+- **Added: the foot is a body chart.** `footL` / `footR` join the trunk, arms, legs and neck as
+  charts a pattern piece can sit on — a tube laid across gravity, its rows running heel to toe,
+  its `u` = 0 the instep and `u` = 0.5 the sole. Its landmarks are read off the tape the way the
+  trunk's waist is: the instep is the fullest row behind the middle, the ball the fullest ahead of
+  it, the arch the narrowest row between them. The tailor's tape gains `ball`, `instep` and
+  `foot_length`. Every existing garment's readout is unchanged.
+- **Changed: the big toe leads, and the feet are a pair.** The forefoot was a symmetric spearhead
+  tapering to a point on the midline — the same shape on both feet, with no handedness at all.
+  The hallux now leads: the toe line slants back from the big toe to the little one, the foot's
+  point sits on its inner edge, and the two feet are exact mirrors, so a shoe last has a side to
+  be drafted for.
+- **Changed: the toe box is rounded.** The forefoot past 86 % of the foot used to be a single
+  tapering cap — 8 % as wide as the ball and 0.7 cm deep near the tip, a knife edge that a medial
+  point only sharpened. It now rolls: the box holds about two-thirds of the ball's width and
+  2.7 cm of depth almost to the end, closed by a small tip ring. (A ring stack is an open tube —
+  the renderer caps neither end — so the foot has always had a hole at the toe; the blunter box
+  would have shown it, and the tip ring shuts it.)
+- **Changed: the foot is in proportion.** It was 18 % of the figure's height — a EU 47 on a
+  170 cm body, and the size a pattern sheet would have printed a sole at. It is now about 15 %,
+  the human ratio, with length, breadth and depth scaled together so the shape is unchanged: 26 cm
+  long and 10 cm broad on a 170 cm figure, holding at every stature and on both poles. `footLength`
+  still means what it did, an extra multiplier on forward reach.
+- **Added: a chart that lies across gravity carries no suspension.** The hang rule gives cloth the
+  circumference of the widest row above it, tapering as it falls — but "down" a foot chart means
+  "toward the toe", where a shoe would have flared to the heel's width. A foot chart is now marked
+  level: cloth on it follows its own width and its seams, the way a shoe is lasted rather than
+  hung. Every existing garment is unchanged.
+- **Added: sandals and boot shafts need no new block.** With the foot chart and the level rule in
+  place, a sandal (a footbed between the foot's two end rows, straps over the instep, a band at the
+  ankle) and a boot shaft are ordinary outline pieces — the same move the book's tie makes on the
+  trunk. They mirror per foot, lay out on the printable sheet, and a shod figure stands on its
+  soles: the sole holds the foot off the ground on its own, with no ground-plane special case.
+- **Added: shoe blocks, and shoes.** Three new blocks — `shoe-sole` (a footprint under the foot),
+  `shoe-upper` (one wrap anchored on the sole line, closing over the instep ahead of its `throat`
+  and falling to a collar behind it) and `boot-shaft` (the leg above the ankle, drafted to the
+  leg's own girth at the calf, so it layers over a trouser hem instead of fighting it). Where the
+  throat sits is the whole difference between a loafer, an oxford, a sneaker and a boot. The
+  recipe book's wardrobe chapter gains six: `sneaker`, `loafer`, `oxford`, `ankle-boot`,
+  `knee-boot` and `sandal`.
+- **Added: a level chart measures its breadth.** A girth cannot say how broad a foot is — the
+  instep is 25 cm around and 8 broad, the ball 24 and 10, because one is deep and the other flat.
+  A shoe block is handed each of the chart's own rows with its breadth, depth and distance along,
+  so a sole drafts to the rings that exist rather than to the foot's silhouette.
+- **Added: the book's outfits are shod.** All eight named outfits gain a footwear layer, outermost,
+  so a boot's shaft lands on the trouser's hang rather than under it.
+- **Fixed: a level chart is not padded or cleared by the layers beneath it.** Two passes that read
+  a stand-off as a radius about a vertical axis were mauling footwear worn over trousers — a
+  trouser hem near the ankle counted as enclosing the foot and lifted the whole foot by more than
+  twice, and the clearance pass shoved a hundred and seventy-five foot vertices. Footwear now
+  drafts on the skin, as the hang rule already had it. Nothing else changes.
+- **Not built: the heel.** A heel has to stand off further than the sole under it, and the only
+  lever is the piece's own ease — which stretches a flat pattern by (r + e) / r around a section of
+  radius r. On the foot's smallest rings that is a smear, not a lift, and it looked like one. It
+  needs the sole placed in the ground plane instead of on the chart's radial. A shoe's lift today
+  is its sole's own thickness.
+
 ### wardrobe-variety — the dials a pattern book lists, so the wardrobe chapter can grow without core
 
 - **Added: draft on the padded form.** A block worn over other layers drafts to the layers' own

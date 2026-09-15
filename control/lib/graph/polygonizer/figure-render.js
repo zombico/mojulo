@@ -216,10 +216,17 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   const restPos = articulate(limbs);
   const legPos = { ...restPos };
   for (const k of GROUNDED_NODES) legPos[k] = { ...balanced[k] };
-  // `plant` pins the foot to the floor (position); `footFlat` (default → plant) flattens the
-  // sole to the ground (orientation). The walk does both; the sprint pins without flattening
-  // (forefoot strike), so it passes footFlat = 0.
-  const flatOf = (s) => (footFlat ? footFlat[s] || 0 : plant ? plant[s] || 0 : 0);
+  // `plant` pins the foot to the floor (position); `footFlat` (default → plant, and 1 when
+  // neither is given) flattens the sole to the ground (orientation). The walk does both; the
+  // sprint pins without flattening (forefoot strike), so it passes footFlat = 0.
+  //
+  // THE FLAT STAND (footwear P0): a figure that says nothing about its feet is STANDING,
+  // and a standing sole is on the floor. Before this the fallback was 0 — the foot was built ⊥ to
+  // the shank, and the rest shank tilts 11° back, so the default figure balanced on its toe tip
+  // with the heel ≈ 3.8 cm in the air (sole pitch 11.3°, one of seven stations touching). Bare
+  // that read as a slight point; under a 26 cm sole it is a ski. A pose that wants a pointed foot
+  // still says so — `footFlat: { L: 0 }`, as the sprint does.
+  const flatOf = (s) => (footFlat ? footFlat[s] || 0 : plant ? plant[s] || 0 : 1);
   // wrist articulation (the hand's mirror of footFlex): wristL/R = { flex, deviation } (a bare
   // number is treated as flex), fingersL/R = the knuckle curl. Threaded into the hand builder.
   const wf = (w) => (typeof w === 'number' ? { flex: w } : (w || {}));

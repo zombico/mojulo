@@ -354,3 +354,50 @@ from then on "put my red shift on this figure" is a name.
 
 `create_figure` answers with `patternSvgUrl` (the sheet) and the `pattern` readout whenever a
 pattern layer is worn.
+
+## 8. Footwear — the foot is a chart too
+
+`footL` / `footR` join the trunk, arms, legs and neck as charts a pattern piece can sit on. They
+are **tube charts laid across gravity**, so read them differently from a limb:
+
+- **`v` runs HEEL (0) to TOE (1)** — the foot's length, not a drop.
+- **`u` = 0 is the INSTEP** (the top of the foot) and **`u` = 0.5 is the SOLE**. `cf`/`cb` still
+  resolve, but on a foot they mean instep and sole, so prefer the numbers.
+- Landmarks are read off the tape the way the trunk's waist is: `heel`, `instep` (the fullest row
+  behind the middle — the dome under the ankle, about v 0.29), `arch` (the narrowest row between,
+  about 0.45), `ball` (the fullest ahead — about 0.59), `toe`.
+- **The end rows are the tube's closing caps** — around 8 cm of girth at the heel and 1 cm at the
+  toe tip, against 24 cm at the ball. A piece wider than the ring it sits on smears. Every
+  footwear block lives between roughly v 0.13 and 0.92; an outline piece should too.
+- **Nothing hangs along a level chart.** The hang rule's suspension is switched off there, so a
+  piece follows its own width and its seams — a shoe is lasted, not hung. For the same reason a
+  level chart is not lifted by the layers beneath it and not cleared against them: draft footwear
+  on the skin.
+- The tailor's tape gains `ball`, `instep` and `foot_length`, and a block drafting on a level
+  chart is handed `width`, `depth` and `sections` (every row, with its girth, breadth and
+  along-distance) — a girth alone cannot say how broad a foot is.
+
+**Blocks.** `shoe-sole` (a footprint; its `ease_cm` IS the sole's thickness and is what holds the
+foot off the ground — `dials: thickness_cm, margin_cm, from, to`), `shoe-upper` (one wrap anchored
+on the SOLE line: ahead of its `throat` the half-width is half the ring so the two sides meet over
+the instep and the shoe closes, behind it they fall to the sole's breadth plus `collar_cm` — the
+quarters), and `boot-shaft` (`dials: height` = `ankle` | `mid-calf` | `knee` or centimetres; it
+rides the LEG chart, so it layers over a trouser hem instead of fighting it).
+
+**The `throat` is the shoe.** Lower means the vamp closes further back, so more of the foot is
+covered: a loafer 0.36, an oxford 0.42, a sneaker 0.44, a boot 0.40 with a tall collar. Above
+about 0.5 only the toe box closes and the midfoot reads bare.
+
+### Footwear facts (deterministic, learned)
+
+- **A shoe wants the under-shell; a sandal does not.** Leave `under` alone for a shoe — cloth
+  sitting a small ease off flesh is lost in bands by the painter's depth sort, and the coverage
+  rule is what fills it. Set `under: false` only when seeing the foot IS the point (a sandal).
+- **Sandals and boot shafts need no block.** They are outline pieces: a footbed at `u` 0.5 with
+  its `ease_cm` as the sole's thickness, straps as rectangles at `u` 0 anchored to `ball` and
+  `instep`, an ankle band on the leg chart at `ankle`.
+- **A sole's strain rises with its thickness** and cannot be tuned away: a piece here maps a
+  centimetre of flat arc onto a centimetre of SKIN arc and then pushes it out, so a section of
+  radius r offset by e stretches by (r + e) / r. Keep soles near 1.2–1.7 cm, which is what a real
+  sole is. The same arithmetic is why there is no heel block — a heel is an ease of 3–5 cm on the
+  foot's smallest rings, and it smears rather than lifts.

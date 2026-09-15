@@ -21,10 +21,14 @@ describe('draftSloper', () => {
   const arm = chartMeasures(charts.armL, worldPerCm);
   arm.girth.upperArm = arm.girth.shoulder; arm.girth.wrist = arm.girth.wrist ?? arm.girth.bottom;
   trunk.girth.neck = 36;
+  // a footwear block reads the FOOT's chart (its rows, breadth and depth) or the LEG's
+  const foot = chartMeasures(charts.footL, worldPerCm, 'heel');
+  const leg = chartMeasures(charts.legL, worldPerCm, 'top');
+  const measuresFor = (kind) => (/^shoe-/.test(kind) ? foot : kind === 'boot-shaft' ? leg : kind === 'sleeve' ? arm : trunk);
 
   it('drafts every block as a counter-clockwise outline whose named edges cover it once', () => {
     for (const kind of SLOPER_KINDS) {
-      const m = kind === 'sleeve' ? arm : trunk;
+      const m = measuresFor(kind);
       const p = draftSloper(kind, m, {});
       expect(area(p.outline), kind).toBeGreaterThan(50);
       expect(p.chart).toBe(sloperChart(kind));
@@ -229,7 +233,11 @@ describe('the shoulder line — a bodice drafts to the crest and its seam is sti
     const top = Math.max(...f.outline.map(([, y]) => y));
     const tipR = f.outline[f.edges.shoulderR[0]], neckR = f.outline[f.edges.shoulderR[1]];
     expect(tipR[0]).toBeCloseTo(m.crest.half_cm, 6); expect(tipR[1]).toBeCloseTo(top, 6);      // at the acromion, level with the neck point
-    expect(neckR[0]).toBeCloseTo(m.crest.neck_cm / 4, 6); expect(neckR[1]).toBeCloseTo(top, 6);   // a quarter of the neck's base, the ring NOT added
+    // a quarter of the neck's base, the ring NOT added. To 2 dp, not 6: the block rounds every
+    // outline coordinate to the centimetre's hundredth, and a quarter of an already-rounded
+    // `neck_cm` generally is not on that grid — at precision 6 this passed only while the body's
+    // tape happened to land there, and any change to the flesh's measured height broke it.
+    expect(neckR[0]).toBeCloseTo(m.crest.neck_cm / 4, 2); expect(neckR[1]).toBeCloseTo(top, 6);
     // without a measured neck base the tailor's neck / 5 stands
     const noNeck = draftSloper('bodice-front', { ...m, crest: { ...m.crest, neck_cm: undefined } }, {});
     expect(noNeck.outline[noNeck.edges.shoulderR[1]][0]).toBeCloseTo(36 / 5, 6);
@@ -413,5 +421,73 @@ describe('wardrobe-variety — the padded form, the set-in sleeve, the split fro
       expect(hemW(s), sex).toBeGreaterThan(hemW(l));   // the knee is wider than the ankle
       for (const seam of s.seams) if (seam.a.edge === 'outseam') expect(seam.gap_cm, `${sex} outseam`).toBeLessThan(5);
     }
+  });
+});
+
+// FOOTWEAR BLOCKS (footwear P4) — the two facts a shoe depends on.
+describe('the footwear blocks', () => {
+  const { charts, worldPerCm } = buildBodyCharts(buildProtoform(articulate({}), {}), { stature_cm: 170 });
+  const foot = chartMeasures(charts.footL, worldPerCm, 'heel');
+  // The piece's y = 0 is the TOE end. Read the chart's section at that along-distance the way the
+  // block does — INTERPOLATED between the two bracketing rows, not snapped to the nearest. The
+  // foot's rows alternate full and narrow (instep 24.9, arch 19.8, ball 24.0), so snapping to the
+  // nearest row reports the arch's ring for a point that actually sits between arch and ball.
+  const sectionAtY = (y, L, y0) => {
+    const S = foot.sections, yFromHeel = y0 + (L - y);
+    let lo = 0; while (lo < S.length - 2 && S[lo + 1].y_cm <= yFromHeel) lo++;
+    const a = S[lo], b = S[Math.min(S.length - 1, lo + 1)];
+    const f = b.y_cm - a.y_cm > 1e-9 ? Math.max(0, Math.min(1, (yFromHeel - a.y_cm) / (b.y_cm - a.y_cm))) : 0;
+    return { girth: a.girth + (b.girth - a.girth) * f };
+  };
+  const y0Of = (p) => { const v = p.anchor.chart.v; const S = foot.sections;
+    let lo = 0; while (lo < S.length - 2 && S[lo + 1].v <= v) lo++;
+    const a = S[lo], b = S[Math.min(S.length - 1, lo + 1)];
+    const f = b.v - a.v > 1e-9 ? (v - a.v) / (b.v - a.v) : 0;
+    return a.y_cm + (b.y_cm - a.y_cm) * f; };
+
+  it('the upper never wraps past half its ring — further and the two sides cross over the instep', () => {
+    for (const dials of [{ throat: 0.36 }, { throat: 0.42 }, { throat: 0.5, collar_cm: 6.5 }]) {
+      const p = draftSloper('shoe-upper', foot, dials);
+      const L = Math.max(...p.outline.map((q) => q[1])), y0 = y0Of(p);
+      for (const [x, y] of p.outline) {
+        const sec = sectionAtY(y, L, y0);
+        // a twentieth of a centimetre of slack: the block rounds every outline coordinate to the
+        // hundredth, and reads its sections against v where this reads them against along-distance
+        expect(Math.abs(x), `throat ${dials.throat} at y ${y}`).toBeLessThanOrEqual(sec.girth / 2 + 0.05);
+      }
+    }
+  });
+
+  it('the throat is where the vamp closes: ahead of it the wrap is the whole ring, behind it the collar', () => {
+    const p = draftSloper('shoe-upper', foot, { throat: 0.42, throat_blend: 0.06, collar_cm: 3.6 });
+    const L = Math.max(...p.outline.map((q) => q[1])), y0 = y0Of(p);
+    const right = p.outline.filter((q) => q[0] > 0).sort((a, b) => a[1] - b[1]);
+    const front = right[Math.floor(right.length * 0.25)], back = right[right.length - 1];
+    const fSec = sectionAtY(front[1], L, y0), bSec = sectionAtY(back[1], L, y0);
+    expect(front[0] / (fSec.girth / 2), 'the vamp is closed').toBeGreaterThan(0.9);
+    expect(back[0] / (bSec.girth / 2), 'the quarters are open').toBeLessThan(0.8);
+  });
+
+  it('the sole is a footprint: as broad as the foot plus its margin, and never on the closing caps', () => {
+    const p = draftSloper('shoe-sole', foot, { margin_cm: 0.5 });
+    const widest = Math.max(...p.outline.map((q) => Math.abs(q[0]))) * 2;
+    expect(widest).toBeGreaterThan(foot.width.ball);          // at least the ball's breadth
+    expect(widest).toBeLessThan(foot.width.ball + 3);         // plus the margin, not a boat
+    expect(p.anchor.chart.u).toBe(0.5);                       // u 0.5 is a foot chart's sole
+    expect(p.anchor.chart.v).toBeGreaterThan(0.1);            // clear of the heel cap
+    const L = Math.max(...p.outline.map((q) => q[1]));
+    expect(L).toBeLessThan(foot.length);                      // and clear of the toe tip
+  });
+
+  it('the boot shaft rises from the ankle and drafts to the leg, not a straight tube', () => {
+    const leg = chartMeasures(charts.legL, worldPerCm, 'top');
+    const short = draftSloper('boot-shaft', leg, { height: 'ankle' });
+    const tall = draftSloper('boot-shaft', leg, { height: 'knee' });
+    expect(short.anchor.chart.v).toBe('ankle');
+    expect(Math.max(...tall.outline.map((q) => q[1]))).toBeGreaterThan(Math.max(...short.outline.map((q) => q[1])));
+    // the calf is fuller than the ankle, so the shaft widens as it rises
+    const top = tall.outline.reduce((a, q) => (q[1] > a[1] ? q : a), tall.outline[0]);
+    const hem = tall.outline.reduce((a, q) => (q[1] < a[1] ? q : a), tall.outline[0]);
+    expect(Math.abs(top[0])).toBeGreaterThan(Math.abs(hem[0]));
   });
 });

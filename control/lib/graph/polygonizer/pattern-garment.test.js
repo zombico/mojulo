@@ -6,7 +6,7 @@ import { buildGarment, validateGarmentSpec, GARMENT_FIT_KINDS, GARMENTS } from '
 import { bodyGirths, buildBodyCharts, standoffScalesByChart } from './body-chart.js';
 import { buildProtoform } from './figure-proto.js';
 import { articulate } from './figure-vajra.js';
-import { renderFigureToSvg } from './figure-render.js';
+import { buildPosedFigure, renderFigureToSvg } from './figure-render.js';
 
 const body = (proto = {}) => buildProtoform(articulate({}), proto);
 const rect = (w, h) => [[-w / 2, 0], [w / 2, 0], [w / 2, h], [-w / 2, h]];
@@ -308,5 +308,85 @@ describe('the layering rule', () => {
     const svg = renderFigureToSvg(rest);
     expect(svg).toBe(renderFigureToSvg(rest));
     expect(svg).not.toBe(renderFigureToSvg({ ...rest, garment: [bodice, skirt] }));
+  });
+});
+
+// THE LEVEL CHART (footwear P2) — a chart laid across gravity carries no suspension.
+describe('a level chart carries no suspension', () => {
+  const body = () => buildProtoform(articulate({}), {});
+
+  it('only the foot charts are level; the trunk, arms, legs and neck are not', () => {
+    const { charts } = buildBodyCharts(body(), { stature_cm: 170 });
+    expect(charts.footL.level).toBe(true);
+    expect(charts.footR.level).toBe(true);
+    for (const id of ['trunk', 'armL', 'armR', 'legL', 'legR', 'neck']) expect(charts[id].level, id).toBeUndefined();
+  });
+
+  it('a piece on the foot follows its own width — every row stands off 1, not the heel\'s girth carried to the toe', () => {
+    const spec = {
+      id: 'shoe', ease_cm: 0.6, under: false,
+      pieces: [{ id: 'vamp', fit: 'pattern', chart: 'footL', outline: [[-9, 0], [9, 0], [9, 18], [-9, 18]], anchor: { piece: [0, 18], chart: { u: 'cf', v: 'heel' } } }],
+    };
+    const { report } = buildPatternGarment(body(), spec, {});
+    expect(report.warnings ?? []).toEqual([]);
+    expect(report.hang.footL).toBe(1);
+    for (const r of report.hang_rows.footL) expect(r).toBe(1);
+    // without the rule the suspension carries the heel's circumference onto the tiny closing tip
+    // ring, which then has to flare ~18x to reach it — the flared toe this guards against
+  });
+});
+
+// FOOTWEAR WITH NO BLOCK (footwear P3). The proof that the foot chart and the level rule are
+// enough: a sandal and a boot shaft are OUTLINE pieces — the move the book's `tie` already makes
+// on the trunk — and need no `sloper`, no core addition. `shoe-upper` / `shoe-sole` blocks (P4)
+// are repertoire on top of this, not the capability.
+describe('a sandal and a boot shaft need no block', () => {
+  // A SANDAL: a footbed between the chart's two closing caps, two straps over the instep, and an
+  // ankle band on the leg. The footbed does NOT run the whole chart — the heel-cap and toe-tip
+  // rings are the tube's closures (7.8 cm and 1.0 cm around), and no piece can sit on them.
+  const SANDAL = {
+    id: 'sandal', color: { cloth: '#6b4a33' }, under: false, ease_cm: 0.5,
+    pieces: [
+      { id: 'sole', fit: 'pattern', chart: 'footL', mirror: 'soleR', ease_cm: 1.4,
+        outline: [[-2.48, 0], [2.48, 0], [4, 6.15], [3.88, 12.71], [2.88, 20.5], [-2.88, 20.5], [-3.88, 12.71], [-4, 6.15]],
+        anchor: { piece: [0, 20.5], chart: { u: 0.5, v: 0.14 } } },   // u 0.5 is the SOLE of a foot chart
+      { id: 'toeStrap', fit: 'pattern', chart: 'footL', mirror: 'toeStrapR', ease_cm: 0.5,
+        outline: [[-7.5, 0], [7.5, 0], [7.5, 3.2], [-7.5, 3.2]], anchor: { piece: [0, 1.6], chart: { u: 'cf', v: 'ball' } } },
+      { id: 'instepStrap', fit: 'pattern', chart: 'footL', mirror: 'instepStrapR', ease_cm: 0.5,
+        outline: [[-8.5, 0], [8.5, 0], [8.5, 3.6], [-8.5, 3.6]], anchor: { piece: [0, 1.8], chart: { u: 'cf', v: 'instep' } } },
+      { id: 'ankleStrap', fit: 'pattern', chart: 'legL', mirror: 'ankleStrapR', ease_cm: 0.6,
+        outline: [[-12, 0], [12, 0], [12, 2.6], [-12, 2.6]], anchor: { piece: [0, 1.3], chart: { u: 'cf', v: 'ankle' } } },
+    ],
+  };
+  const BOOT = {
+    id: 'bootShaft', color: { cloth: '#3a2a22' }, under: false, ease_cm: 1,
+    pieces: [{ id: 'shaft', fit: 'pattern', chart: 'legL', mirror: 'shaftR', ease_cm: 1,
+      outline: [[-13, 0], [13, 0], [14.5, 16], [-14.5, 16]], anchor: { piece: [0, 0], chart: { u: 'cf', v: 'ankle' } } }],
+  };
+
+  it('both build on both poles with no warnings, nothing clipped, and strain under 2', () => {
+    for (const [name, spec] of [['sandal', SANDAL], ['boot', BOOT]]) {
+      for (const sex of ['male', 'female']) {
+        const { report } = buildPatternGarment(buildProtoform(articulate({}), { sex }), spec, {});
+        expect(report.warnings ?? [], `${name}/${sex}`).toEqual([]);
+        expect(report.pieces.length, `${name}/${sex}`).toBe(spec.pieces.length * 2);   // each piece mirrored
+        for (const p of report.pieces) {
+          expect(p.clipped, `${name}/${sex} ${p.id}`).toBe(0);
+          expect(p.strain.max, `${name}/${sex} ${p.id}`).toBeLessThan(2);
+        }
+      }
+    }
+  });
+
+  it('every piece declares no sloper — this is outline-only', () => {
+    for (const spec of [SANDAL, BOOT]) for (const p of spec.pieces) expect(p.sloper).toBeUndefined();
+  });
+
+  it('the sole holds the foot off the ground: a shod figure stands on its soles', () => {
+    const lowest = (stacks, pick) => Math.min(...stacks.filter(pick).flatMap((s) => s.rings.flatMap((r) => r.polyline.map((q) => q.z))));
+    const shod = buildPosedFigure({}, {}, [SANDAL]);
+    const ground = lowest(shod, () => true), foot = lowest(shod, (s) => /^foot/.test(s.id));
+    expect(ground).toBeLessThan(foot);            // the sole is now the lowest thing on the figure
+    expect(lowest(buildPosedFigure({}, {}, null), () => true)).toBeCloseTo(foot, 9);   // bare, the foot itself is
   });
 });

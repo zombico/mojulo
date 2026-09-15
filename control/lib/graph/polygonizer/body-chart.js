@@ -36,6 +36,18 @@ export const CHART_SOURCES = {
   legL: { mode: 'tube', stacks: ['legL'] },
   legR: { mode: 'tube', stacks: ['legR'] },
   neck: { mode: 'tube', stacks: ['neck'] },
+  // THE FOOT (footwear P1) — a tube chart like a limb, but laid ACROSS gravity: its rows run
+  // heel → toe, so `v` is the foot's length and `u` = 0 is the INSTEP (the top), `u` = 0.5 the
+  // SOLE. `tubeRows` takes its axis from the ring centres and already falls back to +z for the
+  // in-plane front reference when a limb runs along +y, so the foot needs no special reader.
+  // `level: true` — this chart lies ACROSS gravity, so nothing hangs ALONG it (the hang rule in
+  // pattern-garment.js). DECLARED, not measured: a foot's axis reads 84° off vertical in every
+  // pose, but an ARM's reads 90° in a T-pose, and flipping the rule by geometry would change
+  // every raised-arm sleeve that exists. A foot is level by construction — it is the ground
+  // contact; an arm is level only sometimes. Measuring it is the more general rule and would
+  // also improve a raised sleeve, but that is a change to legacy emission, not this one.
+  footL: { mode: 'tube', level: true, stacks: ['footL'] },
+  footR: { mode: 'tube', level: true, stacks: ['footR'] },
 };
 export const CHART_IDS = Object.keys(CHART_SOURCES);
 
@@ -219,6 +231,46 @@ function rbAt(row, ux, uy) {
   return near ? Math.hypot(near.x - row.center.x, near.y - row.center.y) : 0;
 }
 
+/**
+ * A LEVEL chart's cross-section at row `i`: how BROAD and how DEEP it is, in world units.
+ * A girth alone cannot say: the foot's instep is 24.9 cm around and 7.7 cm broad, its ball 24.0
+ * around and 9.8 broad — same tape, a third more breadth — because one is deep and the other
+ * flat. A sole is drafted to breadth, so the chart measures it.
+ *
+ * The row's own frame: `n` along the chart (row to row), `side` = n x up, `vert` = side x n.
+ * Breadth is the extent along `side`, depth the extent along `vert`.
+ */
+export function rowSection(chart, i) {
+  const rows = chart.rows, row = rows[i];
+  const a = rows[Math.max(0, i - 1)].center, b = rows[Math.min(rows.length - 1, i + 1)].center;
+  let n = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+  const L = Math.hypot(n.x, n.y, n.z) || 1;
+  n = { x: n.x / L, y: n.y / L, z: n.z / L };
+  let side = { x: n.y * 1 - n.z * 0, y: n.z * 0 - n.x * 1, z: 0 };   // n x up, up = +z
+  const sl = Math.hypot(side.x, side.y, side.z);
+  if (sl < 1e-9) { side = { x: 1, y: 0, z: 0 }; } else { side = { x: side.x / sl, y: side.y / sl, z: side.z / sl }; }
+  const vert = { x: side.y * n.z - side.z * n.y, y: side.z * n.x - side.x * n.z, z: side.x * n.y - side.y * n.x };
+  let sLo = Infinity, sHi = -Infinity, vLo = Infinity, vHi = -Infinity;
+  for (const q of row.pts) {
+    const dx = q.x - row.center.x, dy = q.y - row.center.y, dz = q.z - row.center.z;
+    const ds = dx * side.x + dy * side.y + dz * side.z, dv = dx * vert.x + dy * vert.y + dz * vert.z;
+    if (ds < sLo) sLo = ds; if (ds > sHi) sHi = ds;
+    if (dv < vLo) vLo = dv; if (dv > vHi) vHi = dv;
+  }
+  return { breadth: sHi - sLo, depth: vHi - vLo };
+}
+
+/** `rowSection` at an along-fraction `v`, interpolated between the two rows that bracket it. */
+export function sectionAt(chart, v) {
+  const rows = chart.rows, n = rows.length;
+  const t = Math.max(0, Math.min(1, v)) * chart.vTotal;
+  let lo = 0; while (lo < n - 2 && chart.vArc[lo + 1] <= t) lo++;
+  const hi = Math.min(n - 1, lo + 1), span = chart.vArc[hi] - chart.vArc[lo];
+  const f = span > 1e-12 ? (t - chart.vArc[lo]) / span : 0;
+  const A = rowSection(chart, lo), B = rowSection(chart, hi);
+  return { breadth: A.breadth + (B.breadth - A.breadth) * f, depth: A.depth + (B.depth - A.depth) * f };
+}
+
 /** The crest's height (world z) at world x on a chart with a cap; null off the crest or without one. */
 export function crestZAt(chart, x) {
   const cap = chart && chart.cap; if (!cap) return null;
@@ -367,6 +419,17 @@ function tubeLandmarks(stacks, rows) {
     lm.wrist = 1;
   }
   if (stacks.length === 1 && /^leg/.test(stacks[0].id)) { lm.thigh = widest(0, 0.35); lm.knee = 0.5; lm.ankle = 1; }
+  // THE FOOT's landmarks are read off the tape, the way the trunk's waist is: the INSTEP is the
+  // fullest row of the rear half (the dome under the ankle), the BALL the fullest of the forward
+  // half (the widest part of the foot, on the floor), and the ARCH the narrowest row between
+  // them — where the medial sole lifts. `heel` and `toe` are the chart's two ends.
+  if (stacks.length === 1 && /^foot/.test(stacks[0].id)) {
+    const narrowest = (v0, v1) => { let best = null; for (let i = 0; i < rows.length; i++) { const v = av[i]; if (v < v0 || v > v1) continue; if (best == null || rows[i].girth < rows[best].girth) best = i; } return best == null ? (v0 + v1) / 2 : av[best]; };
+    lm.heel = 0; lm.toe = 1;
+    lm.instep = widest(0, 0.5);
+    lm.ball = widest(0.5, 1);
+    lm.arch = narrowest(lm.instep, lm.ball);
+  }
   lm.mid = 0.5;
   return lm;
 }
@@ -423,6 +486,7 @@ export function buildBodyCharts(body, { stature_cm = 170 } = {}) {
     // cannot go there, so the chart carries the thigh row's polygon up over them (a cylinder cap)
     if (landmarks.thigh != null && /^leg/.test(id)) capTubeAbove(rows, landmarks.thigh);
     charts[id] = finishChart(id, src.mode, rows, landmarks, worldPerCm, stacks.map((s) => s.id));
+    if (src.level) charts[id].level = true;
     if (cap) charts[id].cap = cap;
   }
   return { charts, worldPerCm, height };
@@ -568,6 +632,7 @@ export function layerGirthRows(charts, stacks) {
   const ids = Object.keys(charts);
   const out = Object.fromEntries(ids.map((id) => [id, charts[id].rows.map(() => 0)]));
   if (!Array.isArray(stacks) || !stacks.length || !ids.length) return out;
+  const level = new Set(ids.filter((id) => charts[id].level));   // a level chart drafts on the skin (see standoffScalesByChart)
   const len = (pl, closed) => { let L = 0; for (let i = 0; i < pl.length - (closed ? 0 : 1); i++) { const a = pl[i], b = pl[(i + 1) % pl.length]; L += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); } return L; };
   // a stack's chart: the one whose row at the height of the stack's middle ring is nearest its centre
   const nearestChart = (c) => {
@@ -635,7 +700,10 @@ export function layerGirthRows(charts, stacks) {
     const prof = profile(st, true), c = cell(garment, cid);
     charts[cid].rows.forEach((row, i) => { if (row.cap) return; const L = at(prof, row.center.z); if (L > c[i]) c[i] = L; });
   }
-  for (const byChart of contrib.values()) for (const [id, rows] of Object.entries(byChart)) for (let i = 0; i < rows.length; i++) if (rows[i] > out[id][i]) out[id][i] = rows[i];
+  for (const byChart of contrib.values()) for (const [id, rows] of Object.entries(byChart)) {
+    if (level.has(id)) continue;   // a level chart drafts on the skin, not on a padded form
+    for (let i = 0; i < rows.length; i++) if (rows[i] > out[id][i]) out[id][i] = rows[i];
+  }
   return out;
 }
 
@@ -649,6 +717,13 @@ export function standoffScalesByChart(charts, stacks, { cap = 2.5, tie = 1.15, s
   // flat list of rows with their frame (axis, front, side) for the azimuth read
   const rowsAll = [];
   for (const id of ids) {
+    // A LEVEL chart is not lifted by the layers (footwear). This envelope reads a stand-off as a
+    // radius about a chart's axis, which is a vertical-limb model: a trouser hem ring near the
+    // ankle reads as enclosing a foot chart's horizontal axis and lifts the whole foot by 2.3x.
+    // Nothing in the wardrobe is worn UNDER a shoe, so the honest answer is to leave a level
+    // chart on the skin until a sock needs otherwise — which wants the axis-aware read the hang
+    // rule already got, not a patch here.
+    if (charts[id].level) continue;
     const rows = charts[id].rows, R = rows.length;
     for (let i = 0; i < R; i++) {
       if (rows[i].cap) continue;   // the cap is lifted by height, not by ratio (liftChartCap)
@@ -765,6 +840,7 @@ export function bodyGirths(body, { stature_cm = 170 } = {}) {
   const { charts, worldPerCm } = buildBodyCharts(body, { stature_cm });
   const cm = (chart, v) => (chart && v != null ? r1(chartGirthAt(chart, v) / worldPerCm) : null);
   const t = charts.trunk, a = charts.armL ?? charts.armR, l = charts.legL ?? charts.legR, n = charts.neck;
+  const ft = charts.footL ?? charts.footR;
   const out = {
     stature_cm,
     bust: cm(t, t?.landmarks.bust),
@@ -775,6 +851,8 @@ export function bodyGirths(body, { stature_cm = 170 } = {}) {
     wrist: cm(a, 0.98),
     thigh: cm(l, l?.landmarks.thigh ?? 0.12),
     ankle: cm(l, 0.98),
+    ball: cm(ft, ft?.landmarks.ball),          // the widest part of the foot — a shoe's width
+    instep: cm(ft, ft?.landmarks.instep),      // the dome under the ankle — what a shoe must pass over
   };
   if (t) {
     const lm = t.landmarks;
@@ -784,5 +862,6 @@ export function bodyGirths(body, { stature_cm = 170 } = {}) {
   }
   if (a) out.arm_length = r1(a.vTotal / worldPerCm);
   if (l) out.inseam = r1(l.vTotal / worldPerCm);
+  if (ft) out.foot_length = r1(ft.vTotal / worldPerCm);
   return out;
 }

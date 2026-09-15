@@ -171,6 +171,55 @@ describe('the cap — the trunk chart\'s shoulder line (outfit P6)', () => {
     expect(liftChartCap(charts.armL, [hat])).toBe(charts.armL);
   });
 
+  // THE FOOT CHART (footwear P1) — a tube laid across gravity, rows heel → toe.
+  it('the foot is a tube chart whose rows run heel → toe, u = 0 the instep and u = 0.5 the sole', () => {
+    for (const id of ['footL', 'footR']) {
+      const f = charts[id];
+      expect(f, id).toBeTruthy();
+      expect(f.mode).toBe('tube');
+      expect(f.rows.length).toBeGreaterThan(2);
+      expect(f.vTotal).toBeGreaterThan(0);
+      // the chart runs FORWARD, not down: the toe end is further +y than the heel end, and the
+      // two ends sit within a couple of centimetres of the same height (the sole is flat)
+      const heel = f.rows[0].center, toe = f.rows[f.rows.length - 1].center;
+      expect(toe.y).toBeGreaterThan(heel.y);
+      expect(Math.abs(toe.y - heel.y)).toBeGreaterThan(Math.abs(toe.z - heel.z));
+      // u = 0 points UP off the instep, u = 0.5 DOWN off the sole, and the instep is above the sole
+      const v = f.landmarks.ball;
+      const up = chartPoint(f, 0, v), down = chartPoint(f, 0.5, v);
+      expect(up.out.z).toBeGreaterThan(0.5);
+      expect(down.out.z).toBeLessThan(-0.5);
+      expect(up.p.z).toBeGreaterThan(down.p.z);
+    }
+  });
+
+  it('the foot\'s landmarks are read off the tape: instep and ball are full, the arch between them is narrow', () => {
+    const f = charts.footL, lm = f.landmarks, g = (v) => chartGirthAt(f, v);
+    expect(lm.heel).toBe(0);
+    expect(lm.toe).toBe(1);
+    // heel < instep < arch < ball < toe, in order along the foot
+    expect(lm.instep).toBeGreaterThan(0);
+    expect(lm.arch).toBeGreaterThan(lm.instep);
+    expect(lm.ball).toBeGreaterThan(lm.arch);
+    expect(lm.ball).toBeLessThan(1);
+    // the arch is where the tape reads smallest between the two full rows — that IS its definition
+    expect(g(lm.arch)).toBeLessThan(g(lm.instep));
+    expect(g(lm.arch)).toBeLessThan(g(lm.ball));
+  });
+
+  it('the tape reads the foot: ball, instep and foot_length, on a body that has feet', () => {
+    const g = bodyGirths(body(), { stature_cm: 170 });
+    expect(g.ball).toBeGreaterThan(0);
+    expect(g.instep).toBeGreaterThan(0);
+    expect(g.foot_length).toBeGreaterThan(0);
+    // a footless body reports null/absent rather than throwing
+    const noFeet = body().filter((s) => !/^foot/.test(s.id));
+    const gn = bodyGirths(noFeet, { stature_cm: 170 });
+    expect(gn.ball).toBeNull();
+    expect(gn.instep).toBeNull();
+    expect(gn.foot_length).toBeUndefined();
+  });
+
   it('pushOutsideTube moves a point inside the neck out to its skin plus the margin and leaves clear points alone', () => {
     const n = charts.neck, row = n.rows[Math.floor(n.rows.length / 2)];
     const inside = { x: row.center.x + 0.01, y: row.center.y, z: row.center.z };

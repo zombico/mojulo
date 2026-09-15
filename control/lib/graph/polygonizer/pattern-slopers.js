@@ -15,7 +15,7 @@
  * Piece space: cm, +x the piece's right, +y up; outlines counter-clockwise; y = 0 at the hem.
  */
 
-export const SLOPER_KINDS = ['bodice-front', 'bodice-back', 'sleeve', 'skirt-front', 'skirt-back', 'trouser-front', 'trouser-back'];
+export const SLOPER_KINDS = ['bodice-front', 'bodice-back', 'sleeve', 'skirt-front', 'skirt-back', 'trouser-front', 'trouser-back', 'shoe-sole', 'shoe-upper', 'boot-shaft'];
 
 // hem names → the chart landmark the hem sits at (bodice/skirt); numbers are cm below the anchor
 const HEM_LANDMARK = { waist: 'waist', hip: 'hip', crotch: 'crotch' };
@@ -264,6 +264,152 @@ function trouser(side, m, d = {}) {
   return { outline, edges, corners, chart: 'trunk', anchor, join };
 }
 
+
+// ── FOOTWEAR ─────────────────────────────────────────────────────────────────
+// A shoe is two pieces and a rule. The SOLE is a footprint under the foot; the UPPER wraps from
+// one edge of that sole, over the instep, to the other. Both draft from `m.sections` — the foot
+// chart's OWN ROWS, with each row's girth, breadth and distance from the heel — because the
+// chart's end rows are the tube's closing caps (7.8 cm around at the heel, 1.0 cm at the toe,
+// against 24 cm at the ball) and a piece wider than the ring it sits on smears. Every footwear
+// block therefore lives between two v fractions, never on the caps.
+//
+// Piece space for both: y = 0 at the TOE end and y = L at the HEEL end, because the placer maps
+// piece +y toward the chart's top and a foot chart runs heel (v 0) to toe (v 1).
+const SHOE_SPAN = { from: 0.13, to: 0.92 };   // the usable chart, clear of both closing caps
+
+// Linear read of the sections table at an along-fraction v.
+function sectionAtV(sections, v) {
+  if (!sections || !sections.length) return { y_cm: 0, girth: 20, width: 8, depth: 4 };
+  let lo = 0; while (lo < sections.length - 2 && sections[lo + 1].v <= v) lo++;
+  const a = sections[lo], b = sections[Math.min(sections.length - 1, lo + 1)];
+  const f = b.v - a.v > 1e-9 ? (v - a.v) / (b.v - a.v) : 0;
+  const mix = (k) => a[k] + (b[k] - a[k]) * f;
+  return { y_cm: mix('y_cm'), girth: mix('girth'), width: mix('width'), depth: mix('depth') };
+}
+// the sections strictly inside (v0, v1), so an outline runs end - rows - end
+const innerSections = (sections, v0, v1) => (sections ?? []).filter((t) => t.v > v0 + 1e-6 && t.v < v1 - 1e-6);
+
+const smooth01 = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
+
+/**
+ * SHOE SOLE — the footprint, drafted to the chart's rows and worn at `thickness_cm` off the
+ * sole (the piece's `ease_cm`, which is what holds the foot off the ground). `margin_cm` is how
+ * far the sole stands proud of the flesh all round.
+ */
+function shoeSole(m, d = {}) {
+  const v0 = d.from ?? SHOE_SPAN.from, v1 = d.to ?? SHOE_SPAN.to;
+  const margin = d.margin_cm ?? 0.5;
+  const S = m.sections ?? [];
+  const yAt = (v) => sectionAtV(S, v).y_cm;
+  const L = r2(yAt(v1) - yAt(v0));
+  const half = (sec) => r2(sec.width / 2 + margin);
+  const rows = innerSections(S, v0, v1).map((t) => ({ y: r2(L - (t.y_cm - yAt(v0))), w: half(t) }));
+  const wToe = r2(half(sectionAtV(S, v1)) * (d.toe_round ?? 0.82));   // the front is rounded off, not cut square
+  // the heel end is NOT pulled in: its ring is the smallest the sole sits on, and narrowing the
+  // piece there forces it to stretch over the heel's curl (measured: strain 2.20 -> 1.88)
+  const wHeel = r2(half(sectionAtV(S, v0)) * (d.heel_round ?? 1));
+  const right = [...rows].sort((a, b) => a.y - b.y);                  // toe end -> heel end
+  const pts = [[-wToe, 0], [wToe, 0]];
+  for (const r of right) pts.push([r.w, r.y]);
+  pts.push([wHeel, L], [-wHeel, L]);
+  for (let i = right.length - 1; i >= 0; i--) pts.push([-right[i].w, right[i].y]);
+  const n = pts.length, iHeelR = 2 + right.length;
+  return {
+    outline: pts, edges: { toe: [0, 1], sideR: [1, iHeelR], heel: [iHeelR, iHeelR + 1], sideL: [iHeelR + 1, 0] },
+    corners: [iHeelR + 1, iHeelR, 1, 0], chart: 'footL',
+    anchor: { piece: [0, L], chart: { u: 0.5, v: v0 } },             // u 0.5 is a foot chart's SOLE
+    ease_cm: d.thickness_cm ?? 2,
+  };
+}
+
+/**
+ * SHOE UPPER — one wrap anchored on the SOLE line, so its half-width is the arc from the sole's
+ * centre up that side. Ahead of the `throat` it is half the girth: the two sides meet over the
+ * instep and the shoe is closed. Behind it they fall to the sole's own half-breadth plus
+ * `collar_cm` — the quarters — which leaves the top open for the foot. That ramp IS the throat,
+ * and where it sits is what separates an oxford from a loafer from a sneaker from a boot.
+ * Anchored at the sole rather than the instep on purpose: a piece anchored at the top would need
+ * a concave outline to open its throat, and a Coons patch cannot mesh one.
+ */
+function shoeUpper(m, d = {}) {
+  const v0 = d.heel ?? 0.10, v1 = d.toe ?? 0.96;
+  const throat = d.throat ?? 0.55, blend = d.throat_blend ?? 0.12;
+  const collar = d.collar_cm ?? 4;
+  const S = m.sections ?? [];
+  const yAt = (v) => sectionAtV(S, v).y_cm;
+  const L = r2(yAt(v1) - yAt(v0));
+  // half-width at v: the closed wrap ahead of the throat, the quarters behind it
+  // Half the ring is the CEILING everywhere: wrap further and the two sides cross over the instep,
+  // which meshes as a self-intersecting cage rather than a shoe. Near the toe the ring is small
+  // enough that `open` would exceed it on its own, so the clamp is not just the ramp's end point.
+  const halfAt = (v) => {
+    const sec = sectionAtV(S, v);
+    const closed = sec.girth / 2, open = Math.min(closed, sec.width / 2 + collar);
+    const t = smooth01((v - (throat - blend)) / (2 * blend));
+    return r2(open + (closed - open) * t);
+  };
+  const rows = innerSections(S, v0, v1).map((t) => ({ y: r2(L - (t.y_cm - yAt(v0))), w: halfAt(t.v) }))
+    .sort((a, b) => a.y - b.y);
+  // a sample either side of the throat so the ramp is drawn, not stepped over between rows
+  for (const v of [throat - blend, throat, throat + blend]) {
+    if (v <= v0 + 1e-6 || v >= v1 - 1e-6) continue;
+    rows.push({ y: r2(L - (yAt(v) - yAt(v0))), w: halfAt(v) });
+  }
+  rows.sort((a, b) => a.y - b.y);
+  const uniq = rows.filter((r, i) => i === 0 || Math.abs(r.y - rows[i - 1].y) > 0.05);
+  const wToe = r2(halfAt(v1) * (d.toe_round ?? 0.7)), wHeel = r2(halfAt(v0));
+  const pts = [[-wToe, 0], [wToe, 0]];
+  for (const r of uniq) pts.push([r.w, r.y]);
+  pts.push([wHeel, L], [-wHeel, L]);
+  for (let i = uniq.length - 1; i >= 0; i--) pts.push([-uniq[i].w, uniq[i].y]);
+  const iHeelR = 2 + uniq.length;
+  return {
+    outline: pts, edges: { front: [0, 1], toplineR: [1, iHeelR], back: [iHeelR, iHeelR + 1], toplineL: [iHeelR + 1, 0] },
+    corners: [iHeelR + 1, iHeelR, 1, 0], chart: 'footL',
+    anchor: { piece: [0, L], chart: { u: 0.5, v: v0 } },
+    ease_cm: d.ease_cm ?? 0.6,
+  };
+}
+
+
+// NO HEEL BLOCK, and the reason is worth keeping. A heel has to stand off further than the sole
+// it sits under, and the only lever for that here is the piece's own `ease` — so it would be a
+// second sole at `thickness + heel_cm`. Built and measured, it does not work: a piece placed by
+// this chart maps a centimetre of FLAT arc onto a centimetre of SKIN arc and then pushes it out,
+// so a section of radius r offset by e stretches by (r + e) / r. The heel's rings are small
+// (22.5 cm around, r 3.6 cm) and a 1.5-4 cm heel is an ease of 2.7-5.2 on top of the sole's own:
+// strain 3.60 at heel_cm 1.5, 4.59 at 2.5, 6.11 at 4, against 1.62 with no heel. Rendered, it is
+// bulk at the back rather than a lift under it. A heel needs the sole placed in the GROUND PLANE
+// instead of on the chart's radial, which is a placement mode pattern-garment.js does not have.
+// The sole's own thickness (1.2-1.7 cm) is what lifts a shoe today.
+
+/**
+ * BOOT SHAFT — the leg above the ankle, on the leg chart. `height` is a name or centimetres;
+ * the shaft drafts to the leg's own girth at each end (the ankle's, and the knee's interpolated)
+ * so it closes on a calf instead of running as a straight tube.
+ */
+function bootShaft(m, d = {}) {
+  const g = m.girth, drop = m.drop ?? {};
+  const dKnee = drop.knee ?? 40, dAnkle = drop.ankle ?? 0;
+  const names = { ankle: 6, 'mid-calf': Math.max(10, Math.abs(dKnee) * 0.55), knee: Math.max(14, Math.abs(dKnee) * 0.95) };
+  const H = typeof d.height === 'number' ? d.height : (names[d.height ?? 'ankle'] ?? names.ankle);
+  const ease = d.ease_cm ?? 2;
+  const gAnkle = (g.ankle ?? g.bottom ?? 22) + ease;
+  const gKnee = (g.knee ?? gAnkle) + ease;
+  const span = Math.abs(dKnee - dAnkle) || 40;
+  const at = (h) => { const f = Math.max(0, Math.min(1, h / span)); return r2((gAnkle + (gKnee - gAnkle) * f) / 2 * (d.flare ?? 1)); };
+  const mid = H > 8 ? [[at(H / 2), r2(H / 2)]] : [];
+  const w0 = at(0), w1 = at(H);
+  const pts = [[-w0, 0], [w0, 0], ...mid.map(([w, y]) => [w, y]), [w1, r2(H)], [-w1, r2(H)], ...mid.map(([w, y]) => [-w, y]).reverse()];
+  const iTopR = 2 + mid.length;
+  return {
+    outline: pts, edges: { hem: [0, 1], sideR: [1, iTopR], top: [iTopR, iTopR + 1], sideL: [iTopR + 1, 0] },
+    corners: [iTopR + 1, iTopR, 1, 0], chart: 'legL',
+    anchor: { piece: [0, 0], chart: { u: 'cf', v: 'ankle' } },       // the hem sits at the ankle, the shaft rises
+    ease_cm: ease / 4,
+  };
+}
+
 /**
  * Draft one block. Returns the piece fields a `fit:'pattern'` piece needs (outline, edges,
  * corners, chart, anchor); the caller merges them under the author's explicit fields.
@@ -280,12 +426,20 @@ export function draftSloper(kind, measures, dials = {}) {
     case 'skirt-back': return skirt('back', measures, dials);
     case 'trouser-front': return trouser('front', measures, dials);
     case 'trouser-back': return trouser('back', measures, dials);
+    case 'shoe-sole': return shoeSole(measures, dials);
+    case 'shoe-upper': return shoeUpper(measures, dials);
+    case 'boot-shaft': return bootShaft(measures, dials);
     default: throw new Error(`draftSloper: '${kind}' is not one of ${SLOPER_KINDS.join(' | ')}`);
   }
 }
 
 // The chart a block sits on when the piece does not say.
-export function sloperChart(kind) { return kind === 'sleeve' ? 'armL' : 'trunk'; }
+export function sloperChart(kind) {
+  if (kind === 'sleeve') return 'armL';
+  if (kind === 'boot-shaft') return 'legL';
+  if (/^shoe-/.test(kind)) return 'footL';
+  return 'trunk';
+}
 
 // Whole garments (a shift dress, an A-line skirt, trousers) are REPERTOIRE, not capability: they
 // live in the recipe book's wardrobe chapter as `garment.json` entries — dials over these blocks —

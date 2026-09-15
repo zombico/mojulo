@@ -26,7 +26,7 @@
  * top); outlines are counter-clockwise; `u` lines and `v` landmarks are body-chart.js's.
  */
 
-import { buildBodyCharts, chartPointAtArc, chartGirthAt, chartVAtZ, scaleChartRows, standoffScalesByChart, layerGirthRows, liftChartCap, crestZAt, rowRing, pushOutsideTube, resolveU, resolveV, CHART_IDS, U_LINES } from './body-chart.js';
+import { buildBodyCharts, chartPointAtArc, chartGirthAt, chartVAtZ, scaleChartRows, standoffScalesByChart, layerGirthRows, liftChartCap, crestZAt, rowRing, pushOutsideTube, sectionAt, rowSection, resolveU, resolveV, CHART_IDS, U_LINES } from './body-chart.js';
 import { draftSloper, sloperChart, SLOPER_KINDS } from './pattern-slopers.js';
 
 export const PATTERN_DEFAULTS = Object.freeze({
@@ -226,6 +226,11 @@ function hangScales(chart, parts, worldPerCm, sag) {
   const scales = new Array(rows.length).fill(1), hanging = new Array(rows.length).fill(false), ring = new Array(rows.length).fill(0), covered = new Array(rows.length).fill(false);
   const ease = Math.max(0, ...parts.map((pt) => pt.cp.ease)) * worldPerCm;   // the chart's ease ring — the same on every row, covered or not
   const sewn = chart.mode === 'hull' && parts.every((pt) => !pt.cp.join);   // a bodice or a skirt on the trunk follows its own seams
+  // A LEVEL chart (the foot) lies ACROSS gravity: "down the chart" is "toward the toe", so the
+  // suspension below means nothing there and a shoe would stand off by the heel's width all the
+  // way to the tip. Cloth on a level chart follows its own width and its seams — a shoe is lasted,
+  // not hung — and no row is ever cloth-held, so `hanging` (the carry-down in `hangChart`) is off.
+  const level = chart.level === true;
   let prev = 0, started = false;   // the hung circumference of the row above (world units); cloth begins at the first covered row
   for (let i = 0; i < rows.length; i++) {
     const s = chart.vArc[i];
@@ -250,12 +255,12 @@ function hangScales(chart, parts, worldPerCm, sag) {
     // suspension stays: without it the rows across the crotch flip between cloth-shaped and
     // body-shaped from one row to the next and tear (strain 12 at the fork). The trunk of a bodice
     // or a skirt is where a waist is suppressed, a shirt tucked, a jacket fitted.
-    const hung = started ? prev - sag * dz : 0;   // nothing hangs from rows the garment never reached (trousers start at the waist, not the shoulders)
+    const hung = (started && !level) ? prev - sag * dz : 0;   // nothing hangs from rows the garment never reached (trousers start at the waist, not the shoulders), nor along a level chart
     const C = Math.max(avail, need, (sewn && need > 0) ? 0 : hung);
     // scale the SKIN row so the ease ring (skin + 2π·ease) reaches C — scaling the ring's ratio
     // onto the skin would leave a small row (the groin) short of C by most of the ring
     scales[i] = (C - (avail - rows[i].girth)) / rows[i].girth;
-    hanging[i] = i > 0 && C > avail + 1e-9;   // the body is not what holds this row out (the cloth above, or the piece's own width): cloth-shaped, not body-shaped
+    hanging[i] = !level && i > 0 && C > avail + 1e-9;   // the body is not what holds this row out (the cloth above, or the piece's own width): cloth-shaped, not body-shaped
     ring[i] = C;
     prev = C;
   }
@@ -330,6 +335,25 @@ export function chartMeasures(chart, worldPerCm, anchor = 'shoulder') {
   // from centre-front around the neck's base and out along the crest to the acromion, where the
   // ring's u = 0.25 is; `drop_cm` its drop from the neck's edge to the acromion (the tailor's
   // shoulder slope, measured, 0 on a flat yoke); `neck_cm` the neck's girth at its base
+  // A LEVEL chart (the foot) also measures BREADTH and DEPTH per landmark: a sole is drafted to
+  // how wide the foot is, and the girth cannot say — the instep is 24.9 cm around and 7.7 broad,
+  // the ball 24.0 around and 9.8 broad.
+  if (chart.level) {
+    out.width = {}; out.depth = {};
+    for (const [k, v] of Object.entries(chart.landmarks)) {
+      const sec = sectionAt(chart, v);
+      out.width[k] = r2(sec.breadth / worldPerCm); out.depth[k] = r2(sec.depth / worldPerCm);
+    }
+    // THE RINGS THAT EXIST (footwear P3's lesson). A shoe block drafts to the chart's OWN ROWS,
+    // not to the foot's silhouette: the end rows are the tube's closing caps — 7.8 cm around at
+    // the heel and 1.0 cm at the toe against 24 cm at the ball — and a piece wider than the ring
+    // it sits on smears. `sections` is every row, with its along-distance from the anchor.
+    out.sections = chart.rows.map((row, i) => {
+      const sec = rowSection(chart, i);
+      return { v: r3(chart.vArc[i] / chart.vTotal), y_cm: r2((chart.vArc[i] - v0 * chart.vTotal) / worldPerCm),
+        girth: r2(row.girth / worldPerCm), width: r2(sec.breadth / worldPerCm), depth: r2(sec.depth / worldPerCm) };
+    });
+  }
   if (chart.cap) {
     const { cx, W, rn, neckGirth } = chart.cap, zi = crestZAt(chart, cx + Math.max(rn, W / 3)), zo = crestZAt(chart, cx + W);
     out.crest = { half_cm: r2(chart.rows[0].girth / 4 / worldPerCm), drop_cm: zi != null && zo != null ? r2(Math.max(0, (zi - zo) / worldPerCm)) : 0, ...(neckGirth ? { neck_cm: r2(neckGirth / worldPerCm) } : {}) };
@@ -359,7 +383,7 @@ function resolveSloperPiece(piece, charts, worldPerCm, warnings, defaults = PATT
   }
   // every block sees the whole tape: the neck's girth for a neckline, the arm's for a sleeve
   if (charts.neck) m.girth.neck = r2(chartGirthAt(charts.neck, 0.5) / worldPerCm);
-  if (charts.armL || charts.armR) { const a = chartMeasures(charts.armL ?? charts.armR, worldPerCm, 'shoulder'); m.girth.upperArm = a.girth.shoulder; m.girth.bicep = a.girth.bicep ?? a.girth.shoulder; m.girth.wrist = a.girth.wrist ?? a.girth.bottom; if (chart.mode === 'tube') m.length = a.length; }   // a sleeve's length is the arm's below the armscye; its width the bicep's
+  if (charts.armL || charts.armR) { const a = chartMeasures(charts.armL ?? charts.armR, worldPerCm, 'shoulder'); m.girth.upperArm = a.girth.shoulder; m.girth.bicep = a.girth.bicep ?? a.girth.shoulder; m.girth.wrist = a.girth.wrist ?? a.girth.bottom; if (chartId === 'armL' || chartId === 'armR') m.length = a.length; }   // a sleeve's length is the arm's below the armscye; its width the bicep's (scoped to an ARM chart: a foot or leg block must keep its own length)
   if (charts.trunk && chartId !== 'trunk') { const t = chartMeasures(charts.trunk, worldPerCm, 'shoulder'); for (const k of ['bust', 'waist', 'hip']) if (m.girth[k] == null) m.girth[k] = t.girth[k]; }
   // the cloth sits on the EASE RING, `ease_cm` off the skin: its circumference there is the girth
   // plus 2π·ease, and a block drafts to that — otherwise two halves overlap by the ring at every seam
@@ -392,6 +416,12 @@ function clearLayers(pieces, under, charts, worldPerCm, easeCm, restCm) {
   const S = 48, ZB = 2 * worldPerCm, HB = 2.5 * worldPerCm;
   const info = {};
   for (const [id, ch] of Object.entries(charts)) {
+    // a LEVEL chart is not cleared: the cell grid below is a height band x an angle sector about a
+    // VERTICAL axis, and a foot chart's rows all sit at one height — every vertex lands in the same
+    // band and gets pushed by whatever else is near it (measured: 175 foot vertices shoved by a
+    // trouser leg, strain 1.62 -> 79). Nothing is worn under a shoe; when something is, this wants
+    // the chart's own axis, as the hang rule has.
+    if (ch.level) continue;
     const rows = ch.rows.filter((r) => !r.cap);
     if (!rows.length) continue;
     info[id] = { rows, zTop: rows[0].center.z, zBot: rows[rows.length - 1].center.z, cells: new Map() };
