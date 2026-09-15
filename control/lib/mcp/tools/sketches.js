@@ -279,7 +279,7 @@ export function registerSketchTools() {
   registerTool({
     name: 'update_sketch',
     description:
-      "Revise an existing sketch in place — rename it, replace its manifest, or both — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, and kind:'game' manifests. Each kind pays its own gate — diagrams validate like `create_sketch`; world/solid kinds resolve through the world registry (the render contract itself); games pay create_game's structural gate (levels added by an edit are noted unaudited). Beats/voice refuse here and point at their domain tools. `manifest` is a FULL replacement: read the stored one, edit, write back. Returns `{ ok, ref, url, note? }`. Re-mint only for a side-by-side variant.",
+      "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate — diagrams validate like `create_sketch`; world/solid kinds resolve through the world registry; games pay create_game's structural gate (added levels noted unaudited). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`, on the stored manifest; `readout:'changed'` returns only what moved) over `manifest`, a FULL replacement. Re-mint only for a side-by-side variant.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -294,7 +294,32 @@ export function registerSketchTools() {
         manifest: {
           type: 'object',
           description:
-            'Full replacement manifest (same shape as create_sketch). Omit to leave the manifest unchanged. When provided, it fully overwrites the previous manifest — there is no partial/patch merge.',
+            'Full replacement manifest (same shape as create_sketch). Omit to leave the manifest unchanged. When provided it overwrites the previous manifest whole — for a targeted edit send `patch` instead (exclusive with `manifest`).',
+        },
+        patch: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            additionalProperties: true,
+            properties: {
+              op: { type: 'string', enum: ['set', 'remove', 'add'] },
+              id: { type: 'string', description: 'Monomer id to address (set / remove).' },
+              path: { type: 'string', description: "JSON Pointer to address (set / remove), e.g. '/movers/0/states'." },
+              value: { description: 'The replacement value (set by path).' },
+              into: { type: 'string', enum: ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields', 'drapes', 'reliefs', 'shells'], description: 'Monomer array to append to (add).' },
+              entry: { type: 'object', description: 'The monomer to append (add).' },
+            },
+            required: ['op'],
+          },
+          description:
+            "Ordered ops applied to the STORED manifest, then gated exactly like a `manifest` replacement (exclusive with it). `{ op:'set', id, ...keys }` shallow-merges keys into the monomer with that `id` (a key set to null deletes it); `{ op:'set', path, value }` replaces the value at a JSON Pointer (the last segment is created if absent); `{ op:'remove', id | path }`; `{ op:'add', into, entry }`. Ids resolve across every monomer array (an ambiguous id is refused); unnamed monomers are reachable by `path` only. Removing a monomer a `cuts` or `movers` entry still names is refused. The stored row is the resolved manifest; the ops ride the archived revision as its diff.",
+        },
+        readout: {
+          type: 'string',
+          enum: ['changed', 'summary', 'full'],
+          description:
+            "Shape of `stats` on a workbench edit: 'changed' (default with `patch`) — only the parts the patch touched or whose bounds / closure moved, `removed` parts, and NEW warnings (ones already on the previous revision collapse to one counted line); 'summary' — counts, size, ledger, warnings, no parts; 'full' (default with `manifest`) — the whole readout.",
         },
         folder_ref: {
           type: 'string',

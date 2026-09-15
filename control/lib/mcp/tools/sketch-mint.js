@@ -22,6 +22,8 @@ import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { WORLD_KINDS } from '@/lib/graph/worlds/world-kinds';
 import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
 import { SketchRevisionRepository, REVISIONED_KINDS } from '@/lib/db/repositories/sketch-revisions';
+import { applyManifestPatch } from './manifest-patch.js';
+import { MONOMER_KIND_OF_KEY } from '@/lib/graph/polygonizer/workbench-cuts';
 import {
   validateSketchManifest,
   expandGridLayout,
@@ -399,19 +401,103 @@ export async function createSketchHandler(input) {
   return result;
 }
 
+// update-sketch-patch: what an edit hands back. `full` is the whole planWorkbench block (the
+// default for a `manifest` replacement, so every existing caller sees what it saw); `changed`
+// (the default for a `patch`) is the parts the edit touched or moved plus the NEW warnings;
+// `summary` is the counts and the ledger with no parts at all.
+const READOUTS = Object.freeze(['changed', 'summary', 'full']);
+const KEY_OF_KIND = Object.fromEntries(Object.entries(MONOMER_KIND_OF_KEY).map(([k, v]) => [v, k]));
+
+// The previous readout, by ref, so an iterating session pays ONE plan per edit instead of two:
+// the stats this edit computed are the "previous" stats of the next one as long as the stored
+// row is still the manifest they were measured on. In-process and bounded; a miss replans.
+const PREV_STATS_CACHE = new Map();
+const PREV_STATS_CACHE_MAX = 32;
+function rememberStats(ref, manifest, stats) {
+  PREV_STATS_CACHE.delete(ref);
+  PREV_STATS_CACHE.set(ref, { json: JSON.stringify(manifest), stats });
+  if (PREV_STATS_CACHE.size > PREV_STATS_CACHE_MAX) PREV_STATS_CACHE.delete(PREV_STATS_CACHE.keys().next().value);
+}
+function previousStats(ref, manifest) {
+  const hit = PREV_STATS_CACHE.get(ref);
+  if (hit && hit.json === JSON.stringify(manifest)) return hit.stats;
+  try {
+    const { stats } = planWorkbench(manifest);
+    return stats;
+  } catch {
+    return null;
+  }
+}
+
+// A monomer a cut consumes reads out as the CUT's part (parts-booleans B1), so touching an operand
+// or the body must surface that part: map touched ids through `cuts` to the emitted field's id.
+function touchedCuts(manifest, touched) {
+  const out = new Set();
+  for (const c of Array.isArray(manifest?.cuts) ? manifest.cuts : []) {
+    if (!c || typeof c !== 'object') continue;
+    const names = [c.from, ...(Array.isArray(c.subtract) ? c.subtract : []), ...(Array.isArray(c.intersect) ? c.intersect : [])];
+    if (names.some((n) => touched.has(n))) out.add(c.id || `cut:${c.from}`);
+  }
+  return out;
+}
+
+function slimReadout(stats, prevStats, { readout, touched, cuts, archivedRev }) {
+  if (!stats || readout === 'full') return stats;
+  const { parts, warnings, ...rest } = stats;
+  if (readout === 'summary') return { ...rest, readout: 'summary', ...(warnings ? { warnings } : {}) };
+  // `changed`: match parts across revisions by id when the monomer has one, else by slot in its
+  // kind. A part is reported when it is new, when its bounds or closure audit moved (a neighbour
+  // removed by the patch shifts what it sits on), or when the patch named it.
+  const keyOf = (p) => (p.id ? `id:${p.id}` : `${p.kind}[${p.index}]`);
+  const shape = (p) => JSON.stringify([p.size, p.base, p.top, p.open ?? null, p.faces ?? null]);
+  const prev = new Map((prevStats?.parts || []).map((p) => [keyOf(p), p]));
+  const named = (p) => (p.id && touched.has(p.id)) || (p.cut && cuts.has(p.cut)) || touched.has(`/${KEY_OF_KIND[p.kind]}/${p.index}`);
+  const changed = (parts || []).filter((p) => {
+    const q = prev.get(keyOf(p));
+    return !q || shape(p) !== shape(q) || named(p);
+  });
+  const present = new Set((parts || []).map(keyOf));
+  const removed = [...prev.keys()].filter((k) => !present.has(k)).map((k) => k.replace(/^id:/, ''));
+  const prevWarnings = new Set(prevStats?.warnings || []);
+  const fresh = (warnings || []).filter((w) => !prevWarnings.has(w));
+  const unchanged = (warnings || []).length - fresh.length;
+  const lines = [
+    ...fresh,
+    ...(unchanged ? [`${unchanged} warning${unchanged === 1 ? '' : 's'} unchanged from ${archivedRev ? `rev ${archivedRev}` : 'the previous revision'}`] : []),
+  ];
+  return {
+    ...rest,
+    readout: 'changed',
+    parts_total: (parts || []).length,
+    parts: changed,
+    ...(removed.length ? { removed } : {}),
+    ...(lines.length ? { warnings: lines } : {}),
+  };
+}
+
 export async function updateSketchHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('update_sketch requires { ref, title?, manifest?, folder_ref? }');
+    throw new Error('update_sketch requires { ref, title?, manifest? | patch?, readout?, folder_ref?, note? }');
   }
-  const { ref, title, manifest, folder_ref: folderRef, bucket, note } = input;
+  const { ref, title, manifest: manifestInput, patch, readout: readoutInput, folder_ref: folderRef, bucket, note } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
   if (note !== undefined && (typeof note !== 'string' || !note.trim())) {
     throw new Error('`note` must be a non-empty string if provided');
   }
-  if (title === undefined && manifest === undefined && folderRef === undefined && bucket === undefined) {
-    throw new Error('At least one of `title`, `manifest`, `folder_ref`, or `bucket` must be provided');
+  if (patch !== undefined && manifestInput !== undefined) {
+    throw new Error('`patch` and `manifest` are exclusive — `patch` edits the stored manifest by part, `manifest` replaces it whole');
+  }
+  if (patch !== undefined && (!Array.isArray(patch) || !patch.length)) {
+    throw new Error("`patch` must be a non-empty array of ops ({ op: 'set' | 'remove' | 'add', … } addressed by monomer `id` or JSON Pointer `path`)");
+  }
+  if (readoutInput !== undefined && !READOUTS.includes(readoutInput)) {
+    throw new Error(`\`readout\` must be one of ${READOUTS.join(' | ')} if provided`);
+  }
+  const readout = readoutInput ?? (patch !== undefined ? 'changed' : 'full');
+  if (title === undefined && manifestInput === undefined && patch === undefined && folderRef === undefined && bucket === undefined) {
+    throw new Error('At least one of `title`, `manifest`, `patch`, `folder_ref`, or `bucket` must be provided');
   }
   // Concern bucket override: pin the owning concern, or pass null to drop back
   // to the kind-derived bucket. The sketch is the same primitive either way.
@@ -451,9 +537,27 @@ export async function updateSketchHandler(input) {
     );
   }
 
+  // update-sketch-patch: a patch is a cheaper way to author the next manifest — apply it to the
+  // stored one here, then fall through to the SAME kind gates a full replacement pays. Nothing
+  // below knows the edit arrived as ops; the stored row is the resolved manifest, as always.
+  let manifest = manifestInput;
+  let touched = new Set();
+  if (patch !== undefined) {
+    if (!existingSketch) throw new Error(`No sketch exists at ref '${ref}'`);
+    if (!existingSketch.manifest || typeof existingSketch.manifest !== 'object') {
+      throw new Error(`'${ref}' has no stored manifest to patch — pass \`manifest\``);
+    }
+    try {
+      ({ manifest, touched } = applyManifestPatch(existingSketch.manifest, patch));
+    } catch (err) {
+      throw new Error(`Invalid patch: ${err.message}`);
+    }
+  }
+
   let nextManifest;
   let gameNote;
   let workbenchStats = null;
+  let prevWorkbenchStats = null;
   if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
@@ -536,6 +640,11 @@ export async function updateSketchHandler(input) {
       } catch (err) {
         throw new Error(`Invalid world manifest (kind 'workbench'): ${err.message}`);
       }
+      // A slim readout diffs against the stored recipe's readout: the last edit's stats when
+      // this process made it, else one extra plan (it showed in wall_ms — ~2 s at 128 cells).
+      if (readout !== 'full' && existingSketch?.manifest?.kind === 'workbench') {
+        prevWorkbenchStats = previousStats(ref, existingSketch.manifest);
+      }
     }
     try {
       await resolveWorldScene({ ref, title: title ?? existingSketch?.title ?? 'world', manifest });
@@ -574,7 +683,7 @@ export async function updateSketchHandler(input) {
   // site changes); the sketches row stays HEAD, the beats posture verbatim.
   let revision = null;
   if (nextManifest !== undefined && existingSketch?.manifest && REVISIONED_KINDS.has(existingSketch.manifest.kind)) {
-    const archived = SketchRevisionRepository.append({ ref, manifest: existingSketch.manifest, note: note ?? null });
+    const archived = SketchRevisionRepository.append({ ref, manifest: existingSketch.manifest, note: note ?? null, patch: patch ?? null });
     revision = { archived_rev: archived.rev, head_rev: archived.rev + 1 };
   }
   const updated = SketchRepository.update({
@@ -593,12 +702,13 @@ export async function updateSketchHandler(input) {
   if (nextManifest !== undefined) {
     warmScenePng({ ref: updated.ref, manifest: nextManifest });
   }
+  if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   return {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
     ...(gameNote ? { note: gameNote } : {}),
-    ...(workbenchStats ? { stats: workbenchStats } : {}),
+    ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(revision ? { revision } : {}),
   };
 }

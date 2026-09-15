@@ -21,9 +21,31 @@ export const REVISIONED_KINDS = new Set([
   'figure', 'animal', 'manji-tree', 'edifice',
 ]);
 
+// update-sketch-patch: when an edit arrived as a `patch`, the ops ride the ARCHIVED revision's
+// note column as `patch:{ note, patch }` — rev N's row then reads as "manifest N, and the diff that
+// made N+1", so history is a diff without a migration. A proper `patch_json` column is the
+// follow-up when a reader of the history exists.
+const PATCH_NOTE_PREFIX = 'patch:';
+
+export function encodeRevisionNote({ note, patch }) {
+  if (!Array.isArray(patch) || !patch.length) return note || null;
+  return PATCH_NOTE_PREFIX + JSON.stringify({ note: note || null, patch });
+}
+
+export function decodeRevisionNote(raw) {
+  if (typeof raw !== 'string' || !raw.startsWith(PATCH_NOTE_PREFIX)) return { note: raw || null, patch: null };
+  try {
+    const parsed = JSON.parse(raw.slice(PATCH_NOTE_PREFIX.length));
+    return { note: parsed.note || null, patch: Array.isArray(parsed.patch) ? parsed.patch : null };
+  } catch {
+    return { note: raw, patch: null };
+  }
+}
+
 function rowToRevision(row, { withManifest = false } = {}) {
   if (!row) return null;
-  const out = { rev: row.rev, note: row.note || null, createdAt: row.created_at };
+  const { note, patch } = decodeRevisionNote(row.note);
+  const out = { rev: row.rev, note, ...(patch ? { patch } : {}), createdAt: row.created_at };
   if (withManifest) {
     try { out.manifest = JSON.parse(row.manifest_json); } catch { out.manifest = null; }
   }
@@ -32,14 +54,15 @@ function rowToRevision(row, { withManifest = false } = {}) {
 
 export const SketchRevisionRepository = {
   // Append the next revision for `ref` (rev 1 when none exist). Returns the written row.
-  append({ ref, manifest, note }) {
+  // `patch` (optional): the ops that turned THIS manifest into the next one.
+  append({ ref, manifest, note, patch }) {
     const db = getDb();
     const head = db.prepare('SELECT MAX(rev) AS rev FROM sketch_revisions WHERE ref = ?').get(ref);
     const rev = (head && head.rev ? head.rev : 0) + 1;
     db.prepare(
       `INSERT INTO sketch_revisions (ref, rev, manifest_json, note, created_at)
        VALUES (?, ?, ?, ?, unixepoch())`,
-    ).run(ref, rev, JSON.stringify(manifest), note || null);
+    ).run(ref, rev, JSON.stringify(manifest), encodeRevisionNote({ note, patch }));
     return this.get(ref, rev);
   },
 

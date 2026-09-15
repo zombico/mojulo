@@ -54,7 +54,9 @@ The shapes that trip a first mint, in one working spec: a lathe axis is an **obj
 a sweep path is an **array of arrays** `[[x,y,z], …]`, `material` is a shelf name (plain words
 like `ceramic` resolve to one), and `units:'cm'` is what makes the print, USD and glTF exports
 land at true size. Mint this as-is with `mint_solid({ kind: 'workbench', spec })`, then edit it
-in place with `update_sketch`.
+in place with `update_sketch { ref, patch: [{ op: 'set', id: 'body', material: 'steel' }] }` —
+name the part, not the whole recipe (ops: `set` by `id` or JSON Pointer `path`, `remove`, `add`;
+the default `readout: 'changed'` reports only what moved). A full `manifest` replace still works.
 
 ```json
 { "units": "cm",

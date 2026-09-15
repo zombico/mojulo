@@ -469,8 +469,12 @@ export function planWorkbench(manifest = {}) {
     const b = boundsOf(monoFaces);
     if (!b) return null;
     const closure = auditClosure(monoFaces, { intendClosed: monomerIntendsClosed(kind, spec) });
+    // update-sketch-patch: a named monomer reads out under its id, so a `changed` readout can
+    // match parts across revisions and a patch can name what it touched. Additive — the render
+    // never reads stats.
     const out = {
       kind, index,
+      ...(spec && typeof spec.id === 'string' && spec.id ? { id: spec.id } : {}),
       size: { w: round1(b.max[0] - b.min[0]), d: round1(b.max[1] - b.min[1]), h: round1(b.max[2] - b.min[2]) },
       base: round1(b.min[2]), top: round1(b.max[2]),
     };

@@ -12,6 +12,24 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### update-sketch-patch — iterate a stored recipe by naming the part
+
+- **Added: `update_sketch { patch }`** — an ordered list of `set` / `remove` / `add` ops addressed
+  by monomer `id` or JSON Pointer `path`, applied to the stored manifest and then run through the
+  same mint gates a full replacement pays. The stored row is still the whole resolved manifest;
+  the archived revision carries the ops as its diff. Exclusive with `manifest`.
+- **Added: `update_sketch { readout }`** — `changed` (the default for a patch) returns only the
+  parts a patch touched or moved (a touched cut operand surfaces its cut's part), `removed` parts,
+  `parts_total`, plus new warnings (warnings already present on the previous revision collapse to
+  one counted line); `summary` drops `parts[]`; `full` is the previous block unchanged, and stays
+  the default for a `manifest` replacement. The previous readout comes from an in-process cache of
+  the last edit's stats when this process made it, else one extra plan.
+- **Added: `id` on each `stats.parts[]` row** of a workbench readout when the monomer carries one.
+  Additive; the render is untouched.
+- **Changed:** the tools/list payload pin in tool-descriptions.test.js re-pinned for the two new
+  `update_sketch` input-schema properties (why: a legitimate addition crossed the pin; the
+  description itself stays under its ceiling).
+
 ### pixelizer-godot — the 2D reducer games get a Godot leg, and the 3D leg learns to measure
 
 - **Added: `export_game { target: 'godot' }` on a pixelizer game** (and `scripts/export-godot.mjs
