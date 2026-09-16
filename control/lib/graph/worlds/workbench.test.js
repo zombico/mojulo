@@ -295,3 +295,23 @@ describe('planWorkbench — cuts between named monomers (parts-booleans B1)', ()
     expect(new Set(wrapped.map((f) => f.texture))).toEqual(new Set(['wrap_0']));
   });
 });
+
+describe('opacity — opt-in translucency per monomer', () => {
+  const box = (extra = {}) => ({ profile: { rect: { w: 2, h: 1 } }, axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 3 }, ...extra });
+  it('stamps a face-level `alpha` on every face of a monomer with 0 < opacity < 1 (the World + glTF legs read it per group)', () => {
+    const faces = lowerObjectFaces({ extrudes: [box({ opacity: 0.3, group: 'pane' })], lathes: [lathe({ opacity: 0.5 })] });
+    expect(faces.length).toBeGreaterThan(0);
+    expect(faces.filter((f) => f.group === 'pane').every((f) => f.alpha === 0.3)).toBe(true);
+    expect(faces.filter((f) => f.group !== 'pane').every((f) => f.alpha === 0.5)).toBe(true);
+  });
+  it('absent, 1, 0 or out-of-range opacity leaves the faces byte-identical (no `alpha` key)', () => {
+    const plain = lowerObjectFaces({ extrudes: [box()] });
+    for (const opacity of [undefined, 1, 0, 1.5, -0.2, 'glass']) {
+      expect(lowerObjectFaces({ extrudes: [box({ opacity })] })).toEqual(plain);
+    }
+    expect(plain.some((f) => 'alpha' in f)).toBe(false);
+  });
+  it('the material shelf\'s glass row does NOT imply translucency — minted glass stays opaque', () => {
+    expect(lowerObjectFaces({ extrudes: [box({ material: 'glass' })] }).some((f) => 'alpha' in f)).toBe(false);
+  });
+});

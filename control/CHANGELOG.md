@@ -12,6 +12,16 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### workbench-opacity — a translucent monomer (a window pane over a cassette)
+
+- **New: `opacity` on any lathe / extrude / sweep / loft / drape / relief monomer** (`0 < opacity < 1`)
+  stamps a face-level `alpha`, which the orbitable World and the glTF leg already render per group
+  (the cellular-view jelly path). A thin `opacity: 0.25` extrude over a pocket reads as a window with
+  whatever sits behind it visible — the Walkman's cassette door. Absent or `1` → faces untouched,
+  byte-identical; the `glass` material row's `opacity` is still not read, so every minted glass part
+  stays exactly as opaque as it was. Card: `solid-vocab/workbench.md` (Groups, a hinge, and a bare studio).
+  The SVG still and CSS-3D shots draw the pane opaque (advisory, unchanged).
+
 ### relief-unmirror — raised outlines read the right way round
 
 - **Fixed: every `reliefs` monomer rendered mirrored.** `reliefToFaces` negated the in-plane

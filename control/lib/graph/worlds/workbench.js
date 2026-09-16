@@ -120,7 +120,17 @@ export function lowerObjectFaces(manifest, light) {
   // A monomer's `group` names the RENDER GROUP its faces join (the World meshes each group on its own, so
   // a mover / deform channel can move it — a hinged lid). Fields and shells tag their own groups; the
   // sweep monomers below take the spec's. Absent `group` → faces untouched, byte-identical.
-  const grouped = (faces, spec) => (typeof spec.group === 'string' && spec.group ? faces.map((f) => (f.group ? f : { ...f, group: spec.group })) : faces);
+  // A monomer's `opacity` (0 < opacity < 1, opt-in) stamps a face-level `alpha` so the World and the
+  // glTF leg render that render group translucent (a window pane, a lens, a bottle). Absent or 1 →
+  // faces untouched, byte-identical. The material shelf's `glass.opacity` is NOT read here: minted
+  // glass rows stay opaque, as they always were.
+  const alphaOf = (spec) => (Number.isFinite(spec.opacity) && spec.opacity > 0 && spec.opacity < 1 ? spec.opacity : null);
+  const grouped = (faces, spec) => {
+    const group = typeof spec.group === 'string' && spec.group ? spec.group : null;
+    const alpha = alphaOf(spec);
+    if (group == null && alpha == null) return faces;
+    return faces.map((f) => ({ ...f, ...(group && !f.group ? { group } : {}), ...(alpha != null ? { alpha } : {}) }));
+  };
   return [
     ...lathes.flatMap((spec, i) => grouped(latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps }), spec)),
     ...extrudes.flatMap((spec, i) => grouped(extrudeToFaces(wrapKeyed(spec, i, xwrapKey), { light, material: spec.material }), spec)),
