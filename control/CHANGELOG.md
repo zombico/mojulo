@@ -12,6 +12,8 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-09-16
+
 ### workbench-opacity — a translucent monomer (a window pane over a cassette)
 
 - **New: `opacity` on any lathe / extrude / sweep / loft / drape / relief monomer** (`0 < opacity < 1`)
