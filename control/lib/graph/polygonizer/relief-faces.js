@@ -93,16 +93,16 @@ export function reliefToFaces(spec = {}, opts = {}) {
   const { faces } = extrudeProfile(contours, { depth, bevel, bevelSteps: style.bevelSteps ?? 6 });
 
   // Orthonormal frame: nHat ← raise direction, vHat ← up projected into the
-  // plane (glyph vertical). uHat is negated so the front cap (the readable face)
-  // reads correctly when viewed from +nHat — without it the raise flips handedness
-  // and the lettering comes out mirrored.
+  // plane (glyph vertical), uHat = vHat × nHat (glyph right). Both contour
+  // sources arrive y-up (text from the font, paths via flipY), so the right-handed
+  // frame (u, v, n) is what makes the front cap read correctly from +nHat; an
+  // earlier negation of uHat mirrored every relief (relief-faces.test.js pins it).
   const nHat = norm3(v3(spec.normal, [0, 0, 1]));
   let up = v3(spec.up, [0, 1, 0]);
   const upDot = dot3(up, nHat);
   let vHat = norm3([up[0] - upDot * nHat[0], up[1] - upDot * nHat[1], up[2] - upDot * nHat[2]]);
   if (!Number.isFinite(vHat[0]) || (vHat[0] === 0 && vHat[1] === 0 && vHat[2] === 0)) vHat = norm3(cross3(nHat, [1, 0, 0]));
-  const u0 = norm3(cross3(vHat, nHat));
-  const uHat = [-u0[0], -u0[1], -u0[2]];
+  const uHat = norm3(cross3(vHat, nHat));
   const anchor = v3(spec.anchor, [0, 0, 0]);
   const neg = (n) => [-n[0], -n[1], -n[2]];
   // local [x,y,z] (z: 0 front … depth back) → world. (depth − z): back cap seats on anchor; front raised.
