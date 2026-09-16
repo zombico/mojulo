@@ -156,6 +156,20 @@ renderer.setAnimationLoop((t) => {
 }
 
 
+// decollideFaces over every face EXCEPT those in a bound-mesh render group (`mesh:` prefix); the
+// exempt faces keep their place in the list so downstream grouping is untouched. With no bound
+// mesh present this is exactly decollideFaces(faces).
+export function decollideExceptBound(faces) {
+  const idx = [];
+  const sub = [];
+  faces.forEach((f, i) => { if (!(f && typeof f.group === 'string' && f.group.startsWith('mesh:'))) { idx.push(i); sub.push(f); } });
+  if (sub.length === faces.length) return decollideFaces(faces);
+  const out = faces.slice();
+  const lifted = decollideFaces(sub);
+  idx.forEach((i, k) => { out[i] = lifted[k]; });
+  return out;
+}
+
 export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, xr = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
@@ -201,7 +215,12 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // group's bake — so coincident faces that land in DIFFERENT render groups (separate draw calls,
   // the worst z-fight case) are also lifted apart. Groups below then bake with decollide:false.
   const expanded0 = expandSurfaceCards(faces.filter((f) => !(f && f.water)), { light });
-  const expanded1 = decollide ? decollideFaces(expanded0) : expanded0;
+  // Bound DCC meshes (`mesh:<name>` groups, the meshRef bind-back door) are EXEMPT: they arrive
+  // already resolved, and a DCC re-triangulates every cap as a fan of large overlapping triangles,
+  // which the overlap-ordinal lift (scaled by face size) stacks into a millimetre-scale float —
+  // a GI-baked walkman's lid cap floated through its proud control plate. Worlds without a bound
+  // mesh take the unchanged path, so their emission stays byte-identical.
+  const expanded1 = decollide ? decollideExceptBound(expanded0) : expanded0;
   // Instanced repeats (renderer-ladder P4): repeats = [{ template: faces[], transforms:
   // [{ pos, rotZ?, scale?, tint? }], group? }]. Templates are expanded HERE, before the AO
   // bake, so (a) the bake can ingest their instance-transformed phantoms as casters and

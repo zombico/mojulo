@@ -12,6 +12,36 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### workbench-opacity — a translucent monomer (a window pane over a cassette)
+
+- **New: `opacity` on any lathe / extrude / sweep / loft / drape / relief monomer** (`0 < opacity < 1`)
+  stamps a face-level `alpha`, which the orbitable World and the glTF leg already render per group
+  (the cellular-view jelly path). A thin `opacity: 0.25` extrude over a pocket reads as a window with
+  whatever sits behind it visible — the Walkman's cassette door. Absent or `1` → faces untouched,
+  byte-identical; the `glass` material row's `opacity` is still not read, so every minted glass part
+  stays exactly as opaque as it was. Card: `solid-vocab/workbench.md` (Groups, a hinge, and a bare studio).
+  The SVG still and CSS-3D shots draw the pane opaque (advisory, unchanged).
+
+### relief-unmirror — raised outlines read the right way round
+
+- **Fixed: every `reliefs` monomer rendered mirrored.** `reliefToFaces` negated the in-plane
+  right axis on the belief that the raise flipped handedness; it does not (both contour sources
+  arrive y-up — text from the font, SVG paths through `flipY`), so a wordmark embossed on a
+  workbench part read backwards from the side it faces. The frame is now the plain right-handed
+  `(up × normal, up, normal)`. Emission changes for every already-minted relief, which is the
+  point: they were all backwards. `relief-faces.test.js` pins an L's stem on the left for text,
+  for a path, and under an explicit `normal` / `up` frame.
+
+### bound-mesh-decollide — a GI-baked object keeps its DCC planes in the World
+
+- **Fixed: the World's de-collide pass skipped for bound meshes.** `emitThreeWorld` lifts a
+  face stacked on coincident neighbours a hair along its normal, scaled by the face's size and
+  by how many it overlaps. A DCC re-triangulates every cap as a fan of large overlapping
+  triangles, so a `meshRef` bind-back (a Blender GI bake placed in a world) had its lid cap
+  floated millimetres through the proud plate in front of it. Faces in a `mesh:<name>` render
+  group now bypass the pass (`decollideExceptBound`); they arrive already resolved. Worlds
+  without a bound mesh take the unchanged path, byte-identical.
+
 ### update-sketch-patch — iterate a stored recipe by naming the part
 
 - **Added: `update_sketch { patch }`** — an ordered list of `set` / `remove` / `add` ops addressed

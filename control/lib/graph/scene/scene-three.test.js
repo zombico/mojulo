@@ -91,3 +91,25 @@ describe('emitThreeWorld wireframe mode', () => {
     expect(html).toContain('if (WIREFRAME0) setWireframe(true);');
   });
 });
+
+describe('decollideExceptBound — bound DCC meshes keep their authored planes', () => {
+  // two coincident, overlapping quads on one plane: the second is a stacked face, so the
+  // decollide pass lifts it a hair along the normal — unless it belongs to a bound-mesh group.
+  const quad = (group) => ({ group, fill: '#888', corners: [[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]] });
+  it('lifts a stacked face in an ordinary group', async () => {
+    const { decollideExceptBound } = await import('./scene-three.js');
+    const out = decollideExceptBound([quad('lid'), quad('lid')]);
+    expect(out[0].corners[0][2]).toBe(0);
+    expect(out[1].corners[0][2]).not.toBe(0);
+  });
+  it('leaves a stacked face in a mesh: group exactly where the DCC put it, and keeps list order', async () => {
+    const { decollideExceptBound } = await import('./scene-three.js');
+    const faces = [quad('mesh:walkman'), quad('lid'), quad('mesh:walkman'), quad('lid')];
+    const out = decollideExceptBound(faces);
+    expect(out[0]).toBe(faces[0]);
+    expect(out[2]).toBe(faces[2]);
+    expect(out[1].corners[0][2]).toBe(0);      // first ordinary face on the plane: unchanged
+    expect(out[3].corners[0][2]).not.toBe(0);  // the ordinary face stacked on it: lifted
+    expect(out.map((f) => f.group)).toEqual(faces.map((f) => f.group));
+  });
+});
