@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { lowerObjectFaces, planWorkbench, collectWrapSources } from './workbench.js';
+import { lowerObjectFaces, planWorkbench, collectWrapSources, assembleWorkbenchScene } from './workbench.js';
+import { FLAT_LIGHT } from '../polygonizer/vexar.js';
 import { lowerAssembly } from '../polygonizer/workbench-assembly.js';
 
 const lathe = (extra = {}) => ({ axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 2 }, profile: [{ t: 0, radius: 1 }, { t: 1, radius: 1 }], ...extra });
@@ -313,5 +314,23 @@ describe('opacity — opt-in translucency per monomer', () => {
   });
   it('the material shelf\'s glass row does NOT imply translucency — minted glass stays opaque', () => {
     expect(lowerObjectFaces({ extrudes: [box({ material: 'glass' })] }).some((f) => 'alpha' in f)).toBe(false);
+  });
+});
+
+describe('toon bands (toon-shading)', () => {
+  const spec = { kind: 'workbench', lathes: [lathe()] };
+  const objectFills = (p) => new Set(p.faces.filter((f) => !f.studio).map((f) => f.fill));
+
+  it('toon.bands quantizes the object fills into tones; absent → byte-identical', () => {
+    const base = assembleWorkbenchScene(spec);
+    expect(assembleWorkbenchScene({ ...spec, toon: null })).toEqual(base);
+    const toon = assembleWorkbenchScene({ ...spec, toon: { bands: 3 } });
+    expect(toon.faces.length).toBe(base.faces.length);
+    expect(objectFills(toon).size).toBeLessThan(objectFills(base).size);
+  });
+
+  it('the unshaded export (FLAT_LIGHT) ignores the dial — raw albedo has no tones', () => {
+    expect(assembleWorkbenchScene({ ...spec, toon: { bands: 3 }, light: FLAT_LIGHT }))
+      .toEqual(assembleWorkbenchScene({ ...spec, light: FLAT_LIGHT }));
   });
 });

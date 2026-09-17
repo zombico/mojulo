@@ -36,7 +36,7 @@ import { loftToFaces, validateLofts } from '../polygonizer/loft-faces.js';
 import { fieldToFaces, validateFields, fieldGrid } from '../polygonizer/field-faces.js';
 import { lowerCuts, validateCuts } from '../polygonizer/workbench-cuts.js';
 import { expandWorkbenchProgram, hasProgram, MONOMER_KEYS } from './workbench-program.js';
-import { makeLight } from '../polygonizer/vexar.js';
+import { makeLight, withBands, resolveToon } from '../polygonizer/vexar.js';
 import { validateMaterialRef } from '../polygonizer/materials.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
 import { rasterSampler, analyzeSkin, bakeSkinOntoFaces } from '../polygonizer/skin-projection.js';
@@ -372,7 +372,8 @@ export function assembleWorkbenchScene(opts = {}) {
   // `opts.light` is FLAT_LIGHT under unshaded export (world-scene ctx.light); absent → the
   // neutral studio key, so the shaded path is byte-identical. Threaded through the object bake
   // AND the skin re-bake so a flat-albedo export carries no directional term.
-  const light = opts.light || WORKBENCH_LIGHT;
+  // `opts.toon` (world-scene ctx.toon) bands the key: withBands is a no-op on FLAT_LIGHT and absent bands.
+  const light = withBands(opts.light || WORKBENCH_LIGHT, resolveToon(opts.toon)?.bands);
   return studioSceneFromFaces(bakeBoundSkinFaces(lowerObjectFaces(opts, light), opts.skin, opts, light), opts);
 }
 

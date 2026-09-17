@@ -22,7 +22,7 @@
  * cameras — Lambert depends on the face normal vs the world light, not the camera.
  */
 
-import { makeLight, litFactor, scaleHex, hexToRgb, rgbToHex } from '../polygonizer/vexar.js';
+import { makeLight, litFactor, scaleHex, hexToRgb, rgbToHex, withBands, resolveToon } from '../polygonizer/vexar.js';
 import {
   resolveRoomSurfaces,
   resolveRoomSceneElementPlan,
@@ -301,7 +301,7 @@ function resolveLighting(lighting = {}, ranges = {}) {
   const z1 = (ranges.zRange || [0, 1])[1];
   const toWorld = (e) => (Array.isArray(e.pos) ? e.pos : [x0 + (e.at?.[0] ?? 0.5) * (x1 - x0), y0 + (e.at?.[1] ?? 0.5) * (y1 - y0), z1 * (e.height ?? 0.965)]);
   return {
-    L: lighting.light || makeLight(lighting.vexar || {}),
+    L: withBands(lighting.light || makeLight(lighting.vexar || {}), lighting.bands),   // toon dial rides the lighting object
     tint: lighting.tint || [1, 1, 1],
     gravity: lighting.gravity ?? lighting.gravityDarken ?? true,
     lamps: (lighting.lamps || []).map((l) => ({ ...l, pos: toWorld(l) })),
@@ -731,14 +731,14 @@ function polarDiscFaces({ cx, cy, R, baseZ = 0, heightAt, toward, base, shade, g
   return faces;
 }
 
-export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, tabletop, lighting, light, lamps = [], tint = [1, 1, 1], gravityDarken = true, includeShell = true, shellOmit = ['frontWall'], wallSurface, deferDiffusion = false } = {}) {
+export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, tabletop, lighting, light, lamps = [], tint = [1, 1, 1], gravityDarken = true, includeShell = true, shellOmit = ['frontWall'], wallSurface, deferDiffusion = false, bands } = {}) {
   const plan = resolveRoomSceneElementPlan({ elements, roomBasis, presets, tabletop }, roomBasis);
   const surfaces = resolveRoomSurfaces(roomBasis);
   const { xRange, yRange, zRange } = surfaces.ranges;
   const roomCenter = [(xRange[0] + xRange[1]) / 2, (yRange[0] + yRange[1]) / 2, (zRange[0] + zRange[1]) / 2];
   const camHint = Array.isArray(roomBasis.cameraHint) ? roomBasis.cameraHint : roomCenter;
   // one unified lighting model (new `lighting` object, or the legacy positional params).
-  const lit = resolveLighting(lighting || { light, tint, lamps, gravity: gravityDarken }, { xRange, yRange, zRange });
+  const lit = resolveLighting(lighting || { light, tint, lamps, gravity: gravityDarken, bands }, { xRange, yRange, zRange });
   const L = lit.L;
   let faces = [];
   // vexar directional Lambert + tint + baked point-lamps + gravity contact-shadow.
@@ -1214,8 +1214,10 @@ export function extractRoomFacesFromManifest(manifest = {}, { light, lighting, s
   const omit = shellOmit ?? ['frontWall'];           // default: open-front room (camera side)
   // wall surface subtype ('cave' → inward wave mesh), authored on the scene or the room primitive.
   const wallSurface = manifest.scene?.wallSurface || pureMandala.room.surface;
+  // toon dial: the manifest's `toon` (or scene.toon) bands the room's key, on either lighting path
+  const bands = resolveToon(manifest.toon ?? manifest.scene?.toon)?.bands;
   const base = { elements, roomBasis, shellOmit: omit, wallSurface };
-  const { faces, faceCount } = extractRoomSceneFaces(effLighting ? { ...base, lighting: effLighting } : { ...base, light });
+  const { faces, faceCount } = extractRoomSceneFaces(effLighting ? { ...base, lighting: bands ? { ...effLighting, bands } : effLighting } : { ...base, light, bands });
 
   const wf = cameraPrimitive.worldFraming;
   const hasWF = wf && Array.isArray(wf.cameraPosition) && Array.isArray(wf.lookAt);

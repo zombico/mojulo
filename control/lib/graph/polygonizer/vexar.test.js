@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   makeLight, DEFAULT_LIGHT, litFactor, shadeHex, scaleHex,
   newellNormal, orientOutward, shadeFace, norm3, dot3,
+  withBands, bandFactor, resolveToon, shadeHexMat, FLAT_LIGHT,
 } from './vexar.js';
 
 const z0 = (a) => a.map((x) => x + 0);   // normalize -0 → 0 for deep-equality
@@ -51,5 +52,57 @@ describe('vexar', () => {
     expect(norm3([3, 0, 4])).toEqual([0.6, 0, 0.8]);
     expect(dot3([1, 2, 3], [4, 5, 6])).toBe(32);
     expect(DEFAULT_LIGHT.ambient).toBeGreaterThan(0);
+  });
+});
+
+describe('toon bands (toon-shading)', () => {
+  const L = makeLight({ direction: [0, 0, -1], ambient: 0.4, diffuse: 0.6 });
+  const n = (deg) => [Math.sin((deg * Math.PI) / 180), 0, Math.cos((deg * Math.PI) / 180)];
+
+  it('withBands: absent or < 2 hands the SAME light back; FLAT_LIGHT stays flat; the input is untouched', () => {
+    expect(withBands(L)).toBe(L);
+    expect(withBands(L, 1)).toBe(L);
+    expect(withBands(FLAT_LIGHT, 3)).toBe(FLAT_LIGHT);
+    expect(withBands(L, 3).bands).toBe(3);
+    expect(withBands(L, 3.9).bands).toBe(3);
+    expect(L.bands).toBeUndefined();
+    expect(makeLight({ bands: 4 }).bands).toBe(4);
+    expect(makeLight({})).not.toHaveProperty('bands');
+  });
+
+  it('bands snap the factor to N tones: same tone → equal, endpoints kept, mid tone at ambient + range/2', () => {
+    const B = withBands(L, 3);
+    expect(litFactor(n(80), B)).toBe(litFactor(n(85), B));      // both in the shadow tone
+    expect(litFactor(n(80), L)).not.toBe(litFactor(n(85), L));  // continuous Lambert separates them
+    expect(litFactor(n(0), B)).toBeCloseTo(1.0);
+    expect(litFactor(n(180), B)).toBeCloseTo(0.4);
+    expect(litFactor(n(50), B)).toBeCloseTo(0.7);               // mid tone
+    expect(litFactor(n(50), L)).toBeCloseTo(0.7857, 3);
+  });
+
+  it('bandFactor bands the whole [ambient, ambient+range] span and is inert below two tones', () => {
+    expect(bandFactor(0.55, 0.4, 0.6, 1)).toBe(0.55);
+    expect(bandFactor(0.55, 0.4, 0, 3)).toBe(0.55);
+    expect(bandFactor(0.55, 0.4, 0.6, 2)).toBeCloseTo(0.4);
+    expect(bandFactor(0.75, 0.4, 0.6, 2)).toBeCloseTo(1.0);
+  });
+
+  it('shadeHexMat: the light bands a material without cel; a material cel wins over the light', () => {
+    const B = withBands(L, 3);
+    expect(shadeHexMat('#ffffff', n(50), { ambient: 0.4, diffuse: 0.6 }, { light: B })).toBe('#b3b3b3');   // 0.7
+    expect(shadeHexMat('#ffffff', n(50), { ambient: 0.4, diffuse: 0.6 }, { light: L })).toBe('#c8c8c8');   // 0.786
+    expect(shadeHexMat('#ffffff', n(50), { ambient: 0.4, diffuse: 0.6, cel: 4 }, { light: B }))
+      .toBe(shadeHexMat('#ffffff', n(50), { ambient: 0.4, diffuse: 0.6, cel: 4 }, { light: L }));
+  });
+
+  it('resolveToon normalizes the manifest dial', () => {
+    expect(resolveToon(true)).toEqual({ bands: 3, ink: true });
+    expect(resolveToon({ bands: 4 })).toEqual({ bands: 4 });
+    expect(resolveToon({ bands: 2.7, ink: { color: '#000' } })).toEqual({ bands: 2, ink: { color: '#000' } });
+    expect(resolveToon({ ink: true })).toEqual({ ink: true });
+    expect(resolveToon({ bands: 1 })).toBeNull();
+    expect(resolveToon({})).toBeNull();
+    expect(resolveToon('toon')).toBeNull();
+    expect(resolveToon(undefined)).toBeNull();
   });
 });

@@ -233,6 +233,13 @@ export const EMIT_FIXTURES = [
   ['ao-repeats', { faces: [floor()], repeats: REPEATS, ao: { strength: 0.8, radius: 1.2 } }],
 
   ['wireframe', { faces: [quad()], wireframe: true }],
+  // toon-shading Phase 2: the ink channel (a grouped solid with an authored outward normal + a
+  // studio floor the hull must skip). bands are baked upstream, so only `ink` changes emission.
+  ['toon-ink', { faces: [quad('#3f7fd6', { group: 'body', outNormal: [0, -1, 0] }), floor('#445566', { studio: true })], toon: { bands: 3, ink: true } }],
+  // Phase 4b/4c: ink reaching a controllable world (the rig-part hook + the block emitted for it
+  // even with no static ink group) and the fx ink verbs (an object state + an inkFlash gesture).
+  ['toon-ink-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: true } }],
+  ['toon-ink-fx', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: { color: '#2a2f3a' } }, fx: { states: { d: { ink: '#ff4040', pulse: true } }, on: { 'hit:*': { gesture: 'inkFlash', color: '#ffffff' } } } }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],

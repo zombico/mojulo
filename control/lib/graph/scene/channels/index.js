@@ -28,6 +28,7 @@ import { splatChannelScript } from './splats.js';
 import { spriteSfxChannelScript } from './sprite-sfx.js';
 import { starSurfaceChannelScript } from './star-surface.js';
 import { surfaceChannelScript } from './surface.js';
+import { toonInkScript } from './toon-ink.js';
 import { tracerChannelScript } from './tracer.js';
 import { transportChannelScript } from './transport.js';
 import { waterMeshScript } from './water.js';
@@ -189,6 +190,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // gated on a non-empty payload.splats (field-splats.js)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojSplats'] },       // the coat's visibility handle + count, for probes
+  { key: 'toon', anchor: 'pre-runtime', script: toonInkScript,
+    normalizeIn: 'emitThreeWorld',     // gated on payload.toon.ink; ink buffers packed per group
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojInk', '__inkBuild', '__inkGeoNormals', '__inkCentroid'] },   // live handle; builders the controllable rig hook probes (typeof-guarded)
   { key: 'fx', anchor: 'post-step', script: fxChannelScript,
     normalizeIn: 'emitThreeWorld',     // presence decides controllable's exposeBodies
     requiresOptional: ['__BUS', '__mojCtrl'] },   // assigns the scene-three-emitted `let stepFx`
@@ -303,6 +308,7 @@ export { shadowDecalScript } from './shadow-decal.js';
 export { inkDecalScript } from './ink-decal.js';
 export { skyDomeScript } from './sky-dome.js';
 export { waterMeshScript } from './water.js';
+export { toonInkScript } from './toon-ink.js';
 export { walkModeScript } from './walk.js';
 export { deformChannelScript } from './deform.js';
 export { eventsChannelScript } from './events.js';

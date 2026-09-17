@@ -113,3 +113,74 @@ describe('decollideExceptBound — bound DCC meshes keep their authored planes',
     expect(out.map((f) => f.group)).toEqual(faces.map((f) => f.group));
   });
 });
+
+describe('emitThreeWorld toon ink (toon-shading Phase 2)', () => {
+  const body = { corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill: '#3f7fd6', group: 'body', outNormal: [0, -1, 0] };
+  const studio = { corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill: '#445566', studio: true };
+  const wall = { corners: [[0, 0, 0], [0, 4, 0], [0, 4, 3], [0, 0, 3]], fill: '#8899aa', group: 'shell:leftWall', normal: [1, 0, 0] };
+  const groupsOf = (html) => JSON.parse(html.match(/const GROUPS = (\[[^\n]*\]);/)[1]);
+
+  it('no toon → no ink buffers and no block', () => {
+    const html = emitThreeWorld({ faces: [body, studio] });
+    expect(html).not.toContain('--- toon ink');
+    expect(groupsOf(html).every((g) => g.ink === undefined)).toBe(true);
+  });
+
+  it('a bands-only toon changes nothing here (bands are baked upstream)', () => {
+    expect(emitThreeWorld({ faces: [body, studio], toon: { bands: 3 } })).toBe(emitThreeWorld({ faces: [body, studio] }));
+  });
+
+  it('toon.ink packs ink buffers (positions + authored normals) on the eligible group only, and splices the block', () => {
+    const html = emitThreeWorld({ faces: [body, studio, wall], toon: { bands: 3, ink: true } });
+    expect(html).toContain('--- toon ink');
+    expect(html).toContain('window.__mojInk');
+    const groups = groupsOf(html);
+    const g = groups.find((x) => x.name === 'body');
+    expect(typeof g.ink.pos).toBe('string');
+    expect(typeof g.ink.nrm).toBe('string');
+    expect(groups.find((x) => x.name === 'static').ink).toBeUndefined();          // studio floor: skipped
+    expect(groups.find((x) => x.name === 'shell:leftWall').ink).toBeUndefined();  // room shell: skipped
+  });
+
+  it('ink tuning lands in the block config; defaults otherwise', () => {
+    expect(emitThreeWorld({ faces: [body], toon: { ink: true } })).toContain('"color":"#101015"');
+    expect(emitThreeWorld({ faces: [body], toon: { ink: { color: '#220000', width: 0.02, crease: 50 } } })).toContain('"color":"#220000","width":0.02,"crease":50');
+  });
+
+  it('ink with nothing eligible (only a studio floor) emits no block', () => {
+    expect(emitThreeWorld({ faces: [studio], toon: { ink: true } })).not.toContain('--- toon ink');
+  });
+});
+
+describe('emitThreeWorld live ink (toon-shading Phase 4)', () => {
+  const body = { corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill: '#3f7fd6', group: 'body', outNormal: [0, -1, 0] };
+  const floorF = { corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill: '#445566' };
+  const ents = [{ id: 'd', transform: { pos: [1, 1, 0], heading: 0 }, rule: { type: 'glide' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 0.6] } }];
+
+  it('4a: the block exposes the live handle and the shared builders', () => {
+    const html = emitThreeWorld({ faces: [body], toon: { ink: true } });
+    for (const s of ['window.__mojInk', 'tint(name, color)', 'width(name, k)', 'reset(name)', 'const __inkBuild', 'userData.ink = true', 'uniform float uInk']) expect(html).toContain(s);
+  });
+
+  it('4b: a controllable world with toon.ink emits the block (no static ink group needed) and the rig-part hook', () => {
+    const html = emitThreeWorld({ faces: [floorF], entities: ents, toon: { ink: true } });
+    expect(html).toContain('--- toon ink');
+    expect(html).toContain('function __inkRigPart');
+    expect(html).toContain('__inkRigPart(mesh, geo, fig)');
+    const plain = emitThreeWorld({ faces: [floorF], entities: ents });
+    expect(plain).not.toContain('__inkRigPart');
+    expect(plain).not.toContain('--- toon ink');
+  });
+
+  it('4c: fx ink verbs splice only when the fx spec uses them', () => {
+    const base = { faces: [floorF], entities: ents, toon: { ink: true } };
+    const plainFx = emitThreeWorld({ ...base, fx: { states: { d: 'float' } } });
+    expect(plainFx).not.toContain('__fxInk');
+    const inkState = emitThreeWorld({ ...base, fx: { states: { d: { ink: '#ff4040', pulse: true } } } });
+    expect(inkState).toContain('function __fxInk');
+    expect(inkState).toContain("s.ink, s.pulse");
+    const inkGesture = emitThreeWorld({ ...base, fx: { on: { 'hit:*': { gesture: 'inkFlash', color: '#fff' } } } });
+    expect(inkGesture).toContain("gesture === 'inkFlash'");
+    expect(inkGesture).toContain('g.color');
+  });
+});

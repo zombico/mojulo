@@ -49,7 +49,7 @@ import {
   controllableChannelScript, eventsChannelScript, fxChannelScript, gameChannelScript,
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
-  specularChannelScript, splatChannelScript, spriteSfxChannelScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
+  specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
@@ -170,7 +170,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, xr = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, xr = null, toon = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -305,6 +305,28 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // no `group`, so they render as a single mesh exactly as before. A hideable group needs a
   // `normal` (inward, toward room centre) on its faces to drive camera-facing auto-hide.
   const groupMap = new Map();
+  // toon ink (toon-shading Phase 2): only a payload whose toon dial asks for ink packs the per-group
+  // ink buffers below; a bands-only toon (or none) leaves every group byte-identical.
+  const toonInk = toon && toon.ink ? (typeof toon.ink === 'object' ? toon.ink : {}) : null;
+  // the resolved ink tuning, shared by the toon setup block and the controllable rig hook (4b).
+  // `width` is a fraction of the largest ink geometry's bounding radius (`widthAbs` = world units).
+  const toonInkCfg = toonInk ? {
+    color: typeof toonInk.color === 'string' ? toonInk.color : '#101015',
+    width: Number.isFinite(toonInk.width) ? toonInk.width : 0.008,
+    ...(Number.isFinite(toonInk.widthAbs) ? { widthAbs: toonInk.widthAbs } : {}),
+    crease: Number.isFinite(toonInk.crease) ? toonInk.crease : 35,
+  } : null;
+  // The ink faces come from the PRE-decollide list (expanded0): decollide lifts coplanar cap
+  // triangles by different amounts, so their shared edges would never weld into one hull or
+  // pass the crease census. Same grouping key as the render groups below.
+  const inkByGroup = new Map();
+  if (toonInk) {
+    for (const f of expanded0) {
+      if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
+      const k = f.group || 'static';
+      (inkByGroup.get(k) || inkByGroup.set(k, []).get(k)).push(f);
+    }
+  }
   // `decal:'shadow'` faces render ONLY in the shadow-decal pass, and `water` faces ONLY in the
   // translucent water pass below — keep both out of the opaque mesh (shadows would double as flat
   // dark patches; water needs per-vertex alpha the opaque mesh can't carry).
@@ -328,9 +350,17 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // and are never seen, so culling them halves the fragment cost on approach. Every face in the
     // group must opt in; absent → the key is omitted → DoubleSide, byte-identical to every scene.
     const singleSide = fs.length > 0 && fs.every((f) => f && f.singleSide);
+    // toon ink: the group's opaque, non-studio faces packed AGAIN with their authored outward
+    // normals (faceListToMesh withNormals) — the hull + crease source the toon channel welds
+    // in-page. A room's `shell:` groups are open boxes seen from inside (an inverted hull on a
+    // wall paints the wall) → excluded; so are studio furniture, x-ray cages, glow fixtures,
+    // decals, water, textured wraps and translucent faces.
+    const inkFaces = toonInk && !name.startsWith('shell:') ? (inkByGroup.get(name) || []) : [];
+    const im = inkFaces.length ? faceListToMesh(inkFaces, { decollide: false, withNormals: true }) : null;
+    const ink = im && im.positions.length ? { pos: b64(im.positions), ...(im.normals ? { nrm: b64(im.normals) } : {}) } : null;
     // per-vertex specular params (faces tagged `spec` by a material) — the key is only present
     // when the group carries them, so material-free scenes serialize byte-identically.
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}) };
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}) };
   });
   const hasTextures = groups.some((g) => g.tex.length);
   // Any single-sided (bound-mesh) group? Only then does the render script reference
@@ -604,7 +634,7 @@ scene.add(__eQuad${i});
     const dir = [-tx / horiz, -ty / horiz];
     return { dir, rot: Math.atan2(dir[1], dir[0]), stretch: Math.min(4.5, horiz / tz) };
   })();
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm, pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, key: shadowKey }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm, pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, key: shadowKey, toonInk: toonInkCfg }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -622,10 +652,15 @@ scene.add(__eQuad${i});
     : [];
   const splatBlock = splatList.length ? splatChannelScript(splatList) : '';
 
+  // toon ink (toon-shading Phase 2): the outline block, emitted only when the toon dial asks for
+  // ink AND some group packed ink buffers. `width` is a fraction of the largest ink geometry's
+  // bounding radius (`widthAbs` = world units instead); `crease` the EdgesGeometry angle.
+  const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg) : '';
+
   const setupBlocks = {
     sky: skyBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
-    splats: splatBlock,
+    splats: splatBlock, toon: toonBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
   };
 

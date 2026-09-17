@@ -18,7 +18,7 @@
  */
 import { articulate, basePositions } from './figure-vajra.js';
 import { projectTwoPoint } from './pure-mandala.js';
-import { makeLight, shadeHex, litFactor, dot3, sub3, centroid } from './vexar.js';
+import { makeLight, shadeHex, litFactor, dot3, sub3, centroid, withBands, resolveToon } from './vexar.js';
 import { PROTO_DEFAULT, buildProtoform } from './figure-proto.js';
 import { buildFluffs } from './figure-fluff.js';
 import { weldFluffs } from './figure-weld.js';
@@ -668,7 +668,8 @@ function resolveSetup(manifest) {
     mode: setup?.mode ?? 'filled',
     bg,
     fleshHex: setup?.fleshHex ?? FLESH_HEX,
-    light: setup?.light ? makeLight(setup.light) : LIGHT,
+    // toon dial (toon-shading): the figure manifest's own `toon` bands the studio key (still + World)
+    light: withBands(setup?.light ? makeLight(setup.light) : LIGHT, resolveToon(manifest.toon ?? manifest.scene?.toon)?.bands),
     wireStroke: setup?.wireStroke ?? '#7fdbff',
   };
 }
@@ -829,7 +830,7 @@ export function animalWorldFaces(manifest = {}) {
   const groundZ = stackMinZ(stacks);
   // CAM feeds only the painter's depth sort (irrelevant to an un-culled world
   // bake) — any fixed point works; keep it deterministic.
-  const faces = litFaces(stacks, [0, -10, 3], LIGHT, groundZ, { cull: false, recolor: animalRecolor(opts), skin: manifest.skin || null })
+  const faces = litFaces(stacks, [0, -10, 3], withBands(LIGHT, resolveToon(manifest.toon ?? manifest.scene?.toon)?.bands), groundZ, { cull: false, recolor: animalRecolor(opts), skin: manifest.skin || null })
     .map((f) => ({
       corners: f.wpts, fill: f.fill,
       // Authored outward normal (blenderish-animals.plan.md quick win): the centre-oriented

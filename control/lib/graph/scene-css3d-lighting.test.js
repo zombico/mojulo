@@ -107,3 +107,28 @@ describe('declarative scene lighting (the model-facing dials)', () => {
     expect(night.faces.length).toBeGreaterThan(0);
   });
 });
+
+describe('toon bands on the room path (toon-shading)', () => {
+  const fills = (r) => new Set(r.faces.map((f) => f.fill));
+  it('`bands` on the positional path and on the lighting object both band the room; absent → identical', () => {
+    const base = extractRoomSceneFaces({ elements: ELEMENTS, roomBasis: ROOM, gravityDarken: false });
+    expect(extractRoomSceneFaces({ elements: ELEMENTS, roomBasis: ROOM, gravityDarken: false, bands: undefined })).toEqual(base);
+    const banded = extractRoomSceneFaces({ elements: ELEMENTS, roomBasis: ROOM, gravityDarken: false, bands: 3 });
+    expect(banded.faces.length).toBe(base.faces.length);
+    expect(fills(banded).size).toBeLessThan(fills(base).size);
+    const viaLighting = extractRoomSceneFaces({ elements: ELEMENTS, roomBasis: ROOM, lighting: { gravity: false, bands: 3 } });
+    expect(fills(viaLighting).size).toBeLessThan(fills(base).size);
+  });
+
+  it('a stored room manifest with `toon` bands through extractRoomFacesFromManifest', () => {
+    const manifest = {
+      cameraPrimitive: { kind: 'two-point' },
+      pureMandala: { room: { worldExtent: ROOM.worldExtent } },
+      polygonizer: { roomConcept: { elements: ELEMENTS } },
+    };
+    const base = extractRoomFacesFromManifest(manifest);
+    const toon = extractRoomFacesFromManifest({ ...manifest, toon: { bands: 3 } });
+    expect(base && toon).toBeTruthy();
+    expect(new Set(toon.faces.map((f) => f.fill)).size).toBeLessThan(new Set(base.faces.map((f) => f.fill)).size);
+  });
+});

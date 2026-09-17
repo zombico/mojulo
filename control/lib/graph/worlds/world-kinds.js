@@ -319,7 +319,7 @@ export const WORLD_KINDS = {
     },
     // `unshaded` (GI-bake raw-albedo export) forces plain lighting + FLAT_LIGHT inside the
     // assembler; absent it, every field is byte-identical to before.
-    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, insets: resolveCityInsets(m), time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded }))),
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, insets: resolveCityInsets(m), time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded, toon: ctx.toon }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).
@@ -343,7 +343,7 @@ export const WORLD_KINDS = {
     title: 'mojulo edifice',
     walk: true,
     fogBoxes: (m) => planEdifice(m).envelopes.map((e) => boxFromFootprint({ x: e.x0, y: e.y0, w: e.x1 - e.x0, d: e.y1 - e.y0, z0: 0, z1: e.top }, { up: 'z' })),
-    resolve: (m, ctx) => assembleEdificeScene(m, { title: ctx.title, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows }),
+    resolve: (m, ctx) => assembleEdificeScene(m, { title: ctx.title, time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, toon: ctx.toon }),
   },
   // the fantasy-interior primitive (dungeon-designer): a { chambers, tunnels } graph of
   // organic round chambers at elevation, joined by sloping tube/corridor tunnels, lit by
@@ -410,7 +410,7 @@ export const WORLD_KINDS = {
     title: 'mojulo workbench',
     // ctx.light is FLAT_LIGHT under unshaded export (else undefined → WORKBENCH_LIGHT default).
     resolve: async (m, ctx) => assembleWorkbenchScene({
-      ...m, title: ctx.title, textures: await resolveWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light,
+      ...m, title: ctx.title, textures: await resolveWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
     }),
   },
   // A polygomer (create_manji_tree) as a turnable 3D model: its slot-bonded lathes
@@ -418,12 +418,12 @@ export const WORLD_KINDS = {
   // (skin_polygomer), it's baked onto the faces so the model wears the painted look.
   'manji-tree': {
     title: 'mojulo polygomer',
-    resolve: async (m, ctx) => assembleManjiTreeWorld(m, { title: ctx.title, skin: await loadBoundSkin(ctx.ref), light: ctx.light }),
+    resolve: async (m, ctx) => assembleManjiTreeWorld(m, { title: ctx.title, skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon }),
   },
   assembler: {
     title: 'mojulo assembler',
     resolve: async (m, ctx) => assembleAssemblerScene({
-      ...m, title: ctx.title, textures: await resolveAssemblerWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light,
+      ...m, title: ctx.title, textures: await resolveAssemblerWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
     }),
   },
   // ── interchange.plan.md I2: sketch kinds widened into the World/export form ──
@@ -468,7 +468,7 @@ export const WORLD_KINDS = {
 // is a safe final fallback for unrecognized kinds — a fallback, NOT a registry entry (the "no
 // traversable form" contract callers rely on). `room` IS walkable when it resolves; the world
 // route's WALK_KINDS carries it explicitly.
-export const ROOM_FALLBACK = { title: 'mojulo room', walk: true, ao: true, resolve: (m, ctx) => assembleRoomScene(m, { title: ctx.title }) };
+export const ROOM_FALLBACK = { title: 'mojulo room', walk: true, ao: true, resolve: (m, ctx) => assembleRoomScene(m, { title: ctx.title, toon: ctx.toon }) };
 
 // Load the latest bound INPUT skin for a polygomer ref as a raw raster (for the
 // manji-tree world bake), or null. Kept here (the DB/IO-aware layer) so the

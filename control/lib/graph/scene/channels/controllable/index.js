@@ -43,7 +43,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, key = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, key = null, toonInk = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -66,6 +66,37 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // pin holds), same gating pattern as figHasSpec above.
   const figHasRim = Object.values(figures || {}).some((f) => f && f.rig && Array.isArray(f.rim));
   const rigRimHook = figHasRim ? `\n    if (Array.isArray(fig.rim)) __rimPatch(mesh, fig.rim);` : '';
+  // toon ink (toon-shading Phase 4b): outline every rig PART when the world's toon dial asks for
+  // ink — the hull + crease lines are children of the bone mesh, so they pose with the bone and
+  // every loadout / livery rebuild gets them for free. Built with the toon setup channel's
+  // \`__inkBuild\` (typeof-guarded: the channel is spliced earlier in the page). Parts carry no
+  // authored normals, so the geometric fallback orients each triangle away from the part centroid.
+  // Gated on the emit-site cfg: a world without toon.ink emits byte-identical controllable text.
+  const rigInkHook = toonInk ? `\n    if (typeof __inkBuild === 'function') __inkRigPart(mesh, geo, fig);` : '';
+  const rigInkBlock = toonInk ? `
+// toon ink on rig parts (Phase 4b): de-index the part, orient normals off its centroid, ink it.
+const __INKRIG = ${safeJson(toonInk)};
+function __inkFigRadius(fig) {   // the figure's scale, for a width every part agrees on
+  if (fig.__inkR) return fig.__inkR;
+  let r = 0;
+  for (const part of fig.parts) {
+    if (!part) continue;
+    if (part.q && part.s) r = Math.max(r, 0.5 * Math.hypot(part.s[0] * 65535, part.s[1] * 65535, part.s[2] * 65535));
+    else if (part.pos) { const p = decodeF32(part.pos); let mx = -1e9, mn = 1e9; for (let i = 2; i < p.length; i += 3) { if (p[i] > mx) mx = p[i]; if (p[i] < mn) mn = p[i]; } r = Math.max(r, (mx - mn) / 2); }
+  }
+  return (fig.__inkR = r || 1);
+}
+function __inkRigPart(mesh, geo, fig) {
+  const pa = geo.getAttribute('position').array, idx = geo.index ? geo.index.array : null;
+  let pos = pa;
+  if (idx) { pos = new Float32Array(idx.length * 3); for (let i = 0; i < idx.length; i++) { const k = idx[i] * 3; pos[i * 3] = pa[k]; pos[i * 3 + 1] = pa[k + 1]; pos[i * 3 + 2] = pa[k + 2]; } }
+  if (pos.length < 9) return;
+  const r = __inkFigRadius(fig), q = Math.max(r * 1.5e-3, 1e-6);
+  const width = __INKRIG.widthAbs != null ? __INKRIG.widthAbs : __INKRIG.width * r;
+  const e = __inkBuild(pos, __inkGeoNormals(pos, __inkCentroid(pos)), width, __INKRIG.crease, q, __INKRIG.color);
+  mesh.add(e.hull); mesh.add(e.lines);
+  mesh.material.polygonOffset = true; mesh.material.polygonOffsetFactor = 1; mesh.material.polygonOffsetUnits = 1; mesh.material.needsUpdate = true;
+}` : '';
   const rimPatchBlock = figHasRim ? `
 // rim (ms-contrast SPIKE): fresnel edge term for contrast-treated rigs. Chains AFTER any
 // spec patch on the same material — both replacements preserve their include markers, so
@@ -158,7 +189,7 @@ function __decodeFigFrame(posB64, colB64, origin, inv, foot) {
       col[o] = r; col[o+1] = g; col[o+2] = b; o += 3; }
   }
   return { pos, col };
-}${rimPatchBlock}
+}${rimPatchBlock}${rigInkBlock}
 // build one figure-rig group (rigid parts, one mesh per bone) for a baked fig — shared by the
 // single-figure body below and the loadout variant builder (weapon switching). Two part
 // encodings: unit rigs pack INDEXED + QUANTIZED (part.q: uint16 grid positions dequantized by
@@ -185,7 +216,7 @@ function __makeRigGroup(fig, b) {
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rigSpecHook}${rigRimHook}${castHook}
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rigSpecHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
