@@ -26,6 +26,7 @@ spec: {
   view?:    'frontal'|'three-quarter'|'lateral'|'left'|'back' | <azimuth°>,
   motion?:  'walk'|'sprint'|'wave' | '<emote>' | { walk|sprint|keyframes … },
   setup?:   'studio-grey'|'white-cyc'|'blueprint-wire' | null,
+  toon?:    true | { bands?: <tones ≥ 2>, ink?: true | { color, width, crease } },
   background?: <boolean>,
   animate?: <boolean> | { frames, fps },
   dream_audit?: { source, invoked_generator, prompt, <generation id> }
@@ -94,6 +95,10 @@ Backdrop + material + lighting + render mode, separate from the body dials:
 - `'blueprint-wire'` — deep blue ground, cyan ring-wave WIREFRAME (a construction/verification view, no fill — verify a region before trusting the filled render).
 
 Omit → the default lit studio look (≈ studio-grey).
+
+`toon` (beside `setup`, not inside it) cel-shades the figure: `true` = three tones + ink outlines
+in the World, `{ bands: N }` = tones only. The bands are baked into the fills, so the SVG still,
+the World and the `.glb` agree; `ink` is World-only (silhouette hull + crease lines).
 
 ### remaining fields
 

@@ -77,9 +77,12 @@ export function scaleHex(hex, f) { return rgbToHex(hexToRgb(hex).map((v) => v * 
  *  the near-black ambient floor (a single directional key renders any face perpendicular
  *  to it at ambient only, which reads as "no surface"). Absent → single-key output is
  *  byte-identical, so only opted-in lights (the workbench studio) change. */
-export function makeLight({ direction = [0.4, 0.5, -0.76], ambient = 0.46, diffuse = 0.6, fill = null } = {}) {
+export function makeLight({ direction = [0.4, 0.5, -0.76], ambient = 0.46, diffuse = 0.6, fill = null, bands = null } = {}) {
   const d = norm3(direction);
   const light = { dir: d, toLight: [-d[0], -d[1], -d[2]], ambient, diffuse };
+  // toon dial (see withBands): only a finite count ≥ 2 lands on the light, so the default
+  // object is unchanged and every deep-equality on it holds.
+  if (Number.isFinite(bands) && bands >= 2) light.bands = Math.floor(bands);
   if (fill && Number.isFinite(fill.diffuse) && fill.diffuse > 0) {
     const fd = fill.direction ? norm3(fill.direction) : null;
     light.fillToLight = fd ? [-fd[0], -fd[1], -fd[2]] : [d[0], d[1], d[2]];
@@ -119,11 +122,45 @@ export function lodCount(base, quality = 'default', floor = 8) {
   return Math.max(floor, Math.round(base * vexarLod(quality)));
 }
 
+// ---- toon bands (the toon-shading dial) -------------------------------------
+/** Quantize a Lambert factor `f` in [ambient, ambient + range] into `bands` TONES (3 → lit /
+ *  mid / shadow): the normalized brightness snaps to round(t·(bands−1))/(bands−1). Tone
+ *  semantics, deliberately: `material.cel` (shadeHexMat) predates this and counts STEPS of the
+ *  key term, and a material's own `cel` wins over the light's bands. bands < 2 or a zero range
+ *  → f unchanged. The FINAL factor is banded (key + fill together) so the shadow hemisphere
+ *  steps too; gravity darkening, lamps and traced diffusion compose on top, continuous. */
+export function bandFactor(f, ambient, range, bands) {
+  const n = Math.floor(bands) - 1;
+  if (!(n >= 1) || !(range > 0)) return f;
+  const t = Math.min(1, Math.max(0, (f - ambient) / range));
+  return ambient + range * (Math.round(t * n) / n);
+}
+/** A copy of `light` carrying `bands` — the input light is untouched. FLAT_LIGHT stays flat
+ *  (raw albedo has no tones to band, so an unshaded export ignores the dial); bands < 2 or
+ *  absent → the SAME light object back, so every existing caller stays byte-identical. */
+export function withBands(light, bands) {
+  if (!light || light.flat || !(Number.isFinite(bands) && bands >= 2)) return light;
+  return { ...light, bands: Math.floor(bands) };
+}
+
+/** The toon dial as authored on a manifest, normalized: `true` → { bands: 3, ink: true };
+ *  `{ bands?, ink? }` → the same shape with a finite bands ≥ 2 (or none) and ink `true` or its
+ *  tuning object; anything else → null. Shared by the world resolver, the still renderers and
+ *  the mint tools so one spelling is accepted everywhere. */
+export function resolveToon(t) {
+  if (t === true) return { bands: 3, ink: true };
+  if (!t || typeof t !== 'object') return null;
+  const bands = Number.isFinite(t.bands) && t.bands >= 2 ? Math.floor(t.bands) : null;
+  const ink = t.ink === true ? true : (t.ink && typeof t.ink === 'object' ? t.ink : null);
+  if (bands == null && !ink) return null;
+  return { ...(bands != null ? { bands } : {}), ...(ink ? { ink } : {}) };
+}
+
 /** Lambert brightness for an outward normal under a light (+ optional opposite fill). */
 export function litFactor(normal, light = DEFAULT_LIGHT) {
   let f = light.ambient + light.diffuse * Math.max(0, dot3(normal, light.toLight));
   if (light.fillDiffuse) f += light.fillDiffuse * Math.max(0, dot3(normal, light.fillToLight));
-  return f;
+  return light.bands ? bandFactor(f, light.ambient, light.diffuse + (light.fillDiffuse || 0), light.bands) : f;
 }
 /** Scale a flat fill by the Lambert factor — the per-cell shade. */
 export function shadeHex(hex, normal, light = DEFAULT_LIGHT) {
@@ -166,6 +203,8 @@ export function shadeHexMat(hex, normal, material, { light = DEFAULT_LIGHT, view
   if (material.cel) lam = Math.round(lam * material.cel) / material.cel;
   let f = (material.ambient ?? light.ambient) + (material.diffuse ?? light.diffuse) * lam;
   if (light.fillDiffuse) f += light.fillDiffuse * Math.max(0, dot3(normal, light.fillToLight));
+  // the light's toon bands apply unless the material bands its own key term (`cel` wins)
+  if (light.bands && !material.cel) f = bandFactor(f, material.ambient ?? light.ambient, (material.diffuse ?? light.diffuse) + (light.fillDiffuse || 0), light.bands);
   const base = hexToRgb(hex);
   let rgb = base.map((v) => v * f);
   if (material.specular && viewFrom && at) {

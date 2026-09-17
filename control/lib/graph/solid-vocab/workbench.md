@@ -44,7 +44,8 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
                           radial?, mirror?, ...passthrough } ] },
   units?:    'cm',
   viewBox?:  { width, height },
-  facing?:   '+y' | '-y' | '+x' | '-x' | <deg>
+  facing?:   '+y' | '-y' | '+x' | '-x' | <deg>,
+  toon?:     true | { bands?: <tones ≥ 2>, ink?: true | { color, width, crease } }
 }
 ```
 
@@ -366,6 +367,7 @@ cuts:   [{ id: 'bolts', from: 'flange', subtract: ['bore', 'b1', 'b2'], cells: 9
 
 
 - `material` (any monomer) — a named finish, a `'#hex'` (satin-tinted), or `{ preset, ...overrides }`. Named rows: gold / steel / chrome / bronze / silver / copper / gunmetal (metals — live specular in /world, real PBR metallic in the model export) · matte / plaster / stone / wood / rubber / plastic / satin (soft) · glass / neon / cel (stylized). Plain words resolve to a row (ceramic / porcelain / glazed → satin, iron → gunmetal, aluminium → steel, brass → bronze, marble / concrete → stone, clay → plaster, fabric / cloth / paper → matte, leather → rubber); anything else is rejected at mint.
+- `toon` — the cel-shading dial for the WHOLE object: `true` (three tones + ink outlines) or `{ bands, ink }`. `bands` quantizes the baked Lambert term into N tones and therefore shows in the still, the CSS-3D shots, the World, the `.glb` and every engine pack alike; `ink` (World only) draws inverted-hull silhouettes + crease lines, tunable as `{ color: '#101015', width: 0.008 (× the object's bounding radius), crease: 35 (degrees) }`. A part's own `material: 'cel'` / `{ cel: N }` still wins for that part. Bands snap per face, so at `draft` LOD a lathe reads faceted — pair the dial with denser `crossSections` / `samples`. Edit in place: `update_sketch { ref, patch: [{ op: 'set', path: '/toon', value: true }] }`.
 - `units` (`'mm'` / `'cm'` / `'m'` / `'in'` / `'ft'`; the readout assumes `'cm'` when absent) — the recipe's authoring unit. **Declare it**: it sets the print scale (STL / 3MF land in true millimetres), the USD `metersPerUnit`, and the glTF root scale (`moj:metersPerUnit`), so a 9 cm mug imports 9 cm tall in Blender, Godot, Unity and Unreal. Without a label the print path refuses to assume and the glTF ships 1 unit = 1 m. Also the grid spacing (1 grid cell = 5 units).
 - `viewBox` (default 900×900) — render viewBox `{ width, height }`.
 - `facing` (default `'+y'`) — which way the model's FRONT points, so the preset 'front' shot and opening camera look it in the face: `'+y'` / `'-y'` / `'+x'` / `'-x'` / a raw azimuth offset in degrees. Camera-only; geometry is untouched.

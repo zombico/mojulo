@@ -12,6 +12,40 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### toon-shading — cel bands and ink outlines as a manifest dial
+
+- **`toon` on any 3D manifest** (`toon: true` = `{ bands: 3, ink: true }`; also read at
+  `scene.toon`). `bands` quantizes the baked Lambert term into N tones in
+  [vexar.js](lib/graph/polygonizer/vexar.js) (`makeLight({ bands })`, `withBands`, `bandFactor`;
+  the final key+fill factor is banded, so the shadow hemisphere steps too). Because every
+  renderer draws the baked fills unlit, the bands show identically in the SVG still, the CSS-3D
+  scene, the orbit World, the GLB's COLOR_0, and the Godot / Unity / Unreal / Blender packs. A
+  material's own `cel` still wins per part; `FLAT_LIGHT` (unshaded export) ignores the dial.
+- **Threaded** through `resolveWorldScene` (`ctx.toon`, `payload.toon`) into the workbench,
+  assembler, manji-tree, figure, animal, edifice, fractal-city and room assemblers, and through
+  `resolveLighting` for the CSS-3D room paths. `mint_solid { kind:'workbench', spec.toon }`
+  stores it; other kinds take it via `update_sketch` (`set /toon`). Absent → byte-identical.
+- **`toon.ink` in the World** — a new pre-runtime setup channel
+  ([channels/toon-ink.js](lib/graph/scene/channels/toon-ink.js), provides `__mojInk`): per
+  eligible group the emitter packs the opaque non-studio faces with their authored outward
+  normals (`ink: { pos, nrm }`), and the page draws an inverted-hull silhouette (welded normals,
+  winding made to agree with them, `BackSide`) plus `EdgesGeometry` crease lines; the fills take
+  a polygon offset. `ink: { color, width, crease }` tunes it. Rooms' `shell:` groups, studio,
+  water, decal, glow, wireframe and translucent faces are excluded. Zero bytes when absent; one
+  new `toon-ink` fixture pinned in the char net.
+- **Live ink** — every ink group owns its hull + line materials and registers by group name in
+  `window.__mojInk` (`tint(name, '#hex')`, `width(name, k)` — the hull push is a vertex-shader
+  uniform, so width is live — `reset(name)`, `set(on)`); hull/line meshes carry
+  `userData.ink`. **Rig figures**: the controllable rig builder inks every part (hull + creases
+  parented under the bone mesh, so they pose with it and survive loadout/livery rebuilds) when
+  the world carries `toon.ink`; parts have no authored normals, so triangles orient off the
+  part centroid. **fx verbs**: a standing state `{ ink: '#hex', pulse?: true }` and an
+  `inkFlash` gesture (`{ gesture: 'inkFlash', color }` on a bus binding) recolour an entity's
+  outline on the deterministic step clock; spliced only when an fx spec uses them, so every
+  existing fx world is byte-identical. Two more fixtures pinned (`toon-ink-controllable`,
+  `toon-ink-fx`).
+- Docs: `docs/scene-css3d-lighting.md` (authoring dials), the workbench and figure vocab cards.
+
 ## [2.0.4] - 2026-09-16
 
 ### workbench-opacity — a translucent monomer (a window pane over a cassette)

@@ -26,7 +26,7 @@ fails loud. A hash may change only when a plan step says emission changes.
 ## Emitted page splice order
 
 1. `skyBlock` → 2. `waterBlock` → 3. `shadowBlock` → 4. `inkBlock` → 5. `glowBlock` +
-`specBlock` → 6. `pickBlock` → 7. runtime section (registry order: walk, tracers,
+`specBlock` → 6. `pickBlock` (+ castShadow, splats, toon — appended `sep:''` rows) → 7. runtime section (registry order: walk, tracers,
 sphereRig, planets, movers, comets, fields, surfaces, heatSpheres, starSurfaces, buildups,
 transports, deforms, signs, physics, actions, events, controllable) → 8. `let stepFx` /
 `let stepSpriteSfx` (iff present) + `function __mojStep(t)` → 9. `fxBlock` +
@@ -72,6 +72,7 @@ Families, gates, and normalization site per block. `normalizedBy: registry` = th
 | glowSpriteScript | setup | `glow` && `collectGlowSprites(faces).length` | emitThreeWorld |
 | specularChannelScript | setup | any group/tex spec, or any rig figure part spec | emitThreeWorld |
 | pickChannelScript | setup | ≥1 named pick | emitThreeWorld |
+| toonInkScript | setup | `toon.ink` && ≥1 group packed `ink` buffers (opaque non-studio faces outside `shell:` groups) | emitThreeWorld |
 | walkModeScript | runtime (loop-stepped) | `walk` truthy | emitThreeWorld |
 | tracerChannelScript | runtime | path.length > 1 | registry |
 | sphereRigPreamble | runtime (preamble) | planets \|\| heatSpheres \|\| starSurfaces | registry (special-cased) |
@@ -106,6 +107,8 @@ OPTIONAL = consumed behind a `typeof`/null guard; the provider may be absent.
 | `meshes[group]` planet spheres | planets | movers (eval-time bind) |
 | `__specPatch` | specular | controllable rig builder (OPTIONAL) |
 | `window.__mojSim` | physics | actions (REQUIRED), events (OPTIONAL) |
+| `window.__mojInk` | toon (setup) | probes / captures / page scripts (`tint` / `width` / `reset` / `set`, registry by group name) |
+| `__inkBuild` / `__inkGeoNormals` / `__inkCentroid` | toon (setup) | controllable's rig builder (OPTIONAL, typeof-guarded — inks every rig part when the emit cfg carries toon.ink) |
 | `__BUS` / `__busState` / `window.__mojBus` | events | fx, audio, game (OPTIONAL, wrap processEvents); page sidecar (OPTIONAL) |
 | `window.__mojCtrl` | controllable | fx, events, audio (OPTIONAL); page capture (null-guarded) |
 | `__ctrlActive`, `__ctrlOwnsCamera`, `stepControllable` | registry lets (assigned by controllable) | page loop (unconditional — lets always exist) |
@@ -122,6 +125,7 @@ OPTIONAL = consumed behind a `typeof`/null guard; the provider may be absent.
 | point | gate |
 |---|---|
 | `rigSpecHook` (aSpec wiring in `__makeRigGroup`) | any rig figure part carries `spec` |
+| `rigInkHook` + `rigInkBlock` (`__inkRigPart` in `__makeRigGroup`) | the emit cfg carries `toonInk` (world `toon.ink`) |
 | `hangarBlock` + `hangarHook` (input dispatch, first line of stepControllable) | `hangar` truthy |
 | `shadowBlock` + `shadowHook` (suit contact blobs; `key` folded iff baked light usable) | `shadows` truthy |
 | `smokeBlock` + `smokeHook` (projectile smoke + dust) | `smoke` truthy |

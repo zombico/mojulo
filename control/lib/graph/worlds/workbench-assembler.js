@@ -43,7 +43,7 @@
 import { lowerObjectFaces, studioSceneFromFaces, WORKBENCH_LIGHT, bakeBoundSkinFaces, collectWrapSources } from './workbench.js';
 import { MONOMER_KEYS, hasProgram } from './workbench-program.js';
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
-import { makeLight } from '../polygonizer/vexar.js';
+import { makeLight, withBands, resolveToon } from '../polygonizer/vexar.js';
 
 const DEG = Math.PI / 180;
 
@@ -102,7 +102,7 @@ function bakeOriented(item, baseLight = WORKBENCH_LIGHT, index = null) {
   // Aᵀ·dir cancels it. With FLAT_LIGHT (diffuse 0) every relit copy is still flat albedo.
   const light = isIdentity
     ? baseLight
-    : makeLight({ direction: matVec(transpose(A), baseLight.dir), ambient: baseLight.ambient, diffuse: baseLight.diffuse });
+    : makeLight({ direction: matVec(transpose(A), baseLight.dir), ambient: baseLight.ambient, diffuse: baseLight.diffuse, bands: baseLight.bands });
   const s = Number.isFinite(item.scale) ? item.scale : 1;
   return lowerObjectFaces(source, light).map((f) => {
     const out = {
@@ -358,7 +358,7 @@ export function planAssembler(manifest = {}) {
  */
 export function assembleAssemblerScene(opts = {}) {
   // `opts.light` is FLAT_LIGHT under unshaded export; absent → WORKBENCH_LIGHT (byte-identical).
-  const light = opts.light || WORKBENCH_LIGHT;
+  const light = withBands(opts.light || WORKBENCH_LIGHT, resolveToon(opts.toon)?.bands);   // toon dial (world-scene ctx.toon)
   const faces = bakeBoundSkinFaces(lowerAssemblerFaces(opts, { light }), opts.skin, opts, light);
   return studioSceneFromFaces(faces, { ...opts, title: opts.title || 'mojulo assembler' });
 }

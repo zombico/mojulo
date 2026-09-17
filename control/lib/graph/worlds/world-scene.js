@@ -31,7 +31,7 @@ import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
-import { FLAT_LIGHT } from '@/lib/graph/polygonizer/vexar';
+import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -93,6 +93,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // opt-in per-building ground shadows (off unless the manifest asks). `true` for the default
   // look, or an object `{ strength, length, maxAlpha, max }` to tune the cast.
   const groundShadows = sketch.manifest.groundShadows ?? scene.groundShadows ?? false;
+  // toon dial (toon-shading): `toon: true | { bands, ink }` on the manifest (or scene.toon).
+  // `bands` quantizes the baked Lambert term in every assembler that threads `ctx.toon`; `ink`
+  // is the World's outline channel (emitThreeWorld reads `payload.toon`). Absent → null → every
+  // byte identical. Dropped under the unshaded export: raw albedo has no tones to band.
+  const toon = resolveToon(sketch.manifest.toon ?? scene.toon);
   const kind = sketch.manifest.kind;
 
   // ?livery=<shelf name> (z-series assembler units — the arena hangar's swatch row): repaint
@@ -139,8 +144,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // Kinds that shade their OWN faces (fractal-city) read this to emit RAW ALBEDO for a clean
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
+    toon: unshaded ? null : toon,
   };
   const payload = await desc.resolve(manifest, ctx);
+  if (payload && ctx.toon) payload.toon = ctx.toon;   // the World's ink channel reads it; stills ignore it
 
   // opt-in RAYMARCH backend for painted-landscape (?render=raymarch): a per-pixel terrain/water/sky
   // render (painted-landscape-raymarch.js) instead of the polygon mesh. emitThreeWorld dispatches a

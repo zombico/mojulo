@@ -22,6 +22,7 @@ import {
 } from '../polygonizer/skin-projection.js';
 import { renderManjiTreeToSvg } from '../polygonizer/manji-svg.js';
 import { lowerObjectFaces, studioSceneFromFaces, WORKBENCH_LIGHT } from './workbench.js';
+import { withBands, resolveToon } from '../polygonizer/vexar.js';
 
 /**
  * Resolve a manji-tree polygomer's slot-bonded lathes to absolute-coordinate
@@ -66,7 +67,7 @@ export function bakeSkinOntoFaces(faces, opts = {}) {
  */
 export function assembleManjiTreeWorld(manifest, opts = {}) {
   // FLAT_LIGHT under unshaded export (opts.light); absent → WORKBENCH_LIGHT (byte-identical).
-  const light = opts.light || WORKBENCH_LIGHT;
+  const light = withBands(opts.light || WORKBENCH_LIGHT, resolveToon(opts.toon)?.bands);   // toon dial (world-scene ctx.toon)
   const lathes = resolveManjiTreeLathes(manifest);
   let faces = lowerObjectFaces({ lathes }, light);
   if (opts.skin && faces.length) {

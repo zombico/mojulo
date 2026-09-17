@@ -20,7 +20,7 @@
  * later increments (E3/E6).
  */
 
-import { makeLight, litFactor } from '../polygonizer/vexar.js';
+import { makeLight, litFactor, withBands, resolveToon } from '../polygonizer/vexar.js';
 import { boxFaces } from './condo-entrance.js';
 import { buildFacadeCard, projectCardOntoQuad } from './facade-card.js';
 import { buildRoof } from './roof.js';
@@ -253,7 +253,7 @@ function edificeCameras(b) {
 }
 
 export function assembleEdificeScene(manifest = {}, ctx = {}) {
-  const L = makeLight({ direction: [0.36, 0.42, -0.83], ambient: 0.5, diffuse: 0.55 });
+  const L = withBands(makeLight({ direction: [0.36, 0.42, -0.83], ambient: 0.5, diffuse: 0.55 }), resolveToon(ctx.toon ?? manifest.toon ?? manifest.scene?.toon)?.bands);   // toon dial (raw on the /scene path)
   const plan = planEdifice(manifest);
   const { faces, textures } = buildEdificeFaces(plan, { light: L });
   const b = plan.bounds, pad = Math.max(24, (b.x1 - b.x0) * 0.3);

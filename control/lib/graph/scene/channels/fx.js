@@ -11,6 +11,26 @@ import { safeJson } from '../emit-util.js';
 // so tints darken cleanly under vertexColors). Emitted only when the manifest carries `fx`;
 // absent ⇒ byte-identical, and it requires the controllable channel (its `__mojCtrl.bodies` map).
 export function fxChannelScript(fx) {
+  // toon ink verbs (toon-shading Phase 4c) are spliced ONLY when the fx spec uses them — an
+  // object state carrying `ink`, or an `inkFlash` gesture — so every existing fx world emits
+  // byte-identical text (the char-net pins for fx / kitchen-sink hold).
+  const usesInk = Object.values(fx.states || {}).some((s) => s && typeof s === 'object' && s.ink)
+    || Object.values(fx.on || {}).some((b) => b === 'inkFlash' || (b && typeof b === 'object' && b.gesture === 'inkFlash'));
+  const inkHelpers = usesInk ? `
+// toon ink verbs (toon-shading Phase 4c): recolour the entity's OUTLINE meshes (userData.ink — the
+// toon channel's hulls + crease lines, parented under rig parts) toward \`color\` by \`k\`. Reads from
+// the just-reset base, so states/gestures compose idempotently like the fills' tints.
+const __fxInkC = new THREE.Color();
+function __fxInk(m, color, k) { __fxInkC.set(color || '#ffffff'); m.traverse((o) => { if (o.userData && o.userData.ink && o.material && o.material.color) o.material.color.lerp(__fxInkC, k); }); }` : '';
+  const inkState = usesInk ? `
+  // object state: { ink: '#hex', pulse?: true } — hold the outline at a colour, or breathe it on the step clock
+  else if (s && typeof s === 'object' && s.ink) { __fxInk(m, s.ink, s.pulse ? 0.5 + 0.5 * Math.sin(t * 3.0) : 1); }` : '';
+  const inkGesture = usesInk ? `
+  // inkFlash: the outline snaps to \`color\` (white by default) and decays back over the envelope;
+  // the entity stays visible when it ends (a status flash, not a disappearance).
+  if (gesture === 'inkFlash') { __fxInk(m, color, 1 - p); return !done; }` : '';
+  const inkColorArg = usesInk ? ', color' : '';
+  const inkQueueColor = usesInk ? ", color: (__b && typeof __b === 'object' && __b.color) ? __b.color : null" : '';
   return `
 // ---- fx channel: game UI language decoration (presentation-only) ----
 const __FX = ${safeJson(fx)};
@@ -37,7 +57,7 @@ function __fxReset(id, m, inner, canMove) {
   m.traverse((o) => { if (o.material && o.material.color) { o.material.color.copy(st.base[i]); o.material.opacity = st.baseOpacity[i]; o.material.transparent = st.baseOpacity[i] < 1; i++; } });
 }
 function __fxTint(m, r, g, b) { m.traverse((o) => { if (o.material && o.material.color) o.material.color.setRGB(o.material.color.r * r, o.material.color.g * g, o.material.color.b * b); }); }
-function __fxFade(m, k) { m.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.opacity = o.material.opacity * k; } }); }
+function __fxFade(m, k) { m.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.opacity = o.material.opacity * k; } }); }${inkHelpers}
 // standing state: decorate one entity for state \`s\` at time t.
 function __fxApplyState(m, inner, canMove, s, t) {
   const TAU = 6.28318530718;
@@ -45,11 +65,11 @@ function __fxApplyState(m, inner, canMove, s, t) {
   else if (s === 'spin') { if (canMove) { inner.position.z = 0.12 * Math.sin(t * 2.2); inner.rotation.z = (t * 1.6) % TAU; } }
   else if (s === 'pulse') { inner.scale.setScalar(1 + 0.12 * Math.sin(t * 3.0)); }
   else if (s === 'dim') { __fxTint(m, 0.4, 0.42, 0.46); }
-  else if (s === 'shimmer') { const k = 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(t * 4.0)); __fxTint(m, k, k, Math.min(1, k + 0.08)); }
+  else if (s === 'shimmer') { const k = 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(t * 4.0)); __fxTint(m, k, k, Math.min(1, k + 0.08)); }${inkState}
 }
 // one-shot gesture envelope p∈[0,1]; returns true while active, hides the entity on completion.
-function __fxApplyGesture(id, m, inner, canMove, gesture, p) {
-  const done = p >= 1;
+function __fxApplyGesture(id, m, inner, canMove, gesture, p${inkColorArg}) {
+  const done = p >= 1;${inkGesture}
   if (gesture === 'pop') {
     if (p < 0.3) { const q = p / 0.3; inner.scale.setScalar(1 + 0.22 * q); __fxTint(m, 1 + q, 1 + q, 1 + q); }
     else { const q = (p - 0.3) / 0.7; inner.scale.setScalar(Math.max(0.001, 1.22 * (1 - q))); }
@@ -71,7 +91,7 @@ if (__FX.on && typeof __BUS !== 'undefined') {
     // carry source/zone = the zone id) — so a per-zone binding (e.g. a pickup's zone) fires on the
     // top-level enter event. NOTE the wrap only sees TOP-LEVEL incoming events; emit-ted events
     // drain recursively INSIDE processEvents, so bind to facts (enter/contact/timer), not emits.
-    for (const ev of events) for (const pat in __FX.on) { if (__fxGlob(ev.type, pat) || (ev.source && __fxGlob(ev.source, pat)) || (ev.zone && __fxGlob(ev.zone, pat))) { var __b = __FX.on[pat]; var __g = (__b && typeof __b === 'object') ? __b.gesture : __b; var __t = (__b && typeof __b === 'object' && __b.target) ? __b.target : (ev.id || ev.entity || (ev.match && ev.match.target) || __FX.onTarget || null); __fxQ.push({ id: __t, gesture: __g, t0: null }); break; } }
+    for (const ev of events) for (const pat in __FX.on) { if (__fxGlob(ev.type, pat) || (ev.source && __fxGlob(ev.source, pat)) || (ev.zone && __fxGlob(ev.zone, pat))) { var __b = __FX.on[pat]; var __g = (__b && typeof __b === 'object') ? __b.gesture : __b; var __t = (__b && typeof __b === 'object' && __b.target) ? __b.target : (ev.id || ev.entity || (ev.match && ev.match.target) || __FX.onTarget || null); __fxQ.push({ id: __t, gesture: __g${inkQueueColor}, t0: null }); break; } }
     return __fxPE(state, events);
   };
 }
@@ -88,7 +108,7 @@ stepFx = (tMs) => {
     __fxCapture(g.id, m); __fxReset(g.id, m, inner, canMove);
     const p = Math.min(1, (t - g.t0) / 0.5);
     busy[g.id] = true;
-    if (!__fxApplyGesture(g.id, m, inner, canMove, g.gesture, p)) __fxActive.splice(k, 1);
+    if (!__fxApplyGesture(g.id, m, inner, canMove, g.gesture, p${usesInk ? ', g.color' : ''})) __fxActive.splice(k, 1);
   }
   if (__FX.states) for (const id in __FX.states) {
     const m = ctrl.bodies[id]; if (!m) continue;

@@ -16,7 +16,7 @@
  */
 
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
-import { makeLight, scaleHex, FLAT_LIGHT } from '../polygonizer/vexar.js';
+import { makeLight, scaleHex, FLAT_LIGHT, withBands, resolveToon } from '../polygonizer/vexar.js';
 import { makeRowhouseFacade } from '../architecture/building-facade.js';
 import { straightPath, sinePath, chainPaths, roadRibbons, groundStreet, offsetPath } from './roads.js';
 import { vehicleAntFaces, streetcarCorridor } from '../vehicles/vehicles-css3d.js';
@@ -2833,8 +2833,9 @@ export function assembleFractalCityScene(opts = {}) {
     sources,
     diffusion: unshaded ? {} : (opts.diffusion || (night ? NIGHT_DIFFUSION : day ? DAY_DIFFUSION : {})),
     moonlight: unshaded ? undefined : (opts.moonlight ?? (night ? true : undefined)),  // cool directional moonlight on rooftops / moon-facing walls
-    light: unshaded ? FLAT_LIGHT : (opts.light || (night ? makeLight({ direction: [0.2, 0.3, -0.9], ambient: 0.18, diffuse: 0.1 })
-      : day ? makeLight({ direction: [0.35, 0.4, -0.85], ambient: 0.5, diffuse: 0.4 }) : undefined)),
+    // toon dial (opts.toon, world-scene ctx.toon): bands the key; withBands leaves an undefined/flat light alone
+    light: unshaded ? FLAT_LIGHT : withBands(opts.light || (night ? makeLight({ direction: [0.2, 0.3, -0.9], ambient: 0.18, diffuse: 0.1 })
+      : day ? makeLight({ direction: [0.35, 0.4, -0.85], ambient: 0.5, diffuse: 0.4 }) : undefined), resolveToon(opts.toon ?? opts.scene?.toon)?.bands),
     cameras: opts.cameras || FRACTAL_CAMERAS,
     viewBox: opts.viewBox || { width: 1120, height: 780 },
     unitScale: opts.unitScale || 22,

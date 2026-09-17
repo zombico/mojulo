@@ -203,7 +203,17 @@ manifest.scene = {
           | { vexar, tint, sources, lamps, diffusion, gravity }, // advanced override
   sky: 'dusk' | { preset, sun, moon, stars }, // overrides the preset sky
 }
+manifest.toon = true | { bands: 3, ink: true | { color, width, crease } }   // the TOON dial (also at scene.toon)
 ```
+
+**`toon`** is a LOOK dial, orthogonal to `time` / `lighting`: `bands` quantizes the baked Lambert
+term into N tones (`withBands` / `bandFactor` in vexar; the final key+fill factor is banded, so
+the shadow hemisphere steps too, while gravity darkening, lamps and traced diffusion stay
+continuous on top). Because every backend draws the baked fills, the bands show identically in
+the SVG still, this CSS-3D scene, the orbit World and every export (COLOR_0). `ink` is the World's
+outline channel only (`channels/toon-ink.js`: inverted-hull silhouettes + crease lines); the
+stills ignore it. `true` = `{ bands: 3, ink: true }`. A monomer's own `material.cel` wins over the
+light's bands for that part; the unshaded export (`FLAT_LIGHT`) ignores the dial.
 
 Per the decision rule above: `lighting: 'flat'` for technical figures; a `time` for
 artistic scenes. `time` is the one handle that matters for most lit scenes — it picks

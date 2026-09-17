@@ -16,10 +16,17 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
 import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
+import { resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, ref, folderRef } = {}) {
+function normalizeToon(toon) {
+  const t = resolveToon(toon);
+  if (!t) throw new Error('`toon` must be `true` or `{ bands?: <tones ≥ 2>, ink?: true | { color, width, crease } }` — e.g. `toon: true` for three tones + outlines, `toon: { bands: 4 }` for tones only.');
+  return t;
+}
+
+export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -64,6 +71,9 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     ...(typeof units === 'string' ? { units } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(typeof facing === 'string' || Number.isFinite(facing) ? { facing } : {}),
+    // toon dial (toon-shading): stored normalized (`true` → { bands: 3, ink: true }); a malformed
+    // value is refused rather than silently dropped
+    ...(toon != null ? { toon: normalizeToon(toon) } : {}),
     ...(title ? { title } : {}),
   };
 
