@@ -67,14 +67,29 @@ function roundedRectPath(w, h, r, nc) {
   if (r <= 1e-6) {
     return withPolygonNormals([{ u: hw + r, v: -hh - r }, { u: hw + r, v: hh + r }, { u: -hw - r, v: hh + r }, { u: -hw - r, v: -hh - r }].map((p) => ({ u: p.u, v: p.v })));
   }
-  const centers = [[hw, hh, 0], [-hw, hh, Math.PI / 2], [-hw, -hh, Math.PI], [hw, -hh, 1.5 * Math.PI]];
-  const out = [];
-  for (const [cu, cv, a0] of centers) {
-    for (let k = 0; k < nc; k += 1) {
-      const a = a0 + (k / nc) * (Math.PI / 2);
-      out.push({ u: cu + r * Math.cos(a), v: cv + r * Math.sin(a), nu: Math.cos(a), nv: Math.sin(a) });
-    }
+  // One quadrant of cos/sin, then the other three by exact 90° rotation.
+  //
+  // Asking Math.cos/Math.sin for an angle past π/2 makes the engine reduce the
+  // argument first, and V8's reduction is not bit-identical across CPU targets:
+  // Math.sin(π + π/8) differs by 1 ULP between arm64 and x64 on the very same V8
+  // build. That leaked into a face normal and split this kernel's output between an
+  // Apple-silicon machine and an x86 one — a recipe is supposed to regenerate the
+  // same bytes wherever it is read. Angles in [0, π/2) need no reduction, and
+  // turning (c,s) by a right angle is sign swaps, which are exact.
+  const quadrant = [];
+  for (let k = 0; k < nc; k += 1) {
+    const t = (k / nc) * (Math.PI / 2);
+    quadrant.push([Math.cos(t), Math.sin(t)]);
   }
+  const turn = [(c, s) => [c, s], (c, s) => [-s, c], (c, s) => [-c, -s], (c, s) => [s, -c]];
+  const centers = [[hw, hh], [-hw, hh], [-hw, -hh], [hw, -hh]];
+  const out = [];
+  centers.forEach(([cu, cv], q) => {
+    for (const [c, s] of quadrant) {
+      const [nu, nv] = turn[q](c, s);
+      out.push({ u: cu + r * nu, v: cv + r * nv, nu, nv });
+    }
+  });
   return out;
 }
 

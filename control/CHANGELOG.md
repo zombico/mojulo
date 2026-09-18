@@ -42,6 +42,24 @@ loops and the recipe format are unchanged.
   the width band is the guard on the whole skull. `eyeSize` grows the globe and the fissure
   together — a bigger eyeball behind the same aperture only buries itself.
 
+### one machine, one answer — the cap tessellator and the rounded-rect profile
+
+- **Fixed: a carved cap with two or more counters could fill one of them.** Bridging a hole into an
+  outline leaves the ring touching itself at the bridge, and the ear clipper could cut straight
+  through one of those contact points — emitting an inverted triangle and covering a counter twice,
+  so a letter like `B` came out with a solid bowl. `triangulateRings` now spots the inverted
+  triangle and re-clips that ring with the bridge contacts guarded, keeping whichever result
+  actually matches the ring's area. Caps that were already correct are untouched, byte for byte.
+- **Fixed: a rounded-rect extrude profile now emits the same bytes on Apple silicon and on x86.**
+  `roundedRectPath` asked `Math.cos`/`Math.sin` for each of the four corner arcs by absolute angle,
+  and V8's argument reduction past π/2 is not bit-identical across CPU targets — one face normal
+  came out a ULP apart on the two architectures. It now takes a single quadrant and turns it by
+  exact sign swaps. A recipe regenerates to the same bytes wherever it is read, which is the point.
+- **Changed: the cap tessellator's regression pin no longer depends on the machine's fonts.** The
+  glyph tests resolve whatever font is installed — Arial Black on macOS, DejaVu on the Linux CI
+  image — so the two `B` bugs above only ever reproduced on CI. The failing contours are frozen in
+  `triangulate.dejavu-b.fixture.js` and pinned everywhere.
+
 ### figure-head — a structured head, male and female
 
 - **Changed: the protoform's head is one closed form built from anatomy.** It was two overlapping

@@ -36,6 +36,15 @@
  *     the extrude does. Same face counts, the cap corners of every capped sweep
  *     (the lamp, the couch's wrinkle lines) in the corrected order. A and B re-based;
  *     C unchanged.
+ *   - one quadrant of trig (2026-09-18): these two pins held on Apple silicon and
+ *     failed on x86 CI, and the whole difference was five `outNormal` components one
+ *     ULP apart. V8's argument reduction for Math.sin/cos past π/2 is not bit-identical
+ *     across CPU targets — Math.sin(π + π/8) differs between arm64 and x64 on one V8
+ *     build — and `roundedRectPath` (extrude-faces.js) asked for all four corner arcs
+ *     by absolute angle. It now takes one quadrant and turns it by exact sign swaps,
+ *     so the rounded-rect profile, and these pins, are the same bytes on either
+ *     architecture (verified arm64 + x64). Same face counts. A and B re-based;
+ *     C unchanged.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -48,7 +57,7 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
   it('generated seed plan, furnish:true', () => {
     const s = structurizeFloorplan({ seed: 7, width: 46, height: 34 }, { furnish: true });
     expect(s.faces.length).toBe(4166);
-    expect(sha(s.faces)).toBe('556dd37c41d9e8f996b8839ba5d34a204e3ac6d82dd7e8fdad2b2121034bffb3');
+    expect(sha(s.faces)).toBe('56197a61038fb915eb5145231646e56edb86b32da476b29fdbdeb26a635ae346');
   });
 
   it('explicit two-cell plan with an interior door, furnish:true', () => {
@@ -58,7 +67,7 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
       doors: [{ x: 15, y: 6, room: 1, edge: 'W' }],
     }, { furnish: true });
     expect(s.faces.length).toBe(3134);
-    expect(sha(s.faces)).toBe('5a81b3793079b782b944ca07c2e6494231cce367b62439e79cee7f47ed915859');
+    expect(sha(s.faces)).toBe('82daa902b66ce1c3b17799ea66fbeaaa0d728952b177b66c62c4ee9c02716788');
   });
 
   it('stacked house, cutaway (furnish defaults on)', () => {
