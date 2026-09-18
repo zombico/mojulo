@@ -79,6 +79,15 @@ loops and the recipe format are unchanged.
   underscore-prefixed prototypes under `control/scripts/`) that carried absolute home paths;
   `scripts/_*.mjs` is now gitignored.
 
+### terms — the open-source commitment and a possible mojulo cloud
+
+- **Changed: TERMS.md, README, SECURITY.md, docs/responsibility-model.md, and the `get_substrate`
+  facts** now state the stance in one voice: the open-source mojulo is and stays Apache-2.0 with no
+  telemetry, ever. That commitment is about the software, not a bar on a hosted offering — a
+  separately offered mojulo cloud on standard services may be explored if there is demand, as its
+  own opt-in product that changes nothing about the local install. "There is no hosted service"
+  lines become present-tense ("today") where they read as a permanent ruling-out.
+
 ### dungeon-rock-texture — a surface tile per cave surface, multiply-lit over the traced bake
 
 - **Added: `texture` in the dungeon style bible.** `style.texture: '<key>' | { floor?, wall?,

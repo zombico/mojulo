@@ -10,7 +10,9 @@ These are not aspirations. They are properties of the codebase, verifiable from 
 
 ### mojulo runs on your machine
 
-The substrate is a Next.js app, a SQLite database, and a process supervisor. They live on your host. The npm package (`npx mojulo`) installs them locally. The Docker image runs locally. There is no hosted mojulo service.
+The substrate is a Next.js app, a SQLite database, and a process supervisor. They live on your host. The npm package (`npx mojulo`) installs them locally. The Docker image runs locally. There is no hosted mojulo service today.
+
+The standing commitment is about the software, not about what else may exist: the open-source mojulo stays open source under Apache 2.0 and never carries telemetry. That does not rule out a separately offered mojulo cloud on standard hosted services, explored if there is demand. Such an offering would be its own opt-in product; nothing in this document, or in the local install, would change because of it. ([TERMS.md](../TERMS.md), "The open-source commitment".)
 
 This is enforced in the design, not just the deployment instructions:
 

@@ -4,7 +4,7 @@ Mojulo is a solo-maintained, open-source, self-hosted project: a local MCP serve
 
 ## Scope of this policy
 
-This policy covers **the build the publisher ships**: the official `mojulo` package on npm and the source published in this repository. Apache-2.0 lets anyone fork the code or host it for other people; a modified build or a third-party hosted instance is that party's software under that party's policy, and reports about it belong with that party. The maintainer publishes no hosted mojulo.
+This policy covers **the build the publisher ships**: the official `mojulo` package on npm and the source published in this repository. Apache-2.0 lets anyone fork the code or host it for other people; a modified build or a third-party hosted instance is that party's software under that party's policy, and reports about it belong with that party. The maintainer publishes no hosted mojulo today; if a mojulo cloud is ever offered it will be a separate product under its own security policy, and the open-source build stays open source and telemetry-free regardless (see [TERMS.md](TERMS.md)).
 
 ## Supported versions
 
