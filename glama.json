@@ -2,7 +2,7 @@
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "maintainers": ["zombico"],
   "name": "mojulo",
-  "description": "A 3D factory for agents: a local MCP server where objects, walkable worlds and games are small re-runnable recipes, exported to HTML, Godot, Blender, STL/3MF. No account, no telemetry.",
+  "description": "A 3D compiler for coding agents: a local MCP server where objects, walkable worlds and games are small recipes compiled back byte-for-byte and emitted to HTML, Godot, Blender, STL/3MF. No account, no telemetry.",
   "repository": "https://github.com/zombico/mojulo",
   "license": "Apache-2.0",
   "mcpServers": {

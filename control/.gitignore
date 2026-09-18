@@ -30,3 +30,7 @@ spike-output/
 lib/graph/mobile-suit/*
 !lib/graph/mobile-suit/ms-maneuvers.js
 !lib/graph/mobile-suit/ms-ai.js
+
+# Scratch prototyping scripts (underscore-prefixed) are local-only; they carried
+# absolute home-directory paths and were never load-bearing.
+scripts/_*.mjs

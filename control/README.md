@@ -2,7 +2,7 @@
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/lounge-handoff-demo.gif)
 
-Mojulo is a 3D factory for agents: a local MCP server where everything your coding agent makes is a small recipe it can re-run identically.
+Mojulo is a 3D compiler for coding agents: a local MCP server where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator.
 
 ```bash
 npx mojulo init

@@ -3,7 +3,7 @@
 Everything in this directory documents the **chatbot factory**, which since 2.0 is
 **not part of a default mojulo install**.
 
-Mojulo is a 3D factory for agents; the bot factory is one optional capability pack
+Mojulo is a 3D compiler for agents; the bot factory is one optional capability pack
 beside it. These docs live together so they can travel together — when the factory
 ships as its own package (`@mojulo/chatbot`, gated on the Phase 3 kernel ABI), this
 directory goes with it rather than being untangled from the rest of `docs/`.

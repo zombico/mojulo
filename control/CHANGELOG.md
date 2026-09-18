@@ -60,6 +60,25 @@ loops and the recipe format are unchanged.
   image — so the two `B` bugs above only ever reproduced on CI. The failing contours are frozen in
   `triangulate.dejavu-b.fixture.js` and pinned everywhere.
 
+### readme — worked examples instead of a manifesto
+
+- **Changed: the repo README is now five concrete examples** (a mug, a living room, a city, a
+  walkable world to a Godot export, a snowman), each with the sentence you say, the tool that
+  fires, and the recipe that gets stored, followed by the export table and what stays on the
+  machine. The long-form catalog moves unchanged to `docs/tour.md`.
+- **Changed: the one-line self-description is "a 3D compiler for agents"** — a compiler, not a
+  generator: the recipe is the source, kernels compile it back byte-for-byte, emitters are the
+  targets, renders are derived. Said in one voice across the README, the npm README and
+  `package.json` description, `server.json`, `glama.json`, the plugin manifests, the
+  `SERVER_INSTRUCTIONS` preamble, the `get_substrate` one-breath answer and studio opener,
+  `docs/AGENT-REFERENCE.md`, and the installer's chatbot note. "3D factory" survives only in
+  code comments and the changelog history.
+- **Fixed: `LICENSE` is the verbatim Apache-2.0 text** (two clauses had been paraphrased, so
+  GitHub reported the license as "Other"); the copyright line moves to a new `NOTICE` file.
+- **Removed: six scratch scripts** (`control/relief-test2.mjs` and the
+  underscore-prefixed prototypes under `control/scripts/`) that carried absolute home paths;
+  `scripts/_*.mjs` is now gitignored.
+
 ### dungeon-rock-texture — a surface tile per cave surface, multiply-lit over the traced bake
 
 - **Added: `texture` in the dungeon style bible.** `style.texture: '<key>' | { floor?, wall?,

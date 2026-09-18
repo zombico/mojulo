@@ -2,7 +2,7 @@
 
 Dense agent-facing reference for details that used to live in `CLAUDE.md`. This doc is intentionally more specific than the fast orientation file, but still points to source-of-truth docs and code for the deepest details.
 
-Mojulo is a **3D factory for agents**: the creative substrate is the main line, and the automation backend sits behind it. The chatbot factory is an **optional install-gated pack** — its dense reference is isolated at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md) and nothing here depends on it.
+Mojulo is a **3D compiler for agents** (a compiler, not a generator: the recipe is the source, renders are derived): the creative substrate is the main line, and the automation backend sits behind it. The chatbot factory is an **optional install-gated pack** — its dense reference is isolated at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md) and nothing here depends on it.
 
 ## The creative substrate
 
