@@ -283,7 +283,7 @@ export function buildOutfit(bodyPieces, { tee = {}, shorts = {} } = {}) {
 // (`inflateRings`), so it hugs the breast curvature, the deltoid, the glutes —
 // the suit reads the body, not a smoothed silhouette. The distal end of each
 // forearm/leg tapers to zero thickness, landing flush at the wrist/ankle.
-const SKIN_SUIT_BARE = new Set(['headEgg', 'faceMask', 'handL', 'handR', 'footL', 'footR']);
+const SKIN_SUIT_BARE = new Set(['headEgg', 'handL', 'handR', 'footL', 'footR']);
 const SKIN_SUIT_TAPER_TAIL = new Set(['forearmL', 'forearmR', 'legL', 'legR']);
 
 /**
@@ -517,7 +517,7 @@ function sashStacks(body, { side = 'L', width = 0.72, clearance = 0.02, folds = 
 // dantien, scapula buns, shoulder caps) is colored over with a thin under-shade
 // shell, so nothing shows as bare flesh inside the garment's zone.
 
-const HEAD_HANDS_FEET = ['headEgg', 'faceMask', 'handL', 'handR', 'footL', 'footR'];
+const HEAD_HANDS_FEET = ['headEgg', 'handL', 'handR', 'footL', 'footR'];
 const baseName = (id) => id.replace(/[LR]$/, '');
 
 function darkenHex(hex, k = 0.6) {

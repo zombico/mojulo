@@ -12,6 +12,106 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### the head grows its features — the ear, the side wall, the nose tip, the eye
+
+- **Added: the ear is a feature instead of a bulge.** It was one flattened lobe at the tragion,
+  smooth-unioned at the face's 0.019·s blend — ~17 mm of softening over a 4 mm lobe, so it added
+  7 mm of head width and no shape at all, and the lateral turntable showed a bare curve from
+  temple to jaw. It is now a helix rim of round cones from the root, over the top, down the back
+  to the lobule, thickened by two pads and closed by a thin pinna plate, in **its own blend group
+  behind its own bounding gate** — the same treatment the nose already needed. The rim's outer
+  edge spans the canon band, subnasale to glabella.
+- **Added: the zygomatic arch and a light masseter.** The side of the face fell into a trough
+  between the cheekbone and the ear — 3.7 mm real on the bare skull, which the new ear *deepened*
+  to 4.5 mm by raising the wall behind it. The arch bridges cheekbone to ear canal and the
+  masseter rounds the jaw's side below it. It costs nothing in the head's width band (both sit
+  under the ear's peak) and it made the ear render **cleaner**: filling the valley stopped the
+  latitude rays plunging into it, so the worst ring-to-ring step on the ear fell from 6.0 to 5.5 mm.
+- **Changed: the nose tip domes and reads as a forward pyramid.** The tip was a sphere whose
+  radius of curvature (~12 mm real) dwarfed the feature it was meant to be, so it rendered as a
+  flat facet. It is now an ellipsoid plus an infratip lobule, with a **dorsal keel** carrying one
+  continuous ridge from the bridge to the tip. The tip gained ~4 mm of projection and got
+  **narrower**, not wider: all the volume went into projection and height, none into width.
+- **Added: the eye.** A globe in the orbit under two C-wave lids, unioned **after** the orbit
+  subtraction (before it, the socket cut simply erased the globe) with that cut trimmed to suit.
+  At the eye a latitude ring is 5.9 mm real, so a 10 mm palpebral fissure spans 1.7 rings and
+  cannot be a modelled gap — it is a **shadow step** between two lid ridges, the same answer the
+  lip line arrived at. The eye reads on form and shading; it carries no colour.
+- **Added: `earSize` and `eyeSize` head knobs.** `earSize` grows the ear in its own plane and its
+  rim thickness but deliberately **not** its standoff, because the head's width is ear-driven and
+  the width band is the guard on the whole skull. `eyeSize` grows the globe and the fissure
+  together — a bigger eyeball behind the same aperture only buries itself.
+
+### figure-head — a structured head, male and female
+
+- **Changed: the protoform's head is one closed form built from anatomy.** It was two overlapping
+  open tubes: a three-bead vajra egg and a tapered "face mask" sleeve pushed forward of it. They
+  z-fought where they crossed, the mask's lower rim read as a visor, and because a ring stack is
+  capped at neither end the crown and the underside were holes about 5.5 cm and 7.5 cm across at a
+  170 cm stature (the crown scoop was visible from behind; the underside hid behind the neck).
+  `figure-head.js` now builds the head as a signed-distance field of named anatomical primitives
+  (braincase, frontal, occiput, brow, subtracted orbits, zygomatics, maxilla, nasal, lips,
+  mandible, ramus, chin, submandibular floor, ears) smooth-unioned into one skin, the way the
+  welded animal skull is, and surfaces it by LATITUDE rings from a centre inside the braincase,
+  so both poles close by construction. The `faceMask` stack is gone; `headEgg` keeps its id and
+  its ring currency, so hair, hats, garments, the skin seam and the spine warp read it unchanged.
+- **Changed: the head has a sex.** Male and female heads were byte-identical. `DIMORPH` carries a
+  `head` pole (brow, jaw width and drop, chin point and size, forehead slope, cranial roundness,
+  nose, cheek fullness, size, neck girth); the female basis is a rounder cranium, a vertical
+  forehead, a smooth brow, a narrower jaw, a pointed chin, a smaller nose, fuller cheeks and a
+  thinner neck. `proto` gains per-region multipliers on top: `browRidge`, `jawWidth`, `chinPoint`,
+  `noseSize`, `noseWidth`, `noseDroop`, `cheekbone`, `cheek`, `foreheadSlope`, `neckGirth` (1 = canonical, absent = same bytes).
+  The nose is articulated and seated AT the face plane, projecting past it — a narrow bony bridge
+  from the nasion dip to a slightly proud mid-dorsum, a cartilage dorsum to a supratip break, a tip
+  ball hanging below the dorsum line (`noseDroop`, the hook), two alae lower and wider than the tip
+  (`noseWidth`), a nostril bar, and a flat columella back to the subnasale so the nose has an underside.
+  The nose blends within itself far tighter than it blends into the face, with a shallow alar crease
+  either side of the tip, so the two alae and the tip read as three lobes and not one bell — and the
+  head's rings are sampled twice as densely at the face as at the nape (44 around), because at a
+  uniform 36 the whole nose base was one or two samples wide. The philtrum is a shallow recess and
+  the nose joins the face tighter than the face blends with itself, so the underside of the nose
+  stands over air instead of filleting into the lip. The lips have mass: an upper lip rising to a
+  cupid's bow — both lips are built on one M-shaped mouth path from inner cheek to inner cheek, the
+  upper lip's bottom edge tracing the bow and overhanging the lower lip so the line reads as its
+  shadow — a fuller lower lip that rides the jaw and sits just under the upper lip's overhang, and a
+  sulcus under the lower lip; the mandible rests closed-up against the maxilla with the chin brought
+  up and forward under the lips, so the profile does not read as an overbite (bone only — the lips
+  rest where they belong and follow the open dial).
+  `cheek` is the soft cheek under the cheekbone — the apple of the cheek, a pad standing proud of
+  the maxilla, and a jowl blend into the jaw — so the face rounds out in the ¾ view instead of
+  reading as a skull or as sullen; the female basis is fuller.
+  The buccal plane is lateral and thin (the face beside the mouth is the maxilla's own curve),
+  the lips join the face at a wider fillet than
+  the nose does, so the upper lip's wings run out into the inner cheek instead of standing as a
+  ridge with a trench either side, and the cheek is one convex mass whose inner lower edge runs in
+  to the base of the nose with no concave section between them. The philtrum groove sits in the
+  skin (it had stayed at the maxilla when the lips moved forward, a pocket inside the head that
+  every latitude ring through the mouth zigzagged over), and the lips run out into the cheek at
+  their corners instead of ending in a wall.
+  `headScale` still scales the whole skull about the neck join.
+- **Added: `pose.face` — the jaw and the mouth, structured in the field, not the armature.**
+  `face: { jaw, mouth, brow }`: `jaw` (degrees, 0–30) rotates the jaw group about a hinge through
+  the condyles so the chin swings down and back and the smooth union re-fuses it into the cheeks;
+  `mouth` (0–1, default follows the jaw) subtracts a lip slot; `brow` (−1..1) lowers or raises the
+  brow ridge. No new armature node, so the 17-node manji, `LIMITS`, the packed rig and the VRM map
+  are untouched, and emotes/keyframes drive `face` through the same phase→dof contract as every
+  other dial. Stated limit: the skinned GLB bakes rest geometry over rigid bones and the head is
+  one bone, so jaw motion shows in SVG, GIF and world frames, not in the skinned export.
+- **Added: the head-study camera.** `renderFigureToSvg` takes `crop: 'head'` (the head, the neck
+  and whatever sits on the head) and `elev` (degrees), mirroring the animal path's crop and
+  `animalCamera`, so a human head can be checked top-down and from under. `/head-study` renders
+  the eight skull-study angles for both sexes, filled and wireframe, cropped to the head.
+- **Added: head rows on the tailor's tape.** `bodyGirths` reports `head` (the widest ring's girth,
+  the hat size), `head_height` and `head_width` in cm at stature, read off the head stack.
+- **Changed: wigs and hats average the skull radius over height, not over rings.** The head's rings
+  are latitudes now, dense and tiny at the poles; a per-ring mean read the dome about a quarter
+  small. The trapezoid rule over the radius-by-height profile is the same number for rings spaced
+  evenly along the axis. A curtain wig's apex also clears the crown by about 2 cm instead of
+  grazing it: the old crown was an open ring, so a dome that touched it showed nothing; the closed
+  skull poked through.
+- Re-pins: the three `figure-absent.char.test.js` hashes and the world kinds that place figures
+  (`world-scene.kinds.test.js.snap`) — the flesh moved; the absent-channel promise is unchanged.
+
 ### toon-shading — cel bands and ink outlines as a manifest dial
 
 - **`toon` on any 3D manifest** (`toon: true` = `{ bands: 3, ink: true }`; also read at

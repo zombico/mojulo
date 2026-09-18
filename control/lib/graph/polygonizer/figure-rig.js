@@ -23,9 +23,15 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 // shoulder/hip scale the landmark widths → the rig SLOTS (and the flesh that
 // follows them). ribW/waist/glute/limb scale flesh regions; breast is the chest
 // form (pec plates ↔ breasts). Male = identity pole; female = the locked basis.
+// `head` is the SKULL's pole (figure-head.js): brow projection, bigonial width, how far the jaw
+// corners drop, chin point/size, forehead slope, cranial roundness, nose, cheekbone, the soft
+// cheek, overall size, neck girth. Male = identity; female = rounder cranium, vertical forehead, smooth
+// brow, narrower jaw, pointed chin, smaller nose, fuller cheeks, thinner neck, ~4 % smaller.
 export const DIMORPH = {
-  male:   { sex: 'male',   shoulder: 1.0,  hip: 1.0,  ribW: 1.0,  waist: 1.0,  glute: 1.0,  limb: 1.0,  breast: 0 },
-  female: { sex: 'female', shoulder: 0.86, hip: 1.16, ribW: 0.90, waist: 1.6,  glute: 1.22, limb: 0.82, breast: 1 },
+  male:   { sex: 'male',   shoulder: 1.0,  hip: 1.0,  ribW: 1.0,  waist: 1.0,  glute: 1.0,  limb: 1.0,  breast: 0,
+    head: { brow: 1, jawWidth: 1, jawDrop: 1, chinPoint: 1, chinSize: 1, foreheadSlope: 1, cranialRound: 1, noseSize: 1, noseWidth: 1, noseDroop: 1, cheekbone: 1, cheek: 1, size: 1, neckGirth: 1 } },
+  female: { sex: 'female', shoulder: 0.86, hip: 1.16, ribW: 0.90, waist: 1.6,  glute: 1.22, limb: 0.82, breast: 1,
+    head: { brow: 0.45, jawWidth: 0.88, jawDrop: 0.85, chinPoint: 1.6, chinSize: 0.78, foreheadSlope: 0.35, cranialRound: 1.08, noseSize: 0.82, noseWidth: 0.9, noseDroop: 0.7, cheekbone: 1.25, cheek: 1.3, size: 0.96, neckGirth: 0.86 } },
 };
 
 // World-space slots: armature neutral → dimorphic shoulder/hip proportions (limbs

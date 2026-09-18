@@ -196,7 +196,7 @@ function buildHeldShield(nodes, hold) {
 }
 
 export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs = null, hold = null, hair = null, proportions = null, fluffQuality = 1, weld = null) {
-  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, ...limbs } = pose || {};
+  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, face = null, ...limbs } = pose || {};
   const full = articulate(pose);          // spine + limbs (pure FK, feet float)
   const balanced = balancedArmature(pose, full);
 
@@ -271,7 +271,7 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
     }, {
       L: { flex: wfL.flex || 0, deviation: wfL.deviation || 0, curl: limbs.fingersL || 0 },
       R: { flex: wfR.flex || 0, deviation: wfR.deviation || 0, curl: limbs.fingersR || 0 },
-    });
+    }, face);   // `face` = { jaw, mouth, brow } — the head field's dials (figure-head.js); not a joint
   }
 
   // Warp whenever the figure is off its rest pose. S0 = the straight rest spine the
@@ -680,21 +680,78 @@ function recolorFlesh(stacks, fleshHex) {
   return stacks.map((s) => (s.hex === FLESH_HEX ? { ...s, hex: fleshHex } : s));
 }
 
+// ── the HEAD STUDY camera (figure-head.plan phase 0) ──
+// `crop: 'head'` keeps the head, the neck and whatever sits on the head (hair, a hat), and
+// `elev` (degrees) tilts the orbit so a top-down or under view is possible — the eight
+// /skull-study angles, for the human head. Mirrors renderAnimalToSvg's crop + animalCamera.
+// Both absent → the classic makeCamera path, byte for byte.
+const isHeadStack = (st, neckTopZ) => {
+  if (st.faces || st.fieldFaces || !st.rings) return false;
+  if (st.id === 'headEgg' || st.id === 'neck') return true;
+  if (st.flesh) return false;                               // body flesh never; hair / hat / props may
+  // anything that REACHES above the neck's top rides the head (a wig of any length, a hat, a hood)
+  let maxZ = -Infinity;
+  for (const rg of st.rings) for (const q of rg.polyline) if (q.z > maxZ) maxZ = q.z;
+  return maxZ >= neckTopZ - 1e-9;
+};
+function cropStacksToHead(stacks) {
+  const neck = stacks.find((s) => s.id === 'neck');
+  let neckTopZ = Infinity;
+  if (neck) { neckTopZ = -Infinity; for (const rg of neck.rings) for (const q of rg.polyline) if (q.z > neckTopZ) neckTopZ = q.z; }
+  return stacks.filter((s) => isHeadStack(s, neckTopZ));
+}
+// A self-framing two-point camera orbiting the shown stacks' world bbox (az from the view,
+// elev in degrees). Same screen-x un-mirror as makeCamera so left/right read the same.
+function orbitCamera(shown, view, elevDeg, groundZ) {
+  const V = worldVertex(shown, groundZ);
+  const bb = { mnx: Infinity, mny: Infinity, mnz: Infinity, mxx: -Infinity, mxy: -Infinity, mxz: -Infinity };
+  for (const st of shown) for (const rg of st.rings) for (const q of rg.polyline) {
+    const [x, y, z] = V(q);
+    if (x < bb.mnx) bb.mnx = x; if (y < bb.mny) bb.mny = y; if (z < bb.mnz) bb.mnz = z;
+    if (x > bb.mxx) bb.mxx = x; if (y > bb.mxy) bb.mxy = y; if (z > bb.mxz) bb.mxz = z;
+  }
+  const center = [(bb.mnx + bb.mxx) / 2, (bb.mny + bb.mxy) / 2, (bb.mnz + bb.mxz) / 2];
+  const radius = 0.5 * Math.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
+  const az = (viewAzimuth(view) * Math.PI) / 180, el = (elevDeg * Math.PI) / 180, R = radius * 3.2;
+  const CAM = [center[0] + R * Math.cos(el) * Math.sin(az), center[1] + R * Math.cos(el) * Math.cos(az), center[2] + R * Math.sin(el)];
+  // A plain PINHOLE, not the room's two-point projector: two-point keeps verticals vertical
+  // (and the room basis is built for a level camera), so from a steep elevation — a top or
+  // under view — the faces below the crown are pushed out past the silhouette as spikes. The
+  // study camera is a check pass, not a pinned emission, so it owns its own projection.
+  const fwd = unit3([center[0] - CAM[0], center[1] - CAM[1], center[2] - CAM[2]]);
+  const rightAx = unit3(Math.abs(fwd[2]) > 0.999 ? cross3(fwd, [0, 1, 0]) : cross3(fwd, [0, 0, 1]));
+  const upAx = cross3(rightAx, fwd);
+  const f = 500 / Math.tan((30 * Math.PI / 180) / 2);
+  const project = (p) => {
+    const v = [p[0] - CAM[0], p[1] - CAM[1], p[2] - CAM[2]];
+    const d = Math.max(1e-3, v[0] * fwd[0] + v[1] * fwd[1] + v[2] * fwd[2]);
+    const x = (v[0] * rightAx[0] + v[1] * rightAx[1] + v[2] * rightAx[2]) / d * f;
+    const y = (v[0] * upAx[0] + v[1] * upAx[1] + v[2] * upAx[2]) / d * f;
+    return [-(500 + x), 500 - y];   // screen-x un-mirrored like makeCamera
+  };
+  return { CAM, project };
+}
+
 /**
  * Render a single posed figure to a standalone SVG string. Pass a precomputed
  * `fit` (from a motion's locked framing) to keep the figure from rescaling.
+ * `manifest.crop = 'head'` and/or a finite `manifest.elev` switch to the head-study
+ * orbit camera (see above); absent, the render is the classic studio shot.
  */
 export function renderFigureToSvg(manifest = {}, fit = null, { control = false } = {}) {
   const setup = resolveSetup(manifest);
   const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
-  const { CAM, project } = makeCamera(manifest.view);
+  const crop = manifest.crop === 'head', elev = Number.isFinite(manifest.elev) ? manifest.elev : null;
+  const shown = crop ? cropStacksToHead(stacks) : stacks;
+  const groundZ = crop ? stackMinZ(stacks) : undefined;   // the cropped head keeps the figure's ground
+  const { CAM, project } = (crop || elev != null) ? orbitCamera(shown, manifest.view, elev ?? 8, groundZ) : makeCamera(manifest.view);
   // The control scaffold (skin seam) is ALWAYS the filled lit render — a wire
   // setup would fragment a diffusion skin (the polygomer-skin lesson).
   if (setup.mode === 'wire' && !control) {
-    const { lines, bb } = projectWire(stacks, project);
+    const { lines, bb } = projectWire(shown, project, groundZ);
     return svgDoc(drawWire(lines, fit || fitFor(bb, VB_W, VB_H, PAD), setup.wireStroke), setup.bg);
   }
-  const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
+  const { proj, bb } = projectFaces(litFaces(shown, CAM, setup.light, groundZ), project);
   return svgDoc(drawPolys(proj, fit || fitFor(bb, VB_W, VB_H, PAD), { control }), setup.bg);
 }
 

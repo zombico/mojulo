@@ -84,6 +84,10 @@ function headFrame(body) {
   for (const r of head.rings) for (const p of r.polyline) { if (p.z > crownZ) crownZ = p.z; headR += Math.hypot(p.x - r.center.x, p.y - r.center.y); rc++; }
   // radius-by-height profile of the skull (for `hug` cuts that follow the egg instead of an ellipsoid)
   const prof = head.rings.map((r) => { let s = 0, m = 0; for (const p of r.polyline) { s += Math.hypot(p.x - r.center.x, p.y - r.center.y); m++; } return { z: r.center.z, r: s / m }; }).sort((a, b) => a.z - b.z);
+  // `headR` = the skull's radius averaged over HEIGHT (the trapezoid rule over the profile), not
+  // over rings: the head's rings are latitudes now (dense and tiny at the poles), so a per-ring
+  // mean would read the dome ~25 % small and every wig would shrink with it.
+  { let numr = 0, den = 0; for (let i = 1; i < prof.length; i++) { const dz = prof[i].z - prof[i - 1].z; numr += (prof[i].r + prof[i - 1].r) / 2 * dz; den += dz; } if (den > 0) { headR = numr / den; rc = 1; } }
   const radiusAt = (z) => {
     if (z <= prof[0].z) return prof[0].r;
     if (z >= prof[prof.length - 1].z) return prof[prof.length - 1].r;
@@ -99,7 +103,9 @@ function buildCurtain(body, spec) {
   const M = 40, L = 34, front = Math.PI / 2;                            // +y = face
   const domeR = headR * spec.fullness;                                  // horizontal radius
   const vertR = domeR * (spec.tall ?? 1);                               // vertical radius (>domeR = taller, e.g. an afro)
-  const apexZ = crownZ + 0.06 + (spec.rise ?? 0);                       // `rise` pushes the whole shape up
+  // The apex clears the crown by ~2 cm of hair (0.25 world). It was 0.06: the old egg's crown was
+  // an OPEN ring, so a dome that grazed it showed nothing; the closed skull poked through it.
+  const apexZ = crownZ + 0.25 + (spec.rise ?? 0);                       // `rise` pushes the whole shape up
   const centerZ = apexZ - vertR, equatorZ = centerZ, browZ = equatorZ - 0.05;
   const ellip = (z) => domeR * Math.sqrt(Math.max(0, 1 - ((z - centerZ) / vertR) ** 2));   // ellipsoid radius at height z
   // `roundBottom` continues the ellipsoid below the equator (an afro puff that closes), so the
@@ -148,7 +154,7 @@ function buildCurtain(body, spec) {
 const hash = (i) => { const x = Math.sin(i * 12.9898 + 4.1) * 43758.5453; return x - Math.floor(x); };   // deterministic 0..1
 function buildStrands(body, spec) {
   const { hx, hy, crownZ, headR } = headFrame(body);
-  const apexZ = crownZ + 0.06, front = Math.PI / 2, faceHalf = spec.part ?? 0.55;
+  const apexZ = crownZ + 0.25, front = Math.PI / 2, faceHalf = spec.part ?? 0.55;   // apex clears the closed crown (see buildCurtain)
   const domeR = headR * (spec.capFull ?? 1.04), equatorZ = apexZ - domeR;
   // a small DARK skullcap (short, hugs the head) — not a curtain, so it can't read as drape.
   const cap = buildCurtain(body, { color: spec.color, length: equatorZ + 0.1, fullness: spec.capFull ?? 1.04, hairline: spec.hairline ?? 0.4, part: faceHalf, flare: 0.03, backFall: 0.05 });
@@ -188,7 +194,7 @@ function buildStrands(body, spec) {
 // KNOTS — a scalp cap + a grid of small coiled spheres over the dome (bantu knots).
 function buildKnots(body, spec) {
   const { hx, hy, crownZ, headR } = headFrame(body);
-  const apexZ = crownZ + 0.06, front = Math.PI / 2, faceHalf = spec.part ?? 0.6;
+  const apexZ = crownZ + 0.25, front = Math.PI / 2, faceHalf = spec.part ?? 0.6;    // apex clears the closed crown (see buildCurtain)
   const domeR = headR * 1.05, equatorZ = apexZ - domeR;
   const cap = buildCurtain(body, { color: spec.color, length: equatorZ - 0.2, fullness: 1.05, hairline: spec.hairline ?? 0.4, part: faceHalf, flare: 0.04, backFall: 0.06 });
   const rows = spec.rows ?? 3, cols = spec.cols ?? 4, knotR = spec.knotR ?? 0.19, Mk = 10, stacks = [cap];

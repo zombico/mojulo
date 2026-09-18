@@ -24,6 +24,8 @@
  * first measured girth the substrate has had — a perimeter sum over rings that already exist.
  */
 
+import { headMeasures } from './figure-head.js';
+
 // Which body stacks feed each chart, and how the rows are built.
 export const CHART_SOURCES = {
   trunk: {
@@ -863,5 +865,12 @@ export function bodyGirths(body, { stature_cm = 170 } = {}) {
   if (a) out.arm_length = r1(a.vTotal / worldPerCm);
   if (l) out.inseam = r1(l.vTotal / worldPerCm);
   if (ft) out.foot_length = r1(ft.vTotal / worldPerCm);
+  // THE HEAD (figure-head.js): the hat size is the widest ring's girth; height + width are the
+  // skull's extents. Read straight off the head stack — the head is not a chart (nothing is
+  // cut and sewn onto it), so this adds no chart to CHART_SOURCES.
+  const hm = headMeasures(body.find((s) => s && s.id === 'headEgg'));
+  out.head = hm ? r1(hm.girth / worldPerCm) : null;
+  out.head_height = hm ? r1(hm.height / worldPerCm) : null;
+  out.head_width = hm ? r1(hm.width / worldPerCm) : null;
   return out;
 }

@@ -42,7 +42,7 @@ const FIG_MAX_RINGS = 5, FIG_MAX_SAMPLES = 7;
 const SKIN = '#c8836a', TIGHTS = '#23262e';
 // Ant "clothing" = a per-region TINT on the bare protoform (no garment stacks): the
 // jersey colour on the upper body, tights on hips+legs, skin on head/hands/forearms/feet.
-const SKIN_IDS = ['headEgg', 'faceMask', 'neck', 'forearm', 'hand', 'foot'];
+const SKIN_IDS = ['headEgg', 'neck', 'forearm', 'hand', 'foot'];
 const TIGHTS_IDS = ['leg', 'glute', 'diaper', 'groin', 'hipCap'];
 const tintFor = (id) => SKIN_IDS.some((s) => id.startsWith(s)) ? SKIN : TIGHTS_IDS.some((s) => id.startsWith(s)) ? TIGHTS : RED;
 const newell = (pts) => {

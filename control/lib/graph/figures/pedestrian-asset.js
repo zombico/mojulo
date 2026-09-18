@@ -62,7 +62,7 @@ export const PALETTES = [
 ];
 
 // body-region classifier (by ring-stack id) → palette key.
-const SKIN_IDS = ['headEgg', 'faceMask', 'neck', 'forearm', 'hand'];
+const SKIN_IDS = ['headEgg', 'neck', 'forearm', 'hand'];
 const PANTS_IDS = ['leg', 'glute', 'diaper', 'groin', 'hip', 'quad', 'calf'];
 const FOOT_IDS = ['foot'];
 function regionOf(id) {

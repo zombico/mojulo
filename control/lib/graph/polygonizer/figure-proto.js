@@ -28,6 +28,7 @@
 import { sampleVajra } from './vajra.js';
 import { lerp, chakras } from './vajra-body.js';
 import { DIMORPH } from './figure-rig.js';
+import { headRings, neckGirthFactor, HEAD_KNOB_DEFAULTS } from './figure-head.js';
 
 // Canonical config = today's hand-tuned male figure. Per-region knobs are
 // intra-sex multipliers (1 = canonical); sex picks the dimorphic baseline.
@@ -56,6 +57,9 @@ export const PROTO_DEFAULT = {
   footLength: 1,         // foot forward reach
   handSize: 1,           // hand paddle scale
   groinDrop: 1,          // male groin orb drop below the glute line
+  // head (figure-head.js) — multipliers on the sex pole's skull: browRidge, jawWidth, chinPoint,
+  // noseSize, cheekbone, foreheadSlope, neckGirth
+  ...HEAD_KNOB_DEFAULTS,
 };
 
 // limb-lobe baselines (the old BUILD=1 adjusters; per-region knobs scale these)
@@ -111,7 +115,7 @@ export function proportioned(p, dim) {
  *   ground-IK solve while the rest of the body stays in the (warped) rest frame, in
  *   one pass. Default null → legs use `positions` (canonical, unchanged).
  */
-export function buildProtoform(positions, proto = {}, legNodes = null, footFlex = null, handFlex = null) {
+export function buildProtoform(positions, proto = {}, legNodes = null, footFlex = null, handFlex = null, face = null) {
   const P = { ...PROTO_DEFAULT, ...proto };
   const dim = DIMORPH[P.sex];
   const SCALE = 12 * P.height;
@@ -150,38 +154,22 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     y: anchor.y + f.up.y * a + f.fwd.y * fw + f.side.y * sd,
     z: anchor.z + f.up.z * a + f.fwd.z * fw + f.side.z * sd,
   });
-  // headScale grows the skull about p.headBase (the neck↔skull join): every
-  // offset + radius is measured from headBase via onBone, so multiplying them by
-  // `hs` scales the head in place without detaching it from the neck (the head is
-  // a terminal segment — nothing rides on it). This is the child↔adult lever.
+  // THE HEAD (figure-head.js): one closed ring stack marched by latitude off a field of named
+  // anatomical primitives in the head bone frame, on the sex pole (`dim.head`) × the per-region
+  // head knobs, with the jaw/mouth `face` dials. headScale grows it about p.headBase (the
+  // neck↔skull join) so the skull scales in place without detaching from the neck (the head
+  // is a terminal segment — nothing rides on it). This is the child↔adult lever.
   const hs = P.headScale;
-  const headEggRings = (p) => {
-    const f = boneFrame(p.headBase, p.headTop);
-    const top = onBone(p.headBase, f, 0.081 * hs, -0.012 * hs);
-    const cranial = onBone(p.headBase, f, 0.0525 * hs, -0.008 * hs);
-    const chin = onBone(p.headBase, f, 0.003 * hs, 0.018 * hs);
-    return worldRingsVajra(top, cranial, chin, [0.038 * hs, 0.052 * hs, 0.015 * hs], 40, 22);
-  };
-  const faceMaskRings = (p) => {
-    const f = boneFrame(p.headBase, p.headTop);
-    const N = 11, M = 24, rings = [];
-    for (let i = 0; i < N; i++) {
-      const t = i / (N - 1), along = (0.0525 + lerp(0.024, -0.072, t)) * hs;   // cz±, along the head bone
-      const env = Math.sin(Math.PI * (0.2 + 0.64 * t));
-      const wx = 0.044 * env * hs, dy = 0.024 * env * hs, cyc = (0.03 + 0.012 * t) * hs;
-      const poly = [];
-      for (let j = 0; j <= M; j++) { const a = (j / M) * Math.PI * 2; poly.push(toWorld(onBone(p.headBase, f, along, cyc + dy * Math.sin(a), wx * Math.cos(a)))); }
-      rings.push({ polyline: poly, center: toWorld(onBone(p.headBase, f, along, cyc, 0)) });
-    }
-    return rings;
-  };
+  const headStack = (p) => headRings(p, { hs, dim, knobs: P, face }).map((r) => ({ center: toWorld(r.center), polyline: r.polyline.map(toWorld) }));
+  // the neck column: sex-aware girth (female thinner) × the neckGirth knob
   const neckRings = (p) => {
     const f = boneFrame(p.neckHub, p.headBase);
     const len = Math.hypot(p.headBase.x - p.neckHub.x, p.headBase.y - p.neckHub.y, p.headBase.z - p.neckHub.z);
     const base = onBone(p.neckHub, f, len, 0.01);
     const mid = onBone(p.neckHub, f, len * 0.5, 0.005);
     const root = onBone(p.neckHub, f, 0, 0.0);
-    return worldRingsVajra(base, mid, root, [0.032, 0.031, 0.044], 32, 20);
+    const ng = neckGirthFactor(dim, P);
+    return worldRingsVajra(base, mid, root, [0.032 * ng, 0.031 * ng, 0.044 * ng], 32, 20);
   };
   const clavicleRings = (p, sgn) => {
     const sh = sgn < 0 ? p.shoulderL : p.shoulderR;
@@ -774,8 +762,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   add('shoulderYoke', worldRingsVajra(p.shoulderL, p.neckHub, p.shoulderR, [0.034, 0.030, 0.034]));
   add('clavicleL', clavicleRings(p, -1));
   add('clavicleR', clavicleRings(p, 1));
-  add('headEgg', headEggRings(p));
-  add('faceMask', faceMaskRings(p));
+  add('headEgg', headStack(p));
   if (!P.stitched) {
     add('pelvis', pelvisRings(p));
   } else {

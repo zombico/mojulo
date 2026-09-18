@@ -202,12 +202,12 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo star birth",
   },
   "subway-building": {
-    "hash": "551b3c0b",
+    "hash": "fdd5af97",
     "tier": "T0",
     "title": "mojulo subway",
   },
   "subway-station": {
-    "hash": "9bc98cc9",
+    "hash": "4dec302d",
     "tier": null,
     "title": "mojulo subway station",
   },
