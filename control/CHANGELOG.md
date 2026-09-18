@@ -60,6 +60,20 @@ loops and the recipe format are unchanged.
   image — so the two `B` bugs above only ever reproduced on CI. The failing contours are frozen in
   `triangulate.dejavu-b.fixture.js` and pinned everywhere.
 
+### dungeon-rock-texture — a surface tile per cave surface, multiply-lit over the traced bake
+
+- **Added: `texture` in the dungeon style bible.** `style.texture: '<key>' | { floor?, wall?,
+  ceiling?, scale? }`, a per-chamber `texture` override, and `style.tunnel.texture` / per-tunnel
+  `texture` (tunnels inherit the style's wall key: a cave is one rock). Keys are surface-textures
+  tiles (`rock-cave`, `rock-granite`, `rock-sandstone`, or a `defineRockTile` custom tone); an
+  unknown key refuses the mint like an unknown material does. Every shell face gets `texture`,
+  `textureLit`, and a per-corner `uv` — walls along the ring by unwrapped azimuth × radius (no
+  stretch, no ±π seam inside a face), floor and ceiling by world XY, tunnels by their dominant
+  plane — so the World and the .glb draw tile × baked fire light. This is the texel-frequency
+  stage a 6th-gen cave frame has and the bare bake lacked. `padTrianglesForWorld` now pads a fan
+  triangle's `uv` with its corners. Absent `texture` ⇒ no face carries a key, byte-identical.
+  Manual: the `dungeon` view-vocab card. Tests: `dungeon-texture.test.js`.
+
 ### figure-head — a structured head, male and female
 
 - **Changed: the protoform's head is one closed form built from anatomy.** It was two overlapping

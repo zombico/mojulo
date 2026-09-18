@@ -23,14 +23,14 @@ Pass everything via `compose_world`'s `overrides` (identity base — overrides A
     { id, at: [x, y], elevation?, radius?, height?,
       wall?, floor?, ceiling?, relief?, seed?,
       reliefAmp?, floorAmp?, ceilingAmp?,
-      palette?, material? }
+      palette?, material?, texture? }
   ],
   tunnels: [
     { from: id, to: id, style?, radius?, clearance?,   // style 'tube'
       width?, height?,                                  // style 'corridor'
-      base?, material? }
+      base?, material?, texture? }
   ],
-  style?:    { palette?, material?, tunnel?: { base?, material? } },
+  style?:    { palette?, material?, texture?, tunnel?: { base?, material?, texture? } },
   lighting?: { ambient?, tint?, fireColor?, fireIntensity?, gain?, reflectivity? },
   walk?:     { speed?, minEye?, gravity?, radius?, spawn?, ground?, yaw? } | false,
   viewBox?:  { width, height }
@@ -62,13 +62,14 @@ A tunnel carves a MOUTH in each chamber wall it joins and bridges them; it slope
 - `clearance` (number, tube) — mouth oversize factor. Default 1.45.
 - `width` / `height` (numbers, corridor) — default `2*radius` / `2.4*radius`.
 
-## Style bible (palette + material)
+## Style bible (palette + material + texture)
 
 Spec-level `style` applies to every chamber/tunnel; per-chamber/per-tunnel fields override. Defaults reproduce the historic cave browns byte-identically.
 
 - `palette` — albedo hex per surface: `{ floor?, wall?, ceiling? }` (defaults `#6f5a40` / `#7d6750` / `#9a866a`).
 - `material` — a finish from the material shelf, per surface (`{ floor?, wall?, ceiling? }`) or one bare value for all three. A value is a shelf name (`gold`, `steel`, `chrome`, `bronze`, `silver`, `copper`, `gunmetal`, `matte`, `plaster`, `stone`, `wood`, `rubber`, `plastic`, `satin`, `glass`, `neon`, `cel`), a `'#hex'` tint, or `{ preset, …overrides }`. Adds live specular in /world and PBR factors in the .glb. Unknown names throw at mint.
-- `style.tunnel` — `{ base?: '#hex', material? }` defaults for every tunnel.
+- `texture` — a surface-textures TILE per surface (`{ floor?, wall?, ceiling?, scale? }`) or one bare key for all three: `rock-cave` (baseline cavern rock), `rock-granite`, `rock-sandstone`, or any key from the surface-textures shelf (`defineRockTile` mints custom tones). The tile multiplies the traced fire bake per face (texel × baked light, the 6th-gen "painted diffuse over Gouraud" read) in /world and the .glb; walls map along the ring, floor/ceiling by world XY. `scale` is world units per tile repeat (default 2.4). Tunnels inherit the style's `wall` key unless they name their own. Unknown keys throw at mint. Absent ⇒ bare fills, as before.
+- `style.tunnel` — `{ base?: '#hex', material?, texture? }` defaults for every tunnel.
 
 - `audio` (object) — Optional world AUDIO channel (generic across every base; resolved on the live /world path): { soundtrack?: { beatsRef: '<stored beats ref>' } or an inline beats recipe (compositions loop), sfx?: { beatsRef? | cues?, on? }, footsteps?: true|{ step, jump, land }, wind?: true|{ level, freq }, bindings? (soundtrack channel macros) }. Validated at mint — an unknown beats ref or invalid recipe REFUSES the mint rather than storing a world that fails to render. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).
 
