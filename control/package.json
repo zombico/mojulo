@@ -1,7 +1,7 @@
 {
   "name": "mojulo",
   "mcpName": "io.github.zombico/mojulo",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Mojulo — a 3D compiler for coding agents: a local MCP server where you build worlds, objects, and games by talking to the agent you already run (Claude Code, Codex, or any MCP host). Each one is stored as a small deterministic recipe on your own machine — the source, compiled back byte-for-byte and emitted as a game (Godot) or a printed object (STL). A compiler, not a generator; the recipe stays yours.",

@@ -12,18 +12,28 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-09-19
+
 ### vajra-sculpt — a character as hand-placed field terms, print-closed
 
-- *(in progress — the phases below land as they are built)*
-- **Planned: gates that read `fields[].terms`.** The `fields` monomer has never had one. The
+- **Added: a contribution gate that reads `fields[].terms`** (`stats.contribution`, per term
+  `{ exposure, protrusion, blend, buried, absorbed }`). The `fields` monomer never had one: the
   contribution and jut-shortfall checks that keep a workbench monomer from being swallowed by its
   neighbours are blind to a term list, so the failure they exist to catch — a mass buried inside its
-  host, contributing no silhouette — is invisible until a render is looked at.
-- **Planned: `blend` as a declared junction rather than a free number.** A term's blend radius is
-  the craft variable of a field sculpt: too large and every feature dissolves into one mass, too
-  small and every term reads as stuck-on. Naming the junction per term is the same discipline the
-  object reference already forces with `stack` / `jut` / `composite`, and it gives the gate a
-  declaration to measure against instead of a constant.
+  host, contributing no silhouette — was invisible until a render was looked at. Two failures are
+  reported separately because the fixes are opposite. BURIED: the term's own surface lies inside the
+  union of the others, so it breaks no silhouette and costs bytes and sampling time while drawing
+  nothing — move it out. ABSORBED: the term IS proud of its neighbours, but by less than its own
+  `blend` radius, so the smooth-union bulge swallows what little it clears — raise the protrusion or
+  lower the blend. Method is point-in-solid against the union, which is exact here because every term
+  already IS a signed distance function: each term is surfaced alone on a coarse net and every face
+  centroid is tested against every other term. No AABBs — a bounding box lies about a taper, which is
+  how the monomer check first got this wrong. Advisory, never gating; pure and deterministic.
+  Retro-run against a 23-term first-pass head (97 ms) it named four real defects with no render, and
+  cleared two ears that were in fact unreadable. That miss is the useful result, because it separates
+  the classes: **a geometric gate finds CALIBRATION defects (buried, absorbed) with no eyes, and is
+  blind to IDENTIFICATION defects (the wrong KIND of mass), which are fixed by a better reference and
+  not by a better check.**
 - **Added: `attachments` on a figure recipe** — any workbench recipe mounted on any named landmark,
   scaled to the figure and riding the pose: `{ recipe, at, t, size, fit, anchor, offset, rotate, align }`.
   A held shield was already possible and was welded to one prop and one landmark; a character with a
@@ -38,9 +48,46 @@ loops and the recipe format are unchanged.
   of the helmet all pass it, because each stray island is its own closed shell. Multi-body is not itself a
   defect — superposition is the construction method and a loose part is ordinarily its own solid — so the
   count is reported as a fact and only a declared `bodies: N` that the measurement contradicts warns.
-- **Planned: a neutral-tint form gate and eye-level bust framing.** Saturated recipe tints flatten
-  the unlit shading a form read depends on, and the preset turntable sits high enough to hide the
-  profile a head is judged on.
+  Method: parity voxelization along +x then a 6-connected flood fill, run over the WHOLE baked face
+  list, so it crosses the field-hand / lathe-spear seam that no per-monomer check can see. It uses the
+  NONZERO WINDING rule and not even-odd, and that is the whole point: superposition is the house
+  construction method, so two separately closed shells that OVERLAP are the ordinary case, and parity
+  fills their two rinds, leaves the overlap hollow and reports the pieces disconnected (measured: a
+  shield read 11 bodies, a spear 4; winding puts both at 1). The sign is free — a triangle's `det` in
+  the y–z projection is exactly the x-component of its normal. Two more things the build taught: a
+  grid-aligned sample line lands on the shared edge of a dual mesh every time and doubles the crossing
+  count, so lines are nudged off-lattice and the barycentric test is half-open; and the count is run at
+  two resolutions, because a junction that only GRAZES merges at one grid and splits at the other — the
+  instability IS the finding, and it is the same tangency Manifold's union cannot resolve. The gate also
+  inherits the geometry's resolution ceiling, so each piece reports `across` (cells at its thinnest) and
+  a split involving a ≤2-cell piece carries a caveat instead of an assertion. A slender member has to be
+  verified on its own bounds, which is the same `h = longest / cells` argument that governs the sculpt.
+- **Added: `figure-cluster` — one scale authority and one identity lock over a character's roles.**
+  A character built as a body plus mounted gear is already a CLUSTER of independently authored recipes.
+  Composing them by hand worked and showed exactly what was missing: the gear took four placement passes
+  and came out oversized, because `attachments[].size` is an ABSOLUTE STAND number and nothing says what
+  STAND is — measured at `headTop`, the default armature stands 0.93 and a `chibi` 0.52. That happened to
+  one author with the whole thing in view; fan the roles out and it happens once per agent, in different
+  directions, with nothing to reconcile them. The frame holds four things nothing else did: **the unit**
+  (`measureFigure` poses the armature and reports its height, so scale is MEASURED rather than guessed),
+  **the identity lock** (≤5 named traits in one sentence, required, riding the minted recipe so a later
+  pass restates the same character instead of inventing a neighbouring one), **the interface** (each role
+  declares its mount as validated data instead of a tuned literal), and **the ledger** (every role's own
+  closure / contribution / connectivity gates on its OWN bounds — the only scale at which a slender member
+  is resolvable at all). The rule that makes the scale trap impossible rather than merely documented:
+  **a role declares its size as a FRACTION of the figure, never as an absolute** — `mount.size` is a
+  validation error and `mount.span` is required. This is the object protocol's no-absolute-z discipline
+  applied to scale: a spear is 1.19 figures long and a shield 0.34 across, and those are true of a chibi,
+  an adult and a brute alike, so a role authored once ports to every cast and two agents cannot disagree
+  about what 0.43 means. One unit was not enough — a chibi's head is a far larger share of its body than
+  an adult's and a helmet is a fraction of the HEAD — so `mount.spanOf: 'figure' | 'head'` says which
+  level a role answers to; offsets stay figure-relative whatever the span measures against, because an
+  offset is a position on the body and positions belong to the body's frame even when a size belongs to a
+  part's. Verified by resolving a hand-tuned three-role character to byte-identical absolutes, then
+  rendering the same spec, with no number changed, on an adult and a brute: the unit re-measures, every
+  span re-multiplies, and the gear arrives at the same proportions. `resolveCluster` returns a
+  `kind: 'figure'` manifest that `mint_solid` stores plus the gate ledger; it is a build-path module, and
+  there is no cluster dial on the tool surface yet.
 
 ### limb-mass — the arm and the leg in relation to the torso's weight
 
