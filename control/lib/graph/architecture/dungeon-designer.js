@@ -26,6 +26,7 @@ import { buildRoundRoomShellFaces, bakeSceneDiffusion } from '../scene/scene-css
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { scaleHex, FLAT_LIGHT } from '../polygonizer/vexar.js';
 import { resolveMaterial, tagFacesWithMaterial, validateMaterialRef } from '../polygonizer/materials.js';
+import { surfaceTexture } from '../landscape/surface-textures.js';
 
 export const WALL_STYLES = ['cave', 'flat'];
 export const FLOOR_STYLES = ['wave', 'flat'];
@@ -50,6 +51,55 @@ const surfaceMap = (m) => (m == null ? null : (typeof m === 'string' ? { floor: 
 const mergePalette = (style, own) => ({ ...DUNGEON_PALETTE, ...(style || {}), ...(own || {}) });
 // map the dungeon's {floor,wall,ceiling} palette to the shell's {floor,ceiling,backWall}.
 const toShellPalette = (p) => ({ floor: p.floor, ceiling: p.ceiling, backWall: p.wall });
+
+// ── L2: surface TEXTURE — a surface-textures tile per surface, multiply-lit over the traced bake ──
+// The PS2 stage the bake alone lacks: texel-frequency detail on a low-poly shell. `texture` is a
+// tile key ('rock-cave', 'rock-granite', …) per surface or one bare key for all three, plus an
+// optional `scale` (world units per tile repeat). Faces get `texture` + `textureLit` + per-corner
+// `uv`, so the World/GLB do tile × bakedLight; the tile family is 'repeat' (isotropic), so walls
+// map by unwrapped azimuth × radius (no stretch around the ring) and floor/ceiling by world XY.
+// Absent ⇒ no face carries a texture key: byte-identical to before.
+const DEFAULT_TEXTURE_SCALE = 2.4;
+const textureMap = (t) => (t == null ? null : (typeof t === 'string' ? { floor: t, wall: t, ceiling: t } : { ...t }));
+function validateTextureKey(v, where) {
+  if (v == null) return;
+  if (typeof v !== 'string' || !surfaceTexture(v)) throw new Error(`dungeon-designer: ${where}: unknown surface texture '${v}' (a surface-textures key, e.g. 'rock-cave')`);
+}
+function validateSurfaceTexture(t, where) {
+  const map = textureMap(t); if (!map) return;
+  for (const k of ['floor', 'wall', 'ceiling']) validateTextureKey(map[k], `${where} texture.${k}`);
+  if (map.scale != null && !(Number.isFinite(map.scale) && map.scale > 0)) throw new Error(`dungeon-designer: ${where} texture.scale must be a positive number`);
+}
+const TAU = Math.PI * 2;
+// walls: u along the ring (azimuth unwrapped within the face so a quad never spans the ±π seam), v up.
+function wallUv(corners, cx, cy, R, scale) {
+  const az = corners.map((c) => Math.atan2(c[1] - cy, c[0] - cx));
+  return corners.map((c, i) => { let a = az[i] - az[0]; if (a > Math.PI) a -= TAU; else if (a < -Math.PI) a += TAU; return [((az[0] + a) * R) / scale, c[2] / scale]; });
+}
+const planarUv = (corners, scale) => corners.map((c) => [c[0] / scale, c[1] / scale]);
+// tunnels: project on the face's dominant-normal plane (a box corridor's walls are axis-ish, a tube's
+// rings sweep every direction; the tile is isotropic so the per-face basis switch does not read).
+function dominantUv(corners, scale) {
+  const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0]));
+  const ax = Math.abs(n[0]), ay = Math.abs(n[1]), az = Math.abs(n[2]);
+  const pick = az >= ax && az >= ay ? [0, 1] : (ax >= ay ? [1, 2] : [0, 2]);
+  return corners.map((c) => [c[pick[0]] / scale, c[pick[1]] / scale]);
+}
+function applyChamberTexture(faces, tex, c) {
+  const map = textureMap(tex); if (!map) return faces;
+  const scale = map.scale ?? DEFAULT_TEXTURE_SCALE;
+  const keyFor = { 'shell:floor': map.floor, 'shell:wall': map.wall, 'shell:ceiling': map.ceiling };
+  for (const f of faces) {
+    const key = keyFor[f.group]; if (!key) continue;
+    f.texture = key; f.textureLit = true;
+    f.uv = f.group === 'shell:wall' ? wallUv(f.corners, c.at[0], c.at[1], c.radius, scale) : planarUv(f.corners, scale);
+  }
+  return faces;
+}
+function applyTunnelTexture(faces, key, scale = DEFAULT_TEXTURE_SCALE) {
+  for (const f of faces) { f.texture = key; f.textureLit = true; f.uv = dominantUv(f.corners, scale); }
+  return faces;
+}
 
 // Tag a chamber's shell faces with its per-surface material (spec + pbr), keyed by group.
 function applyChamberMaterial(faces, material) {
@@ -84,7 +134,9 @@ const centroidY = (f) => f.corners.reduce((s, c) => s + c[1], 0) / f.corners.len
 /** The World mesh builder skips faces with < 4 corners; pad each triangle [a,b,c] →
  *  [a,b,c,c] (the World tessellates a quad into two tris, the second degenerate). */
 export function padTrianglesForWorld(faces = []) {
-  return faces.map((f) => (Array.isArray(f.corners) && f.corners.length === 3 ? { ...f, corners: [...f.corners, f.corners[2]] } : f));
+  return faces.map((f) => (Array.isArray(f.corners) && f.corners.length === 3
+    ? { ...f, corners: [...f.corners, f.corners[2]], ...(Array.isArray(f.uv) && f.uv.length === 3 ? { uv: [...f.uv, f.uv[2]] } : {}) }   // a textured fan tri keeps its uv in step
+    : f));
 }
 
 // ── tunnel geometry: a rock tube between two world points ──
@@ -143,8 +195,14 @@ export function planDungeon(spec = {}) {
   validateSurfaceMaterial(styleSpec.material, 'style');
   const eStyleTun = validateMaterialRef(styleSpec.tunnel?.material);
   if (eStyleTun) throw new Error(`dungeon-designer: style.tunnel material: ${eStyleTun}`);
+  // L2: surface texture (spec style ← chamber override); tunnels inherit the style's wall tile
+  // unless they name their own — a cave is one rock.
+  const styleTex = textureMap(styleSpec.texture);
+  validateSurfaceTexture(styleSpec.texture, 'style');
+  validateTextureKey(styleSpec.tunnel?.texture, 'style.tunnel texture');
   const chambers = (spec.chambers || []).map((c, i) => {
     validateSurfaceMaterial(c.material, `chamber '${c.id ?? i}'`);
+    validateSurfaceTexture(c.texture, `chamber '${c.id ?? i}'`);
     return {
       id: c.id ?? `chamber-${i}`,
       at: c.at || [0, 0], elevation: c.elevation ?? 0,
@@ -155,6 +213,7 @@ export function planDungeon(spec = {}) {
       // L1: per-surface albedo + finish (spec style ← chamber override; complete palette).
       palette: mergePalette(styleSpec.palette, c.palette),
       material: { ...(styleMat || {}), ...(surfaceMap(c.material) || {}) },
+      texture: styleTex || c.texture != null ? { ...(styleTex || {}), ...(textureMap(c.texture) || {}) } : null,
     };
   });
   const byId = new Map(chambers.map((c) => [c.id, c]));
@@ -169,17 +228,20 @@ export function planDungeon(spec = {}) {
     const tMat = t.material ?? styleSpec.tunnel?.material;
     const eTun = validateMaterialRef(tMat);
     if (eTun) throw new Error(`dungeon-designer: tunnel ${t.from}→${t.to} material: ${eTun}`);
+    const tTex = t.texture ?? styleSpec.tunnel?.texture ?? styleTex?.wall ?? null;
+    validateTextureKey(tTex, `tunnel ${t.from}→${t.to} texture`);
+    const tTexScale = styleTex?.scale ?? DEFAULT_TEXTURE_SCALE;
     if (style === 'corridor') {
       // box passage: floor-level endpoints + a mouth sized UNDER the corridor so the
       // corridor mesh fully covers the carved hole (airseal).
       const width = t.width ?? 2 * r, height = t.height ?? 2.4 * r;
       mouths.get(A.id).push({ az: azA, half: (width * 0.46) / A.radius, tMax: Math.min(0.92, (height * 0.92) / A.height) });
       mouths.get(B.id).push({ az: azB, half: (width * 0.46) / B.radius, tMax: Math.min(0.92, (height * 0.92) / B.height) });
-      return { from: A.id, to: B.id, style, radius: r, width, height, base: tBase, material: tMat, p0: rimPt(A, azA, A.elevation), p1: rimPt(B, azB, B.elevation) };
+      return { from: A.id, to: B.id, style, radius: r, width, height, base: tBase, material: tMat, texture: tTex, textureScale: tTexScale, p0: rimPt(A, azA, A.elevation), p1: rimPt(B, azB, B.elevation) };
     }
     mouths.get(A.id).push({ az: azA, half: (r * clr) / A.radius, tMax: Math.min(0.92, (2 * r * 1.5) / A.height) });
     mouths.get(B.id).push({ az: azB, half: (r * clr) / B.radius, tMax: Math.min(0.92, (2 * r * 1.5) / B.height) });
-    return { from: A.id, to: B.id, style, radius: r, base: tBase, material: tMat, p0: rimPt(A, azA, A.elevation + r), p1: rimPt(B, azB, B.elevation + r) };
+    return { from: A.id, to: B.id, style, radius: r, base: tBase, material: tMat, texture: tTex, textureScale: tTexScale, p0: rimPt(A, azA, A.elevation + r), p1: rimPt(B, azB, B.elevation + r) };
   });
   const xs = chambers.flatMap((c) => [c.at[0] - c.radius, c.at[0] + c.radius]);
   const ys = chambers.flatMap((c) => [c.at[1] - c.radius, c.at[1] + c.radius]);
@@ -241,6 +303,7 @@ export function buildDungeonFaces(plan, { lighting = {}, section = false, unshad
       lighting: unshaded ? { light: FLAT_LIGHT, tint: [1, 1, 1], gravity: false } : base,
     });
     applyChamberMaterial(shell, c.material);   // L1: per-surface Blinn-Phong finish
+    applyChamberTexture(shell, c.texture, c);   // L2: per-surface rock tile, multiply-lit over the bake
     raw.push(...translateZ(shell, c.elevation));
   }
   for (const t of plan.tunnels) {
@@ -248,6 +311,7 @@ export function buildDungeonFaces(plan, { lighting = {}, section = false, unshad
       ? corridorFaces(t.p0, t.p1, { width: t.width, height: t.height, base: t.base, unshaded })
       : tubeFaces(t.p0, t.p1, t.radius, { base: t.base, unshaded });
     if (t.material) tagFacesWithMaterial(tf, resolveMaterial(t.material));
+    if (t.texture) applyTunnelTexture(tf, t.texture, t.textureScale);
     raw.push(...tf);
   }
   raw = raw.map((f) => ({ ...f, group: 'static' }));

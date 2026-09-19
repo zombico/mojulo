@@ -34,6 +34,8 @@ import { reliefToFaces, validateReliefs } from '../polygonizer/relief-faces.js';
 import { shellToFaces, validateShells } from '../polygonizer/shell-faces.js';
 import { loftToFaces, validateLofts } from '../polygonizer/loft-faces.js';
 import { fieldToFaces, validateFields, fieldGrid } from '../polygonizer/field-faces.js';
+import { auditFieldContribution } from '../polygonizer/field-contribution.js';
+import { solidComponentsStable, componentWarnings } from '../polygonizer/solid-components.js';
 import { lowerCuts, validateCuts } from '../polygonizer/workbench-cuts.js';
 import { expandWorkbenchProgram, hasProgram, MONOMER_KEYS } from './workbench-program.js';
 import { makeLight, withBands, resolveToon } from '../polygonizer/vexar.js';
@@ -542,6 +544,41 @@ export function planWorkbench(manifest = {}) {
     warnings.push(`cut '${c.id}' (${c.from} ${op}) rounds every edge to about ${c.edge_round} ${units} (${c.cells} cells) — raise \`cells\` (≤128) for a finer edge; a sharp edge is export_model union:true or the DCC.`);
   }
 
+  // Contribution lint for FIELD solids — the term-list twin of the monomer contribution check.
+  // A term buried inside the union of its siblings breaks no silhouette, and one that clears them
+  // by less than its own blend bulge is swallowed by the smooth union: both are invisible in the
+  // recipe and only show up in a render someone has to look at. Advisory, never gating; a cut's
+  // emitted field is machine-generated, not authored terms, so it is skipped.
+  const contribution = [];
+  fields.forEach((spec, i) => {
+    if (!spec || spec.cut) return;
+    const audit = auditFieldContribution(spec);
+    if (!audit.audited || !audit.terms.length) return;
+    const label = `fields[${i}]${typeof spec.id === 'string' && spec.id ? ` '${spec.id}'` : ''}`;
+    contribution.push({ index: i, ...(typeof spec.id === 'string' && spec.id ? { id: spec.id } : {}), terms: audit.terms });
+    for (const w of audit.warnings) warnings.push(`${label}: ${w}`);
+  });
+
+  // Connectivity readout — closure and CONNECTEDNESS are different questions, and until now only
+  // the first was asked. A detached horn tip, a spear that never reached the hand, a crest fin
+  // short of the helmet: each is its own perfectly closed shell, so `closed` stays true while the
+  // recipe is several objects. Measured across the WHOLE face list, so it sees a field hand meeting
+  // a lathe spear — a seam no per-monomer check can cross.
+  //
+  // Reported as a FACT, not a warning: superposition is the house method and a loose part is
+  // ordinarily its own solid, so most correct recipes are multi-body. Declare `bodies: N` on the
+  // manifest to have it checked (a character meant to print in one piece says `bodies: 1`).
+  // Advisory either way, never gating.
+  let components = null;
+  if (faces.length) {
+    const report = solidComponentsStable(faces);
+    if (report.ok) {
+      components = { bodies: report.count, stable: report.stable !== false, ...(report.leaks ? { leaks: report.leaks } : {}), pieces: report.components.slice(0, 6) };
+      const declared = Number.isInteger(manifest.bodies) ? manifest.bodies : null;
+      warnings.push(...componentWarnings(report, 'This recipe', units, declared));
+    }
+  }
+
   const ledger = {
     recipe_bytes: recipeBytes,
     wall_ms: Math.round(performance.now() - t0),
@@ -549,7 +586,7 @@ export function planWorkbench(manifest = {}) {
     closed: closureWarnings.length === 0,
     ...(programReport ? { program_ms: programReport.ms } : {}),
   };
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(cuts.length ? { cuts } : {}), ...(programReport ? { program: programReport } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(cuts.length ? { cuts } : {}), ...(contribution.length ? { contribution } : {}), ...(components ? { components } : {}), ...(programReport ? { program: programReport } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

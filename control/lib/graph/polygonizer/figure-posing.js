@@ -234,7 +234,12 @@ export function keyframeMotion(keyposes, { loop = true } = {}) {
 // lite-template/integration/0615/figure-walk.plan.md.
 const TAU_G = 2 * Math.PI;
 const mag3 = (a) => Math.hypot(a.x, a.y, a.z);
-const LEG_LEN = mag3(sub(B.kneeL, B.hipL)) + mag3(sub(B.ankleL, B.kneeL));   // thigh + shin (STAND units)
+// thigh + shin (STAND units). `strideLength` and `cross` are absolute GROUND distances, so
+// the hip angle that achieves them depends on how long the leg actually is: a cast
+// (figure-cast.js) changes that, and passing the canonical length for a long-legged figure
+// would make it mince. Every gait reads it off the base it is built for.
+const legLenOf = (base) => mag3(sub(base.kneeL, base.hipL)) + mag3(sub(base.ankleL, base.kneeL));
+const LEG_LEN = legLenOf(B);
 
 export const WALK_DEFAULTS = {
   strideLength: 0.33,    // fore/aft foot travel (STAND units) → hip swing amplitude (a planted
@@ -293,15 +298,16 @@ export const WALK_DEFAULTS = {
  * @param {Partial<typeof WALK_DEFAULTS>} [params]
  * @returns {(phase:number)=>object} phase ∈ [0,1) → dof (incl. support/weight)
  */
-export function gait(params = {}) {
+export function gait(params = {}, base = null) {
   const p = { ...WALK_DEFAULTS, ...params };
-  const theta = Math.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * LEG_LEN)))) * DEG;   // hip swing amplitude
+  const LEG = base ? legLenOf(base) : LEG_LEN;
+  const theta = Math.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * LEG)))) * DEG;   // hip swing amplitude
   // crossover adduction amplitude: the medial reach `cross` is a horizontal foot travel, so the
   // hip yaw that achieves it is asin(cross / legLen) — same units→angle solve as the stride pitch.
   // The leg's rest hip-to-foot is ~one leg length below the socket, so this lands the foot `cross`
   // STAND units toward the midline at the peak of its forward stance (cone-clamped with the pitch
   // by articulate's 62° hip limit, so an extreme catwalk stays inside the joint's range).
-  const phi = Math.asin(Math.max(0, Math.min(1, p.cross / LEG_LEN))) * DEG;   // hip adduction amplitude
+  const phi = Math.asin(Math.max(0, Math.min(1, p.cross / LEG))) * DEG;   // hip adduction amplitude
   const flareAmp = phi * p.stepFlare;       // swing-phase abduction, scaled to the crossover (0 → off)
   const rollAmp = phi > 0 ? p.stepRoll : 0; // swing-phase external rotation, gated on crossing
   const swing = (ph) => Math.max(0, Math.sin(TAU_G * ph));     // a one-sided lift over the leg's swing half
@@ -405,10 +411,10 @@ export const SPRINT_DEFAULTS = {
  * @param {Partial<typeof SPRINT_DEFAULTS>} [params]
  * @returns {(phase:number)=>object} phase ∈ [0,1) → dof (incl. support/weight/lift)
  */
-export function sprint(params = {}) {
+export function sprint(params = {}, base = null) {
   const p = { ...SPRINT_DEFAULTS, ...params };
   const d = Math.max(0.15, Math.min(0.49, p.dutyFactor));     // <0.5 keeps a flight phase
-  const theta = Math.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * LEG_LEN)))) * DEG;
+  const theta = Math.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * (base ? legLenOf(base) : LEG_LEN))))) * DEG;
   const swing = (ph) => Math.max(0, Math.sin(TAU_G * ph));
   return (rawPhase) => {
     const phase = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1;
@@ -580,15 +586,15 @@ const isMotionSpec = (s) => s === 'walk' || s === 'sprint' || s === 'run' || typ
  * @param {{frames?:number}} [opts]  frame count for the `perform` bake (match the render)
  * @returns {?(phase:number)=>object}
  */
-export function resolveMotion(spec, { frames } = {}) {
+export function resolveMotion(spec, { frames, base = null } = {}) {
   if (typeof spec === 'function') return spec;
-  if (spec === 'walk') return gait();
-  if (spec === 'sprint' || spec === 'run') return sprint();
+  if (spec === 'walk') return gait({}, base);
+  if (spec === 'sprint' || spec === 'run') return sprint({}, base);
   if (!spec || typeof spec !== 'object') return null;
   const { perform, ...m } = spec;
   let move = null;
-  if (m.walk || m.gait) move = gait(m.walk || m.gait);
-  else if (m.sprint || m.run) move = sprint(m.sprint || m.run);
+  if (m.walk || m.gait) move = gait(m.walk || m.gait, base);
+  else if (m.sprint || m.run) move = sprint(m.sprint || m.run, base);
   else if (Array.isArray(m.keyframes)) move = keyframeMotion(m.keyframes, { loop: m.loop !== false });
   if (!move) return null;
   if (perform) move = performance(move, { frames, ...(perform === true ? {} : perform) });

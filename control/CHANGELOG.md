@@ -12,6 +12,345 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### vajra-sculpt — a character as hand-placed field terms, print-closed
+
+- *(in progress — the phases below land as they are built)*
+- **Planned: gates that read `fields[].terms`.** The `fields` monomer has never had one. The
+  contribution and jut-shortfall checks that keep a workbench monomer from being swallowed by its
+  neighbours are blind to a term list, so the failure they exist to catch — a mass buried inside its
+  host, contributing no silhouette — is invisible until a render is looked at.
+- **Planned: `blend` as a declared junction rather than a free number.** A term's blend radius is
+  the craft variable of a field sculpt: too large and every feature dissolves into one mass, too
+  small and every term reads as stuck-on. Naming the junction per term is the same discipline the
+  object reference already forces with `stack` / `jut` / `composite`, and it gives the gate a
+  declaration to measure against instead of a constant.
+- **Added: `attachments` on a figure recipe** — any workbench recipe mounted on any named landmark,
+  scaled to the figure and riding the pose: `{ recipe, at, t, size, fit, anchor, offset, rotate, align }`.
+  A held shield was already possible and was welded to one prop and one landmark; a character with a
+  helmet, a spear and greaves needs the same move at four more places. This is what lets a character's
+  BODY come from the figure family — parametric, posable, nothing sculpted — while its GEAR comes from
+  the object lane, where manufactured parts belong. The existing `hold` path is untouched. A mounted
+  recipe carries any monomer but `drapes` (cloth needs the garment path's two-sided shading) and
+  `reliefs` (carved lettering reads a font from disk, and the figure renderer is reachable from the
+  browser bundle, where there is no disk); both remain workbench-path monomers.
+- **Added: a connectivity readout on every workbench recipe** (`stats.components`). Closure asks whether
+  every edge has a partner; a detached horn tip, a spear that never reached the hand and a crest fin short
+  of the helmet all pass it, because each stray island is its own closed shell. Multi-body is not itself a
+  defect — superposition is the construction method and a loose part is ordinarily its own solid — so the
+  count is reported as a fact and only a declared `bodies: N` that the measurement contradicts warns.
+- **Planned: a neutral-tint form gate and eye-level bust framing.** Saturated recipe tints flatten
+  the unlit shading a form read depends on, and the preset turntable sits high enough to hide the
+  profile a head is judged on.
+
+### limb-mass — the arm and the leg in relation to the torso's weight
+
+- **Added: `armWidth` and `thighWidth`** — the upper arm's and the thigh's LATERAL breadth, which
+  no dial could reach. `bicep` scales the anterior and posterior upper-arm lobes and `quad` scales
+  the thigh's front lobe, but every one of those lobes adds into the limb's FORE/AFT radius and the
+  lateral radius was bare `baseR`: measured, `bicep: 2` moved the upper arm's width by ×1.000 and
+  its depth by ×1.363, and `quad: 2` moved the thigh's width by ×1.000. A heavy arm and a lean arm
+  were the same width head-on and only the profile ever moved. (`forearm` and `calf` never had the
+  problem — they ride the ring radius itself.) `armWidth` eases along the lobe profile so the
+  deltoid and elbow caps still cover the ends; `thighWidth` is localized to the thigh band and
+  leaves the lower leg to `calf`. `bicep` and `quad` are untouched, so every stored recipe renders
+  byte-identically.
+- **Added: `tricep`, `hamstring` and `adductor`** — the lobes where gained weight actually sits.
+  One dial drove both the bicep and the tricep, and the thigh's posterior and medial lobes had no
+  dial at all, so the only thing a limb could do as it filled was grow a bigger bicep and a bigger
+  quad. Muscle reads anterior and lateral; weight reads posterior and medial. `adductor` is what
+  closes a heavy leg at the top. The fat↔muscle axis is now a choice rather than a side effect:
+  `{ bicep: 1.5, armWidth: 1.2 }` and `{ tricep: 1.5, armWidth: 1.35 }` are different shapes at the
+  same circumference.
+- **Added: `deltoid` and `elbowCap`** — the joint caps, which had no dial and never saw `weight`,
+  so segments could inflate while the joints they hang from held still. Each sizes its mass and
+  leaves its centre on the sex pole, so a cap grows once rather than scaling its radius and sliding
+  its centre away too. (The hip already had `hipFlare`.)
+- **Fixed: `proto.weight` landed on the trunk and stopped there.** Across weight 1 → 2 the bust ran
+  ×1.371 and the waist ×1.721 while the upper arm managed ×1.209 and the thigh ×1.191, so
+  `upperArm/bust` fell 0.388 → 0.342 and `thigh/hip` fell 0.504 → 0.474 on both poles — a heavier
+  figure read as a heavier TRUNK on the same limbs. It was not a matter of turning the limb gains
+  up: there was no lateral axis for them to gain on, and raising `bicep` or `quad` builds muscle
+  shape rather than fat shape. With the axes above in place the gains were SOLVED against the ratio
+  rather than chosen, and both now hold within +5 / −0 % across weight 1 → 2 on both poles. The
+  wrist and the ankle still fall away, which is correct — weight is proximal, and distal is bone.
+- **Changed: `figure-torso.test.js`'s weight-distribution pin.** It asserted that the waist, hip and
+  bust each outgain the wrist, thigh and upper arm, and that blanket ordering WAS the defect — it
+  held only because the proximal limbs could not keep up by construction. What the dial promises,
+  and what is now pinned, is the trunk↔EXTREMITY separation: the middle gains most, the hand and
+  the foot barely move, and the proximal limbs sit between. The hip is the least responsive trunk
+  landmark and no longer outgains the thigh; the anthropometry says a thigh gains slightly faster
+  than a hip, and that is pinned instead.
+- **Added: `forearmDrop` and `calfDrop`** — WHERE the distal belly sits along its own segment
+  (0 = canonical). The distal limb had the opposite gap to the proximal one: `forearm` and `calf`
+  ride the ring radius itself, so they always scaled both axes and never needed a width dial. What
+  they could not say is where the mass sits — the forearm's crest was pinned at 0.400 of the segment
+  and the calf's at 0.488 (against a knee trough at 0.442) for every dial and every weight, so a
+  long low calf tapering into the ankle and a short high one were the same calf at different
+  volumes. That is the axis a calf is actually read on. `calfDrop` travels DOWN freely (crest
+  measured at 0.488 / 0.512 / 0.535 / 0.581 / 0.605) and is bounded going UP by the knee: a gastroc
+  does not sit above the joint, so negative values concentrate the mass and read as a shorter,
+  tighter calf rather than raising it.
+- **Added: `wristGirth` and `ankleGirth`** — the terminal joints' own thickness. `wristTaper`
+  FLATTENS the wrist (it is the flipper dial) and only ever moved girth as a side effect, and the
+  ankle answered to nothing at all: `calf: 2` moved the measured ankle by 1.3 %. Each is localized
+  to its own end and stays out of the belly above it (`wristGirth: 1.5` reaches the forearm belly by
+  3.8 %, `ankleGirth: 1.5` leaves the calf crest untouched).
+- **Measured, and deliberately NOT re-gained: `weight` already reaches the distal limb.** Unlike the
+  proximal pass, no new gain was wired. `forearm` and `calf` already carry gains, and at `weight: 2`
+  the wrist measures ×1.151 and the ankle ×1.148 against roughly ×1.12 and ×1.18 lean-to-obese —
+  inside the reference's own slop, so chasing them would be over-fitting a remembered table. The
+  distal gap was expressive, not relational, and the four dials above are absent from `WEIGHT_GAIN`
+  on purpose. Pinned as such.
+- **Found, not fixed (pinned): `bodyGirths` does not report the hip monotonically below `weight` 1**
+  — 123.9 cm at 0.6, 118.2 at 0.85, back up to 121.4 at 1.0, so a leaner figure can measure a wider
+  hip than a slightly-lean one. It is the chart and not the body: the trunk's own lower geometry is
+  strictly monotone across the same range, and the hip landmark does not migrate there either
+  (v holds at 0.900–0.903). Left alone because every cut-and-sewn garment reads that chart. It is
+  why the new ratio gate starts at weight 1 — below that it would be measuring this.
+
+### figure-cast — limb proportions as a dial, cast off the locked armature
+
+- **Added: `cast` on `mint_solid { kind: 'figure' }`** — rest segment-length multipliers
+  (`upperArm`, `forearm`, `thigh`, `shank`, `lumbar`, `thoracic`, `neck`, `skull`) plus
+  `shoulderSpan` / `hipSpan`, and the groups `arm` / `leg` / `limb` / `torso`. They apply at the
+  vajra level, before anything is fleshed: a length dial re-places a distal node along its own rest
+  direction, a span dial translates a limb subtree, and the figure re-seats on the floor. The joint
+  graph, the subtrees and the joint LIMITS are untouched — a cast moves rest lengths, never a
+  joint's range. This is what makes a figure long-limbed, stubby, broad-shouldered, an ape-index
+  brute or a mascot; `proto` remains girth and `proto.height` remains overall size.
+- **Changed: the flesh, the balance IK, the gait, the spine warp, the garments and the exported
+  rig all read the cast.** `articulate` / `applyPose` take an optional rest armature (the signature
+  `articulateTransforms` already had); the 2-bone ground IK solves on the cast's own bone lengths;
+  the walk converts its absolute ground stride against the cast's leg, so a long-legged figure
+  strides instead of mincing; the spine warp's rest curve and the arm's anchor height come from the
+  cast; the cut-and-sewn wardrobe follows because the body is its own tape measure.
+- **Added: named cast presets** (`heroic`, `brute`, `lithe`, `stout`, `child`, `chibi`, and
+  `canonical`), each a starter to nudge rather than a fixed look. They resolve BY VALUE at mint —
+  the stored manifest carries the numbers plus `from` — so re-tuning a preset can never change an
+  already-minted figure, and the recipe has something to read and edit.
+- **Changed: `buildPosedFigure`'s positional tail is now an options object**
+  (`{ fluffs, hold, hair, cast, fluffQuality, weld }`), and every render path reads the body half of
+  a manifest through one reader instead of six argument lists.
+- **Fixed: an emote minted from a stored figure kept its `garment` but silently dropped its
+  `fluffs`**, so emoting a stylized figure produced an anatomical one. It now carries the whole
+  body — `fluffs` and `cast` — as its comment always claimed.
+- **Added: `cast.shoulderDrop`** — the girdle's CARRIAGE, in degrees rather than as a multiplier.
+  The armature puts the neck root and both shoulders at the same height, so the clavicle line and
+  the shoulder yoke run dead level out to the acromion: anatomically a permanent shrug, and the
+  reason a neutral figure reads stiff and high through the girdle. + declines that line, − rides it
+  into a shrug. The arm translates with the acromion instead of rotating with it, so the humerus
+  keeps its rest hang and every cached rest bone direction stays valid. The canonical rest is
+  unchanged (still level); declining it by default is blocked on the trunk chart's cap taking its
+  footprint from the shoulder LINE rather than from whichever hull band is highest — past ~5° of
+  drop the deltoids leave that band, the footprint collapses and a shoulder-seamed garment is
+  misplaced. Pinned in `figure-cast.test.js`; shells and side-seam garments are unaffected.
+- **Changed: `cast.shoulderSpan` scales the clavicle as a VECTOR**, not in x alone, so a broad
+  shoulder keeps its shoulder ANGLE instead of flattening toward level. The angle is
+  `shoulderDrop`'s business.
+- **Added: `proto.chestDepth` and `proto.pelvisDepth`** — the torso's fore/aft, which nothing could
+  reach. `chestWidth` has always scaled the ribcage's whole cross-section, breadth and depth by the
+  same multiplier, so a deep-chested or slab-flat trunk was not a setting; these trim the depth
+  alone on top of it (`chestWidth: 1.4` with `chestDepth: 0.71` is broad AND flat). The waist needs
+  no dial: its depth is the interpolation of the two and follows them. `chestWidth`'s own behaviour
+  is unchanged, so every stored recipe renders byte-identically.
+- **Added: `proto.weight`** — one number for how heavy a figure reads, distributed across the
+  region dials rather than scaling them evenly (which is what `stockiness` already did). The
+  abdomen takes the most and takes it forward, the hips and thighs next, the waist un-tucks, the
+  V-taper flattens, the wrist barely moves: at `weight: 1.6`, waist ×1.24 against wrist ×1.09. It
+  is a global gain, so the operator's own region dials multiply on top, and it is relative to the
+  frame because every gain is a multiplier. `weight: 1` is byte-identical on both poles. Distinct
+  from `pose.weight`, which is which foot the figure stands over.
+- **Fixed: a heavy figure grew spheres bolted to a torso.** Three faults compounded in the side
+  profile. The trunk is authored back-anchored (`cy = bez + ap·ct` puts the spine at the back), so
+  every millimetre a depth dial added travelled FORWARD — at weight 2 the front moved +1.24 and the
+  back −0.20; depth dials now grow the section about its own centre. Weight's depth gain was nearly
+  double its width gain, building a deep narrow slab; width now leads. And the belly and the seat
+  are separate stacks that each grow twice over — radius and centre — with nothing bounding how
+  proud of the torso they could stand, so `seatMass` now holds every superposed mass to the
+  proportion of the trunk it has at canonical (the seat had reached 80 % of trunk depth against a
+  canonical 55 %). Self-limiting, so a hand-set `gluteSize: 3` is bounded too.
+- **Fixed: a concave belt across a heavy figure's waist.** The trunk's belly swell peaked below the
+  waist and fell away before the ribcage picked up, leaving a groove exactly where a heavy body
+  should be fullest — the lateral outline sat 0.091 below its own convex hull at weight 1.6 and
+  0.166 at weight 2. The swell is re-centred and widened (uu 0.42, spread 0.42) so it reaches the
+  ribs: 0.021 and 0.068. The waist's DEPTH pinch also now rides `waistTuck` exactly as its width
+  pinch always has, so a relaxing tuck opens the groove instead of holding it at full strength.
+  A lean figure keeps its waist — that narrowing is a waist, not a defect. Canonical unchanged.
+- **Added: `proto.bellyFill`** — the trunk's OWN swell around the navel, and what `weight` now
+  drives instead of inflating the `dantien` ellipsoid. A heavy middle is one continuous silhouette
+  rather than a ball overlapping a torso; `dantien` remains the distinct mass for when that is
+  wanted. Canonical at 0.
+- **Added the STOMACH and HIP axes: `proto.bellyDepth`, `bellyDrop`, `gluteRear`, `hipFlare`.**
+  `dantien` and `gluteSize` scale their mass uniformly, so a forward gut, a high or low belly, a
+  shelf buttock and the hip's own flesh were all unreachable at any setting. `bellyDepth` grows the
+  belly forward with the back edge pinned; `bellyDrop` slides it along its own height (0 =
+  canonical); `gluteRear` projects the buttock rearward without widening it, multiplying the sex
+  pole's rear scale rather than replacing it; `hipFlare` gives the hip cap the dial every other
+  body mass already had. All default to canonical, so stored recipes render byte-identically.
+- **Removed: `manifest.proportions`** (the chibi rig, which only ever reached a `fluffs` body and
+  was never writable by any mint tool). The cast is its general form; a stored `proportions`
+  migrates to the equivalent cast dials on read, so nothing re-mints.
+
+### the head grows its features — the ear, the side wall, the nose tip, the eye
+
+- **Added: the ear is a feature instead of a bulge.** It was one flattened lobe at the tragion,
+  smooth-unioned at the face's 0.019·s blend — ~17 mm of softening over a 4 mm lobe, so it added
+  7 mm of head width and no shape at all, and the lateral turntable showed a bare curve from
+  temple to jaw. It is now a helix rim of round cones from the root, over the top, down the back
+  to the lobule, thickened by two pads and closed by a thin pinna plate, in **its own blend group
+  behind its own bounding gate** — the same treatment the nose already needed. The rim's outer
+  edge spans the canon band, subnasale to glabella.
+- **Added: the zygomatic arch and a light masseter.** The side of the face fell into a trough
+  between the cheekbone and the ear — 3.7 mm real on the bare skull, which the new ear *deepened*
+  to 4.5 mm by raising the wall behind it. The arch bridges cheekbone to ear canal and the
+  masseter rounds the jaw's side below it. It costs nothing in the head's width band (both sit
+  under the ear's peak) and it made the ear render **cleaner**: filling the valley stopped the
+  latitude rays plunging into it, so the worst ring-to-ring step on the ear fell from 6.0 to 5.5 mm.
+- **Changed: the nose tip domes and reads as a forward pyramid.** The tip was a sphere whose
+  radius of curvature (~12 mm real) dwarfed the feature it was meant to be, so it rendered as a
+  flat facet. It is now an ellipsoid plus an infratip lobule, with a **dorsal keel** carrying one
+  continuous ridge from the bridge to the tip. The tip gained ~4 mm of projection and got
+  **narrower**, not wider: all the volume went into projection and height, none into width.
+- **Added: the eye.** A globe in the orbit under two C-wave lids, unioned **after** the orbit
+  subtraction (before it, the socket cut simply erased the globe) with that cut trimmed to suit.
+  At the eye a latitude ring is 5.9 mm real, so a 10 mm palpebral fissure spans 1.7 rings and
+  cannot be a modelled gap — it is a **shadow step** between two lid ridges, the same answer the
+  lip line arrived at. The eye reads on form and shading; it carries no colour.
+- **Added: `earSize` and `eyeSize` head knobs.** `earSize` grows the ear in its own plane and its
+  rim thickness but deliberately **not** its standoff, because the head's width is ear-driven and
+  the width band is the guard on the whole skull. `eyeSize` grows the globe and the fissure
+  together — a bigger eyeball behind the same aperture only buries itself.
+
+### one machine, one answer — the cap tessellator and the rounded-rect profile
+
+- **Fixed: a carved cap with two or more counters could fill one of them.** Bridging a hole into an
+  outline leaves the ring touching itself at the bridge, and the ear clipper could cut straight
+  through one of those contact points — emitting an inverted triangle and covering a counter twice,
+  so a letter like `B` came out with a solid bowl. `triangulateRings` now spots the inverted
+  triangle and re-clips that ring with the bridge contacts guarded, keeping whichever result
+  actually matches the ring's area. Caps that were already correct are untouched, byte for byte.
+- **Fixed: a rounded-rect extrude profile now emits the same bytes on Apple silicon and on x86.**
+  `roundedRectPath` asked `Math.cos`/`Math.sin` for each of the four corner arcs by absolute angle,
+  and V8's argument reduction past π/2 is not bit-identical across CPU targets — one face normal
+  came out a ULP apart on the two architectures. It now takes a single quadrant and turns it by
+  exact sign swaps. A recipe regenerates to the same bytes wherever it is read, which is the point.
+- **Changed: the cap tessellator's regression pin no longer depends on the machine's fonts.** The
+  glyph tests resolve whatever font is installed — Arial Black on macOS, DejaVu on the Linux CI
+  image — so the two `B` bugs above only ever reproduced on CI. The failing contours are frozen in
+  `triangulate.dejavu-b.fixture.js` and pinned everywhere.
+
+### readme — worked examples instead of a manifesto
+
+- **Changed: the repo README is now five concrete examples** (a mug, a living room, a city, a
+  walkable world to a Godot export, a snowman), each with the sentence you say, the tool that
+  fires, and the recipe that gets stored, followed by the export table and what stays on the
+  machine. The long-form catalog moves unchanged to `docs/tour.md`.
+- **Changed: the one-line self-description is "a 3D compiler for agents"** — a compiler, not a
+  generator: the recipe is the source, kernels compile it back byte-for-byte, emitters are the
+  targets, renders are derived. Said in one voice across the README, the npm README and
+  `package.json` description, `server.json`, `glama.json`, the plugin manifests, the
+  `SERVER_INSTRUCTIONS` preamble, the `get_substrate` one-breath answer and studio opener,
+  `docs/AGENT-REFERENCE.md`, and the installer's chatbot note. "3D factory" survives only in
+  code comments and the changelog history.
+- **Fixed: `LICENSE` is the verbatim Apache-2.0 text** (two clauses had been paraphrased, so
+  GitHub reported the license as "Other"); the copyright line moves to a new `NOTICE` file.
+- **Removed: six scratch scripts** (`control/relief-test2.mjs` and the
+  underscore-prefixed prototypes under `control/scripts/`) that carried absolute home paths;
+  `scripts/_*.mjs` is now gitignored.
+
+### terms — the open-source commitment and a possible mojulo cloud
+
+- **Changed: TERMS.md, README, SECURITY.md, docs/responsibility-model.md, and the `get_substrate`
+  facts** now state the stance in one voice: the open-source mojulo is and stays Apache-2.0 with no
+  telemetry, ever. That commitment is about the software, not a bar on a hosted offering — a
+  separately offered mojulo cloud on standard services may be explored if there is demand, as its
+  own opt-in product that changes nothing about the local install. "There is no hosted service"
+  lines become present-tense ("today") where they read as a permanent ruling-out.
+
+### dungeon-rock-texture — a surface tile per cave surface, multiply-lit over the traced bake
+
+- **Added: `texture` in the dungeon style bible.** `style.texture: '<key>' | { floor?, wall?,
+  ceiling?, scale? }`, a per-chamber `texture` override, and `style.tunnel.texture` / per-tunnel
+  `texture` (tunnels inherit the style's wall key: a cave is one rock). Keys are surface-textures
+  tiles (`rock-cave`, `rock-granite`, `rock-sandstone`, or a `defineRockTile` custom tone); an
+  unknown key refuses the mint like an unknown material does. Every shell face gets `texture`,
+  `textureLit`, and a per-corner `uv` — walls along the ring by unwrapped azimuth × radius (no
+  stretch, no ±π seam inside a face), floor and ceiling by world XY, tunnels by their dominant
+  plane — so the World and the .glb draw tile × baked fire light. This is the texel-frequency
+  stage a 6th-gen cave frame has and the bare bake lacked. `padTrianglesForWorld` now pads a fan
+  triangle's `uv` with its corners. Absent `texture` ⇒ no face carries a key, byte-identical.
+  Manual: the `dungeon` view-vocab card. Tests: `dungeon-texture.test.js`.
+
+### figure-head — a structured head, male and female
+
+- **Changed: the protoform's head is one closed form built from anatomy.** It was two overlapping
+  open tubes: a three-bead vajra egg and a tapered "face mask" sleeve pushed forward of it. They
+  z-fought where they crossed, the mask's lower rim read as a visor, and because a ring stack is
+  capped at neither end the crown and the underside were holes about 5.5 cm and 7.5 cm across at a
+  170 cm stature (the crown scoop was visible from behind; the underside hid behind the neck).
+  `figure-head.js` now builds the head as a signed-distance field of named anatomical primitives
+  (braincase, frontal, occiput, brow, subtracted orbits, zygomatics, maxilla, nasal, lips,
+  mandible, ramus, chin, submandibular floor, ears) smooth-unioned into one skin, the way the
+  welded animal skull is, and surfaces it by LATITUDE rings from a centre inside the braincase,
+  so both poles close by construction. The `faceMask` stack is gone; `headEgg` keeps its id and
+  its ring currency, so hair, hats, garments, the skin seam and the spine warp read it unchanged.
+- **Changed: the head has a sex.** Male and female heads were byte-identical. `DIMORPH` carries a
+  `head` pole (brow, jaw width and drop, chin point and size, forehead slope, cranial roundness,
+  nose, cheek fullness, size, neck girth); the female basis is a rounder cranium, a vertical
+  forehead, a smooth brow, a narrower jaw, a pointed chin, a smaller nose, fuller cheeks and a
+  thinner neck. `proto` gains per-region multipliers on top: `browRidge`, `jawWidth`, `chinPoint`,
+  `noseSize`, `noseWidth`, `noseDroop`, `cheekbone`, `cheek`, `foreheadSlope`, `neckGirth` (1 = canonical, absent = same bytes).
+  The nose is articulated and seated AT the face plane, projecting past it — a narrow bony bridge
+  from the nasion dip to a slightly proud mid-dorsum, a cartilage dorsum to a supratip break, a tip
+  ball hanging below the dorsum line (`noseDroop`, the hook), two alae lower and wider than the tip
+  (`noseWidth`), a nostril bar, and a flat columella back to the subnasale so the nose has an underside.
+  The nose blends within itself far tighter than it blends into the face, with a shallow alar crease
+  either side of the tip, so the two alae and the tip read as three lobes and not one bell — and the
+  head's rings are sampled twice as densely at the face as at the nape (44 around), because at a
+  uniform 36 the whole nose base was one or two samples wide. The philtrum is a shallow recess and
+  the nose joins the face tighter than the face blends with itself, so the underside of the nose
+  stands over air instead of filleting into the lip. The lips have mass: an upper lip rising to a
+  cupid's bow — both lips are built on one M-shaped mouth path from inner cheek to inner cheek, the
+  upper lip's bottom edge tracing the bow and overhanging the lower lip so the line reads as its
+  shadow — a fuller lower lip that rides the jaw and sits just under the upper lip's overhang, and a
+  sulcus under the lower lip; the mandible rests closed-up against the maxilla with the chin brought
+  up and forward under the lips, so the profile does not read as an overbite (bone only — the lips
+  rest where they belong and follow the open dial).
+  `cheek` is the soft cheek under the cheekbone — the apple of the cheek, a pad standing proud of
+  the maxilla, and a jowl blend into the jaw — so the face rounds out in the ¾ view instead of
+  reading as a skull or as sullen; the female basis is fuller.
+  The buccal plane is lateral and thin (the face beside the mouth is the maxilla's own curve),
+  the lips join the face at a wider fillet than
+  the nose does, so the upper lip's wings run out into the inner cheek instead of standing as a
+  ridge with a trench either side, and the cheek is one convex mass whose inner lower edge runs in
+  to the base of the nose with no concave section between them. The philtrum groove sits in the
+  skin (it had stayed at the maxilla when the lips moved forward, a pocket inside the head that
+  every latitude ring through the mouth zigzagged over), and the lips run out into the cheek at
+  their corners instead of ending in a wall.
+  `headScale` still scales the whole skull about the neck join.
+- **Added: `pose.face` — the jaw and the mouth, structured in the field, not the armature.**
+  `face: { jaw, mouth, brow }`: `jaw` (degrees, 0–30) rotates the jaw group about a hinge through
+  the condyles so the chin swings down and back and the smooth union re-fuses it into the cheeks;
+  `mouth` (0–1, default follows the jaw) subtracts a lip slot; `brow` (−1..1) lowers or raises the
+  brow ridge. No new armature node, so the 17-node manji, `LIMITS`, the packed rig and the VRM map
+  are untouched, and emotes/keyframes drive `face` through the same phase→dof contract as every
+  other dial. Stated limit: the skinned GLB bakes rest geometry over rigid bones and the head is
+  one bone, so jaw motion shows in SVG, GIF and world frames, not in the skinned export.
+- **Added: the head-study camera.** `renderFigureToSvg` takes `crop: 'head'` (the head, the neck
+  and whatever sits on the head) and `elev` (degrees), mirroring the animal path's crop and
+  `animalCamera`, so a human head can be checked top-down and from under. `/head-study` renders
+  the eight skull-study angles for both sexes, filled and wireframe, cropped to the head.
+- **Added: head rows on the tailor's tape.** `bodyGirths` reports `head` (the widest ring's girth,
+  the hat size), `head_height` and `head_width` in cm at stature, read off the head stack.
+- **Changed: wigs and hats average the skull radius over height, not over rings.** The head's rings
+  are latitudes now, dense and tiny at the poles; a per-ring mean read the dome about a quarter
+  small. The trapezoid rule over the radius-by-height profile is the same number for rings spaced
+  evenly along the axis. A curtain wig's apex also clears the crown by about 2 cm instead of
+  grazing it: the old crown was an open ring, so a dome that touched it showed nothing; the closed
+  skull poked through.
+- Re-pins: the three `figure-absent.char.test.js` hashes and the world kinds that place figures
+  (`world-scene.kinds.test.js.snap`) — the flesh moved; the absent-channel promise is unchanged.
+
 ### toon-shading — cel bands and ink outlines as a manifest dial
 
 - **`toon` on any 3D manifest** (`toon: true` = `{ bands: 3, ink: true }`; also read at

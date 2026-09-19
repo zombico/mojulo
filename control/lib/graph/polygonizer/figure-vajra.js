@@ -38,16 +38,38 @@ export function dot3(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 // so the thighs come forward and balance the lateral profile — the groin reads as less of an
 // isolated front bulge — without changing the front/rear silhouette (a +y shift is pure depth).
 const LEG_FWD = 0.045;
+// THE GIRDLE DECLINATION. The armature was authored with neckHub and both shoulders at the SAME
+// z, so the clavicle line and the shoulder yoke ran dead level out to the acromion. Anatomically
+// that is a permanent shrug, and it was why a neutral figure read stiff and high through the
+// shoulders in every study. The girdle now declines: the acromion rotates DOWN about the neck
+// root, and the arm TRANSLATES with it rather than rotating, so the humerus keeps the rest hang
+// it was sculpted at (and, with it, every rest bone direction cached at import — figure-posing's
+// REST). `cast.shoulderDrop` (figure-cast.js) declines it off this rest; + = more relaxed.
+//
+// HELD AT 0 — the switch is this constant, and turning it on is blocked on ONE thing. The trunk
+// chart's CAP (body-chart.js `capRows`, the surface a shoulder seam lies on) takes its footprint
+// `W` from the topmost hull z-BAND, which silently assumes the acromion is the highest thing on
+// the body. Decline the girdle and the deltoids fall out of that band: W collapses 1.88 → 1.29,
+// the crest goes flat across 21 of 24 bins, and a shoulder seam anchored to it misses by 63 cm.
+// The fix is for the cap to take its footprint from the shoulder LINE instead of whatever band is
+// highest — correct, but it measures ~1.97 on the LEVEL figure too, so it re-drafts every pattern
+// garment. That is its own change, with its own pins and its own eyes gate.
+const CLAVICLE_DECLINE = 0;   // degrees below horizontal
+const SHOULDER_HALF = 0.13, SHOULDER_Z = 0.78;
+const DECLINE = CLAVICLE_DECLINE * Math.PI / 180;
+// the acromion's displacement from the level girdle it was authored on — the arm rides it whole
+const ACR_DX = SHOULDER_HALF * (1 - Math.cos(DECLINE)), ACR_DZ = -SHOULDER_HALF * Math.sin(DECLINE);
+const girdle = (x, y, z) => ({ x: x + Math.sign(x) * -ACR_DX, y, z: z + ACR_DZ });
 const STAND = {
-  torsoTop:  { x: 0,      y: 0,       z: 0.78 },
-  shoulderL: { x: -0.13,  y: 0,       z: 0.78 },
-  shoulderR: { x:  0.13,  y: 0,       z: 0.78 },
+  torsoTop:  { x: 0,      y: 0,       z: SHOULDER_Z },
+  shoulderL: girdle(-SHOULDER_HALF, 0, SHOULDER_Z),
+  shoulderR: girdle( SHOULDER_HALF, 0, SHOULDER_Z),
   hipL:      { x: -0.10,  y: LEG_FWD, z: 0.47 },
   hipR:      { x:  0.10,  y: LEG_FWD, z: 0.47 },
-  elbowL:    { x: -0.155, y: 0,       z: 0.60 },   // flared out so the arms
-  elbowR:    { x:  0.155, y: 0,       z: 0.60 },   // clear the hips frontally
-  wristL:    { x: -0.195, y: 0,       z: 0.45 },
-  wristR:    { x:  0.195, y: 0,       z: 0.45 },
+  elbowL:    girdle(-0.155, 0, 0.60),   // flared out so the arms
+  elbowR:    girdle( 0.155, 0, 0.60),   // clear the hips frontally
+  wristL:    girdle(-0.195, 0, 0.45),
+  wristR:    girdle( 0.195, 0, 0.45),
   kneeL:     { x: -0.10,  y: LEG_FWD, z: 0.25 },
   kneeR:     { x:  0.10,  y: LEG_FWD, z: 0.25 },
   ankleL:    { x: -0.10,  y: 0,       z: 0.02 },   // feet stay planted under the body
@@ -211,6 +233,17 @@ export function basePositions() {
   return m;
 }
 
+// Every kinematic entry point starts from a REST map. `base` lets a caller supply its own —
+// a CAST (figure-cast.js: the same 17 landmarks at other proportions) or a suit's stations —
+// so proportions are a dial without unlocking the joint graph. null → the canonical armature,
+// bit-identical to what these functions did before the argument existed.
+function restFrom(base) {
+  if (!base) return basePositions();
+  const m = {};
+  for (const [k, v] of Object.entries(base)) m[k] = { x: v.x, y: v.y, z: v.z };
+  return m;
+}
+
 // ─── Hand-authored poses (rotate-about / hinge / set ops) ──────────────
 // Baseline natural flex appended to every pose — knees and elbows always
 // carry a hinge bend in the anatomical direction.
@@ -226,8 +259,8 @@ export function naturalJoints(knee, elbow) {
 // Each op rotates `nodes` about `pivot` by `angle` around `axis`, folds a
 // distal node toward `refDir` (`hinge`), or places nodes directly (`set`).
 // Ops apply in order, so a flex after a swing rides on the moved joint.
-export function applyPose(ops) {
-  const m = basePositions();
+export function applyPose(ops, base = null) {
+  const m = restFrom(base);
   for (const op of ops) {
     if (op.set) { for (const [k, v] of Object.entries(op.set)) m[k] = { x: v.x, y: v.y, z: v.z }; continue; }
     if (op.hinge) { hingeFold(m, op.hinge[0], op.hinge[1], op.refDir, op.angle); continue; }
@@ -253,9 +286,10 @@ function swivelSub(m, keys, pivotKey, yaw, pitch, limit) {
 }
 
 // Build a posed armature from a degrees-of-freedom object. Order is
-// proximal → distal so each joint rides on its parent.
-export function articulate(dof = {}) {
-  const m = basePositions();
+// proximal → distal so each joint rides on its parent. `base` (optional) is the rest
+// armature to pose — a cast's proportions, or any 17-landmark map; omit for the canonical one.
+export function articulate(dof = {}, base = null) {
+  const m = restFrom(base);
   const L = LIMITS;
   // Spine: distribute the sagittal/lateral/axial drive across the three trunk
   // pivots (proximal→distal, so each rides its parent → the trunk curves).
@@ -398,9 +432,7 @@ function rodMat(axis, deg) {
 }
 
 export function articulateTransforms(dof = {}, base = null, opts = {}) {
-  const m = base
-    ? Object.fromEntries(Object.entries(base).map(([k, v]) => [k, { x: v.x, y: v.y, z: v.z }]))
-    : basePositions();
+  const m = restFrom(base);
   const T = Object.fromEntries(Object.keys(BONE_CARRIERS).map((b) => [b, { m: I3(), t: { x: 0, y: 0, z: 0 } }]));
   const L = LIMITS;
   // RIGID UPPER BODY (suits): the torso bone is a single rigid chest plate, so

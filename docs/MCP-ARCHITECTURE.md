@@ -70,7 +70,7 @@ A **wing** is taxonomy and routing: `forward_context()` opens the STUDIO wing by
                                       │
         forward_context()  ◄──────────┴──────────►  forward_context({mode:'office'})
         ┌───────────────────────────┐         ┌────────────────────────────────────┐
-        │  STUDIO — the 3D factory  │         │  OFFICE — automation backend       │
+        │  STUDIO — the 3D compiler │         │  OFFICE — automation backend       │
         │  (the DEFAULT read)       │         │                                    │
         │                           │         │  installGroup: none (always on)    │
         │  installGroup: 'creative' │         │   pack_connected_services          │

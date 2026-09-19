@@ -84,14 +84,16 @@ const KNEE_POLE = { x: 0, y: 1, z: 0 };   // knees point forward (+y)
  *             stay planted; the knees fold via IK (a squat the fixed-hip dof can't do).
  *   kneeOut — knee tracking in the squat: + = knees splay outward (Russian/deep), −
  *             = knees drawn together, 0 = forward.
+ *   base    — the REST armature this figure is cast from (figure-cast.js). The 2-bone IK
+ *             solves on ITS thigh/shank lengths and its COM, so a cast figure's planted foot
+ *             stays planted. Omit → the canonical armature.
  */
-export function groundBalance(p0, { feet = ['L', 'R'], weight = 0, crouch = 0, kneeOut = 0, gain = 1, iters = 6 } = {}) {
+export function groundBalance(p0, { feet = ['L', 'R'], weight = 0, crouch = 0, kneeOut = 0, gain = 1, iters = 6, base = basePositions() } = {}) {
   const p = {};
   for (const k in p0) p[k] = { ...p0[k] };
   const w = Math.max(-1, Math.min(1, weight));
   const MAX_DROP = 0.30;   // deepest pelvis drop (STAND units) at crouch = 1
   // rest COM offset, always vs the neutral TWO-foot stance (see note above).
-  const base = basePositions();
   const restOff = sub2(comOf(base), footCentre(base, ['L', 'R']));
   // bone lengths + planted ankles
   const Llen = {};
@@ -158,10 +160,11 @@ const lerp = (a, b, t) => a + (b - a) * t;
  * @param {object} p0  articulate() output
  * @param {{plant?: {L:number,R:number}, gain?: number, carry?: number, iters?: number}} opts
  *   carry — 0..1, how fully the COM commits over the planted support (1 = full pendulum).
+ *   base  — the REST armature this figure is cast from (figure-cast.js): leg lengths, the
+ *           floor height and the rest pelvis height all come from it. Omit → canonical.
  */
-export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, iters = 6 } = {}) {
+export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, iters = 6, base = basePositions() } = {}) {
   const p = {}; for (const k in p0) p[k] = { ...p0[k] };
-  const base = basePositions();
   const GROUND = base.ankleL.z;                 // rest floor level (armature ankle)
   const restPelvisZ = base.pelvisHub.z;
   const L1 = {}, L2 = {};

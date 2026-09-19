@@ -137,7 +137,7 @@ export function figurePatternSheetSvg(manifest = {}, opts = {}) {
   if (!all.some(isPattern)) return null;
   // The designer's rule: the sheet is drafted on the STAND, whatever pose the figure holds —
   // the pattern does not change because the figure moved. Pose-invariant by construction.
-  const stacks = buildPosedFigure({}, manifest.proto || {}, null, manifest.fluffs || null, null, null, manifest.proportions || null, 1, manifest.weld || null);
+  const stacks = buildPosedFigure({}, manifest.proto || {}, null, { fluffs: manifest.fluffs || null, cast: manifest.cast || null, weld: manifest.weld || null });
   const body = stacks.filter((s) => s.flesh);
   // The padded form: every layer is worn on the stand in order, so a garment's sheet is drafted
   // over what it is worn over (a jacket's over the shirt's) — the same draft the figure wears.

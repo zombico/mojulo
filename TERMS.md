@@ -1,6 +1,8 @@
 # Terms of Use
 
-mojulo is software you install on your own machine. There is no hosted mojulo service. There is no account you sign up for, no server we operate on your behalf, no data we receive about how you use it. The maintainer ("we") — **2364758 Ontario Inc.**, an Ontario corporation — publishes source code, an npm package, and a container image; everything else — what you do with it, what you build with it, what runs on your hardware — is yours.
+mojulo is software you install on your own machine. There is no account you sign up for, no server we operate on your behalf, no data we receive about how you use it. The maintainer ("we") — **2364758 Ontario Inc.**, an Ontario corporation — publishes source code, an npm package, and a container image; everything else — what you do with it, what you build with it, what runs on your hardware — is yours.
+
+**The open-source commitment.** The mojulo you install — this repository, the npm package, the container image — is open source under Apache 2.0 and will remain so. It contains no telemetry and never will: no phone-home, no analytics endpoint, no data sent to the maintainer. This is a commitment about the software, not a promise never to offer anything else. There is no hosted mojulo service today. If there is demand, a separately offered **mojulo cloud** built on standard hosted services may be explored. Any such offering would be its own product under its own terms, opt-in, and would change nothing above: the open-source mojulo stays open source, stays telemetry-free, and never depends on a hosted service to run. Where any other document in this repository reads as ruling out a hosted offering, this paragraph is the stance that governs.
 
 This document describes how to think about that responsibility split. It supplements (and does not replace) the [Apache License 2.0](LICENSE) that governs the code itself, and the threat model in [SECURITY.md](SECURITY.md).
 

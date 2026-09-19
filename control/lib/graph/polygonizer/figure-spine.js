@@ -94,8 +94,9 @@ function buildCurve(pts, N = 16) {
  * Build the {S0 (neutral), S1 (bent)} spine curves for a spine drive, in
  * buildProtoform world space. spine = { sagittal, lateral, axial } (∈ [−1,1]).
  */
-export function spineDeformer(spine = {}) {
-  return spineDeformerFromNodes(basePositions(), articulate({ spine }));   // only the spine pass moves the nodes
+export function spineDeformer(spine = {}, base = null) {
+  const rest = base || basePositions();
+  return spineDeformerFromNodes(rest, articulate({ spine }, base));   // only the spine pass moves the nodes
 }
 
 /**
@@ -127,16 +128,17 @@ function warpPoint(q, S0, S1) {
 // The arm hangs off a single vertebra (the shoulder girdle, ~neckHub height); it
 // is a rigid pendant, not trunk surface. The arc-height u of its anchor — so the
 // whole arm shares ONE frame and rides the shoulder as a rigid limb.
-const SHOULDER_ANCHOR_U = (() => {
-  const b = basePositions();
-  return (b.neckHub.z - b.pelvisHub.z) / (b.headTop.z - b.pelvisHub.z);
-})();
+// A RATIO of trunk lengths, so unlike the rest bone DIRECTIONS it moves with a cast
+// (figure-cast.js): a shorter trunk or a longer neck puts the girdle at a different arc
+// height. Derived per base rather than cached once — pinned in figure-cast.test.js.
+const shoulderAnchorU = (b) => (b.neckHub.z - b.pelvisHub.z) / (b.headTop.z - b.pelvisHub.z);
 // Stacks that branch off the shoulder girdle: carry them rigidly at the shoulder
 // frame instead of warping per-height (which would shear the limb off the body).
 export const RIGID_ARM_STACKS = ['deltoidL', 'deltoidR', 'upperArmL', 'upperArmR', 'forearmL', 'forearmR', 'elbowCapL', 'elbowCapR', 'handL', 'handR'];
-export function spineArmAnchors() {
+export function spineArmAnchors(base = null) {
+  const u = shoulderAnchorU(base || basePositions());
   const m = {};
-  for (const id of RIGID_ARM_STACKS) m[id] = SHOULDER_ANCHOR_U;
+  for (const id of RIGID_ARM_STACKS) m[id] = u;
   return m;
 }
 

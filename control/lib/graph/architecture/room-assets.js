@@ -854,8 +854,13 @@ export function buildTabletopDesktopTowerWorkbenchManifest({ x = 0, y = 0, z = 0
       topSlab(x, y, z, w, d, h, TOP.device, 0.018),
       topSlab(x, y + d * 0.51, z + h * 0.52, w * 0.82, d * 0.045, h * 0.72, TOP.deviceDk, 0.006),
       topSlab(x, y + d * 0.54, z + h * 0.78, w * 0.36, d * 0.030, h * 0.10, '#4b535a', 0.004),
-      topSlab(x - w * 0.22, y + d * 0.54, z + h * 0.18, w * 0.18, d * 0.026, h * 0.08, '#5d6770', 0.003),
-      topSlab(x + w * 0.22, y + d * 0.54, z + h * 0.18, w * 0.18, d * 0.026, h * 0.08, '#5d6770', 0.003),
+      // The two front buttons reach BACK to the tower's own face (0.500d) instead of stopping just
+      // inside the front panel. They used to span 0.527d–0.553d against a panel ending at 0.5325d:
+      // a 0.0055d overlap, which is a third of a grid cell at the footprint the room scales this to,
+      // so the connectivity check read them as two free bodies and a union would have dropped them.
+      // The front face stays at 0.553d, so the protrusion — the whole visual read — is unchanged.
+      topSlab(x - w * 0.22, y + d * 0.5265, z + h * 0.18, w * 0.18, d * 0.053, h * 0.08, '#5d6770', 0.003),
+      topSlab(x + w * 0.22, y + d * 0.5265, z + h * 0.18, w * 0.18, d * 0.053, h * 0.08, '#5d6770', 0.003),
     ],
     lathes: [
       zlathe(x + w * 0.28, y + d * 0.56, z + h * 0.80, h * 0.012, [

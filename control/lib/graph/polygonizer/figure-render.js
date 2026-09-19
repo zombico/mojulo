@@ -17,6 +17,7 @@
  * figure-proto-params.plan.md.
  */
 import { articulate, basePositions } from './figure-vajra.js';
+import { castArmature } from './figure-cast.js';
 import { projectTwoPoint } from './pure-mandala.js';
 import { makeLight, shadeHex, litFactor, dot3, sub3, centroid, withBands, resolveToon } from './vexar.js';
 import { PROTO_DEFAULT, buildProtoform } from './figure-proto.js';
@@ -38,6 +39,7 @@ import { buildAnimal } from './figure-animal-build.js';
 let resolveMsShieldRecipe = null;
 try { ({ resolveMsShieldRecipe } = await import('../mobile-suit/ms-shield.js')); } catch (err) { console.error('ms-shield shelf unavailable — figures render shieldless:', err?.message); }
 import { extrudeToFaces } from './extrude-faces.js';
+import { buildAttachments } from './figure-attach.js';
 import { sweepToFaces } from './sweep-faces.js';
 
 const FLESH_HEX = '#c8836a';
@@ -76,26 +78,37 @@ function squashStretch(stacks, s) {
   return stacks.map((st) => ({ ...st, rings: st.rings.map((rg) => ({ center: f(rg.center), polyline: rg.polyline.map(f) })) }));
 }
 
-// CHIBI RIG — remap the armature to few-heads-tall proportions BEFORE the flesh
-// binds, so the vajra rig is kept purely as the skeleton (joints/animation) while
-// the read becomes a stylized mascot. It shrinks every body landmark's offset from
-// an anchor (the neck) — `body` scales the vertical drop (short torso + stubby
-// limbs), `lateral` the sideways spread (narrower shoulders/hips) — and leaves the
-// head/neck untouched so the head stays full-size over a shrunken body (the big-head
-// cue). `headLift` nudges the head up to clear the shoulders. Coordinate-agnostic:
-// pure offset scaling about `anchor`. Pairs with a `fluffs` body; the fluff shape
-// girths are absolute, so the body stays chunky while the skeleton compresses.
-const CHIBI_KEEP = new Set(['headTop', 'headBase', 'neckHub']);
-function chibiRig(pos, opts = {}) {
-  const { body = 0.5, lateral = 0.82, anchor = 'neckHub', headLift = 0 } = (opts === true ? {} : opts);
-  const a = pos[anchor];
-  if (!a) return pos;
-  const out = {};
-  for (const [k, p] of Object.entries(pos)) {
-    if (CHIBI_KEEP.has(k)) { out[k] = headLift ? { x: p.x, y: p.y, z: p.z + headLift } : { ...p }; continue; }
-    out[k] = { x: a.x + (p.x - a.x) * lateral, y: a.y + (p.y - a.y) * lateral, z: a.z + (p.z - a.z) * body };
-  }
-  return out;
+// LEGACY `manifest.proportions` — the chibi rig that predated figure-cast.js. It shrank every
+// body landmark's offset from the neck and left the head full size. The cast is the general
+// form of the same move (and reaches the anatomical body too, which this never did), so a
+// stored `proportions` migrates to the equivalent cast dials on read and nothing re-mints.
+// `body` scaled the vertical drop, `lateral` the sideways spread; `anchor`/`headLift` had no
+// analogue and are dropped — the cast re-seats on the floor instead of hanging off the neck.
+function legacyProportionsCast(proportions) {
+  if (!proportions) return null;
+  const { body = 0.5, lateral = 0.82 } = (proportions === true ? {} : proportions);
+  return { torso: body, neck: body, limb: body, shoulderSpan: lateral, hipSpan: lateral };
+}
+
+// The BODY half of a stored recipe — everything buildPosedFigure needs that is not the pose or
+// the garment. One reader, so a new body dial reaches every render path at once (still, frames,
+// world, rig-bake, pattern report) instead of being threaded through six argument lists.
+function manifestBody(manifest = {}) {
+  return {
+    fluffs: manifest.fluffs || null,
+    hold: manifest.hold || null,
+    attachments: Array.isArray(manifest.attachments) ? manifest.attachments : null,
+    hair: manifest.hair || null,
+    cast: manifest.cast || legacyProportionsCast(manifest.proportions),
+    fluffQuality: manifest.fluffQuality || 1,
+    weld: manifest.weld || null,
+  };
+}
+// The rest armature a manifest's figure is cast from — what the gait converts a ground stride
+// against, so a long-legged cast strides instead of mincing.
+function manifestBase(manifest = {}) {
+  const cast = manifestBody(manifest).cast;
+  return cast ? castArmature(cast) : null;
 }
 
 // Rigid vertical translation of the whole figure (root lift, in PROTO_SCALE units).
@@ -129,11 +142,13 @@ function offRest(spine, hinge, full, balanced) {
  * Exported for the declared-coordinate layer (animation-cheats.plan.md):
  * OpenPose skeletons and joint anchors are projections of THESE nodes.
  */
-export function balancedArmature(pose = {}, full = articulate(pose)) {
+export function balancedArmature(pose = {}, full = null, base = null) {
+  const F = full || articulate(pose, base);
   const { weight = 0, support = 'both', crouch = 0, kneeOut = 0, plant = null } = pose || {};
-  if (support === 'none') return full;
+  if (support === 'none') return F;
   const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
-  return plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut });
+  // The IK solves on the CAST's bone lengths (base), or the canonical ones when there is no cast.
+  return plant ? groundVault(F, { plant, ...(base ? { base } : {}) }) : groundBalance(F, { feet, weight, crouch, kneeOut, ...(base ? { base } : {}) });
 }
 
 /**
@@ -195,10 +210,17 @@ function buildHeldShield(nodes, hold) {
   return [{ id: 'shield:' + side, faces }];
 }
 
-export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs = null, hold = null, hair = null, proportions = null, fluffQuality = 1, weld = null) {
-  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, ...limbs } = pose || {};
-  const full = articulate(pose);          // spine + limbs (pure FK, feet float)
-  const balanced = balancedArmature(pose, full);
+export function buildPosedFigure(pose = {}, proto = {}, garment = null, opts = {}) {
+  const { fluffs = null, hold = null, attachments = null, hair = null, cast = null, fluffQuality = 1, weld = null } = opts || {};
+  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, face = null, ...limbs } = pose || {};
+  // THE CAST (figure-cast.js): the rest armature this figure is built on. Every kinematic pass
+  // below takes it — FK, the balance IK's bone lengths, the spine warp's S0 and the arm's anchor
+  // height — so proportions are satisfied at the vajra level and the flesh just follows. null =
+  // the canonical armature, and every pass is bit-identical to what it did before casts existed.
+  const base = cast ? castArmature(cast) : null;
+  const rest = base || basePositions();
+  const full = articulate(pose, base);    // spine + limbs (pure FK, feet float)
+  const balanced = balancedArmature(pose, full, base);
 
   // The trunk + girdle + arms are built on the LIMBS-posed, STRAIGHT-spine,
   // UN-HINGED, PRE-balance armature: the trunk builders read only z-heights/widths
@@ -213,7 +235,7 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   // One build: trunk + girdle + arms on the rest frame (warped below), legs+feet
   // on the balanced ground-IK nodes (passed through the warp). buildProtoform's
   // legNodes override does this in a single pass.
-  const restPos = articulate(limbs);
+  const restPos = articulate(limbs, base);
   const legPos = { ...restPos };
   for (const k of GROUNDED_NODES) legPos[k] = { ...balanced[k] };
   // `plant` pins the foot to the floor (position); `footFlat` (default → plant, and 1 when
@@ -242,8 +264,10 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
     // balanced ground-IK ankles.
     const fluffPos = { ...restPos };
     for (const k of GROUNDED_NODES) fluffPos[k] = legPos[k];
-    // Chibi rig: compress the skeleton to mascot proportions before the shapes bind.
-    const boundPos = proportions ? chibiRig(fluffPos, proportions) : fluffPos;
+    // The skeleton the shapes bind to is already cast (articulate took the base above), so the
+    // fluff girths — which are absolute — stay chunky while the skeleton compresses. This is
+    // what `manifest.proportions` reached for and only ever got on a fluff body.
+    const boundPos = fluffPos;
     // fluffQuality scales the tessellation off the defaults (14 rings × 24 samples ×
     // 10 latitude) — >1 rounds the beads/pipes (smoother spheres, finer joint seams)
     // at a polygon cost. 1 = the byte-identical default.
@@ -271,7 +295,7 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
     }, {
       L: { flex: wfL.flex || 0, deviation: wfL.deviation || 0, curl: limbs.fingersL || 0 },
       R: { flex: wfR.flex || 0, deviation: wfR.deviation || 0, curl: limbs.fingersR || 0 },
-    });
+    }, face);   // `face` = { jaw, mouth, brow } — the head field's dials (figure-head.js); not a joint
   }
 
   // Warp whenever the figure is off its rest pose. S0 = the straight rest spine the
@@ -280,8 +304,8 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   // (balanced) legs instead of floating. The arms ride the shoulder girdle rigidly;
   // the grounded lower-body stacks pass through unchanged. Rest → S0≡S1 → identity.
   if (offRest(spine, hinge, full, balanced)) {
-    const deformer = spineDeformerFromNodes(basePositions(), balanced);
-    body = warpStacks(body, deformer, { anchors: spineArmAnchors(), skip: GROUNDED_STACKS });
+    const deformer = spineDeformerFromNodes(rest, balanced);
+    body = warpStacks(body, deformer, { anchors: spineArmAnchors(rest), skip: GROUNDED_STACKS });
   }
   // Squash & stretch: a volume-preserving deform about the feet (the weight
   // principle). Applied last, over the whole flesh, so garments built from it
@@ -308,7 +332,7 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   // at rest the posed body IS the stand body. Shells never read it — nothing changes for them.
   const wearsPattern = specs.some((s) => Array.isArray(s.pieces) && s.pieces.some((p) => p && p.fit === 'pattern'));
   const standBody = wearsPattern && Object.keys(pose || {}).length
-    ? buildPosedFigure({}, proto, null, fluffs, null, null, proportions, fluffQuality, weld).filter((s) => s.flesh)
+    ? buildPosedFigure({}, proto, null, { fluffs, cast, fluffQuality, weld }).filter((s) => s.flesh)
     : body;
   // THE LAYERING RULE: every stack already worn (shells and pattern pieces alike) is handed to the
   // next garment as `under`, so an outer pattern layer is placed on the inner layer's hang.
@@ -355,6 +379,19 @@ export function buildPosedFigure(pose = {}, proto = {}, garment = null, fluffs =
   // ride the same root lift the body took so it stays in the hand off the ground.
   if (hold) {
     for (const st of buildHeldShield(balanced, hold)) {
+      if (lift) st.faces = st.faces.map((f) => ({
+        ...f, corners: f.corners.map((q) => ({ x: q.x, y: q.y, z: q.z + lift * PROTO_SCALE })),
+      }));
+      stacks.push(st);
+    }
+  }
+  // ATTACHMENTS (figure-attach.js): the general form of the held-shield seam — any workbench
+  // recipe on any landmark, riding the posed armature. This is what lets the BODY come from the
+  // figure family (a cast + a wardrobe, parametric and already posable) while the ACCESSORIES come
+  // from the object lane, where manufactured gear belongs. Mounted on `balanced` for the same
+  // reason the shield is, and given the same root lift so gear stays with the body off the ground.
+  if (attachments) {
+    for (const st of buildAttachments(balanced, attachments, PROTO_SCALE)) {
       if (lift) st.faces = st.faces.map((f) => ({
         ...f, corners: f.corners.map((q) => ({ x: q.x, y: q.y, z: q.z + lift * PROTO_SCALE })),
       }));
@@ -680,21 +717,78 @@ function recolorFlesh(stacks, fleshHex) {
   return stacks.map((s) => (s.hex === FLESH_HEX ? { ...s, hex: fleshHex } : s));
 }
 
+// ── the HEAD STUDY camera (figure-head.plan phase 0) ──
+// `crop: 'head'` keeps the head, the neck and whatever sits on the head (hair, a hat), and
+// `elev` (degrees) tilts the orbit so a top-down or under view is possible — the eight
+// /skull-study angles, for the human head. Mirrors renderAnimalToSvg's crop + animalCamera.
+// Both absent → the classic makeCamera path, byte for byte.
+const isHeadStack = (st, neckTopZ) => {
+  if (st.faces || st.fieldFaces || !st.rings) return false;
+  if (st.id === 'headEgg' || st.id === 'neck') return true;
+  if (st.flesh) return false;                               // body flesh never; hair / hat / props may
+  // anything that REACHES above the neck's top rides the head (a wig of any length, a hat, a hood)
+  let maxZ = -Infinity;
+  for (const rg of st.rings) for (const q of rg.polyline) if (q.z > maxZ) maxZ = q.z;
+  return maxZ >= neckTopZ - 1e-9;
+};
+function cropStacksToHead(stacks) {
+  const neck = stacks.find((s) => s.id === 'neck');
+  let neckTopZ = Infinity;
+  if (neck) { neckTopZ = -Infinity; for (const rg of neck.rings) for (const q of rg.polyline) if (q.z > neckTopZ) neckTopZ = q.z; }
+  return stacks.filter((s) => isHeadStack(s, neckTopZ));
+}
+// A self-framing two-point camera orbiting the shown stacks' world bbox (az from the view,
+// elev in degrees). Same screen-x un-mirror as makeCamera so left/right read the same.
+function orbitCamera(shown, view, elevDeg, groundZ) {
+  const V = worldVertex(shown, groundZ);
+  const bb = { mnx: Infinity, mny: Infinity, mnz: Infinity, mxx: -Infinity, mxy: -Infinity, mxz: -Infinity };
+  for (const st of shown) for (const rg of st.rings) for (const q of rg.polyline) {
+    const [x, y, z] = V(q);
+    if (x < bb.mnx) bb.mnx = x; if (y < bb.mny) bb.mny = y; if (z < bb.mnz) bb.mnz = z;
+    if (x > bb.mxx) bb.mxx = x; if (y > bb.mxy) bb.mxy = y; if (z > bb.mxz) bb.mxz = z;
+  }
+  const center = [(bb.mnx + bb.mxx) / 2, (bb.mny + bb.mxy) / 2, (bb.mnz + bb.mxz) / 2];
+  const radius = 0.5 * Math.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
+  const az = (viewAzimuth(view) * Math.PI) / 180, el = (elevDeg * Math.PI) / 180, R = radius * 3.2;
+  const CAM = [center[0] + R * Math.cos(el) * Math.sin(az), center[1] + R * Math.cos(el) * Math.cos(az), center[2] + R * Math.sin(el)];
+  // A plain PINHOLE, not the room's two-point projector: two-point keeps verticals vertical
+  // (and the room basis is built for a level camera), so from a steep elevation — a top or
+  // under view — the faces below the crown are pushed out past the silhouette as spikes. The
+  // study camera is a check pass, not a pinned emission, so it owns its own projection.
+  const fwd = unit3([center[0] - CAM[0], center[1] - CAM[1], center[2] - CAM[2]]);
+  const rightAx = unit3(Math.abs(fwd[2]) > 0.999 ? cross3(fwd, [0, 1, 0]) : cross3(fwd, [0, 0, 1]));
+  const upAx = cross3(rightAx, fwd);
+  const f = 500 / Math.tan((30 * Math.PI / 180) / 2);
+  const project = (p) => {
+    const v = [p[0] - CAM[0], p[1] - CAM[1], p[2] - CAM[2]];
+    const d = Math.max(1e-3, v[0] * fwd[0] + v[1] * fwd[1] + v[2] * fwd[2]);
+    const x = (v[0] * rightAx[0] + v[1] * rightAx[1] + v[2] * rightAx[2]) / d * f;
+    const y = (v[0] * upAx[0] + v[1] * upAx[1] + v[2] * upAx[2]) / d * f;
+    return [-(500 + x), 500 - y];   // screen-x un-mirrored like makeCamera
+  };
+  return { CAM, project };
+}
+
 /**
  * Render a single posed figure to a standalone SVG string. Pass a precomputed
  * `fit` (from a motion's locked framing) to keep the figure from rescaling.
+ * `manifest.crop = 'head'` and/or a finite `manifest.elev` switch to the head-study
+ * orbit camera (see above); absent, the render is the classic studio shot.
  */
 export function renderFigureToSvg(manifest = {}, fit = null, { control = false } = {}) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
-  const { CAM, project } = makeCamera(manifest.view);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifestGarment(manifest), manifestBody(manifest)), setup.fleshHex);
+  const crop = manifest.crop === 'head', elev = Number.isFinite(manifest.elev) ? manifest.elev : null;
+  const shown = crop ? cropStacksToHead(stacks) : stacks;
+  const groundZ = crop ? stackMinZ(stacks) : undefined;   // the cropped head keeps the figure's ground
+  const { CAM, project } = (crop || elev != null) ? orbitCamera(shown, manifest.view, elev ?? 8, groundZ) : makeCamera(manifest.view);
   // The control scaffold (skin seam) is ALWAYS the filled lit render — a wire
   // setup would fragment a diffusion skin (the polygomer-skin lesson).
   if (setup.mode === 'wire' && !control) {
-    const { lines, bb } = projectWire(stacks, project);
+    const { lines, bb } = projectWire(shown, project, groundZ);
     return svgDoc(drawWire(lines, fit || fitFor(bb, VB_W, VB_H, PAD), setup.wireStroke), setup.bg);
   }
-  const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
+  const { proj, bb } = projectFaces(litFaces(shown, CAM, setup.light, groundZ), project);
   return svgDoc(drawPolys(proj, fit || fitFor(bb, VB_W, VB_H, PAD), { control }), setup.bg);
 }
 
@@ -709,13 +803,13 @@ export function renderFigureToSvg(manifest = {}, fit = null, { control = false }
  */
 export function renderFigureWithArmature(manifest = {}, fit = null) {
   const setup = resolveSetup(manifest);
-  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
+  const stacks = recolorFlesh(buildPosedFigure(manifest.pose, manifest.proto, manifestGarment(manifest), manifestBody(manifest)), setup.fleshHex);
   const { CAM, project } = makeCamera(manifest.view);
   const { proj, bb } = projectFaces(litFaces(stacks, CAM, setup.light), project);
   const F = fit || fitFor(bb, VB_W, VB_H, PAD);
   const svg = svgDoc(drawPolys(proj, F), setup.bg);
   const pose = manifest.pose || {};
-  const arm = balancedArmature(pose);
+  const arm = balancedArmature(pose, null, manifestBase(manifest));
   const lift = pose.lift || 0;                     // liftStacks moved the flesh; move the nodes with it
   const minZ = stackMinZ(stacks);                  // same ground plant as worldVertex
   const nodes = {};
@@ -965,10 +1059,10 @@ const MOTIONS = { walk: gait(WALK_DEFAULTS), wave: wavePose, stretch: stretchPos
 // figure-emotes library; everything else — 'walk', a parameterized gait/walk
 // spec, a keyframe-motion spec, a function, a `perform`-wrapped motion — goes
 // through figure-posing's resolveMotion, the shared motion front door.
-const motionFn = (m, frames) => {
+const motionFn = (m, frames, base = null) => {
   if (m === 'wave' || m === 'stretch') return MOTIONS[m];
   if (isEmoteSpec(m)) return emoteMotion(m, { frames });
-  return resolveMotion(m, { frames });
+  return resolveMotion(m, { frames, base });
 };
 export function figureIsAnimated(manifest) { return !!(manifest && motionFn(manifest.motion)); }
 
@@ -998,7 +1092,7 @@ export function sampleMotionPose(motion, u = 0, frames = 30) {
  * stays put instead of rescaling/jittering as the limbs move.
  */
 export function renderFigureFrames(manifest = {}, frames = 30) {
-  const move = motionFn(manifest.motion, frames);
+  const move = motionFn(manifest.motion, frames, manifestBase(manifest));
   if (!move) return [renderFigureToSvg(manifest)];
   const setup = resolveSetup(manifest);
   const wire = setup.mode === 'wire';
@@ -1012,7 +1106,7 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
   let groundZ = Infinity;
   for (let i = 0; i < frames; i++) {
     const pose = { ...(manifest.pose || {}), ...move(i / frames) };
-    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
+    const stacks = recolorFlesh(buildPosedFigure(pose, manifest.proto, manifestGarment(manifest), manifestBody(manifest)), setup.fleshHex);
     built.push(stacks);
     const mz = stackMinZ(stacks);
     if (mz < groundZ) groundZ = mz;
@@ -1054,9 +1148,9 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
 export function figureRigSamples(manifest = {}, keys = 8) {
   const setup = resolveSetup(manifest);
   const { CAM } = makeCamera(manifest.view);
-  const move = motionFn(manifest.motion || 'walk', keys);
+  const move = motionFn(manifest.motion || 'walk', keys, manifestBase(manifest));
   const restPose = manifest.pose || {};
-  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex);
+  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifestGarment(manifest), manifestBody(manifest)), setup.fleshHex);
   const groundZ = stackMinZ(restStacks);
   const V = worldVertex(restStacks, groundZ);
   // manifest.skin (skin-over-mesh.plan.md phase 1): recipe-emitted cylindrical UVs on the
@@ -1090,12 +1184,12 @@ export function figureRigSamples(manifest = {}, keys = 8) {
 export function renderFigureWorldFrames(manifest = {}, frames = 30) {
   const setup = resolveSetup(manifest);
   const { CAM } = makeCamera(manifest.view);
-  const move = motionFn(manifest.motion, frames);
+  const move = motionFn(manifest.motion, frames, manifestBase(manifest));
   const poses = move
     ? Array.from({ length: frames }, (_, i) => ({ ...(manifest.pose || {}), ...move(i / frames) }))
     : [manifest.pose || {}];
   // Pass 1: build every frame; share the lowest ground contact across the motion.
-  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifestGarment(manifest), manifest.fluffs, manifest.hold, manifest.hair, manifest.proportions, manifest.fluffQuality, manifest.weld), setup.fleshHex));
+  const built = poses.map((pose) => recolorFlesh(buildPosedFigure(pose, manifest.proto, manifestGarment(manifest), manifestBody(manifest)), setup.fleshHex));
   let groundZ = Infinity;
   for (const stacks of built) { const mz = stackMinZ(stacks); if (mz < groundZ) groundZ = mz; }
   // Pass 2: mesh each frame to world faces — no projection, no cull → orbitable.
@@ -1119,7 +1213,8 @@ export function figurePatternReport(manifest = {}) {
   const specs = garmentList(manifestGarment(manifest)).map((g) => (g && typeof g === 'object' ? g : GARMENTS[g])).filter(Boolean);
   const isPattern = (s) => Array.isArray(s.pieces) && s.pieces.some((p) => p && p.fit === 'pattern');
   if (!specs.some(isPattern)) return null;
-  const bare = (pose) => buildPosedFigure(pose, manifest.proto || {}, null, manifest.fluffs || null, null, null, manifest.proportions || null, 1, manifest.weld || null).filter((s) => s.flesh);
+  const { fluffs, cast, weld } = manifestBody(manifest);
+  const bare = (pose) => buildPosedFigure(pose, manifest.proto || {}, null, { fluffs, cast, weld }).filter((s) => s.flesh);
   const body = bare(manifest.pose || {});
   const standBody = Object.keys(manifest.pose || {}).length ? bare({}) : body;   // drafted on the stand, worn on the pose
   // the layers are worn in order, as the render wears them: every layer (shells included) is

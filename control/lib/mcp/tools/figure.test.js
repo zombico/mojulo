@@ -97,6 +97,10 @@ describe('create_figure', () => {
     await expect(createFigureHandler({ title: 'x', view: 'isometric' })).rejects.toThrow(/view/);
     await expect(createFigureHandler({ title: 'x', motion: 'backflip' })).rejects.toThrow(/motion/);
     await expect(createFigureHandler({ title: 'x', setup: 'noir' })).rejects.toThrow(/setup/);
+    // the cast refuses a broken skeleton and an unknown preset, before anything is stored
+    await expect(createFigureHandler({ title: 'x', cast: 'hulk' })).rejects.toThrow(/unknown preset/);
+    await expect(createFigureHandler({ title: 'x', cast: { thigh: 0 } })).rejects.toThrow(/finite number > 0/);
+    await expect(createFigureHandler({ title: 'x', cast: { bicep: 2 } })).rejects.toThrow(/unknown dial/);
   });
 
   it('no setup renders byte-identically to the default (back-compat)', () => {

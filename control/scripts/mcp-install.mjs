@@ -88,7 +88,7 @@ function printStatus() {
       + (chatbotInstalled()
         ? ''
         : 'Run `mojulo install chatbot` to add the bot factory (build/deploy/operate chatbots).\n'
-          + 'It is opt-in since 2.0 — mojulo is a 3D factory first.\n')
+          + 'It is opt-in since 2.0 — mojulo is a 3D compiler first.\n')
       + (creative && chatbotInstalled() ? 'Everything installed — nothing to add.\n' : ''),
   );
 }

@@ -23,6 +23,8 @@ function headFrame(body) {
   hx /= n; hy /= n;
   for (const r of head.rings) for (const p of r.polyline) { if (p.z > crownZ) crownZ = p.z; headR += Math.hypot(p.x - r.center.x, p.y - r.center.y); rc++; }
   const prof = head.rings.map((r) => { let s = 0, m = 0; for (const p of r.polyline) { s += Math.hypot(p.x - r.center.x, p.y - r.center.y); m++; } return { z: r.center.z, r: s / m }; }).sort((a, b) => a.z - b.z);
+  // headR averaged over HEIGHT, not over rings (the head's rings are latitudes — see wig.js)
+  { let numr = 0, den = 0; for (let i = 1; i < prof.length; i++) { const dz = prof[i].z - prof[i - 1].z; numr += (prof[i].r + prof[i - 1].r) / 2 * dz; den += dz; } if (den > 0) { headR = numr / den; rc = 1; } }
   const radiusAt = (z) => { if (z <= prof[0].z) return prof[0].r; if (z >= prof[prof.length - 1].z) return prof[prof.length - 1].r; for (let i = 0; i < prof.length - 1; i++) if (z >= prof[i].z && z <= prof[i + 1].z) { const t = (z - prof[i].z) / ((prof[i + 1].z - prof[i].z) || 1); return prof[i].r + (prof[i + 1].r - prof[i].r) * t; } return prof[prof.length - 1].r; };
   return { hx, hy, crownZ, headR: headR / rc, radiusAt };
 }
