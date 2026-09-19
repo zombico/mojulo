@@ -337,12 +337,15 @@ describe('update_sketch { readout } — what an edit hands back (Phase 3)', () =
 
   it('warnings already on the previous revision collapse to one counted line; a new one is spelled out', async () => {
     await mintNe410('ne410-warn');
-    // MZ-NE410 carries two standing advisories (an open relief, the cut's edge rounding)
+    // MZ-NE410 carries THREE standing advisories: an open relief, the cut's edge rounding, and —
+    // since the field-contribution gate landed — its `spindle` term, which measures 0% exposed
+    // inside the body union. The count is what this test is about, not the findings; the spindle
+    // is a real one and stands until the fixture's recipe is the thing being fixed.
     const r1 = await updateSketchHandler({ ref: 'ne410-warn', patch: [{ op: 'set', id: 'menu', material: 'chrome' }] });
-    expect(r1.stats.warnings).toEqual(['2 warnings unchanged from rev 1']);
+    expect(r1.stats.warnings).toEqual(['3 warnings unchanged from rev 1']);
     // a coarser cut re-words its edge-rounding advisory: a NEW line beside the collapsed count
     const r2 = await updateSketchHandler({ ref: 'ne410-warn', patch: [{ op: 'set', path: '/cuts/0/cells', value: 32 }] });
-    expect(r2.stats.warnings.at(-1)).toBe('1 warning unchanged from rev 2');
+    expect(r2.stats.warnings.at(-1)).toBe('2 warnings unchanged from rev 2');
     expect(r2.stats.warnings.length).toBe(2);
     expect(r2.stats.warnings[0]).toMatch(/cut 'dialglyphs'/);
   });

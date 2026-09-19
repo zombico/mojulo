@@ -1,6 +1,6 @@
 ---
 name: figure-study
-description: Render the protoform human figure (male/female) as multi-view vexar studies — the whole body, or a focused piece like the bust — for visual analysis. Two modes: filled (lit mesh) and golden-ratio ring-wave wireframe (verify a region's construction before filling it). Use when asked to "render/view/analyze the figure", "show the female form", "study the bust / <region>", to compare male|female, or after editing the figure builders. Invoke as `/figure-study <study-name>`.
+description: Render the protoform human figure (male/female) as multi-view vexar studies — the whole body, or a focused piece like the bust — for visual analysis. Two modes: filled (lit mesh) and golden-ratio ring-wave wireframe (verify a region's construction before filling it). Also renders PROPORTION CASTS (figure-cast.js: heroic / brute / lithe / stout / child / chibi, or your own dials) as a contact sheet with a measurements table — use that after touching figure-cast.js, a cast preset, or any limb/segment length dial. Use when asked to "render/view/analyze the figure", "show the female form", "study the bust / <region>", "compare the casts / proportions / body types", to compare male|female, or after editing the figure builders. Invoke as `/figure-study <study-name>` or `/figure-study --casts [preset...]`.
 ---
 
 # figure-study
@@ -25,6 +25,31 @@ Examples:
 - `… study.mjs 13-dimorphism-pair` — male | female side by side (the dimorphism axis).
 - `… study.mjs 15-female-vexar-bust-study` — a focused piece (wireframe wave-build).
 - `… study.mjs 12-proto-sweep` — the stockiness tuning sweep.
+
+## The cast study (proportions)
+
+A separate entry point for the PROPORTION layer — `cast` (figure-cast.js) rather than the body
+builders. It renders through the production renderer, not the spike, so what you see is what a
+minted figure is.
+
+```bash
+node .claude/skills/figure-study/cast-study.mjs [<preset>...] [--cast '{…}'] [--proto '{…}']
+                                                [--pose '{…}'] [--garment <key>] [--no-dressed]
+                                                [--sex male|female] [--out dir]
+```
+
+Every preset (or the ones you name) × sex × front·¾·lateral, plus a dressed ¾ so the tailoring is
+judged on the same body, into one sheet — **then Read the printed PNG**. It also prints a table of
+height / leg / arm / ape-index / shoulderSpan per row, because each panel is auto-fit to its own
+figure: the sheet shows proportion honestly and stature not at all. Read the numbers for stature.
+
+- `… cast-study.mjs` — every preset, both poles (the full sheet).
+- `… cast-study.mjs brute --proto '{"stockiness":1.35,"chestWidth":1.5,"bicep":1.6}'` — the hulk
+  read: proportion from the cast, mass from proto. Judge them together; neither is the figure alone.
+- `… cast-study.mjs canonical --cast '{"forearm":1.4,"shoulderSpan":1.2}'` — a custom cast beside
+  the canonical figure, which is the comparison that tells you whether a dial did what you meant.
+- `… cast-study.mjs chibi --proto '{"headScale":1.4}'` — the mascot; `chibi` compresses the
+  skeleton, `headScale` is what makes the head read big.
 
 ## The studies (outputs)
 

@@ -175,7 +175,7 @@ describe('the scalp readers still seat on the skull', () => {
     it(`${sex}: every wig and hat builds and rises to the crown`, () => {   // hats via hat.js directly (not a manifest channel)
       const crownZ = Math.max(...pts(head(buildPosedFigure({}, { sex }))).map((q) => q.z));
       for (const style of Object.keys(WIGS)) {
-        const stacks = buildPosedFigure({}, { sex }, null, null, null, style);
+        const stacks = buildPosedFigure({}, { sex }, null, { hair: style });
         const hair = stacks.filter((s) => !s.flesh && s.rings);
         expect(hair.length, `${sex} wig ${style}`).toBeGreaterThan(0);
         expect(Math.max(...hair.flatMap(pts).map((q) => q.z)), `${sex} wig ${style} above the crown`).toBeGreaterThan(crownZ - 0.3);

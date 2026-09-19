@@ -16,6 +16,7 @@
  * `joints` (hinge limits from the armature `LIMITS`), `symmetry`, `roles`.
  */
 import { FIGURE_NODES, LIMITS, articulate } from './figure-vajra.js';
+import { castArmature, resolveCast } from './figure-cast.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
@@ -34,11 +35,13 @@ export const DIMORPH = {
     head: { brow: 0.45, jawWidth: 0.88, jawDrop: 0.85, chinPoint: 1.6, chinSize: 0.78, foreheadSlope: 0.35, cranialRound: 1.08, noseSize: 0.82, noseWidth: 0.9, noseDroop: 0.7, cheekbone: 1.25, cheek: 1.3, size: 0.96, neckGirth: 0.86 } },
 };
 
-// World-space slots: armature neutral → dimorphic shoulder/hip proportions (limbs
-// follow; legs only partway so the thighs angle inward) → world-space limb
-// extensions (forearm +40%, thigh +15%, calf +20%) + feet. Matches the geometry.
-function worldSlots(dim) {
-  const A = articulate({ kneeL: 6, kneeR: 6, elbowL: 12, elbowR: 12 });
+// World-space slots: the CAST rest armature (figure-cast.js; null → canonical) → armature
+// neutral → dimorphic shoulder/hip proportions (limbs follow; legs only partway so the thighs
+// angle inward) → world-space limb extensions (forearm +40%, thigh +15%, calf +20%) + feet.
+// Matches the geometry: the flesh applies the same three extensions off the same base, so a
+// cast figure's rig slots and its joints stay on top of each other.
+function worldSlots(dim, base = null) {
+  const A = articulate({ kneeL: 6, kneeR: 6, elbowL: 12, elbowR: 12 }, base);
   const w = {};
   for (const k of Object.keys(FIGURE_NODES)) w[k] = { ...A[k] };
   for (const L of ['L', 'R']) {
@@ -62,16 +65,19 @@ function worldSlots(dim) {
 
 const SAGITTAL = [1, 0, 0];   // knee/elbow/ankle hinge axis (sagittal plane)
 
-// Build the L0–L2 rig for a dimorphic pole. Kinematics (chains/joints/limits) are
-// shared — only the slots (shoulder/hip proportions) and the chest form differ.
-function buildRig(dim) {
+// Build the L0–L2 rig for a dimorphic pole, optionally at a CAST's proportions. Kinematics
+// (chains/joints/limits/LIMITS) are shared — a cast moves rest LENGTHS and girdle spans, never
+// the joint graph — so only the slots and the chest form differ.
+export function buildRig(dim, cast = null) {
+  const base = cast ? castArmature(cast) : null;
   return {
     id: `protoform-human-${dim.sex}`,
     tier: 'mechanical',
     archetype: 'biped',
     frame: { up: [0, 0, 1], forward: [0, 1, 0] },   // z up, +y front — places the camera so frontal is correct
     dimorph: { ...dim },                             // the adjustment set that produced this pole
-    slots: worldSlots(dim),
+    ...(cast ? { cast: resolveCast(cast) } : {}),    // the proportions this rig was cast at
+    slots: worldSlots(dim, base),
     ground: ['heelL', 'toeL', 'heelR', 'toeR'],
     parts: { head: { from: 'neckHub', to: 'headTop' }, torso: { from: 'pelvisHub', to: 'neckHub' } },
     chains: {
