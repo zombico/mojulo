@@ -12,6 +12,34 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+## [2.0.6] - 2026-09-20
+
+### Fresh installs get a working dashboard
+
+- **Fixed: a clean `npm install mojulo@2.0.5` shipped a dashboard whose sketch list, render routes
+  and embedding backfill all failed at module load** with `Cannot read properties of undefined
+  (reading 'output')`. The standalone bundle is traced from the maintainer lockfile and carried a
+  nested `sharp` 0.34.5, while the package deliberately strips sharp's native `@img/*` binaries so the
+  hoisted copy from the user's install is the one that loads. Sharp is only a transitive dependency,
+  and a fresh install today resolves `@huggingface/transformers` 4.3.0 → sharp 0.35.4, so 0.34.5
+  JavaScript loaded 0.35.4 binaries and died on the first call. It never reproduced on the
+  maintainer's machine because the npx caches there predate sharp 0.35.4 (2026-08-26) and the dev
+  tree uses the lockfile. The rule the `files` list now follows: **a native package and everything
+  that hard-pairs with it come from ONE place, the hoisted install.** `sharp`, `onnxruntime-common`
+  and `@huggingface/transformers` join `better-sqlite3`, `@img`, `onnxruntime-node` and
+  `node-web-audio-api` in the standalone exclusions. Already on 2.0.5: `npx mojulo@latest init`
+  builds a fresh tree.
+- **Fixed: the npm package was 639 MB unpacked (245 MB at 2.0.2).** 502 MB of it was 154 Next.js
+  `.nft.json` output-trace manifests, build-time inputs the running server never reads. They are
+  excluded; the dashboard boots and serves without them. 2.0.6 packs at 27 MB on the wire and
+  110 MB unpacked; a cold install lands at about 885 MB before the embedding model.
+- **Added: `npm run smoke:tarball`** (`scripts/smoke-cold-install.mjs`) — packs, installs the tarball
+  into an empty temp directory, runs `mojulo call version`, boots `mojulo-ui` on a free port, reads
+  `/api/sketches`, mints a floorplan through the CLI and fetches its SVG, and reports any
+  nested-vs-hoisted version mismatch for the native pairs plus the unpacked size. It is the release
+  gate this bug needed: verifying through the npx cache reuses an old tree and hides exactly this
+  class of failure. Machine gate; advisory on the mismatch report, hard failure on a dead route.
+
 ## [2.0.5] - 2026-09-19
 
 ### vajra-sculpt — a character as hand-placed field terms, print-closed

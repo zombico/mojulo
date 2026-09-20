@@ -10,5 +10,5 @@ npm package and Claude Code runs it over stdio.
 ```
 
 Then, in a fresh session: "what is this?" — mojulo orients itself. Requires Node.js 22.12+.
-The first run downloads the package (~35 MB) and its dependencies (~970 MB on disk); see
+The first run downloads the package (~27 MB) and its dependencies (~885 MB on disk); see
 https://mojulo.ai/start#requirements.

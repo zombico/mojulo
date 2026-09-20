@@ -39,22 +39,25 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 
 ## Package size and disk footprint
 
-Measured **2026-09-11** against the published `mojulo@2.0.2` tarball (6,456 files) cold-installed
-into an empty directory on macOS arm64. The 1.5.0 figures it replaces were
-26.2 MB / 117 MB / ~740 MB / ~850 MB; the jump is the 2.0 dashboard and kernels in the package
-itself (117 → 245 MB unpacked) plus `onnxruntime-web` (130 MB) arriving as a transitive
-dependency of the embedder.
+Measured **2026-09-20** against the packed `mojulo@2.0.6` tarball (6,298 files) cold-installed
+into an empty directory on macOS arm64 by `npm run smoke:tarball`, which is how these numbers are
+re-measured for every release. The 2.0.2 figures it replaces were 35.8 MB / 245 MB / ~735 MB /
+~985 MB. Versions 2.0.3 through 2.0.5 shipped 639 MB unpacked because 502 MB of Next.js `.nft.json`
+build-trace manifests rode along in the standalone bundle; they are excluded from 2.0.6, and the
+bundle also stopped carrying its own copies of `sharp`, `onnxruntime-common` and
+`@huggingface/transformers` (the hoisted install supplies them, matching their native binaries).
+`onnxruntime-web` (130 MB) still arrives as a transitive dependency of the embedder.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **35.8 MB** | `mojulo-2.0.2.tgz` |
-| Unpacked package | **245 MB** | Includes the prebuilt Next.js dashboard (`.next/standalone`), translations, and the bot-runtime template. |
-| Production dependencies npm installs | **~735 MB** | Measured from a cold install of the tarball on macOS arm64. Breakdown below. |
-| **Total after `npx mojulo init`** | **~985 MB** | Before any model or browser download. |
+| npm tarball (what `npx` downloads) | **27.3 MB** | `mojulo-2.0.6.tgz` |
+| Unpacked package | **110 MB** | Includes the prebuilt Next.js dashboard (`.next/standalone`), translations, and the bot-runtime template. |
+| Production dependencies npm installs | **~775 MB** | Measured from a cold install of the tarball on macOS arm64. Breakdown below. |
+| **Total after `npx mojulo init`** | **~885 MB** | Before any model or browser download. |
 | Embedding model (first launch) | **~130 MB** on disk | `Xenova/multilingual-e5-small`, q8 ONNX, fetched once into `~/.mojulo/models/`. Powers `semantic_search`; runs in-process. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 
-**Why the dependencies are ~730 MB.** The largest pieces, all runtime deps of the kernel unless noted:
+**Why the dependencies are ~775 MB.** The largest pieces, all runtime deps of the kernel unless noted:
 
 | Dependency | Size | Why it's there |
 |---|---|---|

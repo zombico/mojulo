@@ -22,7 +22,7 @@ here. [lite-template/](lite-template/) is the runtime for the opt-in chatbot pac
 
 - Current state of the branch: the Unreleased section of [control/CHANGELOG.md](control/CHANGELOG.md).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
-- Version: `package.json` says 2.0.5 (released 2026-09-19; the chatbot pack is opt-in since 2.0.0).
+- Version: `package.json` says 2.0.6 (released 2026-09-20; 2.0.5 is broken on fresh installs, see the changelog; the chatbot pack is opt-in since 2.0.0).
   Unreleased is empty at the tag; new work goes under it as `###` themes.
 - Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
@@ -97,8 +97,9 @@ On merge the plan moves to `plan-archive/`. Nothing tracked may cite a plan path
 
 ## Release
 
-Control plane: add `## [X.Y.Z] - YYYY-MM-DD` to the changelog, commit, tag `vX.Y.Z`; the workflow slices
-that section. Bot image: tag `bot-vX.Y.Z`; control pins exact bot tags, never `:latest`. `bot-v*` tags do
+Control plane: add `## [X.Y.Z] - YYYY-MM-DD` to the changelog, run `npm run smoke:tarball` (packs, installs
+the tarball into an empty temp dir, boots the dashboard; the npx cache reuses old trees and hides
+fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section. Bot image: tag `bot-vX.Y.Z`; control pins exact bot tags, never `:latest`. `bot-v*` tags do
 not release the control plane.
 
 ## Data and native landmines

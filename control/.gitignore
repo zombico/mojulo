@@ -34,3 +34,5 @@ lib/graph/mobile-suit/*
 # Scratch prototyping scripts (underscore-prefixed) are local-only; they carried
 # absolute home-directory paths and were never load-bearing.
 scripts/_*.mjs
+# npm pack output; publish from it, never commit it.
+mojulo-*.tgz

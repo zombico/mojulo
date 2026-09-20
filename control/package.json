@@ -1,7 +1,7 @@
 {
   "name": "mojulo",
   "mcpName": "io.github.zombico/mojulo",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Mojulo — a 3D compiler for coding agents: a local MCP server where you build worlds, objects, and games by talking to the agent you already run (Claude Code, Codex, or any MCP host). Each one is stored as a small deterministic recipe on your own machine — the source, compiled back byte-for-byte and emitted as a game (Godot) or a printed object (STL). A compiler, not a generator; the recipe stays yours.",
@@ -78,7 +78,11 @@
     "!.next/standalone/node_modules/better-sqlite3/**",
     "!.next/standalone/node_modules/@img/**",
     "!.next/standalone/node_modules/onnxruntime-node/**",
-    "!.next/standalone/node_modules/node-web-audio-api/**"
+    "!.next/standalone/node_modules/node-web-audio-api/**",
+    "!.next/standalone/node_modules/sharp/**",
+    "!.next/standalone/node_modules/onnxruntime-common/**",
+    "!.next/standalone/node_modules/@huggingface/transformers/**",
+    "!.next/standalone/**/*.nft.json"
   ],
   "scripts": {
     "dev": "next dev -p 3001 --webpack",
@@ -94,7 +98,8 @@
     "fetch-models": "node scripts/fetch-embed-model.js",
     "gen-app": "node scripts/gen-app.js",
     "prepack": "node scripts/stage-lite-template.mjs && NODE_OPTIONS=--max-old-space-size=8192 next build --webpack && node scripts/stage-standalone.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke:tarball": "node scripts/smoke-cold-install.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

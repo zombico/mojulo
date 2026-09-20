@@ -63,8 +63,8 @@ npx mojulo init
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
-First install is the big one: npx pulls a ~36 MB tarball plus its native dependencies
-(measured at about 985 MB on disk), and the first launch fetches a ~130 MB embedding
+First install is the big one: npx pulls a ~27 MB tarball plus its native dependencies
+(measured at about 885 MB on disk), and the first launch fetches a ~130 MB embedding
 model in the background. Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 

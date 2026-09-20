@@ -16,7 +16,7 @@ npx mojulo init
 
 Needs **Node 22.12+** and an MCP-capable coding agent (Claude Code or Codex; Claude Desktop works too). `init` finds the hosts on your machine, asks once per host, and opens the dashboard at `http://localhost:3001`. Everything lands in `~/.mojulo/`. Then open a fresh agent session and ask: **"what is this?"**
 
-The first install is the big one: npx pulls a ~36 MB tarball whose native dependencies land at about 985 MB on disk, and the first launch fetches a ~130 MB embedding model. Most of that is `onnxruntime-node` (the local search model) and `puppeteer-core` (local headless Chrome for stills). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon); Linux runs the test suite in CI; Windows was verified natively under Claude Code.
+The first install is the big one: npx pulls a ~27 MB tarball whose native dependencies land at about 885 MB on disk, and the first launch fetches a ~130 MB embedding model. Most of that is `onnxruntime-node` (the local search model) and `puppeteer-core` (local headless Chrome for stills). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon); Linux runs the test suite in CI; Windows was verified natively under Claude Code.
 
 <details>
 <summary>Wire it by hand instead</summary>
