@@ -74,8 +74,10 @@ bundle also stopped carrying its own copies of `sharp`, `onnxruntime-common` and
 | `openscad-wasm-prebuilt` | 11 MB | OpenSCAD 2025.01.19 as WASM with the Manifold backend: the in-process mesher for `mint_solid kind:'scad'` and the exact twin behind `exact: true`. A fresh instance per render, about 210 MB RSS while one runs. Creative group, optional; a stored `scad` row cannot render without it. |
 
 **Lean install.** `npm install --omit=optional` sheds the four creative deps (~86 MB) and turns the
-creative tools off; `mojulo install creative` adds them back. See
-[install-capabilities.md](install-capabilities.md).
+creative tools off; it can also leave `sharp` without its native binary (`@img/sharp-<platform>`
+is an optional dependency). The kernel and the CLI still run: `sharp` is loaded on first use, so
+only the raster tools fail, in-band, naming `npm install sharp`. `mojulo install creative` adds
+everything back. See [install-capabilities.md](install-capabilities.md).
 
 ### Downloads that happen later, on first use only
 
@@ -239,14 +241,24 @@ Full requirements and deploy options: [chatbot/README.md](chatbot/README.md).
   engine gates and the export legs are still unverified there.
 - **Linux**: the test suite runs on Ubuntu in CI, and a cold install of the 2.0.1 tarball was
   checked on 2026-09-10 in `node:22` containers on x64 and arm64 (install exits clean, the
-  `better-sqlite3` prebuilt loads, `mojulo tools` lists). Chrome and Chromium are detected at the usual `/usr/bin` and snap paths; the
-  app-runtime daemon has a systemd user-unit recipe in [app-runtime.md](app-runtime.md). Same
-  env-var story for engines; not verified.
+  `better-sqlite3` prebuilt loads, `mojulo tools` lists). On 2026-09-21 the published 2.0.6
+  tarball was driven end to end from an ephemeral Linux x64 sandbox on Node 24.15 by a chat agent
+  with no MCP binding and no browser: cold install from registry.npmjs.org with `--omit=optional`
+  (then `sharp` added by hand — the 2.0.6 CLI would not start without it; the Unreleased
+  changelog carries the fix), `compose_world` for a city, `export_model` to GLB. Re-minting that
+  recipe on macOS gives byte-identical geometry, index, colour and UV buffers; the one embedded
+  texture PNG is pixel-identical but its deflate stream differs (see the determinism caveat
+  under [Where it goes](../README.md#where-it-goes)). Still unverified on Linux: the dashboard,
+  the embedder, the stdio MCP transport under a host, the Chrome bake, and the engine gates.
+  Chrome and Chromium are detected at the usual `/usr/bin` and snap paths; the app-runtime
+  daemon has a systemd user-unit recipe in [app-runtime.md](app-runtime.md). Same env-var story
+  for engines; not verified.
 - **Native modules**: `better-sqlite3` uses a prebuilt binary when one exists for your OS, CPU, and
   Node version and otherwise compiles with `node-gyp`, which needs a C++ toolchain. If an install
   fails on an unusual platform, that is the first place to look.
 - **Node version pinning**: the floor is 22.12 because that is where ESM detection defaults
-  changed. There is no upper pin, and no newer major is recorded as verified.
+  changed. There is no upper pin. Node 24 is recorded as verified for the CLI and the kernel
+  (24.15 on Linux x64, the 2026-09-21 sandbox run above; the dev suite runs on 24.8 on macOS).
 
 ---
 

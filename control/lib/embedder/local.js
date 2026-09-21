@@ -20,7 +20,6 @@
 
 import path from 'node:path';
 import { moduleDir } from '../module-dir.js';
-import { pipeline, env } from '@huggingface/transformers';
 
 const __dirname = moduleDir(import.meta.url, 'lib/embedder');
 
@@ -32,9 +31,34 @@ const __dirname = moduleDir(import.meta.url, 'lib/embedder');
 //     file, postinstall fills it. Remote downloads stay off — preserves the
 //     current offline-after-install posture.
 const USER_CACHE = !!process.env.MOJULO_MODELS_DIR;
-env.cacheDir = process.env.MOJULO_MODELS_DIR || path.resolve(__dirname, 'models');
-env.allowRemoteModels = USER_CACHE;
-env.allowLocalModels = true;
+const CACHE_DIR = process.env.MOJULO_MODELS_DIR || path.resolve(__dirname, 'models');
+
+// `@huggingface/transformers` is loaded on FIRST USE, not at module load: its node build
+// statically imports `sharp`, whose native half is an optional dependency, so importing it
+// here would put a `Could not load the "sharp" module` crash on every path that merely
+// reaches this module (the embeddings repository and the polygonizer card router import it
+// statically, and both sit on tool registration — see lib/sharp-lazy.js). The env settings
+// are applied the moment the module lands; the promise is shared so they apply once.
+let transformersPromise = null;
+function loadTransformers() {
+  if (!transformersPromise) {
+    transformersPromise = import('@huggingface/transformers')
+      .then((mod) => {
+        mod.env.cacheDir = CACHE_DIR;
+        mod.env.allowRemoteModels = USER_CACHE;
+        mod.env.allowLocalModels = true;
+        return mod;
+      })
+      .catch((err) => {
+        transformersPromise = null;
+        throw new Error(
+          `The embedding runtime (@huggingface/transformers) failed to load: ${err.message}. `
+            + 'Semantic search and embedding backfill are off until it loads; recipes, exports, and every other tool work without it.',
+        );
+      });
+  }
+  return transformersPromise;
+}
 
 const MODEL_ID = 'Xenova/multilingual-e5-small';
 const DTYPE = 'q8';
@@ -57,17 +81,17 @@ export async function preloadModel() {
 
 function getExtractor() {
   if (!extractorPromise) {
-    extractorPromise = pipeline('feature-extraction', MODEL_ID, { dtype: DTYPE }).catch(
-      (err) => {
+    extractorPromise = loadTransformers()
+      .then(({ pipeline }) => pipeline('feature-extraction', MODEL_ID, { dtype: DTYPE }))
+      .catch((err) => {
         extractorPromise = null;
         const hint = USER_CACHE
-          ? `Lazy download from ${env.cacheDir} failed — check network / disk and retry.`
+          ? `Lazy download from ${CACHE_DIR} failed — check network / disk and retry.`
           : `Run "node scripts/fetch-embed-model.js" first.`;
         throw new Error(
-          `Failed to load embedding model from ${env.cacheDir}. ${hint} Cause: ${err.message}`
+          `Failed to load embedding model from ${CACHE_DIR}. ${hint} Cause: ${err.message}`
         );
-      }
-    );
+      });
   }
   return extractorPromise;
 }

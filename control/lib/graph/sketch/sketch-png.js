@@ -20,7 +20,7 @@ import { promises as fs, existsSync } from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 
-import sharp from 'sharp';
+import { loadSharp } from '@/lib/sharp-lazy';
 
 import { isPolygomerManjiTree, sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
@@ -77,6 +77,7 @@ function withExplicitSize(svg, w, h) {
 }
 
 async function svgToPng(svg, scale) {
+  const sharp = await loadSharp();
   const size = svgIntrinsicSize(svg);
   let prepared = svg;
   if (size && size.w > 0 && size.h > 0) {

@@ -1485,6 +1485,7 @@ function dressAlleyway(alley, run, rng, grounds, faces) {
 function fillBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, cars) {
   const m = 0.72, block = { x: region.x + m, y: region.y + m, w: region.w - 2 * m, d: region.d - 2 * m };  // inset clears the (now wider) road spill
   if (block.w < 1.3 || block.d < 1.3) return;
+  if (opts.blocks) opts.blocks.push(block);   // the census of blocks (stats.blocks): every recursion leaf big enough to fill. Count only — no rng, no bytes.
   // TOWNHOUSE ROWS (opt-in): some eligible blocks become a residential rowhouse wall
   // instead of the massed composition. The `&&` chain short-circuits on the (default
   // false) flag, so rng is untouched when off.
@@ -2595,7 +2596,11 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // recurse plants the root tower ONLY if we didn't already place an anchor (landmark or
   // corridor-side) and there's no corridor — preserving the original centred-tower path.
   const recurseRoot = (placedRootAnchor || corridor) ? null : (anchor || null);
-  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: landmarkZone ? [landmarkZone] : [], baseScale: bs, profile, traffic }, grid, cars);
+  // `blocks` is the operator's unit — a street-grid parcel the quadrant recursion filled (fillBlock's
+  // leaf, after the road inset, above the 1.3-unit floor). The stats had rows for what stands ON a
+  // block (buildings, townhouses, lots) but none for the block itself (grok-headless-affordances P5).
+  const cityBlocks = [];
+  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: landmarkZone ? [landmarkZone] : [], baseScale: bs, profile, traffic, blocks: cityBlocks }, grid, cars);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
   // LOT INSETS (city-insets.js, the default): with the roads and blocks laid, each minted
   // building takes over a generated PARCEL — the candidate that evicts the fewest neighbours,
@@ -2691,6 +2696,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const stats = {
     boxes: boxes.length,
     ribbons: ribbons.length,
+    blocks: cityBlocks.length,   // street-grid parcels the recursion filled (see cityBlocks above)
     anchors: boxes.filter((b) => b.kind === 'anchor').length,
     freeway: boxes.some((b) => b.kind === 'pillar'),
     buildings: boxes.filter((b) => b.kind === 'building').length,

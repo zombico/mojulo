@@ -144,6 +144,71 @@ loops and the recipe format are unchanged.
   and the package version (`getServerVersion`, moved to `lib/server-version.js` and re-exported from the
   MCP server module). Browser-held world pages revalidate once after this ships. `?nocache=1` stays
   `no-store`.
+### Grok headless affordances
+
+The remote-agent host class: a chat agent driving `npx mojulo` from an ephemeral Linux sandbox with
+no MCP binding, no browser, and files as the only handoff to the human. A Grok session did exactly
+that against 2.0.6 on 2026-09-21 (x64, Node 24.15, `npm install mojulo --omit=optional`); the
+kernel held (its city GLB re-mints byte-identical on macOS, texture PNG aside) and five things
+around it broke or misled. Each is fixed below.
+
+- **Fixed: every CLI command, `version` included, crashed at tool registration when `sharp` could
+  not load** (`Could not load the "sharp" module`: an `--omit=optional` install leaves out
+  `@img/sharp-<platform>`, and a platform with no prebuilt libvips has the same shape). Thirteen
+  modules on the registration path imported `sharp` statically — the world registry, the sketch
+  rasterizer, the polygonizer and sprite-sheet tools, six image-outcome modules, the two motion
+  encoders — and `@huggingface/transformers` (which imports `sharp` itself) rode in through the
+  embedder. They now load `sharp` on first use through one helper (`lib/sharp-lazy.js`), and the
+  embedder loads transformers on first use. A missing `sharp` is an in-band error on the raster
+  call that needed it, naming the fix (`npm install sharp` in the package directory); the
+  kernel, the CLI, and every non-raster tool are up without it. Pinned by a subprocess test that
+  spawns the bin with a resolver hook that refuses `sharp` and asserts `call version` exits 0.
+  Three static importers stay (`final-page.js`, `cover-compositor.js`, `motion-comic-resolve.js`):
+  they are not on the registration path and load only when their tool runs.
+- **Fixed: `mojulo-ui` bound to the machine hostname on Linux.** The bin set `HOSTNAME` only when it
+  was absent; Linux containers and many shells export `HOSTNAME=<machine>`, so the standalone
+  server printed `Local: http://<container>:3001` and `127.0.0.1` refused. It now binds `127.0.0.1`
+  unconditionally; `MOJULO_UI_HOST` is the explicit override (loopback-only remains the default).
+- **Fixed: the bins wrote exports into the package directory.** `resolveMojuloPaths` seeded
+  `SQLITE_PATH` / `ARTIFACTS_DIR` / `STORAGE_ROOT` under `~/.mojulo/data` but not
+  `MOJULO_OUTCOMES_DIR` or `MOJULO_EXPORTS_DIR`, and both fall back to `cwd/data/…`. The stdio bin
+  chdirs to the package root and the dashboard to `.next/standalone`, so `export_model` landed in
+  `node_modules/mojulo/data/outcomes/<ref>/` and the dashboard's `/outcomes` route read a different
+  folder. The resolver now seeds both (`$MOJULO_DATA_DIR/outcomes`, `$MOJULO_DATA_DIR/exports`);
+  repo-dev `next dev` keeps its cwd fallback. **Exports written by earlier versions stay where they
+  were** (under the installed package's `data/outcomes/` and `data/exports/`); nothing is moved.
+  `export_model` now also returns a `home` note when its path resolved under the package directory
+  rather than the data dir, so a caller can see where the file landed.
+- **Added: `export_model format: 'html'`, the remote eyes gate.** Writes `world.html` into the
+  sketch's outcome folder beside `recipe.json` and `README.md`: the same self-contained page
+  `/world` serves (`emitThreeWorld({ inline: true })`, three.js embedded as `data:` modules, walk
+  mode and HUD included), resolved through the same `resolveWorldScene` the GLB leg uses. It opens
+  from `file://` with no server and no network; a soundtrack is the one channel a `file://` open may
+  block, as `export_game` already documents. Result carries `bytes`, `path`, `dir`, `download_url`
+  and a `note` saying so; `vertices` / `triangles` are not reported (it is a page, not a mesh).
+  Deterministic: the same row emits the same bytes (the seed-91 city is about 9 MB). Test pins
+  zero `http(s)://` and zero `/vendor/three` references and the inline importmap. The
+  `export_model` description grew 2013 → 2179 chars (under its 2285 allowlist snapshot) and the
+  flat tools/list 241,765 → 241,938 bytes (under the 263,500 pin): no re-pin.
+- **Fixed: `compose_world` flagged `context` as "not reflected" on every themed city mint.** The
+  city adapter lowers the slot keys (`context`, `asset`, `material`, `style`) onto the top level of
+  the recipe, so the flat-key check never found them. A lowered slot now counts as reflected when
+  every child key landed, under its own name or the name the adapter gives it (`asset.monument`
+  is stored as `landmark`; the adapter is run on the one child to learn that), and the note names
+  only the child keys that did not (`context.time` for an invalid `'noon'`), adding that the rest
+  of the slot folded onto the recipe's top level. A slot with no child landed is still named whole.
+- **Added: `blocks` on the fractal-city stats**: the count of street-grid parcels the quadrant
+  recursion filled (each `fillBlock` leaf past the 1.3-unit floor), the unit an operator means by
+  "block". The seed-91 fixture city has 47 blocks for its 44 buildings; the default city 8 for 3.
+  The old stats had rows for what stands on a block, none for the block. A count only; no dice,
+  no bytes change.
+- **Docs**: `docs/tech-requirements.md` Linux bullet records the 2026-09-21 evidence and what is
+  still unverified there; Node 24 is recorded as a verified runtime; the PNG-encoder caveat sits
+  beside the byte-identical GLB claim. `README.md` platform sentence matches. `AGENTS.md` gains a
+  "CLI-only / remote sandbox" host section and names the Grok chat / Grok Build collision;
+  `grok-build.md` points chat-sandbox riders at it; `docs/install-capabilities.md` says what
+  `--omit=optional` now leaves running.
+
 
 ## [2.0.6] - 2026-09-20
 

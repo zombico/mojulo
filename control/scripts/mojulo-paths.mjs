@@ -9,12 +9,22 @@
  *
  * From those, sets — without overriding — the lower-level env vars the lib
  * code already honors:
- *   SQLITE_PATH    → $MOJULO_DATA_DIR/mojulo-lite.db
- *   ARTIFACTS_DIR  → $MOJULO_DATA_DIR/artifacts
- *   STORAGE_ROOT   → $MOJULO_DATA_DIR/storage
+ *   SQLITE_PATH         → $MOJULO_DATA_DIR/mojulo-lite.db
+ *   ARTIFACTS_DIR       → $MOJULO_DATA_DIR/artifacts
+ *   STORAGE_ROOT        → $MOJULO_DATA_DIR/storage
+ *   MOJULO_OUTCOMES_DIR → $MOJULO_DATA_DIR/outcomes   (export_model / export_game / cooks)
+ *   MOJULO_EXPORTS_DIR  → $MOJULO_DATA_DIR/exports    (export_beats .wav)
  *
- * Shared by [mcp-stdio.mjs](./mcp-stdio.mjs) and [mcp-config.mjs](./mcp-config.mjs)
- * so a fresh `~/.mojulo/` works for both stdio and the config CLI.
+ * The last two matter because their lib fallbacks are cwd-relative
+ * (lib/outcomes-paths.js, lib/mcp/tools/exports-dir.js) and every bin chdirs:
+ * the stdio bin to the package root, the dashboard to .next/standalone. Left
+ * unset, `export_model` wrote into node_modules/mojulo/data/outcomes/<ref>/
+ * and the dashboard's /outcomes route read a different folder (the 2026-09-21
+ * Grok sandbox report). Repo-dev `next dev` does not run this resolver and
+ * keeps its control/data/ fallback.
+ *
+ * Shared by [mcp-stdio.mjs](./mcp-stdio.mjs), [mcp-ui.mjs](./mcp-ui.mjs) and
+ * [mcp-config.mjs](./mcp-config.mjs) so a fresh `~/.mojulo/` works for every bin.
  */
 
 import os from 'node:os';
@@ -32,6 +42,8 @@ export function resolveMojuloPaths() {
   process.env.SQLITE_PATH ??= path.join(dataDir, 'mojulo-lite.db');
   process.env.ARTIFACTS_DIR ??= path.join(dataDir, 'artifacts');
   process.env.STORAGE_ROOT ??= path.join(dataDir, 'storage');
+  process.env.MOJULO_OUTCOMES_DIR ??= path.join(dataDir, 'outcomes');
+  process.env.MOJULO_EXPORTS_DIR ??= path.join(dataDir, 'exports');
 
   for (const dir of [home, dataDir, modelsDir, process.env.ARTIFACTS_DIR, process.env.STORAGE_ROOT]) {
     fs.mkdirSync(dir, { recursive: true });
@@ -44,5 +56,7 @@ export function resolveMojuloPaths() {
     dbPath: process.env.SQLITE_PATH,
     artifactsDir: process.env.ARTIFACTS_DIR,
     storageRoot: process.env.STORAGE_ROOT,
+    outcomesDir: process.env.MOJULO_OUTCOMES_DIR,
+    exportsDir: process.env.MOJULO_EXPORTS_DIR,
   };
 }

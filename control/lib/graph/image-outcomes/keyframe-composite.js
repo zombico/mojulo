@@ -11,7 +11,7 @@
  * one lives in scene-forge.js's resolveClipForge). Pure: no fs, no repos, no
  * Date/Math.random.
  */
-import sharp from 'sharp';
+import { loadSharp } from '../../sharp-lazy.js';
 
 import { buildFaceManifest, resolveFaceFrames } from './keyframe-spike/face-composite.js';
 
@@ -48,6 +48,7 @@ export function clipFrameSelections(km) {
  * @returns {Promise<Buffer[]>} one PNG buffer per output frame
  */
 export async function compositeCels({ selections, cel, downscale }) {
+  const sharp = await loadSharp();
   const cache = new Map();
   const framePngs = [];
   for (const sel of selections) {

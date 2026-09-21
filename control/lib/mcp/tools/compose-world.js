@@ -131,14 +131,40 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
   // parameter manual, never a refusal.
   const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio']);
-  const ignored = Object.keys(overrides || {}).filter(
-    (k) => !STRUCTURAL_KEYS.has(k) && !(result.recipe && typeof result.recipe === 'object' && k in result.recipe),
-  );
+  // A theme adapter LOWERS its slot objects ({ context, asset, material, style } for 'city') onto
+  // the recipe's top level — `context.depth` is stored as `depth`, `asset.monument` as
+  // `landmark` — so a flat "is the key in the recipe" check flagged `context` on every themed
+  // city mint even when every child had landed (the 2026-09-21 Grok report). A slot counts as
+  // FOLDED when each of its child keys is reflected: stored under its own name, or under the
+  // name the adapter lowers it to (the adapter is run on that one child to learn the name).
+  // Children that did not land are named as `slot.child`; a slot whose children all missed is
+  // named whole. Still advisory, never a refusal.
+  const recipe = result.recipe && typeof result.recipe === 'object' ? result.recipe : null;
+  const isSlot = (v) => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0;
+  const loweredNames = (k, c, v) => {
+    try { return Object.keys(b.adapt({ [k]: { [c]: v } }) || {}); } catch { return []; }
+  };
+  const ignored = [];
+  const folded = [];
+  for (const [k, v] of Object.entries(overrides || {})) {
+    if (STRUCTURAL_KEYS.has(k) || (recipe && k in recipe)) continue;
+    if (recipe && isSlot(v)) {
+      const missing = Object.keys(v).filter((c) => !(c in recipe) && !loweredNames(k, c, v[c]).some((n) => n !== k && n in recipe));
+      if (!missing.length) continue;                       // every child landed: folded, nothing to say
+      if (missing.length < Object.keys(v).length) {        // some landed: name only the strays
+        ignored.push(...missing.map((c) => `${k}.${c}`));
+        folded.push(k);
+        continue;
+      }
+    }
+    ignored.push(k);
+  }
   return {
     ...result, base, theme,
     ...(ignored.length ? {
-      note: `override key(s) not reflected in the stored recipe: ${ignored.join(', ')} — either consumed `
-        + `structurally, invalid for this base, or not supported by it. Parameter manual: `
+      note: `override key(s) not reflected in the stored recipe: ${ignored.join(', ')}`
+        + (folded.length ? ` (the rest of ${folded.map((k) => `\`${k}\``).join(', ')} folded onto the recipe's top level)` : '')
+        + ' — either consumed structurally, invalid for this base, or not supported by it. Parameter manual: '
         + `get_view_vocab({ id: '${base}' }).`,
     } : {}),
   };

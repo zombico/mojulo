@@ -8,7 +8,7 @@
  *    the overlay; this is only the machine half.
  * The pure geometry + audit predicates live in keyframe-spike/stage-guide.js.
  */
-import sharp from 'sharp';
+import { loadSharp } from '../../sharp-lazy.js';
 import { buildStageGuide, stageGuideSvg, auditStagePlate } from './keyframe-spike/stage-guide.js';
 import { parseSceneTarget } from './manifest.js';
 
@@ -20,12 +20,14 @@ function stageForTarget(manifest, target) {
 
 /** The plate target's scaffold: the declared-ground-plane guide PNG. */
 export async function emitStageGuidePng(manifest, { depthTicks, target } = {}) {
+  const sharp = await loadSharp();
   const guide = buildStageGuide(stageForTarget(manifest, target), { frame: manifest.frame, ...(depthTicks ? { depthTicks } : {}) });
   return sharp(Buffer.from(stageGuideSvg(guide))).png().toBuffer();
 }
 
 /** Submit-seam machine gate for a submitted plate PNG. @param manifest normalized scene-motion. */
 export async function auditStagePlatePng(bytes, manifest, { target } = {}) {
+  const sharp = await loadSharp();
   const guide = buildStageGuide(stageForTarget(manifest, target), { frame: manifest.frame });
   const img = sharp(bytes).ensureAlpha();
   const { width, height } = await img.metadata();

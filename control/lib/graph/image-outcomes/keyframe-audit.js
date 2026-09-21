@@ -13,7 +13,7 @@
  * paint.
  */
 
-import sharp from 'sharp';
+import { loadSharp } from '../../sharp-lazy.js';
 
 import { segmentTransform, transformPart } from './parts-bank-spike/assemble.js';
 import { floodKey } from './parts-bank-spike/key.js';
@@ -180,6 +180,7 @@ export function auditFaceHold(variantRgba, baseRgba, { canvas, canonical }) {
  * and flood-keyed before comparison.
  */
 export async function faceHoldAuditPng(variantPngBytes, basePngBytes, { canvas, canonical }) {
+  const sharp = await loadSharp();
   const { width: w, height: h } = canvas;
   const canon = canonical || (await computeCanonical({ canvas }));
   const key = async (bytes) => {
@@ -207,6 +208,7 @@ export async function faceHoldAuditPng(variantPngBytes, basePngBytes, { canvas, 
  *   `meru` = { heightRatio, groundDeltaPx, crownDeltaPx, compliant, normalized }.
  */
 export async function meruAuditCelPng(pngBytes, { canvas, canonical }) {
+  const sharp = await loadSharp();
   const { width: w, height: h } = canvas;
   const canon = canonical || (await computeCanonical({ canvas }));
   const rgba = await sharp(pngBytes)

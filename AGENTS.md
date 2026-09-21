@@ -47,6 +47,10 @@ For a non-repo install, use the tokenless stdio form instead — `command = "npx
 
 If you have shell access but no MCP client, the same registry is reachable as a CLI: `node control/scripts/mcp-stdio.mjs tools|packs|help <tool>|call <tool> --json '{…}'`. It runs in-process against the same data (no control plane, no bearer token); results print to stdout, diagnostics to stderr, exit codes 0/1/2 (124 on `--timeout`).
 
+### CLI-only / remote sandbox (no MCP, no browser)
+
+A chat agent running in an ephemeral sandbox (Grok chat's Linux container is the worked case) has no MCP client, no dashboard and usually no browser: do not run `init` or `mojulo-ui` there. Health-check with `npx mojulo call version`; learn a tool with `npx mojulo help <tool>` and a world's dials with `call get_view_vocab --json '{"id":"city"}'`; mint once with `call compose_world --json '{…}'`; then `call export_model --json '{"ref":"<ref>","format":"html"}'` for a self-contained `world.html` the operator opens straight from `file://` (no server, no network), and `"format":"glb"` for the mesh. Files are the whole handoff — the export folder under `~/.mojulo/data/outcomes/<ref>/` holds `world.html` / `model.glb` beside `recipe.json` and a README — and because the sandbox disk may be wiped between conversations, the recipe JSON (or the `compose_world` arguments) is what to keep: any host running mojulo re-mints it. Name collision to keep straight: **Grok Build** is xAI's CLI agent with a real MCP config (the section above, [grok-build.md](control/lib/mcp/adapters/grok-build.md)); **Grok chat** in its sandbox is this CLI-only class, and `get_adapter` cannot resolve it because there is no MCP `clientInfo` to read.
+
 ### Cross-host reference
 
 For comparison, Claude Code uses `claude mcp add --transport http mojulo http://localhost:3001/api/mcp --header "Authorization: Bearer <CONTROL_PLANE_MCP_KEY>"`. The full install matrix (Claude Desktop, Claude Code, mcp-inspector) is in [docs/mcp-integration.md](docs/mcp-integration.md).

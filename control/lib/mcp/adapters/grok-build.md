@@ -15,6 +15,8 @@
 
 Your host is **Grok Build** (xAI's CLI agent). This card is how you ride mojulo from this host — **studio making first**, catalyst materialization second. Pull it once per session (`get_adapter`, no `id`) before the first mint or the first synthesized skill.
 
+If you are **Grok chat** driving a sandbox shell with no MCP binding (not Grok Build), the MCP notes on this card do not apply to you: use the CLI-only host section in [AGENTS.md](../../../../AGENTS.md#cli-only--remote-sandbox-no-mcp-no-browser) — `npx mojulo call …`, `export_model` with `format: 'html'`, files as the handoff.
+
 When a catalyst does materialize a runnable artifact, it is a **user-owned skill** at `~/.grok/skills/<slug>/SKILL.md`. Once written it belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not host, execute, or store skills.
 
 **Write Grok's native layout, not Claude's.** Grok compat-scans `.claude/skills/`, so a skill authored there would appear to work. Don't do it: the compat scan is a migration courtesy, not this adapter's target. A skill materialized for a Grok operator lives under `~/.grok/skills/`.

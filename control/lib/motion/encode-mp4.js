@@ -21,7 +21,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-import sharp from 'sharp';
+import { loadSharp } from '../sharp-lazy.js';
 
 import { resolveFfmpeg, runFfmpeg } from './ffmpeg.js';
 
@@ -50,6 +50,7 @@ export function planClip(frames, fps, outFps) {
 
 /** Intrinsic pixel size of an SVG frame (frames within a clip share a viewBox). */
 async function svgSize(svg, density) {
+  const sharp = await loadSharp();
   const meta = await sharp(Buffer.from(svg), { density }).metadata();
   return { w: meta.width || 1, h: meta.height || 1 };
 }
@@ -69,6 +70,7 @@ const even = (n) => (n % 2 ? n + 1 : n);
  * @returns {Promise<{ outPath, totalFrames, width, height, fps, durationSec, bytes, clips, warning:string|null }>}
  */
 export async function encodeStitchMp4(clips, outPath, opts = {}) {
+  const sharp = await loadSharp();
   const { fps = 24, width = 720, bg = '#000000', density = 160 } = opts;
   if (!clips.length) throw new Error('encodeStitchMp4: no clips');
   for (const c of clips) {

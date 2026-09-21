@@ -341,3 +341,61 @@ describe('runCli', () => {
     expect(lines.out.length).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The bin boots without sharp (grok-headless-affordances P1). An
+// `npm install --omit=optional` leaves sharp's native half out and makes
+// `import 'sharp'` throw; thirteen modules on the registration path used to
+// import it statically, so every CLI command died before `version` could
+// print. Spawn the REAL bin (loader hook, paths, chdir, registration) with a
+// resolver hook that refuses the `sharp` specifier outright — stricter than
+// the field case, where resolve succeeds and evaluation throws — and assert
+// the version answer still comes back with exit 0.
+// ---------------------------------------------------------------------------
+
+describe('mcp-stdio bin without sharp', () => {
+  it('call version exits 0 and prints the version with sharp refused by a loader hook', async () => {
+    const { spawnSync } = await import('node:child_process');
+    const { mkdtempSync, readFileSync } = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+
+    const controlDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    const { version } = JSON.parse(readFileSync(path.join(controlDir, 'package.json'), 'utf8'));
+
+    // Two nested data: modules — the --import entry registers the hook; the hook refuses sharp.
+    const hookSrc = [
+      'export function resolve(specifier, context, next) {',
+      "  if (specifier === 'sharp') throw new Error('sharp refused by the no-sharp test hook');",
+      '  return next(specifier, context);',
+      '}',
+    ].join('\n');
+    const hookUrl = `data:text/javascript,${encodeURIComponent(hookSrc)}`;
+    const importSrc = `import { register } from 'node:module';\nregister(${JSON.stringify(hookUrl)});`;
+    const importUrl = `data:text/javascript,${encodeURIComponent(importSrc)}`;
+
+    // A throwaway MOJULO_HOME so the child touches neither ~/.mojulo nor this
+    // process's in-memory settings; strip every inherited data-path override
+    // (and the semantic-index kill switch — the embedder must fail IN-BAND).
+    const home = mkdtempSync(path.join(os.tmpdir(), 'mojulo-no-sharp-'));
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([k]) => !k.startsWith('MOJULO_') && !['SQLITE_PATH', 'ARTIFACTS_DIR', 'STORAGE_ROOT'].includes(k),
+      ),
+    );
+    env.MOJULO_HOME = home;
+
+    const r = spawnSync(
+      process.execPath,
+      ['--import', importUrl, path.join(controlDir, 'scripts', 'mcp-stdio.mjs'), 'call', 'version', '--timeout', '60000'],
+      { cwd: controlDir, env, encoding: 'utf8', timeout: 120_000 },
+    );
+    expect(r.error).toBeUndefined();
+    expect(r.status, `stderr:\n${r.stderr}`).toBe(0);
+    expect(r.stdout).toContain(`"version": "${version}"`);
+    // The refusal is visible on stderr as an in-band embedder failure, never a crash.
+    expect(r.stderr).toMatch(/sharp refused by the no-sharp test hook/);
+    expect(r.stderr).not.toMatch(/triggerUncaughtException/);
+  }, 150_000);
+});

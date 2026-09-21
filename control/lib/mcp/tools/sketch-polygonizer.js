@@ -11,7 +11,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import sharp from 'sharp';
+import { loadSharp } from '@/lib/sharp-lazy';
 import { renderStoredSketchSvg } from '@/lib/graph/sketch/stored-sketch-svg';
 import { reskinManjiSvg, rasterSampler, analyzeSkin } from '@/lib/graph/polygonizer/skin-projection';
 import { nextSkinPath, skinInputPath, latestSkin, nextAtlasPath, latestAtlas } from '@/lib/graph/polygonizer/skin-store';
@@ -382,6 +382,7 @@ export async function skinPolygomerHandler(input) {
   // renders each kind's own control scaffold (manji-svg, figure-render, or the
   // workbench/assembler faces-scaffold) through the same polygon contract.
   const controlSvg = await renderStoredSketchSvg(sketch, { control: true });
+  const sharp = await loadSharp();
   const { data, info } = await sharp(skinBytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const raster = { data, width: info.width, height: info.height, channels: info.channels };
   // Background clamp: faces whose centroid misses the creature take the mean
@@ -471,6 +472,7 @@ async function skinAtlasModeHandler(input, sketch) {
   }
 
   // PAINT: decode each view, reproject, audit, bind.
+  const sharp = await loadSharp();
   const views = [];
   for (const v of input.views) {
     const cam = v && v.camera;

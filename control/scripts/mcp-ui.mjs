@@ -12,7 +12,12 @@
  *   npx -y -p mojulo mojulo-ui --no-open      # skip browser launch
  *
  * Binds to 127.0.0.1 only — the control plane is single-user, self-hosted,
- * and the auth middleware is opt-in. Local-only is the safe default.
+ * and the auth middleware is opt-in. Local-only is the safe default. The bind
+ * host is set UNCONDITIONALLY (`MOJULO_UI_HOST` is the one override): Linux
+ * containers and many shells export `HOSTNAME=<machine>`, and the standalone
+ * server reads that variable as its bind address — a `??=` here let it bind
+ * to the container hostname and refuse 127.0.0.1 (the 2026-09-21 Grok sandbox
+ * report).
  *
  * See [lite-template/integration/UI_PACKAGE_PLAN.md](../../lite-template/integration/UI_PACKAGE_PLAN.md).
  */
@@ -110,7 +115,8 @@ if (!existsSync(STANDALONE_SERVER)) {
 }
 
 // User data lives under MOJULO_HOME (default ~/.mojulo). This populates
-// SQLITE_PATH / ARTIFACTS_DIR / STORAGE_ROOT / MOJULO_MODELS_DIR so the lib
+// SQLITE_PATH / ARTIFACTS_DIR / STORAGE_ROOT / MOJULO_OUTCOMES_DIR /
+// MOJULO_EXPORTS_DIR / MOJULO_MODELS_DIR so the lib
 // code lands user state there instead of standalone-cwd-relative ./data/.
 // Must fire before the standalone server import — Next route handlers read
 // these env vars when modules first evaluate.
@@ -134,10 +140,14 @@ process.env.MOJULO_CONTROL_DIR ??= CONTROL_DIR;
 const port = args.port ?? ((await portIsFree(3001)) ? 3001 : await findFreePort());
 process.env.PORT = String(port);
 // Loopback-only: the control plane is single-user and the auth middleware is
-// opt-in. Don't bind to 0.0.0.0 from the npx entry.
-process.env.HOSTNAME ??= '127.0.0.1';
+// opt-in. Don't bind to 0.0.0.0 from the npx entry. The standalone server binds
+// to $HOSTNAME, which Linux shells and containers export as the MACHINE name —
+// so this is an unconditional assignment, never a `??=` default; the explicit
+// override is MOJULO_UI_HOST.
+const host = process.env.MOJULO_UI_HOST || '127.0.0.1';
+process.env.HOSTNAME = host;
 
-const url = `http://127.0.0.1:${port}`;
+const url = `http://${host}:${port}`;
 
 // Same overlap rationale as mcp-stdio.mjs: first RAG bot build is the iconic
 // genesis flow, and the embedder load (~113MB cold) is the longest single

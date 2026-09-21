@@ -14,7 +14,7 @@
 
 import { promises as fs } from 'node:fs';
 
-import sharp from 'sharp';
+import { loadSharp } from '../sharp-lazy.js';
 
 /**
  * Encode an array of self-contained SVG strings into an animated GIF on disk.
@@ -25,6 +25,7 @@ import sharp from 'sharp';
  * @returns {Promise<{ outPath, frames, width, height, fps, bytes }>}
  */
 export async function encodeGif(frameSvgs, outPath, opts = {}) {
+  const sharp = await loadSharp();
   const { width = 640, fps = 12, bg = '#ffffff', loop = 0, density = 160 } = opts;
   if (!frameSvgs.length) throw new Error('encodeGif: no frames');
 
@@ -67,6 +68,7 @@ export async function encodeGif(frameSvgs, outPath, opts = {}) {
  * @returns {Promise<{ outPath, frames, width, height, fps, bytes }>}
  */
 export async function encodeGifBuffers(pngBuffers, outPath, opts = {}) {
+  const sharp = await loadSharp();
   const { fps = 12, loop = 0 } = opts;
   if (!pngBuffers.length) throw new Error('encodeGifBuffers: no frames');
 

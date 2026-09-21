@@ -10,7 +10,7 @@
  * (body) or `key-N/face/<vocab>-<state>` (face variant, else fall back to base).
  * Accepted cels are painted with a plain bg → flood-keyed to transparent here.
  */
-import sharp from 'sharp';
+import { loadSharp } from '../../sharp-lazy.js';
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { RenderRequestRepository } from '../../db/repositories/render-requests.js';
 import { latestBoundRender, boundRenderMap } from './render-store.js';
@@ -87,6 +87,7 @@ export async function resolveClipForge(clipRef, km = null) {
 
   const canvas = { width: manifest.canvas.width, height: manifest.canvas.height };
   const cache = new Map();
+  const sharp = await loadSharp();
   const cel = async (keyDir, celFile) => {
     let target = keyDir;
     if (celFile && celFile !== 'cel.png') {
@@ -113,6 +114,7 @@ export async function resolveClipForge(clipRef, km = null) {
  */
 export async function resolveSceneForge(scene, sceneRef) {
   if (!sceneRef) throw new Error('scene forge requires a stored scene_ref (the plate rides the render-handoff seam)');
+  const sharp = await loadSharp();
 
   // ── plates (the scene's own accepted plate renders: the base 'plate' plus one
   // 'plate-shot-<i>' per cross-cut shot that carries its own stage) ──
