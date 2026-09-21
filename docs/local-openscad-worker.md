@@ -1,4 +1,4 @@
-# Local OpenSCAD worker — the sharp-edge exit and its machine gate
+# Local OpenSCAD worker — the `.scad` export and its machine gate
 
 Status: phase 3 of the openscad leg, landed 2026-09-11 and verified the same day
 against OpenSCAD snapshot 2026.09.10. Optional, operator-hosted, produces a
@@ -14,13 +14,16 @@ Every other export serializes the resolved FACE payload: `.glb`, `.stl`, `.3mf`
 and `.usdz` all take mojulo's triangles and write triangles. `format: 'scad'`
 takes the **recipe** and writes a **program**.
 
-That difference is the whole point. Mojulo composes solids as sampled distance
-fields, so every edge and corner rounds to about one grid cell — the workbench
-card has always said so, and `union: true` could only sharpen the seams BETWEEN
-shells, never an edge the recipe itself expressed as a field. OpenSCAD computes
-exact intersection curves, so a bore transpiled into it arrives with a **sharp
-lip the recipe cannot express**, and the recipe's numbers arrive as variables you
-can turn.
+That difference is the whole point: the recipe's numbers arrive as variables you
+can turn, and the program is something an OpenSCAD user edits in their own tool.
+Sharpness is no longer the reason to leave. A field entry or a cut with
+`exact: true` composes through Manifold inside the recipe (a bore has a true
+circular lip in `/world`, the `.glb` and the print), and `mint_solid
+kind:'scad'` takes an OpenSCAD program AS the recipe, meshed in-process by
+OpenSCAD itself; for a `scad` row this export is the identity, the stored
+source back. The sampled surface net remains the kernel for what OpenSCAD cannot
+say (a blend, a stroke, noise, an expression, a warp), and those terms arrive
+here as frozen `polyhedron()` blocks the coverage ledger names.
 
 ```
 export_model (.scad — exact solids + booleans, dials at the head of the file)
@@ -118,11 +121,11 @@ is a crisp ellipse; the field one carries a visible chamfer the whole way round.
 
 ## Limits (honest)
 
-- **The round trip ends at OpenSCAD.** It writes STL, 3MF, OFF and CSG, and the
-  only inbound door mojulo has is GLB through `bind_mesh_render`. A part sharpened
-  in OpenSCAD cannot be placed back into a mojulo world without a converter that
-  does not exist. For a part that only ever prints this costs nothing; for a prop
-  that must also live in a game it is a real limit.
+- **The round trip runs through a mesh, not the recipe.** A part edited in
+  OpenSCAD comes back through `bind_mesh_render` as an STL or 3MF (converted to a
+  GLB at the door, 3MF colour kept) and is placed in a world by `meshRef`; the
+  recipe does not learn the edit. To keep the program as the source, mint it as a
+  `scad` row and edit `/source` in place instead.
 - **The BOOLEAN is exact, the primitives are not.** Curved surfaces are still
   faceted by `$fn` at the head of the file. Sharpness comes from computing the
   intersection curve rather than from sampling a grid — raise `$fn` for a smoother

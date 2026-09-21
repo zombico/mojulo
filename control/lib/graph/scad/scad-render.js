@@ -311,7 +311,28 @@ export function offToRecords(geom, { group = DEFAULT_GROUP } = {}) {
       out.push({ corners: [a, b, c], tint, normal, group });
     }
   }
-  return out;
+  return neutralizeDefaultColours(out);
+}
+
+// OpenSCAD's OFF writer never leaves a face uncoloured: geometry without `color()` arrives in
+// its preview scheme's front colour (the CGAL yellow) and the faces an uncoloured CUTTER leaves
+// behind in its back colour (the green). Neither is a tint anyone authored, so a part's yellow
+// becomes the neutral grey the card promises, and its green wears the part's one authored colour
+// when it has exactly one (a coloured body carved by a bare `mojulo_field()` or `sphere()` stays
+// the body's colour) — else the grey as well. A `color("#f9d72c")` written on purpose is the one
+// thing this cannot tell apart; the card says so.
+export const OPENSCAD_FRONT_COLOUR = '#f9d72c';
+export const OPENSCAD_BACK_COLOUR = '#9dcb51';
+export function neutralizeDefaultColours(records) {
+  const authored = new Set();
+  let seen = false;
+  for (const r of records) {
+    if (r.tint === OPENSCAD_FRONT_COLOUR || r.tint === OPENSCAD_BACK_COLOUR) seen = true;
+    else if (r.tint !== DEFAULT_TINT) authored.add(r.tint);
+  }
+  if (!seen) return records;
+  const cut = authored.size === 1 ? [...authored][0] : DEFAULT_TINT;
+  return records.map((r) => (r.tint === OPENSCAD_FRONT_COLOUR ? { ...r, tint: DEFAULT_TINT } : r.tint === OPENSCAD_BACK_COLOUR ? { ...r, tint: cut } : r));
 }
 
 /**

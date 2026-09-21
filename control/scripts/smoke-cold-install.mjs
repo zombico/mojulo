@@ -213,8 +213,17 @@ function pack() {
     maxBuffer: 64 * 1024 * 1024,
   });
   if (res.status !== 0) throw new Error(`npm pack exited ${res.status}`);
-  const [info] = JSON.parse(res.stdout);
-  return path.join(CONTROL_DIR, info.filename);
+  // prepack's own stdout (Next's build banner, the staging scripts) lands in front of npm's
+  // JSON under some npm versions: parse from the LAST line that opens an array and walk back.
+  const lines = res.stdout.split('\n');
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (!lines[i].startsWith('[')) continue;
+    try {
+      const [info] = JSON.parse(lines.slice(i).join('\n'));
+      return path.join(CONTROL_DIR, info.filename);
+    } catch { /* an earlier bracket line; keep walking back */ }
+  }
+  throw new Error(`npm pack --json printed no parseable array (stdout tail: ${JSON.stringify(res.stdout.slice(-200))})`);
 }
 
 async function main() {

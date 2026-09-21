@@ -6,7 +6,7 @@
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
 
-Mojulo is a **3D compiler for coding agents**: a local MCP server where the agent you already run (Claude Code, Codex, any MCP host) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe** on your own disk: a few hundred bytes of JSON that a kernel compiles back to the same geometry on every read, byte for byte, and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
+Mojulo is a **3D compiler for coding agents**: a local MCP server where the agent you already run (Claude Code, Codex, any MCP host) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe** on your own disk: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read, byte for byte, and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
 
 ## Quickstart
 
@@ -43,7 +43,7 @@ Open the dashboard on its own with `npx -y -p mojulo mojulo-ui`. The same bin is
 
 ---
 
-## Five things to say to it
+## Six things to say to it
 
 Each one is a sentence to your agent, the tool it reaches for, and the recipe that gets stored. Every example below runs keyless and offline.
 
@@ -60,9 +60,33 @@ The agent calls `mint_solid { kind: 'workbench' }`. This is the whole stored rec
                 "radius": 0.6, "tint": "#b8342c", "material": "satin" } ] }
 ```
 
-It is served shaded and turnable at `/sketches/<ref>`, and the same ref downloads as `model.stl` or `model.3mf` at 90 mm tall, z-up, slicer-ready. "Make the handle thicker" is `update_sketch` setting one `radius`; nothing is re-minted. `measure_solid` reads wall thickness, overhangs and closure off the recipe before you print, and if a slicer is installed the print gate stamps layers, time and filament beside the file.
+It is served shaded and turnable at `/sketches/<ref>`, and the same ref downloads as `model.stl` or `model.3mf` at 90 mm tall, z-up, slicer-ready. "Make the handle thicker" is `update_sketch` setting one `radius`; nothing is re-minted. `measure_solid` reads wall thickness, overhangs and closure off the recipe before you print, and if a slicer is installed the print gate stamps layers, time and filament beside the file. A bore through the body is a `cuts` line naming the body and the sweep that bores it; `exact: true` on that line composes it with Manifold instead of the sampled grid, so the lip is a true circle and a 40 mm disc measures 40, in the viewer, the `.glb` and the print.
 
-### 2. "Build a 20 by 24 ft living room with a door on the south wall"
+### 2. "Write me a Raspberry Pi 4 case tray in OpenSCAD"
+
+The agent calls `mint_solid { kind: 'scad' }` and the program is the recipe, stored verbatim:
+
+```openscad
+board_w = 85; board_d = 56; clear = 1; wall = 2; floor_t = 2; wall_h = 12;
+holes = [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]];   // the Pi's M2.5 pattern
+module rounded_box(w, d, h, r) { hull() for (x = [r, w - r], y = [r, d - r]) translate([x, y, 0]) cylinder(r = r, h = h, $fn = 48); }
+module tray() {
+  color("#3a3f4b") difference() {
+    rounded_box(board_w + 2 * (clear + wall), board_d + 2 * (clear + wall), floor_t + wall_h, 3);
+    translate([wall, wall, floor_t]) rounded_box(board_w + 2 * clear, board_d + 2 * clear, wall_h + 1, 1.5);
+    translate([board_w + 2 * clear + wall - 1, wall + 2, floor_t + 3]) cube([wall + 2, board_d + 2 * clear - 4, wall_h]);   // USB / Ethernet
+    translate([wall + clear + 5, -1, floor_t + 3]) cube([55, wall + 2, wall_h]);                                            // USB-C, HDMI, audio
+  }
+}
+module standoffs() {
+  color("#c9a227") for (p = holes) translate([wall + clear + p[0], wall + clear + p[1], floor_t])
+    difference() { cylinder(d = 6, h = 3, $fn = 32); translate([0, 0, -1]) cylinder(d = 2.5, h = 5, $fn = 24); }
+}
+```
+
+with `parts: { tray: 'tray();', standoffs: 'standoffs();' }`. OpenSCAD itself meshes it on every read, in-process as WebAssembly with the Manifold backend, so booleans are exact and every edge is sharp. `color()` is the tint; each named part is a render group a hinge in `movers` can swing. The same ref serves the orbit view, the `.glb`, the engine packs and `model.stl` at 91 × 62 × 14 mm as written; `model.scad` hands the source back unchanged. Change `wall_h` with `update_sketch` and the readout names the one part that moved. For what OpenSCAD cannot say, a blended join, a stroked dent, seeded noise, the source calls `mojulo_field("<id>")` and a field solid from the same recipe is baked in at that spot.
+
+### 3. "Build a 20 by 24 ft living room with a door on the south wall"
 
 That is the GIF at the top. The agent calls `create_sketch { kind: 'floorplan' }` and stores this:
 
@@ -75,15 +99,15 @@ That is the GIF at the top. The agent calls `create_sketch { kind: 'floorplan' }
 
 The `L` glyph and the seed furnish it: sofa, two chairs, rug, lamp, windows. "Add pot lights to the ceiling" adds `"potLights": true` and nothing else changes. `"levels": [...]` stacks it into a building with stairs through the slabs. The same recipe walks in the browser at `/world`, exports as a `.glb`, or goes to Blender as an art-pass pack, where a Cycles bake can write traced light back into the mesh's own vertex colours so the lit result runs anywhere at zero runtime cost.
 
-### 3. "Generate a 3D city at night"
+### 4. "Generate a 3D city at night"
 
 The agent calls `compose_world { base: 'city', seed: 42, overrides: { context: { time: 'night', locale: 'east-asia' }, asset: { anchor: 'tower' }, fog: true } }`. The whole city is a pure function of the seed: change it for a new city, keep it and the same city regrows on any machine. Open the `/scene` URL for a dependency-free CSS-3D render, or `/world` to walk it with WASD. Bases besides `city`: a transport hub, a K-12 campus, a torch-lit dungeon, a planetary body, a painted landscape, a walkable Cayley graph of a finite group.
 
-### 4. "Make it walkable, then make it a game, then export it for Godot"
+### 5. "Make it walkable, then make it a game, then export it for Godot"
 
 `compose_world { base: 'controllable' }` gives a live world you drive. Adding `game: { mechanics: [...] }` to a world makes it a level: reach the exit, survive twenty seconds, collect the relay core. `create_game` binds levels, a synthesized score and figures into one playable artifact with a typed store (inventory, party, flags) that carries between levels; every level must pass a contract dry-run and a traversal that reached the win condition before the game mints. `export_game { target: 'godot' }` writes a real Godot 4 project you open and extend. Unity and Unreal get the same data pack plus an importer; the worked Unreal example is [docs/examples/unreal-night-run/](docs/examples/unreal-night-run/).
 
-### 5. "Create a snowman with a top hat"
+### 6. "Create a snowman with a top hat"
 
 ![A terminal prompt — "create a snowman with a top hat" — becomes a bonded part-graph recipe, then the shaded snowman in the dashboard viewer with turnable views and HTML / glb / STL downloads — no API key, no image model](docs/images/snowman-demo.gif)
 
@@ -95,7 +119,7 @@ The agent calls `compose_world { base: 'city', seed: 42, overrides: { context: {
 
 ## Where it goes
 
-One recipe, several targets, all off the same ref: `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl,model.3mf,model.usdz}`. Each URL regenerates deterministically on request, and every handoff carries a ledger naming what did not travel.
+One recipe, several targets, all off the same ref: `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl,model.3mf,model.usdz,model.scad}`. Each URL regenerates deterministically on request, and every handoff carries a ledger naming what did not travel.
 
 | Target | What you get | The gate |
 |---|---|---|
@@ -105,6 +129,7 @@ One recipe, several targets, all off the same ref: `/api/sketches/<ref>/{svg,sce
 | **Unity / Unreal** (gated legs) | A data pack plus a C# editor importer or a Python importer; game packs add a C++ kernel plugin. | A scratch project imported headless, when `MOJULO_UNITY` / `MOJULO_UNREAL` name the editor. |
 | **Blender** (art pass) | An art-pass pack with importer scripts, and a Cycles bake of global illumination back into vertex colours. | The importer run headless, when `MOJULO_BLENDER` names the binary. |
 | **STL / 3MF** | Print-ready at true scale: mm, z-up, colours and instanced repeats in 3MF, process-aware advisories (FDM, SLA, SLS, MJF). | A local slicer run over the 3MF, stamping layers, time and filament. PrusaSlicer and Bambu Studio verified. |
+| **`.scad`** | A program, not a mesh. A `scad` recipe returns its own source verbatim; a workbench recipe is transpiled term by term into OpenSCAD solids and booleans, with a coverage ledger naming any term that arrived as a frozen `polyhedron()`. | OpenSCAD re-renders it and checks size and volume against the recipe, when the binary is installed. |
 
 Every export works with nothing installed; the pack is written and the gate reports "skipped" with the reason. Installing the engine adds the machine gate. Gates advise and stamp, none refuse, and no gate ever claims a human looked. Doctrine: [docs/bicycles.md](docs/bicycles.md).
 

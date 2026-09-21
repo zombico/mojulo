@@ -12,6 +12,22 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Release tooling
+
+- **`npm run smoke:tarball` parses `npm pack --json` past prepack's own stdout.** Under the current npm
+  the Next build banner lands in front of the JSON and the smoke died at the first step with
+  "Unexpected token '▲'"; it now parses from the last array-opening line. The gate then passed with
+  both WASM kernels in the tree, and a scad row and an exact cut minted, exported and rendered
+  (`/world`, `/scene`, STL, GLB, PNG) through the fresh install's CLI and dashboard.
+
+### Routing
+
+- **The illustration pack names the graphic novel.** Its recognizer gains the anchor 'a graphic novel I
+  click through page by page', so "present the graphic novel like a slideshow I click through" routes
+  to the sketch packs again instead of sitting a few thousandths behind the game and motion packs (it
+  had missed on the committed descriptions since before the OpenSCAD work; the eval is max-over-anchors,
+  so a pack without a matching quote loses to any pack with a near one).
+
 ### OpenSCAD front door
 
 - **`exact: true` on a `fields` entry or a `cuts` entry composes it with Manifold** (the boolean kernel
@@ -32,6 +48,22 @@ loops and the recipe format are unchanged.
   standalone server while the CLI and tests had it. The loader now falls back to the runtime's own
   import when the bundler's require is refused (the same fix the `scad` kind's loader carries).
 
+- **`update_sketch` on a `scad` row answers with a readout.** The edit pays `planScad`'s gates as at
+  mint (the fence, the parts contract, the embedded fields' audit, OpenSCAD's own errors), re-stamps
+  the ledger, and hands back the readout: `changed` (the default for a `patch`) lists the parts by
+  NAME that are new, moved, or named by a `/parts/<name>` op, plus new warnings and OpenSCAD log lines;
+  `summary` and `full` as on the workbench. Before this an edited scad row re-resolved but returned no
+  stats.
+- **OpenSCAD's default colours never reach the World.** Its OFF writer paints uncoloured geometry in
+  the preview scheme's yellow and the faces an uncoloured cutter leaves in its green; both now land as
+  the card promised — the neutral grey, and in a one-colour part the cut faces wear that colour (a
+  coloured body carved by a bare `mojulo_field()` stays the body's colour). The card also says how
+  two overlapping parts weld for the print: `export_model { union: true }`, which already does.
+- **The docs say what the doors do now.** The README's examples include a part written in OpenSCAD,
+  the tour and the formats tables list `.scad` beside the print formats, and the substrate drawer,
+  tech-requirements and the OpenSCAD worker doc no longer say a sampled field cannot give a sharp edge
+  or that the round trip ends at OpenSCAD. The workbench card shows the shaped-cutter idiom (a nested
+  sub-solid, subtracted) a D-bore needs.
 - **`mint_solid kind:'scad'`: an OpenSCAD program IS the recipe.** `spec.source` is stored verbatim and
   meshed on every read by OpenSCAD itself, running in-process as WebAssembly (`openscad-wasm-prebuilt`,
   a new optional creative dep, same posture as `manifold-3d`; OpenSCAD 2025.01.19, Manifold backend,

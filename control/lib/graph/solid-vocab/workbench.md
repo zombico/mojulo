@@ -225,6 +225,7 @@ Ops, not shapes: they apply to whatever the term list has built so far, or — w
 - `{ op:'twist', axis?:'z', turns }` — `turns` full rotations across the solid's extent along `axis`. `{ op:'bend', axis?:'x', radius }` — bend along `axis` into an arc of `radius`, curving toward the next axis (x→y, y→z, z→x). `{ op:'taper', axis?:'z', from, to }` — scale the cross-section linearly from `from` at the low end to `to` at the high end. After a warp the field is a bound with the right sign, not an exact distance: raise `cells` or `round` less.
 - `{ op:'elongate', by:[ex,ey,ez] }` — stretch the core by a flat span of these half-lengths (a sphere becomes a capsule, a torus a stadium ring). Exact.
 - A domain op with a nested `terms` list may open the list (the sub-solid is the first solid).
+- **A shaped cutter (a D-bore, a keyed hole, a slot with a flat):** build the cutter as a nested sub-solid and subtract the whole thing. `{ op:'transform', translate:[0,0,0], combine:'subtract', terms:[ { id:'bore', op:'add', shape:{ kind:'sweep', path:[[0,0,-1],[0,0,10]], radius:3.05 } }, { id:'flat', op:'intersect', shape:{ kind:'box', center:[0,-8.5,5], size:[20,20,24] } } ] }` — the cylinder ∩ the box is the D (the box's face at y = 1.5 is the flat), subtracted from the body. A `transform` needs a move, so a zero `translate` is the grouping. Exact under `exact: true`.
 
 Worked example — the flange again, six bolts as one repeated bore, a tapered hub:
 

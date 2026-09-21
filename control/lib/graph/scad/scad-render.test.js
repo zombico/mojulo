@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   parseOff, offToRecords, shadeRecords, validateScadSource, validateScadParts,
-  renderScadFaces, planScad, loadOpenscad, openscadVersion, DEFAULT_TINT,
+  renderScadFaces, planScad, loadOpenscad, openscadVersion, DEFAULT_TINT, neutralizeDefaultColours,
   validateScadFields, fieldPrelude, auditManifold,
 } from './scad-render.js';
 import { scadExport } from '../scene/scene-scad.js';
@@ -180,3 +180,22 @@ describe('scad-render — mojulo_field(): the field escape hatch (skipped when t
     await expect(planScad({ ...m, source: 'mojulo_field("nope");' })).rejects.toThrow(/no field named/);
   });
 }, 60000);
+
+describe('scad-render — OpenSCAD default colours never reach the World', () => {
+  const tints = (faces) => new Set(faces.map((f) => f.tint));
+  it.skipIf(!hasWasm)('uncoloured geometry is the neutral grey; an uncoloured cutter in a one-colour part wears that colour', async () => {
+    const plain = await renderScadFaces({ source: 'difference(){ cube(10, center = true); sphere(4); }', units: 'mm' });
+    expect(tints(plain)).toEqual(new Set([DEFAULT_TINT]));
+    const body = await renderScadFaces({ source: 'difference(){ color("#2b3242") cube(10, center = true); sphere(4); }', units: 'mm' });
+    expect(tints(body)).toEqual(new Set(['#2b3242']));
+    const both = await renderScadFaces({ source: 'difference(){ color("#2b3242") cube(10, center = true); color("#8a9bb0") sphere(4); }', units: 'mm' });
+    expect(tints(both)).toEqual(new Set(['#2b3242', '#8a9bb0']));
+    // two authored colours and a bare cutter: the cut faces cannot pick one, so they are grey
+    const mixed = await renderScadFaces({ source: 'difference(){ union(){ color("#2b3242") cube(10, center = true); color("#d8dbe1") translate([0, 0, 6]) cube(4, center = true); } sphere(4); }', units: 'mm' });
+    expect(tints(mixed)).toEqual(new Set(['#2b3242', '#d8dbe1', DEFAULT_TINT]));
+  });
+  it('is the identity on records with no default colour in them', () => {
+    const recs = [{ corners: [[0, 0, 0], [1, 0, 0], [0, 1, 0]], tint: '#ff0000', normal: [0, 0, 1], group: 'g' }];
+    expect(neutralizeDefaultColours(recs)).toBe(recs);
+  });
+});

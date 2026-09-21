@@ -756,8 +756,9 @@ Honest list of substrate-level gaps:
   direct outline -> solid paths, including materialize/transfigure
   motion. Boolean cuts across already-composed 3D primitives landed
   2026-09-05 as the workbench `fields` monomer (field-space `subtract` /
-  `intersect` over `field-terms.js`, surfaced by `field-mesh.js`) — soft,
-  grid-rounded cuts; sharp booleans stay with Manifold / the DCC.
+  `intersect` over `field-terms.js`, surfaced by `field-mesh.js`) — sampled
+  on the surface-net grid by default; `exact: true` (`field-exact.js`, 2026-09-21)
+  composes the same terms through Manifold for a sharp lip inside the recipe.
 - **Per-invocation namespacing for card-declared fields.** Today
   invoking a field-declaring card twice in one scene throws; an
   automatic namespace based on slot path would lift the restriction.

@@ -157,7 +157,7 @@ export const PACKS = [
     form: 'illustration',
     title: 'Scene & figure illustration',
     description:
-      "Painted scene & figure ILLUSTRATION + publication covers: the inverse-stable-diffusion knob-resolution loop (sketch_what_possible) that feeds create_sketch recipe families, and create_cover for title art composed under one art direction. Open for 'paint a moody mountain valley', 'illustrate my hero', 'a cover for this book'. Sketch minting is homed in pack_diagram; this pack dispatches it too.",
+      "Painted scene & figure ILLUSTRATION + publication covers: the inverse-stable-diffusion knob-resolution loop (sketch_what_possible) that feeds create_sketch recipe families, and create_cover for title art composed under one art direction. Open for 'paint a moody mountain valley', 'illustrate my hero', 'a cover for this book', 'a graphic novel I click through page by page'. Sketch minting is homed in pack_diagram; this pack dispatches it too.",
     members: ['sketch_what_possible', 'create_cover'],
     shared: ['create_sketch', 'update_sketch'],
   },
