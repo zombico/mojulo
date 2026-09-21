@@ -3,7 +3,7 @@
   "id": "motion-waypoints",
   "name": "Walk to a place in a world — verify walkability",
   "summary": "Compile a waypoint route into a deterministic run; the walkability audit.",
-  "when": "\"walk to the exit\", \"send the character to X then Y\", \"can you reach the platform\", \"verify the world is traversable\", \"audit walkability\"",
+  "when": "\"walk to the exit\", \"send the character to X then Y\", \"can you reach the platform\", \"can the player get from the door to the goal\", \"verify the world is traversable\", \"audit walkability\"",
   "entry": "forge_motion",
   "form": "motion"
 }

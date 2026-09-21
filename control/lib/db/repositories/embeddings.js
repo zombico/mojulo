@@ -26,9 +26,12 @@
  *
  * ── Failure posture ──────────────────────────────────────────────────────
  *
- * Embed failures are SOFT everywhere. `embed`/`embedMany` log and return
- * `{ vector: null }` on failure so the host write still commits; the agent
- * loses recall on that specific row until the next reindex. Same posture
+ * Embed failures are SOFT everywhere. `embed`/`embedMany` return
+ * `{ vector: null, textOnly: true }` on failure so the host write still
+ * commits AND the row is stored by text (embedding NULL) for the lexical
+ * path; the vector arrives on the next reindex once the runtime is there.
+ * The recall group being absent is the ordinary case of this, not an error:
+ * a default install has no embedding runtime (lib/embedder/local.js). Same posture
  * applies to bulk inventory replace — a network blip during embed leaves a
  * whole server's tools un-indexed, but the inventory write itself
  * succeeds.
@@ -44,6 +47,19 @@ import {
   LOCAL_EMBEDDING_MODEL,
   LOCAL_EMBEDDING_DIM,
 } from '../../embedder/local.js';
+
+// The `model` column value for a row indexed by text only (no vector). Written
+// whenever a vector could not be produced — the recall group absent, or an embed
+// failure — so the lexical path (meta_fts) always has the row.
+export const TEXT_ONLY_MODEL = 'text-only';
+
+// The embedder's "not installed" signal (lib/embedder/local.js
+// RecallUnavailableError). Distinguished from every other embed failure because
+// it is the NORMAL state of a default install: search answers lexically, not
+// "degraded".
+function isRecallUnavailable(err) {
+  return err?.code === 'RECALL_UNAVAILABLE';
+}
 
 export const SOURCE_KINDS = [
   'principle',
@@ -215,6 +231,113 @@ export function lexicalOverlap(query, whenText) {
   return hits / terms.length;
 }
 
+// ── Lexical path (no embedding runtime) ───────────────────────────────────
+//
+// FTS5 over meta_fts (db/index.js ensureEmbeddingsFts), trigram tokenizer. The
+// query is split into terms; terms shorter than three characters cannot match
+// a trigram index and are dropped; the rest are OR-ed so a row that carries any
+// of them is a candidate. Ranking: `score` is the share of query terms the row
+// contains, in [0, 1] — the same scale the weak-match threshold
+// (WEAK_SEARCH_TOP_SCORE) was tuned against, read as "a third of what was asked
+// is in the row" — with bm25 breaking ties and the routing When-line boost kept.
+// Query in English: the host translates the operator's ask before the first
+// tool call; the trigram tokenizer still segments a CJK card body the operator
+// wrote in their own language.
+
+export const LEXICAL_MIN_TERM_LENGTH = 3;
+export const LEXICAL_MAX_TERMS = 12;
+const LEXICAL_CANDIDATE_LIMIT = 200;
+
+/** Query terms for the trigram index: lowercase, letters/digits, ≥3 chars, deduped, capped. */
+export function lexicalTerms(query) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of String(query).toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    if (raw.length < LEXICAL_MIN_TERM_LENGTH || seen.has(raw)) continue;
+    seen.add(raw);
+    out.push(raw);
+    if (out.length >= LEXICAL_MAX_TERMS) break;
+  }
+  return out;
+}
+
+// One inline text-only reindex per process, so a fresh install's FIRST
+// semantic_search answers instead of racing the fire-and-forget boot backfill
+// (a CLI call is one short-lived process; there is nothing to wait for it).
+// Text-only indexing loads no model, so this is the cost of reading the card
+// files once.
+let lexicalPopulate = null;
+function ensureLexicalCorpus() {
+  const db = getDb();
+  const { n } = db.prepare('SELECT COUNT(*) AS n FROM meta_embeddings').get();
+  if (n > 0) return Promise.resolve();
+  if (!lexicalPopulate) {
+    lexicalPopulate = reindexAll().catch((err) => {
+      lexicalPopulate = null;
+      console.warn(`[meta_embeddings] lexical populate failed: ${err.message}`);
+    });
+  }
+  return lexicalPopulate;
+}
+
+async function searchLexical(query, { kindFilter, limit }) {
+  const terms = lexicalTerms(query);
+  if (terms.length === 0) return [];
+  await ensureLexicalCorpus();
+  const db = getDb();
+  const match = terms.map((t) => `"${t.replace(/"/g, '""')}"`).join(' OR ');
+  const kindClause = kindFilter ? ` AND e.source_kind IN (${kindFilter.map(() => '?').join(',')})` : '';
+  const rows = db
+    .prepare(
+      `SELECT e.id, e.source_kind, e.source_ref, e.body_text, bm25(meta_fts) AS rank
+       FROM meta_fts JOIN meta_embeddings e ON e.id = meta_fts.rowid
+       WHERE meta_fts MATCH ?${kindClause}
+       ORDER BY rank LIMIT ${LEXICAL_CANDIDATE_LIMIT}`,
+    )
+    .all(match, ...(kindFilter || []));
+
+  let validCapabilityRefs = null;
+  if (rows.some((r) => r.source_kind === 'mcp_capability')) {
+    validCapabilityRefs = new Set(
+      db
+        .prepare(
+          `SELECT p.provider_ref FROM meta_mcp_capabilities c
+           JOIN meta_mcp_providers p ON p.id = c.provider_id WHERE c.superseded_by IS NULL`,
+        )
+        .all()
+        .map((r) => r.provider_ref),
+    );
+  }
+
+  const scored = [];
+  for (const r of rows) {
+    if (
+      validCapabilityRefs &&
+      r.source_kind === 'mcp_capability' &&
+      !validCapabilityRefs.has(r.source_ref)
+    ) {
+      continue;
+    }
+    const body = (r.body_text || '').toLowerCase();
+    let hits = 0;
+    for (const t of terms) if (body.includes(t)) hits += 1;
+    let score = hits / terms.length;
+    if (r.source_kind === 'routing') {
+      const whenLine = WHEN_LINE_RE.exec(r.body_text || '');
+      if (whenLine) score += ROUTING_LEXICAL_LAMBDA * lexicalOverlap(query, whenLine[1]);
+    }
+    scored.push({
+      source_kind: r.source_kind,
+      source_ref: r.source_ref,
+      score,
+      rank: r.rank,
+      snippet: r.source_kind === 'routing' ? r.body_text : snippetOf(r.body_text),
+    });
+  }
+  scored.sort((a, b) => b.score - a.score || a.rank - b.rank);
+  return scored.slice(0, limit).map(({ rank, ...rest }) => rest);
+}
+
 export const EmbeddingsRepository = {
   /**
    * Compute an embedding for one body text. Returns `{ hash, vector }`. When
@@ -234,15 +357,21 @@ export const EmbeddingsRepository = {
       throw new Error('embed: bodyText must be a non-empty string');
     }
     const hash = sha256(bodyText);
+    // A row with the same hash but NO vector (written text-only while the
+    // runtime was absent) is not skipped: this is how installing recall later
+    // gives it a vector. If the runtime is still absent the embed throws and the
+    // row is left as it is — its text is already indexed.
+    let unchangedText = false;
     if (skipUnchanged) {
       const db = getDb();
       const existing = db
         .prepare(
-          'SELECT content_hash FROM meta_embeddings WHERE source_kind = ? AND source_ref = ?',
+          'SELECT content_hash, embedding IS NOT NULL AS has_vector FROM meta_embeddings WHERE source_kind = ? AND source_ref = ?',
         )
         .get(sourceKind, sourceRef);
       if (existing && existing.content_hash === hash) {
-        return { hash, vector: null };
+        if (existing.has_vector) return { hash, vector: null };
+        unchangedText = true;
       }
     }
     try {
@@ -251,10 +380,13 @@ export const EmbeddingsRepository = {
       });
       return { hash, vector };
     } catch (err) {
-      console.warn(
-        `[meta_embeddings] embed failed for ${sourceKind}:${sourceRef} — ${err.message}`,
-      );
-      return { hash, vector: null, error: err.message };
+      if (!isRecallUnavailable(err)) {
+        console.warn(
+          `[meta_embeddings] embed failed for ${sourceKind}:${sourceRef} — ${err.message}`,
+        );
+      }
+      if (unchangedText) return { hash, vector: null };
+      return { hash, vector: null, textOnly: true, error: err.message };
     }
   },
 
@@ -283,13 +415,17 @@ export const EmbeddingsRepository = {
       }
       const hash = sha256(it.bodyText);
       let skip = false;
+      let unchangedText = false; // same hash, no vector — see embed()
       if (skipUnchanged) {
         const existing = db
           .prepare(
-            'SELECT content_hash FROM meta_embeddings WHERE source_kind = ? AND source_ref = ?',
+            'SELECT content_hash, embedding IS NOT NULL AS has_vector FROM meta_embeddings WHERE source_kind = ? AND source_ref = ?',
           )
           .get(it.sourceKind, it.sourceRef);
-        skip = !!(existing && existing.content_hash === hash);
+        if (existing && existing.content_hash === hash) {
+          if (existing.has_vector) skip = true;
+          else unchangedText = true;
+        }
       }
       return {
         sourceKind: it.sourceKind,
@@ -297,7 +433,9 @@ export const EmbeddingsRepository = {
         bodyText: it.bodyText,
         hash,
         vector: null,
+        textOnly: false,
         skip,
+        unchangedText,
       };
     });
     const toEmbed = prepped.filter((p) => !p.skip);
@@ -311,11 +449,14 @@ export const EmbeddingsRepository = {
           toEmbed[i].vector = vectors[i];
         }
       } catch (err) {
-        console.warn(
-          `[meta_embeddings] embedMany failed (${toEmbed.length} items) — ${err.message}`,
-        );
-        // Leave .vector = null on every toEmbed entry; the caller treats the
-        // batch as a soft loss and the source write still commits.
+        if (!isRecallUnavailable(err)) {
+          console.warn(
+            `[meta_embeddings] embedMany failed (${toEmbed.length} items) — ${err.message}`,
+          );
+        }
+        // Every entry whose text is new or changed is stored text-only; an
+        // entry whose text is already there (vector-less) is left alone.
+        for (const p of toEmbed) p.textOnly = !p.unchangedText;
       }
     }
     return prepped.map((p) => ({
@@ -324,6 +465,7 @@ export const EmbeddingsRepository = {
       bodyText: p.bodyText,
       hash: p.hash,
       vector: p.vector,
+      ...(p.textOnly ? { textOnly: true } : {}),
     }));
   },
 
@@ -331,28 +473,31 @@ export const EmbeddingsRepository = {
    * Synchronous upsert. Call from inside a host write's `db.transaction(fn)`
    * so the embedding row commits or rolls back with the source row.
    *
-   * `vector: null` is the soft-failure signal — the upsert is skipped and the
-   * caller continues. Existing rows are NOT deleted on soft failure: a prior
-   * good embedding stays in place even if the latest embed failed, so recall
-   * doesn't regress below the previous state until the row is overwritten or
-   * reindexed.
+   * `vector: null` without `textOnly` is the hash-skip signal — the upsert is
+   * a no-op and the caller continues. `vector: null, textOnly: true` (the
+   * embed could not run: runtime absent or failed) writes the row with a NULL
+   * embedding so the lexical index has its text; a stale vector for the OLD
+   * text is dropped with it, which is the honest state.
    */
-  upsertSync({ sourceKind, sourceRef, bodyText, hash, vector, model = LOCAL_EMBEDDING_MODEL }) {
+  upsertSync({ sourceKind, sourceRef, bodyText, hash, vector, textOnly = false, model = LOCAL_EMBEDDING_MODEL }) {
     assertSourceKind(sourceKind);
     if (typeof sourceRef !== 'string' || sourceRef.length === 0) {
       throw new Error('upsertSync: sourceRef must be a non-empty string');
     }
     if (vector === null || vector === undefined) {
-      // No-op on soft-failure / hash-skip. Caller decides whether to log.
-      return { written: false, reason: 'no_vector' };
-    }
-    if (!Array.isArray(vector) && !(vector instanceof Float32Array)) {
-      throw new Error('upsertSync: vector must be an array of numbers');
-    }
-    if (vector.length !== LOCAL_EMBEDDING_DIM) {
-      throw new Error(
-        `upsertSync: vector length ${vector.length} != expected ${LOCAL_EMBEDDING_DIM}`,
-      );
+      if (!textOnly) {
+        // No-op on hash-skip. Caller decides whether to log.
+        return { written: false, reason: 'no_vector' };
+      }
+    } else {
+      if (!Array.isArray(vector) && !(vector instanceof Float32Array)) {
+        throw new Error('upsertSync: vector must be an array of numbers');
+      }
+      if (vector.length !== LOCAL_EMBEDDING_DIM) {
+        throw new Error(
+          `upsertSync: vector length ${vector.length} != expected ${LOCAL_EMBEDDING_DIM}`,
+        );
+      }
     }
     if (typeof bodyText !== 'string' || bodyText.length === 0) {
       throw new Error('upsertSync: bodyText must be a non-empty string');
@@ -370,8 +515,15 @@ export const EmbeddingsRepository = {
          embedding = excluded.embedding,
          model = excluded.model,
          created_at = unixepoch()`,
-    ).run(sourceKind, sourceRef, hash, bodyText, vectorToBuffer(vector), model);
-    return { written: true };
+    ).run(
+      sourceKind,
+      sourceRef,
+      hash,
+      bodyText,
+      vector ? vectorToBuffer(vector) : null,
+      vector ? model : TEXT_ONLY_MODEL,
+    );
+    return { written: true, ...(vector ? {} : { textOnly: true }) };
   },
 
   /** Sync delete for a single (kind, ref). */
@@ -418,13 +570,21 @@ export const EmbeddingsRepository = {
    * anchor quotes) — see the tiebreaker comment above lexicalOverlap.
    *
    * Returns `[{ source_kind, source_ref, score, snippet }]`. With
-   * `withMeta: true`, returns `{ results, degraded }` instead — `degraded`
-   * is true when the query itself could not be embedded, so the caller can
-   * tell "the index answered nothing" from "the index couldn't answer"
-   * (routing-context-weaving.plan.md C2). The caller (`semantic_search` MCP
+   * `withMeta: true`, returns `{ results, degraded, mode }` instead —
+   * `degraded` is true when the query itself could not be embedded by an
+   * INSTALLED runtime, so the caller can tell "the index answered nothing"
+   * from "the index couldn't answer" (routing-context-weaving.plan.md C2).
+   * `mode` is 'vector' or 'lexical'. The caller (`semantic_search` MCP
    * tool) is responsible for re-checking row relevance against current
    * state — e.g. filtering out superseded capability rows by joining
    * against meta_mcp_capabilities.
+   *
+   * ONE path or the other, never a blend: when the recall install group is
+   * absent (the default install) the query cannot be embedded and ranking is
+   * lexical over meta_fts (see searchLexical); with the group present it is
+   * cosine over the stored vectors, exactly as before. Text-only rows (no
+   * vector) are invisible to the vector path until the boot backfill gives
+   * them one.
    */
   async search(query, { kinds, limit = 8, withMeta = false } = {}) {
     if (typeof query !== 'string' || query.trim().length === 0) {
@@ -447,8 +607,12 @@ export const EmbeddingsRepository = {
       const [v] = await generateEmbeddings([query], { inputType: 'search_query' });
       queryVector = v;
     } catch (err) {
+      if (isRecallUnavailable(err)) {
+        const results = await searchLexical(query, { kindFilter, limit });
+        return withMeta ? { results, degraded: false, mode: 'lexical' } : results;
+      }
       console.warn(`[meta_embeddings] search embed failed: ${err.message}`);
-      return withMeta ? { results: [], degraded: true } : [];
+      return withMeta ? { results: [], degraded: true, mode: 'vector' } : [];
     }
 
     const db = getDb();
@@ -498,6 +662,7 @@ export const EmbeddingsRepository = {
       ) {
         continue;
       }
+      if (!r.embedding) continue; // text-only row: the lexical path's, not ours
       const vec = bufferToVector(r.embedding);
       let score = cosine(queryVector, vec);
       if (r.source_kind === 'routing') {
@@ -517,7 +682,7 @@ export const EmbeddingsRepository = {
     }
     scored.sort((a, b) => b.score - a.score);
     const results = scored.slice(0, limit);
-    return withMeta ? { results, degraded: false } : results;
+    return withMeta ? { results, degraded: false, mode: 'vector' } : results;
   },
 
   /** Read-only inspector used by tests + the integration suite. */
@@ -526,7 +691,8 @@ export const EmbeddingsRepository = {
     const db = getDb();
     const row = db
       .prepare(
-        `SELECT id, source_kind, source_ref, content_hash, body_text, model, created_at
+        `SELECT id, source_kind, source_ref, content_hash, body_text, model, created_at,
+                embedding IS NOT NULL AS has_vector
          FROM meta_embeddings WHERE source_kind = ? AND source_ref = ?`,
       )
       .get(sourceKind, sourceRef);
@@ -538,6 +704,7 @@ export const EmbeddingsRepository = {
       contentHash: row.content_hash,
       bodyText: row.body_text,
       model: row.model,
+      hasVector: !!row.has_vector,
       createdAt: row.created_at,
     };
   },
@@ -1350,14 +1517,13 @@ export async function reindexAll({ verbose = false } = {}) {
   const embedded = await EmbeddingsRepository.embedMany(items);
 
   let written = 0;
+  let textOnly = 0;
   let skipped = 0;
   let failed = 0;
   const txn = db.transaction(() => {
     for (const e of embedded) {
-      if (e.vector === null) {
-        // Hash-skip OR soft-fail. We can't distinguish from the return shape
-        // alone; the hash-skip case is benign and we just count the row as
-        // skipped. embedMany already logged any actual failures.
+      if (e.vector === null && !e.textOnly) {
+        // Hash-skip (the text is already stored, with or without a vector).
         const existing = EmbeddingsRepository.findByRef(e.sourceKind, e.sourceRef);
         if (existing && existing.contentHash === e.hash) {
           skipped += 1;
@@ -1372,14 +1538,16 @@ export async function reindexAll({ verbose = false } = {}) {
         bodyText: e.bodyText,
         hash: e.hash,
         vector: e.vector,
+        textOnly: !!e.textOnly,
       });
-      if (res.written) written += 1;
-      else skipped += 1;
+      if (!res.written) skipped += 1;
+      else if (res.textOnly) textOnly += 1;
+      else written += 1;
     }
   });
   txn();
-  log(`written=${written} skipped=${skipped} failed=${failed}`);
-  return { totalSeen: items.length, written, skipped, failed };
+  log(`written=${written} textOnly=${textOnly} skipped=${skipped} failed=${failed}`);
+  return { totalSeen: items.length, written, textOnly, skipped, failed };
 }
 
 export const _internals = {

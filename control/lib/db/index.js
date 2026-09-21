@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
+import { installedGroups } from '../mcp/packs.js';
 
 // Resolved lazily at first getDb() call (not at module load) so test files can
 // set SQLITE_PATH after their `import` block has hoisted — ESM evaluates imports
@@ -362,7 +363,7 @@ function init(db) {
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
       body_text TEXT NOT NULL,
-      embedding BLOB NOT NULL,
+      embedding BLOB,
       model TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(source_kind, source_ref)
@@ -861,6 +862,8 @@ function init(db) {
   migrateEmbeddingsSolidVocabKind(db);
   migrateEmbeddingsMotionVocabKind(db);
   migrateEmbeddingsGameHudKind(db);
+  migrateEmbeddingsNullableVector(db);
+  ensureEmbeddingsFts(db);
   migrateMcpToolCallColumns(db);
   migrateUserColumns(db);
   migrateRenderRequestMedium(db);
@@ -973,6 +976,20 @@ function maybeBackfillEmbeddings(db) {
   if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return;
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM meta_embeddings').get();
   if (n > 0) {
+    // Rows written while the recall group was absent carry text only. Once the
+    // group is installed, give them vectors: embedMany no longer hash-skips a
+    // vector-less row when it can embed, so this is a one-time fill and then a
+    // no-op on later boots. Without the group the rows stay text-only and the
+    // lexical path answers over them — nothing to do.
+    if (installedGroups().has('recall')) {
+      const { nv } = db
+        .prepare('SELECT COUNT(*) AS nv FROM meta_embeddings WHERE embedding IS NULL')
+        .get();
+      if (nv > 0) {
+        triggerReindex('vector backfill');
+        return;
+      }
+    }
     // Table already populated — but an upgrade may have shipped a NEW source
     // kind whose rows the schema migration didn't add (migrations preserve
     // existing rows only). sketch_vocab is the first such kind: the cards live
@@ -1432,7 +1449,7 @@ function migrateEmbeddingsSourceKinds(db) {
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
       body_text TEXT NOT NULL,
-      embedding BLOB NOT NULL,
+      embedding BLOB,
       model TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(source_kind, source_ref)
@@ -1487,7 +1504,7 @@ function migrateEmbeddingsGameProjectKind(db) {
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
       body_text TEXT NOT NULL,
-      embedding BLOB NOT NULL,
+      embedding BLOB,
       model TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(source_kind, source_ref)
@@ -1543,7 +1560,7 @@ function migrateEmbeddingsSolidVocabKind(db) {
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
       body_text TEXT NOT NULL,
-      embedding BLOB NOT NULL,
+      embedding BLOB,
       model TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(source_kind, source_ref)
@@ -1599,7 +1616,7 @@ function migrateEmbeddingsMotionVocabKind(db) {
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
       body_text TEXT NOT NULL,
-      embedding BLOB NOT NULL,
+      embedding BLOB,
       model TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(source_kind, source_ref)
@@ -1656,7 +1673,7 @@ function migrateEmbeddingsGameHudKind(db) {
       source_ref TEXT NOT NULL,
       content_hash TEXT NOT NULL,
       body_text TEXT NOT NULL,
-      embedding BLOB NOT NULL,
+      embedding BLOB,
       model TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(source_kind, source_ref)
@@ -1670,6 +1687,107 @@ function migrateEmbeddingsGameHudKind(db) {
     CREATE INDEX IF NOT EXISTS idx_meta_embeddings_kind ON meta_embeddings(source_kind);
     COMMIT;
   `);
+}
+
+// The embedding column became NULLABLE when the embedding runtime left the
+// package (the `recall` install group): a row whose vector could not be produced
+// (group absent, or an embed failure) is still indexed by text so the lexical
+// path (meta_fts, below) answers over it. Same rebuild idiom as the siblings
+// above, guarded on the stored DDL. Rows are preserved as-is.
+function migrateEmbeddingsNullableVector(db) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
+    .get();
+  if (!row || !row.sql) return;
+  if (!/embedding\s+BLOB\s+NOT\s+NULL/i.test(row.sql)) return;
+  db.exec(`
+    BEGIN;
+    CREATE TABLE meta_embeddings_new (
+      id INTEGER PRIMARY KEY,
+      source_kind TEXT NOT NULL CHECK(source_kind IN (
+        'principle',
+        'mcp_tool',
+        'mcp_capability',
+        'orbit_component',
+        'orbit_composition',
+        'orbit_artifact',
+        'catalyst',
+        'sketch_vocab',
+        'sketch_method',
+        'manji_program',
+        'painted_landscape',
+        'view_vocab',
+        'solid_vocab',
+        'motion_vocab',
+        'beats_vocab',
+        'game_vocab',
+        'game_mechanic',
+        'game_kit',
+        'game_glyph',
+        'game_sfx',
+        'game_hud',
+        'game_project',
+        'routing'
+      )),
+      source_ref TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      body_text TEXT NOT NULL,
+      embedding BLOB,
+      model TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(source_kind, source_ref)
+    );
+    INSERT INTO meta_embeddings_new
+      (id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at)
+      SELECT id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at
+      FROM meta_embeddings;
+    DROP TABLE meta_embeddings;
+    ALTER TABLE meta_embeddings_new RENAME TO meta_embeddings;
+    CREATE INDEX IF NOT EXISTS idx_meta_embeddings_kind ON meta_embeddings(source_kind);
+    COMMIT;
+  `);
+}
+
+// meta_fts — the lexical index over meta_embeddings.body_text, an FTS5
+// external-content table (no second copy of the text) kept in step by triggers,
+// so no write path in the embeddings repository knows it exists. Trigram
+// tokenizer: substring matches ("rocket" finds "rockets"), case-insensitive,
+// and it segments CJK where unicode61 would not. `semantic_search` ranks over
+// it whenever the recall group is absent (EmbeddingsRepository.search). The
+// table rebuilds above DROP meta_embeddings and take its triggers with it, so
+// this runs after them and re-creates what is missing; a freshly created index
+// over an already-populated table is filled with FTS5's 'rebuild' command.
+function ensureEmbeddingsFts(db) {
+  const had = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='meta_fts'")
+    .get();
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS meta_fts USING fts5(
+      source_kind UNINDEXED,
+      body_text,
+      content='meta_embeddings',
+      content_rowid='id',
+      tokenize='trigram'
+    );
+    CREATE TRIGGER IF NOT EXISTS meta_embeddings_fts_ai AFTER INSERT ON meta_embeddings BEGIN
+      INSERT INTO meta_fts(rowid, source_kind, body_text)
+        VALUES (new.id, new.source_kind, new.body_text);
+    END;
+    CREATE TRIGGER IF NOT EXISTS meta_embeddings_fts_ad AFTER DELETE ON meta_embeddings BEGIN
+      INSERT INTO meta_fts(meta_fts, rowid, source_kind, body_text)
+        VALUES ('delete', old.id, old.source_kind, old.body_text);
+    END;
+    CREATE TRIGGER IF NOT EXISTS meta_embeddings_fts_au AFTER UPDATE ON meta_embeddings BEGIN
+      INSERT INTO meta_fts(meta_fts, rowid, source_kind, body_text)
+        VALUES ('delete', old.id, old.source_kind, old.body_text);
+      INSERT INTO meta_fts(rowid, source_kind, body_text)
+        VALUES (new.id, new.source_kind, new.body_text);
+    END;
+  `);
+  if (!had) {
+    const { n } = db.prepare('SELECT COUNT(*) AS n FROM meta_embeddings').get();
+    if (n > 0) db.exec("INSERT INTO meta_fts(meta_fts) VALUES ('rebuild')");
+  }
 }
 
 function reapStaleMcpJobs(db) {

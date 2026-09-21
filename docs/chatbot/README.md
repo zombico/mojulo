@@ -19,7 +19,8 @@ and runs as its own process — it was never part of the workshop install.
 ## Install and build one
 
 ```bash
-mojulo install chatbot     # adds the bot factory (--remove takes it away)
+mojulo install chatbot     # adds the bot factory (--remove takes it away); installs the recall
+                           # group first — the embedding runtime the builder's preview RAG needs
 ```
 
 A compiled bot calls an LLM to run, and the builder generates a few pieces

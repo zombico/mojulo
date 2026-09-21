@@ -1,7 +1,7 @@
 {
   "name": "mojulo",
   "mcpName": "io.github.zombico/mojulo",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Mojulo — a 3D compiler for coding agents: a local MCP server where you build worlds, objects, and games by talking to the agent you already run (Claude Code, Codex, or any MCP host). Each one is stored as a small deterministic recipe on your own machine — the source, compiled back byte-for-byte and emitted as a game (Godot) or a printed object (STL). An OpenSCAD program is a recipe too, meshed in-process, and booleans are exact inside the recipe. A compiler, not a generator; the recipe stays yours.",
@@ -106,7 +106,6 @@
     "smoke:tarball": "node scripts/smoke-cold-install.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0",
     "@puppeteer/browsers": "^2.13.2",
     "@swc/core": "^1.15.47",
     "archiver": "^8.0.0",
@@ -130,10 +129,12 @@
     "node-web-audio-api": "^2.0.0",
     "openscad-wasm-prebuilt": "^1.2.0",
     "opentype.js": "^2.0.0",
+    "sharp": "^0.34.5",
     "three": "^0.184.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "adm-zip": "^0.5.16",
     "next": "^16.0.7",
     "next-intl": "^4.8.3",
     "tailwindcss": "^4",

@@ -62,6 +62,35 @@ function runInit(...extraArgs) {
   return res;
 }
 
+// ── no keyboard ───────────────────────────────────────────────────────────────
+// A pipe / CI / an agent driving the install: stdin is not a TTY. Without --yes
+// the prompts used to block forever and die with exit 13 when stdin closed (the
+// 2026-09-21 Claude cloud field report). Now the defaults are taken, announced
+// once, and the run completes. stdio 'ignore' is exactly "no terminal".
+
+describe('init — stdin is not a terminal', () => {
+  it('takes the --yes defaults without --yes, announces it once, and exits 0', () => {
+    seedCodex('# my config\n');
+    const res = spawnSync(process.execPath, [STDIO, 'init', '--no-ui', '--host', 'codex'], {
+      encoding: 'utf8',
+      timeout: 25000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        HOME: home,
+        USERPROFILE: home,
+        MOJULO_HOME: join(home, '.mojulo'),
+        PATH: join(home, 'bin') + delimiter + (process.env.PATH || ''),
+      },
+    });
+    expect(res.error).toBeUndefined();
+    expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
+    expect(res.stdout.match(/stdin is not a terminal/g)).toHaveLength(1);
+    expect(res.stderr).not.toMatch(/unsettled top-level await/);
+    expect(readFileSync(codexCfg(), 'utf8')).toContain('[mcp_servers.mojulo]');
+  });
+});
+
 // ── codex ─────────────────────────────────────────────────────────────────────
 
 const codexCfg = () => join(home, '.codex', 'config.toml');

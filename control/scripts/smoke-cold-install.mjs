@@ -20,7 +20,12 @@
  * partner still nested, a leftover .nft.json) exit 1. The mismatch list for
  * pure-JS packages is advisory and printed, never fatal.
  *
- *   node scripts/smoke-cold-install.mjs [--tarball <path>] [--keep] [--with-embeddings]
+ *   node scripts/smoke-cold-install.mjs [--tarball <path>] [--keep] [--with-recall]
+ *
+ * The default run is the DEFAULT install: no recall group, so `semantic_search`
+ * must answer lexically. `--with-recall` runs `mojulo install recall` into the
+ * temp home first (a ~480 MB runtime plus the ~130 MB model) and then expects
+ * a vector result.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -70,16 +75,16 @@ const DIAGRAM = {
 };
 
 function parseArgs(argv) {
-  const args = { tarball: null, keep: false, embeddings: false };
+  const args = { tarball: null, keep: false, recall: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--tarball') args.tarball = path.resolve(argv[++i]);
     else if (a.startsWith('--tarball=')) args.tarball = path.resolve(a.slice('--tarball='.length));
     else if (a === '--keep') args.keep = true;
-    else if (a === '--with-embeddings') args.embeddings = true;
+    else if (a === '--with-recall' || a === '--with-embeddings') args.recall = true;
     else if (a === '-h' || a === '--help') {
       process.stdout.write(
-        'Usage: node scripts/smoke-cold-install.mjs [--tarball <path>] [--keep] [--with-embeddings]\n'
+        'Usage: node scripts/smoke-cold-install.mjs [--tarball <path>] [--keep] [--with-recall]\n'
       );
       process.exit(0);
     } else {
@@ -243,9 +248,8 @@ async function main() {
     MOJULO_DATA_DIR: path.join(dataDir, 'data'),
     MOJULO_OUTCOMES_DIR: path.join(dataDir, 'data', 'outcomes'),
     MOJULO_MODELS_DIR: path.join(dataDir, 'models'),
-    // The backfill would fetch the ~130 MB embedding model on first getDb();
-    // the sharp class of failure shows on /api/sketches without it.
-    ...(args.embeddings ? {} : { MOJULO_SEMANTIC_INDEX_DISABLED: '1' }),
+    // No MOJULO_SEMANTIC_INDEX_DISABLED: without the recall group the backfill
+    // is text-only and fetches nothing, which is exactly what a cold install does.
     BROWSER: 'none',
   };
 
@@ -269,6 +273,13 @@ async function main() {
     const pkgDir = path.join(nm, 'mojulo');
     const standaloneNm = path.join(pkgDir, '.next', 'standalone', 'node_modules');
     note(`unpacked package ${mb(dirSize(pkgDir))}, node_modules total ${mb(dirSize(nm))}`);
+
+    // The embedding runtime is the opt-in recall group, not a dependency: a cold
+    // install must not carry it.
+    for (const name of ['@huggingface/transformers', 'onnxruntime-node', 'onnxruntime-web']) {
+      if (existsSync(path.join(nm, name))) fail(`${name} was installed by the tarball — it belongs to the recall group`);
+    }
+    if (!existsSync(path.join(nm, '@huggingface'))) ok('no embedding runtime in the cold install (recall is opt-in)');
 
     // ── packaging invariants ─────────────────────────────────────────────
     for (const name of MUST_BE_HOISTED) {
@@ -310,6 +321,13 @@ async function main() {
         (r.stderr || '').trim().split('\n').pop();
       return r;
     };
+    if (args.recall) {
+      const t1 = Date.now();
+      const inst = spawnSync(process.execPath, [stdio, 'install', 'recall'], { cwd: tmp, env, stdio: ['ignore', 'ignore', 'inherit'] });
+      if (inst.status !== 0) fail(`mojulo install recall exited ${inst.status}`);
+      else ok(`mojulo install recall in ${((Date.now() - t1) / 1000).toFixed(0)}s (${mb(dirSize(path.join(dataDir, 'recall')))})`);
+    }
+
     const ver = call('version', {});
     let reported = null;
     try {
@@ -320,6 +338,21 @@ async function main() {
     } else if (reported !== expectedVersion) {
       fail(`installed version ${reported} ≠ package.json ${expectedVersion}`);
     } else ok(`mojulo call version → ${reported}`);
+
+    // semantic_search on a fresh process: the lexical index self-populates on the
+    // first call (text-only reindex, no model), so this must return a routing card
+    // with mode 'lexical' — or 'vector' when the recall group was installed above.
+    const search = call('semantic_search', { query: 'build a little town I can walk around in', kinds: ['routing'], limit: 3 });
+    let found = null;
+    try {
+      found = JSON.parse(search.stdout);
+    } catch {}
+    const wantMode = args.recall ? 'vector' : 'lexical';
+    if (search.status !== 0 || !found) {
+      fail(`semantic_search failed (exit ${search.status}): ${search.reason}`);
+    } else if (found.mode !== wantMode || !Array.isArray(found.results) || found.results.length === 0) {
+      fail(`semantic_search → mode ${found.mode}, ${found.results?.length ?? 0} results (wanted ${wantMode}, ≥1): ${JSON.stringify(found).slice(0, 300)}`);
+    } else ok(`semantic_search → ${found.mode}, top ${found.results[0].source_ref} (${found.results[0].score.toFixed(2)})`);
 
     // ── dashboard ────────────────────────────────────────────────────────
     const port = await findFreePort();

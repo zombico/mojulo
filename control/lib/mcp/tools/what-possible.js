@@ -163,7 +163,7 @@ export function registerWhatPossibleTools() {
         intent: {
           type: 'string',
           description:
-            "The user's current ask, phrased the way they phrased it. Vague is fine on turn 1 (\"a house\") — refines across turns as the conversation accumulates knob decisions. The embedding match runs against the methods' prose descriptions, so both natural framing (\"a quiet victorian on a foggy morning\") and structural framing (\"style victorian, roof mansard\") work.",
+            "The user's current ask, in English (translate first). Vague is fine on turn 1 (\"a house\") — refines across turns as the conversation accumulates knob decisions. The match runs against the methods' prose descriptions, so both natural framing (\"a quiet victorian on a foggy morning\") and structural framing (\"style victorian, roof mansard\") work.",
         },
         accumulated: {
           type: 'array',

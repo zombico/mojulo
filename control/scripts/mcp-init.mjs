@@ -68,6 +68,10 @@ function parseArgs(argv) {
       usage(2);
     }
   }
+  if (!args.yes && !args.print && !INTERACTIVE) {
+    args.yes = true;
+    process.stdout.write('mojulo init: stdin is not a terminal — taking the --yes defaults (add --no-ui to skip the dashboard).\n');
+  }
   return args;
 }
 
@@ -90,10 +94,32 @@ function usage(code = 0) {
 }
 
 // ── prompts ───────────────────────────────────────────────────────────────────
+// Nobody at a keyboard (CI, a pipe, an agent driving the install, `</dev/null`)
+// means every prompt takes its default, announced once, instead of waiting on
+// stdin forever and dying with an unsettled-await warning when it closes
+// (the 2026-09-21 Claude cloud field report, §2.2). `--yes` stays the explicit
+// spelling; `--print` and `--no-ui` compose with it as before.
+const INTERACTIVE = !!process.stdin.isTTY;
 let rl = null;
 function ask(question) {
-  if (!rl) rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => rl.question(question, (a) => resolve(a.trim())));
+  if (!rl) {
+    rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    // EOF mid-prompt (a terminal that goes away): say so and stop, rather than
+    // leaving the top-level await unsettled.
+    rl.on('close', () => {
+      if (!rl._answered) {
+        process.stdout.write('\nmojulo init: input closed before the prompt was answered — nothing more was changed.\n');
+        process.exit(1);
+      }
+    });
+  }
+  rl._answered = false;
+  return new Promise((resolve) =>
+    rl.question(question, (a) => {
+      rl._answered = true;
+      resolve(a.trim());
+    }),
+  );
 }
 async function confirm(question, def = true) {
   const hint = def ? '[Y/n]' : '[y/N]';

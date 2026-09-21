@@ -149,10 +149,11 @@ process.env.HOSTNAME = host;
 
 const url = `http://${host}:${port}`;
 
-// Same overlap rationale as mcp-stdio.mjs: first RAG bot build is the iconic
-// genesis flow, and the embedder load (~113MB cold) is the longest single
-// step. Kick it off in background so the download overlaps with the user
-// scanning the dashboard. Failures surface at first use; don't crash the UI.
+// Same overlap rationale as mcp-stdio.mjs: a no-op without the recall install
+// group; with it, the embedder load (~130MB cold) is the longest single step of
+// the first RAG bot build, so kick it off in background and let the download
+// overlap with the user scanning the dashboard. Failures surface at first use;
+// don't crash the UI.
 // pathToFileURL, not the bare path: on Windows a raw `C:\...` specifier is
 // parsed as URL protocol `c:` and the ESM loader rejects it outright.
 import(pathToFileURL(path.join(CONTROL_DIR, 'lib', 'embedder', 'local.js')).href)

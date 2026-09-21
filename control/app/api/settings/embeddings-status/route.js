@@ -1,19 +1,27 @@
 /**
  * GET /api/settings/embeddings-status
  *
- * Reports the embedding provider available to vector RAG. Local ONNX
- * model (`@huggingface/transformers`) is bundled into the control plane,
- * so `hasEmbeddingsProvider` is always true. The wizard still polls this
- * to surface the model name on the keyword/vector toggle card.
+ * Reports the embedding provider available to vector RAG. The local ONNX
+ * model (`@huggingface/transformers`) is the opt-in `recall` install group
+ * (lib/mcp/packs.js), so `hasEmbeddingsProvider` is the group's presence and
+ * `install` names the line that adds it. The wizard polls this to surface the
+ * model name on the keyword/vector toggle card.
  */
 
 import { NextResponse } from 'next/server';
-import { LOCAL_EMBEDDING_MODEL } from '@/lib/embedder/local';
+import {
+  LOCAL_EMBEDDING_MODEL,
+  RECALL_INSTALL_LINE,
+  embedderAvailable,
+} from '@/lib/embedder/local';
 
 export async function GET() {
+  const available = embedderAvailable();
   return NextResponse.json({
-    hasEmbeddingsProvider: true,
-    provider: 'local',
-    model: LOCAL_EMBEDDING_MODEL,
+    hasEmbeddingsProvider: available,
+    provider: available ? 'local' : 'none',
+    model: available ? LOCAL_EMBEDDING_MODEL : null,
+    group: 'recall',
+    ...(available ? {} : { install: RECALL_INSTALL_LINE }),
   });
 }
