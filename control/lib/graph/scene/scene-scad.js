@@ -52,6 +52,8 @@ import { drapeToFaces } from '../polygonizer/drape-faces.js';
 import { reliefToFaces } from '../polygonizer/relief-faces.js';
 import { shellToFaces } from '../polygonizer/shell-faces.js';
 import { surfaceNetFaces } from '../polygonizer/field-mesh.js';
+import { num, sub3, len3, cross3, unit3, axisBasis, perpBasisZ, latheMeridian } from '../polygonizer/solid-frame.js';
+export { num, axisBasis, perpBasisZ, latheMeridian };
 
 export const SCAD_DEFAULT_FN = 64;
 
@@ -81,14 +83,6 @@ const MONOMER_ORDER = ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields', 'drape
 
 const EPS = 1e-9;
 
-export function num(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '0';
-  const r = Math.abs(n) < EPS ? 0 : n;
-  let s = r.toFixed(6);
-  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
-  return s === '-0' ? '0' : s;
-}
 
 const asVec = (p) => (Array.isArray(p) ? { x: +p[0], y: +p[1], z: +p[2] } : { x: +p.x, y: +p.y, z: +p.z });
 const v3 = (p) => { const q = asVec(p); return `[${num(q.x)}, ${num(q.y)}, ${num(q.z)}]`; };
@@ -96,10 +90,6 @@ const v2 = (u, w) => `[${num(u)}, ${num(w)}]`;
 
 // ─── small vector kit (local; field-terms keeps its own private copy) ─────────────
 
-const sub3 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
-const len3 = (a) => Math.hypot(a.x, a.y, a.z);
-const cross3 = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
-const unit3 = (a) => { const l = len3(a) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
 const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 
 /**
@@ -107,11 +97,6 @@ const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
  * `rotate_extrude` (which revolves about +Z) up along an arbitrary recipe axis. A
  * surface of revolution is symmetric about its axis, so any perpendicular pair does.
  */
-function axisBasis(d) {
-  const ref = Math.abs(d.z) > 0.999 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 };
-  const u = unit3(cross3(ref, d));
-  return [u, cross3(d, u), d];
-}
 
 /**
  * extrude-faces' Z-cross frame, duplicated from field-terms' private `perpBasisZ`. A
@@ -119,11 +104,6 @@ function axisBasis(d) {
  * profile arrives rotated. Kept in sync by the mapping tests, which compare an emitted
  * prism's corners against `extrudeToFaces` output.
  */
-function perpBasisZ(d) {
-  if (Math.abs(d.z) > 0.999) return [{ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }];
-  const u = unit3(cross3({ x: 0, y: 0, z: 1 }, d));
-  return [u, unit3(cross3(d, u))];
-}
 
 /** A row-major 4×4 `multmatrix` whose columns are the basis and whose translation is `o`. */
 function multmatrix([bu, bv, bd], o) {
@@ -415,23 +395,6 @@ function shapeNode(shape, ctx, base) {
  * down the axis so `rotate_extrude` sees a region rather than a line. Mirrors latheField's
  * clamping of the profile to t = 0 and t = 1.
  */
-function latheMeridian(profile, L) {
-  const prof = [...profile]
-    .filter((q) => q && Number.isFinite(q.t) && Number.isFinite(q.radius))
-    .sort((a, b) => a.t - b.t);
-  if (prof[0].t > 0) prof.unshift({ t: 0, radius: prof[0].radius });
-  if (prof[prof.length - 1].t < 1) prof.push({ t: 1, radius: prof[prof.length - 1].radius });
-  const pts = prof.map((q) => [Math.max(0, q.radius), q.t * L]);
-  pts.push([0, L], [0, 0]);
-  // drop consecutive duplicates (a profile that already closes on the axis)
-  const out = [];
-  for (const p of pts) {
-    const last = out[out.length - 1];
-    if (!last || num(last[0]) !== num(p[0]) || num(last[1]) !== num(p[1])) out.push(p);
-  }
-  while (out.length > 3 && num(out[0][0]) === num(out[out.length - 1][0]) && num(out[0][1]) === num(out[out.length - 1][1])) out.pop();
-  return out;
-}
 
 /** A prism's 2D profile. `rect` carries its rounding as an outer extent, exactly as sdRoundRect2 reads it. */
 function extrudeProfileNode(profile, ctx, base) {

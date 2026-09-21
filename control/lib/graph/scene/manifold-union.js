@@ -24,16 +24,34 @@
 
 let _modulePromise = null;
 
+// `manifold-3d` is ESM-only (an `exports` map with just an `import` condition). Next's server
+// bundle externalizes a literal import() as a CommonJS `require()`, which Node refuses with
+// ERR_PACKAGE_PATH_NOT_EXPORTED — so under `next dev` / the standalone server the literal import
+// never worked (union: true reported the package missing). The literal import stays first (plain
+// Node, vitest, the CLI); on the exports refusal a specifier the bundler never saw is resolved by
+// the Node runtime's own import(). Same fix as scad-render.js for openscad-wasm-prebuilt.
+const nativeImport = new Function('s', 'return import(s)');
+const isMissing = (e) => e && (e.code === 'ERR_MODULE_NOT_FOUND' || e.code === 'MODULE_NOT_FOUND');
+const isExportsRefusal = (e) => e && (e.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED' || /No "exports" main/.test(String(e.message || '')));
+
 /** Lazy-load the WASM module once; null when the package is not installed. */
 export async function loadManifold() {
   if (!_modulePromise) {
     _modulePromise = (async () => {
-      let mod;
+      let mod = null;
       try {
         mod = await import('manifold-3d');
       } catch (e) {
-        if (e && (e.code === 'ERR_MODULE_NOT_FOUND' || e.code === 'MODULE_NOT_FOUND')) return null;
-        throw e;
+        if (isMissing(e)) return null;
+        if (!isExportsRefusal(e)) throw e;
+      }
+      if (!mod) {
+        try {
+          mod = await nativeImport('manifold-3d');
+        } catch (e) {
+          if (isMissing(e)) return null;
+          throw e;
+        }
       }
       const wasm = await mod.default();
       wasm.setup();

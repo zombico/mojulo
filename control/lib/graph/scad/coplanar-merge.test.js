@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeCoplanarTriangles } from './coplanar-merge.js';
+import { mergeCoplanarTriangles, mergeExactFaces } from './coplanar-merge.js';
 
 const tri = (a, b, c, extra = {}) => ({ corners: [a, b, c], tint: '#ff0000', normal: [0, 0, 1], group: 'g', ...extra });
 
@@ -76,5 +76,30 @@ describe('coplanar-merge — flat triangle regions become one clipped panel', ()
       tri([0, 0, 1], [1, 1, 1], [0, 1, 1], { group: 'h' }),
     ];
     expect(mergeCoplanarTriangles(mixed)).toBe(mixed);
+  });
+});
+
+describe('coplanar-merge — mergeExactFaces over a shaded face list', () => {
+  const shaded = (a, b, c, extra = {}) => ({ corners: [a, b, c, a], fill: '#808080', outNormal: [0, 0, 1], group: 'g', doubleSided: true, exact: true, ...extra });
+  it('folds only the exact faces, keeps the others in place, flags noInflate', () => {
+    const plain = { corners: [[9, 9, 9], [10, 9, 9], [9, 10, 9], [9, 9, 9]], fill: '#ff0000', outNormal: [0, 0, 1] };
+    const faces = [
+      plain,
+      shaded([0, 0, 0], [1, 0, 0], [1, 1, 0]),
+      shaded([0, 0, 0], [1, 1, 0], [0, 1, 0]),
+      shaded([5, 0, 0], [6, 0, 0], [6, 1, 0], { fill: '#00ff00' }), // alone: stays a triangle
+    ];
+    const out = mergeExactFaces(faces);
+    expect(out).toHaveLength(3);
+    expect(out[0]).toBe(plain);
+    expect(out[1].clip).toMatch(/^polygon\(/);
+    expect(out[1].fill).toBe('#808080');
+    expect(out[1].noInflate).toBe(true);
+    expect(out[2].corners).toEqual(faces[3].corners);
+    expect(out[2].noInflate).toBe(true);
+  });
+  it('is the identity for a face list with no exact faces', () => {
+    const faces = [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 0, 0]], fill: '#ff0000', outNormal: [0, 0, 1] }];
+    expect(mergeExactFaces(faces)).toBe(faces);
   });
 });

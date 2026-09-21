@@ -62,7 +62,7 @@ function buildProfile(profile, cornerSamples = DEFAULT_CORNER_SAMPLES) {
   throw new Error('extrude.profile must be { rect:{ w, h, r? } } or { points:[[u,v],…] }');
 }
 
-function roundedRectPath(w, h, r, nc) {
+export function roundedRectPath(w, h, r, nc) {
   const hw = w / 2 - r, hh = h / 2 - r;
   if (r <= 1e-6) {
     return withPolygonNormals([{ u: hw + r, v: -hh - r }, { u: hw + r, v: hh + r }, { u: -hw - r, v: hh + r }, { u: -hw - r, v: -hh - r }].map((p) => ({ u: p.u, v: p.v })));

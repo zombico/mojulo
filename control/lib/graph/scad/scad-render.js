@@ -38,6 +38,8 @@ import { createHash } from 'node:crypto';
 import { shadeHex, DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
 import { fieldToFaces, validateFields } from '../polygonizer/field-faces.js';
+import { ensureExactKernel } from '../polygonizer/field-exact.js';
+import { manifestWantsExact } from '../polygonizer/field-exact-reach.js';
 import { facesToPolyhedron } from '../scene/scene-scad.js';
 
 export const SCAD_KIND = 'scad';
@@ -325,14 +327,14 @@ export function shadeRecords(records, light = DEFAULT_LIGHT) {
     group: r.group,
     outNormal: r.normal,
     doubleSided: true,
-    ...(r.clip ? { clip: r.clip } : {}),
+    ...(r.clip ? { clip: r.clip, noInflate: true } : {}),
   }));
 }
 
 // ─── the memo ─────────────────────────────────────────────────────────────────────
 
 const geomCache = new Map();
-const cacheKey = (parts) => createHash('sha256').update(parts.join(' ')).digest('hex').slice(0, 24);
+const cacheKey = (parts) => createHash('sha256').update(parts.join('\x00')).digest('hex').slice(0, 24);
 function remember(key, value) {
   if (geomCache.size >= MAX_CACHED) geomCache.delete(geomCache.keys().next().value);
   geomCache.set(key, value);
@@ -411,6 +413,8 @@ const sizeOf = (b) => ({ w: round1(b.max[0] - b.min[0]), d: round1(b.max[1] - b.
  */
 export async function planScad(manifest = {}) {
   const t0 = performance.now();
+  // an embedded `fields` entry with `exact: true` bakes through Manifold (async to load, sync to bake)
+  if (manifestWantsExact(manifest)) await ensureExactKernel();
   const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts), ...validateScadFields(manifest.fields)];
   if (!errors.length && Array.isArray(manifest.fields)) {
     for (const f of manifest.fields) {

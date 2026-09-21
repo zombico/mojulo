@@ -29,6 +29,13 @@ import { shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import { surfaceNetFaces } from './field-mesh.js';
 import { composeFieldTerms, validateFieldTerms, padBounds } from './field-terms.js';
+import { exactSupport } from './field-exact-reach.js';
+
+// The exact kernel (field-exact.js) registers its renderer here once its WASM is loaded
+// (`ensureExactKernel()`, awaited at the async seams). This module never imports it: field-faces
+// is reachable from client bundles, and the kernel's package entry reads `node:module`.
+let exactRenderer = null;
+export function setExactFieldRenderer(fn) { exactRenderer = typeof fn === 'function' ? fn : null; }
 
 const DEFAULT_CELLS = 64;
 const MIN_FIELD_CELLS = 16;
@@ -68,6 +75,12 @@ export function fieldGrid(spec = {}) {
  * spec: { terms:[…], cells?, translate?, tint?, material? }
  */
 export function fieldToFaces(spec = {}, opts = {}) {
+  // `exact: true` (field-exact.js): the same term list composed by Manifold — sharp edges in the
+  // recipe itself. Opt-in, so every other entry is byte-identical to before.
+  if (spec.exact === true) {
+    if (!exactRenderer) throw new Error(`fields '${spec.id || ''}' asks for exact: true but the exact kernel is not loaded — the entry point must await ensureExactKernel() first, and manifold-3d must be installed (an optional creative dependency: \`npm install --include=optional\` in control/)`);
+    return tagFacesWithMaterial(exactRenderer(spec, opts), opts.material ? resolveMaterial(opts.material) : null);
+  }
   const light = opts.light || DEFAULT_LIGHT;
   const mat = opts.material ? resolveMaterial(opts.material) : null;
   const tint = opts.tint || spec.tint || spec.fill || (spec.style && spec.style.fill) || (mat && mat.base) || pickTint(spec);
@@ -103,7 +116,13 @@ export function validateFields(fields, _emittedNodes) {
       errors.push(`${at}.cells: must be an integer in [${MIN_FIELD_CELLS}, ${MAX_FIELD_CELLS}] when provided (grid cells along the longest side; cost is cubic — 64 for a live world, 96–128 for a hero render or export)`);
     }
     if (spec.translate !== undefined && !(Array.isArray(spec.translate) && spec.translate.length === 3 && spec.translate.every(Number.isFinite))) errors.push(`${at}.translate: must be [x, y, z] when provided`);
+    if (spec.exact !== undefined && typeof spec.exact !== 'boolean') errors.push(`${at}.exact: must be true or false when provided`);
+    if (spec.segments !== undefined && !(Number.isInteger(spec.segments) && spec.segments >= 8 && spec.segments <= 256)) errors.push(`${at}.segments: must be an integer in [8, 256] when provided (facets around a curved primitive under exact: true)`);
     errors.push(...validateFieldTerms(spec.terms, `${at}.terms`));
+    if (spec.exact === true && Array.isArray(spec.terms)) {
+      const reach = exactSupport(spec.terms, `${at}.terms`);
+      if (!reach.ok) errors.push(`${at}.exact: ${reach.at} — ${reach.why}. An exact field takes the nine shapes, add / subtract / intersect without blend, transform and repeat; drop \`exact\` for a blended, stroked, noisy or warped solid.`);
+    }
   });
   return errors;
 }

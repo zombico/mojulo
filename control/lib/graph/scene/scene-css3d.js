@@ -1054,7 +1054,7 @@ export function emitPreserve3dScene({ faces = [], cameras = [], viewBox = { widt
       : (f.clip ? `clip-path:${f.clip};` : '');   // f.clip = polygon mask (e.g. cylinder roof cap)
     const paintCss = triGrad ? `linear-gradient(to bottom right,${paint} 50%,#0000 50%)` : paint;
     // f.bg = full CSS background (facade gradient); f.html = inner content (brick arched windows).
-    return `      <div class="f" style="width:${wPx}px;height:${hPx}px;background:${paintCss};${clip}${radius}${glow}transform:${planeMatrix(c[0], uVec, vVec, unitScale)}${grow};backface-visibility:${bf}">${f.html || ''}</div>`;
+    return `      <div class="f" style="width:${wPx}px;height:${hPx}px;background:${paintCss};${clip}${radius}${glow}transform:${planeMatrix(c[0], uVec, vVec, unitScale)}${f.noInflate ? '' : grow};backface-visibility:${bf}">${f.html || ''}</div>`;
   }).join('\n');
 
   // adaptive-signage: gated so signage-less scenes stay byte-identical.

@@ -19,6 +19,7 @@ import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
 import { resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
+import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 
 function normalizeToon(toon) {
   const t = resolveToon(toon);
@@ -118,6 +119,7 @@ export async function createCodeSolidHandler(input) {
     throw new Error("The code kind needs `source` — the body of a function (params, ctx) that returns a workbench spec ({ lathes | extrudes | sweeps | lofts | fields | drapes | reliefs | shells | assembly }) or a face list ([{ corners, fill?, group? }]). Read get_solid_vocab({ id: 'code' }) for the realm API and worked programs.");
   }
   const { title, source, params, seed, budgetMs, units, viewBox, facing, grid, movers, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts } = input;
+  await ensureExactKernel(); // an `exact: true` field (from the program or beside it) needs Manifold loaded before the sync lowering
   return mintWorkbench({
     title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts,
     program: { source, params, seed, budgetMs },
@@ -130,6 +132,7 @@ export async function createWorkbenchHandler(input) {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
   const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folder_ref: folderRef } = input;
+  await ensureExactKernel(); // an `exact: true` field or cut needs Manifold loaded before the sync lowering
   return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef });
 }
 

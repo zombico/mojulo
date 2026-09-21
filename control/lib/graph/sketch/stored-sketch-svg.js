@@ -17,6 +17,8 @@ import { renderCoverSvg } from '@/lib/graph/image-outcomes/cover-preview';
 import { renderFacesScaffoldSvg } from '@/lib/graph/polygonizer/faces-scaffold-svg';
 import { lowerObjectFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
 import { lowerAssemblerFaces } from '@/lib/graph/worlds/workbench-assembler';
+import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
+import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 
 /**
  * @param {{ manifest: object }} sketch — a stored sketch row (manifest required)
@@ -52,6 +54,8 @@ export async function renderStoredSketchSvg(sketch, { panelId, control } = {}) {
   // through the SAME projectTwoPoint camera the world skin bake uses, so the
   // painted skin registers to both the 2D reskin and the 3D bake.
   if (control && (manifest.kind === 'workbench' || manifest.kind === 'assembler')) {
+    // an `exact: true` field composes through Manifold (async to load, sync to lower)
+    if (manifestWantsExact(manifest)) await ensureExactKernel();
     const faces = manifest.kind === 'workbench'
       ? lowerObjectFaces(manifest, WORKBENCH_LIGHT)
       : lowerAssemblerFaces(manifest);

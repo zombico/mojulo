@@ -144,6 +144,8 @@ export function lowerCuts(manifest) {
     if (cut.id !== undefined && !isId(cut.id)) throw new Error(`${at}.id: must be a non-empty string when provided`);
     if (cut.cells !== undefined && !(Number.isInteger(cut.cells) && cut.cells >= MIN_FIELD_CELLS && cut.cells <= MAX_FIELD_CELLS)) throw new Error(`${at}.cells: must be an integer in [${MIN_FIELD_CELLS}, ${MAX_FIELD_CELLS}] when provided (grid cells along the cut part's longest side; every cut edge rounds to about one cell)`);
     if (cut.blend !== undefined && !(Number.isFinite(cut.blend) && cut.blend >= 0)) throw new Error(`${at}.blend: must be a non-negative number when provided`);
+    if (cut.exact !== undefined && typeof cut.exact !== 'boolean') throw new Error(`${at}.exact: must be true or false when provided`);
+    if (cut.exact === true && Number.isFinite(cut.blend) && cut.blend > 0) throw new Error(`${at}.exact: an exact cut has no blended rim — drop \`blend\` or drop \`exact\``);
     const cutId = isId(cut.id) ? cut.id : `cut:${cut.from}`;
     if (byId.has(cutId)) throw new Error(`${at}.id '${cutId}': already names a monomer — give the cut its own id`);
 
@@ -168,6 +170,8 @@ export function lowerCuts(manifest) {
     const spec = {
       id: cutId,
       cells: Number.isInteger(cut.cells) ? cut.cells : DEFAULT_CELLS,
+      // parts-booleans + field-exact: an exact cut composes the same terms with Manifold
+      ...(cut.exact === true ? { exact: true, ...(Number.isInteger(cut.segments) ? { segments: cut.segments } : {}) } : {}),
       terms: [fieldTerm(body, 'add'), ...operands.map((o) => fieldTerm(o, op, cut.blend))],
       ...(from.tint !== undefined ? { tint: from.tint } : {}),
       ...(from.fill !== undefined ? { fill: from.fill } : {}),

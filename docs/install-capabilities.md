@@ -81,7 +81,8 @@ describes and an env flag can never silently disagree with reality. In
   installed by default — `three`, `opentype.js`, `node-web-audio-api`, `manifold-3d`, the WASM CSG
   kernel behind `export_model({ union: true })`, and `openscad-wasm-prebuilt`, OpenSCAD itself as WASM,
   the mesher behind `mint_solid kind:'scad'`; absent, `union: true` reports and ships the plain shells,
-  and a `scad` mint refuses with the install line while existing rows still read).
+  an `exact: true` field or cut refuses with the install line, and a `scad` mint refuses likewise — a stored
+  `scad` row cannot render until the package is installed).
 - **Host binaries are a separate axis from install groups.** Blender, the slicers, the engines and
   OpenSCAD are operator-hosted workers probed at call time, not npm dependencies — no install group
   contains them, and every one of them degrades to a stamped "skipped" with its env var named. Worth

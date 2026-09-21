@@ -29,6 +29,8 @@ import { StashRepository } from '@/lib/db/repositories/stashes';
 import { renderFigureToSvg } from '@/lib/graph/polygonizer/figure-render';
 import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { planAssembler } from '@/lib/graph/worlds/workbench-assembler';
+import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
+import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
   REFERENCE_TARGETS,
   DEFAULT_FIDELITY,
@@ -178,6 +180,8 @@ export async function captureReferenceHandler(input, _ctx) {
     manifest = lowered.manifest;
     objectLedger = lowered.ledger;
     segmentsOut = lowered.segments || null;
+    // an `exact: true` field composes through Manifold (async to load); the plan gates below are sync
+    if (manifestWantsExact(manifest) || (segmentsOut || []).some((seg) => manifestWantsExact(seg.manifest))) await ensureExactKernel();
     try {
       if (segmentsOut) {
         // Each segment is a whole workbench recipe judged ALONE, then the

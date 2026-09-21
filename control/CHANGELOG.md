@@ -14,6 +14,24 @@ loops and the recipe format are unchanged.
 
 ### OpenSCAD front door
 
+- **`exact: true` on a `fields` entry or a `cuts` entry composes it with Manifold** (the boolean kernel
+  under OpenSCAD 2025, already an optional creative dependency) instead of the surface-net grid: a bore
+  has a sharp lip and a 12-unit disc measures 12 in `/world`, the `.glb`, the engine packs and the print,
+  with no OpenSCAD in the loop. Reach: the nine field shapes, `add` / `subtract` / `intersect` without
+  `blend`, `transform`, `repeat`; anything else (blend, stroke, displace, shell, round, expr, harmonic
+  lathe, warps) is refused at mint by name. `segments` (8–256, default 48) facets curved primitives.
+  Opt-in: every existing row renders byte for byte. Absent the package, the mint refuses with the install
+  line. The kernel loads at the async seams (mint, world resolve, the scene route) before the synchronous
+  lowering: the mint, the edit (`update_sketch`), the world resolve, the scene route, the SVG control
+  scaffold, `capture_reference` and the scad mint, each only when the recipe wants exact. The
+  `export_model` ledger reads an exact cut as `exact` with `edge_rounding: 0` (no grid, no rounding).
+  Routing copy no longer says a sharp edge needs OpenSCAD.
+- **Fixed: `export_model union: true` never found Manifold under the dashboard server.** `manifold-3d`
+  is ESM-only, and Next's server bundle turned the literal `import()` into a `require()` Node refuses
+  (`ERR_PACKAGE_PATH_NOT_EXPORTED`), so the union reported the package missing under `next dev` and the
+  standalone server while the CLI and tests had it. The loader now falls back to the runtime's own
+  import when the bundler's require is refused (the same fix the `scad` kind's loader carries).
+
 - **`mint_solid kind:'scad'`: an OpenSCAD program IS the recipe.** `spec.source` is stored verbatim and
   meshed on every read by OpenSCAD itself, running in-process as WebAssembly (`openscad-wasm-prebuilt`,
   a new optional creative dep, same posture as `manifold-3d`; OpenSCAD 2025.01.19, Manifold backend,

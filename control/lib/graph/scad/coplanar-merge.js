@@ -53,7 +53,7 @@ export function mergeCoplanarTriangles(records) {
       if (comp.length < 2) continue;
       const merged = mergeComponent(records, comp);
       if (!merged) continue;
-      replaced.set(comp[0], merged);
+      replaced.set(comp[0], { ...merged, first: comp[0] });
       for (const i of comp.slice(1)) dropped.add(i);
     }
   }
@@ -168,4 +168,39 @@ function mergeComponent(records, comp) {
   const clip = holes.length ? `polygon(evenodd, ${path.join(', ')})` : `polygon(${path.join(', ')})`;
   const first = records[comp[0]];
   return { corners, clip, tint: first.tint, normal: n, group: first.group, merged: comp.length, ...(holes.length ? { holes: holes.length } : {}) };
+}
+
+/**
+ * mergeExactFaces(faces) → faces: the same fold over an already-SHADED face list — the exact
+ * field kernel's output (field-exact.js), which is triangles carrying `fill` and `outNormal`.
+ * Only faces flagged `exact` are folded (by plane + fill + group); every other face passes
+ * through untouched, so a recipe without an exact field emits byte for byte. Merged panels and
+ * the exact triangles that stay are flagged `noInflate`: the emitter's seam-hiding grow is for
+ * hairline tiles, and a 5% grow of a 120 mm sliver throws it out of its plane.
+ */
+export function mergeExactFaces(faces) {
+  if (!faces.some((f) => f && f.exact === true)) return faces;
+  const records = [];
+  const slotOf = [];   // record index → face index
+  faces.forEach((f, i) => {
+    if (!f || f.exact !== true || !Array.isArray(f.corners) || !f.outNormal) return;
+    records.push({ corners: f.corners.slice(0, 3), tint: f.fill, normal: f.outNormal, group: f.group });
+    slotOf.push(i);
+  });
+  const merged = mergeCoplanarTriangles(records);
+  const identity = new Map(records.map((r, k) => [r, k]));
+  const replacement = new Map(); // face index → the record to emit there
+  for (const m of merged) {
+    const k = m.first !== undefined ? m.first : identity.get(m);
+    if (k !== undefined) replacement.set(slotOf[k], m);
+  }
+  const out = [];
+  faces.forEach((f, i) => {
+    if (!f || f.exact !== true) { out.push(f); return; }
+    const m = replacement.get(i);
+    if (!m) return; // folded into a neighbour's panel
+    if (m.merged) out.push({ corners: m.corners, fill: m.tint, clip: m.clip, doubleSided: true, outNormal: m.normal, group: m.group, exact: true, noInflate: true });
+    else out.push({ ...f, noInflate: true });
+  });
+  return out;
 }

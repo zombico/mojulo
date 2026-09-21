@@ -30,6 +30,7 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
+import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
@@ -72,6 +73,9 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
 export async function resolveWorldScene(sketch, viewOpts = {}) {
+  // field-exact: an `exact: true` field composes through Manifold, which loads asynchronously;
+  // the lowering below is synchronous, so the kernel is readied here once (a no-op after).
+  await ensureExactKernel();
   // mapRef (map-ref.js): a controllable LEVEL manifest may inherit its terrain from a stored map
   // world instead of carrying a clone of it — the world twin of the figures-map `unitRef` (a game's
   // mode-variant levels share one map row; see mobile-suit/arena-modes.js). Resolved FIRST so every

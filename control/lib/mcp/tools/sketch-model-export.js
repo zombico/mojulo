@@ -437,19 +437,32 @@ export async function exportModelHandler(input) {
   ledgerManifest = lowerCuts(ledgerManifest);
   const fieldSpecs = Array.isArray(ledgerManifest.fields) ? ledgerManifest.fields : [];
   if (fieldSpecs.length) {
-    const grids = fieldSpecs.map((f) => { try { return fieldGrid(f); } catch { return null; } }).filter(Boolean);
+    // field-exact: an `exact: true` entry composed through Manifold has no grid and no rounding —
+    // it reads out as exact (a recipe without one is byte-identical to before)
+    const gridOf = fieldSpecs.map((f) => { if (f && f.exact === true) return null; try { return fieldGrid(f); } catch { return null; } });
+    const grids = gridOf.filter(Boolean);
+    const exactCount = fieldSpecs.filter((f) => f && f.exact === true).length;
     const cellsList = grids.map((g) => g.cells);
     const coarsest = grids.length ? Math.max(...grids.map((g) => g.cell)) : null;
-    const cutRows = fieldSpecs.map((f, i) => (f && f.cut ? { ...f.cut, ...(grids[i] ? { edge_rounding: Math.round(grids[i].cell * (isPrint ? scale : 1) * 1000) / 1000 } : {}) } : null)).filter(Boolean);
+    const cutRows = fieldSpecs.map((f, i) => {
+      if (!f || !f.cut) return null;
+      if (f.exact === true) return { ...f.cut, exact: true, edge_rounding: 0 };
+      return { ...f.cut, ...(gridOf[i] ? { edge_rounding: Math.round(gridOf[i].cell * (isPrint ? scale : 1) * 1000) / 1000 } : {}) };
+    }).filter(Boolean);
     result.field_solids = {
       count: fieldSpecs.length,
-      cells: cellsList.length === 1 ? cellsList[0] : cellsList,
+      ...(exactCount ? { exact: exactCount } : {}),
+      ...(cellsList.length ? { cells: cellsList.length === 1 ? cellsList[0] : cellsList } : {}),
       ...(coarsest != null ? {
         edge_rounding: Math.round(coarsest * (isPrint ? scale : 1) * 1000) / 1000,
         edge_rounding_unit: isPrint ? 'mm' : (units || 'world units'),
       } : {}),
       ...(cutRows.length ? { cuts: cutRows } : {}),
-      note: 'Field solids (the `fields` monomer) round every edge to about one grid cell — raise `cells` (≤128) for a finer edge; a machined sharp edge is `union: true` (Manifold, print formats) or the DCC.',
+      note: !exactCount
+        ? 'Field solids (the `fields` monomer) round every edge to about one grid cell — raise `cells` (≤128) for a finer edge; a machined sharp edge is `union: true` (Manifold, print formats) or the DCC.'
+        : exactCount === fieldSpecs.length
+          ? 'Every field solid here is `exact: true` — composed by Manifold, so its edges are sharp and its size is the declared one (curved primitives are faceted by `segments`).'
+          : `${exactCount} of ${fieldSpecs.length} field solids are \`exact: true\` (Manifold: sharp edges, declared size); the rest round every edge to about one grid cell — raise \`cells\` (≤128) for a finer edge, or set \`exact: true\` on the entry when its terms allow it.`,
     };
     // expressiveness.plan.md E1/E2: expression terms ride a versioned grammar, warps make the
     // field a bound rather than a distance — both are said here, in numbers.

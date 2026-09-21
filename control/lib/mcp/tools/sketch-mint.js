@@ -54,6 +54,8 @@ import {
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
+import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
+import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -635,6 +637,11 @@ export async function updateSketchHandler(input) {
     // stats.warnings), the ledger. Before this the checks ran once: the edit path only asked
     // "does it lower", so a bad material or a malformed spec slipped through on iteration.
     if (manifest.kind === 'workbench') {
+      // field-exact: an `exact: true` field or cut composes through Manifold, which loads
+      // asynchronously; the plan gate below is synchronous, so the kernel is readied here first
+      // (the mint handlers do the same). Without it the first edit of an exact row after a
+      // restart refused with "the exact kernel is not loaded".
+      if (manifestWantsExact(manifest)) await ensureExactKernel();
       try {
         workbenchStats = planWorkbench(manifest).stats;
       } catch (err) {
