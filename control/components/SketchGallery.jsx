@@ -9,18 +9,23 @@ import MaterialShelf from '@/components/MaterialShelf';
 import LibraryRoom from '@/components/rooms/LibraryRooms';
 import TurntableThumb, { useTurntable } from '@/components/TurntableCard';
 import { LIBRARY_SHELVES, filterToShelf, shelfByKey, shelfFetchBucket } from '@/lib/graph/sketch/library-shelves';
-import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
+import { kindOf, renderModeOf } from '@/lib/graph/sketch/sketch-summary';
 
 // Preview body for one sketch, dispatched on its renderer mode so scene /
 // illustration kinds (fractal-city, turntables, …) render via their /scene or
 // /svg endpoint and never fall through to <CreationMap> (which assumes a diagram
 // `viewBox` and throws on a scene manifest). Shared by the split-view preview and
 // the full-view modal so the dispatch lives in exactly one place.
+//
+// The list rows are SUMMARIES (sketch-summary.js): `renderMode` comes from the
+// server and only diagram-mode rows carry a `manifest` — which is exactly the
+// one branch here that renders from the recipe (CreationMap). Every other mode
+// is an <img>/<iframe> on a by-ref endpoint.
 function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
   // Hooks run unconditionally, ahead of the early returns below. The live src
   // (whichever kind supplies one) drives the spinner — an iframe otherwise shows
   // nothing while its scene constructs, with no signal it is even trying.
-  const mode = sketch?.manifest ? sketchRenderMode(sketch.manifest) : null;
+  const mode = renderModeOf(sketch);
   const liveKind = view?.kind === 'iframe' || ['world', 'scene', 'beats', 'game'].includes(mode);
   const liveSrc = view?.kind === 'iframe'
     ? view.src
@@ -34,7 +39,8 @@ function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
     setFrameFailed(false);
   }, [liveSrc]);
 
-  if (!sketch?.manifest) return <p className="text-sm text-red-400">{t('invalidManifest')}</p>;
+  if (!mode) return <p className="text-sm text-red-400">{t('invalidManifest')}</p>;
+  const invalid = <p className="text-sm text-red-400">{t('invalidManifest')}</p>;
 
   const frameProps = {
     onLoad: () => setFrameLoaded(true),
@@ -78,6 +84,7 @@ function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
     );
   }
   if (view?.kind === 'diagram') {
+    if (!sketch.manifest) return invalid;
     return (
       <CreationMap
         manifest={sketch.manifest}
@@ -115,6 +122,7 @@ function SketchPreviewBody({ sketch, t, fit = false, view = null }) {
       </div>
     );
   }
+  if (!sketch.manifest) return invalid;
   return <CreationMap manifest={sketch.manifest} technical={false} fit={fit} />;
 }
 
@@ -166,7 +174,7 @@ function ShelfChips({ shelf, counts, onChange }) {
 
 function SketchDownloads({ sketch, t }) {
   const ref = encodeURIComponent(sketch.ref);
-  const mode = sketchRenderMode(sketch.manifest);
+  const mode = renderModeOf(sketch);
   const hasSvg = mode === 'svg' || mode === 'diagram';
   // world/scene render live (no still export); beats are audio-only (no still
   // form at all); a game is played, not pictured.
@@ -174,7 +182,7 @@ function SketchDownloads({ sketch, t }) {
   // beats export straight off the shelf: the .wav (audio) and — for the
   // musical kinds — the .mid score (sfx cues are foley choreography, wav-only).
   const hasWav = mode === 'beats';
-  const hasMid = mode === 'beats' && sketch.manifest?.kind !== 'beats-sfx';
+  const hasMid = mode === 'beats' && kindOf(sketch) !== 'beats-sfx';
   return (
     <div className="flex items-center gap-2">
       <a
@@ -525,12 +533,20 @@ export default function SketchGallery({ bucket = null, heading, subtitle, shelve
     setRenameBusy(true);
     setRenameError('');
     try {
+      // The list row is a summary without the recipe; the copy needs the whole
+      // manifest, so read it by ref first (the same read the detail page makes).
+      const full = await fetch(`/api/sketches/${encodeURIComponent(selected.ref)}`);
+      if (!full.ok) {
+        const body = await full.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${full.status}`);
+      }
+      const { manifest } = await full.json();
       const res = await fetch('/api/sketches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: next,
-          manifest: selected.manifest,
+          manifest,
           folder_ref: currentFolderRef,
         }),
       });

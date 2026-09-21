@@ -110,6 +110,41 @@ loops and the recipe format are unchanged.
   workbench card. The mover channel block's emitted bytes change, so the `emit-channels.char` hashes for the
   mover fixtures are re-pinned in the same change.
 
+### Library performance
+
+- **Changed: `GET /api/sketches` ships summaries, not manifests.** The Library's Scenes shelf was a
+  62 MB JSON body on a workshop of ~3,000 sketches, because every `controllable` row stores its baked
+  `faces` inline (up to 3.7 MB each) and the list route sent all of it for the browser to parse and hold.
+  A list row now carries `ref, title, kind, renderMode, bucket, bucketOverride, createdAt, folderRef`, the
+  badge facts the shelves actually read (`facts: { seed, giBake, giAdapter, game, audio }`),
+  `hasBoundRender` and `associations`. The recipe itself rides along only where the client renders from it:
+  rows whose render mode is `diagram` (CreationMap draws the manifest) and the voice shelf (the register
+  card reads the recipe). Everything else fetches `/api/sketches/<ref>` when it needs the full recipe: the
+  board room's outliner and "save as new" now do. `SketchRepository.list()` keeps returning full sketches
+  for the arcade, the MCP tools and scripts; the projection is `SketchRepository.listSummary()`. The home
+  floor folds light rows and hydrates only the faces it draws. Client helpers in
+  `lib/graph/sketch/sketch-summary.js` (`renderModeOf`, `kindOf`, `factsOf`) read both shapes, so the
+  detail page, which still has the manifest, is untouched. Measured on that workshop, route handler
+  called directly: the Scenes shelf went from 1.3 s / 62.45 MB to 0.17 s / 0.11 MB, Models from
+  0.93 s / 25.3 MB to 0.16 s / 0.4 MB, the recent list from 0.27 s / 1.46 MB to 0.04 s / 0.07 MB.
+- **Changed: the sketch bucket and kind are persisted columns.** `sketches.kind` and
+  `sketches.bucket_derived` (distinct from the `bucket` override column; effective bucket is
+  `COALESCE(bucket, bucket_derived)`) are backfilled once on upgrade and kept in sync on every create and
+  update. `list({ bucket })`, `bucketCounts()` and `newestByBucket()` now filter and tally in SQL instead
+  of parsing every manifest in JS to classify it, which was a ~0.6 s floor under every shelf, the counts
+  chips, `/api/home` and `/api/home/floor`. The derivation is versioned: a signature of the kind lists
+  `classifyBucket` reads is stored in `app_settings`, and a mismatch (a kind added to a list, or a manual
+  revision bump) re-backfills the columns. `rowToSketch` still derives `bucket` from the parsed manifest,
+  so the value a caller sees is unchanged; a characterization test asserts the SQL path equals the old JS
+  filter. Measured: the counts chips 0.6 s → 0.03 s, the home floor 0.7 s → 0.04 s, `bucketCounts()`
+  575 ms → 28 ms; the one-time backfill of ~3,000 rows took 1.2 s on first use.
+- **Fixed: `/api/sketches/[ref]/world` served stale HTML from the browser cache after an upgrade.** Its
+  ETag was a hash of (ref, flags, manifest) with no code-version salt, so an emitter change on upgrade
+  still matched the browser's `If-None-Match` and got a 304. The key now folds in `WORLD_CACHE_VERSION`
+  and the package version (`getServerVersion`, moved to `lib/server-version.js` and re-exported from the
+  MCP server module). Browser-held world pages revalidate once after this ships. `?nocache=1` stays
+  `no-store`.
+
 ## [2.0.6] - 2026-09-20
 
 ### Fresh installs get a working dashboard

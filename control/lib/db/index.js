@@ -1168,6 +1168,33 @@ function migrateSketchColumns(db) {
     db.exec('ALTER TABLE sketches ADD COLUMN bucket TEXT');
   }
   db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_folder_ref ON sketches(folder_ref)');
+  migrateSketchDerivedColumns(db, have);
+}
+
+// Persisted DERIVED columns on sketches: `kind` (manifest.kind) and
+// `bucket_derived` (classifyBucket(manifest)). Distinct from `bucket` above,
+// which is the operator's override; the effective bucket every reader filters
+// on is COALESCE(bucket, bucket_derived). Before these existed, every
+// bucket-scoped read (`list({bucket})`, `bucketCounts`, `newestByBucket`)
+// SELECT *'d the whole table and JSON.parsed every manifest to classify it —
+// a ~0.6 s floor under every Library shelf on a store of a few thousand rows.
+//
+// This migration only adds the columns and their indexes. The BACKFILL lives
+// in SketchRepository (`ensureDerivedColumns`), which owns the classifier
+// import — sketch-manifest.js drags the polygonizer in behind it, and this
+// module is imported by every repository, so it must not. The repository
+// stamps both columns on create/update, backfills NULLs on its first use per
+// connection, and re-derives every row when the classifier's signature
+// (stored in app_settings) changes.
+function migrateSketchDerivedColumns(db, have) {
+  if (!have.has('kind')) {
+    db.exec('ALTER TABLE sketches ADD COLUMN kind TEXT');
+  }
+  if (!have.has('bucket_derived')) {
+    db.exec('ALTER TABLE sketches ADD COLUMN bucket_derived TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_bucket_derived ON sketches(bucket_derived)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_kind ON sketches(kind)');
 }
 
 // stash_items gains archived_at to support soft-delete (the operator-facing

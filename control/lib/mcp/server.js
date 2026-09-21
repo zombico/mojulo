@@ -19,9 +19,8 @@
  *     (buildContext in api/mcp/route.js).
  */
 
-import { readFileSync } from 'node:fs';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
-import path from 'node:path';
+import { getServerVersion } from '@/lib/server-version';
 import { rememberClientInfo, getClientInfo } from '@/lib/mcp/client-bindings';
 import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { hostCapabilities } from '@/lib/mcp/hosts/registry';
@@ -37,21 +36,10 @@ import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
 export const PROTOCOL_VERSION = '2024-11-05';
 export const SERVER_NAME = 'mojulo-control-plane';
 
-// Resolve from package.json so a version bump propagates without a second
-// edit. cwd is reliable in all three entry points: stdio bin chdirs to the
-// installed package root, the standalone server chdirs to .next/standalone/
-// (where Next copies package.json), and `next dev` runs from control/.
-let _serverVersion = null;
-export function getServerVersion() {
-  if (_serverVersion !== null) return _serverVersion;
-  try {
-    const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-    _serverVersion = pkg.version || '0.0.0';
-  } catch {
-    _serverVersion = '0.0.0';
-  }
-  return _serverVersion;
-}
+// The package version, resolved from package.json (lib/server-version.js). Re-exported
+// here because every MCP-side importer reads it from this module; render routes that
+// only need the version for a cache salt import lib/server-version.js directly.
+export { getServerVersion };
 
 // Surfaced to the connecting model on `initialize`. Most MCP clients hand this
 // to the agent as a system-prompt-style preamble — it has to fit and stick

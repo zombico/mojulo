@@ -4,8 +4,10 @@
  * The library rooms — one contextual body per shelf.
  *
  * A strip on the splayed floor opens here. Each room reads the SAME bucket
- * fetch the gallery already made (full sketch objects, manifests included — the
- * room adds nothing to the wire) and renders the shelf the way that kind of
+ * fetch the gallery already made (list SUMMARIES — kind, renderMode, badge
+ * facts, no manifest except on the diagram rows CreationMap draws; see
+ * lib/graph/sketch/sketch-summary.js — so the room adds nothing to the wire)
+ * and renders the shelf the way that kind of
  * artifact is actually used: a scene is scouted on a board, a model is turned
  * on a wall, a character is cast, an image is hung, a diagram is read. The
  * dispatch is the `view` field on LIBRARY_SHELVES — the same body-swap the
@@ -27,7 +29,7 @@ import CreationMap from '@/components/graph/CreationMap';
 import TurntableThumb, { useTurntable } from '@/components/TurntableCard';
 import WorldViewStrip, { useWorldViewProtocol } from '@/components/WorldViewStrip';
 import { buildOutliner, groupOutliner } from '@/lib/graph/sketch/outliner';
-import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
+import { factsOf, kindOf, renderModeOf } from '@/lib/graph/sketch/sketch-summary';
 import {
   ROOM_FACETS,
   castGroups,
@@ -63,10 +65,10 @@ function StackChip({ n }) {
   );
 }
 
-/** Badge facts straight off the manifest — the room HAS the manifest. */
+/** Badge facts off the summary (or off the manifest, for a full sketch). */
 function RoomBadges({ sketch }) {
   const t = useTranslations('floor.badge');
-  const m = sketch.manifest || {};
+  const m = factsOf(sketch);
   return (
     <span className="flex shrink-0 items-center gap-1">
       {m.audio && <em className="not-italic font-mono text-[10px] text-[color:var(--ink-muted)]">{t('audio')}</em>}
@@ -90,12 +92,32 @@ function useRoomRows(sketches, shelfKey) {
   const counts = useMemo(() => facetCounts(shelfKey, sketches), [shelfKey, sketches]);
   const rows = useMemo(() => {
     let out = sketches;
-    if (facet) out = out.filter((s) => facetKeyFor(shelfKey, s.manifest?.kind) === facet);
+    if (facet) out = out.filter((s) => facetKeyFor(shelfKey, kindOf(s)) === facet);
     const q = query.trim().toLowerCase();
     if (q) out = out.filter((s) => s.title?.toLowerCase().includes(q) || s.ref?.toLowerCase().includes(q));
     return out;
   }, [sketches, shelfKey, facet, query]);
   return { facet, setFacet, query, setQuery, counts, rows };
+}
+
+/**
+ * The full recipe for one ref, fetched on demand. A room's rows are summaries
+ * (no manifest); the board's outliner reads the whole recipe, so it asks for the
+ * one scene that is open — the same by-ref read the detail page makes. Returns
+ * null until the recipe for THIS ref has arrived.
+ */
+function useRecipe(ref) {
+  const [state, setState] = useState({ ref: null, manifest: null });
+  useEffect(() => {
+    if (!ref) return undefined;
+    let live = true;
+    fetch(`/api/sketches/${encodeURIComponent(ref)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live) setState({ ref, manifest: d?.manifest || null }); })
+      .catch(() => { if (live) setState({ ref, manifest: null }); });
+    return () => { live = false; };
+  }, [ref]);
+  return state.ref === ref ? state.manifest : null;
 }
 
 function RoomChrome({ shelfKey, filter, total }) {
@@ -310,7 +332,7 @@ function WallRoom({ sketches }) {
     if (!sel) return null;
     return sel.siblings.find((s) => s.ref === activeRef) || sel;
   }, [sel, activeRef]);
-  const exportable = active && ['world', 'scene'].includes(sketchRenderMode(active.manifest));
+  const exportable = active && ['world', 'scene'].includes(renderModeOf(active));
 
   return (
     <div>
@@ -355,8 +377,8 @@ function WallRoom({ sketches }) {
               <FaceThumb sketch={active} />
             </div>
             <div className="mt-2 rounded-[var(--radius-card)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] p-2 font-mono text-[10px] leading-relaxed text-[color:var(--ink-muted)]">
-              <p>{active.manifest?.kind}</p>
-              {active.manifest?.seed != null && <p>{t('seed', { seed: String(active.manifest.seed) })}</p>}
+              <p>{kindOf(active)}</p>
+              {factsOf(active).seed != null && <p>{t('seed', { seed: String(factsOf(active).seed) })}</p>}
               <p>{shortDate(active.createdAt)}</p>
             </div>
             <div className="mt-2 flex items-center gap-2">
@@ -439,11 +461,14 @@ function BoardRoom({ sketches }) {
     if (!sel) return null;
     return sel.siblings.find((s) => s.ref === activeRef) || sel;
   }, [sel, activeRef]);
+  // The outliner reads the whole recipe, which the summary rows do not carry —
+  // fetched for the open scene only.
+  const recipe = useRecipe(active?.ref || null);
   const branches = useMemo(
-    () => (active ? groupOutliner(buildOutliner(active.manifest)) : []),
-    [active],
+    () => (recipe ? groupOutliner(buildOutliner(recipe)) : []),
+    [recipe],
   );
-  const mode = active ? sketchRenderMode(active.manifest) : null;
+  const mode = renderModeOf(active);
   const live = mode === 'world' || mode === 'scene';
   const focusSrc = live ? `/api/sketches/${encodeURIComponent(active.ref)}/${mode}` : null;
   const [frameLoaded, setFrameLoaded] = useState(false);
@@ -486,8 +511,8 @@ function BoardRoom({ sketches }) {
             )}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--bay-rail)] px-3 py-1.5 font-mono text-[10px] text-[color:var(--ink-muted)]">
               <span className="text-[color:var(--ink-secondary)]">{active.ref}</span>
-              <span>{active.manifest?.kind}</span>
-              {active.manifest?.seed != null && <span>{t('seed', { seed: String(active.manifest.seed) })}</span>}
+              <span>{kindOf(active)}</span>
+              {factsOf(active).seed != null && <span>{t('seed', { seed: String(factsOf(active).seed) })}</span>}
               <RoomBadges sketch={active} />
               {live && (
                 <a
@@ -516,7 +541,7 @@ function BoardRoom({ sketches }) {
                   {rows.map((b) => `${b.named && tOut.has(`branch.${b.key}`) ? tOut(`branch.${b.key}`) : b.key} ${b.count}`).join(' · ')}
                 </p>
               ))}
-              {branches.length === 0 && (
+              {recipe && branches.length === 0 && (
                 <p className="py-0.5 font-mono text-[11px] italic text-[color:var(--ink-muted)]">{tOut('flat')}</p>
               )}
             </div>
@@ -592,7 +617,7 @@ function CastRoom({ sketches }) {
   const tabKinds = useMemo(() => (sel ? KIT_KINDS.filter((k) => sel.kit[k]) : []), [sel]);
   const activeTab = tab && tabKinds.includes(tab) ? tab : tabKinds[0] || null;
   const tabRows = useMemo(
-    () => (sel && activeTab ? sel.siblings.filter((s) => s.manifest?.kind === activeTab) : []),
+    () => (sel && activeTab ? sel.siblings.filter((s) => kindOf(s) === activeTab) : []),
     [sel, activeTab],
   );
   const missing = useMemo(() => (sel ? KIT_KINDS.filter((k) => !sel.kit[k]) : []), [sel]);
@@ -810,12 +835,14 @@ function RowsRoom({ sketches }) {
               </div>
               {expanded && (
                 <div className="border-t border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] p-4">
-                  {sketchRenderMode(s.manifest) === 'svg' ? (
-                    <img src={`/api/sketches/${encodeURIComponent(s.ref)}/svg?inline=1`} alt={s.title} className="mx-auto max-h-[60vh]" />
-                  ) : (
+                  {/* A diagram-mode row carries its manifest (the summary rule);
+                      anything else on this shelf reads as its /svg still. */}
+                  {renderModeOf(s) === 'diagram' && s.manifest ? (
                     <div className="mx-auto max-h-[60vh] overflow-auto">
                       <CreationMap manifest={s.manifest} technical={false} fit />
                     </div>
+                  ) : (
+                    <img src={`/api/sketches/${encodeURIComponent(s.ref)}/svg?inline=1`} alt={s.title} className="mx-auto max-h-[60vh]" />
                   )}
                 </div>
               )}

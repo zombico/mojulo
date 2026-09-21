@@ -42,24 +42,35 @@ const CONTROLLED_RENDER_MODES = new Set(['world', 'scene', 'svg', 'diagram']);
 /**
  * Which modes an artifact actually has.
  *
+ * Takes either the stored manifest or the three facts a list SUMMARY carries in
+ * its place (lib/graph/sketch/sketch-summary.js): the gallery's rows have no
+ * manifest, the detail page's sketch does, and both get the same answer.
+ *
  * @param {object}  args
- * @param {object}  args.manifest       the stored sketch manifest
+ * @param {object}  [args.manifest]     the stored sketch manifest
+ * @param {?string} [args.renderMode]   the server-derived render mode (summaries); derived from `manifest` otherwise
+ * @param {?string} [args.kind]         the manifest kind (summaries); read off `manifest` otherwise
+ * @param {?string} [args.giAdapter]    `giBake.adapter` (summaries); read off `manifest` otherwise
  * @param {string}  args.ref            the sketch ref (used to build view srcs)
  * @param {?string} args.giVariantRef   ref of a `<ref>_gi` bake variant, if one was minted
  * @param {boolean} args.hasBoundRender whether any external render is bound to this ref
  * @returns {?{ modes: Array, defaultMode: string }} null when this kind carries no control
  */
-export function resolveDisplayModes({ manifest, ref, giVariantRef = null, hasBoundRender = false } = {}) {
-  if (!manifest || typeof manifest !== 'object') return null;
-  const renderMode = sketchRenderMode(manifest);
-  if (!CONTROLLED_RENDER_MODES.has(renderMode)) return null;
+export function resolveDisplayModes({
+  manifest, renderMode: givenMode, kind: givenKind, giAdapter: givenAdapter,
+  ref, giVariantRef = null, hasBoundRender = false,
+} = {}) {
+  const hasManifest = Boolean(manifest) && typeof manifest === 'object';
+  const renderMode = givenMode ?? (hasManifest ? sketchRenderMode(manifest) : null);
+  if (!renderMode || !CONTROLLED_RENDER_MODES.has(renderMode)) return null;
 
-  const kind = manifest.kind;
+  const kind = givenKind !== undefined ? givenKind : (hasManifest ? manifest.kind : undefined);
   // The bake stamp the drivetrain writes back (bake-world-gi.mjs). `inline-faces`
   // recoloured this world's OWN faces, so the sketch you are looking at IS the
   // bake and there is no unlit variant kept to switch back to; `generated-mesh`
   // minted a separate `<ref>_gi`, so both readings still exist.
-  const bakedInPlace = manifest.giBake?.adapter === 'inline-faces';
+  const giAdapter = givenAdapter !== undefined ? givenAdapter : (hasManifest ? manifest.giBake?.adapter : undefined);
+  const bakedInPlace = giAdapter === 'inline-faces';
 
   const wire = wireView(renderMode, ref);
   const shadedView = baseView(renderMode, ref);

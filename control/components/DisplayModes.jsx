@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { pickMode, resolveDisplayModes } from '@/lib/graph/sketch/display-modes';
+import { factsOf, kindOf, renderModeOf } from '@/lib/graph/sketch/sketch-summary';
 
 /**
  * Mode state for a previewed sketch. Lives here rather than in the gallery so the
@@ -35,17 +36,24 @@ import { pickMode, resolveDisplayModes } from '@/lib/graph/sketch/display-modes'
  */
 export function useDisplayModeState(sketch, refSet) {
   const ref = sketch?.ref;
-  const manifest = sketch?.manifest;
+  // A gallery summary carries these three facts in place of the manifest; a full
+  // sketch (the detail page) derives them from it. Either way the resolver never
+  // needs the recipe itself (sketch-summary.js).
+  const renderMode = renderModeOf(sketch);
+  const kind = kindOf(sketch);
+  const giAdapter = factsOf(sketch).giAdapter;
   const giVariantRef = ref && refSet?.has(`${ref}_gi`) ? `${ref}_gi` : null;
 
   const resolved = useMemo(
     () => resolveDisplayModes({
-      manifest,
+      renderMode,
+      kind,
+      giAdapter,
       ref,
       giVariantRef,
       hasBoundRender: Boolean(sketch?.hasBoundRender),
     }),
-    [manifest, ref, giVariantRef, sketch?.hasBoundRender],
+    [renderMode, kind, giAdapter, ref, giVariantRef, sketch?.hasBoundRender],
   );
 
   const [wanted, setWanted] = useState(null);

@@ -200,6 +200,32 @@ export function classifyBucket(manifest) {
   return ILLUSTRATION_KIND_SET.has(kind) ? 'illustration' : 'diagram';
 }
 
+// The manifest's kind as the `sketches.kind` column stores it: a non-empty
+// string or null. Kept next to classifyBucket because the two persisted derived
+// columns (kind, bucket_derived) are stamped from the same manifest read.
+export function manifestKind(manifest) {
+  const kind = manifest && typeof manifest === 'object' ? manifest.kind : undefined;
+  return typeof kind === 'string' && kind ? kind : null;
+}
+
+// Everything `classifyBucket` depends on, as one string. The DB stores a hash of
+// it beside the persisted `bucket_derived` column; when the hash differs the
+// column is re-derived for every row. Adding a kind to any list below therefore
+// re-backfills on its own — no one has to remember. The leading revision is the
+// manual bump for a change to the classifier's LOGIC (a new branch, a changed
+// polygomer test) that the lists alone would not reveal.
+const BUCKET_DERIVATION_REVISION = 1;
+export function bucketDerivationSignature() {
+  return [
+    `rev${BUCKET_DERIVATION_REVISION}`,
+    WALKABLE_WORLD_KINDS.join(','),
+    OBJECT_RENDER_KINDS.join(','),
+    BEATS_RENDER_KINDS.join(','),
+    VOICE_RENDER_KINDS.join(','),
+    ILLUSTRATION_KINDS.join(','),
+  ].join('|');
+}
+
 // --- Renderer dispatch: which UI renderer draws a sketch ---------------------
 //
 // Distinct from the concern bucket (which list owns it). Some illustration kinds

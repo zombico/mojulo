@@ -12,7 +12,10 @@
  * is tens of KB and the floor draws thirty faces; the full recipe belongs to
  * the room and the detail page, not the storefront. `renderMode` rides along
  * precisely so the client can resolve turntable stills without the manifest
- * (turntable-strip.js `resolveTurntableForMode`).
+ * (turntable-strip.js `resolveTurntableForMode`). The store side is light too:
+ * `newestByBucket` returns light summaries off the persisted kind/bucket
+ * columns, and only the faces that survive the fold are hydrated with facts
+ * (`hydrateSummaries`), so no manifest is parsed to draw the floor.
  *
  * Design: components/3d-factory-ui.plan.md §10 (the splayed floor).
  */
@@ -21,7 +24,6 @@ import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { hasBoundRender } from '@/lib/graph/image-outcomes/render-store';
-import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 import {
   filterToShelf,
   inLibrary,
@@ -45,30 +47,40 @@ import {
  * not change with this number (`newestByBucket` walks and parses the whole
  * table either way, exactly as `bucketCounts()` does); it only extends how long
  * the parsed rows live before the fold discards them — and it buys true stack
- * counts instead of counts-in-window.
+ * counts instead of counts-in-window. The scan is a light SELECT over the
+ * persisted columns, so it costs tens of milliseconds, not a parse of every
+ * manifest.
  */
 const BUCKET_WINDOW = 5000;
 
-/** One strip face on the wire. Badge facts only — the manifest stays home. */
-function lightFace(sketch) {
-  const manifest = sketch.manifest || {};
+/**
+ * One strip face on the wire, from a HYDRATED summary (facts attached). Badge
+ * facts only — the manifest stays home.
+ */
+function lightFace(row) {
+  const facts = row.facts || {};
   return {
-    ref: sketch.ref,
-    title: sketch.title || sketch.ref,
-    kind: manifest.kind || null,
-    renderMode: sketchRenderMode(manifest),
-    createdAt: sketch.createdAt,
-    stack: sketch.stack || 1,
-    ...(sketch.kit ? { kit: sketch.kit } : {}),
+    ref: row.ref,
+    title: row.title || row.ref,
+    kind: row.kind || null,
+    renderMode: row.renderMode,
+    createdAt: row.createdAt,
+    stack: row.stack || 1,
+    ...(row.kit ? { kit: row.kit } : {}),
     badges: {
-      gi: Boolean(manifest.giBake),
-      game: Boolean(manifest.game),
-      audio: Boolean(manifest.audio),
+      gi: Boolean(facts.giBake),
+      game: Boolean(facts.game),
+      audio: Boolean(facts.audio),
       // Painted = an externally-rendered picture is bound to this recipe. The
       // provenance badge is never optional (docs/bicycles.md).
-      painted: hasBoundRender(sketch.ref),
+      painted: hasBoundRender(row.ref),
     },
   };
+}
+
+/** Fold survivors → hydrated summaries → wire faces. */
+function faces(rows) {
+  return SketchRepository.hydrateSummaries(rows).map(lightFace);
 }
 
 /** The rows a shelf's strip folds over, from the per-bucket windows. */
@@ -92,20 +104,21 @@ export async function GET() {
       const window = shelfWindow(byBucket, shelfKey);
       // Characters fold by NAME into cast entries with a kit; every other strip
       // folds iteration chains by title stem. Both cap at the strip's limit.
-      const faces = shelfKey === 'characters'
+      const folded = shelfKey === 'characters'
         ? castGroups(window).slice(0, STRIP_LIMITS.characters)
         : stripFaces(window, shelfKey);
-      strips[shelfKey] = faces.map(lightFace);
+      strips[shelfKey] = faces(folded);
     }
 
     // The bench's "picked up recently" — newest few library artifacts across
     // every shelf, each wearing its own kind on the floor.
-    const recent = Object.values(byBucket)
-      .flat()
-      .filter(inLibrary)
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-      .slice(0, RECENT_PICKS)
-      .map(lightFace);
+    const recent = faces(
+      Object.values(byBucket)
+        .flat()
+        .filter(inLibrary)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .slice(0, RECENT_PICKS),
+    );
 
     const shelfCounts = shelfCountsFromTallies(tallies);
     return NextResponse.json({
