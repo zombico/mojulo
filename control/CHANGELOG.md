@@ -12,6 +12,22 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-09-21
+
+The hosted-host release. A Claude cloud sandbox drove 2.0.6 end to end on 2026-09-21 (a 47-part phone
+at true scale, exported as glTF) and reported the two things that blocked a clean first run: the
+embedding runtime's install step needs a host the sandbox's proxy refuses, and `init` waits on a
+keyboard that is not there. Both are gone. Nothing changes for a desktop install except that it is a
+third smaller.
+
+### Init on a host with no keyboard
+
+- **`npx mojulo init` takes its defaults when stdin is not a terminal.** CI, a pipe, an agent driving
+  the install or `</dev/null` used to hang at the first prompt and then die with exit 13 and a Node
+  "unsettled top-level await" warning when stdin closed. Now a non-TTY stdin is announced once and
+  behaves like `--yes` (`--no-ui` and `--print` compose as before); a terminal that closes mid-prompt
+  exits with one plain line instead of the internals warning.
+
 ### Recall
 
 - **The embedding model is an opt-in install group.** `@huggingface/transformers` (and with it

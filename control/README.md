@@ -64,8 +64,8 @@ npx mojulo init
 ```
 
 First install is the big one: npx pulls a ~27 MB tarball plus its native dependencies
-(about 590 MB on disk measured on the unreleased tree; 2.0.6 measured 885 MB before the
-embedding runtime became opt-in, below). Measured sizes, lazy downloads, and what each engine leg
+(about 590 MB on disk; 2.0.6 measured 885 MB before the embedding runtime became opt-in,
+below). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 
 **Why these dependencies.** The install is mostly two things, and all of them run on your machine.
