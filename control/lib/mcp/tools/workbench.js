@@ -26,7 +26,7 @@ function normalizeToon(toon) {
   return t;
 }
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, ref, folderRef } = {}) {
+export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -74,6 +74,10 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     // toon dial (toon-shading): stored normalized (`true` → { bands: 3, ink: true }); a malformed
     // value is refused rather than silently dropped
     ...(toon != null ? { toon: normalizeToon(toon) } : {}),
+    // `grid` and `movers` are top-level spec keys on the card; until now only an update_sketch
+    // patch could store them (the mint dropped both). Absent → byte-identical.
+    ...(grid === false ? { grid: false } : {}),
+    ...(Array.isArray(movers) && movers.length ? { movers } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -113,11 +117,11 @@ export async function createCodeSolidHandler(input) {
   if (!input || typeof input !== 'object' || typeof input.source !== 'string') {
     throw new Error("The code kind needs `source` — the body of a function (params, ctx) that returns a workbench spec ({ lathes | extrudes | sweeps | lofts | fields | drapes | reliefs | shells | assembly }) or a face list ([{ corners, fill?, group? }]). Read get_solid_vocab({ id: 'code' }) for the realm API and worked programs.");
   }
-  const { title, source, params, seed, budgetMs, units, viewBox, facing, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts } = input;
+  const { title, source, params, seed, budgetMs, units, viewBox, facing, grid, movers, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts } = input;
   return mintWorkbench({
     title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts,
     program: { source, params, seed, budgetMs },
-    units, viewBox, facing, ref, folderRef,
+    units, viewBox, facing, grid, movers, ref, folderRef,
   });
 }
 
@@ -125,8 +129,8 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, ref, folder_ref: folderRef } = input;
-  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, ref, folderRef });
+  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folder_ref: folderRef } = input;
+  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {

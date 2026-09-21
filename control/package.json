@@ -124,6 +124,7 @@
   "optionalDependencies": {
     "manifold-3d": "^3.5.1",
     "node-web-audio-api": "^2.0.0",
+    "openscad-wasm-prebuilt": "^1.2.0",
     "opentype.js": "^2.0.0",
     "three": "^0.184.0"
   },

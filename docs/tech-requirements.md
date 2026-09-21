@@ -71,6 +71,7 @@ bundle also stopped carrying its own copies of `sharp`, `onnxruntime-common` and
 | `@huggingface/transformers` | 15 MB | The embedding pipeline. |
 | `puppeteer-core` | 13 MB | Drives a browser for scene bakes. The browser itself is **not** included (below). |
 | `opentype.js`, `manifold-3d` | 7 MB | Fonts for wordmarks; WASM CSG for `union: true` exports. Creative group, optional. |
+| `openscad-wasm-prebuilt` | 11 MB | OpenSCAD as WASM: the in-process mesher for `mint_solid kind:'scad'`. Creative group, optional. |
 
 **Lean install.** `npm install --omit=optional` sheds the four creative deps (~86 MB) and turns the
 creative tools off; `mojulo install creative` adds them back. See

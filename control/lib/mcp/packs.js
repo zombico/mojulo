@@ -65,7 +65,7 @@ export const PACKS = [
     form: 'object',
     title: '3D solids, figures & objects',
     description:
-      "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles: mint_solid (kinds figure / manji-tree / workbench / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), solid-vocab cards, measure_solid (numbers back off a solid), and verify_machina feasibility checks. Open for 'model a wine glass true to size', 'a woman mid-stride' (a posed figure), 'our logo in shiny chrome', 'a 3D creature', 'put the wheels and the chassis together into one model', 'turn this concept art into a 3D model piece by piece', 'rebuild a drawing as a real 3D model, segment by segment'. Placing solids IN an environment is pack_world.",
+      "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles, OpenSCAD: mint_solid (kinds figure / manji-tree / workbench / scad (an OpenSCAD program) / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), measure_solid, verify_machina. Open for 'model a wine glass true to size', 'a woman mid-stride', 'our logo in shiny chrome', 'a 3D creature', 'a bracket with bolt holes in OpenSCAD', 'bring my .scad code in', 'put the wheels and the chassis together into one model', 'turn this concept art into a 3D model piece by piece', 'rebuild a drawing as a real 3D model, segment by segment'. Placing solids IN an environment is pack_world.",
     members: ['mint_solid', 'edit_solid', 'get_solid_vocab', 'measure_solid', 'verify_machina'],
   },
   {

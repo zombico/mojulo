@@ -801,4 +801,4 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
 // lighting elsewhere (scene-css3d traced diffusion, or an internal per-kind solve) that FLAT_LIGHT
 // can't reach — see the unshadedWarning above. `fractal-city` honours `ctx.unshaded` in its own
 // assembler (plain lighting + FLAT_LIGHT, no diffusion/moonlight/shadows), so it flattens too.
-const UNSHADED_LAMBERT_KINDS = new Set(['workbench', 'assembler', 'manji-tree', 'controllable', 'fractal-city', 'dungeon']);
+const UNSHADED_LAMBERT_KINDS = new Set(['workbench', 'scad', 'assembler', 'manji-tree', 'controllable', 'fractal-city', 'dungeon']);

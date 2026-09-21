@@ -23,6 +23,7 @@ import { renderWorkbenchToHtml } from '@/lib/graph/worlds/workbench';
 import { renderFloorplanToHtml, renderHouseToHtml } from '@/lib/graph/polygonizer/floorplan-structure';
 import { renderRestaurantToHtml } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { renderAssemblerToHtml } from '@/lib/graph/worlds/workbench-assembler';
+import { renderScadToHtml } from '@/lib/graph/worlds/scad';
 
 /**
  * @param {{ title?: string, manifest: object }} sketch — a stored sketch row
@@ -94,6 +95,11 @@ function dispatchSceneHtml(sketch, sceneOpts = {}) {
   }
   if (manifest.kind === 'assembler') {
     return renderAssemblerToHtml({ ...manifest, signs, title: title || 'mojulo assembler' });
+  }
+  // The scad kind meshes through OpenSCAD-in-WASM, which is async — this branch returns a
+  // PROMISE of the HTML (every caller awaits; `await` on the other branches' strings is a no-op).
+  if (manifest.kind === 'scad') {
+    return renderScadToHtml({ ...manifest, signs, title: title || 'mojulo scad' });
   }
   if (manifest.kind === 'css3d-turntable') {
     return renderSolidTurntableToHtml({ ...manifest, signs, title: title || 'mojulo solid' });

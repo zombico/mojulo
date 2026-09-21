@@ -18,6 +18,8 @@ export const FIXTURE = [
   ['recreate the camera angle from this photo I am showing you', 'reference_protocol'],
   ['our company logo in shiny 3D chrome', 'mint_solid'],
   ['model a wine glass true to size', 'mint_solid'],
+  ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
+  ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
   ['turn this concept art of an espresso machine into a 3d model piece by piece', 'mint_solid'],
   ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', 'mint_solid'],

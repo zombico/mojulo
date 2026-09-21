@@ -12,6 +12,34 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### OpenSCAD front door
+
+- **`mint_solid kind:'scad'`: an OpenSCAD program IS the recipe.** `spec.source` is stored verbatim and
+  meshed on every read by OpenSCAD itself, running in-process as WebAssembly (`openscad-wasm-prebuilt`,
+  a new optional creative dep, same posture as `manifold-3d`; OpenSCAD 2025.01.19, Manifold backend,
+  version pinned in the ledger). The mesh is the ordinary face list, so the object rides the workbench
+  studio (`/world`, `/scene`, `facing`, `grid`, `movers`), every export leg (`.glb`, engines, USD, STL,
+  3MF at true size — `units` defaults to mm) and the gates unchanged. `color()` is the tint; `parts`
+  (`{ name: 'module();' }`) render each part as its own group so a hinge can swing it; `include` /
+  `use` / `import()` / `surface()` are refused at mint (the recipe carries its own geometry). Absent the
+  package, the mint refuses with the install line. `export_model format:'scad'` on a `scad` row returns
+  the source verbatim (one exact term, nothing frozen). Card: `get_solid_vocab({ id: 'scad' })`; routing
+  card `scad-object`. Existing workbench rows are untouched. Why: measured on the iPhone Duo block-in,
+  the same object in OpenSCAD reads at about half the tokens of the workbench manifest, needs no
+  14k-token card, renders in 0.2 s, and its booleans are exact.
+- **Workbench mint stores `movers`, `grid` and `toon` from the spec.** The card documented all three as
+  top-level spec keys but `mint_solid kind:'workbench'` / `'code'` dropped them; only an `update_sketch`
+  patch could store a hinge. Absent, byte-identical.
+
+### Mover ease: the magnetic latch
+
+- `movers[].ease` on a states toggle (turn or slide). Absent → the smoothstep every existing recipe rides,
+  byte-identical. `'snap'` (or `{ snap, gap }`) eases the part out to a hover just short of the detent, then
+  accelerates the last stretch in — a lid clicking shut, a foldable closing on its magnets. An array is read
+  by the state arrived at (`['snap', null]`: click into state 0, plain into state 1). Documented on the
+  workbench card. The mover channel block's emitted bytes change, so the `emit-channels.char` hashes for the
+  mover fixtures are re-pinned in the same change.
+
 ## [2.0.6] - 2026-09-20
 
 ### Fresh installs get a working dashboard

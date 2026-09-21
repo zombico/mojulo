@@ -789,10 +789,51 @@ export function facesToScad(faces, opts = {}) {
 }
 
 /**
+ * A `scad` recipe → its own source, verbatim. The recipe IS an OpenSCAD program, so the export
+ * is the identity: the stored text under the same provenance header, plus the `parts`
+ * instantiations appended as the assembly when the source is a library of modules. Nothing is
+ * transpiled and nothing is frozen; the ledger says so with one exact term.
+ */
+export function sourceToScad(manifest, opts = {}) {
+  const units = typeof manifest.units === 'string' && UNIT_MM[manifest.units] ? manifest.units : null;
+  const mmPerUnit = Number.isFinite(opts.mmPerUnit) && opts.mmPerUnit > 0 ? opts.mmPerUnit : (units ? UNIT_MM[units] : 1);
+  const parts = manifest.parts && typeof manifest.parts === 'object' ? Object.entries(manifest.parts) : [];
+  const L = [];
+  const bar = '// ' + '─'.repeat(74);
+  L.push(bar);
+  if (opts.title) L.push(`// ${opts.title}`);
+  L.push('//');
+  L.push(`// minted by mojulo${opts.ref ? ` · recipe ${opts.ref}` : ''} · kind scad`);
+  L.push('//');
+  L.push('// This recipe IS an OpenSCAD program: the text below is the stored source, verbatim.');
+  L.push('// Change it with update_sketch (`/source`, `/parts/<name>`) or own it from here.');
+  if (units) L.push(`// Authored in ${units}${mmPerUnit !== 1 ? ` (${num(mmPerUnit)} mm per unit)` : ''}.`);
+  L.push(bar);
+  L.push('');
+  L.push(String(manifest.source).replace(/\s+$/, ''));
+  if (parts.length) {
+    L.push('');
+    L.push('// ─── parts (each is a render group in mojulo) ─────────────────────────────');
+    for (const [name, statement] of parts) L.push(`${String(statement).trim()}   // ${name}`);
+  }
+  L.push('');
+  const text = L.join('\n');
+  const bytes = Buffer.from(text, 'utf8');
+  return {
+    text, bytes, byteLength: bytes.length,
+    vertexCount: 0, triangleCount: 0, sidecars: [],
+    coverage: { exact: 1, baked: 0, terms: [{ at: 'source', what: 'scad', status: 'exact' }] },
+    variables: 0, units, mmPerUnit,
+    parts: parts.length ? parts.map(([name]) => ({ name, at: `parts.${name}` })) : [{ name: 'body', at: 'source' }],
+  };
+}
+
+/**
  * The export leg's one door: transpile the manifest when there is one to read, otherwise
  * bake the payload. Never refuses.
  */
 export function scadExport({ manifest, payload, ...opts }) {
+  if (manifest && manifest.kind === 'scad' && typeof manifest.source === 'string') return sourceToScad(manifest, opts);
   if (hasWorkbenchMonomers(manifest)) return specToScad(manifest, opts);
   return facesToScad(payload && Array.isArray(payload.faces) ? payload.faces : [], opts);
 }

@@ -97,7 +97,7 @@ export function deriveStlScale(units) {
 //              MEANINGLESS, not merely unknown. Behaves like maquette except
 //              in the note, so a misclassified future kind is cosmetic only.
 const PRINT_PROFILES = {
-  literal: new Set(['workbench', 'assembler', 'carved-solid', 'css3d-turntable', 'vehicle-instance']),
+  literal: new Set(['workbench', 'scad', 'assembler', 'carved-solid', 'css3d-turntable', 'vehicle-instance']),
   study: new Set(['figure', 'manji-tree']),
   maquette: new Set([
     'fractal-city', 'condo-complex', 'school-complex', 'edifice', 'dungeon',
