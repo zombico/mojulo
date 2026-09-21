@@ -23,9 +23,12 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const MODEL_REL = 'Xenova/multilingual-e5-small/onnx/model_quantized.onnx';
+// The runtime is the opt-in recall group: the model files alone are not enough.
+const { embedderAvailable } = await import('@/lib/embedder/local');
 const modelPresent =
-  existsSync(join(here, '../../embedder/models', MODEL_REL)) ||
-  existsSync(join(homedir(), '.mojulo/models', MODEL_REL));
+  embedderAvailable() &&
+  (existsSync(join(here, '../../embedder/models', MODEL_REL)) ||
+    existsSync(join(homedir(), '.mojulo/models', MODEL_REL)));
 
 // phrasing → entry tool the shortlist must surface. The rows now live in
 // routing-eval.fixture.js, SHARED with the body-grounded eval (gate 2b in

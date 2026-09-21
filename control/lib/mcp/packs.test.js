@@ -28,6 +28,7 @@ import {
   isPackInstalled,
   isToolInstalled,
   installNotice,
+  DEFAULT_ON_GROUPS,
   _setGroupPresence,
 } from '@/lib/mcp/packs';
 
@@ -291,6 +292,29 @@ describe('host-aware default (packs opinionated; flat for deferring hosts)', () 
       { mcpSessionId: 'host-codex-init' },
     );
     expect(cx.result.instructions).toContain('Tool packs are ON');
+  });
+});
+
+// The embedding runtime is the opt-in `recall` group: not a dependency, no pack
+// of its own (semantic_search runs lexically without it), never default-on.
+describe('install axis — the recall group', () => {
+  afterEach(() => _setGroupPresence(null));
+
+  it('is not part of a default install and owns no pack', () => {
+    expect(DEFAULT_ON_GROUPS).toEqual(['creative']);
+    expect(PACKS.filter((p) => p.installGroup === 'recall')).toEqual([]);
+  });
+
+  it('is detected physically or granted by MOJULO_PACKS, and never gates a tool', () => {
+    _setGroupPresence(['creative']);
+    expect(installedGroups({}).has('recall')).toBe(false);
+    expect(installedGroups({ MOJULO_PACKS: 'creative,recall' }).has('recall')).toBe(true);
+    _setGroupPresence(['creative', 'recall']);
+    expect(installedGroups({}).has('recall')).toBe(true);
+    expect(isToolInstalled('semantic_search', {})).toBe(true);
+    _setGroupPresence(['creative']);
+    expect(isToolInstalled('semantic_search', {})).toBe(true);
+    expect(installNotice('semantic_search', {})).toBe(null);
   });
 });
 

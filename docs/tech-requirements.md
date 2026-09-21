@@ -48,27 +48,37 @@ bundle also stopped carrying its own copies of `sharp`, `onnxruntime-common` and
 `@huggingface/transformers` (the hoisted install supplies them, matching their native binaries).
 `onnxruntime-web` (130 MB) still arrives as a transitive dependency of the embedder.
 
+> **Since these numbers were taken** the embedding runtime (`@huggingface/transformers`,
+> `onnxruntime-node`, `onnxruntime-web`, plus the ~130 MB model) left the package's dependencies and
+> became the opt-in **recall** install group (`mojulo install recall`, installed under
+> `~/.mojulo/recall/`; see [install-capabilities.md](install-capabilities.md#growing-an-install)). A
+> default install carries none of it and `semantic_search` ranks lexically. Measured **2026-09-21** on
+> the unreleased tree by the same `smoke:tarball` run, cold install on macOS arm64: tarball **30 MB**,
+> unpacked package **116 MB**, `node_modules` **472 MB**, so about **590 MB** total before any lazy
+> download (down from ~885 MB). The table below is the 2.0.6 release measurement and is re-taken at the
+> next release; its rows are marked with the group they now belong to.
+
 | Layer | Size | Notes |
 |---|---|---|
 | npm tarball (what `npx` downloads) | **27.3 MB** | `mojulo-2.0.6.tgz` |
 | Unpacked package | **110 MB** | Includes the prebuilt Next.js dashboard (`.next/standalone`), translations, and the bot-runtime template. |
 | Production dependencies npm installs | **~775 MB** | Measured from a cold install of the tarball on macOS arm64. Breakdown below. |
 | **Total after `npx mojulo init`** | **~885 MB** | Before any model or browser download. |
-| Embedding model (first launch) | **~130 MB** on disk | `Xenova/multilingual-e5-small`, q8 ONNX, fetched once into `~/.mojulo/models/`. Powers `semantic_search`; runs in-process. |
+| Embedding model (recall group only) | **~130 MB** on disk | `Xenova/multilingual-e5-small`, q8 ONNX, fetched once into `~/.mojulo/models/` by `mojulo install recall`. Gives `semantic_search` vector ranking; runs in-process. Not fetched by a default install. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 
 **Why the dependencies are ~775 MB.** The largest pieces, all runtime deps of the kernel unless noted:
 
 | Dependency | Size | Why it's there |
 |---|---|---|
-| `onnxruntime-node` | 211 MB | Runs the embedding model. Ships binaries for macOS, Linux, **and** Windows in one package; only ~35 MB is used on macOS. This one line is most of the gap between the older "~340 MB kernel" figure and today's measurement. |
-| `onnxruntime-web` | 130 MB | Pulled in by `@huggingface/transformers` alongside the node runtime; the WASM builds are not used by mojulo but ship in the package. |
+| `onnxruntime-node` | 211 MB | Runs the embedding model. Ships binaries for macOS, Linux, **and** Windows in one package; only ~35 MB is used on macOS. **Recall group, opt-in** — absent from a default install. |
+| `onnxruntime-web` | 130 MB | Pulled in by `@huggingface/transformers` alongside the node runtime; the WASM builds are not used by mojulo but ship in the package. **Recall group, opt-in.** |
 | `node-web-audio-api` | 41 MB | Audio synthesis (beats, SFX). Creative group, optional. |
 | `three` | 38 MB | WebGL worlds. Creative group, optional. |
 | `better-sqlite3` | 27 MB | The database. |
 | `@swc/core` | 26 MB | Compiles generated code. |
-| `sharp` + libvips | 17 MB | Image handling, pulled in by the embedder. |
-| `@huggingface/transformers` | 15 MB | The embedding pipeline. |
+| `sharp` + libvips | 17 MB | Image handling (skins, sprite sheets, the PNG bake, the forges). Creative group, optional. |
+| `@huggingface/transformers` | 15 MB | The embedding pipeline. **Recall group, opt-in.** |
 | `puppeteer-core` | 13 MB | Drives a browser for scene bakes. The browser itself is **not** included (below). |
 | `opentype.js`, `manifold-3d` | 7 MB | Fonts for wordmarks; WASM CSG for `union: true` exports. Creative group, optional. |
 | `openscad-wasm-prebuilt` | 11 MB | OpenSCAD 2025.01.19 as WASM with the Manifold backend: the in-process mesher for `mint_solid kind:'scad'` and the exact twin behind `exact: true`. A fresh instance per render, about 210 MB RSS while one runs. Creative group, optional; a stored `scad` row cannot render without it. |
@@ -89,7 +99,7 @@ are cached, and are skipped entirely if you already have the tool:
 | Chrome for Testing (pinned build in [chromium.js](../control/lib/graph/scene/chromium.js)) | First scene-to-PNG bake or motion render | **~500 MB** | Chrome, Chromium, Edge, or Brave is installed at a standard path, or `MOJULO_CHROMIUM` points at one |
 | ffmpeg static build (pinned in [ffmpeg.js](../control/lib/motion/ffmpeg.js)) | First multi-clip MP4 stitch | ~19 MB download | `ffmpeg` is on PATH or `MOJULO_FFMPEG` points at one |
 | Geo data (Natural Earth, Nominatim) | First map-backed landscape | small, disk-cached | — |
-| Embedding model | First MCP launch | ~130 MB | Already in `~/.mojulo/models/` |
+| Embedding model | `mojulo install recall` (never on a default install) | ~130 MB | Already in `~/.mojulo/models/` |
 
 > **Where the browser and ffmpeg caches live.** They default to `data/chromium` and `data/ffmpeg`
 > under the *installed package directory* (the process `chdir`s there), not under `~/.mojulo/`.
@@ -213,7 +223,8 @@ agent is the bridge. Absence degrades one loop and breaks nothing.
 ## The chatbot pack (opt-in since 2.0)
 
 Absent from a default install; `mojulo install chatbot` writes a marker file and turns the tools
-on. What it needs beyond the baseline:
+on, installing the **recall** group first (the builder's preview RAG embeds with the same model the
+deployed bot uses). What it needs beyond the baseline:
 
 - **An LLM provider key** (OpenAI, Anthropic, or local Ollama). A compiled bot calls a model on its
   own because it runs without you. This is the one artifact mojulo makes that needs a key.

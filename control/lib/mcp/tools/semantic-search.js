@@ -27,27 +27,32 @@ import { WEAK_SEARCH_TOP_SCORE } from '@/lib/db/repositories/mcpToolCalls';
 // hint turns the silent miss into a one-hop recovery. `degraded` separates
 // "the index answered nothing" from "the index couldn't answer" (embed
 // failure) — an empty result with no explanation reads as "nothing exists".
-function buildSearchHint({ degraded, results, routing }) {
+function buildSearchHint({ degraded, results, routing, mode }) {
   if (degraded) {
     return (
       'Semantic index degraded — the query could not be embedded, so this empty result does NOT mean nothing matches. ' +
-      'Retry once; if it persists, the embedder model may be missing — run `node scripts/reindex-embeddings.js` on the control plane.'
+      'Retry once; if it persists, the embedding runtime or its model is broken — run `mojulo install recall` again (or `node scripts/reindex-embeddings.js` on the control plane).'
     );
   }
   const topScore = results.length ? results[0].score : null;
   const weak = results.length === 0 || topScore < WEAK_SEARCH_TOP_SCORE;
   if (!weak) return null;
   const scored = topScore === null ? 'no results' : `top score ${topScore.toFixed(2)}`;
+  // Lexical mode (no recall group): the score is the share of query terms the row
+  // contains, so the recovery is fewer, more concrete English terms — not a paraphrase.
+  const lexical = mode === 'lexical' ? ' (lexical match: the index has no embedding model; use fewer, concrete English terms)' : '';
   if (routing) {
     return (
-      `Weak routing match (${scored}) — don't commit to a card on this. ` +
+      `Weak routing match (${scored})${lexical} — don't commit to a card on this. ` +
       "Rephrase with the artifact's FORM (a picture / object / world / tune / game about …), " +
       "or read the routing index directly: forward_context({mode:'studio'}) for creative asks, forward_context() for the office wing."
     );
   }
   return (
-    `Weak match (${scored}) — treat these as leads, not answers. ` +
-    'Rephrase closer to the user\'s own framing, widen by dropping the `kinds` filter, ' +
+    `Weak match (${scored})${lexical} — treat these as leads, not answers. ` +
+    (mode === 'lexical'
+      ? 'Try the nouns of the ask in English, widen by dropping the `kinds` filter, '
+      : 'Rephrase closer to the user\'s own framing, widen by dropping the `kinds` filter, ') +
     'or route via forward_context / get_tool_index instead.'
   );
 }
@@ -63,12 +68,12 @@ export async function semanticSearchHandler(input, _ctx) {
   const opts = {};
   if (kinds !== undefined && kinds !== null) opts.kinds = kinds;
   if (limit !== undefined && limit !== null) opts.limit = limit;
-  const { results, degraded } = await EmbeddingsRepository.search(query, {
+  const { results, degraded, mode } = await EmbeddingsRepository.search(query, {
     ...opts,
     withMeta: true,
   });
   const routing = opts.kinds ? [].concat(opts.kinds).includes('routing') : false;
-  const hint = buildSearchHint({ degraded, results, routing });
+  const hint = buildSearchHint({ degraded, results, routing, mode });
   // Outcome signal for the orientation-gap telemetry (numbers/enums only,
   // stripped from the wire by instrumentedInvoke). A zero-result or weak-top
   // search is a coined term that failed to reward the question — see
@@ -78,9 +83,11 @@ export async function semanticSearchHandler(input, _ctx) {
     ...(results.length ? { top_score: results[0].score } : {}),
     ...(opts.kinds ? { kinds: [].concat(opts.kinds) } : {}),
     ...(degraded ? { degraded: true } : {}),
+    ...(mode ? { mode } : {}),
   };
   return {
     results,
+    ...(mode ? { mode } : {}),
     ...(degraded ? { degraded: true } : {}),
     ...(hint ? { hint } : {}),
     _telemetrySignal: signal,
@@ -98,7 +105,7 @@ export function registerSemanticSearchTools() {
         query: {
           type: 'string',
           description:
-            'Free-text intent. Phrased the way the user would phrase the question, not a SQL predicate — the index is semantic.',
+            'Free-text intent in English (translate the operator\'s ask first), not a SQL predicate. Lexical on a default install, semantic with the optional `recall` group; the result\'s `mode` says which.',
         },
         kinds: {
           type: 'array',

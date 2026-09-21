@@ -365,7 +365,12 @@ describe('mcp-stdio bin without sharp', () => {
     const { version } = JSON.parse(readFileSync(path.join(controlDir, 'package.json'), 'utf8'));
 
     // Two nested data: modules — the --import entry registers the hook; the hook refuses sharp.
+    // The hook announces itself on stderr: with the embedding runtime an opt-in
+    // install group (nothing on the boot path imports sharp any more), the
+    // refusal is no longer guaranteed to fire in-band, so the proof that the
+    // hook was armed is its own line rather than a failed import.
     const hookSrc = [
+      'export function initialize() { process.stderr.write("no-sharp test hook armed\\n"); }',
       'export function resolve(specifier, context, next) {',
       "  if (specifier === 'sharp') throw new Error('sharp refused by the no-sharp test hook');",
       '  return next(specifier, context);',
@@ -376,8 +381,7 @@ describe('mcp-stdio bin without sharp', () => {
     const importUrl = `data:text/javascript,${encodeURIComponent(importSrc)}`;
 
     // A throwaway MOJULO_HOME so the child touches neither ~/.mojulo nor this
-    // process's in-memory settings; strip every inherited data-path override
-    // (and the semantic-index kill switch — the embedder must fail IN-BAND).
+    // process's in-memory settings; strip every inherited data-path override.
     const home = mkdtempSync(path.join(os.tmpdir(), 'mojulo-no-sharp-'));
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
@@ -394,8 +398,8 @@ describe('mcp-stdio bin without sharp', () => {
     expect(r.error).toBeUndefined();
     expect(r.status, `stderr:\n${r.stderr}`).toBe(0);
     expect(r.stdout).toContain(`"version": "${version}"`);
-    // The refusal is visible on stderr as an in-band embedder failure, never a crash.
-    expect(r.stderr).toMatch(/sharp refused by the no-sharp test hook/);
+    // The hook was armed (its own line), and nothing on the boot path crashed on it.
+    expect(r.stderr).toMatch(/no-sharp test hook armed/);
     expect(r.stderr).not.toMatch(/triggerUncaughtException/);
   }, 150_000);
 });

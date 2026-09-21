@@ -1,4 +1,4 @@
-# Install capabilities — kernel + always-on packs + two install groups (creative / chatbot)
+# Install capabilities — kernel + always-on packs + three install groups (creative / recall / chatbot)
 
 Mojulo is a **kernel** plus **always-present packs** plus **two install-gated groups**. This doc is the
 source of truth for that shape: what's always present, what's optional, how mojulo knows which it is, and
@@ -9,8 +9,9 @@ this is the orientation layer.
 ## The shape in one paragraph
 
 There is a small, always-present **kernel** — "what mojulo *is*" — surrounded by packs. A pack declares an
-`installGroup` and is gatable, or declares none and is unconditional like the kernel. Two groups exist:
-**creative** (the render / media / games stack — the flagship default) and **chatbot** (the bot factory).
+`installGroup` and is gatable, or declares none and is unconditional like the kernel. Three groups exist:
+**creative** (the render / media / games stack — the flagship default), **recall** (the embedding runtime
+behind vector `semantic_search`; opt-in, no pack of its own) and **chatbot** (the bot factory).
 Everything else — connected services, catalysts, triggers, apps/daemons, plan, research, stash — declares
 no group and is always present. The kernel alone can already mint a diagram.
 
@@ -22,9 +23,10 @@ no group and is always present. The kernel alone can already mint a diagram.
 ## What lives where
 
 **Kernel (always present).** The MCP server + tool registry + transport, the SQLite + graph store, the
-event/daemon supervisor, the CLI front door (`scripts/mcp-stdio.mjs`), RAG / `semantic_search` (the
-text-embedding model), and a **diagram maker** (see the stub below). This is the floor every install
-carries; its measured size is in [tech-requirements.md](tech-requirements.md#package-size-and-disk-footprint).
+event/daemon supervisor, the CLI front door (`scripts/mcp-stdio.mjs`), `semantic_search` as a lexical
+index (SQLite FTS5, inside `better-sqlite3`; the embedding model is the opt-in **recall** group), and a
+**diagram maker** (see the stub below). This is the floor every install carries; its measured size is in
+[tech-requirements.md](tech-requirements.md#package-size-and-disk-footprint).
 
 **Always-present packs (no `installGroup`).** The orchestration plumbing: connected-service workflows
 over the operator's other MCPs, catalysts, triggers, local apps/daemons, plan, research, stash. Pure code
@@ -51,7 +53,9 @@ describes and an env flag can never silently disagree with reality. In
 
 - Each group declares an install signal as data (`INSTALL_GROUPS`): `creative` has a
   `markerModule: 'three'` — installed iff that dep resolves on disk; `chatbot` has a
-  `markerFile: 'packs/chatbot'` — installed iff that file exists under `$MOJULO_HOME`.
+  `markerFile: 'packs/chatbot'` — installed iff that file exists under `$MOJULO_HOME`; `recall` has
+  both — the runtime's own `package.json` under `$MOJULO_HOME/recall/node_modules/`, or the module
+  resolving from the package (repo-dev, installed by hand).
 - Each pack declares its `installGroup`, or none. **A pack with no group is always installed**, so the
   plumbing and the kernel share one rule.
 - `installedGroups()` folds over that with a memoized, import-free probe (`process.getBuiltinModule`
@@ -76,7 +80,16 @@ describes and an env flag can never silently disagree with reality. In
   keyframe and scene forges) fail in-band naming `npm install sharp`.
 - **Add the studio:** `mojulo install creative` ([control/scripts/mcp-install.mjs](../control/scripts/mcp-install.mjs))
   runs `npm install --include=optional` and re-probes. `mojulo install` with no arg prints status for
-  both groups. `mojulo install chatbot` writes the marker; `--remove` takes it away again.
+  all three groups. `mojulo install chatbot` writes the marker; `--remove` takes it away again.
+- **Add vector recall:** `mojulo install recall` installs `@huggingface/transformers` (and with it
+  `onnxruntime-node`, about 480 MB) into `$MOJULO_HOME/recall/` — its own `package.json` plus an
+  `entry.mjs` shim that [control/lib/embedder/local.js](../control/lib/embedder/local.js) imports by file
+  URL — then fetches the ~130 MB model into `$MOJULO_HOME/models/`. Outside the package on purpose: it
+  survives a package upgrade and never edits the shipped `package.json`. Without it `semantic_search`
+  ranks lexically (FTS5, trigram tokenizer) over the same rows and reports `mode: 'lexical'`; rows
+  written meanwhile are stored text-only and get their vectors on the first boot after the install.
+  `--remove` deletes the dir (the model cache stays). `mojulo install chatbot` installs recall first,
+  because the builder's preview RAG must rank the way the deployed bot does.
 - **What a default `npx mojulo` gets:** kernel + creative + the always-present orchestration packs —
   every pack outside the chatbot group. The chatbot packs are listed by `mojulo tools` / `mojulo packs` as
   "not installed" with the command that adds them, so the capability stays discoverable without
@@ -93,8 +106,8 @@ describes and an env flag can never silently disagree with reality. In
   saying because it cuts the other way too: `export_model({ format: 'scad' })` is pure text and needs
   NO optional dependency, so the sharp-edge exit works in a lean install where `union: true` cannot.
 
-`sharp` is NOT shed — it arrives transitively via the kernel embedder (`@huggingface/transformers`), so
-it's always present.
+`sharp` is an `optionalDependency` of its own (it used to arrive through the embedder) and belongs to
+the creative group like the rest of the optional set; `sharp-lazy.js` keeps the kernel up without it.
 
 ## The iron wall — execution integrity, not information hiding
 

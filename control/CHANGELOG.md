@@ -12,6 +12,36 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Recall
+
+- **The embedding model is an opt-in install group.** `@huggingface/transformers` (and with it
+  `onnxruntime-node`, `onnxruntime-web`, the ~130 MB lazy model) leaves the package's dependencies.
+  `mojulo install recall` installs the runtime into `~/.mojulo/recall/` (its own `package.json` and an
+  `entry.mjs` shim; it survives package upgrades the way `~/.mojulo/models/` does) and fetches the model;
+  `--remove` takes it away. `mojulo install chatbot` installs recall first, because the bot-builder preview
+  RAG must behave like the deployed bot. `MOJULO_PACKS=recall` is the manual override, as for the other groups.
+- **`semantic_search` works without it.** The index is now a lexical search (SQLite FTS5, trigram
+  tokenizer, already inside `better-sqlite3`) over the same rows whenever the recall group is absent;
+  with the group present it is the vector search it was. One path or the other, never a blend. Results
+  carry `mode: 'vector' | 'lexical'`; a lexical `score` is the share of query terms the row contains, so
+  the weak-match hint keeps its threshold. The index self-populates on the first search of a fresh
+  install (text only, no model), so a cold CLI process answers on its first call. Query in English; the
+  host translates the operator's ask before the first tool call. Measured: the routing fixture lands its
+  entry tool in the top 3 for 32 of 34 phrasings through the lexical path (pinned at 85 % in
+  `embeddings-lexical.test.js`; the vector gate in `routing-eval.integration.test.js` now needs the group).
+- **Text-only rows.** `meta_embeddings.embedding` is nullable (existing DBs are rebuilt in place, rows
+  preserved). A row whose vector could not be produced is still indexed by text; installing recall later
+  backfills the vectors on the next boot.
+- **`sharp` is an optionalDependency in its own right** (it used to arrive through the embedder) and
+  stays part of the creative group; `sharp-lazy.js` already tolerates its absence.
+- **Boot and status.** The bins no longer preload a model that is not installed; the settings
+  embeddings-status route reports the group state and the install line; `smoke:tarball` runs the cold
+  install without the group and asserts a lexical `semantic_search` result, and `--with-recall` installs
+  the group into the temp dir first. Measured by that gate on macOS arm64: tarball 30 MB, unpacked 116 MB,
+  `node_modules` 472 MB (2.0.6: ~775 MB), about 590 MB total against 885 MB before.
+- **`adm-zip` is a devDependency.** The docker deployer test imported it while it arrived through
+  `onnxruntime-node`; it is declared now that the runtime is gone.
+
 ### Release tooling
 
 - **`npm run smoke:tarball` parses `npm pack --json` past prepack's own stdout.** Under the current npm
@@ -22,6 +52,10 @@ loops and the recipe format are unchanged.
 
 ### Routing
 
+- **Two routing cards learn the words the fixture uses.** The world card's When line gains "a little
+  town I can wander around" and the motion-waypoints card gains "can the player get from the door to
+  the goal": the two phrasings the lexical path missed on the routing fixture were both absent from
+  the card vocabulary rather than mis-ranked.
 - **The illustration pack names the graphic novel.** Its recognizer gains the anchor 'a graphic novel I
   click through page by page', so "present the graphic novel like a slideshow I click through" routes
   to the sketch packs again instead of sitting a few thousandths behind the game and motion packs (it
@@ -187,9 +221,14 @@ around it broke or misled. Each is fixed below.
   block, as `export_game` already documents. Result carries `bytes`, `path`, `dir`, `download_url`
   and a `note` saying so; `vertices` / `triangles` are not reported (it is a page, not a mesh).
   Deterministic: the same row emits the same bytes (the seed-91 city is about 9 MB). Test pins
-  zero `http(s)://` and zero `/vendor/three` references and the inline importmap. The
-  `export_model` description grew 2013 → 2179 chars (under its 2285 allowlist snapshot) and the
-  flat tools/list 241,765 → 241,938 bytes (under the 263,500 pin): no re-pin.
+  zero `http(s)://` and zero `/vendor/three` references and the inline importmap.
+- **Fixed: the flat tools/list payload had crossed its pin.** The `html` clause landed on an
+  `export_model` description already carrying the batch's `3mf` / `usda` / `usdz` / `scad` growth,
+  and the merged tree measured 263,619 bytes against the 263,500 pin (the branch-local number
+  recorded when the clause was written did not survive the merge). The description is re-cut to
+  routing grade instead — 2,179 → 1,915 chars, every routing fact kept, the fidelity rhetoric and
+  the re-lightable-PBR aside dropped (the `lit` property already carries it) — and the payload
+  measures 263,355. Pin unchanged.
 - **Fixed: `compose_world` flagged `context` as "not reflected" on every themed city mint.** The
   city adapter lowers the slot keys (`context`, `asset`, `material`, `style`) onto the top level of
   the recipe, so the flat-key check never found them. A lowered slot now counts as reflected when

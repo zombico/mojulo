@@ -519,6 +519,17 @@ const INSTALL_GROUPS = {
   // `mojulo install chatbot`; delete it (or drop 'chatbot' from MOJULO_PACKS)
   // to put the factory away again.
   chatbot: { markerFile: 'packs/chatbot' },
+  // The embedding runtime (@huggingface/transformers + onnxruntime + the e5 model).
+  // Opt-in: `mojulo install recall` installs it OUTSIDE the package, under
+  // $MOJULO_HOME/recall/ (its own package.json + an entry.mjs shim), so it survives
+  // package upgrades and never touches the shipped dependencies. The module marker
+  // covers repo-dev with the package installed by hand. No pack joins this group:
+  // `semantic_search` runs lexically (FTS5) without it; the group only changes the
+  // ranking and enables the chatbot preview RAG (`install chatbot` installs it first).
+  recall: {
+    markerModule: '@huggingface/transformers',
+    markerFile: 'recall/node_modules/@huggingface/transformers/package.json',
+  },
 };
 const ALL_GROUPS = Object.keys(INSTALL_GROUPS);
 

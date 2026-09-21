@@ -7,7 +7,7 @@
  * install stays lean and the operator opts INTO heavy capability when they want
  * it. See lib/mcp/install-capabilities.plan.md.
  *
- * The install axis has two GROUPS (mojulo-2.0-pure-creative.plan.md, Phase 1a):
+ * The install axis has three GROUPS (mojulo-2.0-pure-creative.plan.md, Phase 1a):
  *   - creative  — the render / media / games stack, the flagship default pack. Its
  *                 footprint is the three optionalDependencies (three /
  *                 node-web-audio-api / opentype.js); installing them flips physical
@@ -18,6 +18,17 @@
  *                 file puts it away again. The code is in-tree until the Phase 3
  *                 ABI lands, so this is a logical gate — but from the operator's
  *                 side it behaves like the eventual @mojulo/chatbot package.
+ *                 Installing it installs `recall` first: the builder's preview
+ *                 RAG must behave like the deployed bot, which embeds.
+ *   - recall    — the embedding runtime (@huggingface/transformers + onnxruntime +
+ *                 the e5 model). OPT-IN: not a dependency of the package at all.
+ *                 Installed OUTSIDE the package, under $MOJULO_HOME/recall/ — its
+ *                 own package.json and an entry.mjs shim that lib/embedder/local.js
+ *                 imports by file URL — so it survives package upgrades the way
+ *                 $MOJULO_HOME/models does and never mutates the shipped
+ *                 package.json. Without it `semantic_search` ranks lexically
+ *                 (FTS5); with it, by vector. `--remove` deletes the dir (the
+ *                 model cache under models/ is left alone).
  *
  * Everything else — the kernel and the always-present orchestration packs — declares
  * no group and is never gated. `ops` is a deprecated alias for `chatbot`.
@@ -44,9 +55,93 @@ const CREATIVE_MARKER = 'three';
 // Kept in sync with INSTALL_GROUPS.chatbot.markerFile in lib/mcp/packs.js.
 const CHATBOT_MARKER = 'packs/chatbot';
 
+// The recall group's home and marker (INSTALL_GROUPS.recall.markerFile) and the
+// runtime it installs there. The version range is the one the package used to
+// carry as a dependency; the model it fetches is pinned in lib/embedder/local.js.
+const RECALL_DIR = 'recall';
+const RECALL_PACKAGE = '@huggingface/transformers';
+const RECALL_RANGE = '^4.2.0';
+
+function mojuloHome() {
+  return process.env.MOJULO_HOME || path.join(os.homedir(), '.mojulo');
+}
+
 function chatbotMarkerPath() {
-  const home = process.env.MOJULO_HOME || path.join(os.homedir(), '.mojulo');
-  return path.join(home, CHATBOT_MARKER);
+  return path.join(mojuloHome(), CHATBOT_MARKER);
+}
+
+function recallDir() {
+  return path.join(mojuloHome(), RECALL_DIR);
+}
+
+function recallInstalled() {
+  if (fs.existsSync(path.join(recallDir(), 'node_modules', RECALL_PACKAGE, 'package.json'))) return true;
+  try {
+    createRequire(import.meta.url).resolve(RECALL_PACKAGE); // repo-dev, installed by hand
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Installs the embedding runtime under $MOJULO_HOME/recall and fetches the model.
+// Returns the exit code. Idempotent: an installed group is reported, not redone.
+async function installRecall() {
+  if (recallInstalled()) {
+    process.stdout.write('Recall group already installed (the embedding runtime resolves). Nothing to do.\n');
+    return 0;
+  }
+  const dir = recallDir();
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, 'package.json'),
+    JSON.stringify(
+      {
+        name: 'mojulo-recall',
+        private: true,
+        description: 'mojulo recall group — the embedding runtime, installed outside the mojulo package. Managed by `mojulo install recall`.',
+        dependencies: { [RECALL_PACKAGE]: RECALL_RANGE },
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+  // The shim lib/embedder/local.js imports by file URL: Node resolves the bare
+  // specifier from HERE, so it walks up into this dir's node_modules.
+  fs.writeFileSync(
+    path.join(dir, 'entry.mjs'),
+    `// mojulo recall group — re-exports the embedding runtime installed beside this file.\nexport * from '${RECALL_PACKAGE}';\n`,
+  );
+  process.stdout.write(`Installing the recall group into ${dir} — ${RECALL_PACKAGE} (brings onnxruntime; ~480 MB on disk) …\n\n`);
+  const code = await run(NPM, ['install', '--no-audit', '--no-fund', '--loglevel=error'], { cwd: dir });
+  if (code !== 0 || !recallInstalled()) {
+    process.stderr.write('\nRecall group install did not complete — the embedding runtime is still not resolvable.\n');
+    return code || 1;
+  }
+  process.stdout.write('\nFetching the embedding model (~130 MB, once) …\n');
+  const fetched = await run(
+    process.execPath,
+    [path.join(CONTROL_DIR, 'scripts', 'fetch-embed-model.js')],
+    {
+      cwd: CONTROL_DIR,
+      env: {
+        ...process.env,
+        MOJULO_HOME: mojuloHome(),
+        MOJULO_MODELS_DIR: process.env.MOJULO_MODELS_DIR || path.join(mojuloHome(), 'models'),
+      },
+    },
+  );
+  if (fetched !== 0) {
+    process.stderr.write(
+      '\nThe runtime is installed but the model fetch failed — it is retried lazily on the first embedding call, '
+        + 'or run `node scripts/fetch-embed-model.js` in the package directory.\n',
+    );
+    return fetched;
+  }
+  process.stdout.write(
+    '\nRecall group installed. semantic_search now ranks by embedding; restart your MCP host to pick it up.\n',
+  );
+  return 0;
 }
 
 function chatbotInstalled() {
@@ -75,21 +170,28 @@ function run(cmd, args, opts) {
 
 function printStatus() {
   const creative = creativeInstalled();
+  const recall = recallInstalled();
+  const chatbot = chatbotInstalled();
   process.stdout.write(
     'mojulo install — on-demand capability packs\n\n'
-      + 'Usage: mojulo install <creative|chatbot>\n\n'
+      + 'Usage: mojulo install <creative|recall|chatbot> [--remove]\n\n'
       + 'Status:\n'
       + `  creative   ${creative ? 'installed' : 'not installed'}  (render / media / games stack)\n`
-      + `  chatbot    ${chatbotInstalled() ? 'installed' : 'not installed'}  (the bot factory — opt-in since 2.0)\n\n`
+      + `  recall     ${recall ? 'installed' : 'not installed'}  (the embedding model behind semantic_search — lexical without it)\n`
+      + `  chatbot    ${chatbot ? 'installed' : 'not installed'}  (the bot factory — opt-in since 2.0; needs recall)\n\n`
       + (creative
         ? ''
         : 'Run `mojulo install creative` to add the render/media/games stack (~82 MB of deps;\n'
           + 'Chromium for scene/world PNG bakes stays lazy-fetched on first render).\n')
-      + (chatbotInstalled()
+      + (recall
+        ? ''
+        : 'Run `mojulo install recall` to add vector recall (~480 MB runtime under ~/.mojulo/recall plus a\n'
+          + '~130 MB model). semantic_search works without it, ranking by lexical match.\n')
+      + (chatbot
         ? ''
         : 'Run `mojulo install chatbot` to add the bot factory (build/deploy/operate chatbots).\n'
           + 'It is opt-in since 2.0 — mojulo is a 3D compiler first.\n')
-      + (creative && chatbotInstalled() ? 'Everything installed — nothing to add.\n' : ''),
+      + (creative && recall && chatbot ? 'Everything installed — nothing to add.\n' : ''),
   );
 }
 
@@ -123,6 +225,14 @@ if (pack === 'chatbot' || pack === 'ops') {
     process.stdout.write(`Chatbot pack already installed (marker at ${marker}). Nothing to do.\n`);
     process.exit(0);
   }
+  // The builder's preview RAG embeds with the same model the deployed bot uses;
+  // a preview that ranked differently from the bot would lie to the operator.
+  if (!recallInstalled()) {
+    process.stdout.write('The chatbot pack needs the recall group (the embedding runtime). Installing it first.\n\n');
+    const code = await installRecall();
+    if (code !== 0) process.exit(code);
+    process.stdout.write('\n');
+  }
   fs.mkdirSync(path.dirname(marker), { recursive: true });
   fs.writeFileSync(
     marker,
@@ -137,8 +247,25 @@ if (pack === 'chatbot' || pack === 'ops') {
   process.exit(0);
 }
 
+if (pack === 'recall') {
+  if (process.argv.includes('--remove')) {
+    const dir = recallDir();
+    if (!fs.existsSync(dir)) {
+      process.stdout.write('The recall group is already absent — nothing to remove.\n');
+      process.exit(0);
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+    process.stdout.write(
+      `Recall group removed (${dir} deleted). semantic_search ranks lexically from the next restart;\n`
+        + 'text rows stay indexed. The model cache under models/ is kept. Re-add with `mojulo install recall`.\n',
+    );
+    process.exit(0);
+  }
+  process.exit(await installRecall());
+}
+
 if (pack !== 'creative') {
-  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, chatbot. Try \`mojulo install\` for status.\n`);
+  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, recall, chatbot. Try \`mojulo install\` for status.\n`);
   process.exit(1);
 }
 

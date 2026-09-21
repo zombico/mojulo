@@ -60,7 +60,7 @@ Auth is local-user only. MCP calls are scoped to the single control-plane user t
 - mcp-orbit composer: [mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), [docs/mcp-orbit.md](mcp-orbit.md). Components are typed by kind, while `source` and `destination` are composition roles. Recommendations persist as proposed compositions for auditability.
 - Primitive binding: [mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js). `bind_primitives` generates provider artifacts from the operator's actual MCP inventory and schemas, not curated guesses.
 - Trigger binding: [mcp-trigger-binding.js](../control/lib/mcp/tools/mcp-trigger-binding.js). `bind_trigger` persists activation artifacts. Scheduled triggers are backed by [control/lib/triggers/scheduler.js](../control/lib/triggers/scheduler.js) and gated by `MOJULO_TRIGGER_RUNTIME=enabled`.
-- Semantic recall: [semantic-search.js](../control/lib/mcp/tools/semantic-search.js). `semantic_search` indexes durable mojulo state in `meta_embeddings`. Results are retrieve-not-resolve: pair hits with structured readers for full bodies. Manual recovery is [control/scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js).
+- Semantic recall: [semantic-search.js](../control/lib/mcp/tools/semantic-search.js). `semantic_search` indexes durable mojulo state in `meta_embeddings`, lexically (FTS5 `meta_fts`) on a default install and by vector with the opt-in `recall` group (`mojulo install recall`; [lib/embedder/local.js](../control/lib/embedder/local.js)). Results are retrieve-not-resolve: pair hits with structured readers for full bodies. Manual recovery is [control/scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js).
 
 ## Runtime surfaces
 

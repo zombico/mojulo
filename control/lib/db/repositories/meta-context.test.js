@@ -31,6 +31,13 @@ describe('schema bootstraps', () => {
     expect(tables).toEqual([
       'meta_edges',
       'meta_embeddings',
+      // The FTS5 lexical mirror over meta_embeddings.body_text and its four
+      // shadow tables (db/index.js ensureEmbeddingsFts).
+      'meta_fts',
+      'meta_fts_config',
+      'meta_fts_data',
+      'meta_fts_docsize',
+      'meta_fts_idx',
       'meta_mcp_capabilities',
       'meta_mcp_inventory',
       'meta_mcp_providers',

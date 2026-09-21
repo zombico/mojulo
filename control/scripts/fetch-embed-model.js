@@ -1,22 +1,26 @@
 /**
- * Pre-download the embedding model into lib/embedder/models/ so that
- * runtime calls never need network access. Run after `npm install`.
+ * Pre-download the embedding model into $MOJULO_MODELS_DIR (or
+ * lib/embedder/models/ in a clone) so that runtime calls never need network
+ * access. The last step of `mojulo install recall`; also runnable by hand.
  *
  *   node scripts/fetch-embed-model.js
  *
- * The download is idempotent — if the q8 ONNX file is already present,
- * transformers.js short-circuits to the cache.
+ * Needs the recall group (the runtime is not a package dependency): loaded
+ * through lib/embedder/local.js so the same shim / bare-specifier resolution
+ * applies. The download is idempotent — if the q8 ONNX file is already
+ * present, transformers.js short-circuits to the cache.
  */
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
-import { pipeline, env } from '@huggingface/transformers';
+import { loadEmbeddingRuntime } from '../lib/embedder/local.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const modelsDir =
   process.env.MOJULO_MODELS_DIR ||
   path.resolve(__dirname, '..', 'lib', 'embedder', 'models');
+const { pipeline, env } = await loadEmbeddingRuntime();
 env.cacheDir = modelsDir;
 env.allowRemoteModels = true;
 

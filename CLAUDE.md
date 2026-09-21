@@ -78,7 +78,8 @@ npm install
 npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
 npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
 node scripts/mcp-stdio.mjs tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry
-node scripts/reindex-embeddings.js
+node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
+node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
@@ -110,7 +111,9 @@ not release the control plane.
 - Schema and migrations are hand-written, idempotent, and ordered in `control/lib/db/index.js`. No version
   ledger. `getDb()` has side effects (backfill, daemons).
 - `better-sqlite3` compiles per arch; new native server deps go in `next.config.mjs` `serverExternalPackages`.
-  No `postinstall` model download; `fetch-embed-model.js` is explicit so `npx mojulo` stays fast.
+  No `postinstall` model download. The embedding runtime is not a dependency at all: `mojulo install
+  recall` installs it under `~/.mojulo/recall/` and runs `fetch-embed-model.js`; `semantic_search` is
+  FTS5-lexical without it. Never add `@huggingface/transformers` or `onnxruntime-node` back to `dependencies`.
 - Chatbot pack: Debian slim Node 20, never Alpine (`onnxruntime-node` is glibc-only).
 
 ## Architecture map

@@ -90,7 +90,10 @@ const nextConfig = {
       // fails "Module not found"; a request-string externals matcher never
       // touches disk — it emits a runtime require() that the P2 install gate
       // keeps ops code from ever reaching. See install-capabilities.plan.md P2b.
-      const CREATIVE_EXTERNAL = /^(three|sharp|node-web-audio-api|opentype\.js|puppeteer-core|@puppeteer\/browsers|manifold-3d|openscad-wasm-prebuilt)(\/|$)/;
+      // The recall group's runtime (@huggingface/transformers, onnxruntime-node) is
+      // not a dependency at all — the bare `import('@huggingface/transformers')` in
+      // lib/embedder/local.js is the repo-dev fallback and must never be bundled.
+      const CREATIVE_EXTERNAL = /^(three|sharp|node-web-audio-api|opentype\.js|puppeteer-core|@puppeteer\/browsers|manifold-3d|openscad-wasm-prebuilt|@huggingface\/transformers|onnxruntime-node)(\/|$)/;
       const prior = config.externals;
       const priorList = Array.isArray(prior) ? prior : prior ? [prior] : [];
       config.externals = [

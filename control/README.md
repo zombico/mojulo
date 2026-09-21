@@ -64,17 +64,18 @@ npx mojulo init
 ```
 
 First install is the big one: npx pulls a ~27 MB tarball plus its native dependencies
-(measured at about 885 MB on disk), and the first launch fetches a ~130 MB embedding
-model in the background. Measured sizes, lazy downloads, and what each engine leg
+(about 590 MB on disk measured on the unreleased tree; 2.0.6 measured 885 MB before the
+embedding runtime became opt-in, below). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 
-**Why these dependencies.** The install is mostly three things, and all of them run on your machine.
-`onnxruntime-node` and `@huggingface/transformers` run the *local* search model behind
-`semantic_search` — the runtime ships binaries for every platform in one package, which is most
-of the size. `puppeteer-core` drives a *local* headless Chrome for stills and bakes; the browser
+**Why these dependencies.** The install is mostly two things, and all of them run on your machine.
+`puppeteer-core` drives a *local* headless Chrome for stills and bakes; the browser
 itself is fetched on first use, or skipped if you already have Chrome. `better-sqlite3` is the one
-database file under `~/.mojulo/`. Nothing in that list reaches the network on its own. The
-per-dependency sheet, with sizes, is in the same tech-requirements page.
+database file under `~/.mojulo/`. The *local* search model behind `semantic_search`
+(`@huggingface/transformers` on `onnxruntime-node`, which ships binaries for every platform in one
+package) is the opt-in `mojulo install recall`; without it `semantic_search` ranks lexically over the
+same index. Nothing in that list reaches the network on its own. The per-dependency sheet, with
+sizes, is in the same tech-requirements page.
 
 ### CLI
 
@@ -119,7 +120,7 @@ Also in the box, present by default and never in the way: diagrams and charts, d
 - **Recipes, not renders.** Every artifact is a seeded deterministic recipe — diffable, replayable, re-mintable on any mojulo host. Exports and painted renders are derived files with provenance, never the sovereign artifact.
 - **Two gates, never conflated.** A machine gate imports the pack headless when the engine or slicer is installed and stamps what it measured; a human looking at the result is the eyes gate. Gates advise; none refuse, and none claim the other one passed.
 - **It remembers why — where that matters.** Connected services and apps are sealed beside an append-only record of intent (the contextmap), so a fresh session improves the existing wiring instead of minting a stranger next to it. Studio artifacts are recalled by ref, by semantic search, and by their cookbook card.
-- **Pay for what you install.** The kernel plus the creative studio is the default; the chatbot factory is opt-in (`mojulo install chatbot`). Uninstalled packs neither list nor run, so your agent's context isn't spent on tools this host doesn't have.
+- **Pay for what you install.** The kernel plus the creative studio is the default; the embedding model behind vector search (`mojulo install recall`) and the chatbot factory (`mojulo install chatbot`) are opt-in. Uninstalled packs neither list nor run, so your agent's context isn't spent on tools this host doesn't have.
 
 ## Dashboard
 
