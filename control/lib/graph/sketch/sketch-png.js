@@ -90,7 +90,7 @@ async function svgToPng(svg, scale) {
 async function bakeScenePng(sketch, scale) {
   // capture: bakes never carry the soundtrack script (byte-identical to a
   // soundtrack-less page; audio needs a user gesture anyway).
-  const html = renderSceneHtml(sketch, { capture: true });
+  const html = await renderSceneHtml(sketch, { capture: true });
   if (html) return renderSceneToPng(html, { deviceScaleFactor: scale });
   // three.js-ONLY kinds (controllable / action / dungeon / floorplan / edifice / …) have no
   // CSS-3D emitter, so this used to 422 and the gallery card sat BLANK for a world that

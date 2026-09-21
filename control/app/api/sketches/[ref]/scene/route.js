@@ -38,7 +38,7 @@ export async function GET(request, { params }) {
 
     // ?view=exterior renders the roofed exterior massing (companion to the cutaway).
     const view = request.nextUrl.searchParams.get('view') || undefined;
-    const html = renderSceneHtml(sketch, { view });
+    const html = await renderSceneHtml(sketch, { view });
     if (!html) {
       return NextResponse.json({
         eligible: false,

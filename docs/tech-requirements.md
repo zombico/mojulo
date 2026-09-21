@@ -71,6 +71,7 @@ bundle also stopped carrying its own copies of `sharp`, `onnxruntime-common` and
 | `@huggingface/transformers` | 15 MB | The embedding pipeline. |
 | `puppeteer-core` | 13 MB | Drives a browser for scene bakes. The browser itself is **not** included (below). |
 | `opentype.js`, `manifold-3d` | 7 MB | Fonts for wordmarks; WASM CSG for `union: true` exports. Creative group, optional. |
+| `openscad-wasm-prebuilt` | 11 MB | OpenSCAD 2025.01.19 as WASM with the Manifold backend: the in-process mesher for `mint_solid kind:'scad'` and the exact twin behind `exact: true`. A fresh instance per render, about 210 MB RSS while one runs. Creative group, optional; a stored `scad` row cannot render without it. |
 
 **Lean install.** `npm install --omit=optional` sheds the four creative deps (~86 MB) and turns the
 creative tools off; `mojulo install creative` adds them back. See
@@ -147,12 +148,15 @@ an honest-loss ledger naming what did not travel.
   literal object kinds; figures, worlds and views print as maquettes fit to a target size. Do not
   say "guaranteed watertight": it is honest triangle soup with a closure audit, and slicer repair is
   standard practice.
-- **`.scad`** — the odd one out: a **program**, not a mesh. The recipe is transpiled term by term
-  into OpenSCAD solids and booleans, so OpenSCAD's exact kernel gives the sharp edges a sampled
-  field cannot (every field edge rounds to about one grid cell). Needs no dependency at all, since
-  it is text. A term with no OpenSCAD equivalent arrives as a frozen `polyhedron()` and the result's
-  coverage ledger names it. Say "mojulo speaks OpenSCAD", never "mojulo replaces it" — and note the
-  round trip ends there, because OpenSCAD writes no format `bind_mesh_render` accepts.
+- **`.scad`** — the odd one out: a **program**, not a mesh. A `scad` recipe returns its own source
+  verbatim; a workbench recipe is transpiled term by term into OpenSCAD solids and booleans, and a
+  term with no OpenSCAD equivalent arrives as a frozen `polyhedron()` named in the coverage ledger.
+  Needs no dependency, since it is text; the OpenSCAD binary, when installed, re-renders it as an
+  advisory gate (`scripts/scad-gate.mjs`). Sharp edges do not need this exit: `exact: true` on a
+  field or a cut composes it with Manifold inside the recipe, and `mint_solid kind:'scad'` meshes
+  an OpenSCAD program in-process. Say "an OpenSCAD program is a recipe" and "exact booleans in the
+  recipe", never "mojulo replaces OpenSCAD"; and the round trip runs both ways, since
+  `bind_mesh_render` takes an STL or 3MF made outside.
 
 ### The print gate: slicers
 

@@ -23,6 +23,9 @@ import { renderWorkbenchToHtml } from '@/lib/graph/worlds/workbench';
 import { renderFloorplanToHtml, renderHouseToHtml } from '@/lib/graph/polygonizer/floorplan-structure';
 import { renderRestaurantToHtml } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { renderAssemblerToHtml } from '@/lib/graph/worlds/workbench-assembler';
+import { renderScadToHtml } from '@/lib/graph/worlds/scad';
+import { ensureExactKernel, exactKernelReady } from '@/lib/graph/polygonizer/field-exact';
+import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 
 /**
  * @param {{ title?: string, manifest: object }} sketch — a stored sketch row
@@ -31,6 +34,13 @@ import { renderAssemblerToHtml } from '@/lib/graph/worlds/workbench-assembler';
 export function renderSceneHtml(sketch, sceneOpts = {}) {
   const manifest = sketch?.manifest;
   if (!manifest || typeof manifest !== 'object') return null;
+  // field-exact: an `exact: true` field composes through Manifold (async to load, sync to use).
+  // When the recipe wants it (a workbench field or cut, a code program, an assembler's frozen
+  // sources, a scad row's embedded fields) and the kernel is cold, this returns a PROMISE of the
+  // HTML — every caller awaits (the scene route, sketch-png); otherwise the plain string as before.
+  if (manifestWantsExact(manifest) && !exactKernelReady()) {
+    return ensureExactKernel().then(() => withSceneSoundtrack(dispatchSceneHtml(sketch, sceneOpts), manifest, sceneOpts));
+  }
   return withSceneSoundtrack(dispatchSceneHtml(sketch, sceneOpts), manifest, sceneOpts);
 }
 
@@ -94,6 +104,11 @@ function dispatchSceneHtml(sketch, sceneOpts = {}) {
   }
   if (manifest.kind === 'assembler') {
     return renderAssemblerToHtml({ ...manifest, signs, title: title || 'mojulo assembler' });
+  }
+  // The scad kind meshes through OpenSCAD-in-WASM, which is async — this branch returns a
+  // PROMISE of the HTML (every caller awaits; `await` on the other branches' strings is a no-op).
+  if (manifest.kind === 'scad') {
+    return renderScadToHtml({ ...manifest, signs, title: title || 'mojulo scad' });
   }
   if (manifest.kind === 'css3d-turntable') {
     return renderSolidTurntableToHtml({ ...manifest, signs, title: title || 'mojulo solid' });

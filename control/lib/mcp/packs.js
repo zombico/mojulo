@@ -65,7 +65,7 @@ export const PACKS = [
     form: 'object',
     title: '3D solids, figures & objects',
     description:
-      "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles: mint_solid (kinds figure / manji-tree / workbench / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), solid-vocab cards, measure_solid (numbers back off a solid), and verify_machina feasibility checks. Open for 'model a wine glass true to size', 'a woman mid-stride' (a posed figure), 'our logo in shiny chrome', 'a 3D creature', 'put the wheels and the chassis together into one model', 'turn this concept art into a 3D model piece by piece', 'rebuild a drawing as a real 3D model, segment by segment'. Placing solids IN an environment is pack_world.",
+      "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles, OpenSCAD: mint_solid (kinds figure / manji-tree / workbench / scad (an OpenSCAD program) / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), measure_solid, verify_machina. Open for 'model a wine glass true to size', 'a woman mid-stride', 'our logo in shiny chrome', 'a 3D creature', 'a bracket with bolt holes in OpenSCAD', 'bring my .scad code in', 'put the wheels and the chassis together into one model', 'turn this concept art into a 3D model piece by piece', 'rebuild a drawing as a real 3D model, segment by segment'. Placing solids IN an environment is pack_world.",
     members: ['mint_solid', 'edit_solid', 'get_solid_vocab', 'measure_solid', 'verify_machina'],
   },
   {
@@ -157,7 +157,7 @@ export const PACKS = [
     form: 'illustration',
     title: 'Scene & figure illustration',
     description:
-      "Painted scene & figure ILLUSTRATION + publication covers: the inverse-stable-diffusion knob-resolution loop (sketch_what_possible) that feeds create_sketch recipe families, and create_cover for title art composed under one art direction. Open for 'paint a moody mountain valley', 'illustrate my hero', 'a cover for this book'. Sketch minting is homed in pack_diagram; this pack dispatches it too.",
+      "Painted scene & figure ILLUSTRATION + publication covers: the inverse-stable-diffusion knob-resolution loop (sketch_what_possible) that feeds create_sketch recipe families, and create_cover for title art composed under one art direction. Open for 'paint a moody mountain valley', 'illustrate my hero', 'a cover for this book', 'a graphic novel I click through page by page'. Sketch minting is homed in pack_diagram; this pack dispatches it too.",
     members: ['sketch_what_possible', 'create_cover'],
     shared: ['create_sketch', 'update_sketch'],
   },

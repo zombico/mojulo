@@ -43,6 +43,7 @@ import { validateMaterialRef } from '../polygonizer/materials.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
 import { rasterSampler, analyzeSkin, bakeSkinOntoFaces } from '../polygonizer/skin-projection.js';
 import { scaffoldViewBox } from '../polygonizer/faces-scaffold-svg.js';
+import { mergeExactFaces } from '../scad/coplanar-merge.js';
 
 // Neutral studio key (z is UP in this World) — a clean form light, not a mood scene. Shared by the
 // baked faces and the scene so object, grid, and ground all agree. Mirrors the proven 0616 spike.
@@ -381,7 +382,10 @@ export function assembleWorkbenchScene(opts = {}) {
 
 /** /scene + PNG path: CSS-3D preset-shot HTML. (The /world route calls assembleWorkbenchScene → emitThreeWorld.) */
 export function renderWorkbenchToHtml(opts = {}) {
-  return emitPreserve3dScene({ ...assembleWorkbenchScene(opts), signs: opts.signs });
+  const payload = assembleWorkbenchScene(opts);
+  // exact field faces (field-exact.js) are Manifold's long thin triangles; the CSS-3D still folds
+  // them into clipped panels and skips the seam grow (a no-op for a recipe without exact fields)
+  return emitPreserve3dScene({ ...payload, faces: mergeExactFaces(payload.faces), signs: opts.signs });
 }
 
 /**
@@ -538,10 +542,15 @@ export function planWorkbench(manifest = {}) {
   // parts-booleans B1: each cut's readout — what it consumed and what the field grid rounds its
   // edges to, in units. An advisory (never a refusal): the ceiling is the field solid's.
   const round3 = (n) => Math.round(n * 1000) / 1000;
-  const cuts = fields.filter((f) => f && f.cut).map((f) => ({ ...f.cut, edge_round: round3(fieldGrid(f).cell) }));
+  // an `exact: true` cut composed through Manifold has no grid and no rounding: it reads out as
+  // exact and raises no advisory (field-exact.js)
+  const cuts = fields.filter((f) => f && f.cut).map((f) => (f.exact === true
+    ? { ...f.cut, exact: true, edge_round: 0 }
+    : { ...f.cut, edge_round: round3(fieldGrid(f).cell) }));
   for (const c of cuts) {
+    if (c.exact) continue;
     const op = c.subtract ? `subtract ${c.subtract.join(', ')}` : `intersect ${c.intersect.join(', ')}`;
-    warnings.push(`cut '${c.id}' (${c.from} ${op}) rounds every edge to about ${c.edge_round} ${units} (${c.cells} cells) — raise \`cells\` (≤128) for a finer edge; a sharp edge is export_model union:true or the DCC.`);
+    warnings.push(`cut '${c.id}' (${c.from} ${op}) rounds every edge to about ${c.edge_round} ${units} (${c.cells} cells) — raise \`cells\` (≤128) for a finer edge, or set \`exact: true\` on the cut for a sharp one (Manifold); export_model union:true and the DCC remain the exits on the way out.`);
   }
 
   // Contribution lint for FIELD solids — the term-list twin of the monomer contribution check.

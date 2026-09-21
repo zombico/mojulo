@@ -52,6 +52,8 @@ import { drapeToFaces } from '../polygonizer/drape-faces.js';
 import { reliefToFaces } from '../polygonizer/relief-faces.js';
 import { shellToFaces } from '../polygonizer/shell-faces.js';
 import { surfaceNetFaces } from '../polygonizer/field-mesh.js';
+import { num, sub3, len3, cross3, unit3, axisBasis, perpBasisZ, latheMeridian } from '../polygonizer/solid-frame.js';
+export { num, axisBasis, perpBasisZ, latheMeridian };
 
 export const SCAD_DEFAULT_FN = 64;
 
@@ -81,14 +83,6 @@ const MONOMER_ORDER = ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields', 'drape
 
 const EPS = 1e-9;
 
-export function num(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '0';
-  const r = Math.abs(n) < EPS ? 0 : n;
-  let s = r.toFixed(6);
-  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
-  return s === '-0' ? '0' : s;
-}
 
 const asVec = (p) => (Array.isArray(p) ? { x: +p[0], y: +p[1], z: +p[2] } : { x: +p.x, y: +p.y, z: +p.z });
 const v3 = (p) => { const q = asVec(p); return `[${num(q.x)}, ${num(q.y)}, ${num(q.z)}]`; };
@@ -96,10 +90,6 @@ const v2 = (u, w) => `[${num(u)}, ${num(w)}]`;
 
 // ─── small vector kit (local; field-terms keeps its own private copy) ─────────────
 
-const sub3 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
-const len3 = (a) => Math.hypot(a.x, a.y, a.z);
-const cross3 = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
-const unit3 = (a) => { const l = len3(a) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
 const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 
 /**
@@ -107,11 +97,6 @@ const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
  * `rotate_extrude` (which revolves about +Z) up along an arbitrary recipe axis. A
  * surface of revolution is symmetric about its axis, so any perpendicular pair does.
  */
-function axisBasis(d) {
-  const ref = Math.abs(d.z) > 0.999 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 };
-  const u = unit3(cross3(ref, d));
-  return [u, cross3(d, u), d];
-}
 
 /**
  * extrude-faces' Z-cross frame, duplicated from field-terms' private `perpBasisZ`. A
@@ -119,11 +104,6 @@ function axisBasis(d) {
  * profile arrives rotated. Kept in sync by the mapping tests, which compare an emitted
  * prism's corners against `extrudeToFaces` output.
  */
-function perpBasisZ(d) {
-  if (Math.abs(d.z) > 0.999) return [{ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }];
-  const u = unit3(cross3({ x: 0, y: 0, z: 1 }, d));
-  return [u, unit3(cross3(d, u))];
-}
 
 /** A row-major 4×4 `multmatrix` whose columns are the basis and whose translation is `o`. */
 function multmatrix([bu, bv, bd], o) {
@@ -415,23 +395,6 @@ function shapeNode(shape, ctx, base) {
  * down the axis so `rotate_extrude` sees a region rather than a line. Mirrors latheField's
  * clamping of the profile to t = 0 and t = 1.
  */
-function latheMeridian(profile, L) {
-  const prof = [...profile]
-    .filter((q) => q && Number.isFinite(q.t) && Number.isFinite(q.radius))
-    .sort((a, b) => a.t - b.t);
-  if (prof[0].t > 0) prof.unshift({ t: 0, radius: prof[0].radius });
-  if (prof[prof.length - 1].t < 1) prof.push({ t: 1, radius: prof[prof.length - 1].radius });
-  const pts = prof.map((q) => [Math.max(0, q.radius), q.t * L]);
-  pts.push([0, L], [0, 0]);
-  // drop consecutive duplicates (a profile that already closes on the axis)
-  const out = [];
-  for (const p of pts) {
-    const last = out[out.length - 1];
-    if (!last || num(last[0]) !== num(p[0]) || num(last[1]) !== num(p[1])) out.push(p);
-  }
-  while (out.length > 3 && num(out[0][0]) === num(out[out.length - 1][0]) && num(out[0][1]) === num(out[out.length - 1][1])) out.pop();
-  return out;
-}
 
 /** A prism's 2D profile. `rect` carries its rounding as an outer extent, exactly as sdRoundRect2 reads it. */
 function extrudeProfileNode(profile, ctx, base) {
@@ -443,7 +406,20 @@ function extrudeProfileNode(profile, ctx, base) {
       return leaf(`square(${size}, center = true);`);
     }
     const rn = dial(ctx, base, 'corner', num(rr));
-    const size = dial(ctx, base, 'section', v2(w - 2 * rr, h - 2 * rr));
+    const iw = w - 2 * rr, ih = h - 2 * rr;
+    // A side that equals 2r (a stadium, a pill, a fully-rounded button) leaves `square` with a
+    // zero side, and OpenSCAD drops a zero-area polygon SILENTLY — the whole part vanished while
+    // the ledger said exact (the iPhone Duo lost its buttons, port and camera plateau this way,
+    // 2026-09-20). Such a profile is the hull of circles at the inset corners: two for a stadium,
+    // one for a disc. The non-degenerate case keeps the offset(square) emission byte for byte.
+    if (iw <= EPS || ih <= EPS) {
+      const hu = Math.max(0, iw / 2), hv = Math.max(0, ih / 2);
+      const at = [];
+      for (const su of hu > EPS ? ['-', ''] : ['']) for (const sv of hv > EPS ? ['-', ''] : ['']) at.push(`[${su}${num(hu)}, ${sv}${num(hv)}]`);
+      if (at.length === 1) return leaf(`circle(r = ${rn});`);
+      return group('hull()', at.map((p) => prefix(`translate(${p})`, leaf(`circle(r = ${rn});`))));
+    }
+    const size = dial(ctx, base, 'section', v2(iw, ih));
     return prefix(`offset(r = ${rn})`, leaf(`square(${size}, center = true);`));
   }
   if (profile && Array.isArray(profile.points)) {
@@ -789,10 +765,51 @@ export function facesToScad(faces, opts = {}) {
 }
 
 /**
+ * A `scad` recipe → its own source, verbatim. The recipe IS an OpenSCAD program, so the export
+ * is the identity: the stored text under the same provenance header, plus the `parts`
+ * instantiations appended as the assembly when the source is a library of modules. Nothing is
+ * transpiled and nothing is frozen; the ledger says so with one exact term.
+ */
+export function sourceToScad(manifest, opts = {}) {
+  const units = typeof manifest.units === 'string' && UNIT_MM[manifest.units] ? manifest.units : null;
+  const mmPerUnit = Number.isFinite(opts.mmPerUnit) && opts.mmPerUnit > 0 ? opts.mmPerUnit : (units ? UNIT_MM[units] : 1);
+  const parts = manifest.parts && typeof manifest.parts === 'object' ? Object.entries(manifest.parts) : [];
+  const L = [];
+  const bar = '// ' + '─'.repeat(74);
+  L.push(bar);
+  if (opts.title) L.push(`// ${opts.title}`);
+  L.push('//');
+  L.push(`// minted by mojulo${opts.ref ? ` · recipe ${opts.ref}` : ''} · kind scad`);
+  L.push('//');
+  L.push('// This recipe IS an OpenSCAD program: the text below is the stored source, verbatim.');
+  L.push('// Change it with update_sketch (`/source`, `/parts/<name>`) or own it from here.');
+  if (units) L.push(`// Authored in ${units}${mmPerUnit !== 1 ? ` (${num(mmPerUnit)} mm per unit)` : ''}.`);
+  L.push(bar);
+  L.push('');
+  L.push(String(manifest.source).replace(/\s+$/, ''));
+  if (parts.length) {
+    L.push('');
+    L.push('// ─── parts (each is a render group in mojulo) ─────────────────────────────');
+    for (const [name, statement] of parts) L.push(`${String(statement).trim()}   // ${name}`);
+  }
+  L.push('');
+  const text = L.join('\n');
+  const bytes = Buffer.from(text, 'utf8');
+  return {
+    text, bytes, byteLength: bytes.length,
+    vertexCount: 0, triangleCount: 0, sidecars: [],
+    coverage: { exact: 1, baked: 0, terms: [{ at: 'source', what: 'scad', status: 'exact' }] },
+    variables: 0, units, mmPerUnit,
+    parts: parts.length ? parts.map(([name]) => ({ name, at: `parts.${name}` })) : [{ name: 'body', at: 'source' }],
+  };
+}
+
+/**
  * The export leg's one door: transpile the manifest when there is one to read, otherwise
  * bake the payload. Never refuses.
  */
 export function scadExport({ manifest, payload, ...opts }) {
+  if (manifest && manifest.kind === 'scad' && typeof manifest.source === 'string') return sourceToScad(manifest, opts);
   if (hasWorkbenchMonomers(manifest)) return specToScad(manifest, opts);
   return facesToScad(payload && Array.isArray(payload.faces) ? payload.faces : [], opts);
 }

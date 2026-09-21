@@ -24,6 +24,7 @@ import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
+import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
@@ -97,7 +98,7 @@ export function deriveStlScale(units) {
 //              MEANINGLESS, not merely unknown. Behaves like maquette except
 //              in the note, so a misclassified future kind is cosmetic only.
 const PRINT_PROFILES = {
-  literal: new Set(['workbench', 'assembler', 'carved-solid', 'css3d-turntable', 'vehicle-instance']),
+  literal: new Set(['workbench', 'scad', 'assembler', 'carved-solid', 'css3d-turntable', 'vehicle-instance']),
   study: new Set(['figure', 'manji-tree']),
   maquette: new Set([
     'fractal-city', 'condo-complex', 'school-complex', 'edifice', 'dungeon',
@@ -436,19 +437,32 @@ export async function exportModelHandler(input) {
   ledgerManifest = lowerCuts(ledgerManifest);
   const fieldSpecs = Array.isArray(ledgerManifest.fields) ? ledgerManifest.fields : [];
   if (fieldSpecs.length) {
-    const grids = fieldSpecs.map((f) => { try { return fieldGrid(f); } catch { return null; } }).filter(Boolean);
+    // field-exact: an `exact: true` entry composed through Manifold has no grid and no rounding —
+    // it reads out as exact (a recipe without one is byte-identical to before)
+    const gridOf = fieldSpecs.map((f) => { if (f && f.exact === true) return null; try { return fieldGrid(f); } catch { return null; } });
+    const grids = gridOf.filter(Boolean);
+    const exactCount = fieldSpecs.filter((f) => f && f.exact === true).length;
     const cellsList = grids.map((g) => g.cells);
     const coarsest = grids.length ? Math.max(...grids.map((g) => g.cell)) : null;
-    const cutRows = fieldSpecs.map((f, i) => (f && f.cut ? { ...f.cut, ...(grids[i] ? { edge_rounding: Math.round(grids[i].cell * (isPrint ? scale : 1) * 1000) / 1000 } : {}) } : null)).filter(Boolean);
+    const cutRows = fieldSpecs.map((f, i) => {
+      if (!f || !f.cut) return null;
+      if (f.exact === true) return { ...f.cut, exact: true, edge_rounding: 0 };
+      return { ...f.cut, ...(gridOf[i] ? { edge_rounding: Math.round(gridOf[i].cell * (isPrint ? scale : 1) * 1000) / 1000 } : {}) };
+    }).filter(Boolean);
     result.field_solids = {
       count: fieldSpecs.length,
-      cells: cellsList.length === 1 ? cellsList[0] : cellsList,
+      ...(exactCount ? { exact: exactCount } : {}),
+      ...(cellsList.length ? { cells: cellsList.length === 1 ? cellsList[0] : cellsList } : {}),
       ...(coarsest != null ? {
         edge_rounding: Math.round(coarsest * (isPrint ? scale : 1) * 1000) / 1000,
         edge_rounding_unit: isPrint ? 'mm' : (units || 'world units'),
       } : {}),
       ...(cutRows.length ? { cuts: cutRows } : {}),
-      note: 'Field solids (the `fields` monomer) round every edge to about one grid cell — raise `cells` (≤128) for a finer edge; a machined sharp edge is `union: true` (Manifold, print formats) or the DCC.',
+      note: !exactCount
+        ? 'Field solids (the `fields` monomer) round every edge to about one grid cell — raise `cells` (≤128) for a finer edge; a machined sharp edge is `union: true` (Manifold, print formats) or the DCC.'
+        : exactCount === fieldSpecs.length
+          ? 'Every field solid here is `exact: true` — composed by Manifold, so its edges are sharp and its size is the declared one (curved primitives are faceted by `segments`).'
+          : `${exactCount} of ${fieldSpecs.length} field solids are \`exact: true\` (Manifold: sharp edges, declared size); the rest round every edge to about one grid cell — raise \`cells\` (≤128) for a finer edge, or set \`exact: true\` on the entry when its terms allow it.`,
     };
     // expressiveness.plan.md E1/E2: expression terms ride a versioned grammar, warps make the
     // field a bound rather than a distance — both are said here, in numbers.
@@ -791,7 +805,20 @@ export async function bindMeshRenderHandler(input) {
   if (expectedBox != null && !(expectedBox && Array.isArray(expectedBox.min) && Array.isArray(expectedBox.max) && expectedBox.min.length === 3 && expectedBox.max.length === 3)) {
     throw new Error('`expected_box` must be { min: [x,y,z], max: [x,y,z] } in the FILE\'s units');
   }
-  const bytes = await fs.readFile(glbPath);
+  let bytes = await fs.readFile(glbPath);
+  // An STL or a 3MF (what OpenSCAD and the slicers' neighbours write) is converted to a GLB AT
+  // THE DOOR — mesh-read.js reads it into the standard face list (3MF colour kept, STL grey) and
+  // facesToGlb writes the bytes the bind stores, so the artifact on disk is the same GLB every
+  // other producer hands over and the provenance sidecar names the original file.
+  let convertedFrom = null;
+  if (/\.(stl|3mf)$/i.test(glbPath)) {
+    const faces = meshFileToFaces(bytes, glbPath);
+    if (!faces || !faces.length) throw new Error(`${glbPath}: no triangle geometry could be read from the file`);
+    const glb = facesToGlb({ faces }, { generator: `mojulo bind ${sketch.ref}` });
+    if (!glb) throw new Error(`${glbPath}: the mesh could not be written as a GLB`);
+    convertedFrom = { format: glbPath.toLowerCase().endsWith('.3mf') ? '3mf' : 'stl', triangles: faces.length, bytes: bytes.length };
+    bytes = glb.bytes;
+  }
   const { slot, sha256, faces, ledger, manifestHash, contract, scaleApplied } = await bindMeshBytes(sketch, bytes, { sourcePath: glbPath, source, note, scale, sourceUnits });
   // The size gate the worker path runs against the greybox, here against the CAD tool's OWN box
   // (both in file units, before the scale): 0.5×–2× per axis catches a ×10 / ×25.4 slip.
@@ -830,8 +857,9 @@ export async function bindMeshRenderHandler(input) {
     ...(contract ? { contract } : {}),
     ...(scaleApplied ? { source_units: sourceUnits, scale_applied: Math.round(scaleApplied * 1e6) / 1e6 } : {}),
     ...(machine ? { machine } : {}),
+    ...(convertedFrom ? { converted_from: convertedFrom } : {}),
     next:
-      `Mesh bound (append-only slot ${slot.n}; latest wins).${driftLine}${texLine}${dropLine}`
+      `Mesh bound (append-only slot ${slot.n}; latest wins).${convertedFrom ? ` Converted from ${convertedFrom.format.toUpperCase()} at the door (${convertedFrom.triangles} triangles; ${convertedFrom.format === 'stl' ? 'no colour in an STL, so a neutral grey' : 'basematerials colour kept'}).` : ''}${driftLine}${texLine}${dropLine}`
       + (scaleApplied ? ` Units: the file's ${sourceUnits || 'declared'} units land in the sketch's world units at ×${Math.round(scaleApplied * 1e6) / 1e6} (recorded on the sidecar; the bytes are untouched; every meshRef placement inherits it).` : '')
       + (machine ? (machine.size_agrees ? ` Size gate: the decoded box agrees with expected_box (${machine.size_file_units.join(' × ')} vs ${machine.expected_size.join(' × ')}).` : ` SIZE GATE FAILED: decoded ${machine.size_file_units.join(' × ')} vs expected ${machine.expected_size.join(' × ')} — a unit slip or a re-centred export; check \`units\` before placing it.`) : '')
       + (source && /cad|freecad|onshape|fusion|step/i.test(String(source)) ? ' Ledger for a CAD-born part: B-rep exactness does not travel (this is a tessellation at the tool\'s deflection), nor do assembly joints / mates or materials beyond a base colour; keep the .step beside your recipe — it is the source there. The Blender `contract` block, if present, is the art-pass return\'s check and reads informational for any other producer.' : '')

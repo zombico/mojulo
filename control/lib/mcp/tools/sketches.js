@@ -537,7 +537,7 @@ export function registerSketchTools() {
           enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad'],
           default: 'glb',
           description:
-            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — the recipe transpiled term by term so OpenSCAD's EXACT booleans give the sharp edges a sampled field cannot; a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it.",
+            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it.",
         },
         scale: {
           type: 'number',
@@ -569,7 +569,7 @@ export function registerSketchTools() {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'The sketch ref this mesh belongs to.' },
-        glb_path: { type: 'string', description: 'Absolute path to the .glb on this host.' },
+        glb_path: { type: 'string', description: 'Absolute path to the .glb on this host — or a .stl / .3mf (what OpenSCAD and slicers write), converted to a GLB at the door (3MF colour kept; an STL binds grey).' },
         source: { type: 'string', description: "Which tool made it (e.g. 'blender', 'text-to-cad/cadgen@0.5.0')." },
         note: { type: 'string', description: 'Free-text provenance note.' },
         units: { type: 'string', enum: ['mm', 'cm', 'm', 'in', 'ft'], description: "The FILE's unit (a CAD GLB is mm); converted into the sketch's declared unit via the sidecar, bytes untouched." },

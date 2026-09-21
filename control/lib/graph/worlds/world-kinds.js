@@ -25,6 +25,7 @@ import { assembleTransportationHubScene } from '@/lib/graph/architecture/transpo
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
+import { assembleScadScene } from '@/lib/graph/worlds/scad';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
 import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable';
@@ -412,6 +413,12 @@ export const WORLD_KINDS = {
     resolve: async (m, ctx) => assembleWorkbenchScene({
       ...m, title: ctx.title, textures: await resolveWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
     }),
+  },
+  // The OpenSCAD front door (scad kind): the source is the recipe, OpenSCAD-in-WASM meshes it,
+  // and it rides the workbench studio (light, grid, facing, movers) through the same seam.
+  scad: {
+    title: 'mojulo scad',
+    resolve: async (m, ctx) => assembleScadScene({ ...m, title: ctx.title, light: ctx.light, toon: ctx.toon }),
   },
   // A polygomer (create_manji_tree) as a turnable 3D model: its slot-bonded lathes
   // lower to baked faces (turntable cameras + .glb export). When a skin is bound

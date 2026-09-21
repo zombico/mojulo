@@ -69,6 +69,12 @@ function isBinaryStl(buf) {
  * is exact for a closed surface and meaningless for an open one — the caller pairs it with a
  * closure verdict rather than trusting it alone.
  */
+/** STL bytes → triangles `[[a,b,c]…]` (binary or ascii), or null when it is not an STL. */
+export function readStlTriangles(buffer) {
+  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+  return isBinaryStl(buf) ? readBinaryStl(buf) : readAsciiStl(buf);
+}
+
 export function measureStl(buffer) {
   const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
   const tris = isBinaryStl(buf) ? readBinaryStl(buf) : readAsciiStl(buf);
@@ -94,7 +100,7 @@ export function measureStl(buffer) {
   };
 }
 
-function readBinaryStl(buf) {
+export function readBinaryStl(buf) {
   const n = buf.readUInt32LE(80);
   const out = [];
   for (let i = 0; i < n; i += 1) {
@@ -108,7 +114,7 @@ function readBinaryStl(buf) {
   return out;
 }
 
-function readAsciiStl(buf) {
+export function readAsciiStl(buf) {
   const text = buf.toString('utf8');
   if (!/^\s*solid/.test(text)) return null;
   const out = [];

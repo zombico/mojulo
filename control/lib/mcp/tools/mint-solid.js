@@ -34,6 +34,7 @@ import { createFigureHandler, emoteFigureHandler } from '@/lib/mcp/tools/figure'
 import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
 import { createWorkbenchHandler, createCodeSolidHandler } from '@/lib/mcp/tools/workbench';
+import { createScadHandler } from '@/lib/mcp/tools/scad';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
 import { createCarvedSolidHandler } from '@/lib/mcp/tools/carved-solid';
 import { createSolidTurntableHandler } from '@/lib/mcp/tools/solid-turntable-tool';
@@ -78,6 +79,9 @@ export const SOLID_KINDS = {
   // The code door (expressiveness.plan.md E3): a program that RETURNS a workbench spec or a
   // face list, run in a no-reach realm with seeded dice. Stores kind:'workbench' + `program`.
   'code': { family: 'object', handler: createCodeSolidHandler },
+  // The OpenSCAD front door: `spec.source` is an OpenSCAD program and IS the recipe, meshed
+  // in-process by OpenSCAD (WASM) and served on the workbench studio. Stores kind:'scad'.
+  'scad': { family: 'object', handler: createScadHandler },
   'assembler': { family: 'object', handler: createAssemblerHandler },
   'carved-solid': { family: 'object', handler: createCarvedSolidHandler },
   'solid-turntable': { family: 'object', handler: createSolidTurntableHandler },

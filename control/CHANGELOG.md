@@ -12,6 +12,104 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Release tooling
+
+- **`npm run smoke:tarball` parses `npm pack --json` past prepack's own stdout.** Under the current npm
+  the Next build banner lands in front of the JSON and the smoke died at the first step with
+  "Unexpected token '▲'"; it now parses from the last array-opening line. The gate then passed with
+  both WASM kernels in the tree, and a scad row and an exact cut minted, exported and rendered
+  (`/world`, `/scene`, STL, GLB, PNG) through the fresh install's CLI and dashboard.
+
+### Routing
+
+- **The illustration pack names the graphic novel.** Its recognizer gains the anchor 'a graphic novel I
+  click through page by page', so "present the graphic novel like a slideshow I click through" routes
+  to the sketch packs again instead of sitting a few thousandths behind the game and motion packs (it
+  had missed on the committed descriptions since before the OpenSCAD work; the eval is max-over-anchors,
+  so a pack without a matching quote loses to any pack with a near one).
+
+### OpenSCAD front door
+
+- **`exact: true` on a `fields` entry or a `cuts` entry composes it with Manifold** (the boolean kernel
+  under OpenSCAD 2025, already an optional creative dependency) instead of the surface-net grid: a bore
+  has a sharp lip and a 12-unit disc measures 12 in `/world`, the `.glb`, the engine packs and the print,
+  with no OpenSCAD in the loop. Reach: the nine field shapes, `add` / `subtract` / `intersect` without
+  `blend`, `transform`, `repeat`; anything else (blend, stroke, displace, shell, round, expr, harmonic
+  lathe, warps) is refused at mint by name. `segments` (8–256, default 48) facets curved primitives.
+  Opt-in: every existing row renders byte for byte. Absent the package, the mint refuses with the install
+  line. The kernel loads at the async seams (mint, world resolve, the scene route) before the synchronous
+  lowering: the mint, the edit (`update_sketch`), the world resolve, the scene route, the SVG control
+  scaffold, `capture_reference` and the scad mint, each only when the recipe wants exact. The
+  `export_model` ledger reads an exact cut as `exact` with `edge_rounding: 0` (no grid, no rounding).
+  Routing copy no longer says a sharp edge needs OpenSCAD.
+- **Fixed: `export_model union: true` never found Manifold under the dashboard server.** `manifold-3d`
+  is ESM-only, and Next's server bundle turned the literal `import()` into a `require()` Node refuses
+  (`ERR_PACKAGE_PATH_NOT_EXPORTED`), so the union reported the package missing under `next dev` and the
+  standalone server while the CLI and tests had it. The loader now falls back to the runtime's own
+  import when the bundler's require is refused (the same fix the `scad` kind's loader carries).
+
+- **`update_sketch` on a `scad` row answers with a readout.** The edit pays `planScad`'s gates as at
+  mint (the fence, the parts contract, the embedded fields' audit, OpenSCAD's own errors), re-stamps
+  the ledger, and hands back the readout: `changed` (the default for a `patch`) lists the parts by
+  NAME that are new, moved, or named by a `/parts/<name>` op, plus new warnings and OpenSCAD log lines;
+  `summary` and `full` as on the workbench. Before this an edited scad row re-resolved but returned no
+  stats.
+- **OpenSCAD's default colours never reach the World.** Its OFF writer paints uncoloured geometry in
+  the preview scheme's yellow and the faces an uncoloured cutter leaves in its green; both now land as
+  the card promised — the neutral grey, and in a one-colour part the cut faces wear that colour (a
+  coloured body carved by a bare `mojulo_field()` stays the body's colour). The card also says how
+  two overlapping parts weld for the print: `export_model { union: true }`, which already does.
+- **The docs say what the doors do now.** The README's examples include a part written in OpenSCAD,
+  the tour and the formats tables list `.scad` beside the print formats, and the substrate drawer,
+  tech-requirements and the OpenSCAD worker doc no longer say a sampled field cannot give a sharp edge
+  or that the round trip ends at OpenSCAD. The workbench card shows the shaped-cutter idiom (a nested
+  sub-solid, subtracted) a D-bore needs.
+- **`mint_solid kind:'scad'`: an OpenSCAD program IS the recipe.** `spec.source` is stored verbatim and
+  meshed on every read by OpenSCAD itself, running in-process as WebAssembly (`openscad-wasm-prebuilt`,
+  a new optional creative dep, same posture as `manifold-3d`; OpenSCAD 2025.01.19, Manifold backend,
+  version pinned in the ledger). The mesh is the ordinary face list, so the object rides the workbench
+  studio (`/world`, `/scene`, `facing`, `grid`, `movers`), every export leg (`.glb`, engines, USD, STL,
+  3MF at true size — `units` defaults to mm) and the gates unchanged. `color()` is the tint; `parts`
+  (`{ name: 'module();' }`) render each part as its own group so a hinge can swing it; `include` /
+  `use` / `import()` / `surface()` are refused at mint (the recipe carries its own geometry). Absent the
+  package, the mint refuses with the install line. `export_model format:'scad'` on a `scad` row returns
+  the source verbatim (one exact term, nothing frozen). Card: `get_solid_vocab({ id: 'scad' })`; routing
+  card `scad-object`. Existing workbench rows are untouched. Why: measured on the iPhone Duo block-in,
+  the same object in OpenSCAD reads at about half the tokens of the workbench manifest, needs no
+  14k-token card, renders in 0.2 s, and its booleans are exact.
+- **`mojulo_field("<id>")` inside a scad source.** A `scad` spec may carry `fields` (the workbench's
+  field entries, each with an `id`); the program reaches one as `mojulo_field("<id>")`, a module mojulo
+  prepends holding that field baked as a `polyhedron()`. Blends, strokes, noise, expressions and warps
+  stay mojulo's; the exact CSG around them is OpenSCAD's. A field whose surface net is not a
+  2-manifold (a heavy `displace`) is refused at mint with the edge counts, because OpenSCAD's kernel
+  would drop it from a boolean silently; and any OpenSCAD `ERROR` line fails a scad render even when a
+  file was written.
+- **`bind_mesh_render` takes a `.stl` or `.3mf` at `glb_path`.** The file is read into the standard
+  face list (3MF `basematerials` colour and build transforms kept; an STL binds grey) and written as
+  the GLB the bind stores, so an OpenSCAD or slicer-side part comes home as a bound mesh and places in
+  any world via `meshRef`. The result carries `converted_from`. A GLB path behaves exactly as before.
+- **The scad still is legible.** The CSS-3D scene and gallery PNG of a `scad` row fold coplanar
+  triangles into one clipped panel per flat region (holes via an `evenodd` clip); the World and every
+  export keep OpenSCAD's triangles.
+- **Fixed: `export_model format:'scad'` dropped every stadium.** A rounded rect whose side equals `2r`
+  (a pill button, a USB-C port, a camera plateau) transpiled to `offset(r) square([w, 0])`, a zero-area
+  polygon OpenSCAD discards silently while the coverage ledger still counted the term exact; the Duo
+  lost seven of twenty-three parts. Such a profile now emits as a `hull()` of circles (a disc as one
+  `circle`). Non-degenerate profiles emit byte-for-byte as before. The OpenSCAD gate on the Duo agrees
+  on every axis again.
+- **Workbench mint stores `movers`, `grid` and `toon` from the spec.** The card documented all three as
+  top-level spec keys but `mint_solid kind:'workbench'` / `'code'` dropped them; only an `update_sketch`
+  patch could store a hinge. Absent, byte-identical.
+
+### Mover ease: the magnetic latch
+
+- `movers[].ease` on a states toggle (turn or slide). Absent → the smoothstep every existing recipe rides,
+  byte-identical. `'snap'` (or `{ snap, gap }`) eases the part out to a hover just short of the detent, then
+  accelerates the last stretch in — a lid clicking shut, a foldable closing on its magnets. An array is read
+  by the state arrived at (`['snap', null]`: click into state 0, plain into state 1). Documented on the
+  workbench card. The mover channel block's emitted bytes change, so the `emit-channels.char` hashes for the
+  mover fixtures are re-pinned in the same change.
+
 ## [2.0.6] - 2026-09-20
 
 ### Fresh installs get a working dashboard

@@ -54,6 +54,9 @@ import {
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
+import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
+import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
+import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -418,15 +421,53 @@ function rememberStats(ref, manifest, stats) {
   PREV_STATS_CACHE.set(ref, { json: JSON.stringify(manifest), stats });
   if (PREV_STATS_CACHE.size > PREV_STATS_CACHE_MAX) PREV_STATS_CACHE.delete(PREV_STATS_CACHE.keys().next().value);
 }
-function previousStats(ref, manifest) {
+async function previousStats(ref, manifest) {
   const hit = PREV_STATS_CACHE.get(ref);
   if (hit && hit.json === JSON.stringify(manifest)) return hit.stats;
   try {
+    // the scad kind's readout is planScad's (memoised by source hash, so a miss re-meshes nothing)
+    if (manifest?.kind === 'scad') return (await planScad(manifest)).stats;
     const { stats } = planWorkbench(manifest);
     return stats;
   } catch {
     return null;
   }
+}
+
+// The scad kind's `changed` readout: parts are OpenSCAD render groups keyed by NAME (there is
+// no monomer slot), a part is reported when it is new, when its bounds / faces / colour count /
+// closure moved, or when the patch named it (`/parts/<name>`); a `/source` or `/fn` edit
+// re-renders everything and the shape diff says what actually moved. Warnings and OpenSCAD's
+// own log lines that already stood are folded into one line, as on the workbench.
+function slimScadReadout(stats, prevStats, { readout, touched, archivedRev }) {
+  if (!stats || readout === 'full') return stats;
+  const { parts, warnings, log, ...rest } = stats;
+  if (readout === 'summary') return { ...rest, readout: 'summary', ...(warnings ? { warnings } : {}), ...(log ? { log } : {}) };
+  const shape = (p) => JSON.stringify([p.size, p.base, p.top, p.faces, p.colours, p.open ?? null]);
+  const prev = new Map((prevStats?.parts || []).map((p) => [p.name, p]));
+  const changed = (parts || []).filter((p) => {
+    const q = prev.get(p.name);
+    return !q || shape(p) !== shape(q) || touched.has(`/parts/${p.name}`);
+  });
+  const present = new Set((parts || []).map((p) => p.name));
+  const removed = [...prev.keys()].filter((k) => !present.has(k));
+  const fold = (now, before) => {
+    const seen = new Set(before || []);
+    const fresh = (now || []).filter((w) => !seen.has(w));
+    const unchanged = (now || []).length - fresh.length;
+    return [...fresh, ...(unchanged ? [`${unchanged} line${unchanged === 1 ? '' : 's'} unchanged from ${archivedRev ? `rev ${archivedRev}` : 'the previous revision'}`] : [])];
+  };
+  const wLines = fold(warnings, prevStats?.warnings);
+  const lLines = fold(log, prevStats?.log);
+  return {
+    ...rest,
+    readout: 'changed',
+    parts_total: (parts || []).length,
+    parts: changed,
+    ...(removed.length ? { removed } : {}),
+    ...(wLines.length ? { warnings: wLines } : {}),
+    ...(lLines.length ? { log: lLines } : {}),
+  };
 }
 
 // A monomer a cut consumes reads out as the CUT's part (parts-booleans B1), so touching an operand
@@ -558,6 +599,8 @@ export async function updateSketchHandler(input) {
   let gameNote;
   let workbenchStats = null;
   let prevWorkbenchStats = null;
+  let scadStats = null;
+  let prevScadStats = null;
   if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
@@ -635,6 +678,11 @@ export async function updateSketchHandler(input) {
     // stats.warnings), the ledger. Before this the checks ran once: the edit path only asked
     // "does it lower", so a bad material or a malformed spec slipped through on iteration.
     if (manifest.kind === 'workbench') {
+      // field-exact: an `exact: true` field or cut composes through Manifold, which loads
+      // asynchronously; the plan gate below is synchronous, so the kernel is readied here first
+      // (the mint handlers do the same). Without it the first edit of an exact row after a
+      // restart refused with "the exact kernel is not loaded".
+      if (manifestWantsExact(manifest)) await ensureExactKernel();
       try {
         workbenchStats = planWorkbench(manifest).stats;
       } catch (err) {
@@ -643,7 +691,20 @@ export async function updateSketchHandler(input) {
       // A slim readout diffs against the stored recipe's readout: the last edit's stats when
       // this process made it, else one extra plan (it showed in wall_ms — ~2 s at 128 cells).
       if (readout !== 'full' && existingSketch?.manifest?.kind === 'workbench') {
-        prevWorkbenchStats = previousStats(ref, existingSketch.manifest);
+        prevWorkbenchStats = await previousStats(ref, existingSketch.manifest);
+      }
+    }
+    // The scad kind pays planScad's gates on an edit as at mint (the fence, the parts contract,
+    // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this
+    // an edited scad row re-resolved through the registry but answered with no stats at all.
+    if (manifest.kind === 'scad') {
+      try {
+        scadStats = (await planScad(manifest)).stats;
+      } catch (err) {
+        throw new Error(`Invalid world manifest (kind 'scad'): ${err.message}`);
+      }
+      if (readout !== 'full' && existingSketch?.manifest?.kind === 'scad') {
+        prevScadStats = await previousStats(ref, existingSketch.manifest);
       }
     }
     try {
@@ -652,7 +713,9 @@ export async function updateSketchHandler(input) {
       throw new Error(`Invalid world manifest (kind '${manifest.kind}'): ${err.message}`);
     }
     // G6: the ledger travels — re-stamped on every edit from THIS plan, never copied forward.
-    nextManifest = workbenchStats ? { ...manifest, ledger: persistedLedger(workbenchStats.ledger) } : manifest;
+    nextManifest = workbenchStats ? { ...manifest, ledger: persistedLedger(workbenchStats.ledger) }
+      : scadStats ? { ...manifest, ledger: persistedScadLedger(scadStats.ledger) }
+        : manifest;
   } else if (manifest !== undefined) {
     let expanded;
     try {
@@ -703,12 +766,14 @@ export async function updateSketchHandler(input) {
     warmScenePng({ ref: updated.ref, manifest: nextManifest });
   }
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
+  if (scadStats) rememberStats(ref, nextManifest, scadStats);
   return {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
     ...(gameNote ? { note: gameNote } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
+    ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),
     ...(revision ? { revision } : {}),
   };
 }

@@ -124,4 +124,5 @@ driven cold from the packet above. What it settled:
   transform?: { pos, rotZ, scale } } }` in a world manifest — it lowers to the
   standard face list, so `/world`, the stills, and every export render it.
 - The manual half of this loop is `bind_mesh_render` (a Blender pass over an
-  `export_model` file); both go through the same bind-back door.
+  `export_model` file, or a part made in OpenSCAD); it takes a `.glb`, `.stl` or
+  `.3mf` and converts at the door. Both go through the same bind-back door.

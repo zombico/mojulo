@@ -67,7 +67,20 @@ const _v3 = new THREE.Vector3(), _spinAxis = new THREE.Vector3(), _xUnit = new T
 // any count), an input steps to the next one, and the angle eases there over 'transition' seconds. No
 // input ever arrives in a capture, so state 0 holds and baked frames stay deterministic.
 let _moverSec = 0;
-function _moverStateAngle(rig, sec) { const st = rig.st, tr = Math.max(0.01, rig.mv.transition || 0.6); const k = Math.min(1, Math.max(0, (sec - st.t0) / tr)), e = k * k * (3 - 2 * k); return st.from + (st.to - st.from) * e; }
+// EASE: absent → smoothstep (ease-in-out), the default every existing recipe rides. ease:'snap' (or
+// { snap, gap }) is the magnetic latch: the swing eases out to a hover just short of the detent (all but
+// 'gap' of the arc by 1 − 'snap' of the transition), then the last 'gap' accelerates in over the final
+// 'snap' of the time — the click of a lid or a foldable closing on its magnets. An ARRAY is read by the
+// state being ARRIVED AT (ease[i] for a swing landing on states[i]), so a lid can click shut and swing
+// plainly open, or the reverse; a null slot is the default curve.
+function _moverEase(mv, k, i) {
+  let e = mv.ease; if (Array.isArray(e)) e = e[i];
+  if (!e || (e !== 'snap' && e.snap == null && e.gap == null)) return k * k * (3 - 2 * k);
+  const s = Math.min(0.9, Math.max(0.02, e.snap != null ? e.snap : 0.2)), g = Math.min(0.9, Math.max(0, e.gap != null ? e.gap : 0.1));
+  if (k < 1 - s) { const q = k / (1 - s); return (1 - g) * q * q * (3 - 2 * q); }
+  const q = (k - (1 - s)) / s; return 1 - g + g * q * q * q;
+}
+function _moverStateAngle(rig, sec) { const st = rig.st, tr = Math.max(0.01, rig.mv.transition || 0.6); const k = Math.min(1, Math.max(0, (sec - st.t0) / tr)); return st.from + (st.to - st.from) * _moverEase(rig.mv, k, st.i); }
 function _moverToggle(rig, dir) { const st = rig.st; if (!st) return; if (_moverSec - (st.last == null ? -1 : st.last) < 0.35) return; st.last = _moverSec; const n = rig.mv.states.length; st.from = _moverStateAngle(rig, _moverSec); st.i = ((st.i + (dir || 1)) % n + n) % n; st.to = rig.mv.states[st.i]; st.t0 = _moverSec; }
 window.__mojToggle = (group, dir) => { for (const rig of moverRigs) if (rig.st && (group == null || rig.mv.group === group)) _moverToggle(rig, dir); };
 // read-only inspector for probes and tests: each toggling rig's group, state index and current eased value

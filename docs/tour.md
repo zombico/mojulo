@@ -32,7 +32,8 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 
 **Objects, at literal scale.**
 
-- **Parts and mechanisms** — `mint_solid` on the workbench: lathes, sweeps, extrudes, lofts and field solids in real millimetres; **booleans are a line in the recipe** (`cuts[]` names a body and the parts that bore or intersect it); assemblies seat parts by declared relation ("the mug on the table"), not coordinates. `measure_solid` reads bounds, printed size, closure, Manifold volume and genus, overhang and wall thickness off the stored recipe without exporting.
+- **Parts and mechanisms** — `mint_solid` on the workbench: lathes, sweeps, extrudes, lofts and field solids in real millimetres; **booleans are a line in the recipe** (`cuts[]` names a body and the parts that bore or intersect it), and `exact: true` on that line composes it with Manifold for a sharp lip and the declared size; assemblies seat parts by declared relation ("the mug on the table"), not coordinates. `measure_solid` reads bounds, printed size, closure, Manifold volume and genus, overhang and wall thickness off the stored recipe without exporting.
+- **Parts written in OpenSCAD** — `mint_solid { kind: 'scad' }` takes the program as the recipe, stored verbatim and meshed on every read by OpenSCAD itself, in-process as WebAssembly with the Manifold backend. `color()` is the tint, each named part is a render group a hinge can swing, and `mojulo_field("<id>")` inside the source reaches a field solid for the blends, strokes and noise OpenSCAD cannot say. `model.scad` hands the source back unchanged; a workbench recipe exports the other way, transpiled into an OpenSCAD program with a coverage ledger.
 - **Figures and animals** — a posed human body (stances, a reach, a walking gait, named emotes) and the same armature reoriented horizontal for dressed species and bare archetypes from rodent to theropod. Rigs export as glTF clips, as skinned meshes, or with VRM humanoid bone names.
 - **Vehicles, wordmarks, everyday things** — vehicle-family instances, carved metal or bevelled wordmarks and badges, turntable solids, and blocked-out objects (a candlestick, a lamp, a snowman with a top hat).
 - **Machina** — `verify_machina` checks a mechanism chain (levers, pulleys, screws, inclines) against a load: work conservation, force capacity, rate and storage margins. A verdict, not a picture.
@@ -54,7 +55,7 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 
 - **Sound** — Beats synthesizes ambient loops, grooves, SFX cues, footsteps and full scores from seeded math, never samples; a part can sing; a deterministic voice register narrates. Worlds opt in to soundtracks; a score exports as WAV or MIDI.
 - **From a photo** — your agent is the vision adapter: show it a picture and `reference_protocol` → `capture_reference` recover a room's perspective, a figure's pose, a landscape's gesture, or an object's part-graph as a scaffold. No vision key; the image never reaches mojulo.
-- **Skins and surface detail** — a polygomer or figure can wear a painted skin; a mesh sculpted outside (TripoSR, Hunyuan3D, a cloud API, a hand pass in Blender) binds back to its recipe with hash provenance.
+- **Skins and surface detail** — a polygomer or figure can wear a painted skin; a mesh sculpted outside (TripoSR, Hunyuan3D, a cloud API, a hand pass in Blender, an OpenSCAD part) binds back to its recipe as GLB, STL or 3MF with hash provenance.
 - **Motion** — any of the above set moving: a turntable, an orbit, a fly-through, baked to a GIF with `forge_motion`; clips stitch into an MP4.
 
 ![A terminal prompt — "create a snowman with a top hat" — becomes a bonded part-graph recipe, then the shaded snowman in the dashboard viewer with turnable views and HTML / glb / STL downloads — no API key, no image model](images/snowman-demo.gif)
@@ -65,7 +66,7 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 
 ## Where it goes
 
-**One geometry spec, several targets, all off a single minted ref:** `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl,model.3mf,model.usdz}`. Each URL regenerates the file deterministically on request. Each emitter owns its own frame and unit conversion from mojulo's native z-up metres, and every handoff carries an **honest-loss ledger** naming what did not travel.
+**One geometry spec, several targets, all off a single minted ref:** `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl,model.3mf,model.usdz,model.scad}`. Each URL regenerates the file deterministically on request. Each emitter owns its own frame and unit conversion from mojulo's native z-up metres, and every handoff carries an **honest-loss ledger** naming what did not travel.
 
 | Target | What you get | The gate |
 |---|---|---|
@@ -77,6 +78,7 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 | **Unreal** (gated leg) | The same data pack plus a dependency-free editor Python importer; game packs add the `MojuloKernel` C++ plugin your project compiles. Worked example: [Night Run](examples/unreal-night-run/), three levels minted by conversation under Epic's own animated character. | A scratch project imported headless, when `MOJULO_UNREAL` names the editor. |
 | **Blender** (art pass) | An art-pass pack — GLB, `pack.json`, two Python scripts, a guide — and, in the other direction, a Cycles bake of traced global illumination back into the geometry's own vertex colours, so the lit result runs anywhere at zero runtime cost. | The pack's own importer run headless, when `MOJULO_BLENDER` names the binary. |
 | **STL / 3MF** | Print-ready at true scale: mm, z-up, slicer-ready. 3MF declares its units in-file and carries colours and instanced repeats; `union: true` fuses the shells into one measured solid through Manifold. Print advisories know the process (FDM, SLA, SLS, MJF): wall floors, self-support angle, overhang area, bores that will close up. Figures, worlds and views print as maquettes fit to a target size. | A local slicer run headless over the 3MF, stamping layers, time, filament and supports beside it. PrusaSlicer and Bambu Studio verified. |
+| **`.scad`** | A program, not a mesh. A `scad` recipe returns its own source verbatim; a workbench recipe is transpiled term by term into OpenSCAD solids and booleans, its variables at the head of the file as live dials, and a coverage ledger names any term that arrived as a frozen `polyhedron()`. | OpenSCAD re-renders the file and checks size and volume against the recipe (`scripts/scad-gate.mjs`), when the binary is installed. |
 
 The ladder is honest on purpose: **Godot first-class, Unity and Unreal as gated legs, Blender as an art pass.** Never "identical across all four." Every export works with nothing installed — the pack and its import guide are written and the gate reports "skipped" with the reason. Installing the engine adds the machine gate. Gates advise and stamp; none refuse. A human looking at the result in the engine or in the slicer is the eyes gate, and no gate ever claims that one passed. Doctrine: [docs/bicycles.md](bicycles.md). Engine versions, what each leg needs, and platform notes: [docs/tech-requirements.md](tech-requirements.md).
 
@@ -90,7 +92,7 @@ Speak modeler? `translate_modeler_lingo` maps pipeline vocabulary (blockout, kit
 
 ## Recipes, not renders
 
-Everything above is a few kilobytes of parameters plus a `kind`. A kernel regenerates it on every read, so nothing is a stored render, and a kernel's output for given params is a compatibility promise: same seed, same file, byte for byte. Renders under `data/outcomes/` are derived and disposable.
+Everything above is a few kilobytes of parameters plus a `kind`, or an OpenSCAD program stored as written. A kernel regenerates it on every read, so nothing is a stored render, and a kernel's output for given params is a compatibility promise: same seed, same file, byte for byte. Renders under `data/outcomes/` are derived and disposable.
 
 - **Iterate in place.** `update_sketch` changes a field on the stored recipe; `edit_solid` dresses or emotes a minted solid; `diff_sketches` shows what moved. You review what the model made the way you review code: as a diff, kept or reverted a line at a time. Don't re-mint what you can edit.
 - **Keep what you tuned.** `save_recipe` promotes a recipe into your **cookbook** at `~/.mojulo/data/cookbook` — plain `card.md` + `recipe.json` folders in a local git repo with **no remote**. Your agent writes the card's `when` line from the conversation, so months later a paraphrase recalls it through `semantic_search` and it re-mints exactly.

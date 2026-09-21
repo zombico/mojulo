@@ -125,8 +125,10 @@ Pointers only; each target carries its own design notes.
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
   Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`; CLIs in
   `control/scripts/export-*.mjs`; gates are advisory and need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL`.
-- Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`),
-  [worlds/workbench.js](control/lib/graph/worlds/workbench.js); manuals are the `solid-vocab/` cards.
+- Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
+  `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
+  manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)
+  (the `scad` kind, OpenSCAD-in-WASM) and [scene/scene-scad.js](control/lib/graph/scene/scene-scad.js) (the transpiler).
 - Recipe book: [views/recipe-book/](control/lib/graph/views/recipe-book/). Vocab cards: `*-vocab/` dirs.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
   outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
