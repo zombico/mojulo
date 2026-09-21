@@ -1,4 +1,15 @@
 /**
+ * GET /api/sketches — the gallery's list, as SUMMARIES.
+ *
+ * A row carries ref, title, kind, renderMode, the effective bucket (+ the
+ * override), createdAt, folderRef, the badge facts the shelves read, plus
+ * `associations` and `hasBoundRender` from this route. The manifest rides along
+ * only for the rows the client renders from it — diagram-mode rows (CreationMap)
+ * and the voice shelf — per the rule in lib/graph/sketch/sketch-summary.js.
+ * Everything else fetches `/api/sketches/<ref>` when it needs the recipe. The
+ * Scenes shelf was a 62 MB body before this: every `controllable` row carries its
+ * baked `faces` inline, and the browser parsed and held all of them.
+ *
  * POST /api/sketches — non-MCP path for minting sketches.
  *
  * The primary writer is the create_sketch MCP tool; this route exists so
@@ -92,7 +103,7 @@ export async function GET(request) {
     // isn't hand-maintained here.
     const bucketParam = new URL(request.url).searchParams.get('bucket');
     const bucket = isBucket(bucketParam) ? bucketParam : null;
-    const sketches = withRenderState(withAssociations(SketchRepository.list({ bucket })));
+    const sketches = withRenderState(withAssociations(SketchRepository.listSummary({ bucket })));
     const folders = SketchFolderRepository.list();
     return NextResponse.json({ sketches, folders });
   } catch (err) {

@@ -20,7 +20,8 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 
-import { resolveTurntable, resolveTurntableForMode, stripStyleVars } from '@/lib/graph/sketch/turntable-strip';
+import { renderModeOf } from '@/lib/graph/sketch/sketch-summary';
+import { resolveTurntableForMode, stripStyleVars } from '@/lib/graph/sketch/turntable-strip';
 
 /** Whether this viewer has asked not to be moved. Read at hover time, never at render (SSR-safe). */
 function prefersReducedMotion() {
@@ -30,16 +31,19 @@ function prefersReducedMotion() {
 }
 
 /**
- * Turntable state for one artifact.
+ * Turntable state for one artifact — a gallery summary (server-derived
+ * `renderMode`, no manifest) or a full sketch (the detail page); sketch-summary's
+ * `renderModeOf` reads either, so the card never needs the recipe.
  *
- * @param {{ ref: string, manifest: object }} sketch
+ * @param {{ ref: string, renderMode?: string, manifest?: object }} sketch
  * @returns {{ turntable: object|null, strip: string|null, turning: boolean, promote: function, handlers: object }}
  *   spread `handlers` onto the card root; pass the rest to <TurntableThumb>.
  */
 export function useTurntable(sketch) {
+  const renderMode = renderModeOf(sketch);
   const turntable = useMemo(
-    () => resolveTurntable({ manifest: sketch?.manifest, ref: sketch?.ref }),
-    [sketch?.manifest, sketch?.ref],
+    () => resolveTurntableForMode({ renderMode, ref: sketch?.ref }),
+    [renderMode, sketch?.ref],
   );
   return useTurntableResolved(turntable);
 }

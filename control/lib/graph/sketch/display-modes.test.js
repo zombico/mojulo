@@ -94,6 +94,24 @@ describe('resolveDisplayModes', () => {
     }
     expect(resolveDisplayModes({ manifest: null, ref: 'sk_k' })).toBeNull();
   });
+
+  it('answers the same from a list summary\'s facts as from the manifest', () => {
+    // The gallery's rows carry renderMode / kind / giAdapter instead of the
+    // recipe (sketch-summary.js); the detail page still has the recipe.
+    const fromManifest = resolveDisplayModes({
+      manifest: { kind: 'fractal-city', giBake: { adapter: 'inline-faces' } }, ref: 'sk_m',
+    });
+    const fromFacts = resolveDisplayModes({
+      renderMode: 'world', kind: 'fractal-city', giAdapter: 'inline-faces', ref: 'sk_m',
+    });
+    expect(fromFacts).toEqual(fromManifest);
+    expect(resolveDisplayModes({ renderMode: 'beats', kind: 'beats-sfx', giAdapter: null, ref: 'sk_n' })).toBeNull();
+    expect(resolveDisplayModes({ renderMode: null, kind: null, giAdapter: null, ref: 'sk_o' })).toBeNull();
+    const painted = byKey(resolveDisplayModes({
+      renderMode: 'svg', kind: 'image-outcome', giAdapter: null, ref: 'sk_p', hasBoundRender: true,
+    }));
+    expect(painted.painted.available).toBe(true);
+  });
 });
 
 describe('pickMode', () => {

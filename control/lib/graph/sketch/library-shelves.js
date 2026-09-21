@@ -86,7 +86,9 @@ export function inLibrary(sketch) {
 /** Does this sketch sit on this shelf? */
 export function onShelf(shelf, sketch) {
   if (!shelf || shelf.registry || !inLibrary(sketch)) return false;
-  const kind = sketch.manifest?.kind;
+  // Rows arrive in both shapes: a list summary carries `kind` at the top, a full
+  // sketch object carries it under `manifest` (sketch-summary.js).
+  const kind = sketch.kind ?? sketch.manifest?.kind;
   if (shelf.excludeKinds?.includes(kind)) return false;
   if (shelf.kinds && !shelf.kinds.includes(kind)) return false;
   if (shelf.bucket) return sketch.bucket === shelf.bucket;
