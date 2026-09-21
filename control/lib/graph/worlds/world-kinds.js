@@ -102,7 +102,7 @@ import { assembleKoenigsbergScene } from '@/lib/graph/structures/koenigsberg';
 import { latestBoundRender } from '@/lib/graph/image-outcomes/render-store';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import sharp from 'sharp';
+import { loadSharp } from '@/lib/sharp-lazy';
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
 
@@ -484,6 +484,7 @@ async function loadBoundSkin(ref) {
   if (!ref) return null;
   const bound = latestSkinInput(ref);
   if (!bound || !existsSync(bound.path)) return null;
+  const sharp = await loadSharp();
   const { data, info } = await sharp(await readFile(bound.path)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   return { data, width: info.width, height: info.height, channels: info.channels };
 }

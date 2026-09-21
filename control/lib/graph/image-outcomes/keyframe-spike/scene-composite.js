@@ -9,7 +9,7 @@
  * Deterministic (sharp only; no Date/Math.random). Frame planning lives in
  * scene-compose.js (`resolveSceneFrames`); this is raster only.
  */
-import sharp from 'sharp';
+import { loadSharp } from '../../../sharp-lazy.js';
 import { resolveSceneFrames } from './scene-compose.js';
 
 /**
@@ -23,6 +23,7 @@ import { resolveSceneFrames } from './scene-compose.js';
  * @returns framePngs: Buffer[]  (one PNG per output frame)
  */
 export async function renderSceneFrames(scene, { plate, band, cel, downscale } = {}) {
+  const sharp = await loadSharp();
   const frame = scene.frame;
   const { frames } = resolveSceneFrames(scene);
   const out = [];
@@ -58,6 +59,7 @@ export async function renderSceneFrames(scene, { plate, band, cel, downscale } =
 
 // contact-shadow ellipse (soft AO pool) → a frame-positioned composite descriptor
 async function shadowClip({ cx, cy, rx, ry, opacity }, frame) {
+  const sharp = await loadSharp();
   const pad = ry * 2.2;                                       // room for the blur skirt
   const w = Math.ceil(rx * 2 + pad * 2);
   const h = Math.ceil(ry * 2 + pad * 2);
@@ -70,6 +72,7 @@ async function shadowClip({ cx, cy, rx, ry, opacity }, frame) {
 
 // clip a resized layer to the frame and return a sharp composite descriptor
 async function frameClip(pngBuf, drawW, drawH, left, top, frame) {
+  const sharp = await loadSharp();
   const w0 = Math.max(1, Math.round(drawW));
   const h0 = Math.max(1, Math.round(drawH));
   const L = Math.round(left); const T = Math.round(top);

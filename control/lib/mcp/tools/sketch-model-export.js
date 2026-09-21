@@ -4,7 +4,8 @@
  * sketches.js hosted six unrelated tool families in one 2038-line file; each
  * now owns its own module and sketches.js is the registration surface.
  */
-// Model EXPORT (GLB, the print-purposed STL / 3MF, and OpenUSD usda / usdz) and the mesh-render bind.
+// Model EXPORT (GLB, the print-purposed STL / 3MF, OpenUSD usda / usdz, OpenSCAD, and the
+// self-contained world.html) and the mesh-render bind.
 
 
 import path from 'node:path';
@@ -12,7 +13,8 @@ import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
-import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
+import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
@@ -144,16 +146,38 @@ export function auditStlClosure(payload) {
   return { audited: true, closed: holes.length === 0, holes: holes.length, widest: holes[0] ? Math.round(holes[0].diameter * 10) / 10 : null, boundary_edges: boundaryEdges };
 }
 
+// The on-disk name per format: `model.<format>` for every mesh/program leg; the html leg is the
+// World page and is named for what it is.
+const modelFileName = (format) => (format === 'html' ? 'world.html' : `model.${format}`);
+
+// `format: 'html'` — the remote eyes gate (grok-headless-affordances P4). A host with no
+// browser of its own (a chat agent in a Linux sandbox) can only hand the operator a FILE, and a
+// hand-written viewer that fetches `./model.glb` dies on file:// (CORS, origin null). This is the
+// same self-contained page /world serves for `?download=1`: three.js + OrbitControls ride an
+// inline `data:` importmap, the baked scene is inline, walk mode + HUD are in the page. It opens
+// from file:// with no server and no network. Pure function of the resolved payload — same row,
+// same bytes. `walk` follows the /world route's rule (the payload's flag or the kind's default).
+function htmlExport(payload, { kind }) {
+  const walk = Boolean(payload.walk || WALK_KINDS.has(kind));
+  const html = emitThreeWorld({ ...payload, walk, inline: true });
+  const bytes = Buffer.from(html, 'utf8');
+  return { bytes, byteLength: bytes.length, vertexCount: null, triangleCount: null, walk };
+}
+export const HTML_FILE_NOTE = 'Open it straight from the filesystem (file://) — no server, no network: three.js and the '
+  + 'scene are inline. Orbit with the mouse; walk where the HUD offers it. A soundtrack is the one channel some '
+  + 'browsers block from file://; a static server (`npx serve .`) restores it.';
+
 // The export folder's README — refs + manifest hash + how to re-mint + how to
 // import (axis convention, clip timing, extras namespace). Deliberately short:
 // the recipe is the artifact of record, the README is the courier's note.
 function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, print }) {
   const title = sketch.title || sketch.manifest?.title || ref;
+  const file = modelFileName(format);
   return [
     `# ${title}`,
     '',
     'A 3D model exported from [mojulo](https://github.com/zombico/mojulo) — recipes, not renders:',
-    '`recipe.json` is the sovereign manifest; `model.' + format + '` is its deterministic derived snapshot.',
+    '`recipe.json` is the sovereign manifest; `' + file + '` is its deterministic derived snapshot.',
     '',
     '## Provenance',
     '',
@@ -193,10 +217,12 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '',
     'On any host running mojulo, `recipe.json` is the world manifest: store it as a',
     `sketch (its \`kind\` names the minting tool) and \`export_model({ ref })\``,
-    'regenerates this file deterministically — same recipe, same bytes.',
+    'regenerates this file deterministically — same recipe, same bytes (geometry byte for byte',
+    'across platforms; an embedded texture PNG can differ in its compressed bytes, not its pixels).',
     '',
     '## Importing this file (Blender / Godot)',
     '',
+    ...(format === 'html' ? [`- HTML: \`world.html\` is the live World page itself, not a mesh. ${HTML_FILE_NOTE} For a mesh, \`export_model({ ref, format: 'glb' })\`.`] : []),
     '- Axes and scale: mojulo worlds are z-up; the GLB parents everything under a y-up-rotated `mojulo` root, so it imports upright with no axis settings, and when the recipe declares a unit (`units:\'cm\'`, or a kind\'s own authoring unit) the root is scaled by it (`moj:metersPerUnit`) so importers receive metres at true size. (STL and 3MF stay raw z-up, units as millimetres — 3MF declares them, STL assumes them. USD declares `upAxis = "Z"` and `metersPerUnit` from the recipe, so it too imports upright at true scale.)',
     ...(format === 'usda' || format === 'usdz' ? ['- USD: one Mesh per render group with per-vertex `displayColor` (untextured meshes bind no material — viewers show the colour directly); textured groups bind a UsdPreviewSurface + UsdUVTexture; repeats are PointInstancers; entities are Xforms whose `moj:` extras ride customData; spawn / colliders / game ride the layer customLayerData. Rig clips are not in USD yet (UsdSkel is roadmap).'] : []),
     ...(format === '3mf' ? ['- 3MF: one object per shell (the base geometry, then each instanced repeat) placed by build items; baked colours ride `basematerials` — map them to filaments on a multi-material printer, ignore them otherwise.'] : []),
@@ -266,10 +292,12 @@ export async function exportModelHandler(input) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html' if provided");
   }
+  // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
+  const isHtml = format === 'html';
   const isUsd = format === 'usda' || format === 'usdz';
   // The two print formats share every print seam (profile, scale, closure, README notes).
   const isPrint = format === 'stl' || format === '3mf';
@@ -368,6 +396,8 @@ export async function exportModelHandler(input) {
           ? facesToUsda(payload, usdOpts)
           : format === 'usdz'
             ? facesToUsdz(payload, usdOpts)
+            : format === 'html'
+              ? htmlExport(payload, { kind: kind ?? sketch.manifest.kind })
             : format === 'scad'
               // the RECIPE is the input here, not the payload — a `code` kind hands over the
               // monomers its program returned (the ones that actually shipped), and `cuts`
@@ -386,7 +416,11 @@ export async function exportModelHandler(input) {
               })
             : facesToGlb(payload, { generator: `mojulo ${ref}`, ...(clips != null ? { clips } : {}), ...(skinned ? { skinned } : {}), ...(quantize ? { quantize } : {}), ...(humanoid ? { humanoid } : {}), ...(lit ? { lit: true } : {}) }))
     : null;
-  const url = `/api/sketches/${encodeURIComponent(ref)}/model.${format}`;
+  // html has no model.<format> route: the same page is /world?download=1 (out of scope to add one;
+  // the file path is the contract for the host class that needs this format).
+  const url = isHtml
+    ? `/api/sketches/${encodeURIComponent(ref)}/world?download=1`
+    : `/api/sketches/${encodeURIComponent(ref)}/model.${format}`;
   if (!exported) {
     return {
       ok: false,
@@ -411,9 +445,9 @@ export async function exportModelHandler(input) {
     format,
     url,
     bytes: exported.byteLength,
-    vertices: exported.vertexCount,
-    triangles: exported.triangleCount,
+    ...(isHtml ? { walk: exported.walk } : { vertices: exported.vertexCount, triangles: exported.triangleCount }),
   };
+  if (isHtml) result.note = `world.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE}`;
   // field solids (field-solids.plan.md F4): the honest ledger says in numbers what the recipe could
   // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
   // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
@@ -594,7 +628,7 @@ export async function exportModelHandler(input) {
       + (result.size_mm ? `; mojulo's mesh measures ${result.size_mm.join(' × ')} mm, and OpenSCAD's exact solid should land within about half a grid cell of that. ` : '. ')
       + 'Not carried across: `color()` is preview-only and OpenSCAD drops it from any STL it renders, and label `wrap` images have no OpenSCAD counterpart. '
       + 'Mojulo never reads this file back — it is a derived snapshot; `update_sketch` is the sovereign dial.';
-  } else {
+  } else if (isPrint) {
     // The print handoff: profile + scale + size + closure travel with the file.
     if (format === '3mf') {
       result.objects = exported.objectCount;
@@ -667,7 +701,7 @@ export async function exportModelHandler(input) {
     // (mesh-<n>.glb, render-<n>.png), which these filenames never collide with.
     const dir = outcomeDirFor(ref);
     await fs.mkdir(dir, { recursive: true });
-    const file = path.join(dir, `model.${format}`);
+    const file = path.join(dir, modelFileName(format));
     await fs.writeFile(file, exported.bytes);
     // usda references its textures by relative path — write them beside it (usdz carries them inside).
     for (const sc of (format === 'usda' ? exported.sidecars : [])) {
@@ -686,7 +720,17 @@ export async function exportModelHandler(input) {
     );
     result.path = file;
     result.dir = dir;
-    result.download_url = `${outcomeUrlFor(ref)}model.${format}`;
+    result.download_url = `${outcomeUrlFor(ref)}${modelFileName(format)}`;
+    // "Where did my export land?" (grok-headless-affordances P3). The bins now seed
+    // MOJULO_OUTCOMES_DIR, so this fires only when a bin ran WITHOUT the resolver's default and
+    // the cwd fallback put the file inside the installed package (MOJULO_CONTROL_DIR is the
+    // package root every bin exports; repo-dev `next dev` sets neither and keeps control/data/).
+    const packageDir = process.env.MOJULO_CONTROL_DIR;
+    if (!process.env.MOJULO_OUTCOMES_DIR && packageDir && file.startsWith(packageDir + path.sep)) {
+      result.home = `this file landed inside the installed package directory (${packageDir}) because `
+        + 'MOJULO_OUTCOMES_DIR was not set — a reinstall or an npx cache sweep removes it. Copy it out, '
+        + 'or set MOJULO_DATA_DIR (or MOJULO_OUTCOMES_DIR) so exports land under your mojulo home.';
+    }
   }
   // The world contract (world-contract-tiers W1): a walkable world's export echoes the tier its
   // payload declares and what the next tier needs — the same row the engine packs carry.

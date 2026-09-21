@@ -16,7 +16,7 @@
  * Everything between (request/pull/submit/accept) is the shared render-handoff.
  */
 
-import sharp from 'sharp';
+import { loadSharp } from '@/lib/sharp-lazy';
 
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -33,6 +33,7 @@ import { jointPalette, quantizeRgba, diffRasters } from '@/lib/graph/pixelizer/q
 // sharp → the raw RGBA the quantize primitives expect (4 bytes/pixel, alpha
 // preserved so a transparent sprite background knocks out to '.' cells).
 async function decodeRgba(absPath) {
+  const sharp = await loadSharp();
   const { data, info } = await sharp(absPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   return { data, width: info.width, height: info.height };
 }

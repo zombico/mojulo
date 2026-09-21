@@ -69,7 +69,11 @@ describes and an env flag can never silently disagree with reality. In
 
 - **Lean, no creative:** `npm install --omit=optional` (sheds the ~82 MB creative deps; Chromium is never
   fetched — the fetch is gated on the creative group in
-  [control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js)).
+  [control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js)). The kernel and the
+  CLI stay up on a lean install even when `sharp`'s optional native binary is missing: `sharp` loads on
+  first use ([control/lib/sharp-lazy.js](../control/lib/sharp-lazy.js)), so `mojulo call version`, every
+  mint and every export run, and only the raster tools (skins, sprite sheets, the PNG bake, the
+  keyframe and scene forges) fail in-band naming `npm install sharp`.
 - **Add the studio:** `mojulo install creative` ([control/scripts/mcp-install.mjs](../control/scripts/mcp-install.mjs))
   runs `npm install --include=optional` and re-probes. `mojulo install` with no arg prints status for
   both groups. `mojulo install chatbot` writes the marker; `--remove` takes it away again.

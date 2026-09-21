@@ -16,7 +16,7 @@
  * spec object ({ keyframes:[pose,…], loop:true }).
  */
 
-import sharp from 'sharp';
+import { loadSharp } from '../../sharp-lazy.js';
 
 import { sampleMotionPose } from '../polygonizer/figure-render.js';
 import { figureOpenPose, buildOpenPoseSvg } from './openpose.js';
@@ -40,6 +40,7 @@ const applyT = (t, [x, y]) => {
  * every motion for this figure normalizes onto this unit.
  */
 export async function computeCanonical({ canvas = CANVAS, view = VIEW, aPose = APOSE } = {}) {
+  const sharp = await loadSharp();
   const { width: w, height: h } = canvas;
   const canon = figureOpenPose({ pose: aPose, view, background: false }, canvas);
   const alpha = await sharp(Buffer.from(canon.figureSvg))
@@ -60,6 +61,7 @@ export async function computeCanonical({ canvas = CANVAS, view = VIEW, aPose = A
 
 /** The register-line base plate a guide is painted over (sky + crown/ground lines). */
 async function registerPlate(canvas, canonical) {
+  const sharp = await loadSharp();
   const { width: w, height: h } = canvas;
   const svg = [
     `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>`,
@@ -73,6 +75,7 @@ async function registerPlate(canvas, canonical) {
 
 /** Emit one key's guide + skeleton + normalized nodes, given the shared plate. */
 async function emitOneKey({ motion, keys, index, canvas, view, canon, plate }) {
+  const sharp = await loadSharp();
   const { width: w, height: h } = canvas;
   const phase = index / keys;
   const pose = sampleMotionPose(motion, phase);
@@ -110,6 +113,7 @@ async function emitOneKey({ motion, keys, index, canvas, view, canon, plate }) {
  * }>}
  */
 export async function emitKeys({ motion, keys = 6, canvas = CANVAS, view = VIEW, aPose = APOSE, canonical } = {}) {
+  const sharp = await loadSharp();
   if (motion == null) throw new Error('emitKeys requires a motion (name or keyframe spec)');
   const K = Number(keys);
   if (!Number.isInteger(K) || K < 1) throw new Error('emitKeys requires an integer keys >= 1');
