@@ -37,6 +37,8 @@
 import { createHash } from 'node:crypto';
 import { shadeHex, DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
+import { fieldToFaces, validateFields } from '../polygonizer/field-faces.js';
+import { facesToPolyhedron } from '../scene/scene-scad.js';
 
 export const SCAD_KIND = 'scad';
 export const MAX_SOURCE_BYTES = 64 * 1024;
@@ -78,6 +80,73 @@ export function validateScadParts(parts) {
     if (typeof parts[name] !== 'string' || !parts[name].trim()) errors.push(`parts.${name}: must be an OpenSCAD statement such as "lid();"`);
   }
   return errors;
+}
+
+// ─── the field escape hatch ───────────────────────────────────────────────────────
+//
+// What OpenSCAD cannot say (a blend, a brush stroke, noise, a distance expression, a warp) stays
+// a mojulo `fields` entry, and the source reaches it as `mojulo_field("<id>")` — a module the
+// renderer PREPENDS to the program, one `polyhedron()` per field, baked by the same kernel the
+// workbench uses (the transpiler's bake path, run inbound). The sharp CSG around it is
+// OpenSCAD's; the organic part inside it is mojulo's. The prelude is part of the program text,
+// so the geometry memo keys on it like any other edit.
+
+/** Refusals for a `fields` list on a scad manifest, or []. */
+export function validateScadFields(fields) {
+  if (fields === undefined) return [];
+  if (!Array.isArray(fields)) return ['`fields` must be an array of workbench field entries, each with an `id`'];
+  const errors = validateFields(fields, []);
+  const ids = new Set();
+  fields.forEach((f, i) => {
+    if (!f || typeof f.id !== 'string' || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(f.id)) errors.push(`fields[${i}].id: every field needs an identifier id — the source reaches it as mojulo_field("<id>")`);
+    else if (ids.has(f.id)) errors.push(`fields[${i}].id: '${f.id}' is used twice`);
+    else ids.add(f.id);
+  });
+  return errors;
+}
+
+/**
+ * Is this face list a 2-manifold Manifold will accept — every directed edge paired with its
+ * reverse exactly once? The surface net is manifold for shapes, blends and strokes; `displace`
+ * at a large amplitude folds it (unpaired and doubled edges), and OpenSCAD's Manifold backend
+ * then DROPS the polyhedron from a boolean while still writing a file — a silent loss the mint
+ * must catch here, before the render. Corners are keyed the way facesToPolyhedron prints them.
+ */
+export function auditManifold(faces) {
+  const dir = new Map();
+  const key = (c) => c.map((v) => { const n = Math.abs(v) < 1e-9 ? 0 : v; let s = n.toFixed(6); if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, ''); return s === '-0' ? '0' : s; }).join(',');
+  for (const f of faces) {
+    const ring = [];
+    for (const c of f.corners) { const k = key(c); if (ring[ring.length - 1] !== k && ring[0] !== k) ring.push(k); }
+    if (ring.length < 3) continue;
+    for (let i = 0; i < ring.length; i += 1) { const k = `${ring[i]}>${ring[(i + 1) % ring.length]}`; dir.set(k, (dir.get(k) || 0) + 1); }
+  }
+  let unpaired = 0, doubled = 0;
+  for (const [k, n] of dir) { if (n !== 1) doubled += 1; const [a, b] = k.split('>'); if (!dir.has(`${b}>${a}`)) unpaired += 1; }
+  return { manifold: unpaired === 0 && doubled === 0, unpaired, doubled, edges: dir.size };
+}
+
+const preludeCache = new Map();
+/** The `mojulo_field(id)` module for a manifest's `fields`, or '' when there are none. Memoised by the fields' JSON. */
+export function fieldPrelude(fields) {
+  if (!Array.isArray(fields) || !fields.length) return '';
+  const key = JSON.stringify(fields);
+  const hit = preludeCache.get(key);
+  if (hit) return hit;
+  const L = ['// mojulo fields — baked by mojulo\'s field kernel; edit the `fields` entries, not these numbers', 'module mojulo_field(id) {'];
+  fields.forEach((f, i) => {
+    const faces = fieldToFaces(f, {});
+    const node = facesToPolyhedron(faces, `field '${f.id}' (${faces.length} faces, cells ${f.cells || 64})`);
+    L.push(`  ${i ? 'else ' : ''}if (id == ${JSON.stringify(f.id)}) {`);
+    if (node) L.push(...node.emit(2)); else L.push('    // (no surface)');
+    L.push('  }');
+  });
+  L.push(`  else assert(false, str("mojulo_field: no field named ", id, " — the fields are ${fields.map((f) => f.id).join(', ')}"));`);
+  L.push('}', '');
+  const text = L.join('\n');
+  if (preludeCache.size >= 16) preludeCache.delete(preludeCache.keys().next().value);
+  preludeCache.set(key, text);
+  return text;
 }
 
 // ─── the WASM ─────────────────────────────────────────────────────────────────────
@@ -153,9 +222,15 @@ export async function renderScadOff(program, { fn } = {}) {
   const empty = log.some((l) => /top level object is empty/i.test(l));
   let off = null;
   try { off = inst.FS.readFile('/out.off'); } catch (_) { off = null; }
-  if (!off && !empty) {
-    const errs = kept.filter((l) => /ERROR|WARNING|runtime:/i.test(l));
-    throw new Error(`OpenSCAD could not render the program (exit ${code}):\n- ${(errs.length ? errs : kept).slice(0, 12).join('\n- ')}`);
+  // an ERROR outranks everything: a parse failure, a failed assert (an unknown mojulo_field id),
+  // or a Manifold refusal — the last one still writes a file with the operand DROPPED, so an
+  // output is no proof the program rendered as written
+  const hard = kept.filter((l) => /\bERROR\b|runtime:/.test(l)); // \b: 'Status: NoError' is not an error
+  if (!off || hard.length) {
+    if (hard.length || !empty) {
+      const errs = hard.length ? hard : kept.filter((l) => /WARNING/i.test(l));
+      throw new Error(`OpenSCAD could not render the program (exit ${code}):\n- ${(errs.length ? errs : kept).slice(0, 12).join('\n- ')}`);
+    }
   }
   return { off, log: kept, ms, empty };
 }
@@ -237,15 +312,20 @@ export function offToRecords(geom, { group = DEFAULT_GROUP } = {}) {
   return out;
 }
 
-/** Shade unshaded records under a light into the World face list. */
+/**
+ * Shade unshaded records under a light into the World face list. A triangle closes its ring
+ * (the cap-fan encoding every emitter reads); a merged panel (coplanar-merge.js) keeps its
+ * four parallelogram corners and carries its `clip` polygon through.
+ */
 export function shadeRecords(records, light = DEFAULT_LIGHT) {
   return records.map((r) => ({
-    corners: [r.corners[0], r.corners[1], r.corners[2], r.corners[0]],
+    corners: r.corners.length === 3 ? [r.corners[0], r.corners[1], r.corners[2], r.corners[0]] : r.corners,
     fill: shadeHex(r.tint, r.normal, light),
     tint: r.tint,
     group: r.group,
     outNormal: r.normal,
     doubleSided: true,
+    ...(r.clip ? { clip: r.clip } : {}),
   }));
 }
 
@@ -263,10 +343,10 @@ function remember(key, value) {
  * Render ONE program (source + optional statement) to unshaded records, memoised.
  * Returns `{ records, log, ms, cached, empty }`.
  */
-async function renderProgram(source, statement, { fn, group }) {
+async function renderProgram(source, statement, { fn, group, prelude = '' }) {
   const version = await openscadVersion();
   if (version == null) return { skipped: true, reason: OPENSCAD_INSTALL_LINE };
-  const program = statement ? `${source}\n${statement}\n` : source;
+  const program = `${prelude}${statement ? `${source}\n${statement}\n` : source}`;
   const key = cacheKey([version, SCAD_BACKEND, String(fn ?? ''), group, program]);
   const hit = geomCache.get(key);
   if (hit) return { ...hit, cached: true };
@@ -284,20 +364,21 @@ export async function renderScadParts(manifest) {
   const source = manifest.source;
   const fn = Number.isFinite(manifest.fn) ? manifest.fn : undefined;
   const parts = manifest.parts && typeof manifest.parts === 'object' ? manifest.parts : null;
+  const prelude = fieldPrelude(manifest.fields);
   if (!parts) {
-    const r = await renderProgram(source, null, { fn, group: DEFAULT_GROUP });
+    const r = await renderProgram(source, null, { fn, group: DEFAULT_GROUP, prelude });
     if (r.skipped) return r;
     if (r.empty) throw new Error('The program makes no geometry at its top level — instantiate a module (e.g. `body();`), or name the parts in `parts`.');
     return { parts: [{ name: DEFAULT_GROUP, statement: null, ...r }] };
   }
-  const bare = await renderProgram(source, null, { fn, group: '__bare' });
+  const bare = await renderProgram(source, null, { fn, group: '__bare', prelude });
   if (bare.skipped) return bare;
   if (!bare.empty) {
     throw new Error('With `parts`, `source` must only DEFINE modules — it makes geometry at its top level. Move the top-level calls into `parts` (e.g. parts: { body: "body();" }).');
   }
   const out = [];
   for (const [name, statement] of Object.entries(parts)) {
-    const r = await renderProgram(source, statement, { fn, group: name });
+    const r = await renderProgram(source, statement, { fn, group: name, prelude });
     if (r.skipped) return r;
     if (r.empty) throw new Error(`parts.${name}: "${statement}" makes no geometry — does the module exist, and does it instantiate something?`);
     out.push({ name, statement, ...r });
@@ -330,7 +411,13 @@ const sizeOf = (b) => ({ w: round1(b.max[0] - b.min[0]), d: round1(b.max[1] - b.
  */
 export async function planScad(manifest = {}) {
   const t0 = performance.now();
-  const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts)];
+  const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts), ...validateScadFields(manifest.fields)];
+  if (!errors.length && Array.isArray(manifest.fields)) {
+    for (const f of manifest.fields) {
+      const a = auditManifold(fieldToFaces(f, {}));
+      if (!a.manifold) errors.push(`fields '${f.id}' bakes to a surface OpenSCAD's kernel cannot take (${a.unpaired} unpaired and ${a.doubled} doubled edges of ${a.edges}); a boolean would drop it silently. \`displace\` at a large amplitude folds the surface net — lower \`amplitude\`, raise \`cells\`, or shape the detail with \`stroke\` / \`blend\` instead.`);
+    }
+  }
   if (errors.length) throw new Error(`Invalid scad recipe:\n- ${errors.join('\n- ')}`);
   const { ledger: _prior, ...recipeOnly } = manifest;
   const recipeBytes = Buffer.byteLength(JSON.stringify(recipeOnly), 'utf8');

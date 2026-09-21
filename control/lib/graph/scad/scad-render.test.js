@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   parseOff, offToRecords, shadeRecords, validateScadSource, validateScadParts,
   renderScadFaces, planScad, loadOpenscad, openscadVersion, DEFAULT_TINT,
+  validateScadFields, fieldPrelude, auditManifold,
 } from './scad-render.js';
 import { scadExport } from '../scene/scene-scad.js';
 
@@ -134,3 +135,48 @@ describe('scad-render — export_model format:scad is the identity', () => {
     expect(r.parts).toEqual([{ name: 'a', at: 'parts.a' }]);
   });
 });
+
+describe('scad-render — mojulo_field(): the field escape hatch (skipped when the WASM is not installed)', () => {
+  const blob = { id: 'blob', cells: 32, terms: [
+    { op: 'add', shape: { kind: 'sphere', center: [0, 0, 0], radius: 8 } },
+    { op: 'stroke', at: [6, 0, 4], radius: 4, strength: 1 },
+  ] };
+
+  it('validates: every field needs a unique identifier id', () => {
+    expect(validateScadFields(undefined)).toEqual([]);
+    expect(validateScadFields([blob])).toEqual([]);
+    expect(validateScadFields([{ ...blob, id: undefined }])).toHaveLength(1);
+    expect(validateScadFields([blob, blob])).toHaveLength(1);
+    expect(validateScadFields('x')).toHaveLength(1);
+  });
+
+  it('a field whose surface net folds (heavy displace) is refused at mint, not dropped silently', async () => {
+    const folded = { id: 'dent', cells: 48, terms: [
+      { op: 'add', shape: { kind: 'ellipsoid', center: [0, 0, 0], radii: [12, 8, 6] } },
+      { op: 'displace', noise: { amplitude: 0.6, scale: 0.4, octaves: 2, seed: 'pebble' } },
+    ] };
+    await expect(planScad({ source: 'mojulo_field("dent");', fields: [folded] })).rejects.toThrow(/cannot take .* unpaired/);
+    expect(auditManifold([{ corners: [[0, 0, 0], [1, 0, 0], [0, 1, 0]] }]).manifold).toBe(false);
+  });
+
+  it('the prelude is one module with a polyhedron per field, memoised', () => {
+    const p = fieldPrelude([blob]);
+    expect(p).toContain('module mojulo_field(id)');
+    expect(p).toContain('if (id == "blob")');
+    expect(p).toContain('polyhedron(');
+    expect(fieldPrelude([blob])).toBe(p);
+    expect(fieldPrelude([])).toBe('');
+  });
+
+  wasm('a sculpted blob is subtracted from a cube with an exact rim', async () => {
+    const m = {
+      source: 'difference() { translate([0, 0, 10]) cube(20, center = true); translate([0, 0, 12]) mojulo_field("blob"); }',
+      fields: [blob],
+    };
+    const { stats } = await planScad(m);
+    expect(stats.size).toEqual({ w: 20, d: 20, h: 20 });
+    expect(stats.faces).toBeGreaterThan(12);
+    expect(stats.ledger.closed).toBe(true);
+    await expect(planScad({ ...m, source: 'mojulo_field("nope");' })).rejects.toThrow(/no field named/);
+  });
+}, 60000);

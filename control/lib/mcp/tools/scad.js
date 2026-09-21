@@ -13,7 +13,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planScad, persistedScadLedger, DEFAULT_UNITS } from '@/lib/graph/scad/scad-render';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export async function mintScad({ title, source, parts, units, fn, viewBox, facing, grid, movers, ref, folderRef } = {}) {
+export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, ref, folderRef } = {}) {
   if (typeof source !== 'string') {
     throw new Error("The scad kind needs `source` — an OpenSCAD program (mm, z up; `color()` is the tint; with `parts: { name: 'module();' }` each part is a render group a `movers` hinge can swing). Read get_solid_vocab({ id: 'scad' }) for the contract.");
   }
@@ -21,6 +21,7 @@ export async function mintScad({ title, source, parts, units, fn, viewBox, facin
     kind: 'scad',
     source,
     ...(parts !== undefined ? { parts } : {}),
+    ...(fields !== undefined ? { fields } : {}),
     units: typeof units === 'string' ? units : DEFAULT_UNITS,
     ...(Number.isFinite(fn) ? { fn } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
@@ -50,6 +51,6 @@ export async function mintScad({ title, source, parts, units, fn, viewBox, facin
 
 export async function createScadHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('The scad kind needs a spec object with `source`.');
-  const { title, source, parts, units, fn, viewBox, facing, grid, movers, ref, folder_ref: folderRef } = input;
-  return mintScad({ title, source, parts, units, fn, viewBox, facing, grid, movers, ref, folderRef });
+  const { title, source, parts, fields, units, fn, viewBox, facing, grid, movers, ref, folder_ref: folderRef } = input;
+  return mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, ref, folderRef });
 }

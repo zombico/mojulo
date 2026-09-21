@@ -12,20 +12,29 @@
 
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from './workbench.js';
-import { renderScadFaces } from '../scad/scad-render.js';
+import { renderScadParts, shadeRecords } from '../scad/scad-render.js';
+import { mergeCoplanarTriangles } from '../scad/coplanar-merge.js';
 import { withBands, resolveToon } from '../polygonizer/vexar.js';
+
+async function scadFaces(opts, light, { merge = false } = {}) {
+  const r = await renderScadParts(opts);
+  if (r.skipped) throw new Error(r.reason);
+  return r.parts.flatMap((p) => shadeRecords(merge ? mergeCoplanarTriangles(p.records) : p.records, light));
+}
 
 /**
  * Assemble a `scad` manifest into the shared scene payload (faces + grounds + cameras + light).
  * `opts.light` is FLAT_LIGHT under the unshaded export; absent → the neutral studio key.
+ * `opts.mergeCoplanar` folds flat triangle regions into single panels — the CSS-3D still's
+ * courtesy (renderScadToHtml sets it); the World and every export keep OpenSCAD's triangles.
  */
 export async function assembleScadScene(opts = {}) {
   const light = withBands(opts.light || WORKBENCH_LIGHT, resolveToon(opts.toon)?.bands);
-  const faces = await renderScadFaces(opts, light);
+  const faces = await scadFaces(opts, light, { merge: opts.mergeCoplanar === true });
   return studioSceneFromFaces(faces, { ...opts, title: opts.title || 'mojulo scad', light });
 }
 
 /** /scene + PNG path: CSS-3D preset-shot HTML (async — the mesher is). */
 export async function renderScadToHtml(opts = {}) {
-  return emitPreserve3dScene({ ...(await assembleScadScene(opts)), signs: opts.signs });
+  return emitPreserve3dScene({ ...(await assembleScadScene({ ...opts, mergeCoplanar: true })), signs: opts.signs });
 }

@@ -443,7 +443,20 @@ function extrudeProfileNode(profile, ctx, base) {
       return leaf(`square(${size}, center = true);`);
     }
     const rn = dial(ctx, base, 'corner', num(rr));
-    const size = dial(ctx, base, 'section', v2(w - 2 * rr, h - 2 * rr));
+    const iw = w - 2 * rr, ih = h - 2 * rr;
+    // A side that equals 2r (a stadium, a pill, a fully-rounded button) leaves `square` with a
+    // zero side, and OpenSCAD drops a zero-area polygon SILENTLY — the whole part vanished while
+    // the ledger said exact (the iPhone Duo lost its buttons, port and camera plateau this way,
+    // 2026-09-20). Such a profile is the hull of circles at the inset corners: two for a stadium,
+    // one for a disc. The non-degenerate case keeps the offset(square) emission byte for byte.
+    if (iw <= EPS || ih <= EPS) {
+      const hu = Math.max(0, iw / 2), hv = Math.max(0, ih / 2);
+      const at = [];
+      for (const su of hu > EPS ? ['-', ''] : ['']) for (const sv of hv > EPS ? ['-', ''] : ['']) at.push(`[${su}${num(hu)}, ${sv}${num(hv)}]`);
+      if (at.length === 1) return leaf(`circle(r = ${rn});`);
+      return group('hull()', at.map((p) => prefix(`translate(${p})`, leaf(`circle(r = ${rn});`))));
+    }
+    const size = dial(ctx, base, 'section', v2(iw, ih));
     return prefix(`offset(r = ${rn})`, leaf(`square(${size}, center = true);`));
   }
   if (profile && Array.isArray(profile.points)) {

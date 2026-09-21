@@ -27,6 +27,26 @@ loops and the recipe format are unchanged.
   card `scad-object`. Existing workbench rows are untouched. Why: measured on the iPhone Duo block-in,
   the same object in OpenSCAD reads at about half the tokens of the workbench manifest, needs no
   14k-token card, renders in 0.2 s, and its booleans are exact.
+- **`mojulo_field("<id>")` inside a scad source.** A `scad` spec may carry `fields` (the workbench's
+  field entries, each with an `id`); the program reaches one as `mojulo_field("<id>")`, a module mojulo
+  prepends holding that field baked as a `polyhedron()`. Blends, strokes, noise, expressions and warps
+  stay mojulo's; the exact CSG around them is OpenSCAD's. A field whose surface net is not a
+  2-manifold (a heavy `displace`) is refused at mint with the edge counts, because OpenSCAD's kernel
+  would drop it from a boolean silently; and any OpenSCAD `ERROR` line fails a scad render even when a
+  file was written.
+- **`bind_mesh_render` takes a `.stl` or `.3mf` at `glb_path`.** The file is read into the standard
+  face list (3MF `basematerials` colour and build transforms kept; an STL binds grey) and written as
+  the GLB the bind stores, so an OpenSCAD or slicer-side part comes home as a bound mesh and places in
+  any world via `meshRef`. The result carries `converted_from`. A GLB path behaves exactly as before.
+- **The scad still is legible.** The CSS-3D scene and gallery PNG of a `scad` row fold coplanar
+  triangles into one clipped panel per flat region (holes via an `evenodd` clip); the World and every
+  export keep OpenSCAD's triangles.
+- **Fixed: `export_model format:'scad'` dropped every stadium.** A rounded rect whose side equals `2r`
+  (a pill button, a USB-C port, a camera plateau) transpiled to `offset(r) square([w, 0])`, a zero-area
+  polygon OpenSCAD discards silently while the coverage ledger still counted the term exact; the Duo
+  lost seven of twenty-three parts. Such a profile now emits as a `hull()` of circles (a disc as one
+  `circle`). Non-degenerate profiles emit byte-for-byte as before. The OpenSCAD gate on the Duo agrees
+  on every axis again.
 - **Workbench mint stores `movers`, `grid` and `toon` from the spec.** The card documented all three as
   top-level spec keys but `mint_solid kind:'workbench'` / `'code'` dropped them; only an `update_sketch`
   patch could store a hinge. Absent, byte-identical.

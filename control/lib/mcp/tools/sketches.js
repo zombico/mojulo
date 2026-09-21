@@ -569,7 +569,7 @@ export function registerSketchTools() {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'The sketch ref this mesh belongs to.' },
-        glb_path: { type: 'string', description: 'Absolute path to the .glb on this host.' },
+        glb_path: { type: 'string', description: 'Absolute path to the .glb on this host — or a .stl / .3mf (what OpenSCAD and slicers write), converted to a GLB at the door (3MF colour kept; an STL binds grey).' },
         source: { type: 'string', description: "Which tool made it (e.g. 'blender', 'text-to-cad/cadgen@0.5.0')." },
         note: { type: 'string', description: 'Free-text provenance note.' },
         units: { type: 'string', enum: ['mm', 'cm', 'm', 'in', 'ft'], description: "The FILE's unit (a CAD GLB is mm); converted into the sketch's declared unit via the sidecar, bytes untouched." },

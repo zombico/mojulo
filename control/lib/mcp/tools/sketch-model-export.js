@@ -24,6 +24,7 @@ import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
+import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
@@ -791,7 +792,20 @@ export async function bindMeshRenderHandler(input) {
   if (expectedBox != null && !(expectedBox && Array.isArray(expectedBox.min) && Array.isArray(expectedBox.max) && expectedBox.min.length === 3 && expectedBox.max.length === 3)) {
     throw new Error('`expected_box` must be { min: [x,y,z], max: [x,y,z] } in the FILE\'s units');
   }
-  const bytes = await fs.readFile(glbPath);
+  let bytes = await fs.readFile(glbPath);
+  // An STL or a 3MF (what OpenSCAD and the slicers' neighbours write) is converted to a GLB AT
+  // THE DOOR — mesh-read.js reads it into the standard face list (3MF colour kept, STL grey) and
+  // facesToGlb writes the bytes the bind stores, so the artifact on disk is the same GLB every
+  // other producer hands over and the provenance sidecar names the original file.
+  let convertedFrom = null;
+  if (/\.(stl|3mf)$/i.test(glbPath)) {
+    const faces = meshFileToFaces(bytes, glbPath);
+    if (!faces || !faces.length) throw new Error(`${glbPath}: no triangle geometry could be read from the file`);
+    const glb = facesToGlb({ faces }, { generator: `mojulo bind ${sketch.ref}` });
+    if (!glb) throw new Error(`${glbPath}: the mesh could not be written as a GLB`);
+    convertedFrom = { format: glbPath.toLowerCase().endsWith('.3mf') ? '3mf' : 'stl', triangles: faces.length, bytes: bytes.length };
+    bytes = glb.bytes;
+  }
   const { slot, sha256, faces, ledger, manifestHash, contract, scaleApplied } = await bindMeshBytes(sketch, bytes, { sourcePath: glbPath, source, note, scale, sourceUnits });
   // The size gate the worker path runs against the greybox, here against the CAD tool's OWN box
   // (both in file units, before the scale): 0.5×–2× per axis catches a ×10 / ×25.4 slip.
@@ -830,8 +844,9 @@ export async function bindMeshRenderHandler(input) {
     ...(contract ? { contract } : {}),
     ...(scaleApplied ? { source_units: sourceUnits, scale_applied: Math.round(scaleApplied * 1e6) / 1e6 } : {}),
     ...(machine ? { machine } : {}),
+    ...(convertedFrom ? { converted_from: convertedFrom } : {}),
     next:
-      `Mesh bound (append-only slot ${slot.n}; latest wins).${driftLine}${texLine}${dropLine}`
+      `Mesh bound (append-only slot ${slot.n}; latest wins).${convertedFrom ? ` Converted from ${convertedFrom.format.toUpperCase()} at the door (${convertedFrom.triangles} triangles; ${convertedFrom.format === 'stl' ? 'no colour in an STL, so a neutral grey' : 'basematerials colour kept'}).` : ''}${driftLine}${texLine}${dropLine}`
       + (scaleApplied ? ` Units: the file's ${sourceUnits || 'declared'} units land in the sketch's world units at ×${Math.round(scaleApplied * 1e6) / 1e6} (recorded on the sidecar; the bytes are untouched; every meshRef placement inherits it).` : '')
       + (machine ? (machine.size_agrees ? ` Size gate: the decoded box agrees with expected_box (${machine.size_file_units.join(' × ')} vs ${machine.expected_size.join(' × ')}).` : ` SIZE GATE FAILED: decoded ${machine.size_file_units.join(' × ')} vs expected ${machine.expected_size.join(' × ')} — a unit slip or a re-centred export; check \`units\` before placing it.`) : '')
       + (source && /cad|freecad|onshape|fusion|step/i.test(String(source)) ? ' Ledger for a CAD-born part: B-rep exactness does not travel (this is a tessellation at the tool\'s deflection), nor do assembly joints / mates or materials beyond a base colour; keep the .step beside your recipe — it is the source there. The Blender `contract` block, if present, is the art-pass return\'s check and reads informational for any other producer.' : '')

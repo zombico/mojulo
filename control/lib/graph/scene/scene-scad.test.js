@@ -153,6 +153,27 @@ describe('scene-scad — the mapping table, row by row', () => {
     expect(round.text).toContain('offset(r = p_bar_corner)');
   });
 
+  it('a stadium (a side equal to 2r) is a hull of circles, never a zero-area square OpenSCAD drops', () => {
+    // 14 × 2.4 with r 1.2: the inset square would be 11.6 × 0 and OpenSCAD renders NOTHING for
+    // it (the Duo lost every button, its port and its camera plateau this way, 2026-09-20).
+    const pill = one({
+      id: 'btn', op: 'add',
+      shape: { kind: 'extrude', profile: { rect: { w: 14, h: 2.4, r: 1.2 } }, axisFrom: P(0, 0, 0), axisTo: P(0, 0, 0.8) },
+    });
+    expect(pill.text).not.toMatch(/square\(\[[\d.]+, 0\]/);
+    expect(pill.text).toContain('hull()');
+    expect(pill.text).toContain('translate([-5.8, 0]) circle(r = p_btn_corner);');
+    expect(pill.text).toContain('translate([5.8, 0]) circle(r = p_btn_corner);');
+    expect(pill.coverage.exact).toBe(1);
+    // both sides equal to 2r: a disc
+    const disc = one({
+      id: 'dot', op: 'add',
+      shape: { kind: 'extrude', profile: { rect: { w: 3, h: 3, r: 1.5 } }, axisFrom: P(0, 0, 0), axisTo: P(0, 0, 1) },
+    });
+    expect(disc.text).toContain('circle(r = p_dot_corner);');
+    expect(disc.text).not.toContain('hull()');
+  });
+
   it('extrude {points} → linear_extrude of the polygon', () => {
     const r = one({
       id: 'tri', op: 'add',
