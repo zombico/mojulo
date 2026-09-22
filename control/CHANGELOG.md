@@ -12,6 +12,8 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+## [2.0.8] - 2026-09-22
+
 ### Remote worker exports
 
 - **Every written export says the next move on THIS host.** When mojulo runs inside the agent's

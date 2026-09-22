@@ -6,12 +6,12 @@
     "url": "https://github.com/zombico/mojulo",
     "source": "github"
   },
-  "version": "2.0.7",
+  "version": "2.0.8",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "mojulo",
-      "version": "2.0.7",
+      "version": "2.0.8",
       "transport": {
         "type": "stdio"
       }
