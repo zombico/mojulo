@@ -2780,7 +2780,11 @@ function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs
         const F = fr[0].F, arriving = (strHash(key) & 2) === 0;
         const [wx, wy] = F.pt(portal.cx, arriving ? FRONTAGE_REACH * 0.55 : 0.8);
         const n = F.normal, axis = n[1] !== 0 ? 'y' : 'x', outward = n[1] !== 0 ? n[1] : n[0];
-        faces.push(...vehicleAntFaces({ rng: local, context: 'lot', cx: wx, cy: wy, axis, dir: arriving ? -outward : outward, scale: 0.9 }).map((face) => ({ ...face, portalCar: arriving ? 'arriving' : 'departing' })));
+        // the static car's footprint (a lot-context ant is a car, 1.7 × 0.8 at scale 0.9), so the world
+        // path can keep it off every moving lane (removal only) and the tests can check it pairwise
+        const cl = 1.7 * 0.9, cw = 0.8 * 0.9;
+        const portalCarRect = axis === 'y' ? { x: wx - cw / 2, y: wy - cl / 2, w: cw, d: cl } : { x: wx - cl / 2, y: wy - cw / 2, w: cl, d: cw };
+        faces.push(...vehicleAntFaces({ rng: local, context: 'lot', cx: wx, cy: wy, axis, dir: arriving ? -outward : outward, scale: 0.9 }).map((face) => ({ ...face, portalCar: arriving ? 'arriving' : 'departing', portalCarKey: key, portalCarRect })));
         stats.portalCars = (stats.portalCars || 0) + 1;
       }
     }
@@ -3065,10 +3069,11 @@ function planCityCarLanes(grid, region, opt) {
       const on = l < nLines && lineFrac[l] > 0.5;   // this line is a road (spans >half the region)
       if (on && s < 0) s = l; else if (!on && s >= 0) { bands.push([s, l - 1]); s = -1; }
     }
-    // road extent along each band's mid line, split into RUNS at any gap longer than a car (a reserved
-    // mass the avenue was clipped around — the centred tower — or a plaza): a lane never drives through
-    // a building; each run is its own lane, wrapping on itself. Runs shorter than 2 units are dropped.
-    const GAP_CELLS = Math.ceil(1.5 / cell), MIN_RUN = Math.ceil(2 / cell);
+    // road extent along each band's mid line, split into RUNS at ANY non-road cell (a reserved mass the
+    // avenue was clipped around — the centred tower — a plaza, or the verge between two roads the mid
+    // line merely crosses): a road is contiguous by construction, so a lane never drives over grass or
+    // through a building; each run is its own lane, wrapping on itself. Runs under 2 units are dropped.
+    const GAP_CELLS = 0, MIN_RUN = Math.ceil(2 / cell);
     return bands.flatMap(([a, b]) => {
       const mid = Math.round((a + b) / 2), runs = [];
       let lo = -1, hi = -1;
@@ -3452,7 +3457,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // meeting the avenue is signalised too. The box is wx (the vertical strip's width) × wy (the
   // horizontal strip's). Deduplicated on a cell; a strip pair whose roads were clipped apart (inside
   // the tower) yields a box no lane passes — harmless.
-  let signals = null;
+  let signals = null, junctionsFrame = null;
   if (carLanes) {
     const vs = roadStrips.filter((r) => !r.corridor && Math.abs(r.w - r.streetW) < 1e-9), hs = roadStrips.filter((r) => !r.corridor && Math.abs(r.d - r.streetW) < 1e-9);
     const seen = new Set(), derived = [];
@@ -3465,6 +3470,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
       derived.push({ x, y, wx: V.w * bs, wy: H.d * bs, streetW: Math.max(V.w, H.d) * bs });
     }
     signals = buildSignals(derived, seed, frameRegion);
+    junctionsFrame = derived;   // the raw crossings, so the world path can rebuild the programs with its measured car bank (deriveClearance)
   }
   const stats = {
     boxes: boxes.length,
@@ -3489,7 +3495,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     ...(frontage ? { frontage } : {}),                          // road-aware masses: { masses, withRoad, withoutRoad, parking, swept? }
     ...(pruned ? { fidelity: pruned.level, pruned: pruned.dropped } : {}),   // what the level-of-detail prune took off the full plan
   };
-  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}), ...(signals ? { signals } : {}) };
+  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}), ...(signals ? { signals, junctions: junctionsFrame } : {}) };
 }
 
 // Derive light SOURCES from the warm lamp HEADS the generator already places — each
@@ -3662,7 +3668,12 @@ export function assembleFractalCityScene(opts = {}) {
   if (Array.isArray(opts.insets)) for (const i of opts.insets) if (i && i.textures && Object.keys(i.textures).length) scene.textures = { ...(scene.textures || {}), ...i.textures };
   if (plan.walkerLoops && plan.walkerLoops.length) scene.walkerLoops = plan.walkerLoops;
   if (plan.carLanes && plan.carLanes.length) scene.carLanes = plan.carLanes;
-  if (plan.signals && plan.signals.length) scene.signals = plan.signals;   // the crossings' phase programs (attachCityCars pairs them with the lanes)
+  if (plan.signals && plan.signals.length) {   // the crossings' phase programs; the world path rebuilds them with its measured car bank (deriveClearance)
+    scene.signals = plan.signals;
+    scene.junctions = plan.junctions;
+    scene.trafficSeed = opts.seed ?? 1;
+    scene.trafficRegion = opts.region || DEFAULT_REGION;
+  }
   // the unit declaration (see CITY_METERS_PER_UNIT): recipe override, else the kind's own
   const mpu = Number(opts.metersPerUnit);
   scene.metersPerUnit = Number.isFinite(mpu) && mpu > 0 ? mpu : CITY_METERS_PER_UNIT;
