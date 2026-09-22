@@ -2343,6 +2343,14 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
   }
   for (const b of boxes) {
     const r = { x: b.x, y: b.y, w: b.w, d: b.d };
+    // fidelity prune (fractal-city `massing` / `skyline`): a mass flagged `lod:'mass'` is a plain
+    // tinted extrusion — no facade, roof, curtainwall or rooftop kit. Only the prune sets the flag,
+    // so every full-fidelity box takes the branches below exactly as before.
+    if (b.lod === 'mass') {
+      const tint = b.tint || b.glass || '#a9b0b8';
+      faces.push(...cityBox(r, b.z0, b.z1, { top: scaleHex(tint, 1.08), side: tint }, L, camHint));
+      continue;
+    }
     if (b.curtainwall) { faces.push(...curtainwallBuilding(b, L, camHint, sceneTextures, b.curtainwall === true ? {} : b.curtainwall)); continue; }
     if (b.roof) {
       // town dwelling: low residential walls capped by a real pitched roof (roof.js, scaled to town size).

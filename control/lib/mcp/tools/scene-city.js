@@ -14,12 +14,14 @@
  * like the other illustration mints — the discriminator is `manifest.kind`.
  *
  * Stored manifest (the whole recipe):
- *   { kind:'fractal-city', seed, anchor, depth, density, region?, viewBox?, title? }
+ *   { kind:'fractal-city', seed, anchor, depth, density, region?, viewBox?, title?,
+ *     …opt-in channels (elements / landmark / civicAreas / edifices / walkers / traffic / fog / audio),
+ *     blocks? (operator parcels laid before the roads), fidelity? ('massing' | 'skyline') }
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { normalizeEdificeEntries, resolveCityInsets } from '@/lib/graph/worlds/city-insets';
-import { planFractalCity, normalizeCivicAreas } from '@/lib/graph/city/fractal-city';
+import { planFractalCity, normalizeCivicAreas, normalizeCityBlocks, normalizeCityFidelity } from '@/lib/graph/city/fractal-city';
 import { isLandmarkShape } from '@/lib/graph/landmarks/index.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
@@ -33,7 +35,7 @@ function normalizeLandmarkInput(landmark) {
   return isLandmarkShape(landmark) ? landmark : null;
 }
 
-export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, edifices, ref, folderRef } = {}) {
+export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, edifices, blocks, fidelity, ref, folderRef } = {}) {
   const manifest = {
     kind: 'fractal-city',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
@@ -72,6 +74,13 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
     // city units; the plot + a sidewalk ring is reserved before roads. Validated here — a ref that is
     // missing or not an edifice refuses the mint by name.
     ...((() => { const ed = normalizeEdificeEntries(edifices); return ed.length ? { edifices: ed } : {}; })()),
+    // operator BLOCKS (fractal-city.js header): parcels laid before the roads, filled by use. Stored in
+    // the canonical rect form (or the `{ map }` convenience, expanded against the region at plan time);
+    // nothing valid ⇒ not stored ⇒ zero bytes. Advisory placement: stats.blocksLaid names each one.
+    ...((() => { const bl = normalizeCityBlocks(blocks); return bl ? { blocks: bl } : {}; })()),
+    // FIDELITY dial: 'massing' | 'skyline' prune the finished plan to its masses + planes ('full', the
+    // default, is not stored). Same seed at any level is the same city, less dressing.
+    ...((() => { const f = normalizeCityFidelity(fidelity); return f !== 'full' ? { fidelity: f } : {}; })()),
     ...(title ? { title } : {}),
   };
 
@@ -104,6 +113,6 @@ export async function createFractalCityHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_fractal_city requires a recipe object');
   }
-  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, ref, folder_ref: folderRef } = input;
-  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, ref, folderRef });
+  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, ref, folder_ref: folderRef } = input;
+  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, ref, folderRef });
 }

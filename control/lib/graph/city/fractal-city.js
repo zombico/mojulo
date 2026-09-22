@@ -13,6 +13,31 @@
  *
  * This is the GENERATION side (the "density seed") — it composes the glyph/world
  * primitives spatially; it does not change the architecture glyph registry.
+ *
+ * Two operator inputs sit on top of the recursion (both absent ⇒ zero bytes, no rng draw):
+ *
+ *  • `blocks` — parcels the operator lays out BEFORE the roads. Each `{ rect, use, … }` (city
+ *    units, frame coordinates) is filled by its use through the existing fill rules, then the
+ *    footprint is claimed on the grid and joins the reserved list + the cross-street avoid list,
+ *    exactly the treatment a landmark plaza or a civic area gets: streets flank it, ribbons /
+ *    sidewalks / power clip around it, the recursion never builds inside it. Blocks are placed
+ *    first (before civic areas), so an explicit parcel beats an auto-sited district. Advisory:
+ *    a block outside the region or over an earlier reservation is still placed and reported in
+ *    `stats.blocksLaid` with `inside` / `overlapsReserved` (the inset convention). The rect form
+ *    is canonical; `{ map: ['RRCC', 'PPCE'] }` is a convenience that expands one block per cell
+ *    at plan time (row 0 is the far / high-y edge, like a map). See normalizeCityBlocks.
+ *
+ *  • `fidelity` — 'full' | 'massing' | 'skyline'. Lower levels are a PRUNE over the finished plan
+ *    (pruneFidelity), never a different generation: the rng stream, and so the road skeleton,
+ *    block layout and every mass, are identical to the full render of the same seed — the city
+ *    simply loses its dressing. Boxes are classed by an explicit kind table (LOD_BOX_CLASS:
+ *    mass / structure / outbuilding / furnishing), grounds likewise (LOD_GROUND_CLASS: plane /
+ *    detail / marking), and the planner's face channel holds only dressing (stickers, doors,
+ *    playground quads, vehicles, people) plus inset-edifice faces, so faces keep iff `inset`.
+ *    Kept masses are flagged `lod: 'mass'`, which assembleBoxCityScene renders as a plain tinted
+ *    extrusion (no facade / roof / rooftop kit); landmarks, religious places and rotundas keep
+ *    their forms. Below full no walker loops, car lanes or people are planned, so the world
+ *    attaches no ambient motion. lodClassCensus() is the test hook that keeps the tables honest.
  */
 
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
@@ -427,9 +452,13 @@ const rectsOverlap = (a, b) => !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a
 // leaves the mass stranded at the intersection). Each span is dodged in turn; a span the line
 // can't flank (no room either side) is left to the ribbon/sidewalk clip, which still keeps the
 // drawn road off it.
+// A span may carry a third entry, `pad`: the zone is treated as that much wider for the "inside"
+// test (a centreline whose RIGHT-OF-WAY would overlap the zone is shifted too), while the target
+// positions still flank the zone's real edges. Operator blocks pass pad = clear (their `flank`
+// flag); everything else passes none, so the landmark / sub-anchor behaviour is unchanged.
 function shiftLineOut(v, lo, hi, spans, clear) {
-  for (const [alo, ahi] of spans) {
-    if (v <= alo || v >= ahi) continue;                         // already clear of this zone
+  for (const [alo, ahi, pad = 0] of spans) {
+    if (v + pad <= alo || v - pad >= ahi) continue;             // already clear of this zone (right-of-way included when padded)
     const left = alo - clear, right = ahi + clear;              // road centre clears the zone by its full half-RoW
     const leftRoom = left - clear - lo, rightRoom = hi - (right + clear);
     if (leftRoom >= rightRoom && leftRoom > 0.5) v = left;
@@ -444,8 +473,8 @@ function subdivide(region, gap, rng, avoids, clear = gap / 2) {
   let vx = region.x + (region.w - gap) * fx + gap / 2;
   let hy = region.y + (region.d - gap) * fy + gap / 2;
   if (avoids && avoids.length) {
-    vx = shiftLineOut(vx, region.x, region.x + region.w, avoids.map((a) => [a.x, a.x + a.w]), clear);
-    hy = shiftLineOut(hy, region.y, region.y + region.d, avoids.map((a) => [a.y, a.y + a.d]), clear);
+    vx = shiftLineOut(vx, region.x, region.x + region.w, avoids.map((a) => [a.x, a.x + a.w, a.flank ? clear : 0]), clear);
+    hy = shiftLineOut(hy, region.y, region.y + region.d, avoids.map((a) => [a.y, a.y + a.d, a.flank ? clear : 0]), clear);
   }
   const wL = Math.max(0, (vx - gap / 2) - region.x), wR = Math.max(0, region.x + region.w - (vx + gap / 2));
   const dB = Math.max(0, (hy - gap / 2) - region.y), dT = Math.max(0, region.y + region.d - (hy + gap / 2));
@@ -900,6 +929,177 @@ function buildCityPark(fp, rng, boxes, grounds, faces, opts, grid, cars) {
 }
 
 const CIVIC_BUILDERS = { 'town-square': buildTownSquare, school: buildSchool, 'strip-mall': buildStripMall, 'city-park': buildCityPark };
+
+// ── operator blocks (zoned parcels laid before the roads) ─────────────────────────
+// The operator's own parcels: `{ rect: { x, y, w, d }, use, fill?, storeys?|height?, density?, label? }`
+// in city units (frame coordinates, the same space as `region` and an inset's `at`). Each is filled
+// by its USE through the fill rules the recursion already owns, then claimed + reserved so the
+// road glyph routes around it (see the file header). Uses:
+//   residential  fill 'houses' (default: fillTownBlock's fenced lots) | 'rows' (attached townhouse
+//                rows) | 'massed' (the city composition under a low storey band)
+//   commercial   the city's massed composition (fillBlock) — optionally under a storey band
+//   industrial   the same composition pinned to a low band → wide sheds + a lot on a dark yard
+//   park         buildCityPark (lawn + fractal greenery + pond / trails / centre per seed) |
+//                fill 'playground' (fillTownPark: a fenced pocket park)
+//   plaza        buildTownSquare on a paved base
+//   civic        fill 'hall' (default: one set-back hall on paving, corner lamps) | 'school' |
+//                'strip-mall' | 'town-square' | 'city-park' (the district builders)
+//   empty        a claimed vacant lot — nothing built, nothing from the recursion either
+const BLOCK_USE_ALIASES = {
+  residential: 'residential', housing: 'residential', homes: 'residential', houses: 'residential', res: 'residential', r: 'residential',
+  commercial: 'commercial', retail: 'commercial', shops: 'commercial', offices: 'commercial', downtown: 'commercial', mixed: 'commercial', c: 'commercial',
+  industrial: 'industrial', industry: 'industrial', warehouses: 'industrial', warehouse: 'industrial', factory: 'industrial', i: 'industrial',
+  park: 'park', green: 'park', greenspace: 'park', 'green-space': 'park', gardens: 'park', p: 'park',
+  plaza: 'plaza', square: 'plaza', 'town-square': 'plaza', z: 'plaza',
+  civic: 'civic', institutional: 'civic', public: 'civic', v: 'civic',
+  empty: 'empty', vacant: 'empty', lot: 'empty', open: 'empty', e: 'empty',
+};
+const BLOCK_FILLS = {
+  residential: ['houses', 'rows', 'massed'],
+  commercial: ['massed'],
+  industrial: ['sheds'],
+  park: ['park', 'playground'],
+  plaza: ['square'],
+  civic: ['hall', 'school', 'strip-mall', 'town-square', 'city-park'],
+  empty: ['empty'],
+};
+// zoning-map letters → uses ('.' or ' ' = unzoned, left to the recursion)
+const BLOCK_MAP_CODES = { R: 'residential', C: 'commercial', I: 'industrial', P: 'park', Z: 'plaza', V: 'civic', E: 'empty' };
+const BLOCK_MAP_GAP = 3.0;          // default street gap between map cells (a minor street's full right-of-way is ~2.6)
+const BLOCK_MAX_STOREYS = 40;
+
+// Coerce the recipe's `blocks` field into its canonical stored form: an ARRAY of clean block
+// objects (rect form), or `{ map: [rows], gap? }` for the zoning-map convenience (expanded against
+// the region at plan time, so a later `update_sketch` of `region` re-lays it). Returns null when
+// nothing valid remains — the mint then stores no `blocks` key at all (zero bytes). Advisory by
+// design: a rect is never clamped to the region (placement reports `inside`), a missing use reads
+// as 'commercial', an unknown fill falls back to the use's default, an unknown use drops the entry.
+export function normalizeCityBlocks(input) {
+  if (input == null) return null;
+  if (!Array.isArray(input) && typeof input === 'object') {
+    const rows = Array.isArray(input.map) ? input.map.filter((r) => typeof r === 'string' && r.length) : [];
+    if (!rows.length) return null;
+    const gap = Number.isFinite(+input.gap) ? Math.max(0.5, Math.min(8, +input.gap)) : null;
+    return { map: rows.map((r) => r.toUpperCase()), ...(gap != null ? { gap } : {}) };
+  }
+  const arr = Array.isArray(input) ? input : [input];
+  const out = [];
+  for (const raw of arr) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw.rect && typeof raw.rect === 'object' ? raw.rect : raw;   // { rect: {…} } or the rect fields inline
+    const x = +r.x, y = +r.y, w = +r.w, d = +r.d;
+    if (![x, y, w, d].every(Number.isFinite) || w <= 0 || d <= 0) continue;
+    const use = raw.use == null ? 'commercial' : (typeof raw.use === 'string' ? BLOCK_USE_ALIASES[raw.use.toLowerCase()] : null);
+    if (!use) continue;
+    const b = { rect: { x, y, w, d }, use };
+    if (typeof raw.fill === 'string' && BLOCK_FILLS[use].includes(raw.fill.toLowerCase())) b.fill = raw.fill.toLowerCase();
+    const st = raw.storeys;
+    if (Number.isFinite(+st) && !Array.isArray(st)) b.storeys = Math.max(1, Math.min(BLOCK_MAX_STOREYS, Math.round(+st)));
+    else if (Array.isArray(st) && st.length === 2 && st.every((v) => Number.isFinite(+v))) {
+      const lo = Math.max(1, Math.min(BLOCK_MAX_STOREYS, Math.round(+st[0]))), hi = Math.max(1, Math.min(BLOCK_MAX_STOREYS, Math.round(+st[1])));
+      b.storeys = [Math.min(lo, hi), Math.max(lo, hi)];
+    } else if (Array.isArray(raw.height) && raw.height.length === 2 && raw.height.every((v) => Number.isFinite(+v) && +v > 0)) {
+      const lo = +raw.height[0], hi = +raw.height[1];
+      b.height = [Math.min(lo, hi), Math.max(lo, hi)];
+    }
+    if (Number.isFinite(+raw.density)) b.density = Math.max(0, Math.min(1, +raw.density));
+    if (typeof raw.label === 'string' && raw.label.trim()) b.label = raw.label.trim().slice(0, 48);
+    out.push(b);
+  }
+  return out.length ? out : null;
+}
+
+// Expand a zoning map into rect-form blocks over `region`: one block per lettered cell, cells on a
+// rows × cols pitch, each inset by half the street gap so neighbours leave a right-of-way between
+// them (and a half gap at the region edge). Row 0 is the FAR (high-y) edge, so the map reads like a
+// map. Unzoned cells ('.', ' ', unknown letters) are left to the recursion.
+export function expandCityBlockMap(map, region, gap = BLOCK_MAP_GAP) {
+  const rows = map.length, cols = Math.max(...map.map((r) => r.length));
+  if (!rows || !cols) return [];
+  const pw = region.w / cols, pd = region.d / rows, g = Math.min(gap, pw * 0.6, pd * 0.6) / 2;
+  const out = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < map[r].length; c++) {
+    const use = BLOCK_MAP_CODES[map[r][c]];
+    if (!use) continue;
+    out.push({ rect: { x: region.x + c * pw + g, y: region.y + (rows - 1 - r) * pd + g, w: pw - 2 * g, d: pd - 2 * g }, use, label: `map:${r},${c}` });
+  }
+  return out;
+}
+
+// the storey / height band a block asked for, in gen units (heights are absolute city units; the
+// output scale-down shrinks them with everything else, so no baseScale correction here)
+function blockHeightBand(b) {
+  if (Array.isArray(b.storeys)) return [b.storeys[0] * STOREY_H, b.storeys[1] * STOREY_H];
+  if (Number.isFinite(b.storeys)) return [b.storeys * STOREY_H, b.storeys * STOREY_H + 0.2];
+  if (Array.isArray(b.height)) return [b.height[0], b.height[1]];
+  return null;
+}
+
+const BLOCK_MASS_KINDS = new Set(['building', 'anchor', 'midtower', 'townhouse', 'house', 'garage']);
+// fillBlock insets its region by the road-spill margin; hand it a region whose inset IS the block.
+const BLOCK_FILL_MARGIN = 0.72;
+const asFillRegion = (r) => ({ x: r.x - BLOCK_FILL_MARGIN, y: r.y - BLOCK_FILL_MARGIN, w: r.w + 2 * BLOCK_FILL_MARGIN, d: r.d + 2 * BLOCK_FILL_MARGIN });
+
+// Lay the operator's blocks. `list` is the normalized rect-form array (a map is expanded by the
+// caller); `fp` is each block in GEN space (baseScale applied). Returns the placement report.
+function placeOperatorBlocks(list, region, grid, rng, boxes, grounds, faces, base, cars, seedReserved, genRect) {
+  const reports = [];
+  for (let i = 0; i < list.length; i++) {
+    const b = list[i];
+    const fp = genRect(b.rect);
+    const inside = fp.x >= region.x - 1e-6 && fp.y >= region.y - 1e-6 && fp.x + fp.w <= region.x + region.w + 1e-6 && fp.y + fp.d <= region.y + region.d + 1e-6;
+    const overlapsReserved = seedReserved.some((r) => rectsOverlap(fp, r));
+    const fill = b.fill || BLOCK_FILLS[b.use][0];
+    const band = blockHeightBand(b);
+    const boxes0 = boxes.length;
+    // the massed fills read the city profile (a town profile would turn fillBlock into houses), so
+    // they run under an explicit 'city' profile; the residential fills keep the recipe's profile.
+    const massedOpts = { ...base, profile: 'city', density: b.density ?? base.density, ...(band ? { heightBand: band } : {}) };
+    const baseTile = (fillHex, kind = 'block-base') => grounds.push({ kind, block: i, use: b.use, x: fp.x, y: fp.y, w: fp.w, d: fp.d, z: 0.015, fill: fillHex });
+    if (b.use === 'residential') {
+      baseTile('#8f9189');
+      if (fill === 'rows') placeTownhouses(fp, [], rng, boxes, grounds, faces, { ...base, density: b.density ?? base.density }, grid, cars);
+      else if (fill === 'massed') fillBlock(asFillRegion(fp), [], rng, boxes, grounds, faces, { ...massedOpts, heightBand: band || [2 * STOREY_H, 5 * STOREY_H] }, grid, cars);
+      else fillTownBlock(fp, rng, boxes, grounds, faces, base, grid);
+    } else if (b.use === 'commercial') {
+      baseTile('#8f9189');
+      fillBlock(asFillRegion(fp), [], rng, boxes, grounds, faces, massedOpts, grid, cars);
+    } else if (b.use === 'industrial') {
+      baseTile('#5a5d60');                                      // a dark yard under the sheds
+      fillBlock(asFillRegion(fp), [], rng, boxes, grounds, faces, { ...massedOpts, heightBand: band || [1.0, 2.2] }, grid, cars);
+    } else if (b.use === 'park') {
+      if (fill === 'playground' && fillTownPark(fp, rng, boxes, grounds, faces, base, grid)) { /* placed */ }
+      else { stampRect(grid, fp, CLAIM.PLAZA); baseTile('#8f9189', 'civic-area'); buildCityPark(fp, rng, boxes, grounds, faces, base, grid, cars); }
+    } else if (b.use === 'plaza') {
+      stampRect(grid, fp, CLAIM.PLAZA); baseTile('#8f9189');
+      buildTownSquare(fp, rng, boxes, grounds, faces, base, grid, cars);
+    } else if (b.use === 'civic') {
+      if (fill === 'hall') {
+        baseTile('#bdbcae');                                    // paving apron
+        const m = Math.min(0.6, fp.w * 0.15, fp.d * 0.15);
+        const bld = { x: fp.x + m, y: fp.y + m, w: fp.w - 2 * m, d: fp.d - 2 * m };
+        if (bld.w >= 0.85 && bld.d >= 0.85) { placeBuilding(boxes, bld, 'large', rng, grid, { heightBand: band || [2.5, 4.5] }); boxes[boxes.length - 1].civic = 'hall'; }
+        for (const [x, y] of [[fp.x + 0.4, fp.y + 0.4], [fp.x + fp.w - 0.4, fp.y + 0.4], [fp.x + 0.4, fp.y + fp.d - 0.4], [fp.x + fp.w - 0.4, fp.y + fp.d - 0.4]]) if (propClear(grid, x, y)) streetLamp(boxes, x, y);
+      } else {
+        stampRect(grid, fp, CLAIM.PLAZA); baseTile('#8f9189', 'civic-area');
+        grounds[grounds.length - 1].civic = fill;
+        CIVIC_BUILDERS[fill](fp, rng, boxes, grounds, faces, base, grid, cars);
+      }
+    } else {   // empty
+      baseTile('#6b675e');
+    }
+    // blanket-claim whatever the fill left open, so the recursion's right-of-way stamps, lots and the
+    // leftover layer never take it — the block is the operator's, built or not.
+    stampRect(grid, fp, CLAIM.PLAZA, [CLAIM.EMPTY, CLAIM.VERGE]);
+    seedReserved.push({ ...fp, hard: true });
+    // tag what the block laid (`block: <index>`) so a consumer — or a test — can tell the operator's
+    // parcel from the recursion's; only block-laid boxes carry the key.
+    let masses = 0;
+    for (let k = boxes0; k < boxes.length; k++) { boxes[k].block = i; if (BLOCK_MASS_KINDS.has(boxes[k].kind)) masses++; }
+    reports.push({ index: i, ...(b.label ? { label: b.label } : {}), use: b.use, fill, rect: b.rect, ...(band ? { heightBand: [Math.round(band[0] * 100) / 100, Math.round(band[1] * 100) / 100] } : {}), inside, overlapsReserved, masses, boxes: boxes.length - boxes0 });
+  }
+  return reports;
+}
 
 // Place each requested civic area into a DISTINCT slice of the region, reserved up front so
 // roads route around it. Candidate centres are a 3×3 lattice ordered FAR-from-centre first
@@ -1401,8 +1601,12 @@ function placeBuilding(boxes, rect, size, rng, grid, opts = {}) {
   // CONDO: a slab-block apartment TOWER (partitioned-balcony loggia). Seeded deliberately on
   // tall, square-ish lots so it reads taller than the lot's size class would otherwise give,
   // and as a plain box so the loggia can wrap/spiral around every face (large ones do).
-  const condo = size !== 'small' && minDim >= 1.3 && rng() < 0.34;
-  const hr = condo ? [6.5, 12] : size === 'large' ? [5, 10] : size === 'medium' ? [3, 5.5] : [1.5, 3];
+  // `opts.heightBand` ([lo, hi] units) is an operator block's storey band: it replaces the size-class
+  // range for every size and skips the condo draw (a condo pins its own tall range). Only operator
+  // blocks set it, so the recursion's draws are untouched.
+  const band = Array.isArray(opts.heightBand) ? opts.heightBand : null;
+  const condo = !band && size !== 'small' && minDim >= 1.3 && rng() < 0.34;
+  const hr = band ? band : condo ? [6.5, 12] : size === 'large' ? [5, 10] : size === 'medium' ? [3, 5.5] : [1.5, 3];
   const h = hr[0] + rng() * (hr[1] - hr[0]);
   const ratio = Math.max(rect.w, rect.d) / minDim;
   const elongated = ratio > 1.6 && minDim > 1.1;                       // a long block → mixed-use complex
@@ -2268,6 +2472,99 @@ function shrinkAnchorAbout(anchor, s, withHeight) {
   sh(fp);
 }
 
+// ── fidelity (level of detail) ─────────────────────────────────────────────────────
+// 'full' | 'massing' | 'skyline'. A PRUNE over the finished plan, keyed on explicit class tables —
+// never a different generation, so the same seed at any level is the same city (file header).
+const CITY_FIDELITY_ALIASES = {
+  full: 'full', high: 'full', detail: 'full', detailed: 'full', street: 'full',
+  massing: 'massing', mass: 'massing', masses: 'massing', medium: 'massing', mid: 'massing', blocks: 'massing',
+  skyline: 'skyline', far: 'skyline', low: 'skyline', silhouette: 'skyline', distant: 'skyline',
+};
+export function normalizeCityFidelity(v) {
+  return (typeof v === 'string' && CITY_FIDELITY_ALIASES[v.toLowerCase()]) || 'full';
+}
+// box kinds → class. mass: a building-scale volume (kept, rendered as a plain extrusion below full);
+// structure: infrastructure a ribbon depends on (kept); outbuilding: a small mass (kept at massing,
+// dropped at skyline); furnishing: everything that dresses a street / park / facade (dropped below
+// full). Prefix rules cover the families (townhouse dressing, playground kit, tram / platform kit).
+const LOD_BOX_CLASS = {
+  building: 'mass', anchor: 'mass', midtower: 'mass', townhouse: 'mass', house: 'mass',
+  garage: 'outbuilding',
+  pillar: 'structure',
+  fence: 'furnishing', 'street-lamp': 'furnishing', 'stop-sign': 'furnishing', 'street-signal': 'furnishing', 'street-sign': 'furnishing',
+  'power-pole': 'furnishing', 'power-line': 'furnishing', 'freeway-lamp': 'furnishing',
+  'city-tree': 'furnishing', 'city-palm': 'furnishing', 'city-shrub': 'furnishing',
+  'park-bin': 'furnishing', 'park-bench': 'furnishing',
+};
+const LOD_BOX_PREFIX = [['townhouse-', 'furnishing'], ['play-', 'furnishing'], ['tram-', 'furnishing'], ['platform', 'furnishing']];
+function lodBoxClass(b) {
+  const k = typeof b.kind === 'string' ? b.kind : '';
+  if (LOD_BOX_CLASS[k]) return LOD_BOX_CLASS[k];
+  for (const [p, c] of LOD_BOX_PREFIX) if (k.startsWith(p)) return c;
+  return 'furnishing';   // an unclassified kind is dressing until the table says otherwise (lodClassCensus keeps this honest)
+}
+// ground kinds → class. plane: a surface that reads at any distance (kept); detail: a small plane
+// (kept at massing, dropped at skyline); marking: paint / joints / pads (dropped below full). The
+// kind-less base plate (grounds[0]) is a plane; any other kind-less tile is a marking.
+const LOD_GROUND_CLASS = {
+  sidewalk: 'plane', junction: 'plane', 'lot-asphalt': 'plane', 'landmark-plaza': 'plane', 'inset-plaza': 'plane', 'civic-area': 'plane', 'block-base': 'plane',
+  'town-square-paving': 'plane', 'school-yard': 'plane', 'strip-mall-apron': 'plane', 'park-lawn': 'plane', 'park-pond': 'plane',
+  'leftover-pocket': 'plane', 'leftover-gore': 'plane',
+  'alley-floor': 'detail', 'front-lawn': 'detail', driveway: 'detail', 'park-shore': 'detail', 'park-trail': 'detail',
+  'sidewalk-joint': 'marking', 'crosswalk-vertical-road-stripe': 'marking', 'crosswalk-horizontal-road-stripe': 'marking',
+  'lot-stripe': 'marking', 'playground-pad': 'marking', 'play-sand': 'marking',
+};
+function lodGroundClass(g, i) {
+  if (i === 0 && g.kind == null) return 'plane';
+  return LOD_GROUND_CLASS[g.kind] || 'marking';
+}
+const LOD_KEEP = {
+  massing: { box: new Set(['mass', 'structure', 'outbuilding']), ground: new Set(['plane', 'detail']) },
+  skyline: { box: new Set(['mass', 'structure']), ground: new Set(['plane']) },
+};
+// mass boxes that carry their own form (landmark / religious / civic rotunda) keep it; the rest
+// become plain extrusions
+const lodKeepsForm = (b) => b.class === 'landmark' || b.class === 'religious' || b.class === 'civic';
+function replaceInPlace(arr, next) { arr.length = 0; for (const x of next) arr.push(x); }
+function pruneFidelity(level, { boxes, grounds, faces }) {
+  const keep = LOD_KEEP[level];
+  if (!keep) return null;
+  const before = { boxes: boxes.length, grounds: grounds.length, faces: faces.length };
+  let out = [];
+  const seenRow = new Map();   // skyline: attached townhouse units → one mass per row
+  for (const b of boxes) {
+    const cls = lodBoxClass(b);
+    if (!keep.box.has(cls)) continue;
+    if (cls === 'mass' && !lodKeepsForm(b)) {
+      if (level === 'skyline' && b.kind === 'townhouse' && b.row) {
+        const m = seenRow.get(b.row);
+        if (m) { const x1 = Math.max(m.x + m.w, b.x + b.w), y1 = Math.max(m.y + m.d, b.y + b.d); m.x = Math.min(m.x, b.x); m.y = Math.min(m.y, b.y); m.w = x1 - m.x; m.d = y1 - m.y; m.z1 = Math.max(m.z1, b.z1); m.merged++; continue; }
+        const merged = { kind: 'townhouse', structure: 'townhouse-row', style: b.style, loading: b.loading, face: b.face, row: b.row, units: b.units, x: b.x, y: b.y, w: b.w, d: b.d, z0: b.z0, z1: b.z1, lod: 'mass', merged: 1 };
+        seenRow.set(b.row, merged); out.push(merged); continue;
+      }
+      out.push({ ...b, lod: 'mass' });
+      continue;
+    }
+    out.push(b);
+  }
+  replaceInPlace(boxes, out);
+  out = grounds.filter((g, i) => keep.ground.has(lodGroundClass(g, i)));
+  replaceInPlace(grounds, out);
+  out = faces.filter((f) => !!f.inset);
+  replaceInPlace(faces, out);
+  return { level, dropped: { boxes: before.boxes - boxes.length, grounds: before.grounds - grounds.length, faces: before.faces - faces.length } };
+}
+// test hook: every box / ground kind a plan emitted, with the class the tables assign it — so a new
+// kind is classified on purpose, not by the fallback.
+export function lodClassCensus(plan) {
+  const boxes = {}, grounds = {}, unclassified = new Set();
+  const explicitBox = (k) => !!LOD_BOX_CLASS[k] || LOD_BOX_PREFIX.some(([p]) => k.startsWith(p));
+  plan.boxes.forEach((b) => { const k = typeof b.kind === 'string' ? b.kind : '(none)'; boxes[k] = lodBoxClass(b); if (!explicitBox(k)) unclassified.add(`box:${k}`); });
+  // a kind-less tile is covered by the explicit rule in lodGroundClass (base plate / marking), so only a NAMED kind can be unclassified
+  plan.grounds.forEach((g, i) => { const k = g.kind ?? '(none)'; grounds[k] = lodGroundClass(g, i); if (i > 0 && g.kind != null && !LOD_GROUND_CLASS[g.kind]) unclassified.add(`ground:${k}`); });
+  return { boxes, grounds, unclassified: [...unclassified].sort() };
+}
+
 /**
  * Plan a fractal city.
  * @param {object} o
@@ -2284,6 +2581,10 @@ function shrinkAnchorAbout(anchor, s, withHeight) {
  *   monument(s) become the city's root anchor — sized to their real ground footprint and
  *   RESERVED on the grid before roads, so the streets route around them. e.g.
  *   ['rogers-centre', 'cn-tower'] places the Toronto pair side by side.
+ * @param {Array|{map:string[]}} o.blocks  operator parcels laid before the roads (normalizeCityBlocks;
+ *   file header). Reported in stats.blocksLaid.
+ * @param {'full'|'massing'|'skyline'} o.fidelity  level of detail — a prune over the finished plan,
+ *   same seed ⇒ same city (file header). Reported in stats.fidelity / stats.pruned.
  * @returns {{ boxes, grounds, stats }}
  */
 // ── ambient-walker loop planner (city/walkers.plan.md P1) ──────────────────────────────
@@ -2496,8 +2797,10 @@ function reseatInsetFaces(faces, plot, R, yaw) {
   });
 }
 
-export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null } = {}) {
+export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full' } = {}) {
   const rng = mulberry32(seed >>> 0 || 1);
+  const lod = normalizeCityFidelity(fidelity);
+  const frameRegion = region;                                  // the recipe's frame (map expansion + block reports read it)
   // baseScale (<1) SHRINKS every object while the frame stays fixed → proportionally MORE, smaller
   // blocks in the same scene. Implemented as a similarity transform: generate in an ENLARGED region
   // (region / baseScale), then scale the whole output back DOWN by baseScale about the region origin
@@ -2585,6 +2888,16 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     const z1 = Math.max(0, ...f.flatMap((face) => face.corners.map((c) => c[2])));
     placedInsets.push({ ref: inset.ref || null, title: inset.title || null, placement: 'plaza', yaw: 0, replaced: 0, plot: inset.plot || inset.footprint, envelope: { ...(inset.plot || inset.footprint), z0: 0, z1: z1 * bs }, faces: f.length, floors: inset.floors ?? null, inside, overlapsReserved });
   }
+  // OPERATOR BLOCKS, RESERVED BEFORE ROADS (file header): the operator's own parcels, filled by use
+  // and claimed before the districts and the recursion, so an explicit block beats an auto-sited
+  // district. Placed after the root anchor / corridor / plaza insets so a block over one of them is
+  // reported as `overlapsReserved` (still placed). Zero rng draws when absent.
+  const blockSpec = normalizeCityBlocks(blocks);
+  const blockList = !blockSpec ? [] : Array.isArray(blockSpec) ? blockSpec : expandCityBlockMap(blockSpec.map, frameRegion, blockSpec.gap ?? BLOCK_MAP_GAP);
+  const blocksLaid = blockList.length
+    ? placeOperatorBlocks(blockList, region, grid, rng, boxes, grounds, faces, { density, elements: recipeElements, locale, climate, profile }, cars, seedReserved, genRect)
+    : [];
+  const blockZones = blocksLaid.map((r) => ({ ...genRect(r.rect), flank: true }));   // cross-streets flank the operator's blocks, right-of-way included (opts.avoid / shiftLineOut)
   // CIVIC AREAS, RESERVED BEFORE ROADS too. Each requested district (town-square / school /
   // strip-mall) claims a distinct slice — far from the centre so it composes WITH a centred
   // landmark — and joins seedReserved, so roads / sidewalks / power / trees route around it
@@ -2600,7 +2913,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // leaf, after the road inset, above the 1.3-unit floor). The stats had rows for what stands ON a
   // block (buildings, townhouses, lots) but none for the block itself (grok-headless-affordances P5).
   const cityBlocks = [];
-  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: landmarkZone ? [landmarkZone] : [], baseScale: bs, profile, traffic, blocks: cityBlocks }, grid, cars);
+  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks }, grid, cars);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
   // LOT INSETS (city-insets.js, the default): with the roads and blocks laid, each minted
   // building takes over a generated PARCEL — the candidate that evicts the fewest neighbours,
@@ -2653,13 +2966,16 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // PEDESTRIAN GROUPS: scatter solo/duo/family clusters onto the now-final walkable grid
   // (verge + plaza). Additive + seed-deterministic; runs after vehicles, before the scene
   // scale-down so people shrink with everything else (like cars).
-  if (people) placePedestrianGroups(region, grid, people, faces, seed);
+  // People, walker loops and car lanes are dressing: below full fidelity none are planned (each runs
+  // on its own local rng, so skipping them leaves the city stream untouched).
+  const full = lod === 'full';
+  if (people && full) placePedestrianGroups(region, grid, people, faces, seed);
   // AMBIENT-WALKER LOOPS (city/walkers.plan.md): grid-validated closed rings for the `walkers`
   // channel, planned off the now-final walkable grid. Opt-in only (null ⇒ untouched); paths ride
   // the output scale-down below, exactly like the faces + static people.
-  const walkerLoops = walkers ? planCityWalkerLoops(grid, region, seed, walkers, boxes) : null;
+  const walkerLoops = walkers && full ? planCityWalkerLoops(grid, region, seed, walkers, boxes) : null;
   // AMBIENT TRAFFIC (driver-ants): main-avenue lanes for moving cars, read off the final road grid.
-  const carLanes = traffic ? planCityCarLanes(grid, region, traffic) : null;
+  const carLanes = traffic && full ? planCityCarLanes(grid, region, traffic) : null;
   // LEFTOVER LAYER: the still-EMPTY cells, flood-filled into tagged components. Emitted as
   // ground tiles (pocket → planted green, gore → neutral plaza) so the void a clipped /
   // (phase-2) curved network leaves reads as deliberate open space, not a hole.
@@ -2681,6 +2997,9 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // (after the church) so its rng draws never perturb any byte-identical seed; the `&&`
   // short-circuits before any draw when off.
   const civicDomes = (recipeElements.civicDomes && seedCivicDomes(boxes, rng)) || 0;
+  // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
+  // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
+  const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });
   // OUTPUT SCALE-DOWN: shrink the whole (enlarged-region) scene back into the original frame. Runs
   // after every box/ground/ribbon/face exists and before lampSources(boxes), so the derived light
   // sources read the scaled lamp-head positions.
@@ -2711,6 +3030,8 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     leftoverArea: Math.round(leftover.reduce((a, c) => a + c.area, 0) * bs * bs * 100) / 100,   // gen-space area → frame-space (×baseScale²)
     parkDoodads: boxes.filter((b) => b.kind === 'park-bin' || b.kind === 'park-bench' || (b.kind && b.kind.startsWith('play-'))).length,
     ...(placedInsets.length ? { insets: placedInsets } : {}),   // minted edifices placed in the fabric (city-insets.js)
+    ...(blocksLaid.length ? { blocksLaid } : {}),               // the operator's own parcels, as placed (advisory flags per block)
+    ...(pruned ? { fidelity: pruned.level, pruned: pruned.dropped } : {}),   // what the level-of-detail prune took off the full plan
   };
   return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}) };
 }
@@ -2932,5 +3253,9 @@ export function cityThemeAdapter(slots = {}) {
   // compose_world after create_fractal_city retired. Mint owns their validation.
   if (slots.region !== undefined) out.region = slots.region;
   if (slots.viewBox !== undefined) out.viewBox = slots.viewBox;
+  // Operator blocks + the fidelity dial ride the top level too: parcels are geometry in the
+  // recipe's own frame, and the level of detail is a render budget, not a theme role.
+  if (slots.blocks !== undefined) out.blocks = slots.blocks;
+  if (slots.fidelity !== undefined) out.fidelity = slots.fidelity;
   return out;
 }
