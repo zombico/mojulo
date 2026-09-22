@@ -12,6 +12,44 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Fractal city: blocks and fidelity
+
+- **`blocks`: operator-laid parcels, reserved before the roads.** A `fractal-city` recipe (and
+  `compose_world` base `city`, top level of `overrides`) takes `blocks: [{ rect: { x, y, w, d }, use,
+  storeys?, height?, density?, fill?, label? }]` in city units. Each block is stamped on the claim grid and
+  joins the reserved list before the quadrant recursion runs, exactly like a monument plaza or a civic
+  area: cross-streets flank it, roads / sidewalks / power lines clip around it, and nothing from the
+  recursion builds inside it. The block is filled by its `use` through the existing fill rules —
+  `residential` (detached lots, or `fill: 'rows'` for townhouse rows, `fill: 'massed'` for low apartment
+  masses), `commercial` (the city's massed composition), `industrial` (low wide sheds and a lot), `park`
+  (the city-park builder: lawn, fractal greenery, pond / trails / centre per seed), `plaza` (the paved
+  square), `civic` (a set-back hall on paving, or `fill: 'school' | 'strip-mall' | 'town-square' |
+  'city-park'` for a district builder), `empty` (a claimed vacant lot). `storeys: n | [lo, hi]` (or
+  `height: [lo, hi]` in units) is the height band for the massed uses; `density` is the parcel keep
+  probability. A coarser zoning map, `blocks: { map: ['RRCC', 'PPCE'], gap? }`, expands one block per
+  cell over the region (R residential, C commercial, I industrial, P park, Z plaza, V civic, E empty,
+  `.` unzoned); the rect form stays canonical. Advisory, never a refusal: a block outside the region or
+  over a reserved plaza is still placed and named in `stats.blocksLaid` (`inside`, `overlapsReserved`,
+  what stands on it) so the agent can iterate with `update_sketch`. Absent ⇒ zero bytes, no RNG draw.
+- **`fidelity`: the same city, less dressing.** `fidelity: 'full' | 'massing' | 'skyline'` (default
+  `full`, omitted from the stored recipe). Lower levels are a post-generation prune over the planned
+  boxes, grounds and faces keyed on an explicit per-kind class table, so the RNG stream — and with it
+  the road skeleton, block layout and every mass — is identical to the full render of the same seed.
+  `massing` drops street furniture (lamps, signs, signals, stop signs, power lines, bins, benches,
+  playgrounds, fences, trees / palms / shrubs, tram poles and stops), road markings (crosswalks,
+  sidewalk joints, lot stripes, playground pads), alley stickers, townhouse dressing, static cars,
+  cyclists, pedestrians, and renders buildings, towers, townhouses and houses as plain tinted
+  extrusions (no facade, roof or rooftop kit); landmarks, religious places and rotundas keep their
+  forms. `skyline` further drops the small ground planes (alley floors, driveways, lawns, trails,
+  shores) and garages, and merges each attached townhouse row into one mass. Roads and ribbons,
+  sidewalks, junctions, lots, plazas, civic footprints, inset envelopes and the ground plane survive at
+  every level. Below `full` the plan produces no walker loops, car lanes or people, so the `/world`
+  path attaches no walkers or traffic; the night bake has no lamp sources (the sky and moonlight
+  still render). Meant for a scape looked at from further away or a cheaper world under a large
+  `region` / small `baseScale`.
+- Where these are documented for agents: the `city` view-vocab card (`get_view_vocab({ id: 'city' })`)
+  and the header of `lib/graph/city/fractal-city.js`. `tools/list` descriptions are unchanged.
+
 ## [2.0.7] - 2026-09-21
 
 The hosted-host release. A Claude cloud sandbox drove 2.0.6 end to end on 2026-09-21 (a 47-part phone
