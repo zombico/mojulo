@@ -2,7 +2,7 @@
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/lounge-handoff-demo.gif)
 
-Mojulo is a 3D compiler for coding agents: a local MCP server where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator.
+Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints byte for byte at home.
 
 ```bash
 npx mojulo init
@@ -57,11 +57,13 @@ npx mojulo init
 #      generate a 3D city at night        → a world; open the /scene URL
 #      turn that into a game              → a game; export it for Godot
 
-# 3. In your agent's own box (Claude Code on the web), there is nobody at a
-#    keyboard — init takes its defaults and skips the dashboard:
+# 3. In your agent's own box (Claude Code on the web, a Codex cloud task),
+#    nobody is at a keyboard — init takes its defaults and skips the dashboard:
 #      npx -y mojulo init --yes --no-ui
 #    A sandbox with no MCP client (Grok chat) skips init and drives the same
 #    registry from the shell:  npx mojulo call <tool> --json '{…}'
+#    Ask for format 'bundle' on the way out: one zip, recipe included, that
+#    re-mints byte for byte on your own machine.
 
 # 4. Optional add-ons, same choice on your machine or in a box:
 #      npx -y -p mojulo mojulo install recall     # the embedding model behind
@@ -110,20 +112,24 @@ bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
 
 ## Where it runs
 
-**On your machine.** `npx mojulo init` wires the agents it finds, opens the dashboard at
-`localhost:3001`, keeps everything under `~/.mojulo/`, and probes your PATH for the optional local
-workers (Blender, a slicer, OpenSCAD, the game engines).
+Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints byte for byte in the
+other. Two shapes, one install.
 
-**In your agent's own box.** Claude Code on the web and Grok chat's sandbox give the agent a temporary
-Linux machine. Ask it to install mojulo and it does: under Claude Code `init` takes its defaults with no
-keyboard; a sandbox with no MCP client drives the registry from the shell (`npx mojulo call`). Nothing in
-the install needs a host outside the npm registry. Both have driven a full mint and export this way; a
-Claude session built a 47-part phone at true scale and handed back the glTF as a download. The same
-recipes and the same exports, arriving as files the agent gives you. Inside a box the agent is your only
-surface (the dashboard is loopback-only), a scene-to-PNG bake needs a browser the box may not be allowed
-to fetch (ask for the page, `world.html`, and the bundle — one zip with page, mesh, recipe and README;
-the export result names this host's door), and the box is gone when the session ends (keep the recipe,
-it is in the bundle). Blender installs in those boxes too.
+**In your agent's box, nothing on your machine.** Claude Code on the web, a Codex cloud task, or Grok
+chat's sandbox: any agent that gives itself a throwaway Linux box with npm access. Ask it to install
+mojulo (`npx -y mojulo init --yes --no-ui`; a shell-only sandbox with no MCP client drives the same
+registry with `npx mojulo call <tool>`). You get the same recipes and the same exports, handed back as
+files: the export result names this host's door, an artifact, a PR or a file card. The box has no
+dashboard you can reach, a scene-to-PNG bake needs a browser it may not be allowed to fetch, and it is
+gone when the session ends, so ask for the bundle (one zip: `world.html`, mesh, print STL for
+literal-scale objects, `recipe.json`, README) and keep the recipe. Claude Code on the web built a
+47-part phone at true scale this way and handed back the glTF; Grok chat's sandbox minted a city from
+the shell. Blender installs in those boxes too. ChatGPT's box has no npm access, so not yet.
+
+**On your machine: macOS, Windows, Linux.** `npx mojulo init` wires mojulo into the agents it finds,
+opens the dashboard at `localhost:3001`, keeps everything under `~/.mojulo/`, and probes your PATH for
+the optional local workers (Blender, a slicer, OpenSCAD, the game engines). This is the whole loop, and
+where a recipe from a box comes home to.
 
 Three add-ons, the same choice in both places:
 
