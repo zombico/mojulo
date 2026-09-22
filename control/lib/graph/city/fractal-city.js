@@ -46,7 +46,13 @@
  *    face's local frame (faceFrame), and on no face when the mass fronts nothing. Large masses get a
  *    parking entrance on `front` (four hashed variations, a curb-cut tile, a furnishing sweep of the
  *    cut) and, when on more than one road, a pedestrian `lobby` on a second road face. No rng draw.
- *    Planner default false (stored rows byte-identical); mintFractalCity turns it on for new mints.
+ *    The city then USES them: a road that dead-ends into a large mass gets a drop-off apron
+ *    (buildDeadEndApron: tile, island, bars, the stub's crosswalk / signal kit swept), a cylinder
+ *    takes its portal on a tangent podium, `traffic` seats at most one static car per portal and
+ *    `people` one or two idle pedestrians before each lobby door (both on streams seeded from the box
+ *    key), `walkers` loops keep off the curb-cuts and pass the lobbies first, and a town lot turns to
+ *    face its road (a mirror, no rng). Planner default false (stored rows byte-identical);
+ *    mintFractalCity turns it on for new mints.
  */
 
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
@@ -1652,15 +1658,23 @@ function fillTownBlock(block, rng, boxes, grounds, faces, opts, grid) {
     if (!isBuildable(grid, parcel)) return;
     if (opts.operator && rng() >= opts.operator.density) return;     // the operator's keep roll (the lot stays open ground)
     stampRect(grid, parcel, CLAIM.BUILDING, [CLAIM.EMPTY, CLAIM.VERGE]);   // claim the whole lot so the leftover/tree pass skips the yard
+    // frontage on: remember what this lot emits so the frontage pass can turn the whole lot to face
+    // its road (a mirror across the lot, no rng); nothing is recorded with the flag off
+    const lotB0 = boxes.length, lotG0 = grounds.length;
+    if (opts.lots) opts.lots.push({ parcel, front, b0: lotB0, g0: lotG0, b1: -1, g1: -1 });
+    const lotRec = opts.lots ? opts.lots[opts.lots.length - 1] : null;
+    const closeLot = () => { if (lotRec) { lotRec.boxes = boxes.slice(lotB0); lotRec.grounds = grounds.slice(lotG0); } };   // object refs: later passes may splice the arrays
     if (!opts.operator && rng() < 0.12) {                            // occasional vacant GREEN lot — lawn + shrubs (+ a tree)
       const yard = { x: parcel.x + 0.05, y: parcel.y + 0.05, w: parcel.w - 0.1, d: parcel.d - 0.1 };
       grounds.push({ kind: 'front-lawn', x: yard.x, y: yard.y, w: yard.w, d: yard.d, z: 0.012, fill: '#6f8a4e' });
       for (let i = 0, ns = 2 + Math.floor(rng() * 3); i < ns; i++) cityShrub(boxes, yard.x + 0.2 + rng() * (yard.w - 0.4), yard.y + 0.2 + rng() * (yard.d - 0.4), rng);
       if (rng() < 0.5) cityTree(boxes, yard.x + yard.w * 0.5, yard.y + yard.d * 0.5, rng, opts.climate);
       placeLotFence(boxes, yard, front, null, rng);
+      closeLot();
       return;
     }
     placeTownParcel(boxes, grounds, parcel, pick(), rng, { front, driveway: rng() < (spacious ? 0.62 : 0.45), spacious, climate: opts.climate });
+    closeLot();
   };
   if (block.w >= block.d) {
     const twoRow = block.d >= 2.4, rowD = twoRow ? block.d / 2 : block.d;
@@ -2585,7 +2599,9 @@ const FRONTAGE_FACES = ['+y', '-y', '+x', '-x'];
 const ROAD_CLAIMS = new Set([CLAIM.ROAD, CLAIM.CORRIDOR]);
 const PARKING_ENTRANCE_MIN = { area: 6, height: 3 };        // a "large" mass: footprint ≥ 6 units² and ≥ 3 units tall (a generic tower always qualifies)
 const PARKING_VARIANTS = ['garage', 'ramp', 'porte', 'arch'];
-const PARKING_SHAPES = new Set([undefined, null, 'box', 'podium', 'setback', 'complex']);   // a portal on a cylinder's bounding face would float
+const PARKING_SHAPES = new Set([undefined, null, 'box', 'podium', 'setback', 'complex', 'cylinder']);   // a cylinder takes its portal on a tangent podium (buildParkingEntrance)
+const HOUSE_FACE = { 'y-': '-y', 'y+': '+y', 'x-': '-x', 'x+': '+x' };                    // a house's street-edge vocabulary ↔ the mass face vocabulary
+const OPPOSITE_HOUSE_FACE = { 'y-': 'y+', 'y+': 'y-', 'x-': 'x+', 'x+': 'x-' };
 const strHash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };   // = scene-css3d's cityHash
 
 // sample one face: which columns along it see a road within FRONTAGE_REACH
@@ -2614,6 +2630,13 @@ function buildParkingEntrance(b, fr, variant, boxes, grounds, faces) {
   const ew = variant === 'arch' ? Math.min(3.2, L * 0.6) : Math.min(2.4, L * 0.5);
   const cx = Math.max(ew / 2 + 0.2, Math.min(L - ew / 2 - 0.2, fr.mouth ?? fr.centre));   // the mouth chosen by frontagePass (away from the crossing; the road's own axis where it dead-ends into the face)
   const box = (lx, ly, lw, ld, z0, z1, tint) => boxes.push({ kind: 'parking-entrance', entrance: variant, ...F.rect(lx, ly, lw, ld), z0, z1, tint });
+  // a CYLINDER has no wall on its bounding face: give it a tangent PODIUM — a short flat tile from the
+  // road face's centre back to the drum's axis — and put the portal on the podium's outer face, which
+  // IS the box face plane, so the mouth sits on a wall that exists. Class mass (kept at massing).
+  if (b.shape === 'cylinder') {
+    const pLo = Math.max(0, cx - ew / 2 - 0.5), pHi = Math.min(L, cx + ew / 2 + 0.5);   // clipped to the face span
+    boxes.push({ kind: 'portal-podium', podium: variant, ...F.rect(pLo, -F.D / 2, pHi - pLo, F.D / 2), z0: b.z0, z1: b.z0 + 2.3, tint: '#8a8f96' });
+  }
   const quad = (lx0, lx1, ly, z0, z1, fill) => faces.push({ kind: 'parking-portal', entrance: variant, doubleSided: true, fill, corners: [[...F.pt(lx0, ly), z0], [...F.pt(lx1, ly), z0], [...F.pt(lx1, ly), z1], [...F.pt(lx0, ly), z1]] });
   const ground = (kind, lx, ly, lw, ld, z, fill) => grounds.push({ kind, entrance: variant, ...F.rect(lx, ly, lw, ld), z, fill });
   const lo = cx - ew / 2, hi = cx + ew / 2;
@@ -2644,12 +2667,63 @@ function buildParkingEntrance(b, fr, variant, boxes, grounds, faces) {
     box(lo, 0, ew, 0.14, 2.0, 2.18, '#f2d18a');
   }
   ground('curb-cut', lo - 0.2, 0, ew + 0.4, R + 0.2, 0.021, '#6a6d70');
-  return F.rect(lo - 0.2, 0, ew + 0.4, R + 0.2);
+  // `cut` is the tile (people and walkers keep off it); `sweep` is the tile widened by half the mouth
+  // on each side — no lamp / sign / signal / tree stands right beside a portal mouth either
+  return { cut: F.rect(lo - 0.2, 0, ew + 0.4, R + 0.2), sweep: F.rect(lo - 0.2 - ew / 2, 0, ew + 0.4 + ew, R + 0.2), ew, cx };
 }
 
-function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs) {
+// A road that DEAD-ENDS into a face (the centred tower, a mass a clipped street runs into): the stub
+// reads as intended, not as a cut — a paved drop-off tile the road's width from the face out to the
+// road end, a curb island with bollards or a planter (hash-chosen), two end bars, and the crosswalk /
+// signal kit of that last stretch removed (nothing faces the wall). Only PERPENDICULAR strips whose
+// axis lands within the face count; a road running along the face is a frontage, not a stub.
+function buildDeadEndApron(b, f, strip, hasPortal, ew, boxes, grounds, grid) {
+  const F = f.F, R = FRONTAGE_REACH, sw = strip.streetW;
+  const vertical = Math.abs(strip.w - strip.streetW) < 1e-9;                    // a vertical strip dead-ends into a ±y face
+  const axis = vertical ? strip.x + strip.w / 2 : strip.y + strip.d / 2;
+  const lxs = f.face === '+y' ? axis - b.x : f.face === '-y' ? b.x + b.w - axis : f.face === '+x' ? axis - b.y : b.y + b.d - axis;
+  if (lxs < sw / 2 - 0.3 || lxs > F.L - sw / 2 + 0.3) return null;             // the strip passes beside the face, not into it
+  let reaches = false;                                                          // …and its carriageway actually arrives at this face (a recorded strip may have been clipped short elsewhere)
+  for (let ly = CELL / 2; ly <= R && !reaches; ly += CELL) { const [wx, wy] = F.pt(lxs, ly); reaches = ROAD_CLAIMS.has(cellAt(grid, wx, wy)); }
+  if (!reaches) return null;
+  const box = (kind, lx, ly, lw, ld, z0, z1, tint) => boxes.push({ kind, stub: true, ...F.rect(lx, ly, lw, ld), z0, z1, tint });
+  grounds.push({ kind: 'drop-off', stub: true, ...F.rect(lxs - sw / 2, 0, sw, R), z: 0.03, fill: '#3a414b' });
+  for (const ly of [R - 0.34, R - 0.2]) grounds.push({ kind: 'drop-off-bar', stub: true, ...F.rect(lxs - sw / 2 + 0.1, ly, sw - 0.2, 0.06), z: 0.035, fill: '#d6d0bd' });
+  const roomForIsland = !hasPortal || sw - ew >= 1.2;
+  if (roomForIsland) {
+    box('drop-off-island', lxs - 0.45, R * 0.35, 0.9, 0.32, 0, 0.14, '#b0aa9c');
+    if (strHash(`${lxs.toFixed(2)}|${f.face}`) & 1) box('drop-off-planter', lxs - 0.3, R * 0.38, 0.6, 0.26, 0.14, 0.5, '#5f7a45');
+    else for (const dx of [-0.3, 0, 0.3]) box('drop-off-bollard', lxs + dx - 0.05, R * 0.5 - 0.05, 0.1, 0.1, 0, 0.5, '#2c2f33');
+  } else {
+    for (const dx of [-(sw / 2 - 0.15), sw / 2 - 0.15]) box('drop-off-bollard', lxs + dx - 0.05, R - 0.25, 0.1, 0.1, 0, 0.5, '#2c2f33');
+  }
+  return { stretch: F.rect(lxs - sw / 2, 0, sw, R + 3.5) };                   // the last stretch of the stub: no crosswalk, no signal head
+}
+
+function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs, ctx = {}) {
   const stats = { masses: 0, withRoad: 0, withoutRoad: 0, parking: 0 };
-  const cuts = [];
+  const cuts = [], sweeps = [], stretches = [];
+  // HOUSES first (their fence / lawn boxes are furnishing the sweep below may take): a town lot whose
+  // row front is not a road while the OPPOSITE edge is turns to face it — the whole lot mirrored
+  // across its centreline (house, garage, driveway, lawn, fences, planting), no rng. A lot whose only
+  // road is on a perpendicular edge keeps its row front (a turned house would not fit the lot).
+  if (Array.isArray(ctx.lots) && ctx.lots.length) {
+    stats.houses = 0; stats.housesTurned = 0;
+    for (const lot of ctx.lots) {
+      if (!lot.boxes) continue;
+      const house = lot.boxes.find((x) => x.kind === 'house');
+      if (!house) continue;
+      stats.houses++;
+      const rf = FRONTAGE_FACES.map((f) => faceFrontage(lot.parcel, f, grid, roads)).filter(Boolean).map((f) => f.face);
+      house.roadFaces = rf;
+      const cur = house.front || lot.front, opp = OPPOSITE_HOUSE_FACE[cur];
+      if (!rf.length || rf.includes(HOUSE_FACE[cur]) || !rf.includes(HOUSE_FACE[opp])) continue;
+      const alongY = cur[0] === 'y', c = alongY ? lot.parcel.y + lot.parcel.d / 2 : lot.parcel.x + lot.parcel.w / 2;
+      for (const x of lot.boxes) { if (alongY) x.y = 2 * c - x.y - x.d; else x.x = 2 * c - x.x - x.w; if (x.front) x.front = OPPOSITE_HOUSE_FACE[x.front] || x.front; }
+      for (const g of lot.grounds) { if (alongY) g.y = 2 * c - g.y - g.d; else g.x = 2 * c - g.x - g.w; }
+      stats.housesTurned++;
+    }
+  }
   const masses = boxes.filter((b) => FRONTAGE_KINDS.has(b.kind) && b.class !== 'landmark' && b.class !== 'religious' && b.class !== 'civic');
   for (const b of masses) {
     stats.masses++;
@@ -2674,20 +2748,71 @@ function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs
     fr.sort((p, q) => score(q) - score(p));
     b.front = fr[0].face;
     const large = b.kind === 'anchor' || (b.w * b.d >= PARKING_ENTRANCE_MIN.area && (b.z1 - b.z0) >= PARKING_ENTRANCE_MIN.height);
-    if (!large || !PARKING_SHAPES.has(b.shape)) { b.lobby = b.front; continue; }
     const [fx, fy] = toFrame(b.x, b.y);
-    const variant = PARKING_VARIANTS[strHash(`${fx.toFixed(1)},${fy.toFixed(1)},${((b.z1 - b.z0) * bs).toFixed(1)}`) % PARKING_VARIANTS.length];
-    b.entrance = { kind: variant, face: b.front };
-    b.lobby = fr.length > 1 ? fr[1].face : null;
-    cuts.push(buildParkingEntrance(b, fr[0], variant, boxes, grounds, faces));
-    stats.parking++;
+    const key = `${fx.toFixed(1)},${fy.toFixed(1)},${((b.z1 - b.z0) * bs).toFixed(1)}`;   // the facade's own key
+    let portal = null;
+    if (large && PARKING_SHAPES.has(b.shape)) {
+      const variant = PARKING_VARIANTS[strHash(key) % PARKING_VARIANTS.length];
+      b.entrance = { kind: variant, face: b.front };
+      b.lobby = fr.length > 1 ? fr[1].face : null;
+      portal = buildParkingEntrance(b, fr[0], variant, boxes, grounds, faces);
+      cuts.push(portal.cut); sweeps.push(portal.sweep);
+      stats.parking++;
+    } else b.lobby = b.front;
+    // DEAD-END STUBS on every road face of a large mass (buildDeadEndApron)
+    if (large) for (const f of fr) {
+      const band = f.F.rect(0, 0, f.F.L, FRONTAGE_REACH), horizFace = f.face === '+y' || f.face === '-y';
+      for (const r of roads) {
+        if (!rectsOverlap(band, r) || r.corridor) continue;
+        const vertical = Math.abs(r.w - r.streetW) < 1e-9;
+        if (vertical !== horizFace) continue;                                     // only a strip PERPENDICULAR to the face dead-ends into it
+        const apron = buildDeadEndApron(b, f, r, !!(portal && f.face === b.front), portal ? portal.ew : 0, boxes, grounds, grid);
+        if (apron) { stretches.push(apron.stretch); stats.stubs = (stats.stubs || 0) + 1; }
+      }
+    }
+    // TRAFFIC AT THE PORTAL (opt-in `traffic` + cars on): at most one static car-ant per portal, keep
+    // 0.72 like the street ants, on a stream seeded from the box key — arriving (nose to the mouth) or
+    // departing (just inside the mouth, facing out). The world's moving cars keep their straight lanes.
+    if (portal && ctx.traffic && ctx.carsOn) {
+      const local = mulberry32((strHash(key) ^ 0x7a1150) >>> 0);
+      if (local() < 0.72) {
+        const F = fr[0].F, arriving = (strHash(key) & 2) === 0;
+        const [wx, wy] = F.pt(portal.cx, arriving ? FRONTAGE_REACH * 0.55 : 0.8);
+        const n = F.normal, axis = n[1] !== 0 ? 'y' : 'x', outward = n[1] !== 0 ? n[1] : n[0];
+        faces.push(...vehicleAntFaces({ rng: local, context: 'lot', cx: wx, cy: wy, axis, dir: arriving ? -outward : outward, scale: 0.9 }).map((face) => ({ ...face, portalCar: arriving ? 'arriving' : 'departing' })));
+        stats.portalCars = (stats.portalCars || 0) + 1;
+      }
+    }
+    // PEOPLE AT THE LOBBY (opt-in `people`): one or two idle pedestrians on the walk in front of the
+    // lobby door (the facade's door sits at the face centre), facing it, never on a curb-cut
+    const lobbyFace = b.entrance ? b.lobby : b.front;
+    if (lobbyFace && ctx.people && large) {
+      const F = faceFrame(b, lobbyFace), local = mulberry32((strHash(key) ^ 0x1d1e5) >>> 0);
+      const pick = (arr) => arr[Math.floor(local() * arr.length) % arr.length];
+      const n = 1 + (strHash(key) & 1);
+      for (let i = 0; i < n; i++) {
+        const lx = F.L / 2 + (i === 0 ? -0.3 : 0.35), ly = 0.4;
+        const [wx, wy] = F.pt(lx, ly);
+        const v = cellAt(grid, wx, wy);
+        if (v === -1 || v === CLAIM.ROAD || v === CLAIM.BUILDING || v === CLAIM.LOT || v === CLAIM.CORRIDOR) continue;
+        if (cuts.some((c) => wx >= c.x && wx <= c.x + c.w && wy >= c.y && wy <= c.y + c.d)) continue;
+        faces.push(...pedestrianFaces({ cx: wx, cy: wy, heading: Math.atan2(-F.normal[1], -F.normal[0]) + (local() - 0.5) * 0.4, scale: 0.94 + local() * 0.12, archetype: local() < 0.5 ? 'adultM' : 'adultF', pose: pick(IDLE_POSES), palette: pick(PALETTES) }).map((face) => ({ ...face, lobbyIdle: true })));
+        stats.lobbyIdles = (stats.lobbyIdles || 0) + 1;
+      }
+    }
   }
-  // the curb-cut sweep: no lamp / sign / tree / bin / bench / pole stands in a portal's span
-  if (cuts.length) {
-    const keep = boxes.filter((b) => b.kind === 'parking-entrance' || lodBoxClass(b) !== 'furnishing' || !cuts.some((c) => rectsOverlap(b, c)));
-    stats.swept = boxes.length - keep.length;
-    replaceInPlace(boxes, keep);
+  // the sweeps: no lamp / sign / tree / bin / bench / pole in a portal's span or right beside its
+  // mouth; no crosswalk stripe or signal head on the last stretch of a dead-end stub
+  if (sweeps.length || stretches.length) {
+    const keepBox = boxes.filter((b) => b.kind === 'parking-entrance' || b.stub || lodBoxClass(b) !== 'furnishing'
+      || !(sweeps.some((c) => rectsOverlap(b, c)) || (b.kind === 'street-signal' && stretches.some((s) => rectsOverlap(b, s)))));
+    stats.swept = boxes.length - keepBox.length;
+    replaceInPlace(boxes, keepBox);
+    const keepGround = grounds.filter((g) => !(typeof g.kind === 'string' && g.kind.startsWith('crosswalk-') && stretches.some((s) => rectsOverlap(g, s))));
+    stats.swept += grounds.length - keepGround.length;
+    replaceInPlace(grounds, keepGround);
   }
+  stats.cuts = cuts;   // for the walker planner (stripped from the reported stats)
   return stats;
 }
 
@@ -2715,6 +2840,8 @@ const LOD_BOX_CLASS = {
   'city-tree': 'furnishing', 'city-palm': 'furnishing', 'city-shrub': 'furnishing',
   'park-bin': 'furnishing', 'park-bench': 'furnishing',
   'parking-entrance': 'furnishing',   // a portal's dressing (header, barrier, canopy, columns, bollards, curb walls, sign); the mass itself is untouched
+  'portal-podium': 'mass',            // a cylinder's tangent podium carries the portal: part of the mass
+  'drop-off-island': 'furnishing', 'drop-off-bollard': 'furnishing', 'drop-off-planter': 'furnishing',
 };
 const LOD_BOX_PREFIX = [['townhouse-', 'furnishing'], ['play-', 'furnishing'], ['tram-', 'furnishing'], ['platform', 'furnishing']];
 function lodBoxClass(b) {
@@ -2734,6 +2861,7 @@ const LOD_GROUND_CLASS = {
   'sidewalk-joint': 'marking', 'crosswalk-vertical-road-stripe': 'marking', 'crosswalk-horizontal-road-stripe': 'marking',
   'lot-stripe': 'marking', 'playground-pad': 'marking', 'play-sand': 'marking',
   'curb-cut': 'marking', 'parking-apron': 'marking',
+  'drop-off': 'plane', 'drop-off-bar': 'marking',   // a dead-end stub's paved apron reads at any distance; its end bars are paint
 };
 function lodGroundClass(g, i) {
   if (i === 0 && g.kind == null) return 'plane';
@@ -2817,7 +2945,10 @@ export function lodClassCensus(plan) {
 // (z on the ground) — the same space as the static pedestrians.
 const WALKER_LOOP_KINDS = new Set(['building', 'anchor', 'townhouse', 'house', 'midtower', 'garage']);
 const WALKER_SOLID = new Set([CLAIM.BUILDING, CLAIM.ANCHOR, CLAIM.LOT]);   // masses a walker must never cross
-function planCityWalkerLoops(grid, region, seed, opt, boxes) {
+// `cuts` (frontage on): the portal curb-cut tiles — a ring whose band would cross one is skipped
+// (walkers never stand in a driveway), and a mass with a lobby gets its ring first, so pedestrians
+// pass its door. With no cuts (frontage off) the candidates and their order are exactly as before.
+function planCityWalkerLoops(grid, region, seed, opt, boxes, cuts = null) {
   const o = (opt && typeof opt === 'object') ? opt : {};
   const want = Math.max(1, Math.min(24, Number.isFinite(o.count) ? o.count : 8));
   const cell = grid.cell;
@@ -2849,12 +2980,18 @@ function planCityWalkerLoops(grid, region, seed, opt, boxes) {
   const cands = [];
   // PRIMARY: a sidewalk ring around each block, the footprint pushed OUT into its fronting verge. Try a
   // few offsets and keep the first that clears the neighbours + rides the sidewalk.
+  const ringBands = (cx, cy, hw, hh) => [
+    { x: cx - hw, y: cy - hh, w: 2 * hw, d: band }, { x: cx - hw, y: cy + hh - band, w: 2 * hw, d: band },
+    { x: cx - hw, y: cy - hh, w: band, d: 2 * hh }, { x: cx + hw - band, y: cy - hh, w: band, d: 2 * hh },
+  ];
+  const crossesCut = (cx, cy, hw, hh) => !!cuts && ringBands(cx, cy, hw, hh).some((r) => cuts.some((c) => rectsOverlap(r, c)));
   for (const b of (boxes || [])) {
     if (!b || !(b.w > 0) || !(b.d > 0) || !WALKER_LOOP_KINDS.has(b.kind)) continue;
     const cx = b.x + b.w / 2, cy = b.y + b.d / 2;
+    const lobby = !!cuts && !!(b.entrance ? b.lobby : (b.roadFaces && b.front));   // frontage on: a mass with a pedestrian door
     for (const off of [cell, cell * 1.5, cell * 2, cell * 2.5, cell * 3]) {
       const hw = b.w / 2 + off, hh = b.d / 2 + off;
-      if (ok(cx, cy, hw, hh)) { cands.push({ cx, cy, hw, hh, area: hw * hh }); break; }
+      if (ok(cx, cy, hw, hh) && !crossesCut(cx, cy, hw, hh)) { cands.push({ cx, cy, hw, hh, area: hw * hh, lobby }); break; }
     }
   }
   // FALLBACK: inscribe + grow rings in open walkable areas (plazas), for strolls with no block to hug.
@@ -2862,14 +2999,15 @@ function planCityWalkerLoops(grid, region, seed, opt, boxes) {
   const step = Math.max(cell * 4, Math.min(region.w, region.d) / 8);
   for (let sy = region.y + step * 0.5; sy < region.y + region.d; sy += step)
     for (let sx = region.x + step * 0.5; sx < region.x + region.w; sx += step) {
-      if (!ok(sx, sy, MINH, MINH)) continue;
+      if (!ok(sx, sy, MINH, MINH) || crossesCut(sx, sy, MINH, MINH)) continue;
       let hw = MINH, hh = MINH;
-      while (hw + GROW < MAXH && ok(sx, sy, hw + GROW, hh)) hw += GROW;
-      while (hh + GROW < MAXH && ok(sx, sy, hw, hh + GROW)) hh += GROW;
-      cands.push({ cx: sx, cy: sy, hw, hh, area: hw * hh });
+      while (hw + GROW < MAXH && ok(sx, sy, hw + GROW, hh) && !crossesCut(sx, sy, hw + GROW, hh)) hw += GROW;
+      while (hh + GROW < MAXH && ok(sx, sy, hw, hh + GROW) && !crossesCut(sx, sy, hw, hh + GROW)) hh += GROW;
+      cands.push({ cx: sx, cy: sy, hw, hh, area: hw * hh, lobby: false });
     }
-  // biggest loops first (they read best), spaced apart so they don't overlap, capped at `want`.
-  cands.sort((a, b) => b.area - a.area);
+  // biggest loops first (they read best), spaced apart so they don't overlap, capped at `want`;
+  // with frontage on, the rings that pass a lobby door come first (the comparator is unchanged without cuts).
+  cands.sort((a, b) => (cuts ? (Number(b.lobby) - Number(a.lobby)) : 0) || (b.area - a.area));
   const loops = [], taken = [];
   for (const c of cands) {
     if (loops.length >= want) break;
@@ -3055,8 +3193,10 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const landmarks = normalizeLandmarks(landmark);
   let corridor = null;
   let anchorRegion = region;                                   // where the root anchor sits — whole region, or one side of a boulevard
-  // the road strips + crossings the recursion lays, read back by the frontage pass (no rng, no bytes)
+  // the road strips + crossings the recursion lays, read back by the frontage pass (no rng, no bytes);
+  // `lotLog` (frontage on only) records each town lot's emission range so a lot can turn to its road
   const roadStrips = [], junctions = [];
+  const lotLog = recipeElements.frontage ? [] : null;
   if (recipeElements.streetcars) {
     const horizontal = region.w >= region.d;
     corridor = cityStreetcarCorridor(region, rng);
@@ -3159,7 +3299,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // district. Placed after the root anchor / corridor / plaza insets so a block over one of them is
   // reported as `overlapsReserved` (still placed). Zero rng draws when absent.
   const blocksLaid = blockList.length
-    ? placeOperatorBlocks(blockList, region, grid, rng, boxes, grounds, faces, { density, elements: recipeElements, locale, climate, profile }, cars, seedReserved, genRect)
+    ? placeOperatorBlocks(blockList, region, grid, rng, boxes, grounds, faces, { density, elements: recipeElements, locale, climate, profile, lots: lotLog }, cars, seedReserved, genRect)
     : [];
   const blockZones = blocksLaid.map((r) => ({ ...genRect(r.rect), flank: true }));   // cross-streets flank the operator's blocks, right-of-way included (opts.avoid / shiftLineOut)
   // CIVIC AREAS, RESERVED BEFORE ROADS too. Each requested district (town-square / school /
@@ -3177,7 +3317,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // leaf, after the road inset, above the 1.3-unit floor). The stats had rows for what stands ON a
   // block (buildings, townhouses, lots) but none for the block itself (grok-headless-affordances P5).
   const cityBlocks = [];
-  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs), roads: roadStrips, junctions }, grid, cars);
+  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs), roads: roadStrips, junctions, lots: lotLog }, grid, cars);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
   // LOT INSETS (city-insets.js, the default): with the roads and blocks laid, each minted
   // building takes over a generated PARCEL — the candidate that evicts the fewest neighbours,
@@ -3237,7 +3377,10 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // AMBIENT-WALKER LOOPS (city/walkers.plan.md): grid-validated closed rings for the `walkers`
   // channel, planned off the now-final walkable grid. Opt-in only (null ⇒ untouched); paths ride
   // the output scale-down below, exactly like the faces + static people.
-  const walkerLoops = walkers && full ? planCityWalkerLoops(grid, region, seed, walkers, boxes) : null;
+  // Frontage OFF: planned here, on this grid, exactly as before. Frontage ON: planned below, after the
+  // frontage pass, so the rings keep off the portal curb-cuts and put the lobby doors first (the park
+  // doodads claim grass cells in between, so the two grids differ — the split keeps old rows byte-identical).
+  let walkerLoops = walkers && full && !recipeElements.frontage ? planCityWalkerLoops(grid, region, seed, walkers, boxes) : null;
   // AMBIENT TRAFFIC (driver-ants): main-avenue lanes for moving cars, read off the final road grid.
   const carLanes = traffic && full ? planCityCarLanes(grid, region, traffic) : null;
   // LEFTOVER LAYER: the still-EMPTY cells, flood-filled into tagged components. Emitted as
@@ -3266,7 +3409,11 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // the entrance dressing as furnishing / marking and keeps the mass). Frame-space keys for the
   // variant hash so it matches the facade's own key after the scale-down.
   const toFrame = (x, y) => [frameOrigin.x + (x - frameOrigin.x) * bs, frameOrigin.y + (y - frameOrigin.y) * bs];
-  const frontage = recipeElements.frontage ? frontagePass(boxes, grounds, faces, grid, roadStrips, junctions, toFrame, bs) : null;
+  const frontage = recipeElements.frontage ? frontagePass(boxes, grounds, faces, grid, roadStrips, junctions, toFrame, bs, { lots: lotLog, traffic, carsOn: recipeElements.cars, people, seed }) : null;
+  const portalCuts = frontage ? frontage.cuts : null;
+  if (frontage) delete frontage.cuts;                          // the tiles are geometry, not a stat
+  // AMBIENT-WALKER LOOPS with frontage on (see the note above): planned on the final grid, off the portal cuts
+  if (frontage && walkers && full) walkerLoops = planCityWalkerLoops(grid, region, seed, walkers, boxes, portalCuts);
   // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
   // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
   const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });

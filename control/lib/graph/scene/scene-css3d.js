@@ -2440,7 +2440,10 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       // path below, byte-identical.
       const aware = 'roadFaces' in b;   // the frontage pass's marker (`front` alone is also a house's street edge, 'y-' etc.)
       const entranceFace = aware ? (b.entrance ? (b.lobby || null) : b.front) : '+y';
-      const awareFacade = aware && !entranceFace ? { ...exFacade, noEntrance: true, storefront: false, awning: false } : exFacade;
+      // a portal owner's LOBBY face keeps the facade's door canopy (0.4 deep) but not the shop awning
+      // (0.55 deep across 90 % of the face): a tower lobby has a canopy, not an awning
+      const awareFacade = aware && !entranceFace ? { ...exFacade, noEntrance: true, storefront: false, awning: false }
+        : aware && b.entrance ? { ...exFacade, awning: false } : exFacade;
       const extras = buildingExtrasOn(b, awareFacade, floors, bays, entranceFace || '+y');
       for (const e of extras.boxes) faces.push(...cityBox({ x: e.x, y: e.y, w: e.w, d: e.d }, e.z0, e.z1, { top: scaleHex(e.tint, 1.06), side: e.tint }, L, camHint));
       for (const ef of extras.faces) faces.push(ef);     // tilted equipment (satellite dish)
