@@ -23,5 +23,7 @@ export function bakeCarMesh({ type = 'sedan', scale = 1, rng } = {}) {
   const cx = (mnx + mxx) / 2, cy = (mny + mxy) / 2;
   const centred = new Float32Array(pos.length);
   for (let i = 0; i < pos.length; i += 3) { centred[i] = pos[i] - cx; centred[i + 1] = pos[i + 1] - cy; centred[i + 2] = pos[i + 2]; }
-  return { pos: b64f32(centred), col: b64u8(gm.colors) };
+  // `len` / `wid`: the mesh's footprint along +x (the car faces +x at heading 0) and across it — the
+  // traffic model's collision footprint (world-kinds measures the bank once from these)
+  return { pos: b64f32(centred), col: b64u8(gm.colors), len: mxx - mnx, wid: mxy - mny };
 }

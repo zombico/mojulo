@@ -15,6 +15,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
+import { pairLanes, laneCapacity, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
@@ -227,23 +228,68 @@ function carMeshBank() {
   return _carBank;
 }
 async function attachCityCars(scene) {
-  const lanes = scene && scene.carLanes;
+  let lanes = scene && scene.carLanes;
   if (!Array.isArray(lanes) || !lanes.length) return scene;
   const { carLaneToPath } = await import('@/lib/graph/city/fractal-city');
   const bank = await carMeshBank();
   const names = Object.keys(bank);
-  const cars = [];
+  // SIGNALISED traffic: when the plan exported the crossings, the city's own traffic constants are
+  // derived from the MEASURED car bank — the longest and widest model are the collision footprint,
+  // the clearance is what that model needs to leave the widest box (deriveClearance) — the phase
+  // programs are rebuilt with them, every lane is trimmed at the boxes it starts or ends in and
+  // paired with the junctions it crosses (pairLanes, which also drops a second direction a road is too
+  // narrow to hold) BEFORE its path is laid, and each lane takes as many cars as its ring can hold
+  // with a full footprint + gap between each (carsPerLane). Zero car overlap is the invariant
+  // (traffic-model.test.js proves it pairwise, every tick).
+  const signalised = Array.isArray(scene.signals) && scene.signals.length > 0 && Array.isArray(scene.junctions);
+  let T = TRAFFIC, signals = null;
+  if (signalised) {
+    const dims = Object.values(bank);
+    T = { ...TRAFFIC, CAR_LEN: Math.max(...dims.map((m) => m.len || 0), TRAFFIC.CAR_LEN), CAR_WID: Math.max(...dims.map((m) => m.wid || 0), TRAFFIC.CAR_WID) };
+    const maxBox = Math.max(0, ...scene.junctions.map((j) => Math.max(j.wx, j.wy)));
+    T.CLEARANCE = deriveClearance(maxBox, T.CAR_LEN, CAR_SPEED, T.ACCEL);
+    signals = buildSignals(scene.junctions, scene.trafficSeed ?? 1, scene.trafficRegion, T);
+    lanes = pairLanes(lanes, signals, CAR_SPEED, T);
+  }
+  const cars = [], laneCounts = [];
   lanes.forEach((L, li) => {
     const path = carLaneToPath(L);
-    for (let k = 0; k < CARS_PER_LANE; k++) {
-      cars.push({ car: names[(li * CARS_PER_LANE + k) % names.length], path, speed: CAR_SPEED,
-        startFrac: ((k / CARS_PER_LANE) + li * 0.19) % 1 });   // stagger lane-mates + neighbouring lanes
+    // signalised: the lane takes as many cars as its ring (minus its boxes) holds with each car's OWN
+    // measured length + gap between them (laneCapacity), the models assigned round-robin as before
+    const nameAt = (k) => names[(li * CARS_PER_LANE + k) % names.length];
+    const n = signalised ? laneCapacity(L.total, CARS_PER_LANE, T, L.crossings, (k) => bank[nameAt(k)].len || T.CAR_LEN) : CARS_PER_LANE;
+    laneCounts.push(n);
+    for (let k = 0; k < n; k++) {
+      cars.push({ car: nameAt(k), path, speed: CAR_SPEED, lane: li,
+        ...(signalised ? { len: bank[nameAt(k)].len } : {}),
+        startFrac: ((k / n) + li * 0.19) % 1 });   // stagger lane-mates + neighbouring lanes
     }
   });
   scene.cars = cars;
   const used = new Set(cars.map((c) => c.car));
   scene.carMeshes = {};
   for (const n of used) scene.carMeshes[n] = bank[n];
+  if (signalised) {
+    scene.signals = signals;
+    scene.trafficLanes = lanes.map((L, li) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, cars: laneCounts[li], ...(L.singled ? { singled: true } : {}) }));
+    scene.trafficConstants = T;
+    scene.carFootprints = Object.fromEntries(Object.entries(bank).map(([n, m]) => [n, { len: m.len, wid: m.wid }]));
+    // STATIC CARS: a portal car-ant (frontage) that lies on any moving lane's swept strip is dropped —
+    // removal only, the rng stream untouched — and the survivors are listed so the invariant can be
+    // checked against them too
+    if (Array.isArray(scene.faces)) {
+      const strips = lanes.map((L) => carFootprint(L, 0, 0, T.CAR_WID, T)).map((r, li) => { const L = lanes[li]; return L.axis === 'x' ? { x: Math.min(L.lo, L.hi), y: r.y, w: Math.abs(L.hi - L.lo), d: r.d } : { x: r.x, y: Math.min(L.lo, L.hi), w: r.w, d: Math.abs(L.hi - L.lo) }; });
+      const onLane = (rect) => strips.some((s) => rectsTouch(s, { x: rect.x - T.MARGIN, y: rect.y - T.MARGIN, w: rect.w + 2 * T.MARGIN, d: rect.d + 2 * T.MARGIN }));
+      const dropped = new Set();
+      for (const f of scene.faces) if (f && f.portalCarRect && !dropped.has(f.portalCarKey) && onLane(f.portalCarRect)) dropped.add(f.portalCarKey);
+      if (dropped.size) scene.faces = scene.faces.filter((f) => !(f && f.portalCarKey && dropped.has(f.portalCarKey)));
+      const statics = new Map();
+      for (const f of scene.faces) if (f && f.portalCarRect && !statics.has(f.portalCarKey)) statics.set(f.portalCarKey, f.portalCarRect);
+      scene.staticCars = [...statics.values()];
+      if (dropped.size) scene.staticCarsDropped = dropped.size;
+    }
+  } else delete scene.signals;
+  delete scene.junctions; delete scene.trafficSeed; delete scene.trafficRegion;
   delete scene.carLanes;   // consumed
   return scene;
 }

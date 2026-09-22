@@ -167,6 +167,30 @@ describe('world-scene — generic opt-in volumetric fog (P3.5)', () => {
   });
 });
 
+describe('world-scene — fractal-city fidelity dial on the world path', () => {
+  const city = (extra) => sketch({ kind: 'fractal-city', region: { x: 0, y: 0, w: 40, d: 28 }, depth: 2, seed: 1, walkers: true, traffic: true, ...extra });
+
+  it('attaches walkers and traffic at full fidelity, none below it', async () => {
+    const full = await resolveWorldScene(city());
+    expect(full.payload.walkers.length).toBeGreaterThan(0);
+    expect(full.payload.cars.length).toBeGreaterThan(0);
+    for (const fidelity of ['massing', 'skyline']) {
+      const { payload } = await resolveWorldScene(city({ fidelity }));
+      expect(payload.walkers).toBeUndefined();
+      expect(payload.cars).toBeUndefined();
+      expect(payload.figures).toBeUndefined();
+      expect(payload.faces.length * 5).toBeLessThan(full.payload.faces.length);
+    }
+  }, 60000);
+
+  it('still clips the fog against the same masses at massing fidelity', async () => {
+    const full = await resolveWorldScene(city({ fog: true }));
+    const mass = await resolveWorldScene(city({ fog: true, fidelity: 'massing' }));
+    expect(mass.payload.fog).toBeTruthy();
+    expect(mass.payload.fog.customUniforms.uBoxCount).toBe(full.payload.fog.customUniforms.uBoxCount);
+  }, 60000);
+});
+
 describe('world-scene — painted-landscape raymarch backend (?render=raymarch)', () => {
   const land = (extra) => sketch({ kind: 'painted-landscape', heartbeat: 'chop', splatch: 'verdure-trio', ...extra });
 

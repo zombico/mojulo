@@ -344,6 +344,31 @@ export function buildingExtras(box, f, floors, bays) {
   return out;
 }
 
+/**
+ * The LOCAL FRAME of one face of an axis-aligned box: `lx` runs along the face (0..L), `ly` is
+ * outward from the face plane (0 on the plane, positive outside), z is world z. Everything that
+ * dresses a face (buildingExtras' entrance / storefront / awning, the city's parking entrances)
+ * is authored with the front at local +y — this maps it onto the face a mass actually FRONTS.
+ * `localBox` is the box as buildingExtras wants it (front plane at local y = 0); `rect` maps a
+ * local axis-aligned rect to a world one; `normal` is the face's outward normal for shading.
+ * '+y' is the identity frame, so a '+y' front reproduces the legacy emission exactly.
+ */
+export function faceFrame(box, face) {
+  const { x, y, w, d } = box;
+  const side = face === '+x' || face === '-x';
+  const L = side ? d : w, D = side ? w : d;
+  const pt = face === '+y' ? (lx, ly) => [x + lx, y + d + ly]
+    : face === '-y' ? (lx, ly) => [x + w - lx, y - ly]
+      : face === '+x' ? (lx, ly) => [x + w + ly, y + lx]
+        : (lx, ly) => [x - ly, y + d - lx];
+  const normal = face === '+y' ? [0, 1, 0] : face === '-y' ? [0, -1, 0] : face === '+x' ? [1, 0, 0] : [-1, 0, 0];
+  const rect = (lx, ly, lw, ld) => {
+    const [ax, ay] = pt(lx, ly), [bx, by] = pt(lx + lw, ly + ld);
+    return { x: Math.min(ax, bx), y: Math.min(ay, by), w: Math.abs(bx - ax), d: Math.abs(by - ay) };
+  };
+  return { face, L, D, pt, rect, normal, localBox: { x: 0, y: -D, w: L, d: D } };
+}
+
 // counts from a face's world size + the descriptor's floor/bay scale
 export const facadeFloors = (f, height) => Math.max(3, Math.round(height / f.floorH));
 export const facadeBays = (f, width) => Math.max(2, Math.round(width / f.bayW));
