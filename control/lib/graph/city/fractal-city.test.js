@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assembleFractalCityScene, normalizeFractalCityElements, planFractalCity } from './fractal-city.js';
+import { assembleFractalCityScene, normalizeFractalCityElements, planFractalCity, normalizeCityBlocks, expandCityBlockMap, normalizeCityFidelity, lodClassCensus, cityThemeAdapter, STOREY_H } from './fractal-city.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
 
 describe('fractal-city recipe elements', () => {
@@ -1116,6 +1116,308 @@ describe('fractal-city — instanced street furniture (renderer-convergence 1b)'
       const scene = assembleFractalCityScene({ ...SPEC, instancing: true, ...extra });
       expect(scene.repeats).toBeUndefined();
       expect(scene.repeatsInfo.disabled).toBeTruthy();
+    }
+  });
+});
+
+// ── operator blocks: parcels laid before the roads ─────────────────────────────────────
+describe('fractal-city operator blocks', () => {
+  const BIG = { region: { x: 2, y: 2, w: 40, d: 28 }, depth: 3, anchor: 'tower' };
+  const CELL = 0.25;
+  const hit = (a, b) => !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.d <= b.y || b.y + b.d <= a.y);
+  const penetration = (a, b) => Math.min(Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), Math.min(a.y + a.d, b.y + b.d) - Math.max(a.y, b.y));
+  const centreIn = (b, r) => { const cx = b.x + b.w / 2, cy = b.y + b.d / 2; return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.d; };
+  const MASS = new Set(['building', 'house', 'townhouse', 'anchor']);
+  // one block per use, spaced on a 3 × 3 lattice clear of the centred anchor tower
+  const ALL_USES = [
+    { rect: { x: 4, y: 4, w: 8, d: 6 }, use: 'residential', label: 'old town' },
+    { rect: { x: 14, y: 4, w: 8, d: 6 }, use: 'residential', fill: 'rows' },
+    { rect: { x: 24, y: 4, w: 8, d: 6 }, use: 'residential', fill: 'massed', storeys: [3, 6] },
+    { rect: { x: 4, y: 12, w: 8, d: 6 }, use: 'commercial', storeys: [8, 14], density: 1 },
+    { rect: { x: 34, y: 12, w: 6, d: 6 }, use: 'industrial', density: 1 },
+    { rect: { x: 24, y: 12, w: 8, d: 6 }, use: 'park' },
+    { rect: { x: 4, y: 20, w: 6, d: 6 }, use: 'plaza' },
+    { rect: { x: 12, y: 20, w: 8, d: 6 }, use: 'civic' },
+    { rect: { x: 22, y: 20, w: 8, d: 6 }, use: 'civic', fill: 'school' },
+    { rect: { x: 32, y: 20, w: 6, d: 6 }, use: 'empty' },
+  ];
+
+  it('normalizes the rect form (aliases, bands, junk) and keeps the map form as a map', () => {
+    const out = normalizeCityBlocks([
+      { rect: { x: 1, y: 2, w: 3, d: 4 }, use: 'housing', storeys: 3, density: 2, label: '  north end  ' },
+      { x: 5, y: 6, w: 2, d: 2, use: 'C', storeys: [80, 2], fill: 'nonsense' },          // inline rect, letter alias, band clamped + ordered, bad fill dropped
+      { rect: { x: 0, y: 0, w: 2, d: 2 }, height: [4, 1] },                               // no use → commercial; height band ordered
+      { rect: { x: 0, y: 0, w: 2, d: 2 }, use: 'moon-base' },                             // unknown use → dropped
+      { rect: { x: 0, y: 0, w: 0, d: 2 }, use: 'park' },                                  // degenerate rect → dropped
+      'nope', null, 7,
+    ]);
+    expect(out).toEqual([
+      { rect: { x: 1, y: 2, w: 3, d: 4 }, use: 'residential', storeys: 3, density: 1, label: 'north end' },
+      { rect: { x: 5, y: 6, w: 2, d: 2 }, use: 'commercial', storeys: [2, 40] },
+      { rect: { x: 0, y: 0, w: 2, d: 2 }, use: 'commercial', height: [1, 4] },
+    ]);
+    expect(normalizeCityBlocks(null)).toBeNull();
+    expect(normalizeCityBlocks([])).toBeNull();
+    expect(normalizeCityBlocks([{ use: 'park' }])).toBeNull();
+    expect(normalizeCityBlocks({ map: ['rrc.', 'ppze'], gap: 2 })).toEqual({ map: ['RRC.', 'PPZE'], gap: 2 });
+    expect(normalizeCityBlocks({ map: [] })).toBeNull();
+    expect(normalizeCityBlocks({ nonsense: true })).toBeNull();
+  });
+
+  it('expands a zoning map one block per lettered cell, row 0 at the far (high-y) edge', () => {
+    const blocks = expandCityBlockMap(['RC', 'P.'], { x: 0, y: 0, w: 20, d: 10 }, 2);
+    expect(blocks.map((b) => b.use)).toEqual(['residential', 'commercial', 'park']);
+    expect(blocks[0].rect).toEqual({ x: 1, y: 6, w: 8, d: 3 });     // row 0 → y in the upper half
+    expect(blocks[2].rect).toEqual({ x: 1, y: 1, w: 8, d: 3 });     // row 1 → the low band
+    expect(blocks[1].rect.x).toBe(11);
+    const laid = planFractalCity({ ...BIG, seed: 4, blocks: { map: ['RC', 'P.'] } }).stats.blocksLaid;
+    expect(laid.map((b) => b.use)).toEqual(['residential', 'commercial', 'park']);
+    expect(laid.every((b) => b.inside)).toBe(true);
+  });
+
+  it('lays every block, reports it, and tags what it built', () => {
+    const { boxes, grounds, stats } = planFractalCity({ ...BIG, seed: 1, blocks: ALL_USES });
+    expect(stats.blocksLaid.length).toBe(ALL_USES.length);
+    stats.blocksLaid.forEach((r, i) => {
+      expect(r.index).toBe(i);
+      expect(r.use).toBe(ALL_USES[i].use);
+      expect(r.rect).toEqual(ALL_USES[i].rect);
+      expect(r.inside).toBe(true);
+      expect(r.boxes).toBe(boxes.filter((b) => b.block === i).length);
+      expect(r.masses).toBe(boxes.filter((b) => b.block === i && MASS.has(b.kind)).length);
+    });
+    expect(stats.blocksLaid[0].label).toBe('old town');
+    expect(stats.blocksLaid[3].heightBand).toEqual([Math.round(8 * STOREY_H * 100) / 100, Math.round(14 * STOREY_H * 100) / 100]);
+    // every block leaves a base tile under it (the park's is the civic-area base the builder expects)
+    for (let i = 0; i < ALL_USES.length; i++) expect(grounds.some((g) => g.block === i && (g.kind === 'block-base' || g.kind === 'civic-area'))).toBe(true);
+    // a `blocks` recipe still censuses the recursion's own blocks separately
+    expect(stats.blocks).toBeGreaterThan(0);
+  });
+
+  it('fills each block by its use through the existing fill rules', () => {
+    const inBlock = (i) => (b) => b.block === i;
+    let seenRows = false, seenHouses = false, seenCommercial = false, seenIndustrial = false, seenPark = false, seenPlaza = false, seenHall = false, seenSchool = false;
+    for (let seed = 1; seed <= 6; seed += 1) {
+      const { boxes, grounds } = planFractalCity({ ...BIG, seed, blocks: ALL_USES });
+      const rect = (i) => ALL_USES[i].rect;
+      if (boxes.some((b) => inBlock(0)(b) && b.kind === 'house')) seenHouses = true;
+      if (boxes.some((b) => inBlock(1)(b) && b.kind === 'townhouse')) seenRows = true;
+      const massed = boxes.filter((b) => inBlock(2)(b) && b.kind === 'building');
+      for (const b of massed) { expect(b.z1 - b.z0).toBeGreaterThanOrEqual(3 * STOREY_H - 1e-9); expect(b.z1 - b.z0).toBeLessThanOrEqual(6 * STOREY_H + 1e-9); }
+      const commercial = boxes.filter((b) => inBlock(3)(b) && b.kind === 'building');
+      if (commercial.length) seenCommercial = true;
+      for (const b of commercial) { expect(b.z1 - b.z0).toBeGreaterThanOrEqual(8 * STOREY_H - 1e-9); expect(b.z1 - b.z0).toBeLessThanOrEqual(14 * STOREY_H + 1e-9); expect(b.condo).toBe(false); }
+      const sheds = boxes.filter((b) => inBlock(4)(b) && b.kind === 'building');
+      if (sheds.length) seenIndustrial = true;
+      for (const b of sheds) expect(b.z1 - b.z0).toBeLessThanOrEqual(2.2 + 1e-9);
+      if (grounds.some((g) => g.kind === 'park-lawn' && centreIn(g, rect(5))) && boxes.some((b) => inBlock(5)(b) && (b.kind === 'city-tree' || b.kind === 'city-shrub'))) seenPark = true;
+      if (grounds.some((g) => g.kind === 'town-square-paving' && centreIn(g, rect(6))) && boxes.some((b) => inBlock(6)(b) && b.kind === 'park-bench')) seenPlaza = true;
+      if (boxes.some((b) => inBlock(7)(b) && b.kind === 'building' && b.civic === 'hall')) seenHall = true;
+      if (grounds.some((g) => g.kind === 'school-yard' && centreIn(g, rect(8)))) seenSchool = true;
+      // an EMPTY block builds nothing and the recursion never fills it either
+      expect(boxes.some((b) => inBlock(9)(b))).toBe(false);
+      for (const b of boxes.filter((b) => MASS.has(b.kind) && b.block == null)) if (hit(b, rect(9))) expect(penetration(b, rect(9))).toBeLessThanOrEqual(CELL + 1e-9);
+    }
+    expect([seenHouses, seenRows, seenCommercial, seenIndustrial, seenPark, seenPlaza, seenHall, seenSchool]).toEqual([true, true, true, true, true, true, true, true]);
+  });
+
+  it('reserves each block before the roads: no junction, ribbon, power line or recursion mass runs through it', () => {
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const { boxes, grounds, ribbons, stats } = planFractalCity({ ...BIG, seed, blocks: ALL_USES });
+      for (const r of stats.blocksLaid) {
+        const fp = r.rect;
+        for (const g of grounds.filter((x) => x.kind === 'junction')) expect(hit(g, fp)).toBe(false);
+        // a cross-street is shifted so its whole right-of-way clears the block (the `flank` pad); when
+        // no side has room the street stays and its verge may abut the block edge, so the outermost
+        // wire of the three (0.32 off the pole line) can graze the edge — never by more than a cell
+        for (const b of boxes.filter((x) => x.kind === 'power-line')) if (hit(b, fp)) expect(penetration(b, fp)).toBeLessThanOrEqual(CELL + 1e-9);
+        // road ribbons are clipped out of the block (a path point strictly inside would be a street through it)
+        for (const rb of ribbons) for (const [x, y] of rb.path) expect(x > fp.x + 0.3 && x < fp.x + fp.w - 0.3 && y > fp.y + 0.3 && y < fp.y + fp.d - 0.3).toBe(false);
+        for (const b of boxes.filter((x) => MASS.has(x.kind) && x.block == null && x.kind !== 'anchor')) if (hit(b, fp)) expect(penetration(b, fp)).toBeLessThanOrEqual(CELL + 1e-9);
+      }
+    }
+  });
+
+  it('is advisory: a block outside the region or over a reserved plaza is still placed and named', () => {
+    const outside = { rect: { x: 60, y: 60, w: 8, d: 6 }, use: 'residential' };
+    const onPlaza = { rect: { x: 18, y: 12, w: 8, d: 6 }, use: 'commercial', density: 1, label: 'under the tower' };
+    const { stats } = planFractalCity({ ...BIG, seed: 2, landmark: 'cn-tower', blocks: [outside, onPlaza] });
+    expect(stats.blocksLaid.length).toBe(2);
+    expect(stats.blocksLaid[0]).toMatchObject({ use: 'residential', inside: false, overlapsReserved: false });
+    expect(stats.blocksLaid[0].masses).toBeGreaterThan(0);                 // placed anyway, off the frame
+    expect(stats.blocksLaid[1]).toMatchObject({ label: 'under the tower', inside: true, overlapsReserved: true });
+    expect(stats.landmarks).toBeGreaterThan(0);                             // the monument keeps its plaza
+  });
+
+  it('follows the baseScale frame: reports the recipe rect, lands the masses inside it', () => {
+    const blocks = [{ rect: { x: 4, y: 4, w: 10, d: 7 }, use: 'residential', fill: 'rows' }, { rect: { x: 20, y: 14, w: 8, d: 6 }, use: 'commercial', density: 1 }];
+    const { boxes, stats } = planFractalCity({ ...BIG, seed: 3, baseScale: 0.6, blocks });
+    expect(stats.blocksLaid.map((r) => r.rect)).toEqual(blocks.map((b) => b.rect));
+    for (const r of stats.blocksLaid) {
+      const mine = boxes.filter((b) => b.block === r.index && MASS.has(b.kind));
+      expect(mine.length).toBeGreaterThan(0);
+      for (const b of mine) { expect(centreIn(b, r.rect)).toBe(true); expect(penetration(b, r.rect)).toBeGreaterThan(0); }
+    }
+  });
+
+  it('is deterministic per seed and contributes zero bytes when absent or empty', () => {
+    const a = JSON.stringify(planFractalCity({ ...BIG, seed: 5, blocks: ALL_USES }).boxes);
+    const b = JSON.stringify(planFractalCity({ ...BIG, seed: 5, blocks: ALL_USES }).boxes);
+    expect(a).toBe(b);
+    const none = planFractalCity({ ...BIG, seed: 5 });
+    const noneJson = JSON.stringify([none.boxes, none.grounds, none.ribbons, none.faces, none.stats]);
+    for (const blocks of [null, [], {}, { map: [] }, [{ use: 'park' }], 'nope']) {
+      const p = planFractalCity({ ...BIG, seed: 5, blocks });
+      expect(JSON.stringify([p.boxes, p.grounds, p.ribbons, p.faces, p.stats])).toBe(noneJson);
+      expect(p.stats.blocksLaid).toBeUndefined();
+    }
+  });
+
+  it('rides compose_world overrides at the top level through the city theme adapter', () => {
+    const blocks = [{ rect: { x: 1, y: 1, w: 4, d: 4 }, use: 'park' }];
+    expect(cityThemeAdapter({ blocks, fidelity: 'massing' })).toEqual({ blocks, fidelity: 'massing' });
+    expect(cityThemeAdapter({ context: { time: 'day' } })).toEqual({ time: 'day' });
+  });
+});
+
+// ── fidelity: the same city, less dressing ─────────────────────────────────────────────
+describe('fractal-city fidelity', () => {
+  const BIG = { region: { x: 2, y: 2, w: 40, d: 28 }, depth: 3, anchor: 'tower' };
+  const MASS = new Set(['building', 'anchor', 'midtower', 'townhouse', 'house']);
+  const FURNISHING = ['street-lamp', 'stop-sign', 'street-signal', 'street-sign', 'power-pole', 'power-line', 'city-tree', 'city-palm', 'city-shrub', 'park-bin', 'park-bench', 'fence', 'freeway-lamp'];
+  const MARKING = ['sidewalk-joint', 'crosswalk-vertical-road-stripe', 'crosswalk-horizontal-road-stripe', 'lot-stripe', 'playground-pad', 'play-sand'];
+  const footprint = (b) => [b.kind, b.x, b.y, b.w, b.d, b.z0, b.z1, b.shape ?? null, b.class ?? null].join('|');
+  const massKey = (plan) => plan.boxes.filter((b) => MASS.has(b.kind)).map(footprint).sort().join('\n');
+  const RECIPES = [
+    { ...BIG, seed: 1 },
+    { ...BIG, seed: 2, landmark: 'cn-tower', civicAreas: ['school', 'city-park', 'strip-mall', 'town-square'], locale: 'europe' },
+    { ...BIG, seed: 3, anchor: 'freeway', elements: { streetcars: true, townhouses: true }, climate: 'tropical' },
+    { ...BIG, seed: 4, profile: 'town' },
+    { ...BIG, seed: 5, baseScale: 0.6, elements: { civicDomes: true } },
+    { ...BIG, seed: 6, blocks: [{ rect: { x: 4, y: 4, w: 8, d: 6 }, use: 'residential', fill: 'rows' }, { rect: { x: 24, y: 12, w: 8, d: 6 }, use: 'park' }] },
+  ];
+
+  it('normalizes the dial (aliases, junk → full) and an explicit full is byte-identical to absent', () => {
+    expect(normalizeCityFidelity('massing')).toBe('massing');
+    expect(normalizeCityFidelity('Skyline')).toBe('skyline');
+    expect(normalizeCityFidelity('far')).toBe('skyline');
+    expect(normalizeCityFidelity('mass')).toBe('massing');
+    for (const v of [undefined, null, 'full', 'ultra', 3, {}]) expect(normalizeCityFidelity(v)).toBe('full');
+    const a = planFractalCity({ ...BIG, seed: 7 }), b = planFractalCity({ ...BIG, seed: 7, fidelity: 'full' });
+    expect(JSON.stringify([b.boxes, b.grounds, b.ribbons, b.faces, b.stats])).toBe(JSON.stringify([a.boxes, a.grounds, a.ribbons, a.faces, a.stats]));
+    expect(a.stats.fidelity).toBeUndefined();
+  });
+
+  it('same seed at any fidelity is the same city: ribbons and mass footprints identical, only dressing gone', () => {
+    for (const rec of RECIPES) {
+      const full = planFractalCity(rec), mass = planFractalCity({ ...rec, fidelity: 'massing' }), sky = planFractalCity({ ...rec, fidelity: 'skyline' });
+      const ribbons = JSON.stringify(full.ribbons);
+      expect(JSON.stringify(mass.ribbons)).toBe(ribbons);
+      expect(JSON.stringify(sky.ribbons)).toBe(ribbons);
+      expect(massKey(mass)).toBe(massKey(full));
+      // skyline merges attached townhouse units per row; every other mass is footprint-identical
+      const skyNonRow = sky.boxes.filter((b) => MASS.has(b.kind) && b.kind !== 'townhouse').map(footprint).sort().join('\n');
+      const fullNonRow = full.boxes.filter((b) => MASS.has(b.kind) && b.kind !== 'townhouse').map(footprint).sort().join('\n');
+      expect(skyNonRow).toBe(fullNonRow);
+      expect(mass.stats.blocks).toBe(full.stats.blocks);
+      expect(mass.stats.buildings).toBe(full.stats.buildings);
+      expect(mass.stats.landmarks).toBe(full.stats.landmarks);
+      expect(mass.stats.civicAreas).toBe(full.stats.civicAreas);
+      expect(mass.stats.fidelity).toBe('massing');
+      expect(sky.stats.fidelity).toBe('skyline');
+      expect(mass.stats.pruned.boxes + mass.boxes.length).toBe(full.boxes.length);
+    }
+  });
+
+  it('massing drops furnishing, markings, stickers, vehicles and people, keeps roads, planes, masses and forms', () => {
+    for (const rec of RECIPES) {
+      const full = planFractalCity(rec), mass = planFractalCity({ ...rec, fidelity: 'massing' });
+      const kinds = new Set(mass.boxes.map((b) => b.kind));
+      for (const k of FURNISHING) expect(kinds.has(k), `${k} survived massing`).toBe(false);
+      for (const b of mass.boxes) { expect(b.kind.startsWith('play-') || b.kind.startsWith('townhouse-') || b.kind.startsWith('tram-') || b.kind.startsWith('platform')).toBe(false); }
+      const gk = new Set(mass.grounds.map((g) => g.kind));
+      for (const k of MARKING) expect(gk.has(k), `${k} survived massing`).toBe(false);
+      expect(mass.faces.length).toBe(0);                                   // no stickers / doors / cars / cyclists / pedestrians (no insets here)
+      expect(mass.grounds[0]).toEqual(full.grounds[0]);                     // the ground plate
+      expect(mass.grounds.filter((g) => g.kind === 'sidewalk').length).toBe(full.grounds.filter((g) => g.kind === 'sidewalk').length);
+      expect(mass.grounds.filter((g) => g.kind === 'junction').length).toBe(full.grounds.filter((g) => g.kind === 'junction').length);
+      // kept masses are plain extrusions unless they carry their own form
+      for (const b of mass.boxes.filter((b) => MASS.has(b.kind))) {
+        if (b.class === 'landmark' || b.class === 'religious' || b.class === 'civic') expect(b.lod).toBeUndefined();
+        else expect(b.lod).toBe('mass');
+      }
+      if (rec.anchor === 'freeway') expect(mass.boxes.some((b) => b.kind === 'pillar')).toBe(true);   // the deck's structure stays
+      if (rec.landmark) expect(mass.boxes.filter((b) => b.class === 'landmark').length).toBe(full.boxes.filter((b) => b.class === 'landmark').length);
+      expect(mass.sources.length).toBe(0);                                  // no lamp heads → no night pools
+    }
+  });
+
+  it('skyline also drops the small planes and garages and merges each townhouse row into one mass', () => {
+    const rec = { ...BIG, seed: 3, elements: { townhouses: true }, profile: 'town' };
+    const full = planFractalCity(rec), sky = planFractalCity({ ...rec, fidelity: 'skyline' });
+    expect(full.boxes.some((b) => b.kind === 'garage')).toBe(true);
+    expect(sky.boxes.some((b) => b.kind === 'garage')).toBe(false);
+    for (const k of ['alley-floor', 'driveway', 'front-lawn', 'park-trail', 'park-shore', ...MARKING]) expect(sky.grounds.some((g) => g.kind === k)).toBe(false);
+    const rows = new Set(full.boxes.filter((b) => b.kind === 'townhouse').map((b) => b.row));
+    expect(rows.size).toBeGreaterThan(0);
+    const merged = sky.boxes.filter((b) => b.kind === 'townhouse');
+    expect(merged.length).toBe(rows.size);
+    for (const m of merged) {
+      const units = full.boxes.filter((b) => b.kind === 'townhouse' && b.row === m.row);
+      expect(m.merged).toBe(units.length);
+      expect(m.lod).toBe('mass');
+      expect(m.x).toBeCloseTo(Math.min(...units.map((u) => u.x)), 9);
+      expect(m.x + m.w).toBeCloseTo(Math.max(...units.map((u) => u.x + u.w)), 9);
+      expect(m.y).toBeCloseTo(Math.min(...units.map((u) => u.y)), 9);
+      expect(m.y + m.d).toBeCloseTo(Math.max(...units.map((u) => u.y + u.d)), 9);
+    }
+  });
+
+  it('plans no walkers, traffic or people below full, and the assembled scene attaches none', () => {
+    const rec = { ...BIG, seed: 6, walkers: true, traffic: true, people: true };
+    const full = planFractalCity(rec);
+    expect(full.walkerLoops.length).toBeGreaterThan(0);
+    expect(full.carLanes.length).toBeGreaterThan(0);
+    expect(full.faces.length).toBeGreaterThan(0);
+    for (const fidelity of ['massing', 'skyline']) {
+      const p = planFractalCity({ ...rec, fidelity });
+      expect(p.walkerLoops).toBeUndefined();
+      expect(p.carLanes).toBeUndefined();
+      expect(p.faces.length).toBe(0);
+      const scene = assembleFractalCityScene({ ...rec, fidelity, time: 'night' });
+      expect(scene.walkerLoops).toBeUndefined();
+      expect(scene.carLanes).toBeUndefined();
+    }
+    // the rendered face budget drops by well over an order of magnitude
+    const fullScene = assembleFractalCityScene(rec), massScene = assembleFractalCityScene({ ...rec, fidelity: 'massing' });
+    expect(massScene.faces.length * 10).toBeLessThan(fullScene.faces.length);
+    expect(massScene.faces.length).toBeGreaterThan(100);
+  });
+
+  it('keeps inset edifice faces through the prune (they are the operator\'s own masses)', () => {
+    const inset = { ref: 'edifice-x', mode: 'plaza', footprint: { x: 20, y: 14, w: 4, d: 4 }, plot: { x: 20.5, y: 14.5, w: 3, d: 3 }, faces: [{ corners: [[20.5, 14.5, 0], [23.5, 14.5, 0], [23.5, 14.5, 5], [20.5, 14.5, 5]], fill: '#abcdef' }] };
+    const mass = planFractalCity({ ...BIG, seed: 8, insets: [inset], fidelity: 'massing' });
+    expect(mass.faces.length).toBe(1);
+    expect(mass.faces[0].inset).toBe('edifice-x');
+    expect(mass.grounds.some((g) => g.kind === 'inset-plaza')).toBe(true);
+    expect(mass.stats.insets[0].envelope.z1).toBe(5);
+  });
+
+  it('classifies every emitted kind on purpose (no fallback-classified kind across the option space)', () => {
+    const rich = [
+      // a landmark takes the anchor role, so the freeway (pillars) rides a recipe of its own
+      { ...BIG, seed: 1, anchor: 'freeway', elements: { streetcars: true, townhouses: true, civicDomes: true }, locale: 'europe', climate: 'tropical', blocks: [{ rect: { x: 4, y: 4, w: 8, d: 6 }, use: 'residential' }, { rect: { x: 30, y: 20, w: 8, d: 6 }, use: 'civic' }] },
+      { ...BIG, seed: 3, landmark: 'cn-tower', civicAreas: ['school', 'city-park', 'strip-mall', 'town-square'], blocks: [{ rect: { x: 4, y: 20, w: 8, d: 6 }, use: 'park' }, { rect: { x: 30, y: 4, w: 8, d: 6 }, use: 'plaza' }] },
+      { ...BIG, seed: 2, profile: 'town', locale: 'philippines' },
+    ];
+    for (const rec of rich) {
+      const census = lodClassCensus(planFractalCity(rec));
+      expect(census.unclassified).toEqual([]);
+      expect(census.boxes.building ?? census.boxes.house).toBe('mass');   // a town is houses, not buildings
+      expect(census.boxes['street-lamp']).toBe('furnishing');
+      expect(census.grounds.sidewalk).toBe('plane');
+      if (rec.anchor === 'freeway') expect(census.boxes.pillar).toBe('structure');
+      if (rec.profile === 'town') expect(census.boxes.garage).toBe('outbuilding');
     }
   });
 });
