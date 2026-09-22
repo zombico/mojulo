@@ -19,15 +19,42 @@ Three properties hold by construction:
 
 ## Minting — the manifest fields
 
-A floor plan is a WORLD kind minted through `create_sketch`:
+A floor plan is a WORLD kind minted through `create_sketch`. The kind rides INSIDE
+`manifest` — the flat `{ kind, title, seed }` form is the recipe, not the call:
 
 ```
-{ "kind": "floorplan", "title": "…", "seed": 7,
-  "furnish": true,          // OPT-IN — default false ⇒ every room renders EMPTY
-  "windows": true, "ceilings": false, "wallDecor": true, "entryDoor": true,
-  "view": "cutaway"         // 'exterior' (default) | 'cutaway' (implies furnish) | 'interior'
-}
+create_sketch({
+  "title": "…",
+  "manifest": {
+    "kind": "floorplan", "title": "…", "seed": 7,
+    "furnish": true,          // OPT-IN — default false ⇒ every room renders EMPTY
+    "windows": true, "ceilings": false, "wallDecor": true, "entryDoor": true,
+    "view": "cutaway",        // 'exterior' (default) | 'cutaway' (implies furnish) | 'interior'
+    "storeys": 2              // OPT-IN — stack the plate N high (see Storeys); absent = one floor
+  }
+})
 ```
+
+The reply is `{ ok, ref, url }`; the recipe is a STARTER — iterate it in place with
+`update_sketch({ ref, patch })` or a full `manifest` replace, and re-mint only for a
+side-by-side variant. Every JSON block below is a `manifest` for that call.
+
+## Storeys — stacking the plate
+
+Two ways to say "a two-storey house"; absent, the plan is the single floor it always was.
+
+- `storeys: N` (alias `floors`) — the one-field shorthand. The plate stacks N high on one
+  meru (ground, second, third, upper…), each level's rooms generated from `seed + index`,
+  a stair between consecutive floors through the slabs; `exterior` roofs the top,
+  `cutaway` leaves every storey open. Pass `stairs` to place the flights yourself
+  (`stairs: false` for none). A non-integer or `0` refuses at mint.
+- `levels: [{ role | index, seed?, rooms?, halls?, doors?, height? }, …]` — the authored
+  stack, when floors differ: roles `basement` (-1) / `ground` (0) / `second` / `third` /
+  `upper`, per-level plan or seed, per-level ceiling height. `stairs: true` runs one flight
+  from the ground; `stairs: [{ from, to, switchback? }]` places each. `tier: 'cottage' |
+  'house' | 'villa'` bounds the room program and supplies a default footprint;
+  `terrace: true` cuts the deck door; `explode: <feet>` pulls a cutaway's levels apart so
+  each reads (exterior is never exploded). `levels[]` wins over `storeys` when both are set.
 
 Every furnishing knob defaults OFF: `furnish`, `windows`, `ceilings`, `wallDecor`,
 `facadeDecor`, `entryDoor`, `porch` / `stoop`. Set `furnish: true` (or `view:
@@ -117,7 +144,11 @@ Interchange brings none). The plan is authored in FEET; the GLB root and the eng
 bake it: `node scripts/bake-world-gi.mjs --ref <ref> --preset interior-day --write`
 mints a `<ref>_gi` variant with Cycles GI in its vertex colours (needs a local Blender) — or
 render the frame itself: `node scripts/blender-bake.mjs --ref <ref> --render --camera x,y,z
---look x,y,z` (add `--open` for the dollhouse light). For an engine that lights it,
-`export_model({ lit: true })` / `--lit` on the engine packs. Explicit `windows` / `floorStyle` / `entryDoor` / `furnishScale` /
+--look x,y,z` (add `--open` for the dollhouse light). Both run from a checkout's `control/`;
+on an installed mojulo the same scripts ship in the package and run as `mojulo script
+bake-world-gi …` / `mojulo script blender-bake …` with the same flags. For an engine that
+lights it, `export_model({ lit: true })` (real pbrMetallicRoughness materials over the
+unshaded payload — Blender, Godot, Unity and three.js light it on import) / `--lit` on the
+engine packs. Explicit `windows` / `floorStyle` / `entryDoor` / `furnishScale` /
 door `entry: false` still win; multi-cell and generated plans keep the opt-in posture. New room
 archetypes are added as fill recipes (data), not new mark kinds.

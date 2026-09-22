@@ -230,7 +230,7 @@ export function bakeViewHref(bake) {
 export function bakePrompt(bake) {
   if (!bake) return null;
   const source = bake.from || bake.ref;
-  return `Re-bake the world GI for ${source} at a different preset: node scripts/bake-world-gi.mjs --ref ${source} --preset interior-day|exterior|space|interior-lit --write (add --preview for a dry run). Needs a local Blender.`;
+  return `Re-bake the world GI for ${source} at a different preset: node scripts/bake-world-gi.mjs --ref ${source} --preset interior-day|exterior|space|interior-lit --write (add --preview for a dry run; from a checkout's control/, or \`mojulo script bake-world-gi\` with the same flags on an install). Needs a local Blender.`;
 }
 
 /**

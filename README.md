@@ -88,7 +88,7 @@ with `parts: { tray: 'tray();', standoffs: 'standoffs();' }`. OpenSCAD itself me
 
 ### 3. "Build a 20 by 24 ft living room with a door on the south wall"
 
-That is the GIF at the top. The agent calls `create_sketch { kind: 'floorplan' }` and stores this:
+That is the GIF at the top. The agent calls `create_sketch { title, manifest: { kind: 'floorplan', … } }` and the stored manifest is this:
 
 ```json
 { "kind": "floorplan", "width": 24, "height": 28,

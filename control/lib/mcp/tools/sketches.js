@@ -96,6 +96,7 @@ export function registerSketchTools() {
       "As an alternative to `marks[]`, scene/figure illustration uses a recipe-shaped manifest: top-level `recipe: { kind, ...knobs }` where `kind` is one of " +
       recipeFamilyAllowlist().map((k) => `\`${k}\``).join(' | ') +
       " and the knob set is family-specific (architecturalConstruction takes style/roof/door/porch/steps/chimney; portraitBust takes its own; etc). The recipe is compiled deterministically into marks before persistence — no LLM in the lowering. This is the terminal step of the `sketch_what_possible` inverse-stable-diffusion loop: query → narrate underdetermined knobs to user → accumulate decisions → `create_sketch({ recipe: { kind, ...accumulated } })`. Don't hand-author marks for an illustration family unless you know the recipe doesn't cover what you need. " +
+      "`manifest: { kind: 'floorplan', … }` is the HOUSE: a walkable furnished house / apartment / office floor plan / one room from a seed or an explicit rooms[] plan (a WORLD kind — served at `/world`, exported by `export_model`; `storeys: N` stacks it; NOT a diagram, NOT compose_world, NOT edifice). Read `get_sketch_vocab({ id: 'floor-plan' })` before minting one. " +
       "Returns `{ ok, ref, url }` — hand the `url` to the user so they can open the sketch. The sketch persists across restarts at `/sketches/<ref>`.",
     inputSchema: {
       type: 'object',
@@ -124,7 +125,7 @@ export function registerSketchTools() {
           type: 'object',
           description:
             'Diagram manifest. Required: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. Rendrant resolves construction marks before storage; edges[] and grid are optional. '
-            + "Alternatively `manifest.kind` selects a kind-dispatched manifest with its OWN shape (no stations/marks): `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts). Read that kind's sketch_vocab card (`get_sketch_vocab`) for the manifest contract before minting.",
+            + "Alternatively `manifest.kind` selects a kind-dispatched manifest with its OWN shape (no stations/marks): `floorplan` (a walkable furnished HOUSE / apartment / one room — `seed` or `rooms[]`, `storeys: N`; card id `floor-plan`), `restaurant`, `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts). Read that kind's sketch_vocab card (`get_sketch_vocab`) for the manifest contract before minting.",
           properties: {
             title: { type: 'string' },
             viewBox: {

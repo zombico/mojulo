@@ -33,6 +33,8 @@ export const USAGE = `Usage:
   mojulo call <tool> [args]    invoke a tool
   mojulo <pack_id>             open a pack (orientation + member manual)
   mojulo <pack_id> <tool> [args]   invoke a member through its pack
+  mojulo script <name> [args]  run a shipped worker script from the package root
+                               (bake-world-gi | blender-bake | export-blender; needs Blender)
 
   [args] forms (combinable; flags win over --json):
     --json <v>       arguments as inline JSON object, @file.json, or - (stdin)
