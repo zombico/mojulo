@@ -102,3 +102,66 @@ describe('tools/call single-writer queue', () => {
     expect(log.indexOf('write')).toBeLessThan(log.indexOf('poll:exit'));
   });
 });
+
+// remote-worker exports P4: a tool that returns `_structured` beside its body gets it on the
+// wire as `structuredContent`; the text block never carries the field. A tool without it is
+// byte-identical to before.
+describe('tools/call structuredContent', () => {
+  it('`_structured: true` ships the WHOLE body as structuredContent (Claude Code renders it in place of the text)', async () => {
+    registerTool({
+      name: 'test_structured_plain',
+      listed: false,
+      inputSchema: { type: 'object' },
+      handler: async () => ({ ok: true, path: '/x/world.html', handoff: { next: 'publish it' }, _structured: true }),
+    });
+    const res = await call('test_structured_plain', 501);
+    const body = { ok: true, path: '/x/world.html', handoff: { next: 'publish it' } };
+    expect(res.result.structuredContent).toEqual(body);
+    expect(res.result.content).toEqual([{ type: 'text', text: JSON.stringify(body, null, 2) }]);
+  });
+
+  it('an explicit `_structured` object is used as given', async () => {
+    registerTool({
+      name: 'test_structured_object',
+      listed: false,
+      inputSchema: { type: 'object' },
+      handler: async () => ({ ok: true, big: 'x'.repeat(50), _structured: { small: 1 } }),
+    });
+    const res = await call('test_structured_object', 504);
+    expect(res.result.structuredContent).toEqual({ small: 1 });
+    expect(res.result.content[0].text).not.toMatch(/_structured/);
+  });
+
+  it('a host with a result byte cap (grok-build: 20 KB) gets no structuredContent at all', async () => {
+    const { rememberClientInfo, _resetClientBindingsForTests } = await import('@/lib/mcp/client-bindings');
+    rememberClientInfo('serialization-capped', { name: 'grok-build', version: '1' });
+    registerTool({ name: 'test_structured_capped', listed: false, inputSchema: { type: 'object' }, handler: async () => ({ ok: true, _structured: true }) });
+    try {
+      const res = await dispatchMcpRequest(
+        { jsonrpc: '2.0', id: 505, method: 'tools/call', params: { name: 'test_structured_capped', arguments: {} } },
+        { mcpSessionId: 'serialization-capped', userId: 'local' },
+      );
+      expect(res.result).toEqual({ content: [{ type: 'text', text: JSON.stringify({ ok: true }, null, 2) }] });
+    } finally {
+      _resetClientBindingsForTests();
+    }
+  });
+
+  it('lifts `_structured` out of an already MCP-shaped result (the agent-tasks shape)', async () => {
+    registerTool({
+      name: 'test_structured_shaped',
+      listed: false,
+      inputSchema: { type: 'object' },
+      handler: async () => ({ content: [{ type: 'text', text: 'hi' }], _structured: { a: 1 } }),
+    });
+    const res = await call('test_structured_shaped', 502);
+    expect(res.result).toEqual({ content: [{ type: 'text', text: 'hi' }], structuredContent: { a: 1 } });
+  });
+
+  it('a result without `_structured` is unchanged', async () => {
+    registerTool({ name: 'test_structured_none', listed: false, inputSchema: { type: 'object' }, handler: async () => ({ ok: true }) });
+    const res = await call('test_structured_none', 503);
+    expect(res.result).toEqual({ content: [{ type: 'text', text: JSON.stringify({ ok: true }, null, 2) }] });
+    expect(res.result).not.toHaveProperty('structuredContent');
+  });
+});

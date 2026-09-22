@@ -35,5 +35,9 @@
     "scheduler": null,
     "skillsDir": null,
     "headlessRuntime": null
+  },
+  "handoff": {
+    "verified": "docs",
+    "local": { "page": "dashboard", "file": "local" }
   }
 }

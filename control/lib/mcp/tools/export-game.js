@@ -38,6 +38,7 @@ import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
+import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
 
 // The recipe-hash style of image_render_requests.manifest_hash — short, stable,
 // enough to tie a published render back to the exact recipe that minted it.
@@ -244,7 +245,17 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
   return lines.join('\n');
 }
 
-export async function exportGameHandler(input) {
+// Every folder export says the next move on THIS host (remote-worker exports P4): the
+// single-file pixelizer game is a page; a shell game is a folder that needs an HTTP server,
+// so its door is the branch or the disk, never a single download.
+function withHandoff(result, context, artifact) {
+  result.fits = fitsForContext(context, artifact);
+  result.handoff = handoffForContext(context, artifact);
+  result._structured = true;
+  return result;
+}
+
+export async function exportGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
   const { ref, target, posture = null } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
@@ -406,12 +417,12 @@ export async function exportGameHandler(input) {
     await writeRecipe('recipe/game.json', manifest);
     await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'pixelizer' }));
     const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
-    return {
+    return withHandoff({
       ok: true, ref, engine: 'pixelizer', dir,
       preview_url: `${outcomeUrlFor(ref)}game.html`,
       files, total_bytes: totalBytes,
       note: 'Single-file reducer game — game.html plays anywhere, file:// included.',
-    };
+    }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html` });
   }
 
   // ── world/level games: resolve once with folder-relative resolvers, then bake each part ──
@@ -525,7 +536,7 @@ export async function exportGameHandler(input) {
 
   const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
   const heavy = files.filter((f) => f.bytes > 25 * 1024 * 1024).map((f) => f.file);
-  return {
+  return withHandoff({
     ok: true, ref, engine: 'shell', dir,
     preview_url: `${outcomeUrlFor(ref)}game.html`,
     files, total_bytes: totalBytes,
@@ -534,7 +545,7 @@ export async function exportGameHandler(input) {
     ...(heavy.length ? {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
-  };
+  }, context, { kind: 'folder', name: 'game.html', path: dir, dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html` });
 }
 
 export function registerExportGameTools() {

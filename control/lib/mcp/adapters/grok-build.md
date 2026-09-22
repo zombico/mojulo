@@ -15,7 +15,7 @@
 
 Your host is **Grok Build** (xAI's CLI agent). This card is how you ride mojulo from this host — **studio making first**, catalyst materialization second. Pull it once per session (`get_adapter`, no `id`) before the first mint or the first synthesized skill.
 
-If you are **Grok chat** driving a sandbox shell with no MCP binding (not Grok Build), the MCP notes on this card do not apply to you: use the CLI-only host section in [AGENTS.md](../../../../AGENTS.md#cli-only--remote-sandbox-no-mcp-no-browser) — `npx mojulo call …`, `export_model` with `format: 'html'`, files as the handoff.
+If you are **Grok chat** driving a sandbox shell with no MCP binding (not Grok Build), the MCP notes on this card do not apply to you: use the CLI-only host section in [AGENTS.md](../../../../AGENTS.md#inside-a-box-the-agents-own-machine) — `npx mojulo call …`, `export_model` with `format: 'html'` or `'bundle'`, files as the handoff, `MOJULO_HOST=grok-chat` so the result's `handoff` names your door.
 
 When a catalyst does materialize a runnable artifact, it is a **user-owned skill** at `~/.grok/skills/<slug>/SKILL.md`. Once written it belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not host, execute, or store skills.
 
@@ -105,6 +105,13 @@ Print the per-record decision log from the catalyst's `outputContract`, and pers
 - The exact dry-run flip (`config.json` → `liveMode`).
 - That scheduling is theirs to wire, and which mechanism you documented.
 - Re-run the catalyst flow if the source's shape changes later.
+
+## Handing back an export
+
+Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` for this host and `fits` against its byte limit. Your result cap is 20,000 bytes and the `handoff` object is small, so it survives the truncation; the file `path` is the contract.
+
+- **Grok Build CLI** (the operator's machine): the file is on their disk; `preview` opens a local dev server if you start one (`npx serve <dir>`), and `world.html` opens from `file://` with no server at all.
+- **Grok chat's sandbox** (no MCP client, `MOJULO_HOST=grok-chat` on the CLI): hand files back as cards, ≤ 25 MB each. `export_model({ ref, format: 'bundle' })` makes the page, the mesh, the recipe and the README one card. The sandbox is reclaimed — the recipe is what re-mints.
 
 ---
 

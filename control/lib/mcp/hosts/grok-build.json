@@ -20,5 +20,9 @@
     "scheduler": null,
     "skillsDir": "~/.grok/skills",
     "headlessRuntime": null
+  },
+  "handoff": {
+    "verified": "docs",
+    "local": { "page": "local-preview", "file": "local" }
   }
 }

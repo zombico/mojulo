@@ -29,6 +29,14 @@ const CONTENT_TYPES = {
   '.mp4': 'video/mp4',
   '.json': 'application/json; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
+  // export_model legs + the bundle (remote-worker exports P3): real types, not octet-stream
+  '.zip': 'application/zip',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json',
+  '.stl': 'model/stl',
+  '.3mf': 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml',
+  '.usdz': 'model/vnd.usdz+zip',
+  '.usda': 'model/vnd.usda',
 };
 
 function contentTypeFor(filename) {

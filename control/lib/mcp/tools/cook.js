@@ -29,6 +29,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { CookRepository } from '@/lib/db/repositories/cooks';
 import { StashRepository } from '@/lib/db/repositories/stashes';
 import { outcomeUrlFor } from '@/lib/outcomes-paths';
+import { handoffForContext } from '@/lib/mcp/hosts/handoff';
 import { writeOutcome } from '@/lib/outcomes/kinds/essay';
 import { writePictureBookOutcome } from '@/lib/outcomes/kinds/picture-book';
 import { writeSlideDeckOutcome } from '@/lib/outcomes/kinds/slide-deck';
@@ -231,7 +232,7 @@ function resolvePublicationKind({ publication, template }) {
   return 'essay';
 }
 
-export async function cookHandler(input, _ctx) {
+export async function cookHandler(input, _ctx = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error('cook requires an object with slices, aim, and report_md');
   }
@@ -515,6 +516,9 @@ export async function cookHandler(input, _ctx) {
     ? ''
     : ` ⚠ ${skippedItems.length} item(s) dropped — ${[...skippedByReason.entries()].map(([k, n]) => `${n}× ${k}`).join('; ')}.`;
 
+  // The next move on THIS host (remote-worker exports P4): a cook is a folder of pages, so
+  // inside a box its door is the branch or a file card, never the loopback outcome_url.
+  const handoff = handoffForContext(_ctx, { kind: 'folder', name: 'index.html', path: outcomeDir, dir: outcomeDir, download_url: outcomeUrlFor(cookRef) });
   return {
     ok: true,
     cook_ref: cookRef,
@@ -523,6 +527,8 @@ export async function cookHandler(input, _ctx) {
     template_version: templateVersion,
     file_count: fileCount,
     skipped_items: skippedItems,
+    handoff,
+    _structured: true,
     ...(suggested_lens ? { suggested_lens } : {}),
     message: `Cook nucleated at ${outcomeUrlFor(cookRef)} (${fileCount} files, template v${templateVersion}). Aim: "${aim}".${skippedSummary} Cook stops at cook — if this outcome later reads as tractable work, plan mode pulls it via forge_plan({ source: { kind: 'cook', cook_ref: '${cookRef}' } }).`,
   };

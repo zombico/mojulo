@@ -224,7 +224,11 @@ const DESCRIPTION_ALLOWLIST = {
 // `patch` + `readout` input-schema properties (update-sketch-patch). Same rule as the greybox
 // and skinned seams: the op grammar is taught in the schema, and the description itself was
 // re-cut to stay under its 700-char ceiling (it is NOT on the allowlist).
-const PAYLOAD_CEILING = 263_500;
+// Re-pinned 2026-09-22 (263_500 -> 264_500; measured 264,054) to bless remote-worker exports:
+// export_model's `bundle` format (enum + one description sentence), the `cdn` property on the
+// html leg, and the sentence saying every written result carries `handoff` + `fits`. The
+// export_model description itself stays under its 2,285 allowlist pin.
+const PAYLOAD_CEILING = 264_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

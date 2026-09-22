@@ -1,0 +1,34 @@
+{
+  "id": "grok-chat",
+  "adapterId": null,
+  "order": 6,
+  "name": "Grok chat (sandbox shell, no MCP client)",
+  "detect": {},
+  "wire": {
+    "format": "manual",
+    "verify": "Grok chat drives a Linux sandbox from a shell with no MCP client: there is nothing to wire. The 2026-09-21 field run installed from the registry and minted through `npx mojulo call`. This profile exists so `MOJULO_HOST=grok-chat` resolves a door table for the handoff note; init never detects it."
+  },
+  "manual": "No MCP client here — skip init. npm install mojulo, then: npx mojulo call <tool> --json '{…}' (export_model with format 'html' or 'bundle'; files are the whole handoff).",
+  "capabilities": {
+    "defersToolSchemas": false,
+    "maxOutputBytes": null,
+    "nativeImageGen": true,
+    "scheduler": null,
+    "skillsDir": null,
+    "headlessRuntime": null
+  },
+  "handoff": {
+    "verified": "inferred",
+    "box": {
+      "name": "Grok chat's sandbox",
+      "page": "file-card",
+      "file": "file-card",
+      "pageMaxBytes": null,
+      "fileMaxBytes": 26214400,
+      "downloadExtensions": null,
+      "cdns": null,
+      "egress": "none",
+      "ephemeral": true
+    }
+  }
+}
