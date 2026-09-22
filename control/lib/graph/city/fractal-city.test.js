@@ -1341,8 +1341,8 @@ describe('fractal-city fidelity', () => {
       expect(mass.grounds[0]).toEqual(full.grounds[0]);                     // the ground plate
       expect(mass.grounds.filter((g) => g.kind === 'sidewalk').length).toBe(full.grounds.filter((g) => g.kind === 'sidewalk').length);
       expect(mass.grounds.filter((g) => g.kind === 'junction').length).toBe(full.grounds.filter((g) => g.kind === 'junction').length);
-      // kept masses are plain extrusions unless they carry their own form
-      for (const b of mass.boxes.filter((b) => MASS.has(b.kind))) {
+      // kept masses (garages included) are plain extrusions unless they carry their own form
+      for (const b of mass.boxes.filter((b) => MASS.has(b.kind) || b.kind === 'garage')) {
         if (b.class === 'landmark' || b.class === 'religious' || b.class === 'civic') expect(b.lod).toBeUndefined();
         else expect(b.lod).toBe('mass');
       }

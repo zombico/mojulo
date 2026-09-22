@@ -2535,7 +2535,7 @@ function pruneFidelity(level, { boxes, grounds, faces }) {
   for (const b of boxes) {
     const cls = lodBoxClass(b);
     if (!keep.box.has(cls)) continue;
-    if (cls === 'mass' && !lodKeepsForm(b)) {
+    if ((cls === 'mass' || cls === 'outbuilding') && !lodKeepsForm(b)) {   // a kept garage is a plain extrusion too (no roof / door)
       if (level === 'skyline' && b.kind === 'townhouse' && b.row) {
         const m = seenRow.get(b.row);
         if (m) { const x1 = Math.max(m.x + m.w, b.x + b.w), y1 = Math.max(m.y + m.d, b.y + b.d); m.x = Math.min(m.x, b.x); m.y = Math.min(m.y, b.y); m.w = x1 - m.x; m.d = y1 - m.y; m.z1 = Math.max(m.z1, b.z1); m.merged++; continue; }
