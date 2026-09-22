@@ -38,11 +38,20 @@
  *    extrusion (no facade / roof / rooftop kit); landmarks, religious places and rotundas keep
  *    their forms. Below full no walker loops, car lanes or people are planned, so the world
  *    attaches no ambient motion. lodClassCensus() is the test hook that keeps the tables honest.
+ *
+ *  • `elements.frontage` — road-aware masses (frontagePass). After the plan is finished, each
+ *    building / tower / garage reads the claim grid just outside its four faces and records
+ *    `roadFaces` + `front` (the face on the widest road, clear of and furthest from a junction box);
+ *    assembleBoxCityScene emits the facade's entrance / storefront / awning on that face through the
+ *    face's local frame (faceFrame), and on no face when the mass fronts nothing. Large masses get a
+ *    parking entrance on `front` (four hashed variations, a curb-cut tile, a furnishing sweep of the
+ *    cut) and, when on more than one road, a pedestrian `lobby` on a second road face. No rng draw.
+ *    Planner default false (stored rows byte-identical); mintFractalCity turns it on for new mints.
  */
 
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { makeLight, scaleHex, FLAT_LIGHT, withBands, resolveToon } from '../polygonizer/vexar.js';
-import { makeRowhouseFacade } from '../architecture/building-facade.js';
+import { makeRowhouseFacade, faceFrame } from '../architecture/building-facade.js';
 import { straightPath, sinePath, chainPaths, roadRibbons, groundStreet, offsetPath } from './roads.js';
 import { vehicleAntFaces, streetcarCorridor } from '../vehicles/vehicles-css3d.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
@@ -73,6 +82,7 @@ const CITY_ELEMENT_DEFAULTS = {
   townhouses: false,          // opt-in: attached brownstone / modern-stacked rowhouse rows along block faces
   religiousPlaces: true,      // a CLASS of building (a church): at most one per scene, gated by `locale` (see RELIGIOUS_LOCALE_WEIGHT)
   civicDomes: false,          // opt-in: re-tag a FEW of the largest plain buildings as neoclassical domed rotundas (see seedCivicDomes)
+  frontage: false,            // road-aware masses: entrances on the face that fronts a road, parking entrances on the large ones (frontagePass). Default false so every stored row is byte-identical; mintFractalCity turns it ON for new mints
 };
 
 // ── religious places (churches) ─────────────────────────────────────────────────
@@ -397,6 +407,13 @@ const CITY_ELEMENT_ALIASES = {
   rotundas: 'civicDomes',
   domes: 'civicDomes',
   capitol: 'civicDomes',
+  frontage: 'frontage',
+  entrances: 'frontage',
+  entrance: 'frontage',
+  roadAware: 'frontage',
+  'road-aware': 'frontage',
+  parking_entrances: 'frontage',
+  parkingEntrances: 'frontage',
 };
 
 export function normalizeFractalCityElements(elements) {
@@ -653,6 +670,7 @@ function leftoverComponents(g) {
 // itself sits exactly AT the cap — every existing default-frame seed is byte-identical.
 const DEFAULT_REGION = { x: 2, y: 2, w: 30, d: 18 };
 const ROOT_ANCHOR_FRAC = 0.34;
+const ANCHOR_RING = 0.7;                                     // a generic tower's reserved ring: its footprint is the box plus this margin on every side
 const rootAnchorCap = (bs) => ({ w: (DEFAULT_REGION.w / bs) * ROOT_ANCHOR_FRAC, d: (DEFAULT_REGION.d / bs) * ROOT_ANCHOR_FRAC });
 const landmarkBudgetCap = (bs) => Math.min(DEFAULT_REGION.w, DEFAULT_REGION.d) / bs;
 function towerAnchor(region, rng, big, cap = null) {
@@ -664,7 +682,7 @@ function towerAnchor(region, rng, big, cap = null) {
     z1: (big ? 10 : 5.5) + rng() * (big ? 5 : 3),
     kind: 'anchor', glass: big ? '#aebfd0' : '#9bb0a4',
   };
-  return { boxes: [box], footprint: { x: box.x - 0.7, y: box.y - 0.7, w: box.w + 1.4, d: box.d + 1.4 } };
+  return { boxes: [box], footprint: { x: box.x - ANCHOR_RING, y: box.y - ANCHOR_RING, w: box.w + 2 * ANCHOR_RING, d: box.d + 2 * ANCHOR_RING } };
 }
 
 // Coerce the recipe's `landmark` field (a single shape, an array of shapes, or null) into
@@ -2402,7 +2420,7 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
   const major = depth >= opts.maxDepth;                      // the top-level cross is the WIDE main street (town keeps it; its side streets stay narrow)
   const signalized = depth >= opts.maxDepth - 1;             // signal heads + painted crosswalks only on the top tiers; the smallest streets keep their stop signs
   const streetW = gap * (major ? 2.82 : 1.176) * (opts.profile === 'town' ? 0.78 : 1);   // narrower residential carriageway for town (main street still ~2.4× the side streets)
-  const swW = streetW + 1.3;                                 // sidewalk (lighter, wider) under each street
+  const swW = streetW + SIDEWALK_BAND;                       // sidewalk (lighter, wider) under each street
   // keep the cross-streets clear of reserved masses at any level whose region still overlaps
   // one — a landmark plaza (inherited via opts.avoid) OR a centred sub-anchor tower placed
   // THIS level — so the mass keeps its budget and sits IN a block instead of being bisected /
@@ -2431,6 +2449,9 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
   stampRect(grid, { x: region.x, y: hy - swW / 2, w: region.w, d: swW }, CLAIM.VERGE, [CLAIM.EMPTY]);
   stampRect(grid, { x: vx - streetW / 2, y: region.y, w: streetW, d: region.d }, CLAIM.ROAD, [CLAIM.EMPTY, CLAIM.VERGE]);
   stampRect(grid, { x: region.x, y: hy - streetW / 2, w: region.w, d: streetW }, CLAIM.ROAD, [CLAIM.EMPTY, CLAIM.VERGE]);
+  // the frontage pass reads these back (which road a face fronts, how wide, and where the crossings are); no rng, no bytes
+  if (opts.roads) opts.roads.push({ x: vx - streetW / 2, y: region.y, w: streetW, d: region.d, streetW, major }, { x: region.x, y: hy - streetW / 2, w: region.w, d: streetW, streetW, major });
+  if (opts.junctions) opts.junctions.push({ x: vx, y: hy, streetW });
   if (opts.elements.sidewalks) {
     // clip each walk band out of the reserved footprints (landmark plaza / anchor) it crosses,
     // exactly as pushStreet clips the carriageway — so the gray walk never paves across the
@@ -2536,6 +2557,140 @@ function shrinkAnchorAbout(anchor, s, withHeight) {
   sh(fp);
 }
 
+// ── frontage: which face of a mass fronts a road, and the entrances that follow ───────────
+// Opt-in (`elements.frontage`). A pass over the FINISHED plan — after every road, corridor and
+// mass is stamped, after the furniture — that reads the claim grid just outside each face of a
+// mass and records the faces that front a ROAD / CORRIDOR within the sidewalk reach. No rng:
+// everything here is derived from the grid, the recorded road strips and a hash, so the rest of
+// the city is byte-identical with the flag on (and the whole pass is absent with it off).
+//   roadFaces  the faces that front a road ('+y' | '-y' | '+x' | '-x')
+//   front      the face on the widest road (a corridor counts as its own width), preferring a
+//              face whose road hit is clear of a junction box, then the longest hit; null if none
+//   entrance   { kind, face } — a VEHICULAR entrance on `front` for a LARGE mass (a plain / podium /
+//              setback / complex building or a generic tower, not a landmark / religious / civic
+//              form or a cylinder), one of four variations chosen by cityHash of the facade key
+//   lobby      the pedestrian entrance face: a second road face when a portal took `front` (a mass
+//              on more than one road — the centred tower — gets a portal AND a lobby, never two
+//              portals); `front` itself when there is no portal; null ⇒ the portal is the entrance
+// assembleBoxCityScene puts the facade's entrance / storefront / awning on `lobby ?? front` and
+// on no face at all when a mass fronts nothing. Each portal cuts the CURB — a 'curb-cut' ground
+// tile bridging sidewalk to road — and a final sweep removes any furnishing that stood in it
+// (removal only, so the rng stream of everything else is untouched).
+const SIDEWALK_BAND = 1.3;                                   // swW = streetW + SIDEWALK_BAND (recurse): the verge either side of a carriageway
+// how far outside a face a road may sit and still be fronted: a tower's reserved ring (its streets
+// flank the RING, sidewalk flush) plus the verge half-band plus one cell of slack = 1.6 units
+const FRONTAGE_REACH = ANCHOR_RING + SIDEWALK_BAND / 2 + CELL;
+const FRONTAGE_KINDS = new Set(['building', 'anchor', 'midtower', 'garage']);
+const FRONTAGE_FACES = ['+y', '-y', '+x', '-x'];
+const ROAD_CLAIMS = new Set([CLAIM.ROAD, CLAIM.CORRIDOR]);
+const PARKING_ENTRANCE_MIN = { area: 6, height: 3 };        // a "large" mass: footprint ≥ 6 units² and ≥ 3 units tall (a generic tower always qualifies)
+const PARKING_VARIANTS = ['garage', 'ramp', 'porte', 'arch'];
+const PARKING_SHAPES = new Set([undefined, null, 'box', 'podium', 'setback', 'complex']);   // a portal on a cylinder's bounding face would float
+const strHash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };   // = scene-css3d's cityHash
+
+// sample one face: which columns along it see a road within FRONTAGE_REACH
+function faceFrontage(b, face, grid, roads) {
+  const F = faceFrame(b, face);
+  const n = Math.max(1, Math.round(F.L / CELL)), step = F.L / n;
+  let hits = 0, sum = 0, hitLo = Infinity, hitHi = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const lx = (i + 0.5) * step;
+    for (let ly = CELL / 2; ly <= FRONTAGE_REACH; ly += CELL) {
+      const [wx, wy] = F.pt(lx, ly);
+      if (ROAD_CLAIMS.has(cellAt(grid, wx, wy))) { hits++; sum += lx; hitLo = Math.min(hitLo, lx - step / 2); hitHi = Math.max(hitHi, lx + step / 2); break; }
+    }
+  }
+  if (hits < Math.max(3, Math.ceil(n * 0.2))) return null;   // a road merely grazing a corner is not a frontage
+  const band = F.rect(0, 0, F.L, FRONTAGE_REACH);
+  let width = 0;
+  for (const r of roads) if (rectsOverlap(band, r) && r.streetW > width) width = r.streetW;
+  return { face, F, hits, hitLen: hits * step, centre: sum / hits, hitLo, hitHi, width: width || 1 };
+}
+
+// one vehicular entrance on `fr.face`, authored in the face's local frame (lx along, ly outward).
+// Returns the curb-cut rect (world) the furnishing sweep clears.
+function buildParkingEntrance(b, fr, variant, boxes, grounds, faces) {
+  const F = fr.F, L = F.L, R = FRONTAGE_REACH;
+  const ew = variant === 'arch' ? Math.min(3.2, L * 0.6) : Math.min(2.4, L * 0.5);
+  const cx = Math.max(ew / 2 + 0.2, Math.min(L - ew / 2 - 0.2, fr.mouth ?? fr.centre));   // the mouth chosen by frontagePass (away from the crossing; the road's own axis where it dead-ends into the face)
+  const box = (lx, ly, lw, ld, z0, z1, tint) => boxes.push({ kind: 'parking-entrance', entrance: variant, ...F.rect(lx, ly, lw, ld), z0, z1, tint });
+  const quad = (lx0, lx1, ly, z0, z1, fill) => faces.push({ kind: 'parking-portal', entrance: variant, doubleSided: true, fill, corners: [[...F.pt(lx0, ly), z0], [...F.pt(lx1, ly), z0], [...F.pt(lx1, ly), z1], [...F.pt(lx0, ly), z1]] });
+  const ground = (kind, lx, ly, lw, ld, z, fill) => grounds.push({ kind, entrance: variant, ...F.rect(lx, ly, lw, ld), z, fill });
+  const lo = cx - ew / 2, hi = cx + ew / 2;
+  if (variant === 'garage') {                              // recessed mouth: dark portal, chevron header, striped barrier arm
+    quad(lo, hi, 0.03, 0.02, 1.7, '#101418');
+    box(lo, 0, ew, 0.12, 1.7, 1.95, '#e3b13a');
+    for (let i = 0; i < 4; i++) box(lo + 0.1 + i * (ew - 0.2) / 4, 0, 0.16, 0.13, 1.72, 1.93, '#1b1d20');
+    box(lo + 0.06, 0.66, 0.12, 0.12, 0, 0.72, '#70777f');                          // barrier post
+    box(lo + 0.2, 0.68, ew - 0.3, 0.08, 0.6, 0.68, '#d8d4c8');                     // arm
+    for (let i = 0; i < 3; i++) box(lo + 0.35 + i * (ew - 0.5) / 3, 0.675, 0.2, 0.09, 0.6, 0.685, '#c0392b');
+  } else if (variant === 'ramp') {                         // down-ramp between curb walls, 'P' sign post
+    quad(lo, hi, 0.03, -0.7, 1.3, '#0d1013');
+    faces.push({ kind: 'parking-ramp', entrance: variant, doubleSided: true, fill: '#3a3d42', corners: [[...F.pt(lo, R), 0.03], [...F.pt(hi, R), 0.03], [...F.pt(hi, 0.05), -0.7], [...F.pt(lo, 0.05), -0.7]] });
+    for (const side of [lo - 0.12, hi]) for (let i = 0; i < 3; i++) box(side, i * (R / 3), 0.12, R / 3, 0, 0.55 - i * 0.17, '#9a968c');
+    box(hi + 0.22, 0.26, 0.08, 0.08, 0, 1.62, '#70777f');                          // sign post
+    box(hi + 0.06, 0.24, 0.4, 0.06, 1.24, 1.64, '#1f5fae');                         // blue plate
+    box(hi + 0.18, 0.22, 0.16, 0.04, 1.32, 1.56, '#f4f4f0');                        // the 'P'
+  } else if (variant === 'porte') {                        // porte-cochère: canopy on two columns over a drive apron, bollards
+    ground('parking-apron', lo - 0.5, 0, ew + 1, 1.6, 0.023, '#5b5f64');
+    box(lo - 0.4, 0, ew + 0.8, 1.5, 2.3, 2.5, '#4a4f55');
+    for (const side of [lo - 0.33, hi + 0.17]) box(side, 1.26, 0.16, 0.16, 0, 2.3, '#8a8f96');
+    for (const side of [lo - 0.6, hi + 0.5]) for (const ly of [0.4, 1.2]) box(side, ly, 0.1, 0.1, 0, 0.5, '#2c2f33');
+    quad(cx - 0.5, cx + 0.5, 0.03, 0.02, 1.4, '#a8cfe0');                          // glass doors under the canopy
+  } else {                                                 // arch: two-lane opening, roll-up door slats, lit sign strip
+    quad(lo, hi, 0.03, 0.02, 2.0, '#15191d');
+    quad(cx - 0.08, cx + 0.08, 0.035, 0.02, 2.0, '#8a8f96');                      // centre pier
+    for (let i = 0; i < 5; i++) quad(lo + 0.05, hi - 0.05, 0.036, 0.35 + i * 0.33, 0.4 + i * 0.33, '#3c4248');
+    box(lo, 0, ew, 0.14, 2.0, 2.18, '#f2d18a');
+  }
+  ground('curb-cut', lo - 0.2, 0, ew + 0.4, R + 0.2, 0.021, '#6a6d70');
+  return F.rect(lo - 0.2, 0, ew + 0.4, R + 0.2);
+}
+
+function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs) {
+  const stats = { masses: 0, withRoad: 0, withoutRoad: 0, parking: 0 };
+  const cuts = [];
+  const masses = boxes.filter((b) => FRONTAGE_KINDS.has(b.kind) && b.class !== 'landmark' && b.class !== 'religious' && b.class !== 'civic');
+  for (const b of masses) {
+    stats.masses++;
+    const fr = FRONTAGE_FACES.map((f) => faceFrontage(b, f, grid, roads)).filter(Boolean);
+    b.roadFaces = fr.map((f) => f.face);
+    if (!fr.length) { b.front = null; b.lobby = null; stats.withoutRoad++; continue; }
+    stats.withRoad++;
+    // The portal MOUTH is the point one reach outside the face where cars would turn in. Along a road
+    // that runs the length of the face it slides to the end of the road hit furthest from any crossing
+    // (a road that dead-ends into the face has only its own axis). A mouth still inside a junction box
+    // (closer than the box's half-width + the walk band) disqualifies the face ahead of road width —
+    // cars never enter from inside an intersection; among the clear faces the widest road wins, then
+    // the one furthest from a crossing, then the longest hit.
+    const junctionDistAt = (f, lx) => { const [wx, wy] = f.F.pt(lx, FRONTAGE_REACH); return junctions.reduce((m, j) => Math.min(m, Math.hypot(j.x - wx, j.y - wy) - j.streetW / 2), Infinity); };
+    for (const f of fr) {
+      const ew = Math.min(3.2, f.F.L * 0.6), lo = Math.max(ew / 2 + 0.2, f.hitLo + ew / 2), hi = Math.min(f.F.L - ew / 2 - 0.2, f.hitHi - ew / 2);
+      const cands = lo <= hi ? [f.centre, lo, hi, (lo + hi) / 2].map((c) => Math.max(lo, Math.min(hi, c))) : [f.centre];
+      f.mouth = cands.reduce((best, c) => (junctionDistAt(f, c) > junctionDistAt(f, best) + 1e-9 ? c : best), cands[0]);
+      f.jd = junctionDistAt(f, f.mouth);
+    }
+    const score = (f) => (f.jd > SIDEWALK_BAND / 2 + 0.5 ? 1000 : 0) + f.width * 100 + Math.min(10, Math.max(0, f.jd)) * 2 + f.hitLen;
+    fr.sort((p, q) => score(q) - score(p));
+    b.front = fr[0].face;
+    const large = b.kind === 'anchor' || (b.w * b.d >= PARKING_ENTRANCE_MIN.area && (b.z1 - b.z0) >= PARKING_ENTRANCE_MIN.height);
+    if (!large || !PARKING_SHAPES.has(b.shape)) { b.lobby = b.front; continue; }
+    const [fx, fy] = toFrame(b.x, b.y);
+    const variant = PARKING_VARIANTS[strHash(`${fx.toFixed(1)},${fy.toFixed(1)},${((b.z1 - b.z0) * bs).toFixed(1)}`) % PARKING_VARIANTS.length];
+    b.entrance = { kind: variant, face: b.front };
+    b.lobby = fr.length > 1 ? fr[1].face : null;
+    cuts.push(buildParkingEntrance(b, fr[0], variant, boxes, grounds, faces));
+    stats.parking++;
+  }
+  // the curb-cut sweep: no lamp / sign / tree / bin / bench / pole stands in a portal's span
+  if (cuts.length) {
+    const keep = boxes.filter((b) => b.kind === 'parking-entrance' || lodBoxClass(b) !== 'furnishing' || !cuts.some((c) => rectsOverlap(b, c)));
+    stats.swept = boxes.length - keep.length;
+    replaceInPlace(boxes, keep);
+  }
+  return stats;
+}
+
 // ── fidelity (level of detail) ─────────────────────────────────────────────────────
 // 'full' | 'massing' | 'skyline'. A PRUNE over the finished plan, keyed on explicit class tables —
 // never a different generation, so the same seed at any level is the same city (file header).
@@ -2559,6 +2714,7 @@ const LOD_BOX_CLASS = {
   'power-pole': 'furnishing', 'power-line': 'furnishing', 'freeway-lamp': 'furnishing',
   'city-tree': 'furnishing', 'city-palm': 'furnishing', 'city-shrub': 'furnishing',
   'park-bin': 'furnishing', 'park-bench': 'furnishing',
+  'parking-entrance': 'furnishing',   // a portal's dressing (header, barrier, canopy, columns, bollards, curb walls, sign); the mass itself is untouched
 };
 const LOD_BOX_PREFIX = [['townhouse-', 'furnishing'], ['play-', 'furnishing'], ['tram-', 'furnishing'], ['platform', 'furnishing']];
 function lodBoxClass(b) {
@@ -2577,6 +2733,7 @@ const LOD_GROUND_CLASS = {
   'alley-floor': 'detail', 'front-lawn': 'detail', driveway: 'detail', 'park-shore': 'detail', 'park-trail': 'detail',
   'sidewalk-joint': 'marking', 'crosswalk-vertical-road-stripe': 'marking', 'crosswalk-horizontal-road-stripe': 'marking',
   'lot-stripe': 'marking', 'playground-pad': 'marking', 'play-sand': 'marking',
+  'curb-cut': 'marking', 'parking-apron': 'marking',
 };
 function lodGroundClass(g, i) {
   if (i === 0 && g.kind == null) return 'plane';
@@ -2898,11 +3055,14 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const landmarks = normalizeLandmarks(landmark);
   let corridor = null;
   let anchorRegion = region;                                   // where the root anchor sits — whole region, or one side of a boulevard
+  // the road strips + crossings the recursion lays, read back by the frontage pass (no rng, no bytes)
+  const roadStrips = [], junctions = [];
   if (recipeElements.streetcars) {
     const horizontal = region.w >= region.d;
     corridor = cityStreetcarCorridor(region, rng);
     seedReserved.push({ ...corridor.footprint, hard: true });
     stampRect(grid, corridor.footprint, CLAIM.CORRIDOR);
+    roadStrips.push({ ...corridor.footprint, streetW: Math.min(corridor.footprint.w, corridor.footprint.d), major: true });   // the boulevard is the widest road in town
     anchorRegion = sideRegionAvoiding(region, corridor.footprint, horizontal ? 'x' : 'y');
   }
   // ROOT ANCHOR, RESERVED BEFORE ROADS. A landmark (or landmark CLUSTER, e.g. CN Tower +
@@ -3017,7 +3177,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // leaf, after the road inset, above the 1.3-unit floor). The stats had rows for what stands ON a
   // block (buildings, townhouses, lots) but none for the block itself (grok-headless-affordances P5).
   const cityBlocks = [];
-  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs) }, grid, cars);
+  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs), roads: roadStrips, junctions }, grid, cars);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
   // LOT INSETS (city-insets.js, the default): with the roads and blocks laid, each minted
   // building takes over a generated PARCEL — the candidate that evicts the fewest neighbours,
@@ -3101,6 +3261,12 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // (after the church) so its rng draws never perturb any byte-identical seed; the `&&`
   // short-circuits before any draw when off.
   const civicDomes = (recipeElements.civicDomes && seedCivicDomes(boxes, rng)) || 0;
+  // FRONTAGE (opt-in, no rng): which face of each mass fronts a road, the vehicular entrances on the
+  // large ones, and the curb-cut sweep. After every rng consumer, before the prune (the prune classes
+  // the entrance dressing as furnishing / marking and keeps the mass). Frame-space keys for the
+  // variant hash so it matches the facade's own key after the scale-down.
+  const toFrame = (x, y) => [frameOrigin.x + (x - frameOrigin.x) * bs, frameOrigin.y + (y - frameOrigin.y) * bs];
+  const frontage = recipeElements.frontage ? frontagePass(boxes, grounds, faces, grid, roadStrips, junctions, toFrame, bs) : null;
   // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
   // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
   const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });
@@ -3136,6 +3302,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     ...(placedInsets.length ? { insets: placedInsets } : {}),   // minted edifices placed in the fabric (city-insets.js)
     ...(blocksLaid.length ? { blocksLaid } : {}),               // the operator's own parcels, as placed (advisory flags per block)
     ...(rootZone ? { anchorSeat: 'side' } : {}),                // the root tower sits beside the main crossing (see `seat`)
+    ...(frontage ? { frontage } : {}),                          // road-aware masses: { masses, withRoad, withoutRoad, parking, swept? }
     ...(pruned ? { fidelity: pruned.level, pruned: pruned.dropped } : {}),   // what the level-of-detail prune took off the full plan
   };
   return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}) };

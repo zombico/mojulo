@@ -50,7 +50,17 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
     ...(time === 'day' || time === 'night' ? { time } : {}),   // daylight setting (omit → neutral); render route reads manifest.time
     ...(region && typeof region === 'object' ? { region } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
-    ...(elements && typeof elements === 'object' ? { elements } : {}),   // element toggles (opt-in streetcars/tram; the generator normalizes + aliases)
+    // element toggles (opt-in streetcars/tram; the generator normalizes + aliases). FRONTAGE is the one
+    // place a NEW mint's default differs from a stored row's: the planner default is false (every
+    // existing row re-renders byte-identically), and every city minted from here on is road-aware —
+    // entrances on the face that fronts a road, parking entrances on the large masses — unless the
+    // caller sets `frontage: false`. Written into the manifest so the row itself says so.
+    ...((() => {
+      const FRONTAGE_KEYS = ['frontage', 'entrances', 'entrance', 'roadAware', 'road-aware', 'parking_entrances', 'parkingEntrances'];   // the planner's aliases for the flag
+      if (Array.isArray(elements)) return { elements: elements.some((e) => FRONTAGE_KEYS.includes(e)) ? elements : [...elements, 'frontage'] };
+      if (elements && typeof elements === 'object') return { elements: FRONTAGE_KEYS.some((k) => k in elements) ? elements : { ...elements, frontage: true } };
+      return { elements: { frontage: true } };
+    })()),
     ...(locale && typeof locale === 'string' ? { locale } : {}),   // regional cue — gates locale-weighted classes (e.g. one church in NA/SA/EU/PH)
     ...(climate === 'tropical' || climate === 'equatorial' ? { climate } : {}),   // species mix — tropical/equatorial swaps conifers for coconut palms among the street trees
 

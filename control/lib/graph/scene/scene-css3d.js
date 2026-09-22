@@ -32,7 +32,7 @@ import { planArchitectureMandala } from '../polygonizer/architecture-mandala-pla
 import { getFurnitureNet, getFurnitureFaceCard } from '../polygonizer/furniture-cards.js';
 import { bakeDiffusion3d, applyDiffusion, bakeDiffusionField, applyDiffusionSoft, emissiveFixture } from '../effects/light-diffusion-3d.js';
 import { bakeAmbientOcclusion } from '../effects/ao-bake.js';
-import { makeFacade, facadeCss, facadeHtml, facadeFloors, facadeBays, buildingExtras } from '../architecture/building-facade.js';
+import { makeFacade, facadeCss, facadeHtml, facadeFloors, facadeBays, buildingExtras, faceFrame } from '../architecture/building-facade.js';
 import { buildFacadeCard } from '../architecture/facade-card.js';
 import { buildTerrainWorldMesh } from '../polygonizer/painted-landscape.js';
 import { skyCss } from './sky-css.js';
@@ -2323,6 +2323,28 @@ function curtainwallBuilding(b, L, camHint, textures, opts = {}) {
   return out;
 }
 
+// buildingExtras authors every ornament with the front at +y. For a mass whose front is another
+// face, run it in that face's local frame (faceFrame) and map the boxes / decals / tilted faces
+// back to world. '+y' is the identity frame and takes the untouched legacy call, so decals there
+// carry the same corners and normal as before (byte-identical). `bays` is recomputed off the
+// face's own length for a side face (the storefront pane count follows the face it sits on).
+function buildingExtrasOn(b, f, floors, bays, front) {
+  if (!front || front === '+y') {
+    const ex = buildingExtras({ x: b.x, y: b.y, w: b.w, d: b.d, z0: b.z0, z1: b.z1 }, f, floors, bays);
+    const yo = b.y + b.d + 0.04;
+    ex.decals = ex.decals.map((dc) => ({ ...dc, normal: [0, 1, 0], corners: [[dc.x0, yo, dc.z0], [dc.x1, yo, dc.z0], [dc.x1, yo, dc.z1], [dc.x0, yo, dc.z1]] }));
+    return ex;
+  }
+  const F = faceFrame(b, front);
+  const ex = buildingExtras({ ...F.localBox, z0: b.z0, z1: b.z1 }, f, floors, facadeBays(f, F.L));
+  const toWorld = ([lx, ly, z]) => { const [wx, wy] = F.pt(lx, ly); return [wx, wy, z]; };
+  return {
+    boxes: ex.boxes.map((e) => ({ ...e, ...F.rect(e.x, e.y, e.w, e.d) })),
+    faces: ex.faces.map((face) => ({ ...face, corners: face.corners.map(toWorld) })),
+    decals: ex.decals.map((dc) => ({ ...dc, normal: F.normal, corners: [toWorld([dc.x0, 0.04, dc.z0]), toWorld([dc.x1, 0.04, dc.z0]), toWorld([dc.x1, 0.04, dc.z1]), toWorld([dc.x0, 0.04, dc.z1])] })),
+  };
+}
+
 export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], faces: extraFaces = [], sources = [], diffusion = {}, moonlight, cameras = DEFAULT_CITY_CAMERAS, viewBox = { width: 1120, height: 780 }, unitScale = 22, title = 'mojulo fractal city', light, bg = '#0e1014', sky, groundShadows = false, creaseSeams = false } = {}) {
   const L = light || makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
   const camHint = cameras[0]?.worldFraming?.cameraPosition || [-7, 31, 9];
@@ -2411,14 +2433,18 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
         : b.shape === 'podium' ? { ...facade, balcony: false, loggia: false, fireEscape: false }
         : b.shape === 'complex' ? { ...facade, balcony: false, loggia: false, fireEscape: false, rooftopKit: [] }   // off-centre tower → skip floating roof kit
         : facade;
-      const extras = buildingExtras({ x: b.x, y: b.y, w: b.w, d: b.d, z0: b.z0, z1: b.z1 }, exFacade, floors, bays);
+      // ROAD-AWARE FRONT (fractal-city `elements.frontage`): a box that carries `front` knows which
+      // face fronts a road. The entrance / storefront / awning program goes on the pedestrian face —
+      // `lobby` when a vehicular entrance took `front`, else `front` — and on NO face when the mass
+      // fronts nothing (or its portal is the entrance). A box without the key takes the legacy +y
+      // path below, byte-identical.
+      const aware = 'roadFaces' in b;   // the frontage pass's marker (`front` alone is also a house's street edge, 'y-' etc.)
+      const entranceFace = aware ? (b.entrance ? (b.lobby || null) : b.front) : '+y';
+      const awareFacade = aware && !entranceFace ? { ...exFacade, noEntrance: true, storefront: false, awning: false } : exFacade;
+      const extras = buildingExtrasOn(b, awareFacade, floors, bays, entranceFace || '+y');
       for (const e of extras.boxes) faces.push(...cityBox({ x: e.x, y: e.y, w: e.w, d: e.d }, e.z0, e.z1, { top: scaleHex(e.tint, 1.06), side: e.tint }, L, camHint));
       for (const ef of extras.faces) faces.push(ef);     // tilted equipment (satellite dish)
-      for (const dc of extras.decals) {
-        const yo = b.y + b.d + 0.04;
-        const c = [[dc.x0, yo, dc.z0], [dc.x1, yo, dc.z0], [dc.x1, yo, dc.z1], [dc.x0, yo, dc.z1]];
-        faces.push({ corners: c, fill: scaleHex(dc.fill, litFactor([0, 1, 0], L)), doubleSided: true });
-      }
+      for (const dc of extras.decals) faces.push({ corners: dc.corners, fill: scaleHex(dc.fill, litFactor(dc.normal, L)), doubleSided: true });
     } else {
       const tint = b.tint || '#9aa3ad';
       faces.push(...cityBox(r, b.z0, b.z1, { top: scaleHex(tint, 1.1), side: tint }, L, camHint));
