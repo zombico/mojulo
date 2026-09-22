@@ -37,6 +37,7 @@ export const OUTLINER_BRANCHES = [
   { key: 'entities', group: 'geometry' },
   { key: 'elements', group: 'geometry' },
   { key: 'civicAreas', group: 'geometry' },
+  { key: 'blocks', group: 'geometry' },
   { key: 'chambers', group: 'geometry' },
   { key: 'tunnels', group: 'geometry' },
   { key: 'masses', group: 'geometry' },
@@ -69,7 +70,7 @@ const NAMED = new Map(OUTLINER_BRANCHES.map((b) => [b.key, b]));
  */
 const NOT_A_BRANCH = new Set([
   'kind', 'title', 'seed', 'units', 'viewBox', 'locale', 'time', 'dimensions',
-  'contractVersion', 'intent', 'anchor', 'depth', 'density', 'baseScale', 'view',
+  'contractVersion', 'intent', 'anchor', 'depth', 'density', 'baseScale', 'fidelity', 'view',
   'showSlotMarkers', 'ao', 'fog',
 ]);
 
