@@ -128,6 +128,38 @@ loops and the recipe format are unchanged.
   vocabulary (the street edge; the renderer reads it) and gain the mass-style `roadFaces` (`'-y'`…).
 - **`compose_world` blocks-drop-the-theme-anchor is now pinned at the DB level**
   (`compose-world.blocks.test.js`, in-memory SQLite, mars-colony's tower).
+- **Signalised traffic on the `/world` path.** With `traffic` on, the moving cars no longer drive
+  through each other at crossings. The plan exports `signals`: one per crossing — every crossing the
+  recursion laid AND every T where a side street meets a wider one, derived from the recorded road
+  strips pairwise (box = the vertical strip's width × the horizontal strip's) — each with a phase
+  PROGRAM: the region's long axis green first (12 s, amber in its last 2 s), an all-red clearance
+  (5 s), the other axis green, another clearance; cycle 34 s; a SEEDED offset (mulberry32 on the recipe
+  seed and the junction index). Dead-end stubs and the streetcar corridor are not crossings and get
+  none. `attachCityCars` trims every lane at the boxes it starts or ends in (a side street leaving or
+  dead-ending into an avenue starts past / stops before the box) and lists the junctions it crosses in
+  travel order with the stop line (box edge minus 0.35), entry and exit edges; the cars channel then
+  runs the shared traffic model (`lib/graph/scene/channels/traffic-model.js`, its source embedded
+  verbatim into the page so the browser and the tests run one code): a car brakes to the stop line
+  when its axis is red or clearing and pulls away on green; a car never comes closer than 0.5 to the
+  car ahead on its lane (queues form behind a red and dissolve on green); a car already inside a box
+  finishes crossing; a car crosses its stop line only when the car ahead has left it room to clear
+  the box, so no car is ever held inside a junction; a car wraps to the lane start only when the
+  start is clear. No cross-axis car can share a box — by construction of the phases (the clearance is
+  longer than the worst-case crossing), not by a runtime check. The state is integrated at a fixed
+  1/30 s from the world clock's zero, so the pose at any clock is the same at any frame rate and
+  under pause / resume and capture frames. Lanes also changed with traffic on: an avenue's lane is
+  split where a reserved mass (the centred tower) clips it, so no car drives through a building; side
+  streets, too narrow for two cars abreast, carry ONE centred one-way lane each, direction alternating
+  street by street (a one-way downtown grid); a short run takes fewer cars. `window.__mojSignals`
+  probes the live phase per crossing. A city without `traffic` exports no signals and its world page
+  is byte-identical; the CSS3D `/scene` still is untouched.
+- **Signal heads stay static.** The lamp boxes are baked into the world's one merged vertex-coloured
+  geometry with the rest of the city; lighting them per phase would mean splitting them out into a
+  separate addressable mesh set at assemble time. Not done this round; the heads show their three
+  lamps as before.
+- **Turns into portals (the stretch goal) were not built.** The lane model is straight pacman lanes;
+  a car peeling off into a curb-cut, holding and rejoining needs a spur path and a merge rule, and a
+  half turn was not worth shipping. The static arriving / departing car-ants at the portals stand.
 - Where these are documented for agents: the `city` view-vocab card (`get_view_vocab({ id: 'city' })`)
   and the header of `lib/graph/city/fractal-city.js`. `tools/list` descriptions are unchanged.
 
