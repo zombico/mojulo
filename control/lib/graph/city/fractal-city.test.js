@@ -1127,8 +1127,8 @@ describe('fractal-city operator blocks', () => {
   const hit = (a, b) => !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.d <= b.y || b.y + b.d <= a.y);
   const penetration = (a, b) => Math.min(Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), Math.min(a.y + a.d, b.y + b.d) - Math.max(a.y, b.y));
   const centreIn = (b, r) => { const cx = b.x + b.w / 2, cy = b.y + b.d / 2; return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.d; };
-  const MASS = new Set(['building', 'house', 'townhouse', 'anchor']);
-  // one block per use, spaced on a 3 × 3 lattice clear of the centred anchor tower
+  const MASS = new Set(['building', 'house', 'townhouse', 'anchor', 'garage']);
+  // one block per use, spaced on a 3 × 3 lattice (the side-seated root tower takes the quadrant they cover least)
   const ALL_USES = [
     { rect: { x: 4, y: 4, w: 8, d: 6 }, use: 'residential', label: 'old town' },
     { rect: { x: 14, y: 4, w: 8, d: 6 }, use: 'residential', fill: 'rows' },
@@ -1214,9 +1214,10 @@ describe('fractal-city operator blocks', () => {
       if (grounds.some((g) => g.kind === 'town-square-paving' && centreIn(g, rect(6))) && boxes.some((b) => inBlock(6)(b) && b.kind === 'park-bench')) seenPlaza = true;
       if (boxes.some((b) => inBlock(7)(b) && b.kind === 'building' && b.civic === 'hall')) seenHall = true;
       if (grounds.some((g) => g.kind === 'school-yard' && centreIn(g, rect(8)))) seenSchool = true;
-      // an EMPTY block builds nothing and the recursion never fills it either
+      // an EMPTY block builds nothing and the recursion never fills it either (the root tower is seated
+      // before the blocks and reported through overlapsReserved, so it is not a recursion mass here)
       expect(boxes.some((b) => inBlock(9)(b))).toBe(false);
-      for (const b of boxes.filter((b) => MASS.has(b.kind) && b.block == null)) if (hit(b, rect(9))) expect(penetration(b, rect(9))).toBeLessThanOrEqual(CELL + 1e-9);
+      for (const b of boxes.filter((b) => MASS.has(b.kind) && b.kind !== 'anchor' && b.block == null)) if (hit(b, rect(9))) expect(penetration(b, rect(9))).toBeLessThanOrEqual(CELL + 1e-9);
     }
     expect([seenHouses, seenRows, seenCommercial, seenIndustrial, seenPark, seenPlaza, seenHall, seenSchool]).toEqual([true, true, true, true, true, true, true, true]);
   });
@@ -1277,6 +1278,152 @@ describe('fractal-city operator blocks', () => {
     const blocks = [{ rect: { x: 1, y: 1, w: 4, d: 4 }, use: 'park' }];
     expect(cityThemeAdapter({ blocks, fidelity: 'massing' })).toEqual({ blocks, fidelity: 'massing' });
     expect(cityThemeAdapter({ context: { time: 'day' } })).toEqual({ time: 'day' });
+  });
+});
+
+// ── round 2 (eyes gate on the 40 × 28 base recipe): the anchor, and blocks that mean what they say ──
+describe('fractal-city root anchor at large regions', () => {
+  const BIG = { region: { x: 2, y: 2, w: 40, d: 28 }, depth: 3, anchor: 'tower', density: 0.7 };
+  const DEF = { x: 2, y: 2, w: 30, d: 18 };
+  const root = (plan) => plan.boxes.find((b) => b.kind === 'anchor' && b.glass === '#aebfd0');
+  const hit = (a, b) => !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.d <= b.y || b.y + b.d <= a.y);
+
+  it('caps the root tower at the default frame footprint: a bigger region means more city, not a bigger tower', () => {
+    const def = root(planFractalCity({ seed: 3, anchor: 'tower' }));
+    const big = root(planFractalCity({ ...BIG, seed: 3 }));
+    expect(def.w).toBeCloseTo(30 * 0.34, 9); expect(def.d).toBeCloseTo(18 * 0.34, 9);
+    expect(big.w).toBeCloseTo(def.w, 9); expect(big.d).toBeCloseTo(def.d, 9);
+    // baseScale keeps the frame-space footprint at s × the default (the cap is passed in gen units)
+    const bs = root(planFractalCity({ ...BIG, seed: 3, baseScale: 0.6 }));
+    expect(bs.w).toBeCloseTo(def.w * 0.6, 9); expect(bs.d).toBeCloseTo(def.d * 0.6, 9);
+    // a region SMALLER than the default is untouched by the cap (34 % of its own side)
+    const small = root(planFractalCity({ seed: 3, anchor: 'tower', region: { x: 0, y: 0, w: 24, d: 14 } }));
+    expect(small.w).toBeCloseTo(24 * 0.34, 9);
+  });
+
+  it('caps a landmark budget at the default frame short side', () => {
+    const def = planFractalCity({ seed: 9, landmark: 'cn-tower' }).boxes.find((b) => b.class === 'landmark');
+    const big = planFractalCity({ ...BIG, seed: 9, landmark: 'cn-tower' }).boxes.find((b) => b.class === 'landmark');
+    expect(big.w).toBeCloseTo(def.w, 9); expect(big.d).toBeCloseTo(def.d, 9);
+  });
+
+  it('seats the tower beside the main crossing on a larger-than-default region: the crossing survives, the tower is off-centre', () => {
+    for (let seed = 1; seed <= 12; seed += 1) {
+      const plan = planFractalCity({ ...BIG, seed });
+      const t = root(plan);
+      expect(plan.stats.anchorSeat).toBe('side');
+      // the tower is in a quadrant, not straddling the region centre
+      const cx = BIG.region.x + BIG.region.w / 2, cy = BIG.region.y + BIG.region.d / 2;
+      expect(cx > t.x && cx < t.x + t.w && cy > t.y && cy < t.y + t.d).toBe(false);
+      // the root crossing exists: a junction patch nowhere near the tower's footprint ring
+      const junctions = plan.grounds.filter((g) => g.kind === 'junction');
+      expect(junctions.length).toBeGreaterThan(0);
+      const ring = { x: t.x - 0.7, y: t.y - 0.7, w: t.w + 1.4, d: t.d + 1.4 };
+      for (const j of junctions) expect(hit(j, ring)).toBe(false);
+      // no road ribbon crosses the tower footprint
+      for (const rb of plan.ribbons) for (const [x, y] of rb.path) expect(x > t.x && x < t.x + t.w && y > t.y && y < t.y + t.d).toBe(false);
+    }
+  });
+
+  it('is gated: the default frame keeps the centred tower, and the dial overrides the gate both ways', () => {
+    const def = planFractalCity({ seed: 3, anchor: 'tower' });
+    expect(def.stats.anchorSeat).toBeUndefined();
+    const t = root(def), cx = DEF.x + DEF.w / 2, cy = DEF.y + DEF.d / 2;
+    expect(cx > t.x && cx < t.x + t.w && cy > t.y && cy < t.y + t.d).toBe(true);
+    expect(planFractalCity({ seed: 3, anchor: 'tower', anchorSeat: 'side' }).stats.anchorSeat).toBe('side');
+    expect(planFractalCity({ ...BIG, seed: 3, anchorSeat: 'centre' }).stats.anchorSeat).toBeUndefined();
+    const centred = root(planFractalCity({ ...BIG, seed: 3, anchorSeat: 'centre' }));
+    expect(centred.w).toBeCloseTo(30 * 0.34, 9);   // the cap still applies
+  });
+
+  it('with blocks, takes the quadrant the blocks cover least', () => {
+    const blocks = [{ rect: { x: 4, y: 4, w: 16, d: 10 }, use: 'residential' }, { rect: { x: 22, y: 4, w: 16, d: 10 }, use: 'commercial' }, { rect: { x: 4, y: 16, w: 16, d: 10 }, use: 'park' }];
+    for (let seed = 1; seed <= 8; seed += 1) {
+      const t = root(planFractalCity({ ...BIG, seed, blocks }));
+      for (const b of blocks) expect(hit(t, b.rect), `seed ${seed} tower on a block`).toBe(false);
+    }
+  });
+
+  it('fidelity never moves the anchor', () => {
+    const full = root(planFractalCity({ ...BIG, seed: 4 })), mass = root(planFractalCity({ ...BIG, seed: 4, fidelity: 'massing' }));
+    expect([mass.x, mass.y, mass.w, mass.d, mass.z1]).toEqual([full.x, full.y, full.w, full.d, full.z1]);
+  });
+
+  it('the adapter lowers asset.anchorSeat', () => {
+    expect(cityThemeAdapter({ asset: { anchor: 'tower', anchorSeat: 'side' } })).toEqual({ anchor: 'tower', anchorSeat: 'side' });
+    expect(cityThemeAdapter({ asset: { anchorSeat: 'corner' } })).toEqual({});
+  });
+});
+
+describe('fractal-city operator blocks mean what they say (round 2)', () => {
+  const BIG = { region: { x: 2, y: 2, w: 40, d: 28 }, depth: 3, anchor: 'tower', density: 0.7, locale: 'north-america' };
+  const CBD = { rect: { x: 28, y: 18, w: 10, d: 8 }, use: 'commercial', storeys: [10, 16], density: 1, label: 'CBD' };
+  const YARDS = { rect: { x: 28, y: 4, w: 8, d: 6 }, use: 'industrial', label: 'yards' };
+
+  it('never re-tags an operator block mass as the church / mosque / temple or a rotunda', () => {
+    for (let seed = 1; seed <= 12; seed += 1) {
+      for (const locale of ['north-america', 'middle-east', 'east-asia']) {
+        const { boxes, stats } = planFractalCity({ ...BIG, seed, locale, elements: { civicDomes: true }, blocks: [CBD, YARDS] });
+        expect(stats.religiousPlaces + stats.civicDomes).toBeGreaterThan(0);
+        for (const b of boxes.filter((x) => x.block != null)) expect(b.class, `seed ${seed} ${locale}: block mass re-tagged as ${b.shape}`).toBeUndefined();
+      }
+    }
+  });
+
+  it('a large commercial block is a composition of several masses across the band with an off-centre peak', () => {
+    let peaksOffCentre = 0;
+    for (let seed = 1; seed <= 10; seed += 1) {
+      const { boxes } = planFractalCity({ ...BIG, seed, blocks: [CBD] });
+      const masses = boxes.filter((b) => b.block === 0 && b.kind === 'building');
+      expect(masses.length).toBeGreaterThanOrEqual(3);
+      for (const b of masses) { expect(b.z1).toBeGreaterThanOrEqual(10 * STOREY_H - 1e-9); expect(b.z1).toBeLessThanOrEqual(16 * STOREY_H + 1e-9); expect(b.w * b.d).toBeLessThan(CBD.rect.w * CBD.rect.d * 0.6); }
+      const tallest = masses.reduce((m, b) => (b.z1 > m.z1 ? b : m), masses[0]);
+      expect(tallest.z1).toBeGreaterThanOrEqual(10 * STOREY_H + (16 - 10) * STOREY_H * 0.85 - 1e-9);
+      const cx = CBD.rect.x + CBD.rect.w / 2, cy = CBD.rect.y + CBD.rect.d / 2;
+      if (!(cx > tallest.x && cx < tallest.x + tallest.w && cy > tallest.y && cy < tallest.y + tallest.d)) peaksOffCentre += 1;
+    }
+    expect(peaksOffCentre).toBeGreaterThan(0);
+  });
+
+  it('an industrial block is two to four low sheds on the industrial facade program fronting a lot', () => {
+    for (let seed = 1; seed <= 10; seed += 1) {
+      const { boxes, grounds } = planFractalCity({ ...BIG, seed, blocks: [YARDS] });
+      const sheds = boxes.filter((b) => b.block === 0 && b.kind === 'building');
+      expect(sheds.length).toBeGreaterThanOrEqual(2); expect(sheds.length).toBeLessThanOrEqual(4);
+      for (const s of sheds) { expect(s.z1).toBeLessThanOrEqual(2.2 + 1e-9); expect(s.program).toBe('industrial'); expect(s.shape).toBe('box'); }
+      const lot = grounds.find((g) => g.kind === 'lot-asphalt' && g.x >= YARDS.rect.x && g.x + g.w <= YARDS.rect.x + YARDS.rect.w + 1e-9 && g.y >= YARDS.rect.y && g.y + g.d <= YARDS.rect.y + YARDS.rect.d + 1e-9);
+      expect(lot).toBeTruthy();
+    }
+  });
+
+  it('a small block may still be one mass', () => {
+    const { boxes } = planFractalCity({ ...BIG, seed: 2, blocks: [{ rect: { x: 4, y: 20, w: 3, d: 3 }, use: 'commercial', density: 1 }] });
+    expect(boxes.filter((b) => b.block === 0 && b.kind === 'building').length).toBe(1);
+  });
+
+  it('a residential houses block rolls no park-pocket or vacancy dice: houses on every lot at density 1', () => {
+    for (let seed = 1; seed <= 16; seed += 1) {
+      const { boxes, grounds, stats } = planFractalCity({ ...BIG, seed, anchor: null, blocks: { map: ['RRCC', 'PPZE', 'IIVR'] } });
+      for (const r of stats.blocksLaid.filter((b) => b.use === 'residential')) {
+        expect(boxes.filter((b) => b.block === r.index && b.kind === 'house').length, `seed ${seed} ${r.label}`).toBeGreaterThanOrEqual(4);
+        expect(boxes.some((b) => b.block === r.index && b.kind.startsWith('play-'))).toBe(false);
+        expect(grounds.some((g) => g.block === r.index && g.kind === 'park-lawn')).toBe(false);
+        expect(r.note).toBeUndefined();
+      }
+    }
+    // density is the only keep probability
+    const half = planFractalCity({ ...BIG, seed: 5, blocks: [{ rect: { x: 4, y: 4, w: 9, d: 7 }, use: 'residential', density: 0.5 }] });
+    const full = planFractalCity({ ...BIG, seed: 5, blocks: [{ rect: { x: 4, y: 4, w: 9, d: 7 }, use: 'residential' }] });
+    expect(half.stats.blocksLaid[0].masses).toBeLessThan(full.stats.blocksLaid[0].masses);
+  });
+
+  it('reports a fill that cannot be laid instead of substituting one', () => {
+    const { stats, grounds } = planFractalCity({ ...BIG, seed: 1, blocks: [{ rect: { x: 4, y: 4, w: 1.6, d: 1.6 }, use: 'park', fill: 'playground' }, { rect: { x: 8, y: 4, w: 0.8, d: 0.8 }, use: 'commercial' }] });   // under placeBuilding's 0.85 floor
+    expect(stats.blocksLaid[0].note).toMatch(/too small for a playground/);
+    expect(grounds.some((g) => g.block === 0 && g.kind === 'park-lawn')).toBe(true);
+    expect(grounds.some((g) => g.block === 0 && g.kind === 'civic-area')).toBe(false);   // no big-park substitution
+    expect(stats.blocksLaid[1].masses).toBe(0);
+    expect(stats.blocksLaid[1].note).toMatch(/too small for fill 'massed'/);
   });
 });
 
@@ -1417,7 +1564,7 @@ describe('fractal-city fidelity', () => {
       expect(census.boxes['street-lamp']).toBe('furnishing');
       expect(census.grounds.sidewalk).toBe('plane');
       if (rec.anchor === 'freeway') expect(census.boxes.pillar).toBe('structure');
-      if (rec.profile === 'town') expect(census.boxes.garage).toBe('outbuilding');
+      if (census.boxes.garage) expect(census.boxes.garage).toBe('outbuilding');
     }
   });
 });

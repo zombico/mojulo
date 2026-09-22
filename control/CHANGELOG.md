@@ -47,6 +47,33 @@ loops and the recipe format are unchanged.
   path attaches no walkers or traffic; the night bake has no lamp sources (the sky and moonlight
   still render). Meant for a scape looked at from further away or a cheaper world under a large
   `region` / small `baseScale`.
+- **The root tower no longer swallows the centre of a large city.** The default frame (30 × 18) is the
+  city's unit of scale: a root tower is capped at that frame's 34 % footprint (10.2 × 6.12 city units)
+  and a monument budgets off at most the default frame's short side, so a bigger `region` gets more city
+  around the same tower instead of a 14 × 10 monolith on the main crossing. On a region larger than the
+  default in either dimension the tower is also SEATED to one side — the centre of a drawn quadrant (the
+  one an operator's blocks cover least) — and put on the cross-street avoid list with its right-of-way,
+  so the main crossing flanks it and the tower reads as a landmark on a corner. `anchorSeat: 'side' |
+  'centre'` (recipe top level; `asset.anchorSeat` in `compose_world`) overrides the gate either way.
+  Both are gated so every existing default-frame recipe — with or without `baseScale`, a monument, a
+  streetcar corridor or a town profile — is byte-identical; a larger-than-default region with a root
+  tower or monument re-renders by design. With `compose_world`, laying `blocks` drops a THEME-implied
+  anchor (e.g. mars-colony's tower) unless the call names `asset.anchor` itself: an explicit block
+  layout is the operator's anchor intent. The fidelity dial never touches the anchor.
+- **Operator blocks are compositions, and theirs alone.** A commercial or residential-massed block is
+  cut into parcels (alley or setback gaps) until each is building-sized, every parcel keeps with the
+  block's `density` (default 1: an explicit use asks to be built), heights come from the band and one
+  drawn parcel — not the centre — takes the top of it; an industrial block is two to four low sheds
+  (industrial facade program: banded / pier glazing and stacks, no apartment windows) fronting a
+  parking-lot yard. A residential 'houses' block rolls no park-pocket and no vacant-lot dice, and a
+  `park` block asked for a `playground` that does not fit reports it instead of substituting the big
+  park. A block's masses are excluded from the church / mosque / temple and civic-dome re-tag pools.
+  `stats.blocksLaid[].note` says why a built use laid nothing (a reservation holds the ground, every
+  parcel lost the density roll, too small for the fill). Default bands when the block names none:
+  residential massed 2–5 storeys, commercial 3–9 units, industrial 1–2.2, civic hall 2.5–4.5.
+- **Massing keeps the colour.** Below full fidelity a building or tower renders in the glass colour of
+  the same hashed facade its full-fidelity skin would have had, a townhouse unit (or a skyline-merged
+  row) its cladding, a house its tint — the root tower is no longer a pale default block.
 - Where these are documented for agents: the `city` view-vocab card (`get_view_vocab({ id: 'city' })`)
   and the header of `lib/graph/city/fractal-city.js`. `tools/list` descriptions are unchanged.
 
