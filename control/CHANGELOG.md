@@ -82,7 +82,9 @@ loops and the recipe format are unchanged.
   the machine tier names its platforms (macOS, Windows, Linux) and is where a recipe from a box comes
   home to. Both pitches and the npm `description` drop "local MCP server" for "runs wherever your
   agent runs", and the portability claim is the recipe's: it re-mints byte for byte in either place.
-  ChatGPT's box is named as not-yet (no npm access). Earlier in this theme:
+  The box install is one sentence per host, each run to a successful install: Claude Code on the
+  web and Grok chat ("open a Linux box and install the mojulo npm package in it"), ChatGPT the same
+  in work mode. Earlier in this theme:
 - **README: "Two places it runs, three things you can add."** One section that says where mojulo
   runs (the operator's machine, or the agent's own temporary Linux box on Claude Code web / Grok
   chat's sandbox, both of which have driven a full mint-and-export) and what each opt-in group adds

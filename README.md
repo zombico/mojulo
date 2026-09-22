@@ -48,16 +48,19 @@ Open the dashboard on its own with `npx -y -p mojulo mojulo-ui`. The same bin is
 Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints byte for byte in the
 other. Two shapes, one install.
 
-**In your agent's box, nothing on your machine.** Claude Code on the web, a Codex cloud task, or Grok
-chat's sandbox: any agent that gives itself a throwaway Linux box with npm access. Ask it to install
-mojulo (`npx -y mojulo init --yes --no-ui`; a shell-only sandbox with no MCP client drives the same
-registry with `npx mojulo call <tool>`). You get the same recipes and the same exports, handed back as
+**In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
+throwaway Linux box it gives itself:
+
+- Claude Code on the web, Grok chat: *Open a Linux box and install the mojulo npm package in it.*
+- ChatGPT: *On work mode, open a Linux box and install the mojulo npm package in it.*
+
+All three have been run this way. You get the same recipes and the same exports, handed back as
 files: the export result names this host's door, an artifact, a PR or a file card. The box has no
 dashboard you can reach, a scene-to-PNG bake needs a browser it may not be allowed to fetch, and it is
 gone when the session ends, so ask for the bundle (one zip: `world.html`, mesh, print STL for
 literal-scale objects, `recipe.json`, README) and keep the recipe. Claude Code on the web built a
 47-part phone at true scale this way and handed back the glTF; Grok chat's sandbox minted a city from
-the shell. Blender installs in those boxes too. ChatGPT's box has no npm access, so not yet.
+the shell. Blender installs in those boxes too.
 
 **On your machine: macOS, Windows, Linux.** `npx mojulo init` wires mojulo into the agents it finds,
 opens the dashboard at `localhost:3001`, keeps everything under `~/.mojulo/`, and probes your PATH for
