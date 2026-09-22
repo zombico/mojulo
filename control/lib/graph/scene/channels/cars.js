@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { TRAFFIC, TRAFFIC_MODEL_SOURCE } from './traffic-model.js';
 
 // The CARS channel (city-cars: the "driver-ants" sibling of the walkers channel). Rigid vehicle meshes
 // that PACMAN along road lanes — each streams edge-to-edge and, at the wrap, reappears at the far edge,
@@ -13,13 +14,24 @@ import { safeJson } from '../emit-util.js';
 // out along the same lane. Emitted only when the caller passes a non-empty `cars`; a car-free world is
 // byte-identical.
 // `cast` (the world runs the cast-shadow channel): car meshes flag themselves as shadow casters.
-export function carsChannelScript(cars, bank, { cast = false } = {}) {
+// `traffic` ({ lanes, signals }, from a signalised city): the cars run the shared traffic model
+// (traffic-model.js, its source embedded verbatim) — stop lines, phases, following, wrap holds —
+// instead of the closed-form constant-speed pacman. Absent ⇒ the legacy script, byte-identical.
+export function carsChannelScript(cars, bank, { cast = false, traffic = null } = {}) {
+  const signalised = traffic && Array.isArray(traffic.lanes) && Array.isArray(traffic.signals) && traffic.signals.length > 0;
   return `
 // ---- cars channel (ambient traffic: rigid vehicles pacman-ing road lanes) ----
 let stepCars = () => {};
 {
 const CARS = ${safeJson(cars)};
-const CBANK = ${safeJson(bank)};
+const CBANK = ${safeJson(bank)};${signalised ? `
+// signalised traffic: the shared model (lib/graph/scene/channels/traffic-model.js), same code as the tests
+const TLANES = ${safeJson(traffic.lanes)};
+const TSIGNALS = ${safeJson(traffic.signals)};
+const TCONST = ${safeJson(traffic.T || TRAFFIC)};
+${TRAFFIC_MODEL_SOURCE}
+const __traffic = createTrafficModel(TLANES, CARS.map((c) => ({ lane: c.lane, startFrac: c.startFrac })), TSIGNALS, TCONST);
+window.__mojSignals = TSIGNALS.map((s) => ({ x: s.x, y: s.y, phase: null }));   // probe seam: the live phase per crossing` : ''}
 // build one rigid mesh per car from its referenced baked geometry (pos + normalized-uint8 colour).
 function __buildCar(mesh) {
   const geo = new THREE.BufferGeometry();
@@ -61,10 +73,12 @@ const __carRigs = CARS.map((c) => {
 // probe/debug seam (a traversal audit surface): the live pose of every car.
 window.__mojCars = __carRigs.map((r) => ({ car: r.c.car, pos: [0, 0, 0], heading: 0 }));
 stepCars = (t) => {
-  const sec = t / 1000;
+  const sec = t / 1000;${signalised ? `
+  stepTraffic(__traffic, sec);   // fixed-step integration from clock zero: deterministic at any frame rate, replays under pause / capture
+  for (let si = 0; si < TSIGNALS.length; si++) window.__mojSignals[si].phase = phaseAt(TSIGNALS[si], sec).axis;` : ''}
   for (let ci = 0; ci < __carRigs.length; ci++) {
     const r = __carRigs[ci], c = r.c, m = r.mesh;
-    const s = (((r.start + (sec / r.period) * r.total) % r.total) + r.total) % r.total;   // pacman wrap
+    const s = ${signalised ? '__traffic.cars[ci].s' : '(((r.start + (sec / r.period) * r.total) % r.total) + r.total) % r.total'};   // ${signalised ? 'the model\'s stepped position' : 'pacman wrap'}
     const at = __atArc(c.path, r.cum, s), p = at.pos, tan = at.tan;
     const heading = Math.atan2(tan[1], tan[0]);
     m.position.set(p[0], p[1], p[2]);

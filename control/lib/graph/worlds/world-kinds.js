@@ -15,6 +15,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
+import { pairLanes, carsPerLane, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
@@ -227,23 +228,37 @@ function carMeshBank() {
   return _carBank;
 }
 async function attachCityCars(scene) {
-  const lanes = scene && scene.carLanes;
+  let lanes = scene && scene.carLanes;
   if (!Array.isArray(lanes) || !lanes.length) return scene;
   const { carLaneToPath } = await import('@/lib/graph/city/fractal-city');
   const bank = await carMeshBank();
   const names = Object.keys(bank);
+  // SIGNALISED traffic: when the plan exported the crossings' phase programs, every lane is trimmed at
+  // the boxes it starts or ends in and paired with the junctions it crosses (traffic-model.js
+  // pairLanes) BEFORE its path is laid, so no car spawns or wraps inside a crossing
+  const signalised = Array.isArray(scene.signals) && scene.signals.length > 0;
+  if (signalised) lanes = pairLanes(lanes, scene.signals, CAR_SPEED, TRAFFIC);
   const cars = [];
   lanes.forEach((L, li) => {
     const path = carLaneToPath(L);
-    for (let k = 0; k < CARS_PER_LANE; k++) {
-      cars.push({ car: names[(li * CARS_PER_LANE + k) % names.length], path, speed: CAR_SPEED,
-        startFrac: ((k / CARS_PER_LANE) + li * 0.19) % 1 });   // stagger lane-mates + neighbouring lanes
+    // signalised: a short side-street run takes fewer cars (carsPerLane), so the initial spread never overlaps
+    const n = signalised ? carsPerLane(L.total, CARS_PER_LANE, TRAFFIC, L.crossings) : CARS_PER_LANE;
+    for (let k = 0; k < n; k++) {
+      cars.push({ car: names[(li * CARS_PER_LANE + k) % names.length], path, speed: CAR_SPEED, lane: li,
+        startFrac: ((k / n) + li * 0.19) % 1 });   // stagger lane-mates + neighbouring lanes
     }
   });
   scene.cars = cars;
   const used = new Set(cars.map((c) => c.car));
   scene.carMeshes = {};
   for (const n of used) scene.carMeshes[n] = bank[n];
+  // SIGNALISED traffic: when the plan exported the crossings' phase programs, pair every lane with the
+  // junctions it crosses (stop line, entry and exit edges in travel order) — the cars channel then runs
+  // the shared traffic model (traffic-model.js) instead of the constant-speed pacman. A plan without
+  // signals (an older row, or a city with no crossing a lane passes) keeps the legacy channel.
+  if (signalised) {
+    scene.trafficLanes = lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings }));
+  } else delete scene.signals;
   delete scene.carLanes;   // consumed
   return scene;
 }

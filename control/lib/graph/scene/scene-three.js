@@ -170,7 +170,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, xr = null, toon = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, xr = null, toon = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -599,7 +599,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     c && typeof c.car === 'string' && carMeshes[c.car] && Array.isArray(c.path) && c.path.length > 1);
   const carBank = {};
   for (const c of carList) carBank[c.car] = carMeshes[c.car];
-  const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: !!castShadows }) : '';
+  // a signalised city hands `signals` + `trafficLanes` (world-kinds attachCityCars): the cars then run
+  // the shared traffic model; without them the legacy constant-speed script is emitted, byte-identical
+  const trafficSpec = Array.isArray(signals) && signals.length && Array.isArray(trafficLanes) ? { lanes: trafficLanes, signals } : null;
+  const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: !!castShadows, traffic: trafficSpec }) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
   // above fog (renderOrder 100001+i). Same shape as the fog quad, so fog stays byte-identical and
   // glow/wisp layers ride beside it. uTime rides window.__mojClock (pinned by frame()/step()).

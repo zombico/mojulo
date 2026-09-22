@@ -58,6 +58,7 @@
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { makeLight, scaleHex, FLAT_LIGHT, withBands, resolveToon } from '../polygonizer/vexar.js';
 import { makeRowhouseFacade, faceFrame } from '../architecture/building-facade.js';
+import { buildSignals } from '../scene/channels/traffic-model.js';
 import { straightPath, sinePath, chainPaths, roadRibbons, groundStreet, offsetPath } from './roads.js';
 import { vehicleAntFaces, streetcarCorridor } from '../vehicles/vehicles-css3d.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
@@ -3064,32 +3065,45 @@ function planCityCarLanes(grid, region, opt) {
       const on = l < nLines && lineFrac[l] > 0.5;   // this line is a road (spans >half the region)
       if (on && s < 0) s = l; else if (!on && s >= 0) { bands.push([s, l - 1]); s = -1; }
     }
-    return bands.map(([a, b]) => {
-      const mid = Math.round((a + b) / 2);
-      // road extent along the mid line (first→last road cell, the avenue's span)
+    // road extent along each band's mid line, split into RUNS at any gap longer than a car (a reserved
+    // mass the avenue was clipped around — the centred tower — or a plaza): a lane never drives through
+    // a building; each run is its own lane, wrapping on itself. Runs shorter than 2 units are dropped.
+    const GAP_CELLS = Math.ceil(1.5 / cell), MIN_RUN = Math.ceil(2 / cell);
+    return bands.flatMap(([a, b]) => {
+      const mid = Math.round((a + b) / 2), runs = [];
       let lo = -1, hi = -1;
-      for (let k = 0; k < nCross; k++) { const c = vertical ? mid : k, r = vertical ? k : mid; if (isRoad(c, r)) { if (lo < 0) lo = k; hi = k; } }
-      return { mid, w: (b - a + 1), lo, hi };
-    }).filter((bd) => bd.lo >= 0 && bd.hi > bd.lo);
+      for (let k = 0; k < nCross; k++) {
+        const c = vertical ? mid : k, r = vertical ? k : mid;
+        if (isRoad(c, r)) { if (lo < 0) lo = k; else if (k - hi - 1 > GAP_CELLS) { if (hi - lo >= MIN_RUN) runs.push({ mid, w: (b - a + 1), lo, hi }); lo = k; } hi = k; }
+      }
+      if (lo >= 0 && hi - lo >= MIN_RUN) runs.push({ mid, w: (b - a + 1), lo, hi });
+      return runs;
+    });
   };
   const hBands = bandsAlong(false), vBands = bandsAlong(true);
-  // keep only the MAIN avenues: the widest bands (the top-tier cross is ~2.4× a side street). Adaptive
-  // so it works across seeds/regions; a side street that happens to span the region is dropped.
+  // the MAIN avenues (the widest bands; the top-tier cross is ~2.4× a side street) carry two opposing
+  // lanes; the SIDE streets — too narrow for two cars abreast — carry ONE centred one-way lane each,
+  // direction alternating street by street along each axis (a one-way downtown grid). Adaptive so it
+  // works across seeds / regions.
   const maxW = Math.max(1, ...hBands.map((b) => b.w), ...vBands.map((b) => b.w));
-  const keep = (bd) => bd.w >= 0.55 * maxW;
+  const major = (bd) => bd.w >= 0.55 * maxW;
   const lanes = [];
   const laneOffOf = (wCells) => Math.max(cell, wCells * cell * 0.22);   // half-lane offset from the centre
   const wx = (c) => grid.x0 + (c + 0.5) * cell, wy = (r) => grid.y0 + (r + 0.5) * cell;
+  // the off-screen margin only where a run reaches the region edge (the pacman pop); a run that ends
+  // at a mass (a split) stops at the last road cell so no car noses into the building
+  const loEdge = (b) => (b.lo === 0 ? margin : 0), hiEdge = (b, n) => (b.hi === n - 1 ? margin : 0);
+  let hMinor = 0, vMinor = 0;
   for (const b of hBands) {   // horizontal avenue (travel along x)
-    if (!keep(b)) continue;
-    const cy = wy(b.mid), off = laneOffOf(b.w), lo = wx(b.lo) - margin, hi = wx(b.hi) + margin;
+    const cy = wy(b.mid), off = laneOffOf(b.w), lo = wx(b.lo) - loEdge(b), hi = wx(b.hi) + hiEdge(b, cols);
+    if (!major(b)) { lanes.push({ axis: 'x', cross: cy, lo, hi, dir: (hMinor++ % 2 ? -1 : 1) * side, oneWay: true }); continue; }
     // right-hand: the south lane (lower y) travels +x, the north lane −x (left flips it)
     lanes.push({ axis: 'x', cross: cy - off, lo, hi, dir: side });
     lanes.push({ axis: 'x', cross: cy + off, lo, hi, dir: -side });
   }
   for (const b of vBands) {   // vertical avenue (travel along y)
-    if (!keep(b)) continue;
-    const cx = wx(b.mid), off = laneOffOf(b.w), lo = wy(b.lo) - margin, hi = wy(b.hi) + margin;
+    const cx = wx(b.mid), off = laneOffOf(b.w), lo = wy(b.lo) - loEdge(b), hi = wy(b.hi) + hiEdge(b, rows);
+    if (!major(b)) { lanes.push({ axis: 'y', cross: cx, lo, hi, dir: (vMinor++ % 2 ? -1 : 1) * side, oneWay: true }); continue; }
     // right-hand: the east lane (higher x) travels +y, the west lane −y
     lanes.push({ axis: 'y', cross: cx + off, lo, hi, dir: side });
     lanes.push({ axis: 'y', cross: cx - off, lo, hi, dir: -side });
@@ -3429,6 +3443,29 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     const fx = frameOrigin.x, fy = frameOrigin.y, f = L.axis === 'x' ? fy : fx, o = L.axis === 'x' ? fx : fy;
     L.cross = f + (L.cross - f) * bs; L.lo = o + (L.lo - o) * bs; L.hi = o + (L.hi - o) * bs;
   }
+  // SIGNALS (traffic on): every crossing the recursion laid, in frame coordinates, each with its phase
+  // program (traffic-model.js buildSignals: seeded offset). Dead-end stubs and the corridor are not
+  // crossings and get none; a crossing no lane passes (the root crossing inside a centred tower) is
+  // harmless. The world path pairs these with the lanes (world-kinds attachCityCars).
+  // Every crossing AND every T where a side street meets a wider one: derived from the recorded road
+  // strips pairwise (a vertical strip × a horizontal strip that overlap), so a one-way side-street lane
+  // meeting the avenue is signalised too. The box is wx (the vertical strip's width) × wy (the
+  // horizontal strip's). Deduplicated on a cell; a strip pair whose roads were clipped apart (inside
+  // the tower) yields a box no lane passes — harmless.
+  let signals = null;
+  if (carLanes) {
+    const vs = roadStrips.filter((r) => !r.corridor && Math.abs(r.w - r.streetW) < 1e-9), hs = roadStrips.filter((r) => !r.corridor && Math.abs(r.d - r.streetW) < 1e-9);
+    const seen = new Set(), derived = [];
+    for (const V of vs) for (const H of hs) {
+      if (!rectsOverlap(V, H)) continue;
+      const jx = V.x + V.w / 2, jy = H.y + H.d / 2, key = `${Math.round(jx / CELL)},${Math.round(jy / CELL)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const [x, y] = toFrame(jx, jy);
+      derived.push({ x, y, wx: V.w * bs, wy: H.d * bs, streetW: Math.max(V.w, H.d) * bs });
+    }
+    signals = buildSignals(derived, seed, frameRegion);
+  }
   const stats = {
     boxes: boxes.length,
     ribbons: ribbons.length,
@@ -3452,7 +3489,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     ...(frontage ? { frontage } : {}),                          // road-aware masses: { masses, withRoad, withoutRoad, parking, swept? }
     ...(pruned ? { fidelity: pruned.level, pruned: pruned.dropped } : {}),   // what the level-of-detail prune took off the full plan
   };
-  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}) };
+  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}), ...(signals ? { signals } : {}) };
 }
 
 // Derive light SOURCES from the warm lamp HEADS the generator already places — each
@@ -3625,6 +3662,7 @@ export function assembleFractalCityScene(opts = {}) {
   if (Array.isArray(opts.insets)) for (const i of opts.insets) if (i && i.textures && Object.keys(i.textures).length) scene.textures = { ...(scene.textures || {}), ...i.textures };
   if (plan.walkerLoops && plan.walkerLoops.length) scene.walkerLoops = plan.walkerLoops;
   if (plan.carLanes && plan.carLanes.length) scene.carLanes = plan.carLanes;
+  if (plan.signals && plan.signals.length) scene.signals = plan.signals;   // the crossings' phase programs (attachCityCars pairs them with the lanes)
   // the unit declaration (see CITY_METERS_PER_UNIT): recipe override, else the kind's own
   const mpu = Number(opts.metersPerUnit);
   scene.metersPerUnit = Number.isFinite(mpu) && mpu > 0 ? mpu : CITY_METERS_PER_UNIT;
