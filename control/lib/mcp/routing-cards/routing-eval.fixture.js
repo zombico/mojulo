@@ -38,6 +38,8 @@ export const FIXTURE = [
   ['make my anime character actually talk and blink', 'create_sketch'],
   ['stage the two drawn characters in one scene and cut between their rooms', 'create_sketch'],
   ['make a pixel-art cutscene of my hero character', 'get_catalyst'],
+  ['design me a two-storey house with a porch', 'create_sketch'],
+  ['a furnished apartment I can walk through', 'create_sketch'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

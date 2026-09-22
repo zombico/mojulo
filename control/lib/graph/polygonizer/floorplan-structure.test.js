@@ -3,7 +3,7 @@ import { test } from 'vitest';
 import {
   buildWallGraph, placeOpenings, wallRunFaces, extrudeWalls,
   structurizeFloorplan, STRUCTURAL_GLYPHS,
-  houseMeru, structurizeHouse, groundDatumFaces, LEVEL_ROLES,
+  houseMeru, structurizeHouse, groundDatumFaces, LEVEL_ROLES, storeyLevels,
   buildStairFlight, placeStairs, STAIR_DEFAULTS, assembleHouseWorldScene, FLOORPLAN_METERS_PER_UNIT,
 } from './floorplan-structure.js';
 
@@ -339,4 +339,31 @@ test('structurizeHouse: a set-back upper storey gets a terrace deck over the sto
   assert.ok(upper.structure.faces.includes(terrace[0]), 'the deck rides the upper level (exploded reads lift it)');
   const straight = structurizeHouse({ width: 30, height: 20, levels: [lvl(0, 12, 0, 0, 30, 20, 'L'), lvl(1, 8, 0, 0, 30, 20, 'B')] });
   assert.equal(straight.faces.filter((f) => f.group === 'terrace').length, 0, 'identical footprints add nothing');
+});
+
+// ── storeyLevels: the `storeys: N` shorthand lowered to the levels[] stack ─────────────
+test('storeyLevels: absent, 1, or an authored levels[] stack lowers to nothing (byte-identical path)', () => {
+  assert.equal(storeyLevels({ seed: 7 }), null);
+  assert.equal(storeyLevels({ seed: 7, storeys: 1 }), null);
+  assert.equal(storeyLevels({ seed: 7, storeys: 2, levels: [{ role: 'ground' }] }), null);
+  assert.equal(storeyLevels({ seed: 7, storeys: 'two' }), null);
+});
+
+test('storeyLevels: N storeys → N indexed levels with roles and a stair between each pair', () => {
+  const two = storeyLevels({ seed: 7, storeys: 2 });
+  assert.deepEqual(two.levels, [{ index: 0, role: 'ground' }, { index: 1, role: 'second' }]);
+  assert.deepEqual(two.stairs, [{ from: 0, to: 1 }]);
+  const four = storeyLevels({ seed: 7, floors: 4 });
+  assert.deepEqual(four.levels.map((l) => l.role), ['ground', 'second', 'third', 'upper']);
+  assert.deepEqual(four.stairs, [{ from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: 3 }]);
+  // an authored `stairs` wins over the generated run
+  assert.equal(storeyLevels({ seed: 7, storeys: 3, stairs: false }).stairs, false);
+});
+
+test('a storeys:2 floorplan structurizes as a two-level house with one stair', () => {
+  const m = { width: 40, height: 32, seed: 5, storeys: 2 };
+  const house = structurizeHouse({ ...m, ...storeyLevels(m) }, m);
+  assert.deepEqual(house.levels.map((l) => l.index), [0, 1]);
+  assert.ok(house.levels[1].baseZ > house.levels[0].baseZ);
+  assert.equal(house.stairs.length, 1);
 });

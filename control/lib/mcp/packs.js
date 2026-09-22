@@ -65,7 +65,7 @@ export const PACKS = [
     form: 'object',
     title: '3D solids, figures & objects',
     description:
-      "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles, OpenSCAD: mint_solid (kinds figure / manji-tree / workbench / scad (an OpenSCAD program) / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), measure_solid, verify_machina. Open for 'model a wine glass true to size', 'a woman mid-stride', 'our logo in shiny chrome', 'a 3D creature', 'a bracket with bolt holes in OpenSCAD', 'bring my .scad code in', 'put the wheels and the chassis together into one model', 'turn this concept art into a 3D model piece by piece', 'rebuild a drawing as a real 3D model, segment by segment'. Placing solids IN an environment is pack_world.",
+      "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles, OpenSCAD: mint_solid (kinds figure / manji-tree / workbench / scad (an OpenSCAD program) / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), measure_solid, verify_machina. Open for 'model a wine glass true to size', 'a woman mid-stride', 'our logo in shiny chrome', 'a 3D creature', 'a bracket with bolt holes in OpenSCAD', 'put the wheels and the chassis together', 'turn this concept art into a 3D model'. Placing solids IN an environment is pack_world. A house / apartment / room is create_sketch kind 'floorplan' (pack_diagram); edifice is the institutional one-off.",
     members: ['mint_solid', 'edit_solid', 'get_solid_vocab', 'measure_solid', 'verify_machina'],
   },
   {
@@ -75,7 +75,7 @@ export const PACKS = [
     form: 'world',
     title: 'Worlds (traversable)',
     description:
-      "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, planetary, painted-landscape, math, school, dungeon), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'.",
+      "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, planetary, painted-landscape, math, school, dungeon), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'. A house / apartment / furnished room is not a base — it is create_sketch kind 'floorplan' in pack_diagram (walkable, storeys: N); export_model here still exports it.",
     members: ['compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
   },
   {
@@ -205,7 +205,7 @@ export const PACKS = [
     form: 'diagram',
     title: 'Diagrams & charts',
     description:
-      "DIAGRAMS & CHARTS + scene sketches viewed in the dashboard: flow charts (stations + edges), data charts (stacked bars, donut / ring, KPI tiles, marks), scene illustrations and keyframe / scene-motion animation of drawn characters; revise a sketch in place, visual-diff two sketches, read sketch-vocab layout cards and style presets. Open for 'draw / diagram X', 'a bar chart of signups by week', 'a donut chart of the split', 'sketch our pipeline as boxes and arrows', 'make my drawn character talk and blink', 'update that sketch'.",
+      "DIAGRAMS & CHARTS + scene sketches viewed in the dashboard, and the HOUSE: flow charts (stations + edges), data charts (stacked bars, donut / ring, KPI tiles, marks), scene illustrations, keyframe / scene-motion animation of drawn characters, and walkable furnished houses / apartments / rooms (create_sketch manifest kind 'floorplan'; storeys: N stacks it); revise a sketch in place, visual-diff two, read sketch-vocab cards and style presets. Open for 'draw / diagram X', 'a bar chart of signups by week', 'sketch our pipeline as boxes and arrows', 'design me a two-storey house', 'a 20 by 24 living room', 'make my drawn character talk and blink', 'update that sketch'.",
     members: ['create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches'],
   },
   // ── office — the retained automation backend, listed after the studio ────

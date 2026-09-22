@@ -82,6 +82,34 @@ loops and the recipe format are unchanged.
   (creative by default, recall, chatbot), with what a session inside a box should ask for instead
   of the dashboard and the PNG bake. The npm README (`control/README.md`) carries the same section
   as "Where it runs", and its Quickstart names the no-keyboard init form and both opt-in installs.
+### House compose language
+
+A Claude session on the web asked for a house on 2026-09-22, opened `pack_object` (no house), opened
+`pack_world` (no house), read the edifice card and shipped an institutional block. The house was there
+the whole time: `create_sketch { manifest: { kind: 'floorplan' } }`, homed in `pack_diagram` behind a
+description about flowcharts. Its report called that "a routing bug, not a capability gap". This theme
+makes the product match that report point for point.
+
+- **A HOUSE row in `forward_context`'s mint dispatch** (house / apartment / cottage / townhouse /
+  office floor plan / one furnished room → `create_sketch` kind `floorplan`); BUILDING now says
+  edifice is the institutional one-off and a dwelling is HOUSE; PICTURE says a picture OF a house
+  is `sketch_what_possible`'s `architecturalConstruction`. The world and diagram form drawers, the
+  `compose_world`, `mint_solid` and `create_sketch` descriptions, and the `pack_world` /
+  `pack_object` / `pack_diagram` recognizers each carry the same one-line pointer. A `house`
+  routing card and two fixture rows back the retrieval hop.
+- **`storeys: N` on a floorplan manifest** (alias `floors`) stacks the plate N high with a stair
+  between consecutive floors — the shorthand the reporter reached for and found silently dropped.
+  It lowers to the existing `levels[]` stack at render time; the recipe stays one field. Absent or
+  `1` renders byte-identical. A non-integer refuses with the card pointer.
+- **The floor-plan card shows the real call** — `create_sketch({ title, manifest: { kind:
+  'floorplan', … } })` — instead of the flat form that cost the reporter four attempts, documents
+  `storeys` and the authored `levels[]` stack (roles, per-level seed / rooms / height, `stairs`,
+  `tier`, `explode`), and names `export_model({ lit: true })` as the lit handoff. README §3 shows the
+  same call.
+- **The Blender worker scripts ship.** `blender-bake`, `bake-world-gi` (and their `.py` halves) and
+  `export-blender` are in the npm package's `files`, and `mojulo script <name> [args…]` runs one from
+  the installed package root, so the card's command works where `scripts/` is inside the npx cache.
+  The card, the render-bay re-bake prompt and the Blender worker doc name both doors.
 
 ### Release tooling
 

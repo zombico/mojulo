@@ -85,6 +85,17 @@ export function validateSketchManifest(manifest) {
     if (!hasSeedForm) {
       errors.push(`kind '${manifest.kind}' needs a seed (integer) or an explicit rooms[] plan (a floorplan may carry a levels[] stack instead)`);
     }
+    // `storeys` (alias `floors`) is the one-field stack shorthand on a floorplan (world-kinds lowers
+    // it to levels[]). It used to be dropped silently; a wrong value now says so, and the restaurant
+    // kind (no stack arm) says it has none.
+    for (const key of ['storeys', 'floors']) {
+      if (manifest[key] === undefined) continue;
+      if (manifest.kind !== 'floorplan') {
+        errors.push(`kind '${manifest.kind}' has no ${key} — only a floorplan stacks (storeys / levels[])`);
+      } else if (!Number.isInteger(manifest[key]) || manifest[key] < 1) {
+        errors.push(`${key} must be an integer >= 1 (got ${JSON.stringify(manifest[key])}); see get_sketch_vocab({ id: 'floor-plan' })`);
+      }
+    }
     return { ok: errors.length === 0, errors };
   }
   // Everything else is a box-and-arrow / chart diagram — the kernel core.

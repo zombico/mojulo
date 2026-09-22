@@ -216,6 +216,8 @@ export function registerComposeWorldTools() {
       + "street types, walking a relation returns you home), 'school' (a generated K-12 CAMPUS — classroom wings, "
       + "gyms, library/cafeteria, brick/glass facades, athletic fields + parking + vehicles, walkable interiors), "
       + "'dungeon' (torch-lit fantasy cave INTERIOR — organic chambers + sloping tunnels, walkable). "
+      + "A house / apartment / cottage / one furnished room is NOT a base: mint it with create_sketch, "
+      + "`manifest: { kind: 'floorplan', … }` (walkable, furnished, `storeys: N`; card get_sketch_vocab({ id: 'floor-plan' })). "
       + "Each base's parameter manual + routing phrases live in its view-vocab card — "
       + "semantic_search({kinds:['view_vocab']}) to find, get_view_vocab({id:'<base>'}) to read before passing "
       + "overrides. Themes via list_world_themes (theme lowering ships for 'city'; other bases take theme's place "
