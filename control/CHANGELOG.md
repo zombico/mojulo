@@ -74,6 +74,35 @@ loops and the recipe format are unchanged.
 - **Massing keeps the colour.** Below full fidelity a building or tower renders in the glass colour of
   the same hashed facade its full-fidelity skin would have had, a townhouse unit (or a skyline-merged
   row) its cladding, a house its tint — the root tower is no longer a pale default block.
+- **Buildings know which face fronts a road (`elements.frontage`).** A pass over the finished plan reads
+  the claim grid just outside each face of every building, tower, mid-tower and garage (townhouses already
+  know their face; houses are left alone) and records `roadFaces` and `front` — the face on the widest
+  road (a streetcar boulevard counts as its own width), preferring a face whose road hit is clear of a
+  junction box and furthest from any crossing, then the longest hit; `null` when the mass fronts nothing.
+  The facade's entrance / storefront / awning program is then emitted on that face — via the face's local
+  frame, so a `-x` front carries the same door a `+y` front used to — and on NO face when the mass fronts
+  nothing, instead of the old unconditional `+y` lobby that could open onto a park with a blank road side.
+  No rng draw: with the flag on, the roads, grounds and every other box are byte-identical to the flag off.
+  `stats.frontage = { masses, withRoad, withoutRoad, parking, swept? }`.
+- **Parking entrances on the large masses.** A mass whose `front` fronts a road and that is large — a
+  generic tower, or a footprint ≥ 6 units² at ≥ 3 units tall, on a plain / podium / setback / complex
+  form (never a cylinder, landmark, religious place or rotunda) — gets a vehicular entrance on that face,
+  seeded by the same hashed key its facade uses, from four variations: a recessed GARAGE mouth (dark
+  portal, yellow/black chevron header, striped barrier arm), a DOWN-RAMP between stepped curb walls with
+  a blue 'P' sign post, a PORTE-COCHÈRE (canopy on two columns over a drive apron, four bollards, glass
+  doors), and a two-lane DRIVE-THROUGH ARCH (roll-up slats, centre pier, lit sign strip). Each cuts the
+  curb — a `curb-cut` ground tile bridging sidewalk to road in front of the mouth — and a final sweep
+  removes any lamp, sign, tree, bin, bench or pole that stood in that span (removal only, so the rng
+  stream of everything else is untouched). A mass on more than one road — the centred tower straddling
+  the crossing, the corridor-side tower — gets the portal on its major-road face and a pedestrian LOBBY
+  on a second road face (`lobby`), never two portals on one box; a mass sitting on the crossing itself
+  takes the face whose approach is longest, so cars never enter from inside the junction. The entrance
+  dressing is furnishing / marking to the fidelity prune (`massing` keeps the mass and its `front`).
+- **The one new-mint default that differs from a stored row.** The planner default is `frontage: false`,
+  so every stored city re-renders byte-identically. `mintFractalCity` writes `elements.frontage: true`
+  into every NEW manifest (array or object form; aliases `entrances` / `roadAware` / `parkingEntrances`
+  are honoured) unless the caller sets it false — so every city minted from here on is road-aware while
+  old rows stay pinned. It is written into the manifest, so the row itself says which it is.
 - Where these are documented for agents: the `city` view-vocab card (`get_view_vocab({ id: 'city' })`)
   and the header of `lib/graph/city/fractal-city.js`. `tools/list` descriptions are unchanged.
 
