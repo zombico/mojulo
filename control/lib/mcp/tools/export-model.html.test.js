@@ -31,14 +31,15 @@ describe('export_model format:html', () => {
     const minted = composeWorld(CITY);
     expect(minted.ref).toBe('sk_nine_block_city');
     expect(minted.stats.buildings).toBe(44);
-    // RE-PINNED 509 → 647 → 685 with the fractal-city `frontage` channel: a NEW mint writes
+    // RE-PINNED 509 → 647 → 685 → 657 with the fractal-city `frontage` channel: a NEW mint writes
     // `elements.frontage: true` into its manifest (the one new-mint default that differs from a
-    // stored row); the parking-entrance dressing on the large masses is 138 boxes here and the
-    // dead-end drop-off aprons (islands, bollards, planters) another 38. The maintainer's stored
-    // seed-91 row (no flag) still plans the 509 asserted below — nothing about the city's masses,
-    // roads or blocks moved.
+    // stored row); the parking-entrance dressing on the large masses and the dead-end drop-off
+    // aprons (islands, bollards, planters) are the extra boxes; the last step (685 → 657) is the
+    // ramp portal losing its two outer curb-wall steps each side — four boxes fewer on each of
+    // this city's seven ramps. The maintainer's stored seed-91 row (no flag) still plans the 509
+    // asserted below — nothing about the city's masses, roads or blocks moved.
     expect(minted.recipe.elements.frontage).toBe(true);
-    expect(minted.stats.boxes).toBe(685);
+    expect(minted.stats.boxes).toBe(657);
     expect(minted.stats.frontage.parking).toBeGreaterThan(0);
     expect(minted.stats.blocks).toBe(47);   // P5: the street-grid parcels the recursion filled
     const pinned = composeWorld({ ...CITY, ref: 'sk_nine_block_city_pinned', overrides: { ...CITY.overrides, asset: { elements: { frontage: false } } } });
