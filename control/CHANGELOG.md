@@ -103,6 +103,31 @@ loops and the recipe format are unchanged.
   into every NEW manifest (array or object form; aliases `entrances` / `roadAware` / `parkingEntrances`
   are honoured) unless the caller sets it false — so every city minted from here on is road-aware while
   old rows stay pinned. It is written into the manifest, so the row itself says which it is.
+- **The city uses its entrances.** With `frontage` on: a road that DEAD-ENDS into a large mass (the
+  centred tower, a block mass a clipped street runs into) gets a drop-off apron at the stub — a paved
+  `drop-off` tile the road's width from the face to the road end, a curb island with three bollards or
+  a planter (hashed), two end bars — and the last stretch of that stub loses its crosswalk stripes and
+  signal heads (nothing faces the wall). Only a strip PERPENDICULAR to the face whose carriageway
+  reaches it counts; a road running along a face is a frontage, not a stub. The furnishing sweep around
+  a portal is widened by half the mouth on each side, so no lamp, sign, signal or tree stands beside it.
+  A cylinder is no longer skipped: its portal sits on a tangent PODIUM (a 2.3-unit flat tile from the
+  drum's axis to the road face, class mass). A portal owner's lobby face keeps the door canopy but not
+  the shop awning. `traffic` on: at most one static car-ant per portal (keep 0.72, like the street ants,
+  on a stream seeded from the box key) sits arriving on the curb-cut or departing just inside the
+  mouth; the world's moving cars keep their straight lanes — a lane spur into the cut was not built.
+  `people` on: one or two idle pedestrians stand on the walk before each lobby door, facing it, never on
+  a curb-cut; `walkers` on: the loop planner runs after the frontage pass, skips any ring whose band
+  would cross a curb-cut, and takes the rings that pass a lobby door first (with the flag off it runs
+  where and as it always did — the park doodads claim grass in between, so the two grids differ).
+  `stats.frontage` gains `stubs`, `portalCars`, `lobbyIdles`, `houses`, `housesTurned`.
+- **Houses are road-aware too.** Every town lot records `roadFaces` from the grid; a lot whose row
+  front is not a road while the opposite edge is turns to face it — the whole lot mirrored across its
+  centreline (house, garage, driveway, lawn, fences, planting; `front` flips), no rng, so the house
+  count and every footprint match the flag-off city. A lot whose only road is on a perpendicular edge
+  keeps its row front (a turned house would not fit the lot). Houses keep their `'y-'`-style `front`
+  vocabulary (the street edge; the renderer reads it) and gain the mass-style `roadFaces` (`'-y'`…).
+- **`compose_world` blocks-drop-the-theme-anchor is now pinned at the DB level**
+  (`compose-world.blocks.test.js`, in-memory SQLite, mars-colony's tower).
 - Where these are documented for agents: the `city` view-vocab card (`get_view_vocab({ id: 'city' })`)
   and the header of `lib/graph/city/fractal-city.js`. `tools/list` descriptions are unchanged.
 
