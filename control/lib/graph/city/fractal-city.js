@@ -2648,10 +2648,14 @@ function buildParkingEntrance(b, fr, variant, boxes, grounds, faces) {
     box(lo + 0.06, 0.66, 0.12, 0.12, 0, 0.72, '#70777f');                          // barrier post
     box(lo + 0.2, 0.68, ew - 0.3, 0.08, 0.6, 0.68, '#d8d4c8');                     // arm
     for (let i = 0; i < 3; i++) box(lo + 0.35 + i * (ew - 0.5) / 3, 0.675, 0.2, 0.09, 0.6, 0.685, '#c0392b');
-  } else if (variant === 'ramp') {                         // down-ramp between curb walls, 'P' sign post
+  } else if (variant === 'ramp') {                         // down-ramp: one short apron against the portal between two curb walls, 'P' sign post
+    // the apron reaches one third of the way to the road (RAMP_DEPTH), not across the sidewalk: the
+    // outer curb-wall steps that used to run the whole reach to the kerb are gone, so the ramp no longer
+    // spills onto the street; the curb-cut tile beneath keeps its full reach (people and furnishing stay off it)
+    const RAMP_DEPTH = R / 3;
     quad(lo, hi, 0.03, -0.7, 1.3, '#0d1013');
-    faces.push({ kind: 'parking-ramp', entrance: variant, doubleSided: true, fill: '#3a3d42', corners: [[...F.pt(lo, R), 0.03], [...F.pt(hi, R), 0.03], [...F.pt(hi, 0.05), -0.7], [...F.pt(lo, 0.05), -0.7]] });
-    for (const side of [lo - 0.12, hi]) for (let i = 0; i < 3; i++) box(side, i * (R / 3), 0.12, R / 3, 0, 0.55 - i * 0.17, '#9a968c');
+    faces.push({ kind: 'parking-ramp', entrance: variant, doubleSided: true, fill: '#3a3d42', corners: [[...F.pt(lo, RAMP_DEPTH), 0.03], [...F.pt(hi, RAMP_DEPTH), 0.03], [...F.pt(hi, 0.05), -0.7], [...F.pt(lo, 0.05), -0.7]] });
+    for (const side of [lo - 0.12, hi]) box(side, 0, 0.12, RAMP_DEPTH, 0, 0.55, '#9a968c');   // the innermost curb wall only, each side
     box(hi + 0.22, 0.26, 0.08, 0.08, 0, 1.62, '#70777f');                          // sign post
     box(hi + 0.06, 0.24, 0.4, 0.06, 1.24, 1.64, '#1f5fae');                         // blue plate
     box(hi + 0.18, 0.22, 0.16, 0.04, 1.32, 1.56, '#f4f4f0');                        // the 'P'
