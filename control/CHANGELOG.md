@@ -153,6 +153,29 @@ loops and the recipe format are unchanged.
   street by street (a one-way downtown grid); a short run takes fewer cars. `window.__mojSignals`
   probes the live phase per crossing. A city without `traffic` exports no signals and its world page
   is byte-identical; the CSS3D `/scene` still is untouched.
+- **Zero car overlap is a hard invariant of the world path.** At every tick, for every pair of cars —
+  moving cars on any lane, the two directions of one road, perpendicular lanes, and the static portal
+  car-ants — the 2D footprints (each model's MEASURED length × width from the car bank, grown by a
+  0.15 safety margin, oriented along its lane) do not intersect; `traffic-model.test.js` proves it
+  pairwise over three full cycles on the default tower city, the 40 × 28 base and the town profile at
+  the real cars-per-lane, plus a wrap-specific and a queue-specific case, and every car still
+  advances in every cycle. How it is kept: the bank is measured once (`bakeCarMesh` now returns
+  `len` / `wid`; the longest and widest model bound every footprint; the clearance is DERIVED from the
+  longest model leaving the widest box from rest — `deriveClearance`, not a guessed number); the lane
+  is a RING for the following rule (the last car's leader is the first car a lap on), so a wrapping car
+  queues behind the head of the lane instead of landing on it; the initial spread is an evenly spaced
+  ring rotated until no footprint sits in a box, and a lane takes only as many cars as its ring minus
+  its boxes can hold with a full footprint + gap between each (`carsPerLane`; per-lane counts ride
+  `trafficLanes[].cars`); a stopped car keeps its whole grown footprint behind the stop line and a
+  queue is spaced by full footprint + gap; the two directions of one road are dropped to one lane
+  when their offsets cannot keep the widest model's footprints apart (`singled`); a portal car-ant
+  that lies on any moving lane's swept strip is dropped (removal only; `scene.staticCars` lists the
+  survivors); lane runs now break at ANY non-road cell (the simulation caught a lane that bridged two
+  roads across 1.5 units of verge); a lane's crossings include boxes its cars' footprints would touch
+  from the side or at the lane's ends, and ADJACENT boxes (a T beside a crossing, closer than a car
+  can stand between) merge into one compound crossing with one stop line, entry only when every
+  member is green and room beyond the last, while `buildSignals` gives such neighbours one offset
+  (the simulation caught a car legally inside one box being carried into the next on its red).
 - **Signal heads stay static.** The lamp boxes are baked into the world's one merged vertex-coloured
   geometry with the rest of the city; lighting them per phase would mean splitting them out into a
   separate addressable mesh set at assemble time. Not done this round; the heads show their three
