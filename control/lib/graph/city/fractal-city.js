@@ -53,6 +53,25 @@
  *    key), `walkers` loops keep off the curb-cuts and pass the lobbies first, and a town lot turns to
  *    face its road (a mirror, no rng). Planner default false (stored rows byte-identical);
  *    mintFractalCity turns it on for new mints.
+ *
+ *  • `anchorSeat` — 'side' | 'centre'. The default frame (DEFAULT_REGION) is the city's unit of
+ *    scale: a root tower is capped at its 34 % footprint (rootAnchorCap) and a landmark budgets off
+ *    at most its short side (landmarkBudgetCap), so a larger region gets more city around the same
+ *    tower. 'side' seats the tower at the centre of a drawn quadrant (with blocks, the one they cover
+ *    least) and puts it on the cross-street avoid list with its right-of-way, so the main crossing
+ *    flanks it; 'centre' is the original centred tower the crossing clips around. Omitted, the gate
+ *    picks 'side' only when the region exceeds the default frame — every default-frame row is
+ *    byte-identical.
+ *
+ *  • `traffic` on the world path is SIGNALISED and collision-free. With traffic on the plan also
+ *    exports `junctions` (every crossing and every T, derived from the recorded road strips) and
+ *    `signals` (their phase programs); world-kinds attachCityCars rebuilds the programs with the
+ *    measured car bank, trims each lane at the boxes it starts or ends in, sizes it to its ring,
+ *    and hands `trafficLanes` + `signals` to the cars channel, which runs the shared traffic model
+ *    (scene/channels/traffic-model.js — stop lines, exclusive phases with a derived clearance,
+ *    following gaps, ring wraps). Zero footprint overlap between any two cars is the invariant its
+ *    tests prove. Lanes with traffic on break at any non-road cell and side streets carry one
+ *    one-way lane each. Not done: signal heads follow the phase; cars turn into the portals.
  */
 
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
