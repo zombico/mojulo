@@ -12,6 +12,16 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Release tooling
+
+- **The README install-success smoke (CI) no longer fetches a control-plane model.** `scripts/smoke.sh`
+  ran `npm run fetch-models` and asserted the ONNX file, which 2.0.7 made impossible on a bare clone
+  (the runtime is the opt-in `recall` group) and failed the first CI run after the tag. The control
+  half of the smoke now asserts the opposite on Linux: no runtime or model in the tree, `mojulo call
+  version` answers, and `semantic_search` answers lexically with three routing cards. The bot
+  runtime's own model check (lite-template) is unchanged. `fetch-embed-model.js` prints one line with
+  the install line instead of a stack trace when the group is absent.
+
 ## [2.0.7] - 2026-09-21
 
 The hosted-host release. A Claude cloud sandbox drove 2.0.6 end to end on 2026-09-21 (a 47-part phone

@@ -20,7 +20,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const modelsDir =
   process.env.MOJULO_MODELS_DIR ||
   path.resolve(__dirname, '..', 'lib', 'embedder', 'models');
-const { pipeline, env } = await loadEmbeddingRuntime();
+let runtime;
+try {
+  runtime = await loadEmbeddingRuntime();
+} catch (err) {
+  // Not installed is the ordinary state of a default install: one line, no stack.
+  console.error(`fetch-embed-model: ${err.message}`);
+  process.exit(1);
+}
+const { pipeline, env } = runtime;
 env.cacheDir = modelsDir;
 env.allowRemoteModels = true;
 
