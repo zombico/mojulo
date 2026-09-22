@@ -12,7 +12,11 @@ import {
   getHostProfile,
   hostProfileForAdapter,
   hostCapabilities,
+  hostHandoff,
   expandPath,
+  HANDOFF_PAGE_DOORS,
+  HANDOFF_FILE_DOORS,
+  HANDOFF_VERIFIED,
 } from './registry.js';
 
 describe('host profile registry', () => {
@@ -23,6 +27,7 @@ describe('host profile registry', () => {
       'desktop',
       'grok',
       'hermes',
+      'grok-chat',
     ]);
   });
 
@@ -67,6 +72,54 @@ describe('host profile registry', () => {
     expect(hermes.wire.format).toBe('manual');
     expect(hermes.wire.configPath).toBeUndefined();
     expect(hermes.wire.verify).toMatch(/UNVERIFIED/);
+  });
+
+  // remote-worker exports P1: every shipped profile says how an export reaches the operator,
+  // and says how sure we are. A door outside the vocabulary is a typo the note would print.
+  it('every shipped profile carries a handoff door table with a verified level', () => {
+    for (const profile of listHostProfiles()) {
+      const h = profile.handoff;
+      expect(h, `${profile.id} has no handoff`).toBeTruthy();
+      expect(HANDOFF_VERIFIED.has(h.verified), `${profile.id} verified='${h.verified}'`).toBe(true);
+      expect(Boolean(h.local || h.box)).toBe(true);
+      for (const row of [h.local, h.box].filter(Boolean)) {
+        expect(HANDOFF_PAGE_DOORS.has(row.page), `${profile.id} page='${row.page}'`).toBe(true);
+        expect(HANDOFF_FILE_DOORS.has(row.file), `${profile.id} file='${row.file}'`).toBe(true);
+      }
+      if (h.box) {
+        expect(typeof h.box.name).toBe('string');
+        expect(typeof h.box.ephemeral).toBe('boolean');
+      }
+    }
+  });
+
+  it('records the doors the research and the field runs established', () => {
+    // Claude Code: the operator's machine has the dashboard; the web box has the Artifact tool
+    // (one self-contained page ≤ 16 MiB) and a download allowlist that carries zip, not glb.
+    const cc = hostHandoff('claude-code');
+    expect(cc.local).toEqual({ page: 'dashboard', file: 'local' });
+    expect(cc.box.page).toBe('artifact');
+    expect(cc.box.pageMaxBytes).toBe(16 * 1024 * 1024);
+    expect(cc.box.downloadExtensions).toContain('zip');
+    expect(cc.box.downloadExtensions).not.toContain('glb');
+    expect(cc.box.cdns).toContain('cdn.jsdelivr.net/npm/');
+    expect(cc.box.ephemeral).toBe(true);
+    // the operator opened the published page and saved the zip through the courier on 2026-09-22
+    expect(cc.verified).toBe('field');
+    // Codex cloud hands back a PR and nothing else.
+    expect(hostHandoff('codex').box).toMatchObject({ page: 'none', file: 'git', ephemeral: true });
+    // Grok chat's sandbox is the field-run box with no MCP client: files as cards, inferred.
+    const gc = hostHandoff('grok-chat');
+    expect(gc.local).toBeUndefined();
+    expect(gc.box).toMatchObject({ page: 'file-card', file: 'file-card', ephemeral: true });
+    expect(gc.verified).toBe('inferred');
+    expect(getHostProfile('grok-chat').wire.format).toBe('manual');
+    // Desktop's MCP App door is the flagged P6 spike; until it lands the dashboard is the door.
+    expect(hostHandoff('desktop').local.page).toBe('dashboard');
+    expect(hostHandoff('desktop').box).toBeUndefined();
+    // Unknown host: no table, the caller prints the generic file:// sentence.
+    expect(hostHandoff('nonexistent-host')).toBeNull();
+    expect(hostHandoff(null)).toBeNull();
   });
 
   it('fills capability defaults so an undeclared trait never reads as enabled', () => {

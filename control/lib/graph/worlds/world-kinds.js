@@ -35,7 +35,7 @@ import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
 import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph/worlds/workbench-assembler';
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
-import { assembleFloorWorldScene, assembleHouseWorldScene } from '@/lib/graph/polygonizer/floorplan-structure';
+import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
 import { assemblePlanetaryScene } from '@/lib/graph/scene/scene-planetary';
@@ -431,11 +431,16 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,
     // A `levels[]` manifest is a STACK (structurizeHouse: one meru, per-level plans and heights,
-    // stairs through the slabs, one roof on the top footprint); without `levels` the manifest is
-    // the single floor it always was — absent ⇒ byte-identical.
-    resolve: (m, ctx) => (Array.isArray(m.levels) && m.levels.length
-      ? assembleHouseWorldScene(m, { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title })
-      : assembleFloorWorldScene(m, { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title })),
+    // stairs through the slabs, one roof on the top footprint); `storeys: N` (alias `floors`) is
+    // the one-field shorthand for that stack, lowered here (storeyLevels) so the recipe stays one
+    // field; without either the manifest is the single floor it always was — absent ⇒ byte-identical.
+    resolve: (m, ctx) => {
+      const opts = { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title };
+      if (Array.isArray(m.levels) && m.levels.length) return assembleHouseWorldScene(m, opts);
+      const stack = storeyLevels(m);
+      if (stack) return assembleHouseWorldScene({ ...m, ...stack }, opts);
+      return assembleFloorWorldScene(m, opts);
+    },
   },
   restaurant: {
     title: 'mojulo restaurant',

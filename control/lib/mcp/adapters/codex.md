@@ -190,6 +190,13 @@ When you finish materializing, tell the user:
 - If the bootstrap fired: that you wrote `.codex/mojulo/manifest.json` and the empty `.codex/mojulo/deployments/` directory. Subsequent catalysts materialized into this workspace will dock onto the same substrate and share its per-deployment provenance. Commit it if the workspace is version-controlled. (You did not write `AGENTS.md` or `.codex/procedures/` — Codex doesn't auto-load those, so the procedure prose was inlined into this artifact's standing-moves preamble instead.)
 - That `.codex/mojulo/deployments/<id>/provenance.json` records when this catalyst was materialized and against what `configHash` + `schemaFingerprint`. The artifact's standing-moves preamble compares against these on every run — if the bot is rebuilt or its schema is regenerated, the artifact will refresh the snapshot itself before continuing.
 
+## Handing back an export
+
+Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` for this host and `fits` against its byte limit; read it instead of quoting the loopback `download_url`.
+
+- **Codex CLI / desktop on the operator's machine**: the desktop app previews `world.html`; every file is on their disk. Hand over the path.
+- **A Codex cloud task** (`MOJULO_SURFACE=box`): there is no page door — the PR is the handoff. Commit the outcome folder (`data/outcomes/<ref>/`) to the branch; `export_model({ ref, format: 'bundle' })` makes it one binary (`<ref>.zip`: page, mesh, STL for literal kinds, recipe, README) when a folder of files is the wrong shape. The box is reclaimed after the task — the recipe in the folder is what re-mints.
+
 ---
 
 ## Primitive binding flow (no-bot composition)

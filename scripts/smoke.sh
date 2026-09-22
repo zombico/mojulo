@@ -8,7 +8,10 @@
 #
 # Scope:
 #   - npm install in both packages exits 0 (this is the OSS pain point)
-#   - ONNX model file lands at the expected path
+#   - the bot runtime's ONNX model lands at its expected path (lite-template)
+#   - the control plane needs NO model: its embedding runtime is the opt-in
+#     `recall` install group since 2.0.7, so the CLI must answer, and
+#     semantic_search must answer lexically, on a bare install
 #   - npm run build in control exits 0 (proves Next build works)
 #   - Control plane boots and /api/health returns 200
 #
@@ -73,18 +76,28 @@ echo "[smoke] installing control plane…"
 (cd control && [ -f .env ] || cp .env.example .env)
 (cd control && npm install)
 
-# Control plane has no postinstall (the published `mojulo` bin uses lazy
-# preloadModel() — adding a postinstall would force every `npx mojulo` user
-# to pay the 113MB download). The clone-and-dev path runs the fetch
-# explicitly, which the README documents alongside `npm install`.
-echo "[smoke] fetching control plane embed model…"
-(cd control && npm run fetch-models)
-
-CONTROL_MODEL_PATH="control/lib/embedder/models/Xenova/multilingual-e5-small/onnx/model_quantized.onnx"
-if [ ! -f "$CONTROL_MODEL_PATH" ]; then
-  echo "[smoke] FAIL: expected ONNX model at $CONTROL_MODEL_PATH"
+# The control plane fetches no model and carries no embedding runtime: that is
+# the opt-in `recall` install group (`mojulo install recall`, into
+# $MOJULO_HOME/recall). A bare clone must therefore run the CLI and answer a
+# semantic_search LEXICALLY — the same two checks the tarball smoke makes, here
+# on Linux. A throwaway MOJULO_HOME keeps the runner's home untouched.
+echo "[smoke] control plane CLI on a bare install (no recall group)…"
+SMOKE_HOME="$(mktemp -d)"
+export MOJULO_HOME="$SMOKE_HOME" MOJULO_DATA_DIR="$SMOKE_HOME/data" \
+  MOJULO_OUTCOMES_DIR="$SMOKE_HOME/data/outcomes" MOJULO_MODELS_DIR="$SMOKE_HOME/models"
+if [ -d control/lib/embedder/models/Xenova ] || [ -d "$SMOKE_HOME/recall" ]; then
+  echo "[smoke] FAIL: a bare clone must not carry the embedding runtime or model"
   exit 1
 fi
+CLI_VERSION=$(cd control && node scripts/mcp-stdio.mjs call version --json '{}' 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).server.version))')
+echo "[smoke] mojulo call version → $CLI_VERSION"
+SEARCH_MODE=$(cd control && node scripts/mcp-stdio.mjs call semantic_search --json '{"query":"build a little town I can wander around in","kinds":["routing"],"limit":3}' 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.stdout.write(`${j.mode}:${(j.results||[]).length}`)})')
+if [ "$SEARCH_MODE" != "lexical:3" ]; then
+  echo "[smoke] FAIL: semantic_search on a bare install returned '$SEARCH_MODE' (expected 'lexical:3')"
+  exit 1
+fi
+echo "[smoke] semantic_search → lexical, 3 routing cards"
+unset MOJULO_HOME MOJULO_DATA_DIR MOJULO_OUTCOMES_DIR MOJULO_MODELS_DIR
 echo "[smoke] control install ok"
 
 echo "[smoke] building control plane (next build)…"

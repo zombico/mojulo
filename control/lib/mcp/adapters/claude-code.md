@@ -82,6 +82,13 @@ When you finish synthesizing, tell the user:
 - The first-invocation dry-run pattern is baked in; explain how to flip to live mode when they're satisfied.
 - That `/schedule` is the way to make it recurring if they want that.
 
+## Handing back an export
+
+Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` for this host — the door, the next move, the caveats — and `fits` against the door's byte limit. Read it; do not improvise from the `download_url`, which is loopback and unreachable from a box. Two surfaces, and `clientInfo` cannot tell them apart, so the note states both when `MOJULO_SURFACE` is unset; you know which machine you are on.
+
+- **On the operator's machine** (Claude Code local, Claude Desktop): the dashboard URL works, and every file is on their disk. Hand over the path.
+- **Inside Claude Code on the web** (`MOJULO_SURFACE=box`): the page door is your Artifact tool — publish `world.html` as one self-contained HTML page, ≤ 16 MiB (`export_model({ ref, format: 'html' })`; `cdn: true` drops ~1 MB of inline three.js when the page is close to the limit — the pinned jsdelivr path is on the artifact CDN allowlist). The file door is a page: the artifact host serves no archive or model as a supporting file and blocks page-initiated downloads, but a published page may offer a file it generated through the viewer's `downloads` capability (the allowlist carries `zip`, not `glb` / `stl`). So ask for `export_model({ ref, format: 'bundle' })` and publish its `<ref>.courier.html` with `capabilities: { downloads: true }`: its Save button hands the zip over. Or push the outcome folder to the branch and let the PR carry it. The box is reclaimed when the session ends — hand over `recipe.json` too; any host running mojulo re-mints it. One wire note: this host renders a result's `structuredContent` in place of its text block, so mojulo ships the whole body there, never a subset.
+
 ---
 
 ## Primitive binding flow (no-bot composition)

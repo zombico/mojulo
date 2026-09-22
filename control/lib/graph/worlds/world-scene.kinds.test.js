@@ -217,3 +217,20 @@ describe('world-scene kinds — floorplan `levels[]` routes to the house arm (pa
     expect(stack.payload.metersPerUnit).toBe(single.payload.metersPerUnit);
   });
 });
+
+describe('world-scene kinds — floorplan `storeys: N` is the one-field stack (house-compose-language)', () => {
+  const top = (p) => Math.max(...p.faces.flatMap((f) => f.corners.map((c) => c[2])));
+
+  it('storeys: 2 routes to the house arm; absent and storeys: 1 render the single floor byte-identically', async () => {
+    const base = { ...FIXTURES.floorplan, seed: 1, width: 40, height: 32 };
+    const plain = await resolveWorldScene(sketch(base));
+    const one = await resolveWorldScene(sketch({ ...base, storeys: 1 }));
+    const two = await resolveWorldScene(sketch({ ...base, storeys: 2 }));
+    const floors = await resolveWorldScene(sketch({ ...base, floors: 2 }));
+    expect(JSON.stringify(one.payload)).toBe(JSON.stringify(plain.payload));
+    expect(top(two.payload)).toBeGreaterThan(top(plain.payload) + 8);
+    expect(two.payload.faces.length).toBeGreaterThan(plain.payload.faces.length);
+    expect(JSON.stringify(floors.payload)).toBe(JSON.stringify(two.payload));
+    expect(two.payload.metersPerUnit).toBe(plain.payload.metersPerUnit);
+  });
+});

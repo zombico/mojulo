@@ -229,6 +229,36 @@ Full requirements and deploy options: [chatbot/README.md](chatbot/README.md).
 
 ---
 
+## Handing an export out of a box
+
+When mojulo runs inside the agent's own machine (Claude Code on the web, a Codex cloud task, Grok
+chat's sandbox) the outcome folder is on a disk the operator never sees and the dashboard URL is
+loopback. Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` naming the
+host's door and `fits` against its byte limit; `export_model({ format: 'bundle' })` is the one-zip
+handoff. The door table is data, one profile per host under
+[control/lib/mcp/hosts/](../control/lib/mcp/hosts/), and each carries a `verified` level that is the
+source of truth for what follows:
+
+- **field** — seen in a run. `claude-code` is at this level since 2026-09-22: a local Claude Code
+  session with the Artifact tool (the same door the web box has) published the exported world page
+  and the bundle's courier page, and the operator confirmed the world renders and the courier's
+  Save delivers the zip. The same session observed three limits now recorded on the profile: the
+  artifact host refuses `.glb` and any archive as a supporting file (`supportingFileExtensions`),
+  a page cannot start a download itself (`pageInitiatedDownloads`), and the host renders a
+  result's `structuredContent` in place of its text block. The `downloads` allowlist
+  (`downloadExtensions`) is from the platform's own runtime type definitions. The 2026-09-21 runs
+  (a Claude cloud sandbox handing back a glTF, Grok chat's sandbox exporting a city) established
+  that the boxes exist and install cleanly, not their door limits.
+- **docs** — read from the host's own documentation (2026-09-22): Claude Code on the web (one
+  self-contained page ≤ 16 MiB through the Artifact tool, a download allowlist that carries `zip`
+  and not `glb`), a Codex cloud task (the PR is the only door), Claude Desktop and Grok Build on
+  the operator's machine.
+- **inferred** — a reasonable reading with no document behind it: Grok chat's sandbox (file cards,
+  25 MB), Hermes.
+
+Flip a profile's `verified` when a run establishes a door, and record the run here. The site must
+not claim a door at a level its profile does not carry.
+
 ## Platform notes
 
 - **macOS** is where everything above was built and verified, on Apple Silicon. All engine and

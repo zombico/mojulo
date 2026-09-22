@@ -12,179 +12,256 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
-### Fractal city: blocks and fidelity
+### Remote worker exports
+
+- **Every written export says the next move on THIS host.** When mojulo runs inside the agent's
+  own box (Claude Code on the web, a Codex cloud task, Grok chat's sandbox) the outcome folder is
+  on a disk the operator never sees and `download_url` is loopback; 2.0.7 stopped there. Now
+  `export_model`, `export_game` and `cook` results carry `handoff` — `{ host, surface, door, next,
+  caveats, verified }`, one sentence in the host's own words (publish with the Artifact tool, commit
+  the folder and let the PR carry it, hand back a file card, or open the dashboard) — and `fits`
+  against the host's byte limit. On every surface the host model publishes and the server never
+  does, so this is a note, never a refusal.
+- **Host profiles carry a `handoff` door table.** `lib/mcp/hosts/*.json` gains `handoff`: a
+  `local` row (the operator's machine) and a `box` row (the host's remote box: page door, file
+  door, `pageMaxBytes`, `fileMaxBytes`, the download-extension allowlist, allowed CDNs, egress,
+  `ephemeral`), plus `verified: field | docs | inferred`. `clientInfo` cannot tell Claude Code
+  local from the web box from Claude Desktop, so one profile holds both rows and the note states
+  both when `MOJULO_SURFACE=box|local` is unset. New `grok-chat` profile (wire `manual`, box only,
+  inferred) for the shell-only sandbox that ran the 2026-09-21 city; `MOJULO_HOST=<id>` picks a
+  profile for the CLI, which never sees an `initialize`. The registry validates the door vocabulary.
+- **`export_model({ format: 'bundle' })`** writes `<ref>.zip` into the outcome folder — `world.html`,
+  `model.glb`, `model.stl` for literal-scale kinds (the print advisories ride the README),
+  `recipe.json`, `README.md` — deterministic bytes (fixed entry time, sorted names, the README's
+  clock stamp dropped), so the same recipe zips byte-identical on any host. It is the one file
+  every door accepts: Claude's artifact download allowlist carries `zip` and not `glb`, a file card
+  and a PR carry one binary. Beside the zip it writes `<ref>.courier.html`: the zip embedded in one
+  small page with a Save button that goes through the viewer's `downloads` capability, because on
+  Claude Code on the web the file door is a page (field, 2026-09-22: the artifact host refuses `.glb`
+  and any archive as a supporting file and blocks page-initiated downloads); opened from file:// the
+  same button is a plain download. The outcomes route serves `.zip`, `.glb`, `.gltf`, `.stl`, `.3mf`,
+  `.usdz`, `.usda` with their real types instead of octet-stream.
+- **`export_model({ format: 'html', cdn: true })`** loads three.js from the pinned jsdelivr path the
+  emitter already carried (`emit-util.js`) instead of ~1 MB of inline `data:` modules — for a page
+  door with a byte limit that allows the CDN (Claude's does). Needs network, so not `file://`; the
+  note says so. It writes `world.cdn.html`, never over the `world.html` the README promises opens
+  from disk. Off by default and the self-contained page is byte-identical to 2.0.7. Measured
+  2026-09-22: the seed-91 city page is 8.6 MiB (1,028 KB of it three.js), a dungeon 2.3 MiB, a
+  standing figure 4.5 MiB — every fixture already fits the 16 MiB door; geometry-as-embedded-GLB
+  (~2× smaller) is deferred because it changes the page runtime.
+- **`structuredContent` on the wire.** A tool that returns `_structured: true` beside its body
+  gets the WHOLE body as `structuredContent` through `toMcpToolResult`; the text block never
+  carries the field. Field, 2026-09-22: Claude Code renders `structuredContent` in place of the
+  text block when both are present, so a subset would have hidden `ok`, `kind` and `note` from the
+  agent — the first cut shipped a subset and was corrected the same day. A host whose profile
+  declares a result byte cap (Grok Build, 20 KB) gets no `structuredContent` at all rather than the
+  body twice. Protocol version stays `2024-11-05`.
+- **Cards and docs.** `claude-code.md`, `codex.md`, `grok-build.md`, `generic.md` gain "Handing
+  back an export"; `AGENTS.md`'s sandbox section becomes "Inside a box" with a door per host;
+  `docs/tech-requirements.md` records which door claims are field / docs / inferred, from the
+  profiles. The 2026-09-21 Grok box run is named for what it was — Grok chat's sandbox shell, not
+  Grok Build (the local CLI) — in the READMEs, the substrate drawer and the changelog.
+- **Eyes gate, first pass (2026-09-22, a local Claude Code session with the Artifact tool, which is
+  the same door the web box has).** The seed-3 dungeon was minted, exported three ways and published
+  as three private artifacts: the self-contained page, the `cdn: true` page, and the bundle's courier
+  page with `downloads` declared. The operator opened them: the world renders and the courier's
+  Save delivers the zip. The `claude-code` profile is `verified: "field"`; the other profiles stay
+  at `docs` or `inferred`.
+- **Pins.** `tool-descriptions.test.js` `PAYLOAD_CEILING` 263,500 → 264,500 (measured 264,054) for
+  the `bundle` enum, the `cdn` property and the handoff sentence; the `export_model` description
+  stays under its 2,285 allowlist pin.
+- Not in this theme: `export_beats` (writes no outcome folder) and `forge_motion` (its viewer bakes
+  the loopback base URL) get no `handoff` yet; the Claude Desktop MCP App viewer is a flagged spike
+  still to run; ChatGPT and grok.com need a public endpoint and stay out of scope.
+
+### Docs
+
+- **README: "Two places it runs, three things you can add."** One section that says where mojulo
+  runs (the operator's machine, or the agent's own temporary Linux box on Claude Code web / Grok
+  chat's sandbox, both of which have driven a full mint-and-export) and what each opt-in group adds
+  (creative by default, recall, chatbot), with what a session inside a box should ask for instead
+  of the dashboard and the PNG bake. The npm README (`control/README.md`) carries the same section
+  as "Where it runs", and its Quickstart names the no-keyboard init form and both opt-in installs.
+### House compose language
+
+A Claude session on the web asked for a house on 2026-09-22, opened `pack_object` (no house), opened
+`pack_world` (no house), read the edifice card and shipped an institutional block. The house was there
+the whole time: `create_sketch { manifest: { kind: 'floorplan' } }`, homed in `pack_diagram` behind a
+description about flowcharts. Its report called that "a routing bug, not a capability gap". This theme
+makes the product match that report point for point.
+
+- **A HOUSE row in `forward_context`'s mint dispatch** (house / apartment / cottage / townhouse /
+  office floor plan / one furnished room → `create_sketch` kind `floorplan`); BUILDING now says
+  edifice is the institutional one-off and a dwelling is HOUSE; PICTURE says a picture OF a house
+  is `sketch_what_possible`'s `architecturalConstruction`. The world and diagram form drawers, the
+  `compose_world`, `mint_solid` and `create_sketch` descriptions, and the `pack_world` /
+  `pack_object` / `pack_diagram` recognizers each carry the same one-line pointer. A `house`
+  routing card and two fixture rows back the retrieval hop.
+- **`storeys: N` on a floorplan manifest** (alias `floors`) stacks the plate N high with a stair
+  between consecutive floors — the shorthand the reporter reached for and found silently dropped.
+  It lowers to the existing `levels[]` stack at render time; the recipe stays one field. Absent or
+  `1` renders byte-identical. A non-integer refuses with the card pointer.
+- **The floor-plan card shows the real call** — `create_sketch({ title, manifest: { kind:
+  'floorplan', … } })` — instead of the flat form that cost the reporter four attempts, documents
+  `storeys` and the authored `levels[]` stack (roles, per-level seed / rooms / height, `stairs`,
+  `tier`, `explode`), and names `export_model({ lit: true })` as the lit handoff. README §3 shows the
+  same call.
+- **The Blender worker scripts ship.** `blender-bake`, `bake-world-gi` (and their `.py` halves) and
+  `export-blender` are in the npm package's `files`, and `mojulo script <name> [args…]` runs one from
+  the installed package root, so the card's command works where `scripts/` is inside the npx cache.
+  The card, the render-bay re-bake prompt and the Blender worker doc name both doors.
+
+### Release tooling
+
+- **The README install-success smoke (CI) no longer fetches a control-plane model.** `scripts/smoke.sh`
+  ran `npm run fetch-models` and asserted the ONNX file, which 2.0.7 made impossible on a bare clone
+  (the runtime is the opt-in `recall` group) and failed the first CI run after the tag. The control
+  half of the smoke now asserts the opposite on Linux: no runtime or model in the tree, `mojulo call
+  version` answers, and `semantic_search` answers lexically with three routing cards. The bot
+  runtime's own model check (lite-template) is unchanged. `fetch-embed-model.js` prints one line with
+  the install line instead of a stack trace when the group is absent.
+
+### Fractal city: operator blocks and the fidelity dial
 
 - **`blocks`: operator-laid parcels, reserved before the roads.** A `fractal-city` recipe (and
   `compose_world` base `city`, top level of `overrides`) takes `blocks: [{ rect: { x, y, w, d }, use,
-  storeys?, height?, density?, fill?, label? }]` in city units. Each block is stamped on the claim grid and
-  joins the reserved list before the quadrant recursion runs, exactly like a monument plaza or a civic
-  area: cross-streets flank it, roads / sidewalks / power lines clip around it, and nothing from the
-  recursion builds inside it. The block is filled by its `use` through the existing fill rules —
-  `residential` (detached lots, or `fill: 'rows'` for townhouse rows, `fill: 'massed'` for low apartment
-  masses), `commercial` (the city's massed composition), `industrial` (low wide sheds and a lot), `park`
-  (the city-park builder: lawn, fractal greenery, pond / trails / centre per seed), `plaza` (the paved
-  square), `civic` (a set-back hall on paving, or `fill: 'school' | 'strip-mall' | 'town-square' |
-  'city-park'` for a district builder), `empty` (a claimed vacant lot). `storeys: n | [lo, hi]` (or
-  `height: [lo, hi]` in units) is the height band for the massed uses; `density` is the parcel keep
-  probability. A coarser zoning map, `blocks: { map: ['RRCC', 'PPCE'], gap? }`, expands one block per
-  cell over the region (R residential, C commercial, I industrial, P park, Z plaza, V civic, E empty,
-  `.` unzoned); the rect form stays canonical. Advisory, never a refusal: a block outside the region or
-  over a reserved plaza is still placed and named in `stats.blocksLaid` (`inside`, `overlapsReserved`,
-  what stands on it) so the agent can iterate with `update_sketch`. Absent ⇒ zero bytes, no RNG draw.
+  fill?, storeys? | height?, density?, label? }]` in city units. Each block is filled by its `use` through
+  the fill rules the recursion already owns, then stamped on the claim grid and put on the reserved
+  list and the cross-street avoid list before the quadrant recursion runs — exactly the treatment a
+  monument plaza or a civic area gets: cross-streets flank it (right-of-way included), roads /
+  sidewalks / power lines clip around it, nothing from the recursion builds inside it. Uses:
+  `residential` (fenced detached lots; `fill: 'rows'` for attached townhouse rows, `fill: 'massed'` for
+  low apartment masses), `commercial` (a composition, never one monolith: the block is cut into parcels
+  with alley or setback gaps, every parcel keeps with `density`, one drawn parcel — not the centre —
+  takes the top of the height band), `industrial` (two to four low sheds on the industrial facade
+  program fronting a parking-lot yard), `park` (the city-park builder; `fill: 'playground'` for a fenced
+  pocket park), `plaza` (the paved square), `civic` (a set-back hall on paving, or `fill: 'school' |
+  'strip-mall' | 'town-square' | 'city-park'` for a district builder), `empty` (a claimed vacant lot).
+  `storeys: n | [lo, hi]` (one storey = 0.82 units) or `height: [lo, hi]` is the band for the massed
+  uses; defaults when none is given: residential massed 2–5 storeys, commercial 3–9 units, industrial
+  1–2.2, civic hall 2.5–4.5. `density` (default 1 — an explicit use asks to be built) is the only dice an
+  operator block rolls: a houses block rolls no park-pocket or vacant-lot chance, and a park asked for
+  a playground that does not fit is reported, never swapped for the big park. A block's masses are
+  never re-tagged as the church / mosque / temple or a civic rotunda. Blocks are placed before
+  `civicAreas`, so an explicit parcel beats an auto-sited district. A coarser zoning map, `blocks: {
+  map: ['RRCC', 'PPZE'], gap? }`, expands one block per cell over the region at plan time (R C I P Z V
+  E, `.` unzoned; row 0 is the far edge); the rect form stays canonical. Advisory, never a refusal: a
+  block outside the region or over a reservation is still placed and named in `stats.blocksLaid`
+  (`inside`, `overlapsReserved`, `masses`, `boxes`, and a `note` saying why a built use laid nothing).
+  Absent ⇒ zero bytes, no rng draw.
 - **`fidelity`: the same city, less dressing.** `fidelity: 'full' | 'massing' | 'skyline'` (default
-  `full`, omitted from the stored recipe). Lower levels are a post-generation prune over the planned
-  boxes, grounds and faces keyed on an explicit per-kind class table, so the RNG stream — and with it
-  the road skeleton, block layout and every mass — is identical to the full render of the same seed.
-  `massing` drops street furniture (lamps, signs, signals, stop signs, power lines, bins, benches,
-  playgrounds, fences, trees / palms / shrubs, tram poles and stops), road markings (crosswalks,
-  sidewalk joints, lot stripes, playground pads), alley stickers, townhouse dressing, static cars,
-  cyclists, pedestrians, and renders buildings, towers, townhouses and houses as plain tinted
-  extrusions (no facade, roof or rooftop kit); landmarks, religious places and rotundas keep their
-  forms. `skyline` further drops the small ground planes (alley floors, driveways, lawns, trails,
-  shores) and garages, and merges each attached townhouse row into one mass. Roads and ribbons,
-  sidewalks, junctions, lots, plazas, civic footprints, inset envelopes and the ground plane survive at
-  every level. Below `full` the plan produces no walker loops, car lanes or people, so the `/world`
-  path attaches no walkers or traffic; the night bake has no lamp sources (the sky and moonlight
-  still render). Meant for a scape looked at from further away or a cheaper world under a large
-  `region` / small `baseScale`.
-- **The root tower no longer swallows the centre of a large city.** The default frame (30 × 18) is the
-  city's unit of scale: a root tower is capped at that frame's 34 % footprint (10.2 × 6.12 city units)
-  and a monument budgets off at most the default frame's short side, so a bigger `region` gets more city
-  around the same tower instead of a 14 × 10 monolith on the main crossing. On a region larger than the
-  default in either dimension the tower is also SEATED to one side — the centre of a drawn quadrant (the
-  one an operator's blocks cover least) — and put on the cross-street avoid list with its right-of-way,
-  so the main crossing flanks it and the tower reads as a landmark on a corner. `anchorSeat: 'side' |
-  'centre'` (recipe top level; `asset.anchorSeat` in `compose_world`) overrides the gate either way.
-  Both are gated so every existing default-frame recipe — with or without `baseScale`, a monument, a
-  streetcar corridor or a town profile — is byte-identical; a larger-than-default region with a root
-  tower or monument re-renders by design. With `compose_world`, laying `blocks` drops a THEME-implied
-  anchor (e.g. mars-colony's tower) unless the call names `asset.anchor` itself: an explicit block
-  layout is the operator's anchor intent. The fidelity dial never touches the anchor.
-- **Operator blocks are compositions, and theirs alone.** A commercial or residential-massed block is
-  cut into parcels (alley or setback gaps) until each is building-sized, every parcel keeps with the
-  block's `density` (default 1: an explicit use asks to be built), heights come from the band and one
-  drawn parcel — not the centre — takes the top of it; an industrial block is two to four low sheds
-  (industrial facade program: banded / pier glazing and stacks, no apartment windows) fronting a
-  parking-lot yard. A residential 'houses' block rolls no park-pocket and no vacant-lot dice, and a
-  `park` block asked for a `playground` that does not fit reports it instead of substituting the big
-  park. A block's masses are excluded from the church / mosque / temple and civic-dome re-tag pools.
-  `stats.blocksLaid[].note` says why a built use laid nothing (a reservation holds the ground, every
-  parcel lost the density roll, too small for the fill). Default bands when the block names none:
-  residential massed 2–5 storeys, commercial 3–9 units, industrial 1–2.2, civic hall 2.5–4.5.
-- **Massing keeps the colour.** Below full fidelity a building or tower renders in the glass colour of
-  the same hashed facade its full-fidelity skin would have had, a townhouse unit (or a skyline-merged
-  row) its cladding, a house its tint — the root tower is no longer a pale default block.
-- **Buildings know which face fronts a road (`elements.frontage`).** A pass over the finished plan reads
-  the claim grid just outside each face of every building, tower, mid-tower and garage (townhouses already
-  know their face; houses are left alone) and records `roadFaces` and `front` — the face on the widest
-  road (a streetcar boulevard counts as its own width), preferring a face whose road hit is clear of a
-  junction box and furthest from any crossing, then the longest hit; `null` when the mass fronts nothing.
-  The facade's entrance / storefront / awning program is then emitted on that face — via the face's local
-  frame, so a `-x` front carries the same door a `+y` front used to — and on NO face when the mass fronts
-  nothing, instead of the old unconditional `+y` lobby that could open onto a park with a blank road side.
-  No rng draw: with the flag on, the roads, grounds and every other box are byte-identical to the flag off.
-  `stats.frontage = { masses, withRoad, withoutRoad, parking, swept? }`.
+  `full`, not stored). Lower levels are a post-generation prune over the planned boxes, grounds and
+  faces keyed on explicit per-kind class tables, so the rng stream — and with it the road skeleton,
+  block layout and every mass — is identical to the full render of the same seed. `massing` drops
+  street furniture (lamps, signs, signals, power lines, bins, benches, playgrounds, fences, trees,
+  tram poles and stops, portal and apron dressing), road markings (crosswalks, joints, lot stripes,
+  pads), alley stickers, townhouse dressing, static cars, cyclists and pedestrians, and renders
+  buildings, towers, townhouses, houses and garages as plain extrusions in the colour their full
+  facade would have had; landmarks, religious places and rotundas keep their forms. `skyline` further
+  drops the small ground planes (alley floors, driveways, lawns, trails, shores) and garages, and
+  merges each attached townhouse row into one mass. Roads, sidewalks, junctions, lots, plazas, civic
+  footprints, drop-off aprons, inset envelopes and the ground plane survive at every level. Below
+  `full` the plan produces no walker loops, car lanes or people, and the night bake has no lamp
+  sources. `stats.fidelity` + `stats.pruned` report what came off.
+
+### Fractal city: the road-aware city — anchor, frontage, entrances, aprons, houses
+
+- **The root tower no longer swallows the centre of a large city.** The default frame (30 × 18) is
+  the city's unit of scale: a root tower is capped at that frame's 34 % footprint (10.2 × 6.12 units)
+  and a monument budgets off at most the default frame's short side, so a larger `region` gets more
+  city around the same tower. On a region larger than the default in either dimension the tower is
+  also seated to one side — the centre of a drawn quadrant, the one an operator's blocks cover least —
+  and put on the cross-street avoid list with its right-of-way, so the main crossing flanks it and the
+  tower reads as a landmark on a corner. `anchorSeat: 'side' | 'centre'` (recipe top level;
+  `asset.anchorSeat` in `compose_world`) overrides the gate. Both are gated so every stored
+  default-frame recipe — with or without `baseScale`, a monument, a streetcar corridor or a town
+  profile — is byte-identical; a larger-than-default region with a root tower or monument re-renders
+  by design. With `compose_world`, laying `blocks` drops a theme-implied anchor (mars-colony's tower)
+  unless the call names `asset.anchor` itself. The fidelity dial never moves the anchor.
+- **Buildings know which face fronts a road (`elements.frontage`).** A pass over the finished plan
+  reads the claim grid just outside each face of every building, tower, mid-tower and garage and
+  records `roadFaces` and `front` — the face on the widest road, preferring a face whose road hit is
+  clear of and furthest from a junction box, then the longest hit; `null` when the mass fronts
+  nothing. The facade's entrance / storefront / awning program is emitted on that face through the
+  face's local frame, and on no face when the mass fronts nothing, instead of the old unconditional
+  `+y` lobby. No rng draw: with the flag on, the roads, grounds and every other box are byte-identical
+  to the flag off.
 - **Parking entrances on the large masses.** A mass whose `front` fronts a road and that is large — a
-  generic tower, or a footprint ≥ 6 units² at ≥ 3 units tall, on a plain / podium / setback / complex
-  form (never a cylinder, landmark, religious place or rotunda) — gets a vehicular entrance on that face,
-  seeded by the same hashed key its facade uses, from four variations: a recessed GARAGE mouth (dark
-  portal, yellow/black chevron header, striped barrier arm), a DOWN-RAMP between stepped curb walls with
-  a blue 'P' sign post, a PORTE-COCHÈRE (canopy on two columns over a drive apron, four bollards, glass
-  doors), and a two-lane DRIVE-THROUGH ARCH (roll-up slats, centre pier, lit sign strip). Each cuts the
-  curb — a `curb-cut` ground tile bridging sidewalk to road in front of the mouth — and a final sweep
-  removes any lamp, sign, tree, bin, bench or pole that stood in that span (removal only, so the rng
-  stream of everything else is untouched). A mass on more than one road — the centred tower straddling
-  the crossing, the corridor-side tower — gets the portal on its major-road face and a pedestrian LOBBY
-  on a second road face (`lobby`), never two portals on one box; a mass sitting on the crossing itself
-  takes the face whose approach is longest, so cars never enter from inside the junction. The entrance
-  dressing is furnishing / marking to the fidelity prune (`massing` keeps the mass and its `front`).
-- **The one new-mint default that differs from a stored row.** The planner default is `frontage: false`,
-  so every stored city re-renders byte-identically. `mintFractalCity` writes `elements.frontage: true`
-  into every NEW manifest (array or object form; aliases `entrances` / `roadAware` / `parkingEntrances`
-  are honoured) unless the caller sets it false — so every city minted from here on is road-aware while
-  old rows stay pinned. It is written into the manifest, so the row itself says which it is.
-- **The city uses its entrances.** With `frontage` on: a road that DEAD-ENDS into a large mass (the
-  centred tower, a block mass a clipped street runs into) gets a drop-off apron at the stub — a paved
-  `drop-off` tile the road's width from the face to the road end, a curb island with three bollards or
-  a planter (hashed), two end bars — and the last stretch of that stub loses its crosswalk stripes and
-  signal heads (nothing faces the wall). Only a strip PERPENDICULAR to the face whose carriageway
-  reaches it counts; a road running along a face is a frontage, not a stub. The furnishing sweep around
-  a portal is widened by half the mouth on each side, so no lamp, sign, signal or tree stands beside it.
-  A cylinder is no longer skipped: its portal sits on a tangent PODIUM (a 2.3-unit flat tile from the
-  drum's axis to the road face, class mass). A portal owner's lobby face keeps the door canopy but not
-  the shop awning. `traffic` on: at most one static car-ant per portal (keep 0.72, like the street ants,
-  on a stream seeded from the box key) sits arriving on the curb-cut or departing just inside the
-  mouth; the world's moving cars keep their straight lanes — a lane spur into the cut was not built.
-  `people` on: one or two idle pedestrians stand on the walk before each lobby door, facing it, never on
-  a curb-cut; `walkers` on: the loop planner runs after the frontage pass, skips any ring whose band
-  would cross a curb-cut, and takes the rings that pass a lobby door first (with the flag off it runs
-  where and as it always did — the park doodads claim grass in between, so the two grids differ).
-  `stats.frontage` gains `stubs`, `portalCars`, `lobbyIdles`, `houses`, `housesTurned`.
+  generic tower, or a footprint ≥ 6 units² at ≥ 3 units tall — gets a vehicular entrance on that face,
+  seeded by its facade's own key, from four variations: a recessed garage mouth (chevron header,
+  striped barrier arm), a down-ramp (one short apron against the mouth between two curb walls, a blue
+  'P' post — it does not run across the sidewalk to the street), a porte-cochère (canopy on two columns
+  over a drive apron, bollards), and a two-lane drive-through arch (roll-up slats, lit sign strip); a
+  cylinder takes its portal on a tangent podium. Each cuts the curb (a `curb-cut` tile bridging
+  sidewalk to road) and a sweep clears every lamp, sign, signal, tree, bin or bench from the cut and
+  half a mouth either side of it (removal only). A mass on more than one road — the centred tower
+  straddling the crossing — gets the portal on its longest approach and a pedestrian lobby on a
+  second road face, never two portals on one box; a portal owner's lobby face keeps the door canopy
+  but not the shop awning.
+- **Dead-end stubs read as intended.** A road that ends at a large mass face gets a drop-off apron
+  there — a paved `drop-off` tile the road's width from the face to the road end, a curb island with
+  three bollards or a planter, two end bars — and the last stretch of that stub loses its crosswalk
+  stripes and signal heads. Only a strip perpendicular to the face whose carriageway reaches it counts.
+- **The city uses its entrances.** `traffic` on: at most one static car-ant per portal, arriving on the
+  curb-cut or departing just inside the mouth, never on a moving lane (an ant that would be is
+  dropped). `people` on: one or two idle pedestrians stand on the walk before each lobby door, never on
+  a curb-cut. `walkers` on: the loop planner keeps off the curb-cuts and takes the rings that pass a
+  lobby door first (with the flag off it runs where and as it always did).
 - **Houses are road-aware too.** Every town lot records `roadFaces` from the grid; a lot whose row
   front is not a road while the opposite edge is turns to face it — the whole lot mirrored across its
-  centreline (house, garage, driveway, lawn, fences, planting; `front` flips), no rng, so the house
-  count and every footprint match the flag-off city. A lot whose only road is on a perpendicular edge
-  keeps its row front (a turned house would not fit the lot). Houses keep their `'y-'`-style `front`
-  vocabulary (the street edge; the renderer reads it) and gain the mass-style `roadFaces` (`'-y'`…).
-- **`compose_world` blocks-drop-the-theme-anchor is now pinned at the DB level**
-  (`compose-world.blocks.test.js`, in-memory SQLite, mars-colony's tower).
-- **Signalised traffic on the `/world` path.** With `traffic` on, the moving cars no longer drive
-  through each other at crossings. The plan exports `signals`: one per crossing — every crossing the
-  recursion laid AND every T where a side street meets a wider one, derived from the recorded road
-  strips pairwise (box = the vertical strip's width × the horizontal strip's) — each with a phase
-  PROGRAM: the region's long axis green first (12 s, amber in its last 2 s), an all-red clearance
-  (5 s), the other axis green, another clearance; cycle 34 s; a SEEDED offset (mulberry32 on the recipe
-  seed and the junction index). Dead-end stubs and the streetcar corridor are not crossings and get
-  none. `attachCityCars` trims every lane at the boxes it starts or ends in (a side street leaving or
-  dead-ending into an avenue starts past / stops before the box) and lists the junctions it crosses in
-  travel order with the stop line (box edge minus 0.35), entry and exit edges; the cars channel then
-  runs the shared traffic model (`lib/graph/scene/channels/traffic-model.js`, its source embedded
-  verbatim into the page so the browser and the tests run one code): a car brakes to the stop line
-  when its axis is red or clearing and pulls away on green; a car never comes closer than 0.5 to the
-  car ahead on its lane (queues form behind a red and dissolve on green); a car already inside a box
-  finishes crossing; a car crosses its stop line only when the car ahead has left it room to clear
-  the box, so no car is ever held inside a junction; a car wraps to the lane start only when the
-  start is clear. No cross-axis car can share a box — by construction of the phases (the clearance is
-  longer than the worst-case crossing), not by a runtime check. The state is integrated at a fixed
-  1/30 s from the world clock's zero, so the pose at any clock is the same at any frame rate and
-  under pause / resume and capture frames. Lanes also changed with traffic on: an avenue's lane is
-  split where a reserved mass (the centred tower) clips it, so no car drives through a building; side
-  streets, too narrow for two cars abreast, carry ONE centred one-way lane each, direction alternating
-  street by street (a one-way downtown grid); a short run takes fewer cars. `window.__mojSignals`
-  probes the live phase per crossing. A city without `traffic` exports no signals and its world page
-  is byte-identical; the CSS3D `/scene` still is untouched.
-- **Zero car overlap is a hard invariant of the world path.** At every tick, for every pair of cars —
-  moving cars on any lane, the two directions of one road, perpendicular lanes, and the static portal
-  car-ants — the 2D footprints (each model's MEASURED length × width from the car bank, grown by a
-  0.15 safety margin, oriented along its lane) do not intersect; `traffic-model.test.js` proves it
-  pairwise over three full cycles on the default tower city, the 40 × 28 base and the town profile at
-  the real cars-per-lane, plus a wrap-specific and a queue-specific case, and every car still
-  advances in every cycle. How it is kept: the bank is measured once (`bakeCarMesh` now returns
-  `len` / `wid`; the longest and widest model bound every footprint; the clearance is DERIVED from the
-  longest model leaving the widest box from rest — `deriveClearance`, not a guessed number); the lane
-  is a RING for the following rule (the last car's leader is the first car a lap on), so a wrapping car
-  queues behind the head of the lane instead of landing on it; the initial spread is an evenly spaced
-  ring rotated until no footprint sits in a box, and a lane takes only as many cars as its ring minus
-  its boxes can hold with a full footprint + gap between each (`carsPerLane`; per-lane counts ride
-  `trafficLanes[].cars`); a stopped car keeps its whole grown footprint behind the stop line and a
-  queue is spaced by full footprint + gap; the two directions of one road are dropped to one lane
-  when their offsets cannot keep the widest model's footprints apart (`singled`); a portal car-ant
-  that lies on any moving lane's swept strip is dropped (removal only; `scene.staticCars` lists the
-  survivors); lane runs now break at ANY non-road cell (the simulation caught a lane that bridged two
-  roads across 1.5 units of verge); a lane's crossings include boxes its cars' footprints would touch
-  from the side or at the lane's ends, and ADJACENT boxes (a T beside a crossing, closer than a car
-  can stand between) merge into one compound crossing with one stop line, entry only when every
-  member is green and room beyond the last, while `buildSignals` gives such neighbours one offset
-  (the simulation caught a car legally inside one box being carried into the next on its red).
-- **Signal heads stay static.** The lamp boxes are baked into the world's one merged vertex-coloured
-  geometry with the rest of the city; lighting them per phase would mean splitting them out into a
-  separate addressable mesh set at assemble time. Not done this round; the heads show their three
-  lamps as before.
-- **Turns into portals (the stretch goal) were not built.** The lane model is straight pacman lanes;
-  a car peeling off into a curb-cut, holding and rejoining needs a spur path and a merge rule, and a
-  half turn was not worth shipping. The static arriving / departing car-ants at the portals stand.
+  centreline, no rng, so the house count and every footprint match the flag-off city. A lot whose
+  only road is on a perpendicular edge keeps its row front. Houses keep their `'y-'`-style `front`
+  (the street edge the renderer reads) and gain the mass-style `roadFaces`.
+- **The one new-mint default that differs from a stored row.** The planner default is `frontage:
+  false`, so every stored city re-renders byte-identically; `mintFractalCity` writes
+  `elements.frontage: true` into every new manifest (aliases `entrances` / `roadAware` /
+  `parkingEntrances` honoured) unless the caller sets it false, so every city minted from here on is
+  road-aware while old rows stay pinned. The `export_model` html pin of the seed-91 city moved from
+  509 to 685 boxes for this reason (its flag-off twin is asserted at 509 beside it).
 - Where these are documented for agents: the `city` view-vocab card (`get_view_vocab({ id: 'city' })`)
   and the header of `lib/graph/city/fractal-city.js`. `tools/list` descriptions are unchanged.
+
+### Fractal city: signalised, collision-free traffic on the world path
+
+- **Every crossing carries a signal program, and cars obey it.** With `traffic` on, the plan exports
+  the crossings — every crossing the recursion laid and every T where a side street meets a wider
+  one, derived from the recorded road strips pairwise, box = the vertical strip's width × the
+  horizontal strip's — and the world path (`attachCityCars`) builds each a program: the region's long
+  axis green first (12 s, amber in its last 2 s), an all-red clearance, the other axis green, another
+  clearance; a seeded offset per crossing (mulberry32 on the recipe seed and the junction index), with
+  adjacent crossings sharing one. The cars channel runs the shared traffic model
+  (`lib/graph/scene/channels/traffic-model.js`, its source embedded verbatim into the page so the
+  browser and the tests run one code): a car brakes to the stop line when its axis is red or
+  clearing and pulls away on green, never comes closer than a gap to the car ahead (queues form
+  behind a red and dissolve on green), finishes a crossing it has entered, and crosses a stop line
+  only when the car ahead has left it room to clear the box. The state is integrated at a fixed
+  1/30 s from the world clock's zero, so the pose at any clock is the same at any frame rate, under
+  pause / resume and capture frames. Lanes changed with traffic on: an avenue's lane breaks at any
+  non-road cell (no car drives through the centred tower or over a verge), side streets carry one
+  centred one-way lane each (direction alternating), a lane that starts or ends inside a box is
+  trimmed clear of it, and a road too narrow to hold two directions keeps one. A city without
+  `traffic` exports no signals and its world page is byte-identical; the CSS3D `/scene` still is
+  untouched.
+- **Zero car overlap is a hard invariant.** At every tick, for every pair of cars — moving cars on any
+  lane, the two directions of one road, perpendicular lanes, the static portal ants — the 2D
+  footprints (each model's measured length × width from the car bank, grown by a 0.15 safety
+  margin, oriented along its lane) do not intersect; `traffic-model.test.js` proves it pairwise over
+  three full cycles on the default tower city, the 40 × 28 base and the town profile, plus a
+  wrap-specific and a queue-specific case, with every car advancing in every cycle. How: the bank is
+  measured once (`bakeCarMesh` returns `len` / `wid`); the clearance is derived from the longest model
+  leaving the widest box from rest, not guessed; the lane is a ring for the following rule (a
+  wrapping car queues behind the head of the lane); the initial spread is a ring at each car's own
+  pitch rotated off the boxes; a lane takes only as many cars as its ring minus its boxes holds with a
+  full footprint + gap between each (`trafficLanes[].cars`); a stopped car keeps its whole grown
+  footprint behind the stop line; adjacent boxes merge into one compound crossing with one stop line
+  and entry only when every member is green (no car is carried from a T into the next crossing on
+  its red). `window.__mojSignals` probes the live phase per crossing.
+- **Not done, stated plainly.** The signal heads stay static: the lamp boxes are baked into the
+  world's one merged vertex-coloured geometry, and lighting them per phase means splitting them into
+  an addressable mesh set at assemble time. Cars do not turn into the portals: the lane model is
+  straight pacman lanes and a peel-off, hold and rejoin needs a spur path and a merge rule; the static
+  arriving / departing ants at the portals stand in for it. The bus, the longest model, bounds every
+  lane's pitch and the clearance, so cars queue a little further apart than a car-only bank would.
 
 ## [2.0.7] - 2026-09-21
 

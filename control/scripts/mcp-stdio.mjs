@@ -114,6 +114,26 @@ console.info = console.error;
 // 113MB model fetch. Explicit allowlist plus the pack_ prefix — any other
 // argv falls through to stdio-server mode exactly as before; these names
 // (and the pack_ prefix) are now reserved words on the bin.
+// `mojulo script <name> [args…]` — run one of the shipped worker scripts from the package
+// root, so the floor-plan card's `node scripts/bake-world-gi.mjs …` has a door on an install
+// where scripts/ sits inside the npx cache (house-compose-language). Allowlisted to the
+// three that ship in `files`; the child inherits stdio and the paths env resolved above.
+// `script` is one more reserved word on the bin.
+const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender'];
+if (process.argv[2] === 'script') {
+  const name = process.argv[3];
+  if (!SCRIPT_COMMANDS.includes(name)) {
+    process.stderr.write(`Usage: mojulo script <${SCRIPT_COMMANDS.join('|')}> [args…]\n`);
+    process.exit(2);
+  }
+  const { spawn } = await import('node:child_process');
+  const child = spawn(process.execPath, [path.join(CONTROL_DIR, 'scripts', `${name}.mjs`), ...process.argv.slice(4)], {
+    stdio: 'inherit', cwd: CONTROL_DIR, env: process.env,
+  });
+  const code = await new Promise((resolve) => child.on('close', resolve));
+  process.exit(code ?? 1);
+}
+
 const CLI_COMMANDS = new Set(['tools', 'packs', 'help', 'call']);
 if (CLI_COMMANDS.has(process.argv[2]) || process.argv[2]?.startsWith('pack_')) {
   const { runCli } = await import('./mcp-cli.mjs');

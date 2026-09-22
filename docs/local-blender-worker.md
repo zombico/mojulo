@@ -28,7 +28,8 @@ view):
   runtime cost. A drivetrain + per-world-kind gear adapters. **This is the path for
   "blenderify a level/world."** Full design, presets, rollout, and the two gates:
   map-gi-bake.plan.md.
-  Run: `node scripts/bake-world-gi.mjs --ref <world> --preset exterior --write`.
+  Run: `node scripts/bake-world-gi.mjs --ref <world> --preset exterior --write` (on an
+  install: `mojulo script bake-world-gi --ref <world> --preset exterior --write`).
 
 ## The USD / GLB verify gate (2026-09-05)
 
@@ -79,6 +80,11 @@ script — never a row that competes with the recipe.
   `/Applications/Blender.app/Contents/MacOS/Blender`.
 
 ## Usage (from `control/`)
+
+The three drivers ship in the npm package. From a repo checkout run them as below from
+`control/`; on an installed mojulo, where `scripts/` sits inside the npx cache, `mojulo script
+blender-bake …` / `mojulo script bake-world-gi …` / `mojulo script export-blender …` take the
+same flags and run from the package root.
 
 ```bash
 # Bake a sketch's own export and bind the result back onto it:

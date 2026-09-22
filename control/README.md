@@ -57,9 +57,16 @@ npx mojulo init
 #      generate a 3D city at night        → a world; open the /scene URL
 #      turn that into a game              → a game; export it for Godot
 
-# 3. Optional. The chatbot factory is an install-gated pack (a compiled bot
-#    is the one artifact that needs an LLM key of its own):
-#      npx -y -p mojulo mojulo install chatbot
+# 3. In your agent's own box (Claude Code on the web), there is nobody at a
+#    keyboard — init takes its defaults and skips the dashboard:
+#      npx -y mojulo init --yes --no-ui
+#    A sandbox with no MCP client (Grok chat) skips init and drives the same
+#    registry from the shell:  npx mojulo call <tool> --json '{…}'
+
+# 4. Optional add-ons, same choice on your machine or in a box:
+#      npx -y -p mojulo mojulo install recall     # the embedding model behind
+#                                                # semantic_search (lexical without it)
+#      npx -y -p mojulo mojulo install chatbot    # the bot factory — needs an LLM key
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
@@ -100,6 +107,33 @@ bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
 (0 success, 1 tool error, 2 usage). Results print to stdout as-is, so
 `npx mojulo call version | jq .` works; diagnostics go to stderr. Bare
 `npx mojulo` remains the stdio MCP server.
+
+## Where it runs
+
+**On your machine.** `npx mojulo init` wires the agents it finds, opens the dashboard at
+`localhost:3001`, keeps everything under `~/.mojulo/`, and probes your PATH for the optional local
+workers (Blender, a slicer, OpenSCAD, the game engines).
+
+**In your agent's own box.** Claude Code on the web and Grok chat's sandbox give the agent a temporary
+Linux machine. Ask it to install mojulo and it does: under Claude Code `init` takes its defaults with no
+keyboard; a sandbox with no MCP client drives the registry from the shell (`npx mojulo call`). Nothing in
+the install needs a host outside the npm registry. Both have driven a full mint and export this way; a
+Claude session built a 47-part phone at true scale and handed back the glTF as a download. The same
+recipes and the same exports, arriving as files the agent gives you. Inside a box the agent is your only
+surface (the dashboard is loopback-only), a scene-to-PNG bake needs a browser the box may not be allowed
+to fetch (ask for the page, `world.html`, and the bundle — one zip with page, mesh, recipe and README;
+the export result names this host's door), and the box is gone when the session ends (keep the recipe,
+it is in the bundle). Blender installs in those boxes too.
+
+Three add-ons, the same choice in both places:
+
+| add | with | what you get |
+|---|---|---|
+| **creative** (on by default) | plain `npm install` | worlds, audio, wordmark fonts, exact booleans, OpenSCAD in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds it; the kernel still mints diagrams, floorplans and workbench solids and exports GLB and STL. |
+| **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers by the words in your ask, and most sessions never need more: the agent reads the tool index and the vocab cards directly. About 480 MB plus a 130 MB model, kept under `~/.mojulo/` across upgrades. |
+| **chatbot** | `mojulo install chatbot` | the bot factory: build, deploy and operate chatbots. Needs an LLM key of its own and Docker for the default deploy, so it is for your machine, not a temporary box. Installs `recall` first. |
+
+`mojulo install` with no argument prints which are present.
 
 ## What you can make
 

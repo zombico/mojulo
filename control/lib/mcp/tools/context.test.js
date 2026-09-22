@@ -718,7 +718,12 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // default read did not; measured 8_154. Do not re-compress recognizers to
   // win chars back — score any body edit against gate 2b
   // (body-routing-eval.integration.test.js) first.
-  const MODE_CEILINGS = { office: 9_600, studio: 8_250 };
+  // Grown 2026-09-22 (house-compose-language): a HOUSE row in the mint dispatch (house /
+  // apartment / furnished room → create_sketch kind 'floorplan'), the BUILDING row narrowed
+  // to the institutional one-off, and the PICTURE row's facade-vs-place clause. A web session
+  // followed the old rows to edifice for "a house"; the row is the fix. Measured 8_713
+  // widest cell (plain+pedagogical, with pulse); pinned 8_800.
+  const MODE_CEILINGS = { office: 9_600, studio: 8_800 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

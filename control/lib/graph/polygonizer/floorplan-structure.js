@@ -1678,6 +1678,31 @@ export const LEVEL_ROLES = { basement: -1, ground: 0, second: 1, third: 2, upper
 const levelIndex = (lvl) => (Number.isFinite(lvl.index) ? lvl.index
   : (LEVEL_ROLES[lvl.role] ?? 0));
 
+/** Role name for a storey index in the `storeys` shorthand (ground, second, third, then upper). */
+const STOREY_ROLES = ['ground', 'second', 'third'];
+
+/**
+ * The `storeys: N` shorthand (alias `floors`) on a floorplan manifest, lowered to the
+ * `levels[]` stack `structurizeHouse` already takes: N levels at index 0..N-1 (per-level
+ * seed `seed + i`, as the stack derives when a level names none) and a stair between each
+ * consecutive pair unless the manifest sets `stairs` itself. A one-field recipe ("a
+ * two-storey house") instead of an authored stack. Returns null when the shorthand is absent,
+ * `1`, or the manifest already carries `levels[]` — the caller then takes the path it always
+ * took, so absent ⇒ byte-identical. Non-numeric / < 1 values are the validator's to refuse
+ * (sketch-manifest.js); here they read as absent.
+ * @returns {{ levels: Array<{ index:number, role:string }>, stairs: Array<{ from:number, to:number }> } | null}
+ */
+export function storeyLevels(manifest = {}) {
+  if (!manifest || (Array.isArray(manifest.levels) && manifest.levels.length)) return null;
+  const n = manifest.storeys ?? manifest.floors;
+  if (!Number.isInteger(n) || n < 2) return null;
+  const levels = [];
+  for (let i = 0; i < n; i += 1) levels.push({ index: i, role: STOREY_ROLES[i] || 'upper' });
+  const stairs = manifest.stairs != null ? manifest.stairs
+    : levels.slice(1).map((l) => ({ from: l.index - 1, to: l.index }));
+  return { levels, stairs };
+}
+
 /**
  * Build the house meru: the shared vertical ruler. Storeys NO LONGER share one
  * pitch — each level carries its own ceiling height (a basement runs lower than

@@ -43,7 +43,12 @@ const DESCRIPTION_ALLOWLIST = {
   // the 'dungeon' base clause (dungeon-designer wired into the world
   // registry; the parameter manual lives in its view-vocab card,
   // off-payload). Shrink-only from these new snapshots.
-  compose_world: 1580,
+  // compose_world / create_sketch / mint_solid re-pinned 2026-09-22 (house-compose-language):
+  // one routing sentence each saying a house / apartment / furnished room is
+  // `create_sketch` kind 'floorplan' — the pointer a web session lacked when it opened
+  // the object and world packs, found no house, and shipped an edifice. mint_solid was
+  // 699 chars (one under the ceiling) and joins the allowlist for that sentence alone.
+  compose_world: 1721,
   cook: 2756,
   // create_beats / create_figure / export_beats / get_image_render_packet
   // re-pinned 2026-07-13 to bless visualization-layer branch growth measured
@@ -64,7 +69,8 @@ const DESCRIPTION_ALLOWLIST = {
   // keep" batch growth (drapes channel + detail dial on manji trees, the
   // skin-projection seam pointers, the sketch_polygomer parts grammar).
   // Shrink-only from these snapshots.
-  create_sketch: 4003,
+  create_sketch: 4366,
+  mint_solid: 871,
   create_view: 723,
   // custom_catalyst / list_catalysts / mint_catalyst allowlisted 2026-08-06 to
   // bless the local-catalyst shelf (local-catalysts.plan.md): mint_catalyst is
@@ -224,7 +230,16 @@ const DESCRIPTION_ALLOWLIST = {
 // `patch` + `readout` input-schema properties (update-sketch-patch). Same rule as the greybox
 // and skinned seams: the op grammar is taught in the schema, and the description itself was
 // re-cut to stay under its 700-char ceiling (it is NOT on the allowlist).
-const PAYLOAD_CEILING = 263_500;
+// Re-pinned 2026-09-22 (263_500 -> 264_500; measured 264,054) to bless remote-worker exports:
+// export_model's `bundle` format (enum + one description sentence), the `cdn` property on the
+// html leg, and the sentence saying every written result carries `handoff` + `fits`. The
+// export_model description itself stays under its 2,285 allowlist pin.
+// Re-pinned 2026-09-22 (263_500 -> 265_000; measured 264,304) for the house pointers on
+// create_sketch / compose_world / mint_solid and the `floorplan` entry in create_sketch's
+// manifest.kind schema list (house-compose-language). Shrink-only from here.
+// Merged 2026-09-22: both growths land together (remote-worker exports + house pointers);
+// pinned 265_500 for their sum. Shrink-only from here.
+const PAYLOAD_CEILING = 265_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
