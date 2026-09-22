@@ -90,6 +90,13 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   }
   const pack = resolveTheme(theme);                    // throws (with known ids) on miss
   const slots = deepMerge(pack.slots || {}, overrides || {});
+  // An explicit BLOCK layout is the operator's anchor intent (fractal-city.js header): a root anchor
+  // the THEME implies (e.g. mars-colony's tower) is dropped when the call lays blocks and does not
+  // name `asset.anchor` itself. A named anchor, or a call without blocks, is untouched.
+  if (base === 'city' && overrides && overrides.blocks && !(overrides.asset && overrides.asset.anchor !== undefined) && slots.asset && slots.asset.anchor) {
+    slots.asset = { ...slots.asset };
+    delete slots.asset.anchor;
+  }
   // The `audio` channel is KIND-GENERIC — the world route resolves manifest.audio for
   // every registry kind (world-scene.js) — but only the city/transport-hub mints
   // whitelist it, so a documented overrides.audio silently vanished on every other

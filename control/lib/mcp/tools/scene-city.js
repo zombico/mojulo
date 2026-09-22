@@ -35,13 +35,17 @@ function normalizeLandmarkInput(landmark) {
   return isLandmarkShape(landmark) ? landmark : null;
 }
 
-export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, edifices, blocks, fidelity, ref, folderRef } = {}) {
+export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, edifices, blocks, fidelity, anchorSeat, ref, folderRef } = {}) {
   const manifest = {
     kind: 'fractal-city',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
     anchor: anchor === 'tower' || anchor === 'freeway' ? anchor : null,   // anchor manji
     depth: Number.isFinite(+depth) ? Math.max(1, Math.min(3, Math.trunc(+depth))) : 2,
     density: Number.isFinite(+density) ? Math.max(0.2, Math.min(1, +density)) : 0.6,
+    // where the root tower sits vs the main crossing: 'side' (beside it, the crossing flanks the tower)
+    // or 'centre' (the original centred tower). Omit ⇒ the planner's gate: side when the region exceeds
+    // the default frame, centre otherwise — see planFractalCity.
+    ...(anchorSeat === 'side' || anchorSeat === 'centre' ? { anchorSeat } : {}),
     ...(Number.isFinite(+baseScale) && +baseScale !== 1 ? { baseScale: Math.max(0.3, Math.min(1.5, +baseScale)) } : {}),   // object size vs. the fixed frame; <1 → more, smaller blocks ("zoom out, show more")
     ...(time === 'day' || time === 'night' ? { time } : {}),   // daylight setting (omit → neutral); render route reads manifest.time
     ...(region && typeof region === 'object' ? { region } : {}),
@@ -113,6 +117,6 @@ export async function createFractalCityHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_fractal_city requires a recipe object');
   }
-  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, ref, folder_ref: folderRef } = input;
-  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, ref, folderRef });
+  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, anchorSeat, ref, folder_ref: folderRef } = input;
+  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, anchorSeat, ref, folderRef });
 }

@@ -2347,7 +2347,14 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
     // tinted extrusion — no facade, roof, curtainwall or rooftop kit. Only the prune sets the flag,
     // so every full-fidelity box takes the branches below exactly as before.
     if (b.lod === 'mass') {
-      const tint = b.tint || b.glass || '#a9b0b8';
+      // the mass keeps the colour its full-fidelity skin would have had: a house / merged row its
+      // cladding tint, a townhouse unit its facade glass, a building / tower the glass of the SAME
+      // hashed facade the full branch below draws (so the root tower is not a pale default)
+      const tint = b.tint || (b.facade && b.facade.glass)
+        || (['building', 'anchor', 'midtower'].includes(b.kind)
+          ? makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : b.program }).glass
+          : null)
+        || b.glass || '#a9b0b8';
       faces.push(...cityBox(r, b.z0, b.z1, { top: scaleHex(tint, 1.08), side: tint }, L, camHint));
       continue;
     }
@@ -2388,7 +2395,8 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       // (so day/night is correct), then dressed by moonlight/diffusion like any face.
       faces.push(...plantBoxToFaces(b, { light: L }));
     } else if (['building', 'anchor', 'midtower'].includes(b.kind)) {
-      const facade = b.facade || makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : undefined });
+      // `b.program` (an operator block's industrial shed) names the facade program; absent it is the hash's own draw, as before
+      const facade = b.facade || makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : b.program });
       const floors = facadeFloors(facade, b.z1 - b.z0);
       const bays = facadeBays(facade, b.w);
       if (b.shape === 'cylinder') faces.push(...cylinderBuilding(b, facade, floors, L, camHint));
