@@ -19,5 +19,20 @@
     "scheduler": "automation_update",
     "skillsDir": null,
     "headlessRuntime": null
+  },
+  "handoff": {
+    "verified": "docs",
+    "local": { "page": "local-preview", "file": "local" },
+    "box": {
+      "name": "a Codex cloud task",
+      "page": "none",
+      "file": "git",
+      "pageMaxBytes": null,
+      "fileMaxBytes": null,
+      "downloadExtensions": null,
+      "cdns": null,
+      "egress": "git",
+      "ephemeral": true
+    }
   }
 }

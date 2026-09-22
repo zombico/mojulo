@@ -16,5 +16,9 @@
     "scheduler": null,
     "skillsDir": null,
     "headlessRuntime": null
+  },
+  "handoff": {
+    "verified": "inferred",
+    "local": { "page": "dashboard", "file": "local" }
   }
 }

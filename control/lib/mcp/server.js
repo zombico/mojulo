@@ -353,7 +353,7 @@ async function handleToolCall(message, context) {
         via: 'rpc',
         name: toolName,
       }));
-    return jsonRpcResult(message.id, toMcpToolResult(result));
+    return jsonRpcResult(message.id, toMcpToolResult(result, { structured: structuredContentFor(context) }));
   } catch (err) {
     // Per MCP spec, tool execution failures are returned as a tool_result
     // with isError: true rather than a JSON-RPC error — so the client model
@@ -367,14 +367,40 @@ async function handleToolCall(message, context) {
   }
 }
 
-function toMcpToolResult(result) {
+// A tool that returns `_structured` beside its body gets `structuredContent`
+// on the wire (remote-worker exports P4). `_structured: true` means the WHOLE
+// body (the spec's shape: the same data as the text block, machine-readable);
+// an object is used as given (agent-tasks ships its manifest). Field finding
+// 2026-09-22: Claude Code renders structuredContent INSTEAD of the text block
+// when both are present, so a subset would hide `ok`, `kind`, `note` from the
+// agent — never ship less than the body. The text block never carries the
+// field. `structured: false` (a host with a byte cap, e.g. Grok's 20 KB)
+// drops it entirely rather than paying for the body twice.
+function toMcpToolResult(result, { structured = true } = {}) {
   if (result && typeof result === 'object' && Array.isArray(result.content)) {
     // Tool already returned MCP-shaped content; trust it.
+    if (result._structured !== undefined) {
+      const { _structured, ...rest } = result;
+      return structured && _structured !== true ? { ...rest, structuredContent: _structured } : rest;
+    }
     return result;
+  }
+  if (result && typeof result === 'object' && result._structured !== undefined) {
+    const { _structured, ...body } = result;
+    const content = [{ type: 'text', text: JSON.stringify(body, null, 2) }];
+    return structured ? { content, structuredContent: _structured === true ? body : _structured } : { content };
   }
   const text =
     typeof result === 'string' ? result : JSON.stringify(result ?? {}, null, 2);
   return { content: [{ type: 'text', text }] };
+}
+
+/** Whether this session's host should get `structuredContent`: not when its
+ * profile declares a result byte cap (the body would ride twice). */
+function structuredContentFor(context) {
+  const info = getClientInfo(context?.mcpSessionId);
+  if (!info?.name) return true;
+  return hostCapabilities(resolveAdapterId({ clientName: info.name })).maxOutputBytes == null;
 }
 
 // Tool registrations run on first request rather than at module load. We use

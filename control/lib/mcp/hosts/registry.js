@@ -33,6 +33,20 @@
  *                          verified: detect it, print its snippet, write nothing.
  *   manual        string   paste-able snippet when no writer runs.
  *   capabilities  object   runtime traits (see capability keys below).
+ *   handoff       object?  how an export reaches the operator on this host — the
+ *                          door table [handoff.js](./handoff.js) reads. Optional
+ *                          on a planted fixture, present on every shipped profile.
+ *                            verified  'field' | 'docs' | 'inferred' (required)
+ *                            local     { page, file } — the operator's own machine
+ *                            box       { name, page, file, pageMaxBytes?,
+ *                                        fileMaxBytes?, downloadExtensions?,
+ *                                        cdns?, egress, ephemeral } — the host's
+ *                                        remote box, when it has one
+ *                          `page` ∈ HANDOFF_PAGE_DOORS, `file` ∈ HANDOFF_FILE_DOORS.
+ *                          clientInfo cannot tell a host's local surface from
+ *                          its box (Claude Code local / web / Desktop all say
+ *                          "claude"), so one profile carries both rows and the
+ *                          note names both when the surface is unknown.
  *
  * Paths accept `~`, `%APPDATA%`, `%LOCALAPPDATA%`, and per-platform maps
  * ({ darwin, win32, linux }) — resolved by expandPath().
@@ -47,6 +61,32 @@ const HOSTS_DIR = moduleDir(import.meta.url, 'lib/mcp/hosts');
 
 const REQUIRED_FIELDS = ['id', 'wire', 'manual'];
 const WIRE_FORMATS = new Set(['toml-append', 'json-patch', 'cli-shellout', 'manual']);
+
+/** Handoff door vocabularies (remote-worker exports). A door is what the HOST
+ * does with a page or a file; the server never publishes anything itself. */
+export const HANDOFF_PAGE_DOORS = new Set(['dashboard', 'artifact', 'mcp-app', 'hosted-publish', 'local-preview', 'file-card', 'none']);
+export const HANDOFF_FILE_DOORS = new Set(['local', 'artifact-download', 'git', 'file-card', 'none']);
+export const HANDOFF_VERIFIED = new Set(['field', 'docs', 'inferred']);
+
+function validateHandoff(file, handoff) {
+  if (handoff == null) return null;
+  if (typeof handoff !== 'object') throw new Error(`Host profile ${file}: handoff must be an object.`);
+  if (!HANDOFF_VERIFIED.has(handoff.verified)) {
+    throw new Error(`Host profile ${file}: handoff.verified must be one of ${[...HANDOFF_VERIFIED].join(', ')}.`);
+  }
+  if (!handoff.local && !handoff.box) throw new Error(`Host profile ${file}: handoff needs a local and/or a box row.`);
+  for (const key of ['local', 'box']) {
+    const row = handoff[key];
+    if (row == null) continue;
+    if (!HANDOFF_PAGE_DOORS.has(row.page)) throw new Error(`Host profile ${file}: handoff.${key}.page '${row.page}' is not a known page door.`);
+    if (!HANDOFF_FILE_DOORS.has(row.file)) throw new Error(`Host profile ${file}: handoff.${key}.file '${row.file}' is not a known file door.`);
+    if (key === 'box') {
+      if (!row.name) throw new Error(`Host profile ${file}: handoff.box.name is required (the note names the box).`);
+      if (typeof row.ephemeral !== 'boolean') throw new Error(`Host profile ${file}: handoff.box.ephemeral must be a boolean.`);
+    }
+  }
+  return handoff;
+}
 
 /** Capability defaults. A profile that declares nothing behaves like today's
  * unknown host: opinionated packs, no declared cap, no headless runtime. */
@@ -82,6 +122,7 @@ function parseProfile(file, raw) {
     detect: {},
     ...profile,
     capabilities: { ...CAPABILITY_DEFAULTS, ...(profile.capabilities || {}) },
+    handoff: validateHandoff(file, profile.handoff),
     _file: file,
   };
 }
@@ -121,6 +162,13 @@ export function hostProfileForAdapter(adapterId) {
 export function hostCapabilities(adapterId) {
   const profile = hostProfileForAdapter(adapterId);
   return profile ? profile.capabilities : { ...CAPABILITY_DEFAULTS };
+}
+
+/** Door table for a host profile id, or null when the host is unknown or
+ * declares none — the caller falls back to the generic file:// sentence. */
+export function hostHandoff(hostId) {
+  const profile = hostId ? getHostProfile(hostId) : null;
+  return profile?.handoff || null;
 }
 
 /** Expand `~`, Windows env tokens, and per-platform maps into a real path.

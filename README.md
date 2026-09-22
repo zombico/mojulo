@@ -43,6 +43,40 @@ Open the dashboard on its own with `npx -y -p mojulo mojulo-ui`. The same bin is
 
 ---
 
+## Two places it runs, three things you can add
+
+Mojulo runs wherever your agent runs. There are two shapes of that, and the same install works in both.
+
+**On your machine.** `npx mojulo init` wires mojulo into the agents it finds, opens the dashboard at
+`localhost:3001`, and keeps everything under `~/.mojulo/`. You get the whole loop: minting by
+conversation, the dashboard to look at what you made, exports to your disk, and the optional local
+workers (Blender, a slicer, OpenSCAD, the game engines) probed on your PATH.
+
+**In your agent's own box.** Claude Code on the web and Grok chat's sandbox give the agent a temporary
+Linux machine. Ask it to install mojulo and it does: under Claude Code, `npx -y mojulo init --yes --no-ui`
+wires the MCP server with nobody at a keyboard; in a sandbox with no MCP client, `npm install mojulo` and
+`npx mojulo call <tool>` drive the same registry from the shell. Nothing in the install needs a host
+outside the npm registry. Both have been run this way: a Grok chat session minted a city and exported it
+from the shell, and a Claude session built a 47-part phone at true scale, verified it from the mint's own
+measurements, and handed back the glTF as a download. What you get is the same recipes and the same exports, arriving as files
+the agent gives you. What changes: the dashboard is loopback-only inside the box, so the agent is your
+only surface; a scene-to-PNG bake needs a browser the box may not be allowed to fetch, so ask for the
+page (`world.html`, self-contained, opens from `file://`) and the bundle (one zip: page, mesh, print
+STL for literal-scale objects, recipe, README) — the agent's export result names this host's door, an
+artifact, a PR or a file card; and the box is gone when the session ends, so keep the recipe
+(`recipe.json`, in the bundle) if you want to re-mint it later. Blender installs in those boxes too, so
+the Blender art-pass leg is available there.
+
+Three things are opt-in, and the choice is the same in both places:
+
+| add | with | what you get |
+|---|---|---|
+| **creative** (installed by default) | plain `npm install` | worlds, audio, fonts for wordmarks, exact booleans, OpenSCAD-in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds it for a kernel-only install that still mints diagrams, floorplans, workbench solids and exports GLB and STL. |
+| **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers, ranking by the words in your ask (about 480 MB of runtime plus a 130 MB model, kept under `~/.mojulo/` so it survives upgrades). Most sessions never need it: the agent reads the tool index and the vocab cards directly. |
+| **chatbot** | `mojulo install chatbot` | the bot factory: build, deploy and operate chatbots. Needs an LLM key of its own and Docker for the default deploy, so this one is for your machine, not a temporary box. It installs `recall` first, because a bot's preview search must rank the way the deployed bot does. |
+
+`mojulo install` with no argument prints which of the three are present.
+
 ## Six things to say to it
 
 Each one is a sentence to your agent, the tool it reaches for, and the recipe that gets stored. Every example below runs keyless and offline.

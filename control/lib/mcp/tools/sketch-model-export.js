@@ -38,6 +38,8 @@ import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/p
 import { unitMillimetres, declaredUnits } from '@/lib/graph/scene/world-units';
 import { assessWorldTier } from '@/lib/graph/worlds/world-contract';
 import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
+import { ZipArchive } from 'archiver';
+import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
@@ -148,7 +150,9 @@ export function auditStlClosure(payload) {
 
 // The on-disk name per format: `model.<format>` for every mesh/program leg; the html leg is the
 // World page and is named for what it is.
-const modelFileName = (format) => (format === 'html' ? 'world.html' : `model.${format}`);
+// `cdn: true` is a DIFFERENT page (needs network, no file://), so it never overwrites the
+// self-contained one the README promises opens from disk.
+const modelFileName = (format, { cdn = false } = {}) => (format === 'html' ? (cdn ? 'world.cdn.html' : 'world.html') : `model.${format}`);
 
 // `format: 'html'` — the remote eyes gate (grok-headless-affordances P4). A host with no
 // browser of its own (a chat agent in a Linux sandbox) can only hand the operator a FILE, and a
@@ -157,22 +161,213 @@ const modelFileName = (format) => (format === 'html' ? 'world.html' : `model.${f
 // inline `data:` importmap, the baked scene is inline, walk mode + HUD are in the page. It opens
 // from file:// with no server and no network. Pure function of the resolved payload — same row,
 // same bytes. `walk` follows the /world route's rule (the payload's flag or the kind's default).
-function htmlExport(payload, { kind }) {
+// `cdn: true` (remote-worker exports P2) swaps the ~1 MB of `data:` three.js for the pinned
+// jsdelivr importmap the emitter already carries (emit-util.js CDN_IMPORTMAP) — for a host whose
+// page door has a byte limit and allows that CDN (the claude-code box does). Needs network, so
+// file:// is out; the note says so. Off by default: the self-contained page is byte-identical.
+function htmlExport(payload, { kind, cdn = false }) {
   const walk = Boolean(payload.walk || WALK_KINDS.has(kind));
-  const html = emitThreeWorld({ ...payload, walk, inline: true });
+  const html = emitThreeWorld({ ...payload, walk, inline: !cdn, cdn });
   const bytes = Buffer.from(html, 'utf8');
-  return { bytes, byteLength: bytes.length, vertexCount: null, triangleCount: null, walk };
+  return { bytes, byteLength: bytes.length, vertexCount: null, triangleCount: null, walk, cdn };
 }
 export const HTML_FILE_NOTE = 'Open it straight from the filesystem (file://) — no server, no network: three.js and the '
   + 'scene are inline. Orbit with the mouse; walk where the HUD offers it. A soundtrack is the one channel some '
   + 'browsers block from file://; a static server (`npx serve .`) restores it.';
+export const HTML_CDN_NOTE = 'three.js loads from cdn.jsdelivr.net (pinned), so the page needs network and will NOT open '
+  + 'from file://; the scene itself is inline. Orbit with the mouse; walk where the HUD offers it. '
+  + 'Re-export without `cdn` for the self-contained page.';
+
+// ── format: 'bundle' (remote-worker exports P3) ───────────────────────────────────────────────
+// The one file every host's door accepts: a zip — the self-contained page, the mesh, the STL
+// when the kind prints at literal scale (print advisories ride the README), the sovereign
+// recipe and the README. Claude's artifact download allowlist carries `zip` and not `glb`;
+// a file card and a PR carry one binary. Deterministic: fixed entry mtime, sorted names, one
+// zlib level — the same rows zip byte-identical.
+const ZIP_EPOCH = new Date('1980-01-01T00:00:00Z'); // the DOS-time floor zip can represent
+async function zipEntries(entries) {
+  const archive = new ZipArchive({ zlib: { level: 9 } });
+  const chunks = [];
+  const done = new Promise((resolve, reject) => {
+    archive.on('end', resolve);
+    archive.on('error', reject);
+    archive.on('warning', reject);
+  });
+  archive.on('data', (c) => chunks.push(c));
+  for (const e of [...entries].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    archive.append(e.bytes, { name: e.name, date: ZIP_EPOCH, mode: 0o644 });
+  }
+  archive.finalize();
+  await done;
+  return Buffer.concat(chunks);
+}
+const bundleFileName = (ref) => `${ref}.zip`;
+const courierFileName = (ref) => `${ref}.courier.html`;
+
+// The courier page (remote-worker exports P3, field finding 2026-09-22): on Claude Code on the
+// web the only file door is a PAGE — the artifact host serves no archive or model as a
+// supporting file and blocks page-initiated downloads, but a published page may offer a file
+// it generated through the viewer's `downloads` capability (allowlist carries zip, not glb).
+// So the zip rides inside a tiny page with one Save button. Opened from file:// (no viewer)
+// the same button falls back to a plain download link. Single-theme dark, the world page's
+// own palette, no external resources. Deterministic: a function of the zip bytes.
+function courierPage({ ref, title, zipName, zip, entries }) {
+  const b64 = zip.toString('base64');
+  const kb = (n) => `${(n / 1024).toFixed(n >= 1024 * 100 ? 0 : 1)} KB`;
+  const rows = entries.map((e) => `<li><span>${escapeHtmlText(e.name)}</span><span class="n">${kb(e.bytes)}</span></li>`).join('');
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${escapeHtmlText(title)}</title>
+<style>
+  :root{color-scheme:dark;--bg:#0b1220;--panel:#121c30;--line:#24324a;--fg:#cfe3ff;--mute:#6f86ad;--ok:#7ee2a6;--warn:#ff9b80;--btn:#1b2740}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;justify-content:center;padding-block:32px;padding-inline:16px;box-sizing:border-box}
+  main{width:100%;max-width:560px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+  p{margin:0 0 16px;color:var(--mute)}
+  ul{list-style:none;margin:0 0 20px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  li{display:flex;justify-content:space-between;gap:16px;padding:8px 12px;border-top:1px solid var(--line)}
+  li:first-child{border-top:0}
+  li .n{color:var(--mute);font-variant-numeric:tabular-nums}
+  button{font:inherit;font-weight:600;color:#fff;background:var(--btn);border:1px solid var(--line);border-radius:6px;padding:10px 16px;cursor:pointer}
+  button:hover{border-color:var(--fg)}
+  button:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+  #status{margin-top:12px;min-height:1.5em;color:var(--mute)}
+  #status.ok{color:var(--ok)} #status.warn{color:var(--warn)}
+  small{display:block;margin-top:24px;color:var(--mute)}
+</style></head><body><main>
+  <h1>${escapeHtmlText(title)}</h1>
+  <p>One zip from mojulo: the self-contained world page, the mesh, the recipe that re-mints it, and a README. Save it, unzip it, open <code>world.html</code> from disk.</p>
+  <ul>${rows}</ul>
+  <button id="save" type="button">Save ${escapeHtmlText(zipName)} (${kb(zip.length)})</button>
+  <div id="status" aria-live="polite"></div>
+  <small>Recipe ref <code>${escapeHtmlText(ref)}</code>. The zip is deterministic: the same recipe zips to the same bytes on any host running mojulo.</small>
+</main>
+<script id="zip" type="application/octet-stream">${b64}</script>
+<script>
+(function () {
+  var NAME = ${JSON.stringify(zipName)};
+  var status = document.getElementById('status');
+  var btn = document.getElementById('save');
+  function say(text, cls) { status.textContent = text; status.className = cls || ''; }
+  function bytes() {
+    var bin = atob(document.getElementById('zip').textContent.trim());
+    var u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return u;
+  }
+  function fallback() {
+    var blob = new Blob([bytes()], { type: 'application/zip' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = NAME;
+    document.body.appendChild(a); a.click(); a.remove();
+    say('Download started — check your downloads folder.', 'ok');
+  }
+  btn.addEventListener('click', async function () {
+    btn.disabled = true; say('Preparing…');
+    try {
+      var dl = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('downloads') : null;
+      if (dl) {
+        try {
+          await dl.save({ filename: NAME, data: new Blob([bytes()], { type: 'application/zip' }) });
+          say('Saved.', 'ok');
+        } catch (e) {
+          if (e && e.code === 'declined') say('Not saved — you declined the prompt.');
+          else say('Could not save: ' + ((e && (e.code + ' ' + e.message)) || e), 'warn');
+        }
+      } else {
+        fallback();
+      }
+    } finally { btn.disabled = false; }
+  });
+})();
+</script>
+</body></html>
+`;
+}
+const escapeHtmlText = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function bundleExport(input, context) {
+  const { ref } = input;
+  // The legs write into the same outcome folder the zip lands in, so the folder itself is
+  // complete beside the archive (recipe.json + README.md come from the legs).
+  const page = await exportModelHandler({ ref, format: 'html' }, context);
+  if (!page.ok) return page; // ineligible answers the same { ok:false, eligible:false }
+  const glb = await exportModelHandler({ ref, format: 'glb' }, context);
+  const kind = page.kind;
+  const literal = printProfileFor(kind) === 'literal';
+  const stl = literal ? await exportModelHandler({ ref, format: 'stl' }, context) : null;
+  const dir = page.dir;
+  const names = ['README.md', 'recipe.json', modelFileName('html'), modelFileName('glb'), ...(stl ? [modelFileName('stl')] : [])].sort();
+  // README: the last leg's README plus the bundle's own section (what is in the zip, and why
+  // the STL is or is not).
+  const readmePath = path.join(dir, 'README.md');
+  // The legs' README stamps `exported:` with the clock; the bundle's copy drops it so the zip
+  // is reproducible — the manifest hash on the line above is the provenance that matters.
+  const readme = (await fs.readFile(readmePath, 'utf8'))
+    .replace(/^- exported: .*$/m, '- exported: (no timestamp — the bundle zips byte-identical; the manifest hash is the provenance)')
+    .trimEnd() + '\n\n' + [
+    '## Bundle',
+    '',
+    `\`${bundleFileName(ref)}\` carries this folder as one file: ${names.map((n) => `\`${n}\``).join(', ')}.`,
+    `- \`world.html\` opens from file:// with no server and no network; \`model.glb\` opens in Blender, three.js or Quick Look.`,
+    stl
+      ? `- \`model.stl\` is the print file at literal scale (${stl.size_mm ? stl.size_mm.join(' × ') + ' mm' : 'mm'}); the print advisories above apply to it.`
+      : `- No \`model.stl\`: \`${kind}\` prints as a miniature, not at literal scale — \`export_model({ ref: '${ref}', format: 'stl', target_mm })\` when you want one.`,
+    '- The zip is deterministic: the same recipe zips to the same bytes on any host.',
+    '',
+  ].join('\n');
+  await fs.writeFile(readmePath, readme);
+  const entries = [];
+  for (const name of names) entries.push({ name, bytes: await fs.readFile(path.join(dir, name)) });
+  const zip = await zipEntries(entries);
+  const file = path.join(dir, bundleFileName(ref));
+  await fs.writeFile(file, zip);
+  const download_url = `${outcomeUrlFor(ref)}${bundleFileName(ref)}`;
+  const sketch = SketchRepository.getByRef(ref);
+  const courierHtml = courierPage({ ref, title: sketch?.title || sketch?.manifest?.title || ref, zipName: bundleFileName(ref), zip, entries: entries.map((e) => ({ name: e.name, bytes: e.bytes.length })) });
+  const courierPath = path.join(dir, courierFileName(ref));
+  await fs.writeFile(courierPath, courierHtml);
+  const courier = {
+    path: courierPath,
+    bytes: Buffer.byteLength(courierHtml),
+    download_url: `${outcomeUrlFor(ref)}${courierFileName(ref)}`,
+    note: `${courierFileName(ref)} carries the zip inside one page with a Save button: for a host whose file door is a page (Claude Code on the web: publish it with the Artifact tool declaring capabilities { downloads: true }); from file:// the button is a plain download.`,
+  };
+  const result = {
+    ok: true,
+    ref,
+    kind,
+    format: 'bundle',
+    path: file,
+    dir,
+    bytes: zip.length,
+    download_url,
+    files: entries.map((e) => ({ name: e.name, bytes: e.bytes.length })),
+    courier,
+    ...(stl ? { print: { size_mm: stl.size_mm ?? null, closure: stl.closure ?? null, advisories: stl.print_advisories ?? [] } } : {}),
+    note: `${bundleFileName(ref)} (${zip.length} bytes) is the one-file handoff: the self-contained page, the mesh${stl ? ', the print STL' : ''}, the recipe and the README. Deterministic bytes.`,
+  };
+  attachHandoff(result, context, { kind: 'file', name: bundleFileName(ref), path: file, dir, bytes: zip.length, download_url, courier: courierFileName(ref) });
+  return result;
+}
+
+// Every written export says the next move on THIS host (remote-worker exports P4) and whether
+// it fits the host's byte limit. `_structured: true` asks server.js toMcpToolResult to ship the
+// whole body as `structuredContent` beside the text block (Claude Code renders that field in
+// place of the text, so it must be the whole body, never a subset).
+function attachHandoff(result, context, artifact) {
+  result.fits = fitsForContext(context, artifact);
+  result.handoff = handoffForContext(context, artifact);
+  result._structured = true;
+}
 
 // The export folder's README — refs + manifest hash + how to re-mint + how to
 // import (axis convention, clip timing, extras namespace). Deliberately short:
 // the recipe is the artifact of record, the README is the courier's note.
-function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, print }) {
+function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, print, fileName = null }) {
   const title = sketch.title || sketch.manifest?.title || ref;
-  const file = modelFileName(format);
+  const file = fileName || modelFileName(format);
   return [
     `# ${title}`,
     '',
@@ -281,21 +476,24 @@ export function resolvePrintScale({ payload, profile, units, scaleInput = null, 
   return { scale, scaleNote };
 }
 
-export async function exportModelHandler(input) {
+export async function exportModelHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false, cdn = false } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle' if provided");
   }
+  if (cdn && format !== 'html') throw new Error("`cdn: true` applies to `format: 'html'` only");
+  // bundle is the legs zipped: it always writes (a folder product, like export_game).
+  if (format === 'bundle') return bundleExport(input, context);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
   const isHtml = format === 'html';
   const isUsd = format === 'usda' || format === 'usdz';
@@ -397,7 +595,7 @@ export async function exportModelHandler(input) {
           : format === 'usdz'
             ? facesToUsdz(payload, usdOpts)
             : format === 'html'
-              ? htmlExport(payload, { kind: kind ?? sketch.manifest.kind })
+              ? htmlExport(payload, { kind: kind ?? sketch.manifest.kind, cdn })
             : format === 'scad'
               // the RECIPE is the input here, not the payload — a `code` kind hands over the
               // monomers its program returned (the ones that actually shipped), and `cuts`
@@ -447,7 +645,10 @@ export async function exportModelHandler(input) {
     bytes: exported.byteLength,
     ...(isHtml ? { walk: exported.walk } : { vertices: exported.vertexCount, triangles: exported.triangleCount }),
   };
-  if (isHtml) result.note = `world.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE}`;
+  if (isHtml) result.note = cdn
+    ? `world.cdn.html is ${exported.byteLength} bytes with three.js on the CDN. ${HTML_CDN_NOTE}`
+    : `world.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE}`;
+  if (isHtml && cdn) result.cdn = true;
   // field solids (field-solids.plan.md F4): the honest ledger says in numbers what the recipe could
   // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
   // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
@@ -701,7 +902,8 @@ export async function exportModelHandler(input) {
     // (mesh-<n>.glb, render-<n>.png), which these filenames never collide with.
     const dir = outcomeDirFor(ref);
     await fs.mkdir(dir, { recursive: true });
-    const file = path.join(dir, modelFileName(format));
+    const fileName = modelFileName(format, { cdn });
+    const file = path.join(dir, fileName);
     await fs.writeFile(file, exported.bytes);
     // usda references its textures by relative path — write them beside it (usdz carries them inside).
     for (const sc of (format === 'usda' ? exported.sidecars : [])) {
@@ -714,13 +916,14 @@ export async function exportModelHandler(input) {
     await fs.writeFile(
       path.join(dir, 'README.md'),
       buildModelReadme({
-        sketch, ref, kind: kind ?? sketch.manifest.kind, format, hash, exported, clips,
+        sketch, ref, kind: kind ?? sketch.manifest.kind, format, hash, exported, clips, fileName,
         ...(isPrint ? { print: { profile, scale, scaleNote, sizeMm: result.size_mm, closure: result.closure, units, advisories: result.print_advisories, measure: result.print_measure, printer, ledger: result.ledger ?? null } } : {}),
       }),
     );
     result.path = file;
     result.dir = dir;
-    result.download_url = `${outcomeUrlFor(ref)}${modelFileName(format)}`;
+    result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
+    attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url });
     // "Where did my export land?" (grok-headless-affordances P3). The bins now seed
     // MOJULO_OUTCOMES_DIR, so this fires only when a bin ran WITHOUT the resolver's default and
     // the cwd fallback put the file inside the installed package (MOJULO_CONTROL_DIR is the

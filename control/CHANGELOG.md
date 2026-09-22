@@ -12,6 +12,77 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Remote worker exports
+
+- **Every written export says the next move on THIS host.** When mojulo runs inside the agent's
+  own box (Claude Code on the web, a Codex cloud task, Grok chat's sandbox) the outcome folder is
+  on a disk the operator never sees and `download_url` is loopback; 2.0.7 stopped there. Now
+  `export_model`, `export_game` and `cook` results carry `handoff` — `{ host, surface, door, next,
+  caveats, verified }`, one sentence in the host's own words (publish with the Artifact tool, commit
+  the folder and let the PR carry it, hand back a file card, or open the dashboard) — and `fits`
+  against the host's byte limit. On every surface the host model publishes and the server never
+  does, so this is a note, never a refusal.
+- **Host profiles carry a `handoff` door table.** `lib/mcp/hosts/*.json` gains `handoff`: a
+  `local` row (the operator's machine) and a `box` row (the host's remote box: page door, file
+  door, `pageMaxBytes`, `fileMaxBytes`, the download-extension allowlist, allowed CDNs, egress,
+  `ephemeral`), plus `verified: field | docs | inferred`. `clientInfo` cannot tell Claude Code
+  local from the web box from Claude Desktop, so one profile holds both rows and the note states
+  both when `MOJULO_SURFACE=box|local` is unset. New `grok-chat` profile (wire `manual`, box only,
+  inferred) for the shell-only sandbox that ran the 2026-09-21 city; `MOJULO_HOST=<id>` picks a
+  profile for the CLI, which never sees an `initialize`. The registry validates the door vocabulary.
+- **`export_model({ format: 'bundle' })`** writes `<ref>.zip` into the outcome folder — `world.html`,
+  `model.glb`, `model.stl` for literal-scale kinds (the print advisories ride the README),
+  `recipe.json`, `README.md` — deterministic bytes (fixed entry time, sorted names, the README's
+  clock stamp dropped), so the same recipe zips byte-identical on any host. It is the one file
+  every door accepts: Claude's artifact download allowlist carries `zip` and not `glb`, a file card
+  and a PR carry one binary. Beside the zip it writes `<ref>.courier.html`: the zip embedded in one
+  small page with a Save button that goes through the viewer's `downloads` capability, because on
+  Claude Code on the web the file door is a page (field, 2026-09-22: the artifact host refuses `.glb`
+  and any archive as a supporting file and blocks page-initiated downloads); opened from file:// the
+  same button is a plain download. The outcomes route serves `.zip`, `.glb`, `.gltf`, `.stl`, `.3mf`,
+  `.usdz`, `.usda` with their real types instead of octet-stream.
+- **`export_model({ format: 'html', cdn: true })`** loads three.js from the pinned jsdelivr path the
+  emitter already carried (`emit-util.js`) instead of ~1 MB of inline `data:` modules — for a page
+  door with a byte limit that allows the CDN (Claude's does). Needs network, so not `file://`; the
+  note says so. It writes `world.cdn.html`, never over the `world.html` the README promises opens
+  from disk. Off by default and the self-contained page is byte-identical to 2.0.7. Measured
+  2026-09-22: the seed-91 city page is 8.6 MiB (1,028 KB of it three.js), a dungeon 2.3 MiB, a
+  standing figure 4.5 MiB — every fixture already fits the 16 MiB door; geometry-as-embedded-GLB
+  (~2× smaller) is deferred because it changes the page runtime.
+- **`structuredContent` on the wire.** A tool that returns `_structured: true` beside its body
+  gets the WHOLE body as `structuredContent` through `toMcpToolResult`; the text block never
+  carries the field. Field, 2026-09-22: Claude Code renders `structuredContent` in place of the
+  text block when both are present, so a subset would have hidden `ok`, `kind` and `note` from the
+  agent — the first cut shipped a subset and was corrected the same day. A host whose profile
+  declares a result byte cap (Grok Build, 20 KB) gets no `structuredContent` at all rather than the
+  body twice. Protocol version stays `2024-11-05`.
+- **Cards and docs.** `claude-code.md`, `codex.md`, `grok-build.md`, `generic.md` gain "Handing
+  back an export"; `AGENTS.md`'s sandbox section becomes "Inside a box" with a door per host;
+  `docs/tech-requirements.md` records which door claims are field / docs / inferred, from the
+  profiles. The 2026-09-21 Grok box run is named for what it was — Grok chat's sandbox shell, not
+  Grok Build (the local CLI) — in the READMEs, the substrate drawer and the changelog.
+- **Eyes gate, first pass (2026-09-22, a local Claude Code session with the Artifact tool, which is
+  the same door the web box has).** The seed-3 dungeon was minted, exported three ways and published
+  as three private artifacts: the self-contained page, the `cdn: true` page, and the bundle's courier
+  page with `downloads` declared. The operator opened them: the world renders and the courier's
+  Save delivers the zip. The `claude-code` profile is `verified: "field"`; the other profiles stay
+  at `docs` or `inferred`.
+- **Pins.** `tool-descriptions.test.js` `PAYLOAD_CEILING` 263,500 → 264,500 (measured 264,054) for
+  the `bundle` enum, the `cdn` property and the handoff sentence; the `export_model` description
+  stays under its 2,285 allowlist pin.
+- Not in this theme: `export_beats` (writes no outcome folder) and `forge_motion` (its viewer bakes
+  the loopback base URL) get no `handoff` yet; the Claude Desktop MCP App viewer is a flagged spike
+  still to run; ChatGPT and grok.com need a public endpoint and stay out of scope.
+
+### Docs
+
+- **README: "Two places it runs, three things you can add."** One section that says where mojulo
+  runs (the operator's machine, or the agent's own temporary Linux box on Claude Code web / Grok
+  chat's sandbox, both of which have driven a full mint-and-export) and what each opt-in group adds
+  (creative by default, recall, chatbot), with what a session inside a box should ask for instead
+  of the dashboard and the PNG bake. The npm README (`control/README.md`) carries the same section
+  as "Where it runs", and its Quickstart names the no-keyboard init form and both opt-in installs.
+
 ### Release tooling
 
 - **The README install-success smoke (CI) no longer fetches a control-plane model.** `scripts/smoke.sh`
