@@ -194,7 +194,7 @@ When you finish materializing, tell the user:
 
 Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` for this host and `fits` against its byte limit; read it instead of quoting the loopback `download_url`.
 
-- **Codex CLI / desktop on the operator's machine**: the desktop app previews `world.html`; every file is on their disk. Hand over the path.
+- **Codex CLI / desktop on the operator's machine**: the desktop app previews `world.html`; every file is on their disk. Hand over the path. That page pulls three.js from the pinned jsdelivr CDN, so the preview needs network — `export_model({ ref, format: 'html', cdn: false })` writes `world.offline.html`, which draws with none.
 - **A Codex cloud task** (`MOJULO_SURFACE=box`): there is no page door — the PR is the handoff. Commit the outcome folder (`data/outcomes/<ref>/`) to the branch; `export_model({ ref, format: 'bundle' })` makes it one binary (`<ref>.zip`: page, mesh, STL for literal kinds, recipe, README) when a folder of files is the wrong shape. The box is reclaimed after the task — the recipe in the folder is what re-mints.
 
 ---

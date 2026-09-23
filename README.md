@@ -6,7 +6,7 @@
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
 
-Mojulo is a **3D compiler for coding agents**: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read, byte for byte, and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
+Mojulo is a **3D compiler for coding agents**: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read, byte for byte, and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
 
 ## Quickstart
 
@@ -16,7 +16,7 @@ npx mojulo init
 
 Needs **Node 22.12+** and an MCP-capable coding agent (Claude Code or Codex; Claude Desktop works too). `init` finds the hosts on your machine, asks once per host, and opens the dashboard at `http://localhost:3001`. Everything lands in `~/.mojulo/`. Then open a fresh agent session and ask: **"what is this?"**
 
-The first install is the big one: npx pulls a ~27 MB tarball whose native dependencies land at about 590 MB on disk (2.0.6 measured 885 MB before the local search model and its runtime became the opt-in `mojulo install recall`; `semantic_search` ranks lexically without them). Most of the rest is `puppeteer-core` (local headless Chrome for stills) and `better-sqlite3`. Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon); Linux runs the test suite in CI, and a CLI-only run of 2.0.6 from a Linux x64 sandbox (Node 24, no browser) minted a city and exported it; Windows was verified natively under Claude Code.
+The first install is the big one: npx pulls a ~27 MB tarball whose native dependencies land at about 590 MB on disk (2.0.6 measured 885 MB before the local search model and its runtime became the opt-in `mojulo install recall`; `semantic_search` ranks lexically without them). Most of the rest is `puppeteer-core` (local headless Chrome for stills) and `better-sqlite3`. Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat and Meta Muse.
 
 <details>
 <summary>Wire it by hand instead</summary>
@@ -51,21 +51,35 @@ other. Two shapes, one install.
 **In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
 throwaway Linux box it gives itself:
 
-- Claude Code on the web, Grok chat: *Open a Linux box and install the mojulo npm package in it.*
-- ChatGPT: *On work mode, open a Linux box and install the mojulo npm package in it.*
+- The Claude app (macOS, Windows, web, iOS); Grok chat; Meta Muse (iOS, web, macOS app, one session
+  across all three): *Open a Linux box and install the mojulo npm package in it.*
+- ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
+  it.*
 
-All three have been run this way. You get the same recipes and the same exports, handed back as
-files: the export result names this host's door, an artifact, a PR or a file card. The box has no
-dashboard you can reach, a scene-to-PNG bake needs a browser it may not be allowed to fetch, and it is
-gone when the session ends, so ask for the bundle (one zip: `world.html`, mesh, print STL for
-literal-scale objects, `recipe.json`, README) and keep the recipe. Claude Code on the web built a
-47-part phone at true scale this way and handed back the glTF; Grok chat's sandbox minted a city from
-the shell. Blender installs in those boxes too.
+Each of those has been run this way, from the sentence to a mint and an export handed back. You get
+the same recipes and the same exports, as files: the export result names this host's door, an
+artifact page, a PR or a file card. The box has no dashboard you can reach, a scene-to-PNG bake needs a
+browser it may not be allowed to fetch, and it is gone when the session ends, so ask for the bundle
+(one zip: `world.html`, mesh, print STL for literal-scale objects, `recipe.json`, README) and keep
+the recipe. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
+Grok chat's sandbox minted a city from the shell. Blender installs in those boxes too.
 
 **On your machine: macOS, Windows, Linux.** `npx mojulo init` wires mojulo into the agents it finds,
 opens the dashboard at `localhost:3001`, keeps everything under `~/.mojulo/`, and probes your PATH for
 the optional local workers (Blender, a slicer, OpenSCAD, the game engines). This is the whole loop, and
 where a recipe from a box comes home to.
+
+Who has run it where. <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> persistent (your machine; `~/.mojulo/` stays) · <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> ephemeral (the web
+agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not "does not work".
+
+| agent | macOS | Windows | Web Agent Linux Box |
+|---|:-:|:-:|:-:|
+| Claude Code | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | |
+| Claude app (macOS, Windows, web, iOS) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
+| ChatGPT (work mode; Codex) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> Codex | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
+| Hermes Agent | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | | |
+| Grok (Build; chat) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> Build | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
+| Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
 
 Three things are opt-in, and the choice is the same in both places:
 

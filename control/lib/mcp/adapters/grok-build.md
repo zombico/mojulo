@@ -110,7 +110,7 @@ Print the per-record decision log from the catalyst's `outputContract`, and pers
 
 Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` for this host and `fits` against its byte limit. Your result cap is 20,000 bytes and the `handoff` object is small, so it survives the truncation; the file `path` is the contract.
 
-- **Grok Build CLI** (the operator's machine): the file is on their disk; `preview` opens a local dev server if you start one (`npx serve <dir>`), and `world.html` opens from `file://` with no server at all.
+- **Grok Build CLI** (the operator's machine): the file is on their disk; `preview` opens a local dev server if you start one (`npx serve <dir>`), and `export_model({ ref, format: 'html', cdn: false })` writes `world.offline.html`, which opens from `file://` with no server at all.
 - **Grok chat's sandbox** (no MCP client, `MOJULO_HOST=grok-chat` on the CLI): hand files back as cards, ≤ 25 MB each. `export_model({ ref, format: 'bundle' })` makes the page, the mesh, the recipe and the README one card. The sandbox is reclaimed — the recipe is what re-mints.
 
 ---

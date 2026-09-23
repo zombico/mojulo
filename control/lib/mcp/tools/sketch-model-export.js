@@ -150,22 +150,27 @@ export function auditStlClosure(payload) {
 
 // The on-disk name per format: `model.<format>` for every mesh/program leg; the html leg is the
 // World page and is named for what it is.
-// `cdn: true` is a DIFFERENT page (needs network, no file://), so it never overwrites the
-// self-contained one the README promises opens from disk.
-const modelFileName = (format, { cdn = false } = {}) => (format === 'html' ? (cdn ? 'world.cdn.html' : 'world.html') : `model.${format}`);
+// The two html builds are DIFFERENT pages and never overwrite each other. `world.html` is the
+// default — three.js off the pinned CDN, the one every web host's page door accepts.
+// `world.offline.html` (`cdn: false`) is the self-contained page that opens from file:// with no
+// network; the bundle's zipped copy is that build under the plain name (see bundleExport).
+const modelFileName = (format, { cdn = true } = {}) => (format === 'html' ? (cdn ? 'world.html' : 'world.offline.html') : `model.${format}`);
 
 // `format: 'html'` — the remote eyes gate (grok-headless-affordances P4). A host with no
 // browser of its own (a chat agent in a Linux sandbox) can only hand the operator a FILE, and a
 // hand-written viewer that fetches `./model.glb` dies on file:// (CORS, origin null). This is the
-// same self-contained page /world serves for `?download=1`: three.js + OrbitControls ride an
-// inline `data:` importmap, the baked scene is inline, walk mode + HUD are in the page. It opens
-// from file:// with no server and no network. Pure function of the resolved payload — same row,
-// same bytes. `walk` follows the /world route's rule (the payload's flag or the kind's default).
-// `cdn: true` (remote-worker exports P2) swaps the ~1 MB of `data:` three.js for the pinned
-// jsdelivr importmap the emitter already carries (emit-util.js CDN_IMPORTMAP) — for a host whose
-// page door has a byte limit and allows that CDN (the claude-code box does). Needs network, so
-// file:// is out; the note says so. Off by default: the self-contained page is byte-identical.
-function htmlExport(payload, { kind, cdn = false }) {
+// page /world serves for `?download=1`: the baked scene is inline, walk mode + HUD are in the
+// page. Pure function of the resolved payload — same row, same bytes. `walk` follows the /world
+// route's rule (the payload's flag or the kind's default). Only three.js delivery varies, on
+// `cdn` below — `cdn: false` is the fully self-contained build that opens with no network at all.
+// `cdn` (default TRUE since cdn-default) points the importmap at the pinned jsdelivr path the
+// emitter already carries (emit-util.js CDN_IMPORTMAP) instead of ~1 MB of inline `data:`
+// modules. The reason is NOT bytes: an artifact host refuses `data:` scripts under its CSP
+// `script-src` at any size, so the self-contained page renders black there however small it is.
+// The failure directions are asymmetric — a CDN page fails only with no network, an inline page
+// fails on every web host — so the default points at the rarer failure. `cdn: false` is the
+// self-contained build, unchanged and still byte-identical to 2.0.7.
+function htmlExport(payload, { kind, cdn = true }) {
   const walk = Boolean(payload.walk || WALK_KINDS.has(kind));
   const html = emitThreeWorld({ ...payload, walk, inline: !cdn, cdn });
   const bytes = Buffer.from(html, 'utf8');
@@ -174,9 +179,10 @@ function htmlExport(payload, { kind, cdn = false }) {
 export const HTML_FILE_NOTE = 'Open it straight from the filesystem (file://) — no server, no network: three.js and the '
   + 'scene are inline. Orbit with the mouse; walk where the HUD offers it. A soundtrack is the one channel some '
   + 'browsers block from file://; a static server (`npx serve .`) restores it.';
-export const HTML_CDN_NOTE = 'three.js loads from cdn.jsdelivr.net (pinned), so the page needs network and will NOT open '
-  + 'from file://; the scene itself is inline. Orbit with the mouse; walk where the HUD offers it. '
-  + 'Re-export without `cdn` for the self-contained page.';
+export const HTML_CDN_NOTE = 'three.js loads from cdn.jsdelivr.net (pinned) — the form a page door that refuses inline '
+  + '`data:` scripts (an artifact host\'s CSP) will actually run; the scene itself is inline. The page needs network and '
+  + 'will NOT open from file://. Orbit with the mouse; walk where the HUD offers it. '
+  + '`cdn: false` writes `world.offline.html`, the self-contained page that opens from disk.';
 
 // ── format: 'bundle' (remote-worker exports P3) ───────────────────────────────────────────────
 // The one file every host's door accepts: a zip — the self-contained page, the mesh, the STL
@@ -291,20 +297,33 @@ async function bundleExport(input, context) {
   const { ref } = input;
   // The legs write into the same outcome folder the zip lands in, so the folder itself is
   // complete beside the archive (recipe.json + README.md come from the legs).
-  const page = await exportModelHandler({ ref, format: 'html' }, context);
+  // `cdn: false` is LOAD-BEARING, not a leftover: the zip is a download the operator unzips and
+  // opens from disk, so its page must carry its own three.js. The handler's default flipped to
+  // the CDN build for the artifact door (cdn-default); the bundle opts back out explicitly, and
+  // a test asserts the zipped page references no CDN. Removing this reverts the README's
+  // "save it, unzip it, open world.html from disk" promise to a lie.
+  const page = await exportModelHandler({ ref, format: 'html', cdn: false }, context);
   if (!page.ok) return page; // ineligible answers the same { ok:false, eligible:false }
   const glb = await exportModelHandler({ ref, format: 'glb' }, context);
   const kind = page.kind;
   const literal = printProfileFor(kind) === 'literal';
   const stl = literal ? await exportModelHandler({ ref, format: 'stl' }, context) : null;
   const dir = page.dir;
-  const names = ['README.md', 'recipe.json', modelFileName('html'), modelFileName('glb'), ...(stl ? [modelFileName('stl')] : [])].sort();
+  // Inside the zip the page is plain `world.html` — that is the name the README, the courier and
+  // README.md all promise, and inside an archive there is no second html build to collide with.
+  // On DISK the leg wrote it as `world.offline.html` (it asked for `cdn: false`), so the entry
+  // reads from that path under the zip's name.
+  const ZIP_PAGE = 'world.html';
+  const DISK_PAGE = modelFileName('html', { cdn: false });
+  const diskName = (name) => (name === ZIP_PAGE ? DISK_PAGE : name);
+  const names = ['README.md', 'recipe.json', ZIP_PAGE, modelFileName('glb'), ...(stl ? [modelFileName('stl')] : [])].sort();
   // README: the last leg's README plus the bundle's own section (what is in the zip, and why
   // the STL is or is not).
   const readmePath = path.join(dir, 'README.md');
   // The legs' README stamps `exported:` with the clock; the bundle's copy drops it so the zip
   // is reproducible — the manifest hash on the line above is the provenance that matters.
   const readme = (await fs.readFile(readmePath, 'utf8'))
+    .split(DISK_PAGE).join(ZIP_PAGE) // the leg's README names the on-disk build; in the zip it is world.html
     .replace(/^- exported: .*$/m, '- exported: (no timestamp — the bundle zips byte-identical; the manifest hash is the provenance)')
     .trimEnd() + '\n\n' + [
     '## Bundle',
@@ -319,7 +338,7 @@ async function bundleExport(input, context) {
   ].join('\n');
   await fs.writeFile(readmePath, readme);
   const entries = [];
-  for (const name of names) entries.push({ name, bytes: await fs.readFile(path.join(dir, name)) });
+  for (const name of names) entries.push({ name, bytes: await fs.readFile(path.join(dir, diskName(name))) });
   const zip = await zipEntries(entries);
   const file = path.join(dir, bundleFileName(ref));
   await fs.writeFile(file, zip);
@@ -417,7 +436,7 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '',
     '## Importing this file (Blender / Godot)',
     '',
-    ...(format === 'html' ? [`- HTML: \`world.html\` is the live World page itself, not a mesh. ${HTML_FILE_NOTE} For a mesh, \`export_model({ ref, format: 'glb' })\`.`] : []),
+    ...(format === 'html' ? [`- HTML: \`${fileName}\` is the live World page itself, not a mesh. ${exported?.cdn ? HTML_CDN_NOTE : HTML_FILE_NOTE} For a mesh, \`export_model({ ref, format: 'glb' })\`.`] : []),
     '- Axes and scale: mojulo worlds are z-up; the GLB parents everything under a y-up-rotated `mojulo` root, so it imports upright with no axis settings, and when the recipe declares a unit (`units:\'cm\'`, or a kind\'s own authoring unit) the root is scaled by it (`moj:metersPerUnit`) so importers receive metres at true size. (STL and 3MF stay raw z-up, units as millimetres — 3MF declares them, STL assumes them. USD declares `upAxis = "Z"` and `metersPerUnit` from the recipe, so it too imports upright at true scale.)',
     ...(format === 'usda' || format === 'usdz' ? ['- USD: one Mesh per render group with per-vertex `displayColor` (untextured meshes bind no material — viewers show the colour directly); textured groups bind a UsdPreviewSurface + UsdUVTexture; repeats are PointInstancers; entities are Xforms whose `moj:` extras ride customData; spawn / colliders / game ride the layer customLayerData. Rig clips are not in USD yet (UsdSkel is roadmap).'] : []),
     ...(format === '3mf' ? ['- 3MF: one object per shell (the base geometry, then each instanced repeat) placed by build items; baked colours ride `basematerials` — map them to filaments on a multi-material printer, ignore them otherwise.'] : []),
@@ -480,7 +499,7 @@ export async function exportModelHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false, cdn = false } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false, cdn = true } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
@@ -491,7 +510,9 @@ export async function exportModelHandler(input, context = {}) {
   if (!FORMATS.includes(format)) {
     throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle' if provided");
   }
-  if (cdn && format !== 'html') throw new Error("`cdn: true` applies to `format: 'html'` only");
+  // `cdn` now defaults true, so only an EXPLICIT flag on a non-html format is a mistake worth
+  // throwing on — the default must stay silent for every mesh leg.
+  if ('cdn' in input && format !== 'html') throw new Error("`cdn` applies to `format: 'html'` only");
   // bundle is the legs zipped: it always writes (a folder product, like export_game).
   if (format === 'bundle') return bundleExport(input, context);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
@@ -646,9 +667,9 @@ export async function exportModelHandler(input, context = {}) {
     ...(isHtml ? { walk: exported.walk } : { vertices: exported.vertexCount, triangles: exported.triangleCount }),
   };
   if (isHtml) result.note = cdn
-    ? `world.cdn.html is ${exported.byteLength} bytes with three.js on the CDN. ${HTML_CDN_NOTE}`
-    : `world.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE}`;
-  if (isHtml && cdn) result.cdn = true;
+    ? `world.html is ${exported.byteLength} bytes with three.js on the CDN. ${HTML_CDN_NOTE}`
+    : `world.offline.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE}`;
+  result.cdn = isHtml ? Boolean(cdn) : false;
   // field solids (field-solids.plan.md F4): the honest ledger says in numbers what the recipe could
   // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
   // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
@@ -923,7 +944,9 @@ export async function exportModelHandler(input, context = {}) {
     result.path = file;
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
-    attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url });
+    // `inlineScripts` is what lets the artifact door raise its CSP caveat: the self-contained
+    // page carries three.js as `data:` modules, which that door refuses at any size.
+    attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url, ...(isHtml && !cdn ? { inlineScripts: true } : {}) });
     // "Where did my export land?" (grok-headless-affordances P3). The bins now seed
     // MOJULO_OUTCOMES_DIR, so this fires only when a bin ran WITHOUT the resolver's default and
     // the cwd fallback put the file inside the installed package (MOJULO_CONTROL_DIR is the

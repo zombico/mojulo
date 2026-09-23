@@ -27,6 +27,11 @@ function sheet(overrides = {}) {
 
 const polyCount = (svg) => (svg.match(/<polygon/g) || []).length;
 
+// ONE render of the default sheet, shared by the two tests that read it: each render fleshes
+// 2 outfits × 4 views of the protoform (~2s alone), and the renderer is deterministic.
+let baseSvg;
+const renderBase = () => (baseSvg ??= renderScaffoldSvg(sheet()));
+
 describe('character-sheet body channel (C1)', () => {
   it('the four turnaround columns map to four DISTINCT figure cameras (not repeats)', () => {
     const cams = Object.values(SHEET_VIEW_CAMERA);
@@ -42,7 +47,7 @@ describe('character-sheet body channel (C1)', () => {
   });
 
   it('renders filled figure guides (a real turnaround, not a stick strip)', () => {
-    const svg = renderScaffoldSvg(sheet());
+    const svg = renderBase();
     // 2 outfits × 4 views of a fleshed protoform = thousands of lit polygons.
     expect(polyCount(svg)).toBeGreaterThan(1000);
     // control mode (the paint scaffold) also renders the figures.
@@ -50,7 +55,7 @@ describe('character-sheet body channel (C1)', () => {
   });
 
   it('per-outfit garment changes the row while the body stays the same', () => {
-    const both = renderScaffoldSvg(sheet());
+    const both = renderBase();
     // Same sheet but both outfits share ONE garment → the two rows become
     // geometrically identical wardrobe; different-garment rows must diverge.
     const same = renderScaffoldSvg(sheet({

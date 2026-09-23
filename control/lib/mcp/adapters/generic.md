@@ -79,7 +79,7 @@ When you finish materializing, tell the user:
 
 ## Handing back an export
 
-Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`: with no host profile resolved it is the generic sentence — the file is at `path`, `world.html` opens straight from `file://` with no server and no network, and the `download_url` is reachable only from the machine mojulo runs on. If your host has a door of its own (an artifact tool, a file card, a PR), that is the move; `export_model({ ref, format: 'bundle' })` gives you one zip (page, mesh, STL for literal kinds, recipe, README) for a door that takes one file. Set `MOJULO_HOST=<profile id>` when a shipped profile in `control/lib/mcp/hosts/` matches your surface and the note will name that host's door.
+Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`: with no host profile resolved it is the generic sentence — the file is at `path`, `world.html` takes its three.js from the pinned jsdelivr CDN (`cdn: false` writes `world.offline.html`, which opens straight from `file://` with no server and no network), and the `download_url` is reachable only from the machine mojulo runs on. If your host has a door of its own (an artifact tool, a file card, a PR), that is the move; `export_model({ ref, format: 'bundle' })` gives you one zip (page, mesh, STL for literal kinds, recipe, README) for a door that takes one file. Set `MOJULO_HOST=<profile id>` when a shipped profile in `control/lib/mcp/hosts/` matches your surface and the note will name that host's door.
 
 ---
 

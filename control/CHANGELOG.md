@@ -12,6 +12,52 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Docs
+
+- **README and npm README name every box that has run mojulo.** The agent-box tier now lists the
+  hosts that have installed the package in their throwaway Linux box and driven it to a mint and an
+  export: the Claude app (macOS, Windows, web, iOS; Claude Code on the web is that app), ChatGPT
+  work mode with Codex, Grok chat, and Meta Muse (iOS, web, macOS app, one session across all
+  three). The
+  Quickstart splits the box comment by what the box has: an MCP client (init with defaults) or a
+  shell only (`npx mojulo call`). The `package.json` description carries the same list. The
+  "verified on" sentence in both READMEs says which platform verified what, instead of folding the
+  box runs into a Linux CI clause.
+- **A who-ran-it-where matrix under "Where it runs"** in both READMEs: agents down, environments
+  across (macOS, Windows, the web agent's Linux box), a green tick for a persistent install on the
+  operator's machine and a blue tick for an ephemeral box run (the same glyph, two colours:
+  `docs/images/tick-green.svg` and `tick-blue.svg`, inline images because markdown cannot colour
+  text; the npm README points at the raw GitHub URLs), blank for not yet verified. Cells come from
+  the recorded runs: Claude Code and the Claude app on macOS and Windows, Codex, Grok Build and
+  Hermes Agent on macOS, and the box runs above. One row per vendor: Codex sits in the ChatGPT row, Grok Build and
+  Grok chat share a row, and Claude Code on the web is the Claude app's box. There is no Linux
+  column: a Linux run is the box.
+
+## [2.0.9] - 2026-09-23
+
+### cdn-default — the exported World page ships CDN-first
+
+- **The exported World page loads three.js from the CDN by default.** `export_model({ format:
+  'html' })` now writes a `world.html` whose importmap points at the pinned jsdelivr path;
+  `cdn: false` writes the self-contained `world.offline.html` that opens from `file://` with no
+  server and no network. The names follow the content, so the default export carries the obvious
+  name and nothing silently changes meaning inside the bundle.
+- **Why the flip: the constraint was never bytes.** 2.0.8 shipped `cdn: true` as a size lever
+  ("for a page door with a byte limit"). The artifact host actually refuses `data:` scripts under
+  its CSP `script-src` at ANY size — a 2 MiB page clears the 16 MiB door and still renders black.
+  A CDN page fails only for a viewer with no network; an inline page fails on every web host,
+  every time. The default now points at the rarer failure.
+- **The handoff note says it before it bites.** `pageSentence`'s `artifact` case no longer hides
+  the CDN advisory inside the over-budget branch, so a page that FITS the door is no longer told
+  it is fine when it is about to be blocked. The `handoff.box.cdns` field that `claude-code.json`
+  has declared since 2.0.8 is finally read instead of merely asserted.
+- **The bundle stays offline on purpose.** `export_model({ format: 'bundle' })` opts its page
+  back into the self-contained build: the zip is a download, unzipped and opened from disk, so
+  the README's "open `world.html` from disk" promise still holds inside the archive.
+- **`export_game` gains the same `cdn` option**, defaulting on, threaded to every page role
+  (level, menu, preview). An exported game could not be published as an artifact page at all
+  before this — `emitWorldPage` hardcoded `inline: true` with no flag to reach.
+
 ## [2.0.8] - 2026-09-22
 
 ### Remote worker exports

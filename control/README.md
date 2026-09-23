@@ -32,8 +32,9 @@ Prerequisite: **Node.js 22.12+** (`node --version`). Everything below runs throu
 `npx`, which ships with Node — if you don't have it, install it from
 [nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
 No provider key: your agent is the reasoning loop. Verified on macOS (Apple Silicon),
-on native Windows (`init` and a first render, under Claude Code), and, for a cold
-install, on Linux x64 and arm64.
+on native Windows (`init` and a first render, under Claude Code), and on Linux x64 in
+the throwaway boxes of the Claude app and web, ChatGPT work mode with Codex, Grok chat and Meta Muse,
+each run to a mint and an export; a cold install is also checked on Linux arm64.
 
 ```bash
 # 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
@@ -57,11 +58,13 @@ npx mojulo init
 #      generate a 3D city at night        → a world; open the /scene URL
 #      turn that into a game              → a game; export it for Godot
 
-# 3. In your agent's own box (Claude Code on the web, a Codex cloud task),
-#    nobody is at a keyboard — init takes its defaults and skips the dashboard:
+# 3. In your agent's own box with an MCP client (Claude Code on the web, a
+#    Codex cloud task), nobody is at a keyboard — init takes its defaults and
+#    skips the dashboard:
 #      npx -y mojulo init --yes --no-ui
-#    A sandbox with no MCP client (Grok chat) skips init and drives the same
-#    registry from the shell:  npx mojulo call <tool> --json '{…}'
+#    A box with no MCP client (Grok chat, ChatGPT work mode, the Claude app,
+#    Meta Muse) skips init and drives the same registry from the shell:
+#      npx mojulo call <tool> --json '{…}'
 #    Ask for format 'bundle' on the way out: one zip, recipe included, that
 #    re-mints byte for byte on your own machine.
 
@@ -118,21 +121,35 @@ other. Two shapes, one install.
 **In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
 throwaway Linux box it gives itself:
 
-- Claude Code on the web, Grok chat: *Open a Linux box and install the mojulo npm package in it.*
-- ChatGPT: *On work mode, open a Linux box and install the mojulo npm package in it.*
+- The Claude app (macOS, Windows, web, iOS); Grok chat; Meta Muse (iOS, web, macOS app, one session
+  across all three): *Open a Linux box and install the mojulo npm package in it.*
+- ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
+  it.*
 
-All three have been run this way. You get the same recipes and the same exports, handed back as
-files: the export result names this host's door, an artifact, a PR or a file card. The box has no
-dashboard you can reach, a scene-to-PNG bake needs a browser it may not be allowed to fetch, and it is
-gone when the session ends, so ask for the bundle (one zip: `world.html`, mesh, print STL for
-literal-scale objects, `recipe.json`, README) and keep the recipe. Claude Code on the web built a
-47-part phone at true scale this way and handed back the glTF; Grok chat's sandbox minted a city from
-the shell. Blender installs in those boxes too.
+Each of those has been run this way, from the sentence to a mint and an export handed back. You get
+the same recipes and the same exports, as files: the export result names this host's door, an
+artifact page, a PR or a file card. The box has no dashboard you can reach, a scene-to-PNG bake needs a
+browser it may not be allowed to fetch, and it is gone when the session ends, so ask for the bundle
+(one zip: `world.html`, mesh, print STL for literal-scale objects, `recipe.json`, README) and keep
+the recipe. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
+Grok chat's sandbox minted a city from the shell. Blender installs in those boxes too.
 
 **On your machine: macOS, Windows, Linux.** `npx mojulo init` wires mojulo into the agents it finds,
 opens the dashboard at `localhost:3001`, keeps everything under `~/.mojulo/`, and probes your PATH for
 the optional local workers (Blender, a slicer, OpenSCAD, the game engines). This is the whole loop, and
 where a recipe from a box comes home to.
+
+Who has run it where. <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> persistent (your machine; `~/.mojulo/` stays) · <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> ephemeral (the web
+agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not "does not work".
+
+| agent | macOS | Windows | Web Agent Linux Box |
+|---|:-:|:-:|:-:|
+| Claude Code | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | |
+| Claude app (macOS, Windows, web, iOS) | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
+| ChatGPT (work mode; Codex) | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> Codex | | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
+| Hermes Agent | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | | |
+| Grok (Build; chat) | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> Build | | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
+| Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
 
 Three add-ons, the same choice in both places:
 

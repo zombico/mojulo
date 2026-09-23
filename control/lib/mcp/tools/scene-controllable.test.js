@@ -21,11 +21,21 @@ const hero = (over = {}) => ({
 });
 const contract = (levelRef) => ({ levelRef, produces: { results: ['success'], events: [] } });
 
+// The shared map declares NO figures: resolveWorldScene bakes every figures-map entry (24 walk
+// frames of a fleshed protoform, seconds each) whether or not the level's entities reference it,
+// and the level-resolve tests below only read terrain + entities. The figure has its own map.
 function mintToyMap() {
   if (SketchRepository.getByRef('sk_toy_map')) return;   // one :memory: DB per file
   return mintControllableWorld({
     ref: 'sk_toy_map', title: 'toy map', faces: FLOOR,
     entities: [{ ...hero(), pilotable: true }],   // a one-body roster for the match-channel tests
+  });
+}
+function mintToyFigMap() {
+  if (SketchRepository.getByRef('sk_toy_map_fig')) return;
+  return mintControllableWorld({
+    ref: 'sk_toy_map_fig', title: 'toy map (figure)', faces: FLOOR,
+    entities: [{ ...hero(), pilotable: true }],
     figures: { guy: { motion: 'walk', proto: 'male' } },
   });
 }
@@ -63,9 +73,9 @@ describe('mapRef at the mint surface', () => {
   });
 
   it('validates figure references against the MERGED form (figures live on the map)', () => {
-    mintToyMap();
+    mintToyFigMap();
     const res = mintControllableWorld({
-      ref: 'sk_toy_lv_fig', title: 'Toy · Figure', mapRef: 'sk_toy_map',
+      ref: 'sk_toy_lv_fig', title: 'Toy · Figure', mapRef: 'sk_toy_map_fig',
       entities: [hero({ body: { type: 'figure-frames', figure: 'guy' } })],
     });
     expect(res.ok).toBe(true);

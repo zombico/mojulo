@@ -23,10 +23,28 @@ describe('handoffFor', () => {
     expect(n.verified).toBe('field');
   });
 
-  it('claude-code + page over budget: still a note, never a refusal, with the cdn move', () => {
+  // cdn-default: the regression the flip exists for. Before it, the CSP advisory rode inside
+  // the over-budget branch, so a page that FITS the 16 MiB door — the overwhelmingly common
+  // case — was waved through and then rendered black behind the host's `script-src`. Size and
+  // CSP are independent facts about the door and each gets its own caveat.
+  it('claude-code + an inline-script page that FITS: the CSP caveat fires on size alone being fine', () => {
+    const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, name: 'world.offline.html', bytes: 2 * 1024 * 1024, inlineScripts: true } });
+    expect(n.next).toMatch(/publish world\.offline\.html/);
+    expect(n.caveats[0]).toMatch(/refuses at ANY size/);
+    expect(n.caveats[0]).toMatch(/cdn\.jsdelivr\.net\/npm\//);
+    // it fits, so NO byte caveat rides along
+    expect(n.caveats.join(' ')).not.toMatch(/over this host's page limit/);
+  });
+
+  it('claude-code + the default CDN page that fits: no CSP caveat at all', () => {
+    const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, bytes: 2 * 1024 * 1024 } });
+    expect(n.caveats.join(' ')).not.toMatch(/CSP|ANY size/);
+  });
+
+  it('claude-code + page over budget: still a note, never a refusal', () => {
     const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, bytes: 17 * 1024 * 1024 } });
     expect(n.next).toMatch(/publish world\.html/);
-    expect(n.caveats[0]).toMatch(/over this host's page limit by 1\.0 MiB.*cdn: true/);
+    expect(n.caveats[0]).toMatch(/over this host's page limit by 1\.0 MiB.*lighten the recipe/);
   });
 
   it('claude-code + glb + box: glb is off the download allowlist, the bundle is the move', () => {
@@ -85,7 +103,11 @@ describe('handoffFor', () => {
   it('unknown host: the generic file:// sentence and the loopback caveat', () => {
     const n = handoffFor({ host: null, artifact: PAGE });
     expect(n.door).toBeNull();
-    expect(n.next).toBe('the page is at /box/outcomes/sk_x/world.html; it opens straight from file:// — no server, no network');
+    // cdn-default: the default page needs the network for its three.js, so the generic sentence
+    // no longer promises otherwise; the self-contained build is the one that keeps that promise.
+    expect(n.next).toBe('the page is at /box/outcomes/sk_x/world.html; it opens straight from file:// — needs the network for three.js (`cdn: false` writes the self-contained page)');
+    const offline = handoffFor({ artifact: { ...PAGE, name: 'world.offline.html', inlineScripts: true } });
+    expect(offline.next).toMatch(/no server, no network$/);
     expect(n.caveats).toEqual(['/outcomes/sk_x/world.html is reachable only from the machine mojulo runs on']);
     expect(handoffFor({ host: 'no-such-host', artifact: GLB }).next).toBe('the file is at /box/outcomes/sk_x/model.glb');
   });

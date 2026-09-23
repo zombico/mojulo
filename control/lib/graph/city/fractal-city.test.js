@@ -1,7 +1,32 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// The statistical gates in this file are SWEEPS, not unit checks: the temple-form
+// test alone plans 630 depth-3 cities (150 seeds x 3 locales, then 90 x 2 for the
+// mosque ratios), and the tenancy gate runs 60 seeds per config. The sample sizes
+// ARE the assertion — shrinking them to fit a clock would weaken the ratio claims
+// they exist to make — so the budget has to match the work instead. At the suite's
+// 30s default these sat at 31-47s under full parallel load and flaked as timeouts,
+// and the 30s ceiling fires inconsistently besides (a sweep that never reaches a
+// real async boundary can overrun it and still pass), which is what made them
+// intermittent rather than simply red. Nothing here is slow by accident.
+vi.setConfig({ testTimeout: 120000 });
 
 import { assembleFractalCityScene, normalizeFractalCityElements, planFractalCity, normalizeCityBlocks, expandCityBlockMap, normalizeCityFidelity, lodClassCensus, cityThemeAdapter, STOREY_H } from './fractal-city.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
+
+// ONE plan per (locale, seed) for the religious-place sampling below. The planner seeds AT MOST
+// one religious place per scene (church, mosque, or temple, all `class: 'religious'`) and is
+// deterministic, so every sampler can read the same box. Before this the seven samplers re-planned
+// ~1950 depth-3 cities between them at 60-150 seeds each, and two of them crossed the suite's 30s
+// per-test ceiling under full parallel load. Keep new samplers on `religiousAt`.
+const RELIGIOUS = new Map();
+const religiousAt = (locale, seed) => {
+  const k = `${locale}:${seed}`;
+  if (!RELIGIOUS.has(k)) {
+    RELIGIOUS.set(k, planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale }).boxes.find((b) => b.class === 'religious') ?? null);
+  }
+  return RELIGIOUS.get(k);
+};
 
 describe('fractal-city recipe elements', () => {
   it('normalizes concise element lists into deterministic generation flags', () => {
@@ -259,9 +284,8 @@ describe('fractal-city recipe elements', () => {
     const counts = { chapel: 0, basilica: 0, orthodox: 0 };
     let chapelArea = 0, chapelN = 0, basiArea = 0, basiN = 0;
     for (let seed = 1; seed <= 60; seed++) {
-      const church = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale: 'europe' })
-        .boxes.find((b) => b.shape === 'church');
-      if (!church) continue;   // some europe seeds are mosques — this test is about church variants
+      const church = religiousAt('europe', seed);
+      if (church?.shape !== 'church') continue;   // some europe seeds are mosques — this test is about church variants
       expect(['chapel', 'basilica', 'orthodox']).toContain(church.churchVariant);
       counts[church.churchVariant] += 1;
       if (church.churchVariant === 'basilica') { basiArea += church.w * church.d; basiN += 1; }
@@ -278,9 +302,8 @@ describe('fractal-city recipe elements', () => {
     const domeRate = (locale) => {
       let dome = 0, tot = 0;
       for (let seed = 1; seed <= 90; seed++) {
-        const church = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale })
-          .boxes.find((b) => b.shape === 'church');
-        if (church) { tot += 1; if (church.churchVariant === 'orthodox') dome += 1; }
+        const church = religiousAt(locale, seed);
+        if (church?.shape === 'church') { tot += 1; if (church.churchVariant === 'orthodox') dome += 1; }
       }
       return dome / tot;
     };
@@ -295,8 +318,7 @@ describe('fractal-city recipe elements', () => {
     const sample = (locale) => {
       let mosque = 0, tot = 0;
       for (let seed = 1; seed <= 90; seed++) {
-        const place = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale })
-          .boxes.find((b) => b.class === 'religious');
+        const place = religiousAt(locale, seed);
         if (place) { tot += 1; if (place.structure === 'mosque') mosque += 1; }
       }
       return mosque / tot;
@@ -309,9 +331,8 @@ describe('fractal-city recipe elements', () => {
     expect(ph).toBeGreaterThan(na);         // present in the Philippines, more than North America
     expect(ph).toBeLessThan(0.5);           // but still secondary to churches there
     // a mosque is the same religious-place class, tagged structure 'mosque' with shape 'mosque'
-    const m = planFractalCity({ seed: 1, anchor: 'tower', depth: 3, density: 1, locale: 'middle-east' })
-      .boxes.find((b) => b.structure === 'mosque');
-    expect(m).toBeTruthy();
+    const m = religiousAt('middle-east', 1);
+    expect(m?.structure).toBe('mosque');
     expect(m.class).toBe('religious');
     expect(m.shape).toBe('mosque');
   });
@@ -321,9 +342,8 @@ describe('fractal-city recipe elements', () => {
     const variants = (locale) => {
       const counts = { ottoman: 0, persian: 0, sahelian: 0, nusantara: 0 };
       for (let seed = 1; seed <= 120; seed++) {
-        const m = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale })
-          .boxes.find((b) => b.structure === 'mosque');
-        if (!m) continue;
+        const m = religiousAt(locale, seed);
+        if (m?.structure !== 'mosque') continue;
         expect(VALID).toContain(m.mosqueVariant);   // every mosque carries a known variant tag
         counts[m.mosqueVariant] += 1;
       }
@@ -342,15 +362,13 @@ describe('fractal-city recipe elements', () => {
 
   it('keeps the mosque variant out of locale-less / church seeds (no rng regression)', () => {
     // a western locale that almost always yields a church must not carry a mosqueVariant on the church
-    const church = planFractalCity({ seed: 1, anchor: 'tower', depth: 3, density: 1, locale: 'north-america' })
-      .boxes.find((b) => b.structure === 'church');
-    if (church) expect(church.mosqueVariant).toBeUndefined();
+    const church = religiousAt('north-america', 1);
+    if (church?.structure === 'church') expect(church.mosqueVariant).toBeUndefined();
     // an unlisted-variant mosque locale falls back to ottoman
     let sawDefaultRegionMosque = false;
     for (let seed = 1; seed <= 30; seed++) {
-      const m = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale: 'middle-east' })
-        .boxes.find((b) => b.structure === 'mosque');
-      if (m && m.mosqueVariant === 'ottoman') sawDefaultRegionMosque = true;
+      const m = religiousAt('middle-east', seed);
+      if (m?.structure === 'mosque' && m.mosqueVariant === 'ottoman') sawDefaultRegionMosque = true;
     }
     expect(sawDefaultRegionMosque).toBe(true);   // the Middle East still has ottoman mosques too
   });
@@ -359,7 +377,7 @@ describe('fractal-city recipe elements', () => {
     const shares = (locale) => {
       const c = { church: 0, mosque: 0, temple: 0, tot: 0 };
       for (let seed = 1; seed <= 120; seed++) {
-        const p = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale }).boxes.find((b) => b.class === 'religious');
+        const p = religiousAt(locale, seed);
         if (p) { c[p.structure] += 1; c.tot += 1; }
       }
       return c;
@@ -375,13 +393,13 @@ describe('fractal-city recipe elements', () => {
     expect(na.temple / na.tot).toBeLessThan(0.1);
   });
 
-  it('gives temples a regional FORM (pagoda / stupa / tibetan) and keeps mosque ratios byte-identical', () => {
+  it('gives temples a regional FORM (pagoda / stupa / tibetan)', () => {
     const VALID = ['pagoda', 'stupa', 'tibetan'];
     const variants = (locale) => {
       const counts = { pagoda: 0, stupa: 0, tibetan: 0 };
       for (let seed = 1; seed <= 150; seed++) {
-        const t = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale }).boxes.find((b) => b.structure === 'temple');
-        if (!t) continue;
+        const t = religiousAt(locale, seed);
+        if (t?.structure !== 'temple') continue;
         expect(VALID).toContain(t.templeVariant);
         counts[t.templeVariant] += 1;
       }
@@ -391,17 +409,9 @@ describe('fractal-city recipe elements', () => {
     expect(ea.pagoda).toBeGreaterThan(ea.tibetan + ea.stupa);   // East Asia → pagoda
     expect(him.tibetan).toBeGreaterThan(him.pagoda);            // Himalaya → tibetan monastery
     expect(ind.stupa).toBeGreaterThan(ind.pagoda);              // Indochina → Theravada stupa
-    // adding temples must not have shifted any mosque ratio (mosque is still decided first)
-    const mosqueShare = (locale) => {
-      let m = 0, tot = 0;
-      for (let seed = 1; seed <= 90; seed++) {
-        const p = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, locale }).boxes.find((b) => b.class === 'religious');
-        if (p) { tot += 1; if (p.structure === 'mosque') m += 1; }
-      }
-      return m / tot;
-    };
-    expect(mosqueShare('middle-east')).toBeGreaterThan(0.85);   // unchanged from the mosque-only contract
-    expect(mosqueShare('southeast-asia')).toBeGreaterThan(0.4);
+    // the mosque draw still comes first: 'seeds mosques as a relative from the same pool' above
+    // holds the mosque shares on these same seeds, so a temple draw that consumed dice ahead of
+    // it fails there — no second sampling pass needed here.
   });
 
   it('accepts locale aliases (us / ph) for the listed regions', () => {
@@ -504,32 +514,20 @@ describe('fractal-city budget invariants', () => {
     { anchor: 'tower', depth: 3, density: 1, elements: { streetcars: true } },
   ];
 
-  it('never places a building, lot, or townhouse inside an anchor footprint', () => {
-    for (const cfg of CONFIGS) for (let seed = 1; seed <= 60; seed += 1) {
-      const { boxes, grounds } = planFractalCity({ ...cfg, seed });
-      const towers = towerBoxes(boxes);
-      if (!towers.length) continue;
-      for (const b of boxes) {
-        if (b.kind !== 'building' && b.kind !== 'townhouse') continue;
-        expect(towers.some((t) => hit(t, { x: b.x, y: b.y, w: b.w, d: b.d }))).toBe(false);
-      }
-      for (const g of grounds.filter((x) => x.kind === 'lot-asphalt'))
-        expect(towers.some((t) => hit(t, g))).toBe(false);
-    }
-  });
-
-  it('keeps street furniture, crosswalks, and vehicles out of the anchor structure (tenancy)', () => {
+  it('never places a building, lot, townhouse, street furniture, crosswalk, or vehicle inside an anchor footprint (tenancy)', () => {
     // the guarantee is "nothing renders INSIDE the tower box". A cantilevered lamp ARM may
     // overhang the 0.7 clearance plaza (the ring) — realistic — so we test the strict box.
+    // Masses and dressing read the same 180 plans in ONE loop; two loops planned every city twice.
+    const MASS = new Set(['building', 'townhouse']);
     for (const cfg of CONFIGS) for (let seed = 1; seed <= 60; seed += 1) {
       const { boxes, grounds, faces } = planFractalCity({ ...cfg, seed });
       const towers = towerBoxes(boxes);
       if (!towers.length) continue;
       for (const b of boxes) {
-        if (!DOODAD.has(b.kind)) continue;
+        if (!MASS.has(b.kind) && !DOODAD.has(b.kind)) continue;
         expect(towers.some((t) => hit(t, { x: b.x, y: b.y, w: b.w, d: b.d }))).toBe(false);
       }
-      for (const g of grounds.filter((x) => typeof x.kind === 'string' && x.kind.startsWith('crosswalk')))
+      for (const g of grounds.filter((x) => x.kind === 'lot-asphalt' || (typeof x.kind === 'string' && x.kind.startsWith('crosswalk'))))
         expect(towers.some((t) => hit(t, g))).toBe(false);
       for (const f of faces) {
         if (!f.corners) continue;
@@ -541,7 +539,7 @@ describe('fractal-city budget invariants', () => {
 
   it('never plants an anchor on the streetcar corridor', () => {
     for (let seed = 1; seed <= 60; seed += 1) {
-      const { boxes } = planFractalCity({ anchor: 'tower', depth: 3, density: 1, subAnchorChance: 0.7, elements: { streetcars: true } });
+      const { boxes } = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, subAnchorChance: 0.7, elements: { streetcars: true } });
       const track = boxes.filter((b) => b.kind === 'tram-pole' || b.kind === 'platform-roof');
       if (!track.length) continue;
       for (const a of boxes.filter((b) => b.kind === 'anchor'))
@@ -1752,7 +1750,7 @@ describe('fractal-city frontage — the city uses its entrances', () => {
       }
     }
     expect(planFractalCity(DFLT).faces.some((f) => f.lobbyIdle)).toBe(false);   // people off ⇒ none
-  });
+  }, 60_000);   // six peopled + walked plans, ~6s alone: its own ceiling under full-suite load
 
   it('houses are road-aware: roadFaces from the grid, a lot with its road behind it turns to face it', () => {
     const H2M = { 'y-': '-y', 'y+': '+y', 'x-': '-x', 'x+': '+x' };

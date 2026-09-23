@@ -406,10 +406,30 @@ function structuredContentFor(context) {
 // Tool registrations run on first request rather than at module load. We use
 // dynamic import to avoid a circular dependency: tool modules import
 // `registerTool` from this file.
-let _registered = false;
+// Memoize the PROMISE, not a boolean. The body below is ~60 sequential dynamic
+// imports (plus ensureBookLoaded) BEFORE the first registerXTools() call, so a
+// flag flipped on entry let a second concurrent caller fall straight through to
+// an empty registry while the first was still importing — two cold MCP POSTs on
+// the route, or a vitest file whose tests each await this. Worse, the flag
+// latched on failure: an import that threw, or a test aborted mid-await by the
+// per-test timeout, left it `true`, so every later call was a silent no-op
+// against a never-populated registry. That is how one slow test cascaded into a
+// whole file of "Unknown tool". Awaiting the shared promise makes late callers
+// wait for real registration; clearing it on rejection lets the next caller
+// retry instead of inheriting the wreckage.
+let _registering = null;
 export async function ensureToolsRegistered() {
-  if (_registered) return;
-  _registered = true;
+  if (_registering) return _registering;
+  _registering = registerAllTools();
+  try {
+    await _registering;
+  } catch (err) {
+    _registering = null;
+    throw err;
+  }
+}
+
+async function registerAllTools() {
   const { registerContextTools } = await import('@/lib/mcp/tools/context');
   const { registerWorkedExampleTools } = await import('@/lib/mcp/tools/worked-examples');
   const { registerAdapterTools } = await import('@/lib/mcp/tools/adapters');

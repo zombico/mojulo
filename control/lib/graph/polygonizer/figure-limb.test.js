@@ -72,7 +72,7 @@ describe('the absent channel', () => {
       const all = Object.fromEntries(NEW_DIALS.map((d) => [d, 1]));
       expect(svg({ proto: { sex, ...all } })).toBe(bare);
     }
-  });
+  }, 60_000);   // 18 distinct renders, none repeatable: its own ceiling under full-suite load
 });
 
 describe('each dial moves its own stacks and no others', () => {

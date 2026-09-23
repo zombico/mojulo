@@ -55,8 +55,13 @@ describe('export_model format:html', () => {
     expect(a.url).toBe('/api/sketches/sk_nine_block_city/world?download=1');
     expect(a.path).toBe(path.join(process.env.MOJULO_OUTCOMES_DIR, CITY.ref, 'world.html'));
     expect(a.download_url).toBe('/outcomes/sk_nine_block_city/world.html');
+    // cdn-default: the DEFAULT page is the CDN build — `world.html`, three.js off jsdelivr,
+    // the only form an artifact host's CSP will execute. The self-contained build moved to
+    // `cdn: false` → `world.offline.html` and is asserted in its own test below.
+    expect(a.cdn).toBe(true);
     expect(a.note).toMatch(/file:\/\//);
-    expect(a.note).toMatch(/no server, no network/);
+    expect(a.note).toMatch(/cdn\.jsdelivr\.net/);
+    expect(a.note).toMatch(/will NOT open from file:\/\//);
     expect(a).not.toHaveProperty('home');
     expect(existsSync(path.join(a.dir, 'recipe.json'))).toBe(true);
     const readme = readFileSync(path.join(a.dir, 'README.md'), 'utf8');
@@ -65,17 +70,42 @@ describe('export_model format:html', () => {
 
     const html = readFileSync(a.path, 'utf8');
     expect(Buffer.byteLength(html)).toBe(a.bytes);
-    // Self-contained: three.js + OrbitControls ride an inline data: importmap; nothing
-    // is fetched from the vendor folder or the network.
+    // three.js rides the pinned jsdelivr importmap — NOT a `data:` module, which the artifact
+    // door's `script-src` refuses at any size, and not the loopback /vendor path either.
     expect(html).toMatch(/<script type="importmap">/);
-    expect(html).toMatch(/"three": ?"data:text\/javascript;base64,/);
+    expect(html).toMatch(/"three": ?"https:\/\/cdn\.jsdelivr\.net\/npm\/three@0\.184\.0\/build\/three\.module\.min\.js"/);
+    expect(html).not.toMatch(/data:text\/javascript;base64/);
     expect(html).not.toMatch(/\/vendor\/three/);
-    expect(html).not.toMatch(/https?:\/\//);
+    expect(html).not.toMatch(/127\.0\.0\.1|localhost/);
+    // every external URL is on the artifact door's CDN allowlist — one origin, the pinned one
+    for (const url of html.match(/https?:\/\/[^"'\s)]+/g) ?? []) {
+      expect(url.startsWith('https://cdn.jsdelivr.net/npm/')).toBe(true);
+    }
 
     // Deterministic: the same row emits the same bytes.
     const b = await exportModelHandler({ ref: CITY.ref, format: 'html' });
     expect(b.bytes).toBe(a.bytes);
     expect(readFileSync(b.path, 'utf8')).toBe(html);
+  }, 120_000);
+
+  it("cdn:false writes the self-contained world.offline.html beside it, unchanged", async () => {
+    const cdnPage = await exportModelHandler({ ref: CITY.ref, format: 'html' });
+    const off = await exportModelHandler({ ref: CITY.ref, format: 'html', cdn: false });
+    expect(off.ok).toBe(true);
+    expect(off.cdn).toBe(false);
+    // its own file: the default CDN page on disk is never overwritten by the offline build
+    expect(off.path).toBe(path.join(cdnPage.dir, 'world.offline.html'));
+    expect(off.download_url).toBe(`/outcomes/${CITY.ref}/world.offline.html`);
+    expect(existsSync(cdnPage.path)).toBe(true);
+    expect(off.note).toMatch(/no server, no network/);
+    const html = readFileSync(off.path, 'utf8');
+    expect(html).toMatch(/"three": ?"data:text\/javascript;base64,/);
+    expect(html).not.toMatch(/https?:\/\//);
+    // the ~1 MB of three.js is the whole difference between the two builds
+    expect(off.bytes - cdnPage.bytes).toBeGreaterThan(900_000);
+    // deterministic too
+    const again = await exportModelHandler({ ref: CITY.ref, format: 'html', cdn: false });
+    expect(again.bytes).toBe(off.bytes);
   }, 120_000);
 
   it('write:false returns the bytes without touching disk', async () => {

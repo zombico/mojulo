@@ -11,7 +11,13 @@
  *   4. resolveCast: aggregates, presets, array merge, explicit-over-aggregate, provenance;
  *   5. validateCast refuses a broken skeleton and allows unbounded taste.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// The render-pipeline gates build and render the WHOLE cast (every preset, bare and
+// dressed, plus a walk over each) — a few seconds of real geometry per preset, which
+// crossed the suite's 30s default under full parallel load and flaked as a timeout.
+// The per-preset coverage is the point of the gate, so widen the budget, not the gate.
+vi.setConfig({ testTimeout: 120000 });
 
 import { castArmature, resolveCast, validateCast, legLengthOf, armLengthOf, CAST_DEFAULT, CAST_KEYS, CAST_PRESETS, CAST_PRESET_NAMES } from './figure-cast.js';
 import { basePositions } from './figure-vajra.js';
@@ -410,7 +416,7 @@ describe('the cast through the render pipeline', () => {
       expect(frames).toHaveLength(4);
       for (const f of frames) expect(f).toContain('<svg');
     }
-  });
+  }, 60_000);   // every preset × 4 fleshed frames, nothing to cache: its own ceiling under full-suite load
 
   it('the exported rig is cast too, and the canonical rig is untouched', () => {
     expect(buildRig(DIMORPH.male)).toEqual(PROTOFORM_HUMAN_MALE);

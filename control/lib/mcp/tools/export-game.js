@@ -61,9 +61,14 @@ const PREVIEW_SRC = (ref) => `levels/preview-${ref}.html`;
  *   level   → ?walk=1&hud=0  (walk forced on, dev chrome off)
  *   menu    → ?hud=0         (walk per the world's own default)
  *   preview → ?spin=1&hud=0  (turntable read, orbit only)
- * plus `inline: true` (the ?download=1 behavior) so the page carries its own three.js.
+ *
+ * three.js delivery follows `cdn` (default TRUE, cdn-default): the pinned jsdelivr importmap,
+ * which is the only form a page door running a CSP will execute — an artifact host refuses
+ * inline `data:` modules at ANY size, so before this flag an exported game simply could not be
+ * published as a page. `cdn: false` restores `inline: true` (the ?download=1 behavior) and the
+ * page carries its own three.js, for a folder served from disk or committed to Pages offline.
  */
-async function emitWorldPage(sketch, role) {
+async function emitWorldPage(sketch, role, { cdn = true } = {}) {
   const { payload, kind } = await resolveWorldScene(sketch);
   if (!payload) {
     throw new Error(`'${sketch.ref}' has no traversable World form (kind '${kind ?? sketch.manifest?.kind}') — it cannot ship as a ${role} page`);
@@ -87,7 +92,8 @@ async function emitWorldPage(sketch, role) {
     spin: role === 'preview',
     decollide: true,
     hud: false,
-    inline: true,
+    inline: !cdn,
+    cdn,
   });
 }
 
@@ -257,7 +263,7 @@ function withHandoff(result, context, artifact) {
 
 export async function exportGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
-  const { ref, target, posture = null } = input;
+  const { ref, target, posture = null, cdn = true } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
 
   if (target === 'godot') {
@@ -487,7 +493,7 @@ export async function exportGameHandler(input, context = {}) {
   const mapRecipes = new Set();
   for (const lv of resolved.levels) {
     const levelSketch = getSketch(lv.ref);
-    await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level')));
+    await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn })));
     await writeRecipe(`recipe/${lv.ref}.json`, levelSketch.manifest);
     const mapRef = levelSketch.manifest?.mapRef;
     if (typeof mapRef === 'string' && !mapRecipes.has(mapRef)) {
@@ -501,7 +507,7 @@ export async function exportGameHandler(input, context = {}) {
   for (const en of norm.menu?.entries || []) {
     if (en.kind !== 'world') continue;
     const menuSketch = getSketch(en.ref);
-    await write(MENU_SRC(en.ref), await hoistShared(await emitWorldPage(menuSketch, 'menu')));
+    await write(MENU_SRC(en.ref), await hoistShared(await emitWorldPage(menuSketch, 'menu', { cdn })));
     await writeRecipe(`recipe/${en.ref}.json`, menuSketch.manifest);
   }
 
@@ -520,13 +526,13 @@ export async function exportGameHandler(input, context = {}) {
         await write(PORTRAIT_SRC(card.portrait), await rasterizeSketchToPng(getSketch(card.portrait), { scale: 2 }));
       }
       if (card.preview) {
-        await write(PREVIEW_SRC(card.preview), await hoistShared(await emitWorldPage(getSketch(card.preview), 'preview')));
+        await write(PREVIEW_SRC(card.preview), await hoistShared(await emitWorldPage(getSketch(card.preview), 'preview', { cdn })));
       }
       // per-livery preview turntables (livery-ingame): one page per swatch so the setup carousel
       // repaints offline too. De-duped against card.preview (the default livery reuses it).
       for (const l of (card.liveries || [])) {
         if (l && l.preview && l.preview !== card.preview) {
-          await write(PREVIEW_SRC(l.preview), await hoistShared(await emitWorldPage(getSketch(l.preview), 'preview')));
+          await write(PREVIEW_SRC(l.preview), await hoistShared(await emitWorldPage(getSketch(l.preview), 'preview', { cdn })));
         }
       }
     }
@@ -552,13 +558,13 @@ export function registerExportGameTools() {
   registerTool({
     name: 'export_game',
     description:
-      'Materialize a stored game as a SELF-CONTAINED folder to share — the game '
+      'Materialize a stored game as a portable folder to share — the game '
       + 'sibling of export_model / export_beats, and the first leg of publishing a playable artifact '
       + '(the folder is `git init && gh repo create` away from a GitHub-Pages URL). '
       + 'Pass a game `ref` (a create_game / create_pixelizer_game sketch). Writes '
-      + '`data/outcomes/<ref>/`: `game.html` (the shell), `levels/<ref>.html` (three.js + world '
-      + 'geometry inlined; heavy figure/geometry banks hoisted into shared `assets/` — serve over '
-      + 'HTTP, file:// does not load levels), `assets/<ref>.wav` (the shell score), and '
+      + '`data/outcomes/<ref>/`: `game.html` (the shell), `levels/<ref>.html` (geometry inlined, '
+      + 'three.js off the pinned CDN, `cdn: false` inlines it; banks hoisted to `assets/` — serve '
+      + 'over HTTP, file:// does not load levels), `assets/<ref>.wav` (the shell score), and '
       + '`recipe/*.json` (the SOVEREIGN manifests — anyone with mojulo re-mints) + a README. '
       + 'Deterministic; previews at `/outcomes/<ref>/game.html`, exactly what ships. Slow for big '
       + 'games (each level is a full world bake). Reach for "export this '
@@ -574,6 +580,7 @@ export function registerExportGameTools() {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
         target: { type: 'string', enum: ['web', 'godot', 'unity', 'unreal'], description: 'Optional. Default `web` (the self-contained folder). `godot`/`unity`/`unreal` emit the engine pack instead.' },
         posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
+        cdn: { type: 'boolean', description: "web target only. Default true: level/menu/preview pages load three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute. `false` inlines three.js in every page (~1 MB each) for a folder that must work with no network." },
       },
       required: ['ref'],
     },
