@@ -21,6 +21,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { etagFor, pickFlags, renderCacheKey } from '@/lib/graph/sketch/render-etag';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
+import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
+import { cityStreamPayload, cityStreamRecipe, streamDropped, streamStandDown } from '@/lib/graph/city/city-tiles';
 
 // ── server-side WORLD-HTML cache ──────────────────────────────────────────────
 // A /world response is a PURE function of (manifest recipe, query flags): the same
@@ -48,7 +50,8 @@ const WORLD_CACHE_BUDGET = (Number(process.env.MOJULO_WORLD_CACHE_MB) > 0
 // (render-etag.js). Bump WORLD_CACHE_VERSION when the emitter's output changes inside a
 // release and browsers should drop the pages they hold; a release bump does it on its own.
 const WORLD_CACHE_VERSION = 'v1';
-const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr'];
+// `stream` (world streaming, fractal-city): a streamed page and the whole page are different bakes.
+const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream'];
 
 function worldCacheKey(ref, manifest, search) {
   return renderCacheKey({ ref, manifest, flags: pickFlags(search, WORLD_FLAGS), version: WORLD_CACHE_VERSION });
@@ -91,7 +94,7 @@ function escapedJson(value) {
 // an upgrade changes the hash, so staleness is impossible). A matching If-None-Match short-circuits to 304 in GET before any
 // resolve work runs, so a replayed level skips the bake AND the tens-of-MB transfer/parse even
 // across server restarts. `?nocache=1` responses stay `no-store` (cacheKey null ⇒ no etag).
-function worldHtmlResponse(html, sketch, ref, download, cacheState, etag = null) {
+function worldHtmlResponse(html, sketch, ref, download, cacheState, etag = null, extra = null) {
   return new Response(html, {
     status: 200,
     headers: {
@@ -100,8 +103,21 @@ function worldHtmlResponse(html, sketch, ref, download, cacheState, etag = null)
       'Cache-Control': etag ? 'no-cache' : 'no-store',
       ...(etag ? { ETag: etag } : {}),
       'X-Mojulo-World-Cache': cacheState,
+      ...(extra || {}),
     },
   });
+}
+
+// ?stream=1 (world streaming): the fractal city's streamed page, or the reason it stood down. Pure
+// over the manifest + flags, so the cached and fresh responses carry the same header. Returns
+// { on, header } — header null when the flag was not asked for (the response is unchanged).
+function streamDecision(sketch, search) {
+  if (!['1', 'true'].includes(search.get('stream'))) return { on: false, header: null };
+  const download = ['1', 'true'].includes(search.get('download'));
+  const reason = streamStandDown(sketch.manifest, { download });
+  if (reason) return { on: false, header: { 'X-Mojulo-World-Stream': `stood-down: ${reason}` } };
+  const dropped = streamDropped(sketch.manifest);
+  return { on: true, header: { 'X-Mojulo-World-Stream': dropped.length ? `on; dropped: ${dropped.join(', ')}` : 'on' } };
 }
 
 function glbViewerHtml({ ref, title }) {
@@ -271,9 +287,10 @@ export async function GET(request, { params }) {
       // browser already holds THIS bake (same manifest + flags) — revalidate without resolving.
       return new Response(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'no-cache', 'X-Mojulo-World-Cache': 'BROWSER' } });
     }
+    const streamed = streamDecision(sketch, search);
     if (cacheKey) {
       const cached = worldCacheGet(cacheKey);
-      if (cached) return worldHtmlResponse(cached, sketch, ref, ['1', 'true'].includes(search.get('download')), 'HIT', etag);
+      if (cached) return worldHtmlResponse(cached, sketch, ref, ['1', 'true'].includes(search.get('download')), 'HIT', etag, streamed.header);
     }
 
     // The kind → assemble*Scene dispatch lives in lib/graph/world-scene.js so the live
@@ -286,7 +303,21 @@ export async function GET(request, { params }) {
     const render = request.nextUrl.searchParams.get('render') || undefined;
     // ?livery=<shelf name> repaints a z-series assembler unit onto another livery (hangar swatches).
     const livery = request.nextUrl.searchParams.get('livery') || undefined;
-    const { payload, kind } = await resolveWorldScene(sketch, { view, render, livery });
+    // ?stream=1 on a fractal city that can stream: the horizon page (city-tiles.js) — nothing at
+    // full fidelity is inlined; the page fetches it from the tile route. walk / xr ride the manifest
+    // exactly as resolveWorldScene carries them.
+    let payload, kind;
+    if (streamed.on) {
+      kind = 'fractal-city';
+      payload = cityStreamPayload(cityStreamRecipe(sketch.manifest, resolveCityInsets(sketch.manifest)), {
+        url: `/api/sketches/${encodeURIComponent(ref)}/world/tile`,
+        title: sketch.title || sketch.manifest.title || 'mojulo city',
+      });
+      if (sketch.manifest.walk) payload.walk = sketch.manifest.walk;
+      if (sketch.manifest.xr) payload.xr = sketch.manifest.xr;
+    } else {
+      ({ payload, kind } = await resolveWorldScene(sketch, { view, render, livery }));
+    }
 
     if (!payload) {
       return NextResponse.json({
@@ -336,7 +367,7 @@ export async function GET(request, { params }) {
     const xr = ['0', 'false'].includes(xrParam) ? null : (['1', 'true'].includes(xrParam) ? (payload.xr || true) : (payload.xr || null));
     const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr });
     if (cacheKey) worldCacheSet(cacheKey, html);
-    return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag);
+    return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag, streamed.header);
   } catch (err) {
     return NextResponse.json(
       { error: err.message || 'Failed to render sketch world' },
